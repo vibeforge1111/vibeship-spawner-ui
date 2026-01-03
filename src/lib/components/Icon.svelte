@@ -85,5 +85,30 @@
 		<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
 		<polyline points="15 3 21 3 21 9" />
 		<line x1="10" y1="14" x2="21" y2="3" />
+	{:else if name === 'crown'}
+		<path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14" />
+	{:else if name === 'star'}
+		<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+	{:else if name === 'search'}
+		<circle cx="11" cy="11" r="8" />
+		<line x1="21" y1="21" x2="16.65" y2="16.65" />
+	{:else if name === 'tag'}
+		<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+		<line x1="7" y1="7" x2="7.01" y2="7" />
+	{:else if name === 'cpu'}
+		<rect x="4" y="4" width="16" height="16" rx="2" ry="2" />
+		<rect x="9" y="9" width="6" height="6" />
+		<line x1="9" y1="1" x2="9" y2="4" />
+		<line x1="15" y1="1" x2="15" y2="4" />
+		<line x1="9" y1="20" x2="9" y2="23" />
+		<line x1="15" y1="20" x2="15" y2="23" />
+		<line x1="20" y1="9" x2="23" y2="9" />
+		<line x1="20" y1="14" x2="23" y2="14" />
+		<line x1="1" y1="9" x2="4" y2="9" />
+		<line x1="1" y1="14" x2="4" y2="14" />
+	{:else if name === 'filter'}
+		<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+	{:else if name === 'chevron-right'}
+		<polyline points="9 18 15 12 9 6" />
 	{/if}
 </svg>

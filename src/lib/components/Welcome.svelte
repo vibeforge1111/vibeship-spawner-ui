@@ -67,14 +67,25 @@
 	<!-- Hero Section -->
 	<section class="max-w-6xl mx-auto px-6 pt-20 pb-16">
 		<div class="text-center mb-16 animate-fade-in">
-			<p class="text-accent-primary font-mono text-sm mb-4 tracking-wider">THE VIBE CODING ECOSYSTEM</p>
+			<p class="text-accent-primary font-mono text-sm mb-4 tracking-wider">SKILLED AGENTS + SEMANTIC MEMORY</p>
 			<h1 class="text-display font-display text-text-primary mb-6">
-				Build with <span class="text-accent-primary">Claude</span>.<br/>
-				Ship with <span class="text-accent-primary">Confidence</span>.
+				Spawn <span class="text-accent-primary">Expert Agents</span>.<br/>
+				Build <span class="text-accent-primary">Automated Pipelines</span>.
 			</h1>
-			<p class="text-lg text-text-secondary max-w-2xl mx-auto">
-				Visual orchestration meets semantic memory. Connect skills, validate with sharp edges, deploy anywhere.
+			<p class="text-lg text-text-secondary max-w-2xl mx-auto mb-6">
+				273+ specialized skills transform Claude into domain experts. Chain them into pipelines.
+				Give your agents and teams persistent memory with Mind.
 			</p>
+			<div class="flex items-center justify-center gap-6 text-sm font-mono text-text-tertiary">
+				<span class="flex items-center gap-2">
+					<span class="w-2 h-2 bg-accent-primary"></span>
+					Better than vanilla Opus
+				</span>
+				<span class="flex items-center gap-2">
+					<span class="w-2 h-2 bg-accent-secondary"></span>
+					Memory that persists
+				</span>
+			</div>
 		</div>
 
 		<!-- Main Input -->
@@ -160,13 +171,28 @@
 	<!-- Ecosystem Callout -->
 	<section class="border-t border-surface-border">
 		<div class="max-w-6xl mx-auto px-6 py-16 text-center">
-			<p class="font-mono text-sm text-text-tertiary mb-4">MCP-NATIVE</p>
+			<p class="font-mono text-sm text-text-tertiary mb-4">MCP-NATIVE ORCHESTRATION</p>
 			<h2 class="text-2xl font-display font-semibold text-text-primary mb-4">
-				<span class="text-accent-secondary">Mind</span> + <span class="text-accent-primary">Spawner</span> = Full Stack Claude
+				<span class="text-accent-secondary">Mind</span> + <span class="text-accent-primary">Spawner</span> = Agents with Memory
 			</h2>
-			<p class="text-text-secondary max-w-xl mx-auto">
-				Semantic memory meets visual orchestration. Build complex AI workflows that remember context across sessions.
+			<p class="text-text-secondary max-w-xl mx-auto mb-8">
+				Your pipelines remember. Your agents learn. Your teams share context.
+				Build autonomous systems where every Claude instance has persistent memory.
 			</p>
+			<div class="flex flex-wrap items-center justify-center gap-8 text-sm">
+				<div class="text-center">
+					<p class="text-2xl font-display font-bold text-accent-primary mb-1">273+</p>
+					<p class="font-mono text-text-tertiary text-xs uppercase tracking-wider">Skills</p>
+				</div>
+				<div class="text-center">
+					<p class="text-2xl font-display font-bold text-accent-secondary mb-1">∞</p>
+					<p class="font-mono text-text-tertiary text-xs uppercase tracking-wider">Memory</p>
+				</div>
+				<div class="text-center">
+					<p class="text-2xl font-display font-bold text-text-primary mb-1">0</p>
+					<p class="font-mono text-text-tertiary text-xs uppercase tracking-wider">Context Lost</p>
+				</div>
+			</div>
 		</div>
 	</section>
 
