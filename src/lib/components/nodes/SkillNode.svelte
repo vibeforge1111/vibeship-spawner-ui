@@ -3,18 +3,24 @@
 
 	let {
 		data,
+		nodeId = '',
 		selected = false,
 		ghost = false,
 		collapsed = false,
 		onSelect,
-		onTest
+		onTest,
+		onPortDragStart,
+		onPortDragEnd
 	}: {
 		data: SkillNodeData;
+		nodeId?: string;
 		selected?: boolean;
 		ghost?: boolean;
 		collapsed?: boolean;
 		onSelect?: () => void;
 		onTest?: () => void;
+		onPortDragStart?: (portId: string, portType: 'input' | 'output', e: MouseEvent) => void;
+		onPortDragEnd?: (portId: string, portType: 'input' | 'output') => void;
 	} = $props();
 
 	// Category color mapping
@@ -42,10 +48,21 @@
 
 	const categoryColor = categoryColors[data.category] || 'bg-surface-active';
 	const badgeClass = categoryBadges[data.category] || '';
+
+	function handlePortMouseDown(e: MouseEvent, portId: string, portType: 'input' | 'output') {
+		e.stopPropagation();
+		e.preventDefault();
+		onPortDragStart?.(portId, portType, e);
+	}
+
+	function handlePortMouseUp(e: MouseEvent, portId: string, portType: 'input' | 'output') {
+		e.stopPropagation();
+		onPortDragEnd?.(portId, portType);
+	}
 </script>
 
 <div
-	class="node w-64 select-none"
+	class="node w-64 select-none relative"
 	class:selected
 	class:ghost
 	onclick={onSelect}
@@ -53,6 +70,36 @@
 	tabindex="0"
 	onkeydown={(e) => e.key === 'Enter' && onSelect?.()}
 >
+	<!-- Input port (left edge) -->
+	{#if data.inputs && data.inputs.length > 0}
+		<div 
+			class="port-handle port-input"
+			onmousedown={(e) => handlePortMouseDown(e, data.inputs[0].id, 'input')}
+			onmouseup={(e) => handlePortMouseUp(e, data.inputs[0].id, 'input')}
+			data-port-id={data.inputs[0].id}
+			data-port-type="input"
+			data-node-id={nodeId}
+			role="button"
+			tabindex="-1"
+			title="Input: {data.inputs[0].label}"
+		></div>
+	{/if}
+
+	<!-- Output port (right edge) -->
+	{#if data.outputs && data.outputs.length > 0}
+		<div 
+			class="port-handle port-output"
+			onmousedown={(e) => handlePortMouseDown(e, data.outputs[0].id, 'output')}
+			onmouseup={(e) => handlePortMouseUp(e, data.outputs[0].id, 'output')}
+			data-port-id={data.outputs[0].id}
+			data-port-type="output"
+			data-node-id={nodeId}
+			role="button"
+			tabindex="-1"
+			title="Output: {data.outputs[0].label}"
+		></div>
+	{/if}
+
 	<!-- Color accent bar -->
 	<div class="h-1 {categoryColor}"></div>
 
@@ -85,7 +132,7 @@
 				<p class="text-xs text-text-secondary mb-3 line-clamp-2">{data.description}</p>
 			{/if}
 
-			<!-- Input Ports -->
+			<!-- Input Ports Labels -->
 			{#if data.inputs && data.inputs.length > 0}
 				<div class="space-y-2 mb-3">
 					{#each data.inputs as input}
@@ -97,7 +144,7 @@
 				</div>
 			{/if}
 
-			<!-- Output Ports -->
+			<!-- Output Ports Labels -->
 			{#if data.outputs && data.outputs.length > 0}
 				<div class="space-y-2">
 					{#each data.outputs as output}
@@ -130,5 +177,42 @@
 		-webkit-line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
+	}
+
+	.port-handle {
+		position: absolute;
+		width: 14px;
+		height: 14px;
+		background: var(--bg-secondary);
+		border: 2px solid var(--accent-primary);
+		border-radius: 50%;
+		cursor: crosshair;
+		z-index: 10;
+		transition: transform 0.15s, background 0.15s;
+	}
+
+	.port-handle:hover {
+		transform: scale(1.3);
+		background: var(--accent-primary);
+	}
+
+	.port-input {
+		left: -7px;
+		top: 50%;
+		transform: translateY(-50%);
+	}
+
+	.port-input:hover {
+		transform: translateY(-50%) scale(1.3);
+	}
+
+	.port-output {
+		right: -7px;
+		top: 50%;
+		transform: translateY(-50%);
+	}
+
+	.port-output:hover {
+		transform: translateY(-50%) scale(1.3);
 	}
 </style>

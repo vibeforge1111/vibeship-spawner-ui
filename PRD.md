@@ -31,7 +31,7 @@ Spawner UI is a visual orchestration platform that lets anyone—from complete b
 | Feature | Spawner UI | Competitors |
 |---------|------------|-------------|
 | Starting point | Chat-first | Empty canvas |
-| Building blocks | 273+ expert personas | Generic nodes |
+| Building blocks | 450+ expert personas | Generic nodes |
 | Memory | Persistent Mind layer | Session only |
 | Validation | Per-skill rules + sharp edges | Basic type checking |
 | Deployment | Cloud + Local + Hybrid | Usually one mode |
@@ -391,7 +391,7 @@ Spawner UI bridges this gap with visual building that's guided by AI.
 | **Welcome Flow** | Single prompt + recipe gallery | Zero-friction start |
 | **AI Composer** | Natural language to skill chain | No learning curve |
 | **Visual Canvas** | Drag-drop nodes with connections | See what you're building |
-| **Skill Library** | Browse/search 273+ skills | Find the right tool |
+| **Skill Library** | Browse/search 450+ skills | Find the right tool |
 | **Basic Validation** | Type checking + required fields | Prevent obvious errors |
 | **Run Execution** | Execute flow and show results | See it work |
 | **Undo/Redo** | Full history with keyboard shortcuts | Safe to experiment |
@@ -847,7 +847,7 @@ DELIVERABLE: Production-ready v1.0
 | Feature | Spawner UI | n8n | Dify | Langflow |
 |---------|------------|-----|------|----------|
 | **Starting Point** | Chat | Canvas | Canvas | Canvas |
-| **Node Types** | 273 skills | ~400 integrations | 15 nodes | LangChain nodes |
+| **Node Types** | 450+ skills | ~400 integrations | 15 nodes | LangChain nodes |
 | **AI Generation** | Native | Add-on | Basic | None |
 | **Memory System** | Mind layer | None | Session | None |
 | **Validation** | Per-skill rules | Basic | Basic | Type checking |

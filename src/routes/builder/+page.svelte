@@ -2,7 +2,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import AgentCard from '$lib/components/AgentCard.svelte';
 	import McpCard from '$lib/components/McpCard.svelte';
-	import McpConnection from '$lib/components/McpConnection.svelte';
+	import McpStatus from '$lib/components/McpStatus.svelte';
 	import MissionBuilder from '$lib/components/MissionBuilder.svelte';
 	import {
 		stackStore,
@@ -129,13 +129,6 @@
 			</div>
 		</section>
 
-		<!-- MCP Connection -->
-		<section class="mb-8">
-			<div class="max-w-md">
-				<McpConnection />
-			</div>
-		</section>
-
 		<!-- Recommendations -->
 		<section class="mb-8 p-4 bg-bg-secondary border border-surface-border">
 			<div class="flex items-center justify-between">
@@ -149,8 +142,9 @@
 			</div>
 		</section>
 
-		<!-- Tabs -->
-		<div class="flex gap-1 mb-6 p-1 bg-bg-tertiary w-fit">
+		<!-- Tabs + MCP Status -->
+		<div class="flex items-center justify-between mb-6">
+			<div class="flex gap-1 p-1 bg-bg-tertiary w-fit">
 			<button
 				class="px-4 py-2 text-sm font-medium transition-colors {activeTab === 'agents'
 					? 'bg-accent-primary text-bg-primary'
@@ -183,6 +177,8 @@
 			>
 				Export
 			</button>
+			</div>
+			<McpStatus />
 		</div>
 
 		<!-- Content -->

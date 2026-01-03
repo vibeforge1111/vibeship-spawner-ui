@@ -1875,7 +1875,7 @@ ANIMATED LOGO (Loading State)
 │               │  │ [Full Docs] [Ask Claude]                   │      │       │
 │               │  └────────────────────────────────────────────┘      │       │
 │               └─────────────────────────────────────────────────────┘       │
-│               Sharp edges from 273 skills surface automatically.            │
+│               Sharp edges from 450+ skills surface automatically.            │
 │                                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
@@ -1947,7 +1947,7 @@ ANIMATED LOGO (Loading State)
 │     → Express mode: describe in words, AI builds                            │
 │                                                                             │
 │  ✓ "7,000+ integrations"                                                    │
-│     → 273 skills with rich sharp edges + patterns                           │
+│     → 450+ skills with rich sharp edges + patterns                           │
 │                                                                             │
 │  ✓ "Reliability"                                                            │
 │     → Local-first + cloud sync = works offline                              │

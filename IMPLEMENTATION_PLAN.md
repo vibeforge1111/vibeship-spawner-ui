@@ -37,7 +37,7 @@ src/
 ## Implementation Phases
 
 ### Phase 1: Skills Foundation
-**Goal:** Browse and search 273+ skills
+**Goal:** Browse and search 450+ skills
 
 | Task | Priority | Files |
 |------|----------|-------|
@@ -276,7 +276,7 @@ interface CanvasStore {
 
 Start with **Phase 1: Skills Foundation** since:
 1. Skills are the core value proposition
-2. 273+ skills already exist in the ecosystem
+2. 450+ skills already exist in the ecosystem
 3. Enables browsing before building workflows
 4. Natural entry point for new users
 

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import SkillNode from './SkillNode.svelte';
 	import type { CanvasNode } from '$lib/stores/canvas.svelte';
-	import { updateNodePosition, selectNode, removeNode } from '$lib/stores/canvas.svelte';
+	import { updateNodePosition, selectNode, removeNode, startConnectionDrag, updateConnectionDrag, endConnectionDrag, completeConnection } from '$lib/stores/canvas.svelte';
 	import type { SkillNodeData } from '$lib/types/skill';
 
 	let {
@@ -100,22 +100,77 @@
 	function handleTest() {
 		console.log('Testing node:', node.id, node.skill.name);
 	}
+
+	// Port connection handlers
+	function handlePortDragStart(portId: string, portType: 'input' | 'output', e: MouseEvent) {
+		const canvasEl = document.querySelector('.canvas-area');
+		if (!canvasEl) return;
+		
+		const canvasRect = canvasEl.getBoundingClientRect();
+		// Get the port position relative to canvas
+		const portX = (e.clientX - canvasRect.left) / zoom;
+		const portY = (e.clientY - canvasRect.top) / zoom;
+		
+		startConnectionDrag(node.id, portId, portType, portX, portY);
+		
+		window.addEventListener('mousemove', handleConnectionDragMove);
+		window.addEventListener('mouseup', handleConnectionDragEnd);
+	}
+
+	function handleConnectionDragMove(e: MouseEvent) {
+		const canvasEl = document.querySelector('.canvas-area');
+		if (!canvasEl) return;
+		
+		const canvasRect = canvasEl.getBoundingClientRect();
+		const currentX = (e.clientX - canvasRect.left) / zoom;
+		const currentY = (e.clientY - canvasRect.top) / zoom;
+		
+		updateConnectionDrag(currentX, currentY);
+	}
+
+	function handleConnectionDragEnd(e: MouseEvent) {
+		window.removeEventListener('mousemove', handleConnectionDragMove);
+		window.removeEventListener('mouseup', handleConnectionDragEnd);
+		
+		// Check if we released over a port
+		const target = e.target as HTMLElement;
+		const portHandle = target.closest('.port-handle') as HTMLElement;
+		
+		if (portHandle) {
+			const targetNodeId = portHandle.dataset.nodeId;
+			const targetPortId = portHandle.dataset.portId;
+			if (targetNodeId && targetPortId) {
+				completeConnection(targetNodeId, targetPortId);
+				return;
+			}
+		}
+		
+		endConnectionDrag();
+	}
+
+	function handlePortDragEnd(portId: string, portType: 'input' | 'output') {
+		// This is called when mouse up happens directly on a port
+		completeConnection(node.id, portId);
+	}
 </script>
 
 <div
 	class="draggable-node absolute"
 	class:dragging={isDragging}
 	class:selected
-	style="left: {node.position.x}px; top: {node.position.y}px; transform: scale({zoom});"
+	style="left: {node.position.x}px; top: {node.position.y}px; transform: scale({zoom}); transform-origin: top left;"
 	onmousedown={handleMouseDown}
 	role="button"
 	tabindex="0"
 >
 	<SkillNode
 		data={nodeData}
+		nodeId={node.id}
 		{selected}
 		onSelect={handleSelect}
 		onTest={handleTest}
+		onPortDragStart={handlePortDragStart}
+		onPortDragEnd={handlePortDragEnd}
 	/>
 
 	<!-- Delete button on hover -->
@@ -133,7 +188,6 @@
 <style>
 	.draggable-node {
 		cursor: grab;
-		transform-origin: top left;
 	}
 
 	.draggable-node.dragging {

@@ -17,12 +17,23 @@ export interface Connection {
 	targetPortId: string;
 }
 
+export interface DraggingConnection {
+	sourceNodeId: string;
+	sourcePortId: string;
+	sourcePortType: 'input' | 'output';
+	startX: number;
+	startY: number;
+	currentX: number;
+	currentY: number;
+}
+
 export interface CanvasState {
 	nodes: CanvasNode[];
 	connections: Connection[];
 	selectedNodeId: string | null;
 	zoom: number;
 	pan: { x: number; y: number };
+	draggingConnection: DraggingConnection | null;
 }
 
 const initialState: CanvasState = {
@@ -30,13 +41,15 @@ const initialState: CanvasState = {
 	connections: [],
 	selectedNodeId: null,
 	zoom: 1,
-	pan: { x: 0, y: 0 }
+	pan: { x: 0, y: 0 },
+	draggingConnection: null
 };
 
 export const canvasState = writable<CanvasState>(initialState);
 export const nodes = derived(canvasState, ($state) => $state.nodes);
 export const connections = derived(canvasState, ($state) => $state.connections);
 export const selectedNodeId = derived(canvasState, ($state) => $state.selectedNodeId);
+export const draggingConnection = derived(canvasState, ($state) => $state.draggingConnection);
 
 export const selectedNode = derived(canvasState, ($state) => {
 	if (!$state.selectedNodeId) return null;
@@ -131,6 +144,82 @@ export function setPan(pan: { x: number; y: number }) {
 		...state,
 		pan
 	}));
+}
+
+export function startConnectionDrag(
+	sourceNodeId: string,
+	sourcePortId: string,
+	sourcePortType: 'input' | 'output',
+	startX: number,
+	startY: number
+) {
+	canvasState.update((state) => ({
+		...state,
+		draggingConnection: {
+			sourceNodeId,
+			sourcePortId,
+			sourcePortType,
+			startX,
+			startY,
+			currentX: startX,
+			currentY: startY
+		}
+	}));
+}
+
+export function updateConnectionDrag(currentX: number, currentY: number) {
+	canvasState.update((state) => {
+		if (!state.draggingConnection) return state;
+		return {
+			...state,
+			draggingConnection: {
+				...state.draggingConnection,
+				currentX,
+				currentY
+			}
+		};
+	});
+}
+
+export function endConnectionDrag() {
+	canvasState.update((state) => ({
+		...state,
+		draggingConnection: null
+	}));
+}
+
+export function completeConnection(targetNodeId: string, targetPortId: string): boolean {
+	const state = get(canvasState);
+	const drag = state.draggingConnection;
+	if (!drag) return false;
+	
+	// Cannot connect to same node
+	if (drag.sourceNodeId === targetNodeId) {
+		endConnectionDrag();
+		return false;
+	}
+	
+	// Check if connection already exists
+	const exists = state.connections.some(
+		(c) =>
+			(c.sourceNodeId === drag.sourceNodeId && c.targetNodeId === targetNodeId) ||
+			(c.sourceNodeId === targetNodeId && c.targetNodeId === drag.sourceNodeId)
+	);
+	if (exists) {
+		endConnectionDrag();
+		return false;
+	}
+	
+	// Output connects to input
+	if (drag.sourcePortType === 'output') {
+		addConnection(drag.sourceNodeId, drag.sourcePortId, targetNodeId, targetPortId);
+	} else {
+		// Input connects from output (reverse)
+		addConnection(targetNodeId, targetPortId, drag.sourceNodeId, drag.sourcePortId);
+	}
+	
+	endConnectionDrag();
+	return true;
 }
 
 export function clearCanvas() {

@@ -34,7 +34,7 @@ Spawner UI is a visual orchestration platform that enables users to build, confi
 |------------|-------------|
 | **Visual Canvas** | Drag-drop skill nodes with typed connections |
 | **AI Composer** | Natural language to skill chain generation |
-| **Skill Library** | 273+ specialized expert personas |
+| **Skill Library** | 450+ specialized expert personas |
 | **Mind Memory** | Persistent decision tracking across sessions |
 | **Validation Engine** | Pre-flight checks with auto-fix suggestions |
 | **Dual Deployment** | Cloud SaaS or local self-hosted |
