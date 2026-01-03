@@ -1,4 +1,6 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
+import { mcpClient, type McpSkill } from '$lib/services/mcp-client';
+import { mcpState } from './mcp.svelte';
 
 export type SkillTier = 'free' | 'premium';
 
@@ -39,10 +41,13 @@ export interface SkillFilters {
 	tags: string[];
 }
 
+export type SkillSource = 'static' | 'mcp';
+
 // State
 export const skills = writable<Skill[]>([]);
 export const loading = writable(false);
 export const error = writable<string | null>(null);
+export const skillSource = writable<SkillSource>('static');
 
 export const filters = writable<SkillFilters>({
 	search: '',
@@ -113,102 +118,124 @@ export const skillCounts = derived(skills, ($skills) => {
 	};
 });
 
+// Helper to convert MCP skill to our Skill interface
+function mapMcpSkill(s: McpSkill): Skill {
+	return {
+		id: s.id,
+		name: s.name,
+		description: s.description || '',
+		category: s.category as SkillCategory,
+		tier: (s.layer === 1 ? 'free' : 'premium') as SkillTier,
+		tags: s.tags || [],
+		triggers: s.triggers || [],
+		handoffs: s.handoffs || [],
+		pairsWell: s.pairs_with || []
+	};
+}
+
 // Actions
-export async function loadSkills() {
+
+/**
+ * Load skills from static JSON (fallback)
+ */
+export async function loadSkillsStatic() {
+	loading.set(true);
+	error.set(null);
+	skillSource.set('static');
+
+	try {
+		const response = await fetch('/skills.json');
+		if (!response.ok) {
+			throw new Error('Failed to load skills.json');
+		}
+		const data = await response.json();
+
+		const loadedSkills: Skill[] = data.map((s: any) => ({
+			id: s.id,
+			name: s.name,
+			description: s.description || '',
+			category: s.category as SkillCategory,
+			tier: (s.tier as SkillTier) || 'free',
+			tags: s.tags || [],
+			triggers: s.triggers || [],
+			handoffs: s.handoffs || [],
+			pairsWell: s.pairsWell || []
+		}));
+
+		skills.set(loadedSkills);
+	} catch (e) {
+		error.set(e instanceof Error ? e.message : 'Failed to load skills');
+		console.error('Error loading skills:', e);
+	} finally {
+		loading.set(false);
+	}
+}
+
+/**
+ * Load skills from MCP server
+ */
+export async function loadSkillsMcp() {
+	loading.set(true);
+	error.set(null);
+	skillSource.set('mcp');
+
+	try {
+		const result = await mcpClient.listSkills();
+
+		if (!result.success) {
+			throw new Error(result.error || 'Failed to load skills from MCP');
+		}
+
+		const mcpSkills = result.data?.skills || [];
+		const loadedSkills: Skill[] = mcpSkills.map(mapMcpSkill);
+
+		skills.set(loadedSkills);
+	} catch (e) {
+		error.set(e instanceof Error ? e.message : 'Failed to load skills from MCP');
+		console.error('Error loading skills from MCP:', e);
+		// Fall back to static
+		await loadSkillsStatic();
+	} finally {
+		loading.set(false);
+	}
+}
+
+/**
+ * Search skills via MCP
+ */
+export async function searchSkillsMcp(query: string) {
 	loading.set(true);
 	error.set(null);
 
 	try {
-		// TODO: Replace with actual API call to MCP or skills endpoint
-		// For now, load mock data
-		const mockSkills: Skill[] = [
-			{
-				id: 'nextjs-app-router',
-				name: 'Next.js App Router',
-				description: 'Expert patterns for Next.js 14+ App Router with RSC, streaming, and layouts',
-				category: 'frameworks',
-				tier: 'free',
-				tags: ['nextjs', 'react', 'frontend', 'ssr'],
-				triggers: ['nextjs', 'app router', 'next.js'],
-				tokenEstimate: 8500
-			},
-			{
-				id: 'nextjs-app-router-pro',
-				name: 'Next.js App Router Pro',
-				description: 'Token-optimized Next.js expertise with condensed patterns and faster responses',
-				category: 'frameworks',
-				tier: 'premium',
-				tags: ['nextjs', 'react', 'frontend', 'ssr'],
-				triggers: ['nextjs', 'app router', 'next.js'],
-				tokenEstimate: 3200
-			},
-			{
-				id: 'supabase-backend',
-				name: 'Supabase Backend',
-				description: 'Complete Supabase integration including Auth, RLS, Edge Functions, and Realtime',
-				category: 'integrations',
-				tier: 'free',
-				tags: ['supabase', 'postgres', 'auth', 'backend'],
-				triggers: ['supabase', 'database', 'auth'],
-				tokenEstimate: 9200
-			},
-			{
-				id: 'autonomous-agents',
-				name: 'Autonomous Agents',
-				description: 'Build multi-agent systems with tool use, memory, and coordination patterns',
-				category: 'agents',
-				tier: 'free',
-				tags: ['agents', 'ai', 'automation', 'langchain'],
-				triggers: ['agent', 'autonomous', 'multi-agent'],
-				tokenEstimate: 11000
-			},
-			{
-				id: 'autonomous-agents-pro',
-				name: 'Autonomous Agents Pro',
-				description: 'Streamlined agent patterns with reduced token overhead and faster execution',
-				category: 'agents',
-				tier: 'premium',
-				tags: ['agents', 'ai', 'automation', 'langchain'],
-				triggers: ['agent', 'autonomous', 'multi-agent'],
-				tokenEstimate: 4100
-			},
-			{
-				id: 'stripe-payments',
-				name: 'Stripe Payments',
-				description: 'Complete Stripe integration for subscriptions, one-time payments, and webhooks',
-				category: 'integrations',
-				tier: 'free',
-				tags: ['stripe', 'payments', 'subscriptions', 'webhooks'],
-				triggers: ['stripe', 'payments', 'billing'],
-				tokenEstimate: 7800
-			},
-			{
-				id: 'tailwind-ui',
-				name: 'Tailwind UI',
-				description: 'Expert Tailwind CSS patterns for responsive, accessible component design',
-				category: 'design',
-				tier: 'free',
-				tags: ['tailwind', 'css', 'ui', 'design'],
-				triggers: ['tailwind', 'styling', 'css'],
-				tokenEstimate: 6500
-			},
-			{
-				id: 'postgres-wizard',
-				name: 'Postgres Wizard',
-				description: 'Advanced PostgreSQL patterns including migrations, indexes, and query optimization',
-				category: 'data',
-				tier: 'free',
-				tags: ['postgres', 'sql', 'database', 'optimization'],
-				triggers: ['postgres', 'sql', 'database'],
-				tokenEstimate: 8900
-			}
-		];
+		const result = await mcpClient.searchSkills(query);
 
-		skills.set(mockSkills);
+		if (!result.success) {
+			throw new Error(result.error || 'Failed to search skills');
+		}
+
+		const mcpSkills = result.data?.skills || [];
+		const loadedSkills: Skill[] = mcpSkills.map(mapMcpSkill);
+
+		skills.set(loadedSkills);
+		skillSource.set('mcp');
 	} catch (e) {
-		error.set(e instanceof Error ? e.message : 'Failed to load skills');
+		error.set(e instanceof Error ? e.message : 'Failed to search skills');
+		console.error('Error searching skills:', e);
 	} finally {
 		loading.set(false);
+	}
+}
+
+/**
+ * Load skills - automatically uses MCP if connected, otherwise static
+ */
+export async function loadSkills() {
+	const state = get(mcpState);
+	if (state.status === 'connected') {
+		await loadSkillsMcp();
+	} else {
+		await loadSkillsStatic();
 	}
 }
 
