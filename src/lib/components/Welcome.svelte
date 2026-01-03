@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Navbar from './Navbar.svelte';
+	import Footer from './Footer.svelte';
 
 	let { onStart }: { onStart?: () => void } = $props();
 
@@ -169,57 +170,6 @@
 		</div>
 	</section>
 
-	<!-- Footer - Vibeship style -->
-	<footer class="border-t border-surface-border">
-		<div class="max-w-6xl mx-auto px-6 py-12">
-			<div class="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
-				<!-- Logo -->
-				<div class="col-span-2 md:col-span-1">
-					<a href="/" class="flex items-center gap-1.5 mb-4">
-						<img src="/logo.png" alt="vibeship" class="w-5 h-5" />
-						<span class="text-text-primary text-sm" style="font-family: 'Instrument Serif', Georgia, serif;">vibeship</span>
-					</a>
-					<p class="text-xs text-text-tertiary">Vibe coded. For vibe coders.</p>
-				</div>
-
-				<!-- Product -->
-				<div>
-					<h4 class="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-4">Product</h4>
-					<ul class="space-y-2">
-						<li><a href="/skills" class="text-sm text-text-tertiary hover:text-text-primary transition-colors">Skills</a></li>
-						<li><a href="/guide" class="text-sm text-text-tertiary hover:text-text-primary transition-colors">Guide</a></li>
-						<li><a href="/canvas" class="text-sm text-text-tertiary hover:text-text-primary transition-colors">Canvas</a></li>
-					</ul>
-				</div>
-
-				<!-- Resources -->
-				<div>
-					<h4 class="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-4">Resources</h4>
-					<ul class="space-y-2">
-						<li><a href="https://github.com/vibeforge1111/vibeship-spawner-ui" class="text-sm text-text-tertiary hover:text-text-primary transition-colors">GitHub</a></li>
-						<li><a href="https://mind.vibeship.co" class="text-sm text-text-tertiary hover:text-text-primary transition-colors">Mind</a></li>
-						<li><a href="https://scanner.vibeship.co" class="text-sm text-text-tertiary hover:text-text-primary transition-colors">Scanner</a></li>
-					</ul>
-				</div>
-
-				<!-- Ecosystem -->
-				<div>
-					<h4 class="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-4">Ecosystem</h4>
-					<ul class="space-y-2">
-						<li><a href="https://vibeship.co" class="text-sm text-text-tertiary hover:text-text-primary transition-colors">vibeship.co</a></li>
-						<li><a href="https://spawner.vibeship.co" class="text-sm text-text-tertiary hover:text-text-primary transition-colors">spawner.vibeship.co</a></li>
-					</ul>
-				</div>
-			</div>
-
-			<!-- Bottom bar -->
-			<div class="pt-8 border-t border-surface-border flex flex-col md:flex-row items-center justify-between gap-4">
-				<span class="text-xs text-text-tertiary">© 2025 vibeship</span>
-				<div class="flex items-center gap-6">
-					<a href="/terms" class="text-xs text-text-tertiary hover:text-text-secondary transition-colors">Terms</a>
-					<a href="/privacy" class="text-xs text-text-tertiary hover:text-text-secondary transition-colors">Privacy</a>
-				</div>
-			</div>
-		</div>
-	</footer>
+	<!-- Footer -->
+	<Footer />
 </div>
