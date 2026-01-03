@@ -12,8 +12,8 @@
 			number: '01',
 			name: 'spawn()',
 			title: 'Spawner',
-			desc: 'Visual orchestration for AI skill chains. Connect 273+ specialized skills.',
-			stat: '273+',
+			desc: 'Visual orchestration for AI skill chains. Connect 450+ specialized skills.',
+			stat: '450+',
 			statLabel: 'Skills',
 			href: '/canvas'
 		},
@@ -67,19 +67,18 @@
 	<!-- Hero Section -->
 	<section class="max-w-6xl mx-auto px-6 pt-20 pb-16">
 		<div class="text-center mb-16 animate-fade-in">
-			<p class="text-accent-primary font-mono text-sm mb-4 tracking-wider">SKILLED AGENTS + SEMANTIC MEMORY</p>
-			<h1 class="text-display font-display text-text-primary mb-6">
-				Spawn <span class="text-accent-primary">Expert Agents</span>.<br/>
-				Build <span class="text-accent-primary">Automated Pipelines</span>.
+			<p class="font-mono text-sm mb-4 tracking-wider"><span class="text-accent-primary">SKILLED AGENTS</span> <span class="text-text-tertiary">|</span> <span class="text-accent-secondary">CONTEXT/MEMORY LAYER</span> <span class="text-text-tertiary">|</span> <span class="text-accent-primary">AUTOMATED PIPELINES</span></p>
+			<h1 class="text-[3.5rem] leading-tight font-serif font-normal text-text-primary mb-6">
+				A Framework To <span class="text-accent-primary relative inline-block">Turbocharge Claude<span class="claude-underline"></span></span>
 			</h1>
 			<p class="text-lg text-text-secondary max-w-2xl mx-auto mb-6">
-				273+ specialized skills transform Claude into domain experts. Chain them into pipelines.
+				450+ specialized skills transform Claude into domain experts. Chain them into pipelines.
 				Give your agents and teams persistent memory with Mind.
 			</p>
 			<div class="flex items-center justify-center gap-6 text-sm font-mono text-text-tertiary">
 				<span class="flex items-center gap-2">
 					<span class="w-2 h-2 bg-accent-primary"></span>
-					Better than vanilla Opus
+					Better than regular Opus 4.5
 				</span>
 				<span class="flex items-center gap-2">
 					<span class="w-2 h-2 bg-accent-secondary"></span>
@@ -145,7 +144,7 @@
 					<p class="font-mono text-accent-primary text-sm mb-2">{tool.name}</p>
 
 					<!-- Title -->
-					<h3 class="text-xl font-display font-semibold text-text-primary mb-2">{tool.title}</h3>
+					<h3 class="text-xl font-serif text-text-primary mb-2">{tool.title}</h3>
 
 					<!-- Description -->
 					<p class="text-sm text-text-secondary mb-6 leading-relaxed">{tool.desc}</p>
@@ -172,7 +171,7 @@
 	<section class="border-t border-surface-border">
 		<div class="max-w-6xl mx-auto px-6 py-16 text-center">
 			<p class="font-mono text-sm text-text-tertiary mb-4">MCP-NATIVE ORCHESTRATION</p>
-			<h2 class="text-2xl font-display font-semibold text-text-primary mb-4">
+			<h2 class="text-2xl font-serif text-text-primary mb-4">
 				<span class="text-accent-secondary">Mind</span> + <span class="text-accent-primary">Spawner</span> = Agents with Memory
 			</h2>
 			<p class="text-text-secondary max-w-xl mx-auto mb-8">
@@ -181,7 +180,7 @@
 			</p>
 			<div class="flex flex-wrap items-center justify-center gap-8 text-sm">
 				<div class="text-center">
-					<p class="text-2xl font-display font-bold text-accent-primary mb-1">273+</p>
+					<p class="text-2xl font-display font-bold text-accent-primary mb-1">450+</p>
 					<p class="font-mono text-text-tertiary text-xs uppercase tracking-wider">Skills</p>
 				</div>
 				<div class="text-center">

@@ -291,4 +291,15 @@
   .cta-arrow {
     @apply flex items-center gap-1 text-sm text-accent-primary font-medium hover:gap-2 transition-all;
   }
+
+  /* Claude underline effect - orange gradient */
+  .claude-underline {
+    position: absolute;
+    bottom: -4px;
+    left: -3%;
+    width: 115%;
+    height: 3px;
+    background: linear-gradient(90deg, transparent 0%, #D97757 8%, #D97757 60%, transparent 100%);
+    transform: rotate(-3deg) skewX(-15deg);
+  }
 }

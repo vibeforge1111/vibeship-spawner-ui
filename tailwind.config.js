@@ -93,7 +93,8 @@ export default {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'Consolas', 'monospace'],
-        display: ['Space Grotesk', 'system-ui', 'sans-serif']
+        display: ['Space Grotesk', 'system-ui', 'sans-serif'],
+        serif: ['Instrument Serif', 'Georgia', 'serif']
       },
       fontSize: {
         'xs': ['0.75rem', { lineHeight: '1rem' }],
