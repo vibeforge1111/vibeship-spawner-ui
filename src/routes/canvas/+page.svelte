@@ -66,11 +66,11 @@
 	<aside class="w-64 border-r border-surface-border bg-bg-secondary flex flex-col">
 		<div class="p-4 border-b border-surface-border">
 			<div class="flex items-center gap-3">
-				<div class="w-8 h-8 rounded-lg bg-vibe-cyan-glow border border-vibe-cyan-border flex items-center justify-center">
-					<span class="text-accent-primary text-lg">⚡</span>
+				<div class="w-7 h-7 bg-vibe-cyan-glow border border-vibe-cyan-border flex items-center justify-center">
+					<span class="text-accent-primary text-sm">⚡</span>
 				</div>
 				<div>
-					<span class="font-display font-semibold text-text-primary">spawner</span>
+					<span class="font-display font-semibold text-text-primary text-sm">vibeship spawner</span>
 					<p class="text-xs font-mono text-accent-primary">spawn()</p>
 				</div>
 			</div>
@@ -78,14 +78,14 @@
 
 		<!-- Mode Switcher -->
 		<div class="p-4 border-b border-surface-border">
-			<div class="flex gap-1 p-1 bg-bg-tertiary rounded-lg">
-				<button class="flex-1 py-1.5 text-sm font-medium rounded bg-accent-primary text-white">
+			<div class="flex gap-1 p-1 bg-bg-tertiary">
+				<button class="flex-1 py-1.5 text-sm font-medium bg-accent-primary text-bg-primary">
 					Express
 				</button>
-				<button class="flex-1 py-1.5 text-sm font-medium rounded text-text-secondary hover:text-text-primary">
+				<button class="flex-1 py-1.5 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface">
 					Studio
 				</button>
-				<button class="flex-1 py-1.5 text-sm font-medium rounded text-text-secondary hover:text-text-primary">
+				<button class="flex-1 py-1.5 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface">
 					Code
 				</button>
 			</div>
@@ -98,7 +98,7 @@
 				<span class="text-xs font-mono text-text-tertiary">01</span>
 			</div>
 			<div class="space-y-2">
-				<div class="p-3 rounded-lg bg-surface border border-surface-border hover:border-vibe-cyan-border transition-colors">
+				<div class="p-3 bg-surface border border-surface-border hover:border-vibe-cyan-border transition-colors">
 					<p class="text-xs text-text-secondary">No memories yet. Your decisions and learnings will appear here.</p>
 				</div>
 			</div>
@@ -230,10 +230,10 @@
 	{#if selectedNodeId}
 		{@const selectedNode = demoNodes.find(n => n.id === selectedNodeId)}
 		{#if selectedNode}
-			<aside class="w-80 border-l border-surface-border bg-bg-secondary flex flex-col animate-slide-up">
+			<aside class="w-80 border-l border-surface-border bg-bg-secondary flex flex-col animate-fade-in">
 				<div class="p-4 border-b border-surface-border flex items-center justify-between">
 					<h2 class="font-medium text-text-primary">{selectedNode.name}</h2>
-					<button onclick={() => selectedNodeId = null} class="btn-ghost p-1 rounded">
+					<button onclick={() => selectedNodeId = null} class="btn-ghost p-1">
 						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
 						</svg>
@@ -252,7 +252,7 @@
 						<div class="mb-6">
 							<h3 class="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-2">Sharp Edges</h3>
 							{#each selectedNode.sharpEdges as edge}
-								<div class="p-3 rounded-lg bg-status-warning-bg border border-status-warning/20 mb-2">
+								<div class="p-3 bg-status-warning-bg border border-status-warning/20 mb-2">
 									<p class="text-sm text-status-warning">{edge.message}</p>
 								</div>
 							{/each}

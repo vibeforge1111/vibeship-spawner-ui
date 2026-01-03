@@ -54,7 +54,7 @@
 	onkeydown={(e) => e.key === 'Enter' && onSelect?.()}
 >
 	<!-- Color accent bar -->
-	<div class="h-1 {categoryColor} rounded-t-lg"></div>
+	<div class="h-1 {categoryColor}"></div>
 
 	<!-- Node Header -->
 	<div class="node-header">

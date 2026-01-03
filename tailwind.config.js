@@ -122,13 +122,14 @@ export default {
         '20': '80px',
         '24': '96px'
       },
-      // Border radius
+      // Border radius - Sharp Vibeship style
       borderRadius: {
-        'sm': '4px',
-        'DEFAULT': '8px',
-        'md': '12px',
-        'lg': '16px',
-        'xl': '24px',
+        'none': '0',
+        'sm': '2px',
+        'DEFAULT': '4px',
+        'md': '6px',
+        'lg': '8px',
+        'xl': '8px',
         'full': '9999px'
       },
       // Shadows with cyan glow
