@@ -118,7 +118,7 @@
 
 			<!-- GitHub link -->
 			<a
-				href="https://github.com/vibeforge1111/spawner-ui"
+				href="https://github.com/vibeforge1111/vibeship-spawner-ui"
 				class="inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-sm text-text-secondary border border-transparent hover:text-text-primary hover:border-surface-border transition-all"
 				target="_blank"
 				rel="noopener"

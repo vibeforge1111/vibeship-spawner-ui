@@ -196,7 +196,7 @@
 				<div>
 					<h4 class="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-4">Resources</h4>
 					<ul class="space-y-2">
-						<li><a href="https://github.com/vibeforge1111/spawner-ui" class="text-sm text-text-tertiary hover:text-text-primary transition-colors">GitHub</a></li>
+						<li><a href="https://github.com/vibeforge1111/vibeship-spawner-ui" class="text-sm text-text-tertiary hover:text-text-primary transition-colors">GitHub</a></li>
 						<li><a href="https://mind.vibeship.co" class="text-sm text-text-tertiary hover:text-text-primary transition-colors">Mind</a></li>
 						<li><a href="https://scanner.vibeship.co" class="text-sm text-text-tertiary hover:text-text-primary transition-colors">Scanner</a></li>
 					</ul>
