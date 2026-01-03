@@ -65,15 +65,13 @@
 	<!-- Sidebar / Mind Panel -->
 	<aside class="w-64 border-r border-surface-border bg-bg-secondary flex flex-col">
 		<div class="p-4 border-b border-surface-border">
-			<div class="flex items-center gap-3">
-				<div class="w-7 h-7 bg-vibe-teal-glow border border-vibe-teal-border flex items-center justify-center">
-					<span class="text-accent-primary text-sm">⚡</span>
+			<a href="/" class="flex items-center gap-2">
+				<img src="/logo.png" alt="vibeship" class="w-6 h-6" />
+				<div class="flex items-center gap-1">
+					<span class="text-text-primary text-[1.1rem]" style="font-family: 'Instrument Serif', Georgia, serif;">vibeship</span>
+					<span class="text-accent-primary text-[1.1rem]" style="font-family: 'Instrument Serif', Georgia, serif;">spawner</span>
 				</div>
-				<div>
-					<span class="font-display font-semibold text-text-primary text-sm">vibeship spawner</span>
-					<p class="text-xs font-mono text-accent-primary">spawn()</p>
-				</div>
-			</div>
+			</a>
 		</div>
 
 		<!-- Mode Switcher -->
