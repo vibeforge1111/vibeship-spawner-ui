@@ -161,7 +161,7 @@
 		<div class="max-w-6xl mx-auto px-6 py-16 text-center">
 			<p class="font-mono text-sm text-text-tertiary mb-4">MCP-NATIVE</p>
 			<h2 class="text-2xl font-display font-semibold text-text-primary mb-4">
-				<span class="text-accent-primary">Mind</span> + <span class="text-accent-secondary">Spawner</span> = Full Stack Claude
+				<span class="text-accent-secondary">Mind</span> + <span class="text-accent-primary">Spawner</span> = Full Stack Claude
 			</h2>
 			<p class="text-text-secondary max-w-xl mx-auto">
 				Semantic memory meets visual orchestration. Build complex AI workflows that remember context across sessions.
