@@ -1,293 +1,78 @@
 <script lang="ts">
-	import SkillNode from '$lib/components/nodes/SkillNode.svelte';
-	import type { SkillNodeData } from '$lib/types/skill';
+	import DraggableNode from '$lib/components/nodes/DraggableNode.svelte';
+	import SkillsPanel from '$lib/components/SkillsPanel.svelte';
+	import ConnectionLine from '$lib/components/ConnectionLine.svelte';
+	import { canvasState, nodes, connections, selectedNodeId, selectedNode, addNode, selectNode, setZoom, clearCanvas } from '$lib/stores/canvas.svelte';
+	import type { Skill } from '$lib/stores/skills.svelte';
 
-	// Demo nodes for initial display
-	const demoNodes: SkillNodeData[] = [
-		{
-			id: '1',
-			name: 'GitHub Watch',
-			description: 'Listen for repository events like stars, forks, and issues',
-			icon: '🐙',
-			category: 'integration',
-			outputs: [
-				{ id: 'event', label: 'Event Data', type: 'object' }
-			],
-			sharpEdges: [
-				{ id: '1', message: 'Rate limits apply after 5000 requests/hour', severity: 'warning' }
-			]
-		},
-		{
-			id: '2',
-			name: 'Filter',
-			description: 'Filter data based on conditions',
-			icon: '🔍',
-			category: 'data',
-			inputs: [
-				{ id: 'data', label: 'Input Data', type: 'object' }
-			],
-			outputs: [
-				{ id: 'passed', label: 'Passed', type: 'object' },
-				{ id: 'failed', label: 'Failed', type: 'object' }
-			]
-		},
-		{
-			id: '3',
-			name: 'Send Email',
-			description: 'Send emails via SMTP or API',
-			icon: '📧',
-			category: 'integration',
-			inputs: [
-				{ id: 'to', label: 'Recipient', type: 'text' },
-				{ id: 'subject', label: 'Subject', type: 'text' },
-				{ id: 'body', label: 'Body', type: 'text' }
-			],
-			outputs: [
-				{ id: 'result', label: 'Result', type: 'object' }
-			]
-		}
-	];
-
-	let selectedNodeId = $state<string | null>(null);
 	let chatInput = $state('');
+	let activeTab = $state('skills');
+	let canvasEl;
+	let zoom = $state(1);
+	let pan = $state({ x: 0, y: 0 });
+	let isPanning = $state(false);
+	let panStart = $state({ x: 0, y: 0 });
 
-	function handleNodeSelect(nodeId: string) {
-		selectedNodeId = selectedNodeId === nodeId ? null : nodeId;
+	$effect(() => {
+		const unsubscribe = canvasState.subscribe((state) => { zoom = state.zoom; pan = state.pan; });
+		return unsubscribe;
+	});
+
+	let currentNodes = $state([]);
+	let currentConnections = $state([]);
+	let currentSelectedNodeId = $state(null);
+	let currentSelectedNode = $state(null);
+
+	$effect(() => {
+		const unsub1 = nodes.subscribe((n) => (currentNodes = n));
+		const unsub2 = connections.subscribe((c) => (currentConnections = c));
+		const unsub3 = selectedNodeId.subscribe((id) => (currentSelectedNodeId = id));
+		const unsub4 = selectedNode.subscribe((node) => (currentSelectedNode = node));
+		return () => { unsub1(); unsub2(); unsub3(); unsub4(); };
+	});
+
+	function handleDrop(e) {
+		e.preventDefault();
+		if (!e.dataTransfer) return;
+		const skillJson = e.dataTransfer.getData('application/json');
+		if (!skillJson) return;
+		try {
+			const skill = JSON.parse(skillJson);
+			const rect = canvasEl.getBoundingClientRect();
+			addNode(skill, { x: (e.clientX - rect.left - pan.x) / zoom, y: (e.clientY - rect.top - pan.y) / zoom });
+		} catch (err) { console.error(err); }
 	}
 
-	function handleNodeTest(nodeId: string) {
-		console.log('Testing node:', nodeId);
-		// TODO: Open test panel
-	}
+	function handleDragOver(e) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; }
+	function handleCanvasClick(e) { if (e.target === e.currentTarget) selectNode(null); }
+	function handleZoomIn() { setZoom(zoom + 0.1); }
+	function handleZoomOut() { setZoom(zoom - 0.1); }
+	function handleZoomReset() { setZoom(1); }
+	function handleMouseDown(e) { if (e.button === 1 || (e.button === 0 && e.altKey)) { isPanning = true; panStart = { x: e.clientX - pan.x, y: e.clientY - pan.y }; e.preventDefault(); } }
+	function handleMouseMove(e) { if (isPanning) pan = { x: e.clientX - panStart.x, y: e.clientY - panStart.y }; }
+	function handleMouseUp() { isPanning = false; }
 </script>
 
 <div class="h-screen flex bg-bg-primary">
-	<!-- Sidebar / Mind Panel -->
 	<aside class="w-64 border-r border-surface-border bg-bg-secondary flex flex-col">
-		<div class="p-4 border-b border-surface-border">
-			<a href="/" class="flex items-center gap-2">
-				<img src="/logo.png" alt="vibeship" class="w-6 h-6" />
-				<div class="flex items-center gap-1">
-					<span class="text-text-primary text-[1.1rem]" style="font-family: 'Instrument Serif', Georgia, serif;">vibeship</span>
-					<span class="text-accent-primary text-[1.1rem]" style="font-family: 'Instrument Serif', Georgia, serif;">spawner</span>
-				</div>
-			</a>
-		</div>
-
-		<!-- Mode Switcher -->
-		<div class="p-4 border-b border-surface-border">
-			<div class="flex gap-1 p-1 bg-bg-tertiary">
-				<button class="flex-1 py-1.5 text-sm font-medium bg-accent-primary text-bg-primary">
-					Express
-				</button>
-				<button class="flex-1 py-1.5 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface">
-					Studio
-				</button>
-				<button class="flex-1 py-1.5 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface">
-					Code
-				</button>
-			</div>
-		</div>
-
-		<!-- Mind Panel -->
-		<div class="flex-1 p-4 overflow-y-auto">
-			<div class="flex items-center justify-between mb-3">
-				<span class="font-mono text-accent-primary text-sm">recall()</span>
-				<span class="text-xs font-mono text-text-tertiary">01</span>
-			</div>
-			<div class="space-y-2">
-				<div class="p-3 bg-surface border border-surface-border hover:border-vibe-teal-border transition-colors">
-					<p class="text-xs text-text-secondary">No memories yet. Your decisions and learnings will appear here.</p>
-				</div>
-			</div>
-		</div>
-
-		<!-- Project Info -->
-		<div class="p-4 border-t border-surface-border">
-			<div class="text-xs text-text-tertiary">
-				<span>Untitled Project</span>
-				<span class="mx-2">•</span>
-				<span>Draft</span>
-			</div>
-		</div>
+		<div class="p-4 border-b border-surface-border"><a href="/" class="flex items-center gap-2"><img src="/logo.png" alt="vibeship" class="w-6 h-6" /><span class="text-text-primary">vibeship</span><span class="text-accent-primary">spawner</span></a></div>
+		<div class="p-3 border-b border-surface-border"><div class="flex gap-1 p-0.5 bg-bg-tertiary"><button class="flex-1 py-1.5 text-sm font-medium" class:bg-accent-primary={activeTab === 'skills'} class:text-bg-primary={activeTab === 'skills'} onclick={() => (activeTab = 'skills')}>Skills</button><button class="flex-1 py-1.5 text-sm font-medium" class:bg-accent-primary={activeTab === 'mind'} class:text-bg-primary={activeTab === 'mind'} onclick={() => (activeTab = 'mind')}>Mind</button></div></div>
+		<div class="flex-1 overflow-hidden">{#if activeTab === 'skills'}<SkillsPanel />{:else}<div class="p-4"><span class="font-mono text-accent-primary text-sm">recall()</span><div class="p-3 bg-surface border border-surface-border mt-3"><p class="text-xs text-text-secondary">No memories yet.</p></div></div>{/if}</div>
+		<div class="p-4 border-t border-surface-border"><div class="text-xs text-text-tertiary">Project • {currentNodes.length} nodes</div></div>
 	</aside>
-
-	<!-- Main Canvas Area -->
 	<main class="flex-1 flex flex-col">
-		<!-- Toolbar -->
-		<header class="h-12 border-b border-surface-border bg-bg-secondary flex items-center px-4 gap-4">
-			<div class="flex items-center gap-2">
-				<button class="btn-ghost btn-sm">
-					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-					</svg>
-				</button>
-				<span class="text-sm text-text-secondary">3 nodes</span>
+		<header class="h-12 border-b border-surface-border bg-bg-secondary flex items-center px-4 gap-4"><div class="flex items-center gap-2"><button class="btn-ghost btn-sm" onclick={clearCanvas}>Clear</button><span class="text-sm text-text-secondary">{currentNodes.length} nodes</span></div><div class="flex items-center gap-1 px-2 border-l border-surface-border"><button class="btn-ghost btn-sm" onclick={handleZoomOut}>-</button><button class="btn-ghost btn-sm min-w-[4rem] font-mono text-xs" onclick={handleZoomReset}>{Math.round(zoom * 100)}%</button><button class="btn-ghost btn-sm" onclick={handleZoomIn}>+</button></div><div class="flex-1"></div><div class="flex items-center gap-2"><button class="btn-secondary btn-sm">Validate</button><button class="btn-primary btn-sm" disabled={currentNodes.length === 0}>Run</button></div></header>
+		<div bind:this={canvasEl} class="canvas-area flex-1 relative overflow-hidden bg-bg-primary" class:panning={isPanning} ondrop={handleDrop} ondragover={handleDragOver} onclick={handleCanvasClick} onmousedown={handleMouseDown} onmousemove={handleMouseMove} onmouseup={handleMouseUp} onmouseleave={handleMouseUp} role="application" tabindex="0">
+			<div class="absolute inset-0 opacity-20 pointer-events-none" style="background-image: radial-gradient(circle, #2a2a38 1px, transparent 1px); background-size: {24 * zoom}px {24 * zoom}px;"></div>
+			<div class="absolute inset-0" style="transform: translate({pan.x}px, {pan.y}px);">
+				<svg class="absolute inset-0 pointer-events-none overflow-visible"><defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#00C49A" /></marker></defs>{#each currentConnections as connection}<ConnectionLine {connection} nodes={currentNodes} />{/each}</svg>
+				{#each currentNodes as node (node.id)}<DraggableNode {node} selected={currentSelectedNodeId === node.id} {zoom} />{/each}
 			</div>
-
-			<div class="flex-1"></div>
-
-			<div class="flex items-center gap-2">
-				<button class="btn-secondary btn-sm">
-					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-					</svg>
-					Validate
-				</button>
-				<button class="btn-primary btn-sm">
-					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-					</svg>
-					Run
-				</button>
-			</div>
-		</header>
-
-		<!-- Canvas -->
-		<div class="flex-1 relative overflow-hidden bg-bg-primary">
-			<!-- Grid Background -->
-			<div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle, #2a2a38 1px, transparent 1px); background-size: 24px 24px;"></div>
-
-			<!-- Demo Nodes (positioned manually for now) -->
-			<div class="absolute inset-0 p-8">
-				<div class="flex gap-8 items-start">
-					{#each demoNodes as node}
-						<SkillNode
-							data={node}
-							selected={selectedNodeId === node.id}
-							onSelect={() => handleNodeSelect(node.id)}
-							onTest={() => handleNodeTest(node.id)}
-						/>
-					{/each}
-				</div>
-
-				<!-- Connection lines (demo) -->
-				<svg class="absolute inset-0 pointer-events-none" style="z-index: -1;">
-					<defs>
-						<marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-							<polygon points="0 0, 10 3.5, 0 7" fill="#00C49A" />
-						</marker>
-						<!-- Glow filter for connections -->
-						<filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-							<feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-							<feMerge>
-								<feMergeNode in="coloredBlur"/>
-								<feMergeNode in="SourceGraphic"/>
-							</feMerge>
-						</filter>
-					</defs>
-					<!-- Line from GitHub to Filter -->
-					<path
-						d="M 280 100 C 340 100, 300 100, 360 100"
-						fill="none"
-						stroke="#00C49A"
-						stroke-width="2"
-						stroke-dasharray="8 4"
-						class="connection-flow"
-						filter="url(#glow)"
-						marker-end="url(#arrowhead)"
-					/>
-					<!-- Line from Filter to Email -->
-					<path
-						d="M 568 100 C 628 100, 588 100, 648 100"
-						fill="none"
-						stroke="#00C49A"
-						stroke-width="2"
-						stroke-dasharray="8 4"
-						class="connection-flow"
-						filter="url(#glow)"
-						marker-end="url(#arrowhead)"
-					/>
-				</svg>
-			</div>
+			{#if currentNodes.length === 0}<div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="text-center"><h3 class="text-lg font-medium text-text-primary mb-2">No skills on canvas</h3><p class="text-sm text-text-secondary">Drag skills from the sidebar</p></div></div>{/if}
 		</div>
-
-		<!-- Chat Input (Bottom) -->
-		<div class="border-t border-surface-border bg-bg-secondary p-4">
-			<div class="max-w-2xl mx-auto">
-				<div class="relative">
-					<input
-						type="text"
-						bind:value={chatInput}
-						placeholder="Ask Claude to modify this workflow..."
-						class="input pr-24"
-					/>
-					<button class="absolute right-2 top-1/2 -translate-y-1/2 btn-primary btn-sm">
-						Send
-					</button>
-				</div>
-				<p class="text-xs text-text-tertiary mt-2 text-center">
-					Try: "Add error handling" or "Connect to Slack instead of email"
-				</p>
-			</div>
-		</div>
+		<div class="border-t border-surface-border bg-bg-secondary p-4"><div class="max-w-2xl mx-auto"><div class="relative"><input type="text" bind:value={chatInput} placeholder="Ask Claude..." class="input pr-24" /><button class="absolute right-2 top-1/2 -translate-y-1/2 btn-primary btn-sm">Send</button></div></div></div>
 	</main>
-
-	<!-- Right Panel (Node Details / Test Panel) -->
-	{#if selectedNodeId}
-		{@const selectedNode = demoNodes.find(n => n.id === selectedNodeId)}
-		{#if selectedNode}
-			<aside class="w-80 border-l border-surface-border bg-bg-secondary flex flex-col animate-fade-in">
-				<div class="p-4 border-b border-surface-border flex items-center justify-between">
-					<h2 class="font-medium text-text-primary">{selectedNode.name}</h2>
-					<button onclick={() => selectedNodeId = null} class="btn-ghost p-1">
-						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-						</svg>
-					</button>
-				</div>
-
-				<div class="flex-1 overflow-y-auto p-4">
-					<!-- Description -->
-					<div class="mb-6">
-						<h3 class="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-2">Description</h3>
-						<p class="text-sm text-text-secondary">{selectedNode.description}</p>
-					</div>
-
-					<!-- Sharp Edges -->
-					{#if selectedNode.sharpEdges && selectedNode.sharpEdges.length > 0}
-						<div class="mb-6">
-							<h3 class="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-2">Sharp Edges</h3>
-							{#each selectedNode.sharpEdges as edge}
-								<div class="p-3 bg-status-warning-bg border border-status-warning/20 mb-2">
-									<p class="text-sm text-status-warning">{edge.message}</p>
-								</div>
-							{/each}
-						</div>
-					{/if}
-
-					<!-- Configuration -->
-					<div class="mb-6">
-						<h3 class="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-2">Configuration</h3>
-						<div class="space-y-3">
-							<div>
-								<label class="block text-xs text-text-secondary mb-1">Repository</label>
-								<input type="text" class="input text-sm" placeholder="owner/repo" />
-							</div>
-							<div>
-								<label class="block text-xs text-text-secondary mb-1">Events</label>
-								<select class="input text-sm">
-									<option>star</option>
-									<option>fork</option>
-									<option>issue</option>
-									<option>push</option>
-								</select>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- Test Button -->
-				<div class="p-4 border-t border-surface-border">
-					<button class="btn-secondary btn-md w-full">
-						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-						</svg>
-						Test Node
-					</button>
-				</div>
-			</aside>
-		{/if}
-	{/if}
+	{#if currentSelectedNode}<aside class="w-80 border-l border-surface-border bg-bg-secondary flex flex-col"><div class="p-4 border-b border-surface-border flex items-center justify-between"><h2 class="font-medium text-text-primary">{currentSelectedNode.skill.name}</h2><button onclick={() => selectNode(null)} class="btn-ghost p-1">X</button></div><div class="flex-1 overflow-y-auto p-4"><div class="mb-6"><h3 class="text-xs font-semibold text-text-tertiary uppercase mb-2">Description</h3><p class="text-sm text-text-secondary">{currentSelectedNode.skill.description}</p></div></div><div class="p-4 border-t border-surface-border"><button class="btn-secondary btn-md w-full">Test Node</button></div></aside>{/if}
 </div>
+
+<style>.canvas-area { cursor: grab; }.canvas-area.panning { cursor: grabbing; }</style>
