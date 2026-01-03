@@ -63,7 +63,7 @@
 		<div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
 			<div class="flex items-center gap-6">
 				<a href="/" class="flex items-center gap-2">
-					<div class="w-7 h-7 bg-vibe-cyan-glow border border-vibe-cyan-border flex items-center justify-center">
+					<div class="w-7 h-7 bg-vibe-teal-glow border border-vibe-teal-border flex items-center justify-center">
 						<span class="text-accent-primary text-sm">⚡</span>
 					</div>
 					<span class="font-display font-semibold text-text-primary">vibeship spawner</span>
@@ -99,9 +99,9 @@
 		<div class="max-w-2xl mx-auto mb-20 animate-slide-up" style="animation-delay: 100ms;">
 			<div
 				class="relative border transition-all duration-normal"
-				class:bg-vibe-cyan-glow={isFocused}
+				class:bg-vibe-teal-glow={isFocused}
 				class:border-accent-primary={isFocused}
-				class:shadow-glow-cyan={isFocused}
+				class:shadow-glow-teal={isFocused}
 				class:bg-bg-secondary={!isFocused}
 				class:border-surface-border={!isFocused}
 			>
@@ -142,7 +142,7 @@
 			{#each tools as tool, i}
 				<a
 					href={tool.href}
-					class="group relative p-6 bg-bg-secondary border border-surface-border hover:border-vibe-cyan-border hover:shadow-card-glow transition-all duration-normal animate-slide-up"
+					class="group relative p-6 bg-bg-secondary border border-surface-border hover:border-vibe-teal-border hover:shadow-card-glow transition-all duration-normal animate-slide-up"
 					style="animation-delay: {150 + i * 50}ms;"
 				>
 					<!-- Number badge -->
@@ -195,7 +195,7 @@
 				<!-- Logo -->
 				<div class="col-span-2 md:col-span-1">
 					<a href="/" class="flex items-center gap-2 mb-4">
-						<div class="w-6 h-6 bg-vibe-cyan-glow border border-vibe-cyan-border flex items-center justify-center">
+						<div class="w-6 h-6 bg-vibe-teal-glow border border-vibe-teal-border flex items-center justify-center">
 							<span class="text-accent-primary text-xs">⚡</span>
 						</div>
 						<span class="font-display font-semibold text-text-primary text-sm">vibeship</span>

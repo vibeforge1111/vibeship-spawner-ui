@@ -76,13 +76,13 @@
     animation: flow 2s linear infinite;
   }
 
-  /* Vibeship glow effects */
-  .glow-cyan {
-    @apply shadow-glow-cyan;
+  /* Vibeship glow effects - teal */
+  .glow-teal {
+    @apply shadow-glow-teal;
   }
 
-  .glow-purple {
-    @apply shadow-glow-purple;
+  .glow-violet {
+    @apply shadow-glow-violet;
   }
 
   .glow-green {
@@ -151,11 +151,11 @@
   }
 
   .node:hover {
-    @apply border-vibe-cyan-border shadow-card-glow;
+    @apply border-vibe-teal-border shadow-card-glow;
   }
 
   .node.selected {
-    @apply border-accent-primary shadow-glow-cyan;
+    @apply border-accent-primary shadow-glow-teal;
   }
 
   .node.ghost {
@@ -178,7 +178,7 @@
   }
 
   .port:hover {
-    @apply scale-125 shadow-glow-cyan;
+    @apply scale-125 shadow-glow-teal;
   }
 
   .port.compatible {
@@ -191,11 +191,11 @@
   }
 
   .btn-primary {
-    @apply btn bg-accent-primary text-bg-primary hover:bg-accent-primary-hover hover:shadow-glow-cyan active:scale-[0.98];
+    @apply btn bg-accent-primary text-bg-primary hover:bg-accent-primary-hover hover:shadow-glow-teal active:scale-[0.98];
   }
 
   .btn-secondary {
-    @apply btn bg-surface text-text-secondary border border-surface-border hover:border-vibe-cyan-border hover:text-text-primary;
+    @apply btn bg-surface text-text-secondary border border-surface-border hover:border-vibe-teal-border hover:text-text-primary;
   }
 
   .btn-ghost {
@@ -224,7 +224,7 @@
   }
 
   .input:focus {
-    @apply border-accent-primary shadow-glow-cyan outline-none;
+    @apply border-accent-primary shadow-glow-teal outline-none;
   }
 
   /* Panels (sharp corners) */

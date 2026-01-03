@@ -66,7 +66,7 @@
 	<aside class="w-64 border-r border-surface-border bg-bg-secondary flex flex-col">
 		<div class="p-4 border-b border-surface-border">
 			<div class="flex items-center gap-3">
-				<div class="w-7 h-7 bg-vibe-cyan-glow border border-vibe-cyan-border flex items-center justify-center">
+				<div class="w-7 h-7 bg-vibe-teal-glow border border-vibe-teal-border flex items-center justify-center">
 					<span class="text-accent-primary text-sm">⚡</span>
 				</div>
 				<div>
@@ -98,7 +98,7 @@
 				<span class="text-xs font-mono text-text-tertiary">01</span>
 			</div>
 			<div class="space-y-2">
-				<div class="p-3 bg-surface border border-surface-border hover:border-vibe-cyan-border transition-colors">
+				<div class="p-3 bg-surface border border-surface-border hover:border-vibe-teal-border transition-colors">
 					<p class="text-xs text-text-secondary">No memories yet. Your decisions and learnings will appear here.</p>
 				</div>
 			</div>
@@ -168,7 +168,7 @@
 				<svg class="absolute inset-0 pointer-events-none" style="z-index: -1;">
 					<defs>
 						<marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-							<polygon points="0 0, 10 3.5, 0 7" fill="#00d4ff" />
+							<polygon points="0 0, 10 3.5, 0 7" fill="#00C49A" />
 						</marker>
 						<!-- Glow filter for connections -->
 						<filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
@@ -183,7 +183,7 @@
 					<path
 						d="M 280 100 C 340 100, 300 100, 360 100"
 						fill="none"
-						stroke="#00d4ff"
+						stroke="#00C49A"
 						stroke-width="2"
 						stroke-dasharray="8 4"
 						class="connection-flow"
@@ -194,7 +194,7 @@
 					<path
 						d="M 568 100 C 628 100, 588 100, 648 100"
 						fill="none"
-						stroke="#00d4ff"
+						stroke="#00C49A"
 						stroke-width="2"
 						stroke-dasharray="8 4"
 						class="connection-flow"

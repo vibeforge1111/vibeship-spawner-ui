@@ -4,85 +4,89 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
-      // Vibeship-inspired color palette
+      // Vibeship exact color palette
       colors: {
-        // Background colors - deep dark
+        // Background colors - Vibeship dark theme
         bg: {
-          primary: '#050508',
-          secondary: '#0a0a0f',
-          tertiary: '#0f0f16',
-          elevated: '#16161f',
+          primary: '#0e1016',
+          secondary: '#151820',
+          tertiary: '#1c202a',
+          elevated: '#242936',
+          inverse: '#ffffff',
           overlay: 'rgba(0, 0, 0, 0.8)'
         },
         // Surface colors
         surface: {
-          DEFAULT: '#0f0f16',
-          hover: '#16161f',
-          active: '#1c1c26',
-          border: '#1c1c26',
-          'border-subtle': '#14141c'
+          DEFAULT: '#151820',
+          hover: '#1c202a',
+          active: '#242936',
+          border: '#2a3042',
+          'border-strong': '#3d4558'
         },
-        // Text colors
+        // Text colors - Vibeship
         text: {
-          primary: '#ffffff',
-          secondary: '#8b8b9e',
-          tertiary: '#4a4a5c',
-          inverse: '#050508'
+          primary: '#e2e4e9',
+          secondary: '#9aa3b5',
+          tertiary: '#6b7489',
+          inverse: '#0e1016'
         },
-        // Accent colors - Vibeship cyan/neon
+        // Accent colors - Vibeship teal
         accent: {
-          primary: '#00d4ff', // Vibeship cyan
-          'primary-hover': '#33ddff',
-          'primary-dim': '#00a8cc',
-          secondary: '#a855f7', // Purple for secondary
-          'secondary-hover': '#c084fc'
+          primary: '#00C49A', // Vibeship teal
+          'primary-hover': '#00e6b5',
+          'primary-dim': '#00a882',
+          secondary: '#9D8CFF', // Violet
+          'secondary-hover': '#b3a5ff'
         },
         // Vibeship brand colors
         vibe: {
-          cyan: '#00d4ff',
-          'cyan-glow': 'rgba(0, 212, 255, 0.15)',
-          'cyan-border': 'rgba(0, 212, 255, 0.3)',
-          purple: '#a855f7',
-          'purple-glow': 'rgba(168, 85, 247, 0.15)',
-          green: '#22c55e',
-          'green-glow': 'rgba(34, 197, 94, 0.15)'
+          teal: '#00C49A',
+          'teal-glow': 'rgba(0, 196, 154, 0.15)',
+          'teal-border': 'rgba(0, 196, 154, 0.3)',
+          green: '#2ECC71',
+          'green-glow': 'rgba(46, 204, 113, 0.15)',
+          violet: '#9D8CFF',
+          'violet-glow': 'rgba(157, 140, 255, 0.15)',
+          orange: '#FFB020',
+          pink: '#FF66C4',
+          blue: '#3399FF'
         },
-        // Category colors (for skill nodes)
+        // Category colors (for skill nodes) - Vibeship palette
         category: {
-          development: '#22c55e', // Green
-          integration: '#00d4ff', // Cyan
-          ai: '#f59e0b', // Amber
-          data: '#3b82f6', // Blue
-          marketing: '#ec4899', // Pink
-          strategy: '#14b8a6', // Teal
-          agents: '#f97316', // Orange
-          mind: '#a855f7' // Purple
+          development: '#2ECC71', // Green
+          integration: '#00C49A', // Teal
+          ai: '#FFB020', // Orange
+          data: '#3399FF', // Blue
+          marketing: '#FF66C4', // Pink
+          strategy: '#00C49A', // Teal
+          agents: '#FFB020', // Orange
+          mind: '#9D8CFF' // Violet
         },
-        // Status colors
+        // Status colors - Vibeship
         status: {
-          success: '#22c55e',
-          'success-bg': 'rgba(34, 197, 94, 0.1)',
-          warning: '#eab308',
-          'warning-bg': 'rgba(234, 179, 8, 0.1)',
-          error: '#ef4444',
-          'error-bg': 'rgba(239, 68, 68, 0.1)',
-          info: '#00d4ff',
-          'info-bg': 'rgba(0, 212, 255, 0.1)'
+          success: '#2ECC71',
+          'success-bg': 'rgba(46, 204, 113, 0.1)',
+          warning: '#FFB020',
+          'warning-bg': 'rgba(255, 176, 32, 0.1)',
+          error: '#FF4D4D',
+          'error-bg': 'rgba(255, 77, 77, 0.1)',
+          info: '#00C49A',
+          'info-bg': 'rgba(0, 196, 154, 0.1)'
         },
-        // Port type colors
+        // Port type colors - Vibeship
         port: {
-          text: '#22c55e',
-          number: '#3b82f6',
-          boolean: '#f59e0b',
-          object: '#a855f7',
-          array: '#ec4899',
-          any: '#6b7280',
-          skill: '#00d4ff'
+          text: '#2ECC71',
+          number: '#3399FF',
+          boolean: '#FFB020',
+          object: '#9D8CFF',
+          array: '#FF66C4',
+          any: '#6b7489',
+          skill: '#00C49A'
         },
-        // Ghost state
+        // Ghost state - Vibeship teal
         ghost: {
-          bg: 'rgba(0, 212, 255, 0.08)',
-          border: 'rgba(0, 212, 255, 0.25)'
+          bg: 'rgba(0, 196, 154, 0.08)',
+          border: 'rgba(0, 196, 154, 0.25)'
         }
       },
       // Typography
@@ -132,21 +136,21 @@ export default {
         'xl': '8px',
         'full': '9999px'
       },
-      // Shadows with cyan glow
+      // Shadows with Vibeship teal glow
       boxShadow: {
         'sm': '0 1px 2px rgba(0, 0, 0, 0.4)',
         'DEFAULT': '0 4px 12px rgba(0, 0, 0, 0.5)',
         'lg': '0 8px 24px rgba(0, 0, 0, 0.6)',
         'xl': '0 12px 48px rgba(0, 0, 0, 0.7)',
-        // Vibeship glow effects
-        'glow-cyan': '0 0 20px rgba(0, 212, 255, 0.4)',
-        'glow-cyan-lg': '0 0 40px rgba(0, 212, 255, 0.3)',
-        'glow-cyan-intense': '0 0 30px rgba(0, 212, 255, 0.6), 0 0 60px rgba(0, 212, 255, 0.3)',
-        'glow-purple': '0 0 20px rgba(168, 85, 247, 0.4)',
-        'glow-green': '0 0 20px rgba(34, 197, 94, 0.4)',
-        'glow-error': '0 0 20px rgba(239, 68, 68, 0.4)',
-        // Card glow on hover
-        'card-glow': '0 0 0 1px rgba(0, 212, 255, 0.2), 0 0 20px rgba(0, 212, 255, 0.1)'
+        // Vibeship glow effects - teal
+        'glow-teal': '0 0 20px rgba(0, 196, 154, 0.4)',
+        'glow-teal-lg': '0 0 40px rgba(0, 196, 154, 0.3)',
+        'glow-teal-intense': '0 0 30px rgba(0, 196, 154, 0.6), 0 0 60px rgba(0, 196, 154, 0.3)',
+        'glow-green': '0 0 20px rgba(0, 196, 154, 0.3)',
+        'glow-violet': '0 0 20px rgba(157, 140, 255, 0.4)',
+        'glow-error': '0 0 20px rgba(255, 77, 77, 0.4)',
+        // Card glow on hover - Vibeship teal
+        'card-glow': '0 0 0 1px rgba(0, 196, 154, 0.2), 0 0 20px rgba(0, 196, 154, 0.1)'
       },
       // Animation
       animation: {
