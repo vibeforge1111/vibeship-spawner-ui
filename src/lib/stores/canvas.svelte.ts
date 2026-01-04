@@ -1137,6 +1137,7 @@ export function resetAllNodeStatus() {
 // Persistence functions
 
 interface SavedCanvasState {
+	version?: number;
 	nodes: CanvasNode[];
 	connections: Connection[];
 	zoom: number;
