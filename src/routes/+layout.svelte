@@ -13,6 +13,10 @@
 	onMount(async () => {
 		if (!browser) return;
 
+		// Always try local sync first (for canvas bridge during development)
+		// This runs in parallel with MCP connection
+		tryConnectSync('ws://localhost:8787/sync');
+
 		// Check for saved preference
 		const savedUrl = localStorage.getItem('mcp-url');
 
@@ -22,8 +26,6 @@
 			const success = await connect();
 			if (success) {
 				console.log('[MCP] Connected to saved server:', savedUrl);
-				// Also try WebSocket sync
-				tryConnectSync(savedUrl.replace('http', 'ws') + '/sync');
 				return;
 			}
 		}
@@ -34,8 +36,6 @@
 		if (localSuccess) {
 			localStorage.setItem('mcp-url', 'http://localhost:8787');
 			console.log('[MCP] Connected to local server');
-			// Try WebSocket sync for real-time updates
-			tryConnectSync('ws://localhost:8787/sync');
 			return;
 		}
 
@@ -45,8 +45,6 @@
 		if (prodSuccess) {
 			localStorage.setItem('mcp-url', 'https://mcp.vibeship.co');
 			console.log('[MCP] Connected to production server');
-			// Try WebSocket sync
-			tryConnectSync('wss://mcp.vibeship.co/sync');
 			return;
 		}
 

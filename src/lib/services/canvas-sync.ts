@@ -71,6 +71,7 @@ export interface AddSkillsData {
 // Track initialization
 let isInitialized = false;
 let unsubscribe: (() => void) | null = null;
+let isProcessing = false; // Prevent duplicate event processing
 
 /**
  * Initialize canvas sync - call this from the canvas page
@@ -110,7 +111,14 @@ async function handleSyncEvent(event: SyncEvent): Promise<void> {
 	// Handle canvas-specific events
 	if (!eventType.startsWith('canvas_')) return;
 
-	console.log('[CanvasSync] Received event:', eventType, event.data);
+	// Prevent duplicate processing (multiple HMR clients)
+	if (isProcessing) {
+		console.log('[CanvasSync] Already processing, skipping duplicate');
+		return;
+	}
+
+	console.log('[CanvasSync] Processing event:', eventType);
+	isProcessing = true;
 
 	try {
 		switch (eventType) {
@@ -147,6 +155,9 @@ async function handleSyncEvent(event: SyncEvent): Promise<void> {
 	} catch (error) {
 		console.error('[CanvasSync] Error handling event:', error);
 		broadcastError(error instanceof Error ? error.message : 'Unknown error');
+	} finally {
+		// Reset processing flag after a short delay to debounce duplicate events
+		setTimeout(() => { isProcessing = false; }, 100);
 	}
 }
 
@@ -156,22 +167,36 @@ async function handleSyncEvent(event: SyncEvent): Promise<void> {
 async function findSkill(skillId?: string, skillName?: string): Promise<Skill | null> {
 	// Ensure skills are loaded
 	let skills = get(skillsStore);
+	console.log('[CanvasSync] findSkill - initial skills count:', skills.length);
+
 	if (skills.length === 0) {
+		console.log('[CanvasSync] Loading skills...');
 		await loadSkillsStatic();
 		skills = get(skillsStore);
+		console.log('[CanvasSync] After load - skills count:', skills.length);
 	}
 
 	if (skillId) {
-		return skills.find(s => s.id === skillId) || null;
+		const found = skills.find(s => s.id === skillId);
+		console.log('[CanvasSync] Finding by ID:', skillId, '- found:', !!found);
+		return found || null;
 	}
 
 	if (skillName) {
 		// Try exact match first, then case-insensitive
 		const exact = skills.find(s => s.name === skillName);
-		if (exact) return exact;
+		if (exact) {
+			console.log('[CanvasSync] Found exact match for:', skillName);
+			return exact;
+		}
 
 		const lower = skillName.toLowerCase();
-		return skills.find(s => s.name.toLowerCase() === lower) || null;
+		const caseInsensitive = skills.find(s => s.name.toLowerCase() === lower);
+		console.log('[CanvasSync] Finding by name:', skillName, '- found:', !!caseInsensitive);
+		if (!caseInsensitive && skills.length > 0) {
+			console.log('[CanvasSync] Available skill names sample:', skills.slice(0, 5).map(s => s.name));
+		}
+		return caseInsensitive || null;
 	}
 
 	return null;
@@ -203,14 +228,17 @@ async function handleAddSkill(data: AddSkillData): Promise<void> {
  */
 async function handleAddSkills(data: AddSkillsData): Promise<void> {
 	const currentNodes = get(nodes);
-	const addedNodes: CanvasNode[] = [];
+	let addedCount = 0;
+	const notFound: string[] = [];
 
 	for (let i = 0; i < data.skills.length; i++) {
 		const skillData = data.skills[i];
 		const skill = await findSkill(skillData.skillId, skillData.skillName);
 
 		if (!skill) {
-			console.warn('[CanvasSync] Skill not found:', skillData.skillId || skillData.skillName);
+			const name = skillData.skillId || skillData.skillName || 'unknown';
+			console.warn('[CanvasSync] Skill not found:', name);
+			notFound.push(name);
 			continue;
 		}
 
@@ -220,7 +248,7 @@ async function handleAddSkills(data: AddSkillsData): Promise<void> {
 			position = skillData.position;
 		} else {
 			position = calculateLayoutPosition(
-				i,
+				addedCount,
 				data.skills.length,
 				currentNodes.length,
 				data.autoLayout || 'horizontal'
@@ -228,10 +256,17 @@ async function handleAddSkills(data: AddSkillsData): Promise<void> {
 		}
 
 		addNode(skill, position);
+		addedCount++;
 	}
 
-	console.log('[CanvasSync] Added', data.skills.length, 'skills');
-	broadcastCanvasState();
+	if (addedCount > 0) {
+		console.log('[CanvasSync] Added', addedCount, 'skills');
+		broadcastCanvasState();
+	} else if (notFound.length > 0) {
+		// Only broadcast error if ALL skills failed
+		console.error('[CanvasSync] No skills added. Not found:', notFound);
+		broadcastError(`Skills not found: ${notFound.join(', ')}`);
+	}
 }
 
 /**
@@ -385,4 +420,30 @@ export async function getAvailableSkills(): Promise<string[]> {
 		skills = get(skillsStore);
 	}
 	return skills.map(s => s.name);
+}
+
+/**
+ * Test function - adds sample skills to demonstrate Claude Code integration
+ * Call from browser console: window.testCanvasSync()
+ */
+export async function testCanvasSync(): Promise<void> {
+	console.log('[CanvasSync] Testing - adding sample skills...');
+
+	await handleAddSkills({
+		skills: [
+			{ skillName: 'Next.js App Router' },
+			{ skillName: 'Supabase Backend' },
+			{ skillName: 'TailwindCSS' },
+			{ skillName: 'Authentication' }
+		],
+		autoLayout: 'horizontal'
+	});
+
+	console.log('[CanvasSync] Test complete! Check the canvas.');
+}
+
+// Expose test function globally for browser console testing
+if (typeof window !== 'undefined') {
+	(window as any).testCanvasSync = testCanvasSync;
+	(window as any).addSkillsToCanvas = addSkillsFromClaude;
 }
