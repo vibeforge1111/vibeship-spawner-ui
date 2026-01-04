@@ -5,7 +5,7 @@
 	import ChatPanel from '$lib/components/chat/ChatPanel.svelte';
 	import ValidationPanel from '$lib/components/ValidationPanel.svelte';
 	import ExecutionPanel from '$lib/components/ExecutionPanel.svelte';
-	import { canvasState, nodes, connections, selectedNodeId, selectedNode, draggingConnection, addNode, selectNode, setZoom, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo } from '$lib/stores/canvas.svelte';
+	import { canvasState, nodes, connections, selectedNodeId, selectedNode, draggingConnection, addNode, selectNode, setZoom, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory } from '$lib/stores/canvas.svelte';
 	import { onMount } from 'svelte';
 	import type { Skill } from '$lib/stores/skills.svelte';
 	import type { DraggingConnection } from '$lib/stores/canvas.svelte';
@@ -26,6 +26,9 @@
 				lastSaved = info.savedAt;
 			}
 		}
+
+		// Initialize history with current state
+		clearHistory();
 
 		// Enable auto-save
 		const disableAutoSave = enableAutoSave(1000);
@@ -58,6 +61,8 @@
 	let currentSelectedNodeId = $state(null);
 	let currentSelectedNode = $state(null);
 	let currentDraggingConnection = $state<DraggingConnection | null>(null);
+	let currentCanUndo = $state(false);
+	let currentCanRedo = $state(false);
 
 	$effect(() => {
 		const unsub1 = nodes.subscribe((n) => (currentNodes = n));
@@ -65,8 +70,23 @@
 		const unsub3 = selectedNodeId.subscribe((id) => (currentSelectedNodeId = id));
 		const unsub4 = selectedNode.subscribe((node) => (currentSelectedNode = node));
 		const unsub5 = draggingConnection.subscribe((dc) => (currentDraggingConnection = dc));
-		return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); };
+		const unsub6 = canUndo.subscribe((v) => (currentCanUndo = v));
+		const unsub7 = canRedo.subscribe((v) => (currentCanRedo = v));
+		return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); };
 	});
+
+	function handleKeydown(e: KeyboardEvent) {
+		// Undo: Ctrl+Z (Windows/Linux) or Cmd+Z (Mac)
+		if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+			e.preventDefault();
+			undo();
+		}
+		// Redo: Ctrl+Shift+Z or Ctrl+Y (Windows/Linux) or Cmd+Shift+Z (Mac)
+		if ((e.ctrlKey || e.metaKey) && ((e.key === 'z' && e.shiftKey) || e.key === 'y')) {
+			e.preventDefault();
+			redo();
+		}
+	}
 
 	function getTempConnectionPath(dc: DraggingConnection): string {
 		if (!dc) return '';
@@ -105,6 +125,8 @@
 	function handleMouseUp() { isPanning = false; }
 </script>
 
+<svelte:window onkeydown={handleKeydown} />
+
 <div class="h-screen flex bg-bg-primary">
 	<aside class="w-64 border-r border-surface-border bg-bg-secondary flex flex-col">
 		<div class="p-4 border-b border-surface-border"><a href="/" class="flex items-center gap-1.5"><img src="/logo.png" alt="vibeship" class="w-6 h-6" /><span class="font-serif text-[1.36rem] text-text-primary">vibeship</span><span class="font-serif text-[1.36rem] text-accent-primary">spawner</span></a></div>
@@ -113,7 +135,7 @@
 		<div class="p-4 border-t border-surface-border"><div class="text-xs text-text-tertiary">Project • {currentNodes.length} nodes</div></div>
 	</aside>
 	<main class="flex-1 flex flex-col">
-		<header class="h-12 border-b border-surface-border bg-bg-secondary flex items-center px-4 gap-4"><div class="flex items-center gap-2"><button class="btn-ghost btn-sm" onclick={handleClear}>Clear</button><span class="text-sm text-text-secondary">{currentNodes.length} nodes</span>{#if lastSaved}<span class="text-xs text-text-tertiary">• saved</span>{/if}</div><div class="flex items-center gap-1 px-2 border-l border-surface-border"><button class="btn-ghost btn-sm" onclick={handleZoomOut}>-</button><button class="btn-ghost btn-sm min-w-[4rem] font-mono text-xs" onclick={handleZoomReset}>{Math.round(zoom * 100)}%</button><button class="btn-ghost btn-sm" onclick={handleZoomIn}>+</button></div><div class="flex-1"></div><div class="flex items-center gap-2"><button onclick={() => (showValidation = true)} class="px-3 py-1.5 text-sm font-mono text-text-primary border border-surface-border hover:border-accent-primary hover:text-accent-primary transition-all">Validate</button><button onclick={() => (showExecution = true)} class="px-3 py-1.5 text-sm font-mono bg-accent-primary text-bg-primary border border-accent-primary hover:bg-accent-primary-hover transition-all disabled:opacity-70 disabled:cursor-not-allowed" disabled={currentNodes.length === 0}>Run</button></div></header>
+		<header class="h-12 border-b border-surface-border bg-bg-secondary flex items-center px-4 gap-4"><div class="flex items-center gap-2"><button class="btn-ghost btn-sm" onclick={handleClear}>Clear</button><span class="text-sm text-text-secondary">{currentNodes.length} nodes</span>{#if lastSaved}<span class="text-xs text-text-tertiary">• saved</span>{/if}</div><div class="flex items-center gap-1 px-2 border-l border-surface-border"><button class="btn-ghost btn-sm" onclick={() => undo()} disabled={!currentCanUndo} title="Undo (Ctrl+Z)" class:opacity-40={!currentCanUndo}><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg></button><button class="btn-ghost btn-sm" onclick={() => redo()} disabled={!currentCanRedo} title="Redo (Ctrl+Shift+Z)" class:opacity-40={!currentCanRedo}><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"/></svg></button></div><div class="flex items-center gap-1 px-2 border-l border-surface-border"><button class="btn-ghost btn-sm" onclick={handleZoomOut}>-</button><button class="btn-ghost btn-sm min-w-[4rem] font-mono text-xs" onclick={handleZoomReset}>{Math.round(zoom * 100)}%</button><button class="btn-ghost btn-sm" onclick={handleZoomIn}>+</button></div><div class="flex-1"></div><div class="flex items-center gap-2"><button onclick={() => (showValidation = true)} class="px-3 py-1.5 text-sm font-mono text-text-primary border border-surface-border hover:border-accent-primary hover:text-accent-primary transition-all">Validate</button><button onclick={() => (showExecution = true)} class="px-3 py-1.5 text-sm font-mono bg-accent-primary text-bg-primary border border-accent-primary hover:bg-accent-primary-hover transition-all disabled:opacity-70 disabled:cursor-not-allowed" disabled={currentNodes.length === 0}>Run</button></div></header>
 		<div bind:this={canvasEl} class="canvas-area flex-1 relative overflow-hidden bg-bg-primary" class:panning={isPanning} ondrop={handleDrop} ondragover={handleDragOver} onclick={handleCanvasClick} onmousedown={handleMouseDown} onmousemove={handleMouseMove} onmouseup={handleMouseUp} onmouseleave={handleMouseUp} role="application" tabindex="0">
 			<div class="absolute inset-0 opacity-20 pointer-events-none" style="background-image: radial-gradient(circle, #2a2a38 1px, transparent 1px); background-size: {24 * zoom}px {24 * zoom}px;"></div>
 			<div class="absolute inset-0" style="transform: translate({pan.x}px, {pan.y}px);">

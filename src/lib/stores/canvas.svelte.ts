@@ -3,6 +3,7 @@ import { browser } from '$app/environment';
 import type { Skill } from './skills.svelte';
 
 const STORAGE_KEY = 'spawner-canvas-state';
+const MAX_HISTORY_SIZE = 50;
 
 export interface CanvasNode {
 	id: string;
@@ -59,9 +60,115 @@ export const selectedNode = derived(canvasState, ($state) => {
 	return $state.nodes.find((n) => n.id === $state.selectedNodeId) || null;
 });
 
+// History for undo/redo
+interface HistoryEntry {
+	nodes: CanvasNode[];
+	connections: Connection[];
+}
+
+const historyStack = writable<HistoryEntry[]>([]);
+const historyIndex = writable<number>(-1);
+
+export const canUndo = derived([historyStack, historyIndex], ([$stack, $index]) => $index > 0);
+export const canRedo = derived([historyStack, historyIndex], ([$stack, $index]) => $index < $stack.length - 1);
+
+function getHistoryEntry(): HistoryEntry {
+	const state = get(canvasState);
+	return {
+		nodes: JSON.parse(JSON.stringify(state.nodes)),
+		connections: JSON.parse(JSON.stringify(state.connections))
+	};
+}
+
+/**
+ * Push current state to history stack (call after significant changes)
+ */
+export function pushHistory() {
+	const entry = getHistoryEntry();
+	const currentIndex = get(historyIndex);
+	let currentStack = get(historyStack);
+
+	// If we're not at the end, truncate forward history
+	if (currentIndex < currentStack.length - 1) {
+		currentStack = currentStack.slice(0, currentIndex + 1);
+	}
+
+	// Add new entry
+	currentStack = [...currentStack, entry];
+
+	// Limit history size
+	if (currentStack.length > MAX_HISTORY_SIZE) {
+		currentStack = currentStack.slice(currentStack.length - MAX_HISTORY_SIZE);
+	}
+
+	historyStack.set(currentStack);
+	historyIndex.set(currentStack.length - 1);
+}
+
+/**
+ * Undo last action
+ */
+export function undo(): boolean {
+	const currentIndex = get(historyIndex);
+	if (currentIndex <= 0) return false;
+
+	const newIndex = currentIndex - 1;
+	const stack = get(historyStack);
+	const entry = stack[newIndex];
+
+	if (!entry) return false;
+
+	// Restore state without pushing to history
+	canvasState.update((state) => ({
+		...state,
+		nodes: JSON.parse(JSON.stringify(entry.nodes)),
+		connections: JSON.parse(JSON.stringify(entry.connections)),
+		selectedNodeId: null
+	}));
+
+	historyIndex.set(newIndex);
+	return true;
+}
+
+/**
+ * Redo previously undone action
+ */
+export function redo(): boolean {
+	const currentIndex = get(historyIndex);
+	const stack = get(historyStack);
+
+	if (currentIndex >= stack.length - 1) return false;
+
+	const newIndex = currentIndex + 1;
+	const entry = stack[newIndex];
+
+	if (!entry) return false;
+
+	// Restore state without pushing to history
+	canvasState.update((state) => ({
+		...state,
+		nodes: JSON.parse(JSON.stringify(entry.nodes)),
+		connections: JSON.parse(JSON.stringify(entry.connections)),
+		selectedNodeId: null
+	}));
+
+	historyIndex.set(newIndex);
+	return true;
+}
+
+/**
+ * Clear history stack
+ */
+export function clearHistory() {
+	historyStack.set([getHistoryEntry()]);
+	historyIndex.set(0);
+}
+
 let nodeIdCounter = 0;
 
 export function addNode(skill: Skill, position: { x: number; y: number }): string {
+	pushHistory();
+
 	nodeIdCounter++;
 	const id = 'node-' + nodeIdCounter + '-' + Math.random().toString(36).slice(2, 8);
 	const node: CanvasNode = {
@@ -81,6 +188,8 @@ export function addNode(skill: Skill, position: { x: number; y: number }): strin
 }
 
 export function removeNode(nodeId: string) {
+	pushHistory();
+
 	canvasState.update((state) => ({
 		...state,
 		nodes: state.nodes.filter((n) => n.id !== nodeId),
@@ -111,6 +220,8 @@ export function addConnection(
 	targetNodeId: string,
 	targetPortId: string
 ): string {
+	pushHistory();
+
 	const id = 'conn-' + Math.random().toString(36).slice(2, 10);
 	const connection: Connection = {
 		id,
@@ -129,6 +240,8 @@ export function addConnection(
 }
 
 export function removeConnection(connectionId: string) {
+	pushHistory();
+
 	canvasState.update((state) => ({
 		...state,
 		connections: state.connections.filter((c) => c.id !== connectionId)
@@ -226,6 +339,8 @@ export function completeConnection(targetNodeId: string, targetPortId: string): 
 }
 
 export function clearCanvas() {
+	pushHistory();
+
 	canvasState.set(initialState);
 	nodeIdCounter = 0;
 }
