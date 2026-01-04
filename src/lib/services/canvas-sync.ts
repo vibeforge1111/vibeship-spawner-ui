@@ -31,6 +31,7 @@ import {
 	type CanvasNode,
 	type Connection
 } from '$lib/stores/canvas.svelte';
+import { validateForMission } from './mission-builder';
 import { skills as skillsStore, loadSkillsStatic } from '$lib/stores/skills.svelte';
 import type { Skill } from '$lib/stores/skills.svelte';
 import { get } from 'svelte/store';
@@ -43,7 +44,9 @@ export type CanvasEventType =
 	| 'canvas_clear'          // Clear the entire canvas
 	| 'canvas_update_position'// Update node position
 	| 'canvas_get_state'      // Request current canvas state
+	| 'canvas_validate'       // Request workflow validation
 	| 'canvas_state'          // Response with canvas state
+	| 'canvas_validation'     // Response with validation results
 	| 'canvas_workflow_ready' // Notify that workflow is ready
 	| 'canvas_error';         // Error response
 
@@ -147,6 +150,10 @@ async function handleSyncEvent(event: SyncEvent): Promise<void> {
 
 			case 'canvas_get_state':
 				broadcastCanvasState();
+				break;
+
+			case 'canvas_validate':
+				broadcastValidation();
 				break;
 
 			default:
@@ -508,6 +515,27 @@ function broadcastError(message: string): void {
 	syncClient.broadcast({
 		type: 'canvas_error' as SyncEvent['type'],
 		data: { error: message }
+	});
+}
+
+/**
+ * Broadcast validation results
+ */
+export function broadcastValidation(): void {
+	const currentNodes = get(nodes);
+	const currentConnections = get(connections);
+
+	const validation = validateForMission(currentNodes, currentConnections);
+
+	syncClient.broadcast({
+		type: 'canvas_validation' as SyncEvent['type'],
+		data: {
+			valid: validation.valid,
+			issues: validation.issues,
+			nodeCount: currentNodes.length,
+			connectionCount: currentConnections.length,
+			readyForExecution: validation.valid && currentNodes.length > 0
+		}
 	});
 }
 
