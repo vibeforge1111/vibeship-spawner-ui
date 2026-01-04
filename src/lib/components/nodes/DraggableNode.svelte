@@ -233,20 +233,25 @@
 
 	.delete-btn {
 		position: absolute;
-		top: -8px;
-		right: -8px;
-		width: 20px;
-		height: 20px;
+		top: -6px;
+		right: -6px;
+		width: 16px;
+		height: 16px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: var(--status-error);
-		color: white;
-		border: none;
-		border-radius: 50%;
+		background: var(--bg-secondary);
+		color: var(--status-error);
+		border: 1px solid var(--status-error);
 		cursor: pointer;
 		opacity: 0;
-		transition: opacity 0.15s;
+		font-family: var(--font-mono);
+		font-size: 10px;
+	}
+
+	.delete-btn:hover {
+		background: var(--status-error);
+		color: var(--bg-primary);
 	}
 
 	.draggable-node:hover .delete-btn {

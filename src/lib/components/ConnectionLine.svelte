@@ -169,8 +169,8 @@
 			{@const midX = (sourceNode.position.x + nodeWidth + targetNode.position.x) / 2}
 			{@const midY = (sourceNode.position.y + getPortY(sourceNode, connection.sourcePortId, true) + targetNode.position.y + getPortY(targetNode, connection.targetPortId, false)) / 2}
 			<g class="delete-button" transform="translate({midX}, {midY})" onclick={handleDelete} role="button" tabindex="0">
-				<circle r="10" fill="#ef4444" class="delete-bg" />
-				<path d="M-4,-4 L4,4 M-4,4 L4,-4" stroke="white" stroke-width="2" stroke-linecap="round" />
+				<rect x="-8" y="-8" width="16" height="16" fill="var(--bg-secondary, #1a1a24)" stroke="var(--status-error, #ef4444)" stroke-width="1" class="delete-bg" />
+				<path d="M-4,-4 L4,4 M-4,4 L4,-4" stroke="var(--status-error, #ef4444)" stroke-width="1.5" />
 			</g>
 		{/if}
 	</g>
@@ -216,17 +216,14 @@
 	.delete-button {
 		pointer-events: all;
 		cursor: pointer;
-		opacity: 0.9;
-		transition: transform 0.15s, opacity 0.15s;
 	}
 
-	.delete-button:hover {
-		transform: scale(1.2);
-		opacity: 1;
+	.delete-button:hover .delete-bg {
+		fill: var(--status-error, #ef4444);
 	}
 
-	.delete-bg {
-		filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+	.delete-button:hover path {
+		stroke: var(--bg-primary, #0f0f17);
 	}
 
 	@keyframes flow {

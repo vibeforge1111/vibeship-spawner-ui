@@ -146,20 +146,18 @@
 
 	.port-handle {
 		position: absolute;
-		width: 12px;
-		height: 12px;
+		width: 10px;
+		height: 10px;
 		background: var(--bg-secondary);
-		border: 2px solid;
-		border-radius: 50%;
+		border: 1px solid;
 		cursor: crosshair;
 		z-index: 10;
-		transition: transform 0.15s, background 0.15s, box-shadow 0.15s;
+		transition: background 0.1s;
 		transform: translateY(-50%);
 	}
 
 	.port-handle:hover {
-		transform: translateY(-50%) scale(1.3);
-		box-shadow: 0 0 8px currentColor;
+		background: currentColor;
 	}
 
 	.port-input {
