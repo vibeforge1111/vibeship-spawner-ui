@@ -7,10 +7,9 @@
 	import ExecutionPanel from '$lib/components/ExecutionPanel.svelte';
 	import ContextMenu from '$lib/components/ContextMenu.svelte';
 	import { canvasState, nodes, connections, selectedNodeId, selectedNodeIds, selectedConnectionId, selectedNode, draggingConnection, cuttingLine, addNode, selectNode, selectConnection, selectAllNodes, clearSelection, deleteSelected, duplicateSelected, copySelected, pasteFromClipboard, removeConnection, removeNode, setZoom, zoomToFit, frameSelected, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory, startConnectionCut, updateConnectionCut, endConnectionCut, cancelConnectionCut } from '$lib/stores/canvas.svelte';
-	import type { CuttingLine } from '$lib/stores/canvas.svelte';
+	import type { CuttingLine, CanvasNode, Connection, DraggingConnection } from '$lib/stores/canvas.svelte';
 	import { onMount } from 'svelte';
 	import type { Skill } from '$lib/stores/skills.svelte';
-	import type { DraggingConnection } from '$lib/stores/canvas.svelte';
 
 	let activeTab = $state('skills');
 	let chatExpanded = $state(false);
@@ -62,12 +61,12 @@
 		return unsubscribe;
 	});
 
-	let currentNodes = $state([]);
-	let currentConnections = $state([]);
-	let currentSelectedNodeId = $state(null);
+	let currentNodes = $state<CanvasNode[]>([]);
+	let currentConnections = $state<Connection[]>([]);
+	let currentSelectedNodeId = $state<string | null>(null);
 	let currentSelectedNodeIds = $state<string[]>([]);
 	let currentSelectedConnectionId = $state<string | null>(null);
-	let currentSelectedNode = $state(null);
+	let currentSelectedNode = $state<CanvasNode | null>(null);
 	let currentDraggingConnection = $state<DraggingConnection | null>(null);
 	let currentCuttingLine = $state<CuttingLine | null>(null);
 	let isCutting = $state(false);
@@ -182,7 +181,7 @@
 			zoomToFit(rect.width, rect.height);
 		}
 	}
-	function handleMouseDown(e) {
+	function handleMouseDown(e: MouseEvent) {
 		// Ctrl+left-click to start cutting connections (Blender-style)
 		if (e.button === 0 && e.ctrlKey && !e.altKey) {
 			e.preventDefault();
@@ -200,7 +199,7 @@
 			e.preventDefault();
 		}
 	}
-	function handleMouseMove(e) {
+	function handleMouseMove(e: MouseEvent) {
 		if (isPanning) {
 			pan = { x: e.clientX - panStart.x, y: e.clientY - panStart.y };
 		}
@@ -252,7 +251,7 @@
 			return [
 				{ label: 'Paste', icon: '📋', action: pasteFromClipboard, shortcut: 'Ctrl+V' },
 				{ label: 'Select All', icon: '☑', action: selectAllNodes, shortcut: 'Ctrl+A' },
-				{ divider: true },
+				{ divider: true as const },
 				{ label: 'Zoom to Fit', icon: '🔍', action: handleZoomToFit },
 				{ label: 'Reset Zoom', icon: '↺', action: handleZoomReset }
 			];
@@ -262,10 +261,10 @@
 			const hasMultipleSelected = currentSelectedNodeIds.length > 1;
 			return [
 				{ label: 'Open Details', icon: '📄', action: () => (showNodeDetails = true) },
-				{ divider: true },
+				{ divider: true as const },
 				{ label: 'Copy', icon: '📋', action: copySelected, shortcut: 'Ctrl+C' },
 				{ label: 'Duplicate', icon: '⧉', action: duplicateSelected, shortcut: 'Ctrl+D' },
-				{ divider: true },
+				{ divider: true as const },
 				{ label: hasMultipleSelected ? `Delete ${currentSelectedNodeIds.length} nodes` : 'Delete', icon: '🗑', action: deleteSelected, shortcut: 'Del', danger: true }
 			];
 		}

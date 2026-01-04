@@ -1,15 +1,23 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	interface MenuItem {
+	type MenuItem = {
 		label: string;
 		icon?: string;
 		action: () => void;
 		danger?: boolean;
 		disabled?: boolean;
 		shortcut?: string;
-		divider?: boolean;
-	}
+		divider?: false;
+	} | {
+		divider: true;
+		label?: never;
+		icon?: never;
+		action?: never;
+		danger?: never;
+		disabled?: never;
+		shortcut?: never;
+	};
 
 	let {
 		x,
