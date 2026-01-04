@@ -1,9 +1,22 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
+	import PipelineSelector from './PipelineSelector.svelte';
 	import { mcpState, isConnected, isConnecting } from '$lib/stores/mcp.svelte';
+	import { initPipelines } from '$lib/stores/pipelines.svelte';
+	import { onMount } from 'svelte';
+	import { browser } from '$app/environment';
 
 	let skillsDropdownOpen = $state(false);
 	let currentMcpState = $state({ status: 'disconnected' as string, baseUrl: '' });
+	let pipelinesReady = $state(false);
+
+	// Initialize pipelines on mount
+	onMount(() => {
+		if (browser) {
+			initPipelines();
+			pipelinesReady = true;
+		}
+	});
 
 	$effect(() => {
 		const unsub = mcpState.subscribe((s) => {
@@ -50,12 +63,25 @@
 
 <nav class="h-[52px] sticky top-0 border-b border-surface-border bg-bg-primary z-50">
 	<div class="h-full max-w-6xl mx-auto flex items-center justify-between px-6">
-		<!-- Logo -->
-		<a href="/" class="flex items-center gap-1.5">
-			<img src="/logo.png" alt="vibeship" class="w-6 h-6 -ml-0.5" />
-			<span class="font-serif text-[1.36rem] text-text-primary" style="font-family: 'Instrument Serif', Georgia, serif;">vibeship</span>
-			<span class="font-serif text-[1.36rem] text-accent-primary" style="font-family: 'Instrument Serif', Georgia, serif;">spawner</span>
-		</a>
+		<!-- Left side: Logo + Pipeline Selector -->
+		<div class="flex items-center gap-4">
+			<!-- Logo -->
+			<a href="/" class="flex items-center gap-1.5">
+				<img src="/logo.png" alt="vibeship" class="w-6 h-6 -ml-0.5" />
+				<span class="font-serif text-[1.36rem] text-text-primary" style="font-family: 'Instrument Serif', Georgia, serif;">vibeship</span>
+				<span class="font-serif text-[1.36rem] text-accent-primary" style="font-family: 'Instrument Serif', Georgia, serif;">spawner</span>
+			</a>
+
+			<!-- Divider -->
+			<div class="w-px h-5 bg-surface-border hidden md:block"></div>
+
+			<!-- Pipeline Selector - Navigate to canvas on switch -->
+			{#if pipelinesReady}
+				<div class="hidden md:block">
+					<PipelineSelector navigateOnSwitch={true} />
+				</div>
+			{/if}
+		</div>
 
 		<!-- Right side -->
 		<div class="flex items-center gap-2">

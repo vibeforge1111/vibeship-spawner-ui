@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import {
 		pipelines,
 		activePipeline,
@@ -17,9 +18,10 @@
 	interface Props {
 		onSwitch?: (data: { nodes: any[]; connections: any[]; zoom: number; pan: { x: number; y: number } } | null) => void;
 		onBeforeSwitch?: () => { nodes: any[]; connections: any[]; zoom: number; pan: { x: number; y: number } };
+		navigateOnSwitch?: boolean; // When true, navigate to /canvas on switch (for Navbar usage)
 	}
 
-	let { onSwitch, onBeforeSwitch }: Props = $props();
+	let { onSwitch, onBeforeSwitch, navigateOnSwitch = false }: Props = $props();
 
 	let isOpen = $state(false);
 	let isRenaming = $state<string | null>(null);
@@ -63,6 +65,10 @@
 	function handleSelect(pipeline: PipelineMetadata) {
 		if (pipeline.id === get(activePipelineId)) {
 			isOpen = false;
+			// If navigating is enabled, still go to canvas page even if same pipeline
+			if (navigateOnSwitch) {
+				goto('/canvas');
+			}
 			return;
 		}
 
@@ -75,6 +81,11 @@
 		// Notify parent to update canvas
 		onSwitch?.(newData);
 		isOpen = false;
+
+		// Navigate to canvas if enabled (for Navbar usage)
+		if (navigateOnSwitch) {
+			goto('/canvas');
+		}
 	}
 
 	function handleCreate() {
@@ -85,11 +96,21 @@
 		onSwitch?.({ nodes: [], connections: [], zoom: 1, pan: { x: 0, y: 0 } });
 		isOpen = false;
 
-		// Start renaming the new pipeline
-		setTimeout(() => {
-			isOpen = true;
-			startRename(newPipeline);
-		}, 100);
+		// Navigate to canvas if enabled (for Navbar usage)
+		if (navigateOnSwitch) {
+			goto('/canvas');
+			// Start renaming after navigation
+			setTimeout(() => {
+				isOpen = true;
+				startRename(newPipeline);
+			}, 300);
+		} else {
+			// Start renaming the new pipeline
+			setTimeout(() => {
+				isOpen = true;
+				startRename(newPipeline);
+			}, 100);
+		}
 	}
 
 	function startRename(pipeline: PipelineMetadata) {
@@ -174,28 +195,22 @@
 
 	<!-- Dropdown -->
 	{#if isOpen}
-		<div class="absolute top-full left-0 mt-1 w-72 bg-bg-secondary border border-surface-border shadow-xl z-50">
+		<div class="absolute top-full left-0 mt-1 w-80 bg-bg-secondary border border-surface-border shadow-xl z-50">
 			<!-- Header -->
-			<div class="px-3 py-2 border-b border-surface-border flex items-center justify-between">
-				<span class="text-xs font-mono text-text-tertiary uppercase tracking-wide">Pipelines</span>
-				<button
-					class="text-xs font-mono text-accent-primary hover:text-accent-primary-hover transition-colors flex items-center gap-1"
-					onclick={handleCreate}
-				>
-					<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-					</svg>
-					New
-				</button>
+			<div class="px-3 py-2 border-b border-surface-border">
+				<span class="text-xs font-mono text-text-tertiary uppercase tracking-wide">Your Pipelines</span>
 			</div>
 
 			<!-- Pipeline list -->
-			<div class="max-h-64 overflow-y-auto">
+			<div class="max-h-72 overflow-y-auto">
 				{#each currentPipelines as pipeline (pipeline.id)}
 					<div
-						class="group px-3 py-2 hover:bg-bg-tertiary cursor-pointer border-b border-surface-border/50 last:border-b-0"
-						class:bg-accent-primary-hover={pipeline.id === currentActive?.id}
+						class="group px-3 py-2.5 cursor-pointer border-b border-surface-border/30 last:border-b-0 transition-all"
+						class:bg-accent-primary={pipeline.id === currentActive?.id}
 						class:bg-opacity-10={pipeline.id === currentActive?.id}
+						class:hover:bg-bg-tertiary={pipeline.id !== currentActive?.id}
+						class:hover:bg-accent-primary={pipeline.id === currentActive?.id}
+						class:hover:bg-opacity-15={pipeline.id === currentActive?.id}
 						onclick={() => handleSelect(pipeline)}
 						role="button"
 						tabindex="0"
@@ -214,15 +229,24 @@
 										onkeydown={handleRenameKeydown}
 									/>
 								{:else}
-									<div class="flex items-center gap-1.5">
+									<div class="flex items-center gap-2">
+										<!-- Pipeline icon -->
+										<svg class="w-4 h-4 shrink-0 {pipeline.id === currentActive?.id ? 'text-accent-primary' : 'text-text-tertiary'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+										</svg>
+										<span class="text-sm font-mono text-text-primary truncate font-medium">{pipeline.name}</span>
 										{#if pipeline.id === currentActive?.id}
-											<div class="w-1.5 h-1.5 rounded-full bg-accent-primary shrink-0"></div>
+											<span class="text-[10px] font-mono px-1.5 py-0.5 bg-accent-primary/20 text-accent-primary rounded">ACTIVE</span>
 										{/if}
-										<span class="text-sm font-mono text-text-primary truncate">{pipeline.name}</span>
 									</div>
 								{/if}
-								<div class="flex items-center gap-2 mt-0.5 text-xs text-text-tertiary">
-									<span>{pipeline.nodeCount} nodes</span>
+								<div class="flex items-center gap-2 mt-1 ml-6 text-xs text-text-tertiary">
+									<span class="flex items-center gap-1">
+										<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"/>
+										</svg>
+										{pipeline.nodeCount} nodes
+									</span>
 									<span class="text-text-quaternary">·</span>
 									<span>{formatDate(pipeline.updatedAt)}</span>
 								</div>
@@ -231,7 +255,7 @@
 							<!-- Actions -->
 							<div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
 								<button
-									class="p-1 text-text-tertiary hover:text-text-primary transition-colors"
+									class="p-1.5 text-text-tertiary hover:text-text-primary hover:bg-bg-primary/50 rounded transition-colors"
 									onclick={(e) => { e.stopPropagation(); startRename(pipeline); }}
 									title="Rename"
 								>
@@ -240,7 +264,7 @@
 									</svg>
 								</button>
 								<button
-									class="p-1 text-text-tertiary hover:text-text-primary transition-colors"
+									class="p-1.5 text-text-tertiary hover:text-text-primary hover:bg-bg-primary/50 rounded transition-colors"
 									onclick={(e) => handleDuplicate(e, pipeline)}
 									title="Duplicate"
 								>
@@ -250,7 +274,7 @@
 								</button>
 								{#if currentPipelines.length > 1}
 									<button
-										class="p-1 text-text-tertiary hover:text-red-400 transition-colors"
+										class="p-1.5 text-text-tertiary hover:text-red-400 hover:bg-red-400/10 rounded transition-colors"
 										onclick={(e) => handleDelete(e, pipeline)}
 										title="Delete"
 									>
@@ -267,36 +291,50 @@
 
 			<!-- Empty state -->
 			{#if currentPipelines.length === 0}
-				<div class="px-3 py-6 text-center">
-					<p class="text-sm text-text-tertiary">No pipelines yet</p>
-					<button
-						class="mt-2 text-sm text-accent-primary hover:underline"
-						onclick={handleCreate}
-					>
-						Create your first pipeline
-					</button>
+				<div class="px-4 py-8 text-center">
+					<svg class="w-10 h-10 mx-auto mb-3 text-text-tertiary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+					</svg>
+					<p class="text-sm text-text-tertiary mb-1">No pipelines yet</p>
+					<p class="text-xs text-text-quaternary">Create your first pipeline to get started</p>
 				</div>
 			{/if}
+
+			<!-- Create New Pipeline Button - Always visible at bottom -->
+			<div class="border-t border-surface-border p-2">
+				<button
+					class="w-full flex items-center justify-center gap-2 px-3 py-2.5 font-mono text-sm text-accent-primary bg-accent-primary/5 hover:bg-accent-primary/15 border border-accent-primary/30 hover:border-accent-primary/50 transition-all"
+					onclick={handleCreate}
+				>
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+					</svg>
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+					</svg>
+					<span>New Pipeline</span>
+				</button>
+			</div>
 		</div>
 	{/if}
 </div>
 
 <style>
 	/* Scrollbar styling */
-	.max-h-64::-webkit-scrollbar {
+	.max-h-72::-webkit-scrollbar {
 		width: 6px;
 	}
 
-	.max-h-64::-webkit-scrollbar-track {
+	.max-h-72::-webkit-scrollbar-track {
 		background: transparent;
 	}
 
-	.max-h-64::-webkit-scrollbar-thumb {
+	.max-h-72::-webkit-scrollbar-thumb {
 		background: var(--color-surface-border);
 		border-radius: 3px;
 	}
 
-	.max-h-64::-webkit-scrollbar-thumb:hover {
+	.max-h-72::-webkit-scrollbar-thumb:hover {
 		background: var(--color-text-tertiary);
 	}
 </style>
