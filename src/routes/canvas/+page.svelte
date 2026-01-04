@@ -8,7 +8,7 @@
 	import ContextMenu from '$lib/components/ContextMenu.svelte';
 	import Minimap from '$lib/components/Minimap.svelte';
 	import NodeConfigPanel from '$lib/components/NodeConfigPanel.svelte';
-	import { canvasState, nodes, connections, selectedNodeId, selectedNodeIds, selectedConnectionId, selectedNode, draggingConnection, cuttingLine, selectionBox, snapToGrid, gridSize, addNode, selectNode, selectConnection, selectAllNodes, clearSelection, deleteSelected, duplicateSelected, copySelected, pasteFromClipboard, removeConnection, removeNode, setZoom, zoomToFit, frameSelected, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory, startConnectionCut, updateConnectionCut, endConnectionCut, cancelConnectionCut, startSelectionBox, updateSelectionBox, endSelectionBox, cancelSelectionBox, toggleSnapToGrid, snapPosition, autoLayout, exportCanvasToFile, importCanvasFromFile } from '$lib/stores/canvas.svelte';
+	import { canvasState, nodes, connections, selectedNodeId, selectedNodeIds, selectedConnectionId, selectedNode, draggingConnection, cuttingLine, selectionBox, snapToGrid, gridSize, addNode, selectNode, selectConnection, selectAllNodes, clearSelection, deleteSelected, duplicateSelected, copySelected, pasteFromClipboard, removeConnection, removeNode, setZoom, setPan, zoomToFit, frameSelected, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory, startConnectionCut, updateConnectionCut, endConnectionCut, cancelConnectionCut, startSelectionBox, updateSelectionBox, endSelectionBox, cancelSelectionBox, toggleSnapToGrid, snapPosition, autoLayout, exportCanvasToFile, importCanvasFromFile } from '$lib/stores/canvas.svelte';
 	import type { CuttingLine, CanvasNode, Connection, DraggingConnection, SelectionBox } from '$lib/stores/canvas.svelte';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
@@ -67,7 +67,7 @@
 	});
 
 	function handleMinimapPan(x: number, y: number) {
-		canvasState.update(s => ({ ...s, pan: { x, y } }));
+		setPan({ x, y });
 	}
 
 	function handleClear() {
@@ -243,7 +243,7 @@
 		const panX = rect.width / 2 - centerX * zoom;
 		const panY = rect.height / 2 - centerY * zoom;
 
-		canvasState.update(s => ({ ...s, pan: { x: panX, y: panY } }));
+		setPan({ x: panX, y: panY });
 	}
 
 	function handleSearchKeydown(e: KeyboardEvent) {
@@ -406,7 +406,7 @@
 	}
 	function handleMouseMove(e: MouseEvent) {
 		if (isPanning) {
-			pan = { x: e.clientX - panStart.x, y: e.clientY - panStart.y };
+			setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
 		}
 		if (isCutting && canvasEl) {
 			const rect = canvasEl.getBoundingClientRect();
