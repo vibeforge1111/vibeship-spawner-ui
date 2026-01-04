@@ -10,13 +10,22 @@
 	import { canvasState, nodes, connections, selectedNodeId, selectedNodeIds, selectedConnectionId, selectedNode, draggingConnection, cuttingLine, selectionBox, snapToGrid, gridSize, addNode, selectNode, selectConnection, selectAllNodes, clearSelection, deleteSelected, duplicateSelected, copySelected, pasteFromClipboard, removeConnection, removeNode, setZoom, zoomToFit, frameSelected, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory, startConnectionCut, updateConnectionCut, endConnectionCut, cancelConnectionCut, startSelectionBox, updateSelectionBox, endSelectionBox, cancelSelectionBox, toggleSnapToGrid, snapPosition, autoLayout, exportCanvasToFile, importCanvasFromFile } from '$lib/stores/canvas.svelte';
 	import type { CuttingLine, CanvasNode, Connection, DraggingConnection, SelectionBox } from '$lib/stores/canvas.svelte';
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import type { Skill } from '$lib/stores/skills.svelte';
+	import { validateForMission, buildMissionFromCanvas } from '$lib/services/mission-builder';
+	import { mcpState } from '$lib/stores/mcp.svelte';
 
 	let activeTab = $state('skills');
 	let chatExpanded = $state(false);
 	let showValidation = $state(false);
 	let showExecution = $state(false);
 	let showNodeDetails = $state(false);
+	let showMissionExport = $state(false);
+	let missionName = $state('');
+	let missionDescription = $state('');
+	let missionExporting = $state(false);
+	let missionExportError = $state<string | null>(null);
+	let mcpConnected = $state(false);
 	let canvasEl: HTMLDivElement;
 	let lastSaved = $state<Date | null>(null);
 
@@ -68,6 +77,68 @@
 		deleteSavedCanvas();
 		lastSaved = null;
 	}
+
+	// Subscribe to MCP state
+	$effect(() => {
+		const unsub = mcpState.subscribe((s) => (mcpConnected = s.status === 'connected'));
+		return unsub;
+	});
+
+	// Mission export handlers
+	function openMissionExport() {
+		// Validate first
+		const validation = validateForMission(currentNodes, currentConnections);
+		if (!validation.valid) {
+			missionExportError = validation.issues.join('\n');
+		} else {
+			missionExportError = null;
+		}
+		// Generate default name from first node or timestamp
+		if (!missionName) {
+			const timestamp = new Date().toISOString().slice(0, 10);
+			missionName = currentNodes.length > 0
+				? `${currentNodes[0].skill.name} Workflow`
+				: `Workflow ${timestamp}`;
+		}
+		showMissionExport = true;
+	}
+
+	async function handleMissionExport() {
+		if (!missionName.trim()) {
+			missionExportError = 'Mission name is required';
+			return;
+		}
+
+		missionExporting = true;
+		missionExportError = null;
+
+		try {
+			const result = await buildMissionFromCanvas(currentNodes, currentConnections, {
+				name: missionName.trim(),
+				description: missionDescription.trim() || undefined
+			});
+
+			if (result.success && result.mission) {
+				showMissionExport = false;
+				missionName = '';
+				missionDescription = '';
+				// Navigate to the new mission
+				goto(`/missions/${result.mission.id}`);
+			} else {
+				missionExportError = result.error || 'Failed to create mission';
+			}
+		} catch (e) {
+			missionExportError = e instanceof Error ? e.message : 'Unknown error';
+		} finally {
+			missionExporting = false;
+		}
+	}
+
+	function closeMissionExport() {
+		showMissionExport = false;
+		missionExportError = null;
+	}
+
 	let zoom = $state(1);
 	let pan = $state({ x: 0, y: 0 });
 	let isPanning = $state(false);
@@ -511,6 +582,14 @@
 					<button onclick={() => (showValidation = true)} class="px-2.5 py-1 text-xs font-mono text-text-secondary border border-surface-border hover:border-text-tertiary hover:text-text-primary transition-all">
 						Validate
 					</button>
+					<button
+						onclick={openMissionExport}
+						class="px-2.5 py-1 text-xs font-mono text-text-secondary border border-surface-border hover:border-text-tertiary hover:text-text-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+						disabled={currentNodes.length === 0 || !mcpConnected}
+						title={!mcpConnected ? 'Connect to MCP to export missions' : 'Export workflow as mission'}
+					>
+						Export
+					</button>
 					<button onclick={() => (showExecution = true)} class="px-2.5 py-1 text-xs font-mono bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all disabled:opacity-50" disabled={currentNodes.length === 0}>
 						Run
 					</button>
@@ -681,6 +760,80 @@
 
 {#if contextMenu}
 	<ContextMenu x={contextMenu.x} y={contextMenu.y} items={getContextMenuItems()} onClose={closeContextMenu} />
+{/if}
+
+{#if showMissionExport}
+	<!-- Mission Export Modal -->
+	<div class="fixed inset-0 z-50 flex items-center justify-center">
+		<!-- Backdrop -->
+		<div class="absolute inset-0 bg-black/60" onclick={closeMissionExport}></div>
+
+		<!-- Modal -->
+		<div class="relative w-full max-w-md bg-bg-secondary border border-surface-border shadow-xl">
+			<div class="p-4 border-b border-surface-border flex items-center justify-between">
+				<h2 class="text-lg font-medium text-text-primary">Export to Mission</h2>
+				<button onclick={closeMissionExport} class="text-text-tertiary hover:text-text-secondary">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+					</svg>
+				</button>
+			</div>
+
+			<div class="p-4 space-y-4">
+				{#if missionExportError}
+					<div class="p-3 border border-red-500/30 bg-red-500/10 text-sm text-red-400 font-mono whitespace-pre-wrap">
+						{missionExportError}
+					</div>
+				{/if}
+
+				<div>
+					<label for="mission-name" class="block text-sm font-mono text-text-tertiary mb-1.5">
+						Mission Name *
+					</label>
+					<input
+						id="mission-name"
+						type="text"
+						bind:value={missionName}
+						placeholder="My Workflow"
+						class="w-full px-3 py-2 bg-bg-primary border border-surface-border text-text-primary font-mono text-sm placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary"
+					/>
+				</div>
+
+				<div>
+					<label for="mission-desc" class="block text-sm font-mono text-text-tertiary mb-1.5">
+						Description
+					</label>
+					<textarea
+						id="mission-desc"
+						bind:value={missionDescription}
+						placeholder="What does this workflow accomplish?"
+						rows="3"
+						class="w-full px-3 py-2 bg-bg-primary border border-surface-border text-text-primary font-mono text-sm placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary resize-none"
+					></textarea>
+				</div>
+
+				<div class="pt-2 text-xs font-mono text-text-tertiary">
+					This will create a mission with {currentNodes.length} task{currentNodes.length !== 1 ? 's' : ''} and {currentConnections.length} connection{currentConnections.length !== 1 ? 's' : ''}.
+				</div>
+			</div>
+
+			<div class="p-4 border-t border-surface-border flex items-center justify-end gap-2">
+				<button
+					onclick={closeMissionExport}
+					class="px-4 py-2 text-sm font-mono text-text-secondary border border-surface-border hover:border-text-tertiary hover:text-text-primary transition-all"
+				>
+					Cancel
+				</button>
+				<button
+					onclick={handleMissionExport}
+					disabled={missionExporting || !missionName.trim()}
+					class="px-4 py-2 text-sm font-mono bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+				>
+					{missionExporting ? 'Creating...' : 'Create Mission'}
+				</button>
+			</div>
+		</div>
+	</div>
 {/if}
 
 <style>

@@ -201,7 +201,7 @@ export async function buildMissionFromCanvas(
 
 		// Build context
 		const context: Partial<MissionContext> = {
-			projectPath: options.projectPath || process.cwd?.() || '.',
+			projectPath: options.projectPath || '.',
 			projectType: options.projectType || 'general',
 			techStack: options.techStack,
 			goals: options.goals || [options.description || `Complete ${options.name}`]
