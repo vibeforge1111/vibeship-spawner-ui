@@ -11,7 +11,7 @@
 	import { canvasState, nodes, connections, selectedNodeId, selectedNodeIds, selectedConnectionId, selectedNode, draggingConnection, cuttingLine, selectionBox, snapToGrid, gridSize, addNode, selectNode, selectConnection, selectAllNodes, clearSelection, deleteSelected, duplicateSelected, copySelected, pasteFromClipboard, removeConnection, removeNode, setZoom, setPan, zoomToFit, frameSelected, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory, startConnectionCut, updateConnectionCut, endConnectionCut, cancelConnectionCut, startSelectionBox, updateSelectionBox, endSelectionBox, cancelSelectionBox, toggleSnapToGrid, snapPosition, autoLayout, exportCanvasToFile, importCanvasFromFile, endConnectionDrag, resetTransientState } from '$lib/stores/canvas.svelte';
 	import type { CuttingLine, CanvasNode, Connection, DraggingConnection, SelectionBox } from '$lib/stores/canvas.svelte';
 	import { onMount } from 'svelte';
-	import { goto, beforeNavigate } from '$app/navigation';
+	import { goto, beforeNavigate, afterNavigate } from '$app/navigation';
 	import type { Skill } from '$lib/stores/skills.svelte';
 	import { validateForMission, buildMissionFromCanvas } from '$lib/services/mission-builder';
 	import { mcpState } from '$lib/stores/mcp.svelte';
@@ -41,6 +41,15 @@
 		// Reset all transient state before leaving
 		resetTransientState();
 		// Reset local states
+		isPanning = false;
+		isCutting = false;
+		isSelecting = false;
+	});
+
+	// Reset state when arriving at canvas page (handles client-side navigation)
+	afterNavigate(() => {
+		// Reset transient state after navigation completes
+		resetTransientState();
 		isPanning = false;
 		isCutting = false;
 		isSelecting = false;
