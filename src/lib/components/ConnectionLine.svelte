@@ -1,19 +1,32 @@
 <script lang="ts">
 	import type { Connection, CanvasNode } from '$lib/stores/canvas.svelte';
+	import { selectConnection, removeConnection } from '$lib/stores/canvas.svelte';
 	import { generatePorts, getPortColor } from '$lib/utils/ports';
 	import type { PortType } from '$lib/types/skill';
 
 	let {
 		connection,
 		nodes,
+		selected = false,
 		nodeWidth = 192,
 		nodeHeight = 48
 	}: {
 		connection: Connection;
 		nodes: CanvasNode[];
+		selected?: boolean;
 		nodeWidth?: number;
 		nodeHeight?: number;
 	} = $props();
+
+	function handleClick(e: MouseEvent) {
+		e.stopPropagation();
+		selectConnection(connection.id);
+	}
+
+	function handleDelete(e: MouseEvent) {
+		e.stopPropagation();
+		removeConnection(connection.id);
+	}
 
 	const sourceNode = $derived(nodes.find((n) => n.id === connection.sourceNodeId));
 	const targetNode = $derived(nodes.find((n) => n.id === connection.targetNodeId));
@@ -102,8 +115,27 @@
 
 {#if sourceNode && targetNode}
 	{@const style = connectionStyle()}
-	{@const color = connectionColor}
-	<g class="connection-group">
+	{@const color = selected ? '#fff' : connectionColor}
+	<g class="connection-group" class:selected onclick={handleClick}>
+		<!-- Invisible wider hit area for easier clicking -->
+		<path
+			d={pathD()}
+			fill="none"
+			stroke="transparent"
+			stroke-width="16"
+			class="connection-hitarea"
+		/>
+		<!-- Selection glow (when selected) -->
+		{#if selected}
+			<path
+				d={pathD()}
+				fill="none"
+				stroke="#fff"
+				stroke-width={style.width + 8}
+				class="connection-selection-glow"
+				opacity="0.3"
+			/>
+		{/if}
 		<!-- Glow layer -->
 		<path
 			d={pathD()}
@@ -119,7 +151,7 @@
 			d={pathD()}
 			fill="none"
 			stroke={color}
-			stroke-width={style.width}
+			stroke-width={selected ? style.width + 1 : style.width}
 			stroke-dasharray={style.dasharray}
 			class="connection-line"
 			class:animated={style.dasharray !== 'none'}
@@ -128,20 +160,40 @@
 		<circle
 			cx={targetNode.position.x}
 			cy={targetNode.position.y + getPortY(targetNode, connection.targetPortId, false)}
-			r="4"
+			r={selected ? 5 : 4}
 			fill={color}
 			class="connection-endpoint"
 		/>
+		<!-- Delete button on hover/selected -->
+		{#if selected}
+			{@const midX = (sourceNode.position.x + nodeWidth + targetNode.position.x) / 2}
+			{@const midY = (sourceNode.position.y + getPortY(sourceNode, connection.sourcePortId, true) + targetNode.position.y + getPortY(targetNode, connection.targetPortId, false)) / 2}
+			<g class="delete-button" transform="translate({midX}, {midY})" onclick={handleDelete} role="button" tabindex="0">
+				<circle r="10" fill="#ef4444" class="delete-bg" />
+				<path d="M-4,-4 L4,4 M-4,4 L4,-4" stroke="white" stroke-width="2" stroke-linecap="round" />
+			</g>
+		{/if}
 	</g>
 {/if}
 
 <style>
 	.connection-group {
 		pointer-events: none;
+		cursor: pointer;
+	}
+
+	.connection-hitarea {
+		pointer-events: stroke;
+	}
+
+	.connection-group:hover .connection-line,
+	.connection-group.selected .connection-line {
+		filter: drop-shadow(0 0 4px currentColor);
 	}
 
 	.connection-line {
 		filter: drop-shadow(0 0 2px currentColor);
+		transition: stroke-width 0.15s;
 	}
 
 	.connection-line.animated {
@@ -152,8 +204,29 @@
 		filter: blur(4px);
 	}
 
+	.connection-selection-glow {
+		filter: blur(6px);
+	}
+
 	.connection-endpoint {
 		filter: drop-shadow(0 0 4px currentColor);
+		transition: r 0.15s;
+	}
+
+	.delete-button {
+		pointer-events: all;
+		cursor: pointer;
+		opacity: 0.9;
+		transition: transform 0.15s, opacity 0.15s;
+	}
+
+	.delete-button:hover {
+		transform: scale(1.2);
+		opacity: 1;
+	}
+
+	.delete-bg {
+		filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 	}
 
 	@keyframes flow {

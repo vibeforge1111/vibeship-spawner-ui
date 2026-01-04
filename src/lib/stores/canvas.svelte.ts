@@ -35,6 +35,8 @@ export interface CanvasState {
 	nodes: CanvasNode[];
 	connections: Connection[];
 	selectedNodeId: string | null;
+	selectedNodeIds: string[];
+	selectedConnectionId: string | null;
 	zoom: number;
 	pan: { x: number; y: number };
 	draggingConnection: DraggingConnection | null;
@@ -44,6 +46,8 @@ const initialState: CanvasState = {
 	nodes: [],
 	connections: [],
 	selectedNodeId: null,
+	selectedNodeIds: [],
+	selectedConnectionId: null,
 	zoom: 1,
 	pan: { x: 0, y: 0 },
 	draggingConnection: null
@@ -53,11 +57,22 @@ export const canvasState = writable<CanvasState>(initialState);
 export const nodes = derived(canvasState, ($state) => $state.nodes);
 export const connections = derived(canvasState, ($state) => $state.connections);
 export const selectedNodeId = derived(canvasState, ($state) => $state.selectedNodeId);
+export const selectedNodeIds = derived(canvasState, ($state) => $state.selectedNodeIds);
+export const selectedConnectionId = derived(canvasState, ($state) => $state.selectedConnectionId);
 export const draggingConnection = derived(canvasState, ($state) => $state.draggingConnection);
 
 export const selectedNode = derived(canvasState, ($state) => {
 	if (!$state.selectedNodeId) return null;
 	return $state.nodes.find((n) => n.id === $state.selectedNodeId) || null;
+});
+
+export const selectedNodes = derived(canvasState, ($state) => {
+	return $state.nodes.filter((n) => $state.selectedNodeIds.includes(n.id));
+});
+
+export const selectedConnection = derived(canvasState, ($state) => {
+	if (!$state.selectedConnectionId) return null;
+	return $state.connections.find((c) => c.id === $state.selectedConnectionId) || null;
 });
 
 // History for undo/redo
@@ -210,8 +225,200 @@ export function updateNodePosition(nodeId: string, position: { x: number; y: num
 export function selectNode(nodeId: string | null) {
 	canvasState.update((state) => ({
 		...state,
-		selectedNodeId: nodeId
+		selectedNodeId: nodeId,
+		selectedNodeIds: nodeId ? [nodeId] : [],
+		selectedConnectionId: null // Clear connection selection when selecting node
 	}));
+}
+
+export function selectConnection(connectionId: string | null) {
+	canvasState.update((state) => ({
+		...state,
+		selectedConnectionId: connectionId,
+		selectedNodeId: null, // Clear node selection when selecting connection
+		selectedNodeIds: []
+	}));
+}
+
+export function toggleNodeSelection(nodeId: string, addToSelection: boolean) {
+	canvasState.update((state) => {
+		if (addToSelection) {
+			// Shift+click: add/remove from selection
+			const isSelected = state.selectedNodeIds.includes(nodeId);
+			const newSelectedIds = isSelected
+				? state.selectedNodeIds.filter((id) => id !== nodeId)
+				: [...state.selectedNodeIds, nodeId];
+			return {
+				...state,
+				selectedNodeIds: newSelectedIds,
+				selectedNodeId: newSelectedIds.length === 1 ? newSelectedIds[0] : state.selectedNodeId,
+				selectedConnectionId: null
+			};
+		} else {
+			// Normal click: select only this node
+			return {
+				...state,
+				selectedNodeId: nodeId,
+				selectedNodeIds: [nodeId],
+				selectedConnectionId: null
+			};
+		}
+	});
+}
+
+export function selectAllNodes() {
+	canvasState.update((state) => ({
+		...state,
+		selectedNodeIds: state.nodes.map((n) => n.id),
+		selectedNodeId: state.nodes.length === 1 ? state.nodes[0].id : null,
+		selectedConnectionId: null
+	}));
+}
+
+export function clearSelection() {
+	canvasState.update((state) => ({
+		...state,
+		selectedNodeId: null,
+		selectedNodeIds: [],
+		selectedConnectionId: null
+	}));
+}
+
+export function deleteSelected() {
+	const state = get(canvasState);
+
+	// Delete selected connection
+	if (state.selectedConnectionId) {
+		removeConnection(state.selectedConnectionId);
+		return;
+	}
+
+	// Delete selected nodes
+	if (state.selectedNodeIds.length > 0) {
+		pushHistory();
+		canvasState.update((s) => ({
+			...s,
+			nodes: s.nodes.filter((n) => !state.selectedNodeIds.includes(n.id)),
+			connections: s.connections.filter(
+				(c) => !state.selectedNodeIds.includes(c.sourceNodeId) && !state.selectedNodeIds.includes(c.targetNodeId)
+			),
+			selectedNodeId: null,
+			selectedNodeIds: [],
+			selectedConnectionId: null
+		}));
+	}
+}
+
+// Clipboard for copy/paste
+let clipboard: { nodes: CanvasNode[]; connections: Connection[] } | null = null;
+
+export function duplicateSelected(): string[] {
+	const state = get(canvasState);
+	if (state.selectedNodeIds.length === 0) return [];
+
+	pushHistory();
+	const newNodeIds: string[] = [];
+	const idMap: Record<string, string> = {};
+
+	// Duplicate nodes with offset
+	const nodesToDuplicate = state.nodes.filter((n) => state.selectedNodeIds.includes(n.id));
+	const newNodes: CanvasNode[] = [];
+
+	nodesToDuplicate.forEach((node) => {
+		nodeIdCounter++;
+		const newId = 'node-' + nodeIdCounter + '-' + Math.random().toString(36).slice(2, 8);
+		idMap[node.id] = newId;
+		newNodeIds.push(newId);
+
+		newNodes.push({
+			...node,
+			id: newId,
+			position: { x: node.position.x + 30, y: node.position.y + 30 }
+		});
+	});
+
+	// Duplicate connections between selected nodes
+	const connectionsToDuplicate = state.connections.filter(
+		(c) => state.selectedNodeIds.includes(c.sourceNodeId) && state.selectedNodeIds.includes(c.targetNodeId)
+	);
+	const newConnections: Connection[] = connectionsToDuplicate.map((conn) => ({
+		...conn,
+		id: 'conn-' + Math.random().toString(36).slice(2, 10),
+		sourceNodeId: idMap[conn.sourceNodeId],
+		targetNodeId: idMap[conn.targetNodeId]
+	}));
+
+	canvasState.update((s) => ({
+		...s,
+		nodes: [...s.nodes, ...newNodes],
+		connections: [...s.connections, ...newConnections],
+		selectedNodeIds: newNodeIds,
+		selectedNodeId: newNodeIds.length === 1 ? newNodeIds[0] : null
+	}));
+
+	return newNodeIds;
+}
+
+export function copySelected() {
+	const state = get(canvasState);
+	if (state.selectedNodeIds.length === 0) return;
+
+	const nodesToCopy = state.nodes.filter((n) => state.selectedNodeIds.includes(n.id));
+	const connectionsToCopy = state.connections.filter(
+		(c) => state.selectedNodeIds.includes(c.sourceNodeId) && state.selectedNodeIds.includes(c.targetNodeId)
+	);
+
+	clipboard = {
+		nodes: JSON.parse(JSON.stringify(nodesToCopy)),
+		connections: JSON.parse(JSON.stringify(connectionsToCopy))
+	};
+}
+
+export function pasteFromClipboard(): string[] {
+	if (!clipboard || clipboard.nodes.length === 0) return [];
+
+	pushHistory();
+	const newNodeIds: string[] = [];
+	const idMap: Record<string, string> = {};
+
+	// Create new nodes from clipboard
+	const newNodes: CanvasNode[] = clipboard.nodes.map((node) => {
+		nodeIdCounter++;
+		const newId = 'node-' + nodeIdCounter + '-' + Math.random().toString(36).slice(2, 8);
+		idMap[node.id] = newId;
+		newNodeIds.push(newId);
+
+		return {
+			...node,
+			id: newId,
+			position: { x: node.position.x + 50, y: node.position.y + 50 },
+			status: 'idle' as const
+		};
+	});
+
+	// Recreate connections
+	const newConnections: Connection[] = clipboard.connections.map((conn) => ({
+		...conn,
+		id: 'conn-' + Math.random().toString(36).slice(2, 10),
+		sourceNodeId: idMap[conn.sourceNodeId],
+		targetNodeId: idMap[conn.targetNodeId]
+	}));
+
+	canvasState.update((s) => ({
+		...s,
+		nodes: [...s.nodes, ...newNodes],
+		connections: [...s.connections, ...newConnections],
+		selectedNodeIds: newNodeIds,
+		selectedNodeId: newNodeIds.length === 1 ? newNodeIds[0] : null
+	}));
+
+	// Update clipboard positions for subsequent pastes
+	clipboard = {
+		nodes: clipboard.nodes.map((n) => ({ ...n, position: { x: n.position.x + 50, y: n.position.y + 50 } })),
+		connections: clipboard.connections
+	};
+
+	return newNodeIds;
 }
 
 export function addConnection(
@@ -260,6 +467,73 @@ export function setPan(pan: { x: number; y: number }) {
 		...state,
 		pan
 	}));
+}
+
+const NODE_WIDTH = 192;
+const NODE_HEIGHT = 48;
+
+export function zoomToFit(canvasWidth: number, canvasHeight: number, padding = 50) {
+	const state = get(canvasState);
+	if (state.nodes.length === 0) {
+		canvasState.update((s) => ({ ...s, zoom: 1, pan: { x: 0, y: 0 } }));
+		return;
+	}
+
+	// Calculate bounding box of all nodes
+	const minX = Math.min(...state.nodes.map((n) => n.position.x));
+	const minY = Math.min(...state.nodes.map((n) => n.position.y));
+	const maxX = Math.max(...state.nodes.map((n) => n.position.x + NODE_WIDTH));
+	const maxY = Math.max(...state.nodes.map((n) => n.position.y + NODE_HEIGHT));
+
+	const contentWidth = maxX - minX;
+	const contentHeight = maxY - minY;
+
+	// Calculate zoom to fit
+	const availableWidth = canvasWidth - padding * 2;
+	const availableHeight = canvasHeight - padding * 2;
+	const zoom = Math.min(
+		Math.max(0.25, Math.min(2, availableWidth / contentWidth)),
+		Math.max(0.25, Math.min(2, availableHeight / contentHeight))
+	);
+
+	// Calculate pan to center
+	const centerX = (minX + maxX) / 2;
+	const centerY = (minY + maxY) / 2;
+	const panX = canvasWidth / 2 - centerX * zoom;
+	const panY = canvasHeight / 2 - centerY * zoom;
+
+	canvasState.update((s) => ({ ...s, zoom, pan: { x: panX, y: panY } }));
+}
+
+export function frameSelected(canvasWidth: number, canvasHeight: number, padding = 80) {
+	const state = get(canvasState);
+	const selectedNodes = state.nodes.filter((n) => state.selectedNodeIds.includes(n.id));
+	if (selectedNodes.length === 0) return;
+
+	// Calculate bounding box of selected nodes
+	const minX = Math.min(...selectedNodes.map((n) => n.position.x));
+	const minY = Math.min(...selectedNodes.map((n) => n.position.y));
+	const maxX = Math.max(...selectedNodes.map((n) => n.position.x + NODE_WIDTH));
+	const maxY = Math.max(...selectedNodes.map((n) => n.position.y + NODE_HEIGHT));
+
+	const contentWidth = maxX - minX;
+	const contentHeight = maxY - minY;
+
+	// Calculate zoom to fit selection
+	const availableWidth = canvasWidth - padding * 2;
+	const availableHeight = canvasHeight - padding * 2;
+	const zoom = Math.min(
+		Math.max(0.5, Math.min(1.5, availableWidth / contentWidth)),
+		Math.max(0.5, Math.min(1.5, availableHeight / contentHeight))
+	);
+
+	// Calculate pan to center selection
+	const centerX = (minX + maxX) / 2;
+	const centerY = (minY + maxY) / 2;
+	const panX = canvasWidth / 2 - centerX * zoom;
+	const panY = canvasHeight / 2 - centerY * zoom;
+
+	canvasState.update((s) => ({ ...s, zoom, pan: { x: panX, y: panY } }));
 }
 
 export function startConnectionDrag(

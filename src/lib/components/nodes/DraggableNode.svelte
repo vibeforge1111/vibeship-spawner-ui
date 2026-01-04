@@ -1,7 +1,7 @@
 <script lang="ts">
 	import SkillNode from './SkillNode.svelte';
 	import type { CanvasNode } from '$lib/stores/canvas.svelte';
-	import { updateNodePosition, selectNode, removeNode, startConnectionDrag, updateConnectionDrag, endConnectionDrag, completeConnection } from '$lib/stores/canvas.svelte';
+	import { updateNodePosition, selectNode, toggleNodeSelection, removeNode, startConnectionDrag, updateConnectionDrag, endConnectionDrag, completeConnection } from '$lib/stores/canvas.svelte';
 	import type { SkillNodeData } from '$lib/types/skill';
 	import { generatePorts } from '$lib/utils/ports';
 
@@ -72,7 +72,8 @@
 			y: e.clientY - rect.top
 		};
 
-		selectNode(node.id);
+		// Shift+click for multi-select, regular click for single select
+		toggleNodeSelection(node.id, e.shiftKey);
 
 		window.addEventListener('mousemove', handleMouseMove);
 		window.addEventListener('mouseup', handleMouseUp);
