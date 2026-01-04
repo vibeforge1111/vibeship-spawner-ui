@@ -1,5 +1,8 @@
 import { writable, derived, get } from 'svelte/store';
+import { browser } from '$app/environment';
 import type { Skill } from './skills.svelte';
+
+const STORAGE_KEY = 'spawner-canvas-state';
 
 export interface CanvasNode {
 	id: string;
@@ -249,4 +252,152 @@ export function resetAllNodeStatus() {
 		...state,
 		nodes: state.nodes.map((n) => ({ ...n, status: 'idle' as const }))
 	}));
+}
+
+// Persistence functions
+
+interface SavedCanvasState {
+	nodes: CanvasNode[];
+	connections: Connection[];
+	zoom: number;
+	pan: { x: number; y: number };
+	savedAt: string;
+}
+
+/**
+ * Save canvas state to localStorage
+ */
+export function saveCanvas(): boolean {
+	if (!browser) return false;
+
+	try {
+		const state = get(canvasState);
+		const saveData: SavedCanvasState = {
+			nodes: state.nodes,
+			connections: state.connections,
+			zoom: state.zoom,
+			pan: state.pan,
+			savedAt: new Date().toISOString()
+		};
+
+		localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData));
+		return true;
+	} catch (e) {
+		console.error('Failed to save canvas:', e);
+		return false;
+	}
+}
+
+/**
+ * Load canvas state from localStorage
+ */
+export function loadCanvas(): boolean {
+	if (!browser) return false;
+
+	try {
+		const saved = localStorage.getItem(STORAGE_KEY);
+		if (!saved) return false;
+
+		const saveData: SavedCanvasState = JSON.parse(saved);
+
+		// Validate the data structure
+		if (!saveData.nodes || !Array.isArray(saveData.nodes)) {
+			return false;
+		}
+
+		// Reset node counter based on loaded nodes
+		const maxId = saveData.nodes.reduce((max, node) => {
+			const match = node.id.match(/node-(\d+)-/);
+			if (match) {
+				return Math.max(max, parseInt(match[1], 10));
+			}
+			return max;
+		}, 0);
+		nodeIdCounter = maxId;
+
+		canvasState.set({
+			nodes: saveData.nodes.map((n) => ({ ...n, status: 'idle' as const })),
+			connections: saveData.connections || [],
+			selectedNodeId: null,
+			zoom: saveData.zoom || 1,
+			pan: saveData.pan || { x: 0, y: 0 },
+			draggingConnection: null
+		});
+
+		return true;
+	} catch (e) {
+		console.error('Failed to load canvas:', e);
+		return false;
+	}
+}
+
+/**
+ * Check if there's saved canvas state
+ */
+export function hasSavedCanvas(): boolean {
+	if (!browser) return false;
+
+	try {
+		const saved = localStorage.getItem(STORAGE_KEY);
+		return saved !== null;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Get the saved canvas timestamp
+ */
+export function getSavedCanvasInfo(): { savedAt: Date; nodeCount: number } | null {
+	if (!browser) return null;
+
+	try {
+		const saved = localStorage.getItem(STORAGE_KEY);
+		if (!saved) return null;
+
+		const saveData: SavedCanvasState = JSON.parse(saved);
+		return {
+			savedAt: new Date(saveData.savedAt),
+			nodeCount: saveData.nodes?.length || 0
+		};
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Delete saved canvas state
+ */
+export function deleteSavedCanvas(): void {
+	if (!browser) return;
+
+	try {
+		localStorage.removeItem(STORAGE_KEY);
+	} catch (e) {
+		console.error('Failed to delete saved canvas:', e);
+	}
+}
+
+/**
+ * Auto-save: Subscribe to changes and save
+ */
+let autoSaveTimeout: ReturnType<typeof setTimeout> | null = null;
+
+export function enableAutoSave(debounceMs = 1000): () => void {
+	const unsubscribe = canvasState.subscribe(() => {
+		if (autoSaveTimeout) {
+			clearTimeout(autoSaveTimeout);
+		}
+
+		autoSaveTimeout = setTimeout(() => {
+			saveCanvas();
+		}, debounceMs);
+	});
+
+	return () => {
+		unsubscribe();
+		if (autoSaveTimeout) {
+			clearTimeout(autoSaveTimeout);
+		}
+	};
 }
