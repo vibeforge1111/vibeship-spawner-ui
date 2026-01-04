@@ -894,6 +894,23 @@ export function cancelSelectionBox() {
 	}));
 }
 
+/**
+ * Reset all transient state (used when navigating away or on page mount)
+ * This clears: dragging connections, cutting lines, selection boxes, and selections
+ * but preserves nodes, connections, zoom, and pan
+ */
+export function resetTransientState() {
+	canvasState.update((state) => ({
+		...state,
+		draggingConnection: null,
+		cuttingLine: null,
+		selectionBox: null,
+		selectedNodeId: null,
+		selectedNodeIds: [],
+		selectedConnectionId: null
+	}));
+}
+
 // Snap to grid functions
 export function toggleSnapToGrid() {
 	canvasState.update((state) => ({

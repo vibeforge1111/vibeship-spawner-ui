@@ -8,10 +8,10 @@
 	import ContextMenu from '$lib/components/ContextMenu.svelte';
 	import Minimap from '$lib/components/Minimap.svelte';
 	import NodeConfigPanel from '$lib/components/NodeConfigPanel.svelte';
-	import { canvasState, nodes, connections, selectedNodeId, selectedNodeIds, selectedConnectionId, selectedNode, draggingConnection, cuttingLine, selectionBox, snapToGrid, gridSize, addNode, selectNode, selectConnection, selectAllNodes, clearSelection, deleteSelected, duplicateSelected, copySelected, pasteFromClipboard, removeConnection, removeNode, setZoom, setPan, zoomToFit, frameSelected, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory, startConnectionCut, updateConnectionCut, endConnectionCut, cancelConnectionCut, startSelectionBox, updateSelectionBox, endSelectionBox, cancelSelectionBox, toggleSnapToGrid, snapPosition, autoLayout, exportCanvasToFile, importCanvasFromFile, endConnectionDrag } from '$lib/stores/canvas.svelte';
+	import { canvasState, nodes, connections, selectedNodeId, selectedNodeIds, selectedConnectionId, selectedNode, draggingConnection, cuttingLine, selectionBox, snapToGrid, gridSize, addNode, selectNode, selectConnection, selectAllNodes, clearSelection, deleteSelected, duplicateSelected, copySelected, pasteFromClipboard, removeConnection, removeNode, setZoom, setPan, zoomToFit, frameSelected, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory, startConnectionCut, updateConnectionCut, endConnectionCut, cancelConnectionCut, startSelectionBox, updateSelectionBox, endSelectionBox, cancelSelectionBox, toggleSnapToGrid, snapPosition, autoLayout, exportCanvasToFile, importCanvasFromFile, endConnectionDrag, resetTransientState } from '$lib/stores/canvas.svelte';
 	import type { CuttingLine, CanvasNode, Connection, DraggingConnection, SelectionBox } from '$lib/stores/canvas.svelte';
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { goto, beforeNavigate } from '$app/navigation';
 	import type { Skill } from '$lib/stores/skills.svelte';
 	import { validateForMission, buildMissionFromCanvas } from '$lib/services/mission-builder';
 	import { mcpState } from '$lib/stores/mcp.svelte';
@@ -36,15 +36,23 @@
 	// Confirmation modal state
 	let showClearConfirm = $state(false);
 
-	onMount(() => {
-		// Reset any stuck states on mount (both local and store states)
+	// Clean up when navigating away from the canvas page
+	beforeNavigate(() => {
+		// Reset all transient state before leaving
+		resetTransientState();
+		// Reset local states
 		isPanning = false;
 		isCutting = false;
 		isSelecting = false;
-		// Reset store states that could be stuck from previous session
-		endConnectionDrag();
-		cancelConnectionCut();
-		cancelSelectionBox();
+	});
+
+	onMount(() => {
+		// Reset all transient store state first (handles client-side navigation)
+		resetTransientState();
+		// Reset local states
+		isPanning = false;
+		isCutting = false;
+		isSelecting = false;
 
 		// Try to load saved canvas
 		const loaded = loadCanvas();
@@ -92,7 +100,8 @@
 			disableAutoSave();
 			resizeObserver.disconnect();
 			window.removeEventListener('mouseup', handleGlobalMouseUp);
-			// Reset states on unmount
+			// Reset all transient state on unmount (catches HMR and other edge cases)
+			resetTransientState();
 			isPanning = false;
 			isCutting = false;
 			isSelecting = false;
