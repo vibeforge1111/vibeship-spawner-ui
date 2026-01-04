@@ -387,21 +387,22 @@
 			startConnectionCut(x, y);
 			return;
 		}
-		// Middle-click or Alt+left-click for panning
-		if (e.button === 1 || (e.button === 0 && e.altKey)) {
-			isPanning = true;
-			panStart = { x: e.clientX - pan.x, y: e.clientY - pan.y };
-			e.preventDefault();
-			return;
-		}
-		// Left-click on empty canvas to start selection box
-		if (e.button === 0 && e.target === e.currentTarget) {
+		// Shift+left-click on empty canvas to start selection box
+		if (e.button === 0 && e.shiftKey && !e.ctrlKey) {
 			e.preventDefault();
 			isSelecting = true;
 			const rect = canvasEl.getBoundingClientRect();
 			const x = (e.clientX - rect.left - pan.x) / zoom;
 			const y = (e.clientY - rect.top - pan.y) / zoom;
 			startSelectionBox(x, y);
+			return;
+		}
+		// Left-click on empty canvas OR middle-click OR Alt+left-click for panning
+		if (e.button === 1 || (e.button === 0 && e.altKey) || (e.button === 0 && !e.ctrlKey && !e.shiftKey)) {
+			isPanning = true;
+			panStart = { x: e.clientX - pan.x, y: e.clientY - pan.y };
+			e.preventDefault();
+			return;
 		}
 	}
 	function handleMouseMove(e: MouseEvent) {
@@ -671,10 +672,10 @@
 		</header>
 		<div bind:this={canvasEl} class="canvas-area flex-1 relative overflow-hidden bg-bg-primary" class:panning={isPanning} class:cutting={isCutting} class:selecting={isSelecting} ondrop={handleDrop} ondragover={handleDragOver} onclick={handleCanvasClick} oncontextmenu={handleCanvasContextMenu} onmousedown={handleMouseDown} onmousemove={handleMouseMove} onmouseup={handleMouseUp} onmouseleave={handleMouseUp} role="application" tabindex="0">
 			<div class="absolute inset-0 opacity-20 pointer-events-none" style="background-image: radial-gradient(circle, #2a2a38 1px, transparent 1px); background-size: {24 * zoom}px {24 * zoom}px;"></div>
-			<div class="absolute inset-0" style="transform: translate({pan.x}px, {pan.y}px);">
+			<div class="absolute" style="transform: translate({pan.x}px, {pan.y}px);"><div style="transform: scale({zoom}); transform-origin: 0 0;">
 				<svg class="absolute inset-0 pointer-events-none overflow-visible"><defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#00C49A" /></marker></defs>{#each currentConnections as connection}<ConnectionLine {connection} nodes={currentNodes} selected={currentSelectedConnectionId === connection.id} />{/each}{#if currentDraggingConnection}<path d={getTempConnectionPath(currentDraggingConnection)} fill="none" stroke="#00C49A" stroke-width="2" stroke-dasharray="4 4" class="temp-connection" />{/if}{#if currentCuttingLine}<line x1={currentCuttingLine.startX} y1={currentCuttingLine.startY} x2={currentCuttingLine.currentX} y2={currentCuttingLine.currentY} stroke="#ef4444" stroke-width="2" stroke-dasharray="6 3" class="cutting-line" /><circle cx={currentCuttingLine.startX} cy={currentCuttingLine.startY} r="4" fill="#ef4444" /><circle cx={currentCuttingLine.currentX} cy={currentCuttingLine.currentY} r="4" fill="#ef4444" />{/if}{#if currentSelectionBox}{@const x = Math.min(currentSelectionBox.startX, currentSelectionBox.currentX)}{@const y = Math.min(currentSelectionBox.startY, currentSelectionBox.currentY)}{@const w = Math.abs(currentSelectionBox.currentX - currentSelectionBox.startX)}{@const h = Math.abs(currentSelectionBox.currentY - currentSelectionBox.startY)}<rect {x} {y} width={w} height={h} fill="rgba(0, 196, 154, 0.1)" stroke="#00C49A" stroke-width="1" stroke-dasharray="4 2" class="selection-box" />{/if}</svg>
 				{#each currentNodes as node (node.id)}<DraggableNode {node} selected={currentSelectedNodeIds.includes(node.id)} {zoom} {pan} onOpenDetails={() => (showNodeDetails = true)} onContextMenu={(e) => handleNodeContextMenu(node.id, e)} />{/each}
-			</div>
+			</div></div>
 			{#if currentNodes.length === 0}<div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="text-center"><h3 class="text-lg font-medium text-text-primary mb-2">No skills on canvas</h3><p class="text-sm text-text-secondary">Drag skills from the sidebar</p></div></div>{/if}
 			<!-- Search overlay -->
 			{#if showSearch}
