@@ -443,6 +443,36 @@ class McpClient {
 			...options
 		});
 	}
+
+	// ============================================
+	// Mind / Memory Management
+	// ============================================
+
+	/**
+	 * Remember a project decision, issue, or session update
+	 */
+	async remember(update: {
+		decision?: { what: string; why: string };
+		issue?: { description: string; status: 'open' | 'resolved' };
+		session_summary?: string;
+		validated?: string[];
+	}, projectId?: string): Promise<McpToolResult<{ success: boolean; project_id: string }>> {
+		return this.callTool('spawner_remember', {
+			update,
+			project_id: projectId
+		});
+	}
+
+	/**
+	 * Load project context and memories
+	 */
+	async loadProject(options?: {
+		project_id?: string;
+		project_description?: string;
+		stack_hints?: string[];
+	}): Promise<McpToolResult<MindProject>> {
+		return this.callTool('spawner_load', options);
+	}
 }
 
 // Mission types (matching spawner-v2)
@@ -502,6 +532,29 @@ export interface MissionLog {
 	message: string;
 	data: Record<string, unknown>;
 	created_at: string;
+}
+
+// Mind / Memory types
+export interface MindDecision {
+	what: string;
+	why: string;
+	created_at: string;
+}
+
+export interface MindIssue {
+	description: string;
+	status: 'open' | 'resolved';
+	created_at: string;
+}
+
+export interface MindProject {
+	project_id: string;
+	description?: string;
+	stack?: string[];
+	decisions: MindDecision[];
+	issues: MindIssue[];
+	sessions: Array<{ summary: string; created_at: string }>;
+	validated: string[];
 }
 
 // Singleton instance
