@@ -69,7 +69,7 @@
 		<div class="text-center mb-16 animate-fade-in">
 			<p class="font-mono text-sm mb-4 tracking-wider"><span class="text-accent-primary">SKILLED AGENTS</span> <span class="text-text-tertiary">|</span> <span class="text-accent-secondary">CONTEXT/MEMORY LAYER</span> <span class="text-text-tertiary">|</span> <span class="text-accent-primary">AUTOMATED PIPELINES</span></p>
 			<h1 class="text-[3.5rem] leading-tight font-serif font-normal text-text-primary mb-6">
-				A Framework To <span class="text-accent-primary relative inline-block">Turbocharge Claude<span class="claude-underline"></span></span>
+				A Framework To <span class="text-accent-primary relative inline-block">Level Up Claude<span class="claude-underline"></span></span>
 			</h1>
 			<p class="text-lg text-text-secondary max-w-2xl mx-auto mb-6">
 				450+ specialized skills transform Claude into domain experts. Chain them into pipelines.
@@ -90,11 +90,9 @@
 		<!-- Main Input -->
 		<div class="max-w-2xl mx-auto mb-20 animate-slide-up" style="animation-delay: 100ms;">
 			<div
-				class="relative border transition-all duration-normal"
-				class:bg-vibe-teal-glow={isFocused}
+				class="input-container relative border bg-bg-secondary transition-all duration-normal outline-none ring-0"
 				class:border-accent-primary={isFocused}
-				class:shadow-glow-teal={isFocused}
-				class:bg-bg-secondary={!isFocused}
+				class:input-glow={isFocused}
 				class:border-surface-border={!isFocused}
 			>
 				<textarea
@@ -104,10 +102,14 @@
 					onkeydown={handleKeydown}
 					placeholder="Describe what you want to build..."
 					rows="3"
-					class="w-full bg-transparent px-5 py-4 text-lg text-text-primary placeholder:text-text-tertiary resize-none focus:outline-none font-mono"
+					class="w-full bg-transparent px-5 py-4 text-lg text-text-primary placeholder:text-text-tertiary resize-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 font-mono"
 				></textarea>
 
-				<div class="flex items-center justify-between px-5 py-3 border-t border-surface-border">
+				<div
+					class="flex items-center justify-between px-5 py-3 border-t transition-colors duration-normal"
+					class:border-accent-primary={isFocused}
+					class:border-surface-border={!isFocused}
+				>
 					<div class="flex items-center gap-2 text-sm text-text-tertiary font-mono">
 						<kbd class="px-1.5 py-0.5 bg-surface rounded text-xs border border-surface-border">Enter</kbd>
 						<span>to spawn</span>
@@ -116,7 +118,9 @@
 					<button
 						onclick={handleSubmit}
 						disabled={!inputValue.trim()}
-						class="group flex items-center gap-2 px-4 py-2 bg-accent-primary text-bg-primary font-medium hover:bg-accent-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+						class="group flex items-center gap-2 px-4 py-2 font-medium transition-all disabled:cursor-not-allowed"
+						class:button-active={inputValue.trim()}
+						class:button-inactive={!inputValue.trim()}
 					>
 						<span>spawn()</span>
 						<svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -198,3 +202,42 @@
 	<!-- Footer -->
 	<Footer />
 </div>
+
+<style>
+	.input-glow {
+		box-shadow: inset 0 0 30px -8px rgb(45 212 191 / 0.5);
+	}
+
+	.button-inactive {
+		background: transparent;
+		border: 1px solid rgb(45 212 191 / 0.5);
+		color: rgb(45 212 191);
+		opacity: 0.7;
+	}
+
+	.button-active {
+		background: rgb(45 212 191);
+		border: 1px solid rgb(45 212 191);
+		color: rgb(15 23 42);
+		box-shadow: 0 0 10px rgb(45 212 191 / 0.4);
+	}
+
+	.button-active:hover {
+		background: rgb(94 234 212);
+		border-color: rgb(94 234 212);
+	}
+
+	/* Override global focus-visible ring that causes border overflow */
+	:global(.input-container textarea:focus),
+	:global(.input-container textarea:focus-visible) {
+		outline: none !important;
+		--tw-ring-offset-width: 0px !important;
+		--tw-ring-shadow: 0 0 #0000 !important;
+		--tw-ring-color: transparent !important;
+		box-shadow: none !important;
+	}
+
+	.input-container.input-glow {
+		box-shadow: inset 0 0 30px -8px rgb(45 212 191 / 0.5) !important;
+	}
+</style>

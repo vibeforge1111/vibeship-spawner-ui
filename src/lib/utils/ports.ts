@@ -177,3 +177,51 @@ export function getPortColor(type: PortType): string {
 	};
 	return colorMap[type] || '#6B7280';
 }
+
+/**
+ * Check if two port types are compatible for connection
+ * Source is the output port, target is the input port
+ */
+export function arePortTypesCompatible(sourceType: PortType, targetType: PortType): boolean {
+	// 'any' is compatible with everything
+	if (sourceType === 'any' || targetType === 'any') {
+		return true;
+	}
+
+	// Same type is always compatible
+	if (sourceType === targetType) {
+		return true;
+	}
+
+	// Skill type should only connect to skill or object inputs
+	if (sourceType === 'skill') {
+		return targetType === 'skill' || targetType === 'object';
+	}
+
+	// Object can accept most types (flexible container)
+	if (targetType === 'object') {
+		return true; // Already handled skill above
+	}
+
+	// Array can accept arrays or objects
+	if (targetType === 'array') {
+		return sourceType === 'object' || sourceType === 'array';
+	}
+
+	// Text can be coerced from most primitive types
+	if (targetType === 'text') {
+		return sourceType === 'number' || sourceType === 'boolean' || sourceType === 'text';
+	}
+
+	return false;
+}
+
+/**
+ * Get validation message for port type incompatibility
+ */
+export function getPortIncompatibilityMessage(sourceType: PortType, targetType: PortType): string {
+	if (arePortTypesCompatible(sourceType, targetType)) {
+		return '';
+	}
+	return `Cannot connect ${sourceType} output to ${targetType} input`;
+}

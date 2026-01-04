@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { SkillNodeData, Port } from '$lib/types/skill';
 	import { getPortColor } from '$lib/utils/ports';
+	import { draggingConnection, wouldConnectionBeValid } from '$lib/stores/canvas.svelte';
+	import type { DraggingConnection } from '$lib/stores/canvas.svelte';
 
 	let {
 		data,
@@ -23,6 +25,25 @@
 		onPortDragStart?: (portId: string, portType: 'input' | 'output', e: MouseEvent) => void;
 		onPortDragEnd?: (portId: string, portType: 'input' | 'output') => void;
 	} = $props();
+
+	let currentDraggingConnection = $state<DraggingConnection | null>(null);
+
+	$effect(() => {
+		const unsub = draggingConnection.subscribe((dc) => (currentDraggingConnection = dc));
+		return unsub;
+	});
+
+	// Check if a port would be a valid drop target
+	function isValidDropTarget(portId: string, portType: 'input' | 'output'): boolean {
+		if (!currentDraggingConnection) return false;
+		// Only show valid indicator on opposite port types
+		if (currentDraggingConnection.sourcePortType === portType) return false;
+		// Check if connection would be valid
+		return wouldConnectionBeValid(nodeId, portId);
+	}
+
+	// Check if we're currently dragging (to show indicators)
+	const isDragging = $derived(currentDraggingConnection !== null);
 
 	// Category color mapping
 	const categoryColors: Record<string, string> = {
@@ -86,8 +107,12 @@
 	<!-- Input ports (left edge) -->
 	{#if data.inputs && data.inputs.length > 0}
 		{#each data.inputs as port, i}
+			{@const isValid = isValidDropTarget(port.id, 'input')}
+			{@const showIndicator = isDragging && currentDraggingConnection?.sourcePortType === 'output'}
 			<div
 				class="port-handle port-input"
+				class:valid-target={showIndicator && isValid}
+				class:invalid-target={showIndicator && !isValid}
 				onmousedown={(e) => handlePortMouseDown(e, port.id, 'input')}
 				onmouseup={(e) => handlePortMouseUp(e, port.id, 'input')}
 				data-port-id={port.id}
@@ -108,8 +133,12 @@
 	<!-- Output ports (right edge) -->
 	{#if data.outputs && data.outputs.length > 0}
 		{#each data.outputs as port, i}
+			{@const isValid = isValidDropTarget(port.id, 'output')}
+			{@const showIndicator = isDragging && currentDraggingConnection?.sourcePortType === 'input'}
 			<div
 				class="port-handle port-output"
+				class:valid-target={showIndicator && isValid}
+				class:invalid-target={showIndicator && !isValid}
 				onmousedown={(e) => handlePortMouseDown(e, port.id, 'output')}
 				onmouseup={(e) => handlePortMouseUp(e, port.id, 'output')}
 				data-port-id={port.id}
@@ -191,5 +220,20 @@
 
 	.port-handle:hover .port-label {
 		opacity: 1;
+	}
+
+	/* Valid drop target indicator */
+	.port-handle.valid-target {
+		background: var(--accent-primary, #00C49A);
+		border-color: var(--accent-primary, #00C49A);
+		box-shadow: 0 0 8px var(--accent-primary, #00C49A);
+		transform: translateY(-50%) scale(1.3);
+	}
+
+	/* Invalid drop target indicator */
+	.port-handle.invalid-target {
+		background: var(--bg-secondary);
+		border-color: var(--status-error, #ef4444);
+		opacity: 0.5;
 	}
 </style>

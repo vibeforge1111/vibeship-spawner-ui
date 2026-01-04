@@ -1,6 +1,7 @@
 import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
 import type { Skill } from './skills.svelte';
+import { generatePorts, arePortTypesCompatible } from '$lib/utils/ports';
 
 const STORAGE_KEY = 'spawner-canvas-state';
 const MAX_HISTORY_SIZE = 50;
@@ -38,6 +39,13 @@ export interface CuttingLine {
 	currentY: number;
 }
 
+export interface SelectionBox {
+	startX: number;
+	startY: number;
+	currentX: number;
+	currentY: number;
+}
+
 export interface CanvasState {
 	nodes: CanvasNode[];
 	connections: Connection[];
@@ -48,6 +56,9 @@ export interface CanvasState {
 	pan: { x: number; y: number };
 	draggingConnection: DraggingConnection | null;
 	cuttingLine: CuttingLine | null;
+	selectionBox: SelectionBox | null;
+	snapToGrid: boolean;
+	gridSize: number;
 }
 
 const initialState: CanvasState = {
@@ -59,7 +70,10 @@ const initialState: CanvasState = {
 	zoom: 1,
 	pan: { x: 0, y: 0 },
 	draggingConnection: null,
-	cuttingLine: null
+	cuttingLine: null,
+	selectionBox: null,
+	snapToGrid: true,
+	gridSize: 24
 };
 
 export const canvasState = writable<CanvasState>(initialState);
@@ -70,6 +84,9 @@ export const selectedNodeIds = derived(canvasState, ($state) => $state.selectedN
 export const selectedConnectionId = derived(canvasState, ($state) => $state.selectedConnectionId);
 export const draggingConnection = derived(canvasState, ($state) => $state.draggingConnection);
 export const cuttingLine = derived(canvasState, ($state) => $state.cuttingLine);
+export const selectionBox = derived(canvasState, ($state) => $state.selectionBox);
+export const snapToGrid = derived(canvasState, ($state) => $state.snapToGrid);
+export const gridSize = derived(canvasState, ($state) => $state.gridSize);
 
 export const selectedNode = derived(canvasState, ($state) => {
 	if (!$state.selectedNodeId) return null;
@@ -610,6 +627,45 @@ export function completeConnection(targetNodeId: string, targetPortId: string): 
 		return false;
 	}
 
+	// Validate port type compatibility
+	const sourceNode = state.nodes.find((n) => n.id === drag.sourceNodeId);
+	const targetNode = state.nodes.find((n) => n.id === targetNodeId);
+
+	if (sourceNode && targetNode) {
+		const sourcePorts = generatePorts({
+			category: sourceNode.skill.category,
+			handoffs: sourceNode.skill.handoffs,
+			pairsWell: sourceNode.skill.pairsWell,
+			tags: sourceNode.skill.tags
+		});
+		const targetPorts = generatePorts({
+			category: targetNode.skill.category,
+			handoffs: targetNode.skill.handoffs,
+			pairsWell: targetNode.skill.pairsWell,
+			tags: targetNode.skill.tags
+		});
+
+		// Get port types
+		let sourcePortType, targetPortType;
+		if (drag.sourcePortType === 'output') {
+			const sourcePort = sourcePorts.outputs.find((p) => p.id === drag.sourcePortId);
+			const targetPort = targetPorts.inputs.find((p) => p.id === targetPortId);
+			sourcePortType = sourcePort?.type || 'any';
+			targetPortType = targetPort?.type || 'any';
+		} else {
+			const sourcePort = sourcePorts.inputs.find((p) => p.id === drag.sourcePortId);
+			const targetPort = targetPorts.outputs.find((p) => p.id === targetPortId);
+			// Reverse for input-to-output connection
+			sourcePortType = targetPort?.type || 'any';
+			targetPortType = sourcePort?.type || 'any';
+		}
+
+		if (!arePortTypesCompatible(sourcePortType, targetPortType)) {
+			endConnectionDrag();
+			return false;
+		}
+	}
+
 	// Output connects to input
 	if (drag.sourcePortType === 'output') {
 		addConnection(drag.sourceNodeId, drag.sourcePortId, targetNodeId, targetPortId);
@@ -620,6 +676,60 @@ export function completeConnection(targetNodeId: string, targetPortId: string): 
 
 	endConnectionDrag();
 	return true;
+}
+
+/**
+ * Check if a potential connection would be valid (for visual feedback during drag)
+ */
+export function wouldConnectionBeValid(targetNodeId: string, targetPortId: string): boolean {
+	const state = get(canvasState);
+	const drag = state.draggingConnection;
+	if (!drag) return false;
+
+	// Cannot connect to same node
+	if (drag.sourceNodeId === targetNodeId) return false;
+
+	// Check if connection already exists
+	const exists = state.connections.some(
+		(c) =>
+			(c.sourceNodeId === drag.sourceNodeId && c.targetNodeId === targetNodeId) ||
+			(c.sourceNodeId === targetNodeId && c.targetNodeId === drag.sourceNodeId)
+	);
+	if (exists) return false;
+
+	// Validate port type compatibility
+	const sourceNode = state.nodes.find((n) => n.id === drag.sourceNodeId);
+	const targetNode = state.nodes.find((n) => n.id === targetNodeId);
+
+	if (!sourceNode || !targetNode) return false;
+
+	const sourcePorts = generatePorts({
+		category: sourceNode.skill.category,
+		handoffs: sourceNode.skill.handoffs,
+		pairsWell: sourceNode.skill.pairsWell,
+		tags: sourceNode.skill.tags
+	});
+	const targetPorts = generatePorts({
+		category: targetNode.skill.category,
+		handoffs: targetNode.skill.handoffs,
+		pairsWell: targetNode.skill.pairsWell,
+		tags: targetNode.skill.tags
+	});
+
+	let sourcePortType, targetPortType;
+	if (drag.sourcePortType === 'output') {
+		const sourcePort = sourcePorts.outputs.find((p) => p.id === drag.sourcePortId);
+		const targetPort = targetPorts.inputs.find((p) => p.id === targetPortId);
+		sourcePortType = sourcePort?.type || 'any';
+		targetPortType = targetPort?.type || 'any';
+	} else {
+		const sourcePort = sourcePorts.inputs.find((p) => p.id === drag.sourcePortId);
+		const targetPort = targetPorts.outputs.find((p) => p.id === targetPortId);
+		sourcePortType = targetPort?.type || 'any';
+		targetPortType = sourcePort?.type || 'any';
+	}
+
+	return arePortTypesCompatible(sourcePortType, targetPortType);
 }
 
 // Connection cutting functions (Blender-style Ctrl+drag to cut)
@@ -721,6 +831,195 @@ export function cancelConnectionCut() {
 	}));
 }
 
+// Selection box (marquee) functions
+export function startSelectionBox(startX: number, startY: number) {
+	canvasState.update((state) => ({
+		...state,
+		selectionBox: { startX, startY, currentX: startX, currentY: startY }
+	}));
+}
+
+export function updateSelectionBox(currentX: number, currentY: number) {
+	canvasState.update((state) => {
+		if (!state.selectionBox) return state;
+		return {
+			...state,
+			selectionBox: { ...state.selectionBox, currentX, currentY }
+		};
+	});
+}
+
+export function endSelectionBox(): string[] {
+	const state = get(canvasState);
+	if (!state.selectionBox) return [];
+
+	const { startX, startY, currentX, currentY } = state.selectionBox;
+	const minX = Math.min(startX, currentX);
+	const maxX = Math.max(startX, currentX);
+	const minY = Math.min(startY, currentY);
+	const maxY = Math.max(startY, currentY);
+
+	// Find all nodes within the selection box
+	const selectedIds: string[] = [];
+	for (const node of state.nodes) {
+		const nodeRight = node.position.x + NODE_WIDTH;
+		const nodeBottom = node.position.y + NODE_HEIGHT;
+
+		// Check if node overlaps with selection box
+		if (
+			node.position.x < maxX &&
+			nodeRight > minX &&
+			node.position.y < maxY &&
+			nodeBottom > minY
+		) {
+			selectedIds.push(node.id);
+		}
+	}
+
+	canvasState.update((s) => ({
+		...s,
+		selectionBox: null,
+		selectedNodeIds: selectedIds,
+		selectedNodeId: selectedIds.length === 1 ? selectedIds[0] : null,
+		selectedConnectionId: null
+	}));
+
+	return selectedIds;
+}
+
+export function cancelSelectionBox() {
+	canvasState.update((state) => ({
+		...state,
+		selectionBox: null
+	}));
+}
+
+// Snap to grid functions
+export function toggleSnapToGrid() {
+	canvasState.update((state) => ({
+		...state,
+		snapToGrid: !state.snapToGrid
+	}));
+}
+
+export function setGridSize(size: number) {
+	canvasState.update((state) => ({
+		...state,
+		gridSize: Math.max(8, Math.min(64, size))
+	}));
+}
+
+export function snapPosition(x: number, y: number): { x: number; y: number } {
+	const state = get(canvasState);
+	if (!state.snapToGrid) return { x, y };
+
+	const { gridSize } = state;
+	return {
+		x: Math.round(x / gridSize) * gridSize,
+		y: Math.round(y / gridSize) * gridSize
+	};
+}
+
+/**
+ * Auto-layout: arrange nodes in a grid grouped by category
+ */
+export function autoLayout(
+	canvasWidth: number,
+	canvasHeight: number,
+	mode: 'grid' | 'horizontal' | 'vertical' | 'category' = 'category'
+) {
+	const state = get(canvasState);
+	if (state.nodes.length === 0) return;
+
+	pushHistory();
+
+	const NODE_WIDTH = 192;
+	const NODE_HEIGHT = 60;
+	const GAP_X = 48;
+	const GAP_Y = 36;
+	const PADDING = 50;
+	const { gridSize } = state;
+
+	let newNodes: CanvasNode[];
+
+	switch (mode) {
+		case 'grid': {
+			// Simple grid layout
+			const cols = Math.ceil(Math.sqrt(state.nodes.length));
+			newNodes = state.nodes.map((node, i) => {
+				const col = i % cols;
+				const row = Math.floor(i / cols);
+				return {
+					...node,
+					position: snapPosition(
+						PADDING + col * (NODE_WIDTH + GAP_X),
+						PADDING + row * (NODE_HEIGHT + GAP_Y)
+					)
+				};
+			});
+			break;
+		}
+
+		case 'horizontal': {
+			// Single row
+			newNodes = state.nodes.map((node, i) => ({
+				...node,
+				position: snapPosition(PADDING + i * (NODE_WIDTH + GAP_X), PADDING)
+			}));
+			break;
+		}
+
+		case 'vertical': {
+			// Single column
+			newNodes = state.nodes.map((node, i) => ({
+				...node,
+				position: snapPosition(PADDING, PADDING + i * (NODE_HEIGHT + GAP_Y))
+			}));
+			break;
+		}
+
+		case 'category':
+		default: {
+			// Group by category, arrange in columns
+			const nodesByCategory = new Map<string, CanvasNode[]>();
+			for (const node of state.nodes) {
+				const cat = node.skill.category || 'other';
+				if (!nodesByCategory.has(cat)) {
+					nodesByCategory.set(cat, []);
+				}
+				nodesByCategory.get(cat)!.push(node);
+			}
+
+			const categories = Array.from(nodesByCategory.keys()).sort();
+			const nodeMap = new Map<string, { x: number; y: number }>();
+
+			let colX = PADDING;
+			for (const category of categories) {
+				const catNodes = nodesByCategory.get(category)!;
+				let rowY = PADDING;
+
+				for (const node of catNodes) {
+					nodeMap.set(node.id, snapPosition(colX, rowY));
+					rowY += NODE_HEIGHT + GAP_Y;
+				}
+
+				colX += NODE_WIDTH + GAP_X * 2;
+			}
+
+			newNodes = state.nodes.map((node) => ({
+				...node,
+				position: nodeMap.get(node.id) || node.position
+			}));
+			break;
+		}
+	}
+
+	canvasState.update((s) => ({
+		...s,
+		nodes: newNodes
+	}));
+}
+
 export function clearCanvas() {
 	pushHistory();
 
@@ -817,9 +1116,15 @@ export function loadCanvas(): boolean {
 			nodes: saveData.nodes.map((n) => ({ ...n, status: 'idle' as const })),
 			connections: saveData.connections || [],
 			selectedNodeId: null,
+			selectedNodeIds: [],
+			selectedConnectionId: null,
 			zoom: saveData.zoom || 1,
 			pan: saveData.pan || { x: 0, y: 0 },
-			draggingConnection: null
+			draggingConnection: null,
+			cuttingLine: null,
+			selectionBox: null,
+			snapToGrid: true,
+			gridSize: 24
 		});
 
 		return true;
@@ -898,4 +1203,122 @@ export function enableAutoSave(debounceMs = 1000): () => void {
 			clearTimeout(autoSaveTimeout);
 		}
 	};
+}
+
+/**
+ * Export canvas to JSON file (download)
+ */
+export function exportCanvasToFile(filename = 'canvas-export.json'): boolean {
+	if (!browser) return false;
+
+	try {
+		const state = get(canvasState);
+		const exportData: SavedCanvasState = {
+			version: 1,
+			savedAt: new Date().toISOString(),
+			nodes: state.nodes,
+			connections: state.connections,
+			zoom: state.zoom,
+			pan: state.pan
+		};
+
+		const json = JSON.stringify(exportData, null, 2);
+		const blob = new Blob([json], { type: 'application/json' });
+		const url = URL.createObjectURL(blob);
+
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = filename;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+
+		return true;
+	} catch (e) {
+		console.error('Failed to export canvas:', e);
+		return false;
+	}
+}
+
+/**
+ * Import canvas from JSON file
+ */
+export function importCanvasFromFile(file: File): Promise<boolean> {
+	return new Promise((resolve) => {
+		if (!browser) {
+			resolve(false);
+			return;
+		}
+
+		const reader = new FileReader();
+		reader.onload = (e) => {
+			try {
+				const content = e.target?.result as string;
+				const importData: SavedCanvasState = JSON.parse(content);
+
+				// Validate the data structure
+				if (!importData.nodes || !Array.isArray(importData.nodes)) {
+					console.error('Invalid canvas file: missing nodes');
+					resolve(false);
+					return;
+				}
+
+				pushHistory();
+
+				// Reset node counter based on imported nodes
+				const maxId = importData.nodes.reduce((max, node) => {
+					const match = node.id.match(/node-(\d+)-/);
+					if (match) {
+						return Math.max(max, parseInt(match[1], 10));
+					}
+					return max;
+				}, 0);
+				nodeIdCounter = maxId;
+
+				canvasState.set({
+					nodes: importData.nodes.map((n) => ({ ...n, status: 'idle' as const })),
+					connections: importData.connections || [],
+					selectedNodeId: null,
+					selectedNodeIds: [],
+					selectedConnectionId: null,
+					zoom: importData.zoom || 1,
+					pan: importData.pan || { x: 0, y: 0 },
+					draggingConnection: null,
+					cuttingLine: null,
+					selectionBox: null,
+					snapToGrid: true,
+					gridSize: 24
+				});
+
+				resolve(true);
+			} catch (err) {
+				console.error('Failed to parse canvas file:', err);
+				resolve(false);
+			}
+		};
+
+		reader.onerror = () => {
+			console.error('Failed to read file');
+			resolve(false);
+		};
+
+		reader.readAsText(file);
+	});
+}
+
+/**
+ * Get canvas export data as JSON string (for clipboard, etc.)
+ */
+export function getCanvasExportData(): string {
+	const state = get(canvasState);
+	const exportData: SavedCanvasState = {
+		version: 1,
+		savedAt: new Date().toISOString(),
+		nodes: state.nodes,
+		connections: state.connections,
+		zoom: state.zoom,
+		pan: state.pan
+	};
+	return JSON.stringify(exportData, null, 2);
 }

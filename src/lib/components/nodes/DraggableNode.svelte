@@ -1,7 +1,7 @@
 <script lang="ts">
 	import SkillNode from './SkillNode.svelte';
 	import type { CanvasNode } from '$lib/stores/canvas.svelte';
-	import { updateNodePosition, selectNode, toggleNodeSelection, removeNode, startConnectionDrag, updateConnectionDrag, endConnectionDrag, completeConnection } from '$lib/stores/canvas.svelte';
+	import { updateNodePosition, selectNode, toggleNodeSelection, removeNode, startConnectionDrag, updateConnectionDrag, endConnectionDrag, completeConnection, snapPosition } from '$lib/stores/canvas.svelte';
 	import type { SkillNodeData } from '$lib/types/skill';
 	import { generatePorts } from '$lib/utils/ports';
 
@@ -88,13 +88,12 @@
 		if (!canvasEl) return;
 
 		const canvasRect = canvasEl.getBoundingClientRect();
-		const newX = (e.clientX - canvasRect.left - dragOffset.x) / zoom;
-		const newY = (e.clientY - canvasRect.top - dragOffset.y) / zoom;
+		const rawX = (e.clientX - canvasRect.left - dragOffset.x) / zoom;
+		const rawY = (e.clientY - canvasRect.top - dragOffset.y) / zoom;
 
-		updateNodePosition(node.id, {
-			x: Math.max(0, newX),
-			y: Math.max(0, newY)
-		});
+		// Apply snap to grid
+		const snapped = snapPosition(Math.max(0, rawX), Math.max(0, rawY));
+		updateNodePosition(node.id, snapped);
 	}
 
 	function handleMouseUp() {
