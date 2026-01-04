@@ -21,6 +21,8 @@ import { get } from 'svelte/store';
 	import { getGoalState, hasPendingGoal, clearGoal } from '$lib/stores/project-goal.svelte';
 	import { processGoalAndAddToCanvas, isProcessing } from '$lib/services/goal-to-workflow';
 	import { initCanvasSync } from '$lib/services/canvas-sync';
+	import PipelineSelector from '$lib/components/PipelineSelector.svelte';
+	import { initPipelines, saveCurrentPipeline, getActivePipelineData, activePipelineId } from '$lib/stores/pipelines.svelte';
 
 	let activeTab = $state('skills');
 	let chatExpanded = $state(false);
@@ -221,20 +223,35 @@ import { get } from 'svelte/store';
 		isCutting = false;
 		isSelecting = false;
 
-		// Try to load saved canvas
-		const loaded = loadCanvas();
-		if (loaded) {
-			const info = getSavedCanvasInfo();
-			if (info) {
-				lastSaved = info.savedAt;
+		// Initialize pipeline system
+		initPipelines();
+
+		// Load active pipeline data
+		const pipelineData = getActivePipelineData();
+		if (pipelineData) {
+			loadPipelineToCanvas(pipelineData);
+			lastSaved = new Date();
+		} else {
+			// Fallback: try old format
+			const loaded = loadCanvas();
+			if (loaded) {
+				const info = getSavedCanvasInfo();
+				if (info) {
+					lastSaved = info.savedAt;
+				}
 			}
 		}
 
 		// Initialize history with current state
 		clearHistory();
 
-		// Enable auto-save
+		// Enable auto-save with pipeline support
 		const disableAutoSave = enableAutoSave(1000);
+
+		// Set up pipeline auto-save (syncs to pipeline storage)
+		const pipelineAutoSaveInterval = setInterval(() => {
+			saveCurrentPipelineData();
+		}, 2000);
 
 		// Initialize canvas sync for Claude Code integration
 		const cleanupCanvasSync = initCanvasSync();
@@ -285,10 +302,13 @@ import { get } from 'svelte/store';
 			isMounted = false;
 			pendingGoalProcess = false;
 			disableAutoSave();
+			clearInterval(pipelineAutoSaveInterval);
 			cleanupCanvasSync();
 			resizeObserver.disconnect();
 			window.removeEventListener('mouseup', handleGlobalMouseUp);
 			window.removeEventListener('builder:frame-selected', handleBuilderFrameSelected);
+			// Save current pipeline before unmount
+			saveCurrentPipelineData();
 			// Reset all transient state on unmount (catches HMR and other edge cases)
 			resetTransientState();
 			isPanning = false;
@@ -320,6 +340,61 @@ import { get } from 'svelte/store';
 
 	function cancelClear() {
 		showClearConfirm = false;
+	}
+
+	// Pipeline management functions
+	function loadPipelineToCanvas(data: { nodes: any[]; connections: any[]; zoom: number; pan: { x: number; y: number } }) {
+		// Clear current canvas first
+		clearCanvas();
+
+		// Set zoom and pan
+		setZoom(data.zoom || 1);
+		setPan(data.pan || { x: 0, y: 0 });
+
+		// Add nodes
+		if (data.nodes && data.nodes.length > 0) {
+			// We need to restore the full node structure
+			canvasState.update(state => ({
+				...state,
+				nodes: data.nodes,
+				connections: data.connections || []
+			}));
+		}
+
+		// Clear history after loading
+		clearHistory();
+		forceStoreSync();
+	}
+
+	function saveCurrentPipelineData() {
+		const state = get(canvasState);
+		saveCurrentPipeline({
+			nodes: state.nodes,
+			connections: state.connections,
+			zoom: state.zoom,
+			pan: state.pan
+		});
+	}
+
+	function getCurrentCanvasData() {
+		const state = get(canvasState);
+		return {
+			nodes: state.nodes,
+			connections: state.connections,
+			zoom: state.zoom,
+			pan: state.pan
+		};
+	}
+
+	function handlePipelineSwitch(data: { nodes: any[]; connections: any[]; zoom: number; pan: { x: number; y: number } } | null) {
+		if (data) {
+			loadPipelineToCanvas(data);
+		} else {
+			// New empty pipeline
+			clearCanvas();
+			clearHistory();
+		}
+		lastSaved = new Date();
 	}
 
 	// Subscribe to MCP state
@@ -772,6 +847,14 @@ import { get } from 'svelte/store';
 		<header class="border-b border-surface-border bg-bg-secondary">
 			<!-- Row 1: Primary actions -->
 			<div class="h-10 flex items-center px-3 gap-3 border-b border-surface-border/50">
+				<!-- Pipeline selector -->
+				<PipelineSelector
+					onSwitch={handlePipelineSwitch}
+					onBeforeSwitch={getCurrentCanvasData}
+				/>
+
+				<div class="w-px h-5 bg-surface-border"></div>
+
 				<!-- File operations (non-destructive) -->
 				<div class="flex items-center gap-1">
 					<button class="toolbar-btn" onclick={handleExport} title="Export canvas">
