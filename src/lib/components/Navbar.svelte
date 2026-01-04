@@ -1,7 +1,16 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
+	import { mcpState, isConnected, isConnecting } from '$lib/stores/mcp.svelte';
 
 	let skillsDropdownOpen = $state(false);
+	let currentMcpState = $state({ status: 'disconnected' as string, baseUrl: '' });
+
+	$effect(() => {
+		const unsub = mcpState.subscribe((s) => {
+			currentMcpState = { status: s.status, baseUrl: s.baseUrl };
+		});
+		return unsub;
+	});
 
 	function toggleSkillsDropdown() {
 		skillsDropdownOpen = !skillsDropdownOpen;
@@ -9,6 +18,24 @@
 
 	function closeDropdown() {
 		skillsDropdownOpen = false;
+	}
+
+	function getStatusColor(status: string): string {
+		switch (status) {
+			case 'connected': return 'bg-green-500';
+			case 'connecting': return 'bg-yellow-500 animate-pulse';
+			case 'error': return 'bg-red-500';
+			default: return 'bg-gray-500';
+		}
+	}
+
+	function getStatusText(status: string): string {
+		switch (status) {
+			case 'connected': return 'MCP Connected';
+			case 'connecting': return 'Connecting...';
+			case 'error': return 'Connection Failed';
+			default: return 'Disconnected';
+		}
 	}
 </script>
 
@@ -32,6 +59,23 @@
 
 		<!-- Right side -->
 		<div class="flex items-center gap-2">
+			<!-- MCP Status Indicator -->
+			<div class="group relative flex items-center gap-1.5 px-2 py-1.5" title={getStatusText(currentMcpState.status)}>
+				<span class="w-2 h-2 rounded-full {getStatusColor(currentMcpState.status)}"></span>
+				<span class="hidden lg:inline font-mono text-xs text-text-tertiary group-hover:text-text-secondary transition-colors">
+					{currentMcpState.status === 'connected' ? 'MCP' : currentMcpState.status === 'connecting' ? '...' : 'offline'}
+				</span>
+				<!-- Tooltip on hover -->
+				<div class="absolute top-full right-0 mt-1 px-2 py-1 bg-bg-secondary border border-surface-border text-xs font-mono text-text-secondary whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+					{getStatusText(currentMcpState.status)}
+					{#if currentMcpState.status === 'connected'}
+						<span class="text-text-tertiary block">{currentMcpState.baseUrl.replace('http://', '').replace('https://', '')}</span>
+					{/if}
+				</div>
+			</div>
+
+			<div class="w-px h-4 bg-surface-border"></div>
+
 			<!-- Guide link -->
 			<a
 				href="/guide"
