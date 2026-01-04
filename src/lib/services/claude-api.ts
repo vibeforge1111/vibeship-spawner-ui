@@ -63,6 +63,10 @@ class ClaudeClient {
 		}
 
 		try {
+			// Add timeout to prevent hanging
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
 			const response = await fetch(this.apiEndpoint, {
 				method: 'POST',
 				headers: {
@@ -73,8 +77,11 @@ class ClaudeClient {
 					context: {
 						availableSkills: this.availableSkills.slice(0, 100)
 					}
-				})
+				}),
+				signal: controller.signal
 			});
+
+			clearTimeout(timeoutId);
 
 			const data = await response.json();
 
