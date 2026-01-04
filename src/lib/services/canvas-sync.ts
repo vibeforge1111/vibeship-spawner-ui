@@ -162,43 +162,158 @@ async function handleSyncEvent(event: SyncEvent): Promise<void> {
 }
 
 /**
- * Find a skill by ID or name
+ * Calculate match score for fuzzy skill matching
+ * Higher score = better match
+ */
+function calculateMatchScore(skill: Skill, query: string): number {
+	const q = query.toLowerCase().trim();
+	const name = (skill.name || '').toLowerCase();
+	const id = (skill.id || '').toLowerCase();
+	const desc = (skill.description || '').toLowerCase();
+	const tags = (skill.tags || []).map(t => t.toLowerCase());
+	const triggers = (skill.triggers || []).map(t => t.toLowerCase());
+
+	let score = 0;
+
+	// Exact matches (highest priority)
+	if (id === q) return 1000;
+	if (name === q) return 900;
+
+	// ID starts with query
+	if (id.startsWith(q)) score += 100;
+	// Name starts with query
+	if (name.startsWith(q)) score += 90;
+
+	// ID contains query
+	if (id.includes(q)) score += 50;
+	// Name contains query
+	if (name.includes(q)) score += 45;
+
+	// Query words match (for multi-word queries like "next js")
+	const queryWords = q.split(/[\s\-_]+/).filter(w => w.length > 1);
+	for (const word of queryWords) {
+		if (id.includes(word)) score += 20;
+		if (name.includes(word)) score += 18;
+		if (tags.some(t => t.includes(word))) score += 15;
+		if (triggers.some(t => t.includes(word))) score += 12;
+		if (desc.includes(word)) score += 5;
+	}
+
+	// Tag exact match
+	if (tags.includes(q)) score += 40;
+	// Trigger exact match
+	if (triggers.includes(q)) score += 35;
+
+	// Abbreviation matching (e.g., "RAG" matches "rag-engineer")
+	if (q.length <= 4 && q.length > 1) {
+		// Check if query could be an abbreviation
+		const idWords = id.split('-');
+		const nameWords = name.split(/\s+/);
+
+		// Check if first letters match
+		const idAbbrev = idWords.map(w => w[0]).join('');
+		const nameAbbrev = nameWords.map(w => w[0]).join('').toLowerCase();
+
+		if (idAbbrev.startsWith(q) || q.startsWith(idAbbrev)) score += 30;
+		if (nameAbbrev.startsWith(q) || q.startsWith(nameAbbrev)) score += 28;
+	}
+
+	return score;
+}
+
+/**
+ * Find a skill by ID, name, or fuzzy match
  */
 async function findSkill(skillId?: string, skillName?: string): Promise<Skill | null> {
+	const query = skillId || skillName;
+	console.log('[CanvasSync] findSkill called - query:', query);
+
 	// Ensure skills are loaded
 	let skills = get(skillsStore);
-	console.log('[CanvasSync] findSkill - initial skills count:', skills.length);
+	console.log('[CanvasSync] Skills in store:', skills.length);
 
 	if (skills.length === 0) {
-		console.log('[CanvasSync] Loading skills...');
-		await loadSkillsStatic();
-		skills = get(skillsStore);
-		console.log('[CanvasSync] After load - skills count:', skills.length);
+		console.log('[CanvasSync] No skills loaded, fetching from static...');
+		try {
+			await loadSkillsStatic();
+			skills = get(skillsStore);
+			console.log('[CanvasSync] After loadSkillsStatic:', skills.length, 'skills');
+		} catch (e) {
+			console.error('[CanvasSync] Failed to load skills:', e);
+			return null;
+		}
 	}
 
+	if (skills.length === 0) {
+		console.error('[CanvasSync] Skills store still empty after loading!');
+		return null;
+	}
+
+	// Try exact ID match first
 	if (skillId) {
-		const found = skills.find(s => s.id === skillId);
-		console.log('[CanvasSync] Finding by ID:', skillId, '- found:', !!found);
-		return found || null;
+		const exactId = skills.find(s => s.id === skillId);
+		if (exactId) {
+			console.log('[CanvasSync] Found exact ID match:', skillId);
+			return exactId;
+		}
+
+		// Try fuzzy match on ID
+		const scored = skills
+			.map(s => ({ skill: s, score: calculateMatchScore(s, skillId) }))
+			.filter(x => x.score > 0)
+			.sort((a, b) => b.score - a.score);
+
+		if (scored.length > 0 && scored[0].score >= 20) {
+			console.log('[CanvasSync] Fuzzy ID match:', skillId, '→', scored[0].skill.id, `(score: ${scored[0].score})`);
+			return scored[0].skill;
+		}
 	}
 
+	// Try name matching with fuzzy fallback
 	if (skillName) {
-		// Try exact match first, then case-insensitive
-		const exact = skills.find(s => s.name === skillName);
+		const searchQuery = skillName.trim();
+		console.log('[CanvasSync] Searching by name:', searchQuery);
+
+		// Exact name match
+		const exact = skills.find(s => s.name === searchQuery);
 		if (exact) {
-			console.log('[CanvasSync] Found exact match for:', skillName);
+			console.log('[CanvasSync] Found exact name match:', searchQuery);
 			return exact;
 		}
 
-		const lower = skillName.toLowerCase();
-		const caseInsensitive = skills.find(s => s.name.toLowerCase() === lower);
-		console.log('[CanvasSync] Finding by name:', skillName, '- found:', !!caseInsensitive);
-		if (!caseInsensitive && skills.length > 0) {
-			console.log('[CanvasSync] Available skill names sample:', skills.slice(0, 5).map(s => s.name));
+		// Case-insensitive name match
+		const lower = searchQuery.toLowerCase();
+		const caseMatch = skills.find(s => s.name.toLowerCase() === lower);
+		if (caseMatch) {
+			console.log('[CanvasSync] Found case-insensitive match:', searchQuery);
+			return caseMatch;
 		}
-		return caseInsensitive || null;
+
+		// Fuzzy match with scoring
+		console.log('[CanvasSync] Trying fuzzy match for:', searchQuery);
+		const scored = skills
+			.map(s => ({ skill: s, score: calculateMatchScore(s, searchQuery) }))
+			.filter(x => x.score > 0)
+			.sort((a, b) => b.score - a.score);
+
+		console.log('[CanvasSync] Top 3 fuzzy matches:', scored.slice(0, 3).map(x =>
+			`${x.skill.id} (${x.score})`
+		).join(', '));
+
+		if (scored.length > 0) {
+			const best = scored[0];
+			// Require minimum score of 15 to avoid bad matches
+			if (best.score >= 15) {
+				console.log('[CanvasSync] Fuzzy match SUCCESS:', searchQuery, '→', best.skill.id, `(score: ${best.score})`);
+				return best.skill;
+			}
+			console.log('[CanvasSync] Best match too weak:', searchQuery, '→', best.skill.id, `(score: ${best.score})`);
+		} else {
+			console.log('[CanvasSync] No fuzzy matches found for:', searchQuery);
+		}
 	}
 
+	console.log('[CanvasSync] findSkill returning null');
 	return null;
 }
 
