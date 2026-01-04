@@ -229,6 +229,72 @@ export function addNode(skill: Skill, position: { x: number; y: number }): strin
 	return id;
 }
 
+/**
+ * Add multiple nodes with connections at once (for templates)
+ * @param nodeDefs Array of skill + position pairs
+ * @param connectionDefs Array of connection definitions using indices
+ * @returns Array of created node IDs
+ */
+export function addNodesWithConnections(
+	nodeDefs: { skill: Skill; position: { x: number; y: number } }[],
+	connectionDefs: { sourceIndex: number; targetIndex: number; sourcePortId?: string; targetPortId?: string }[]
+): string[] {
+	if (nodeDefs.length === 0) return [];
+
+	pushHistory();
+
+	const nodeIds: string[] = [];
+
+	// Add all nodes
+	for (const nodeDef of nodeDefs) {
+		nodeIdCounter++;
+		const id = 'node-' + nodeIdCounter + '-' + Math.random().toString(36).slice(2, 8);
+		const node: CanvasNode = {
+			id,
+			skillId: nodeDef.skill.id,
+			skill: nodeDef.skill,
+			position: nodeDef.position,
+			status: 'idle'
+		};
+		nodeIds.push(id);
+
+		canvasState.update((state) => ({
+			...state,
+			nodes: [...state.nodes, node]
+		}));
+	}
+
+	// Add all connections
+	for (const connDef of connectionDefs) {
+		const sourceId = nodeIds[connDef.sourceIndex];
+		const targetId = nodeIds[connDef.targetIndex];
+		if (sourceId && targetId) {
+			const id = 'conn-' + Math.random().toString(36).slice(2, 10);
+			const connection: Connection = {
+				id,
+				sourceNodeId: sourceId,
+				sourcePortId: connDef.sourcePortId || 'output',
+				targetNodeId: targetId,
+				targetPortId: connDef.targetPortId || 'input'
+			};
+
+			canvasState.update((state) => ({
+				...state,
+				connections: [...state.connections, connection]
+			}));
+		}
+	}
+
+	// Select the newly added nodes
+	canvasState.update((state) => ({
+		...state,
+		selectedNodeIds: nodeIds,
+		selectedNodeId: nodeIds.length === 1 ? nodeIds[0] : null
+	}));
+
+	return nodeIds;
+}
+
 export function removeNode(nodeId: string) {
 	pushHistory();
 

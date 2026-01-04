@@ -156,7 +156,7 @@
 	<main class="flex-1 max-w-6xl mx-auto w-full px-6 py-12">
 		<!-- Back link -->
 		<a href="/missions" class="inline-flex items-center gap-1 text-sm font-mono text-text-tertiary hover:text-text-secondary mb-6">
-			<- Back to Missions
+			&larr; Back to Missions
 		</a>
 
 		{#if !mcpConnected}

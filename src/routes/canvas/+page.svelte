@@ -1,8 +1,10 @@
 <script lang="ts">
 	import DraggableNode from '$lib/components/nodes/DraggableNode.svelte';
 	import SkillsPanel from '$lib/components/SkillsPanel.svelte';
+	import BuilderPanel from '$lib/components/BuilderPanel.svelte';
 	import ConnectionLine from '$lib/components/ConnectionLine.svelte';
 	import ChatPanel from '$lib/components/chat/ChatPanel.svelte';
+	import MindPanel from '$lib/components/MindPanel.svelte';
 	import ValidationPanel from '$lib/components/ValidationPanel.svelte';
 	import ExecutionPanel from '$lib/components/ExecutionPanel.svelte';
 	import ContextMenu from '$lib/components/ContextMenu.svelte';
@@ -15,9 +17,12 @@
 	import type { Skill } from '$lib/stores/skills.svelte';
 	import { validateForMission, buildMissionFromCanvas } from '$lib/services/mission-builder';
 	import { mcpState } from '$lib/stores/mcp.svelte';
+	import { getGoalState, hasPendingGoal, clearGoal } from '$lib/stores/project-goal.svelte';
+	import { processGoalAndAddToCanvas, isProcessing } from '$lib/services/goal-to-workflow';
 
 	let activeTab = $state('skills');
 	let chatExpanded = $state(false);
+	let bottomTab = $state<'chat' | 'mind'>('chat');
 	let showValidation = $state(false);
 	let showExecution = $state(false);
 	let showNodeDetails = $state(false);
@@ -36,6 +41,12 @@
 	// Confirmation modal state
 	let showClearConfirm = $state(false);
 
+	// Goal processing state
+	let goalProcessing = $state(false);
+	let goalProcessingMessage = $state('');
+	let goalProcessingError = $state<string | null>(null);
+	let goalSummary = $state<string | null>(null);
+
 	// Clean up when navigating away from the canvas page
 	beforeNavigate(() => {
 		// Reset all transient state before leaving
@@ -47,12 +58,45 @@
 	});
 
 	// Reset state when arriving at canvas page (handles client-side navigation)
-	afterNavigate(() => {
+	afterNavigate(async () => {
 		// Reset transient state after navigation completes
 		resetTransientState();
 		isPanning = false;
 		isCutting = false;
 		isSelecting = false;
+
+		// Check if there's a pending goal to process
+		if (hasPendingGoal()) {
+			const goalState = getGoalState();
+			goalProcessing = true;
+			goalProcessingMessage = 'Analyzing your project...';
+			goalProcessingError = null;
+
+			try {
+				const result = await processGoalAndAddToCanvas(goalState.input);
+
+				if (result.success && result.workflow) {
+					goalSummary = result.workflow.goalContext.summary;
+					goalProcessingMessage = `Added ${result.workflow.nodes.length} skills`;
+
+					// Zoom to fit the new nodes
+					if (canvasEl) {
+						const rect = canvasEl.getBoundingClientRect();
+						setTimeout(() => zoomToFit(rect.width, rect.height), 100);
+					}
+				} else if (result.needsClarification) {
+					goalProcessingError = result.clarificationPrompt || 'Please provide more details';
+				} else {
+					goalProcessingError = result.error || 'Failed to process goal';
+				}
+			} catch (error) {
+				goalProcessingError = error instanceof Error ? error.message : 'An error occurred';
+			} finally {
+				goalProcessing = false;
+				// Clear the goal input after processing
+				clearGoal();
+			}
+		}
 	});
 
 	onMount(() => {
@@ -86,6 +130,15 @@
 		}
 		window.addEventListener('mouseup', handleGlobalMouseUp);
 
+		// Builder panel requests to frame newly added nodes
+		function handleBuilderFrameSelected() {
+			if (canvasEl) {
+				const rect = canvasEl.getBoundingClientRect();
+				frameSelected(rect.width, rect.height);
+			}
+		}
+		window.addEventListener('builder:frame-selected', handleBuilderFrameSelected);
+
 		// Track canvas dimensions for minimap
 		const resizeObserver = new ResizeObserver((entries) => {
 			for (const entry of entries) {
@@ -109,6 +162,7 @@
 			disableAutoSave();
 			resizeObserver.disconnect();
 			window.removeEventListener('mouseup', handleGlobalMouseUp);
+			window.removeEventListener('builder:frame-selected', handleBuilderFrameSelected);
 			// Reset all transient state on unmount (catches HMR and other edge cases)
 			resetTransientState();
 			isPanning = false;
@@ -569,8 +623,8 @@
 <div class="h-screen flex bg-bg-primary">
 	<aside class="w-64 border-r border-surface-border bg-bg-secondary flex flex-col">
 		<div class="p-4 border-b border-surface-border"><a href="/" class="flex items-center gap-1.5"><img src="/logo.png" alt="vibeship" class="w-6 h-6" /><span class="font-serif text-[1.36rem] text-text-primary">vibeship</span><span class="font-serif text-[1.36rem] text-accent-primary">spawner</span></a></div>
-		<div class="p-3 border-b border-surface-border"><div class="flex p-0.5 border border-surface-border"><button class="flex-1 py-1.5 px-3 text-sm font-mono transition-all" class:bg-accent-primary={activeTab === 'skills'} class:text-bg-primary={activeTab === 'skills'} class:text-text-secondary={activeTab !== 'skills'} onclick={() => (activeTab = 'skills')}>Skills</button><button class="flex-1 py-1.5 px-3 text-sm font-mono transition-all" class:bg-accent-secondary={activeTab === 'mind'} class:text-bg-primary={activeTab === 'mind'} class:text-text-secondary={activeTab !== 'mind'} onclick={() => (activeTab = 'mind')}>Mind</button></div></div>
-		<div class="flex-1 overflow-hidden">{#if activeTab === 'skills'}<SkillsPanel />{:else}<div class="p-4"><span class="font-mono text-accent-primary text-sm">recall()</span><div class="p-3 bg-surface border border-surface-border mt-3"><p class="text-xs text-text-secondary">No memories yet.</p></div></div>{/if}</div>
+		<div class="p-3 border-b border-surface-border"><div class="flex p-0.5 border border-surface-border"><button class="flex-1 py-1.5 px-3 text-sm font-mono transition-all" class:bg-accent-primary={activeTab === 'skills'} class:text-bg-primary={activeTab === 'skills'} class:text-text-secondary={activeTab !== 'skills'} onclick={() => (activeTab = 'skills')}>Skills</button><button class="flex-1 py-1.5 px-3 text-sm font-mono transition-all" class:bg-accent-secondary={activeTab === 'builder'} class:text-bg-primary={activeTab === 'builder'} class:text-text-secondary={activeTab !== 'builder'} onclick={() => (activeTab = 'builder')}>Builder</button></div></div>
+		<div class="flex-1 overflow-hidden">{#if activeTab === 'skills'}<SkillsPanel />{:else}<BuilderPanel />{/if}</div>
 		<div class="p-4 border-t border-surface-border"><div class="text-xs text-text-tertiary">Project • {currentNodes.length} nodes</div></div>
 	</aside>
 	<main class="flex-1 flex flex-col">
@@ -793,6 +847,49 @@
 					{/if}
 				</div>
 			{/if}
+			<!-- Goal processing overlay -->
+			{#if goalProcessing}
+				<div class="absolute inset-0 z-40 flex items-center justify-center bg-bg-primary/80 backdrop-blur-sm">
+					<div class="bg-bg-secondary border border-surface-border p-6 max-w-sm text-center">
+						<div class="animate-spin w-8 h-8 border-2 border-accent-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+						<p class="text-text-primary font-mono text-sm">{goalProcessingMessage}</p>
+						<p class="text-text-tertiary text-xs mt-2">Matching skills to your project...</p>
+					</div>
+				</div>
+			{/if}
+			<!-- Goal summary banner -->
+			{#if goalSummary && !goalProcessing}
+				<div class="absolute top-4 left-4 z-30 bg-bg-secondary border border-accent-primary/30 px-3 py-2 max-w-xs">
+					<p class="text-xs font-mono text-accent-primary mb-0.5">Project Goal</p>
+					<p class="text-sm text-text-primary truncate">{goalSummary}</p>
+					<button
+						onclick={() => goalSummary = null}
+						class="absolute top-1 right-1 text-text-tertiary hover:text-text-secondary p-1"
+					>
+						<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+					</button>
+				</div>
+			{/if}
+			<!-- Goal error toast -->
+			{#if goalProcessingError}
+				<div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 bg-red-500/10 border border-red-500/30 px-4 py-3 max-w-md">
+					<div class="flex items-start gap-3">
+						<svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+						</svg>
+						<div>
+							<p class="text-sm text-red-400 font-mono">{goalProcessingError}</p>
+							<p class="text-xs text-text-tertiary mt-1">Try adding more details about your project</p>
+						</div>
+						<button
+							onclick={() => goalProcessingError = null}
+							class="text-text-tertiary hover:text-text-secondary p-1 ml-auto"
+						>
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+						</button>
+					</div>
+				</div>
+			{/if}
 			<!-- Minimap -->
 			{#if showMinimap}
 				<Minimap
@@ -805,25 +902,56 @@
 				/>
 			{/if}
 		</div>
-		<!-- Chat Panel (expandable) -->
+		<!-- Bottom Panel (Chat/Mind, expandable) -->
 		<div class="border-t border-surface-border bg-bg-secondary transition-all relative" class:h-72={chatExpanded} class:h-12={!chatExpanded}>
 			{#if chatExpanded}
-				<button
-					onclick={() => (chatExpanded = false)}
-					class="absolute top-2 right-4 z-10 text-text-tertiary hover:text-text-secondary text-xs font-mono"
-				>
-					[minimize]
-				</button>
-				<div class="h-full">
-					<ChatPanel />
+				<!-- Tab buttons and minimize -->
+				<div class="absolute top-0 left-0 right-0 h-8 flex items-center justify-between px-3 border-b border-surface-border/50 bg-bg-secondary z-10">
+					<div class="flex items-center gap-1">
+						<button
+							onclick={() => (bottomTab = 'chat')}
+							class="px-3 py-1 text-xs font-mono transition-all"
+							class:bg-accent-primary={bottomTab === 'chat'}
+							class:text-bg-primary={bottomTab === 'chat'}
+							class:text-text-secondary={bottomTab !== 'chat'}
+							class:hover:text-text-primary={bottomTab !== 'chat'}
+						>
+							Chat
+						</button>
+						<button
+							onclick={() => (bottomTab = 'mind')}
+							class="px-3 py-1 text-xs font-mono transition-all"
+							class:bg-accent-secondary={bottomTab === 'mind'}
+							class:text-bg-primary={bottomTab === 'mind'}
+							class:text-text-secondary={bottomTab !== 'mind'}
+							class:hover:text-text-primary={bottomTab !== 'mind'}
+						>
+							Mind
+						</button>
+					</div>
+					<button
+						onclick={() => (chatExpanded = false)}
+						class="text-text-tertiary hover:text-text-secondary text-xs font-mono"
+					>
+						[minimize]
+					</button>
+				</div>
+				<div class="h-full pt-8">
+					{#if bottomTab === 'chat'}
+						<ChatPanel />
+					{:else}
+						<MindPanel />
+					{/if}
 				</div>
 			{:else}
 				<button
 					onclick={() => (chatExpanded = true)}
 					class="w-full h-full flex items-center justify-center gap-2 text-text-secondary hover:text-text-primary hover:bg-surface transition-all"
 				>
-					<span class="font-mono text-sm">Open Chat</span>
-					<span class="text-xs text-text-tertiary">/help for commands</span>
+					<span class="font-mono text-sm">Open {bottomTab === 'chat' ? 'Chat' : 'Mind'}</span>
+					<span class="text-xs text-text-tertiary">
+						{#if bottomTab === 'chat'}/help for commands{:else}decisions & sessions{/if}
+					</span>
 				</button>
 			{/if}
 		</div>

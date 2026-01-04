@@ -2,10 +2,11 @@
 	import Navbar from './Navbar.svelte';
 	import Footer from './Footer.svelte';
 
-	let { onStart }: { onStart?: () => void } = $props();
+	let { onStart }: { onStart?: (goal: string) => void } = $props();
 
 	let inputValue = $state('');
 	let isFocused = $state(false);
+	let isSubmitting = $state(false);
 
 	const skillCategories = [
 		{ name: 'Frontend', count: 45, icon: '◧' },
@@ -23,8 +24,9 @@
 	];
 
 	function handleSubmit() {
-		if (inputValue.trim() && onStart) {
-			onStart();
+		if (inputValue.trim() && onStart && !isSubmitting) {
+			isSubmitting = true;
+			onStart(inputValue.trim());
 		}
 	}
 
@@ -93,15 +95,19 @@
 
 					<button
 						onclick={handleSubmit}
-						disabled={!inputValue.trim()}
+						disabled={!inputValue.trim() || isSubmitting}
 						class="group flex items-center gap-2 px-4 py-2 font-medium transition-all disabled:cursor-not-allowed"
-						class:button-active={inputValue.trim()}
-						class:button-inactive={!inputValue.trim()}
+						class:button-active={inputValue.trim() && !isSubmitting}
+						class:button-inactive={!inputValue.trim() || isSubmitting}
 					>
-						<span>spawn()</span>
-						<svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-						</svg>
+						{#if isSubmitting}
+							<span class="animate-pulse">analyzing...</span>
+						{:else}
+							<span>spawn()</span>
+							<svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+							</svg>
+						{/if}
 					</button>
 				</div>
 			</div>
