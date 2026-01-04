@@ -12,7 +12,6 @@ import type { AnalyzedGoal, MatchedSkill, MatchResult } from '$lib/types/goal';
 import { GOAL_VALIDATION } from '$lib/types/goal';
 import { get } from 'svelte/store';
 import { skills as skillsStore } from '$lib/stores/skills.svelte';
-import type { ClaudeAnalysis } from '$lib/services/claude-api';
 import type { Skill } from '$lib/stores/skills.svelte';
 
 // Skill category priorities (which categories are more "core")
@@ -227,103 +226,9 @@ function matchSkillsLocal(goal: AnalyzedGoal, maxResults: number): MatchedSkill[
 	}));
 }
 
-/**
- * Match skills using Claude API analysis
- */
-async function matchSkillsClaude(goal: AnalyzedGoal, maxResults: number): Promise<{ skills: MatchedSkill[]; analysis?: ClaudeAnalysis }> {
-	try {
-		// Set available skills for context
-		const allSkills = get(skillsStore);
-		claudeClient.setAvailableSkills(allSkills.map(s => s.id));
-
-		// Get Claude analysis
-		const result = await claudeClient.analyzeGoal(goal.original);
-
-		if (!result.success || !result.analysis) {
-			return { skills: [] };
-		}
-
-		const analysis = result.analysis;
-
-		// Convert suggested skill IDs to MatchedSkill objects
-		const matchedSkills: MatchedSkill[] = [];
-
-		for (let i = 0; i < analysis.suggestedSkills.length && matchedSkills.length < maxResults; i++) {
-			const skillId = analysis.suggestedSkills[i];
-			const skill = allSkills.find(s => s.id === skillId);
-
-			if (skill) {
-				matchedSkills.push({
-					skillId: skill.id,
-					name: skill.name,
-					description: skill.description,
-					category: skill.category,
-					score: 1 - (i * 0.1), // Decay score by position
-					matchReason: 'recommended by Claude',
-					tier: (i < 3 ? 1 : i < 6 ? 2 : 3) as 1 | 2 | 3,
-					tags: skill.tags
-				});
-			} else {
-				// Skill suggested by Claude but not in our store - create a basic entry
-				matchedSkills.push({
-					skillId,
-					name: skillId.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-					description: `Suggested by Claude for ${goal.domains[0] || 'your project'}`,
-					category: 'development',
-					score: 1 - (i * 0.1),
-					matchReason: 'recommended by Claude',
-					tier: (i < 3 ? 1 : i < 6 ? 2 : 3) as 1 | 2 | 3,
-					tags: []
-				});
-			}
-		}
-
-		return { skills: matchedSkills, analysis };
-	} catch (error) {
-		console.warn('Claude skill matching failed:', error);
-		return { skills: [] };
-	}
-}
-
-/**
- * Match skills via MCP (when connected)
- */
-async function matchSkillsMcp(goal: AnalyzedGoal, maxResults: number): Promise<MatchedSkill[]> {
-	try {
-		// Build search query from goal
-		const searchTerms = [
-			...goal.technologies,
-			...goal.features,
-			...goal.domains,
-			...goal.keywords.slice(0, 5)
-		].join(' ');
-
-		// Query MCP for skills
-		const result = await mcpClient.searchSkills(searchTerms);
-
-		if (!result || !result.skills || result.skills.length === 0) {
-			// Fall back to local matching
-			return matchSkillsLocal(goal, maxResults);
-		}
-
-		// Convert MCP skills to MatchedSkill format
-		const matched: MatchedSkill[] = result.skills.slice(0, maxResults).map((mcpSkill: any, index: number) => ({
-			skillId: mcpSkill.id || mcpSkill.name?.toLowerCase().replace(/\s+/g, '-'),
-			name: mcpSkill.name,
-			description: mcpSkill.description || '',
-			category: mcpSkill.category || 'development',
-			score: 1 - (index * 0.1), // Decay score by position
-			matchReason: 'recommended by AI',
-			tier: (index < 3 ? 1 : index < 6 ? 2 : 3) as 1 | 2 | 3,
-			tags: mcpSkill.tags || []
-		}));
-
-		return matched;
-	} catch (error) {
-		console.error('MCP skill search failed, falling back to local:', error);
-		return matchSkillsLocal(goal, maxResults);
-	}
-}
+// NOTE: Claude API and MCP matching functions were removed.
+// The local pattern matching approach is faster and more reliable.
+// For AI-powered matching, use the canvas-sync service with Claude Code integration.
 
 /**
  * Main function: Match skills to a goal
@@ -344,7 +249,6 @@ export async function matchSkills(
 	console.log('[SkillMatcher] Using local pattern matching (no network calls)');
 	let skills = matchSkillsLocal(goal, maxResults);
 	const source: 'claude' | 'mcp' | 'local' | 'hybrid' = 'local';
-	const claudeAnalysis: ClaudeAnalysis | undefined = undefined;
 
 	console.log(`[SkillMatcher] Matched ${skills.length} skills locally`);
 
@@ -364,8 +268,7 @@ export async function matchSkills(
 		totalMatches: skills.length,
 		processingTime: Date.now() - startTime,
 		source,
-		goal,
-		claudeAnalysis
+		goal
 	};
 }
 

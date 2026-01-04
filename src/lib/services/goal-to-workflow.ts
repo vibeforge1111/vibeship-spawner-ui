@@ -201,12 +201,13 @@ function createSkillFromMatch(matched: MatchedSkill): Skill {
 	}
 
 	// Create a minimal skill object from the matched data
+	// Note: matched.tier (1|2|3) is importance tier, but Skill.tier is pricing tier
 	return {
 		id: matched.skillId,
 		name: matched.name,
 		description: matched.description,
 		category: matched.category as any,
-		tier: matched.tier,
+		tier: 'free' as const, // Default to free since we don't have pricing info
 		tags: matched.tags || [],
 		triggers: []
 	};
