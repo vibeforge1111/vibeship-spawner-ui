@@ -5,6 +5,7 @@ export interface Port {
 	label: string;
 	type: PortType;
 	required?: boolean;
+	skillId?: string; // For handoff ports - the full skill ID to spawn
 }
 
 export interface SharpEdge {

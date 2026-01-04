@@ -56,7 +56,8 @@ export function generatePorts(skill: {
 				id: `handoff-${i}`,
 				label: handoff.to.split('-').slice(0, 2).join('-'),
 				type: 'skill',
-				required: false
+				required: false,
+				skillId: handoff.to // Store full skill ID for click-to-spawn
 			});
 		});
 	}
@@ -193,9 +194,14 @@ export function arePortTypesCompatible(sourceType: PortType, targetType: PortTyp
 		return true;
 	}
 
-	// Skill type should only connect to skill or object inputs
+	// Skill type (handoffs) should connect flexibly to most inputs
+	// Since handoffs represent semantic workflow transitions, they should work with:
+	// - skill: direct skill-to-skill handoff
+	// - object: flexible data container
+	// - text: marketing/strategy skills often have text inputs
+	// - any: always compatible
 	if (sourceType === 'skill') {
-		return targetType === 'skill' || targetType === 'object';
+		return targetType === 'skill' || targetType === 'object' || targetType === 'text';
 	}
 
 	// Object can accept most types (flexible container)

@@ -10,12 +10,12 @@
 	import ContextMenu from '$lib/components/ContextMenu.svelte';
 	import Minimap from '$lib/components/Minimap.svelte';
 	import NodeConfigPanel from '$lib/components/NodeConfigPanel.svelte';
-	import { canvasState, nodes, connections, selectedNodeId, selectedNodeIds, selectedConnectionId, selectedNode, draggingConnection, cuttingLine, selectionBox, snapToGrid, gridSize, addNode, selectNode, selectConnection, selectAllNodes, clearSelection, deleteSelected, duplicateSelected, copySelected, pasteFromClipboard, removeConnection, removeNode, setZoom, setPan, zoomToFit, frameSelected, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory, startConnectionCut, updateConnectionCut, endConnectionCut, cancelConnectionCut, startSelectionBox, updateSelectionBox, endSelectionBox, cancelSelectionBox, toggleSnapToGrid, snapPosition, autoLayout, exportCanvasToFile, importCanvasFromFile, endConnectionDrag, resetTransientState } from '$lib/stores/canvas.svelte';
+	import { canvasState, nodes, connections, selectedNodeId, selectedNodeIds, selectedConnectionId, selectedNode, draggingConnection, cuttingLine, selectionBox, snapToGrid, gridSize, addNode, addConnection, selectNode, selectConnection, selectAllNodes, clearSelection, deleteSelected, duplicateSelected, copySelected, pasteFromClipboard, removeConnection, removeNode, setZoom, setPan, zoomToFit, frameSelected, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory, startConnectionCut, updateConnectionCut, endConnectionCut, cancelConnectionCut, startSelectionBox, updateSelectionBox, endSelectionBox, cancelSelectionBox, toggleSnapToGrid, snapPosition, autoLayout, exportCanvasToFile, importCanvasFromFile, endConnectionDrag, resetTransientState } from '$lib/stores/canvas.svelte';
 import { get } from 'svelte/store';
 	import type { CuttingLine, CanvasNode, Connection, DraggingConnection, SelectionBox } from '$lib/stores/canvas.svelte';
 	import { onMount, tick } from 'svelte';
 	import { goto, beforeNavigate, afterNavigate } from '$app/navigation';
-	import type { Skill } from '$lib/stores/skills.svelte';
+	import { type Skill, getSkillById } from '$lib/stores/skills.svelte';
 	import { validateForMission, buildMissionFromCanvas } from '$lib/services/mission-builder';
 	import { mcpState } from '$lib/stores/mcp.svelte';
 	import { getGoalState, hasPendingGoal, clearGoal } from '$lib/stores/project-goal.svelte';
@@ -684,6 +684,36 @@ import { get } from 'svelte/store';
 	}
 
 	function handleDragOver(e) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; }
+
+	// Handle click on handoff port - spawn the recommended skill and auto-connect
+	function handleHandoffClick(skillId: string, sourceNodeId: string, sourcePortId: string) {
+		const skill = getSkillById(skillId);
+		if (!skill) {
+			console.warn(`Skill not found: ${skillId}`);
+			return;
+		}
+
+		// Find the source node to position the new node relative to it
+		const sourceNode = currentNodes.find(n => n.id === sourceNodeId);
+		if (!sourceNode) return;
+
+		// Position the new node to the right of the source node
+		const newPosition = snapPosition(
+			sourceNode.position.x + 250, // 250px to the right
+			sourceNode.position.y
+		);
+
+		// Add the new node
+		const newNodeId = addNode(skill, newPosition);
+
+		// Auto-connect from the handoff port to the new node's input
+		if (newNodeId) {
+			addConnection(sourceNodeId, sourcePortId, newNodeId, 'input');
+			// Select the new node
+			selectNode(newNodeId);
+		}
+	}
+
 	function handleCanvasClick(e) { if (e.target === e.currentTarget) { clearSelection(); showLayoutMenu = false; } }
 	function handleZoomIn() { setZoom(zoom + 0.1); }
 	function handleZoomOut() { setZoom(zoom - 0.1); }
@@ -1030,7 +1060,7 @@ import { get } from 'svelte/store';
 			<div class="absolute inset-0 opacity-20 pointer-events-none" style="background-image: radial-gradient(circle, #2a2a38 1px, transparent 1px); background-size: {24 * zoom}px {24 * zoom}px; background-position: {pan.x}px {pan.y}px;"></div>
 			<div class="absolute pointer-events-none" style="transform: translate({pan.x}px, {pan.y}px);"><div class="pointer-events-none" style="transform: scale({zoom}); transform-origin: 0 0;">
 				<svg class="absolute inset-0 pointer-events-none overflow-visible" style="z-index: 1;"><defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#00C49A" /></marker></defs>{#each currentConnections as connection}<ConnectionLine {connection} nodes={currentNodes} selected={currentSelectedConnectionId === connection.id} />{/each}{#if currentDraggingConnection}<path d={getTempConnectionPath(currentDraggingConnection)} fill="none" stroke="#00C49A" stroke-width="2" stroke-dasharray="4 4" class="temp-connection" />{/if}{#if currentCuttingLine}<line x1={currentCuttingLine.startX} y1={currentCuttingLine.startY} x2={currentCuttingLine.currentX} y2={currentCuttingLine.currentY} stroke="#ef4444" stroke-width="2" stroke-dasharray="6 3" class="cutting-line" /><circle cx={currentCuttingLine.startX} cy={currentCuttingLine.startY} r="4" fill="#ef4444" /><circle cx={currentCuttingLine.currentX} cy={currentCuttingLine.currentY} r="4" fill="#ef4444" />{/if}{#if currentSelectionBox}{@const x = Math.min(currentSelectionBox.startX, currentSelectionBox.currentX)}{@const y = Math.min(currentSelectionBox.startY, currentSelectionBox.currentY)}{@const w = Math.abs(currentSelectionBox.currentX - currentSelectionBox.startX)}{@const h = Math.abs(currentSelectionBox.currentY - currentSelectionBox.startY)}<rect {x} {y} width={w} height={h} fill="rgba(0, 196, 154, 0.1)" stroke="#00C49A" stroke-width="1" stroke-dasharray="4 2" class="selection-box" />{/if}</svg>
-				{#each currentNodes as node (`${nodeRenderKey}-${node.id}`)}<DraggableNode {node} selected={currentSelectedNodeIds.includes(node.id)} {zoom} {pan} onOpenDetails={() => (showNodeDetails = true)} onContextMenu={(e) => handleNodeContextMenu(node.id, e)} />{/each}
+				{#each currentNodes as node (`${nodeRenderKey}-${node.id}`)}<DraggableNode {node} selected={currentSelectedNodeIds.includes(node.id)} {zoom} {pan} onOpenDetails={() => (showNodeDetails = true)} onContextMenu={(e) => handleNodeContextMenu(node.id, e)} onHandoffClick={handleHandoffClick} />{/each}
 			</div></div>
 			{#if currentNodes.length === 0}<div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="text-center"><h3 class="text-lg font-medium text-text-primary mb-2">No skills on canvas</h3><p class="text-sm text-text-secondary">Drag skills from the sidebar</p></div></div>{/if}
 			<!-- Search overlay -->

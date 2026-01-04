@@ -12,7 +12,8 @@
 		zoom = 1,
 		pan = { x: 0, y: 0 },
 		onOpenDetails,
-		onContextMenu
+		onContextMenu,
+		onHandoffClick
 	}: {
 		node: CanvasNode;
 		selected?: boolean;
@@ -20,6 +21,7 @@
 		pan?: { x: number; y: number };
 		onOpenDetails?: () => void;
 		onContextMenu?: (e: MouseEvent) => void;
+		onHandoffClick?: (skillId: string, sourceNodeId: string, sourcePortId: string) => void;
 	} = $props();
 
 	let isDragging = $state(false);
@@ -220,6 +222,7 @@
 		onTest={handleTest}
 		onPortDragStart={handlePortDragStart}
 		onPortDragEnd={handlePortDragEnd}
+		{onHandoffClick}
 	/>
 
 	<!-- Delete button on hover -->

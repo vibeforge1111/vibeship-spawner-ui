@@ -13,7 +13,8 @@
 		onSelect,
 		onTest,
 		onPortDragStart,
-		onPortDragEnd
+		onPortDragEnd,
+		onHandoffClick
 	}: {
 		data: SkillNodeData;
 		nodeId?: string;
@@ -24,7 +25,12 @@
 		onTest?: () => void;
 		onPortDragStart?: (portId: string, portType: 'input' | 'output', e: MouseEvent) => void;
 		onPortDragEnd?: (portId: string, portType: 'input' | 'output') => void;
+		onHandoffClick?: (skillId: string, sourceNodeId: string, sourcePortId: string) => void;
 	} = $props();
+
+	// Track for double-click detection on handoff ports
+	let lastClickTime = $state<number>(0);
+	let lastClickPort = $state<string | null>(null);
 
 	let currentDraggingConnection = $state<DraggingConnection | null>(null);
 
@@ -75,15 +81,25 @@
 	const maxPorts = $derived(Math.max(data.inputs?.length || 1, data.outputs?.length || 1));
 	const nodeHeight = $derived(Math.max(48, 20 + maxPorts * 18));
 
-	function handlePortMouseDown(e: MouseEvent, portId: string, portType: 'input' | 'output') {
+	function handlePortMouseDown(e: MouseEvent, portId: string, portType: 'input' | 'output', port?: Port) {
 		e.stopPropagation();
 		e.preventDefault();
 		onPortDragStart?.(portId, portType, e);
 	}
 
-	function handlePortMouseUp(e: MouseEvent, portId: string, portType: 'input' | 'output') {
+	function handlePortMouseUp(e: MouseEvent, portId: string, portType: 'input' | 'output', port?: Port) {
 		e.stopPropagation();
 		onPortDragEnd?.(portId, portType);
+	}
+
+	function handlePortDoubleClick(e: MouseEvent, port: Port) {
+		e.stopPropagation();
+		e.preventDefault();
+
+		// Double-click on handoff port - spawn the skill
+		if (port.skillId) {
+			onHandoffClick?.(port.skillId, nodeId, port.id);
+		}
 	}
 
 	function getPortStyle(port: Port, index: number, total: number): string {
@@ -135,22 +151,30 @@
 		{#each data.outputs as port, i}
 			{@const isValid = isValidDropTarget(port.id, 'output')}
 			{@const showIndicator = isDragging && currentDraggingConnection?.sourcePortType === 'input'}
+			{@const isHandoff = !!port.skillId}
 			<div
 				class="port-handle port-output"
 				class:valid-target={showIndicator && isValid}
 				class:invalid-target={showIndicator && !isValid}
-				onmousedown={(e) => handlePortMouseDown(e, port.id, 'output')}
-				onmouseup={(e) => handlePortMouseUp(e, port.id, 'output')}
+				class:handoff-port={isHandoff}
+				onmousedown={(e) => handlePortMouseDown(e, port.id, 'output', port)}
+				onmouseup={(e) => handlePortMouseUp(e, port.id, 'output', port)}
+				ondblclick={isHandoff ? (e) => handlePortDoubleClick(e, port) : undefined}
 				data-port-id={port.id}
 				data-port-type="output"
 				data-node-id={nodeId}
 				role="button"
 				tabindex="-1"
-				title="{port.label} ({port.type})"
+				title={isHandoff ? `Double-click to spawn ${port.label} • Drag to connect` : `${port.label} (${port.type})`}
 				style={getPortStyle(port, i, data.outputs.length)}
 			>
 				{#if data.outputs.length > 1}
-					<span class="port-label port-label-right">{port.label}</span>
+					<span class="port-label port-label-right" class:handoff-label={isHandoff}>
+						{port.label}
+						{#if isHandoff}
+							<span class="spawn-hint">+</span>
+						{/if}
+					</span>
 				{/if}
 			</div>
 		{/each}
@@ -236,5 +260,33 @@
 		background: var(--bg-secondary);
 		border-color: var(--status-error, #ef4444);
 		opacity: 0.5;
+	}
+
+	/* Handoff port - clickable to spawn */
+	.port-handle.handoff-port {
+		border-color: #3B82F6;
+		cursor: pointer;
+	}
+
+	.port-handle.handoff-port:hover {
+		background: #3B82F6;
+		box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+	}
+
+	.port-handle.handoff-port:hover .port-label {
+		opacity: 1;
+	}
+
+	.handoff-label {
+		color: #3B82F6;
+		font-weight: 500;
+	}
+
+	.spawn-hint {
+		display: inline-block;
+		margin-left: 2px;
+		font-size: 10px;
+		color: #3B82F6;
+		opacity: 0.7;
 	}
 </style>
