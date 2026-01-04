@@ -3,6 +3,7 @@
 	import type { CanvasNode } from '$lib/stores/canvas.svelte';
 	import { updateNodePosition, selectNode, removeNode, startConnectionDrag, updateConnectionDrag, endConnectionDrag, completeConnection } from '$lib/stores/canvas.svelte';
 	import type { SkillNodeData } from '$lib/types/skill';
+	import { generatePorts } from '$lib/utils/ports';
 
 	let {
 		node,
@@ -17,6 +18,14 @@
 	let isDragging = $state(false);
 	let dragOffset = $state({ x: 0, y: 0 });
 
+	// Generate dynamic ports based on skill properties
+	const ports = $derived(generatePorts({
+		category: node.skill.category,
+		handoffs: node.skill.handoffs,
+		pairsWell: node.skill.pairsWell,
+		tags: node.skill.tags
+	}));
+
 	// Convert skill to SkillNodeData format
 	const nodeData: SkillNodeData = $derived({
 		id: node.id,
@@ -25,8 +34,8 @@
 		category: node.skill.category,
 		tier: node.skill.tier,
 		icon: getCategoryIcon(node.skill.category),
-		inputs: [{ id: 'input', label: 'Input', type: 'object' as const }],
-		outputs: [{ id: 'output', label: 'Output', type: 'object' as const }]
+		inputs: ports.inputs,
+		outputs: ports.outputs
 	});
 
 	function getCategoryIcon(category: string): string {
