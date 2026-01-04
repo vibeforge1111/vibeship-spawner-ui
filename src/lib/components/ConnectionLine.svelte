@@ -77,6 +77,7 @@
 	// Port handle dimensions - must match SkillNode.svelte
 	const PORT_OFFSET = 7; // How far ports stick out from node edge
 	const PORT_SIZE = 12;  // Port handle width/height
+	const OUTPUT_INSET = 3; // Start line closer to node for "coming from" feel
 
 	const pathD = $derived(() => {
 		if (!sourceNode || !targetNode) return '';
@@ -84,10 +85,8 @@
 		const sourceH = getNodeHeight(sourceNode);
 		const targetH = getNodeHeight(targetNode);
 
-		// Output port: right edge of node + offset to reach port center
-		// Port sticks out 6px, is 10px wide, so center is at edge + (6 - 5) = edge + 1
-		// But we want to connect at the outer edge of the port for cleaner look
-		const startX = sourceNode.position.x + nodeWidth + PORT_OFFSET;
+		// Output port: start line close to node edge so it feels like it's coming from within
+		const startX = sourceNode.position.x + nodeWidth + OUTPUT_INSET;
 		const startY = sourceNode.position.y + getPortY(sourceNode, connection.sourcePortId, true);
 
 		// Input port: left edge of node - offset to reach port center
@@ -176,7 +175,7 @@
 		/>
 		<!-- Delete button on hover/selected -->
 		{#if selected}
-			{@const midX = (sourceNode.position.x + nodeWidth + PORT_OFFSET + targetNode.position.x - PORT_OFFSET) / 2}
+			{@const midX = (sourceNode.position.x + nodeWidth + OUTPUT_INSET + targetNode.position.x - PORT_OFFSET) / 2}
 			{@const midY = (sourceNode.position.y + getPortY(sourceNode, connection.sourcePortId, true) + targetNode.position.y + getPortY(targetNode, connection.targetPortId, false)) / 2}
 			<g class="delete-button" transform="translate({midX}, {midY})" onclick={handleDelete} role="button" tabindex="0">
 				<rect x="-8" y="-8" width="16" height="16" fill="var(--bg-secondary, #1a1a24)" stroke="var(--status-error, #ef4444)" stroke-width="1" class="delete-bg" />
