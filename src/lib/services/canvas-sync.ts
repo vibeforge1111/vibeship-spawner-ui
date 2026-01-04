@@ -26,13 +26,16 @@ import {
 	removeNode,
 	clearCanvas,
 	updateNodePosition,
+	addConnection,
 	nodes,
 	connections,
 	type CanvasNode,
 	type Connection
 } from '$lib/stores/canvas.svelte';
 import { validateForMission } from './mission-builder';
+import { missionExecutor } from './mission-executor';
 import { skills as skillsStore, loadSkillsStatic } from '$lib/stores/skills.svelte';
+import { generatePorts } from '$lib/utils/ports';
 import type { Skill } from '$lib/stores/skills.svelte';
 import { get } from 'svelte/store';
 
@@ -42,11 +45,19 @@ export type CanvasEventType =
 	| 'canvas_add_skills'     // Add multiple skills
 	| 'canvas_remove_node'    // Remove a node by ID
 	| 'canvas_clear'          // Clear the entire canvas
+	| 'canvas_connect'        // Create connection between nodes
 	| 'canvas_update_position'// Update node position
 	| 'canvas_get_state'      // Request current canvas state
+	| 'canvas_get_skill'      // Get skill content/instructions
 	| 'canvas_validate'       // Request workflow validation
+	| 'canvas_execute'        // Execute the workflow
+	| 'canvas_load_template'  // Load a workflow template
+	| 'canvas_export_prompt'  // Export workflow as combined prompt
 	| 'canvas_state'          // Response with canvas state
+	| 'canvas_skill_content'  // Response with skill content
 	| 'canvas_validation'     // Response with validation results
+	| 'canvas_prompt'         // Response with exported prompt
+	| 'canvas_execution'      // Response with execution status
 	| 'canvas_workflow_ready' // Notify that workflow is ready
 	| 'canvas_error';         // Error response
 
@@ -69,6 +80,20 @@ export interface AddSkillsData {
 	}>;
 	autoConnect?: boolean; // Automatically connect in sequence
 	autoLayout?: 'horizontal' | 'vertical' | 'grid';
+}
+
+export interface ExecuteWorkflowData {
+	name?: string;
+	description?: string;
+	mode?: 'preview' | 'live';
+}
+
+export interface WorkflowTemplate {
+	id: string;
+	name: string;
+	description: string;
+	skills: Array<{ skillId: string; position?: { x: number; y: number } }>;
+	connections: Array<{ sourceIndex: number; targetIndex: number }>;
 }
 
 // Track initialization
@@ -130,7 +155,7 @@ async function handleSyncEvent(event: SyncEvent): Promise<void> {
 				break;
 
 			case 'canvas_add_skills':
-				await handleAddSkills(event.data as AddSkillsData);
+				await handleAddSkills(event.data as unknown as AddSkillsData);
 				break;
 
 			case 'canvas_remove_node':
@@ -154,6 +179,29 @@ async function handleSyncEvent(event: SyncEvent): Promise<void> {
 
 			case 'canvas_validate':
 				broadcastValidation();
+				break;
+
+			case 'canvas_connect':
+				handleCreateConnection(
+					event.data.sourceNodeId as string,
+					event.data.targetNodeId as string
+				);
+				break;
+
+			case 'canvas_get_skill':
+				await handleGetSkillContent(event.data.skillId as string);
+				break;
+
+			case 'canvas_execute':
+				await handleExecuteWorkflow(event.data as unknown as ExecuteWorkflowData);
+				break;
+
+			case 'canvas_load_template':
+				await handleLoadTemplate(event.data.templateId as string);
+				break;
+
+			case 'canvas_export_prompt':
+				handleExportPrompt();
 				break;
 
 			default:
@@ -537,6 +585,513 @@ export function broadcastValidation(): void {
 			readyForExecution: validation.valid && currentNodes.length > 0
 		}
 	});
+}
+
+/**
+ * Handle creating a connection between two nodes
+ */
+function handleCreateConnection(sourceNodeId: string, targetNodeId: string): void {
+	const currentNodes = get(nodes);
+
+	// Validate nodes exist
+	const sourceNode = currentNodes.find(n => n.id === sourceNodeId);
+	const targetNode = currentNodes.find(n => n.id === targetNodeId);
+
+	if (!sourceNode) {
+		broadcastError(`Source node not found: ${sourceNodeId}`);
+		return;
+	}
+	if (!targetNode) {
+		broadcastError(`Target node not found: ${targetNodeId}`);
+		return;
+	}
+
+	// Check for existing connection
+	const currentConnections = get(connections);
+	const exists = currentConnections.some(
+		c => c.sourceNodeId === sourceNodeId && c.targetNodeId === targetNodeId
+	);
+	if (exists) {
+		broadcastError('Connection already exists');
+		return;
+	}
+
+	// Get ports for each node
+	const sourcePorts = generatePorts({
+		category: sourceNode.skill.category,
+		handoffs: sourceNode.skill.handoffs,
+		pairsWell: sourceNode.skill.pairsWell,
+		tags: sourceNode.skill.tags
+	});
+	const targetPorts = generatePorts({
+		category: targetNode.skill.category,
+		handoffs: targetNode.skill.handoffs,
+		pairsWell: targetNode.skill.pairsWell,
+		tags: targetNode.skill.tags
+	});
+
+	// Use the first output port of source and first input port of target
+	const sourcePortId = sourcePorts.outputs[0]?.id || 'output-0';
+	const targetPortId = targetPorts.inputs[0]?.id || 'input-0';
+
+	// Create the connection
+	addConnection(sourceNodeId, sourcePortId, targetNodeId, targetPortId);
+	console.log('[CanvasSync] Created connection:', sourceNodeId, '→', targetNodeId);
+	broadcastCanvasState();
+}
+
+/**
+ * Handle getting skill content/instructions
+ */
+async function handleGetSkillContent(skillId: string): Promise<void> {
+	const skill = await findSkill(skillId);
+
+	if (!skill) {
+		broadcastError(`Skill not found: ${skillId}`);
+		return;
+	}
+
+	// Build comprehensive skill content
+	const content = {
+		id: skill.id,
+		name: skill.name,
+		description: skill.description,
+		category: skill.category,
+		tier: skill.tier,
+		tags: skill.tags || [],
+		triggers: skill.triggers || [],
+		// Instructions/prompt content - this is what Claude Code needs
+		instructions: buildSkillInstructions(skill)
+	};
+
+	syncClient.broadcast({
+		type: 'canvas_skill_content' as SyncEvent['type'],
+		data: content
+	});
+
+	console.log('[CanvasSync] Sent skill content for:', skill.name);
+}
+
+/**
+ * Build skill instructions string for Claude Code
+ */
+function buildSkillInstructions(skill: Skill): string {
+	const lines: string[] = [];
+
+	lines.push(`# ${skill.name}`);
+	lines.push('');
+	lines.push(skill.description);
+	lines.push('');
+
+	if (skill.tags && skill.tags.length > 0) {
+		lines.push(`**Tags:** ${skill.tags.join(', ')}`);
+	}
+
+	if (skill.triggers && skill.triggers.length > 0) {
+		lines.push(`**Triggers:** ${skill.triggers.join(', ')}`);
+	}
+
+	lines.push('');
+	lines.push(`**Category:** ${skill.category}`);
+
+	return lines.join('\n');
+}
+
+/**
+ * Handle workflow execution
+ */
+async function handleExecuteWorkflow(data: ExecuteWorkflowData): Promise<void> {
+	const currentNodes = get(nodes);
+	const currentConnections = get(connections);
+
+	// Validate first
+	const validation = validateForMission(currentNodes, currentConnections);
+	if (!validation.valid) {
+		syncClient.broadcast({
+			type: 'canvas_execution' as SyncEvent['type'],
+			data: {
+				status: 'failed',
+				error: `Validation failed: ${validation.issues.join(', ')}`
+			}
+		});
+		return;
+	}
+
+	// Generate a name if not provided
+	const workflowName = data.name || `Workflow with ${currentNodes.length} skills`;
+	const workflowDescription = data.description ||
+		`Workflow: ${currentNodes.map(n => n.skill.name).join(' → ')}`;
+
+	// Broadcast starting
+	syncClient.broadcast({
+		type: 'canvas_execution' as SyncEvent['type'],
+		data: {
+			status: 'starting',
+			preview: {
+				name: workflowName,
+				description: workflowDescription,
+				taskCount: currentNodes.length,
+				skills: currentNodes.map(n => ({ id: n.skill.id, name: n.skill.name }))
+			}
+		}
+	});
+
+	try {
+		// Set up execution callbacks to broadcast progress
+		missionExecutor.setCallbacks({
+			onStatusChange: (status) => {
+				syncClient.broadcast({
+					type: 'canvas_execution' as SyncEvent['type'],
+					data: { status }
+				});
+			},
+			onProgress: (progress) => {
+				syncClient.broadcast({
+					type: 'canvas_execution' as SyncEvent['type'],
+					data: { status: 'running', progress }
+				});
+			},
+			onTaskStart: (taskId, taskName) => {
+				syncClient.broadcast({
+					type: 'canvas_execution' as SyncEvent['type'],
+					data: {
+						status: 'running',
+						currentTask: { id: taskId, name: taskName }
+					}
+				});
+			},
+			onComplete: (mission) => {
+				syncClient.broadcast({
+					type: 'canvas_execution' as SyncEvent['type'],
+					data: {
+						status: 'completed',
+						missionId: mission.id,
+						progress: 100
+					}
+				});
+			},
+			onError: (error) => {
+				syncClient.broadcast({
+					type: 'canvas_execution' as SyncEvent['type'],
+					data: {
+						status: 'failed',
+						error
+					}
+				});
+			}
+		});
+
+		// Execute!
+		const result = await missionExecutor.execute(
+			currentNodes,
+			currentConnections,
+			{
+				name: workflowName,
+				description: workflowDescription
+			}
+		);
+
+		console.log('[CanvasSync] Execution started:', result.missionId);
+
+	} catch (error) {
+		const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+		syncClient.broadcast({
+			type: 'canvas_execution' as SyncEvent['type'],
+			data: {
+				status: 'failed',
+				error: errorMsg
+			}
+		});
+	}
+}
+
+/**
+ * Pre-defined workflow templates
+ */
+const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
+	{
+		id: 'saas-starter',
+		name: 'SaaS Starter',
+		description: 'Next.js + Supabase + Auth + Payments',
+		skills: [
+			{ skillId: 'nextjs-app-router' },
+			{ skillId: 'supabase-backend' },
+			{ skillId: 'authentication-oauth' },
+			{ skillId: 'stripe-payments' }
+		],
+		connections: [
+			{ sourceIndex: 0, targetIndex: 1 },
+			{ sourceIndex: 1, targetIndex: 2 },
+			{ sourceIndex: 2, targetIndex: 3 }
+		]
+	},
+	{
+		id: 'ai-agent',
+		name: 'AI Agent Stack',
+		description: 'RAG + LLM Integration + Tool Use',
+		skills: [
+			{ skillId: 'rag-implementation' },
+			{ skillId: 'llm-integration' },
+			{ skillId: 'mcp-builder' }
+		],
+		connections: [
+			{ sourceIndex: 0, targetIndex: 1 },
+			{ sourceIndex: 1, targetIndex: 2 }
+		]
+	},
+	{
+		id: 'api-backend',
+		name: 'API Backend',
+		description: 'REST API + Database + Auth',
+		skills: [
+			{ skillId: 'api-design' },
+			{ skillId: 'supabase-backend' },
+			{ skillId: 'authentication-oauth' },
+			{ skillId: 'error-handling-patterns' }
+		],
+		connections: [
+			{ sourceIndex: 0, targetIndex: 1 },
+			{ sourceIndex: 1, targetIndex: 2 },
+			{ sourceIndex: 0, targetIndex: 3 }
+		]
+	},
+	{
+		id: 'fullstack-app',
+		name: 'Full Stack App',
+		description: 'Complete Next.js application',
+		skills: [
+			{ skillId: 'nextjs-app-router' },
+			{ skillId: 'react-patterns' },
+			{ skillId: 'api-design' },
+			{ skillId: 'supabase-backend' },
+			{ skillId: 'authentication-oauth' }
+		],
+		connections: [
+			{ sourceIndex: 0, targetIndex: 1 },
+			{ sourceIndex: 0, targetIndex: 2 },
+			{ sourceIndex: 2, targetIndex: 3 },
+			{ sourceIndex: 3, targetIndex: 4 }
+		]
+	},
+	{
+		id: 'data-pipeline',
+		name: 'Data Pipeline',
+		description: 'ETL + Analytics + Visualization',
+		skills: [
+			{ skillId: 'data-pipeline' },
+			{ skillId: 'data-modeling' },
+			{ skillId: 'data-visualization' }
+		],
+		connections: [
+			{ sourceIndex: 0, targetIndex: 1 },
+			{ sourceIndex: 1, targetIndex: 2 }
+		]
+	}
+];
+
+/**
+ * Handle loading a workflow template
+ */
+async function handleLoadTemplate(templateId: string): Promise<void> {
+	const template = WORKFLOW_TEMPLATES.find(t => t.id === templateId);
+
+	if (!template) {
+		// If not found by ID, try to find by name
+		const templateByName = WORKFLOW_TEMPLATES.find(
+			t => t.name.toLowerCase() === templateId.toLowerCase()
+		);
+
+		if (!templateByName) {
+			broadcastError(`Template not found: ${templateId}. Available: ${WORKFLOW_TEMPLATES.map(t => t.id).join(', ')}`);
+			return;
+		}
+
+		// Found by name, use it
+		await loadTemplateToCanvas(templateByName);
+		return;
+	}
+
+	await loadTemplateToCanvas(template);
+}
+
+/**
+ * Load a template onto the canvas
+ */
+async function loadTemplateToCanvas(template: WorkflowTemplate): Promise<void> {
+	// Clear existing canvas first
+	clearCanvas();
+
+	// Add all skills and track their data for connections
+	const nodeData: Array<{ id: string; skill: Skill }> = [];
+
+	for (let i = 0; i < template.skills.length; i++) {
+		const skillDef = template.skills[i];
+		const skill = await findSkill(skillDef.skillId);
+
+		if (!skill) {
+			console.warn('[CanvasSync] Skill not found for template:', skillDef.skillId);
+			continue;
+		}
+
+		// Calculate position in a nice layout
+		const position = skillDef.position || calculateLayoutPosition(
+			i,
+			template.skills.length,
+			0,
+			'horizontal'
+		);
+
+		const nodeId = addNode(skill, position);
+		nodeData.push({ id: nodeId, skill });
+	}
+
+	// Create connections based on indices
+	for (const conn of template.connections) {
+		const sourceData = nodeData[conn.sourceIndex];
+		const targetData = nodeData[conn.targetIndex];
+
+		if (sourceData && targetData) {
+			// Get ports for each node
+			const sourcePorts = generatePorts({
+				category: sourceData.skill.category,
+				handoffs: sourceData.skill.handoffs,
+				pairsWell: sourceData.skill.pairsWell,
+				tags: sourceData.skill.tags
+			});
+			const targetPorts = generatePorts({
+				category: targetData.skill.category,
+				handoffs: targetData.skill.handoffs,
+				pairsWell: targetData.skill.pairsWell,
+				tags: targetData.skill.tags
+			});
+
+			const sourcePortId = sourcePorts.outputs[0]?.id || 'output-0';
+			const targetPortId = targetPorts.inputs[0]?.id || 'input-0';
+
+			addConnection(sourceData.id, sourcePortId, targetData.id, targetPortId);
+		}
+	}
+
+	console.log('[CanvasSync] Loaded template:', template.name);
+	broadcastCanvasState();
+}
+
+/**
+ * Get list of available templates
+ */
+export function getAvailableTemplates(): Array<{ id: string; name: string; description: string }> {
+	return WORKFLOW_TEMPLATES.map(t => ({
+		id: t.id,
+		name: t.name,
+		description: t.description
+	}));
+}
+
+/**
+ * Handle exporting workflow as a combined prompt
+ */
+function handleExportPrompt(): void {
+	const currentNodes = get(nodes);
+	const currentConnections = get(connections);
+
+	if (currentNodes.length === 0) {
+		broadcastError('No skills on canvas to export');
+		return;
+	}
+
+	// Build execution order based on connections
+	const orderedSkills = getExecutionOrder(currentNodes, currentConnections);
+
+	// Build the combined prompt
+	const promptParts: string[] = [];
+
+	promptParts.push('# Workflow Execution Prompt');
+	promptParts.push('');
+	promptParts.push(`This workflow contains ${orderedSkills.length} skills that should be applied in order.`);
+	promptParts.push('');
+
+	for (let i = 0; i < orderedSkills.length; i++) {
+		const skill = orderedSkills[i];
+		promptParts.push(`## Step ${i + 1}: ${skill.name}`);
+		promptParts.push('');
+		promptParts.push(skill.description);
+		promptParts.push('');
+
+		if (skill.tags && skill.tags.length > 0) {
+			promptParts.push(`**Focus areas:** ${skill.tags.join(', ')}`);
+			promptParts.push('');
+		}
+	}
+
+	promptParts.push('---');
+	promptParts.push('');
+	promptParts.push('Apply these skills in sequence, using the output of each step as context for the next.');
+
+	const prompt = promptParts.join('\n');
+
+	syncClient.broadcast({
+		type: 'canvas_prompt' as SyncEvent['type'],
+		data: {
+			prompt,
+			skillCount: orderedSkills.length,
+			skills: orderedSkills.map(s => ({ id: s.id, name: s.name }))
+		}
+	});
+
+	console.log('[CanvasSync] Exported prompt with', orderedSkills.length, 'skills');
+}
+
+/**
+ * Get skills in execution order (topological sort based on connections)
+ */
+function getExecutionOrder(currentNodes: CanvasNode[], currentConnections: Connection[]): Skill[] {
+	// Build adjacency list
+	const inDegree = new Map<string, number>();
+	const adjacency = new Map<string, string[]>();
+
+	// Initialize
+	for (const node of currentNodes) {
+		inDegree.set(node.id, 0);
+		adjacency.set(node.id, []);
+	}
+
+	// Build graph
+	for (const conn of currentConnections) {
+		adjacency.get(conn.sourceNodeId)?.push(conn.targetNodeId);
+		inDegree.set(conn.targetNodeId, (inDegree.get(conn.targetNodeId) || 0) + 1);
+	}
+
+	// Kahn's algorithm for topological sort
+	const queue: string[] = [];
+	for (const [nodeId, degree] of inDegree) {
+		if (degree === 0) {
+			queue.push(nodeId);
+		}
+	}
+
+	const orderedIds: string[] = [];
+	while (queue.length > 0) {
+		const nodeId = queue.shift()!;
+		orderedIds.push(nodeId);
+
+		for (const neighbor of adjacency.get(nodeId) || []) {
+			inDegree.set(neighbor, (inDegree.get(neighbor) || 0) - 1);
+			if (inDegree.get(neighbor) === 0) {
+				queue.push(neighbor);
+			}
+		}
+	}
+
+	// If we didn't get all nodes, there's a cycle - just use all nodes in any order
+	if (orderedIds.length !== currentNodes.length) {
+		console.warn('[CanvasSync] Cycle detected in workflow, using arbitrary order');
+		return currentNodes.map(n => n.skill);
+	}
+
+	// Map back to skills in order
+	return orderedIds
+		.map(id => currentNodes.find(n => n.id === id)?.skill)
+		.filter((s): s is Skill => s !== undefined);
 }
 
 /**
