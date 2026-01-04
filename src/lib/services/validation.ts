@@ -7,10 +7,14 @@
  * - Orphaned nodes
  * - Skill compatibility
  * - Entry/exit points
+ * - MCP server-side validation (when connected)
  */
 
 import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import type { Skill } from '$lib/stores/skills.svelte';
+import { mcpClient } from '$lib/services/mcp-client';
+import { get } from 'svelte/store';
+import { mcpState } from '$lib/stores/mcp.svelte';
 
 export type ValidationSeverity = 'error' | 'warning' | 'info';
 
@@ -364,4 +368,175 @@ export function getValidationSummary(result: ValidationResult): string {
 	}
 
 	return 'Workflow needs attention';
+}
+
+// ============================================
+// MCP Server-Side Validation
+// ============================================
+
+export interface McpValidationResult {
+	issues: ValidationIssue[];
+	passed: boolean;
+}
+
+export interface SharpEdge {
+	warning: string;
+	severity?: 'error' | 'warning' | 'info';
+	tech?: string;
+}
+
+/**
+ * Check if MCP is connected
+ */
+function isMcpConnected(): boolean {
+	const state = get(mcpState);
+	return state.status === 'connected';
+}
+
+/**
+ * Validate workflow using MCP server-side validation
+ * Calls mcpClient.validate() for each unique skill in the workflow
+ */
+export async function validateWithMcp(nodes: CanvasNode[]): Promise<McpValidationResult> {
+	const issues: ValidationIssue[] = [];
+
+	if (!isMcpConnected()) {
+		return { issues: [], passed: true };
+	}
+
+	// Get unique skills in the workflow
+	const uniqueSkills = [...new Map(nodes.map(n => [n.skill.id, n.skill])).values()];
+
+	for (const skill of uniqueSkills) {
+		try {
+			// Generate a pseudo-code representation for validation
+			const codeContext = `
+// Workflow using ${skill.name}
+// Category: ${skill.category}
+// Tags: ${skill.tags?.join(', ') || 'none'}
+// Triggers: ${skill.triggers?.slice(0, 3).join(', ') || 'none'}
+`;
+
+			const result = await mcpClient.validate(
+				codeContext,
+				`workflow/${skill.id}.ts`,
+				['patterns', 'production']
+			);
+
+			if (result.success && result.data) {
+				const data = result.data as { issues?: Array<{ message: string; severity?: string }> };
+				if (data.issues && data.issues.length > 0) {
+					for (const issue of data.issues) {
+						issues.push({
+							id: `mcp-${skill.id}-${issues.length}`,
+							severity: (issue.severity as ValidationSeverity) || 'warning',
+							message: `[${skill.name}] ${issue.message}`,
+							suggestion: 'Review skill configuration'
+						});
+					}
+				}
+			}
+		} catch (e) {
+			console.error(`MCP validation failed for ${skill.name}:`, e);
+		}
+	}
+
+	return {
+		issues,
+		passed: issues.filter(i => i.severity === 'error').length === 0
+	};
+}
+
+/**
+ * Get sharp edges/gotchas for the skills in the workflow
+ * Calls mcpClient.watchOut() to get common pitfalls
+ */
+export async function getSharpEdges(nodes: CanvasNode[]): Promise<SharpEdge[]> {
+	if (!isMcpConnected()) {
+		return [];
+	}
+
+	// Get unique tags across all skills
+	const allTags = new Set<string>();
+	for (const node of nodes) {
+		for (const tag of node.skill.tags || []) {
+			allTags.add(tag);
+		}
+	}
+
+	// Get skill names for situation context
+	const skillNames = nodes.map(n => n.skill.name).join(', ');
+
+	try {
+		const result = await mcpClient.watchOut({
+			stack: Array.from(allTags),
+			situation: `Building a workflow with: ${skillNames}`
+		});
+
+		if (result.success && result.data) {
+			const data = result.data as {
+				gotchas?: Array<{
+					warning: string;
+					severity?: string;
+					tech?: string;
+				}>
+			};
+
+			return (data.gotchas || []).map(g => ({
+				warning: g.warning,
+				severity: (g.severity as 'error' | 'warning' | 'info') || 'warning',
+				tech: g.tech
+			}));
+		}
+	} catch (e) {
+		console.error('Failed to get sharp edges:', e);
+	}
+
+	return [];
+}
+
+/**
+ * Full validation including MCP server-side checks
+ */
+export async function validateCanvasFull(
+	nodes: CanvasNode[],
+	connections: Connection[]
+): Promise<ValidationResult & { mcpIssues: ValidationIssue[]; sharpEdges: SharpEdge[] }> {
+	// Run local validation first
+	const localResult = validateCanvas(nodes, connections);
+
+	// Run MCP validation if connected
+	const mcpResult = await validateWithMcp(nodes);
+	const sharpEdges = await getSharpEdges(nodes);
+
+	// Convert sharp edges to issues
+	const sharpEdgeIssues: ValidationIssue[] = sharpEdges.map((edge, i) => ({
+		id: `sharp-edge-${i}`,
+		severity: edge.severity || 'warning',
+		message: edge.warning,
+		suggestion: edge.tech ? `Related to: ${edge.tech}` : undefined
+	}));
+
+	// Combine all issues
+	const allIssues = [...localResult.issues, ...mcpResult.issues, ...sharpEdgeIssues];
+
+	// Recalculate score with MCP issues
+	let score = 100;
+	const errorCount = allIssues.filter((i) => i.severity === 'error').length;
+	const warningCount = allIssues.filter((i) => i.severity === 'warning').length;
+	const infoCount = allIssues.filter((i) => i.severity === 'info').length;
+
+	score -= errorCount * 30;
+	score -= warningCount * 10;
+	score -= infoCount * 2;
+	score = Math.max(0, Math.min(100, score));
+
+	return {
+		...localResult,
+		valid: localResult.valid && mcpResult.passed,
+		score,
+		issues: allIssues,
+		mcpIssues: mcpResult.issues,
+		sharpEdges
+	};
 }

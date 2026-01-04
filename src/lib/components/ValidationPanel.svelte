@@ -1,7 +1,9 @@
 <script lang="ts">
-	import { validateCanvas, getValidationSummary, type ValidationResult, type ValidationIssue } from '$lib/services/validation';
+	import { validateCanvas, validateCanvasFull, getValidationSummary, type ValidationResult, type ValidationIssue, type SharpEdge } from '$lib/services/validation';
 	import { nodes, connections, selectNode } from '$lib/stores/canvas.svelte';
+	import { mcpState } from '$lib/stores/mcp.svelte';
 	import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
+	import Icon from './Icon.svelte';
 
 	interface Props {
 		onClose: () => void;
@@ -12,19 +14,41 @@
 	let currentNodes = $state<CanvasNode[]>([]);
 	let currentConnections = $state<Connection[]>([]);
 	let result = $state<ValidationResult | null>(null);
+	let sharpEdges = $state<SharpEdge[]>([]);
+	let mcpConnected = $state(false);
+	let loadingMcp = $state(false);
+	let showSharpEdges = $state(false);
 
 	$effect(() => {
 		const unsub1 = nodes.subscribe((n) => (currentNodes = n));
 		const unsub2 = connections.subscribe((c) => (currentConnections = c));
+		const unsub3 = mcpState.subscribe((s) => (mcpConnected = s.status === 'connected'));
 		return () => {
 			unsub1();
 			unsub2();
+			unsub3();
 		};
 	});
 
+	// Run local validation immediately
 	$effect(() => {
 		result = validateCanvas(currentNodes, currentConnections);
 	});
+
+	// Run MCP validation when connected
+	async function runMcpValidation() {
+		if (!mcpConnected || currentNodes.length === 0) return;
+		loadingMcp = true;
+		try {
+			const fullResult = await validateCanvasFull(currentNodes, currentConnections);
+			result = fullResult;
+			sharpEdges = fullResult.sharpEdges || [];
+		} catch (e) {
+			console.error('MCP validation failed:', e);
+		} finally {
+			loadingMcp = false;
+		}
+	}
 
 	function getScoreColor(score: number): string {
 		if (score >= 80) return 'text-accent-primary';
@@ -92,6 +116,28 @@
 					></div>
 				</div>
 				<p class="text-sm text-text-tertiary mt-2">{getValidationSummary(result)}</p>
+
+				<!-- MCP Validation Button -->
+				{#if mcpConnected && currentNodes.length > 0}
+					<button
+						onclick={runMcpValidation}
+						disabled={loadingMcp}
+						class="mt-3 w-full px-3 py-2 text-xs font-mono border border-accent-primary/50 text-accent-primary hover:bg-accent-primary/10 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+					>
+						{#if loadingMcp}
+							<div class="w-3 h-3 border-2 border-accent-primary border-t-transparent rounded-full animate-spin"></div>
+							<span>Running MCP checks...</span>
+						{:else}
+							<Icon name="zap" size={12} />
+							<span>Run MCP Validation</span>
+						{/if}
+					</button>
+				{:else if !mcpConnected}
+					<div class="mt-3 px-3 py-2 text-xs font-mono text-text-tertiary bg-bg-tertiary border border-surface-border flex items-center gap-2">
+						<span class="w-2 h-2 rounded-full bg-gray-500"></span>
+						<span>MCP offline - local validation only</span>
+					</div>
+				{/if}
 			</div>
 
 			<!-- Stats -->
@@ -109,6 +155,35 @@
 					<div class="text-xs text-text-tertiary">Connected</div>
 				</div>
 			</div>
+
+			<!-- Sharp Edges Toggle -->
+			{#if sharpEdges.length > 0}
+				<div class="border-b border-surface-border">
+					<button
+						onclick={() => showSharpEdges = !showSharpEdges}
+						class="w-full p-3 flex items-center justify-between text-left hover:bg-bg-tertiary/50 transition-colors"
+					>
+						<div class="flex items-center gap-2">
+							<Icon name="alert-triangle" size={14} />
+							<span class="text-sm text-amber-400 font-mono">Sharp Edges ({sharpEdges.length})</span>
+						</div>
+						<span class="text-text-tertiary text-xs">{showSharpEdges ? '▲' : '▼'}</span>
+					</button>
+
+					{#if showSharpEdges}
+						<div class="p-3 pt-0 space-y-2">
+							{#each sharpEdges as edge, i}
+								<div class="p-2 text-xs bg-amber-500/10 border border-amber-500/30 text-amber-400">
+									<p>{edge.warning}</p>
+									{#if edge.tech}
+										<p class="mt-1 text-amber-400/70">Tech: {edge.tech}</p>
+									{/if}
+								</div>
+							{/each}
+						</div>
+					{/if}
+				</div>
+			{/if}
 
 			<!-- Issues -->
 			<div class="flex-1 overflow-y-auto p-4">

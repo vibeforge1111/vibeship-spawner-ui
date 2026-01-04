@@ -7,6 +7,7 @@
 	import ExecutionPanel from '$lib/components/ExecutionPanel.svelte';
 	import ContextMenu from '$lib/components/ContextMenu.svelte';
 	import Minimap from '$lib/components/Minimap.svelte';
+	import NodeConfigPanel from '$lib/components/NodeConfigPanel.svelte';
 	import { canvasState, nodes, connections, selectedNodeId, selectedNodeIds, selectedConnectionId, selectedNode, draggingConnection, cuttingLine, selectionBox, snapToGrid, gridSize, addNode, selectNode, selectConnection, selectAllNodes, clearSelection, deleteSelected, duplicateSelected, copySelected, pasteFromClipboard, removeConnection, removeNode, setZoom, zoomToFit, frameSelected, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory, startConnectionCut, updateConnectionCut, endConnectionCut, cancelConnectionCut, startSelectionBox, updateSelectionBox, endSelectionBox, cancelSelectionBox, toggleSnapToGrid, snapPosition, autoLayout, exportCanvasToFile, importCanvasFromFile } from '$lib/stores/canvas.svelte';
 	import type { CuttingLine, CanvasNode, Connection, DraggingConnection, SelectionBox } from '$lib/stores/canvas.svelte';
 	import { onMount } from 'svelte';
@@ -747,7 +748,13 @@
 			{/if}
 		</div>
 	</main>
-	{#if showNodeDetails && currentSelectedNode}<aside class="w-80 border-l border-surface-border bg-bg-secondary flex flex-col"><div class="p-4 border-b border-surface-border flex items-center justify-between"><h2 class="font-medium text-text-primary">{currentSelectedNode.skill.name}</h2><button onclick={() => (showNodeDetails = false)} class="btn-ghost p-1">X</button></div><div class="flex-1 overflow-y-auto p-4"><div class="mb-6"><h3 class="text-xs font-semibold text-text-tertiary uppercase mb-2">Description</h3><p class="text-sm text-text-secondary">{currentSelectedNode.skill.description}</p></div></div><div class="p-4 border-t border-surface-border"><button class="w-full px-4 py-2 text-sm font-mono text-accent-primary border border-accent-primary hover:bg-accent-primary hover:text-bg-primary transition-all">Test Node</button></div></aside>{/if}
+	{#if showNodeDetails && currentSelectedNode}
+		<NodeConfigPanel
+			node={currentSelectedNode}
+			onClose={() => (showNodeDetails = false)}
+			onDelete={() => { removeNode(currentSelectedNode!.id); showNodeDetails = false; }}
+		/>
+	{/if}
 </div>
 
 {#if showValidation}

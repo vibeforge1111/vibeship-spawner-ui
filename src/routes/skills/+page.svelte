@@ -5,7 +5,7 @@
 	import SkillCard from '$lib/components/SkillCard.svelte';
 	import FilterBar from '$lib/components/FilterBar.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { filteredSkills, loading, error, loadSkills, skillCounts } from '$lib/stores/skills.svelte';
+	import { filteredSkills, loading, error, loadSkills, skillCounts, skillSource } from '$lib/stores/skills.svelte';
 
 	onMount(() => {
 		loadSkills();
@@ -25,6 +25,13 @@
 			<div class="flex items-center gap-2 mb-4">
 				<Icon name="layers" size={20} />
 				<span class="font-mono text-sm text-text-tertiary uppercase tracking-wider">Skills Library</span>
+				<!-- Source indicator -->
+				<div class="ml-auto flex items-center gap-1.5">
+					<span class="w-2 h-2 rounded-full {$skillSource === 'mcp' ? 'bg-green-500' : 'bg-amber-500'}"></span>
+					<span class="font-mono text-xs text-text-tertiary">
+						{$skillSource === 'mcp' ? 'MCP' : 'Static'}
+					</span>
+				</div>
 			</div>
 			<h1 class="text-3xl font-display font-bold text-text-primary mb-3">
 				Browse <span class="text-accent-primary">{$skillCounts.total}</span> Skills

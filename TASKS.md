@@ -32,12 +32,12 @@ This file tracks what's built, what's missing, and the implementation order.
 ## Phase 1: Foundation (MCP Connection)
 
 ### 1.1 Auto-connect to MCP on App Load
-- [ ] Add MCP connection attempt in root `+layout.svelte`
-- [ ] Show connection status indicator in Navbar
+- [x] Add MCP connection attempt in root `+layout.svelte` ✅
+- [x] Show connection status indicator in Navbar ✅
 - [x] Graceful fallback to static data if MCP unavailable *(implemented in skills.svelte.ts)*
-- [ ] Store connection preference in localStorage
+- [x] Store connection preference in localStorage ✅
 
-**Status:** ⚠️ PARTIAL - MCP client fully built, but auto-connect not wired up
+**Status:** ✅ COMPLETE
 **Files:** `src/routes/+layout.svelte`, `src/lib/components/Navbar.svelte`
 
 ### 1.2 Skills Page - Wire to MCP
@@ -46,7 +46,7 @@ This file tracks what's built, what's missing, and the implementation order.
 - [x] Enable real-time search via `searchSkillsMcp()` *(implemented in store)*
 - [ ] Show skill count from server
 
-**Status:** ⚠️ PARTIAL - Store has MCP integration, but UI doesn't show source
+**Status:** ⚠️ PARTIAL - Store has MCP integration, UI needs source indicator
 **Files:** `src/routes/skills/+page.svelte`, `src/lib/stores/skills.svelte.ts`
 
 ### 1.3 Skill Detail Page
@@ -71,21 +71,23 @@ This file tracks what's built, what's missing, and the implementation order.
 **Files:** `src/routes/canvas/+page.svelte`, `src/lib/stores/canvas.svelte.ts`
 
 ### 2.2 Node Configuration Panel
-- [x] Create side panel for selected node configuration *(basic version exists)*
-- [x] Show skill description, required inputs *(basic)*
-- [ ] Allow parameter configuration
-- [ ] Validate inputs against skill schema
+- [x] Create side panel for selected node configuration ✅
+- [x] Show skill description, required inputs ✅
+- [x] Show tags, triggers, handoffs, pairs-well ✅
+- [x] Show sharp edges/warnings via MCP ✅
+- [ ] Allow parameter configuration (pending schema support)
 
-**Status:** ⚠️ PARTIAL - Basic node details panel exists inline, no dedicated config panel
-**Files:** `src/lib/components/NodeConfigPanel.svelte` (NOT CREATED)
+**Status:** ✅ COMPLETE - Full NodeConfigPanel with tabs
+**Files:** `src/lib/components/NodeConfigPanel.svelte` ✅
 
 ### 2.3 Canvas Validation via MCP
-- [x] Before execution, validate workflow *(LOCAL validation only)*
-- [x] Show validation errors on affected nodes
-- [ ] Display sharp edges warnings via `mcpClient.watchOut()`
-- [ ] Call `mcpClient.validate()` for server-side validation
+- [x] Before execution, validate workflow ✅
+- [x] Show validation errors on affected nodes ✅
+- [x] Display sharp edges warnings via `mcpClient.watchOut()` ✅
+- [x] Call `mcpClient.validate()` for server-side validation ✅
+- [x] Run MCP Validation button in panel ✅
 
-**Status:** ✅ LOCAL COMPLETE - Full validation service exists, but uses local checks not MCP
+**Status:** ✅ COMPLETE - Local + MCP validation with sharp edges
 **Files:** `src/lib/services/validation.ts` ✅, `src/lib/components/ValidationPanel.svelte` ✅
 
 ---
@@ -121,52 +123,54 @@ This file tracks what's built, what's missing, and the implementation order.
 ## Phase 4: Mission System
 
 ### 4.1 Mission List UI
-- [ ] Create `/missions` route
-- [x] List missions via `mcpClient.listMissions()` *(method exists)*
-- [x] Status badges logic ready in store
-- [x] Quick actions: view, resume, delete *(store methods exist)*
+- [x] Create `/missions` route ✅
+- [x] List missions via `mcpClient.listMissions()` ✅
+- [x] Status badges logic ready in store ✅
+- [x] Quick actions: view, resume, delete ✅
 
-**Status:** ❌ UI NOT CREATED - Store fully implemented, route missing
-**Files:** `src/routes/missions/+page.svelte` (NOT CREATED)
+**Status:** ✅ COMPLETE
+**Files:** `src/routes/missions/+page.svelte` ✅
 
 ### 4.2 Mission Detail/Monitor
-- [ ] Create `/missions/[id]/+page.svelte`
-- [x] Show mission agents, tasks, progress *(store ready)*
-- [x] Live log stream via `mcpClient.getMissionLogs()` *(implemented)*
-- [x] `generateClaudeCodePrompt()` helper exists
+- [x] Create `/missions/[id]/+page.svelte` ✅
+- [x] Show mission agents, tasks, progress ✅
+- [x] Live log stream via `mcpClient.getMissionLogs()` ✅
+- [x] `generateClaudeCodePrompt()` helper ✅
 
-**Status:** ❌ UI NOT CREATED - Store fully implemented, route missing
-**Files:** `src/routes/missions/[id]/+page.svelte` (NOT CREATED)
+**Status:** ✅ COMPLETE
+**Files:** `src/routes/missions/[id]/+page.svelte` ✅
 
 ### 4.3 Canvas → Mission Export
-- [ ] Convert canvas workflow to Mission format
-- [ ] Map nodes to tasks, connections to handoffs
-- [x] Create mission via `mcpClient.createMission()` *(method exists)*
-- [ ] Redirect to mission monitor
+- [x] Convert canvas workflow to Mission format ✅
+- [x] Map nodes to tasks, connections to handoffs ✅
+- [x] Create mission via `mcpClient.createMission()` ✅
+- [x] Redirect to mission monitor ✅
+- [x] Export button in canvas toolbar ✅
 
-**Status:** ❌ NOT IMPLEMENTED - No mission-builder service
-**Files:** `src/lib/services/mission-builder.ts` (NOT CREATED)
+**Status:** ✅ COMPLETE
+**Files:** `src/lib/services/mission-builder.ts` ✅, `src/routes/canvas/+page.svelte`
 
 ---
 
 ## Phase 5: Mind Integration
 
 ### 5.1 Mind Store & Types
-- [ ] Create `mind.svelte.ts` store
-- [ ] Define Memory, Decision, Session types
-- [ ] Connect to Mind MCP tools (when available)
+- [x] Create `mind.svelte.ts` store ✅
+- [x] Define Memory, Decision, Session types ✅
+- [x] Connect to Mind MCP tools ✅
 
-**Status:** ❌ NOT STARTED
-**Files:** `src/lib/stores/mind.svelte.ts` (NOT CREATED)
+**Status:** ✅ COMPLETE
+**Files:** `src/lib/stores/mind.svelte.ts` ✅, `src/lib/services/mcp-client.ts`
 
 ### 5.2 Mind Dashboard
-- [ ] Create `/mind` route
-- [ ] Show recent memories, decisions
+- [x] Create `/mind` route ✅
+- [x] Show recent memories, decisions ✅
+- [x] Add new decisions/issues UI ✅
 - [ ] Search/filter memories
 - [ ] Memory timeline visualization
 
-**Status:** ❌ NOT STARTED - Route does not exist
-**Files:** `src/routes/mind/+page.svelte` (NOT CREATED)
+**Status:** ⚠️ PARTIAL - Core UI complete, search/timeline missing
+**Files:** `src/routes/mind/+page.svelte` ✅
 
 ### 5.3 Mind in Canvas Context
 - [ ] Show relevant memories when configuring nodes
@@ -264,8 +268,8 @@ Week 4: Mind + Polish
 
 ## Quick Wins (Can Do Anytime)
 
-- [ ] Add MCP status to Navbar (green dot = connected)
-- [ ] "Connecting..." state on app load
+- [x] Add MCP status to Navbar (green dot = connected) ✅
+- [x] "Connecting..." state on app load ✅
 - [ ] Skill source indicator on skills page
 - [ ] Remove/hide Knowledge Base from nav (not core feature)
 
@@ -277,6 +281,17 @@ Week 4: Mind + Polish
 - [x] Input focus styling fixes
 - [x] Spawn button states
 - [x] **AUDIT COMPLETE** - Full codebase audit (2026-01-04)
+- [x] **MCP Auto-connect** - Added to +layout.svelte with localStorage persistence
+- [x] **MCP Status Indicator** - Added to Navbar with tooltip
+- [x] **Missions Routes** - Created /missions and /missions/[id] pages
+- [x] **Mission Builder** - Canvas → Mission conversion service
+- [x] **Export to Mission** - Button in canvas toolbar
+- [x] **Mind Store** - Created mind.svelte.ts with MCP integration
+- [x] **Mind Dashboard** - Created /mind route with decisions/issues/sessions tabs
+- [x] **Navbar Updates** - Added Missions and Mind links
+- [x] **Skills Source Indicator** - Shows MCP/Static on skills page
+- [x] **NodeConfigPanel** - Full config panel with tabs (details, config, warnings)
+- [x] **MCP Validation** - Wired validate() and watchOut() in ValidationPanel
 
 ---
 
@@ -287,44 +302,44 @@ Week 4: Mind + Polish
 |-----------|------|-------|
 | MCP Client | `src/lib/services/mcp-client.ts` | Full JSON-RPC, all tool wrappers |
 | MCP State Store | `src/lib/stores/mcp.svelte.ts` | Connection management |
+| MCP Auto-connect | `src/routes/+layout.svelte` | Auto-connects on app load ✅ |
+| MCP Status Indicator | `src/lib/components/Navbar.svelte` | Green/yellow/red dot ✅ |
 | Skills Store | `src/lib/stores/skills.svelte.ts` | MCP + static fallback |
 | Missions Store | `src/lib/stores/missions.svelte.ts` | Full CRUD, polling, logs |
+| Missions List | `src/routes/missions/+page.svelte` | Filter, view, delete ✅ |
+| Mission Detail | `src/routes/missions/[id]/+page.svelte` | Tasks, logs, prompt ✅ |
+| Mission Builder | `src/lib/services/mission-builder.ts` | Canvas → Mission ✅ |
 | Canvas Store | `src/lib/stores/canvas.svelte.ts` | 1300+ lines, complete |
-| Canvas Page | `src/routes/canvas/+page.svelte` | Full featured editor |
+| Canvas Page | `src/routes/canvas/+page.svelte` | Full featured editor + export |
 | Validation Service | `src/lib/services/validation.ts` | Local validation |
 | Validation Panel | `src/lib/components/ValidationPanel.svelte` | Working UI |
 | Executor Service | `src/lib/services/executor.ts` | Simulated execution |
 | Execution Panel | `src/lib/components/ExecutionPanel.svelte` | Working UI |
 | Skill Detail Page | `src/routes/skills/[id]/+page.svelte` | Complete |
+| Mind Store | `src/lib/stores/mind.svelte.ts` | Decisions, issues, sessions ✅ |
+| Mind Dashboard | `src/routes/mind/+page.svelte` | Tabbed UI ✅ |
+| Node Config Panel | `src/lib/components/NodeConfigPanel.svelte` | Tabs: details, config, warnings ✅ |
+| Skills Source Indicator | `src/routes/skills/+page.svelte` | Shows MCP/Static ✅ |
+| MCP Validation | `src/lib/services/validation.ts` | validate() + watchOut() ✅ |
 
 ### ⚠️ PARTIAL (Needs Completion)
 | Task | Missing |
 |------|---------|
-| Auto-connect MCP | Add to `+layout.svelte` on app load |
-| MCP Status Indicator | Add to Navbar |
-| Skills Source Indicator | Show "MCP / Static" on skills page |
-| Node Config Panel | Full config panel (not just details) |
-| MCP Validation | Wire `mcpClient.validate()` and `watchOut()` |
 | Execution via MCP | Currently simulated, needs real MCP calls |
+| Mind Search/Timeline | Search/filter and timeline visualization |
 
 ### ❌ NOT IMPLEMENTED (Routes/Files Missing)
 | Route/File | Priority |
 |------------|----------|
-| `/missions` | HIGH - Store ready, just needs UI |
-| `/missions/[id]` | HIGH - Store ready, just needs UI |
-| `/mind` | MEDIUM |
-| `mission-builder.ts` | HIGH - Canvas to Mission conversion |
-| `mind.svelte.ts` | MEDIUM |
 | Settings page | LOW |
-
-### 🔌 INTEGRATION BLOCKERS
-1. **Auto-connect MCP** - Without this, all MCP features fall back to static data
-2. **Mission Routes** - Store is 100% ready, just needs pages created
+| Scanner integration | MEDIUM - Currently mock only |
+| SSE/WebSocket realtime | LOW - Future enhancement |
+| Mind in Canvas context | MEDIUM |
 
 ### 📍 RECOMMENDED NEXT STEPS
-1. Add MCP auto-connect to `+layout.svelte` (unblocks everything)
-2. Create `/missions` route (store already done)
-3. Create `mission-builder.ts` to convert canvas → mission
+1. Add skills source indicator (quick win)
+2. Create Node Config Panel for canvas
+3. Wire MCP validation (mcpClient.validate + watchOut)
 4. Wire real execution through MCP instead of simulation
 
 ---
