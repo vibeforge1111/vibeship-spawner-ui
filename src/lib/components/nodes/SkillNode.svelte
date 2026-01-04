@@ -175,26 +175,27 @@
 
 	.port-handle {
 		position: absolute;
-		width: 10px;
-		height: 10px;
+		width: 12px;
+		height: 12px;
 		background: var(--bg-secondary);
-		border: 1px solid;
+		border: 2px solid;
 		cursor: crosshair;
-		z-index: 10;
-		transition: background 0.1s;
+		z-index: 20;
+		transition: all 0.1s;
 		transform: translateY(-50%);
 	}
 
 	.port-handle:hover {
 		background: currentColor;
+		transform: translateY(-50%) scale(1.2);
 	}
 
 	.port-input {
-		left: -6px;
+		left: -7px;
 	}
 
 	.port-output {
-		right: -6px;
+		right: -7px;
 	}
 
 	.port-label {

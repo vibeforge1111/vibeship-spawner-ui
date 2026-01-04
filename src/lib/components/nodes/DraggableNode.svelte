@@ -91,8 +91,9 @@
 
 		const canvasRect = canvasEl.getBoundingClientRect();
 		// Account for pan offset when calculating position
-		const rawX = (e.clientX - canvasRect.left - pan.x - dragOffset.x * zoom) / zoom;
-		const rawY = (e.clientY - canvasRect.top - pan.y - dragOffset.y * zoom) / zoom;
+		// dragOffset is in screen pixels (already accounts for zoom via bounding rect)
+		const rawX = (e.clientX - canvasRect.left - pan.x - dragOffset.x) / zoom;
+		const rawY = (e.clientY - canvasRect.top - pan.y - dragOffset.y) / zoom;
 
 		// Apply snap to grid
 		const snapped = snapPosition(Math.max(0, rawX), Math.max(0, rawY));
@@ -121,14 +122,17 @@
 	function handlePortDragStart(portId: string, portType: 'input' | 'output', e: MouseEvent) {
 		const canvasEl = document.querySelector('.canvas-area');
 		if (!canvasEl) return;
-		
+
 		const canvasRect = canvasEl.getBoundingClientRect();
-		// Get the port position relative to canvas
-		const portX = (e.clientX - canvasRect.left) / zoom;
-		const portY = (e.clientY - canvasRect.top) / zoom;
-		
+		// The node is positioned at node.position in canvas space, then scaled by zoom
+		// To convert screen coords to canvas coords, we need to account for this per-node scaling
+		const screenRelX = e.clientX - canvasRect.left - pan.x - node.position.x;
+		const screenRelY = e.clientY - canvasRect.top - pan.y - node.position.y;
+		const portX = node.position.x + screenRelX / zoom;
+		const portY = node.position.y + screenRelY / zoom;
+
 		startConnectionDrag(node.id, portId, portType, portX, portY);
-		
+
 		window.addEventListener('mousemove', handleConnectionDragMove);
 		window.addEventListener('mouseup', handleConnectionDragEnd);
 	}
@@ -136,11 +140,13 @@
 	function handleConnectionDragMove(e: MouseEvent) {
 		const canvasEl = document.querySelector('.canvas-area');
 		if (!canvasEl) return;
-		
+
 		const canvasRect = canvasEl.getBoundingClientRect();
-		const currentX = (e.clientX - canvasRect.left) / zoom;
-		const currentY = (e.clientY - canvasRect.top) / zoom;
-		
+		// For the moving endpoint, just convert screen to canvas coords
+		// The SVG itself is not zoomed, only translated by pan
+		const currentX = e.clientX - canvasRect.left - pan.x;
+		const currentY = e.clientY - canvasRect.top - pan.y;
+
 		updateConnectionDrag(currentX, currentY);
 	}
 
