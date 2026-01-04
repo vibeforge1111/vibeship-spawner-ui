@@ -8,7 +8,7 @@
 	import ContextMenu from '$lib/components/ContextMenu.svelte';
 	import Minimap from '$lib/components/Minimap.svelte';
 	import NodeConfigPanel from '$lib/components/NodeConfigPanel.svelte';
-	import { canvasState, nodes, connections, selectedNodeId, selectedNodeIds, selectedConnectionId, selectedNode, draggingConnection, cuttingLine, selectionBox, snapToGrid, gridSize, addNode, selectNode, selectConnection, selectAllNodes, clearSelection, deleteSelected, duplicateSelected, copySelected, pasteFromClipboard, removeConnection, removeNode, setZoom, setPan, zoomToFit, frameSelected, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory, startConnectionCut, updateConnectionCut, endConnectionCut, cancelConnectionCut, startSelectionBox, updateSelectionBox, endSelectionBox, cancelSelectionBox, toggleSnapToGrid, snapPosition, autoLayout, exportCanvasToFile, importCanvasFromFile } from '$lib/stores/canvas.svelte';
+	import { canvasState, nodes, connections, selectedNodeId, selectedNodeIds, selectedConnectionId, selectedNode, draggingConnection, cuttingLine, selectionBox, snapToGrid, gridSize, addNode, selectNode, selectConnection, selectAllNodes, clearSelection, deleteSelected, duplicateSelected, copySelected, pasteFromClipboard, removeConnection, removeNode, setZoom, setPan, zoomToFit, frameSelected, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory, startConnectionCut, updateConnectionCut, endConnectionCut, cancelConnectionCut, startSelectionBox, updateSelectionBox, endSelectionBox, cancelSelectionBox, toggleSnapToGrid, snapPosition, autoLayout, exportCanvasToFile, importCanvasFromFile, endConnectionDrag } from '$lib/stores/canvas.svelte';
 	import type { CuttingLine, CanvasNode, Connection, DraggingConnection, SelectionBox } from '$lib/stores/canvas.svelte';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
@@ -34,6 +34,15 @@
 	let contextMenu = $state<{ x: number; y: number; type: 'node' | 'connection' | 'canvas'; targetId?: string } | null>(null);
 
 	onMount(() => {
+		// Reset any stuck states on mount (both local and store states)
+		isPanning = false;
+		isCutting = false;
+		isSelecting = false;
+		// Reset store states that could be stuck from previous session
+		endConnectionDrag();
+		cancelConnectionCut();
+		cancelSelectionBox();
+
 		// Try to load saved canvas
 		const loaded = loadCanvas();
 		if (loaded) {
@@ -49,6 +58,14 @@
 		// Enable auto-save
 		const disableAutoSave = enableAutoSave(1000);
 
+		// Global mouseup handler to reset stuck states (catches mouseup outside canvas)
+		function handleGlobalMouseUp() {
+			if (isPanning || isCutting || isSelecting) {
+				handleMouseUp();
+			}
+		}
+		window.addEventListener('mouseup', handleGlobalMouseUp);
+
 		// Track canvas dimensions for minimap
 		const resizeObserver = new ResizeObserver((entries) => {
 			for (const entry of entries) {
@@ -56,13 +73,26 @@
 				canvasHeight = entry.contentRect.height;
 			}
 		});
-		if (canvasEl) {
-			resizeObserver.observe(canvasEl);
-		}
+
+		// Use requestAnimationFrame to ensure canvasEl is bound after render
+		requestAnimationFrame(() => {
+			if (canvasEl) {
+				resizeObserver.observe(canvasEl);
+				// Get initial dimensions
+				const rect = canvasEl.getBoundingClientRect();
+				canvasWidth = rect.width;
+				canvasHeight = rect.height;
+			}
+		});
 
 		return () => {
 			disableAutoSave();
 			resizeObserver.disconnect();
+			window.removeEventListener('mouseup', handleGlobalMouseUp);
+			// Reset states on unmount
+			isPanning = false;
+			isCutting = false;
+			isSelecting = false;
 		};
 	});
 
@@ -377,6 +407,9 @@
 		}
 	}
 	function handleMouseDown(e: MouseEvent) {
+		// Safety: ensure canvasEl exists
+		if (!canvasEl) return;
+
 		// Ctrl+left-click to start cutting connections (Blender-style)
 		if (e.button === 0 && e.ctrlKey && !e.altKey) {
 			e.preventDefault();
@@ -406,16 +439,19 @@
 		}
 	}
 	function handleMouseMove(e: MouseEvent) {
+		// Safety check
+		if (!canvasEl) return;
+
 		if (isPanning) {
 			setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
 		}
-		if (isCutting && canvasEl) {
+		if (isCutting) {
 			const rect = canvasEl.getBoundingClientRect();
 			const x = (e.clientX - rect.left - pan.x) / zoom;
 			const y = (e.clientY - rect.top - pan.y) / zoom;
 			updateConnectionCut(x, y);
 		}
-		if (isSelecting && canvasEl) {
+		if (isSelecting) {
 			const rect = canvasEl.getBoundingClientRect();
 			const x = (e.clientX - rect.left - pan.x) / zoom;
 			const y = (e.clientY - rect.top - pan.y) / zoom;

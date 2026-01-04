@@ -4,6 +4,7 @@
 	import { updateNodePosition, selectNode, toggleNodeSelection, removeNode, startConnectionDrag, updateConnectionDrag, endConnectionDrag, completeConnection, snapPosition, canvasState } from '$lib/stores/canvas.svelte';
 	import type { SkillNodeData } from '$lib/types/skill';
 	import { generatePorts } from '$lib/utils/ports';
+	import { onMount } from 'svelte';
 
 	let {
 		node,
@@ -23,6 +24,17 @@
 
 	let isDragging = $state(false);
 	let dragOffset = $state({ x: 0, y: 0 });
+
+	// Clean up window event listeners on unmount to prevent stuck states
+	onMount(() => {
+		return () => {
+			// Remove any lingering event listeners
+			window.removeEventListener('mousemove', handleMouseMove);
+			window.removeEventListener('mouseup', handleMouseUp);
+			window.removeEventListener('mousemove', handleConnectionDragMove);
+			window.removeEventListener('mouseup', handleConnectionDragEnd);
+		};
+	});
 
 	// Generate dynamic ports based on skill properties
 	const ports = $derived(generatePorts({
