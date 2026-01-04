@@ -136,12 +136,10 @@
 		if (!canvasEl) return;
 
 		const canvasRect = canvasEl.getBoundingClientRect();
-		// The node is positioned at node.position in canvas space, then scaled by zoom
-		// To convert screen coords to canvas coords, we need to account for this per-node scaling
-		const screenRelX = e.clientX - canvasRect.left - pan.x - node.position.x;
-		const screenRelY = e.clientY - canvasRect.top - pan.y - node.position.y;
-		const portX = node.position.x + screenRelX / zoom;
-		const portY = node.position.y + screenRelY / zoom;
+		// Convert screen coordinates to canvas space (accounting for pan and zoom)
+		// The SVG is inside the zoomed container, so all coordinates must be in canvas space
+		const portX = (e.clientX - canvasRect.left - pan.x) / zoom;
+		const portY = (e.clientY - canvasRect.top - pan.y) / zoom;
 
 		startConnectionDrag(node.id, portId, portType, portX, portY);
 
@@ -154,10 +152,9 @@
 		if (!canvasEl) return;
 
 		const canvasRect = canvasEl.getBoundingClientRect();
-		// For the moving endpoint, just convert screen to canvas coords
-		// The SVG itself is not zoomed, only translated by pan
-		const currentX = e.clientX - canvasRect.left - pan.x;
-		const currentY = e.clientY - canvasRect.top - pan.y;
+		// Convert screen coordinates to canvas space (same as start position)
+		const currentX = (e.clientX - canvasRect.left - pan.x) / zoom;
+		const currentY = (e.clientY - canvasRect.top - pan.y) / zoom;
 
 		updateConnectionDrag(currentX, currentY);
 	}
