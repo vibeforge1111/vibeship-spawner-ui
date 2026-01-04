@@ -9,12 +9,14 @@
 		node,
 		selected = false,
 		zoom = 1,
-		onOpenDetails
+		onOpenDetails,
+		onContextMenu
 	}: {
 		node: CanvasNode;
 		selected?: boolean;
 		zoom?: number;
 		onOpenDetails?: () => void;
+		onContextMenu?: (e: MouseEvent) => void;
 	} = $props();
 
 	let isDragging = $state(false);
@@ -176,6 +178,7 @@
 	style="left: {node.position.x}px; top: {node.position.y}px; transform: scale({zoom}); transform-origin: top left;"
 	onmousedown={handleMouseDown}
 	ondblclick={() => onOpenDetails?.()}
+	oncontextmenu={onContextMenu}
 	role="button"
 	tabindex="0"
 >
