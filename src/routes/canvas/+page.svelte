@@ -2,12 +2,13 @@
 	import DraggableNode from '$lib/components/nodes/DraggableNode.svelte';
 	import SkillsPanel from '$lib/components/SkillsPanel.svelte';
 	import ConnectionLine from '$lib/components/ConnectionLine.svelte';
+	import ChatPanel from '$lib/components/chat/ChatPanel.svelte';
 	import { canvasState, nodes, connections, selectedNodeId, selectedNode, draggingConnection, addNode, selectNode, setZoom, clearCanvas } from '$lib/stores/canvas.svelte';
 	import type { Skill } from '$lib/stores/skills.svelte';
 	import type { DraggingConnection } from '$lib/stores/canvas.svelte';
 
-	let chatInput = $state('');
 	let activeTab = $state('skills');
+	let chatExpanded = $state(false);
 	let canvasEl;
 	let zoom = $state(1);
 	let pan = $state({ x: 0, y: 0 });
@@ -88,7 +89,28 @@
 			</div>
 			{#if currentNodes.length === 0}<div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="text-center"><h3 class="text-lg font-medium text-text-primary mb-2">No skills on canvas</h3><p class="text-sm text-text-secondary">Drag skills from the sidebar</p></div></div>{/if}
 		</div>
-		<div class="border-t border-surface-border bg-bg-secondary p-4"><div class="max-w-2xl mx-auto"><div class="relative"><input type="text" bind:value={chatInput} placeholder="Ask Claude..." class="input pr-24" /><button class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 text-sm font-mono text-accent-primary border border-accent-primary hover:bg-accent-primary hover:text-bg-primary transition-all">Send</button></div></div></div>
+		<!-- Chat Panel (expandable) -->
+		<div class="border-t border-surface-border bg-bg-secondary transition-all relative" class:h-72={chatExpanded} class:h-12={!chatExpanded}>
+			{#if chatExpanded}
+				<button
+					onclick={() => (chatExpanded = false)}
+					class="absolute top-2 right-4 z-10 text-text-tertiary hover:text-text-secondary text-xs font-mono"
+				>
+					[minimize]
+				</button>
+				<div class="h-full">
+					<ChatPanel />
+				</div>
+			{:else}
+				<button
+					onclick={() => (chatExpanded = true)}
+					class="w-full h-full flex items-center justify-center gap-2 text-text-secondary hover:text-text-primary hover:bg-surface transition-all"
+				>
+					<span class="font-mono text-sm">Open Chat</span>
+					<span class="text-xs text-text-tertiary">/help for commands</span>
+				</button>
+			{/if}
+		</div>
 	</main>
 	{#if currentSelectedNode}<aside class="w-80 border-l border-surface-border bg-bg-secondary flex flex-col"><div class="p-4 border-b border-surface-border flex items-center justify-between"><h2 class="font-medium text-text-primary">{currentSelectedNode.skill.name}</h2><button onclick={() => selectNode(null)} class="btn-ghost p-1">X</button></div><div class="flex-1 overflow-y-auto p-4"><div class="mb-6"><h3 class="text-xs font-semibold text-text-tertiary uppercase mb-2">Description</h3><p class="text-sm text-text-secondary">{currentSelectedNode.skill.description}</p></div></div><div class="p-4 border-t border-surface-border"><button class="w-full px-4 py-2 text-sm font-mono text-accent-primary border border-accent-primary hover:bg-accent-primary hover:text-bg-primary transition-all">Test Node</button></div></aside>{/if}
 </div>
