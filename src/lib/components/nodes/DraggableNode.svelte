@@ -1,7 +1,7 @@
 <script lang="ts">
 	import SkillNode from './SkillNode.svelte';
 	import type { CanvasNode } from '$lib/stores/canvas.svelte';
-	import { updateNodePosition, selectNode, toggleNodeSelection, removeNode, startConnectionDrag, updateConnectionDrag, endConnectionDrag, completeConnection, snapPosition } from '$lib/stores/canvas.svelte';
+	import { updateNodePosition, selectNode, toggleNodeSelection, removeNode, startConnectionDrag, updateConnectionDrag, endConnectionDrag, completeConnection, snapPosition, canvasState } from '$lib/stores/canvas.svelte';
 	import type { SkillNodeData } from '$lib/types/skill';
 	import { generatePorts } from '$lib/utils/ports';
 
@@ -9,12 +9,14 @@
 		node,
 		selected = false,
 		zoom = 1,
+		pan = { x: 0, y: 0 },
 		onOpenDetails,
 		onContextMenu
 	}: {
 		node: CanvasNode;
 		selected?: boolean;
 		zoom?: number;
+		pan?: { x: number; y: number };
 		onOpenDetails?: () => void;
 		onContextMenu?: (e: MouseEvent) => void;
 	} = $props();
@@ -88,8 +90,9 @@
 		if (!canvasEl) return;
 
 		const canvasRect = canvasEl.getBoundingClientRect();
-		const rawX = (e.clientX - canvasRect.left - dragOffset.x) / zoom;
-		const rawY = (e.clientY - canvasRect.top - dragOffset.y) / zoom;
+		// Account for pan offset when calculating position
+		const rawX = (e.clientX - canvasRect.left - pan.x - dragOffset.x * zoom) / zoom;
+		const rawY = (e.clientY - canvasRect.top - pan.y - dragOffset.y * zoom) / zoom;
 
 		// Apply snap to grid
 		const snapped = snapPosition(Math.max(0, rawX), Math.max(0, rawY));

@@ -7,43 +7,19 @@
 	let inputValue = $state('');
 	let isFocused = $state(false);
 
-	const tools = [
-		{
-			number: '01',
-			name: 'spawn()',
-			title: 'Spawner',
-			desc: 'Visual orchestration for AI skill chains. Connect 450+ specialized skills.',
-			stat: '450+',
-			statLabel: 'Skills',
-			href: '/canvas'
-		},
-		{
-			number: '02',
-			name: 'recall()',
-			title: 'Mind',
-			desc: 'Semantic memory that persists across sessions. Never lose context again.',
-			stat: '∞',
-			statLabel: 'Memory',
-			href: '/mind'
-		},
-		{
-			number: '03',
-			name: 'scan()',
-			title: 'Scanner',
-			desc: 'Security scanning with Opengrep, Trivy, and Gitleaks. Find vulnerabilities fast.',
-			stat: '2000+',
-			statLabel: 'Vuln Types',
-			href: '/scanner'
-		},
-		{
-			number: '04',
-			name: 'learn()',
-			title: 'Knowledge Base',
-			desc: 'Curated articles and guides for the vibe coding ecosystem.',
-			stat: '50+',
-			statLabel: 'Articles',
-			href: '/kb'
-		}
+	const skillCategories = [
+		{ name: 'Frontend', count: 45, icon: '◧' },
+		{ name: 'Backend', count: 62, icon: '⬡' },
+		{ name: 'DevOps', count: 38, icon: '⚙' },
+		{ name: 'Security', count: 41, icon: '⛨' },
+		{ name: 'Data', count: 35, icon: '◉' },
+		{ name: 'AI/ML', count: 28, icon: '◈' }
+	];
+
+	const benchmarks = [
+		{ skill: 'nextjs-app-router', metric: 'Accuracy', value: '94%', baseline: '71%', improvement: '+32%' },
+		{ skill: 'supabase-auth', metric: 'Success Rate', value: '98%', baseline: '82%', improvement: '+20%' },
+		{ skill: 'react-patterns', metric: 'Code Quality', value: '91%', baseline: '68%', improvement: '+34%' }
 	];
 
 	function handleSubmit() {
