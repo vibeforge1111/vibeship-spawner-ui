@@ -1,13 +1,15 @@
 <script lang="ts">
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { mcpState, connect, setMcpUrl, connectLocal, connectProduction } from '$lib/stores/mcp.svelte';
+	import { syncClient } from '$lib/services/sync-client';
+	import ToastContainer from '$lib/components/ToastContainer.svelte';
 
 	let { children } = $props();
 
-	// Auto-connect to MCP on app load
+	// Auto-connect to MCP and Sync on app load
 	onMount(async () => {
 		if (!browser) return;
 
@@ -20,6 +22,8 @@
 			const success = await connect();
 			if (success) {
 				console.log('[MCP] Connected to saved server:', savedUrl);
+				// Also try WebSocket sync
+				tryConnectSync(savedUrl.replace('http', 'ws') + '/sync');
 				return;
 			}
 		}
@@ -30,6 +34,8 @@
 		if (localSuccess) {
 			localStorage.setItem('mcp-url', 'http://localhost:8787');
 			console.log('[MCP] Connected to local server');
+			// Try WebSocket sync for real-time updates
+			tryConnectSync('ws://localhost:8787/sync');
 			return;
 		}
 
@@ -39,11 +45,31 @@
 		if (prodSuccess) {
 			localStorage.setItem('mcp-url', 'https://mcp.vibeship.co');
 			console.log('[MCP] Connected to production server');
+			// Try WebSocket sync
+			tryConnectSync('wss://mcp.vibeship.co/sync');
 			return;
 		}
 
 		// Neither worked - app will use static fallbacks
 		console.log('[MCP] No server available, using static data');
+	});
+
+	// Try to connect WebSocket for real-time sync
+	async function tryConnectSync(wsUrl: string) {
+		syncClient.configure({ wsUrl });
+		const connected = await syncClient.connect();
+		if (connected) {
+			console.log('[Sync] Real-time sync connected');
+		} else {
+			console.log('[Sync] WebSocket not available, using polling');
+		}
+	}
+
+	// Cleanup on unmount
+	onDestroy(() => {
+		if (browser) {
+			syncClient.disconnect();
+		}
 	});
 </script>
 
@@ -57,3 +83,4 @@
 </svelte:head>
 
 {@render children()}
+<ToastContainer />

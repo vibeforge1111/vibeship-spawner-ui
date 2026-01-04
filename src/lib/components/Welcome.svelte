@@ -1,8 +1,11 @@
 <script lang="ts">
 	import Navbar from './Navbar.svelte';
 	import Footer from './Footer.svelte';
+	import { isConnected as mcpConnected, isConnecting as mcpConnecting } from '$lib/stores/mcp.svelte';
+	import { isConnected as syncConnected, syncStatus } from '$lib/services/sync-client';
 
 	let { onStart }: { onStart?: (goal: string) => void } = $props();
+	let showSetupGuide = $state(false);
 
 	let inputValue = $state('');
 	let isFocused = $state(false);
@@ -63,7 +66,107 @@
 					Memory that persists
 				</span>
 			</div>
+
+			<!-- Sync Connection Status -->
+			<div class="mt-6 flex flex-col items-center gap-2">
+				<div class="flex items-center gap-3">
+					<!-- MCP Status -->
+					{#if $mcpConnected}
+						<div class="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/30 rounded-full">
+							<span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+							<span class="text-xs font-mono text-green-400">MCP Server</span>
+						</div>
+					{:else if $mcpConnecting}
+						<div class="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/30 rounded-full">
+							<span class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
+							<span class="text-xs font-mono text-yellow-400">Connecting...</span>
+						</div>
+					{:else}
+						<button
+							onclick={() => showSetupGuide = true}
+							class="flex items-center gap-2 px-3 py-1.5 bg-text-tertiary/10 border border-surface-border rounded-full hover:border-accent-primary/50 transition-colors"
+						>
+							<span class="w-2 h-2 bg-text-tertiary rounded-full"></span>
+							<span class="text-xs font-mono text-text-tertiary">Setup Sync</span>
+						</button>
+					{/if}
+
+					<!-- Real-time Sync Status -->
+					{#if $syncConnected}
+						<div class="flex items-center gap-2 px-3 py-1.5 bg-accent-primary/10 border border-accent-primary/30 rounded-full">
+							<span class="w-2 h-2 bg-accent-primary rounded-full animate-pulse"></span>
+							<span class="text-xs font-mono text-accent-primary">Real-time Sync</span>
+						</div>
+					{/if}
+				</div>
+
+				{#if !$mcpConnected && !$mcpConnecting}
+					<p class="text-xs text-text-tertiary">
+						Run <code class="px-1 py-0.5 bg-surface rounded text-accent-primary">wrangler dev</code> in spawner-v2 to sync with Claude Code
+					</p>
+				{/if}
+			</div>
 		</div>
+
+		<!-- Setup Guide Modal -->
+		{#if showSetupGuide}
+			<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+			<div class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onclick={() => showSetupGuide = false} role="dialog" aria-modal="true">
+				<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+				<div class="bg-bg-secondary border border-surface-border max-w-lg w-full max-h-[80vh] overflow-y-auto" onclick={(e) => e.stopPropagation()}>
+					<div class="flex items-center justify-between px-5 py-4 border-b border-surface-border">
+						<h3 class="font-serif text-lg text-text-primary">Setup Bidirectional Sync</h3>
+						<button onclick={() => showSetupGuide = false} class="text-text-tertiary hover:text-text-primary">
+							<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+							</svg>
+						</button>
+					</div>
+
+					<div class="px-5 py-4 space-y-6">
+						<div>
+							<p class="font-mono text-xs text-accent-primary mb-2 tracking-widest">STEP 1</p>
+							<p class="text-sm text-text-secondary mb-2">Clone spawner-v2 (the sync server):</p>
+							<code class="block p-3 bg-surface rounded text-sm font-mono text-text-primary">
+								git clone https://github.com/vibeship/spawner-v2.git
+							</code>
+						</div>
+
+						<div>
+							<p class="font-mono text-xs text-accent-primary mb-2 tracking-widest">STEP 2</p>
+							<p class="text-sm text-text-secondary mb-2">Install and run locally:</p>
+							<code class="block p-3 bg-surface rounded text-sm font-mono text-text-primary whitespace-pre">cd spawner-v2
+npm install
+wrangler dev</code>
+						</div>
+
+						<div>
+							<p class="font-mono text-xs text-accent-primary mb-2 tracking-widest">STEP 3</p>
+							<p class="text-sm text-text-secondary mb-2">Server runs at localhost:8787. Both Spawner UI and Claude Code connect here.</p>
+						</div>
+
+						<div class="p-4 bg-accent-primary/10 border border-accent-primary/30 rounded">
+							<p class="text-sm text-accent-primary font-medium mb-2">How it works:</p>
+							<ul class="text-xs text-text-secondary space-y-1">
+								<li>- Spawner UI creates missions → stored in MCP server</li>
+								<li>- Claude Code reads missions via spawner_mission tools</li>
+								<li>- Changes sync instantly via WebSocket</li>
+								<li>- Both see real-time updates</li>
+							</ul>
+						</div>
+					</div>
+
+					<div class="px-5 py-4 border-t border-surface-border">
+						<button
+							onclick={() => showSetupGuide = false}
+							class="w-full py-2 bg-accent-primary text-bg-primary font-medium hover:bg-accent-primary/90 transition-colors"
+						>
+							Got it
+						</button>
+					</div>
+				</div>
+			</div>
+		{/if}
 
 		<!-- Main Input -->
 		<div class="max-w-2xl mx-auto mb-20 animate-slide-up" style="animation-delay: 100ms;">

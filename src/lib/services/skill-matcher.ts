@@ -1,19 +1,18 @@
 /**
  * Skill Matcher Service
  *
- * Matches analyzed goals to relevant skills using:
- * 1. Claude API (intelligent analysis) - preferred
- * 2. MCP (when connected) - fallback
- * 3. Local pattern matching - final fallback
+ * Matches analyzed goals to relevant skills using LOCAL pattern matching.
+ * No network dependencies - works instantly with skills loaded from static JSON.
+ *
+ * The MCP and Claude API integrations are kept for future use but not called
+ * during normal goal processing to ensure fast, reliable operation.
  */
 
 import type { AnalyzedGoal, MatchedSkill, MatchResult } from '$lib/types/goal';
 import { GOAL_VALIDATION } from '$lib/types/goal';
 import { get } from 'svelte/store';
 import { skills as skillsStore } from '$lib/stores/skills.svelte';
-import { mcpState } from '$lib/stores/mcp.svelte';
-import { mcpClient } from '$lib/services/mcp-client';
-import { claudeClient, type ClaudeAnalysis } from '$lib/services/claude-api';
+import type { ClaudeAnalysis } from '$lib/services/claude-api';
 import type { Skill } from '$lib/stores/skills.svelte';
 
 // Skill category priorities (which categories are more "core")
@@ -329,55 +328,25 @@ async function matchSkillsMcp(goal: AnalyzedGoal, maxResults: number): Promise<M
 /**
  * Main function: Match skills to a goal
  *
- * Priority order:
- * 1. Claude API (intelligent LLM analysis) - if enabled
- * 2. MCP (when connected)
- * 3. Local pattern matching (always available)
+ * Uses LOCAL pattern matching - no external dependencies.
+ * Skills are already loaded from static JSON.
+ *
+ * This ensures goal processing works instantly without network calls.
  */
 export async function matchSkills(
 	goal: AnalyzedGoal,
-	options: { maxResults?: number; minScore?: number; preferLocal?: boolean } = {}
+	options: { maxResults?: number; minScore?: number } = {}
 ): Promise<MatchResult> {
 	const startTime = Date.now();
 	const maxResults = options.maxResults || GOAL_VALIDATION.MAX_SKILLS_TO_SUGGEST;
 
-	let skills: MatchedSkill[];
-	let source: 'claude' | 'mcp' | 'local' | 'hybrid';
-	let claudeAnalysis: ClaudeAnalysis | undefined;
+	// Use local matching - fast, reliable, no network dependencies
+	console.log('[SkillMatcher] Using local pattern matching (no network calls)');
+	let skills = matchSkillsLocal(goal, maxResults);
+	const source: 'claude' | 'mcp' | 'local' | 'hybrid' = 'local';
+	const claudeAnalysis: ClaudeAnalysis | undefined = undefined;
 
-	// Strategy 1: Try Claude API first (if enabled)
-	if (!options.preferLocal && claudeClient.isEnabled()) {
-		const claudeResult = await matchSkillsClaude(goal, maxResults);
-		if (claudeResult.skills.length > 0) {
-			skills = claudeResult.skills;
-			claudeAnalysis = claudeResult.analysis;
-			source = 'claude';
-		} else {
-			// Claude didn't return results, continue to fallbacks
-			skills = [];
-			source = 'local';
-		}
-	} else {
-		skills = [];
-		source = 'local';
-	}
-
-	// Strategy 2: Try MCP if Claude didn't provide results
-	if (skills.length === 0) {
-		const mcp = get(mcpState);
-		if (mcp.status === 'connected') {
-			skills = await matchSkillsMcp(goal, maxResults);
-			if (skills.length > 0) {
-				source = 'mcp';
-			}
-		}
-	}
-
-	// Strategy 3: Fall back to local matching
-	if (skills.length === 0) {
-		skills = matchSkillsLocal(goal, maxResults);
-		source = 'local';
-	}
+	console.log(`[SkillMatcher] Matched ${skills.length} skills locally`);
 
 	// Apply minimum score filter if specified
 	if (options.minScore) {
