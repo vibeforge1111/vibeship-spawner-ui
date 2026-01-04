@@ -20,6 +20,7 @@ import { get } from 'svelte/store';
 	import { mcpState } from '$lib/stores/mcp.svelte';
 	import { getGoalState, hasPendingGoal, clearGoal } from '$lib/stores/project-goal.svelte';
 	import { processGoalAndAddToCanvas, isProcessing } from '$lib/services/goal-to-workflow';
+	import { initCanvasSync } from '$lib/services/canvas-sync';
 
 	let activeTab = $state('skills');
 	let chatExpanded = $state(false);
@@ -235,6 +236,9 @@ import { get } from 'svelte/store';
 		// Enable auto-save
 		const disableAutoSave = enableAutoSave(1000);
 
+		// Initialize canvas sync for Claude Code integration
+		const cleanupCanvasSync = initCanvasSync();
+
 		// Global mouseup handler to reset stuck states (catches mouseup outside canvas)
 		function handleGlobalMouseUp() {
 			if (isPanning || isCutting || isSelecting) {
@@ -281,6 +285,7 @@ import { get } from 'svelte/store';
 			isMounted = false;
 			pendingGoalProcess = false;
 			disableAutoSave();
+			cleanupCanvasSync();
 			resizeObserver.disconnect();
 			window.removeEventListener('mouseup', handleGlobalMouseUp);
 			window.removeEventListener('builder:frame-selected', handleBuilderFrameSelected);
