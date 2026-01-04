@@ -236,3 +236,17 @@ export function getNodeConnections(nodeId: string): Connection[] {
 		(c) => c.sourceNodeId === nodeId || c.targetNodeId === nodeId
 	);
 }
+
+export function updateNodeStatus(nodeId: string, status: CanvasNode['status']) {
+	canvasState.update((state) => ({
+		...state,
+		nodes: state.nodes.map((n) => (n.id === nodeId ? { ...n, status } : n))
+	}));
+}
+
+export function resetAllNodeStatus() {
+	canvasState.update((state) => ({
+		...state,
+		nodes: state.nodes.map((n) => ({ ...n, status: 'idle' as const }))
+	}));
+}

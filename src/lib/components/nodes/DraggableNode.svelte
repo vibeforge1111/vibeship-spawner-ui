@@ -158,11 +158,27 @@
 	class="draggable-node absolute"
 	class:dragging={isDragging}
 	class:selected
+	class:running={node.status === 'running'}
+	class:success={node.status === 'success'}
+	class:error={node.status === 'error'}
 	style="left: {node.position.x}px; top: {node.position.y}px; transform: scale({zoom}); transform-origin: top left;"
 	onmousedown={handleMouseDown}
 	role="button"
 	tabindex="0"
 >
+	<!-- Status indicator -->
+	{#if node.status && node.status !== 'idle'}
+		<div class="status-indicator" class:running={node.status === 'running'} class:success={node.status === 'success'} class:error={node.status === 'error'}>
+			{#if node.status === 'running'}
+				<span class="animate-spin">⟳</span>
+			{:else if node.status === 'success'}
+				✓
+			{:else if node.status === 'error'}
+				✗
+			{/if}
+		</div>
+	{/if}
+
 	<SkillNode
 		data={nodeData}
 		nodeId={node.id}
@@ -219,5 +235,55 @@
 
 	.draggable-node:hover .delete-btn {
 		opacity: 1;
+	}
+
+	.status-indicator {
+		position: absolute;
+		top: -8px;
+		left: -8px;
+		width: 20px;
+		height: 20px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 50%;
+		font-size: 12px;
+		z-index: 10;
+	}
+
+	.status-indicator.running {
+		background: var(--color-yellow-500, #eab308);
+		color: black;
+	}
+
+	.status-indicator.success {
+		background: var(--accent-primary);
+		color: white;
+	}
+
+	.status-indicator.error {
+		background: var(--status-error);
+		color: white;
+	}
+
+	.draggable-node.running {
+		outline: 2px solid var(--color-yellow-500, #eab308);
+		outline-offset: 2px;
+		animation: pulse 1s ease-in-out infinite;
+	}
+
+	.draggable-node.success {
+		outline: 2px solid var(--accent-primary);
+		outline-offset: 2px;
+	}
+
+	.draggable-node.error {
+		outline: 2px solid var(--status-error);
+		outline-offset: 2px;
+	}
+
+	@keyframes pulse {
+		0%, 100% { opacity: 1; }
+		50% { opacity: 0.7; }
 	}
 </style>

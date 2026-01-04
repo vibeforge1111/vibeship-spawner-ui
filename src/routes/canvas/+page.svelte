@@ -4,6 +4,7 @@
 	import ConnectionLine from '$lib/components/ConnectionLine.svelte';
 	import ChatPanel from '$lib/components/chat/ChatPanel.svelte';
 	import ValidationPanel from '$lib/components/ValidationPanel.svelte';
+	import ExecutionPanel from '$lib/components/ExecutionPanel.svelte';
 	import { canvasState, nodes, connections, selectedNodeId, selectedNode, draggingConnection, addNode, selectNode, setZoom, clearCanvas } from '$lib/stores/canvas.svelte';
 	import type { Skill } from '$lib/stores/skills.svelte';
 	import type { DraggingConnection } from '$lib/stores/canvas.svelte';
@@ -11,6 +12,7 @@
 	let activeTab = $state('skills');
 	let chatExpanded = $state(false);
 	let showValidation = $state(false);
+	let showExecution = $state(false);
 	let canvasEl;
 	let zoom = $state(1);
 	let pan = $state({ x: 0, y: 0 });
@@ -82,7 +84,7 @@
 		<div class="p-4 border-t border-surface-border"><div class="text-xs text-text-tertiary">Project • {currentNodes.length} nodes</div></div>
 	</aside>
 	<main class="flex-1 flex flex-col">
-		<header class="h-12 border-b border-surface-border bg-bg-secondary flex items-center px-4 gap-4"><div class="flex items-center gap-2"><button class="btn-ghost btn-sm" onclick={clearCanvas}>Clear</button><span class="text-sm text-text-secondary">{currentNodes.length} nodes</span></div><div class="flex items-center gap-1 px-2 border-l border-surface-border"><button class="btn-ghost btn-sm" onclick={handleZoomOut}>-</button><button class="btn-ghost btn-sm min-w-[4rem] font-mono text-xs" onclick={handleZoomReset}>{Math.round(zoom * 100)}%</button><button class="btn-ghost btn-sm" onclick={handleZoomIn}>+</button></div><div class="flex-1"></div><div class="flex items-center gap-2"><button onclick={() => (showValidation = true)} class="px-3 py-1.5 text-sm font-mono text-text-primary border border-surface-border hover:border-accent-primary hover:text-accent-primary transition-all">Validate</button><button class="px-3 py-1.5 text-sm font-mono bg-accent-primary text-bg-primary border border-accent-primary hover:bg-accent-primary-hover transition-all disabled:opacity-70 disabled:cursor-not-allowed" disabled={currentNodes.length === 0}>Run</button></div></header>
+		<header class="h-12 border-b border-surface-border bg-bg-secondary flex items-center px-4 gap-4"><div class="flex items-center gap-2"><button class="btn-ghost btn-sm" onclick={clearCanvas}>Clear</button><span class="text-sm text-text-secondary">{currentNodes.length} nodes</span></div><div class="flex items-center gap-1 px-2 border-l border-surface-border"><button class="btn-ghost btn-sm" onclick={handleZoomOut}>-</button><button class="btn-ghost btn-sm min-w-[4rem] font-mono text-xs" onclick={handleZoomReset}>{Math.round(zoom * 100)}%</button><button class="btn-ghost btn-sm" onclick={handleZoomIn}>+</button></div><div class="flex-1"></div><div class="flex items-center gap-2"><button onclick={() => (showValidation = true)} class="px-3 py-1.5 text-sm font-mono text-text-primary border border-surface-border hover:border-accent-primary hover:text-accent-primary transition-all">Validate</button><button onclick={() => (showExecution = true)} class="px-3 py-1.5 text-sm font-mono bg-accent-primary text-bg-primary border border-accent-primary hover:bg-accent-primary-hover transition-all disabled:opacity-70 disabled:cursor-not-allowed" disabled={currentNodes.length === 0}>Run</button></div></header>
 		<div bind:this={canvasEl} class="canvas-area flex-1 relative overflow-hidden bg-bg-primary" class:panning={isPanning} ondrop={handleDrop} ondragover={handleDragOver} onclick={handleCanvasClick} onmousedown={handleMouseDown} onmousemove={handleMouseMove} onmouseup={handleMouseUp} onmouseleave={handleMouseUp} role="application" tabindex="0">
 			<div class="absolute inset-0 opacity-20 pointer-events-none" style="background-image: radial-gradient(circle, #2a2a38 1px, transparent 1px); background-size: {24 * zoom}px {24 * zoom}px;"></div>
 			<div class="absolute inset-0" style="transform: translate({pan.x}px, {pan.y}px);">
@@ -119,6 +121,10 @@
 
 {#if showValidation}
 	<ValidationPanel onClose={() => (showValidation = false)} />
+{/if}
+
+{#if showExecution}
+	<ExecutionPanel onClose={() => (showExecution = false)} />
 {/if}
 
 <style>
