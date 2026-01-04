@@ -35,6 +35,9 @@ import {
 import { validateForMission } from './mission-builder';
 import { missionExecutor } from './mission-executor';
 import { skills as skillsStore, loadSkillsStatic } from '$lib/stores/skills.svelte';
+import { mcpClient } from './mcp-client';
+import { mcpState } from '$lib/stores/mcp.svelte';
+import { toasts } from '$lib/stores/toast.svelte';
 import { generatePorts } from '$lib/utils/ports';
 import type { Skill } from '$lib/stores/skills.svelte';
 import { get } from 'svelte/store';
@@ -201,7 +204,7 @@ async function handleSyncEvent(event: SyncEvent): Promise<void> {
 				break;
 
 			case 'canvas_export_prompt':
-				handleExportPrompt();
+				await handleExportPrompt();
 				break;
 
 			default:
@@ -400,6 +403,7 @@ async function handleAddSkills(data: AddSkillsData): Promise<void> {
 	const currentNodes = get(nodes);
 	let addedCount = 0;
 	const notFound: string[] = [];
+	const addedSkills: Array<{ nodeId: string; skill: Skill }> = [];
 
 	for (let i = 0; i < data.skills.length; i++) {
 		const skillData = data.skills[i];
@@ -425,18 +429,122 @@ async function handleAddSkills(data: AddSkillsData): Promise<void> {
 			);
 		}
 
-		addNode(skill, position);
+		const nodeId = addNode(skill, position);
+		addedSkills.push({ nodeId, skill });
 		addedCount++;
 	}
 
 	if (addedCount > 0) {
 		console.log('[CanvasSync] Added', addedCount, 'skills');
+
+		// Auto-wire connections based on pairsWell if enabled
+		let connectionsCreated = 0;
+		if (data.autoConnect && addedSkills.length > 1) {
+			connectionsCreated = autoWireConnections(addedSkills);
+			console.log('[CanvasSync] Auto-wired', connectionsCreated, 'connections');
+		}
+
+		// Show success toast
+		const skillNames = addedSkills.map(s => s.skill.name).join(', ');
+		if (connectionsCreated > 0) {
+			toasts.success(`Added ${addedCount} skills with ${connectionsCreated} connections`);
+		} else {
+			toasts.success(`Added: ${skillNames}`);
+		}
+
 		broadcastCanvasState();
 	} else if (notFound.length > 0) {
 		// Only broadcast error if ALL skills failed
 		console.error('[CanvasSync] No skills added. Not found:', notFound);
 		broadcastError(`Skills not found: ${notFound.join(', ')}`);
 	}
+}
+
+/**
+ * Auto-wire connections between skills based on pairsWell and handoffs
+ * Priority: handoffs (semantic) > pairsWell (compatibility) > sequential (fallback)
+ * Returns the number of connections created
+ */
+function autoWireConnections(addedSkills: Array<{ nodeId: string; skill: Skill }>, sequential = false): number {
+	let connectionsCreated = 0;
+	const connectedPairs = new Set<string>();
+
+	// Helper to create unique key for a connection pair
+	const pairKey = (a: string, b: string) => [a, b].sort().join('::');
+
+	// Build a map for quick lookup
+	const skillIdToNode = new Map<string, { nodeId: string; skill: Skill }>();
+	for (const item of addedSkills) {
+		skillIdToNode.set(item.skill.id, item);
+	}
+
+	// Helper to create a connection if it doesn't exist
+	const tryConnect = (source: { nodeId: string; skill: Skill }, target: { nodeId: string; skill: Skill }, reason: string): boolean => {
+		const key = pairKey(source.nodeId, target.nodeId);
+		if (connectedPairs.has(key)) return false;
+
+		const currentConnections = get(connections);
+		const exists = currentConnections.some(
+			c => (c.sourceNodeId === source.nodeId && c.targetNodeId === target.nodeId) ||
+			     (c.sourceNodeId === target.nodeId && c.targetNodeId === source.nodeId)
+		);
+		if (exists) return false;
+
+		// Get ports for connection
+		const sourcePorts = generatePorts({
+			category: source.skill.category,
+			handoffs: source.skill.handoffs,
+			pairsWell: source.skill.pairsWell,
+			tags: source.skill.tags
+		});
+		const targetPorts = generatePorts({
+			category: target.skill.category,
+			handoffs: target.skill.handoffs,
+			pairsWell: target.skill.pairsWell,
+			tags: target.skill.tags
+		});
+
+		const sourcePortId = sourcePorts.outputs[0]?.id || 'output-0';
+		const targetPortId = targetPorts.inputs[0]?.id || 'input-0';
+
+		addConnection(source.nodeId, sourcePortId, target.nodeId, targetPortId);
+		connectedPairs.add(key);
+		connectionsCreated++;
+		console.log('[CanvasSync] Auto-wired (%s):', reason, source.skill.name, '→', target.skill.name);
+		return true;
+	};
+
+	// 1. First priority: handoffs (semantic flow - "this skill hands off to that skill")
+	for (const source of addedSkills) {
+		const handoffs = source.skill.handoffs || [];
+		for (const handoff of handoffs) {
+			const target = skillIdToNode.get(handoff.to);
+			if (target && target.nodeId !== source.nodeId) {
+				tryConnect(source, target, 'handoff');
+			}
+		}
+	}
+
+	// 2. Second priority: pairsWell (compatibility - "these skills work well together")
+	for (const source of addedSkills) {
+		const pairsWell = source.skill.pairsWell || [];
+		for (const targetSkillId of pairsWell) {
+			const target = skillIdToNode.get(targetSkillId);
+			if (target && target.nodeId !== source.nodeId) {
+				tryConnect(source, target, 'pairsWell');
+			}
+		}
+	}
+
+	// 3. Fallback: sequential connections if enabled and no semantic connections made
+	if (sequential && connectionsCreated === 0 && addedSkills.length > 1) {
+		console.log('[CanvasSync] No semantic connections found, using sequential order');
+		for (let i = 0; i < addedSkills.length - 1; i++) {
+			tryConnect(addedSkills[i], addedSkills[i + 1], 'sequential');
+		}
+	}
+
+	return connectionsCreated;
 }
 
 /**
@@ -557,9 +665,13 @@ export function broadcastCanvasState(): void {
 }
 
 /**
- * Broadcast an error
+ * Broadcast an error (and show toast to user)
  */
 function broadcastError(message: string): void {
+	// Show toast to user
+	toasts.error(message);
+
+	// Broadcast to Claude Code
 	syncClient.broadcast({
 		type: 'canvas_error' as SyncEvent['type'],
 		data: { error: message }
@@ -651,6 +763,23 @@ async function handleGetSkillContent(skillId: string): Promise<void> {
 		return;
 	}
 
+	// Try to get full skill content from MCP server first
+	let fullContent: string | null = null;
+	const state = get(mcpState);
+
+	if (state.status === 'connected') {
+		console.log('[CanvasSync] Fetching skill content from MCP:', skill.id);
+		try {
+			const result = await mcpClient.getSkill(skill.id);
+			if (result.success && result.data?.content) {
+				fullContent = result.data.content;
+				console.log('[CanvasSync] Got full skill content from MCP:', skill.id, `(${fullContent.length} chars)`);
+			}
+		} catch (e) {
+			console.warn('[CanvasSync] Failed to fetch from MCP, using fallback:', e);
+		}
+	}
+
 	// Build comprehensive skill content
 	const content = {
 		id: skill.id,
@@ -660,8 +789,10 @@ async function handleGetSkillContent(skillId: string): Promise<void> {
 		tier: skill.tier,
 		tags: skill.tags || [],
 		triggers: skill.triggers || [],
-		// Instructions/prompt content - this is what Claude Code needs
-		instructions: buildSkillInstructions(skill)
+		// Full content from MCP if available, otherwise build from metadata
+		instructions: fullContent || buildSkillInstructions(skill),
+		// Indicate if this is full content or just metadata
+		hasFullContent: !!fullContent
 	};
 
 	syncClient.broadcast({
@@ -669,7 +800,7 @@ async function handleGetSkillContent(skillId: string): Promise<void> {
 		data: content
 	});
 
-	console.log('[CanvasSync] Sent skill content for:', skill.name);
+	console.log('[CanvasSync] Sent skill content for:', skill.name, fullContent ? '(full)' : '(metadata only)');
 }
 
 /**
@@ -973,6 +1104,7 @@ async function loadTemplateToCanvas(template: WorkflowTemplate): Promise<void> {
 	}
 
 	console.log('[CanvasSync] Loaded template:', template.name);
+	toasts.success(`Loaded template: ${template.name} (${nodeData.length} skills)`);
 	broadcastCanvasState();
 }
 
@@ -990,7 +1122,7 @@ export function getAvailableTemplates(): Array<{ id: string; name: string; descr
 /**
  * Handle exporting workflow as a combined prompt
  */
-function handleExportPrompt(): void {
+async function handleExportPrompt(): Promise<void> {
 	const currentNodes = get(nodes);
 	const currentConnections = get(connections);
 
@@ -1002,6 +1134,25 @@ function handleExportPrompt(): void {
 	// Build execution order based on connections
 	const orderedSkills = getExecutionOrder(currentNodes, currentConnections);
 
+	// Try to fetch full content for each skill from MCP
+	const state = get(mcpState);
+	const skillContents: Map<string, string> = new Map();
+
+	if (state.status === 'connected') {
+		console.log('[CanvasSync] Fetching full skill content for export...');
+		for (const skill of orderedSkills) {
+			try {
+				const result = await mcpClient.getSkill(skill.id);
+				if (result.success && result.data?.content) {
+					skillContents.set(skill.id, result.data.content);
+				}
+			} catch (e) {
+				// Silently fall back to metadata
+			}
+		}
+		console.log('[CanvasSync] Fetched full content for', skillContents.size, 'of', orderedSkills.length, 'skills');
+	}
+
 	// Build the combined prompt
 	const promptParts: string[] = [];
 
@@ -1012,15 +1163,24 @@ function handleExportPrompt(): void {
 
 	for (let i = 0; i < orderedSkills.length; i++) {
 		const skill = orderedSkills[i];
+		const fullContent = skillContents.get(skill.id);
+
 		promptParts.push(`## Step ${i + 1}: ${skill.name}`);
 		promptParts.push('');
-		promptParts.push(skill.description);
-		promptParts.push('');
 
-		if (skill.tags && skill.tags.length > 0) {
-			promptParts.push(`**Focus areas:** ${skill.tags.join(', ')}`);
+		if (fullContent) {
+			// Use full skill content
+			promptParts.push(fullContent);
+		} else {
+			// Fall back to metadata-based content
+			promptParts.push(skill.description);
 			promptParts.push('');
+
+			if (skill.tags && skill.tags.length > 0) {
+				promptParts.push(`**Focus areas:** ${skill.tags.join(', ')}`);
+			}
 		}
+		promptParts.push('');
 	}
 
 	promptParts.push('---');
@@ -1034,11 +1194,14 @@ function handleExportPrompt(): void {
 		data: {
 			prompt,
 			skillCount: orderedSkills.length,
-			skills: orderedSkills.map(s => ({ id: s.id, name: s.name }))
+			skills: orderedSkills.map(s => ({ id: s.id, name: s.name })),
+			hasFullContent: skillContents.size > 0,
+			fullContentCount: skillContents.size
 		}
 	});
 
-	console.log('[CanvasSync] Exported prompt with', orderedSkills.length, 'skills');
+	toasts.success(`Exported workflow prompt with ${orderedSkills.length} skills`);
+	console.log('[CanvasSync] Exported prompt with', orderedSkills.length, 'skills', `(${skillContents.size} with full content)`);
 }
 
 /**
