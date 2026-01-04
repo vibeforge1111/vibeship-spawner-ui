@@ -16,7 +16,7 @@ import {
 	getGoalState
 } from '$lib/stores/project-goal.svelte';
 import { addNodesWithConnections } from '$lib/stores/canvas.svelte';
-import { skills as skillsStore, loadSkills } from '$lib/stores/skills.svelte';
+import { skills as skillsStore, loadSkillsStatic } from '$lib/stores/skills.svelte';
 import { get } from 'svelte/store';
 import type { GeneratedWorkflow, GoalProcessingState, MatchedSkill } from '$lib/types/goal';
 import type { Skill } from '$lib/stores/skills.svelte';
@@ -37,7 +37,7 @@ export async function processGoal(input: string): Promise<ProcessingResult> {
 	setGoalInput(input);
 
 	try {
-		// Step 0: Ensure skills are loaded
+		// Step 0: Ensure skills are loaded (always use static for speed)
 		const currentSkills = get(skillsStore);
 		if (currentSkills.length === 0) {
 			setProcessingState({
@@ -45,7 +45,7 @@ export async function processGoal(input: string): Promise<ProcessingResult> {
 				progress: 5,
 				message: 'Loading skills...'
 			});
-			await loadSkills();
+			await loadSkillsStatic();
 		}
 
 		// Step 1: Validate input

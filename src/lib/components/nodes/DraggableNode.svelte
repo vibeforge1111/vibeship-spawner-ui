@@ -237,6 +237,8 @@
 <style>
 	.draggable-node {
 		cursor: grab;
+		z-index: 10; /* Ensure nodes are above SVG connection layer */
+		pointer-events: auto; /* Fix 7: Ensure nodes receive events even when parent has pointer-events: none */
 	}
 
 	.draggable-node.dragging {

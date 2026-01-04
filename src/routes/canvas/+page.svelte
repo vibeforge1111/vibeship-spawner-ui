@@ -11,8 +11,9 @@
 	import Minimap from '$lib/components/Minimap.svelte';
 	import NodeConfigPanel from '$lib/components/NodeConfigPanel.svelte';
 	import { canvasState, nodes, connections, selectedNodeId, selectedNodeIds, selectedConnectionId, selectedNode, draggingConnection, cuttingLine, selectionBox, snapToGrid, gridSize, addNode, selectNode, selectConnection, selectAllNodes, clearSelection, deleteSelected, duplicateSelected, copySelected, pasteFromClipboard, removeConnection, removeNode, setZoom, setPan, zoomToFit, frameSelected, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory, startConnectionCut, updateConnectionCut, endConnectionCut, cancelConnectionCut, startSelectionBox, updateSelectionBox, endSelectionBox, cancelSelectionBox, toggleSnapToGrid, snapPosition, autoLayout, exportCanvasToFile, importCanvasFromFile, endConnectionDrag, resetTransientState } from '$lib/stores/canvas.svelte';
+import { get } from 'svelte/store';
 	import type { CuttingLine, CanvasNode, Connection, DraggingConnection, SelectionBox } from '$lib/stores/canvas.svelte';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { goto, beforeNavigate, afterNavigate } from '$app/navigation';
 	import type { Skill } from '$lib/stores/skills.svelte';
 	import { validateForMission, buildMissionFromCanvas } from '$lib/services/mission-builder';
@@ -47,6 +48,35 @@
 	let goalProcessingError = $state<string | null>(null);
 	let goalSummary = $state<string | null>(null);
 
+	// Fix 1 & 3: Track mount state to ensure goal processing waits for full initialization
+	let isMounted = $state(false);
+	let pendingGoalProcess = $state(false);
+
+	// Fix 8: Render key to force node re-creation after goal processing
+	// This ensures all node components are freshly created with current state
+	let nodeRenderKey = $state(0);
+
+	// Fix 6: Force sync local state from stores
+	// This ensures local variables are in sync after async operations
+	function forceStoreSync() {
+		const state = get(canvasState);
+		zoom = state.zoom;
+		pan = state.pan;
+		currentNodes = get(nodes);
+		currentConnections = get(connections);
+		currentSelectedNodeId = get(selectedNodeId);
+		currentSelectedNodeIds = get(selectedNodeIds);
+		currentSelectedConnectionId = get(selectedConnectionId);
+		currentSelectedNode = get(selectedNode);
+		currentDraggingConnection = get(draggingConnection);
+		currentCuttingLine = get(cuttingLine);
+		currentSelectionBox = get(selectionBox);
+		currentSnapToGrid = get(snapToGrid);
+		currentGridSize = get(gridSize);
+		currentCanUndo = get(canUndo);
+		currentCanRedo = get(canRedo);
+	}
+
 	// Clean up when navigating away from the canvas page
 	beforeNavigate(() => {
 		// Reset all transient state before leaving
@@ -58,45 +88,128 @@
 	});
 
 	// Reset state when arriving at canvas page (handles client-side navigation)
-	afterNavigate(async () => {
+	afterNavigate(() => {
 		// Reset transient state after navigation completes
 		resetTransientState();
 		isPanning = false;
 		isCutting = false;
 		isSelecting = false;
 
-		// Check if there's a pending goal to process
+		// Fix 6: Force sync local state from stores after navigation
+		forceStoreSync();
+
+		// Fix 3: Check if there's a pending goal, but defer processing until after mount
 		if (hasPendingGoal()) {
-			const goalState = getGoalState();
-			goalProcessing = true;
-			goalProcessingMessage = 'Analyzing your project...';
-			goalProcessingError = null;
-
-			try {
-				const result = await processGoalAndAddToCanvas(goalState.input);
-
-				if (result.success && result.workflow) {
-					goalSummary = result.workflow.goalContext.summary;
-					goalProcessingMessage = `Added ${result.workflow.nodes.length} skills`;
-
-					// Zoom to fit the new nodes
-					if (canvasEl) {
-						const rect = canvasEl.getBoundingClientRect();
-						setTimeout(() => zoomToFit(rect.width, rect.height), 100);
-					}
-				} else if (result.needsClarification) {
-					goalProcessingError = result.clarificationPrompt || 'Please provide more details';
-				} else {
-					goalProcessingError = result.error || 'Failed to process goal';
-				}
-			} catch (error) {
-				goalProcessingError = error instanceof Error ? error.message : 'An error occurred';
-			} finally {
-				goalProcessing = false;
-				// Clear the goal input after processing
-				clearGoal();
-			}
+			pendingGoalProcess = true;
 		}
+	});
+
+	// Fix 1, 2, 3: Process goal only after component is fully mounted and initialized
+	async function processGoalIfPending() {
+		if (!pendingGoalProcess || !isMounted) return;
+
+		// Fix 4: Wait for DOM to be ready and bindings to complete
+		await tick();
+
+		// Ensure canvasEl is bound before proceeding
+		if (!canvasEl) {
+			// If still not bound, wait a frame and try again
+			requestAnimationFrame(() => processGoalIfPending());
+			return;
+		}
+
+		pendingGoalProcess = false;
+		const goalState = getGoalState();
+
+		if (!goalState.input) {
+			clearGoal();
+			return;
+		}
+
+		goalProcessing = true;
+		goalProcessingMessage = 'Analyzing your project...';
+		goalProcessingError = null;
+
+		try {
+			const result = await processGoalAndAddToCanvas(goalState.input);
+
+			// Fix 2: Wait for DOM to update after nodes are added
+			await tick();
+
+			if (result.success && result.workflow) {
+				goalSummary = result.workflow.goalContext.summary;
+				goalProcessingMessage = `Added ${result.workflow.nodes.length} skills`;
+
+				// Fix 5: Wait another tick to ensure zoom/pan state is synchronized
+				await tick();
+
+				// Zoom to fit the new nodes
+				if (canvasEl) {
+					const rect = canvasEl.getBoundingClientRect();
+					// Use requestAnimationFrame to ensure layout is complete
+					requestAnimationFrame(() => {
+						zoomToFit(rect.width, rect.height);
+					});
+				}
+			} else if (result.needsClarification) {
+				goalProcessingError = result.clarificationPrompt || 'Please provide more details';
+			} else {
+				goalProcessingError = result.error || 'Failed to process goal';
+			}
+		} catch (error) {
+			goalProcessingError = error instanceof Error ? error.message : 'An error occurred';
+		} finally {
+			goalProcessing = false;
+			// Reset all interaction states to ensure clean state after async processing
+			isPanning = false;
+			isCutting = false;
+			isSelecting = false;
+
+			// Fix 2: Wait for final state reset to propagate
+			await tick();
+			resetTransientState();
+
+			// Fix 6: Force sync local state from stores
+			forceStoreSync();
+			await tick();
+
+			// Fix 8: Increment render key to force all nodes to be re-created
+			// This ensures fresh event handlers and proper zoom/pan values
+			nodeRenderKey++;
+			await tick();
+
+			// Clear the goal input after processing
+			clearGoal();
+		}
+	}
+
+	// Watch for when both mount is complete and there's a pending goal
+	$effect(() => {
+		if (isMounted && pendingGoalProcess) {
+			processGoalIfPending();
+		}
+	});
+
+	// Fix 11: Watch for node count changes and ensure interaction state is clean
+	// This catches any edge cases where state becomes corrupted after goal processing
+	let lastNodeCount = $state(0);
+	$effect(() => {
+		const nodeCount = currentNodes.length;
+		if (nodeCount !== lastNodeCount && nodeCount > 0 && lastNodeCount === 0) {
+			// Nodes were just added - schedule a state verification
+			requestAnimationFrame(() => {
+				// Double-check that interaction states are clean
+				if (isPanning || isCutting || isSelecting) {
+					isPanning = false;
+					isCutting = false;
+					isSelecting = false;
+					resetTransientState();
+				}
+				// Force one more store sync to ensure everything is in sync
+				forceStoreSync();
+			});
+		}
+		lastNodeCount = nodeCount;
 	});
 
 	onMount(() => {
@@ -156,9 +269,17 @@
 				canvasWidth = rect.width;
 				canvasHeight = rect.height;
 			}
+			// Fix 6: Force sync local state from stores after mount
+			forceStoreSync();
+			// Fix 3: Mark as fully mounted after all initialization is complete
+			// This triggers goal processing if there's a pending goal
+			isMounted = true;
 		});
 
 		return () => {
+			// Fix 3: Mark as unmounted before cleanup
+			isMounted = false;
+			pendingGoalProcess = false;
 			disableAutoSave();
 			resizeObserver.disconnect();
 			window.removeEventListener('mouseup', handleGlobalMouseUp);
@@ -497,6 +618,20 @@
 		// Safety: ensure canvasEl exists
 		if (!canvasEl) return;
 
+		// Only handle canvas interactions if clicking directly on canvas or its background layers
+		// Node elements handle their own mousedown with stopPropagation
+		const target = e.target as HTMLElement;
+		const isCanvasBackground = target === canvasEl ||
+			target.classList.contains('canvas-area') ||
+			target.tagName === 'svg' ||
+			target.closest('svg.absolute');
+
+		// If not clicking on canvas background, let the event bubble naturally
+		// This is a safety measure in case stopPropagation fails
+		if (!isCanvasBackground && target.closest('.draggable-node')) {
+			return;
+		}
+
 		// Ctrl+left-click to start cutting connections (Blender-style)
 		if (e.button === 0 && e.ctrlKey && !e.altKey) {
 			e.preventDefault();
@@ -805,9 +940,9 @@
 		</header>
 		<div bind:this={canvasEl} class="canvas-area flex-1 relative overflow-hidden bg-bg-primary" class:panning={isPanning} class:cutting={isCutting} class:selecting={isSelecting} ondrop={handleDrop} ondragover={handleDragOver} onclick={handleCanvasClick} oncontextmenu={handleCanvasContextMenu} onmousedown={handleMouseDown} onmousemove={handleMouseMove} onmouseup={handleMouseUp} onmouseleave={handleMouseUp} role="application" tabindex="0">
 			<div class="absolute inset-0 opacity-20 pointer-events-none" style="background-image: radial-gradient(circle, #2a2a38 1px, transparent 1px); background-size: {24 * zoom}px {24 * zoom}px; background-position: {pan.x}px {pan.y}px;"></div>
-			<div class="absolute" style="transform: translate({pan.x}px, {pan.y}px);"><div style="transform: scale({zoom}); transform-origin: 0 0;">
-				<svg class="absolute inset-0 pointer-events-none overflow-visible"><defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#00C49A" /></marker></defs>{#each currentConnections as connection}<ConnectionLine {connection} nodes={currentNodes} selected={currentSelectedConnectionId === connection.id} />{/each}{#if currentDraggingConnection}<path d={getTempConnectionPath(currentDraggingConnection)} fill="none" stroke="#00C49A" stroke-width="2" stroke-dasharray="4 4" class="temp-connection" />{/if}{#if currentCuttingLine}<line x1={currentCuttingLine.startX} y1={currentCuttingLine.startY} x2={currentCuttingLine.currentX} y2={currentCuttingLine.currentY} stroke="#ef4444" stroke-width="2" stroke-dasharray="6 3" class="cutting-line" /><circle cx={currentCuttingLine.startX} cy={currentCuttingLine.startY} r="4" fill="#ef4444" /><circle cx={currentCuttingLine.currentX} cy={currentCuttingLine.currentY} r="4" fill="#ef4444" />{/if}{#if currentSelectionBox}{@const x = Math.min(currentSelectionBox.startX, currentSelectionBox.currentX)}{@const y = Math.min(currentSelectionBox.startY, currentSelectionBox.currentY)}{@const w = Math.abs(currentSelectionBox.currentX - currentSelectionBox.startX)}{@const h = Math.abs(currentSelectionBox.currentY - currentSelectionBox.startY)}<rect {x} {y} width={w} height={h} fill="rgba(0, 196, 154, 0.1)" stroke="#00C49A" stroke-width="1" stroke-dasharray="4 2" class="selection-box" />{/if}</svg>
-				{#each currentNodes as node (node.id)}<DraggableNode {node} selected={currentSelectedNodeIds.includes(node.id)} {zoom} {pan} onOpenDetails={() => (showNodeDetails = true)} onContextMenu={(e) => handleNodeContextMenu(node.id, e)} />{/each}
+			<div class="absolute pointer-events-none" style="transform: translate({pan.x}px, {pan.y}px);"><div class="pointer-events-none" style="transform: scale({zoom}); transform-origin: 0 0;">
+				<svg class="absolute inset-0 pointer-events-none overflow-visible" style="z-index: 1;"><defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#00C49A" /></marker></defs>{#each currentConnections as connection}<ConnectionLine {connection} nodes={currentNodes} selected={currentSelectedConnectionId === connection.id} />{/each}{#if currentDraggingConnection}<path d={getTempConnectionPath(currentDraggingConnection)} fill="none" stroke="#00C49A" stroke-width="2" stroke-dasharray="4 4" class="temp-connection" />{/if}{#if currentCuttingLine}<line x1={currentCuttingLine.startX} y1={currentCuttingLine.startY} x2={currentCuttingLine.currentX} y2={currentCuttingLine.currentY} stroke="#ef4444" stroke-width="2" stroke-dasharray="6 3" class="cutting-line" /><circle cx={currentCuttingLine.startX} cy={currentCuttingLine.startY} r="4" fill="#ef4444" /><circle cx={currentCuttingLine.currentX} cy={currentCuttingLine.currentY} r="4" fill="#ef4444" />{/if}{#if currentSelectionBox}{@const x = Math.min(currentSelectionBox.startX, currentSelectionBox.currentX)}{@const y = Math.min(currentSelectionBox.startY, currentSelectionBox.currentY)}{@const w = Math.abs(currentSelectionBox.currentX - currentSelectionBox.startX)}{@const h = Math.abs(currentSelectionBox.currentY - currentSelectionBox.startY)}<rect {x} {y} width={w} height={h} fill="rgba(0, 196, 154, 0.1)" stroke="#00C49A" stroke-width="1" stroke-dasharray="4 2" class="selection-box" />{/if}</svg>
+				{#each currentNodes as node (`${nodeRenderKey}-${node.id}`)}<DraggableNode {node} selected={currentSelectedNodeIds.includes(node.id)} {zoom} {pan} onOpenDetails={() => (showNodeDetails = true)} onContextMenu={(e) => handleNodeContextMenu(node.id, e)} />{/each}
 			</div></div>
 			{#if currentNodes.length === 0}<div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="text-center"><h3 class="text-lg font-medium text-text-primary mb-2">No skills on canvas</h3><p class="text-sm text-text-secondary">Drag skills from the sidebar</p></div></div>{/if}
 			<!-- Search overlay -->
@@ -849,7 +984,7 @@
 			{/if}
 			<!-- Goal processing overlay -->
 			{#if goalProcessing}
-				<div class="absolute inset-0 z-40 flex items-center justify-center bg-bg-primary/80 backdrop-blur-sm">
+				<div class="absolute inset-0 z-40 flex items-center justify-center bg-bg-primary/80 backdrop-blur-sm pointer-events-none">
 					<div class="bg-bg-secondary border border-surface-border p-6 max-w-sm text-center">
 						<div class="animate-spin w-8 h-8 border-2 border-accent-primary border-t-transparent rounded-full mx-auto mb-4"></div>
 						<p class="text-text-primary font-mono text-sm">{goalProcessingMessage}</p>
