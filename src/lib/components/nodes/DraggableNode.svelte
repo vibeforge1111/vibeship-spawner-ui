@@ -95,8 +95,8 @@
 		const rawX = (e.clientX - canvasRect.left - pan.x - dragOffset.x) / zoom;
 		const rawY = (e.clientY - canvasRect.top - pan.y - dragOffset.y) / zoom;
 
-		// Apply snap to grid
-		const snapped = snapPosition(Math.max(0, rawX), Math.max(0, rawY));
+		// Apply snap to grid (no constraints - canvas is infinite)
+		const snapped = snapPosition(rawX, rawY);
 		updateNodePosition(node.id, snapped);
 	}
 
