@@ -6,7 +6,8 @@
 	import ValidationPanel from '$lib/components/ValidationPanel.svelte';
 	import ExecutionPanel from '$lib/components/ExecutionPanel.svelte';
 	import ContextMenu from '$lib/components/ContextMenu.svelte';
-	import { canvasState, nodes, connections, selectedNodeId, selectedNodeIds, selectedConnectionId, selectedNode, draggingConnection, addNode, selectNode, selectConnection, selectAllNodes, clearSelection, deleteSelected, duplicateSelected, copySelected, pasteFromClipboard, removeConnection, removeNode, setZoom, zoomToFit, frameSelected, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory } from '$lib/stores/canvas.svelte';
+	import { canvasState, nodes, connections, selectedNodeId, selectedNodeIds, selectedConnectionId, selectedNode, draggingConnection, cuttingLine, addNode, selectNode, selectConnection, selectAllNodes, clearSelection, deleteSelected, duplicateSelected, copySelected, pasteFromClipboard, removeConnection, removeNode, setZoom, zoomToFit, frameSelected, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory, startConnectionCut, updateConnectionCut, endConnectionCut, cancelConnectionCut } from '$lib/stores/canvas.svelte';
+	import type { CuttingLine } from '$lib/stores/canvas.svelte';
 	import { onMount } from 'svelte';
 	import type { Skill } from '$lib/stores/skills.svelte';
 	import type { DraggingConnection } from '$lib/stores/canvas.svelte';
@@ -68,6 +69,8 @@
 	let currentSelectedConnectionId = $state<string | null>(null);
 	let currentSelectedNode = $state(null);
 	let currentDraggingConnection = $state<DraggingConnection | null>(null);
+	let currentCuttingLine = $state<CuttingLine | null>(null);
+	let isCutting = $state(false);
 	let currentCanUndo = $state(false);
 	let currentCanRedo = $state(false);
 
@@ -81,7 +84,8 @@
 		const unsub7 = draggingConnection.subscribe((dc) => (currentDraggingConnection = dc));
 		const unsub8 = canUndo.subscribe((v) => (currentCanUndo = v));
 		const unsub9 = canRedo.subscribe((v) => (currentCanRedo = v));
-		return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); unsub9(); };
+		const unsub10 = cuttingLine.subscribe((cl) => (currentCuttingLine = cl));
+		return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); unsub9(); unsub10(); };
 	});
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -178,9 +182,42 @@
 			zoomToFit(rect.width, rect.height);
 		}
 	}
-	function handleMouseDown(e) { if (e.button === 1 || (e.button === 0 && e.altKey)) { isPanning = true; panStart = { x: e.clientX - pan.x, y: e.clientY - pan.y }; e.preventDefault(); } }
-	function handleMouseMove(e) { if (isPanning) pan = { x: e.clientX - panStart.x, y: e.clientY - panStart.y }; }
-	function handleMouseUp() { isPanning = false; }
+	function handleMouseDown(e) {
+		// Ctrl+left-click to start cutting connections (Blender-style)
+		if (e.button === 0 && e.ctrlKey && !e.altKey) {
+			e.preventDefault();
+			isCutting = true;
+			const rect = canvasEl.getBoundingClientRect();
+			const x = (e.clientX - rect.left - pan.x) / zoom;
+			const y = (e.clientY - rect.top - pan.y) / zoom;
+			startConnectionCut(x, y);
+			return;
+		}
+		// Middle-click or Alt+left-click for panning
+		if (e.button === 1 || (e.button === 0 && e.altKey)) {
+			isPanning = true;
+			panStart = { x: e.clientX - pan.x, y: e.clientY - pan.y };
+			e.preventDefault();
+		}
+	}
+	function handleMouseMove(e) {
+		if (isPanning) {
+			pan = { x: e.clientX - panStart.x, y: e.clientY - panStart.y };
+		}
+		if (isCutting && canvasEl) {
+			const rect = canvasEl.getBoundingClientRect();
+			const x = (e.clientX - rect.left - pan.x) / zoom;
+			const y = (e.clientY - rect.top - pan.y) / zoom;
+			updateConnectionCut(x, y);
+		}
+	}
+	function handleMouseUp() {
+		isPanning = false;
+		if (isCutting) {
+			isCutting = false;
+			endConnectionCut();
+		}
+	}
 
 	function handleCanvasContextMenu(e: MouseEvent) {
 		e.preventDefault();
@@ -254,10 +291,10 @@
 	</aside>
 	<main class="flex-1 flex flex-col">
 		<header class="h-12 border-b border-surface-border bg-bg-secondary flex items-center px-4 gap-4"><div class="flex items-center gap-2"><button class="btn-ghost btn-sm" onclick={handleClear}>Clear</button><span class="text-sm text-text-secondary">{currentNodes.length} nodes</span>{#if lastSaved}<span class="text-xs text-text-tertiary">• saved</span>{/if}</div><div class="flex items-center gap-1 px-2 border-l border-surface-border"><button class="btn-ghost btn-sm" onclick={() => undo()} disabled={!currentCanUndo} title="Undo (Ctrl+Z)" class:opacity-40={!currentCanUndo}><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg></button><button class="btn-ghost btn-sm" onclick={() => redo()} disabled={!currentCanRedo} title="Redo (Ctrl+Shift+Z)" class:opacity-40={!currentCanRedo}><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"/></svg></button></div><div class="flex items-center gap-1 px-2 border-l border-surface-border"><button class="btn-ghost btn-sm" onclick={handleZoomOut}>-</button><button class="btn-ghost btn-sm min-w-[4rem] font-mono text-xs" onclick={handleZoomReset}>{Math.round(zoom * 100)}%</button><button class="btn-ghost btn-sm" onclick={handleZoomIn}>+</button><button class="btn-ghost btn-sm ml-1" onclick={handleZoomToFit} title="Fit all (zoom to show all nodes)"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg></button></div><div class="flex-1"></div><div class="flex items-center gap-2"><button onclick={() => (showValidation = true)} class="px-3 py-1.5 text-sm font-mono text-text-primary border border-surface-border hover:border-accent-primary hover:text-accent-primary transition-all">Validate</button><button onclick={() => (showExecution = true)} class="px-3 py-1.5 text-sm font-mono bg-accent-primary text-bg-primary border border-accent-primary hover:bg-accent-primary-hover transition-all disabled:opacity-70 disabled:cursor-not-allowed" disabled={currentNodes.length === 0}>Run</button></div></header>
-		<div bind:this={canvasEl} class="canvas-area flex-1 relative overflow-hidden bg-bg-primary" class:panning={isPanning} ondrop={handleDrop} ondragover={handleDragOver} onclick={handleCanvasClick} oncontextmenu={handleCanvasContextMenu} onmousedown={handleMouseDown} onmousemove={handleMouseMove} onmouseup={handleMouseUp} onmouseleave={handleMouseUp} role="application" tabindex="0">
+		<div bind:this={canvasEl} class="canvas-area flex-1 relative overflow-hidden bg-bg-primary" class:panning={isPanning} class:cutting={isCutting} ondrop={handleDrop} ondragover={handleDragOver} onclick={handleCanvasClick} oncontextmenu={handleCanvasContextMenu} onmousedown={handleMouseDown} onmousemove={handleMouseMove} onmouseup={handleMouseUp} onmouseleave={handleMouseUp} role="application" tabindex="0">
 			<div class="absolute inset-0 opacity-20 pointer-events-none" style="background-image: radial-gradient(circle, #2a2a38 1px, transparent 1px); background-size: {24 * zoom}px {24 * zoom}px;"></div>
 			<div class="absolute inset-0" style="transform: translate({pan.x}px, {pan.y}px);">
-				<svg class="absolute inset-0 pointer-events-none overflow-visible"><defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#00C49A" /></marker></defs>{#each currentConnections as connection}<ConnectionLine {connection} nodes={currentNodes} selected={currentSelectedConnectionId === connection.id} />{/each}{#if currentDraggingConnection}<path d={getTempConnectionPath(currentDraggingConnection)} fill="none" stroke="#00C49A" stroke-width="2" stroke-dasharray="4 4" class="temp-connection" />{/if}</svg>
+				<svg class="absolute inset-0 pointer-events-none overflow-visible"><defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#00C49A" /></marker></defs>{#each currentConnections as connection}<ConnectionLine {connection} nodes={currentNodes} selected={currentSelectedConnectionId === connection.id} />{/each}{#if currentDraggingConnection}<path d={getTempConnectionPath(currentDraggingConnection)} fill="none" stroke="#00C49A" stroke-width="2" stroke-dasharray="4 4" class="temp-connection" />{/if}{#if currentCuttingLine}<line x1={currentCuttingLine.startX} y1={currentCuttingLine.startY} x2={currentCuttingLine.currentX} y2={currentCuttingLine.currentY} stroke="#ef4444" stroke-width="2" stroke-dasharray="6 3" class="cutting-line" /><circle cx={currentCuttingLine.startX} cy={currentCuttingLine.startY} r="4" fill="#ef4444" /><circle cx={currentCuttingLine.currentX} cy={currentCuttingLine.currentY} r="4" fill="#ef4444" />{/if}</svg>
 				{#each currentNodes as node (node.id)}<DraggableNode {node} selected={currentSelectedNodeIds.includes(node.id)} {zoom} onOpenDetails={() => (showNodeDetails = true)} onContextMenu={(e) => handleNodeContextMenu(node.id, e)} />{/each}
 			</div>
 			{#if currentNodes.length === 0}<div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="text-center"><h3 class="text-lg font-medium text-text-primary mb-2">No skills on canvas</h3><p class="text-sm text-text-secondary">Drag skills from the sidebar</p></div></div>{/if}
@@ -303,11 +340,19 @@
 <style>
 	.canvas-area { cursor: grab; }
 	.canvas-area.panning { cursor: grabbing; }
+	.canvas-area.cutting { cursor: crosshair; }
 	.temp-connection {
 		opacity: 0.7;
 		animation: dash 0.5s linear infinite;
 	}
+	.cutting-line {
+		filter: drop-shadow(0 0 4px #ef4444);
+		animation: cut-dash 0.3s linear infinite;
+	}
 	@keyframes dash {
 		to { stroke-dashoffset: -8; }
+	}
+	@keyframes cut-dash {
+		to { stroke-dashoffset: -9; }
 	}
 </style>

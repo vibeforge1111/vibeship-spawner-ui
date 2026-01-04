@@ -31,6 +31,13 @@ export interface DraggingConnection {
 	currentY: number;
 }
 
+export interface CuttingLine {
+	startX: number;
+	startY: number;
+	currentX: number;
+	currentY: number;
+}
+
 export interface CanvasState {
 	nodes: CanvasNode[];
 	connections: Connection[];
@@ -40,6 +47,7 @@ export interface CanvasState {
 	zoom: number;
 	pan: { x: number; y: number };
 	draggingConnection: DraggingConnection | null;
+	cuttingLine: CuttingLine | null;
 }
 
 const initialState: CanvasState = {
@@ -50,7 +58,8 @@ const initialState: CanvasState = {
 	selectedConnectionId: null,
 	zoom: 1,
 	pan: { x: 0, y: 0 },
-	draggingConnection: null
+	draggingConnection: null,
+	cuttingLine: null
 };
 
 export const canvasState = writable<CanvasState>(initialState);
@@ -60,6 +69,7 @@ export const selectedNodeId = derived(canvasState, ($state) => $state.selectedNo
 export const selectedNodeIds = derived(canvasState, ($state) => $state.selectedNodeIds);
 export const selectedConnectionId = derived(canvasState, ($state) => $state.selectedConnectionId);
 export const draggingConnection = derived(canvasState, ($state) => $state.draggingConnection);
+export const cuttingLine = derived(canvasState, ($state) => $state.cuttingLine);
 
 export const selectedNode = derived(canvasState, ($state) => {
 	if (!$state.selectedNodeId) return null;
@@ -582,13 +592,13 @@ export function completeConnection(targetNodeId: string, targetPortId: string): 
 	const state = get(canvasState);
 	const drag = state.draggingConnection;
 	if (!drag) return false;
-	
+
 	// Cannot connect to same node
 	if (drag.sourceNodeId === targetNodeId) {
 		endConnectionDrag();
 		return false;
 	}
-	
+
 	// Check if connection already exists
 	const exists = state.connections.some(
 		(c) =>
@@ -599,7 +609,7 @@ export function completeConnection(targetNodeId: string, targetPortId: string): 
 		endConnectionDrag();
 		return false;
 	}
-	
+
 	// Output connects to input
 	if (drag.sourcePortType === 'output') {
 		addConnection(drag.sourceNodeId, drag.sourcePortId, targetNodeId, targetPortId);
@@ -607,9 +617,108 @@ export function completeConnection(targetNodeId: string, targetPortId: string): 
 		// Input connects from output (reverse)
 		addConnection(targetNodeId, targetPortId, drag.sourceNodeId, drag.sourcePortId);
 	}
-	
+
 	endConnectionDrag();
 	return true;
+}
+
+// Connection cutting functions (Blender-style Ctrl+drag to cut)
+export function startConnectionCut(startX: number, startY: number) {
+	canvasState.update((state) => ({
+		...state,
+		cuttingLine: { startX, startY, currentX: startX, currentY: startY }
+	}));
+}
+
+export function updateConnectionCut(currentX: number, currentY: number) {
+	canvasState.update((state) => {
+		if (!state.cuttingLine) return state;
+		return {
+			...state,
+			cuttingLine: { ...state.cuttingLine, currentX, currentY }
+		};
+	});
+}
+
+// Helper: Check if line segment intersects with bezier curve (approximated)
+function lineIntersectsBezier(
+	lineX1: number, lineY1: number, lineX2: number, lineY2: number,
+	bezierStartX: number, bezierStartY: number, bezierEndX: number, bezierEndY: number
+): boolean {
+	// Approximate bezier with line segments and check intersection
+	const midX = (bezierStartX + bezierEndX) / 2;
+	const segments = [
+		{ x1: bezierStartX, y1: bezierStartY, x2: midX, y2: bezierStartY },
+		{ x1: midX, y1: bezierStartY, x2: midX, y2: bezierEndY },
+		{ x1: midX, y1: bezierEndY, x2: bezierEndX, y2: bezierEndY }
+	];
+
+	for (const seg of segments) {
+		if (lineSegmentsIntersect(lineX1, lineY1, lineX2, lineY2, seg.x1, seg.y1, seg.x2, seg.y2)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+// Helper: Check if two line segments intersect
+function lineSegmentsIntersect(
+	x1: number, y1: number, x2: number, y2: number,
+	x3: number, y3: number, x4: number, y4: number
+): boolean {
+	const denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+	if (Math.abs(denom) < 0.0001) return false; // Parallel
+
+	const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denom;
+	const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denom;
+
+	return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
+}
+
+export function endConnectionCut(): string[] {
+	const state = get(canvasState);
+	if (!state.cuttingLine) return [];
+
+	const { startX, startY, currentX, currentY } = state.cuttingLine;
+	const cutConnectionIds: string[] = [];
+
+	// Check each connection for intersection with cutting line
+	for (const conn of state.connections) {
+		const sourceNode = state.nodes.find((n) => n.id === conn.sourceNodeId);
+		const targetNode = state.nodes.find((n) => n.id === conn.targetNodeId);
+		if (!sourceNode || !targetNode) continue;
+
+		// Get bezier endpoints (simplified - assumes ports are on edges)
+		const bezierStartX = sourceNode.position.x + NODE_WIDTH;
+		const bezierStartY = sourceNode.position.y + NODE_HEIGHT / 2;
+		const bezierEndX = targetNode.position.x;
+		const bezierEndY = targetNode.position.y + NODE_HEIGHT / 2;
+
+		if (lineIntersectsBezier(startX, startY, currentX, currentY, bezierStartX, bezierStartY, bezierEndX, bezierEndY)) {
+			cutConnectionIds.push(conn.id);
+		}
+	}
+
+	// Clear cutting line first
+	canvasState.update((s) => ({ ...s, cuttingLine: null }));
+
+	// Remove cut connections if any were found
+	if (cutConnectionIds.length > 0) {
+		pushHistory();
+		canvasState.update((s) => ({
+			...s,
+			connections: s.connections.filter((c) => !cutConnectionIds.includes(c.id))
+		}));
+	}
+
+	return cutConnectionIds;
+}
+
+export function cancelConnectionCut() {
+	canvasState.update((state) => ({
+		...state,
+		cuttingLine: null
+	}));
 }
 
 export function clearCanvas() {
