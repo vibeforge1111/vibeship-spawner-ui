@@ -8,11 +8,13 @@
 	let {
 		node,
 		selected = false,
-		zoom = 1
+		zoom = 1,
+		onOpenDetails
 	}: {
 		node: CanvasNode;
 		selected?: boolean;
 		zoom?: number;
+		onOpenDetails?: () => void;
 	} = $props();
 
 	let isDragging = $state(false);
@@ -172,6 +174,7 @@
 	class:error={node.status === 'error'}
 	style="left: {node.position.x}px; top: {node.position.y}px; transform: scale({zoom}); transform-origin: top left;"
 	onmousedown={handleMouseDown}
+	ondblclick={() => onOpenDetails?.()}
 	role="button"
 	tabindex="0"
 >
