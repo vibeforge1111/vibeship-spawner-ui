@@ -83,6 +83,9 @@ export {
 	type KeyboardShortcut
 } from './controls';
 
+// Audio
+export { soundManager, SoundManager, type SoundSettings, type SoundType } from './audio';
+
 // Stores
 export {
 	liveModeStore,
@@ -106,8 +109,9 @@ export async function initSpawnerLive(options: {
 	pipelineId?: string;
 	nodeIds?: string[];
 	enableKeyboardShortcuts?: boolean;
+	enableSounds?: boolean;
 } = {}): Promise<void> {
-	const { canvas, pipelineId, nodeIds, enableKeyboardShortcuts = true } = options;
+	const { canvas, pipelineId, nodeIds, enableKeyboardShortcuts = true, enableSounds = true } = options;
 
 	// Import and initialize effects engine
 	if (canvas) {
@@ -127,17 +131,24 @@ export async function initSpawnerLive(options: {
 		shortcuts.enable();
 	}
 
+	// Initialize sound manager
+	if (enableSounds) {
+		const { soundManager: audio } = await import('./audio');
+		audio.init();
+	}
+
 	console.log('[SpawnerLive] Initialized');
 }
 
 // Convenience cleanup function
 export async function destroySpawnerLive(): Promise<void> {
-	const [effectsMod, enforcementMod, orchestratorMod, controlsMod, executionMod] = await Promise.all([
+	const [effectsMod, enforcementMod, orchestratorMod, controlsMod, executionMod, audioMod] = await Promise.all([
 		import('./effects'),
 		import('./enforcement'),
 		import('./orchestrator'),
 		import('./controls'),
-		import('./execution')
+		import('./execution'),
+		import('./audio')
 	]);
 
 	// Disable keyboard shortcuts
@@ -145,6 +156,9 @@ export async function destroySpawnerLive(): Promise<void> {
 
 	// Reset execution
 	executionMod.pipelineRunner.reset();
+
+	// Cleanup audio
+	audioMod.soundManager.destroy();
 
 	// Cleanup effects and orchestrator
 	effectsMod.effectsEngine.destroy();
