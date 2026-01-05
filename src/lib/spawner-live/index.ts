@@ -55,6 +55,15 @@ export {
 // Enforcement
 export { complianceTracker, ComplianceTracker } from './enforcement';
 
+// Realtime
+export {
+	spawnerWebSocket,
+	SpawnerWebSocket,
+	mockEventSource,
+	MockEventSource,
+	type ConnectionStatus
+} from './realtime';
+
 // Stores
 export {
 	liveModeStore,
