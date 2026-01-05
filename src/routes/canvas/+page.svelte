@@ -319,6 +319,37 @@ import { get } from 'svelte/store';
 		previousConnectionIds = currentConnectionIds;
 	});
 
+	// Spawner Live: Re-initialize compliance tracker when pipeline or nodes change
+	let lastPipelineId: string | null = null;
+	let lastNodeIds: string[] = [];
+	$effect(() => {
+		if (!$isLiveEnabled) return;
+
+		const currentPipelineId = $activePipelineId;
+		const currentNodeIds = currentNodes.map(n => n.id);
+
+		// Check if pipeline or node IDs have changed
+		const pipelineChanged = currentPipelineId !== lastPipelineId;
+		const nodesChanged = currentNodeIds.length !== lastNodeIds.length ||
+			currentNodeIds.some((id, i) => id !== lastNodeIds[i]);
+
+		if (pipelineChanged || nodesChanged) {
+			// Re-initialize compliance tracker with new pipeline data
+			if (currentPipelineId && currentNodeIds.length > 0) {
+				complianceTracker.init(currentPipelineId, currentNodeIds);
+			} else if (currentNodeIds.length > 0) {
+				// If no pipeline ID, use a default identifier
+				complianceTracker.init('canvas-' + Date.now(), currentNodeIds);
+			} else {
+				// Reset if no nodes
+				complianceTracker.reset();
+			}
+
+			lastPipelineId = currentPipelineId;
+			lastNodeIds = [...currentNodeIds];
+		}
+	});
+
 	// Fix 11: Watch for node count changes and ensure interaction state is clean
 	// This catches any edge cases where state becomes corrupted after goal processing
 	let lastNodeCount = $state(0);
