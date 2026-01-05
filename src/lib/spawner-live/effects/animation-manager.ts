@@ -42,16 +42,16 @@ class AnimationManager {
 	}
 
 	/**
-	 * Pulse effect on a node
+	 * Pulse effect on a node - Vibeship minimal style
 	 */
-	pulseNode(nodeId: string, color: string, duration: number = 500): void {
+	pulseNode(nodeId: string, color: string, duration: number = 600): void {
 		const element = this.getNodeElement(nodeId);
 		if (!element) return;
 
 		const animation = element.animate(
 			[
 				{ boxShadow: `0 0 0 0 ${color}00` },
-				{ boxShadow: `0 0 30px 10px ${color}80` },
+				{ boxShadow: `0 0 8px 2px ${color}30` },
 				{ boxShadow: `0 0 0 0 ${color}00` }
 			],
 			{
@@ -119,7 +119,7 @@ class AnimationManager {
 	}
 
 	/**
-	 * Show spotlight glow around node
+	 * Show spotlight glow around node - Vibeship minimal style
 	 */
 	showSpotlight(
 		nodeId: string,
@@ -128,21 +128,21 @@ class AnimationManager {
 		const element = this.getNodeElement(nodeId);
 		if (!element) return;
 
-		const { color = '#3b82f6', intensity = 0.6 } = options;
-		const glowSize = 20 + intensity * 30;
+		const { color = '#00C49A', intensity = 0.15 } = options;
+		const glowSize = 6 + intensity * 8;
 
-		element.style.filter = `drop-shadow(0 0 ${glowSize}px ${color})`;
+		element.style.filter = `drop-shadow(0 0 ${glowSize}px ${color}40)`;
 		element.classList.add('spawner-live-spotlight');
 
-		// Pulsing glow animation
+		// Very subtle pulsing glow animation
 		const animation = element.animate(
 			[
-				{ filter: `drop-shadow(0 0 ${glowSize * 0.8}px ${color})` },
-				{ filter: `drop-shadow(0 0 ${glowSize * 1.2}px ${color})` },
-				{ filter: `drop-shadow(0 0 ${glowSize * 0.8}px ${color})` }
+				{ filter: `drop-shadow(0 0 ${glowSize * 0.9}px ${color}30)` },
+				{ filter: `drop-shadow(0 0 ${glowSize * 1.1}px ${color}50)` },
+				{ filter: `drop-shadow(0 0 ${glowSize * 0.9}px ${color}30)` }
 			],
 			{
-				duration: 2000,
+				duration: 3000,
 				iterations: Infinity,
 				easing: 'ease-in-out'
 			}
@@ -174,9 +174,9 @@ class AnimationManager {
 	}
 
 	/**
-	 * Show agent indicator (glowing orb)
+	 * Show agent indicator (hammer icon)
 	 */
-	showAgentIndicator(nodeId: string, agentId: string, color: string = '#8b5cf6'): void {
+	showAgentIndicator(nodeId: string, agentId: string, color: string = '#00C49A'): void {
 		agentIndicators.update((map) => {
 			map.set(nodeId, { agentId, color });
 			return new Map(map);

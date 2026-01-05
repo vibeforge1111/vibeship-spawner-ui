@@ -23,6 +23,9 @@ import { get } from 'svelte/store';
 	import { initCanvasSync } from '$lib/services/canvas-sync';
 	import PipelineSelector from '$lib/components/PipelineSelector.svelte';
 	import { initPipelines, saveCurrentPipeline, getActivePipelineData, activePipelineId } from '$lib/stores/pipelines.svelte';
+	import { workflowTemplates } from '$lib/data/templates';
+	import { skills } from '$lib/stores/skills.svelte';
+	import { loadWorkflowTemplate } from '$lib/stores/canvas.svelte';
 
 	// Spawner Live - Real-time orchestration visualization
 	import { ModeToggle, ParticleCanvas, SuccessBanner, ErrorVignette, CompliancePanel, EffectsTestPanel, ExecutionLogPanel, SettingsPanel, DeviationRecoveryPanel, TimelinePanel, ParallelLanes } from '$lib/components/spawner-live';
@@ -79,6 +82,9 @@ import { get } from 'svelte/store';
 	// Fix 8: Render key to force node re-creation after goal processing
 	// This ensures all node components are freshly created with current state
 	let nodeRenderKey = $state(0);
+
+	// Auto-load MonsterChain template flag
+	let templateAutoLoaded = $state(false);
 
 	// Fix 6: Force sync local state from stores
 	// This ensures local variables are in sync after async operations
@@ -212,6 +218,46 @@ import { get } from 'svelte/store';
 		if (isMounted && pendingGoalProcess) {
 			processGoalIfPending();
 		}
+	});
+
+	// Auto-load MonsterChain template when skills are available and canvas is empty
+	$effect(() => {
+		// Subscribe to skills store to create reactive dependency
+		const unsub = skills.subscribe((currentSkillsList) => {
+			// Only run once
+			if (templateAutoLoaded) return;
+			// Wait for mount
+			if (!isMounted) return;
+
+			const state = get(canvasState);
+
+			// Need skills loaded and empty canvas
+			if (currentSkillsList.length === 0) return;
+			if (state.nodes.length > 0) {
+				templateAutoLoaded = true; // Canvas already has content, don't load
+				return;
+			}
+
+			// Find MonsterChain template
+			const monsterChainTemplate = workflowTemplates.find(t => t.id === 'monsterchain-defi-game');
+			if (!monsterChainTemplate) {
+				templateAutoLoaded = true;
+				return;
+			}
+
+			// Load the template
+			templateAutoLoaded = true;
+			loadWorkflowTemplate(monsterChainTemplate, currentSkillsList, false);
+
+			// Zoom to fit after a brief delay to let nodes render
+			requestAnimationFrame(() => {
+				if (canvasEl) {
+					const rect = canvasEl.getBoundingClientRect();
+					zoomToFit(rect.width, rect.height);
+				}
+			});
+		});
+		return unsub;
 	});
 
 	// Spawner Live: Watch for node selection changes and emit events
@@ -424,6 +470,7 @@ import { get } from 'svelte/store';
 			}
 		}
 
+		
 		// Initialize history with current state
 		clearHistory();
 

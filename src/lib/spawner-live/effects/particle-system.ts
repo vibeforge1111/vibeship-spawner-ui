@@ -20,9 +20,9 @@ interface Particle {
 	active: boolean;
 }
 
-// Configuration
-const MAX_PARTICLES = 500;
-const DEFAULT_GRAVITY = 0.1;
+// Configuration - Vibeship minimalist style
+const MAX_PARTICLES = 100;
+const DEFAULT_GRAVITY = 0.05;
 
 class ParticleSystem {
 	private canvas: HTMLCanvasElement | null = null;
@@ -139,15 +139,15 @@ class ParticleSystem {
 	}
 
 	/**
-	 * Emit particles at a specific position
+	 * Emit particles at a specific position - Vibeship minimal style
 	 */
 	emitAt(x: number, y: number, config: Partial<ParticleConfig> = {}): void {
 		const {
-			count = 10,
-			color = '#22c55e',
-			size = { min: 3, max: 8 },
-			speed = { min: 2, max: 5 },
-			lifetime = 1000,
+			count = 2,
+			color = '#00C49A',
+			size = { min: 1, max: 2 },
+			speed = { min: 0.5, max: 1 },
+			lifetime = 400,
 			spread = 360,
 			direction = 0,
 			gravity = 0,
@@ -185,7 +185,7 @@ class ParticleSystem {
 	}
 
 	/**
-	 * Burst particles outward from a node (for completion)
+	 * Burst particles outward from a node - Vibeship ultra-minimal style
 	 */
 	burst(nodeId: string, config: Partial<ParticleBurstConfig> = {}): void {
 		const element = document.querySelector(`[data-node-id="${nodeId}"]`);
@@ -196,20 +196,20 @@ class ParticleSystem {
 		const centerY = rect.top + rect.height / 2;
 
 		this.emitAt(centerX, centerY, {
-			count: config.count || 30,
-			color: config.color || ['#22c55e', '#4ade80', '#86efac'],
-			size: config.size || { min: 4, max: 10 },
-			speed: config.speed || { min: 3, max: 8 },
-			lifetime: config.lifetime || 800,
+			count: config.count || 3,
+			color: config.color || ['#00C49A'],
+			size: config.size || { min: 1, max: 2 },
+			speed: config.speed || { min: 0.5, max: 1.5 },
+			lifetime: config.lifetime || 300,
 			spread: 360,
-			gravity: 0.15,
+			gravity: 0.02,
 			fade: true,
 			shrink: true
 		});
 	}
 
 	/**
-	 * Create a trail effect (particles following a path)
+	 * Create a trail effect - Vibeship ultra-minimal style
 	 */
 	trail(
 		fromX: number,
@@ -219,23 +219,23 @@ class ParticleSystem {
 		config: Partial<ParticleConfig> = {}
 	): void {
 		const distance = Math.sqrt(Math.pow(toX - fromX, 2) + Math.pow(toY - fromY, 2));
-		const steps = Math.floor(distance / 20);
+		const steps = Math.floor(distance / 80); // Fewer steps
 		const dx = (toX - fromX) / steps;
 		const dy = (toY - fromY) / steps;
 
 		for (let i = 0; i < steps; i++) {
 			setTimeout(() => {
 				this.emitAt(fromX + dx * i, fromY + dy * i, {
-					count: 3,
-					color: config.color || '#f59e0b',
-					size: { min: 2, max: 4 },
-					speed: { min: 0.5, max: 1.5 },
-					lifetime: 500,
-					spread: 60,
+					count: 1,
+					color: config.color || '#00C49A',
+					size: { min: 1, max: 2 },
+					speed: { min: 0.2, max: 0.5 },
+					lifetime: 200,
+					spread: 20,
 					direction: (Math.atan2(toY - fromY, toX - fromX) * 180) / Math.PI,
 					fade: true
 				});
-			}, i * 30);
+			}, i * 80);
 		}
 	}
 

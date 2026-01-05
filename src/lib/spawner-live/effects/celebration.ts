@@ -6,23 +6,23 @@
 import { writable } from 'svelte/store';
 import type { ConfettiConfig, BannerConfig, VignetteConfig } from '../types/animation';
 
-// Default configurations
+// Default configurations - Vibeship minimalist style
 const defaultConfettiConfig: ConfettiConfig = {
-	count: 100,
-	colors: ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6'],
-	duration: 3000,
-	spread: 70,
+	count: 12,
+	colors: ['#22c55e', '#3b82f6'],
+	duration: 1500,
+	spread: 30,
 	origin: { x: 0.5, y: 0.3 },
-	gravity: 1,
-	shapes: ['square', 'circle']
+	gravity: 0.8,
+	shapes: ['circle']
 };
 
 const defaultBannerConfig: BannerConfig = {
 	message: 'Success!',
 	type: 'success',
 	duration: 2000,
-	position: 'center',
-	animation: 'bounce'
+	position: 'top',
+	animation: 'fade'
 };
 
 const defaultVignetteConfig: VignetteConfig = {
@@ -237,15 +237,11 @@ class Celebration {
 	}
 
 	/**
-	 * Pipeline complete celebration
+	 * Pipeline complete celebration - minimal Vibeship style
 	 */
 	pipelineComplete(): void {
-		this.confetti({
-			count: 150,
-			colors: ['#22c55e', '#4ade80', '#86efac', '#3b82f6', '#f59e0b'],
-			duration: 4000
-		});
-		this.showBanner('Pipeline Complete!', 'success', 3000);
+		// Subtle success indicator - just the banner, no confetti
+		this.showBanner('Pipeline Complete', 'success', 2500);
 	}
 
 	/**
@@ -257,27 +253,17 @@ class Celebration {
 	}
 
 	/**
-	 * Node completed celebration (smaller)
+	 * Node completed - minimal feedback
 	 */
 	nodeComplete(): void {
-		// Smaller celebration for individual nodes
-		this.confetti({
-			count: 20,
-			duration: 1000,
-			spread: 40
-		});
+		// No visual celebration for individual nodes - handled by node state change
 	}
 
 	/**
-	 * Achievement/milestone celebration
+	 * Achievement/milestone - subtle notification
 	 */
 	achievement(message: string): void {
-		this.confetti({
-			count: 80,
-			colors: ['#f59e0b', '#fbbf24', '#fcd34d'],
-			duration: 2500
-		});
-		this.showBanner(message, 'info', 3000);
+		this.showBanner(message, 'info', 2500);
 	}
 
 	/**

@@ -10,84 +10,40 @@
 	let indicator = $derived($agentIndicators.get(nodeId));
 </script>
 
+<!-- Minimal: Show only a small hammer icon when active -->
 {#if indicator}
-	<div class="agent-indicator" style="--indicator-color: {indicator.color}">
-		<div class="indicator-orb"></div>
-		<div class="indicator-ring"></div>
-		<span class="agent-name">{indicator.agentId}</span>
+	<div class="agent-indicator">
+		<svg class="hammer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+			<path d="M15 12l-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L12 9" />
+			<path d="M17.64 15L22 10.64" />
+			<path d="M20.91 11.7l-1.25-1.25c-.6-.6-.93-1.4-.93-2.25v-.86L16.01 4.6a5.56 5.56 0 0 0-3.94-1.64H9l.92.82A6.18 6.18 0 0 1 12 8.4v1.56l2 2h2.47l2.26 1.91" />
+		</svg>
 	</div>
 {/if}
 
 <style>
 	.agent-indicator {
 		position: absolute;
-		top: -8px;
-		right: -8px;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
+		top: -6px;
+		right: -6px;
 		pointer-events: none;
 		z-index: 20;
 	}
 
-	.indicator-orb {
-		width: 16px;
-		height: 16px;
-		background: var(--indicator-color, #8b5cf6);
-		border-radius: 50%;
-		box-shadow: 0 0 10px var(--indicator-color, #8b5cf6), 0 0 20px var(--indicator-color, #8b5cf6);
-		animation: orb-pulse 1.5s ease-in-out infinite;
+	.hammer-icon {
+		width: 14px;
+		height: 14px;
+		color: var(--accent-primary, #00C49A);
+		animation: hammer-build 0.4s ease-in-out infinite;
+		transform-origin: bottom left;
 	}
 
-	.indicator-ring {
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		width: 24px;
-		height: 24px;
-		border: 2px solid var(--indicator-color, #8b5cf6);
-		border-radius: 50%;
-		transform: translate(-50%, -50%);
-		animation: ring-expand 1.5s ease-out infinite;
-		opacity: 0;
-	}
-
-	.agent-name {
-		margin-top: 4px;
-		padding: 2px 6px;
-		background: var(--indicator-color, #8b5cf6);
-		border-radius: 4px;
-		font-size: 9px;
-		font-weight: 600;
-		color: white;
-		white-space: nowrap;
-		max-width: 80px;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	@keyframes orb-pulse {
-		0%,
-		100% {
-			transform: scale(1);
-			opacity: 1;
+	@keyframes hammer-build {
+		0%, 100% {
+			transform: rotate(0deg);
 		}
 		50% {
-			transform: scale(1.2);
-			opacity: 0.8;
-		}
-	}
-
-	@keyframes ring-expand {
-		0% {
-			width: 16px;
-			height: 16px;
-			opacity: 0.8;
-		}
-		100% {
-			width: 32px;
-			height: 32px;
-			opacity: 0;
+			transform: rotate(-20deg);
 		}
 	}
 </style>

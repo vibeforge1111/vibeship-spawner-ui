@@ -213,14 +213,14 @@ class EffectsEngine {
 		// Remove spotlight
 		spotlightManager.deactivate(event.nodeId);
 
-		// Success burst
-		if (currentSettings.completionBurst.enabled) {
-			particleSystem.burst(event.nodeId, {
-				count: currentSettings.completionBurst.particleCount,
-				lifetime: currentSettings.completionBurst.duration,
-				color: ['#22c55e', '#4ade80', '#86efac']
-			});
-		}
+		// Success burst - disabled for minimal style
+		// if (currentSettings.completionBurst.enabled) {
+		// 	particleSystem.burst(event.nodeId, {
+		// 		count: currentSettings.completionBurst.particleCount,
+		// 		lifetime: currentSettings.completionBurst.duration,
+		// 		color: ['#22c55e', '#4ade80', '#86efac']
+		// 	});
+		// }
 
 		// Reset scale
 		animationManager.scaleNode(event.nodeId, 1.0, 200);
@@ -261,14 +261,14 @@ class EffectsEngine {
 		// Clear progress ring
 		animationManager.clearProgressRing(event.nodeId);
 
-		// Error particles
-		if (currentSettings.particles.enabled) {
-			particleSystem.burst(event.nodeId, {
-				count: 15,
-				color: ['#ef4444', '#f87171'],
-				lifetime: 500
-			});
-		}
+		// Error particles - disabled for minimal style
+		// if (currentSettings.particles.enabled) {
+		// 	particleSystem.burst(event.nodeId, {
+		// 		count: 15,
+		// 		color: ['#ef4444', '#f87171'],
+		// 		lifetime: 500
+		// 	});
+		// }
 	}
 
 	/**

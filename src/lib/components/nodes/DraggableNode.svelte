@@ -1,6 +1,5 @@
 <script lang="ts">
 	import SkillNode from './SkillNode.svelte';
-	import AgentIndicator from '$lib/components/spawner-live/AgentIndicator.svelte';
 	import type { CanvasNode } from '$lib/stores/canvas.svelte';
 	import { updateNodePosition, selectNode, toggleNodeSelection, removeNode, startConnectionDrag, updateConnectionDrag, endConnectionDrag, completeConnection, snapPosition, canvasState } from '$lib/stores/canvas.svelte';
 	import type { SkillNodeData } from '$lib/types/skill';
@@ -203,15 +202,17 @@
 	role="button"
 	tabindex="0"
 >
-	<!-- Status indicator -->
-	{#if node.status && node.status !== 'idle'}
-		<div class="status-indicator" class:running={node.status === 'running'} class:success={node.status === 'success'} class:error={node.status === 'error'}>
-			{#if node.status === 'running'}
-				<span class="animate-spin">⟳</span>
-			{:else if node.status === 'success'}
-				✓
+	<!-- Status badge - only for completed states (success/error) -->
+	{#if node.status === 'success' || node.status === 'error'}
+		<div class="status-badge" class:success={node.status === 'success'} class:error={node.status === 'error'}>
+			{#if node.status === 'success'}
+				<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+				</svg>
 			{:else if node.status === 'error'}
-				✗
+				<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
+				</svg>
 			{/if}
 		</div>
 	{/if}
@@ -220,15 +221,13 @@
 		data={nodeData}
 		nodeId={node.id}
 		{selected}
+		status={node.status || 'idle'}
 		onSelect={handleSelect}
 		onTest={handleTest}
 		onPortDragStart={handlePortDragStart}
 		onPortDragEnd={handlePortDragEnd}
 		{onHandoffClick}
 	/>
-
-	<!-- Agent indicator (shows when agent is actively working on this node) -->
-	<AgentIndicator nodeId={node.id} />
 
 	<!-- Delete button on hover -->
 	<button
@@ -285,53 +284,26 @@
 		opacity: 1;
 	}
 
-	.status-indicator {
+	.status-badge {
 		position: absolute;
-		top: -8px;
-		left: -8px;
-		width: 20px;
-		height: 20px;
+		top: -6px;
+		left: -6px;
+		width: 16px;
+		height: 16px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		border-radius: 50%;
-		font-size: 12px;
-		z-index: 10;
+		z-index: 15;
 	}
 
-	.status-indicator.running {
-		background: var(--color-yellow-500, #eab308);
-		color: black;
-	}
-
-	.status-indicator.success {
-		background: var(--accent-primary);
+	.status-badge.success {
+		background: var(--accent-primary, #00C49A);
 		color: white;
 	}
 
-	.status-indicator.error {
-		background: var(--status-error);
+	.status-badge.error {
+		background: var(--status-error, #ef4444);
 		color: white;
-	}
-
-	.draggable-node.running {
-		outline: 2px solid var(--color-yellow-500, #eab308);
-		outline-offset: 2px;
-		animation: pulse 1s ease-in-out infinite;
-	}
-
-	.draggable-node.success {
-		outline: 2px solid var(--accent-primary);
-		outline-offset: 2px;
-	}
-
-	.draggable-node.error {
-		outline: 2px solid var(--status-error);
-		outline-offset: 2px;
-	}
-
-	@keyframes pulse {
-		0%, 100% { opacity: 1; }
-		50% { opacity: 0.7; }
 	}
 </style>

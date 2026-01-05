@@ -133,10 +133,6 @@
 	}
 
 	// Direct effect triggers
-	function triggerConfetti() {
-		celebration.confetti();
-	}
-
 	function triggerBanner(type: 'success' | 'info' | 'warning' | 'error') {
 		const messages: Record<string, string> = {
 			success: 'Mission Complete!',
@@ -151,8 +147,8 @@
 		const nodeId = getRandomNodeId();
 		if (!nodeId) return;
 		particleSystem.burst(nodeId, {
-			count: 50,
-			color: ['#22c55e', '#3b82f6', '#f59e0b']
+			count: 8,
+			color: ['#22c55e']
 		});
 	}
 
@@ -254,7 +250,6 @@
 		<div class="section">
 			<h4>Direct Effects</h4>
 			<div class="button-grid">
-				<button onclick={triggerConfetti}>Confetti</button>
 				<button onclick={triggerParticleBurst}>Particle Burst</button>
 				<button onclick={() => triggerBanner('success')}>Success Banner</button>
 				<button onclick={() => triggerBanner('info')}>Info Banner</button>
@@ -384,14 +379,13 @@
 	.demo-btn {
 		width: 100%;
 		padding: 10px;
-		background: linear-gradient(135deg, var(--accent-primary, #22c55e), var(--accent-secondary, #3b82f6));
+		background: var(--accent-primary, #22c55e);
 		border: none;
-		color: white;
+		color: var(--bg-primary, #0f0f17);
 		font-weight: 600;
 	}
 
 	.demo-btn:hover {
 		opacity: 0.9;
-		transform: translateY(-1px);
 	}
 </style>

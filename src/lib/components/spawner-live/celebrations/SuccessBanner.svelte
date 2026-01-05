@@ -61,36 +61,21 @@
 	.banner {
 		display: flex;
 		align-items: center;
-		gap: 12px;
-		padding: 16px 32px;
-		border-radius: 12px;
+		gap: 10px;
+		padding: 12px 24px;
+		border-radius: 6px;
 		color: white;
-		font-size: 18px;
-		font-weight: 600;
-		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-		animation: banner-pop 0.3s ease-out;
+		font-size: 14px;
+		font-weight: 500;
+		font-family: var(--font-mono, monospace);
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 	}
 
 	.banner-icon {
-		font-size: 24px;
+		font-size: 16px;
 	}
 
 	.banner-message {
 		max-width: 400px;
-		text-align: center;
-	}
-
-	@keyframes banner-pop {
-		0% {
-			transform: scale(0.8);
-			opacity: 0;
-		}
-		50% {
-			transform: scale(1.05);
-		}
-		100% {
-			transform: scale(1);
-			opacity: 1;
-		}
 	}
 </style>

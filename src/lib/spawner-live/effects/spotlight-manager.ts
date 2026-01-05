@@ -14,13 +14,13 @@ interface ActiveSpotlight {
 	startTime: number;
 }
 
-// Default spotlight config
+// Default spotlight config - Vibeship minimal style
 const defaultConfig: SpotlightConfig = {
-	color: '#3b82f6',
-	intensity: 0.6,
-	radius: 30,
-	blur: 20,
-	pulseSpeed: 2000
+	color: '#00C49A',
+	intensity: 0.15,
+	radius: 8,
+	blur: 6,
+	pulseSpeed: 3000
 };
 
 class SpotlightManager {
@@ -49,23 +49,22 @@ class SpotlightManager {
 			this.deactivate(nodeId);
 		}
 
-		// Create spotlight effect
-		const glowSize = finalConfig.radius + (finalConfig.intensity * 20);
-		const blurSize = finalConfig.blur;
+		// Create spotlight effect - minimal Vibeship style
+		const glowSize = finalConfig.radius + (finalConfig.intensity * 8);
 
-		// Apply base spotlight style
-		element.style.filter = `drop-shadow(0 0 ${glowSize}px ${finalConfig.color})`;
+		// Apply subtle spotlight style
+		element.style.filter = `drop-shadow(0 0 ${glowSize}px ${finalConfig.color}40)`;
 		element.style.zIndex = '10';
 		element.dataset.spotlightActive = 'true';
 
-		// Create pulsing animation
+		// Create very subtle pulsing animation
 		let animation: Animation | null = null;
 		if (finalConfig.pulseSpeed && finalConfig.pulseSpeed > 0) {
 			animation = element.animate(
 				[
-					{ filter: `drop-shadow(0 0 ${glowSize * 0.7}px ${finalConfig.color})` },
-					{ filter: `drop-shadow(0 0 ${glowSize * 1.3}px ${finalConfig.color})` },
-					{ filter: `drop-shadow(0 0 ${glowSize * 0.7}px ${finalConfig.color})` }
+					{ filter: `drop-shadow(0 0 ${glowSize * 0.9}px ${finalConfig.color}30)` },
+					{ filter: `drop-shadow(0 0 ${glowSize * 1.1}px ${finalConfig.color}50)` },
+					{ filter: `drop-shadow(0 0 ${glowSize * 0.9}px ${finalConfig.color}30)` }
 				],
 				{
 					duration: finalConfig.pulseSpeed,
