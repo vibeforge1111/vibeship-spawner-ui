@@ -125,7 +125,14 @@
 {#if sourceNode && targetNode}
 	{@const style = connectionStyle()}
 	{@const color = selected ? '#fff' : connectionColor}
-	<g class="connection-group" class:selected onclick={handleClick}>
+	<g
+		class="connection-group"
+		class:selected
+		onclick={handleClick}
+		data-connection={`${connection.sourceNodeId}-${connection.targetNodeId}`}
+		data-source={connection.sourceNodeId}
+		data-target={connection.targetNodeId}
+	>
 		<!-- Invisible wider hit area for easier clicking -->
 		<path
 			d={pathD()}

@@ -280,6 +280,43 @@ import { get } from 'svelte/store';
 		}
 	});
 
+	// Spawner Live: Watch for new connections and emit handoff events
+	let previousConnectionIds = new Set<string>();
+	$effect(() => {
+		if (!$isLiveEnabled) return;
+
+		const currentConnectionIds = new Set(currentConnections.map(c => c.id));
+
+		// Check for new connections
+		for (const conn of currentConnections) {
+			if (!previousConnectionIds.has(conn.id)) {
+				// New connection - emit handoff_start event
+				eventRouter.dispatch({
+					type: 'handoff_start',
+					nodeId: conn.sourceNodeId,
+					timestamp: Date.now(),
+					data: { targetNodeId: conn.targetNodeId },
+					metadata: {
+						sourcePort: conn.sourcePortId,
+						targetPort: conn.targetPortId
+					}
+				});
+
+				// Brief delay then emit handoff_complete
+				setTimeout(() => {
+					eventRouter.dispatch({
+						type: 'handoff_complete',
+						nodeId: conn.targetNodeId,
+						timestamp: Date.now(),
+						data: { sourceNodeId: conn.sourceNodeId }
+					});
+				}, 1000);
+			}
+		}
+
+		previousConnectionIds = currentConnectionIds;
+	});
+
 	// Fix 11: Watch for node count changes and ensure interaction state is clean
 	// This catches any edge cases where state becomes corrupted after goal processing
 	let lastNodeCount = $state(0);
