@@ -51,27 +51,97 @@
 	// Check if we're currently dragging (to show indicators)
 	const isDragging = $derived(currentDraggingConnection !== null);
 
-	// Category color mapping
+	// Category color mapping - complete mapping for all skills.json categories
 	const categoryColors: Record<string, string> = {
+		// Primary categories with dedicated colors
 		development: 'bg-category-development',
 		integration: 'bg-category-integration',
+		integrations: 'bg-category-integration', // alias
 		ai: 'bg-category-ai',
+		'ai-agents': 'bg-category-agents',
+		'ai-tools': 'bg-category-ai',
 		data: 'bg-category-data',
 		marketing: 'bg-category-marketing',
 		strategy: 'bg-category-strategy',
 		agents: 'bg-category-agents',
-		mind: 'bg-category-mind'
+		mind: 'bg-category-mind',
+		
+		// Map additional categories to existing color schemes
+		backend: 'bg-category-development',
+		frontend: 'bg-category-development',
+		frameworks: 'bg-category-development',
+		devops: 'bg-category-development',
+		'game-dev': 'bg-category-development',
+		testing: 'bg-category-development',
+		hardware: 'bg-category-development',
+		maker: 'bg-category-development',
+		
+		blockchain: 'bg-category-data',
+		finance: 'bg-category-data',
+		trading: 'bg-category-data',
+		security: 'bg-category-data',
+		
+		creative: 'bg-category-marketing',
+		design: 'bg-category-marketing',
+		community: 'bg-category-marketing',
+		
+		enterprise: 'bg-category-strategy',
+		startup: 'bg-category-strategy',
+		product: 'bg-category-strategy',
+		education: 'bg-category-strategy',
+		legal: 'bg-category-strategy',
+		climate: 'bg-category-strategy',
+		
+		biotech: 'bg-category-ai',
+		science: 'bg-category-ai',
+		simulation: 'bg-category-ai',
+		space: 'bg-category-ai'
 	};
 
 	const categoryBadges: Record<string, string> = {
+		// Primary categories
 		development: 'category-development',
 		integration: 'category-integration',
+		integrations: 'category-integration', // alias
 		ai: 'category-ai',
+		'ai-agents': 'category-agents',
+		'ai-tools': 'category-ai',
 		data: 'category-data',
 		marketing: 'category-marketing',
 		strategy: 'category-strategy',
 		agents: 'category-agents',
-		mind: 'category-mind'
+		mind: 'category-mind',
+		
+		// Map additional categories
+		backend: 'category-development',
+		frontend: 'category-development',
+		frameworks: 'category-development',
+		devops: 'category-development',
+		'game-dev': 'category-development',
+		testing: 'category-development',
+		hardware: 'category-development',
+		maker: 'category-development',
+		
+		blockchain: 'category-data',
+		finance: 'category-data',
+		trading: 'category-data',
+		security: 'category-data',
+		
+		creative: 'category-marketing',
+		design: 'category-marketing',
+		community: 'category-marketing',
+		
+		enterprise: 'category-strategy',
+		startup: 'category-strategy',
+		product: 'category-strategy',
+		education: 'category-strategy',
+		legal: 'category-strategy',
+		climate: 'category-strategy',
+		
+		biotech: 'category-ai',
+		science: 'category-ai',
+		simulation: 'category-ai',
+		space: 'category-ai'
 	};
 
 	const categoryColor = categoryColors[data.category] || 'bg-surface-active';

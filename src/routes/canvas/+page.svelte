@@ -865,8 +865,8 @@ import { get } from 'svelte/store';
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="h-screen flex bg-bg-primary">
-	<aside class="w-64 border-r border-surface-border bg-bg-secondary flex flex-col">
+<div class="h-screen flex bg-bg-primary relative">
+	<aside class="w-64 border-r border-surface-border bg-bg-secondary flex flex-col z-10">
 		<div class="p-4 border-b border-surface-border"><a href="/" class="flex items-center gap-1.5"><img src="/logo.png" alt="vibeship" class="w-6 h-6" /><span class="font-serif text-[1.36rem] text-text-primary">vibeship</span><span class="font-serif text-[1.36rem] text-accent-primary">spawner</span></a></div>
 		<div class="p-3 border-b border-surface-border"><div class="flex p-0.5 border border-surface-border"><button class="flex-1 py-1.5 px-3 text-sm font-mono transition-all" class:bg-accent-primary={activeTab === 'skills'} class:text-bg-primary={activeTab === 'skills'} class:text-text-secondary={activeTab !== 'skills'} onclick={() => (activeTab = 'skills')}>Skills</button><button class="flex-1 py-1.5 px-3 text-sm font-mono transition-all" class:bg-accent-secondary={activeTab === 'builder'} class:text-bg-primary={activeTab === 'builder'} class:text-text-secondary={activeTab !== 'builder'} onclick={() => (activeTab = 'builder')}>Builder</button></div></div>
 		<div class="flex-1 overflow-hidden">{#if activeTab === 'skills'}<SkillsPanel />{:else}<BuilderPanel />{/if}</div>
@@ -1209,14 +1209,18 @@ import { get } from 'svelte/store';
 			{/if}
 		</div>
 	</main>
-	{#if showNodeDetails && currentSelectedNode}
+</div>
+
+<!-- Node Details Panel - absolute positioned overlay with slide animation -->
+{#if showNodeDetails && currentSelectedNode}
+	<div class="fixed top-0 right-0 h-screen z-50 shadow-xl slide-in">
 		<NodeConfigPanel
 			node={currentSelectedNode}
 			onClose={() => (showNodeDetails = false)}
 			onDelete={() => { removeNode(currentSelectedNode!.id); showNodeDetails = false; }}
 		/>
-	{/if}
-</div>
+	</div>
+{/if}
 
 {#if showValidation}
 	<ValidationPanel onClose={() => (showValidation = false)} />
@@ -1370,6 +1374,19 @@ import { get } from 'svelte/store';
 	}
 	@keyframes cut-dash {
 		to { stroke-dashoffset: -9; }
+	}
+	
+	.slide-in {
+		animation: slideInFromRight 0.2s ease-out;
+	}
+	
+	@keyframes slideInFromRight {
+		from {
+			transform: translateX(100%);
+		}
+		to {
+			transform: translateX(0);
+		}
 	}
 
 	/* Toolbar button styles */

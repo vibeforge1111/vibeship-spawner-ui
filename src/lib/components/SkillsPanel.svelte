@@ -12,6 +12,7 @@
 	});
 
 	const categoryIcons: Record<string, string> = {
+		// Core categories
 		development: 'cpu',
 		frameworks: 'layers',
 		integrations: 'zap',
@@ -22,10 +23,34 @@
 		marketing: 'play',
 		strategy: 'book',
 		enterprise: 'shield',
-		finance: 'zap',
+		finance: 'trending-up',
 		legal: 'book-open',
-		science: 'sparkles',
-		startup: 'zap'
+		science: 'flask',
+		startup: 'rocket',
+		
+		// Additional categories from skills.json
+		ai: 'brain',
+		'ai-agents': 'sparkles',
+		'ai-tools': 'cpu',
+		backend: 'server',
+		biotech: 'heart',
+		blockchain: 'link',
+		climate: 'sun',
+		community: 'users',
+		creative: 'palette',
+		devops: 'settings',
+		education: 'book',
+		frontend: 'layout',
+		'game-dev': 'play',
+		hardware: 'cpu',
+		maker: 'tool',
+		mind: 'brain',
+		product: 'package',
+		security: 'shield',
+		simulation: 'grid',
+		space: 'star',
+		testing: 'check',
+		trading: 'trending-up'
 	};
 
 	const filteredSkills = $derived(
