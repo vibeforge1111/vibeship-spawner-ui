@@ -72,12 +72,12 @@
 		}
 	}
 
-	const filteredMissions = $derived(() => {
+	const filteredMissions = $derived.by(() => {
 		if (filterStatus === 'all') return currentState.missions;
 		return currentState.missions.filter(m => m.status === filterStatus);
 	});
 
-	const statusCounts = $derived(() => {
+	const statusCounts = $derived.by(() => {
 		const counts: Record<string, number> = { all: currentState.missions.length };
 		for (const m of currentState.missions) {
 			counts[m.status] = (counts[m.status] || 0) + 1;
@@ -109,7 +109,7 @@
 		<div class="flex items-center justify-between mb-6">
 			<div class="flex items-center gap-2">
 				{#each ['all', 'draft', 'ready', 'running', 'completed', 'failed'] as status}
-					{@const count = statusCounts()[status] || 0}
+					{@const count = statusCounts[status] || 0}
 					<button
 						onclick={() => filterStatus = status}
 						class="px-3 py-1.5 font-mono text-sm border transition-all"
@@ -153,7 +153,7 @@
 			<div class="border border-red-500/30 bg-red-500/10 p-6">
 				<p class="text-red-400 font-mono text-sm">{currentState.error}</p>
 			</div>
-		{:else if filteredMissions().length === 0}
+		{:else if filteredMissions.length === 0}
 			<div class="border border-surface-border bg-bg-secondary p-12 text-center">
 				<div class="text-4xl mb-4 opacity-50">{filterStatus === 'all' ? '[ ]' : '0'}</div>
 				<h3 class="text-lg text-text-primary mb-2">
@@ -172,7 +172,7 @@
 			</div>
 		{:else}
 			<div class="space-y-3">
-				{#each filteredMissions() as mission (mission.id)}
+				{#each filteredMissions as mission (mission.id)}
 					<div class="group border border-surface-border bg-bg-secondary hover:border-surface-border-hover transition-all">
 						<div class="p-4">
 							<div class="flex items-start justify-between gap-4">

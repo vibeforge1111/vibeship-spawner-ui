@@ -36,7 +36,7 @@
 		)
 	);
 
-	const groupedSkills = $derived(() => {
+	const groupedSkills = $derived.by(() => {
 		const groups: Record<string, Skill[]> = {};
 		for (const skill of filteredSkills) {
 			if (!groups[skill.category]) {
@@ -80,7 +80,7 @@
 
 	<!-- Skills List -->
 	<div class="flex-1 overflow-y-auto">
-		{#each Object.entries(groupedSkills()) as [category, categorySkills]}
+		{#each Object.entries(groupedSkills) as [category, categorySkills]}
 			<div class="border-b border-surface-border">
 				<!-- Category Header -->
 				<button

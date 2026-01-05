@@ -15,7 +15,7 @@ import { get } from 'svelte/store';
 	import type { CuttingLine, CanvasNode, Connection, DraggingConnection, SelectionBox } from '$lib/stores/canvas.svelte';
 	import { onMount, tick } from 'svelte';
 	import { goto, beforeNavigate, afterNavigate } from '$app/navigation';
-	import { type Skill, getSkillById } from '$lib/stores/skills.svelte';
+	import { type Skill, getSkillById, loadSkills } from '$lib/stores/skills.svelte';
 	import { validateForMission, buildMissionFromCanvas } from '$lib/services/mission-builder';
 	import { mcpState } from '$lib/stores/mcp.svelte';
 	import { getGoalState, hasPendingGoal, clearGoal } from '$lib/stores/project-goal.svelte';
@@ -25,15 +25,18 @@ import { get } from 'svelte/store';
 	import { initPipelines, saveCurrentPipeline, getActivePipelineData, activePipelineId } from '$lib/stores/pipelines.svelte';
 
 	// Spawner Live - Real-time orchestration visualization
-	import { ModeToggle, ParticleCanvas, SuccessBanner, ErrorVignette, CompliancePanel, EffectsTestPanel, ExecutionLogPanel } from '$lib/components/spawner-live';
+	import { ModeToggle, ParticleCanvas, SuccessBanner, ErrorVignette, CompliancePanel, EffectsTestPanel, ExecutionLogPanel, SettingsPanel, DeviationRecoveryPanel, TimelinePanel, ParallelLanes } from '$lib/components/spawner-live';
 	import {
 		initSpawnerLive,
 		destroySpawnerLive,
 		eventRouter,
 		complianceTracker,
+		pipelineRunner,
+		soundManager,
 		isDeveloperMode,
 		isLiveEnabled
 	} from '$lib/spawner-live';
+	import type { ExecutionStatus } from '$lib/spawner-live/execution';
 
 	let activeTab = $state('skills');
 	let chatExpanded = $state(false);
@@ -53,6 +56,9 @@ import { get } from 'svelte/store';
 	let showCompliancePanel = $state(false);
 	let showEffectsTestPanel = $state(false);
 	let showExecutionLogPanel = $state(false);
+	let showSettingsPanel = $state(false);
+	let showDeviationRecovery = $state(false);
+	let showTimelinePanel = $state(false);
 
 	// Context menu state
 	let contextMenu = $state<{ x: number; y: number; type: 'node' | 'connection' | 'canvas'; targetId?: string } | null>(null);
@@ -319,6 +325,22 @@ import { get } from 'svelte/store';
 		previousConnectionIds = currentConnectionIds;
 	});
 
+	// Spawner Live: Watch for compliance deviations and show recovery panel
+	$effect(() => {
+		if (!$isLiveEnabled) return;
+
+		const unsubCompliance = complianceTracker.state.subscribe((state) => {
+			// Auto-show deviation recovery panel when deviations are detected
+			if (state.deviations.length > 0 && !showDeviationRecovery) {
+				showDeviationRecovery = true;
+				// Play sound for deviation
+				soundManager.play('deviation');
+			}
+		});
+
+		return unsubCompliance;
+	});
+
 	// Spawner Live: Re-initialize compliance tracker when pipeline or nodes change
 	let lastPipelineId: string | null = null;
 	let lastNodeIds: string[] = [];
@@ -382,6 +404,9 @@ import { get } from 'svelte/store';
 
 		// Initialize pipeline system
 		initPipelines();
+
+		// Load skills for the canvas
+		loadSkills();
 
 		// Load active pipeline data
 		const pipelineData = getActivePipelineData();
@@ -702,7 +727,7 @@ import { get } from 'svelte/store';
 	}
 
 	// Filter nodes matching search query
-	const matchingNodes = $derived(() => {
+	const matchingNodes = $derived.by(() => {
 		if (!searchQuery.trim()) return [];
 		const query = searchQuery.toLowerCase();
 		return currentNodes.filter(node =>
@@ -744,7 +769,7 @@ import { get } from 'svelte/store';
 		if (e.key === 'Escape') {
 			toggleSearch();
 		} else if (e.key === 'Enter') {
-			const matches = matchingNodes();
+			const matches = matchingNodes;
 			if (matches.length > 0) {
 				focusNode(matches[0].id);
 			}
@@ -1129,6 +1154,21 @@ import { get } from 'svelte/store';
 				<!-- Spawner Live Mode Toggle -->
 				<ModeToggle />
 
+				<!-- Live Settings -->
+				{#if $isLiveEnabled}
+					<button
+						class="toolbar-btn"
+						class:active={showSettingsPanel}
+						onclick={() => (showSettingsPanel = !showSettingsPanel)}
+						title="Spawner Live Settings"
+					>
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+						</svg>
+					</button>
+				{/if}
+
 				<div class="w-px h-5 bg-surface-border"></div>
 
 				<!-- Primary actions -->
@@ -1232,6 +1272,19 @@ import { get } from 'svelte/store';
 						</svg>
 						<span>Log</span>
 					</button>
+
+					<!-- Timeline Panel (Developer Mode) -->
+					<button
+						class="toolbar-btn-sm"
+						class:active={showTimelinePanel}
+						onclick={() => (showTimelinePanel = !showTimelinePanel)}
+						title="Toggle timeline recorder"
+					>
+						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+						</svg>
+						<span>Timeline</span>
+					</button>
 				{/if}
 
 				<div class="w-px h-4 bg-surface-border"></div>
@@ -1304,7 +1357,7 @@ import { get } from 'svelte/store';
 					</div>
 					{#if searchQuery.trim()}
 						<div class="max-h-48 overflow-y-auto">
-							{#each matchingNodes() as node}
+							{#each matchingNodes as node}
 								<button
 									onclick={() => { focusNode(node.id); toggleSearch(); }}
 									class="w-full px-3 py-2 text-left hover:bg-surface-active flex items-center gap-2"
@@ -1578,6 +1631,11 @@ import { get } from 'svelte/store';
 	<ParticleCanvas bind:canvas={particleCanvasEl} />
 	<SuccessBanner />
 	<ErrorVignette />
+
+	<!-- Parallel Execution Lanes (bottom left) -->
+	<div class="parallel-lanes-container">
+		<ParallelLanes />
+	</div>
 {/if}
 
 <!-- Compliance Panel (Developer Mode) -->
@@ -1596,6 +1654,27 @@ import { get } from 'svelte/store';
 {#if $isDeveloperMode && showExecutionLogPanel}
 	<div class="execution-log-panel-container">
 		<ExecutionLogPanel onClose={() => (showExecutionLogPanel = false)} />
+	</div>
+{/if}
+
+<!-- Settings Panel -->
+{#if showSettingsPanel}
+	<div class="settings-panel-container">
+		<SettingsPanel onClose={() => (showSettingsPanel = false)} />
+	</div>
+{/if}
+
+<!-- Deviation Recovery Panel -->
+{#if showDeviationRecovery}
+	<div class="deviation-recovery-container">
+		<DeviationRecoveryPanel onClose={() => (showDeviationRecovery = false)} />
+	</div>
+{/if}
+
+<!-- Timeline Panel (Developer Mode) -->
+{#if $isDeveloperMode && showTimelinePanel}
+	<div class="timeline-panel-container">
+		<TimelinePanel onClose={() => (showTimelinePanel = false)} />
 	</div>
 {/if}
 
@@ -1620,6 +1699,39 @@ import { get } from 'svelte/store';
 		top: 100px;
 		right: 20px;
 		z-index: 100;
+	}
+
+	/* Settings Panel */
+	.settings-panel-container {
+		position: fixed;
+		top: 80px;
+		right: 20px;
+		z-index: 100;
+	}
+
+	/* Deviation Recovery Panel */
+	.deviation-recovery-container {
+		position: fixed;
+		bottom: 100px;
+		right: 20px;
+		z-index: 100;
+	}
+
+	/* Timeline Panel */
+	.timeline-panel-container {
+		position: fixed;
+		bottom: 100px;
+		left: 280px;
+		z-index: 100;
+	}
+
+	/* Parallel Lanes */
+	.parallel-lanes-container {
+		position: fixed;
+		bottom: 60px;
+		left: 280px;
+		z-index: 50;
+		max-width: 500px;
 	}
 	.temp-connection {
 		opacity: 0.7;

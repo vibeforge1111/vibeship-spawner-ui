@@ -72,7 +72,10 @@ export {
 	type ExecutionState,
 	type ExecutionOptions,
 	type ExecutionContext,
-	type NodeResult
+	type NodeResult,
+	executionBridge,
+	ExecutionBridge,
+	type ExecutionBridgeCallbacks
 } from './execution';
 
 // Controls
@@ -85,6 +88,15 @@ export {
 
 // Audio
 export { soundManager, SoundManager, type SoundSettings, type SoundType } from './audio';
+
+// Timeline
+export {
+	timelineRecorder,
+	TimelineRecorder,
+	type TimelineEvent,
+	type TimelineState,
+	type TimelineMarker
+} from './timeline';
 
 // Stores
 export {

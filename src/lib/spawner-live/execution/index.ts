@@ -12,3 +12,9 @@ export {
 	type ExecutionContext,
 	type NodeResult
 } from './pipeline-runner';
+
+export {
+	executionBridge,
+	ExecutionBridge,
+	type ExecutionBridgeCallbacks
+} from './execution-bridge';

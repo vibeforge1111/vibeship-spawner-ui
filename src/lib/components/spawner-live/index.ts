@@ -6,6 +6,7 @@
 export { default as ModeToggle } from './ModeToggle.svelte';
 export { default as AgentIndicator } from './AgentIndicator.svelte';
 export { default as ParticleCanvas } from './ParticleCanvas.svelte';
+export { default as ParallelLanes } from './ParallelLanes.svelte';
 
 // Panels
 export { default as CompliancePanel } from './panels/CompliancePanel.svelte';
@@ -13,6 +14,7 @@ export { default as DeviationRecoveryPanel } from './panels/DeviationRecoveryPan
 export { default as EffectsTestPanel } from './panels/EffectsTestPanel.svelte';
 export { default as ExecutionLogPanel } from './panels/ExecutionLogPanel.svelte';
 export { default as SettingsPanel } from './panels/SettingsPanel.svelte';
+export { default as TimelinePanel } from './panels/TimelinePanel.svelte';
 
 // Celebrations
 export { default as SuccessBanner } from './celebrations/SuccessBanner.svelte';
