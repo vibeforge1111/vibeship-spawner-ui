@@ -194,7 +194,6 @@
 	class:running={node.status === 'running'}
 	class:success={node.status === 'success'}
 	class:error={node.status === 'error'}
-	data-node-id={node.id}
 	style="left: {node.position.x}px; top: {node.position.y}px;"
 	onmousedown={handleMouseDown}
 	ondblclick={() => onOpenDetails?.()}
@@ -202,17 +201,15 @@
 	role="button"
 	tabindex="0"
 >
-	<!-- Status badge - only for completed states (success/error) -->
-	{#if node.status === 'success' || node.status === 'error'}
-		<div class="status-badge" class:success={node.status === 'success'} class:error={node.status === 'error'}>
-			{#if node.status === 'success'}
-				<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-				</svg>
+	<!-- Status indicator -->
+	{#if node.status && node.status !== 'idle'}
+		<div class="status-indicator" class:running={node.status === 'running'} class:success={node.status === 'success'} class:error={node.status === 'error'}>
+			{#if node.status === 'running'}
+				<span class="animate-spin">⟳</span>
+			{:else if node.status === 'success'}
+				✓
 			{:else if node.status === 'error'}
-				<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
-				</svg>
+				✗
 			{/if}
 		</div>
 	{/if}
@@ -221,7 +218,6 @@
 		data={nodeData}
 		nodeId={node.id}
 		{selected}
-		status={node.status || 'idle'}
 		onSelect={handleSelect}
 		onTest={handleTest}
 		onPortDragStart={handlePortDragStart}
@@ -284,26 +280,53 @@
 		opacity: 1;
 	}
 
-	.status-badge {
+	.status-indicator {
 		position: absolute;
-		top: -6px;
-		left: -6px;
-		width: 16px;
-		height: 16px;
+		top: -8px;
+		left: -8px;
+		width: 20px;
+		height: 20px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		border-radius: 50%;
-		z-index: 15;
+		font-size: 12px;
+		z-index: 10;
 	}
 
-	.status-badge.success {
-		background: var(--accent-primary, #00C49A);
+	.status-indicator.running {
+		background: var(--color-yellow-500, #eab308);
+		color: black;
+	}
+
+	.status-indicator.success {
+		background: var(--accent-primary);
 		color: white;
 	}
 
-	.status-badge.error {
-		background: var(--status-error, #ef4444);
+	.status-indicator.error {
+		background: var(--status-error);
 		color: white;
+	}
+
+	.draggable-node.running {
+		outline: 2px solid var(--color-yellow-500, #eab308);
+		outline-offset: 2px;
+		animation: pulse 1s ease-in-out infinite;
+	}
+
+	.draggable-node.success {
+		outline: 2px solid var(--accent-primary);
+		outline-offset: 2px;
+	}
+
+	.draggable-node.error {
+		outline: 2px solid var(--status-error);
+		outline-offset: 2px;
+	}
+
+	@keyframes pulse {
+		0%, 100% { opacity: 1; }
+		50% { opacity: 0.7; }
 	}
 </style>

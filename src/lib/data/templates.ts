@@ -11,47 +11,6 @@ export const projectTypes: ProjectTypeOption[] = [
 
 export const workflowTemplates: WorkflowTemplate[] = [
 	{
-		id: 'monsterchain-defi-game',
-		name: 'MonsterChain DeFi Game',
-		description: 'DeFi-powered monster catching game with NFTs, staking, and battle mechanics',
-		category: 'web3',
-		icon: 'zap',
-		nodes: [
-			// Row 1: Core Design & Architecture
-			{ skillId: 'game-development', offsetX: 0, offsetY: 0 },
-			{ skillId: 'defi-architect', offsetX: 280, offsetY: 0 },
-			// Row 2: Smart Contracts & Blockchain
-			{ skillId: 'smart-contract-engineer', offsetX: 140, offsetY: 120 },
-			{ skillId: 'wallet-integration-specialist', offsetX: 420, offsetY: 120 },
-			// Row 3: Frontend & Realtime
-			{ skillId: 'frontend-engineering', offsetX: 0, offsetY: 240 },
-			{ skillId: 'realtime-engineer', offsetX: 280, offsetY: 240 },
-			// Row 4: Security & Quality
-			{ skillId: 'security-hardening', offsetX: 140, offsetY: 360 }
-		],
-		connections: [
-			// Game Design flows to DeFi tokenomics
-			{ sourceIndex: 0, targetIndex: 1 },
-			// Both feed into smart contracts
-			{ sourceIndex: 0, targetIndex: 2 },
-			{ sourceIndex: 1, targetIndex: 2 },
-			// DeFi flows to wallet integration
-			{ sourceIndex: 1, targetIndex: 3 },
-			// Contracts connect to wallet and frontend
-			{ sourceIndex: 2, targetIndex: 3 },
-			{ sourceIndex: 2, targetIndex: 4 },
-			// Wallet connects to frontend
-			{ sourceIndex: 3, targetIndex: 4 },
-			// Frontend connects to realtime
-			{ sourceIndex: 4, targetIndex: 5 },
-			// Contracts need security audit
-			{ sourceIndex: 2, targetIndex: 6 },
-			// Frontend needs security
-			{ sourceIndex: 4, targetIndex: 6 }
-		],
-		suggestedFor: ['web3', 'ai-app']
-	},
-	{
 		id: 'auth-flow',
 		name: 'Auth Flow',
 		description: 'Complete authentication with Supabase and Next.js',
@@ -147,23 +106,6 @@ export const workflowTemplates: WorkflowTemplate[] = [
 ];
 
 export const agentBundles: AgentBundle[] = [
-	{
-		id: 'monsterchain-kit',
-		name: 'MonsterChain Kit',
-		description: 'Build a DeFi monster catching game with NFTs and tokenomics',
-		icon: 'zap',
-		skillIds: [
-			'game-development',
-			'defi-architect',
-			'smart-contract-engineer',
-			'wallet-integration-specialist',
-			'frontend-engineering',
-			'realtime-engineer',
-			'security-hardening'
-		],
-		category: 'web3',
-		tier: 'premium'
-	},
 	{
 		id: 'saas-starter',
 		name: 'SaaS Starter',

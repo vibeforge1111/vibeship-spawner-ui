@@ -15,7 +15,7 @@ import { get } from 'svelte/store';
 	import type { CuttingLine, CanvasNode, Connection, DraggingConnection, SelectionBox } from '$lib/stores/canvas.svelte';
 	import { onMount, tick } from 'svelte';
 	import { goto, beforeNavigate, afterNavigate } from '$app/navigation';
-	import { type Skill, getSkillById, loadSkills } from '$lib/stores/skills.svelte';
+	import { type Skill, getSkillById } from '$lib/stores/skills.svelte';
 	import { validateForMission, buildMissionFromCanvas } from '$lib/services/mission-builder';
 	import { mcpState } from '$lib/stores/mcp.svelte';
 	import { getGoalState, hasPendingGoal, clearGoal } from '$lib/stores/project-goal.svelte';
@@ -23,23 +23,6 @@ import { get } from 'svelte/store';
 	import { initCanvasSync } from '$lib/services/canvas-sync';
 	import PipelineSelector from '$lib/components/PipelineSelector.svelte';
 	import { initPipelines, saveCurrentPipeline, getActivePipelineData, activePipelineId } from '$lib/stores/pipelines.svelte';
-	import { workflowTemplates } from '$lib/data/templates';
-	import { skills } from '$lib/stores/skills.svelte';
-	import { loadWorkflowTemplate } from '$lib/stores/canvas.svelte';
-
-	// Spawner Live - Real-time orchestration visualization
-	import { ModeToggle, ParticleCanvas, SuccessBanner, ErrorVignette, CompliancePanel, EffectsTestPanel, ExecutionLogPanel, SettingsPanel, DeviationRecoveryPanel, TimelinePanel, ParallelLanes } from '$lib/components/spawner-live';
-	import {
-		initSpawnerLive,
-		destroySpawnerLive,
-		eventRouter,
-		complianceTracker,
-		pipelineRunner,
-		soundManager,
-		isDeveloperMode,
-		isLiveEnabled
-	} from '$lib/spawner-live';
-	import type { ExecutionStatus } from '$lib/spawner-live/execution';
 
 	let activeTab = $state('skills');
 	let chatExpanded = $state(false);
@@ -54,14 +37,7 @@ import { get } from 'svelte/store';
 	let missionExportError = $state<string | null>(null);
 	let mcpConnected = $state(false);
 	let canvasEl: HTMLDivElement;
-	let particleCanvasEl: HTMLCanvasElement | null = $state(null);
 	let lastSaved = $state<Date | null>(null);
-	let showCompliancePanel = $state(false);
-	let showEffectsTestPanel = $state(false);
-	let showExecutionLogPanel = $state(false);
-	let showSettingsPanel = $state(false);
-	let showDeviationRecovery = $state(false);
-	let showTimelinePanel = $state(false);
 
 	// Context menu state
 	let contextMenu = $state<{ x: number; y: number; type: 'node' | 'connection' | 'canvas'; targetId?: string } | null>(null);
@@ -82,9 +58,6 @@ import { get } from 'svelte/store';
 	// Fix 8: Render key to force node re-creation after goal processing
 	// This ensures all node components are freshly created with current state
 	let nodeRenderKey = $state(0);
-
-	// Auto-load MonsterChain template flag
-	let templateAutoLoaded = $state(false);
 
 	// Fix 6: Force sync local state from stores
 	// This ensures local variables are in sync after async operations
@@ -220,204 +193,6 @@ import { get } from 'svelte/store';
 		}
 	});
 
-	// Auto-load MonsterChain template when skills are available and canvas is empty
-	$effect(() => {
-		// Subscribe to skills store to create reactive dependency
-		const unsub = skills.subscribe((currentSkillsList) => {
-			// Only run once
-			if (templateAutoLoaded) return;
-			// Wait for mount
-			if (!isMounted) return;
-
-			const state = get(canvasState);
-
-			// Need skills loaded and empty canvas
-			if (currentSkillsList.length === 0) return;
-			if (state.nodes.length > 0) {
-				templateAutoLoaded = true; // Canvas already has content, don't load
-				return;
-			}
-
-			// Find MonsterChain template
-			const monsterChainTemplate = workflowTemplates.find(t => t.id === 'monsterchain-defi-game');
-			if (!monsterChainTemplate) {
-				templateAutoLoaded = true;
-				return;
-			}
-
-			// Load the template
-			templateAutoLoaded = true;
-			loadWorkflowTemplate(monsterChainTemplate, currentSkillsList, false);
-
-			// Zoom to fit after a brief delay to let nodes render
-			requestAnimationFrame(() => {
-				if (canvasEl) {
-					const rect = canvasEl.getBoundingClientRect();
-					zoomToFit(rect.width, rect.height);
-				}
-			});
-		});
-		return unsub;
-	});
-
-	// Spawner Live: Watch for node selection changes and emit events
-	let previousSelectedNodeId: string | null = null;
-	$effect(() => {
-		if (!$isLiveEnabled) return;
-
-		const selectedId = currentSelectedNodeId;
-
-		// Emit agent_exit for previously selected node
-		if (previousSelectedNodeId && previousSelectedNodeId !== selectedId) {
-			eventRouter.dispatch({
-				type: 'agent_exit',
-				nodeId: previousSelectedNodeId,
-				timestamp: Date.now()
-			});
-		}
-
-		// Emit agent_enter for newly selected node
-		if (selectedId && selectedId !== previousSelectedNodeId) {
-			const node = currentNodes.find(n => n.id === selectedId);
-			if (node) {
-				eventRouter.dispatch({
-					type: 'agent_enter',
-					nodeId: selectedId,
-					agentId: node.skill.name,
-					timestamp: Date.now(),
-					metadata: {
-						skillId: node.skill.id,
-						category: node.skill.category
-					}
-				});
-			}
-		}
-
-		previousSelectedNodeId = selectedId;
-	});
-
-	// Spawner Live: Watch for node status changes
-	let previousNodeStatuses = new Map<string, string>();
-	$effect(() => {
-		if (!$isLiveEnabled) return;
-
-		for (const node of currentNodes) {
-			const previousStatus = previousNodeStatuses.get(node.id);
-			const currentStatus = node.status || 'idle';
-
-			if (previousStatus !== currentStatus) {
-				if (currentStatus === 'running') {
-					eventRouter.dispatch({
-						type: 'agent_progress',
-						nodeId: node.id,
-						timestamp: Date.now(),
-						metadata: { progress: 0, message: 'Starting...' }
-					});
-				} else if (currentStatus === 'success') {
-					eventRouter.dispatch({
-						type: 'agent_exit',
-						nodeId: node.id,
-						timestamp: Date.now(),
-						metadata: { success: true }
-					});
-				} else if (currentStatus === 'error') {
-					eventRouter.dispatch({
-						type: 'agent_error',
-						nodeId: node.id,
-						timestamp: Date.now(),
-						metadata: { error: 'Node execution failed' }
-					});
-				}
-
-				previousNodeStatuses.set(node.id, currentStatus);
-			}
-		}
-	});
-
-	// Spawner Live: Watch for new connections and emit handoff events
-	let previousConnectionIds = new Set<string>();
-	$effect(() => {
-		if (!$isLiveEnabled) return;
-
-		const currentConnectionIds = new Set(currentConnections.map(c => c.id));
-
-		// Check for new connections
-		for (const conn of currentConnections) {
-			if (!previousConnectionIds.has(conn.id)) {
-				// New connection - emit handoff_start event
-				eventRouter.dispatch({
-					type: 'handoff_start',
-					nodeId: conn.sourceNodeId,
-					timestamp: Date.now(),
-					data: { targetNodeId: conn.targetNodeId },
-					metadata: {
-						sourcePort: conn.sourcePortId,
-						targetPort: conn.targetPortId
-					}
-				});
-
-				// Brief delay then emit handoff_complete
-				setTimeout(() => {
-					eventRouter.dispatch({
-						type: 'handoff_complete',
-						nodeId: conn.targetNodeId,
-						timestamp: Date.now(),
-						data: { sourceNodeId: conn.sourceNodeId }
-					});
-				}, 1000);
-			}
-		}
-
-		previousConnectionIds = currentConnectionIds;
-	});
-
-	// Spawner Live: Watch for compliance deviations and show recovery panel
-	$effect(() => {
-		if (!$isLiveEnabled) return;
-
-		const unsubCompliance = complianceTracker.state.subscribe((state) => {
-			// Auto-show deviation recovery panel when deviations are detected
-			if (state.deviations.length > 0 && !showDeviationRecovery) {
-				showDeviationRecovery = true;
-				// Play sound for deviation
-				soundManager.play('deviation');
-			}
-		});
-
-		return unsubCompliance;
-	});
-
-	// Spawner Live: Re-initialize compliance tracker when pipeline or nodes change
-	let lastPipelineId: string | null = null;
-	let lastNodeIds: string[] = [];
-	$effect(() => {
-		if (!$isLiveEnabled) return;
-
-		const currentPipelineId = $activePipelineId;
-		const currentNodeIds = currentNodes.map(n => n.id);
-
-		// Check if pipeline or node IDs have changed
-		const pipelineChanged = currentPipelineId !== lastPipelineId;
-		const nodesChanged = currentNodeIds.length !== lastNodeIds.length ||
-			currentNodeIds.some((id, i) => id !== lastNodeIds[i]);
-
-		if (pipelineChanged || nodesChanged) {
-			// Re-initialize compliance tracker with new pipeline data
-			if (currentPipelineId && currentNodeIds.length > 0) {
-				complianceTracker.init(currentPipelineId, currentNodeIds);
-			} else if (currentNodeIds.length > 0) {
-				// If no pipeline ID, use a default identifier
-				complianceTracker.init('canvas-' + Date.now(), currentNodeIds);
-			} else {
-				// Reset if no nodes
-				complianceTracker.reset();
-			}
-
-			lastPipelineId = currentPipelineId;
-			lastNodeIds = [...currentNodeIds];
-		}
-	});
-
 	// Fix 11: Watch for node count changes and ensure interaction state is clean
 	// This catches any edge cases where state becomes corrupted after goal processing
 	let lastNodeCount = $state(0);
@@ -451,9 +226,6 @@ import { get } from 'svelte/store';
 		// Initialize pipeline system
 		initPipelines();
 
-		// Load skills for the canvas
-		loadSkills();
-
 		// Load active pipeline data
 		const pipelineData = getActivePipelineData();
 		if (pipelineData) {
@@ -470,7 +242,6 @@ import { get } from 'svelte/store';
 			}
 		}
 
-		
 		// Initialize history with current state
 		clearHistory();
 
@@ -484,24 +255,6 @@ import { get } from 'svelte/store';
 
 		// Initialize canvas sync for Claude Code integration
 		const cleanupCanvasSync = initCanvasSync();
-
-		// Initialize Spawner Live system (after first frame to get canvas ref)
-		const spawnerLiveCleanup = (() => {
-			// Defer initialization to next frame when particleCanvasEl may be bound
-			const initTimeout = setTimeout(() => {
-				if (particleCanvasEl) {
-					initSpawnerLive({
-						canvas: particleCanvasEl,
-						pipelineId: get(activePipelineId) || undefined,
-						nodeIds: get(nodes).map(n => n.id)
-					});
-				}
-			}, 100);
-			return () => {
-				clearTimeout(initTimeout);
-				destroySpawnerLive();
-			};
-		})();
 
 		// Global mouseup handler to reset stuck states (catches mouseup outside canvas)
 		function handleGlobalMouseUp() {
@@ -551,7 +304,6 @@ import { get } from 'svelte/store';
 			disableAutoSave();
 			clearInterval(pipelineAutoSaveInterval);
 			cleanupCanvasSync();
-			spawnerLiveCleanup();
 			resizeObserver.disconnect();
 			window.removeEventListener('mouseup', handleGlobalMouseUp);
 			window.removeEventListener('builder:frame-selected', handleBuilderFrameSelected);
@@ -774,7 +526,7 @@ import { get } from 'svelte/store';
 	}
 
 	// Filter nodes matching search query
-	const matchingNodes = $derived.by(() => {
+	const matchingNodes = $derived(() => {
 		if (!searchQuery.trim()) return [];
 		const query = searchQuery.toLowerCase();
 		return currentNodes.filter(node =>
@@ -816,7 +568,7 @@ import { get } from 'svelte/store';
 		if (e.key === 'Escape') {
 			toggleSearch();
 		} else if (e.key === 'Enter') {
-			const matches = matchingNodes;
+			const matches = matchingNodes();
 			if (matches.length > 0) {
 				focusNode(matches[0].id);
 			}
@@ -1198,26 +950,6 @@ import { get } from 'svelte/store';
 
 				<div class="w-px h-5 bg-surface-border"></div>
 
-				<!-- Spawner Live Mode Toggle -->
-				<ModeToggle />
-
-				<!-- Live Settings -->
-				{#if $isLiveEnabled}
-					<button
-						class="toolbar-btn"
-						class:active={showSettingsPanel}
-						onclick={() => (showSettingsPanel = !showSettingsPanel)}
-						title="Spawner Live Settings"
-					>
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-						</svg>
-					</button>
-				{/if}
-
-				<div class="w-px h-5 bg-surface-border"></div>
-
 				<!-- Primary actions -->
 				<div class="flex items-center gap-2">
 					<button onclick={() => (showValidation = true)} class="px-2.5 py-1 text-xs font-mono text-text-secondary border border-surface-border hover:border-text-tertiary hover:text-text-primary transition-all">
@@ -1279,60 +1011,6 @@ import { get } from 'svelte/store';
 					</svg>
 					<span>Minimap</span>
 				</button>
-
-				<!-- Compliance Panel (Developer Mode) -->
-				{#if $isDeveloperMode}
-					<button
-						class="toolbar-btn-sm"
-						class:active={showCompliancePanel}
-						onclick={() => (showCompliancePanel = !showCompliancePanel)}
-						title="Toggle compliance panel"
-					>
-						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-						</svg>
-						<span>Compliance</span>
-					</button>
-
-					<!-- Effects Test Panel (Developer Mode) -->
-					<button
-						class="toolbar-btn-sm"
-						class:active={showEffectsTestPanel}
-						onclick={() => (showEffectsTestPanel = !showEffectsTestPanel)}
-						title="Toggle effects test panel"
-					>
-						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-						</svg>
-						<span>Effects</span>
-					</button>
-
-					<!-- Execution Log Panel (Developer Mode) -->
-					<button
-						class="toolbar-btn-sm"
-						class:active={showExecutionLogPanel}
-						onclick={() => (showExecutionLogPanel = !showExecutionLogPanel)}
-						title="Toggle execution log"
-					>
-						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
-						</svg>
-						<span>Log</span>
-					</button>
-
-					<!-- Timeline Panel (Developer Mode) -->
-					<button
-						class="toolbar-btn-sm"
-						class:active={showTimelinePanel}
-						onclick={() => (showTimelinePanel = !showTimelinePanel)}
-						title="Toggle timeline recorder"
-					>
-						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-						</svg>
-						<span>Timeline</span>
-					</button>
-				{/if}
 
 				<div class="w-px h-4 bg-surface-border"></div>
 
@@ -1404,7 +1082,7 @@ import { get } from 'svelte/store';
 					</div>
 					{#if searchQuery.trim()}
 						<div class="max-h-48 overflow-y-auto">
-							{#each matchingNodes as node}
+							{#each matchingNodes() as node}
 								<button
 									onclick={() => { focusNode(node.id); toggleSearch(); }}
 									class="w-full px-3 py-2 text-left hover:bg-surface-active flex items-center gap-2"
@@ -1677,113 +1355,12 @@ import { get } from 'svelte/store';
 	</div>
 {/if}
 
-<!-- Spawner Live Overlays -->
-{#if $isLiveEnabled}
-	<ParticleCanvas bind:canvas={particleCanvasEl} />
-	<SuccessBanner />
-	<ErrorVignette />
-
-	<!-- Parallel Execution Lanes (bottom left) -->
-	<div class="parallel-lanes-container">
-		<ParallelLanes />
-	</div>
-{/if}
-
-<!-- Compliance Panel (Developer Mode) -->
-{#if $isDeveloperMode && showCompliancePanel}
-	<CompliancePanel onClose={() => (showCompliancePanel = false)} />
-{/if}
-
-<!-- Effects Test Panel (Developer Mode) -->
-{#if $isDeveloperMode && showEffectsTestPanel}
-	<div class="effects-test-panel-container">
-		<EffectsTestPanel onClose={() => (showEffectsTestPanel = false)} />
-	</div>
-{/if}
-
-<!-- Execution Log Panel (Developer Mode) -->
-{#if $isDeveloperMode && showExecutionLogPanel}
-	<div class="execution-log-panel-container">
-		<ExecutionLogPanel onClose={() => (showExecutionLogPanel = false)} />
-	</div>
-{/if}
-
-<!-- Settings Panel -->
-{#if showSettingsPanel}
-	<div class="settings-panel-container">
-		<SettingsPanel onClose={() => (showSettingsPanel = false)} />
-	</div>
-{/if}
-
-<!-- Deviation Recovery Panel -->
-{#if showDeviationRecovery}
-	<div class="deviation-recovery-container">
-		<DeviationRecoveryPanel onClose={() => (showDeviationRecovery = false)} />
-	</div>
-{/if}
-
-<!-- Timeline Panel (Developer Mode) -->
-{#if $isDeveloperMode && showTimelinePanel}
-	<div class="timeline-panel-container">
-		<TimelinePanel onClose={() => (showTimelinePanel = false)} />
-	</div>
-{/if}
-
 <style>
 	.canvas-area { cursor: grab; }
 	.canvas-area.panning { cursor: grabbing; }
 	.canvas-area.cutting { cursor: crosshair; }
 	.canvas-area.selecting { cursor: crosshair; }
 	.selection-box { pointer-events: none; }
-
-	/* Effects Test Panel */
-	.effects-test-panel-container {
-		position: fixed;
-		bottom: 100px;
-		left: 20px;
-		z-index: 100;
-	}
-
-	/* Execution Log Panel */
-	.execution-log-panel-container {
-		position: fixed;
-		top: 100px;
-		right: 20px;
-		z-index: 100;
-	}
-
-	/* Settings Panel */
-	.settings-panel-container {
-		position: fixed;
-		top: 80px;
-		right: 20px;
-		z-index: 100;
-	}
-
-	/* Deviation Recovery Panel */
-	.deviation-recovery-container {
-		position: fixed;
-		bottom: 100px;
-		right: 20px;
-		z-index: 100;
-	}
-
-	/* Timeline Panel */
-	.timeline-panel-container {
-		position: fixed;
-		bottom: 100px;
-		left: 280px;
-		z-index: 100;
-	}
-
-	/* Parallel Lanes */
-	.parallel-lanes-container {
-		position: fixed;
-		bottom: 60px;
-		left: 280px;
-		z-index: 50;
-		max-width: 500px;
-	}
 	.temp-connection {
 		opacity: 0.7;
 		animation: dash 0.5s linear infinite;

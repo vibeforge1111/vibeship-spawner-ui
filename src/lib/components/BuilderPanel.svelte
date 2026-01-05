@@ -41,8 +41,7 @@
 		'message-circle': 'message-circle',
 		server: 'server',
 		layers: 'layers',
-		'git-branch': 'git-branch',
-		zap: 'zap'
+		'git-branch': 'git-branch'
 	};
 
 	const bundleIcons: Record<string, string> = {

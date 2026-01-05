@@ -1,32 +1,16 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { get } from 'svelte/store';
 	import Icon from './Icon.svelte';
 	import { skills, loadSkills, type Skill } from '$lib/stores/skills.svelte';
 	import { addNode } from '$lib/stores/canvas.svelte';
 
 	let searchQuery = $state('');
 	let expandedCategory = $state<string | null>(null);
-	let skillsList = $state<Skill[]>([]);
-	let isLoading = $state(true);
 
-	onMount(async () => {
-		await loadSkills();
-
-		// Get skills directly from store after load
-		const loadedSkills = get(skills);
-		skillsList = loadedSkills;
-		isLoading = false;
-
-		// Also subscribe for future updates
-		const unsub = skills.subscribe((s) => {
-			skillsList = s;
-		});
-
-		return unsub;
+	onMount(() => {
+		loadSkills();
 	});
 
-	// Extended category icons to cover all categories in skills.json
 	const categoryIcons: Record<string, string> = {
 		// Core categories
 		development: 'cpu',
@@ -69,15 +53,15 @@
 		trading: 'trending-up'
 	};
 
-	const filteredSkills = $derived.by(() => {
-		return skillsList.filter(
+	const filteredSkills = $derived(
+		$skills.filter(
 			(skill) =>
 				skill.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
 				skill.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-		);
-	});
+		)
+	);
 
-	const groupedSkills = $derived.by(() => {
+	const groupedSkills = $derived(() => {
 		const groups: Record<string, Skill[]> = {};
 		for (const skill of filteredSkills) {
 			if (!groups[skill.category]) {
@@ -121,22 +105,7 @@
 
 	<!-- Skills List -->
 	<div class="flex-1 overflow-y-auto">
-		{#if isLoading}
-			<div class="p-4 text-center text-text-tertiary text-sm">
-				<div class="animate-pulse">Loading skills...</div>
-			</div>
-		{:else if Object.keys(groupedSkills).length === 0 && searchQuery === ''}
-			<div class="p-4 text-center text-text-tertiary text-sm">
-				<div class="mb-2">No skills loaded</div>
-				<button
-					class="text-xs text-accent-primary hover:underline"
-					onclick={() => { isLoading = true; loadSkills().then(() => { skillsList = get(skills); isLoading = false; }); }}
-				>
-					Retry loading
-				</button>
-			</div>
-		{/if}
-		{#each Object.entries(groupedSkills) as [category, categorySkills]}
+		{#each Object.entries(groupedSkills()) as [category, categorySkills]}
 			<div class="border-b border-surface-border">
 				<!-- Category Header -->
 				<button

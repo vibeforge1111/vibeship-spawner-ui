@@ -21,10 +21,3 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
-
-# Claude Code / AI conversations
-.claude/
-.mind/
-CLAUDE.local.md
-SESSION.md
-MEMORY.md

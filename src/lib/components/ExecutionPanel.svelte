@@ -5,7 +5,6 @@
 	import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 	import { isConnected } from '$lib/stores/mcp.svelte';
 	import { toasts } from '$lib/stores/toast.svelte';
-	import { executionBridge, isLiveEnabled } from '$lib/spawner-live';
 
 	interface Props {
 		onClose: () => void;
@@ -57,57 +56,43 @@
 		logs = [];
 		resetAllNodeStatus();
 
-		// Build node map for the execution bridge
-		const nodeMap = new Map<string, { id: string; name: string }>();
-		for (const node of currentNodes) {
-			nodeMap.set(node.id, { id: node.id, name: node.skill.name });
-		}
-
-		// Base callbacks for UI updates
-		const baseCallbacks = {
-			onStatusChange: (status: string) => {
+		// Set up callbacks
+		missionExecutor.setCallbacks({
+			onStatusChange: (status) => {
 				executionProgress = missionExecutor.getProgress();
 			},
-			onProgress: (progress: number) => {
+			onProgress: (progress) => {
 				executionProgress = missionExecutor.getProgress();
 			},
-			onLog: (log: MissionLog) => {
+			onLog: (log) => {
 				logs = [...logs, log];
 			},
-			onTaskStart: (taskId: string, taskName: string) => {
+			onTaskStart: (taskId, taskName) => {
 				// Find the node matching this task and update its status
 				const node = currentNodes.find(n => n.skill.name === taskName || n.id === taskId);
 				if (node) {
 					updateNodeStatus(node.id, 'running');
 				}
 			},
-			onTaskComplete: (taskId: string, success: boolean) => {
+			onTaskComplete: (taskId, success) => {
 				// Find the node and update its status
 				const node = currentNodes.find(n => n.id === taskId);
 				if (node) {
 					updateNodeStatus(node.id, success ? 'success' : 'error');
 				}
 			},
-			onComplete: (mission: any) => {
+			onComplete: (mission) => {
 				executionProgress = missionExecutor.getProgress();
 				toasts.success('Workflow completed successfully');
 			},
-			onError: (error: string) => {
+			onError: (error) => {
 				executionProgress = missionExecutor.getProgress();
 				toasts.error(`Execution failed: ${error}`, {
 					label: 'Retry',
 					onClick: () => runWorkflow()
 				});
 			}
-		};
-
-		// Wrap callbacks with execution bridge for Spawner Live visualization
-		const wrappedCallbacks = executionBridge.wrapCallbacks(baseCallbacks, nodeMap);
-		missionExecutor.setCallbacks(wrappedCallbacks);
-
-		// Activate the bridge for this execution
-		const missionId = `workflow-${Date.now()}`;
-		executionBridge.activate(missionId);
+		});
 
 		// Execute with claude-code mode
 		executionProgress = await missionExecutor.execute(currentNodes, currentConnections, {
