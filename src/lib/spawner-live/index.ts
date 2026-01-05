@@ -75,6 +75,14 @@ export {
 	type NodeResult
 } from './execution';
 
+// Controls
+export {
+	keyboardShortcuts,
+	KeyboardShortcuts,
+	shortcutDefinitions,
+	type KeyboardShortcut
+} from './controls';
+
 // Stores
 export {
 	liveModeStore,
@@ -97,8 +105,9 @@ export async function initSpawnerLive(options: {
 	canvas?: HTMLCanvasElement;
 	pipelineId?: string;
 	nodeIds?: string[];
+	enableKeyboardShortcuts?: boolean;
 } = {}): Promise<void> {
-	const { canvas, pipelineId, nodeIds } = options;
+	const { canvas, pipelineId, nodeIds, enableKeyboardShortcuts = true } = options;
 
 	// Import and initialize effects engine
 	if (canvas) {
@@ -112,17 +121,32 @@ export async function initSpawnerLive(options: {
 		tracker.init(pipelineId, nodeIds);
 	}
 
+	// Enable keyboard shortcuts
+	if (enableKeyboardShortcuts) {
+		const { keyboardShortcuts: shortcuts } = await import('./controls');
+		shortcuts.enable();
+	}
+
 	console.log('[SpawnerLive] Initialized');
 }
 
 // Convenience cleanup function
 export async function destroySpawnerLive(): Promise<void> {
-	const [effectsMod, enforcementMod, orchestratorMod] = await Promise.all([
+	const [effectsMod, enforcementMod, orchestratorMod, controlsMod, executionMod] = await Promise.all([
 		import('./effects'),
 		import('./enforcement'),
-		import('./orchestrator')
+		import('./orchestrator'),
+		import('./controls'),
+		import('./execution')
 	]);
 
+	// Disable keyboard shortcuts
+	controlsMod.keyboardShortcuts.disable();
+
+	// Reset execution
+	executionMod.pipelineRunner.reset();
+
+	// Cleanup effects and orchestrator
 	effectsMod.effectsEngine.destroy();
 	enforcementMod.complianceTracker.destroy();
 	orchestratorMod.eventRouter.clear();
