@@ -73,39 +73,41 @@ export {
 export * from './types';
 
 // Convenience initialization function
-export function initSpawnerLive(options: {
+export async function initSpawnerLive(options: {
 	canvas?: HTMLCanvasElement;
 	pipelineId?: string;
 	nodeIds?: string[];
-} = {}): void {
+} = {}): Promise<void> {
 	const { canvas, pipelineId, nodeIds } = options;
 
-	// Initialize effects engine
+	// Import and initialize effects engine
 	if (canvas) {
-		const { effectsEngine } = require('./effects');
-		effectsEngine.init(canvas);
+		const { effectsEngine: engine } = await import('./effects');
+		engine.init(canvas);
 	}
 
-	// Initialize compliance tracking
+	// Import and initialize compliance tracking
 	if (pipelineId && nodeIds) {
-		const { complianceTracker } = require('./enforcement');
-		complianceTracker.init(pipelineId, nodeIds);
+		const { complianceTracker: tracker } = await import('./enforcement');
+		tracker.init(pipelineId, nodeIds);
 	}
 
 	console.log('[SpawnerLive] Initialized');
 }
 
 // Convenience cleanup function
-export function destroySpawnerLive(): void {
-	const { effectsEngine } = require('./effects');
-	const { complianceTracker } = require('./enforcement');
-	const { eventRouter, stateMachine, eventBuffer } = require('./orchestrator');
+export async function destroySpawnerLive(): Promise<void> {
+	const [effectsMod, enforcementMod, orchestratorMod] = await Promise.all([
+		import('./effects'),
+		import('./enforcement'),
+		import('./orchestrator')
+	]);
 
-	effectsEngine.destroy();
-	complianceTracker.destroy();
-	eventRouter.clear();
-	stateMachine.resetAll();
-	eventBuffer.clear();
+	effectsMod.effectsEngine.destroy();
+	enforcementMod.complianceTracker.destroy();
+	orchestratorMod.eventRouter.clear();
+	orchestratorMod.stateMachine.resetAll();
+	orchestratorMod.eventBuffer.clear();
 
 	console.log('[SpawnerLive] Destroyed');
 }

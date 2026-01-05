@@ -2,11 +2,23 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { particleSystem } from '$lib/spawner-live/effects';
 
-	let canvas: HTMLCanvasElement;
+	interface Props {
+		canvas?: HTMLCanvasElement | null;
+	}
+
+	let { canvas = $bindable(null) }: Props = $props();
+	let internalCanvas: HTMLCanvasElement;
+
+	// Expose the canvas element via bindable prop
+	$effect(() => {
+		if (internalCanvas) {
+			canvas = internalCanvas;
+		}
+	});
 
 	onMount(() => {
-		if (canvas) {
-			particleSystem.init(canvas);
+		if (internalCanvas) {
+			particleSystem.init(internalCanvas);
 		}
 	});
 
@@ -15,7 +27,7 @@
 	});
 </script>
 
-<canvas bind:this={canvas} class="particle-canvas"></canvas>
+<canvas bind:this={internalCanvas} class="particle-canvas"></canvas>
 
 <style>
 	.particle-canvas {

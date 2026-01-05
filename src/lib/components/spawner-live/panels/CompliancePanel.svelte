@@ -2,6 +2,12 @@
 	import { complianceTracker } from '$lib/spawner-live/enforcement';
 	import { severityColors, deviationTypeLabels } from '$lib/spawner-live/types/compliance';
 
+	interface Props {
+		onClose?: () => void;
+	}
+
+	let { onClose }: Props = $props();
+
 	const { compliance, summary, score, status, deviations } = complianceTracker;
 
 	let expanded = $state(true);
@@ -43,28 +49,38 @@
 	}
 </script>
 
-<div class="compliance-panel" class:collapsed={!expanded}>
-	<button class="panel-header" onclick={() => (expanded = !expanded)}>
-		<div class="header-left">
-			<span class="status-dot" style="background: {getStatusColor($status)}"></span>
-			<span class="panel-title">Pipeline Compliance</span>
+<div class="compliance-panel-container">
+	<div class="compliance-panel" class:collapsed={!expanded}>
+		<div class="panel-header">
+			<button class="header-toggle" onclick={() => (expanded = !expanded)}>
+				<div class="header-left">
+					<span class="status-dot" style="background: {getStatusColor($status)}"></span>
+					<span class="panel-title">Pipeline Compliance</span>
+				</div>
+				<div class="header-right">
+					<span class="score" class:healthy={$score >= 80} class:warning={$score >= 50 && $score < 80} class:critical={$score < 50}>
+						{$score}%
+					</span>
+					<svg
+						class="chevron"
+						class:rotated={!expanded}
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+					>
+						<polyline points="6 9 12 15 18 9" />
+					</svg>
+				</div>
+			</button>
+			{#if onClose}
+				<button class="close-button" onclick={onClose} title="Close panel">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M18 6L6 18M6 6l12 12" />
+					</svg>
+				</button>
+			{/if}
 		</div>
-		<div class="header-right">
-			<span class="score" class:healthy={$score >= 80} class:warning={$score >= 50 && $score < 80} class:critical={$score < 50}>
-				{$score}%
-			</span>
-			<svg
-				class="chevron"
-				class:rotated={!expanded}
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-			>
-				<polyline points="6 9 12 15 18 9" />
-			</svg>
-		</div>
-	</button>
 
 	{#if expanded}
 		<div class="panel-content">
@@ -169,21 +185,43 @@
 			</div>
 		</div>
 	{/if}
+	</div>
 </div>
 
 <style>
+	.compliance-panel-container {
+		position: fixed;
+		bottom: 100px;
+		right: 20px;
+		z-index: 100;
+		width: 320px;
+		max-height: calc(100vh - 200px);
+		display: flex;
+		flex-direction: column;
+	}
+
 	.compliance-panel {
 		background: var(--bg-secondary, #1e1e2e);
 		border: 1px solid var(--border-color, #313244);
 		border-radius: 8px;
 		overflow: hidden;
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 	}
 
 	.panel-header {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		width: 100%;
+		padding: 0;
+		background: transparent;
+		border-bottom: 1px solid var(--border-color, #313244);
+	}
+
+	.header-toggle {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex: 1;
 		padding: 12px 16px;
 		background: transparent;
 		border: none;
@@ -191,8 +229,32 @@
 		color: var(--text-primary, #cdd6f4);
 	}
 
-	.panel-header:hover {
+	.header-toggle:hover {
 		background: var(--bg-hover, #313244);
+	}
+
+	.close-button {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		margin-right: 8px;
+		background: transparent;
+		border: none;
+		border-radius: 4px;
+		color: var(--text-secondary, #a6adc8);
+		cursor: pointer;
+	}
+
+	.close-button:hover {
+		background: var(--bg-hover, #313244);
+		color: var(--text-primary, #cdd6f4);
+	}
+
+	.close-button svg {
+		width: 16px;
+		height: 16px;
 	}
 
 	.header-left {

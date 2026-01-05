@@ -21,13 +21,24 @@ class EventBuffer {
 	public hasBufferedEvents = writable<boolean>(false);
 
 	constructor() {
-		this.initIndexedDB();
+		// Only initialize IndexedDB in browser environment
+		if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
+			this.initIndexedDB();
+		} else {
+			this.isIndexedDBAvailable = false;
+		}
 	}
 
 	/**
 	 * Initialize IndexedDB
 	 */
 	private async initIndexedDB(): Promise<void> {
+		if (typeof indexedDB === 'undefined') {
+			console.warn('[EventBuffer] IndexedDB not available, using memory buffer');
+			this.isIndexedDBAvailable = false;
+			return;
+		}
+
 		try {
 			const request = indexedDB.open(DB_NAME, 1);
 

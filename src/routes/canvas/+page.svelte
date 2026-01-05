@@ -24,6 +24,17 @@ import { get } from 'svelte/store';
 	import PipelineSelector from '$lib/components/PipelineSelector.svelte';
 	import { initPipelines, saveCurrentPipeline, getActivePipelineData, activePipelineId } from '$lib/stores/pipelines.svelte';
 
+	// Spawner Live - Real-time orchestration visualization
+	import { ModeToggle, ParticleCanvas, SuccessBanner, ErrorVignette, CompliancePanel } from '$lib/components/spawner-live';
+	import {
+		initSpawnerLive,
+		destroySpawnerLive,
+		eventRouter,
+		complianceTracker,
+		isDeveloperMode,
+		isLiveEnabled
+	} from '$lib/spawner-live';
+
 	let activeTab = $state('skills');
 	let chatExpanded = $state(false);
 	let bottomTab = $state<'chat' | 'mind'>('chat');
@@ -37,7 +48,9 @@ import { get } from 'svelte/store';
 	let missionExportError = $state<string | null>(null);
 	let mcpConnected = $state(false);
 	let canvasEl: HTMLDivElement;
+	let particleCanvasEl: HTMLCanvasElement | null = $state(null);
 	let lastSaved = $state<Date | null>(null);
+	let showCompliancePanel = $state(false);
 
 	// Context menu state
 	let contextMenu = $state<{ x: number; y: number; type: 'node' | 'connection' | 'canvas'; targetId?: string } | null>(null);
@@ -193,6 +206,80 @@ import { get } from 'svelte/store';
 		}
 	});
 
+	// Spawner Live: Watch for node selection changes and emit events
+	let previousSelectedNodeId: string | null = null;
+	$effect(() => {
+		if (!$isLiveEnabled) return;
+
+		const selectedId = currentSelectedNodeId;
+
+		// Emit agent_exit for previously selected node
+		if (previousSelectedNodeId && previousSelectedNodeId !== selectedId) {
+			eventRouter.dispatch({
+				type: 'agent_exit',
+				nodeId: previousSelectedNodeId,
+				timestamp: Date.now()
+			});
+		}
+
+		// Emit agent_enter for newly selected node
+		if (selectedId && selectedId !== previousSelectedNodeId) {
+			const node = currentNodes.find(n => n.id === selectedId);
+			if (node) {
+				eventRouter.dispatch({
+					type: 'agent_enter',
+					nodeId: selectedId,
+					agentId: node.skill.name,
+					timestamp: Date.now(),
+					metadata: {
+						skillId: node.skill.id,
+						category: node.skill.category
+					}
+				});
+			}
+		}
+
+		previousSelectedNodeId = selectedId;
+	});
+
+	// Spawner Live: Watch for node status changes
+	let previousNodeStatuses = new Map<string, string>();
+	$effect(() => {
+		if (!$isLiveEnabled) return;
+
+		for (const node of currentNodes) {
+			const previousStatus = previousNodeStatuses.get(node.id);
+			const currentStatus = node.status || 'idle';
+
+			if (previousStatus !== currentStatus) {
+				if (currentStatus === 'running') {
+					eventRouter.dispatch({
+						type: 'agent_progress',
+						nodeId: node.id,
+						timestamp: Date.now(),
+						metadata: { progress: 0, message: 'Starting...' }
+					});
+				} else if (currentStatus === 'success') {
+					eventRouter.dispatch({
+						type: 'agent_exit',
+						nodeId: node.id,
+						timestamp: Date.now(),
+						metadata: { success: true }
+					});
+				} else if (currentStatus === 'error') {
+					eventRouter.dispatch({
+						type: 'agent_error',
+						nodeId: node.id,
+						timestamp: Date.now(),
+						metadata: { error: 'Node execution failed' }
+					});
+				}
+
+				previousNodeStatuses.set(node.id, currentStatus);
+			}
+		}
+	});
+
 	// Fix 11: Watch for node count changes and ensure interaction state is clean
 	// This catches any edge cases where state becomes corrupted after goal processing
 	let lastNodeCount = $state(0);
@@ -256,6 +343,24 @@ import { get } from 'svelte/store';
 		// Initialize canvas sync for Claude Code integration
 		const cleanupCanvasSync = initCanvasSync();
 
+		// Initialize Spawner Live system (after first frame to get canvas ref)
+		const spawnerLiveCleanup = (() => {
+			// Defer initialization to next frame when particleCanvasEl may be bound
+			const initTimeout = setTimeout(() => {
+				if (particleCanvasEl) {
+					initSpawnerLive({
+						canvas: particleCanvasEl,
+						pipelineId: get(activePipelineId) || undefined,
+						nodeIds: get(nodes).map(n => n.id)
+					});
+				}
+			}, 100);
+			return () => {
+				clearTimeout(initTimeout);
+				destroySpawnerLive();
+			};
+		})();
+
 		// Global mouseup handler to reset stuck states (catches mouseup outside canvas)
 		function handleGlobalMouseUp() {
 			if (isPanning || isCutting || isSelecting) {
@@ -304,6 +409,7 @@ import { get } from 'svelte/store';
 			disableAutoSave();
 			clearInterval(pipelineAutoSaveInterval);
 			cleanupCanvasSync();
+			spawnerLiveCleanup();
 			resizeObserver.disconnect();
 			window.removeEventListener('mouseup', handleGlobalMouseUp);
 			window.removeEventListener('builder:frame-selected', handleBuilderFrameSelected);
@@ -950,6 +1056,11 @@ import { get } from 'svelte/store';
 
 				<div class="w-px h-5 bg-surface-border"></div>
 
+				<!-- Spawner Live Mode Toggle -->
+				<ModeToggle />
+
+				<div class="w-px h-5 bg-surface-border"></div>
+
 				<!-- Primary actions -->
 				<div class="flex items-center gap-2">
 					<button onclick={() => (showValidation = true)} class="px-2.5 py-1 text-xs font-mono text-text-secondary border border-surface-border hover:border-text-tertiary hover:text-text-primary transition-all">
@@ -1011,6 +1122,21 @@ import { get } from 'svelte/store';
 					</svg>
 					<span>Minimap</span>
 				</button>
+
+				<!-- Compliance Panel (Developer Mode) -->
+				{#if $isDeveloperMode}
+					<button
+						class="toolbar-btn-sm"
+						class:active={showCompliancePanel}
+						onclick={() => (showCompliancePanel = !showCompliancePanel)}
+						title="Toggle compliance panel"
+					>
+						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+						</svg>
+						<span>Compliance</span>
+					</button>
+				{/if}
 
 				<div class="w-px h-4 bg-surface-border"></div>
 
@@ -1349,6 +1475,18 @@ import { get } from 'svelte/store';
 			</div>
 		</div>
 	</div>
+{/if}
+
+<!-- Spawner Live Overlays -->
+{#if $isLiveEnabled}
+	<ParticleCanvas bind:canvas={particleCanvasEl} />
+	<SuccessBanner />
+	<ErrorVignette />
+{/if}
+
+<!-- Compliance Panel (Developer Mode) -->
+{#if $isDeveloperMode && showCompliancePanel}
+	<CompliancePanel onClose={() => (showCompliancePanel = false)} />
 {/if}
 
 <style>

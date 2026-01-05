@@ -49,16 +49,18 @@ class ParticleSystem {
 			this.pool.push(this.createParticle());
 		}
 
-		// Handle resize
-		this.handleResize();
-		window.addEventListener('resize', () => this.handleResize());
+		// Handle resize (only in browser)
+		if (typeof window !== 'undefined') {
+			this.handleResize();
+			window.addEventListener('resize', () => this.handleResize());
+		}
 	}
 
 	/**
 	 * Handle canvas resize
 	 */
 	private handleResize(): void {
-		if (!this.canvas) return;
+		if (!this.canvas || typeof window === 'undefined') return;
 		this.canvas.width = window.innerWidth;
 		this.canvas.height = window.innerHeight;
 	}
@@ -346,7 +348,9 @@ class ParticleSystem {
 	destroy(): void {
 		this.stop();
 		this.clear();
-		window.removeEventListener('resize', () => this.handleResize());
+		if (typeof window !== 'undefined') {
+			window.removeEventListener('resize', () => this.handleResize());
+		}
 		this.canvas = null;
 		this.ctx = null;
 	}

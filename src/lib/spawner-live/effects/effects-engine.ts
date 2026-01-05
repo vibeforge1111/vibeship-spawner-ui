@@ -29,6 +29,12 @@ class EffectsEngine {
 	init(canvas?: HTMLCanvasElement): void {
 		if (this.initialized) return;
 
+		// Only run in browser environment
+		if (typeof window === 'undefined') {
+			console.warn('[EffectsEngine] Cannot initialize in SSR environment');
+			return;
+		}
+
 		// Check for reduced motion preference
 		this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
