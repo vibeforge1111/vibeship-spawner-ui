@@ -146,8 +146,8 @@
 	const mission = $derived(currentState.currentMission);
 	const logs = $derived(currentState.logs);
 
-	const completedTasks = $derived(() => mission?.tasks.filter(t => t.status === 'completed').length ?? 0);
-	const progress = $derived(() => mission && mission.tasks.length > 0 ? (completedTasks() / mission.tasks.length) * 100 : 0);
+	const completedTasks = $derived.by(() => mission?.tasks.filter(t => t.status === 'completed').length ?? 0);
+	const progress = $derived.by(() => mission && mission.tasks.length > 0 ? (completedTasks / mission.tasks.length) * 100 : 0);
 </script>
 
 <div class="min-h-screen bg-bg-primary flex flex-col">

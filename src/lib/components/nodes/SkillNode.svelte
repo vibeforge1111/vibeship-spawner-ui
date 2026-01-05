@@ -10,6 +10,7 @@
 		selected = false,
 		ghost = false,
 		collapsed = false,
+		status = 'idle',
 		onSelect,
 		onTest,
 		onPortDragStart,
@@ -21,6 +22,7 @@
 		selected?: boolean;
 		ghost?: boolean;
 		collapsed?: boolean;
+		status?: 'idle' | 'running' | 'success' | 'error';
 		onSelect?: () => void;
 		onTest?: () => void;
 		onPortDragStart?: (portId: string, portType: 'input' | 'output', e: MouseEvent) => void;
@@ -181,9 +183,12 @@
 </script>
 
 <div
-	class="node w-48 select-none relative"
+	class="skill-node w-48 select-none relative"
 	class:selected
 	class:ghost
+	class:running={status === 'running'}
+	class:success={status === 'success'}
+	class:error={status === 'error'}
 	onclick={onSelect}
 	role="button"
 	tabindex="0"
@@ -206,12 +211,13 @@
 				data-node-id={nodeId}
 				role="button"
 				tabindex="-1"
-				title="{port.label} ({port.type})"
 				style={getPortStyle(port, i, data.inputs.length)}
 			>
-				{#if data.inputs.length > 1}
-					<span class="port-label port-label-left">{port.label}</span>
-				{/if}
+				<!-- Styled tooltip -->
+				<span class="port-tooltip port-tooltip-left">
+					<span class="tooltip-name">{port.label}</span>
+					<span class="tooltip-type">{port.type}</span>
+				</span>
 			</div>
 		{/each}
 	{/if}
@@ -235,53 +241,166 @@
 				data-node-id={nodeId}
 				role="button"
 				tabindex="-1"
-				title={isHandoff ? `Double-click to spawn ${port.label} • Drag to connect` : `${port.label} (${port.type})`}
 				style={getPortStyle(port, i, data.outputs.length)}
 			>
-				{#if data.outputs.length > 1}
-					<span class="port-label port-label-right" class:handoff-label={isHandoff}>
-						{port.label}
-						{#if isHandoff}
-							<span class="spawn-hint">+</span>
-						{/if}
-					</span>
-				{/if}
+				<!-- Styled tooltip -->
+				<span class="port-tooltip port-tooltip-right">
+					{#if isHandoff}
+						<span class="tooltip-action">Double-click to spawn</span>
+						<span class="tooltip-name">{port.label}</span>
+					{:else}
+						<span class="tooltip-name">{port.label}</span>
+						<span class="tooltip-type">{port.type}</span>
+					{/if}
+				</span>
 			</div>
 		{/each}
 	{/if}
 
 	<!-- Color accent bar -->
-	<div class="h-0.5 {categoryColor}"></div>
+	<div class="accent-bar {categoryColor}"></div>
 
-	<!-- Clean Node Content -->
-	<div class="px-3 py-2.5">
-		<h3 class="text-sm font-mono text-text-primary truncate">{data.name}</h3>
+	<!-- Node Content -->
+	<div class="node-content">
+		<h3 class="node-name">{data.name}</h3>
+
+		<!-- Work Indicator - only shows when actively running -->
+		{#if status === 'running'}
+			<div class="work-indicator">
+				<svg class="hammer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<path d="M15 12l-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L12 9" />
+					<path d="M17.64 15L22 10.64" />
+					<path d="M20.91 11.7l-1.25-1.25c-.6-.6-.93-1.4-.93-2.25v-.86L16.01 4.6a5.56 5.56 0 0 0-3.94-1.64H9l.92.82A6.18 6.18 0 0 1 12 8.4v1.56l2 2h2.47l2.26 1.91" />
+				</svg>
+				<span class="work-text">Working...</span>
+			</div>
+		{/if}
 	</div>
 </div>
 
 <style>
-	.line-clamp-2 {
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
+	/* Base node styling - Vibeship solid design */
+	.skill-node {
+		background: #111111;
+		border: 1px solid #2a2a2a;
+		border-radius: 0;
+		transition: all 0.15s ease;
+		overflow: visible;
+		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 	}
 
+	.skill-node:hover {
+		border-color: #3a3a3a;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+	}
+
+	.skill-node.selected {
+		border-color: var(--accent-primary, #00C49A);
+		box-shadow: 0 0 0 1px var(--accent-primary, #00C49A), 0 4px 16px rgba(0, 196, 154, 0.2);
+	}
+
+	.skill-node.ghost {
+		opacity: 0.6;
+	}
+
+	.skill-node.running {
+		border-color: var(--color-yellow-500, #eab308);
+		box-shadow: 0 0 0 1px var(--color-yellow-500, #eab308), 0 4px 12px rgba(234, 179, 8, 0.15);
+	}
+
+	.skill-node.success {
+		border-color: var(--accent-primary, #00C49A);
+	}
+
+	.skill-node.error {
+		border-color: var(--status-error, #ef4444);
+	}
+
+	/* Accent bar */
+	.accent-bar {
+		height: 3px;
+	}
+
+	/* Node content */
+	.node-content {
+		padding: 10px 12px;
+	}
+
+	.node-name {
+		font-size: 13px;
+		font-family: var(--font-mono);
+		color: var(--text-primary);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		font-weight: 500;
+	}
+
+	/* Work indicator - centered under name */
+	.work-indicator {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		margin-top: 8px;
+		padding: 6px 8px;
+		background: rgba(234, 179, 8, 0.1);
+		border: 1px solid rgba(234, 179, 8, 0.3);
+		border-radius: 4px;
+	}
+
+	.hammer-icon {
+		width: 14px;
+		height: 14px;
+		color: var(--color-yellow-500, #eab308);
+		animation: hammer-build 0.4s ease-in-out infinite;
+		transform-origin: bottom left;
+	}
+
+	@keyframes hammer-build {
+		0%, 100% {
+			transform: rotate(0deg);
+		}
+		50% {
+			transform: rotate(-20deg);
+		}
+	}
+
+	.work-text {
+		font-size: 10px;
+		font-family: var(--font-mono);
+		color: var(--color-yellow-500, #eab308);
+		font-weight: 500;
+	}
+
+	/* Port styles - clean squares with larger hover area */
 	.port-handle {
 		position: absolute;
 		width: 12px;
 		height: 12px;
-		background: var(--bg-secondary);
-		border: 2px solid;
+		background: #111111;
+		border: 2px solid #3a3a3a;
+		border-radius: 2px;
 		cursor: crosshair;
 		z-index: 20;
-		transition: all 0.1s;
+		transition: all 0.15s ease;
 		transform: translateY(-50%);
 	}
 
+	/* Larger invisible hover area */
+	.port-handle::before {
+		content: '';
+		position: absolute;
+		top: -8px;
+		left: -8px;
+		right: -8px;
+		bottom: -8px;
+	}
+
 	.port-handle:hover {
-		background: currentColor;
-		transform: translateY(-50%) scale(1.2);
+		background: var(--accent-primary, #00C49A);
+		border-color: var(--accent-primary, #00C49A);
+		transform: translateY(-50%) scale(1.15);
 	}
 
 	.port-input {
@@ -292,29 +411,68 @@
 		right: -7px;
 	}
 
-	.port-label {
+
+	/* Styled tooltips for ports */
+	.port-tooltip {
 		position: absolute;
 		top: 50%;
 		transform: translateY(-50%);
-		font-size: 9px;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
 		font-family: var(--font-mono);
-		color: var(--text-tertiary);
 		white-space: nowrap;
 		pointer-events: none;
 		opacity: 0;
-		transition: opacity 0.15s;
+		transition: opacity 0.15s ease, transform 0.15s ease;
+		background: linear-gradient(135deg, #1a1a1a 0%, #141414 100%);
+		padding: 8px 12px;
+		border: 1px solid #333;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+		z-index: 100;
 	}
 
-	.port-label-left {
-		left: 16px;
+	.port-tooltip-left {
+		right: 24px;
+		left: auto;
+		transform: translateY(-50%) translateX(4px);
 	}
 
-	.port-label-right {
-		right: 16px;
+	.port-tooltip-right {
+		left: 24px;
+		right: auto;
+		transform: translateY(-50%) translateX(-4px);
 	}
 
-	.port-handle:hover .port-label {
+	.port-handle:hover .port-tooltip {
 		opacity: 1;
+	}
+
+	.port-handle:hover .port-tooltip-left {
+		transform: translateY(-50%) translateX(0);
+	}
+
+	.port-handle:hover .port-tooltip-right {
+		transform: translateY(-50%) translateX(0);
+	}
+
+	.tooltip-action {
+		font-size: 9px;
+		color: var(--accent-primary, #00C49A);
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		font-weight: 600;
+	}
+
+	.tooltip-name {
+		font-size: 11px;
+		color: #fff;
+		font-weight: 500;
+	}
+
+	.tooltip-type {
+		font-size: 9px;
+		color: #666;
 	}
 
 	/* Valid drop target indicator */
@@ -327,36 +485,22 @@
 
 	/* Invalid drop target indicator */
 	.port-handle.invalid-target {
-		background: var(--bg-secondary);
+		background: var(--bg-primary, #0a0a0a);
 		border-color: var(--status-error, #ef4444);
-		opacity: 0.5;
+		opacity: 0.4;
 	}
 
 	/* Handoff port - clickable to spawn */
 	.port-handle.handoff-port {
 		border-color: #3B82F6;
+		background: var(--bg-primary, #0a0a0a);
 		cursor: pointer;
 	}
 
 	.port-handle.handoff-port:hover {
 		background: #3B82F6;
+		border-color: #3B82F6;
 		box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
 	}
 
-	.port-handle.handoff-port:hover .port-label {
-		opacity: 1;
-	}
-
-	.handoff-label {
-		color: #3B82F6;
-		font-weight: 500;
-	}
-
-	.spawn-hint {
-		display: inline-block;
-		margin-left: 2px;
-		font-size: 10px;
-		color: #3B82F6;
-		opacity: 0.7;
-	}
 </style>
