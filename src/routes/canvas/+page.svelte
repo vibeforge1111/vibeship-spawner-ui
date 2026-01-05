@@ -25,7 +25,7 @@ import { get } from 'svelte/store';
 	import { initPipelines, saveCurrentPipeline, getActivePipelineData, activePipelineId } from '$lib/stores/pipelines.svelte';
 
 	// Spawner Live - Real-time orchestration visualization
-	import { ModeToggle, ParticleCanvas, SuccessBanner, ErrorVignette, CompliancePanel, EffectsTestPanel } from '$lib/components/spawner-live';
+	import { ModeToggle, ParticleCanvas, SuccessBanner, ErrorVignette, CompliancePanel, EffectsTestPanel, ExecutionLogPanel } from '$lib/components/spawner-live';
 	import {
 		initSpawnerLive,
 		destroySpawnerLive,
@@ -52,6 +52,7 @@ import { get } from 'svelte/store';
 	let lastSaved = $state<Date | null>(null);
 	let showCompliancePanel = $state(false);
 	let showEffectsTestPanel = $state(false);
+	let showExecutionLogPanel = $state(false);
 
 	// Context menu state
 	let contextMenu = $state<{ x: number; y: number; type: 'node' | 'connection' | 'canvas'; targetId?: string } | null>(null);
@@ -1187,6 +1188,19 @@ import { get } from 'svelte/store';
 						</svg>
 						<span>Effects</span>
 					</button>
+
+					<!-- Execution Log Panel (Developer Mode) -->
+					<button
+						class="toolbar-btn-sm"
+						class:active={showExecutionLogPanel}
+						onclick={() => (showExecutionLogPanel = !showExecutionLogPanel)}
+						title="Toggle execution log"
+					>
+						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+						</svg>
+						<span>Log</span>
+					</button>
 				{/if}
 
 				<div class="w-px h-4 bg-surface-border"></div>
@@ -1547,6 +1561,13 @@ import { get } from 'svelte/store';
 	</div>
 {/if}
 
+<!-- Execution Log Panel (Developer Mode) -->
+{#if $isDeveloperMode && showExecutionLogPanel}
+	<div class="execution-log-panel-container">
+		<ExecutionLogPanel onClose={() => (showExecutionLogPanel = false)} />
+	</div>
+{/if}
+
 <style>
 	.canvas-area { cursor: grab; }
 	.canvas-area.panning { cursor: grabbing; }
@@ -1559,6 +1580,14 @@ import { get } from 'svelte/store';
 		position: fixed;
 		bottom: 100px;
 		left: 20px;
+		z-index: 100;
+	}
+
+	/* Execution Log Panel */
+	.execution-log-panel-container {
+		position: fixed;
+		top: 100px;
+		right: 20px;
 		z-index: 100;
 	}
 	.temp-connection {

@@ -10,6 +10,7 @@ export { default as ParticleCanvas } from './ParticleCanvas.svelte';
 // Panels
 export { default as CompliancePanel } from './panels/CompliancePanel.svelte';
 export { default as EffectsTestPanel } from './panels/EffectsTestPanel.svelte';
+export { default as ExecutionLogPanel } from './panels/ExecutionLogPanel.svelte';
 
 // Celebrations
 export { default as SuccessBanner } from './celebrations/SuccessBanner.svelte';
