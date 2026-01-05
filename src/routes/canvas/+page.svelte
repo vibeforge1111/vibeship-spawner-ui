@@ -25,7 +25,7 @@ import { get } from 'svelte/store';
 	import { initPipelines, saveCurrentPipeline, getActivePipelineData, activePipelineId } from '$lib/stores/pipelines.svelte';
 
 	// Spawner Live - Real-time orchestration visualization
-	import { ModeToggle, ParticleCanvas, SuccessBanner, ErrorVignette, CompliancePanel } from '$lib/components/spawner-live';
+	import { ModeToggle, ParticleCanvas, SuccessBanner, ErrorVignette, CompliancePanel, EffectsTestPanel } from '$lib/components/spawner-live';
 	import {
 		initSpawnerLive,
 		destroySpawnerLive,
@@ -51,6 +51,7 @@ import { get } from 'svelte/store';
 	let particleCanvasEl: HTMLCanvasElement | null = $state(null);
 	let lastSaved = $state<Date | null>(null);
 	let showCompliancePanel = $state(false);
+	let showEffectsTestPanel = $state(false);
 
 	// Context menu state
 	let contextMenu = $state<{ x: number; y: number; type: 'node' | 'connection' | 'canvas'; targetId?: string } | null>(null);
@@ -1173,6 +1174,19 @@ import { get } from 'svelte/store';
 						</svg>
 						<span>Compliance</span>
 					</button>
+
+					<!-- Effects Test Panel (Developer Mode) -->
+					<button
+						class="toolbar-btn-sm"
+						class:active={showEffectsTestPanel}
+						onclick={() => (showEffectsTestPanel = !showEffectsTestPanel)}
+						title="Toggle effects test panel"
+					>
+						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+						</svg>
+						<span>Effects</span>
+					</button>
 				{/if}
 
 				<div class="w-px h-4 bg-surface-border"></div>
@@ -1526,12 +1540,27 @@ import { get } from 'svelte/store';
 	<CompliancePanel onClose={() => (showCompliancePanel = false)} />
 {/if}
 
+<!-- Effects Test Panel (Developer Mode) -->
+{#if $isDeveloperMode && showEffectsTestPanel}
+	<div class="effects-test-panel-container">
+		<EffectsTestPanel onClose={() => (showEffectsTestPanel = false)} />
+	</div>
+{/if}
+
 <style>
 	.canvas-area { cursor: grab; }
 	.canvas-area.panning { cursor: grabbing; }
 	.canvas-area.cutting { cursor: crosshair; }
 	.canvas-area.selecting { cursor: crosshair; }
 	.selection-box { pointer-events: none; }
+
+	/* Effects Test Panel */
+	.effects-test-panel-container {
+		position: fixed;
+		bottom: 100px;
+		left: 20px;
+		z-index: 100;
+	}
 	.temp-connection {
 		opacity: 0.7;
 		animation: dash 0.5s linear infinite;
