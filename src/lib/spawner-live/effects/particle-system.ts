@@ -32,6 +32,7 @@ class ParticleSystem {
 	private animationFrame: number | null = null;
 	private isRunning = false;
 	private lastTime = 0;
+	private initialized = false;
 
 	// Performance tracking
 	public particleCount = writable<number>(0);
@@ -41,6 +42,12 @@ class ParticleSystem {
 	 * Initialize with a canvas element
 	 */
 	init(canvas: HTMLCanvasElement): void {
+		// Prevent double initialization
+		if (this.initialized) {
+			console.log('[ParticleSystem] Already initialized');
+			return;
+		}
+
 		this.canvas = canvas;
 		this.ctx = canvas.getContext('2d');
 
@@ -54,6 +61,9 @@ class ParticleSystem {
 			this.handleResize();
 			window.addEventListener('resize', () => this.handleResize());
 		}
+
+		this.initialized = true;
+		console.log('[ParticleSystem] Initialized');
 	}
 
 	/**
@@ -353,6 +363,16 @@ class ParticleSystem {
 		}
 		this.canvas = null;
 		this.ctx = null;
+		this.pool = [];
+		this.initialized = false;
+		console.log('[ParticleSystem] Destroyed');
+	}
+
+	/**
+	 * Check if initialized
+	 */
+	isInitialized(): boolean {
+		return this.initialized;
 	}
 }
 
