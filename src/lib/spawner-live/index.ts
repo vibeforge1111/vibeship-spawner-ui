@@ -64,6 +64,17 @@ export {
 	type ConnectionStatus
 } from './realtime';
 
+// Execution
+export {
+	pipelineRunner,
+	PipelineRunner,
+	type ExecutionStatus,
+	type ExecutionState,
+	type ExecutionOptions,
+	type ExecutionContext,
+	type NodeResult
+} from './execution';
+
 // Stores
 export {
 	liveModeStore,
