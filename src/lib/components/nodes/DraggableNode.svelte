@@ -1,5 +1,6 @@
 <script lang="ts">
 	import SkillNode from './SkillNode.svelte';
+	import AgentIndicator from '$lib/components/spawner-live/AgentIndicator.svelte';
 	import type { CanvasNode } from '$lib/stores/canvas.svelte';
 	import { updateNodePosition, selectNode, toggleNodeSelection, removeNode, startConnectionDrag, updateConnectionDrag, endConnectionDrag, completeConnection, snapPosition, canvasState } from '$lib/stores/canvas.svelte';
 	import type { SkillNodeData } from '$lib/types/skill';
@@ -194,6 +195,7 @@
 	class:running={node.status === 'running'}
 	class:success={node.status === 'success'}
 	class:error={node.status === 'error'}
+	data-node-id={node.id}
 	style="left: {node.position.x}px; top: {node.position.y}px;"
 	onmousedown={handleMouseDown}
 	ondblclick={() => onOpenDetails?.()}
@@ -224,6 +226,9 @@
 		onPortDragEnd={handlePortDragEnd}
 		{onHandoffClick}
 	/>
+
+	<!-- Agent indicator (shows when agent is actively working on this node) -->
+	<AgentIndicator nodeId={node.id} />
 
 	<!-- Delete button on hover -->
 	<button
