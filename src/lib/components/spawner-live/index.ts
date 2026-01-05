@@ -11,6 +11,7 @@ export { default as ParticleCanvas } from './ParticleCanvas.svelte';
 export { default as CompliancePanel } from './panels/CompliancePanel.svelte';
 export { default as EffectsTestPanel } from './panels/EffectsTestPanel.svelte';
 export { default as ExecutionLogPanel } from './panels/ExecutionLogPanel.svelte';
+export { default as SettingsPanel } from './panels/SettingsPanel.svelte';
 
 // Celebrations
 export { default as SuccessBanner } from './celebrations/SuccessBanner.svelte';
