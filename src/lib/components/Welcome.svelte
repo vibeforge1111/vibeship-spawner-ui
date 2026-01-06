@@ -1,8 +1,17 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import Navbar from './Navbar.svelte';
 	import Footer from './Footer.svelte';
+	import PRDProcessingModal from './PRDProcessingModal.svelte';
 	import { isConnected as mcpConnected, isConnecting as mcpConnecting } from '$lib/stores/mcp.svelte';
 	import { isConnected as syncConnected, syncStatus } from '$lib/services/sync-client';
+	import { setPRD, setProjectName } from '$lib/stores/project-docs.svelte';
+	import { analyzePRD, generateTasksFromPRD, tasksToWorkflow, type PRDAnalysis, type GeneratedTask } from '$lib/utils/prd-analyzer';
+	import { skills as skillsStore, loadSkills } from '$lib/stores/skills.svelte';
+	import { addNodesWithConnections, clearCanvas, nodes, connections } from '$lib/stores/canvas.svelte';
+	import { createNewPipeline, saveCurrentPipeline, initPipelines } from '$lib/stores/pipelines.svelte';
+	import { toasts } from '$lib/stores/toast.svelte';
+	import { get } from 'svelte/store';
 
 	let { onStart }: { onStart?: (goal: string) => void } = $props();
 	let showSetupGuide = $state(false);
@@ -10,6 +19,15 @@
 	let inputValue = $state('');
 	let isFocused = $state(false);
 	let isSubmitting = $state(false);
+	let fileInputEl: HTMLInputElement;
+
+	// PRD Processing Modal state
+	let showProcessingModal = $state(false);
+	let processingStage = $state(0);
+	let processingProjectName = $state('');
+	let processingFeaturesFound = $state(0);
+	let processingTasksGenerated = $state(0);
+	let pendingWorkflow: { nodes: any[]; connections: any[] } | null = null;
 
 	const skillCategories = [
 		{ name: 'Frontend', count: 45, icon: '◧' },
@@ -39,7 +57,134 @@
 			handleSubmit();
 		}
 	}
+
+	async function handlePRDUpload(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+
+		const reader = new FileReader();
+		reader.onload = async (event) => {
+			const content = event.target?.result as string;
+			setPRD(content);
+
+			// Extract project name from file name
+			const fileName = file.name.replace(/\.(md|txt)$/i, '').replace(/[-_]/g, ' ');
+			if (fileName.length > 2 && fileName.length < 50 && !fileName.toLowerCase().includes('prd')) {
+				setProjectName(fileName);
+				processingProjectName = fileName;
+			}
+
+			// Show processing modal
+			showProcessingModal = true;
+			processingStage = 0;
+
+			try {
+				// Stage 0: Reading PRD
+				await delay(600);
+
+				// Stage 1: Analyzing Features
+				processingStage = 1;
+				await delay(500);
+				const analysis = analyzePRD(content);
+				processingProjectName = analysis.projectName || processingProjectName;
+				processingFeaturesFound = analysis.features.length;
+
+				// Stage 2: Detecting Stack
+				processingStage = 2;
+				await delay(500);
+
+				// Stage 3: Matching Skills - ensure skills are loaded
+				processingStage = 3;
+				let skillsList = get(skillsStore);
+				if (skillsList.length === 0) {
+					// Try to load skills if empty
+					await loadSkills();
+					skillsList = get(skillsStore);
+				}
+				await delay(500);
+
+				// Stage 4: Building Pipeline
+				processingStage = 4;
+				const tasks = generateTasksFromPRD(analysis, skillsList);
+				processingTasksGenerated = tasks.length;
+
+				if (tasks.length === 0) {
+					showProcessingModal = false;
+					toasts.error('Could not extract tasks from PRD. Try adding more detail.');
+					goto('/project');
+					return;
+				}
+
+				// Generate workflow
+				const workflow = tasksToWorkflow(tasks, skillsList);
+				pendingWorkflow = workflow;
+				await delay(600);
+
+				// Stage 5: Ready
+				processingStage = 5;
+
+				// Update project name from analysis
+				if (analysis.projectName && analysis.projectName !== 'New Project') {
+					setProjectName(analysis.projectName);
+				}
+
+			} catch (err) {
+				console.error('PRD analysis failed:', err);
+				showProcessingModal = false;
+				toasts.error('Failed to analyze PRD');
+				goto('/project');
+			}
+		};
+		reader.readAsText(file);
+		input.value = '';
+	}
+
+	function handleProcessingComplete() {
+		if (pendingWorkflow) {
+			// Initialize pipeline system
+			initPipelines();
+
+			// Create a new pipeline for this PRD
+			const pipelineName = processingProjectName || 'PRD Pipeline';
+			createNewPipeline(pipelineName);
+
+			// Clear canvas and add the workflow nodes
+			clearCanvas();
+			addNodesWithConnections(pendingWorkflow.nodes, pendingWorkflow.connections);
+
+			// Get the actual nodes/connections from the store (they have full CanvasNode format now)
+			const currentNodes = get(nodes);
+			const currentConnections = get(connections);
+
+			// Save to the pipeline so canvas page loads it correctly
+			saveCurrentPipeline({
+				nodes: currentNodes,
+				connections: currentConnections,
+				zoom: 1,
+				pan: { x: 0, y: 0 }
+			});
+
+			toasts.success(`Pipeline ready with ${pendingWorkflow.nodes.length} agents`);
+		}
+		showProcessingModal = false;
+		pendingWorkflow = null;
+		goto('/canvas');
+	}
+
+	function delay(ms: number): Promise<void> {
+		return new Promise(resolve => setTimeout(resolve, ms));
+	}
 </script>
+
+<PRDProcessingModal
+	isOpen={showProcessingModal}
+	currentStage={processingStage}
+	projectName={processingProjectName}
+	featuresFound={processingFeaturesFound}
+	tasksGenerated={processingTasksGenerated}
+	onComplete={handleProcessingComplete}
+/>
 
 <div class="min-h-screen bg-bg-primary">
 	<!-- Navbar -->
@@ -196,22 +341,45 @@ wrangler dev</code>
 						<span>to spawn</span>
 					</div>
 
-					<button
-						onclick={handleSubmit}
-						disabled={!inputValue.trim() || isSubmitting}
-						class="group flex items-center gap-2 px-4 py-2 font-medium transition-all disabled:cursor-not-allowed"
-						class:button-active={inputValue.trim() && !isSubmitting}
-						class:button-inactive={!inputValue.trim() || isSubmitting}
-					>
-						{#if isSubmitting}
-							<span class="animate-pulse">analyzing...</span>
-						{:else}
-							<span>spawn()</span>
-							<svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+					<div class="flex items-center gap-3">
+						<!-- Hidden file input -->
+						<input
+							type="file"
+							accept=".md,.txt"
+							onchange={handlePRDUpload}
+							bind:this={fileInputEl}
+							class="hidden"
+						/>
+
+						<!-- Upload PRD Button -->
+						<button
+							onclick={() => fileInputEl?.click()}
+							class="flex items-center gap-2 px-3 py-1.5 text-sm font-mono text-accent-secondary border border-accent-secondary/40 hover:bg-accent-secondary/10 transition-all"
+						>
+							<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
 							</svg>
-						{/if}
-					</button>
+							<span>PRD</span>
+						</button>
+
+						<!-- Spawn Button -->
+						<button
+							onclick={handleSubmit}
+							disabled={!inputValue.trim() || isSubmitting}
+							class="group flex items-center gap-2 px-4 py-2 font-medium transition-all disabled:cursor-not-allowed"
+							class:button-active={inputValue.trim() && !isSubmitting}
+							class:button-inactive={!inputValue.trim() || isSubmitting}
+						>
+							{#if isSubmitting}
+								<span class="animate-pulse">analyzing...</span>
+							{:else}
+								<span>spawn()</span>
+								<svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+								</svg>
+							{/if}
+						</button>
+					</div>
 				</div>
 			</div>
 		</div>

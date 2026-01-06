@@ -102,6 +102,15 @@
 
 			<div class="w-px h-4 bg-surface-border"></div>
 
+			<!-- Project link -->
+			<a
+				href="/project"
+				class="inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-sm text-accent-primary border border-accent-primary/30 hover:bg-accent-primary/10 transition-all"
+			>
+				<Icon name="file-text" size={14} />
+				<span class="hidden sm:inline">Project</span>
+			</a>
+
 			<!-- Guide link -->
 			<a
 				href="/guide"
