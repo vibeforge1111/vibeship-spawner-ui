@@ -210,7 +210,7 @@
 	class:running={node.status === 'running'}
 	class:success={node.status === 'success'}
 	class:error={node.status === 'error'}
-	style="left: {node.position.x}px; top: {node.position.y}px;"
+	style="left: {node.position.x}px; top: {node.position.y}px; pointer-events: auto !important;"
 	onmousedown={handleMouseDown}
 	ondblclick={() => onOpenDetails?.()}
 	oncontextmenu={onContextMenu}

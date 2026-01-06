@@ -188,7 +188,7 @@
 	role="button"
 	tabindex="0"
 	onkeydown={(e) => e.key === 'Enter' && onSelect?.()}
-	style="min-height: {nodeHeight}px;"
+	style="min-height: {nodeHeight}px; pointer-events: auto;"
 >
 	<!-- Input ports (left edge) -->
 	{#if data.inputs && data.inputs.length > 0}

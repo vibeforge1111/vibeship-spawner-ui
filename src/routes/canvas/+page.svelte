@@ -179,6 +179,33 @@ import { get } from 'svelte/store';
 			nodeRenderKey++;
 			await tick();
 
+			// Fix 12: Use double RAF to ensure DOM is fully ready after all state updates
+			// The first RAF waits for the current frame, the second ensures layout is complete
+			await new Promise<void>((resolve) => {
+				requestAnimationFrame(() => {
+					requestAnimationFrame(() => {
+						// Final state verification - ensure all interactive states are clean
+						isPanning = false;
+						isCutting = false;
+						isSelecting = false;
+						resetTransientState();
+						forceStoreSync();
+
+						// Fix 13: Ensure no modals/overlays are blocking canvas interaction
+						showValidation = false;
+						showExecution = false;
+						showNodeDetails = false;
+						showMissionExport = false;
+						showClearConfirm = false;
+						contextMenu = null;
+						showSearch = false;
+						showLayoutMenu = false;
+
+						resolve();
+					});
+				});
+			});
+
 			// Clear the goal input after processing
 			clearGoal();
 		}
