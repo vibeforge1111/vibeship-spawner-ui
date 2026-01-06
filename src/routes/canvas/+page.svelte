@@ -138,16 +138,41 @@ import { get } from 'svelte/store';
 				goalProcessingMessage = `Found ${mindContext.length} relevant past learnings...`;
 			}
 
-			// Load pipeline atomically - one state update, no intermediate states
-			canvasState.update(state => ({
-				...state,
-				nodes: pipeline.nodes.map(node => ({
-					id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+			// Create nodes with proper IDs, keeping track of skill-to-node mapping
+			const skillToNodeId = new Map<string, string>();
+			const canvasNodes = pipeline.nodes.map(node => {
+				const nodeId = `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+				skillToNodeId.set(node.skillId, nodeId);
+				return {
+					id: nodeId,
+					skillId: node.skillId,
 					skill: node.skill,
 					position: node.position,
 					status: 'idle' as const
-				})),
-				connections: [], // Start with no connections, user can add as needed
+				};
+			});
+
+			// Convert pipeline connections to canvas connections
+			const canvasConnections = pipeline.connections
+				.map(conn => {
+					const sourceNodeId = skillToNodeId.get(conn.sourceId);
+					const targetNodeId = skillToNodeId.get(conn.targetId);
+					if (!sourceNodeId || !targetNodeId) return null;
+					return {
+						id: `conn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+						sourceNodeId,
+						sourcePortId: conn.sourcePort,
+						targetNodeId,
+						targetPortId: conn.targetPort
+					};
+				})
+				.filter((c): c is NonNullable<typeof c> => c !== null);
+
+			// Load pipeline atomically - one state update, no intermediate states
+			canvasState.update(state => ({
+				...state,
+				nodes: canvasNodes,
+				connections: canvasConnections,
 				zoom: 1,
 				pan: { x: 0, y: 0 }
 			}));
@@ -155,13 +180,23 @@ import { get } from 'svelte/store';
 			goalSummary = pipeline.summary;
 			goalProcessingMessage = `Added ${pipeline.nodes.length} skills`;
 
-			// Zoom to fit after a brief delay for DOM to update
-			requestAnimationFrame(() => {
-				if (canvasEl) {
-					const rect = canvasEl.getBoundingClientRect();
-					zoomToFit(rect.width, rect.height);
-				}
-			});
+			// CRITICAL: Sync local state from stores after atomic update
+			// Without this, local variables are stale and canvas becomes unresponsive
+			await tick();
+			forceStoreSync();
+
+			// Reset all interaction states to ensure clean canvas
+			isPanning = false;
+			isCutting = false;
+			isSelecting = false;
+			resetTransientState();
+
+			// Zoom to fit after DOM update
+			await tick();
+			if (canvasEl) {
+				const rect = canvasEl.getBoundingClientRect();
+				zoomToFit(rect.width, rect.height);
+			}
 
 			// Store learning for future use (non-blocking)
 			storePipelineLearning(goalState.input, pipeline).catch(console.warn);
@@ -171,6 +206,9 @@ import { get } from 'svelte/store';
 			goalProcessingError = error instanceof Error ? error.message : 'An error occurred';
 		} finally {
 			goalProcessing = false;
+			// Final state sync to ensure everything is clean
+			forceStoreSync();
+			resetTransientState();
 			clearGoal();
 		}
 	}
