@@ -5,6 +5,7 @@
 	import LearningsTimeline from '$lib/components/LearningsTimeline.svelte';
 	import WorkflowPatterns from '$lib/components/WorkflowPatterns.svelte';
 	import AgentEffectiveness from '$lib/components/AgentEffectiveness.svelte';
+	import LearningsExportImport from '$lib/components/LearningsExportImport.svelte';
 	import {
 		mindState,
 		loadProject,
@@ -449,6 +450,14 @@
 									)}
 								/>
 							{/each}
+
+							<!-- Export/Import -->
+							<LearningsExportImport
+								onImportComplete={(count) => {
+									// Reload learnings after import
+									if (count > 0) loadLearnings();
+								}}
+							/>
 						</div>
 					</div>
 				{/if}
