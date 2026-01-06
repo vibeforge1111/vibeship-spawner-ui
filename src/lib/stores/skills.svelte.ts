@@ -1,6 +1,9 @@
 import { writable, derived, get } from 'svelte/store';
+import { browser } from '$app/environment';
 import { mcpClient, type McpSkill } from '$lib/services/mcp-client';
 import { mcpState } from './mcp.svelte';
+
+const GENERATED_SKILLS_KEY = 'spawner-generated-skills';
 
 export type SkillTier = 'free' | 'premium';
 
@@ -118,6 +121,48 @@ export const skillCounts = derived(skills, ($skills) => {
 	};
 });
 
+// ============================================
+// localStorage Persistence for Generated Skills
+// ============================================
+
+/**
+ * Save generated skills to localStorage
+ */
+function saveGeneratedSkills(generatedSkills: Skill[]): void {
+	if (!browser) return;
+	try {
+		localStorage.setItem(GENERATED_SKILLS_KEY, JSON.stringify(generatedSkills));
+		console.log(`[Skills] Saved ${generatedSkills.length} generated skills to localStorage`);
+	} catch (e) {
+		console.error('[Skills] Failed to save generated skills:', e);
+	}
+}
+
+/**
+ * Load generated skills from localStorage
+ */
+function loadGeneratedSkills(): Skill[] {
+	if (!browser) return [];
+	try {
+		const saved = localStorage.getItem(GENERATED_SKILLS_KEY);
+		if (saved) {
+			const skills = JSON.parse(saved) as Skill[];
+			console.log(`[Skills] Loaded ${skills.length} generated skills from localStorage`);
+			return skills;
+		}
+	} catch (e) {
+		console.error('[Skills] Failed to load generated skills:', e);
+	}
+	return [];
+}
+
+/**
+ * Get all generated skills from the current store
+ */
+function getGeneratedSkillsFromStore(): Skill[] {
+	return get(skills).filter(s => s.id.startsWith('generated-'));
+}
+
 // Helper to convert MCP skill to our Skill interface
 function mapMcpSkill(s: McpSkill): Skill {
 	return {
@@ -162,11 +207,20 @@ export async function loadSkillsStatic() {
 			pairsWell: s.pairsWell || []
 		}));
 
-		// Preserve generated/custom skills (from PRD analysis) when reloading
+		// Load persisted generated skills from localStorage
+		const persistedGenerated = loadGeneratedSkills();
+
+		// Also preserve generated/custom skills already in memory (from PRD analysis)
 		const existingSkills = get(skills);
-		const generatedSkills = existingSkills.filter(s => s.id.startsWith('generated-'));
+		const memoryGenerated = existingSkills.filter(s => s.id.startsWith('generated-'));
+
+		// Merge: prefer memory version if both exist
 		const loadedIds = new Set(loadedSkills.map(s => s.id));
-		const toPreserve = generatedSkills.filter(s => !loadedIds.has(s.id));
+		const memoryIds = new Set(memoryGenerated.map(s => s.id));
+		const toPreserve = [
+			...memoryGenerated,
+			...persistedGenerated.filter(s => !loadedIds.has(s.id) && !memoryIds.has(s.id))
+		];
 
 		skills.set([...loadedSkills, ...toPreserve]);
 	} catch (e) {
@@ -195,11 +249,20 @@ export async function loadSkillsMcp() {
 		const mcpSkills = result.data?.skills || [];
 		const loadedSkills: Skill[] = mcpSkills.map(mapMcpSkill);
 
-		// Preserve generated/custom skills (from PRD analysis) when reloading
+		// Load persisted generated skills from localStorage
+		const persistedGenerated = loadGeneratedSkills();
+
+		// Also preserve generated/custom skills already in memory
 		const existingSkills = get(skills);
-		const generatedSkills = existingSkills.filter(s => s.id.startsWith('generated-'));
+		const memoryGenerated = existingSkills.filter(s => s.id.startsWith('generated-'));
+
+		// Merge: prefer memory version if both exist
 		const loadedIds = new Set(loadedSkills.map(s => s.id));
-		const toPreserve = generatedSkills.filter(s => !loadedIds.has(s.id));
+		const memoryIds = new Set(memoryGenerated.map(s => s.id));
+		const toPreserve = [
+			...memoryGenerated,
+			...persistedGenerated.filter(s => !loadedIds.has(s.id) && !memoryIds.has(s.id))
+		];
 
 		skills.set([...loadedSkills, ...toPreserve]);
 	} catch (e) {
@@ -281,11 +344,58 @@ export function getSkillById(id: string): Skill | undefined {
 /**
  * Add skills to the store (used for generated/placeholder skills from PRD)
  * Only adds skills that don't already exist (by ID)
+ * Automatically persists generated skills to localStorage
  */
 export function addSkills(newSkills: Skill[]) {
 	skills.update((existing) => {
 		const existingIds = new Set(existing.map(s => s.id));
 		const toAdd = newSkills.filter(s => !existingIds.has(s.id));
-		return [...existing, ...toAdd];
+		const updated = [...existing, ...toAdd];
+
+		// Auto-save generated skills to localStorage
+		const generatedSkills = updated.filter(s => s.id.startsWith('generated-'));
+		if (generatedSkills.length > 0) {
+			saveGeneratedSkills(generatedSkills);
+		}
+
+		return updated;
 	});
+}
+
+/**
+ * Remove a generated skill
+ */
+export function removeGeneratedSkill(skillId: string) {
+	if (!skillId.startsWith('generated-')) {
+		console.warn('[Skills] Can only remove generated skills');
+		return;
+	}
+
+	skills.update((existing) => {
+		const updated = existing.filter(s => s.id !== skillId);
+
+		// Update localStorage
+		const generatedSkills = updated.filter(s => s.id.startsWith('generated-'));
+		saveGeneratedSkills(generatedSkills);
+
+		return updated;
+	});
+}
+
+/**
+ * Clear all generated skills
+ */
+export function clearGeneratedSkills() {
+	skills.update((existing) => {
+		const nonGenerated = existing.filter(s => !s.id.startsWith('generated-'));
+		saveGeneratedSkills([]); // Clear localStorage
+		return nonGenerated;
+	});
+}
+
+/**
+ * Get count of generated skills
+ */
+export function getGeneratedSkillsCount(): number {
+	return getGeneratedSkillsFromStore().length;
 }

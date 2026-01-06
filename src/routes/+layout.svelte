@@ -5,17 +5,33 @@
 	import { browser } from '$app/environment';
 	import { mcpState, connect, setMcpUrl, connectLocal, connectProduction } from '$lib/stores/mcp.svelte';
 	import { syncClient } from '$lib/services/sync-client';
+	import { initializeMemory } from '$lib/stores/memory-settings.svelte';
+	import { initPipelines } from '$lib/stores/pipelines.svelte';
 	import ToastContainer from '$lib/components/ToastContainer.svelte';
 
 	let { children } = $props();
 
-	// Auto-connect to MCP and Sync on app load
+	// Auto-connect to MCP, Sync, and Mind on app load
 	onMount(async () => {
 		if (!browser) return;
+
+		// Initialize pipeline system (ensures localStorage is loaded)
+		initPipelines();
 
 		// Always try local sync first (for canvas bridge during development)
 		// This runs in parallel with MCP connection
 		tryConnectSync('ws://localhost:8787/sync');
+
+		// Initialize Mind memory system (connects to local Mind API if available)
+		initializeMemory().then(connected => {
+			if (connected) {
+				console.log('[Mind] Connected to memory API');
+			} else {
+				console.log('[Mind] Memory API not available, learnings will not persist');
+			}
+		}).catch(err => {
+			console.log('[Mind] Memory initialization failed:', err);
+		});
 
 		// Check for saved preference
 		const savedUrl = localStorage.getItem('mcp-url');
