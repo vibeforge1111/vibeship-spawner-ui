@@ -233,6 +233,9 @@ import { get } from 'svelte/store';
 			const goalState = getGoalState();
 			const goalName = goalState.input?.slice(0, 30) || 'New Project';
 			createNewPipeline(`${goalName}...`);
+			// CRITICAL: Clear the canvas state - createNewPipeline only updates registry,
+			// it doesn't clear the actual nodes/connections in canvasState
+			clearCanvas();
 			// Mark that we have a pending goal to process
 			pendingGoalProcess = true;
 		} else {
