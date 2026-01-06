@@ -312,8 +312,10 @@ export function shouldRecordDecision(confidence: number): boolean {
 	switch (granularity) {
 		case 'everything':
 			return true;
+		case 'moderate':
+			return confidence >= 0.5;  // Medium threshold
 		case 'significant':
-			return confidence >= 0.7;
+			return confidence >= 0.7;  // High threshold
 		case 'manual':
 			return false;  // User must explicitly mark
 		default:

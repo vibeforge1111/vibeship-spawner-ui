@@ -247,7 +247,7 @@
 					<p class="text-sm text-text-secondary mb-3">
 						How much agent activity to record.
 					</p>
-					<div class="flex gap-2">
+					<div class="flex flex-wrap gap-2">
 						<button
 							onclick={() => updateSetting('learningGranularity', 'everything')}
 							class="px-3 py-1.5 text-sm font-mono border transition-all"
@@ -260,6 +260,17 @@
 							Everything
 						</button>
 						<button
+							onclick={() => updateSetting('learningGranularity', 'moderate')}
+							class="px-3 py-1.5 text-sm font-mono border transition-all"
+							class:bg-accent-primary={currentSettings.learningGranularity === 'moderate'}
+							class:text-bg-primary={currentSettings.learningGranularity === 'moderate'}
+							class:border-accent-primary={currentSettings.learningGranularity === 'moderate'}
+							class:text-text-secondary={currentSettings.learningGranularity !== 'moderate'}
+							class:border-surface-border={currentSettings.learningGranularity !== 'moderate'}
+						>
+							Moderate
+						</button>
+						<button
 							onclick={() => updateSetting('learningGranularity', 'significant')}
 							class="px-3 py-1.5 text-sm font-mono border transition-all"
 							class:bg-accent-primary={currentSettings.learningGranularity === 'significant'}
@@ -268,7 +279,7 @@
 							class:text-text-secondary={currentSettings.learningGranularity !== 'significant'}
 							class:border-surface-border={currentSettings.learningGranularity !== 'significant'}
 						>
-							Significant Only
+							Significant
 						</button>
 						<button
 							onclick={() => updateSetting('learningGranularity', 'manual')}
@@ -284,9 +295,11 @@
 					</div>
 					<p class="text-xs text-text-tertiary mt-2">
 						{#if currentSettings.learningGranularity === 'everything'}
-							Record all decisions and outcomes. Most comprehensive.
+							Record all decisions and outcomes. Most comprehensive but verbose.
+						{:else if currentSettings.learningGranularity === 'moderate'}
+							Record medium-confidence decisions (50%+). Good balance.
 						{:else if currentSettings.learningGranularity === 'significant'}
-							Only high-confidence decisions and clear outcomes. Recommended.
+							Only high-confidence decisions (70%+). Recommended.
 						{:else}
 							User must explicitly mark what to record. Most control.
 						{/if}
