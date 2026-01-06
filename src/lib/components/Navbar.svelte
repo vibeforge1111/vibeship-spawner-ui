@@ -2,12 +2,16 @@
 	import Icon from './Icon.svelte';
 	import PipelineSelector from './PipelineSelector.svelte';
 	import { mcpState, isConnected, isConnecting } from '$lib/stores/mcp.svelte';
+	import { isMemoryConnected, memoryConnectionStatus, memoryBackend } from '$lib/stores/memory-settings.svelte';
 	import { initPipelines } from '$lib/stores/pipelines.svelte';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 
 	let skillsDropdownOpen = $state(false);
 	let currentMcpState = $state({ status: 'disconnected' as string, baseUrl: '' });
+	let mindConnected = $state(false);
+	let mindStatus = $state('disconnected');
+	let mindBackend = $state<string | null>(null);
 	let pipelinesReady = $state(false);
 
 	// Initialize pipelines on mount
@@ -19,10 +23,18 @@
 	});
 
 	$effect(() => {
-		const unsub = mcpState.subscribe((s) => {
+		const unsub1 = mcpState.subscribe((s) => {
 			currentMcpState = { status: s.status, baseUrl: s.baseUrl };
 		});
-		return unsub;
+		const unsub2 = isMemoryConnected.subscribe((v) => (mindConnected = v));
+		const unsub3 = memoryConnectionStatus.subscribe((v) => (mindStatus = v));
+		const unsub4 = memoryBackend.subscribe((v) => (mindBackend = v));
+		return () => {
+			unsub1();
+			unsub2();
+			unsub3();
+			unsub4();
+		};
 	});
 
 	function toggleSkillsDropdown() {
@@ -48,6 +60,24 @@
 			case 'connecting': return 'Connecting...';
 			case 'error': return 'Connection Failed';
 			default: return 'Disconnected';
+		}
+	}
+
+	function getMindStatusColor(status: string): string {
+		switch (status) {
+			case 'connected': return 'bg-purple-500';
+			case 'connecting': return 'bg-purple-400 animate-pulse';
+			case 'error': return 'bg-red-500';
+			default: return 'bg-gray-500';
+		}
+	}
+
+	function getMindStatusText(status: string, backend: string | null): string {
+		switch (status) {
+			case 'connected': return `Mind ${backend ?? ''} Connected`;
+			case 'connecting': return 'Connecting to Mind...';
+			case 'error': return 'Mind Connection Failed';
+			default: return 'Mind Disconnected';
 		}
 	}
 </script>
@@ -85,18 +115,36 @@
 
 		<!-- Right side -->
 		<div class="flex items-center gap-2">
-			<!-- MCP Status Indicator -->
-			<div class="group relative flex items-center gap-1.5 px-2 py-1.5" title={getStatusText(currentMcpState.status)}>
-				<span class="w-2 h-2 rounded-full {getStatusColor(currentMcpState.status)}"></span>
-				<span class="hidden lg:inline font-mono text-xs text-text-tertiary group-hover:text-text-secondary transition-colors">
-					{currentMcpState.status === 'connected' ? 'MCP' : currentMcpState.status === 'connecting' ? '...' : 'offline'}
-				</span>
-				<!-- Tooltip on hover -->
-				<div class="absolute top-full right-0 mt-1 px-2 py-1 bg-bg-secondary border border-surface-border text-xs font-mono text-text-secondary whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-					{getStatusText(currentMcpState.status)}
-					{#if currentMcpState.status === 'connected'}
-						<span class="text-text-tertiary block">{currentMcpState.baseUrl.replace('http://', '').replace('https://', '')}</span>
-					{/if}
+			<!-- Connection Status Indicators -->
+			<div class="flex items-center gap-1">
+				<!-- MCP Status -->
+				<div class="group relative flex items-center gap-1 px-1.5 py-1" title={getStatusText(currentMcpState.status)}>
+					<span class="w-1.5 h-1.5 rounded-full {getStatusColor(currentMcpState.status)}"></span>
+					<span class="hidden lg:inline font-mono text-[10px] text-text-tertiary group-hover:text-text-secondary transition-colors">
+						MCP
+					</span>
+					<!-- Tooltip -->
+					<div class="absolute top-full right-0 mt-1 px-2 py-1 bg-bg-secondary border border-surface-border text-xs font-mono text-text-secondary whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+						{getStatusText(currentMcpState.status)}
+						{#if currentMcpState.status === 'connected'}
+							<span class="text-text-tertiary block">{currentMcpState.baseUrl.replace('http://', '').replace('https://', '')}</span>
+						{/if}
+					</div>
+				</div>
+
+				<!-- Mind Status -->
+				<div class="group relative flex items-center gap-1 px-1.5 py-1" title={getMindStatusText(mindStatus, mindBackend)}>
+					<span class="w-1.5 h-1.5 rounded-full {getMindStatusColor(mindStatus)}"></span>
+					<span class="hidden lg:inline font-mono text-[10px] text-text-tertiary group-hover:text-text-secondary transition-colors">
+						Mind
+					</span>
+					<!-- Tooltip -->
+					<div class="absolute top-full right-0 mt-1 px-2 py-1 bg-bg-secondary border border-surface-border text-xs font-mono text-text-secondary whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+						{getMindStatusText(mindStatus, mindBackend)}
+						{#if mindConnected && mindBackend}
+							<span class="text-text-tertiary block">{mindBackend} tier</span>
+						{/if}
+					</div>
 				</div>
 			</div>
 

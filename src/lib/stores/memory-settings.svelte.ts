@@ -288,6 +288,12 @@ export function resetMemorySettings() {
 	saveToStorage(DEFAULT_MEMORY_SETTINGS);
 }
 
+// Auto-reconnect state
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 3;
+const RECONNECT_DELAY_MS = 5000;
+
 /**
  * Initialize memory connection on app start
  */
@@ -299,7 +305,60 @@ export async function initializeMemory(): Promise<boolean> {
 	}
 
 	// Try to connect automatically
-	return connectMemory();
+	const connected = await connectMemory();
+
+	// If failed, start auto-reconnect
+	if (!connected) {
+		startAutoReconnect();
+	}
+
+	return connected;
+}
+
+/**
+ * Start auto-reconnect timer
+ */
+function startAutoReconnect() {
+	if (reconnectTimer) return; // Already running
+	if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+		console.log('[Mind] Max reconnect attempts reached, stopping auto-reconnect');
+		return;
+	}
+
+	reconnectTimer = setTimeout(async () => {
+		reconnectTimer = null;
+		reconnectAttempts++;
+
+		const state = get(memorySettingsState);
+		if (!state.settings.enabled || state.connectionStatus === 'connected') {
+			return;
+		}
+
+		console.log(`[Mind] Auto-reconnect attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
+		const connected = await connectMemory();
+
+		if (!connected && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+			startAutoReconnect();
+		}
+	}, RECONNECT_DELAY_MS);
+}
+
+/**
+ * Stop auto-reconnect timer
+ */
+export function stopAutoReconnect() {
+	if (reconnectTimer) {
+		clearTimeout(reconnectTimer);
+		reconnectTimer = null;
+	}
+	reconnectAttempts = 0;
+}
+
+/**
+ * Reset reconnect attempts (call when user manually connects)
+ */
+export function resetReconnectAttempts() {
+	reconnectAttempts = 0;
 }
 
 /**

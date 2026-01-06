@@ -7,6 +7,7 @@
 	import { syncClient } from '$lib/services/sync-client';
 	import { initializeMemory } from '$lib/stores/memory-settings.svelte';
 	import { initPipelines } from '$lib/stores/pipelines.svelte';
+	import { initPersistence } from '$lib/services/persistence';
 	import ToastContainer from '$lib/components/ToastContainer.svelte';
 
 	let { children } = $props();
@@ -14,6 +15,12 @@
 	// Auto-connect to MCP, Sync, and Mind on app load
 	onMount(async () => {
 		if (!browser) return;
+
+		// Initialize persistence system (schema migrations, etc.)
+		const persistence = initPersistence();
+		if (persistence.migrated) {
+			console.log(`[App] Data migrated from v${persistence.fromVersion} to v${persistence.toVersion}`);
+		}
 
 		// Initialize pipeline system (ensures localStorage is loaded)
 		initPipelines();
