@@ -356,14 +356,9 @@
 
 				{#if testResult}
 					<div
-						class="mx-4 mb-4 p-3 text-sm font-mono"
-						class:border-green-500/30={testResult.success}
-						class:bg-green-500/10={testResult.success}
-						class:text-green-400={testResult.success}
-						class:border-red-500/30={!testResult.success}
-						class:bg-red-500/10={!testResult.success}
-						class:text-red-400={!testResult.success}
-						class:border={true}
+						class="mx-4 mb-4 p-3 text-sm font-mono border {testResult.success
+							? 'border-green-500/30 bg-green-500/10 text-green-400'
+							: 'border-red-500/30 bg-red-500/10 text-red-400'}"
 					>
 						{testResult.message}
 					</div>

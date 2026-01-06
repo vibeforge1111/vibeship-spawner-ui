@@ -11,11 +11,13 @@
  */
 
 import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
-import type { Mission, MissionLog } from '$lib/services/mcp-client';
+import type { Mission, MissionLog, MissionTask } from '$lib/services/mcp-client';
 import { mcpClient } from '$lib/services/mcp-client';
 import { buildMissionFromCanvas, validateForMission, type MissionBuildOptions } from './mission-builder';
 import { syncClient, broadcastMissionEvent, isConnected, type SyncEvent } from './sync-client';
+import { memoryClient } from './memory-client';
 import { get } from 'svelte/store';
+import { memorySettings, isMemoryConnected, shouldRecordDecision } from '$lib/stores/memory-settings.svelte';
 
 export type ExecutionMode = 'preview' | 'live';
 export type ExecutionStatus = 'idle' | 'creating' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
@@ -50,6 +52,11 @@ class MissionExecutor {
 	private lastLogId: string | null = null;
 	private syncUnsubscribe: (() => void) | null = null;
 	private useWebSocket = false;
+
+	// Learning tracking
+	private taskStartTimes: Map<string, Date> = new Map();
+	private taskDecisionIds: Map<string, string> = new Map();  // taskId -> memory_id
+	private completedSkillSequence: string[] = [];
 
 	constructor() {
 		this.progress = this.createInitialProgress();
@@ -89,7 +96,10 @@ class MissionExecutor {
 					this.stopPolling();
 					this.callbacks.onStatusChange?.('completed');
 					if (event.data.mission) {
-						this.callbacks.onComplete?.(event.data.mission as Mission);
+						const mission = event.data.mission as Mission;
+						this.callbacks.onComplete?.(mission);
+						// Record mission completion for learning
+						this.recordMissionComplete(mission);
 					}
 					break;
 
@@ -100,6 +110,10 @@ class MissionExecutor {
 					this.stopPolling();
 					this.callbacks.onStatusChange?.('failed');
 					this.callbacks.onError?.(this.progress.error);
+					// Record mission failure for learning
+					if (this.progress.mission) {
+						this.recordMissionComplete(this.progress.mission);
+					}
 					break;
 
 				case 'mission_log':
@@ -128,6 +142,9 @@ class MissionExecutor {
 			if (task) {
 				this.progress.currentTaskName = task.title;
 				this.callbacks.onTaskStart?.(task.id, task.title);
+
+				// Record task start for learning
+				this.recordTaskStart(task as MissionTask, task.assignedTo);
 			}
 		}
 
@@ -190,6 +207,9 @@ class MissionExecutor {
 		this.progress.status = 'creating';
 		this.progress.startTime = new Date();
 		this.callbacks.onStatusChange?.('creating');
+
+		// Reset learning tracking for new execution
+		this.resetLearningTracking();
 
 		try {
 			// Step 1: Validate
@@ -399,6 +419,9 @@ class MissionExecutor {
 						this.progress.currentTaskId = task.id;
 						this.progress.currentTaskName = task.title;
 						this.callbacks.onTaskStart?.(task.id, task.title);
+
+						// Record task start for learning
+						this.recordTaskStart(task, task.assignedTo);
 					}
 				}
 
@@ -416,6 +439,9 @@ class MissionExecutor {
 					this.stopPolling();
 					this.callbacks.onStatusChange?.('completed');
 					this.callbacks.onComplete?.(mission);
+
+					// Record mission completion for learning
+					this.recordMissionComplete(mission);
 				} else if (mission.status === 'failed') {
 					this.progress.status = 'failed';
 					this.progress.error = mission.error || 'Mission failed';
@@ -423,6 +449,9 @@ class MissionExecutor {
 					this.stopPolling();
 					this.callbacks.onStatusChange?.('failed');
 					this.callbacks.onError?.(this.progress.error);
+
+					// Record mission failure for learning
+					this.recordMissionComplete(mission);
 				}
 			}
 
@@ -444,8 +473,12 @@ class MissionExecutor {
 					// Track task completions
 					if (log.type === 'complete' && log.task_id) {
 						this.callbacks.onTaskComplete?.(log.task_id, true);
+						// Record task completion for learning
+						this.recordTaskComplete(log.task_id, true);
 					} else if (log.type === 'error' && log.task_id) {
 						this.callbacks.onTaskComplete?.(log.task_id, false);
+						// Record task failure for learning
+						this.recordTaskComplete(log.task_id, false);
 					}
 				}
 
@@ -476,6 +509,184 @@ class MissionExecutor {
 
 		this.progress.logs.push(log);
 		this.callbacks.onLog?.(log);
+	}
+
+	// ============================================
+	// Learning Integration Methods
+	// ============================================
+
+	/**
+	 * Check if learning should be recorded
+	 */
+	private shouldRecordLearning(): boolean {
+		const settings = get(memorySettings);
+		return settings.enabled && get(isMemoryConnected);
+	}
+
+	/**
+	 * Record when a task starts - captures the decision to execute this task
+	 */
+	private async recordTaskStart(task: MissionTask, agentId: string): Promise<void> {
+		if (!this.shouldRecordLearning()) return;
+
+		try {
+			// Track start time
+			this.taskStartTimes.set(task.id, new Date());
+
+			// Find the agent info
+			const agent = this.progress.mission?.agents.find(a => a.id === agentId);
+			const agentName = agent?.name || agentId;
+			const skillId = agent?.skills?.[0];  // Primary skill
+
+			// Only record if granularity setting allows
+			if (!shouldRecordDecision(0.7)) return;
+
+			// Record the decision to execute this task
+			const result = await memoryClient.recordAgentDecision(
+				agentId,
+				agentName,
+				{
+					skillId,
+					missionId: this.progress.missionId || undefined,
+					taskId: task.id,
+					decision: `Execute task: ${task.title}`,
+					reasoning: task.description,
+					confidence: 0.7,
+					context: `Mission: ${this.progress.mission?.name || 'Unknown'}`
+				}
+			);
+
+			if (result.success && result.data) {
+				this.taskDecisionIds.set(task.id, result.data.memory_id);
+				console.log(`[Learning] Recorded task start: ${task.title}`);
+			}
+		} catch (error) {
+			console.error('[Learning] Failed to record task start:', error);
+		}
+	}
+
+	/**
+	 * Record when a task completes - captures the outcome
+	 */
+	private async recordTaskComplete(taskId: string, success: boolean): Promise<void> {
+		if (!this.shouldRecordLearning()) return;
+
+		try {
+			const task = this.progress.mission?.tasks.find(t => t.id === taskId);
+			if (!task) return;
+
+			// Calculate duration
+			const startTime = this.taskStartTimes.get(taskId);
+			const duration = startTime ? Date.now() - startTime.getTime() : 0;
+
+			// Find agent info
+			const agentId = task.assignedTo;
+			const agent = this.progress.mission?.agents.find(a => a.id === agentId);
+			const skillId = agent?.skills?.[0];
+
+			// Record outcome
+			await memoryClient.recordTaskOutcome(
+				this.progress.missionId || '',
+				taskId,
+				{
+					success,
+					details: success
+						? `Task "${task.title}" completed successfully in ${Math.round(duration / 1000)}s`
+						: `Task "${task.title}" failed`,
+					agentId,
+					skillId
+				}
+			);
+
+			// Track skill sequence for pattern extraction
+			if (success && skillId) {
+				this.completedSkillSequence.push(skillId);
+			}
+
+			console.log(`[Learning] Recorded task outcome: ${task.title} - ${success ? 'success' : 'failed'}`);
+		} catch (error) {
+			console.error('[Learning] Failed to record task outcome:', error);
+		}
+	}
+
+	/**
+	 * Record mission completion - extracts learnings and patterns
+	 */
+	private async recordMissionComplete(mission: Mission): Promise<void> {
+		if (!this.shouldRecordLearning()) return;
+
+		try {
+			const successfulTasks = mission.tasks.filter(t => t.status === 'completed').length;
+			const totalTasks = mission.tasks.length;
+			const successRate = successfulTasks / totalTasks;
+
+			// Only extract pattern if mission was mostly successful
+			if (successRate >= 0.7 && this.completedSkillSequence.length >= 2) {
+				const settings = get(memorySettings);
+
+				if (settings.autoExtractPatterns) {
+					// Record workflow pattern
+					await memoryClient.recordWorkflowPattern({
+						name: `${mission.name} workflow`,
+						description: `Successful workflow pattern from mission "${mission.name}" with ${successRate * 100}% success rate`,
+						skillSequence: this.completedSkillSequence,
+						applicableTo: [mission.context?.projectType || 'general'],
+						missionId: mission.id
+					});
+
+					console.log(`[Learning] Recorded workflow pattern: ${this.completedSkillSequence.join(' → ')}`);
+				}
+
+				// Record a learning about what worked
+				const primaryAgent = mission.agents[0];
+				if (primaryAgent) {
+					await memoryClient.recordLearning(
+						primaryAgent.id,
+						{
+							content: `Mission "${mission.name}" succeeded with skill sequence: ${this.completedSkillSequence.join(' → ')}`,
+							skillId: primaryAgent.skills?.[0],
+							missionId: mission.id,
+							patternType: 'success',
+							confidence: successRate
+						}
+					);
+				}
+			}
+
+			// If mission failed, record the failure pattern
+			if (mission.status === 'failed' && mission.error) {
+				const failedTask = mission.tasks.find(t => t.status === 'failed');
+				const agent = failedTask
+					? mission.agents.find(a => a.id === failedTask.assignedTo)
+					: mission.agents[0];
+
+				if (agent) {
+					await memoryClient.recordLearning(
+						agent.id,
+						{
+							content: `Mission "${mission.name}" failed: ${mission.error}`,
+							skillId: agent.skills?.[0],
+							missionId: mission.id,
+							patternType: 'failure',
+							confidence: 0.8
+						}
+					);
+
+					console.log(`[Learning] Recorded failure learning: ${mission.error}`);
+				}
+			}
+		} catch (error) {
+			console.error('[Learning] Failed to record mission complete:', error);
+		}
+	}
+
+	/**
+	 * Reset learning tracking for new execution
+	 */
+	private resetLearningTracking(): void {
+		this.taskStartTimes.clear();
+		this.taskDecisionIds.clear();
+		this.completedSkillSequence = [];
 	}
 }
 
