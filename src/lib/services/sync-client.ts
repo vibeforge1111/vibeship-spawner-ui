@@ -309,10 +309,10 @@ class SyncClient {
 				if (type && type.startsWith('canvas_')) {
 					// Canvas event - treat as sync event
 					const event: SyncEvent = {
-						type: type as any,
-						data: data,
-						timestamp: data.timestamp || new Date().toISOString(),
-						source: data.source || 'server'
+						type: type as SyncEvent['type'],
+						data: data as Record<string, unknown>,
+						timestamp: (data.timestamp as string) || new Date().toISOString(),
+						source: (data.source as SyncEvent['source']) || 'server'
 					};
 					eventLog.update(log => [...log.slice(-99), event]);
 					lastEvent.set(event);
@@ -320,10 +320,10 @@ class SyncClient {
 				} else if (type && (type === 'test_echo' || type === 'broadcast')) {
 					// Test or broadcast message - forward as event
 					const event: SyncEvent = {
-						type: type as any,
-						data: data.data || data,
-						timestamp: data.timestamp || new Date().toISOString(),
-						source: data.source || 'server'
+						type: type as SyncEvent['type'],
+						data: (data.data as Record<string, unknown>) || data,
+						timestamp: (data.timestamp as string) || new Date().toISOString(),
+						source: (data.source as SyncEvent['source']) || 'server'
 					};
 					this.notifySubscribers(event);
 				} else {

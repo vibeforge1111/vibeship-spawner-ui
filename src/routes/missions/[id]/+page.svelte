@@ -35,7 +35,7 @@
 
 	$effect(() => {
 		const unsub = page.subscribe((p) => {
-			missionId = p.params.id;
+			missionId = p.params.id ?? '';
 		});
 		return unsub;
 	});
@@ -71,7 +71,7 @@
 		}
 	});
 
-	function getStatusColor(status: Mission['status'] | MissionTask['status']): string {
+	function getStatusColor(status: Mission['status'] | MissionTask['status'] | 'success' | 'error'): string {
 		switch (status) {
 			case 'running':
 			case 'in_progress': return 'text-yellow-400';

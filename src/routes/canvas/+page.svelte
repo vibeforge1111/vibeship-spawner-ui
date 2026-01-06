@@ -720,7 +720,7 @@ import { get } from 'svelte/store';
 		return 'M ' + fromX + ' ' + fromY + ' C ' + midX + ' ' + fromY + ', ' + midX + ' ' + toY + ', ' + toX + ' ' + toY;
 	}
 
-	function handleDrop(e) {
+	function handleDrop(e: DragEvent) {
 		e.preventDefault();
 		if (!e.dataTransfer) return;
 		const skillJson = e.dataTransfer.getData('application/json');
@@ -735,7 +735,7 @@ import { get } from 'svelte/store';
 		} catch (err) { console.error(err); }
 	}
 
-	function handleDragOver(e) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; }
+	function handleDragOver(e: DragEvent) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; }
 
 	// Handle click on handoff port - spawn the recommended skill and auto-connect
 	function handleHandoffClick(skillId: string, sourceNodeId: string, sourcePortId: string) {
@@ -766,7 +766,7 @@ import { get } from 'svelte/store';
 		}
 	}
 
-	function handleCanvasClick(e) { if (e.target === e.currentTarget) { clearSelection(); showLayoutMenu = false; } }
+	function handleCanvasClick(e: MouseEvent) { if (e.target === e.currentTarget) { clearSelection(); showLayoutMenu = false; } }
 	function handleZoomIn() { setZoom(zoom + 0.1); }
 	function handleZoomOut() { setZoom(zoom - 0.1); }
 	function handleZoomReset() { setZoom(1); }

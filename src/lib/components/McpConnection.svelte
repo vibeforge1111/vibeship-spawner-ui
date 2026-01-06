@@ -35,19 +35,19 @@
 		setMcpUrl(customUrl);
 	}
 
-	$: statusColor = {
+	const statusColor = $derived({
 		disconnected: 'bg-gray-500',
 		connecting: 'bg-yellow-500 animate-pulse',
 		connected: 'bg-green-500',
 		error: 'bg-red-500'
-	}[$mcpState.status];
+	}[$mcpState.status]);
 
-	$: statusText = {
+	const statusText = $derived({
 		disconnected: 'Disconnected',
 		connecting: 'Connecting...',
 		connected: 'Connected',
 		error: 'Error'
-	}[$mcpState.status];
+	}[$mcpState.status]);
 </script>
 
 <div class="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
