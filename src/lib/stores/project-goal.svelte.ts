@@ -2,10 +2,21 @@
  * Project Goal Store
  *
  * Stores the current project goal/description across navigation.
- * Persists the goal while user works on their workflow.
+ * Persists to sessionStorage to survive page reloads.
  */
 
 import type { AnalyzedGoal, MatchResult, GeneratedWorkflow, GoalProcessingState } from '$lib/types/goal';
+import { browser } from '$app/environment';
+
+const STORAGE_KEY = 'spawner-pending-goal';
+
+// Load from sessionStorage on init (browser only)
+function loadFromStorage(): string {
+	if (browser) {
+		return sessionStorage.getItem(STORAGE_KEY) || '';
+	}
+	return '';
+}
 
 // State for goal processing
 let goalState = $state<{
@@ -15,7 +26,7 @@ let goalState = $state<{
 	workflow: GeneratedWorkflow | null;
 	processing: GoalProcessingState;
 }>({
-	input: '',
+	input: loadFromStorage(),
 	analyzedGoal: null,
 	matchResult: null,
 	workflow: null,
@@ -39,6 +50,10 @@ export function setGoalInput(input: string): void {
 		progress: 0,
 		message: ''
 	};
+	// Persist to sessionStorage for page reload survival
+	if (browser) {
+		sessionStorage.setItem(STORAGE_KEY, input);
+	}
 }
 
 /**
@@ -82,6 +97,10 @@ export function clearGoal(): void {
 		progress: 0,
 		message: ''
 	};
+	// Clear from sessionStorage
+	if (browser) {
+		sessionStorage.removeItem(STORAGE_KEY);
+	}
 }
 
 /**
