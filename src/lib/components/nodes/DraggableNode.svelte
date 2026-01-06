@@ -2,6 +2,7 @@
 	import SkillNode from './SkillNode.svelte';
 	import type { CanvasNode } from '$lib/stores/canvas.svelte';
 	import { updateNodePosition, selectNode, toggleNodeSelection, removeNode, startConnectionDrag, updateConnectionDrag, endConnectionDrag, completeConnection, snapPosition, canvasState } from '$lib/stores/canvas.svelte';
+	import { get } from 'svelte/store';
 	import type { SkillNodeData } from '$lib/types/skill';
 	import { generatePorts } from '$lib/utils/ports';
 	import { onMount } from 'svelte';
@@ -26,6 +27,12 @@
 
 	let isDragging = $state(false);
 	let dragOffset = $state({ x: 0, y: 0 });
+
+	// FIX: Helper to get current zoom/pan from store (avoids stale closure values)
+	function getCurrentTransform() {
+		const state = get(canvasState);
+		return { zoom: state.zoom, pan: state.pan };
+	}
 
 	// Clean up window event listeners on unmount to prevent stuck states
 	onMount(() => {
@@ -103,11 +110,14 @@
 		const canvasEl = document.querySelector('.canvas-area');
 		if (!canvasEl) return;
 
+		// FIX: Read current zoom/pan from store to avoid stale closure values
+		const { zoom: currentZoom, pan: currentPan } = getCurrentTransform();
+
 		const canvasRect = canvasEl.getBoundingClientRect();
 		// Account for pan offset when calculating position
 		// dragOffset is in screen pixels (already accounts for zoom via bounding rect)
-		const rawX = (e.clientX - canvasRect.left - pan.x - dragOffset.x) / zoom;
-		const rawY = (e.clientY - canvasRect.top - pan.y - dragOffset.y) / zoom;
+		const rawX = (e.clientX - canvasRect.left - currentPan.x - dragOffset.x) / currentZoom;
+		const rawY = (e.clientY - canvasRect.top - currentPan.y - dragOffset.y) / currentZoom;
 
 		// Apply snap to grid (no constraints - canvas is infinite)
 		const snapped = snapPosition(rawX, rawY);
@@ -137,11 +147,14 @@
 		const canvasEl = document.querySelector('.canvas-area');
 		if (!canvasEl) return;
 
+		// FIX: Read current zoom/pan from store to avoid stale closure values
+		const { zoom: currentZoom, pan: currentPan } = getCurrentTransform();
+
 		const canvasRect = canvasEl.getBoundingClientRect();
 		// Convert screen coordinates to canvas space (accounting for pan and zoom)
 		// The SVG is inside the zoomed container, so all coordinates must be in canvas space
-		const portX = (e.clientX - canvasRect.left - pan.x) / zoom;
-		const portY = (e.clientY - canvasRect.top - pan.y) / zoom;
+		const portX = (e.clientX - canvasRect.left - currentPan.x) / currentZoom;
+		const portY = (e.clientY - canvasRect.top - currentPan.y) / currentZoom;
 
 		startConnectionDrag(node.id, portId, portType, portX, portY);
 
@@ -153,10 +166,13 @@
 		const canvasEl = document.querySelector('.canvas-area');
 		if (!canvasEl) return;
 
+		// FIX: Read current zoom/pan from store to avoid stale closure values
+		const { zoom: currentZoom, pan: currentPan } = getCurrentTransform();
+
 		const canvasRect = canvasEl.getBoundingClientRect();
 		// Convert screen coordinates to canvas space (same as start position)
-		const currentX = (e.clientX - canvasRect.left - pan.x) / zoom;
-		const currentY = (e.clientY - canvasRect.top - pan.y) / zoom;
+		const currentX = (e.clientX - canvasRect.left - currentPan.x) / currentZoom;
+		const currentY = (e.clientY - canvasRect.top - currentPan.y) / currentZoom;
 
 		updateConnectionDrag(currentX, currentY);
 	}
