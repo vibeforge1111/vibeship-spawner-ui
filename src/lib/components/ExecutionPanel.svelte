@@ -459,9 +459,31 @@
 					></div>
 				</div>
 				<div class="flex justify-between mt-2 text-xs text-text-tertiary">
-					<span>{currentNodes.length} nodes • {executionProgress.missionId ? `Mission: ${executionProgress.missionId.slice(0, 8)}...` : ''}</span>
+					<span>{currentNodes.length} nodes</span>
 					<span>{getExecutionDuration()}</span>
 				</div>
+				{#if executionProgress.missionId}
+					<div class="mt-2 p-2 bg-surface-secondary rounded text-xs">
+						<div class="flex items-center justify-between gap-2">
+							<span class="text-text-tertiary">Mission ID:</span>
+							<code class="text-accent-primary font-mono select-all">{executionProgress.missionId}</code>
+							<button
+								class="px-2 py-1 bg-accent-primary/20 hover:bg-accent-primary/30 text-accent-primary rounded text-xs"
+								onclick={() => {
+									navigator.clipboard.writeText(`Execute mission ${executionProgress.missionId}`);
+									toasts.success('Copied! Paste this to Claude Code');
+								}}
+							>
+								Copy for Claude
+							</button>
+						</div>
+						{#if executionProgress.status === 'running' && executionProgress.progress === 0}
+							<p class="mt-2 text-text-tertiary text-xs">
+								Tell Claude Code: "Execute mission {executionProgress.missionId}"
+							</p>
+						{/if}
+					</div>
+				{/if}
 			</div>
 		{/if}
 
