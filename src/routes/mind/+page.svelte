@@ -3,6 +3,7 @@
 	import Navbar from '$lib/components/Navbar.svelte';
 	import Footer from '$lib/components/Footer.svelte';
 	import LearningsTimeline from '$lib/components/LearningsTimeline.svelte';
+	import LearningsFilter from '$lib/components/LearningsFilter.svelte';
 	import WorkflowPatterns from '$lib/components/WorkflowPatterns.svelte';
 	import AgentEffectiveness from '$lib/components/AgentEffectiveness.svelte';
 	import LearningsExportImport from '$lib/components/LearningsExportImport.svelte';
@@ -55,6 +56,9 @@
 	let sessionSummary = $state('');
 
 	let submitting = $state(false);
+
+	// Filtered learnings for the filter component
+	let filteredLearnings = $state<Memory[]>([]);
 
 	$effect(() => {
 		const unsub1 = mindState.subscribe((s) => (currentState = s));
@@ -423,10 +427,17 @@
 					</div>
 				{:else}
 					<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-						<!-- Main Timeline -->
+						<!-- Main Timeline with Filters -->
 						<div class="lg:col-span-2">
-							<LearningsTimeline
+							<!-- Filters -->
+							<LearningsFilter
 								learnings={currentState.learnings}
+								onFilter={(filtered) => filteredLearnings = filtered}
+							/>
+
+							<!-- Timeline -->
+							<LearningsTimeline
+								learnings={filteredLearnings.length > 0 || currentState.learnings.length === 0 ? filteredLearnings : currentState.learnings}
 								loading={currentState.learningsLoading}
 							/>
 						</div>

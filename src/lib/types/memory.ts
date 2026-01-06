@@ -46,12 +46,14 @@ export type BaseContentType =
  * Extended content types for agent learning
  */
 export type AgentContentType =
-	| 'agent_decision'     // Decision made by an agent during mission
-	| 'agent_learning'     // Insight extracted from outcomes
-	| 'workflow_pattern'   // Successful workflow sequence
-	| 'task_outcome'       // Result of a task execution
-	| 'handoff_context'    // Context passed between agents
-	| 'skill_insight';     // Learning about a specific skill
+	| 'agent_decision'           // Decision made by an agent during mission
+	| 'agent_learning'           // Insight extracted from outcomes
+	| 'workflow_pattern'         // Successful workflow sequence
+	| 'task_outcome'             // Result of a task execution
+	| 'handoff_context'          // Context passed between agents
+	| 'skill_insight'            // Learning about a specific skill
+	| 'decision_reinforcement'   // Reinforcement applied to a decision
+	| 'pattern_reinforcement';   // Reinforcement applied to a pattern
 
 export type ContentType = BaseContentType | AgentContentType;
 
@@ -135,6 +137,7 @@ export interface AgentMemoryMetadata {
 	outcome?: 'success' | 'failure' | 'partial' | 'pending';
 	outcome_details?: string;
 	outcome_quality?: number;    // -1.0 to 1.0
+	quality?: number;            // Reinforcement quality multiplier
 
 	// Learning extraction
 	lesson_learned?: string;
@@ -152,6 +155,16 @@ export interface AgentMemoryMetadata {
 
 	// Goal context
 	goal_summary?: string;
+
+	// Reinforcement tracking
+	original_decision_id?: string;   // ID of decision being reinforced
+	pattern_id?: string;             // ID of pattern being reinforced
+	action?: 'boost' | 'penalize';   // Type of reinforcement
+	success_count?: number;          // Number of successful uses
+	failure_count?: number;          // Number of failed uses
+	old_confidence?: number;         // Previous confidence value
+	new_confidence?: number;         // Updated confidence value
+	amount?: number;                 // Reinforcement amount applied
 
 	// Multiple skills (for workflows)
 	skill_ids?: string[];
