@@ -17,7 +17,8 @@ import { get } from 'svelte/store';
 	import { goto, beforeNavigate, afterNavigate } from '$app/navigation';
 	import { type Skill, getSkillById } from '$lib/stores/skills.svelte';
 	import { validateForMission, buildMissionFromCanvas } from '$lib/services/mission-builder';
-	import { mcpState } from '$lib/stores/mcp.svelte';
+	import { mcpState, isConnected as mcpConnected } from '$lib/stores/mcp.svelte';
+	import { isMemoryConnected } from '$lib/stores/memory-settings.svelte';
 	import { getGoalState, hasPendingGoal, clearGoal } from '$lib/stores/project-goal.svelte';
 	import { generatePipeline, storePipelineLearning } from '$lib/services/smart-pipeline';
 	import { initCanvasSync } from '$lib/services/canvas-sync';
@@ -35,7 +36,8 @@ import { get } from 'svelte/store';
 	let missionDescription = $state('');
 	let missionExporting = $state(false);
 	let missionExportError = $state<string | null>(null);
-	let mcpConnected = $state(false);
+	let isMcpConnected = $state(false);
+	let isMindConnected = $state(false);
 	let canvasEl: HTMLDivElement;
 	let lastSaved = $state<Date | null>(null);
 
@@ -449,10 +451,11 @@ import { get } from 'svelte/store';
 		lastSaved = new Date();
 	}
 
-	// Subscribe to MCP state
+	// Subscribe to connection states
 	$effect(() => {
-		const unsub = mcpState.subscribe((s) => (mcpConnected = s.status === 'connected'));
-		return unsub;
+		const unsub1 = mcpState.subscribe((s) => (isMcpConnected = s.status === 'connected'));
+		const unsub2 = isMemoryConnected.subscribe((v) => (isMindConnected = v));
+		return () => { unsub1(); unsub2(); };
 	});
 
 	// Mission export handlers
@@ -933,7 +936,15 @@ import { get } from 'svelte/store';
 		<div class="p-4 border-b border-surface-border"><a href="/" class="flex items-center gap-1.5"><img src="/logo.png" alt="vibeship" class="w-6 h-6" /><span class="font-serif text-[1.36rem] text-text-primary">vibeship</span><span class="font-serif text-[1.36rem] text-accent-primary">spawner</span></a></div>
 		<div class="p-3 border-b border-surface-border"><div class="flex p-0.5 border border-surface-border"><button class="flex-1 py-1.5 px-3 text-sm font-mono transition-all" class:bg-accent-primary={activeTab === 'skills'} class:text-bg-primary={activeTab === 'skills'} class:text-text-secondary={activeTab !== 'skills'} onclick={() => (activeTab = 'skills')}>Skills</button><button class="flex-1 py-1.5 px-3 text-sm font-mono transition-all" class:bg-accent-secondary={activeTab === 'builder'} class:text-bg-primary={activeTab === 'builder'} class:text-text-secondary={activeTab !== 'builder'} onclick={() => (activeTab = 'builder')}>Builder</button></div></div>
 		<div class="flex-1 overflow-hidden">{#if activeTab === 'skills'}<SkillsPanel />{:else}<BuilderPanel />{/if}</div>
-		<div class="p-4 border-t border-surface-border"><div class="text-xs text-text-tertiary">Project • {currentNodes.length} nodes</div></div>
+		<div class="p-3 border-t border-surface-border">
+			<div class="flex items-center justify-between">
+				<div class="text-xs text-text-tertiary font-mono">{currentNodes.length} nodes</div>
+				<div class="flex items-center gap-1.5">
+					<span class="w-1.5 h-1.5 rounded-full {isMcpConnected ? 'bg-green-500' : 'bg-text-tertiary'}" title={isMcpConnected ? 'MCP Connected' : 'MCP Disconnected'}></span>
+					<span class="w-1.5 h-1.5 rounded-full {isMindConnected ? 'bg-purple-500' : 'bg-text-tertiary'}" title={isMindConnected ? 'Mind Connected' : 'Mind Disconnected'}></span>
+				</div>
+			</div>
+		</div>
 	</aside>
 	<main class="flex-1 flex flex-col">
 		<!-- Two-row toolbar -->
@@ -1021,8 +1032,8 @@ import { get } from 'svelte/store';
 					<button
 						onclick={openMissionExport}
 						class="px-2.5 py-1 text-xs font-mono text-text-secondary border border-surface-border hover:border-text-tertiary hover:text-text-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-						disabled={currentNodes.length === 0 || !mcpConnected}
-						title={!mcpConnected ? 'Connect to MCP to export missions' : 'Export workflow as mission'}
+						disabled={currentNodes.length === 0 || !isMcpConnected}
+						title={!isMcpConnected ? 'Connect to MCP to export missions' : 'Export workflow as mission'}
 					>
 						Export
 					</button>

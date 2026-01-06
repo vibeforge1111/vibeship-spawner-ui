@@ -5,6 +5,7 @@
 	import PRDProcessingModal from './PRDProcessingModal.svelte';
 	import { isConnected as mcpConnected, isConnecting as mcpConnecting } from '$lib/stores/mcp.svelte';
 	import { isConnected as syncConnected, syncStatus } from '$lib/services/sync-client';
+	import { isMemoryConnected, memoryConnectionStatus } from '$lib/stores/memory-settings.svelte';
 	import { setPRD, setProjectName } from '$lib/stores/project-docs.svelte';
 	import { analyzePRD, generateTasksFromPRD, tasksToWorkflow, type PRDAnalysis, type GeneratedTask } from '$lib/utils/prd-analyzer';
 	import { skills as skillsStore, loadSkills, addSkills } from '$lib/stores/skills.svelte';
@@ -217,44 +218,48 @@
 				</span>
 			</div>
 
-			<!-- Sync Connection Status -->
+			<!-- Connection Status -->
 			<div class="mt-6 flex flex-col items-center gap-2">
-				<div class="flex items-center gap-3">
+				<div class="flex items-center gap-2">
 					<!-- MCP Status -->
 					{#if $mcpConnected}
-						<div class="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/30 rounded-full">
-							<span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-							<span class="text-xs font-mono text-green-400">MCP Server</span>
+						<div class="flex items-center gap-1.5 px-2.5 py-1 bg-green-500/10 border border-green-500/30">
+							<span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+							<span class="text-xs font-mono text-green-400">MCP</span>
 						</div>
 					{:else if $mcpConnecting}
-						<div class="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/30 rounded-full">
-							<span class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
-							<span class="text-xs font-mono text-yellow-400">Connecting...</span>
+						<div class="flex items-center gap-1.5 px-2.5 py-1 bg-yellow-500/10 border border-yellow-500/30">
+							<span class="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></span>
+							<span class="text-xs font-mono text-yellow-400">MCP</span>
 						</div>
 					{:else}
-						<button
-							onclick={() => showSetupGuide = true}
-							class="flex items-center gap-2 px-3 py-1.5 bg-text-tertiary/10 border border-surface-border rounded-full hover:border-accent-primary/50 transition-colors"
-						>
-							<span class="w-2 h-2 bg-text-tertiary rounded-full"></span>
-							<span class="text-xs font-mono text-text-tertiary">Setup Sync</span>
-						</button>
+						<div class="flex items-center gap-1.5 px-2.5 py-1 bg-text-tertiary/10 border border-surface-border">
+							<span class="w-1.5 h-1.5 bg-text-tertiary rounded-full"></span>
+							<span class="text-xs font-mono text-text-tertiary">MCP</span>
+						</div>
+					{/if}
+
+					<!-- Mind Status -->
+					{#if $isMemoryConnected}
+						<div class="flex items-center gap-1.5 px-2.5 py-1 bg-purple-500/10 border border-purple-500/30">
+							<span class="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
+							<span class="text-xs font-mono text-purple-400">Mind</span>
+						</div>
+					{:else}
+						<div class="flex items-center gap-1.5 px-2.5 py-1 bg-text-tertiary/10 border border-surface-border">
+							<span class="w-1.5 h-1.5 bg-text-tertiary rounded-full"></span>
+							<span class="text-xs font-mono text-text-tertiary">Mind</span>
+						</div>
 					{/if}
 
 					<!-- Real-time Sync Status -->
 					{#if $syncConnected}
-						<div class="flex items-center gap-2 px-3 py-1.5 bg-accent-primary/10 border border-accent-primary/30 rounded-full">
-							<span class="w-2 h-2 bg-accent-primary rounded-full animate-pulse"></span>
-							<span class="text-xs font-mono text-accent-primary">Real-time Sync</span>
+						<div class="flex items-center gap-1.5 px-2.5 py-1 bg-accent-primary/10 border border-accent-primary/30">
+							<span class="w-1.5 h-1.5 bg-accent-primary rounded-full"></span>
+							<span class="text-xs font-mono text-accent-primary">Sync</span>
 						</div>
 					{/if}
 				</div>
-
-				{#if !$mcpConnected && !$mcpConnecting}
-					<p class="text-xs text-text-tertiary">
-						Run <code class="px-1 py-0.5 bg-surface rounded text-accent-primary">wrangler dev</code> in spawner-v2 to sync with Claude Code
-					</p>
-				{/if}
 			</div>
 		</div>
 
