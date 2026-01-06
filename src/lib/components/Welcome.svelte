@@ -7,7 +7,7 @@
 	import { isConnected as syncConnected, syncStatus } from '$lib/services/sync-client';
 	import { setPRD, setProjectName } from '$lib/stores/project-docs.svelte';
 	import { analyzePRD, generateTasksFromPRD, tasksToWorkflow, type PRDAnalysis, type GeneratedTask } from '$lib/utils/prd-analyzer';
-	import { skills as skillsStore, loadSkills } from '$lib/stores/skills.svelte';
+	import { skills as skillsStore, loadSkills, addSkills } from '$lib/stores/skills.svelte';
 	import { addNodesWithConnections, clearCanvas, nodes, connections } from '$lib/stores/canvas.svelte';
 	import { createNewPipeline, saveCurrentPipeline, initPipelines } from '$lib/stores/pipelines.svelte';
 	import { toasts } from '$lib/stores/toast.svelte';
@@ -148,6 +148,11 @@
 			// Create a new pipeline for this PRD
 			const pipelineName = processingProjectName || 'PRD Pipeline';
 			createNewPipeline(pipelineName);
+
+			// Extract skills from workflow nodes and add to skills store
+			// This makes them appear in the left sidebar
+			const workflowSkills = pendingWorkflow.nodes.map(n => n.skill);
+			addSkills(workflowSkills);
 
 			// Clear canvas and add the workflow nodes
 			clearCanvas();

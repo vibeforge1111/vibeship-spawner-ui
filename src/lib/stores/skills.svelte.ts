@@ -162,7 +162,13 @@ export async function loadSkillsStatic() {
 			pairsWell: s.pairsWell || []
 		}));
 
-		skills.set(loadedSkills);
+		// Preserve generated/custom skills (from PRD analysis) when reloading
+		const existingSkills = get(skills);
+		const generatedSkills = existingSkills.filter(s => s.id.startsWith('generated-'));
+		const loadedIds = new Set(loadedSkills.map(s => s.id));
+		const toPreserve = generatedSkills.filter(s => !loadedIds.has(s.id));
+
+		skills.set([...loadedSkills, ...toPreserve]);
 	} catch (e) {
 		error.set(e instanceof Error ? e.message : 'Failed to load skills');
 		console.error('Error loading skills:', e);
@@ -189,7 +195,13 @@ export async function loadSkillsMcp() {
 		const mcpSkills = result.data?.skills || [];
 		const loadedSkills: Skill[] = mcpSkills.map(mapMcpSkill);
 
-		skills.set(loadedSkills);
+		// Preserve generated/custom skills (from PRD analysis) when reloading
+		const existingSkills = get(skills);
+		const generatedSkills = existingSkills.filter(s => s.id.startsWith('generated-'));
+		const loadedIds = new Set(loadedSkills.map(s => s.id));
+		const toPreserve = generatedSkills.filter(s => !loadedIds.has(s.id));
+
+		skills.set([...loadedSkills, ...toPreserve]);
 	} catch (e) {
 		error.set(e instanceof Error ? e.message : 'Failed to load skills from MCP');
 		console.error('Error loading skills from MCP:', e);
@@ -217,7 +229,13 @@ export async function searchSkillsMcp(query: string) {
 		const mcpSkills = result.data?.skills || [];
 		const loadedSkills: Skill[] = mcpSkills.map(mapMcpSkill);
 
-		skills.set(loadedSkills);
+		// Preserve generated/custom skills (from PRD analysis) when searching
+		const existingSkills = get(skills);
+		const generatedSkills = existingSkills.filter(s => s.id.startsWith('generated-'));
+		const loadedIds = new Set(loadedSkills.map(s => s.id));
+		const toPreserve = generatedSkills.filter(s => !loadedIds.has(s.id));
+
+		skills.set([...loadedSkills, ...toPreserve]);
 		skillSource.set('mcp');
 	} catch (e) {
 		error.set(e instanceof Error ? e.message : 'Failed to search skills');
@@ -258,4 +276,16 @@ export function getSkillById(id: string): Skill | undefined {
 		found = s.find((skill) => skill.id === id);
 	})();
 	return found;
+}
+
+/**
+ * Add skills to the store (used for generated/placeholder skills from PRD)
+ * Only adds skills that don't already exist (by ID)
+ */
+export function addSkills(newSkills: Skill[]) {
+	skills.update((existing) => {
+		const existingIds = new Set(existing.map(s => s.id));
+		const toAdd = newSkills.filter(s => !existingIds.has(s.id));
+		return [...existing, ...toAdd];
+	});
 }
