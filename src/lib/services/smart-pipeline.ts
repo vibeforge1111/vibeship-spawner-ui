@@ -280,48 +280,54 @@ function createPipeline(skills: Skill[], goal: string): GeneratedPipeline {
 	}
 
 	// Create logical connections based on skill relationships
+	// IMPORTANT: Only create forward connections (to later nodes) to prevent cycles
+	const connectedPairs = new Set<string>();
+
 	for (let i = 0; i < nodes.length; i++) {
 		const skill = nodes[i].skill;
 
-		// Check handoffs
+		// Check handoffs - only connect to nodes that come AFTER this one
 		if (skill.handoffs) {
 			for (const handoff of skill.handoffs) {
 				const targetIdx = nodes.findIndex(n => n.skill.id === handoff.to);
-				if (targetIdx !== -1 && targetIdx !== i) {
-					connections.push({
-						sourceId: skill.id,
-						targetId: nodes[targetIdx].skill.id,
-						sourcePort: 'output',
-						targetPort: 'input'
-					});
-				}
-			}
-		}
-
-		// Check pairsWell for potential connections
-		if (skill.pairsWell) {
-			for (const pairId of skill.pairsWell) {
-				const targetIdx = nodes.findIndex(n => n.skill.id === pairId);
-				if (targetIdx !== -1 && targetIdx !== i) {
-					// Don't duplicate connections
-					const exists = connections.some(c =>
-						(c.sourceId === skill.id && c.targetId === nodes[targetIdx].skill.id) ||
-						(c.sourceId === nodes[targetIdx].skill.id && c.targetId === skill.id)
-					);
-					if (!exists) {
+				// Only connect to later nodes to prevent cycles
+				if (targetIdx !== -1 && targetIdx > i) {
+					const pairKey = `${skill.id}->${nodes[targetIdx].skill.id}`;
+					if (!connectedPairs.has(pairKey)) {
 						connections.push({
 							sourceId: skill.id,
 							targetId: nodes[targetIdx].skill.id,
 							sourcePort: 'output',
 							targetPort: 'input'
 						});
+						connectedPairs.add(pairKey);
+					}
+				}
+			}
+		}
+
+		// Check pairsWell - only connect to later nodes to prevent cycles
+		if (skill.pairsWell) {
+			for (const pairId of skill.pairsWell) {
+				const targetIdx = nodes.findIndex(n => n.skill.id === pairId);
+				// Only connect to later nodes to prevent cycles
+				if (targetIdx !== -1 && targetIdx > i) {
+					const pairKey = `${skill.id}->${nodes[targetIdx].skill.id}`;
+					if (!connectedPairs.has(pairKey)) {
+						connections.push({
+							sourceId: skill.id,
+							targetId: nodes[targetIdx].skill.id,
+							sourcePort: 'output',
+							targetPort: 'input'
+						});
+						connectedPairs.add(pairKey);
 					}
 				}
 			}
 		}
 	}
 
-	// If no connections were created, create a simple flow
+	// If no connections were created, create a simple sequential flow
 	if (connections.length === 0 && nodes.length > 1) {
 		for (let i = 0; i < nodes.length - 1; i++) {
 			connections.push({
