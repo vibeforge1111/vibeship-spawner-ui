@@ -12,6 +12,7 @@
 	import PostMissionReview from './PostMissionReview.svelte';
 	import MidMissionGuidance from './MidMissionGuidance.svelte';
 	import { isMemoryConnected } from '$lib/stores/memory-settings.svelte';
+	import { memoryClient } from '$lib/services/memory-client';
 
 	interface Props {
 		onClose: () => void;
@@ -46,6 +47,12 @@
 	// Orphan node warning state
 	let showOrphanWarning = $state(false);
 	let orphanedNodes = $state<CanvasNode[]>([]);
+
+	// Task tracking for completion summary
+	let completedTasks = $state<string[]>([]);
+	let failedTasks = $state<string[]>([]);
+	let pendingTasks = $state<string[]>([]);
+	let mindLogsCount = $state(0);
 
 	// Derived states
 	let isRunning = $derived(executionProgress?.status === 'running' || executionProgress?.status === 'creating');
@@ -229,6 +236,24 @@
 	}
 
 	/**
+	 * Log progress to Mind
+	 */
+	async function logToMind(type: 'progress' | 'decision' | 'learning', message: string) {
+		if (!memoryConnected) return;
+		try {
+			await memoryClient.recordLearning('spawner-ui', {
+				content: message,
+				missionId: executionProgress?.missionId || undefined,
+				patternType: type === 'learning' ? 'success' : undefined,
+				confidence: 0.8
+			});
+			mindLogsCount++;
+		} catch (e) {
+			console.error('[ExecutionPanel] Failed to log to Mind:', e);
+		}
+	}
+
+	/**
 	 * Actually execute the workflow (called after validation passes)
 	 */
 	async function executeWorkflow() {
@@ -241,13 +266,28 @@
 		missionStartTime = new Date();
 		missionEndTime = null;
 
+		// Reset task tracking
+		completedTasks = [];
+		failedTasks = [];
+		pendingTasks = currentNodes.map(n => n.skill.name);
+		mindLogsCount = 0;
+
 		// Track task outcomes for reinforcement
 		const taskOutcomes: Record<string, boolean> = {};
+
+		// Log mission start to Mind
+		logToMind('progress', `Starting workflow execution with ${currentNodes.length} tasks: ${currentNodes.map(n => n.skill.name).join(', ')}`);
 
 		// Set up callbacks
 		missionExecutor.setCallbacks({
 			onStatusChange: (status) => {
 				executionProgress = missionExecutor.getProgress();
+				// Log status changes to Mind
+				if (status === 'running') {
+					logToMind('progress', 'Workflow execution started');
+				} else if (status === 'paused') {
+					logToMind('progress', 'Workflow execution paused');
+				}
 			},
 			onProgress: (progress) => {
 				executionProgress = missionExecutor.getProgress();
@@ -263,6 +303,12 @@
 					// Update skill/agent IDs for mid-mission guidance
 					currentSkillId = node.skill.id;
 					currentAgentId = node.skill.id; // Use skill as agent proxy
+
+					// Remove from pending, update UI
+					pendingTasks = pendingTasks.filter(t => t !== taskName);
+
+					// Log to Mind
+					logToMind('progress', `Starting task: ${taskName}`);
 				}
 			},
 			onTaskComplete: (taskId, success) => {
@@ -271,14 +317,32 @@
 
 				// Find the node and update its status
 				const node = currentNodes.find(n => n.id === taskId);
+				const taskName = node?.skill.name || taskId;
 				if (node) {
 					updateNodeStatus(node.id, success ? 'success' : 'error');
+				}
+
+				// Update tracking
+				if (success) {
+					completedTasks = [...completedTasks, taskName];
+					logToMind('progress', `Completed task: ${taskName}`);
+				} else {
+					failedTasks = [...failedTasks, taskName];
+					logToMind('progress', `Failed task: ${taskName}`);
 				}
 			},
 			onComplete: async (mission) => {
 				executionProgress = missionExecutor.getProgress();
 				missionEndTime = new Date();
 				completedMission = mission;
+
+				// Clear pending tasks
+				pendingTasks = [];
+
+				// Log completion to Mind with summary
+				const duration = missionEndTime.getTime() - (missionStartTime?.getTime() || 0);
+				const durationStr = duration < 60000 ? `${Math.round(duration / 1000)}s` : `${Math.round(duration / 60000)}m`;
+				logToMind('learning', `Workflow completed successfully in ${durationStr}. Completed ${completedTasks.length} tasks: ${completedTasks.join(', ')}`);
 
 				// Run reinforcement if memory is connected
 				if (memoryConnected) {
@@ -300,6 +364,9 @@
 			onError: async (error) => {
 				executionProgress = missionExecutor.getProgress();
 				missionEndTime = new Date();
+
+				// Log failure to Mind
+				logToMind('learning', `Workflow failed: ${error}. Completed ${completedTasks.length}/${currentNodes.length} tasks before failure.`);
 
 				// Still run reinforcement for partial results
 				if (memoryConnected && executionProgress?.missionId) {
@@ -482,6 +549,83 @@
 								Tell Claude Code: "Execute mission {executionProgress.missionId}"
 							</p>
 						{/if}
+					</div>
+				{/if}
+
+				<!-- Task Status Summary -->
+				{#if completedTasks.length > 0 || failedTasks.length > 0 || pendingTasks.length > 0}
+					<div class="mt-3 p-3 bg-bg-tertiary border border-surface-border">
+						<div class="flex items-center justify-between mb-2">
+							<span class="text-xs font-mono text-text-tertiary uppercase tracking-wider">Task Status</span>
+							{#if memoryConnected && mindLogsCount > 0}
+								<span class="text-xs text-purple-400 flex items-center gap-1">
+									<span class="w-1.5 h-1.5 bg-purple-400 rounded-full"></span>
+									{mindLogsCount} Mind logs
+								</span>
+							{/if}
+						</div>
+						<div class="grid grid-cols-3 gap-2 text-center text-xs">
+							<div class="p-2 bg-green-500/10 border border-green-500/30 rounded">
+								<div class="text-lg font-bold text-green-400">{completedTasks.length}</div>
+								<div class="text-green-400/70">Completed</div>
+							</div>
+							<div class="p-2 bg-yellow-500/10 border border-yellow-500/30 rounded">
+								<div class="text-lg font-bold text-yellow-400">{pendingTasks.length}</div>
+								<div class="text-yellow-400/70">Pending</div>
+							</div>
+							<div class="p-2 bg-red-500/10 border border-red-500/30 rounded">
+								<div class="text-lg font-bold text-red-400">{failedTasks.length}</div>
+								<div class="text-red-400/70">Failed</div>
+							</div>
+						</div>
+						{#if completedTasks.length > 0}
+							<div class="mt-2 text-xs text-text-tertiary">
+								<span class="text-green-400">Completed:</span> {completedTasks.join(', ')}
+							</div>
+						{/if}
+						{#if pendingTasks.length > 0 && isRunning}
+							<div class="mt-1 text-xs text-text-tertiary">
+								<span class="text-yellow-400">Up next:</span> {pendingTasks[0]}
+							</div>
+						{/if}
+					</div>
+				{/if}
+
+				<!-- Completion Summary -->
+				{#if executionProgress.status === 'completed'}
+					<div class="mt-3 p-3 bg-green-500/10 border border-green-500/30 rounded">
+						<div class="flex items-center gap-2 mb-2">
+							<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+							</svg>
+							<span class="text-green-400 font-medium">Workflow Completed!</span>
+						</div>
+						<p class="text-xs text-text-secondary">
+							Successfully completed {completedTasks.length} task{completedTasks.length !== 1 ? 's' : ''} in {getExecutionDuration()}.
+							{#if memoryConnected}
+								{mindLogsCount} events logged to Mind.
+							{/if}
+						</p>
+						{#if !memoryConnected}
+							<p class="text-xs text-amber-400 mt-1">
+								Connect Mind to save learnings from this workflow.
+							</p>
+						{/if}
+					</div>
+				{:else if executionProgress.status === 'failed'}
+					<div class="mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded">
+						<div class="flex items-center gap-2 mb-2">
+							<svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+							</svg>
+							<span class="text-red-400 font-medium">Workflow Failed</span>
+						</div>
+						<p class="text-xs text-text-secondary">
+							Completed {completedTasks.length} of {currentNodes.length} tasks before failure.
+							{#if executionProgress.error}
+								<br/>Error: {executionProgress.error}
+							{/if}
+						</p>
 					</div>
 				{/if}
 			</div>
