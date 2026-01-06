@@ -10,6 +10,9 @@
 		renamePipeline,
 		duplicatePipeline,
 		deletePipeline,
+		exportPipeline,
+		importPipeline,
+		exportAllPipelines,
 		type PipelineMetadata
 	} from '$lib/stores/pipelines.svelte';
 	import { get } from 'svelte/store';
@@ -28,6 +31,7 @@
 	let renameValue = $state('');
 	let dropdownEl: HTMLDivElement;
 	let renameInputEl: HTMLInputElement;
+	let fileInputEl: HTMLInputElement;
 
 	// Get current values from stores
 	let currentPipelines = $state<PipelineMetadata[]>([]);
@@ -175,6 +179,35 @@
 		if (diffDays < 7) return `${diffDays}d ago`;
 		return date.toLocaleDateString();
 	}
+
+	function handleExport(pipeline: PipelineMetadata) {
+		exportPipeline(pipeline.id);
+	}
+
+	function handleImport() {
+		fileInputEl?.click();
+	}
+
+	async function handleFileSelect(event: Event) {
+		const input = event.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+
+		const imported = await importPipeline(file);
+		if (imported) {
+			// Switch to the imported pipeline
+			const data = switchPipeline(imported.id);
+			onSwitch?.(data);
+			isOpen = false;
+		}
+		
+		// Clear the input for next use
+		input.value = '';
+	}
+
+	function handleBackupAll() {
+		exportAllPipelines();
+	}
 </script>
 
 <div class="relative" bind:this={dropdownEl}>
@@ -264,6 +297,18 @@
 									</svg>
 								</button>
 								<button
+									class="p-1.5 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded transition-colors"
+									onclick={(e) => {
+										e.stopPropagation();
+										handleExport(pipeline);
+									}}
+									title="Export"
+								>
+									<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+									</svg>
+								</button>
+								<button
 									class="p-1.5 text-text-tertiary hover:text-text-primary hover:bg-bg-primary/50 rounded transition-colors"
 									onclick={(e) => handleDuplicate(e, pipeline)}
 									title="Duplicate"
@@ -300,24 +345,55 @@
 				</div>
 			{/if}
 
-			<!-- Create New Pipeline Button - Always visible at bottom -->
-			<div class="border-t border-surface-border p-2">
-				<button
-					class="w-full flex items-center justify-center gap-2 px-3 py-2.5 font-mono text-sm text-accent-primary bg-accent-primary/5 hover:bg-accent-primary/15 border border-accent-primary/30 hover:border-accent-primary/50 transition-all"
-					onclick={handleCreate}
-				>
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-					</svg>
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-					</svg>
-					<span>New Pipeline</span>
-				</button>
+			<!-- Action Buttons - Always visible at bottom -->
+			<div class="border-t border-surface-border p-2 space-y-2">
+				<!-- Main actions row -->
+				<div class="flex gap-2">
+					<button
+						class="flex-1 flex items-center justify-center gap-2 px-3 py-2 font-mono text-sm text-accent-primary bg-accent-primary/5 hover:bg-accent-primary/15 border border-accent-primary/30 hover:border-accent-primary/50 transition-all"
+						onclick={handleCreate}
+					>
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+						</svg>
+						<span>New</span>
+					</button>
+					<button
+						class="flex-1 flex items-center justify-center gap-2 px-3 py-2 font-mono text-sm text-text-secondary bg-bg-tertiary hover:bg-bg-primary border border-surface-border hover:border-text-tertiary transition-all"
+						onclick={handleImport}
+					>
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+						</svg>
+						<span>Import</span>
+					</button>
+				</div>
+				<!-- Secondary action -->
+				{#if currentPipelines.length > 0}
+					<button
+						class="w-full flex items-center justify-center gap-2 px-3 py-1.5 font-mono text-xs text-text-tertiary bg-bg-secondary hover:bg-bg-tertiary border border-surface-border/50 hover:border-surface-border transition-all"
+						onclick={handleBackupAll}
+						title="Export all pipelines as backup"
+					>
+						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V2"/>
+						</svg>
+						<span>Backup All Pipelines</span>
+					</button>
+				{/if}
 			</div>
 		</div>
 	{/if}
 </div>
+
+<!-- Hidden file input for import -->
+<input 
+	bind:this={fileInputEl}
+	type="file" 
+	accept=".json"
+	class="hidden" 
+	onchange={handleFileSelect}
+/>
 
 <style>
 	/* Scrollbar styling */

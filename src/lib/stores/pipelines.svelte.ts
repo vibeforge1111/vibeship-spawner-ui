@@ -402,3 +402,119 @@ export function updatePipelineDescription(id: string, description: string): void
 	}));
 	saveRegistry();
 }
+
+/**
+ * Export a pipeline to a JSON file
+ */
+export function exportPipeline(id: string): void {
+	if (!browser) return;
+
+	const metadata = get(pipelines).find(p => p.id === id);
+	const data = loadPipelineData(id);
+
+	if (!metadata || !data) {
+		console.error('Pipeline not found:', id);
+		return;
+	}
+
+	const exportData = {
+		version: '1.0.0',
+		metadata: {
+			...metadata,
+			exportedAt: new Date().toISOString()
+		},
+		data
+	};
+
+	// Create download link
+	const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement('a');
+	a.href = url;
+	a.download = `${metadata.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_pipeline.json`;
+	document.body.appendChild(a);
+	a.click();
+	document.body.removeChild(a);
+	URL.revokeObjectURL(url);
+
+	console.log('[Pipelines] Exported pipeline:', metadata.name);
+}
+
+/**
+ * Import a pipeline from a JSON file
+ */
+export async function importPipeline(file: File): Promise<PipelineMetadata | null> {
+	if (!browser) return null;
+
+	try {
+		const text = await file.text();
+		const importData = JSON.parse(text);
+
+		// Validate format
+		if (!importData.version || !importData.metadata || !importData.data) {
+			throw new Error('Invalid pipeline file format');
+		}
+
+		// Create new pipeline with imported data
+		const newId = generateId();
+		const now = new Date().toISOString();
+
+		const newMetadata: PipelineMetadata = {
+			id: newId,
+			name: `${importData.metadata.name} (imported)`,
+			description: importData.metadata.description,
+			nodeCount: importData.data.nodes?.length || 0,
+			connectionCount: importData.data.connections?.length || 0,
+			createdAt: now,
+			updatedAt: now
+		};
+
+		// Save the pipeline data
+		localStorage.setItem(getPipelineStorageKey(newId), JSON.stringify(importData.data));
+
+		// Add to registry
+		pipelinesState.update(state => ({
+			...state,
+			pipelines: [...state.pipelines, newMetadata],
+			activePipelineId: newId // Switch to imported pipeline
+		}));
+
+		saveRegistry();
+
+		console.log('[Pipelines] Imported pipeline:', newMetadata.name);
+		return newMetadata;
+	} catch (e) {
+		console.error('[Pipelines] Import failed:', e);
+		return null;
+	}
+}
+
+/**
+ * Export all pipelines as a backup
+ */
+export function exportAllPipelines(): void {
+	if (!browser) return;
+
+	const allPipelines = get(pipelines);
+	const exportData = {
+		version: '1.0.0',
+		exportedAt: new Date().toISOString(),
+		pipelines: allPipelines.map(metadata => ({
+			metadata,
+			data: loadPipelineData(metadata.id)
+		}))
+	};
+
+	// Create download link
+	const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement('a');
+	a.href = url;
+	a.download = `spawner_pipelines_backup_${Date.now()}.json`;
+	document.body.appendChild(a);
+	a.click();
+	document.body.removeChild(a);
+	URL.revokeObjectURL(url);
+
+	console.log('[Pipelines] Exported all pipelines:', allPipelines.length);
+}

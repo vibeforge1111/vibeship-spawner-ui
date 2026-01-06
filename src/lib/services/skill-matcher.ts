@@ -1,11 +1,12 @@
 /**
  * Skill Matcher Service
  *
- * Matches analyzed goals to relevant skills using LOCAL pattern matching.
- * No network dependencies - works instantly with skills loaded from static JSON.
+ * Matches analyzed goals to relevant skills using a hybrid approach:
+ * 1. MCP Server: When connected, uses intelligent AI-powered skill matching
+ * 2. Local Fallback: Pattern matching with skills loaded from static JSON
  *
- * The MCP and Claude API integrations are kept for future use but not called
- * during normal goal processing to ensure fast, reliable operation.
+ * This ensures the best possible matches when MCP is available,
+ * while maintaining instant operation even when offline.
  */
 
 import type { AnalyzedGoal, MatchedSkill, MatchResult } from '$lib/types/goal';
@@ -13,6 +14,8 @@ import { GOAL_VALIDATION } from '$lib/types/goal';
 import { get } from 'svelte/store';
 import { skills as skillsStore } from '$lib/stores/skills.svelte';
 import type { Skill } from '$lib/stores/skills.svelte';
+import { mcpClient } from './mcp-client';
+import { mcpState } from '$lib/stores/mcp.svelte';
 
 // Skill category priorities (which categories are more "core")
 const CATEGORY_PRIORITY: Record<string, number> = {
@@ -226,31 +229,106 @@ function matchSkillsLocal(goal: AnalyzedGoal, maxResults: number): MatchedSkill[
 	}));
 }
 
-// NOTE: Claude API and MCP matching functions were removed.
-// The local pattern matching approach is faster and more reliable.
-// For AI-powered matching, use the canvas-sync service with Claude Code integration.
+/**
+ * Match skills using MCP server's intelligent search
+ */
+async function matchSkillsMCP(goal: AnalyzedGoal, maxResults: number): Promise<MatchedSkill[]> {
+	try {
+		// Build search query from goal analysis
+		const searchQuery = [
+			...goal.technologies,
+			...goal.features.slice(0, 3),
+			...goal.keywords.slice(0, 5)
+		].join(' ');
+
+		console.log('[SkillMatcher] Searching MCP with query:', searchQuery);
+
+		// Call MCP server to search for skills
+		const result = await mcpClient.searchSkills(searchQuery, {
+			limit: maxResults * 2, // Get extra to filter later
+			category: goal.domains[0] // Use primary domain as category hint
+		});
+
+		if (!result.success || !result.data?.skills) {
+			console.warn('[SkillMatcher] MCP search failed:', result.error);
+			return [];
+		}
+
+		// Convert MCP skills to MatchedSkill format
+		const mcpSkills = result.data.skills;
+		const matched: MatchedSkill[] = [];
+
+		for (const mcpSkill of mcpSkills) {
+			// Find the full skill data from our store
+			const fullSkill = get(skillsStore).find(s => s.id === mcpSkill.id);
+			if (!fullSkill) continue;
+
+			// Calculate a relevance score based on position and goal match
+			const positionScore = 1 - (matched.length / mcpSkills.length) * 0.3; // Higher position = higher score
+			const goalScore = calculateMatchScore(fullSkill, goal);
+			const finalScore = (positionScore * 0.4) + (goalScore * 0.6);
+
+			matched.push({
+				skillId: mcpSkill.id,
+				name: mcpSkill.name,
+				description: mcpSkill.description || fullSkill.description,
+				category: mcpSkill.category,
+				score: finalScore,
+				matchReason: `MCP recommendation for "${searchQuery.slice(0, 30)}..."`,
+				tier: determineTier(finalScore, mcpSkill.category),
+				tags: mcpSkill.tags || fullSkill.tags
+			});
+		}
+
+		// Sort by score and return top N
+		matched.sort((a, b) => b.score - a.score);
+		return matched.slice(0, maxResults);
+	} catch (error) {
+		console.error('[SkillMatcher] MCP matching error:', error);
+		return [];
+	}
+}
 
 /**
  * Main function: Match skills to a goal
  *
- * Uses LOCAL pattern matching - no external dependencies.
- * Skills are already loaded from static JSON.
- *
- * This ensures goal processing works instantly without network calls.
+ * Tries MCP server first for intelligent matching, falls back to local pattern matching.
+ * This provides the best of both worlds: AI-powered matching when available,
+ * and instant local matching as fallback.
  */
 export async function matchSkills(
 	goal: AnalyzedGoal,
-	options: { maxResults?: number; minScore?: number } = {}
+	options: { maxResults?: number; minScore?: number; preferMcp?: boolean } = {}
 ): Promise<MatchResult> {
 	const startTime = Date.now();
 	const maxResults = options.maxResults || GOAL_VALIDATION.MAX_SKILLS_TO_SUGGEST;
+	let skills: MatchedSkill[] = [];
+	let source: 'claude' | 'mcp' | 'local' | 'hybrid' = 'local';
 
-	// Use local matching - fast, reliable, no network dependencies
-	console.log('[SkillMatcher] Using local pattern matching (no network calls)');
-	let skills = matchSkillsLocal(goal, maxResults);
-	const source: 'claude' | 'mcp' | 'local' | 'hybrid' = 'local';
+	// Check if MCP is connected and we should try it
+	const mcp = get(mcpState);
+	const shouldTryMcp = options.preferMcp !== false && mcp.connected && !goal.needsClarification;
 
-	console.log(`[SkillMatcher] Matched ${skills.length} skills locally`);
+	if (shouldTryMcp) {
+		console.log('[SkillMatcher] Attempting MCP-powered skill matching...');
+		const mcpSkills = await matchSkillsMCP(goal, maxResults);
+		
+		if (mcpSkills.length > 0) {
+			skills = mcpSkills;
+			source = 'mcp';
+			console.log(`[SkillMatcher] MCP matched ${skills.length} skills`);
+		} else {
+			console.log('[SkillMatcher] MCP returned no results, falling back to local');
+		}
+	}
+
+	// Fall back to local matching if MCP didn't work or wasn't available
+	if (skills.length === 0) {
+		console.log('[SkillMatcher] Using local pattern matching');
+		skills = matchSkillsLocal(goal, maxResults);
+		source = source === 'mcp' ? 'hybrid' : 'local';
+		console.log(`[SkillMatcher] Matched ${skills.length} skills locally`);
+	}
 
 	// Apply minimum score filter if specified
 	if (options.minScore) {
@@ -261,6 +339,7 @@ export async function matchSkills(
 	if (skills.length === 0 && goal.confidence > 0.3) {
 		// Add some default starter skills based on common patterns
 		skills = getDefaultSkills(goal, maxResults);
+		console.log('[SkillMatcher] Added default skills as fallback');
 	}
 
 	return {
