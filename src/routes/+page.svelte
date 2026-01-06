@@ -1,12 +1,13 @@
 <script lang="ts">
 	import Welcome from '$lib/components/Welcome.svelte';
-	import { goto } from '$app/navigation';
 	import { setGoalInput } from '$lib/stores/project-goal.svelte';
 
 	function handleStart(goal: string) {
 		// Store the goal before navigating
 		setGoalInput(goal);
-		goto('/canvas');
+		// Force full page reload to avoid Svelte reactivity issues
+		// Client-side navigation causes canvas to become unresponsive
+		window.location.href = '/canvas';
 	}
 </script>
 

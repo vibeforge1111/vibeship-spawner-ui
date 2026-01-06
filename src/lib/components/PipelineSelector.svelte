@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
 	import {
 		pipelines,
 		activePipeline,
@@ -71,7 +70,7 @@
 			isOpen = false;
 			// If navigating is enabled, still go to canvas page even if same pipeline
 			if (navigateOnSwitch) {
-				goto('/canvas');
+				window.location.href = '/canvas';
 			}
 			return;
 		}
@@ -88,7 +87,7 @@
 
 		// Navigate to canvas if enabled (for Navbar usage)
 		if (navigateOnSwitch) {
-			goto('/canvas');
+			window.location.href = '/canvas';
 		}
 	}
 
@@ -102,12 +101,9 @@
 
 		// Navigate to canvas if enabled (for Navbar usage)
 		if (navigateOnSwitch) {
-			goto('/canvas');
-			// Start renaming after navigation
-			setTimeout(() => {
-				isOpen = true;
-				startRename(newPipeline);
-			}, 300);
+			window.location.href = '/canvas';
+			// Note: setTimeout for renaming won't work with full page reload
+			// User can rename manually
 		} else {
 			// Start renaming the new pipeline
 			setTimeout(() => {

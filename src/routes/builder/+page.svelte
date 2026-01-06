@@ -104,7 +104,7 @@
 
 				<div class="flex items-center gap-3">
 					<a href="/skills" class="btn-ghost btn-sm">Skills</a>
-					<a href="/canvas" class="btn-secondary btn-sm">Canvas</a>
+					<a href="/canvas" data-sveltekit-reload class="btn-secondary btn-sm">Canvas</a>
 				</div>
 			</div>
 		</div>

@@ -127,6 +127,7 @@
 
 			<a
 				href="/canvas"
+				data-sveltekit-reload
 				class="px-4 py-2 font-mono text-sm bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all"
 			>
 				+ New Mission
@@ -165,7 +166,7 @@
 						: `No missions with status "${filterStatus}".`}
 				</p>
 				{#if filterStatus === 'all'}
-					<a href="/canvas" class="font-mono text-sm text-accent-primary hover:underline">
+					<a href="/canvas" data-sveltekit-reload class="font-mono text-sm text-accent-primary hover:underline">
 						Open Canvas
 					</a>
 				{/if}
