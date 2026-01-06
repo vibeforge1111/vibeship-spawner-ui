@@ -11,7 +11,8 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test": "vitest",
-		"test:run": "vitest run"
+		"test:run": "vitest run",
+		"sync": "node sync-server.cjs"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^7.0.0",
@@ -20,6 +21,8 @@
 		"@tailwindcss/typography": "^0.5.16",
 		"@testing-library/svelte": "^5.3.1",
 		"autoprefixer": "^10.4.23",
+		"cors": "^2.8.5",
+		"express": "^5.2.1",
 		"jsdom": "^27.4.0",
 		"postcss": "^8.5.6",
 		"svelte": "^5.45.6",
@@ -28,6 +31,7 @@
 		"typescript": "^5.9.3",
 		"vite": "^7.2.6",
 		"vitest": "^4.0.16",
+		"ws": "^8.19.0",
 		"yaml": "^2.8.2"
 	},
 	"dependencies": {
