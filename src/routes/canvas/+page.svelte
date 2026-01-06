@@ -19,7 +19,7 @@ import { get } from 'svelte/store';
 	import { validateForMission, buildMissionFromCanvas } from '$lib/services/mission-builder';
 	import { mcpState } from '$lib/stores/mcp.svelte';
 	import { getGoalState, hasPendingGoal, clearGoal } from '$lib/stores/project-goal.svelte';
-	import { processGoalAndAddToCanvas, isProcessing } from '$lib/services/goal-to-workflow';
+	import { generatePipeline, storePipelineLearning } from '$lib/services/smart-pipeline';
 	import { initCanvasSync } from '$lib/services/canvas-sync';
 	import PipelineSelector from '$lib/components/PipelineSelector.svelte';
 	import { initPipelines, saveCurrentPipeline, getActivePipelineData, activePipelineId, createNewPipeline } from '$lib/stores/pipelines.svelte';
@@ -55,11 +55,7 @@ import { get } from 'svelte/store';
 	let isMounted = $state(false);
 	let pendingGoalProcess = $state(false);
 
-	// Fix 8: Render key to force node re-creation after goal processing
-	// This ensures all node components are freshly created with current state
-	let nodeRenderKey = $state(0);
-
-	// Fix 6: Force sync local state from stores
+	// Force sync local state from stores
 	// This ensures local variables are in sync after async operations
 	function forceStoreSync() {
 		const state = get(canvasState);
@@ -105,19 +101,14 @@ import { get } from 'svelte/store';
 		// This ensures a new pipeline is created BEFORE loading old data
 	});
 
-	// Fix 1, 2, 3: Process goal only after component is fully mounted and initialized
+	/**
+	 * Process pending goal using new atomic pipeline generation
+	 *
+	 * KISS principle: Simple, reliable, atomic.
+	 * Uses smart-pipeline.ts to generate complete pipeline, then loads it atomically.
+	 */
 	async function processGoalIfPending() {
 		if (!pendingGoalProcess || !isMounted) return;
-
-		// Fix 4: Wait for DOM to be ready and bindings to complete
-		await tick();
-
-		// Ensure canvasEl is bound before proceeding
-		if (!canvasEl) {
-			// If still not bound, wait a frame and try again
-			requestAnimationFrame(() => processGoalIfPending());
-			return;
-		}
 
 		pendingGoalProcess = false;
 		const goalState = getGoalState();
@@ -128,85 +119,58 @@ import { get } from 'svelte/store';
 		}
 
 		goalProcessing = true;
-		goalProcessingMessage = 'Analyzing your project...';
+		goalProcessingMessage = 'Analyzing your project with AI...';
 		goalProcessingError = null;
 
 		try {
-			const result = await processGoalAndAddToCanvas(goalState.input);
+			// Generate pipeline atomically using smart-pipeline
+			const result = await generatePipeline(goalState.input);
 
-			// Fix 2: Wait for DOM to update after nodes are added
-			await tick();
+			if (!result.success || !result.pipeline) {
+				goalProcessingError = result.error || 'Failed to generate pipeline';
+				return;
+			}
 
-			if (result.success && result.workflow) {
-				goalSummary = result.workflow.goalContext.summary;
-				goalProcessingMessage = `Added ${result.workflow.nodes.length} skills`;
+			const { pipeline, mindContext } = result;
 
-				// Fix 5: Wait another tick to ensure zoom/pan state is synchronized
-				await tick();
+			// Show Mind context if available
+			if (mindContext && mindContext.length > 0) {
+				goalProcessingMessage = `Found ${mindContext.length} relevant past learnings...`;
+			}
 
-				// Zoom to fit the new nodes
+			// Load pipeline atomically - one state update, no intermediate states
+			canvasState.update(state => ({
+				...state,
+				nodes: pipeline.nodes.map(node => ({
+					id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+					skill: node.skill,
+					position: node.position,
+					status: 'idle' as const
+				})),
+				connections: [], // Start with no connections, user can add as needed
+				zoom: 1,
+				pan: { x: 0, y: 0 }
+			}));
+
+			goalSummary = pipeline.summary;
+			goalProcessingMessage = `Added ${pipeline.nodes.length} skills`;
+
+			// Zoom to fit after a brief delay for DOM to update
+			requestAnimationFrame(() => {
 				if (canvasEl) {
 					const rect = canvasEl.getBoundingClientRect();
-					// Use requestAnimationFrame to ensure layout is complete
-					requestAnimationFrame(() => {
-						zoomToFit(rect.width, rect.height);
-					});
+					zoomToFit(rect.width, rect.height);
 				}
-			} else if (result.needsClarification) {
-				goalProcessingError = result.clarificationPrompt || 'Please provide more details';
-			} else {
-				goalProcessingError = result.error || 'Failed to process goal';
-			}
+			});
+
+			// Store learning for future use (non-blocking)
+			storePipelineLearning(goalState.input, pipeline).catch(console.warn);
+
 		} catch (error) {
+			console.error('[Canvas] Goal processing error:', error);
 			goalProcessingError = error instanceof Error ? error.message : 'An error occurred';
 		} finally {
 			goalProcessing = false;
-			// Reset all interaction states to ensure clean state after async processing
-			isPanning = false;
-			isCutting = false;
-			isSelecting = false;
-
-			// Fix 2: Wait for final state reset to propagate
-			await tick();
-			resetTransientState();
-
-			// Fix 6: Force sync local state from stores
-			forceStoreSync();
-			await tick();
-
-			// Fix 8: Increment render key to force all nodes to be re-created
-			// This ensures fresh event handlers and proper zoom/pan values
-			nodeRenderKey++;
-			await tick();
-
-			// Fix 12: Use double RAF to ensure DOM is fully ready after all state updates
-			// The first RAF waits for the current frame, the second ensures layout is complete
-			await new Promise<void>((resolve) => {
-				requestAnimationFrame(() => {
-					requestAnimationFrame(() => {
-						// Final state verification - ensure all interactive states are clean
-						isPanning = false;
-						isCutting = false;
-						isSelecting = false;
-						resetTransientState();
-						forceStoreSync();
-
-						// Fix 13: Ensure no modals/overlays are blocking canvas interaction
-						showValidation = false;
-						showExecution = false;
-						showNodeDetails = false;
-						showMissionExport = false;
-						showClearConfirm = false;
-						contextMenu = null;
-						showSearch = false;
-						showLayoutMenu = false;
-
-						resolve();
-					});
-				});
-			});
-
-			// Clear the goal input after processing
 			clearGoal();
 		}
 	}
@@ -216,28 +180,6 @@ import { get } from 'svelte/store';
 		if (isMounted && pendingGoalProcess) {
 			processGoalIfPending();
 		}
-	});
-
-	// Fix 11: Watch for node count changes and ensure interaction state is clean
-	// This catches any edge cases where state becomes corrupted after goal processing
-	let lastNodeCount = $state(0);
-	$effect(() => {
-		const nodeCount = currentNodes.length;
-		if (nodeCount !== lastNodeCount && nodeCount > 0 && lastNodeCount === 0) {
-			// Nodes were just added - schedule a state verification
-			requestAnimationFrame(() => {
-				// Double-check that interaction states are clean
-				if (isPanning || isCutting || isSelecting) {
-					isPanning = false;
-					isCutting = false;
-					isSelecting = false;
-					resetTransientState();
-				}
-				// Force one more store sync to ensure everything is in sync
-				forceStoreSync();
-			});
-		}
-		lastNodeCount = nodeCount;
 	});
 
 	onMount(() => {
@@ -1143,7 +1085,7 @@ import { get } from 'svelte/store';
 			<div class="absolute inset-0 opacity-20 pointer-events-none" style="background-image: radial-gradient(circle, #2a2a38 1px, transparent 1px); background-size: {24 * zoom}px {24 * zoom}px; background-position: {pan.x}px {pan.y}px;"></div>
 			<div class="absolute pointer-events-none" style="transform: translate({pan.x}px, {pan.y}px);"><div class="pointer-events-none" style="transform: scale({zoom}); transform-origin: 0 0;">
 				<svg class="absolute inset-0 pointer-events-none overflow-visible" style="z-index: 1;"><defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#00C49A" /></marker></defs>{#each currentConnections as connection}<ConnectionLine {connection} nodes={currentNodes} selected={currentSelectedConnectionId === connection.id} />{/each}{#if currentDraggingConnection}<path d={getTempConnectionPath(currentDraggingConnection)} fill="none" stroke="#00C49A" stroke-width="2" stroke-dasharray="4 4" class="temp-connection" />{/if}{#if currentCuttingLine}<line x1={currentCuttingLine.startX} y1={currentCuttingLine.startY} x2={currentCuttingLine.currentX} y2={currentCuttingLine.currentY} stroke="#ef4444" stroke-width="2" stroke-dasharray="6 3" class="cutting-line" /><circle cx={currentCuttingLine.startX} cy={currentCuttingLine.startY} r="4" fill="#ef4444" /><circle cx={currentCuttingLine.currentX} cy={currentCuttingLine.currentY} r="4" fill="#ef4444" />{/if}{#if currentSelectionBox}{@const x = Math.min(currentSelectionBox.startX, currentSelectionBox.currentX)}{@const y = Math.min(currentSelectionBox.startY, currentSelectionBox.currentY)}{@const w = Math.abs(currentSelectionBox.currentX - currentSelectionBox.startX)}{@const h = Math.abs(currentSelectionBox.currentY - currentSelectionBox.startY)}<rect {x} {y} width={w} height={h} fill="rgba(0, 196, 154, 0.1)" stroke="#00C49A" stroke-width="1" stroke-dasharray="4 2" class="selection-box" />{/if}</svg>
-				{#each currentNodes as node (`${nodeRenderKey}-${node.id}`)}<DraggableNode {node} selected={currentSelectedNodeIds.includes(node.id)} {zoom} {pan} onOpenDetails={() => (showNodeDetails = true)} onContextMenu={(e) => handleNodeContextMenu(node.id, e)} onHandoffClick={handleHandoffClick} />{/each}
+				{#each currentNodes as node (node.id)}<DraggableNode {node} selected={currentSelectedNodeIds.includes(node.id)} {zoom} {pan} onOpenDetails={() => (showNodeDetails = true)} onContextMenu={(e) => handleNodeContextMenu(node.id, e)} onHandoffClick={handleHandoffClick} />{/each}
 			</div></div>
 			{#if currentNodes.length === 0}<div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="text-center"><h3 class="text-lg font-medium text-text-primary mb-2">No skills on canvas</h3><p class="text-sm text-text-secondary">Drag skills from the sidebar</p></div></div>{/if}
 			<!-- Search overlay -->
