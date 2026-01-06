@@ -22,7 +22,7 @@ import { get } from 'svelte/store';
 	import { processGoalAndAddToCanvas, isProcessing } from '$lib/services/goal-to-workflow';
 	import { initCanvasSync } from '$lib/services/canvas-sync';
 	import PipelineSelector from '$lib/components/PipelineSelector.svelte';
-	import { initPipelines, saveCurrentPipeline, getActivePipelineData, activePipelineId } from '$lib/stores/pipelines.svelte';
+	import { initPipelines, saveCurrentPipeline, getActivePipelineData, activePipelineId, createNewPipeline } from '$lib/stores/pipelines.svelte';
 
 	let activeTab = $state('skills');
 	let chatExpanded = $state(false);
@@ -101,10 +101,8 @@ import { get } from 'svelte/store';
 		// Fix 6: Force sync local state from stores after navigation
 		forceStoreSync();
 
-		// Fix 3: Check if there's a pending goal, but defer processing until after mount
-		if (hasPendingGoal()) {
-			pendingGoalProcess = true;
-		}
+		// Note: pendingGoalProcess is now set in onMount when a goal is detected
+		// This ensures a new pipeline is created BEFORE loading old data
 	});
 
 	// Fix 1, 2, 3: Process goal only after component is fully mounted and initialized
@@ -226,18 +224,31 @@ import { get } from 'svelte/store';
 		// Initialize pipeline system
 		initPipelines();
 
-		// Load active pipeline data
-		const pipelineData = getActivePipelineData();
-		if (pipelineData) {
-			loadPipelineToCanvas(pipelineData);
-			lastSaved = new Date();
+		// FIX: Check if there's a pending goal BEFORE loading old pipeline
+		// If there's a goal, we want a fresh canvas for it, not the old pipeline
+		const hasGoal = hasPendingGoal();
+
+		if (hasGoal) {
+			// Create a new pipeline for this goal instead of loading old one
+			const goalState = getGoalState();
+			const goalName = goalState.input?.slice(0, 30) || 'New Project';
+			createNewPipeline(`${goalName}...`);
+			// Mark that we have a pending goal to process
+			pendingGoalProcess = true;
 		} else {
-			// Fallback: try old format
-			const loaded = loadCanvas();
-			if (loaded) {
-				const info = getSavedCanvasInfo();
-				if (info) {
-					lastSaved = info.savedAt;
+			// No goal - load active pipeline data as normal
+			const pipelineData = getActivePipelineData();
+			if (pipelineData) {
+				loadPipelineToCanvas(pipelineData);
+				lastSaved = new Date();
+			} else {
+				// Fallback: try old format
+				const loaded = loadCanvas();
+				if (loaded) {
+					const info = getSavedCanvasInfo();
+					if (info) {
+						lastSaved = info.savedAt;
+					}
 				}
 			}
 		}
