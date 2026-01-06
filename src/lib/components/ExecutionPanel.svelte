@@ -174,28 +174,23 @@
 	}
 
 	/**
-	 * Pre-run validation to check for orphans
+	 * Pre-run validation to check for orphans and errors
 	 */
 	function checkWorkflowBeforeRun(): boolean {
 		const validation = validateForMission(currentNodes, currentConnections);
 
-		// Check specifically for orphan issues
+		// Check for blocking errors first (circular deps, empty canvas)
+		if (validation.errors.length > 0) {
+			toasts.error(`Validation failed: ${validation.errors.join(', ')}`);
+			return false;
+		}
+
+		// Check for orphan warnings - show prompt but allow proceeding
 		const orphans = findOrphanedNodes();
 		if (orphans.length > 0) {
 			orphanedNodes = orphans;
 			showOrphanWarning = true;
 			return false; // Don't run yet, show warning first
-		}
-
-		// Check other validation issues (circular deps, etc)
-		if (!validation.valid) {
-			const nonOrphanIssues = validation.issues.filter(
-				(i) => !i.includes('not connected to workflow')
-			);
-			if (nonOrphanIssues.length > 0) {
-				toasts.error(`Validation failed: ${nonOrphanIssues.join(', ')}`);
-				return false;
-			}
 		}
 
 		return true;
@@ -497,7 +492,7 @@
 		{/if}
 
 		<!-- Logs -->
-		<div bind:this={logsContainer} class="flex-1 overflow-y-auto p-4 font-mono text-sm bg-bg-primary">
+		<div bind:this={logsContainer} class="flex-1 overflow-y-auto p-4 font-mono text-sm bg-bg-primary select-text">
 			{#if !mcpConnected}
 				<div class="text-center py-8">
 					<div class="text-red-400 mb-2">MCP Not Connected</div>
@@ -517,14 +512,37 @@
 					{/if}
 				</div>
 			{:else}
+				<!-- Copy all logs button -->
+				<div class="flex justify-end mb-2">
+					<button
+						onclick={() => {
+							const logText = logs.map(l => `[${formatTime(l.created_at)}] ${getLogIcon(l.type)} ${l.message}`).join('\n');
+							navigator.clipboard.writeText(logText);
+							toasts.success('Logs copied to clipboard');
+						}}
+						class="text-xs text-text-tertiary hover:text-text-secondary px-2 py-1 border border-surface-border hover:border-text-tertiary rounded transition-all"
+					>
+						Copy All Logs
+					</button>
+				</div>
 				<div class="space-y-1">
 					{#each logs as log}
-						<div class="flex gap-2 {getLogColor(log.type)}">
-							<span class="text-xs text-text-tertiary w-20 flex-shrink-0">
+						<div class="flex gap-2 {getLogColor(log.type)} cursor-text hover:bg-surface/30 px-1 -mx-1 rounded group">
+							<span class="text-xs text-text-tertiary w-20 flex-shrink-0 select-text">
 								{formatTime(log.created_at)}
 							</span>
 							<span class="w-4 flex-shrink-0">{getLogIcon(log.type)}</span>
-							<span class="flex-1">{log.message}</span>
+							<span class="flex-1 select-text break-all">{log.message}</span>
+							<button
+								onclick={() => {
+									navigator.clipboard.writeText(log.message);
+									toasts.success('Copied');
+								}}
+								class="opacity-0 group-hover:opacity-100 text-xs text-text-tertiary hover:text-text-secondary transition-opacity"
+								title="Copy this log"
+							>
+								📋
+							</button>
 						</div>
 					{/each}
 				</div>

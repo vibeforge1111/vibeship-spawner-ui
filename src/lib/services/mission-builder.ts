@@ -245,18 +245,20 @@ export function previewMission(
 
 /**
  * Validate canvas is suitable for mission conversion
+ * Returns errors (blocking) and warnings (non-blocking like orphans)
  */
 export function validateForMission(
 	nodes: CanvasNode[],
 	connections: Connection[]
-): { valid: boolean; issues: string[] } {
-	const issues: string[] = [];
+): { valid: boolean; issues: string[]; errors: string[]; warnings: string[] } {
+	const errors: string[] = [];
+	const warnings: string[] = [];
 
 	if (nodes.length === 0) {
-		issues.push('Canvas is empty');
+		errors.push('Canvas is empty');
 	}
 
-	// Check for circular dependencies
+	// Check for circular dependencies (blocking error)
 	const visited = new Set<string>();
 	const stack = new Set<string>();
 
@@ -279,12 +281,12 @@ export function validateForMission(
 
 	for (const node of nodes) {
 		if (!visited.has(node.id) && hasCycle(node.id)) {
-			issues.push('Circular dependency detected - missions must have linear flow');
+			errors.push('Circular dependency detected - missions must have linear flow');
 			break;
 		}
 	}
 
-	// Check for orphaned nodes (warning, not error)
+	// Check for orphaned nodes (warning, not blocking error)
 	const connectedNodes = new Set<string>();
 	for (const conn of connections) {
 		connectedNodes.add(conn.sourceNodeId);
@@ -293,12 +295,16 @@ export function validateForMission(
 
 	const orphans = nodes.filter((n) => !connectedNodes.has(n.id));
 	if (orphans.length > 0 && nodes.length > 1) {
-		issues.push(
+		warnings.push(
 			`${orphans.length} node(s) not connected to workflow: ${orphans.map((n) => n.skill.name).join(', ')}`
 		);
 	}
 
-	return { valid: issues.length === 0, issues };
+	// Combine for backwards compatibility
+	const issues = [...errors, ...warnings];
+
+	// Only errors make it invalid - warnings are allowed
+	return { valid: errors.length === 0, issues, errors, warnings };
 }
 
 // Helper
