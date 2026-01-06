@@ -17,7 +17,7 @@ import { get } from 'svelte/store';
 	import { goto, beforeNavigate, afterNavigate } from '$app/navigation';
 	import { type Skill, getSkillById } from '$lib/stores/skills.svelte';
 	import { validateForMission, buildMissionFromCanvas } from '$lib/services/mission-builder';
-	import { mcpState, isConnected as mcpConnected } from '$lib/stores/mcp.svelte';
+	import { mcpState } from '$lib/stores/mcp.svelte';
 	import { isMemoryConnected } from '$lib/stores/memory-settings.svelte';
 	import { getGoalState, hasPendingGoal, clearGoal } from '$lib/stores/project-goal.svelte';
 	import { generatePipeline, storePipelineLearning } from '$lib/services/smart-pipeline';
