@@ -1139,8 +1139,8 @@ import { get } from 'svelte/store';
 							placeholder="Search nodes..."
 							class="flex-1 bg-transparent border-none outline-none text-sm font-mono text-text-primary placeholder:text-text-tertiary"
 						/>
-						<button onclick={toggleSearch} class="text-text-tertiary hover:text-text-secondary">
-							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+						<button onclick={toggleSearch} class="text-text-tertiary hover:text-text-secondary" aria-label="Close search">
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
 						</button>
 					</div>
 					{#if searchQuery.trim()}
@@ -1181,8 +1181,9 @@ import { get } from 'svelte/store';
 					<button
 						onclick={() => goalSummary = null}
 						class="absolute top-1 right-1 text-text-tertiary hover:text-text-secondary p-1"
+						aria-label="Dismiss goal summary"
 					>
-						<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+						<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
 					</button>
 				</div>
 			{/if}
@@ -1200,8 +1201,9 @@ import { get } from 'svelte/store';
 						<button
 							onclick={() => goalProcessingError = null}
 							class="text-text-tertiary hover:text-text-secondary p-1 ml-auto"
+							aria-label="Dismiss error"
 						>
-							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
 						</button>
 					</div>
 				</div>
@@ -1300,15 +1302,15 @@ import { get } from 'svelte/store';
 {#if showMissionExport}
 	<!-- Mission Export Modal -->
 	<div class="fixed inset-0 z-50 flex items-center justify-center">
-		<!-- Backdrop -->
-		<div class="absolute inset-0 bg-black/60" onclick={closeMissionExport}></div>
+		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+		<div class="absolute inset-0 bg-black/60" onclick={closeMissionExport} role="presentation"></div>
 
 		<!-- Modal -->
 		<div class="relative w-full max-w-md bg-bg-secondary border border-surface-border shadow-xl">
 			<div class="p-4 border-b border-surface-border flex items-center justify-between">
 				<h2 class="text-lg font-medium text-text-primary">Export to Mission</h2>
-				<button onclick={closeMissionExport} class="text-text-tertiary hover:text-text-secondary">
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<button onclick={closeMissionExport} class="text-text-tertiary hover:text-text-secondary" aria-label="Close export dialog">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
 					</svg>
 				</button>
@@ -1374,8 +1376,8 @@ import { get } from 'svelte/store';
 {#if showClearConfirm}
 	<!-- Clear Canvas Confirmation Modal -->
 	<div class="fixed inset-0 z-50 flex items-center justify-center">
-		<!-- Backdrop -->
-		<div class="absolute inset-0 bg-black/60" onclick={cancelClear}></div>
+		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+		<div class="absolute inset-0 bg-black/60" onclick={cancelClear} role="presentation"></div>
 
 		<!-- Modal -->
 		<div class="relative w-full max-w-sm bg-bg-secondary border border-red-500/30 shadow-xl">

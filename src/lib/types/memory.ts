@@ -70,6 +70,7 @@ export interface Memory {
 	temporal_level: TemporalLevel;
 	temporal_level_name: string;
 	effective_salience: number;
+	salience?: number;  // Alias for effective_salience in some contexts
 	retrieval_count: number;
 	decision_count: number;
 	positive_outcomes: number;
@@ -148,6 +149,17 @@ export interface AgentMemoryMetadata {
 	from_agent_id?: string;
 	to_agent_id?: string;
 	handoff_reason?: string;
+
+	// Goal context
+	goal_summary?: string;
+
+	// Multiple skills (for workflows)
+	skill_ids?: string[];
+	skill_count?: number;
+
+	// Pipeline context
+	connection_count?: number;
+	node_count?: number;
 }
 
 // ============================================
@@ -276,6 +288,12 @@ export interface AgentEffectiveness {
 		usage_count: number;
 	}>;
 	recent_learnings: AgentLearning[];
+	// Aliases for UI component compatibility
+	totalTasks?: number;
+	successfulTasks?: number;
+	failedTasks?: number;
+	totalLearnings?: number;
+	topSkills?: string[];
 }
 
 // ============================================

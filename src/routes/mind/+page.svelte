@@ -471,7 +471,8 @@
 <!-- Add Form Modal -->
 {#if showAddForm}
 	<div class="fixed inset-0 z-50 flex items-center justify-center">
-		<div class="absolute inset-0 bg-black/60" onclick={closeAddForm}></div>
+		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+		<div class="absolute inset-0 bg-black/60" onclick={closeAddForm} role="presentation"></div>
 
 		<div class="relative w-full max-w-md bg-bg-secondary border border-surface-border shadow-xl">
 			<div class="p-4 border-b border-surface-border flex items-center justify-between">
@@ -482,8 +483,8 @@
 							? 'Issue'
 							: 'Session Summary'}
 				</h2>
-				<button onclick={closeAddForm} class="text-text-tertiary hover:text-text-secondary">
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<button onclick={closeAddForm} class="text-text-tertiary hover:text-text-secondary" aria-label="Close form">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 						<path
 							stroke-linecap="round"
 							stroke-linejoin="round"

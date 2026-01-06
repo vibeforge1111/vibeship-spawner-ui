@@ -285,8 +285,8 @@ function createPipeline(skills: Skill[], goal: string): GeneratedPipeline {
 
 		// Check handoffs
 		if (skill.handoffs) {
-			for (const handoffId of skill.handoffs) {
-				const targetIdx = nodes.findIndex(n => n.skill.id === handoffId);
+			for (const handoff of skill.handoffs) {
+				const targetIdx = nodes.findIndex(n => n.skill.id === handoff.to);
 				if (targetIdx !== -1 && targetIdx !== i) {
 					connections.push({
 						sourceId: skill.id,

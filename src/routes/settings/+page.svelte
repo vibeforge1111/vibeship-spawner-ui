@@ -185,7 +185,7 @@
 
 				<!-- Backend Selection -->
 				<div class="p-4 border-b border-surface-border">
-					<label class="block font-medium text-text-primary mb-2">Backend</label>
+					<span class="block font-medium text-text-primary mb-2" id="backend-label">Backend</span>
 					<p class="text-sm text-text-secondary mb-3">
 						Choose which Mind backend to connect to.
 					</p>
@@ -243,7 +243,7 @@
 
 				<!-- Learning Granularity -->
 				<div class="p-4 border-b border-surface-border">
-					<label class="block font-medium text-text-primary mb-2">Learning Granularity</label>
+					<span class="block font-medium text-text-primary mb-2" id="granularity-label">Learning Granularity</span>
 					<p class="text-sm text-text-secondary mb-3">
 						How much agent activity to record.
 					</p>

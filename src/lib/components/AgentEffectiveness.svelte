@@ -12,7 +12,7 @@
 	let { agentId, agentName, stats, learnings = [], loading = false }: Props = $props();
 
 	const successRate = $derived(
-		stats ? Math.round((stats.successfulTasks / Math.max(stats.totalTasks, 1)) * 100) : 0
+		stats ? Math.round(((stats.successfulTasks ?? 0) / Math.max(stats.totalTasks ?? 1, 1)) * 100) : 0
 	);
 
 	const recentLearnings = $derived(learnings.slice(0, 5));
@@ -85,19 +85,19 @@
 	{:else if stats}
 		<div class="grid grid-cols-4 divide-x divide-surface-border border-b border-surface-border">
 			<div class="p-3 text-center">
-				<div class="text-lg font-mono text-text-primary">{stats.totalTasks}</div>
+				<div class="text-lg font-mono text-text-primary">{stats.totalTasks ?? 0}</div>
 				<div class="text-xs text-text-tertiary">Tasks</div>
 			</div>
 			<div class="p-3 text-center">
-				<div class="text-lg font-mono text-green-400">{stats.successfulTasks}</div>
+				<div class="text-lg font-mono text-green-400">{stats.successfulTasks ?? 0}</div>
 				<div class="text-xs text-text-tertiary">Succeeded</div>
 			</div>
 			<div class="p-3 text-center">
-				<div class="text-lg font-mono text-red-400">{stats.failedTasks}</div>
+				<div class="text-lg font-mono text-red-400">{stats.failedTasks ?? 0}</div>
 				<div class="text-xs text-text-tertiary">Failed</div>
 			</div>
 			<div class="p-3 text-center">
-				<div class="text-lg font-mono text-text-primary">{stats.totalLearnings}</div>
+				<div class="text-lg font-mono text-text-primary">{stats.totalLearnings ?? 0}</div>
 				<div class="text-xs text-text-tertiary">Learnings</div>
 			</div>
 		</div>

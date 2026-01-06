@@ -221,6 +221,8 @@ class McpClient {
 		tag?: string;
 		layer?: number;
 		source?: 'all' | 'v1' | 'v2';
+		limit?: number;
+		category?: string;
 	}): Promise<McpToolResult<McpSkillsResponse>> {
 		return this.callTool<McpSkillsResponse>('spawner_skills', {
 			action: 'search',

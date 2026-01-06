@@ -70,7 +70,7 @@
 
 	function handleItemClick(item: MenuItem) {
 		if (item.disabled) return;
-		item.action();
+		item.action?.();
 		onClose();
 	}
 </script>

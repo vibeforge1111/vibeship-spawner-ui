@@ -110,14 +110,14 @@
 
 		<!-- Setup Guide Modal -->
 		{#if showSetupGuide}
-			<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-			<div class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onclick={() => showSetupGuide = false} role="dialog" aria-modal="true">
+			<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_interactive_supports_focus -->
+			<div class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onclick={() => showSetupGuide = false} role="dialog" aria-modal="true" tabindex="-1">
 				<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-				<div class="bg-bg-secondary border border-surface-border max-w-lg w-full max-h-[80vh] overflow-y-auto" onclick={(e) => e.stopPropagation()}>
+				<div class="bg-bg-secondary border border-surface-border max-w-lg w-full max-h-[80vh] overflow-y-auto" onclick={(e) => e.stopPropagation()} role="document">
 					<div class="flex items-center justify-between px-5 py-4 border-b border-surface-border">
 						<h3 class="font-serif text-lg text-text-primary">Setup Bidirectional Sync</h3>
-						<button onclick={() => showSetupGuide = false} class="text-text-tertiary hover:text-text-primary">
-							<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<button onclick={() => showSetupGuide = false} class="text-text-tertiary hover:text-text-primary" aria-label="Close dialog">
+							<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
 							</svg>
 						</button>

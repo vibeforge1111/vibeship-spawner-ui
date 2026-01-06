@@ -16,7 +16,12 @@
 	let currentState = $state<MindState>({
 		project: null,
 		loading: false,
-		error: null
+		error: null,
+		learnings: [],
+		patterns: [],
+		agentStats: {},
+		learningsLoading: false,
+		memoryConnected: false
 	});
 	let mcpConnected = $state(false);
 

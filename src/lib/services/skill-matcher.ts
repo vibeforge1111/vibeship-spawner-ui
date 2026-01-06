@@ -307,7 +307,7 @@ export async function matchSkills(
 
 	// Check if MCP is connected and we should try it
 	const mcp = get(mcpState);
-	const shouldTryMcp = options.preferMcp !== false && mcp.connected && !goal.needsClarification;
+	const shouldTryMcp = options.preferMcp !== false && mcp.status === 'connected' && !goal.needsClarification;
 
 	if (shouldTryMcp) {
 		console.log('[SkillMatcher] Attempting MCP-powered skill matching...');

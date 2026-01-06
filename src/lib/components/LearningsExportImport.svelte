@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { memoryClient } from '$lib/services/memory-client';
-	import type { Memory } from '$lib/types/memory';
+	import type { Memory, ContentType } from '$lib/types/memory';
 	import { isMemoryConnected } from '$lib/stores/memory-settings.svelte';
 
 	interface Props {
@@ -64,7 +64,7 @@
 			for (const contentType of contentTypes) {
 				const result = await memoryClient.retrieve(contentType, {
 					limit: 1000,
-					content_types: [contentType]
+					content_types: [contentType as ContentType]
 				});
 
 				if (result.success && result.data) {

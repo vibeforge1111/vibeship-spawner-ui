@@ -96,7 +96,7 @@
 						class:border={message.role !== 'user'}
 						class:border-surface-border={message.role !== 'user'}
 					>
-						{#if message.toolCall?.isLoading}
+						{#if message.isLoading}
 							<div class="flex items-center gap-2">
 								<span class="animate-pulse">...</span>
 								<span>{message.content}</span>

@@ -12,27 +12,31 @@
 		premiumAgents,
 		recommendedAgents,
 		allSkillIds,
-		generatedConfig
+		generatedConfig,
+		type Agent,
+		type MCP,
+		type StackState
 	} from '$lib/stores/stack.svelte';
 
 	let activeTab = $state<'agents' | 'mcps' | 'missions' | 'export'>('agents');
 	let projectDescription = $state('');
 
 	// Subscribe to stores
-	let currentState = $state({
-		agents: [],
-		mcps: [],
-		selectedAgentIds: [],
-		selectedMcpIds: [],
-		projectType: 'saas'
+	let currentState = $state<StackState>({
+		agents: [] as Agent[],
+		mcps: [] as MCP[],
+		selectedAgentIds: [] as string[],
+		selectedMcpIds: [] as string[],
+		projectType: 'saas',
+		projectDescription: ''
 	});
-	let currentSelectedAgents = $state([]);
-	let currentSelectedMcps = $state([]);
-	let currentFreeAgents = $state([]);
-	let currentPremiumAgents = $state([]);
-	let currentRecommendedAgents = $state([]);
-	let currentAllSkillIds = $state([]);
-	let currentGeneratedConfig = $state({});
+	let currentSelectedAgents = $state<Agent[]>([]);
+	let currentSelectedMcps = $state<MCP[]>([]);
+	let currentFreeAgents = $state<Agent[]>([]);
+	let currentPremiumAgents = $state<Agent[]>([]);
+	let currentRecommendedAgents = $state<string[]>([]);
+	let currentAllSkillIds = $state<string[]>([]);
+	let currentGeneratedConfig = $state<Record<string, unknown>>({});
 
 	$effect(() => {
 		const unsub1 = stackStore.subscribe((s) => (currentState = s));
@@ -73,7 +77,8 @@
 		URL.revokeObjectURL(url);
 	}
 
-	const projectTypes = [
+	type ProjectType = 'saas' | 'marketplace' | 'ai-app' | 'web3' | 'tool' | 'other';
+	const projectTypes: Array<{ id: ProjectType; label: string; icon: string }> = [
 		{ id: 'saas', label: 'SaaS', icon: '💼' },
 		{ id: 'marketplace', label: 'Marketplace', icon: '🛒' },
 		{ id: 'ai-app', label: 'AI App', icon: '🤖' },
