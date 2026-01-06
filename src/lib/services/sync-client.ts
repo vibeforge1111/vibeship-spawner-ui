@@ -305,7 +305,30 @@ class SyncClient {
 				break;
 
 			default:
-				console.log('[SyncClient] Unknown message type:', type);
+				// Handle canvas events and other direct messages
+				if (type && type.startsWith('canvas_')) {
+					// Canvas event - treat as sync event
+					const event: SyncEvent = {
+						type: type as any,
+						data: data,
+						timestamp: data.timestamp || new Date().toISOString(),
+						source: data.source || 'server'
+					};
+					eventLog.update(log => [...log.slice(-99), event]);
+					lastEvent.set(event);
+					this.notifySubscribers(event);
+				} else if (type && (type === 'test_echo' || type === 'broadcast')) {
+					// Test or broadcast message - forward as event
+					const event: SyncEvent = {
+						type: type as any,
+						data: data.data || data,
+						timestamp: data.timestamp || new Date().toISOString(),
+						source: data.source || 'server'
+					};
+					this.notifySubscribers(event);
+				} else {
+					console.log('[SyncClient] Unknown message type:', type);
+				}
 		}
 	}
 

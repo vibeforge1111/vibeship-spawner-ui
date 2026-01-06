@@ -41,6 +41,7 @@ import { toasts } from '$lib/stores/toast.svelte';
 import { generatePorts } from '$lib/utils/ports';
 import type { Skill } from '$lib/stores/skills.svelte';
 import { get } from 'svelte/store';
+import { activePipeline, pipelines } from '$lib/stores/pipelines.svelte';
 
 // Canvas-specific event types
 export type CanvasEventType =
@@ -116,6 +117,19 @@ export function initCanvasSync(): () => void {
 	console.log('[CanvasSync] Initializing...');
 	isInitialized = true;
 
+	// Connect to the sync server first!
+	syncClient.connect().then((connected) => {
+		if (connected) {
+			console.log('[CanvasSync] Connected to sync server');
+			// Broadcast initial canvas state once connected
+			setTimeout(() => {
+				broadcastCanvasState();
+			}, 500);
+		} else {
+			console.warn('[CanvasSync] Failed to connect to sync server');
+		}
+	});
+
 	// Subscribe to canvas-related events from Claude Code
 	unsubscribe = syncClient.subscribeAll(handleSyncEvent);
 
@@ -126,6 +140,7 @@ export function initCanvasSync(): () => void {
 			unsubscribe();
 			unsubscribe = null;
 		}
+		syncClient.disconnect();
 		isInitialized = false;
 	};
 }
@@ -642,10 +657,17 @@ function calculateLayoutPosition(
 export function broadcastCanvasState(): void {
 	const currentNodes = get(nodes);
 	const currentConnections = get(connections);
+	const currentPipeline = get(activePipeline);
 
 	syncClient.broadcast({
 		type: 'canvas_state' as SyncEvent['type'],
 		data: {
+			pipeline: currentPipeline ? {
+				id: currentPipeline.id,
+				name: currentPipeline.name,
+				nodeCount: currentPipeline.nodeCount,
+				connectionCount: currentPipeline.connectionCount
+			} : null,
 			nodes: currentNodes.map(n => ({
 				id: n.id,
 				skillId: n.skill.id,
