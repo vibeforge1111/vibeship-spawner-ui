@@ -305,6 +305,36 @@ import { get } from 'svelte/store';
 		}
 		window.addEventListener('mouseup', handleGlobalMouseUp);
 
+		// FIX 15: Safety valve - detect and reset stuck interaction states
+		// This runs periodically to catch any states that got stuck due to edge cases
+		let lastInteractionCheck = Date.now();
+		let wasInteracting = false;
+		const stuckStateInterval = setInterval(() => {
+			const isInteracting = isPanning || isCutting || isSelecting || currentDraggingConnection !== null;
+			const now = Date.now();
+
+			if (isInteracting && wasInteracting) {
+				// Been interacting for the whole interval - check if stuck
+				const timeSinceCheck = now - lastInteractionCheck;
+				if (timeSinceCheck > 3000) { // 3 seconds without mouseup = probably stuck
+					console.warn('Resetting stuck canvas interaction states');
+					isPanning = false;
+					isCutting = false;
+					isSelecting = false;
+					resetTransientState();
+					endConnectionDrag(); // Also reset any stuck connection drag
+					forceStoreSync();
+				}
+			}
+
+			if (isInteracting) {
+				wasInteracting = true;
+			} else {
+				wasInteracting = false;
+				lastInteractionCheck = now;
+			}
+		}, 1000);
+
 		// Builder panel requests to frame newly added nodes
 		function handleBuilderFrameSelected() {
 			if (canvasEl) {
@@ -344,6 +374,7 @@ import { get } from 'svelte/store';
 			pendingGoalProcess = false;
 			disableAutoSave();
 			clearInterval(pipelineAutoSaveInterval);
+			clearInterval(stuckStateInterval); // FIX 15: Clean up stuck state detector
 			cleanupCanvasSync();
 			resizeObserver.disconnect();
 			window.removeEventListener('mouseup', handleGlobalMouseUp);
@@ -777,9 +808,20 @@ import { get } from 'svelte/store';
 			target.tagName === 'svg' ||
 			target.closest('svg.absolute');
 
-		// If not clicking on canvas background, let the event bubble naturally
-		// This is a safety measure in case stopPropagation fails
-		if (!isCanvasBackground && target.closest('.draggable-node')) {
+		// FIX 14: More robust node detection - check for ANY element inside a node
+		// This catches cases where click is on inner elements like SkillNode content
+		const isInsideNode = target.closest('.draggable-node') ||
+			target.closest('.node') ||
+			target.closest('.port-handle');
+
+		// If clicking inside a node, let the node handle it
+		if (isInsideNode) {
+			return;
+		}
+
+		// If not on canvas background and not inside a node, still don't start panning
+		// This prevents accidental panning from unexpected elements
+		if (!isCanvasBackground) {
 			return;
 		}
 
