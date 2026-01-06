@@ -15,7 +15,7 @@ import { writable, derived, get } from 'svelte/store';
 export type SyncStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'error';
 
 export interface SyncEvent {
-	type: 'mission_created' | 'mission_updated' | 'mission_started' | 'mission_completed' | 'mission_failed' | 'mission_log' | 'skill_invoked' | 'agent_handoff';
+	type: 'mission_created' | 'mission_updated' | 'mission_started' | 'mission_completed' | 'mission_failed' | 'mission_log' | 'skill_invoked' | 'agent_handoff' | 'learning_recorded' | 'pattern_detected' | 'decision_tracked' | 'outcome_recorded';
 	missionId?: string;
 	data: Record<string, unknown>;
 	timestamp: string;
@@ -426,6 +426,25 @@ export function broadcastMissionEvent(
 	syncClient.broadcast({
 		type,
 		missionId,
+		data
+	});
+}
+
+// Helper to broadcast learning events
+export function broadcastLearningEvent(
+	type: 'learning_recorded' | 'pattern_detected' | 'decision_tracked' | 'outcome_recorded',
+	data: {
+		memoryId?: string;
+		agentId?: string;
+		skillId?: string;
+		missionId?: string;
+		content?: string;
+		[key: string]: unknown;
+	}
+): void {
+	syncClient.broadcast({
+		type,
+		missionId: data.missionId,
 		data
 	});
 }

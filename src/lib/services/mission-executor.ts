@@ -14,7 +14,7 @@ import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import type { Mission, MissionLog, MissionTask } from '$lib/services/mcp-client';
 import { mcpClient } from '$lib/services/mcp-client';
 import { buildMissionFromCanvas, validateForMission, type MissionBuildOptions } from './mission-builder';
-import { syncClient, broadcastMissionEvent, isConnected, type SyncEvent } from './sync-client';
+import { syncClient, broadcastMissionEvent, broadcastLearningEvent, isConnected, type SyncEvent } from './sync-client';
 import { memoryClient } from './memory-client';
 import { get } from 'svelte/store';
 import { memorySettings, isMemoryConnected, shouldRecordDecision } from '$lib/stores/memory-settings.svelte';
@@ -559,6 +559,15 @@ class MissionExecutor {
 			if (result.success && result.data) {
 				this.taskDecisionIds.set(task.id, result.data.memory_id);
 				console.log(`[Learning] Recorded task start: ${task.title}`);
+
+				// Broadcast decision event
+				broadcastLearningEvent('decision_tracked', {
+					memoryId: result.data.memory_id,
+					agentId,
+					skillId,
+					missionId: this.progress.missionId || undefined,
+					content: `Execute task: ${task.title}`
+				});
 			}
 		} catch (error) {
 			console.error('[Learning] Failed to record task start:', error);
@@ -604,6 +613,16 @@ class MissionExecutor {
 			}
 
 			console.log(`[Learning] Recorded task outcome: ${task.title} - ${success ? 'success' : 'failed'}`);
+
+			// Broadcast outcome event
+			broadcastLearningEvent('outcome_recorded', {
+				agentId,
+				skillId,
+				missionId: this.progress.missionId || undefined,
+				content: success ? `Task completed: ${task.title}` : `Task failed: ${task.title}`,
+				success,
+				duration
+			});
 		} catch (error) {
 			console.error('[Learning] Failed to record task outcome:', error);
 		}
@@ -626,7 +645,7 @@ class MissionExecutor {
 
 				if (settings.autoExtractPatterns) {
 					// Record workflow pattern
-					await memoryClient.recordWorkflowPattern({
+					const patternResult = await memoryClient.recordWorkflowPattern({
 						name: `${mission.name} workflow`,
 						description: `Successful workflow pattern from mission "${mission.name}" with ${successRate * 100}% success rate`,
 						skillSequence: this.completedSkillSequence,
@@ -635,12 +654,21 @@ class MissionExecutor {
 					});
 
 					console.log(`[Learning] Recorded workflow pattern: ${this.completedSkillSequence.join(' → ')}`);
+
+					// Broadcast pattern detected event
+					broadcastLearningEvent('pattern_detected', {
+						memoryId: patternResult.data?.memory_id,
+						missionId: mission.id,
+						content: `Workflow pattern: ${this.completedSkillSequence.join(' → ')}`,
+						skillSequence: this.completedSkillSequence,
+						successRate
+					});
 				}
 
 				// Record a learning about what worked
 				const primaryAgent = mission.agents[0];
 				if (primaryAgent) {
-					await memoryClient.recordLearning(
+					const learningResult = await memoryClient.recordLearning(
 						primaryAgent.id,
 						{
 							content: `Mission "${mission.name}" succeeded with skill sequence: ${this.completedSkillSequence.join(' → ')}`,
@@ -650,6 +678,16 @@ class MissionExecutor {
 							confidence: successRate
 						}
 					);
+
+					// Broadcast learning recorded event
+					broadcastLearningEvent('learning_recorded', {
+						memoryId: learningResult.data?.memory_id,
+						agentId: primaryAgent.id,
+						skillId: primaryAgent.skills?.[0],
+						missionId: mission.id,
+						content: `Mission succeeded: ${mission.name}`,
+						patternType: 'success'
+					});
 				}
 			}
 
@@ -661,7 +699,7 @@ class MissionExecutor {
 					: mission.agents[0];
 
 				if (agent) {
-					await memoryClient.recordLearning(
+					const learningResult = await memoryClient.recordLearning(
 						agent.id,
 						{
 							content: `Mission "${mission.name}" failed: ${mission.error}`,
@@ -673,6 +711,16 @@ class MissionExecutor {
 					);
 
 					console.log(`[Learning] Recorded failure learning: ${mission.error}`);
+
+					// Broadcast failure learning event
+					broadcastLearningEvent('learning_recorded', {
+						memoryId: learningResult.data?.memory_id,
+						agentId: agent.id,
+						skillId: agent.skills?.[0],
+						missionId: mission.id,
+						content: `Mission failed: ${mission.name}`,
+						patternType: 'failure'
+					});
 				}
 			}
 		} catch (error) {
