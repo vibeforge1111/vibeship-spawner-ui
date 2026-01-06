@@ -181,7 +181,7 @@
 			onclick={() => handleViewChange('all')}
 		>
 			<Icon name="grid" size={12} />
-			<span>All Skills</span>
+			<span>All</span>
 			{#if allSkillsLoaded}
 				<span class="text-[10px] px-1 py-0.5 rounded bg-surface">{allSkillsList.length}</span>
 			{/if}
@@ -304,11 +304,11 @@
 				onclick={() => handleViewChange('all')}
 			>
 				<Icon name="grid" size={10} />
-				<span>Browse all skills</span>
+				<span>Browse all</span>
 			</button>
 		{:else}
 			<a href="/skills" class="flex items-center justify-center gap-1 text-xs text-text-tertiary hover:text-text-secondary">
-				<span>Open full skills page</span>
+				<span>Open skills page</span>
 				<Icon name="external-link" size={10} />
 			</a>
 		{/if}
