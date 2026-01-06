@@ -344,12 +344,13 @@ export interface HealthResponse {
 
 /**
  * Learning granularity setting
- * - everything: Record all decisions and outcomes
+ * - everything: Record all decisions and outcomes (no threshold)
+ * - almost-everything: Record decisions with confidence >= 0.25
  * - moderate: Record decisions with confidence >= 0.5
  * - significant: Only high-confidence (>= 0.7) decisions
  * - manual: User must explicitly mark what to record
  */
-export type LearningGranularity = 'everything' | 'moderate' | 'significant' | 'manual';
+export type LearningGranularity = 'everything' | 'almost-everything' | 'moderate' | 'significant' | 'manual';
 
 /**
  * Memory/Mind settings

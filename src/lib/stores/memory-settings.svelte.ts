@@ -311,7 +311,9 @@ export function shouldRecordDecision(confidence: number): boolean {
 
 	switch (granularity) {
 		case 'everything':
-			return true;
+			return true;  // No threshold
+		case 'almost-everything':
+			return confidence >= 0.25;  // Very low threshold
 		case 'moderate':
 			return confidence >= 0.5;  // Medium threshold
 		case 'significant':

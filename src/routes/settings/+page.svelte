@@ -260,6 +260,17 @@
 							Everything
 						</button>
 						<button
+							onclick={() => updateSetting('learningGranularity', 'almost-everything')}
+							class="px-3 py-1.5 text-sm font-mono border transition-all"
+							class:bg-accent-primary={currentSettings.learningGranularity === 'almost-everything'}
+							class:text-bg-primary={currentSettings.learningGranularity === 'almost-everything'}
+							class:border-accent-primary={currentSettings.learningGranularity === 'almost-everything'}
+							class:text-text-secondary={currentSettings.learningGranularity !== 'almost-everything'}
+							class:border-surface-border={currentSettings.learningGranularity !== 'almost-everything'}
+						>
+							Almost All
+						</button>
+						<button
 							onclick={() => updateSetting('learningGranularity', 'moderate')}
 							class="px-3 py-1.5 text-sm font-mono border transition-all"
 							class:bg-accent-primary={currentSettings.learningGranularity === 'moderate'}
@@ -295,7 +306,9 @@
 					</div>
 					<p class="text-xs text-text-tertiary mt-2">
 						{#if currentSettings.learningGranularity === 'everything'}
-							Record all decisions and outcomes. Most comprehensive but verbose.
+							Record all decisions and outcomes. No filtering.
+						{:else if currentSettings.learningGranularity === 'almost-everything'}
+							Skip only very low-confidence decisions (25%+).
 						{:else if currentSettings.learningGranularity === 'moderate'}
 							Record medium-confidence decisions (50%+). Good balance.
 						{:else if currentSettings.learningGranularity === 'significant'}
