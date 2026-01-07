@@ -84,6 +84,15 @@
 				<span class="hidden sm:inline">Mind</span>
 			</a>
 
+			<!-- MCPs link -->
+			<a
+				href="/mcps"
+				class="inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-sm text-text-secondary border border-transparent hover:text-text-primary hover:border-surface-border transition-all"
+			>
+				<Icon name="plug" size={14} />
+				<span class="hidden sm:inline">MCPs</span>
+			</a>
+
 			<!-- Settings link -->
 			<a
 				href="/settings"
