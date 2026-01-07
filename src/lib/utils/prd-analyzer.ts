@@ -453,32 +453,32 @@ export function generateTasksFromPRD(
 /**
  * Find the best matching skill from available skills
  */
-function findBestSkillMatch(searchTerm: string, availableSkills: Skill[]): string | null {
-	if (!availableSkills || availableSkills.length === 0) return null;
+function findBestSkillMatch(searchTerm: string | undefined, availableSkills: Skill[]): string | null {
+	if (!searchTerm || !availableSkills || availableSkills.length === 0) return null;
 
 	const lowerSearch = searchTerm.toLowerCase();
 
 	// Try exact ID match
-	const exactMatch = availableSkills.find(s => s.id.toLowerCase() === lowerSearch);
+	const exactMatch = availableSkills.find(s => s.id?.toLowerCase() === lowerSearch);
 	if (exactMatch) return exactMatch.id;
 
 	// Try partial ID match
 	const partialMatch = availableSkills.find(s =>
-		s.id.toLowerCase().includes(lowerSearch) ||
-		lowerSearch.includes(s.id.toLowerCase())
+		s.id?.toLowerCase().includes(lowerSearch) ||
+		lowerSearch.includes(s.id?.toLowerCase() || '')
 	);
 	if (partialMatch) return partialMatch.id;
 
 	// Try name match
 	const nameMatch = availableSkills.find(s =>
-		s.name.toLowerCase().includes(lowerSearch) ||
-		lowerSearch.includes(s.name.toLowerCase())
+		s.name?.toLowerCase().includes(lowerSearch) ||
+		lowerSearch.includes(s.name?.toLowerCase() || '')
 	);
 	if (nameMatch) return nameMatch.id;
 
-	// Try tag match
+	// Try tag match - filter out undefined tags
 	const tagMatch = availableSkills.find(s =>
-		s.tags?.some(tag => tag.toLowerCase().includes(lowerSearch))
+		s.tags?.filter(Boolean).some(tag => tag.toLowerCase().includes(lowerSearch))
 	);
 	if (tagMatch) return tagMatch.id;
 
@@ -562,13 +562,14 @@ export function tasksToWorkflow(
  * Create a placeholder skill for tasks without matches
  */
 function createPlaceholderSkill(task: GeneratedTask): Skill {
+	const category = task.category || 'development';
 	return {
 		id: `generated-${task.id}`,
-		name: task.title,
-		description: task.description,
-		category: task.category as any || 'development',
+		name: task.title || 'Untitled Task',
+		description: task.description || '',
+		category: category as any,
 		tier: 'free',
-		tags: [task.category],
+		tags: [category].filter(Boolean),
 		triggers: []
 	};
 }

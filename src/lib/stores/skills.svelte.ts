@@ -348,12 +348,14 @@ export function getSkillById(id: string): Skill | undefined {
  */
 export function addSkills(newSkills: Skill[]) {
 	skills.update((existing) => {
-		const existingIds = new Set(existing.map(s => s.id));
-		const toAdd = newSkills.filter(s => !existingIds.has(s.id));
+		// Filter out any skills with undefined/null ids
+		const validNewSkills = newSkills.filter(s => s && s.id);
+		const existingIds = new Set(existing.filter(s => s && s.id).map(s => s.id));
+		const toAdd = validNewSkills.filter(s => !existingIds.has(s.id));
 		const updated = [...existing, ...toAdd];
 
 		// Auto-save generated skills to localStorage
-		const generatedSkills = updated.filter(s => s.id.startsWith('generated-'));
+		const generatedSkills = updated.filter(s => s && s.id && s.id.startsWith('generated-'));
 		if (generatedSkills.length > 0) {
 			saveGeneratedSkills(generatedSkills);
 		}

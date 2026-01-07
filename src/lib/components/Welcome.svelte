@@ -82,12 +82,14 @@
 
 			try {
 				// Stage 0: Reading PRD
+				console.log('[PRD] Starting analysis, content length:', content.length);
 				await delay(600);
 
 				// Stage 1: Analyzing Features
 				processingStage = 1;
 				await delay(500);
 				const analysis = analyzePRD(content);
+				console.log('[PRD] Analysis complete:', { projectName: analysis.projectName, features: analysis.features.length });
 				processingProjectName = analysis.projectName || processingProjectName;
 				processingFeaturesFound = analysis.features.length;
 
@@ -98,27 +100,30 @@
 				// Stage 3: Matching Skills - ensure skills are loaded
 				processingStage = 3;
 				let skillsList = get(skillsStore);
+				console.log('[PRD] Skills before load:', skillsList.length);
 				if (skillsList.length === 0) {
 					// Try to load skills if empty
 					await loadSkills();
 					skillsList = get(skillsStore);
+					console.log('[PRD] Skills after load:', skillsList.length);
 				}
 				await delay(500);
 
 				// Stage 4: Building Pipeline
 				processingStage = 4;
 				const tasks = generateTasksFromPRD(analysis, skillsList);
+				console.log('[PRD] Generated tasks:', tasks.length);
 				processingTasksGenerated = tasks.length;
 
 				if (tasks.length === 0) {
 					showProcessingModal = false;
 					toasts.error('Could not extract tasks from PRD. Try adding more detail.');
-					goto('/project');
 					return;
 				}
 
 				// Generate workflow
 				const workflow = tasksToWorkflow(tasks, skillsList);
+				console.log('[PRD] Workflow nodes:', workflow.nodes.length, 'connections:', workflow.connections.length);
 				pendingWorkflow = workflow;
 				await delay(600);
 
@@ -131,10 +136,9 @@
 				}
 
 			} catch (err) {
-				console.error('PRD analysis failed:', err);
+				console.error('[PRD] Analysis failed at stage', processingStage, ':', err);
 				showProcessingModal = false;
-				toasts.error('Failed to analyze PRD');
-				goto('/project');
+				toasts.error(`Failed to analyze PRD: ${err instanceof Error ? err.message : 'Unknown error'}`);
 			}
 		};
 		reader.readAsText(file);
@@ -142,7 +146,11 @@
 	}
 
 	function handleProcessingComplete() {
+		console.log('[PRD] handleProcessingComplete called, pendingWorkflow:', !!pendingWorkflow);
+
 		if (pendingWorkflow) {
+			console.log('[PRD] Setting up pipeline with', pendingWorkflow.nodes.length, 'nodes');
+
 			// Initialize pipeline system
 			initPipelines();
 
@@ -172,9 +180,13 @@
 			});
 
 			toasts.success(`Pipeline ready with ${pendingWorkflow.nodes.length} agents`);
+		} else {
+			console.warn('[PRD] No pending workflow, just navigating to canvas');
 		}
+
 		showProcessingModal = false;
 		pendingWorkflow = null;
+		console.log('[PRD] Navigating to /canvas');
 		goto('/canvas');
 	}
 
