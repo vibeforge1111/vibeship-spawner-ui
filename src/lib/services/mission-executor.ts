@@ -14,7 +14,7 @@ import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import type { Mission, MissionLog, MissionTask } from '$lib/services/mcp-client';
 import { mcpClient } from '$lib/services/mcp-client';
 import { buildMissionFromCanvas, validateForMission, type MissionBuildOptions } from './mission-builder';
-import { syncClient, broadcastMissionEvent, broadcastLearningEvent, isConnected, type SyncEvent } from './sync-client';
+import { syncClient, broadcastMissionEvent, broadcastLearningEvent, broadcastTaskEvent, broadcastExecutionControl, isConnected, type SyncEvent } from './sync-client';
 import { memoryClient } from './memory-client';
 import { get } from 'svelte/store';
 import { memorySettings, isMemoryConnected, shouldRecordDecision } from '$lib/stores/memory-settings.svelte';
@@ -22,13 +22,24 @@ import { memorySettings, isMemoryConnected, shouldRecordDecision } from '$lib/st
 export type ExecutionMode = 'preview' | 'live';
 export type ExecutionStatus = 'idle' | 'creating' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
 
+export interface TaskProgress {
+	taskId: string;
+	taskName: string;
+	progress: number;        // 0-100 within this task
+	message?: string;        // Current activity
+	startedAt: number;
+}
+
 export interface ExecutionProgress {
 	status: ExecutionStatus;
 	missionId: string | null;
 	mission: Mission | null;
-	progress: number;
+	progress: number;              // Overall mission progress 0-100
 	currentTaskId: string | null;
 	currentTaskName: string | null;
+	currentTaskProgress: number;   // NEW: Progress within current task 0-100
+	currentTaskMessage: string | null;  // NEW: Current activity description
+	taskProgressMap: Map<string, TaskProgress>;  // NEW: Track all task progress
 	logs: MissionLog[];
 	startTime: Date | null;
 	endTime: Date | null;
@@ -38,6 +49,7 @@ export interface ExecutionProgress {
 export interface ExecutionCallbacks {
 	onStatusChange?: (status: ExecutionStatus) => void;
 	onProgress?: (progress: number) => void;
+	onTaskProgress?: (taskId: string, progress: number, message?: string) => void;  // NEW
 	onLog?: (log: MissionLog) => void;
 	onTaskStart?: (taskId: string, taskName: string) => void;
 	onTaskComplete?: (taskId: string, success: boolean) => void;
@@ -116,6 +128,50 @@ class MissionExecutor {
 					}
 					break;
 
+				case 'mission_paused':
+					// Remote client paused the mission
+					if (this.progress.status === 'running') {
+						this.progress.status = 'paused';
+						this.stopPolling();
+						this.callbacks.onStatusChange?.('paused');
+						this.addLocalLog('info', 'Mission paused (remote)');
+					}
+					break;
+
+				case 'mission_resumed':
+					// Remote client resumed the mission
+					if (this.progress.status === 'paused') {
+						this.progress.status = 'running';
+						this.startPolling();
+						this.callbacks.onStatusChange?.('running');
+						this.addLocalLog('info', 'Mission resumed (remote)');
+					}
+					break;
+
+				case 'task_started':
+					// Real-time task start notification
+					const startData = event.data as { taskId: string; taskName: string };
+					if (startData.taskId !== this.progress.currentTaskId) {
+						this.progress.currentTaskId = startData.taskId;
+						this.progress.currentTaskName = startData.taskName;
+						this.callbacks.onTaskStart?.(startData.taskId, startData.taskName);
+					}
+					break;
+
+				case 'task_progress':
+					// Real-time task progress update
+					const progressData = event.data as { taskId: string; progress: number; message?: string };
+					this.handleTaskProgress(progressData.taskId, progressData.progress, progressData.message);
+					break;
+
+				case 'task_completed':
+					// Real-time task completion
+					const completeData = event.data as { taskId: string; success: boolean };
+					this.callbacks.onTaskComplete?.(completeData.taskId, completeData.success);
+					// Record for learning
+					this.recordTaskComplete(completeData.taskId, completeData.success);
+					break;
+
 				case 'mission_log':
 					const log = event.data.log as MissionLog;
 					if (log && !this.progress.logs.find(l => l.id === log.id)) {
@@ -141,6 +197,8 @@ class MissionExecutor {
 			const task = missionData.tasks?.find(t => t.id === missionData.current_task_id);
 			if (task) {
 				this.progress.currentTaskName = task.title;
+				this.progress.currentTaskProgress = 0;  // Reset task progress
+				this.progress.currentTaskMessage = null;
 				this.callbacks.onTaskStart?.(task.id, task.title);
 
 				// Record task start for learning
@@ -150,10 +208,75 @@ class MissionExecutor {
 
 		// Update progress based on completed tasks
 		if (missionData.tasks) {
-			const completedTasks = missionData.tasks.filter(
-				t => t.status === 'completed' || t.status === 'failed'
-			).length;
-			this.progress.progress = Math.round((completedTasks / missionData.tasks.length) * 100);
+			this.updateOverallProgress(missionData.tasks);
+		}
+	}
+
+	/**
+	 * Handle task progress update (for granular progress within a task)
+	 */
+	private handleTaskProgress(taskId: string, progress: number, message?: string): void {
+		// Update task progress map
+		const existing = this.progress.taskProgressMap.get(taskId);
+		this.progress.taskProgressMap.set(taskId, {
+			taskId,
+			taskName: existing?.taskName || this.progress.currentTaskName || taskId,
+			progress,
+			message,
+			startedAt: existing?.startedAt || Date.now()
+		});
+
+		// Update current task progress if this is the active task
+		if (taskId === this.progress.currentTaskId) {
+			this.progress.currentTaskProgress = progress;
+			this.progress.currentTaskMessage = message || null;
+		}
+
+		// Recalculate overall progress with task-level granularity
+		this.recalculateOverallProgress();
+
+		// Notify callback
+		this.callbacks.onTaskProgress?.(taskId, progress, message);
+	}
+
+	/**
+	 * Update overall progress based on task completion ratio
+	 */
+	private updateOverallProgress(tasks: Array<{ status: string }>): void {
+		const completedTasks = tasks.filter(
+			t => t.status === 'completed' || t.status === 'failed'
+		).length;
+		this.progress.progress = Math.round((completedTasks / tasks.length) * 100);
+		this.callbacks.onProgress?.(this.progress.progress);
+	}
+
+	/**
+	 * Recalculate overall progress with task-level granularity
+	 * This provides smoother progress updates by including partial task progress
+	 */
+	private recalculateOverallProgress(): void {
+		const mission = this.progress.mission;
+		if (!mission || !mission.tasks || mission.tasks.length === 0) return;
+
+		const totalTasks = mission.tasks.length;
+		let progressSum = 0;
+
+		for (const task of mission.tasks) {
+			if (task.status === 'completed') {
+				progressSum += 100;
+			} else if (task.status === 'failed') {
+				progressSum += 100;  // Failed tasks count as "done" for progress
+			} else if (task.status === 'in_progress') {
+				// Use tracked progress if available, otherwise estimate at 50%
+				const tracked = this.progress.taskProgressMap.get(task.id);
+				progressSum += tracked?.progress ?? 50;
+			}
+			// pending tasks contribute 0
+		}
+
+		const newProgress = Math.round(progressSum / totalTasks);
+		if (newProgress !== this.progress.progress) {
+			this.progress.progress = newProgress;
 			this.callbacks.onProgress?.(this.progress.progress);
 		}
 	}
@@ -166,6 +289,9 @@ class MissionExecutor {
 			progress: 0,
 			currentTaskId: null,
 			currentTaskName: null,
+			currentTaskProgress: 0,
+			currentTaskMessage: null,
+			taskProgressMap: new Map(),
 			logs: [],
 			startTime: null,
 			endTime: null,
@@ -280,18 +406,31 @@ class MissionExecutor {
 		}
 
 		try {
-			// MCP doesn't have a direct pause, but we can update status
-			const result = await mcpClient.updateMission(this.progress.missionId, {
-				// Signal pause by updating mission
+			// Update local state immediately for responsive UI
+			this.progress.status = 'paused';
+			this.stopPolling();
+			this.callbacks.onStatusChange?.('paused');
+			this.addLocalLog('info', 'Execution paused');
+
+			// Broadcast pause event for other clients
+			broadcastExecutionControl('mission_paused', this.progress.missionId, {
+				pausedAt: Date.now(),
+				currentTaskId: this.progress.currentTaskId,
+				currentTaskName: this.progress.currentTaskName,
+				progress: this.progress.progress
 			});
 
-			if (result.success) {
-				this.progress.status = 'paused';
-				this.stopPolling();
-				this.callbacks.onStatusChange?.('paused');
-				this.addLocalLog('info', 'Execution paused');
-				return true;
+			// Try to signal MCP (optional - MCP may not support pause)
+			try {
+				await mcpClient.updateMission(this.progress.missionId, {
+					status: 'paused'
+				});
+			} catch {
+				// MCP pause not supported, but local pause still works
+				console.log('[MissionExecutor] MCP pause not supported, using local pause');
 			}
+
+			return true;
 		} catch (error) {
 			console.error('Failed to pause:', error);
 		}
@@ -308,10 +447,29 @@ class MissionExecutor {
 		}
 
 		try {
+			// Update local state immediately
 			this.progress.status = 'running';
 			this.startPolling();
 			this.callbacks.onStatusChange?.('running');
 			this.addLocalLog('info', 'Execution resumed');
+
+			// Broadcast resume event for other clients
+			broadcastExecutionControl('mission_resumed', this.progress.missionId, {
+				resumedAt: Date.now(),
+				currentTaskId: this.progress.currentTaskId,
+				currentTaskName: this.progress.currentTaskName,
+				progress: this.progress.progress
+			});
+
+			// Try to signal MCP (optional)
+			try {
+				await mcpClient.updateMission(this.progress.missionId, {
+					status: 'running'
+				});
+			} catch {
+				console.log('[MissionExecutor] MCP resume not supported');
+			}
+
 			return true;
 		} catch (error) {
 			console.error('Failed to resume:', error);
@@ -410,27 +568,60 @@ class MissionExecutor {
 			const missionResult = await mcpClient.getMission(this.progress.missionId);
 			if (missionResult.success && missionResult.data?.mission) {
 				const mission = missionResult.data.mission;
+				const previousMission = this.progress.mission;
 				this.progress.mission = mission;
 
-				// Update current task
+				// Update current task and broadcast if changed
 				if (mission.current_task_id) {
 					const task = mission.tasks.find(t => t.id === mission.current_task_id);
 					if (task && task.id !== this.progress.currentTaskId) {
 						this.progress.currentTaskId = task.id;
 						this.progress.currentTaskName = task.title;
+						this.progress.currentTaskProgress = 0;
+						this.progress.currentTaskMessage = null;
 						this.callbacks.onTaskStart?.(task.id, task.title);
+
+						// Broadcast task started event for real-time sync
+						broadcastTaskEvent('task_started', this.progress.missionId!, {
+							taskId: task.id,
+							taskName: task.title,
+							agentId: task.assignedTo,
+							skillId: this.getSkillIdForAgent(task.assignedTo)
+						});
 
 						// Record task start for learning
 						this.recordTaskStart(task, task.assignedTo);
 					}
 				}
 
-				// Calculate progress
-				const completedTasks = mission.tasks.filter(
-					t => t.status === 'completed' || t.status === 'failed'
-				).length;
-				this.progress.progress = Math.round((completedTasks / mission.tasks.length) * 100);
-				this.callbacks.onProgress?.(this.progress.progress);
+				// Detect task completions by comparing with previous state
+				if (previousMission) {
+					for (const task of mission.tasks) {
+						const prevTask = previousMission.tasks.find(t => t.id === task.id);
+						if (prevTask && prevTask.status !== task.status) {
+							if (task.status === 'completed') {
+								// Broadcast task completed
+								broadcastTaskEvent('task_completed', this.progress.missionId!, {
+									taskId: task.id,
+									taskName: task.title,
+									success: true,
+									agentId: task.assignedTo
+								});
+							} else if (task.status === 'failed') {
+								// Broadcast task failed
+								broadcastTaskEvent('task_completed', this.progress.missionId!, {
+									taskId: task.id,
+									taskName: task.title,
+									success: false,
+									agentId: task.assignedTo
+								});
+							}
+						}
+					}
+				}
+
+				// Calculate progress with granularity
+				this.recalculateOverallProgress();
 
 				// Check for completion
 				if (mission.status === 'completed') {
@@ -490,6 +681,14 @@ class MissionExecutor {
 		} catch (error) {
 			console.error('Polling error:', error);
 		}
+	}
+
+	/**
+	 * Get skill ID for an agent
+	 */
+	private getSkillIdForAgent(agentId: string): string | undefined {
+		const agent = this.progress.mission?.agents.find(a => a.id === agentId);
+		return agent?.skills?.[0];
 	}
 
 	/**

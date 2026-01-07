@@ -15,7 +15,7 @@
 		stats ? Math.round(((stats.successfulTasks ?? 0) / Math.max(stats.totalTasks ?? 1, 1)) * 100) : 0
 	);
 
-	const recentLearnings = $derived(learnings.slice(0, 5));
+	const recentLearnings = $derived(learnings.filter(l => l && l.content).slice(0, 5));
 
 	function getSuccessColor(rate: number): string {
 		if (rate >= 80) return 'text-green-400';
@@ -138,7 +138,7 @@
 								{getPatternIcon(metadata?.pattern_type || 'default')}
 							</span>
 							<div class="flex-1 min-w-0">
-								<p class="text-sm text-text-primary truncate">{learning.content}</p>
+								<p class="text-sm text-text-primary truncate">{learning.content || 'No content'}</p>
 								{#if metadata?.confidence}
 									<span class="text-xs text-text-tertiary">
 										{formatConfidence(metadata.confidence)} confidence

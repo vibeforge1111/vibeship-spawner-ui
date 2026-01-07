@@ -54,6 +54,10 @@
 	let pendingTasks = $state<string[]>([]);
 	let mindLogsCount = $state(0);
 
+	// Current task progress tracking
+	let currentTaskProgress = $state(0);
+	let currentTaskMessage = $state<string | null>(null);
+
 	// Derived states
 	let isRunning = $derived(executionProgress?.status === 'running' || executionProgress?.status === 'creating');
 	let isPaused = $derived(executionProgress?.status === 'paused');
@@ -292,10 +296,20 @@
 			onProgress: (progress) => {
 				executionProgress = missionExecutor.getProgress();
 			},
+			onTaskProgress: (taskId, progress, message) => {
+				// Update task-level progress for smoother UI updates
+				currentTaskProgress = progress;
+				currentTaskMessage = message || null;
+				executionProgress = missionExecutor.getProgress();
+			},
 			onLog: (log) => {
 				logs = [...logs, log];
 			},
 			onTaskStart: (taskId, taskName) => {
+				// Reset task progress for new task
+				currentTaskProgress = 0;
+				currentTaskMessage = null;
+
 				// Find the node matching this task and update its status
 				const node = currentNodes.find(n => n.skill.name === taskName || n.id === taskId);
 				if (node) {
@@ -504,14 +518,9 @@
 		<!-- Progress -->
 		{#if executionProgress}
 			<div class="p-4 border-b border-surface-border">
+				<!-- Overall Progress -->
 				<div class="flex items-center justify-between mb-2">
-					<span class="text-sm text-text-secondary">
-						{#if executionProgress.currentTaskName}
-							{executionProgress.currentTaskName}
-						{:else}
-							Progress
-						{/if}
-					</span>
+					<span class="text-sm text-text-secondary">Overall Progress</span>
 					<span class="text-sm font-mono text-text-primary">{executionProgress.progress}%</span>
 				</div>
 				<div class="w-full h-2 bg-surface rounded-full overflow-hidden">
@@ -525,6 +534,31 @@
 						style="width: {executionProgress.progress}%"
 					></div>
 				</div>
+
+				<!-- Current Task Progress (shown during running) -->
+				{#if isRunning && executionProgress.currentTaskName}
+					<div class="mt-3 p-3 bg-bg-tertiary border border-surface-border rounded">
+						<div class="flex items-center justify-between mb-1">
+							<span class="text-xs font-mono text-text-tertiary uppercase tracking-wider">Current Task</span>
+							<span class="text-xs font-mono text-yellow-400">{currentTaskProgress}%</span>
+						</div>
+						<div class="flex items-center gap-2 mb-2">
+							<div class="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+							<span class="text-sm text-text-primary font-medium">{executionProgress.currentTaskName}</span>
+						</div>
+						<!-- Task progress bar -->
+						<div class="w-full h-1.5 bg-surface rounded-full overflow-hidden">
+							<div
+								class="h-full bg-yellow-400 transition-all duration-200"
+								style="width: {currentTaskProgress}%"
+							></div>
+						</div>
+						{#if currentTaskMessage}
+							<p class="mt-2 text-xs text-text-tertiary italic">{currentTaskMessage}</p>
+						{/if}
+					</div>
+				{/if}
+
 				<div class="flex justify-between mt-2 text-xs text-text-tertiary">
 					<span>{currentNodes.length} nodes</span>
 					<span>{getExecutionDuration()}</span>

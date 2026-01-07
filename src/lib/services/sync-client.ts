@@ -15,7 +15,24 @@ import { writable, derived, get } from 'svelte/store';
 export type SyncStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'error';
 
 export interface SyncEvent {
-	type: 'mission_created' | 'mission_updated' | 'mission_started' | 'mission_completed' | 'mission_failed' | 'mission_log' | 'skill_invoked' | 'agent_handoff' | 'learning_recorded' | 'pattern_detected' | 'decision_tracked' | 'outcome_recorded';
+	type:
+		| 'mission_created'
+		| 'mission_updated'
+		| 'mission_started'
+		| 'mission_completed'
+		| 'mission_failed'
+		| 'mission_paused'      // NEW: Mission paused by user
+		| 'mission_resumed'     // NEW: Mission resumed by user
+		| 'mission_log'
+		| 'task_started'        // NEW: Explicit task start
+		| 'task_progress'       // NEW: Task progress update (0-100%)
+		| 'task_completed'      // NEW: Explicit task completion
+		| 'skill_invoked'
+		| 'agent_handoff'
+		| 'learning_recorded'
+		| 'pattern_detected'
+		| 'decision_tracked'
+		| 'outcome_recorded';
 	missionId?: string;
 	data: Record<string, unknown>;
 	timestamp: string;
@@ -446,5 +463,51 @@ export function broadcastLearningEvent(
 		type,
 		missionId: data.missionId,
 		data
+	});
+}
+
+// Helper to broadcast task events (for real-time task tracking)
+export function broadcastTaskEvent(
+	type: 'task_started' | 'task_progress' | 'task_completed',
+	missionId: string,
+	data: {
+		taskId: string;
+		taskName: string;
+		progress?: number;        // 0-100 for task_progress
+		success?: boolean;        // for task_completed
+		message?: string;         // current activity description
+		agentId?: string;
+		skillId?: string;
+		[key: string]: unknown;
+	}
+): void {
+	syncClient.broadcast({
+		type,
+		missionId,
+		data: {
+			...data,
+			timestamp: Date.now()
+		}
+	});
+}
+
+// Helper to broadcast pause/resume events
+export function broadcastExecutionControl(
+	type: 'mission_paused' | 'mission_resumed',
+	missionId: string,
+	data: {
+		reason?: string;
+		pausedAt?: number;
+		resumedAt?: number;
+		[key: string]: unknown;
+	} = {}
+): void {
+	syncClient.broadcast({
+		type,
+		missionId,
+		data: {
+			...data,
+			timestamp: Date.now()
+		}
 	});
 }

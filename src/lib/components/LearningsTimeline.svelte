@@ -79,10 +79,12 @@
 		return `${Math.round(confidence * 100)}%`;
 	}
 
-	// Group learnings by date
+	// Group learnings by date (filter out invalid entries first)
 	const groupedLearnings = $derived(() => {
 		const groups: { [key: string]: Memory[] } = {};
-		for (const learning of learnings) {
+		// Filter out undefined/null entries and entries without content
+		const validLearnings = learnings.filter(l => l && l.content);
+		for (const learning of validLearnings) {
 			const date = learning.created_at
 				? new Date(learning.created_at).toLocaleDateString('en-US', {
 						month: 'short',
@@ -138,7 +140,7 @@
 
 								<div class="flex-1 min-w-0">
 									<!-- Content -->
-									<p class="text-text-primary">{learning.content}</p>
+									<p class="text-text-primary">{learning.content || 'No content'}</p>
 
 									<!-- Metadata Row -->
 									<div class="flex flex-wrap items-center gap-3 mt-2 text-xs">

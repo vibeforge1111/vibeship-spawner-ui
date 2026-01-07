@@ -55,7 +55,7 @@
 		</div>
 	{:else}
 		<div class="divide-y divide-surface-border">
-			{#each patterns as pattern}
+			{#each patterns.filter(p => p && p.content) as pattern}
 				{@const meta = getMetadata(pattern)}
 				<button
 					class="w-full p-4 text-left hover:bg-bg-primary/50 transition-colors"
@@ -65,7 +65,7 @@
 					<div class="flex items-start justify-between gap-4 mb-3">
 						<div>
 							<h4 class="font-medium text-text-primary">
-								{meta.name || pattern.content.slice(0, 50)}
+								{meta.name || pattern.content?.slice(0, 50) || 'Unnamed Pattern'}
 							</h4>
 							{#if pattern.content && pattern.content !== meta.name}
 								<p class="text-sm text-text-secondary mt-1 line-clamp-2">

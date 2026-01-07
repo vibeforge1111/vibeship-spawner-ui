@@ -41,7 +41,8 @@
 
 	// Apply filters
 	$effect(() => {
-		let filtered = [...learnings];
+		// Filter out any undefined/null entries first
+		let filtered = learnings.filter(l => l && l.content);
 
 		// Search filter
 		if (searchQuery.trim()) {
@@ -49,7 +50,7 @@
 			filtered = filtered.filter(l => {
 				const meta = l.metadata as { reasoning?: string; skill_id?: string } | undefined;
 				return (
-					l.content.toLowerCase().includes(query) ||
+					l.content?.toLowerCase().includes(query) ||
 					meta?.reasoning?.toLowerCase().includes(query) ||
 					meta?.skill_id?.toLowerCase().includes(query)
 				);

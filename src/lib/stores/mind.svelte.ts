@@ -280,24 +280,23 @@ export async function loadLearnings(agentId?: string): Promise<boolean> {
 	mindState.update((s) => ({ ...s, learningsLoading: true }));
 
 	try {
-		// Get learnings
-		const learningsResult = await memoryClient.retrieve('agent learning', {
-			limit: 50,
-			content_types: ['agent_learning'],
-			agent_id: agentId
-		});
+		// Get learnings - use listByContentType for Lite tier compatibility
+		const learningsResult = await memoryClient.listByContentType(
+			['agent_learning', 'agent_decision', 'task_outcome'],
+			{ limit: 50, agent_id: agentId }
+		);
 
 		// Get patterns
-		const patternsResult = await memoryClient.retrieve('workflow pattern', {
-			limit: 20,
-			content_types: ['workflow_pattern']
-		});
+		const patternsResult = await memoryClient.listByContentType(
+			['workflow_pattern'],
+			{ limit: 20 }
+		);
 
 		if (learningsResult.success || patternsResult.success) {
 			mindState.update((s) => ({
 				...s,
-				learnings: learningsResult.data?.memories.map((sm) => sm.memory) ?? [],
-				patterns: patternsResult.data?.memories.map((sm) => sm.memory) ?? [],
+				learnings: learningsResult.data ?? [],
+				patterns: patternsResult.data ?? [],
 				learningsLoading: false,
 				memoryConnected: true
 			}));

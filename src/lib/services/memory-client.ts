@@ -278,7 +278,7 @@ class MemoryClient {
 	/**
 	 * List memories
 	 */
-	async listMemories(options?: ListOptions): Promise<MemoryClientResult<MemoryListResponse>> {
+	async listMemories(options?: ListOptions): Promise<MemoryClientResult<Memory[]>> {
 		const params = new URLSearchParams();
 		if (options?.limit) params.set('limit', options.limit.toString());
 		if (options?.offset) params.set('offset', options.offset.toString());
@@ -286,14 +286,55 @@ class MemoryClient {
 		const queryString = params.toString();
 		const path = `/v1/memories/${queryString ? `?${queryString}` : ''}`;
 
-		const result = await this.request<MemoryListResponse>('GET', path);
+		// API returns array directly, not {memories: [...]}
+		const result = await this.request<Memory[]>('GET', path);
 
 		// Decode metadata for all memories
-		if (result.success && result.data?.memories) {
-			result.data.memories = result.data.memories.map(m => this.decodeMemoryMetadata(m));
+		if (result.success && result.data) {
+			result.data = result.data.map(m => this.decodeMemoryMetadata(m));
 		}
 
 		return result;
+	}
+
+	/**
+	 * List memories filtered by content type(s)
+	 * Better for Lite tier which doesn't have semantic search
+	 */
+	async listByContentType(
+		contentTypes: ContentType[],
+		options?: { limit?: number; agent_id?: string }
+	): Promise<MemoryClientResult<Memory[]>> {
+		// Fetch more than needed since we'll filter client-side
+		const result = await this.listMemories({ limit: options?.limit ? options.limit * 3 : 100 });
+
+		if (!result.success || !result.data) {
+			return { success: false, error: result.error };
+		}
+
+		// Filter by content types
+		let filtered = result.data.filter(m =>
+			m && m.content_type && contentTypes.includes(m.content_type as ContentType)
+		);
+
+		// Filter by agent_id if specified
+		if (options?.agent_id) {
+			filtered = filtered.filter(m =>
+				m.metadata?.agent_id === options.agent_id
+			);
+		}
+
+		// Sort by created_at descending (newest first)
+		filtered.sort((a, b) =>
+			new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+		);
+
+		// Apply limit
+		if (options?.limit) {
+			filtered = filtered.slice(0, options.limit);
+		}
+
+		return { success: true, data: filtered };
 	}
 
 	/**
