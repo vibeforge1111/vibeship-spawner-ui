@@ -1096,10 +1096,21 @@ class MissionExecutor {
 				this.completedSkillSequence.push(skillId);
 			}
 
+			// Auto-create decision when task succeeds (non-blocking)
+			if (success) {
+				const what = `Completed: ${task.title}`;
+				const why = `Task "${task.title}" in mission "${this.progress.mission?.name || 'Unknown'}" completed successfully using ${skillId || 'default'} skill in ${Math.round(duration / 1000)}s`;
+				memoryClient.createProjectDecision(what, why).then(() => {
+					console.log(`[Mind] Auto-created decision for completed task: ${task.title}`);
+				}).catch(err => {
+					console.warn('[Mind] Failed to create decision:', err);
+				});
+			}
+
 			// Auto-create issue when task fails (non-blocking)
 			if (!success) {
 				const errorDetails = task.error || 'Task execution failed';
-				memoryClient.createIssue(
+				memoryClient.createProjectIssue(
 					`[${this.progress.mission?.name || 'Mission'}] Task failed: ${task.title} - ${errorDetails}`,
 					'open'
 				).then(() => {

@@ -899,6 +899,7 @@ class MemoryClient {
 
 	/**
 	 * Create an improvement suggestion
+	 * Improvements are auto-applied by default (no approval required)
 	 */
 	async createImprovement(improvement: {
 		type: 'skill' | 'agent' | 'team' | 'pipeline';
@@ -909,6 +910,7 @@ class MemoryClient {
 		confidence: number;
 		evidenceCount: number;
 		sourceMissions?: string[];
+		status?: 'pending' | 'applied' | 'dismissed';
 	}): Promise<MemoryClientResult<Memory>> {
 		const contentType = `${improvement.type}_improvement` as ContentType;
 
@@ -924,8 +926,9 @@ class MemoryClient {
 				improvement_suggestion: improvement.suggestion,
 				improvement_impact: improvement.impact,
 				improvement_evidence_count: improvement.evidenceCount,
-				improvement_status: 'pending',
+				improvement_status: improvement.status ?? 'applied', // Auto-apply by default
 				improvement_source_missions: improvement.sourceMissions,
+				improvement_applied_at: improvement.status !== 'pending' ? new Date().toISOString() : undefined,
 				confidence: improvement.confidence
 			}
 		});
