@@ -13,7 +13,7 @@
 import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import type { Mission, MissionLog, MissionTask } from '$lib/services/mcp-client';
 import { mcpClient } from '$lib/services/mcp-client';
-import { buildMissionFromCanvas, validateForMission, generateExecutionPrompt, type MissionBuildOptions } from './mission-builder';
+import { buildMissionFromCanvas, validateForMission, generateExecutionPrompt, type MissionBuildOptions, type ExecutionPromptOptions } from './mission-builder';
 import { syncClient, broadcastMissionEvent, broadcastLearningEvent, broadcastTaskEvent, broadcastExecutionControl, isConnected, type SyncEvent } from './sync-client';
 import { clientEventBridge, type BridgeEvent } from './event-bridge';
 import { memoryClient } from './memory-client';
@@ -656,8 +656,19 @@ class MissionExecutor {
 			this.progress.mission = buildResult.mission;
 			this.addLocalLog('info', `Mission created: ${buildResult.mission.id}`);
 
-			// Step 3: Generate copy-pasteable execution prompt
-			const executionPrompt = generateExecutionPrompt(buildResult.mission);
+			// Log H70 skills if loaded
+			if (buildResult.loadedSkills && buildResult.loadedSkills.size > 0) {
+				const skillNames = Array.from(buildResult.loadedSkills.values())
+					.map(s => s.skill.name)
+					.join(', ');
+				this.addLocalLog('info', `Loaded ${buildResult.loadedSkills.size} H70 skills: ${skillNames}`);
+			}
+
+			// Step 3: Generate copy-pasteable execution prompt (with H70 skills)
+			const executionPrompt = generateExecutionPrompt(buildResult.mission, {
+				loadedSkills: buildResult.loadedSkills,
+				taskSkillMap: buildResult.taskSkillMap
+			});
 			this.progress.executionPrompt = executionPrompt;
 			this.addLocalLog('info', 'Execution prompt generated - copy to Claude Code to start');
 

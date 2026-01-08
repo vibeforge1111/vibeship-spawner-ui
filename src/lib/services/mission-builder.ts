@@ -3,11 +3,17 @@
  *
  * Converts canvas workflows to Mission format for execution.
  * Maps nodes to tasks, connections to handoffs, and generates agent assignments.
+ *
+ * NEW: Automatically loads H70 skills based on task types and includes
+ * them in the execution prompt for Claude Code guidance.
  */
 
 import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import type { MissionAgent, MissionTask, MissionContext, Mission } from '$lib/services/mcp-client';
 import { mcpClient } from '$lib/services/mcp-client';
+import { getAllRequiredSkills, getSkillPriorities, matchTaskToSkills } from './h70-skill-matcher';
+import { loadCondensedSkillsForMission, type H70SkillContent } from './h70-skills';
+import { browser } from '$app/environment';
 
 export interface MissionBuildOptions {
 	name: string;
@@ -17,12 +23,22 @@ export interface MissionBuildOptions {
 	projectType?: string;
 	techStack?: string[];
 	goals?: string[];
+	/** Enable H70 skill auto-loading (default: true) */
+	loadH70Skills?: boolean;
+	/** Maximum skills to load per task (default: 3) */
+	maxSkillsPerTask?: number;
+	/** Maximum total skills to load (default: 10) */
+	maxTotalSkills?: number;
 }
 
 export interface MissionBuildResult {
 	success: boolean;
 	mission?: Mission;
 	error?: string;
+	/** H70 skills loaded for this mission */
+	loadedSkills?: Map<string, H70SkillContent>;
+	/** Skill IDs matched per task */
+	taskSkillMap?: Map<string, string[]>;
 }
 
 /**
@@ -183,6 +199,8 @@ function generateTasks(
 /**
  * Build a Mission from canvas nodes and connections
  * NOTE: This builds the mission locally - no MCP call needed
+ *
+ * NEW: Automatically loads relevant H70 skills based on task types
  */
 export async function buildMissionFromCanvas(
 	nodes: CanvasNode[],
@@ -223,7 +241,48 @@ export async function buildMissionFromCanvas(
 			updated_at: new Date().toISOString()
 		};
 
-		return { success: true, mission };
+		// Auto-load H70 skills for the mission (browser only)
+		let loadedSkills: Map<string, H70SkillContent> | undefined;
+		let taskSkillMap: Map<string, string[]> | undefined;
+
+		const shouldLoadSkills = browser && (options.loadH70Skills !== false);
+
+		if (shouldLoadSkills) {
+			const maxPerTask = options.maxSkillsPerTask ?? 3;
+			const maxTotal = options.maxTotalSkills ?? 10;
+
+			// Match tasks to skills
+			taskSkillMap = new Map();
+			const taskInfos = tasks.map(t => ({ name: t.title, description: t.description }));
+
+			for (const task of tasks) {
+				const matchedSkills = matchTaskToSkills(task.title, task.description, maxPerTask);
+				taskSkillMap.set(task.id, matchedSkills);
+			}
+
+			// Get prioritized skills (most relevant across all tasks)
+			const priorities = getSkillPriorities(taskInfos);
+			const skillsToLoad = priorities.slice(0, maxTotal).map(p => p.skillId);
+
+			console.log(`[MissionBuilder] Loading ${skillsToLoad.length} H70 skills:`, skillsToLoad);
+
+			// Load the skills
+			try {
+				const { skills } = await loadCondensedSkillsForMission(skillsToLoad);
+				loadedSkills = skills;
+				console.log(`[MissionBuilder] Successfully loaded ${skills.size} H70 skills`);
+			} catch (e) {
+				console.warn('[MissionBuilder] Failed to load H70 skills:', e);
+				// Continue without skills - don't fail the mission build
+			}
+		}
+
+		return {
+			success: true,
+			mission,
+			loadedSkills,
+			taskSkillMap
+		};
 	} catch (e) {
 		return {
 			success: false,
@@ -233,17 +292,93 @@ export async function buildMissionFromCanvas(
 }
 
 /**
- * Generate a copy-pasteable execution prompt for Claude Code
+ * Options for generating execution prompts
  */
-export function generateExecutionPrompt(mission: Mission): string {
+export interface ExecutionPromptOptions {
+	/** Loaded H70 skills to include in prompt */
+	loadedSkills?: Map<string, H70SkillContent>;
+	/** Mapping of task ID to recommended skill IDs */
+	taskSkillMap?: Map<string, string[]>;
+	/** Include full skill content (default: false, uses condensed) */
+	fullSkillContent?: boolean;
+}
+
+/**
+ * Generate a copy-pasteable execution prompt for Claude Code
+ * Now includes H70 skill content automatically
+ */
+export function generateExecutionPrompt(
+	mission: Mission,
+	options?: ExecutionPromptOptions
+): string {
+	const { loadedSkills, taskSkillMap } = options || {};
+
+	// Build task list with skill recommendations
 	const taskList = mission.tasks
 		.map((t, i) => {
 			const deps = t.dependsOn?.length ? ` (after: ${t.dependsOn.join(', ')})` : '';
-			return `${i + 1}. **${t.title}** (id: ${t.id})${deps}\n   ${t.description}`;
+			const recommendedSkills = taskSkillMap?.get(t.id);
+			const skillsLine = recommendedSkills?.length
+				? `\n   **Recommended H70 Skills**: ${recommendedSkills.join(', ')}`
+				: '';
+			return `${i + 1}. **${t.title}** (id: ${t.id})${deps}\n   ${t.description}${skillsLine}`;
 		})
 		.join('\n\n');
 
 	const skillList = [...new Set(mission.agents.flatMap(a => a.skills))].join(', ');
+
+	// Build H70 skills section
+	let h70SkillsSection = '';
+	if (loadedSkills && loadedSkills.size > 0) {
+		const skillEntries: string[] = [];
+		skillEntries.push('## H70 Skills Reference\n');
+		skillEntries.push('The following expert skills have been automatically loaded to guide this mission.');
+		skillEntries.push('Follow their patterns and avoid their anti-patterns.\n');
+
+		for (const [skillId, skillContent] of loadedSkills) {
+			skillEntries.push(`### ${skillContent.skill.name}`);
+			skillEntries.push('');
+
+			// Include identity (first paragraph)
+			if (skillContent.skill.identity) {
+				const firstPara = skillContent.skill.identity.trim().split('\n\n')[0];
+				skillEntries.push(firstPara);
+				skillEntries.push('');
+			}
+
+			// Key patterns
+			if (skillContent.skill.patterns && skillContent.skill.patterns.length > 0) {
+				skillEntries.push('**Key Patterns:**');
+				skillContent.skill.patterns.slice(0, 3).forEach(p => {
+					skillEntries.push(`- **${p.name}**: ${p.when}`);
+				});
+				skillEntries.push('');
+			}
+
+			// Key anti-patterns
+			if (skillContent.skill.anti_patterns && skillContent.skill.anti_patterns.length > 0) {
+				skillEntries.push('**Avoid:**');
+				skillContent.skill.anti_patterns.slice(0, 3).forEach(ap => {
+					const firstLine = ap.why_bad.split('\n')[0];
+					skillEntries.push(`- **${ap.name}**: ${firstLine}`);
+				});
+				skillEntries.push('');
+			}
+
+			// Critical lessons from disasters
+			if (skillContent.skill.disasters && skillContent.skill.disasters.length > 0) {
+				skillEntries.push('**Critical Lessons:**');
+				skillContent.skill.disasters.slice(0, 2).forEach(d => {
+					skillEntries.push(`- **${d.title}**: ${d.lesson.split('\n')[0]}`);
+				});
+				skillEntries.push('');
+			}
+
+			skillEntries.push('---\n');
+		}
+
+		h70SkillsSection = skillEntries.join('\n');
+	}
 
 	return `# Mission: ${mission.name}
 
@@ -262,6 +397,8 @@ ${skillList}
 ## Tasks (Execute in Order)
 
 ${taskList}
+
+${h70SkillsSection}
 
 ## Progress Reporting (IMPORTANT)
 
@@ -285,10 +422,12 @@ curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json
 
 Execute each task in sequence. For each task:
 1. POST a \`task_started\` event with the task ID and name
-2. Load the relevant skill using \`spawner_skills\` if needed
-3. Complete the task following the skill's guidance
+2. Apply the H70 skill guidance above (patterns, anti-patterns, lessons)
+3. Complete the task following best practices
 4. POST \`progress\` events periodically during long tasks
 5. POST a \`task_completed\` event when done
+
+**IMPORTANT**: The H70 skills above contain expert knowledge - follow their patterns and avoid their anti-patterns.
 
 Start with Task 1 and proceed through all tasks.`;
 }
