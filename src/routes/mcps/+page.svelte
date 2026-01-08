@@ -836,35 +836,7 @@
 
 								<!-- Content Grid -->
 								<div class="grid grid-cols-1 lg:grid-cols-2 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-surface-border">
-									<!-- Left: Available Tools -->
-									<div class="p-4">
-										<h4 class="text-xs font-mono text-text-tertiary mb-3 flex items-center gap-2">
-											<Icon name="tool" size={12} />
-											AVAILABLE TOOLS
-										</h4>
-										{#if instance.tools && instance.tools.length > 0}
-											<div class="space-y-2 max-h-48 overflow-y-auto">
-												{#each instance.tools as tool}
-													<div class="p-2 bg-bg-primary border border-surface-border hover:border-accent-primary/30 transition-all">
-														<div class="flex items-center gap-2">
-															<span class="text-accent-primary font-mono text-sm">{tool.name}</span>
-														</div>
-														{#if tool.description}
-															<p class="text-xs text-text-tertiary mt-1 line-clamp-2">{tool.description}</p>
-														{/if}
-													</div>
-												{/each}
-											</div>
-										{:else if instance.status === 'connected'}
-											<p class="text-sm text-text-tertiary italic">No tools reported by server</p>
-										{:else}
-											<div class="p-3 bg-bg-primary border border-dashed border-surface-border text-center">
-												<p class="text-sm text-text-tertiary">Connect to see available tools</p>
-											</div>
-										{/if}
-									</div>
-
-									<!-- Right: Recommended Skills -->
+									<!-- Left: Recommended Skills (Primary Focus) -->
 									<div class="p-4">
 										<h4 class="text-xs font-mono text-text-tertiary mb-3 flex items-center gap-2">
 											<Icon name="zap" size={12} />
@@ -912,28 +884,92 @@
 											</div>
 										{/if}
 									</div>
+
+									<!-- Right: Available Tools -->
+									<div class="p-4">
+										<h4 class="text-xs font-mono text-text-tertiary mb-3 flex items-center gap-2">
+											<Icon name="tool" size={12} />
+											AVAILABLE TOOLS
+										</h4>
+										{#if instance.tools && instance.tools.length > 0}
+											<div class="space-y-2 max-h-48 overflow-y-auto">
+												{#each instance.tools as tool}
+													<div class="p-2 bg-bg-primary border border-surface-border hover:border-accent-primary/30 transition-all">
+														<div class="flex items-center gap-2">
+															<span class="text-accent-primary font-mono text-sm">{tool.name}</span>
+														</div>
+														{#if tool.description}
+															<p class="text-xs text-text-tertiary mt-1 line-clamp-2">{tool.description}</p>
+														{/if}
+													</div>
+												{/each}
+											</div>
+										{:else if instance.status === 'connected'}
+											<p class="text-sm text-text-tertiary italic">No tools reported by server</p>
+										{:else}
+											<div class="p-3 bg-bg-primary border border-dashed border-surface-border text-center">
+												<p class="text-sm text-text-tertiary">Connect to see available tools</p>
+											</div>
+										{/if}
+									</div>
 								</div>
 
-								<!-- Footer: Usage Tips -->
+								<!-- Footer: Usage Tips - Enhanced -->
 								<div class="p-4 bg-bg-primary border-t border-surface-border">
-									<h4 class="text-xs font-mono text-text-tertiary mb-2 flex items-center gap-2">
+									<h4 class="text-xs font-mono text-text-tertiary mb-3 flex items-center gap-2">
 										<Icon name="sparkles" size={12} />
 										HOW TO USE THIS MCP
 									</h4>
-									<div class="text-sm text-text-secondary">
-										{#if mcp}
-											<p>{mcp.description}</p>
-											<div class="mt-3 flex flex-wrap gap-2">
-												{#each mcp.capabilities as capability}
-													<span class="px-2 py-1 text-xs font-mono bg-surface-active text-text-tertiary border border-surface-border">
-														{capability}
-													</span>
-												{/each}
+
+									{#if mcp}
+										<!-- Description -->
+										<p class="text-sm text-text-secondary mb-4">{mcp.description}</p>
+
+										<!-- Step-by-step Guide -->
+										<div class="space-y-3 mb-4">
+											<div class="flex items-start gap-3">
+												<span class="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-accent-primary/20 text-accent-primary text-xs font-mono">1</span>
+												<div>
+													<p class="text-sm text-text-primary font-medium">Attach to a Skill or Team</p>
+													<p class="text-xs text-text-tertiary mt-0.5">Go to a skill's settings and enable this MCP to give it access to these tools</p>
+												</div>
 											</div>
-										{:else}
-											<p>Connect this MCP to your agents and skills to extend their capabilities.</p>
-										{/if}
-									</div>
+											<div class="flex items-start gap-3">
+												<span class="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-accent-primary/20 text-accent-primary text-xs font-mono">2</span>
+												<div>
+													<p class="text-sm text-text-primary font-medium">Use in Claude Code or Agents</p>
+													<p class="text-xs text-text-tertiary mt-0.5">The MCP tools become available automatically when the skill is loaded</p>
+												</div>
+											</div>
+											<div class="flex items-start gap-3">
+												<span class="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-accent-primary/20 text-accent-primary text-xs font-mono">3</span>
+												<div>
+													<p class="text-sm text-text-primary font-medium">Call Tools Directly</p>
+													<p class="text-xs text-text-tertiary mt-0.5">
+														{#if instance.tools && instance.tools.length > 0}
+															Try: <code class="px-1 py-0.5 bg-surface-active text-accent-primary font-mono text-[10px]">{instance.tools[0].name}</code>
+															{#if instance.tools.length > 1}
+																or <code class="px-1 py-0.5 bg-surface-active text-accent-primary font-mono text-[10px]">{instance.tools[1].name}</code>
+															{/if}
+														{:else}
+															Connect to see available tool commands
+														{/if}
+													</p>
+												</div>
+											</div>
+										</div>
+
+										<!-- Capabilities -->
+										<div class="flex flex-wrap gap-2">
+											{#each mcp.capabilities as capability}
+												<span class="px-2 py-1 text-xs font-mono bg-surface-active text-text-tertiary border border-surface-border">
+													{capability}
+												</span>
+											{/each}
+										</div>
+									{:else}
+										<p class="text-sm text-text-secondary">Connect this MCP to your agents and skills to extend their capabilities.</p>
+									{/if}
 
 									<!-- Stats Row -->
 									<div class="mt-4 pt-3 border-t border-surface-border flex items-center gap-6 text-xs">
