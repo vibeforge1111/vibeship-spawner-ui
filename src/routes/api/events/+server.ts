@@ -48,15 +48,19 @@ export const GET: RequestHandler = async ({ request }) => {
 		start(controller) {
 			// Send initial connection message
 			const encoder = new TextEncoder();
+			let isClosed = false;
+
 			controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'connected', timestamp: new Date().toISOString() })}\n\n`));
 
 			// Subscribe to events
 			const unsubscribe = eventBridge.subscribe((event) => {
+				if (isClosed) return;
 				try {
 					const data = `data: ${JSON.stringify(event)}\n\n`;
 					controller.enqueue(encoder.encode(data));
 				} catch (e) {
 					// Client disconnected
+					isClosed = true;
 					console.log('[EventBridge] Client disconnected');
 				}
 			});
@@ -64,7 +68,14 @@ export const GET: RequestHandler = async ({ request }) => {
 			// Handle client disconnect
 			request.signal.addEventListener('abort', () => {
 				unsubscribe();
-				controller.close();
+				if (!isClosed) {
+					isClosed = true;
+					try {
+						controller.close();
+					} catch (e) {
+						// Controller already closed, ignore
+					}
+				}
 			});
 		}
 	});

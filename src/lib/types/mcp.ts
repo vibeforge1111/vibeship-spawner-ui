@@ -840,7 +840,392 @@ export const TOP_100_MCPS: MCPRegistryItem[] = [
 	{ id: '1password', name: '1Password MCP', description: 'Password vault', category: 'Security', subcategory: 'Secrets', official: false, popularity: 80, skills: ['security'], capabilities: ['security_scan'] },
 	{ id: 'owasp-zap', name: 'OWASP ZAP MCP', description: 'Security scanning', category: 'Security', subcategory: 'Scanning', official: false, popularity: 75, skills: ['security-owasp'], capabilities: ['security_scan'] },
 	{ id: 'trivy', name: 'Trivy MCP', description: 'Container scanning', category: 'Security', subcategory: 'Scanning', official: false, popularity: 85, skills: ['docker', 'security'], capabilities: ['security_scan'] },
-	{ id: 'gitleaks', name: 'Gitleaks MCP', description: 'Secret detection', category: 'Security', subcategory: 'Scanning', official: false, popularity: 80, skills: ['security', 'git-workflow'], capabilities: ['security_scan'] }
+	{ id: 'gitleaks', name: 'Gitleaks MCP', description: 'Secret detection', category: 'Security', subcategory: 'Scanning', official: false, popularity: 80, skills: ['security', 'git-workflow'], capabilities: ['security_scan'] },
+
+	// ============================================
+	// Productivity (101-115)
+	// ============================================
+	{ id: 'google-drive', name: 'Google Drive MCP', description: 'File storage and collaboration', category: 'Productivity', subcategory: 'Storage', repository: 'modelcontextprotocol/servers', official: true, popularity: 95, skills: ['documentation-engineer'], capabilities: ['file_system', 'storage'] },
+	{ id: 'dropbox', name: 'Dropbox MCP', description: 'Cloud file storage', category: 'Productivity', subcategory: 'Storage', official: false, popularity: 80, skills: [], capabilities: ['file_system', 'storage'] },
+	{ id: 'onedrive', name: 'OneDrive MCP', description: 'Microsoft cloud storage', category: 'Productivity', subcategory: 'Storage', official: false, popularity: 75, skills: [], capabilities: ['file_system', 'storage'] },
+	{ id: 'box', name: 'Box MCP', description: 'Enterprise file sharing', category: 'Productivity', subcategory: 'Storage', official: false, popularity: 65, skills: [], capabilities: ['file_system', 'storage'] },
+	{ id: 'google-calendar', name: 'Google Calendar MCP', description: 'Calendar and scheduling', category: 'Productivity', subcategory: 'Calendar', official: false, popularity: 90, skills: [], capabilities: ['calendar'] },
+	{ id: 'outlook-calendar', name: 'Outlook Calendar MCP', description: 'Microsoft calendar', category: 'Productivity', subcategory: 'Calendar', official: false, popularity: 75, skills: [], capabilities: ['calendar'] },
+	{ id: 'todoist', name: 'Todoist MCP', description: 'Task management', category: 'Productivity', subcategory: 'Tasks', official: false, popularity: 80, skills: ['product-management'], capabilities: ['custom'] },
+	{ id: 'airtable', name: 'Airtable MCP', description: 'Spreadsheet-database hybrid', category: 'Productivity', subcategory: 'Database', official: false, popularity: 85, skills: ['no-code-builder'], capabilities: ['database'] },
+	{ id: 'google-sheets', name: 'Google Sheets MCP', description: 'Spreadsheet operations', category: 'Productivity', subcategory: 'Spreadsheet', official: false, popularity: 90, skills: ['data-engineer'], capabilities: ['database'] },
+	{ id: 'excel', name: 'Microsoft Excel MCP', description: 'Excel automation', category: 'Productivity', subcategory: 'Spreadsheet', official: false, popularity: 80, skills: ['data-engineer'], capabilities: ['database'] },
+	{ id: 'obsidian', name: 'Obsidian MCP', description: 'Knowledge management', category: 'Productivity', subcategory: 'Notes', official: false, popularity: 75, skills: ['documentation-engineer'], capabilities: ['file_system'] },
+	{ id: 'evernote', name: 'Evernote MCP', description: 'Note-taking app', category: 'Productivity', subcategory: 'Notes', official: false, popularity: 60, skills: [], capabilities: ['file_system'] },
+	{ id: 'calendly', name: 'Calendly MCP', description: 'Meeting scheduling', category: 'Productivity', subcategory: 'Scheduling', official: false, popularity: 80, skills: [], capabilities: ['calendar'] },
+	{ id: 'cal-com', name: 'Cal.com MCP', description: 'Open source scheduling', category: 'Productivity', subcategory: 'Scheduling', official: false, popularity: 70, skills: [], capabilities: ['calendar'] },
+	{ id: 'clockify', name: 'Clockify MCP', description: 'Time tracking', category: 'Productivity', subcategory: 'Time', official: false, popularity: 65, skills: [], capabilities: ['analytics'] },
+
+	// ============================================
+	// Design (116-125)
+	// ============================================
+	{ id: 'figma', name: 'Figma MCP', description: 'Design collaboration platform', category: 'Design', subcategory: 'UI/UX', official: false, popularity: 95, skills: ['ui-design', 'figma-to-code'], capabilities: ['custom'] },
+	{ id: 'canva', name: 'Canva MCP', description: 'Graphic design platform', category: 'Design', subcategory: 'Graphics', official: false, popularity: 85, skills: ['marketing'], capabilities: ['image_gen'] },
+	{ id: 'adobe-cc', name: 'Adobe Creative Cloud MCP', description: 'Photoshop, Illustrator APIs', category: 'Design', subcategory: 'Graphics', official: false, popularity: 75, skills: ['ui-design'], capabilities: ['image_gen'] },
+	{ id: 'sketch', name: 'Sketch MCP', description: 'Mac design tool', category: 'Design', subcategory: 'UI/UX', official: false, popularity: 60, skills: ['ui-design'], capabilities: ['custom'] },
+	{ id: 'framer', name: 'Framer MCP', description: 'Interactive design', category: 'Design', subcategory: 'UI/UX', official: false, popularity: 70, skills: ['ui-design', 'frontend'], capabilities: ['custom'] },
+	{ id: 'zeplin', name: 'Zeplin MCP', description: 'Design handoff', category: 'Design', subcategory: 'Handoff', official: false, popularity: 55, skills: ['ui-design'], capabilities: ['custom'] },
+	{ id: 'invision', name: 'InVision MCP', description: 'Prototyping platform', category: 'Design', subcategory: 'Prototyping', official: false, popularity: 50, skills: ['ui-design'], capabilities: ['custom'] },
+	{ id: 'miro', name: 'Miro MCP', description: 'Visual collaboration', category: 'Design', subcategory: 'Whiteboard', official: false, popularity: 80, skills: ['product-management'], capabilities: ['custom'] },
+	{ id: 'whimsical', name: 'Whimsical MCP', description: 'Diagrams and wireframes', category: 'Design', subcategory: 'Diagrams', official: false, popularity: 65, skills: ['product-management'], capabilities: ['custom'] },
+	{ id: 'excalidraw', name: 'Excalidraw MCP', description: 'Hand-drawn diagrams', category: 'Design', subcategory: 'Diagrams', official: false, popularity: 70, skills: [], capabilities: ['custom'] },
+
+	// ============================================
+	// Media & Creative (126-145)
+	// ============================================
+	{ id: 'dalle', name: 'DALL-E MCP', description: 'OpenAI image generation', category: 'Media', subcategory: 'Image Gen', official: false, popularity: 95, skills: ['ai-image-generation'], capabilities: ['image_gen'] },
+	{ id: 'midjourney', name: 'Midjourney MCP', description: 'AI art generation', category: 'Media', subcategory: 'Image Gen', official: false, popularity: 90, skills: ['ai-image-generation'], capabilities: ['image_gen'] },
+	{ id: 'stable-diffusion', name: 'Stable Diffusion MCP', description: 'Open source image gen', category: 'Media', subcategory: 'Image Gen', official: false, popularity: 85, skills: ['ai-image-generation'], capabilities: ['image_gen'] },
+	{ id: 'leonardo', name: 'Leonardo.ai MCP', description: 'AI art platform', category: 'Media', subcategory: 'Image Gen', official: false, popularity: 75, skills: ['ai-image-generation'], capabilities: ['image_gen'] },
+	{ id: 'flux', name: 'Flux MCP', description: 'Black Forest Labs image gen', category: 'Media', subcategory: 'Image Gen', official: false, popularity: 80, skills: ['ai-image-generation'], capabilities: ['image_gen'] },
+	{ id: 'elevenlabs', name: 'ElevenLabs MCP', description: 'AI voice synthesis', category: 'Media', subcategory: 'Audio', official: false, popularity: 90, skills: ['text-to-speech'], capabilities: ['audio_gen'] },
+	{ id: 'whisper', name: 'Whisper MCP', description: 'Speech-to-text', category: 'Media', subcategory: 'Audio', official: false, popularity: 85, skills: ['speech-recognition'], capabilities: ['audio_gen'] },
+	{ id: 'murf', name: 'Murf MCP', description: 'AI voiceover', category: 'Media', subcategory: 'Audio', official: false, popularity: 65, skills: [], capabilities: ['audio_gen'] },
+	{ id: 'descript', name: 'Descript MCP', description: 'Audio/video editing', category: 'Media', subcategory: 'Audio', official: false, popularity: 70, skills: [], capabilities: ['audio_gen', 'video_gen'] },
+	{ id: 'youtube', name: 'YouTube MCP', description: 'Video platform API', category: 'Media', subcategory: 'Video', official: false, popularity: 90, skills: ['content-strategy'], capabilities: ['video_gen'] },
+	{ id: 'vimeo', name: 'Vimeo MCP', description: 'Professional video', category: 'Media', subcategory: 'Video', official: false, popularity: 60, skills: [], capabilities: ['video_gen'] },
+	{ id: 'loom', name: 'Loom MCP', description: 'Video messaging', category: 'Media', subcategory: 'Video', official: false, popularity: 75, skills: ['documentation-engineer'], capabilities: ['video_gen'] },
+	{ id: 'runway', name: 'Runway MCP', description: 'AI video generation', category: 'Media', subcategory: 'Video Gen', official: false, popularity: 85, skills: ['text-to-video'], capabilities: ['video_gen'] },
+	{ id: 'pika', name: 'Pika MCP', description: 'AI video creation', category: 'Media', subcategory: 'Video Gen', official: false, popularity: 75, skills: ['text-to-video'], capabilities: ['video_gen'] },
+	{ id: 'heygen', name: 'HeyGen MCP', description: 'AI avatar videos', category: 'Media', subcategory: 'Video Gen', official: false, popularity: 70, skills: [], capabilities: ['video_gen'] },
+	{ id: 'spotify', name: 'Spotify MCP', description: 'Music streaming API', category: 'Media', subcategory: 'Music', official: false, popularity: 75, skills: [], capabilities: ['custom'] },
+	{ id: 'soundcloud', name: 'SoundCloud MCP', description: 'Audio platform', category: 'Media', subcategory: 'Music', official: false, popularity: 55, skills: [], capabilities: ['custom'] },
+	{ id: 'cloudinary', name: 'Cloudinary MCP', description: 'Media management', category: 'Media', subcategory: 'Storage', official: false, popularity: 80, skills: [], capabilities: ['storage', 'image_gen'] },
+	{ id: 'imgix', name: 'Imgix MCP', description: 'Image processing', category: 'Media', subcategory: 'Processing', official: false, popularity: 65, skills: [], capabilities: ['image_gen'] },
+	{ id: 'unsplash', name: 'Unsplash MCP', description: 'Stock photos API', category: 'Media', subcategory: 'Stock', official: false, popularity: 70, skills: ['marketing'], capabilities: ['image_gen'] },
+
+	// ============================================
+	// CRM & Sales (146-155)
+	// ============================================
+	{ id: 'salesforce', name: 'Salesforce MCP', description: 'Enterprise CRM', category: 'CRM', subcategory: 'Enterprise', official: false, popularity: 90, skills: ['sales-automation'], capabilities: ['crm'] },
+	{ id: 'hubspot', name: 'HubSpot MCP', description: 'Marketing & sales CRM', category: 'CRM', subcategory: 'Marketing', official: false, popularity: 90, skills: ['marketing', 'sales-automation'], capabilities: ['crm', 'email'] },
+	{ id: 'pipedrive', name: 'Pipedrive MCP', description: 'Sales pipeline CRM', category: 'CRM', subcategory: 'Sales', official: false, popularity: 75, skills: ['sales-automation'], capabilities: ['crm'] },
+	{ id: 'intercom', name: 'Intercom MCP', description: 'Customer messaging', category: 'CRM', subcategory: 'Support', official: false, popularity: 85, skills: ['customer-success'], capabilities: ['notification', 'crm'] },
+	{ id: 'zendesk', name: 'Zendesk MCP', description: 'Customer support', category: 'CRM', subcategory: 'Support', official: false, popularity: 80, skills: ['customer-success'], capabilities: ['crm'] },
+	{ id: 'freshdesk', name: 'Freshdesk MCP', description: 'Help desk software', category: 'CRM', subcategory: 'Support', official: false, popularity: 65, skills: [], capabilities: ['crm'] },
+	{ id: 'mailchimp', name: 'Mailchimp MCP', description: 'Email marketing', category: 'CRM', subcategory: 'Marketing', official: false, popularity: 85, skills: ['email-marketing'], capabilities: ['email'] },
+	{ id: 'klaviyo', name: 'Klaviyo MCP', description: 'E-commerce marketing', category: 'CRM', subcategory: 'Marketing', official: false, popularity: 75, skills: ['email-marketing'], capabilities: ['email'] },
+	{ id: 'close', name: 'Close MCP', description: 'Sales CRM', category: 'CRM', subcategory: 'Sales', official: false, popularity: 60, skills: [], capabilities: ['crm'] },
+	{ id: 'apollo', name: 'Apollo.io MCP', description: 'Sales intelligence', category: 'CRM', subcategory: 'Sales', official: false, popularity: 70, skills: ['sales-automation'], capabilities: ['crm'] },
+
+	// ============================================
+	// Analytics (156-170)
+	// ============================================
+	{ id: 'google-analytics', name: 'Google Analytics MCP', description: 'Web analytics', category: 'Analytics', subcategory: 'Web', official: false, popularity: 95, skills: ['marketing', 'seo'], capabilities: ['analytics'] },
+	{ id: 'mixpanel', name: 'Mixpanel MCP', description: 'Product analytics', category: 'Analytics', subcategory: 'Product', official: false, popularity: 85, skills: ['product-management'], capabilities: ['analytics'] },
+	{ id: 'amplitude', name: 'Amplitude MCP', description: 'Digital analytics', category: 'Analytics', subcategory: 'Product', official: false, popularity: 85, skills: ['product-management'], capabilities: ['analytics'] },
+	{ id: 'posthog', name: 'PostHog MCP', description: 'Open source analytics', category: 'Analytics', subcategory: 'Product', official: false, popularity: 80, skills: ['product-management'], capabilities: ['analytics'] },
+	{ id: 'segment', name: 'Segment MCP', description: 'Customer data platform', category: 'Analytics', subcategory: 'CDP', official: false, popularity: 85, skills: ['data-engineer'], capabilities: ['analytics'] },
+	{ id: 'heap', name: 'Heap MCP', description: 'Auto-capture analytics', category: 'Analytics', subcategory: 'Product', official: false, popularity: 70, skills: [], capabilities: ['analytics'] },
+	{ id: 'hotjar', name: 'Hotjar MCP', description: 'Heatmaps & recordings', category: 'Analytics', subcategory: 'UX', official: false, popularity: 75, skills: ['ui-design'], capabilities: ['analytics'] },
+	{ id: 'fullstory', name: 'FullStory MCP', description: 'Session replay', category: 'Analytics', subcategory: 'UX', official: false, popularity: 70, skills: [], capabilities: ['analytics'] },
+	{ id: 'looker', name: 'Looker MCP', description: 'BI platform', category: 'Analytics', subcategory: 'BI', official: false, popularity: 75, skills: ['data-engineer'], capabilities: ['analytics'] },
+	{ id: 'tableau', name: 'Tableau MCP', description: 'Data visualization', category: 'Analytics', subcategory: 'BI', official: false, popularity: 80, skills: ['data-engineer'], capabilities: ['analytics'] },
+	{ id: 'metabase', name: 'Metabase MCP', description: 'Open source BI', category: 'Analytics', subcategory: 'BI', official: false, popularity: 75, skills: ['data-engineer'], capabilities: ['analytics'] },
+	{ id: 'plausible', name: 'Plausible MCP', description: 'Privacy-first analytics', category: 'Analytics', subcategory: 'Web', official: false, popularity: 70, skills: [], capabilities: ['analytics'] },
+	{ id: 'fathom', name: 'Fathom MCP', description: 'Simple analytics', category: 'Analytics', subcategory: 'Web', official: false, popularity: 60, skills: [], capabilities: ['analytics'] },
+	{ id: 'clearbit', name: 'Clearbit MCP', description: 'Business intelligence', category: 'Analytics', subcategory: 'Enrichment', official: false, popularity: 70, skills: ['sales-automation'], capabilities: ['analytics'] },
+	{ id: 'snowplow', name: 'Snowplow MCP', description: 'Behavioral data', category: 'Analytics', subcategory: 'CDP', official: false, popularity: 65, skills: ['data-engineer'], capabilities: ['analytics'] },
+
+	// ============================================
+	// E-commerce (171-180)
+	// ============================================
+	{ id: 'shopify', name: 'Shopify MCP', description: 'E-commerce platform', category: 'E-commerce', subcategory: 'Platform', official: false, popularity: 95, skills: ['shopify-developer'], capabilities: ['payment', 'custom'] },
+	{ id: 'woocommerce', name: 'WooCommerce MCP', description: 'WordPress e-commerce', category: 'E-commerce', subcategory: 'Platform', official: false, popularity: 80, skills: ['wordpress-developer'], capabilities: ['payment', 'custom'] },
+	{ id: 'magento', name: 'Magento MCP', description: 'Enterprise e-commerce', category: 'E-commerce', subcategory: 'Platform', official: false, popularity: 65, skills: [], capabilities: ['payment', 'custom'] },
+	{ id: 'bigcommerce', name: 'BigCommerce MCP', description: 'SaaS e-commerce', category: 'E-commerce', subcategory: 'Platform', official: false, popularity: 60, skills: [], capabilities: ['payment', 'custom'] },
+	{ id: 'square', name: 'Square MCP', description: 'Payments & POS', category: 'E-commerce', subcategory: 'Payments', official: false, popularity: 80, skills: ['fintech-integration'], capabilities: ['payment'] },
+	{ id: 'paypal', name: 'PayPal MCP', description: 'Online payments', category: 'E-commerce', subcategory: 'Payments', official: false, popularity: 85, skills: ['fintech-integration'], capabilities: ['payment'] },
+	{ id: 'afterpay', name: 'Afterpay MCP', description: 'Buy now pay later', category: 'E-commerce', subcategory: 'Payments', official: false, popularity: 65, skills: [], capabilities: ['payment'] },
+	{ id: 'shippo', name: 'Shippo MCP', description: 'Shipping API', category: 'E-commerce', subcategory: 'Shipping', official: false, popularity: 70, skills: [], capabilities: ['custom'] },
+	{ id: 'shipstation', name: 'ShipStation MCP', description: 'Order fulfillment', category: 'E-commerce', subcategory: 'Shipping', official: false, popularity: 65, skills: [], capabilities: ['custom'] },
+	{ id: 'printful', name: 'Printful MCP', description: 'Print on demand', category: 'E-commerce', subcategory: 'Fulfillment', official: false, popularity: 60, skills: [], capabilities: ['custom'] },
+
+	// ============================================
+	// CMS (181-190)
+	// ============================================
+	{ id: 'wordpress', name: 'WordPress MCP', description: 'CMS platform', category: 'CMS', subcategory: 'Traditional', official: false, popularity: 90, skills: ['wordpress-developer'], capabilities: ['file_system', 'database'] },
+	{ id: 'contentful', name: 'Contentful MCP', description: 'Headless CMS', category: 'CMS', subcategory: 'Headless', official: false, popularity: 85, skills: ['content-strategy'], capabilities: ['file_system'] },
+	{ id: 'strapi', name: 'Strapi MCP', description: 'Open source headless CMS', category: 'CMS', subcategory: 'Headless', official: false, popularity: 80, skills: ['content-strategy'], capabilities: ['file_system', 'database'] },
+	{ id: 'sanity', name: 'Sanity MCP', description: 'Structured content', category: 'CMS', subcategory: 'Headless', official: false, popularity: 80, skills: ['content-strategy'], capabilities: ['file_system'] },
+	{ id: 'prismic', name: 'Prismic MCP', description: 'Headless website builder', category: 'CMS', subcategory: 'Headless', official: false, popularity: 70, skills: [], capabilities: ['file_system'] },
+	{ id: 'ghost', name: 'Ghost MCP', description: 'Publishing platform', category: 'CMS', subcategory: 'Publishing', official: false, popularity: 70, skills: ['content-strategy'], capabilities: ['file_system'] },
+	{ id: 'webflow', name: 'Webflow MCP', description: 'Visual web builder', category: 'CMS', subcategory: 'Builder', official: false, popularity: 85, skills: ['no-code-builder'], capabilities: ['custom'] },
+	{ id: 'builder-io', name: 'Builder.io MCP', description: 'Visual headless CMS', category: 'CMS', subcategory: 'Headless', official: false, popularity: 70, skills: [], capabilities: ['file_system'] },
+	{ id: 'storyblok', name: 'Storyblok MCP', description: 'Visual headless CMS', category: 'CMS', subcategory: 'Headless', official: false, popularity: 65, skills: [], capabilities: ['file_system'] },
+	{ id: 'directus', name: 'Directus MCP', description: 'Open data platform', category: 'CMS', subcategory: 'Headless', official: false, popularity: 65, skills: [], capabilities: ['file_system', 'database'] },
+
+	// ============================================
+	// Social Media (191-200)
+	// ============================================
+	{ id: 'twitter', name: 'Twitter/X MCP', description: 'Social media platform', category: 'Social', subcategory: 'Microblogging', official: false, popularity: 90, skills: ['marketing', 'social-media'], capabilities: ['social_engagement'] },
+	{ id: 'linkedin', name: 'LinkedIn MCP', description: 'Professional network', category: 'Social', subcategory: 'Professional', official: false, popularity: 85, skills: ['marketing', 'recruiting'], capabilities: ['social_engagement'] },
+	{ id: 'instagram', name: 'Instagram MCP', description: 'Photo sharing platform', category: 'Social', subcategory: 'Visual', official: false, popularity: 85, skills: ['marketing', 'social-media'], capabilities: ['social_engagement'] },
+	{ id: 'facebook', name: 'Facebook MCP', description: 'Social network', category: 'Social', subcategory: 'General', official: false, popularity: 80, skills: ['marketing'], capabilities: ['social_engagement'] },
+	{ id: 'tiktok', name: 'TikTok MCP', description: 'Short video platform', category: 'Social', subcategory: 'Video', official: false, popularity: 85, skills: ['marketing', 'content-strategy'], capabilities: ['social_engagement'] },
+	{ id: 'reddit', name: 'Reddit MCP', description: 'Community platform', category: 'Social', subcategory: 'Forums', official: false, popularity: 75, skills: ['community-building'], capabilities: ['social_engagement'] },
+	{ id: 'pinterest', name: 'Pinterest MCP', description: 'Visual discovery', category: 'Social', subcategory: 'Visual', official: false, popularity: 70, skills: ['marketing'], capabilities: ['social_engagement'] },
+	{ id: 'buffer', name: 'Buffer MCP', description: 'Social media scheduling', category: 'Social', subcategory: 'Management', official: false, popularity: 75, skills: ['social-media'], capabilities: ['social_engagement'] },
+	{ id: 'hootsuite', name: 'Hootsuite MCP', description: 'Social media management', category: 'Social', subcategory: 'Management', official: false, popularity: 70, skills: ['social-media'], capabilities: ['social_engagement'] },
+	{ id: 'later', name: 'Later MCP', description: 'Visual social scheduler', category: 'Social', subcategory: 'Management', official: false, popularity: 65, skills: [], capabilities: ['social_engagement'] },
+
+	// ============================================
+	// Maps & Location (201-205)
+	// ============================================
+	{ id: 'google-maps', name: 'Google Maps MCP', description: 'Maps and geolocation', category: 'Location', subcategory: 'Maps', official: false, popularity: 95, skills: [], capabilities: ['custom'] },
+	{ id: 'mapbox', name: 'Mapbox MCP', description: 'Custom maps', category: 'Location', subcategory: 'Maps', official: false, popularity: 80, skills: [], capabilities: ['custom'] },
+	{ id: 'openstreetmap', name: 'OpenStreetMap MCP', description: 'Open source maps', category: 'Location', subcategory: 'Maps', official: false, popularity: 70, skills: [], capabilities: ['custom'] },
+	{ id: 'here', name: 'HERE MCP', description: 'Location services', category: 'Location', subcategory: 'Maps', official: false, popularity: 60, skills: [], capabilities: ['custom'] },
+	{ id: 'what3words', name: 'What3Words MCP', description: 'Location addressing', category: 'Location', subcategory: 'Addressing', official: false, popularity: 55, skills: [], capabilities: ['custom'] },
+
+	// ============================================
+	// Utilities (206-215)
+	// ============================================
+	{ id: 'openweather', name: 'OpenWeather MCP', description: 'Weather data API', category: 'Utilities', subcategory: 'Weather', official: false, popularity: 80, skills: [], capabilities: ['custom'] },
+	{ id: 'weatherapi', name: 'WeatherAPI MCP', description: 'Weather forecasts', category: 'Utilities', subcategory: 'Weather', official: false, popularity: 70, skills: [], capabilities: ['custom'] },
+	{ id: 'deepl', name: 'DeepL MCP', description: 'AI translation', category: 'Utilities', subcategory: 'Translation', official: false, popularity: 85, skills: ['i18n'], capabilities: ['custom'] },
+	{ id: 'google-translate', name: 'Google Translate MCP', description: 'Translation service', category: 'Utilities', subcategory: 'Translation', official: false, popularity: 90, skills: ['i18n'], capabilities: ['custom'] },
+	{ id: 'currencyapi', name: 'Currency API MCP', description: 'Exchange rates', category: 'Utilities', subcategory: 'Finance', official: false, popularity: 65, skills: [], capabilities: ['custom'] },
+	{ id: 'ip-geolocation', name: 'IP Geolocation MCP', description: 'IP to location', category: 'Utilities', subcategory: 'Geolocation', official: false, popularity: 60, skills: [], capabilities: ['custom'] },
+	{ id: 'qrcode', name: 'QR Code MCP', description: 'QR code generation', category: 'Utilities', subcategory: 'Generation', official: false, popularity: 65, skills: [], capabilities: ['image_gen'] },
+	{ id: 'pdf', name: 'PDF MCP', description: 'PDF generation & parsing', category: 'Utilities', subcategory: 'Documents', official: false, popularity: 80, skills: ['documentation-engineer'], capabilities: ['file_system'] },
+	{ id: 'ocr', name: 'OCR MCP', description: 'Text extraction from images', category: 'Utilities', subcategory: 'Vision', official: false, popularity: 75, skills: [], capabilities: ['custom'] },
+	{ id: 'timezone', name: 'Timezone MCP', description: 'Timezone conversions', category: 'Utilities', subcategory: 'Time', official: false, popularity: 55, skills: [], capabilities: ['custom'] },
+
+	// ============================================
+	// IoT & Smart Home (216-220)
+	// ============================================
+	{ id: 'home-assistant', name: 'Home Assistant MCP', description: 'Smart home control', category: 'IoT', subcategory: 'Smart Home', official: false, popularity: 85, skills: [], capabilities: ['custom'] },
+	{ id: 'philips-hue', name: 'Philips Hue MCP', description: 'Smart lighting', category: 'IoT', subcategory: 'Lighting', official: false, popularity: 70, skills: [], capabilities: ['custom'] },
+	{ id: 'nest', name: 'Nest MCP', description: 'Google Nest devices', category: 'IoT', subcategory: 'Smart Home', official: false, popularity: 65, skills: [], capabilities: ['custom'] },
+	{ id: 'mqtt', name: 'MQTT MCP', description: 'IoT messaging protocol', category: 'IoT', subcategory: 'Protocol', official: false, popularity: 70, skills: ['iot-developer'], capabilities: ['notification'] },
+	{ id: 'particle', name: 'Particle MCP', description: 'IoT device platform', category: 'IoT', subcategory: 'Platform', official: false, popularity: 55, skills: ['iot-developer'], capabilities: ['custom'] },
+
+	// ============================================
+	// Marketing (221-245)
+	// ============================================
+	{ id: 'google-ads', name: 'Google Ads MCP', description: 'Search & display advertising', category: 'Marketing', subcategory: 'Advertising', official: false, popularity: 95, skills: ['marketing', 'paid-acquisition'], capabilities: ['analytics'] },
+	{ id: 'meta-ads', name: 'Meta Ads MCP', description: 'Facebook & Instagram ads', category: 'Marketing', subcategory: 'Advertising', official: false, popularity: 90, skills: ['marketing', 'paid-acquisition'], capabilities: ['analytics'] },
+	{ id: 'tiktok-ads', name: 'TikTok Ads MCP', description: 'TikTok advertising platform', category: 'Marketing', subcategory: 'Advertising', official: false, popularity: 80, skills: ['marketing'], capabilities: ['analytics'] },
+	{ id: 'linkedin-ads', name: 'LinkedIn Ads MCP', description: 'B2B advertising', category: 'Marketing', subcategory: 'Advertising', official: false, popularity: 75, skills: ['marketing', 'b2b-marketing'], capabilities: ['analytics'] },
+	{ id: 'semrush', name: 'Semrush MCP', description: 'SEO & competitive research', category: 'Marketing', subcategory: 'SEO', official: false, popularity: 90, skills: ['seo', 'content-strategy'], capabilities: ['analytics', 'seo'] },
+	{ id: 'ahrefs', name: 'Ahrefs MCP', description: 'Backlink & SEO analysis', category: 'Marketing', subcategory: 'SEO', official: false, popularity: 90, skills: ['seo', 'content-strategy'], capabilities: ['analytics', 'seo'] },
+	{ id: 'moz', name: 'Moz MCP', description: 'SEO software suite', category: 'Marketing', subcategory: 'SEO', official: false, popularity: 75, skills: ['seo'], capabilities: ['analytics', 'seo'] },
+	{ id: 'screaming-frog', name: 'Screaming Frog MCP', description: 'SEO spider & crawler', category: 'Marketing', subcategory: 'SEO', official: false, popularity: 70, skills: ['seo'], capabilities: ['web_fetch', 'seo'] },
+	{ id: 'search-console', name: 'Google Search Console MCP', description: 'Search performance data', category: 'Marketing', subcategory: 'SEO', official: false, popularity: 90, skills: ['seo'], capabilities: ['analytics', 'seo'] },
+	{ id: 'convertkit', name: 'ConvertKit MCP', description: 'Creator email marketing', category: 'Marketing', subcategory: 'Email', official: false, popularity: 80, skills: ['email-marketing'], capabilities: ['email'] },
+	{ id: 'activecampaign', name: 'ActiveCampaign MCP', description: 'Marketing automation', category: 'Marketing', subcategory: 'Automation', official: false, popularity: 80, skills: ['marketing', 'email-marketing'], capabilities: ['email', 'crm'] },
+	{ id: 'marketo', name: 'Marketo MCP', description: 'Enterprise marketing automation', category: 'Marketing', subcategory: 'Automation', official: false, popularity: 75, skills: ['marketing', 'b2b-marketing'], capabilities: ['email', 'crm'] },
+	{ id: 'pardot', name: 'Pardot MCP', description: 'Salesforce B2B marketing', category: 'Marketing', subcategory: 'Automation', official: false, popularity: 70, skills: ['b2b-marketing'], capabilities: ['email', 'crm'] },
+	{ id: 'drip', name: 'Drip MCP', description: 'E-commerce email automation', category: 'Marketing', subcategory: 'Email', official: false, popularity: 65, skills: ['email-marketing'], capabilities: ['email'] },
+	{ id: 'jasper', name: 'Jasper AI MCP', description: 'AI copywriting assistant', category: 'Marketing', subcategory: 'Content', official: false, popularity: 85, skills: ['copywriting', 'content-strategy'], capabilities: ['custom'] },
+	{ id: 'copy-ai', name: 'Copy.ai MCP', description: 'AI content generation', category: 'Marketing', subcategory: 'Content', official: false, popularity: 80, skills: ['copywriting'], capabilities: ['custom'] },
+	{ id: 'surfer-seo', name: 'Surfer SEO MCP', description: 'Content optimization', category: 'Marketing', subcategory: 'SEO', official: false, popularity: 75, skills: ['seo', 'content-strategy'], capabilities: ['seo'] },
+	{ id: 'clearscope', name: 'Clearscope MCP', description: 'Content optimization platform', category: 'Marketing', subcategory: 'SEO', official: false, popularity: 70, skills: ['seo', 'content-strategy'], capabilities: ['seo'] },
+	{ id: 'optimizely', name: 'Optimizely MCP', description: 'A/B testing & experimentation', category: 'Marketing', subcategory: 'Testing', official: false, popularity: 80, skills: ['product-management', 'marketing'], capabilities: ['analytics'] },
+	{ id: 'vwo', name: 'VWO MCP', description: 'Conversion optimization', category: 'Marketing', subcategory: 'Testing', official: false, popularity: 70, skills: ['marketing'], capabilities: ['analytics'] },
+	{ id: 'unbounce', name: 'Unbounce MCP', description: 'Landing page builder', category: 'Marketing', subcategory: 'Landing Pages', official: false, popularity: 75, skills: ['marketing'], capabilities: ['custom'] },
+	{ id: 'leadpages', name: 'Leadpages MCP', description: 'Lead generation pages', category: 'Marketing', subcategory: 'Landing Pages', official: false, popularity: 65, skills: ['marketing'], capabilities: ['custom'] },
+	{ id: 'typeform', name: 'Typeform MCP', description: 'Interactive forms & surveys', category: 'Marketing', subcategory: 'Forms', official: false, popularity: 80, skills: ['marketing', 'product-management'], capabilities: ['custom'] },
+	{ id: 'jotform', name: 'JotForm MCP', description: 'Form builder', category: 'Marketing', subcategory: 'Forms', official: false, popularity: 70, skills: [], capabilities: ['custom'] },
+	{ id: 'beehiiv', name: 'Beehiiv MCP', description: 'Newsletter platform', category: 'Marketing', subcategory: 'Newsletter', official: false, popularity: 75, skills: ['content-strategy'], capabilities: ['email'] },
+
+	// ============================================
+	// No-Code & Automation (246-265)
+	// ============================================
+	{ id: 'zapier', name: 'Zapier MCP', description: 'No-code workflow automation', category: 'No-Code', subcategory: 'Automation', official: false, popularity: 95, skills: ['no-code-builder', 'automation'], capabilities: ['custom'] },
+	{ id: 'make', name: 'Make (Integromat) MCP', description: 'Visual automation platform', category: 'No-Code', subcategory: 'Automation', official: false, popularity: 90, skills: ['no-code-builder', 'automation'], capabilities: ['custom'] },
+	{ id: 'n8n', name: 'n8n MCP', description: 'Open source workflow automation', category: 'No-Code', subcategory: 'Automation', official: false, popularity: 85, skills: ['automation'], capabilities: ['custom'] },
+	{ id: 'pipedream', name: 'Pipedream MCP', description: 'Developer workflow platform', category: 'No-Code', subcategory: 'Automation', official: false, popularity: 75, skills: ['automation'], capabilities: ['custom'] },
+	{ id: 'tray-io', name: 'Tray.io MCP', description: 'Enterprise automation', category: 'No-Code', subcategory: 'Automation', official: false, popularity: 65, skills: ['automation'], capabilities: ['custom'] },
+	{ id: 'bubble', name: 'Bubble MCP', description: 'No-code web app builder', category: 'No-Code', subcategory: 'App Builder', official: false, popularity: 90, skills: ['no-code-builder'], capabilities: ['custom'] },
+	{ id: 'retool', name: 'Retool MCP', description: 'Internal tool builder', category: 'No-Code', subcategory: 'App Builder', official: false, popularity: 90, skills: ['no-code-builder'], capabilities: ['database', 'custom'] },
+	{ id: 'appsmith', name: 'Appsmith MCP', description: 'Open source internal tools', category: 'No-Code', subcategory: 'App Builder', official: false, popularity: 75, skills: ['no-code-builder'], capabilities: ['database', 'custom'] },
+	{ id: 'glide', name: 'Glide MCP', description: 'No-code mobile apps', category: 'No-Code', subcategory: 'App Builder', official: false, popularity: 75, skills: ['no-code-builder'], capabilities: ['custom'] },
+	{ id: 'softr', name: 'Softr MCP', description: 'Airtable-powered apps', category: 'No-Code', subcategory: 'App Builder', official: false, popularity: 70, skills: ['no-code-builder'], capabilities: ['custom'] },
+	{ id: 'adalo', name: 'Adalo MCP', description: 'No-code mobile app builder', category: 'No-Code', subcategory: 'App Builder', official: false, popularity: 65, skills: ['no-code-builder'], capabilities: ['custom'] },
+	{ id: 'voiceflow', name: 'Voiceflow MCP', description: 'Conversational AI builder', category: 'No-Code', subcategory: 'AI Builder', official: false, popularity: 70, skills: ['no-code-builder'], capabilities: ['custom'] },
+	{ id: 'botpress', name: 'Botpress MCP', description: 'Open source chatbot builder', category: 'No-Code', subcategory: 'AI Builder', official: false, popularity: 70, skills: ['chatbot-builder'], capabilities: ['custom'] },
+	{ id: 'landbot', name: 'Landbot MCP', description: 'No-code chatbot builder', category: 'No-Code', subcategory: 'AI Builder', official: false, popularity: 60, skills: ['chatbot-builder'], capabilities: ['custom'] },
+	{ id: 'typebot', name: 'Typebot MCP', description: 'Open source conversational forms', category: 'No-Code', subcategory: 'AI Builder', official: false, popularity: 60, skills: [], capabilities: ['custom'] },
+	{ id: 'bardeen', name: 'Bardeen MCP', description: 'Browser automation', category: 'No-Code', subcategory: 'Browser', official: false, popularity: 65, skills: ['automation'], capabilities: ['web_fetch'] },
+	{ id: 'axiom', name: 'Axiom MCP', description: 'Browser automation bot', category: 'No-Code', subcategory: 'Browser', official: false, popularity: 60, skills: ['automation'], capabilities: ['web_fetch'] },
+	{ id: 'parabola', name: 'Parabola MCP', description: 'No-code data workflows', category: 'No-Code', subcategory: 'Data', official: false, popularity: 65, skills: ['data-engineer'], capabilities: ['database'] },
+	{ id: 'rows', name: 'Rows MCP', description: 'Spreadsheet with integrations', category: 'No-Code', subcategory: 'Data', official: false, popularity: 55, skills: [], capabilities: ['database'] },
+	{ id: 'coda', name: 'Coda MCP', description: 'All-in-one doc with apps', category: 'No-Code', subcategory: 'Docs', official: false, popularity: 75, skills: ['no-code-builder'], capabilities: ['database', 'file_system'] },
+
+	// ============================================
+	// Legal (266-280)
+	// ============================================
+	{ id: 'docusign', name: 'DocuSign MCP', description: 'Electronic signatures', category: 'Legal', subcategory: 'E-Signature', official: false, popularity: 95, skills: [], capabilities: ['file_system'] },
+	{ id: 'pandadoc', name: 'PandaDoc MCP', description: 'Document automation & e-sign', category: 'Legal', subcategory: 'E-Signature', official: false, popularity: 85, skills: [], capabilities: ['file_system'] },
+	{ id: 'hellosign', name: 'HelloSign MCP', description: 'Dropbox e-signature', category: 'Legal', subcategory: 'E-Signature', official: false, popularity: 75, skills: [], capabilities: ['file_system'] },
+	{ id: 'signwell', name: 'SignWell MCP', description: 'Simple e-signatures', category: 'Legal', subcategory: 'E-Signature', official: false, popularity: 60, skills: [], capabilities: ['file_system'] },
+	{ id: 'contractpodai', name: 'ContractPod AI MCP', description: 'AI contract management', category: 'Legal', subcategory: 'CLM', official: false, popularity: 65, skills: [], capabilities: ['file_system'] },
+	{ id: 'ironclad', name: 'Ironclad MCP', description: 'Contract lifecycle management', category: 'Legal', subcategory: 'CLM', official: false, popularity: 70, skills: [], capabilities: ['file_system'] },
+	{ id: 'juro', name: 'Juro MCP', description: 'Contract automation', category: 'Legal', subcategory: 'CLM', official: false, popularity: 65, skills: [], capabilities: ['file_system'] },
+	{ id: 'clio', name: 'Clio MCP', description: 'Legal practice management', category: 'Legal', subcategory: 'Practice', official: false, popularity: 75, skills: [], capabilities: ['custom'] },
+	{ id: 'legalzoom', name: 'LegalZoom MCP', description: 'Legal document services', category: 'Legal', subcategory: 'Documents', official: false, popularity: 70, skills: [], capabilities: ['file_system'] },
+	{ id: 'rocket-lawyer', name: 'Rocket Lawyer MCP', description: 'Legal services platform', category: 'Legal', subcategory: 'Documents', official: false, popularity: 60, skills: [], capabilities: ['file_system'] },
+	{ id: 'clerky', name: 'Clerky MCP', description: 'Startup legal paperwork', category: 'Legal', subcategory: 'Startup', official: false, popularity: 70, skills: ['startup-legal'], capabilities: ['file_system'] },
+	{ id: 'carta', name: 'Carta MCP', description: 'Equity management', category: 'Legal', subcategory: 'Equity', official: false, popularity: 85, skills: ['startup-finance'], capabilities: ['custom'] },
+	{ id: 'pulley', name: 'Pulley MCP', description: 'Cap table management', category: 'Legal', subcategory: 'Equity', official: false, popularity: 70, skills: ['startup-finance'], capabilities: ['custom'] },
+	{ id: 'angelist-stack', name: 'AngelList Stack MCP', description: 'Startup fundraising tools', category: 'Legal', subcategory: 'Startup', official: false, popularity: 75, skills: ['startup-finance'], capabilities: ['custom'] },
+	{ id: 'termly', name: 'Termly MCP', description: 'Privacy policy generator', category: 'Legal', subcategory: 'Compliance', official: false, popularity: 60, skills: [], capabilities: ['file_system'] },
+
+	// ============================================
+	// HR & Recruiting (281-300)
+	// ============================================
+	{ id: 'bamboohr', name: 'BambooHR MCP', description: 'HR software for SMBs', category: 'HR', subcategory: 'HRIS', official: false, popularity: 85, skills: [], capabilities: ['custom'] },
+	{ id: 'gusto', name: 'Gusto MCP', description: 'Payroll & benefits', category: 'HR', subcategory: 'Payroll', official: false, popularity: 90, skills: [], capabilities: ['payment'] },
+	{ id: 'rippling', name: 'Rippling MCP', description: 'HR, IT & finance platform', category: 'HR', subcategory: 'HRIS', official: false, popularity: 85, skills: [], capabilities: ['custom'] },
+	{ id: 'workday', name: 'Workday MCP', description: 'Enterprise HR & finance', category: 'HR', subcategory: 'Enterprise', official: false, popularity: 80, skills: [], capabilities: ['custom'] },
+	{ id: 'adp', name: 'ADP MCP', description: 'Payroll & HR services', category: 'HR', subcategory: 'Payroll', official: false, popularity: 80, skills: [], capabilities: ['payment'] },
+	{ id: 'paylocity', name: 'Paylocity MCP', description: 'Cloud payroll & HCM', category: 'HR', subcategory: 'Payroll', official: false, popularity: 70, skills: [], capabilities: ['payment'] },
+	{ id: 'paychex', name: 'Paychex MCP', description: 'Payroll services', category: 'HR', subcategory: 'Payroll', official: false, popularity: 70, skills: [], capabilities: ['payment'] },
+	{ id: 'deel', name: 'Deel MCP', description: 'Global payroll & compliance', category: 'HR', subcategory: 'Global', official: false, popularity: 85, skills: [], capabilities: ['payment'] },
+	{ id: 'remote', name: 'Remote.com MCP', description: 'Global HR platform', category: 'HR', subcategory: 'Global', official: false, popularity: 80, skills: [], capabilities: ['payment'] },
+	{ id: 'oyster', name: 'Oyster MCP', description: 'Global employment platform', category: 'HR', subcategory: 'Global', official: false, popularity: 75, skills: [], capabilities: ['payment'] },
+	{ id: 'greenhouse', name: 'Greenhouse MCP', description: 'Recruiting software', category: 'HR', subcategory: 'Recruiting', official: false, popularity: 90, skills: ['recruiting'], capabilities: ['custom'] },
+	{ id: 'lever', name: 'Lever MCP', description: 'Talent acquisition', category: 'HR', subcategory: 'Recruiting', official: false, popularity: 80, skills: ['recruiting'], capabilities: ['custom'] },
+	{ id: 'ashby', name: 'Ashby MCP', description: 'All-in-one recruiting', category: 'HR', subcategory: 'Recruiting', official: false, popularity: 75, skills: ['recruiting'], capabilities: ['custom'] },
+	{ id: 'workable', name: 'Workable MCP', description: 'Recruiting & HR', category: 'HR', subcategory: 'Recruiting', official: false, popularity: 75, skills: ['recruiting'], capabilities: ['custom'] },
+	{ id: 'breezy', name: 'Breezy HR MCP', description: 'Recruiting software', category: 'HR', subcategory: 'Recruiting', official: false, popularity: 65, skills: [], capabilities: ['custom'] },
+	{ id: 'linkedin-recruiter', name: 'LinkedIn Recruiter MCP', description: 'Professional recruiting', category: 'HR', subcategory: 'Recruiting', official: false, popularity: 90, skills: ['recruiting'], capabilities: ['custom'] },
+	{ id: 'lattice', name: 'Lattice MCP', description: 'People management platform', category: 'HR', subcategory: 'Performance', official: false, popularity: 80, skills: [], capabilities: ['custom'] },
+	{ id: '15five', name: '15Five MCP', description: 'Performance management', category: 'HR', subcategory: 'Performance', official: false, popularity: 70, skills: [], capabilities: ['custom'] },
+	{ id: 'culture-amp', name: 'Culture Amp MCP', description: 'Employee experience', category: 'HR', subcategory: 'Engagement', official: false, popularity: 75, skills: [], capabilities: ['analytics'] },
+	{ id: 'officevibe', name: 'Officevibe MCP', description: 'Employee engagement', category: 'HR', subcategory: 'Engagement', official: false, popularity: 65, skills: [], capabilities: ['analytics'] },
+
+	// ============================================
+	// Product Management (301-320)
+	// ============================================
+	{ id: 'productboard', name: 'ProductBoard MCP', description: 'Product management platform', category: 'Product', subcategory: 'Roadmap', official: false, popularity: 85, skills: ['product-management'], capabilities: ['custom'] },
+	{ id: 'aha', name: 'Aha! MCP', description: 'Product roadmap software', category: 'Product', subcategory: 'Roadmap', official: false, popularity: 80, skills: ['product-management'], capabilities: ['custom'] },
+	{ id: 'roadmunk', name: 'Roadmunk MCP', description: 'Visual roadmapping', category: 'Product', subcategory: 'Roadmap', official: false, popularity: 65, skills: ['product-management'], capabilities: ['custom'] },
+	{ id: 'airfocus', name: 'Airfocus MCP', description: 'Product management & roadmaps', category: 'Product', subcategory: 'Roadmap', official: false, popularity: 65, skills: ['product-management'], capabilities: ['custom'] },
+	{ id: 'canny', name: 'Canny MCP', description: 'User feedback management', category: 'Product', subcategory: 'Feedback', official: false, popularity: 80, skills: ['product-management'], capabilities: ['custom'] },
+	{ id: 'uservoice', name: 'UserVoice MCP', description: 'Product feedback tool', category: 'Product', subcategory: 'Feedback', official: false, popularity: 65, skills: ['product-management'], capabilities: ['custom'] },
+	{ id: 'pendo', name: 'Pendo MCP', description: 'Product analytics & guidance', category: 'Product', subcategory: 'Analytics', official: false, popularity: 85, skills: ['product-management'], capabilities: ['analytics'] },
+	{ id: 'appcues', name: 'Appcues MCP', description: 'Product-led growth platform', category: 'Product', subcategory: 'Onboarding', official: false, popularity: 75, skills: ['product-management'], capabilities: ['custom'] },
+	{ id: 'userpilot', name: 'Userpilot MCP', description: 'Product adoption platform', category: 'Product', subcategory: 'Onboarding', official: false, popularity: 70, skills: ['product-management'], capabilities: ['custom'] },
+	{ id: 'chameleon', name: 'Chameleon MCP', description: 'In-product experiences', category: 'Product', subcategory: 'Onboarding', official: false, popularity: 65, skills: [], capabilities: ['custom'] },
+	{ id: 'maze', name: 'Maze MCP', description: 'User testing platform', category: 'Product', subcategory: 'Research', official: false, popularity: 80, skills: ['user-research'], capabilities: ['analytics'] },
+	{ id: 'usertesting', name: 'UserTesting MCP', description: 'User experience research', category: 'Product', subcategory: 'Research', official: false, popularity: 80, skills: ['user-research'], capabilities: ['analytics'] },
+	{ id: 'lookback', name: 'Lookback MCP', description: 'User research platform', category: 'Product', subcategory: 'Research', official: false, popularity: 65, skills: ['user-research'], capabilities: ['analytics'] },
+	{ id: 'dovetail', name: 'Dovetail MCP', description: 'User research repository', category: 'Product', subcategory: 'Research', official: false, popularity: 75, skills: ['user-research'], capabilities: ['file_system'] },
+	{ id: 'loom-sdk', name: 'Loom SDK MCP', description: 'Async video for products', category: 'Product', subcategory: 'Communication', official: false, popularity: 70, skills: [], capabilities: ['video_gen'] },
+	{ id: 'intercom-product', name: 'Intercom Product Tours MCP', description: 'In-app product tours', category: 'Product', subcategory: 'Onboarding', official: false, popularity: 75, skills: [], capabilities: ['custom'] },
+	{ id: 'productplan', name: 'ProductPlan MCP', description: 'Roadmap software', category: 'Product', subcategory: 'Roadmap', official: false, popularity: 65, skills: ['product-management'], capabilities: ['custom'] },
+	{ id: 'pivotal-tracker', name: 'Pivotal Tracker MCP', description: 'Agile project management', category: 'Product', subcategory: 'Agile', official: false, popularity: 60, skills: ['product-management'], capabilities: ['custom'] },
+	{ id: 'shortcut', name: 'Shortcut MCP', description: 'Project management for devs', category: 'Product', subcategory: 'Agile', official: false, popularity: 70, skills: ['product-management'], capabilities: ['custom'] },
+	{ id: 'clickup', name: 'ClickUp MCP', description: 'All-in-one productivity', category: 'Product', subcategory: 'Project', official: false, popularity: 85, skills: ['product-management'], capabilities: ['custom'] },
+
+	// ============================================
+	// Blockchain & Web3 (321-345)
+	// ============================================
+	{ id: 'alchemy', name: 'Alchemy MCP', description: 'Web3 development platform', category: 'Blockchain', subcategory: 'Infrastructure', official: false, popularity: 95, skills: ['web3-developer', 'smart-contracts'], capabilities: ['custom'] },
+	{ id: 'infura', name: 'Infura MCP', description: 'Ethereum API & IPFS', category: 'Blockchain', subcategory: 'Infrastructure', official: false, popularity: 90, skills: ['web3-developer'], capabilities: ['custom'] },
+	{ id: 'moralis', name: 'Moralis MCP', description: 'Web3 data & auth', category: 'Blockchain', subcategory: 'Infrastructure', official: false, popularity: 85, skills: ['web3-developer'], capabilities: ['database'] },
+	{ id: 'quicknode', name: 'QuickNode MCP', description: 'Blockchain infrastructure', category: 'Blockchain', subcategory: 'Infrastructure', official: false, popularity: 80, skills: ['web3-developer'], capabilities: ['custom'] },
+	{ id: 'thegraph', name: 'The Graph MCP', description: 'Blockchain data indexing', category: 'Blockchain', subcategory: 'Data', official: false, popularity: 85, skills: ['web3-developer', 'defi-architect'], capabilities: ['database'] },
+	{ id: 'dune', name: 'Dune Analytics MCP', description: 'Blockchain analytics', category: 'Blockchain', subcategory: 'Data', official: false, popularity: 85, skills: ['defi-architect', 'blockchain-analyst'], capabilities: ['analytics'] },
+	{ id: 'nansen', name: 'Nansen MCP', description: 'On-chain analytics', category: 'Blockchain', subcategory: 'Data', official: false, popularity: 75, skills: ['blockchain-analyst'], capabilities: ['analytics'] },
+	{ id: 'etherscan', name: 'Etherscan MCP', description: 'Ethereum block explorer', category: 'Blockchain', subcategory: 'Explorer', official: false, popularity: 90, skills: ['web3-developer'], capabilities: ['analytics'] },
+	{ id: 'polygonscan', name: 'Polygonscan MCP', description: 'Polygon block explorer', category: 'Blockchain', subcategory: 'Explorer', official: false, popularity: 75, skills: ['web3-developer'], capabilities: ['analytics'] },
+	{ id: 'solscan', name: 'Solscan MCP', description: 'Solana block explorer', category: 'Blockchain', subcategory: 'Explorer', official: false, popularity: 70, skills: ['solana-developer'], capabilities: ['analytics'] },
+	{ id: 'chainlink', name: 'Chainlink MCP', description: 'Decentralized oracles', category: 'Blockchain', subcategory: 'Oracles', official: false, popularity: 90, skills: ['smart-contracts', 'defi-architect'], capabilities: ['custom'] },
+	{ id: 'pyth', name: 'Pyth MCP', description: 'High-fidelity price feeds', category: 'Blockchain', subcategory: 'Oracles', official: false, popularity: 75, skills: ['defi-architect'], capabilities: ['custom'] },
+	{ id: 'openzeppelin', name: 'OpenZeppelin MCP', description: 'Smart contract security', category: 'Blockchain', subcategory: 'Security', official: false, popularity: 90, skills: ['smart-contracts', 'security'], capabilities: ['security_scan'] },
+	{ id: 'slither', name: 'Slither MCP', description: 'Solidity static analysis', category: 'Blockchain', subcategory: 'Security', official: false, popularity: 80, skills: ['smart-contracts', 'security'], capabilities: ['security_scan', 'code_analysis'] },
+	{ id: 'foundry', name: 'Foundry MCP', description: 'Smart contract development', category: 'Blockchain', subcategory: 'Development', official: false, popularity: 85, skills: ['smart-contracts'], capabilities: ['code_exec'] },
+	{ id: 'hardhat', name: 'Hardhat MCP', description: 'Ethereum development environment', category: 'Blockchain', subcategory: 'Development', official: false, popularity: 90, skills: ['smart-contracts', 'web3-developer'], capabilities: ['code_exec'] },
+	{ id: 'wagmi', name: 'Wagmi MCP', description: 'React hooks for Ethereum', category: 'Blockchain', subcategory: 'Frontend', official: false, popularity: 85, skills: ['web3-developer', 'frontend'], capabilities: ['custom'] },
+	{ id: 'ethers', name: 'Ethers.js MCP', description: 'Ethereum library', category: 'Blockchain', subcategory: 'Library', official: false, popularity: 90, skills: ['web3-developer'], capabilities: ['custom'] },
+	{ id: 'web3js', name: 'Web3.js MCP', description: 'Ethereum JavaScript API', category: 'Blockchain', subcategory: 'Library', official: false, popularity: 85, skills: ['web3-developer'], capabilities: ['custom'] },
+	{ id: 'viem', name: 'Viem MCP', description: 'TypeScript Ethereum interface', category: 'Blockchain', subcategory: 'Library', official: false, popularity: 80, skills: ['web3-developer'], capabilities: ['custom'] },
+	{ id: 'rainbowkit', name: 'RainbowKit MCP', description: 'Wallet connection kit', category: 'Blockchain', subcategory: 'Wallet', official: false, popularity: 80, skills: ['web3-developer'], capabilities: ['custom'] },
+	{ id: 'walletconnect', name: 'WalletConnect MCP', description: 'Multi-chain wallet protocol', category: 'Blockchain', subcategory: 'Wallet', official: false, popularity: 85, skills: ['web3-developer'], capabilities: ['custom'] },
+	{ id: 'safe', name: 'Safe (Gnosis) MCP', description: 'Multi-sig wallet', category: 'Blockchain', subcategory: 'Wallet', official: false, popularity: 80, skills: ['defi-architect'], capabilities: ['custom'] },
+	{ id: 'opensea', name: 'OpenSea MCP', description: 'NFT marketplace API', category: 'Blockchain', subcategory: 'NFT', official: false, popularity: 85, skills: ['nft-developer'], capabilities: ['custom'] },
+	{ id: 'reservoir', name: 'Reservoir MCP', description: 'NFT liquidity tools', category: 'Blockchain', subcategory: 'NFT', official: false, popularity: 70, skills: ['nft-developer'], capabilities: ['custom'] },
+
+	// ============================================
+	// DeFi (346-365)
+	// ============================================
+	{ id: 'uniswap', name: 'Uniswap MCP', description: 'DEX protocol', category: 'DeFi', subcategory: 'DEX', official: false, popularity: 95, skills: ['defi-architect'], capabilities: ['payment'] },
+	{ id: 'sushiswap', name: 'SushiSwap MCP', description: 'Multi-chain DEX', category: 'DeFi', subcategory: 'DEX', official: false, popularity: 75, skills: ['defi-architect'], capabilities: ['payment'] },
+	{ id: 'curve', name: 'Curve MCP', description: 'Stablecoin DEX', category: 'DeFi', subcategory: 'DEX', official: false, popularity: 85, skills: ['defi-architect'], capabilities: ['payment'] },
+	{ id: 'balancer', name: 'Balancer MCP', description: 'Automated portfolio manager', category: 'DeFi', subcategory: 'DEX', official: false, popularity: 75, skills: ['defi-architect'], capabilities: ['payment'] },
+	{ id: '1inch', name: '1inch MCP', description: 'DEX aggregator', category: 'DeFi', subcategory: 'Aggregator', official: false, popularity: 85, skills: ['defi-architect'], capabilities: ['payment'] },
+	{ id: 'paraswap', name: 'ParaSwap MCP', description: 'Multi-DEX aggregator', category: 'DeFi', subcategory: 'Aggregator', official: false, popularity: 70, skills: ['defi-architect'], capabilities: ['payment'] },
+	{ id: 'aave', name: 'Aave MCP', description: 'DeFi lending protocol', category: 'DeFi', subcategory: 'Lending', official: false, popularity: 95, skills: ['defi-architect'], capabilities: ['payment'] },
+	{ id: 'compound', name: 'Compound MCP', description: 'Algorithmic money markets', category: 'DeFi', subcategory: 'Lending', official: false, popularity: 85, skills: ['defi-architect'], capabilities: ['payment'] },
+	{ id: 'makerdao', name: 'MakerDAO MCP', description: 'DAI stablecoin protocol', category: 'DeFi', subcategory: 'Stablecoin', official: false, popularity: 85, skills: ['defi-architect'], capabilities: ['payment'] },
+	{ id: 'lido', name: 'Lido MCP', description: 'Liquid staking', category: 'DeFi', subcategory: 'Staking', official: false, popularity: 90, skills: ['defi-architect'], capabilities: ['payment'] },
+	{ id: 'rocketpool', name: 'Rocket Pool MCP', description: 'Decentralized ETH staking', category: 'DeFi', subcategory: 'Staking', official: false, popularity: 75, skills: ['defi-architect'], capabilities: ['payment'] },
+	{ id: 'eigenlayer', name: 'EigenLayer MCP', description: 'Restaking protocol', category: 'DeFi', subcategory: 'Staking', official: false, popularity: 80, skills: ['defi-architect'], capabilities: ['payment'] },
+	{ id: 'dydx', name: 'dYdX MCP', description: 'Decentralized derivatives', category: 'DeFi', subcategory: 'Derivatives', official: false, popularity: 85, skills: ['defi-architect', 'algorithmic-trading'], capabilities: ['payment'] },
+	{ id: 'gmx', name: 'GMX MCP', description: 'Perpetual exchange', category: 'DeFi', subcategory: 'Derivatives', official: false, popularity: 80, skills: ['defi-architect'], capabilities: ['payment'] },
+	{ id: 'synthetix', name: 'Synthetix MCP', description: 'Synthetic assets protocol', category: 'DeFi', subcategory: 'Derivatives', official: false, popularity: 75, skills: ['defi-architect'], capabilities: ['payment'] },
+	{ id: 'yearn', name: 'Yearn Finance MCP', description: 'Yield aggregator', category: 'DeFi', subcategory: 'Yield', official: false, popularity: 80, skills: ['defi-architect'], capabilities: ['payment'] },
+	{ id: 'convex', name: 'Convex MCP', description: 'Curve yield booster', category: 'DeFi', subcategory: 'Yield', official: false, popularity: 75, skills: ['defi-architect'], capabilities: ['payment'] },
+	{ id: 'pendle', name: 'Pendle MCP', description: 'Yield trading protocol', category: 'DeFi', subcategory: 'Yield', official: false, popularity: 70, skills: ['defi-architect'], capabilities: ['payment'] },
+	{ id: 'morpho', name: 'Morpho MCP', description: 'Lending optimizer', category: 'DeFi', subcategory: 'Lending', official: false, popularity: 70, skills: ['defi-architect'], capabilities: ['payment'] },
+	{ id: 'euler', name: 'Euler MCP', description: 'Permissionless lending', category: 'DeFi', subcategory: 'Lending', official: false, popularity: 65, skills: ['defi-architect'], capabilities: ['payment'] },
+
+	// ============================================
+	// Trading (366-390)
+	// ============================================
+	{ id: 'interactive-brokers', name: 'Interactive Brokers MCP', description: 'Professional trading platform', category: 'Trading', subcategory: 'Broker', official: false, popularity: 90, skills: ['algorithmic-trading'], capabilities: ['payment'] },
+	{ id: 'td-ameritrade', name: 'TD Ameritrade MCP', description: 'Stock trading API', category: 'Trading', subcategory: 'Broker', official: false, popularity: 80, skills: ['algorithmic-trading'], capabilities: ['payment'] },
+	{ id: 'schwab', name: 'Charles Schwab MCP', description: 'Brokerage API', category: 'Trading', subcategory: 'Broker', official: false, popularity: 75, skills: ['algorithmic-trading'], capabilities: ['payment'] },
+	{ id: 'robinhood', name: 'Robinhood MCP', description: 'Commission-free trading', category: 'Trading', subcategory: 'Broker', official: false, popularity: 80, skills: [], capabilities: ['payment'] },
+	{ id: 'tradingview', name: 'TradingView MCP', description: 'Charting & analysis platform', category: 'Trading', subcategory: 'Analysis', official: false, popularity: 95, skills: ['algorithmic-trading', 'technical-analysis'], capabilities: ['analytics'] },
+	{ id: 'polygon-io', name: 'Polygon.io MCP', description: 'Market data API', category: 'Trading', subcategory: 'Data', official: false, popularity: 85, skills: ['algorithmic-trading', 'data-engineer'], capabilities: ['analytics'] },
+	{ id: 'alpha-vantage', name: 'Alpha Vantage MCP', description: 'Free stock API', category: 'Trading', subcategory: 'Data', official: false, popularity: 80, skills: ['algorithmic-trading'], capabilities: ['analytics'] },
+	{ id: 'iex-cloud', name: 'IEX Cloud MCP', description: 'Financial data platform', category: 'Trading', subcategory: 'Data', official: false, popularity: 80, skills: ['algorithmic-trading'], capabilities: ['analytics'] },
+	{ id: 'finnhub', name: 'Finnhub MCP', description: 'Real-time stock API', category: 'Trading', subcategory: 'Data', official: false, popularity: 75, skills: ['algorithmic-trading'], capabilities: ['analytics'] },
+	{ id: 'yahoo-finance', name: 'Yahoo Finance MCP', description: 'Financial data', category: 'Trading', subcategory: 'Data', official: false, popularity: 85, skills: [], capabilities: ['analytics'] },
+	{ id: 'bloomberg', name: 'Bloomberg API MCP', description: 'Enterprise market data', category: 'Trading', subcategory: 'Data', official: false, popularity: 85, skills: ['algorithmic-trading'], capabilities: ['analytics'] },
+	{ id: 'binance', name: 'Binance MCP', description: 'Crypto exchange API', category: 'Trading', subcategory: 'Crypto', official: false, popularity: 95, skills: ['algorithmic-trading', 'defi-architect'], capabilities: ['payment'] },
+	{ id: 'kraken', name: 'Kraken MCP', description: 'Crypto exchange', category: 'Trading', subcategory: 'Crypto', official: false, popularity: 80, skills: ['algorithmic-trading'], capabilities: ['payment'] },
+	{ id: 'ftx', name: 'Bybit MCP', description: 'Crypto derivatives exchange', category: 'Trading', subcategory: 'Crypto', official: false, popularity: 75, skills: ['algorithmic-trading'], capabilities: ['payment'] },
+	{ id: 'kucoin', name: 'KuCoin MCP', description: 'Crypto exchange', category: 'Trading', subcategory: 'Crypto', official: false, popularity: 70, skills: [], capabilities: ['payment'] },
+	{ id: 'coingecko', name: 'CoinGecko MCP', description: 'Crypto market data', category: 'Trading', subcategory: 'Data', official: false, popularity: 90, skills: ['blockchain-analyst'], capabilities: ['analytics'] },
+	{ id: 'coinmarketcap', name: 'CoinMarketCap MCP', description: 'Crypto prices & market cap', category: 'Trading', subcategory: 'Data', official: false, popularity: 90, skills: [], capabilities: ['analytics'] },
+	{ id: 'messari', name: 'Messari MCP', description: 'Crypto research & data', category: 'Trading', subcategory: 'Research', official: false, popularity: 75, skills: ['blockchain-analyst'], capabilities: ['analytics'] },
+	{ id: 'glassnode', name: 'Glassnode MCP', description: 'On-chain market intelligence', category: 'Trading', subcategory: 'Research', official: false, popularity: 80, skills: ['blockchain-analyst'], capabilities: ['analytics'] },
+	{ id: 'santiment', name: 'Santiment MCP', description: 'Crypto behavioral data', category: 'Trading', subcategory: 'Research', official: false, popularity: 70, skills: ['blockchain-analyst'], capabilities: ['analytics'] },
+	{ id: 'quantconnect', name: 'QuantConnect MCP', description: 'Algorithmic trading platform', category: 'Trading', subcategory: 'Algo', official: false, popularity: 80, skills: ['algorithmic-trading'], capabilities: ['code_exec'] },
+	{ id: 'backtrader', name: 'Backtrader MCP', description: 'Python backtesting', category: 'Trading', subcategory: 'Algo', official: false, popularity: 70, skills: ['algorithmic-trading'], capabilities: ['code_exec'] },
+	{ id: 'freqtrade', name: 'Freqtrade MCP', description: 'Crypto trading bot', category: 'Trading', subcategory: 'Algo', official: false, popularity: 75, skills: ['algorithmic-trading'], capabilities: ['code_exec'] },
+	{ id: 'ccxt', name: 'CCXT MCP', description: 'Crypto exchange library', category: 'Trading', subcategory: 'Library', official: false, popularity: 85, skills: ['algorithmic-trading'], capabilities: ['payment'] },
+	{ id: 'lunarcrush', name: 'LunarCrush MCP', description: 'Social crypto analytics', category: 'Trading', subcategory: 'Social', official: false, popularity: 65, skills: [], capabilities: ['analytics', 'social_engagement'] },
+
+	// ============================================
+	// Prediction Markets (391-405)
+	// ============================================
+	{ id: 'polymarket', name: 'Polymarket MCP', description: 'Decentralized prediction market', category: 'Prediction Markets', subcategory: 'Crypto', official: false, popularity: 95, skills: ['defi-architect', 'prediction-markets'], capabilities: ['payment'] },
+	{ id: 'kalshi', name: 'Kalshi MCP', description: 'Regulated prediction exchange', category: 'Prediction Markets', subcategory: 'Regulated', official: false, popularity: 90, skills: ['prediction-markets'], capabilities: ['payment'] },
+	{ id: 'manifold', name: 'Manifold Markets MCP', description: 'Play-money prediction market', category: 'Prediction Markets', subcategory: 'Play Money', official: false, popularity: 80, skills: ['prediction-markets'], capabilities: ['custom'] },
+	{ id: 'metaculus', name: 'Metaculus MCP', description: 'Forecasting platform', category: 'Prediction Markets', subcategory: 'Forecasting', official: false, popularity: 75, skills: ['prediction-markets'], capabilities: ['analytics'] },
+	{ id: 'predictit', name: 'PredictIt MCP', description: 'Political prediction market', category: 'Prediction Markets', subcategory: 'Political', official: false, popularity: 70, skills: [], capabilities: ['payment'] },
+	{ id: 'augur', name: 'Augur MCP', description: 'Decentralized oracle & market', category: 'Prediction Markets', subcategory: 'Crypto', official: false, popularity: 65, skills: ['defi-architect'], capabilities: ['payment'] },
+	{ id: 'gnosis-conditional', name: 'Gnosis Conditional Tokens MCP', description: 'Prediction market framework', category: 'Prediction Markets', subcategory: 'Framework', official: false, popularity: 70, skills: ['smart-contracts'], capabilities: ['custom'] },
+	{ id: 'insight-prediction', name: 'Insight Prediction MCP', description: 'Event contract exchange', category: 'Prediction Markets', subcategory: 'Events', official: false, popularity: 55, skills: [], capabilities: ['payment'] },
+	{ id: 'futuur', name: 'Futuur MCP', description: 'Global prediction market', category: 'Prediction Markets', subcategory: 'Global', official: false, popularity: 50, skills: [], capabilities: ['payment'] },
+	{ id: 'hedgehog', name: 'Hedgehog Markets MCP', description: 'Solana prediction market', category: 'Prediction Markets', subcategory: 'Crypto', official: false, popularity: 55, skills: ['solana-developer'], capabilities: ['payment'] },
+	{ id: 'zeitgeist', name: 'Zeitgeist MCP', description: 'Polkadot prediction market', category: 'Prediction Markets', subcategory: 'Crypto', official: false, popularity: 50, skills: [], capabilities: ['payment'] },
+	{ id: 'azuro', name: 'Azuro MCP', description: 'Betting protocol', category: 'Prediction Markets', subcategory: 'Sports', official: false, popularity: 60, skills: ['defi-architect'], capabilities: ['payment'] },
+	{ id: 'sx-bet', name: 'SX Bet MCP', description: 'Sports prediction protocol', category: 'Prediction Markets', subcategory: 'Sports', official: false, popularity: 55, skills: [], capabilities: ['payment'] },
+	{ id: 'omen', name: 'Omen MCP', description: 'Gnosis prediction market', category: 'Prediction Markets', subcategory: 'Crypto', official: false, popularity: 55, skills: ['defi-architect'], capabilities: ['payment'] },
+	{ id: 'good-judgment', name: 'Good Judgment MCP', description: 'Superforecasting platform', category: 'Prediction Markets', subcategory: 'Forecasting', official: false, popularity: 65, skills: [], capabilities: ['analytics'] }
 ];
 
 // Helper to get MCPs for a skill
