@@ -56,6 +56,19 @@
 	let pendingTasks = $state<string[]>([]);
 	let mindLogsCount = $state(0);
 
+	// Tab state - workflow vs mind
+	let activeTab = $state<'workflow' | 'mind'>('workflow');
+
+	// Mind activity tracking
+	interface MindActivity {
+		id: string;
+		type: 'decision' | 'learning' | 'pattern' | 'progress';
+		content: string;
+		timestamp: Date;
+		taskName?: string;
+	}
+	let mindActivities = $state<MindActivity[]>([]);
+
 	// Current task progress tracking
 	let currentTaskProgress = $state(0);
 	let currentTaskMessage = $state<string | null>(null);
@@ -288,9 +301,19 @@
 	}
 
 	/**
-	 * Log progress to Mind
+	 * Log progress to Mind and track activity for UI
 	 */
-	async function logToMind(type: 'progress' | 'decision' | 'learning', message: string) {
+	async function logToMind(type: 'progress' | 'decision' | 'learning', message: string, taskName?: string) {
+		// Track activity for UI regardless of Mind connection
+		const activity: MindActivity = {
+			id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+			type: type === 'progress' ? 'progress' : type === 'decision' ? 'decision' : 'learning',
+			content: message,
+			timestamp: new Date(),
+			taskName
+		};
+		mindActivities = [...mindActivities, activity];
+
 		if (!memoryConnected) return;
 		try {
 			await memoryClient.recordLearning('spawner-ui', {
@@ -323,6 +346,7 @@
 		failedTasks = [];
 		pendingTasks = currentNodes.map(n => n.skill.name);
 		mindLogsCount = 0;
+		mindActivities = [];
 
 		// Track task outcomes for reinforcement
 		const taskOutcomes: Record<string, boolean> = {};
@@ -369,8 +393,8 @@
 					// Remove from pending, update UI
 					pendingTasks = pendingTasks.filter(t => t !== taskName);
 
-					// Log to Mind
-					logToMind('progress', `Starting task: ${taskName}`);
+					// Log to Mind with task context
+					logToMind('decision', `Executing skill: ${taskName}`, taskName);
 				}
 			},
 			onTaskComplete: (taskId, success) => {
@@ -387,10 +411,10 @@
 				// Update tracking
 				if (success) {
 					completedTasks = [...completedTasks, taskName];
-					logToMind('progress', `Completed task: ${taskName}`);
+					logToMind('learning', `Task completed successfully: ${taskName}`, taskName);
 				} else {
 					failedTasks = [...failedTasks, taskName];
-					logToMind('progress', `Failed task: ${taskName}`);
+					logToMind('learning', `Task failed: ${taskName}`, taskName);
 				}
 			},
 			onComplete: async (mission) => {
@@ -602,8 +626,27 @@
 	>
 		<!-- Header -->
 		<div class="flex items-center justify-between p-4 border-b border-surface-border">
-			<div class="flex items-center gap-3">
-				<h2 class="font-serif text-lg text-text-primary">Workflow Execution</h2>
+			<div class="flex items-center gap-4">
+				<!-- Tab Selector -->
+				<div class="flex bg-bg-tertiary border border-surface-border">
+					<button
+						onclick={() => activeTab = 'workflow'}
+						class="px-4 py-1.5 text-xs font-mono uppercase tracking-wider transition-all {activeTab === 'workflow' ? 'bg-accent-primary text-bg-primary' : 'text-text-secondary hover:text-text-primary'}"
+					>
+						Workflow
+					</button>
+					<button
+						onclick={() => activeTab = 'mind'}
+						class="px-4 py-1.5 text-xs font-mono uppercase tracking-wider transition-all flex items-center gap-2 {activeTab === 'mind' ? 'bg-purple-500 text-white' : 'text-text-secondary hover:text-text-primary'}"
+					>
+						Mind
+						{#if mindActivities.length > 0}
+							<span class="w-5 h-5 flex items-center justify-center text-[10px] {activeTab === 'mind' ? 'bg-white/20' : 'bg-purple-500/20 text-purple-400'}">
+								{mindActivities.length}
+							</span>
+						{/if}
+					</button>
+				</div>
 				{#if executionProgress}
 					<span class="text-sm font-mono {getStatusColor(executionProgress.status)}">
 						{executionProgress.status.toUpperCase()}
@@ -615,7 +658,7 @@
 				{#if (isRunning || isPaused) && onToggleMinimize}
 					<button
 						onclick={onToggleMinimize}
-						class="p-1.5 text-text-tertiary hover:text-text-primary hover:bg-surface rounded transition-all"
+						class="p-1.5 text-text-tertiary hover:text-text-primary hover:bg-surface transition-all"
 						title="Minimize to see canvas"
 					>
 						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -623,7 +666,7 @@
 						</svg>
 					</button>
 				{/if}
-				<button onclick={handleClose} class="p-1.5 text-text-tertiary hover:text-text-primary hover:bg-surface rounded transition-all" disabled={isRunning}>
+				<button onclick={handleClose} class="p-1.5 text-text-tertiary hover:text-text-primary hover:bg-surface transition-all" disabled={isRunning}>
 					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
 					</svg>
@@ -672,6 +715,8 @@
 			</div>
 		{/if}
 
+		<!-- Tab Content -->
+		{#if activeTab === 'workflow'}
 		<!-- Progress -->
 		{#if executionProgress}
 			<div class="p-4 border-b border-surface-border">
@@ -785,38 +830,37 @@
 
 				<!-- Task Status Summary -->
 				{#if completedTasks.length > 0 || failedTasks.length > 0 || pendingTasks.length > 0}
-					<div class="mt-3 p-3 bg-bg-tertiary border border-surface-border">
-						<div class="flex items-center justify-between mb-2">
+					<div class="mt-4 border border-surface-border">
+						<div class="flex items-center justify-between px-3 py-2 bg-bg-tertiary border-b border-surface-border">
 							<span class="text-xs font-mono text-text-tertiary uppercase tracking-wider">Task Status</span>
-							{#if memoryConnected && mindLogsCount > 0}
-								<span class="text-xs text-purple-400 flex items-center gap-1">
-									<span class="w-1.5 h-1.5 bg-purple-400 rounded-full"></span>
-									{mindLogsCount} Mind logs
-								</span>
+							{#if mindActivities.length > 0}
+								<button
+									onclick={() => activeTab = 'mind'}
+									class="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors"
+								>
+									<span class="w-1.5 h-1.5 bg-purple-400"></span>
+									{mindActivities.length} Mind events
+								</button>
 							{/if}
 						</div>
-						<div class="grid grid-cols-3 gap-2 text-center text-xs">
-							<div class="p-2 bg-green-500/10 border border-green-500/30 rounded">
-								<div class="text-lg font-bold text-green-400">{completedTasks.length}</div>
-								<div class="text-green-400/70">Completed</div>
+						<div class="grid grid-cols-3">
+							<div class="p-3 text-center border-r border-surface-border bg-green-500/5">
+								<div class="text-2xl font-mono font-bold text-green-400">{completedTasks.length}</div>
+								<div class="text-xs font-mono text-green-400/70 uppercase tracking-wider">Completed</div>
 							</div>
-							<div class="p-2 bg-vibe-teal/10 border border-vibe-teal/30 rounded">
-								<div class="text-lg font-bold text-vibe-teal">{pendingTasks.length}</div>
-								<div class="text-vibe-teal/70">Pending</div>
+							<div class="p-3 text-center border-r border-surface-border bg-vibe-teal/5">
+								<div class="text-2xl font-mono font-bold text-vibe-teal">{pendingTasks.length}</div>
+								<div class="text-xs font-mono text-vibe-teal/70 uppercase tracking-wider">Pending</div>
 							</div>
-							<div class="p-2 bg-red-500/10 border border-red-500/30 rounded">
-								<div class="text-lg font-bold text-red-400">{failedTasks.length}</div>
-								<div class="text-red-400/70">Failed</div>
+							<div class="p-3 text-center bg-red-500/5">
+								<div class="text-2xl font-mono font-bold text-red-400">{failedTasks.length}</div>
+								<div class="text-xs font-mono text-red-400/70 uppercase tracking-wider">Failed</div>
 							</div>
 						</div>
-						{#if completedTasks.length > 0}
-							<div class="mt-2 text-xs text-text-tertiary">
-								<span class="text-green-400">Completed:</span> {completedTasks.join(', ')}
-							</div>
-						{/if}
 						{#if pendingTasks.length > 0 && isRunning}
-							<div class="mt-1 text-xs text-text-tertiary">
-								<span class="text-vibe-teal">Up next:</span> {pendingTasks[0]}
+							<div class="px-3 py-2 bg-vibe-teal/5 border-t border-vibe-teal/20 flex items-center gap-2">
+								<span class="text-xs font-mono text-vibe-teal uppercase tracking-wider">Next →</span>
+								<span class="text-sm text-text-primary font-mono">{pendingTasks[0]}</span>
 							</div>
 						{/if}
 					</div>
@@ -909,14 +953,14 @@
 							navigator.clipboard.writeText(logText);
 							toasts.success('Logs copied to clipboard');
 						}}
-						class="text-xs text-text-tertiary hover:text-text-secondary px-2 py-1 border border-surface-border hover:border-text-tertiary rounded transition-all"
+						class="text-xs text-text-tertiary hover:text-text-secondary px-2 py-1 border border-surface-border hover:border-text-tertiary transition-all"
 					>
 						Copy All Logs
 					</button>
 				</div>
 				<div class="space-y-1">
 					{#each logs as log}
-						<div class="flex gap-2 {getLogColor(log.type)} cursor-text hover:bg-surface/30 px-1 -mx-1 rounded group">
+						<div class="flex gap-2 {getLogColor(log.type)} cursor-text hover:bg-surface/30 px-1 -mx-1 group">
 							<span class="text-xs text-text-tertiary w-20 flex-shrink-0 select-text">
 								{formatTime(log.created_at)}
 							</span>
@@ -937,6 +981,111 @@
 				</div>
 			{/if}
 		</div>
+		{:else}
+		<!-- Mind Activity Tab -->
+		<div class="flex-1 overflow-y-auto bg-bg-primary">
+			{#if mindActivities.length === 0}
+				<div class="flex flex-col items-center justify-center h-full py-12 text-center px-4">
+					<div class="w-16 h-16 mb-4 flex items-center justify-center bg-purple-500/10 border border-purple-500/30">
+						<svg class="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+						</svg>
+					</div>
+					<h3 class="text-lg font-serif text-text-primary mb-2">No Mind Activity Yet</h3>
+					<p class="text-sm text-text-secondary max-w-xs">
+						{#if !isRunning}
+							Start a workflow execution to see decisions and learnings being recorded.
+						{:else}
+							Mind will track decisions and learnings as tasks execute.
+						{/if}
+					</p>
+					{#if !memoryConnected}
+						<p class="text-xs text-amber-400 mt-3">
+							Connect Mind to persist learnings across sessions.
+						</p>
+					{/if}
+				</div>
+			{:else}
+				<!-- Mind Activity Header -->
+				<div class="px-4 py-3 bg-bg-tertiary border-b border-surface-border sticky top-0">
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-2">
+							<span class="text-xs font-mono text-purple-400 uppercase tracking-wider">Mind Activity</span>
+							<span class="text-xs text-text-tertiary">({mindActivities.length} events)</span>
+						</div>
+						{#if memoryConnected}
+							<span class="text-xs text-green-400 flex items-center gap-1">
+								<span class="w-1.5 h-1.5 bg-green-400"></span>
+								Syncing to Mind
+							</span>
+						{:else}
+							<span class="text-xs text-amber-400 flex items-center gap-1">
+								<span class="w-1.5 h-1.5 bg-amber-400"></span>
+								Local only
+							</span>
+						{/if}
+					</div>
+				</div>
+
+				<!-- Activity List -->
+				<div class="divide-y divide-surface-border">
+					{#each [...mindActivities].reverse() as activity}
+						<div class="px-4 py-3 hover:bg-surface/30 transition-colors">
+							<div class="flex items-start gap-3">
+								<!-- Activity Type Icon -->
+								<div class="flex-shrink-0 mt-0.5">
+									{#if activity.type === 'decision'}
+										<div class="w-6 h-6 flex items-center justify-center bg-blue-500/20 border border-blue-500/30">
+											<svg class="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+											</svg>
+										</div>
+									{:else if activity.type === 'learning'}
+										<div class="w-6 h-6 flex items-center justify-center bg-green-500/20 border border-green-500/30">
+											<svg class="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+											</svg>
+										</div>
+									{:else if activity.type === 'pattern'}
+										<div class="w-6 h-6 flex items-center justify-center bg-purple-500/20 border border-purple-500/30">
+											<svg class="w-3.5 h-3.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+											</svg>
+										</div>
+									{:else}
+										<div class="w-6 h-6 flex items-center justify-center bg-vibe-teal/20 border border-vibe-teal/30">
+											<svg class="w-3.5 h-3.5 text-vibe-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+											</svg>
+										</div>
+									{/if}
+								</div>
+
+								<!-- Activity Content -->
+								<div class="flex-1 min-w-0">
+									<div class="flex items-center gap-2 mb-1">
+										<span class="text-xs font-mono uppercase tracking-wider {
+											activity.type === 'decision' ? 'text-blue-400' :
+											activity.type === 'learning' ? 'text-green-400' :
+											activity.type === 'pattern' ? 'text-purple-400' :
+											'text-vibe-teal'
+										}">
+											{activity.type}
+										</span>
+										{#if activity.taskName}
+											<span class="text-xs text-text-tertiary">• {activity.taskName}</span>
+										{/if}
+									</div>
+									<p class="text-sm text-text-primary">{activity.content}</p>
+									<p class="text-xs text-text-tertiary mt-1">{formatTime(activity.timestamp)}</p>
+								</div>
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+		{/if}
 
 		<!-- Footer -->
 		<div class="p-4 border-t border-surface-border flex justify-between items-center">
