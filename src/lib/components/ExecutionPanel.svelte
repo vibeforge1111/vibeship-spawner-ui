@@ -16,9 +16,11 @@
 
 	interface Props {
 		onClose: () => void;
+		minimized?: boolean;
+		onToggleMinimize?: () => void;
 	}
 
-	let { onClose }: Props = $props();
+	let { onClose, minimized = false, onToggleMinimize }: Props = $props();
 
 	let currentNodes = $state<CanvasNode[]>([]);
 	let currentConnections = $state<Connection[]>([]);
@@ -399,6 +401,14 @@
 				// Clear pending tasks
 				pendingTasks = [];
 
+				// Mark all nodes as success when mission completes
+				// This handles cases where individual task completion events weren't received
+				for (const node of currentNodes) {
+					if (node.status === 'running' || node.status === 'idle') {
+						updateNodeStatus(node.id, 'success');
+					}
+				}
+
 				// Log completion to Mind with summary
 				const duration = missionEndTime.getTime() - (missionStartTime?.getTime() || 0);
 				const durationStr = duration < 60000 ? `${Math.round(duration / 1000)}s` : `${Math.round(duration / 60000)}m`;
@@ -510,7 +520,7 @@
 				return 'text-red-400';
 			case 'running':
 			case 'creating':
-				return 'text-yellow-400';
+				return 'text-vibe-teal';
 			case 'paused':
 				return 'text-blue-400';
 			case 'cancelled':
@@ -535,14 +545,58 @@
 	function handleClose() {
 		if (!isRunning) {
 			missionExecutor.stop();
+			// Reset all node statuses when closing panel (prevents "stuck" visual states)
+			resetAllNodeStatus();
 			onClose();
 		}
 	}
 </script>
 
-<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick={handleClose} role="button" tabindex="-1">
+<!-- Minimized floating widget -->
+{#if minimized && (isRunning || isPaused)}
+	<button
+		onclick={onToggleMinimize}
+		class="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 bg-bg-secondary border border-surface-border shadow-lg hover:border-accent-primary transition-all group"
+	>
+		<div class="relative">
+			{#if isRunning}
+				<div class="w-3 h-3 rounded-full bg-vibe-teal animate-pulse"></div>
+				<div class="absolute inset-0 w-3 h-3 rounded-full bg-vibe-teal/50 animate-ping"></div>
+			{:else if isPaused}
+				<div class="w-3 h-3 rounded-full bg-blue-400"></div>
+			{/if}
+		</div>
+		<div class="text-left">
+			<p class="text-xs font-mono text-text-tertiary">WORKFLOW</p>
+			<p class="text-sm text-text-primary">{executionProgress?.progress || 0}% - {executionProgress?.currentTaskName || 'Running'}</p>
+		</div>
+		<svg class="w-4 h-4 text-text-tertiary group-hover:text-accent-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+		</svg>
+	</button>
+{:else}
+<div
+	class="fixed z-50 transition-all duration-300 ease-out"
+	class:inset-0={!minimized}
+	class:right-0={minimized}
+	class:top-0={minimized}
+	class:bottom-0={minimized}
+	class:w-96={minimized}
+	onclick={!minimized ? handleClose : undefined}
+	role="button"
+	tabindex="-1"
+>
+	{#if !minimized}
+		<div class="absolute inset-0 bg-black/50"></div>
+	{/if}
 	<div
-		class="bg-bg-secondary border border-surface-border w-full max-w-2xl max-h-[80vh] flex flex-col"
+		class="relative bg-bg-secondary border-l border-surface-border flex flex-col h-full"
+		class:max-w-2xl={!minimized}
+		class:mx-auto={!minimized}
+		class:my-auto={!minimized}
+		class:max-h-[80vh]={!minimized}
+		class:inset-y-[10vh]={!minimized}
+		class:border={!minimized}
 		onclick={(e) => e.stopPropagation()}
 		role="dialog"
 	>
@@ -556,9 +610,25 @@
 					</span>
 				{/if}
 			</div>
-			<button onclick={handleClose} class="text-text-tertiary hover:text-text-primary" disabled={isRunning}>
-				X
-			</button>
+			<div class="flex items-center gap-2">
+				<!-- Minimize button - shown when running -->
+				{#if (isRunning || isPaused) && onToggleMinimize}
+					<button
+						onclick={onToggleMinimize}
+						class="p-1.5 text-text-tertiary hover:text-text-primary hover:bg-surface rounded transition-all"
+						title="Minimize to see canvas"
+					>
+						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+						</svg>
+					</button>
+				{/if}
+				<button onclick={handleClose} class="p-1.5 text-text-tertiary hover:text-text-primary hover:bg-surface rounded transition-all" disabled={isRunning}>
+					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+					</svg>
+				</button>
+			</div>
 		</div>
 
 		<!-- Resume Banner (shown when there's a saved mission) -->
@@ -614,7 +684,7 @@
 					<div
 						class="h-full transition-all duration-300"
 						class:bg-accent-primary={executionProgress.status === 'completed'}
-						class:bg-yellow-500={executionProgress.status === 'running' || executionProgress.status === 'creating'}
+						class:bg-vibe-teal={executionProgress.status === 'running' || executionProgress.status === 'creating'}
 						class:bg-blue-500={executionProgress.status === 'paused'}
 						class:bg-red-500={executionProgress.status === 'failed'}
 						class:bg-gray-500={executionProgress.status === 'cancelled'}
@@ -624,19 +694,22 @@
 
 				<!-- Current Task Progress (shown during running) -->
 				{#if isRunning && executionProgress.currentTaskName}
-					<div class="mt-3 p-3 bg-bg-tertiary border border-surface-border rounded">
+					<div class="mt-3 p-3 bg-vibe-teal/5 border border-vibe-teal/30 rounded">
 						<div class="flex items-center justify-between mb-1">
 							<span class="text-xs font-mono text-text-tertiary uppercase tracking-wider">Current Task</span>
-							<span class="text-xs font-mono text-yellow-400">{currentTaskProgress}%</span>
+							<span class="text-xs font-mono text-vibe-teal">{currentTaskProgress}%</span>
 						</div>
 						<div class="flex items-center gap-2 mb-2">
-							<div class="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+							<div class="relative">
+								<div class="w-2 h-2 bg-vibe-teal rounded-full"></div>
+								<div class="absolute inset-0 w-2 h-2 bg-vibe-teal rounded-full animate-ping opacity-75"></div>
+							</div>
 							<span class="text-sm text-text-primary font-medium">{executionProgress.currentTaskName}</span>
 						</div>
 						<!-- Task progress bar -->
 						<div class="w-full h-1.5 bg-surface rounded-full overflow-hidden">
 							<div
-								class="h-full bg-yellow-400 transition-all duration-200"
+								class="h-full bg-vibe-teal transition-all duration-200"
 								style="width: {currentTaskProgress}%"
 							></div>
 						</div>
@@ -673,6 +746,33 @@
 						<p class="mt-2 text-xs text-text-tertiary">
 							Paste this prompt into Claude Code to execute the workflow. Claude will use the spawner skills to complete each task.
 						</p>
+						<!-- Manual completion button for copy-paste workflow -->
+						{#if isRunning}
+							<button
+								onclick={() => {
+									// Manually mark all nodes as complete and end the mission
+									for (const node of currentNodes) {
+										updateNodeStatus(node.id, 'success');
+									}
+									executionProgress = {
+										...executionProgress!,
+										status: 'completed',
+										progress: 100,
+										endTime: new Date()
+									};
+									completedTasks = currentNodes.map(n => n.skill.name);
+									pendingTasks = [];
+									missionEndTime = new Date();
+									toasts.success('Workflow marked as complete');
+								}}
+								class="mt-2 w-full px-3 py-2 text-xs font-mono text-vibe-teal border border-vibe-teal/50 hover:bg-vibe-teal/10 transition-all flex items-center justify-center gap-2"
+							>
+								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+								</svg>
+								Mark as Complete (after running in Claude Code)
+							</button>
+						{/if}
 					</div>
 				{:else if executionProgress.missionId}
 					<div class="mt-2 p-2 bg-surface-secondary text-xs">
@@ -700,9 +800,9 @@
 								<div class="text-lg font-bold text-green-400">{completedTasks.length}</div>
 								<div class="text-green-400/70">Completed</div>
 							</div>
-							<div class="p-2 bg-yellow-500/10 border border-yellow-500/30 rounded">
-								<div class="text-lg font-bold text-yellow-400">{pendingTasks.length}</div>
-								<div class="text-yellow-400/70">Pending</div>
+							<div class="p-2 bg-vibe-teal/10 border border-vibe-teal/30 rounded">
+								<div class="text-lg font-bold text-vibe-teal">{pendingTasks.length}</div>
+								<div class="text-vibe-teal/70">Pending</div>
 							</div>
 							<div class="p-2 bg-red-500/10 border border-red-500/30 rounded">
 								<div class="text-lg font-bold text-red-400">{failedTasks.length}</div>
@@ -716,7 +816,7 @@
 						{/if}
 						{#if pendingTasks.length > 0 && isRunning}
 							<div class="mt-1 text-xs text-text-tertiary">
-								<span class="text-yellow-400">Up next:</span> {pendingTasks[0]}
+								<span class="text-vibe-teal">Up next:</span> {pendingTasks[0]}
 							</div>
 						{/if}
 					</div>
@@ -916,6 +1016,7 @@
 		</div>
 	</div>
 </div>
+{/if}
 
 <!-- Post-Mission Review Modal -->
 {#if showReview && completedMission && missionStartTime && missionEndTime}

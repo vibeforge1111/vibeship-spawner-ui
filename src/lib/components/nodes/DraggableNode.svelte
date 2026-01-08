@@ -217,47 +217,68 @@
 	role="button"
 	tabindex="0"
 >
-	<!-- Status indicator -->
-	{#if node.status && node.status !== 'idle'}
-		<div class="status-indicator" class:running={node.status === 'running'} class:success={node.status === 'success'} class:error={node.status === 'error'}>
-			{#if node.status === 'running'}
-				<span class="animate-spin">⟳</span>
-			{:else if node.status === 'success'}
-				✓
-			{:else if node.status === 'error'}
-				✗
-			{/if}
-		</div>
-	{/if}
+	<!-- Inner wrapper for relative positioning of status indicators -->
+	<div class="node-content-wrapper">
+		<!-- Running status - animated ring around node -->
+		{#if node.status === 'running'}
+			<div class="running-ring"></div>
+			<div class="running-glow"></div>
+		{/if}
 
-	<SkillNode
-		data={nodeData}
-		nodeId={node.id}
-		{selected}
-		onSelect={handleSelect}
-		onTest={handleTest}
-		onPortDragStart={handlePortDragStart}
-		onPortDragEnd={handlePortDragEnd}
-		{onHandoffClick}
-	/>
+		<!-- Success status - corner badge with animation -->
+		{#if node.status === 'success'}
+			<div class="success-badge">
+				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+				</svg>
+			</div>
+			<div class="success-glow"></div>
+		{/if}
 
-	<!-- Delete button on hover -->
-	<button
-		class="delete-btn"
-		onclick={(e) => { e.stopPropagation(); handleDelete(); }}
-		title="Remove node"
-	>
-		<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-		</svg>
-	</button>
+		<!-- Error status - corner badge -->
+		{#if node.status === 'error'}
+			<div class="error-badge">
+				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+				</svg>
+			</div>
+			<div class="error-glow"></div>
+		{/if}
+
+		<SkillNode
+			data={nodeData}
+			nodeId={node.id}
+			{selected}
+			onSelect={handleSelect}
+			onTest={handleTest}
+			onPortDragStart={handlePortDragStart}
+			onPortDragEnd={handlePortDragEnd}
+			{onHandoffClick}
+		/>
+
+		<!-- Delete button on hover -->
+		<button
+			class="delete-btn"
+			onclick={(e) => { e.stopPropagation(); handleDelete(); }}
+			title="Remove node"
+		>
+			<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+			</svg>
+		</button>
+	</div>
 </div>
 
 <style>
 	.draggable-node {
 		cursor: grab;
-		z-index: 10; /* Ensure nodes are above SVG connection layer */
-		pointer-events: auto; /* Fix 7: Ensure nodes receive events even when parent has pointer-events: none */
+		z-index: 10;
+		pointer-events: auto;
+		/* Note: Do NOT add position: relative here - it breaks Tailwind's .absolute class */
+	}
+
+	.node-content-wrapper {
+		position: relative;
 	}
 
 	.draggable-node.dragging {
@@ -279,70 +300,154 @@
 		align-items: center;
 		justify-content: center;
 		background: var(--bg-secondary);
-		color: var(--status-error);
-		border: 1px solid var(--status-error);
+		color: #FF4D4D;
+		border: 1px solid #FF4D4D;
 		cursor: pointer;
 		opacity: 0;
 		font-family: var(--font-mono);
 		font-size: 10px;
+		transition: all 150ms ease;
 	}
 
 	.delete-btn:hover {
-		background: var(--status-error);
+		background: #FF4D4D;
 		color: var(--bg-primary);
 	}
 
-	.draggable-node:hover .delete-btn {
+	.draggable-node:hover .delete-btn,
+	.node-content-wrapper:hover .delete-btn {
 		opacity: 1;
 	}
 
-	.status-indicator {
+	/* ====== RUNNING STATE ====== */
+	.running-ring {
 		position: absolute;
-		top: -8px;
-		left: -8px;
-		width: 20px;
-		height: 20px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		border-radius: 50%;
-		font-size: 12px;
-		z-index: 10;
+		inset: -4px;
+		border: 2px solid #00C49A;
+		border-radius: 8px;
+		animation: ringPulse 1.5s ease-in-out infinite;
+		pointer-events: none;
 	}
 
-	.status-indicator.running {
-		background: var(--color-yellow-500, #eab308);
-		color: black;
-	}
-
-	.status-indicator.success {
-		background: var(--accent-primary);
-		color: white;
-	}
-
-	.status-indicator.error {
-		background: var(--status-error);
-		color: white;
+	.running-glow {
+		position: absolute;
+		inset: -8px;
+		background: radial-gradient(ellipse at center, rgba(0, 196, 154, 0.2) 0%, transparent 70%);
+		border-radius: 12px;
+		animation: glowPulse 1.5s ease-in-out infinite;
+		pointer-events: none;
+		z-index: -1;
 	}
 
 	.draggable-node.running {
-		outline: 2px solid var(--color-yellow-500, #eab308);
-		outline-offset: 2px;
-		animation: pulse 1s ease-in-out infinite;
+		box-shadow: 0 0 20px rgba(0, 196, 154, 0.4), 0 0 40px rgba(0, 196, 154, 0.2);
+	}
+
+	/* ====== SUCCESS STATE ====== */
+	.success-badge {
+		position: absolute;
+		top: -10px;
+		right: -10px;
+		width: 28px;
+		height: 28px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: #2ECC71;
+		color: white;
+		border-radius: 50%;
+		box-shadow: 0 0 12px rgba(46, 204, 113, 0.6), 0 2px 8px rgba(0, 0, 0, 0.3);
+		z-index: 20;
+		animation: badgePopIn 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+	}
+
+	.success-glow {
+		position: absolute;
+		inset: -6px;
+		border: 2px solid rgba(46, 204, 113, 0.5);
+		border-radius: 10px;
+		box-shadow: inset 0 0 12px rgba(46, 204, 113, 0.2);
+		pointer-events: none;
+		animation: successFadeIn 300ms ease-out;
 	}
 
 	.draggable-node.success {
-		outline: 2px solid var(--accent-primary);
-		outline-offset: 2px;
+		box-shadow: 0 0 16px rgba(46, 204, 113, 0.3);
+	}
+
+	/* ====== ERROR STATE ====== */
+	.error-badge {
+		position: absolute;
+		top: -10px;
+		right: -10px;
+		width: 28px;
+		height: 28px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: #FF4D4D;
+		color: white;
+		border-radius: 50%;
+		box-shadow: 0 0 12px rgba(255, 77, 77, 0.6), 0 2px 8px rgba(0, 0, 0, 0.3);
+		z-index: 20;
+		animation: badgePopIn 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+	}
+
+	.error-glow {
+		position: absolute;
+		inset: -6px;
+		border: 2px solid rgba(255, 77, 77, 0.5);
+		border-radius: 10px;
+		box-shadow: inset 0 0 12px rgba(255, 77, 77, 0.2);
+		pointer-events: none;
+		animation: successFadeIn 300ms ease-out;
 	}
 
 	.draggable-node.error {
-		outline: 2px solid var(--status-error);
-		outline-offset: 2px;
+		box-shadow: 0 0 16px rgba(255, 77, 77, 0.3);
 	}
 
-	@keyframes pulse {
-		0%, 100% { opacity: 1; }
-		50% { opacity: 0.7; }
+	/* ====== ANIMATIONS ====== */
+	@keyframes ringPulse {
+		0%, 100% {
+			opacity: 1;
+			transform: scale(1);
+		}
+		50% {
+			opacity: 0.6;
+			transform: scale(1.02);
+		}
+	}
+
+	@keyframes glowPulse {
+		0%, 100% {
+			opacity: 0.6;
+		}
+		50% {
+			opacity: 1;
+		}
+	}
+
+	@keyframes badgePopIn {
+		0% {
+			opacity: 0;
+			transform: scale(0.5);
+		}
+		50% {
+			transform: scale(1.2);
+		}
+		100% {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+
+	@keyframes successFadeIn {
+		0% {
+			opacity: 0;
+		}
+		100% {
+			opacity: 1;
+		}
 	}
 </style>

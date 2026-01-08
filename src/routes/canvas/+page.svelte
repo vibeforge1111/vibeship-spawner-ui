@@ -30,6 +30,7 @@ import { get } from 'svelte/store';
 	let bottomTab = $state<'chat' | 'mind'>('chat');
 	let showValidation = $state(false);
 	let showExecution = $state(false);
+	let executionMinimized = $state(false);
 	let showNodeDetails = $state(false);
 	let showMissionExport = $state(false);
 	let missionName = $state('');
@@ -1303,7 +1304,11 @@ import { get } from 'svelte/store';
 {/if}
 
 {#if showExecution}
-	<ExecutionPanel onClose={() => (showExecution = false)} />
+	<ExecutionPanel
+		onClose={() => (showExecution = false)}
+		minimized={executionMinimized}
+		onToggleMinimize={() => (executionMinimized = !executionMinimized)}
+	/>
 {/if}
 
 {#if contextMenu}
