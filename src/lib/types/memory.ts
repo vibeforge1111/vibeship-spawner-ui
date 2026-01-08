@@ -63,7 +63,16 @@ export type ProjectContentType =
 	| 'project_issue'            // Open/resolved issue
 	| 'session_summary';         // Session summary
 
-export type ContentType = BaseContentType | AgentContentType | ProjectContentType;
+/**
+ * Improvement content types for self-improvement system
+ */
+export type ImprovementContentType =
+	| 'skill_improvement'        // Suggestion to improve a skill
+	| 'agent_improvement'        // Suggestion to improve an agent
+	| 'team_improvement'         // Suggestion for better team composition
+	| 'pipeline_improvement';    // Suggestion to optimize a pipeline/workflow
+
+export type ContentType = BaseContentType | AgentContentType | ProjectContentType | ImprovementContentType;
 
 // ============================================
 // Memory Model
@@ -192,6 +201,17 @@ export interface AgentMemoryMetadata {
 
 	// Session summary context
 	session_date?: string;
+
+	// Improvement context
+	improvement_type?: 'skill' | 'agent' | 'team' | 'pipeline';
+	improvement_target_id?: string;      // ID of skill/agent/team/pipeline
+	improvement_target_name?: string;    // Name of the target
+	improvement_suggestion?: string;     // The actual suggestion
+	improvement_impact?: number;         // Expected improvement % (e.g., 0.15 = 15%)
+	improvement_evidence_count?: number; // Number of task outcomes supporting this
+	improvement_status?: 'pending' | 'applied' | 'dismissed';
+	improvement_applied_at?: string;
+	improvement_source_missions?: string[]; // Mission IDs that generated this insight
 }
 
 // ============================================
@@ -426,3 +446,26 @@ export const DEFAULT_MEMORY_SETTINGS: MemorySettings = {
 	autoExtractPatterns: true,
 	syncLearnings: true
 };
+
+// ============================================
+// Improvement Types
+// ============================================
+
+/**
+ * An improvement suggestion extracted from agent experience
+ */
+export interface Improvement {
+	id: string;
+	type: 'skill' | 'agent' | 'team' | 'pipeline';
+	targetId: string;
+	targetName: string;
+	suggestion: string;
+	impact: number;           // Expected improvement % (0.15 = 15%)
+	confidence: number;       // 0.0-1.0
+	evidenceCount: number;    // Number of outcomes supporting this
+	status: 'pending' | 'applied' | 'dismissed';
+	sourceMissions: string[]; // Mission IDs
+	createdAt: string;
+	appliedAt?: string;
+	memoryId?: string;        // Reference to Mind v5 memory
+}

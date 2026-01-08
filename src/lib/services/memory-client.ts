@@ -892,6 +892,156 @@ class MemoryClient {
 	async listSessionSummaries(limit: number = 50): Promise<MemoryClientResult<Memory[]>> {
 		return this.listByContentType(['session_summary'], { limit });
 	}
+
+	// ============================================
+	// Improvement Methods (for Improvements tab)
+	// ============================================
+
+	/**
+	 * Create an improvement suggestion
+	 */
+	async createImprovement(improvement: {
+		type: 'skill' | 'agent' | 'team' | 'pipeline';
+		targetId: string;
+		targetName: string;
+		suggestion: string;
+		impact: number;
+		confidence: number;
+		evidenceCount: number;
+		sourceMissions?: string[];
+	}): Promise<MemoryClientResult<Memory>> {
+		const contentType = `${improvement.type}_improvement` as ContentType;
+
+		return this.createMemory({
+			content: `[${improvement.targetName}] ${improvement.suggestion}`,
+			content_type: contentType,
+			temporal_level: TEMPORAL_LEVELS.SEASONAL,
+			salience: improvement.confidence,
+			metadata: {
+				improvement_type: improvement.type,
+				improvement_target_id: improvement.targetId,
+				improvement_target_name: improvement.targetName,
+				improvement_suggestion: improvement.suggestion,
+				improvement_impact: improvement.impact,
+				improvement_evidence_count: improvement.evidenceCount,
+				improvement_status: 'pending',
+				improvement_source_missions: improvement.sourceMissions,
+				confidence: improvement.confidence
+			}
+		});
+	}
+
+	/**
+	 * Get all improvements (all types)
+	 */
+	async listImprovements(options?: {
+		type?: 'skill' | 'agent' | 'team' | 'pipeline';
+		status?: 'pending' | 'applied' | 'dismissed';
+		limit?: number;
+	}): Promise<MemoryClientResult<Memory[]>> {
+		const contentTypes: ContentType[] = options?.type
+			? [`${options.type}_improvement` as ContentType]
+			: ['skill_improvement', 'agent_improvement', 'team_improvement', 'pipeline_improvement'];
+
+		const result = await this.listByContentType(contentTypes, { limit: options?.limit ?? 50 });
+
+		if (!result.success || !result.data) {
+			return result;
+		}
+
+		let improvements = result.data;
+
+		// Filter by status if specified
+		if (options?.status) {
+			improvements = improvements.filter(i => i.metadata?.improvement_status === options.status);
+		}
+
+		// Sort by impact descending (highest impact first)
+		improvements.sort((a, b) => {
+			const impactA = a.metadata?.improvement_impact ?? 0;
+			const impactB = b.metadata?.improvement_impact ?? 0;
+			return impactB - impactA;
+		});
+
+		return { success: true, data: improvements };
+	}
+
+	/**
+	 * Update improvement status (apply or dismiss)
+	 */
+	async updateImprovementStatus(
+		memoryId: string,
+		status: 'applied' | 'dismissed'
+	): Promise<MemoryClientResult<Memory>> {
+		// Get the existing improvement
+		const existing = await this.getMemory(memoryId);
+		if (!existing.success || !existing.data) {
+			return { success: false, error: 'Improvement not found' };
+		}
+
+		const memory = existing.data;
+
+		// Create updated memory with new status
+		// Note: For Lite tier, we create a new memory since there's no update
+		return this.createMemory({
+			content: memory.content,
+			content_type: memory.content_type,
+			temporal_level: memory.temporal_level,
+			salience: status === 'applied' ? 0.9 : 0.3, // Boost applied, lower dismissed
+			metadata: {
+				...memory.metadata,
+				improvement_status: status,
+				improvement_applied_at: status === 'applied' ? new Date().toISOString() : undefined
+			}
+		});
+	}
+
+	/**
+	 * Get improvement statistics
+	 */
+	async getImprovementStats(): Promise<MemoryClientResult<{
+		total: number;
+		pending: number;
+		applied: number;
+		dismissed: number;
+		byType: Record<string, number>;
+		averageImpact: number;
+	}>> {
+		const result = await this.listImprovements({ limit: 200 });
+
+		if (!result.success || !result.data) {
+			return { success: false, error: result.error };
+		}
+
+		const improvements = result.data;
+		const stats = {
+			total: improvements.length,
+			pending: 0,
+			applied: 0,
+			dismissed: 0,
+			byType: {} as Record<string, number>,
+			averageImpact: 0
+		};
+
+		let totalImpact = 0;
+
+		for (const imp of improvements) {
+			const status = imp.metadata?.improvement_status ?? 'pending';
+			const type = imp.metadata?.improvement_type ?? 'unknown';
+			const impact = imp.metadata?.improvement_impact ?? 0;
+
+			if (status === 'pending') stats.pending++;
+			else if (status === 'applied') stats.applied++;
+			else if (status === 'dismissed') stats.dismissed++;
+
+			stats.byType[type] = (stats.byType[type] ?? 0) + 1;
+			totalImpact += impact;
+		}
+
+		stats.averageImpact = improvements.length > 0 ? totalImpact / improvements.length : 0;
+
+		return { success: true, data: stats };
+	}
 }
 
 // ============================================

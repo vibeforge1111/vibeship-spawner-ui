@@ -14,7 +14,7 @@ import { writable, derived, get } from 'svelte/store';
 import { mcpClient } from '$lib/services/mcp-client';
 import { memoryClient } from '$lib/services/memory-client';
 import type { MindProject } from '$lib/services/mcp-client';
-import type { Memory, AgentLearning, WorkflowPattern, AgentEffectiveness } from '$lib/types/memory';
+import type { Memory, AgentLearning, WorkflowPattern, AgentEffectiveness, Improvement } from '$lib/types/memory';
 
 // Local types for Mind v5 unified storage
 export interface MindDecision {
@@ -58,6 +58,17 @@ export interface MindState {
 	decisionsLoading: boolean;
 	issuesLoading: boolean;
 	sessionsLoading: boolean;
+	// Improvements
+	improvements: Improvement[];
+	improvementsLoading: boolean;
+	improvementStats: {
+		total: number;
+		pending: number;
+		applied: number;
+		dismissed: number;
+		byType: Record<string, number>;
+		averageImpact: number;
+	} | null;
 }
 
 const initialState: MindState = {
@@ -75,7 +86,11 @@ const initialState: MindState = {
 	sessions: [],
 	decisionsLoading: false,
 	issuesLoading: false,
-	sessionsLoading: false
+	sessionsLoading: false,
+	// Improvements
+	improvements: [],
+	improvementsLoading: false,
+	improvementStats: null
 };
 
 export const mindState = writable<MindState>(initialState);
@@ -100,6 +115,13 @@ export const patterns = derived(mindState, ($state) => $state.patterns);
 export const agentStats = derived(mindState, ($state) => $state.agentStats);
 export const isLearningsLoading = derived(mindState, ($state) => $state.learningsLoading);
 export const isMemoryConnected = derived(mindState, ($state) => $state.memoryConnected);
+
+// Improvement-related derived stores
+export const improvements = derived(mindState, ($state) => $state.improvements);
+export const pendingImprovements = derived(improvements, ($imp) => $imp.filter((i) => i.status === 'pending'));
+export const appliedImprovements = derived(improvements, ($imp) => $imp.filter((i) => i.status === 'applied'));
+export const improvementStats = derived(mindState, ($state) => $state.improvementStats);
+export const isImprovementsLoading = derived(mindState, ($state) => $state.improvementsLoading);
 
 /**
  * Load a project's memory/context
@@ -370,9 +392,159 @@ export function clearMindState() {
 	mindState.set(initialState);
 }
 
+// ============================================
+// Improvement Functions
+// ============================================
+
+/**
+ * Load improvements from Mind v5
+ */
+export async function loadImprovements(options?: {
+	type?: 'skill' | 'agent' | 'team' | 'pipeline';
+	status?: 'pending' | 'applied' | 'dismissed';
+}): Promise<boolean> {
+	mindState.update((s) => ({ ...s, improvementsLoading: true }));
+
+	try {
+		const [improvementsResult, statsResult] = await Promise.all([
+			memoryClient.listImprovements(options),
+			memoryClient.getImprovementStats()
+		]);
+
+		if (improvementsResult.success && improvementsResult.data) {
+			const improvements: Improvement[] = improvementsResult.data.map((m) => ({
+				id: m.memory_id,
+				type: m.metadata?.improvement_type ?? 'skill',
+				targetId: m.metadata?.improvement_target_id ?? '',
+				targetName: m.metadata?.improvement_target_name ?? 'Unknown',
+				suggestion: m.metadata?.improvement_suggestion ?? m.content,
+				impact: m.metadata?.improvement_impact ?? 0,
+				confidence: m.metadata?.confidence ?? m.effective_salience,
+				evidenceCount: m.metadata?.improvement_evidence_count ?? 0,
+				status: m.metadata?.improvement_status ?? 'pending',
+				sourceMissions: m.metadata?.improvement_source_missions ?? [],
+				createdAt: m.created_at,
+				appliedAt: m.metadata?.improvement_applied_at,
+				memoryId: m.memory_id
+			}));
+
+			mindState.update((s) => ({
+				...s,
+				improvements,
+				improvementStats: statsResult.success ? statsResult.data ?? null : null,
+				improvementsLoading: false,
+				memoryConnected: true
+			}));
+			return true;
+		}
+
+		mindState.update((s) => ({ ...s, improvementsLoading: false }));
+		return false;
+	} catch (e) {
+		mindState.update((s) => ({
+			...s,
+			improvementsLoading: false,
+			error: e instanceof Error ? e.message : 'Failed to load improvements'
+		}));
+		return false;
+	}
+}
+
+/**
+ * Create a new improvement (manual or extracted)
+ */
+export async function createImprovement(improvement: {
+	type: 'skill' | 'agent' | 'team' | 'pipeline';
+	targetId: string;
+	targetName: string;
+	suggestion: string;
+	impact: number;
+	confidence: number;
+	evidenceCount: number;
+	sourceMissions?: string[];
+}): Promise<boolean> {
+	try {
+		const result = await memoryClient.createImprovement(improvement);
+
+		if (result.success && result.data) {
+			const newImprovement: Improvement = {
+				id: result.data.memory_id,
+				type: improvement.type,
+				targetId: improvement.targetId,
+				targetName: improvement.targetName,
+				suggestion: improvement.suggestion,
+				impact: improvement.impact,
+				confidence: improvement.confidence,
+				evidenceCount: improvement.evidenceCount,
+				status: 'pending',
+				sourceMissions: improvement.sourceMissions ?? [],
+				createdAt: result.data.created_at,
+				memoryId: result.data.memory_id
+			};
+
+			mindState.update((s) => ({
+				...s,
+				improvements: [newImprovement, ...s.improvements]
+			}));
+			return true;
+		}
+		return false;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Apply an improvement
+ */
+export async function applyImprovement(improvementId: string): Promise<boolean> {
+	try {
+		const result = await memoryClient.updateImprovementStatus(improvementId, 'applied');
+
+		if (result.success) {
+			mindState.update((s) => ({
+				...s,
+				improvements: s.improvements.map((i) =>
+					i.id === improvementId || i.memoryId === improvementId
+						? { ...i, status: 'applied' as const, appliedAt: new Date().toISOString() }
+						: i
+				)
+			}));
+			return true;
+		}
+		return false;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Dismiss an improvement
+ */
+export async function dismissImprovement(improvementId: string): Promise<boolean> {
+	try {
+		const result = await memoryClient.updateImprovementStatus(improvementId, 'dismissed');
+
+		if (result.success) {
+			mindState.update((s) => ({
+				...s,
+				improvements: s.improvements.map((i) =>
+					i.id === improvementId || i.memoryId === improvementId
+						? { ...i, status: 'dismissed' as const }
+						: i
+				)
+			}));
+			return true;
+		}
+		return false;
+	} catch {
+		return false;
+	}
+}
+
 /**
  * Load all Mind data from Mind v5 (unified loader)
- * This loads learnings, decisions, issues, and sessions in parallel
+ * This loads learnings, decisions, issues, sessions, and improvements in parallel
  */
 export async function loadAllMindData(): Promise<boolean> {
 	mindState.update((s) => ({ ...s, loading: true }));
@@ -390,15 +562,16 @@ export async function loadAllMindData(): Promise<boolean> {
 		}
 
 		// Load all data in parallel
-		const [learningsOk, decisionsOk, issuesOk, sessionsOk] = await Promise.all([
+		const [learningsOk, decisionsOk, issuesOk, sessionsOk, improvementsOk] = await Promise.all([
 			loadLearnings(),
 			loadDecisions(),
 			loadIssues(),
-			loadSessions()
+			loadSessions(),
+			loadImprovements()
 		]);
 
 		mindState.update((s) => ({ ...s, loading: false }));
-		return learningsOk || decisionsOk || issuesOk || sessionsOk;
+		return learningsOk || decisionsOk || issuesOk || sessionsOk || improvementsOk;
 	} catch (e) {
 		mindState.update((s) => ({
 			...s,

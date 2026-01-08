@@ -7,6 +7,7 @@
 	import WorkflowPatterns from '$lib/components/WorkflowPatterns.svelte';
 	import AgentEffectiveness from '$lib/components/AgentEffectiveness.svelte';
 	import LearningsExportImport from '$lib/components/LearningsExportImport.svelte';
+	import ImprovementCard from '$lib/components/ImprovementCard.svelte';
 	import {
 		mindState,
 		addDecision,
@@ -18,6 +19,9 @@
 		loadDecisions,
 		loadIssues,
 		loadSessions,
+		loadImprovements,
+		applyImprovement,
+		dismissImprovement,
 		checkMemoryConnection,
 		type MindState,
 		type MindDecision,
@@ -29,7 +33,7 @@
 		memoryConnectionStatus,
 		connectMemory
 	} from '$lib/stores/memory-settings.svelte';
-	import type { Memory } from '$lib/types/memory';
+	import type { Memory, Improvement } from '$lib/types/memory';
 
 	let currentState = $state<MindState>({
 		project: null,
@@ -45,15 +49,19 @@
 		sessions: [],
 		decisionsLoading: false,
 		issuesLoading: false,
-		sessionsLoading: false
+		sessionsLoading: false,
+		improvements: [],
+		improvementsLoading: false,
+		improvementStats: null
 	});
 	let memoryConnected = $state(false);
 	let memoryStatus = $state<string>('disconnected');
 
-	// Form states - Learnings first
-	let activeTab = $state<'learnings' | 'decisions' | 'issues' | 'sessions'>('learnings');
+	// Form states - Learnings first, then Improvements
+	let activeTab = $state<'learnings' | 'improvements' | 'decisions' | 'issues' | 'sessions'>('learnings');
 	let showAddForm = $state(false);
 	let formType = $state<'decision' | 'issue' | 'session'>('decision');
+	let improvementFilter = $state<'all' | 'pending' | 'applied'>('pending');
 
 	// Decision form
 	let decisionWhat = $state('');
@@ -96,6 +104,8 @@
 
 		if (activeTab === 'learnings' && currentState.learnings.length === 0 && !currentState.learningsLoading) {
 			loadLearnings();
+		} else if (activeTab === 'improvements' && currentState.improvements.length === 0 && !currentState.improvementsLoading) {
+			loadImprovements();
 		} else if (activeTab === 'decisions' && currentState.decisions.length === 0 && !currentState.decisionsLoading) {
 			loadDecisions();
 		} else if (activeTab === 'issues' && currentState.issues.length === 0 && !currentState.issuesLoading) {
@@ -159,12 +169,34 @@
 		await resolveIssue(issue.description);
 	}
 
+	async function handleApplyImprovement(id: string) {
+		await applyImprovement(id);
+	}
+
+	async function handleDismissImprovement(id: string) {
+		await dismissImprovement(id);
+	}
+
+	function handleViewEvidence(id: string) {
+		// TODO: Open modal with evidence from source missions
+		console.log('View evidence for:', id);
+	}
+
 	// Now using unified Mind v5 storage
 	const decisions = $derived(currentState.decisions);
 	const issues = $derived(currentState.issues);
 	const openIssues = $derived(issues.filter((i) => i.status === 'open'));
 	const resolvedIssues = $derived(issues.filter((i) => i.status === 'resolved'));
 	const sessions = $derived(currentState.sessions);
+
+	// Improvement derived
+	const improvements = $derived(currentState.improvements);
+	const filteredImprovements = $derived(
+		improvementFilter === 'all'
+			? improvements
+			: improvements.filter((i) => i.status === improvementFilter)
+	);
+	const pendingCount = $derived(improvements.filter((i) => i.status === 'pending').length);
 </script>
 
 <div class="min-h-screen bg-bg-primary flex flex-col">
@@ -211,6 +243,19 @@
 				{#if currentState.learnings.length > 0}<span class="opacity-60">({currentState.learnings.length})</span>{/if}
 			</button>
 			<button
+				onclick={() => (activeTab = 'improvements')}
+				class="px-3 py-1.5 font-mono text-sm border transition-all"
+				class:bg-purple-500={activeTab === 'improvements'}
+				class:text-white={activeTab === 'improvements'}
+				class:border-purple-500={activeTab === 'improvements'}
+				class:text-text-secondary={activeTab !== 'improvements'}
+				class:border-surface-border={activeTab !== 'improvements'}
+				class:hover:border-text-tertiary={activeTab !== 'improvements'}
+			>
+				Improvements
+				{#if pendingCount > 0}<span class="text-yellow-400">({pendingCount} pending)</span>{/if}
+			</button>
+			<button
 				onclick={() => (activeTab = 'decisions')}
 				class="px-3 py-1.5 font-mono text-sm border transition-all"
 				class:bg-accent-primary={activeTab === 'decisions'}
@@ -253,7 +298,7 @@
 
 			<div class="flex-1"></div>
 
-			{#if currentState.memoryConnected && activeTab !== 'learnings'}
+			{#if currentState.memoryConnected && activeTab !== 'learnings' && activeTab !== 'improvements'}
 				<button
 					onclick={() =>
 						openAddForm(
@@ -349,6 +394,97 @@
 							/>
 						</div>
 					</div>
+				{/if}
+			{/if}
+
+			<!-- Improvements Tab -->
+			{#if activeTab === 'improvements'}
+				{#if currentState.improvementsLoading}
+					<div class="border border-surface-border bg-bg-secondary p-12 text-center">
+						<div class="animate-pulse text-text-tertiary font-mono">Loading improvements...</div>
+					</div>
+				{:else}
+					<!-- Filter controls -->
+					<div class="flex items-center gap-4 mb-6">
+						<div class="flex items-center gap-2">
+							<span class="text-sm font-mono text-text-tertiary">Filter:</span>
+							<button
+								onclick={() => (improvementFilter = 'pending')}
+								class="px-3 py-1 text-xs font-mono border transition-all"
+								class:bg-yellow-500={improvementFilter === 'pending'}
+								class:text-black={improvementFilter === 'pending'}
+								class:border-yellow-500={improvementFilter === 'pending'}
+								class:text-text-secondary={improvementFilter !== 'pending'}
+								class:border-surface-border={improvementFilter !== 'pending'}
+							>
+								Pending
+							</button>
+							<button
+								onclick={() => (improvementFilter = 'applied')}
+								class="px-3 py-1 text-xs font-mono border transition-all"
+								class:bg-green-500={improvementFilter === 'applied'}
+								class:text-black={improvementFilter === 'applied'}
+								class:border-green-500={improvementFilter === 'applied'}
+								class:text-text-secondary={improvementFilter !== 'applied'}
+								class:border-surface-border={improvementFilter !== 'applied'}
+							>
+								Applied
+							</button>
+							<button
+								onclick={() => (improvementFilter = 'all')}
+								class="px-3 py-1 text-xs font-mono border transition-all"
+								class:bg-accent-primary={improvementFilter === 'all'}
+								class:text-bg-primary={improvementFilter === 'all'}
+								class:border-accent-primary={improvementFilter === 'all'}
+								class:text-text-secondary={improvementFilter !== 'all'}
+								class:border-surface-border={improvementFilter !== 'all'}
+							>
+								All
+							</button>
+						</div>
+
+						<div class="flex-1"></div>
+
+						<!-- Stats summary -->
+						{#if currentState.improvementStats}
+							<div class="flex items-center gap-4 text-xs font-mono text-text-tertiary">
+								<span>{currentState.improvementStats.pending} pending</span>
+								<span>{currentState.improvementStats.applied} applied</span>
+								<span class="text-accent-primary">
+									{Math.round((currentState.improvementStats.avgImpact || 0) * 100)}% avg impact
+								</span>
+							</div>
+						{/if}
+					</div>
+
+					{#if filteredImprovements.length === 0}
+						<div class="border border-surface-border bg-bg-secondary p-12 text-center">
+							<div class="text-4xl mb-4 opacity-50">~</div>
+							<h3 class="text-lg text-text-primary mb-2">
+								{#if improvementFilter === 'pending'}
+									No pending improvements
+								{:else if improvementFilter === 'applied'}
+									No applied improvements yet
+								{:else}
+									No improvements found
+								{/if}
+							</h3>
+							<p class="text-sm text-text-secondary mb-4">
+								Improvements are generated from mission executions and agent learnings.
+							</p>
+						</div>
+					{:else}
+						<div class="grid gap-4 md:grid-cols-2">
+							{#each filteredImprovements as improvement (improvement.id)}
+								<ImprovementCard
+									{improvement}
+									onApply={handleApplyImprovement}
+									onDismiss={handleDismissImprovement}
+									onViewEvidence={handleViewEvidence}
+								/>
+							{/each}
+						</div>
+					{/if}
 				{/if}
 			{/if}
 
