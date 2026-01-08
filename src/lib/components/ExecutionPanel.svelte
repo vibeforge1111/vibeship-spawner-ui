@@ -82,6 +82,9 @@
 	} | null>(null);
 	let showResumeBanner = $state(false);
 
+	// Guard to ensure mount-only effects run once
+	let hasCheckedResumable = $state(false);
+
 	// Derived states
 	let isRunning = $derived(executionProgress?.status === 'running' || executionProgress?.status === 'creating');
 	let isPaused = $derived(executionProgress?.status === 'paused');
@@ -91,6 +94,7 @@
 	// Note: MCP not required anymore - we build missions locally and generate copy-pasteable prompts
 	let canRun = $derived(!isRunning && !isPaused && currentNodes.length > 0);
 
+	// Svelte 5: Use $effect with store subscriptions - run once and cleanup
 	$effect(() => {
 		const unsub1 = nodes.subscribe((n) => (currentNodes = n));
 		const unsub2 = connections.subscribe((c) => (currentConnections = c));
@@ -104,21 +108,30 @@
 		};
 	});
 
-	// Check for resumable mission on mount
+	// Check for resumable mission on mount - RUN ONLY ONCE
+	// Using guard to prevent infinite loop (getResumableMissionInfo returns new object each call)
 	$effect(() => {
+		if (hasCheckedResumable) return; // Guard against re-runs
+		hasCheckedResumable = true;
+
 		const missionInfo = missionExecutor.getResumableMissionInfo();
 		if (missionInfo) {
 			resumableMission = missionInfo;
 			showResumeBanner = true;
 			// Also restore the execution progress
-			executionProgress = missionExecutor.getProgress();
-			logs = executionProgress?.logs || [];
+			const progress = missionExecutor.getProgress();
+			executionProgress = progress;
+			logs = progress?.logs || [];
 		}
 	});
 
 	// Fetch pre-mission context when panel opens and nodes exist
+	// Guard prevents multiple fetches - only fetch once when conditions are first met
+	let hasAttemptedContextFetch = $state(false);
 	$effect(() => {
+		if (hasAttemptedContextFetch) return;
 		if (currentNodes.length > 0 && memoryConnected && !executionProgress) {
+			hasAttemptedContextFetch = true;
 			fetchContext();
 		}
 	});

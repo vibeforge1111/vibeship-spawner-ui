@@ -12,6 +12,7 @@
 
 import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import type { Mission, MissionLog, MissionTask } from '$lib/services/mcp-client';
+import { mcpClient } from '$lib/services/mcp-client';
 import { buildMissionFromCanvas, validateForMission, generateExecutionPrompt, type MissionBuildOptions } from './mission-builder';
 import { syncClient, broadcastMissionEvent, broadcastLearningEvent, broadcastTaskEvent, broadcastExecutionControl, isConnected, type SyncEvent } from './sync-client';
 import { clientEventBridge, type BridgeEvent } from './event-bridge';
