@@ -182,9 +182,9 @@
 			<button
 				onclick={() => (activeTab = 'learnings')}
 				class="px-3 py-1.5 font-mono text-sm border transition-all"
-				class:bg-green-500={activeTab === 'learnings'}
+				class:bg-accent-primary={activeTab === 'learnings'}
 				class:text-bg-primary={activeTab === 'learnings'}
-				class:border-green-500={activeTab === 'learnings'}
+				class:border-accent-primary={activeTab === 'learnings'}
 				class:text-text-secondary={activeTab !== 'learnings'}
 				class:border-surface-border={activeTab !== 'learnings'}
 				class:hover:border-text-tertiary={activeTab !== 'learnings'}
@@ -292,7 +292,7 @@
 						</p>
 						<button
 							onclick={handleConnectMemory}
-							class="px-4 py-2 font-mono text-sm bg-green-500 text-bg-primary hover:bg-green-600 transition-all"
+							class="px-4 py-2 font-mono text-sm bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all"
 						>
 							Connect to Mind
 						</button>

@@ -122,7 +122,7 @@
 			<button
 				onclick={() => (activeSubTab = 'learnings')}
 				class="px-2 py-1 text-xs font-mono transition-all"
-				class:bg-green-500={activeSubTab === 'learnings'}
+				class:bg-accent-primary={activeSubTab === 'learnings'}
 				class:text-bg-primary={activeSubTab === 'learnings'}
 				class:text-text-secondary={activeSubTab !== 'learnings'}
 				class:hover:text-text-primary={activeSubTab !== 'learnings'}
