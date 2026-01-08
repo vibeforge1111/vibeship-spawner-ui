@@ -35,7 +35,7 @@
 
 <nav class="h-[52px] sticky top-0 border-b border-surface-border bg-bg-primary z-50">
 	<div class="h-full max-w-6xl mx-auto flex items-center justify-between px-6">
-		<!-- Left side: Logo + Pipeline Selector -->
+		<!-- Left side: Logo -->
 		<div class="flex items-center gap-4">
 			<!-- Logo -->
 			<a href="/" class="flex items-center gap-1.5">
@@ -44,15 +44,6 @@
 				<span class="font-serif text-[1.36rem] text-accent-primary" style="font-family: 'Instrument Serif', Georgia, serif;">spawner</span>
 			</a>
 
-			<!-- Divider -->
-			<div class="w-px h-5 bg-surface-border hidden md:block"></div>
-
-			<!-- Pipeline Selector - Navigate to canvas on switch -->
-			{#if pipelinesReady}
-				<div class="hidden md:block">
-					<PipelineSelector navigateOnSwitch={true} />
-				</div>
-			{/if}
 		</div>
 
 		<!-- Right side -->
@@ -93,15 +84,6 @@
 				<span class="hidden sm:inline">MCPs</span>
 			</a>
 
-			<!-- Settings link -->
-			<a
-				href="/settings"
-				class="inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-sm text-text-secondary border border-transparent hover:text-text-primary hover:border-surface-border transition-all"
-			>
-				<Icon name="settings" size={14} />
-				<span class="hidden sm:inline">Settings</span>
-			</a>
-
 			<!-- Skills Dropdown -->
 			<div class="skills-dropdown-container relative">
 				<button
@@ -130,14 +112,6 @@
 						>
 							<Icon name="compass" size={14} />
 							<span>Find a Skill</span>
-						</a>
-						<a
-							href="/skills/create"
-							class="flex items-center gap-2 px-4 py-2 font-mono text-sm text-text-secondary hover:bg-bg-secondary hover:text-text-primary transition-colors"
-							onclick={closeDropdown}
-						>
-							<Icon name="plus" size={14} />
-							<span>Create Your Own</span>
 						</a>
 
 						<div class="h-px bg-surface-border my-2"></div>
@@ -176,6 +150,25 @@
 					</div>
 				{/if}
 			</div>
+
+			<!-- Settings link -->
+			<a
+				href="/settings"
+				class="inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-sm text-text-secondary border border-transparent hover:text-text-primary hover:border-surface-border transition-all"
+			>
+				<Icon name="settings" size={14} />
+				<span class="hidden sm:inline">Settings</span>
+			</a>
+
+			<!-- Divider before Pipeline -->
+			<div class="w-px h-5 bg-surface-border hidden md:block"></div>
+
+			<!-- Pipeline Selector - Navigate to canvas on switch -->
+			{#if pipelinesReady}
+				<div class="hidden md:block">
+					<PipelineSelector navigateOnSwitch={true} />
+				</div>
+			{/if}
 
 		</div>
 	</div>
