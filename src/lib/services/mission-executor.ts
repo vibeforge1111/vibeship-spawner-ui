@@ -1072,14 +1072,17 @@ class MissionExecutor {
 				this.completedSkillSequence.push(skillId);
 			}
 
-			// Auto-create issue when task fails
+			// Auto-create issue when task fails (non-blocking)
 			if (!success) {
 				const errorDetails = task.error || 'Task execution failed';
-				await memoryClient.createIssue(
+				memoryClient.createIssue(
 					`[${this.progress.mission?.name || 'Mission'}] Task failed: ${task.title} - ${errorDetails}`,
 					'open'
-				);
-				console.log(`[Mind] Auto-created issue for failed task: ${task.title}`);
+				).then(() => {
+					console.log(`[Mind] Auto-created issue for failed task: ${task.title}`);
+				}).catch(err => {
+					console.warn('[Mind] Failed to create issue:', err);
+				});
 			}
 
 			console.log(`[Learning] Recorded task outcome: ${task.title} - ${success ? 'success' : 'failed'}`);
@@ -1194,7 +1197,7 @@ class MissionExecutor {
 				}
 			}
 
-			// Auto-generate session summary
+			// Auto-generate session summary (non-blocking)
 			const completedTasks = mission.tasks.filter(t => t.status === 'completed');
 			const failedTasks = mission.tasks.filter(t => t.status === 'failed');
 			const agentNames = mission.agents.map(a => a.name).join(', ');
@@ -1203,11 +1206,16 @@ class MissionExecutor {
 				? `Mission "${mission.name}" completed successfully. ${completedTasks.length}/${totalTasks} tasks done. Agents: ${agentNames}. Skills used: ${this.completedSkillSequence.join(', ') || 'none tracked'}.`
 				: `Mission "${mission.name}" ${mission.status}. ${completedTasks.length}/${totalTasks} tasks completed, ${failedTasks.length} failed. ${mission.error || ''}`;
 
-			await memoryClient.createSessionSummary(sessionSummary);
-			console.log(`[Mind] Auto-created session summary for mission: ${mission.name}`);
+			memoryClient.createSessionSummary(sessionSummary).then(() => {
+				console.log(`[Mind] Auto-created session summary for mission: ${mission.name}`);
+			}).catch(err => {
+				console.warn('[Mind] Failed to create session summary:', err);
+			});
 
-			// Auto-generate improvement suggestions based on outcomes
-			await this.generateImprovementSuggestions(mission, successRate);
+			// Auto-generate improvement suggestions (non-blocking)
+			this.generateImprovementSuggestions(mission, successRate).catch(err => {
+				console.warn('[Mind] Failed to generate improvements:', err);
+			});
 
 		} catch (error) {
 			console.error('[Learning] Failed to record mission complete:', error);
