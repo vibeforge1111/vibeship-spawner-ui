@@ -19,18 +19,18 @@ import type {
 	SkillMCPBinding,
 	TeamMCPBinding,
 	MCPConnectionStatus,
-	BUILTIN_MCPS
+	MCPRegistryItem
 } from '$lib/types/mcp';
-import { BUILTIN_MCPS as builtinMCPs } from '$lib/types/mcp';
+import { TOP_100_MCPS, getMCPCategories } from '$lib/types/mcp';
 
 // ============================================
 // State Interface
 // ============================================
 
 export interface MCPState {
-	// Available MCPs
-	definitions: MCPDefinition[];
-	loadingDefinitions: boolean;
+	// Available MCPs from registry
+	registry: MCPRegistryItem[];
+	loadingRegistry: boolean;
 
 	// Connected instances
 	instances: MCPInstance[];
@@ -47,7 +47,8 @@ export interface MCPState {
 
 	// UI state
 	selectedMCPId: string | null;
-	filterCategory: MCPCategory | 'all';
+	filterCategory: string; // Category name from TOP_100_MCPS
+	filterSubcategory: string | null;
 	searchQuery: string;
 
 	// Errors
@@ -55,8 +56,8 @@ export interface MCPState {
 }
 
 const initialState: MCPState = {
-	definitions: builtinMCPs,
-	loadingDefinitions: false,
+	registry: TOP_100_MCPS,
+	loadingRegistry: false,
 	instances: [],
 	loadingInstances: false,
 	pendingFeedback: [],
@@ -66,6 +67,7 @@ const initialState: MCPState = {
 	teamBindings: [],
 	selectedMCPId: null,
 	filterCategory: 'all',
+	filterSubcategory: null,
 	searchQuery: '',
 	error: null
 };
@@ -80,28 +82,56 @@ export const mcpStore = writable<MCPState>(initialState);
 // Derived Stores
 // ============================================
 
-// Filtered definitions based on category and search
-export const filteredDefinitions = derived(mcpStore, ($state) => {
-	let filtered = $state.definitions;
+// Get unique categories from registry
+export const mcpCategories = derived(mcpStore, ($state) => {
+	const categories = [...new Set($state.registry.map(m => m.category))];
+	return categories;
+});
+
+// Get subcategories for a category
+export const getSubcategories = (category: string) => derived(mcpStore, ($state) => {
+	const subcats = [...new Set(
+		$state.registry
+			.filter(m => m.category === category)
+			.map(m => m.subcategory)
+	)];
+	return subcats;
+});
+
+// Filtered registry based on category, subcategory, and search
+export const filteredRegistry = derived(mcpStore, ($state) => {
+	let filtered = $state.registry;
 
 	// Filter by category
 	if ($state.filterCategory !== 'all') {
-		filtered = filtered.filter((d) => d.category === $state.filterCategory);
+		filtered = filtered.filter((m) => m.category === $state.filterCategory);
+	}
+
+	// Filter by subcategory
+	if ($state.filterSubcategory) {
+		filtered = filtered.filter((m) => m.subcategory === $state.filterSubcategory);
 	}
 
 	// Filter by search query
 	if ($state.searchQuery.trim()) {
 		const query = $state.searchQuery.toLowerCase();
 		filtered = filtered.filter(
-			(d) =>
-				d.name.toLowerCase().includes(query) ||
-				d.description.toLowerCase().includes(query) ||
-				d.tags.some((t) => t.toLowerCase().includes(query))
+			(m) =>
+				m.name.toLowerCase().includes(query) ||
+				m.description.toLowerCase().includes(query) ||
+				m.id.toLowerCase().includes(query) ||
+				m.skills.some((s) => s.toLowerCase().includes(query))
 		);
 	}
 
+	// Sort by popularity
+	filtered = filtered.sort((a, b) => b.popularity - a.popularity);
+
 	return filtered;
 });
+
+// Legacy alias for backwards compatibility
+export const filteredDefinitions = filteredRegistry;
 
 // Connected instances
 export const connectedInstances = derived(mcpStore, ($state) =>
@@ -124,9 +154,13 @@ export const instancesByStatus = derived(mcpStore, ($state) => {
 	return byStatus;
 });
 
-// Feedback MCPs (ones that can provide feedback to Mind)
+// Feedback MCPs (ones that can provide feedback to Mind - based on capabilities)
 export const feedbackMCPs = derived(mcpStore, ($state) =>
-	$state.definitions.filter((d) => d.feedbackTypes && d.feedbackTypes.length > 0)
+	$state.registry.filter((m) =>
+		m.capabilities.includes('analytics') ||
+		m.capabilities.includes('security_scan') ||
+		m.capabilities.includes('code_analysis')
+	)
 );
 
 // Pending feedback count
@@ -155,31 +189,33 @@ export const getMCPsForTeam = (teamId: string) =>
 // ============================================
 
 /**
- * Load MCP definitions (built-in + custom)
+ * Load MCP registry (Top 100 MCPs)
  */
-export function loadDefinitions() {
+export function loadRegistry() {
 	mcpStore.update((s) => ({
 		...s,
-		loadingDefinitions: true,
+		loadingRegistry: true,
 		error: null
 	}));
 
-	// For now, just use built-in MCPs
-	// Later: fetch from registry or local storage
+	// Use the Top 100 MCPs registry
 	mcpStore.update((s) => ({
 		...s,
-		definitions: builtinMCPs,
-		loadingDefinitions: false
+		registry: TOP_100_MCPS,
+		loadingRegistry: false
 	}));
 }
 
+// Legacy alias
+export const loadDefinitions = loadRegistry;
+
 /**
- * Add a custom MCP definition
+ * Add a custom MCP to registry
  */
-export function addDefinition(definition: MCPDefinition) {
+export function addToRegistry(mcp: MCPRegistryItem) {
 	mcpStore.update((s) => ({
 		...s,
-		definitions: [...s.definitions, definition]
+		registry: [...s.registry, mcp]
 	}));
 }
 
@@ -187,19 +223,19 @@ export function addDefinition(definition: MCPDefinition) {
  * Create a new MCP instance (connect an MCP)
  */
 export function createInstance(
-	definitionId: string,
+	mcpId: string,
 	config: MCPConfig = {},
 	name?: string
 ): MCPInstance {
-	const definition = get(mcpStore).definitions.find((d) => d.id === definitionId);
-	if (!definition) {
-		throw new Error(`MCP definition not found: ${definitionId}`);
+	const mcpDef = get(mcpStore).registry.find((m) => m.id === mcpId);
+	if (!mcpDef) {
+		throw new Error(`MCP not found in registry: ${mcpId}`);
 	}
 
 	const instance: MCPInstance = {
 		id: `mcp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-		definitionId,
-		name: name || definition.name,
+		definitionId: mcpId,
+		name: name || mcpDef.name,
 		status: 'disconnected',
 		config,
 		usageCount: 0,
@@ -225,6 +261,13 @@ export function createInstance(
  * Connect an MCP instance
  */
 export async function connectInstance(instanceId: string): Promise<boolean> {
+	const state = get(mcpStore);
+	const instance = state.instances.find((i) => i.id === instanceId);
+	if (!instance) {
+		console.error(`[MCP] Instance not found: ${instanceId}`);
+		return false;
+	}
+
 	mcpStore.update((s) => ({
 		...s,
 		instances: s.instances.map((i) =>
@@ -232,31 +275,78 @@ export async function connectInstance(instanceId: string): Promise<boolean> {
 		)
 	}));
 
-	// Simulate connection (replace with actual MCP connection logic)
-	await new Promise((r) => setTimeout(r, 1000));
+	try {
+		// Call the server-side MCP connection API
+		const response = await fetch('/api/mcp', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				instanceId,
+				mcpId: instance.definitionId,
+				config: instance.config
+			})
+		});
 
-	// For now, always succeed
-	mcpStore.update((s) => ({
-		...s,
-		instances: s.instances.map((i) =>
-			i.id === instanceId
-				? {
-						...i,
-						status: 'connected' as MCPConnectionStatus,
-						lastConnected: new Date().toISOString(),
-						updatedAt: new Date().toISOString()
-					}
-				: i
-		)
-	}));
+		const result = await response.json();
 
-	return true;
+		if (!response.ok || result.error) {
+			throw new Error(result.error || 'Connection failed');
+		}
+
+		// Successfully connected - update with server info and tools
+		mcpStore.update((s) => ({
+			...s,
+			instances: s.instances.map((i) =>
+				i.id === instanceId
+					? {
+							...i,
+							status: 'connected' as MCPConnectionStatus,
+							lastConnected: new Date().toISOString(),
+							updatedAt: new Date().toISOString(),
+							serverInfo: result.serverInfo,
+							tools: result.tools
+						}
+					: i
+			)
+		}));
+
+		console.log(`[MCP] Connected to ${result.serverInfo?.name}`, result.tools);
+		return true;
+	} catch (error) {
+		console.error(`[MCP] Connection error:`, error);
+		mcpStore.update((s) => ({
+			...s,
+			instances: s.instances.map((i) =>
+				i.id === instanceId
+					? {
+							...i,
+							status: 'error' as MCPConnectionStatus,
+							lastError: error instanceof Error ? error.message : 'Connection failed',
+							updatedAt: new Date().toISOString()
+						}
+					: i
+			),
+			error: error instanceof Error ? error.message : 'Connection failed'
+		}));
+		return false;
+	}
 }
 
 /**
  * Disconnect an MCP instance
  */
-export function disconnectInstance(instanceId: string) {
+export async function disconnectInstance(instanceId: string): Promise<void> {
+	try {
+		// Call the server-side MCP disconnect API
+		await fetch('/api/mcp', {
+			method: 'DELETE',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ instanceId })
+		});
+	} catch (error) {
+		console.error(`[MCP] Disconnect error:`, error);
+	}
+
 	mcpStore.update((s) => ({
 		...s,
 		instances: s.instances.map((i) =>
@@ -269,6 +359,55 @@ export function disconnectInstance(instanceId: string) {
 				: i
 		)
 	}));
+}
+
+/**
+ * Call a tool on a connected MCP instance
+ */
+export async function callMCPTool(
+	instanceId: string,
+	toolName: string,
+	args: Record<string, unknown> = {}
+): Promise<unknown> {
+	const state = get(mcpStore);
+	const instance = state.instances.find((i) => i.id === instanceId);
+
+	if (!instance || instance.status !== 'connected') {
+		throw new Error(`MCP not connected: ${instanceId}`);
+	}
+
+	try {
+		const response = await fetch('/api/mcp/call', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ instanceId, toolName, args })
+		});
+
+		const result = await response.json();
+
+		if (!response.ok || result.error) {
+			throw new Error(result.error || 'Tool call failed');
+		}
+
+		// Update usage count
+		mcpStore.update((s) => ({
+			...s,
+			instances: s.instances.map((i) =>
+				i.id === instanceId
+					? {
+							...i,
+							usageCount: i.usageCount + 1,
+							updatedAt: new Date().toISOString()
+						}
+					: i
+			)
+		}));
+
+		return result.result;
+	} catch (error) {
+		console.error(`[MCP] Tool call error:`, error);
+		throw error;
+	}
 }
 
 /**
@@ -503,8 +642,16 @@ export function setSelectedMCP(mcpId: string | null) {
 	mcpStore.update((s) => ({ ...s, selectedMCPId: mcpId }));
 }
 
-export function setFilterCategory(category: MCPCategory | 'all') {
-	mcpStore.update((s) => ({ ...s, filterCategory: category }));
+export function setFilterCategory(category: string) {
+	mcpStore.update((s) => ({
+		...s,
+		filterCategory: category,
+		filterSubcategory: null // Reset subcategory when category changes
+	}));
+}
+
+export function setFilterSubcategory(subcategory: string | null) {
+	mcpStore.update((s) => ({ ...s, filterSubcategory: subcategory }));
 }
 
 export function setSearchQuery(query: string) {

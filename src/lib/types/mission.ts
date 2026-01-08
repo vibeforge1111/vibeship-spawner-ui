@@ -236,13 +236,25 @@ ${agentList}
 ## Tasks
 ${taskList}
 
+## Progress Reporting
+
+Report progress to Spawner UI via HTTP POST to \`http://localhost:5173/api/events\`:
+
+\`\`\`bash
+# Task started: curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type":"task_started","missionId":"${mission.id}","taskId":"ID","taskName":"NAME"}'
+# Progress: curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type":"progress","progress":50,"message":"..."}'
+# Task done: curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type":"task_completed","taskId":"ID","data":{"success":true}}'
+\`\`\`
+
 ## Execution Instructions
 
 For each task:
-1. Load the assigned agent's skills using \`spawner_load\`
-2. Execute the task following the skill's patterns
-3. Log progress using \`spawner_emit\`
-4. When complete, hand off to the next agent if specified
+1. POST \`task_started\` event
+2. Load the assigned agent's skills using \`spawner_load\`
+3. Execute the task following the skill's patterns
+4. POST \`progress\` events periodically
+5. POST \`task_completed\` event when done
+6. When complete, hand off to the next agent if specified
 
 Start with the first task that has no dependencies.
 `;

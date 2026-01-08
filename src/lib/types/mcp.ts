@@ -90,6 +90,17 @@ export interface MCPConfig {
 	[key: string]: string | number | boolean;
 }
 
+export interface MCPTool {
+	name: string;
+	description?: string;
+	inputSchema?: Record<string, unknown>;
+}
+
+export interface MCPServerInfo {
+	name: string;
+	version: string;
+}
+
 export interface MCPInstance {
 	id: string;
 	definitionId: string;
@@ -101,6 +112,10 @@ export interface MCPInstance {
 	config: MCPConfig;
 	lastConnected?: string;
 	lastError?: string;
+
+	// Server info (populated after connection)
+	serverInfo?: MCPServerInfo;
+	tools?: MCPTool[];
 
 	// Usage tracking
 	usageCount: number;
@@ -706,6 +721,11 @@ export interface MCPRegistryItem {
 }
 
 export const TOP_100_MCPS: MCPRegistryItem[] = [
+	// ============================================
+	// Test Server (Local - No Auth Required)
+	// ============================================
+	{ id: 'test-server', name: 'Test MCP Server', description: 'Local test server with echo, time, random number, and add tools. No auth required!', category: 'Development', subcategory: 'Testing', official: false, popularity: 100, skills: ['testing-strategies'], capabilities: ['custom'] },
+
 	// Version Control (1-5)
 	{ id: 'github', name: 'GitHub MCP', description: 'Repos, PRs, issues, actions, code search', category: 'Development', subcategory: 'Version Control', repository: 'modelcontextprotocol/servers', official: true, popularity: 100, skills: ['git-workflow', 'code-review', 'ci-cd-pipeline'], capabilities: ['code_analysis'] },
 	{ id: 'gitlab', name: 'GitLab MCP', description: 'GitLab API - repos, MRs, CI/CD', category: 'Development', subcategory: 'Version Control', official: false, popularity: 85, skills: ['git-workflow', 'ci-cd-pipeline', 'devops'], capabilities: ['code_analysis'] },

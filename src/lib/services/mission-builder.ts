@@ -182,6 +182,7 @@ function generateTasks(
 
 /**
  * Build a Mission from canvas nodes and connections
+ * NOTE: This builds the mission locally - no MCP call needed
  */
 export async function buildMissionFromCanvas(
 	nodes: CanvasNode[],
@@ -200,34 +201,96 @@ export async function buildMissionFromCanvas(
 		const tasks = generateTasks(nodes, connections, agents);
 
 		// Build context
-		const context: Partial<MissionContext> = {
+		const context: MissionContext = {
 			projectPath: options.projectPath || '.',
 			projectType: options.projectType || 'general',
-			techStack: options.techStack,
+			techStack: options.techStack || [],
 			goals: options.goals || [options.description || `Complete ${options.name}`]
 		};
 
-		// Create mission via MCP
-		const result = await mcpClient.createMission({
+		// Build mission locally (no MCP call - spawner_mission doesn't exist)
+		const mission: Mission = {
+			id: `mission-${Date.now()}`,
 			name: options.name,
-			description: options.description,
+			description: options.description || '',
+			status: 'ready',
 			mode: options.mode || 'claude-code',
 			agents,
 			tasks,
-			context
-		});
+			context,
+			outputs: {},
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		};
 
-		if (result.success && result.data) {
-			return { success: true, mission: result.data.mission };
-		} else {
-			return { success: false, error: result.error || 'Failed to create mission' };
-		}
+		return { success: true, mission };
 	} catch (e) {
 		return {
 			success: false,
 			error: e instanceof Error ? e.message : 'Unknown error building mission'
 		};
 	}
+}
+
+/**
+ * Generate a copy-pasteable execution prompt for Claude Code
+ */
+export function generateExecutionPrompt(mission: Mission): string {
+	const taskList = mission.tasks
+		.map((t, i) => {
+			const deps = t.dependsOn?.length ? ` (after: ${t.dependsOn.join(', ')})` : '';
+			return `${i + 1}. **${t.title}** (id: ${t.id})${deps}\n   ${t.description}`;
+		})
+		.join('\n\n');
+
+	const skillList = [...new Set(mission.agents.flatMap(a => a.skills))].join(', ');
+
+	return `# Mission: ${mission.name}
+
+${mission.description || ''}
+
+## Context
+- **Mission ID**: ${mission.id}
+- **Project Path**: ${mission.context.projectPath}
+- **Project Type**: ${mission.context.projectType}
+- **Tech Stack**: ${mission.context.techStack?.join(', ') || 'Not specified'}
+- **Goals**: ${mission.context.goals?.join('; ') || mission.description}
+
+## Skills to Use
+${skillList}
+
+## Tasks (Execute in Order)
+
+${taskList}
+
+## Progress Reporting (IMPORTANT)
+
+Report progress to the Spawner UI by using the Bash tool to POST events:
+
+\`\`\`bash
+# When starting a task:
+curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type":"task_started","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME"}'
+
+# During task progress (0-100):
+curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type":"progress","missionId":"${mission.id}","taskId":"TASK_ID","progress":50,"message":"Working on..."}'
+
+# When completing a task:
+curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type":"task_completed","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME","data":{"success":true}}'
+
+# When mission completes:
+curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type":"mission_completed","missionId":"${mission.id}"}'
+\`\`\`
+
+## Instructions
+
+Execute each task in sequence. For each task:
+1. POST a \`task_started\` event with the task ID and name
+2. Load the relevant skill using \`spawner_skills\` if needed
+3. Complete the task following the skill's guidance
+4. POST \`progress\` events periodically during long tasks
+5. POST a \`task_completed\` event when done
+
+Start with Task 1 and proceed through all tasks.`;
 }
 
 /**
