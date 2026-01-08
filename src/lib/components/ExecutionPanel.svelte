@@ -58,13 +58,23 @@
 	let currentTaskProgress = $state(0);
 	let currentTaskMessage = $state<string | null>(null);
 
+	// Resumable mission state
+	let resumableMission = $state<{
+		id: string;
+		name: string;
+		progress: number;
+		status: ExecutionStatus;
+	} | null>(null);
+	let showResumeBanner = $state(false);
+
 	// Derived states
 	let isRunning = $derived(executionProgress?.status === 'running' || executionProgress?.status === 'creating');
 	let isPaused = $derived(executionProgress?.status === 'paused');
 	let canPause = $derived(executionProgress?.status === 'running');
 	let canResume = $derived(executionProgress?.status === 'paused');
 	let canCancel = $derived(isRunning || isPaused);
-	let canRun = $derived(mcpConnected && !isRunning && !isPaused && currentNodes.length > 0);
+	// Note: MCP not required anymore - we build missions locally and generate copy-pasteable prompts
+	let canRun = $derived(!isRunning && !isPaused && currentNodes.length > 0);
 
 	$effect(() => {
 		const unsub1 = nodes.subscribe((n) => (currentNodes = n));
@@ -77,6 +87,18 @@
 			unsub3();
 			unsub4();
 		};
+	});
+
+	// Check for resumable mission on mount
+	$effect(() => {
+		const missionInfo = missionExecutor.getResumableMissionInfo();
+		if (missionInfo) {
+			resumableMission = missionInfo;
+			showResumeBanner = true;
+			// Also restore the execution progress
+			executionProgress = missionExecutor.getProgress();
+			logs = executionProgress?.logs || [];
+		}
 	});
 
 	// Fetch pre-mission context when panel opens and nodes exist
@@ -104,6 +126,30 @@
 	function handleApplyPattern(pattern: PatternSuggestion) {
 		// For now, just show a toast - in future could auto-arrange nodes
 		toasts.info(`Pattern applied: ${pattern.content.slice(0, 50)}...`);
+	}
+
+	/**
+	 * Dismiss the resume banner and clear the saved mission state
+	 */
+	function dismissResumeBanner() {
+		showResumeBanner = false;
+		resumableMission = null;
+		missionExecutor.stop();  // This clears the persisted state
+		executionProgress = null;
+		logs = [];
+		toasts.info('Previous mission dismissed');
+	}
+
+	/**
+	 * Continue with the resumed mission
+	 */
+	function continueResumableMission() {
+		showResumeBanner = false;
+		// Mission is already restored, just continue
+		if (resumableMission?.status === 'paused') {
+			handleResume();
+		}
+		toasts.success(`Continuing mission: ${resumableMission?.name}`);
 	}
 
 	/**
@@ -515,6 +561,47 @@
 			</button>
 		</div>
 
+		<!-- Resume Banner (shown when there's a saved mission) -->
+		{#if showResumeBanner && resumableMission}
+			<div class="p-3 bg-blue-500/10 border-b border-blue-500/30">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-3">
+						<div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+							<svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+							</svg>
+						</div>
+						<div>
+							<p class="text-sm font-medium text-text-primary">Previous Mission Found</p>
+							<p class="text-xs text-text-secondary">
+								<span class="font-mono text-blue-400">{resumableMission.name}</span>
+								 - {resumableMission.progress}% complete
+								{#if resumableMission.status === 'paused'}
+									<span class="ml-1 text-blue-400">(Paused)</span>
+								{:else if resumableMission.status === 'running'}
+									<span class="ml-1 text-yellow-400">(Interrupted)</span>
+								{/if}
+							</p>
+						</div>
+					</div>
+					<div class="flex items-center gap-2">
+						<button
+							onclick={continueResumableMission}
+							class="px-3 py-1.5 text-xs font-mono bg-blue-500 text-white hover:bg-blue-600 transition-all"
+						>
+							Continue
+						</button>
+						<button
+							onclick={dismissResumeBanner}
+							class="px-3 py-1.5 text-xs font-mono text-text-secondary border border-surface-border hover:border-text-tertiary transition-all"
+						>
+							Dismiss
+						</button>
+					</div>
+				</div>
+			</div>
+		{/if}
+
 		<!-- Progress -->
 		{#if executionProgress}
 			<div class="p-4 border-b border-surface-border">
@@ -563,26 +650,36 @@
 					<span>{currentNodes.length} nodes</span>
 					<span>{getExecutionDuration()}</span>
 				</div>
-				{#if executionProgress.missionId}
-					<div class="mt-2 p-2 bg-surface-secondary rounded text-xs">
+				{#if executionProgress.executionPrompt}
+					<div class="mt-3 p-3 bg-accent-primary/10 border border-accent-primary/30">
+						<div class="flex items-center justify-between mb-2">
+							<span class="text-xs font-mono text-accent-primary uppercase tracking-wider">Copy to Claude Code</span>
+							<button
+								class="px-3 py-1.5 bg-accent-primary hover:bg-accent-primary-hover text-bg-primary text-xs font-mono transition-all flex items-center gap-2"
+								onclick={() => {
+									navigator.clipboard.writeText(executionProgress.executionPrompt || '');
+									toasts.success('Copied! Paste this prompt into Claude Code to execute');
+								}}
+							>
+								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+								</svg>
+								Copy Prompt
+							</button>
+						</div>
+						<div class="max-h-32 overflow-y-auto bg-bg-primary p-2 border border-surface-border text-xs font-mono text-text-secondary select-text">
+							<pre class="whitespace-pre-wrap break-all">{executionProgress.executionPrompt.slice(0, 500)}{executionProgress.executionPrompt.length > 500 ? '...' : ''}</pre>
+						</div>
+						<p class="mt-2 text-xs text-text-tertiary">
+							Paste this prompt into Claude Code to execute the workflow. Claude will use the spawner skills to complete each task.
+						</p>
+					</div>
+				{:else if executionProgress.missionId}
+					<div class="mt-2 p-2 bg-surface-secondary text-xs">
 						<div class="flex items-center justify-between gap-2">
 							<span class="text-text-tertiary">Mission ID:</span>
 							<code class="text-accent-primary font-mono select-all">{executionProgress.missionId}</code>
-							<button
-								class="px-2 py-1 bg-accent-primary/20 hover:bg-accent-primary/30 text-accent-primary rounded text-xs"
-								onclick={() => {
-									navigator.clipboard.writeText(`Execute mission ${executionProgress.missionId}`);
-									toasts.success('Copied! Paste this to Claude Code');
-								}}
-							>
-								Copy for Claude
-							</button>
 						</div>
-						{#if executionProgress.status === 'running' && executionProgress.progress === 0}
-							<p class="mt-2 text-text-tertiary text-xs">
-								Tell Claude Code: "Execute mission {executionProgress.missionId}"
-							</p>
-						{/if}
 					</div>
 				{/if}
 
@@ -693,15 +790,7 @@
 
 		<!-- Logs -->
 		<div bind:this={logsContainer} class="flex-1 overflow-y-auto p-4 font-mono text-sm bg-bg-primary select-text">
-			{#if !mcpConnected}
-				<div class="text-center py-8">
-					<div class="text-red-400 mb-2">MCP Not Connected</div>
-					<p class="text-text-tertiary text-sm">
-						Connect to an MCP server to execute workflows.<br/>
-						Go to Settings to configure your MCP connection.
-					</p>
-				</div>
-			{:else if logs.length === 0}
+			{#if logs.length === 0}
 				<div class="text-center py-8 text-text-tertiary">
 					{#if isRunning}
 						<div class="animate-pulse">
@@ -813,7 +902,7 @@
 					onclick={runWorkflow}
 					disabled={!canRun}
 					class="px-4 py-1.5 text-sm font-mono bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-					title={!mcpConnected ? 'MCP not connected' : currentNodes.length === 0 ? 'No nodes to execute' : ''}
+					title={currentNodes.length === 0 ? 'No nodes to execute' : ''}
 				>
 					{#if isRunning}
 						Running...

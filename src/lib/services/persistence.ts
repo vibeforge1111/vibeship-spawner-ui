@@ -9,6 +9,7 @@
  */
 
 import { browser } from '$app/environment';
+import type { Mission } from '$lib/types/mission';
 
 // Current schema version - increment when data structure changes
 const SCHEMA_VERSION = 1;
@@ -22,6 +23,9 @@ export const STORAGE_KEYS = {
 	GENERATED_SKILLS: 'spawner-generated-skills',
 	MEMORY_SETTINGS: 'spawner-memory-settings',
 	MCP_URL: 'mcp-url',
+	// Mission execution state
+	ACTIVE_MISSION: 'spawner-active-mission',
+	MISSION_HISTORY: 'spawner-mission-history',
 } as const;
 
 export interface StorageStats {
@@ -291,6 +295,165 @@ export function downloadBackup(): void {
 	a.click();
 	document.body.removeChild(a);
 	URL.revokeObjectURL(url);
+}
+
+// ============================================
+// Mission State Persistence
+// ============================================
+
+// Define types locally to avoid circular dependency with mission-executor
+type ExecutionStatus = 'idle' | 'creating' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
+
+interface TaskProgress {
+	taskId: string;
+	taskName: string;
+	progress: number;
+	message?: string;
+	startedAt: number;
+}
+
+/**
+ * Serializable version of ExecutionProgress
+ * (Map is not JSON-serializable, so we convert it)
+ */
+export interface PersistedMissionState {
+	status: ExecutionStatus;
+	missionId: string | null;
+	mission: Mission | null;
+	executionPrompt: string | null;
+	progress: number;
+	currentTaskId: string | null;
+	currentTaskName: string | null;
+	currentTaskProgress: number;
+	currentTaskMessage: string | null;
+	taskProgressMap: Record<string, TaskProgress>;  // Object instead of Map
+	logs: Array<{
+		id: string;
+		mission_id: string;
+		agent_id: string | null;
+		task_id: string | null;
+		type: string;
+		message: string;
+		data: Record<string, unknown>;
+		created_at: string;
+	}>;
+	startTime: string | null;  // ISO string instead of Date
+	endTime: string | null;
+	error: string | null;
+	// Metadata for recovery
+	savedAt: string;
+	version: number;
+}
+
+/**
+ * Mission history entry for showing recent missions
+ */
+export interface MissionHistoryEntry {
+	id: string;
+	name: string;
+	status: ExecutionStatus;
+	progress: number;
+	startTime: string;
+	endTime: string | null;
+	taskCount: number;
+	completedTasks: number;
+}
+
+const MISSION_STATE_VERSION = 1;
+const MAX_HISTORY_ENTRIES = 10;
+
+/**
+ * Save active mission state to localStorage
+ */
+export function saveMissionState(state: PersistedMissionState): boolean {
+	return setItem(STORAGE_KEYS.ACTIVE_MISSION, {
+		...state,
+		savedAt: new Date().toISOString(),
+		version: MISSION_STATE_VERSION
+	});
+}
+
+/**
+ * Get active mission state from localStorage
+ */
+export function getActiveMissionState(): PersistedMissionState | null {
+	const state = getItem<PersistedMissionState | null>(STORAGE_KEYS.ACTIVE_MISSION, null);
+
+	if (!state) return null;
+
+	// Validate version
+	if (state.version !== MISSION_STATE_VERSION) {
+		console.log('[Persistence] Mission state version mismatch, clearing');
+		clearMissionState();
+		return null;
+	}
+
+	// Check if mission is still active (not completed/failed/cancelled)
+	if (state.status === 'completed' || state.status === 'failed' || state.status === 'cancelled') {
+		// Move to history and clear active
+		addToMissionHistory(state);
+		clearMissionState();
+		return null;
+	}
+
+	return state;
+}
+
+/**
+ * Clear active mission state
+ */
+export function clearMissionState(): boolean {
+	return removeItem(STORAGE_KEYS.ACTIVE_MISSION);
+}
+
+/**
+ * Add completed mission to history
+ */
+export function addToMissionHistory(state: PersistedMissionState): boolean {
+	if (!state.mission) return false;
+
+	const history = getMissionHistory();
+
+	const entry: MissionHistoryEntry = {
+		id: state.missionId || state.mission.id,
+		name: state.mission.name,
+		status: state.status,
+		progress: state.progress,
+		startTime: state.startTime || new Date().toISOString(),
+		endTime: state.endTime,
+		taskCount: state.mission.tasks?.length || 0,
+		completedTasks: state.mission.tasks?.filter(t => t.status === 'completed').length || 0
+	};
+
+	// Add to front, limit history size
+	const newHistory = [entry, ...history.filter(h => h.id !== entry.id)].slice(0, MAX_HISTORY_ENTRIES);
+
+	return setItem(STORAGE_KEYS.MISSION_HISTORY, newHistory);
+}
+
+/**
+ * Get mission history
+ */
+export function getMissionHistory(): MissionHistoryEntry[] {
+	return getItem<MissionHistoryEntry[]>(STORAGE_KEYS.MISSION_HISTORY, []);
+}
+
+/**
+ * Clear mission history
+ */
+export function clearMissionHistory(): boolean {
+	return removeItem(STORAGE_KEYS.MISSION_HISTORY);
+}
+
+/**
+ * Check if there's a resumable mission
+ */
+export function hasResumableMission(): boolean {
+	const state = getItem<PersistedMissionState | null>(STORAGE_KEYS.ACTIVE_MISSION, null);
+	if (!state) return false;
+
+	// Only resumable if paused or running (interrupted)
+	return state.status === 'paused' || state.status === 'running' || state.status === 'creating';
 }
 
 // ============================================

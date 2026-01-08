@@ -12,12 +12,20 @@
 
 import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import type { Mission, MissionLog, MissionTask } from '$lib/services/mcp-client';
-import { mcpClient } from '$lib/services/mcp-client';
-import { buildMissionFromCanvas, validateForMission, type MissionBuildOptions } from './mission-builder';
+import { buildMissionFromCanvas, validateForMission, generateExecutionPrompt, type MissionBuildOptions } from './mission-builder';
 import { syncClient, broadcastMissionEvent, broadcastLearningEvent, broadcastTaskEvent, broadcastExecutionControl, isConnected, type SyncEvent } from './sync-client';
+import { clientEventBridge, type BridgeEvent } from './event-bridge';
 import { memoryClient } from './memory-client';
 import { get } from 'svelte/store';
+import { browser } from '$app/environment';
 import { memorySettings, isMemoryConnected, shouldRecordDecision } from '$lib/stores/memory-settings.svelte';
+import {
+	saveMissionState,
+	getActiveMissionState,
+	clearMissionState,
+	addToMissionHistory,
+	type PersistedMissionState
+} from './persistence';
 
 export type ExecutionMode = 'preview' | 'live';
 export type ExecutionStatus = 'idle' | 'creating' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
@@ -34,12 +42,13 @@ export interface ExecutionProgress {
 	status: ExecutionStatus;
 	missionId: string | null;
 	mission: Mission | null;
+	executionPrompt: string | null;  // Copy-pasteable prompt for Claude Code
 	progress: number;              // Overall mission progress 0-100
 	currentTaskId: string | null;
 	currentTaskName: string | null;
-	currentTaskProgress: number;   // NEW: Progress within current task 0-100
-	currentTaskMessage: string | null;  // NEW: Current activity description
-	taskProgressMap: Map<string, TaskProgress>;  // NEW: Track all task progress
+	currentTaskProgress: number;   // Progress within current task 0-100
+	currentTaskMessage: string | null;  // Current activity description
+	taskProgressMap: Map<string, TaskProgress>;  // Track all task progress
 	logs: MissionLog[];
 	startTime: Date | null;
 	endTime: Date | null;
@@ -63,6 +72,7 @@ class MissionExecutor {
 	private callbacks: ExecutionCallbacks = {};
 	private lastLogId: string | null = null;
 	private syncUnsubscribe: (() => void) | null = null;
+	private eventBridgeUnsubscribe: (() => void) | null = null;
 	private useWebSocket = false;
 
 	// Learning tracking
@@ -73,6 +83,138 @@ class MissionExecutor {
 	constructor() {
 		this.progress = this.createInitialProgress();
 		this.setupSyncSubscription();
+		this.setupEventBridgeSubscription();
+		// Try to restore from saved state on initialization
+		this.tryRestoreState();
+	}
+
+	// ============================================
+	// Persistence Methods
+	// ============================================
+
+	/**
+	 * Serialize current progress to persistable format
+	 */
+	private serializeProgress(): PersistedMissionState {
+		return {
+			status: this.progress.status,
+			missionId: this.progress.missionId,
+			mission: this.progress.mission,
+			executionPrompt: this.progress.executionPrompt,
+			progress: this.progress.progress,
+			currentTaskId: this.progress.currentTaskId,
+			currentTaskName: this.progress.currentTaskName,
+			currentTaskProgress: this.progress.currentTaskProgress,
+			currentTaskMessage: this.progress.currentTaskMessage,
+			// Convert Map to Object for JSON serialization
+			taskProgressMap: Object.fromEntries(this.progress.taskProgressMap),
+			logs: this.progress.logs,
+			startTime: this.progress.startTime?.toISOString() || null,
+			endTime: this.progress.endTime?.toISOString() || null,
+			error: this.progress.error,
+			savedAt: new Date().toISOString(),
+			version: 1
+		};
+	}
+
+	/**
+	 * Restore progress from persisted state
+	 */
+	private deserializeProgress(saved: PersistedMissionState): void {
+		this.progress.status = saved.status;
+		this.progress.missionId = saved.missionId;
+		this.progress.mission = saved.mission;
+		this.progress.executionPrompt = saved.executionPrompt;
+		this.progress.progress = saved.progress;
+		this.progress.currentTaskId = saved.currentTaskId;
+		this.progress.currentTaskName = saved.currentTaskName;
+		this.progress.currentTaskProgress = saved.currentTaskProgress;
+		this.progress.currentTaskMessage = saved.currentTaskMessage;
+		// Convert Object back to Map
+		this.progress.taskProgressMap = new Map(Object.entries(saved.taskProgressMap || {}));
+		this.progress.logs = saved.logs || [];
+		this.progress.startTime = saved.startTime ? new Date(saved.startTime) : null;
+		this.progress.endTime = saved.endTime ? new Date(saved.endTime) : null;
+		this.progress.error = saved.error;
+	}
+
+	/**
+	 * Persist current state to localStorage
+	 */
+	private persistState(): void {
+		if (!browser) return;
+
+		// Only persist active missions
+		if (this.progress.status === 'idle') {
+			clearMissionState();
+			return;
+		}
+
+		const serialized = this.serializeProgress();
+		const success = saveMissionState(serialized);
+
+		if (success) {
+			console.log('[MissionExecutor] State persisted', {
+				status: this.progress.status,
+				missionId: this.progress.missionId,
+				progress: this.progress.progress
+			});
+		}
+
+		// If completed/failed/cancelled, move to history
+		if (this.progress.status === 'completed' || this.progress.status === 'failed' || this.progress.status === 'cancelled') {
+			addToMissionHistory(serialized);
+			clearMissionState();
+		}
+	}
+
+	/**
+	 * Try to restore state from localStorage on startup
+	 */
+	private tryRestoreState(): void {
+		if (!browser) return;
+
+		const saved = getActiveMissionState();
+		if (!saved) return;
+
+		console.log('[MissionExecutor] Restoring mission state', {
+			missionId: saved.missionId,
+			status: saved.status,
+			progress: saved.progress
+		});
+
+		this.deserializeProgress(saved);
+
+		// If mission was running, add a log about recovery
+		if (saved.status === 'running' || saved.status === 'paused') {
+			this.addLocalLog('info', `Mission restored from previous session (${saved.progress}% complete)`);
+
+			// If was running, resume polling
+			if (saved.status === 'running') {
+				this.startPolling();
+			}
+		}
+	}
+
+	/**
+	 * Check if there's a resumable mission
+	 */
+	hasResumableMission(): boolean {
+		return this.progress.status !== 'idle' && this.progress.missionId !== null;
+	}
+
+	/**
+	 * Get info about the current/resumable mission
+	 */
+	getResumableMissionInfo(): { id: string; name: string; progress: number; status: ExecutionStatus } | null {
+		if (!this.hasResumableMission()) return null;
+
+		return {
+			id: this.progress.missionId || '',
+			name: this.progress.mission?.name || 'Unknown Mission',
+			progress: this.progress.progress,
+			status: this.progress.status
+		};
 	}
 
 	/**
@@ -113,6 +255,7 @@ class MissionExecutor {
 						// Record mission completion for learning
 						this.recordMissionComplete(mission);
 					}
+					this.persistState();  // Persist completed state
 					break;
 
 				case 'mission_failed':
@@ -126,6 +269,7 @@ class MissionExecutor {
 					if (this.progress.mission) {
 						this.recordMissionComplete(this.progress.mission);
 					}
+					this.persistState();  // Persist failed state
 					break;
 
 				case 'mission_paused':
@@ -135,6 +279,7 @@ class MissionExecutor {
 						this.stopPolling();
 						this.callbacks.onStatusChange?.('paused');
 						this.addLocalLog('info', 'Mission paused (remote)');
+						this.persistState();  // Persist paused state
 					}
 					break;
 
@@ -145,6 +290,7 @@ class MissionExecutor {
 						this.startPolling();
 						this.callbacks.onStatusChange?.('running');
 						this.addLocalLog('info', 'Mission resumed (remote)');
+						this.persistState();  // Persist resumed state
 					}
 					break;
 
@@ -183,6 +329,108 @@ class MissionExecutor {
 				case 'agent_handoff':
 					this.addLocalLog('info', `Agent handoff: ${event.data.from} → ${event.data.to}`);
 					break;
+			}
+		});
+	}
+
+	/**
+	 * Setup Event Bridge subscription for real-time updates from Claude Code
+	 * This is the primary mechanism for receiving events via HTTP POST
+	 */
+	private setupEventBridgeSubscription(): void {
+		if (!browser || !clientEventBridge) return;
+
+		this.eventBridgeUnsubscribe = clientEventBridge.subscribe((event: BridgeEvent) => {
+			// Only process events for our current mission (or events without missionId)
+			if (event.missionId && event.missionId !== this.progress.missionId) return;
+
+			// Skip events we sent ourselves
+			if (event.source === 'spawner-ui') return;
+
+			console.log('[MissionExecutor] Received event bridge event:', event.type, event);
+
+			switch (event.type) {
+				case 'task_started':
+					// Claude Code started a task
+					const taskId = event.taskId || event.data?.taskId as string;
+					const taskName = event.taskName || event.data?.taskName as string;
+					if (taskId && taskId !== this.progress.currentTaskId) {
+						this.progress.currentTaskId = taskId;
+						this.progress.currentTaskName = taskName || taskId;
+						this.progress.currentTaskProgress = 0;
+						this.progress.currentTaskMessage = event.message || null;
+						this.callbacks.onTaskStart?.(taskId, taskName || taskId);
+						this.addLocalLog('info', `Started: ${taskName || taskId}`);
+					}
+					break;
+
+				case 'task_progress':
+				case 'progress':
+					// Progress update within a task
+					const progressTaskId = event.taskId || this.progress.currentTaskId;
+					const progressValue = event.progress ?? (event.data?.percent as number) ?? 0;
+					const progressMessage = event.message || event.data?.message as string;
+					if (progressTaskId) {
+						this.handleTaskProgress(progressTaskId, progressValue, progressMessage);
+						if (progressMessage) {
+							this.addLocalLog('info', progressMessage);
+						}
+					}
+					break;
+
+				case 'task_completed':
+					// Claude Code completed a task
+					const completedTaskId = event.taskId || event.data?.taskId as string;
+					const success = event.data?.success !== false;
+					if (completedTaskId) {
+						this.callbacks.onTaskComplete?.(completedTaskId, success);
+						this.recordTaskComplete(completedTaskId, success);
+						this.addLocalLog(success ? 'info' : 'info', `${success ? 'Completed' : 'Failed'}: ${event.taskName || completedTaskId}`);
+					}
+					break;
+
+				case 'handoff':
+					// Agent handoff between tasks
+					const from = event.data?.from as string || 'previous task';
+					const to = event.data?.to as string || 'next task';
+					this.addLocalLog('info', `Handoff: ${from} → ${to}`);
+					break;
+
+				case 'mission_completed':
+					this.progress.status = 'completed';
+					this.progress.endTime = new Date();
+					this.callbacks.onStatusChange?.('completed');
+					if (this.progress.mission) {
+						this.callbacks.onComplete?.(this.progress.mission);
+						this.recordMissionComplete(this.progress.mission);
+					}
+					this.addLocalLog('info', 'Mission completed successfully');
+					this.persistState();  // Persist completed state
+					break;
+
+				case 'mission_failed':
+				case 'error':
+					const errorMsg = event.message || event.data?.error as string || 'Mission failed';
+					this.progress.status = 'failed';
+					this.progress.error = errorMsg;
+					this.progress.endTime = new Date();
+					this.callbacks.onStatusChange?.('failed');
+					this.callbacks.onError?.(errorMsg);
+					this.addLocalLog('info', `Error: ${errorMsg}`);
+					this.persistState();  // Persist failed state
+					break;
+
+				case 'log':
+					// Generic log message
+					const logMessage = event.message || event.data?.message as string;
+					if (logMessage) {
+						this.addLocalLog('info', logMessage);
+					}
+					break;
+
+				default:
+					// Log unknown event types for debugging
+					console.log('[MissionExecutor] Unknown event type:', event.type);
 			}
 		});
 	}
@@ -278,6 +526,8 @@ class MissionExecutor {
 		if (newProgress !== this.progress.progress) {
 			this.progress.progress = newProgress;
 			this.callbacks.onProgress?.(this.progress.progress);
+			// Persist progress updates (throttled by the debounced nature of task progress)
+			this.persistState();
 		}
 	}
 
@@ -286,6 +536,7 @@ class MissionExecutor {
 			status: 'idle',
 			missionId: null,
 			mission: null,
+			executionPrompt: null,
 			progress: 0,
 			currentTaskId: null,
 			currentTaskName: null,
@@ -322,6 +573,8 @@ class MissionExecutor {
 
 	/**
 	 * Execute workflow by creating and starting a mission
+	 * NOTE: Since spawner_mission MCP tool doesn't exist, this builds locally
+	 * and generates a copy-pasteable prompt for Claude Code
 	 */
 	async execute(
 		nodes: CanvasNode[],
@@ -344,7 +597,7 @@ class MissionExecutor {
 				throw new Error(`Validation failed: ${validation.issues.join(', ')}`);
 			}
 
-			// Step 2: Build mission from canvas
+			// Step 2: Build mission from canvas (locally, no MCP call)
 			this.addLocalLog('info', 'Creating mission from workflow...');
 			const buildResult = await buildMissionFromCanvas(nodes, connections, options);
 
@@ -356,32 +609,31 @@ class MissionExecutor {
 			this.progress.mission = buildResult.mission;
 			this.addLocalLog('info', `Mission created: ${buildResult.mission.id}`);
 
+			// Step 3: Generate copy-pasteable execution prompt
+			const executionPrompt = generateExecutionPrompt(buildResult.mission);
+			this.progress.executionPrompt = executionPrompt;
+			this.addLocalLog('info', 'Execution prompt generated - copy to Claude Code to start');
+
 			// Broadcast mission created event for sync
 			broadcastMissionEvent('mission_created', buildResult.mission.id, {
-				mission: buildResult.mission
+				mission: buildResult.mission,
+				executionPrompt
 			});
 
-			// Step 3: Start the mission
+			// Set status to running (waiting for Claude Code to pick up)
 			this.progress.status = 'running';
 			this.callbacks.onStatusChange?.('running');
-			this.addLocalLog('info', 'Starting mission execution...');
 
-			const startResult = await mcpClient.startMission(buildResult.mission.id);
-			if (!startResult.success) {
-				throw new Error(startResult.error || 'Failed to start mission');
-			}
+			// Persist state after mission creation
+			this.persistState();
 
-			this.progress.mission = startResult.data?.mission || this.progress.mission;
-			this.addLocalLog('info', 'Mission started successfully');
-
-			// Broadcast mission started event
-			broadcastMissionEvent('mission_started', this.progress.missionId!, {
-				mission: this.progress.mission
-			});
-
-			// Step 4: Start updates (WebSocket + reduced polling as fallback)
+			// Listen for sync events from Claude Code
 			this.useWebSocket = get(isConnected);
-			this.startPolling();
+			if (this.useWebSocket) {
+				this.addLocalLog('info', 'Listening for updates from Claude Code...');
+			} else {
+				this.addLocalLog('info', 'Copy the prompt below and paste it into Claude Code');
+			}
 
 			return this.progress;
 
@@ -393,6 +645,7 @@ class MissionExecutor {
 			this.callbacks.onStatusChange?.('failed');
 			this.callbacks.onError?.(errorMsg);
 			this.addLocalLog('error', `Execution failed: ${errorMsg}`);
+			this.persistState();  // Persist error state
 			return this.progress;
 		}
 	}
@@ -411,6 +664,7 @@ class MissionExecutor {
 			this.stopPolling();
 			this.callbacks.onStatusChange?.('paused');
 			this.addLocalLog('info', 'Execution paused');
+			this.persistState();  // Persist paused state
 
 			// Broadcast pause event for other clients
 			broadcastExecutionControl('mission_paused', this.progress.missionId, {
@@ -452,6 +706,7 @@ class MissionExecutor {
 			this.startPolling();
 			this.callbacks.onStatusChange?.('running');
 			this.addLocalLog('info', 'Execution resumed');
+			this.persistState();  // Persist resumed state
 
 			// Broadcast resume event for other clients
 			broadcastExecutionControl('mission_resumed', this.progress.missionId, {
@@ -498,6 +753,7 @@ class MissionExecutor {
 				this.stopPolling();
 				this.callbacks.onStatusChange?.('cancelled');
 				this.addLocalLog('info', 'Execution cancelled');
+				this.persistState();  // Persist cancelled state (will move to history)
 				return true;
 			}
 		} catch (error) {
@@ -513,16 +769,21 @@ class MissionExecutor {
 	stop(): void {
 		this.stopPolling();
 		this.progress = this.createInitialProgress();
+		clearMissionState();  // Clear persisted state when stopping
 	}
 
 	/**
-	 * Full cleanup including sync subscription
+	 * Full cleanup including sync subscription and event bridge
 	 */
 	destroy(): void {
 		this.stop();
 		if (this.syncUnsubscribe) {
 			this.syncUnsubscribe();
 			this.syncUnsubscribe = null;
+		}
+		if (this.eventBridgeUnsubscribe) {
+			this.eventBridgeUnsubscribe();
+			this.eventBridgeUnsubscribe = null;
 		}
 	}
 
