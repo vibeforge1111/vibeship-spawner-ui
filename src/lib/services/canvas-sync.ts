@@ -42,6 +42,7 @@ import { generatePorts } from '$lib/utils/ports';
 import type { Skill } from '$lib/stores/skills.svelte';
 import { get } from 'svelte/store';
 import { activePipeline, pipelines } from '$lib/stores/pipelines.svelte';
+import { getH70Skill } from './h70-skills';
 
 // Canvas-specific event types
 export type CanvasEventType =
@@ -776,6 +777,7 @@ function handleCreateConnection(sourceNodeId: string, targetNodeId: string): voi
 
 /**
  * Handle getting skill content/instructions
+ * Priority: H70 Local → MCP Server → Metadata Fallback
  */
 async function handleGetSkillContent(skillId: string): Promise<void> {
 	const skill = await findSkill(skillId);
@@ -785,20 +787,37 @@ async function handleGetSkillContent(skillId: string): Promise<void> {
 		return;
 	}
 
-	// Try to get full skill content from MCP server first
 	let fullContent: string | null = null;
-	const state = get(mcpState);
+	let source: 'h70' | 'mcp' | 'metadata' = 'metadata';
 
-	if (state.status === 'connected') {
-		console.log('[CanvasSync] Fetching skill content from MCP:', skill.id);
-		try {
-			const result = await mcpClient.getSkill(skill.id);
-			if (result.success && result.data?.content) {
-				fullContent = result.data.content;
-				console.log('[CanvasSync] Got full skill content from MCP:', skill.id, `(${fullContent.length} chars)`);
+	// PRIORITY 1: Try H70 local skills first (PRIMARY SOURCE)
+	console.log('[CanvasSync] Fetching skill content from H70:', skill.id);
+	try {
+		const h70Result = await getH70Skill(skill.id);
+		if (h70Result && h70Result.formattedContent) {
+			fullContent = h70Result.formattedContent;
+			source = 'h70';
+			console.log('[CanvasSync] Got H70 skill content:', skill.id, `(${fullContent.length} chars)`);
+		}
+	} catch (e) {
+		console.warn('[CanvasSync] H70 skill not found, trying MCP:', skill.id);
+	}
+
+	// PRIORITY 2: Fall back to MCP server if H70 not available
+	if (!fullContent) {
+		const state = get(mcpState);
+		if (state.status === 'connected') {
+			console.log('[CanvasSync] Fetching skill content from MCP:', skill.id);
+			try {
+				const result = await mcpClient.getSkill(skill.id);
+				if (result.success && result.data?.content) {
+					fullContent = result.data.content;
+					source = 'mcp';
+					console.log('[CanvasSync] Got MCP skill content:', skill.id, `(${fullContent.length} chars)`);
+				}
+			} catch (e) {
+				console.warn('[CanvasSync] Failed to fetch from MCP:', e);
 			}
-		} catch (e) {
-			console.warn('[CanvasSync] Failed to fetch from MCP, using fallback:', e);
 		}
 	}
 
@@ -811,10 +830,11 @@ async function handleGetSkillContent(skillId: string): Promise<void> {
 		tier: skill.tier,
 		tags: skill.tags || [],
 		triggers: skill.triggers || [],
-		// Full content from MCP if available, otherwise build from metadata
+		// Full content from H70 or MCP, otherwise build from metadata
 		instructions: fullContent || buildSkillInstructions(skill),
-		// Indicate if this is full content or just metadata
-		hasFullContent: !!fullContent
+		// Indicate source
+		hasFullContent: !!fullContent,
+		source: source
 	};
 
 	syncClient.broadcast({
@@ -822,7 +842,7 @@ async function handleGetSkillContent(skillId: string): Promise<void> {
 		data: content
 	});
 
-	console.log('[CanvasSync] Sent skill content for:', skill.name, fullContent ? '(full)' : '(metadata only)');
+	console.log(`[CanvasSync] Sent skill content for: ${skill.name} (source: ${source})`);
 }
 
 /**
