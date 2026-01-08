@@ -82,6 +82,12 @@
 	} | null>(null);
 	let showResumeBanner = $state(false);
 
+	// Copy prompt collapsed state - default to collapsed to save space
+	let copyPromptCollapsed = $state(true);
+
+	// H70 skills collapsed state - show active skill in header when collapsed
+	let h70SkillsCollapsed = $state(true);
+
 	// Guard to ensure mount-only effects run once
 	let hasCheckedResumable = $state(false);
 
@@ -797,31 +803,46 @@
 					<span>{getExecutionDuration()}</span>
 				</div>
 				{#if executionProgress.executionPrompt}
-					<div class="mt-3 p-3 bg-accent-primary/10 border border-accent-primary/30">
-						<div class="flex items-center justify-between mb-2">
-							<span class="text-xs font-mono text-accent-primary uppercase tracking-wider">Copy to Claude Code</span>
+					<div class="mt-3 border border-accent-primary/30">
+						<!-- Collapsible Header -->
+						<div
+							onclick={() => copyPromptCollapsed = !copyPromptCollapsed}
+							onkeydown={(e) => e.key === 'Enter' && (copyPromptCollapsed = !copyPromptCollapsed)}
+							role="button"
+							tabindex="0"
+							class="w-full flex items-center justify-between px-3 py-2 bg-accent-primary/10 hover:bg-accent-primary/15 transition-colors cursor-pointer"
+						>
+							<div class="flex items-center gap-2">
+								<svg class="w-4 h-4 text-accent-primary transition-transform {copyPromptCollapsed ? '' : 'rotate-90'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+								</svg>
+								<span class="text-xs font-mono text-accent-primary uppercase tracking-wider">Copy to Claude Code</span>
+							</div>
 							<button
-								class="px-3 py-1.5 bg-accent-primary hover:bg-accent-primary-hover text-bg-primary text-xs font-mono transition-all flex items-center gap-2"
-								onclick={() => {
+								class="px-3 py-1 bg-accent-primary hover:bg-accent-primary-hover text-bg-primary text-xs font-mono transition-all flex items-center gap-2"
+								onclick={(e) => {
+									e.stopPropagation();
 									navigator.clipboard.writeText(executionProgress.executionPrompt || '');
 									toasts.success('Copied! Paste this prompt into Claude Code to execute');
 								}}
 							>
-								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
 								</svg>
-								Copy Prompt
+								Copy
 							</button>
 						</div>
-						<div class="max-h-32 overflow-y-auto bg-bg-primary p-2 border border-surface-border text-xs font-mono text-text-secondary select-text">
-							<pre class="whitespace-pre-wrap break-all">{executionProgress.executionPrompt.slice(0, 500)}{executionProgress.executionPrompt.length > 500 ? '...' : ''}</pre>
-						</div>
-						<p class="mt-2 text-xs text-text-tertiary">
-							Paste this prompt into Claude Code to execute the workflow. Claude will use the spawner skills to complete each task.
-						</p>
-						<p class="text-text-tertiary text-xs mt-2">
-							Progress updates automatically as Claude Code reports task completion.
-						</p>
+						<!-- Collapsible Content -->
+						{#if !copyPromptCollapsed}
+							<div class="p-3 bg-accent-primary/5">
+								<div class="max-h-32 overflow-y-auto bg-bg-primary p-2 border border-surface-border text-xs font-mono text-text-secondary select-text">
+									<pre class="whitespace-pre-wrap break-all">{executionProgress.executionPrompt.slice(0, 500)}{executionProgress.executionPrompt.length > 500 ? '...' : ''}</pre>
+								</div>
+								<p class="mt-2 text-xs text-text-tertiary">
+									Paste this prompt into Claude Code to execute the workflow.
+								</p>
+							</div>
+						{/if}
 					</div>
 				{:else if executionProgress.missionId}
 					<div class="mt-2 p-2 bg-surface-secondary text-xs">
@@ -832,57 +853,38 @@
 					</div>
 				{/if}
 
-				<!-- H70 Skills Section -->
+				<!-- H70 Skills - Compact with Working Animation -->
 				{#if executionProgress.loadedSkills && executionProgress.loadedSkills.length > 0}
-					<div class="mt-4 border border-indigo-500/30 bg-indigo-500/5">
-						<div class="flex items-center justify-between px-3 py-2 bg-indigo-500/10 border-b border-indigo-500/30">
-							<div class="flex items-center gap-2">
-								<svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					{@const currentTaskSkills = isRunning && executionProgress.currentTaskId
+						? executionProgress.loadedSkills.filter(s => s.taskIds.includes(executionProgress.currentTaskId || ''))
+						: []}
+					<div class="mt-3 flex items-center gap-3 px-3 py-2 bg-indigo-500/10 border border-indigo-500/30">
+						<!-- Skill Icon with Hammering Animation when active -->
+						<div class="relative">
+							{#if currentTaskSkills.length > 0}
+								<svg class="w-5 h-5 text-indigo-400 animate-[hammer_0.4s_ease-in-out_infinite]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
 								</svg>
-								<span class="text-xs font-mono text-indigo-400 uppercase tracking-wider">H70 Skills Loaded</span>
-							</div>
-							<span class="text-xs font-mono text-indigo-300">{executionProgress.loadedSkills.length} skills</span>
-						</div>
-						<div class="p-3">
-							<div class="flex flex-wrap gap-2">
-								{#each executionProgress.loadedSkills as skill}
-									<div class="group relative">
-										<div class="px-2 py-1 bg-indigo-500/20 border border-indigo-500/40 text-xs font-mono text-indigo-300 flex items-center gap-1.5 hover:bg-indigo-500/30 transition-colors cursor-default">
-											<span class="w-1.5 h-1.5 bg-indigo-400"></span>
-											{skill.name}
-											{#if skill.taskIds.length > 0}
-												<span class="text-indigo-400/60">({skill.taskIds.length})</span>
-											{/if}
-										</div>
-										<!-- Tooltip with description -->
-										{#if skill.description}
-											<div class="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 w-64 p-2 bg-bg-secondary border border-surface-border shadow-lg text-xs text-text-secondary">
-												<p class="font-medium text-indigo-300 mb-1">{skill.name}</p>
-												<p>{skill.description}</p>
-											</div>
-										{/if}
-									</div>
-								{/each}
-							</div>
-							{#if isRunning && executionProgress.currentTaskId}
-								{@const currentTaskSkills = executionProgress.loadedSkills.filter(s => s.taskIds.includes(executionProgress.currentTaskId || ''))}
-								{#if currentTaskSkills.length > 0}
-									<div class="mt-3 pt-3 border-t border-indigo-500/20">
-										<p class="text-xs text-indigo-400/70 mb-2">
-											<span class="font-mono uppercase">Active for current task:</span>
-										</p>
-										<div class="flex flex-wrap gap-1.5">
-											{#each currentTaskSkills as skill}
-												<span class="px-2 py-0.5 bg-indigo-500/30 text-xs font-mono text-indigo-200 animate-pulse">
-													{skill.name}
-												</span>
-											{/each}
-										</div>
-									</div>
-								{/if}
+								<!-- Spark effects -->
+								<span class="absolute -top-0.5 -right-0.5 w-1 h-1 bg-amber-400 animate-ping"></span>
+								<span class="absolute -bottom-0.5 -left-0.5 w-1 h-1 bg-indigo-300 animate-ping" style="animation-delay: 0.2s"></span>
+							{:else}
+								<svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+								</svg>
 							{/if}
 						</div>
+						<!-- Active Skill Name or Count -->
+						<div class="flex-1 flex items-center gap-2">
+							{#if currentTaskSkills.length > 0}
+								<span class="text-xs font-mono text-indigo-200 font-medium">{currentTaskSkills[0].name}</span>
+								<span class="text-xs text-indigo-400/60">working...</span>
+							{:else}
+								<span class="text-xs font-mono text-indigo-400">{executionProgress.loadedSkills.length} skills loaded</span>
+							{/if}
+						</div>
+						<!-- Skill count badge -->
+						<span class="px-2 py-0.5 bg-indigo-500/30 text-xs font-mono text-indigo-300">{executionProgress.loadedSkills.length}</span>
 					</div>
 				{/if}
 
@@ -902,13 +904,13 @@
 							{/if}
 						</div>
 						<div class="grid grid-cols-3">
-							<div class="p-3 text-center border-r border-surface-border bg-accent-primary/5">
-								<div class="text-2xl font-mono font-bold text-accent-primary">{completedTasks.length}</div>
-								<div class="text-xs font-mono text-accent-primary/70 uppercase tracking-wider">Completed</div>
+							<div class="p-3 text-center border-r border-surface-border bg-green-500/5">
+								<div class="text-2xl font-mono font-bold text-green-400">{completedTasks.length}</div>
+								<div class="text-xs font-mono text-green-400/70 uppercase tracking-wider">Completed</div>
 							</div>
-							<div class="p-3 text-center border-r border-surface-border bg-vibe-teal/5">
-								<div class="text-2xl font-mono font-bold text-vibe-teal">{pendingTasks.length}</div>
-								<div class="text-xs font-mono text-vibe-teal/70 uppercase tracking-wider">Pending</div>
+							<div class="p-3 text-center border-r border-surface-border bg-amber-500/5">
+								<div class="text-2xl font-mono font-bold text-amber-400">{pendingTasks.length}</div>
+								<div class="text-xs font-mono text-amber-400/70 uppercase tracking-wider">Pending</div>
 							</div>
 							<div class="p-3 text-center bg-red-500/5">
 								<div class="text-2xl font-mono font-bold text-red-400">{failedTasks.length}</div>
@@ -916,8 +918,8 @@
 							</div>
 						</div>
 						{#if pendingTasks.length > 0 && isRunning}
-							<div class="px-3 py-2 bg-vibe-teal/5 border-t border-vibe-teal/20 flex items-center gap-2">
-								<span class="text-xs font-mono text-vibe-teal uppercase tracking-wider">Next →</span>
+							<div class="px-3 py-2 bg-amber-500/5 border-t border-amber-500/20 flex items-center gap-2">
+								<span class="text-xs font-mono text-amber-400 uppercase tracking-wider">Next →</span>
 								<span class="text-sm text-text-primary font-mono">{pendingTasks[0]}</span>
 							</div>
 						{/if}
@@ -994,54 +996,78 @@
 			</div>
 		{/if}
 
-		<!-- Logs -->
-		<div bind:this={logsContainer} class="flex-1 overflow-y-auto p-4 font-mono text-sm bg-bg-primary select-text">
-			{#if logs.length === 0}
-				<div class="text-center py-8 text-text-tertiary">
-					{#if isRunning}
-						<div class="animate-pulse">
-							{executionProgress?.status === 'creating' ? 'Creating mission...' : 'Starting execution...'}
-						</div>
-					{:else}
-						<p>Click "Run Workflow" to start execution</p>
+		<!-- Logs Section - Main Focus Area -->
+		<div class="flex-1 flex flex-col min-h-0 border-t border-surface-border">
+			<!-- Logs Header -->
+			<div class="flex items-center justify-between px-4 py-2 bg-bg-tertiary border-b border-surface-border sticky top-0 z-10">
+				<div class="flex items-center gap-2">
+					<svg class="w-4 h-4 text-vibe-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+					</svg>
+					<span class="text-xs font-mono text-text-secondary uppercase tracking-wider">Execution Logs</span>
+					{#if logs.length > 0}
+						<span class="px-1.5 py-0.5 bg-vibe-teal/20 text-xs font-mono text-vibe-teal">{logs.length}</span>
 					{/if}
 				</div>
-			{:else}
-				<!-- Copy all logs button -->
-				<div class="flex justify-end mb-2">
+				{#if logs.length > 0}
 					<button
 						onclick={() => {
 							const logText = logs.map(l => `[${formatTime(l.created_at)}] ${getLogIcon(l.type)} ${l.message}`).join('\n');
 							navigator.clipboard.writeText(logText);
 							toasts.success('Logs copied to clipboard');
 						}}
-						class="text-xs text-text-tertiary hover:text-text-secondary px-2 py-1 border border-surface-border hover:border-text-tertiary transition-all"
+						class="text-xs text-text-tertiary hover:text-text-secondary px-2 py-1 border border-surface-border hover:border-vibe-teal/50 transition-all flex items-center gap-1"
 					>
-						Copy All Logs
+						<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
+						</svg>
+						Copy
 					</button>
-				</div>
-				<div class="space-y-1">
-					{#each logs as log}
-						<div class="flex gap-2 {getLogColor(log.type)} cursor-text hover:bg-surface/30 px-1 -mx-1 group">
-							<span class="text-xs text-text-tertiary w-20 flex-shrink-0 select-text">
-								{formatTime(log.created_at)}
-							</span>
-							<span class="w-4 flex-shrink-0">{getLogIcon(log.type)}</span>
-							<span class="flex-1 select-text break-all">{log.message}</span>
-							<button
-								onclick={() => {
-									navigator.clipboard.writeText(log.message);
-									toasts.success('Copied');
-								}}
-								class="opacity-0 group-hover:opacity-100 text-xs text-text-tertiary hover:text-text-secondary transition-opacity"
-								title="Copy this log"
-							>
-								📋
-							</button>
-						</div>
-					{/each}
-				</div>
-			{/if}
+				{/if}
+			</div>
+			<!-- Logs Content -->
+			<div bind:this={logsContainer} class="flex-1 overflow-y-auto p-3 font-mono text-sm bg-bg-primary select-text">
+				{#if logs.length === 0}
+					<div class="flex flex-col items-center justify-center h-full py-8 text-text-tertiary">
+						{#if isRunning}
+							<div class="flex items-center gap-2">
+								<div class="w-2 h-2 bg-vibe-teal animate-pulse"></div>
+								<span>{executionProgress?.status === 'creating' ? 'Creating mission...' : 'Starting execution...'}</span>
+							</div>
+						{:else}
+							<svg class="w-8 h-8 mb-2 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16m-7 6h7" />
+							</svg>
+							<p class="text-sm">Click "Run Workflow" to start execution</p>
+							<p class="text-xs text-text-muted mt-1">Logs will appear here</p>
+						{/if}
+					</div>
+				{:else}
+					<div class="space-y-0.5">
+						{#each logs as log}
+							<div class="flex gap-2 {getLogColor(log.type)} cursor-text hover:bg-vibe-teal/5 px-2 py-1 -mx-2 group transition-colors">
+								<span class="text-xs text-text-tertiary w-16 flex-shrink-0 select-text tabular-nums">
+									{formatTime(log.created_at)}
+								</span>
+								<span class="w-4 flex-shrink-0 text-center">{getLogIcon(log.type)}</span>
+								<span class="flex-1 select-text break-all">{log.message}</span>
+								<button
+									onclick={() => {
+										navigator.clipboard.writeText(log.message);
+										toasts.success('Copied');
+									}}
+									class="opacity-0 group-hover:opacity-100 text-xs text-text-tertiary hover:text-vibe-teal transition-all px-1"
+									title="Copy this log"
+								>
+									<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
+									</svg>
+								</button>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
 		</div>
 		{:else}
 		<!-- Mind Activity Tab -->

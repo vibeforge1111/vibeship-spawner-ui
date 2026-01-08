@@ -426,3 +426,19 @@
     transform: scale(2);
   }
 }
+
+/* H70 Skill Working Animation - Hammering effect */
+@keyframes hammer {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-15deg);
+  }
+  50% {
+    transform: rotate(0deg);
+  }
+  75% {
+    transform: rotate(10deg);
+  }
+}
