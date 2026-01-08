@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { missionExecutor, type ExecutionProgress, type ExecutionStatus } from '$lib/services/mission-executor';
+	import { missionExecutor, type ExecutionProgress, type ExecutionStatus, type LoadedSkillInfo } from '$lib/services/mission-executor';
 	import type { MissionLog, Mission } from '$lib/services/mcp-client';
 	import { nodes, connections, updateNodeStatus, resetAllNodeStatus, addConnection } from '$lib/stores/canvas.svelte';
 	import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
@@ -828,6 +828,60 @@
 						<div class="flex items-center justify-between gap-2">
 							<span class="text-text-tertiary">Mission ID:</span>
 							<code class="text-accent-primary font-mono select-all">{executionProgress.missionId}</code>
+						</div>
+					</div>
+				{/if}
+
+				<!-- H70 Skills Section -->
+				{#if executionProgress.loadedSkills && executionProgress.loadedSkills.length > 0}
+					<div class="mt-4 border border-indigo-500/30 bg-indigo-500/5">
+						<div class="flex items-center justify-between px-3 py-2 bg-indigo-500/10 border-b border-indigo-500/30">
+							<div class="flex items-center gap-2">
+								<svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+								</svg>
+								<span class="text-xs font-mono text-indigo-400 uppercase tracking-wider">H70 Skills Loaded</span>
+							</div>
+							<span class="text-xs font-mono text-indigo-300">{executionProgress.loadedSkills.length} skills</span>
+						</div>
+						<div class="p-3">
+							<div class="flex flex-wrap gap-2">
+								{#each executionProgress.loadedSkills as skill}
+									<div class="group relative">
+										<div class="px-2 py-1 bg-indigo-500/20 border border-indigo-500/40 text-xs font-mono text-indigo-300 flex items-center gap-1.5 hover:bg-indigo-500/30 transition-colors cursor-default">
+											<span class="w-1.5 h-1.5 bg-indigo-400"></span>
+											{skill.name}
+											{#if skill.taskIds.length > 0}
+												<span class="text-indigo-400/60">({skill.taskIds.length})</span>
+											{/if}
+										</div>
+										<!-- Tooltip with description -->
+										{#if skill.description}
+											<div class="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 w-64 p-2 bg-bg-secondary border border-surface-border shadow-lg text-xs text-text-secondary">
+												<p class="font-medium text-indigo-300 mb-1">{skill.name}</p>
+												<p>{skill.description}</p>
+											</div>
+										{/if}
+									</div>
+								{/each}
+							</div>
+							{#if isRunning && executionProgress.currentTaskId}
+								{@const currentTaskSkills = executionProgress.loadedSkills.filter(s => s.taskIds.includes(executionProgress.currentTaskId || ''))}
+								{#if currentTaskSkills.length > 0}
+									<div class="mt-3 pt-3 border-t border-indigo-500/20">
+										<p class="text-xs text-indigo-400/70 mb-2">
+											<span class="font-mono uppercase">Active for current task:</span>
+										</p>
+										<div class="flex flex-wrap gap-1.5">
+											{#each currentTaskSkills as skill}
+												<span class="px-2 py-0.5 bg-indigo-500/30 text-xs font-mono text-indigo-200 animate-pulse">
+													{skill.name}
+												</span>
+											{/each}
+										</div>
+									</div>
+								{/if}
+							{/if}
 						</div>
 					</div>
 				{/if}

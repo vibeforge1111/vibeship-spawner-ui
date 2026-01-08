@@ -23,6 +23,7 @@ import { get } from 'svelte/store';
 	import { generatePipeline, storePipelineLearning } from '$lib/services/smart-pipeline';
 	import { initCanvasSync } from '$lib/services/canvas-sync';
 	import PipelineSelector from '$lib/components/PipelineSelector.svelte';
+	import SessionStateBar from '$lib/components/SessionStateBar.svelte';
 	import { initPipelines, saveCurrentPipeline, getActivePipelineData, activePipelineId, createNewPipeline } from '$lib/stores/pipelines.svelte';
 	import { hasResumableMission } from '$lib/services/persistence';
 
@@ -957,6 +958,9 @@ import { get } from 'svelte/store';
 		</div>
 	</aside>
 	<main class="flex-1 flex flex-col">
+		<!-- Session State Bar - shows when returning to an active mission -->
+		<SessionStateBar onOpenExecution={() => showExecution = true} />
+
 		<!-- Two-row toolbar -->
 		<header class="border-b border-surface-border bg-bg-secondary">
 			<!-- Row 1: Primary actions -->

@@ -14,6 +14,7 @@ import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import type { Mission, MissionLog, MissionTask } from '$lib/services/mcp-client';
 import { mcpClient } from '$lib/services/mcp-client';
 import { buildMissionFromCanvas, validateForMission, generateExecutionPrompt, type MissionBuildOptions, type ExecutionPromptOptions } from './mission-builder';
+import type { H70SkillContent } from './h70-skills';
 import { syncClient, broadcastMissionEvent, broadcastLearningEvent, broadcastTaskEvent, broadcastExecutionControl, isConnected, type SyncEvent } from './sync-client';
 import { clientEventBridge, type BridgeEvent } from './event-bridge';
 import { memoryClient } from './memory-client';
@@ -39,6 +40,14 @@ export interface TaskProgress {
 	startedAt: number;
 }
 
+// H70 Skill info for UI display
+export interface LoadedSkillInfo {
+	id: string;
+	name: string;
+	description?: string;
+	taskIds: string[];  // Which tasks use this skill
+}
+
 export interface ExecutionProgress {
 	status: ExecutionStatus;
 	missionId: string | null;
@@ -54,6 +63,9 @@ export interface ExecutionProgress {
 	startTime: Date | null;
 	endTime: Date | null;
 	error: string | null;
+	// H70 Skills
+	loadedSkills: LoadedSkillInfo[];  // Skills loaded for this mission
+	taskSkillMap: Map<string, string[]>;  // taskId -> skillIds
 }
 
 export interface ExecutionCallbacks {
@@ -113,6 +125,9 @@ class MissionExecutor {
 			startTime: this.progress.startTime?.toISOString() || null,
 			endTime: this.progress.endTime?.toISOString() || null,
 			error: this.progress.error,
+			// H70 Skills
+			loadedSkills: this.progress.loadedSkills,
+			taskSkillMap: Object.fromEntries(this.progress.taskSkillMap),
 			savedAt: new Date().toISOString(),
 			version: 1
 		};
@@ -137,6 +152,9 @@ class MissionExecutor {
 		this.progress.startTime = saved.startTime ? new Date(saved.startTime) : null;
 		this.progress.endTime = saved.endTime ? new Date(saved.endTime) : null;
 		this.progress.error = saved.error;
+		// H70 Skills
+		this.progress.loadedSkills = saved.loadedSkills || [];
+		this.progress.taskSkillMap = new Map(Object.entries(saved.taskSkillMap || {}));
 	}
 
 	/**
@@ -593,7 +611,9 @@ class MissionExecutor {
 			logs: [],
 			startTime: null,
 			endTime: null,
-			error: null
+			error: null,
+			loadedSkills: [],
+			taskSkillMap: new Map()
 		};
 	}
 
@@ -656,12 +676,34 @@ class MissionExecutor {
 			this.progress.mission = buildResult.mission;
 			this.addLocalLog('info', `Mission created: ${buildResult.mission.id}`);
 
-			// Log H70 skills if loaded
+			// Store and log H70 skills if loaded
 			if (buildResult.loadedSkills && buildResult.loadedSkills.size > 0) {
-				const skillNames = Array.from(buildResult.loadedSkills.values())
-					.map(s => s.skill.name)
-					.join(', ');
-				this.addLocalLog('info', `Loaded ${buildResult.loadedSkills.size} H70 skills: ${skillNames}`);
+				// Convert to LoadedSkillInfo array for UI display
+				const loadedSkillInfos: LoadedSkillInfo[] = [];
+				const taskSkillMap = buildResult.taskSkillMap || new Map();
+
+				for (const [skillId, skillContent] of buildResult.loadedSkills) {
+					// Find which tasks use this skill
+					const taskIds: string[] = [];
+					for (const [taskId, skillIds] of taskSkillMap) {
+						if (skillIds.includes(skillId)) {
+							taskIds.push(taskId);
+						}
+					}
+
+					loadedSkillInfos.push({
+						id: skillId,
+						name: skillContent.skill.name,
+						description: skillContent.skill.description,
+						taskIds
+					});
+				}
+
+				this.progress.loadedSkills = loadedSkillInfos;
+				this.progress.taskSkillMap = taskSkillMap;
+
+				const skillNames = loadedSkillInfos.map(s => s.name).join(', ');
+				this.addLocalLog('info', `Loaded ${loadedSkillInfos.length} H70 skills: ${skillNames}`);
 			}
 
 			// Step 3: Generate copy-pasteable execution prompt (with H70 skills)

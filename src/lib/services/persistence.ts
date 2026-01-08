@@ -312,6 +312,14 @@ interface TaskProgress {
 	startedAt: number;
 }
 
+// H70 Skill info for persistence
+interface LoadedSkillInfo {
+	id: string;
+	name: string;
+	description?: string;
+	taskIds: string[];
+}
+
 /**
  * Serializable version of ExecutionProgress
  * (Map is not JSON-serializable, so we convert it)
@@ -340,6 +348,9 @@ export interface PersistedMissionState {
 	startTime: string | null;  // ISO string instead of Date
 	endTime: string | null;
 	error: string | null;
+	// H70 Skills
+	loadedSkills?: LoadedSkillInfo[];  // Skills loaded for this mission
+	taskSkillMap?: Record<string, string[]>;  // Object instead of Map
 	// Metadata for recovery
 	savedAt: string;
 	version: number;
