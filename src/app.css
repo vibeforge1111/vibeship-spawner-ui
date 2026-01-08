@@ -302,4 +302,127 @@
     background: linear-gradient(90deg, transparent 0%, #D97757 8%, #D97757 60%, transparent 100%);
     transform: rotate(-3deg) skewX(-15deg);
   }
+
+  /* ============================================
+   * Status Dashboard Components
+   * ============================================ */
+
+  /* Status indicator dot with pulse animation */
+  .status-indicator {
+    @apply w-3 h-3 rounded-full relative;
+  }
+
+  .status-indicator::before {
+    content: '';
+    @apply absolute inset-0 rounded-full;
+    animation: statusPulse 2s ease-in-out infinite;
+  }
+
+  .status-indicator.online {
+    @apply bg-status-success;
+  }
+
+  .status-indicator.online::before {
+    @apply bg-status-success;
+  }
+
+  .status-indicator.degraded {
+    @apply bg-status-warning;
+  }
+
+  .status-indicator.degraded::before {
+    @apply bg-status-warning;
+  }
+
+  .status-indicator.offline {
+    @apply bg-status-error;
+  }
+
+  .status-indicator.offline::before {
+    @apply bg-status-error;
+  }
+
+  .status-indicator.maintenance {
+    @apply bg-status-info;
+  }
+
+  .status-indicator.maintenance::before {
+    @apply bg-status-info;
+    animation: none;
+  }
+
+  /* Status card - for service display */
+  .status-card {
+    @apply panel p-4 transition-all duration-normal;
+  }
+
+  .status-card:hover {
+    @apply border-surface-border-strong;
+  }
+
+  .status-card.online {
+    @apply border-l-4 border-l-status-success;
+  }
+
+  .status-card.degraded {
+    @apply border-l-4 border-l-status-warning;
+  }
+
+  .status-card.offline {
+    @apply border-l-4 border-l-status-error;
+  }
+
+  .status-card.maintenance {
+    @apply border-l-4 border-l-status-info;
+  }
+
+  /* Uptime bar */
+  .uptime-bar {
+    @apply flex gap-px h-6 w-full;
+  }
+
+  .uptime-bar-segment {
+    @apply flex-1 transition-colors duration-fast;
+  }
+
+  .uptime-bar-segment.online {
+    @apply bg-status-success;
+  }
+
+  .uptime-bar-segment.degraded {
+    @apply bg-status-warning;
+  }
+
+  .uptime-bar-segment.offline {
+    @apply bg-status-error;
+  }
+
+  .uptime-bar-segment.maintenance {
+    @apply bg-status-info;
+  }
+
+  .uptime-bar-segment.unknown {
+    @apply bg-surface-border;
+  }
+
+  /* Response time graph bars */
+  .response-bar {
+    @apply w-1 bg-accent-primary transition-all duration-fast;
+  }
+
+  .response-bar:hover {
+    @apply bg-accent-primary-hover;
+  }
+}
+
+/* Status Dashboard Animations */
+@keyframes statusPulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0;
+    transform: scale(2);
+  }
 }
