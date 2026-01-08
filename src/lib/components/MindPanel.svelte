@@ -25,8 +25,8 @@
 	});
 	let mcpConnected = $state(false);
 
-	// Sub-tabs
-	let activeSubTab = $state<'decisions' | 'issues' | 'sessions'>('decisions');
+	// Sub-tabs - Learnings first, then Decisions, Issues, Sessions
+	let activeSubTab = $state<'learnings' | 'decisions' | 'issues' | 'sessions'>('learnings');
 
 	// Quick add states
 	let showQuickAdd = $state(false);
@@ -108,6 +108,7 @@
 		await resolveIssue(issue.description);
 	}
 
+	const learnings = $derived(currentState.learnings ?? []);
 	const decisions = $derived(currentState.project?.decisions ?? []);
 	const issues = $derived(currentState.project?.issues ?? []);
 	const openIssues = $derived(issues.filter((i) => i.status === 'open'));
@@ -118,6 +119,16 @@
 	<!-- Header with sub-tabs -->
 	<div class="flex items-center justify-between px-4 py-2 border-b border-surface-border">
 		<div class="flex items-center gap-1">
+			<button
+				onclick={() => (activeSubTab = 'learnings')}
+				class="px-2 py-1 text-xs font-mono transition-all"
+				class:bg-green-500={activeSubTab === 'learnings'}
+				class:text-bg-primary={activeSubTab === 'learnings'}
+				class:text-text-secondary={activeSubTab !== 'learnings'}
+				class:hover:text-text-primary={activeSubTab !== 'learnings'}
+			>
+				Learnings{#if learnings.length > 0}<span class="ml-1 opacity-60">({learnings.length})</span>{/if}
+			</button>
 			<button
 				onclick={() => (activeSubTab = 'decisions')}
 				class="px-2 py-1 text-xs font-mono transition-all"
@@ -186,6 +197,42 @@
 				<p class="text-xs text-text-tertiary">No project loaded</p>
 			</div>
 		{:else}
+			<!-- Learnings -->
+			{#if activeSubTab === 'learnings'}
+				{#if learnings.length === 0}
+					<div class="flex flex-col items-center justify-center h-full text-center py-8">
+						<span class="text-2xl text-text-tertiary mb-2">💡</span>
+						<p class="text-xs text-text-tertiary">No learnings yet</p>
+						<p class="text-xs text-text-tertiary mt-1">Insights will appear as you work</p>
+					</div>
+				{:else}
+					<div class="space-y-2">
+						{#each learnings.slice(0, 10) as learning}
+							<div class="p-2 bg-green-500/5 border border-green-500/20">
+								<div class="flex items-start justify-between gap-2">
+									<div class="flex-1 min-w-0">
+										<p class="text-xs text-text-primary">{learning.content || learning.what || learning}</p>
+										{#if learning.context}
+											<p class="text-xs text-text-tertiary mt-0.5 line-clamp-1">{learning.context}</p>
+										{/if}
+									</div>
+									{#if learning.created_at}
+										<span class="text-[10px] font-mono text-text-tertiary whitespace-nowrap">
+											{formatDate(learning.created_at)}
+										</span>
+									{/if}
+								</div>
+							</div>
+						{/each}
+						{#if learnings.length > 10}
+							<a href="/mind" class="block text-center text-xs text-green-400 hover:underline py-2">
+								View all {learnings.length} learnings
+							</a>
+						{/if}
+					</div>
+				{/if}
+			{/if}
+
 			<!-- Decisions -->
 			{#if activeSubTab === 'decisions'}
 				{#if decisions.length === 0}
