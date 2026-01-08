@@ -16,6 +16,7 @@
 		addSessionSummary,
 		loadAllMindData,
 		loadLearnings,
+		loadMoreLearnings,
 		loadDecisions,
 		loadIssues,
 		loadSessions,
@@ -61,7 +62,7 @@
 	let activeTab = $state<'learnings' | 'improvements' | 'decisions' | 'issues' | 'sessions'>('learnings');
 	let showAddForm = $state(false);
 	let formType = $state<'decision' | 'issue' | 'session'>('decision');
-	let improvementFilter = $state<'all' | 'pending' | 'applied'>('pending');
+	let improvementFilter = $state<'all' | 'pending' | 'applied'>('all');
 
 	// Decision form
 	let decisionWhat = $state('');
@@ -124,7 +125,10 @@
 	}
 
 	function formatDate(dateStr: string): string {
-		const date = new Date(dateStr);
+		// Mind v5 stores timestamps in UTC without 'Z' suffix
+		// Append 'Z' if not present to ensure proper UTC parsing
+		const utcDateStr = dateStr.endsWith('Z') ? dateStr : dateStr + 'Z';
+		const date = new Date(utcDateStr);
 		return date.toLocaleDateString('en-US', {
 			month: 'short',
 			day: 'numeric',
@@ -363,6 +367,26 @@
 								learnings={filteredLearnings.length > 0 || currentState.learnings.length === 0 ? filteredLearnings : currentState.learnings}
 								loading={currentState.learningsLoading}
 							/>
+
+							<!-- Load More Button -->
+							{#if currentState.learningsHasMore}
+								<div class="mt-4 text-center">
+									<button
+										onclick={() => loadMoreLearnings()}
+										disabled={currentState.learningsLoadingMore}
+										class="px-6 py-2 font-mono text-sm border border-surface-border text-text-secondary hover:border-accent-primary hover:text-accent-primary transition-all disabled:opacity-50"
+									>
+										{#if currentState.learningsLoadingMore}
+											Loading...
+										{:else}
+											Load All Learnings
+										{/if}
+									</button>
+									<p class="mt-2 text-xs text-text-tertiary font-mono">
+										Showing {currentState.learnings.length} of many learnings
+									</p>
+								</div>
+							{/if}
 						</div>
 
 						<!-- Sidebar -->
@@ -523,6 +547,21 @@
 
 			<!-- Issues Tab -->
 			{#if activeTab === 'issues'}
+				<!-- Issues Guidance -->
+				<div class="mb-6 p-4 border border-surface-border bg-bg-secondary">
+					<div class="flex items-start gap-3">
+						<span class="text-accent-secondary font-mono text-lg">?</span>
+						<div class="text-sm">
+							<p class="text-text-primary font-medium mb-2">How Issues Work</p>
+							<ul class="text-text-secondary space-y-1">
+								<li><span class="text-yellow-400 font-mono">Auto-created</span> when tasks fail during mission execution</li>
+								<li><span class="text-accent-primary font-mono">+ Add Issue</span> to manually track bugs or blockers you encounter</li>
+								<li><span class="text-green-400 font-mono">Resolve</span> when the issue is fixed - keeps a history for learning</li>
+							</ul>
+						</div>
+					</div>
+				</div>
+
 				{#if currentState.issuesLoading}
 					<div class="border border-surface-border bg-bg-secondary p-12 text-center">
 						<div class="animate-pulse text-text-tertiary font-mono">Loading issues...</div>
@@ -531,7 +570,9 @@
 					<div class="border border-surface-border bg-bg-secondary p-12 text-center">
 						<div class="text-4xl mb-4 opacity-50">v</div>
 						<h3 class="text-lg text-text-primary mb-2">No issues tracked</h3>
-						<p class="text-sm text-text-secondary mb-4">Track bugs, blockers, and things to fix.</p>
+						<p class="text-sm text-text-secondary mb-4">
+							Issues are auto-created when tasks fail. Click <span class="text-accent-primary">+ Add Issue</span> to manually track problems.
+						</p>
 					</div>
 				{:else}
 					<div class="space-y-6">

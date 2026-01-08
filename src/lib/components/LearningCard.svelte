@@ -111,7 +111,9 @@
 	// Format date relative
 	function formatDate(dateStr?: string): string {
 		if (!dateStr) return '';
-		const date = new Date(dateStr);
+		// Mind v5 stores timestamps in UTC without 'Z' suffix
+		const utcDateStr = dateStr.endsWith('Z') ? dateStr : dateStr + 'Z';
+		const date = new Date(utcDateStr);
 		const now = new Date();
 		const diffMs = now.getTime() - date.getTime();
 		const diffMins = Math.floor(diffMs / 60000);

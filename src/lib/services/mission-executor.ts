@@ -361,6 +361,18 @@ class MissionExecutor {
 						this.progress.currentTaskProgress = 0;
 						this.progress.currentTaskMessage = event.message || null;
 
+						// Store in progress map so recordTaskComplete can find it later
+						this.progress.taskProgressMap.set(taskId, {
+							taskId,
+							taskName: taskName || taskId,
+							progress: 0,
+							message: event.message,
+							startedAt: Date.now()
+						});
+
+						// Track start time for duration calculation
+						this.taskStartTimes.set(taskId, new Date());
+
 						// Update task status in mission to 'in_progress'
 						if (this.progress.mission?.tasks) {
 							const task = this.progress.mission.tasks.find(t => t.id === taskId);
@@ -394,8 +406,19 @@ class MissionExecutor {
 				case 'task_completed':
 					// Claude Code completed a task
 					const completedTaskId = event.taskId || event.data?.taskId as string;
+					const completedTaskName = event.taskName || event.data?.taskName as string || completedTaskId;
 					const success = event.data?.success !== false;
 					if (completedTaskId) {
+						// Store task name in progress map so recordTaskComplete can find it
+						const existingProgress = this.progress.taskProgressMap.get(completedTaskId);
+						this.progress.taskProgressMap.set(completedTaskId, {
+							taskId: completedTaskId,
+							taskName: completedTaskName,
+							progress: 100,
+							message: success ? 'Completed' : 'Failed',
+							startedAt: existingProgress?.startedAt || Date.now()
+						});
+
 						// Update task status in mission
 						if (this.progress.mission?.tasks) {
 							const task = this.progress.mission.tasks.find(t => t.id === completedTaskId);
@@ -407,7 +430,7 @@ class MissionExecutor {
 						this.recalculateOverallProgress();
 						this.callbacks.onTaskComplete?.(completedTaskId, success);
 						this.recordTaskComplete(completedTaskId, success);
-						this.addLocalLog(success ? 'info' : 'info', `${success ? 'Completed' : 'Failed'}: ${event.taskName || completedTaskId}`);
+						this.addLocalLog(success ? 'info' : 'info', `${success ? 'Completed' : 'Failed'}: ${completedTaskName}`);
 						// Persist the updated state
 						this.persistState();
 					}
@@ -1060,32 +1083,41 @@ class MissionExecutor {
 
 	/**
 	 * Record when a task completes - captures the outcome
+	 * Handles both cases: when task is found in mission.tasks and when only taskId is available
 	 */
 	private async recordTaskComplete(taskId: string, success: boolean): Promise<void> {
 		if (!this.shouldRecordLearning()) return;
 
 		try {
+			// Try to find full task info, but continue even if not found
 			const task = this.progress.mission?.tasks.find(t => t.id === taskId);
-			if (!task) return;
+
+			// Use task info if available, otherwise fall back to tracked progress or current task
+			const taskName = task?.title
+				|| this.progress.taskProgressMap.get(taskId)?.taskName
+				|| (taskId === this.progress.currentTaskId ? this.progress.currentTaskName : null)
+				|| taskId;
+
+			const missionName = this.progress.mission?.name || 'Unknown Mission';
 
 			// Calculate duration
 			const startTime = this.taskStartTimes.get(taskId);
 			const duration = startTime ? Date.now() - startTime.getTime() : 0;
 
-			// Find agent info
-			const agentId = task.assignedTo;
-			const agent = this.progress.mission?.agents.find(a => a.id === agentId);
+			// Find agent info (may be undefined)
+			const agentId = task?.assignedTo;
+			const agent = agentId ? this.progress.mission?.agents.find(a => a.id === agentId) : undefined;
 			const skillId = agent?.skills?.[0];
 
-			// Record outcome
+			// Record outcome (with whatever info we have)
 			await memoryClient.recordTaskOutcome(
 				this.progress.missionId || '',
 				taskId,
 				{
 					success,
 					details: success
-						? `Task "${task.title}" completed successfully in ${Math.round(duration / 1000)}s`
-						: `Task "${task.title}" failed`,
+						? `Task "${taskName}" completed successfully in ${Math.round(duration / 1000)}s`
+						: `Task "${taskName}" failed`,
 					agentId,
 					skillId
 				}
@@ -1097,37 +1129,39 @@ class MissionExecutor {
 			}
 
 			// Auto-create decision when task succeeds (non-blocking)
+			// This runs regardless of whether we found full task info
 			if (success) {
-				const what = `Completed: ${task.title}`;
-				const why = `Task "${task.title}" in mission "${this.progress.mission?.name || 'Unknown'}" completed successfully using ${skillId || 'default'} skill in ${Math.round(duration / 1000)}s`;
+				const what = `Completed: ${taskName}`;
+				const why = `Task "${taskName}" in mission "${missionName}" completed successfully${skillId ? ` using ${skillId} skill` : ''} in ${Math.round(duration / 1000)}s`;
 				memoryClient.createProjectDecision(what, why).then(() => {
-					console.log(`[Mind] Auto-created decision for completed task: ${task.title}`);
+					console.log(`[Mind] Auto-created decision for completed task: ${taskName}`);
 				}).catch(err => {
 					console.warn('[Mind] Failed to create decision:', err);
 				});
 			}
 
 			// Auto-create issue when task fails (non-blocking)
+			// This runs regardless of whether we found full task info
 			if (!success) {
-				const errorDetails = task.error || 'Task execution failed';
+				const errorDetails = task?.error || 'Task execution failed';
 				memoryClient.createProjectIssue(
-					`[${this.progress.mission?.name || 'Mission'}] Task failed: ${task.title} - ${errorDetails}`,
+					`[${missionName}] Task failed: ${taskName} - ${errorDetails}`,
 					'open'
 				).then(() => {
-					console.log(`[Mind] Auto-created issue for failed task: ${task.title}`);
+					console.log(`[Mind] Auto-created issue for failed task: ${taskName}`);
 				}).catch(err => {
 					console.warn('[Mind] Failed to create issue:', err);
 				});
 			}
 
-			console.log(`[Learning] Recorded task outcome: ${task.title} - ${success ? 'success' : 'failed'}`);
+			console.log(`[Learning] Recorded task outcome: ${taskName} - ${success ? 'success' : 'failed'}`);
 
 			// Broadcast outcome event
 			broadcastLearningEvent('outcome_recorded', {
 				agentId,
 				skillId,
 				missionId: this.progress.missionId || undefined,
-				content: success ? `Task completed: ${task.title}` : `Task failed: ${task.title}`,
+				content: success ? `Task completed: ${taskName}` : `Task failed: ${taskName}`,
 				success,
 				duration
 			});

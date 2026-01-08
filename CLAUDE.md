@@ -9,29 +9,36 @@ Spawner UI is a SvelteKit application that provides a visual canvas for building
 - Execute multi-step missions
 - Track progress through the Mind system
 
-## H70 Skills - PRIMARY SOURCE
+## H70 Skills - DEFAULT MCP (USE THIS FIRST)
 
-**IMPORTANT: This project uses H70 skills as the PRIMARY skill source.**
+**CRITICAL: This project uses H70 skills as the DEFAULT and PRIMARY skill source.**
+
+### Why H70 is Default
+
+- **480 valid skills** available locally (verified, all YAML parses correctly)
+- **Zero network latency** - skills loaded from local disk
+- **No API costs** - no external service calls required
+- **More comprehensive** - H70 skills include identity, disasters, anti-patterns, patterns
 
 ### Spawner H70 MCP Server
 
-This repo includes a **private local MCP server** for H70 skills at `mcp-h70/`.
+This repo includes a **local MCP server** for H70 skills at `mcp-h70/`.
 
-**To load H70 skills, use:**
+**ALWAYS use this MCP first:**
 ```
 mcp__spawner_h70__spawner_h70_skills with action="get" and name="skill-id"
 ```
 
 **Available actions:**
-- `get`: Get full skill content by ID
-- `list`: List all available H70 skills
-- `search`: Search skills by query
+- `get`: Get full skill content by ID (e.g., `name="drizzle-orm"`)
+- `list`: List all 480 available H70 skills
+- `search`: Search skills by query (e.g., `query="authentication"`)
 
-### Skill Loading Priority
+### Skill Loading Priority (ALWAYS FOLLOW THIS ORDER)
 
-1. **spawner-h70 MCP** (PRIMARY): Local `mcp-h70/` server reading from H70 skill-lab
+1. **spawner-h70 MCP** (DEFAULT): Local `mcp-h70/` server - USE THIS FIRST
 2. **H70 API** (Fallback): `/api/h70-skills/[skillId]` endpoint
-3. **vibeship-spawner MCP** (Remote): `mcp.vibeship.co` (legacy)
+3. **vibeship-spawner MCP** (Legacy): `mcp.vibeship.co` - only if H70 unavailable
 
 ### H70 Skill Format
 
@@ -127,3 +134,64 @@ src/
 - **H70 Skills Path**: `C:/Users/USER/Desktop/vibeship-h70/skill-lab`
 - **Dev Server**: `http://localhost:5173`
 - **MCP Fallback**: `https://mcp.vibeship.co/mcp`
+- **Mind v5 API**: `http://localhost:8080`
+- **Mind Dashboard**: `http://localhost:8501`
+
+## Mind v5 - Memory System
+
+Mind v5 provides persistent memory for learning and improvement. See `MIND.md` for full documentation.
+
+### Quick Reference
+
+**Start Mind v5:**
+```bash
+# From C:\Users\USER\Desktop\the-mind:
+start_mind_lite.bat
+```
+
+### The Five Tabs (at /mind)
+
+| Tab | Purpose | Auto-Created |
+|-----|---------|--------------|
+| **Learnings** | Task outcomes and patterns | Yes, after each task |
+| **Improvements** | System improvement suggestions | Yes, after missions |
+| **Decisions** | What was accomplished | Yes, on task success |
+| **Issues** | Problems and blockers | Yes, on task failure |
+| **Sessions** | Mission summaries | Yes, after missions |
+
+### Key Behaviors
+
+1. **Auto-capture**: Mind automatically records everything during mission execution
+2. **Auto-apply improvements**: All improvements are applied automatically (no pending state)
+3. **UTC timestamps**: Stored in UTC, displayed in local time
+4. **Pagination**: Learnings load 50 initially, click "Load All" for more
+
+### Memory Content Types
+
+- `agent_learning`, `task_outcome` - Learnings tab
+- `project_decision` - Decisions tab
+- `project_issue` - Issues tab
+- `session_summary` - Sessions tab
+- `*_improvement` - Improvements tab
+
+### API Quick Reference
+
+```bash
+# Check connection
+curl http://localhost:8080/health
+
+# List recent memories
+curl "http://localhost:8080/v1/memories/?limit=20"
+
+# Search
+curl -X POST http://localhost:8080/v1/memories/retrieve \
+  -H "Content-Type: application/json" \
+  -d '{"query": "authentication"}'
+```
+
+### Troubleshooting
+
+- **Connection refused**: Start Mind with `start_mind_lite.bat`
+- **Empty tabs**: Click the tab to trigger lazy loading
+- **Improvements show "pending"**: Change filter from "Pending" to "All"
+- **Learnings stuck at 50**: Click "Load All Learnings" button

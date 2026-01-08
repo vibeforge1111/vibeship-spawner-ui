@@ -18,8 +18,10 @@
 		// Filter out undefined/null entries and entries without content
 		const validLearnings = learnings.filter(l => l && l.content);
 		for (const learning of validLearnings) {
+			// Mind v5 stores timestamps in UTC without 'Z' suffix
+			const utcDateStr = learning.created_at?.endsWith('Z') ? learning.created_at : (learning.created_at + 'Z');
 			const date = learning.created_at
-				? new Date(learning.created_at).toLocaleDateString('en-US', {
+				? new Date(utcDateStr).toLocaleDateString('en-US', {
 						month: 'short',
 						day: 'numeric',
 						year: 'numeric'

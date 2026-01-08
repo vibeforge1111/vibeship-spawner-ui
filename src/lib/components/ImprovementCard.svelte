@@ -43,7 +43,9 @@
 	}
 
 	function formatDate(dateStr: string): string {
-		const date = new Date(dateStr);
+		// Mind v5 stores timestamps in UTC without 'Z' suffix
+		const utcDateStr = dateStr.endsWith('Z') ? dateStr : dateStr + 'Z';
+		const date = new Date(utcDateStr);
 		return date.toLocaleDateString('en-US', {
 			month: 'short',
 			day: 'numeric'

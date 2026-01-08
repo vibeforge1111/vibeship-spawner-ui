@@ -50,6 +50,8 @@ export interface MindState {
 	patterns: Memory[];
 	agentStats: Record<string, AgentEffectiveness>;
 	learningsLoading: boolean;
+	learningsHasMore: boolean;
+	learningsLoadingMore: boolean;
 	memoryConnected: boolean;
 	// Unified Mind v5 storage
 	decisions: MindDecision[];
@@ -79,6 +81,8 @@ const initialState: MindState = {
 	patterns: [],
 	agentStats: {},
 	learningsLoading: false,
+	learningsHasMore: true,
+	learningsLoadingMore: false,
 	memoryConnected: false,
 	// Unified Mind v5 storage
 	decisions: [],
@@ -600,17 +604,21 @@ export async function checkMemoryConnection(): Promise<boolean> {
 	}
 }
 
+// Pagination constants
+const LEARNINGS_PAGE_SIZE = 50;
+const LEARNINGS_MAX_LOAD = 500;
+
 /**
- * Load agent learnings from Mind
+ * Load agent learnings from Mind (initial page)
  */
 export async function loadLearnings(agentId?: string): Promise<boolean> {
 	mindState.update((s) => ({ ...s, learningsLoading: true }));
 
 	try {
-		// Get learnings - use listByContentType for Lite tier compatibility
+		// Get first page of learnings
 		const learningsResult = await memoryClient.listByContentType(
 			['agent_learning', 'agent_decision', 'task_outcome'],
-			{ limit: 50, agent_id: agentId }
+			{ limit: LEARNINGS_PAGE_SIZE, agent_id: agentId }
 		);
 
 		// Get patterns
@@ -620,11 +628,13 @@ export async function loadLearnings(agentId?: string): Promise<boolean> {
 		);
 
 		if (learningsResult.success || patternsResult.success) {
+			const learnings = learningsResult.data ?? [];
 			mindState.update((s) => ({
 				...s,
-				learnings: learningsResult.data ?? [],
+				learnings,
 				patterns: patternsResult.data ?? [],
 				learningsLoading: false,
+				learningsHasMore: learnings.length >= LEARNINGS_PAGE_SIZE,
 				memoryConnected: true
 			}));
 			return true;
@@ -642,6 +652,45 @@ export async function loadLearnings(agentId?: string): Promise<boolean> {
 			learningsLoading: false,
 			memoryConnected: false,
 			error: e instanceof Error ? e.message : 'Failed to load learnings'
+		}));
+		return false;
+	}
+}
+
+/**
+ * Load more learnings (all remaining)
+ */
+export async function loadMoreLearnings(agentId?: string): Promise<boolean> {
+	mindState.update((s) => ({ ...s, learningsLoadingMore: true }));
+
+	try {
+		// Load all learnings (up to max)
+		const learningsResult = await memoryClient.listByContentType(
+			['agent_learning', 'agent_decision', 'task_outcome'],
+			{ limit: LEARNINGS_MAX_LOAD, agent_id: agentId }
+		);
+
+		if (learningsResult.success && learningsResult.data) {
+			mindState.update((s) => ({
+				...s,
+				learnings: learningsResult.data ?? [],
+				learningsLoadingMore: false,
+				learningsHasMore: false  // All loaded
+			}));
+			return true;
+		} else {
+			mindState.update((s) => ({
+				...s,
+				learningsLoadingMore: false,
+				error: learningsResult.error ?? 'Failed to load more learnings'
+			}));
+			return false;
+		}
+	} catch (e) {
+		mindState.update((s) => ({
+			...s,
+			learningsLoadingMore: false,
+			error: e instanceof Error ? e.message : 'Failed to load more learnings'
 		}));
 		return false;
 	}

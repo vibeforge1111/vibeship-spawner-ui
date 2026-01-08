@@ -546,16 +546,16 @@
 	function getLogIcon(type: MissionLog['type']): string {
 		switch (type) {
 			case 'complete':
-				return '✓';
+				return '■';  // Sharp square checkmark style
 			case 'error':
-				return '✗';
+				return '✕';  // Sharp X
 			case 'handoff':
-				return '→';
+				return '▸';  // Sharp arrow
 			case 'start':
 				return '▶';
 			case 'progress':
 			default:
-				return '•';
+				return '▪';  // Small sharp square
 		}
 	}
 
@@ -612,10 +612,10 @@
 	>
 		<div class="relative">
 			{#if isRunning}
-				<div class="w-3 h-3 rounded-full bg-vibe-teal animate-pulse"></div>
-				<div class="absolute inset-0 w-3 h-3 rounded-full bg-vibe-teal/50 animate-ping"></div>
+				<div class="w-3 h-3 bg-vibe-teal animate-pulse"></div>
+				<div class="absolute inset-0 w-3 h-3 bg-vibe-teal/50 animate-ping"></div>
 			{:else if isPaused}
-				<div class="w-3 h-3 rounded-full bg-blue-400"></div>
+				<div class="w-3 h-3 bg-blue-400"></div>
 			{/if}
 		</div>
 		<div class="text-left">
@@ -707,9 +707,9 @@
 			<div class="p-3 bg-blue-500/10 border-b border-blue-500/30">
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-3">
-						<div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+						<div class="w-8 h-8 bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
 							<svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+								<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
 							</svg>
 						</div>
 						<div>
@@ -753,7 +753,7 @@
 					<span class="text-sm text-text-secondary">Overall Progress</span>
 					<span class="text-sm font-mono text-text-primary">{executionProgress.progress}%</span>
 				</div>
-				<div class="w-full h-2 bg-surface rounded-full overflow-hidden">
+				<div class="w-full h-2 bg-surface overflow-hidden">
 					<div
 						class="h-full transition-all duration-300"
 						class:bg-accent-primary={executionProgress.status === 'completed'}
@@ -767,20 +767,20 @@
 
 				<!-- Current Task Progress (shown during running) -->
 				{#if isRunning && executionProgress.currentTaskName}
-					<div class="mt-3 p-3 bg-vibe-teal/5 border border-vibe-teal/30 rounded">
+					<div class="mt-3 p-3 bg-vibe-teal/5 border border-vibe-teal/30">
 						<div class="flex items-center justify-between mb-1">
 							<span class="text-xs font-mono text-text-tertiary uppercase tracking-wider">Current Task</span>
 							<span class="text-xs font-mono text-vibe-teal">{currentTaskProgress}%</span>
 						</div>
 						<div class="flex items-center gap-2 mb-2">
 							<div class="relative">
-								<div class="w-2 h-2 bg-vibe-teal rounded-full"></div>
-								<div class="absolute inset-0 w-2 h-2 bg-vibe-teal rounded-full animate-ping opacity-75"></div>
+								<div class="w-2 h-2 bg-vibe-teal"></div>
+								<div class="absolute inset-0 w-2 h-2 bg-vibe-teal animate-ping opacity-75"></div>
 							</div>
 							<span class="text-sm text-text-primary font-medium">{executionProgress.currentTaskName}</span>
 						</div>
 						<!-- Task progress bar -->
-						<div class="w-full h-1.5 bg-surface rounded-full overflow-hidden">
+						<div class="w-full h-1.5 bg-surface overflow-hidden">
 							<div
 								class="h-full bg-vibe-teal transition-all duration-200"
 								style="width: {currentTaskProgress}%"
@@ -840,17 +840,17 @@
 							{#if mindActivities.length > 0}
 								<button
 									onclick={() => activeTab = 'mind'}
-									class="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors"
+									class="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1.5 transition-colors"
 								>
 									<span class="w-1.5 h-1.5 bg-purple-400"></span>
-									{mindActivities.length} Mind events
+									<span class="font-mono">{mindActivities.length}</span> Mind events
 								</button>
 							{/if}
 						</div>
 						<div class="grid grid-cols-3">
-							<div class="p-3 text-center border-r border-surface-border bg-green-500/5">
-								<div class="text-2xl font-mono font-bold text-green-400">{completedTasks.length}</div>
-								<div class="text-xs font-mono text-green-400/70 uppercase tracking-wider">Completed</div>
+							<div class="p-3 text-center border-r border-surface-border bg-accent-primary/5">
+								<div class="text-2xl font-mono font-bold text-accent-primary">{completedTasks.length}</div>
+								<div class="text-xs font-mono text-accent-primary/70 uppercase tracking-wider">Completed</div>
 							</div>
 							<div class="p-3 text-center border-r border-surface-border bg-vibe-teal/5">
 								<div class="text-2xl font-mono font-bold text-vibe-teal">{pendingTasks.length}</div>
@@ -872,12 +872,14 @@
 
 				<!-- Completion Summary -->
 				{#if executionProgress.status === 'completed'}
-					<div class="mt-3 p-3 bg-green-500/10 border border-green-500/30 rounded">
+					<div class="mt-3 p-3 bg-accent-primary/10 border border-accent-primary/30">
 						<div class="flex items-center gap-2 mb-2">
-							<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-							</svg>
-							<span class="text-green-400 font-medium">Workflow Completed!</span>
+							<div class="w-5 h-5 flex items-center justify-center bg-accent-primary/20 border border-accent-primary/50">
+								<svg class="w-3 h-3 text-accent-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="3" d="M5 13l4 4L19 7" />
+								</svg>
+							</div>
+							<span class="text-accent-primary font-medium font-mono uppercase tracking-wide text-sm">Workflow Completed</span>
 						</div>
 						<p class="text-xs text-text-secondary">
 							Successfully completed {completedTasks.length} task{completedTasks.length !== 1 ? 's' : ''} in {getExecutionDuration()}.
@@ -892,12 +894,14 @@
 						{/if}
 					</div>
 				{:else if executionProgress.status === 'failed'}
-					<div class="mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded">
+					<div class="mt-3 p-3 bg-red-500/10 border border-red-500/30">
 						<div class="flex items-center gap-2 mb-2">
-							<svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-							</svg>
-							<span class="text-red-400 font-medium">Workflow Failed</span>
+							<div class="w-5 h-5 flex items-center justify-center bg-red-500/20 border border-red-500/50">
+								<svg class="w-3 h-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="3" d="M6 6l12 12M6 18L18 6" />
+								</svg>
+							</div>
+							<span class="text-red-400 font-medium font-mono uppercase tracking-wide text-sm">Workflow Failed</span>
 						</div>
 						<p class="text-xs text-text-secondary">
 							Completed {completedTasks.length} of {currentNodes.length} tasks before failure.
@@ -992,7 +996,7 @@
 				<div class="flex flex-col items-center justify-center h-full py-12 text-center px-4">
 					<div class="w-16 h-16 mb-4 flex items-center justify-center bg-purple-500/10 border border-purple-500/30">
 						<svg class="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+							<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="1.5" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
 						</svg>
 					</div>
 					<h3 class="text-lg font-serif text-text-primary mb-2">No Mind Activity Yet</h3>
@@ -1018,8 +1022,8 @@
 							<span class="text-xs text-text-tertiary">({mindActivities.length} events)</span>
 						</div>
 						{#if memoryConnected}
-							<span class="text-xs text-green-400 flex items-center gap-1">
-								<span class="w-1.5 h-1.5 bg-green-400"></span>
+							<span class="text-xs text-accent-primary flex items-center gap-1">
+								<span class="w-1.5 h-1.5 bg-accent-primary"></span>
 								Syncing to Mind
 							</span>
 						{:else}
@@ -1041,25 +1045,25 @@
 									{#if activity.type === 'decision'}
 										<div class="w-6 h-6 flex items-center justify-center bg-blue-500/20 border border-blue-500/30">
 											<svg class="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+												<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M9 5l7 7-7 7" />
 											</svg>
 										</div>
 									{:else if activity.type === 'learning'}
-										<div class="w-6 h-6 flex items-center justify-center bg-green-500/20 border border-green-500/30">
-											<svg class="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+										<div class="w-6 h-6 flex items-center justify-center bg-accent-primary/20 border border-accent-primary/30">
+											<svg class="w-3 h-3 text-accent-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="3" d="M5 13l4 4L19 7" />
 											</svg>
 										</div>
 									{:else if activity.type === 'pattern'}
 										<div class="w-6 h-6 flex items-center justify-center bg-purple-500/20 border border-purple-500/30">
 											<svg class="w-3.5 h-3.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+												<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
 											</svg>
 										</div>
 									{:else}
 										<div class="w-6 h-6 flex items-center justify-center bg-vibe-teal/20 border border-vibe-teal/30">
 											<svg class="w-3.5 h-3.5 text-vibe-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+												<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
 											</svg>
 										</div>
 									{/if}
@@ -1070,7 +1074,7 @@
 									<div class="flex items-center gap-2 mb-1">
 										<span class="text-xs font-mono uppercase tracking-wider {
 											activity.type === 'decision' ? 'text-blue-400' :
-											activity.type === 'learning' ? 'text-green-400' :
+											activity.type === 'learning' ? 'text-accent-primary' :
 											activity.type === 'pattern' ? 'text-purple-400' :
 											'text-vibe-teal'
 										}">
@@ -1192,9 +1196,9 @@
 		<div class="bg-bg-secondary border border-surface-border w-full max-w-md p-6" onclick={(e) => e.stopPropagation()}>
 			<!-- Warning Icon & Title -->
 			<div class="flex items-center gap-3 mb-4">
-				<div class="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+				<div class="w-10 h-10 bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
 					<svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+						<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
 					</svg>
 				</div>
 				<div>
@@ -1209,7 +1213,7 @@
 				<ul class="space-y-1">
 					{#each orphanedNodes as node}
 						<li class="flex items-center gap-2 text-sm text-text-secondary">
-							<span class="w-2 h-2 rounded-full bg-amber-400"></span>
+							<span class="w-2 h-2 bg-amber-400"></span>
 							<span class="font-mono">{node.skill.name}</span>
 						</li>
 					{/each}
