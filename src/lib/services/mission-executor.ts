@@ -1072,6 +1072,16 @@ class MissionExecutor {
 				this.completedSkillSequence.push(skillId);
 			}
 
+			// Auto-create issue when task fails
+			if (!success) {
+				const errorDetails = task.error || 'Task execution failed';
+				await memoryClient.createIssue(
+					`[${this.progress.mission?.name || 'Mission'}] Task failed: ${task.title} - ${errorDetails}`,
+					'open'
+				);
+				console.log(`[Mind] Auto-created issue for failed task: ${task.title}`);
+			}
+
 			console.log(`[Learning] Recorded task outcome: ${task.title} - ${success ? 'success' : 'failed'}`);
 
 			// Broadcast outcome event
@@ -1183,8 +1193,102 @@ class MissionExecutor {
 					});
 				}
 			}
+
+			// Auto-generate session summary
+			const completedTasks = mission.tasks.filter(t => t.status === 'completed');
+			const failedTasks = mission.tasks.filter(t => t.status === 'failed');
+			const agentNames = mission.agents.map(a => a.name).join(', ');
+
+			const sessionSummary = mission.status === 'completed'
+				? `Mission "${mission.name}" completed successfully. ${completedTasks.length}/${totalTasks} tasks done. Agents: ${agentNames}. Skills used: ${this.completedSkillSequence.join(', ') || 'none tracked'}.`
+				: `Mission "${mission.name}" ${mission.status}. ${completedTasks.length}/${totalTasks} tasks completed, ${failedTasks.length} failed. ${mission.error || ''}`;
+
+			await memoryClient.createSessionSummary(sessionSummary);
+			console.log(`[Mind] Auto-created session summary for mission: ${mission.name}`);
+
+			// Auto-generate improvement suggestions based on outcomes
+			await this.generateImprovementSuggestions(mission, successRate);
+
 		} catch (error) {
 			console.error('[Learning] Failed to record mission complete:', error);
+		}
+	}
+
+	/**
+	 * Generate improvement suggestions based on mission outcomes
+	 */
+	private async generateImprovementSuggestions(mission: Mission, successRate: number): Promise<void> {
+		try {
+			const failedTasks = mission.tasks.filter(t => t.status === 'failed');
+			const completedTasks = mission.tasks.filter(t => t.status === 'completed');
+
+			// Suggest agent improvements for agents with failed tasks
+			for (const task of failedTasks) {
+				const agent = mission.agents.find(a => a.id === task.assignedTo);
+				if (agent) {
+					await memoryClient.createImprovement({
+						type: 'agent',
+						targetId: agent.id,
+						targetName: agent.name,
+						suggestion: `Agent "${agent.name}" failed task "${task.title}". Consider improving error handling or adding retry logic for similar tasks.`,
+						impact: 0.15,
+						confidence: 0.7,
+						evidenceCount: 1,
+						sourceMissions: [mission.id]
+					});
+					console.log(`[Mind] Suggested improvement for agent: ${agent.name}`);
+				}
+
+				// Suggest skill improvements if skill info available
+				const skillId = agent?.skills?.[0];
+				if (skillId) {
+					await memoryClient.createImprovement({
+						type: 'skill',
+						targetId: skillId,
+						targetName: skillId,
+						suggestion: `Skill "${skillId}" was used in failed task "${task.title}". Review skill implementation for edge cases.`,
+						impact: 0.1,
+						confidence: 0.6,
+						evidenceCount: 1,
+						sourceMissions: [mission.id]
+					});
+				}
+			}
+
+			// If overall success rate is low, suggest pipeline improvement
+			if (successRate < 0.7 && mission.tasks.length > 2) {
+				await memoryClient.createImprovement({
+					type: 'pipeline',
+					targetId: mission.id,
+					targetName: mission.name,
+					suggestion: `Mission "${mission.name}" had ${Math.round(successRate * 100)}% success rate. Consider restructuring task dependencies or adding validation steps.`,
+					impact: 0.2,
+					confidence: 0.75,
+					evidenceCount: failedTasks.length,
+					sourceMissions: [mission.id]
+				});
+				console.log(`[Mind] Suggested pipeline improvement for mission: ${mission.name}`);
+			}
+
+			// If mission was highly successful, suggest positive reinforcement
+			if (successRate >= 0.9 && completedTasks.length >= 3) {
+				const primaryAgent = mission.agents[0];
+				if (primaryAgent) {
+					await memoryClient.createImprovement({
+						type: 'team',
+						targetId: 'team-composition',
+						targetName: `${mission.name} Team`,
+						suggestion: `Team composition for "${mission.name}" achieved ${Math.round(successRate * 100)}% success. Consider reusing this agent configuration: ${mission.agents.map(a => a.name).join(', ')}.`,
+						impact: 0.25,
+						confidence: 0.85,
+						evidenceCount: completedTasks.length,
+						sourceMissions: [mission.id]
+					});
+					console.log(`[Mind] Recorded successful team composition`);
+				}
+			}
+		} catch (error) {
+			console.error('[Mind] Failed to generate improvement suggestions:', error);
 		}
 	}
 
