@@ -819,33 +819,9 @@
 						<p class="mt-2 text-xs text-text-tertiary">
 							Paste this prompt into Claude Code to execute the workflow. Claude will use the spawner skills to complete each task.
 						</p>
-						<!-- Manual completion button for copy-paste workflow -->
-						{#if isRunning}
-							<button
-								onclick={() => {
-									// Manually mark all nodes as complete and end the mission
-									for (const node of currentNodes) {
-										updateNodeStatus(node.id, 'success');
-									}
-									executionProgress = {
-										...executionProgress!,
-										status: 'completed',
-										progress: 100,
-										endTime: new Date()
-									};
-									completedTasks = currentNodes.map(n => n.skill.name);
-									pendingTasks = [];
-									missionEndTime = new Date();
-									toasts.success('Workflow marked as complete');
-								}}
-								class="mt-2 w-full px-3 py-2 text-xs font-mono text-vibe-teal border border-vibe-teal/50 hover:bg-vibe-teal/10 transition-all flex items-center justify-center gap-2"
-							>
-								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-								</svg>
-								Mark as Complete (after running in Claude Code)
-							</button>
-						{/if}
+						<p class="text-text-tertiary text-xs mt-2">
+							Progress updates automatically as Claude Code reports task completion.
+						</p>
 					</div>
 				{:else if executionProgress.missionId}
 					<div class="mt-2 p-2 bg-surface-secondary text-xs">
