@@ -236,8 +236,11 @@ import { get } from 'svelte/store';
 		initPipelines();
 
 		// Auto-show execution panel if there's an active/resumable mission
-		if (hasResumableMission()) {
+		const hasResumable = hasResumableMission();
+		console.log('[Canvas] hasResumableMission:', hasResumable);
+		if (hasResumable) {
 			showExecution = true;
+			console.log('[Canvas] Auto-showing execution panel');
 		}
 
 		// FIX: Check if there's a pending goal BEFORE loading old pipeline

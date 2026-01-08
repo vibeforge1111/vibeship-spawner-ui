@@ -378,6 +378,7 @@ export function saveMissionState(state: PersistedMissionState): boolean {
  */
 export function getActiveMissionState(): PersistedMissionState | null {
 	const state = getItem<PersistedMissionState | null>(STORAGE_KEYS.ACTIVE_MISSION, null);
+	console.log('[Persistence] getActiveMissionState - raw state:', state?.status, 'missionId:', state?.missionId);
 
 	if (!state) return null;
 
@@ -390,12 +391,14 @@ export function getActiveMissionState(): PersistedMissionState | null {
 
 	// Check if mission is still active (not completed/failed/cancelled)
 	if (state.status === 'completed' || state.status === 'failed' || state.status === 'cancelled') {
+		console.log('[Persistence] Mission is completed/failed/cancelled, moving to history');
 		// Move to history and clear active
 		addToMissionHistory(state);
 		clearMissionState();
 		return null;
 	}
 
+	console.log('[Persistence] Returning active mission state');
 	return state;
 }
 
@@ -450,10 +453,13 @@ export function clearMissionHistory(): boolean {
  */
 export function hasResumableMission(): boolean {
 	const state = getItem<PersistedMissionState | null>(STORAGE_KEYS.ACTIVE_MISSION, null);
+	console.log('[Persistence] hasResumableMission - state:', state?.status, 'missionId:', state?.missionId);
 	if (!state) return false;
 
 	// Only resumable if paused or running (interrupted)
-	return state.status === 'paused' || state.status === 'running' || state.status === 'creating';
+	const isResumable = state.status === 'paused' || state.status === 'running' || state.status === 'creating';
+	console.log('[Persistence] isResumable:', isResumable);
+	return isResumable;
 }
 
 // ============================================

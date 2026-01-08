@@ -360,8 +360,20 @@ class MissionExecutor {
 						this.progress.currentTaskName = taskName || taskId;
 						this.progress.currentTaskProgress = 0;
 						this.progress.currentTaskMessage = event.message || null;
+
+						// Update task status in mission to 'in_progress'
+						if (this.progress.mission?.tasks) {
+							const task = this.progress.mission.tasks.find(t => t.id === taskId);
+							if (task) {
+								task.status = 'in_progress';
+							}
+						}
+
 						this.callbacks.onTaskStart?.(taskId, taskName || taskId);
 						this.addLocalLog('info', `Started: ${taskName || taskId}`);
+
+						// Persist the updated state
+						this.persistState();
 					}
 					break;
 
@@ -384,9 +396,20 @@ class MissionExecutor {
 					const completedTaskId = event.taskId || event.data?.taskId as string;
 					const success = event.data?.success !== false;
 					if (completedTaskId) {
+						// Update task status in mission
+						if (this.progress.mission?.tasks) {
+							const task = this.progress.mission.tasks.find(t => t.id === completedTaskId);
+							if (task) {
+								task.status = success ? 'completed' : 'failed';
+							}
+						}
+						// Recalculate overall progress
+						this.recalculateOverallProgress();
 						this.callbacks.onTaskComplete?.(completedTaskId, success);
 						this.recordTaskComplete(completedTaskId, success);
 						this.addLocalLog(success ? 'info' : 'info', `${success ? 'Completed' : 'Failed'}: ${event.taskName || completedTaskId}`);
+						// Persist the updated state
+						this.persistState();
 					}
 					break;
 
