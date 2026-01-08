@@ -24,6 +24,7 @@ import { get } from 'svelte/store';
 	import { initCanvasSync } from '$lib/services/canvas-sync';
 	import PipelineSelector from '$lib/components/PipelineSelector.svelte';
 	import { initPipelines, saveCurrentPipeline, getActivePipelineData, activePipelineId, createNewPipeline } from '$lib/stores/pipelines.svelte';
+	import { hasResumableMission } from '$lib/services/persistence';
 
 	let activeTab = $state('skills');
 	let chatExpanded = $state(false);
@@ -233,6 +234,11 @@ import { get } from 'svelte/store';
 
 		// Initialize pipeline system
 		initPipelines();
+
+		// Auto-show execution panel if there's an active/resumable mission
+		if (hasResumableMission()) {
+			showExecution = true;
+		}
 
 		// FIX: Check if there's a pending goal BEFORE loading old pipeline
 		// If there's a goal, we want a fresh canvas for it, not the old pipeline

@@ -117,11 +117,26 @@
 		const missionInfo = missionExecutor.getResumableMissionInfo();
 		if (missionInfo) {
 			resumableMission = missionInfo;
-			showResumeBanner = true;
-			// Also restore the execution progress
+			// Restore the full execution progress
 			const progress = missionExecutor.getProgress();
 			executionProgress = progress;
 			logs = progress?.logs || [];
+
+			// Restore task tracking state from mission
+			if (progress?.mission?.tasks) {
+				const tasks = progress.mission.tasks;
+				completedTasks = tasks.filter(t => t.status === 'completed').map(t => t.title);
+				failedTasks = tasks.filter(t => t.status === 'failed').map(t => t.title);
+				pendingTasks = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress').map(t => t.title);
+			}
+
+			// Only show resume banner if paused, otherwise auto-continue display
+			if (missionInfo.status === 'paused') {
+				showResumeBanner = true;
+			} else if (missionInfo.status === 'running' || missionInfo.status === 'creating') {
+				// Still running/creating - just show the current state without banner
+				showResumeBanner = false;
+			}
 		}
 	});
 
