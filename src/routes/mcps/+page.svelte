@@ -749,115 +749,210 @@
 						</button>
 					</div>
 				{:else}
-					<div class="space-y-4">
+					<div class="space-y-6">
 						{#each state.instances as instance}
 							{@const mcp = state.registry.find((m) => m.id === instance.definitionId)}
 							<div class="border border-surface-border bg-bg-secondary">
-								<div class="p-4 flex items-center gap-4">
-									<!-- Status & Icon -->
-									<div class="relative">
-										<div
-											class="w-12 h-12 flex items-center justify-center border {mcp
-												? getCategoryBgColor(mcp.category)
-												: 'bg-bg-primary border-surface-border'}"
-										>
-											<Icon
-												name={mcp ? getCategoryIcon(mcp.category) : 'box'}
-												size={24}
-												class={mcp ? getCategoryColor(mcp.category) : 'text-text-tertiary'}
-											/>
+								<!-- Header -->
+								<div class="p-4 border-b border-surface-border">
+									<div class="flex items-center gap-4">
+										<!-- Status & Icon -->
+										<div class="relative">
+											<div
+												class="w-14 h-14 flex items-center justify-center border {mcp
+													? getCategoryBgColor(mcp.category)
+													: 'bg-bg-primary border-surface-border'}"
+											>
+												<span class={mcp ? getCategoryColor(mcp.category) : 'text-text-tertiary'}>
+													<Icon name={mcp ? getCategoryIcon(mcp.category) : 'box'} size={28} />
+												</span>
+											</div>
+											<span
+												class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center bg-bg-primary border border-surface-border {getStatusColor(instance.status)}"
+											>
+												<Icon name={getStatusIcon(instance.status)} size={12} />
+											</span>
 										</div>
-										<span
-											class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center bg-bg-primary {getStatusColor(
-												instance.status
-											)}"
-										>
-											<Icon
-												name={getStatusIcon(instance.status)}
-												size={10}
-												class={instance.status === 'connecting' ? 'animate-spin' : ''}
-											/>
-										</span>
-									</div>
 
-									<!-- Info -->
-									<div class="flex-1 min-w-0">
-										<h3 class="font-medium text-text-primary">{instance.name}</h3>
-										<div class="flex items-center gap-3 text-xs text-text-tertiary">
-											<span class="font-mono">{instance.status}</span>
-											{#if instance.usageCount > 0}
-												<span>Used {instance.usageCount} times</span>
-											{/if}
-											{#if instance.feedbackCount > 0}
-												<span class="text-green-400"
-													>{instance.feedbackCount} feedback sent</span
+										<!-- Info -->
+										<div class="flex-1 min-w-0">
+											<div class="flex items-center gap-2">
+												<h3 class="text-lg font-medium text-text-primary">{instance.name}</h3>
+												{#if instance.serverInfo}
+													<span class="px-2 py-0.5 text-[10px] font-mono bg-surface-active text-text-tertiary border border-surface-border">
+														v{instance.serverInfo.version}
+													</span>
+												{/if}
+											</div>
+											<div class="flex items-center gap-3 text-xs text-text-tertiary mt-1">
+												<span class="flex items-center gap-1">
+													<span class="w-2 h-2 rounded-full {instance.status === 'connected' ? 'bg-green-500' : instance.status === 'connecting' ? 'bg-yellow-500 animate-pulse' : 'bg-gray-500'}"></span>
+													{instance.status}
+												</span>
+												{#if mcp}
+													<span class="text-text-tertiary">•</span>
+													<span>{mcp.category} / {mcp.subcategory}</span>
+												{/if}
+												{#if instance.tools?.length}
+													<span class="text-text-tertiary">•</span>
+													<span class="text-accent-primary">{instance.tools.length} tools available</span>
+												{/if}
+											</div>
+										</div>
+
+										<!-- Actions -->
+										<div class="flex items-center gap-2">
+											{#if instance.status === 'connected'}
+												<button
+													onclick={() => handleDisconnect(instance)}
+													class="px-3 py-1.5 text-xs font-mono text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/10 transition-all"
 												>
+													Disconnect
+												</button>
+											{:else if instance.status === 'disconnected' || instance.status === 'error'}
+												<button
+													onclick={() => connectInstance(instance.id)}
+													class="px-3 py-1.5 text-xs font-mono text-green-400 border border-green-500/30 hover:bg-green-500/10 transition-all"
+												>
+													{instance.status === 'error' ? 'Retry' : 'Connect'}
+												</button>
 											{/if}
+											<button
+												onclick={() => handleRemove(instance)}
+												class="px-3 py-1.5 text-xs font-mono text-red-400 border border-red-500/30 hover:bg-red-500/10 transition-all"
+											>
+												Remove
+											</button>
 										</div>
 									</div>
 
-									<!-- Attachments -->
-									<div class="flex items-center gap-2">
-										{#if instance.attachedToSkills.length > 0}
-											<span
-												class="px-2 py-1 text-xs font-mono text-accent-primary border border-accent-primary/30 bg-accent-primary/10"
-											>
-												{instance.attachedToSkills.length} skills
-											</span>
-										{/if}
-										{#if instance.attachedToTeams.length > 0}
-											<span
-												class="px-2 py-1 text-xs font-mono text-pink-400 border border-pink-500/30 bg-pink-500/10"
-											>
-												{instance.attachedToTeams.length} teams
-											</span>
+									<!-- Error message if any -->
+									{#if instance.lastError}
+										<div class="mt-3 p-2 bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-mono">
+											Error: {instance.lastError}
+										</div>
+									{/if}
+								</div>
+
+								<!-- Content Grid -->
+								<div class="grid grid-cols-1 lg:grid-cols-2 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-surface-border">
+									<!-- Left: Available Tools -->
+									<div class="p-4">
+										<h4 class="text-xs font-mono text-text-tertiary mb-3 flex items-center gap-2">
+											<Icon name="tool" size={12} />
+											AVAILABLE TOOLS
+										</h4>
+										{#if instance.tools && instance.tools.length > 0}
+											<div class="space-y-2 max-h-48 overflow-y-auto">
+												{#each instance.tools as tool}
+													<div class="p-2 bg-bg-primary border border-surface-border hover:border-accent-primary/30 transition-all">
+														<div class="flex items-center gap-2">
+															<span class="text-accent-primary font-mono text-sm">{tool.name}</span>
+														</div>
+														{#if tool.description}
+															<p class="text-xs text-text-tertiary mt-1 line-clamp-2">{tool.description}</p>
+														{/if}
+													</div>
+												{/each}
+											</div>
+										{:else if instance.status === 'connected'}
+											<p class="text-sm text-text-tertiary italic">No tools reported by server</p>
+										{:else}
+											<div class="p-3 bg-bg-primary border border-dashed border-surface-border text-center">
+												<p class="text-sm text-text-tertiary">Connect to see available tools</p>
+											</div>
 										{/if}
 									</div>
 
-									<!-- Actions -->
-									<div class="flex items-center gap-2">
-										{#if instance.status === 'connected'}
-											<button
-												onclick={() => handleDisconnect(instance)}
-												class="px-3 py-1.5 text-xs font-mono text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/10 transition-all"
-											>
-												Disconnect
-											</button>
-										{:else if instance.status === 'disconnected'}
-											<button
-												onclick={() => connectInstance(instance.id)}
-												class="px-3 py-1.5 text-xs font-mono text-green-400 border border-green-500/30 hover:bg-green-500/10 transition-all"
-											>
-												Connect
-											</button>
+									<!-- Right: Recommended Skills -->
+									<div class="p-4">
+										<h4 class="text-xs font-mono text-text-tertiary mb-3 flex items-center gap-2">
+											<Icon name="zap" size={12} />
+											RECOMMENDED SPAWNER SKILLS
+										</h4>
+										{#if mcp && mcp.skills.length > 0}
+											<div class="space-y-2">
+												{#each mcp.skills.slice(0, 4) as skillId}
+													<div class="p-2 bg-bg-primary border border-surface-border hover:border-accent-secondary/30 transition-all cursor-pointer group">
+														<div class="flex items-center justify-between">
+															<span class="text-accent-secondary font-mono text-sm">{skillId}</span>
+															<span class="text-[10px] text-text-tertiary opacity-0 group-hover:opacity-100 transition-opacity">
+																Load skill →
+															</span>
+														</div>
+														<p class="text-xs text-text-tertiary mt-1">
+															{#if skillId.includes('workflow') || skillId.includes('automation')}
+																Automate multi-step processes with this MCP
+															{:else if skillId.includes('test')}
+																Use for testing and validation pipelines
+															{:else if skillId.includes('data') || skillId.includes('engineer')}
+																Process and transform data efficiently
+															{:else if skillId.includes('code') || skillId.includes('review')}
+																Enhance coding workflows and analysis
+															{:else if skillId.includes('file')}
+																Manage files and filesystem operations
+															{:else if skillId.includes('git')}
+																Streamline version control workflows
+															{:else if skillId.includes('ci-cd') || skillId.includes('devops')}
+																Integrate with CI/CD pipelines
+															{:else}
+																Pair with this skill for enhanced capabilities
+															{/if}
+														</p>
+													</div>
+												{/each}
+											</div>
+											{#if mcp.skills.length > 4}
+												<p class="text-xs text-text-tertiary mt-2">+{mcp.skills.length - 4} more compatible skills</p>
+											{/if}
+										{:else}
+											<div class="p-3 bg-bg-primary border border-dashed border-surface-border text-center">
+												<p class="text-sm text-text-tertiary">Works with any Spawner skill</p>
+												<p class="text-xs text-text-tertiary mt-1">This MCP has general-purpose capabilities</p>
+											</div>
 										{/if}
-										<button
-											onclick={() => handleRemove(instance)}
-											class="px-3 py-1.5 text-xs font-mono text-red-400 border border-red-500/30 hover:bg-red-500/10 transition-all"
-										>
-											Remove
-										</button>
 									</div>
 								</div>
 
-								<!-- MCP Info -->
-								{#if mcp}
-									<div class="px-4 pb-4 border-t border-surface-border pt-3">
-										<div class="flex items-center gap-4 text-xs text-text-tertiary">
-											<span class="font-mono {getCategoryColor(mcp.category)}">{mcp.category}</span
-											>
-											<span>{mcp.subcategory}</span>
-											{#if mcp.skills.length > 0}
-												<span class="flex items-center gap-1">
-													<Icon name="zap" size={10} />
-													Works with: {mcp.skills.slice(0, 3).join(', ')}{mcp.skills.length > 3
-														? '...'
-														: ''}
-												</span>
-											{/if}
-										</div>
+								<!-- Footer: Usage Tips -->
+								<div class="p-4 bg-bg-primary border-t border-surface-border">
+									<h4 class="text-xs font-mono text-text-tertiary mb-2 flex items-center gap-2">
+										<Icon name="sparkles" size={12} />
+										HOW TO USE THIS MCP
+									</h4>
+									<div class="text-sm text-text-secondary">
+										{#if mcp}
+											<p>{mcp.description}</p>
+											<div class="mt-3 flex flex-wrap gap-2">
+												{#each mcp.capabilities as capability}
+													<span class="px-2 py-1 text-xs font-mono bg-surface-active text-text-tertiary border border-surface-border">
+														{capability}
+													</span>
+												{/each}
+											</div>
+										{:else}
+											<p>Connect this MCP to your agents and skills to extend their capabilities.</p>
+										{/if}
 									</div>
-								{/if}
+
+									<!-- Stats Row -->
+									<div class="mt-4 pt-3 border-t border-surface-border flex items-center gap-6 text-xs">
+										<div class="flex items-center gap-1.5">
+											<span class="text-text-tertiary">Used:</span>
+											<span class="text-text-primary font-mono">{instance.usageCount} times</span>
+										</div>
+										<div class="flex items-center gap-1.5">
+											<span class="text-text-tertiary">Feedback:</span>
+											<span class="text-green-400 font-mono">{instance.feedbackCount} sent</span>
+										</div>
+										{#if instance.lastConnected}
+											<div class="flex items-center gap-1.5">
+												<span class="text-text-tertiary">Connected:</span>
+												<span class="text-text-primary font-mono">{new Date(instance.lastConnected).toLocaleString()}</span>
+											</div>
+										{/if}
+									</div>
+								</div>
 							</div>
 						{/each}
 					</div>
