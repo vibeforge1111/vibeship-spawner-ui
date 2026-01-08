@@ -40,8 +40,8 @@
 	let memoryConnected = $state(false);
 	let memoryStatus = $state<string>('disconnected');
 
-	// Form states
-	let activeTab = $state<'decisions' | 'issues' | 'sessions' | 'learnings'>('decisions');
+	// Form states - Learnings first
+	let activeTab = $state<'learnings' | 'decisions' | 'issues' | 'sessions'>('learnings');
 	let showAddForm = $state(false);
 	let formType = $state<'decision' | 'issue' | 'session'>('decision');
 
@@ -180,6 +180,19 @@
 		<!-- Tabs -->
 		<div class="flex items-center gap-2 mb-6">
 			<button
+				onclick={() => (activeTab = 'learnings')}
+				class="px-3 py-1.5 font-mono text-sm border transition-all"
+				class:bg-green-500={activeTab === 'learnings'}
+				class:text-bg-primary={activeTab === 'learnings'}
+				class:border-green-500={activeTab === 'learnings'}
+				class:text-text-secondary={activeTab !== 'learnings'}
+				class:border-surface-border={activeTab !== 'learnings'}
+				class:hover:border-text-tertiary={activeTab !== 'learnings'}
+			>
+				Learnings
+				{#if currentState.learnings.length > 0}<span class="opacity-60">({currentState.learnings.length})</span>{/if}
+			</button>
+			<button
 				onclick={() => (activeTab = 'decisions')}
 				class="px-3 py-1.5 font-mono text-sm border transition-all"
 				class:bg-accent-primary={activeTab === 'decisions'}
@@ -218,22 +231,6 @@
 			>
 				Sessions
 				{#if sessions.length > 0}<span class="opacity-60">({sessions.length})</span>{/if}
-			</button>
-
-			<div class="w-px h-5 bg-surface-border mx-1"></div>
-
-			<button
-				onclick={() => (activeTab = 'learnings')}
-				class="px-3 py-1.5 font-mono text-sm border transition-all"
-				class:bg-accent-primary={activeTab === 'learnings'}
-				class:text-bg-primary={activeTab === 'learnings'}
-				class:border-accent-primary={activeTab === 'learnings'}
-				class:text-text-secondary={activeTab !== 'learnings'}
-				class:border-surface-border={activeTab !== 'learnings'}
-				class:hover:border-text-tertiary={activeTab !== 'learnings'}
-			>
-				Learnings
-				{#if currentState.learnings.length > 0}<span class="opacity-60">({currentState.learnings.length})</span>{/if}
 			</button>
 
 			<div class="flex-1"></div>
@@ -284,6 +281,74 @@
 				</p>
 			</div>
 		{:else}
+			<!-- Learnings Tab (First) -->
+			{#if activeTab === 'learnings'}
+				{#if !memoryConnected}
+					<div class="border border-surface-border bg-bg-secondary p-12 text-center">
+						<div class="text-4xl mb-4 opacity-50">💡</div>
+						<h3 class="text-lg text-text-primary mb-2">Mind Memory Offline</h3>
+						<p class="text-sm text-text-secondary mb-4">
+							Connect to Mind to view agent learnings and workflow patterns.
+						</p>
+						<button
+							onclick={handleConnectMemory}
+							class="px-4 py-2 font-mono text-sm bg-green-500 text-bg-primary hover:bg-green-600 transition-all"
+						>
+							Connect to Mind
+						</button>
+						<a href="/settings" class="block mt-3 font-mono text-sm text-text-tertiary hover:text-accent-primary">
+							Configure in Settings
+						</a>
+					</div>
+				{:else}
+					<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+						<!-- Main Timeline with Filters -->
+						<div class="lg:col-span-2">
+							<!-- Filters -->
+							<LearningsFilter
+								learnings={currentState.learnings}
+								onFilter={(filtered) => filteredLearnings = filtered}
+							/>
+
+							<!-- Timeline -->
+							<LearningsTimeline
+								learnings={filteredLearnings.length > 0 || currentState.learnings.length === 0 ? filteredLearnings : currentState.learnings}
+								loading={currentState.learningsLoading}
+							/>
+						</div>
+
+						<!-- Sidebar -->
+						<div class="space-y-6">
+							<!-- Workflow Patterns -->
+							<WorkflowPatterns
+								patterns={currentState.patterns}
+								loading={currentState.learningsLoading}
+							/>
+
+							<!-- Agent Stats (if we have any) -->
+							{#each Object.entries(currentState.agentStats) as [agentId, stats]}
+								<AgentEffectiveness
+									{agentId}
+									agentName={agentId}
+									{stats}
+									learnings={currentState.learnings.filter(l =>
+										(l.metadata as { agent_id?: string })?.agent_id === agentId
+									)}
+								/>
+							{/each}
+
+							<!-- Export/Import -->
+							<LearningsExportImport
+								onImportComplete={(count) => {
+									// Reload learnings after import
+									if (count > 0) loadLearnings();
+								}}
+							/>
+						</div>
+					</div>
+				{/if}
+			{/if}
+
 			<!-- Decisions Tab -->
 			{#if activeTab === 'decisions'}
 				{#if decisions.length === 0}
@@ -402,74 +467,6 @@
 								</div>
 							</div>
 						{/each}
-					</div>
-				{/if}
-			{/if}
-
-			<!-- Learnings Tab -->
-			{#if activeTab === 'learnings'}
-				{#if !memoryConnected}
-					<div class="border border-surface-border bg-bg-secondary p-12 text-center">
-						<div class="text-4xl mb-4 opacity-50">~</div>
-						<h3 class="text-lg text-text-primary mb-2">Mind Memory Offline</h3>
-						<p class="text-sm text-text-secondary mb-4">
-							Connect to Mind to view agent learnings and workflow patterns.
-						</p>
-						<button
-							onclick={handleConnectMemory}
-							class="px-4 py-2 font-mono text-sm bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all"
-						>
-							Connect to Mind
-						</button>
-						<a href="/settings" class="block mt-3 font-mono text-sm text-text-tertiary hover:text-accent-primary">
-							Configure in Settings
-						</a>
-					</div>
-				{:else}
-					<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-						<!-- Main Timeline with Filters -->
-						<div class="lg:col-span-2">
-							<!-- Filters -->
-							<LearningsFilter
-								learnings={currentState.learnings}
-								onFilter={(filtered) => filteredLearnings = filtered}
-							/>
-
-							<!-- Timeline -->
-							<LearningsTimeline
-								learnings={filteredLearnings.length > 0 || currentState.learnings.length === 0 ? filteredLearnings : currentState.learnings}
-								loading={currentState.learningsLoading}
-							/>
-						</div>
-
-						<!-- Sidebar -->
-						<div class="space-y-6">
-							<!-- Workflow Patterns -->
-							<WorkflowPatterns
-								patterns={currentState.patterns}
-								loading={currentState.learningsLoading}
-							/>
-
-							<!-- Agent Stats (if we have any) -->
-							{#each Object.entries(currentState.agentStats) as [agentId, stats]}
-								<AgentEffectiveness
-									{agentId}
-									agentName={agentId}
-									{stats}
-									learnings={currentState.learnings.filter(l =>
-										(l.metadata as { agent_id?: string })?.agent_id === agentId
-									)}
-								/>
-							{/each}
-
-							<!-- Export/Import -->
-							<LearningsExportImport
-								onImportComplete={(count) => {
-									// Reload learnings after import
-									if (count > 0) loadLearnings();
-								}}
-							/>
-						</div>
 					</div>
 				{/if}
 			{/if}
