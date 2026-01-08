@@ -13,8 +13,33 @@
 import { writable, derived, get } from 'svelte/store';
 import { mcpClient } from '$lib/services/mcp-client';
 import { memoryClient } from '$lib/services/memory-client';
-import type { MindProject, MindDecision, MindIssue } from '$lib/services/mcp-client';
+import type { MindProject } from '$lib/services/mcp-client';
 import type { Memory, AgentLearning, WorkflowPattern, AgentEffectiveness } from '$lib/types/memory';
+
+// Local types for Mind v5 unified storage
+export interface MindDecision {
+	id: string;
+	what: string;
+	why: string;
+	created_at: string;
+	memory_id?: string;  // Reference to Mind v5 memory
+}
+
+export interface MindIssue {
+	id: string;
+	description: string;
+	status: 'open' | 'resolved';
+	created_at: string;
+	resolved_at?: string;
+	memory_id?: string;  // Reference to Mind v5 memory
+}
+
+export interface MindSession {
+	id: string;
+	summary: string;
+	created_at: string;
+	memory_id?: string;  // Reference to Mind v5 memory
+}
 
 export interface MindState {
 	project: MindProject | null;
@@ -26,6 +51,13 @@ export interface MindState {
 	agentStats: Record<string, AgentEffectiveness>;
 	learningsLoading: boolean;
 	memoryConnected: boolean;
+	// Unified Mind v5 storage
+	decisions: MindDecision[];
+	issues: MindIssue[];
+	sessions: MindSession[];
+	decisionsLoading: boolean;
+	issuesLoading: boolean;
+	sessionsLoading: boolean;
 }
 
 const initialState: MindState = {
@@ -36,20 +68,31 @@ const initialState: MindState = {
 	patterns: [],
 	agentStats: {},
 	learningsLoading: false,
-	memoryConnected: false
+	memoryConnected: false,
+	// Unified Mind v5 storage
+	decisions: [],
+	issues: [],
+	sessions: [],
+	decisionsLoading: false,
+	issuesLoading: false,
+	sessionsLoading: false
 };
 
 export const mindState = writable<MindState>(initialState);
 
 // Derived stores for convenience
 export const currentProject = derived(mindState, ($state) => $state.project);
-export const decisions = derived(mindState, ($state) => $state.project?.decisions ?? []);
-export const issues = derived(mindState, ($state) => $state.project?.issues ?? []);
+// Now using unified Mind v5 storage instead of project.decisions/issues/sessions
+export const decisions = derived(mindState, ($state) => $state.decisions);
+export const issues = derived(mindState, ($state) => $state.issues);
 export const openIssues = derived(issues, ($issues) => $issues.filter((i) => i.status === 'open'));
 export const resolvedIssues = derived(issues, ($issues) => $issues.filter((i) => i.status === 'resolved'));
-export const sessions = derived(mindState, ($state) => $state.project?.sessions ?? []);
+export const sessions = derived(mindState, ($state) => $state.sessions);
 export const isLoading = derived(mindState, ($state) => $state.loading);
 export const hasError = derived(mindState, ($state) => $state.error !== null);
+export const isDecisionsLoading = derived(mindState, ($state) => $state.decisionsLoading);
+export const isIssuesLoading = derived(mindState, ($state) => $state.issuesLoading);
+export const isSessionsLoading = derived(mindState, ($state) => $state.sessionsLoading);
 
 // Learning-related derived stores
 export const learnings = derived(mindState, ($state) => $state.learnings);
@@ -97,36 +140,63 @@ export async function loadProject(options?: {
 }
 
 /**
- * Add a decision to the project
+ * Load decisions from Mind v5
+ */
+export async function loadDecisions(): Promise<boolean> {
+	mindState.update((s) => ({ ...s, decisionsLoading: true }));
+
+	try {
+		const result = await memoryClient.listProjectDecisions(50);
+
+		if (result.success && result.data) {
+			const decisions: MindDecision[] = result.data.map((m) => ({
+				id: m.memory_id,
+				what: m.metadata?.decision_what ?? m.content.split('\n\nReason:')[0] ?? m.content,
+				why: m.metadata?.decision_why ?? m.content.split('\n\nReason:')[1] ?? '',
+				created_at: m.created_at,
+				memory_id: m.memory_id
+			}));
+
+			mindState.update((s) => ({
+				...s,
+				decisions,
+				decisionsLoading: false,
+				memoryConnected: true
+			}));
+			return true;
+		}
+
+		mindState.update((s) => ({ ...s, decisionsLoading: false }));
+		return false;
+	} catch (e) {
+		mindState.update((s) => ({
+			...s,
+			decisionsLoading: false,
+			error: e instanceof Error ? e.message : 'Failed to load decisions'
+		}));
+		return false;
+	}
+}
+
+/**
+ * Add a decision (saves to Mind v5)
  */
 export async function addDecision(what: string, why: string): Promise<boolean> {
-	const state = get(mindState);
-	if (!state.project) return false;
-
 	try {
-		const result = await mcpClient.remember(
-			{
-				decision: { what, why }
-			},
-			state.project.project_id
-		);
+		const result = await memoryClient.createProjectDecision(what, why);
 
-		if (result.success) {
-			// Add locally while we wait for refresh
+		if (result.success && result.data) {
 			const newDecision: MindDecision = {
+				id: result.data.memory_id,
 				what,
 				why,
-				created_at: new Date().toISOString()
+				created_at: result.data.created_at,
+				memory_id: result.data.memory_id
 			};
 
 			mindState.update((s) => ({
 				...s,
-				project: s.project
-					? {
-							...s.project,
-							decisions: [newDecision, ...s.project.decisions]
-						}
-					: null
+				decisions: [newDecision, ...s.decisions]
 			}));
 			return true;
 		}
@@ -137,35 +207,64 @@ export async function addDecision(what: string, why: string): Promise<boolean> {
 }
 
 /**
- * Add an issue to track
+ * Load issues from Mind v5
+ */
+export async function loadIssues(): Promise<boolean> {
+	mindState.update((s) => ({ ...s, issuesLoading: true }));
+
+	try {
+		const result = await memoryClient.listProjectIssues({ limit: 50 });
+
+		if (result.success && result.data) {
+			const issues: MindIssue[] = result.data.map((m) => ({
+				id: m.memory_id,
+				description: m.content,
+				status: m.metadata?.issue_status ?? 'open',
+				created_at: m.created_at,
+				resolved_at: m.metadata?.issue_resolved_at,
+				memory_id: m.memory_id
+			}));
+
+			mindState.update((s) => ({
+				...s,
+				issues,
+				issuesLoading: false,
+				memoryConnected: true
+			}));
+			return true;
+		}
+
+		mindState.update((s) => ({ ...s, issuesLoading: false }));
+		return false;
+	} catch (e) {
+		mindState.update((s) => ({
+			...s,
+			issuesLoading: false,
+			error: e instanceof Error ? e.message : 'Failed to load issues'
+		}));
+		return false;
+	}
+}
+
+/**
+ * Add an issue (saves to Mind v5)
  */
 export async function addIssue(description: string): Promise<boolean> {
-	const state = get(mindState);
-	if (!state.project) return false;
-
 	try {
-		const result = await mcpClient.remember(
-			{
-				issue: { description, status: 'open' }
-			},
-			state.project.project_id
-		);
+		const result = await memoryClient.createProjectIssue(description, 'open');
 
-		if (result.success) {
+		if (result.success && result.data) {
 			const newIssue: MindIssue = {
+				id: result.data.memory_id,
 				description,
 				status: 'open',
-				created_at: new Date().toISOString()
+				created_at: result.data.created_at,
+				memory_id: result.data.memory_id
 			};
 
 			mindState.update((s) => ({
 				...s,
-				project: s.project
-					? {
-							...s.project,
-							issues: [newIssue, ...s.project.issues]
-						}
-					: null
+				issues: [newIssue, ...s.issues]
 			}));
 			return true;
 		}
@@ -176,31 +275,20 @@ export async function addIssue(description: string): Promise<boolean> {
 }
 
 /**
- * Resolve an issue
+ * Resolve an issue (saves to Mind v5)
  */
 export async function resolveIssue(description: string): Promise<boolean> {
-	const state = get(mindState);
-	if (!state.project) return false;
-
 	try {
-		const result = await mcpClient.remember(
-			{
-				issue: { description, status: 'resolved' }
-			},
-			state.project.project_id
-		);
+		const result = await memoryClient.updateIssueStatus(description, 'resolved');
 
 		if (result.success) {
 			mindState.update((s) => ({
 				...s,
-				project: s.project
-					? {
-							...s.project,
-							issues: s.project.issues.map((i) =>
-								i.description === description ? { ...i, status: 'resolved' as const } : i
-							)
-						}
-					: null
+				issues: s.issues.map((i) =>
+					i.description === description
+						? { ...i, status: 'resolved' as const, resolved_at: new Date().toISOString() }
+						: i
+				)
 			}));
 			return true;
 		}
@@ -211,34 +299,61 @@ export async function resolveIssue(description: string): Promise<boolean> {
 }
 
 /**
- * Add a session summary
+ * Load session summaries from Mind v5
  */
-export async function addSessionSummary(summary: string): Promise<boolean> {
-	const state = get(mindState);
-	if (!state.project) return false;
+export async function loadSessions(): Promise<boolean> {
+	mindState.update((s) => ({ ...s, sessionsLoading: true }));
 
 	try {
-		const result = await mcpClient.remember(
-			{
-				session_summary: summary
-			},
-			state.project.project_id
-		);
+		const result = await memoryClient.listSessionSummaries(50);
 
-		if (result.success) {
-			const newSession = {
+		if (result.success && result.data) {
+			const sessions: MindSession[] = result.data.map((m) => ({
+				id: m.memory_id,
+				summary: m.content,
+				created_at: m.created_at,
+				memory_id: m.memory_id
+			}));
+
+			mindState.update((s) => ({
+				...s,
+				sessions,
+				sessionsLoading: false,
+				memoryConnected: true
+			}));
+			return true;
+		}
+
+		mindState.update((s) => ({ ...s, sessionsLoading: false }));
+		return false;
+	} catch (e) {
+		mindState.update((s) => ({
+			...s,
+			sessionsLoading: false,
+			error: e instanceof Error ? e.message : 'Failed to load sessions'
+		}));
+		return false;
+	}
+}
+
+/**
+ * Add a session summary (saves to Mind v5)
+ */
+export async function addSessionSummary(summary: string): Promise<boolean> {
+	try {
+		const result = await memoryClient.createSessionSummary(summary);
+
+		if (result.success && result.data) {
+			const newSession: MindSession = {
+				id: result.data.memory_id,
 				summary,
-				created_at: new Date().toISOString()
+				created_at: result.data.created_at,
+				memory_id: result.data.memory_id
 			};
 
 			mindState.update((s) => ({
 				...s,
-				project: s.project
-					? {
-							...s.project,
-							sessions: [newSession, ...s.project.sessions]
-						}
-					: null
+				sessions: [newSession, ...s.sessions]
 			}));
 			return true;
 		}
@@ -253,6 +368,45 @@ export async function addSessionSummary(summary: string): Promise<boolean> {
  */
 export function clearMindState() {
 	mindState.set(initialState);
+}
+
+/**
+ * Load all Mind data from Mind v5 (unified loader)
+ * This loads learnings, decisions, issues, and sessions in parallel
+ */
+export async function loadAllMindData(): Promise<boolean> {
+	mindState.update((s) => ({ ...s, loading: true }));
+
+	try {
+		// Check connection first
+		const connected = await checkMemoryConnection();
+		if (!connected) {
+			mindState.update((s) => ({
+				...s,
+				loading: false,
+				error: 'Mind v5 API not connected'
+			}));
+			return false;
+		}
+
+		// Load all data in parallel
+		const [learningsOk, decisionsOk, issuesOk, sessionsOk] = await Promise.all([
+			loadLearnings(),
+			loadDecisions(),
+			loadIssues(),
+			loadSessions()
+		]);
+
+		mindState.update((s) => ({ ...s, loading: false }));
+		return learningsOk || decisionsOk || issuesOk || sessionsOk;
+	} catch (e) {
+		mindState.update((s) => ({
+			...s,
+			loading: false,
+			error: e instanceof Error ? e.message : 'Failed to load Mind data'
+		}));
+		return false;
+	}
 }
 
 // ============================================

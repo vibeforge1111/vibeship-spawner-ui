@@ -55,7 +55,15 @@ export type AgentContentType =
 	| 'decision_reinforcement'   // Reinforcement applied to a decision
 	| 'pattern_reinforcement';   // Reinforcement applied to a pattern
 
-export type ContentType = BaseContentType | AgentContentType;
+/**
+ * Project-level content types for Mind tabs (unified storage)
+ */
+export type ProjectContentType =
+	| 'project_decision'         // Project decision (what + why)
+	| 'project_issue'            // Open/resolved issue
+	| 'session_summary';         // Session summary
+
+export type ContentType = BaseContentType | AgentContentType | ProjectContentType;
 
 // ============================================
 // Memory Model
@@ -173,6 +181,17 @@ export interface AgentMemoryMetadata {
 	// Pipeline context
 	connection_count?: number;
 	node_count?: number;
+
+	// Project decision context
+	decision_what?: string;      // What was decided
+	decision_why?: string;       // Why it was decided
+
+	// Project issue context
+	issue_status?: 'open' | 'resolved';
+	issue_resolved_at?: string;
+
+	// Session summary context
+	session_date?: string;
 }
 
 // ============================================

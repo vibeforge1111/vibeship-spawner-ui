@@ -763,6 +763,135 @@ class MemoryClient {
 			}
 		};
 	}
+
+	// ============================================
+	// Project-Level Memory Helpers (for Mind tabs)
+	// ============================================
+
+	/**
+	 * Create a project decision (for Decisions tab)
+	 */
+	async createProjectDecision(
+		what: string,
+		why: string
+	): Promise<MemoryClientResult<Memory>> {
+		return this.createMemory({
+			content: `${what}\n\nReason: ${why}`,
+			content_type: 'project_decision',
+			temporal_level: TEMPORAL_LEVELS.SEASONAL,
+			salience: 0.8,
+			metadata: {
+				decision_what: what,
+				decision_why: why
+			}
+		});
+	}
+
+	/**
+	 * Get all project decisions
+	 */
+	async listProjectDecisions(limit: number = 50): Promise<MemoryClientResult<Memory[]>> {
+		return this.listByContentType(['project_decision'], { limit });
+	}
+
+	/**
+	 * Create a project issue (for Issues tab)
+	 */
+	async createProjectIssue(
+		description: string,
+		status: 'open' | 'resolved' = 'open'
+	): Promise<MemoryClientResult<Memory>> {
+		return this.createMemory({
+			content: description,
+			content_type: 'project_issue',
+			temporal_level: TEMPORAL_LEVELS.SITUATIONAL,
+			salience: status === 'open' ? 0.8 : 0.6,
+			metadata: {
+				issue_status: status
+			}
+		});
+	}
+
+	/**
+	 * Update an issue's status (resolve or reopen)
+	 * Note: For Lite tier, we create a new memory with updated status
+	 * since there's no update endpoint
+	 */
+	async updateIssueStatus(
+		description: string,
+		status: 'open' | 'resolved'
+	): Promise<MemoryClientResult<Memory>> {
+		return this.createMemory({
+			content: description,
+			content_type: 'project_issue',
+			temporal_level: TEMPORAL_LEVELS.SITUATIONAL,
+			salience: status === 'open' ? 0.8 : 0.5,
+			metadata: {
+				issue_status: status,
+				issue_resolved_at: status === 'resolved' ? new Date().toISOString() : undefined
+			}
+		});
+	}
+
+	/**
+	 * Get all project issues
+	 */
+	async listProjectIssues(
+		options?: { status?: 'open' | 'resolved'; limit?: number }
+	): Promise<MemoryClientResult<Memory[]>> {
+		const result = await this.listByContentType(['project_issue'], { limit: options?.limit ?? 50 });
+
+		if (!result.success || !result.data) {
+			return result;
+		}
+
+		let issues = result.data;
+
+		// Deduplicate by description, keeping newest status for each
+		const issueMap = new Map<string, Memory>();
+		for (const issue of issues) {
+			const desc = issue.content;
+			const existing = issueMap.get(desc);
+			if (!existing || new Date(issue.created_at) > new Date(existing.created_at)) {
+				issueMap.set(desc, issue);
+			}
+		}
+		issues = Array.from(issueMap.values());
+
+		// Filter by status if specified
+		if (options?.status) {
+			issues = issues.filter(i => i.metadata?.issue_status === options.status);
+		}
+
+		// Sort by created_at descending
+		issues.sort((a, b) =>
+			new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+		);
+
+		return { success: true, data: issues };
+	}
+
+	/**
+	 * Create a session summary
+	 */
+	async createSessionSummary(summary: string): Promise<MemoryClientResult<Memory>> {
+		return this.createMemory({
+			content: summary,
+			content_type: 'session_summary',
+			temporal_level: TEMPORAL_LEVELS.SITUATIONAL,
+			salience: 0.7,
+			metadata: {
+				session_date: new Date().toISOString()
+			}
+		});
+	}
+
+	/**
+	 * Get all session summaries
+	 */
+	async listSessionSummaries(limit: number = 50): Promise<MemoryClientResult<Memory[]>> {
+		return this.listByContentType(['session_summary'], { limit });
+	}
 }
 
 // ============================================

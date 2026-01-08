@@ -9,21 +9,26 @@
 	import LearningsExportImport from '$lib/components/LearningsExportImport.svelte';
 	import {
 		mindState,
-		loadProject,
 		addDecision,
 		addIssue,
 		resolveIssue,
 		addSessionSummary,
+		loadAllMindData,
 		loadLearnings,
-		type MindState
+		loadDecisions,
+		loadIssues,
+		loadSessions,
+		checkMemoryConnection,
+		type MindState,
+		type MindDecision,
+		type MindIssue,
+		type MindSession
 	} from '$lib/stores/mind.svelte';
-	import { mcpState } from '$lib/stores/mcp.svelte';
 	import {
 		isMemoryConnected,
 		memoryConnectionStatus,
 		connectMemory
 	} from '$lib/stores/memory-settings.svelte';
-	import type { MindDecision, MindIssue } from '$lib/services/mcp-client';
 	import type { Memory } from '$lib/types/memory';
 
 	let currentState = $state<MindState>({
@@ -34,9 +39,14 @@
 		patterns: [],
 		agentStats: {},
 		learningsLoading: false,
-		memoryConnected: false
+		memoryConnected: false,
+		decisions: [],
+		issues: [],
+		sessions: [],
+		decisionsLoading: false,
+		issuesLoading: false,
+		sessionsLoading: false
 	});
-	let mcpConnected = $state(false);
 	let memoryConnected = $state(false);
 	let memoryStatus = $state<string>('disconnected');
 
@@ -62,42 +72,44 @@
 
 	$effect(() => {
 		const unsub1 = mindState.subscribe((s) => (currentState = s));
-		const unsub2 = mcpState.subscribe((s) => (mcpConnected = s.status === 'connected'));
-		const unsub3 = isMemoryConnected.subscribe((v) => (memoryConnected = v));
-		const unsub4 = memoryConnectionStatus.subscribe((v) => (memoryStatus = v));
+		const unsub2 = isMemoryConnected.subscribe((v) => (memoryConnected = v));
+		const unsub3 = memoryConnectionStatus.subscribe((v) => (memoryStatus = v));
 		return () => {
 			unsub1();
 			unsub2();
 			unsub3();
-			unsub4();
 		};
 	});
 
 	onMount(async () => {
-		await new Promise((r) => setTimeout(r, 500));
-		if (mcpConnected) {
-			await loadProject();
+		// Try to connect to Mind v5 and load all data
+		await new Promise((r) => setTimeout(r, 300));
+		const connected = await checkMemoryConnection();
+		if (connected) {
+			await loadAllMindData();
 		}
 	});
 
-	// Reload when MCP connects
+	// Load data for each tab when selected (if not already loaded)
 	$effect(() => {
-		if (mcpConnected && !currentState.project && !currentState.loading) {
-			loadProject();
-		}
-	});
+		if (!memoryConnected) return;
 
-	// Load learnings when tab is selected and memory is connected
-	$effect(() => {
-		if (activeTab === 'learnings' && memoryConnected && currentState.learnings.length === 0 && !currentState.learningsLoading) {
+		if (activeTab === 'learnings' && currentState.learnings.length === 0 && !currentState.learningsLoading) {
 			loadLearnings();
+		} else if (activeTab === 'decisions' && currentState.decisions.length === 0 && !currentState.decisionsLoading) {
+			loadDecisions();
+		} else if (activeTab === 'issues' && currentState.issues.length === 0 && !currentState.issuesLoading) {
+			loadIssues();
+		} else if (activeTab === 'sessions' && currentState.sessions.length === 0 && !currentState.sessionsLoading) {
+			loadSessions();
 		}
 	});
 
 	async function handleConnectMemory() {
 		await connectMemory();
-		if (memoryConnected) {
-			loadLearnings();
+		const connected = await checkMemoryConnection();
+		if (connected) {
+			loadAllMindData();
 		}
 	}
 
@@ -147,11 +159,12 @@
 		await resolveIssue(issue.description);
 	}
 
-	const decisions = $derived(currentState.project?.decisions ?? []);
-	const issues = $derived(currentState.project?.issues ?? []);
+	// Now using unified Mind v5 storage
+	const decisions = $derived(currentState.decisions);
+	const issues = $derived(currentState.issues);
 	const openIssues = $derived(issues.filter((i) => i.status === 'open'));
 	const resolvedIssues = $derived(issues.filter((i) => i.status === 'resolved'));
-	const sessions = $derived(currentState.project?.sessions ?? []);
+	const sessions = $derived(currentState.sessions);
 </script>
 
 <div class="min-h-screen bg-bg-primary flex flex-col">
@@ -162,18 +175,23 @@
 		<div class="mb-8">
 			<div class="flex items-center gap-3 mb-2">
 				<h1 class="text-3xl font-serif text-text-primary">Mind</h1>
-				<span class="font-mono text-sm text-accent-secondary">recall()</span>
-				{#if !mcpConnected}
+				<span class="font-mono text-sm text-accent-secondary">v5</span>
+				{#if !currentState.memoryConnected}
 					<span
 						class="px-2 py-0.5 text-xs font-mono text-yellow-400 border border-yellow-500/30 bg-yellow-500/10"
 					>
-						MCP Offline
+						Offline
+					</span>
+				{:else}
+					<span
+						class="px-2 py-0.5 text-xs font-mono text-accent-primary border border-accent-primary/30 bg-accent-primary/10"
+					>
+						Connected
 					</span>
 				{/if}
 			</div>
 			<p class="text-text-secondary">
-				Semantic memory that persists across sessions. Store decisions, track issues, and record
-				session summaries.
+				Unified memory powered by Mind v5. All learnings, decisions, issues, and sessions stored in SQLite.
 			</p>
 		</div>
 
@@ -235,7 +253,7 @@
 
 			<div class="flex-1"></div>
 
-			{#if mcpConnected && currentState.project}
+			{#if currentState.memoryConnected && activeTab !== 'learnings'}
 				<button
 					onclick={() =>
 						openAddForm(
@@ -253,16 +271,22 @@
 		</div>
 
 		<!-- Content -->
-		{#if !mcpConnected}
+		{#if !currentState.memoryConnected}
 			<div class="border border-surface-border bg-bg-secondary p-12 text-center">
 				<div class="text-4xl mb-4 opacity-50">~</div>
-				<h3 class="text-lg text-text-primary mb-2">MCP Server Offline</h3>
+				<h3 class="text-lg text-text-primary mb-2">Mind v5 Offline</h3>
 				<p class="text-sm text-text-secondary mb-4">
-					Connect to the MCP server to access Mind memory.
+					Start Mind v5 Lite to access unified memory storage.
 				</p>
-				<a href="/guide" class="font-mono text-sm text-accent-primary hover:underline">
-					Setup Guide
-				</a>
+				<button
+					onclick={handleConnectMemory}
+					class="px-4 py-2 font-mono text-sm bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all"
+				>
+					Connect to Mind v5
+				</button>
+				<p class="mt-3 text-xs text-text-tertiary font-mono">
+					Run: start_mind_lite.bat
+				</p>
 			</div>
 		{:else if currentState.loading}
 			<div class="border border-surface-border bg-bg-secondary p-12 text-center">
@@ -272,33 +296,12 @@
 			<div class="border border-red-500/30 bg-red-500/10 p-6">
 				<p class="text-red-400 font-mono text-sm">{currentState.error}</p>
 			</div>
-		{:else if !currentState.project}
-			<div class="border border-surface-border bg-bg-secondary p-12 text-center">
-				<div class="text-4xl mb-4 opacity-50">[ ]</div>
-				<h3 class="text-lg text-text-primary mb-2">No project loaded</h3>
-				<p class="text-sm text-text-secondary mb-4">
-					Start a new project or load an existing one.
-				</p>
-			</div>
 		{:else}
 			<!-- Learnings Tab (First) -->
 			{#if activeTab === 'learnings'}
-				{#if !memoryConnected}
+				{#if currentState.learningsLoading}
 					<div class="border border-surface-border bg-bg-secondary p-12 text-center">
-						<div class="text-4xl mb-4 opacity-50">💡</div>
-						<h3 class="text-lg text-text-primary mb-2">Mind Memory Offline</h3>
-						<p class="text-sm text-text-secondary mb-4">
-							Connect to Mind to view agent learnings and workflow patterns.
-						</p>
-						<button
-							onclick={handleConnectMemory}
-							class="px-4 py-2 font-mono text-sm bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all"
-						>
-							Connect to Mind
-						</button>
-						<a href="/settings" class="block mt-3 font-mono text-sm text-text-tertiary hover:text-accent-primary">
-							Configure in Settings
-						</a>
+						<div class="animate-pulse text-text-tertiary font-mono">Loading learnings...</div>
 					</div>
 				{:else}
 					<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -351,7 +354,11 @@
 
 			<!-- Decisions Tab -->
 			{#if activeTab === 'decisions'}
-				{#if decisions.length === 0}
+				{#if currentState.decisionsLoading}
+					<div class="border border-surface-border bg-bg-secondary p-12 text-center">
+						<div class="animate-pulse text-text-tertiary font-mono">Loading decisions...</div>
+					</div>
+				{:else if decisions.length === 0}
 					<div class="border border-surface-border bg-bg-secondary p-12 text-center">
 						<div class="text-4xl mb-4 opacity-50">?</div>
 						<h3 class="text-lg text-text-primary mb-2">No decisions yet</h3>
@@ -380,7 +387,11 @@
 
 			<!-- Issues Tab -->
 			{#if activeTab === 'issues'}
-				{#if issues.length === 0}
+				{#if currentState.issuesLoading}
+					<div class="border border-surface-border bg-bg-secondary p-12 text-center">
+						<div class="animate-pulse text-text-tertiary font-mono">Loading issues...</div>
+					</div>
+				{:else if issues.length === 0}
 					<div class="border border-surface-border bg-bg-secondary p-12 text-center">
 						<div class="text-4xl mb-4 opacity-50">v</div>
 						<h3 class="text-lg text-text-primary mb-2">No issues tracked</h3>
@@ -447,7 +458,11 @@
 
 			<!-- Sessions Tab -->
 			{#if activeTab === 'sessions'}
-				{#if sessions.length === 0}
+				{#if currentState.sessionsLoading}
+					<div class="border border-surface-border bg-bg-secondary p-12 text-center">
+						<div class="animate-pulse text-text-tertiary font-mono">Loading sessions...</div>
+					</div>
+				{:else if sessions.length === 0}
 					<div class="border border-surface-border bg-bg-secondary p-12 text-center">
 						<div class="text-4xl mb-4 opacity-50">...</div>
 						<h3 class="text-lg text-text-primary mb-2">No session summaries</h3>
