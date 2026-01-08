@@ -722,9 +722,10 @@ export interface MCPRegistryItem {
 
 export const TOP_100_MCPS: MCPRegistryItem[] = [
 	// ============================================
-	// Test Server (Local - No Auth Required)
+	// Pre-configured MCPs (Local - No Auth Required)
 	// ============================================
 	{ id: 'test-server', name: 'Test MCP Server', description: 'Local test server with echo, time, random number, and add tools. No auth required!', category: 'Development', subcategory: 'Testing', official: false, popularity: 100, skills: ['testing-strategies'], capabilities: ['custom'] },
+	{ id: 'filesystem', name: 'Filesystem MCP', description: 'Official MCP for reading/writing local files. Provides read_file, write_file, list_directory, and more.', category: 'Development', subcategory: 'Files', repository: 'modelcontextprotocol/servers', official: true, popularity: 95, skills: ['file-operations'], capabilities: ['file_system'] },
 
 	// Version Control (1-5)
 	{ id: 'github', name: 'GitHub MCP', description: 'Repos, PRs, issues, actions, code search', category: 'Development', subcategory: 'Version Control', repository: 'modelcontextprotocol/servers', official: true, popularity: 100, skills: ['git-workflow', 'code-review', 'ci-cd-pipeline'], capabilities: ['code_analysis'] },
