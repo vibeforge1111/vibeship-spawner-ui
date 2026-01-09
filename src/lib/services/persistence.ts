@@ -370,8 +370,11 @@ export interface MissionHistoryEntry {
 	completedTasks: number;
 }
 
-const MISSION_STATE_VERSION = 1;
+// IMPORTANT: Increment this when mission state format changes
+// Version 2: Just-in-time skill loading - executionPrompt should be ~200 lines, not 20,000+
+const MISSION_STATE_VERSION = 2;
 const MAX_HISTORY_ENTRIES = 10;
+const MAX_VALID_PROMPT_LENGTH = 10000; // ~200-300 lines max for just-in-time prompt
 
 /**
  * Save active mission state to localStorage
@@ -393,9 +396,18 @@ export function getActiveMissionState(): PersistedMissionState | null {
 
 	if (!state) return null;
 
-	// Validate version
+	// Validate version - clear old format data
 	if (state.version !== MISSION_STATE_VERSION) {
-		console.log('[Persistence] Mission state version mismatch, clearing');
+		console.log('[Persistence] Mission state version mismatch (got v' + state.version + ', expected v' + MISSION_STATE_VERSION + '), clearing');
+		clearMissionState();
+		return null;
+	}
+
+	// CRITICAL: Check if executionPrompt is too large (indicates old format with full skill content)
+	// The new just-in-time format should be ~200 lines max, not 20,000+
+	if (state.executionPrompt && state.executionPrompt.length > MAX_VALID_PROMPT_LENGTH) {
+		console.log('[Persistence] Detected old-format executionPrompt (' + state.executionPrompt.length + ' chars), clearing');
+		console.log('[Persistence] Old prompts with full skill content crash terminals - clearing to force regeneration');
 		clearMissionState();
 		return null;
 	}
@@ -467,6 +479,18 @@ export function hasResumableMission(): boolean {
 	console.log('[Persistence] hasResumableMission - state:', state?.status, 'missionId:', state?.missionId);
 	if (!state) return false;
 
+	// Check for version mismatch - don't resume old format data
+	if (state.version !== MISSION_STATE_VERSION) {
+		console.log('[Persistence] Version mismatch, not resumable');
+		return false;
+	}
+
+	// Check for huge prompt (old format) - don't resume, it would crash terminal
+	if (state.executionPrompt && state.executionPrompt.length > MAX_VALID_PROMPT_LENGTH) {
+		console.log('[Persistence] Huge prompt detected, not resumable');
+		return false;
+	}
+
 	// Only resumable if paused or running (interrupted)
 	const isResumable = state.status === 'paused' || state.status === 'running' || state.status === 'creating';
 	console.log('[Persistence] isResumable:', isResumable);
@@ -513,6 +537,42 @@ export function validateGeneratedSkillsData(data: unknown): boolean {
 // ============================================
 
 /**
+ * Force clear old mission state with huge prompts
+ * This fixes the terminal crash issue from old prompts with full skill content
+ */
+export function clearOldMissionState(): { cleared: boolean; reason?: string } {
+	if (!browser) return { cleared: false };
+
+	const raw = localStorage.getItem(STORAGE_KEYS.ACTIVE_MISSION);
+	if (!raw) return { cleared: false };
+
+	try {
+		const state = JSON.parse(raw);
+
+		// Check for version mismatch
+		if (state.version !== MISSION_STATE_VERSION) {
+			console.log(`[Persistence] Clearing old mission state (v${state.version} -> v${MISSION_STATE_VERSION})`);
+			clearMissionState();
+			return { cleared: true, reason: `Version mismatch: v${state.version}` };
+		}
+
+		// Check for huge prompt (old format with full skill content)
+		if (state.executionPrompt && state.executionPrompt.length > MAX_VALID_PROMPT_LENGTH) {
+			console.log(`[Persistence] Clearing old mission state with huge prompt (${state.executionPrompt.length} chars)`);
+			clearMissionState();
+			return { cleared: true, reason: `Huge prompt: ${state.executionPrompt.length} chars` };
+		}
+
+		return { cleared: false };
+	} catch {
+		// Corrupted data, clear it
+		console.log('[Persistence] Clearing corrupted mission state');
+		clearMissionState();
+		return { cleared: true, reason: 'Corrupted data' };
+	}
+}
+
+/**
  * Initialize persistence system
  * Call this on app startup
  */
@@ -521,6 +581,7 @@ export function initPersistence(): {
 	fromVersion: number;
 	toVersion: number;
 	stats: StorageStats;
+	missionStateCleared?: { cleared: boolean; reason?: string };
 } {
 	if (!browser) {
 		return {
@@ -540,6 +601,9 @@ export function initPersistence(): {
 	// Run any pending migrations
 	const migration = runMigrations();
 
+	// CRITICAL: Clear old mission state with huge prompts (fixes terminal crash)
+	const missionStateCleared = clearOldMissionState();
+
 	// Get current stats
 	const stats = getStorageStats();
 
@@ -550,8 +614,13 @@ export function initPersistence(): {
 		console.log(`[Persistence] Migrated from v${migration.fromVersion} to v${migration.toVersion}`);
 	}
 
+	if (missionStateCleared.cleared) {
+		console.log(`[Persistence] Cleared old mission state: ${missionStateCleared.reason}`);
+	}
+
 	return {
 		...migration,
-		stats
+		stats,
+		missionStateCleared
 	};
 }
