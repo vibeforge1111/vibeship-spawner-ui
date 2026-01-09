@@ -176,76 +176,79 @@ getDynamicSkillLimit(wordCount, featureCount) =
 
 ## PRD Analyzer Rules (prd-analyzer.ts)
 
-### CRITICAL: Dynamic Task Generation
+### CRITICAL: Semantic Matching with Reasonable Limits
 
 The PRD analyzer (`src/lib/utils/prd-analyzer.ts`) generates workflow tasks from PRD content.
 
 **DIFFERENT PRDs MUST GENERATE DIFFERENT WORKFLOWS!**
+**BUT WORKFLOWS MUST BE MANAGEABLE (5-30 tasks, not 249!)**
+
+### Task Limits
+
+| Constant | Value | Purpose |
+|----------|-------|---------|
+| `MAX_FEATURE_TASKS` | 20 | Max feature tasks (before consolidation) |
+| `MAX_TOTAL_TASKS` | 30 | Absolute max including infra + deployment |
 
 ### DO NOT
 
-- Do NOT create hardcoded task structures (e.g., always: Setup → Design → Auth → DB → API → Features → Testing → Deploy)
-- Do NOT limit feature tasks with `.slice(0, 5)` or any other artificial limit
-- Do NOT always add infrastructure tasks - they should be CONDITIONAL based on PRD
-- Do NOT assume every project needs frontend, backend, database, auth, testing, or deployment
+- Do NOT create hardcoded task structures
+- Do NOT generate unlimited tasks (previous bug: 249 tasks crashed the system)
+- Do NOT use direct keyword matching - use SEMANTIC SCORING
+- Do NOT extract features from every sentence/bullet point
+- Do NOT assume every project needs all infrastructure
+
+### Semantic Scoring System
+
+Features are scored using TF-IDF-like relevance:
+
+```typescript
+// Feature relevance score (0-1):
+score = baseScore(0.5)
+      + categoryBonus(0.2 if non-general)
+      + priorityBonus(0.2 for must-have, -0.1 for nice-to-have)
+      + keywordDensityBonus(0.05 per keyword match, max 0.2)
+      + sectionBonus(0.3 if in explicit "Features" section)
+```
+
+Skills are matched using semantic scoring:
+```typescript
+// Skill match score:
+relevance = exactMatch(1.0) | contains(0.7) | contained(0.5) | wordOverlap(0.3)
+score = relevance + positionBonus(earlier in H70 list = higher)
+```
+
+### Feature Consolidation
+
+When a category has >3 features, they're consolidated:
+- Keep top 3 by relevance score
+- Merge rest into "Additional {Category} Features" task
+
+### Feature Extraction (Selective)
+
+Only extracts from:
+1. **Explicit feature lists** (bulleted/numbered in Features section) - highest score
+2. **User stories** ("As a user, I want...") - bonus score
+3. **Category detection** (only if <5 explicit features found) - fallback
+
+**NOT extracted**: Every paragraph pattern, generic bullets, section headers
 
 ### Task Generation Rules
 
-1. **Project Setup**: Only if `suggestedStack.frontend` or `suggestedStack.backend` is defined
-2. **Design System**: Only if `needsFrontend` is true (frontend/design/mobile/ecommerce categories)
-3. **Authentication**: Only if `needsAuth` is true (auth category OR saas project type)
-4. **Database Schema**: Only if `needsDatabase` is true (database/ecommerce/analytics categories OR db tech hints)
-5. **API Layer**: Only if `needsBackend` is true (backend/api/database/auth/realtime categories)
-6. **Feature Tasks**: ALL features from PRD (no `.slice()` limit!)
-7. **Testing**: Only if testing keywords detected OR complex project (>5 features)
-8. **Deployment**: Only if deployment keywords detected OR complex project
+1. **Project Setup**: Only if stack defined
+2. **Design System**: Only if `needsFrontend`
+3. **Auth/Database/API**: Only if detected
+4. **Feature Tasks**: Limited by `availableFeatureSlots = MAX_TOTAL_TASKS - infraTasks - 2`
+5. **Testing/Deployment**: Only if complex (>3 features) or explicitly needed
 
-### Feature Extraction Methods
+### Expected Output
 
-The `extractFeatures()` function uses 5 methods to comprehensively extract features:
-
-1. **Bulleted/numbered lists**: `- Feature`, `1. Feature`, `* Feature`
-2. **Markdown headings**: `## Feature Name`, `### Feature Name`
-3. **User stories**: "As a user, I want to [feature]..."
-4. **Paragraph patterns**: "The system should...", "Users can...", "Support for..."
-5. **Keyword detection**: If <3 features found, detect categories from content
-
-### Key Files
-
-| File | Purpose |
-|------|---------|
-| `src/lib/utils/prd-analyzer.ts` | PRD analysis and dynamic task generation |
-| `src/lib/components/Welcome.svelte` | Calls `analyzePRD()` and `generateTasksFromPRD()` |
-| `src/lib/components/PRDProcessingModal.svelte` | Displays features found, tasks generated |
-
-### Conditional Detection
-
-```typescript
-// These booleans determine what infrastructure tasks to create:
-needsFrontend = featureCategories.some(c => ['frontend', 'design', 'mobile', 'ecommerce'].includes(c)) ||
-  ['webapp', 'saas', 'mobile'].includes(projectType);
-
-needsBackend = featureCategories.some(c => ['backend', 'api', 'database', 'auth', 'realtime'].includes(c)) ||
-  ['api', 'saas'].includes(projectType);
-
-needsAuth = featureCategories.includes('auth') || projectType === 'saas';
-
-needsDatabase = featureCategories.some(c => ['database', 'ecommerce', 'analytics', 'community'].includes(c)) ||
-  techHints.some(t => ['postgres', 'mysql', 'mongodb', 'supabase', 'firebase'].includes(t));
-
-needsDeployment = featureCategories.includes('deployment') ||
-  techHints.some(t => ['docker', 'kubernetes', 'vercel', 'aws', 'gcp', 'azure'].includes(t));
-
-needsTesting = featureCategories.includes('testing') ||
-  techHints.some(t => ['jest', 'vitest', 'cypress', 'playwright'].includes(t));
-```
-
-### Expected Behavior
-
-- Simple landing page PRD → ~3-5 tasks (setup, design, content features)
-- E-commerce PRD → ~15-20 tasks (all infrastructure + payment + inventory + orders)
-- API-only PRD → ~5-8 tasks (no frontend, no design system)
-- ML Pipeline PRD → Different skills entirely (data, ai, pipeline categories)
+| PRD Type | Expected Tasks |
+|----------|----------------|
+| Simple landing page | 5-8 tasks |
+| Standard webapp | 10-15 tasks |
+| Complex SaaS | 20-25 tasks |
+| Maximum (capped) | 30 tasks |
 
 ## Common Development Commands
 
