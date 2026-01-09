@@ -4,11 +4,18 @@
  * Analyzes a Product Requirements Document and automatically generates
  * implementation tasks that can be converted to canvas workflow nodes.
  *
- * Uses H70 keyword mappings (391 keywords) for comprehensive skill matching.
+ * SEMANTIC MATCHING: Uses TF-IDF-like scoring to identify the most relevant
+ * features and skills. Different PRDs generate different workflows.
+ *
+ * LIMITS: Max 25 feature tasks to keep workflows manageable.
  */
 
 import type { Skill } from '$lib/stores/skills.svelte';
 import { KEYWORD_TO_SKILLS } from '$lib/services/h70-skill-matcher';
+
+// Maximum tasks to generate (infrastructure + features + deployment)
+const MAX_FEATURE_TASKS = 20;
+const MAX_TOTAL_TASKS = 30;
 
 export interface PRDAnalysis {
 	projectName: string;
@@ -146,129 +153,264 @@ export function analyzePRD(prdContent: string): PRDAnalysis {
 }
 
 /**
- * Extract features from PRD content
+ * Extract features from PRD content with SEMANTIC SCORING
  *
- * COMPREHENSIVE EXTRACTION: Scans multiple formats:
- * - Bulleted/numbered lists
- * - Markdown headings
- * - Paragraph content with keywords
- * - User story format ("As a user, I want...")
+ * SELECTIVE EXTRACTION: Focuses on explicit feature definitions, not every sentence.
+ * Uses relevance scoring to identify the most important features.
+ *
+ * Sources (in priority order):
+ * 1. Explicit feature lists (bulleted/numbered in features section)
+ * 2. User stories ("As a user, I want...")
+ * 3. Category detection from keywords (consolidated, not per-keyword)
  */
 function extractFeatures(content: string): ExtractedFeature[] {
-	const features: ExtractedFeature[] = [];
-	const seenFeatures = new Set<string>(); // Avoid duplicates
+	const rawFeatures: Array<ExtractedFeature & { relevanceScore: number }> = [];
+	const seenNormalized = new Set<string>(); // Normalized names for dedup
 	const lines = content.split('\n');
+	const lowerContent = content.toLowerCase();
 
 	let inFeaturesSection = false;
+	let sectionBonus = 0; // Features in explicit sections get higher scores
 
 	for (const line of lines) {
 		const lowerLine = line.toLowerCase();
 		const trimmedLine = line.trim();
 
-		// Detect features/requirements section
-		if (lowerLine.includes('feature') || lowerLine.includes('requirement') ||
-			lowerLine.includes('user stor') || lowerLine.includes('functional spec') ||
-			lowerLine.includes('capabilities') || lowerLine.includes('functionality')) {
+		// Detect features/requirements section - items here are more important
+		if (/^#{1,3}\s*(features?|requirements?|user\s*stor|functional\s*spec|capabilities)/i.test(trimmedLine)) {
 			inFeaturesSection = true;
+			sectionBonus = 0.3; // 30% bonus for features in explicit sections
 			continue;
 		}
 
-		// Detect end of features section (new major section)
-		if (inFeaturesSection && /^##[^#]/.test(line) && !lowerLine.includes('feature')) {
+		// Detect end of features section
+		if (inFeaturesSection && /^#{1,2}\s+(?!feature|requirement)/i.test(trimmedLine)) {
 			inFeaturesSection = false;
+			sectionBonus = 0;
 		}
 
-		// Method 1: Extract numbered or bulleted features
+		// Method 1: Extract bulleted/numbered features (most explicit)
 		const bulletMatch = trimmedLine.match(/^[-*•]\s*\*?\*?(.+?)\*?\*?$/);
 		const numberedMatch = trimmedLine.match(/^\d+[.)]\s*\*?\*?(.+?)\*?\*?$/);
 		const featureMatch = bulletMatch || numberedMatch;
 
 		if (featureMatch) {
 			const rawName = featureMatch[1].trim();
-			// Split on : or - for name and description
 			const colonSplit = rawName.split(/[:\-–]/);
 			const name = colonSplit[0].trim().replace(/\*\*/g, '');
 			const description = colonSplit.slice(1).join(':').trim() || name;
+			const normalized = normalizeFeatureName(name);
 
-			if (name.length > 2 && name.length < 150 && !seenFeatures.has(name.toLowerCase())) {
-				seenFeatures.add(name.toLowerCase());
-				features.push(createFeature(name, description, lowerLine));
+			// Skip very short or generic items
+			if (name.length > 3 && name.length < 100 && !seenNormalized.has(normalized) && !isGenericItem(name)) {
+				seenNormalized.add(normalized);
+				const feature = createFeatureWithScore(name, description, lowerLine, sectionBonus);
+				rawFeatures.push(feature);
 			}
 		}
 
-		// Method 2: Extract from headings (### Feature Name)
-		const headingMatch = trimmedLine.match(/^#{2,4}\s+(.+)$/);
-		if (headingMatch) {
-			const headingText = headingMatch[1].trim();
-			// Skip meta-sections
-			if (!['overview', 'introduction', 'summary', 'table of contents', 'appendix'].some(
-				skip => headingText.toLowerCase().includes(skip)
-			)) {
-				if (headingText.length > 2 && headingText.length < 100 && !seenFeatures.has(headingText.toLowerCase())) {
-					seenFeatures.add(headingText.toLowerCase());
-					features.push(createFeature(headingText, `Implement ${headingText}`, lowerLine));
-				}
-			}
-		}
-
-		// Method 3: User story format ("As a [role], I want [feature]...")
+		// Method 2: User stories (explicit intent)
 		const userStoryMatch = trimmedLine.match(/as a .*?(?:i want|i need|i should be able to)\s+(.+?)(?:so that|$)/i);
 		if (userStoryMatch) {
-			const feature = userStoryMatch[1].trim().replace(/[.,]$/, '');
-			if (feature.length > 5 && feature.length < 150 && !seenFeatures.has(feature.toLowerCase())) {
-				seenFeatures.add(feature.toLowerCase());
-				features.push(createFeature(feature, trimmedLine, lowerLine));
+			const name = userStoryMatch[1].trim().replace(/[.,]$/, '');
+			const normalized = normalizeFeatureName(name);
+
+			if (name.length > 5 && name.length < 100 && !seenNormalized.has(normalized)) {
+				seenNormalized.add(normalized);
+				const feature = createFeatureWithScore(name, trimmedLine, lowerLine, 0.2); // User stories get bonus
+				rawFeatures.push(feature);
 			}
 		}
 	}
 
-	// Method 4: If still few features, extract from general content by detecting keywords
-	if (features.length < 3) {
-		const lowerContent = content.toLowerCase();
+	// Method 3: Category-based feature detection (consolidate by category)
+	// Only if we found few explicit features
+	if (rawFeatures.length < 5) {
+		const detectedCategories = detectCategoriesFromContent(lowerContent);
 
-		for (const [category, keywords] of Object.entries(FEATURE_CATEGORIES)) {
-			// Count how many keywords from this category appear
-			const matchedKeywords = keywords.filter(kw => lowerContent.includes(kw));
+		for (const { category, score, keywords } of detectedCategories) {
+			const featureName = `${capitalize(category)} System`;
+			const normalized = normalizeFeatureName(featureName);
 
-			if (matchedKeywords.length >= 2) { // At least 2 keywords for confidence
-				const featureName = `${capitalize(category)} System`;
-				if (!seenFeatures.has(featureName.toLowerCase())) {
-					seenFeatures.add(featureName.toLowerCase());
-					features.push({
-						name: featureName,
-						description: `Implement ${category} functionality (detected: ${matchedKeywords.slice(0, 3).join(', ')})`,
-						priority: 'should-have',
-						category
-					});
-				}
+			if (!seenNormalized.has(normalized) && score >= 0.3) {
+				seenNormalized.add(normalized);
+				rawFeatures.push({
+					name: featureName,
+					description: `Implement ${category} functionality (detected: ${keywords.slice(0, 3).join(', ')})`,
+					priority: score >= 0.6 ? 'must-have' : 'should-have',
+					category,
+					relevanceScore: score
+				});
 			}
 		}
 	}
 
-	// Method 5: Extract features from paragraph patterns
-	const paragraphs = content.split(/\n\n+/);
-	for (const para of paragraphs) {
-		// Look for patterns like "The system should...", "Users can...", "Support for..."
-		const actionPatterns = [
-			/(?:the system|application|app|platform) (?:should|will|must|can) ([^.]+)/gi,
-			/(?:users?|customers?) (?:can|will be able to|should be able to) ([^.]+)/gi,
-			/(?:support for|enable|allow|provide) ([^.]+)/gi,
-			/implement(?:ing|ation of)? ([^.]+)/gi
-		];
+	// Sort by relevance score and limit
+	rawFeatures.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
-		for (const pattern of actionPatterns) {
-			let match;
-			while ((match = pattern.exec(para)) !== null) {
-				const feature = match[1].trim();
-				if (feature.length > 10 && feature.length < 100 && !seenFeatures.has(feature.toLowerCase())) {
-					seenFeatures.add(feature.toLowerCase());
-					features.push(createFeature(feature, para.substring(0, 200), para.toLowerCase()));
-				}
+	// Consolidate similar features by category
+	const consolidated = consolidateFeatures(rawFeatures);
+
+	// Return top features within limit
+	return consolidated.slice(0, MAX_FEATURE_TASKS).map(f => ({
+		name: f.name,
+		description: f.description,
+		priority: f.priority,
+		category: f.category
+	}));
+}
+
+/**
+ * Normalize feature name for deduplication
+ */
+function normalizeFeatureName(name: string): string {
+	return name.toLowerCase()
+		.replace(/[^a-z0-9\s]/g, '')
+		.replace(/\s+/g, ' ')
+		.trim();
+}
+
+/**
+ * Check if a bullet item is too generic to be a feature
+ */
+function isGenericItem(name: string): boolean {
+	const genericPatterns = [
+		/^(the|a|an|this|that|it)\s/i,
+		/^(yes|no|true|false|ok|okay)$/i,
+		/^(step|phase|stage|part)\s*\d/i,
+		/^(note|warning|important|todo|fixme)/i,
+		/^[a-z]$/i, // Single letter
+		/^\d+$/,    // Just numbers
+	];
+	return genericPatterns.some(p => p.test(name));
+}
+
+/**
+ * Create feature with semantic relevance score
+ */
+function createFeatureWithScore(
+	name: string,
+	description: string,
+	contextLine: string,
+	bonus: number = 0
+): ExtractedFeature & { relevanceScore: number } {
+	const feature = createFeature(name, description, contextLine);
+
+	// Calculate relevance score based on:
+	// 1. Category specificity (non-general categories score higher)
+	// 2. Keyword density in name/description
+	// 3. Section bonus (explicit feature sections)
+	// 4. Priority (must-have > should-have > nice-to-have)
+
+	let score = 0.5; // Base score
+
+	// Category bonus
+	if (feature.category !== 'general') {
+		score += 0.2;
+	}
+
+	// Priority bonus
+	if (feature.priority === 'must-have') {
+		score += 0.2;
+	} else if (feature.priority === 'nice-to-have') {
+		score -= 0.1;
+	}
+
+	// Keyword density bonus
+	const categoryKeywords = FEATURE_CATEGORIES[feature.category] || [];
+	const nameWords = name.toLowerCase().split(/\s+/);
+	const keywordMatches = nameWords.filter(w => categoryKeywords.some(kw => kw.includes(w) || w.includes(kw)));
+	score += Math.min(0.2, keywordMatches.length * 0.05);
+
+	// Apply section bonus
+	score += bonus;
+
+	return { ...feature, relevanceScore: Math.min(1, score) };
+}
+
+/**
+ * Detect categories from content using TF-IDF-like scoring
+ */
+function detectCategoriesFromContent(content: string): Array<{ category: string; score: number; keywords: string[] }> {
+	const results: Array<{ category: string; score: number; keywords: string[] }> = [];
+	const totalWords = content.split(/\s+/).length;
+
+	for (const [category, keywords] of Object.entries(FEATURE_CATEGORIES)) {
+		const matchedKeywords: string[] = [];
+		let termFrequency = 0;
+
+		for (const keyword of keywords) {
+			// Count occurrences (simple TF)
+			const regex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+			const matches = content.match(regex);
+			if (matches) {
+				matchedKeywords.push(keyword);
+				termFrequency += matches.length;
 			}
+		}
+
+		if (matchedKeywords.length > 0) {
+			// Score based on:
+			// - Number of unique keywords matched (diversity)
+			// - Term frequency relative to document size
+			// - Inverse document frequency approximation (rarer categories score higher)
+			const diversity = matchedKeywords.length / keywords.length;
+			const frequency = Math.min(1, termFrequency / (totalWords * 0.01)); // Normalize
+			const idf = 1 / Math.log(keywords.length + 1); // Smaller keyword sets are more specific
+
+			const score = (diversity * 0.5) + (frequency * 0.3) + (idf * 0.2);
+
+			results.push({ category, score: Math.min(1, score), keywords: matchedKeywords });
 		}
 	}
 
-	return features;
+	// Sort by score descending
+	return results.sort((a, b) => b.score - a.score);
+}
+
+/**
+ * Consolidate similar features by category
+ */
+function consolidateFeatures(
+	features: Array<ExtractedFeature & { relevanceScore: number }>
+): Array<ExtractedFeature & { relevanceScore: number }> {
+	// Group by category
+	const byCategory = new Map<string, Array<ExtractedFeature & { relevanceScore: number }>>();
+
+	for (const feature of features) {
+		const existing = byCategory.get(feature.category) || [];
+		existing.push(feature);
+		byCategory.set(feature.category, existing);
+	}
+
+	const consolidated: Array<ExtractedFeature & { relevanceScore: number }> = [];
+
+	for (const [category, categoryFeatures] of byCategory) {
+		// If category has many features, keep top 3 and merge rest into one
+		if (categoryFeatures.length > 3) {
+			// Keep top 3 by score
+			categoryFeatures.sort((a, b) => b.relevanceScore - a.relevanceScore);
+			consolidated.push(...categoryFeatures.slice(0, 3));
+
+			// Merge rest into consolidated feature
+			const remaining = categoryFeatures.slice(3);
+			if (remaining.length > 0) {
+				const mergedNames = remaining.map(f => f.name).slice(0, 3).join(', ');
+				consolidated.push({
+					name: `Additional ${capitalize(category)} Features`,
+					description: `Includes: ${mergedNames}${remaining.length > 3 ? ` and ${remaining.length - 3} more` : ''}`,
+					priority: 'should-have',
+					category,
+					relevanceScore: Math.max(...remaining.map(f => f.relevanceScore)) * 0.8
+				});
+			}
+		} else {
+			consolidated.push(...categoryFeatures);
+		}
+	}
+
+	// Re-sort by score
+	return consolidated.sort((a, b) => b.relevanceScore - a.relevanceScore);
 }
 
 /**
@@ -422,8 +564,10 @@ function suggestStack(
 /**
  * Generate implementation tasks from PRD analysis
  *
- * DYNAMIC GENERATION: Tasks are created based on actual PRD content,
- * not a fixed template. Different PRDs will generate different workflows.
+ * SEMANTIC GENERATION: Tasks are created based on actual PRD content with
+ * relevance scoring. Different PRDs generate different workflows.
+ *
+ * LIMITS: Max 30 total tasks to keep workflows manageable.
  */
 export function generateTasksFromPRD(
 	analysis: PRDAnalysis,
@@ -452,7 +596,6 @@ export function generateTasksFromPRD(
 	let lastInfraTaskId = 'task-0';
 
 	// Phase 1: Foundation (only if needed)
-	// Setup task - only if it's a new project with defined stack
 	if (analysis.suggestedStack.frontend?.length || analysis.suggestedStack.backend?.length) {
 		const stackDesc = [
 			analysis.suggestedStack.frontend?.join(', '),
@@ -463,7 +606,7 @@ export function generateTasksFromPRD(
 			id: `task-${taskId++}`,
 			title: 'Project Setup',
 			description: `Initialize ${analysis.projectName} with ${stackDesc || 'chosen stack'}`,
-			skillMatch: findBestSkillMatch('project-scaffolding', availableSkills),
+			skillMatch: findBestSkillMatchWithScore('project-scaffolding', availableSkills),
 			category: 'setup',
 			phase: 1,
 			dependsOn: []
@@ -477,7 +620,7 @@ export function generateTasksFromPRD(
 			id: `task-${taskId++}`,
 			title: 'Design System',
 			description: 'Create design tokens, color palette, and base UI components',
-			skillMatch: findBestSkillMatch('design-system', availableSkills),
+			skillMatch: findBestSkillMatchWithScore('design-system', availableSkills),
 			category: 'design',
 			phase: 1,
 			dependsOn: tasks.length > 0 ? [lastInfraTaskId] : []
@@ -485,83 +628,64 @@ export function generateTasksFromPRD(
 		lastInfraTaskId = `task-${taskId - 1}`;
 	}
 
-	// Phase 2: Core Infrastructure (conditional based on PRD)
-	// Auth - only if explicitly needed
+	// Phase 2: Core Infrastructure (conditional)
 	if (needsAuth) {
 		const authStack = analysis.suggestedStack.auth?.join(', ') || 'authentication solution';
 		tasks.push({
 			id: `task-${taskId++}`,
 			title: 'Authentication System',
 			description: `Implement user authentication with ${authStack}`,
-			skillMatch: findBestSkillMatch('authentication', availableSkills),
+			skillMatch: findBestSkillMatchWithScore('authentication', availableSkills),
 			category: 'auth',
 			phase: 2,
 			dependsOn: tasks.length > 0 ? [lastInfraTaskId] : []
 		});
 	}
 
-	// Database - only if data storage is needed
 	if (needsDatabase) {
 		const dbStack = analysis.suggestedStack.database?.join(', ') || 'database';
 		tasks.push({
 			id: `task-${taskId++}`,
 			title: 'Database Schema',
 			description: `Design and implement ${dbStack} schema for all entities`,
-			skillMatch: findBestSkillMatch('database', availableSkills),
+			skillMatch: findBestSkillMatchWithScore('database', availableSkills),
 			category: 'database',
 			phase: 2,
 			dependsOn: tasks.length > 0 ? [lastInfraTaskId] : []
 		});
 	}
 
-	// API Layer - only if backend is needed
 	if (needsBackend) {
 		const apiDeps = tasks.filter(t => t.category === 'database').map(t => t.id);
 		tasks.push({
 			id: `task-${taskId++}`,
 			title: 'API Layer',
 			description: 'Create REST/GraphQL API endpoints for all features',
-			skillMatch: findBestSkillMatch('api-design', availableSkills),
+			skillMatch: findBestSkillMatchWithScore('api-design', availableSkills),
 			category: 'backend',
 			phase: 2,
 			dependsOn: apiDeps.length > 0 ? apiDeps : (tasks.length > 0 ? [lastInfraTaskId] : [])
 		});
 	}
 
-	// Update lastInfraTaskId to the last infrastructure task
+	// Update lastInfraTaskId
 	if (tasks.length > 0) {
 		lastInfraTaskId = tasks[tasks.length - 1].id;
 	}
 
-	// Phase 3: ALL Feature Implementation (no artificial limits!)
-	// Sort features: must-have first, then should-have, then nice-to-have
-	const sortedFeatures = [...analysis.features].sort((a, b) => {
-		const priorityOrder = { 'must-have': 0, 'should-have': 1, 'nice-to-have': 2 };
-		return priorityOrder[a.priority] - priorityOrder[b.priority];
-	});
+	// Calculate remaining slots for feature tasks
+	const infraTasks = tasks.length;
+	const reservedSlots = 2; // Testing + Deployment
+	const availableFeatureSlots = Math.max(5, MAX_TOTAL_TASKS - infraTasks - reservedSlots);
 
-	// Track dependencies within feature phases for parallel execution where possible
+	// Phase 3: Feature Implementation (with limit)
+	// Features are already sorted and consolidated by extractFeatures
+	const featuresToAdd = analysis.features.slice(0, availableFeatureSlots);
 	const featureTaskIds: string[] = [];
 
-	// Create tasks for ALL features (no slice limit!)
-	for (const feature of sortedFeatures) {
-		// Find best skill match using H70 keywords
-		const categorySkills = CATEGORY_TO_SKILLS[feature.category] || [];
-		let skillMatch = null;
-
-		// Try category skills first
-		for (const skillId of categorySkills) {
-			skillMatch = findBestSkillMatch(skillId, availableSkills);
-			if (skillMatch) break;
-		}
-
-		// Fallback to feature name matching
-		if (!skillMatch) {
-			skillMatch = findBestSkillMatch(feature.name, availableSkills);
-		}
-
-		// Determine dependencies - features depend on infrastructure
-		const featureDeps = tasks.length > 0 ? [lastInfraTaskId] : [];
+	for (const feature of featuresToAdd) {
+		// Find best skill match using semantic scoring
+		const skillMatch = findBestSkillForFeature(feature, availableSkills);
 
 		tasks.push({
 			id: `task-${taskId++}`,
@@ -570,31 +694,29 @@ export function generateTasksFromPRD(
 			skillMatch,
 			category: feature.category,
 			phase: 3,
-			dependsOn: featureDeps
+			dependsOn: tasks.length > 0 ? [lastInfraTaskId] : []
 		});
 
 		featureTaskIds.push(`task-${taskId - 1}`);
 	}
 
-	// Phase 4: Quality & Deployment (only if PRD mentions or complex project)
-	const isComplexProject = analysis.features.length > 5 || analysis.projectType === 'saas';
+	// Phase 4: Quality & Deployment (only if complex enough)
+	const isComplexProject = analysis.features.length > 3 || analysis.projectType === 'saas';
 
-	// Testing - if mentioned or complex project
-	if (needsTesting || isComplexProject) {
+	if ((needsTesting || isComplexProject) && tasks.length < MAX_TOTAL_TASKS) {
 		const lastFeatureId = featureTaskIds.length > 0 ? featureTaskIds[featureTaskIds.length - 1] : lastInfraTaskId;
 		tasks.push({
 			id: `task-${taskId++}`,
 			title: 'Testing Suite',
 			description: 'Write unit, integration, and e2e tests for implemented features',
-			skillMatch: findBestSkillMatch('testing', availableSkills),
+			skillMatch: findBestSkillMatchWithScore('testing', availableSkills),
 			category: 'testing',
 			phase: 4,
 			dependsOn: [lastFeatureId]
 		});
 	}
 
-	// Deployment - if mentioned in PRD or has deployment hints
-	if (needsDeployment || isComplexProject) {
+	if ((needsDeployment || isComplexProject) && tasks.length < MAX_TOTAL_TASKS) {
 		const deployDep = tasks.length > 0 ? tasks[tasks.length - 1].id : 'task-0';
 		const deploymentStack = analysis.suggestedStack.deployment?.join(', ') || 'production environment';
 
@@ -602,20 +724,20 @@ export function generateTasksFromPRD(
 			id: `task-${taskId++}`,
 			title: 'Deployment Setup',
 			description: `Configure CI/CD and deploy to ${deploymentStack}`,
-			skillMatch: findBestSkillMatch('deployment', availableSkills),
+			skillMatch: findBestSkillMatchWithScore('deployment', availableSkills),
 			category: 'deployment',
 			phase: 4,
 			dependsOn: [deployDep]
 		});
 	}
 
-	// If no tasks were generated (empty/minimal PRD), create a generic task
+	// Fallback for empty PRDs
 	if (tasks.length === 0) {
 		tasks.push({
 			id: 'task-0',
 			title: analysis.projectName || 'Implementation',
 			description: 'Implement the project requirements',
-			skillMatch: findBestSkillMatch('development', availableSkills),
+			skillMatch: findBestSkillMatchWithScore('development', availableSkills),
 			category: 'general',
 			phase: 1,
 			dependsOn: []
@@ -623,6 +745,124 @@ export function generateTasksFromPRD(
 	}
 
 	return tasks;
+}
+
+/**
+ * Find best skill for a feature using semantic scoring
+ */
+function findBestSkillForFeature(feature: ExtractedFeature, availableSkills: Skill[]): string | null {
+	// Get category skills
+	const categorySkills = CATEGORY_TO_SKILLS[feature.category] || [];
+
+	// Try category skills with scoring
+	let bestMatch: { skillId: string; score: number } | null = null;
+
+	for (const skillId of categorySkills) {
+		const skill = availableSkills.find(s => s.id === skillId);
+		if (skill) {
+			const score = calculateSkillRelevance(feature, skill);
+			if (!bestMatch || score > bestMatch.score) {
+				bestMatch = { skillId, score };
+			}
+		}
+	}
+
+	// If good match found, return it
+	if (bestMatch && bestMatch.score > 0.3) {
+		return bestMatch.skillId;
+	}
+
+	// Fallback to name-based matching
+	return findBestSkillMatchWithScore(feature.name, availableSkills);
+}
+
+/**
+ * Calculate semantic relevance between feature and skill
+ */
+function calculateSkillRelevance(feature: ExtractedFeature, skill: Skill): number {
+	let score = 0.5; // Base score for category match
+
+	const featureWords = new Set(feature.name.toLowerCase().split(/\s+/));
+	const descWords = new Set((feature.description || '').toLowerCase().split(/\s+/));
+	const skillWords = new Set([
+		...(skill.name || '').toLowerCase().split(/\s+/),
+		...(skill.description || '').toLowerCase().split(/\s+/),
+		...(skill.tags || []).map(t => t?.toLowerCase()).filter(Boolean)
+	]);
+
+	// Word overlap bonus
+	let overlapCount = 0;
+	for (const word of featureWords) {
+		if (word.length > 2 && skillWords.has(word)) overlapCount++;
+	}
+	for (const word of descWords) {
+		if (word.length > 3 && skillWords.has(word)) overlapCount++;
+	}
+	score += Math.min(0.3, overlapCount * 0.05);
+
+	// Category match bonus
+	if (skill.category === feature.category) {
+		score += 0.2;
+	}
+
+	return Math.min(1, score);
+}
+
+/**
+ * Find best skill match using semantic scoring (improved version)
+ */
+function findBestSkillMatchWithScore(searchTerm: string | undefined, availableSkills: Skill[]): string | null {
+	if (!searchTerm || !availableSkills || availableSkills.length === 0) return null;
+
+	const lowerSearch = searchTerm.toLowerCase();
+	const searchWords = new Set(lowerSearch.split(/\s+/).filter(w => w.length > 2));
+	const availableIds = new Set(availableSkills.map(s => s.id));
+
+	// Score all H70 keyword matches
+	const scoredMatches: Array<{ skillId: string; score: number }> = [];
+
+	// Check H70 keyword mappings with scoring
+	for (const [keyword, skills] of Object.entries(KEYWORD_TO_SKILLS)) {
+		// Calculate keyword relevance to search term
+		const keywordLower = keyword.toLowerCase();
+		let relevance = 0;
+
+		if (lowerSearch === keywordLower) {
+			relevance = 1.0; // Exact match
+		} else if (lowerSearch.includes(keywordLower)) {
+			relevance = 0.7; // Search contains keyword
+		} else if (keywordLower.includes(lowerSearch)) {
+			relevance = 0.5; // Keyword contains search
+		} else {
+			// Word overlap
+			const keywordWords = new Set(keywordLower.split(/\s+/));
+			let overlap = 0;
+			for (const word of searchWords) {
+				if (keywordWords.has(word)) overlap++;
+			}
+			relevance = overlap > 0 ? 0.3 * (overlap / Math.max(searchWords.size, keywordWords.size)) : 0;
+		}
+
+		if (relevance > 0.1) {
+			for (let i = 0; i < skills.length; i++) {
+				const skillId = skills[i];
+				if (availableIds.has(skillId)) {
+					// Earlier in list = higher priority
+					const positionBonus = (skills.length - i) / skills.length * 0.2;
+					scoredMatches.push({ skillId, score: relevance + positionBonus });
+				}
+			}
+		}
+	}
+
+	// Sort by score and return best match
+	if (scoredMatches.length > 0) {
+		scoredMatches.sort((a, b) => b.score - a.score);
+		return scoredMatches[0].skillId;
+	}
+
+	// Fallback to simple matching
+	return findBestSkillMatch(searchTerm, availableSkills);
 }
 
 /**
