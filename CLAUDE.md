@@ -70,6 +70,97 @@ curl http://localhost:5173/api/h70-skills/drizzle-orm | jq .source
 # Should return: "h70-local"
 ```
 
+## PRD-to-Skill Matching System
+
+### CRITICAL RULES (DO NOT CHANGE)
+
+1. **NEVER condense H70 skills** - Always load and use FULL skill content
+2. **MAX_SKILLS_TO_SUGGEST = 50** - Cap at 50 skills maximum
+3. **Use `loadSkillsForMission`** - NOT `loadCondensedSkillsForMission`
+4. **Full skill content includes**: identity, owns, delegates, disasters, anti-patterns, patterns
+
+### System Architecture
+
+```
+PRD Input
+    |
+    v
++------------------------------------------+
+| 1. GOAL ANALYZER (goal-analyzer.ts)      |
+|    - Extracts: keywords, technologies,   |
+|      features, domains                   |
+|    - Calculates confidence score         |
++------------------------------------------+
+    |
+    v
++------------------------------------------+
+| 2. SKILL MATCHER (skill-matcher.ts)      |
+|    - MCP server matching (if connected)  |
+|    - Local pattern matching (fallback)   |
+|    - Returns initial skill suggestions   |
++------------------------------------------+
+    |
+    v
++------------------------------------------+
+| 3. MISSION BUILDER (mission-builder.ts)  |
+|    - Uses h70-skill-matcher.ts           |
+|    - 391 keyword mappings -> H70 skills  |
+|    - Loads FULL skill content via        |
+|      loadSkillsForMission()              |
++------------------------------------------+
+    |
+    v
++------------------------------------------+
+| 4. EXECUTION PROMPT                      |
+|    - Full H70 skill content embedded     |
+|    - identity, owns, delegates           |
+|    - disasters, anti-patterns, patterns  |
++------------------------------------------+
+```
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/types/goal.ts` | `MAX_SKILLS_TO_SUGGEST: 50`, `getDynamicSkillLimit()` |
+| `src/lib/services/skill-matcher.ts` | PRD -> initial skill matching |
+| `src/lib/services/h70-skill-matcher.ts` | 391 keyword mappings -> H70 skill IDs |
+| `src/lib/services/h70-skills.ts` | `loadSkillsForMission()` - loads FULL skills |
+| `src/lib/services/mission-builder.ts` | Builds missions with full H70 skill content |
+
+### Skill Limits
+
+| Setting | Value | Location |
+|---------|-------|----------|
+| MAX_SKILLS_TO_SUGGEST | 50 | `goal.ts` |
+| Max skills per task | 3-5 (dynamic) | `mission-builder.ts` |
+| Max total skills | 15-50 (dynamic) | `mission-builder.ts` |
+| Keyword mappings | 391 | `h70-skill-matcher.ts` |
+| Total H70 skills available | 470 | `static/skills.json` |
+
+### Dynamic Skill Calculation
+
+```typescript
+// Per task: 3-5 skills based on task count
+maxPerTask = Math.min(5, Math.max(3, Math.ceil(taskCount / 3)))
+
+// Total: 15-50 based on complexity
+maxTotal = Math.min(50, Math.max(15, 15 + taskCount * 2))
+
+// From PRD analysis: 15-50 based on word count and features
+getDynamicSkillLimit(wordCount, featureCount) =
+  Math.min(50, Math.max(15, 15 + wordCount/100 + featureCount))
+```
+
+### DO NOT
+
+- Do NOT use `loadCondensedSkillsForMission()` - always use `loadSkillsForMission()`
+- Do NOT truncate skill identity to first paragraph
+- Do NOT limit patterns/anti-patterns to top 3
+- Do NOT limit disasters to top 2
+- Do NOT set MAX_SKILLS_TO_SUGGEST above 50 (full skills need context space)
+- Do NOT modify the h70-skill-matcher keyword mappings without good reason
+
 ## Common Development Commands
 
 ```bash
