@@ -74,12 +74,15 @@ curl http://localhost:5173/api/h70-skills/drizzle-orm | jq .source
 
 ### CRITICAL RULES (DO NOT CHANGE)
 
-1. **NEVER condense H70 skills** - Always load and use FULL skill content
-2. **MAX_SKILLS_TO_SUGGEST = 50** - Cap at 50 skills maximum
-3. **Use `loadSkillsForMission`** - NOT `loadCondensedSkillsForMission`
-4. **Full skill content includes**: identity, owns, delegates, disasters, anti-patterns, patterns
+1. **Just-in-time skill loading** - Copy-paste prompt contains skill IDs only, NOT content
+2. **Claude Code loads skills when needed** - Via MCP or direct file read before each task
+3. **FULL skill content at execution time** - identity, disasters, anti-patterns, patterns
+4. **MAX_SKILLS_TO_SUGGEST = 50** - Cap at 50 skills maximum
 5. **skill-matcher.ts MUST import KEYWORD_TO_SKILLS** from h70-skill-matcher.ts (391 mappings)
 6. **PRD matching uses H70 keywords** - Different PRDs MUST get different skills
+
+**WHY just-in-time?** Full skills with 50 entries = 20,000+ lines = crashes terminals!
+Instead, we list skill IDs and Claude Code fetches them one-by-one when executing each task.
 
 ### System Architecture
 
@@ -122,10 +125,10 @@ PRD Input ("Describe what you want to build")
     |
     v
 +------------------------------------------+
-| 5. EXECUTION PROMPT                      |
-|    - Full H70 skill content embedded     |
-|    - identity, owns, delegates           |
-|    - disasters, anti-patterns, patterns  |
+| 5. EXECUTION PROMPT (JUST-IN-TIME)       |
+|    - Task list with skill IDs only       |
+|    - Instructions to fetch full skills   |
+|    - Claude Code loads skills per task   |
 +------------------------------------------+
 ```
 
@@ -136,8 +139,8 @@ PRD Input ("Describe what you want to build")
 | `src/lib/types/goal.ts` | `MAX_SKILLS_TO_SUGGEST: 50`, `getDynamicSkillLimit()` |
 | `src/lib/services/skill-matcher.ts` | PRD -> initial skill matching |
 | `src/lib/services/h70-skill-matcher.ts` | 391 keyword mappings -> H70 skill IDs |
-| `src/lib/services/h70-skills.ts` | `loadSkillsForMission()` - loads FULL skills |
-| `src/lib/services/mission-builder.ts` | Builds missions with full H70 skill content |
+| `src/lib/services/h70-skills.ts` | `loadSkillsForMission()` - loads full skills for matching/UI |
+| `src/lib/services/mission-builder.ts` | Builds missions, generates prompt with skill IDs (just-in-time) |
 
 ### Skill Limits
 
@@ -165,14 +168,12 @@ getDynamicSkillLimit(wordCount, featureCount) =
 
 ### DO NOT
 
-- Do NOT use `loadCondensedSkillsForMission()` - always use `loadSkillsForMission()`
-- Do NOT truncate skill identity to first paragraph
-- Do NOT limit patterns/anti-patterns to top 3
-- Do NOT limit disasters to top 2
-- Do NOT set MAX_SKILLS_TO_SUGGEST above 50 (full skills need context space)
+- Do NOT set MAX_SKILLS_TO_SUGGEST above 50
 - Do NOT modify the h70-skill-matcher keyword mappings without good reason
 - Do NOT remove the `import { KEYWORD_TO_SKILLS }` from skill-matcher.ts
 - Do NOT revert skill-matcher.ts to only use the ~40 local TECH_TO_SKILLS/FEATURE_TO_SKILLS mappings
+- Do NOT include skill CONTENT in copy-paste prompt (just skill IDs - content is loaded just-in-time)
+- Do NOT use condensed/truncated skill content - always load FULL skills at execution time
 
 ## PRD Analyzer Rules (prd-analyzer.ts)
 

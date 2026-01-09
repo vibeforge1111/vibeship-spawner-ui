@@ -302,52 +302,47 @@ export async function buildMissionFromCanvas(
  * Options for generating execution prompts
  */
 export interface ExecutionPromptOptions {
-	/** Loaded H70 skills to include in prompt (full content, not condensed) */
+	/** Loaded H70 skills (used for UI display, not included in prompt) */
 	loadedSkills?: Map<string, H70SkillContent>;
-	/** Mapping of task ID to recommended skill IDs */
+	/** Mapping of task ID to skill IDs - these are listed in the prompt for just-in-time loading */
 	taskSkillMap?: Map<string, string[]>;
 }
 
 /**
  * Generate a copy-pasteable execution prompt for Claude Code
- * Now includes H70 skill content automatically
+ *
+ * ARCHITECTURE: Just-in-time skill loading
+ * - This prompt does NOT include skill content (would be 20,000+ lines)
+ * - Instead, it lists which H70 skills to load for each task
+ * - Claude Code fetches FULL skill content when starting each task
+ * - Skills are loaded from local files via MCP or direct read
  */
 export function generateExecutionPrompt(
 	mission: Mission,
 	options?: ExecutionPromptOptions
 ): string {
-	const { loadedSkills, taskSkillMap } = options || {};
+	const { taskSkillMap } = options || {};
 
-	// Build task list with skill recommendations
+	// Build task list with skill IDs (not content)
 	const taskList = mission.tasks
 		.map((t, i) => {
 			const deps = t.dependsOn?.length ? ` (after: ${t.dependsOn.join(', ')})` : '';
-			const recommendedSkills = taskSkillMap?.get(t.id);
-			const skillsLine = recommendedSkills?.length
-				? `\n   **Recommended H70 Skills**: ${recommendedSkills.join(', ')}`
+			const recommendedSkills = taskSkillMap?.get(t.id) || [];
+			const skillsLine = recommendedSkills.length
+				? `\n   **Load H70 Skills**: ${recommendedSkills.map(s => `\`${s}\``).join(', ')}`
 				: '';
 			return `${i + 1}. **${t.title}** (id: ${t.id})${deps}\n   ${t.description}${skillsLine}`;
 		})
 		.join('\n\n');
 
-	const skillList = [...new Set(mission.agents.flatMap(a => a.skills))].join(', ');
-
-	// Build H70 skills section - use FULL skill content, not condensed
-	let h70SkillsSection = '';
-	if (loadedSkills && loadedSkills.size > 0) {
-		const skillEntries: string[] = [];
-		skillEntries.push('## H70 Skills Reference\n');
-		skillEntries.push('The following expert skills have been loaded to guide this mission.');
-		skillEntries.push('Follow their patterns, avoid their anti-patterns, and learn from their disasters.\n');
-
-		for (const [skillId, skillContent] of loadedSkills) {
-			// Use the full formatted content (identity, owns, delegates, disasters, anti-patterns, patterns)
-			skillEntries.push(skillContent.formattedContent);
-			skillEntries.push('\n---\n');
+	// Collect all unique skill IDs across all tasks
+	const allSkillIds = new Set<string>();
+	if (taskSkillMap) {
+		for (const skills of taskSkillMap.values()) {
+			skills.forEach(s => allSkillIds.add(s));
 		}
-
-		h70SkillsSection = skillEntries.join('\n');
 	}
+	const skillIdList = [...allSkillIds].sort().join(', ');
 
 	return `# Mission: ${mission.name}
 
@@ -360,45 +355,71 @@ ${mission.description || ''}
 - **Tech Stack**: ${mission.context.techStack?.join(', ') || 'Not specified'}
 - **Goals**: ${mission.context.goals?.join('; ') || mission.description}
 
-## Skills to Use
-${skillList}
+## H70 Skills Required
+${skillIdList || 'None specified'}
 
 ## Tasks (Execute in Order)
 
 ${taskList}
 
-${h70SkillsSection}
+## CRITICAL: How to Load H70 Skills
 
-## Progress Reporting (IMPORTANT)
+**Before starting each task**, load its H70 skills using ONE of these methods:
 
-Report progress to the Spawner UI by using the Bash tool to POST events:
+### Method 1: MCP Tool (Preferred)
+\`\`\`
+Use: mcp__spawner_h70__spawner_h70_skills
+With: action="get", name="<skill-id>"
+\`\`\`
 
+### Method 2: Direct File Read
+\`\`\`
+Read: C:/Users/USER/Desktop/vibeship-h70/skill-lab/<skill-id>/skill.yaml
+\`\`\`
+
+**IMPORTANT**: Load the FULL skill content. Each H70 skill contains:
+- **identity**: Expert persona and deep knowledge
+- **owns**: What this skill handles
+- **delegates**: When to hand off to other skills
+- **disasters**: Real war stories and critical lessons
+- **anti_patterns**: Mistakes to avoid (with code smells)
+- **patterns**: Recommended implementations
+
+## Workflow Per Task
+
+For each task in order:
+
+1. **Report Start**
+   \`\`\`bash
+   curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type":"task_started","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME"}'
+   \`\`\`
+
+2. **Load Skills** - Fetch the H70 skills listed for this task (see "Load H70 Skills" in task)
+
+3. **Execute** - Complete the task following the skill's patterns, avoiding anti-patterns
+
+4. **Report Progress** (for long tasks)
+   \`\`\`bash
+   curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type":"progress","missionId":"${mission.id}","taskId":"TASK_ID","progress":50,"message":"Working on..."}'
+   \`\`\`
+
+5. **Report Complete**
+   \`\`\`bash
+   curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type":"task_completed","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME","data":{"success":true}}'
+   \`\`\`
+
+6. **Move to Next Task** - Load the next task's skills and repeat
+
+## Mission Complete
+
+When all tasks are done:
 \`\`\`bash
-# When starting a task:
-curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type":"task_started","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME"}'
-
-# During task progress (0-100):
-curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type":"progress","missionId":"${mission.id}","taskId":"TASK_ID","progress":50,"message":"Working on..."}'
-
-# When completing a task:
-curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type":"task_completed","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME","data":{"success":true}}'
-
-# When mission completes:
 curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type":"mission_completed","missionId":"${mission.id}"}'
 \`\`\`
 
-## Instructions
+---
 
-Execute each task in sequence. For each task:
-1. POST a \`task_started\` event with the task ID and name
-2. Apply the H70 skill guidance above (patterns, anti-patterns, lessons)
-3. Complete the task following best practices
-4. POST \`progress\` events periodically during long tasks
-5. POST a \`task_completed\` event when done
-
-**IMPORTANT**: The H70 skills above contain expert knowledge - follow their patterns and avoid their anti-patterns.
-
-Start with Task 1 and proceed through all tasks.`;
+**START**: Begin with Task 1. Load its H70 skills first, then execute.`;
 }
 
 /**
