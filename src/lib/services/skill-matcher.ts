@@ -4,6 +4,7 @@
  * Matches analyzed goals to relevant skills using a hybrid approach:
  * 1. MCP Server: When connected, uses intelligent AI-powered skill matching
  * 2. Local Fallback: Pattern matching with skills loaded from static JSON
+ * 3. H70 Keyword Matching: Uses 391 keyword mappings from h70-skill-matcher
  *
  * This ensures the best possible matches when MCP is available,
  * while maintaining instant operation even when offline.
@@ -16,6 +17,7 @@ import { skills as skillsStore } from '$lib/stores/skills.svelte';
 import type { Skill } from '$lib/stores/skills.svelte';
 import { mcpClient } from './mcp-client';
 import { mcpState } from '$lib/stores/mcp.svelte';
+import { KEYWORD_TO_SKILLS } from './h70-skill-matcher';
 
 // Skill category priorities (which categories are more "core")
 const CATEGORY_PRIORITY: Record<string, number> = {
@@ -88,6 +90,7 @@ const DOMAIN_TO_SKILLS: Record<string, string[]> = {
 
 /**
  * Calculate match score for a skill against the goal
+ * Uses H70 keyword mappings (391 keywords) for comprehensive matching
  */
 function calculateMatchScore(skill: Skill, goal: AnalyzedGoal): number {
 	let score = 0;
@@ -95,15 +98,42 @@ function calculateMatchScore(skill: Skill, goal: AnalyzedGoal): number {
 	const skillDescLower = skill.description.toLowerCase();
 	const skillTags = skill.tags.map(t => t.toLowerCase());
 
-	// Direct technology match (highest weight)
+	// H70 Keyword matching (PRIMARY - 391 mappings, highest weight)
+	// Check if any keyword from the PRD maps to this skill via H70
+	for (const keyword of goal.keywords) {
+		const h70Skills = KEYWORD_TO_SKILLS[keyword] || [];
+		if (h70Skills.includes(skill.id)) {
+			// Primary match (first in array) gets higher score
+			const position = h70Skills.indexOf(skill.id);
+			score += position === 0 ? 0.6 : 0.4;
+		}
+	}
+
+	// Also check multi-word phrases in the sanitized input
+	const inputLower = goal.sanitized.toLowerCase();
+	for (const [phrase, h70Skills] of Object.entries(KEYWORD_TO_SKILLS)) {
+		if (phrase.includes(' ') && inputLower.includes(phrase)) {
+			if (h70Skills.includes(skill.id)) {
+				const position = h70Skills.indexOf(skill.id);
+				score += position === 0 ? 0.5 : 0.3;
+			}
+		}
+	}
+
+	// Direct technology match (from goal-analyzer detected techs)
 	for (const tech of goal.technologies) {
 		const skillsForTech = TECH_TO_SKILLS[tech] || [];
 		if (skillsForTech.includes(skill.id)) {
-			score += 0.5;
+			score += 0.4;
+		}
+		// Also check H70 mappings for the tech
+		const h70Skills = KEYWORD_TO_SKILLS[tech] || [];
+		if (h70Skills.includes(skill.id)) {
+			score += 0.3;
 		}
 		// Partial match in name/tags
 		if (skillNameLower.includes(tech) || skillTags.some(t => t.includes(tech))) {
-			score += 0.3;
+			score += 0.2;
 		}
 	}
 
@@ -113,8 +143,13 @@ function calculateMatchScore(skill: Skill, goal: AnalyzedGoal): number {
 		if (skillsForFeature.includes(skill.id)) {
 			score += 0.3;
 		}
+		// Also check H70 mappings for the feature
+		const h70Skills = KEYWORD_TO_SKILLS[feature] || [];
+		if (h70Skills.includes(skill.id)) {
+			score += 0.25;
+		}
 		if (skillNameLower.includes(feature) || skillTags.some(t => t.includes(feature))) {
-			score += 0.2;
+			score += 0.15;
 		}
 	}
 
@@ -124,16 +159,21 @@ function calculateMatchScore(skill: Skill, goal: AnalyzedGoal): number {
 		if (skillsForDomain.includes(skill.id)) {
 			score += 0.2;
 		}
+		// Also check H70 mappings for the domain
+		const h70Skills = KEYWORD_TO_SKILLS[domain] || [];
+		if (h70Skills.includes(skill.id)) {
+			score += 0.2;
+		}
 	}
 
-	// Keyword match
+	// Fuzzy keyword match (name/description/tags)
 	for (const keyword of goal.keywords) {
 		if (skillNameLower.includes(keyword)) {
-			score += 0.15;
+			score += 0.1;
 		} else if (skillDescLower.includes(keyword)) {
-			score += 0.1;
+			score += 0.05;
 		} else if (skillTags.some(t => t.includes(keyword))) {
-			score += 0.1;
+			score += 0.05;
 		}
 	}
 
@@ -159,18 +199,29 @@ function determineTier(score: number, category: string): 1 | 2 | 3 {
 function generateMatchReason(skill: Skill, goal: AnalyzedGoal): string {
 	const reasons: string[] = [];
 
+	// Check H70 keyword matches (primary source)
+	for (const keyword of goal.keywords) {
+		const h70Skills = KEYWORD_TO_SKILLS[keyword] || [];
+		if (h70Skills.includes(skill.id)) {
+			reasons.push(`matches "${keyword}"`);
+			break; // One keyword reason is enough
+		}
+	}
+
 	// Check technology matches
 	for (const tech of goal.technologies) {
 		const skillsForTech = TECH_TO_SKILLS[tech] || [];
-		if (skillsForTech.includes(skill.id)) {
-			reasons.push(`matches ${tech}`);
+		const h70Skills = KEYWORD_TO_SKILLS[tech] || [];
+		if (skillsForTech.includes(skill.id) || h70Skills.includes(skill.id)) {
+			reasons.push(`${tech} expertise`);
 		}
 	}
 
 	// Check feature matches
 	for (const feature of goal.features) {
 		const skillsForFeature = FEATURE_TO_SKILLS[feature] || [];
-		if (skillsForFeature.includes(skill.id)) {
+		const h70Skills = KEYWORD_TO_SKILLS[feature] || [];
+		if (skillsForFeature.includes(skill.id) || h70Skills.includes(skill.id)) {
 			reasons.push(`provides ${feature}`);
 		}
 	}
@@ -178,8 +229,9 @@ function generateMatchReason(skill: Skill, goal: AnalyzedGoal): string {
 	// Check domain matches
 	for (const domain of goal.domains) {
 		const skillsForDomain = DOMAIN_TO_SKILLS[domain] || [];
-		if (skillsForDomain.includes(skill.id)) {
-			reasons.push(`${domain} expertise`);
+		const h70Skills = KEYWORD_TO_SKILLS[domain] || [];
+		if (skillsForDomain.includes(skill.id) || h70Skills.includes(skill.id)) {
+			reasons.push(`${domain} domain`);
 		}
 	}
 
