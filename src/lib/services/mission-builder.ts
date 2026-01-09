@@ -249,10 +249,11 @@ export async function buildMissionFromCanvas(
 
 		if (shouldLoadSkills) {
 			// Dynamic limits based on task complexity
-			// More tasks = more skills needed (but with reasonable caps)
+			// More tasks = more skills needed (scales up for enterprise PRDs)
 			const taskCount = tasks.length;
 			const defaultMaxPerTask = Math.min(5, Math.max(3, Math.ceil(taskCount / 3))); // 3-5 skills per task
-			const defaultMaxTotal = Math.min(50, Math.max(15, taskCount * 2)); // Scale with tasks, cap at 50
+			// Scale: 15 base + 2 per task, cap at 100 for enterprise PRDs
+			const defaultMaxTotal = Math.min(100, Math.max(15, 15 + taskCount * 2)); // 15-100 based on complexity
 
 			const maxPerTask = options.maxSkillsPerTask ?? defaultMaxPerTask;
 			const maxTotal = options.maxTotalSkills ?? defaultMaxTotal;
