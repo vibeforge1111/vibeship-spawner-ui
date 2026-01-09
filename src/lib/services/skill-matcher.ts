@@ -1,13 +1,13 @@
 /**
- * Skill Matcher Service
+ * Skill Matcher Service v2
  *
- * Matches analyzed goals to relevant skills using a hybrid approach:
- * 1. MCP Server: When connected, uses intelligent AI-powered skill matching
- * 2. Local Fallback: Pattern matching with skills loaded from static JSON
- * 3. H70 Keyword Matching: Uses 391 keyword mappings from h70-skill-matcher
+ * INTELLIGENT PRD-TO-SKILL MATCHING
  *
- * This ensures the best possible matches when MCP is available,
- * while maintaining instant operation even when offline.
+ * Primary: Claude API analyzes PRD with full skill context (480 skills)
+ * Fallback: Local keyword matching for offline operation
+ *
+ * Claude sees all skills organized by domain and selects with reasoning.
+ * This ensures game PRDs get game skills, AI PRDs get AI skills, etc.
  */
 
 import type { AnalyzedGoal, MatchedSkill, MatchResult } from '$lib/types/goal';
@@ -15,260 +15,60 @@ import { GOAL_VALIDATION } from '$lib/types/goal';
 import { get } from 'svelte/store';
 import { skills as skillsStore } from '$lib/stores/skills.svelte';
 import type { Skill } from '$lib/stores/skills.svelte';
-import { mcpClient } from './mcp-client';
-import { mcpState } from '$lib/stores/mcp.svelte';
+import { claudeClient, type ClaudeAnalysis } from './claude-api';
 import { KEYWORD_TO_SKILLS } from './h70-skill-matcher';
-import { detectDomain, getSkillsForDomain, DOMAIN_SKILL_PACKS, type ProjectDomain } from './domain-detector';
 
-// Skill category priorities (which categories are more "core")
+// Skill category priorities (for local fallback sorting)
 const CATEGORY_PRIORITY: Record<string, number> = {
 	'frameworks': 1,
 	'development': 2,
-	'integrations': 3,
-	'ai-ml': 4,
-	'agents': 5,
+	'game': 3,
+	'ai': 4,
+	'integrations': 5,
 	'data': 6,
 	'design': 7,
-	'marketing': 8,
-	'strategy': 9,
-	'enterprise': 10,
-	'finance': 11,
-	'legal': 12,
-	'science': 13,
-	'startup': 14
-};
-
-// Technology to skill ID mappings (for common techs)
-const TECH_TO_SKILLS: Record<string, string[]> = {
-	'nextjs': ['nextjs-app-router', 'react-patterns'],
-	'react': ['react-patterns', 'react-hooks'],
-	'vue': ['vue-patterns'],
-	'svelte': ['svelte-patterns'],
-	'supabase': ['supabase-backend', 'supabase-auth'],
-	'firebase': ['firebase-patterns'],
-	'stripe': ['stripe-payments', 'fintech-integration'],
-	'auth': ['authentication-oauth', 'supabase-auth'],
-	'graphql': ['graphql-schema', 'api-design'],
-	'rest': ['api-design', 'error-handling-patterns'],
-	'tailwind': ['frontend-design'],
-	'docker': ['docker-patterns', 'devops-patterns'],
-	'aws': ['aws-services'],
-	'gcp': ['gcp-services'],
-	'ai': ['llm-integration', 'ai-patterns'],
-	'realtime': ['realtime-patterns', 'websocket-patterns'],
-	'mobile': ['flutter-mobile', 'react-native-patterns'],
-	'testing': ['integration-testing', 'tdd-patterns']
-};
-
-// Feature to skill ID mappings
-const FEATURE_TO_SKILLS: Record<string, string[]> = {
-	'authentication': ['authentication-oauth', 'supabase-auth'],
-	'payments': ['stripe-payments', 'fintech-integration'],
-	'dashboard': ['react-patterns', 'data-visualization'],
-	'api': ['api-design', 'error-handling-patterns'],
-	'database': ['supabase-backend', 'data-modeling'],
-	'search': ['elasticsearch-search', 'search-patterns'],
-	'notifications': ['notification-patterns', 'email-templating'],
-	'file-upload': ['file-upload-patterns', 'storage-patterns'],
-	'chat': ['realtime-patterns', 'chat-patterns'],
-	'collaboration': ['collaboration-patterns', 'realtime-patterns'],
-	'integration': ['integration-patterns', 'webhook-patterns']
-};
-
-// Domain to skill ID mappings
-const DOMAIN_TO_SKILLS: Record<string, string[]> = {
-	'saas': ['multi-tenancy', 'subscription-patterns', 'authentication-oauth'],
-	'e-commerce': ['stripe-payments', 'inventory-patterns', 'cart-patterns'],
-	'marketplace': ['marketplace-patterns', 'payment-split', 'escrow-patterns'],
-	'social': ['social-patterns', 'feed-algorithms', 'graph-database'],
-	'fintech': ['fintech-integration', 'compliance-automation', 'derivatives-pricing'],
-	'healthcare': ['hipaa-compliance', 'healthcare-patterns'],
-	'education': ['lms-patterns', 'gamification'],
-	'productivity': ['project-management', 'task-patterns'],
-	'content': ['cms-patterns', 'seo-patterns'],
-	'analytics': ['analytics-patterns', 'data-pipeline']
+	'marketing': 8
 };
 
 /**
- * Calculate match score for a skill against the goal
- * Uses H70 keyword mappings (391 keywords) for comprehensive matching
+ * Convert Claude's skill selections to MatchedSkill format
  */
-function calculateMatchScore(skill: Skill, goal: AnalyzedGoal): number {
-	let score = 0;
-	const skillNameLower = skill.name.toLowerCase();
-	const skillDescLower = skill.description.toLowerCase();
-	const skillTags = skill.tags.map(t => t.toLowerCase());
+function convertClaudeSkills(
+	analysis: ClaudeAnalysis,
+	allSkills: Skill[]
+): MatchedSkill[] {
+	const matched: MatchedSkill[] = [];
 
-	// H70 Keyword matching (PRIMARY - 391 mappings, highest weight)
-	// Check if any keyword from the PRD maps to this skill via H70
-	for (const keyword of goal.keywords) {
-		const h70Skills = KEYWORD_TO_SKILLS[keyword] || [];
-		if (h70Skills.includes(skill.id)) {
-			// Primary match (first in array) gets higher score
-			const position = h70Skills.indexOf(skill.id);
-			score += position === 0 ? 0.6 : 0.4;
-		}
+	// Handle new format (array of {id, reason, tier})
+	const suggestions = analysis.suggestedSkills || [];
+
+	for (const suggestion of suggestions) {
+		// Handle both old string format and new object format
+		const skillId = typeof suggestion === 'string' ? suggestion : suggestion.id;
+		const reason = typeof suggestion === 'string' ? 'Selected by Claude' : suggestion.reason;
+		const tier = typeof suggestion === 'string' ? 2 : (suggestion.tier || 2);
+
+		// Find full skill data from store
+		const fullSkill = allSkills.find(s => s.id === skillId);
+
+		matched.push({
+			skillId,
+			name: fullSkill?.name || skillId.replace(/-/g, ' '),
+			description: fullSkill?.description || reason,
+			category: fullSkill?.category || 'general',
+			score: tier === 1 ? 0.9 : tier === 2 ? 0.7 : 0.5,
+			matchReason: reason,
+			tier: tier as 1 | 2 | 3,
+			tags: fullSkill?.tags || []
+		});
 	}
 
-	// Also check multi-word phrases in the sanitized input
-	const inputLower = goal.sanitized.toLowerCase();
-	for (const [phrase, h70Skills] of Object.entries(KEYWORD_TO_SKILLS)) {
-		if (phrase.includes(' ') && inputLower.includes(phrase)) {
-			if (h70Skills.includes(skill.id)) {
-				const position = h70Skills.indexOf(skill.id);
-				score += position === 0 ? 0.5 : 0.3;
-			}
-		}
-	}
-
-	// Direct technology match (from goal-analyzer detected techs)
-	for (const tech of goal.technologies) {
-		const skillsForTech = TECH_TO_SKILLS[tech] || [];
-		if (skillsForTech.includes(skill.id)) {
-			score += 0.4;
-		}
-		// Also check H70 mappings for the tech
-		const h70Skills = KEYWORD_TO_SKILLS[tech] || [];
-		if (h70Skills.includes(skill.id)) {
-			score += 0.3;
-		}
-		// Partial match in name/tags
-		if (skillNameLower.includes(tech) || skillTags.some(t => t.includes(tech))) {
-			score += 0.2;
-		}
-	}
-
-	// Feature match
-	for (const feature of goal.features) {
-		const skillsForFeature = FEATURE_TO_SKILLS[feature] || [];
-		if (skillsForFeature.includes(skill.id)) {
-			score += 0.3;
-		}
-		// Also check H70 mappings for the feature
-		const h70Skills = KEYWORD_TO_SKILLS[feature] || [];
-		if (h70Skills.includes(skill.id)) {
-			score += 0.25;
-		}
-		if (skillNameLower.includes(feature) || skillTags.some(t => t.includes(feature))) {
-			score += 0.15;
-		}
-	}
-
-	// Domain match
-	for (const domain of goal.domains) {
-		const skillsForDomain = DOMAIN_TO_SKILLS[domain] || [];
-		if (skillsForDomain.includes(skill.id)) {
-			score += 0.2;
-		}
-		// Also check H70 mappings for the domain
-		const h70Skills = KEYWORD_TO_SKILLS[domain] || [];
-		if (h70Skills.includes(skill.id)) {
-			score += 0.2;
-		}
-	}
-
-
-
-	// Domain detection boost (NEW - prioritize skills matching detected project type)
-	// This runs on every skill to boost domain-relevant skills
-	const domainResult = detectDomain(goal.sanitized);
-	const domainPack = DOMAIN_SKILL_PACKS[domainResult.primary];
-	if (domainPack) {
-		if (domainPack.core.includes(skill.id)) {
-			score += 0.5; // Strong boost for core domain skills
-		} else if (domainPack.common.includes(skill.id)) {
-			score += 0.3; // Medium boost for common domain skills
-		} else if (domainPack.optional.includes(skill.id)) {
-			score += 0.15; // Small boost for optional domain skills
-		}
-	}
-	// Also check secondary domain
-	if (domainResult.secondary) {
-		const secondaryPack = DOMAIN_SKILL_PACKS[domainResult.secondary];
-		if (secondaryPack?.core.includes(skill.id)) {
-			score += 0.2;
-		}
-	}
-
-	// Fuzzy keyword match (name/description/tags)
-	for (const keyword of goal.keywords) {
-		if (skillNameLower.includes(keyword)) {
-			score += 0.1;
-		} else if (skillDescLower.includes(keyword)) {
-			score += 0.05;
-		} else if (skillTags.some(t => t.includes(keyword))) {
-			score += 0.05;
-		}
-	}
-
-	// Cap at 1.0
-	return Math.min(1, score);
+	return matched;
 }
 
 /**
- * Determine tier based on match score and category
- */
-function determineTier(score: number, category: string): 1 | 2 | 3 {
-	// High score = essential
-	if (score >= 0.6) return 1;
-	// Medium score = recommended
-	if (score >= 0.3) return 2;
-	// Low score = optional
-	return 3;
-}
-
-/**
- * Generate match reason for display
- */
-function generateMatchReason(skill: Skill, goal: AnalyzedGoal): string {
-	const reasons: string[] = [];
-
-	// Check H70 keyword matches (primary source)
-	for (const keyword of goal.keywords) {
-		const h70Skills = KEYWORD_TO_SKILLS[keyword] || [];
-		if (h70Skills.includes(skill.id)) {
-			reasons.push(`matches "${keyword}"`);
-			break; // One keyword reason is enough
-		}
-	}
-
-	// Check technology matches
-	for (const tech of goal.technologies) {
-		const skillsForTech = TECH_TO_SKILLS[tech] || [];
-		const h70Skills = KEYWORD_TO_SKILLS[tech] || [];
-		if (skillsForTech.includes(skill.id) || h70Skills.includes(skill.id)) {
-			reasons.push(`${tech} expertise`);
-		}
-	}
-
-	// Check feature matches
-	for (const feature of goal.features) {
-		const skillsForFeature = FEATURE_TO_SKILLS[feature] || [];
-		const h70Skills = KEYWORD_TO_SKILLS[feature] || [];
-		if (skillsForFeature.includes(skill.id) || h70Skills.includes(skill.id)) {
-			reasons.push(`provides ${feature}`);
-		}
-	}
-
-	// Check domain matches
-	for (const domain of goal.domains) {
-		const skillsForDomain = DOMAIN_TO_SKILLS[domain] || [];
-		const h70Skills = KEYWORD_TO_SKILLS[domain] || [];
-		if (skillsForDomain.includes(skill.id) || h70Skills.includes(skill.id)) {
-			reasons.push(`${domain} domain`);
-		}
-	}
-
-	// Default reason
-	if (reasons.length === 0) {
-		reasons.push('related to your project');
-	}
-
-	return reasons.slice(0, 2).join(', ');
-}
-
-/**
- * Match skills locally using the skills store
+ * Local fallback: Simple keyword matching using H70 mappings
+ * Only used when Claude API is unavailable
  */
 function matchSkillsLocal(goal: AnalyzedGoal, maxResults: number): MatchedSkill[] {
 	const allSkills = get(skillsStore);
@@ -276,133 +76,119 @@ function matchSkillsLocal(goal: AnalyzedGoal, maxResults: number): MatchedSkill[
 		return [];
 	}
 
-	// Score all skills
-	const scored: { skill: Skill; score: number }[] = allSkills
-		.map(skill => ({
-			skill,
-			score: calculateMatchScore(skill, goal)
-		}))
-		.filter(item => item.score >= GOAL_VALIDATION.MIN_CONFIDENCE_SCORE);
+	// Build a set of matched skill IDs from H70 keywords
+	const matchedIds = new Map<string, { score: number; reason: string }>();
 
-	// Sort by score (desc), then by category priority
-	scored.sort((a, b) => {
+	// Match keywords against H70 mappings
+	for (const keyword of goal.keywords) {
+		const h70Skills = KEYWORD_TO_SKILLS[keyword.toLowerCase()] || [];
+		for (let i = 0; i < h70Skills.length; i++) {
+			const skillId = h70Skills[i];
+			const existing = matchedIds.get(skillId);
+			const positionScore = i === 0 ? 0.6 : 0.4;
+
+			if (!existing || existing.score < positionScore) {
+				matchedIds.set(skillId, {
+					score: existing ? Math.max(existing.score, positionScore) + 0.1 : positionScore,
+					reason: `matches "${keyword}"`
+				});
+			}
+		}
+	}
+
+	// Match features
+	for (const feature of goal.features) {
+		const h70Skills = KEYWORD_TO_SKILLS[feature.toLowerCase()] || [];
+		for (const skillId of h70Skills) {
+			const existing = matchedIds.get(skillId);
+			if (existing) {
+				existing.score += 0.2;
+			} else {
+				matchedIds.set(skillId, { score: 0.3, reason: `supports ${feature}` });
+			}
+		}
+	}
+
+	// Match technologies
+	for (const tech of goal.technologies) {
+		const h70Skills = KEYWORD_TO_SKILLS[tech.toLowerCase()] || [];
+		for (const skillId of h70Skills) {
+			const existing = matchedIds.get(skillId);
+			if (existing) {
+				existing.score += 0.3;
+			} else {
+				matchedIds.set(skillId, { score: 0.4, reason: `${tech} expertise` });
+			}
+		}
+	}
+
+	// Convert to MatchedSkill array
+	const matched: MatchedSkill[] = [];
+	for (const [skillId, match] of matchedIds.entries()) {
+		const skill = allSkills.find(s => s.id === skillId);
+		if (!skill) continue;
+
+		matched.push({
+			skillId: skill.id,
+			name: skill.name,
+			description: skill.description,
+			category: skill.category,
+			score: Math.min(1, match.score),
+			matchReason: match.reason,
+			tier: match.score >= 0.6 ? 1 : match.score >= 0.3 ? 2 : 3,
+			tags: skill.tags
+		});
+	}
+
+	// Sort by score
+	matched.sort((a, b) => {
 		if (b.score !== a.score) return b.score - a.score;
-		const priorityA = CATEGORY_PRIORITY[a.skill.category] || 99;
-		const priorityB = CATEGORY_PRIORITY[b.skill.category] || 99;
+		const priorityA = CATEGORY_PRIORITY[a.category] || 99;
+		const priorityB = CATEGORY_PRIORITY[b.category] || 99;
 		return priorityA - priorityB;
 	});
 
-	// Take top N and convert to MatchedSkill
-	return scored.slice(0, maxResults).map(({ skill, score }) => ({
-		skillId: skill.id,
-		name: skill.name,
-		description: skill.description,
-		category: skill.category,
-		score,
-		matchReason: generateMatchReason(skill, goal),
-		tier: determineTier(score, skill.category),
-		tags: skill.tags
-	}));
-}
-
-/**
- * Match skills using MCP server's intelligent search
- */
-async function matchSkillsMCP(goal: AnalyzedGoal, maxResults: number): Promise<MatchedSkill[]> {
-	try {
-		// Build search query from goal analysis
-		const searchQuery = [
-			...goal.technologies,
-			...goal.features.slice(0, 3),
-			...goal.keywords.slice(0, 5)
-		].join(' ');
-
-		console.log('[SkillMatcher] Searching MCP with query:', searchQuery);
-
-		// Call MCP server to search for skills
-		const result = await mcpClient.searchSkills(searchQuery, {
-			limit: maxResults * 2, // Get extra to filter later
-			category: goal.domains[0] // Use primary domain as category hint
-		});
-
-		if (!result.success || !result.data?.skills) {
-			console.warn('[SkillMatcher] MCP search failed:', result.error);
-			return [];
-		}
-
-		// Convert MCP skills to MatchedSkill format
-		const mcpSkills = result.data.skills;
-		const matched: MatchedSkill[] = [];
-
-		for (const mcpSkill of mcpSkills) {
-			// Find the full skill data from our store
-			const fullSkill = get(skillsStore).find(s => s.id === mcpSkill.id);
-			if (!fullSkill) continue;
-
-			// Calculate a relevance score based on position and goal match
-			const positionScore = 1 - (matched.length / mcpSkills.length) * 0.3; // Higher position = higher score
-			const goalScore = calculateMatchScore(fullSkill, goal);
-			const finalScore = (positionScore * 0.4) + (goalScore * 0.6);
-
-			matched.push({
-				skillId: mcpSkill.id,
-				name: mcpSkill.name,
-				description: mcpSkill.description || fullSkill.description,
-				category: mcpSkill.category,
-				score: finalScore,
-				matchReason: `MCP recommendation for "${searchQuery.slice(0, 30)}..."`,
-				tier: determineTier(finalScore, mcpSkill.category),
-				tags: mcpSkill.tags || fullSkill.tags
-			});
-		}
-
-		// Sort by score and return top N
-		matched.sort((a, b) => b.score - a.score);
-		return matched.slice(0, maxResults);
-	} catch (error) {
-		console.error('[SkillMatcher] MCP matching error:', error);
-		return [];
-	}
+	return matched.slice(0, maxResults);
 }
 
 /**
  * Main function: Match skills to a goal
  *
- * Tries MCP server first for intelligent matching, falls back to local pattern matching.
- * This provides the best of both worlds: AI-powered matching when available,
- * and instant local matching as fallback.
+ * 1. Try Claude API for intelligent matching (sees all 480 skills)
+ * 2. Fall back to local keyword matching if Claude unavailable
  */
 export async function matchSkills(
 	goal: AnalyzedGoal,
-	options: { maxResults?: number; minScore?: number; preferMcp?: boolean } = {}
+	options: { maxResults?: number; minScore?: number; preferLocal?: boolean } = {}
 ): Promise<MatchResult> {
 	const startTime = Date.now();
 	const maxResults = options.maxResults || GOAL_VALIDATION.MAX_SKILLS_TO_SUGGEST;
+	const allSkills = get(skillsStore);
+
 	let skills: MatchedSkill[] = [];
 	let source: 'claude' | 'mcp' | 'local' | 'hybrid' = 'local';
+	let claudeAnalysis: ClaudeAnalysis | undefined;
 
-	// Check if MCP is connected and we should try it
-	const mcp = get(mcpState);
-	const shouldTryMcp = options.preferMcp !== false && mcp.status === 'connected' && !goal.needsClarification;
+	// Try Claude API for intelligent matching (unless local preferred)
+	if (!options.preferLocal && claudeClient.isEnabled()) {
+		console.log('[SkillMatcher] Attempting Claude-powered intelligent matching...');
 
-	if (shouldTryMcp) {
-		console.log('[SkillMatcher] Attempting MCP-powered skill matching...');
-		const mcpSkills = await matchSkillsMCP(goal, maxResults);
-		
-		if (mcpSkills.length > 0) {
-			skills = mcpSkills;
-			source = 'mcp';
-			console.log(`[SkillMatcher] MCP matched ${skills.length} skills`);
+		const result = await claudeClient.analyzeGoal(goal.sanitized);
+
+		if (result.success && result.analysis) {
+			claudeAnalysis = result.analysis;
+			skills = convertClaudeSkills(result.analysis, allSkills);
+			source = 'claude';
+			console.log(`[SkillMatcher] Claude selected ${skills.length} skills with reasoning`);
 		} else {
-			console.log('[SkillMatcher] MCP returned no results, falling back to local');
+			console.log('[SkillMatcher] Claude API unavailable, falling back to local');
 		}
 	}
 
-	// Fall back to local matching if MCP didn't work or wasn't available
+	// Fall back to local matching if Claude didn't work
 	if (skills.length === 0) {
-		console.log('[SkillMatcher] Using local pattern matching');
+		console.log('[SkillMatcher] Using local keyword matching (H70 mappings)');
 		skills = matchSkillsLocal(goal, maxResults);
-		source = source === 'mcp' ? 'hybrid' : 'local';
 		console.log(`[SkillMatcher] Matched ${skills.length} skills locally`);
 	}
 
@@ -411,10 +197,12 @@ export async function matchSkills(
 		skills = skills.filter(s => s.score >= options.minScore!);
 	}
 
-	// Ensure we have at least some skills for non-vague inputs
+	// Ensure we don't exceed max results
+	skills = skills.slice(0, maxResults);
+
+	// Fallback if no skills found
 	if (skills.length === 0 && goal.confidence > 0.3) {
-		// Add some default starter skills based on common patterns
-		skills = getDefaultSkills(goal, maxResults);
+		skills = getDefaultSkills(goal.domains, maxResults);
 		console.log('[SkillMatcher] Added default skills as fallback');
 	}
 
@@ -423,49 +211,71 @@ export async function matchSkills(
 		totalMatches: skills.length,
 		processingTime: Date.now() - startTime,
 		source,
-		goal
+		goal,
+		claudeAnalysis
 	};
 }
 
 /**
- * Get default skills when no matches are found
+ * Get default skills based on detected domains
  */
-function getDefaultSkills(goal: AnalyzedGoal, maxResults: number): MatchedSkill[] {
-	// Default skills for common project types
-	const defaults: MatchedSkill[] = [
-		{
+function getDefaultSkills(domains: string[], maxResults: number): MatchedSkill[] {
+	const defaults: MatchedSkill[] = [];
+
+	// Domain-specific defaults
+	if (domains.includes('game') || domains.includes('gaming')) {
+		defaults.push({
+			skillId: 'game-development',
+			name: 'Game Development',
+			description: 'Core game architecture and patterns',
+			category: 'game',
+			score: 0.6,
+			matchReason: 'game project detected',
+			tier: 1,
+			tags: ['game', 'development']
+		});
+		defaults.push({
+			skillId: 'game-design',
+			name: 'Game Design',
+			description: 'Game mechanics and player experience',
+			category: 'game',
+			score: 0.5,
+			matchReason: 'game project detected',
+			tier: 2,
+			tags: ['game', 'design']
+		});
+	} else if (domains.includes('ai') || domains.includes('ml')) {
+		defaults.push({
+			skillId: 'llm-architect',
+			name: 'LLM Architect',
+			description: 'Building production LLM applications',
+			category: 'ai',
+			score: 0.6,
+			matchReason: 'AI project detected',
+			tier: 1,
+			tags: ['ai', 'llm']
+		});
+	} else {
+		// Default web app skills
+		defaults.push({
 			skillId: 'nextjs-app-router',
 			name: 'Next.js App Router',
-			description: 'Modern React framework with App Router patterns',
+			description: 'Modern React framework',
 			category: 'frameworks',
 			score: 0.5,
 			matchReason: 'recommended starting point',
 			tier: 1,
-			tags: ['nextjs', 'react', 'frontend']
-		},
-		{
+			tags: ['nextjs', 'react']
+		});
+		defaults.push({
 			skillId: 'api-design',
 			name: 'API Design',
-			description: 'REST API design patterns and best practices',
+			description: 'REST API patterns',
 			category: 'development',
 			score: 0.4,
 			matchReason: 'common requirement',
 			tier: 2,
-			tags: ['api', 'rest', 'backend']
-		}
-	];
-
-	// Add auth if mentioned anything about users
-	if (goal.features.includes('authentication') || goal.keywords.some(k => ['user', 'users', 'account'].includes(k))) {
-		defaults.push({
-			skillId: 'authentication-oauth',
-			name: 'Authentication & OAuth',
-			description: 'Secure authentication patterns',
-			category: 'integrations',
-			score: 0.45,
-			matchReason: 'user management',
-			tier: 1,
-			tags: ['auth', 'oauth', 'security']
+			tags: ['api', 'rest']
 		});
 	}
 

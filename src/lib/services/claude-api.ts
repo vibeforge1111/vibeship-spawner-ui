@@ -1,18 +1,25 @@
 /**
  * Claude API Client Service
  *
- * Provides intelligent goal analysis using Claude.
- * Communicates with the secure server-side API route.
+ * Provides intelligent PRD analysis using Claude.
+ * Claude sees ALL 480 skills organized by domain and selects with reasoning.
  */
+
+export interface SkillSelection {
+	id: string;
+	reason: string;
+	tier: 1 | 2 | 3; // 1=essential, 2=recommended, 3=helpful
+}
 
 export interface ClaudeAnalysis {
 	technologies: string[];
 	features: string[];
 	domains: string[];
-	suggestedSkills: string[];
+	suggestedSkills: SkillSelection[] | string[]; // Supports both new and old format
 	complexity: 'simple' | 'moderate' | 'complex';
 	summary: string;
 	questions?: string[];
+	workflowOrder?: string[]; // Suggested execution order
 }
 
 export interface AnalysisResult {

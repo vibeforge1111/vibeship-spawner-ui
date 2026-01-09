@@ -1,13 +1,14 @@
 /**
  * Server-side API route for Claude goal analysis
  *
- * Keeps API key secure by making Claude calls from the server.
- * Falls back to local analysis if API is unavailable.
+ * Intelligent PRD-to-skill matching using Claude with full skill context.
+ * Claude sees ALL 480 skills organized by domain and selects with reasoning.
  */
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
+import skillIndex from '$lib/data/skill-index-ultra.json';
 
 interface AnalysisRequest {
 	goal: string;
@@ -16,45 +17,81 @@ interface AnalysisRequest {
 	};
 }
 
+interface SkillSelection {
+	id: string;
+	reason: string;
+	tier: 1 | 2 | 3; // 1=essential, 2=recommended, 3=helpful
+}
+
 interface ClaudeAnalysis {
 	technologies: string[];
 	features: string[];
 	domains: string[];
-	suggestedSkills: string[];
+	suggestedSkills: SkillSelection[];
 	complexity: 'simple' | 'moderate' | 'complex';
 	summary: string;
 	questions?: string[];
+	workflowOrder?: string[]; // Suggested execution order
 }
 
 const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
 
-const ANALYSIS_PROMPT = `You are analyzing a user's project goal to recommend relevant development skills and technologies.
+const ANALYSIS_PROMPT = `You are an expert software architect analyzing a project description to recommend the most relevant development skills.
 
-Given the user's project description, extract:
-1. **technologies**: Specific technologies mentioned or implied (e.g., nextjs, react, supabase, stripe)
-2. **features**: Features they want to build (e.g., authentication, payments, dashboard, api)
-3. **domains**: Business domains (e.g., saas, e-commerce, marketplace, fintech)
-4. **suggestedSkills**: Skill IDs that would help (use kebab-case like: nextjs-app-router, supabase-backend, stripe-payments)
-5. **complexity**: Is this simple (1-2 skills), moderate (3-5 skills), or complex (6+ skills)?
-6. **summary**: A one-sentence summary of what they want to build
-7. **questions**: Only if the input is too vague, ask 1-2 clarifying questions
+## Your Task
+Read the project description carefully and select 15-25 skills that are SPECIFICALLY relevant. Think about:
+1. What is the project's PRIMARY domain? (game, AI, web app, etc.)
+2. What technologies are mentioned or implied?
+3. What features need to be built?
+4. What supporting skills are needed? (auth, database, deployment)
 
-Respond ONLY with valid JSON matching this structure:
+## CRITICAL Rules
+- **Be PRECISE**: A game project needs game-* skills, NOT stripe-integration unless payments are mentioned
+- **Be COMPLETE**: Include all essential skills for the project type
+- **Be FOCUSED**: Don't add generic skills that aren't relevant
+- **Think about HANDOFFS**: Which skill leads to which? Order matters.
+
+## Available Skills (480 total, organized by domain)
+{{SKILLS}}
+
+## Response Format
+Return ONLY valid JSON:
 {
-  "technologies": ["nextjs", "supabase"],
-  "features": ["authentication", "dashboard"],
-  "domains": ["saas"],
-  "suggestedSkills": ["nextjs-app-router", "supabase-auth", "supabase-backend"],
-  "complexity": "moderate",
-  "summary": "A SaaS dashboard with authentication using Next.js and Supabase",
+  "technologies": ["tech1", "tech2"],
+  "features": ["feature1", "feature2"],
+  "domains": ["primary-domain", "secondary-domain"],
+  "suggestedSkills": [
+    { "id": "skill-id", "reason": "Why this skill is needed", "tier": 1 },
+    { "id": "another-skill", "reason": "Specific reason", "tier": 2 }
+  ],
+  "complexity": "simple|moderate|complex",
+  "summary": "One sentence describing what they want to build",
+  "workflowOrder": ["skill-1", "skill-2", "skill-3"],
   "questions": []
 }
 
-Available skill IDs to choose from:
-{{SKILLS}}
+Tier meanings:
+- tier 1: Essential - project cannot work without this
+- tier 2: Recommended - significantly improves the project
+- tier 3: Helpful - nice to have, adds polish
 
-User's project goal:
+## Project Description
 {{GOAL}}`;
+
+/**
+ * Format skill index for Claude prompt
+ * Groups skills by domain for better context understanding
+ */
+function formatSkillsForPrompt(): string {
+	const lines: string[] = [];
+
+	for (const [domain, skills] of Object.entries(skillIndex)) {
+		lines.push(`\n### ${domain.toUpperCase()} (${skills.split(', ').length} skills)`);
+		lines.push(skills);
+	}
+
+	return lines.join('\n');
+}
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
@@ -73,15 +110,13 @@ export const POST: RequestHandler = async ({ request }) => {
 			}, { status: 503 });
 		}
 
-		// Build the prompt
-		const skillsList = body.context?.availableSkills?.slice(0, 100).join(', ') ||
-			'nextjs-app-router, react-patterns, supabase-backend, supabase-auth, stripe-payments, tailwind-patterns, typescript-patterns, api-design, authentication-oauth, graphql-schema';
-
+		// Build the prompt with full skill index
+		const skillsFormatted = formatSkillsForPrompt();
 		const prompt = ANALYSIS_PROMPT
-			.replace('{{SKILLS}}', skillsList)
+			.replace('{{SKILLS}}', skillsFormatted)
 			.replace('{{GOAL}}', body.goal);
 
-		// Call Claude API
+		// Call Claude API with extended token limit for complex analysis
 		const response = await fetch(CLAUDE_API_URL, {
 			method: 'POST',
 			headers: {
@@ -91,7 +126,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			},
 			body: JSON.stringify({
 				model: 'claude-sonnet-4-20250514',
-				max_tokens: 1024,
+				max_tokens: 2048, // Increased for detailed skill reasoning
 				messages: [
 					{
 						role: 'user',
@@ -123,17 +158,44 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Parse the JSON response
 		try {
-			const analysis: ClaudeAnalysis = JSON.parse(textContent.text);
+			// Handle potential markdown code blocks in response
+			let jsonText = textContent.text.trim();
+			if (jsonText.startsWith('```json')) {
+				jsonText = jsonText.slice(7);
+			}
+			if (jsonText.startsWith('```')) {
+				jsonText = jsonText.slice(3);
+			}
+			if (jsonText.endsWith('```')) {
+				jsonText = jsonText.slice(0, -3);
+			}
+			jsonText = jsonText.trim();
+
+			const analysis: ClaudeAnalysis = JSON.parse(jsonText);
+
+			// Validate skill selections
+			if (analysis.suggestedSkills && Array.isArray(analysis.suggestedSkills)) {
+				// Normalize skill selections (handle both old string[] and new object[] format)
+				analysis.suggestedSkills = analysis.suggestedSkills.map((skill: unknown) => {
+					if (typeof skill === 'string') {
+						return { id: skill, reason: 'Selected by Claude', tier: 2 as const };
+					}
+					return skill as SkillSelection;
+				});
+			}
+
 			return json({
 				success: true,
 				analysis,
-				source: 'claude'
+				source: 'claude',
+				skillCount: analysis.suggestedSkills?.length || 0
 			});
 		} catch (parseError) {
 			console.error('Failed to parse Claude response:', textContent.text);
 			return json({
 				error: 'Failed to parse Claude response',
-				fallback: true
+				fallback: true,
+				rawResponse: textContent.text.slice(0, 500) // For debugging
 			}, { status: 502 });
 		}
 

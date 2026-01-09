@@ -35,14 +35,21 @@ export interface MatchedSkill {
 	tags?: string[];
 }
 
+export interface SkillSelection {
+	id: string;
+	reason: string;
+	tier: 1 | 2 | 3; // 1=essential, 2=recommended, 3=helpful
+}
+
 export interface ClaudeAnalysis {
 	technologies: string[];
 	features: string[];
 	domains: string[];
-	suggestedSkills: string[];
+	suggestedSkills: SkillSelection[] | string[]; // Supports both new and old format
 	complexity: 'simple' | 'moderate' | 'complex';
 	summary: string;
 	questions?: string[];
+	workflowOrder?: string[]; // Suggested execution order
 }
 
 export interface MatchResult {
