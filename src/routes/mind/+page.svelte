@@ -8,6 +8,7 @@
 	import AgentEffectiveness from '$lib/components/AgentEffectiveness.svelte';
 	import LearningsExportImport from '$lib/components/LearningsExportImport.svelte';
 	import ImprovementCard from '$lib/components/ImprovementCard.svelte';
+	import SelfImprovementMetrics from '$lib/components/SelfImprovementMetrics.svelte';
 	import {
 		mindState,
 		addDecision,
@@ -58,8 +59,8 @@
 	let memoryConnected = $state(false);
 	let memoryStatus = $state<string>('disconnected');
 
-	// Form states - Learnings first, then Improvements
-	let activeTab = $state<'learnings' | 'improvements' | 'decisions' | 'issues' | 'sessions'>('learnings');
+	// Form states - Learnings first, then Improvements, then Intelligence (LITE+ metrics)
+	let activeTab = $state<'learnings' | 'improvements' | 'intelligence' | 'decisions' | 'issues' | 'sessions'>('learnings');
 	let showAddForm = $state(false);
 	let formType = $state<'decision' | 'issue' | 'session'>('decision');
 	let improvementFilter = $state<'all' | 'pending' | 'applied'>('all');
@@ -260,6 +261,19 @@
 				{#if pendingCount > 0}<span class="text-yellow-400">({pendingCount} pending)</span>{/if}
 			</button>
 			<button
+				onclick={() => (activeTab = 'intelligence')}
+				class="px-3 py-1.5 font-mono text-sm border transition-all"
+				class:bg-emerald-500={activeTab === 'intelligence'}
+				class:text-white={activeTab === 'intelligence'}
+				class:border-emerald-500={activeTab === 'intelligence'}
+				class:text-text-secondary={activeTab !== 'intelligence'}
+				class:border-surface-border={activeTab !== 'intelligence'}
+				class:hover:border-text-tertiary={activeTab !== 'intelligence'}
+			>
+				Intelligence
+				<span class="text-xs text-emerald-400 ml-1">LITE+</span>
+			</button>
+			<button
 				onclick={() => (activeTab = 'decisions')}
 				class="px-3 py-1.5 font-mono text-sm border transition-all"
 				class:bg-accent-primary={activeTab === 'decisions'}
@@ -302,7 +316,7 @@
 
 			<div class="flex-1"></div>
 
-			{#if currentState.memoryConnected && activeTab !== 'learnings' && activeTab !== 'improvements'}
+			{#if currentState.memoryConnected && activeTab !== 'learnings' && activeTab !== 'improvements' && activeTab !== 'intelligence'}
 				<button
 					onclick={() =>
 						openAddForm(
@@ -510,6 +524,11 @@
 						</div>
 					{/if}
 				{/if}
+			{/if}
+
+			<!-- Intelligence Tab (LITE+ Metrics) -->
+			{#if activeTab === 'intelligence'}
+				<SelfImprovementMetrics />
 			{/if}
 
 			<!-- Decisions Tab -->

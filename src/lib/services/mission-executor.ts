@@ -1085,6 +1085,7 @@ class MissionExecutor {
 
 	/**
 	 * Record when a task starts - captures the decision to execute this task
+	 * NOW USES LITE+ DECISION TRACING for proper outcome attribution
 	 */
 	private async recordTaskStart(task: MissionTask, agentId: string): Promise<void> {
 		if (!this.shouldRecordLearning()) return;
@@ -1101,33 +1102,55 @@ class MissionExecutor {
 			// Only record if granularity setting allows
 			if (!shouldRecordDecision(0.7)) return;
 
-			// Record the decision to execute this task
-			const result = await memoryClient.recordAgentDecision(
-				agentId,
-				agentName,
-				{
-					skillId,
-					missionId: this.progress.missionId || undefined,
-					taskId: task.id,
-					decision: `Execute task: ${task.title}`,
-					reasoning: task.description,
-					confidence: 0.7,
-					context: `Mission: ${this.progress.mission?.name || 'Unknown'}`
-				}
-			);
+			// LITE+ CHANGE: Use recordExperience to create decision trace with memory linkage
+			// This searches for relevant past memories and links them to this decision
+			const taskDescription = `${task.title}: ${task.description || ''}`;
+			const reasoning = `Agent ${agentName} executing task "${task.title}" ${skillId ? `using skill ${skillId}` : ''} in mission "${this.progress.mission?.name || 'Unknown'}"`;
+
+			const result = await memoryClient.recordExperience({
+				taskDescription,
+				decisionType: `task_execution:${skillId || 'general'}`,
+				decisionSummary: `Execute task: ${task.title}`,
+				reasoning,
+				confidence: 0.7,
+				sessionId: this.progress.missionId || undefined
+			});
 
 			if (result.success && result.data) {
-				this.taskDecisionIds.set(task.id, result.data.memory_id);
-				console.log(`[Learning] Recorded task start: ${task.title}`);
+				// Store TRACE ID instead of memory ID for later outcome attribution
+				this.taskDecisionIds.set(task.id, result.data.traceId);
 
-				// Broadcast decision event
+				console.log(`[Learning] LITE+ Decision trace created: ${task.title}`);
+				console.log(`[Learning]   Linked to ${result.data.memoriesUsed.length} past memories`);
+
+				// Broadcast decision event with attribution info
 				broadcastLearningEvent('decision_tracked', {
-					memoryId: result.data.memory_id,
+					traceId: result.data.traceId,
+					memoryId: result.data.traceId, // For backwards compat
 					agentId,
 					skillId,
 					missionId: this.progress.missionId || undefined,
-					content: `Execute task: ${task.title}`
+					content: `Execute task: ${task.title}`,
+					memoriesLinked: result.data.memoriesUsed.length
 				});
+			} else {
+				// Fallback to old method if LITE+ fails
+				const fallbackResult = await memoryClient.recordAgentDecision(
+					agentId,
+					agentName,
+					{
+						skillId,
+						missionId: this.progress.missionId || undefined,
+						taskId: task.id,
+						decision: `Execute task: ${task.title}`,
+						reasoning: task.description,
+						confidence: 0.7,
+						context: `Mission: ${this.progress.mission?.name || 'Unknown'}`
+					}
+				);
+				if (fallbackResult.success && fallbackResult.data) {
+					this.taskDecisionIds.set(task.id, fallbackResult.data.memory_id);
+				}
 			}
 		} catch (error) {
 			console.error('[Learning] Failed to record task start:', error);
@@ -1136,7 +1159,7 @@ class MissionExecutor {
 
 	/**
 	 * Record when a task completes - captures the outcome
-	 * Handles both cases: when task is found in mission.tasks and when only taskId is available
+	 * NOW USES LITE+ OUTCOME ATTRIBUTION to propagate results back to source memories
 	 */
 	private async recordTaskComplete(taskId: string, success: boolean): Promise<void> {
 		if (!this.shouldRecordLearning()) return;
@@ -1162,19 +1185,46 @@ class MissionExecutor {
 			const agent = agentId ? this.progress.mission?.agents.find(a => a.id === agentId) : undefined;
 			const skillId = agent?.skills?.[0];
 
-			// Record outcome (with whatever info we have)
-			await memoryClient.recordTaskOutcome(
-				this.progress.missionId || '',
-				taskId,
-				{
+			// LITE+ CHANGE: Check if we have a decision trace for this task
+			const traceId = this.taskDecisionIds.get(taskId);
+
+			if (traceId) {
+				// Use LITE+ completeExperience for outcome attribution
+				// This propagates the outcome back to all source memories
+				const outcomeQuality = success ? 0.8 : -0.5;
+				const signal = success ? 'task_success' : 'task_failure';
+				const learning = success
+					? `Task "${taskName}" succeeded using skill ${skillId || 'general'} - pattern reinforced`
+					: `Task "${taskName}" failed - consider alternative approach`;
+
+				const result = await memoryClient.completeExperience(traceId, {
 					success,
-					details: success
-						? `Task "${taskName}" completed successfully in ${Math.round(duration / 1000)}s`
-						: `Task "${taskName}" failed`,
-					agentId,
-					skillId
+					quality: outcomeQuality,
+					signal,
+					learningExtracted: learning
+				});
+
+				if (result.success && result.data) {
+					console.log(`[Learning] LITE+ Outcome attributed to ${result.data.attributed_memories} memories`);
+					if (result.data.learning_id) {
+						console.log(`[Learning] Learning extracted: ${result.data.learning_id}`);
+					}
 				}
-			);
+			} else {
+				// Fallback: Record outcome without attribution (old method)
+				await memoryClient.recordTaskOutcome(
+					this.progress.missionId || '',
+					taskId,
+					{
+						success,
+						details: success
+							? `Task "${taskName}" completed successfully in ${Math.round(duration / 1000)}s`
+							: `Task "${taskName}" failed`,
+						agentId,
+						skillId
+					}
+				);
+			}
 
 			// Track skill sequence for pattern extraction
 			if (success && skillId) {
@@ -1182,7 +1232,6 @@ class MissionExecutor {
 			}
 
 			// Auto-create decision when task succeeds (non-blocking)
-			// This runs regardless of whether we found full task info
 			if (success) {
 				const what = `Completed: ${taskName}`;
 				const why = `Task "${taskName}" in mission "${missionName}" completed successfully${skillId ? ` using ${skillId} skill` : ''} in ${Math.round(duration / 1000)}s`;
@@ -1194,7 +1243,6 @@ class MissionExecutor {
 			}
 
 			// Auto-create issue when task fails (non-blocking)
-			// This runs regardless of whether we found full task info
 			if (!success) {
 				const errorDetails = task?.error || 'Task execution failed';
 				memoryClient.createProjectIssue(
@@ -1209,14 +1257,16 @@ class MissionExecutor {
 
 			console.log(`[Learning] Recorded task outcome: ${taskName} - ${success ? 'success' : 'failed'}`);
 
-			// Broadcast outcome event
+			// Broadcast outcome event with attribution info
 			broadcastLearningEvent('outcome_recorded', {
+				traceId,
 				agentId,
 				skillId,
 				missionId: this.progress.missionId || undefined,
 				content: success ? `Task completed: ${taskName}` : `Task failed: ${taskName}`,
 				success,
-				duration
+				duration,
+				attributed: !!traceId
 			});
 		} catch (error) {
 			console.error('[Learning] Failed to record task outcome:', error);
@@ -1225,6 +1275,7 @@ class MissionExecutor {
 
 	/**
 	 * Record mission completion - extracts learnings and patterns
+	 * NOW USES LITE+ PATTERN EXTRACTION for decision-based patterns
 	 */
 	private async recordMissionComplete(mission: Mission): Promise<void> {
 		if (!this.shouldRecordLearning()) return;
@@ -1234,12 +1285,24 @@ class MissionExecutor {
 			const totalTasks = mission.tasks.length;
 			const successRate = successfulTasks / totalTasks;
 
-			// Only extract pattern if mission was mostly successful
-			if (successRate >= 0.7 && this.completedSkillSequence.length >= 2) {
-				const settings = get(memorySettings);
+			// LITE+ CHANGE: Extract patterns from decision traces
+			// This finds decision types that frequently succeed
+			const settings = get(memorySettings);
+			if (settings.autoExtractPatterns && successRate >= 0.5) {
+				try {
+					const extractResult = await memoryClient.extractPatterns(2);
+					if (extractResult.success && extractResult.data) {
+						console.log(`[Learning] LITE+ Extracted ${extractResult.data.extracted} patterns from decision traces`);
+					}
+				} catch (err) {
+					console.warn('[Learning] LITE+ Pattern extraction failed:', err);
+				}
+			}
 
+			// Only extract workflow pattern if mission was mostly successful
+			if (successRate >= 0.7 && this.completedSkillSequence.length >= 2) {
 				if (settings.autoExtractPatterns) {
-					// Record workflow pattern
+					// Record workflow pattern (memory-based, complements LITE+ patterns)
 					const patternResult = await memoryClient.recordWorkflowPattern({
 						name: `${mission.name} workflow`,
 						description: `Successful workflow pattern from mission "${mission.name}" with ${successRate * 100}% success rate`,
@@ -1338,6 +1401,18 @@ class MissionExecutor {
 			this.generateImprovementSuggestions(mission, successRate).catch(err => {
 				console.warn('[Mind] Failed to generate improvements:', err);
 			});
+
+			// LITE+ CHANGE: Log self-improvement metrics at mission end
+			memoryClient.getSelfImprovementMetrics().then(result => {
+				if (result.success && result.data) {
+					console.log(`[Learning] LITE+ Self-Improvement Metrics:`);
+					console.log(`  Total decisions: ${result.data.totalDecisions}`);
+					console.log(`  With outcomes: ${result.data.decisionsWithOutcomes}`);
+					console.log(`  Success rate: ${(result.data.successRate * 100).toFixed(1)}%`);
+					console.log(`  Memories attributed: ${result.data.memoriesAttributed}`);
+					console.log(`  Patterns found: ${result.data.topPatterns.length}`);
+				}
+			}).catch(() => {});
 
 		} catch (error) {
 			console.error('[Learning] Failed to record mission complete:', error);

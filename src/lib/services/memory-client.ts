@@ -33,6 +33,65 @@ import type {
 import { TEMPORAL_LEVELS } from '$lib/types/memory';
 
 // ============================================
+// LITE+ Types for Decision Tracing
+// ============================================
+
+export interface DecisionTraceCreate {
+	memoryIds: string[];
+	memoryScores?: Record<string, number>;
+	decisionType: string;
+	decisionSummary: string;
+	reasoning?: string;
+	confidence?: number;
+	sessionId?: string;
+}
+
+export interface DecisionTraceResponse {
+	trace_id: string;
+	user_id: string;
+	session_id?: string;
+	memory_ids: string[];
+	memory_scores?: Record<string, number>;
+	decision_type?: string;
+	decision_summary?: string;
+	confidence: number;
+	outcome_quality?: number;
+	outcome_signal?: string;
+	created_at: string;
+	outcome_at?: string;
+}
+
+export interface PatternResponse {
+	pattern_id: string;
+	user_id: string;
+	pattern_name?: string;
+	description?: string;
+	skill_sequence: string[];
+	success_rate: number;
+	evidence_count: number;
+	applicable_to: string[];
+	created_at: string;
+	updated_at?: string;
+}
+
+export interface SelfImprovementMetrics {
+	totalDecisions: number;
+	decisionsWithOutcomes: number;
+	averageQuality: number;
+	successRate: number;
+	memoriesAttributed: number;
+	topPatterns: Array<{
+		name: string;
+		successRate: number;
+		evidenceCount: number;
+	}>;
+	salienceChanges: {
+		totalAdjustments: number;
+		netChange: number;
+	};
+}
+
+// ============================================
 // Configuration
 // ============================================
 
@@ -119,7 +178,7 @@ class MemoryClient {
 	 * Make HTTP request to Mind API
 	 */
 	private async request<T>(
-		method: 'GET' | 'POST' | 'DELETE',
+		method: 'GET' | 'POST' | 'DELETE' | 'PATCH',
 		path: string,
 		body?: unknown
 	): Promise<MemoryClientResult<T>> {
@@ -1044,6 +1103,420 @@ class MemoryClient {
 		stats.averageImpact = improvements.length > 0 ? totalImpact / improvements.length : 0;
 
 		return { success: true, data: stats };
+	}
+
+	// ============================================
+	// LITE+ Decision Tracing & Attribution
+	// ============================================
+
+	/**
+	 * Create a LITE+ decision trace linking memories to a decision.
+	 * This enables outcome attribution back to source memories.
+	 *
+	 * @param decision - The decision details including memories that influenced it
+	 * @returns The created decision trace with trace_id for later outcome recording
+	 */
+	async createDecisionTrace(decision: {
+		memoryIds: string[];
+		memoryScores?: Record<string, number>;
+		decisionType: string;
+		decisionSummary: string;
+		reasoning?: string;
+		confidence?: number;
+		sessionId?: string;
+	}): Promise<MemoryClientResult<DecisionTraceResponse>> {
+		const payload = {
+			user_id: this.config.userId,
+			session_id: decision.sessionId,
+			memory_ids: decision.memoryIds,
+			memory_scores: decision.memoryScores,
+			decision_type: decision.decisionType,
+			decision_summary: decision.reasoning
+				? `${decision.decisionSummary}\n\nReasoning: ${decision.reasoning}`
+				: decision.decisionSummary,
+			confidence: decision.confidence ?? 0.7
+		};
+
+		return this.request<DecisionTraceResponse>('POST', '/v1/decisions/', payload);
+	}
+
+	/**
+	 * Record the outcome of a decision and attribute back to source memories.
+	 *
+	 * Uses the LITE+ formula: delta = quality × contribution × 0.1
+	 * where contribution is (memory_score / total_scores)
+	 *
+	 * @param traceId - The decision trace ID
+	 * @param quality - Outcome quality from -1 (very bad) to 1 (very good)
+	 * @param signal - What indicated this outcome (e.g., 'user_helpful', 'task_success')
+	 */
+	async recordDecisionOutcome(
+		traceId: string,
+		quality: number,
+		signal: string
+	): Promise<MemoryClientResult<{
+		trace_id: string;
+		quality: number;
+		signal: string;
+		attributed_memories: number;
+	}>> {
+		return this.request('POST', `/v1/decisions/${traceId}/outcome`, {
+			quality: Math.max(-1, Math.min(1, quality)),
+			signal
+		});
+	}
+
+	/**
+	 * List decision traces for analysis
+	 */
+	async listDecisionTraces(options?: {
+		limit?: number;
+		withOutcomes?: boolean;
+	}): Promise<MemoryClientResult<DecisionTraceResponse[]>> {
+		const params = new URLSearchParams();
+		params.set('user_id', this.config.userId);
+		if (options?.limit) params.set('limit', options.limit.toString());
+
+		const result = await this.request<DecisionTraceResponse[]>(
+			'GET',
+			`/v1/decisions/?${params.toString()}`
+		);
+
+		if (result.success && result.data && options?.withOutcomes) {
+			result.data = result.data.filter(d => d.outcome_quality !== null);
+		}
+
+		return result;
+	}
+
+	/**
+	 * Get a specific decision trace by ID
+	 */
+	async getDecisionTrace(traceId: string): Promise<MemoryClientResult<DecisionTraceResponse>> {
+		return this.request<DecisionTraceResponse>('GET', `/v1/decisions/${traceId}`);
+	}
+
+	// ============================================
+	// LITE+ Salience Adjustment
+	// ============================================
+
+	/**
+	 * Directly adjust a memory's salience.
+	 * Useful for manual reinforcement or penalization.
+	 *
+	 * @param memoryId - The memory to adjust
+	 * @param delta - Amount to adjust (-1 to 1)
+	 */
+	async adjustSalience(
+		memoryId: string,
+		delta: number
+	): Promise<MemoryClientResult<{
+		memory_id: string;
+		previous_salience: number;
+		new_salience: number;
+		delta_applied: number;
+	}>> {
+		return this.request('PATCH', `/v1/memories/${memoryId}/salience`, {
+			delta: Math.max(-1, Math.min(1, delta))
+		});
+	}
+
+	/**
+	 * Record an outcome for a specific memory and adjust salience.
+	 * Simpler alternative to decision tracing when only one memory is involved.
+	 *
+	 * @param memoryId - The memory to record outcome for
+	 * @param positive - Whether the outcome was positive
+	 * @param delta - Salience adjustment amount (default 0.05)
+	 */
+	async recordMemoryOutcome(
+		memoryId: string,
+		positive: boolean,
+		delta: number = 0.05
+	): Promise<MemoryClientResult<{
+		memory_id: string;
+		outcome: 'positive' | 'negative';
+		previous_salience: number;
+		new_salience: number;
+	}>> {
+		return this.request('POST', `/v1/memories/${memoryId}/outcome`, {
+			positive,
+			delta: Math.max(0, Math.min(0.2, delta))
+		});
+	}
+
+	// ============================================
+	// LITE+ Semantic Search
+	// ============================================
+
+	/**
+	 * Search memories using FTS5 full-text search with salience ranking.
+	 * More powerful than basic retrieve - uses BM25 * salience ranking.
+	 *
+	 * @param query - Search query
+	 * @param limit - Max results
+	 */
+	async semanticSearch(
+		query: string,
+		limit: number = 10
+	): Promise<MemoryClientResult<{
+		retrieval_id: string;
+		memories: Memory[];
+		scores: Record<string, number>;
+		latency_ms: number;
+	}>> {
+		const result = await this.request<{
+			retrieval_id: string;
+			memories: Memory[];
+			scores: Record<string, number>;
+			latency_ms: number;
+		}>('POST', '/v1/memories/retrieve/semantic', {
+			user_id: this.config.userId,
+			query,
+			limit
+		});
+
+		// Decode metadata for all memories
+		if (result.success && result.data?.memories) {
+			result.data.memories = result.data.memories.map(m => this.decodeMemoryMetadata(m));
+		}
+
+		return result;
+	}
+
+	// ============================================
+	// LITE+ Pattern Extraction
+	// ============================================
+
+	/**
+	 * Extract patterns from successful decision sequences.
+	 * Identifies decision types that frequently succeed.
+	 *
+	 * @param minOccurrences - Minimum times a pattern must occur
+	 */
+	async extractPatterns(
+		minOccurrences: number = 3
+	): Promise<MemoryClientResult<{
+		extracted: number;
+		user_id: string;
+	}>> {
+		return this.request('POST', `/v1/patterns/extract?user_id=${this.config.userId}&min_occurrences=${minOccurrences}`);
+	}
+
+	/**
+	 * List extracted patterns
+	 */
+	async listPatterns(): Promise<MemoryClientResult<{
+		patterns: PatternResponse[];
+	}>> {
+		return this.request('GET', `/v1/patterns/?user_id=${this.config.userId}`);
+	}
+
+	// ============================================
+	// LITE+ Self-Improvement Helpers
+	// ============================================
+
+	/**
+	 * Record a complete learning experience with decision tracing.
+	 * This is the key method for self-improvement - it:
+	 * 1. Searches for relevant memories
+	 * 2. Creates a decision trace linking them
+	 * 3. Returns the trace ID for later outcome recording
+	 *
+	 * @param experience - The learning experience details
+	 */
+	async recordExperience(experience: {
+		taskDescription: string;
+		decisionType: string;
+		decisionSummary: string;
+		reasoning: string;
+		confidence: number;
+		sessionId?: string;
+	}): Promise<MemoryClientResult<{
+		traceId: string;
+		memoriesUsed: string[];
+		memoryScores: Record<string, number>;
+	}>> {
+		// 1. Find relevant memories using semantic search
+		const searchResult = await this.semanticSearch(experience.taskDescription, 5);
+
+		if (!searchResult.success || !searchResult.data?.memories.length) {
+			// No relevant memories found - create decision without memory linkage
+			const decisionResult = await this.createDecisionTrace({
+				memoryIds: [],
+				decisionType: experience.decisionType,
+				decisionSummary: experience.decisionSummary,
+				reasoning: experience.reasoning,
+				confidence: experience.confidence,
+				sessionId: experience.sessionId
+			});
+
+			if (decisionResult.success && decisionResult.data) {
+				return {
+					success: true,
+					data: {
+						traceId: decisionResult.data.trace_id,
+						memoriesUsed: [],
+						memoryScores: {}
+					}
+				};
+			}
+			return { success: false, error: decisionResult.error };
+		}
+
+		// 2. Extract memory IDs and scores
+		const memoriesUsed = searchResult.data.memories.map(m => m.memory_id);
+		const memoryScores = searchResult.data.scores;
+
+		// 3. Create decision trace
+		const decisionResult = await this.createDecisionTrace({
+			memoryIds: memoriesUsed,
+			memoryScores,
+			decisionType: experience.decisionType,
+			decisionSummary: experience.decisionSummary,
+			reasoning: experience.reasoning,
+			confidence: experience.confidence,
+			sessionId: experience.sessionId
+		});
+
+		if (decisionResult.success && decisionResult.data) {
+			return {
+				success: true,
+				data: {
+					traceId: decisionResult.data.trace_id,
+					memoriesUsed,
+					memoryScores
+				}
+			};
+		}
+
+		return { success: false, error: decisionResult.error };
+	}
+
+	/**
+	 * Complete a learning experience by recording the outcome.
+	 * This propagates the outcome back to all source memories.
+	 *
+	 * @param traceId - The trace ID from recordExperience
+	 * @param outcome - The outcome details
+	 */
+	async completeExperience(
+		traceId: string,
+		outcome: {
+			success: boolean;
+			quality?: number;
+			signal: string;
+			learningExtracted?: string;
+		}
+	): Promise<MemoryClientResult<{
+		attributed_memories: number;
+		learning_id?: string;
+	}>> {
+		// Calculate quality: success = positive, failure = negative
+		const quality = outcome.quality ?? (outcome.success ? 0.8 : -0.5);
+
+		// 1. Record decision outcome (this triggers attribution)
+		const outcomeResult = await this.recordDecisionOutcome(traceId, quality, outcome.signal);
+
+		if (!outcomeResult.success) {
+			return { success: false, error: outcomeResult.error };
+		}
+
+		let learningId: string | undefined;
+
+		// 2. If learning was extracted, store it
+		if (outcome.learningExtracted) {
+			const learningResult = await this.createMemory({
+				content: outcome.learningExtracted,
+				content_type: 'agent_learning',
+				temporal_level: TEMPORAL_LEVELS.SEASONAL,
+				salience: Math.abs(quality), // Higher quality = higher salience
+				metadata: {
+					decision_trace_id: traceId,
+					outcome_quality: quality,
+					outcome_signal: outcome.signal,
+					pattern_type: outcome.success ? 'success' : 'failure'
+				}
+			});
+
+			if (learningResult.success && learningResult.data) {
+				learningId = learningResult.data.memory_id;
+			}
+		}
+
+		// 3. Extract patterns if enough successful decisions
+		if (outcome.success) {
+			await this.extractPatterns(2);
+		}
+
+		return {
+			success: true,
+			data: {
+				attributed_memories: outcomeResult.data?.attributed_memories ?? 0,
+				learning_id: learningId
+			}
+		};
+	}
+
+	/**
+	 * Get self-improvement metrics for skills, agents, or teams.
+	 * Analyzes decision outcomes to calculate improvement over time.
+	 */
+	async getSelfImprovementMetrics(options?: {
+		decisionType?: string;
+		timeRange?: 'day' | 'week' | 'month';
+	}): Promise<MemoryClientResult<SelfImprovementMetrics>> {
+		// Get decisions
+		const decisionsResult = await this.listDecisionTraces({ limit: 100 });
+		if (!decisionsResult.success || !decisionsResult.data) {
+			return { success: false, error: decisionsResult.error };
+		}
+
+		const decisions = decisionsResult.data;
+		let filteredDecisions = decisions;
+
+		// Filter by type if specified
+		if (options?.decisionType) {
+			filteredDecisions = decisions.filter(d => d.decision_type === options.decisionType);
+		}
+
+		// Calculate metrics
+		const withOutcomes = filteredDecisions.filter(d => d.outcome_quality !== null);
+		const successful = withOutcomes.filter(d => (d.outcome_quality ?? 0) > 0);
+		const avgQuality = withOutcomes.length > 0
+			? withOutcomes.reduce((sum, d) => sum + (d.outcome_quality ?? 0), 0) / withOutcomes.length
+			: 0;
+
+		// Count attributed memories
+		const memoriesAttributed = new Set(
+			filteredDecisions.flatMap(d => d.memory_ids)
+		).size;
+
+		// Get patterns
+		const patternsResult = await this.listPatterns();
+		const topPatterns = (patternsResult.data?.patterns ?? [])
+			.slice(0, 5)
+			.map(p => ({
+				name: p.pattern_name ?? p.pattern_id,
+				successRate: p.success_rate,
+				evidenceCount: p.evidence_count
+			}));
+
+		return {
+			success: true,
+			data: {
+				totalDecisions: filteredDecisions.length,
+				decisionsWithOutcomes: withOutcomes.length,
+				averageQuality: avgQuality,
+				successRate: withOutcomes.length > 0 ? successful.length / withOutcomes.length : 0,
+				memoriesAttributed,
+				topPatterns,
+				salienceChanges: {
+					totalAdjustments: withOutcomes.length, // Approximation
+					netChange: avgQuality * 0.1 * withOutcomes.length // Based on formula
+				}
+			}
+		};
 	}
 }
 
