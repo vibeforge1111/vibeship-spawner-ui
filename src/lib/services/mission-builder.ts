@@ -306,6 +306,8 @@ export interface ExecutionPromptOptions {
 	loadedSkills?: Map<string, H70SkillContent>;
 	/** Mapping of task ID to skill IDs - these are listed in the prompt for just-in-time loading */
 	taskSkillMap?: Map<string, string[]>;
+	/** Base URL for event reporting (defaults to window.location.origin in browser) */
+	baseUrl?: string;
 }
 
 /**
@@ -321,7 +323,10 @@ export function generateExecutionPrompt(
 	mission: Mission,
 	options?: ExecutionPromptOptions
 ): string {
-	const { taskSkillMap } = options || {};
+	const { taskSkillMap, baseUrl } = options || {};
+
+	// Use provided baseUrl, or default to localhost:5173 (caller should pass window.location.origin)
+	const eventUrl = baseUrl || 'http://localhost:5173';
 
 	// Build task list with skill IDs (not content)
 	const taskList = mission.tasks
@@ -391,7 +396,7 @@ For each task in order:
 
 1. **Report Start**
    \`\`\`bash
-   curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type":"task_started","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME"}'
+   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"task_started","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME"}'
    \`\`\`
 
 2. **Load Skills** - Fetch the H70 skills listed for this task (see "Load H70 Skills" in task)
@@ -400,12 +405,12 @@ For each task in order:
 
 4. **Report Progress** (for long tasks)
    \`\`\`bash
-   curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type":"progress","missionId":"${mission.id}","taskId":"TASK_ID","progress":50,"message":"Working on..."}'
+   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"progress","missionId":"${mission.id}","taskId":"TASK_ID","progress":50,"message":"Working on..."}'
    \`\`\`
 
 5. **Report Complete**
    \`\`\`bash
-   curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type":"task_completed","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME","data":{"success":true}}'
+   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"task_completed","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME","data":{"success":true}}'
    \`\`\`
 
 6. **Move to Next Task** - Load the next task's skills and repeat
@@ -414,7 +419,7 @@ For each task in order:
 
 When all tasks are done:
 \`\`\`bash
-curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type":"mission_completed","missionId":"${mission.id}"}'
+curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"mission_completed","missionId":"${mission.id}"}'
 \`\`\`
 
 ---

@@ -709,7 +709,8 @@ class MissionExecutor {
 			// Step 3: Generate copy-pasteable execution prompt (with H70 skills)
 			const executionPrompt = generateExecutionPrompt(buildResult.mission, {
 				loadedSkills: buildResult.loadedSkills,
-				taskSkillMap: buildResult.taskSkillMap
+				taskSkillMap: buildResult.taskSkillMap,
+				baseUrl: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173'
 			});
 			this.progress.executionPrompt = executionPrompt;
 			this.addLocalLog('info', 'Execution prompt generated - copy to Claude Code to start');
