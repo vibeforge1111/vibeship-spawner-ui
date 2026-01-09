@@ -47,7 +47,14 @@ const TECH_PATTERNS: Record<string, string[]> = {
 	'ai': ['ai', 'ml', 'machine learning', 'llm', 'gpt', 'claude', 'openai', 'anthropic', 'chatbot'],
 	'realtime': ['realtime', 'real-time', 'websocket', 'websockets', 'socket', 'live'],
 	'mobile': ['mobile', 'ios', 'android', 'react native', 'flutter', 'app'],
-	'testing': ['test', 'testing', 'jest', 'vitest', 'cypress', 'playwright']
+	'testing': ['test', 'testing', 'jest', 'vitest', 'cypress', 'playwright'],
+	// Game engines
+	'unity': ['unity', 'unity3d', 'c#'],
+	'godot': ['godot', 'gdscript'],
+	'unreal': ['unreal', 'ue4', 'ue5', 'unreal engine'],
+	'phaser': ['phaser', 'phaser3', 'phaser.js'],
+	'pixijs': ['pixi', 'pixijs', 'pixi.js'],
+	'gamemaker': ['gamemaker', 'game maker', 'gms2']
 };
 
 // Feature detection patterns
@@ -62,7 +69,13 @@ const FEATURE_PATTERNS: Record<string, string[]> = {
 	'file-upload': ['upload', 'file', 'files', 'image', 'images', 'media', 'storage'],
 	'chat': ['chat', 'messaging', 'messages', 'conversation', 'inbox'],
 	'collaboration': ['collaboration', 'team', 'teams', 'share', 'sharing', 'invite'],
-	'integration': ['integration', 'integrations', 'connect', 'webhook', 'webhooks', 'sync']
+	'integration': ['integration', 'integrations', 'connect', 'webhook', 'webhooks', 'sync'],
+	// Game features
+	'combat': ['combat', 'fight', 'fighting', 'battle', 'attack', 'damage', 'health', 'hp'],
+	'inventory': ['inventory', 'items', 'equipment', 'loot', 'drops', 'crafting'],
+	'progression': ['progression', 'leveling', 'xp', 'experience', 'skills', 'upgrade', 'unlocks'],
+	'procedural': ['procedural', 'generation', 'random', 'dungeon', 'procedurally'],
+	'multiplayer': ['multiplayer', 'coop', 'co-op', 'pvp', 'online', 'matchmaking']
 };
 
 // Domain detection patterns
@@ -76,7 +89,9 @@ const DOMAIN_PATTERNS: Record<string, string[]> = {
 	'education': ['education', 'learning', 'course', 'courses', 'student', 'teacher', 'lms'],
 	'productivity': ['productivity', 'task', 'tasks', 'project', 'management', 'todo', 'workflow'],
 	'content': ['blog', 'cms', 'content', 'article', 'articles', 'publishing', 'writer'],
-	'analytics': ['analytics', 'tracking', 'metrics', 'data', 'insights', 'reporting']
+	'analytics': ['analytics', 'tracking', 'metrics', 'data', 'insights', 'reporting'],
+	'game': ['game', 'gaming', 'gamedev', 'roguelike', 'rpg', 'platformer', 'puzzle', 'strategy', 'shooter', 'simulation', 'arcade', 'adventure', 'survival'],
+	'ai': ['ai', 'ml', 'machine learning', 'llm', 'gpt', 'claude', 'chatbot', 'agent', 'agents', 'neural', 'model']
 };
 
 // Vague input patterns that need clarification

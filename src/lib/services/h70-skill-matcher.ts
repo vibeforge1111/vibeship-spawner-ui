@@ -141,6 +141,41 @@ const KEYWORD_TO_SKILLS: Record<string, string[]> = {
 	'godot': ['godot-development', 'godot-llm-integration'],
 	'unreal': ['unreal-engine', 'unreal-llm-integration'],
 	'phaser': ['game-development', 'game-design'],
+	// Game genres and mechanics
+	'roguelike': ['game-design', 'procedural-generation', 'progression-systems'],
+	'roguelite': ['game-design', 'procedural-generation', 'progression-systems'],
+	'rpg': ['game-design', 'progression-systems', 'narrative-design'],
+	'platformer': ['game-development', 'physics-simulation', 'level-design'],
+	'puzzle': ['puzzle-design', 'game-design', 'level-design'],
+	'strategy': ['game-design', 'game-ai-behavior', 'level-design'],
+	'shooter': ['game-development', 'combat-design', 'game-ai-behavior'],
+	'simulation': ['game-development', 'physics-simulation', 'game-ai-behavior'],
+	// Game systems
+	'procedural': ['procedural-generation', 'level-design', 'game-development'],
+	'dungeon': ['procedural-generation', 'level-design', 'game-design'],
+	'combat': ['combat-design', 'game-ai-behavior', 'animation-systems'],
+	'inventory': ['inventory-management', 'game-ui-design', 'game-design', 'progression-systems', 'database-architect'],
+	'crafting': ['game-design', 'game-ui-design', 'progression-systems'],
+	'progression': ['progression-systems', 'game-design', 'player-onboarding'],
+	'level': ['level-design', 'game-design', 'procedural-generation'],
+	'enemy': ['game-ai-behavior', 'combat-design', 'character-design'],
+	'npc': ['game-ai-behavior', 'narrative-design', 'llm-npc-dialogue'],
+	'dialogue': ['narrative-design', 'llm-npc-dialogue', 'game-design'],
+	'quest': ['narrative-design', 'game-design', 'progression-systems'],
+	// Game art and visuals
+	'sprite': ['pixel-art', 'pixel-art-sprites', 'animation-systems'],
+	'pixel': ['pixel-art', 'pixel-art-sprites', 'game-development'],
+	'tilemap': ['level-design', 'game-development', 'pixel-art'],
+	'vfx': ['vfx-realtime', 'animation-systems', 'shader-programming'],
+	'shader': ['shader-programming', 'vfx-realtime', 'threejs-3d-graphics'],
+	// Game audio
+	'soundtrack': ['game-audio', 'ai-audio-production'],
+	'sfx': ['game-audio', 'ai-audio-production'],
+	'sound effect': ['game-audio', 'ai-audio-production'],
+	// Multiplayer
+	'multiplayer': ['game-networking', 'realtime-engineer', 'websockets-realtime'],
+	'co-op': ['game-networking', 'game-design', 'realtime-engineer'],
+	'pvp': ['game-networking', 'combat-design', 'game-design'],
 
 	// Payments
 	'payment': ['stripe-integration', 'subscription-billing'],
@@ -184,7 +219,6 @@ const KEYWORD_TO_SKILLS: Record<string, string[]> = {
 	'shop': ['ecommerce-architect', 'stripe-integration'],
 	'cart': ['ecommerce-architect', 'frontend'],
 	'checkout': ['stripe-integration', 'ecommerce-architect'],
-	'inventory': ['inventory-management', 'database-architect'],
 	'order': ['ecommerce-architect', 'database-architect'],
 	'product': ['ecommerce-architect', 'database-schema-design'],
 

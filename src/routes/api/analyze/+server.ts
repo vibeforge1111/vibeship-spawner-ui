@@ -104,10 +104,14 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Check if API key is configured
 		const apiKey = env.ANTHROPIC_API_KEY;
 		if (!apiKey) {
+			// No API key - use local H70 matching (works great!)
+			// For intelligent matching, users can paste PRD to Claude Code
 			return json({
-				error: 'Claude API not configured',
-				fallback: true
-			}, { status: 503 });
+				error: 'Using local H70 matching (no API key configured)',
+				fallback: true,
+				hint: 'For intelligent PRD analysis, paste your PRD to Claude Code in the terminal',
+				localMatchingAvailable: true
+			}, { status: 200 }); // 200 because local matching will work
 		}
 
 		// Build the prompt with full skill index
