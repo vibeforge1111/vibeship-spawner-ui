@@ -59,10 +59,10 @@
 	// Tab state - workflow vs mind
 	let activeTab = $state<'workflow' | 'mind'>('workflow');
 
-	// Mind activity tracking
+	// Mind activity tracking - all Mind categories supported
 	interface MindActivity {
 		id: string;
-		type: 'decision' | 'learning' | 'pattern' | 'progress';
+		type: 'decision' | 'learning' | 'pattern' | 'progress' | 'issue' | 'session' | 'improvement';
 		content: string;
 		timestamp: Date;
 		taskName?: string;
@@ -336,12 +336,17 @@
 
 	/**
 	 * Log progress to Mind and track activity for UI
+	 * Supports all Mind activity types: progress, decision, learning, issue, session, improvement, pattern
 	 */
-	async function logToMind(type: 'progress' | 'decision' | 'learning', message: string, taskName?: string) {
+	async function logToMind(
+		type: 'progress' | 'decision' | 'learning' | 'issue' | 'session' | 'improvement' | 'pattern',
+		message: string,
+		taskName?: string
+	) {
 		// Track activity for UI regardless of Mind connection
 		const activity: MindActivity = {
 			id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-			type: type === 'progress' ? 'progress' : type === 'decision' ? 'decision' : 'learning',
+			type,
 			content: message,
 			timestamp: new Date(),
 			taskName
@@ -350,10 +355,21 @@
 
 		if (!memoryConnected) return;
 		try {
+			// Map activity types to appropriate Mind content types
+			const contentTypeMap: Record<string, string> = {
+				'progress': 'task_outcome',
+				'decision': 'project_decision',
+				'learning': 'agent_learning',
+				'issue': 'project_issue',
+				'session': 'session_summary',
+				'improvement': 'system_improvement',
+				'pattern': 'agent_learning'
+			};
+
 			await memoryClient.recordLearning('spawner-ui', {
 				content: message,
 				missionId: executionProgress?.missionId || undefined,
-				patternType: type === 'learning' ? 'success' : undefined,
+				patternType: type === 'learning' ? 'success' : type === 'issue' ? 'failure' : undefined,
 				confidence: 0.8
 			});
 			mindLogsCount++;
@@ -1140,6 +1156,24 @@
 												<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
 											</svg>
 										</div>
+									{:else if activity.type === 'issue'}
+										<div class="w-6 h-6 flex items-center justify-center bg-red-500/20 border border-red-500/30">
+											<svg class="w-3.5 h-3.5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+											</svg>
+										</div>
+									{:else if activity.type === 'session'}
+										<div class="w-6 h-6 flex items-center justify-center bg-amber-500/20 border border-amber-500/30">
+											<svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+											</svg>
+										</div>
+									{:else if activity.type === 'improvement'}
+										<div class="w-6 h-6 flex items-center justify-center bg-emerald-500/20 border border-emerald-500/30">
+											<svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+											</svg>
+										</div>
 									{:else}
 										<div class="w-6 h-6 flex items-center justify-center bg-vibe-teal/20 border border-vibe-teal/30">
 											<svg class="w-3.5 h-3.5 text-vibe-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1156,6 +1190,9 @@
 											activity.type === 'decision' ? 'text-blue-400' :
 											activity.type === 'learning' ? 'text-accent-primary' :
 											activity.type === 'pattern' ? 'text-purple-400' :
+											activity.type === 'issue' ? 'text-red-400' :
+											activity.type === 'session' ? 'text-amber-400' :
+											activity.type === 'improvement' ? 'text-emerald-400' :
 											'text-vibe-teal'
 										}">
 											{activity.type}

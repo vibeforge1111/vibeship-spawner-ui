@@ -177,6 +177,188 @@ const KEYWORD_TO_SKILLS: Record<string, string[]> = {
 	'solidity': ['smart-contract-engineer', 'evm-deep-dive'],
 	'nft': ['nft-engineer', 'nft-systems'],
 	'defi': ['defi-architect', 'blockchain-defi'],
+
+	// E-commerce & Business
+	'ecommerce': ['ecommerce-architect', 'stripe-integration', 'inventory-management'],
+	'e-commerce': ['ecommerce-architect', 'stripe-integration'],
+	'shop': ['ecommerce-architect', 'stripe-integration'],
+	'cart': ['ecommerce-architect', 'frontend'],
+	'checkout': ['stripe-integration', 'ecommerce-architect'],
+	'inventory': ['inventory-management', 'database-architect'],
+	'order': ['ecommerce-architect', 'database-architect'],
+	'product': ['ecommerce-architect', 'database-schema-design'],
+
+	// Data & Analytics
+	'data': ['data-engineer', 'analytics', 'database-architect'],
+	'etl': ['data-engineer', 'data-pipeline'],
+	'pipeline': ['data-pipeline', 'ci-cd-pipeline'],
+	'warehouse': ['data-engineer', 'analytics-architecture'],
+	'dashboard': ['analytics', 'frontend', 'visualization'],
+	'report': ['analytics', 'data-engineer'],
+	'chart': ['visualization', 'frontend', 'analytics'],
+	'graph': ['visualization', 'graphql', 'analytics'],
+
+	// File & Media
+	'file': ['file-upload', 'storage', 'media-processing'],
+	'upload': ['file-upload', 'storage', 'media-processing'],
+	'download': ['file-upload', 'storage'],
+	'storage': ['storage', 'cloudflare-r2', 's3'],
+	's3': ['storage', 'aws-specialist'],
+	'image': ['media-processing', 'image-optimization', 'computer-vision'],
+	'video': ['media-processing', 'video-streaming'],
+	'audio': ['media-processing', 'audio-engineering'],
+	'pdf': ['pdf-generation', 'media-processing'],
+
+	// Search & Discovery
+	'search': ['search-engineer', 'elasticsearch', 'semantic-search'],
+	'elasticsearch': ['elasticsearch', 'search-engineer'],
+	'algolia': ['search-engineer', 'frontend'],
+	'filter': ['frontend', 'database-architect', 'search-engineer'],
+	'sort': ['frontend', 'database-architect'],
+
+	// Communication & Notifications
+	'email': ['email-specialist', 'notification-systems'],
+	'notification': ['notification-systems', 'realtime-engineer'],
+	'push': ['notification-systems', 'mobile'],
+	'sms': ['notification-systems', 'twilio'],
+	'chat': ['chat-systems', 'realtime-engineer', 'websocket-realtime'],
+	'messaging': ['chat-systems', 'realtime-engineer'],
+
+	// Localization & i18n
+	'i18n': ['i18n-specialist', 'frontend'],
+	'internationalization': ['i18n-specialist', 'frontend'],
+	'localization': ['i18n-specialist', 'frontend'],
+	'translation': ['i18n-specialist', 'content-strategy'],
+	'multilingual': ['i18n-specialist', 'frontend'],
+
+	// Scheduling & Calendar
+	'schedule': ['scheduling-systems', 'calendar-integration'],
+	'calendar': ['calendar-integration', 'scheduling-systems'],
+	'booking': ['scheduling-systems', 'ecommerce-architect'],
+	'appointment': ['scheduling-systems', 'calendar-integration'],
+	'cron': ['task-scheduling', 'backend'],
+
+	// Maps & Location
+	'map': ['maps-integration', 'geospatial'],
+	'location': ['geospatial', 'maps-integration'],
+	'geo': ['geospatial', 'maps-integration'],
+	'gps': ['geospatial', 'mobile'],
+
+	// Form & Input
+	'form': ['form-validation', 'frontend', 'react-patterns'],
+	'validation': ['form-validation', 'zod-validation', 'security'],
+	'input': ['form-validation', 'frontend'],
+	'wizard': ['frontend', 'form-validation', 'ux-design'],
+
+	// Admin & CMS
+	'admin': ['admin-panel', 'frontend', 'backend'],
+	'cms': ['cms-architect', 'content-strategy'],
+	'dashboard': ['admin-panel', 'analytics', 'frontend'],
+	'backoffice': ['admin-panel', 'backend'],
+
+	// Social & Sharing
+	'social': ['social-features', 'community-building'],
+	'share': ['social-features', 'frontend'],
+	'like': ['social-features', 'database-architect'],
+	'comment': ['social-features', 'realtime-engineer'],
+	'follow': ['social-features', 'database-architect'],
+	'feed': ['social-features', 'realtime-engineer', 'algorithm-design'],
+
+	// Monitoring & Logging
+	'monitor': ['observability', 'monitoring-alerting'],
+	'log': ['logging', 'observability'],
+	'trace': ['observability', 'tracing'],
+	'alert': ['monitoring-alerting', 'notification-systems'],
+	'error tracking': ['error-tracking', 'observability'],
+	'sentry': ['error-tracking', 'observability'],
+
+	// ML & Data Science
+	'machine learning': ['ml-engineer', 'data-scientist'],
+	'ml': ['ml-engineer', 'data-scientist'],
+	'model': ['ml-engineer', 'llm-architect'],
+	'training': ['ml-engineer', 'data-scientist'],
+	'prediction': ['ml-engineer', 'analytics'],
+	'classification': ['ml-engineer', 'computer-vision'],
+	'regression': ['ml-engineer', 'data-scientist'],
+	'neural': ['ml-engineer', 'deep-learning'],
+	'tensorflow': ['ml-engineer', 'deep-learning'],
+	'pytorch': ['ml-engineer', 'deep-learning'],
+
+	// Workflow & Automation
+	'workflow': ['workflow-automation', 'process-automation'],
+	'automation': ['automation-engineer', 'process-automation'],
+	'automate': ['automation-engineer', 'ci-cd-pipeline'],
+	'trigger': ['workflow-automation', 'event-driven'],
+	'hook': ['webhook-integration', 'event-driven'],
+	'webhook': ['webhook-integration', 'api-designer'],
+
+	// Accessibility
+	'accessibility': ['accessibility-specialist', 'frontend'],
+	'a11y': ['accessibility-specialist', 'frontend'],
+	'wcag': ['accessibility-specialist', 'frontend'],
+	'screen reader': ['accessibility-specialist', 'frontend'],
+
+	// Legal & Compliance
+	'gdpr': ['compliance-engineer', 'security'],
+	'compliance': ['compliance-engineer', 'security-hardening'],
+	'privacy': ['privacy-engineer', 'security'],
+	'consent': ['privacy-engineer', 'frontend'],
+	'audit': ['audit-specialist', 'security-hardening'],
+
+	// Multi-tenancy & SaaS
+	'tenant': ['multi-tenancy', 'saas-architect'],
+	'multi-tenant': ['multi-tenancy', 'saas-architect'],
+	'saas': ['saas-architect', 'subscription-billing'],
+	'workspace': ['multi-tenancy', 'collaboration-tools'],
+	'organization': ['multi-tenancy', 'database-architect'],
+
+	// Caching & Performance
+	'cache': ['caching-specialist', 'redis', 'performance-optimization'],
+	'redis': ['redis', 'caching-specialist'],
+	'memcached': ['caching-specialist', 'performance-optimization'],
+	'cdn': ['cdn-specialist', 'performance-optimization'],
+
+	// Queue & Messaging
+	'queue': ['queue-systems', 'message-broker'],
+	'message queue': ['message-broker', 'queue-systems'],
+	'rabbitmq': ['message-broker', 'queue-systems'],
+	'kafka': ['kafka', 'event-streaming'],
+	'pubsub': ['event-driven', 'realtime-engineer'],
+
+	// Version Control & Collaboration
+	'git': ['git-workflow', 'version-control'],
+	'github': ['github-actions', 'git-workflow'],
+	'gitlab': ['gitlab-ci', 'git-workflow'],
+	'pr': ['code-review', 'git-workflow'],
+	'code review': ['code-review', 'engineering-manager'],
+
+	// Architecture Patterns
+	'microservice': ['microservices-architect', 'api-designer'],
+	'monolith': ['backend', 'architecture-patterns'],
+	'serverless': ['serverless-architect', 'lambda'],
+	'event driven': ['event-driven', 'message-broker'],
+	'cqrs': ['cqrs-architect', 'event-driven'],
+	'domain driven': ['ddd-architect', 'architecture-patterns'],
+	'ddd': ['ddd-architect', 'architecture-patterns'],
+	'clean architecture': ['architecture-patterns', 'backend'],
+
+	// CLI & Tools
+	'cli': ['cli-architect', 'terminal-tools'],
+	'command line': ['cli-architect', 'terminal-tools'],
+	'terminal': ['terminal-tools', 'cli-architect'],
+	'script': ['scripting', 'automation-engineer'],
+	'bash': ['scripting', 'devops'],
+
+	// PDF & Documents
+	'pdf': ['pdf-generation', 'document-processing'],
+	'document': ['document-processing', 'content-strategy'],
+	'export': ['pdf-generation', 'data-export'],
+	'import': ['data-import', 'etl'],
+
+	// Rate Limiting & Throttling
+	'rate limit': ['api-security', 'backend'],
+	'throttle': ['api-security', 'performance-optimization'],
+	'quota': ['api-security', 'subscription-billing'],
 };
 
 /**
@@ -229,11 +411,14 @@ function extractKeywords(text: string): string[] {
 
 /**
  * Match a task to relevant H70 skills
+ * @param taskName - Name of the task
+ * @param taskDescription - Optional task description for better matching
+ * @param maxSkills - Maximum skills to return (default 5, was 3)
  */
 export function matchTaskToSkills(
 	taskName: string,
 	taskDescription?: string,
-	maxSkills: number = 3
+	maxSkills: number = 5
 ): string[] {
 	const matchedSkills: Map<string, number> = new Map();
 

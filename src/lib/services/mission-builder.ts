@@ -248,8 +248,14 @@ export async function buildMissionFromCanvas(
 		const shouldLoadSkills = browser && (options.loadH70Skills !== false);
 
 		if (shouldLoadSkills) {
-			const maxPerTask = options.maxSkillsPerTask ?? 3;
-			const maxTotal = options.maxTotalSkills ?? 10;
+			// Dynamic limits based on task complexity
+			// More tasks = more skills needed (but with reasonable caps)
+			const taskCount = tasks.length;
+			const defaultMaxPerTask = Math.min(5, Math.max(3, Math.ceil(taskCount / 3))); // 3-5 skills per task
+			const defaultMaxTotal = Math.min(50, Math.max(15, taskCount * 2)); // Scale with tasks, cap at 50
+
+			const maxPerTask = options.maxSkillsPerTask ?? defaultMaxPerTask;
+			const maxTotal = options.maxTotalSkills ?? defaultMaxTotal;
 
 			// Match tasks to skills
 			taskSkillMap = new Map();
@@ -264,7 +270,7 @@ export async function buildMissionFromCanvas(
 			const priorities = getSkillPriorities(taskInfos);
 			const skillsToLoad = priorities.slice(0, maxTotal).map(p => p.skillId);
 
-			console.log(`[MissionBuilder] Loading ${skillsToLoad.length} H70 skills:`, skillsToLoad);
+			console.log(`[MissionBuilder] Loading ${skillsToLoad.length} H70 skills (${taskCount} tasks, max ${maxTotal}):`, skillsToLoad);
 
 			// Load the skills
 			try {
