@@ -446,6 +446,9 @@
 					// Log to Mind with task context
 					logToMind('decision', `Executing skill: ${taskName}`, taskName);
 				}
+
+				// Update executionProgress to reflect new current task name
+				executionProgress = missionExecutor.getProgress();
 			},
 			onTaskComplete: (taskId, success) => {
 				// Track outcome for reinforcement
@@ -466,6 +469,9 @@
 					failedTasks = [...failedTasks, taskName];
 					logToMind('learning', `Task failed: ${taskName}`, taskName);
 				}
+
+				// Update executionProgress to reflect task completion
+				executionProgress = missionExecutor.getProgress();
 			},
 			onComplete: async (mission) => {
 				executionProgress = missionExecutor.getProgress();
