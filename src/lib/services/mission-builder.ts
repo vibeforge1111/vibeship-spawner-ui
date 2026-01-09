@@ -12,7 +12,7 @@ import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import type { MissionAgent, MissionTask, MissionContext, Mission } from '$lib/services/mcp-client';
 import { mcpClient } from '$lib/services/mcp-client';
 import { getAllRequiredSkills, getSkillPriorities, matchTaskToSkills } from './h70-skill-matcher';
-import { loadCondensedSkillsForMission, type H70SkillContent } from './h70-skills';
+import { loadSkillsForMission, type H70SkillContent } from './h70-skills';
 import { browser } from '$app/environment';
 
 export interface MissionBuildOptions {
@@ -249,11 +249,11 @@ export async function buildMissionFromCanvas(
 
 		if (shouldLoadSkills) {
 			// Dynamic limits based on task complexity
-			// More tasks = more skills needed (scales up for enterprise PRDs)
+			// More tasks = more skills needed (cap at 50 for full H70 skill content)
 			const taskCount = tasks.length;
 			const defaultMaxPerTask = Math.min(5, Math.max(3, Math.ceil(taskCount / 3))); // 3-5 skills per task
-			// Scale: 15 base + 2 per task, cap at 100 for enterprise PRDs
-			const defaultMaxTotal = Math.min(100, Math.max(15, 15 + taskCount * 2)); // 15-100 based on complexity
+			// Scale: 15 base + 2 per task, cap at 50 (full skills loaded, not condensed)
+			const defaultMaxTotal = Math.min(50, Math.max(15, 15 + taskCount * 2)); // 15-50 based on complexity
 
 			const maxPerTask = options.maxSkillsPerTask ?? defaultMaxPerTask;
 			const maxTotal = options.maxTotalSkills ?? defaultMaxTotal;
@@ -275,7 +275,7 @@ export async function buildMissionFromCanvas(
 
 			// Load the skills
 			try {
-				const { skills } = await loadCondensedSkillsForMission(skillsToLoad);
+				const { skills } = await loadSkillsForMission(skillsToLoad);
 				loadedSkills = skills;
 				console.log(`[MissionBuilder] Successfully loaded ${skills.size} H70 skills`);
 			} catch (e) {
@@ -302,12 +302,10 @@ export async function buildMissionFromCanvas(
  * Options for generating execution prompts
  */
 export interface ExecutionPromptOptions {
-	/** Loaded H70 skills to include in prompt */
+	/** Loaded H70 skills to include in prompt (full content, not condensed) */
 	loadedSkills?: Map<string, H70SkillContent>;
 	/** Mapping of task ID to recommended skill IDs */
 	taskSkillMap?: Map<string, string[]>;
-	/** Include full skill content (default: false, uses condensed) */
-	fullSkillContent?: boolean;
 }
 
 /**
@@ -334,54 +332,18 @@ export function generateExecutionPrompt(
 
 	const skillList = [...new Set(mission.agents.flatMap(a => a.skills))].join(', ');
 
-	// Build H70 skills section
+	// Build H70 skills section - use FULL skill content, not condensed
 	let h70SkillsSection = '';
 	if (loadedSkills && loadedSkills.size > 0) {
 		const skillEntries: string[] = [];
 		skillEntries.push('## H70 Skills Reference\n');
-		skillEntries.push('The following expert skills have been automatically loaded to guide this mission.');
-		skillEntries.push('Follow their patterns and avoid their anti-patterns.\n');
+		skillEntries.push('The following expert skills have been loaded to guide this mission.');
+		skillEntries.push('Follow their patterns, avoid their anti-patterns, and learn from their disasters.\n');
 
 		for (const [skillId, skillContent] of loadedSkills) {
-			skillEntries.push(`### ${skillContent.skill.name}`);
-			skillEntries.push('');
-
-			// Include identity (first paragraph)
-			if (skillContent.skill.identity) {
-				const firstPara = skillContent.skill.identity.trim().split('\n\n')[0];
-				skillEntries.push(firstPara);
-				skillEntries.push('');
-			}
-
-			// Key patterns
-			if (skillContent.skill.patterns && skillContent.skill.patterns.length > 0) {
-				skillEntries.push('**Key Patterns:**');
-				skillContent.skill.patterns.slice(0, 3).forEach(p => {
-					skillEntries.push(`- **${p.name}**: ${p.when}`);
-				});
-				skillEntries.push('');
-			}
-
-			// Key anti-patterns
-			if (skillContent.skill.anti_patterns && skillContent.skill.anti_patterns.length > 0) {
-				skillEntries.push('**Avoid:**');
-				skillContent.skill.anti_patterns.slice(0, 3).forEach(ap => {
-					const firstLine = ap.why_bad.split('\n')[0];
-					skillEntries.push(`- **${ap.name}**: ${firstLine}`);
-				});
-				skillEntries.push('');
-			}
-
-			// Critical lessons from disasters
-			if (skillContent.skill.disasters && skillContent.skill.disasters.length > 0) {
-				skillEntries.push('**Critical Lessons:**');
-				skillContent.skill.disasters.slice(0, 2).forEach(d => {
-					skillEntries.push(`- **${d.title}**: ${d.lesson.split('\n')[0]}`);
-				});
-				skillEntries.push('');
-			}
-
-			skillEntries.push('---\n');
+			// Use the full formatted content (identity, owns, delegates, disasters, anti-patterns, patterns)
+			skillEntries.push(skillContent.formattedContent);
+			skillEntries.push('\n---\n');
 		}
 
 		h70SkillsSection = skillEntries.join('\n');
