@@ -78,11 +78,13 @@ curl http://localhost:5173/api/h70-skills/drizzle-orm | jq .source
 2. **MAX_SKILLS_TO_SUGGEST = 50** - Cap at 50 skills maximum
 3. **Use `loadSkillsForMission`** - NOT `loadCondensedSkillsForMission`
 4. **Full skill content includes**: identity, owns, delegates, disasters, anti-patterns, patterns
+5. **skill-matcher.ts MUST import KEYWORD_TO_SKILLS** from h70-skill-matcher.ts (391 mappings)
+6. **PRD matching uses H70 keywords** - Different PRDs MUST get different skills
 
 ### System Architecture
 
 ```
-PRD Input
+PRD Input ("Describe what you want to build")
     |
     v
 +------------------------------------------+
@@ -95,23 +97,32 @@ PRD Input
     v
 +------------------------------------------+
 | 2. SKILL MATCHER (skill-matcher.ts)      |
+|    - IMPORTS KEYWORD_TO_SKILLS (391)     |
+|    - H70 keyword matching (primary)      |
+|    - Multi-word phrase matching          |
 |    - MCP server matching (if connected)  |
-|    - Local pattern matching (fallback)   |
-|    - Returns initial skill suggestions   |
+|    - Returns PRD-specific skills         |
 +------------------------------------------+
     |
     v
 +------------------------------------------+
-| 3. MISSION BUILDER (mission-builder.ts)  |
+| 3. WORKFLOW GENERATOR                    |
+|    - Creates canvas nodes from skills    |
+|    - Positions by tier (1=essential)     |
+|    - Infers connections                  |
++------------------------------------------+
+    |
+    v
++------------------------------------------+
+| 4. MISSION BUILDER (mission-builder.ts)  |
 |    - Uses h70-skill-matcher.ts           |
-|    - 391 keyword mappings -> H70 skills  |
 |    - Loads FULL skill content via        |
 |      loadSkillsForMission()              |
 +------------------------------------------+
     |
     v
 +------------------------------------------+
-| 4. EXECUTION PROMPT                      |
+| 5. EXECUTION PROMPT                      |
 |    - Full H70 skill content embedded     |
 |    - identity, owns, delegates           |
 |    - disasters, anti-patterns, patterns  |
@@ -160,6 +171,8 @@ getDynamicSkillLimit(wordCount, featureCount) =
 - Do NOT limit disasters to top 2
 - Do NOT set MAX_SKILLS_TO_SUGGEST above 50 (full skills need context space)
 - Do NOT modify the h70-skill-matcher keyword mappings without good reason
+- Do NOT remove the `import { KEYWORD_TO_SKILLS }` from skill-matcher.ts
+- Do NOT revert skill-matcher.ts to only use the ~40 local TECH_TO_SKILLS/FEATURE_TO_SKILLS mappings
 
 ## Common Development Commands
 
