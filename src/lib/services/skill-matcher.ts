@@ -18,6 +18,7 @@ import type { Skill } from '$lib/stores/skills.svelte';
 import { mcpClient } from './mcp-client';
 import { mcpState } from '$lib/stores/mcp.svelte';
 import { KEYWORD_TO_SKILLS } from './h70-skill-matcher';
+import { detectDomain, getSkillsForDomain, DOMAIN_SKILL_PACKS, type ProjectDomain } from './domain-detector';
 
 // Skill category priorities (which categories are more "core")
 const CATEGORY_PRIORITY: Record<string, number> = {
@@ -162,6 +163,29 @@ function calculateMatchScore(skill: Skill, goal: AnalyzedGoal): number {
 		// Also check H70 mappings for the domain
 		const h70Skills = KEYWORD_TO_SKILLS[domain] || [];
 		if (h70Skills.includes(skill.id)) {
+			score += 0.2;
+		}
+	}
+
+
+
+	// Domain detection boost (NEW - prioritize skills matching detected project type)
+	// This runs on every skill to boost domain-relevant skills
+	const domainResult = detectDomain(goal.sanitized);
+	const domainPack = DOMAIN_SKILL_PACKS[domainResult.primary];
+	if (domainPack) {
+		if (domainPack.core.includes(skill.id)) {
+			score += 0.5; // Strong boost for core domain skills
+		} else if (domainPack.common.includes(skill.id)) {
+			score += 0.3; // Medium boost for common domain skills
+		} else if (domainPack.optional.includes(skill.id)) {
+			score += 0.15; // Small boost for optional domain skills
+		}
+	}
+	// Also check secondary domain
+	if (domainResult.secondary) {
+		const secondaryPack = DOMAIN_SKILL_PACKS[domainResult.secondary];
+		if (secondaryPack?.core.includes(skill.id)) {
 			score += 0.2;
 		}
 	}
