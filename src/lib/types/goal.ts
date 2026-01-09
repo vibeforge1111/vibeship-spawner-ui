@@ -83,7 +83,7 @@ export const GOAL_VALIDATION = {
 	MIN_LENGTH: 3,
 	MAX_LENGTH: 10000,
 	MIN_WORDS_FOR_CONFIDENCE: 3,
-	MAX_SKILLS_TO_SUGGEST: 25, // Increased from 8 to allow PRD-appropriate skill selection
+	MAX_SKILLS_TO_SUGGEST: 50, // Allow up to 50 skills for complex PRDs (470 H70 skills available)
 	MIN_CONFIDENCE_SCORE: 0.3,
 	VAGUE_INPUT_THRESHOLD: 0.4
 } as const;
@@ -92,15 +92,15 @@ export const GOAL_VALIDATION = {
  * Calculate dynamic skill limit based on PRD complexity
  * @param wordCount - Number of words in PRD
  * @param featureCount - Number of detected features
- * @returns Recommended max skills
+ * @returns Recommended max skills (8-50 range, 470 H70 skills available)
  */
 export function getDynamicSkillLimit(wordCount: number, featureCount: number): number {
-	// Base: 8 skills for simple PRDs
-	// Scale up based on complexity
-	const baseSkills = 8;
-	const wordBonus = Math.floor(wordCount / 200); // +1 skill per 200 words
-	const featureBonus = Math.floor(featureCount / 2); // +1 skill per 2 features
+	// Base: 10 skills for simple PRDs
+	// Scale up based on complexity - allow up to 50 for complex PRDs
+	const baseSkills = 10;
+	const wordBonus = Math.floor(wordCount / 100); // +1 skill per 100 words (was 200)
+	const featureBonus = featureCount; // +1 skill per feature (was /2)
 
 	const calculated = baseSkills + wordBonus + featureBonus;
-	return Math.min(GOAL_VALIDATION.MAX_SKILLS_TO_SUGGEST, Math.max(8, calculated));
+	return Math.min(GOAL_VALIDATION.MAX_SKILLS_TO_SUGGEST, Math.max(10, calculated));
 }
