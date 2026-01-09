@@ -3,9 +3,12 @@
  *
  * Analyzes a Product Requirements Document and automatically generates
  * implementation tasks that can be converted to canvas workflow nodes.
+ *
+ * Uses H70 keyword mappings (391 keywords) for comprehensive skill matching.
  */
 
 import type { Skill } from '$lib/stores/skills.svelte';
+import { KEYWORD_TO_SKILLS } from '$lib/services/h70-skill-matcher';
 
 export interface PRDAnalysis {
 	projectName: string;
@@ -52,38 +55,53 @@ const PROJECT_TYPE_KEYWORDS: Record<string, string[]> = {
 	library: ['library', 'package', 'npm', 'sdk', 'framework']
 };
 
-// Feature keywords to categories
+// Feature keywords to categories (expanded for better detection)
 const FEATURE_CATEGORIES: Record<string, string[]> = {
-	auth: ['auth', 'login', 'signup', 'register', 'password', 'oauth', 'sso', 'jwt', 'session'],
-	payments: ['payment', 'stripe', 'billing', 'subscription', 'checkout', 'cart', 'pricing'],
-	database: ['database', 'storage', 'crud', 'data', 'schema', 'model', 'entity'],
-	frontend: ['ui', 'interface', 'component', 'page', 'view', 'form', 'layout', 'design'],
-	backend: ['api', 'endpoint', 'server', 'route', 'controller', 'service'],
-	realtime: ['realtime', 'websocket', 'live', 'notification', 'push', 'chat'],
-	search: ['search', 'filter', 'query', 'elasticsearch', 'algolia'],
-	analytics: ['analytics', 'tracking', 'metrics', 'dashboard', 'report'],
-	email: ['email', 'notification', 'smtp', 'sendgrid', 'mailgun'],
-	file: ['file', 'upload', 'storage', 's3', 'image', 'media'],
-	ai: ['ai', 'ml', 'machine learning', 'llm', 'gpt', 'claude', 'openai'],
-	testing: ['test', 'testing', 'unit test', 'e2e', 'integration'],
-	deployment: ['deploy', 'ci/cd', 'docker', 'kubernetes', 'vercel', 'aws']
+	auth: ['auth', 'login', 'signup', 'register', 'password', 'oauth', 'sso', 'jwt', 'session', 'user', 'account', 'permission', 'role'],
+	payments: ['payment', 'stripe', 'billing', 'subscription', 'checkout', 'cart', 'pricing', 'invoice', 'refund', 'transaction'],
+	database: ['database', 'storage', 'crud', 'data', 'schema', 'model', 'entity', 'postgres', 'mysql', 'mongodb', 'supabase', 'orm'],
+	frontend: ['ui', 'interface', 'component', 'page', 'view', 'form', 'layout', 'design', 'responsive', 'mobile-first', 'tailwind'],
+	backend: ['api', 'endpoint', 'server', 'route', 'controller', 'service', 'rest', 'graphql', 'microservice'],
+	realtime: ['realtime', 'websocket', 'live', 'notification', 'push', 'chat', 'messaging', 'sync', 'streaming'],
+	search: ['search', 'filter', 'query', 'elasticsearch', 'algolia', 'full-text', 'fuzzy'],
+	analytics: ['analytics', 'tracking', 'metrics', 'dashboard', 'report', 'insight', 'visualization', 'chart'],
+	email: ['email', 'notification', 'smtp', 'sendgrid', 'mailgun', 'newsletter', 'template'],
+	file: ['file', 'upload', 'storage', 's3', 'image', 'media', 'video', 'document', 'pdf'],
+	ai: ['ai', 'ml', 'machine learning', 'llm', 'gpt', 'claude', 'openai', 'anthropic', 'embedding', 'vector', 'rag', 'agent', 'chatbot'],
+	testing: ['test', 'testing', 'unit test', 'e2e', 'integration', 'qa', 'cypress', 'playwright', 'vitest', 'jest'],
+	deployment: ['deploy', 'ci/cd', 'docker', 'kubernetes', 'vercel', 'aws', 'gcp', 'azure', 'pipeline', 'infrastructure'],
+	security: ['security', 'secure', 'encrypt', 'https', 'cors', 'csrf', 'xss', 'audit', 'vulnerability', 'owasp'],
+	performance: ['performance', 'speed', 'optimize', 'cache', 'cdn', 'lazy', 'prefetch', 'bundle'],
+	mobile: ['mobile', 'ios', 'android', 'react native', 'flutter', 'expo', 'app store', 'responsive'],
+	blockchain: ['blockchain', 'web3', 'crypto', 'nft', 'smart contract', 'wallet', 'ethereum', 'solana', 'defi'],
+	ecommerce: ['ecommerce', 'e-commerce', 'shop', 'store', 'product', 'inventory', 'order', 'shipping'],
+	community: ['community', 'forum', 'social', 'follow', 'like', 'comment', 'feed', 'discord', 'slack'],
+	marketing: ['marketing', 'seo', 'landing', 'conversion', 'growth', 'campaign', 'funnel']
 };
 
-// Skill mappings for different feature categories
+// Skill mappings for different feature categories (expanded with H70 skills)
 const CATEGORY_TO_SKILLS: Record<string, string[]> = {
-	auth: ['supabase-auth', 'authentication-oauth', 'nextjs-auth'],
-	payments: ['stripe-payments', 'fintech-integration'],
-	database: ['database-design', 'supabase-backend', 'postgresql'],
-	frontend: ['frontend-development', 'react-patterns', 'nextjs-app-router', 'svelte'],
-	backend: ['backend-development', 'api-design', 'nodejs'],
-	realtime: ['websocket', 'realtime-sync'],
-	search: ['elasticsearch-search', 'search-implementation'],
-	analytics: ['analytics-implementation', 'data-visualization'],
-	email: ['email-templating', 'notification-system'],
-	file: ['file-upload', 'cloud-storage'],
-	ai: ['llm-integration', 'ai-agents', 'prompt-engineering'],
-	testing: ['integration-testing', 'testing-strategy'],
-	deployment: ['ci-cd-pipeline', 'docker-containerization', 'cloud-deployment']
+	auth: ['auth-specialist', 'authentication-oauth', 'nextjs-supabase-auth', 'clerk-auth', 'supabase-security'],
+	payments: ['stripe-integration', 'subscription-billing', 'fintech-integration', 'derivatives-pricing'],
+	database: ['database-architect', 'database-schema-design', 'postgres-wizard', 'drizzle-orm', 'prisma'],
+	frontend: ['frontend', 'react-patterns', 'nextjs-app-router', 'sveltekit', 'tailwind-css', 'design-systems'],
+	backend: ['backend', 'api-designer', 'api-design', 'go-services', 'graphql-architect'],
+	realtime: ['realtime-engineer', 'websocket-realtime', 'websockets-realtime'],
+	search: ['elasticsearch', 'search-engineer', 'semantic-search'],
+	analytics: ['analytics', 'analytics-architecture', 'product-analytics-engineering', 'data-pipeline'],
+	email: ['email-specialist', 'notification-systems'],
+	file: ['file-upload', 'storage', 'media-processing', 'cloudflare-r2'],
+	ai: ['llm-architect', 'ai-agents-architect', 'prompt-engineer', 'rag-engineer', 'multi-agent-orchestration'],
+	testing: ['test-architect', 'testing-automation', 'qa-engineering', 'browser-automation'],
+	deployment: ['ci-cd-pipeline', 'cicd-pipelines', 'vercel-deployment', 'docker', 'kubernetes'],
+	security: ['security', 'security-hardening', 'security-owasp', 'llm-security-audit'],
+	performance: ['performance-hunter', 'performance-optimization', 'caching-specialist'],
+	mobile: ['react-native-specialist', 'expo', 'ios-swift-specialist', 'flutter-mobile'],
+	blockchain: ['blockchain-defi', 'smart-contract-engineer', 'nft-engineer'],
+	ecommerce: ['ecommerce-architect', 'inventory-management'],
+	community: ['community-building', 'discord-bot-architect'],
+	marketing: ['marketing', 'growth-strategy', 'seo'],
+	general: ['typescript-strict', 'code-quality', 'git-workflow']
 };
 
 /**
@@ -129,80 +147,168 @@ export function analyzePRD(prdContent: string): PRDAnalysis {
 
 /**
  * Extract features from PRD content
+ *
+ * COMPREHENSIVE EXTRACTION: Scans multiple formats:
+ * - Bulleted/numbered lists
+ * - Markdown headings
+ * - Paragraph content with keywords
+ * - User story format ("As a user, I want...")
  */
 function extractFeatures(content: string): ExtractedFeature[] {
 	const features: ExtractedFeature[] = [];
+	const seenFeatures = new Set<string>(); // Avoid duplicates
 	const lines = content.split('\n');
 
 	let inFeaturesSection = false;
-	let currentFeature: Partial<ExtractedFeature> | null = null;
 
 	for (const line of lines) {
 		const lowerLine = line.toLowerCase();
+		const trimmedLine = line.trim();
 
-		// Detect features section
-		if (lowerLine.includes('feature') || lowerLine.includes('requirement') || lowerLine.includes('user stor')) {
+		// Detect features/requirements section
+		if (lowerLine.includes('feature') || lowerLine.includes('requirement') ||
+			lowerLine.includes('user stor') || lowerLine.includes('functional spec') ||
+			lowerLine.includes('capabilities') || lowerLine.includes('functionality')) {
 			inFeaturesSection = true;
 			continue;
 		}
 
-		// Detect end of features section
-		if (inFeaturesSection && line.startsWith('##') && !lowerLine.includes('feature')) {
+		// Detect end of features section (new major section)
+		if (inFeaturesSection && /^##[^#]/.test(line) && !lowerLine.includes('feature')) {
 			inFeaturesSection = false;
 		}
 
-		// Extract numbered or bulleted features
-		const featureMatch = line.match(/^[\s]*[-*\d.]+\s*\*?\*?(.+?)\*?\*?[:\-]?\s*(.*)$/);
+		// Method 1: Extract numbered or bulleted features
+		const bulletMatch = trimmedLine.match(/^[-*•]\s*\*?\*?(.+?)\*?\*?$/);
+		const numberedMatch = trimmedLine.match(/^\d+[.)]\s*\*?\*?(.+?)\*?\*?$/);
+		const featureMatch = bulletMatch || numberedMatch;
+
 		if (featureMatch) {
-			const name = featureMatch[1].trim();
-			const description = featureMatch[2]?.trim() || name;
+			const rawName = featureMatch[1].trim();
+			// Split on : or - for name and description
+			const colonSplit = rawName.split(/[:\-–]/);
+			const name = colonSplit[0].trim().replace(/\*\*/g, '');
+			const description = colonSplit.slice(1).join(':').trim() || name;
 
-			if (name.length > 2 && name.length < 100) {
-				// Determine category
-				let category = 'general';
-				for (const [cat, keywords] of Object.entries(FEATURE_CATEGORIES)) {
-					if (keywords.some(kw => lowerLine.includes(kw))) {
-						category = cat;
-						break;
-					}
+			if (name.length > 2 && name.length < 150 && !seenFeatures.has(name.toLowerCase())) {
+				seenFeatures.add(name.toLowerCase());
+				features.push(createFeature(name, description, lowerLine));
+			}
+		}
+
+		// Method 2: Extract from headings (### Feature Name)
+		const headingMatch = trimmedLine.match(/^#{2,4}\s+(.+)$/);
+		if (headingMatch) {
+			const headingText = headingMatch[1].trim();
+			// Skip meta-sections
+			if (!['overview', 'introduction', 'summary', 'table of contents', 'appendix'].some(
+				skip => headingText.toLowerCase().includes(skip)
+			)) {
+				if (headingText.length > 2 && headingText.length < 100 && !seenFeatures.has(headingText.toLowerCase())) {
+					seenFeatures.add(headingText.toLowerCase());
+					features.push(createFeature(headingText, `Implement ${headingText}`, lowerLine));
 				}
+			}
+		}
 
-				// Determine priority
-				let priority: ExtractedFeature['priority'] = 'should-have';
-				if (lowerLine.includes('must') || lowerLine.includes('critical') || lowerLine.includes('essential')) {
-					priority = 'must-have';
-				} else if (lowerLine.includes('nice') || lowerLine.includes('optional') || lowerLine.includes('future')) {
-					priority = 'nice-to-have';
-				}
-
-				features.push({
-					name: name.replace(/\*\*/g, ''),
-					description,
-					priority,
-					category
-				});
+		// Method 3: User story format ("As a [role], I want [feature]...")
+		const userStoryMatch = trimmedLine.match(/as a .*?(?:i want|i need|i should be able to)\s+(.+?)(?:so that|$)/i);
+		if (userStoryMatch) {
+			const feature = userStoryMatch[1].trim().replace(/[.,]$/, '');
+			if (feature.length > 5 && feature.length < 150 && !seenFeatures.has(feature.toLowerCase())) {
+				seenFeatures.add(feature.toLowerCase());
+				features.push(createFeature(feature, trimmedLine, lowerLine));
 			}
 		}
 	}
 
-	// If no features found, try to extract from general content
-	if (features.length === 0) {
+	// Method 4: If still few features, extract from general content by detecting keywords
+	if (features.length < 3) {
+		const lowerContent = content.toLowerCase();
+
 		for (const [category, keywords] of Object.entries(FEATURE_CATEGORIES)) {
-			for (const keyword of keywords) {
-				if (content.toLowerCase().includes(keyword)) {
+			// Count how many keywords from this category appear
+			const matchedKeywords = keywords.filter(kw => lowerContent.includes(kw));
+
+			if (matchedKeywords.length >= 2) { // At least 2 keywords for confidence
+				const featureName = `${capitalize(category)} System`;
+				if (!seenFeatures.has(featureName.toLowerCase())) {
+					seenFeatures.add(featureName.toLowerCase());
 					features.push({
-						name: `${category.charAt(0).toUpperCase() + category.slice(1)} System`,
-						description: `Implement ${category} functionality`,
+						name: featureName,
+						description: `Implement ${category} functionality (detected: ${matchedKeywords.slice(0, 3).join(', ')})`,
 						priority: 'should-have',
 						category
 					});
-					break;
+				}
+			}
+		}
+	}
+
+	// Method 5: Extract features from paragraph patterns
+	const paragraphs = content.split(/\n\n+/);
+	for (const para of paragraphs) {
+		// Look for patterns like "The system should...", "Users can...", "Support for..."
+		const actionPatterns = [
+			/(?:the system|application|app|platform) (?:should|will|must|can) ([^.]+)/gi,
+			/(?:users?|customers?) (?:can|will be able to|should be able to) ([^.]+)/gi,
+			/(?:support for|enable|allow|provide) ([^.]+)/gi,
+			/implement(?:ing|ation of)? ([^.]+)/gi
+		];
+
+		for (const pattern of actionPatterns) {
+			let match;
+			while ((match = pattern.exec(para)) !== null) {
+				const feature = match[1].trim();
+				if (feature.length > 10 && feature.length < 100 && !seenFeatures.has(feature.toLowerCase())) {
+					seenFeatures.add(feature.toLowerCase());
+					features.push(createFeature(feature, para.substring(0, 200), para.toLowerCase()));
 				}
 			}
 		}
 	}
 
 	return features;
+}
+
+/**
+ * Helper to create a feature with proper category and priority detection
+ */
+function createFeature(name: string, description: string, contextLine: string): ExtractedFeature {
+	// Determine category from keywords
+	let category = 'general';
+	for (const [cat, keywords] of Object.entries(FEATURE_CATEGORIES)) {
+		if (keywords.some(kw => contextLine.includes(kw) || name.toLowerCase().includes(kw))) {
+			category = cat;
+			break;
+		}
+	}
+
+	// Determine priority
+	let priority: ExtractedFeature['priority'] = 'should-have';
+	if (contextLine.includes('must') || contextLine.includes('critical') ||
+		contextLine.includes('essential') || contextLine.includes('required') ||
+		contextLine.includes('core') || contextLine.includes('mvp')) {
+		priority = 'must-have';
+	} else if (contextLine.includes('nice') || contextLine.includes('optional') ||
+		contextLine.includes('future') || contextLine.includes('phase 2') ||
+		contextLine.includes('later') || contextLine.includes('v2')) {
+		priority = 'nice-to-have';
+	}
+
+	return {
+		name: name.replace(/\*\*/g, ''),
+		description: description.substring(0, 300),
+		priority,
+		category
+	};
+}
+
+/**
+ * Capitalize first letter
+ */
+function capitalize(str: string): string {
+	return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 /**
@@ -315,6 +421,9 @@ function suggestStack(
 
 /**
  * Generate implementation tasks from PRD analysis
+ *
+ * DYNAMIC GENERATION: Tasks are created based on actual PRD content,
+ * not a fixed template. Different PRDs will generate different workflows.
  */
 export function generateTasksFromPRD(
 	analysis: PRDAnalysis,
@@ -323,142 +432,232 @@ export function generateTasksFromPRD(
 	const tasks: GeneratedTask[] = [];
 	let taskId = 0;
 
-	// Phase 1: Setup
-	tasks.push({
-		id: `task-${taskId++}`,
-		title: 'Project Setup',
-		description: `Initialize ${analysis.projectName} project with ${analysis.suggestedStack.frontend?.join(', ') || 'chosen framework'}`,
-		skillMatch: findBestSkillMatch('project-scaffolding', availableSkills),
-		category: 'setup',
-		phase: 1,
-		dependsOn: []
-	});
-
-	tasks.push({
-		id: `task-${taskId++}`,
-		title: 'Design System',
-		description: 'Create design tokens, color palette, and base components',
-		skillMatch: findBestSkillMatch('design-system', availableSkills),
-		category: 'design',
-		phase: 1,
-		dependsOn: ['task-0']
-	});
-
-	// Phase 2: Core infrastructure based on features
+	// Extract unique categories from features
 	const featureCategories = [...new Set(analysis.features.map(f => f.category))];
 
-	// Auth if needed
-	if (featureCategories.includes('auth') || analysis.projectType === 'saas') {
+	// Detect what the PRD actually needs (not hardcoded assumptions)
+	const needsFrontend = featureCategories.some(c => ['frontend', 'design', 'mobile', 'ecommerce'].includes(c)) ||
+		analysis.projectType === 'webapp' || analysis.projectType === 'saas' || analysis.projectType === 'mobile';
+	const needsBackend = featureCategories.some(c => ['backend', 'api', 'database', 'auth', 'realtime'].includes(c)) ||
+		analysis.projectType === 'api' || analysis.projectType === 'saas';
+	const needsAuth = featureCategories.includes('auth') || analysis.projectType === 'saas';
+	const needsDatabase = featureCategories.some(c => ['database', 'ecommerce', 'analytics', 'community'].includes(c)) ||
+		analysis.techHints.some(t => ['postgres', 'mysql', 'mongodb', 'supabase', 'firebase'].includes(t));
+	const needsDeployment = featureCategories.includes('deployment') ||
+		analysis.techHints.some(t => ['docker', 'kubernetes', 'vercel', 'aws', 'gcp', 'azure'].includes(t));
+	const needsTesting = featureCategories.includes('testing') ||
+		analysis.techHints.some(t => ['jest', 'vitest', 'cypress', 'playwright'].includes(t));
+
+	// Track the last task ID for dependencies
+	let lastInfraTaskId = 'task-0';
+
+	// Phase 1: Foundation (only if needed)
+	// Setup task - only if it's a new project with defined stack
+	if (analysis.suggestedStack.frontend?.length || analysis.suggestedStack.backend?.length) {
+		const stackDesc = [
+			analysis.suggestedStack.frontend?.join(', '),
+			analysis.suggestedStack.backend?.join(', ')
+		].filter(Boolean).join(' + ');
+
+		tasks.push({
+			id: `task-${taskId++}`,
+			title: 'Project Setup',
+			description: `Initialize ${analysis.projectName} with ${stackDesc || 'chosen stack'}`,
+			skillMatch: findBestSkillMatch('project-scaffolding', availableSkills),
+			category: 'setup',
+			phase: 1,
+			dependsOn: []
+		});
+		lastInfraTaskId = `task-${taskId - 1}`;
+	}
+
+	// Design System - only if frontend is needed
+	if (needsFrontend) {
+		tasks.push({
+			id: `task-${taskId++}`,
+			title: 'Design System',
+			description: 'Create design tokens, color palette, and base UI components',
+			skillMatch: findBestSkillMatch('design-system', availableSkills),
+			category: 'design',
+			phase: 1,
+			dependsOn: tasks.length > 0 ? [lastInfraTaskId] : []
+		});
+		lastInfraTaskId = `task-${taskId - 1}`;
+	}
+
+	// Phase 2: Core Infrastructure (conditional based on PRD)
+	// Auth - only if explicitly needed
+	if (needsAuth) {
+		const authStack = analysis.suggestedStack.auth?.join(', ') || 'authentication solution';
 		tasks.push({
 			id: `task-${taskId++}`,
 			title: 'Authentication System',
-			description: 'Implement user authentication, login, signup, and session management',
+			description: `Implement user authentication with ${authStack}`,
 			skillMatch: findBestSkillMatch('authentication', availableSkills),
 			category: 'auth',
 			phase: 2,
-			dependsOn: ['task-0']
+			dependsOn: tasks.length > 0 ? [lastInfraTaskId] : []
 		});
 	}
 
-	// Database
-	if (featureCategories.includes('database') || analysis.features.length > 0) {
+	// Database - only if data storage is needed
+	if (needsDatabase) {
+		const dbStack = analysis.suggestedStack.database?.join(', ') || 'database';
 		tasks.push({
 			id: `task-${taskId++}`,
 			title: 'Database Schema',
-			description: 'Design and implement database schema for all entities',
+			description: `Design and implement ${dbStack} schema for all entities`,
 			skillMatch: findBestSkillMatch('database', availableSkills),
 			category: 'database',
 			phase: 2,
-			dependsOn: ['task-0']
+			dependsOn: tasks.length > 0 ? [lastInfraTaskId] : []
 		});
 	}
 
-	// API
-	tasks.push({
-		id: `task-${taskId++}`,
-		title: 'API Layer',
-		description: 'Create REST/GraphQL API endpoints for all features',
-		skillMatch: findBestSkillMatch('api-design', availableSkills),
-		category: 'backend',
-		phase: 2,
-		dependsOn: [`task-${taskId - 2}`] // Depends on database
+	// API Layer - only if backend is needed
+	if (needsBackend) {
+		const apiDeps = tasks.filter(t => t.category === 'database').map(t => t.id);
+		tasks.push({
+			id: `task-${taskId++}`,
+			title: 'API Layer',
+			description: 'Create REST/GraphQL API endpoints for all features',
+			skillMatch: findBestSkillMatch('api-design', availableSkills),
+			category: 'backend',
+			phase: 2,
+			dependsOn: apiDeps.length > 0 ? apiDeps : (tasks.length > 0 ? [lastInfraTaskId] : [])
+		});
+	}
+
+	// Update lastInfraTaskId to the last infrastructure task
+	if (tasks.length > 0) {
+		lastInfraTaskId = tasks[tasks.length - 1].id;
+	}
+
+	// Phase 3: ALL Feature Implementation (no artificial limits!)
+	// Sort features: must-have first, then should-have, then nice-to-have
+	const sortedFeatures = [...analysis.features].sort((a, b) => {
+		const priorityOrder = { 'must-have': 0, 'should-have': 1, 'nice-to-have': 2 };
+		return priorityOrder[a.priority] - priorityOrder[b.priority];
 	});
 
-	// Phase 3: Feature implementation
-	const mustHaveFeatures = analysis.features.filter(f => f.priority === 'must-have');
-	const otherFeatures = analysis.features.filter(f => f.priority !== 'must-have');
+	// Track dependencies within feature phases for parallel execution where possible
+	const featureTaskIds: string[] = [];
 
-	// Create tasks for must-have features first
-	for (const feature of mustHaveFeatures) {
-		const skillCategory = CATEGORY_TO_SKILLS[feature.category];
+	// Create tasks for ALL features (no slice limit!)
+	for (const feature of sortedFeatures) {
+		// Find best skill match using H70 keywords
+		const categorySkills = CATEGORY_TO_SKILLS[feature.category] || [];
+		let skillMatch = null;
+
+		// Try category skills first
+		for (const skillId of categorySkills) {
+			skillMatch = findBestSkillMatch(skillId, availableSkills);
+			if (skillMatch) break;
+		}
+
+		// Fallback to feature name matching
+		if (!skillMatch) {
+			skillMatch = findBestSkillMatch(feature.name, availableSkills);
+		}
+
+		// Determine dependencies - features depend on infrastructure
+		const featureDeps = tasks.length > 0 ? [lastInfraTaskId] : [];
+
 		tasks.push({
 			id: `task-${taskId++}`,
 			title: feature.name,
 			description: feature.description,
-			skillMatch: skillCategory ? findBestSkillMatch(skillCategory[0], availableSkills) : null,
+			skillMatch,
 			category: feature.category,
 			phase: 3,
-			dependsOn: [`task-${taskId - 2}`] // Depends on API layer
+			dependsOn: featureDeps
 		});
+
+		featureTaskIds.push(`task-${taskId - 1}`);
 	}
 
-	// Then other features
-	for (const feature of otherFeatures.slice(0, 5)) { // Limit to 5 additional features
-		const skillCategory = CATEGORY_TO_SKILLS[feature.category];
+	// Phase 4: Quality & Deployment (only if PRD mentions or complex project)
+	const isComplexProject = analysis.features.length > 5 || analysis.projectType === 'saas';
+
+	// Testing - if mentioned or complex project
+	if (needsTesting || isComplexProject) {
+		const lastFeatureId = featureTaskIds.length > 0 ? featureTaskIds[featureTaskIds.length - 1] : lastInfraTaskId;
 		tasks.push({
 			id: `task-${taskId++}`,
-			title: feature.name,
-			description: feature.description,
-			skillMatch: skillCategory ? findBestSkillMatch(skillCategory[0], availableSkills) : null,
-			category: feature.category,
-			phase: 3,
-			dependsOn: [`task-${Math.max(0, taskId - 3)}`]
+			title: 'Testing Suite',
+			description: 'Write unit, integration, and e2e tests for implemented features',
+			skillMatch: findBestSkillMatch('testing', availableSkills),
+			category: 'testing',
+			phase: 4,
+			dependsOn: [lastFeatureId]
 		});
 	}
 
-	// Phase 4: Polish and deployment
-	tasks.push({
-		id: `task-${taskId++}`,
-		title: 'Testing',
-		description: 'Write unit and integration tests for all features',
-		skillMatch: findBestSkillMatch('testing', availableSkills),
-		category: 'testing',
-		phase: 4,
-		dependsOn: [`task-${taskId - 2}`]
-	});
+	// Deployment - if mentioned in PRD or has deployment hints
+	if (needsDeployment || isComplexProject) {
+		const deployDep = tasks.length > 0 ? tasks[tasks.length - 1].id : 'task-0';
+		const deploymentStack = analysis.suggestedStack.deployment?.join(', ') || 'production environment';
 
-	tasks.push({
-		id: `task-${taskId++}`,
-		title: 'CI/CD Pipeline',
-		description: 'Set up automated build, test, and deployment pipeline',
-		skillMatch: findBestSkillMatch('ci-cd', availableSkills),
-		category: 'deployment',
-		phase: 4,
-		dependsOn: [`task-${taskId - 2}`]
-	});
+		tasks.push({
+			id: `task-${taskId++}`,
+			title: 'Deployment Setup',
+			description: `Configure CI/CD and deploy to ${deploymentStack}`,
+			skillMatch: findBestSkillMatch('deployment', availableSkills),
+			category: 'deployment',
+			phase: 4,
+			dependsOn: [deployDep]
+		});
+	}
 
-	tasks.push({
-		id: `task-${taskId++}`,
-		title: 'Production Deployment',
-		description: `Deploy ${analysis.projectName} to production environment`,
-		skillMatch: findBestSkillMatch('deployment', availableSkills),
-		category: 'deployment',
-		phase: 4,
-		dependsOn: [`task-${taskId - 2}`]
-	});
+	// If no tasks were generated (empty/minimal PRD), create a generic task
+	if (tasks.length === 0) {
+		tasks.push({
+			id: 'task-0',
+			title: analysis.projectName || 'Implementation',
+			description: 'Implement the project requirements',
+			skillMatch: findBestSkillMatch('development', availableSkills),
+			category: 'general',
+			phase: 1,
+			dependsOn: []
+		});
+	}
 
 	return tasks;
 }
 
 /**
  * Find the best matching skill from available skills
+ * Uses H70 keyword mappings (391 keywords) for comprehensive matching
  */
 function findBestSkillMatch(searchTerm: string | undefined, availableSkills: Skill[]): string | null {
 	if (!searchTerm || !availableSkills || availableSkills.length === 0) return null;
 
 	const lowerSearch = searchTerm.toLowerCase();
+	const availableIds = new Set(availableSkills.map(s => s.id));
 
-	// Try exact ID match
+	// PRIMARY: Check H70 keyword mappings first (391 keywords)
+	// Try exact keyword match
+	const h70Skills = KEYWORD_TO_SKILLS[lowerSearch];
+	if (h70Skills) {
+		for (const skillId of h70Skills) {
+			if (availableIds.has(skillId)) {
+				return skillId;
+			}
+		}
+	}
+
+	// Try partial H70 keyword match (search term contains keyword)
+	for (const [keyword, skills] of Object.entries(KEYWORD_TO_SKILLS)) {
+		if (lowerSearch.includes(keyword) || keyword.includes(lowerSearch)) {
+			for (const skillId of skills) {
+				if (availableIds.has(skillId)) {
+					return skillId;
+				}
+			}
+		}
+	}
+
+	// FALLBACK: Try exact ID match
 	const exactMatch = availableSkills.find(s => s.id?.toLowerCase() === lowerSearch);
 	if (exactMatch) return exactMatch.id;
 

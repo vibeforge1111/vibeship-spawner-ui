@@ -191,9 +191,9 @@ const KEYWORD_TO_SKILLS: Record<string, string[]> = {
 	// Data & Analytics
 	'data': ['data-engineer', 'analytics', 'database-architect'],
 	'etl': ['data-engineer', 'data-pipeline'],
-	'pipeline': ['data-pipeline', 'ci-cd-pipeline'],
+	'data pipeline': ['data-pipeline', 'ci-cd-pipeline'],
 	'warehouse': ['data-engineer', 'analytics-architecture'],
-	'dashboard': ['analytics', 'frontend', 'visualization'],
+	'dashboard': ['analytics', 'admin-panel', 'frontend', 'visualization'],
 	'report': ['analytics', 'data-engineer'],
 	'chart': ['visualization', 'frontend', 'analytics'],
 	'graph': ['visualization', 'graphql', 'analytics'],
@@ -207,7 +207,7 @@ const KEYWORD_TO_SKILLS: Record<string, string[]> = {
 	'image': ['media-processing', 'image-optimization', 'computer-vision'],
 	'video': ['media-processing', 'video-streaming'],
 	'audio': ['media-processing', 'audio-engineering'],
-	'pdf': ['pdf-generation', 'media-processing'],
+	'pdf': ['pdf-generation', 'document-processing', 'media-processing'],
 
 	// Search & Discovery
 	'search': ['search-engineer', 'elasticsearch', 'semantic-search'],
@@ -253,7 +253,6 @@ const KEYWORD_TO_SKILLS: Record<string, string[]> = {
 	// Admin & CMS
 	'admin': ['admin-panel', 'frontend', 'backend'],
 	'cms': ['cms-architect', 'content-strategy'],
-	'dashboard': ['admin-panel', 'analytics', 'frontend'],
 	'backoffice': ['admin-panel', 'backend'],
 
 	// Social & Sharing
@@ -349,8 +348,7 @@ const KEYWORD_TO_SKILLS: Record<string, string[]> = {
 	'script': ['scripting', 'automation-engineer'],
 	'bash': ['scripting', 'devops'],
 
-	// PDF & Documents
-	'pdf': ['pdf-generation', 'document-processing'],
+	// Documents
 	'document': ['document-processing', 'content-strategy'],
 	'export': ['pdf-generation', 'data-export'],
 	'import': ['data-import', 'etl'],
