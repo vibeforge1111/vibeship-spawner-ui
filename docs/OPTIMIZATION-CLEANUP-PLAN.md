@@ -681,7 +681,7 @@ services/canvas-sync/
 
 | Section | Status | Commit | Date |
 |---------|--------|--------|------|
-| A: Security | 🔄 In Progress | `66173c8`, `238bae1` | 2026-01-10 |
+| A: Security | ✅ Complete | `66173c8`, `238bae1`, `1a8471a`, `58ac231` | 2026-01-10 |
 | B: Type Safety | ⬜ Not Started | - | - |
 | C: Duplication | ⬜ Not Started | - | - |
 | D: Logging | ⬜ Not Started | - | - |
@@ -691,13 +691,25 @@ services/canvas-sync/
 
 **Legend:** ⬜ Not Started | 🔄 In Progress | ✅ Complete
 
-### Completed Tasks (Section A)
+### Completed Tasks (Section A) ✅
 - [x] A1.1: Install DOMPurify
 - [x] A1.2: Import DOMPurify in ChatPanel.svelte
 - [x] A1.3: Wrap formatMarkdown() with DOMPurify.sanitize()
 - [x] A2.1-A2.3: Gate debug functions behind DEV mode
 - [x] A3.1: Create Zod schemas file (src/lib/types/schemas.ts)
-- [ ] A3.2-A5.2: Migrate JSON.parse calls to use schemas (remaining)
+- [x] A3.2: Fix canvas.svelte.ts JSON.parse calls
+- [x] A3.3: Fix pipelines.svelte.ts JSON.parse calls
+- [x] A3.4: Fix skills.svelte.ts JSON.parse calls
+- [x] A3.5: Fix project-docs.svelte.ts JSON.parse calls
+- [x] A3.6: Fix mcps.svelte.ts JSON.parse calls
+- [x] A3.7: Fix memory-settings.svelte.ts JSON.parse calls
+- [x] A3.8: Fix services.svelte.ts JSON.parse calls
+- [x] A4.1: Fix status-storage.ts JSON.parse calls (5 locations)
+- [x] A4.2: Fix event-bridge.ts JSON.parse calls
+- [x] A4.3: Fix sync-client.ts JSON.parse calls
+- [x] A4.4: Fix persistence.ts JSON.parse calls
+- [x] A4.5: Fix memory-client.ts JSON.parse calls
+- [x] A5: Fix component/route JSON.parse calls (LearningsExportImport.svelte, canvas/+page.svelte, api/analyze/+server.ts)
 
 ---
 
@@ -708,7 +720,8 @@ services/canvas-sync/
 | `any` usages | 12 | 0 |
 | console.* calls | 291 | <20 |
 | Test coverage (files) | 3% | 40% |
-| XSS vulnerabilities | 1 | 0 |
+| XSS vulnerabilities | 0 ✅ | 0 |
+| JSON.parse vulnerabilities | 0 ✅ | 0 |
 | Unresolved TODOs | 3 | 0 |
 | Files >1000 lines | 3 | 0 |
 
