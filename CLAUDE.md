@@ -307,6 +307,46 @@ Only extracts from:
 | Complex SaaS | 20-25 tasks |
 | Maximum (capped) | 30 tasks |
 
+## Startup Checklist (REQUIRED FOR PRD TESTING)
+
+**Before testing with PRDs or running missions, ensure these services are running:**
+
+### 1. Spawner UI Dev Server
+```bash
+cd C:\Users\USER\Desktop\spawner-ui
+npm run dev
+# Runs at http://localhost:5173
+```
+
+### 2. H70 MCP Server (spawner-h70)
+- Should be auto-connected via Claude Code MCP config
+- Verify with `/mcp` command - look for `spawner-h70`
+- Provides 480 H70 skills locally
+
+### 3. Mind v5 Lite (for memory/learning features)
+```bash
+cd C:\Users\USER\Desktop\the-mind
+start_mind_lite.bat
+# API: http://localhost:8080
+# Dashboard: http://localhost:8501
+```
+
+### Quick Start All Services
+```bash
+# Terminal 1: Spawner UI
+cd C:\Users\USER\Desktop\spawner-ui && npm run dev
+
+# Terminal 2: Mind v5
+cd C:\Users\USER\Desktop\the-mind && start_mind_lite.bat
+```
+
+### Verify Everything is Running
+| Service | URL | Check |
+|---------|-----|-------|
+| Spawner UI | http://localhost:5173 | Page loads |
+| Mind v5 API | http://localhost:8080/health | Returns `{"status":"healthy"}` |
+| H70 MCP | `/mcp` in Claude Code | Shows `spawner-h70` connected |
+
 ## Common Development Commands
 
 ```bash
