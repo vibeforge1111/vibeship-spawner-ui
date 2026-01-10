@@ -1,0 +1,243 @@
+{
+  "version": "1.0",
+  "description": "Skill ownership and delegation index for intelligent routing",
+
+  "core_skills": {
+    "frontend": {
+      "owns": ["react components", "vue components", "svelte components", "client state", "ui rendering", "client routing", "forms", "dom manipulation"],
+      "specificity": 0.5,
+      "receives_from": ["design-systems", "ux-researcher", "accessibility-specialist"]
+    },
+    "backend": {
+      "owns": ["server logic", "api implementation", "business logic", "data processing", "server routing"],
+      "specificity": 0.5,
+      "receives_from": ["api-designer", "database-architect"]
+    },
+    "design-systems": {
+      "owns": ["design tokens", "component library", "visual consistency", "theming", "color palette", "typography system", "spacing scale"],
+      "specificity": 0.8
+    },
+    "tailwind-css": {
+      "owns": ["utility classes", "responsive design", "tailwind config", "custom utilities"],
+      "specificity": 0.85
+    },
+    "accessibility-specialist": {
+      "owns": ["wcag compliance", "screen reader", "keyboard navigation", "aria labels", "color contrast", "focus management"],
+      "specificity": 0.9
+    },
+    "database-architect": {
+      "owns": ["schema design", "data modeling", "relationships", "normalization", "migrations"],
+      "specificity": 0.6
+    },
+    "postgres-wizard": {
+      "owns": ["postgresql", "pg functions", "pg extensions", "pg performance", "pg indexing"],
+      "specificity": 0.9
+    },
+    "drizzle-orm": {
+      "owns": ["drizzle schema", "drizzle queries", "drizzle migrations", "drizzle relations"],
+      "specificity": 0.95
+    },
+    "auth-specialist": {
+      "owns": ["authentication", "authorization", "user sessions", "login", "signup", "password reset", "mfa", "rbac"],
+      "specificity": 0.8
+    },
+    "authentication-oauth": {
+      "owns": ["oauth", "oauth2", "oidc", "social login", "sso", "jwt tokens", "refresh tokens"],
+      "specificity": 0.9
+    },
+    "nextjs-supabase-auth": {
+      "owns": ["supabase auth", "next auth supabase", "supabase sessions", "supabase rls auth"],
+      "specificity": 0.95
+    },
+    "api-designer": {
+      "owns": ["api design", "rest design", "endpoint structure", "versioning", "pagination", "error responses"],
+      "specificity": 0.7
+    },
+    "graphql-architect": {
+      "owns": ["graphql schema", "resolvers", "graphql queries", "mutations", "subscriptions", "apollo", "urql"],
+      "specificity": 0.85
+    },
+    "nextjs-app-router": {
+      "owns": ["app router", "server components", "client components", "next routing", "next layouts", "next loading", "next error"],
+      "specificity": 0.9
+    },
+    "react-patterns": {
+      "owns": ["react hooks", "react context", "react state", "react lifecycle", "component patterns", "custom hooks"],
+      "specificity": 0.75
+    },
+    "test-architect": {
+      "owns": ["test strategy", "test pyramid", "test coverage", "testing patterns"],
+      "specificity": 0.7
+    },
+    "testing-automation": {
+      "owns": ["e2e tests", "integration tests", "playwright", "cypress", "test automation"],
+      "specificity": 0.8
+    },
+    "ci-cd-pipeline": {
+      "owns": ["github actions", "gitlab ci", "pipeline config", "deployment automation", "build steps"],
+      "specificity": 0.8
+    },
+    "vercel-deployment": {
+      "owns": ["vercel config", "vercel functions", "edge functions", "vercel preview", "vercel domains"],
+      "specificity": 0.9
+    },
+    "docker": {
+      "owns": ["dockerfile", "docker compose", "container config", "multi-stage builds"],
+      "specificity": 0.85
+    },
+    "security-hardening": {
+      "owns": ["security headers", "csp", "cors", "rate limiting", "input sanitization"],
+      "specificity": 0.8
+    },
+    "stripe-integration": {
+      "owns": ["stripe checkout", "stripe subscriptions", "stripe webhooks", "stripe elements", "payment intents"],
+      "specificity": 0.9
+    },
+    "subscription-billing": {
+      "owns": ["recurring billing", "subscription management", "plan changes", "prorations", "billing cycles"],
+      "specificity": 0.85
+    },
+    "llm-architect": {
+      "owns": ["llm integration", "prompt design", "context management", "llm api", "token optimization"],
+      "specificity": 0.75
+    },
+    "rag-engineer": {
+      "owns": ["rag pipelines", "embeddings", "vector search", "chunking", "retrieval"],
+      "specificity": 0.9
+    },
+    "ai-agents-architect": {
+      "owns": ["agent loops", "tool calling", "multi-agent", "agent memory", "agent orchestration"],
+      "specificity": 0.85
+    },
+    "prompt-engineer": {
+      "owns": ["prompt templates", "few-shot", "chain of thought", "prompt optimization"],
+      "specificity": 0.9
+    },
+    "realtime-engineer": {
+      "owns": ["websockets", "server sent events", "real-time sync", "presence", "live updates"],
+      "specificity": 0.8
+    },
+    "supabase-backend": {
+      "owns": ["supabase tables", "supabase functions", "supabase realtime", "supabase storage", "supabase rls"],
+      "specificity": 0.85
+    },
+    "file-upload": {
+      "owns": ["file uploads", "multipart", "presigned urls", "upload progress", "file validation"],
+      "specificity": 0.85
+    },
+    "storage": {
+      "owns": ["s3", "r2", "blob storage", "file storage", "cdn"],
+      "specificity": 0.8
+    },
+    "performance-hunter": {
+      "owns": ["bundle optimization", "lazy loading", "code splitting", "lighthouse", "core web vitals"],
+      "specificity": 0.8
+    },
+    "typescript-strict": {
+      "owns": ["typescript types", "strict mode", "type inference", "generics", "type guards"],
+      "specificity": 0.7
+    },
+    "code-quality": {
+      "owns": ["code review", "linting", "formatting", "best practices", "maintainability"],
+      "specificity": 0.5
+    },
+    "git-workflow": {
+      "owns": ["branching", "commits", "pull requests", "merge strategies", "git hooks"],
+      "specificity": 0.7
+    },
+    "react-native-specialist": {
+      "owns": ["react native components", "native modules", "mobile navigation", "mobile performance"],
+      "specificity": 0.8
+    },
+    "expo": {
+      "owns": ["expo config", "expo router", "expo build", "expo updates", "eas"],
+      "specificity": 0.9
+    },
+    "game-development": {
+      "owns": ["game loop", "game state", "sprites", "physics", "input handling"],
+      "specificity": 0.7
+    },
+    "game-networking": {
+      "owns": ["multiplayer sync", "netcode", "lag compensation", "game server"],
+      "specificity": 0.85
+    },
+    "smart-contract-engineer": {
+      "owns": ["solidity", "smart contracts", "evm", "contract testing", "gas optimization"],
+      "specificity": 0.9
+    },
+    "nft-engineer": {
+      "owns": ["nft minting", "nft metadata", "erc721", "erc1155", "nft marketplace"],
+      "specificity": 0.9
+    },
+    "community-building": {
+      "owns": ["community strategy", "engagement", "moderation", "community growth"],
+      "specificity": 0.7
+    },
+    "analytics": {
+      "owns": ["event tracking", "user analytics", "funnels", "dashboards", "metrics"],
+      "specificity": 0.7
+    },
+    "ecommerce-architect": {
+      "owns": ["product catalog", "cart", "checkout flow", "inventory", "orders"],
+      "specificity": 0.8
+    },
+    "seo": {
+      "owns": ["meta tags", "structured data", "sitemap", "robots.txt", "page speed seo"],
+      "specificity": 0.8
+    }
+  },
+
+  "domain_packs": {
+    "fintech": {
+      "triggers": ["payment", "billing", "subscription", "invoice", "trading", "portfolio", "banking", "fintech"],
+      "skills": ["stripe-integration", "subscription-billing", "fintech-integration", "derivatives-pricing", "portfolio-optimization", "algorithmic-trading"]
+    },
+    "gaming": {
+      "triggers": ["game", "multiplayer", "unity", "godot", "phaser", "player", "score", "level"],
+      "skills": ["game-development", "game-networking", "game-dev-unity", "game-dev-godot", "phaser-game"]
+    },
+    "ai-ml": {
+      "triggers": ["llm", "ai", "ml", "gpt", "claude", "embedding", "vector", "rag", "agent", "chatbot", "prompt"],
+      "skills": ["llm-architect", "rag-engineer", "ai-agents-architect", "prompt-engineer", "llm-fine-tuning", "model-optimization", "computer-vision-deep"]
+    },
+    "blockchain": {
+      "triggers": ["blockchain", "web3", "crypto", "nft", "smart contract", "wallet", "ethereum", "solana", "defi", "token"],
+      "skills": ["smart-contract-engineer", "nft-engineer", "blockchain-defi", "web3-frontend"]
+    },
+    "enterprise": {
+      "triggers": ["compliance", "audit", "gdpr", "hipaa", "soc2", "enterprise", "governance"],
+      "skills": ["compliance-automation", "gdpr-privacy", "enterprise-architecture", "data-governance"]
+    },
+    "mobile": {
+      "triggers": ["mobile", "ios", "android", "react native", "flutter", "expo", "app store"],
+      "skills": ["react-native-specialist", "expo", "ios-swift-specialist", "flutter-mobile"]
+    },
+    "ecommerce": {
+      "triggers": ["ecommerce", "shop", "store", "product", "cart", "checkout", "inventory", "order", "shipping"],
+      "skills": ["ecommerce-architect", "stripe-integration", "inventory-management"]
+    }
+  },
+
+  "skill_chains": {
+    "ui_feature": {
+      "description": "Building a UI feature from scratch",
+      "chain": ["design-systems", "accessibility-specialist", "frontend", "testing-automation"]
+    },
+    "api_endpoint": {
+      "description": "Building an API endpoint",
+      "chain": ["api-designer", "database-architect", "backend", "testing-automation"]
+    },
+    "auth_system": {
+      "description": "Implementing authentication",
+      "chain": ["auth-specialist", "database-architect", "security-hardening", "testing-automation"]
+    },
+    "payment_flow": {
+      "description": "Implementing payments",
+      "chain": ["stripe-integration", "backend", "frontend", "testing-automation"]
+    },
+    "ai_feature": {
+      "description": "Building an AI-powered feature",
+      "chain": ["llm-architect", "rag-engineer", "backend", "frontend"]
+    }
+  }
+}

@@ -53,7 +53,7 @@
 		tags: node.skill.tags
 	}));
 
-	// Convert skill to SkillNodeData format
+	// Convert skill to SkillNodeData format (including skill chain if present)
 	const nodeData: SkillNodeData = $derived({
 		id: node.id,
 		name: node.skill.name,
@@ -62,7 +62,9 @@
 		tier: node.skill.tier,
 		icon: getCategoryIcon(node.skill.category),
 		inputs: ports.inputs,
-		outputs: ports.outputs
+		outputs: ports.outputs,
+		skillChain: node.skill.skillChain,
+		chainDescription: node.skill.chainDescription
 	});
 
 	function getCategoryIcon(category: string): string {

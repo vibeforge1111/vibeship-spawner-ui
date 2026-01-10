@@ -25,6 +25,10 @@ export interface SkillNodeData {
 	outputs?: Port[];
 	sharpEdges?: SharpEdge[];
 	config?: Record<string, unknown>;
+	/** Skill chain for complex features (specialist sequence) */
+	skillChain?: string[];
+	/** Human-readable description of the chain */
+	chainDescription?: string;
 }
 
 export interface Connection {

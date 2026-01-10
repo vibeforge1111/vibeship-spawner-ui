@@ -13,6 +13,57 @@
 import type { Skill, SkillCategory } from '$lib/stores/skills.svelte';
 import { KEYWORD_TO_SKILLS } from '$lib/services/h70-skill-matcher';
 
+/**
+ * Skill specificity scores (0-1)
+ * Higher = more specialized, should be preferred for specific tasks
+ * Lower = more general, use when no specialist available
+ */
+const SKILL_SPECIFICITY: Record<string, { owns: string[]; specificity: number }> = {
+	// Very specific skills (0.9+)
+	'drizzle-orm': { owns: ['drizzle', 'drizzle schema', 'drizzle queries'], specificity: 0.95 },
+	'nextjs-supabase-auth': { owns: ['supabase auth', 'supabase session'], specificity: 0.95 },
+	'postgres-wizard': { owns: ['postgresql', 'pg functions', 'pg performance'], specificity: 0.9 },
+	'authentication-oauth': { owns: ['oauth', 'oauth2', 'oidc', 'sso', 'jwt'], specificity: 0.9 },
+	'stripe-integration': { owns: ['stripe', 'payment intent', 'checkout'], specificity: 0.9 },
+	'rag-engineer': { owns: ['rag', 'embeddings', 'vector search', 'chunking'], specificity: 0.9 },
+	'vercel-deployment': { owns: ['vercel', 'edge functions'], specificity: 0.9 },
+	'expo': { owns: ['expo', 'eas', 'expo router'], specificity: 0.9 },
+	'prompt-engineer': { owns: ['prompt', 'few-shot', 'chain of thought'], specificity: 0.9 },
+
+	// Specialized skills (0.8-0.89)
+	'design-systems': { owns: ['design tokens', 'component library', 'theming'], specificity: 0.85 },
+	'tailwind-css': { owns: ['tailwind', 'utility classes'], specificity: 0.85 },
+	'graphql-architect': { owns: ['graphql', 'resolvers', 'apollo', 'urql'], specificity: 0.85 },
+	'nextjs-app-router': { owns: ['app router', 'server components', 'next routing'], specificity: 0.85 },
+	'ai-agents-architect': { owns: ['agent', 'tool calling', 'multi-agent'], specificity: 0.85 },
+	'docker': { owns: ['dockerfile', 'docker compose', 'container'], specificity: 0.85 },
+	'testing-automation': { owns: ['e2e', 'playwright', 'cypress'], specificity: 0.8 },
+	'ci-cd-pipeline': { owns: ['github actions', 'pipeline', 'ci/cd'], specificity: 0.8 },
+	'auth-specialist': { owns: ['authentication', 'login', 'signup', 'mfa', 'rbac'], specificity: 0.8 },
+	'realtime-engineer': { owns: ['websocket', 'real-time', 'live updates'], specificity: 0.8 },
+	'security-hardening': { owns: ['security headers', 'csp', 'rate limiting'], specificity: 0.8 },
+	'react-native-specialist': { owns: ['react native', 'native modules'], specificity: 0.8 },
+	'ecommerce-architect': { owns: ['cart', 'checkout', 'inventory', 'orders'], specificity: 0.8 },
+	'storage': { owns: ['s3', 'r2', 'blob storage', 'file storage'], specificity: 0.8 },
+	'performance-hunter': { owns: ['bundle', 'lazy loading', 'lighthouse'], specificity: 0.8 },
+
+	// Moderate specialists (0.7-0.79)
+	'llm-architect': { owns: ['llm', 'prompt design', 'token optimization'], specificity: 0.75 },
+	'react-patterns': { owns: ['react hooks', 'react context', 'custom hooks'], specificity: 0.75 },
+	'test-architect': { owns: ['test strategy', 'test pyramid', 'coverage'], specificity: 0.7 },
+	'api-designer': { owns: ['api design', 'rest', 'endpoint'], specificity: 0.7 },
+	'typescript-strict': { owns: ['typescript', 'types', 'generics'], specificity: 0.7 },
+	'game-development': { owns: ['game loop', 'sprites', 'physics'], specificity: 0.7 },
+	'analytics': { owns: ['tracking', 'funnels', 'metrics'], specificity: 0.7 },
+	'git-workflow': { owns: ['branching', 'commits', 'pull requests'], specificity: 0.7 },
+
+	// Generalists (0.5-0.69)
+	'database-architect': { owns: ['schema', 'data model', 'migrations'], specificity: 0.6 },
+	'frontend': { owns: ['components', 'ui', 'client'], specificity: 0.5 },
+	'backend': { owns: ['server', 'api', 'business logic'], specificity: 0.5 },
+	'code-quality': { owns: ['code review', 'linting', 'best practices'], specificity: 0.5 },
+};
+
 // Valid skill categories for type validation
 const VALID_CATEGORIES: SkillCategory[] = [
 	'development', 'frameworks', 'integrations', 'ai-ml', 'agents',
@@ -35,6 +86,10 @@ export interface PRDAnalysis {
 	techHints: string[];
 	constraints: string[];
 	suggestedStack: SuggestedStack;
+	/** Detected domain packs (fintech, gaming, ai-ml, blockchain, etc.) */
+	detectedDomains?: string[];
+	/** Domain-specific skills to include */
+	domainSkills?: string[];
 }
 
 export interface ExtractedFeature {
@@ -61,6 +116,10 @@ export interface GeneratedTask {
 	category: string;
 	phase: number;
 	dependsOn: string[];
+	/** If this is a complex feature, the skill chain to execute in order */
+	skillChain?: string[];
+	/** Human-readable description of the chain */
+	chainDescription?: string;
 }
 
 // Keywords that indicate different project types
@@ -123,6 +182,114 @@ const CATEGORY_TO_SKILLS: Record<string, string[]> = {
 };
 
 /**
+ * Domain packs - specialized skill sets for specific industries/domains
+ * Activated when PRD contains 2+ trigger keywords for a domain
+ */
+const DOMAIN_PACKS: Record<string, { triggers: string[]; skills: string[] }> = {
+	fintech: {
+		triggers: ['payment', 'billing', 'subscription', 'invoice', 'trading', 'portfolio', 'banking', 'fintech', 'financial'],
+		skills: ['stripe-integration', 'subscription-billing', 'fintech-integration', 'derivatives-pricing', 'portfolio-optimization', 'algorithmic-trading']
+	},
+	gaming: {
+		triggers: ['game', 'multiplayer', 'unity', 'godot', 'phaser', 'player', 'score', 'level', 'leaderboard', 'match'],
+		skills: ['game-development', 'game-networking', 'game-dev-unity', 'game-dev-godot', 'phaser-game']
+	},
+	'ai-ml': {
+		triggers: ['llm', 'ai', 'ml', 'gpt', 'claude', 'embedding', 'vector', 'rag', 'agent', 'chatbot', 'prompt', 'neural', 'model'],
+		skills: ['llm-architect', 'rag-engineer', 'ai-agents-architect', 'prompt-engineer', 'llm-fine-tuning', 'model-optimization', 'computer-vision-deep']
+	},
+	blockchain: {
+		triggers: ['blockchain', 'web3', 'crypto', 'nft', 'smart contract', 'wallet', 'ethereum', 'solana', 'defi', 'token', 'mint'],
+		skills: ['smart-contract-engineer', 'nft-engineer', 'blockchain-defi', 'web3-frontend']
+	},
+	enterprise: {
+		triggers: ['compliance', 'audit', 'gdpr', 'hipaa', 'soc2', 'enterprise', 'governance', 'regulatory', 'saas'],
+		skills: ['compliance-automation', 'gdpr-privacy', 'enterprise-architecture', 'data-governance']
+	},
+	mobile: {
+		triggers: ['mobile', 'ios', 'android', 'react native', 'flutter', 'expo', 'app store', 'native app'],
+		skills: ['react-native-specialist', 'expo', 'ios-swift-specialist', 'flutter-mobile']
+	},
+	ecommerce: {
+		triggers: ['ecommerce', 'shop', 'store', 'product', 'cart', 'checkout', 'inventory', 'order', 'shipping', 'catalog'],
+		skills: ['ecommerce-architect', 'stripe-integration', 'inventory-management']
+	}
+};
+
+/**
+ * Skill chains for complex features
+ * When a complex feature is detected, it gets decomposed into specialist sequence
+ */
+const SKILL_CHAINS: Record<string, { patterns: RegExp[]; chain: string[]; description: string }> = {
+	ui_feature: {
+		patterns: [/ui\s*(feature|component|interface)/i, /design\s+system/i, /component\s+library/i],
+		chain: ['design-systems', 'accessibility-specialist', 'frontend', 'testing-automation'],
+		description: 'UI feature with design + accessibility + implementation + testing'
+	},
+	api_endpoint: {
+		patterns: [/api\s*(endpoint|route|layer)/i, /rest\s*api/i, /graphql/i],
+		chain: ['api-designer', 'database-architect', 'backend', 'testing-automation'],
+		description: 'API with design + schema + implementation + testing'
+	},
+	auth_system: {
+		patterns: [/auth(entication)?\s*system/i, /login\s*(flow|system)/i, /user\s*auth/i, /oauth/i, /sso/i],
+		chain: ['auth-specialist', 'database-architect', 'security-hardening', 'testing-automation'],
+		description: 'Auth with specialist + schema + security + testing'
+	},
+	payment_flow: {
+		patterns: [/payment\s*(flow|system)/i, /checkout/i, /billing\s*system/i, /subscription/i],
+		chain: ['stripe-integration', 'backend', 'frontend', 'testing-automation'],
+		description: 'Payments with Stripe + backend + frontend + testing'
+	},
+	ai_feature: {
+		patterns: [/ai\s*(feature|chat|assistant)/i, /llm/i, /chatbot/i, /rag/i, /agent/i],
+		chain: ['llm-architect', 'prompt-engineer', 'backend', 'frontend'],
+		description: 'AI with architect + prompts + backend + frontend'
+	},
+	realtime_feature: {
+		patterns: [/realtime/i, /live\s+updates?/i, /websocket/i, /notifications?/i],
+		chain: ['realtime-engineer', 'backend', 'frontend'],
+		description: 'Realtime with specialist + backend + frontend'
+	}
+};
+
+/**
+ * Detect if a feature should be decomposed into a skill chain
+ * Returns the chain if applicable, null otherwise
+ */
+function detectSkillChain(featureName: string, category: string): { chain: string[]; description: string } | null {
+	const combined = `${featureName} ${category}`.toLowerCase();
+
+	for (const [_chainType, config] of Object.entries(SKILL_CHAINS)) {
+		if (config.patterns.some(p => p.test(combined))) {
+			return { chain: config.chain, description: config.description };
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Detect domains from PRD content (synchronous for KISS)
+ */
+function detectDomainsFromContent(content: string): { domains: string[]; skills: string[] } {
+	const lowerContent = content.toLowerCase();
+	const detectedDomains: string[] = [];
+	const domainSkills: Set<string> = new Set();
+
+	for (const [domain, pack] of Object.entries(DOMAIN_PACKS)) {
+		const matchCount = pack.triggers.filter(t => lowerContent.includes(t)).length;
+		// Need at least 2 trigger matches to activate a domain
+		if (matchCount >= 2) {
+			detectedDomains.push(domain);
+			pack.skills.forEach(s => domainSkills.add(s));
+		}
+	}
+
+	return { domains: detectedDomains, skills: [...domainSkills] };
+}
+
+/**
  * Analyze a PRD document and extract key information
  */
 export function analyzePRD(prdContent: string): PRDAnalysis {
@@ -153,13 +320,18 @@ export function analyzePRD(prdContent: string): PRDAnalysis {
 	// Suggest stack based on features and type
 	const suggestedStack = suggestStack(projectType, features, techHints);
 
+	// Detect specialized domains (fintech, gaming, ai-ml, etc.)
+	const { domains: detectedDomains, skills: domainSkills } = detectDomainsFromContent(prdContent);
+
 	return {
 		projectName: projectName || 'New Project',
 		projectType,
 		features,
 		techHints,
 		constraints,
-		suggestedStack
+		suggestedStack,
+		detectedDomains,
+		domainSkills
 	};
 }
 
@@ -283,15 +455,37 @@ function normalizeFeatureName(name: string): string {
 
 /**
  * Check if a bullet item is too generic to be a feature
+ * Filters: UI instructions, meta-language, non-actionable items
  */
 function isGenericItem(name: string): boolean {
 	const genericPatterns = [
-		/^(the|a|an|this|that|it)\s/i,
+		// Articles/pronouns
+		/^(the|a|an|this|that|it|its)\s/i,
 		/^(yes|no|true|false|ok|okay)$/i,
+		// Step markers
 		/^(step|phase|stage|part)\s*\d/i,
-		/^(note|warning|important|todo|fixme)/i,
-		/^[a-z]$/i, // Single letter
-		/^\d+$/,    // Just numbers
+		/^\d+\.\s/i,
+		// Notes
+		/^(note|warning|important|todo|fixme|tip|hint)/i,
+		// UI instructions (not features)
+		/^(click|tap|press|button|input|select|choose|enter|type)/i,
+		/^(download|upload|drag|drop|scroll|swipe|hover)/i,
+		/^(open|close|toggle|expand|collapse|show|hide)/i,
+		// Navigation
+		/^(go to|navigate|visit|access|find|locate|see|view|look)/i,
+		/^(refer to|check out|read more|learn more)/i,
+		// Meta instructions
+		/^(make sure|ensure|verify|confirm|remember to)/i,
+		/^(don't forget|be sure to|you (can|should|must|need))/i,
+		// File/save
+		/saves?\s+to\s/i,
+		// Guide language
+		/^(example|sample|tutorial|guide|instruction|how to)/i,
+		/^(here('s| is)|below|above|following|previous)/i,
+		// Single char/numbers/brackets
+		/^[a-z]$/i,
+		/^\d+$/,
+		/^[\[\](){}]/,
 	];
 	return genericPatterns.some(p => p.test(name));
 }
@@ -587,6 +781,32 @@ export function generateTasksFromPRD(
 	const tasks: GeneratedTask[] = [];
 	let taskId = 0;
 
+	// Log detected domains for debugging
+	if (analysis.detectedDomains?.length) {
+		console.log(`[PRDAnalyzer] Detected domains: ${analysis.detectedDomains.join(', ')}`);
+		console.log(`[PRDAnalyzer] Domain skills: ${analysis.domainSkills?.join(', ')}`);
+	}
+
+	// Prioritize domain-specific skills by ensuring they're in the available pool
+	const domainSkillIds = new Set(analysis.domainSkills || []);
+	const enhancedSkills = [...availableSkills];
+
+	// Add placeholder skills for domain skills not in available pool
+	// (They'll be matched by ID even if not fully loaded)
+	for (const skillId of domainSkillIds) {
+		if (!availableSkills.find(s => s.id === skillId)) {
+			enhancedSkills.push({
+				id: skillId,
+				name: skillId.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+				description: `Domain-specific skill: ${skillId}`,
+				category: 'development' as const,
+				tier: 'free' as const,
+				tags: [skillId],
+				triggers: []
+			});
+		}
+	}
+
 	// Extract unique categories from features
 	const featureCategories = [...new Set(analysis.features.map(f => f.category))];
 
@@ -617,7 +837,7 @@ export function generateTasksFromPRD(
 			id: `task-${taskId++}`,
 			title: 'Project Setup',
 			description: `Initialize ${analysis.projectName} with ${stackDesc || 'chosen stack'}`,
-			skillMatch: findBestSkillMatchWithScore('project-scaffolding', availableSkills),
+			skillMatch: findBestSkillMatchWithScore('project-scaffolding', enhancedSkills),
 			category: 'setup',
 			phase: 1,
 			dependsOn: []
@@ -631,7 +851,7 @@ export function generateTasksFromPRD(
 			id: `task-${taskId++}`,
 			title: 'Design System',
 			description: 'Create design tokens, color palette, and base UI components',
-			skillMatch: findBestSkillMatchWithScore('design-system', availableSkills),
+			skillMatch: findBestSkillMatchWithScore('design-system', enhancedSkills),
 			category: 'design',
 			phase: 1,
 			dependsOn: tasks.length > 0 ? [lastInfraTaskId] : []
@@ -646,7 +866,7 @@ export function generateTasksFromPRD(
 			id: `task-${taskId++}`,
 			title: 'Authentication System',
 			description: `Implement user authentication with ${authStack}`,
-			skillMatch: findBestSkillMatchWithScore('authentication', availableSkills),
+			skillMatch: findBestSkillMatchWithScore('authentication', enhancedSkills),
 			category: 'auth',
 			phase: 2,
 			dependsOn: tasks.length > 0 ? [lastInfraTaskId] : []
@@ -659,7 +879,7 @@ export function generateTasksFromPRD(
 			id: `task-${taskId++}`,
 			title: 'Database Schema',
 			description: `Design and implement ${dbStack} schema for all entities`,
-			skillMatch: findBestSkillMatchWithScore('database', availableSkills),
+			skillMatch: findBestSkillMatchWithScore('database', enhancedSkills),
 			category: 'database',
 			phase: 2,
 			dependsOn: tasks.length > 0 ? [lastInfraTaskId] : []
@@ -672,7 +892,7 @@ export function generateTasksFromPRD(
 			id: `task-${taskId++}`,
 			title: 'API Layer',
 			description: 'Create REST/GraphQL API endpoints for all features',
-			skillMatch: findBestSkillMatchWithScore('api-design', availableSkills),
+			skillMatch: findBestSkillMatchWithScore('api-design', enhancedSkills),
 			category: 'backend',
 			phase: 2,
 			dependsOn: apiDeps.length > 0 ? apiDeps : (tasks.length > 0 ? [lastInfraTaskId] : [])
@@ -695,19 +915,30 @@ export function generateTasksFromPRD(
 	const featureTaskIds: string[] = [];
 
 	for (const feature of featuresToAdd) {
-		// Find best skill match using semantic scoring
-		const skillMatch = findBestSkillForFeature(feature, availableSkills);
+		// Check if this feature should be decomposed into a skill chain
+		const chain = detectSkillChain(feature.name, feature.category);
 
-		tasks.push({
+		// Find best skill match using semantic scoring with enhanced skill pool
+		const skillMatch = findBestSkillForFeature(feature, enhancedSkills);
+
+		const task: GeneratedTask = {
 			id: `task-${taskId++}`,
 			title: feature.name,
 			description: feature.description,
-			skillMatch,
+			skillMatch: chain ? chain.chain[0] : skillMatch, // First skill in chain is primary
 			category: feature.category,
 			phase: 3,
 			dependsOn: tasks.length > 0 ? [lastInfraTaskId] : []
-		});
+		};
 
+		// If skill chain detected, add chain info
+		if (chain) {
+			task.skillChain = chain.chain;
+			task.chainDescription = chain.description;
+			console.log(`[PRDAnalyzer] Chain detected for "${feature.name}": ${chain.chain.join(' → ')}`);
+		}
+
+		tasks.push(task);
 		featureTaskIds.push(`task-${taskId - 1}`);
 	}
 
@@ -720,7 +951,7 @@ export function generateTasksFromPRD(
 			id: `task-${taskId++}`,
 			title: 'Testing Suite',
 			description: 'Write unit, integration, and e2e tests for implemented features',
-			skillMatch: findBestSkillMatchWithScore('testing', availableSkills),
+			skillMatch: findBestSkillMatchWithScore('testing', enhancedSkills),
 			category: 'testing',
 			phase: 4,
 			dependsOn: [lastFeatureId]
@@ -735,7 +966,7 @@ export function generateTasksFromPRD(
 			id: `task-${taskId++}`,
 			title: 'Deployment Setup',
 			description: `Configure CI/CD and deploy to ${deploymentStack}`,
-			skillMatch: findBestSkillMatchWithScore('deployment', availableSkills),
+			skillMatch: findBestSkillMatchWithScore('deployment', enhancedSkills),
 			category: 'deployment',
 			phase: 4,
 			dependsOn: [deployDep]
@@ -748,7 +979,7 @@ export function generateTasksFromPRD(
 			id: 'task-0',
 			title: analysis.projectName || 'Implementation',
 			description: 'Implement the project requirements',
-			skillMatch: findBestSkillMatchWithScore('development', availableSkills),
+			skillMatch: findBestSkillMatchWithScore('development', enhancedSkills),
 			category: 'general',
 			phase: 1,
 			dependsOn: []
@@ -759,13 +990,48 @@ export function generateTasksFromPRD(
 }
 
 /**
- * Find best skill for a feature using semantic scoring
+ * Find best skill for a feature using specificity-aware scoring
+ * Prefers specialists over generalists when the feature matches their domain
  */
 function findBestSkillForFeature(feature: ExtractedFeature, availableSkills: Skill[]): string | null {
-	// Get category skills
-	const categorySkills = CATEGORY_TO_SKILLS[feature.category] || [];
+	const featureText = `${feature.name} ${feature.description || ''}`.toLowerCase();
+	const availableIds = new Set(availableSkills.map(s => s.id));
 
-	// Try category skills with scoring
+	// STEP 1: Check specialists first (highest specificity wins)
+	// This ensures "supabase auth" goes to nextjs-supabase-auth (0.95) not auth-specialist (0.8)
+	const specialistMatches: Array<{ skillId: string; score: number; specificity: number }> = [];
+
+	for (const [skillId, spec] of Object.entries(SKILL_SPECIFICITY)) {
+		if (!availableIds.has(skillId)) continue;
+
+		// Check if any "owns" keyword matches the feature
+		let ownershipScore = 0;
+		for (const owned of spec.owns) {
+			if (featureText.includes(owned)) {
+				// Longer matches are more specific
+				ownershipScore += owned.length / 10;
+			}
+		}
+
+		if (ownershipScore > 0) {
+			// Combine ownership match with specificity
+			const finalScore = ownershipScore * spec.specificity;
+			specialistMatches.push({ skillId, score: finalScore, specificity: spec.specificity });
+		}
+	}
+
+	// Sort by score (ownership * specificity), then by specificity for ties
+	specialistMatches.sort((a, b) => {
+		if (Math.abs(b.score - a.score) > 0.01) return b.score - a.score;
+		return b.specificity - a.specificity;
+	});
+
+	if (specialistMatches.length > 0) {
+		return specialistMatches[0].skillId;
+	}
+
+	// STEP 2: Fall back to category-based matching with specificity weighting
+	const categorySkills = CATEGORY_TO_SKILLS[feature.category] || [];
 	let bestMatch: { skillId: string; score: number } | null = null;
 
 	for (const skillId of categorySkills) {
@@ -778,21 +1044,22 @@ function findBestSkillForFeature(feature: ExtractedFeature, availableSkills: Ski
 		}
 	}
 
-	// If good match found, return it
 	if (bestMatch && bestMatch.score > 0.3) {
 		return bestMatch.skillId;
 	}
 
-	// Fallback to name-based matching
+	// STEP 3: Fallback to name-based matching
 	return findBestSkillMatchWithScore(feature.name, availableSkills);
 }
 
 /**
  * Calculate semantic relevance between feature and skill
+ * Incorporates specificity: specialists score higher than generalists
  */
 function calculateSkillRelevance(feature: ExtractedFeature, skill: Skill): number {
-	let score = 0.5; // Base score for category match
+	let score = 0.3; // Lower base score (specificity will boost)
 
+	const featureText = `${feature.name} ${feature.description || ''}`.toLowerCase();
 	const featureWords = new Set(feature.name.toLowerCase().split(/\s+/));
 	const descWords = new Set((feature.description || '').toLowerCase().split(/\s+/));
 	const skillWords = new Set([
@@ -813,7 +1080,20 @@ function calculateSkillRelevance(feature: ExtractedFeature, skill: Skill): numbe
 
 	// Category match bonus
 	if (skill.category === feature.category) {
-		score += 0.2;
+		score += 0.15;
+	}
+
+	// Specificity bonus: check if this skill owns any matching keywords
+	const spec = SKILL_SPECIFICITY[skill.id];
+	if (spec) {
+		let ownershipBonus = 0;
+		for (const owned of spec.owns) {
+			if (featureText.includes(owned)) {
+				ownershipBonus += 0.1;
+			}
+		}
+		// Apply specificity multiplier (0.5-0.95)
+		score = (score + Math.min(0.3, ownershipBonus)) * (0.5 + spec.specificity * 0.5);
 	}
 
 	return Math.min(1, score);
@@ -860,7 +1140,10 @@ function findBestSkillMatchWithScore(searchTerm: string | undefined, availableSk
 				if (availableIds.has(skillId)) {
 					// Earlier in list = higher priority
 					const positionBonus = (skills.length - i) / skills.length * 0.2;
-					scoredMatches.push({ skillId, score: relevance + positionBonus });
+					// Add specificity bonus for specialists
+					const spec = SKILL_SPECIFICITY[skillId];
+					const specificityBonus = spec ? spec.specificity * 0.3 : 0;
+					scoredMatches.push({ skillId, score: relevance + positionBonus + specificityBonus });
 				}
 			}
 		}
@@ -1010,6 +1293,7 @@ export function tasksToWorkflow(
 
 /**
  * Create a placeholder skill for tasks without matches
+ * Includes skill chain data if present
  */
 function createPlaceholderSkill(task: GeneratedTask): Skill {
 	const rawCategory = task.category || 'development';
@@ -1021,6 +1305,9 @@ function createPlaceholderSkill(task: GeneratedTask): Skill {
 		category,
 		tier: 'free',
 		tags: [category].filter(Boolean),
-		triggers: []
+		triggers: [],
+		// Include skill chain if this is a complex feature
+		skillChain: task.skillChain,
+		chainDescription: task.chainDescription
 	};
 }

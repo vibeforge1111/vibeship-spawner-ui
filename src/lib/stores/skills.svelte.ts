@@ -36,6 +36,10 @@ export interface Skill {
 	version?: string;
 	handoffs?: { trigger: string; to: string }[];
 	pairsWell?: string[];
+	/** Skill chain for complex features (specialist sequence) */
+	skillChain?: string[];
+	/** Human-readable description of the chain */
+	chainDescription?: string;
 }
 
 export interface SkillFilters {

@@ -256,6 +256,23 @@
 	<!-- Clean Node Content -->
 	<div class="px-3 py-2.5">
 		<h3 class="text-sm font-mono text-text-primary truncate">{data.name}</h3>
+
+		<!-- Skill Chain Indicator (when present) -->
+		{#if data.skillChain && data.skillChain.length > 1}
+			<div class="skill-chain-row mt-1.5">
+				<span class="chain-icon" title={data.chainDescription || 'Skill Chain'}>⛓</span>
+				<div class="chain-skills">
+					{#each data.skillChain as skill, i}
+						<span class="chain-skill" title={skill}>
+							{skill.split('-')[0]}
+						</span>
+						{#if i < data.skillChain.length - 1}
+							<span class="chain-arrow">→</span>
+						{/if}
+					{/each}
+				</div>
+			</div>
+		{/if}
 	</div>
 </div>
 
@@ -358,5 +375,52 @@
 		font-size: 10px;
 		color: #3B82F6;
 		opacity: 0.7;
+	}
+
+	/* Skill Chain Visualization */
+	.skill-chain-row {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		padding: 2px 0;
+		border-top: 1px solid var(--border-surface, rgba(255, 255, 255, 0.1));
+		margin-top: 4px;
+		padding-top: 4px;
+	}
+
+	.chain-icon {
+		font-size: 10px;
+		opacity: 0.6;
+		flex-shrink: 0;
+	}
+
+	.chain-skills {
+		display: flex;
+		align-items: center;
+		gap: 2px;
+		overflow: hidden;
+		flex: 1;
+	}
+
+	.chain-skill {
+		font-size: 9px;
+		font-family: var(--font-mono);
+		color: var(--text-tertiary);
+		background: var(--bg-tertiary, rgba(255, 255, 255, 0.05));
+		padding: 1px 4px;
+		border-radius: 2px;
+		white-space: nowrap;
+		cursor: default;
+	}
+
+	.chain-skill:hover {
+		color: var(--text-primary);
+		background: var(--bg-secondary, rgba(255, 255, 255, 0.1));
+	}
+
+	.chain-arrow {
+		font-size: 8px;
+		color: var(--text-tertiary);
+		opacity: 0.5;
 	}
 </style>
