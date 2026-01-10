@@ -42,6 +42,58 @@ export interface MissionBuildResult {
 }
 
 /**
+ * Check if a node represents a question/decision rather than an executable task
+ */
+function isQuestionNode(node: CanvasNode): boolean {
+	const name = node.skill.name.toLowerCase();
+	const desc = (node.skill.description || '').toLowerCase();
+	return (
+		name.endsWith('?') ||
+		desc.endsWith('?') ||
+		name.startsWith('should we') ||
+		name.startsWith('do we') ||
+		name.startsWith('can we') ||
+		name.startsWith('would') ||
+		/^(what|how|why|when|where|which)\s/i.test(name)
+	);
+}
+
+/**
+ * Filter out non-executable nodes (questions, empty descriptions)
+ * Returns filtered nodes and list of removed nodes
+ */
+function filterExecutableNodes(
+	nodes: CanvasNode[],
+	connections: Connection[]
+): { nodes: CanvasNode[]; connections: Connection[]; removed: CanvasNode[] } {
+	const removed: CanvasNode[] = [];
+	const removedIds = new Set<string>();
+
+	// Filter out question nodes
+	const executableNodes = nodes.filter((node) => {
+		if (isQuestionNode(node)) {
+			removed.push(node);
+			removedIds.add(node.id);
+			return false;
+		}
+		return true;
+	});
+
+	// Remove connections to/from removed nodes
+	const validConnections = connections.filter(
+		(conn) => !removedIds.has(conn.sourceNodeId) && !removedIds.has(conn.targetNodeId)
+	);
+
+	if (removed.length > 0) {
+		console.log(
+			`[MissionBuilder] Filtered out ${removed.length} non-executable node(s): ${removed.map((n) => n.skill.name).join(', ')}`
+		);
+	}
+
+	return { nodes: executableNodes, connections: validConnections, removed };
+}
+
+/**
  * Deduplicate nodes by skill ID
  * When multiple nodes have the same skill, keep the first one
  * and merge their connections
@@ -279,12 +331,19 @@ export async function buildMissionFromCanvas(
 	}
 
 	try {
-		// CRITICAL: Deduplicate nodes before building mission
+		// STEP 1: Filter out non-executable nodes (questions, decisions)
+		const { nodes: executableNodes, connections: executableConns, removed } = filterExecutableNodes(nodes, connections);
+
+		if (removed.length > 0) {
+			console.log(`[MissionBuilder] Removed ${removed.length} non-executable node(s)`);
+		}
+
+		// STEP 2: Deduplicate nodes with same skill ID
 		// This prevents the same skill appearing multiple times as separate tasks
-		const { nodes: dedupedNodes, connections: dedupedConnections, merged } = deduplicateNodes(nodes, connections);
+		const { nodes: dedupedNodes, connections: dedupedConnections, merged } = deduplicateNodes(executableNodes, executableConns);
 
 		if (merged.size > 0) {
-			console.log(`[MissionBuilder] Reduced ${nodes.length} nodes to ${dedupedNodes.length} (merged ${nodes.length - dedupedNodes.length} duplicates)`);
+			console.log(`[MissionBuilder] Reduced ${executableNodes.length} nodes to ${dedupedNodes.length} (merged ${executableNodes.length - dedupedNodes.length} duplicates)`);
 		}
 
 		// Generate agents based on skill categories
@@ -495,12 +554,34 @@ For each task in order:
 
 6. **Move to Next Task** - Load the next task's skills and repeat
 
+## Completion Protocol
+
+### Per-Task Requirements
+1. **Load Skills First** - Report: \`curl POST ${eventUrl}/api/events {"type":"skill_loaded","skillId":"..."}\`
+2. **Execute Task** - Follow skill patterns, avoid anti-patterns
+3. **Report Progress** - At 25%, 50%, 75% for long tasks
+4. **Verify Before Complete** - Check artifacts exist, no errors
+
+### DO NOT
+- Skip feature tasks after infrastructure is set up
+- Mark tasks "complete" without verification
+- Ignore listed skills - they contain critical patterns
+- Rush to "mission_completed" - complete ALL tasks first
+
+### Task Completion Quality
+Each task should produce:
+- **Artifacts**: Files created/modified
+- **No Errors**: Code compiles, tests pass
+- **Skills Applied**: Patterns from loaded skills used
+
 ## Mission Complete
 
-When all tasks are done:
+Only send \`mission_completed\` after ALL ${mission.tasks.length} tasks are done:
 \`\`\`bash
 curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"mission_completed","missionId":"${mission.id}"}'
 \`\`\`
+
+The system will then run automated tests and generate a checkpoint for human review.
 
 ---
 
@@ -593,6 +674,40 @@ export function validateForMission(
 	if (orphans.length > 0 && nodes.length > 1) {
 		warnings.push(
 			`${orphans.length} node(s) not connected to workflow: ${orphans.map((n) => n.skill.name).join(', ')}`
+		);
+	}
+
+	// Check for question nodes (not executable tasks)
+	const questionNodes = nodes.filter((n) => {
+		const name = n.skill.name.toLowerCase();
+		const desc = (n.skill.description || '').toLowerCase();
+		return (
+			name.endsWith('?') ||
+			desc.endsWith('?') ||
+			name.startsWith('should we') ||
+			name.startsWith('do we') ||
+			name.startsWith('can we') ||
+			name.startsWith('would') ||
+			/^(what|how|why|when|where|which)\s/i.test(name)
+		);
+	});
+
+	if (questionNodes.length > 0) {
+		warnings.push(
+			`${questionNodes.length} node(s) appear to be questions, not tasks: ${questionNodes.map((n) => n.skill.name).slice(0, 3).join(', ')}${questionNodes.length > 3 ? '...' : ''}`
+		);
+	}
+
+	// Check for nodes with empty/missing descriptions
+	const emptyDescNodes = nodes.filter((n) => {
+		const desc = n.skill.description?.trim();
+		const name = n.skill.name?.trim();
+		return !desc || desc === name || desc.length < 10;
+	});
+
+	if (emptyDescNodes.length > 0) {
+		warnings.push(
+			`${emptyDescNodes.length} node(s) have empty/minimal descriptions: ${emptyDescNodes.map((n) => n.skill.name).slice(0, 3).join(', ')}${emptyDescNodes.length > 3 ? '...' : ''}`
 		);
 	}
 

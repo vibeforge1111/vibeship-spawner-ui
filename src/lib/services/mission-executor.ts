@@ -466,6 +466,34 @@ class MissionExecutor {
 					this.addLocalLog('info', `Handoff: ${from} → ${to}`);
 					break;
 
+				case 'skill_loaded':
+					// Track which skills have been loaded during execution
+					const loadedSkillId = event.data?.skillId as string;
+					const loadedSkillName = event.data?.skillName as string || loadedSkillId;
+					if (loadedSkillId && !this.progress.loadedSkills.some(s => s.id === loadedSkillId)) {
+						// Add as LoadedSkillInfo object
+						const skillInfo: LoadedSkillInfo = {
+							id: loadedSkillId,
+							name: loadedSkillName,
+							taskIds: this.progress.currentTaskId ? [this.progress.currentTaskId] : []
+						};
+						this.progress.loadedSkills.push(skillInfo);
+						this.completedSkillSequence.push(loadedSkillId);
+						this.addLocalLog('info', `Skill loaded: ${loadedSkillId}`);
+						this.persistState();
+
+						// Check if current task has required skills loaded
+						if (this.progress.currentTaskId) {
+							const requiredSkills = this.progress.taskSkillMap.get(this.progress.currentTaskId) || [];
+							const loadedIds = this.progress.loadedSkills.map(s => s.id);
+							const loadedForTask = requiredSkills.filter(s => loadedIds.includes(s));
+							if (requiredSkills.length > 0 && loadedForTask.length === requiredSkills.length) {
+								this.addLocalLog('info', `All ${requiredSkills.length} skills loaded for current task`);
+							}
+						}
+					}
+					break;
+
 				case 'mission_completed':
 					this.progress.status = 'completed';
 					this.progress.endTime = new Date();
