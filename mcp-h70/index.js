@@ -61,7 +61,24 @@ function formatSkillContent(skill) {
   if (skill.identity) {
     lines.push('## Identity');
     lines.push('');
-    lines.push(skill.identity.trim());
+    // Handle identity as string or object
+    if (typeof skill.identity === 'string') {
+      lines.push(skill.identity.trim());
+    } else if (typeof skill.identity === 'object') {
+      // Handle structured identity (role, personality, principles)
+      if (skill.identity.role) {
+        lines.push(`**Role:** ${skill.identity.role}`);
+      }
+      if (skill.identity.personality) {
+        lines.push('');
+        lines.push(skill.identity.personality.trim());
+      }
+      if (skill.identity.principles && Array.isArray(skill.identity.principles)) {
+        lines.push('');
+        lines.push('**Core Principles:**');
+        skill.identity.principles.forEach(p => lines.push(`- ${p}`));
+      }
+    }
     lines.push('');
   }
 
@@ -76,42 +93,72 @@ function formatSkillContent(skill) {
     lines.push('## When to Delegate');
     lines.push('');
     skill.delegates.forEach(d => {
-      lines.push(`- **${d.skill}**: ${d.when}`);
+      // Handle different delegate formats
+      const target = d.skill || d.to || 'unknown';
+      const condition = d.when || d.trigger || d.context || '';
+      lines.push(`- **${target}**: ${condition}`);
     });
     lines.push('');
   }
 
-  if (skill.disasters && skill.disasters.length > 0) {
+  if (skill.disasters) {
     lines.push('## Critical Lessons');
     lines.push('');
-    skill.disasters.forEach((d, i) => {
-      lines.push(`### ${i + 1}. ${d.title}`);
-      lines.push(`**Story:** ${d.story}`);
-      lines.push(`**Lesson:** ${d.lesson}`);
+    // Handle disasters as array or object
+    const disasterList = Array.isArray(skill.disasters)
+      ? skill.disasters
+      : Object.entries(skill.disasters).map(([key, val]) => ({ ...val, id: key }));
+
+    disasterList.forEach((d, i) => {
+      lines.push(`### ${i + 1}. ${d.title || d.id || 'Lesson'}`);
+      if (d.story) lines.push(`**Story:** ${d.story.trim()}`);
+      if (d.cost) lines.push(`**Cost:** ${d.cost}`);
+      if (d.lesson) lines.push(`**Lesson:** ${d.lesson}`);
       lines.push('');
     });
   }
 
-  if (skill.anti_patterns && skill.anti_patterns.length > 0) {
+  if (skill.anti_patterns) {
     lines.push('## Anti-Patterns');
     lines.push('');
-    skill.anti_patterns.forEach(ap => {
-      lines.push(`### ${ap.name}`);
-      lines.push(`**Why bad:** ${ap.why_bad}`);
-      lines.push(`**Instead:** ${ap.instead}`);
+    // Handle anti_patterns as array or object
+    const apList = Array.isArray(skill.anti_patterns)
+      ? skill.anti_patterns
+      : Object.entries(skill.anti_patterns).map(([key, val]) => ({ ...val, name: val.name || key }));
+
+    apList.forEach(ap => {
+      lines.push(`### ${ap.name || ap.description || 'Anti-Pattern'}`);
+      if (ap.description && ap.name) lines.push(ap.description);
+      if (ap.why_bad) lines.push(`**Why bad:** ${ap.why_bad}`);
+      if (ap.wrong) lines.push(`**Wrong:**\n\`\`\`\n${ap.wrong.trim()}\n\`\`\``);
+      if (ap.instead) lines.push(`**Instead:** ${ap.instead}`);
+      if (ap.right) lines.push(`**Right:**\n\`\`\`\n${ap.right.trim()}\n\`\`\``);
       if (ap.code_smell) lines.push(`**Code smell:** \`${ap.code_smell}\``);
+      if (ap.detection) lines.push(`**Detection:** ${ap.detection}`);
       lines.push('');
     });
   }
 
-  if (skill.patterns && skill.patterns.length > 0) {
+  if (skill.patterns) {
     lines.push('## Patterns');
     lines.push('');
-    skill.patterns.forEach(p => {
-      lines.push(`### ${p.name}`);
-      lines.push(`**When:** ${p.when}`);
+    // Handle patterns as array or object
+    const patternList = Array.isArray(skill.patterns)
+      ? skill.patterns
+      : Object.entries(skill.patterns).map(([key, val]) => ({ ...val, name: val.name || key }));
+
+    patternList.forEach(p => {
+      lines.push(`### ${p.name || p.description || 'Pattern'}`);
+      if (p.description && p.name) lines.push(`**Description:** ${p.description}`);
+      if (p.when) lines.push(`**When:** ${p.when}`);
+      if (p.why) lines.push(`**Why:** ${p.why.trim()}`);
       lines.push('');
-      lines.push(p.implementation);
+      if (p.implementation) lines.push('```typescript\n' + p.implementation.trim() + '\n```');
+      if (p.gotchas && Array.isArray(p.gotchas)) {
+        lines.push('');
+        lines.push('**Gotchas:**');
+        p.gotchas.forEach(g => lines.push(`- ${g}`));
+      }
       lines.push('');
     });
   }
