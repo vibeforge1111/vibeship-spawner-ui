@@ -377,9 +377,14 @@ export const recommendedAgents = derived(stackStore, $store => {
 
 // Generate config for export
 export const generatedConfig = derived([selectedAgents, selectedMcps], ([$agents, $mcps]) => {
-	const mcpConfig: Record<string, any> = {};
+	const mcpConfig: Record<string, Record<string, unknown>> = {};
 	for (const mcp of $mcps) {
-		mcpConfig[mcp.id] = JSON.parse(mcp.configExample).mcpServers[mcp.id] || {};
+		try {
+			const parsed = JSON.parse(mcp.configExample);
+			mcpConfig[mcp.id] = parsed.mcpServers?.[mcp.id] || {};
+		} catch {
+			mcpConfig[mcp.id] = {};
+		}
 	}
 
 	return {

@@ -24,7 +24,7 @@ import { get } from 'svelte/store';
 	import { initCanvasSync } from '$lib/services/canvas-sync';
 	import PipelineSelector from '$lib/components/PipelineSelector.svelte';
 	import SessionStateBar from '$lib/components/SessionStateBar.svelte';
-	import { initPipelines, saveCurrentPipeline, getActivePipelineData, activePipelineId, createNewPipeline } from '$lib/stores/pipelines.svelte';
+	import { initPipelines, saveCurrentPipeline, getActivePipelineData, activePipelineId, createNewPipeline, type PipelineData } from '$lib/stores/pipelines.svelte';
 	import { hasResumableMission } from '$lib/services/persistence';
 	import { DroppedSkillSchema, safeJsonParse } from '$lib/types/schemas';
 
@@ -409,7 +409,7 @@ import { get } from 'svelte/store';
 	}
 
 	// Pipeline management functions
-	function loadPipelineToCanvas(data: { nodes: any[]; connections: any[]; zoom: number; pan: { x: number; y: number } }) {
+	function loadPipelineToCanvas(data: PipelineData) {
 		// Clear current canvas first
 		clearCanvas();
 
@@ -452,7 +452,7 @@ import { get } from 'svelte/store';
 		};
 	}
 
-	function handlePipelineSwitch(data: { nodes: any[]; connections: any[]; zoom: number; pan: { x: number; y: number } } | null) {
+	function handlePipelineSwitch(data: PipelineData | null) {
 		if (data) {
 			loadPipelineToCanvas(data);
 		} else {

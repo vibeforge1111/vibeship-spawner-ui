@@ -12,14 +12,15 @@
 		exportPipeline,
 		importPipeline,
 		exportAllPipelines,
-		type PipelineMetadata
+		type PipelineMetadata,
+		type PipelineData
 	} from '$lib/stores/pipelines.svelte';
 	import { get } from 'svelte/store';
 
 	// Events
 	interface Props {
-		onSwitch?: (data: { nodes: any[]; connections: any[]; zoom: number; pan: { x: number; y: number } } | null) => void;
-		onBeforeSwitch?: () => { nodes: any[]; connections: any[]; zoom: number; pan: { x: number; y: number } };
+		onSwitch?: (data: PipelineData | null) => void;
+		onBeforeSwitch?: () => PipelineData;
 		navigateOnSwitch?: boolean; // When true, navigate to /canvas on switch (for Navbar usage)
 	}
 

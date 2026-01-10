@@ -10,7 +10,7 @@
 	import { analyzePRD, generateTasksFromPRD, tasksToWorkflow, type PRDAnalysis, type GeneratedTask } from '$lib/utils/prd-analyzer';
 	import { skills as skillsStore, loadSkills, addSkills } from '$lib/stores/skills.svelte';
 	import { addNodesWithConnections, clearCanvas, nodes, connections } from '$lib/stores/canvas.svelte';
-	import { createNewPipeline, saveCurrentPipeline, initPipelines } from '$lib/stores/pipelines.svelte';
+	import { createNewPipeline, saveCurrentPipeline, initPipelines, type PipelineData } from '$lib/stores/pipelines.svelte';
 	import { toasts } from '$lib/stores/toast.svelte';
 	import { get } from 'svelte/store';
 
@@ -28,7 +28,7 @@
 	let processingProjectName = $state('');
 	let processingFeaturesFound = $state(0);
 	let processingTasksGenerated = $state(0);
-	let pendingWorkflow: { nodes: any[]; connections: any[] } | null = null;
+	let pendingWorkflow: Pick<PipelineData, 'nodes' | 'connections'> | null = null;
 
 	const skillCategories = [
 		{ name: 'Frontend', count: 45, icon: '◧' },

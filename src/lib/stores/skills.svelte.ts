@@ -47,6 +47,19 @@ export interface SkillFilters {
 
 export type SkillSource = 'static' | 'mcp';
 
+// Raw skill data from skills.json (before validation)
+interface RawSkillData {
+	id: string;
+	name: string;
+	description?: string;
+	category?: string;
+	tier?: string;
+	tags?: string[];
+	triggers?: string[];
+	handoffs?: { trigger: string; to: string }[];
+	pairsWell?: string[];
+}
+
 // State
 export const skills = writable<Skill[]>([]);
 export const loading = writable(false);
@@ -203,11 +216,11 @@ export async function loadSkillsStatic() {
 		}
 		const data = await response.json();
 
-		const loadedSkills: Skill[] = data.map((s: any) => ({
+		const loadedSkills: Skill[] = (data as RawSkillData[]).map((s) => ({
 			id: s.id,
 			name: s.name,
 			description: s.description || '',
-			category: s.category as SkillCategory,
+			category: (s.category as SkillCategory) || 'development',
 			tier: (s.tier as SkillTier) || 'free',
 			tags: s.tags || [],
 			triggers: s.triggers || [],

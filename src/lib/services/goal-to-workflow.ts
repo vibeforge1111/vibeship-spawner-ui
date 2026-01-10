@@ -19,7 +19,18 @@ import { addNodesWithConnections } from '$lib/stores/canvas.svelte';
 import { skills as skillsStore, loadSkillsStatic } from '$lib/stores/skills.svelte';
 import { get } from 'svelte/store';
 import type { GeneratedWorkflow, GoalProcessingState, MatchedSkill } from '$lib/types/goal';
-import type { Skill } from '$lib/stores/skills.svelte';
+import type { Skill, SkillCategory } from '$lib/stores/skills.svelte';
+
+// Valid skill categories for type validation
+const VALID_CATEGORIES: SkillCategory[] = [
+	'development', 'frameworks', 'integrations', 'ai-ml', 'agents',
+	'data', 'design', 'marketing', 'strategy', 'enterprise',
+	'finance', 'legal', 'science', 'startup'
+];
+
+function isValidCategory(cat: string): cat is SkillCategory {
+	return VALID_CATEGORIES.includes(cat as SkillCategory);
+}
 
 export interface ProcessingResult {
 	success: boolean;
@@ -202,11 +213,12 @@ function createSkillFromMatch(matched: MatchedSkill): Skill {
 
 	// Create a minimal skill object from the matched data
 	// Note: matched.tier (1|2|3) is importance tier, but Skill.tier is pricing tier
+	const category: SkillCategory = isValidCategory(matched.category) ? matched.category : 'development';
 	return {
 		id: matched.skillId,
 		name: matched.name,
 		description: matched.description,
-		category: matched.category as any,
+		category,
 		tier: 'free' as const, // Default to free since we don't have pricing info
 		tags: matched.tags || [],
 		triggers: []

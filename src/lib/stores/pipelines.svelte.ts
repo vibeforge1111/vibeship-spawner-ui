@@ -181,7 +181,7 @@ export function initPipelines(): void {
 /**
  * Create a new pipeline from existing canvas data
  */
-function createPipelineFromData(name: string, canvasData: any): { metadata: PipelineMetadata; data: PipelineData } {
+function createPipelineFromData(name: string, canvasData: Partial<PipelineData>): { metadata: PipelineMetadata; data: PipelineData } {
 	const id = generateId();
 	const now = new Date().toISOString();
 
@@ -290,7 +290,7 @@ export function switchPipeline(id: string): PipelineData | null {
 /**
  * Save current pipeline data
  */
-export function saveCurrentPipeline(canvasData?: { nodes: any[]; connections: any[]; zoom: number; pan: { x: number; y: number } }): void {
+export function saveCurrentPipeline(canvasData?: PipelineData): void {
 	if (!browser) return;
 
 	const state = get(pipelinesState);

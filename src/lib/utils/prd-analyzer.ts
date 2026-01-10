@@ -10,8 +10,19 @@
  * LIMITS: Max 25 feature tasks to keep workflows manageable.
  */
 
-import type { Skill } from '$lib/stores/skills.svelte';
+import type { Skill, SkillCategory } from '$lib/stores/skills.svelte';
 import { KEYWORD_TO_SKILLS } from '$lib/services/h70-skill-matcher';
+
+// Valid skill categories for type validation
+const VALID_CATEGORIES: SkillCategory[] = [
+	'development', 'frameworks', 'integrations', 'ai-ml', 'agents',
+	'data', 'design', 'marketing', 'strategy', 'enterprise',
+	'finance', 'legal', 'science', 'startup'
+];
+
+function isValidCategory(cat: string): cat is SkillCategory {
+	return VALID_CATEGORIES.includes(cat as SkillCategory);
+}
 
 // Maximum tasks to generate (infrastructure + features + deployment)
 const MAX_FEATURE_TASKS = 20;
@@ -1001,12 +1012,13 @@ export function tasksToWorkflow(
  * Create a placeholder skill for tasks without matches
  */
 function createPlaceholderSkill(task: GeneratedTask): Skill {
-	const category = task.category || 'development';
+	const rawCategory = task.category || 'development';
+	const category: SkillCategory = isValidCategory(rawCategory) ? rawCategory : 'development';
 	return {
 		id: `generated-${task.id}`,
 		name: task.title || 'Untitled Task',
 		description: task.description || '',
-		category: category as any,
+		category,
 		tier: 'free',
 		tags: [category].filter(Boolean),
 		triggers: []

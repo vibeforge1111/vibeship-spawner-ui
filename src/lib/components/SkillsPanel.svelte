@@ -32,17 +32,29 @@
 			const response = await fetch('/skills.json');
 			if (response.ok) {
 				const data = await response.json();
-				allSkillsList = data.map((s: any) => ({
+				// Define raw skill interface for type safety
+				interface RawSkill {
+					id: string;
+					name: string;
+					description?: string;
+					category?: string;
+					tier?: string;
+					tags?: string[];
+					triggers?: string[];
+					handoffs?: { trigger: string; to: string }[];
+					pairsWell?: string[];
+				}
+				allSkillsList = (data as RawSkill[]).map((s) => ({
 					id: s.id,
 					name: s.name,
 					description: s.description || '',
-					category: s.category,
+					category: s.category || 'development',
 					tier: s.tier || 'free',
 					tags: s.tags || [],
 					triggers: s.triggers || [],
 					handoffs: s.handoffs || [],
 					pairsWell: s.pairsWell || []
-				}));
+				})) as Skill[];
 				allSkillsLoaded = true;
 			}
 		} catch (e) {
