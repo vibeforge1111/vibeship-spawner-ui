@@ -70,6 +70,62 @@ curl http://localhost:5173/api/h70-skills/drizzle-orm | jq .source
 # Should return: "h70-local"
 ```
 
+## H70 Skills as Development Guidance
+
+**CRITICAL: Always load and follow relevant H70 skills when doing ANY development work.**
+
+### Before Starting Work
+
+1. **Identify relevant skills** for the task (e.g., `typescript-strict`, `code-quality`, `test-architect`, `sveltekit`)
+2. **Read the skill file** from `C:/Users/USER/Desktop/vibeship-h70/skill-lab/{skill-name}/skill.yaml`
+3. **Check these sections:**
+   - `disasters`: Real failures to avoid (fear-first learning)
+   - `anti_patterns`: What NOT to do
+   - `patterns`: What TO do with implementation examples
+   - `gotchas`: Common traps everyone falls into
+
+### Key Skills for This Codebase
+
+| Task Type | H70 Skills to Load |
+|-----------|-------------------|
+| TypeScript/Types | `typescript-strict` |
+| Code quality/cleanup | `code-quality` |
+| Testing | `test-architect` |
+| SvelteKit/Svelte | `sveltekit` |
+| Security | `security-owasp` |
+| API design | `api-design` |
+| State management | `state-management` |
+
+### Principles from H70 Skills
+
+**From `code-quality`:**
+- Readable before clever - "Would a new team member understand this in 10 seconds?"
+- Rule of Three - Don't abstract until you see the pattern 3 times
+- Comments explain WHY, not WHAT
+- Pragmatic SOLID - principles are guidelines, not laws
+
+**From `typescript-strict`:**
+- Ban `any` - use `unknown` and narrow with Zod
+- Never use `!` (non-null assertion) - use `?.` or explicit checks
+- Never use `as Type` on external data - validate with Zod
+- Discriminated unions for state machines
+
+**From `test-architect`:**
+- Test pyramid: 70% unit, 20% integration, 10% E2E
+- Zero flaky test tolerance
+- Fakes over mocks - test behavior, not implementation
+- Coverage is a lie - use mutation testing to verify tests catch bugs
+
+### DO NOT Over-Engineer
+
+The H70 skills explicitly warn against:
+- Adding abstractions before you need them
+- "Clean Code" taken to extremes (47 files for one button)
+- DRY applied too early (wrong abstraction > duplication)
+- Patterns without the problems they solve
+
+**Simple, readable code that works > "properly architected" complexity**
+
 ## PRD-to-Skill Matching System
 
 ### CRITICAL RULES (DO NOT CHANGE)

@@ -8,6 +8,9 @@
  */
 
 import { z } from 'zod';
+import { logger } from '$lib/utils/logger';
+
+const log = logger.scope('Schema');
 
 // =============================================================================
 // Port and Connection Schemas
@@ -47,8 +50,8 @@ export const CanvasSkillSchema = z.object({
 	tags: z.array(z.string()).optional(),
 	triggers: z.array(z.string()).optional(),
 	layer: z.number().optional(),
-	inputs: z.array(z.any()).optional(),
-	outputs: z.array(z.any()).optional()
+	inputs: z.array(z.unknown()).optional(),
+	outputs: z.array(z.unknown()).optional()
 }).passthrough();
 
 // Canvas node as used in canvas.svelte.ts
@@ -642,10 +645,10 @@ export function safeJsonParse<T>(
 		if (result.success) {
 			return result.data;
 		}
-		console.warn(`[Schema] Validation failed${context ? ` for ${context}` : ''}:`, result.error.issues);
+		log.warn(`Validation failed${context ? ` for ${context}` : ''}:`, result.error.issues);
 		return undefined;
 	} catch (e) {
-		console.warn(`[Schema] JSON parse failed${context ? ` for ${context}` : ''}:`, e);
+		log.warn(`JSON parse failed${context ? ` for ${context}` : ''}:`, e);
 		return undefined;
 	}
 }
