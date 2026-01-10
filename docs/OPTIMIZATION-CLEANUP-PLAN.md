@@ -681,7 +681,7 @@ services/canvas-sync/
 
 | Section | Status | Commit | Date |
 |---------|--------|--------|------|
-| A: Security | ⬜ Not Started | - | - |
+| A: Security | 🔄 In Progress | `66173c8`, `238bae1` | 2026-01-10 |
 | B: Type Safety | ⬜ Not Started | - | - |
 | C: Duplication | ⬜ Not Started | - | - |
 | D: Logging | ⬜ Not Started | - | - |
@@ -690,6 +690,14 @@ services/canvas-sync/
 | G: Maintainability | ⬜ Not Started | - | - |
 
 **Legend:** ⬜ Not Started | 🔄 In Progress | ✅ Complete
+
+### Completed Tasks (Section A)
+- [x] A1.1: Install DOMPurify
+- [x] A1.2: Import DOMPurify in ChatPanel.svelte
+- [x] A1.3: Wrap formatMarkdown() with DOMPurify.sanitize()
+- [x] A2.1-A2.3: Gate debug functions behind DEV mode
+- [x] A3.1: Create Zod schemas file (src/lib/types/schemas.ts)
+- [ ] A3.2-A5.2: Migrate JSON.parse calls to use schemas (remaining)
 
 ---
 
