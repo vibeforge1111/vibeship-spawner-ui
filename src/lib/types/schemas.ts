@@ -35,7 +35,60 @@ export const ConnectionSchema = z.object({
 });
 
 // =============================================================================
-// Canvas Node Schemas
+// Canvas Store Schemas (matching canvas.svelte.ts)
+// =============================================================================
+
+// Skill schema for canvas nodes (simplified version embedded in nodes)
+export const CanvasSkillSchema = z.object({
+	id: z.string(),
+	name: z.string(),
+	description: z.string().optional(),
+	category: z.string().optional(),
+	tags: z.array(z.string()).optional(),
+	triggers: z.array(z.string()).optional(),
+	layer: z.number().optional(),
+	inputs: z.array(z.any()).optional(),
+	outputs: z.array(z.any()).optional()
+}).passthrough();
+
+// Canvas node as used in canvas.svelte.ts
+export const CanvasStoreNodeSchema = z.object({
+	id: z.string(),
+	skillId: z.string(),
+	skill: CanvasSkillSchema,
+	position: z.object({
+		x: z.number(),
+		y: z.number()
+	}),
+	status: z.enum(['idle', 'running', 'success', 'error']).optional()
+});
+
+// Connection as used in canvas.svelte.ts
+export const CanvasStoreConnectionSchema = z.object({
+	id: z.string(),
+	sourceNodeId: z.string(),
+	sourcePortId: z.string(),
+	targetNodeId: z.string(),
+	targetPortId: z.string()
+});
+
+// SavedCanvasState as used in canvas.svelte.ts
+export const CanvasStoreSavedStateSchema = z.object({
+	version: z.number().optional(),
+	nodes: z.array(CanvasStoreNodeSchema),
+	connections: z.array(CanvasStoreConnectionSchema),
+	zoom: z.number(),
+	pan: z.object({
+		x: z.number(),
+		y: z.number()
+	}),
+	savedAt: z.string().optional()
+});
+
+export type CanvasStoreSavedState = z.infer<typeof CanvasStoreSavedStateSchema>;
+
+// =============================================================================
+// Canvas Node Schemas (generic)
 // =============================================================================
 
 export const SharpEdgeSchema = z.object({

@@ -2,6 +2,7 @@ import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
 import type { Skill } from './skills.svelte';
 import { generatePorts, arePortTypesCompatible } from '$lib/utils/ports';
+import { CanvasStoreSavedStateSchema, safeJsonParse } from '$lib/types/schemas';
 
 const STORAGE_KEY = 'spawner-canvas-state';
 const MAX_HISTORY_SIZE = 50;
@@ -1179,10 +1180,10 @@ export function loadCanvas(): boolean {
 		const saved = localStorage.getItem(STORAGE_KEY);
 		if (!saved) return false;
 
-		const saveData: SavedCanvasState = JSON.parse(saved);
-
-		// Validate the data structure
-		if (!saveData.nodes || !Array.isArray(saveData.nodes)) {
+		// SECURITY: Validate JSON with Zod schema
+		const saveData = safeJsonParse(saved, CanvasStoreSavedStateSchema, 'canvas-state');
+		if (!saveData) {
+			console.warn('[Canvas] Invalid saved state, skipping load');
 			return false;
 		}
 
@@ -1197,8 +1198,10 @@ export function loadCanvas(): boolean {
 		nodeIdCounter = maxId;
 
 		canvasState.set({
-			nodes: saveData.nodes.map((n) => ({ ...n, status: 'idle' as const })),
-			connections: saveData.connections || [],
+			// Cast through unknown to CanvasNode[] since we've validated the structure with Zod
+			// The schema validates the core structure; runtime may have additional properties
+			nodes: saveData.nodes.map((n) => ({ ...n, status: 'idle' as const })) as unknown as CanvasNode[],
+			connections: saveData.connections as unknown as Connection[] || [],
 			selectedNodeId: null,
 			selectedNodeIds: [],
 			selectedConnectionId: null,
@@ -1242,9 +1245,12 @@ export function getSavedCanvasInfo(): { savedAt: Date; nodeCount: number } | nul
 		const saved = localStorage.getItem(STORAGE_KEY);
 		if (!saved) return null;
 
-		const saveData: SavedCanvasState = JSON.parse(saved);
+		// SECURITY: Validate JSON with Zod schema
+		const saveData = safeJsonParse(saved, CanvasStoreSavedStateSchema, 'canvas-info');
+		if (!saveData) return null;
+
 		return {
-			savedAt: new Date(saveData.savedAt),
+			savedAt: new Date(saveData.savedAt || ''),
 			nodeCount: saveData.nodes?.length || 0
 		};
 	} catch {
@@ -1339,11 +1345,11 @@ export function importCanvasFromFile(file: File): Promise<boolean> {
 		reader.onload = (e) => {
 			try {
 				const content = e.target?.result as string;
-				const importData: SavedCanvasState = JSON.parse(content);
 
-				// Validate the data structure
-				if (!importData.nodes || !Array.isArray(importData.nodes)) {
-					console.error('Invalid canvas file: missing nodes');
+				// SECURITY: Validate JSON with Zod schema
+				const importData = safeJsonParse(content, CanvasStoreSavedStateSchema, 'canvas-import');
+				if (!importData) {
+					console.error('Invalid canvas file: failed schema validation');
 					resolve(false);
 					return;
 				}
@@ -1361,8 +1367,10 @@ export function importCanvasFromFile(file: File): Promise<boolean> {
 				nodeIdCounter = maxId;
 
 				canvasState.set({
-					nodes: importData.nodes.map((n) => ({ ...n, status: 'idle' as const })),
-					connections: importData.connections || [],
+					// Cast through unknown to CanvasNode[] since we've validated the structure with Zod
+					// The schema validates the core structure; runtime may have additional properties
+					nodes: importData.nodes.map((n) => ({ ...n, status: 'idle' as const })) as unknown as CanvasNode[],
+					connections: importData.connections as unknown as Connection[] || [],
 					selectedNodeId: null,
 					selectedNodeIds: [],
 					selectedConnectionId: null,
