@@ -683,13 +683,18 @@ services/canvas-sync/
 |---------|--------|--------|------|
 | A: Security | ✅ Complete | `66173c8`, `238bae1`, `1a8471a`, `58ac231` | 2026-01-10 |
 | B: Type Safety | ✅ Complete | `cfc83dd` | 2026-01-10 |
-| C: Duplication | ⬜ Not Started | - | - |
+| C: Duplication | ✅ Complete | `24d627f` | 2026-01-10 |
 | D: Logging | ⬜ Not Started | - | - |
 | E: TODOs | ⬜ Not Started | - | - |
 | F: Testing | ⬜ Not Started | - | - |
 | G: Maintainability | ⬜ Not Started | - | - |
 
 **Legend:** ⬜ Not Started | 🔄 In Progress | ✅ Complete
+
+### Completed Tasks (Section C) ✅
+- [x] C3.1: Analyzed workflow generators - found utils/workflow-generator.ts was DEAD CODE (never imported)
+- [x] C3.1: Deleted utils/workflow-generator.ts (275 lines removed)
+- Note: No consolidation needed - only services/workflow-generator.ts is used
 
 ### Completed Tasks (Section B) ✅
 - [x] B2.1: Enhanced tsconfig.json with noImplicitReturns, noFallthroughCasesInSwitch, noImplicitOverride
