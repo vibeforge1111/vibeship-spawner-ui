@@ -1345,8 +1345,11 @@ export async function testCanvasSync(): Promise<void> {
 	console.log('[CanvasSync] Test complete! Check the canvas.');
 }
 
-// Expose test function globally for browser console testing
-if (typeof window !== 'undefined') {
+// SECURITY: Only expose test functions in development mode
+// These functions should never be available in production
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(window as any).testCanvasSync = testCanvasSync;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(window as any).addSkillsToCanvas = addSkillsFromClaude;
 }

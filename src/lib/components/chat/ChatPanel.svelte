@@ -145,9 +145,17 @@
 </div>
 
 <script module lang="ts">
-	// Simple markdown formatter for chat messages
+	import DOMPurify from 'dompurify';
+
+	// Allowed HTML tags and attributes for sanitization
+	const SANITIZE_CONFIG = {
+		ALLOWED_TAGS: ['pre', 'code', 'strong', 'h2', 'h3', 'div', 'br'],
+		ALLOWED_ATTR: ['class']
+	};
+
+	// Simple markdown formatter for chat messages with XSS protection
 	function formatMarkdown(text: string): string {
-		return text
+		const formatted = text
 			// Code blocks
 			.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-bg-primary p-2 my-1 overflow-x-auto text-xs"><code>$2</code></pre>')
 			// Inline code
@@ -161,6 +169,9 @@
 			.replace(/^- (.+)$/gm, '<div class="pl-2">• $1</div>')
 			// Line breaks
 			.replace(/\n/g, '<br/>');
+
+		// SECURITY: Sanitize to prevent XSS attacks
+		return DOMPurify.sanitize(formatted, SANITIZE_CONFIG);
 	}
 </script>
 
