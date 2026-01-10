@@ -8,6 +8,9 @@
 	import { isMemoryConnected, memoryConnectionStatus } from '$lib/stores/memory-settings.svelte';
 	import { setPRD, setProjectName } from '$lib/stores/project-docs.svelte';
 	import { analyzePRD, generateTasksFromPRD, tasksToWorkflow, type PRDAnalysis, type GeneratedTask } from '$lib/utils/prd-analyzer';
+	import { processSmartPRD, type SmartPRDAnalysis, type SmartMission } from '$lib/utils/smart-prd-analyzer';
+	import { initPRDBridge, requestPRDAnalysis, analysisStatus, type PRDAnalysisResult } from '$lib/services/prd-bridge';
+	import { onMount } from 'svelte';
 	import { skills as skillsStore, loadSkills, addSkills } from '$lib/stores/skills.svelte';
 	import { addNodesWithConnections, clearCanvas, nodes, connections } from '$lib/stores/canvas.svelte';
 	import { createNewPipeline, saveCurrentPipeline, initPipelines } from '$lib/stores/pipelines.svelte';
@@ -22,6 +25,24 @@
 	let isFocused = $state(false);
 	let isSubmitting = $state(false);
 	let fileInputEl: HTMLInputElement;
+
+	// Smart Mode - uses new analyzer that generates smaller, completable missions
+	let useSmartMode = $state(true);  // Default ON
+	let smartPrompt = $state<string | null>(null);  // Store generated prompt
+
+	// AI Mode - uses real Claude AI via bridge for intelligent PRD analysis
+	let useAIMode = $state(true);  // Default ON - this is the PREFERRED mode
+	let aiAnalysisStatus = $state<'idle' | 'pending' | 'analyzing' | 'complete' | 'error'>('idle');
+
+	// Initialize PRD bridge on mount
+	onMount(() => {
+		initPRDBridge();
+		// Subscribe to analysis status updates
+		const unsubscribe = analysisStatus.subscribe(status => {
+			aiAnalysisStatus = status;
+		});
+		return unsubscribe;
+	});
 
 	// PRD Processing Modal state
 	let showProcessingModal = $state(false);
@@ -87,57 +108,185 @@
 
 			try {
 				// Stage 0: Reading PRD
-				console.log('[PRD] Starting analysis, content length:', content.length);
+				console.log('[PRD] Starting analysis, content length:', content.length, 'aiMode:', useAIMode, 'smartMode:', useSmartMode);
 				await delay(600);
 
-				// Stage 1: Analyzing Features
-				processingStage = 1;
-				await delay(500);
-				const analysis = analyzePRD(content);
-				console.log('[PRD] Analysis complete:', { projectName: analysis.projectName, features: analysis.features.length });
-				processingProjectName = analysis.projectName || processingProjectName;
-				processingFeaturesFound = analysis.features.length;
-
-				// Stage 2: Detecting Stack
-				processingStage = 2;
-				await delay(500);
-
-				// Stage 3: Matching Skills - ensure skills are loaded
-				processingStage = 3;
+				// Load skills first (needed for all modes)
 				let skillsList = get(skillsStore);
-				console.log('[PRD] Skills before load:', skillsList.length);
 				if (skillsList.length === 0) {
-					// Try to load skills if empty
 					await loadSkills();
 					skillsList = get(skillsStore);
-					console.log('[PRD] Skills after load:', skillsList.length);
-				}
-				await delay(500);
-
-				// Stage 4: Building Pipeline
-				processingStage = 4;
-				const tasks = generateTasksFromPRD(analysis, skillsList);
-				console.log('[PRD] Generated tasks:', tasks.length);
-				processingTasksGenerated = tasks.length;
-
-				if (tasks.length === 0) {
-					showProcessingModal = false;
-					toasts.error('Could not extract tasks from PRD. Try adding more detail.');
-					return;
 				}
 
-				// Generate workflow
-				const workflow = tasksToWorkflow(tasks, skillsList);
-				console.log('[PRD] Workflow nodes:', workflow.nodes.length, 'connections:', workflow.connections.length);
-				pendingWorkflow = workflow;
-				await delay(600);
+				if (useAIMode) {
+					// === AI MODE ===
+					// Uses REAL Claude AI intelligence via bridge (PREFERRED)
+					console.log('[PRD-AI] Requesting Claude AI analysis...');
 
-				// Stage 5: Ready
-				processingStage = 5;
+					// Stage 1: Sending to Claude
+					processingStage = 1;
+					await delay(200);
 
-				// Update project name from analysis
-				if (analysis.projectName && analysis.projectName !== 'New Project') {
-					setProjectName(analysis.projectName);
+					try {
+						// Request analysis from Claude Code
+						const result = await requestPRDAnalysis(content, processingProjectName, 180000); // 3 min timeout
+
+						console.log('[PRD-AI] Analysis complete:', {
+							projectName: result.projectName,
+							projectType: result.projectType,
+							complexity: result.complexity,
+							tasks: result.tasks.length,
+							skills: result.skills.length
+						});
+
+						processingProjectName = result.projectName || processingProjectName;
+						processingFeaturesFound = result.tasks.length;
+
+						// Stage 2: Processing Results
+						processingStage = 2;
+						await delay(200);
+
+						// Stage 3: Mapping Skills
+						processingStage = 3;
+						await delay(200);
+
+						// Stage 4: Building Pipeline
+						processingStage = 4;
+						processingTasksGenerated = result.tasks.length;
+
+						if (result.tasks.length === 0) {
+							showProcessingModal = false;
+							toasts.error('Claude could not extract tasks from PRD. Try adding more detail.');
+							return;
+						}
+
+						// Convert result to workflow format
+						pendingWorkflow = prdResultToWorkflow(result, skillsList);
+						smartPrompt = result.executionPrompt;  // Store the Claude-generated prompt
+						await delay(300);
+
+						// Stage 5: Ready
+						processingStage = 5;
+
+						if (result.projectName && result.projectName !== 'New Project') {
+							setProjectName(result.projectName);
+						}
+
+						console.log('[PRD-AI] Pipeline ready:',
+							result.tasks.length, 'tasks,',
+							result.complexity, 'complexity');
+
+					} catch (err) {
+						console.error('[PRD-AI] Claude analysis failed:', err);
+						// Fall back to smart mode
+						console.log('[PRD-AI] Falling back to smart mode...');
+						toasts.warning('Claude AI not available, using smart analyzer');
+						// Continue with smart mode below
+						useAIMode = false;
+					}
+
+				}
+
+				// Only run smart/legacy mode if AI mode didn't succeed
+				if (!useAIMode && useSmartMode) {
+					// === SMART MODE ===
+					// Uses new analyzer that generates smaller, completable missions
+
+					// Stage 1: Smart Analysis
+					processingStage = 1;
+					await delay(400);
+					const result = processSmartPRD(content, skillsList);
+
+					console.log('[PRD-Smart] Analysis complete:', {
+						projectName: result.analysis.projectName,
+						projectType: result.analysis.projectType,
+						pipelineType: result.analysis.pipelineType,
+						features: result.analysis.explicitFeatures.length,
+						tasks: result.mission.totalTasks,
+						infrastructure: result.analysis.infrastructure
+					});
+
+					processingProjectName = result.analysis.projectName || processingProjectName;
+					processingFeaturesFound = result.analysis.explicitFeatures.length;
+
+					// Stage 2: Stack Detection
+					processingStage = 2;
+					await delay(300);
+
+					// Stage 3: Skills
+					processingStage = 3;
+					await delay(300);
+
+					// Stage 4: Building Pipeline
+					processingStage = 4;
+					processingTasksGenerated = result.mission.totalTasks;
+
+					if (result.mission.tasks.length === 0) {
+						showProcessingModal = false;
+						toasts.error('Could not extract tasks from PRD. Try adding more detail.');
+						return;
+					}
+
+					pendingWorkflow = result.workflow;
+					smartPrompt = result.prompt;  // Store for later copy
+					await delay(400);
+
+					// Stage 5: Ready
+					processingStage = 5;
+
+					if (result.analysis.projectName && result.analysis.projectName !== 'New Project') {
+						setProjectName(result.analysis.projectName);
+					}
+
+					console.log('[PRD-Smart] Pipeline ready:',
+						result.mission.totalTasks, 'tasks,',
+						result.mission.estimatedComplexity, 'complexity');
+
+				} else if (!useAIMode && !useSmartMode) {
+					// === LEGACY MODE ===
+					// Original analyzer (only used if both AI and Smart modes are disabled)
+
+					// Stage 1: Analyzing Features
+					processingStage = 1;
+					await delay(500);
+					const analysis = analyzePRD(content);
+					console.log('[PRD-Legacy] Analysis complete:', { projectName: analysis.projectName, features: analysis.features.length });
+					processingProjectName = analysis.projectName || processingProjectName;
+					processingFeaturesFound = analysis.features.length;
+
+					// Stage 2: Detecting Stack
+					processingStage = 2;
+					await delay(500);
+
+					// Stage 3: Matching Skills
+					processingStage = 3;
+					await delay(500);
+
+					// Stage 4: Building Pipeline
+					processingStage = 4;
+					const tasks = generateTasksFromPRD(analysis, skillsList);
+					console.log('[PRD-Legacy] Generated tasks:', tasks.length);
+					processingTasksGenerated = tasks.length;
+
+					if (tasks.length === 0) {
+						showProcessingModal = false;
+						toasts.error('Could not extract tasks from PRD. Try adding more detail.');
+						return;
+					}
+
+					// Generate workflow
+					const workflow = tasksToWorkflow(tasks, skillsList);
+					console.log('[PRD-Legacy] Workflow nodes:', workflow.nodes.length, 'connections:', workflow.connections.length);
+					pendingWorkflow = workflow;
+					smartPrompt = null;  // No smart prompt in legacy mode
+					await delay(600);
+
+					// Stage 5: Ready
+					processingStage = 5;
+
+					if (analysis.projectName && analysis.projectName !== 'New Project') {
+						setProjectName(analysis.projectName);
+					}
 				}
 
 			} catch (err) {
@@ -198,6 +347,115 @@
 
 	function delay(ms: number): Promise<void> {
 		return new Promise(resolve => setTimeout(resolve, ms));
+	}
+
+	/**
+	 * Convert PRD Analysis Result from Claude AI to workflow format
+	 */
+	function prdResultToWorkflow(result: PRDAnalysisResult, skillsList: Skill[]): {
+		nodes: { skill: Skill; position: { x: number; y: number } }[];
+		connections: { sourceIndex: number; targetIndex: number }[];
+	} {
+		const nodes: { skill: Skill; position: { x: number; y: number } }[] = [];
+		const connections: { sourceIndex: number; targetIndex: number }[] = [];
+
+		// Create a skill lookup map
+		const skillMap = new Map<string, Skill>();
+		for (const skill of skillsList) {
+			skillMap.set(skill.id.toLowerCase(), skill);
+			skillMap.set(skill.name.toLowerCase(), skill);
+		}
+
+		// Group tasks by phase
+		const phases = new Map<number, typeof result.tasks>();
+		for (const task of result.tasks) {
+			const phase = task.phase || 1;
+			if (!phases.has(phase)) phases.set(phase, []);
+			phases.get(phase)!.push(task);
+		}
+
+		// Layout constants
+		const NODE_WIDTH = 280;
+		const NODE_HEIGHT = 120;
+		const HORIZONTAL_GAP = 80;
+		const VERTICAL_GAP = 40;
+		const START_X = 100;
+		const START_Y = 100;
+
+		// Create nodes for each task, positioned by phase
+		const taskIndexMap = new Map<string, number>();
+		let nodeIndex = 0;
+
+		const sortedPhases = [...phases.keys()].sort((a, b) => a - b);
+
+		for (const phase of sortedPhases) {
+			const phaseTasks = phases.get(phase)!;
+			const phaseX = START_X + (phase - 1) * (NODE_WIDTH + HORIZONTAL_GAP);
+
+			for (let i = 0; i < phaseTasks.length; i++) {
+				const task = phaseTasks[i];
+
+				// Find the best matching skill for this task
+				let matchedSkill: Skill | undefined;
+				for (const skillId of task.skills) {
+					matchedSkill = skillMap.get(skillId.toLowerCase());
+					if (matchedSkill) break;
+				}
+
+				// If no skill matched, create a placeholder skill
+				const skillToUse: Skill = matchedSkill ?? {
+					id: task.id,
+					name: task.title,
+					description: task.description,
+					category: 'development',
+					tier: 'free',
+					tags: [],
+					triggers: []
+				};
+
+				const position = {
+					x: phaseX,
+					y: START_Y + i * (NODE_HEIGHT + VERTICAL_GAP)
+				};
+
+				nodes.push({ skill: skillToUse, position });
+				taskIndexMap.set(task.id, nodeIndex);
+				nodeIndex++;
+			}
+		}
+
+		// Create connections based on task dependencies
+		for (const task of result.tasks) {
+			const targetIndex = taskIndexMap.get(task.id);
+			if (targetIndex === undefined) continue;
+
+			for (const depId of task.dependsOn) {
+				const sourceIndex = taskIndexMap.get(depId);
+				if (sourceIndex !== undefined) {
+					connections.push({ sourceIndex, targetIndex });
+				}
+			}
+		}
+
+		// If no explicit connections, connect phases sequentially
+		if (connections.length === 0 && sortedPhases.length > 1) {
+			for (let p = 0; p < sortedPhases.length - 1; p++) {
+				const currentPhase = phases.get(sortedPhases[p])!;
+				const nextPhase = phases.get(sortedPhases[p + 1])!;
+
+				// Connect last task of current phase to first task of next phase
+				const lastTaskId = currentPhase[currentPhase.length - 1].id;
+				const firstTaskId = nextPhase[0].id;
+				const sourceIndex = taskIndexMap.get(lastTaskId);
+				const targetIndex = taskIndexMap.get(firstTaskId);
+
+				if (sourceIndex !== undefined && targetIndex !== undefined) {
+					connections.push({ sourceIndex, targetIndex });
+				}
+			}
+		}
+
+		return { nodes, connections };
 	}
 </script>
 

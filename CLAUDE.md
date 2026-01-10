@@ -406,6 +406,79 @@ src/
 6. Progress events sent via EventBridge
 7. Results displayed in ExecutionPanel
 
+## PRD Analysis Bridge (REAL AI)
+
+**CRITICAL: PRD analysis uses REAL Claude AI intelligence, not regex patterns.**
+
+When a user uploads a PRD to Spawner UI, Claude Code analyzes it with actual intelligence.
+
+### How It Works
+
+1. User uploads PRD → UI writes to `.spawner/pending-prd.md`
+2. UI sends `prd_analysis_requested` event
+3. Claude Code checks `/api/prd-bridge/pending` or reads the file
+4. Claude Code analyzes PRD with real AI (variable task count based on complexity)
+5. Claude Code sends results via `POST /api/events` with type `prd_analysis_complete`
+6. UI receives intelligent pipeline (could be 5 or 25 tasks - depends on actual project)
+
+### Checking for Pending PRD Analysis
+
+```bash
+curl http://localhost:5173/api/prd-bridge/pending
+```
+
+Returns: `{"pending": true, "requestId": "...", "prdContent": "..."}` if pending
+
+### Responding to PRD Analysis
+
+```bash
+curl -X POST http://localhost:5173/api/events \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "prd_analysis_complete",
+    "data": {
+      "requestId": "prd-xxx",
+      "result": {
+        "success": true,
+        "projectName": "...",
+        "projectType": "saas|tool|marketplace|...",
+        "complexity": "simple|moderate|complex",
+        "infrastructure": {"needsAuth": false, "needsDatabase": true, ...},
+        "techStack": {"framework": "SvelteKit", ...},
+        "tasks": [{
+          "id": "task-1",
+          "title": "...",
+          "skills": ["skill-id"],
+          "phase": 1,
+          "dependsOn": [],
+          "verification": {"criteria": [...]}
+        }],
+        "skills": ["skill-1", "skill-2"],
+        "executionPrompt": "..."
+      }
+    }
+  }'
+```
+
+### Task Count Guidelines
+
+| Complexity | Task Count | Examples |
+|------------|------------|----------|
+| Simple | 4-8 | Landing page, static site |
+| Moderate | 8-15 | Single feature app, tool |
+| Complex | 15-25 | Full SaaS, marketplace |
+| Maximum | 30 | Never exceed this |
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/services/prd-bridge.ts` | Bridge service (client + types) |
+| `src/routes/api/prd-bridge/write/+server.ts` | Write PRD for analysis |
+| `src/routes/api/prd-bridge/pending/+server.ts` | Check pending requests |
+| `.spawner/pending-prd.md` | PRD content file |
+| `.spawner/pending-request.json` | Request metadata |
+
 ## Environment
 
 - **H70 Skills Path**: `C:/Users/USER/Desktop/vibeship-h70/skill-lab`
