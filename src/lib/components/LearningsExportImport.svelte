@@ -2,6 +2,7 @@
 	import { memoryClient } from '$lib/services/memory-client';
 	import type { Memory, ContentType } from '$lib/types/memory';
 	import { isMemoryConnected } from '$lib/stores/memory-settings.svelte';
+	import { LearningsExportDataSchema, safeJsonParse } from '$lib/types/schemas';
 
 	interface Props {
 		onImportComplete?: (count: number) => void;
@@ -193,16 +194,16 @@
 			let importData: ExportData;
 
 			if (file.name.endsWith('.json')) {
-				importData = JSON.parse(text);
+				// SECURITY: Validate JSON with Zod schema
+				const parsed = safeJsonParse(text, LearningsExportDataSchema, 'learnings-import');
+				if (!parsed) {
+					error = 'Invalid import file format';
+					importing = false;
+					return;
+				}
+				importData = parsed as ExportData;
 			} else {
 				error = 'Only JSON format is supported for import';
-				importing = false;
-				return;
-			}
-
-			// Validate import data
-			if (!importData.version || !importData.memories || !Array.isArray(importData.memories)) {
-				error = 'Invalid import file format';
 				importing = false;
 				return;
 			}

@@ -13,6 +13,7 @@ import { browser } from '$app/environment';
 import { memoryClient } from '$lib/services/memory-client';
 import type { MemorySettings, LearningGranularity, HealthResponse } from '$lib/types/memory';
 import { DEFAULT_MEMORY_SETTINGS } from '$lib/types/memory';
+import { MemorySettingsSchema, safeJsonParse } from '$lib/types/schemas';
 
 // ============================================
 // State Types
@@ -45,8 +46,13 @@ function loadFromStorage(): MemorySettings {
 	try {
 		const stored = localStorage.getItem(STORAGE_KEY);
 		if (stored) {
-			const parsed = JSON.parse(stored);
-			return { ...DEFAULT_MEMORY_SETTINGS, ...parsed };
+			// SECURITY: Validate JSON with Zod schema
+			const parsed = safeJsonParse(stored, MemorySettingsSchema, 'memory-settings');
+			if (parsed) {
+				// Cast through unknown since schema validates structure but types may differ
+				return { ...DEFAULT_MEMORY_SETTINGS, ...(parsed as unknown as Partial<MemorySettings>) };
+			}
+			console.warn('[MemorySettings] Invalid stored data, using defaults');
 		}
 	} catch {
 		// Ignore parse errors

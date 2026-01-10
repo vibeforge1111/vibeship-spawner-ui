@@ -6,6 +6,7 @@
  */
 
 import { browser } from '$app/environment';
+import { ProjectDocsSchema, safeJsonParse } from '$lib/types/schemas';
 
 const STORAGE_KEY = 'spawner-project-docs';
 
@@ -146,7 +147,12 @@ function loadFromStorage(): ProjectDocs {
 		try {
 			const saved = localStorage.getItem(STORAGE_KEY);
 			if (saved) {
-				return JSON.parse(saved);
+				// SECURITY: Validate JSON with Zod schema
+				const parsed = safeJsonParse(saved, ProjectDocsSchema, 'project-docs');
+				if (parsed) {
+					return parsed;
+				}
+				console.warn('[ProjectDocs] Invalid stored data, using defaults');
 			}
 		} catch (e) {
 			console.error('Failed to load project docs:', e);

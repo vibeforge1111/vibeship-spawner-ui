@@ -10,6 +10,7 @@
 
 import { browser } from '$app/environment';
 import type { Mission } from '$lib/types/mission';
+import { BackupDataSchema, MissionStateSchema, safeJsonParse } from '$lib/types/schemas';
 
 // Current schema version - increment when data structure changes
 const SCHEMA_VERSION = 1;
@@ -255,7 +256,11 @@ export function restoreBackup(backupJson: string): { success: boolean; error?: s
 	}
 
 	try {
-		const backup = JSON.parse(backupJson);
+		// SECURITY: Validate JSON with Zod schema
+		const backup = safeJsonParse(backupJson, BackupDataSchema, 'backup-restore');
+		if (!backup) {
+			return { success: false, error: 'Invalid backup format', itemsRestored: 0 };
+		}
 		let itemsRestored = 0;
 
 		for (const [key, value] of Object.entries(backup)) {
@@ -547,7 +552,14 @@ export function clearOldMissionState(): { cleared: boolean; reason?: string } {
 	if (!raw) return { cleared: false };
 
 	try {
-		const state = JSON.parse(raw);
+		// SECURITY: Validate JSON with Zod schema
+		const state = safeJsonParse(raw, MissionStateSchema, 'mission-state-check');
+		if (!state) {
+			// Corrupted or invalid data, clear it
+			console.log('[Persistence] Clearing invalid mission state');
+			clearMissionState();
+			return { cleared: true, reason: 'Invalid data format' };
+		}
 
 		// Check for version mismatch
 		if (state.version !== MISSION_STATE_VERSION) {

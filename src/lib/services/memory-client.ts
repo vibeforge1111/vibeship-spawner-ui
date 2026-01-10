@@ -31,6 +31,7 @@ import type {
 	TemporalLevel
 } from '$lib/types/memory';
 import { TEMPORAL_LEVELS } from '$lib/types/memory';
+import { AgentMemoryMetadataSchema, safeJsonParse } from '$lib/types/schemas';
 
 // ============================================
 // LITE+ Types for Decision Tracing
@@ -482,12 +483,18 @@ class MemoryClient {
 		try {
 			const content = memory.content.substring(0, sepIndex);
 			const metaJson = memory.content.substring(sepIndex + separator.length);
-			const metadata = JSON.parse(metaJson) as AgentMemoryMetadata;
+			// SECURITY: Validate JSON with Zod schema
+			const metadata = safeJsonParse(metaJson, AgentMemoryMetadataSchema, 'memory-metadata');
+
+			if (!metadata) {
+				// If validation fails, return as-is
+				return memory;
+			}
 
 			return {
 				...memory,
 				content,
-				metadata
+				metadata: metadata as AgentMemoryMetadata
 			};
 		} catch {
 			// If parsing fails, return as-is

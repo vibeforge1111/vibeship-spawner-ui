@@ -2,6 +2,7 @@ import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
 import { mcpClient, type McpSkill } from '$lib/services/mcp-client';
 import { mcpState } from './mcp.svelte';
+import { StoredSkillArraySchema, safeJsonParse } from '$lib/types/schemas';
 
 const GENERATED_SKILLS_KEY = 'spawner-generated-skills';
 
@@ -146,7 +147,14 @@ function loadGeneratedSkills(): Skill[] {
 	try {
 		const saved = localStorage.getItem(GENERATED_SKILLS_KEY);
 		if (saved) {
-			const skills = JSON.parse(saved) as Skill[];
+			// SECURITY: Validate JSON with Zod schema
+			const parsedSkills = safeJsonParse(saved, StoredSkillArraySchema, 'generated-skills');
+			if (!parsedSkills) {
+				console.warn('[Skills] Invalid generated skills data, returning empty');
+				return [];
+			}
+			// Cast to Skill[] since we've validated the structure
+			const skills = parsedSkills as unknown as Skill[];
 			console.log(`[Skills] Loaded ${skills.length} generated skills from localStorage`);
 			return skills;
 		}

@@ -10,6 +10,7 @@
 
 import { writable, get } from 'svelte/store';
 import { browser } from '$app/environment';
+import { ClientBridgeEventSchema, safeJsonParse } from '$lib/types/schemas';
 
 export interface BridgeEvent {
 	id?: string;
@@ -93,8 +94,13 @@ class ClientEventBridge {
 
 			this.eventSource.onmessage = (event) => {
 				try {
-					const data = JSON.parse(event.data) as BridgeEvent;
-					this.notifySubscribers(data);
+					// SECURITY: Validate JSON with Zod schema
+					const data = safeJsonParse(event.data, ClientBridgeEventSchema, 'bridge-event');
+					if (data) {
+						this.notifySubscribers(data as BridgeEvent);
+					} else {
+						console.warn('[EventBridge] Invalid event data, skipping');
+					}
 				} catch (e) {
 					console.error('[EventBridge] Failed to parse event:', e);
 				}

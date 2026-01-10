@@ -183,17 +183,27 @@ export const SkillArraySchema = z.array(SkillSchema);
 export type Skill = z.infer<typeof SkillSchema>;
 
 // =============================================================================
-// Memory Settings Schemas
+// Memory Settings Schemas (for localStorage - matches memory.ts types)
 // =============================================================================
 
-export const MemorySettingsSchema = z.object({
-	enabled: z.boolean().optional().default(true),
-	apiUrl: z.string().optional(),
-	autoCapture: z.boolean().optional().default(true),
-	captureLevel: z.enum(['minimal', 'normal', 'detailed']).optional().default('normal')
-});
+export const LearningGranularitySchema = z.enum([
+	'everything',
+	'almost-everything',
+	'moderate',
+	'significant',
+	'manual'
+]);
 
-export type MemorySettings = z.infer<typeof MemorySettingsSchema>;
+export const MemorySettingsSchema = z.object({
+	enabled: z.boolean(),
+	backend: z.enum(['lite', 'standard', 'auto']),
+	liteEndpoint: z.string(),
+	standardEndpoint: z.string(),
+	userId: z.string(),
+	learningGranularity: LearningGranularitySchema,
+	autoExtractPatterns: z.boolean(),
+	syncLearnings: z.boolean().optional()
+}).partial();  // All fields optional for partial updates from storage
 
 // =============================================================================
 // Service State Schemas (for status-storage)
@@ -335,6 +345,282 @@ export const ImportDataSchema = z.object({
 	version: z.string().optional(),
 	exportedAt: z.string().optional(),
 	data: z.record(z.unknown())
+}).passthrough();
+
+// =============================================================================
+// Skills Store Schemas (for localStorage)
+// =============================================================================
+
+export const StoredSkillSchema = z.object({
+	id: z.string(),
+	name: z.string(),
+	description: z.string(),
+	category: z.string(),
+	tier: z.string(),
+	tags: z.array(z.string()),
+	triggers: z.array(z.string()),
+	tokenEstimate: z.number().optional(),
+	version: z.string().optional(),
+	handoffs: z.array(z.object({
+		trigger: z.string(),
+		to: z.string()
+	})).optional(),
+	pairsWell: z.array(z.string()).optional()
+});
+
+export const StoredSkillArraySchema = z.array(StoredSkillSchema);
+
+// =============================================================================
+// Project Docs Store Schemas
+// =============================================================================
+
+export const ProjectDocsSchema = z.object({
+	prd: z.string(),
+	architecture: z.string(),
+	implementation: z.string(),
+	projectName: z.string(),
+	lastUpdated: z.string()
+});
+
+export type ProjectDocs = z.infer<typeof ProjectDocsSchema>;
+
+// =============================================================================
+// MCP Store Schemas (for localStorage)
+// =============================================================================
+
+export const MCPInstanceStorageSchema = z.object({
+	id: z.string(),
+	definitionId: z.string(),
+	name: z.string(),
+	status: z.enum(['connected', 'connecting', 'disconnected', 'error']),
+	config: z.record(z.unknown()).optional(),
+	usageCount: z.number(),
+	feedbackCount: z.number(),
+	attachedToSkills: z.array(z.string()),
+	attachedToTeams: z.array(z.string()),
+	attachedToMissions: z.array(z.string()),
+	autoFeedback: z.boolean().optional(),
+	enabled: z.boolean().optional(),
+	createdAt: z.string(),
+	updatedAt: z.string(),
+	lastConnected: z.string().optional(),
+	lastError: z.string().optional(),
+	serverInfo: z.record(z.unknown()).optional(),
+	tools: z.array(z.record(z.unknown())).optional()
+});
+
+export const SkillMCPBindingSchema = z.object({
+	mcpId: z.string(),
+	skillId: z.string(),
+	bindingType: z.enum(['required', 'recommended', 'optional']),
+	purpose: z.string(),
+	autoAttach: z.boolean(),
+	toolsUsed: z.array(z.string())
+});
+
+export const TeamMCPBindingSchema = z.object({
+	mcpId: z.string(),
+	teamId: z.string(),
+	sharedAcrossTeam: z.boolean(),
+	purpose: z.string(),
+	feedbackAggregation: z.boolean()
+});
+
+export const MCPStorageSchema = z.object({
+	instances: z.array(MCPInstanceStorageSchema).optional().default([]),
+	skillBindings: z.array(SkillMCPBindingSchema).optional().default([]),
+	teamBindings: z.array(TeamMCPBindingSchema).optional().default([])
+});
+
+// =============================================================================
+// Services Store Schemas (for localStorage - status dashboard)
+// =============================================================================
+
+export const DashboardServiceSchema = z.object({
+	id: z.string(),
+	name: z.string(),
+	url: z.string(),
+	description: z.string().optional(),
+	status: z.enum(['healthy', 'degraded', 'down', 'unknown']),
+	lastCheck: z.string().nullable(),
+	lastResponseTime: z.number().nullable(),
+	uptimePercentage: z.number(),
+	consecutiveFailures: z.number(),
+	createdAt: z.string(),
+	tags: z.array(z.string()).optional()
+});
+
+export const DashboardServiceArraySchema = z.array(DashboardServiceSchema);
+
+export const DashboardAlertConfigSchema = z.object({
+	id: z.string(),
+	serviceId: z.string(),
+	enabled: z.boolean(),
+	responseTimeThreshold: z.number(),
+	consecutiveFailuresThreshold: z.number(),
+	notifyOnRecovery: z.boolean()
+});
+
+export const DashboardAlertConfigArraySchema = z.array(DashboardAlertConfigSchema);
+
+// =============================================================================
+// Status Storage Schemas (status-storage.ts - separate from services.svelte.ts)
+// =============================================================================
+
+export const StatusServiceSchema = z.object({
+	id: z.string(),
+	name: z.string(),
+	url: z.string(),
+	description: z.string().optional(),
+	status: z.enum(['healthy', 'degraded', 'down', 'unknown']),
+	lastCheck: z.string().nullable(),
+	lastResponseTime: z.number().nullable(),
+	uptimePercentage: z.number(),
+	consecutiveFailures: z.number(),
+	createdAt: z.string(),
+	tags: z.array(z.string()).optional()
+});
+
+export const StatusServiceArraySchema = z.array(StatusServiceSchema);
+
+export const StatusHealthCheckSchema = z.object({
+	id: z.string(),
+	serviceId: z.string(),
+	status: z.enum(['healthy', 'degraded', 'down', 'unknown']),
+	responseTime: z.number(),
+	timestamp: z.string(),
+	error: z.string().optional(),
+	metadata: z.record(z.unknown()).optional()
+});
+
+export const StatusHealthCheckArraySchema = z.array(StatusHealthCheckSchema);
+
+export const StatusIncidentSchema = z.object({
+	id: z.string(),
+	serviceId: z.string(),
+	startTime: z.string(),
+	endTime: z.string().nullable(),
+	status: z.enum(['ongoing', 'resolved']),
+	type: z.enum(['degraded', 'down']),
+	description: z.string().optional()
+});
+
+export const StatusIncidentArraySchema = z.array(StatusIncidentSchema);
+
+export const StatusAlertConfigSchema = z.object({
+	id: z.string(),
+	serviceId: z.string(),
+	responseTimeThreshold: z.number(),
+	consecutiveFailuresThreshold: z.number(),
+	enabled: z.boolean(),
+	notifyOnRecovery: z.boolean()
+});
+
+export const StatusAlertConfigArraySchema = z.array(StatusAlertConfigSchema);
+
+export const DashboardSettingsSchema = z.object({
+	refreshInterval: z.number(),
+	showResponseTimes: z.boolean(),
+	showUptimeHistory: z.boolean(),
+	darkMode: z.boolean()
+}).partial();
+
+// =============================================================================
+// Event Bridge Client Schemas
+// =============================================================================
+
+export const ClientBridgeEventSchema = z.object({
+	id: z.string().optional(),
+	type: z.string(),
+	missionId: z.string().optional(),
+	taskId: z.string().optional(),
+	taskName: z.string().optional(),
+	progress: z.number().optional(),
+	message: z.string().optional(),
+	data: z.record(z.unknown()).optional(),
+	timestamp: z.string(),
+	source: z.enum(['claude-code', 'spawner-ui', 'server'])
+});
+
+// =============================================================================
+// Sync Client Schemas
+// =============================================================================
+
+export const SyncMessageSchema = z.object({
+	type: z.string(),
+	data: z.record(z.unknown()).optional(),
+	timestamp: z.number().optional()
+});
+
+// =============================================================================
+// Learnings Export/Import Schema
+// =============================================================================
+
+export const LearningsExportDataSchema = z.object({
+	version: z.string(),
+	exportedAt: z.string().optional(),
+	source: z.string().optional(),
+	memories: z.array(z.object({
+		content: z.string(),
+		content_type: z.string().optional(),
+		temporal_level: z.number().optional(),
+		salience: z.number().optional()
+	}).passthrough()),
+	stats: z.object({
+		totalCount: z.number(),
+		byType: z.record(z.number())
+	}).optional()
+});
+
+// =============================================================================
+// Persistence Backup Schemas
+// =============================================================================
+
+export const BackupDataSchema = z.object({
+	_version: z.number().optional(),
+	_timestamp: z.string().optional()
+}).passthrough();  // Allow any spawner-* keys
+
+export const MissionStateSchema = z.object({
+	version: z.number().optional(),
+	executionPrompt: z.string().optional(),
+	status: z.string().optional(),
+	mission: z.record(z.unknown()).optional()
+}).passthrough();
+
+// =============================================================================
+// Canvas Drag/Drop Skill Schema
+// =============================================================================
+
+export const DroppedSkillSchema = z.object({
+	id: z.string(),
+	name: z.string().optional(),
+	description: z.string().optional(),
+	tier: z.number().optional(),
+	tags: z.array(z.string()).optional(),
+	triggers: z.array(z.string()).optional(),
+	owns: z.array(z.string()).optional(),
+	delegates: z.array(z.string()).optional()
+}).passthrough();
+
+// =============================================================================
+// Claude API Analysis Response Schema (for /api/analyze)
+// =============================================================================
+
+export const ClaudeApiAnalysisSchema = z.object({
+	suggestedSkills: z.array(z.union([
+		z.string(),
+		z.object({
+			id: z.string(),
+			reason: z.string().optional(),
+			tier: z.number().optional()
+		})
+	])).optional(),
+	technologies: z.array(z.string()).optional(),
+	features: z.array(z.string()).optional(),
+	domains: z.array(z.string()).optional(),
+	reasoning: z.string().optional(),
+	confidence: z.number().optional()
 }).passthrough();
 
 // =============================================================================

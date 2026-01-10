@@ -26,6 +26,7 @@ import { get } from 'svelte/store';
 	import SessionStateBar from '$lib/components/SessionStateBar.svelte';
 	import { initPipelines, saveCurrentPipeline, getActivePipelineData, activePipelineId, createNewPipeline } from '$lib/stores/pipelines.svelte';
 	import { hasResumableMission } from '$lib/services/persistence';
+	import { DroppedSkillSchema, safeJsonParse } from '$lib/types/schemas';
 
 	let activeTab = $state('skills');
 	let chatExpanded = $state(false);
@@ -739,14 +740,17 @@ import { get } from 'svelte/store';
 		if (!e.dataTransfer) return;
 		const skillJson = e.dataTransfer.getData('application/json');
 		if (!skillJson) return;
-		try {
-			const skill = JSON.parse(skillJson);
-			const rect = canvasEl.getBoundingClientRect();
-			const rawX = (e.clientX - rect.left - pan.x) / zoom;
-			const rawY = (e.clientY - rect.top - pan.y) / zoom;
-			const snapped = snapPosition(rawX, rawY);
-			addNode(skill, snapped);
-		} catch (err) { console.error(err); }
+		// SECURITY: Validate JSON with Zod schema
+		const skill = safeJsonParse(skillJson, DroppedSkillSchema, 'canvas-drop');
+		if (!skill) {
+			console.error('Invalid skill data dropped on canvas');
+			return;
+		}
+		const rect = canvasEl.getBoundingClientRect();
+		const rawX = (e.clientX - rect.left - pan.x) / zoom;
+		const rawY = (e.clientY - rect.top - pan.y) / zoom;
+		const snapped = snapPosition(rawX, rawY);
+		addNode(skill, snapped);
 	}
 
 	function handleDragOver(e: DragEvent) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; }

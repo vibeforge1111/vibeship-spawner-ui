@@ -13,6 +13,14 @@ import type {
 	AlertConfig,
 	DashboardStats
 } from '$lib/types/dashboard';
+import {
+	StatusServiceArraySchema,
+	StatusHealthCheckArraySchema,
+	StatusIncidentArraySchema,
+	StatusAlertConfigArraySchema,
+	DashboardSettingsSchema,
+	safeJsonParse
+} from '$lib/types/schemas';
 
 // Storage keys
 const STORAGE_PREFIX = 'status-dashboard';
@@ -37,13 +45,15 @@ export function getServices(): Service[] {
 	try {
 		const data = localStorage.getItem(KEYS.SERVICES);
 		if (!data) return [];
-		const services = JSON.parse(data) as Service[];
+		// SECURITY: Validate JSON with Zod schema
+		const services = safeJsonParse(data, StatusServiceArraySchema, 'status-services');
+		if (!services) return [];
 		// Restore Date objects
 		return services.map(s => ({
 			...s,
 			lastCheck: s.lastCheck ? new Date(s.lastCheck) : null,
 			createdAt: new Date(s.createdAt)
-		}));
+		})) as Service[];
 	} catch {
 		return [];
 	}
@@ -92,11 +102,13 @@ export function getHealthHistory(serviceId?: string): HealthCheck[] {
 	try {
 		const data = localStorage.getItem(KEYS.HEALTH_HISTORY);
 		if (!data) return [];
-		const history = JSON.parse(data) as HealthCheck[];
+		// SECURITY: Validate JSON with Zod schema
+		const history = safeJsonParse(data, StatusHealthCheckArraySchema, 'status-health-history');
+		if (!history) return [];
 		const restored = history.map(h => ({
 			...h,
 			timestamp: new Date(h.timestamp)
-		}));
+		})) as HealthCheck[];
 		if (serviceId) {
 			return restored.filter(h => h.serviceId === serviceId);
 		}
@@ -154,12 +166,14 @@ export function getIncidents(serviceId?: string): Incident[] {
 	try {
 		const data = localStorage.getItem(KEYS.INCIDENTS);
 		if (!data) return [];
-		const incidents = JSON.parse(data) as Incident[];
+		// SECURITY: Validate JSON with Zod schema
+		const incidents = safeJsonParse(data, StatusIncidentArraySchema, 'status-incidents');
+		if (!incidents) return [];
 		const restored = incidents.map(i => ({
 			...i,
 			startTime: new Date(i.startTime),
 			endTime: i.endTime ? new Date(i.endTime) : null
-		}));
+		})) as Incident[];
 		if (serviceId) {
 			return restored.filter(i => i.serviceId === serviceId);
 		}
@@ -230,11 +244,13 @@ export function getAlerts(serviceId?: string): AlertConfig[] {
 	try {
 		const data = localStorage.getItem(KEYS.ALERTS);
 		if (!data) return [];
-		const alerts = JSON.parse(data) as AlertConfig[];
+		// SECURITY: Validate JSON with Zod schema
+		const alerts = safeJsonParse(data, StatusAlertConfigArraySchema, 'status-alerts');
+		if (!alerts) return [];
 		if (serviceId) {
-			return alerts.filter(a => a.serviceId === serviceId);
+			return (alerts as AlertConfig[]).filter(a => a.serviceId === serviceId);
 		}
-		return alerts;
+		return alerts as AlertConfig[];
 	} catch {
 		return [];
 	}
@@ -325,7 +341,10 @@ export function getSettings(): DashboardSettings {
 	try {
 		const data = localStorage.getItem(KEYS.SETTINGS);
 		if (!data) return DEFAULT_SETTINGS;
-		return { ...DEFAULT_SETTINGS, ...JSON.parse(data) };
+		// SECURITY: Validate JSON with Zod schema
+		const parsed = safeJsonParse(data, DashboardSettingsSchema, 'dashboard-settings');
+		if (!parsed) return DEFAULT_SETTINGS;
+		return { ...DEFAULT_SETTINGS, ...parsed };
 	} catch {
 		return DEFAULT_SETTINGS;
 	}

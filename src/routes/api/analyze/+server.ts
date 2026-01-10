@@ -9,6 +9,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import skillIndex from '$lib/data/skill-index-ultra.json';
+import { ClaudeApiAnalysisSchema, safeJsonParse } from '$lib/types/schemas';
 
 interface AnalysisRequest {
 	goal: string;
@@ -175,7 +176,16 @@ export const POST: RequestHandler = async ({ request }) => {
 			}
 			jsonText = jsonText.trim();
 
-			const analysis: ClaudeAnalysis = JSON.parse(jsonText);
+			// SECURITY: Validate JSON with Zod schema
+			const parsed = safeJsonParse(jsonText, ClaudeApiAnalysisSchema, 'claude-analysis');
+			if (!parsed) {
+				console.error('Failed to validate Claude response:', jsonText.slice(0, 500));
+				return json({
+					error: 'Invalid analysis response format',
+					fallback: true
+				}, { status: 502 });
+			}
+			const analysis: ClaudeAnalysis = parsed as ClaudeAnalysis;
 
 			// Validate skill selections
 			if (analysis.suggestedSkills && Array.isArray(analysis.suggestedSkills)) {

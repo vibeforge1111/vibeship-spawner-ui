@@ -22,6 +22,7 @@ import type {
 	MCPRegistryItem
 } from '$lib/types/mcp';
 import { TOP_100_MCPS, getMCPCategories } from '$lib/types/mcp';
+import { MCPStorageSchema, safeJsonParse } from '$lib/types/schemas';
 
 // ============================================
 // State Interface
@@ -687,12 +688,18 @@ export function loadFromStorage() {
 	try {
 		const saved = localStorage.getItem(STORAGE_KEY);
 		if (saved) {
-			const data = JSON.parse(saved);
+			// SECURITY: Validate JSON with Zod schema
+			const data = safeJsonParse(saved, MCPStorageSchema, 'mcp-storage');
+			if (!data) {
+				console.warn('[MCP] Invalid stored data, skipping load');
+				return;
+			}
 			mcpStore.update((s) => ({
 				...s,
-				instances: data.instances || [],
-				skillBindings: data.skillBindings || [],
-				teamBindings: data.teamBindings || []
+				// Cast through unknown since schema validates structure but types may differ
+				instances: (data.instances || []) as unknown as MCPInstance[],
+				skillBindings: (data.skillBindings || []) as unknown as SkillMCPBinding[],
+				teamBindings: (data.teamBindings || []) as unknown as TeamMCPBinding[]
 			}));
 		}
 	} catch (e) {

@@ -6,6 +6,7 @@
 import { browser } from '$app/environment';
 import type { Service, HealthCheck, DashboardStats, AlertConfig } from '$lib/types/dashboard';
 import { healthChecker, createHealthCheck, calculateUptime, type CheckResult } from '$lib/services/health-checker';
+import { DashboardServiceArraySchema, DashboardAlertConfigArraySchema, safeJsonParse } from '$lib/types/schemas';
 
 // Storage key for persistence
 const STORAGE_KEY = 'status-dashboard-services';
@@ -22,17 +23,28 @@ if (browser) {
 	try {
 		const stored = localStorage.getItem(STORAGE_KEY);
 		if (stored) {
-			const parsed = JSON.parse(stored);
-			services = parsed.map((s: Service) => ({
-				...s,
-				lastCheck: s.lastCheck ? new Date(s.lastCheck) : null,
-				createdAt: new Date(s.createdAt),
-			}));
+			// SECURITY: Validate JSON with Zod schema
+			const parsed = safeJsonParse(stored, DashboardServiceArraySchema, 'dashboard-services');
+			if (parsed) {
+				services = parsed.map((s) => ({
+					...s,
+					lastCheck: s.lastCheck ? new Date(s.lastCheck) : null,
+					createdAt: new Date(s.createdAt),
+				})) as Service[];
+			} else {
+				console.warn('[ServicesStore] Invalid services data, skipping load');
+			}
 		}
 
 		const storedAlerts = localStorage.getItem(ALERTS_STORAGE_KEY);
 		if (storedAlerts) {
-			alerts = JSON.parse(storedAlerts);
+			// SECURITY: Validate JSON with Zod schema
+			const parsedAlerts = safeJsonParse(storedAlerts, DashboardAlertConfigArraySchema, 'dashboard-alerts');
+			if (parsedAlerts) {
+				alerts = parsedAlerts as AlertConfig[];
+			} else {
+				console.warn('[ServicesStore] Invalid alerts data, skipping load');
+			}
 		}
 	} catch (e) {
 		console.error('[ServicesStore] Failed to load from localStorage:', e);

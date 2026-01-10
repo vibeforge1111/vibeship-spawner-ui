@@ -11,6 +11,7 @@
  */
 
 import { writable, derived, get } from 'svelte/store';
+import { SyncMessageSchema, safeJsonParse } from '$lib/types/schemas';
 
 export type SyncStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'error';
 
@@ -163,8 +164,13 @@ class SyncClient {
 
 				this.ws.onmessage = (event) => {
 					try {
-						const data = JSON.parse(event.data);
-						this.handleMessage(data);
+						// SECURITY: Validate JSON with Zod schema
+						const data = safeJsonParse(event.data, SyncMessageSchema, 'sync-message');
+						if (data) {
+							this.handleMessage(data);
+						} else {
+							console.warn('[SyncClient] Invalid message data, skipping');
+						}
 					} catch (error) {
 						console.error('[SyncClient] Failed to parse message:', error);
 					}
