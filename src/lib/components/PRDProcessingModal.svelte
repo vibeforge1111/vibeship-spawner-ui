@@ -9,15 +9,35 @@
 		projectName = 'Your Project',
 		featuresFound = 0,
 		tasksGenerated = 0,
-		onComplete
+		waitingForClaude = false,
+		prdRequestId = '',
+		onComplete,
+		onSkipToLocal
 	}: {
 		isOpen: boolean;
 		currentStage: number;
 		projectName?: string;
 		featuresFound?: number;
 		tasksGenerated?: number;
+		waitingForClaude?: boolean;
+		prdRequestId?: string;
 		onComplete?: () => void;
+		onSkipToLocal?: () => void;
 	} = $props();
+
+	// Copyable prompt for Claude Code
+	const claudePrompt = $derived(`Analyze the pending PRD and send results to Spawner UI`);
+	let copied = $state(false);
+
+	async function copyPrompt() {
+		try {
+			await navigator.clipboard.writeText(claudePrompt);
+			copied = true;
+			setTimeout(() => copied = false, 2000);
+		} catch (e) {
+			console.error('Failed to copy:', e);
+		}
+	}
 
 	const stages = [
 		{ label: 'Reading PRD', icon: '◈' },
@@ -115,8 +135,57 @@
 				</div>
 			</div>
 
+			<!-- Waiting for Claude section -->
+			{#if waitingForClaude}
+				<div class="px-6 pb-5" in:fade={{ duration: 200 }}>
+					<div class="pt-4 border-t border-surface-border">
+						<div class="bg-accent-primary/5 border border-accent-primary/20 p-4">
+							<div class="flex items-start gap-3 mb-3">
+								<div class="w-8 h-8 flex items-center justify-center border border-accent-primary text-accent-primary animate-pulse">
+									<span class="text-lg">◈</span>
+								</div>
+								<div>
+									<p class="text-sm font-medium text-text-primary mb-1">Paste in Claude Code</p>
+									<p class="text-xs text-text-secondary">Copy this prompt and paste it in your Claude Code terminal</p>
+								</div>
+							</div>
+
+							<!-- Copyable prompt box -->
+							<div class="relative">
+								<code class="block p-3 bg-bg-primary border border-surface-border text-sm font-mono text-accent-primary break-all">
+									{claudePrompt}
+								</code>
+								<button
+									type="button"
+									class="absolute top-2 right-2 px-2 py-1 text-xs font-mono bg-surface hover:bg-surface-active border border-surface-border transition-colors"
+									onclick={copyPrompt}
+								>
+									{copied ? '✓ Copied' : 'Copy'}
+								</button>
+							</div>
+
+							<p class="text-xs text-text-tertiary mt-3 flex items-center gap-2">
+								<span class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
+								Waiting for Claude to analyze...
+							</p>
+						</div>
+
+						<!-- Skip to local analysis option -->
+						{#if onSkipToLocal}
+							<button
+								type="button"
+								class="mt-3 w-full py-2 text-sm text-text-tertiary hover:text-text-secondary border border-surface-border hover:border-surface-active transition-colors"
+								onclick={onSkipToLocal}
+							>
+								Skip → Use local analyzer instead
+							</button>
+						{/if}
+					</div>
+				</div>
+			{/if}
+
 			<!-- Stats section - separate from stages -->
-			{#if currentStage >= 2}
+			{#if currentStage >= 2 && !waitingForClaude}
 				<div class="px-6 pb-5">
 					<div class="pt-4 border-t border-surface-border">
 						<div class="grid grid-cols-3 gap-4 text-center" in:fade={{ duration: 200 }}>

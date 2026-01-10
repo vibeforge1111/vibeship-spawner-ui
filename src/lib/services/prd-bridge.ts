@@ -16,17 +16,7 @@
 
 import { browser } from '$app/environment';
 import { writable, get } from 'svelte/store';
-
-// Import BridgeEvent type - clientEventBridge may be null in non-browser
 import type { BridgeEvent } from './event-bridge';
-
-// Dynamic import to handle SSR
-let clientEventBridge: { subscribe: (cb: (event: BridgeEvent) => void) => () => void } | null = null;
-if (browser) {
-	import('./event-bridge').then(m => {
-		clientEventBridge = m.clientEventBridge;
-	});
-}
 
 // =============================================================================
 // TYPES
@@ -116,32 +106,35 @@ const pendingRequests = new Map<string, {
  */
 let bridgeInitialized = false;
 
-export function initPRDBridge(): void {
+export async function initPRDBridge(): Promise<void> {
 	if (!browser || bridgeInitialized) return;
 
-	// Wait a bit for dynamic import to complete
-	const tryInit = () => {
-		if (clientEventBridge) {
-			// Subscribe to bridge events
-			clientEventBridge.subscribe((event: BridgeEvent) => {
-				if (event.type === 'prd_analysis_complete') {
-					handleAnalysisComplete(event);
-				} else if (event.type === 'prd_analysis_error') {
-					handleAnalysisError(event);
-				} else if (event.type === 'prd_analysis_progress') {
-					// Optional: show progress updates
-					console.log('[PRDBridge] Analysis progress:', event.message);
-				}
-			});
-			bridgeInitialized = true;
-			console.log('[PRDBridge] Initialized, listening for analysis responses');
-		} else {
-			// Retry in 100ms
-			setTimeout(tryInit, 100);
-		}
-	};
+	try {
+		// Dynamic import to get the client event bridge
+		const { clientEventBridge } = await import('./event-bridge');
 
-	tryInit();
+		if (!clientEventBridge) {
+			console.warn('[PRDBridge] clientEventBridge not available');
+			return;
+		}
+
+		// Subscribe to bridge events
+		clientEventBridge.subscribe((event: BridgeEvent) => {
+			console.log('[PRDBridge] Received event:', event.type);
+			if (event.type === 'prd_analysis_complete') {
+				handleAnalysisComplete(event);
+			} else if (event.type === 'prd_analysis_error') {
+				handleAnalysisError(event);
+			} else if (event.type === 'prd_analysis_progress') {
+				console.log('[PRDBridge] Analysis progress:', event.message);
+			}
+		});
+
+		bridgeInitialized = true;
+		console.log('[PRDBridge] Initialized, listening for analysis responses');
+	} catch (e) {
+		console.error('[PRDBridge] Failed to initialize:', e);
+	}
 }
 
 /**
@@ -251,11 +244,21 @@ function waitForAnalysisResponse(requestId: string, timeoutMs: number): Promise<
 function handleAnalysisComplete(event: BridgeEvent): void {
 	const data = event.data as { requestId?: string; result?: PRDAnalysisResult };
 
+	console.log('[PRDBridge] Received analysis complete event:', data?.requestId);
+
 	if (!data?.requestId) {
 		console.warn('[PRDBridge] Received analysis without requestId');
 		return;
 	}
 
+	// Always update the stores so UI can react
+	if (data.result) {
+		analysisResult.set(data.result);
+		analysisStatus.set('complete');
+		console.log('[PRDBridge] Updated stores with result:', data.result.projectName);
+	}
+
+	// Also resolve any pending promise-based requests
 	const pending = pendingRequests.get(data.requestId);
 	if (pending) {
 		clearTimeout(pending.timeout);

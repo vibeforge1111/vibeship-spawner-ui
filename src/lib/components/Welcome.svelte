@@ -50,6 +50,8 @@
 	let processingProjectName = $state('');
 	let processingFeaturesFound = $state(0);
 	let processingTasksGenerated = $state(0);
+	let waitingForClaude = $state(false);
+	let currentPrdRequestId = $state('');
 	// Workflow type matches tasksToWorkflow return type
 	let pendingWorkflow: {
 		nodes: { skill: Skill; position: { x: number; y: number } }[];
@@ -121,67 +123,88 @@
 				if (useAIMode) {
 					// === AI MODE ===
 					// Uses REAL Claude AI intelligence via bridge (PREFERRED)
-					console.log('[PRD-AI] Requesting Claude AI analysis...');
+					console.log('[PRD-AI] Setting up for Claude analysis...');
 
-					// Stage 1: Sending to Claude
+					// Stage 1: Writing PRD for Claude
 					processingStage = 1;
-					await delay(200);
 
 					try {
-						// Request analysis from Claude Code
-						const result = await requestPRDAnalysis(content, processingProjectName, 180000); // 3 min timeout
-
-						console.log('[PRD-AI] Analysis complete:', {
-							projectName: result.projectName,
-							projectType: result.projectType,
-							complexity: result.complexity,
-							tasks: result.tasks.length,
-							skills: result.skills.length
+						// Write PRD to file for Claude to read
+						const writeResponse = await fetch('/api/prd-bridge/write', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({
+								content,
+								requestId: `prd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+								projectName: processingProjectName
+							})
 						});
 
-						processingProjectName = result.projectName || processingProjectName;
-						processingFeaturesFound = result.tasks.length;
-
-						// Stage 2: Processing Results
-						processingStage = 2;
-						await delay(200);
-
-						// Stage 3: Mapping Skills
-						processingStage = 3;
-						await delay(200);
-
-						// Stage 4: Building Pipeline
-						processingStage = 4;
-						processingTasksGenerated = result.tasks.length;
-
-						if (result.tasks.length === 0) {
-							showProcessingModal = false;
-							toasts.error('Claude could not extract tasks from PRD. Try adding more detail.');
-							return;
+						if (!writeResponse.ok) {
+							throw new Error('Failed to write PRD');
 						}
 
-						// Convert result to workflow format
-						pendingWorkflow = prdResultToWorkflow(result, skillsList);
-						smartPrompt = result.executionPrompt;  // Store the Claude-generated prompt
-						await delay(300);
+						const { requestId } = await writeResponse.json();
+						currentPrdRequestId = requestId;
 
-						// Stage 5: Ready
-						processingStage = 5;
+						// Show "waiting for Claude" with copyable prompt
+						waitingForClaude = true;
 
-						if (result.projectName && result.projectName !== 'New Project') {
-							setProjectName(result.projectName);
-						}
+						console.log('[PRD-AI] PRD written, waiting for Claude. Request ID:', requestId);
 
-						console.log('[PRD-AI] Pipeline ready:',
-							result.tasks.length, 'tasks,',
-							result.complexity, 'complexity');
+						// Capture skillsList in closure
+						const capturedSkills = skillsList;
+
+						// Set up listener for Claude's response
+						const unsubscribe = analysisStatus.subscribe(status => {
+							console.log('[PRD-AI] Status changed to:', status);
+							if (status === 'complete') {
+								// Claude responded! Get the result from the store
+								import('$lib/services/prd-bridge').then(({ analysisResult }) => {
+									const result = get(analysisResult);
+									console.log('[PRD-AI] Got result:', result?.projectName, 'requestId match:', result?.requestId === requestId);
+
+									if (result) {
+										try {
+											waitingForClaude = false;
+											processingProjectName = result.projectName || processingProjectName;
+											processingFeaturesFound = result.tasks?.length || 0;
+											processingStage = 4;
+											processingTasksGenerated = result.tasks?.length || 0;
+
+											console.log('[PRD-AI] Converting to workflow with', capturedSkills.length, 'skills');
+											pendingWorkflow = prdResultToWorkflow(result, capturedSkills);
+											console.log('[PRD-AI] Workflow created:', pendingWorkflow?.nodes?.length, 'nodes');
+
+											smartPrompt = result.executionPrompt;
+											processingStage = 5;
+
+											if (result.projectName && result.projectName !== 'New Project') {
+												setProjectName(result.projectName);
+											}
+
+											console.log('[PRD-AI] Pipeline ready! Stage:', processingStage);
+											unsubscribe();
+										} catch (err) {
+											console.error('[PRD-AI] Error processing result:', err);
+											waitingForClaude = false;
+											processingStage = 5; // Still show as complete
+											unsubscribe();
+										}
+									}
+								}).catch(err => {
+									console.error('[PRD-AI] Import error:', err);
+								});
+							}
+						});
+
+						// Don't block - let user copy/paste the prompt
+						return;
 
 					} catch (err) {
-						console.error('[PRD-AI] Claude analysis failed:', err);
-						// Fall back to smart mode
-						console.log('[PRD-AI] Falling back to smart mode...');
-						toasts.warning('Claude AI not available, using smart analyzer');
-						// Continue with smart mode below
+						console.error('[PRD-AI] Setup failed:', err);
+						waitingForClaude = false;
+						toasts.warning('Could not set up Claude analysis, using local analyzer');
 						useAIMode = false;
 					}
 
@@ -350,6 +373,65 @@
 	}
 
 	/**
+	 * Skip Claude AI and use local smart analyzer instead
+	 */
+	async function handleSkipToLocal() {
+		console.log('[PRD] Skipping to local analyzer...');
+		waitingForClaude = false;
+
+		// Read the pending PRD content
+		const prdResponse = await fetch('/api/prd-bridge/pending');
+		const prdData = await prdResponse.json();
+
+		if (!prdData.pending || !prdData.prdContent) {
+			toasts.error('No pending PRD found');
+			showProcessingModal = false;
+			return;
+		}
+
+		// Load skills if needed
+		let skillsList = get(skillsStore);
+		if (skillsList.length === 0) {
+			await loadSkills();
+			skillsList = get(skillsStore);
+		}
+
+		// Use smart analyzer
+		processingStage = 1;
+		await delay(300);
+		const result = processSmartPRD(prdData.prdContent, skillsList);
+
+		processingProjectName = result.analysis.projectName || processingProjectName;
+		processingFeaturesFound = result.analysis.explicitFeatures.length;
+
+		processingStage = 2;
+		await delay(200);
+		processingStage = 3;
+		await delay(200);
+		processingStage = 4;
+		processingTasksGenerated = result.mission.totalTasks;
+
+		if (result.mission.tasks.length === 0) {
+			showProcessingModal = false;
+			toasts.error('Could not extract tasks from PRD');
+			return;
+		}
+
+		pendingWorkflow = result.workflow;
+		smartPrompt = result.prompt;
+		await delay(300);
+
+		processingStage = 5;
+
+		if (result.analysis.projectName && result.analysis.projectName !== 'New Project') {
+			setProjectName(result.analysis.projectName);
+		}
+
+		// Clear the pending request
+		await fetch('/api/prd-bridge/pending', { method: 'DELETE' });
+	}
+
+	/**
 	 * Convert PRD Analysis Result from Claude AI to workflow format
 	 */
 	function prdResultToWorkflow(result: PRDAnalysisResult, skillsList: Skill[]): {
@@ -465,7 +547,10 @@
 	projectName={processingProjectName}
 	featuresFound={processingFeaturesFound}
 	tasksGenerated={processingTasksGenerated}
+	waitingForClaude={waitingForClaude}
+	prdRequestId={currentPrdRequestId}
 	onComplete={handleProcessingComplete}
+	onSkipToLocal={handleSkipToLocal}
 />
 
 <div class="min-h-screen bg-bg-primary">
