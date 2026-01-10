@@ -1418,7 +1418,10 @@ class MissionExecutor {
 					logLearning.debug(`  Memories attributed: ${result.data.memoriesAttributed}`);
 					logLearning.debug(`  Patterns found: ${result.data.topPatterns.length}`);
 				}
-			}).catch(() => {});
+			}).catch((err) => {
+				// Non-critical: metrics are informational only
+				logLearning.debug('Failed to fetch self-improvement metrics:', err);
+			});
 
 		} catch (error) {
 			logLearning.error('Failed to record mission complete:', error);

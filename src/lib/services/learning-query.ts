@@ -60,7 +60,7 @@ export async function searchLearnings(query: LearningQuery): Promise<Memory[]> {
 		const result = await memoryClient.retrieve(query.query, {
 			limit: query.limit || 20,
 			content_types: ['agent_learning', 'agent_decision'],
-			agent_id: query.agentIds?.[0]  // TODO: Support multiple agent filtering
+			agent_id: query.agentIds?.[0]  // Mind API only supports single agent_id filter currently
 		});
 
 		if (!result.success || !result.data) {

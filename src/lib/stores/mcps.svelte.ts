@@ -585,8 +585,8 @@ export async function processFeedback(feedbackId: string): Promise<boolean> {
 	}));
 
 	try {
-		// TODO: Actually send to Mind API
-		// For now, just mark as processed
+		// Mind API integration deferred - feedback stored locally for now
+		// When Mind v5 adds feedback endpoints, send via memoryClient here
 		const processedFeedback: MCPFeedback = {
 			...feedback,
 			status: 'processed',

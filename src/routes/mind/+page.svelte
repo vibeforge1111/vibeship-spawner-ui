@@ -183,8 +183,9 @@
 	}
 
 	function handleViewEvidence(id: string) {
-		// TODO: Open modal with evidence from source missions
-		console.log('View evidence for:', id);
+		// Evidence modal deferred - learnings don't currently store source mission IDs
+		// Would need to track decision_trace_id linkage in memory metadata
+		alert(`Evidence viewer not yet implemented.\n\nLearning ID: ${id}`);
 	}
 
 	// Now using unified Mind v5 storage
