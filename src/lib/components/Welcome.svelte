@@ -10,7 +10,8 @@
 	import { analyzePRD, generateTasksFromPRD, tasksToWorkflow, type PRDAnalysis, type GeneratedTask } from '$lib/utils/prd-analyzer';
 	import { skills as skillsStore, loadSkills, addSkills } from '$lib/stores/skills.svelte';
 	import { addNodesWithConnections, clearCanvas, nodes, connections } from '$lib/stores/canvas.svelte';
-	import { createNewPipeline, saveCurrentPipeline, initPipelines, type PipelineData } from '$lib/stores/pipelines.svelte';
+	import { createNewPipeline, saveCurrentPipeline, initPipelines } from '$lib/stores/pipelines.svelte';
+	import type { Skill } from '$lib/stores/skills.svelte';
 	import { toasts } from '$lib/stores/toast.svelte';
 	import { get } from 'svelte/store';
 
@@ -28,7 +29,11 @@
 	let processingProjectName = $state('');
 	let processingFeaturesFound = $state(0);
 	let processingTasksGenerated = $state(0);
-	let pendingWorkflow: Pick<PipelineData, 'nodes' | 'connections'> | null = null;
+	// Workflow type matches tasksToWorkflow return type
+	let pendingWorkflow: {
+		nodes: { skill: Skill; position: { x: number; y: number } }[];
+		connections: { sourceIndex: number; targetIndex: number }[];
+	} | null = null;
 
 	const skillCategories = [
 		{ name: 'Frontend', count: 45, icon: '◧' },
@@ -172,9 +177,10 @@
 			const currentConnections = get(connections);
 
 			// Save to the pipeline so canvas page loads it correctly
+			// Cast through unknown for storage compatibility
 			saveCurrentPipeline({
-				nodes: currentNodes,
-				connections: currentConnections,
+				nodes: currentNodes as unknown as Record<string, unknown>[],
+				connections: currentConnections as unknown as Record<string, unknown>[],
 				zoom: 1,
 				pan: { x: 0, y: 0 }
 			});

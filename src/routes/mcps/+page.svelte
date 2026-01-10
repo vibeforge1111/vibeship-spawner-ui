@@ -20,7 +20,7 @@
 	} from '$lib/stores/mcps.svelte';
 	import type { MCPInstance, MCPConnectionStatus, MCPRegistryItem } from '$lib/types/mcp';
 
-	let state = $state<MCPState>({
+	let mcpState: MCPState = $state({
 		registry: [],
 		loadingRegistry: false,
 		instances: [],
@@ -37,24 +37,24 @@
 		error: null
 	});
 
-	let registry = $state<MCPRegistryItem[]>([]);
-	let instances = $state<MCPInstance[]>([]);
+	let registry: MCPRegistryItem[] = $state([]);
+	let instances: MCPInstance[] = $state([]);
 	let feedbackCount = $state(0);
-	let categories = $state<string[]>([]);
+	let categories: string[] = $state([]);
 
 	// Tabs
-	let activeTab = $state<'discover' | 'connected' | 'feedback'>('discover');
+	let activeTab: 'discover' | 'connected' | 'feedback' = $state('discover');
 
 	// Modal state
 	let showConnectModal = $state(false);
-	let selectedMCP = $state<MCPRegistryItem | null>(null);
+	let selectedMCP: MCPRegistryItem | null = $state(null);
 	let connecting = $state(false);
 
 	// Search
 	let searchInputEl: HTMLInputElement;
 
 	$effect(() => {
-		const unsub1 = mcpStore.subscribe((s) => (state = s));
+		const unsub1 = mcpStore.subscribe((s) => (mcpState = s));
 		const unsub2 = filteredRegistry.subscribe((r) => (registry = r));
 		const unsub3 = connectedInstances.subscribe((i) => (instances = i));
 		const unsub4 = pendingFeedbackCount.subscribe((c) => (feedbackCount = c));
@@ -338,19 +338,19 @@
 	function getSubcategoriesForCategory(category: string): string[] {
 		return [
 			...new Set(
-				state.registry.filter((m) => m.category === category).map((m) => m.subcategory)
+				mcpState.registry.filter((m: MCPRegistryItem) => m.category === category).map((m: MCPRegistryItem) => m.subcategory)
 			)
-		];
+		] as string[];
 	}
 
 	// Check if MCP is connected
 	function isConnected(mcpId: string): boolean {
-		return state.instances.some((i) => i.definitionId === mcpId);
+		return mcpState.instances.some((i: MCPInstance) => i.definitionId === mcpId);
 	}
 
 	// Get count for category
 	function getCategoryCount(category: string): number {
-		return state.registry.filter((m) => m.category === category).length;
+		return mcpState.registry.filter((m: MCPRegistryItem) => m.category === category).length;
 	}
 </script>
 
@@ -406,12 +406,12 @@
 						bind:this={searchInputEl}
 						type="text"
 						placeholder="Search MCPs..."
-						value={state.searchQuery}
+						value={mcpState.searchQuery}
 						oninput={(e) => setSearchQuery(e.currentTarget.value)}
 						onkeydown={handleSearchKeydown}
 						class="w-full pl-8 pr-8 py-2 bg-bg-primary border border-surface-border text-text-primary font-mono text-sm placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary"
 					/>
-					{#if state.searchQuery}
+					{#if mcpState.searchQuery}
 						<button
 							onclick={() => setSearchQuery('')}
 							class="absolute right-2 text-text-tertiary hover:text-text-secondary"
@@ -428,24 +428,24 @@
 				<button
 					onclick={() => handleCategoryClick('all')}
 					class="w-full px-3 py-2.5 flex items-center gap-3 transition-all border-l-2"
-					class:border-accent-primary={state.filterCategory === 'all'}
-					class:bg-surface-active={state.filterCategory === 'all'}
-					class:border-transparent={state.filterCategory !== 'all'}
-					class:hover:bg-surface-active={state.filterCategory !== 'all'}
+					class:border-accent-primary={mcpState.filterCategory === 'all'}
+					class:bg-surface-active={mcpState.filterCategory === 'all'}
+					class:border-transparent={mcpState.filterCategory !== 'all'}
+					class:hover:bg-surface-active={mcpState.filterCategory !== 'all'}
 				>
 					<div class="w-8 h-8 flex items-center justify-center bg-bg-primary border border-surface-border">
 						<Icon name="layers" size={16} class="text-text-secondary" />
 					</div>
 					<div class="flex-1 text-left">
 						<div class="text-sm font-medium text-text-primary">All MCPs</div>
-						<div class="text-xs text-text-tertiary">{state.registry.length} available</div>
+						<div class="text-xs text-text-tertiary">{mcpState.registry.length} available</div>
 					</div>
 				</button>
 
 				<!-- Category Items -->
 				{#each categories as category}
 					{@const count = getCategoryCount(category)}
-					{@const isActive = state.filterCategory === category}
+					{@const isActive = mcpState.filterCategory === category}
 					<button
 						onclick={() => handleCategoryClick(category)}
 						class="w-full px-3 py-2.5 flex items-center gap-3 transition-all border-l-2"
@@ -467,7 +467,7 @@
 		{:else}
 			<!-- Connected MCPs sidebar content -->
 			<div class="flex-1 overflow-y-auto p-3">
-				{#if state.instances.length === 0}
+				{#if mcpState.instances.length === 0}
 					<div class="text-center py-8">
 						<div class="text-text-tertiary mb-2">
 							<Icon name="plug" size={32} />
@@ -481,10 +481,10 @@
 						</button>
 					</div>
 				{:else}
-					<p class="text-xs text-text-tertiary font-mono mb-2">CONNECTED ({state.instances.length})</p>
+					<p class="text-xs text-text-tertiary font-mono mb-2">CONNECTED ({mcpState.instances.length})</p>
 					<div class="space-y-2">
-						{#each state.instances as instance}
-							{@const mcp = state.registry.find((m) => m.id === instance.definitionId)}
+						{#each mcpState.instances as instance}
+							{@const mcp = mcpState.registry.find((m: MCPRegistryItem) => m.id === instance.definitionId)}
 							<div class="p-2 bg-bg-primary border border-surface-border">
 								<div class="flex items-center gap-2">
 									<span class="{getStatusColor(instance.status)}">
@@ -505,7 +505,7 @@
 		<!-- Footer Stats -->
 		<div class="p-3 border-t border-surface-border">
 			<div class="flex items-center justify-between text-xs font-mono text-text-tertiary">
-				<span>{state.registry.length} available</span>
+				<span>{mcpState.registry.length} available</span>
 				<div class="flex items-center gap-2">
 					<span class="flex items-center gap-1">
 						<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
@@ -539,7 +539,7 @@
 				<div class="flex items-center gap-4 text-xs font-mono">
 					<div class="flex items-center gap-1.5">
 						<span class="text-text-tertiary">Available:</span>
-						<span class="text-text-primary">{state.registry.length}</span>
+						<span class="text-text-primary">{mcpState.registry.length}</span>
 					</div>
 					<div class="flex items-center gap-1.5">
 						<span class="text-text-tertiary">Connected:</span>
@@ -547,7 +547,7 @@
 					</div>
 					<div class="flex items-center gap-1.5">
 						<span class="text-text-tertiary">Bindings:</span>
-						<span class="text-text-primary">{state.skillBindings.length + state.teamBindings.length}</span>
+						<span class="text-text-primary">{mcpState.skillBindings.length + mcpState.teamBindings.length}</span>
 					</div>
 					{#if feedbackCount > 0}
 						<div class="flex items-center gap-1.5">
@@ -578,18 +578,18 @@
 			</div>
 
 			<!-- Subcategory filter row (when category selected) -->
-			{#if activeTab === 'discover' && state.filterCategory !== 'all'}
-				{@const subcategories = getSubcategoriesForCategory(state.filterCategory)}
+			{#if activeTab === 'discover' && mcpState.filterCategory !== 'all'}
+				{@const subcategories = getSubcategoriesForCategory(mcpState.filterCategory)}
 				{#if subcategories.length > 1}
 					<div class="h-9 flex items-center px-4 gap-2 border-t border-surface-border/50 overflow-x-auto">
 						<span class="text-xs text-text-tertiary font-mono flex-shrink-0">Filter:</span>
 						<button
 							onclick={() => setFilterSubcategory(null)}
 							class="px-2 py-1 text-xs font-mono transition-all flex-shrink-0"
-							class:bg-accent-primary={!state.filterSubcategory}
-							class:text-bg-primary={!state.filterSubcategory}
-							class:text-text-tertiary={state.filterSubcategory}
-							class:hover:text-text-secondary={state.filterSubcategory}
+							class:bg-accent-primary={!mcpState.filterSubcategory}
+							class:text-bg-primary={!mcpState.filterSubcategory}
+							class:text-text-tertiary={mcpState.filterSubcategory}
+							class:hover:text-text-secondary={mcpState.filterSubcategory}
 						>
 							All
 						</button>
@@ -597,10 +597,10 @@
 							<button
 								onclick={() => setFilterSubcategory(subcategory)}
 								class="px-2 py-1 text-xs font-mono transition-all flex-shrink-0"
-								class:bg-accent-primary={state.filterSubcategory === subcategory}
-								class:text-bg-primary={state.filterSubcategory === subcategory}
-								class:text-text-tertiary={state.filterSubcategory !== subcategory}
-								class:hover:text-text-secondary={state.filterSubcategory !== subcategory}
+								class:bg-accent-primary={mcpState.filterSubcategory === subcategory}
+								class:text-bg-primary={mcpState.filterSubcategory === subcategory}
+								class:text-text-tertiary={mcpState.filterSubcategory !== subcategory}
+								class:hover:text-text-secondary={mcpState.filterSubcategory !== subcategory}
 							>
 								{subcategory}
 							</button>
@@ -618,14 +618,14 @@
 				<div class="flex items-center justify-between mb-4">
 					<p class="text-sm text-text-tertiary font-mono">
 						{registry.length} MCP{registry.length !== 1 ? 's' : ''}
-						{#if state.filterCategory !== 'all'}
-							in <span class={getCategoryColor(state.filterCategory)}>{state.filterCategory}</span>
+						{#if mcpState.filterCategory !== 'all'}
+							in <span class={getCategoryColor(mcpState.filterCategory)}>{mcpState.filterCategory}</span>
 						{/if}
-						{#if state.filterSubcategory}
-							/ {state.filterSubcategory}
+						{#if mcpState.filterSubcategory}
+							/ {mcpState.filterSubcategory}
 						{/if}
-						{#if state.searchQuery}
-							matching "{state.searchQuery}"
+						{#if mcpState.searchQuery}
+							matching "{mcpState.searchQuery}"
 						{/if}
 					</p>
 				</div>
@@ -732,7 +732,7 @@
 
 			<!-- Connected Tab (full view) -->
 			{#if activeTab === 'connected'}
-				{#if state.instances.length === 0}
+				{#if mcpState.instances.length === 0}
 					<div class="border border-surface-border bg-bg-secondary p-12 text-center">
 						<div class="text-4xl mb-4 opacity-50">
 							<Icon name="plug" size={48} />
@@ -750,8 +750,8 @@
 					</div>
 				{:else}
 					<div class="space-y-6">
-						{#each state.instances as instance}
-							{@const mcp = state.registry.find((m) => m.id === instance.definitionId)}
+						{#each mcpState.instances as instance}
+							{@const mcp = mcpState.registry.find((m: MCPRegistryItem) => m.id === instance.definitionId)}
 							<div class="border border-surface-border bg-bg-secondary">
 								<!-- Header -->
 								<div class="p-4 border-b border-surface-border">
@@ -1002,7 +1002,7 @@
 					<div class="lg:col-span-2">
 						<div class="flex items-center justify-between mb-4">
 							<h2 class="text-lg font-medium text-text-primary">Pending Feedback</h2>
-							{#if state.pendingFeedback.length > 0}
+							{#if mcpState.pendingFeedback.length > 0}
 								<button
 									onclick={handleProcessFeedback}
 									class="px-4 py-2 text-xs font-mono bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all"
@@ -1012,7 +1012,7 @@
 							{/if}
 						</div>
 
-						{#if state.pendingFeedback.length === 0}
+						{#if mcpState.pendingFeedback.length === 0}
 							<div class="border border-surface-border bg-bg-secondary p-12 text-center">
 								<div class="text-4xl mb-4 opacity-50">
 									<Icon name="inbox" size={48} />
@@ -1024,7 +1024,7 @@
 							</div>
 						{:else}
 							<div class="space-y-3">
-								{#each state.pendingFeedback as feedback}
+								{#each mcpState.pendingFeedback as feedback}
 									<div class="border border-yellow-500/30 bg-yellow-500/10 p-4">
 										<div class="flex items-start gap-3">
 											<span class="text-yellow-400">
@@ -1049,13 +1049,13 @@
 					<div>
 						<h2 class="text-lg font-medium text-text-primary mb-4">Recently Processed</h2>
 
-						{#if state.processedFeedback.length === 0}
+						{#if mcpState.processedFeedback.length === 0}
 							<div class="border border-surface-border bg-bg-secondary p-6 text-center">
 								<p class="text-sm text-text-tertiary">No processed feedback yet.</p>
 							</div>
 						{:else}
 							<div class="space-y-2">
-								{#each state.processedFeedback.slice(0, 10) as feedback}
+								{#each mcpState.processedFeedback.slice(0, 10) as feedback}
 									<div class="border border-green-500/30 bg-green-500/5 p-3">
 										<p class="text-sm text-text-secondary line-clamp-2">{feedback.summary}</p>
 										<div class="flex items-center justify-between mt-2 text-xs">

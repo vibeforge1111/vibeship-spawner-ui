@@ -9,7 +9,7 @@
  */
 
 import { browser } from '$app/environment';
-import type { Mission } from '$lib/types/mission';
+import type { Mission, MissionLog } from '$lib/services/mcp-client';
 import { BackupDataSchema, MissionStateSchema, safeJsonParse } from '$lib/types/schemas';
 import { logger } from '$lib/utils/logger';
 
@@ -343,16 +343,7 @@ export interface PersistedMissionState {
 	currentTaskProgress: number;
 	currentTaskMessage: string | null;
 	taskProgressMap: Record<string, TaskProgress>;  // Object instead of Map
-	logs: Array<{
-		id: string;
-		mission_id: string;
-		agent_id: string | null;
-		task_id: string | null;
-		type: string;
-		message: string;
-		data: Record<string, unknown>;
-		created_at: string;
-	}>;
+	logs: MissionLog[];
 	startTime: string | null;  // ISO string instead of Date
 	endTime: string | null;
 	error: string | null;

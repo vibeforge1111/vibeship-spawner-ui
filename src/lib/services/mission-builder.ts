@@ -229,6 +229,7 @@ export async function buildMissionFromCanvas(
 		// Build mission locally (no MCP call - spawner_mission doesn't exist)
 		const mission: Mission = {
 			id: `mission-${Date.now()}`,
+			user_id: 'local',
 			name: options.name,
 			description: options.description || '',
 			status: 'ready',
@@ -236,9 +237,13 @@ export async function buildMissionFromCanvas(
 			agents,
 			tasks,
 			context,
+			current_task_id: null,
 			outputs: {},
+			error: null,
 			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString()
+			updated_at: new Date().toISOString(),
+			started_at: null,
+			completed_at: null
 		};
 
 		// Auto-load H70 skills for the mission (browser only)

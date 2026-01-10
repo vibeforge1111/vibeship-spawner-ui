@@ -1,5 +1,5 @@
 <script lang="ts">
-	let { name, size = 20 }: { name: string; size?: number } = $props();
+	let { name, size = 20, class: className = '' }: { name: string; size?: number; class?: string } = $props();
 </script>
 
 <svg
@@ -11,6 +11,7 @@
 	stroke-width="1.5"
 	stroke-linecap="round"
 	stroke-linejoin="round"
+	class={className}
 >
 	{#if name === 'book'}
 		<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />

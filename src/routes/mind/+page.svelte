@@ -45,6 +45,8 @@
 		patterns: [],
 		agentStats: {},
 		learningsLoading: false,
+		learningsHasMore: false,
+		learningsLoadingMore: false,
 		memoryConnected: false,
 		decisions: [],
 		issues: [],
@@ -490,7 +492,7 @@
 								<span>{currentState.improvementStats.pending} pending</span>
 								<span>{currentState.improvementStats.applied} applied</span>
 								<span class="text-accent-primary">
-									{Math.round((currentState.improvementStats.avgImpact || 0) * 100)}% avg impact
+									{Math.round((currentState.improvementStats.averageImpact || 0) * 100)}% avg impact
 								</span>
 							</div>
 						{/if}

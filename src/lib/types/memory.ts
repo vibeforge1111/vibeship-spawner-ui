@@ -154,7 +154,9 @@ export interface AgentMemoryMetadata {
 	outcome?: 'success' | 'failure' | 'partial' | 'pending';
 	outcome_details?: string;
 	outcome_quality?: number;    // -1.0 to 1.0
+	outcome_signal?: string;     // Signal description for learning
 	quality?: number;            // Reinforcement quality multiplier
+	decision_trace_id?: string;  // Links learning to original decision
 
 	// Learning extraction
 	lesson_learned?: string;
