@@ -249,7 +249,17 @@ import { get } from 'svelte/store';
 		// If there's a goal, we want a fresh canvas for it, not the old pipeline
 		const hasGoal = hasPendingGoal();
 
-		if (hasGoal) {
+		// FIX: Check if canvas store already has nodes (e.g., from PRD analysis flow)
+		// If so, don't overwrite them with old localStorage data
+		const existingNodes = get(nodes);
+		const hasExistingNodes = existingNodes && existingNodes.length > 0;
+
+		if (hasExistingNodes) {
+			// Canvas already has nodes (likely from Welcome.svelte PRD flow)
+			// Just update the save timestamp and don't overwrite
+			console.log('[Canvas] Preserving existing nodes:', existingNodes.length);
+			lastSaved = new Date();
+		} else if (hasGoal) {
 			// Create a new pipeline for this goal instead of loading old one
 			const goalState = getGoalState();
 			const goalName = goalState.input?.slice(0, 30) || 'New Project';
@@ -260,7 +270,7 @@ import { get } from 'svelte/store';
 			// Mark that we have a pending goal to process
 			pendingGoalProcess = true;
 		} else {
-			// No goal - load active pipeline data as normal
+			// No goal and no existing nodes - load active pipeline data as normal
 			const pipelineData = getActivePipelineData();
 			if (pipelineData) {
 				loadPipelineToCanvas(pipelineData);
