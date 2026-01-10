@@ -21,6 +21,9 @@
  */
 
 import { syncClient, type SyncEvent } from './sync-client';
+import { logger } from '$lib/utils/logger';
+
+const log = logger.scope('CanvasSync');
 import {
 	addNode,
 	removeNode,
@@ -111,23 +114,23 @@ let isProcessing = false; // Prevent duplicate event processing
  */
 export function initCanvasSync(): () => void {
 	if (isInitialized) {
-		console.log('[CanvasSync] Already initialized');
+		log.debug(' Already initialized');
 		return () => {};
 	}
 
-	console.log('[CanvasSync] Initializing...');
+	log.debug(' Initializing...');
 	isInitialized = true;
 
 	// Connect to the sync server first!
 	syncClient.connect().then((connected) => {
 		if (connected) {
-			console.log('[CanvasSync] Connected to sync server');
+			log.debug(' Connected to sync server');
 			// Broadcast initial canvas state once connected
 			setTimeout(() => {
 				broadcastCanvasState();
 			}, 500);
 		} else {
-			console.warn('[CanvasSync] Failed to connect to sync server');
+			log.warn(' Failed to connect to sync server');
 		}
 	});
 
@@ -136,7 +139,7 @@ export function initCanvasSync(): () => void {
 
 	// Return cleanup function
 	return () => {
-		console.log('[CanvasSync] Cleaning up...');
+		log.debug(' Cleaning up...');
 		if (unsubscribe) {
 			unsubscribe();
 			unsubscribe = null;
@@ -160,11 +163,11 @@ async function handleSyncEvent(event: SyncEvent): Promise<void> {
 
 	// Prevent duplicate processing (multiple HMR clients)
 	if (isProcessing) {
-		console.log('[CanvasSync] Already processing, skipping duplicate');
+		log.debug(' Already processing, skipping duplicate');
 		return;
 	}
 
-	console.log('[CanvasSync] Processing event:', eventType);
+	log.debug(' Processing event:', eventType);
 	isProcessing = true;
 
 	try {
@@ -224,10 +227,10 @@ async function handleSyncEvent(event: SyncEvent): Promise<void> {
 				break;
 
 			default:
-				console.log('[CanvasSync] Unknown event type:', eventType);
+				log.debug(' Unknown event type:', eventType);
 		}
 	} catch (error) {
-		console.error('[CanvasSync] Error handling event:', error);
+		log.error(' Error handling event:', error);
 		broadcastError(error instanceof Error ? error.message : 'Unknown error');
 	} finally {
 		// Reset processing flag after a short delay to debounce duplicate events
@@ -300,26 +303,26 @@ function calculateMatchScore(skill: Skill, query: string): number {
  */
 async function findSkill(skillId?: string, skillName?: string): Promise<Skill | null> {
 	const query = skillId || skillName;
-	console.log('[CanvasSync] findSkill called - query:', query);
+	log.debug(' findSkill called - query:', query);
 
 	// Ensure skills are loaded
 	let skills = get(skillsStore);
-	console.log('[CanvasSync] Skills in store:', skills.length);
+	log.debug(' Skills in store:', skills.length);
 
 	if (skills.length === 0) {
-		console.log('[CanvasSync] No skills loaded, fetching from static...');
+		log.debug(' No skills loaded, fetching from static...');
 		try {
 			await loadSkillsStatic();
 			skills = get(skillsStore);
-			console.log('[CanvasSync] After loadSkillsStatic:', skills.length, 'skills');
+			log.debug(' After loadSkillsStatic:', skills.length, 'skills');
 		} catch (e) {
-			console.error('[CanvasSync] Failed to load skills:', e);
+			log.error(' Failed to load skills:', e);
 			return null;
 		}
 	}
 
 	if (skills.length === 0) {
-		console.error('[CanvasSync] Skills store still empty after loading!');
+		log.error(' Skills store still empty after loading!');
 		return null;
 	}
 
@@ -327,7 +330,7 @@ async function findSkill(skillId?: string, skillName?: string): Promise<Skill | 
 	if (skillId) {
 		const exactId = skills.find(s => s.id === skillId);
 		if (exactId) {
-			console.log('[CanvasSync] Found exact ID match:', skillId);
+			log.debug(' Found exact ID match:', skillId);
 			return exactId;
 		}
 
@@ -338,7 +341,7 @@ async function findSkill(skillId?: string, skillName?: string): Promise<Skill | 
 			.sort((a, b) => b.score - a.score);
 
 		if (scored.length > 0 && scored[0].score >= 20) {
-			console.log('[CanvasSync] Fuzzy ID match:', skillId, '→', scored[0].skill.id, `(score: ${scored[0].score})`);
+			log.debug(' Fuzzy ID match:', skillId, '→', scored[0].skill.id, `(score: ${scored[0].score})`);
 			return scored[0].skill;
 		}
 	}
@@ -346,12 +349,12 @@ async function findSkill(skillId?: string, skillName?: string): Promise<Skill | 
 	// Try name matching with fuzzy fallback
 	if (skillName) {
 		const searchQuery = skillName.trim();
-		console.log('[CanvasSync] Searching by name:', searchQuery);
+		log.debug(' Searching by name:', searchQuery);
 
 		// Exact name match
 		const exact = skills.find(s => s.name === searchQuery);
 		if (exact) {
-			console.log('[CanvasSync] Found exact name match:', searchQuery);
+			log.debug(' Found exact name match:', searchQuery);
 			return exact;
 		}
 
@@ -359,18 +362,18 @@ async function findSkill(skillId?: string, skillName?: string): Promise<Skill | 
 		const lower = searchQuery.toLowerCase();
 		const caseMatch = skills.find(s => s.name.toLowerCase() === lower);
 		if (caseMatch) {
-			console.log('[CanvasSync] Found case-insensitive match:', searchQuery);
+			log.debug(' Found case-insensitive match:', searchQuery);
 			return caseMatch;
 		}
 
 		// Fuzzy match with scoring
-		console.log('[CanvasSync] Trying fuzzy match for:', searchQuery);
+		log.debug(' Trying fuzzy match for:', searchQuery);
 		const scored = skills
 			.map(s => ({ skill: s, score: calculateMatchScore(s, searchQuery) }))
 			.filter(x => x.score > 0)
 			.sort((a, b) => b.score - a.score);
 
-		console.log('[CanvasSync] Top 3 fuzzy matches:', scored.slice(0, 3).map(x =>
+		log.debug(' Top 3 fuzzy matches:', scored.slice(0, 3).map(x =>
 			`${x.skill.id} (${x.score})`
 		).join(', '));
 
@@ -378,16 +381,16 @@ async function findSkill(skillId?: string, skillName?: string): Promise<Skill | 
 			const best = scored[0];
 			// Require minimum score of 15 to avoid bad matches
 			if (best.score >= 15) {
-				console.log('[CanvasSync] Fuzzy match SUCCESS:', searchQuery, '→', best.skill.id, `(score: ${best.score})`);
+				log.debug(' Fuzzy match SUCCESS:', searchQuery, '→', best.skill.id, `(score: ${best.score})`);
 				return best.skill;
 			}
-			console.log('[CanvasSync] Best match too weak:', searchQuery, '→', best.skill.id, `(score: ${best.score})`);
+			log.debug(' Best match too weak:', searchQuery, '→', best.skill.id, `(score: ${best.score})`);
 		} else {
-			console.log('[CanvasSync] No fuzzy matches found for:', searchQuery);
+			log.debug(' No fuzzy matches found for:', searchQuery);
 		}
 	}
 
-	console.log('[CanvasSync] findSkill returning null');
+	log.debug(' findSkill returning null');
 	return null;
 }
 
@@ -408,7 +411,7 @@ async function handleAddSkill(data: AddSkillData): Promise<void> {
 
 	addNode(skill, position);
 
-	console.log('[CanvasSync] Added skill:', skill.name, 'at', position);
+	log.debug(' Added skill:', skill.name, 'at', position);
 	broadcastCanvasState();
 }
 
@@ -427,7 +430,7 @@ async function handleAddSkills(data: AddSkillsData): Promise<void> {
 
 		if (!skill) {
 			const name = skillData.skillId || skillData.skillName || 'unknown';
-			console.warn('[CanvasSync] Skill not found:', name);
+			log.warn(' Skill not found:', name);
 			notFound.push(name);
 			continue;
 		}
@@ -451,13 +454,13 @@ async function handleAddSkills(data: AddSkillsData): Promise<void> {
 	}
 
 	if (addedCount > 0) {
-		console.log('[CanvasSync] Added', addedCount, 'skills');
+		log.debug(' Added', addedCount, 'skills');
 
 		// Auto-wire connections based on pairsWell if enabled
 		let connectionsCreated = 0;
 		if (data.autoConnect && addedSkills.length > 1) {
 			connectionsCreated = autoWireConnections(addedSkills);
-			console.log('[CanvasSync] Auto-wired', connectionsCreated, 'connections');
+			log.debug(' Auto-wired', connectionsCreated, 'connections');
 		}
 
 		// Show success toast
@@ -471,7 +474,7 @@ async function handleAddSkills(data: AddSkillsData): Promise<void> {
 		broadcastCanvasState();
 	} else if (notFound.length > 0) {
 		// Only broadcast error if ALL skills failed
-		console.error('[CanvasSync] No skills added. Not found:', notFound);
+		log.error(' No skills added. Not found:', notFound);
 		broadcastError(`Skills not found: ${notFound.join(', ')}`);
 	}
 }
@@ -526,7 +529,7 @@ function autoWireConnections(addedSkills: Array<{ nodeId: string; skill: Skill }
 		addConnection(source.nodeId, sourcePortId, target.nodeId, targetPortId);
 		connectedPairs.add(key);
 		connectionsCreated++;
-		console.log('[CanvasSync] Auto-wired (%s):', reason, source.skill.name, '→', target.skill.name);
+		log.debug(' Auto-wired (%s):', reason, source.skill.name, '→', target.skill.name);
 		return true;
 	};
 
@@ -554,7 +557,7 @@ function autoWireConnections(addedSkills: Array<{ nodeId: string; skill: Skill }
 
 	// 3. Fallback: sequential connections if enabled and no semantic connections made
 	if (sequential && connectionsCreated === 0 && addedSkills.length > 1) {
-		console.log('[CanvasSync] No semantic connections found, using sequential order');
+		log.debug(' No semantic connections found, using sequential order');
 		for (let i = 0; i < addedSkills.length - 1; i++) {
 			tryConnect(addedSkills[i], addedSkills[i + 1], 'sequential');
 		}
@@ -568,7 +571,7 @@ function autoWireConnections(addedSkills: Array<{ nodeId: string; skill: Skill }
  */
 function handleRemoveNode(nodeId: string): void {
 	removeNode(nodeId);
-	console.log('[CanvasSync] Removed node:', nodeId);
+	log.debug(' Removed node:', nodeId);
 	broadcastCanvasState();
 }
 
@@ -577,7 +580,7 @@ function handleRemoveNode(nodeId: string): void {
  */
 function handleClearCanvas(): void {
 	clearCanvas();
-	console.log('[CanvasSync] Canvas cleared');
+	log.debug(' Canvas cleared');
 	broadcastCanvasState();
 }
 
@@ -586,7 +589,7 @@ function handleClearCanvas(): void {
  */
 function handleUpdatePosition(nodeId: string, position: { x: number; y: number }): void {
 	updateNodePosition(nodeId, position);
-	console.log('[CanvasSync] Updated position for:', nodeId);
+	log.debug(' Updated position for:', nodeId);
 }
 
 /**
@@ -771,7 +774,7 @@ function handleCreateConnection(sourceNodeId: string, targetNodeId: string): voi
 
 	// Create the connection
 	addConnection(sourceNodeId, sourcePortId, targetNodeId, targetPortId);
-	console.log('[CanvasSync] Created connection:', sourceNodeId, '→', targetNodeId);
+	log.debug(' Created connection:', sourceNodeId, '→', targetNodeId);
 	broadcastCanvasState();
 }
 
@@ -791,32 +794,32 @@ async function handleGetSkillContent(skillId: string): Promise<void> {
 	let source: 'h70' | 'mcp' | 'metadata' = 'metadata';
 
 	// PRIORITY 1: Try H70 local skills first (PRIMARY SOURCE)
-	console.log('[CanvasSync] Fetching skill content from H70:', skill.id);
+	log.debug(' Fetching skill content from H70:', skill.id);
 	try {
 		const h70Result = await getH70Skill(skill.id);
 		if (h70Result && h70Result.formattedContent) {
 			fullContent = h70Result.formattedContent;
 			source = 'h70';
-			console.log('[CanvasSync] Got H70 skill content:', skill.id, `(${fullContent.length} chars)`);
+			log.debug(' Got H70 skill content:', skill.id, `(${fullContent.length} chars)`);
 		}
 	} catch (e) {
-		console.warn('[CanvasSync] H70 skill not found, trying MCP:', skill.id);
+		log.warn(' H70 skill not found, trying MCP:', skill.id);
 	}
 
 	// PRIORITY 2: Fall back to MCP server if H70 not available
 	if (!fullContent) {
 		const state = get(mcpState);
 		if (state.status === 'connected') {
-			console.log('[CanvasSync] Fetching skill content from MCP:', skill.id);
+			log.debug(' Fetching skill content from MCP:', skill.id);
 			try {
 				const result = await mcpClient.getSkill(skill.id);
 				if (result.success && result.data?.content) {
 					fullContent = result.data.content;
 					source = 'mcp';
-					console.log('[CanvasSync] Got MCP skill content:', skill.id, `(${fullContent.length} chars)`);
+					log.debug(' Got MCP skill content:', skill.id, `(${fullContent.length} chars)`);
 				}
 			} catch (e) {
-				console.warn('[CanvasSync] Failed to fetch from MCP:', e);
+				log.warn(' Failed to fetch from MCP:', e);
 			}
 		}
 	}
@@ -842,7 +845,7 @@ async function handleGetSkillContent(skillId: string): Promise<void> {
 		data: content
 	});
 
-	console.log(`[CanvasSync] Sent skill content for: ${skill.name} (source: ${source})`);
+	log.debug('Sent skill content for:', skill.name, `(source: ${source})`);
 }
 
 /**
@@ -964,7 +967,7 @@ async function handleExecuteWorkflow(data: ExecuteWorkflowData): Promise<void> {
 			}
 		);
 
-		console.log('[CanvasSync] Execution started:', result.missionId);
+		log.debug(' Execution started:', result.missionId);
 
 	} catch (error) {
 		const errorMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -1102,7 +1105,7 @@ async function loadTemplateToCanvas(template: WorkflowTemplate): Promise<void> {
 		const skill = await findSkill(skillDef.skillId);
 
 		if (!skill) {
-			console.warn('[CanvasSync] Skill not found for template:', skillDef.skillId);
+			log.warn(' Skill not found for template:', skillDef.skillId);
 			continue;
 		}
 
@@ -1145,7 +1148,7 @@ async function loadTemplateToCanvas(template: WorkflowTemplate): Promise<void> {
 		}
 	}
 
-	console.log('[CanvasSync] Loaded template:', template.name);
+	log.debug(' Loaded template:', template.name);
 	toasts.success(`Loaded template: ${template.name} (${nodeData.length} skills)`);
 	broadcastCanvasState();
 }
@@ -1181,7 +1184,7 @@ async function handleExportPrompt(): Promise<void> {
 	const skillContents: Map<string, string> = new Map();
 
 	if (state.status === 'connected') {
-		console.log('[CanvasSync] Fetching full skill content for export...');
+		log.debug(' Fetching full skill content for export...');
 		for (const skill of orderedSkills) {
 			try {
 				const result = await mcpClient.getSkill(skill.id);
@@ -1192,7 +1195,7 @@ async function handleExportPrompt(): Promise<void> {
 				// Silently fall back to metadata
 			}
 		}
-		console.log('[CanvasSync] Fetched full content for', skillContents.size, 'of', orderedSkills.length, 'skills');
+		log.debug(' Fetched full content for', skillContents.size, 'of', orderedSkills.length, 'skills');
 	}
 
 	// Build the combined prompt
@@ -1243,7 +1246,7 @@ async function handleExportPrompt(): Promise<void> {
 	});
 
 	toasts.success(`Exported workflow prompt with ${orderedSkills.length} skills`);
-	console.log('[CanvasSync] Exported prompt with', orderedSkills.length, 'skills', `(${skillContents.size} with full content)`);
+	log.debug(' Exported prompt with', orderedSkills.length, 'skills', `(${skillContents.size} with full content)`);
 }
 
 /**
@@ -1289,7 +1292,7 @@ function getExecutionOrder(currentNodes: CanvasNode[], currentConnections: Conne
 
 	// If we didn't get all nodes, there's a cycle - just use all nodes in any order
 	if (orderedIds.length !== currentNodes.length) {
-		console.warn('[CanvasSync] Cycle detected in workflow, using arbitrary order');
+		log.warn(' Cycle detected in workflow, using arbitrary order');
 		return currentNodes.map(n => n.skill);
 	}
 
@@ -1330,7 +1333,7 @@ export async function getAvailableSkills(): Promise<string[]> {
  * Call from browser console: window.testCanvasSync()
  */
 export async function testCanvasSync(): Promise<void> {
-	console.log('[CanvasSync] Testing - adding sample skills...');
+	log.debug(' Testing - adding sample skills...');
 
 	await handleAddSkills({
 		skills: [
@@ -1342,7 +1345,7 @@ export async function testCanvasSync(): Promise<void> {
 		autoLayout: 'horizontal'
 	});
 
-	console.log('[CanvasSync] Test complete! Check the canvas.');
+	log.debug(' Test complete! Check the canvas.');
 }
 
 // SECURITY: Only expose test functions in development mode

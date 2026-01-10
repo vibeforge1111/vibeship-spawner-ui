@@ -11,6 +11,9 @@
 import { browser } from '$app/environment';
 import type { Mission } from '$lib/types/mission';
 import { BackupDataSchema, MissionStateSchema, safeJsonParse } from '$lib/types/schemas';
+import { logger } from '$lib/utils/logger';
+
+const log = logger.scope('Persistence');
 
 // Current schema version - increment when data structure changes
 const SCHEMA_VERSION = 1;
@@ -54,7 +57,7 @@ export function getItem<T>(key: string, defaultValue: T): T {
 		const parsed = JSON.parse(item);
 		return parsed as T;
 	} catch (e) {
-		console.error(`[Persistence] Failed to parse ${key}:`, e);
+		log.error(`Failed to parse ${key}:`, e);
 		// Return default but don't delete - let user decide
 		return defaultValue;
 	}
@@ -71,10 +74,10 @@ export function setItem<T>(key: string, value: T): boolean {
 		return true;
 	} catch (e) {
 		if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-			console.error('[Persistence] Storage quota exceeded');
+			log.error('Storage quota exceeded');
 			// Could trigger cleanup of old data here
 		} else {
-			console.error(`[Persistence] Failed to save ${key}:`, e);
+			log.error(`Failed to save ${key}:`, e);
 		}
 		return false;
 	}
@@ -90,7 +93,7 @@ export function removeItem(key: string): boolean {
 		localStorage.removeItem(key);
 		return true;
 	} catch (e) {
-		console.error(`[Persistence] Failed to remove ${key}:`, e);
+		log.error(`Failed to remove ${key}:`, e);
 		return false;
 	}
 }
@@ -132,7 +135,7 @@ export function runMigrations(): { migrated: boolean; fromVersion: number; toVer
 		return { migrated: false, fromVersion: storedVersion, toVersion: SCHEMA_VERSION };
 	}
 
-	console.log(`[Persistence] Migrating from v${storedVersion} to v${SCHEMA_VERSION}`);
+	log.info(`Migrating from v${storedVersion} to v${SCHEMA_VERSION}`);
 
 	// Run migrations in sequence
 	let currentVersion = storedVersion;
@@ -397,13 +400,13 @@ export function saveMissionState(state: PersistedMissionState): boolean {
  */
 export function getActiveMissionState(): PersistedMissionState | null {
 	const state = getItem<PersistedMissionState | null>(STORAGE_KEYS.ACTIVE_MISSION, null);
-	console.log('[Persistence] getActiveMissionState - raw state:', state?.status, 'missionId:', state?.missionId);
+	log.debug('getActiveMissionState - raw state:', state?.status, 'missionId:', state?.missionId);
 
 	if (!state) return null;
 
 	// Validate version - clear old format data
 	if (state.version !== MISSION_STATE_VERSION) {
-		console.log('[Persistence] Mission state version mismatch (got v' + state.version + ', expected v' + MISSION_STATE_VERSION + '), clearing');
+		log.debug('Mission state version mismatch (got v' + state.version + ', expected v' + MISSION_STATE_VERSION + '), clearing');
 		clearMissionState();
 		return null;
 	}
@@ -411,22 +414,22 @@ export function getActiveMissionState(): PersistedMissionState | null {
 	// CRITICAL: Check if executionPrompt is too large (indicates old format with full skill content)
 	// The new just-in-time format should be ~200 lines max, not 20,000+
 	if (state.executionPrompt && state.executionPrompt.length > MAX_VALID_PROMPT_LENGTH) {
-		console.log('[Persistence] Detected old-format executionPrompt (' + state.executionPrompt.length + ' chars), clearing');
-		console.log('[Persistence] Old prompts with full skill content crash terminals - clearing to force regeneration');
+		log.debug('Detected old-format executionPrompt (' + state.executionPrompt.length + ' chars), clearing');
+		log.debug('Old prompts with full skill content crash terminals - clearing to force regeneration');
 		clearMissionState();
 		return null;
 	}
 
 	// Check if mission is still active (not completed/failed/cancelled)
 	if (state.status === 'completed' || state.status === 'failed' || state.status === 'cancelled') {
-		console.log('[Persistence] Mission is completed/failed/cancelled, moving to history');
+		log.debug('Mission is completed/failed/cancelled, moving to history');
 		// Move to history and clear active
 		addToMissionHistory(state);
 		clearMissionState();
 		return null;
 	}
 
-	console.log('[Persistence] Returning active mission state');
+	log.debug('Returning active mission state');
 	return state;
 }
 
@@ -481,24 +484,24 @@ export function clearMissionHistory(): boolean {
  */
 export function hasResumableMission(): boolean {
 	const state = getItem<PersistedMissionState | null>(STORAGE_KEYS.ACTIVE_MISSION, null);
-	console.log('[Persistence] hasResumableMission - state:', state?.status, 'missionId:', state?.missionId);
+	log.debug('hasResumableMission - state:', state?.status, 'missionId:', state?.missionId);
 	if (!state) return false;
 
 	// Check for version mismatch - don't resume old format data
 	if (state.version !== MISSION_STATE_VERSION) {
-		console.log('[Persistence] Version mismatch, not resumable');
+		log.debug('Version mismatch, not resumable');
 		return false;
 	}
 
 	// Check for huge prompt (old format) - don't resume, it would crash terminal
 	if (state.executionPrompt && state.executionPrompt.length > MAX_VALID_PROMPT_LENGTH) {
-		console.log('[Persistence] Huge prompt detected, not resumable');
+		log.debug('Huge prompt detected, not resumable');
 		return false;
 	}
 
 	// Only resumable if paused or running (interrupted)
 	const isResumable = state.status === 'paused' || state.status === 'running' || state.status === 'creating';
-	console.log('[Persistence] isResumable:', isResumable);
+	log.debug('isResumable:', isResumable);
 	return isResumable;
 }
 
@@ -556,21 +559,21 @@ export function clearOldMissionState(): { cleared: boolean; reason?: string } {
 		const state = safeJsonParse(raw, MissionStateSchema, 'mission-state-check');
 		if (!state) {
 			// Corrupted or invalid data, clear it
-			console.log('[Persistence] Clearing invalid mission state');
+			log.debug('Clearing invalid mission state');
 			clearMissionState();
 			return { cleared: true, reason: 'Invalid data format' };
 		}
 
 		// Check for version mismatch
 		if (state.version !== MISSION_STATE_VERSION) {
-			console.log(`[Persistence] Clearing old mission state (v${state.version} -> v${MISSION_STATE_VERSION})`);
+			log.debug(`Clearing old mission state (v${state.version} -> v${MISSION_STATE_VERSION})`);
 			clearMissionState();
 			return { cleared: true, reason: `Version mismatch: v${state.version}` };
 		}
 
 		// Check for huge prompt (old format with full skill content)
 		if (state.executionPrompt && state.executionPrompt.length > MAX_VALID_PROMPT_LENGTH) {
-			console.log(`[Persistence] Clearing old mission state with huge prompt (${state.executionPrompt.length} chars)`);
+			log.debug(`Clearing old mission state with huge prompt (${state.executionPrompt.length} chars)`);
 			clearMissionState();
 			return { cleared: true, reason: `Huge prompt: ${state.executionPrompt.length} chars` };
 		}
@@ -578,7 +581,7 @@ export function clearOldMissionState(): { cleared: boolean; reason?: string } {
 		return { cleared: false };
 	} catch {
 		// Corrupted data, clear it
-		console.log('[Persistence] Clearing corrupted mission state');
+		log.debug('Clearing corrupted mission state');
 		clearMissionState();
 		return { cleared: true, reason: 'Corrupted data' };
 	}
@@ -620,14 +623,14 @@ export function initPersistence(): {
 	const stats = getStorageStats();
 
 	// Log initialization
-	console.log(`[Persistence] Initialized (v${SCHEMA_VERSION}), using ${stats.totalSizeFormatted}`);
+	log.info(`Initialized (v${SCHEMA_VERSION}), using ${stats.totalSizeFormatted}`);
 
 	if (migration.migrated) {
-		console.log(`[Persistence] Migrated from v${migration.fromVersion} to v${migration.toVersion}`);
+		log.info(`Migrated from v${migration.fromVersion} to v${migration.toVersion}`);
 	}
 
 	if (missionStateCleared.cleared) {
-		console.log(`[Persistence] Cleared old mission state: ${missionStateCleared.reason}`);
+		log.info(`Cleared old mission state: ${missionStateCleared.reason}`);
 	}
 
 	return {

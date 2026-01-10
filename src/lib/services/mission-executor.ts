@@ -13,6 +13,11 @@
 import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import type { Mission, MissionLog, MissionTask } from '$lib/services/mcp-client';
 import { mcpClient } from '$lib/services/mcp-client';
+import { logger } from '$lib/utils/logger';
+
+const log = logger.scope('MissionExecutor');
+const logLearning = logger.scope('Learning');
+const logMind = logger.scope('Mind');
 import { buildMissionFromCanvas, validateForMission, generateExecutionPrompt, type MissionBuildOptions, type ExecutionPromptOptions } from './mission-builder';
 import type { H70SkillContent } from './h70-skills';
 import { syncClient, broadcastMissionEvent, broadcastLearningEvent, broadcastTaskEvent, broadcastExecutionControl, isConnected, type SyncEvent } from './sync-client';
@@ -173,7 +178,7 @@ class MissionExecutor {
 		const success = saveMissionState(serialized);
 
 		if (success) {
-			console.log('[MissionExecutor] State persisted', {
+			log.debug('State persisted', {
 				status: this.progress.status,
 				missionId: this.progress.missionId,
 				progress: this.progress.progress
@@ -196,7 +201,7 @@ class MissionExecutor {
 		const saved = getActiveMissionState();
 		if (!saved) return;
 
-		console.log('[MissionExecutor] Restoring mission state', {
+		log.debug('Restoring mission state', {
 			missionId: saved.missionId,
 			status: saved.status,
 			progress: saved.progress
@@ -248,7 +253,7 @@ class MissionExecutor {
 			// Skip events we sent ourselves
 			if (event.source === 'spawner-ui') return;
 
-			console.log('[MissionExecutor] Received sync event:', event.type);
+			log.debug('Received sync event:', event.type);
 
 			switch (event.type) {
 				case 'mission_updated':
@@ -366,7 +371,7 @@ class MissionExecutor {
 			// Skip events we sent ourselves
 			if (event.source === 'spawner-ui') return;
 
-			console.log('[MissionExecutor] Received event bridge event:', event.type, event);
+			log.debug('Received event bridge event:', event.type, event);
 
 			switch (event.type) {
 				case 'task_started':
@@ -495,7 +500,7 @@ class MissionExecutor {
 
 				default:
 					// Log unknown event types for debugging
-					console.log('[MissionExecutor] Unknown event type:', event.type);
+					log.debug('Unknown event type:', event.type);
 			}
 		});
 	}
@@ -782,12 +787,12 @@ class MissionExecutor {
 				});
 			} catch {
 				// MCP pause not supported, but local pause still works
-				console.log('[MissionExecutor] MCP pause not supported, using local pause');
+				log.debug('MCP pause not supported, using local pause');
 			}
 
 			return true;
 		} catch (error) {
-			console.error('Failed to pause:', error);
+			log.error('Failed to pause:', error);
 		}
 
 		return false;
@@ -823,12 +828,12 @@ class MissionExecutor {
 					status: 'running'
 				});
 			} catch {
-				console.log('[MissionExecutor] MCP resume not supported');
+				log.debug('MCP resume not supported');
 			}
 
 			return true;
 		} catch (error) {
-			console.error('Failed to resume:', error);
+			log.error('Failed to resume:', error);
 		}
 
 		return false;
@@ -858,7 +863,7 @@ class MissionExecutor {
 				return true;
 			}
 		} catch (error) {
-			console.error('Failed to cancel:', error);
+			log.error('Failed to cancel:', error);
 		}
 
 		return false;
@@ -906,7 +911,7 @@ class MissionExecutor {
 		// Immediately poll once
 		this.pollMissionStatus();
 
-		console.log(`[MissionExecutor] Polling started (${pollInterval}ms interval, WebSocket: ${this.useWebSocket})`);
+		log.debug(`Polling started (${pollInterval}ms interval, WebSocket: ${this.useWebSocket})`);
 	}
 
 	/**
@@ -1041,7 +1046,7 @@ class MissionExecutor {
 			}
 
 		} catch (error) {
-			console.error('Polling error:', error);
+			log.error('Polling error:', error);
 		}
 	}
 
@@ -1121,8 +1126,8 @@ class MissionExecutor {
 				// Store TRACE ID instead of memory ID for later outcome attribution
 				this.taskDecisionIds.set(task.id, result.data.traceId);
 
-				console.log(`[Learning] LITE+ Decision trace created: ${task.title}`);
-				console.log(`[Learning]   Linked to ${result.data.memoriesUsed.length} past memories`);
+				logLearning.debug(`LITE+ Decision trace created: ${task.title}`);
+				logLearning.debug(`  Linked to ${result.data.memoriesUsed.length} past memories`);
 
 				// Broadcast decision event with attribution info
 				broadcastLearningEvent('decision_tracked', {
@@ -1154,7 +1159,7 @@ class MissionExecutor {
 				}
 			}
 		} catch (error) {
-			console.error('[Learning] Failed to record task start:', error);
+			logLearning.error('Failed to record task start:', error);
 		}
 	}
 
@@ -1206,9 +1211,9 @@ class MissionExecutor {
 				});
 
 				if (result.success && result.data) {
-					console.log(`[Learning] LITE+ Outcome attributed to ${result.data.attributed_memories} memories`);
+					logLearning.debug(`LITE+ Outcome attributed to ${result.data.attributed_memories} memories`);
 					if (result.data.learning_id) {
-						console.log(`[Learning] Learning extracted: ${result.data.learning_id}`);
+						logLearning.debug(`Learning extracted: ${result.data.learning_id}`);
 					}
 				}
 			} else {
@@ -1237,9 +1242,9 @@ class MissionExecutor {
 				const what = `Completed: ${taskName}`;
 				const why = `Task "${taskName}" in mission "${missionName}" completed successfully${skillId ? ` using ${skillId} skill` : ''} in ${Math.round(duration / 1000)}s`;
 				memoryClient.createProjectDecision(what, why).then(() => {
-					console.log(`[Mind] Auto-created decision for completed task: ${taskName}`);
+					logMind.debug(`Auto-created decision for completed task: ${taskName}`);
 				}).catch(err => {
-					console.warn('[Mind] Failed to create decision:', err);
+					logMind.warn('Failed to create decision:', err);
 				});
 			}
 
@@ -1250,13 +1255,13 @@ class MissionExecutor {
 					`[${missionName}] Task failed: ${taskName} - ${errorDetails}`,
 					'open'
 				).then(() => {
-					console.log(`[Mind] Auto-created issue for failed task: ${taskName}`);
+					logMind.debug(`Auto-created issue for failed task: ${taskName}`);
 				}).catch(err => {
-					console.warn('[Mind] Failed to create issue:', err);
+					logMind.warn('Failed to create issue:', err);
 				});
 			}
 
-			console.log(`[Learning] Recorded task outcome: ${taskName} - ${success ? 'success' : 'failed'}`);
+			logLearning.debug(`Recorded task outcome: ${taskName} - ${success ? 'success' : 'failed'}`);
 
 			// Broadcast outcome event with attribution info
 			broadcastLearningEvent('outcome_recorded', {
@@ -1270,7 +1275,7 @@ class MissionExecutor {
 				attributed: !!traceId
 			});
 		} catch (error) {
-			console.error('[Learning] Failed to record task outcome:', error);
+			logLearning.error('Failed to record task outcome:', error);
 		}
 	}
 
@@ -1293,10 +1298,10 @@ class MissionExecutor {
 				try {
 					const extractResult = await memoryClient.extractPatterns(2);
 					if (extractResult.success && extractResult.data) {
-						console.log(`[Learning] LITE+ Extracted ${extractResult.data.extracted} patterns from decision traces`);
+						logLearning.debug(`LITE+ Extracted ${extractResult.data.extracted} patterns from decision traces`);
 					}
 				} catch (err) {
-					console.warn('[Learning] LITE+ Pattern extraction failed:', err);
+					logLearning.warn('LITE+ Pattern extraction failed:', err);
 				}
 			}
 
@@ -1312,7 +1317,7 @@ class MissionExecutor {
 						missionId: mission.id
 					});
 
-					console.log(`[Learning] Recorded workflow pattern: ${this.completedSkillSequence.join(' → ')}`);
+					logLearning.debug(`Recorded workflow pattern: ${this.completedSkillSequence.join(' → ')}`);
 
 					// Broadcast pattern detected event
 					broadcastLearningEvent('pattern_detected', {
@@ -1369,7 +1374,7 @@ class MissionExecutor {
 						}
 					);
 
-					console.log(`[Learning] Recorded failure learning: ${mission.error}`);
+					logLearning.debug(`Recorded failure learning: ${mission.error}`);
 
 					// Broadcast failure learning event
 					broadcastLearningEvent('learning_recorded', {
@@ -1393,30 +1398,30 @@ class MissionExecutor {
 				: `Mission "${mission.name}" ${mission.status}. ${completedTasks.length}/${totalTasks} tasks completed, ${failedTasks.length} failed. ${mission.error || ''}`;
 
 			memoryClient.createSessionSummary(sessionSummary).then(() => {
-				console.log(`[Mind] Auto-created session summary for mission: ${mission.name}`);
+				logMind.debug(`Auto-created session summary for mission: ${mission.name}`);
 			}).catch(err => {
-				console.warn('[Mind] Failed to create session summary:', err);
+				logMind.warn('Failed to create session summary:', err);
 			});
 
 			// Auto-generate improvement suggestions (non-blocking)
 			this.generateImprovementSuggestions(mission, successRate).catch(err => {
-				console.warn('[Mind] Failed to generate improvements:', err);
+				logMind.warn('Failed to generate improvements:', err);
 			});
 
 			// LITE+ CHANGE: Log self-improvement metrics at mission end
 			memoryClient.getSelfImprovementMetrics().then(result => {
 				if (result.success && result.data) {
-					console.log(`[Learning] LITE+ Self-Improvement Metrics:`);
-					console.log(`  Total decisions: ${result.data.totalDecisions}`);
-					console.log(`  With outcomes: ${result.data.decisionsWithOutcomes}`);
-					console.log(`  Success rate: ${(result.data.successRate * 100).toFixed(1)}%`);
-					console.log(`  Memories attributed: ${result.data.memoriesAttributed}`);
-					console.log(`  Patterns found: ${result.data.topPatterns.length}`);
+					logLearning.debug('LITE+ Self-Improvement Metrics:');
+					logLearning.debug(`  Total decisions: ${result.data.totalDecisions}`);
+					logLearning.debug(`  With outcomes: ${result.data.decisionsWithOutcomes}`);
+					logLearning.debug(`  Success rate: ${(result.data.successRate * 100).toFixed(1)}%`);
+					logLearning.debug(`  Memories attributed: ${result.data.memoriesAttributed}`);
+					logLearning.debug(`  Patterns found: ${result.data.topPatterns.length}`);
 				}
 			}).catch(() => {});
 
 		} catch (error) {
-			console.error('[Learning] Failed to record mission complete:', error);
+			logLearning.error('Failed to record mission complete:', error);
 		}
 	}
 
@@ -1442,7 +1447,7 @@ class MissionExecutor {
 						evidenceCount: 1,
 						sourceMissions: [mission.id]
 					});
-					console.log(`[Mind] Suggested improvement for agent: ${agent.name}`);
+					logMind.debug(`Suggested improvement for agent: ${agent.name}`);
 				}
 
 				// Suggest skill improvements if skill info available
@@ -1473,7 +1478,7 @@ class MissionExecutor {
 					evidenceCount: failedTasks.length,
 					sourceMissions: [mission.id]
 				});
-				console.log(`[Mind] Suggested pipeline improvement for mission: ${mission.name}`);
+				logMind.debug(`Suggested pipeline improvement for mission: ${mission.name}`);
 			}
 
 			// If mission was highly successful, suggest positive reinforcement
@@ -1490,11 +1495,11 @@ class MissionExecutor {
 						evidenceCount: completedTasks.length,
 						sourceMissions: [mission.id]
 					});
-					console.log(`[Mind] Recorded successful team composition`);
+					logMind.debug('Recorded successful team composition');
 				}
 			}
 		} catch (error) {
-			console.error('[Mind] Failed to generate improvement suggestions:', error);
+			logMind.error('Failed to generate improvement suggestions:', error);
 		}
 	}
 
