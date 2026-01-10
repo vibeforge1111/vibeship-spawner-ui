@@ -42,6 +42,73 @@ export interface MissionBuildResult {
 }
 
 /**
+ * Deduplicate nodes by skill ID
+ * When multiple nodes have the same skill, keep the first one
+ * and merge their connections
+ */
+function deduplicateNodes(
+	nodes: CanvasNode[],
+	connections: Connection[]
+): { nodes: CanvasNode[]; connections: Connection[]; merged: Map<string, string[]> } {
+	const seenSkillIds = new Map<string, string>(); // skillId -> first nodeId
+	const merged = new Map<string, string[]>(); // kept nodeId -> merged nodeIds
+	const nodeIdMap = new Map<string, string>(); // old nodeId -> new nodeId (for remapping connections)
+
+	const dedupedNodes: CanvasNode[] = [];
+
+	for (const node of nodes) {
+		const skillId = node.skill.id;
+
+		if (seenSkillIds.has(skillId)) {
+			// Duplicate - map to the original node
+			const originalNodeId = seenSkillIds.get(skillId)!;
+			nodeIdMap.set(node.id, originalNodeId);
+
+			// Track what was merged
+			const mergedList = merged.get(originalNodeId) || [];
+			mergedList.push(node.id);
+			merged.set(originalNodeId, mergedList);
+		} else {
+			// First occurrence - keep it
+			seenSkillIds.set(skillId, node.id);
+			nodeIdMap.set(node.id, node.id); // Maps to itself
+			dedupedNodes.push(node);
+		}
+	}
+
+	// Remap connections to use deduplicated node IDs
+	const dedupedConnections: Connection[] = [];
+	const connectionSet = new Set<string>(); // Prevent duplicate connections
+
+	for (const conn of connections) {
+		const newSourceId = nodeIdMap.get(conn.sourceNodeId) || conn.sourceNodeId;
+		const newTargetId = nodeIdMap.get(conn.targetNodeId) || conn.targetNodeId;
+
+		// Skip self-loops created by merging
+		if (newSourceId === newTargetId) continue;
+
+		const connectionKey = `${newSourceId}->${newTargetId}`;
+		if (connectionSet.has(connectionKey)) continue;
+
+		connectionSet.add(connectionKey);
+		dedupedConnections.push({
+			...conn,
+			sourceNodeId: newSourceId,
+			targetNodeId: newTargetId
+		});
+	}
+
+	if (merged.size > 0) {
+		const mergeInfo = [...merged.entries()].map(([kept, removed]) =>
+			`${nodes.find(n => n.id === kept)?.skill.name}: merged ${removed.length} duplicates`
+		);
+		console.log(`[MissionBuilder] Deduplicated nodes: ${mergeInfo.join(', ')}`);
+	}
+
+	return { nodes: dedupedNodes, connections: dedupedConnections, merged };
+}
+
+/**
  * Topologically sort nodes to determine execution order
  */
 function topologicalSort(nodes: CanvasNode[], connections: Connection[]): CanvasNode[] {
@@ -212,11 +279,19 @@ export async function buildMissionFromCanvas(
 	}
 
 	try {
+		// CRITICAL: Deduplicate nodes before building mission
+		// This prevents the same skill appearing multiple times as separate tasks
+		const { nodes: dedupedNodes, connections: dedupedConnections, merged } = deduplicateNodes(nodes, connections);
+
+		if (merged.size > 0) {
+			console.log(`[MissionBuilder] Reduced ${nodes.length} nodes to ${dedupedNodes.length} (merged ${nodes.length - dedupedNodes.length} duplicates)`);
+		}
+
 		// Generate agents based on skill categories
-		const agents = generateAgents(nodes);
+		const agents = generateAgents(dedupedNodes);
 
 		// Generate tasks with dependencies
-		const tasks = generateTasks(nodes, connections, agents);
+		const tasks = generateTasks(dedupedNodes, dedupedConnections, agents);
 
 		// Build context
 		const context: MissionContext = {
@@ -439,10 +514,14 @@ export function previewMission(
 	nodes: CanvasNode[],
 	connections: Connection[],
 	options: MissionBuildOptions
-): { agents: MissionAgent[]; tasks: MissionTask[] } {
-	const agents = generateAgents(nodes);
-	const tasks = generateTasks(nodes, connections, agents);
-	return { agents, tasks };
+): { agents: MissionAgent[]; tasks: MissionTask[]; duplicatesRemoved: number } {
+	// Deduplicate before preview
+	const { nodes: dedupedNodes, connections: dedupedConnections } = deduplicateNodes(nodes, connections);
+	const duplicatesRemoved = nodes.length - dedupedNodes.length;
+
+	const agents = generateAgents(dedupedNodes);
+	const tasks = generateTasks(dedupedNodes, dedupedConnections, agents);
+	return { agents, tasks, duplicatesRemoved };
 }
 
 /**
@@ -452,12 +531,27 @@ export function previewMission(
 export function validateForMission(
 	nodes: CanvasNode[],
 	connections: Connection[]
-): { valid: boolean; issues: string[]; errors: string[]; warnings: string[] } {
+): { valid: boolean; issues: string[]; errors: string[]; warnings: string[]; duplicateCount: number } {
 	const errors: string[] = [];
 	const warnings: string[] = [];
 
 	if (nodes.length === 0) {
 		errors.push('Canvas is empty');
+	}
+
+	// Check for duplicate skills (warning, will be auto-merged)
+	const skillIdCounts = new Map<string, number>();
+	for (const node of nodes) {
+		const count = skillIdCounts.get(node.skill.id) || 0;
+		skillIdCounts.set(node.skill.id, count + 1);
+	}
+
+	const duplicates = [...skillIdCounts.entries()].filter(([_, count]) => count > 1);
+	const duplicateCount = duplicates.reduce((sum, [_, count]) => sum + count - 1, 0);
+
+	if (duplicates.length > 0) {
+		const duplicateInfo = duplicates.map(([id, count]) => `${id} (${count}x)`).join(', ');
+		warnings.push(`${duplicateCount} duplicate skill(s) will be merged: ${duplicateInfo}`);
 	}
 
 	// Check for circular dependencies (blocking error)
@@ -506,7 +600,7 @@ export function validateForMission(
 	const issues = [...errors, ...warnings];
 
 	// Only errors make it invalid - warnings are allowed
-	return { valid: errors.length === 0, issues, errors, warnings };
+	return { valid: errors.length === 0, issues, errors, warnings, duplicateCount };
 }
 
 // Helper
