@@ -475,28 +475,221 @@ services/canvas-sync/
 
 ---
 
-## Implementation Checklist
+## Granular Implementation Checklist
 
-### Week 1: Security (P0)
-- [ ] Task 1.1: Add DOMPurify to ChatPanel
-- [ ] Task 1.2: Remove/gate debug functions
-- [ ] Task 1.3: Add Zod validation to critical JSON.parse calls
+> **Instructions:** Check off tasks as completed. Each section should be committed to GitHub after completion.
 
-### Week 2: Type Safety (P1)
-- [ ] Task 2.1: Update tsconfig.json with stricter options
-- [ ] Task 2.2: Replace `any` types (start with stores)
-- [ ] Task 2.3: Add ESLint type safety rules
+---
 
-### Week 3: Duplication & Cleanup (P1-P2)
-- [ ] Task 3.1: Consolidate workflow generators
-- [ ] Task 4.1: Create structured logger
-- [ ] Task 4.2: Resolve or document TODOs
-- [ ] Task 4.3: Fix empty catch block
+### SECTION A: Security Hardening (P0) - COMMIT AFTER COMPLETION
 
-### Week 4: Testing & Maintainability (P2-P3)
-- [ ] Task 5.2: Add tests for 3 critical services
-- [ ] Task 6.1: Create storage abstraction
-- [ ] Task 6.2: Begin splitting large files
+#### A1: XSS Fix in ChatPanel
+- [ ] A1.1: Install DOMPurify (`npm install dompurify @types/dompurify`)
+- [ ] A1.2: Import DOMPurify in `src/lib/components/chat/ChatPanel.svelte`
+- [ ] A1.3: Wrap `formatMarkdown()` output with `DOMPurify.sanitize()`
+- [ ] A1.4: Test chat with markdown and verify sanitization works
+- [ ] **A1 COMPLETE** → Git commit: "fix(security): Add DOMPurify sanitization to ChatPanel"
+
+#### A2: Remove Debug Functions
+- [ ] A2.1: Open `src/lib/services/canvas-sync.ts`
+- [ ] A2.2: Remove or gate lines 1348-1352 (window.testCanvasSync, window.addSkillsToCanvas)
+- [ ] A2.3: Verify app still works without debug functions
+- [ ] **A2 COMPLETE** → Git commit: "fix(security): Remove debug functions from production"
+
+#### A3: JSON.parse Validation - Stores
+- [ ] A3.1: Create Zod schemas in `src/lib/types/schemas.ts`
+- [ ] A3.2: Fix `stores/canvas.svelte.ts` lines 1182, 1245, 1342 - add SavedCanvasStateSchema validation
+- [ ] A3.3: Fix `stores/pipelines.svelte.ts` lines 90, 101, 214, 373, 451 - add PipelineDataSchema validation
+- [ ] A3.4: Fix `stores/skills.svelte.ts` line 149 - add SkillArraySchema validation
+- [ ] A3.5: Fix `stores/memory-settings.svelte.ts` line 48 - add MemorySettingsSchema validation
+- [ ] A3.6: Fix `stores/mcps.svelte.ts` line 690 - add MCPStateSchema validation
+- [ ] A3.7: Fix `stores/services.svelte.ts` lines 25, 35 - add ServiceStateSchema validation
+- [ ] A3.8: Fix `stores/project-docs.svelte.ts` line 149 - add ProjectDocsSchema validation
+- [ ] **A3 COMPLETE** → Git commit: "fix(security): Add Zod validation to store JSON.parse calls"
+
+#### A4: JSON.parse Validation - Services
+- [ ] A4.1: Fix `services/persistence.ts` lines 53, 237, 258, 550 - add appropriate schemas
+- [ ] A4.2: Fix `services/event-bridge.ts` line 96 - add BridgeEventSchema validation
+- [ ] A4.3: Fix `services/sync-client.ts` line 166 - add SyncEventSchema validation
+- [ ] A4.4: Fix `services/memory-client.ts` line 485 - add AgentMemoryMetadataSchema validation
+- [ ] A4.5: Fix `services/mcp-client.ts` line 199 - add MCPResponseSchema validation
+- [ ] A4.6: Fix `services/status-storage.ts` lines 40, 95, 157, 233, 328 - add StatusSchemas
+- [ ] A4.7: Fix `routes/api/analyze/+server.ts` line 178 - add ClaudeAnalysisSchema validation
+- [ ] **A4 COMPLETE** → Git commit: "fix(security): Add Zod validation to service JSON.parse calls"
+
+#### A5: JSON.parse Validation - Components & Routes
+- [ ] A5.1: Fix `components/LearningsExportImport.svelte` line 196 - add ImportDataSchema validation
+- [ ] A5.2: Fix `routes/canvas/+page.svelte` line 743 - add SkillSchema validation
+- [ ] **A5 COMPLETE** → Git commit: "fix(security): Add Zod validation to component JSON.parse calls"
+
+**🔒 SECTION A COMPLETE** → Git push to origin
+
+---
+
+### SECTION B: Type Safety (P1) - COMMIT AFTER COMPLETION
+
+#### B1: Enhance tsconfig.json
+- [ ] B1.1: Add `noUncheckedIndexedAccess: true` to tsconfig.json
+- [ ] B1.2: Add `exactOptionalPropertyTypes: true` to tsconfig.json
+- [ ] B1.3: Add `noPropertyAccessFromIndexSignature: true` to tsconfig.json
+- [ ] B1.4: Add `noImplicitReturns: true` to tsconfig.json
+- [ ] B1.5: Add `noFallthroughCasesInSwitch: true` to tsconfig.json
+- [ ] B1.6: Add `noImplicitOverride: true` to tsconfig.json
+- [ ] B1.7: Run `npm run check` and document new errors
+- [ ] **B1 COMPLETE** → Git commit: "chore(types): Enhance tsconfig.json with stricter options"
+
+#### B2: Fix `any` Types - Stores
+- [ ] B2.1: Fix `stores/pipelines.svelte.ts` line 25 - replace `nodes: any[]` with `nodes: CanvasNode[]`
+- [ ] B2.2: Fix `stores/pipelines.svelte.ts` line 26 - replace `connections: any[]` with `connections: Connection[]`
+- [ ] B2.3: Fix `stores/pipelines.svelte.ts` line 132 - replace `canvasData: any` with proper type
+- [ ] B2.4: Fix `stores/pipelines.svelte.ts` line 235 - replace `canvasData` any with proper type
+- [ ] B2.5: Fix `stores/skills.svelte.ts` line 198 - replace `(s: any)` with `(s: SkillResponse)`
+- [ ] B2.6: Fix `stores/stack.svelte.ts` line 380 - replace `Record<string, any>` with `Record<string, MCPConfig>`
+- [ ] **B2 COMPLETE** → Git commit: "fix(types): Replace any types in stores"
+
+#### B3: Fix `any` Types - Services
+- [ ] B3.1: Fix `services/canvas-sync.ts` lines 1350-1351 - remove or properly type window assignment
+- [ ] B3.2: Fix `services/goal-to-workflow.ts` line 209 - replace `as any` with proper union type
+- [ ] B3.3: Fix `services/learning-query.ts` line 76 - replace `as any` with type guard
+- [ ] **B3 COMPLETE** → Git commit: "fix(types): Replace any types in services"
+
+#### B4: Fix `any` Types - Utils
+- [ ] B4.1: Fix `utils/prd-analyzer.ts` line 1009 - replace `as any` with proper category type
+- [ ] **B4 COMPLETE** → Git commit: "fix(types): Replace any types in utils"
+
+#### B5: Add ESLint Type Safety Rules
+- [ ] B5.1: Add `@typescript-eslint/no-explicit-any: error` to ESLint config
+- [ ] B5.2: Add `@typescript-eslint/no-non-null-assertion: warn` to ESLint config
+- [ ] B5.3: Run `npm run lint` and verify rules are enforced
+- [ ] **B5 COMPLETE** → Git commit: "chore(lint): Add ESLint type safety rules"
+
+**🔧 SECTION B COMPLETE** → Git push to origin
+
+---
+
+### SECTION C: Code Duplication (P1) - COMMIT AFTER COMPLETION
+
+#### C1: Consolidate Workflow Generators
+- [ ] C1.1: Analyze `services/workflow-generator.ts` - document all exports
+- [ ] C1.2: Analyze `utils/workflow-generator.ts` - document all exports
+- [ ] C1.3: Create unified `services/workflow-generator/index.ts` with strategy pattern
+- [ ] C1.4: Create `services/workflow-generator/layouts.ts` for position calculation
+- [ ] C1.5: Create `services/workflow-generator/relationships.ts` for skill relationships
+- [ ] C1.6: Update all imports from old files to new unified module
+- [ ] C1.7: Delete `utils/workflow-generator.ts` after migration
+- [ ] C1.8: Run tests and verify functionality
+- [ ] **C1 COMPLETE** → Git commit: "refactor: Consolidate workflow generators into unified module"
+
+**🔀 SECTION C COMPLETE** → Git push to origin
+
+---
+
+### SECTION D: Logging Cleanup (P2) - COMMIT AFTER COMPLETION
+
+#### D1: Create Structured Logger
+- [ ] D1.1: Create `src/lib/utils/logger.ts` with log levels (debug, info, warn, error)
+- [ ] D1.2: Add dev-only gating for debug logs
+- [ ] D1.3: Export logger instance
+- [ ] **D1 COMPLETE** → Git commit: "feat(logging): Create structured logger utility"
+
+#### D2: Replace Console Logs - High Priority Files
+- [ ] D2.1: Replace 53 console.* in `services/canvas-sync.ts` with logger
+- [ ] D2.2: Replace 41 console.* in `services/mission-executor.ts` with logger
+- [ ] D2.3: Replace 21 console.* in `services/persistence.ts` with logger
+- [ ] D2.4: Replace 15 console.* in `services/sync-client.ts` with logger
+- [ ] **D2 COMPLETE** → Git commit: "refactor(logging): Replace console.* with structured logger in services"
+
+#### D3: Replace Console Logs - Stores
+- [ ] D3.1: Replace 11 console.* in `stores/pipelines.svelte.ts` with logger
+- [ ] D3.2: Replace 8 console.* in `stores/skills.svelte.ts` with logger
+- [ ] D3.3: Replace 7 console.* in `stores/canvas.svelte.ts` with logger
+- [ ] D3.4: Replace 7 console.* in `stores/mcps.svelte.ts` with logger
+- [ ] **D3 COMPLETE** → Git commit: "refactor(logging): Replace console.* with structured logger in stores"
+
+#### D4: Replace Console Logs - Components & Routes
+- [ ] D4.1: Replace console.* in `components/Welcome.svelte` (11 calls)
+- [ ] D4.2: Replace console.* in remaining component files
+- [ ] D4.3: Replace console.* in `routes/canvas/+page.svelte` (7 calls)
+- [ ] D4.4: Replace console.* in remaining route files
+- [ ] **D4 COMPLETE** → Git commit: "refactor(logging): Replace console.* with structured logger in components"
+
+**📝 SECTION D COMPLETE** → Git push to origin
+
+---
+
+### SECTION E: TODO Resolution (P2) - COMMIT AFTER COMPLETION
+
+#### E1: Resolve TODOs
+- [ ] E1.1: Fix `routes/mind/+page.svelte` line 186 - implement modal or create issue
+- [ ] E1.2: Fix `stores/mcps.svelte.ts` line 587 - implement Mind API call or create issue
+- [ ] E1.3: Fix `services/learning-query.ts` line 63 - implement multiple agent filtering or create issue
+- [ ] **E1 COMPLETE** → Git commit: "fix: Resolve TODO comments or document as issues"
+
+#### E2: Fix Empty Catch Block
+- [ ] E2.1: Fix `services/mission-executor.ts` line 1416 - add proper error handling
+- [ ] **E2 COMPLETE** → Git commit: "fix(error-handling): Replace empty catch block with proper error handling"
+
+**📋 SECTION E COMPLETE** → Git push to origin
+
+---
+
+### SECTION F: Test Coverage (P2) - COMMIT AFTER COMPLETION
+
+#### F1: Setup Test Infrastructure
+- [ ] F1.1: Verify vitest is properly configured
+- [ ] F1.2: Create test utilities in `src/tests/utils.ts`
+- [ ] F1.3: Create mock factories for common types
+- [ ] **F1 COMPLETE** → Git commit: "test: Setup test infrastructure and utilities"
+
+#### F2: Add Service Tests
+- [ ] F2.1: Create `services/canvas-sync.test.ts` - test core sync functions
+- [ ] F2.2: Create `services/mission-builder.test.ts` - test mission building (expand existing)
+- [ ] F2.3: Create `services/persistence.test.ts` - test state persistence
+- [ ] **F2 COMPLETE** → Git commit: "test: Add unit tests for critical services"
+
+#### F3: Add Store Tests
+- [ ] F3.1: Create `stores/canvas.svelte.test.ts` - test canvas state management
+- [ ] F3.2: Create `stores/skills.svelte.test.ts` - test skills state
+- [ ] F3.3: Create `stores/missions.svelte.test.ts` - test missions state
+- [ ] **F3 COMPLETE** → Git commit: "test: Add unit tests for critical stores"
+
+**🧪 SECTION F COMPLETE** → Git push to origin
+
+---
+
+### SECTION G: Maintainability (P3) - COMMIT AFTER COMPLETION
+
+#### G1: Create Storage Abstraction
+- [ ] G1.1: Create `src/lib/services/storage.ts` with typed storage interface
+- [ ] G1.2: Migrate `stores/canvas.svelte.ts` to use storage abstraction
+- [ ] G1.3: Migrate `stores/pipelines.svelte.ts` to use storage abstraction
+- [ ] G1.4: Migrate `stores/skills.svelte.ts` to use storage abstraction
+- [ ] G1.5: Migrate `services/persistence.ts` to use storage abstraction
+- [ ] G1.6: Migrate remaining localStorage usages
+- [ ] **G1 COMPLETE** → Git commit: "refactor: Centralize localStorage access with storage abstraction"
+
+#### G2: Split Large Files (Optional)
+- [ ] G2.1: Split `canvas-sync.ts` into modular structure (if needed after logging cleanup)
+- [ ] G2.2: Extract helpers from `mission-executor.ts` (if needed)
+- [ ] **G2 COMPLETE** → Git commit: "refactor: Split large files into modular structure"
+
+**🏗️ SECTION G COMPLETE** → Git push to origin
+
+---
+
+## Progress Tracker
+
+| Section | Status | Commit | Date |
+|---------|--------|--------|------|
+| A: Security | ⬜ Not Started | - | - |
+| B: Type Safety | ⬜ Not Started | - | - |
+| C: Duplication | ⬜ Not Started | - | - |
+| D: Logging | ⬜ Not Started | - | - |
+| E: TODOs | ⬜ Not Started | - | - |
+| F: Testing | ⬜ Not Started | - | - |
+| G: Maintainability | ⬜ Not Started | - | - |
+
+**Legend:** ⬜ Not Started | 🔄 In Progress | ✅ Complete
 
 ---
 
