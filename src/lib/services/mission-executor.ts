@@ -822,15 +822,8 @@ class MissionExecutor {
 				progress: this.progress.progress
 			});
 
-			// Try to signal MCP (optional - MCP may not support pause)
-			try {
-				await mcpClient.updateMission(this.progress.missionId, {
-					status: 'paused'
-				});
-			} catch {
-				// MCP pause not supported, but local pause still works
-				log.debug('MCP pause not supported, using local pause');
-			}
+			// Note: MCP doesn't support status updates directly
+			// Pause is handled locally and via sync events
 
 			return true;
 		} catch (error) {
@@ -864,14 +857,8 @@ class MissionExecutor {
 				progress: this.progress.progress
 			});
 
-			// Try to signal MCP (optional)
-			try {
-				await mcpClient.updateMission(this.progress.missionId, {
-					status: 'running'
-				});
-			} catch {
-				log.debug('MCP resume not supported');
-			}
+			// Note: MCP doesn't support status updates directly
+			// Resume is handled locally and via sync events
 
 			return true;
 		} catch (error) {
@@ -1007,8 +994,9 @@ class MissionExecutor {
 
 		if (minutesSinceProgress >= this.STALL_CRITICAL_MINUTES) {
 			this.addLocalLog('error', `No progress for ${Math.round(minutesSinceProgress)} minutes - execution may be stalled`);
-			// Optionally broadcast stall event
-			broadcastMissionEvent('execution_stalled', this.progress.missionId || '', {
+			// Log stall event (using mission_log type for compatibility)
+			broadcastMissionEvent('mission_log', this.progress.missionId || '', {
+				type: 'stall_warning',
 				minutesSinceProgress: Math.round(minutesSinceProgress),
 				currentTaskId: this.progress.currentTaskId,
 				currentTaskName: this.progress.currentTaskName
@@ -1351,7 +1339,7 @@ class MissionExecutor {
 
 			// Auto-create issue when task fails (non-blocking)
 			if (!success) {
-				const errorDetails = task?.error || 'Task execution failed';
+				const errorDetails = 'Task execution failed';
 				memoryClient.createProjectIssue(
 					`[${missionName}] Task failed: ${taskName} - ${errorDetails}`,
 					'open'
