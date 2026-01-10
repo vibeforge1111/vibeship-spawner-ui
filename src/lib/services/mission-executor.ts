@@ -98,6 +98,12 @@ class MissionExecutor {
 	private taskDecisionIds: Map<string, string> = new Map();  // taskId -> memory_id
 	private completedSkillSequence: string[] = [];
 
+	// Health monitoring
+	private lastProgressTime: number = Date.now();
+	private healthCheckInterval: ReturnType<typeof setInterval> | null = null;
+	private readonly STALL_WARNING_MINUTES = 5;
+	private readonly STALL_CRITICAL_MINUTES = 15;
+
 	constructor() {
 		this.progress = this.createInitialProgress();
 		this.setupSyncSubscription();
@@ -376,6 +382,7 @@ class MissionExecutor {
 			switch (event.type) {
 				case 'task_started':
 					// Claude Code started a task
+					this.updateLastProgress();  // Health monitoring
 					const taskId = event.taskId || event.data?.taskId as string;
 					const taskName = event.taskName || event.data?.taskName as string;
 					if (taskId && taskId !== this.progress.currentTaskId) {
@@ -428,6 +435,7 @@ class MissionExecutor {
 
 				case 'task_completed':
 					// Claude Code completed a task
+					this.updateLastProgress();  // Health monitoring
 					const completedTaskId = event.taskId || event.data?.taskId as string;
 					const completedTaskName = event.taskName || event.data?.taskName as string || completedTaskId;
 					const success = event.data?.success !== false;
@@ -562,6 +570,9 @@ class MissionExecutor {
 	 * Handle task progress update (for granular progress within a task)
 	 */
 	private handleTaskProgress(taskId: string, progress: number, message?: string): void {
+		// Update health monitoring timestamp
+		this.updateLastProgress();
+
 		// Update task progress map
 		const existing = this.progress.taskProgressMap.get(taskId);
 		this.progress.taskProgressMap.set(taskId, {
@@ -758,6 +769,9 @@ class MissionExecutor {
 			this.progress.status = 'running';
 			this.callbacks.onStatusChange?.('running');
 
+			// Start health monitoring
+			this.startHealthMonitoring();
+
 			// Persist state after mission creation
 			this.persistState();
 
@@ -902,6 +916,7 @@ class MissionExecutor {
 	 */
 	stop(): void {
 		this.stopPolling();
+		this.stopHealthMonitoring();
 		this.progress = this.createInitialProgress();
 		clearMissionState();  // Clear persisted state when stopping
 	}
@@ -911,6 +926,7 @@ class MissionExecutor {
 	 */
 	destroy(): void {
 		this.stop();
+		this.stopHealthMonitoring();
 		if (this.syncUnsubscribe) {
 			this.syncUnsubscribe();
 			this.syncUnsubscribe = null;
@@ -950,6 +966,63 @@ class MissionExecutor {
 			clearInterval(this.pollingInterval);
 			this.pollingInterval = null;
 		}
+	}
+
+	// ============================================
+	// Health Monitoring Methods
+	// ============================================
+
+	/**
+	 * Start health monitoring to detect stalls
+	 */
+	private startHealthMonitoring(): void {
+		this.stopHealthMonitoring();
+		this.lastProgressTime = Date.now();
+
+		// Check every minute
+		this.healthCheckInterval = setInterval(() => {
+			this.checkHealth();
+		}, 60000);
+
+		log.debug('Health monitoring started');
+	}
+
+	/**
+	 * Stop health monitoring
+	 */
+	private stopHealthMonitoring(): void {
+		if (this.healthCheckInterval) {
+			clearInterval(this.healthCheckInterval);
+			this.healthCheckInterval = null;
+		}
+	}
+
+	/**
+	 * Check execution health - detect stalls
+	 */
+	private checkHealth(): void {
+		if (this.progress.status !== 'running') return;
+
+		const minutesSinceProgress = (Date.now() - this.lastProgressTime) / 60000;
+
+		if (minutesSinceProgress >= this.STALL_CRITICAL_MINUTES) {
+			this.addLocalLog('error', `No progress for ${Math.round(minutesSinceProgress)} minutes - execution may be stalled`);
+			// Optionally broadcast stall event
+			broadcastMissionEvent('execution_stalled', this.progress.missionId || '', {
+				minutesSinceProgress: Math.round(minutesSinceProgress),
+				currentTaskId: this.progress.currentTaskId,
+				currentTaskName: this.progress.currentTaskName
+			});
+		} else if (minutesSinceProgress >= this.STALL_WARNING_MINUTES) {
+			this.addLocalLog('info', `No progress for ${Math.round(minutesSinceProgress)} minutes`);
+		}
+	}
+
+	/**
+	 * Update last progress time - call on any progress
+	 */
+	private updateLastProgress(): void {
+		this.lastProgressTime = Date.now();
 	}
 
 	/**
