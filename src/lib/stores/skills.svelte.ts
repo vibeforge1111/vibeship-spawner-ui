@@ -154,6 +154,7 @@ function saveGeneratedSkills(generatedSkills: Skill[]): void {
 
 /**
  * Load generated skills from localStorage
+ * @deprecated No longer used - kept for reference
  */
 function loadGeneratedSkills(): Skill[] {
 	if (!browser) return [];
@@ -203,6 +204,10 @@ function mapMcpSkill(s: McpSkill): Skill {
 
 /**
  * Load skills from static JSON (fallback)
+ *
+ * IMPORTANT: Clears old generated skills to ensure each PRD analysis starts
+ * with a fresh skill pool. Previously, old generated skills from localStorage
+ * polluted the skill matcher, causing worse results on subsequent PRD uploads.
  */
 export async function loadSkillsStatic() {
 	loading.set(true);
@@ -228,22 +233,16 @@ export async function loadSkillsStatic() {
 			pairsWell: s.pairsWell || []
 		}));
 
-		// Load persisted generated skills from localStorage
-		const persistedGenerated = loadGeneratedSkills();
+		// Clear old generated skills from localStorage to prevent pollution
+		// Each PRD analysis should start fresh with only real H70 skills
+		// FIX: Previously, old generated skills polluted the skill matcher
+		if (browser) {
+			localStorage.removeItem(GENERATED_SKILLS_KEY);
+			console.log('[Skills] Cleared old generated skills for fresh analysis');
+		}
 
-		// Also preserve generated/custom skills already in memory (from PRD analysis)
-		const existingSkills = get(skills);
-		const memoryGenerated = existingSkills.filter(s => s.id.startsWith('generated-'));
-
-		// Merge: prefer memory version if both exist
-		const loadedIds = new Set(loadedSkills.map(s => s.id));
-		const memoryIds = new Set(memoryGenerated.map(s => s.id));
-		const toPreserve = [
-			...memoryGenerated,
-			...persistedGenerated.filter(s => !loadedIds.has(s.id) && !memoryIds.has(s.id))
-		];
-
-		skills.set([...loadedSkills, ...toPreserve]);
+		// Set only the freshly loaded skills - no old generated skills
+		skills.set(loadedSkills);
 	} catch (e) {
 		error.set(e instanceof Error ? e.message : 'Failed to load skills');
 		console.error('Error loading skills:', e);
@@ -254,6 +253,9 @@ export async function loadSkillsStatic() {
 
 /**
  * Load skills from MCP server
+ *
+ * IMPORTANT: Clears old generated skills to ensure each PRD analysis starts
+ * with a fresh skill pool.
  */
 export async function loadSkillsMcp() {
 	loading.set(true);
@@ -270,22 +272,15 @@ export async function loadSkillsMcp() {
 		const mcpSkills = result.data?.skills || [];
 		const loadedSkills: Skill[] = mcpSkills.map(mapMcpSkill);
 
-		// Load persisted generated skills from localStorage
-		const persistedGenerated = loadGeneratedSkills();
+		// Clear old generated skills from localStorage to prevent pollution
+		// Each PRD analysis should start fresh with only real H70 skills
+		if (browser) {
+			localStorage.removeItem(GENERATED_SKILLS_KEY);
+			console.log('[Skills] Cleared old generated skills for fresh analysis');
+		}
 
-		// Also preserve generated/custom skills already in memory
-		const existingSkills = get(skills);
-		const memoryGenerated = existingSkills.filter(s => s.id.startsWith('generated-'));
-
-		// Merge: prefer memory version if both exist
-		const loadedIds = new Set(loadedSkills.map(s => s.id));
-		const memoryIds = new Set(memoryGenerated.map(s => s.id));
-		const toPreserve = [
-			...memoryGenerated,
-			...persistedGenerated.filter(s => !loadedIds.has(s.id) && !memoryIds.has(s.id))
-		];
-
-		skills.set([...loadedSkills, ...toPreserve]);
+		// Set only the freshly loaded skills - no old generated skills
+		skills.set(loadedSkills);
 	} catch (e) {
 		error.set(e instanceof Error ? e.message : 'Failed to load skills from MCP');
 		console.error('Error loading skills from MCP:', e);
