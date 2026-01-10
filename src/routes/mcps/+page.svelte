@@ -72,220 +72,66 @@
 		initializeMCPStore();
 	});
 
-	// Category icons
+	// Category styling configuration - consolidated from three separate switch statements
+	const CATEGORY_CONFIG: Record<string, { icon: string; color: string; bgColor: string }> = {
+		'Development': { icon: 'code', color: 'text-blue-400', bgColor: 'bg-blue-500/10 border-blue-500/30' },
+		'Databases': { icon: 'database', color: 'text-purple-400', bgColor: 'bg-purple-500/10 border-purple-500/30' },
+		'Cloud': { icon: 'cloud', color: 'text-cyan-400', bgColor: 'bg-cyan-500/10 border-cyan-500/30' },
+		'AI': { icon: 'cpu', color: 'text-pink-400', bgColor: 'bg-pink-500/10 border-pink-500/30' },
+		'Communication': { icon: 'message-circle', color: 'text-green-400', bgColor: 'bg-green-500/10 border-green-500/30' },
+		'Browser': { icon: 'globe', color: 'text-orange-400', bgColor: 'bg-orange-500/10 border-orange-500/30' },
+		'Finance': { icon: 'dollar-sign', color: 'text-yellow-400', bgColor: 'bg-yellow-500/10 border-yellow-500/30' },
+		'Security': { icon: 'shield', color: 'text-red-400', bgColor: 'bg-red-500/10 border-red-500/30' },
+		'Productivity': { icon: 'briefcase', color: 'text-indigo-400', bgColor: 'bg-indigo-500/10 border-indigo-500/30' },
+		'Design': { icon: 'pen-tool', color: 'text-violet-400', bgColor: 'bg-violet-500/10 border-violet-500/30' },
+		'Media': { icon: 'video', color: 'text-fuchsia-400', bgColor: 'bg-fuchsia-500/10 border-fuchsia-500/30' },
+		'CRM': { icon: 'users', color: 'text-teal-400', bgColor: 'bg-teal-500/10 border-teal-500/30' },
+		'Analytics': { icon: 'bar-chart', color: 'text-lime-400', bgColor: 'bg-lime-500/10 border-lime-500/30' },
+		'E-commerce': { icon: 'shopping-cart', color: 'text-amber-400', bgColor: 'bg-amber-500/10 border-amber-500/30' },
+		'CMS': { icon: 'file', color: 'text-slate-400', bgColor: 'bg-slate-500/10 border-slate-500/30' },
+		'Social': { icon: 'share-2', color: 'text-sky-400', bgColor: 'bg-sky-500/10 border-sky-500/30' },
+		'Location': { icon: 'map-pin', color: 'text-emerald-400', bgColor: 'bg-emerald-500/10 border-emerald-500/30' },
+		'Utilities': { icon: 'tool', color: 'text-stone-400', bgColor: 'bg-stone-500/10 border-stone-500/30' },
+		'IoT': { icon: 'wifi', color: 'text-rose-400', bgColor: 'bg-rose-500/10 border-rose-500/30' },
+		'Marketing': { icon: 'megaphone', color: 'text-orange-500', bgColor: 'bg-orange-500/10 border-orange-500/30' },
+		'No-Code': { icon: 'wand', color: 'text-purple-500', bgColor: 'bg-purple-500/10 border-purple-500/30' },
+		'Legal': { icon: 'scale', color: 'text-gray-400', bgColor: 'bg-gray-500/10 border-gray-500/30' },
+		'HR': { icon: 'building', color: 'text-blue-500', bgColor: 'bg-blue-500/10 border-blue-500/30' },
+		'Product': { icon: 'clipboard', color: 'text-green-500', bgColor: 'bg-green-500/10 border-green-500/30' },
+		'Blockchain': { icon: 'link', color: 'text-indigo-500', bgColor: 'bg-indigo-500/10 border-indigo-500/30' },
+		'DeFi': { icon: 'trending-up', color: 'text-emerald-500', bgColor: 'bg-emerald-500/10 border-emerald-500/30' },
+		'Trading': { icon: 'activity', color: 'text-cyan-500', bgColor: 'bg-cyan-500/10 border-cyan-500/30' },
+		'Prediction Markets': { icon: 'target', color: 'text-red-500', bgColor: 'bg-red-500/10 border-red-500/30' }
+	};
+
+	const DEFAULT_CATEGORY = { icon: 'box', color: 'text-text-secondary', bgColor: 'bg-surface-active border-surface-border' };
+
 	function getCategoryIcon(category: string): string {
-		switch (category) {
-			case 'Development':
-				return 'code';
-			case 'Databases':
-				return 'database';
-			case 'Cloud':
-				return 'cloud';
-			case 'AI':
-				return 'cpu';
-			case 'Communication':
-				return 'message-circle';
-			case 'Browser':
-				return 'globe';
-			case 'Finance':
-				return 'dollar-sign';
-			case 'Security':
-				return 'shield';
-			case 'Productivity':
-				return 'briefcase';
-			case 'Design':
-				return 'pen-tool';
-			case 'Media':
-				return 'video';
-			case 'CRM':
-				return 'users';
-			case 'Analytics':
-				return 'bar-chart';
-			case 'E-commerce':
-				return 'shopping-cart';
-			case 'CMS':
-				return 'file';
-			case 'Social':
-				return 'share-2';
-			case 'Location':
-				return 'map-pin';
-			case 'Utilities':
-				return 'tool';
-			case 'IoT':
-				return 'wifi';
-			case 'Marketing':
-				return 'megaphone';
-			case 'No-Code':
-				return 'wand';
-			case 'Legal':
-				return 'scale';
-			case 'HR':
-				return 'building';
-			case 'Product':
-				return 'clipboard';
-			case 'Blockchain':
-				return 'link';
-			case 'DeFi':
-				return 'trending-up';
-			case 'Trading':
-				return 'activity';
-			case 'Prediction Markets':
-				return 'target';
-			default:
-				return 'box';
-		}
+		return CATEGORY_CONFIG[category]?.icon ?? DEFAULT_CATEGORY.icon;
 	}
 
 	function getCategoryColor(category: string): string {
-		switch (category) {
-			case 'Development':
-				return 'text-blue-400';
-			case 'Databases':
-				return 'text-purple-400';
-			case 'Cloud':
-				return 'text-cyan-400';
-			case 'AI':
-				return 'text-pink-400';
-			case 'Communication':
-				return 'text-green-400';
-			case 'Browser':
-				return 'text-orange-400';
-			case 'Finance':
-				return 'text-yellow-400';
-			case 'Security':
-				return 'text-red-400';
-			case 'Productivity':
-				return 'text-indigo-400';
-			case 'Design':
-				return 'text-violet-400';
-			case 'Media':
-				return 'text-fuchsia-400';
-			case 'CRM':
-				return 'text-teal-400';
-			case 'Analytics':
-				return 'text-lime-400';
-			case 'E-commerce':
-				return 'text-amber-400';
-			case 'CMS':
-				return 'text-slate-400';
-			case 'Social':
-				return 'text-sky-400';
-			case 'Location':
-				return 'text-emerald-400';
-			case 'Utilities':
-				return 'text-stone-400';
-			case 'IoT':
-				return 'text-rose-400';
-			case 'Marketing':
-				return 'text-orange-500';
-			case 'No-Code':
-				return 'text-purple-500';
-			case 'Legal':
-				return 'text-gray-400';
-			case 'HR':
-				return 'text-blue-500';
-			case 'Product':
-				return 'text-green-500';
-			case 'Blockchain':
-				return 'text-indigo-500';
-			case 'DeFi':
-				return 'text-emerald-500';
-			case 'Trading':
-				return 'text-cyan-500';
-			case 'Prediction Markets':
-				return 'text-red-500';
-			default:
-				return 'text-text-secondary';
-		}
+		return CATEGORY_CONFIG[category]?.color ?? DEFAULT_CATEGORY.color;
 	}
 
 	function getCategoryBgColor(category: string): string {
-		switch (category) {
-			case 'Development':
-				return 'bg-blue-500/10 border-blue-500/30';
-			case 'Databases':
-				return 'bg-purple-500/10 border-purple-500/30';
-			case 'Cloud':
-				return 'bg-cyan-500/10 border-cyan-500/30';
-			case 'AI':
-				return 'bg-pink-500/10 border-pink-500/30';
-			case 'Communication':
-				return 'bg-green-500/10 border-green-500/30';
-			case 'Browser':
-				return 'bg-orange-500/10 border-orange-500/30';
-			case 'Finance':
-				return 'bg-yellow-500/10 border-yellow-500/30';
-			case 'Security':
-				return 'bg-red-500/10 border-red-500/30';
-			case 'Productivity':
-				return 'bg-indigo-500/10 border-indigo-500/30';
-			case 'Design':
-				return 'bg-violet-500/10 border-violet-500/30';
-			case 'Media':
-				return 'bg-fuchsia-500/10 border-fuchsia-500/30';
-			case 'CRM':
-				return 'bg-teal-500/10 border-teal-500/30';
-			case 'Analytics':
-				return 'bg-lime-500/10 border-lime-500/30';
-			case 'E-commerce':
-				return 'bg-amber-500/10 border-amber-500/30';
-			case 'CMS':
-				return 'bg-slate-500/10 border-slate-500/30';
-			case 'Social':
-				return 'bg-sky-500/10 border-sky-500/30';
-			case 'Location':
-				return 'bg-emerald-500/10 border-emerald-500/30';
-			case 'Utilities':
-				return 'bg-stone-500/10 border-stone-500/30';
-			case 'IoT':
-				return 'bg-rose-500/10 border-rose-500/30';
-			case 'Marketing':
-				return 'bg-orange-500/10 border-orange-500/30';
-			case 'No-Code':
-				return 'bg-purple-500/10 border-purple-500/30';
-			case 'Legal':
-				return 'bg-gray-500/10 border-gray-500/30';
-			case 'HR':
-				return 'bg-blue-500/10 border-blue-500/30';
-			case 'Product':
-				return 'bg-green-500/10 border-green-500/30';
-			case 'Blockchain':
-				return 'bg-indigo-500/10 border-indigo-500/30';
-			case 'DeFi':
-				return 'bg-emerald-500/10 border-emerald-500/30';
-			case 'Trading':
-				return 'bg-cyan-500/10 border-cyan-500/30';
-			case 'Prediction Markets':
-				return 'bg-red-500/10 border-red-500/30';
-			default:
-				return 'bg-surface-active border-surface-border';
-		}
+		return CATEGORY_CONFIG[category]?.bgColor ?? DEFAULT_CATEGORY.bgColor;
 	}
 
+	// Connection status styling configuration
+	const STATUS_CONFIG: Record<MCPConnectionStatus, { color: string; icon: string }> = {
+		'connected': { color: 'text-green-400', icon: 'check-circle' },
+		'connecting': { color: 'text-yellow-400', icon: 'loader' },
+		'error': { color: 'text-red-400', icon: 'alert-circle' },
+		'disconnected': { color: 'text-text-tertiary', icon: 'circle' }
+	};
+
 	function getStatusColor(status: MCPConnectionStatus): string {
-		switch (status) {
-			case 'connected':
-				return 'text-green-400';
-			case 'connecting':
-				return 'text-yellow-400';
-			case 'error':
-				return 'text-red-400';
-			default:
-				return 'text-text-tertiary';
-		}
+		return STATUS_CONFIG[status]?.color ?? 'text-text-tertiary';
 	}
 
 	function getStatusIcon(status: MCPConnectionStatus): string {
-		switch (status) {
-			case 'connected':
-				return 'check-circle';
-			case 'connecting':
-				return 'loader';
-			case 'error':
-				return 'alert-circle';
-			default:
-				return 'circle';
-		}
+		return STATUS_CONFIG[status]?.icon ?? 'circle';
 	}
 
 	async function handleConnect(mcp: MCPRegistryItem) {
