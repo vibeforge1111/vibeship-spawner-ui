@@ -1,0 +1,1926 @@
+{
+  "updated": [],
+  "skipped": [
+    {
+      "name": "3d-modeling",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "3d-web-experience",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "a-b-testing",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "absurdist-voice",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "accessibility",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "accessibility-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "account-abstraction",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ad-copywriting",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "agent-based-modeling",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "agent-communication",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "agent-evaluation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "agent-memory-systems",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "agent-tool-builder",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-ad-creative",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-agents-architect",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-audio-production",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-brand-kit",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-code-generation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-code-security",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-content-analytics",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-content-qa",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-creative-director",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-for-learning",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-game-art-generation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-image-editing",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-image-generation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-localization",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-music-audio",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-observability",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-personalization",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-product",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-safety-alignment",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-trend-alchemy",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-video-generation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-visual-effects",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-workflow-automation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-world-building",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ai-wrapper-product",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "algolia-search",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "algorithmic-trading",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ambassador-programs",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "analytics",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "analytics-architecture",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "angular",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "animation-systems",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "anti-marketing",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "api-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "api-designer",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "art-consistency",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "auth-specialist",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "authentication-oauth",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "automation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "autonomous-agents",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "aws-serverless",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "azure-functions",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "backend",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "bioinformatics-workflows",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "blockchain-defi",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "blockchain-privacy",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "blog-writing",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "board-game-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "brand-positioning",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "brand-storytelling",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "branding",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "browser-automation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "browser-extension-builder",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "bubble-nocode",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "bullmq-specialist",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "burn-rate-management",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "business-model-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "caching-patterns",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "carbon-accounting",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "card-game-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "causal-scientist",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "channel-partnerships",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "chaos-engineer",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "character-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ci-cd-pipeline",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "cicd-pipelines",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "claude-code-cicd",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "claude-code-commands",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "claude-code-hooks",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "clerk-auth",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "cliffhanger-craft",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "climate-modeling",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "clinical-trial-analysis",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "cloud-cost-optimization",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "cloudflare-workers-deep",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "code-architecture-review",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "code-cleanup",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "code-quality",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "code-review",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "code-review-diplomacy",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "code-reviewer",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "codebase-optimization",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "color-theory",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "combat-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "community-analytics",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "community-building",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "community-growth",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "community-led-growth",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "community-operations",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "community-strategy",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "community-tooling",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "competitive-intelligence",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "compliance-automation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "computer-use-agents",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "computer-vision-deep",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "concept-art",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "content-creation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "content-strategy",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "context-window-management",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "contract-analysis",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "control-systems",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "conversation-memory",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "conversion-rate-optimization",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "copywriting",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "course-creation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "creative-communications",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "creative-strategy",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "creature-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "crewai",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "crisis-communications",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "cross-chain",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "crypto-trading-bots",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "cultural-remix",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "cursor-ai",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "customer-success",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "customer-support",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "cybersecurity",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "dao-governance",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "data-engineer",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "data-governance",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "data-reproducibility",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "database-architect",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "database-migrations",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "database-schema-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "debugging-master",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "decision-frameworks",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "decision-maker",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "defi-architect",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "demo-day-theater",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "demoscene-coding",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "derivatives-pricing",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "design-ai-tools",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "design-systems",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "dev-communications",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "developer-community",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "development-ai-tools",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "devops",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "digital-humans",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "digital-twin",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "disaster-recovery",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "discord-bot-architect",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "discord-mastery",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "discrete-event-simulation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "distributed-training",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "docker",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "docker-containerization",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "docker-specialist",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "docs-engineer",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "document-ai",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "documentation-that-slaps",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "drizzle-orm",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "drug-discovery-informatics",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "early-stage-hustle",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "easter-egg-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "education-business",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "education-platforms",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "email-deliverability",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "email-systems",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "embedded-systems",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "energy-systems",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "enterprise-architecture",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "environment-art",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "error-handling",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "event-architect",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "evm-deep-dive",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "execution-algorithms",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "experimental-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "explainer-videos",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "expo",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "export-control",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "feature-flag-engineering",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "feature-prioritization",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "file-uploads",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "finance-ai-tools",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "fintech-integration",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "firebase",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "forms-validation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "founder-character",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "founder-mode",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "founder-operating-system",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "fpga-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "frontend",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "fundraising-strategy",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "game-ai-behavior",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "game-ai-behavior-trees",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "game-audio",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "game-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "game-design-core",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "game-development",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "game-monetization",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "game-networking",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "game-ui-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "gamification-loops",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "gcp-cloud-run",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "gdpr-privacy",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "generative-art",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "genomics-pipelines",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "git-time-travel",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "git-workflow",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "github-copilot-mastery",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "go-services",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "go-to-market",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "godot-development",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "godot-llm-integration",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "graph-engineer",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "graphile-worker",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "graphql",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "graphql-architect",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ground-station-ops",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "growth-loops",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "growth-strategy",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "hand-gesture-recognition",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "hiring-strategy",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "hr-recruiting",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "hubspot-integration",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "i18n",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "icon-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "idea-maze",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "incident-postmortem",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "incident-responder",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "infra-architect",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "infrastructure-as-code",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "inngest",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "integration-patterns",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "interactive-portfolio",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "intercom-implementation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ios-swift-specialist",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "klaviyo-ecommerce",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "knowledge-base-engineering",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "kubernetes",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "kubernetes-deployment",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "lab-automation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "landing-page-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "langfuse",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "langgraph",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "launch-storytelling",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "layer2-scaling",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "learning-experience",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "legacy-archaeology",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "level-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "lighting-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "live-education",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "llm-architect",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "llm-fine-tuning",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "llm-game-development",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "llm-npc-dialogue",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "llm-security-audit",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "logging-strategies",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "lore-building",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "marketing",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "marketing-fundamentals",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "mcp-deployment",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "mcp-developer",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "mcp-product",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "mcp-security",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "mcp-server-development",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "mcp-testing",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "meme-engineering",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "micro-saas-launcher",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "microservices-patterns",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "migration-specialist",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "mission-planning",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ml-memory",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "moat-building",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "mobile-game-dev",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "model-optimization",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "monorepo-management",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "monte-carlo",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "motion-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "motion-graphics",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "motor-control",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "multi-agent-orchestration",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "multi-region-deployment",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "multi-tenancy",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "multimodal-ai",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "narrative-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "negotiation-playbook",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "neon-postgres",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "neural-architecture-search",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "nextjs-app-router",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "nextjs-supabase-auth",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "nft-engineer",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "nft-systems",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "nlp-advanced",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "notion-template-business",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "observability",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "observability-sre",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "on-device-ai",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "onchain-analytics",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "orbital-mechanics",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "packaging-print-production",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "patent-drafting",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "performance-hunter",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "performance-optimization",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "performance-thinker",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "perpetuals-trading",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "personal-tool-builder",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "pg-boss",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "physics-simulation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "pitch-narrative",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "pivot-patterns",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "pixel-art",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "pixel-art-sprites",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "plaid-fintech",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "player-onboarding",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "portfolio-optimization",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "postgres-wizard",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "prediction-markets",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "pricing-strategy",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "prisma",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "privacy-guardian",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "procedural-generation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "product-analytics-engineering",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "product-discovery",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "product-led-growth",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "product-management",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "product-market-fit",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "product-strategy",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "productivity",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "progression-systems",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "prompt-caching",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "prompt-engineer",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "prompt-engineering-creative",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "prompt-injection-defense",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "prompt-to-game",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "protein-structure",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "puzzle-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "python-backend",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "python-craftsman",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "qa-engineering",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "quantitative-research",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "queue-workers",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "rag-engineer",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "rag-implementation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "rate-limiting",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "react-native-specialist",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "react-patterns",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "real-time-content",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "realtime-engineer",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "redis-specialist",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "refactoring-guide",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "referral-program-engineering",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "regex-whisperer",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "reinforcement-learning",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "renewable-energy",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "research",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "rigging-animation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "risk-management-trading",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "risk-modeling",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "roast-writing",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "roblox-development",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ros2-robotics",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "rust-craftsman",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "rwa-tokenization",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "sales",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "salesforce-development",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "scientific-method",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "scope-creep-defense",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "scroll-experience",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "sdk-builder",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "security",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "security-hardening",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "security-owasp",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "segment-cdp",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "semantic-search",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "sensor-fusion",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "sentiment-analysis-trading",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "seo",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "session-recording-analytics",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "shader-programming",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "shopify-apps",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "shopify-store-builder",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "side-project-shipping",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "slack-bot-builder",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "smart-contract-auditor",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "smart-contract-engineer",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "social-community",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "solana-development",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "sox-compliance",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "space-data-processing",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "spacecraft-systems",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "stakeholder-management",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "state-management",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "statistical-analysis",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "strategic-partnerships",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "streamer-bait-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "stripe-integration",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "structured-output",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "student-success",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "subscription-billing",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "supabase-backend",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "supabase-security",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "sustainability-metrics",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "svelte-kit",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "sveltekit",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "synthetic-data",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "synthetic-influencers",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "system-designer",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "tabletop-rpg-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "tailwind-css",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "tailwind-ui",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "taste-and-craft",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "team-communications",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "tech-debt-manager",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "tech-debt-negotiation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "technical-analysis",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "technical-debt-strategy",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "technical-writer",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "telegram-bot-builder",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "telegram-mastery",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "telegram-mini-app",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "temporal-craftsman",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "test-architect",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "test-strategist",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "testing-automation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "testing-strategies",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "text-to-video",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "texture-art",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "thought-leadership",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "threejs-3d-graphics",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "token-launch",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "tokenomics-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "trading-psychology",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "transformer-architecture",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "trigger-dev",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "twilio-communications",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "typescript-strict",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "typography",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ui-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "unity-development",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "unity-llm-integration",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "unreal-engine",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "unreal-llm-integration",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "upstash-qstash",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "user-onboarding-product",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "ux-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "v0-dev",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "vector-specialist",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "vehicle-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "vercel-deployment",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "vfx-realtime",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "video-directing",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "video-production",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "video-scriptwriting",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "video-streaming-infrastructure",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "viral-generator-builder",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "viral-hooks",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "viral-marketing",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "voice-agents",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "voice-ai-development",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "voiceover",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "voxel-art",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "vr-ar-development",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "vue-nuxt",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "wallet-integration",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "weapon-design",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "web3-community",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "web3-gaming",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "webflow-development",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "websocket-realtime",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "websockets-realtime",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "workflow-automation",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "worldbuilding",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "x402-payments",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "yc-playbook",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "zapier-make-patterns",
+      "reason": "already has triggers"
+    },
+    {
+      "name": "zendesk-architecture",
+      "reason": "already has triggers"
+    }
+  ],
+  "errors": []
+}
