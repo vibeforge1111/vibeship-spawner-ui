@@ -46,6 +46,16 @@
 		checkCompletionCriteria
 	} from '$lib/services/ralph-contentforge';
 	import {
+		extractTopicsFromContent,
+		storeTopicPerformance,
+		getTopicStats,
+		getTopicInsights,
+		getCurrentNiche,
+		generateContentIdeas,
+		type TopicPerformance,
+		type TopicInsight
+	} from '$lib/services/topic-learning';
+	import {
 		extractPatternsFromAnalysis,
 		storePatternsInMind,
 		getPatternStats,
@@ -104,6 +114,13 @@
 	// Viral pattern learning state
 	let patternStats = $state<PatternStats | null>(null);
 	let patternsLoading = $state(false);
+
+	// Topic learning state (niche expertise)
+	let topicInsights = $state<TopicInsight | null>(null);
+	let topicStats = $state<TopicPerformance[]>([]);
+	let contentIdeas = $state<string[]>([]);
+	let topicsLoading = $state(false);
+	let currentNiche = $state(getCurrentNiche());
 
 	// Queue state
 	let selectedQueueItem = $state<QueueItem | null>(null);
@@ -223,22 +240,49 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 		const author = contentAnalyzed?.tweetData?.author?.username;
 		const score = analysisResult.synthesis.viralityScore;
 
-		console.log(`[ViralPatterns] Learning from analysis (score: ${score})`);
+		console.log(`[Learning] Analysis complete (score: ${score})`);
 
 		try {
-			// Extract patterns from content and analysis
+			// 1. Extract and store PATTERNS (structure, hooks, emotions)
 			const patterns = extractPatternsFromAnalysis(content, analysisResult, source, author);
-
-			console.log(`[ViralPatterns] Extracted: ${patterns.hooks.length} hooks, ${patterns.emotions.length} emotions, ${patterns.structures.length} structures`);
-
-			// Store patterns in Mind
+			console.log(`[Patterns] Extracted: ${patterns.hooks.length} hooks, ${patterns.emotions.length} emotions, ${patterns.structures.length} structures`);
 			await storePatternsInMind(content, score, patterns, source, author);
-
-			// Refresh pattern stats
 			await refreshPatternStats();
 
+			// 2. Extract and store TOPICS (niche expertise)
+			const topics = extractTopicsFromContent(content);
+			if (topics.primary.length > 0) {
+				console.log(`[Topics] Extracted: ${topics.primary.join(', ')} (${topics.angle})`);
+				await storeTopicPerformance(topics, score, content, author);
+				await refreshTopicInsights();
+			}
+
 		} catch (e) {
-			console.warn('[ViralPatterns] Failed to learn from analysis:', e);
+			console.warn('[Learning] Failed to learn from analysis:', e);
+		}
+	}
+
+	/**
+	 * Refresh topic insights from Mind
+	 */
+	async function refreshTopicInsights() {
+		if (!isMindConnected) return;
+
+		topicsLoading = true;
+		try {
+			const [insights, stats, ideas] = await Promise.all([
+				getTopicInsights(),
+				getTopicStats(),
+				generateContentIdeas()
+			]);
+			topicInsights = insights;
+			topicStats = stats;
+			contentIdeas = ideas;
+			console.log(`[Topics] Refreshed: ${stats.length} topics tracked`);
+		} catch (e) {
+			console.warn('[Topics] Failed to refresh:', e);
+		} finally {
+			topicsLoading = false;
 		}
 	}
 
@@ -343,11 +387,12 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 		// Load persisted result (survives page refresh)
 		await loadLatestResult();
 
-		// Load analysis history and pattern stats from Mind (after Mind connection is established)
+		// Load analysis history, pattern stats, and topic insights from Mind (after Mind connection is established)
 		setTimeout(async () => {
 			if (isMindConnected) {
 				await loadAnalysisHistory();
 				await refreshPatternStats();
+				await refreshTopicInsights();
 			}
 		}, 1000);
 
@@ -1347,6 +1392,128 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 					<span class="text-orange-400 text-sm">Viral Pattern Engine: No patterns learned yet</span>
 					<span class="text-xs text-text-tertiary">Analyze content to start learning what works</span>
 				</div>
+			</div>
+		{/if}
+
+		<!-- Topic Learning Section (Niche Expertise) -->
+		{#if isMindConnected && topicInsights && (topicInsights.hotTopics.length > 0 || topicInsights.risingTopics.length > 0 || topicInsights.gapTopics.length > 0)}
+			<div class="mt-8 bg-bg-secondary border border-emerald-500/30 p-6">
+				<div class="flex items-center justify-between mb-4">
+					<h2 class="text-xl font-semibold flex items-center gap-2">
+						<span class="text-emerald-400">Topic Intelligence</span>
+						<span class="text-xs font-normal text-text-tertiary">Learning your niche: {currentNiche.name}</span>
+					</h2>
+					<span class="text-sm text-emerald-300">{topicStats.length} topics tracked</span>
+				</div>
+
+				<!-- Hot Topics -->
+				{#if topicInsights.hotTopics.length > 0}
+					<div class="mb-6">
+						<h3 class="text-sm font-medium text-text-secondary mb-2 flex items-center gap-2">
+							<span class="text-lg">🔥</span>
+							Hot Topics (your audience loves these)
+						</h3>
+						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+							{#each topicInsights.hotTopics as topic}
+								<div class="p-3 bg-bg-primary border border-emerald-500/20 border-l-2 border-l-emerald-500">
+									<div class="flex items-center justify-between mb-1">
+										<span class="font-medium text-sm capitalize">{topic.topic}</span>
+										<span class="text-xs text-emerald-400">Avg: {topic.avgViralityScore}</span>
+									</div>
+									<div class="flex items-center gap-2 text-xs text-text-tertiary">
+										<span>n={topic.sampleSize}</span>
+										<span class="px-1 py-0.5 {topic.confidence === 'very_high' ? 'bg-emerald-500/20 text-emerald-400' : topic.confidence === 'high' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-500/20 text-gray-400'}">
+											{topic.confidence}
+										</span>
+										{#if topic.trend === 'rising'}
+											<span class="text-green-400">↑ rising</span>
+										{:else if topic.trend === 'declining'}
+											<span class="text-red-400">↓ declining</span>
+										{/if}
+									</div>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Rising Topics -->
+				{#if topicInsights.risingTopics.length > 0}
+					<div class="mb-6">
+						<h3 class="text-sm font-medium text-text-secondary mb-2 flex items-center gap-2">
+							<span class="text-lg">📈</span>
+							Rising Topics (trending in your niche)
+						</h3>
+						<div class="flex flex-wrap gap-2">
+							{#each topicInsights.risingTopics as topic}
+								<span class="px-3 py-1.5 bg-green-500/10 border border-green-500/30 text-green-300 text-sm">
+									{topic.topic}
+									<span class="ml-1 text-xs opacity-70">({topic.avgViralityScore} avg)</span>
+								</span>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Gap Topics (unexplored) -->
+				{#if topicInsights.gapTopics.length > 0}
+					<div class="mb-6">
+						<h3 class="text-sm font-medium text-text-secondary mb-2 flex items-center gap-2">
+							<span class="text-lg">🎯</span>
+							Unexplored Topics (opportunities)
+						</h3>
+						<div class="flex flex-wrap gap-2">
+							{#each topicInsights.gapTopics.slice(0, 8) as topic}
+								<span class="px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 text-purple-300 text-sm">
+									{topic}
+								</span>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Content Ideas -->
+				{#if contentIdeas.length > 0}
+					<div class="border-t border-surface-border pt-4">
+						<h3 class="text-sm font-medium text-text-secondary mb-3 flex items-center gap-2">
+							<span class="text-lg">💡</span>
+							Content Ideas (based on your learnings)
+						</h3>
+						<div class="space-y-2">
+							{#each contentIdeas.slice(0, 4) as idea}
+								<div class="flex items-start gap-2 p-2 bg-bg-primary border border-surface-border hover:border-emerald-500/30 transition-colors">
+									<span class="text-emerald-400">→</span>
+									<span class="text-sm">{idea}</span>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Recommendations -->
+				{#if topicInsights.recommendations.length > 0}
+					<div class="mt-4 p-3 bg-emerald-500/5 border border-emerald-500/20">
+						<h4 class="text-xs font-semibold text-emerald-400 mb-2">AI Recommendations:</h4>
+						<ul class="space-y-1 text-xs text-text-secondary">
+							{#each topicInsights.recommendations as rec}
+								<li class="flex items-start gap-1">
+									<span class="text-emerald-400">•</span>
+									{rec}
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
+			</div>
+		{:else if isMindConnected && !topicsLoading && topicStats.length === 0}
+			<div class="mt-8 p-4 bg-emerald-900/10 border border-emerald-500/20">
+				<div class="flex items-center gap-2">
+					<span class="text-emerald-400 text-sm">Topic Intelligence: Learning your niche</span>
+					<span class="text-xs text-text-tertiary">Analyze content to discover what topics resonate with your audience</span>
+				</div>
+				<p class="text-xs text-text-tertiary mt-2">
+					Current focus: {currentNiche.name} ({currentNiche.primaryTopics.slice(0, 4).join(', ')})
+				</p>
 			</div>
 		{/if}
 
