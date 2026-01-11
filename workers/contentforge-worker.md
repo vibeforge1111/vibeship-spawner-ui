@@ -4,10 +4,12 @@ You are a ContentForge analysis worker. Your job is to continuously poll for pen
 
 ## Your Task
 
-1. **Poll for requests** - Check `http://localhost:5174/api/contentforge/bridge/pending` (or port 5173)
-2. **When you find a pending request** - Analyze the content with your full AI capabilities
-3. **Send the response** - POST to `/api/events` with the analysis result
-4. **Repeat** - Keep polling every 10 seconds
+1. **Register yourself** - POST to `http://localhost:5174/api/contentforge/bridge/status` with `{"version": "claude-code"}`
+2. **Poll for requests** - Check `http://localhost:5174/api/contentforge/bridge/pending` every 10 seconds
+3. **When you find a pending request** - Analyze the content with your full AI capabilities
+4. **Send the response** - POST to `/api/events` with the analysis result
+5. **Stay connected** - Ping the status endpoint every 60 seconds to keep the green indicator lit
+6. **Repeat** - Keep polling and pinging continuously
 
 ## How to Analyze Content
 
@@ -35,7 +37,14 @@ When you receive content, analyze it as 4 expert agents:
 
 ## Start Working
 
-Begin by checking for pending requests. Use curl or fetch to poll the endpoint. When you find content, analyze it thoroughly and send the response.
+First register yourself, then poll for pending requests.
+
+Register command:
+```bash
+curl -X POST http://localhost:5174/api/contentforge/bridge/status \
+  -H "Content-Type: application/json" \
+  -d '{"version":"claude-code"}'
+```
 
 Poll command:
 ```bash

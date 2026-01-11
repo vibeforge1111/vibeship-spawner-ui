@@ -29,7 +29,7 @@ But that's exactly when you build the foundation for success.`);
 	let statusMessage = $state('Checking worker status...');
 	let statusCheckInterval: ReturnType<typeof setInterval> | null = null;
 
-	const workerPrompt = `You are the ContentForge analysis worker. Poll http://localhost:5174/api/contentforge/bridge/pending every 10 seconds. When pending=true, analyze the content as Marketing, Copywriting, Research, and Psychology agents. Send full analysis via POST to http://localhost:5174/api/events with type "contentforge_analysis_complete". Then DELETE the pending request. Run autonomously - no questions, just analyze and respond. Start now.`;
+	const workerPrompt = `You are the ContentForge analysis worker. First, register yourself by POSTing to http://localhost:5174/api/contentforge/bridge/status with {"version": "claude-code"}. Then poll http://localhost:5174/api/contentforge/bridge/pending every 10 seconds. When pending=true, analyze the content as Marketing, Copywriting, Research, and Psychology agents. Send full analysis via POST to http://localhost:5174/api/events with type "contentforge_analysis_complete". Then DELETE the pending request. Also ping the status endpoint every 60 seconds to stay connected. Run autonomously - no questions, just analyze and respond. Start now.`;
 
 	function copyPrompt() {
 		navigator.clipboard.writeText(workerPrompt);
