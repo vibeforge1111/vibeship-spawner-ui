@@ -63,12 +63,16 @@ claude
 src/
 ├── routes/
 │   ├── tools/contentforge/
-│   │   └── +page.svelte              # Main UI (1400 lines)
-│   └── api/contentforge/bridge/
-│       ├── write/+server.ts          # Write content + bundle H70 skills
-│       ├── status/+server.ts         # Worker heartbeat & progress
-│       ├── pending/+server.ts        # Worker discovers work
-│       └── result/+server.ts         # Result storage (polling fallback)
+│   │   └── +page.svelte              # Main UI (1500+ lines)
+│   ├── api/contentforge/bridge/
+│   │   ├── write/+server.ts          # Write content + bundle H70 skills
+│   │   ├── status/+server.ts         # Worker heartbeat & progress
+│   │   ├── pending/+server.ts        # Worker discovers work
+│   │   └── result/+server.ts         # Result storage (polling fallback)
+│   ├── api/x/tweet/
+│   │   └── +server.ts                # X/Twitter API - fetch tweets
+│   └── api/events/
+│       └── +server.ts                # SSE event bridge
 │
 ├── lib/
 │   ├── services/
@@ -77,7 +81,9 @@ src/
 │   │   ├── contentforge-mind.ts      # Mind v5 integration
 │   │   ├── ralph-contentforge.ts     # Iterative self-improvement mode
 │   │   ├── viral-patterns.ts         # Pattern extraction & learning
-│   │   └── topic-learning.ts         # Niche topic intelligence
+│   │   ├── topic-learning.ts         # Niche topic intelligence
+│   │   ├── x-api.ts                  # X/Twitter API client
+│   │   └── event-bridge.ts           # Real-time SSE bridge
 │   │
 │   └── components/contentforge/
 │       └── ContentQueue.svelte       # Queue sidebar UI
@@ -273,6 +279,118 @@ const enhanced = await getEnhancedLearnings();
 **Key Files:**
 - `contentforge-mind.ts` - Mind integration service
 
+### 8. X API Integration (Tweet Fetching)
+
+Fetches real tweets with engagement metrics for analysis.
+
+**Input Modes:**
+1. **Tweet URL** - Paste `x.com` or `twitter.com` URL → Fetches full tweet data
+2. **Raw Text** - Paste any text directly for analysis
+
+**Supported URL Formats:**
+```
+https://x.com/username/status/1234567890
+https://twitter.com/username/status/1234567890
+https://x.com/i/web/status/1234567890
+1234567890 (just the ID)
+```
+
+**What Gets Fetched:**
+- Tweet content (text)
+- Author info (name, username, followers, verified status)
+- Engagement metrics (likes, retweets, replies, quotes, bookmarks, impressions)
+- Media attachments (photos, videos, GIFs)
+- Tweet type (original, retweet, reply, quote)
+- Timing (posted date/time)
+
+**Key Functions:**
+```typescript
+import { extractTweetId, fetchTweetFromAPI, formatTweetForAnalysis } from '$lib/services/x-api';
+
+// Extract ID from any URL format
+const tweetId = extractTweetId('https://x.com/user/status/123');
+
+// Fetch from X API (server-side only)
+const result = await fetchTweetFromAPI(tweetId, bearerToken);
+
+// Format for analysis
+const formatted = formatTweetForAnalysis(result.tweet);
+```
+
+**Key Files:**
+- `x-api.ts` - X API client service
+- `/api/x/tweet` - Server endpoint (requires `X_BEARER_TOKEN`)
+
+### 9. Event Bridge (Real-Time Communication)
+
+Enables real-time updates between Worker and UI via Server-Sent Events (SSE).
+
+**Architecture:**
+```
+Worker                    Server                    UI
+  │                         │                        │
+  │ POST /api/events ──────▶│                        │
+  │                         │ emit(event) ──────────▶│ SSE
+  │                         │                        │ onmessage()
+```
+
+**Worker Sends Events:**
+```bash
+# Send analysis result
+curl -X POST http://localhost:5173/api/events \
+  -H "Content-Type: application/json" \
+  -d '{"type":"contentforge_analysis_complete","data":{...}}'
+```
+
+**UI Receives Events:**
+```typescript
+import { clientEventBridge, eventBridgeStatus } from '$lib/services/event-bridge';
+
+// Subscribe to events
+clientEventBridge?.subscribe((event) => {
+  if (event.type === 'contentforge_analysis_complete') {
+    handleResult(event.data);
+  }
+});
+
+// Check connection status
+$: status = $eventBridgeStatus; // 'connected' | 'connecting' | 'disconnected'
+```
+
+**Event Types:**
+| Type | Purpose |
+|------|---------|
+| `contentforge_analysis_complete` | Worker finished analysis |
+| `progress` | Task progress update |
+| `connected` | SSE connection established |
+
+**Key Files:**
+- `event-bridge.ts` - Server + client bridge classes
+- `/api/events` - SSE endpoint (GET) + event receiver (POST)
+
+---
+
+## Environment Variables
+
+```bash
+# Required for Tweet URL mode (fetching real tweets)
+X_BEARER_TOKEN=your_bearer_token_here
+
+# Optional - for posting tweets (not yet implemented)
+X_API_KEY=your_api_key_here
+X_API_SECRET=your_api_secret_here
+X_ACCESS_TOKEN=your_access_token_here
+X_ACCESS_TOKEN_SECRET=your_access_token_secret_here
+```
+
+**Getting X API Credentials:**
+1. Go to https://developer.x.com/en/portal/dashboard
+2. Create a project and app
+3. Copy the Bearer Token from "Keys and tokens"
+4. Add to `.env` file
+
+**Note:** Without `X_BEARER_TOKEN`, you can still use Raw Text mode - just paste content directly instead of URLs.
+
 ---
 
 ## API Reference
@@ -335,6 +453,64 @@ Worker stores result (polling fallback).
     "orchestrator": { "agentResults": {...} }
   }
 }
+```
+
+### GET /api/x/tweet
+Fetch tweet data from X/Twitter API.
+
+**Request:**
+```
+GET /api/x/tweet?url=https://x.com/user/status/1234567890
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "tweet": {
+    "id": "1234567890",
+    "text": "Tweet content...",
+    "author": { "username": "user", "followers": 10000, "verified": true },
+    "metrics": { "likes": 500, "retweets": 100, "impressions": 50000 },
+    "media": [],
+    "createdAt": "2024-01-15T10:30:00Z"
+  },
+  "formattedContent": "# Tweet Analysis Request\n..."
+}
+```
+
+**Errors:**
+| Code | Message |
+|------|---------|
+| 400 | Invalid tweet URL or ID format |
+| 404 | Tweet not found or deleted |
+| 429 | Rate limit exceeded |
+| 503 | X API not configured (missing X_BEARER_TOKEN) |
+
+### POST /api/events
+Worker sends events to broadcast via SSE.
+
+**Request:**
+```json
+{
+  "type": "contentforge_analysis_complete",
+  "data": { "requestId": "...", "synthesis": {...} }
+}
+```
+
+**Response:**
+```json
+{ "success": true, "eventId": "evt-1234567890-abc123" }
+```
+
+### GET /api/events
+SSE stream for real-time updates.
+
+**Response:** Server-Sent Events stream
+```
+data: {"type":"connected","timestamp":"2024-01-15T10:30:00Z"}
+
+data: {"type":"contentforge_analysis_complete","data":{...}}
 ```
 
 ---
