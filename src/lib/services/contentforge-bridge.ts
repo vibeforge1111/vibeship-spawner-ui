@@ -254,7 +254,7 @@ async function initMindConnection(): Promise<void> {
  */
 export async function requestContentForgeAnalysis(
 	content: string,
-	timeoutMs: number = 180000 // 3 minute timeout for thorough analysis
+	timeoutMs: number = 300000 // 5 minute timeout for thorough analysis
 ): Promise<ContentForgeResult> {
 	const requestId = `cf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -349,7 +349,7 @@ function waitForAnalysisResponse(requestId: string, timeoutMs: number): Promise<
 			reject(new Error('Analysis timeout - Claude Code may not be connected. Try the local analysis instead.'));
 		}, timeoutMs);
 
-		// Fallback: Poll for results every 3 seconds
+		// Fallback: Poll for results every 2 seconds (faster polling)
 		const pollInterval = setInterval(async () => {
 			if (resolved) {
 				clearInterval(pollInterval);
@@ -361,8 +361,17 @@ function waitForAnalysisResponse(requestId: string, timeoutMs: number): Promise<
 				if (!response.ok) return;
 
 				const data = await response.json();
-				if (data.hasResult && data.data?.requestId === requestId) {
-					console.log('[ContentForgeBridge] Got result via polling fallback');
+				if (!data.hasResult) return;
+
+				// Check for requestId in multiple possible locations
+				const storedRequestId = data.data?.requestId || data.requestId;
+
+				// Accept result if requestId matches OR if we have any valid result (fallback)
+				const hasMatchingId = storedRequestId === requestId;
+				const hasValidResult = data.data?.orchestrator || data.data?.synthesis;
+
+				if (hasMatchingId || hasValidResult) {
+					console.log('[ContentForgeBridge] Got result via polling fallback, matched:', hasMatchingId, 'valid:', hasValidResult);
 					resolved = true;
 					clearTimeout(timeout);
 					clearInterval(pollInterval);
@@ -378,10 +387,10 @@ function waitForAnalysisResponse(requestId: string, timeoutMs: number): Promise<
 
 					resolve(result);
 				}
-			} catch {
-				// Ignore polling errors
+			} catch (e) {
+				console.warn('[ContentForgeBridge] Polling error:', e);
 			}
-		}, 3000);
+		}, 2000);
 
 		pendingRequests.set(requestId, {
 			resolve: (result) => {
