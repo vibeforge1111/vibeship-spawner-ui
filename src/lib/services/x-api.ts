@@ -112,13 +112,13 @@ export async function fetchTweetFromAPI(
 	const baseUrl = 'https://api.twitter.com/2/tweets';
 
 	// Request tweet with all expansions and fields
+	// NOTE: non_public_metrics and organic_metrics require user context (OAuth 1.0a)
+	// and only work for the authenticated user's own tweets. We only request public fields.
 	const params = new URLSearchParams({
 		ids: tweetId,
 		'tweet.fields': [
 			'created_at',
 			'public_metrics',
-			'non_public_metrics',
-			'organic_metrics',
 			'entities',
 			'attachments',
 			'conversation_id',
@@ -181,7 +181,12 @@ export async function fetchTweetFromAPI(
 		const data = await response.json();
 
 		if (!data.data || data.data.length === 0) {
-			return { success: false, error: 'Tweet not found' };
+			// Check for specific errors in the response
+			if (data.errors && data.errors.length > 0) {
+				const err = data.errors[0];
+				return { success: false, error: `${err.title}: ${err.detail || err.message || 'Unknown error'}` };
+			}
+			return { success: false, error: 'Tweet not found or deleted' };
 		}
 
 		const tweet = data.data[0];

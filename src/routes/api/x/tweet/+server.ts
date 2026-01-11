@@ -49,8 +49,6 @@ async function fetchTweet(tweetUrl: string) {
 		throw error(400, 'Invalid tweet URL or ID format');
 	}
 
-	console.log(`[X API] Fetching tweet: ${tweetId}`);
-
 	// Fetch from X API
 	const result = await fetchTweetFromAPI(tweetId, X_BEARER_TOKEN);
 
