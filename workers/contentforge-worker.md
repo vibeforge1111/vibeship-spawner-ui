@@ -48,7 +48,16 @@ curl -X PATCH http://localhost:5174/api/contentforge/bridge/status \
   -d '{"action":"complete"}'
 ```
 
-**CRITICAL**: The pending endpoint will NOT give you new work until you mark the current task as complete. This prevents overlapping tasks.
+**CRITICAL RULES**:
+1. **STOP POLLING while working** - Once you pick up a request, DO NOT poll for new work until you've completed it
+2. The pending endpoint will return `busy: true` if you try to poll while working
+3. Complete the ENTIRE analysis before looking for new work
+4. Only resume polling AFTER calling `action: complete`
+
+**Workflow**:
+```
+Poll → Found pending → STOP POLLING → Mark start → Do ALL work → Send result → Mark complete → Resume polling
+```
 
 ## IMPORTANT: Skills Are Pre-Bundled
 

@@ -50,22 +50,23 @@
 	let recommendations = $state<CreativeRecommendation[]>([]);
 	let isMindConnected = $state(false);
 
-	const workerPrompt = `You are the ContentForge analysis worker powered by H70 skills. Read workers/contentforge-worker.md for full instructions.
+	const workerPrompt = `You are the ContentForge analysis worker. Read workers/contentforge-worker.md for full instructions.
 
-1. Register: POST to http://localhost:5174/api/contentforge/bridge/status with {"version": "claude-code"}
-2. Poll: GET http://localhost:5174/api/contentforge/bridge/pending every 30 seconds (will return busy=true if already working)
+CRITICAL: When you find pending work, STOP POLLING until you finish. Complete the entire analysis before looking for new work.
+
+1. Register: POST to http://localhost:5175/api/contentforge/bridge/status with {"version": "claude-code"}
+2. Poll: GET http://localhost:5175/api/contentforge/bridge/pending every 30 seconds
 3. When pending=true:
-   - PATCH status with {"action":"start","requestId":"...","task":"Starting analysis..."} to mark busy
-   - PATCH status with {"action":"progress","step":"Loaded H70 skills"} after each step
-   - Skills are pre-bundled in content (viral-marketing, copywriting, viral-hooks, content-strategy, persuasion-psychology, platform-algorithms, audience-psychology, narrative-craft)
-   - Analyze as 4 agents: Marketing, Copywriting, Research, Psychology
-   - PATCH progress after each agent completes (e.g., {"action":"progress","step":"Marketing Agent complete"})
-4. Send FULL response: POST to http://localhost:5174/api/events with type "contentforge_analysis_complete"
-5. PATCH status with {"action":"complete"} to mark done
-6. Delete pending: DELETE http://localhost:5174/api/contentforge/bridge/pending
-7. Ping status every 2 minutes
+   - STOP POLLING - don't check for new work until done
+   - PATCH status {"action":"start","requestId":"...","task":"Starting..."}
+   - Do the FULL analysis (all 4 agents + synthesis)
+   - PATCH progress after each step (e.g., {"action":"progress","step":"Marketing Agent complete"})
+4. POST result to http://localhost:5175/api/events with type "contentforge_analysis_complete"
+5. PATCH status {"action":"complete"}
+6. DELETE http://localhost:5175/api/contentforge/bridge/pending
+7. THEN resume polling
 
-Response must include: requestId, postId, orchestrator.agentResults (all 4), synthesis (viralityScore, keyInsights, playbook). Start now.`;
+Skills are pre-bundled in the content. Response needs: requestId, postId, orchestrator.agentResults (all 4), synthesis. Start now.`;
 
 	function copyPrompt() {
 		navigator.clipboard.writeText(workerPrompt);
