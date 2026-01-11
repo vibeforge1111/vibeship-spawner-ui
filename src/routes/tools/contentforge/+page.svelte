@@ -141,8 +141,8 @@
 
 CRITICAL: When you find pending work, STOP POLLING until you finish. Complete the entire analysis before looking for new work.
 
-1. Register: POST to http://localhost:5175/api/contentforge/bridge/status with {"version": "claude-code"}
-2. Poll: GET http://localhost:5175/api/contentforge/bridge/pending every 30 seconds
+1. Register: POST to http://localhost:5173/api/contentforge/bridge/status with {"version": "claude-code"}
+2. Poll: GET http://localhost:5173/api/contentforge/bridge/pending every 30 seconds
 3. When pending=true:
    - STOP POLLING - don't check for new work until done
    - PATCH status {"action":"start","requestId":"...","task":"Starting..."}
@@ -152,7 +152,7 @@ CRITICAL: When you find pending work, STOP POLLING until you finish. Complete th
    - POST to /api/contentforge/bridge/result (for polling fallback)
    - POST to /api/events (for SSE broadcast)
 5. PATCH status {"action":"complete"}
-6. DELETE http://localhost:5175/api/contentforge/bridge/pending
+6. DELETE http://localhost:5173/api/contentforge/bridge/pending
 7. THEN resume polling
 
 Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentResults (all 4), synthesis. Start now.`;

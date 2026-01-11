@@ -59,15 +59,15 @@ If criteria NOT met:
 
 ## Your Task
 
-1. **Register yourself** - POST to `http://localhost:5174/api/contentforge/bridge/status` with `{"version": "claude-code"}`
-2. **Poll for requests** - Check `http://localhost:5174/api/contentforge/bridge/pending` every 30 seconds
+1. **Register yourself** - POST to `http://localhost:5173/api/contentforge/bridge/status` with `{"version": "claude-code"}`
+2. **Poll for requests** - Check `http://localhost:5173/api/contentforge/bridge/pending` every 30 seconds
 3. **When you find a pending request**:
    - **Mark as started** - PATCH status with `{"action": "start", "requestId": "...", "task": "Starting analysis..."}`
    - **Update progress** - PATCH status as you complete each step (see Progress Updates below)
    - The content file includes ALL H70 skills already bundled. Just read and apply them.
 4. **Send the FULL response** - POST to `/api/events` with ALL required fields
 5. **Mark as complete** - PATCH status with `{"action": "complete"}`
-6. **Delete pending** - DELETE `http://localhost:5174/api/contentforge/bridge/pending`
+6. **Delete pending** - DELETE `http://localhost:5173/api/contentforge/bridge/pending`
 7. **Stay connected** - Ping the status endpoint every 2 minutes
 8. **Repeat** - Keep polling and pinging continuously
 
@@ -77,28 +77,28 @@ The UI shows real-time progress to the user. You MUST send progress updates as y
 
 ```bash
 # When starting analysis
-curl -X PATCH http://localhost:5174/api/contentforge/bridge/status \
+curl -X PATCH http://localhost:5173/api/contentforge/bridge/status \
   -H "Content-Type: application/json" \
   -d '{"action":"start","requestId":"<from pending>","task":"Starting analysis..."}'
 
 # After loading skills
-curl -X PATCH http://localhost:5174/api/contentforge/bridge/status \
+curl -X PATCH http://localhost:5173/api/contentforge/bridge/status \
   -H "Content-Type: application/json" \
   -d '{"action":"progress","step":"Loaded H70 skills"}'
 
 # After each agent completes
-curl -X PATCH http://localhost:5174/api/contentforge/bridge/status \
+curl -X PATCH http://localhost:5173/api/contentforge/bridge/status \
   -H "Content-Type: application/json" \
   -d '{"action":"progress","step":"Marketing Agent complete"}'
 
-curl -X PATCH http://localhost:5174/api/contentforge/bridge/status \
+curl -X PATCH http://localhost:5173/api/contentforge/bridge/status \
   -H "Content-Type: application/json" \
   -d '{"action":"progress","step":"Copywriting Agent complete"}'
 
 # etc...
 
 # When done
-curl -X PATCH http://localhost:5174/api/contentforge/bridge/status \
+curl -X PATCH http://localhost:5173/api/contentforge/bridge/status \
   -H "Content-Type: application/json" \
   -d '{"action":"complete"}'
 ```
@@ -190,7 +190,7 @@ The bundled skills are:
 
 You can fetch more skills via API:
 ```bash
-curl http://localhost:5174/api/h70-skills/{skill-id}
+curl http://localhost:5173/api/h70-skills/{skill-id}
 ```
 
 Or use the spawner-h70 MCP tool:
@@ -434,7 +434,7 @@ To maintain connection status:
 
 First register yourself:
 ```bash
-curl -X POST http://localhost:5175/api/contentforge/bridge/status \
+curl -X POST http://localhost:5173/api/contentforge/bridge/status \
   -H "Content-Type: application/json" \
   -d '{"version":"claude-code"}'
 ```
@@ -443,7 +443,7 @@ If registration fails, retry up to 3 times with exponential backoff.
 
 Then poll for pending requests:
 ```bash
-curl -s http://localhost:5175/api/contentforge/bridge/pending
+curl -s http://localhost:5173/api/contentforge/bridge/pending
 ```
 
 If `pending: true`, read the content, analyze thoroughly, then send response.
@@ -451,19 +451,19 @@ If `pending: true`, read the content, analyze thoroughly, then send response.
 **IMPORTANT: Send result to BOTH endpoints for reliability (retry each if fails):**
 ```bash
 # 1. Store result (fallback for polling) - RETRY UP TO 3 TIMES
-curl -X POST http://localhost:5175/api/contentforge/bridge/result \
+curl -X POST http://localhost:5173/api/contentforge/bridge/result \
   -H "Content-Type: application/json" \
   -d '{"type":"contentforge_analysis_complete","data":{...full response...}}'
 
 # 2. Broadcast via events (SSE to UI) - RETRY UP TO 3 TIMES
-curl -X POST http://localhost:5175/api/events \
+curl -X POST http://localhost:5173/api/events \
   -H "Content-Type: application/json" \
   -d '{"type":"contentforge_analysis_complete","data":{...full response...}}'
 ```
 
 After responding, clear the pending request:
 ```bash
-curl -X DELETE http://localhost:5175/api/contentforge/bridge/pending
+curl -X DELETE http://localhost:5173/api/contentforge/bridge/pending
 ```
 
 ### Error Recovery Checklist
