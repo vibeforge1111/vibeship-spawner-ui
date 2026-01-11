@@ -16,8 +16,15 @@
 		type UserStyle,
 		type CreativeRecommendation
 	} from '$lib/services/contentforge-bridge';
+	import type { TweetData } from '$lib/services/x-api';
 
+	// Input mode: 'text' for raw content, 'tweet' for X/Twitter URL
+	let inputMode = $state<'text' | 'tweet'>('text');
 	let inputText = $state('');
+	let tweetUrl = $state('');
+	let tweetData = $state<TweetData | null>(null);
+	let fetchingTweet = $state(false);
+	let xApiConfigured = $state(true); // assume configured until we know otherwise
 
 	let loading = $state(false);
 	let result: any = $state(null);
@@ -132,18 +139,165 @@ Response must include: requestId, postId, orchestrator.agentResults (all 4), syn
 		storeUnsubscribers.forEach(unsub => unsub());
 	});
 
+	/**
+	 * Fetch tweet data from X API
+	 */
+	async function fetchTweet() {
+		if (!tweetUrl.trim()) {
+			error = 'Please enter a tweet URL';
+			return;
+		}
+
+		fetchingTweet = true;
+		error = null;
+		tweetData = null;
+
+		try {
+			const response = await fetch('/api/x/tweet', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ url: tweetUrl })
+			});
+
+			if (!response.ok) {
+				const data = await response.json().catch(() => ({}));
+				if (response.status === 503) {
+					xApiConfigured = false;
+					throw new Error('X API not configured. Add X_BEARER_TOKEN to .env file.');
+				}
+				throw new Error(data.message || `Failed to fetch tweet: ${response.status}`);
+			}
+
+			const data = await response.json();
+			tweetData = data.tweet;
+			console.log('[ContentForge] Tweet fetched:', tweetData?.id);
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to fetch tweet';
+		} finally {
+			fetchingTweet = false;
+		}
+	}
+
+	/**
+	 * Analyze content (text or tweet)
+	 */
 	async function analyze() {
 		loading = true;
 		error = null;
 		result = null;
+
 		try {
-			const bridgeResult = await requestContentForgeAnalysis(inputText);
+			let contentToAnalyze: string;
+
+			if (inputMode === 'tweet') {
+				// If we don't have tweet data yet, fetch it first
+				if (!tweetData) {
+					await fetchTweet();
+					if (!tweetData) {
+						throw new Error('Failed to load tweet data');
+					}
+				}
+
+				// Build comprehensive content with tweet + metrics
+				contentToAnalyze = formatTweetContent(tweetData);
+			} else {
+				contentToAnalyze = inputText;
+			}
+
+			if (!contentToAnalyze.trim()) {
+				throw new Error('No content to analyze');
+			}
+
+			const bridgeResult = await requestContentForgeAnalysis(contentToAnalyze);
 			result = bridgeResult;
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Analysis failed. Make sure the worker is running.';
 		} finally {
 			loading = false;
 		}
+	}
+
+	/**
+	 * Format tweet data for analysis
+	 */
+	function formatTweetContent(tweet: TweetData): string {
+		const lines: string[] = [];
+
+		lines.push('# REAL TWEET ANALYSIS (with engagement data)');
+		lines.push('');
+		lines.push('## Author');
+		lines.push(`- **Name:** ${tweet.author.name} (@${tweet.author.username})`);
+		lines.push(`- **Followers:** ${tweet.author.followers.toLocaleString()}`);
+		lines.push(`- **Verified:** ${tweet.author.verified ? 'Yes' : 'No'}`);
+		lines.push('');
+
+		lines.push('## Tweet Content');
+		lines.push('```');
+		lines.push(tweet.text);
+		lines.push('```');
+		lines.push('');
+
+		// Timing analysis
+		const postedAt = new Date(tweet.createdAt);
+		lines.push('## Timing');
+		lines.push(`- **Posted:** ${postedAt.toLocaleString()}`);
+		lines.push(`- **Day of Week:** ${postedAt.toLocaleDateString('en-US', { weekday: 'long' })}`);
+		lines.push(`- **Time:** ${postedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`);
+		lines.push('');
+
+		// Real engagement metrics
+		lines.push('## REAL Engagement Metrics');
+		lines.push(`- **Impressions:** ${tweet.metrics.impressions.toLocaleString()}`);
+		lines.push(`- **Likes:** ${tweet.metrics.likes.toLocaleString()}`);
+		lines.push(`- **Retweets:** ${tweet.metrics.retweets.toLocaleString()}`);
+		lines.push(`- **Replies:** ${tweet.metrics.replies.toLocaleString()}`);
+		lines.push(`- **Quotes:** ${tweet.metrics.quotes.toLocaleString()}`);
+		lines.push(`- **Bookmarks:** ${tweet.metrics.bookmarks.toLocaleString()}`);
+		lines.push('');
+
+		// Calculate engagement rates
+		if (tweet.metrics.impressions > 0) {
+			const totalEngagement = tweet.metrics.likes + tweet.metrics.retweets + tweet.metrics.replies;
+			const engagementRate = (totalEngagement / tweet.metrics.impressions * 100).toFixed(2);
+			const likeRate = (tweet.metrics.likes / tweet.metrics.impressions * 100).toFixed(3);
+			const retweetRate = (tweet.metrics.retweets / tweet.metrics.impressions * 100).toFixed(3);
+			const saveRate = (tweet.metrics.bookmarks / tweet.metrics.impressions * 100).toFixed(3);
+
+			lines.push('## Engagement Rates');
+			lines.push(`- **Total Engagement Rate:** ${engagementRate}%`);
+			lines.push(`- **Like Rate:** ${likeRate}%`);
+			lines.push(`- **Retweet Rate:** ${retweetRate}%`);
+			lines.push(`- **Save/Bookmark Rate:** ${saveRate}%`);
+			lines.push('');
+		}
+
+		// Media
+		if (tweet.media.length > 0) {
+			lines.push('## Media Attached');
+			tweet.media.forEach((m, i) => {
+				lines.push(`- ${m.type}${m.width ? ` (${m.width}x${m.height})` : ''}${m.altText ? ` - "${m.altText}"` : ''}`);
+			});
+			lines.push('');
+		}
+
+		// Tweet type context
+		lines.push('## Context');
+		if (tweet.isRetweet) lines.push('- This is a Retweet');
+		else if (tweet.isQuote) lines.push('- This is a Quote Tweet');
+		else if (tweet.isReply) lines.push('- This is a Reply');
+		else lines.push('- This is an Original Tweet');
+		lines.push(`- Language: ${tweet.language}`);
+		lines.push(`- URL: ${tweet.url}`);
+		lines.push('');
+
+		lines.push('---');
+		lines.push('');
+		lines.push('**IMPORTANT:** This is REAL data from an actual tweet. Use the engagement metrics to:');
+		lines.push('1. Validate which H70 patterns actually worked');
+		lines.push('2. Learn from real performance, not theory');
+		lines.push('3. Provide actionable insights based on what the numbers show');
+
+		return lines.join('\n');
 	}
 </script>
 
@@ -236,10 +390,113 @@ Response must include: requestId, postId, orchestrator.agentResults (all 4), syn
 		{/if}
 
 		<div class="mb-8 bg-bg-secondary p-6 border border-surface-border">
-			<h2 class="text-xl font-semibold mb-4">Content to Analyze</h2>
-			<textarea bind:value={inputText} class="w-full h-48 bg-bg-primary border border-surface-border p-4 font-mono text-sm" placeholder="Paste content..."></textarea>
-			<button onclick={analyze} disabled={loading} class="mt-4 px-6 py-2 bg-accent-primary text-white font-semibold">
-				{loading ? 'Analyzing...' : 'Analyze Content'}
+			<!-- Input Mode Tabs -->
+			<div class="flex items-center gap-4 mb-4">
+				<h2 class="text-xl font-semibold">Content to Analyze</h2>
+				<div class="flex border border-surface-border">
+					<button
+						onclick={() => { inputMode = 'text'; tweetData = null; }}
+						class="px-4 py-1.5 text-sm transition-colors {inputMode === 'text' ? 'bg-accent-primary text-white' : 'text-text-secondary hover:text-text-primary'}"
+					>
+						Text
+					</button>
+					<button
+						onclick={() => inputMode = 'tweet'}
+						class="px-4 py-1.5 text-sm transition-colors {inputMode === 'tweet' ? 'bg-blue-500 text-white' : 'text-text-secondary hover:text-text-primary'}"
+					>
+						Tweet URL
+					</button>
+				</div>
+			</div>
+
+			{#if inputMode === 'text'}
+				<!-- Text Input Mode -->
+				<textarea
+					bind:value={inputText}
+					class="w-full h-48 bg-bg-primary border border-surface-border p-4 font-mono text-sm"
+					placeholder="Paste your content here..."
+				></textarea>
+			{:else}
+				<!-- Tweet URL Input Mode -->
+				<div class="space-y-4">
+					<div class="flex gap-2">
+						<input
+							type="text"
+							bind:value={tweetUrl}
+							placeholder="Paste tweet URL (e.g., https://x.com/user/status/123456789)"
+							class="flex-1 bg-bg-primary border border-surface-border px-4 py-3 font-mono text-sm"
+						/>
+						<button
+							onclick={fetchTweet}
+							disabled={fetchingTweet || !tweetUrl.trim()}
+							class="px-4 py-2 bg-blue-500 text-white font-semibold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+						>
+							{fetchingTweet ? 'Loading...' : 'Load Tweet'}
+						</button>
+					</div>
+
+					{#if !xApiConfigured}
+						<div class="bg-yellow-900/20 border border-yellow-500 p-4">
+							<p class="text-yellow-400 text-sm">X API not configured. Add X_BEARER_TOKEN to your .env file.</p>
+						</div>
+					{/if}
+
+					{#if tweetData}
+						<!-- Tweet Preview -->
+						<div class="bg-bg-primary border border-blue-500/30 p-4">
+							<div class="flex items-start gap-3">
+								<img src={tweetData.author.profileImageUrl} alt="" class="w-12 h-12 rounded-full" />
+								<div class="flex-1 min-w-0">
+									<div class="flex items-center gap-2 mb-1">
+										<span class="font-semibold">{tweetData.author.name}</span>
+										<span class="text-text-tertiary">@{tweetData.author.username}</span>
+										{#if tweetData.author.verified}
+											<span class="text-blue-400">✓</span>
+										{/if}
+									</div>
+									<p class="text-sm whitespace-pre-wrap mb-3">{tweetData.text}</p>
+
+									<!-- Metrics -->
+									<div class="flex flex-wrap gap-4 text-sm text-text-secondary">
+										<span title="Impressions">👁 {tweetData.metrics.impressions.toLocaleString()}</span>
+										<span title="Likes">❤️ {tweetData.metrics.likes.toLocaleString()}</span>
+										<span title="Retweets">🔁 {tweetData.metrics.retweets.toLocaleString()}</span>
+										<span title="Replies">💬 {tweetData.metrics.replies.toLocaleString()}</span>
+										<span title="Bookmarks">🔖 {tweetData.metrics.bookmarks.toLocaleString()}</span>
+									</div>
+
+									<!-- Media indicators -->
+									{#if tweetData.media.length > 0}
+										<div class="mt-2 flex gap-2">
+											{#each tweetData.media as m}
+												<span class="text-xs px-2 py-0.5 bg-surface border border-surface-border">
+													{m.type === 'photo' ? '📷' : m.type === 'video' ? '🎥' : '🎞️'} {m.type}
+												</span>
+											{/each}
+										</div>
+									{/if}
+
+									<p class="text-xs text-text-tertiary mt-2">
+										{new Date(tweetData.createdAt).toLocaleString()}
+									</p>
+								</div>
+							</div>
+						</div>
+					{:else if !fetchingTweet}
+						<div class="bg-bg-primary border border-surface-border p-8 text-center text-text-tertiary">
+							<p>Paste a tweet URL and click "Load Tweet" to fetch engagement data</p>
+							<p class="text-xs mt-2">Supports: x.com, twitter.com</p>
+						</div>
+					{/if}
+				</div>
+			{/if}
+
+			<button
+				onclick={analyze}
+				disabled={loading || (inputMode === 'text' && !inputText.trim()) || (inputMode === 'tweet' && !tweetData)}
+				class="mt-4 px-6 py-2 bg-accent-primary text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+			>
+				{loading ? 'Analyzing...' : inputMode === 'tweet' ? 'Analyze Tweet' : 'Analyze Content'}
 			</button>
 		</div>
 
