@@ -50,6 +50,16 @@
 	let recommendations = $state<CreativeRecommendation[]>([]);
 	let isMindConnected = $state(false);
 
+	// Playbook feedback tracking
+	interface PlaybookFeedback {
+		stepOrder: number;
+		action: string;
+		status: 'pending' | 'implemented' | 'skipped';
+		implementedAt?: string;
+	}
+	let playbookFeedback = $state<PlaybookFeedback[]>([]);
+	let feedbackSaved = $state(false);
+
 	const workerPrompt = `You are the ContentForge analysis worker. Read workers/contentforge-worker.md for full instructions.
 
 CRITICAL: When you find pending work, STOP POLLING until you finish. Complete the entire analysis before looking for new work.
@@ -131,6 +141,7 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 					console.log('[ContentForge] Store received result:', value.postId);
 					result = value;
 					loading = false;
+					initPlaybookFeedback();
 				}
 			}),
 			contentforgeStatus.subscribe((status) => {
@@ -208,6 +219,89 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 	}
 
 	/**
+	 * Initialize playbook feedback tracking when result is received
+	 */
+	function initPlaybookFeedback() {
+		if (!result?.synthesis?.playbook?.steps) return;
+
+		playbookFeedback = result.synthesis.playbook.steps.map((step: { order: number; action: string }) => ({
+			stepOrder: step.order,
+			action: step.action,
+			status: 'pending' as const
+		}));
+		feedbackSaved = false;
+	}
+
+	/**
+	 * Mark a playbook step as implemented or skipped
+	 */
+	function markPlaybookStep(stepOrder: number, status: 'implemented' | 'skipped') {
+		playbookFeedback = playbookFeedback.map(f =>
+			f.stepOrder === stepOrder
+				? { ...f, status, implementedAt: status === 'implemented' ? new Date().toISOString() : undefined }
+				: f
+		);
+	}
+
+	/**
+	 * Save playbook feedback to Mind for learning
+	 */
+	async function savePlaybookFeedback() {
+		if (!isMindConnected) return;
+
+		const implementedSteps = playbookFeedback.filter(f => f.status === 'implemented');
+		const skippedSteps = playbookFeedback.filter(f => f.status === 'skipped');
+
+		if (implementedSteps.length === 0 && skippedSteps.length === 0) return;
+
+		try {
+			const feedbackContent = `
+## ContentForge Playbook Feedback
+
+**Original Virality Score:** ${result?.synthesis?.viralityScore || 'N/A'}
+
+**Implemented Steps (${implementedSteps.length}):**
+${implementedSteps.map(s => `- Step ${s.stepOrder}: ${s.action}`).join('\n') || 'None'}
+
+**Skipped Steps (${skippedSteps.length}):**
+${skippedSteps.map(s => `- Step ${s.stepOrder}: ${s.action}`).join('\n') || 'None'}
+
+**Feedback Summary:**
+- Implementation rate: ${Math.round((implementedSteps.length / playbookFeedback.length) * 100)}%
+- User found ${implementedSteps.length} recommendations actionable
+`.trim();
+
+			const response = await fetch('http://localhost:8080/v1/memories/', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					content: feedbackContent,
+					temporal_level: 3,
+					content_type: 'observation',
+					salience: 0.8,
+					metadata: {
+						type: 'contentforge_playbook_feedback',
+						original_score: result?.synthesis?.viralityScore,
+						implemented_count: implementedSteps.length,
+						skipped_count: skippedSteps.length,
+						total_steps: playbookFeedback.length,
+						implemented_steps: implementedSteps.map(s => s.action),
+						skipped_steps: skippedSteps.map(s => s.action),
+						timestamp: new Date().toISOString()
+					}
+				})
+			});
+
+			if (response.ok) {
+				feedbackSaved = true;
+				console.log('[ContentForge] Playbook feedback saved to Mind');
+			}
+		} catch (e) {
+			console.warn('[ContentForge] Failed to save feedback:', e);
+		}
+	}
+
+	/**
 	 * Analyze content (text or tweet)
 	 */
 	async function analyze() {
@@ -239,6 +333,7 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 
 			const bridgeResult = await requestContentForgeAnalysis(contentToAnalyze);
 			result = bridgeResult;
+			initPlaybookFeedback();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Analysis failed. Make sure the worker is running.';
 		} finally {
@@ -611,23 +706,62 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 				</div>
 			{/if}
 
-			<!-- Playbook -->
+			<!-- Playbook with Feedback -->
 			{#if result.synthesis?.playbook}
 				<div class="mb-8 bg-bg-secondary p-6 border border-surface-border">
-					<h2 class="text-xl font-semibold mb-4">{result.synthesis.playbook.title || 'Playbook'}</h2>
+					<div class="flex items-center justify-between mb-4">
+						<h2 class="text-xl font-semibold">{result.synthesis.playbook.title || 'Playbook'}</h2>
+						{#if isMindConnected && playbookFeedback.length > 0}
+							<div class="flex items-center gap-2">
+								{#if feedbackSaved}
+									<span class="text-green-400 text-sm">Feedback saved</span>
+								{:else}
+									<button
+										onclick={savePlaybookFeedback}
+										disabled={playbookFeedback.every(f => f.status === 'pending')}
+										class="px-3 py-1 text-sm bg-purple-500/20 text-purple-400 border border-purple-500/30 hover:bg-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+									>
+										Save Feedback to Mind
+									</button>
+								{/if}
+							</div>
+						{/if}
+					</div>
 					<p class="text-text-secondary mb-4">{result.synthesis.playbook.summary || ''}</p>
 					{#if result.synthesis.playbook.steps?.length > 0}
 						<ol class="space-y-4">
-							{#each result.synthesis.playbook.steps as step}
-								<li class="flex gap-4">
+							{#each result.synthesis.playbook.steps as step, i}
+								{@const feedback = playbookFeedback.find(f => f.stepOrder === step.order)}
+								<li class="flex gap-4 p-3 border border-surface-border {feedback?.status === 'implemented' ? 'bg-green-500/10 border-green-500/30' : feedback?.status === 'skipped' ? 'bg-gray-500/10 border-gray-500/30' : 'bg-bg-primary'}">
 									<span class="text-accent-primary font-bold text-lg">{step.order}.</span>
-									<div>
-										<p class="font-medium">{step.action}</p>
+									<div class="flex-1">
+										<p class="font-medium {feedback?.status === 'implemented' ? 'line-through text-text-secondary' : ''}">{step.action}</p>
 										<p class="text-text-secondary text-sm">{step.rationale}</p>
 									</div>
+									{#if isMindConnected}
+										<div class="flex items-center gap-2">
+											<button
+												onclick={() => markPlaybookStep(step.order, 'implemented')}
+												class="p-1.5 text-sm {feedback?.status === 'implemented' ? 'bg-green-500 text-white' : 'bg-green-500/20 text-green-400 hover:bg-green-500/40'}"
+												title="Mark as implemented"
+											>
+												✓
+											</button>
+											<button
+												onclick={() => markPlaybookStep(step.order, 'skipped')}
+												class="p-1.5 text-sm {feedback?.status === 'skipped' ? 'bg-gray-500 text-white' : 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/40'}"
+												title="Skip this step"
+											>
+												✕
+											</button>
+										</div>
+									{/if}
 								</li>
 							{/each}
 						</ol>
+						{#if isMindConnected}
+							<p class="text-text-tertiary text-xs mt-4">Track which recommendations you implement to improve future suggestions</p>
+						{/if}
 					{/if}
 				</div>
 			{/if}
