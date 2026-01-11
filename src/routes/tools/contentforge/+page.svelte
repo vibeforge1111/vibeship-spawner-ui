@@ -24,7 +24,20 @@
 	let statusCheckInterval: ReturnType<typeof setInterval> | null = null;
 	let storeUnsubscribers: Array<() => void> = [];
 
-	const workerPrompt = `You are the ContentForge analysis worker. First, register yourself by POSTing to http://localhost:5174/api/contentforge/bridge/status with {"version": "claude-code"}. Then poll http://localhost:5174/api/contentforge/bridge/pending every 30 seconds. When pending=true, analyze the content thoroughly as Marketing, Copywriting, Research, and Psychology agents. Send the FULL analysis via POST to http://localhost:5174/api/events with type "contentforge_analysis_complete" - the data must include: requestId (from pending response), postId, orchestrator (with agentResults for each agent), and synthesis (with viralityScore, keyInsights, playbook). Then DELETE the pending request. Also ping the status endpoint every 2 minutes to stay connected. Run autonomously - no questions, just analyze and respond. Start now.`;
+	const workerPrompt = `You are the ContentForge analysis worker powered by H70 skills. Read workers/contentforge-worker.md for full instructions.
+
+1. Register: POST to http://localhost:5174/api/contentforge/bridge/status with {"version": "claude-code"}
+2. Poll: GET http://localhost:5174/api/contentforge/bridge/pending every 30 seconds
+3. When pending=true: Load H70 skills (viral-marketing, copywriting, viral-hooks) and analyze content as 4 agents:
+   - Marketing Agent: STEPPS framework, shareability, viral potential
+   - Copywriting Agent: Hook type (4 U's), structure, clarity
+   - Research Agent: Trend context, platform fit
+   - Psychology Agent: Emotional triggers, identity resonance
+4. Send FULL response: POST to http://localhost:5174/api/events with type "contentforge_analysis_complete"
+5. Delete pending: DELETE http://localhost:5174/api/contentforge/bridge/pending
+6. Ping status every 2 minutes to stay connected
+
+Response must include: requestId, postId, orchestrator.agentResults (all 4), synthesis (viralityScore, keyInsights, playbook with steps). Start now.`;
 
 	function copyPrompt() {
 		navigator.clipboard.writeText(workerPrompt);
