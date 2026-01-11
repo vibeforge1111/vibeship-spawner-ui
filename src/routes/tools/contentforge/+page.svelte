@@ -24,6 +24,16 @@ But that's exactly when you build the foundation for success.`);
 	let claudeConnected = $state(false);
 	let analysisMode = $state<'claude' | 'local'>('local');
 	let checkingConnection = $state(true);
+	let showWorkerSetup = $state(false);
+	let copied = $state(false);
+
+	const workerPrompt = `You are the ContentForge analysis worker. Poll http://localhost:5174/api/contentforge/bridge/pending every 10 seconds. When pending=true, analyze the content as Marketing, Copywriting, Research, and Psychology agents. Send full analysis via POST to http://localhost:5174/api/events with type "contentforge_analysis_complete". Then DELETE the pending request. Run autonomously - no questions, just analyze and respond. Start now.`;
+
+	function copyPrompt() {
+		navigator.clipboard.writeText(workerPrompt);
+		copied = true;
+		setTimeout(() => copied = false, 2000);
+	}
 
 	onMount(async () => {
 		await initContentForgeBridge();
@@ -77,7 +87,7 @@ But that's exactly when you build the foundation for success.`);
 
 		<div class="mb-6 flex items-center gap-4">
 			<span class="text-text-secondary text-sm">Analysis Mode:</span>
-			<button onclick={toggleMode} class="flex items-center gap-2 px-3 py-1.5 border border-surface-border">
+			<button onclick={toggleMode} class="flex items-center gap-2 px-3 py-1.5 border border-surface-border hover:border-accent-primary transition-colors">
 				{#if analysisMode === 'claude'}
 					<span class="w-2 h-2 bg-green-500"></span>
 					<span class="text-sm text-green-400">Claude AI</span>
@@ -86,7 +96,50 @@ But that's exactly when you build the foundation for success.`);
 					<span class="text-sm text-blue-400">Local</span>
 				{/if}
 			</button>
+			{#if analysisMode === 'claude'}
+				<button
+					onclick={() => showWorkerSetup = true}
+					class="text-xs text-text-tertiary hover:text-accent-primary transition-colors underline"
+				>
+					Setup Worker
+				</button>
+			{/if}
 		</div>
+
+		<!-- Worker Setup Modal -->
+		{#if showWorkerSetup}
+			<div class="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onclick={() => showWorkerSetup = false}>
+				<div class="bg-bg-secondary border border-surface-border p-6 max-w-xl w-full mx-4" onclick={(e) => e.stopPropagation()}>
+					<div class="flex justify-between items-center mb-4">
+						<h3 class="text-lg font-semibold">Start ContentForge Worker</h3>
+						<button onclick={() => showWorkerSetup = false} class="text-text-tertiary hover:text-text-primary text-xl">&times;</button>
+					</div>
+
+					<div class="space-y-4 text-sm">
+						<div class="space-y-2">
+							<p class="text-text-secondary"><span class="text-accent-primary font-bold">1.</span> Open a new terminal</p>
+							<p class="text-text-secondary"><span class="text-accent-primary font-bold">2.</span> Run <code class="bg-bg-primary px-2 py-0.5 text-accent-primary">claude</code></p>
+							<p class="text-text-secondary"><span class="text-accent-primary font-bold">3.</span> Paste this prompt:</p>
+						</div>
+
+						<div class="bg-bg-primary border border-surface-border p-3 font-mono text-xs text-text-secondary leading-relaxed">
+							{workerPrompt}
+						</div>
+
+						<button
+							onclick={copyPrompt}
+							class="w-full py-2 bg-accent-primary text-white font-semibold hover:bg-accent-secondary transition-colors"
+						>
+							{copied ? 'Copied!' : 'Copy Prompt'}
+						</button>
+
+						<p class="text-text-tertiary text-xs text-center">
+							Worker runs autonomously - just click "Analyze Content" and it responds.
+						</p>
+					</div>
+				</div>
+			</div>
+		{/if}
 
 		<div class="mb-8 bg-bg-secondary p-6 border border-surface-border">
 			<h2 class="text-xl font-semibold mb-4">Content to Analyze</h2>
