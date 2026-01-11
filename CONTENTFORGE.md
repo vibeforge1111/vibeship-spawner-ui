@@ -47,6 +47,7 @@ claude
 │                      │  (Learning)  │                            │
 │                      │              │                            │
 │                      │ - Patterns   │                            │
+│                      │ - Topics     │                            │
 │                      │ - History    │                            │
 │                      │ - Insights   │                            │
 │                      └──────────────┘                            │
@@ -75,7 +76,8 @@ src/
 │   │   ├── contentforge-queue.ts     # Queue management for batch analysis
 │   │   ├── contentforge-mind.ts      # Mind v5 integration
 │   │   ├── ralph-contentforge.ts     # Iterative self-improvement mode
-│   │   └── viral-patterns.ts         # Pattern extraction & learning
+│   │   ├── viral-patterns.ts         # Pattern extraction & learning
+│   │   └── topic-learning.ts         # Niche topic intelligence
 │   │
 │   └── components/contentforge/
 │       └── ContentQueue.svelte       # Queue sidebar UI
@@ -189,13 +191,71 @@ Optional mode that iterates until quality threshold is met.
 **Key Files:**
 - `ralph-contentforge.ts` - Ralph loop logic
 
-### 6. Mind v5 Integration
+### 6. Topic Intelligence (Niche Learning)
+
+Learns what TOPICS resonate in your niche, not just patterns. Tracks categories like "vibe coding", "Claude", "AI tools" etc.
+
+**Default Niche: Vibe Coding & AI Tools**
+```typescript
+primaryTopics: [
+  'vibe coding', 'claude code', 'ai coding', 'ai assisted development',
+  'cursor ai', 'copilot', 'ai agents', 'mcp servers', 'prompt engineering'
+]
+```
+
+**What It Tracks:**
+- **Hot Topics**: High-performing topics your audience loves
+- **Rising Topics**: Trending up in engagement
+- **Declining Topics**: Saturated or losing traction
+- **Gap Topics**: Topics in your niche you haven't explored yet
+
+**Key Functions:**
+```typescript
+import {
+  extractTopicsFromContent,
+  storeTopicPerformance,
+  getTopicInsights,
+  generateContentIdeas,
+  getCurrentNiche,
+  setNiche
+} from '$lib/services/topic-learning';
+
+// Extract topics from content
+const topics = extractTopicsFromContent(content);
+// { primary: ['claude code', 'ai agents'], secondary: ['automation'], sentiment: 'positive', angle: 'build-in-public' }
+
+// Store topic performance after analysis
+await storeTopicPerformance(topics, viralityScore, content, author);
+
+// Get insights for UI
+const insights = await getTopicInsights();
+// { hotTopics, risingTopics, saturatedTopics, gapTopics, recommendations }
+
+// Generate content ideas based on learnings
+const ideas = await generateContentIdeas();
+```
+
+**Content Angles Detected:**
+- `contrarian` - Hot takes, unpopular opinions
+- `educational` - How-to, tutorials, guides
+- `build-in-public` - Shipped, launched, built
+- `deep-dive` - Threads, breakdowns
+- `lessons-learned` - Mistakes, learnings
+- `prediction` - Future, next year
+- `comparison` - X vs Y, better than
+- `productivity-hack` - Saved time, efficiency
+
+**Key Files:**
+- `topic-learning.ts` - Topic extraction, storage, and insights
+
+### 7. Mind v5 Integration
 
 Persistent memory for learning and improvement.
 
 **What Gets Stored:**
 - Analysis results (content, score, insights)
 - Viral patterns learned
+- Topic performance data
 - Success/failure records
 - User style profile
 
@@ -407,16 +467,11 @@ const DEFAULT_RALPH_CONFIG = {
 
 ## Future Improvements
 
-### Topic/Category Learning (Planned)
-Learn not just patterns but topics that resonate in specific niches:
-- Track topic categories (vibe coding, Claude, AI tools)
-- Learn what subjects get engagement
-- Co-create content ideas based on trending topics
-
 ### Content Generation (Planned)
 Move from analysis-only to content creation:
-- Generate content based on learned patterns
-- Iterate until quality threshold met
+- Generate content based on learned patterns + topics
+- Use Topic Intelligence to suggest trending angles
+- Iterate until quality threshold met (Ralph Mode)
 - A/B test variations
 
 ### Multi-Platform Support (Planned)
@@ -424,6 +479,13 @@ Extend beyond Twitter/X:
 - LinkedIn-specific analysis
 - TikTok content patterns
 - Cross-platform strategy
+
+### Advanced Topic Analytics (Planned)
+Deeper niche intelligence:
+- Time-series trend analysis
+- Topic combination performance (A + B = viral)
+- Competitor topic tracking
+- Seasonal topic patterns
 
 ---
 
@@ -443,3 +505,20 @@ Extend beyond Twitter/X:
 1. Add agent to `agentSkills` mapping in bridge write endpoint
 2. Update analysis instructions in bridge write
 3. Update UI to display agent results
+
+### Customizing Topic Intelligence
+1. Create a new `NicheConfig` in `topic-learning.ts`
+2. Call `setNiche(yourConfig)` to switch niches
+3. Or extend the default: `addTopicsToNiche(['new topic'], 'primary')`
+
+```typescript
+// Example: Add a new niche
+const INDIE_HACKER_NICHE: NicheConfig = {
+  name: 'Indie Hacking',
+  description: 'Content about bootstrapping, solo founders, MRR',
+  primaryTopics: ['indie hacking', 'bootstrapping', 'mrr', 'solopreneur'],
+  relatedTopics: ['saas', 'marketing', 'growth'],
+  keywords: ['launched', 'revenue', 'customers', 'churn', 'ltv']
+};
+setNiche(INDIE_HACKER_NICHE);
+```
