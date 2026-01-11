@@ -218,18 +218,24 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 			// Filter to ContentForge analyses and parse them
 			const history: AnalysisHistoryItem[] = [];
 			for (const m of memories) {
-				if (!m.content?.includes('ContentForge Analysis') && !m.content?.includes('Virality Score:')) continue;
+				// Match various ContentForge memory formats
+				const isContentForge = m.content?.includes('ContentForge') ||
+					m.content?.includes('Virality Score:') ||
+					m.content?.includes('virality score');
+				if (!isContentForge) continue;
 
-				// Parse the content
-				const scoreMatch = m.content.match(/Virality Score:\*?\*?\s*(\d+)/i);
+				// Parse score from various formats
+				const scoreMatch = m.content.match(/(?:Virality Score:|virality score)\s*(\d+)/i);
 				const hookMatch = m.content.match(/Hook Type:\s*([^\n]+)/i);
 				const emotionMatch = m.content.match(/Primary Emotion:\s*([^\n]+)/i);
 				const contentMatch = m.content.match(/Content Analyzed:\*?\*?\s*\n([^]*?)(?=\n\*\*|$)/i);
+				const approachMatch = m.content.match(/Winning Approach:\*?\*?\s*\n([^]*?)(?=\n\*\*|$)/i);
 
 				if (scoreMatch) {
 					history.push({
 						id: m.memory_id,
-						content: contentMatch ? contentMatch[1].trim().slice(0, 200) : 'Content not available',
+						content: contentMatch ? contentMatch[1].trim().slice(0, 200) :
+							(approachMatch ? approachMatch[1].trim().slice(0, 200) : 'Analysis complete'),
 						viralityScore: parseInt(scoreMatch[1]),
 						hookType: hookMatch ? hookMatch[1].trim() : null,
 						emotion: emotionMatch ? emotionMatch[1].trim() : null,
@@ -905,18 +911,59 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 				</div>
 			{/if}
 
-			<!-- Key Insights -->
-			{#if result.synthesis?.keyInsights?.length > 0}
+			<!-- Key Insights / Recommendations -->
+			{@const insights = result.synthesis?.keyInsights || result.synthesis?.recommendations || []}
+			{#if insights.length > 0}
 				<div class="mb-8 bg-bg-secondary p-6 border border-surface-border">
 					<h2 class="text-xl font-semibold mb-4">Key Insights</h2>
 					<ul class="space-y-2">
-						{#each result.synthesis.keyInsights as insight}
+						{#each insights as insight}
 							<li class="flex items-start gap-2">
 								<span class="text-accent-primary">→</span>
 								<span>{insight}</span>
 							</li>
 						{/each}
 					</ul>
+				</div>
+			{/if}
+
+			<!-- Agent Analysis (shows which H70 skills ran) -->
+			{#if result.agents}
+				<div class="mb-8 bg-bg-secondary p-6 border border-cyan-500/30">
+					<h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+						<span class="text-cyan-400">H70 Agent Analysis</span>
+						<span class="text-xs text-text-tertiary font-normal">
+							{Object.values(result.agents).filter((a: any) => a.complete).length}/4 agents complete
+						</span>
+					</h2>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						{#each Object.entries(result.agents) as [agentId, agent]}
+							{@const agentData = agent as { complete: boolean; insights: string[] }}
+							<div class="p-4 bg-bg-primary border border-surface-border {agentData.complete ? 'border-l-2 border-l-green-500' : 'border-l-2 border-l-gray-500'}">
+								<div class="flex items-center gap-2 mb-2">
+									<span class="font-semibold capitalize">{agentId.replace(/([A-Z])/g, ' $1').trim()}</span>
+									{#if agentData.complete}
+										<span class="text-xs px-1.5 py-0.5 bg-green-500/20 text-green-400">Complete</span>
+									{:else}
+										<span class="text-xs px-1.5 py-0.5 bg-gray-500/20 text-gray-400">Pending</span>
+									{/if}
+								</div>
+								{#if agentData.insights?.length > 0}
+									<ul class="text-sm text-text-secondary space-y-1">
+										{#each agentData.insights.slice(0, 2) as insight}
+											<li class="flex items-start gap-1">
+												<span class="text-cyan-400 text-xs mt-1">•</span>
+												<span class="line-clamp-2">{insight}</span>
+											</li>
+										{/each}
+										{#if agentData.insights.length > 2}
+											<li class="text-text-tertiary text-xs">+{agentData.insights.length - 2} more insights</li>
+										{/if}
+									</ul>
+								{/if}
+							</div>
+						{/each}
+					</div>
 				</div>
 			{/if}
 
@@ -945,6 +992,8 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 
 			<!-- Auto-saved to Mind indicator -->
 			{#if isMindConnected && result}
+				{@const insightCount = (result.synthesis?.keyInsights || result.synthesis?.recommendations || []).length}
+				{@const agentCount = result.agents ? Object.values(result.agents).filter((a: any) => a.complete).length : 0}
 				<div class="mb-8 p-4 bg-purple-500/10 border border-purple-500/30 flex items-center justify-between">
 					<div class="flex items-center gap-2">
 						<svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -952,7 +1001,7 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 						</svg>
 						<span class="text-purple-400 text-sm">Analysis auto-saved to Mind</span>
 					</div>
-					<span class="text-xs text-purple-300">Score: {result.synthesis?.viralityScore || 0} | {result.synthesis?.keyInsights?.length || 0} insights</span>
+					<span class="text-xs text-purple-300">Score: {result.synthesis?.viralityScore || 0} | {agentCount} agents | {insightCount} insights</span>
 				</div>
 			{/if}
 
