@@ -12,9 +12,16 @@
 		userStyle,
 		creativeRecommendations,
 		mindConnected,
+		enhancedLearnings,
+		getEnhancedLearnings,
 		type LearnedPattern,
 		type UserStyle,
-		type CreativeRecommendation
+		type CreativeRecommendation,
+		type EnhancedLearnings,
+		type EngagementCorrelation,
+		type VisualInsight,
+		type ContentTypePerformance,
+		type TrendDataPoint
 	} from '$lib/services/contentforge-bridge';
 	import type { TweetData } from '$lib/services/x-api';
 
@@ -49,6 +56,8 @@
 	let style = $state<UserStyle | null>(null);
 	let recommendations = $state<CreativeRecommendation[]>([]);
 	let isMindConnected = $state(false);
+	let learnings = $state<EnhancedLearnings | null>(null);
+	let learningsLoading = $state(false);
 
 	// Playbook feedback tracking
 	interface PlaybookFeedback {
@@ -128,6 +137,26 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 		return `${seconds}s`;
 	}
 
+	/**
+	 * Refresh learnings from Mind after an analysis completes
+	 */
+	async function refreshLearnings() {
+		if (!isMindConnected) return;
+
+		learningsLoading = true;
+		try {
+			const enhanced = await getEnhancedLearnings();
+			if (enhanced) {
+				learnings = enhanced;
+				console.log('[ContentForge] Refreshed learnings:', enhanced.totalAnalyzed, 'analyses');
+			}
+		} catch (e) {
+			console.warn('[ContentForge] Failed to refresh learnings:', e);
+		} finally {
+			learningsLoading = false;
+		}
+	}
+
 	onMount(async () => {
 		await initContentForgeBridge();
 		// Check status immediately and then every 2 seconds (faster when tracking activity)
@@ -142,6 +171,8 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 					result = value;
 					loading = false;
 					initPlaybookFeedback();
+					// Refresh learnings after new analysis
+					refreshLearnings();
 				}
 			}),
 			contentforgeStatus.subscribe((status) => {
@@ -168,6 +199,9 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 			}),
 			mindConnected.subscribe((value) => {
 				isMindConnected = value;
+			}),
+			enhancedLearnings.subscribe((value) => {
+				learnings = value;
 			})
 		);
 	});
@@ -851,14 +885,189 @@ ${skippedSteps.map(s => `- Step ${s.stepOrder}: ${s.action}`).join('\n') || 'Non
 			</div>
 		{/if}
 
-		<!-- Mind Learning Sidebar (shows when Mind is connected) -->
-		{#if isMindConnected && (patterns.length > 0 || style)}
+		<!-- Mind Learning Section (shows when Mind is connected) -->
+		{#if isMindConnected && (learnings || patterns.length > 0 || style)}
 			<div class="mt-12 border-t border-surface-border pt-8">
-				<h2 class="text-2xl font-bold mb-6 text-purple-400">Mind Learning</h2>
+				<div class="flex items-center justify-between mb-6">
+					<div class="flex items-center gap-3">
+						<h2 class="text-2xl font-bold text-purple-400">Mind Learning</h2>
+						{#if learningsLoading}
+							<span class="text-sm text-purple-400 animate-pulse">Updating...</span>
+						{/if}
+					</div>
+					{#if learnings}
+						<div class="text-sm text-text-secondary">
+							{learnings.totalAnalyzed} analyses tracked
+						</div>
+					{/if}
+				</div>
+
+				<!-- Overview Stats Row -->
+				{#if learnings && learnings.totalAnalyzed > 0}
+					<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+						<div class="bg-bg-secondary p-4 border border-purple-500/30 text-center">
+							<div class="text-3xl font-bold text-accent-primary">{style?.averageViralityScore || 0}</div>
+							<div class="text-xs text-text-secondary mt-1">Avg Virality</div>
+						</div>
+						<div class="bg-bg-secondary p-4 border border-purple-500/30 text-center">
+							<div class="text-3xl font-bold text-blue-400">{learnings.totalAnalyzed}</div>
+							<div class="text-xs text-text-secondary mt-1">Posts Analyzed</div>
+						</div>
+						<div class="bg-bg-secondary p-4 border border-purple-500/30 text-center">
+							<div class="text-3xl font-bold text-green-400">{learnings.engagementCorrelations.length}</div>
+							<div class="text-xs text-text-secondary mt-1">Patterns Tracked</div>
+						</div>
+						<div class="bg-bg-secondary p-4 border border-purple-500/30 text-center">
+							<div class="text-3xl font-bold text-yellow-400">
+								{learnings.engagementCorrelations.filter(c => c.trend === 'improving').length}
+							</div>
+							<div class="text-xs text-text-secondary mt-1">Improving Trends</div>
+						</div>
+					</div>
+				{/if}
 
 				<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-					<!-- User Style Profile -->
-					{#if style}
+					<!-- Engagement Correlations -->
+					{#if learnings && learnings.engagementCorrelations.length > 0}
+						<div class="bg-bg-secondary p-6 border border-purple-500/30">
+							<h3 class="text-lg font-semibold mb-4">Pattern Performance</h3>
+							<p class="text-text-tertiary text-xs mb-4">How different patterns correlate with engagement</p>
+							<div class="space-y-3">
+								{#each learnings.engagementCorrelations.slice(0, 8) as corr}
+									<div class="flex items-center justify-between py-2 border-b border-surface-border last:border-0">
+										<div class="flex items-center gap-2">
+											<span class="px-1.5 py-0.5 text-xs {corr.category === 'hook' ? 'bg-green-900/30 text-green-400' : corr.category === 'emotion' ? 'bg-purple-900/30 text-purple-400' : 'bg-blue-900/30 text-blue-400'}">
+												{corr.category}
+											</span>
+											<span class="font-medium text-sm">{corr.pattern}</span>
+										</div>
+										<div class="flex items-center gap-3 text-right">
+											{#if corr.avgEngagementRate > 0}
+												<span class="text-xs text-text-secondary" title="Engagement Rate">
+													{corr.avgEngagementRate}%
+												</span>
+											{/if}
+											<span class="text-xs {corr.trend === 'improving' ? 'text-green-400' : corr.trend === 'declining' ? 'text-red-400' : 'text-text-tertiary'}">
+												{corr.trend === 'improving' ? '↑' : corr.trend === 'declining' ? '↓' : '→'}
+											</span>
+											<span class="text-text-tertiary text-xs">({corr.sampleSize}x)</span>
+										</div>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
+
+					<!-- Visual Insights -->
+					{#if learnings && learnings.visualInsights.length > 0}
+						<div class="bg-bg-secondary p-6 border border-purple-500/30">
+							<h3 class="text-lg font-semibold mb-4">Visual Performance</h3>
+							<p class="text-text-tertiary text-xs mb-4">How media types affect virality</p>
+							<div class="space-y-4">
+								{#each learnings.visualInsights as insight}
+									<div class="flex items-center justify-between">
+										<div>
+											<span class="font-medium">{insight.type}</span>
+											<span class="text-text-tertiary text-xs ml-2">({insight.sampleSize} posts)</span>
+										</div>
+										<div class="flex items-center gap-4">
+											<div class="text-right">
+												<div class="text-accent-primary font-bold">{insight.avgViralityScore}</div>
+												<div class="text-xs text-text-tertiary">avg score</div>
+											</div>
+											{#if insight.avgEngagement > 0}
+												<div class="text-right">
+													<div class="text-blue-400 font-bold">{insight.avgEngagement}%</div>
+													<div class="text-xs text-text-tertiary">engagement</div>
+												</div>
+											{/if}
+										</div>
+									</div>
+									<div class="h-2 bg-bg-primary border border-surface-border">
+										<div
+											class="h-full {insight.type === 'Video' ? 'bg-red-500' : insight.type === 'Image' ? 'bg-blue-500' : 'bg-gray-500'}"
+											style="width: {insight.avgViralityScore}%"
+										></div>
+									</div>
+								{/each}
+							</div>
+							<p class="text-text-tertiary text-xs mt-4">
+								Best style: {learnings.visualInsights[0]?.bestPerformingStyle || 'N/A'}
+							</p>
+						</div>
+					{/if}
+
+					<!-- Content Type Performance -->
+					{#if learnings && learnings.contentTypePerformance.length > 0}
+						<div class="bg-bg-secondary p-6 border border-purple-500/30">
+							<h3 class="text-lg font-semibold mb-4">Content Type Performance</h3>
+							<p class="text-text-tertiary text-xs mb-4">Which formats work best for you</p>
+							<div class="space-y-4">
+								{#each learnings.contentTypePerformance as perf}
+									<div class="p-3 bg-bg-primary border border-surface-border">
+										<div class="flex items-center justify-between mb-2">
+											<span class="font-semibold">{perf.contentType}</span>
+											<div class="flex items-center gap-2">
+												<span class="text-accent-primary font-bold">{perf.avgViralityScore}</span>
+												<span class="text-text-tertiary text-xs">avg</span>
+											</div>
+										</div>
+										<div class="text-text-secondary text-xs mb-2">{perf.count} posts analyzed</div>
+										{#if perf.topPatterns.length > 0}
+											<div class="flex flex-wrap gap-1">
+												{#each perf.topPatterns.slice(0, 3) as pattern}
+													<span class="px-1.5 py-0.5 bg-surface border border-surface-border text-xs text-text-secondary">{pattern}</span>
+												{/each}
+											</div>
+										{/if}
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
+
+					<!-- Trend Chart (Simple Text Visualization) -->
+					{#if learnings && learnings.trendData.length >= 3}
+						<div class="bg-bg-secondary p-6 border border-purple-500/30">
+							<h3 class="text-lg font-semibold mb-4">Performance Trend</h3>
+							<p class="text-text-tertiary text-xs mb-4">Your last {learnings.trendData.length} analyses</p>
+							<div class="h-32 flex items-end gap-1">
+								{#each learnings.trendData as point, i}
+									{@const height = Math.max(10, point.viralityScore)}
+									<div
+										class="flex-1 bg-accent-primary/70 hover:bg-accent-primary transition-colors relative group"
+										style="height: {height}%"
+										title="{point.date}: {point.viralityScore}"
+									>
+										<div class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs text-text-tertiary opacity-0 group-hover:opacity-100 whitespace-nowrap">
+											{point.viralityScore}
+										</div>
+									</div>
+								{/each}
+							</div>
+							<div class="flex justify-between text-xs text-text-tertiary mt-2">
+								<span>{learnings.trendData[0]?.date || ''}</span>
+								<span>{learnings.trendData[learnings.trendData.length - 1]?.date || ''}</span>
+							</div>
+							{#if learnings.trendData.length > 0}
+								{@const avgTrend = learnings.trendData.reduce((a, b) => a + b.viralityScore, 0) / learnings.trendData.length}
+								{@const recentAvg = learnings.trendData.slice(-3).reduce((a, b) => a + b.viralityScore, 0) / Math.min(3, learnings.trendData.length)}
+								<div class="mt-4 text-sm">
+									<span class="text-text-secondary">Trend: </span>
+									{#if recentAvg > avgTrend + 3}
+										<span class="text-green-400">Improving (+{Math.round(recentAvg - avgTrend)} pts)</span>
+									{:else if recentAvg < avgTrend - 3}
+										<span class="text-red-400">Declining ({Math.round(recentAvg - avgTrend)} pts)</span>
+									{:else}
+										<span class="text-text-tertiary">Stable</span>
+									{/if}
+								</div>
+							{/if}
+						</div>
+					{/if}
+
+					<!-- Legacy Style Profile (fallback when enhanced data not available) -->
+					{#if style && (!learnings || learnings.totalAnalyzed === 0)}
 						<div class="bg-bg-secondary p-6 border border-purple-500/30">
 							<h3 class="text-lg font-semibold mb-4">Your Style Profile</h3>
 							<div class="space-y-4 text-sm">
@@ -894,30 +1103,13 @@ ${skippedSteps.map(s => `- Step ${s.stepOrder}: ${s.action}`).join('\n') || 'Non
 							</div>
 						</div>
 					{/if}
+				</div>
 
-					<!-- Learned Patterns -->
-					{#if patterns.length > 0}
-						<div class="bg-bg-secondary p-6 border border-purple-500/30">
-							<h3 class="text-lg font-semibold mb-4">Learned Patterns</h3>
-							<div class="space-y-3">
-								{#each patterns.slice(0, 5) as pattern}
-									<div class="flex items-center justify-between py-2 border-b border-surface-border last:border-0">
-										<div>
-											<span class="font-medium">{pattern.pattern}</span>
-											<span class="text-text-tertiary text-xs ml-2">({pattern.occurrences}x)</span>
-										</div>
-										<div class="text-right">
-											<span class="text-accent-primary font-bold">{pattern.averageScore}</span>
-											<span class="text-text-tertiary text-xs">/100 avg</span>
-										</div>
-									</div>
-								{/each}
-							</div>
-							{#if patterns.length > 5}
-								<p class="text-text-tertiary text-xs mt-4">+ {patterns.length - 5} more patterns</p>
-							{/if}
-						</div>
-					{/if}
+				<!-- Learn More Footer -->
+				<div class="mt-6 p-4 bg-purple-900/10 border border-purple-500/20">
+					<p class="text-sm text-purple-300">
+						Mind learns from each analysis. Analyze more content to improve pattern recognition and get better recommendations.
+					</p>
 				</div>
 			</div>
 		{/if}

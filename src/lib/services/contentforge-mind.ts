@@ -44,6 +44,48 @@ export interface UserStyle {
 	totalAnalyzed: number;
 }
 
+// Enhanced types for richer learning insights
+export interface EngagementCorrelation {
+	pattern: string; // e.g., "Contrarian Hook", "Aspiration Emotion"
+	category: 'hook' | 'emotion' | 'structure' | 'visual';
+	avgEngagementRate: number; // percentage
+	avgBookmarkRate: number;
+	avgRetweetRate: number;
+	sampleSize: number;
+	trend: 'improving' | 'stable' | 'declining';
+}
+
+export interface VisualInsight {
+	type: string; // e.g., "Image", "Video", "No Media"
+	avgViralityScore: number;
+	avgEngagement: number;
+	bestPerformingStyle: string;
+	sampleSize: number;
+}
+
+export interface ContentTypePerformance {
+	contentType: string; // e.g., "Thread", "Single Post", "Quote Tweet"
+	avgViralityScore: number;
+	avgEngagement: number;
+	count: number;
+	topPatterns: string[];
+}
+
+export interface TrendDataPoint {
+	date: string; // ISO date string
+	viralityScore: number;
+	engagementRate?: number;
+}
+
+export interface EnhancedLearnings {
+	engagementCorrelations: EngagementCorrelation[];
+	visualInsights: VisualInsight[];
+	contentTypePerformance: ContentTypePerformance[];
+	trendData: TrendDataPoint[];
+	totalAnalyzed: number;
+	lastUpdated: string;
+}
+
 // =============================================================================
 // SAVE TO MIND
 // =============================================================================
@@ -404,4 +446,388 @@ export async function isMindConnected(): Promise<boolean> {
 	} catch {
 		return false;
 	}
+}
+
+// =============================================================================
+// ENHANCED LEARNINGS - Rich data extraction from Mind
+// =============================================================================
+
+interface ParsedMemoryData {
+	viralityScore: number;
+	hookType: string | null;
+	emotion: string | null;
+	engagementRate: number | null;
+	bookmarkRate: number | null;
+	retweetRate: number | null;
+	hasMedia: boolean;
+	mediaType: 'image' | 'video' | 'none';
+	contentType: 'thread' | 'single' | 'quote' | 'reply' | 'unknown';
+	structure: string | null;
+	timestamp: string;
+	patterns: string[];
+}
+
+/**
+ * Parse a memory's content text to extract structured data
+ * Mind Lite stores data in content, not metadata fields
+ */
+function parseMemoryContent(content: string, createdAt?: string): ParsedMemoryData | null {
+	// Extract virality score
+	const scoreMatch = content.match(/Virality Score:\*?\*?\s*(\d+)/i);
+	if (!scoreMatch) return null;
+
+	const viralityScore = parseInt(scoreMatch[1]);
+
+	// Extract hook type
+	const hookMatch = content.match(/Hook Type:\s*([^\n]+)/i);
+	const hookType = hookMatch ? hookMatch[1].trim() : null;
+
+	// Extract emotion
+	const emotionMatch = content.match(/Primary Emotion:\s*([^\n]+)/i);
+	const emotion = emotionMatch ? emotionMatch[1].trim() : null;
+
+	// Extract engagement rates from tweet data
+	const engagementRateMatch = content.match(/Total Engagement Rate:\s*([\d.]+)%/i);
+	const engagementRate = engagementRateMatch ? parseFloat(engagementRateMatch[1]) : null;
+
+	const bookmarkRateMatch = content.match(/Save\/Bookmark Rate:\s*([\d.]+)%/i);
+	const bookmarkRate = bookmarkRateMatch ? parseFloat(bookmarkRateMatch[1]) : null;
+
+	const retweetRateMatch = content.match(/Retweet Rate:\s*([\d.]+)%/i);
+	const retweetRate = retweetRateMatch ? parseFloat(retweetRateMatch[1]) : null;
+
+	// Check for media
+	const hasMedia = /Media Attached|photo|video|animated_gif/i.test(content);
+	let mediaType: 'image' | 'video' | 'none' = 'none';
+	if (/video/i.test(content)) mediaType = 'video';
+	else if (/photo|image/i.test(content)) mediaType = 'image';
+
+	// Detect content type
+	let contentType: 'thread' | 'single' | 'quote' | 'reply' | 'unknown' = 'unknown';
+	if (/Thread|carousel/i.test(content)) contentType = 'thread';
+	else if (/Quote Tweet/i.test(content)) contentType = 'quote';
+	else if (/Reply/i.test(content)) contentType = 'reply';
+	else if (/Original Tweet|Single Post/i.test(content)) contentType = 'single';
+
+	// Extract structure
+	const structureMatch = content.match(/Structure:\s*([^\n]+)/i) ||
+		content.match(/Format:\s*([^\n]+)/i);
+	const structure = structureMatch ? structureMatch[1].trim() : null;
+
+	// Extract patterns
+	const patterns: string[] = [];
+	const patternMatches = content.matchAll(/Pattern[s]?:?\s*([^\n]+)/gi);
+	for (const match of patternMatches) {
+		const p = match[1].trim();
+		if (p && !p.includes('Identified:')) patterns.push(p);
+	}
+	// Also extract from pattern correlations section
+	const corrMatches = content.matchAll(/"pattern":\s*"([^"]+)"/g);
+	for (const match of corrMatches) {
+		patterns.push(match[1]);
+	}
+
+	return {
+		viralityScore,
+		hookType,
+		emotion,
+		engagementRate,
+		bookmarkRate,
+		retweetRate,
+		hasMedia,
+		mediaType,
+		contentType,
+		structure,
+		timestamp: createdAt || new Date().toISOString(),
+		patterns
+	};
+}
+
+/**
+ * Get enhanced learnings with engagement correlations, visual insights, etc.
+ */
+export async function getEnhancedLearnings(): Promise<EnhancedLearnings | null> {
+	if (!browser) return null;
+
+	try {
+		// Fetch all ContentForge memories
+		const response = await fetch(`${MIND_API}/v1/memories/?limit=100`);
+		if (!response.ok) return null;
+
+		const allMemories = await response.json();
+		const memories: Array<{ content: string; created_at?: string }> = Array.isArray(allMemories)
+			? allMemories
+			: allMemories.memories || [];
+
+		// Filter to ContentForge analyses
+		const cfMemories = memories.filter(m =>
+			m.content?.includes('ContentForge Analysis') ||
+			m.content?.includes('Virality Score:')
+		);
+
+		if (cfMemories.length === 0) {
+			return {
+				engagementCorrelations: [],
+				visualInsights: [],
+				contentTypePerformance: [],
+				trendData: [],
+				totalAnalyzed: 0,
+				lastUpdated: new Date().toISOString()
+			};
+		}
+
+		// Parse all memories
+		const parsedData: ParsedMemoryData[] = [];
+		for (const m of cfMemories) {
+			const parsed = parseMemoryContent(m.content, m.created_at);
+			if (parsed) parsedData.push(parsed);
+		}
+
+		// Calculate engagement correlations by pattern
+		const engagementCorrelations = calculateEngagementCorrelations(parsedData);
+
+		// Calculate visual insights
+		const visualInsights = calculateVisualInsights(parsedData);
+
+		// Calculate content type performance
+		const contentTypePerformance = calculateContentTypePerformance(parsedData);
+
+		// Build trend data (last 30 data points)
+		const trendData = buildTrendData(parsedData);
+
+		return {
+			engagementCorrelations,
+			visualInsights,
+			contentTypePerformance,
+			trendData,
+			totalAnalyzed: parsedData.length,
+			lastUpdated: new Date().toISOString()
+		};
+	} catch (e) {
+		console.warn('[ContentForge Mind] Failed to get enhanced learnings:', e);
+		return null;
+	}
+}
+
+/**
+ * Calculate engagement correlations by pattern type
+ */
+function calculateEngagementCorrelations(data: ParsedMemoryData[]): EngagementCorrelation[] {
+	const patternStats: Record<string, {
+		category: 'hook' | 'emotion' | 'structure' | 'visual';
+		engagementRates: number[];
+		bookmarkRates: number[];
+		retweetRates: number[];
+		viralityScores: number[];
+		timestamps: string[];
+	}> = {};
+
+	for (const d of data) {
+		// Track hook types
+		if (d.hookType) {
+			const key = d.hookType;
+			if (!patternStats[key]) {
+				patternStats[key] = {
+					category: 'hook',
+					engagementRates: [], bookmarkRates: [], retweetRates: [],
+					viralityScores: [], timestamps: []
+				};
+			}
+			patternStats[key].viralityScores.push(d.viralityScore);
+			patternStats[key].timestamps.push(d.timestamp);
+			if (d.engagementRate !== null) patternStats[key].engagementRates.push(d.engagementRate);
+			if (d.bookmarkRate !== null) patternStats[key].bookmarkRates.push(d.bookmarkRate);
+			if (d.retweetRate !== null) patternStats[key].retweetRates.push(d.retweetRate);
+		}
+
+		// Track emotions
+		if (d.emotion) {
+			const key = d.emotion;
+			if (!patternStats[key]) {
+				patternStats[key] = {
+					category: 'emotion',
+					engagementRates: [], bookmarkRates: [], retweetRates: [],
+					viralityScores: [], timestamps: []
+				};
+			}
+			patternStats[key].viralityScores.push(d.viralityScore);
+			patternStats[key].timestamps.push(d.timestamp);
+			if (d.engagementRate !== null) patternStats[key].engagementRates.push(d.engagementRate);
+			if (d.bookmarkRate !== null) patternStats[key].bookmarkRates.push(d.bookmarkRate);
+			if (d.retweetRate !== null) patternStats[key].retweetRates.push(d.retweetRate);
+		}
+
+		// Track structure patterns
+		if (d.structure) {
+			const key = d.structure;
+			if (!patternStats[key]) {
+				patternStats[key] = {
+					category: 'structure',
+					engagementRates: [], bookmarkRates: [], retweetRates: [],
+					viralityScores: [], timestamps: []
+				};
+			}
+			patternStats[key].viralityScores.push(d.viralityScore);
+			patternStats[key].timestamps.push(d.timestamp);
+			if (d.engagementRate !== null) patternStats[key].engagementRates.push(d.engagementRate);
+			if (d.bookmarkRate !== null) patternStats[key].bookmarkRates.push(d.bookmarkRate);
+			if (d.retweetRate !== null) patternStats[key].retweetRates.push(d.retweetRate);
+		}
+	}
+
+	// Convert to correlations
+	const correlations: EngagementCorrelation[] = [];
+	for (const [pattern, stats] of Object.entries(patternStats)) {
+		if (stats.viralityScores.length < 1) continue;
+
+		const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+
+		// Calculate trend (improving, stable, declining)
+		let trend: 'improving' | 'stable' | 'declining' = 'stable';
+		if (stats.viralityScores.length >= 3) {
+			const sorted = [...stats.viralityScores];
+			const first = sorted.slice(0, Math.ceil(sorted.length / 2));
+			const second = sorted.slice(Math.ceil(sorted.length / 2));
+			const firstAvg = avg(first);
+			const secondAvg = avg(second);
+			if (secondAvg > firstAvg + 5) trend = 'improving';
+			else if (secondAvg < firstAvg - 5) trend = 'declining';
+		}
+
+		correlations.push({
+			pattern,
+			category: stats.category,
+			avgEngagementRate: Math.round(avg(stats.engagementRates) * 100) / 100,
+			avgBookmarkRate: Math.round(avg(stats.bookmarkRates) * 1000) / 1000,
+			avgRetweetRate: Math.round(avg(stats.retweetRates) * 1000) / 1000,
+			sampleSize: stats.viralityScores.length,
+			trend
+		});
+	}
+
+	// Sort by sample size and engagement rate
+	return correlations
+		.filter(c => c.sampleSize >= 1)
+		.sort((a, b) => {
+			// Prioritize patterns with engagement data
+			const aHasEngagement = a.avgEngagementRate > 0 ? 1 : 0;
+			const bHasEngagement = b.avgEngagementRate > 0 ? 1 : 0;
+			if (aHasEngagement !== bHasEngagement) return bHasEngagement - aHasEngagement;
+			return b.sampleSize - a.sampleSize;
+		})
+		.slice(0, 15);
+}
+
+/**
+ * Calculate visual insights (media type performance)
+ */
+function calculateVisualInsights(data: ParsedMemoryData[]): VisualInsight[] {
+	const mediaStats: Record<string, {
+		viralityScores: number[];
+		engagementRates: number[];
+	}> = {
+		'Image': { viralityScores: [], engagementRates: [] },
+		'Video': { viralityScores: [], engagementRates: [] },
+		'No Media': { viralityScores: [], engagementRates: [] }
+	};
+
+	for (const d of data) {
+		let key = 'No Media';
+		if (d.mediaType === 'video') key = 'Video';
+		else if (d.mediaType === 'image') key = 'Image';
+
+		mediaStats[key].viralityScores.push(d.viralityScore);
+		if (d.engagementRate !== null) {
+			mediaStats[key].engagementRates.push(d.engagementRate);
+		}
+	}
+
+	const insights: VisualInsight[] = [];
+	for (const [type, stats] of Object.entries(mediaStats)) {
+		if (stats.viralityScores.length === 0) continue;
+
+		const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+
+		insights.push({
+			type,
+			avgViralityScore: Math.round(avg(stats.viralityScores)),
+			avgEngagement: Math.round(avg(stats.engagementRates) * 100) / 100,
+			bestPerformingStyle: type === 'Video' ? 'Short-form clips' : type === 'Image' ? 'Bold text overlays' : 'Text-only posts',
+			sampleSize: stats.viralityScores.length
+		});
+	}
+
+	return insights.sort((a, b) => b.avgViralityScore - a.avgViralityScore);
+}
+
+/**
+ * Calculate content type performance
+ */
+function calculateContentTypePerformance(data: ParsedMemoryData[]): ContentTypePerformance[] {
+	const typeStats: Record<string, {
+		viralityScores: number[];
+		engagementRates: number[];
+		patterns: string[];
+	}> = {};
+
+	for (const d of data) {
+		const type = d.contentType === 'unknown' ? 'Single Post' : capitalize(d.contentType);
+		if (!typeStats[type]) {
+			typeStats[type] = { viralityScores: [], engagementRates: [], patterns: [] };
+		}
+
+		typeStats[type].viralityScores.push(d.viralityScore);
+		if (d.engagementRate !== null) {
+			typeStats[type].engagementRates.push(d.engagementRate);
+		}
+		typeStats[type].patterns.push(...d.patterns);
+		if (d.hookType) typeStats[type].patterns.push(d.hookType);
+	}
+
+	const performance: ContentTypePerformance[] = [];
+	for (const [contentType, stats] of Object.entries(typeStats)) {
+		if (stats.viralityScores.length === 0) continue;
+
+		const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+
+		// Get top patterns by frequency
+		const patternCounts: Record<string, number> = {};
+		for (const p of stats.patterns) {
+			patternCounts[p] = (patternCounts[p] || 0) + 1;
+		}
+		const topPatterns = Object.entries(patternCounts)
+			.sort((a, b) => b[1] - a[1])
+			.slice(0, 3)
+			.map(([p]) => p);
+
+		performance.push({
+			contentType,
+			avgViralityScore: Math.round(avg(stats.viralityScores)),
+			avgEngagement: Math.round(avg(stats.engagementRates) * 100) / 100,
+			count: stats.viralityScores.length,
+			topPatterns
+		});
+	}
+
+	return performance.sort((a, b) => b.count - a.count);
+}
+
+/**
+ * Build trend data points for visualization
+ */
+function buildTrendData(data: ParsedMemoryData[]): TrendDataPoint[] {
+	// Sort by timestamp
+	const sorted = [...data].sort((a, b) =>
+		new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+	);
+
+	return sorted.slice(-30).map(d => ({
+		date: d.timestamp.split('T')[0],
+		viralityScore: d.viralityScore,
+		engagementRate: d.engagementRate || undefined
+	}));
+}
+
+function capitalize(s: string): string {
+	return s.charAt(0).toUpperCase() + s.slice(1);
 }

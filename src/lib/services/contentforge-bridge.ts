@@ -27,9 +27,15 @@ import {
 	getCreativeRecommendations,
 	getUserStyle,
 	isMindConnected,
+	getEnhancedLearnings,
 	type LearnedPattern,
 	type UserStyle,
-	type CreativeRecommendation
+	type CreativeRecommendation,
+	type EnhancedLearnings,
+	type EngagementCorrelation,
+	type VisualInsight,
+	type ContentTypePerformance,
+	type TrendDataPoint
 } from './contentforge-mind';
 
 // =============================================================================
@@ -166,7 +172,13 @@ export const creativeRecommendations = writable<CreativeRecommendation[]>([]);
 export const mindConnected = writable<boolean>(false);
 
 // Re-export Mind types for convenience
-export type { LearnedPattern, UserStyle, CreativeRecommendation };
+export type { LearnedPattern, UserStyle, CreativeRecommendation, EnhancedLearnings, EngagementCorrelation, VisualInsight, ContentTypePerformance, TrendDataPoint };
+
+// Enhanced learnings store
+export const enhancedLearnings = writable<EnhancedLearnings | null>(null);
+
+// Re-export the function
+export { getEnhancedLearnings };
 
 // Pending requests waiting for response
 const pendingRequests = new Map<string, {
@@ -239,6 +251,13 @@ async function initMindConnection(): Promise<void> {
 			if (patterns.length > 0) {
 				learnedPatterns.set(patterns);
 				console.log('[ContentForgeBridge] Loaded', patterns.length, 'learned patterns');
+			}
+
+			// Load enhanced learnings (engagement correlations, visual insights, etc.)
+			const enhanced = await getEnhancedLearnings();
+			if (enhanced) {
+				enhancedLearnings.set(enhanced);
+				console.log('[ContentForgeBridge] Loaded enhanced learnings:', enhanced.totalAnalyzed, 'analyses');
 			}
 		} else {
 			console.log('[ContentForgeBridge] Mind not connected - learning features disabled');
