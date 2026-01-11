@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Navbar from '$lib/components/Navbar.svelte';
 	let inputText = `Here's my secret to building a $1M ARR startup in 12 months:
 
 1. Ship fast, iterate faster
@@ -44,7 +45,9 @@ But that's exactly when you build the foundation for success.`;
 	<title>ContentForge - Viral Content Analysis</title>
 </svelte:head>
 
-<div class="min-h-screen bg-surface-bg text-text-primary p-8">
+<Navbar />
+
+<div class="min-h-screen bg-bg-primary text-text-primary p-8">
 	<div class="max-w-6xl mx-auto">
 		<header class="mb-8">
 			<h1 class="text-3xl font-bold mb-2">ContentForge</h1>
@@ -52,11 +55,11 @@ But that's exactly when you build the foundation for success.`;
 		</header>
 
 		<!-- Input Section -->
-		<div class="mb-8 bg-surface-raised p-6 border border-surface-border">
+		<div class="mb-8 bg-bg-secondary p-6 border border-surface-border">
 			<h2 class="text-xl font-semibold mb-4">Content to Analyze</h2>
 			<textarea
 				bind:value={inputText}
-				class="w-full h-48 bg-surface-bg border border-surface-border p-4 text-text-primary font-mono text-sm resize-none focus:outline-none focus:border-accent-primary"
+				class="w-full h-48 bg-bg-primary border border-surface-border p-4 text-text-primary font-mono text-sm resize-none focus:outline-none focus:border-accent-primary"
 				placeholder="Paste your content here..."
 			></textarea>
 			<button
@@ -76,14 +79,14 @@ But that's exactly when you build the foundation for success.`;
 
 		{#if result}
 			<!-- Virality Score -->
-			<div class="mb-8 bg-surface-raised p-6 border border-surface-border">
+			<div class="mb-8 bg-bg-secondary p-6 border border-surface-border">
 				<h2 class="text-xl font-semibold mb-4">Virality Score</h2>
 				<div class="flex items-center gap-4">
 					<div class="text-5xl font-bold text-accent-primary">
 						{result.synthesis.viralityScore}
 					</div>
 					<div class="text-text-secondary">/ 100</div>
-					<div class="flex-1 h-4 bg-surface-bg border border-surface-border">
+					<div class="flex-1 h-4 bg-bg-primary border border-surface-border">
 						<div
 							class="h-full bg-accent-primary transition-all duration-500"
 							style="width: {result.synthesis.viralityScore}%"
@@ -93,7 +96,7 @@ But that's exactly when you build the foundation for success.`;
 			</div>
 
 			<!-- Key Insights -->
-			<div class="mb-8 bg-surface-raised p-6 border border-surface-border">
+			<div class="mb-8 bg-bg-secondary p-6 border border-surface-border">
 				<h2 class="text-xl font-semibold mb-4">Key Insights</h2>
 				<ul class="space-y-2">
 					{#each result.synthesis.keyInsights as insight}
@@ -108,7 +111,7 @@ But that's exactly when you build the foundation for success.`;
 			<!-- Agent Results Grid -->
 			<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
 				<!-- Marketing -->
-				<div class="bg-surface-raised p-6 border border-surface-border">
+				<div class="bg-bg-secondary p-6 border border-surface-border">
 					<h3 class="text-lg font-semibold mb-4 text-blue-400">Marketing Agent</h3>
 					<div class="space-y-3 text-sm">
 						<div>
@@ -127,7 +130,7 @@ But that's exactly when you build the foundation for success.`;
 				</div>
 
 				<!-- Copywriting -->
-				<div class="bg-surface-raised p-6 border border-surface-border">
+				<div class="bg-bg-secondary p-6 border border-surface-border">
 					<h3 class="text-lg font-semibold mb-4 text-green-400">Copywriting Agent</h3>
 					<div class="space-y-3 text-sm">
 						<div>
@@ -146,7 +149,7 @@ But that's exactly when you build the foundation for success.`;
 				</div>
 
 				<!-- Research -->
-				<div class="bg-surface-raised p-6 border border-surface-border">
+				<div class="bg-bg-secondary p-6 border border-surface-border">
 					<h3 class="text-lg font-semibold mb-4 text-yellow-400">Research Agent</h3>
 					<div class="space-y-3 text-sm">
 						<div>
@@ -165,7 +168,7 @@ But that's exactly when you build the foundation for success.`;
 				</div>
 
 				<!-- Psychology -->
-				<div class="bg-surface-raised p-6 border border-surface-border">
+				<div class="bg-bg-secondary p-6 border border-surface-border">
 					<h3 class="text-lg font-semibold mb-4 text-purple-400">Psychology Agent</h3>
 					<div class="space-y-3 text-sm">
 						<div>
@@ -185,7 +188,7 @@ But that's exactly when you build the foundation for success.`;
 			</div>
 
 			<!-- Playbook -->
-			<div class="mb-8 bg-surface-raised p-6 border border-surface-border">
+			<div class="mb-8 bg-bg-secondary p-6 border border-surface-border">
 				<h2 class="text-xl font-semibold mb-4">{result.synthesis.playbook.title}</h2>
 				<p class="text-text-secondary mb-4">{result.synthesis.playbook.summary}</p>
 				<ol class="space-y-4">
@@ -202,12 +205,12 @@ But that's exactly when you build the foundation for success.`;
 			</div>
 
 			<!-- Thread Expansion -->
-			<div class="mb-8 bg-surface-raised p-6 border border-surface-border">
+			<div class="mb-8 bg-bg-secondary p-6 border border-surface-border">
 				<h2 class="text-xl font-semibold mb-4">Thread Expansion</h2>
 				<p class="text-text-secondary mb-4">{result.creative.threadExpansion.estimatedReadTime}</p>
 				<div class="space-y-4">
 					{#each result.creative.threadExpansion.tweets as tweet}
-						<div class="bg-surface-bg p-4 border border-surface-border">
+						<div class="bg-bg-primary p-4 border border-surface-border">
 							<div class="flex gap-2 mb-2">
 								<span class="text-accent-primary font-bold">{tweet.position}/</span>
 								<span class="text-text-secondary text-sm uppercase">{tweet.purpose}</span>
@@ -220,11 +223,11 @@ But that's exactly when you build the foundation for success.`;
 			</div>
 
 			<!-- Image Recommendations -->
-			<div class="mb-8 bg-surface-raised p-6 border border-surface-border">
+			<div class="mb-8 bg-bg-secondary p-6 border border-surface-border">
 				<h2 class="text-xl font-semibold mb-4">Image Recommendations</h2>
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					{#each result.creative.imageRecommendations as rec}
-						<div class="bg-surface-bg p-4 border border-surface-border">
+						<div class="bg-bg-primary p-4 border border-surface-border">
 							<div class="flex justify-between mb-2">
 								<span class="text-accent-primary font-semibold capitalize">{rec.platform}</span>
 								<span class="text-text-secondary">{rec.aspectRatio}</span>
