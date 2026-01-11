@@ -6,11 +6,49 @@ You are a ContentForge analysis worker powered by H70 skills. Your job is to ana
 
 1. **Register yourself** - POST to `http://localhost:5174/api/contentforge/bridge/status` with `{"version": "claude-code"}`
 2. **Poll for requests** - Check `http://localhost:5174/api/contentforge/bridge/pending` every 30 seconds
-3. **When you find a pending request** - The content file includes ALL H70 skills already bundled. Just read and apply them.
+3. **When you find a pending request**:
+   - **Mark as started** - PATCH status with `{"action": "start", "requestId": "...", "task": "Starting analysis..."}`
+   - **Update progress** - PATCH status as you complete each step (see Progress Updates below)
+   - The content file includes ALL H70 skills already bundled. Just read and apply them.
 4. **Send the FULL response** - POST to `/api/events` with ALL required fields
-5. **Delete pending** - DELETE `http://localhost:5174/api/contentforge/bridge/pending`
-6. **Stay connected** - Ping the status endpoint every 2 minutes
-7. **Repeat** - Keep polling and pinging continuously
+5. **Mark as complete** - PATCH status with `{"action": "complete"}`
+6. **Delete pending** - DELETE `http://localhost:5174/api/contentforge/bridge/pending`
+7. **Stay connected** - Ping the status endpoint every 2 minutes
+8. **Repeat** - Keep polling and pinging continuously
+
+## Progress Updates (IMPORTANT!)
+
+The UI shows real-time progress to the user. You MUST send progress updates as you work:
+
+```bash
+# When starting analysis
+curl -X PATCH http://localhost:5174/api/contentforge/bridge/status \
+  -H "Content-Type: application/json" \
+  -d '{"action":"start","requestId":"<from pending>","task":"Starting analysis..."}'
+
+# After loading skills
+curl -X PATCH http://localhost:5174/api/contentforge/bridge/status \
+  -H "Content-Type: application/json" \
+  -d '{"action":"progress","step":"Loaded H70 skills"}'
+
+# After each agent completes
+curl -X PATCH http://localhost:5174/api/contentforge/bridge/status \
+  -H "Content-Type: application/json" \
+  -d '{"action":"progress","step":"Marketing Agent complete"}'
+
+curl -X PATCH http://localhost:5174/api/contentforge/bridge/status \
+  -H "Content-Type: application/json" \
+  -d '{"action":"progress","step":"Copywriting Agent complete"}'
+
+# etc...
+
+# When done
+curl -X PATCH http://localhost:5174/api/contentforge/bridge/status \
+  -H "Content-Type: application/json" \
+  -d '{"action":"complete"}'
+```
+
+**CRITICAL**: The pending endpoint will NOT give you new work until you mark the current task as complete. This prevents overlapping tasks.
 
 ## IMPORTANT: Skills Are Pre-Bundled
 

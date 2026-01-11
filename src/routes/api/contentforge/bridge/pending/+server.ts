@@ -3,6 +3,7 @@
  *
  * GET /api/contentforge/bridge/pending
  * Returns pending content analysis request for Claude Code to process.
+ * Will NOT return work if the worker is currently busy (prevents overlapping tasks).
  *
  * This is how Claude Code discovers that content needs analysis.
  */
@@ -16,6 +17,38 @@ import path from 'node:path';
 const SPAWNER_DIR = '.spawner';
 const CONTENT_FILE = 'pending-contentforge.md';
 const REQUEST_FILE = 'pending-contentforge-request.json';
+const STATUS_FILE = 'claude-code-status.json';
+const BUSY_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes max for a task
+
+async function isWorkerBusy(): Promise<boolean> {
+	try {
+		const spawnerPath = path.resolve(process.cwd(), SPAWNER_DIR);
+		const statusPath = path.join(spawnerPath, STATUS_FILE);
+
+		if (!existsSync(statusPath)) {
+			return false;
+		}
+
+		const statusData = JSON.parse(await readFile(statusPath, 'utf-8'));
+
+		// Check if marked as busy
+		if (!statusData.busy) {
+			return false;
+		}
+
+		// Check if task has timed out
+		if (statusData.startedAt) {
+			const taskAgeMs = Date.now() - new Date(statusData.startedAt).getTime();
+			if (taskAgeMs > BUSY_TIMEOUT_MS) {
+				return false; // Task timed out, not really busy
+			}
+		}
+
+		return true;
+	} catch {
+		return false;
+	}
+}
 
 export const GET: RequestHandler = async () => {
 	try {
@@ -26,6 +59,15 @@ export const GET: RequestHandler = async () => {
 		// Check if there's a pending request
 		if (!existsSync(requestPath) || !existsSync(contentPath)) {
 			return json({ pending: false });
+		}
+
+		// Check if worker is busy - don't give new work until current task is done
+		if (await isWorkerBusy()) {
+			return json({
+				pending: false,
+				busy: true,
+				message: 'Worker is busy with current task. Complete it first.'
+			});
 		}
 
 		// Read request metadata

@@ -38,6 +38,12 @@
 	let statusCheckInterval: ReturnType<typeof setInterval> | null = null;
 	let storeUnsubscribers: Array<() => void> = [];
 
+	// Worker activity tracking (real-time progress)
+	let workerBusy = $state(false);
+	let workerCurrentTask = $state<string | null>(null);
+	let workerProgress = $state<string[]>([]);
+	let workerStartedAt = $state<string | null>(null);
+
 	// Mind learning state
 	let patterns = $state<LearnedPattern[]>([]);
 	let style = $state<UserStyle | null>(null);
@@ -47,16 +53,19 @@
 	const workerPrompt = `You are the ContentForge analysis worker powered by H70 skills. Read workers/contentforge-worker.md for full instructions.
 
 1. Register: POST to http://localhost:5174/api/contentforge/bridge/status with {"version": "claude-code"}
-2. Poll: GET http://localhost:5174/api/contentforge/bridge/pending every 30 seconds
+2. Poll: GET http://localhost:5174/api/contentforge/bridge/pending every 30 seconds (will return busy=true if already working)
 3. When pending=true:
-   - Load H70 skills: viral-marketing, copywriting, viral-hooks, content-strategy, persuasion-psychology, platform-algorithms, audience-psychology, narrative-craft
-   - Query Mind (localhost:8080) for learned patterns (optional)
+   - PATCH status with {"action":"start","requestId":"...","task":"Starting analysis..."} to mark busy
+   - PATCH status with {"action":"progress","step":"Loaded H70 skills"} after each step
+   - Skills are pre-bundled in content (viral-marketing, copywriting, viral-hooks, content-strategy, persuasion-psychology, platform-algorithms, audience-psychology, narrative-craft)
    - Analyze as 4 agents: Marketing, Copywriting, Research, Psychology
+   - PATCH progress after each agent completes (e.g., {"action":"progress","step":"Marketing Agent complete"})
 4. Send FULL response: POST to http://localhost:5174/api/events with type "contentforge_analysis_complete"
-5. Delete pending: DELETE http://localhost:5174/api/contentforge/bridge/pending
-6. Ping status every 2 minutes to stay connected
+5. PATCH status with {"action":"complete"} to mark done
+6. Delete pending: DELETE http://localhost:5174/api/contentforge/bridge/pending
+7. Ping status every 2 minutes
 
-Response must include: requestId, postId, orchestrator.agentResults (all 4), synthesis (viralityScore, keyInsights, playbook with steps). Use Mind patterns to personalize playbook. Start now.`;
+Response must include: requestId, postId, orchestrator.agentResults (all 4), synthesis (viralityScore, keyInsights, playbook). Start now.`;
 
 	function copyPrompt() {
 		navigator.clipboard.writeText(workerPrompt);
@@ -75,7 +84,7 @@ Response must include: requestId, postId, orchestrator.agentResults (all 4), syn
 			const data = await response.json();
 			if (data.connected) {
 				workerStatus = 'connected';
-				statusMessage = 'Worker connected';
+				statusMessage = data.busy ? 'Worker busy' : 'Worker connected';
 			} else if (data.error) {
 				workerStatus = 'error';
 				statusMessage = data.error;
@@ -83,17 +92,34 @@ Response must include: requestId, postId, orchestrator.agentResults (all 4), syn
 				workerStatus = 'disconnected';
 				statusMessage = 'Worker not connected';
 			}
+
+			// Update activity tracking
+			workerBusy = data.busy || false;
+			workerCurrentTask = data.currentTask || null;
+			workerProgress = data.progress || [];
+			workerStartedAt = data.startedAt || null;
 		} catch (e) {
 			workerStatus = 'error';
 			statusMessage = 'Failed to check status';
 		}
 	}
 
+	function getElapsedTime(startTime: string | null): string {
+		if (!startTime) return '';
+		const elapsed = Date.now() - new Date(startTime).getTime();
+		const seconds = Math.floor(elapsed / 1000);
+		const minutes = Math.floor(seconds / 60);
+		if (minutes > 0) {
+			return `${minutes}m ${seconds % 60}s`;
+		}
+		return `${seconds}s`;
+	}
+
 	onMount(async () => {
 		await initContentForgeBridge();
-		// Check status immediately and then every 10 seconds
+		// Check status immediately and then every 2 seconds (faster when tracking activity)
 		await checkWorkerStatus();
-		statusCheckInterval = setInterval(checkWorkerStatus, 10000);
+		statusCheckInterval = setInterval(checkWorkerStatus, 2000);
 
 		// Subscribe to stores as backup (in case Promise doesn't resolve)
 		storeUnsubscribers.push(
@@ -634,6 +660,57 @@ Response must include: requestId, postId, orchestrator.agentResults (all 4), syn
 				{#if isMindConnected}
 					<p class="text-purple-400">Learning saved to Mind</p>
 				{/if}
+			</div>
+		{/if}
+
+		<!-- Worker Activity Panel (shows when worker is busy or has recent activity) -->
+		{#if workerBusy || workerProgress.length > 0}
+			<div class="mt-8 bg-bg-secondary border border-surface-border">
+				<div class="p-4 border-b border-surface-border flex items-center justify-between">
+					<div class="flex items-center gap-3">
+						<h3 class="font-semibold">Worker Activity</h3>
+						{#if workerBusy}
+							<span class="flex items-center gap-2 text-sm text-accent-primary">
+								<span class="w-2 h-2 bg-accent-primary animate-pulse"></span>
+								Processing...
+							</span>
+						{:else}
+							<span class="text-sm text-green-400">Complete</span>
+						{/if}
+					</div>
+					{#if workerStartedAt && workerBusy}
+						<span class="text-sm text-text-secondary font-mono">{getElapsedTime(workerStartedAt)}</span>
+					{/if}
+				</div>
+				<div class="p-4">
+					{#if workerCurrentTask}
+						<div class="mb-4">
+							<span class="text-text-secondary text-sm">Current:</span>
+							<span class="ml-2 text-text-primary">{workerCurrentTask}</span>
+						</div>
+					{/if}
+					{#if workerProgress.length > 0}
+						<div class="space-y-2">
+							<span class="text-text-secondary text-sm">Progress:</span>
+							<div class="pl-4 border-l-2 border-surface-border space-y-1">
+								{#each workerProgress as step, i}
+									<div class="flex items-center gap-2 text-sm">
+										<span class="w-4 h-4 flex items-center justify-center text-xs border border-green-500 text-green-500">✓</span>
+										<span class="text-text-secondary">{step}</span>
+									</div>
+								{/each}
+								{#if workerBusy && workerCurrentTask && !workerProgress.includes(workerCurrentTask)}
+									<div class="flex items-center gap-2 text-sm">
+										<span class="w-4 h-4 flex items-center justify-center">
+											<span class="w-2 h-2 bg-accent-primary animate-pulse"></span>
+										</span>
+										<span class="text-accent-primary">{workerCurrentTask}</span>
+									</div>
+								{/if}
+							</div>
+						</div>
+					{/if}
+				</div>
 			</div>
 		{/if}
 
