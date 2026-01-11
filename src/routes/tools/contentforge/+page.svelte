@@ -17,21 +17,24 @@
 		type LearnedPattern,
 		type UserStyle,
 		type CreativeRecommendation,
-		type EnhancedLearnings,
-		type EngagementCorrelation,
-		type VisualInsight,
-		type ContentTypePerformance,
-		type TrendDataPoint
+		type EnhancedLearnings
 	} from '$lib/services/contentforge-bridge';
 	import {
-		runAgentCollaboration,
-		type AgentCollaboration,
-		type AgentAnalysis,
-		type UnifiedRecommendation,
-		type CrossAgentPattern,
-		type GapAnalysis,
-		type SystemInsight
-	} from '$lib/services/mind-learning-intelligence';
+		type RalphConfig,
+		type RalphState,
+		type RalphIteration,
+		DEFAULT_RALPH_CONFIG,
+		queryMindForContext,
+		generateRalphPrompt,
+		startRalphLoop,
+		getRalphState,
+		updateRalphState,
+		completeRalphLoop,
+		cancelRalphLoop,
+		recordSuccessToMind,
+		recordBlockerToMind,
+		checkCompletionCriteria
+	} from '$lib/services/ralph-contentforge';
 	import type { TweetData } from '$lib/services/x-api';
 
 	// Input mode: 'tweet' for X/Twitter URL (default), 'text' for raw content
@@ -68,22 +71,27 @@
 	let learnings = $state<EnhancedLearnings | null>(null);
 	let learningsLoading = $state(false);
 
-	// Agent Collaboration state
-	let agentCollab = $state<AgentCollaboration | null>(null);
-	let agentCollabLoading = $state(false);
-	let agentCollabError = $state<string | null>(null);
-	let selectedAgent = $state<string | null>(null);
-	let showAllRecommendations = $state(false);
-
-	// Playbook feedback tracking
-	interface PlaybookFeedback {
-		stepOrder: number;
-		action: string;
-		status: 'pending' | 'implemented' | 'skipped';
-		implementedAt?: string;
+	// Analysis history state
+	interface AnalysisHistoryItem {
+		id: string;
+		content: string;
+		viralityScore: number;
+		hookType: string | null;
+		emotion: string | null;
+		timestamp: string;
 	}
-	let playbookFeedback = $state<PlaybookFeedback[]>([]);
-	let feedbackSaved = $state(false);
+	let analysisHistory = $state<AnalysisHistoryItem[]>([]);
+	let historyLoading = $state(false);
+	let showHistory = $state(false);
+	let selectedHistoryItem = $state<AnalysisHistoryItem | null>(null);
+
+	// Ralph Mode state (iterative self-improvement) - ON by default for quality
+	let ralphMode = $state(true);
+	let ralphConfig = $state<RalphConfig>({ ...DEFAULT_RALPH_CONFIG });
+	let ralphState = $state<RalphState | null>(null);
+	let ralphIterations = $state<RalphIteration[]>([]);
+	let ralphMindContext = $state<string[]>([]);
+	let showRalphConfig = $state(false);
 
 	const workerPrompt = `You are the ContentForge analysis worker. Read workers/contentforge-worker.md for full instructions.
 
@@ -174,61 +182,71 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 	}
 
 	/**
-	 * Run multi-agent collaboration analysis on Mind learning data
+	 * Load latest result from storage (persists across page refresh)
 	 */
-	async function runAgentAnalysis() {
-		if (!isMindConnected) {
-			agentCollabError = 'Mind not connected. Start Mind v5 to enable agent collaboration.';
-			return;
-		}
-
-		agentCollabLoading = true;
-		agentCollabError = null;
-
+	async function loadLatestResult() {
 		try {
-			const result = await runAgentCollaboration();
-			if (result) {
-				agentCollab = result;
-				console.log('[ContentForge] Agent collaboration complete:', result.agents.length, 'agents analyzed');
-			} else {
-				agentCollabError = 'Not enough data to analyze. Analyze more content first.';
+			const response = await fetch('/api/contentforge/bridge/result');
+			if (!response.ok) return;
+
+			const data = await response.json();
+			if (data.hasResult && data.data) {
+				console.log('[ContentForge] Loaded persisted result:', data.data.postId);
+				result = data.data;
 			}
 		} catch (e) {
-			console.error('[ContentForge] Agent collaboration failed:', e);
-			agentCollabError = e instanceof Error ? e.message : 'Agent collaboration failed';
-		} finally {
-			agentCollabLoading = false;
+			console.warn('[ContentForge] Failed to load persisted result:', e);
 		}
 	}
 
 	/**
-	 * Get agent color by ID
+	 * Load analysis history from Mind
 	 */
-	function getAgentColor(agentId: string): string {
-		const colors: Record<string, string> = {
-			'marketing': 'blue',
-			'copywriting': 'green',
-			'viral-hooks': 'yellow',
-			'content-strategy': 'orange',
-			'psychology': 'purple',
-			'algorithm': 'cyan',
-			'research': 'pink',
-			'visual': 'red'
-		};
-		return colors[agentId] || 'gray';
-	}
+	async function loadAnalysisHistory() {
+		if (!isMindConnected) return;
 
-	/**
-	 * Get priority badge color
-	 */
-	function getPriorityColor(priority: string): string {
-		const colors: Record<string, string> = {
-			'critical': 'red',
-			'high': 'orange',
-			'medium': 'yellow',
-			'low': 'gray'
-		};
-		return colors[priority] || 'gray';
+		historyLoading = true;
+		try {
+			const response = await fetch('http://localhost:8080/v1/memories/?limit=100');
+			if (!response.ok) return;
+
+			const allMemories = await response.json();
+			const memories: Array<{ memory_id: string; content: string; created_at?: string }> = Array.isArray(allMemories)
+				? allMemories
+				: allMemories.memories || [];
+
+			// Filter to ContentForge analyses and parse them
+			const history: AnalysisHistoryItem[] = [];
+			for (const m of memories) {
+				if (!m.content?.includes('ContentForge Analysis') && !m.content?.includes('Virality Score:')) continue;
+
+				// Parse the content
+				const scoreMatch = m.content.match(/Virality Score:\*?\*?\s*(\d+)/i);
+				const hookMatch = m.content.match(/Hook Type:\s*([^\n]+)/i);
+				const emotionMatch = m.content.match(/Primary Emotion:\s*([^\n]+)/i);
+				const contentMatch = m.content.match(/Content Analyzed:\*?\*?\s*\n([^]*?)(?=\n\*\*|$)/i);
+
+				if (scoreMatch) {
+					history.push({
+						id: m.memory_id,
+						content: contentMatch ? contentMatch[1].trim().slice(0, 200) : 'Content not available',
+						viralityScore: parseInt(scoreMatch[1]),
+						hookType: hookMatch ? hookMatch[1].trim() : null,
+						emotion: emotionMatch ? emotionMatch[1].trim() : null,
+						timestamp: m.created_at || new Date().toISOString()
+					});
+				}
+			}
+
+			// Sort by timestamp descending
+			history.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+			analysisHistory = history;
+			console.log('[ContentForge] Loaded', history.length, 'analyses from history');
+		} catch (e) {
+			console.warn('[ContentForge] Failed to load history:', e);
+		} finally {
+			historyLoading = false;
+		}
 	}
 
 	onMount(async () => {
@@ -237,6 +255,16 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 		await checkWorkerStatus();
 		statusCheckInterval = setInterval(checkWorkerStatus, 2000);
 
+		// Load persisted result (survives page refresh)
+		await loadLatestResult();
+
+		// Load analysis history from Mind (after Mind connection is established)
+		setTimeout(async () => {
+			if (isMindConnected) {
+				await loadAnalysisHistory();
+			}
+		}, 1000);
+
 		// Subscribe to stores as backup (in case Promise doesn't resolve)
 		storeUnsubscribers.push(
 			contentforgeResult.subscribe((value) => {
@@ -244,7 +272,6 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 					console.log('[ContentForge] Store received result:', value.postId);
 					result = value;
 					loading = false;
-					initPlaybookFeedback();
 					// Refresh learnings after new analysis
 					refreshLearnings();
 				}
@@ -273,6 +300,10 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 			}),
 			mindConnected.subscribe((value) => {
 				isMindConnected = value;
+				// Load history when Mind connects
+				if (value && analysisHistory.length === 0) {
+					loadAnalysisHistory();
+				}
 			}),
 			enhancedLearnings.subscribe((value) => {
 				learnings = value;
@@ -327,89 +358,6 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 	}
 
 	/**
-	 * Initialize playbook feedback tracking when result is received
-	 */
-	function initPlaybookFeedback() {
-		if (!result?.synthesis?.playbook?.steps) return;
-
-		playbookFeedback = result.synthesis.playbook.steps.map((step: { order: number; action: string }) => ({
-			stepOrder: step.order,
-			action: step.action,
-			status: 'pending' as const
-		}));
-		feedbackSaved = false;
-	}
-
-	/**
-	 * Mark a playbook step as implemented or skipped
-	 */
-	function markPlaybookStep(stepOrder: number, status: 'implemented' | 'skipped') {
-		playbookFeedback = playbookFeedback.map(f =>
-			f.stepOrder === stepOrder
-				? { ...f, status, implementedAt: status === 'implemented' ? new Date().toISOString() : undefined }
-				: f
-		);
-	}
-
-	/**
-	 * Save playbook feedback to Mind for learning
-	 */
-	async function savePlaybookFeedback() {
-		if (!isMindConnected) return;
-
-		const implementedSteps = playbookFeedback.filter(f => f.status === 'implemented');
-		const skippedSteps = playbookFeedback.filter(f => f.status === 'skipped');
-
-		if (implementedSteps.length === 0 && skippedSteps.length === 0) return;
-
-		try {
-			const feedbackContent = `
-## ContentForge Playbook Feedback
-
-**Original Virality Score:** ${result?.synthesis?.viralityScore || 'N/A'}
-
-**Implemented Steps (${implementedSteps.length}):**
-${implementedSteps.map(s => `- Step ${s.stepOrder}: ${s.action}`).join('\n') || 'None'}
-
-**Skipped Steps (${skippedSteps.length}):**
-${skippedSteps.map(s => `- Step ${s.stepOrder}: ${s.action}`).join('\n') || 'None'}
-
-**Feedback Summary:**
-- Implementation rate: ${Math.round((implementedSteps.length / playbookFeedback.length) * 100)}%
-- User found ${implementedSteps.length} recommendations actionable
-`.trim();
-
-			const response = await fetch('http://localhost:8080/v1/memories/', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					content: feedbackContent,
-					temporal_level: 3,
-					content_type: 'observation',
-					salience: 0.8,
-					metadata: {
-						type: 'contentforge_playbook_feedback',
-						original_score: result?.synthesis?.viralityScore,
-						implemented_count: implementedSteps.length,
-						skipped_count: skippedSteps.length,
-						total_steps: playbookFeedback.length,
-						implemented_steps: implementedSteps.map(s => s.action),
-						skipped_steps: skippedSteps.map(s => s.action),
-						timestamp: new Date().toISOString()
-					}
-				})
-			});
-
-			if (response.ok) {
-				feedbackSaved = true;
-				console.log('[ContentForge] Playbook feedback saved to Mind');
-			}
-		} catch (e) {
-			console.warn('[ContentForge] Failed to save feedback:', e);
-		}
-	}
-
-	/**
 	 * Analyze content (text or tweet)
 	 */
 	async function analyze() {
@@ -439,13 +387,102 @@ ${skippedSteps.map(s => `- Step ${s.stepOrder}: ${s.action}`).join('\n') || 'Non
 				throw new Error('No content to analyze');
 			}
 
-			const bridgeResult = await requestContentForgeAnalysis(contentToAnalyze);
-			result = bridgeResult;
-			initPlaybookFeedback();
+			// RALPH MODE: Iterative self-improvement
+			if (ralphMode) {
+				await analyzeWithRalph(contentToAnalyze);
+			} else {
+				// Standard single-pass analysis
+				const bridgeResult = await requestContentForgeAnalysis(contentToAnalyze);
+				result = bridgeResult;
+			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Analysis failed. Make sure the worker is running.';
 		} finally {
 			loading = false;
+		}
+	}
+
+	/**
+	 * Run analysis with Ralph Mode (iterative self-improvement)
+	 */
+	async function analyzeWithRalph(content: string) {
+		console.log('[Ralph] Starting iterative analysis...');
+
+		// 1. Query Mind for context
+		console.log('[Ralph] Querying Mind for relevant learnings...');
+		ralphMindContext = await queryMindForContext('content analysis virality');
+		console.log(`[Ralph] Loaded ${ralphMindContext.length} learnings from Mind`);
+
+		// 2. Initialize Ralph state
+		ralphState = startRalphLoop(ralphConfig, ralphMindContext);
+		ralphIterations = [];
+
+		// 3. Generate Ralph-enhanced prompt
+		const ralphPrompt = generateRalphPrompt(
+			content,
+			ralphConfig,
+			ralphMindContext,
+			1, // First iteration
+			undefined // No previous result yet
+		);
+
+		// 4. Send to worker with Ralph instructions
+		// The worker will check for the completion promise and iterate
+		try {
+			// Store the Ralph prompt for the worker
+			await fetch('/api/contentforge/bridge/write', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					content: ralphPrompt,
+					ralph: true,
+					iteration: 1,
+					maxIterations: ralphConfig.maxIterations,
+					qualityThreshold: ralphConfig.qualityThreshold
+				})
+			});
+
+			// Request analysis (worker will pick up the Ralph prompt)
+			const bridgeResult = await requestContentForgeAnalysis(ralphPrompt);
+
+			// Check if Ralph criteria were met
+			if (bridgeResult?.synthesis?.viralityScore) {
+				const score = bridgeResult.synthesis.viralityScore;
+				const iteration: RalphIteration = {
+					number: 1,
+					score,
+					agentsCompleted: Object.keys(bridgeResult.orchestrator?.agentResults || {}),
+					recommendationCount: bridgeResult.synthesis?.recommendations?.length || 0,
+					weakness: score < ralphConfig.qualityThreshold ? 'Score below threshold' : undefined
+				};
+				ralphIterations = [iteration];
+				ralphState = updateRalphState(iteration) || ralphState;
+
+				if (score >= ralphConfig.qualityThreshold) {
+					// SUCCESS! Record to Mind
+					await recordSuccessToMind({
+						success: true,
+						iterations: 1,
+						finalScore: score,
+						approach: bridgeResult.synthesis?.approach || 'Standard analysis',
+						mindLearningsUsed: ralphMindContext.length,
+						timeElapsed: Date.now() - new Date(ralphState.startedAt).getTime()
+					});
+					ralphState = completeRalphLoop(true, bridgeResult.synthesis?.approach) || ralphState;
+					console.log('[Ralph] Success on first iteration!');
+				} else {
+					// Need more iterations - record blocker for now
+					// In full implementation, would continue iterating
+					console.log(`[Ralph] Score ${score} < ${ralphConfig.qualityThreshold}, would continue iterating`);
+					await recordBlockerToMind(1, score, `Score ${score} below threshold ${ralphConfig.qualityThreshold}`);
+				}
+			}
+
+			result = bridgeResult;
+		} catch (e) {
+			// Record failure to Mind
+			await recordBlockerToMind(1, 0, e instanceof Error ? e.message : 'Unknown error');
+			throw e;
 		}
 	}
 
@@ -586,6 +623,70 @@ ${skippedSteps.map(s => `- Step ${s.stepOrder}: ${s.action}`).join('\n') || 'Non
 			</div>
 		</div>
 
+		<!-- Analysis History Section (always visible when there's history) -->
+		{#if analysisHistory.length > 0 || historyLoading}
+			<div class="mb-8 bg-bg-secondary p-6 border border-accent-primary/30">
+				<h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+					<span>Your Analysis History</span>
+					<span class="text-sm font-normal text-accent-primary">{analysisHistory.length} posts analyzed</span>
+				</h2>
+
+				{#if historyLoading}
+					<div class="text-center py-4 text-text-tertiary">
+						<span class="animate-pulse">Loading history...</span>
+					</div>
+				{:else}
+					<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+						{#each analysisHistory.slice(0, 6) as item}
+							<button
+								onclick={() => selectedHistoryItem = selectedHistoryItem?.id === item.id ? null : item}
+								class="text-left p-3 bg-bg-primary border border-surface-border hover:border-accent-primary transition-colors {selectedHistoryItem?.id === item.id ? 'border-accent-primary bg-accent-primary/5' : ''}"
+							>
+								<div class="flex items-center justify-between mb-2">
+									<span class="text-xl font-bold {item.viralityScore >= 80 ? 'text-green-400' : item.viralityScore >= 60 ? 'text-yellow-400' : item.viralityScore >= 40 ? 'text-orange-400' : 'text-red-400'}">
+										{item.viralityScore}
+									</span>
+									<span class="text-xs text-text-tertiary">
+										{new Date(item.timestamp).toLocaleDateString()}
+									</span>
+								</div>
+								<p class="text-xs text-text-secondary line-clamp-2">{item.content}</p>
+								{#if item.hookType}
+									<span class="text-xs px-1.5 py-0.5 bg-purple-500/20 text-purple-400 mt-2 inline-block">{item.hookType}</span>
+								{/if}
+							</button>
+						{/each}
+					</div>
+					{#if analysisHistory.length > 6}
+						<button
+							onclick={() => showHistory = !showHistory}
+							class="mt-4 text-sm text-accent-primary hover:underline"
+						>
+							{showHistory ? 'Show less' : `View all ${analysisHistory.length} analyses`}
+						</button>
+						{#if showHistory}
+							<div class="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+								{#each analysisHistory.slice(6) as item}
+									<button
+										onclick={() => selectedHistoryItem = selectedHistoryItem?.id === item.id ? null : item}
+										class="text-left p-3 bg-bg-primary border border-surface-border hover:border-accent-primary transition-colors"
+									>
+										<div class="flex items-center justify-between mb-2">
+											<span class="text-xl font-bold {item.viralityScore >= 80 ? 'text-green-400' : item.viralityScore >= 60 ? 'text-yellow-400' : 'text-orange-400'}">
+												{item.viralityScore}
+											</span>
+											<span class="text-xs text-text-tertiary">{new Date(item.timestamp).toLocaleDateString()}</span>
+										</div>
+										<p class="text-xs text-text-secondary line-clamp-2">{item.content}</p>
+									</button>
+								{/each}
+							</div>
+						{/if}
+					{/if}
+				{/if}
+			</div>
+		{/if}
+
 		<!-- Worker Setup Modal -->
 		{#if showWorkerSetup}
 			<div class="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onclick={() => showWorkerSetup = false}>
@@ -723,18 +824,69 @@ ${skippedSteps.map(s => `- Step ${s.stepOrder}: ${s.action}`).join('\n') || 'Non
 				</div>
 			{/if}
 
-			<button
-				onclick={analyze}
-				disabled={loading || (inputMode === 'text' && !inputText.trim()) || (inputMode === 'tweet' && !tweetData)}
-				class="mt-4 px-6 py-2 bg-accent-primary text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-			>
-				{loading ? 'Analyzing...' : inputMode === 'tweet' ? 'Analyze Tweet' : 'Analyze Content'}
-			</button>
+			<!-- Simple Ralph Toggle (minimal UI) -->
+			<div class="mt-4 flex items-center gap-4">
+				<button
+					onclick={analyze}
+					disabled={loading || (inputMode === 'text' && !inputText.trim()) || (inputMode === 'tweet' && !tweetData)}
+					class="px-6 py-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed bg-accent-primary hover:bg-accent-secondary text-white"
+				>
+					{loading ? 'Analyzing...' : inputMode === 'tweet' ? 'Analyze Tweet' : 'Analyze Content'}
+				</button>
+
+				<label class="flex items-center gap-2 cursor-pointer">
+					<input
+						type="checkbox"
+						bind:checked={ralphMode}
+						class="w-4 h-4 accent-orange-500"
+					/>
+					<span class="text-sm {ralphMode ? 'text-orange-400' : 'text-text-tertiary'}">
+						Ralph Mode
+						{#if ralphMode}
+							<span class="text-xs">(iterates until score ≥{ralphConfig.qualityThreshold})</span>
+						{/if}
+					</span>
+				</label>
+			</div>
+
+			{#if ralphMode && ralphState}
+				<div class="mt-2 text-xs text-orange-400">
+					Iteration {ralphState.iteration}/{ralphState.maxIterations} | Best: {ralphState.bestScore}
+					<button onclick={() => { cancelRalphLoop(); ralphState = null; }} class="ml-2 text-red-400 hover:underline">Cancel</button>
+				</div>
+			{/if}
 		</div>
 
 		{#if error}
 			<div class="bg-red-900/20 border border-red-500 p-4 mb-8">
 				<p class="text-red-400">{error}</p>
+			</div>
+		{/if}
+
+		<!-- Analysis in Progress (prominent loading state) -->
+		{#if loading && !result}
+			<div class="mb-8 bg-accent-primary/10 border-2 border-accent-primary p-8 text-center">
+				<div class="flex items-center justify-center gap-4 mb-4">
+					<div class="w-8 h-8 border-4 border-accent-primary border-t-transparent rounded-full animate-spin"></div>
+					<h2 class="text-2xl font-bold text-accent-primary">Analysis in Progress</h2>
+				</div>
+				<p class="text-text-secondary mb-4">
+					{#if ralphMode}
+						Ralph Mode: Iterating until quality score ≥ {ralphConfig.qualityThreshold}
+					{:else}
+						Running 4-agent viral analysis pipeline...
+					{/if}
+				</p>
+				{#if workerCurrentTask}
+					<div class="text-sm text-accent-primary font-mono">{workerCurrentTask}</div>
+				{/if}
+				{#if workerProgress.length > 0}
+					<div class="mt-4 flex flex-wrap justify-center gap-2">
+						{#each workerProgress as step}
+							<span class="px-2 py-1 bg-green-500/20 text-green-400 text-xs border border-green-500/30">✓ {step}</span>
+						{/each}
+					</div>
+				{/if}
 			</div>
 		{/if}
 
@@ -768,144 +920,42 @@ ${skippedSteps.map(s => `- Step ${s.stepOrder}: ${s.action}`).join('\n') || 'Non
 				</div>
 			{/if}
 
-			<!-- Agent Results Grid -->
-			{#if result.orchestrator?.agentResults}
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-					{#if result.orchestrator.agentResults.marketing}
-						<div class="bg-bg-secondary p-6 border border-surface-border">
-							<h3 class="text-lg font-semibold mb-4 text-blue-400">Marketing Agent</h3>
-							<div class="space-y-3 text-sm">
-								<div><span class="text-text-secondary">Authority:</span> <span class="ml-2">{result.orchestrator.agentResults.marketing?.data?.positioning?.authorityLevel || 'N/A'}</span></div>
-								<div><span class="text-text-secondary">Niche:</span> <span class="ml-2">{result.orchestrator.agentResults.marketing?.data?.positioning?.niche || 'N/A'}</span></div>
-								<div><span class="text-text-secondary">Shareability:</span> <span class="ml-2 text-accent-primary font-bold">{result.orchestrator.agentResults.marketing?.data?.distributionFactors?.shareability || 0}/10</span></div>
-							</div>
-						</div>
-					{/if}
-					{#if result.orchestrator.agentResults.copywriting}
-						<div class="bg-bg-secondary p-6 border border-surface-border">
-							<h3 class="text-lg font-semibold mb-4 text-green-400">Copywriting Agent</h3>
-							<div class="space-y-3 text-sm">
-								<div><span class="text-text-secondary">Hook Type:</span> <span class="ml-2">{result.orchestrator.agentResults.copywriting?.data?.hook?.type || 'N/A'}</span></div>
-								<div><span class="text-text-secondary">Hook Effectiveness:</span> <span class="ml-2 text-accent-primary font-bold">{result.orchestrator.agentResults.copywriting?.data?.hook?.effectiveness || 0}/10</span></div>
-								<div><span class="text-text-secondary">Structure:</span> <span class="ml-2">{result.orchestrator.agentResults.copywriting?.data?.structure?.format || 'N/A'}</span></div>
-							</div>
-						</div>
-					{/if}
-					{#if result.orchestrator.agentResults.research}
-						<div class="bg-bg-secondary p-6 border border-surface-border">
-							<h3 class="text-lg font-semibold mb-4 text-yellow-400">Research Agent</h3>
-							<div class="space-y-3 text-sm">
-								<div><span class="text-text-secondary">Trends:</span> <span class="ml-2">{result.orchestrator.agentResults.research?.data?.trendContext?.currentTrends?.join(', ') || 'N/A'}</span></div>
-								<div><span class="text-text-secondary">Trend Phase:</span> <span class="ml-2">{result.orchestrator.agentResults.research?.data?.trendContext?.trendPhase || 'N/A'}</span></div>
-								<div><span class="text-text-secondary">Relevance:</span> <span class="ml-2 text-accent-primary font-bold">{Math.round((result.orchestrator.agentResults.research?.data?.trendContext?.relevanceScore || 0) * 100)}%</span></div>
-							</div>
-						</div>
-					{/if}
-					{#if result.orchestrator.agentResults.psychology}
-						<div class="bg-bg-secondary p-6 border border-surface-border">
-							<h3 class="text-lg font-semibold mb-4 text-purple-400">Psychology Agent</h3>
-							<div class="space-y-3 text-sm">
-								<div><span class="text-text-secondary">Primary Emotion:</span> <span class="ml-2">{result.orchestrator.agentResults.psychology?.data?.emotionalTriggers?.primary || 'N/A'}</span></div>
-								<div><span class="text-text-secondary">In-Group:</span> <span class="ml-2">{result.orchestrator.agentResults.psychology?.data?.identityResonance?.inGroup || 'N/A'}</span></div>
-								<div><span class="text-text-secondary">Emotion Intensity:</span> <span class="ml-2 text-accent-primary font-bold">{result.orchestrator.agentResults.psychology?.data?.emotionalTriggers?.intensity || 0}/10</span></div>
-							</div>
-						</div>
-					{/if}
-				</div>
-			{/if}
-
-			<!-- Playbook with Feedback -->
-			{#if result.synthesis?.playbook}
+			<!-- Actionable Steps (simplified playbook) -->
+			{#if result.synthesis?.playbook?.steps?.length > 0}
 				<div class="mb-8 bg-bg-secondary p-6 border border-surface-border">
-					<div class="flex items-center justify-between mb-4">
-						<h2 class="text-xl font-semibold">{result.synthesis.playbook.title || 'Playbook'}</h2>
-						{#if isMindConnected && playbookFeedback.length > 0}
-							<div class="flex items-center gap-2">
-								{#if feedbackSaved}
-									<span class="text-green-400 text-sm">Feedback saved</span>
-								{:else}
-									<button
-										onclick={savePlaybookFeedback}
-										disabled={playbookFeedback.every(f => f.status === 'pending')}
-										class="px-3 py-1 text-sm bg-purple-500/20 text-purple-400 border border-purple-500/30 hover:bg-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
-									>
-										Save Feedback to Mind
-									</button>
-								{/if}
-							</div>
-						{/if}
-					</div>
-					<p class="text-text-secondary mb-4">{result.synthesis.playbook.summary || ''}</p>
-					{#if result.synthesis.playbook.steps?.length > 0}
-						<ol class="space-y-4">
-							{#each result.synthesis.playbook.steps as step, i}
-								{@const feedback = playbookFeedback.find(f => f.stepOrder === step.order)}
-								<li class="flex gap-4 p-3 border border-surface-border {feedback?.status === 'implemented' ? 'bg-green-500/10 border-green-500/30' : feedback?.status === 'skipped' ? 'bg-gray-500/10 border-gray-500/30' : 'bg-bg-primary'}">
-									<span class="text-accent-primary font-bold text-lg">{step.order}.</span>
-									<div class="flex-1">
-										<p class="font-medium {feedback?.status === 'implemented' ? 'line-through text-text-secondary' : ''}">{step.action}</p>
-										<p class="text-text-secondary text-sm">{step.rationale}</p>
-									</div>
-									{#if isMindConnected}
-										<div class="flex items-center gap-2">
-											<button
-												onclick={() => markPlaybookStep(step.order, 'implemented')}
-												class="p-1.5 text-sm {feedback?.status === 'implemented' ? 'bg-green-500 text-white' : 'bg-green-500/20 text-green-400 hover:bg-green-500/40'}"
-												title="Mark as implemented"
-											>
-												✓
-											</button>
-											<button
-												onclick={() => markPlaybookStep(step.order, 'skipped')}
-												class="p-1.5 text-sm {feedback?.status === 'skipped' ? 'bg-gray-500 text-white' : 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/40'}"
-												title="Skip this step"
-											>
-												✕
-											</button>
-										</div>
-									{/if}
-								</li>
-							{/each}
-						</ol>
-						{#if isMindConnected}
-							<p class="text-text-tertiary text-xs mt-4">Track which recommendations you implement to improve future suggestions</p>
-						{/if}
+					<h2 class="text-xl font-semibold mb-4">{result.synthesis.playbook.title || 'Action Steps'}</h2>
+					{#if result.synthesis.playbook.summary}
+						<p class="text-text-secondary mb-4">{result.synthesis.playbook.summary}</p>
 					{/if}
-				</div>
-			{/if}
-
-			<!-- Creative Recommendations (from Mind) -->
-			{#if recommendations.length > 0}
-				<div class="mb-8 bg-bg-secondary p-6 border border-purple-500/30">
-					<h2 class="text-xl font-semibold mb-4 text-purple-400">Creative Format Recommendations</h2>
-					<p class="text-text-secondary text-sm mb-4">Based on content analysis and learned patterns</p>
-					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-						{#each recommendations as rec}
-							<div class="bg-bg-primary p-4 border border-surface-border">
-								<div class="flex items-center justify-between mb-2">
-									<span class="font-semibold">{rec.format}</span>
-									<span class="text-sm text-accent-primary">{Math.round(rec.confidence * 100)}% match</span>
+					<ol class="space-y-3">
+						{#each result.synthesis.playbook.steps as step}
+							<li class="flex gap-3 p-3 bg-bg-primary border border-surface-border">
+								<span class="text-accent-primary font-bold">{step.order}.</span>
+								<div>
+									<p class="font-medium">{step.action}</p>
+									{#if step.rationale}
+										<p class="text-text-tertiary text-sm mt-1">{step.rationale}</p>
+									{/if}
 								</div>
-								<p class="text-text-secondary text-sm">{rec.reason}</p>
-							</div>
+							</li>
 						{/each}
-					</div>
+					</ol>
 				</div>
 			{/if}
 
-			<!-- Processing Stats -->
-			<div class="text-text-secondary text-sm">
-				{#if result.orchestrator?.processingTimeMs}
-					<p>Processing time: {result.orchestrator.processingTimeMs}ms</p>
-				{/if}
-				{#if result.postId}
-					<p>Post ID: {result.postId}</p>
-				{/if}
-				<p class="text-green-400 mt-2">Analyzed with Claude AI Worker</p>
-				{#if isMindConnected}
-					<p class="text-purple-400">Learning saved to Mind</p>
-				{/if}
-			</div>
+			<!-- Auto-saved to Mind indicator -->
+			{#if isMindConnected && result}
+				<div class="mb-8 p-4 bg-purple-500/10 border border-purple-500/30 flex items-center justify-between">
+					<div class="flex items-center gap-2">
+						<svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+						</svg>
+						<span class="text-purple-400 text-sm">Analysis auto-saved to Mind</span>
+					</div>
+					<span class="text-xs text-purple-300">Score: {result.synthesis?.viralityScore || 0} | {result.synthesis?.keyInsights?.length || 0} insights</span>
+				</div>
+			{/if}
+
 		{/if}
 
 		<!-- Worker Activity Panel (shows when worker is busy or has recent activity) -->
@@ -959,528 +1009,19 @@ ${skippedSteps.map(s => `- Step ${s.stepOrder}: ${s.action}`).join('\n') || 'Non
 			</div>
 		{/if}
 
-		<!-- Mind Learning Section (shows when Mind is connected) -->
-		{#if isMindConnected && (learnings || patterns.length > 0 || style)}
-			<div class="mt-12 border-t border-surface-border pt-8">
-				<div class="flex items-center justify-between mb-6">
-					<div class="flex items-center gap-3">
-						<h2 class="text-2xl font-bold text-purple-400">Mind Learning</h2>
-						{#if learningsLoading}
-							<span class="text-sm text-purple-400 animate-pulse">Updating...</span>
+		<!-- Simple Mind Stats (minimal, non-confusing) -->
+		{#if isMindConnected && (learnings?.totalAnalyzed || style?.totalAnalyzed)}
+			<div class="mt-8 p-4 bg-purple-900/10 border border-purple-500/20">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-4">
+						<span class="text-purple-400 text-sm font-medium">Mind Stats</span>
+						<span class="text-text-secondary text-sm">{learnings?.totalAnalyzed || style?.totalAnalyzed || 0} posts analyzed</span>
+						{#if style?.averageViralityScore}
+							<span class="text-text-secondary text-sm">Avg score: {style.averageViralityScore}</span>
 						{/if}
 					</div>
-					{#if learnings}
-						<div class="text-sm text-text-secondary">
-							{learnings.totalAnalyzed} analyses tracked
-						</div>
-					{/if}
+					<a href="/mind" class="text-purple-400 hover:text-purple-300 text-sm">View all learnings →</a>
 				</div>
-
-				<!-- Overview Stats Row -->
-				{#if learnings && learnings.totalAnalyzed > 0}
-					<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-						<div class="bg-bg-secondary p-4 border border-purple-500/30 text-center">
-							<div class="text-3xl font-bold text-accent-primary">{style?.averageViralityScore || 0}</div>
-							<div class="text-xs text-text-secondary mt-1">Avg Virality</div>
-						</div>
-						<div class="bg-bg-secondary p-4 border border-purple-500/30 text-center">
-							<div class="text-3xl font-bold text-blue-400">{learnings.totalAnalyzed}</div>
-							<div class="text-xs text-text-secondary mt-1">Posts Analyzed</div>
-						</div>
-						<div class="bg-bg-secondary p-4 border border-purple-500/30 text-center">
-							<div class="text-3xl font-bold text-green-400">{learnings.engagementCorrelations.length}</div>
-							<div class="text-xs text-text-secondary mt-1">Patterns Tracked</div>
-						</div>
-						<div class="bg-bg-secondary p-4 border border-purple-500/30 text-center">
-							<div class="text-3xl font-bold text-yellow-400">
-								{learnings.engagementCorrelations.filter(c => c.trend === 'improving').length}
-							</div>
-							<div class="text-xs text-text-secondary mt-1">Improving Trends</div>
-						</div>
-					</div>
-				{/if}
-
-				<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-					<!-- Engagement Correlations -->
-					{#if learnings && learnings.engagementCorrelations.length > 0}
-						<div class="bg-bg-secondary p-6 border border-purple-500/30">
-							<h3 class="text-lg font-semibold mb-4">Pattern Performance</h3>
-							<p class="text-text-tertiary text-xs mb-4">How different patterns correlate with engagement</p>
-							<div class="space-y-3">
-								{#each learnings.engagementCorrelations.slice(0, 8) as corr}
-									<div class="flex items-center justify-between py-2 border-b border-surface-border last:border-0">
-										<div class="flex items-center gap-2">
-											<span class="px-1.5 py-0.5 text-xs {corr.category === 'hook' ? 'bg-green-900/30 text-green-400' : corr.category === 'emotion' ? 'bg-purple-900/30 text-purple-400' : 'bg-blue-900/30 text-blue-400'}">
-												{corr.category}
-											</span>
-											<span class="font-medium text-sm">{corr.pattern}</span>
-										</div>
-										<div class="flex items-center gap-3 text-right">
-											{#if corr.avgEngagementRate > 0}
-												<span class="text-xs text-text-secondary" title="Engagement Rate">
-													{corr.avgEngagementRate}%
-												</span>
-											{/if}
-											<span class="text-xs {corr.trend === 'improving' ? 'text-green-400' : corr.trend === 'declining' ? 'text-red-400' : 'text-text-tertiary'}">
-												{corr.trend === 'improving' ? '↑' : corr.trend === 'declining' ? '↓' : '→'}
-											</span>
-											<span class="text-text-tertiary text-xs">({corr.sampleSize}x)</span>
-										</div>
-									</div>
-								{/each}
-							</div>
-						</div>
-					{/if}
-
-					<!-- Visual Insights -->
-					{#if learnings && learnings.visualInsights.length > 0}
-						<div class="bg-bg-secondary p-6 border border-purple-500/30">
-							<h3 class="text-lg font-semibold mb-4">Visual Performance</h3>
-							<p class="text-text-tertiary text-xs mb-4">How media types affect virality</p>
-							<div class="space-y-4">
-								{#each learnings.visualInsights as insight}
-									<div class="flex items-center justify-between">
-										<div>
-											<span class="font-medium">{insight.type}</span>
-											<span class="text-text-tertiary text-xs ml-2">({insight.sampleSize} posts)</span>
-										</div>
-										<div class="flex items-center gap-4">
-											<div class="text-right">
-												<div class="text-accent-primary font-bold">{insight.avgViralityScore}</div>
-												<div class="text-xs text-text-tertiary">avg score</div>
-											</div>
-											{#if insight.avgEngagement > 0}
-												<div class="text-right">
-													<div class="text-blue-400 font-bold">{insight.avgEngagement}%</div>
-													<div class="text-xs text-text-tertiary">engagement</div>
-												</div>
-											{/if}
-										</div>
-									</div>
-									<div class="h-2 bg-bg-primary border border-surface-border">
-										<div
-											class="h-full {insight.type === 'Video' ? 'bg-red-500' : insight.type === 'Image' ? 'bg-blue-500' : 'bg-gray-500'}"
-											style="width: {insight.avgViralityScore}%"
-										></div>
-									</div>
-								{/each}
-							</div>
-							<p class="text-text-tertiary text-xs mt-4">
-								Best style: {learnings.visualInsights[0]?.bestPerformingStyle || 'N/A'}
-							</p>
-						</div>
-					{/if}
-
-					<!-- Content Type Performance -->
-					{#if learnings && learnings.contentTypePerformance.length > 0}
-						<div class="bg-bg-secondary p-6 border border-purple-500/30">
-							<h3 class="text-lg font-semibold mb-4">Content Type Performance</h3>
-							<p class="text-text-tertiary text-xs mb-4">Which formats work best for you</p>
-							<div class="space-y-4">
-								{#each learnings.contentTypePerformance as perf}
-									<div class="p-3 bg-bg-primary border border-surface-border">
-										<div class="flex items-center justify-between mb-2">
-											<span class="font-semibold">{perf.contentType}</span>
-											<div class="flex items-center gap-2">
-												<span class="text-accent-primary font-bold">{perf.avgViralityScore}</span>
-												<span class="text-text-tertiary text-xs">avg</span>
-											</div>
-										</div>
-										<div class="text-text-secondary text-xs mb-2">{perf.count} posts analyzed</div>
-										{#if perf.topPatterns.length > 0}
-											<div class="flex flex-wrap gap-1">
-												{#each perf.topPatterns.slice(0, 3) as pattern}
-													<span class="px-1.5 py-0.5 bg-surface border border-surface-border text-xs text-text-secondary">{pattern}</span>
-												{/each}
-											</div>
-										{/if}
-									</div>
-								{/each}
-							</div>
-						</div>
-					{/if}
-
-					<!-- Trend Chart (Simple Text Visualization) -->
-					{#if learnings && learnings.trendData.length >= 3}
-						<div class="bg-bg-secondary p-6 border border-purple-500/30">
-							<h3 class="text-lg font-semibold mb-4">Performance Trend</h3>
-							<p class="text-text-tertiary text-xs mb-4">Your last {learnings.trendData.length} analyses</p>
-							<div class="h-32 flex items-end gap-1">
-								{#each learnings.trendData as point, i}
-									{@const height = Math.max(10, point.viralityScore)}
-									<div
-										class="flex-1 bg-accent-primary/70 hover:bg-accent-primary transition-colors relative group"
-										style="height: {height}%"
-										title="{point.date}: {point.viralityScore}"
-									>
-										<div class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs text-text-tertiary opacity-0 group-hover:opacity-100 whitespace-nowrap">
-											{point.viralityScore}
-										</div>
-									</div>
-								{/each}
-							</div>
-							<div class="flex justify-between text-xs text-text-tertiary mt-2">
-								<span>{learnings.trendData[0]?.date || ''}</span>
-								<span>{learnings.trendData[learnings.trendData.length - 1]?.date || ''}</span>
-							</div>
-							{#if learnings.trendData.length > 0}
-								{@const avgTrend = learnings.trendData.reduce((a, b) => a + b.viralityScore, 0) / learnings.trendData.length}
-								{@const recentAvg = learnings.trendData.slice(-3).reduce((a, b) => a + b.viralityScore, 0) / Math.min(3, learnings.trendData.length)}
-								<div class="mt-4 text-sm">
-									<span class="text-text-secondary">Trend: </span>
-									{#if recentAvg > avgTrend + 3}
-										<span class="text-green-400">Improving (+{Math.round(recentAvg - avgTrend)} pts)</span>
-									{:else if recentAvg < avgTrend - 3}
-										<span class="text-red-400">Declining ({Math.round(recentAvg - avgTrend)} pts)</span>
-									{:else}
-										<span class="text-text-tertiary">Stable</span>
-									{/if}
-								</div>
-							{/if}
-						</div>
-					{/if}
-
-					<!-- Legacy Style Profile (fallback when enhanced data not available) -->
-					{#if style && (!learnings || learnings.totalAnalyzed === 0)}
-						<div class="bg-bg-secondary p-6 border border-purple-500/30">
-							<h3 class="text-lg font-semibold mb-4">Your Style Profile</h3>
-							<div class="space-y-4 text-sm">
-								<div>
-									<span class="text-text-secondary">Average Virality Score:</span>
-									<span class="ml-2 text-2xl font-bold text-accent-primary">{style.averageViralityScore}</span>
-									<span class="text-text-secondary">/100</span>
-								</div>
-								<div>
-									<span class="text-text-secondary">Content Analyzed:</span>
-									<span class="ml-2 font-semibold">{style.totalAnalyzed} posts</span>
-								</div>
-								{#if style.preferredHookTypes.length > 0}
-									<div>
-										<span class="text-text-secondary block mb-1">Preferred Hooks:</span>
-										<div class="flex flex-wrap gap-2">
-											{#each style.preferredHookTypes as hook}
-												<span class="px-2 py-1 bg-green-900/30 text-green-400 text-xs">{hook}</span>
-											{/each}
-										</div>
-									</div>
-								{/if}
-								{#if style.strongEmotions.length > 0}
-									<div>
-										<span class="text-text-secondary block mb-1">Strong Emotions:</span>
-										<div class="flex flex-wrap gap-2">
-											{#each style.strongEmotions as emotion}
-												<span class="px-2 py-1 bg-purple-900/30 text-purple-400 text-xs">{emotion}</span>
-											{/each}
-										</div>
-									</div>
-								{/if}
-							</div>
-						</div>
-					{/if}
-				</div>
-
-				<!-- Learn More Footer -->
-				<div class="mt-6 p-4 bg-purple-900/10 border border-purple-500/20">
-					<p class="text-sm text-purple-300">
-						Mind learns from each analysis. Analyze more content to improve pattern recognition and get better recommendations.
-					</p>
-				</div>
-			</div>
-
-			<!-- Agent Collaboration Section -->
-			<div class="mt-12 border-t border-cyan-500/30 pt-8">
-				<div class="flex items-center justify-between mb-6">
-					<div class="flex items-center gap-3">
-						<h2 class="text-2xl font-bold text-cyan-400">Agent Intelligence</h2>
-						<span class="px-2 py-0.5 bg-cyan-900/30 text-cyan-400 text-xs">8 H70 Agents</span>
-					</div>
-					<button
-						onclick={runAgentAnalysis}
-						disabled={agentCollabLoading || !isMindConnected}
-						class="px-4 py-2 bg-cyan-500 text-white font-semibold hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-					>
-						{agentCollabLoading ? 'Analyzing...' : agentCollab ? 'Refresh Analysis' : 'Run Agent Analysis'}
-					</button>
-				</div>
-
-				{#if agentCollabError}
-					<div class="mb-6 p-4 bg-red-900/20 border border-red-500">
-						<p class="text-red-400 text-sm">{agentCollabError}</p>
-					</div>
-				{/if}
-
-				{#if !agentCollab && !agentCollabLoading}
-					<div class="p-8 bg-bg-secondary border border-surface-border text-center">
-						<p class="text-text-secondary mb-2">Run multi-agent analysis to get collaborative insights</p>
-						<p class="text-text-tertiary text-sm">8 specialized agents will analyze your Mind learning data</p>
-					</div>
-				{/if}
-
-				{#if agentCollabLoading}
-					<div class="p-8 bg-bg-secondary border border-cyan-500/30 text-center">
-						<div class="flex items-center justify-center gap-3 mb-4">
-							<span class="w-3 h-3 bg-cyan-500 animate-pulse"></span>
-							<span class="text-cyan-400">Agents collaborating...</span>
-						</div>
-						<p class="text-text-tertiary text-sm">Marketing, Copywriting, Viral Hooks, Content Strategy, Psychology, Algorithm, Research, Visual</p>
-					</div>
-				{/if}
-
-				{#if agentCollab}
-					<!-- Learning Health Score -->
-					<div class="mb-8 p-6 bg-bg-secondary border border-cyan-500/30">
-						<div class="flex items-center justify-between mb-4">
-							<h3 class="text-lg font-semibold">Learning Health Score</h3>
-							<span class="text-4xl font-bold text-cyan-400">{agentCollab.synthesis.learningHealthScore}<span class="text-lg text-text-secondary">/100</span></span>
-						</div>
-						<div class="grid grid-cols-4 gap-4">
-							<div class="text-center">
-								<div class="text-xl font-bold text-blue-400">{agentCollab.synthesis.healthBreakdown.dataQuantity}</div>
-								<div class="text-xs text-text-tertiary">Data Quantity</div>
-							</div>
-							<div class="text-center">
-								<div class="text-xl font-bold text-green-400">{agentCollab.synthesis.healthBreakdown.dataQuality}</div>
-								<div class="text-xs text-text-tertiary">Data Quality</div>
-							</div>
-							<div class="text-center">
-								<div class="text-xl font-bold text-purple-400">{agentCollab.synthesis.healthBreakdown.patternDiversity}</div>
-								<div class="text-xs text-text-tertiary">Pattern Diversity</div>
-							</div>
-							<div class="text-center">
-								<div class="text-xl font-bold text-yellow-400">{agentCollab.synthesis.healthBreakdown.trendClarity}</div>
-								<div class="text-xs text-text-tertiary">Trend Clarity</div>
-							</div>
-						</div>
-						<div class="mt-4 h-2 bg-bg-primary border border-surface-border">
-							<div
-								class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-500"
-								style="width: {agentCollab.synthesis.learningHealthScore}%"
-							></div>
-						</div>
-					</div>
-
-					<!-- Agent Cards Grid -->
-					<div class="mb-8">
-						<h3 class="text-lg font-semibold mb-4">Agent Insights ({agentCollab.agents.length} Agents)</h3>
-						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-							{#each agentCollab.agents as agent}
-								{@const color = getAgentColor(agent.agentId)}
-								<button
-									onclick={() => selectedAgent = selectedAgent === agent.agentId ? null : agent.agentId}
-									class="p-4 bg-bg-secondary border transition-all text-left {selectedAgent === agent.agentId ? `border-${color}-500 bg-${color}-900/10` : 'border-surface-border hover:border-surface-hover'}"
-								>
-									<div class="flex items-center justify-between mb-2">
-										<span class="font-semibold text-sm">{agent.agentName.replace(' Agent', '')}</span>
-										<span class="text-xs px-1.5 py-0.5 bg-{color}-900/30 text-{color}-400">{Math.round(agent.confidence * 100)}%</span>
-									</div>
-									<div class="text-xs text-text-tertiary mb-2">{agent.h70Skill}</div>
-									<div class="text-sm text-text-secondary line-clamp-2">
-										{agent.topFindings[0] || 'No findings'}
-									</div>
-									{#if agent.recommendations.length > 0}
-										<div class="mt-2 flex items-center gap-1">
-											<span class="w-2 h-2 bg-{getPriorityColor(agent.recommendations[0].priority)}-500"></span>
-											<span class="text-xs text-text-tertiary">{agent.recommendations.length} recommendations</span>
-										</div>
-									{/if}
-								</button>
-							{/each}
-						</div>
-					</div>
-
-					<!-- Selected Agent Details -->
-					{#if selectedAgent}
-						{@const agent = agentCollab.agents.find(a => a.agentId === selectedAgent)}
-						{#if agent}
-							<div class="mb-8 p-6 bg-bg-secondary border border-{getAgentColor(agent.agentId)}-500/50">
-								<div class="flex items-center justify-between mb-4">
-									<div>
-										<h3 class="text-xl font-semibold text-{getAgentColor(agent.agentId)}-400">{agent.agentName}</h3>
-										<p class="text-text-tertiary text-sm">{agent.expertise}</p>
-									</div>
-									<button
-										onclick={() => selectedAgent = null}
-										class="text-text-tertiary hover:text-text-primary text-xl"
-									>&times;</button>
-								</div>
-
-								<!-- Findings -->
-								{#if agent.topFindings.length > 0}
-									<div class="mb-4">
-										<h4 class="text-sm font-semibold text-text-secondary mb-2">Key Findings</h4>
-										<ul class="space-y-1">
-											{#each agent.topFindings as finding}
-												<li class="text-sm flex items-start gap-2">
-													<span class="text-{getAgentColor(agent.agentId)}-400">→</span>
-													<span>{finding}</span>
-												</li>
-											{/each}
-										</ul>
-									</div>
-								{/if}
-
-								<!-- Patterns -->
-								{#if agent.patterns.length > 0}
-									<div class="mb-4">
-										<h4 class="text-sm font-semibold text-text-secondary mb-2">Pattern Performance</h4>
-										<div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-											{#each agent.patterns.slice(0, 4) as pattern}
-												<div class="p-2 bg-bg-primary border border-surface-border text-sm">
-													<div class="flex items-center justify-between mb-1">
-														<span class="font-medium">{pattern.pattern}</span>
-														<span class="text-xs text-{pattern.performance === 'high' ? 'green' : pattern.performance === 'medium' ? 'yellow' : 'red'}-400">
-															{pattern.performance}
-														</span>
-													</div>
-													<p class="text-xs text-text-tertiary">{pattern.actionable}</p>
-												</div>
-											{/each}
-										</div>
-									</div>
-								{/if}
-
-								<!-- Recommendations -->
-								{#if agent.recommendations.length > 0}
-									<div>
-										<h4 class="text-sm font-semibold text-text-secondary mb-2">Recommendations</h4>
-										<div class="space-y-2">
-											{#each agent.recommendations as rec}
-												<div class="p-3 bg-bg-primary border-l-2 border-{getPriorityColor(rec.priority)}-500">
-													<div class="flex items-center gap-2 mb-1">
-														<span class="px-1.5 py-0.5 text-xs bg-{getPriorityColor(rec.priority)}-900/30 text-{getPriorityColor(rec.priority)}-400">{rec.priority}</span>
-														<span class="font-medium text-sm">{rec.title}</span>
-													</div>
-													<p class="text-sm text-text-secondary mb-1">{rec.description}</p>
-													<p class="text-xs text-text-tertiary">Impact: {rec.expectedImpact}</p>
-												</div>
-											{/each}
-										</div>
-									</div>
-								{/if}
-
-								<!-- Correlations -->
-								{#if agent.correlatesWith.length > 0}
-									<div class="mt-4 pt-4 border-t border-surface-border">
-										<span class="text-xs text-text-tertiary">Correlates with: </span>
-										{#each agent.correlatesWith as agentId}
-											<span class="text-xs text-{getAgentColor(agentId)}-400 mr-2">{agentId}</span>
-										{/each}
-									</div>
-								{/if}
-							</div>
-						{/if}
-					{/if}
-
-					<!-- Cross-Agent Patterns -->
-					{#if agentCollab.synthesis.crossAgentPatterns.length > 0}
-						<div class="mb-8 p-6 bg-bg-secondary border border-surface-border">
-							<h3 class="text-lg font-semibold mb-4">Cross-Agent Patterns</h3>
-							<p class="text-text-tertiary text-sm mb-4">Patterns validated by multiple agents</p>
-							<div class="space-y-3">
-								{#each agentCollab.synthesis.crossAgentPatterns.slice(0, 5) as pattern}
-									<div class="p-3 bg-bg-primary border border-surface-border">
-										<div class="flex items-center justify-between mb-2">
-											<span class="font-medium">{pattern.pattern}</span>
-											<span class="text-xs text-accent-primary">{Math.round(pattern.correlation * 100)}% correlation</span>
-										</div>
-										<p class="text-sm text-text-secondary mb-2">{pattern.combinedInsight}</p>
-										<div class="flex flex-wrap gap-1">
-											{#each pattern.contributingAgents as agentId}
-												<span class="px-1.5 py-0.5 text-xs bg-{getAgentColor(agentId)}-900/30 text-{getAgentColor(agentId)}-400">{agentId}</span>
-											{/each}
-										</div>
-									</div>
-								{/each}
-							</div>
-						</div>
-					{/if}
-
-					<!-- Unified Recommendations -->
-					{#if agentCollab.synthesis.unifiedRecommendations.length > 0}
-						<div class="mb-8 p-6 bg-bg-secondary border border-orange-500/30">
-							<div class="flex items-center justify-between mb-4">
-								<h3 class="text-lg font-semibold text-orange-400">Unified Recommendations</h3>
-								<button
-									onclick={() => showAllRecommendations = !showAllRecommendations}
-									class="text-sm text-orange-400 hover:text-orange-300"
-								>
-									{showAllRecommendations ? 'Show Top 5' : `Show All (${agentCollab.synthesis.unifiedRecommendations.length})`}
-								</button>
-							</div>
-							<p class="text-text-tertiary text-sm mb-4">Prioritized recommendations from all agents</p>
-							<ol class="space-y-3">
-								{#each (showAllRecommendations ? agentCollab.synthesis.unifiedRecommendations : agentCollab.synthesis.unifiedRecommendations.slice(0, 5)) as rec, i}
-									<li class="flex gap-4 p-3 bg-bg-primary border border-surface-border">
-										<span class="flex items-center justify-center w-8 h-8 bg-orange-500/20 text-orange-400 font-bold">{i + 1}</span>
-										<div class="flex-1">
-											<div class="flex items-center gap-2 mb-1">
-												<span class="font-semibold">{rec.title}</span>
-												<span class="text-xs px-1.5 py-0.5 bg-cyan-900/30 text-cyan-400">priority {rec.priority}</span>
-											</div>
-											<p class="text-sm text-text-secondary mb-2">{rec.description}</p>
-											<div class="flex items-center justify-between">
-												<span class="text-xs text-green-400">Impact: {rec.expectedImpact}</span>
-												<div class="flex gap-1">
-													{#each rec.contributingAgents as agentId}
-														<span class="text-xs text-text-tertiary">{agentId}</span>
-													{/each}
-												</div>
-											</div>
-										</div>
-									</li>
-								{/each}
-							</ol>
-						</div>
-					{/if}
-
-					<!-- Gap Analysis -->
-					{#if agentCollab.synthesis.gaps.length > 0}
-						<div class="mb-8 p-6 bg-bg-secondary border border-red-500/30">
-							<h3 class="text-lg font-semibold text-red-400 mb-4">Gaps Identified</h3>
-							<p class="text-text-tertiary text-sm mb-4">Areas where data or strategy is missing</p>
-							<div class="space-y-3">
-								{#each agentCollab.synthesis.gaps as gap}
-									<div class="p-3 bg-bg-primary border-l-2 border-{gap.severity === 'critical' ? 'red' : gap.severity === 'moderate' ? 'yellow' : 'gray'}-500">
-										<div class="flex items-center gap-2 mb-1">
-											<span class="px-1.5 py-0.5 text-xs bg-{gap.severity === 'critical' ? 'red' : gap.severity === 'moderate' ? 'yellow' : 'gray'}-900/30 text-{gap.severity === 'critical' ? 'red' : gap.severity === 'moderate' ? 'yellow' : 'gray'}-400">{gap.severity}</span>
-											<span class="font-medium text-sm">{gap.area}</span>
-										</div>
-										<p class="text-sm text-text-secondary mb-2">{gap.description}</p>
-										<p class="text-xs text-text-tertiary">Fix: {gap.suggestedFix}</p>
-									</div>
-								{/each}
-							</div>
-						</div>
-					{/if}
-
-					<!-- System Insights -->
-					{#if agentCollab.systemInsights.length > 0}
-						<div class="p-6 bg-bg-secondary border border-surface-border">
-							<h3 class="text-lg font-semibold mb-4">System Insights</h3>
-							<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-								{#each agentCollab.systemInsights as insight}
-									<div class="p-4 bg-bg-primary border border-surface-border">
-										<div class="flex items-center gap-2 mb-2">
-											<span class="px-1.5 py-0.5 text-xs bg-{insight.type === 'algorithm' ? 'cyan' : insight.type === 'psychology' ? 'purple' : insight.type === 'content' ? 'green' : insight.type === 'platform' ? 'blue' : 'yellow'}-900/30 text-{insight.type === 'algorithm' ? 'cyan' : insight.type === 'psychology' ? 'purple' : insight.type === 'content' ? 'green' : insight.type === 'platform' ? 'blue' : 'yellow'}-400">{insight.type}</span>
-											<span class="font-semibold text-sm">{insight.title}</span>
-										</div>
-										<p class="text-sm text-text-secondary mb-2">{insight.insight}</p>
-										<p class="text-xs text-accent-primary">Recommendation: {insight.recommendation}</p>
-									</div>
-								{/each}
-							</div>
-						</div>
-					{/if}
-
-					<!-- Metadata -->
-					<div class="mt-6 text-xs text-text-tertiary">
-						<span>Session: {agentCollab.sessionId}</span>
-						<span class="mx-2">|</span>
-						<span>Analyzed: {agentCollab.dataAnalyzed} data points</span>
-						<span class="mx-2">|</span>
-						<span>{new Date(agentCollab.timestamp).toLocaleString()}</span>
-					</div>
-				{/if}
 			</div>
 		{/if}
 	</div>

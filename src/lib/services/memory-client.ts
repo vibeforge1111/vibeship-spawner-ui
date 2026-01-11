@@ -1095,7 +1095,7 @@ class MemoryClient {
 		let totalImpact = 0;
 
 		for (const imp of improvements) {
-			const status = imp.metadata?.improvement_status ?? 'pending';
+			const status = imp.metadata?.improvement_status ?? 'applied'; // Auto-apply by default
 			const type = imp.metadata?.improvement_type ?? 'unknown';
 			const impact = imp.metadata?.improvement_impact ?? 0;
 

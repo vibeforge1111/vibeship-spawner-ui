@@ -261,7 +261,6 @@
 				class:hover:border-text-tertiary={activeTab !== 'improvements'}
 			>
 				Improvements
-				{#if pendingCount > 0}<span class="text-yellow-400">({pendingCount} pending)</span>{/if}
 			</button>
 			<button
 				onclick={() => (activeTab = 'intelligence')}
@@ -445,52 +444,17 @@
 						<div class="animate-pulse text-text-tertiary font-mono">Loading improvements...</div>
 					</div>
 				{:else}
-					<!-- Filter controls -->
-					<div class="flex items-center gap-4 mb-6">
+					<!-- Info banner - improvements are auto-applied -->
+					<div class="flex items-center justify-between mb-6 p-3 bg-green-500/10 border border-green-500/30">
 						<div class="flex items-center gap-2">
-							<span class="text-sm font-mono text-text-tertiary">Filter:</span>
-							<button
-								onclick={() => (improvementFilter = 'pending')}
-								class="px-3 py-1 text-xs font-mono border transition-all"
-								class:bg-yellow-500={improvementFilter === 'pending'}
-								class:text-black={improvementFilter === 'pending'}
-								class:border-yellow-500={improvementFilter === 'pending'}
-								class:text-text-secondary={improvementFilter !== 'pending'}
-								class:border-surface-border={improvementFilter !== 'pending'}
-							>
-								Pending
-							</button>
-							<button
-								onclick={() => (improvementFilter = 'applied')}
-								class="px-3 py-1 text-xs font-mono border transition-all"
-								class:bg-green-500={improvementFilter === 'applied'}
-								class:text-black={improvementFilter === 'applied'}
-								class:border-green-500={improvementFilter === 'applied'}
-								class:text-text-secondary={improvementFilter !== 'applied'}
-								class:border-surface-border={improvementFilter !== 'applied'}
-							>
-								Applied
-							</button>
-							<button
-								onclick={() => (improvementFilter = 'all')}
-								class="px-3 py-1 text-xs font-mono border transition-all"
-								class:bg-accent-primary={improvementFilter === 'all'}
-								class:text-bg-primary={improvementFilter === 'all'}
-								class:border-accent-primary={improvementFilter === 'all'}
-								class:text-text-secondary={improvementFilter !== 'all'}
-								class:border-surface-border={improvementFilter !== 'all'}
-							>
-								All
-							</button>
+							<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+							</svg>
+							<span class="text-sm text-green-400 font-medium">Improvements are auto-applied</span>
 						</div>
-
-						<div class="flex-1"></div>
-
-						<!-- Stats summary -->
 						{#if currentState.improvementStats}
 							<div class="flex items-center gap-4 text-xs font-mono text-text-tertiary">
-								<span>{currentState.improvementStats.pending} pending</span>
-								<span>{currentState.improvementStats.applied} applied</span>
+								<span class="text-green-400">{currentState.improvementStats.applied} applied</span>
 								<span class="text-accent-primary">
 									{Math.round((currentState.improvementStats.averageImpact || 0) * 100)}% avg impact
 								</span>
@@ -498,29 +462,19 @@
 						{/if}
 					</div>
 
-					{#if filteredImprovements.length === 0}
+					{#if improvements.length === 0}
 						<div class="border border-surface-border bg-bg-secondary p-12 text-center">
 							<div class="text-4xl mb-4 opacity-50">~</div>
-							<h3 class="text-lg text-text-primary mb-2">
-								{#if improvementFilter === 'pending'}
-									No pending improvements
-								{:else if improvementFilter === 'applied'}
-									No applied improvements yet
-								{:else}
-									No improvements found
-								{/if}
-							</h3>
+							<h3 class="text-lg text-text-primary mb-2">No improvements yet</h3>
 							<p class="text-sm text-text-secondary mb-4">
 								Improvements are generated from mission executions and agent learnings.
 							</p>
 						</div>
 					{:else}
 						<div class="grid gap-4 md:grid-cols-2">
-							{#each filteredImprovements as improvement (improvement.id)}
+							{#each improvements as improvement (improvement.id)}
 								<ImprovementCard
 									{improvement}
-									onApply={handleApplyImprovement}
-									onDismiss={handleDismissImprovement}
 									onViewEvidence={handleViewEvidence}
 								/>
 							{/each}

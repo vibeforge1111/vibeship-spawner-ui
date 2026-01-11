@@ -425,7 +425,7 @@ export async function loadImprovements(options?: {
 				impact: m.metadata?.improvement_impact ?? 0,
 				confidence: m.metadata?.confidence ?? m.effective_salience,
 				evidenceCount: m.metadata?.improvement_evidence_count ?? 0,
-				status: m.metadata?.improvement_status ?? 'pending',
+				status: m.metadata?.improvement_status ?? 'applied', // Auto-apply by default - no approval needed
 				sourceMissions: m.metadata?.improvement_source_missions ?? [],
 				createdAt: m.created_at,
 				appliedAt: m.metadata?.improvement_applied_at,

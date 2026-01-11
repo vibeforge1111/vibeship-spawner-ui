@@ -3,12 +3,10 @@
 
 	interface Props {
 		improvement: Improvement;
-		onApply?: (id: string) => void;
-		onDismiss?: (id: string) => void;
 		onViewEvidence?: (id: string) => void;
 	}
 
-	let { improvement, onApply, onDismiss, onViewEvidence }: Props = $props();
+	let { improvement, onViewEvidence }: Props = $props();
 
 	const typeIcons: Record<string, string> = {
 		skill: '🎯',
@@ -93,36 +91,19 @@
 		<span>{formatDate(improvement.createdAt)}</span>
 	</div>
 
-	<!-- Actions -->
-	{#if improvement.status === 'pending'}
-		<div class="flex items-center gap-2 pt-2 border-t border-surface-border">
+	<!-- Status - improvements are auto-applied -->
+	<div class="flex items-center gap-2 pt-2 border-t border-surface-border text-xs text-green-400">
+		<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+		</svg>
+		<span>Auto-applied {improvement.appliedAt ? formatDate(improvement.appliedAt) : ''}</span>
+		{#if improvement.sourceMissions.length > 0}
 			<button
-				onclick={() => onApply?.(improvement.id)}
-				class="px-3 py-1 text-xs font-mono bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all"
+				onclick={() => onViewEvidence?.(improvement.id)}
+				class="ml-auto px-3 py-1 text-xs font-mono text-text-tertiary hover:text-text-secondary transition-all"
 			>
-				Apply
+				View Evidence
 			</button>
-			<button
-				onclick={() => onDismiss?.(improvement.id)}
-				class="px-3 py-1 text-xs font-mono text-text-secondary border border-surface-border hover:border-text-tertiary transition-all"
-			>
-				Dismiss
-			</button>
-			{#if improvement.sourceMissions.length > 0}
-				<button
-					onclick={() => onViewEvidence?.(improvement.id)}
-					class="px-3 py-1 text-xs font-mono text-text-tertiary hover:text-text-secondary transition-all"
-				>
-					View Evidence
-				</button>
-			{/if}
-		</div>
-	{:else if improvement.status === 'applied'}
-		<div class="flex items-center gap-2 pt-2 border-t border-surface-border text-xs text-green-400">
-			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-			</svg>
-			Applied {improvement.appliedAt ? formatDate(improvement.appliedAt) : ''}
-		</div>
-	{/if}
+		{/if}
+	</div>
 </div>
