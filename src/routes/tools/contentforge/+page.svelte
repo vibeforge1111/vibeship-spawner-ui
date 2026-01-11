@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
 	import {
 		initContentForgeBridge,
@@ -21,11 +21,13 @@ But that's exactly when you build the foundation for success.`);
 	let loading = $state(false);
 	let result: any = $state(null);
 	let error: string | null = $state(null);
-	let claudeConnected = $state(false);
-	let analysisMode = $state<'claude' | 'local'>('local');
-	let checkingConnection = $state(true);
 	let showWorkerSetup = $state(false);
 	let copied = $state(false);
+
+	// Worker status: 'connected' (green), 'disconnected' (yellow), 'error' (red)
+	let workerStatus = $state<'connected' | 'disconnected' | 'error'>('disconnected');
+	let statusMessage = $state('Checking worker status...');
+	let statusCheckInterval: ReturnType<typeof setInterval> | null = null;
 
 	const workerPrompt = `You are the ContentForge analysis worker. Poll http://localhost:5174/api/contentforge/bridge/pending every 10 seconds. When pending=true, analyze the content as Marketing, Copywriting, Research, and Psychology agents. Send full analysis via POST to http://localhost:5174/api/events with type "contentforge_analysis_complete". Then DELETE the pending request. Run autonomously - no questions, just analyze and respond. Start now.`;
 
@@ -35,11 +37,42 @@ But that's exactly when you build the foundation for success.`);
 		setTimeout(() => copied = false, 2000);
 	}
 
+	async function checkWorkerStatus() {
+		try {
+			const response = await fetch('/api/contentforge/bridge/status');
+			if (!response.ok) {
+				workerStatus = 'error';
+				statusMessage = 'Status check failed';
+				return;
+			}
+			const data = await response.json();
+			if (data.connected) {
+				workerStatus = 'connected';
+				statusMessage = 'Worker connected';
+			} else if (data.error) {
+				workerStatus = 'error';
+				statusMessage = data.error;
+			} else {
+				workerStatus = 'disconnected';
+				statusMessage = 'Worker not connected';
+			}
+		} catch (e) {
+			workerStatus = 'error';
+			statusMessage = 'Failed to check status';
+		}
+	}
+
 	onMount(async () => {
 		await initContentForgeBridge();
-		claudeConnected = await isClaudeCodeConnected();
-		if (claudeConnected) analysisMode = 'claude';
-		checkingConnection = false;
+		// Check status immediately and then every 10 seconds
+		await checkWorkerStatus();
+		statusCheckInterval = setInterval(checkWorkerStatus, 10000);
+	});
+
+	onDestroy(() => {
+		if (statusCheckInterval) {
+			clearInterval(statusCheckInterval);
+		}
 	});
 
 	async function analyze() {
@@ -47,28 +80,13 @@ But that's exactly when you build the foundation for success.`);
 		error = null;
 		result = null;
 		try {
-			if (analysisMode === 'claude') {
-				const bridgeResult = await requestContentForgeAnalysis(inputText);
-				result = bridgeResult;
-			} else {
-				const response = await fetch('/api/contentforge/analyze', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ demo: inputText || true })
-				});
-				const data = await response.json();
-				if (data.error) error = data.error;
-				else result = data.data;
-			}
+			const bridgeResult = await requestContentForgeAnalysis(inputText);
+			result = bridgeResult;
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Analysis failed';
+			error = e instanceof Error ? e.message : 'Analysis failed. Make sure the worker is running.';
 		} finally {
 			loading = false;
 		}
-	}
-
-	function toggleMode() {
-		analysisMode = analysisMode === 'claude' ? 'local' : 'claude';
 	}
 </script>
 
@@ -85,25 +103,27 @@ But that's exactly when you build the foundation for success.`);
 			<p class="text-text-secondary">Viral Content Analysis Pipeline</p>
 		</header>
 
+		<!-- Worker Status Indicator -->
 		<div class="mb-6 flex items-center gap-4">
-			<span class="text-text-secondary text-sm">Analysis Mode:</span>
-			<button onclick={toggleMode} class="flex items-center gap-2 px-3 py-1.5 border border-surface-border hover:border-accent-primary transition-colors">
-				{#if analysisMode === 'claude'}
-					<span class="w-2 h-2 bg-green-500"></span>
-					<span class="text-sm text-green-400">Claude AI</span>
+			<span class="text-text-secondary text-sm">Worker Status:</span>
+			<div class="flex items-center gap-2 px-3 py-1.5 border border-surface-border">
+				{#if workerStatus === 'connected'}
+					<span class="w-2 h-2 bg-green-500 animate-pulse"></span>
+					<span class="text-sm text-green-400">{statusMessage}</span>
+				{:else if workerStatus === 'disconnected'}
+					<span class="w-2 h-2 bg-yellow-500"></span>
+					<span class="text-sm text-yellow-400">{statusMessage}</span>
 				{:else}
-					<span class="w-2 h-2 bg-blue-500"></span>
-					<span class="text-sm text-blue-400">Local</span>
+					<span class="w-2 h-2 bg-red-500"></span>
+					<span class="text-sm text-red-400">{statusMessage}</span>
 				{/if}
+			</div>
+			<button
+				onclick={() => showWorkerSetup = true}
+				class="px-3 py-1.5 text-sm border border-accent-primary text-accent-primary hover:bg-accent-primary hover:text-white transition-colors"
+			>
+				{workerStatus === 'connected' ? 'Worker Instructions' : 'Start Worker'}
 			</button>
-			{#if analysisMode === 'claude'}
-				<button
-					onclick={() => showWorkerSetup = true}
-					class="text-xs text-text-tertiary hover:text-accent-primary transition-colors underline"
-				>
-					Setup Worker
-				</button>
-			{/if}
 		</div>
 
 		<!-- Worker Setup Modal -->
@@ -238,9 +258,7 @@ But that's exactly when you build the foundation for success.`);
 			<div class="text-text-secondary text-sm">
 				<p>Processing time: {result.orchestrator.processingTimeMs}ms</p>
 				<p>Post ID: {result.postId}</p>
-				{#if analysisMode === 'claude'}
-					<p class="text-green-400 mt-2">Analyzed with Claude AI</p>
-				{/if}
+				<p class="text-green-400 mt-2">Analyzed with Claude AI Worker</p>
 			</div>
 		{/if}
 	</div>
