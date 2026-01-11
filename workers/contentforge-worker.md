@@ -331,6 +331,50 @@ Your POST to `/api/events` MUST include this exact structure:
 }
 ```
 
+## Error Handling & Retry Logic
+
+### Retry Strategy
+For any failed HTTP request, use exponential backoff:
+1. **First retry:** Wait 1 second
+2. **Second retry:** Wait 3 seconds
+3. **Third retry:** Wait 10 seconds
+4. **Give up after 3 retries** and log error
+
+### Common Errors and Recovery
+
+| Error | Recovery Action |
+|-------|-----------------|
+| Connection refused | Server not running. Wait 30s and retry registration |
+| 500 Internal Server Error | Server issue. Retry with backoff |
+| 503 Service Unavailable | Server overloaded. Wait 10s and retry |
+| Timeout | Request took too long. Retry with shorter content if possible |
+| `busy: true` from pending | Another request in progress. Continue polling normally |
+
+### Partial Results
+If an agent fails during analysis:
+1. **Continue with remaining agents** - Don't abort the entire analysis
+2. **Mark failed agent as unsuccessful:**
+   ```json
+   "marketing": {
+     "agentId": "marketing-1",
+     "success": false,
+     "error": "Agent analysis timed out"
+   }
+   ```
+3. **Still send the result** - Partial analysis is better than no analysis
+4. **Calculate virality score** from successful agents only
+
+### Heartbeat/Keepalive
+To maintain connection status:
+1. **Ping every 2 minutes** when idle (no pending work)
+2. **Progress updates count as heartbeat** during analysis
+3. If UI shows "disconnected", re-register immediately
+
+### Timeout Handling
+- **Per-agent timeout:** 60 seconds max per agent
+- **Total analysis timeout:** 5 minutes max
+- If approaching timeout, send partial results with warning
+
 ## Start Working
 
 First register yourself:
@@ -340,6 +384,8 @@ curl -X POST http://localhost:5175/api/contentforge/bridge/status \
   -d '{"version":"claude-code"}'
 ```
 
+If registration fails, retry up to 3 times with exponential backoff.
+
 Then poll for pending requests:
 ```bash
 curl -s http://localhost:5175/api/contentforge/bridge/pending
@@ -347,14 +393,14 @@ curl -s http://localhost:5175/api/contentforge/bridge/pending
 
 If `pending: true`, read the content, analyze thoroughly, then send response.
 
-**IMPORTANT: Send result to BOTH endpoints for reliability:**
+**IMPORTANT: Send result to BOTH endpoints for reliability (retry each if fails):**
 ```bash
-# 1. Store result (fallback for polling)
+# 1. Store result (fallback for polling) - RETRY UP TO 3 TIMES
 curl -X POST http://localhost:5175/api/contentforge/bridge/result \
   -H "Content-Type: application/json" \
   -d '{"type":"contentforge_analysis_complete","data":{...full response...}}'
 
-# 2. Broadcast via events (SSE to UI)
+# 2. Broadcast via events (SSE to UI) - RETRY UP TO 3 TIMES
 curl -X POST http://localhost:5175/api/events \
   -H "Content-Type: application/json" \
   -d '{"type":"contentforge_analysis_complete","data":{...full response...}}'
@@ -364,5 +410,11 @@ After responding, clear the pending request:
 ```bash
 curl -X DELETE http://localhost:5175/api/contentforge/bridge/pending
 ```
+
+### Error Recovery Checklist
+- [ ] If result POST fails: Retry 3 times before marking complete
+- [ ] If both POSTs fail: Still mark complete to avoid blocking queue
+- [ ] If DELETE fails: Continue polling (will see `busy: false` eventually)
+- [ ] If PATCH progress fails: Continue analysis (UI will recover)
 
 **START POLLING NOW** - Check for pending requests every 30 seconds and respond with H70-powered analysis.
