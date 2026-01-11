@@ -35,6 +35,12 @@
 		recordBlockerToMind,
 		checkCompletionCriteria
 	} from '$lib/services/ralph-contentforge';
+	import {
+		extractPatternsFromAnalysis,
+		storePatternsInMind,
+		getPatternStats,
+		type PatternStats
+	} from '$lib/services/viral-patterns';
 	import type { TweetData } from '$lib/services/x-api';
 
 	// Input mode: 'tweet' for X/Twitter URL (default), 'text' for raw content
@@ -84,6 +90,10 @@
 	let historyLoading = $state(false);
 	let showHistory = $state(false);
 	let selectedHistoryItem = $state<AnalysisHistoryItem | null>(null);
+
+	// Viral pattern learning state
+	let patternStats = $state<PatternStats | null>(null);
+	let patternsLoading = $state(false);
 
 	// Ralph Mode state (iterative self-improvement) - ON by default for quality
 	let ralphMode = $state(true);
@@ -185,6 +195,58 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 	}
 
 	/**
+	 * Extract and store viral patterns from analysis result
+	 * This is the core learning mechanism - patterns get stored in Mind
+	 * for use in future content generation
+	 */
+	async function learnFromAnalysis(analysisResult: any, contentAnalyzed: typeof analyzedContent) {
+		if (!isMindConnected || !analysisResult?.synthesis?.viralityScore) {
+			return;
+		}
+
+		const content = contentAnalyzed?.text || '';
+		const source = contentAnalyzed?.type || 'text';
+		const author = contentAnalyzed?.tweetData?.author?.username;
+		const score = analysisResult.synthesis.viralityScore;
+
+		console.log(`[ViralPatterns] Learning from analysis (score: ${score})`);
+
+		try {
+			// Extract patterns from content and analysis
+			const patterns = extractPatternsFromAnalysis(content, analysisResult, source, author);
+
+			console.log(`[ViralPatterns] Extracted: ${patterns.hooks.length} hooks, ${patterns.emotions.length} emotions, ${patterns.structures.length} structures`);
+
+			// Store patterns in Mind
+			await storePatternsInMind(content, score, patterns, source, author);
+
+			// Refresh pattern stats
+			await refreshPatternStats();
+
+		} catch (e) {
+			console.warn('[ViralPatterns] Failed to learn from analysis:', e);
+		}
+	}
+
+	/**
+	 * Refresh pattern statistics from Mind
+	 */
+	async function refreshPatternStats() {
+		if (!isMindConnected) return;
+
+		patternsLoading = true;
+		try {
+			const stats = await getPatternStats();
+			patternStats = stats;
+			console.log(`[ViralPatterns] Stats: ${stats.totalPatterns} patterns learned`);
+		} catch (e) {
+			console.warn('[ViralPatterns] Failed to get pattern stats:', e);
+		} finally {
+			patternsLoading = false;
+		}
+	}
+
+	/**
 	 * Load latest result from storage (persists across page refresh)
 	 */
 	async function loadLatestResult() {
@@ -267,10 +329,11 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 		// Load persisted result (survives page refresh)
 		await loadLatestResult();
 
-		// Load analysis history from Mind (after Mind connection is established)
+		// Load analysis history and pattern stats from Mind (after Mind connection is established)
 		setTimeout(async () => {
 			if (isMindConnected) {
 				await loadAnalysisHistory();
+				await refreshPatternStats();
 			}
 		}, 1000);
 
@@ -283,6 +346,8 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 					loading = false;
 					// Refresh learnings after new analysis
 					refreshLearnings();
+					// Learn viral patterns from this analysis (the core learning loop!)
+					learnFromAnalysis(value, analyzedContent);
 				}
 			}),
 			contentforgeStatus.subscribe((status) => {
@@ -472,12 +537,16 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 
 			// Check if Ralph criteria were met
 			if (bridgeResult?.synthesis?.viralityScore) {
-				const score = bridgeResult.synthesis.viralityScore;
+				const synthesis = bridgeResult.synthesis as any; // Dynamic worker response
+				const score = synthesis.viralityScore;
+				const recs = synthesis.recommendations || synthesis.keyInsights || [];
+				const approachUsed = synthesis.approach || 'Standard analysis';
+
 				const iteration: RalphIteration = {
 					number: 1,
 					score,
 					agentsCompleted: Object.keys(bridgeResult.orchestrator?.agentResults || {}),
-					recommendationCount: bridgeResult.synthesis?.recommendations?.length || 0,
+					recommendationCount: recs.length,
 					weakness: score < ralphConfig.qualityThreshold ? 'Score below threshold' : undefined
 				};
 				ralphIterations = [iteration];
@@ -489,11 +558,11 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 						success: true,
 						iterations: 1,
 						finalScore: score,
-						approach: bridgeResult.synthesis?.approach || 'Standard analysis',
+						approach: approachUsed,
 						mindLearningsUsed: ralphMindContext.length,
 						timeElapsed: Date.now() - new Date(ralphState.startedAt).getTime()
 					});
-					ralphState = completeRalphLoop(true, bridgeResult.synthesis?.approach) || ralphState;
+					ralphState = completeRalphLoop(true, approachUsed) || ralphState;
 					console.log('[Ralph] Success on first iteration!');
 				} else {
 					// Need more iterations - record blocker for now
@@ -1111,6 +1180,66 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 						{/if}
 					</div>
 					<a href="/mind" class="text-purple-400 hover:text-purple-300 text-sm">View all learnings →</a>
+				</div>
+			</div>
+		{/if}
+
+		<!-- Learned Patterns Section (Viral Content Engine) -->
+		{#if isMindConnected && patternStats && patternStats.totalPatterns > 0}
+			<div class="mt-8 bg-bg-secondary border border-orange-500/30 p-6">
+				<div class="flex items-center justify-between mb-4">
+					<h2 class="text-xl font-semibold flex items-center gap-2">
+						<span class="text-orange-400">Viral Pattern Engine</span>
+						<span class="text-xs font-normal text-text-tertiary">Learning what works</span>
+					</h2>
+					<span class="text-sm text-orange-300">{patternStats.totalPatterns} patterns learned</span>
+				</div>
+
+				<!-- Pattern Categories -->
+				{#if Object.keys(patternStats.byCategory).length > 0}
+					<div class="mb-4 flex flex-wrap gap-2">
+						{#each Object.entries(patternStats.byCategory) as [category, count]}
+							<span class="px-2 py-1 text-xs bg-orange-500/10 border border-orange-500/30 text-orange-300">
+								{category}: {count}
+							</span>
+						{/each}
+					</div>
+				{/if}
+
+				<!-- Top Performers -->
+				{#if patternStats.topPerformers.length > 0}
+					<div>
+						<h3 class="text-sm font-medium text-text-secondary mb-2">Top Performing Patterns:</h3>
+						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+							{#each patternStats.topPerformers.slice(0, 6) as pattern}
+								<div class="p-3 bg-bg-primary border border-surface-border">
+									<div class="flex items-center justify-between mb-1">
+										<span class="font-medium text-sm capitalize">{pattern.pattern.replace(/_/g, ' ')}</span>
+										<span class="text-xs text-green-400">Avg: {pattern.avgScore}</span>
+									</div>
+									<div class="text-xs text-text-tertiary">{pattern.category}</div>
+									<div class="flex items-center gap-2 mt-1">
+										<span class="text-xs text-text-secondary">n={pattern.sampleSize}</span>
+										<span class="text-xs px-1 py-0.5 {pattern.confidence === 'very_high' ? 'bg-green-500/20 text-green-400' : pattern.confidence === 'high' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-500/20 text-gray-400'}">
+											{pattern.confidence}
+										</span>
+									</div>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<p class="mt-4 text-xs text-text-tertiary">
+					Patterns are automatically extracted from each analysis and ranked by performance.
+					As you analyze more content, the engine learns what makes content go viral.
+				</p>
+			</div>
+		{:else if isMindConnected && !patternsLoading}
+			<div class="mt-8 p-4 bg-orange-900/10 border border-orange-500/20">
+				<div class="flex items-center gap-2">
+					<span class="text-orange-400 text-sm">Viral Pattern Engine: No patterns learned yet</span>
+					<span class="text-xs text-text-tertiary">Analyze content to start learning what works</span>
 				</div>
 			</div>
 		{/if}
