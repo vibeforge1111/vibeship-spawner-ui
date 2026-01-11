@@ -87,6 +87,9 @@
 
 	// Ralph Mode state (iterative self-improvement) - ON by default for quality
 	let ralphMode = $state(true);
+
+	// Track what content was analyzed (to show alongside results)
+	let analyzedContent = $state<{ type: 'tweet' | 'text'; text: string; tweetData?: TweetData } | null>(null);
 	let ralphConfig = $state<RalphConfig>({ ...DEFAULT_RALPH_CONFIG });
 	let ralphState = $state<RalphState | null>(null);
 	let ralphIterations = $state<RalphIteration[]>([]);
@@ -336,6 +339,8 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 		fetchingTweet = true;
 		error = null;
 		tweetData = null;
+		result = null; // Clear old results when loading new tweet
+		analyzedContent = null;
 
 		try {
 			const response = await fetch('/api/x/tweet', {
@@ -370,6 +375,7 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 		loading = true;
 		error = null;
 		result = null;
+		analyzedContent = null; // Clear previous analyzed content
 
 		try {
 			let contentToAnalyze: string;
@@ -385,8 +391,21 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 
 				// Build comprehensive content with tweet + metrics
 				contentToAnalyze = formatTweetContent(tweetData);
+
+				// Track what we're analyzing
+				analyzedContent = {
+					type: 'tweet',
+					text: tweetData.text,
+					tweetData: tweetData
+				};
 			} else {
 				contentToAnalyze = inputText;
+
+				// Track what we're analyzing
+				analyzedContent = {
+					type: 'text',
+					text: inputText.slice(0, 500)
+				};
 			}
 
 			if (!contentToAnalyze.trim()) {
@@ -897,6 +916,28 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 		{/if}
 
 		{#if result}
+			<!-- Results Header - Shows what was analyzed -->
+			<div class="mb-6 p-4 bg-bg-secondary border-l-4 border-accent-primary">
+				<div class="flex items-center gap-2 mb-2">
+					<span class="text-xs font-mono text-accent-primary uppercase tracking-wider">Analysis Results For:</span>
+					{#if analyzedContent?.type === 'tweet'}
+						<span class="text-xs px-2 py-0.5 bg-blue-500/20 text-blue-400">Tweet</span>
+					{:else}
+						<span class="text-xs px-2 py-0.5 bg-accent-primary/20 text-accent-primary">Text</span>
+					{/if}
+				</div>
+				{#if analyzedContent?.tweetData}
+					<div class="flex items-center gap-2 text-sm text-text-secondary">
+						<span class="font-semibold">@{analyzedContent.tweetData.author.username}</span>
+						<span class="text-text-tertiary">·</span>
+						<span class="text-text-tertiary">{new Date(analyzedContent.tweetData.createdAt).toLocaleDateString()}</span>
+					</div>
+					<p class="text-sm mt-1 line-clamp-2">{analyzedContent.text}</p>
+				{:else if analyzedContent?.text}
+					<p class="text-sm text-text-secondary line-clamp-2">"{analyzedContent.text}"</p>
+				{/if}
+			</div>
+
 			<!-- Virality Score -->
 			{#if result.synthesis?.viralityScore !== undefined}
 				<div class="mb-8 bg-bg-secondary p-6 border border-surface-border">
