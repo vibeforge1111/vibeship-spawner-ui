@@ -4,7 +4,10 @@
 	import {
 		initContentForgeBridge,
 		requestContentForgeAnalysis,
-		isClaudeCodeConnected
+		isClaudeCodeConnected,
+		contentforgeResult,
+		contentforgeStatus,
+		contentforgeError
 	} from '$lib/services/contentforge-bridge';
 
 	let inputText = $state(`Here's my secret to building a $1M ARR startup in 12 months:
@@ -28,6 +31,7 @@ But that's exactly when you build the foundation for success.`);
 	let workerStatus = $state<'connected' | 'disconnected' | 'error'>('disconnected');
 	let statusMessage = $state('Checking worker status...');
 	let statusCheckInterval: ReturnType<typeof setInterval> | null = null;
+	let storeUnsubscribers: Array<() => void> = [];
 
 	const workerPrompt = `You are the ContentForge analysis worker. First, register yourself by POSTing to http://localhost:5174/api/contentforge/bridge/status with {"version": "claude-code"}. Then poll http://localhost:5174/api/contentforge/bridge/pending every 10 seconds. When pending=true, analyze the content as Marketing, Copywriting, Research, and Psychology agents. Send full analysis via POST to http://localhost:5174/api/events with type "contentforge_analysis_complete". Then DELETE the pending request. Also ping the status endpoint every 60 seconds to stay connected. Run autonomously - no questions, just analyze and respond. Start now.`;
 
@@ -67,12 +71,36 @@ But that's exactly when you build the foundation for success.`);
 		// Check status immediately and then every 10 seconds
 		await checkWorkerStatus();
 		statusCheckInterval = setInterval(checkWorkerStatus, 10000);
+
+		// Subscribe to stores as backup (in case Promise doesn't resolve)
+		storeUnsubscribers.push(
+			contentforgeResult.subscribe((value) => {
+				if (value) {
+					console.log('[ContentForge] Store received result:', value.postId);
+					result = value;
+					loading = false;
+				}
+			}),
+			contentforgeStatus.subscribe((status) => {
+				console.log('[ContentForge] Store status:', status);
+				if (status === 'complete' || status === 'error') {
+					loading = false;
+				}
+			}),
+			contentforgeError.subscribe((err) => {
+				if (err) {
+					error = err;
+					loading = false;
+				}
+			})
+		);
 	});
 
 	onDestroy(() => {
 		if (statusCheckInterval) {
 			clearInterval(statusCheckInterval);
 		}
+		storeUnsubscribers.forEach(unsub => unsub());
 	});
 
 	async function analyze() {
