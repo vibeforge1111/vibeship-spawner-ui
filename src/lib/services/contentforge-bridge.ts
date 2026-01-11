@@ -336,15 +336,70 @@ async function sendAnalysisRequest(request: ContentForgeRequest): Promise<void> 
 
 /**
  * Wait for Claude Code to respond with analysis
+ * Uses both SSE events AND polling as fallback
  */
 function waitForAnalysisResponse(requestId: string, timeoutMs: number): Promise<ContentForgeResult> {
 	return new Promise((resolve, reject) => {
+		let resolved = false;
+
 		const timeout = setTimeout(() => {
+			if (resolved) return;
+			resolved = true;
 			pendingRequests.delete(requestId);
 			reject(new Error('Analysis timeout - Claude Code may not be connected. Try the local analysis instead.'));
 		}, timeoutMs);
 
-		pendingRequests.set(requestId, { resolve, reject, timeout });
+		// Fallback: Poll for results every 3 seconds
+		const pollInterval = setInterval(async () => {
+			if (resolved) {
+				clearInterval(pollInterval);
+				return;
+			}
+
+			try {
+				const response = await fetch('/api/contentforge/bridge/result');
+				if (!response.ok) return;
+
+				const data = await response.json();
+				if (data.hasResult && data.data?.requestId === requestId) {
+					console.log('[ContentForgeBridge] Got result via polling fallback');
+					resolved = true;
+					clearTimeout(timeout);
+					clearInterval(pollInterval);
+					pendingRequests.delete(requestId);
+
+					// Clear the stored result
+					await fetch('/api/contentforge/bridge/result', { method: 'DELETE' });
+
+					// Update stores
+					const result = data.data as ContentForgeResult;
+					contentforgeResult.set(result);
+					contentforgeStatus.set('complete');
+
+					resolve(result);
+				}
+			} catch {
+				// Ignore polling errors
+			}
+		}, 3000);
+
+		pendingRequests.set(requestId, {
+			resolve: (result) => {
+				if (resolved) return;
+				resolved = true;
+				clearTimeout(timeout);
+				clearInterval(pollInterval);
+				resolve(result);
+			},
+			reject: (error) => {
+				if (resolved) return;
+				resolved = true;
+				clearTimeout(timeout);
+				clearInterval(pollInterval);
+				reject(error);
+			},
+			timeout
+		});
 	});
 }
 

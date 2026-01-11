@@ -61,12 +61,14 @@ CRITICAL: When you find pending work, STOP POLLING until you finish. Complete th
    - PATCH status {"action":"start","requestId":"...","task":"Starting..."}
    - Do the FULL analysis (all 4 agents + synthesis)
    - PATCH progress after each step (e.g., {"action":"progress","step":"Marketing Agent complete"})
-4. POST result to http://localhost:5175/api/events with type "contentforge_analysis_complete"
+4. Send result to BOTH endpoints:
+   - POST to /api/contentforge/bridge/result (for polling fallback)
+   - POST to /api/events (for SSE broadcast)
 5. PATCH status {"action":"complete"}
 6. DELETE http://localhost:5175/api/contentforge/bridge/pending
 7. THEN resume polling
 
-Skills are pre-bundled in the content. Response needs: requestId, postId, orchestrator.agentResults (all 4), synthesis. Start now.`;
+Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentResults (all 4), synthesis. Start now.`;
 
 	function copyPrompt() {
 		navigator.clipboard.writeText(workerPrompt);

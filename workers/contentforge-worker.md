@@ -297,26 +297,34 @@ Your POST to `/api/events` MUST include this exact structure:
 
 First register yourself:
 ```bash
-curl -X POST http://localhost:5174/api/contentforge/bridge/status \
+curl -X POST http://localhost:5175/api/contentforge/bridge/status \
   -H "Content-Type: application/json" \
   -d '{"version":"claude-code"}'
 ```
 
 Then poll for pending requests:
 ```bash
-curl -s http://localhost:5174/api/contentforge/bridge/pending
+curl -s http://localhost:5175/api/contentforge/bridge/pending
 ```
 
-If `pending: true`, read the content, load H70 skills, analyze thoroughly, then send response:
+If `pending: true`, read the content, analyze thoroughly, then send response.
+
+**IMPORTANT: Send result to BOTH endpoints for reliability:**
 ```bash
-curl -X POST http://localhost:5174/api/events \
+# 1. Store result (fallback for polling)
+curl -X POST http://localhost:5175/api/contentforge/bridge/result \
+  -H "Content-Type: application/json" \
+  -d '{"type":"contentforge_analysis_complete","data":{...full response...}}'
+
+# 2. Broadcast via events (SSE to UI)
+curl -X POST http://localhost:5175/api/events \
   -H "Content-Type: application/json" \
   -d '{"type":"contentforge_analysis_complete","data":{...full response...}}'
 ```
 
 After responding, clear the pending request:
 ```bash
-curl -X DELETE http://localhost:5174/api/contentforge/bridge/pending
+curl -X DELETE http://localhost:5175/api/contentforge/bridge/pending
 ```
 
 **START POLLING NOW** - Check for pending requests every 30 seconds and respond with H70-powered analysis.
