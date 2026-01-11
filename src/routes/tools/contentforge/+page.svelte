@@ -33,7 +33,7 @@ But that's exactly when you build the foundation for success.`);
 	let statusCheckInterval: ReturnType<typeof setInterval> | null = null;
 	let storeUnsubscribers: Array<() => void> = [];
 
-	const workerPrompt = `You are the ContentForge analysis worker. First, register yourself by POSTing to http://localhost:5174/api/contentforge/bridge/status with {"version": "claude-code"}. Then poll http://localhost:5174/api/contentforge/bridge/pending every 10 seconds. When pending=true, analyze the content as Marketing, Copywriting, Research, and Psychology agents. Send full analysis via POST to http://localhost:5174/api/events with type "contentforge_analysis_complete". Then DELETE the pending request. Also ping the status endpoint every 60 seconds to stay connected. Run autonomously - no questions, just analyze and respond. Start now.`;
+	const workerPrompt = `You are the ContentForge analysis worker. First, register yourself by POSTing to http://localhost:5174/api/contentforge/bridge/status with {"version": "claude-code"}. Then poll http://localhost:5174/api/contentforge/bridge/pending every 30 seconds. When pending=true, analyze the content thoroughly as Marketing, Copywriting, Research, and Psychology agents. Send the FULL analysis via POST to http://localhost:5174/api/events with type "contentforge_analysis_complete" - the data must include: requestId (from pending response), postId, orchestrator (with agentResults for each agent), and synthesis (with viralityScore, keyInsights, playbook). Then DELETE the pending request. Also ping the status endpoint every 2 minutes to stay connected. Run autonomously - no questions, just analyze and respond. Start now.`;
 
 	function copyPrompt() {
 		navigator.clipboard.writeText(workerPrompt);
@@ -205,87 +205,109 @@ But that's exactly when you build the foundation for success.`);
 
 		{#if result}
 			<!-- Virality Score -->
-			<div class="mb-8 bg-bg-secondary p-6 border border-surface-border">
-				<h2 class="text-xl font-semibold mb-4">Virality Score</h2>
-				<div class="flex items-center gap-4">
-					<div class="text-5xl font-bold text-accent-primary">{result.synthesis.viralityScore}</div>
-					<div class="text-text-secondary">/ 100</div>
-					<div class="flex-1 h-4 bg-bg-primary border border-surface-border">
-						<div class="h-full bg-accent-primary transition-all duration-500" style="width: {result.synthesis.viralityScore}%"></div>
+			{#if result.synthesis?.viralityScore !== undefined}
+				<div class="mb-8 bg-bg-secondary p-6 border border-surface-border">
+					<h2 class="text-xl font-semibold mb-4">Virality Score</h2>
+					<div class="flex items-center gap-4">
+						<div class="text-5xl font-bold text-accent-primary">{result.synthesis.viralityScore}</div>
+						<div class="text-text-secondary">/ 100</div>
+						<div class="flex-1 h-4 bg-bg-primary border border-surface-border">
+							<div class="h-full bg-accent-primary transition-all duration-500" style="width: {result.synthesis.viralityScore}%"></div>
+						</div>
 					</div>
 				</div>
-			</div>
+			{/if}
 
 			<!-- Key Insights -->
-			<div class="mb-8 bg-bg-secondary p-6 border border-surface-border">
-				<h2 class="text-xl font-semibold mb-4">Key Insights</h2>
-				<ul class="space-y-2">
-					{#each result.synthesis.keyInsights as insight}
-						<li class="flex items-start gap-2">
-							<span class="text-accent-primary">→</span>
-							<span>{insight}</span>
-						</li>
-					{/each}
-				</ul>
-			</div>
+			{#if result.synthesis?.keyInsights?.length > 0}
+				<div class="mb-8 bg-bg-secondary p-6 border border-surface-border">
+					<h2 class="text-xl font-semibold mb-4">Key Insights</h2>
+					<ul class="space-y-2">
+						{#each result.synthesis.keyInsights as insight}
+							<li class="flex items-start gap-2">
+								<span class="text-accent-primary">→</span>
+								<span>{insight}</span>
+							</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
 
 			<!-- Agent Results Grid -->
-			<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-				<div class="bg-bg-secondary p-6 border border-surface-border">
-					<h3 class="text-lg font-semibold mb-4 text-blue-400">Marketing Agent</h3>
-					<div class="space-y-3 text-sm">
-						<div><span class="text-text-secondary">Authority:</span> <span class="ml-2">{result.orchestrator.agentResults.marketing?.data?.positioning?.authorityLevel}</span></div>
-						<div><span class="text-text-secondary">Niche:</span> <span class="ml-2">{result.orchestrator.agentResults.marketing?.data?.positioning?.niche}</span></div>
-						<div><span class="text-text-secondary">Shareability:</span> <span class="ml-2 text-accent-primary font-bold">{result.orchestrator.agentResults.marketing?.data?.distributionFactors?.shareability}/10</span></div>
-					</div>
+			{#if result.orchestrator?.agentResults}
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+					{#if result.orchestrator.agentResults.marketing}
+						<div class="bg-bg-secondary p-6 border border-surface-border">
+							<h3 class="text-lg font-semibold mb-4 text-blue-400">Marketing Agent</h3>
+							<div class="space-y-3 text-sm">
+								<div><span class="text-text-secondary">Authority:</span> <span class="ml-2">{result.orchestrator.agentResults.marketing?.data?.positioning?.authorityLevel || 'N/A'}</span></div>
+								<div><span class="text-text-secondary">Niche:</span> <span class="ml-2">{result.orchestrator.agentResults.marketing?.data?.positioning?.niche || 'N/A'}</span></div>
+								<div><span class="text-text-secondary">Shareability:</span> <span class="ml-2 text-accent-primary font-bold">{result.orchestrator.agentResults.marketing?.data?.distributionFactors?.shareability || 0}/10</span></div>
+							</div>
+						</div>
+					{/if}
+					{#if result.orchestrator.agentResults.copywriting}
+						<div class="bg-bg-secondary p-6 border border-surface-border">
+							<h3 class="text-lg font-semibold mb-4 text-green-400">Copywriting Agent</h3>
+							<div class="space-y-3 text-sm">
+								<div><span class="text-text-secondary">Hook Type:</span> <span class="ml-2">{result.orchestrator.agentResults.copywriting?.data?.hook?.type || 'N/A'}</span></div>
+								<div><span class="text-text-secondary">Hook Effectiveness:</span> <span class="ml-2 text-accent-primary font-bold">{result.orchestrator.agentResults.copywriting?.data?.hook?.effectiveness || 0}/10</span></div>
+								<div><span class="text-text-secondary">Structure:</span> <span class="ml-2">{result.orchestrator.agentResults.copywriting?.data?.structure?.format || 'N/A'}</span></div>
+							</div>
+						</div>
+					{/if}
+					{#if result.orchestrator.agentResults.research}
+						<div class="bg-bg-secondary p-6 border border-surface-border">
+							<h3 class="text-lg font-semibold mb-4 text-yellow-400">Research Agent</h3>
+							<div class="space-y-3 text-sm">
+								<div><span class="text-text-secondary">Trends:</span> <span class="ml-2">{result.orchestrator.agentResults.research?.data?.trendContext?.currentTrends?.join(', ') || 'N/A'}</span></div>
+								<div><span class="text-text-secondary">Trend Phase:</span> <span class="ml-2">{result.orchestrator.agentResults.research?.data?.trendContext?.trendPhase || 'N/A'}</span></div>
+								<div><span class="text-text-secondary">Relevance:</span> <span class="ml-2 text-accent-primary font-bold">{Math.round((result.orchestrator.agentResults.research?.data?.trendContext?.relevanceScore || 0) * 100)}%</span></div>
+							</div>
+						</div>
+					{/if}
+					{#if result.orchestrator.agentResults.psychology}
+						<div class="bg-bg-secondary p-6 border border-surface-border">
+							<h3 class="text-lg font-semibold mb-4 text-purple-400">Psychology Agent</h3>
+							<div class="space-y-3 text-sm">
+								<div><span class="text-text-secondary">Primary Emotion:</span> <span class="ml-2">{result.orchestrator.agentResults.psychology?.data?.emotionalTriggers?.primary || 'N/A'}</span></div>
+								<div><span class="text-text-secondary">In-Group:</span> <span class="ml-2">{result.orchestrator.agentResults.psychology?.data?.identityResonance?.inGroup || 'N/A'}</span></div>
+								<div><span class="text-text-secondary">Emotion Intensity:</span> <span class="ml-2 text-accent-primary font-bold">{result.orchestrator.agentResults.psychology?.data?.emotionalTriggers?.intensity || 0}/10</span></div>
+							</div>
+						</div>
+					{/if}
 				</div>
-				<div class="bg-bg-secondary p-6 border border-surface-border">
-					<h3 class="text-lg font-semibold mb-4 text-green-400">Copywriting Agent</h3>
-					<div class="space-y-3 text-sm">
-						<div><span class="text-text-secondary">Hook Type:</span> <span class="ml-2">{result.orchestrator.agentResults.copywriting?.data?.hook?.type}</span></div>
-						<div><span class="text-text-secondary">Hook Effectiveness:</span> <span class="ml-2 text-accent-primary font-bold">{result.orchestrator.agentResults.copywriting?.data?.hook?.effectiveness}/10</span></div>
-						<div><span class="text-text-secondary">Structure:</span> <span class="ml-2">{result.orchestrator.agentResults.copywriting?.data?.structure?.format}</span></div>
-					</div>
-				</div>
-				<div class="bg-bg-secondary p-6 border border-surface-border">
-					<h3 class="text-lg font-semibold mb-4 text-yellow-400">Research Agent</h3>
-					<div class="space-y-3 text-sm">
-						<div><span class="text-text-secondary">Trends:</span> <span class="ml-2">{result.orchestrator.agentResults.research?.data?.trendContext?.currentTrends?.join(', ')}</span></div>
-						<div><span class="text-text-secondary">Trend Phase:</span> <span class="ml-2">{result.orchestrator.agentResults.research?.data?.trendContext?.trendPhase}</span></div>
-						<div><span class="text-text-secondary">Relevance:</span> <span class="ml-2 text-accent-primary font-bold">{Math.round((result.orchestrator.agentResults.research?.data?.trendContext?.relevanceScore || 0) * 100)}%</span></div>
-					</div>
-				</div>
-				<div class="bg-bg-secondary p-6 border border-surface-border">
-					<h3 class="text-lg font-semibold mb-4 text-purple-400">Psychology Agent</h3>
-					<div class="space-y-3 text-sm">
-						<div><span class="text-text-secondary">Primary Emotion:</span> <span class="ml-2">{result.orchestrator.agentResults.psychology?.data?.emotionalTriggers?.primary}</span></div>
-						<div><span class="text-text-secondary">In-Group:</span> <span class="ml-2">{result.orchestrator.agentResults.psychology?.data?.identityResonance?.inGroup}</span></div>
-						<div><span class="text-text-secondary">Emotion Intensity:</span> <span class="ml-2 text-accent-primary font-bold">{result.orchestrator.agentResults.psychology?.data?.emotionalTriggers?.intensity}/10</span></div>
-					</div>
-				</div>
-			</div>
+			{/if}
 
 			<!-- Playbook -->
-			<div class="mb-8 bg-bg-secondary p-6 border border-surface-border">
-				<h2 class="text-xl font-semibold mb-4">{result.synthesis.playbook.title}</h2>
-				<p class="text-text-secondary mb-4">{result.synthesis.playbook.summary}</p>
-				<ol class="space-y-4">
-					{#each result.synthesis.playbook.steps as step}
-						<li class="flex gap-4">
-							<span class="text-accent-primary font-bold text-lg">{step.order}.</span>
-							<div>
-								<p class="font-medium">{step.action}</p>
-								<p class="text-text-secondary text-sm">{step.rationale}</p>
-							</div>
-						</li>
-					{/each}
-				</ol>
-			</div>
+			{#if result.synthesis?.playbook}
+				<div class="mb-8 bg-bg-secondary p-6 border border-surface-border">
+					<h2 class="text-xl font-semibold mb-4">{result.synthesis.playbook.title || 'Playbook'}</h2>
+					<p class="text-text-secondary mb-4">{result.synthesis.playbook.summary || ''}</p>
+					{#if result.synthesis.playbook.steps?.length > 0}
+						<ol class="space-y-4">
+							{#each result.synthesis.playbook.steps as step}
+								<li class="flex gap-4">
+									<span class="text-accent-primary font-bold text-lg">{step.order}.</span>
+									<div>
+										<p class="font-medium">{step.action}</p>
+										<p class="text-text-secondary text-sm">{step.rationale}</p>
+									</div>
+								</li>
+							{/each}
+						</ol>
+					{/if}
+				</div>
+			{/if}
 
 			<!-- Processing Stats -->
 			<div class="text-text-secondary text-sm">
-				<p>Processing time: {result.orchestrator.processingTimeMs}ms</p>
-				<p>Post ID: {result.postId}</p>
+				{#if result.orchestrator?.processingTimeMs}
+					<p>Processing time: {result.orchestrator.processingTimeMs}ms</p>
+				{/if}
+				{#if result.postId}
+					<p>Post ID: {result.postId}</p>
+				{/if}
 				<p class="text-green-400 mt-2">Analyzed with Claude AI Worker</p>
 			</div>
 		{/if}

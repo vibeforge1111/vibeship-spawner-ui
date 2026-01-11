@@ -294,28 +294,50 @@ function waitForAnalysisResponse(requestId: string, timeoutMs: number): Promise<
  * Handle analysis complete event from Claude Code
  */
 function handleAnalysisComplete(event: BridgeEvent): void {
-	const data = event.data as { requestId?: string; result?: ContentForgeResult };
+	const eventData = event.data as Record<string, unknown>;
 
-	console.log('[ContentForgeBridge] Received analysis complete:', data?.requestId);
+	// Support both formats:
+	// 1. {requestId, result: {...}} - nested format
+	// 2. {requestId, postId, orchestrator, synthesis, ...} - flat format (result IS the data)
+	let requestId = eventData?.requestId as string | undefined;
+	let result: ContentForgeResult | undefined;
 
-	if (!data?.requestId) {
+	if (eventData?.result && typeof eventData.result === 'object') {
+		// Nested format: data.result contains the actual result
+		result = eventData.result as ContentForgeResult;
+		requestId = requestId || result.requestId;
+	} else if (eventData?.orchestrator || eventData?.synthesis) {
+		// Flat format: data IS the result
+		result = eventData as unknown as ContentForgeResult;
+		requestId = requestId || result.requestId;
+	}
+
+	console.log('[ContentForgeBridge] Received analysis complete:', requestId, 'hasResult:', !!result);
+
+	if (!requestId) {
 		console.warn('[ContentForgeBridge] Received analysis without requestId');
+		// Still try to use the result if we have one
+		if (result) {
+			contentforgeResult.set(result);
+			contentforgeStatus.set('complete');
+			console.log('[ContentForgeBridge] Updated stores with result (no requestId)');
+		}
 		return;
 	}
 
-	if (data.result) {
-		contentforgeResult.set(data.result);
+	if (result) {
+		contentforgeResult.set(result);
 		contentforgeStatus.set('complete');
 		console.log('[ContentForgeBridge] Updated stores with result');
 	}
 
-	const pending = pendingRequests.get(data.requestId);
+	const pending = pendingRequests.get(requestId);
 	if (pending) {
 		clearTimeout(pending.timeout);
-		pendingRequests.delete(data.requestId);
+		pendingRequests.delete(requestId);
 
-		if (data.result) {
-			pending.resolve(data.result);
+		if (result) {
+			pending.resolve(result);
 		} else {
 			pending.reject(new Error('No result in analysis response'));
 		}
