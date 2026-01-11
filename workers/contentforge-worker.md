@@ -106,6 +106,17 @@ Load these skills and apply their frameworks:
 - **Psychological Drivers** - Core motivations, fears, aspirations being activated
 - Analyze: primary emotion, secondary emotions, intensity (1-10), in-group identity, aspirational gap, persuasion techniques used
 
+### Visual Agent (When media is present)
+If the tweet contains images or videos, analyze the visual elements:
+- **Composition** - Layout, focal points, visual hierarchy
+- **Color Psychology** - Dominant colors, emotional associations, contrast
+- **Text Overlays** - Font choices, readability, hook placement
+- **Visual Hook** - What stops the scroll? First-frame impact
+- **Brand Consistency** - Does it match author's visual identity?
+- **Platform Optimization** - Aspect ratio, mobile-first design, thumb-stopping elements
+- **Video-Specific** (if video): Opening 3 seconds, pacing, retention triggers
+- Analyze: visualHookStrength (1-10), colorPalette, textOverlayEffectiveness, scrollStopPower, platformOptimization
+
 ## H70 Skills Are Already Loaded
 
 **All 8 skills are bundled in the pending content file.** You don't need to fetch them.
@@ -229,6 +240,33 @@ Your POST to `/api/events` MUST include this exact structure:
             "identityResonance": {
               "inGroup": "Ambitious founders and builders",
               "aspirationalGap": "From struggling to $1M ARR success"
+            }
+          }
+        },
+        "visual": {
+          "agentId": "visual-1",
+          "success": true,
+          "hasMedia": true,
+          "data": {
+            "visualHook": {
+              "strength": 8,
+              "scrollStopElement": "Bold number overlay on dark background",
+              "firstImpressionMs": 200
+            },
+            "composition": {
+              "layout": "Center-weighted with text overlay",
+              "focalPoint": "Revenue number",
+              "visualHierarchy": "Number > Supporting text > Brand"
+            },
+            "colorPsychology": {
+              "dominant": ["#1a1a2e", "#00d4ff"],
+              "mood": "Professional yet exciting",
+              "contrast": "High - dark bg with bright accent"
+            },
+            "platformOptimization": {
+              "aspectRatio": "16:9",
+              "mobileOptimized": true,
+              "thumbnailEffective": true
             }
           }
         }
