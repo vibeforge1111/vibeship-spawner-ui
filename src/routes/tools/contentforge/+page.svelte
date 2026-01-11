@@ -18,8 +18,8 @@
 	} from '$lib/services/contentforge-bridge';
 	import type { TweetData } from '$lib/services/x-api';
 
-	// Input mode: 'text' for raw content, 'tweet' for X/Twitter URL
-	let inputMode = $state<'text' | 'tweet'>('text');
+	// Input mode: 'tweet' for X/Twitter URL (default), 'text' for raw content
+	let inputMode = $state<'text' | 'tweet'>('tweet');
 	let inputText = $state('');
 	let tweetUrl = $state('');
 	let tweetData = $state<TweetData | null>(null);

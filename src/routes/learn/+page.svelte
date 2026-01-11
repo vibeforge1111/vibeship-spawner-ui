@@ -280,33 +280,72 @@
 					rawMemories = data.memories || [];
 
 					if (rawMemories.length > 0) {
-						// Process real data
-						patterns = processMemoriesIntoPatterns(rawMemories);
-						insights = generateInsights(patterns, rawMemories);
-						styleProfile = buildStyleProfile(rawMemories, patterns);
+						// Filter to ContentForge analyses by content (not metadata)
+						const cfMemories = rawMemories.filter((m: MindMemory) =>
+							m.content?.includes('ContentForge Analysis Result') ||
+							m.content?.includes('Virality Score:')
+						);
 
-						// Calculate stats
-						const cfMemories = rawMemories.filter(m => m.metadata?.type?.includes('contentforge'));
-						totalAnalyses = cfMemories.length;
+						console.log('[Learn] Found', cfMemories.length, 'ContentForge analyses in Mind');
 
-						const scores = cfMemories
-							.map(m => m.metadata?.virality_score)
-							.filter((s): s is number => typeof s === 'number');
-						avgViralityScore = scores.length > 0
-							? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
-							: 0;
+						if (cfMemories.length > 0) {
+							// Extract virality scores from content text
+							const extractedData = cfMemories.map((m: MindMemory) => {
+								const scoreMatch = m.content?.match(/Virality Score:\*?\*?\s*(\d+)/);
+								const hookMatch = m.content?.match(/Hook Type:\s*([^\n]+)/);
+								const emotionMatch = m.content?.match(/Primary Emotion:\s*([^\n]+)/);
+								const patternsMatch = m.content?.match(/Patterns Identified:\n([\s\S]*?)(?:\n\n|\*\*Score Category)/);
 
-						// Calculate improvement rate (compare recent vs older)
-						if (scores.length >= 4) {
-							const recentHalf = scores.slice(-Math.floor(scores.length / 2));
-							const olderHalf = scores.slice(0, Math.floor(scores.length / 2));
-							const recentAvg = recentHalf.reduce((a, b) => a + b, 0) / recentHalf.length;
-							const olderAvg = olderHalf.reduce((a, b) => a + b, 0) / olderHalf.length;
-							improvementRate = Math.round(((recentAvg - olderAvg) / olderAvg) * 100);
+								return {
+									...m,
+									extractedScore: scoreMatch ? parseInt(scoreMatch[1]) : null,
+									extractedHook: hookMatch ? hookMatch[1].trim() : null,
+									extractedEmotion: emotionMatch ? emotionMatch[1].trim() : null,
+									extractedPatterns: patternsMatch
+										? patternsMatch[1].split('\n').filter(p => p.trim().startsWith('-')).map(p => p.replace(/^-\s*/, '').trim())
+										: []
+								};
+							});
+
+							// Enrich rawMemories with extracted data for processing
+							rawMemories = extractedData.map(d => ({
+								...d,
+								metadata: {
+									...d.metadata,
+									type: 'contentforge_analysis',
+									virality_score: d.extractedScore,
+									hook_type: d.extractedHook,
+									emotional_trigger: d.extractedEmotion,
+									patterns: d.extractedPatterns
+								}
+							}));
+
+							// Process enriched data
+							patterns = processMemoriesIntoPatterns(rawMemories);
+							insights = generateInsights(patterns, rawMemories);
+							styleProfile = buildStyleProfile(rawMemories, patterns);
+
+							// Calculate stats from extracted scores
+							totalAnalyses = cfMemories.length;
+							const scores = extractedData
+								.map(m => m.extractedScore)
+								.filter((s): s is number => typeof s === 'number');
+							avgViralityScore = scores.length > 0
+								? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+								: 0;
+
+							// Calculate improvement rate (compare recent vs older)
+							if (scores.length >= 4) {
+								const recentHalf = scores.slice(-Math.floor(scores.length / 2));
+								const olderHalf = scores.slice(0, Math.floor(scores.length / 2));
+								const recentAvg = recentHalf.reduce((a, b) => a + b, 0) / recentHalf.length;
+								const olderAvg = olderHalf.reduce((a, b) => a + b, 0) / olderHalf.length;
+								improvementRate = olderAvg > 0 ? Math.round(((recentAvg - olderAvg) / olderAvg) * 100) : 0;
+							}
+
+							loading = false;
+							return;
 						}
-
-						loading = false;
-						return;
 					}
 				}
 			} catch (e) {
