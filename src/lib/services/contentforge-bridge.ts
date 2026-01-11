@@ -21,6 +21,16 @@
 import { browser } from '$app/environment';
 import { writable } from 'svelte/store';
 import type { BridgeEvent } from './event-bridge';
+import {
+	saveAnalysisToMind,
+	queryLearnedPatterns,
+	getCreativeRecommendations,
+	getUserStyle,
+	isMindConnected,
+	type LearnedPattern,
+	type UserStyle,
+	type CreativeRecommendation
+} from './contentforge-mind';
 
 // =============================================================================
 // TYPES
@@ -149,6 +159,15 @@ export const contentforgeStatus = writable<'idle' | 'pending' | 'analyzing' | 'c
 export const contentforgeResult = writable<ContentForgeResult | null>(null);
 export const contentforgeError = writable<string | null>(null);
 
+// Mind learning stores
+export const learnedPatterns = writable<LearnedPattern[]>([]);
+export const userStyle = writable<UserStyle | null>(null);
+export const creativeRecommendations = writable<CreativeRecommendation[]>([]);
+export const mindConnected = writable<boolean>(false);
+
+// Re-export Mind types for convenience
+export type { LearnedPattern, UserStyle, CreativeRecommendation };
+
 // Pending requests waiting for response
 const pendingRequests = new Map<string, {
 	resolve: (result: ContentForgeResult) => void;
@@ -163,7 +182,7 @@ const pendingRequests = new Map<string, {
 let bridgeInitialized = false;
 
 /**
- * Initialize the bridge - listen for analysis responses
+ * Initialize the bridge - listen for analysis responses and connect to Mind
  */
 export async function initContentForgeBridge(): Promise<void> {
 	if (!browser || bridgeInitialized) return;
@@ -189,8 +208,44 @@ export async function initContentForgeBridge(): Promise<void> {
 
 		bridgeInitialized = true;
 		console.log('[ContentForgeBridge] Initialized, listening for analysis responses');
+
+		// Check Mind connection and load user style
+		await initMindConnection();
 	} catch (e) {
 		console.error('[ContentForgeBridge] Failed to initialize:', e);
+	}
+}
+
+/**
+ * Initialize Mind connection and load learned data
+ */
+async function initMindConnection(): Promise<void> {
+	try {
+		const connected = await isMindConnected();
+		mindConnected.set(connected);
+
+		if (connected) {
+			console.log('[ContentForgeBridge] Mind connected, loading learned patterns...');
+
+			// Load user style
+			const style = await getUserStyle();
+			if (style) {
+				userStyle.set(style);
+				console.log('[ContentForgeBridge] Loaded user style:', style.totalAnalyzed, 'past analyses');
+			}
+
+			// Load recent patterns
+			const patterns = await queryLearnedPatterns();
+			if (patterns.length > 0) {
+				learnedPatterns.set(patterns);
+				console.log('[ContentForgeBridge] Loaded', patterns.length, 'learned patterns');
+			}
+		} else {
+			console.log('[ContentForgeBridge] Mind not connected - learning features disabled');
+		}
+	} catch (e) {
+		console.warn('[ContentForgeBridge] Mind connection failed:', e);
+		mindConnected.set(false);
 	}
 }
 
@@ -202,6 +257,9 @@ export async function requestContentForgeAnalysis(
 	timeoutMs: number = 180000 // 3 minute timeout for thorough analysis
 ): Promise<ContentForgeResult> {
 	const requestId = `cf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+	// Store content for Mind learning
+	lastAnalyzedContent = content;
 
 	contentforgeStatus.set('pending');
 	contentforgeError.set(null);
@@ -329,6 +387,12 @@ function handleAnalysisComplete(event: BridgeEvent): void {
 		contentforgeResult.set(result);
 		contentforgeStatus.set('complete');
 		console.log('[ContentForgeBridge] Updated stores with result');
+
+		// Save to Mind for learning (async, don't block)
+		saveResultToMind(result);
+
+		// Generate creative recommendations
+		generateCreativeRecs(result);
 	}
 
 	const pending = pendingRequests.get(requestId);
@@ -341,6 +405,58 @@ function handleAnalysisComplete(event: BridgeEvent): void {
 		} else {
 			pending.reject(new Error('No result in analysis response'));
 		}
+	}
+}
+
+// Track the last analyzed content for Mind storage
+let lastAnalyzedContent = '';
+
+/**
+ * Save analysis result to Mind for learning
+ */
+async function saveResultToMind(result: ContentForgeResult): Promise<void> {
+	try {
+		const hookType = result.orchestrator?.agentResults?.copywriting?.data?.hook?.type;
+		const emotionalTrigger = result.orchestrator?.agentResults?.psychology?.data?.emotionalTriggers?.primary;
+		const patterns = result.synthesis?.patternCorrelations?.map(p => p.pattern) || [];
+
+		const saved = await saveAnalysisToMind(lastAnalyzedContent, {
+			viralityScore: result.synthesis?.viralityScore || 0,
+			keyInsights: result.synthesis?.keyInsights || [],
+			hookType,
+			emotionalTrigger,
+			patterns
+		});
+
+		if (saved) {
+			console.log('[ContentForgeBridge] Analysis saved to Mind for learning');
+
+			// Refresh learned patterns
+			const newPatterns = await queryLearnedPatterns();
+			if (newPatterns.length > 0) {
+				learnedPatterns.set(newPatterns);
+			}
+		}
+	} catch (e) {
+		console.warn('[ContentForgeBridge] Failed to save to Mind:', e);
+	}
+}
+
+/**
+ * Generate creative format recommendations
+ */
+async function generateCreativeRecs(result: ContentForgeResult): Promise<void> {
+	try {
+		const patterns = result.synthesis?.patternCorrelations?.map(p => p.pattern) || [];
+		const viralityScore = result.synthesis?.viralityScore || 0;
+
+		const recs = await getCreativeRecommendations(lastAnalyzedContent, viralityScore, patterns);
+		if (recs.length > 0) {
+			creativeRecommendations.set(recs);
+			console.log('[ContentForgeBridge] Generated', recs.length, 'creative recommendations');
+		}
+	} catch (e) {
+		console.warn('[ContentForgeBridge] Failed to generate creative recommendations:', e);
 	}
 }
 

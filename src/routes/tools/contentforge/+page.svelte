@@ -7,7 +7,14 @@
 		isClaudeCodeConnected,
 		contentforgeResult,
 		contentforgeStatus,
-		contentforgeError
+		contentforgeError,
+		learnedPatterns,
+		userStyle,
+		creativeRecommendations,
+		mindConnected,
+		type LearnedPattern,
+		type UserStyle,
+		type CreativeRecommendation
 	} from '$lib/services/contentforge-bridge';
 
 	let inputText = $state('');
@@ -24,20 +31,25 @@
 	let statusCheckInterval: ReturnType<typeof setInterval> | null = null;
 	let storeUnsubscribers: Array<() => void> = [];
 
+	// Mind learning state
+	let patterns = $state<LearnedPattern[]>([]);
+	let style = $state<UserStyle | null>(null);
+	let recommendations = $state<CreativeRecommendation[]>([]);
+	let isMindConnected = $state(false);
+
 	const workerPrompt = `You are the ContentForge analysis worker powered by H70 skills. Read workers/contentforge-worker.md for full instructions.
 
 1. Register: POST to http://localhost:5174/api/contentforge/bridge/status with {"version": "claude-code"}
 2. Poll: GET http://localhost:5174/api/contentforge/bridge/pending every 30 seconds
-3. When pending=true: Load H70 skills (viral-marketing, copywriting, viral-hooks) and analyze content as 4 agents:
-   - Marketing Agent: STEPPS framework, shareability, viral potential
-   - Copywriting Agent: Hook type (4 U's), structure, clarity
-   - Research Agent: Trend context, platform fit
-   - Psychology Agent: Emotional triggers, identity resonance
+3. When pending=true:
+   - Load H70 skills: viral-marketing, copywriting, viral-hooks, content-strategy, persuasion-psychology, platform-algorithms, audience-psychology, narrative-craft
+   - Query Mind (localhost:8080) for learned patterns (optional)
+   - Analyze as 4 agents: Marketing, Copywriting, Research, Psychology
 4. Send FULL response: POST to http://localhost:5174/api/events with type "contentforge_analysis_complete"
 5. Delete pending: DELETE http://localhost:5174/api/contentforge/bridge/pending
 6. Ping status every 2 minutes to stay connected
 
-Response must include: requestId, postId, orchestrator.agentResults (all 4), synthesis (viralityScore, keyInsights, playbook with steps). Start now.`;
+Response must include: requestId, postId, orchestrator.agentResults (all 4), synthesis (viralityScore, keyInsights, playbook with steps). Use Mind patterns to personalize playbook. Start now.`;
 
 	function copyPrompt() {
 		navigator.clipboard.writeText(workerPrompt);
@@ -96,6 +108,19 @@ Response must include: requestId, postId, orchestrator.agentResults (all 4), syn
 					error = err;
 					loading = false;
 				}
+			}),
+			// Mind learning stores
+			learnedPatterns.subscribe((value) => {
+				patterns = value;
+			}),
+			userStyle.subscribe((value) => {
+				style = value;
+			}),
+			creativeRecommendations.subscribe((value) => {
+				recommendations = value;
+			}),
+			mindConnected.subscribe((value) => {
+				isMindConnected = value;
 			})
 		);
 	});
@@ -135,27 +160,44 @@ Response must include: requestId, postId, orchestrator.agentResults (all 4), syn
 			<p class="text-text-secondary">Viral Content Analysis Pipeline</p>
 		</header>
 
-		<!-- Worker Status Indicator -->
-		<div class="mb-6 flex items-center gap-4">
-			<span class="text-text-secondary text-sm">Worker Status:</span>
-			<div class="flex items-center gap-2 px-3 py-1.5 border border-surface-border">
-				{#if workerStatus === 'connected'}
-					<span class="w-2 h-2 bg-green-500 animate-pulse"></span>
-					<span class="text-sm text-green-400">{statusMessage}</span>
-				{:else if workerStatus === 'disconnected'}
-					<span class="w-2 h-2 bg-yellow-500"></span>
-					<span class="text-sm text-yellow-400">{statusMessage}</span>
-				{:else}
-					<span class="w-2 h-2 bg-red-500"></span>
-					<span class="text-sm text-red-400">{statusMessage}</span>
-				{/if}
+		<!-- Status Indicators -->
+		<div class="mb-6 flex items-center gap-6 flex-wrap">
+			<!-- Worker Status -->
+			<div class="flex items-center gap-2">
+				<span class="text-text-secondary text-sm">Worker:</span>
+				<div class="flex items-center gap-2 px-3 py-1.5 border border-surface-border">
+					{#if workerStatus === 'connected'}
+						<span class="w-2 h-2 bg-green-500 animate-pulse"></span>
+						<span class="text-sm text-green-400">{statusMessage}</span>
+					{:else if workerStatus === 'disconnected'}
+						<span class="w-2 h-2 bg-yellow-500"></span>
+						<span class="text-sm text-yellow-400">{statusMessage}</span>
+					{:else}
+						<span class="w-2 h-2 bg-red-500"></span>
+						<span class="text-sm text-red-400">{statusMessage}</span>
+					{/if}
+				</div>
+				<button
+					onclick={() => showWorkerSetup = true}
+					class="px-3 py-1.5 text-sm border border-accent-primary text-accent-primary hover:bg-accent-primary hover:text-white transition-colors"
+				>
+					{workerStatus === 'connected' ? 'Worker Instructions' : 'Start Worker'}
+				</button>
 			</div>
-			<button
-				onclick={() => showWorkerSetup = true}
-				class="px-3 py-1.5 text-sm border border-accent-primary text-accent-primary hover:bg-accent-primary hover:text-white transition-colors"
-			>
-				{workerStatus === 'connected' ? 'Worker Instructions' : 'Start Worker'}
-			</button>
+
+			<!-- Mind Status -->
+			<div class="flex items-center gap-2">
+				<span class="text-text-secondary text-sm">Mind:</span>
+				<div class="flex items-center gap-2 px-3 py-1.5 border border-surface-border">
+					{#if isMindConnected}
+						<span class="w-2 h-2 bg-purple-500 animate-pulse"></span>
+						<span class="text-sm text-purple-400">Learning enabled</span>
+					{:else}
+						<span class="w-2 h-2 bg-gray-500"></span>
+						<span class="text-sm text-gray-400">Not connected</span>
+					{/if}
+				</div>
+			</div>
 		</div>
 
 		<!-- Worker Setup Modal -->
@@ -304,6 +346,25 @@ Response must include: requestId, postId, orchestrator.agentResults (all 4), syn
 				</div>
 			{/if}
 
+			<!-- Creative Recommendations (from Mind) -->
+			{#if recommendations.length > 0}
+				<div class="mb-8 bg-bg-secondary p-6 border border-purple-500/30">
+					<h2 class="text-xl font-semibold mb-4 text-purple-400">Creative Format Recommendations</h2>
+					<p class="text-text-secondary text-sm mb-4">Based on content analysis and learned patterns</p>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						{#each recommendations as rec}
+							<div class="bg-bg-primary p-4 border border-surface-border">
+								<div class="flex items-center justify-between mb-2">
+									<span class="font-semibold">{rec.format}</span>
+									<span class="text-sm text-accent-primary">{Math.round(rec.confidence * 100)}% match</span>
+								</div>
+								<p class="text-text-secondary text-sm">{rec.reason}</p>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
 			<!-- Processing Stats -->
 			<div class="text-text-secondary text-sm">
 				{#if result.orchestrator?.processingTimeMs}
@@ -313,6 +374,80 @@ Response must include: requestId, postId, orchestrator.agentResults (all 4), syn
 					<p>Post ID: {result.postId}</p>
 				{/if}
 				<p class="text-green-400 mt-2">Analyzed with Claude AI Worker</p>
+				{#if isMindConnected}
+					<p class="text-purple-400">Learning saved to Mind</p>
+				{/if}
+			</div>
+		{/if}
+
+		<!-- Mind Learning Sidebar (shows when Mind is connected) -->
+		{#if isMindConnected && (patterns.length > 0 || style)}
+			<div class="mt-12 border-t border-surface-border pt-8">
+				<h2 class="text-2xl font-bold mb-6 text-purple-400">Mind Learning</h2>
+
+				<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+					<!-- User Style Profile -->
+					{#if style}
+						<div class="bg-bg-secondary p-6 border border-purple-500/30">
+							<h3 class="text-lg font-semibold mb-4">Your Style Profile</h3>
+							<div class="space-y-4 text-sm">
+								<div>
+									<span class="text-text-secondary">Average Virality Score:</span>
+									<span class="ml-2 text-2xl font-bold text-accent-primary">{style.averageViralityScore}</span>
+									<span class="text-text-secondary">/100</span>
+								</div>
+								<div>
+									<span class="text-text-secondary">Content Analyzed:</span>
+									<span class="ml-2 font-semibold">{style.totalAnalyzed} posts</span>
+								</div>
+								{#if style.preferredHookTypes.length > 0}
+									<div>
+										<span class="text-text-secondary block mb-1">Preferred Hooks:</span>
+										<div class="flex flex-wrap gap-2">
+											{#each style.preferredHookTypes as hook}
+												<span class="px-2 py-1 bg-green-900/30 text-green-400 text-xs">{hook}</span>
+											{/each}
+										</div>
+									</div>
+								{/if}
+								{#if style.strongEmotions.length > 0}
+									<div>
+										<span class="text-text-secondary block mb-1">Strong Emotions:</span>
+										<div class="flex flex-wrap gap-2">
+											{#each style.strongEmotions as emotion}
+												<span class="px-2 py-1 bg-purple-900/30 text-purple-400 text-xs">{emotion}</span>
+											{/each}
+										</div>
+									</div>
+								{/if}
+							</div>
+						</div>
+					{/if}
+
+					<!-- Learned Patterns -->
+					{#if patterns.length > 0}
+						<div class="bg-bg-secondary p-6 border border-purple-500/30">
+							<h3 class="text-lg font-semibold mb-4">Learned Patterns</h3>
+							<div class="space-y-3">
+								{#each patterns.slice(0, 5) as pattern}
+									<div class="flex items-center justify-between py-2 border-b border-surface-border last:border-0">
+										<div>
+											<span class="font-medium">{pattern.pattern}</span>
+											<span class="text-text-tertiary text-xs ml-2">({pattern.occurrences}x)</span>
+										</div>
+										<div class="text-right">
+											<span class="text-accent-primary font-bold">{pattern.averageScore}</span>
+											<span class="text-text-tertiary text-xs">/100 avg</span>
+										</div>
+									</div>
+								{/each}
+							</div>
+							{#if patterns.length > 5}
+								<p class="text-text-tertiary text-xs mt-4">+ {patterns.length - 5} more patterns</p>
+							{/if}
+						</div>
+					{/if}
+				</div>
 			</div>
 		{/if}
 	</div>

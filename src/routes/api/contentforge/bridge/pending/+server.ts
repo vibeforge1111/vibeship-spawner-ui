@@ -31,13 +31,15 @@ export const GET: RequestHandler = async () => {
 		// Read request metadata
 		const requestData = JSON.parse(await readFile(requestPath, 'utf-8'));
 
-		// Read content
+		// Read content (now includes bundled H70 skills)
 		const content = await readFile(contentPath, 'utf-8');
 
 		return json({
 			pending: true,
 			requestId: requestData.requestId,
 			timestamp: requestData.timestamp,
+			skillsLoaded: requestData.skillsLoaded || [],
+			skillsBundled: true, // Skills are embedded in the content
 			content
 		});
 
