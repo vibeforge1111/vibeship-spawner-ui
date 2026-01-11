@@ -160,6 +160,74 @@ Use the learned patterns to:
 2. Warn if the content uses patterns that historically underperformed
 3. Suggest variations based on what worked before for this user
 
+## Agent Intelligence System (8 Collaborative Agents)
+
+The UI includes an **Agent Intelligence** section that orchestrates 8 H70-powered agents to analyze Mind Learning data collaboratively. Each agent analyzes the accumulated learning data from their expertise and shares insights with other agents.
+
+### The 8 Agents
+
+| Agent | H70 Skill | Expertise |
+|-------|-----------|-----------|
+| **Marketing** | `viral-marketing` | STEPPS framework, K-factor, viral loops |
+| **Copywriting** | `copywriting` | PAS/AIDA, 4 U's, headline optimization |
+| **Viral Hooks** | `viral-hooks` | Hook formulas, curiosity gap engineering |
+| **Content Strategy** | `content-strategy` | Topic clusters, content repurposing |
+| **Psychology** | `persuasion-psychology` | Emotional triggers, Cialdini's principles |
+| **Algorithm** | `platform-algorithms` | Algorithm signals, timing, momentum |
+| **Research** | `audience-psychology` | Audience analysis, trend phases |
+| **Visual** | `narrative-craft` | Visual composition, narrative structure |
+
+### How Agents Collaborate
+
+1. **Individual Analysis**: Each agent analyzes Mind Learning data through their expertise lens
+2. **Pattern Detection**: Agents identify patterns specific to their domain
+3. **Cross-Agent Correlation**: Patterns seen by multiple agents are flagged as "cross-agent patterns"
+4. **Gap Identification**: Agents identify missing data or strategy gaps
+5. **Unified Recommendations**: All agent recommendations are merged and prioritized
+
+### What Agents Track
+
+Each agent generates:
+- **Top Findings**: Key insights from their expertise area
+- **Pattern Performance**: How patterns perform (high/medium/low)
+- **Recommendations**: Actionable improvements with priority levels
+- **Correlations**: Which other agents their insights connect with
+
+### Learning Health Score
+
+The system calculates a **Learning Health Score (0-100)** based on:
+- **Data Quantity**: How much content has been analyzed
+- **Data Quality**: How much engagement data is captured
+- **Pattern Diversity**: How many different patterns are tracked
+- **Trend Clarity**: How clear the performance trends are
+
+### Agent Recommendations to Consider
+
+When analyzing content, consider these agent-generated insights:
+- **STEPPS gaps**: Marketing agent checks if all 6 STEPPS elements are used
+- **K-Factor**: Is the content structured for viral spread? (K > 0.01 = viral potential)
+- **Hook diversity**: Are you using multiple hook types to avoid fatigue?
+- **Cialdini principles**: Which persuasion principles are being leveraged?
+- **Algorithm momentum**: Is performance trending up or down?
+- **Content type mix**: Are you over-reliant on one content format?
+
+### Triggering Agent Analysis
+
+Users can click "Run Agent Analysis" in the UI to trigger the 8-agent collaboration. This:
+1. Reads all Mind Learning data
+2. Runs each agent's analysis
+3. Synthesizes cross-agent patterns
+4. Generates unified recommendations
+5. Identifies gaps in data or strategy
+
+The results appear in the "Agent Intelligence" section with:
+- Learning Health Score dashboard
+- Agent cards (click to see details)
+- Cross-Agent Patterns
+- Unified Recommendations (prioritized)
+- Gap Analysis
+- System Insights
+
 ## Synthesis Requirements
 
 After all 4 agents analyze, synthesize into:

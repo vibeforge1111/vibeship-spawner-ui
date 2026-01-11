@@ -23,6 +23,15 @@
 		type ContentTypePerformance,
 		type TrendDataPoint
 	} from '$lib/services/contentforge-bridge';
+	import {
+		runAgentCollaboration,
+		type AgentCollaboration,
+		type AgentAnalysis,
+		type UnifiedRecommendation,
+		type CrossAgentPattern,
+		type GapAnalysis,
+		type SystemInsight
+	} from '$lib/services/mind-learning-intelligence';
 	import type { TweetData } from '$lib/services/x-api';
 
 	// Input mode: 'tweet' for X/Twitter URL (default), 'text' for raw content
@@ -58,6 +67,13 @@
 	let isMindConnected = $state(false);
 	let learnings = $state<EnhancedLearnings | null>(null);
 	let learningsLoading = $state(false);
+
+	// Agent Collaboration state
+	let agentCollab = $state<AgentCollaboration | null>(null);
+	let agentCollabLoading = $state(false);
+	let agentCollabError = $state<string | null>(null);
+	let selectedAgent = $state<string | null>(null);
+	let showAllRecommendations = $state(false);
 
 	// Playbook feedback tracking
 	interface PlaybookFeedback {
@@ -155,6 +171,64 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 		} finally {
 			learningsLoading = false;
 		}
+	}
+
+	/**
+	 * Run multi-agent collaboration analysis on Mind learning data
+	 */
+	async function runAgentAnalysis() {
+		if (!isMindConnected) {
+			agentCollabError = 'Mind not connected. Start Mind v5 to enable agent collaboration.';
+			return;
+		}
+
+		agentCollabLoading = true;
+		agentCollabError = null;
+
+		try {
+			const result = await runAgentCollaboration();
+			if (result) {
+				agentCollab = result;
+				console.log('[ContentForge] Agent collaboration complete:', result.agents.length, 'agents analyzed');
+			} else {
+				agentCollabError = 'Not enough data to analyze. Analyze more content first.';
+			}
+		} catch (e) {
+			console.error('[ContentForge] Agent collaboration failed:', e);
+			agentCollabError = e instanceof Error ? e.message : 'Agent collaboration failed';
+		} finally {
+			agentCollabLoading = false;
+		}
+	}
+
+	/**
+	 * Get agent color by ID
+	 */
+	function getAgentColor(agentId: string): string {
+		const colors: Record<string, string> = {
+			'marketing': 'blue',
+			'copywriting': 'green',
+			'viral-hooks': 'yellow',
+			'content-strategy': 'orange',
+			'psychology': 'purple',
+			'algorithm': 'cyan',
+			'research': 'pink',
+			'visual': 'red'
+		};
+		return colors[agentId] || 'gray';
+	}
+
+	/**
+	 * Get priority badge color
+	 */
+	function getPriorityColor(priority: string): string {
+		const colors: Record<string, string> = {
+			'critical': 'red',
+			'high': 'orange',
+			'medium': 'yellow',
+			'low': 'gray'
+		};
+		return colors[priority] || 'gray';
 	}
 
 	onMount(async () => {
@@ -1111,6 +1185,302 @@ ${skippedSteps.map(s => `- Step ${s.stepOrder}: ${s.action}`).join('\n') || 'Non
 						Mind learns from each analysis. Analyze more content to improve pattern recognition and get better recommendations.
 					</p>
 				</div>
+			</div>
+
+			<!-- Agent Collaboration Section -->
+			<div class="mt-12 border-t border-cyan-500/30 pt-8">
+				<div class="flex items-center justify-between mb-6">
+					<div class="flex items-center gap-3">
+						<h2 class="text-2xl font-bold text-cyan-400">Agent Intelligence</h2>
+						<span class="px-2 py-0.5 bg-cyan-900/30 text-cyan-400 text-xs">8 H70 Agents</span>
+					</div>
+					<button
+						onclick={runAgentAnalysis}
+						disabled={agentCollabLoading || !isMindConnected}
+						class="px-4 py-2 bg-cyan-500 text-white font-semibold hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+					>
+						{agentCollabLoading ? 'Analyzing...' : agentCollab ? 'Refresh Analysis' : 'Run Agent Analysis'}
+					</button>
+				</div>
+
+				{#if agentCollabError}
+					<div class="mb-6 p-4 bg-red-900/20 border border-red-500">
+						<p class="text-red-400 text-sm">{agentCollabError}</p>
+					</div>
+				{/if}
+
+				{#if !agentCollab && !agentCollabLoading}
+					<div class="p-8 bg-bg-secondary border border-surface-border text-center">
+						<p class="text-text-secondary mb-2">Run multi-agent analysis to get collaborative insights</p>
+						<p class="text-text-tertiary text-sm">8 specialized agents will analyze your Mind learning data</p>
+					</div>
+				{/if}
+
+				{#if agentCollabLoading}
+					<div class="p-8 bg-bg-secondary border border-cyan-500/30 text-center">
+						<div class="flex items-center justify-center gap-3 mb-4">
+							<span class="w-3 h-3 bg-cyan-500 animate-pulse"></span>
+							<span class="text-cyan-400">Agents collaborating...</span>
+						</div>
+						<p class="text-text-tertiary text-sm">Marketing, Copywriting, Viral Hooks, Content Strategy, Psychology, Algorithm, Research, Visual</p>
+					</div>
+				{/if}
+
+				{#if agentCollab}
+					<!-- Learning Health Score -->
+					<div class="mb-8 p-6 bg-bg-secondary border border-cyan-500/30">
+						<div class="flex items-center justify-between mb-4">
+							<h3 class="text-lg font-semibold">Learning Health Score</h3>
+							<span class="text-4xl font-bold text-cyan-400">{agentCollab.synthesis.learningHealthScore}<span class="text-lg text-text-secondary">/100</span></span>
+						</div>
+						<div class="grid grid-cols-4 gap-4">
+							<div class="text-center">
+								<div class="text-xl font-bold text-blue-400">{agentCollab.synthesis.healthBreakdown.dataQuantity}</div>
+								<div class="text-xs text-text-tertiary">Data Quantity</div>
+							</div>
+							<div class="text-center">
+								<div class="text-xl font-bold text-green-400">{agentCollab.synthesis.healthBreakdown.dataQuality}</div>
+								<div class="text-xs text-text-tertiary">Data Quality</div>
+							</div>
+							<div class="text-center">
+								<div class="text-xl font-bold text-purple-400">{agentCollab.synthesis.healthBreakdown.patternDiversity}</div>
+								<div class="text-xs text-text-tertiary">Pattern Diversity</div>
+							</div>
+							<div class="text-center">
+								<div class="text-xl font-bold text-yellow-400">{agentCollab.synthesis.healthBreakdown.trendClarity}</div>
+								<div class="text-xs text-text-tertiary">Trend Clarity</div>
+							</div>
+						</div>
+						<div class="mt-4 h-2 bg-bg-primary border border-surface-border">
+							<div
+								class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-500"
+								style="width: {agentCollab.synthesis.learningHealthScore}%"
+							></div>
+						</div>
+					</div>
+
+					<!-- Agent Cards Grid -->
+					<div class="mb-8">
+						<h3 class="text-lg font-semibold mb-4">Agent Insights ({agentCollab.agents.length} Agents)</h3>
+						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+							{#each agentCollab.agents as agent}
+								{@const color = getAgentColor(agent.agentId)}
+								<button
+									onclick={() => selectedAgent = selectedAgent === agent.agentId ? null : agent.agentId}
+									class="p-4 bg-bg-secondary border transition-all text-left {selectedAgent === agent.agentId ? `border-${color}-500 bg-${color}-900/10` : 'border-surface-border hover:border-surface-hover'}"
+								>
+									<div class="flex items-center justify-between mb-2">
+										<span class="font-semibold text-sm">{agent.agentName.replace(' Agent', '')}</span>
+										<span class="text-xs px-1.5 py-0.5 bg-{color}-900/30 text-{color}-400">{Math.round(agent.confidence * 100)}%</span>
+									</div>
+									<div class="text-xs text-text-tertiary mb-2">{agent.h70Skill}</div>
+									<div class="text-sm text-text-secondary line-clamp-2">
+										{agent.topFindings[0] || 'No findings'}
+									</div>
+									{#if agent.recommendations.length > 0}
+										<div class="mt-2 flex items-center gap-1">
+											<span class="w-2 h-2 bg-{getPriorityColor(agent.recommendations[0].priority)}-500"></span>
+											<span class="text-xs text-text-tertiary">{agent.recommendations.length} recommendations</span>
+										</div>
+									{/if}
+								</button>
+							{/each}
+						</div>
+					</div>
+
+					<!-- Selected Agent Details -->
+					{#if selectedAgent}
+						{@const agent = agentCollab.agents.find(a => a.agentId === selectedAgent)}
+						{#if agent}
+							<div class="mb-8 p-6 bg-bg-secondary border border-{getAgentColor(agent.agentId)}-500/50">
+								<div class="flex items-center justify-between mb-4">
+									<div>
+										<h3 class="text-xl font-semibold text-{getAgentColor(agent.agentId)}-400">{agent.agentName}</h3>
+										<p class="text-text-tertiary text-sm">{agent.expertise}</p>
+									</div>
+									<button
+										onclick={() => selectedAgent = null}
+										class="text-text-tertiary hover:text-text-primary text-xl"
+									>&times;</button>
+								</div>
+
+								<!-- Findings -->
+								{#if agent.topFindings.length > 0}
+									<div class="mb-4">
+										<h4 class="text-sm font-semibold text-text-secondary mb-2">Key Findings</h4>
+										<ul class="space-y-1">
+											{#each agent.topFindings as finding}
+												<li class="text-sm flex items-start gap-2">
+													<span class="text-{getAgentColor(agent.agentId)}-400">→</span>
+													<span>{finding}</span>
+												</li>
+											{/each}
+										</ul>
+									</div>
+								{/if}
+
+								<!-- Patterns -->
+								{#if agent.patterns.length > 0}
+									<div class="mb-4">
+										<h4 class="text-sm font-semibold text-text-secondary mb-2">Pattern Performance</h4>
+										<div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+											{#each agent.patterns.slice(0, 4) as pattern}
+												<div class="p-2 bg-bg-primary border border-surface-border text-sm">
+													<div class="flex items-center justify-between mb-1">
+														<span class="font-medium">{pattern.pattern}</span>
+														<span class="text-xs text-{pattern.performance === 'high' ? 'green' : pattern.performance === 'medium' ? 'yellow' : 'red'}-400">
+															{pattern.performance}
+														</span>
+													</div>
+													<p class="text-xs text-text-tertiary">{pattern.actionable}</p>
+												</div>
+											{/each}
+										</div>
+									</div>
+								{/if}
+
+								<!-- Recommendations -->
+								{#if agent.recommendations.length > 0}
+									<div>
+										<h4 class="text-sm font-semibold text-text-secondary mb-2">Recommendations</h4>
+										<div class="space-y-2">
+											{#each agent.recommendations as rec}
+												<div class="p-3 bg-bg-primary border-l-2 border-{getPriorityColor(rec.priority)}-500">
+													<div class="flex items-center gap-2 mb-1">
+														<span class="px-1.5 py-0.5 text-xs bg-{getPriorityColor(rec.priority)}-900/30 text-{getPriorityColor(rec.priority)}-400">{rec.priority}</span>
+														<span class="font-medium text-sm">{rec.title}</span>
+													</div>
+													<p class="text-sm text-text-secondary mb-1">{rec.description}</p>
+													<p class="text-xs text-text-tertiary">Impact: {rec.expectedImpact}</p>
+												</div>
+											{/each}
+										</div>
+									</div>
+								{/if}
+
+								<!-- Correlations -->
+								{#if agent.correlatesWith.length > 0}
+									<div class="mt-4 pt-4 border-t border-surface-border">
+										<span class="text-xs text-text-tertiary">Correlates with: </span>
+										{#each agent.correlatesWith as agentId}
+											<span class="text-xs text-{getAgentColor(agentId)}-400 mr-2">{agentId}</span>
+										{/each}
+									</div>
+								{/if}
+							</div>
+						{/if}
+					{/if}
+
+					<!-- Cross-Agent Patterns -->
+					{#if agentCollab.synthesis.crossAgentPatterns.length > 0}
+						<div class="mb-8 p-6 bg-bg-secondary border border-surface-border">
+							<h3 class="text-lg font-semibold mb-4">Cross-Agent Patterns</h3>
+							<p class="text-text-tertiary text-sm mb-4">Patterns validated by multiple agents</p>
+							<div class="space-y-3">
+								{#each agentCollab.synthesis.crossAgentPatterns.slice(0, 5) as pattern}
+									<div class="p-3 bg-bg-primary border border-surface-border">
+										<div class="flex items-center justify-between mb-2">
+											<span class="font-medium">{pattern.pattern}</span>
+											<span class="text-xs text-accent-primary">{Math.round(pattern.correlation * 100)}% correlation</span>
+										</div>
+										<p class="text-sm text-text-secondary mb-2">{pattern.combinedInsight}</p>
+										<div class="flex flex-wrap gap-1">
+											{#each pattern.contributingAgents as agentId}
+												<span class="px-1.5 py-0.5 text-xs bg-{getAgentColor(agentId)}-900/30 text-{getAgentColor(agentId)}-400">{agentId}</span>
+											{/each}
+										</div>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
+
+					<!-- Unified Recommendations -->
+					{#if agentCollab.synthesis.unifiedRecommendations.length > 0}
+						<div class="mb-8 p-6 bg-bg-secondary border border-orange-500/30">
+							<div class="flex items-center justify-between mb-4">
+								<h3 class="text-lg font-semibold text-orange-400">Unified Recommendations</h3>
+								<button
+									onclick={() => showAllRecommendations = !showAllRecommendations}
+									class="text-sm text-orange-400 hover:text-orange-300"
+								>
+									{showAllRecommendations ? 'Show Top 5' : `Show All (${agentCollab.synthesis.unifiedRecommendations.length})`}
+								</button>
+							</div>
+							<p class="text-text-tertiary text-sm mb-4">Prioritized recommendations from all agents</p>
+							<ol class="space-y-3">
+								{#each (showAllRecommendations ? agentCollab.synthesis.unifiedRecommendations : agentCollab.synthesis.unifiedRecommendations.slice(0, 5)) as rec, i}
+									<li class="flex gap-4 p-3 bg-bg-primary border border-surface-border">
+										<span class="flex items-center justify-center w-8 h-8 bg-orange-500/20 text-orange-400 font-bold">{i + 1}</span>
+										<div class="flex-1">
+											<div class="flex items-center gap-2 mb-1">
+												<span class="font-semibold">{rec.title}</span>
+												<span class="text-xs px-1.5 py-0.5 bg-cyan-900/30 text-cyan-400">priority {rec.priority}</span>
+											</div>
+											<p class="text-sm text-text-secondary mb-2">{rec.description}</p>
+											<div class="flex items-center justify-between">
+												<span class="text-xs text-green-400">Impact: {rec.expectedImpact}</span>
+												<div class="flex gap-1">
+													{#each rec.contributingAgents as agentId}
+														<span class="text-xs text-text-tertiary">{agentId}</span>
+													{/each}
+												</div>
+											</div>
+										</div>
+									</li>
+								{/each}
+							</ol>
+						</div>
+					{/if}
+
+					<!-- Gap Analysis -->
+					{#if agentCollab.synthesis.gaps.length > 0}
+						<div class="mb-8 p-6 bg-bg-secondary border border-red-500/30">
+							<h3 class="text-lg font-semibold text-red-400 mb-4">Gaps Identified</h3>
+							<p class="text-text-tertiary text-sm mb-4">Areas where data or strategy is missing</p>
+							<div class="space-y-3">
+								{#each agentCollab.synthesis.gaps as gap}
+									<div class="p-3 bg-bg-primary border-l-2 border-{gap.severity === 'critical' ? 'red' : gap.severity === 'moderate' ? 'yellow' : 'gray'}-500">
+										<div class="flex items-center gap-2 mb-1">
+											<span class="px-1.5 py-0.5 text-xs bg-{gap.severity === 'critical' ? 'red' : gap.severity === 'moderate' ? 'yellow' : 'gray'}-900/30 text-{gap.severity === 'critical' ? 'red' : gap.severity === 'moderate' ? 'yellow' : 'gray'}-400">{gap.severity}</span>
+											<span class="font-medium text-sm">{gap.area}</span>
+										</div>
+										<p class="text-sm text-text-secondary mb-2">{gap.description}</p>
+										<p class="text-xs text-text-tertiary">Fix: {gap.suggestedFix}</p>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
+
+					<!-- System Insights -->
+					{#if agentCollab.systemInsights.length > 0}
+						<div class="p-6 bg-bg-secondary border border-surface-border">
+							<h3 class="text-lg font-semibold mb-4">System Insights</h3>
+							<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+								{#each agentCollab.systemInsights as insight}
+									<div class="p-4 bg-bg-primary border border-surface-border">
+										<div class="flex items-center gap-2 mb-2">
+											<span class="px-1.5 py-0.5 text-xs bg-{insight.type === 'algorithm' ? 'cyan' : insight.type === 'psychology' ? 'purple' : insight.type === 'content' ? 'green' : insight.type === 'platform' ? 'blue' : 'yellow'}-900/30 text-{insight.type === 'algorithm' ? 'cyan' : insight.type === 'psychology' ? 'purple' : insight.type === 'content' ? 'green' : insight.type === 'platform' ? 'blue' : 'yellow'}-400">{insight.type}</span>
+											<span class="font-semibold text-sm">{insight.title}</span>
+										</div>
+										<p class="text-sm text-text-secondary mb-2">{insight.insight}</p>
+										<p class="text-xs text-accent-primary">Recommendation: {insight.recommendation}</p>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
+
+					<!-- Metadata -->
+					<div class="mt-6 text-xs text-text-tertiary">
+						<span>Session: {agentCollab.sessionId}</span>
+						<span class="mx-2">|</span>
+						<span>Analyzed: {agentCollab.dataAnalyzed} data points</span>
+						<span class="mx-2">|</span>
+						<span>{new Date(agentCollab.timestamp).toLocaleString()}</span>
+					</div>
+				{/if}
 			</div>
 		{/if}
 	</div>
