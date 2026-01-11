@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
+	import ContentQueue from '$lib/components/contentforge/ContentQueue.svelte';
 	import {
 		initContentForgeBridge,
 		requestContentForgeAnalysis,
@@ -19,6 +20,15 @@
 		type CreativeRecommendation,
 		type EnhancedLearnings
 	} from '$lib/services/contentforge-bridge';
+	import {
+		addToQueue,
+		queueItems,
+		queueLength,
+		isQueueProcessing,
+		currentQueueItem,
+		getQueueStats,
+		type QueueItem
+	} from '$lib/services/contentforge-queue';
 	import {
 		type RalphConfig,
 		type RalphState,
@@ -94,6 +104,10 @@
 	// Viral pattern learning state
 	let patternStats = $state<PatternStats | null>(null);
 	let patternsLoading = $state(false);
+
+	// Queue state
+	let selectedQueueItem = $state<QueueItem | null>(null);
+	let showQueue = $state(true);
 
 	// Ralph Mode state (iterative self-improvement) - ON by default for quality
 	let ralphMode = $state(true);
@@ -581,6 +595,56 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 	}
 
 	/**
+	 * Add current content to queue (instead of direct analyze)
+	 */
+	function addCurrentToQueue() {
+		let contentToQueue: string;
+
+		if (inputMode === 'tweet') {
+			if (!tweetData) {
+				error = 'Load a tweet first';
+				return;
+			}
+			contentToQueue = formatTweetContent(tweetData);
+		} else {
+			if (!inputText.trim()) {
+				error = 'Enter content to analyze';
+				return;
+			}
+			contentToQueue = inputText;
+		}
+
+		const queueItem = addToQueue(contentToQueue);
+		console.log('[ContentForge] Added to queue:', queueItem.id);
+
+		// Clear input after adding to queue
+		if (inputMode === 'text') {
+			inputText = '';
+		} else {
+			tweetUrl = '';
+			tweetData = null;
+		}
+		error = null;
+	}
+
+	/**
+	 * Handle queue item selection - show its result
+	 */
+	function handleQueueItemSelect(item: QueueItem) {
+		selectedQueueItem = item;
+
+		// If item has a result, display it
+		if (item.result) {
+			result = item.result;
+			// Reconstruct analyzedContent from the item
+			analyzedContent = {
+				type: item.content.includes('REAL TWEET ANALYSIS') ? 'tweet' : 'text',
+				text: item.label
+			};
+		}
+	}
+
+	/**
 	 * Format tweet data for analysis
 	 */
 	function formatTweetContent(tweet: TweetData): string {
@@ -671,11 +735,16 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 <Navbar />
 
 <div class="min-h-screen bg-bg-primary text-text-primary p-8">
-	<div class="max-w-6xl mx-auto">
+	<div class="max-w-7xl mx-auto">
 		<header class="mb-8">
 			<h1 class="text-3xl font-bold mb-2">ContentForge</h1>
 			<p class="text-text-secondary">Viral Content Analysis Pipeline</p>
 		</header>
+
+		<!-- Main layout with optional queue sidebar -->
+		<div class="flex gap-6">
+			<!-- Main content area -->
+			<div class="flex-1 min-w-0">
 
 		<!-- Status Indicators -->
 		<div class="mb-6 flex items-center gap-6 flex-wrap">
@@ -918,16 +987,39 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 				</div>
 			{/if}
 
-			<!-- Simple Ralph Toggle (minimal UI) -->
-			<div class="mt-4 flex items-center gap-4">
+			<!-- Action Buttons -->
+			<div class="mt-4 flex items-center gap-4 flex-wrap">
+				<!-- Add to Queue Button (primary action) -->
+				<button
+					onclick={addCurrentToQueue}
+					disabled={(inputMode === 'text' && !inputText.trim()) || (inputMode === 'tweet' && !tweetData)}
+					class="px-6 py-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed bg-accent-primary hover:bg-accent-secondary text-white flex items-center gap-2"
+				>
+					<span>+</span>
+					Add to Queue
+					{#if $queueLength > 0}
+						<span class="bg-white/20 px-2 py-0.5 text-xs">{$queueLength}</span>
+					{/if}
+				</button>
+
+				<!-- Direct Analyze (secondary) -->
 				<button
 					onclick={analyze}
 					disabled={loading || (inputMode === 'text' && !inputText.trim()) || (inputMode === 'tweet' && !tweetData)}
-					class="px-6 py-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed bg-accent-primary hover:bg-accent-secondary text-white"
+					class="px-4 py-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed border border-surface-border text-text-secondary hover:text-text-primary hover:border-accent-primary"
 				>
-					{loading ? 'Analyzing...' : inputMode === 'tweet' ? 'Analyze Tweet' : 'Analyze Content'}
+					{loading ? 'Analyzing...' : 'Analyze Now'}
 				</button>
 
+				<!-- Queue toggle -->
+				<button
+					onclick={() => showQueue = !showQueue}
+					class="px-3 py-2 text-sm border border-surface-border text-text-secondary hover:text-text-primary"
+				>
+					{showQueue ? 'Hide Queue' : 'Show Queue'}
+				</button>
+
+				<!-- Ralph toggle -->
 				<label class="flex items-center gap-2 cursor-pointer">
 					<input
 						type="checkbox"
@@ -937,11 +1029,25 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 					<span class="text-sm {ralphMode ? 'text-orange-400' : 'text-text-tertiary'}">
 						Ralph Mode
 						{#if ralphMode}
-							<span class="text-xs">(iterates until score ≥{ralphConfig.qualityThreshold})</span>
+							<span class="text-xs">(≥{ralphConfig.qualityThreshold})</span>
 						{/if}
 					</span>
 				</label>
 			</div>
+
+			<!-- Queue Processing Status -->
+			{#if $isQueueProcessing && $currentQueueItem}
+				<div class="mt-3 p-3 bg-accent-primary/10 border border-accent-primary/30 flex items-center gap-3">
+					<div class="w-4 h-4 border-2 border-accent-primary border-t-transparent rounded-full animate-spin"></div>
+					<div class="flex-1">
+						<span class="text-sm text-accent-primary">Processing:</span>
+						<span class="text-sm ml-2">{$currentQueueItem.label}</span>
+					</div>
+					<span class="text-xs text-text-tertiary">
+						{$queueLength} remaining
+					</span>
+				</div>
+			{/if}
 
 			{#if ralphMode && ralphState}
 				<div class="mt-2 text-xs text-orange-400">
@@ -1243,5 +1349,50 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 				</div>
 			</div>
 		{/if}
+
+			</div>
+			<!-- End main content area -->
+
+			<!-- Queue Sidebar -->
+			{#if showQueue}
+				<div class="w-80 flex-shrink-0">
+					<div class="sticky top-8">
+						<ContentQueue
+							onSelectItem={handleQueueItemSelect}
+							selectedItemId={selectedQueueItem?.id || null}
+						/>
+
+						<!-- Queue Stats -->
+						{#if $queueItems.length > 0}
+							{@const stats = getQueueStats()}
+							<div class="mt-4 p-4 bg-bg-secondary border border-surface-border">
+								<h3 class="text-sm font-semibold mb-3">Queue Stats</h3>
+								<div class="grid grid-cols-2 gap-2 text-sm">
+									<div>
+										<span class="text-text-tertiary">Total:</span>
+										<span class="ml-1 font-mono">{stats.total}</span>
+									</div>
+									<div>
+										<span class="text-text-tertiary">Completed:</span>
+										<span class="ml-1 font-mono text-green-400">{stats.completed}</span>
+									</div>
+									<div>
+										<span class="text-text-tertiary">Pending:</span>
+										<span class="ml-1 font-mono text-yellow-400">{stats.queued}</span>
+									</div>
+									{#if stats.avgScore > 0}
+										<div>
+											<span class="text-text-tertiary">Avg Score:</span>
+											<span class="ml-1 font-mono text-accent-primary">{stats.avgScore.toFixed(0)}</span>
+										</div>
+									{/if}
+								</div>
+							</div>
+						{/if}
+					</div>
+				</div>
+			{/if}
+		</div>
+		<!-- End flex container -->
 	</div>
 </div>
