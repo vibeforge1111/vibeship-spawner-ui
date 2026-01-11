@@ -6,6 +6,7 @@
  */
 
 import { writable, derived, get } from 'svelte/store';
+import { browser } from '$app/environment';
 import { requestContentForgeAnalysis, type ContentForgeResult } from './contentforge-bridge';
 
 // =============================================================================
@@ -47,7 +48,59 @@ const initialState: QueueState = {
 	totalErrors: 0
 };
 
-export const queueState = writable<QueueState>(initialState);
+const STORAGE_KEY = 'contentforge-queue';
+
+/**
+ * Load queue state from localStorage
+ */
+function loadFromStorage(): QueueState {
+	if (!browser) return initialState;
+
+	try {
+		const stored = localStorage.getItem(STORAGE_KEY);
+		if (!stored) return initialState;
+
+		const parsed = JSON.parse(stored) as QueueState;
+
+		// Reset processing state on load (can't resume in-progress items)
+		// Mark any "processing" items as "queued" so they can be retried
+		const items = parsed.items.map(item =>
+			item.status === 'processing' ? { ...item, status: 'queued' as QueueItemStatus } : item
+		);
+
+		return {
+			...parsed,
+			items,
+			isProcessing: false,
+			currentItemId: null
+		};
+	} catch (e) {
+		console.error('[ContentForgeQueue] Failed to load from storage:', e);
+		return initialState;
+	}
+}
+
+/**
+ * Save queue state to localStorage
+ */
+function saveToStorage(state: QueueState): void {
+	if (!browser) return;
+
+	try {
+		localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+	} catch (e) {
+		console.error('[ContentForgeQueue] Failed to save to storage:', e);
+	}
+}
+
+export const queueState = writable<QueueState>(loadFromStorage());
+
+// Auto-save to localStorage on any change
+if (browser) {
+	queueState.subscribe(state => {
+		saveToStorage(state);
+	});
+}
 
 // Derived stores for convenience
 export const queueItems = derived(queueState, $state => $state.items);
@@ -356,4 +409,36 @@ export function getQueueStats(): {
 		errors: state.items.filter(i => i.status === 'error').length,
 		avgScore: scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0
 	};
+}
+
+/**
+ * Resume processing if there are queued items (call on page load)
+ */
+export function resumeQueueProcessing(): void {
+	const state = get(queueState);
+	const hasQueued = state.items.some(i => i.status === 'queued');
+
+	if (hasQueued && !state.isProcessing) {
+		console.log('[ContentForgeQueue] Resuming queue processing...');
+		processQueue();
+	}
+}
+
+/**
+ * Smart analyze: If queue is empty, analyze directly. If queue has items, add to queue.
+ * Returns the item (if queued) or null (if analyzing directly)
+ */
+export function smartAnalyze(content: string): { queued: boolean; item?: QueueItem } {
+	const state = get(queueState);
+	const hasPendingItems = state.items.some(i => i.status === 'queued' || i.status === 'processing');
+
+	if (hasPendingItems) {
+		// Add to queue
+		const item = addToQueue(content);
+		return { queued: true, item };
+	} else {
+		// Add to queue and start (will process immediately since queue is empty)
+		const item = addToQueue(content);
+		return { queued: false, item };
+	}
 }

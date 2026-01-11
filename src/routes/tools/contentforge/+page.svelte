@@ -26,7 +26,10 @@
 		queueLength,
 		isQueueProcessing,
 		currentQueueItem,
+		completedQueueItems,
 		getQueueStats,
+		resumeQueueProcessing,
+		smartAnalyze,
 		type QueueItem
 	} from '$lib/services/contentforge-queue';
 	import {
@@ -124,6 +127,7 @@
 
 	// Queue state
 	let selectedQueueItem = $state<QueueItem | null>(null);
+	let lastCompletedCount = $state(0); // Track completed items for history refresh
 	let showQueue = $state(true);
 
 	// Ralph Mode state (iterative self-improvement) - ON by default for quality
@@ -384,6 +388,9 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 		await checkWorkerStatus();
 		statusCheckInterval = setInterval(checkWorkerStatus, 2000);
 
+		// Resume any pending queue items from previous session
+		resumeQueueProcessing();
+
 		// Load persisted result (survives page refresh)
 		await loadLatestResult();
 
@@ -440,6 +447,18 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 			}),
 			enhancedLearnings.subscribe((value) => {
 				learnings = value;
+			}),
+			// Watch for completed queue items and refresh history
+			completedQueueItems.subscribe((completed) => {
+				const newCount = completed.length;
+				if (newCount > lastCompletedCount && lastCompletedCount > 0) {
+					// New items completed - refresh history
+					console.log('[ContentForge] Queue item completed, refreshing history...');
+					loadAnalysisHistory();
+					refreshPatternStats();
+					refreshTopicInsights();
+				}
+				lastCompletedCount = newCount;
 			})
 		);
 	});
@@ -642,27 +661,37 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 	/**
 	 * Add current content to queue (instead of direct analyze)
 	 */
-	function addCurrentToQueue() {
-		let contentToQueue: string;
+	/**
+	 * Smart analyze - one button that does the right thing:
+	 * - If queue is empty → Analyze immediately
+	 * - If queue has items → Add to queue
+	 */
+	function handleSmartAnalyze() {
+		let contentToAnalyze: string;
 
 		if (inputMode === 'tweet') {
 			if (!tweetData) {
 				error = 'Load a tweet first';
 				return;
 			}
-			contentToQueue = formatTweetContent(tweetData);
+			contentToAnalyze = formatTweetContent(tweetData);
 		} else {
 			if (!inputText.trim()) {
 				error = 'Enter content to analyze';
 				return;
 			}
-			contentToQueue = inputText;
+			contentToAnalyze = inputText;
 		}
 
-		const queueItem = addToQueue(contentToQueue);
-		console.log('[ContentForge] Added to queue:', queueItem.id);
+		const { queued, item } = smartAnalyze(contentToAnalyze);
 
-		// Clear input after adding to queue
+		if (queued) {
+			console.log('[ContentForge] Added to queue (queue has items):', item?.id);
+		} else {
+			console.log('[ContentForge] Started analysis (queue was empty):', item?.id);
+		}
+
+		// Clear input after action
 		if (inputMode === 'text') {
 			inputText = '';
 		} else {
@@ -670,6 +699,11 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 			tweetData = null;
 		}
 		error = null;
+
+		// Auto-show queue when items are added
+		if ($queueLength > 0) {
+			showQueue = true;
+		}
 	}
 
 	/**
@@ -1034,26 +1068,21 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 
 			<!-- Action Buttons -->
 			<div class="mt-4 flex items-center gap-4 flex-wrap">
-				<!-- Add to Queue Button (primary action) -->
+				<!-- Smart Analyze Button (analyzes directly if queue empty, adds to queue otherwise) -->
 				<button
-					onclick={addCurrentToQueue}
-					disabled={(inputMode === 'text' && !inputText.trim()) || (inputMode === 'tweet' && !tweetData)}
+					onclick={handleSmartAnalyze}
+					disabled={loading || (inputMode === 'text' && !inputText.trim()) || (inputMode === 'tweet' && !tweetData)}
 					class="px-6 py-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed bg-accent-primary hover:bg-accent-secondary text-white flex items-center gap-2"
 				>
-					<span>+</span>
-					Add to Queue
-					{#if $queueLength > 0}
+					{#if loading}
+						Analyzing...
+					{:else if $queueLength > 0}
+						<span>+</span>
+						Add to Queue
 						<span class="bg-white/20 px-2 py-0.5 text-xs">{$queueLength}</span>
+					{:else}
+						Analyze
 					{/if}
-				</button>
-
-				<!-- Direct Analyze (secondary) -->
-				<button
-					onclick={analyze}
-					disabled={loading || (inputMode === 'text' && !inputText.trim()) || (inputMode === 'tweet' && !tweetData)}
-					class="px-4 py-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed border border-surface-border text-text-secondary hover:text-text-primary hover:border-accent-primary"
-				>
-					{loading ? 'Analyzing...' : 'Analyze Now'}
 				</button>
 
 				<!-- Queue toggle -->
@@ -1467,6 +1496,66 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 								<span class="px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 text-purple-300 text-sm">
 									{topic}
 								</span>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Hot Subtopics (specific aspects that perform well) -->
+				{#if topicInsights.hotSubtopics && topicInsights.hotSubtopics.length > 0}
+					<div class="mb-6">
+						<h3 class="text-sm font-medium text-text-secondary mb-2 flex items-center gap-2">
+							<span class="text-lg">🎯</span>
+							Hot Subtopics (specific angles that work)
+						</h3>
+						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+							{#each topicInsights.hotSubtopics.slice(0, 6) as sub}
+								<div class="p-3 bg-bg-primary border border-orange-500/20 border-l-2 border-l-orange-500">
+									<div class="flex items-center justify-between mb-1">
+										<span class="font-medium text-sm">{sub.subtopic}</span>
+										<span class="text-xs text-orange-400">Avg: {sub.avgViralityScore}</span>
+									</div>
+									<div class="flex items-center gap-2 text-xs text-text-tertiary">
+										<span class="text-text-tertiary opacity-70">in {sub.mainTopic}</span>
+										<span class="text-text-tertiary">n={sub.sampleSize}</span>
+										{#if sub.trend === 'rising'}
+											<span class="text-green-400">↑</span>
+										{:else if sub.trend === 'new'}
+											<span class="text-blue-400">NEW</span>
+										{/if}
+									</div>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Subtopics by Main Topic (deep dive into each topic) -->
+				{#if topicInsights.subtopicsByTopic && Object.keys(topicInsights.subtopicsByTopic).length > 0}
+					<div class="mb-6">
+						<h3 class="text-sm font-medium text-text-secondary mb-2 flex items-center gap-2">
+							<span class="text-lg">🔍</span>
+							Deep Dive: What Works Within Each Topic
+						</h3>
+						<div class="space-y-3">
+							{#each Object.entries(topicInsights.subtopicsByTopic).slice(0, 4) as [mainTopic, subtopics]}
+								<div class="p-3 bg-bg-primary border border-surface-border">
+									<div class="flex items-center justify-between mb-2">
+										<span class="font-medium text-sm capitalize text-accent-primary">{mainTopic}</span>
+										<span class="text-xs text-text-tertiary">{subtopics.length} aspects tracked</span>
+									</div>
+									<div class="flex flex-wrap gap-1">
+										{#each subtopics.slice(0, 6) as sub}
+											<span class="px-2 py-1 text-xs {sub.avgViralityScore >= 70 ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : sub.avgViralityScore >= 50 ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' : 'bg-gray-500/20 text-gray-400 border-gray-500/30'} border">
+												{sub.subtopic}
+												<span class="opacity-70 ml-1">{sub.avgViralityScore}</span>
+											</span>
+										{/each}
+										{#if subtopics.length > 6}
+											<span class="px-2 py-1 text-xs text-text-tertiary">+{subtopics.length - 6} more</span>
+										{/if}
+									</div>
+								</div>
 							{/each}
 						</div>
 					</div>

@@ -40,17 +40,37 @@ export interface TopicPerformance {
 	lastSeen: string;
 }
 
+export interface SubtopicPerformance {
+	mainTopic: string;
+	subtopic: string;
+	sampleSize: number;
+	avgViralityScore: number;
+	bestScore: number;
+	trend: 'rising' | 'stable' | 'declining' | 'new';
+}
+
 export interface TopicInsight {
 	hotTopics: TopicPerformance[]; // Currently performing well
 	risingTopics: TopicPerformance[]; // Trending up
 	saturatedTopics: TopicPerformance[]; // Declining or oversaturated
 	gapTopics: string[]; // Topics in niche not yet explored
 	recommendations: string[]; // Content ideas based on learnings
+	// NEW: Subtopic intelligence
+	hotSubtopics: SubtopicPerformance[]; // Best performing subtopics
+	risingSubtopics: SubtopicPerformance[]; // Trending subtopics
+	subtopicsByTopic: Record<string, SubtopicPerformance[]>; // Subtopics grouped by main topic
+}
+
+export interface ExtractedSubtopic {
+	mainTopic: string; // Parent topic (e.g., "claude code")
+	subtopic: string; // Specific aspect (e.g., "skills", "legal", "optimization")
+	context: string; // The specific phrase/context extracted
 }
 
 export interface ExtractedTopics {
 	primary: string[]; // Main topics identified
 	secondary: string[]; // Supporting/mentioned topics
+	subtopics: ExtractedSubtopic[]; // Specific aspects within topics
 	sentiment: 'positive' | 'neutral' | 'negative' | 'mixed';
 	angle: string; // The unique angle/perspective
 }
@@ -113,6 +133,78 @@ export const VIBE_CODING_NICHE: NicheConfig = {
  */
 let activeNiche: NicheConfig = VIBE_CODING_NICHE;
 
+/**
+ * Subtopic patterns for each main topic
+ * These define specific aspects/angles within a topic that we want to track
+ */
+const SUBTOPIC_PATTERNS: Record<string, string[]> = {
+	'claude code': [
+		'skills', 'custom skills', 'skill files',
+		'legal', 'contracts', 'lawyer', 'paralegal',
+		'optimization', 'optimizing', 'faster', 'speed', 'performance',
+		'prompts', 'system prompt', 'prompt engineering',
+		'memory', 'context', 'remember',
+		'hooks', 'custom hooks', 'automation',
+		'mcp', 'servers', 'tools',
+		'limits', 'rate limit', 'tokens',
+		'cost', 'pricing', 'expensive', 'cheap',
+		'tips', 'tricks', 'hacks',
+		'workflow', 'workflows', 'pipeline',
+		'debugging', 'debug', 'errors',
+		'comparison', 'vs', 'versus', 'better than'
+	],
+	'ai agents': [
+		'autonomous', 'self-improving', 'recursive',
+		'multi-agent', 'swarm', 'collaboration',
+		'tools', 'tool use', 'function calling',
+		'memory', 'long-term memory', 'remember',
+		'planning', 'reasoning', 'chain of thought',
+		'deployment', 'production', 'scaling',
+		'cost', 'efficient', 'optimization',
+		'safety', 'guardrails', 'alignment',
+		'frameworks', 'langchain', 'autogen', 'crewai',
+		'use cases', 'applications', 'real-world'
+	],
+	'vibe coding': [
+		'workflow', 'process', 'methodology',
+		'prompts', 'prompting', 'instructions',
+		'iteration', 'iterating', 'refining',
+		'planning', 'architecture', 'design',
+		'debugging', 'fixing', 'errors',
+		'shipping', 'launching', 'deploying',
+		'learning', 'teaching', 'beginners',
+		'productivity', 'speed', 'fast'
+	],
+	'ai coding': [
+		'autocomplete', 'completion', 'suggestions',
+		'refactoring', 'refactor', 'clean up',
+		'testing', 'tests', 'test generation',
+		'documentation', 'docs', 'comments',
+		'code review', 'review', 'feedback',
+		'debugging', 'debug', 'fix bugs',
+		'learning', 'understand code', 'explain',
+		'migration', 'upgrade', 'convert'
+	],
+	'prompt engineering': [
+		'system prompt', 'system prompts',
+		'chain of thought', 'cot', 'reasoning',
+		'few-shot', 'examples', 'shots',
+		'persona', 'role', 'acting as',
+		'structured output', 'json', 'format',
+		'temperature', 'sampling', 'creativity',
+		'context window', 'context', 'tokens',
+		'jailbreak', 'bypass', 'tricks'
+	],
+	'mcp servers': [
+		'tools', 'custom tools', 'tool building',
+		'resources', 'context', 'data',
+		'prompts', 'prompt templates',
+		'integration', 'integrating', 'connect',
+		'examples', 'use cases', 'ideas',
+		'debugging', 'troubleshooting', 'errors'
+	]
+};
+
 // =============================================================================
 // TOPIC EXTRACTION
 // =============================================================================
@@ -122,10 +214,10 @@ let activeNiche: NicheConfig = VIBE_CODING_NICHE;
  */
 export function extractTopicsFromContent(content: string): ExtractedTopics {
 	const lowerContent = content.toLowerCase();
-	const words = lowerContent.split(/\s+/);
 
 	const foundPrimary: Set<string> = new Set();
 	const foundSecondary: Set<string> = new Set();
+	const foundSubtopics: ExtractedSubtopic[] = [];
 
 	// Check for primary topics
 	for (const topic of activeNiche.primaryTopics) {
@@ -152,6 +244,12 @@ export function extractTopicsFromContent(content: string): ExtractedTopics {
 		}
 	}
 
+	// Extract subtopics for each found primary topic
+	for (const topic of foundPrimary) {
+		const subtopics = extractSubtopicsForTopic(content, topic);
+		foundSubtopics.push(...subtopics);
+	}
+
 	// Detect sentiment
 	const sentiment = detectSentiment(content);
 
@@ -161,9 +259,96 @@ export function extractTopicsFromContent(content: string): ExtractedTopics {
 	return {
 		primary: Array.from(foundPrimary),
 		secondary: Array.from(foundSecondary),
+		subtopics: foundSubtopics,
 		sentiment,
 		angle
 	};
+}
+
+/**
+ * Extract specific subtopics for a given main topic
+ */
+function extractSubtopicsForTopic(content: string, mainTopic: string): ExtractedSubtopic[] {
+	const lowerContent = content.toLowerCase();
+	const subtopics: ExtractedSubtopic[] = [];
+	const patterns = SUBTOPIC_PATTERNS[mainTopic] || [];
+
+	for (const pattern of patterns) {
+		if (lowerContent.includes(pattern.toLowerCase())) {
+			// Extract context around the subtopic (up to 100 chars)
+			const index = lowerContent.indexOf(pattern.toLowerCase());
+			const start = Math.max(0, index - 50);
+			const end = Math.min(content.length, index + pattern.length + 50);
+			const context = content.slice(start, end).trim();
+
+			// Normalize subtopic name (group related patterns)
+			const normalizedSubtopic = normalizeSubtopic(pattern, mainTopic);
+
+			// Avoid duplicates
+			if (!subtopics.some(s => s.subtopic === normalizedSubtopic)) {
+				subtopics.push({
+					mainTopic,
+					subtopic: normalizedSubtopic,
+					context
+				});
+			}
+		}
+	}
+
+	return subtopics;
+}
+
+/**
+ * Normalize subtopic patterns to canonical names
+ */
+function normalizeSubtopic(pattern: string, mainTopic: string): string {
+	const patternLower = pattern.toLowerCase();
+
+	// Claude Code subtopics
+	if (mainTopic === 'claude code') {
+		if (['skills', 'custom skills', 'skill files'].includes(patternLower)) return 'custom skills';
+		if (['legal', 'contracts', 'lawyer', 'paralegal'].includes(patternLower)) return 'legal/contracts';
+		if (['optimization', 'optimizing', 'faster', 'speed', 'performance'].includes(patternLower)) return 'performance optimization';
+		if (['prompts', 'system prompt', 'prompt engineering'].includes(patternLower)) return 'prompts & instructions';
+		if (['memory', 'context', 'remember'].includes(patternLower)) return 'memory & context';
+		if (['hooks', 'custom hooks', 'automation'].includes(patternLower)) return 'hooks & automation';
+		if (['mcp', 'servers', 'tools'].includes(patternLower)) return 'MCP & tools';
+		if (['limits', 'rate limit', 'tokens'].includes(patternLower)) return 'limits & tokens';
+		if (['cost', 'pricing', 'expensive', 'cheap'].includes(patternLower)) return 'cost & pricing';
+		if (['tips', 'tricks', 'hacks'].includes(patternLower)) return 'tips & tricks';
+		if (['workflow', 'workflows', 'pipeline'].includes(patternLower)) return 'workflows';
+		if (['debugging', 'debug', 'errors'].includes(patternLower)) return 'debugging';
+		if (['comparison', 'vs', 'versus', 'better than'].includes(patternLower)) return 'comparisons';
+	}
+
+	// AI Agents subtopics
+	if (mainTopic === 'ai agents') {
+		if (['autonomous', 'self-improving', 'recursive'].includes(patternLower)) return 'autonomous agents';
+		if (['multi-agent', 'swarm', 'collaboration'].includes(patternLower)) return 'multi-agent systems';
+		if (['tools', 'tool use', 'function calling'].includes(patternLower)) return 'tool use';
+		if (['memory', 'long-term memory', 'remember'].includes(patternLower)) return 'agent memory';
+		if (['planning', 'reasoning', 'chain of thought'].includes(patternLower)) return 'planning & reasoning';
+		if (['deployment', 'production', 'scaling'].includes(patternLower)) return 'production deployment';
+		if (['cost', 'efficient', 'optimization'].includes(patternLower)) return 'cost optimization';
+		if (['safety', 'guardrails', 'alignment'].includes(patternLower)) return 'safety & guardrails';
+		if (['frameworks', 'langchain', 'autogen', 'crewai'].includes(patternLower)) return 'agent frameworks';
+		if (['use cases', 'applications', 'real-world'].includes(patternLower)) return 'use cases';
+	}
+
+	// Vibe Coding subtopics
+	if (mainTopic === 'vibe coding') {
+		if (['workflow', 'process', 'methodology'].includes(patternLower)) return 'workflow';
+		if (['prompts', 'prompting', 'instructions'].includes(patternLower)) return 'prompting';
+		if (['iteration', 'iterating', 'refining'].includes(patternLower)) return 'iteration';
+		if (['planning', 'architecture', 'design'].includes(patternLower)) return 'planning';
+		if (['debugging', 'fixing', 'errors'].includes(patternLower)) return 'debugging';
+		if (['shipping', 'launching', 'deploying'].includes(patternLower)) return 'shipping';
+		if (['learning', 'teaching', 'beginners'].includes(patternLower)) return 'learning';
+		if (['productivity', 'speed', 'fast'].includes(patternLower)) return 'productivity';
+	}
+
+	// Default: return pattern as-is
+	return pattern;
 }
 
 /**
@@ -278,12 +463,18 @@ export async function storeTopicPerformance(
 	try {
 		// Store each primary topic with its performance
 		for (const topic of topics.primary) {
+			// Find subtopics for this main topic
+			const relatedSubtopics = topics.subtopics
+				.filter(s => s.mainTopic === topic)
+				.map(s => s.subtopic);
+
 			const memory = {
 				content: `[TOPIC LEARNING] Topic: ${topic}
 Category: primary
 Score: ${viralityScore}
 Angle: ${topics.angle}
 Sentiment: ${topics.sentiment}
+Subtopics: ${relatedSubtopics.join(', ') || 'none'}
 Content Sample: ${content.slice(0, 200)}...
 Source: ${source || 'direct-input'}
 Related Topics: ${topics.secondary.join(', ') || 'none'}
@@ -300,7 +491,28 @@ Niche: ${activeNiche.name}`,
 			});
 		}
 
-		console.log(`[TopicLearning] Stored ${topics.primary.length} topic learnings`);
+		// Store subtopic-specific learnings for detailed tracking
+		for (const subtopic of topics.subtopics) {
+			const memory = {
+				content: `[SUBTOPIC LEARNING] MainTopic: ${subtopic.mainTopic}
+Subtopic: ${subtopic.subtopic}
+Score: ${viralityScore}
+Context: ${subtopic.context}
+Angle: ${topics.angle}
+Sentiment: ${topics.sentiment}`,
+				temporal_level: 3,
+				salience: viralityScore >= 70 ? 0.85 : viralityScore >= 50 ? 0.65 : 0.45,
+				content_type: 'subtopic_learning'
+			};
+
+			await fetch(`${MIND_API}/v1/memories/`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(memory)
+			});
+		}
+
+		console.log(`[TopicLearning] Stored ${topics.primary.length} topic + ${topics.subtopics.length} subtopic learnings`);
 		return true;
 	} catch (e) {
 		console.warn('[TopicLearning] Failed to store:', e);
@@ -408,10 +620,86 @@ export async function getTopicStats(): Promise<TopicPerformance[]> {
 }
 
 /**
+ * Get subtopic performance stats from Mind
+ */
+export async function getSubtopicStats(): Promise<SubtopicPerformance[]> {
+	try {
+		const response = await fetch(`${MIND_API}/v1/memories/?limit=500`);
+		if (!response.ok) return [];
+
+		const data = await response.json();
+		const memories: Array<{ content: string; created_at?: string }> = Array.isArray(data)
+			? data
+			: data.memories || [];
+
+		// Filter to subtopic learnings
+		const subtopicMemories = memories.filter(m =>
+			m.content?.includes('[SUBTOPIC LEARNING]')
+		);
+
+		// Aggregate by mainTopic + subtopic
+		const subtopicMap = new Map<string, {
+			mainTopic: string;
+			subtopic: string;
+			scores: number[];
+		}>();
+
+		for (const m of subtopicMemories) {
+			const mainTopicMatch = m.content.match(/MainTopic: ([^\n]+)/);
+			const subtopicMatch = m.content.match(/Subtopic: ([^\n]+)/);
+			const scoreMatch = m.content.match(/Score: (\d+)/);
+
+			if (mainTopicMatch && subtopicMatch && scoreMatch) {
+				const mainTopic = mainTopicMatch[1].trim();
+				const subtopic = subtopicMatch[1].trim();
+				const score = parseInt(scoreMatch[1]);
+				const key = `${mainTopic}::${subtopic}`;
+
+				if (!subtopicMap.has(key)) {
+					subtopicMap.set(key, { mainTopic, subtopic, scores: [] });
+				}
+
+				subtopicMap.get(key)!.scores.push(score);
+			}
+		}
+
+		// Convert to SubtopicPerformance array
+		const performances: SubtopicPerformance[] = [];
+
+		for (const [, data] of subtopicMap) {
+			const avgScore = data.scores.reduce((a, b) => a + b, 0) / data.scores.length;
+			const sampleSize = data.scores.length;
+
+			// Determine trend
+			let trend: SubtopicPerformance['trend'] = 'stable';
+			if (sampleSize <= 2) trend = 'new';
+			else if (data.scores.slice(-3).every((s, i, arr) => i === 0 || s >= arr[i - 1])) trend = 'rising';
+			else if (data.scores.slice(-3).every((s, i, arr) => i === 0 || s <= arr[i - 1])) trend = 'declining';
+
+			performances.push({
+				mainTopic: data.mainTopic,
+				subtopic: data.subtopic,
+				sampleSize,
+				avgViralityScore: Math.round(avgScore),
+				bestScore: Math.max(...data.scores),
+				trend
+			});
+		}
+
+		// Sort by average score
+		return performances.sort((a, b) => b.avgViralityScore - a.avgViralityScore);
+	} catch (e) {
+		console.warn('[TopicLearning] Failed to get subtopic stats:', e);
+		return [];
+	}
+}
+
+/**
  * Get topic insights and recommendations
  */
 export async function getTopicInsights(): Promise<TopicInsight> {
 	const stats = await getTopicStats();
+	const subtopicStats = await getSubtopicStats();
 
 	// Hot topics: high score, good sample size
 	const hotTopics = stats.filter(t =>
@@ -458,12 +746,45 @@ export async function getTopicInsights(): Promise<TopicInsight> {
 	const allAngles = stats.flatMap(t => t.examples.map(e => ({ angle: 'general', score: e.score })));
 	// This is simplified - would need to track angles properly
 
+	// NEW: Subtopic intelligence
+	const hotSubtopics = subtopicStats.filter(s =>
+		s.avgViralityScore >= 70 && s.sampleSize >= 2
+	).slice(0, 8);
+
+	const risingSubtopics = subtopicStats.filter(s =>
+		s.trend === 'rising' || (s.trend === 'new' && s.avgViralityScore >= 60)
+	).slice(0, 8);
+
+	// Group subtopics by main topic
+	const subtopicsByTopic: Record<string, SubtopicPerformance[]> = {};
+	for (const s of subtopicStats) {
+		if (!subtopicsByTopic[s.mainTopic]) {
+			subtopicsByTopic[s.mainTopic] = [];
+		}
+		subtopicsByTopic[s.mainTopic].push(s);
+	}
+
+	// Add subtopic-based recommendations
+	if (hotSubtopics.length > 0) {
+		const best = hotSubtopics[0];
+		recommendations.push(`Hot subtopic: "${best.subtopic}" in ${best.mainTopic} (avg ${best.avgViralityScore})`);
+	}
+
+	if (risingSubtopics.length > 0) {
+		const rising = risingSubtopics[0];
+		recommendations.push(`Rising: "${rising.subtopic}" in ${rising.mainTopic} - momentum building`);
+	}
+
 	return {
 		hotTopics,
 		risingTopics,
 		saturatedTopics,
 		gapTopics,
-		recommendations
+		recommendations,
+		// NEW: Subtopic data
+		hotSubtopics,
+		risingSubtopics,
+		subtopicsByTopic
 	};
 }
 
