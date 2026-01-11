@@ -10,16 +10,7 @@
 		contentforgeError
 	} from '$lib/services/contentforge-bridge';
 
-	let inputText = $state(`Here's my secret to building a $1M ARR startup in 12 months:
-
-1. Ship fast, iterate faster
-2. Talk to users every single day
-3. Focus on one metric that matters
-4. Build in public - your journey is your marketing
-
-The hardest part? Staying consistent when nobody's watching.
-
-But that's exactly when you build the foundation for success.`);
+	let inputText = $state('');
 
 	let loading = $state(false);
 	let result: any = $state(null);
