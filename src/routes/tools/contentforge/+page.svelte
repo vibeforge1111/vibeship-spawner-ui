@@ -65,6 +65,14 @@
 		type PatternStats
 	} from '$lib/services/viral-patterns';
 	import type { TweetData } from '$lib/services/x-api';
+	import {
+		improveContent,
+		type ContentImprovements,
+		type ImprovementRequest
+	} from '$lib/services/content-improver';
+
+	// Main mode: 'analyze' (existing) or 'improve' (NEW)
+	let mainMode = $state<'analyze' | 'improve'>('analyze');
 
 	// Input mode: 'tweet' for X/Twitter URL (default), 'text' for raw content
 	let inputMode = $state<'text' | 'tweet'>('tweet');
@@ -137,6 +145,12 @@
 	let analyzedContent = $state<{ type: 'tweet' | 'text'; text: string; tweetData?: TweetData } | null>(null);
 	let ralphConfig = $state<RalphConfig>({ ...DEFAULT_RALPH_CONFIG });
 	let ralphState = $state<RalphState | null>(null);
+
+	// Improve Mode state (NEW)
+	let improveText = $state('');
+	let improveLoading = $state(false);
+	let improvements = $state<ContentImprovements | null>(null);
+	let improveError = $state<string | null>(null);
 	let ralphIterations = $state<RalphIteration[]>([]);
 	let ralphMindContext = $state<string[]>([]);
 	let showRalphConfig = $state(false);
@@ -707,6 +721,61 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 	}
 
 	/**
+	 * Handle Improve Mode - analyze draft and get improvement suggestions
+	 */
+	async function handleImprove() {
+		if (!improveText.trim()) {
+			improveError = 'Enter draft content to improve';
+			return;
+		}
+
+		improveLoading = true;
+		improveError = null;
+		improvements = null;
+
+		try {
+			const request: ImprovementRequest = {
+				content: improveText,
+				platform: 'twitter' // Default for now
+			};
+
+			console.log('[ContentForge] Getting improvement suggestions...');
+			const result = await improveContent(request);
+			improvements = result;
+			console.log('[ContentForge] Improvements generated:', {
+				currentScore: result.currentScore,
+				potentialScore: result.potentialScore,
+				warnings: result.warnings.length
+			});
+		} catch (e) {
+			console.error('[ContentForge] Improve failed:', e);
+			improveError = e instanceof Error ? e.message : 'Failed to generate improvements';
+		} finally {
+			improveLoading = false;
+		}
+	}
+
+	/**
+	 * Apply a full rewrite suggestion
+	 */
+	function applyRewrite(rewrite: { content: string }) {
+		improveText = rewrite.content;
+		// Clear previous improvements to encourage re-analysis
+		improvements = null;
+	}
+
+	/**
+	 * Copy text to clipboard
+	 */
+	async function copyToClipboard(text: string) {
+		try {
+			await navigator.clipboard.writeText(text);
+		} catch (e) {
+			console.error('Failed to copy:', e);
+		}
+	}
+
+	/**
 	 * Handle queue item selection - show its result
 	 */
 	function handleQueueItemSelect(item: QueueItem) {
@@ -964,6 +1033,30 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 			</div>
 		{/if}
 
+		<!-- Main Mode Toggle: Analyze vs Improve -->
+		<div class="mb-6 flex items-center gap-4">
+			<span class="text-sm text-text-tertiary">Mode:</span>
+			<div class="flex border border-surface-border">
+				<button
+					onclick={() => mainMode = 'analyze'}
+					class="px-5 py-2 text-sm font-medium transition-colors {mainMode === 'analyze' ? 'bg-accent-primary text-white' : 'text-text-secondary hover:text-text-primary hover:bg-bg-secondary'}"
+				>
+					Analyze Post
+				</button>
+				<button
+					onclick={() => mainMode = 'improve'}
+					class="px-5 py-2 text-sm font-medium transition-colors {mainMode === 'improve' ? 'bg-emerald-500 text-white' : 'text-text-secondary hover:text-text-primary hover:bg-bg-secondary'}"
+				>
+					Improve Draft
+				</button>
+			</div>
+			<span class="text-xs text-text-tertiary">
+				{mainMode === 'analyze' ? 'Score existing content & learn patterns' : 'Get recommendations to improve your draft'}
+			</span>
+		</div>
+
+		{#if mainMode === 'analyze'}
+		<!-- ANALYZE MODE (existing functionality) -->
 		<div class="mb-8 bg-bg-secondary p-6 border border-surface-border">
 			<!-- Input Mode Tabs -->
 			<div class="flex items-center gap-4 mb-4">
@@ -1605,6 +1698,305 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 				</p>
 			</div>
 		{/if}
+		{/if}
+		<!-- End Analyze Mode -->
+
+		{#if mainMode === 'improve'}
+		<!-- IMPROVE MODE -->
+		<div class="mb-8 bg-bg-secondary p-6 border border-surface-border">
+			<h2 class="text-xl font-semibold mb-4">Draft Content to Improve</h2>
+			<p class="text-sm text-text-tertiary mb-4">
+				Paste your draft content and get AI-powered recommendations based on learned viral patterns.
+			</p>
+
+			<textarea
+				bind:value={improveText}
+				class="w-full h-48 bg-bg-primary border border-surface-border p-4 font-mono text-sm resize-y"
+				placeholder="Paste your draft content here... (tweet, thread, LinkedIn post, etc.)"
+			></textarea>
+
+			<div class="mt-4 flex items-center gap-4">
+				<button
+					onclick={handleImprove}
+					disabled={improveLoading || !improveText.trim()}
+					class="px-6 py-3 bg-emerald-500 text-white font-semibold hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+				>
+					{improveLoading ? 'Analyzing...' : 'Get Improvements'}
+				</button>
+
+				{#if improveText.trim()}
+					<span class="text-sm text-text-tertiary">
+						{improveText.trim().length} characters
+					</span>
+				{/if}
+			</div>
+
+			{#if improveError}
+				<div class="mt-4 p-4 bg-red-900/20 border border-red-500 text-red-400 text-sm">
+					{improveError}
+				</div>
+			{/if}
+		</div>
+
+		<!-- Improvement Results -->
+		{#if improvements}
+			<div class="space-y-6">
+				<!-- Score Overview -->
+				<div class="bg-bg-secondary p-6 border border-surface-border">
+					<div class="flex items-center justify-between mb-4">
+						<h3 class="text-lg font-semibold">Score Estimation</h3>
+						<div class="flex items-center gap-4">
+							<div class="text-center">
+								<div class="text-2xl font-bold text-yellow-400">{improvements.currentScore}</div>
+								<div class="text-xs text-text-tertiary">Current</div>
+							</div>
+							<div class="text-text-tertiary">→</div>
+							<div class="text-center">
+								<div class="text-2xl font-bold text-emerald-400">{improvements.potentialScore}</div>
+								<div class="text-xs text-text-tertiary">Potential</div>
+							</div>
+						</div>
+					</div>
+					<div class="h-2 bg-bg-primary rounded overflow-hidden">
+						<div
+							class="h-full bg-gradient-to-r from-yellow-500 to-emerald-500 transition-all"
+							style="width: {improvements.potentialScore}%"
+						></div>
+					</div>
+					<p class="text-sm text-text-tertiary mt-2">
+						+{improvements.potentialScore - improvements.currentScore} potential improvement with suggested changes
+					</p>
+				</div>
+
+				<!-- Hook Analysis -->
+				<div class="bg-bg-secondary p-6 border border-surface-border">
+					<h3 class="text-lg font-semibold mb-4">Hook Analysis</h3>
+
+					{#if improvements.hook.detected}
+						<div class="flex items-center gap-2 mb-4">
+							<span class="px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-medium">
+								{improvements.hook.type?.replace(/_/g, ' ').toUpperCase()}
+							</span>
+							<span class="text-sm text-text-secondary">Hook detected</span>
+							<span class="text-sm font-mono text-emerald-400">{(improvements.hook.strength * 100).toFixed(0)}% strength</span>
+						</div>
+					{:else}
+						<div class="p-4 bg-yellow-900/20 border border-yellow-500/30 mb-4">
+							<div class="flex items-center gap-2 text-yellow-400">
+								<span class="text-lg">⚠️</span>
+								<span class="font-medium">No strong hook detected</span>
+							</div>
+							<p class="text-sm text-text-tertiary mt-1">
+								Content without a hook typically gets 60% less engagement
+							</p>
+						</div>
+					{/if}
+
+					{#if improvements.hook.suggestions.length > 0}
+						<div class="mt-4">
+							<h4 class="text-sm font-medium mb-2">Suggested Hooks</h4>
+							<ul class="space-y-2">
+								{#each improvements.hook.suggestions as suggestion}
+									<li class="flex items-start gap-2 p-3 bg-bg-primary border border-surface-border hover:border-emerald-500/50 cursor-pointer transition-colors"
+										onclick={() => { improveText = suggestion + '\n\n' + improveText; }}
+									>
+										<span class="text-emerald-400 mt-0.5">+</span>
+										<span class="text-sm">{suggestion}</span>
+									</li>
+								{/each}
+							</ul>
+							<p class="text-xs text-text-tertiary mt-2">Click a suggestion to prepend it to your draft</p>
+						</div>
+					{/if}
+				</div>
+
+				<!-- Topic Analysis -->
+				<div class="bg-bg-secondary p-6 border border-surface-border">
+					<h3 class="text-lg font-semibold mb-4">Topic & Keyword Analysis</h3>
+
+					<div class="grid grid-cols-2 gap-4 mb-4">
+						<div>
+							<h4 class="text-sm font-medium text-text-tertiary mb-2">Detected Topics</h4>
+							<div class="flex flex-wrap gap-2">
+								{#each improvements.topics.detected as topic}
+									<span class="px-2 py-1 bg-accent-primary/20 text-accent-primary text-xs">
+										{topic}
+									</span>
+								{/each}
+								{#if improvements.topics.detected.length === 0}
+									<span class="text-sm text-text-tertiary">No strong topic signals</span>
+								{/if}
+							</div>
+						</div>
+						<div>
+							<h4 class="text-sm font-medium text-text-tertiary mb-2">Missing High-Performers</h4>
+							<div class="flex flex-wrap gap-2">
+								{#each improvements.topics.missing as topic}
+									<span class="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs cursor-pointer hover:bg-yellow-500/30"
+										onclick={() => navigator.clipboard.writeText(topic)}
+									>
+										+{topic}
+									</span>
+								{/each}
+								{#if improvements.topics.missing.length === 0}
+									<span class="text-sm text-emerald-400">Great topic coverage!</span>
+								{/if}
+							</div>
+						</div>
+					</div>
+
+					{#if improvements.topics.subtopicGaps.length > 0}
+						<div class="mt-4 p-4 bg-bg-primary border border-surface-border">
+							<h4 class="text-sm font-medium mb-2">Subtopic Opportunities</h4>
+							<p class="text-xs text-text-tertiary mb-2">
+								These subtopics perform well but aren't mentioned:
+							</p>
+							<div class="flex flex-wrap gap-2">
+								{#each improvements.topics.subtopicGaps as gap}
+									<span class="px-2 py-1 bg-purple-500/20 text-purple-400 text-xs">
+										{gap}
+									</span>
+								{/each}
+							</div>
+						</div>
+					{/if}
+				</div>
+
+				<!-- Emotion Analysis -->
+				<div class="bg-bg-secondary p-6 border border-surface-border">
+					<h3 class="text-lg font-semibold mb-4">Emotional Triggers</h3>
+
+					<div class="grid grid-cols-3 gap-4 mb-4">
+						{#each improvements.emotion.detected as emotion}
+							<div class="p-3 bg-bg-primary border border-surface-border">
+								<div class="flex items-center justify-between">
+									<span class="text-sm capitalize">{emotion.type}</span>
+									<span class="text-xs font-mono text-emerald-400">{(emotion.strength * 100).toFixed(0)}%</span>
+								</div>
+								<div class="h-1 bg-bg-secondary mt-2 rounded">
+									<div class="h-full bg-emerald-500 rounded" style="width: {emotion.strength * 100}%"></div>
+								</div>
+							</div>
+						{/each}
+					</div>
+
+					{#if improvements.emotion.suggestions.length > 0}
+						<div class="mt-4">
+							<h4 class="text-sm font-medium text-text-tertiary mb-2">Add Emotional Impact</h4>
+							<ul class="space-y-1">
+								{#each improvements.emotion.suggestions as suggestion}
+									<li class="text-sm text-text-secondary flex items-center gap-2">
+										<span class="text-yellow-400">→</span>
+										{suggestion}
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+				</div>
+
+				<!-- Anti-Pattern Warnings -->
+				{#if improvements.warnings.length > 0}
+					<div class="bg-red-900/10 p-6 border border-red-500/30">
+						<h3 class="text-lg font-semibold text-red-400 mb-4">⚠️ Content Warnings</h3>
+						<ul class="space-y-3">
+							{#each improvements.warnings as warning}
+								<li class="p-4 bg-bg-primary border border-red-500/20">
+									<div class="flex items-center justify-between mb-2">
+										<span class="font-medium text-red-400">{warning.type.replace(/_/g, ' ')}</span>
+										<span class="text-xs px-2 py-0.5 bg-red-500/20 text-red-400">{warning.severity}</span>
+									</div>
+									<p class="text-sm text-text-secondary mb-2">{warning.message}</p>
+									{#if warning.suggestion}
+										<p class="text-sm text-emerald-400">Fix: {warning.suggestion}</p>
+									{/if}
+									{#if warning.line}
+										<p class="text-xs text-text-tertiary mt-2 font-mono bg-bg-secondary p-2">
+											"{warning.line}"
+										</p>
+									{/if}
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
+
+				<!-- Line-by-Line Improvements -->
+				{#if improvements.lineImprovements.length > 0}
+					<div class="bg-bg-secondary p-6 border border-surface-border">
+						<h3 class="text-lg font-semibold mb-4">Line-by-Line Suggestions</h3>
+						<div class="space-y-4">
+							{#each improvements.lineImprovements as line}
+								<div class="p-4 bg-bg-primary border border-surface-border">
+									<div class="flex items-center gap-2 mb-2">
+										<span class="text-xs font-mono text-text-tertiary">Line {line.lineNumber}</span>
+										<span class="text-xs px-2 py-0.5 {line.type === 'weak_hook' || line.type === 'anti_pattern' ? 'bg-red-500/20 text-red-400' : line.type === 'opportunity' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-yellow-500/20 text-yellow-400'}">
+											{line.type.replace(/_/g, ' ')}
+										</span>
+									</div>
+									<p class="text-sm font-mono text-text-tertiary mb-2 line-through">
+										{line.original}
+									</p>
+									{#if line.suggestion}
+										<p class="text-sm font-mono text-emerald-400 mb-2">
+											{line.suggestion}
+										</p>
+									{/if}
+									<p class="text-xs text-text-tertiary">{line.reason}</p>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Full Rewrites -->
+				{#if improvements.fullRewrites.length > 0}
+					<div class="bg-emerald-900/10 p-6 border border-emerald-500/30">
+						<h3 class="text-lg font-semibold text-emerald-400 mb-4">✨ Suggested Rewrites</h3>
+						<p class="text-sm text-text-tertiary mb-4">
+							Complete rewrites optimized for engagement based on learned patterns
+						</p>
+						<div class="space-y-4">
+							{#each improvements.fullRewrites as rewrite, i}
+								<div class="p-4 bg-bg-primary border border-emerald-500/30">
+									<div class="flex items-center justify-between mb-3">
+										<span class="text-sm font-medium text-emerald-400">Version {i + 1}</span>
+										<div class="flex items-center gap-2">
+											<span class="text-xs text-text-tertiary">Est. score:</span>
+											<span class="text-sm font-mono text-emerald-400">{rewrite.estimatedScore}</span>
+										</div>
+									</div>
+									<p class="text-sm font-mono whitespace-pre-wrap mb-3">{rewrite.content}</p>
+									<div class="flex flex-wrap gap-2 mb-3">
+										{#each rewrite.changes as change}
+											<span class="text-xs px-2 py-1 bg-emerald-500/20 text-emerald-400">
+												{change}
+											</span>
+										{/each}
+									</div>
+									<div class="flex gap-2">
+										<button
+											onclick={() => applyRewrite(rewrite)}
+											class="px-4 py-2 bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 transition-colors"
+										>
+											Use This Version
+										</button>
+										<button
+											onclick={() => copyToClipboard(rewrite.content)}
+											class="px-4 py-2 bg-bg-secondary border border-surface-border text-sm hover:border-emerald-500/50 transition-colors"
+										>
+											Copy
+										</button>
+									</div>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+			</div>
+		{/if}
+		{/if}
+		<!-- End Improve Mode -->
 
 			</div>
 			<!-- End main content area -->
