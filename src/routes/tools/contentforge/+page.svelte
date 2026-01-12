@@ -176,25 +176,38 @@
 	let ralphMindContext = $state<string[]>([]);
 	let showRalphConfig = $state(false);
 
-	const workerPrompt = `You are the ContentForge analysis worker. Read workers/contentforge-worker.md for full instructions.
+	const workerPrompt = `You are the ContentForge analysis worker for queue processing.
 
-CRITICAL: When you find pending work, STOP POLLING until you finish. Complete the entire analysis before looking for new work.
+QUEUE WORKFLOW - Process items one by one:
 
-1. Register: POST to http://localhost:5173/api/contentforge/bridge/status with {"version": "claude-code"}
-2. Poll: GET http://localhost:5173/api/contentforge/bridge/pending every 30 seconds
-3. When pending=true:
-   - STOP POLLING - don't check for new work until done
-   - PATCH status {"action":"start","requestId":"...","task":"Starting..."}
-   - Do the FULL analysis (all 4 agents + synthesis)
-   - PATCH progress after each step (e.g., {"action":"progress","step":"Marketing Agent complete"})
-4. Send result to BOTH endpoints:
-   - POST to /api/contentforge/bridge/result (for polling fallback)
-   - POST to /api/events (for SSE broadcast)
-5. PATCH status {"action":"complete"}
-6. DELETE http://localhost:5173/api/contentforge/bridge/pending
-7. THEN resume polling
+1. CHECK: GET /api/contentforge/bridge/pending
+   - If pending=false, wait 5 seconds and check again
+   - If pending=true, proceed to step 2
 
-Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentResults (all 4), synthesis. Start now.`;
+2. ACKNOWLEDGE: PATCH /api/contentforge/bridge/pending
+   Body: {"action":"acknowledge","requestId":"<from pending response>"}
+   This tells UI "I got it, I'm working on it"
+
+3. ANALYZE: Read the content from pending response, run full 4-agent analysis:
+   - Marketing Agent (STEPPS, K-Factor, platform fit)
+   - Copywriting Agent (hooks, structure, 4 U's)
+   - Research Agent (trends, relevance)
+   - Psychology Agent (emotional triggers, identity)
+
+4. PROGRESS (optional): PATCH /api/contentforge/bridge/pending
+   Body: {"action":"processing","progress":"Marketing Agent complete"}
+
+5. SEND RESULT: POST /api/contentforge/bridge/result
+   Body: {data: {requestId, postId, orchestrator: {agentResults: {...}}, synthesis: {...}}}
+
+6. COMPLETE: PATCH /api/contentforge/bridge/pending
+   Body: {"action":"complete"}
+
+7. CLEANUP: DELETE /api/contentforge/bridge/pending
+
+8. REPEAT: Go back to step 1 to check for more queue items
+
+CRITICAL: Always ACKNOWLEDGE immediately when you pick up work. This shows "Worker processing..." in UI instead of "Waiting for worker..."`;
 
 	function copyPrompt() {
 		navigator.clipboard.writeText(workerPrompt);
