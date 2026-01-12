@@ -10,6 +10,22 @@ import { browser } from '$app/environment';
 import { requestContentForgeAnalysis, type ContentForgeResult } from './contentforge-bridge';
 
 // =============================================================================
+// CONFIGURATION
+// =============================================================================
+
+/** Timeout for queue items (60 seconds - shorter than manual analysis) */
+const QUEUE_ITEM_TIMEOUT_MS = 60000;
+
+/** Maximum retries for failed items */
+const MAX_RETRIES = 2;
+
+/** Track retries per item */
+const itemRetries = new Map<string, number>();
+
+/** Track if processing was cancelled */
+let processingCancelled = false;
+
+// =============================================================================
 // TYPES
 // =============================================================================
 
@@ -26,6 +42,9 @@ export interface QueueItem {
 	result?: ContentForgeResult;
 	error?: string;
 	position: number; // Queue position (1-based for display)
+	// Worker tracking
+	workerAcknowledged?: boolean;
+	workerProgress?: string;
 }
 
 export interface QueueState {
@@ -299,10 +318,38 @@ async function processQueue(): Promise<void> {
 }
 
 /**
+ * Poll worker status and update queue item
+ */
+async function pollWorkerStatus(itemId: string): Promise<{ acknowledged: boolean; progress?: string }> {
+	try {
+		const response = await fetch('/api/contentforge/bridge/pending');
+		if (!response.ok) return { acknowledged: false };
+
+		const data = await response.json();
+		if (!data.pending) return { acknowledged: false };
+
+		const acknowledged = data.status === 'acknowledged' || data.status === 'processing';
+		const progress = data.progress?.length > 0
+			? data.progress[data.progress.length - 1]?.step
+			: undefined;
+
+		return { acknowledged, progress };
+	} catch {
+		return { acknowledged: false };
+	}
+}
+
+/**
  * Process a single queue item
  */
 async function processItem(item: QueueItem): Promise<void> {
 	console.log('[ContentForgeQueue] Processing item:', item.id);
+
+	// Check if cancelled
+	if (processingCancelled) {
+		console.log('[ContentForgeQueue] Processing cancelled, skipping item:', item.id);
+		return;
+	}
 
 	// Mark as processing
 	queueState.update(s => ({
@@ -312,18 +359,49 @@ async function processItem(item: QueueItem): Promise<void> {
 
 	updateItem(item.id, {
 		status: 'processing',
-		startedAt: new Date().toISOString()
+		startedAt: new Date().toISOString(),
+		workerAcknowledged: false,
+		workerProgress: 'Waiting for worker...'
 	});
 
+	// Start worker status polling (every 3 seconds)
+	let statusPollInterval: ReturnType<typeof setInterval> | null = null;
+	statusPollInterval = setInterval(async () => {
+		if (processingCancelled) {
+			if (statusPollInterval) clearInterval(statusPollInterval);
+			return;
+		}
+
+		const { acknowledged, progress } = await pollWorkerStatus(item.id);
+
+		updateItem(item.id, {
+			workerAcknowledged: acknowledged,
+			workerProgress: acknowledged
+				? (progress || 'Worker processing...')
+				: 'Waiting for worker...'
+		});
+	}, 3000);
+
 	try {
-		// Call the actual analysis
-		const result = await requestContentForgeAnalysis(item.content);
+		// Call the actual analysis with shorter timeout for queue items
+		const result = await requestContentForgeAnalysis(item.content, QUEUE_ITEM_TIMEOUT_MS);
+
+		// Stop status polling
+		if (statusPollInterval) clearInterval(statusPollInterval);
+
+		// Check if cancelled during analysis
+		if (processingCancelled) {
+			console.log('[ContentForgeQueue] Processing cancelled after analysis:', item.id);
+			return;
+		}
 
 		// Mark as complete
 		updateItem(item.id, {
 			status: 'complete',
 			completedAt: new Date().toISOString(),
-			result
+			result,
+			workerAcknowledged: true,
+			workerProgress: 'Complete'
 		});
 
 		queueState.update(s => ({
@@ -331,15 +409,43 @@ async function processItem(item: QueueItem): Promise<void> {
 			totalProcessed: s.totalProcessed + 1
 		}));
 
+		// Clear retry count on success
+		itemRetries.delete(item.id);
+
 		console.log('[ContentForgeQueue] Item completed:', item.id, 'score:', result.synthesis?.viralityScore);
 
 	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		// Stop status polling
+		if (statusPollInterval) clearInterval(statusPollInterval);
 
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		const retryCount = itemRetries.get(item.id) || 0;
+
+		// Check if we should retry
+		if (retryCount < MAX_RETRIES && !processingCancelled) {
+			itemRetries.set(item.id, retryCount + 1);
+			console.log('[ContentForgeQueue] Item failed, retrying:', item.id, 'attempt:', retryCount + 1);
+
+			// Reset to queued for retry (will be picked up in next loop iteration)
+			updateItem(item.id, {
+				status: 'queued',
+				startedAt: undefined,
+				workerAcknowledged: false,
+				workerProgress: undefined,
+				error: `Retry ${retryCount + 1}/${MAX_RETRIES}: ${errorMessage}`
+			});
+
+			// Small delay before retry
+			await new Promise(resolve => setTimeout(resolve, 2000));
+			return;
+		}
+
+		// Max retries exceeded or cancelled
 		updateItem(item.id, {
 			status: 'error',
 			completedAt: new Date().toISOString(),
-			error: errorMessage
+			workerProgress: 'Failed',
+			error: retryCount > 0 ? `Failed after ${retryCount} retries: ${errorMessage}` : errorMessage
 		});
 
 		queueState.update(s => ({
@@ -347,11 +453,94 @@ async function processItem(item: QueueItem): Promise<void> {
 			totalErrors: s.totalErrors + 1
 		}));
 
+		// Clear retry count
+		itemRetries.delete(item.id);
+
 		console.error('[ContentForgeQueue] Item failed:', item.id, errorMessage);
+
+		// Clean up any pending files
+		cleanupPendingFiles();
 	}
 
 	// Update positions after completion
 	updatePositions();
+}
+
+/**
+ * Clean up pending analysis files
+ */
+async function cleanupPendingFiles(): Promise<void> {
+	try {
+		await fetch('/api/contentforge/bridge/cleanup', { method: 'POST' });
+	} catch (e) {
+		console.warn('[ContentForgeQueue] Cleanup failed:', e);
+	}
+}
+
+/**
+ * Cancel the currently processing item
+ */
+export function cancelCurrentItem(): boolean {
+	const state = get(queueState);
+
+	if (!state.currentItemId || !state.isProcessing) {
+		return false;
+	}
+
+	console.log('[ContentForgeQueue] Cancelling current item:', state.currentItemId);
+
+	// Set cancelled flag
+	processingCancelled = true;
+
+	// Mark current item as error
+	updateItem(state.currentItemId, {
+		status: 'error',
+		completedAt: new Date().toISOString(),
+		error: 'Cancelled by user'
+	});
+
+	// Clear current item
+	queueState.update(s => ({
+		...s,
+		currentItemId: null,
+		isProcessing: false
+	}));
+
+	// Clean up pending files
+	cleanupPendingFiles();
+
+	// Reset cancelled flag after a short delay
+	setTimeout(() => {
+		processingCancelled = false;
+	}, 1000);
+
+	return true;
+}
+
+/**
+ * Skip the current item and move to next
+ */
+export function skipCurrentItem(): boolean {
+	const state = get(queueState);
+
+	if (!state.currentItemId || !state.isProcessing) {
+		return false;
+	}
+
+	console.log('[ContentForgeQueue] Skipping current item:', state.currentItemId);
+
+	// Mark as error (skipped)
+	updateItem(state.currentItemId, {
+		status: 'error',
+		completedAt: new Date().toISOString(),
+		error: 'Skipped'
+	});
+
+	// Clean up pending files
+	cleanupPendingFiles();
+
+	// Continue processing will happen in the processQueue loop
+	return true;
 }
 
 /**

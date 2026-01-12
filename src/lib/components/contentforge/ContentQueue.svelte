@@ -7,6 +7,7 @@
 		removeFromQueue,
 		clearCompleted,
 		retryItem,
+		skipCurrentItem,
 		getQueueStats,
 		type QueueItem
 	} from '$lib/services/contentforge-queue';
@@ -58,6 +59,11 @@
 	function handleRetry(e: MouseEvent, itemId: string) {
 		e.stopPropagation();
 		retryItem(itemId);
+	}
+
+	function handleSkip(e: MouseEvent) {
+		e.stopPropagation();
+		skipCurrentItem();
 	}
 </script>
 
@@ -141,7 +147,11 @@
 							{#if item.status === 'queued'}
 								#{item.position} in queue
 							{:else if item.status === 'processing'}
-								Analyzing...
+								{#if item.workerAcknowledged}
+									<span class="worker-active">{item.workerProgress || 'Processing...'}</span>
+								{:else}
+									<span class="worker-waiting">Waiting for worker...</span>
+								{/if}
 							{:else if item.status === 'complete' && item.result?.synthesis?.viralityScore}
 								Score: {item.result.synthesis.viralityScore}
 							{:else if item.status === 'error'}
@@ -157,6 +167,14 @@
 								title="Remove from queue"
 							>
 								x
+							</button>
+						{:else if item.status === 'processing'}
+							<button
+								class="item-action skip"
+								on:click={(e) => handleSkip(e)}
+								title="Skip this item"
+							>
+								Skip
 							</button>
 						{:else if item.status === 'error'}
 							<button
@@ -384,10 +402,32 @@
 		color: var(--accent-primary, #00d9ff);
 	}
 
+	.item-action.skip {
+		color: #f0ad4e;
+	}
+
+	.item-action.skip:hover {
+		color: #ec971f;
+	}
+
 	.item-time {
 		font-size: 0.7rem;
 		color: var(--text-secondary, #8b949e);
 		font-family: monospace;
+	}
+
+	.worker-active {
+		color: var(--accent-primary, #00d9ff);
+	}
+
+	.worker-waiting {
+		color: #f0ad4e;
+		animation: pulse 1.5s ease-in-out infinite;
+	}
+
+	@keyframes pulse {
+		0%, 100% { opacity: 0.6; }
+		50% { opacity: 1; }
 	}
 
 	/* Scrollbar styling */

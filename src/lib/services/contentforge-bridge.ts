@@ -356,19 +356,25 @@ async function sendAnalysisRequest(request: ContentForgeRequest): Promise<void> 
 /**
  * Wait for Claude Code to respond with analysis
  * Uses both SSE events AND polling as fallback
+ * Also tracks worker acknowledgment status
  */
 function waitForAnalysisResponse(requestId: string, timeoutMs: number): Promise<ContentForgeResult> {
 	return new Promise((resolve, reject) => {
 		let resolved = false;
+		let workerAcknowledged = false;
+		let lastStatusCheck = Date.now();
 
 		const timeout = setTimeout(() => {
 			if (resolved) return;
 			resolved = true;
 			pendingRequests.delete(requestId);
-			reject(new Error('Analysis timeout - Claude Code may not be connected. Try the local analysis instead.'));
+			const msg = workerAcknowledged
+				? 'Analysis timeout - worker acknowledged but did not complete in time.'
+				: 'Analysis timeout - worker did not acknowledge. Is Claude Code running?';
+			reject(new Error(msg));
 		}, timeoutMs);
 
-		// Fallback: Poll for results every 2 seconds (faster polling)
+		// Poll for results AND check worker status every 2 seconds
 		const pollInterval = setInterval(async () => {
 			if (resolved) {
 				clearInterval(pollInterval);
@@ -376,35 +382,54 @@ function waitForAnalysisResponse(requestId: string, timeoutMs: number): Promise<
 			}
 
 			try {
-				const response = await fetch('/api/contentforge/bridge/result');
-				if (!response.ok) return;
+				// Check for result first
+				const resultResponse = await fetch('/api/contentforge/bridge/result');
+				if (resultResponse.ok) {
+					const data = await resultResponse.json();
+					if (data.hasResult) {
+						const storedRequestId = data.data?.requestId || data.requestId;
+						const hasMatchingId = storedRequestId === requestId;
+						const hasValidResult = data.data?.orchestrator || data.data?.synthesis;
 
-				const data = await response.json();
-				if (!data.hasResult) return;
+						if (hasMatchingId || hasValidResult) {
+							console.log('[ContentForgeBridge] Got result via polling, matched:', hasMatchingId);
+							resolved = true;
+							clearTimeout(timeout);
+							clearInterval(pollInterval);
+							pendingRequests.delete(requestId);
 
-				// Check for requestId in multiple possible locations
-				const storedRequestId = data.data?.requestId || data.requestId;
+							await fetch('/api/contentforge/bridge/result', { method: 'DELETE' });
 
-				// Accept result if requestId matches OR if we have any valid result (fallback)
-				const hasMatchingId = storedRequestId === requestId;
-				const hasValidResult = data.data?.orchestrator || data.data?.synthesis;
+							const result = data.data as ContentForgeResult;
+							contentforgeResult.set(result);
+							contentforgeStatus.set('complete');
 
-				if (hasMatchingId || hasValidResult) {
-					console.log('[ContentForgeBridge] Got result via polling fallback, matched:', hasMatchingId, 'valid:', hasValidResult);
-					resolved = true;
-					clearTimeout(timeout);
-					clearInterval(pollInterval);
-					pendingRequests.delete(requestId);
+							resolve(result);
+							return;
+						}
+					}
+				}
 
-					// Clear the stored result
-					await fetch('/api/contentforge/bridge/result', { method: 'DELETE' });
+				// Check worker status every 5 seconds (not every 2)
+				if (Date.now() - lastStatusCheck > 5000) {
+					lastStatusCheck = Date.now();
+					const statusResponse = await fetch('/api/contentforge/bridge/pending');
+					if (statusResponse.ok) {
+						const statusData = await statusResponse.json();
+						if (statusData.pending && statusData.status) {
+							const wasAcknowledged = workerAcknowledged;
+							workerAcknowledged = statusData.status === 'acknowledged' || statusData.status === 'processing';
 
-					// Update stores
-					const result = data.data as ContentForgeResult;
-					contentforgeResult.set(result);
-					contentforgeStatus.set('complete');
+							if (workerAcknowledged && !wasAcknowledged) {
+								console.log('[ContentForgeBridge] Worker acknowledged request:', requestId);
+							}
 
-					resolve(result);
+							if (statusData.progress?.length > 0) {
+								const latestProgress = statusData.progress[statusData.progress.length - 1];
+								console.log('[ContentForgeBridge] Worker progress:', latestProgress.step);
+							}
+						}
+					}
 				}
 			} catch (e) {
 				console.warn('[ContentForgeBridge] Polling error:', e);

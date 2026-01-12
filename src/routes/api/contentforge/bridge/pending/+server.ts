@@ -10,7 +10,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { readFile, unlink } from 'node:fs/promises';
+import { readFile, unlink, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
@@ -82,6 +82,11 @@ export const GET: RequestHandler = async () => {
 			timestamp: requestData.timestamp,
 			skillsLoaded: requestData.skillsLoaded || [],
 			skillsBundled: true, // Skills are embedded in the content
+			// Worker status tracking
+			status: requestData.status || 'pending',
+			acknowledgedAt: requestData.acknowledgedAt,
+			processingAt: requestData.processingAt,
+			progress: requestData.progress || [],
 			content
 		});
 
@@ -89,6 +94,82 @@ export const GET: RequestHandler = async () => {
 		console.error('[ContentForge Bridge] Pending check error:', error);
 		return json(
 			{ error: error instanceof Error ? error.message : 'Failed to check pending' },
+			{ status: 500 }
+		);
+	}
+};
+
+/**
+ * PATCH /api/contentforge/bridge/pending
+ * Worker acknowledges it picked up the work.
+ * This tells the UI "I got this, I'm working on it"
+ */
+export const PATCH: RequestHandler = async ({ request }) => {
+	try {
+		const body = await request.json().catch(() => ({}));
+		const { action, requestId, progress } = body;
+
+		const spawnerPath = path.resolve(process.cwd(), SPAWNER_DIR);
+		const requestPath = path.join(spawnerPath, REQUEST_FILE);
+
+		if (!existsSync(requestPath)) {
+			return json({ error: 'No pending request to acknowledge' }, { status: 404 });
+		}
+
+		const requestData = JSON.parse(await readFile(requestPath, 'utf-8'));
+
+		// Verify requestId matches (optional but good practice)
+		if (requestId && requestData.requestId !== requestId) {
+			return json({ error: 'Request ID mismatch' }, { status: 400 });
+		}
+
+		switch (action) {
+			case 'acknowledge':
+				requestData.status = 'acknowledged';
+				requestData.acknowledgedAt = new Date().toISOString();
+				console.log('[ContentForge Bridge] Worker acknowledged:', requestData.requestId);
+				break;
+
+			case 'processing':
+				requestData.status = 'processing';
+				requestData.processingAt = new Date().toISOString();
+				if (progress) {
+					requestData.progress = requestData.progress || [];
+					requestData.progress.push({ step: progress, at: new Date().toISOString() });
+				}
+				console.log('[ContentForge Bridge] Worker processing:', progress || 'started');
+				break;
+
+			case 'complete':
+				requestData.status = 'complete';
+				requestData.completedAt = new Date().toISOString();
+				console.log('[ContentForge Bridge] Worker complete:', requestData.requestId);
+				break;
+
+			case 'error':
+				requestData.status = 'error';
+				requestData.errorAt = new Date().toISOString();
+				requestData.error = progress || 'Unknown error';
+				console.log('[ContentForge Bridge] Worker error:', requestData.error);
+				break;
+
+			default:
+				return json({ error: 'Invalid action. Use: acknowledge, processing, complete, error' }, { status: 400 });
+		}
+
+		// Save updated request
+		await writeFile(requestPath, JSON.stringify(requestData, null, 2), 'utf-8');
+
+		return json({
+			success: true,
+			requestId: requestData.requestId,
+			status: requestData.status
+		});
+
+	} catch (error) {
+		console.error('[ContentForge Bridge] Acknowledge error:', error);
+		return json(
+			{ error: error instanceof Error ? error.message : 'Failed to acknowledge' },
 			{ status: 500 }
 		);
 	}
