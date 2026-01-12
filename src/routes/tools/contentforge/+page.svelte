@@ -67,12 +67,33 @@
 	import type { TweetData } from '$lib/services/x-api';
 	import {
 		improveContent,
+		requestAIRewrites,
+		analyzeMedia,
 		type ContentImprovements,
-		type ImprovementRequest
+		type ImprovementRequest,
+		type AIRewriteRequest,
+		type FullRewrite,
+		type VisualAnalysis
 	} from '$lib/services/content-improver';
 
 	// Main mode: 'analyze' (existing) or 'improve' (NEW)
 	let mainMode = $state<'analyze' | 'improve'>('analyze');
+
+	// Platform selector for improvements
+	let targetPlatform = $state<'twitter' | 'linkedin' | 'threads'>('twitter');
+
+	// Media upload state
+	let uploadedMedia = $state<File | null>(null);
+	let mediaPreview = $state<string | null>(null);
+	let mediaType = $state<'image' | 'video' | 'gif' | null>(null);
+
+	// AI rewrite state
+	let aiRewriteLoading = $state(false);
+	let aiRewrites = $state<FullRewrite[]>([]);
+
+	// Visual analysis state
+	let visualAnalysis = $state<VisualAnalysis | null>(null);
+	let visualAnalysisLoading = $state(false);
 
 	// Input mode: 'tweet' for X/Twitter URL (default), 'text' for raw content
 	let inputMode = $state<'text' | 'tweet'>('tweet');
@@ -732,11 +753,12 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 		improveLoading = true;
 		improveError = null;
 		improvements = null;
+		aiRewrites = []; // Clear AI rewrites
 
 		try {
 			const request: ImprovementRequest = {
 				content: improveText,
-				platform: 'twitter' // Default for now
+				platform: targetPlatform
 			};
 
 			console.log('[ContentForge] Getting improvement suggestions...');
@@ -756,12 +778,127 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 	}
 
 	/**
+	 * Request AI-powered rewrites from Claude
+	 */
+	async function handleAIRewrites() {
+		if (!improvements || !improveText.trim()) return;
+
+		aiRewriteLoading = true;
+
+		try {
+			const request: AIRewriteRequest = {
+				draft: improveText,
+				improvements,
+				platform: targetPlatform
+			};
+
+			console.log('[ContentForge] Requesting AI rewrites...');
+			const result = await requestAIRewrites(request);
+
+			if (result.success && result.rewrites.length > 0) {
+				aiRewrites = result.rewrites;
+				console.log('[ContentForge] AI rewrites received:', result.rewrites.length);
+			} else {
+				console.warn('[ContentForge] AI rewrites failed:', result.error);
+			}
+		} catch (e) {
+			console.error('[ContentForge] AI rewrite error:', e);
+		} finally {
+			aiRewriteLoading = false;
+		}
+	}
+
+	/**
+	 * Handle media file upload
+	 */
+	async function handleMediaUpload(event: Event) {
+		const input = event.target as HTMLInputElement;
+		const file = input.files?.[0];
+
+		if (!file) return;
+
+		// Validate file type
+		const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm'];
+		if (!validTypes.includes(file.type)) {
+			improveError = 'Unsupported file type. Use JPG, PNG, GIF, WebP, MP4, or WebM.';
+			return;
+		}
+
+		// Determine media type
+		if (file.type.startsWith('image/gif')) {
+			mediaType = 'gif';
+		} else if (file.type.startsWith('image/')) {
+			mediaType = 'image';
+		} else if (file.type.startsWith('video/')) {
+			mediaType = 'video';
+		}
+
+		uploadedMedia = file;
+
+		// Create preview URL
+		if (mediaPreview) {
+			URL.revokeObjectURL(mediaPreview);
+		}
+		mediaPreview = URL.createObjectURL(file);
+
+		console.log('[ContentForge] Media uploaded:', file.name, mediaType);
+
+		// Run visual analysis for images
+		if (mediaType === 'image' || mediaType === 'gif') {
+			visualAnalysisLoading = true;
+			visualAnalysis = null;
+			try {
+				visualAnalysis = await analyzeMedia({
+					file,
+					platform: targetPlatform,
+					contentContext: improveText
+				});
+				console.log('[ContentForge] Visual analysis complete:', visualAnalysis);
+			} catch (e) {
+				console.error('[ContentForge] Visual analysis error:', e);
+			} finally {
+				visualAnalysisLoading = false;
+			}
+		}
+	}
+
+	/**
+	 * Remove uploaded media
+	 */
+	function removeMedia() {
+		if (mediaPreview) {
+			URL.revokeObjectURL(mediaPreview);
+		}
+		uploadedMedia = null;
+		mediaPreview = null;
+		mediaType = null;
+		visualAnalysis = null;
+	}
+
+	/**
+	 * Handle drag and drop for media
+	 */
+	function handleDrop(event: DragEvent) {
+		event.preventDefault();
+		const file = event.dataTransfer?.files[0];
+		if (file) {
+			const fakeEvent = { target: { files: [file] } } as unknown as Event;
+			handleMediaUpload(fakeEvent);
+		}
+	}
+
+	function handleDragOver(event: DragEvent) {
+		event.preventDefault();
+	}
+
+	/**
 	 * Apply a full rewrite suggestion
 	 */
 	function applyRewrite(rewrite: { content: string }) {
 		improveText = rewrite.content;
 		// Clear previous improvements to encourage re-analysis
 		improvements = null;
+		aiRewrites = [];
 	}
 
 	/**
@@ -1704,7 +1841,21 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 		{#if mainMode === 'improve'}
 		<!-- IMPROVE MODE -->
 		<div class="mb-8 bg-bg-secondary p-6 border border-surface-border">
-			<h2 class="text-xl font-semibold mb-4">Draft Content to Improve</h2>
+			<div class="flex items-center justify-between mb-4">
+				<h2 class="text-xl font-semibold">Draft Content to Improve</h2>
+				<!-- Platform Selector -->
+				<div class="flex items-center gap-2">
+					<span class="text-sm text-text-tertiary">Platform:</span>
+					<select
+						bind:value={targetPlatform}
+						class="bg-bg-primary border border-surface-border px-3 py-1.5 text-sm"
+					>
+						<option value="twitter">Twitter/X</option>
+						<option value="linkedin">LinkedIn</option>
+						<option value="threads">Threads</option>
+					</select>
+				</div>
+			</div>
 			<p class="text-sm text-text-tertiary mb-4">
 				Paste your draft content and get AI-powered recommendations based on learned viral patterns.
 			</p>
@@ -1714,6 +1865,148 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 				class="w-full h-48 bg-bg-primary border border-surface-border p-4 font-mono text-sm resize-y"
 				placeholder="Paste your draft content here... (tweet, thread, LinkedIn post, etc.)"
 			></textarea>
+
+			<!-- Media Upload Area -->
+			<div class="mt-4">
+				{#if !uploadedMedia}
+					<div
+						class="border-2 border-dashed border-surface-border p-6 text-center hover:border-emerald-500/50 transition-colors cursor-pointer"
+						ondrop={handleDrop}
+						ondragover={handleDragOver}
+						role="button"
+						tabindex="0"
+					>
+						<input
+							type="file"
+							accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+							onchange={handleMediaUpload}
+							class="hidden"
+							id="media-upload"
+						/>
+						<label for="media-upload" class="cursor-pointer">
+							<div class="text-text-tertiary">
+								<span class="text-2xl">📷</span>
+								<p class="mt-2 text-sm">Drop image/video here or click to upload</p>
+								<p class="text-xs mt-1">JPG, PNG, GIF, WebP, MP4, WebM</p>
+							</div>
+						</label>
+					</div>
+				{:else}
+					<div class="border border-surface-border p-4 relative">
+						<button
+							onclick={removeMedia}
+							class="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs hover:bg-red-600"
+						>
+							X
+						</button>
+						<div class="flex items-start gap-4">
+							{#if mediaType === 'video'}
+								<video src={mediaPreview} class="w-32 h-32 object-cover flex-shrink-0" controls></video>
+							{:else}
+								<img src={mediaPreview} alt="Upload preview" class="w-32 h-32 object-cover flex-shrink-0" />
+							{/if}
+							<div class="flex-1 min-w-0">
+								<p class="text-sm font-medium">{uploadedMedia.name}</p>
+								<p class="text-xs text-text-tertiary">
+									{mediaType?.toUpperCase()} - {(uploadedMedia.size / 1024).toFixed(1)} KB
+								</p>
+
+								{#if visualAnalysisLoading}
+									<div class="mt-3 flex items-center gap-2 text-xs text-purple-400">
+										<svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+											<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+											<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+										</svg>
+										Analyzing image...
+									</div>
+								{:else if visualAnalysis}
+									<!-- Visual Analysis Results -->
+									<div class="mt-3 space-y-3">
+										<!-- Scroll-Stop Score -->
+										<div class="flex items-center gap-2">
+											<span class="text-xs text-text-tertiary">Scroll-Stop:</span>
+											<div class="flex-1 h-2 bg-bg-primary rounded-full overflow-hidden max-w-24">
+												<div
+													class="h-full transition-all {visualAnalysis.scrollStop.score >= 70 ? 'bg-emerald-500' : visualAnalysis.scrollStop.score >= 50 ? 'bg-yellow-500' : 'bg-red-500'}"
+													style="width: {visualAnalysis.scrollStop.score}%"
+												></div>
+											</div>
+											<span class="text-xs font-mono {visualAnalysis.scrollStop.score >= 70 ? 'text-emerald-400' : visualAnalysis.scrollStop.score >= 50 ? 'text-yellow-400' : 'text-red-400'}">
+												{visualAnalysis.scrollStop.score}
+											</span>
+										</div>
+
+										<!-- Composition & Colors -->
+										<div class="flex flex-wrap gap-2 text-xs">
+											<span class="px-2 py-1 bg-bg-secondary border border-surface-border">
+												📐 {visualAnalysis.composition.type}
+											</span>
+											<span class="px-2 py-1 bg-bg-secondary border border-surface-border">
+												🎨 {visualAnalysis.colors.contrast} contrast
+											</span>
+											<span class="px-2 py-1 bg-bg-secondary border border-surface-border">
+												📏 {visualAnalysis.platformFit.aspectRatio}
+												{#if !visualAnalysis.platformFit.optimal}
+													<span class="text-yellow-400">⚠</span>
+												{/if}
+											</span>
+										</div>
+
+										<!-- Dominant Colors -->
+										{#if visualAnalysis.colors.dominantColors.length > 0}
+											<div class="flex items-center gap-1">
+												<span class="text-xs text-text-tertiary mr-2">Colors:</span>
+												{#each visualAnalysis.colors.dominantColors.slice(0, 5) as color}
+													<div
+														class="w-4 h-4 rounded border border-surface-border"
+														style="background-color: {color}"
+														title={color}
+													></div>
+												{/each}
+											</div>
+										{/if}
+
+										<!-- Recommendations -->
+										{#if visualAnalysis.composition.recommendation || visualAnalysis.colors.recommendation || visualAnalysis.platformFit.recommendation}
+											<div class="text-xs text-yellow-400 space-y-1 mt-2">
+												{#if visualAnalysis.composition.recommendation}
+													<p>📐 {visualAnalysis.composition.recommendation}</p>
+												{/if}
+												{#if visualAnalysis.colors.recommendation}
+													<p>🎨 {visualAnalysis.colors.recommendation}</p>
+												{/if}
+												{#if visualAnalysis.platformFit.recommendation}
+													<p>📏 {visualAnalysis.platformFit.recommendation}</p>
+												{/if}
+											</div>
+										{/if}
+
+										<!-- Alt Text Suggestion -->
+										{#if visualAnalysis.altText.suggested}
+											<div class="mt-2 p-2 bg-bg-secondary text-xs">
+												<div class="flex items-center justify-between">
+													<span class="text-text-tertiary">Suggested Alt Text:</span>
+													<button
+														onclick={() => copyToClipboard(visualAnalysis?.altText.suggested || '')}
+														class="text-accent-primary hover:underline"
+													>
+														Copy
+													</button>
+												</div>
+												<p class="mt-1 text-text-secondary">{visualAnalysis.altText.suggested}</p>
+											</div>
+										{/if}
+									</div>
+								{:else}
+									<p class="text-xs text-emerald-400 mt-2">
+										Visual analysis will be included in recommendations
+									</p>
+								{/if}
+							</div>
+						</div>
+					</div>
+				{/if}
+			</div>
 
 			<div class="mt-4 flex items-center gap-4">
 				<button
@@ -1727,6 +2020,9 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 				{#if improveText.trim()}
 					<span class="text-sm text-text-tertiary">
 						{improveText.trim().length} characters
+						{#if targetPlatform === 'twitter' && improveText.trim().length > 280}
+							<span class="text-yellow-400 ml-2">(exceeds tweet limit)</span>
+						{/if}
 					</span>
 				{/if}
 			</div>
@@ -1952,7 +2248,24 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 				<!-- Full Rewrites -->
 				{#if improvements.fullRewrites.length > 0}
 					<div class="bg-emerald-900/10 p-6 border border-emerald-500/30">
-						<h3 class="text-lg font-semibold text-emerald-400 mb-4">✨ Suggested Rewrites</h3>
+						<div class="flex items-center justify-between mb-4">
+							<h3 class="text-lg font-semibold text-emerald-400">✨ Suggested Rewrites</h3>
+							<button
+								onclick={handleAIRewrites}
+								disabled={aiRewriteLoading}
+								class="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-medium hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+							>
+								{#if aiRewriteLoading}
+									<svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+										<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+										<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+									</svg>
+									Generating...
+								{:else}
+									🤖 Enhance with AI
+								{/if}
+							</button>
+						</div>
 						<p class="text-sm text-text-tertiary mb-4">
 							Complete rewrites optimized for engagement based on learned patterns
 						</p>
@@ -1990,6 +2303,69 @@ Skills are pre-bundled. Response needs: requestId, postId, orchestrator.agentRes
 									</div>
 								</div>
 							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- AI-Powered Rewrites -->
+				{#if aiRewrites.length > 0}
+					<div class="bg-gradient-to-br from-purple-900/20 to-pink-900/20 p-6 border border-purple-500/30">
+						<h3 class="text-lg font-semibold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400 mb-4">
+							🤖 AI-Enhanced Rewrites
+						</h3>
+						<p class="text-sm text-text-tertiary mb-4">
+							Claude-powered rewrites optimized for {targetPlatform === 'twitter' ? 'Twitter/X' : targetPlatform === 'linkedin' ? 'LinkedIn' : 'Threads'}
+						</p>
+						<div class="space-y-4">
+							{#each aiRewrites as rewrite, i}
+								<div class="p-4 bg-bg-primary border border-purple-500/30">
+									<div class="flex items-center justify-between mb-3">
+										<span class="text-sm font-medium text-purple-400">{rewrite.version}</span>
+										<div class="flex items-center gap-2">
+											<span class="text-xs text-text-tertiary">Est. score:</span>
+											<span class="text-sm font-mono text-purple-400">{rewrite.estimatedScore}</span>
+										</div>
+									</div>
+									<p class="text-sm font-mono whitespace-pre-wrap mb-3">{rewrite.content}</p>
+									<div class="flex flex-wrap gap-2 mb-3">
+										{#each rewrite.changes as change}
+											<span class="text-xs px-2 py-1 bg-purple-500/20 text-purple-400">
+												{change}
+											</span>
+										{/each}
+									</div>
+									<div class="flex gap-2">
+										<button
+											onclick={() => applyRewrite(rewrite)}
+											class="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-medium hover:from-purple-600 hover:to-pink-600 transition-colors"
+										>
+											Use This Version
+										</button>
+										<button
+											onclick={() => copyToClipboard(rewrite.content)}
+											class="px-4 py-2 bg-bg-secondary border border-surface-border text-sm hover:border-purple-500/50 transition-colors"
+										>
+											Copy
+										</button>
+									</div>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- AI Rewrite Loading State -->
+				{#if aiRewriteLoading}
+					<div class="bg-gradient-to-br from-purple-900/20 to-pink-900/20 p-6 border border-purple-500/30">
+						<div class="flex items-center gap-3">
+							<svg class="animate-spin h-6 w-6 text-purple-400" viewBox="0 0 24 24">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+							</svg>
+							<div>
+								<h3 class="text-lg font-semibold text-purple-400">Generating AI Rewrites...</h3>
+								<p class="text-sm text-text-tertiary">Claude is crafting optimized versions of your content</p>
+							</div>
 						</div>
 					</div>
 				{/if}

@@ -131,6 +131,50 @@ export interface ImprovementRequest {
 }
 
 // =============================================================================
+// VISUAL ANALYSIS TYPES
+// =============================================================================
+
+export interface VisualAnalysis {
+	composition: {
+		type: 'centered' | 'rule_of_thirds' | 'golden_ratio' | 'symmetrical' | 'dynamic' | 'unknown';
+		score: number; // 0-100
+		recommendation: string | null;
+	};
+	colors: {
+		dominantColors: string[]; // hex codes
+		contrast: 'low' | 'medium' | 'high';
+		brightness: 'dark' | 'balanced' | 'bright';
+		recommendation: string | null;
+	};
+	textOverlay: {
+		detected: boolean;
+		readable: boolean | null;
+		recommendation: string | null;
+	};
+	scrollStop: {
+		score: number; // 0-100
+		strengths: string[];
+		weaknesses: string[];
+		recommendation: string | null;
+	};
+	platformFit: {
+		aspectRatio: string; // "16:9", "1:1", "4:3", etc.
+		optimal: boolean;
+		recommendation: string | null;
+	};
+	altText: {
+		current: string | null;
+		suggested: string;
+	};
+}
+
+export interface MediaAnalysisRequest {
+	file: File;
+	platform: 'twitter' | 'linkedin' | 'threads';
+	contentContext?: string; // The text content for alt text generation
+}
+
+// =============================================================================
 // HOOK DETECTION PATTERNS
 // =============================================================================
 
@@ -833,11 +877,566 @@ function generateLocalRewrites(
 }
 
 // =============================================================================
+// AI-POWERED REWRITE GENERATION
+// =============================================================================
+
+export interface AIRewriteRequest {
+	draft: string;
+	improvements: ContentImprovements;
+	platform?: 'twitter' | 'linkedin' | 'threads';
+	style?: 'professional' | 'casual' | 'engaging';
+}
+
+export interface AIRewriteResult {
+	success: boolean;
+	rewrites: FullRewrite[];
+	error?: string;
+}
+
+/**
+ * Generate AI-powered rewrites via the Claude bridge
+ * This sends a request to Claude Code for intelligent rewriting
+ */
+export async function requestAIRewrites(
+	request: AIRewriteRequest
+): Promise<AIRewriteResult> {
+	const requestId = `rewrite-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+	try {
+		// Build context for Claude
+		const context = buildRewriteContext(request);
+
+		// Write to file for Claude to read
+		const response = await fetch('/api/contentforge/rewrite/request', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				requestId,
+				draft: request.draft,
+				context,
+				platform: request.platform || 'twitter',
+				timestamp: new Date().toISOString()
+			})
+		});
+
+		if (!response.ok) {
+			throw new Error('Failed to submit rewrite request');
+		}
+
+		// Poll for result (Claude Code will process and respond)
+		const result = await pollForRewriteResult(requestId, 60000); // 60s timeout
+		return result;
+	} catch (e) {
+		console.error('[ContentImprover] AI rewrite failed:', e);
+		return {
+			success: false,
+			rewrites: [],
+			error: e instanceof Error ? e.message : 'Unknown error'
+		};
+	}
+}
+
+/**
+ * Build context string for Claude to generate rewrites
+ */
+function buildRewriteContext(request: AIRewriteRequest): string {
+	const { improvements } = request;
+	const lines: string[] = [];
+
+	lines.push('## Content Analysis Summary\n');
+
+	// Hook analysis
+	if (improvements.hook.detected) {
+		lines.push(`Hook: ${improvements.hook.type} (${(improvements.hook.strength * 100).toFixed(0)}% strength)`);
+	} else {
+		lines.push('Hook: None detected - needs a strong opening');
+	}
+
+	// Topics
+	if (improvements.topics.detected.length > 0) {
+		lines.push(`Topics: ${improvements.topics.detected.join(', ')}`);
+	}
+	if (improvements.topics.missing.length > 0) {
+		lines.push(`Missing hot topics: ${improvements.topics.missing.join(', ')}`);
+	}
+	if (improvements.topics.subtopicGaps.length > 0) {
+		lines.push(`Subtopic opportunities: ${improvements.topics.subtopicGaps.join(', ')}`);
+	}
+
+	// Emotions
+	if (improvements.emotion.detected.length > 0) {
+		const emotions = improvements.emotion.detected.map(e => `${e.type} (${(e.strength * 100).toFixed(0)}%)`);
+		lines.push(`Emotions detected: ${emotions.join(', ')}`);
+	}
+	if (improvements.emotion.suggestions.length > 0) {
+		lines.push(`Emotion suggestions: ${improvements.emotion.suggestions.join('; ')}`);
+	}
+
+	// Anti-patterns
+	if (improvements.warnings.length > 0) {
+		lines.push('\n## Issues to Fix:');
+		for (const w of improvements.warnings.slice(0, 3)) {
+			lines.push(`- ${w.type}: ${w.message}`);
+		}
+	}
+
+	// Scores
+	lines.push(`\nCurrent estimated score: ${improvements.currentScore}`);
+	lines.push(`Potential score: ${improvements.potentialScore}`);
+
+	return lines.join('\n');
+}
+
+/**
+ * Poll for rewrite result from Claude
+ */
+async function pollForRewriteResult(
+	requestId: string,
+	timeoutMs: number
+): Promise<AIRewriteResult> {
+	const startTime = Date.now();
+	const pollInterval = 2000;
+
+	while (Date.now() - startTime < timeoutMs) {
+		try {
+			const response = await fetch(`/api/contentforge/rewrite/result?requestId=${requestId}`);
+
+			if (response.ok) {
+				const data = await response.json();
+				if (data.status === 'complete') {
+					return {
+						success: true,
+						rewrites: data.rewrites || []
+					};
+				} else if (data.status === 'error') {
+					return {
+						success: false,
+						rewrites: [],
+						error: data.error
+					};
+				}
+				// Still pending, continue polling
+			}
+		} catch (e) {
+			console.warn('[ContentImprover] Poll error:', e);
+		}
+
+		await new Promise(resolve => setTimeout(resolve, pollInterval));
+	}
+
+	return {
+		success: false,
+		rewrites: [],
+		error: 'Timeout waiting for AI rewrites'
+	};
+}
+
+// =============================================================================
+// VISUAL ANALYSIS FUNCTIONS
+// =============================================================================
+
+/**
+ * Platform optimal aspect ratios
+ */
+const PLATFORM_ASPECTS: Record<string, string[]> = {
+	twitter: ['1:1', '16:9', '4:3'],
+	linkedin: ['1.91:1', '1:1', '4:5'],
+	threads: ['1:1', '4:5', '9:16']
+};
+
+/**
+ * Analyze uploaded media for visual optimization
+ */
+export async function analyzeMedia(request: MediaAnalysisRequest): Promise<VisualAnalysis> {
+	const { file, platform, contentContext } = request;
+
+	// Load image for analysis
+	const imageData = await loadImageData(file);
+
+	// Analyze composition
+	const composition = analyzeComposition(imageData);
+
+	// Analyze colors
+	const colors = analyzeColors(imageData);
+
+	// Check for text overlay
+	const textOverlay = analyzeTextOverlay(imageData);
+
+	// Calculate scroll-stop score
+	const scrollStop = calculateScrollStopScore(composition, colors, textOverlay);
+
+	// Check platform fit
+	const platformFit = analyzePlatformFit(imageData, platform);
+
+	// Generate alt text suggestion
+	const altText = generateAltText(contentContext, file.name);
+
+	return {
+		composition,
+		colors,
+		textOverlay,
+		scrollStop,
+		platformFit,
+		altText
+	};
+}
+
+/**
+ * Load image data for analysis
+ */
+async function loadImageData(file: File): Promise<{
+	width: number;
+	height: number;
+	aspectRatio: number;
+	pixels?: Uint8ClampedArray;
+}> {
+	return new Promise((resolve, reject) => {
+		const img = new Image();
+		const url = URL.createObjectURL(file);
+
+		img.onload = () => {
+			const canvas = document.createElement('canvas');
+			const ctx = canvas.getContext('2d');
+
+			// Sample at lower resolution for performance
+			const maxSize = 200;
+			const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+			canvas.width = img.width * scale;
+			canvas.height = img.height * scale;
+
+			if (ctx) {
+				ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+				const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+				resolve({
+					width: img.width,
+					height: img.height,
+					aspectRatio: img.width / img.height,
+					pixels: imageData.data
+				});
+			} else {
+				resolve({
+					width: img.width,
+					height: img.height,
+					aspectRatio: img.width / img.height
+				});
+			}
+
+			URL.revokeObjectURL(url);
+		};
+
+		img.onerror = () => {
+			URL.revokeObjectURL(url);
+			reject(new Error('Failed to load image'));
+		};
+
+		img.src = url;
+	});
+}
+
+/**
+ * Analyze image composition
+ */
+function analyzeComposition(imageData: { width: number; height: number; pixels?: Uint8ClampedArray }): VisualAnalysis['composition'] {
+	const { width, height, pixels } = imageData;
+
+	// Without pixel data, make basic assessment based on aspect ratio
+	if (!pixels) {
+		return {
+			type: 'unknown',
+			score: 50,
+			recommendation: 'Enable image analysis for detailed composition feedback'
+		};
+	}
+
+	// Simple brightness distribution analysis to detect centering
+	const centerWeight = calculateCenterWeight(pixels, Math.ceil(width * 0.1), Math.ceil(height * 0.1));
+
+	let type: VisualAnalysis['composition']['type'] = 'unknown';
+	let score = 50;
+	let recommendation: string | null = null;
+
+	if (centerWeight > 0.6) {
+		type = 'centered';
+		score = 60;
+		recommendation = 'Consider using rule of thirds for more dynamic composition';
+	} else if (centerWeight < 0.4) {
+		type = 'dynamic';
+		score = 75;
+		recommendation = null;
+	} else {
+		type = 'rule_of_thirds';
+		score = 80;
+		recommendation = null;
+	}
+
+	return { type, score, recommendation };
+}
+
+/**
+ * Calculate how much visual weight is in the center
+ */
+function calculateCenterWeight(pixels: Uint8ClampedArray, width: number, height: number): number {
+	let centerBrightness = 0;
+	let edgeBrightness = 0;
+	let centerCount = 0;
+	let edgeCount = 0;
+
+	const centerX1 = width * 0.33;
+	const centerX2 = width * 0.66;
+	const centerY1 = height * 0.33;
+	const centerY2 = height * 0.66;
+
+	for (let y = 0; y < height; y++) {
+		for (let x = 0; x < width; x++) {
+			const i = (y * width + x) * 4;
+			const brightness = (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3;
+
+			const isCenter = x >= centerX1 && x <= centerX2 && y >= centerY1 && y <= centerY2;
+
+			if (isCenter) {
+				centerBrightness += brightness;
+				centerCount++;
+			} else {
+				edgeBrightness += brightness;
+				edgeCount++;
+			}
+		}
+	}
+
+	const avgCenter = centerCount > 0 ? centerBrightness / centerCount : 0;
+	const avgEdge = edgeCount > 0 ? edgeBrightness / edgeCount : 0;
+
+	// Higher contrast in center = more centered composition
+	return avgCenter > avgEdge ? 0.5 + (avgCenter - avgEdge) / 500 : 0.5 - (avgEdge - avgCenter) / 500;
+}
+
+/**
+ * Analyze image colors
+ */
+function analyzeColors(imageData: { pixels?: Uint8ClampedArray }): VisualAnalysis['colors'] {
+	const { pixels } = imageData;
+
+	if (!pixels) {
+		return {
+			dominantColors: [],
+			contrast: 'medium',
+			brightness: 'balanced',
+			recommendation: null
+		};
+	}
+
+	// Sample colors
+	const colorCounts = new Map<string, number>();
+	let totalBrightness = 0;
+	let minBrightness = 255;
+	let maxBrightness = 0;
+
+	for (let i = 0; i < pixels.length; i += 16) { // Sample every 4th pixel
+		const r = pixels[i];
+		const g = pixels[i + 1];
+		const b = pixels[i + 2];
+
+		// Quantize to reduce colors
+		const qr = Math.round(r / 32) * 32;
+		const qg = Math.round(g / 32) * 32;
+		const qb = Math.round(b / 32) * 32;
+
+		const hex = `#${qr.toString(16).padStart(2, '0')}${qg.toString(16).padStart(2, '0')}${qb.toString(16).padStart(2, '0')}`;
+		colorCounts.set(hex, (colorCounts.get(hex) || 0) + 1);
+
+		const brightness = (r + g + b) / 3;
+		totalBrightness += brightness;
+		minBrightness = Math.min(minBrightness, brightness);
+		maxBrightness = Math.max(maxBrightness, brightness);
+	}
+
+	// Get dominant colors
+	const sortedColors = [...colorCounts.entries()].sort((a, b) => b[1] - a[1]);
+	const dominantColors = sortedColors.slice(0, 5).map(([color]) => color);
+
+	// Calculate average brightness
+	const avgBrightness = totalBrightness / (pixels.length / 16);
+	const brightness: VisualAnalysis['colors']['brightness'] =
+		avgBrightness < 85 ? 'dark' : avgBrightness > 170 ? 'bright' : 'balanced';
+
+	// Calculate contrast
+	const contrastRange = maxBrightness - minBrightness;
+	const contrast: VisualAnalysis['colors']['contrast'] =
+		contrastRange < 100 ? 'low' : contrastRange > 180 ? 'high' : 'medium';
+
+	let recommendation: string | null = null;
+	if (contrast === 'low') {
+		recommendation = 'Add more contrast to make content pop in feeds';
+	} else if (brightness === 'dark') {
+		recommendation = 'Dark images may get lost in dark mode feeds - add highlights';
+	}
+
+	return { dominantColors, contrast, brightness, recommendation };
+}
+
+/**
+ * Check for text overlay
+ */
+function analyzeTextOverlay(imageData: { pixels?: Uint8ClampedArray }): VisualAnalysis['textOverlay'] {
+	// Basic detection - would need OCR for real detection
+	// For now, return conservative defaults
+	return {
+		detected: false,
+		readable: null,
+		recommendation: 'Consider adding a title overlay to increase scroll-stop'
+	};
+}
+
+/**
+ * Calculate scroll-stop score
+ */
+function calculateScrollStopScore(
+	composition: VisualAnalysis['composition'],
+	colors: VisualAnalysis['colors'],
+	textOverlay: VisualAnalysis['textOverlay']
+): VisualAnalysis['scrollStop'] {
+	const strengths: string[] = [];
+	const weaknesses: string[] = [];
+	let score = 50;
+
+	// Composition impact
+	if (composition.type === 'rule_of_thirds' || composition.type === 'dynamic') {
+		strengths.push('Good visual balance');
+		score += 15;
+	} else if (composition.type === 'centered') {
+		weaknesses.push('Centered composition may feel static');
+		score += 5;
+	}
+
+	// Color impact
+	if (colors.contrast === 'high') {
+		strengths.push('High contrast catches attention');
+		score += 15;
+	} else if (colors.contrast === 'low') {
+		weaknesses.push('Low contrast may blend into feed');
+		score -= 5;
+	}
+
+	if (colors.brightness === 'balanced') {
+		strengths.push('Balanced brightness');
+		score += 5;
+	}
+
+	// Text overlay impact
+	if (textOverlay.detected && textOverlay.readable) {
+		strengths.push('Text overlay adds context');
+		score += 10;
+	} else if (!textOverlay.detected) {
+		weaknesses.push('No text overlay - missing hook opportunity');
+	}
+
+	// Cap score
+	score = Math.max(0, Math.min(100, score));
+
+	let recommendation: string | null = null;
+	if (score < 60) {
+		recommendation = weaknesses.length > 0
+			? `Consider: ${weaknesses[0]}`
+			: 'Add visual interest with annotations or text';
+	}
+
+	return { score, strengths, weaknesses, recommendation };
+}
+
+/**
+ * Check if image fits platform requirements
+ */
+function analyzePlatformFit(
+	imageData: { width: number; height: number; aspectRatio: number },
+	platform: string
+): VisualAnalysis['platformFit'] {
+	const { width, height, aspectRatio } = imageData;
+
+	// Calculate aspect ratio string
+	const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
+	const divisor = gcd(width, height);
+	const aspectW = width / divisor;
+	const aspectH = height / divisor;
+
+	// Simplify to common ratios
+	let aspectString: string;
+	if (Math.abs(aspectRatio - 1) < 0.05) {
+		aspectString = '1:1';
+	} else if (Math.abs(aspectRatio - 16 / 9) < 0.1) {
+		aspectString = '16:9';
+	} else if (Math.abs(aspectRatio - 4 / 3) < 0.1) {
+		aspectString = '4:3';
+	} else if (Math.abs(aspectRatio - 9 / 16) < 0.1) {
+		aspectString = '9:16';
+	} else if (Math.abs(aspectRatio - 4 / 5) < 0.1) {
+		aspectString = '4:5';
+	} else if (Math.abs(aspectRatio - 1.91) < 0.1) {
+		aspectString = '1.91:1';
+	} else {
+		aspectString = `${aspectW}:${aspectH}`;
+	}
+
+	const optimalRatios = PLATFORM_ASPECTS[platform] || PLATFORM_ASPECTS.twitter;
+	const optimal = optimalRatios.includes(aspectString);
+
+	let recommendation: string | null = null;
+	if (!optimal) {
+		recommendation = `Crop to ${optimalRatios[0]} for better ${platform} feed presence`;
+	}
+
+	return { aspectRatio: aspectString, optimal, recommendation };
+}
+
+/**
+ * Generate suggested alt text
+ */
+function generateAltText(
+	contentContext?: string,
+	fileName?: string
+): VisualAnalysis['altText'] {
+	// Extract keywords from content context
+	const keywords: string[] = [];
+
+	if (contentContext) {
+		// Extract nouns/topics from content
+		const words = contentContext.toLowerCase().split(/\s+/);
+		const stopWords = new Set(['a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'shall', 'can', 'need', 'dare', 'ought', 'used', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from', 'as', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'between', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'just', 'don', 'now', 'i', 'me', 'my', 'myself', 'we', 'our', 'you', 'your', 'he', 'him', 'his', 'she', 'her', 'it', 'its', 'they', 'them', 'their', 'this', 'that']);
+
+		for (const word of words) {
+			const clean = word.replace(/[^a-z]/g, '');
+			if (clean.length > 3 && !stopWords.has(clean)) {
+				keywords.push(clean);
+			}
+		}
+	}
+
+	// Build suggested alt text
+	let suggested = 'Image';
+
+	if (keywords.length > 0) {
+		const topKeywords = keywords.slice(0, 5);
+		suggested = `Image related to ${topKeywords.join(', ')}`;
+	} else if (fileName) {
+		const cleanName = fileName.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+		if (cleanName.length > 2) {
+			suggested = `Image: ${cleanName}`;
+		}
+	}
+
+	return {
+		current: null,
+		suggested
+	};
+}
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
 export {
 	detectHookType,
 	detectAntiPatterns,
-	estimateCurrentScore
+	estimateCurrentScore,
+	buildRewriteContext
 };
