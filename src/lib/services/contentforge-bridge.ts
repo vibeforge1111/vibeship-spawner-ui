@@ -499,6 +499,9 @@ function handleAnalysisComplete(event: BridgeEvent): void {
 		// Save to Mind for learning (async, don't block)
 		saveResultToMind(result);
 
+		// Update pattern feedback loop (async, don't block)
+		updatePatternFeedback(result);
+
 		// Generate creative recommendations
 		generateCreativeRecs(result);
 	}
@@ -547,6 +550,85 @@ async function saveResultToMind(result: ContentForgeResult): Promise<void> {
 		}
 	} catch (e) {
 		console.warn('[ContentForgeBridge] Failed to save to Mind:', e);
+	}
+}
+
+/**
+ * Update pattern feedback in Mind v5 based on analysis outcome
+ * This closes the learning loop - high scores boost patterns, low scores penalize
+ */
+async function updatePatternFeedback(result: ContentForgeResult): Promise<void> {
+	try {
+		const viralityScore = result.synthesis?.viralityScore || 0;
+		const hookType = result.orchestrator?.agentResults?.copywriting?.data?.hook?.type;
+		const patterns = result.synthesis?.patternCorrelations?.map(p => p.pattern) || [];
+
+		// Determine if this was a positive or negative outcome
+		const isPositive = viralityScore >= 70;
+		const isNegative = viralityScore < 50;
+
+		if (!isPositive && !isNegative) {
+			// Score between 50-70 is neutral, no feedback update
+			console.log('[ContentForgeBridge] Score neutral (50-70), no feedback update');
+			return;
+		}
+
+		// Collect patterns to update
+		const patternsToUpdate: string[] = [];
+		if (hookType) patternsToUpdate.push(hookType);
+		patternsToUpdate.push(...patterns);
+
+		if (patternsToUpdate.length === 0) {
+			console.log('[ContentForgeBridge] No patterns to update');
+			return;
+		}
+
+		// Query Mind v5 for matching pattern memories
+		const response = await fetch('http://localhost:8080/v1/memories/?limit=200');
+		if (!response.ok) return;
+
+		const memories = await response.json();
+		const patternMemories = memories.filter((m: { content_type: string }) =>
+			m.content_type === 'viral_pattern'
+		);
+
+		// Find and update matching patterns
+		let updatedCount = 0;
+		for (const patternName of patternsToUpdate) {
+			const matching = patternMemories.filter((m: { content: string }) =>
+				m.content.toLowerCase().includes(patternName.toLowerCase().replace(/ /g, '_'))
+			);
+
+			// Update up to 2 matching memories per pattern
+			for (const memory of matching.slice(0, 2)) {
+				try {
+					// Create a new memory to record the outcome (Mind v5 Lite doesn't have PATCH)
+					// Instead, we'll create a "pattern_outcome" memory
+					await fetch('http://localhost:8080/v1/memories/', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							content: `**Pattern Feedback**
+Pattern: ${patternName}
+Outcome: ${isPositive ? 'POSITIVE' : 'NEGATIVE'}
+Score: ${viralityScore}
+Original Memory: ${memory.memory_id}
+Timestamp: ${new Date().toISOString()}`,
+							content_type: 'pattern_feedback',
+							temporal_level: 2,
+							salience: isPositive ? 0.8 : 0.4
+						})
+					});
+					updatedCount++;
+				} catch (e) {
+					// Ignore individual update failures
+				}
+			}
+		}
+
+		console.log(`[ContentForgeBridge] Feedback loop: ${isPositive ? 'POSITIVE' : 'NEGATIVE'} outcome for ${updatedCount} pattern memories (score: ${viralityScore})`);
+	} catch (e) {
+		console.warn('[ContentForgeBridge] Feedback loop failed:', e);
 	}
 }
 

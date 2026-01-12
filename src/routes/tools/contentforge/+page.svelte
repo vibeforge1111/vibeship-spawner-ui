@@ -64,6 +64,16 @@
 		getPatternStats,
 		type PatternStats
 	} from '$lib/services/viral-patterns';
+	import {
+		runAgentCollaboration,
+		type AgentCollaboration,
+		type AgentAnalysis,
+		type UnifiedRecommendation
+	} from '$lib/services/mind-learning-intelligence';
+	import {
+		getTopPatternsForPrompt,
+		type PatternForPrompt
+	} from '$lib/services/mind-v5-client';
 	import type { TweetData } from '$lib/services/x-api';
 	import {
 		improveContent,
@@ -153,6 +163,16 @@
 	let contentIdeas = $state<string[]>([]);
 	let topicsLoading = $state(false);
 	let currentNiche = $state(getCurrentNiche());
+
+	// 8-Agent Intelligence state
+	let agentCollaboration = $state<AgentCollaboration | null>(null);
+	let agentIntelligenceLoading = $state(false);
+	let showAgentInsights = $state(false);
+
+	// Pattern-powered suggestions state
+	let suggestedPatterns = $state<PatternForPrompt[]>([]);
+	let suggestionsLoading = $state(false);
+	let showSuggestions = $state(true);
 
 	// Queue state
 	let selectedQueueItem = $state<QueueItem | null>(null);
@@ -309,6 +329,9 @@ CRITICAL: Always ACKNOWLEDGE immediately when you pick up work. This shows "Work
 				await refreshTopicInsights();
 			}
 
+			// 3. Refresh pattern suggestions after new learning
+			await loadPatternSuggestions();
+
 		} catch (e) {
 			console.warn('[Learning] Failed to learn from analysis:', e);
 		}
@@ -335,6 +358,47 @@ CRITICAL: Always ACKNOWLEDGE immediately when you pick up work. This shows "Work
 			console.warn('[Topics] Failed to refresh:', e);
 		} finally {
 			topicsLoading = false;
+		}
+	}
+
+	/**
+	 * Load pattern-powered suggestions from Mind v5
+	 * These are shown before the user inputs content to guide them
+	 */
+	async function loadPatternSuggestions() {
+		if (!isMindConnected) return;
+
+		suggestionsLoading = true;
+		try {
+			const patterns = await getTopPatternsForPrompt(8);
+			suggestedPatterns = patterns;
+			console.log('[ContentForge] Loaded', patterns.length, 'pattern suggestions');
+		} catch (e) {
+			console.warn('[ContentForge] Failed to load pattern suggestions:', e);
+		} finally {
+			suggestionsLoading = false;
+		}
+	}
+
+	/**
+	 * Run 8-agent intelligence collaboration on accumulated learning data
+	 * This provides deep, cross-agent insights about content performance
+	 */
+	async function runAgentIntelligence() {
+		if (!isMindConnected) return;
+
+		agentIntelligenceLoading = true;
+		try {
+			const collaboration = await runAgentCollaboration();
+			if (collaboration) {
+				agentCollaboration = collaboration;
+				showAgentInsights = true;
+				console.log('[ContentForge] 8-Agent Intelligence complete:', collaboration.dataAnalyzed, 'data points analyzed');
+			}
+		} catch (e) {
+			console.warn('[ContentForge] Agent intelligence failed:', e);
+		} finally {
+			agentIntelligenceLoading = false;
 		}
 	}
 
@@ -442,12 +506,17 @@ CRITICAL: Always ACKNOWLEDGE immediately when you pick up work. This shows "Work
 		// Load persisted result (survives page refresh)
 		await loadLatestResult();
 
-		// Load analysis history, pattern stats, and topic insights from Mind (after Mind connection is established)
+		// Load analysis history, pattern stats, topic insights, and pattern suggestions from Mind
 		setTimeout(async () => {
 			if (isMindConnected) {
-				await loadAnalysisHistory();
-				await refreshPatternStats();
-				await refreshTopicInsights();
+				await Promise.all([
+					loadAnalysisHistory(),
+					refreshPatternStats(),
+					refreshTopicInsights(),
+					loadPatternSuggestions()
+				]);
+				// Run 8-agent intelligence in background after other loads complete
+				runAgentIntelligence();
 			}
 		}, 1000);
 
@@ -488,9 +557,10 @@ CRITICAL: Always ACKNOWLEDGE immediately when you pick up work. This shows "Work
 			}),
 			mindConnected.subscribe((value) => {
 				isMindConnected = value;
-				// Load history when Mind connects
+				// Load history and suggestions when Mind connects
 				if (value && analysisHistory.length === 0) {
 					loadAnalysisHistory();
+					loadPatternSuggestions();
 				}
 			}),
 			enhancedLearnings.subscribe((value) => {
@@ -1180,6 +1250,172 @@ CRITICAL: Always ACKNOWLEDGE immediately when you pick up work. This shows "Work
 						</p>
 					</div>
 				</div>
+			</div>
+		{/if}
+
+		<!-- Pattern-Powered Suggestions (from Mind v5) -->
+		{#if isMindConnected && (suggestedPatterns.length > 0 || suggestionsLoading)}
+			<div class="mb-6 bg-gradient-to-r from-purple-900/20 to-bg-secondary p-4 border border-purple-500/30">
+				<div class="flex items-center justify-between mb-3">
+					<div class="flex items-center gap-2">
+						<span class="text-purple-400 text-sm font-semibold">LEARNED PATTERNS</span>
+						<span class="text-xs text-purple-300/60">from Mind v5</span>
+					</div>
+					<button
+						onclick={() => showSuggestions = !showSuggestions}
+						class="text-xs text-purple-400 hover:text-purple-300"
+					>
+						{showSuggestions ? 'Hide' : 'Show'}
+					</button>
+				</div>
+
+				{#if suggestionsLoading}
+					<div class="text-center py-2 text-purple-300/60 text-sm animate-pulse">
+						Loading patterns...
+					</div>
+				{:else if showSuggestions}
+					<div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+						{#each suggestedPatterns.slice(0, 8) as pattern}
+							<div class="p-2 bg-bg-primary border border-surface-border hover:border-purple-500/50 transition-colors">
+								<div class="flex items-center justify-between mb-1">
+									<span class="text-sm font-medium text-text-primary truncate">{pattern.name}</span>
+									<span class="text-xs font-bold {pattern.score >= 70 ? 'text-green-400' : pattern.score >= 50 ? 'text-yellow-400' : 'text-red-400'}">
+										{pattern.score}
+									</span>
+								</div>
+								<p class="text-xs text-text-tertiary truncate" title={pattern.recommendation}>
+									{pattern.recommendation}
+								</p>
+							</div>
+						{/each}
+					</div>
+					<p class="text-xs text-purple-300/60 mt-2">
+						Use these high-performing patterns in your content for better results
+					</p>
+				{/if}
+			</div>
+		{/if}
+
+		<!-- 8-Agent Intelligence Panel -->
+		{#if isMindConnected}
+			<div class="mb-6 flex items-center gap-4">
+				<button
+					onclick={runAgentIntelligence}
+					disabled={agentIntelligenceLoading}
+					class="px-4 py-2 text-sm border border-amber-500/50 text-amber-400 hover:bg-amber-500/10 disabled:opacity-50 transition-colors flex items-center gap-2"
+				>
+					{#if agentIntelligenceLoading}
+						<span class="animate-spin">⚙</span>
+						Running 8-Agent Analysis...
+					{:else}
+						<span>🧠</span>
+						Run 8-Agent Intelligence
+					{/if}
+				</button>
+				{#if agentCollaboration}
+					<span class="text-xs text-amber-400/70">
+						Last run: {agentCollaboration.dataAnalyzed} data points analyzed
+					</span>
+					<button
+						onclick={() => showAgentInsights = !showAgentInsights}
+						class="text-xs text-amber-400 hover:underline"
+					>
+						{showAgentInsights ? 'Hide Insights' : 'Show Insights'}
+					</button>
+				{/if}
+			</div>
+		{/if}
+
+		<!-- 8-Agent Insights Display -->
+		{#if showAgentInsights && agentCollaboration}
+			<div class="mb-8 bg-gradient-to-r from-amber-900/20 to-bg-secondary p-6 border border-amber-500/30">
+				<div class="flex items-center justify-between mb-4">
+					<h2 class="text-lg font-bold text-amber-400">8-Agent Intelligence Report</h2>
+					<button
+						onclick={() => showAgentInsights = false}
+						class="text-amber-400/60 hover:text-amber-400"
+					>×</button>
+				</div>
+
+				<!-- Health Score -->
+				<div class="mb-6 p-4 bg-bg-primary border border-surface-border">
+					<div class="flex items-center justify-between mb-2">
+						<span class="text-sm text-text-secondary">Learning Health Score</span>
+						<span class="text-2xl font-bold {agentCollaboration.synthesis.learningHealthScore >= 70 ? 'text-green-400' : agentCollaboration.synthesis.learningHealthScore >= 40 ? 'text-yellow-400' : 'text-red-400'}">
+							{agentCollaboration.synthesis.learningHealthScore}/100
+						</span>
+					</div>
+					<div class="grid grid-cols-4 gap-2 text-xs">
+						<div class="text-center">
+							<div class="text-text-tertiary">Data Qty</div>
+							<div class="font-semibold">{agentCollaboration.synthesis.healthBreakdown.dataQuantity}%</div>
+						</div>
+						<div class="text-center">
+							<div class="text-text-tertiary">Quality</div>
+							<div class="font-semibold">{agentCollaboration.synthesis.healthBreakdown.dataQuality}%</div>
+						</div>
+						<div class="text-center">
+							<div class="text-text-tertiary">Diversity</div>
+							<div class="font-semibold">{agentCollaboration.synthesis.healthBreakdown.patternDiversity}%</div>
+						</div>
+						<div class="text-center">
+							<div class="text-text-tertiary">Trends</div>
+							<div class="font-semibold">{agentCollaboration.synthesis.healthBreakdown.trendClarity}%</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Agent Grid -->
+				<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+					{#each agentCollaboration.agents as agent}
+						<div class="p-3 bg-bg-primary border border-surface-border">
+							<div class="flex items-center justify-between mb-2">
+								<span class="text-xs font-semibold text-amber-400">{agent.agentName.replace(' Agent', '')}</span>
+								<span class="text-xs text-text-tertiary">{Math.round(agent.confidence * 100)}%</span>
+							</div>
+							{#if agent.topFindings.length > 0}
+								<p class="text-xs text-text-secondary line-clamp-2">{agent.topFindings[0]}</p>
+							{/if}
+							{#if agent.recommendations.length > 0}
+								<div class="mt-2 text-xs px-1.5 py-0.5 inline-block {agent.recommendations[0].priority === 'critical' ? 'bg-red-500/20 text-red-400' : agent.recommendations[0].priority === 'high' ? 'bg-orange-500/20 text-orange-400' : 'bg-blue-500/20 text-blue-400'}">
+									{agent.recommendations[0].title}
+								</div>
+							{/if}
+						</div>
+					{/each}
+				</div>
+
+				<!-- Top Recommendations -->
+				{#if agentCollaboration.synthesis.unifiedRecommendations.length > 0}
+					<div class="mb-4">
+						<h3 class="text-sm font-semibold text-amber-400 mb-2">Top Recommendations</h3>
+						<div class="space-y-2">
+							{#each agentCollaboration.synthesis.unifiedRecommendations.slice(0, 5) as rec, i}
+								<div class="p-2 bg-bg-primary border-l-2 {i === 0 ? 'border-red-500' : i === 1 ? 'border-orange-500' : 'border-yellow-500'}">
+									<div class="flex items-center gap-2">
+										<span class="text-xs font-bold text-text-tertiary">#{i + 1}</span>
+										<span class="text-sm text-text-primary">{rec.title}</span>
+									</div>
+									<p class="text-xs text-text-secondary mt-1">{rec.description}</p>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Gaps -->
+				{#if agentCollaboration.synthesis.gaps.length > 0}
+					<div>
+						<h3 class="text-sm font-semibold text-red-400 mb-2">Identified Gaps</h3>
+						<div class="flex flex-wrap gap-2">
+							{#each agentCollaboration.synthesis.gaps as gap}
+								<span class="text-xs px-2 py-1 bg-red-500/10 text-red-400 border border-red-500/30">
+									{gap.area}
+								</span>
+							{/each}
+						</div>
+					</div>
+				{/if}
 			</div>
 		{/if}
 

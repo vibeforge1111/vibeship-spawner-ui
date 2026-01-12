@@ -15,6 +15,83 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import * as yaml from 'yaml';
 
+const MIND_API = 'http://localhost:8080';
+
+/**
+ * Query Mind v5 for learned patterns to inject into prompt
+ */
+async function getLearnedPatternsFromMind(): Promise<string> {
+	try {
+		const response = await fetch(`${MIND_API}/v1/memories/?limit=100`);
+		if (!response.ok) return '';
+
+		const memories = await response.json();
+		const patterns = memories.filter((m: any) => m.content_type === 'viral_pattern');
+
+		if (patterns.length === 0) return '';
+
+		// Aggregate patterns by name
+		const patternStats: Record<string, { scores: number[]; category: string }> = {};
+
+		for (const memory of patterns) {
+			const nameMatch = memory.content.match(/\*\*Viral Pattern: ([^*]+)\*\*/);
+			const scoreMatch = memory.content.match(/Score: (\d+)/);
+			const categoryMatch = memory.content.match(/Category: (\w+)/);
+
+			if (!nameMatch || !scoreMatch) continue;
+
+			const name = nameMatch[1].trim();
+			const score = parseInt(scoreMatch[1]);
+			const category = categoryMatch?.[1] || 'unknown';
+
+			if (!patternStats[name]) {
+				patternStats[name] = { scores: [], category };
+			}
+			patternStats[name].scores.push(score);
+		}
+
+		// Sort by average score
+		const sorted = Object.entries(patternStats)
+			.map(([name, stats]) => ({
+				name: name.replace(/_/g, ' '),
+				avgScore: Math.round(stats.scores.reduce((a, b) => a + b, 0) / stats.scores.length),
+				category: stats.category,
+				count: stats.scores.length
+			}))
+			.sort((a, b) => b.avgScore - a.avgScore);
+
+		const topPerformers = sorted.filter(p => p.avgScore >= 70).slice(0, 5);
+		const toAvoid = sorted.filter(p => p.avgScore < 50).slice(0, 3);
+
+		let output = '## LEARNED PATTERNS FROM MIND v5\n\n';
+		output += `> Based on ${patterns.length} pattern observations\n\n`;
+
+		if (topPerformers.length > 0) {
+			output += '### HIGH PERFORMERS (Use These!)\n';
+			for (const p of topPerformers) {
+				output += `- **${p.name}** (${p.category}) - avg ${p.avgScore}/100 across ${p.count} samples\n`;
+			}
+			output += '\n';
+		}
+
+		if (toAvoid.length > 0) {
+			output += '### LOW PERFORMERS (Avoid)\n';
+			for (const p of toAvoid) {
+				output += `- ${p.name} - avg ${p.avgScore}/100\n`;
+			}
+			output += '\n';
+		}
+
+		output += '**IMPORTANT:** Weight your analysis based on these learned patterns!\n';
+
+		console.log(`[ContentForge Bridge] Loaded ${patterns.length} patterns from Mind v5`);
+		return output;
+	} catch (e) {
+		console.warn('[ContentForge Bridge] Could not load Mind v5 patterns:', e);
+		return '';
+	}
+}
+
 const SPAWNER_DIR = '.spawner';
 const CONTENT_FILE = 'pending-contentforge.md';
 const REQUEST_FILE = 'pending-contentforge-request.json';
@@ -166,9 +243,12 @@ export const POST: RequestHandler = async ({ request }) => {
 			await mkdir(spawnerPath, { recursive: true });
 		}
 
-		// Load all H70 skills
-		console.log(`[ContentForge Bridge] Loading H70 skills for request: ${requestId}`);
-		const skillsContent = await loadAllSkills();
+		// Load H70 skills and Mind v5 learned patterns in parallel
+		console.log(`[ContentForge Bridge] Loading H70 skills and Mind v5 patterns for request: ${requestId}`);
+		const [skillsContent, learnedPatterns] = await Promise.all([
+			loadAllSkills(),
+			getLearnedPatternsFromMind()
+		]);
 
 		// Build the comprehensive analysis file
 		const analysisContent = `# ContentForge Analysis Request
@@ -184,7 +264,7 @@ ${content}
 
 ---
 
-${skillsContent}
+${learnedPatterns ? `${learnedPatterns}\n---\n\n` : ''}${skillsContent}
 
 ---
 
@@ -197,12 +277,13 @@ Use the H70 skills above to analyze the content as 4 specialized agents:
 3. **Research Agent** - Analyze trends, platform fit, audience-psychology
 4. **Psychology Agent** - Apply persuasion-psychology, emotional triggers, identity resonance
 
-Then synthesize into:
+${learnedPatterns ? '**CRITICAL:** Reference the LEARNED PATTERNS section above. Patterns marked as HIGH PERFORMERS should influence your scoring positively. Patterns marked as LOW PERFORMERS should be flagged if present.\n\n' : ''}Then synthesize into:
 - Virality Score (0-100)
 - Key Insights (3-5 bullets)
+- Pattern matches (which learned patterns are present)
 - Playbook with actionable steps
 
-Send response to: POST http://localhost:5174/api/events
+Send response to: POST http://localhost:5173/api/events
 With type: "contentforge_analysis_complete"
 `;
 
@@ -217,11 +298,12 @@ With type: "contentforge_analysis_complete"
 			timestamp: new Date().toISOString(),
 			contentPath,
 			skillsLoaded: CONTENTFORGE_SKILLS,
+			patternsLoaded: learnedPatterns ? true : false,
 			status: 'pending'
 		};
 		await writeFile(requestPath, JSON.stringify(requestData, null, 2), 'utf-8');
 
-		console.log(`[ContentForge Bridge] Written content + ${CONTENTFORGE_SKILLS.length} H70 skills for analysis: ${requestId}`);
+		console.log(`[ContentForge Bridge] Written content + ${CONTENTFORGE_SKILLS.length} H70 skills + Mind v5 patterns for analysis: ${requestId}`);
 
 		return json({
 			success: true,
