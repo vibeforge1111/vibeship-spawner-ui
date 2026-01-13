@@ -177,33 +177,49 @@ function getScoreCategory(score: number): string {
 }
 
 // =============================================================================
-// QUERY MIND FOR PATTERNS
+// KEYWORD-BASED RETRIEVAL (Works with Lite tier)
 // =============================================================================
 
 /**
+ * Fetch memories by content type using list endpoint (works in Lite tier)
+ * This replaces semantic search which requires embeddings
+ */
+async function fetchMemoriesByType(contentTypes: string[], limit: number = 100): Promise<Array<{ content: string; metadata?: Record<string, unknown>; content_type?: string }>> {
+	try {
+		// Fetch more than needed to filter client-side
+		const response = await fetch(`${MIND_API}/v1/memories/?limit=${limit * 2}`);
+		if (!response.ok) return [];
+
+		const memories = await response.json();
+		if (!Array.isArray(memories)) return [];
+
+		// Filter by content types
+		return memories.filter((m: { content_type?: string }) =>
+			contentTypes.includes(m.content_type || '')
+		).slice(0, limit);
+	} catch (e) {
+		console.warn('[ContentForge Mind] Failed to fetch memories:', e);
+		return [];
+	}
+}
+
+/**
  * Query Mind for learned patterns before analyzing new content
+ * Uses keyword-based retrieval that works with Lite tier
  */
 export async function queryLearnedPatterns(contentHint?: string): Promise<LearnedPattern[]> {
 	if (!browser) return [];
 
 	try {
-		const query = contentHint
-			? `contentforge analysis ${contentHint}`
-			: 'contentforge analysis high virality score patterns';
+		// Fetch observation memories (ContentForge analysis results) and viral patterns
+		const memories = await fetchMemoriesByType(['observation', 'viral_pattern'], 50);
 
-		const response = await fetch(`${MIND_API}/v1/memories/retrieve`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				query,
-				limit: 20
-			})
-		});
+		if (memories.length === 0) {
+			console.log('[ContentForge Mind] No past analyses found for learning');
+			return [];
+		}
 
-		if (!response.ok) return [];
-
-		const data = await response.json();
-		const memories = data.memories || [];
+		console.log(`[ContentForge Mind] Found ${memories.length} memories for pattern learning`);
 
 		// Extract patterns from memories
 		return extractPatternsFromMemories(memories);
@@ -215,43 +231,102 @@ export async function queryLearnedPatterns(contentHint?: string): Promise<Learne
 
 /**
  * Extract actionable patterns from past analyses
+ * Handles both observation (full analysis) and viral_pattern (pattern-specific) memories
  */
-function extractPatternsFromMemories(memories: Array<{ content: string; metadata?: Record<string, unknown> }>): LearnedPattern[] {
+function extractPatternsFromMemories(memories: Array<{ content: string; content_type?: string; metadata?: Record<string, unknown> }>): LearnedPattern[] {
 	const patternCounts: Record<string, { scores: number[]; count: number }> = {};
 
 	for (const memory of memories) {
-		const metadata = memory.metadata as {
-			virality_score?: number;
-			hook_type?: string;
-			emotional_trigger?: string;
-			patterns?: string[];
-		} | undefined;
+		let score: number | undefined;
+		let patternName: string | undefined;
+		let hookType: string | undefined;
+		let emotionalTrigger: string | undefined;
 
-		if (!metadata?.virality_score) continue;
+		// Handle viral_pattern content type (extract from content text)
+		if (memory.content_type === 'viral_pattern') {
+			// Parse: "**Viral Pattern: single_punch**\nCategory: structure\n...Score: 91"
+			const scoreMatch = memory.content.match(/Score:\s*(\d+)/);
+			const patternMatch = memory.content.match(/\*\*Viral Pattern:\s*([^*]+)\*\*/);
+			const categoryMatch = memory.content.match(/Category:\s*(\w+)/);
+
+			if (scoreMatch) score = parseInt(scoreMatch[1]);
+			if (patternMatch) patternName = patternMatch[1].trim();
+			if (categoryMatch) {
+				const category = categoryMatch[1];
+				if (category !== 'structure') patternName = `${category}: ${patternName || 'pattern'}`;
+			}
+		}
+		// Handle observation content type (full analysis result)
+		else if (memory.content_type === 'observation') {
+			// Parse: "**Virality Score:** 90/100" and insights
+			const scoreMatch = memory.content.match(/\*\*Virality Score:\*\*\s*(\d+)/);
+			const hookMatch = memory.content.match(/Hook Type:\s*([^\n]+)/);
+			const emotionMatch = memory.content.match(/Primary Emotion:\s*([^\n]+)/);
+
+			if (scoreMatch) score = parseInt(scoreMatch[1]);
+			if (hookMatch && hookMatch[1] !== 'Unknown') hookType = hookMatch[1].trim();
+			if (emotionMatch && emotionMatch[1] !== 'Unknown') emotionalTrigger = emotionMatch[1].trim();
+
+			// Extract key insights as patterns
+			const insightsMatch = memory.content.match(/\*\*Key Insights:\*\*\n([\s\S]*?)\n\n/);
+			if (insightsMatch && score) {
+				const insights = insightsMatch[1].split('\n- ').filter(i => i.trim());
+				for (const insight of insights.slice(0, 3)) { // Top 3 insights
+					const cleanInsight = insight.replace(/^-\s*/, '').trim().slice(0, 60);
+					if (cleanInsight && cleanInsight !== 'None') {
+						if (!patternCounts[cleanInsight]) patternCounts[cleanInsight] = { scores: [], count: 0 };
+						patternCounts[cleanInsight].scores.push(score);
+						patternCounts[cleanInsight].count++;
+					}
+				}
+			}
+		}
+		// Fallback to metadata
+		else {
+			const metadata = memory.metadata as {
+				virality_score?: number;
+				hook_type?: string;
+				emotional_trigger?: string;
+				patterns?: string[];
+			} | undefined;
+
+			score = metadata?.virality_score;
+			hookType = metadata?.hook_type;
+			emotionalTrigger = metadata?.emotional_trigger;
+
+			if (metadata?.patterns && score) {
+				for (const pattern of metadata.patterns) {
+					if (!patternCounts[pattern]) patternCounts[pattern] = { scores: [], count: 0 };
+					patternCounts[pattern].scores.push(score);
+					patternCounts[pattern].count++;
+				}
+			}
+		}
+
+		if (!score || score === 0) continue;
+
+		// Count pattern name
+		if (patternName) {
+			const key = `Structure: ${patternName}`;
+			if (!patternCounts[key]) patternCounts[key] = { scores: [], count: 0 };
+			patternCounts[key].scores.push(score);
+			patternCounts[key].count++;
+		}
 
 		// Count hook types
-		if (metadata.hook_type) {
-			const key = `Hook: ${metadata.hook_type}`;
+		if (hookType) {
+			const key = `Hook: ${hookType}`;
 			if (!patternCounts[key]) patternCounts[key] = { scores: [], count: 0 };
-			patternCounts[key].scores.push(metadata.virality_score);
+			patternCounts[key].scores.push(score);
 			patternCounts[key].count++;
 		}
 
 		// Count emotional triggers
-		if (metadata.emotional_trigger) {
-			const key = `Emotion: ${metadata.emotional_trigger}`;
+		if (emotionalTrigger) {
+			const key = `Emotion: ${emotionalTrigger}`;
 			if (!patternCounts[key]) patternCounts[key] = { scores: [], count: 0 };
-			patternCounts[key].scores.push(metadata.virality_score);
+			patternCounts[key].scores.push(score);
 			patternCounts[key].count++;
-		}
-
-		// Count other patterns
-		if (metadata.patterns) {
-			for (const pattern of metadata.patterns) {
-				if (!patternCounts[pattern]) patternCounts[pattern] = { scores: [], count: 0 };
-				patternCounts[pattern].scores.push(metadata.virality_score);
-				patternCounts[pattern].count++;
-			}
 		}
 	}
 
@@ -268,7 +343,7 @@ function extractPatternsFromMemories(memories: Array<{ content: string; metadata
 		})
 		.filter(p => p.occurrences >= 2) // Only patterns seen multiple times
 		.sort((a, b) => b.averageScore - a.averageScore)
-		.slice(0, 10);
+		.slice(0, 15); // Return top 15 patterns
 }
 
 function generateRecommendation(pattern: string, avgScore: number, occurrences: number): string {
@@ -287,58 +362,79 @@ function generateRecommendation(pattern: string, avgScore: number, occurrences: 
 
 /**
  * Get user's learned style from past analyses
+ * Uses keyword-based retrieval that works with Lite tier
  */
 export async function getUserStyle(): Promise<UserStyle | null> {
 	if (!browser) return null;
 
 	try {
-		const response = await fetch(`${MIND_API}/v1/memories/retrieve`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				query: 'contentforge analysis',
-				limit: 50
-			})
-		});
+		// Fetch ContentForge analysis memories
+		const memories = await fetchMemoriesByType(['observation', 'viral_pattern'], 100);
 
-		if (!response.ok) return null;
+		if (memories.length === 0) {
+			console.log('[ContentForge Mind] No past analyses found for style learning');
+			return null;
+		}
 
-		const data = await response.json();
-		const memories = data.memories || [];
-
-		if (memories.length === 0) return null;
+		console.log(`[ContentForge Mind] Analyzing ${memories.length} memories for user style`);
 
 		// Aggregate style markers
 		const hookTypes: Record<string, number> = {};
 		const emotions: Record<string, number> = {};
+		const structures: Record<string, number> = {};
 		let totalScore = 0;
 		let count = 0;
 
 		for (const memory of memories) {
-			const metadata = memory.metadata as {
-				virality_score?: number;
-				hook_type?: string;
-				emotional_trigger?: string;
-			} | undefined;
+			let score: number | undefined;
+			let hookType: string | undefined;
+			let emotionalTrigger: string | undefined;
+			let structure: string | undefined;
 
-			if (metadata?.virality_score) {
-				totalScore += metadata.virality_score;
+			// Parse viral_pattern content
+			if (memory.content_type === 'viral_pattern') {
+				const scoreMatch = memory.content.match(/Score:\s*(\d+)/);
+				const patternMatch = memory.content.match(/\*\*Viral Pattern:\s*([^*]+)\*\*/);
+
+				if (scoreMatch) score = parseInt(scoreMatch[1]);
+				if (patternMatch) structure = patternMatch[1].trim();
+			}
+			// Parse observation content
+			else if (memory.content_type === 'observation') {
+				const scoreMatch = memory.content.match(/\*\*Virality Score:\*\*\s*(\d+)/);
+				const hookMatch = memory.content.match(/Hook Type:\s*([^\n]+)/);
+				const emotionMatch = memory.content.match(/Primary Emotion:\s*([^\n]+)/);
+
+				if (scoreMatch) score = parseInt(scoreMatch[1]);
+				if (hookMatch && hookMatch[1] !== 'Unknown') hookType = hookMatch[1].trim();
+				if (emotionMatch && emotionMatch[1] !== 'Unknown') emotionalTrigger = emotionMatch[1].trim();
+			}
+
+			if (score && score > 0) {
+				totalScore += score;
 				count++;
 			}
-			if (metadata?.hook_type) {
-				hookTypes[metadata.hook_type] = (hookTypes[metadata.hook_type] || 0) + 1;
+			if (hookType) {
+				hookTypes[hookType] = (hookTypes[hookType] || 0) + 1;
 			}
-			if (metadata?.emotional_trigger) {
-				emotions[metadata.emotional_trigger] = (emotions[metadata.emotional_trigger] || 0) + 1;
+			if (emotionalTrigger) {
+				emotions[emotionalTrigger] = (emotions[emotionalTrigger] || 0) + 1;
+			}
+			if (structure) {
+				structures[structure] = (structures[structure] || 0) + 1;
 			}
 		}
 
 		// Get top patterns
 		const sortedHooks = Object.entries(hookTypes).sort((a, b) => b[1] - a[1]);
 		const sortedEmotions = Object.entries(emotions).sort((a, b) => b[1] - a[1]);
+		const sortedStructures = Object.entries(structures).sort((a, b) => b[1] - a[1]);
+
+		// Use structures as tone markers if hooks are empty
+		const toneMarkers = sortedStructures.slice(0, 3).map(s => s[0]);
 
 		return {
-			toneMarkers: [], // Would need NLP to extract
+			toneMarkers,
 			preferredHookTypes: sortedHooks.slice(0, 3).map(h => h[0]),
 			strongEmotions: sortedEmotions.slice(0, 3).map(e => e[0]),
 			averageViralityScore: count > 0 ? Math.round(totalScore / count) : 0,
