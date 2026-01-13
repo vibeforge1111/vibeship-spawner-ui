@@ -19,8 +19,8 @@ import path from 'node:path';
 
 const SPAWNER_DIR = '.spawner';
 const STATUS_FILE = 'claude-code-status.json';
-const CONNECTION_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
-const BUSY_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes max for a task
+const CONNECTION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes (was 5 min, too aggressive)
+const BUSY_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes max for a task
 
 export interface WorkerStatus {
 	connected: boolean;

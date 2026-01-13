@@ -404,6 +404,11 @@ function waitForAnalysisResponse(requestId: string, timeoutMs: number): Promise<
 							contentforgeResult.set(result);
 							contentforgeStatus.set('complete');
 
+							// Save to Mind for learning (same as event path)
+							saveResultToMind(result);
+							updatePatternFeedback(result);
+							generateCreativeRecs(result);
+
 							resolve(result);
 							return;
 						}
