@@ -615,9 +615,9 @@ export async function loadLearnings(agentId?: string): Promise<boolean> {
 	mindState.update((s) => ({ ...s, learningsLoading: true }));
 
 	try {
-		// Get first page of learnings
+		// Get first page of learnings (includes ContentForge analyses)
 		const learningsResult = await memoryClient.listByContentType(
-			['agent_learning', 'agent_decision', 'task_outcome'],
+			['agent_learning', 'agent_decision', 'task_outcome', 'observation', 'viral_pattern', 'topic_learning'],
 			{ limit: LEARNINGS_PAGE_SIZE, agent_id: agentId }
 		);
 
@@ -664,9 +664,9 @@ export async function loadMoreLearnings(agentId?: string): Promise<boolean> {
 	mindState.update((s) => ({ ...s, learningsLoadingMore: true }));
 
 	try {
-		// Load all learnings (up to max)
+		// Load all learnings including ContentForge analyses (up to max)
 		const learningsResult = await memoryClient.listByContentType(
-			['agent_learning', 'agent_decision', 'task_outcome'],
+			['agent_learning', 'agent_decision', 'task_outcome', 'observation', 'viral_pattern', 'topic_learning'],
 			{ limit: LEARNINGS_MAX_LOAD, agent_id: agentId }
 		);
 
