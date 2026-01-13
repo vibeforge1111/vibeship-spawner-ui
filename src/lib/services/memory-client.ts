@@ -366,7 +366,10 @@ class MemoryClient {
 		options?: { limit?: number; agent_id?: string }
 	): Promise<MemoryClientResult<Memory[]>> {
 		// Fetch more than needed since we'll filter client-side
-		const result = await this.listMemories({ limit: options?.limit ? options.limit * 3 : 100 });
+		// For large requests (like "load all"), fetch much more to ensure we get enough after filtering
+		const requestedLimit = options?.limit ?? 100;
+		const fetchLimit = requestedLimit >= 200 ? requestedLimit * 10 : requestedLimit * 5;
+		const result = await this.listMemories({ limit: fetchLimit });
 
 		if (!result.success || !result.data) {
 			return { success: false, error: result.error };
