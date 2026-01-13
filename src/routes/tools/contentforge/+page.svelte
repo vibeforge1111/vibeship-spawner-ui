@@ -113,6 +113,7 @@
 	let workerStatus = $state<'connected' | 'disconnected' | 'error'>('disconnected');
 	let statusMessage = $state('Checking worker status...');
 	let statusCheckInterval: ReturnType<typeof setInterval> | null = null;
+	let pingInterval: ReturnType<typeof setInterval> | null = null;
 	let storeUnsubscribers: Array<() => void> = [];
 
 	// Worker activity tracking (real-time progress)
@@ -247,6 +248,22 @@ CRITICAL: Always ACKNOWLEDGE immediately when you pick up work. This shows "Work
 		} catch (e) {
 			workerStatus = 'error';
 			statusMessage = 'Failed to check status';
+		}
+	}
+
+	/**
+	 * Ping the worker status endpoint to keep connection alive
+	 * This updates the status file timestamp so it doesn't expire (30-min timeout)
+	 */
+	async function pingWorkerStatus() {
+		try {
+			await fetch('/api/contentforge/bridge/status', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ version: 'claude-code-ui' })
+			});
+		} catch {
+			// Silent fail - ping is just for keepalive
 		}
 	}
 
@@ -436,6 +453,10 @@ CRITICAL: Always ACKNOWLEDGE immediately when you pick up work. This shows "Work
 
 	onMount(async () => {
 		await initContentForgeBridge();
+		// Ping immediately to establish connection, then every 10 minutes to keep alive
+		await pingWorkerStatus();
+		pingInterval = setInterval(pingWorkerStatus, 10 * 60 * 1000); // 10 minutes
+
 		// Check status immediately and then every 2 seconds (faster when tracking activity)
 		await checkWorkerStatus();
 		statusCheckInterval = setInterval(checkWorkerStatus, 2000);
@@ -518,6 +539,9 @@ CRITICAL: Always ACKNOWLEDGE immediately when you pick up work. This shows "Work
 	onDestroy(() => {
 		if (statusCheckInterval) {
 			clearInterval(statusCheckInterval);
+		}
+		if (pingInterval) {
+			clearInterval(pingInterval);
 		}
 		storeUnsubscribers.forEach(unsub => unsub());
 	});
