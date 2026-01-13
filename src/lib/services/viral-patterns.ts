@@ -328,32 +328,27 @@ async function storePattern(data: {
 	example: PatternExample;
 }): Promise<void> {
 	try {
-		// Create structured memory for pattern
-		const content = `**Viral Pattern: ${data.pattern}**
-Category: ${data.category}
-Description: ${data.description}
-Score: ${data.example.score}
-Source: ${data.example.source}${data.example.author ? ` (@${data.example.author})` : ''}
-
-Example:
-"${data.example.content}"
-
-Timestamp: ${data.example.timestamp}`;
+		// Concise single-line content (details in metadata)
+		const authorTag = data.example.author ? ` @${data.example.author}` : '';
+		const snippet = data.example.content.slice(0, 80).replace(/\n/g, ' ');
+		const content = `${data.category}/${data.pattern} [${data.example.score}]${authorTag}: "${snippet}..."`;
 
 		await fetch(`${MIND_API}/v1/memories/`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
 				content,
-				temporal_level: 3, // Seasonal - project-level learning
+				temporal_level: 3,
 				content_type: 'viral_pattern',
 				salience: data.example.score >= 80 ? 0.9 : data.example.score >= 60 ? 0.7 : 0.5,
 				metadata: {
 					pattern_category: data.category,
 					pattern_name: data.pattern,
+					description: data.description,
 					score: data.example.score,
 					source: data.example.source,
-					author: data.example.author
+					author: data.example.author,
+					example_full: data.example.content.slice(0, 300)
 				}
 			})
 		});
@@ -364,14 +359,8 @@ Timestamp: ${data.example.timestamp}`;
 
 async function storeAntiPattern(pattern: string, content: string, score: number): Promise<void> {
 	try {
-		const memoryContent = `**Anti-Pattern: ${pattern}**
-What NOT to do - this pattern correlates with low virality.
-
-Score: ${score}
-Example of what failed:
-"${content}"
-
-Avoid this pattern in content generation.`;
+		const snippet = content.slice(0, 80).replace(/\n/g, ' ');
+		const memoryContent = `AVOID: ${pattern} [${score}] - "${snippet}..."`;
 
 		await fetch(`${MIND_API}/v1/memories/`, {
 			method: 'POST',
@@ -380,11 +369,12 @@ Avoid this pattern in content generation.`;
 				content: memoryContent,
 				temporal_level: 3,
 				content_type: 'anti_pattern',
-				salience: 0.8, // High salience - important to remember what NOT to do
+				salience: 0.8,
 				metadata: {
 					pattern_category: 'anti_pattern',
 					pattern_name: pattern,
-					score
+					score,
+					example_full: content.slice(0, 300)
 				}
 			})
 		});

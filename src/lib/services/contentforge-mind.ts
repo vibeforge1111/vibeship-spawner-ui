@@ -106,40 +106,31 @@ export async function saveAnalysisToMind(
 	if (!browser) return false;
 
 	try {
-		// Create a structured memory content
-		const memoryContent = `
-## ContentForge Analysis Result
+		// Concise content format: Score + category + top insights
+		const category = getScoreCategory(result.viralityScore);
+		const topInsights = result.keyInsights?.slice(0, 3).map(i => i.slice(0, 60)).join(' | ') || '';
+		const hookInfo = result.hookType && result.hookType !== 'Unknown' ? ` [${result.hookType}]` : '';
+		const emotionInfo = result.emotionalTrigger && result.emotionalTrigger !== 'Unknown' ? ` (${result.emotionalTrigger})` : '';
 
-**Virality Score:** ${result.viralityScore}/100
-
-**Content Analyzed:**
-${content.slice(0, 500)}${content.length > 500 ? '...' : ''}
-
-**Key Insights:**
-${result.keyInsights?.map(i => `- ${i}`).join('\n') || 'None'}
-
-**Patterns Identified:**
-- Hook Type: ${result.hookType || 'Unknown'}
-- Primary Emotion: ${result.emotionalTrigger || 'Unknown'}
-${result.patterns?.map(p => `- ${p}`).join('\n') || ''}
-
-**Score Category:** ${getScoreCategory(result.viralityScore)}
-`.trim();
+		const memoryContent = `Analysis [${result.viralityScore}/100] ${category}${hookInfo}${emotionInfo}: ${topInsights}`;
 
 		const response = await fetch(`${MIND_API}/v1/memories/`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
 				content: memoryContent,
-				temporal_level: 3, // Seasonal - project-level learning
+				temporal_level: 3,
 				content_type: 'observation',
 				salience: calculateSalience(result.viralityScore),
 				metadata: {
 					type: 'contentforge_analysis',
 					virality_score: result.viralityScore,
+					score_category: category,
 					hook_type: result.hookType,
 					emotional_trigger: result.emotionalTrigger,
 					patterns: result.patterns,
+					key_insights: result.keyInsights,
+					content_preview: content.slice(0, 200),
 					timestamp: new Date().toISOString()
 				}
 			})

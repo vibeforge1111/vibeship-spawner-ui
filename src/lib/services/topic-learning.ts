@@ -461,54 +461,61 @@ export async function storeTopicPerformance(
 	source?: string
 ): Promise<boolean> {
 	try {
-		// Store each primary topic with its performance
+		// Store each primary topic with concise format
 		for (const topic of topics.primary) {
-			// Find subtopics for this main topic
 			const relatedSubtopics = topics.subtopics
 				.filter(s => s.mainTopic === topic)
 				.map(s => s.subtopic);
 
-			const memory = {
-				content: `[TOPIC LEARNING] Topic: ${topic}
-Category: primary
-Score: ${viralityScore}
-Angle: ${topics.angle}
-Sentiment: ${topics.sentiment}
-Subtopics: ${relatedSubtopics.join(', ') || 'none'}
-Content Sample: ${content.slice(0, 200)}...
-Source: ${source || 'direct-input'}
-Related Topics: ${topics.secondary.join(', ') || 'none'}
-Niche: ${activeNiche.name}`,
-				temporal_level: 3, // Seasonal - important for learning
-				salience: viralityScore >= 70 ? 0.9 : viralityScore >= 50 ? 0.7 : 0.5,
-				content_type: 'topic_learning'
-			};
+			// Concise content: Topic [Score] angle/sentiment - subtopics
+			const subtopicStr = relatedSubtopics.length > 0 ? ` → ${relatedSubtopics.slice(0, 3).join(', ')}` : '';
+			const memoryContent = `Topic: ${topic} [${viralityScore}] ${topics.angle}/${topics.sentiment}${subtopicStr}`;
 
 			await fetch(`${MIND_API}/v1/memories/`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(memory)
+				body: JSON.stringify({
+					content: memoryContent,
+					temporal_level: 3,
+					salience: viralityScore >= 70 ? 0.9 : viralityScore >= 50 ? 0.7 : 0.5,
+					content_type: 'topic_learning',
+					metadata: {
+						topic,
+						category: 'primary',
+						score: viralityScore,
+						angle: topics.angle,
+						sentiment: topics.sentiment,
+						subtopics: relatedSubtopics,
+						related: topics.secondary,
+						niche: activeNiche.name,
+						source: source || 'direct-input',
+						content_preview: content.slice(0, 150)
+					}
+				})
 			});
 		}
 
-		// Store subtopic-specific learnings for detailed tracking
+		// Store subtopic learnings (concise)
 		for (const subtopic of topics.subtopics) {
-			const memory = {
-				content: `[SUBTOPIC LEARNING] MainTopic: ${subtopic.mainTopic}
-Subtopic: ${subtopic.subtopic}
-Score: ${viralityScore}
-Context: ${subtopic.context}
-Angle: ${topics.angle}
-Sentiment: ${topics.sentiment}`,
-				temporal_level: 3,
-				salience: viralityScore >= 70 ? 0.85 : viralityScore >= 50 ? 0.65 : 0.45,
-				content_type: 'subtopic_learning'
-			};
+			const memoryContent = `Subtopic: ${subtopic.mainTopic}/${subtopic.subtopic} [${viralityScore}] - ${subtopic.context.slice(0, 50)}`;
 
 			await fetch(`${MIND_API}/v1/memories/`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(memory)
+				body: JSON.stringify({
+					content: memoryContent,
+					temporal_level: 3,
+					salience: viralityScore >= 70 ? 0.85 : viralityScore >= 50 ? 0.65 : 0.45,
+					content_type: 'subtopic_learning',
+					metadata: {
+						main_topic: subtopic.mainTopic,
+						subtopic: subtopic.subtopic,
+						score: viralityScore,
+						context: subtopic.context,
+						angle: topics.angle,
+						sentiment: topics.sentiment
+					}
+				})
 			});
 		}
 
