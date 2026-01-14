@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	// Note: Using window.location.href instead of goto() for navigation
+	// to avoid Svelte reactivity issues with canvas (see handleProcessingComplete)
 	import Navbar from './Navbar.svelte';
 	import Footer from './Footer.svelte';
 	import PRDProcessingModal from './PRDProcessingModal.svelte';
@@ -155,48 +156,86 @@
 						// Capture skillsList in closure
 						const capturedSkills = skillsList;
 
+						// Shared function to process result from either SSE or polling
+						let resultProcessed = false;
+						let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+						function processClaudeResult(result: PRDAnalysisResult) {
+							if (resultProcessed) return;
+							resultProcessed = true;
+
+							if (pollInterval) {
+								clearInterval(pollInterval);
+								pollInterval = null;
+							}
+
+							try {
+								waitingForClaude = false;
+								processingProjectName = result.projectName || processingProjectName;
+								processingFeaturesFound = result.tasks?.length || 0;
+								processingStage = 4;
+								processingTasksGenerated = result.tasks?.length || 0;
+
+								console.log('[PRD-AI] Converting to workflow with', capturedSkills.length, 'skills');
+								pendingWorkflow = prdResultToWorkflow(result, capturedSkills);
+								console.log('[PRD-AI] Workflow created:', pendingWorkflow?.nodes?.length, 'nodes');
+
+								smartPrompt = result.executionPrompt;
+								processingStage = 5;
+
+								if (result.projectName && result.projectName !== 'New Project') {
+									setProjectName(result.projectName);
+								}
+
+								console.log('[PRD-AI] Pipeline ready! Stage:', processingStage);
+							} catch (err) {
+								console.error('[PRD-AI] Error processing result:', err);
+								waitingForClaude = false;
+								processingStage = 5;
+							}
+						}
+
 						// Set up listener for Claude's response
 						const unsubscribe = analysisStatus.subscribe(status => {
 							console.log('[PRD-AI] Status changed to:', status);
-							if (status === 'complete') {
+							if (status === 'complete' && !resultProcessed) {
 								// Claude responded! Get the result from the store
 								import('$lib/services/prd-bridge').then(({ analysisResult }) => {
 									const result = get(analysisResult);
-									console.log('[PRD-AI] Got result:', result?.projectName, 'requestId match:', result?.requestId === requestId);
+									console.log('[PRD-AI] Got result via SSE:', result?.projectName);
 
 									if (result) {
-										try {
-											waitingForClaude = false;
-											processingProjectName = result.projectName || processingProjectName;
-											processingFeaturesFound = result.tasks?.length || 0;
-											processingStage = 4;
-											processingTasksGenerated = result.tasks?.length || 0;
-
-											console.log('[PRD-AI] Converting to workflow with', capturedSkills.length, 'skills');
-											pendingWorkflow = prdResultToWorkflow(result, capturedSkills);
-											console.log('[PRD-AI] Workflow created:', pendingWorkflow?.nodes?.length, 'nodes');
-
-											smartPrompt = result.executionPrompt;
-											processingStage = 5;
-
-											if (result.projectName && result.projectName !== 'New Project') {
-												setProjectName(result.projectName);
-											}
-
-											console.log('[PRD-AI] Pipeline ready! Stage:', processingStage);
-											unsubscribe();
-										} catch (err) {
-											console.error('[PRD-AI] Error processing result:', err);
-											waitingForClaude = false;
-											processingStage = 5; // Still show as complete
-											unsubscribe();
-										}
+										processClaudeResult(result);
+										unsubscribe();
 									}
 								}).catch(err => {
 									console.error('[PRD-AI] Import error:', err);
 								});
 							}
 						});
+
+						// POLLING FALLBACK: Check for stored results every 2 seconds
+						// This handles cases where SSE connection was not active when Claude responded
+						pollInterval = setInterval(async () => {
+							if (resultProcessed) {
+								if (pollInterval) clearInterval(pollInterval);
+								return;
+							}
+
+							try {
+								const response = await fetch(`/api/prd-bridge/result?requestId=${requestId}`);
+								const data = await response.json();
+
+								if (data.found && data.result && !resultProcessed) {
+									console.log('[PRD-AI] Got result via POLLING:', data.result.projectName);
+									processClaudeResult(data.result);
+									unsubscribe();
+									await fetch('/api/prd-bridge/pending', { method: 'DELETE' });
+								}
+							} catch (err) {
+								console.debug('[PRD-AI] Polling check failed:', err);
+							}
+						}, 2000);
 
 						// Don't block - let user copy/paste the prompt
 						return;
@@ -364,8 +403,10 @@
 
 		showProcessingModal = false;
 		pendingWorkflow = null;
-		console.log('[PRD] Navigating to /canvas');
-		goto('/canvas');
+		console.log('[PRD] Navigating to /canvas with full page reload');
+		// Use window.location.href instead of goto() to match regular mode behavior
+		// Client-side navigation (goto) causes Svelte reactivity issues with canvas
+		window.location.href = '/canvas';
 	}
 
 	function delay(ms: number): Promise<void> {
