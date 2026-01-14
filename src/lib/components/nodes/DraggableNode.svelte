@@ -324,89 +324,81 @@
 	/* ====== RUNNING STATE ====== */
 	.running-ring {
 		position: absolute;
-		inset: -4px;
-		border: 2px solid #00C49A;
-		border-radius: 8px;
+		inset: -3px;
+		border: 1px solid #00C49A;
 		animation: ringPulse 1.5s ease-in-out infinite;
 		pointer-events: none;
 	}
 
 	.running-glow {
 		position: absolute;
-		inset: -8px;
-		background: radial-gradient(ellipse at center, rgba(0, 196, 154, 0.2) 0%, transparent 70%);
-		border-radius: 12px;
+		inset: -6px;
+		border: 1px solid rgba(0, 196, 154, 0.2);
 		animation: glowPulse 1.5s ease-in-out infinite;
 		pointer-events: none;
 		z-index: -1;
 	}
 
 	.draggable-node.running {
-		box-shadow: 0 0 20px rgba(0, 196, 154, 0.4), 0 0 40px rgba(0, 196, 154, 0.2);
+		/* No glow - flat design, ring indicates activity */
 	}
 
 	/* ====== SUCCESS STATE ====== */
 	.success-badge {
 		position: absolute;
-		top: -10px;
-		right: -10px;
-		width: 28px;
-		height: 28px;
+		top: -8px;
+		right: -8px;
+		width: 20px;
+		height: 20px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: #2ECC71;
-		color: white;
-		border-radius: 50%;
-		box-shadow: 0 0 12px rgba(46, 204, 113, 0.6), 0 2px 8px rgba(0, 0, 0, 0.3);
+		background: var(--bg-secondary, #141B2D);
+		color: #00FF88;
+		border: 1px solid #00FF88;
 		z-index: 20;
-		animation: badgePopIn 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+		animation: badgePopIn 200ms ease-out;
 	}
 
 	.success-glow {
 		position: absolute;
-		inset: -6px;
-		border: 2px solid rgba(46, 204, 113, 0.5);
-		border-radius: 10px;
-		box-shadow: inset 0 0 12px rgba(46, 204, 113, 0.2);
+		inset: -2px;
+		border: 1px solid rgba(0, 255, 136, 0.3);
 		pointer-events: none;
-		animation: successFadeIn 300ms ease-out;
+		animation: successFadeIn 150ms ease-out;
 	}
 
 	.draggable-node.success {
-		box-shadow: 0 0 16px rgba(46, 204, 113, 0.3);
+		/* No glow - flat design */
 	}
 
 	/* ====== ERROR STATE ====== */
 	.error-badge {
 		position: absolute;
-		top: -10px;
-		right: -10px;
-		width: 28px;
-		height: 28px;
+		top: -8px;
+		right: -8px;
+		width: 20px;
+		height: 20px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: #FF4D4D;
-		color: white;
-		border-radius: 50%;
-		box-shadow: 0 0 12px rgba(255, 77, 77, 0.6), 0 2px 8px rgba(0, 0, 0, 0.3);
+		background: var(--bg-secondary, #141B2D);
+		color: #FF4D4D;
+		border: 1px solid #FF4D4D;
 		z-index: 20;
-		animation: badgePopIn 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+		animation: badgePopIn 200ms ease-out;
 	}
 
 	.error-glow {
 		position: absolute;
-		inset: -6px;
-		border: 2px solid rgba(255, 77, 77, 0.5);
-		border-radius: 10px;
-		box-shadow: inset 0 0 12px rgba(255, 77, 77, 0.2);
+		inset: -2px;
+		border: 1px solid rgba(255, 77, 77, 0.3);
 		pointer-events: none;
-		animation: successFadeIn 300ms ease-out;
+		animation: successFadeIn 150ms ease-out;
 	}
 
 	.draggable-node.error {
-		box-shadow: 0 0 16px rgba(255, 77, 77, 0.3);
+		/* No glow - flat design */
 	}
 
 	/* ====== ANIMATIONS ====== */
