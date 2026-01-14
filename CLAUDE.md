@@ -2,6 +2,49 @@
 
 This file provides guidance to Claude Code when working with the spawner-ui codebase.
 
+---
+
+## ⚠️ SPAWNER WORKFLOW EXECUTION RULES (CRITICAL)
+
+**When executing Spawner workflows/missions, these rules are NON-NEGOTIABLE:**
+
+### Rule 1: NO PAUSING FOR CONFIRMATION
+- **NEVER** stop mid-workflow to ask "should I continue?"
+- **NEVER** pause to ask for user confirmation between tasks
+- Execute autonomously from start to finish
+- Pausing breaks the UI state and corrupts the workflow bridge
+
+### Rule 2: COMPLETE 100% OF THE PROJECT
+- **NEVER** stop at 20%, 50%, or 80% completion
+- **NEVER** say "I've set up the foundation, you can continue from here"
+- **NEVER** leave placeholder code or TODO comments for the user to finish
+- Complete ALL tasks in the pipeline until the project is fully functional
+- A project is only "done" when it can be run and tested
+
+### Rule 3: TEST AFTER COMPLETION
+- After all tasks are complete, run the project
+- Verify it builds without errors
+- Verify core functionality works
+- Report any issues found during testing
+- Fix issues before declaring completion
+
+### Rule 4: REPORT PROGRESS VIA EVENTS API
+- Send `task_started` when beginning a task
+- Send `task_progress` for significant milestones
+- Send `task_completed` when finishing a task
+- This keeps the UI in sync without requiring human interaction
+
+### Rule 5: HANDLE ERRORS GRACEFULLY
+- If a task fails, log the error and attempt to fix it
+- If unfixable, move to the next task and note the blocker
+- **NEVER** stop the entire workflow for a single task failure
+- Complete as much as possible, then report all issues at the end
+
+**For detailed rules, see: `.spawner/RULES.md`**
+**For future improvements roadmap, see: `.spawner/ROADMAP-COMPLETION-PIPELINE.md`**
+
+---
+
 ## Project Overview
 
 Spawner UI is a SvelteKit application that provides a visual canvas for building AI agent workflows. It allows users to:
@@ -420,6 +463,42 @@ When a user uploads a PRD to Spawner UI, Claude Code analyzes it with actual int
 4. Claude Code analyzes PRD with real AI (variable task count based on complexity)
 5. Claude Code sends results via `POST /api/events` with type `prd_analysis_complete`
 6. UI receives intelligent pipeline (could be 5 or 25 tasks - depends on actual project)
+
+### ⚠️ CRITICAL: RequestId Matching (MUST FOLLOW)
+
+**The UI polls for results using a specific `requestId`. If your response uses a different requestId, IT WILL BE IGNORED.**
+
+**ALWAYS follow this exact flow:**
+
+```bash
+# Step 1: ALWAYS fetch the CURRENT pending requestId first
+curl http://localhost:5173/api/prd-bridge/pending
+# Returns: {"pending": true, "requestId": "prd-1234567890-abc123", ...}
+
+# Step 2: Use THAT EXACT requestId in your response
+# DO NOT use an old requestId from a previous request
+# DO NOT guess or generate your own requestId
+
+# Step 3: Send the result with the matching requestId
+curl -X POST http://localhost:5173/api/events \
+  -H "Content-Type: application/json" \
+  -d '{"type": "prd_analysis_complete", "data": {"requestId": "prd-1234567890-abc123", ...}}'
+```
+
+**Why this matters:**
+- The UI generates a NEW requestId each time the user submits/resubmits a PRD
+- The UI only polls for results matching its current requestId
+- Results with mismatched requestIds are stored but never displayed
+- If the user refreshes or resubmits, the old requestId becomes stale
+
+**Common failure pattern:**
+1. User submits PRD → requestId A created
+2. Claude starts analyzing...
+3. User refreshes page or resubmits → requestId B created (A is now stale!)
+4. Claude sends result with requestId A → IGNORED because UI is polling for B
+5. User sees nothing, thinks it failed
+
+**The fix:** Always fetch `/api/prd-bridge/pending` IMMEDIATELY before sending results to get the current requestId.
 
 ### Checking for Pending PRD Analysis
 
