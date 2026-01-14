@@ -274,6 +274,17 @@ class SyncClient {
 
 		// Notify local subscribers
 		this.notifySubscribers(fullEvent);
+
+		// Also POST to /api/events for SSE bridge (Theatre and other SSE clients)
+		if (typeof fetch !== 'undefined') {
+			fetch('/api/events', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(fullEvent)
+			}).catch(() => {
+				// Silently ignore - SSE bridge is optional
+			});
+		}
 	}
 
 	/**
