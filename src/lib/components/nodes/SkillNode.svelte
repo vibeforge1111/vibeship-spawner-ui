@@ -257,19 +257,20 @@
 	<div class="px-3 py-2.5">
 		<h3 class="text-sm font-mono text-text-primary truncate">{data.name}</h3>
 
-		<!-- Skill Chain Indicator (when present) -->
-		{#if data.skillChain && data.skillChain.length > 1}
-			<div class="skill-chain-row mt-1.5">
-				<span class="chain-icon" title={data.chainDescription || 'Skill Chain'}>⛓</span>
-				<div class="chain-skills">
-					{#each data.skillChain as skill, i}
-						<span class="chain-skill" title={skill}>
-							{skill.split('-')[0]}
+		<!-- Skills badges (shows which skills handle this task) -->
+		{#if data.skillChain && data.skillChain.length > 0}
+			<div class="skill-tags-row mt-1.5">
+				<div class="skill-tags">
+					{#each data.skillChain.slice(0, 4) as skill}
+						<span class="skill-tag" title={skill}>
+							{skill}
 						</span>
-						{#if i < data.skillChain.length - 1}
-							<span class="chain-arrow">→</span>
-						{/if}
 					{/each}
+					{#if data.skillChain.length > 4}
+						<span class="skill-tag skill-tag-more" title={data.skillChain.slice(4).join(', ')}>
+							+{data.skillChain.length - 4}
+						</span>
+					{/if}
 				</div>
 			</div>
 		{/if}
@@ -377,8 +378,8 @@
 		opacity: 0.7;
 	}
 
-	/* Skill Chain Visualization */
-	.skill-chain-row {
+	/* Skill Tags - shows which skills handle this task */
+	.skill-tags-row {
 		display: flex;
 		align-items: center;
 		gap: 4px;
@@ -388,39 +389,36 @@
 		padding-top: 4px;
 	}
 
-	.chain-icon {
-		font-size: 10px;
-		opacity: 0.6;
-		flex-shrink: 0;
-	}
-
-	.chain-skills {
+	.skill-tags {
 		display: flex;
 		align-items: center;
-		gap: 2px;
+		gap: 3px;
+		flex-wrap: wrap;
 		overflow: hidden;
 		flex: 1;
 	}
 
-	.chain-skill {
-		font-size: 9px;
+	.skill-tag {
+		font-size: 8px;
 		font-family: var(--font-mono);
-		color: var(--text-tertiary);
-		background: var(--bg-tertiary, rgba(255, 255, 255, 0.05));
-		padding: 1px 4px;
-		border-radius: 2px;
+		color: var(--accent-primary, #00C49A);
+		background: rgba(0, 196, 154, 0.1);
+		border: 1px solid rgba(0, 196, 154, 0.2);
+		padding: 1px 5px;
 		white-space: nowrap;
 		cursor: default;
+		transition: all 0.15s;
 	}
 
-	.chain-skill:hover {
+	.skill-tag:hover {
 		color: var(--text-primary);
-		background: var(--bg-secondary, rgba(255, 255, 255, 0.1));
+		background: rgba(0, 196, 154, 0.2);
+		border-color: rgba(0, 196, 154, 0.4);
 	}
 
-	.chain-arrow {
-		font-size: 8px;
+	.skill-tag-more {
 		color: var(--text-tertiary);
-		opacity: 0.5;
+		background: var(--bg-tertiary, rgba(255, 255, 255, 0.05));
+		border-color: var(--border-surface, rgba(255, 255, 255, 0.1));
 	}
 </style>

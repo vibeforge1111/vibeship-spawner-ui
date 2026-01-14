@@ -474,6 +474,10 @@
 
 	/**
 	 * Convert PRD Analysis Result from Claude AI to workflow format
+	 *
+	 * Creates TASK-FOCUSED nodes where each node represents a feature/task,
+	 * with skills shown as tags. This prevents duplicate skill nodes and
+	 * gives a cleaner view of what's being built.
 	 */
 	function prdResultToWorkflow(result: PRDAnalysisResult, skillsList: Skill[]): {
 		nodes: { skill: Skill; position: { x: number; y: number } }[];
@@ -482,11 +486,19 @@
 		const nodes: { skill: Skill; position: { x: number; y: number } }[] = [];
 		const connections: { sourceIndex: number; targetIndex: number }[] = [];
 
-		// Create a skill lookup map
+		// Create a skill lookup map for category inference
 		const skillMap = new Map<string, Skill>();
 		for (const skill of skillsList) {
 			skillMap.set(skill.id.toLowerCase(), skill);
-			skillMap.set(skill.name.toLowerCase(), skill);
+		}
+
+		// Infer category from task skills
+		function inferCategory(taskSkills: string[]): Skill['category'] {
+			for (const skillId of taskSkills) {
+				const skill = skillMap.get(skillId.toLowerCase());
+				if (skill) return skill.category;
+			}
+			return 'development';
 		}
 
 		// Group tasks by phase
@@ -498,10 +510,10 @@
 		}
 
 		// Layout constants
-		const NODE_WIDTH = 280;
-		const NODE_HEIGHT = 120;
-		const HORIZONTAL_GAP = 80;
-		const VERTICAL_GAP = 40;
+		const NODE_WIDTH = 300;
+		const NODE_HEIGHT = 140;
+		const HORIZONTAL_GAP = 100;
+		const VERTICAL_GAP = 50;
 		const START_X = 100;
 		const START_Y = 100;
 
@@ -518,22 +530,18 @@
 			for (let i = 0; i < phaseTasks.length; i++) {
 				const task = phaseTasks[i];
 
-				// Find the best matching skill for this task
-				let matchedSkill: Skill | undefined;
-				for (const skillId of task.skills) {
-					matchedSkill = skillMap.get(skillId.toLowerCase());
-					if (matchedSkill) break;
-				}
-
-				// If no skill matched, create a placeholder skill
-				const skillToUse: Skill = matchedSkill ?? {
+				// Create a TASK node (not a skill node)
+				// The task title shows WHAT we're building
+				// The tags show WHICH skills are used
+				const taskNode: Skill = {
 					id: task.id,
 					name: task.title,
 					description: task.description,
-					category: 'development',
+					category: inferCategory(task.skills),
 					tier: 'free',
-					tags: [],
-					triggers: []
+					tags: task.skills,  // Skills appear as tags on the node
+					triggers: [],
+					skillChain: task.skills  // Also store in skillChain for reference
 				};
 
 				const position = {
@@ -541,7 +549,7 @@
 					y: START_Y + i * (NODE_HEIGHT + VERTICAL_GAP)
 				};
 
-				nodes.push({ skill: skillToUse, position });
+				nodes.push({ skill: taskNode, position });
 				taskIndexMap.set(task.id, nodeIndex);
 				nodeIndex++;
 			}
