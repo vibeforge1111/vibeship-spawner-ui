@@ -104,6 +104,10 @@ class MissionExecutor {
 	private readonly STALL_WARNING_MINUTES = 5;
 	private readonly STALL_CRITICAL_MINUTES = 15;
 
+	// File sync for Claude Code resume capability
+	private fileSyncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+	private readonly FILE_SYNC_DEBOUNCE_MS = 500;
+
 	constructor() {
 		this.progress = this.createInitialProgress();
 		this.setupSyncSubscription();
@@ -177,6 +181,7 @@ class MissionExecutor {
 		// Only persist active missions
 		if (this.progress.status === 'idle') {
 			clearMissionState();
+			this.clearFileSyncState();
 			return;
 		}
 
@@ -191,10 +196,89 @@ class MissionExecutor {
 			});
 		}
 
-		// If completed/failed/cancelled, move to history
+		// Sync to file for Claude Code resume capability (debounced)
+		this.syncStateToFile();
+
+		// If completed/failed/cancelled, move to history and clear file
 		if (this.progress.status === 'completed' || this.progress.status === 'failed' || this.progress.status === 'cancelled') {
 			addToMissionHistory(serialized);
 			clearMissionState();
+			this.clearFileSyncState();
+		}
+	}
+
+	/**
+	 * Sync state to file API for Claude Code resume capability
+	 * This allows Claude Code to resume missions after interruptions
+	 */
+	private syncStateToFile(): void {
+		if (!browser) return;
+
+		// Debounce rapid updates
+		if (this.fileSyncDebounceTimer) {
+			clearTimeout(this.fileSyncDebounceTimer);
+		}
+
+		this.fileSyncDebounceTimer = setTimeout(async () => {
+			try {
+				const mission = this.progress.mission;
+				if (!mission || !this.progress.missionId) return;
+
+				// Build task list with status
+				const tasks = mission.tasks.map(task => ({
+					id: task.id,
+					title: task.title,
+					status: task.status,
+					skills: this.progress.taskSkillMap.get(task.id) || []
+				}));
+
+				const completedTasks = mission.tasks
+					.filter(t => t.status === 'completed')
+					.map(t => t.id);
+
+				const failedTasks = mission.tasks
+					.filter(t => t.status === 'failed')
+					.map(t => t.id);
+
+				const response = await fetch('/api/mission/active', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						missionId: this.progress.missionId,
+						missionName: mission.name,
+						status: this.progress.status,
+						progress: this.progress.progress,
+						currentTaskId: this.progress.currentTaskId,
+						currentTaskName: this.progress.currentTaskName,
+						executionPrompt: this.progress.executionPrompt,
+						tasks,
+						completedTasks,
+						failedTasks
+					})
+				});
+
+				if (!response.ok) {
+					log.warn('Failed to sync state to file:', await response.text());
+				} else {
+					log.debug('State synced to file for Claude Code resume');
+				}
+			} catch (error) {
+				log.warn('Failed to sync state to file:', error);
+			}
+		}, this.FILE_SYNC_DEBOUNCE_MS);
+	}
+
+	/**
+	 * Clear file sync state when mission ends
+	 */
+	private async clearFileSyncState(): Promise<void> {
+		if (!browser) return;
+
+		try {
+			await fetch('/api/mission/active', { method: 'DELETE' });
+			log.debug('File sync state cleared');
+		} catch (error) {
+			log.warn('Failed to clear file sync state:', error);
 		}
 	}
 

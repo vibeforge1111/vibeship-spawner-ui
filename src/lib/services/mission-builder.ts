@@ -583,9 +583,41 @@ curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"ty
 
 The system will then run automated tests and generate a checkpoint for human review.
 
+## IMPORTANT: Resume After Interruption
+
+If execution is interrupted (crash, pause, or context loss), you can resume:
+
+### 1. Check Active Mission State
+\`\`\`bash
+curl ${eventUrl}/api/mission/active
+\`\`\`
+
+This returns:
+- \`active\`: Whether there's a mission to resume
+- \`completedTasks\`: Tasks already finished (don't redo these)
+- \`currentTask\`: Task that was in progress when interrupted
+- \`resumeInstructions\`: Specific guidance on continuing
+
+### 2. Resume From Checkpoint
+- **Skip completed tasks** - Check \`completedTasks\` array
+- **Continue current task** - If \`currentTask\` is set, continue from where you left off
+- **Don't restart from beginning** - Only work on pending tasks
+
+### 3. If No Active Mission Found
+If \`active: false\`, the mission was either completed or needs to be restarted.
+Check \`.spawner/active-mission.json\` manually for state.
+
+### AUTONOMOUS EXECUTION RULES
+- **Do NOT stop to ask questions** during task execution
+- **Do NOT pause for confirmation** between tasks
+- **Complete all tasks sequentially** without human intervention
+- **Only pause if blocked** by an error you cannot resolve
+- If you must pause, report it: \`{"type":"mission_paused","reason":"..."}\`
+
 ---
 
-**START**: Begin with Task 1. Load its H70 skills first, then execute.`;
+**START**: Begin with Task 1. Load its H70 skills first, then execute.
+**RESUME**: If resuming, check \`/api/mission/active\` first to see completed tasks.`;
 }
 
 /**
