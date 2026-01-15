@@ -205,6 +205,10 @@ function createPipelineFromData(name: string, canvasData: Partial<PipelineData>)
 
 /**
  * Create a new empty pipeline
+ *
+ * CRITICAL: This function ALWAYS sets sessionStorage['spawner-pending-pipeline']
+ * so that canvas page loads the correct pipeline after navigation/reload.
+ * This is the DEFAULT behavior - never remove this!
  */
 export function createNewPipeline(name: string = 'Untitled Pipeline'): PipelineMetadata {
 	if (!browser) throw new Error('Cannot create pipeline on server');
@@ -238,6 +242,12 @@ export function createNewPipeline(name: string = 'Untitled Pipeline'): PipelineM
 		activePipelineId: id
 	}));
 	saveRegistry();
+
+	// CRITICAL DEFAULT BEHAVIOR: Always set pending pipeline in sessionStorage
+	// This ensures canvas page loads the NEW pipeline after any navigation/reload
+	// DO NOT REMOVE - this fixes the bug where old pipelines load instead of new ones
+	sessionStorage.setItem('spawner-pending-pipeline', id);
+	console.log('[Pipelines] Created new pipeline and set as pending:', id, name);
 
 	return metadata;
 }

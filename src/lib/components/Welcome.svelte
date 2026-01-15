@@ -371,6 +371,8 @@
 			initPipelines();
 
 			// Create a new pipeline for this PRD
+			// NOTE: createNewPipeline automatically sets sessionStorage['spawner-pending-pipeline']
+			// so canvas page will load the correct pipeline after navigation
 			const pipelineName = processingProjectName || 'PRD Pipeline';
 			createNewPipeline(pipelineName);
 

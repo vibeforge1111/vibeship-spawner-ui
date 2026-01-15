@@ -24,7 +24,7 @@ import { get } from 'svelte/store';
 	import { initCanvasSync } from '$lib/services/canvas-sync';
 	import PipelineSelector from '$lib/components/PipelineSelector.svelte';
 	import SessionStateBar from '$lib/components/SessionStateBar.svelte';
-	import { initPipelines, saveCurrentPipeline, getActivePipelineData, activePipelineId, createNewPipeline, type PipelineData } from '$lib/stores/pipelines.svelte';
+	import { initPipelines, saveCurrentPipeline, getActivePipelineData, activePipelineId, createNewPipeline, switchPipeline, type PipelineData } from '$lib/stores/pipelines.svelte';
 	import { hasResumableMission } from '$lib/services/persistence';
 	import { DroppedSkillSchema, safeJsonParse } from '$lib/types/schemas';
 
@@ -245,43 +245,66 @@ import { get } from 'svelte/store';
 			console.log('[Canvas] Auto-showing execution panel');
 		}
 
-		// FIX: Check if there's a pending goal BEFORE loading old pipeline
-		// If there's a goal, we want a fresh canvas for it, not the old pipeline
-		const hasGoal = hasPendingGoal();
+		// CRITICAL FIX: Check for pending pipeline from PRD analysis
+		// This ensures the correct pipeline loads after page reload from Welcome.svelte
+		const pendingPipelineId = sessionStorage.getItem('spawner-pending-pipeline');
+		if (pendingPipelineId) {
+			console.log('[Canvas] Found pending pipeline from PRD analysis:', pendingPipelineId);
+			sessionStorage.removeItem('spawner-pending-pipeline'); // Clear it so it doesn't persist
 
-		// FIX: Check if canvas store already has nodes (e.g., from PRD analysis flow)
-		// If so, don't overwrite them with old localStorage data
-		const existingNodes = get(nodes);
-		const hasExistingNodes = existingNodes && existingNodes.length > 0;
-
-		if (hasExistingNodes) {
-			// Canvas already has nodes (likely from Welcome.svelte PRD flow)
-			// Just update the save timestamp and don't overwrite
-			console.log('[Canvas] Preserving existing nodes:', existingNodes.length);
-			lastSaved = new Date();
-		} else if (hasGoal) {
-			// Create a new pipeline for this goal instead of loading old one
-			const goalState = getGoalState();
-			const goalName = goalState.input?.slice(0, 30) || 'New Project';
-			createNewPipeline(`${goalName}...`);
-			// CRITICAL: Clear the canvas state - createNewPipeline only updates registry,
-			// it doesn't clear the actual nodes/connections in canvasState
-			clearCanvas();
-			// Mark that we have a pending goal to process
-			pendingGoalProcess = true;
-		} else {
-			// No goal and no existing nodes - load active pipeline data as normal
-			const pipelineData = getActivePipelineData();
+			// Switch to the pending pipeline and load its data
+			const pipelineData = switchPipeline(pendingPipelineId);
 			if (pipelineData) {
+				console.log('[Canvas] Loaded pending pipeline with', pipelineData.nodes?.length || 0, 'nodes');
 				loadPipelineToCanvas(pipelineData);
 				lastSaved = new Date();
 			} else {
-				// Fallback: try old format
-				const loaded = loadCanvas();
-				if (loaded) {
-					const info = getSavedCanvasInfo();
-					if (info) {
-						lastSaved = info.savedAt;
+				console.warn('[Canvas] Pending pipeline not found, loading active pipeline');
+				const activePipelineData = getActivePipelineData();
+				if (activePipelineData) {
+					loadPipelineToCanvas(activePipelineData);
+					lastSaved = new Date();
+				}
+			}
+		} else {
+			// FIX: Check if there's a pending goal BEFORE loading old pipeline
+			// If there's a goal, we want a fresh canvas for it, not the old pipeline
+			const hasGoal = hasPendingGoal();
+
+			// FIX: Check if canvas store already has nodes (e.g., from PRD analysis flow)
+			// If so, don't overwrite them with old localStorage data
+			const existingNodes = get(nodes);
+			const hasExistingNodes = existingNodes && existingNodes.length > 0;
+
+			if (hasExistingNodes) {
+				// Canvas already has nodes (likely from Welcome.svelte PRD flow)
+				// Just update the save timestamp and don't overwrite
+				console.log('[Canvas] Preserving existing nodes:', existingNodes.length);
+				lastSaved = new Date();
+			} else if (hasGoal) {
+				// Create a new pipeline for this goal instead of loading old one
+				const goalState = getGoalState();
+				const goalName = goalState.input?.slice(0, 30) || 'New Project';
+				createNewPipeline(`${goalName}...`);
+				// CRITICAL: Clear the canvas state - createNewPipeline only updates registry,
+				// it doesn't clear the actual nodes/connections in canvasState
+				clearCanvas();
+				// Mark that we have a pending goal to process
+				pendingGoalProcess = true;
+			} else {
+				// No goal and no existing nodes - load active pipeline data as normal
+				const pipelineData = getActivePipelineData();
+				if (pipelineData) {
+					loadPipelineToCanvas(pipelineData);
+					lastSaved = new Date();
+				} else {
+					// Fallback: try old format
+					const loaded = loadCanvas();
+					if (loaded) {
+						const info = getSavedCanvasInfo();
+						if (info) {
+							lastSaved = info.savedAt;
+						}
 					}
 				}
 			}

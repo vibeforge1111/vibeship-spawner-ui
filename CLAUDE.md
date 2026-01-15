@@ -558,6 +558,32 @@ curl -X POST http://localhost:5173/api/events \
 | `.spawner/pending-prd.md` | PRD content file |
 | `.spawner/pending-request.json` | Request metadata |
 
+### Pipeline Loading - DEFAULT BEHAVIOR (DO NOT CHANGE)
+
+**CRITICAL RULE: `createNewPipeline()` ALWAYS sets `sessionStorage['spawner-pending-pipeline']`**
+
+This is the DEFAULT behavior built into `src/lib/stores/pipelines.svelte.ts`. DO NOT REMOVE IT.
+
+**Why this exists:**
+- After page navigation/reload, Svelte stores are reset
+- Without this, canvas might load an OLD pipeline instead of the newly created one
+- This bug has occurred multiple times (e.g., "KAUST garden" loading instead of new project)
+
+**How it works:**
+1. `createNewPipeline()` automatically sets `sessionStorage['spawner-pending-pipeline']` to the new ID
+2. Canvas page's `onMount` checks for this key FIRST
+3. If found, it loads that specific pipeline and clears the sessionStorage key
+4. This ensures the NEW pipeline is ALWAYS loaded after navigation
+
+**Key code locations:**
+- `src/lib/stores/pipelines.svelte.ts` - `createNewPipeline()` sets the sessionStorage (DEFAULT)
+- `src/routes/canvas/+page.svelte` - `onMount` checks and loads pending pipeline
+
+**DO NOT:**
+- Remove the sessionStorage.setItem from createNewPipeline
+- Skip the sessionStorage check in canvas page onMount
+- Try to "fix" this by removing the sessionStorage logic
+
 ## Environment
 
 - **H70 Skills Path**: `C:/Users/USER/Desktop/vibeship-h70/skill-lab`
