@@ -66,15 +66,6 @@
 				<span class="hidden sm:inline">Tools</span>
 			</a>
 
-			<!-- Missions link -->
-			<a
-				href="/missions"
-				class="inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-sm text-text-secondary border border-transparent hover:text-text-primary hover:border-surface-border transition-all"
-			>
-				<Icon name="rocket" size={14} />
-				<span class="hidden sm:inline">Missions</span>
-			</a>
-
 			<!-- Mind link -->
 			<a
 				href="/mind"
