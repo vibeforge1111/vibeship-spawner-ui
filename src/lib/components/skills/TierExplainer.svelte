@@ -60,21 +60,21 @@
 		</div>
 
 		<p class="text-sm text-text-secondary mb-4">
-			Battle-tested expertise with dramatically better outputs. Identity, patterns, anti-patterns, and sharp edges that make Claude exceptional.
+			Production-ready from the first prompt. Identity, patterns, and anti-patterns that make Claude build like a senior engineer.
 		</p>
 
 		<div class="space-y-2 mb-4">
 			<div class="flex items-center gap-2 text-sm text-text-secondary">
-				<Icon name="sparkles" size={14} class="text-accent-secondary" />
-				<span>Significantly better outputs</span>
+				<Icon name="rocket" size={14} class="text-accent-secondary" />
+				<span>Ship-quality code, first try</span>
 			</div>
 			<div class="flex items-center gap-2 text-sm text-text-secondary">
 				<Icon name="zap" size={14} class="text-accent-secondary" />
 				<span>60-70% less token usage</span>
 			</div>
 			<div class="flex items-center gap-2 text-sm text-text-secondary">
-				<Icon name="shield" size={14} class="text-accent-secondary" />
-				<span>Sharp edges prevent costly mistakes</span>
+				<Icon name="users" size={14} class="text-accent-secondary" />
+				<span>Battle-tested by thousands of devs</span>
 			</div>
 		</div>
 
