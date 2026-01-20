@@ -40,6 +40,22 @@ This file provides guidance to Claude Code when working with the spawner-ui code
 - **NEVER** stop the entire workflow for a single task failure
 - Complete as much as possible, then report all issues at the end
 
+### Rule 6: ALWAYS SEND PROGRESS EVENTS (HEARTBEAT)
+- **NEVER** go more than 60 seconds without sending a progress event
+- During long operations (npm install, build, test runs), send `task_progress` events every 30-60 seconds
+- Even if nothing has changed, send a heartbeat event: `{"type": "task_progress", "message": "Still working..."}`
+- This prevents the UI from showing "disconnected" or "no progress" errors
+- Long silence = UI thinks agent is dead = workflow corruption
+
+**Example during npm install:**
+```bash
+# Before starting long operation
+curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type": "task_progress", "data": {"message": "Installing dependencies (this may take 2-3 minutes)..."}}'
+
+# Every 30-60 seconds during operation
+curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type": "task_progress", "data": {"message": "Still installing dependencies..."}}'
+```
+
 **For detailed rules, see: `.spawner/RULES.md`**
 **For future improvements roadmap, see: `.spawner/ROADMAP-COMPLETION-PIPELINE.md`**
 
@@ -52,76 +68,78 @@ Spawner UI is a SvelteKit application that provides a visual canvas for building
 - Execute multi-step missions
 - Track progress through the Mind system
 
-## H70 Skills - DEFAULT MCP (USE THIS FIRST)
+## Vibeship Skills Lab - PRIMARY SKILL SOURCE
 
-**CRITICAL: This project uses H70 skills as the DEFAULT and PRIMARY skill source.**
+**CRITICAL: This project uses the Vibeship Skills Lab as the PRIMARY skill source.**
 
-### Why H70 is Default
+### Skills Lab Location
 
-- **480 valid skills** available locally (verified, all YAML parses correctly)
+`C:/Users/USER/Desktop/vibeship-skills-lab`
+
+### Why Local Skills Lab
+
+- **443+ valid skills** available locally (H70-C+ format)
 - **Zero network latency** - skills loaded from local disk
 - **No API costs** - no external service calls required
-- **More comprehensive** - H70 skills include identity, disasters, anti-patterns, patterns
+- **Comprehensive** - skills include identity, disasters, anti-patterns, patterns
+- **Flat structure** - `{category}/{skill-name}.yaml` for easy browsing
 
-### Spawner H70 MCP Server
+### Skill Categories
 
-This repo includes a **local MCP server** for H70 skills at `mcp-h70/`.
+Skills are organized by category:
+- `ai/`, `ai-agents/`, `ai-tools/` - AI and ML skills
+- `backend/`, `frontend/` - Core development
+- `frameworks/` - SvelteKit, Next.js, etc.
+- `game-dev/`, `gamedev/` - Game development (50+ skills)
+- `marketing/`, `community/` - Growth and marketing
+- `security/`, `compliance/` - Security patterns
+- And 40+ more categories
 
-**ALWAYS use this MCP first:**
-```
-mcp__spawner_h70__spawner_h70_skills with action="get" and name="skill-id"
-```
+### Skill Loading Priority
 
-**Available actions:**
-- `get`: Get full skill content by ID (e.g., `name="drizzle-orm"`)
-- `list`: List all 480 available H70 skills
-- `search`: Search skills by query (e.g., `query="authentication"`)
+1. **Skills API** (PRIMARY): `/api/h70-skills/[skillId]` - loads from local Skills Lab
+2. **vibeship-spawner MCP** (Legacy): `mcp.vibeship.co` - only if local unavailable
 
-### Skill Loading Priority (ALWAYS FOLLOW THIS ORDER)
+### H70-C+ Skill Format
 
-1. **spawner-h70 MCP** (DEFAULT): Local `mcp-h70/` server - USE THIS FIRST
-2. **H70 API** (Fallback): `/api/h70-skills/[skillId]` endpoint
-3. **vibeship-spawner MCP** (Legacy): `mcp.vibeship.co` - only if H70 unavailable
-
-### H70 Skill Format
-
-H70 skills are comprehensive YAML files with:
+Skills use the H70-C+ format with embedded detection commands:
 - `identity`: Expert persona and background
 - `owns`: Specific areas of expertise
 - `delegates`: When to hand off to other skills
-- `disasters`: War stories and critical lessons
-- `anti_patterns`: Common mistakes to avoid
+- `disasters`: War stories with `emotional_anchor` and `detection_command` EMBEDDED
+- `anti_patterns`: Common mistakes with `detection` EMBEDDED
 - `patterns`: Recommended implementation patterns
 - `triggers`: Activation phrases
 
 ### Key Files
 
-- `mcp-h70/index.js` - Local H70 MCP server (PRIVATE)
-- `src/lib/services/h70-skills.ts` - H70 skill service for frontend
-- `src/routes/api/h70-skills/[skillId]/+server.ts` - API route for H70 skills
-- `src/lib/services/canvas-sync.ts` - Canvas sync (uses H70 first)
-- `static/skills.json` - Skills metadata (migrated from H70)
+- `src/lib/services/h70-skills.ts` - Skill service for frontend
+- `src/routes/api/h70-skills/[skillId]/+server.ts` - API route (searches across categories)
+- `src/lib/services/h70-skill-matcher.ts` - Keyword-to-skill matching
+- `static/skills.json` - Skills metadata (443 skills)
 
-### Testing H70 Skills
+### Testing Skills
 
 ```bash
-# Via MCP (in Claude Code):
-# Use spawner_h70_skills tool with action="get", name="drizzle-orm"
-
 # Via API:
-curl http://localhost:5173/api/h70-skills/drizzle-orm | jq .source
-# Should return: "h70-local"
+curl http://localhost:5500/api/h70-skills/supabase-backend | grep source
+# Returns: "source":"vibeship-skills-lab"
+
+# Check category:
+curl http://localhost:5500/api/h70-skills/react-native-specialist | grep category
+# Returns: "category":"frontend"
 ```
 
-## H70 Skills as Development Guidance
+## Skills as Development Guidance
 
-**CRITICAL: Always load and follow relevant H70 skills when doing ANY development work.**
+**CRITICAL: Always load and follow relevant skills when doing ANY development work.**
 
 ### Before Starting Work
 
 1. **Identify relevant skills** for the task (e.g., `typescript-strict`, `code-quality`, `test-architect`, `sveltekit`)
-2. **Read the skill file** from `C:/Users/USER/Desktop/vibeship-h70/skill-lab/{skill-name}/skill.yaml`
-3. **Check these sections:**
+2. **Load via API**: `curl http://localhost:5500/api/h70-skills/{skill-id}`
+3. **Or read directly** from `C:/Users/USER/Desktop/vibeship-skills-lab/{category}/{skill-name}.yaml`
+4. **Check these sections:**
    - `disasters`: Real failures to avoid (fear-first learning)
    - `anti_patterns`: What NOT to do
    - `patterns`: What TO do with implementation examples
@@ -586,8 +604,8 @@ This is the DEFAULT behavior built into `src/lib/stores/pipelines.svelte.ts`. DO
 
 ## Environment
 
-- **H70 Skills Path**: `C:/Users/USER/Desktop/vibeship-h70/skill-lab`
-- **Dev Server**: `http://localhost:5173`
+- **Skills Lab Path**: `C:/Users/USER/Desktop/vibeship-skills-lab`
+- **Dev Server**: `http://localhost:5173` (or `http://localhost:5500` if custom port)
 - **MCP Fallback**: `https://mcp.vibeship.co/mcp`
 - **Mind v5 API**: `http://localhost:8080`
 - **Mind Dashboard**: `http://localhost:8501`

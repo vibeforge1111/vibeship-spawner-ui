@@ -13,8 +13,8 @@
 
 import { browser } from '$app/environment';
 
-// H70 skill-lab path (configured via environment or default)
-const H70_SKILL_LAB_PATH = 'C:/Users/USER/Desktop/vibeship-h70/skill-lab';
+// Vibeship Skills Lab path (new flat YAML structure by category)
+const SKILLS_LAB_PATH = 'C:/Users/USER/Desktop/vibeship-skills-lab';
 
 // Cache for loaded skills (browser-side)
 const skillCache = new Map<string, H70SkillContent>();
@@ -188,11 +188,14 @@ export async function h70SkillExists(skillId: string): Promise<boolean> {
 }
 
 /**
- * Get the local H70 skill-lab path
+ * Get the local skills lab path
  */
-export function getH70SkillLabPath(): string {
-	return H70_SKILL_LAB_PATH;
+export function getSkillsLabPath(): string {
+	return SKILLS_LAB_PATH;
 }
+
+// Alias for backward compatibility
+export const getH70SkillLabPath = getSkillsLabPath;
 
 /**
  * Check if cached skill is still valid

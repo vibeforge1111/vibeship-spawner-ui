@@ -12,8 +12,21 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'yaml';
 
-// H70 skill-lab path
-const H70_SKILL_LAB_PATH = 'C:/Users/USER/Desktop/vibeship-h70/skill-lab';
+// Vibeship Skills Lab path (new flat YAML structure)
+const SKILLS_LAB_PATH = 'C:/Users/USER/Desktop/vibeship-skills-lab';
+
+// Categories to search for skills
+const SKILL_CATEGORIES = [
+	'ai', 'ai-agents', 'ai-tools', 'analytics', 'architecture', 'backend', 'benchmarks',
+	'biotech', 'blockchain', 'business', 'cli', 'climate', 'communications', 'community',
+	'compliance', 'creative', 'data', 'data-science', 'design', 'development', 'devops',
+	'ecommerce', 'education', 'engineering', 'enterprise', 'finance', 'founder', 'frameworks',
+	'frontend', 'gamedev', 'game-dev', 'game-dev-llm', 'hardware', 'infrastructure',
+	'integration', 'integrations', 'legal', 'maker', 'marketing', 'mcp', 'mcp-server',
+	'mind', 'mobile', 'nocode', 'performance', 'product', 'productivity', 'robotics',
+	'science', 'security', 'simulation', 'space', 'startup', 'strategy', 'support',
+	'testing', 'trading', 'web3'
+];
 
 interface H70Skill {
 	name: string;
@@ -139,6 +152,41 @@ function formatH70SkillContent(skill: H70Skill & { id: string }, rawYaml: string
 	return lines.join('\n');
 }
 
+/**
+ * Find skill file across all categories
+ * New format: {SKILLS_LAB_PATH}/{category}/{skillId}.yaml
+ */
+function findSkillPath(skillId: string): string | null {
+	// Try exact match first
+	for (const category of SKILL_CATEGORIES) {
+		const skillPath = path.join(SKILLS_LAB_PATH, category, `${skillId}.yaml`);
+		if (fs.existsSync(skillPath)) {
+			return skillPath;
+		}
+	}
+
+	// Try with common name variations (e.g., supabase-backend vs supabase_backend)
+	const variations = [
+		skillId,
+		skillId.replace(/-/g, '_'),
+		skillId.replace(/_/g, '-'),
+		skillId.toLowerCase(),
+		skillId.replace(/specialist$/i, ''),
+		skillId.replace(/-specialist$/i, ''),
+	];
+
+	for (const variant of variations) {
+		for (const category of SKILL_CATEGORIES) {
+			const skillPath = path.join(SKILLS_LAB_PATH, category, `${variant}.yaml`);
+			if (fs.existsSync(skillPath)) {
+				return skillPath;
+			}
+		}
+	}
+
+	return null;
+}
+
 export const GET: RequestHandler = async ({ params }) => {
 	const { skillId } = params;
 
@@ -146,11 +194,12 @@ export const GET: RequestHandler = async ({ params }) => {
 		throw error(400, 'Skill ID is required');
 	}
 
-	const skillPath = path.join(H70_SKILL_LAB_PATH, skillId, 'skill.yaml');
+	// Find skill across categories
+	const skillPath = findSkillPath(skillId);
 
 	// Check if skill exists
-	if (!fs.existsSync(skillPath)) {
-		throw error(404, `H70 skill not found: ${skillId}`);
+	if (!skillPath) {
+		throw error(404, `Skill not found: ${skillId}`);
 	}
 
 	try {
@@ -158,8 +207,16 @@ export const GET: RequestHandler = async ({ params }) => {
 		const rawYaml = fs.readFileSync(skillPath, 'utf-8');
 		const skill = yaml.parse(rawYaml) as H70Skill;
 
-		// Add ID from folder name
-		const skillWithId = { ...skill, id: skillId };
+		// Extract category from path
+		const pathParts = skillPath.split(/[/\\]/);
+		const category = pathParts[pathParts.length - 2];
+
+		// Add ID from filename (without .yaml)
+		const skillWithId = {
+			...skill,
+			id: skillId,
+			category
+		};
 
 		// Format the content for Claude Code
 		const formattedContent = formatH70SkillContent(skillWithId, rawYaml);
@@ -168,12 +225,13 @@ export const GET: RequestHandler = async ({ params }) => {
 			skill: skillWithId,
 			rawYaml,
 			formattedContent,
-			source: 'h70-local',
-			path: skillPath
+			source: 'vibeship-skills-lab',
+			path: skillPath,
+			category
 		});
 	} catch (e) {
-		console.error(`[H70 API] Error reading skill ${skillId}:`, e);
-		throw error(500, `Failed to read H70 skill: ${skillId}`);
+		console.error(`[Skills API] Error reading skill ${skillId}:`, e);
+		throw error(500, `Failed to read skill: ${skillId}`);
 	}
 };
 
@@ -184,10 +242,10 @@ export const HEAD: RequestHandler = async ({ params }) => {
 		throw error(400, 'Skill ID is required');
 	}
 
-	const skillPath = path.join(H70_SKILL_LAB_PATH, skillId, 'skill.yaml');
+	const skillPath = findSkillPath(skillId);
 
-	if (!fs.existsSync(skillPath)) {
-		throw error(404, `H70 skill not found: ${skillId}`);
+	if (!skillPath) {
+		throw error(404, `Skill not found: ${skillId}`);
 	}
 
 	return new Response(null, { status: 200 });
