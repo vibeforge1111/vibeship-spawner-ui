@@ -46,7 +46,7 @@
 	<div class="group relative p-5 bg-bg-secondary border border-accent-secondary/30 hover:border-accent-secondary/50 transition-all">
 		<!-- Pro badge -->
 		<div class="absolute -top-2 -right-2 px-2 py-0.5 bg-accent-secondary text-bg-primary font-mono text-[10px] font-bold uppercase">
-			60-70% smaller
+			H70 Format
 		</div>
 
 		<div class="flex items-start justify-between mb-3">
@@ -55,26 +55,26 @@
 					<Icon name="crown" size={12} />
 					PRO
 				</div>
-				<span class="font-display font-semibold text-text-primary">Token-Optimized</span>
+				<span class="font-display font-semibold text-text-primary">H70 Skills</span>
 			</div>
 		</div>
 
 		<p class="text-sm text-text-secondary mb-4">
-			Same expertise, dramatically fewer tokens. Faster responses, lower API costs, same results.
+			Battle-tested expertise with dramatically better outputs. Identity, patterns, anti-patterns, and sharp edges that make Claude exceptional.
 		</p>
 
 		<div class="space-y-2 mb-4">
 			<div class="flex items-center gap-2 text-sm text-text-secondary">
-				<Icon name="zap" size={14} class="text-accent-secondary" />
-				<span>60-70% token reduction</span>
+				<Icon name="sparkles" size={14} class="text-accent-secondary" />
+				<span>Significantly better outputs</span>
 			</div>
 			<div class="flex items-center gap-2 text-sm text-text-secondary">
 				<Icon name="zap" size={14} class="text-accent-secondary" />
-				<span>Faster Claude responses</span>
+				<span>60-70% less token usage</span>
 			</div>
 			<div class="flex items-center gap-2 text-sm text-text-secondary">
-				<Icon name="zap" size={14} class="text-accent-secondary" />
-				<span>Lower API costs</span>
+				<Icon name="shield" size={14} class="text-accent-secondary" />
+				<span>Sharp edges prevent costly mistakes</span>
 			</div>
 		</div>
 
