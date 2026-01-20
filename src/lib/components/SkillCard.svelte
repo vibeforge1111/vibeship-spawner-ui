@@ -5,20 +5,68 @@
 	let { skill }: { skill: Skill } = $props();
 
 	const categoryIcons: Record<string, string> = {
+		// Development
 		development: 'cpu',
+		backend: 'server',
+		frontend: 'layout',
 		frameworks: 'layers',
-		integrations: 'zap',
+		mobile: 'smartphone',
+		// Infrastructure
+		devops: 'cloud',
+		infrastructure: 'server',
+		security: 'shield',
+		testing: 'check-circle',
+		performance: 'activity',
+		// AI & Data
+		ai: 'brain',
 		'ai-ml': 'brain',
+		'ai-agents': 'sparkles',
+		'ai-tools': 'wand',
 		agents: 'sparkles',
-		data: 'grid',
-		design: 'compass',
-		marketing: 'play',
-		strategy: 'book',
-		enterprise: 'shield',
-		finance: 'zap',
-		legal: 'book-open',
-		science: 'sparkles',
-		startup: 'zap'
+		data: 'database',
+		'data-science': 'bar-chart',
+		// Game Dev
+		'game-dev': 'gamepad',
+		gamedev: 'gamepad',
+		'game-dev-llm': 'gamepad',
+		// Web3 & Finance
+		blockchain: 'link',
+		web3: 'globe',
+		finance: 'dollar-sign',
+		trading: 'trending-up',
+		// Business
+		business: 'briefcase',
+		strategy: 'target',
+		startup: 'rocket',
+		founder: 'lightbulb',
+		product: 'box',
+		enterprise: 'building',
+		// Marketing & Communications
+		marketing: 'megaphone',
+		community: 'users',
+		communications: 'message-circle',
+		// Creative
+		creative: 'pen-tool',
+		design: 'palette',
+		// Specialized
+		space: 'rocket',
+		biotech: 'flask',
+		robotics: 'cpu',
+		climate: 'globe',
+		education: 'graduation-cap',
+		legal: 'scale',
+		hardware: 'cpu',
+		// Integrations & Other
+		integrations: 'plug',
+		integration: 'plug',
+		mcp: 'plug',
+		compliance: 'clipboard',
+		architecture: 'layers',
+		analytics: 'bar-chart',
+		ecommerce: 'shopping-cart',
+		nocode: 'wand',
+		productivity: 'check-circle',
+		engineering: 'wrench'
 	};
 
 	function formatTokens(tokens: number | undefined): string {

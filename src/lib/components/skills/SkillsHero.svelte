@@ -6,9 +6,9 @@
 		{ id: 'product', label: 'Product', icon: 'compass' },
 		{ id: 'backend', label: 'Backend', icon: 'server' },
 		{ id: 'frontend', label: 'Frontend', icon: 'layout' },
-		{ id: 'database', label: 'Database', icon: 'grid' },
+		{ id: 'database', label: 'Database', icon: 'database' },
 		{ id: 'security', label: 'Security', icon: 'shield' },
-		{ id: 'devops', label: 'DevOps', icon: 'cpu' }
+		{ id: 'devops', label: 'DevOps', icon: 'cloud' }
 	];
 </script>
 
