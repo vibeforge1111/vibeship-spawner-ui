@@ -13,7 +13,7 @@
 	import { filteredSkills, loading, error, loadSkills, skillCounts, skillSource, categoryCounts } from '$lib/stores/skills.svelte';
 
 	let showSidebar = $state(true);
-	let viewMode = $state<'cards' | 'rows'>('cards');
+	let viewMode = $state<'cards' | 'rows'>('rows');
 
 	function handleViewChange(mode: 'cards' | 'rows') {
 		viewMode = mode;
