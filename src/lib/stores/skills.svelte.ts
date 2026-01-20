@@ -139,6 +139,15 @@ export const skillCounts = derived(skills, ($skills) => {
 	};
 });
 
+export const categoryCounts = derived(skills, ($skills) => {
+	const counts: Record<string, number> = {};
+	for (const skill of $skills) {
+		const cat = skill.category || 'uncategorized';
+		counts[cat] = (counts[cat] || 0) + 1;
+	}
+	return counts;
+});
+
 // ============================================
 // localStorage Persistence for Generated Skills
 // ============================================
