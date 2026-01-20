@@ -3,6 +3,8 @@
 	import { filters, setFilter, resetFilters, skillCounts } from '$lib/stores/skills.svelte';
 	import type { SkillTier } from '$lib/stores/skills.svelte';
 
+	let { viewMode = 'cards', onViewChange }: { viewMode?: 'cards' | 'rows'; onViewChange?: (mode: 'cards' | 'rows') => void } = $props();
+
 	const tiers: { value: SkillTier | 'all'; label: string; icon?: string }[] = [
 		{ value: 'all', label: 'All' },
 		{ value: 'free', label: 'Free' },
@@ -53,6 +55,32 @@
 				<span>Clear filters</span>
 			</button>
 		{/if}
+
+		<!-- View Toggle -->
+		<div class="flex bg-bg-secondary border border-surface-border p-1">
+			<button
+				onclick={() => onViewChange?.('cards')}
+				class="flex items-center gap-1.5 px-3 py-2 font-mono text-sm transition-all"
+				class:bg-accent-primary={viewMode === 'cards'}
+				class:text-bg-primary={viewMode === 'cards'}
+				class:text-text-tertiary={viewMode !== 'cards'}
+				class:hover:text-text-primary={viewMode !== 'cards'}
+				title="Card view"
+			>
+				<Icon name="grid" size={14} />
+			</button>
+			<button
+				onclick={() => onViewChange?.('rows')}
+				class="flex items-center gap-1.5 px-3 py-2 font-mono text-sm transition-all"
+				class:bg-accent-primary={viewMode === 'rows'}
+				class:text-bg-primary={viewMode === 'rows'}
+				class:text-text-tertiary={viewMode !== 'rows'}
+				class:hover:text-text-primary={viewMode !== 'rows'}
+				title="List view"
+			>
+				<Icon name="menu" size={14} />
+			</button>
+		</div>
 	</div>
 
 	<!-- Active filters display -->

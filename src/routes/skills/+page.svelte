@@ -3,6 +3,7 @@
 	import Navbar from '$lib/components/Navbar.svelte';
 	import Footer from '$lib/components/Footer.svelte';
 	import SkillCard from '$lib/components/SkillCard.svelte';
+	import SkillRow from '$lib/components/SkillRow.svelte';
 	import FilterBar from '$lib/components/FilterBar.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import SkillsHero from '$lib/components/skills/SkillsHero.svelte';
@@ -12,6 +13,11 @@
 	import { filteredSkills, loading, error, loadSkills, skillCounts, skillSource, categoryCounts } from '$lib/stores/skills.svelte';
 
 	let showSidebar = $state(true);
+	let viewMode = $state<'cards' | 'rows'>('cards');
+
+	function handleViewChange(mode: 'cards' | 'rows') {
+		viewMode = mode;
+	}
 
 	onMount(() => {
 		loadSkills();
@@ -68,7 +74,7 @@
 			<div class="flex-1 min-w-0">
 				<!-- Filter Bar -->
 				<div class="mb-6">
-					<FilterBar />
+					<FilterBar {viewMode} onViewChange={handleViewChange} />
 				</div>
 
 				<!-- Skills Grid -->
@@ -108,11 +114,19 @@
 						</p>
 					</div>
 
-					<div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-						{#each $filteredSkills as skill (skill.id)}
-							<SkillCard {skill} />
-						{/each}
-					</div>
+					{#if viewMode === 'cards'}
+						<div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+							{#each $filteredSkills as skill (skill.id)}
+								<SkillCard {skill} />
+							{/each}
+						</div>
+					{:else}
+						<div class="flex flex-col gap-2">
+							{#each $filteredSkills as skill (skill.id)}
+								<SkillRow {skill} />
+							{/each}
+						</div>
+					{/if}
 
 					<!-- Load more indicator for large sets -->
 					{#if $filteredSkills.length > 50}
