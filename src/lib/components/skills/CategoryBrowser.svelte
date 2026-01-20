@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Icon from '../Icon.svelte';
-	import { filters, setFilter } from '$lib/stores/skills.svelte';
+	import { filters, setFilter, resetFilters } from '$lib/stores/skills.svelte';
 	import type { SkillCategory } from '$lib/stores/skills.svelte';
 
 	interface CategoryDef {
@@ -147,19 +147,45 @@
 	);
 </script>
 
-<div class="bg-bg-secondary border border-surface-border p-4 mb-6">
-	<div class="flex items-center justify-between mb-4">
-		<h3 class="font-mono text-xs text-text-tertiary uppercase tracking-wider">Browse by Category</h3>
-		{#if $filters.category !== 'all'}
-			<button
-				onclick={() => setFilter('category', 'all')}
-				class="flex items-center gap-1 text-xs font-mono text-accent-primary hover:underline"
-			>
-				<Icon name="x" size={12} />
-				Clear filter
-			</button>
-		{/if}
+<div class="space-y-4 mb-6">
+	<!-- Search -->
+	<div class="bg-bg-secondary border border-surface-border p-4">
+		<div class="relative">
+			<div class="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary">
+				<Icon name="search" size={14} />
+			</div>
+			<input
+				type="text"
+				placeholder="Search skills..."
+				value={$filters.search}
+				oninput={(e) => setFilter('search', e.currentTarget.value)}
+				class="w-full pl-9 pr-3 py-2 bg-bg-primary border border-surface-border text-text-primary placeholder:text-text-tertiary font-mono text-sm focus:outline-none focus:border-accent-primary transition-colors"
+			/>
+			{#if $filters.search}
+				<button
+					onclick={() => setFilter('search', '')}
+					class="absolute right-2 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary"
+				>
+					<Icon name="x" size={14} />
+				</button>
+			{/if}
+		</div>
 	</div>
+
+	<!-- Categories -->
+	<div class="bg-bg-secondary border border-surface-border p-4">
+		<div class="flex items-center justify-between mb-4">
+			<h3 class="font-mono text-xs text-text-tertiary uppercase tracking-wider">Browse by Category</h3>
+			{#if $filters.category !== 'all'}
+				<button
+					onclick={() => setFilter('category', 'all')}
+					class="flex items-center gap-1 text-xs font-mono text-accent-primary hover:underline"
+				>
+					<Icon name="x" size={12} />
+					Clear
+				</button>
+			{/if}
+		</div>
 
 	<div class="space-y-2">
 		{#each visibleGroups as group}
@@ -203,5 +229,6 @@
 				{/if}
 			</div>
 		{/each}
+	</div>
 	</div>
 </div>
