@@ -576,31 +576,70 @@ curl -X POST http://localhost:5173/api/events \
 | `.spawner/pending-prd.md` | PRD content file |
 | `.spawner/pending-request.json` | Request metadata |
 
-### Pipeline Loading - DEFAULT BEHAVIOR (DO NOT CHANGE)
+### Pipeline Loading - FILE-BASED QUEUE SYSTEM
 
-**CRITICAL RULE: `createNewPipeline()` ALWAYS sets `sessionStorage['spawner-pending-pipeline']`**
+**The pipeline loading system uses a file-based queue to prevent race conditions.**
 
-This is the DEFAULT behavior built into `src/lib/stores/pipelines.svelte.ts`. DO NOT REMOVE IT.
-
-**Why this exists:**
-- After page navigation/reload, Svelte stores are reset
-- Without this, canvas might load an OLD pipeline instead of the newly created one
-- This bug has occurred multiple times (e.g., "KAUST garden" loading instead of new project)
+This replaced the old sessionStorage-based system which had race condition issues.
 
 **How it works:**
-1. `createNewPipeline()` automatically sets `sessionStorage['spawner-pending-pipeline']` to the new ID
-2. Canvas page's `onMount` checks for this key FIRST
-3. If found, it loads that specific pipeline and clears the sessionStorage key
-4. This ensures the NEW pipeline is ALWAYS loaded after navigation
+1. `queuePipelineLoad()` writes pipeline data to `.spawner/pending-load.json`
+2. Canvas page's `onMount` calls `getPendingLoad()` which reads AND DELETES the file
+3. If a pending load exists, canvas loads those exact nodes/connections
+4. If no pending load, canvas loads the active pipeline from localStorage
+
+**Key files:**
+| File | Purpose |
+|------|---------|
+| `src/lib/services/pipeline-loader.ts` | `queuePipelineLoad()`, `getPendingLoad()` |
+| `src/routes/api/pipeline-loader/+server.ts` | File-based queue API |
+| `.spawner/pending-load.json` | Queued pipeline data (auto-deleted on consume) |
 
 **Key code locations:**
-- `src/lib/stores/pipelines.svelte.ts` - `createNewPipeline()` sets the sessionStorage (DEFAULT)
-- `src/routes/canvas/+page.svelte` - `onMount` checks and loads pending pipeline
+- `src/lib/components/Welcome.svelte` - `handleProcessingComplete()` uses `queuePipelineLoad()`
+- `src/routes/canvas/+page.svelte` - `onMount` uses `getPendingLoad()` FIRST
+
+### handleProcessingComplete - Uses queuePipelineLoad()
+
+**`handleProcessingComplete()` queues the pipeline via file-based system, not sessionStorage.**
+
+**How it works:**
+1. Calls `queuePipelineLoad()` with nodes, connections, and pipeline name
+2. This writes to `.spawner/pending-load.json`
+3. Navigates to `/canvas`
+4. Canvas `onMount` calls `getPendingLoad()` and loads the queued data
+5. File is automatically deleted after consumption (prevents duplicate loads)
+
+**Key code location:**
+- `src/lib/components/Welcome.svelte` - `handleProcessingComplete()` function
 
 **DO NOT:**
-- Remove the sessionStorage.setItem from createNewPipeline
-- Skip the sessionStorage check in canvas page onMount
-- Try to "fix" this by removing the sessionStorage logic
+- Revert to sessionStorage-based loading (causes race conditions)
+- Skip `queuePipelineLoad()` before navigation to canvas
+- Modify `getPendingLoad()` to NOT delete the file (causes duplicate loads)
+
+### Canvas Page - Single Loading Path
+
+**Canvas page uses ONE loading path via `getPendingLoad()` - no more competing initialization!**
+
+The old approach had 4+ competing loading paths which caused race conditions. Now there's just one.
+
+**How canvas `onMount` works:**
+1. Call `getPendingLoad()` - checks for `.spawner/pending-load.json`
+2. If pending load exists:
+   - Create new pipeline with `createNewPipeline()`
+   - Load the exact nodes/connections from the pending load
+   - File is auto-deleted (consumed)
+3. If NO pending load:
+   - Load active pipeline from localStorage
+
+**Key code location:**
+- `src/routes/canvas/+page.svelte` - `onMount` uses `getPendingLoad()` FIRST
+
+**DO NOT:**
+- Add additional loading paths or checks to canvas onMount
+- Check sessionStorage, PRD results, or other sources in canvas
+- All pipeline loading must go through the `queuePipelineLoad()` → `getPendingLoad()` flow
 
 ## Environment
 

@@ -10,11 +10,12 @@
 	import { setPRD, setProjectName } from '$lib/stores/project-docs.svelte';
 	import { analyzePRD, generateTasksFromPRD, tasksToWorkflow, type PRDAnalysis, type GeneratedTask } from '$lib/utils/prd-analyzer';
 	import { processSmartPRD, type SmartPRDAnalysis, type SmartMission } from '$lib/utils/smart-prd-analyzer';
-	import { initPRDBridge, requestPRDAnalysis, analysisStatus, type PRDAnalysisResult } from '$lib/services/prd-bridge';
+	import { initPRDBridge, requestPRDAnalysis, analysisStatus, prdResultToWorkflow, type PRDAnalysisResult } from '$lib/services/prd-bridge';
+	import { queuePipelineLoad } from '$lib/services/pipeline-loader';
 	import { onMount } from 'svelte';
 	import { skills as skillsStore, loadSkills, addSkills } from '$lib/stores/skills.svelte';
 	import { addNodesWithConnections, clearCanvas, nodes, connections } from '$lib/stores/canvas.svelte';
-	import { createNewPipeline, saveCurrentPipeline, initPipelines } from '$lib/stores/pipelines.svelte';
+	import { initPipelines } from '$lib/stores/pipelines.svelte';
 	import type { Skill } from '$lib/stores/skills.svelte';
 	import { toasts } from '$lib/stores/toast.svelte';
 	import { get } from 'svelte/store';
@@ -361,53 +362,48 @@
 		input.value = '';
 	}
 
-	function handleProcessingComplete() {
+	async function handleProcessingComplete() {
 		console.log('[PRD] handleProcessingComplete called, pendingWorkflow:', !!pendingWorkflow);
 
-		if (pendingWorkflow) {
-			console.log('[PRD] Setting up pipeline with', pendingWorkflow.nodes.length, 'nodes');
+		const pipelineName = processingProjectName || 'PRD Pipeline';
 
-			// Initialize pipeline system
-			initPipelines();
+		if (pendingWorkflow && pendingWorkflow.nodes.length > 0) {
+			console.log('[PRD] Queueing pipeline with', pendingWorkflow.nodes.length, 'nodes and', pendingWorkflow.connections.length, 'connections');
 
-			// Create a new pipeline for this PRD
-			// NOTE: createNewPipeline automatically sets sessionStorage['spawner-pending-pipeline']
-			// so canvas page will load the correct pipeline after navigation
-			const pipelineName = processingProjectName || 'PRD Pipeline';
-			createNewPipeline(pipelineName);
-
-			// Extract skills from workflow nodes and add to skills store
-			// This makes them appear in the left sidebar
+			// Extract skills from workflow nodes and add to skills store (for sidebar)
 			const workflowSkills = pendingWorkflow.nodes.map(n => n.skill);
 			addSkills(workflowSkills);
 
-			// Clear canvas and add the workflow nodes
-			clearCanvas();
-			addNodesWithConnections(pendingWorkflow.nodes, pendingWorkflow.connections);
-
-			// Get the actual nodes/connections from the store (they have full CanvasNode format now)
-			const currentNodes = get(nodes);
-			const currentConnections = get(connections);
-
-			// Save to the pipeline so canvas page loads it correctly
-			// Cast through unknown for storage compatibility
-			saveCurrentPipeline({
-				nodes: currentNodes as unknown as Record<string, unknown>[],
-				connections: currentConnections as unknown as Record<string, unknown>[],
-				zoom: 1,
-				pan: { x: 0, y: 0 }
+			// Queue the pipeline load - canvas will pick this up on mount
+			const queued = await queuePipelineLoad({
+				pipelineId: `pipe-${Date.now().toString(36)}`,
+				pipelineName,
+				nodes: pendingWorkflow.nodes,
+				connections: pendingWorkflow.connections,
+				source: 'prd'
 			});
 
-			toasts.success(`Pipeline ready with ${pendingWorkflow.nodes.length} agents`);
+			if (queued) {
+				toasts.success(`Pipeline ready with ${pendingWorkflow.nodes.length} agents`);
+			} else {
+				toasts.error('Failed to queue pipeline');
+			}
 		} else {
-			console.warn('[PRD] No pending workflow, just navigating to canvas');
+			// Queue empty pipeline so we don't load old one
+			console.warn('[PRD] No workflow nodes, queueing empty pipeline');
+			await queuePipelineLoad({
+				pipelineId: `pipe-${Date.now().toString(36)}`,
+				pipelineName,
+				nodes: [],
+				connections: [],
+				source: 'prd'
+			});
+			toasts.warning('Pipeline created but no tasks were generated. Try re-analyzing the PRD.');
 		}
 
 		showProcessingModal = false;
 		pendingWorkflow = null;
-		console.log('[PRD] Navigating to /canvas with full page reload');
-		// Use window.location.href instead of goto() to match regular mode behavior
-		// Client-side navigation (goto) causes Svelte reactivity issues with canvas
+		console.log('[PRD] Navigating to /canvas');
 		window.location.href = '/canvas';
 	}
 
@@ -481,115 +477,7 @@
 	 * with skills shown as tags. This prevents duplicate skill nodes and
 	 * gives a cleaner view of what's being built.
 	 */
-	function prdResultToWorkflow(result: PRDAnalysisResult, skillsList: Skill[]): {
-		nodes: { skill: Skill; position: { x: number; y: number } }[];
-		connections: { sourceIndex: number; targetIndex: number }[];
-	} {
-		const nodes: { skill: Skill; position: { x: number; y: number } }[] = [];
-		const connections: { sourceIndex: number; targetIndex: number }[] = [];
-
-		// Create a skill lookup map for category inference
-		const skillMap = new Map<string, Skill>();
-		for (const skill of skillsList) {
-			skillMap.set(skill.id.toLowerCase(), skill);
-		}
-
-		// Infer category from task skills
-		function inferCategory(taskSkills: string[]): Skill['category'] {
-			for (const skillId of taskSkills) {
-				const skill = skillMap.get(skillId.toLowerCase());
-				if (skill) return skill.category;
-			}
-			return 'development';
-		}
-
-		// Group tasks by phase
-		const phases = new Map<number, typeof result.tasks>();
-		for (const task of result.tasks) {
-			const phase = task.phase || 1;
-			if (!phases.has(phase)) phases.set(phase, []);
-			phases.get(phase)!.push(task);
-		}
-
-		// Layout constants
-		const NODE_WIDTH = 300;
-		const NODE_HEIGHT = 140;
-		const HORIZONTAL_GAP = 100;
-		const VERTICAL_GAP = 50;
-		const START_X = 100;
-		const START_Y = 100;
-
-		// Create nodes for each task, positioned by phase
-		const taskIndexMap = new Map<string, number>();
-		let nodeIndex = 0;
-
-		const sortedPhases = [...phases.keys()].sort((a, b) => a - b);
-
-		for (const phase of sortedPhases) {
-			const phaseTasks = phases.get(phase)!;
-			const phaseX = START_X + (phase - 1) * (NODE_WIDTH + HORIZONTAL_GAP);
-
-			for (let i = 0; i < phaseTasks.length; i++) {
-				const task = phaseTasks[i];
-
-				// Create a TASK node (not a skill node)
-				// The task title shows WHAT we're building
-				// The tags show WHICH skills are used
-				const taskNode: Skill = {
-					id: task.id,
-					name: task.title,
-					description: task.description,
-					category: inferCategory(task.skills),
-					tier: 'free',
-					tags: task.skills,  // Skills appear as tags on the node
-					triggers: [],
-					skillChain: task.skills  // Also store in skillChain for reference
-				};
-
-				const position = {
-					x: phaseX,
-					y: START_Y + i * (NODE_HEIGHT + VERTICAL_GAP)
-				};
-
-				nodes.push({ skill: taskNode, position });
-				taskIndexMap.set(task.id, nodeIndex);
-				nodeIndex++;
-			}
-		}
-
-		// Create connections based on task dependencies
-		for (const task of result.tasks) {
-			const targetIndex = taskIndexMap.get(task.id);
-			if (targetIndex === undefined) continue;
-
-			for (const depId of task.dependsOn) {
-				const sourceIndex = taskIndexMap.get(depId);
-				if (sourceIndex !== undefined) {
-					connections.push({ sourceIndex, targetIndex });
-				}
-			}
-		}
-
-		// If no explicit connections, connect phases sequentially
-		if (connections.length === 0 && sortedPhases.length > 1) {
-			for (let p = 0; p < sortedPhases.length - 1; p++) {
-				const currentPhase = phases.get(sortedPhases[p])!;
-				const nextPhase = phases.get(sortedPhases[p + 1])!;
-
-				// Connect last task of current phase to first task of next phase
-				const lastTaskId = currentPhase[currentPhase.length - 1].id;
-				const firstTaskId = nextPhase[0].id;
-				const sourceIndex = taskIndexMap.get(lastTaskId);
-				const targetIndex = taskIndexMap.get(firstTaskId);
-
-				if (sourceIndex !== undefined && targetIndex !== undefined) {
-					connections.push({ sourceIndex, targetIndex });
-				}
-			}
-		}
-
-		return { nodes, connections };
-	}
+	// prdResultToWorkflow is now imported from $lib/services/prd-bridge
 </script>
 
 <PRDProcessingModal

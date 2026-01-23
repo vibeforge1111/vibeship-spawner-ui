@@ -10,7 +10,7 @@
 	import ContextMenu from '$lib/components/ContextMenu.svelte';
 	import Minimap from '$lib/components/Minimap.svelte';
 	import NodeConfigPanel from '$lib/components/NodeConfigPanel.svelte';
-	import { canvasState, nodes, connections, selectedNodeId, selectedNodeIds, selectedConnectionId, selectedNode, draggingConnection, cuttingLine, selectionBox, snapToGrid, gridSize, addNode, addConnection, selectNode, selectConnection, selectAllNodes, clearSelection, deleteSelected, duplicateSelected, copySelected, pasteFromClipboard, removeConnection, removeNode, setZoom, setPan, zoomToFit, frameSelected, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory, startConnectionCut, updateConnectionCut, endConnectionCut, cancelConnectionCut, startSelectionBox, updateSelectionBox, endSelectionBox, cancelSelectionBox, toggleSnapToGrid, snapPosition, autoLayout, exportCanvasToFile, importCanvasFromFile, endConnectionDrag, resetTransientState } from '$lib/stores/canvas.svelte';
+	import { canvasState, nodes, connections, selectedNodeId, selectedNodeIds, selectedConnectionId, selectedNode, draggingConnection, cuttingLine, selectionBox, snapToGrid, gridSize, addNode, addConnection, addNodesWithConnections, selectNode, selectConnection, selectAllNodes, clearSelection, deleteSelected, duplicateSelected, copySelected, pasteFromClipboard, removeConnection, removeNode, setZoom, setPan, zoomToFit, frameSelected, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory, startConnectionCut, updateConnectionCut, endConnectionCut, cancelConnectionCut, startSelectionBox, updateSelectionBox, endSelectionBox, cancelSelectionBox, toggleSnapToGrid, snapPosition, autoLayout, exportCanvasToFile, importCanvasFromFile, endConnectionDrag, resetTransientState } from '$lib/stores/canvas.svelte';
 import { get } from 'svelte/store';
 	import type { CuttingLine, CanvasNode, Connection, DraggingConnection, SelectionBox } from '$lib/stores/canvas.svelte';
 	import { onMount, tick } from 'svelte';
@@ -27,6 +27,8 @@ import { get } from 'svelte/store';
 	import { initPipelines, saveCurrentPipeline, getActivePipelineData, activePipelineId, createNewPipeline, switchPipeline, type PipelineData } from '$lib/stores/pipelines.svelte';
 	import { hasResumableMission } from '$lib/services/persistence';
 	import { DroppedSkillSchema, safeJsonParse } from '$lib/types/schemas';
+	import { getPendingLoad } from '$lib/services/pipeline-loader';
+	import { loadSkills, skills as skillsStore } from '$lib/stores/skills.svelte';
 
 	let activeTab = $state('skills');
 	let chatExpanded = $state(false);
@@ -226,7 +228,7 @@ import { get } from 'svelte/store';
 		}
 	});
 
-	onMount(() => {
+	onMount(async () => {
 		// Reset all transient store state first (handles client-side navigation)
 		resetTransientState();
 		// Reset local states
@@ -245,66 +247,51 @@ import { get } from 'svelte/store';
 			console.log('[Canvas] Auto-showing execution panel');
 		}
 
-		// CRITICAL FIX: Check for pending pipeline from PRD analysis
-		// This ensures the correct pipeline loads after page reload from Welcome.svelte
-		const pendingPipelineId = sessionStorage.getItem('spawner-pending-pipeline');
-		if (pendingPipelineId) {
-			console.log('[Canvas] Found pending pipeline from PRD analysis:', pendingPipelineId);
-			sessionStorage.removeItem('spawner-pending-pipeline'); // Clear it so it doesn't persist
+		// =====================================================================
+		// SINGLE LOADING PATH - No more race conditions!
+		// =====================================================================
+		// Priority: 1. Pending load (from PRD/goal) → 2. Active pipeline
+		// =====================================================================
 
-			// Switch to the pending pipeline and load its data
-			const pipelineData = switchPipeline(pendingPipelineId);
+		const pendingLoad = await getPendingLoad();
+
+		if (pendingLoad) {
+			// PENDING LOAD: PRD analysis or goal processing queued a pipeline
+			console.log('[Canvas] Loading queued pipeline:', pendingLoad.pipelineName);
+			console.log('[Canvas] Source:', pendingLoad.source, '| Nodes:', pendingLoad.nodes.length, '| Connections:', pendingLoad.connections.length);
+
+			// Create pipeline in registry
+			const newPipeline = createNewPipeline(pendingLoad.pipelineName);
+
+			// Clear and load the exact nodes/connections
+			clearCanvas();
+			if (pendingLoad.nodes.length > 0) {
+				addNodesWithConnections(pendingLoad.nodes, pendingLoad.connections);
+			}
+
+			// Save immediately
+			saveCurrentPipeline({
+				nodes: get(nodes),
+				connections: get(connections),
+				viewport: { x: 0, y: 0, zoom: 1 }
+			});
+
+			lastSaved = new Date();
+			console.log('[Canvas] Loaded pipeline:', newPipeline.name, 'with', get(nodes).length, 'nodes and', get(connections).length, 'connections');
+		} else {
+			// NO PENDING LOAD: Load active pipeline from localStorage
+			const pipelineData = getActivePipelineData();
 			if (pipelineData) {
-				console.log('[Canvas] Loaded pending pipeline with', pipelineData.nodes?.length || 0, 'nodes');
 				loadPipelineToCanvas(pipelineData);
 				lastSaved = new Date();
+				console.log('[Canvas] Loaded active pipeline with', pipelineData.nodes?.length || 0, 'nodes');
 			} else {
-				console.warn('[Canvas] Pending pipeline not found, loading active pipeline');
-				const activePipelineData = getActivePipelineData();
-				if (activePipelineData) {
-					loadPipelineToCanvas(activePipelineData);
-					lastSaved = new Date();
-				}
-			}
-		} else {
-			// FIX: Check if there's a pending goal BEFORE loading old pipeline
-			// If there's a goal, we want a fresh canvas for it, not the old pipeline
-			const hasGoal = hasPendingGoal();
-
-			// FIX: Check if canvas store already has nodes (e.g., from PRD analysis flow)
-			// If so, don't overwrite them with old localStorage data
-			const existingNodes = get(nodes);
-			const hasExistingNodes = existingNodes && existingNodes.length > 0;
-
-			if (hasExistingNodes) {
-				// Canvas already has nodes (likely from Welcome.svelte PRD flow)
-				// Just update the save timestamp and don't overwrite
-				console.log('[Canvas] Preserving existing nodes:', existingNodes.length);
-				lastSaved = new Date();
-			} else if (hasGoal) {
-				// Create a new pipeline for this goal instead of loading old one
-				const goalState = getGoalState();
-				const goalName = goalState.input?.slice(0, 30) || 'New Project';
-				createNewPipeline(`${goalName}...`);
-				// CRITICAL: Clear the canvas state - createNewPipeline only updates registry,
-				// it doesn't clear the actual nodes/connections in canvasState
-				clearCanvas();
-				// Mark that we have a pending goal to process
-				pendingGoalProcess = true;
-			} else {
-				// No goal and no existing nodes - load active pipeline data as normal
-				const pipelineData = getActivePipelineData();
-				if (pipelineData) {
-					loadPipelineToCanvas(pipelineData);
-					lastSaved = new Date();
-				} else {
-					// Fallback: try old format
-					const loaded = loadCanvas();
-					if (loaded) {
-						const info = getSavedCanvasInfo();
-						if (info) {
-							lastSaved = info.savedAt;
-						}
+				// Fallback: try old format for migration
+				const loaded = loadCanvas();
+				if (loaded) {
+					const info = getSavedCanvasInfo();
+					if (info) {
+						lastSaved = info.savedAt;
 					}
 				}
 			}

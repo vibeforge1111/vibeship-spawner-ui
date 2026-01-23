@@ -17,6 +17,7 @@
 import { browser } from '$app/environment';
 import { writable, get } from 'svelte/store';
 import type { BridgeEvent } from './event-bridge';
+import type { Skill } from '$lib/stores/skills.svelte';
 
 // =============================================================================
 // TYPES
@@ -307,4 +308,167 @@ export function getAnalysisResponseFormat(requestId: string, result: PRDAnalysis
 		data: { requestId, result },
 		source: 'claude-code'
 	}, null, 2);
+}
+
+// =============================================================================
+// PENDING RESULT CHECK
+// Used by canvas page to recover from navigation before result arrived
+// =============================================================================
+
+/**
+ * Check for a pending PRD analysis that has a stored result.
+ * This handles the case where user navigated to canvas before the result arrived.
+ *
+ * Returns the result if found, null otherwise.
+ */
+export async function checkPendingPRDResult(): Promise<PRDAnalysisResult | null> {
+	try {
+		// Check if there's a pending request
+		const pendingResponse = await fetch('/api/prd-bridge/pending');
+		const pendingData = await pendingResponse.json();
+
+		if (!pendingData.pending || !pendingData.requestId) {
+			return null;
+		}
+
+		// Check if there's a stored result for this request
+		const resultResponse = await fetch(`/api/prd-bridge/result?requestId=${pendingData.requestId}`);
+		const resultData = await resultResponse.json();
+
+		if (!resultData.found || !resultData.result) {
+			return null;
+		}
+
+		console.log('[PRDBridge] Found pending result:', resultData.result.projectName);
+
+		// Clear the pending request now that we've found the result
+		await fetch('/api/prd-bridge/pending', { method: 'DELETE' });
+
+		return resultData.result;
+	} catch (error) {
+		console.error('[PRDBridge] Error checking pending result:', error);
+		return null;
+	}
+}
+
+// =============================================================================
+// WORKFLOW CONVERSION
+// Converts PRD analysis result to canvas workflow
+// =============================================================================
+
+export interface WorkflowFromPRD {
+	nodes: { skill: Skill; position: { x: number; y: number } }[];
+	connections: { sourceIndex: number; targetIndex: number }[];
+	projectName: string;
+}
+
+/**
+ * Convert a PRD analysis result to a canvas workflow.
+ * This function can be used from both Welcome.svelte and canvas page.
+ */
+export function prdResultToWorkflow(result: PRDAnalysisResult, skillsList: Skill[]): WorkflowFromPRD {
+	const nodes: { skill: Skill; position: { x: number; y: number } }[] = [];
+	const connections: { sourceIndex: number; targetIndex: number }[] = [];
+
+	// Create a skill lookup map for category inference
+	const skillMap = new Map<string, Skill>();
+	for (const skill of skillsList) {
+		skillMap.set(skill.id.toLowerCase(), skill);
+	}
+
+	// Infer category from task skills
+	function inferCategory(taskSkills: string[]): Skill['category'] {
+		for (const skillId of taskSkills) {
+			const skill = skillMap.get(skillId.toLowerCase());
+			if (skill) return skill.category;
+		}
+		return 'development';
+	}
+
+	// Group tasks by phase
+	const phases = new Map<number, typeof result.tasks>();
+	for (const task of result.tasks) {
+		const phase = task.phase || 1;
+		if (!phases.has(phase)) phases.set(phase, []);
+		phases.get(phase)!.push(task);
+	}
+
+	// Layout constants
+	const NODE_WIDTH = 300;
+	const NODE_HEIGHT = 140;
+	const HORIZONTAL_GAP = 100;
+	const VERTICAL_GAP = 50;
+	const START_X = 100;
+	const START_Y = 100;
+
+	// Create nodes for each task, positioned by phase
+	const taskIndexMap = new Map<string, number>();
+	let nodeIndex = 0;
+
+	const sortedPhases = [...phases.keys()].sort((a, b) => a - b);
+
+	for (const phase of sortedPhases) {
+		const phaseTasks = phases.get(phase)!;
+		const phaseX = START_X + (phase - 1) * (NODE_WIDTH + HORIZONTAL_GAP);
+
+		for (let i = 0; i < phaseTasks.length; i++) {
+			const task = phaseTasks[i];
+
+			// Create a TASK node (not a skill node)
+			// The task title shows WHAT we're building
+			// The tags show WHICH skills are used
+			const taskNode: Skill = {
+				id: task.id,
+				name: task.title,
+				description: task.description,
+				category: inferCategory(task.skills),
+				tier: 'free',
+				tags: task.skills,  // Skills appear as tags on the node
+				triggers: [],
+				skillChain: task.skills  // Also store in skillChain for reference
+			};
+
+			const position = {
+				x: phaseX,
+				y: START_Y + i * (NODE_HEIGHT + VERTICAL_GAP)
+			};
+
+			nodes.push({ skill: taskNode, position });
+			taskIndexMap.set(task.id, nodeIndex);
+			nodeIndex++;
+		}
+	}
+
+	// Create connections based on task dependencies
+	for (const task of result.tasks) {
+		const targetIndex = taskIndexMap.get(task.id);
+		if (targetIndex === undefined) continue;
+
+		for (const depId of task.dependsOn) {
+			const sourceIndex = taskIndexMap.get(depId);
+			if (sourceIndex !== undefined) {
+				connections.push({ sourceIndex, targetIndex });
+			}
+		}
+	}
+
+	// If no explicit connections, connect phases sequentially
+	if (connections.length === 0 && sortedPhases.length > 1) {
+		for (let p = 0; p < sortedPhases.length - 1; p++) {
+			const currentPhase = phases.get(sortedPhases[p])!;
+			const nextPhase = phases.get(sortedPhases[p + 1])!;
+
+			// Connect last task of current phase to first task of next phase
+			const lastTaskId = currentPhase[currentPhase.length - 1].id;
+			const firstTaskId = nextPhase[0].id;
+			const sourceIndex = taskIndexMap.get(lastTaskId);
+			const targetIndex = taskIndexMap.get(firstTaskId);
+
+			if (sourceIndex !== undefined && targetIndex !== undefined) {
+				connections.push({ sourceIndex, targetIndex });
+			}
+		}
+	}
+
+	return { nodes, connections, projectName: result.projectName || 'PRD Pipeline' };
 }
