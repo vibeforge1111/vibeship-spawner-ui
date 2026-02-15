@@ -13,6 +13,7 @@
 	import MidMissionGuidance from './MidMissionGuidance.svelte';
 	import { isMemoryConnected } from '$lib/stores/memory-settings.svelte';
 	import { memoryClient } from '$lib/services/memory-client';
+	import { browser } from '$app/environment';
 
 	interface Props {
 		onClose: () => void;
@@ -88,6 +89,22 @@
 	// H70 skills collapsed state - show active skill in header when collapsed
 	let h70SkillsCollapsed = $state(true);
 
+	// Mission settings (persisted locally)
+	const MISSION_DEFAULTS_KEY = 'spawner-mission-defaults';
+	let showMissionSettings = $state(true);
+	let missionName = $state('Spark Intelligence Launch Readiness');
+	let missionDescription = $state('Prepare Spark Intelligence to go live with safety, reliability, docs, and launch comms.');
+	let projectPath = $state('C:/Users/USER/Desktop/vibeship-spark-intelligence');
+	let projectType = $state('tool');
+	let goalsText = $state(
+		[
+			'All launch gates green (health, security, docs, observability, support readiness)',
+			'Clear launch story + distribution plan',
+			'Rollback plan + incident readiness'
+		].join('\\n')
+	);
+	let defaultsLoaded = $state(false);
+
 	// Guard to ensure mount-only effects run once
 	let hasCheckedResumable = $state(false);
 
@@ -145,6 +162,44 @@
 			}
 		}
 	});
+
+	// Load persisted mission defaults once (browser only)
+	$effect(() => {
+		if (defaultsLoaded) return;
+		defaultsLoaded = true;
+		if (!browser) return;
+		try {
+			const raw = localStorage.getItem(MISSION_DEFAULTS_KEY);
+			if (!raw) return;
+			const parsed = JSON.parse(raw);
+			if (typeof parsed?.missionName === 'string' && parsed.missionName.trim()) missionName = parsed.missionName;
+			if (typeof parsed?.missionDescription === 'string') missionDescription = parsed.missionDescription;
+			if (typeof parsed?.projectPath === 'string' && parsed.projectPath.trim()) projectPath = parsed.projectPath;
+			if (typeof parsed?.projectType === 'string' && parsed.projectType.trim()) projectType = parsed.projectType;
+			if (typeof parsed?.goalsText === 'string') goalsText = parsed.goalsText;
+		} catch {
+			// ignore
+		}
+	});
+
+	function persistDefaults() {
+		if (!browser) return;
+		try {
+			localStorage.setItem(
+				MISSION_DEFAULTS_KEY,
+				JSON.stringify({ missionName, missionDescription, projectPath, projectType, goalsText })
+			);
+		} catch {
+			// ignore
+		}
+	}
+
+	function parseGoals(text: string): string[] {
+		return text
+			.split('\\n')
+			.map((l) => l.trim())
+			.filter(Boolean);
+	}
 
 	// Fetch pre-mission context when panel opens and nodes exist
 	// Guard prevents multiple fetches - only fetch once when conditions are first met
@@ -535,9 +590,20 @@
 		});
 
 		// Execute with claude-code mode
+		const name = (missionName || '').trim() || `Workflow Execution ${new Date().toLocaleString()}`;
+		const description = (missionDescription || '').trim();
+		const path = (projectPath || '').trim() || '.';
+		const goals = parseGoals(goalsText || '');
+
+		persistDefaults();
+
 		executionProgress = await missionExecutor.execute(currentNodes, currentConnections, {
 			mode: 'claude-code',
-			name: `Workflow Execution ${new Date().toLocaleString()}`
+			name,
+			description: description || undefined,
+			projectPath: path,
+			projectType: (projectType || '').trim() || 'general',
+			goals: goals.length ? goals : undefined
 		});
 	}
 
@@ -1216,6 +1282,69 @@
 				</div>
 			{/if}
 		</div>
+		{/if}
+
+		<!-- Mission Settings (shown when not running) -->
+		{#if !isRunning && !isPaused}
+			<div class="px-4 py-3 border-t border-surface-border bg-bg-tertiary">
+				<div class="flex items-center justify-between">
+					<div class="text-xs font-mono text-text-tertiary uppercase tracking-wider">
+						Mission Settings
+					</div>
+					<button
+						onclick={() => showMissionSettings = !showMissionSettings}
+						class="text-xs font-mono text-accent-primary hover:text-accent-primary-hover transition-colors"
+					>
+						{showMissionSettings ? 'Hide' : 'Show'}
+					</button>
+				</div>
+
+				{#if showMissionSettings}
+					<div class="mt-3 grid grid-cols-1 gap-3">
+						<label class="block">
+							<div class="text-xs font-mono text-text-tertiary mb-1">Mission Name</div>
+							<input class="input" bind:value={missionName} placeholder="Spark Intelligence Launch Readiness" />
+						</label>
+
+						<label class="block">
+							<div class="text-xs font-mono text-text-tertiary mb-1">Project Path</div>
+							<input class="input" bind:value={projectPath} placeholder="C:/path/to/repo" />
+						</label>
+
+						<label class="block">
+							<div class="text-xs font-mono text-text-tertiary mb-1">Project Type</div>
+							<input class="input" bind:value={projectType} placeholder="tool | saas | marketplace | general" />
+						</label>
+
+						<label class="block">
+							<div class="text-xs font-mono text-text-tertiary mb-1">Mission Description</div>
+							<textarea
+								class="input"
+								rows="2"
+								bind:value={missionDescription}
+								placeholder="What success looks like for this run..."
+							></textarea>
+						</label>
+
+						<label class="block">
+							<div class="text-xs font-mono text-text-tertiary mb-1">Goals (one per line)</div>
+							<textarea class="input" rows="3" bind:value={goalsText}></textarea>
+						</label>
+
+						<div class="flex items-center justify-between">
+							<div class="text-xs text-text-tertiary">
+								Saved locally on Run.
+							</div>
+							<button
+								onclick={persistDefaults}
+								class="px-3 py-1.5 text-xs font-mono text-text-secondary border border-surface-border hover:border-text-tertiary transition-all"
+							>
+								Save Now
+							</button>
+						</div>
+					</div>
+				{/if}
+			</div>
 		{/if}
 
 		<!-- Footer -->
