@@ -4,23 +4,72 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import type { AgenticTeam } from '$lib/types/teams';
 import { registeredTeams, defaultActiveTeamId } from '$lib/data/teams';
 
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
+
+const DEFAULT_TEAM_REPO_TEAMS_DIR = 'C:\\Users\\USER\\Desktop\\team\\integrations\\spawner-ui\\teams';
+
+async function loadTeamsFromDir(dir: string): Promise<AgenticTeam[]> {
+	try {
+		const entries = await fs.readdir(dir, { withFileTypes: true });
+		const files = entries
+			.filter((e) => e.isFile() && e.name.toLowerCase().endsWith('.json'))
+			.map((e) => path.join(dir, e.name));
+
+		const teams: AgenticTeam[] = [];
+		for (const file of files) {
+			try {
+				const raw = await fs.readFile(file, 'utf8');
+				const parsed = JSON.parse(raw) as AgenticTeam;
+				// Minimal sanity checks to avoid crashing the UI on bad JSON.
+				if (!parsed || typeof parsed !== 'object') continue;
+				if (!parsed.id || !parsed.name || !parsed.divisions) continue;
+				teams.push(parsed);
+			} catch {
+				// Ignore invalid team files.
+			}
+		}
+
+		teams.sort((a, b) => a.name.localeCompare(b.name));
+		return teams;
+	} catch {
+		return [];
+	}
+}
+
+async function getTeamRegistry(): Promise<{ teams: AgenticTeam[]; active_team_id: string | null }> {
+	const teamsDir =
+		process.env.SPAWNER_TEAMS_DIR ||
+		process.env.TEAM_REPO_TEAMS_DIR ||
+		DEFAULT_TEAM_REPO_TEAMS_DIR;
+
+	const diskTeams = await loadTeamsFromDir(teamsDir);
+	const teams = diskTeams.length > 0 ? diskTeams : registeredTeams;
+
+	const activeFromEnv = process.env.SPAWNER_ACTIVE_TEAM_ID || process.env.SPAWNER_DEFAULT_TEAM_ID;
+	const desiredActive = activeFromEnv || defaultActiveTeamId;
+	const active_team_id = teams.some((t) => t.id === desiredActive) ? desiredActive : teams[0]?.id || null;
+
+	return { teams, active_team_id };
+}
+
 export const GET: RequestHandler = async () => {
-	return json({
-		teams: registeredTeams,
-		active_team_id: defaultActiveTeamId
-	});
+	const registry = await getTeamRegistry();
+	return json(registry);
 };
 
 export const POST: RequestHandler = async ({ request }) => {
 	const body = await request.json();
 	const { action, team_id, agent_id } = body;
 
+	const { teams, active_team_id } = await getTeamRegistry();
+
 	// Find the requested team
-	const team = team_id
-		? registeredTeams.find(t => t.id === team_id)
-		: registeredTeams.find(t => t.id === defaultActiveTeamId);
+	const defaultId = active_team_id || defaultActiveTeamId;
+	const team = team_id ? teams.find((t) => t.id === team_id) : teams.find((t) => t.id === defaultId);
 
 	if (!team) {
 		return json({ success: false, error: 'Team not found' }, { status: 404 });
@@ -47,7 +96,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		case 'list_teams':
 			return json({
 				success: true,
-				teams: registeredTeams.map(t => ({ id: t.id, name: t.name, description: t.description }))
+				teams: teams.map((t) => ({ id: t.id, name: t.name, description: t.description }))
 			});
 
 		default:
