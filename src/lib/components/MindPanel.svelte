@@ -21,7 +21,18 @@
 		patterns: [],
 		agentStats: {},
 		learningsLoading: false,
-		memoryConnected: false
+		learningsHasMore: true,
+		learningsLoadingMore: false,
+		memoryConnected: false,
+		decisions: [],
+		issues: [],
+		sessions: [],
+		decisionsLoading: false,
+		issuesLoading: false,
+		sessionsLoading: false,
+		improvements: [],
+		improvementsLoading: false,
+		improvementStats: null
 	});
 	let mcpConnected = $state(false);
 
@@ -108,11 +119,27 @@
 		await resolveIssue(issue.description);
 	}
 
+	function getLearningContext(learning: { metadata?: unknown }): string | null {
+		const metadata =
+			learning.metadata && typeof learning.metadata === 'object'
+				? (learning.metadata as Record<string, unknown>)
+				: null;
+		const decisionContext = metadata?.decision_context;
+		if (typeof decisionContext === 'string' && decisionContext.trim().length > 0) {
+			return decisionContext;
+		}
+		const reasoning = metadata?.reasoning;
+		if (typeof reasoning === 'string' && reasoning.trim().length > 0) {
+			return reasoning;
+		}
+		return null;
+	}
+
 	const learnings = $derived(currentState.learnings ?? []);
-	const decisions = $derived(currentState.project?.decisions ?? []);
-	const issues = $derived(currentState.project?.issues ?? []);
+	const decisions = $derived(currentState.decisions ?? []);
+	const issues = $derived(currentState.issues ?? []);
 	const openIssues = $derived(issues.filter((i) => i.status === 'open'));
-	const sessions = $derived(currentState.project?.sessions ?? []);
+	const sessions = $derived(currentState.sessions ?? []);
 </script>
 
 <div class="flex flex-col h-full">
@@ -211,9 +238,9 @@
 							<div class="p-2 bg-green-500/5 border border-green-500/20">
 								<div class="flex items-start justify-between gap-2">
 									<div class="flex-1 min-w-0">
-										<p class="text-xs text-text-primary">{learning.content || learning.what || learning}</p>
-										{#if learning.context}
-											<p class="text-xs text-text-tertiary mt-0.5 line-clamp-1">{learning.context}</p>
+										<p class="text-xs text-text-primary">{learning.content}</p>
+										{#if getLearningContext(learning)}
+											<p class="text-xs text-text-tertiary mt-0.5 line-clamp-1">{getLearningContext(learning)}</p>
 										{/if}
 									</div>
 									{#if learning.created_at}

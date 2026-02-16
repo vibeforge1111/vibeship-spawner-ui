@@ -34,6 +34,43 @@
 		};
 	}
 
+	const CONTENT_TYPES: ContentType[] = [
+		'fact',
+		'preference',
+		'event',
+		'goal',
+		'observation',
+		'agent_decision',
+		'agent_learning',
+		'workflow_pattern',
+		'task_outcome',
+		'handoff_context',
+		'skill_insight',
+		'decision_reinforcement',
+		'pattern_reinforcement',
+		'project_decision',
+		'project_issue',
+		'session_summary',
+		'skill_improvement',
+		'agent_improvement',
+		'team_improvement',
+		'pipeline_improvement'
+	];
+
+	function toContentType(value: unknown): ContentType | undefined {
+		return typeof value === 'string' && (CONTENT_TYPES as string[]).includes(value)
+			? (value as ContentType)
+			: undefined;
+	}
+
+	function toTemporalLevel(value: unknown): 1 | 2 | 3 | 4 | undefined {
+		return value === 1 || value === 2 || value === 3 || value === 4 ? value : undefined;
+	}
+
+	function toSalience(value: unknown): number | undefined {
+		return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+	}
+
 	$effect(() => {
 		const unsub = isMemoryConnected.subscribe((v) => (memoryConnected = v));
 		return unsub;
@@ -191,7 +228,13 @@
 
 		try {
 			const text = await file.text();
-			let importData: ExportData;
+			let importMemories: Array<{
+				content: string;
+				content_type?: string;
+				temporal_level?: number;
+				salience?: number;
+				metadata?: unknown;
+			}>;
 
 			if (file.name.endsWith('.json')) {
 				// SECURITY: Validate JSON with Zod schema
@@ -201,7 +244,7 @@
 					importing = false;
 					return;
 				}
-				importData = parsed as ExportData;
+				importMemories = parsed.memories;
 			} else {
 				error = 'Only JSON format is supported for import';
 				importing = false;
@@ -212,15 +255,14 @@
 			let importedCount = 0;
 			let skippedCount = 0;
 
-			for (const memory of importData.memories) {
+			for (const memory of importMemories) {
 				try {
 					// Create memory (will skip if already exists based on content)
 					const result = await memoryClient.createMemory({
 						content: memory.content,
-						content_type: memory.content_type,
-						temporal_level: memory.temporal_level,
-						salience: memory.salience,
-						metadata: memory.metadata
+						content_type: toContentType(memory.content_type),
+						temporal_level: toTemporalLevel(memory.temporal_level),
+						salience: toSalience(memory.salience)
 					});
 
 					if (result.success) {

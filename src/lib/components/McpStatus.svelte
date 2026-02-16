@@ -19,10 +19,11 @@
 	}
 
 	$effect(() => {
-		if (showDropdown) {
-			document.addEventListener('click', handleClickOutside);
-			return () => document.removeEventListener('click', handleClickOutside);
+		if (!showDropdown) {
+			return;
 		}
+		document.addEventListener('click', handleClickOutside);
+		return () => document.removeEventListener('click', handleClickOutside);
 	});
 
 	const statusConfig = {

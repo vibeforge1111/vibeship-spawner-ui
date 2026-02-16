@@ -72,9 +72,13 @@ export async function searchLearnings(query: LearningQuery): Promise<Memory[]> {
 		// Apply additional filters
 		if (query.patternTypes && query.patternTypes.length > 0) {
 			memories = memories.filter(m => {
-				const meta = m.metadata as { pattern_type?: string };
+				const meta = m.metadata;
 				const patternType = meta?.pattern_type;
-				return typeof patternType === 'string' && query.patternTypes!.includes(patternType);
+				return (
+					patternType === 'success' ||
+					patternType === 'failure' ||
+					patternType === 'optimization'
+				) && query.patternTypes!.includes(patternType);
 			});
 		}
 
