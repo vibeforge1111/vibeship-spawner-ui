@@ -7,10 +7,13 @@ Spawner now supports a provider-agnostic orchestration layer that can coordinate
 Current built-in providers:
 - `claude` (terminal CLI template)
 - `codex` (terminal CLI template)
+- `openai` (OpenAI-compatible API template)
 - `minimax` (OpenAI-compatible API template)
 - `kimi` (OpenAI-compatible API template)
 - `openrouter` (OpenAI-compatible API template)
 - `ollama` (OpenAI-compatible API template)
+- `replicate` (custom image/video provider template)
+- `runway` (custom video provider template)
 
 ## Core Design
 
@@ -33,6 +36,11 @@ The orchestrator builds a `MultiLLMExecutionPack` containing:
 - `round_robin`: tasks distributed by index across active providers
 - `parallel_consensus`: all providers run all tasks, primary reports lifecycle events
 - `lead_reviewer`: primary executes tasks, others emit `provider_feedback`
+
+When **Auto-route by task type** is enabled, `round_robin` becomes capability-aware:
+- image tasks route to image-capable providers
+- video tasks route to video-capable providers
+- database/deploy/research tasks route to matching providers when available
 
 ## Mission Execution Flow
 
@@ -61,11 +69,26 @@ Expected event patterns:
 In **Execution Panel -> Mission Settings -> Multi-LLM Orchestrator**:
 
 1. Enable Multi-LLM.
-2. Select strategy.
-3. Select primary provider.
-4. Toggle providers and set model names.
-5. Run workflow.
-6. Copy prompts/launch commands from the execution progress section.
+2. (Beginner mode) paste provider API keys into the provider rows.
+3. Turn on `Auto-enable by API keys` to activate providers automatically.
+4. Turn on `Auto-route by task type` to let Spawner route tasks by capability.
+5. Select strategy and primary provider.
+6. Run workflow.
+7. Copy prompts/launch commands from the execution progress section.
+
+Notes:
+- API keys entered in the panel are stored in browser local storage on that machine.
+- The orchestrator only uses key presence for readiness/routing decisions.
+- The generated launch commands still use environment-variable placeholders.
+
+## MCP-Aware Routing
+
+Spawner reads capabilities from connected MCP instances and includes them in orchestration prompts.
+
+Examples:
+- `database` MCP connected -> DB tasks are tagged for DB-capable providers.
+- `image_gen`/`video_gen` MCP connected -> media tasks are routed with stronger multimodal hints.
+- `web_search` MCP connected -> research tasks include web-search execution hints.
 
 ## Extending with New Providers
 
