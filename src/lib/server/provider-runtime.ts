@@ -2,8 +2,8 @@
  * Provider Runtime Manager
  *
  * Singleton that manages concurrent LLM provider execution sessions.
- * Routes tasks to the correct provider client (Anthropic, OpenAI-compat, Codex CLI)
- * and aggregates results through the event bridge.
+ * Routes tasks to the correct provider client (OpenAI-compat for API providers,
+ * terminal CLI for local tools like Claude and Codex).
  */
 
 import type { BridgeEvent } from '$lib/services/event-bridge';
@@ -22,13 +22,8 @@ import {
 	type OpenAICompatOptions
 } from './provider-clients/openai-compat-client';
 import {
-	executeAnthropicRequest,
-	type AnthropicClientOptions
-} from './provider-clients/anthropic-client';
-import {
-	executeCodexCliRequest,
-	isCodexAvailable,
-	type CodexCliOptions
+	executeCodexCliRequest as executeTerminalCliRequest,
+	type CodexCliOptions as TerminalCliOptions
 } from './provider-clients/codex-cli-client';
 
 export interface DispatchOptions {
@@ -204,40 +199,17 @@ class ProviderRuntimeManager {
 				]);
 			}
 
-			if (provider.kind === 'terminal_cli' && provider.id === 'codex') {
-				const available = await isCodexAvailable();
-				if (!available) {
-					return {
-						success: false,
-						error: 'Codex CLI not found in PATH'
-					};
-				}
-				const opts: CodexCliOptions = {
+			if (provider.kind === 'terminal_cli') {
+				// All terminal CLI providers (Claude, Codex, etc.) use the same
+				// child_process spawn pattern - no API keys needed locally
+				const opts: TerminalCliOptions = {
 					provider,
 					missionId,
 					signal: abortController.signal,
 					onEvent,
 					workingDirectory
 				};
-				return await executeCodexCliRequest(opts, prompt);
-			}
-
-			if (provider.kind === 'terminal_cli' && provider.id === 'claude') {
-				// Claude as API provider (not CLI - uses Anthropic API directly)
-				if (!apiKey) {
-					return {
-						success: false,
-						error: 'ANTHROPIC_API_KEY not configured for server-side Claude dispatch'
-					};
-				}
-				const opts: AnthropicClientOptions = {
-					provider,
-					apiKey,
-					missionId,
-					signal: abortController.signal,
-					onEvent
-				};
-				return await executeAnthropicRequest(opts, prompt);
+				return await executeTerminalCliRequest(opts, prompt);
 			}
 
 			// Custom or unhandled provider kind
@@ -328,21 +300,9 @@ function resolveApiKey(
 	provider: MultiLLMProviderConfig,
 	requestKeys: Record<string, string>
 ): string | undefined {
-	// 1. Check request body (UI-provided keys)
+	// Keys are pre-merged by the dispatch API route (server env + UI-provided).
+	// The API route uses SvelteKit's $env/dynamic/private for proper .env resolution.
 	if (requestKeys[provider.id]) return requestKeys[provider.id];
-
-	// 2. Check env var name from provider config
-	if (provider.apiKeyEnv) {
-		const envKey = process.env[provider.apiKeyEnv];
-		if (envKey && envKey.trim() && !envKey.startsWith('your_')) return envKey.trim();
-	}
-
-	// 3. For Claude, check ANTHROPIC_API_KEY directly
-	if (provider.id === 'claude') {
-		const key = process.env.ANTHROPIC_API_KEY;
-		if (key && key.trim() && !key.startsWith('your_')) return key.trim();
-	}
-
 	return undefined;
 }
 

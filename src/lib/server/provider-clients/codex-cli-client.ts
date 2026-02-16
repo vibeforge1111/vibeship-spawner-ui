@@ -15,9 +15,9 @@ export interface CodexCliOptions extends ProviderClientOptions {
 	workingDirectory?: string;
 }
 
-export async function isCodexAvailable(): Promise<boolean> {
+export async function isCliBinaryAvailable(binaryName: string): Promise<boolean> {
 	try {
-		execSync('where codex', { stdio: 'pipe', timeout: 5000 });
+		execSync(`where ${binaryName}`, { stdio: 'pipe', timeout: 5000 });
 		return true;
 	} catch {
 		return false;
@@ -38,10 +38,14 @@ export async function executeCodexCliRequest(
 		})
 	);
 
-	// Check if codex binary exists
-	const available = await isCodexAvailable();
+	// Detect the binary name from the command template
+	const commandTemplate = provider.commandTemplate || `${provider.id} --model {model}`;
+	const binaryName = commandTemplate.split(/\s+/)[0];
+
+	// Check if binary exists in PATH
+	const available = await isCliBinaryAvailable(binaryName);
 	if (!available) {
-		const error = 'Codex CLI not found in PATH. Install with: npm install -g @openai/codex';
+		const error = `${provider.label} CLI "${binaryName}" not found in PATH`;
 		onEvent(
 			createBridgeEvent('error', options, {
 				message: error,
@@ -56,14 +60,12 @@ export async function executeCodexCliRequest(
 	if (!existsSync(promptsDir)) {
 		mkdirSync(promptsDir, { recursive: true });
 	}
-	const promptFile = join(promptsDir, `${missionId}-codex.md`);
+	const promptFile = join(promptsDir, `${missionId}-${provider.id}.md`);
 	writeFileSync(promptFile, prompt, 'utf-8');
 
 	return new Promise<ProviderResult>((resolve) => {
 		const model = provider.model || 'gpt-5.3-codex';
-		const command = provider.commandTemplate
-			? provider.commandTemplate.replace('{model}', model)
-			: `codex exec --model ${model}`;
+		const command = commandTemplate.replace('{model}', model);
 
 		const args = command.split(/\s+/);
 		const bin = args.shift()!;

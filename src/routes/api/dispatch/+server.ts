@@ -8,6 +8,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { env } from '$env/dynamic/private';
 import { requireControlAuth, enforceRateLimit } from '$lib/server/mcp-auth';
 import { eventBridge } from '$lib/services/event-bridge';
 import { providerRuntime } from '$lib/server/provider-runtime';
@@ -45,9 +46,29 @@ export const POST: RequestHandler = async (event) => {
 			);
 		}
 
+		// Merge server env vars with UI-provided keys (UI keys take precedence)
+		// Cast env to Record for dynamic key access (SvelteKit types it strictly)
+		const envRecord = env as Record<string, string | undefined>;
+		const serverEnvKeys: Record<string, string> = {};
+		for (const provider of executionPack.providers) {
+			if (provider.apiKeyEnv) {
+				const val = envRecord[provider.apiKeyEnv];
+				if (val && val.trim() && !val.startsWith('your_')) {
+					serverEnvKeys[provider.id] = val.trim();
+				}
+			}
+		}
+		// Also check ANTHROPIC_API_KEY for claude specifically
+		const anthropicKey = envRecord['ANTHROPIC_API_KEY'];
+		if (anthropicKey && anthropicKey.trim() && !anthropicKey.startsWith('your_')) {
+			serverEnvKeys['claude'] = anthropicKey.trim();
+		}
+
+		const mergedApiKeys = { ...serverEnvKeys, ...(apiKeys || {}) };
+
 		const result = await providerRuntime.dispatch({
 			executionPack,
-			apiKeys: apiKeys || {},
+			apiKeys: mergedApiKeys,
 			workingDirectory,
 			onEvent: (evt) => {
 				eventBridge.emit(evt);

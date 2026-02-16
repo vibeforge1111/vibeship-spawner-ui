@@ -130,12 +130,12 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 	{
 		id: 'minimax',
 		label: 'Minimax',
-		model: 'MiniMax-Text-01',
+		model: 'MiniMax-M2.5',
 		enabled: false,
 		kind: 'openai_compat',
 		eventSource: 'minimax',
 		capabilities: ['reasoning', 'planning', 'code_analysis'],
-		baseUrl: 'https://api.minimax.chat/v1',
+		baseUrl: 'https://api.minimax.io/v1',
 		apiKeyEnv: 'MINIMAX_API_KEY',
 		requiresApiKey: true
 	},
