@@ -7,7 +7,8 @@
 import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
 import { z } from 'zod';
-import { safeJsonParse } from '$lib/types/schemas';
+import { CanvasStoreConnectionSchema, CanvasStoreNodeSchema, safeJsonParse } from '$lib/types/schemas';
+import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 
 const PIPELINES_KEY = 'spawner-pipelines';
 const PIPELINE_PREFIX = 'spawner-pipeline-';
@@ -28,8 +29,8 @@ const PipelineMetadataSchema = z.object({
 });
 
 const PipelineDataSchema = z.object({
-	nodes: z.array(z.record(z.unknown())),
-	connections: z.array(z.record(z.unknown())),
+	nodes: z.array(CanvasStoreNodeSchema),
+	connections: z.array(CanvasStoreConnectionSchema),
 	zoom: z.number().optional().default(1),
 	pan: z.object({ x: z.number(), y: z.number() }).optional().default({ x: 0, y: 0 })
 });
@@ -62,8 +63,8 @@ export interface PipelineMetadata {
 }
 
 export interface PipelineData {
-	nodes: Record<string, unknown>[];
-	connections: Record<string, unknown>[];
+	nodes: CanvasNode[];
+	connections: Connection[];
 	zoom: number;
 	pan: { x: number; y: number };
 }
@@ -145,7 +146,7 @@ export function initPipelines(): void {
 			const oldCanvas = localStorage.getItem('spawner-canvas-state');
 			if (oldCanvas) {
 				// SECURITY: Validate JSON with Zod schema
-				const canvasData = safeJsonParse(oldCanvas, PipelineDataSchema, 'canvas-migration');
+				const canvasData = safeJsonParse(oldCanvas, PipelineDataSchema, 'canvas-migration') as unknown as PipelineData | undefined;
 				if (!canvasData) {
 					console.warn('[Pipelines] Invalid old canvas data, skipping migration');
 					pipelinesState.update(state => ({ ...state, isLoading: false }));
@@ -270,7 +271,7 @@ export function switchPipeline(id: string): PipelineData | null {
 		const saved = localStorage.getItem(getPipelineStorageKey(id));
 		if (saved) {
 			// SECURITY: Validate JSON with Zod schema
-			const data = safeJsonParse(saved, PipelineDataSchema, 'pipeline-data');
+			const data = safeJsonParse(saved, PipelineDataSchema, 'pipeline-data') as unknown as PipelineData | undefined;
 			if (!data) {
 				console.error('Invalid pipeline data for:', id);
 				return null;
@@ -283,7 +284,6 @@ export function switchPipeline(id: string): PipelineData | null {
 			}));
 			saveRegistry();
 
-			// Cast to PipelineData since we've validated the structure
 			return data as PipelineData;
 		}
 	} catch (e) {
@@ -435,8 +435,7 @@ export function loadPipelineData(id: string): PipelineData | null {
 		const saved = localStorage.getItem(getPipelineStorageKey(id));
 		if (saved) {
 			// SECURITY: Validate JSON with Zod schema
-			const data = safeJsonParse(saved, PipelineDataSchema, 'pipeline-data-load');
-			// Cast to PipelineData since we've validated the structure
+			const data = safeJsonParse(saved, PipelineDataSchema, 'pipeline-data-load') as unknown as PipelineData | undefined;
 			return (data as PipelineData) || null;
 		}
 	} catch (e) {

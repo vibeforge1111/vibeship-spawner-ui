@@ -17,12 +17,13 @@
  */
 
 import { browser } from '$app/environment';
+import type { Skill } from '$lib/stores/skills.svelte';
 
 export interface PendingPipelineLoad {
 	pipelineId: string;
 	pipelineName: string;
-	nodes: Array<{ skill: Record<string, unknown>; position: { x: number; y: number } }>;
-	connections: Array<{ sourceIndex: number; targetIndex: number }>;
+	nodes: Array<{ skill: Skill; position: { x: number; y: number } }>;
+	connections: Array<{ sourceIndex: number; targetIndex: number; sourcePortId?: string; targetPortId?: string }>;
 	source: 'prd' | 'goal' | 'new' | 'switch';
 	timestamp: string;
 }

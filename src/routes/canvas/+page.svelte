@@ -298,7 +298,8 @@ import { get } from 'svelte/store';
 			saveCurrentPipeline({
 				nodes: get(nodes),
 				connections: get(connections),
-				viewport: { x: 0, y: 0, zoom: 1 }
+				zoom: 1,
+				pan: { x: 0, y: 0 }
 			});
 
 			lastSaved = new Date();
