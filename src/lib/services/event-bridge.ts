@@ -11,6 +11,7 @@
 import { writable, get } from 'svelte/store';
 import { browser } from '$app/environment';
 import { ClientBridgeEventSchema, safeJsonParse } from '$lib/types/schemas';
+import { getEventsAuthHeaders, withEventsAuth } from '$lib/services/events-auth-client';
 
 export interface BridgeEvent {
 	id?: string;
@@ -85,7 +86,7 @@ class ClientEventBridge {
 		this.connectionStatus.set('connecting');
 
 		try {
-			this.eventSource = new EventSource('/api/events');
+			this.eventSource = new EventSource(withEventsAuth('/api/events'));
 
 			this.eventSource.onopen = () => {
 				console.log('[EventBridge] Connected to event stream');
@@ -165,7 +166,10 @@ class ClientEventBridge {
 		try {
 			const response = await fetch('/api/events', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					...getEventsAuthHeaders()
+				},
 				body: JSON.stringify({
 					...event,
 					source: 'spawner-ui',

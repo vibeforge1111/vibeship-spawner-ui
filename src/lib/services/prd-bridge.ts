@@ -18,6 +18,7 @@ import { browser } from '$app/environment';
 import { writable, get } from 'svelte/store';
 import type { BridgeEvent } from './event-bridge';
 import type { Skill } from '$lib/stores/skills.svelte';
+import { getEventsAuthHeaders } from '$lib/services/events-auth-client';
 
 // =============================================================================
 // TYPES
@@ -210,7 +211,10 @@ async function writePRDToFile(content: string, requestId: string): Promise<strin
 async function sendAnalysisRequest(request: PRDAnalysisRequest): Promise<void> {
 	const response = await fetch('/api/events', {
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
+		headers: {
+			'Content-Type': 'application/json',
+			...getEventsAuthHeaders()
+		},
 		body: JSON.stringify({
 			type: 'prd_analysis_requested',
 			data: request,

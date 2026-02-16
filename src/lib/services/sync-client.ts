@@ -12,6 +12,7 @@
 
 import { writable, derived, get } from 'svelte/store';
 import { SyncMessageSchema, safeJsonParse } from '$lib/types/schemas';
+import { getEventsAuthHeaders } from '$lib/services/events-auth-client';
 
 export type SyncStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'error';
 
@@ -279,7 +280,10 @@ class SyncClient {
 		if (typeof fetch !== 'undefined') {
 			fetch('/api/events', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					...getEventsAuthHeaders()
+				},
 				body: JSON.stringify(fullEvent)
 			}).catch(() => {
 				// Silently ignore - SSE bridge is optional

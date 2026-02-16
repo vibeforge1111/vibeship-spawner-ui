@@ -17,6 +17,44 @@ import { existsSync } from 'fs';
 
 const SPAWNER_DIR = join(process.cwd(), '.spawner');
 const RESULTS_DIR = join(SPAWNER_DIR, 'results');
+const EVENTS_AUTH_COOKIE = 'spawner_events_api_key';
+
+function extractApiKeyFromRequest(request: Request): string | null {
+	const headerKey = request.headers.get('x-api-key') || request.headers.get('x-mcp-api-key');
+	if (headerKey && headerKey.trim().length > 0) {
+		return headerKey.trim();
+	}
+
+	const authorization = request.headers.get('authorization');
+	if (authorization) {
+		const match = authorization.match(/^Bearer\s+(.+)$/i);
+		const bearerToken = match?.[1]?.trim() || null;
+		if (bearerToken) {
+			return bearerToken;
+		}
+	}
+
+	try {
+		const queryKey = new URL(request.url).searchParams.get('apiKey');
+		if (queryKey && queryKey.trim().length > 0) {
+			return queryKey.trim();
+		}
+	} catch {
+		// Ignore malformed URLs.
+	}
+
+	return null;
+}
+
+function createAuthCookieHeader(request: Request): string | null {
+	const apiKey = extractApiKeyFromRequest(request);
+	if (!apiKey) {
+		return null;
+	}
+
+	const isSecure = request.url.startsWith('https://');
+	return `${EVENTS_AUTH_COOKIE}=${encodeURIComponent(apiKey)}; Path=/; HttpOnly; SameSite=Lax${isSecure ? '; Secure' : ''}`;
+}
 
 /**
  * Store PRD analysis result to file for polling fallback
@@ -50,6 +88,8 @@ export const POST: RequestHandler = async (event) => {
 		surface: 'Events',
 		apiKeyEnvVar: 'EVENTS_API_KEY',
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: EVENTS_AUTH_COOKIE,
 		allowLoopbackWithoutKey: true,
 		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
 	});
@@ -87,7 +127,12 @@ export const POST: RequestHandler = async (event) => {
 			await storePRDResult(fullEvent.data.requestId, fullEvent.data.result);
 		}
 
-		return json({ success: true, eventId: fullEvent.id });
+		const headers = new Headers();
+		const authCookie = createAuthCookieHeader(event.request);
+		if (authCookie) {
+			headers.set('Set-Cookie', authCookie);
+		}
+		return json({ success: true, eventId: fullEvent.id }, { headers });
 	} catch (error) {
 		console.error('[EventBridge] Error processing event:', error);
 		return json({ error: 'Invalid event data' }, { status: 400 });
@@ -102,6 +147,8 @@ export const GET: RequestHandler = async (event) => {
 		surface: 'Events',
 		apiKeyEnvVar: 'EVENTS_API_KEY',
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: EVENTS_AUTH_COOKIE,
 		allowLoopbackWithoutKey: true,
 		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
 	});
@@ -151,11 +198,15 @@ export const GET: RequestHandler = async (event) => {
 		}
 	});
 
-	return new Response(stream, {
-		headers: {
-			'Content-Type': 'text/event-stream',
-			'Cache-Control': 'no-cache',
-			'Connection': 'keep-alive'
-		}
-	});
+	const headers: Record<string, string> = {
+		'Content-Type': 'text/event-stream',
+		'Cache-Control': 'no-cache',
+		'Connection': 'keep-alive'
+	};
+	const authCookie = createAuthCookieHeader(event.request);
+	if (authCookie) {
+		headers['Set-Cookie'] = authCookie;
+	}
+
+	return new Response(stream, { headers });
 };

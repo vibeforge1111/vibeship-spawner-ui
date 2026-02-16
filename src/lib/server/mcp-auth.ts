@@ -16,19 +16,60 @@ function constantTimeEquals(left: string, right: string): boolean {
 	return timingSafeEqual(leftBuffer, rightBuffer);
 }
 
-function extractApiKey(event: RequestEvent): string | null {
+interface ApiKeyExtractionOptions {
+	queryParam?: string;
+	cookieName?: string;
+}
+
+function getCookieValue(cookieHeader: string | null, cookieName: string | undefined): string | null {
+	if (!cookieHeader || !cookieName) {
+		return null;
+	}
+
+	const pairs = cookieHeader.split(';');
+	for (const pair of pairs) {
+		const [rawName, ...rawValue] = pair.trim().split('=');
+		if (rawName === cookieName) {
+			const value = rawValue.join('=').trim();
+			return value.length > 0 ? decodeURIComponent(value) : null;
+		}
+	}
+
+	return null;
+}
+
+function extractApiKey(event: RequestEvent, options: ApiKeyExtractionOptions = {}): string | null {
 	const apiKeyHeader = event.request.headers.get('x-mcp-api-key') || event.request.headers.get('x-api-key');
 	if (apiKeyHeader && apiKeyHeader.trim().length > 0) {
 		return apiKeyHeader.trim();
 	}
 
 	const authorization = event.request.headers.get('authorization');
-	if (!authorization) {
-		return null;
+	if (authorization) {
+		const match = authorization.match(/^Bearer\s+(.+)$/i);
+		const bearerToken = match?.[1]?.trim() || null;
+		if (bearerToken) {
+			return bearerToken;
+		}
 	}
 
-	const match = authorization.match(/^Bearer\s+(.+)$/i);
-	return match?.[1]?.trim() || null;
+	if (options.queryParam) {
+		try {
+			const value = new URL(event.request.url).searchParams.get(options.queryParam);
+			if (value && value.trim().length > 0) {
+				return value.trim();
+			}
+		} catch {
+			// Ignore malformed URLs and continue to cookie fallback.
+		}
+	}
+
+	const cookieToken = getCookieValue(event.request.headers.get('cookie'), options.cookieName);
+	if (cookieToken) {
+		return cookieToken;
+	}
+
+	return null;
 }
 
 function getClientIdentity(event: RequestEvent): string {
@@ -64,6 +105,8 @@ export interface ControlAuthOptions {
 	surface: string;
 	apiKeyEnvVar?: string;
 	fallbackApiKeyEnvVar?: string;
+	apiKeyQueryParam?: string;
+	apiKeyCookieName?: string;
 	allowLoopbackWithoutKey?: boolean;
 	allowedOriginsEnvVar?: string;
 }
@@ -88,7 +131,10 @@ export function requireControlAuth(event: RequestEvent, options: ControlAuthOpti
 	}
 
 	if (configuredKey) {
-		const incomingKey = extractApiKey(event);
+		const incomingKey = extractApiKey(event, {
+			queryParam: options.apiKeyQueryParam,
+			cookieName: options.apiKeyCookieName
+		});
 		if (!incomingKey || !constantTimeEquals(configuredKey, incomingKey)) {
 			return json({ error: `Unauthorized ${options.surface} request` }, { status: 401 });
 		}
