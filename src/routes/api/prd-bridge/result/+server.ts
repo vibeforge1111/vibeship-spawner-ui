@@ -13,6 +13,7 @@ import type { RequestHandler } from './$types';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
 
 const SPAWNER_DIR = join(process.cwd(), '.spawner');
 const RESULTS_DIR = join(SPAWNER_DIR, 'results');
@@ -24,9 +25,10 @@ export const POST: RequestHandler = async ({ request }) => {
 	try {
 		const { requestId, result } = await request.json();
 
-		if (!requestId || !result) {
+		if (!requestId || !result || typeof requestId !== 'string') {
 			return json({ error: 'requestId and result are required' }, { status: 400 });
 		}
+		assertSafeId(requestId, 'requestId');
 
 		// Ensure results directory exists
 		if (!existsSync(RESULTS_DIR)) {
@@ -34,12 +36,16 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		// Write result to file
-		const resultFile = join(RESULTS_DIR, `${requestId}.json`);
+		const resultFile = resolveWithinBaseDir(RESULTS_DIR, `${requestId}.json`);
 		await writeFile(resultFile, JSON.stringify(result, null, 2), 'utf-8');
 
 		console.log('[PRDBridge] Stored result for:', requestId);
 		return json({ success: true, requestId });
 	} catch (error) {
+		if (error instanceof PathSafetyError) {
+			return json({ error: error.message }, { status: error.status });
+		}
+
 		console.error('[PRDBridge] Error storing result:', error);
 		return json({ error: 'Failed to store result' }, { status: 500 });
 	}
@@ -55,8 +61,9 @@ export const GET: RequestHandler = async ({ url }) => {
 		if (!requestId) {
 			return json({ error: 'requestId is required' }, { status: 400 });
 		}
+		assertSafeId(requestId, 'requestId');
 
-		const resultFile = join(RESULTS_DIR, `${requestId}.json`);
+		const resultFile = resolveWithinBaseDir(RESULTS_DIR, `${requestId}.json`);
 
 		if (!existsSync(resultFile)) {
 			return json({ found: false, requestId });
@@ -65,6 +72,10 @@ export const GET: RequestHandler = async ({ url }) => {
 		const result = JSON.parse(await readFile(resultFile, 'utf-8'));
 		return json({ found: true, requestId, result });
 	} catch (error) {
+		if (error instanceof PathSafetyError) {
+			return json({ error: error.message }, { status: error.status });
+		}
+
 		console.error('[PRDBridge] Error reading result:', error);
 		return json({ error: 'Failed to read result' }, { status: 500 });
 	}

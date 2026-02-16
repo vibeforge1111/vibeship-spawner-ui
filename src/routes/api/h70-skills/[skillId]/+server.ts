@@ -11,6 +11,7 @@ import type { RequestHandler } from './$types';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'yaml';
+import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
 
 // Vibeship Skills Lab path (new flat YAML structure)
 const SKILLS_LAB_PATH = 'C:/Users/USER/Desktop/vibeship-skills-lab';
@@ -159,7 +160,7 @@ function formatH70SkillContent(skill: H70Skill & { id: string }, rawYaml: string
 function findSkillPath(skillId: string): string | null {
 	// Try exact match first
 	for (const category of SKILL_CATEGORIES) {
-		const skillPath = path.join(SKILLS_LAB_PATH, category, `${skillId}.yaml`);
+		const skillPath = resolveWithinBaseDir(SKILLS_LAB_PATH, path.join(category, `${skillId}.yaml`));
 		if (fs.existsSync(skillPath)) {
 			return skillPath;
 		}
@@ -177,7 +178,7 @@ function findSkillPath(skillId: string): string | null {
 
 	for (const variant of variations) {
 		for (const category of SKILL_CATEGORIES) {
-			const skillPath = path.join(SKILLS_LAB_PATH, category, `${variant}.yaml`);
+			const skillPath = resolveWithinBaseDir(SKILLS_LAB_PATH, path.join(category, `${variant}.yaml`));
 			if (fs.existsSync(skillPath)) {
 				return skillPath;
 			}
@@ -194,8 +195,25 @@ export const GET: RequestHandler = async ({ params }) => {
 		throw error(400, 'Skill ID is required');
 	}
 
+	try {
+		assertSafeId(skillId, 'skillId');
+	} catch (e) {
+		if (e instanceof PathSafetyError) {
+			throw error(e.status, e.message);
+		}
+		throw e;
+	}
+
 	// Find skill across categories
-	const skillPath = findSkillPath(skillId);
+	let skillPath: string | null;
+	try {
+		skillPath = findSkillPath(skillId);
+	} catch (e) {
+		if (e instanceof PathSafetyError) {
+			throw error(e.status, e.message);
+		}
+		throw e;
+	}
 
 	// Check if skill exists
 	if (!skillPath) {
@@ -242,10 +260,18 @@ export const HEAD: RequestHandler = async ({ params }) => {
 		throw error(400, 'Skill ID is required');
 	}
 
-	const skillPath = findSkillPath(skillId);
+	try {
+		assertSafeId(skillId, 'skillId');
+		const skillPath = findSkillPath(skillId);
 
-	if (!skillPath) {
-		throw error(404, `Skill not found: ${skillId}`);
+		if (!skillPath) {
+			throw error(404, `Skill not found: ${skillId}`);
+		}
+	} catch (e) {
+		if (e instanceof PathSafetyError) {
+			throw error(e.status, e.message);
+		}
+		throw e;
 	}
 
 	return new Response(null, { status: 200 });

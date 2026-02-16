@@ -8,6 +8,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { eventBridge } from '$lib/services/event-bridge';
+import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
 
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
@@ -21,13 +22,19 @@ const RESULTS_DIR = join(SPAWNER_DIR, 'results');
  */
 async function storePRDResult(requestId: string, result: unknown): Promise<void> {
 	try {
+		assertSafeId(requestId, 'requestId');
+
 		if (!existsSync(RESULTS_DIR)) {
 			await mkdir(RESULTS_DIR, { recursive: true });
 		}
-		const resultFile = join(RESULTS_DIR, `${requestId}.json`);
+		const resultFile = resolveWithinBaseDir(RESULTS_DIR, `${requestId}.json`);
 		await writeFile(resultFile, JSON.stringify(result, null, 2), 'utf-8');
 		console.log('[EventBridge] Stored PRD result for polling:', requestId);
 	} catch (err) {
+		if (err instanceof PathSafetyError) {
+			console.warn(`[EventBridge] Skipping unsafe requestId "${requestId}": ${err.message}`);
+			return;
+		}
 		console.error('[EventBridge] Failed to store PRD result:', err);
 	}
 }
