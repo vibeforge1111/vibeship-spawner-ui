@@ -30,6 +30,8 @@ export interface MultiLLMOrchestratorOptions {
 	primaryProviderId?: string;
 	autoEnableByKeys?: boolean;
 	autoRouteByTask?: boolean;
+	autoDispatch?: boolean;
+	apiKeys?: Record<string, string>;
 	keyPresence?: Record<string, boolean>;
 	mcpCapabilities?: MultiLLMCapability[];
 	mcpTools?: MultiLLMMCPTool[];

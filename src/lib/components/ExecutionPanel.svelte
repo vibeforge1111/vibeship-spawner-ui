@@ -120,7 +120,10 @@
 	let multiLLMPrimaryProviderId = $state(defaultMultiLLMOptions.primaryProviderId || 'claude');
 	let multiLLMAutoEnableByKeys = $state(defaultMultiLLMOptions.autoEnableByKeys ?? true);
 	let multiLLMAutoRouteByTask = $state(defaultMultiLLMOptions.autoRouteByTask ?? true);
+	let multiLLMAutoDispatch = $state(false);
 	let multiLLMApiKeys = $state<Record<string, string>>({});
+	let isDispatching = $state(false);
+	let dispatchStatus = $state<Record<string, string>>({});
 	let connectedMcpCapabilities = $state<MultiLLMCapability[]>([]);
 	let connectedMcpTools = $state<MultiLLMMCPTool[]>([]);
 	let connectedMcpToolCount = $state(0);
@@ -165,6 +168,7 @@
 		multiLLMPrimaryProviderId = incoming.primaryProviderId ?? defaults.primaryProviderId ?? 'claude';
 		multiLLMAutoEnableByKeys = incoming.autoEnableByKeys ?? defaults.autoEnableByKeys ?? true;
 		multiLLMAutoRouteByTask = incoming.autoRouteByTask ?? defaults.autoRouteByTask ?? true;
+		multiLLMAutoDispatch = incoming.autoDispatch ?? false;
 		multiLLMProviders = mergedProviders;
 	}
 
@@ -178,6 +182,8 @@
 			primaryProviderId: multiLLMPrimaryProviderId,
 			autoEnableByKeys: multiLLMAutoEnableByKeys,
 			autoRouteByTask: multiLLMAutoRouteByTask,
+			autoDispatch: multiLLMAutoDispatch,
+			apiKeys: multiLLMApiKeys,
 			keyPresence,
 			mcpCapabilities: connectedMcpCapabilities,
 			mcpTools: connectedMcpTools,
@@ -341,6 +347,10 @@
 						typeof parsed?.multiLLMAutoRouteByTask === 'boolean'
 							? parsed.multiLLMAutoRouteByTask
 							: defaultMultiLLMOptions.autoRouteByTask,
+					autoDispatch:
+						typeof parsed?.multiLLMAutoDispatch === 'boolean'
+							? parsed.multiLLMAutoDispatch
+							: false,
 					providers: Array.isArray(parsed?.multiLLMProviders)
 						? (parsed.multiLLMProviders as MultiLLMProviderConfig[])
 						: defaultMultiLLMOptions.providers
@@ -367,6 +377,7 @@
 					multiLLMPrimaryProviderId,
 					multiLLMAutoEnableByKeys,
 					multiLLMAutoRouteByTask,
+					multiLLMAutoDispatch,
 					multiLLMProviders
 				})
 			);
@@ -1090,31 +1101,78 @@
 									{multiPack.strategy} • {multiPack.providers.length} provider(s)
 								</span>
 							</div>
-							<button
-								class="px-3 py-1 bg-vibe-teal hover:bg-vibe-teal/90 text-bg-primary text-xs font-mono transition-all"
-								onclick={(e) => {
-									e.stopPropagation();
-									copyToClipboard(
-										multiPack.masterPrompt,
-										'Master orchestration prompt copied'
-									);
-								}}
-							>
-								Copy Master
-							</button>
+							<div class="flex items-center gap-1">
+								<button
+									class="px-3 py-1 bg-green-600 hover:bg-green-500 text-white text-xs font-mono transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+									disabled={isDispatching}
+									onclick={async (e) => {
+										e.stopPropagation();
+										isDispatching = true;
+										dispatchStatus = {};
+										try {
+											const response = await fetch('/api/dispatch', {
+												method: 'POST',
+												headers: { 'Content-Type': 'application/json' },
+												body: JSON.stringify({
+													executionPack: multiPack,
+													apiKeys: multiLLMApiKeys,
+													workingDirectory: projectPath
+												})
+											});
+											const result = await response.json();
+											if (result.success) {
+												dispatchStatus = Object.fromEntries(
+													Object.entries(result.sessions || {}).map(([id, s]) => [id, (s as {status: string}).status])
+												);
+											}
+										} catch (err) {
+											console.error('[Dispatch] Error:', err);
+										} finally {
+											isDispatching = false;
+										}
+									}}
+								>
+									{isDispatching ? 'Dispatching...' : 'Dispatch All'}
+								</button>
+								<button
+									class="px-3 py-1 bg-vibe-teal hover:bg-vibe-teal/90 text-bg-primary text-xs font-mono transition-all"
+									onclick={(e) => {
+										e.stopPropagation();
+										copyToClipboard(
+											multiPack.masterPrompt,
+											'Master orchestration prompt copied'
+										);
+									}}
+								>
+									Copy Master
+								</button>
+							</div>
 						</div>
 						{#if !multiLLMPanelCollapsed}
 							<div class="p-3 bg-vibe-teal/5 space-y-2">
 								{#each multiPack.providers as provider}
 									{@const assignment = multiPack.assignments[provider.id]}
-									<div class="p-2 border border-surface-border bg-bg-primary">
+									{@const pStatus = dispatchStatus[provider.id]}
+									<div class="p-2 border border-surface-border bg-bg-primary {pStatus === 'running' ? 'border-l-2 border-l-yellow-400' : pStatus === 'completed' ? 'border-l-2 border-l-green-400' : pStatus === 'failed' ? 'border-l-2 border-l-red-400' : ''}">
 										<div class="flex items-center justify-between gap-2">
 											<div class="text-xs">
-												<div class="font-mono text-text-primary">
+												<div class="font-mono text-text-primary flex items-center gap-1.5">
 													{provider.label} ({provider.id})
+													{#if pStatus === 'running'}
+														<span class="inline-block w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse"></span>
+													{:else if pStatus === 'completed'}
+														<span class="inline-block w-1.5 h-1.5 rounded-full bg-green-400"></span>
+													{:else if pStatus === 'failed'}
+														<span class="inline-block w-1.5 h-1.5 rounded-full bg-red-400"></span>
+													{/if}
 												</div>
 												<div class="text-text-tertiary">
 													{provider.model} • {assignment?.mode || 'execute'} • {assignment?.taskIds?.length || 0} task(s)
+													{#if pStatus}
+														<span class="ml-1 {pStatus === 'completed' ? 'text-green-400' : pStatus === 'failed' ? 'text-red-400' : 'text-yellow-400'}">
+															[{pStatus}]
+														</span>
+													{/if}
 												</div>
 											</div>
 											<div class="flex items-center gap-1">
@@ -1622,6 +1680,15 @@
 													(multiLLMAutoRouteByTask = (e.currentTarget as HTMLInputElement).checked)}
 											/>
 											Auto-route by task type
+										</label>
+										<label class="flex items-center gap-2 text-xs text-text-secondary p-2 border border-green-600/30 bg-green-600/5">
+											<input
+												type="checkbox"
+												checked={multiLLMAutoDispatch}
+												onchange={(e) =>
+													(multiLLMAutoDispatch = (e.currentTarget as HTMLInputElement).checked)}
+											/>
+											Auto-dispatch (server-side execution)
 										</label>
 									</div>
 

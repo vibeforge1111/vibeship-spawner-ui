@@ -994,6 +994,24 @@ class MissionExecutor {
 			// Start health monitoring
 			this.startHealthMonitoring();
 
+			// Auto-dispatch to providers if enabled
+			if (this.progress.multiLLMOptions.enabled && this.progress.multiLLMOptions.autoDispatch && this.progress.multiLLMExecution) {
+				try {
+					const dispatchResult = await this.dispatchToProviders(
+						this.progress.multiLLMExecution,
+						this.progress.multiLLMOptions
+					);
+					if (dispatchResult.success) {
+						const providerCount = Object.keys(dispatchResult.sessions || {}).length;
+						this.addLocalLog('info', `Auto-dispatched to ${providerCount} provider(s) - execution in progress`);
+					} else {
+						this.addLocalLog('info', `Auto-dispatch failed: ${dispatchResult.error || 'unknown'} - copy prompts manually`);
+					}
+				} catch (dispatchError) {
+					this.addLocalLog('info', `Auto-dispatch unavailable: ${dispatchError instanceof Error ? dispatchError.message : 'unknown'} - copy prompts manually`);
+				}
+			}
+
 			// Persist state after mission creation
 			this.persistState();
 
@@ -1002,9 +1020,9 @@ class MissionExecutor {
 			if (this.useWebSocket) {
 				this.addLocalLog('info', 'Listening for updates from Claude Code...');
 			} else {
-				if (this.progress.multiLLMExecution?.enabled) {
+				if (this.progress.multiLLMExecution?.enabled && !this.progress.multiLLMOptions.autoDispatch) {
 					this.addLocalLog('info', 'Copy each provider prompt below and launch your configured models');
-				} else {
+				} else if (!this.progress.multiLLMOptions.autoDispatch) {
 					this.addLocalLog('info', 'Copy the prompt below and paste it into Claude Code');
 				}
 			}
@@ -1022,6 +1040,26 @@ class MissionExecutor {
 			this.persistState();  // Persist error state
 			return this.progress;
 		}
+	}
+
+	/**
+	 * Dispatch execution pack to server-side provider runtime.
+	 * Calls POST /api/dispatch which runs providers in parallel.
+	 */
+	private async dispatchToProviders(
+		executionPack: import('$lib/services/multi-llm-orchestrator').MultiLLMExecutionPack,
+		options: import('$lib/services/multi-llm-orchestrator').MultiLLMOrchestratorOptions
+	): Promise<{ success: boolean; sessions?: Record<string, unknown>; error?: string }> {
+		const response = await fetch('/api/dispatch', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				executionPack,
+				apiKeys: options.apiKeys || {},
+				workingDirectory: this.progress.mission?.context?.projectPath
+			})
+		});
+		return response.json();
 	}
 
 	/**
