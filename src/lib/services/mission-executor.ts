@@ -113,6 +113,10 @@ function normalizeMultiLLMOptions(
 		enabled: options.enabled ?? defaults.enabled,
 		strategy: options.strategy ?? defaults.strategy,
 		primaryProviderId: options.primaryProviderId ?? defaults.primaryProviderId,
+		autoEnableByKeys: options.autoEnableByKeys ?? defaults.autoEnableByKeys,
+		autoRouteByTask: options.autoRouteByTask ?? defaults.autoRouteByTask,
+		keyPresence: options.keyPresence ?? {},
+		mcpCapabilities: options.mcpCapabilities ?? [],
 		providers: providers.map((provider) => ({ ...provider }))
 	};
 }

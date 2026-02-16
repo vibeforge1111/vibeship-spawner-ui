@@ -50,6 +50,7 @@ describe('multi-llm-orchestrator', () => {
 		const options = createDefaultMultiLLMOptions();
 		options.enabled = true;
 		options.strategy = 'round_robin';
+		options.autoRouteByTask = false;
 		options.providers = options.providers.map((provider) => ({
 			...provider,
 			enabled: provider.id === 'claude' || provider.id === 'codex'
@@ -126,5 +127,53 @@ describe('multi-llm-orchestrator', () => {
 		expect(pack.launchCommands.minimax).toContain('/chat/completions');
 		expect(pack.launchCommands.minimax).toContain('$MINIMAX_API_KEY');
 		expect(pack.launchCommands.minimax).toContain('minimax-request.json');
+	});
+
+	it('auto-enables providers when matching API keys are present', () => {
+		const options = createDefaultMultiLLMOptions();
+		options.enabled = true;
+		options.strategy = 'single';
+		options.autoEnableByKeys = true;
+		options.keyPresence = { minimax: true };
+		options.providers = options.providers.map((provider) => ({
+			...provider,
+			enabled: false
+		}));
+		options.primaryProviderId = 'minimax';
+
+		const pack = buildMultiLLMExecutionPack({
+			mission: createMission(1),
+			options
+		});
+
+		expect(pack.providers.map((provider) => provider.id)).toContain('minimax');
+		expect(pack.primaryProviderId).toBe('minimax');
+	});
+
+	it('routes image tasks to image-capable providers when auto-route is enabled', () => {
+		const mission = createMission(2);
+		mission.tasks[0].title = 'Generate hero image';
+		mission.tasks[0].description = 'Create marketing banner visuals and thumbnails';
+		mission.tasks[1].title = 'Implement API handler';
+		mission.tasks[1].description = 'Build backend endpoint and validation';
+
+		const options = createDefaultMultiLLMOptions();
+		options.enabled = true;
+		options.strategy = 'round_robin';
+		options.autoRouteByTask = true;
+		options.providers = options.providers.map((provider) => ({
+			...provider,
+			enabled: provider.id === 'codex' || provider.id === 'replicate'
+		}));
+		options.primaryProviderId = 'codex';
+		options.keyPresence = { replicate: true };
+
+		const pack = buildMultiLLMExecutionPack({
+			mission,
+			options
+		});
+
+		expect(pack.assignments.replicate.taskIds).toContain('task-1');
+		expect(pack.assignments.codex.taskIds).toContain('task-2');
 	});
 });

@@ -1,6 +1,8 @@
 import type { Mission } from '$lib/services/mcp-client';
+import type { MCPCapability } from '$lib/types/mcp';
 
 export type MultiLLMProviderKind = 'terminal_cli' | 'openai_compat' | 'custom';
+export type MultiLLMCapability = MCPCapability | 'reasoning' | 'planning' | 'review';
 
 export type MultiLLMStrategy =
 	| 'single'
@@ -15,6 +17,8 @@ export interface MultiLLMProviderConfig {
 	enabled: boolean;
 	kind: MultiLLMProviderKind;
 	eventSource: string;
+	capabilities?: MultiLLMCapability[];
+	requiresApiKey?: boolean;
 	baseUrl?: string;
 	apiKeyEnv?: string;
 	commandTemplate?: string;
@@ -24,6 +28,10 @@ export interface MultiLLMOrchestratorOptions {
 	enabled: boolean;
 	strategy: MultiLLMStrategy;
 	primaryProviderId?: string;
+	autoEnableByKeys?: boolean;
+	autoRouteByTask?: boolean;
+	keyPresence?: Record<string, boolean>;
+	mcpCapabilities?: MultiLLMCapability[];
 	providers: MultiLLMProviderConfig[];
 }
 
@@ -60,6 +68,7 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		enabled: true,
 		kind: 'terminal_cli',
 		eventSource: 'claude-code',
+		capabilities: ['reasoning', 'planning', 'review', 'code_analysis'],
 		commandTemplate: 'claude --model {model}'
 	},
 	{
@@ -69,7 +78,20 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		enabled: true,
 		kind: 'terminal_cli',
 		eventSource: 'codex',
+		capabilities: ['reasoning', 'planning', 'code_analysis', 'code_exec', 'database', 'deployment'],
 		commandTemplate: 'codex exec --model {model}'
+	},
+	{
+		id: 'openai',
+		label: 'OpenAI',
+		model: 'gpt-4.1',
+		enabled: false,
+		kind: 'openai_compat',
+		eventSource: 'openai',
+		capabilities: ['reasoning', 'planning', 'code_analysis', 'image_gen', 'audio_gen', 'web_search'],
+		baseUrl: 'https://api.openai.com/v1',
+		apiKeyEnv: 'OPENAI_API_KEY',
+		requiresApiKey: true
 	},
 	{
 		id: 'minimax',
@@ -78,8 +100,10 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		enabled: false,
 		kind: 'openai_compat',
 		eventSource: 'minimax',
+		capabilities: ['reasoning', 'planning', 'code_analysis'],
 		baseUrl: 'https://api.minimax.chat/v1',
-		apiKeyEnv: 'MINIMAX_API_KEY'
+		apiKeyEnv: 'MINIMAX_API_KEY',
+		requiresApiKey: true
 	},
 	{
 		id: 'kimi',
@@ -88,8 +112,10 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		enabled: false,
 		kind: 'openai_compat',
 		eventSource: 'kimi',
+		capabilities: ['reasoning', 'planning', 'code_analysis', 'web_search'],
 		baseUrl: 'https://api.moonshot.cn/v1',
-		apiKeyEnv: 'KIMI_API_KEY'
+		apiKeyEnv: 'KIMI_API_KEY',
+		requiresApiKey: true
 	},
 	{
 		id: 'openrouter',
@@ -98,8 +124,10 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		enabled: false,
 		kind: 'openai_compat',
 		eventSource: 'openrouter',
+		capabilities: ['reasoning', 'planning', 'code_analysis', 'image_gen'],
 		baseUrl: 'https://openrouter.ai/api/v1',
-		apiKeyEnv: 'OPENROUTER_API_KEY'
+		apiKeyEnv: 'OPENROUTER_API_KEY',
+		requiresApiKey: true
 	},
 	{
 		id: 'ollama',
@@ -108,8 +136,34 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		enabled: false,
 		kind: 'openai_compat',
 		eventSource: 'ollama',
+		capabilities: ['reasoning', 'planning', 'code_analysis'],
 		baseUrl: 'http://127.0.0.1:11434/v1',
-		apiKeyEnv: 'OLLAMA_API_KEY'
+		apiKeyEnv: 'OLLAMA_API_KEY',
+		requiresApiKey: false
+	},
+	{
+		id: 'replicate',
+		label: 'Replicate',
+		model: 'black-forest-labs/flux-1.1-pro',
+		enabled: false,
+		kind: 'custom',
+		eventSource: 'replicate',
+		capabilities: ['image_gen', 'video_gen'],
+		apiKeyEnv: 'REPLICATE_API_TOKEN',
+		requiresApiKey: true,
+		commandTemplate: 'echo "Use Replicate API with model {model} and provider prompt payload"'
+	},
+	{
+		id: 'runway',
+		label: 'Runway',
+		model: 'gen-4-turbo',
+		enabled: false,
+		kind: 'custom',
+		eventSource: 'runway',
+		capabilities: ['video_gen'],
+		apiKeyEnv: 'RUNWAY_API_KEY',
+		requiresApiKey: true,
+		commandTemplate: 'echo "Use Runway API with model {model} and provider prompt payload"'
 	}
 ];
 
@@ -118,16 +172,28 @@ export function createDefaultMultiLLMOptions(): MultiLLMOrchestratorOptions {
 		enabled: false,
 		strategy: 'round_robin',
 		primaryProviderId: 'claude',
+		autoEnableByKeys: true,
+		autoRouteByTask: true,
+		keyPresence: {},
+		mcpCapabilities: [],
 		providers: DEFAULT_MULTI_LLM_PROVIDERS.map((provider) => ({ ...provider }))
 	};
 }
 
 export function buildMultiLLMExecutionPack(input: MultiLLMBuildInput): MultiLLMExecutionPack {
 	const baseUrl = input.baseUrl || 'http://localhost:5173';
-	const providers = getActiveProviders(input.options.providers);
+	const providers = getActiveProviders(input.options);
 	const primaryProviderId = resolvePrimaryProviderId(providers, input.options.primaryProviderId);
 	const strategy = providers.length <= 1 ? 'single' : input.options.strategy;
-	const assignments = assignTasks(input.mission, providers, strategy, primaryProviderId);
+	const assignments = assignTasks(
+		input.mission,
+		providers,
+		strategy,
+		primaryProviderId,
+		input.options.autoRouteByTask !== false,
+		input.taskSkillMap,
+		input.options.mcpCapabilities || []
+	);
 
 	const providerPrompts: Record<string, string> = {};
 	const launchCommands: Record<string, string> = {};
@@ -141,7 +207,8 @@ export function buildMultiLLMExecutionPack(input: MultiLLMBuildInput): MultiLLME
 			strategy,
 			primaryProviderId,
 			baseUrl,
-			taskSkillMap: input.taskSkillMap
+			taskSkillMap: input.taskSkillMap,
+			mcpCapabilities: input.options.mcpCapabilities || []
 		});
 		launchCommands[provider.id] = buildLaunchCommand(provider, input.mission.id);
 	}
@@ -152,14 +219,34 @@ export function buildMultiLLMExecutionPack(input: MultiLLMBuildInput): MultiLLME
 		primaryProviderId,
 		providers,
 		assignments,
-		masterPrompt: buildMasterPrompt(input.mission, providers, assignments, strategy, primaryProviderId, baseUrl),
+		masterPrompt: buildMasterPrompt(
+			input.mission,
+			providers,
+			assignments,
+			strategy,
+			primaryProviderId,
+			baseUrl,
+			input.options
+		),
 		providerPrompts,
 		launchCommands,
 		createdAt: new Date().toISOString()
 	};
 }
 
-function getActiveProviders(providers: MultiLLMProviderConfig[]): MultiLLMProviderConfig[] {
+function getActiveProviders(options: MultiLLMOrchestratorOptions): MultiLLMProviderConfig[] {
+	const providers = options.providers.map((provider) => ({ ...provider }));
+	if (options.autoEnableByKeys !== false) {
+		const keyPresence = options.keyPresence || {};
+		for (const provider of providers) {
+			const hasKey = keyPresence[provider.id] || false;
+			const requiresApiKey = provider.requiresApiKey ?? !!provider.apiKeyEnv;
+			if (hasKey && requiresApiKey && !provider.enabled) {
+				provider.enabled = true;
+			}
+		}
+	}
+
 	const active = providers.filter((provider) => provider.enabled);
 	if (active.length > 0) {
 		return active;
@@ -183,7 +270,10 @@ function assignTasks(
 	mission: Mission,
 	providers: MultiLLMProviderConfig[],
 	strategy: MultiLLMStrategy,
-	primaryProviderId: string
+	primaryProviderId: string,
+	autoRouteByTask: boolean,
+	taskSkillMap?: Map<string, string[]>,
+	mcpCapabilities: MultiLLMCapability[] = []
 ): Record<string, MultiLLMTaskAssignment> {
 	const assignments: Record<string, MultiLLMTaskAssignment> = {};
 	const taskIds = mission.tasks.map((task) => task.id);
@@ -202,7 +292,20 @@ function assignTasks(
 	}
 
 	if (strategy === 'round_robin') {
+		const taskById = new Map(mission.tasks.map((task) => [task.id, task]));
 		taskIds.forEach((taskId, index) => {
+			const task = taskById.get(taskId);
+			if (autoRouteByTask && task) {
+				const preferredProvider = selectBestProviderForTask(
+					task,
+					providers,
+					taskSkillMap?.get(task.id) || [],
+					mcpCapabilities
+				);
+				assignments[preferredProvider.id].taskIds.push(taskId);
+				return;
+			}
+
 			const provider = providers[index % providers.length];
 			assignments[provider.id].taskIds.push(taskId);
 		});
@@ -226,13 +329,100 @@ function assignTasks(
 	return assignments;
 }
 
+function selectBestProviderForTask(
+	task: Mission['tasks'][number],
+	providers: MultiLLMProviderConfig[],
+	taskSkills: string[],
+	mcpCapabilities: MultiLLMCapability[]
+): MultiLLMProviderConfig {
+	const taskCapabilities = inferTaskCapabilities(task.title, task.description, taskSkills, mcpCapabilities);
+	let bestProvider = providers[0];
+	let bestScore = -1;
+
+	for (const provider of providers) {
+		const providerCaps = provider.capabilities || [];
+		const specificCapabilities = taskCapabilities.filter(
+			(capability) => capability !== 'reasoning' && capability !== 'planning' && capability !== 'review'
+		);
+		let directMatches = 0;
+		for (const capability of specificCapabilities) {
+			if (providerCaps.includes(capability)) directMatches += 1;
+		}
+		let score = directMatches * 4;
+		if (directMatches === 0 && specificCapabilities.length === 0) {
+			if (providerCaps.includes('reasoning')) score += 1;
+			if (providerCaps.includes('planning')) score += 1;
+		}
+		if (score > bestScore) {
+			bestScore = score;
+			bestProvider = provider;
+		}
+	}
+
+	return bestProvider;
+}
+
+function inferTaskCapabilities(
+	title: string,
+	description: string,
+	taskSkills: string[],
+	mcpCapabilities: MultiLLMCapability[]
+): MultiLLMCapability[] {
+	const text = `${title} ${description} ${taskSkills.join(' ')}`.toLowerCase();
+	const capabilities = new Set<MultiLLMCapability>(['reasoning']);
+
+	if (/\b(code|api|backend|frontend|implement|refactor|fix|typescript|javascript|python)\b/.test(text)) {
+		capabilities.add('code_analysis');
+	}
+	if (/\b(test|qa|verify|validation|regression|coverage)\b/.test(text)) {
+		capabilities.add('code_analysis');
+	}
+	if (/\b(image|logo|illustration|thumbnail|screenshot|banner|poster|graphic)\b/.test(text)) {
+		capabilities.add('image_gen');
+	}
+	if (/\b(video|reel|animation|clip|cinematic|trailer)\b/.test(text)) {
+		capabilities.add('video_gen');
+	}
+	if (/\b(audio|voice|tts|podcast|music)\b/.test(text)) {
+		capabilities.add('audio_gen');
+	}
+	if (/\b(search|research|crawl|discover|investigate)\b/.test(text)) {
+		capabilities.add('web_search');
+	}
+	if (/\b(database|schema|migration|sql|postgres|mysql|redis)\b/.test(text)) {
+		capabilities.add('database');
+	}
+	if (/\b(deploy|release|production|ci|cd|pipeline|infra|infrastructure)\b/.test(text)) {
+		capabilities.add('deployment');
+	}
+
+	for (const mcpCapability of mcpCapabilities) {
+		if (capabilities.has(mcpCapability)) continue;
+		if (mcpCapability === 'database' && /\b(data|db|schema|migration|query)\b/.test(text)) {
+			capabilities.add('database');
+		}
+		if (mcpCapability === 'image_gen' && /\b(image|visual|design)\b/.test(text)) {
+			capabilities.add('image_gen');
+		}
+		if (mcpCapability === 'video_gen' && /\b(video|animation|motion)\b/.test(text)) {
+			capabilities.add('video_gen');
+		}
+		if (mcpCapability === 'web_search' && /\b(research|compare|trend)\b/.test(text)) {
+			capabilities.add('web_search');
+		}
+	}
+
+	return [...capabilities];
+}
+
 function buildMasterPrompt(
 	mission: Mission,
 	providers: MultiLLMProviderConfig[],
 	assignments: Record<string, MultiLLMTaskAssignment>,
 	strategy: MultiLLMStrategy,
 	primaryProviderId: string,
-	baseUrl: string
+	baseUrl: string,
+	options: MultiLLMOrchestratorOptions
 ): string {
 	const providerLines = providers.map((provider) => {
 		const assignment = assignments[provider.id];
@@ -240,6 +430,11 @@ function buildMasterPrompt(
 		const tasks = assignment.taskIds.length;
 		return `- ${provider.label} (${provider.id}, ${provider.model}) -> ${role}, ${tasks} task(s)`;
 	});
+	const mcpCapabilities = (options.mcpCapabilities || []).join(', ') || 'none detected';
+	const keyConnectedProviders = providers
+		.filter((provider) => (options.keyPresence || {})[provider.id])
+		.map((provider) => provider.id)
+		.join(', ') || 'none';
 
 	return `# Multi-LLM Orchestrator
 
@@ -248,6 +443,10 @@ Mission ID: ${mission.id}
 Strategy: ${strategy}
 Primary provider: ${primaryProviderId}
 Event endpoint: ${baseUrl}/api/events
+Auto enable by keys: ${options.autoEnableByKeys !== false ? 'enabled' : 'disabled'}
+Auto route by task: ${options.autoRouteByTask !== false ? 'enabled' : 'disabled'}
+API-key-ready providers: ${keyConnectedProviders}
+Connected MCP capabilities: ${mcpCapabilities}
 
 Providers and assignments:
 ${providerLines.join('\n')}
@@ -269,10 +468,11 @@ interface BuildProviderPromptInput {
 	primaryProviderId: string;
 	baseUrl: string;
 	taskSkillMap?: Map<string, string[]>;
+	mcpCapabilities: MultiLLMCapability[];
 }
 
 function buildProviderPrompt(input: BuildProviderPromptInput): string {
-	const { mission, provider, assignment, strategy, primaryProviderId, baseUrl, taskSkillMap } = input;
+	const { mission, provider, assignment, strategy, primaryProviderId, baseUrl, taskSkillMap, mcpCapabilities } = input;
 	const isPrimary = provider.id === primaryProviderId;
 	const canReportTaskLifecycle =
 		assignment.mode === 'execute' &&
@@ -308,6 +508,8 @@ curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -d '{"typ
 curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -d '{"type":"provider_feedback","missionId":"${mission.id}","taskId":"TASK_ID","source":"${eventSource}","data":{"provider":"${provider.id}","summary":"feedback here","approved":true}}'`;
 
 	const roleLine = assignment.mode === 'review' ? 'Role: Reviewer' : 'Role: Executor';
+	const providerCaps = (provider.capabilities || []).join(', ') || 'reasoning';
+	const mcpCapsLine = mcpCapabilities.length > 0 ? mcpCapabilities.join(', ') : 'none';
 
 	return `# Provider Prompt: ${provider.label}
 
@@ -315,8 +517,10 @@ Mission: ${mission.name}
 Mission ID: ${mission.id}
 Provider: ${provider.id}
 Model: ${provider.model}
+Provider capabilities: ${providerCaps}
 ${roleLine}
 Strategy: ${strategy}
+Connected MCP capabilities: ${mcpCapsLine}
 
 Assigned tasks:
 ${taskList || '- none'}
@@ -329,6 +533,7 @@ Execution expectations:
 - Work only on your assigned tasks.
 - Keep file changes focused and production-safe.
 - If blocked, emit a progress event with the blocker.
+- If a task needs external tools (image/video/data/deploy), use matching connected MCP capabilities first.
 
 ${reportingBlock}
 `;
@@ -361,6 +566,15 @@ function buildLaunchCommand(provider: MultiLLMProviderConfig, missionId: string)
 		].join('\n');
 	}
 
-	return `# Custom launch required for provider "${provider.id}"`;
-}
+	if (provider.kind === 'custom') {
+		const customCommand = (provider.commandTemplate || '').replace('{model}', provider.model).trim();
+		return [
+			`# ${provider.label} custom launch`,
+			`# 1) Save this provider prompt to ${promptFile}`,
+			`# 2) Use your provider SDK/API with model "${provider.model}"`,
+			customCommand || `# No custom command template configured for ${provider.id}`
+		].join('\n');
+	}
 
+	return `# Launch required for provider "${provider.id}"`;
+}
