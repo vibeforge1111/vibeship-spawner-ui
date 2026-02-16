@@ -13,8 +13,10 @@
 
 import { browser } from '$app/environment';
 
-// Vibeship Skills Lab path (new flat YAML structure by category)
-const SKILLS_LAB_PATH = 'C:/Users/USER/Desktop/vibeship-skills-lab';
+const SKILLS_LAB_PATH =
+	(import.meta.env.PUBLIC_H70_SKILLS_LAB_PATH as string | undefined) ||
+	(import.meta.env.PUBLIC_SKILLS_LAB_PATH as string | undefined) ||
+	'h70-skills-lab';
 
 // Cache for loaded skills (browser-side)
 const skillCache = new Map<string, H70SkillContent>();

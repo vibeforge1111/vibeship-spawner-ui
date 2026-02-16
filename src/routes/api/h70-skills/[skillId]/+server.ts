@@ -13,8 +13,10 @@ import * as path from 'path';
 import * as yaml from 'yaml';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
 
-// Vibeship Skills Lab path (new flat YAML structure)
-const SKILLS_LAB_PATH = 'C:/Users/USER/Desktop/vibeship-skills-lab';
+const SKILLS_LAB_PATH_FALLBACKS = [
+	path.resolve(process.cwd(), 'skills-lab'),
+	path.resolve(process.cwd(), '..', 'vibeship-skills-lab')
+];
 
 // Categories to search for skills
 const SKILL_CATEGORIES = [
@@ -41,6 +43,39 @@ interface H70Skill {
 	patterns?: Array<{ name: string; when: string; implementation: string; gotchas?: string[] }>;
 	triggers?: string[];
 	tags?: string[];
+}
+
+function isDirectory(dir: string): boolean {
+	try {
+		return fs.statSync(dir).isDirectory();
+	} catch {
+		return false;
+	}
+}
+
+function resolveSkillsLabPath(): string | null {
+	const configuredPath =
+		process.env.SPAWNER_H70_SKILLS_DIR ||
+		process.env.H70_SKILLS_LAB_DIR ||
+		process.env.SKILLS_LAB_PATH;
+
+	if (configuredPath) {
+		const resolvedPath = path.resolve(configuredPath);
+		if (isDirectory(resolvedPath)) {
+			return resolvedPath;
+		}
+
+		console.warn(`[Skills API] Configured skills directory not found: ${resolvedPath}`);
+		return null;
+	}
+
+	for (const candidate of SKILLS_LAB_PATH_FALLBACKS) {
+		if (isDirectory(candidate)) {
+			return candidate;
+		}
+	}
+
+	return null;
 }
 
 function formatH70SkillContent(skill: H70Skill & { id: string }, rawYaml: string): string {
@@ -155,12 +190,12 @@ function formatH70SkillContent(skill: H70Skill & { id: string }, rawYaml: string
 
 /**
  * Find skill file across all categories
- * New format: {SKILLS_LAB_PATH}/{category}/{skillId}.yaml
+ * New format: {skillsLabPath}/{category}/{skillId}.yaml
  */
-function findSkillPath(skillId: string): string | null {
+function findSkillPath(skillsLabPath: string, skillId: string): string | null {
 	// Try exact match first
 	for (const category of SKILL_CATEGORIES) {
-		const skillPath = resolveWithinBaseDir(SKILLS_LAB_PATH, path.join(category, `${skillId}.yaml`));
+		const skillPath = resolveWithinBaseDir(skillsLabPath, path.join(category, `${skillId}.yaml`));
 		if (fs.existsSync(skillPath)) {
 			return skillPath;
 		}
@@ -178,7 +213,7 @@ function findSkillPath(skillId: string): string | null {
 
 	for (const variant of variations) {
 		for (const category of SKILL_CATEGORIES) {
-			const skillPath = resolveWithinBaseDir(SKILLS_LAB_PATH, path.join(category, `${variant}.yaml`));
+			const skillPath = resolveWithinBaseDir(skillsLabPath, path.join(category, `${variant}.yaml`));
 			if (fs.existsSync(skillPath)) {
 				return skillPath;
 			}
@@ -204,10 +239,18 @@ export const GET: RequestHandler = async ({ params }) => {
 		throw e;
 	}
 
+	const skillsLabPath = resolveSkillsLabPath();
+	if (!skillsLabPath) {
+		throw error(
+			500,
+			'H70 skills directory not found. Set SPAWNER_H70_SKILLS_DIR or H70_SKILLS_LAB_DIR.'
+		);
+	}
+
 	// Find skill across categories
 	let skillPath: string | null;
 	try {
-		skillPath = findSkillPath(skillId);
+		skillPath = findSkillPath(skillsLabPath, skillId);
 	} catch (e) {
 		if (e instanceof PathSafetyError) {
 			throw error(e.status, e.message);
@@ -262,7 +305,14 @@ export const HEAD: RequestHandler = async ({ params }) => {
 
 	try {
 		assertSafeId(skillId, 'skillId');
-		const skillPath = findSkillPath(skillId);
+		const skillsLabPath = resolveSkillsLabPath();
+		if (!skillsLabPath) {
+			throw error(
+				500,
+				'H70 skills directory not found. Set SPAWNER_H70_SKILLS_DIR or H70_SKILLS_LAB_DIR.'
+			);
+		}
+		const skillPath = findSkillPath(skillsLabPath, skillId);
 
 		if (!skillPath) {
 			throw error(404, `Skill not found: ${skillId}`);

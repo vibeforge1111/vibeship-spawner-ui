@@ -10,7 +10,41 @@ import { registeredTeams, defaultActiveTeamId } from '$lib/data/teams';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
-const DEFAULT_TEAM_REPO_TEAMS_DIR = 'C:\\Users\\USER\\Desktop\\team\\integrations\\spawner-ui\\teams';
+const TEAM_REPO_TEAMS_DIR_FALLBACKS = [
+	path.resolve(process.cwd(), 'teams'),
+	path.resolve(process.cwd(), '..', 'teams')
+];
+
+async function isDirectory(dir: string): Promise<boolean> {
+	try {
+		const stat = await fs.stat(dir);
+		return stat.isDirectory();
+	} catch {
+		return false;
+	}
+}
+
+async function resolveTeamsDir(): Promise<string | null> {
+	const configuredDir = process.env.SPAWNER_TEAMS_DIR || process.env.TEAM_REPO_TEAMS_DIR;
+
+	if (configuredDir) {
+		const resolvedDir = path.resolve(configuredDir);
+		if (await isDirectory(resolvedDir)) {
+			return resolvedDir;
+		}
+
+		console.warn(`[Teams API] Configured teams directory not found: ${resolvedDir}`);
+		return null;
+	}
+
+	for (const candidate of TEAM_REPO_TEAMS_DIR_FALLBACKS) {
+		if (await isDirectory(candidate)) {
+			return candidate;
+		}
+	}
+
+	return null;
+}
 
 async function loadTeamsFromDir(dir: string): Promise<AgenticTeam[]> {
 	try {
@@ -41,12 +75,8 @@ async function loadTeamsFromDir(dir: string): Promise<AgenticTeam[]> {
 }
 
 async function getTeamRegistry(): Promise<{ teams: AgenticTeam[]; active_team_id: string | null }> {
-	const teamsDir =
-		process.env.SPAWNER_TEAMS_DIR ||
-		process.env.TEAM_REPO_TEAMS_DIR ||
-		DEFAULT_TEAM_REPO_TEAMS_DIR;
-
-	const diskTeams = await loadTeamsFromDir(teamsDir);
+	const teamsDir = await resolveTeamsDir();
+	const diskTeams = teamsDir ? await loadTeamsFromDir(teamsDir) : [];
 	const teams = diskTeams.length > 0 ? diskTeams : registeredTeams;
 
 	const activeFromEnv = process.env.SPAWNER_ACTIVE_TEAM_ID || process.env.SPAWNER_DEFAULT_TEAM_ID;
