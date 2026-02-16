@@ -4,6 +4,8 @@
 	import { nodes, connections, updateNodeStatus, resetAllNodeStatus, addConnection } from '$lib/stores/canvas.svelte';
 	import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 	import { isConnected } from '$lib/stores/mcp.svelte';
+	import { mcpStore } from '$lib/stores/mcps.svelte';
+	import type { MultiLLMCapability } from '$lib/services/multi-llm-orchestrator';
 	import { toasts } from '$lib/stores/toast.svelte';
 	import { getPreMissionContext, type PreMissionContext, type PatternSuggestion } from '$lib/services/pre-mission-context';
 	import { reinforceMission } from '$lib/services/learning-reinforcement';
@@ -112,9 +114,14 @@
 	);
 	let defaultsLoaded = $state(false);
 	const defaultMultiLLMOptions = createDefaultMultiLLMOptions();
+	const MULTI_LLM_KEYS_STORAGE = 'spawner-multi-llm-api-keys';
 	let multiLLMEnabled = $state(defaultMultiLLMOptions.enabled);
 	let multiLLMStrategy = $state<MultiLLMStrategy>(defaultMultiLLMOptions.strategy);
 	let multiLLMPrimaryProviderId = $state(defaultMultiLLMOptions.primaryProviderId || 'claude');
+	let multiLLMAutoEnableByKeys = $state(defaultMultiLLMOptions.autoEnableByKeys ?? true);
+	let multiLLMAutoRouteByTask = $state(defaultMultiLLMOptions.autoRouteByTask ?? true);
+	let multiLLMApiKeys = $state<Record<string, string>>({});
+	let connectedMcpCapabilities = $state<MultiLLMCapability[]>([]);
 	let multiLLMProviders = $state<MultiLLMProviderConfig[]>(
 		defaultMultiLLMOptions.providers.map((provider) => ({ ...provider }))
 	);
@@ -154,15 +161,54 @@
 		multiLLMEnabled = incoming.enabled ?? defaults.enabled;
 		multiLLMStrategy = incoming.strategy ?? defaults.strategy;
 		multiLLMPrimaryProviderId = incoming.primaryProviderId ?? defaults.primaryProviderId ?? 'claude';
+		multiLLMAutoEnableByKeys = incoming.autoEnableByKeys ?? defaults.autoEnableByKeys ?? true;
+		multiLLMAutoRouteByTask = incoming.autoRouteByTask ?? defaults.autoRouteByTask ?? true;
 		multiLLMProviders = mergedProviders;
 	}
 
 	function getMultiLLMOptions(): MultiLLMOrchestratorOptions {
+		const keyPresence = Object.fromEntries(
+			multiLLMProviders.map((provider) => [provider.id, Boolean((multiLLMApiKeys[provider.id] || '').trim())])
+		);
 		return {
 			enabled: multiLLMEnabled,
 			strategy: multiLLMStrategy,
 			primaryProviderId: multiLLMPrimaryProviderId,
+			autoEnableByKeys: multiLLMAutoEnableByKeys,
+			autoRouteByTask: multiLLMAutoRouteByTask,
+			keyPresence,
+			mcpCapabilities: connectedMcpCapabilities,
 			providers: multiLLMProviders.map((provider) => ({ ...provider }))
+		};
+	}
+
+	function loadMultiLLMApiKeys() {
+		if (!browser) return;
+		try {
+			const raw = localStorage.getItem(MULTI_LLM_KEYS_STORAGE);
+			if (!raw) return;
+			const parsed = JSON.parse(raw);
+			if (parsed && typeof parsed === 'object') {
+				multiLLMApiKeys = parsed as Record<string, string>;
+			}
+		} catch {
+			// ignore
+		}
+	}
+
+	function persistMultiLLMApiKeys() {
+		if (!browser) return;
+		try {
+			localStorage.setItem(MULTI_LLM_KEYS_STORAGE, JSON.stringify(multiLLMApiKeys));
+		} catch {
+			// ignore
+		}
+	}
+
+	function updateMultiLLMApiKey(providerId: string, apiKey: string) {
+		multiLLMApiKeys = {
+			...multiLLMApiKeys,
+			[providerId]: apiKey
 		};
 	}
 
@@ -196,11 +242,27 @@
 		const unsub2 = connections.subscribe((c) => (currentConnections = c));
 		const unsub3 = isConnected.subscribe((connected) => (mcpConnected = connected));
 		const unsub4 = isMemoryConnected.subscribe((connected) => (memoryConnected = connected));
+		const unsub5 = mcpStore.subscribe((state) => {
+			const connectedIds = new Set(
+				state.instances
+					.filter((instance) => instance.status === 'connected')
+					.map((instance) => instance.definitionId)
+			);
+			const caps = new Set<MultiLLMCapability>();
+			for (const mcp of state.registry) {
+				if (!connectedIds.has(mcp.id)) continue;
+				for (const capability of mcp.capabilities) {
+					caps.add(capability as MultiLLMCapability);
+				}
+			}
+			connectedMcpCapabilities = [...caps];
+		});
 		return () => {
 			unsub1();
 			unsub2();
 			unsub3();
 			unsub4();
+			unsub5();
 		};
 	});
 
@@ -244,6 +306,7 @@
 		if (defaultsLoaded) return;
 		defaultsLoaded = true;
 		if (!browser) return;
+		loadMultiLLMApiKeys();
 		try {
 			const raw = localStorage.getItem(MISSION_DEFAULTS_KEY);
 			if (!raw) return;
@@ -271,6 +334,14 @@
 						typeof parsed?.multiLLMPrimaryProviderId === 'string'
 							? parsed.multiLLMPrimaryProviderId
 							: defaultMultiLLMOptions.primaryProviderId,
+					autoEnableByKeys:
+						typeof parsed?.multiLLMAutoEnableByKeys === 'boolean'
+							? parsed.multiLLMAutoEnableByKeys
+							: defaultMultiLLMOptions.autoEnableByKeys,
+					autoRouteByTask:
+						typeof parsed?.multiLLMAutoRouteByTask === 'boolean'
+							? parsed.multiLLMAutoRouteByTask
+							: defaultMultiLLMOptions.autoRouteByTask,
 					providers: Array.isArray(parsed?.multiLLMProviders)
 						? (parsed.multiLLMProviders as MultiLLMProviderConfig[])
 						: defaultMultiLLMOptions.providers
@@ -295,9 +366,12 @@
 					multiLLMEnabled,
 					multiLLMStrategy,
 					multiLLMPrimaryProviderId,
+					multiLLMAutoEnableByKeys,
+					multiLLMAutoRouteByTask,
 					multiLLMProviders
 				})
 			);
+			persistMultiLLMApiKeys();
 		} catch {
 			// ignore
 		}
@@ -1531,6 +1605,27 @@
 
 							{#if multiLLMEnabled}
 								<div class="mt-3 grid grid-cols-1 gap-2">
+									<div class="grid grid-cols-2 gap-2">
+										<label class="flex items-center gap-2 text-xs text-text-secondary p-2 border border-surface-border">
+											<input
+												type="checkbox"
+												checked={multiLLMAutoEnableByKeys}
+												onchange={(e) =>
+													(multiLLMAutoEnableByKeys = (e.currentTarget as HTMLInputElement).checked)}
+											/>
+											Auto-enable by API keys
+										</label>
+										<label class="flex items-center gap-2 text-xs text-text-secondary p-2 border border-surface-border">
+											<input
+												type="checkbox"
+												checked={multiLLMAutoRouteByTask}
+												onchange={(e) =>
+													(multiLLMAutoRouteByTask = (e.currentTarget as HTMLInputElement).checked)}
+											/>
+											Auto-route by task type
+										</label>
+									</div>
+
 									<label class="block">
 										<div class="text-xs font-mono text-text-tertiary mb-1">Strategy</div>
 										<select
@@ -1545,6 +1640,15 @@
 											<option value="lead_reviewer">Lead + Reviewers</option>
 										</select>
 									</label>
+
+									<div class="p-2 border border-surface-border bg-bg-tertiary">
+										<div class="text-xs font-mono text-text-tertiary mb-1">Connected MCP Capabilities</div>
+										<div class="text-xs text-text-secondary">
+											{connectedMcpCapabilities.length > 0
+												? connectedMcpCapabilities.join(', ')
+												: 'No connected MCP capabilities detected'}
+										</div>
+									</div>
 
 									<label class="block">
 										<div class="text-xs font-mono text-text-tertiary mb-1">Primary Provider</div>
@@ -1582,9 +1686,25 @@
 															)}
 														placeholder="Model"
 													/>
+													{#if provider.apiKeyEnv}
+														<input
+															type="password"
+															class="input flex-1 !py-1"
+															value={multiLLMApiKeys[provider.id] || ''}
+															oninput={(e) =>
+																updateMultiLLMApiKey(
+																	provider.id,
+																	(e.currentTarget as HTMLInputElement).value
+																)}
+															placeholder={`${provider.apiKeyEnv} (local only)`}
+														/>
+													{/if}
 												</div>
 											{/each}
 										</div>
+										<p class="mt-1 text-[11px] text-text-tertiary">
+											Keys are stored in this browser only and used for provider readiness/auto-routing.
+										</p>
 									</div>
 								</div>
 							{/if}
