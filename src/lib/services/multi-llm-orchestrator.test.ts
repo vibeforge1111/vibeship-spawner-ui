@@ -176,4 +176,63 @@ describe('multi-llm-orchestrator', () => {
 		expect(pack.assignments.replicate.taskIds).toContain('task-1');
 		expect(pack.assignments.codex.taskIds).toContain('task-2');
 	});
+
+	it('builds explicit MCP tool plans for matching tasks', () => {
+		const mission = createMission(1);
+		mission.tasks[0].title = 'Research competitor pricing';
+		mission.tasks[0].description = 'Search recent market updates and benchmark pricing trends';
+
+		const options = createDefaultMultiLLMOptions();
+		options.enabled = true;
+		options.strategy = 'single';
+		options.primaryProviderId = 'claude';
+		options.providers = options.providers.map((provider) => ({
+			...provider,
+			enabled: provider.id === 'claude'
+		}));
+		options.mcpCapabilities = ['web_search'];
+		options.mcpTools = [
+			{
+				instanceId: 'search-instance',
+				mcpName: 'search-mcp',
+				toolName: 'web.search',
+				capabilities: ['web_search']
+			}
+		];
+
+		const pack = buildMultiLLMExecutionPack({ mission, options });
+		const plan = pack.mcpTaskPlans['task-1'];
+
+		expect(plan.status).toBe('ready');
+		expect(plan.toolCalls[0]?.toolName).toBe('web.search');
+		expect(plan.toolCalls[0]?.capability).toBe('web_search');
+		expect(pack.providerPrompts.claude).toContain('MCP plan');
+		expect(pack.providerPrompts.claude).toContain('search-mcp.web.search');
+	});
+
+	it('marks tasks blocked with deterministic fallback when required MCP capability is missing', () => {
+		const mission = createMission(1);
+		mission.tasks[0].title = 'Deploy to production';
+		mission.tasks[0].description = 'Release this service to production infrastructure';
+
+		const options = createDefaultMultiLLMOptions();
+		options.enabled = true;
+		options.strategy = 'single';
+		options.primaryProviderId = 'codex';
+		options.providers = options.providers.map((provider) => ({
+			...provider,
+			enabled: provider.id === 'codex'
+		}));
+		options.mcpCapabilities = [];
+		options.mcpTools = [];
+
+		const pack = buildMultiLLMExecutionPack({ mission, options });
+		const plan = pack.mcpTaskPlans['task-1'];
+
+		expect(plan.status).toBe('blocked');
+		expect(plan.blockedReason).toContain('deployment');
+		expect(plan.fallbackSuggestion).toContain('Fallback');
+		expect(pack.blockedTaskIds).toContain('task-1');
+		expect(pack.providerPrompts.codex).toContain('MCP plan: BLOCKED');
+	});
 });

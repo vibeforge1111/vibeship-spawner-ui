@@ -24,8 +24,10 @@ import {
 	buildMultiLLMExecutionPack,
 	createDefaultMultiLLMOptions,
 	type MultiLLMExecutionPack,
-	type MultiLLMOrchestratorOptions
+	type MultiLLMOrchestratorOptions,
+	type MultiLLMCapability
 } from './multi-llm-orchestrator';
+import { getMcpRuntimeSnapshot } from './mcp-runtime';
 import { syncClient, broadcastMissionEvent, broadcastLearningEvent, broadcastTaskEvent, broadcastExecutionControl, isConnected, type SyncEvent } from './sync-client';
 import { clientEventBridge, type BridgeEvent } from './event-bridge';
 import { memoryClient } from './memory-client';
@@ -117,6 +119,7 @@ function normalizeMultiLLMOptions(
 		autoRouteByTask: options.autoRouteByTask ?? defaults.autoRouteByTask,
 		keyPresence: options.keyPresence ?? {},
 		mcpCapabilities: options.mcpCapabilities ?? [],
+		mcpTools: options.mcpTools ?? [],
 		providers: providers.map((provider) => ({ ...provider }))
 	};
 }
@@ -803,6 +806,59 @@ class MissionExecutor {
 		};
 	}
 
+	private composeOrchestratorOptionsWithRuntime(): MultiLLMOrchestratorOptions {
+		const current = normalizeMultiLLMOptions(this.progress.multiLLMOptions);
+		const runtime = getMcpRuntimeSnapshot();
+		const runtimeCapabilities = runtime.capabilities as MultiLLMCapability[];
+		const runtimeTools = runtime.tools.map((tool) => ({
+			instanceId: tool.instanceId,
+			mcpName: tool.mcpName,
+			toolName: tool.toolName,
+			description: tool.description,
+			capabilities: tool.capabilities as MultiLLMCapability[]
+		}));
+
+		return normalizeMultiLLMOptions({
+			...current,
+			mcpCapabilities: [...new Set([...(current.mcpCapabilities || []), ...runtimeCapabilities])],
+			mcpTools: [...(current.mcpTools || []), ...runtimeTools]
+		});
+	}
+
+	private emitMcpPlanningLogs(execution: MultiLLMExecutionPack): void {
+		const plans = Object.values(execution.mcpTaskPlans || {});
+		if (plans.length === 0 || !this.progress.missionId) return;
+
+		const readyPlans = plans.filter((plan) => plan.status === 'ready');
+		const blockedPlans = plans.filter((plan) => plan.status === 'blocked');
+		this.addLocalLog(
+			'info',
+			`MCP planning: ${readyPlans.length} task(s) ready, ${blockedPlans.length} task(s) blocked`
+		);
+		broadcastMissionEvent('mission_log', this.progress.missionId, {
+			category: 'mcp_planning',
+			readyTaskCount: readyPlans.length,
+			blockedTaskCount: blockedPlans.length
+		});
+
+		for (const plan of readyPlans) {
+			if (plan.toolCalls.length === 0) continue;
+			const toolSummary = plan.toolCalls.map((call) => `${call.mcpName}.${call.toolName}`).join(', ');
+			this.addLocalLog('info', `MCP plan ready for ${plan.taskTitle}: ${toolSummary}`);
+		}
+
+		for (const plan of blockedPlans) {
+			this.addLocalLog('error', `MCP blocked for ${plan.taskTitle}: ${plan.blockedReason}`);
+			broadcastMissionEvent('mission_log', this.progress.missionId, {
+				category: 'mcp_blocked',
+				taskId: plan.taskId,
+				taskTitle: plan.taskTitle,
+				blockedReason: plan.blockedReason,
+				fallbackSuggestion: plan.fallbackSuggestion
+			});
+		}
+	}
+
 	/**
 	 * Get current execution progress
 	 */
@@ -906,6 +962,7 @@ class MissionExecutor {
 			});
 			this.progress.executionPrompt = executionPrompt;
 			this.progress.multiLLMExecution = null;
+			this.progress.multiLLMOptions = this.composeOrchestratorOptionsWithRuntime();
 
 			if (this.progress.multiLLMOptions.enabled) {
 				this.progress.multiLLMExecution = buildMultiLLMExecutionPack({
@@ -914,6 +971,7 @@ class MissionExecutor {
 					taskSkillMap: buildResult.taskSkillMap,
 					baseUrl
 				});
+				this.emitMcpPlanningLogs(this.progress.multiLLMExecution);
 				this.addLocalLog(
 					'info',
 					`Multi-LLM Orchestrator ready: ${this.progress.multiLLMExecution.providers.length} provider(s), strategy "${this.progress.multiLLMExecution.strategy}"`

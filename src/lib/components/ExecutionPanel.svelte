@@ -5,7 +5,7 @@
 	import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 	import { isConnected } from '$lib/stores/mcp.svelte';
 	import { mcpRuntime } from '$lib/services/mcp-runtime';
-	import type { MultiLLMCapability } from '$lib/services/multi-llm-orchestrator';
+	import type { MultiLLMCapability, MultiLLMMCPTool } from '$lib/services/multi-llm-orchestrator';
 	import { toasts } from '$lib/stores/toast.svelte';
 	import { getPreMissionContext, type PreMissionContext, type PatternSuggestion } from '$lib/services/pre-mission-context';
 	import { reinforceMission } from '$lib/services/learning-reinforcement';
@@ -122,6 +122,7 @@
 	let multiLLMAutoRouteByTask = $state(defaultMultiLLMOptions.autoRouteByTask ?? true);
 	let multiLLMApiKeys = $state<Record<string, string>>({});
 	let connectedMcpCapabilities = $state<MultiLLMCapability[]>([]);
+	let connectedMcpTools = $state<MultiLLMMCPTool[]>([]);
 	let connectedMcpToolCount = $state(0);
 	let multiLLMProviders = $state<MultiLLMProviderConfig[]>(
 		defaultMultiLLMOptions.providers.map((provider) => ({ ...provider }))
@@ -179,6 +180,7 @@
 			autoRouteByTask: multiLLMAutoRouteByTask,
 			keyPresence,
 			mcpCapabilities: connectedMcpCapabilities,
+			mcpTools: connectedMcpTools,
 			providers: multiLLMProviders.map((provider) => ({ ...provider }))
 		};
 	}
@@ -245,6 +247,13 @@
 		const unsub4 = isMemoryConnected.subscribe((connected) => (memoryConnected = connected));
 		const unsub5 = mcpRuntime.subscribe((runtime) => {
 			connectedMcpCapabilities = runtime.capabilities as MultiLLMCapability[];
+			connectedMcpTools = runtime.tools.map((tool) => ({
+				instanceId: tool.instanceId,
+				mcpName: tool.mcpName,
+				toolName: tool.toolName,
+				description: tool.description,
+				capabilities: tool.capabilities as MultiLLMCapability[]
+			}));
 			connectedMcpToolCount = runtime.tools.length;
 		});
 		return () => {

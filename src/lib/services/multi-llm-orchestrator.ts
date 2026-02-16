@@ -32,7 +32,37 @@ export interface MultiLLMOrchestratorOptions {
 	autoRouteByTask?: boolean;
 	keyPresence?: Record<string, boolean>;
 	mcpCapabilities?: MultiLLMCapability[];
+	mcpTools?: MultiLLMMCPTool[];
 	providers: MultiLLMProviderConfig[];
+}
+
+export interface MultiLLMMCPTool {
+	instanceId: string;
+	mcpName: string;
+	toolName: string;
+	description?: string;
+	capabilities: MultiLLMCapability[];
+}
+
+export interface MultiLLMMCPToolCallPlan {
+	capability: MultiLLMCapability;
+	instanceId: string;
+	mcpName: string;
+	toolName: string;
+	description?: string;
+	reason: string;
+	suggestedArgs: Record<string, unknown>;
+}
+
+export interface MultiLLMMCPTaskPlan {
+	taskId: string;
+	taskTitle: string;
+	status: 'not_needed' | 'ready' | 'blocked';
+	requiredCapabilities: MultiLLMCapability[];
+	toolCalls: MultiLLMMCPToolCallPlan[];
+	blockedCapabilities?: MultiLLMCapability[];
+	blockedReason?: string;
+	fallbackSuggestion?: string;
 }
 
 export interface MultiLLMTaskAssignment {
@@ -47,6 +77,8 @@ export interface MultiLLMExecutionPack {
 	primaryProviderId: string;
 	providers: MultiLLMProviderConfig[];
 	assignments: Record<string, MultiLLMTaskAssignment>;
+	mcpTaskPlans: Record<string, MultiLLMMCPTaskPlan>;
+	blockedTaskIds: string[];
 	masterPrompt: string;
 	providerPrompts: Record<string, string>;
 	launchCommands: Record<string, string>;
@@ -176,12 +208,15 @@ export function createDefaultMultiLLMOptions(): MultiLLMOrchestratorOptions {
 		autoRouteByTask: true,
 		keyPresence: {},
 		mcpCapabilities: [],
+		mcpTools: [],
 		providers: DEFAULT_MULTI_LLM_PROVIDERS.map((provider) => ({ ...provider }))
 	};
 }
 
 export function buildMultiLLMExecutionPack(input: MultiLLMBuildInput): MultiLLMExecutionPack {
 	const baseUrl = input.baseUrl || 'http://localhost:5173';
+	const mcpCapabilities = dedupeCapabilities(input.options.mcpCapabilities || []);
+	const mcpTools = dedupeMcpTools(input.options.mcpTools || []);
 	const providers = getActiveProviders(input.options);
 	const primaryProviderId = resolvePrimaryProviderId(providers, input.options.primaryProviderId);
 	const strategy = providers.length <= 1 ? 'single' : input.options.strategy;
@@ -192,8 +227,12 @@ export function buildMultiLLMExecutionPack(input: MultiLLMBuildInput): MultiLLME
 		primaryProviderId,
 		input.options.autoRouteByTask !== false,
 		input.taskSkillMap,
-		input.options.mcpCapabilities || []
+		mcpCapabilities
 	);
+	const mcpTaskPlans = buildMcpTaskPlans(input.mission, input.taskSkillMap, mcpCapabilities, mcpTools);
+	const blockedTaskIds = Object.values(mcpTaskPlans)
+		.filter((plan) => plan.status === 'blocked')
+		.map((plan) => plan.taskId);
 
 	const providerPrompts: Record<string, string> = {};
 	const launchCommands: Record<string, string> = {};
@@ -208,7 +247,8 @@ export function buildMultiLLMExecutionPack(input: MultiLLMBuildInput): MultiLLME
 			primaryProviderId,
 			baseUrl,
 			taskSkillMap: input.taskSkillMap,
-			mcpCapabilities: input.options.mcpCapabilities || []
+			mcpCapabilities,
+			mcpTaskPlans
 		});
 		launchCommands[provider.id] = buildLaunchCommand(provider, input.mission.id);
 	}
@@ -219,14 +259,21 @@ export function buildMultiLLMExecutionPack(input: MultiLLMBuildInput): MultiLLME
 		primaryProviderId,
 		providers,
 		assignments,
+		mcpTaskPlans,
+		blockedTaskIds,
 		masterPrompt: buildMasterPrompt(
 			input.mission,
 			providers,
 			assignments,
+			mcpTaskPlans,
 			strategy,
 			primaryProviderId,
 			baseUrl,
-			input.options
+			{
+				...input.options,
+				mcpCapabilities,
+				mcpTools
+			}
 		),
 		providerPrompts,
 		launchCommands,
@@ -415,10 +462,194 @@ function inferTaskCapabilities(
 	return [...capabilities];
 }
 
+const MCP_REQUIRED_RULES: Array<{ capability: MultiLLMCapability; pattern: RegExp }> = [
+	{ capability: 'web_search', pattern: /\b(search|research|crawl|discover|investigate|benchmark|compare|trend)\b/ },
+	{ capability: 'database', pattern: /\b(database|schema|migration|sql|postgres|mysql|redis|query|data model)\b/ },
+	{ capability: 'deployment', pattern: /\b(deploy|release|production|rollout|infra|infrastructure|ci|cd)\b/ },
+	{ capability: 'image_gen', pattern: /\b(image|logo|illustration|thumbnail|banner|poster|graphic|visual)\b/ },
+	{ capability: 'video_gen', pattern: /\b(video|animation|clip|cinematic|trailer|motion)\b/ },
+	{ capability: 'audio_gen', pattern: /\b(audio|voice|tts|podcast|music)\b/ },
+	{ capability: 'payment', pattern: /\b(payment|checkout|billing|invoice|stripe|paypal)\b/ }
+];
+
+const MCP_FALLBACK_SUGGESTIONS: Record<string, string> = {
+	web_search: 'Fallback: proceed with documented assumptions and flag unknowns for manual verification.',
+	database: 'Fallback: design schema and queries locally; defer execution until a database MCP is connected.',
+	deployment: 'Fallback: generate deployment plan/scripts only and hand off final release to operator.',
+	image_gen: 'Fallback: produce text-only design spec and placeholder assets.',
+	video_gen: 'Fallback: provide storyboard/script and defer rendering to a media MCP.',
+	audio_gen: 'Fallback: provide transcript/script and defer synthesis to an audio MCP.',
+	payment: 'Fallback: stub payment integration with mock adapters until a payment MCP is connected.'
+};
+
+function dedupeCapabilities(capabilities: MultiLLMCapability[]): MultiLLMCapability[] {
+	return [...new Set(capabilities)];
+}
+
+function dedupeMcpTools(tools: MultiLLMMCPTool[]): MultiLLMMCPTool[] {
+	const seen = new Set<string>();
+	const deduped: MultiLLMMCPTool[] = [];
+	for (const tool of tools) {
+		const key = `${tool.instanceId}:${tool.toolName}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		deduped.push({
+			...tool,
+			capabilities: dedupeCapabilities(tool.capabilities)
+		});
+	}
+	return deduped;
+}
+
+function inferRequiredMcpCapabilities(
+	title: string,
+	description: string,
+	taskSkills: string[]
+): MultiLLMCapability[] {
+	const text = `${title} ${description} ${taskSkills.join(' ')}`.toLowerCase();
+	const required = new Set<MultiLLMCapability>();
+	for (const rule of MCP_REQUIRED_RULES) {
+		if (rule.pattern.test(text)) {
+			required.add(rule.capability);
+		}
+	}
+	return [...required];
+}
+
+function buildSuggestedArgs(capability: MultiLLMCapability, task: Mission['tasks'][number]): Record<string, unknown> {
+	const title = task.title || 'task';
+	if (capability === 'web_search') {
+		return { query: title, limit: 5 };
+	}
+	if (capability === 'database') {
+		return { operation: 'query', task: title };
+	}
+	if (capability === 'deployment') {
+		return { environment: 'staging', task: title };
+	}
+	if (capability === 'image_gen') {
+		return { prompt: task.description || title, format: 'png' };
+	}
+	if (capability === 'video_gen') {
+		return { prompt: task.description || title, durationSeconds: 8 };
+	}
+	if (capability === 'audio_gen') {
+		return { text: task.description || title, voice: 'default' };
+	}
+	if (capability === 'payment') {
+		return { action: 'simulate_checkout', task: title };
+	}
+	return { task: title };
+}
+
+function getFallbackSuggestion(blockedCapabilities: MultiLLMCapability[]): string {
+	if (blockedCapabilities.length === 0) {
+		return 'Fallback: continue with standard provider reasoning flow.';
+	}
+	return blockedCapabilities
+		.map((capability) => MCP_FALLBACK_SUGGESTIONS[capability] || `Fallback: continue without MCP capability "${capability}".`)
+		.join(' ');
+}
+
+function buildMcpTaskPlans(
+	mission: Mission,
+	taskSkillMap: Map<string, string[]> | undefined,
+	mcpCapabilities: MultiLLMCapability[],
+	mcpTools: MultiLLMMCPTool[]
+): Record<string, MultiLLMMCPTaskPlan> {
+	const plans: Record<string, MultiLLMMCPTaskPlan> = {};
+	const mcpCapabilitySet = new Set(mcpCapabilities);
+
+	for (const task of mission.tasks) {
+		const taskSkills = taskSkillMap?.get(task.id) || [];
+		const requiredCapabilities = inferRequiredMcpCapabilities(task.title, task.description, taskSkills);
+		if (requiredCapabilities.length === 0) {
+			plans[task.id] = {
+				taskId: task.id,
+				taskTitle: task.title,
+				status: 'not_needed',
+				requiredCapabilities: [],
+				toolCalls: []
+			};
+			continue;
+		}
+
+		const toolCalls: MultiLLMMCPToolCallPlan[] = [];
+		const blockedCapabilities: MultiLLMCapability[] = [];
+
+		for (const capability of requiredCapabilities) {
+			const matchingTools = mcpTools.filter((tool) => tool.capabilities.includes(capability));
+			const selectedTool = matchingTools[0];
+			if (selectedTool) {
+				toolCalls.push({
+					capability,
+					instanceId: selectedTool.instanceId,
+					mcpName: selectedTool.mcpName,
+					toolName: selectedTool.toolName,
+					description: selectedTool.description,
+					reason: `Task requires "${capability}" capability.`,
+					suggestedArgs: buildSuggestedArgs(capability, task)
+				});
+				continue;
+			}
+
+			// Deterministic blocked classification:
+			// if capability appears required and no matching MCP tool is connected, emit blocked metadata.
+			if (!mcpCapabilitySet.has(capability) || matchingTools.length === 0) {
+				blockedCapabilities.push(capability);
+			}
+		}
+
+		if (blockedCapabilities.length > 0) {
+			const blockedLabel = blockedCapabilities.join(', ');
+			plans[task.id] = {
+				taskId: task.id,
+				taskTitle: task.title,
+				status: 'blocked',
+				requiredCapabilities,
+				toolCalls,
+				blockedCapabilities,
+				blockedReason: `Task "${task.title}" requires MCP capabilities not currently available: ${blockedLabel}.`,
+				fallbackSuggestion: getFallbackSuggestion(blockedCapabilities)
+			};
+			continue;
+		}
+
+		plans[task.id] = {
+			taskId: task.id,
+			taskTitle: task.title,
+			status: 'ready',
+			requiredCapabilities,
+			toolCalls
+		};
+	}
+
+	return plans;
+}
+
+function formatTaskMcpPlan(plan: MultiLLMMCPTaskPlan | undefined): string {
+	if (!plan || plan.status === 'not_needed') {
+		return '\n   MCP plan: not required';
+	}
+	if (plan.status === 'blocked') {
+		return `\n   MCP plan: BLOCKED\n   - ${plan.blockedReason}\n   - ${plan.fallbackSuggestion}`;
+	}
+	if (plan.toolCalls.length === 0) {
+		return '\n   MCP plan: ready (no explicit tool calls)';
+	}
+
+	const toolLines = plan.toolCalls.map((call) => {
+		const args = JSON.stringify(call.suggestedArgs);
+		return `\n   - ${call.capability}: ${call.mcpName}.${call.toolName} args=${args}`;
+	});
+	return `\n   MCP plan:${toolLines.join('')}`;
+}
+
 function buildMasterPrompt(
 	mission: Mission,
 	providers: MultiLLMProviderConfig[],
 	assignments: Record<string, MultiLLMTaskAssignment>,
+	mcpTaskPlans: Record<string, MultiLLMMCPTaskPlan>,
 	strategy: MultiLLMStrategy,
 	primaryProviderId: string,
 	baseUrl: string,
@@ -435,6 +666,18 @@ function buildMasterPrompt(
 		.filter((provider) => (options.keyPresence || {})[provider.id])
 		.map((provider) => provider.id)
 		.join(', ') || 'none';
+	const taskPlans = Object.values(mcpTaskPlans);
+	const readyCount = taskPlans.filter((plan) => plan.status === 'ready').length;
+	const blockedPlans = taskPlans.filter((plan) => plan.status === 'blocked');
+	const blockedLines =
+		blockedPlans.length > 0
+			? blockedPlans
+					.map(
+						(plan) =>
+							`- ${plan.taskId}: ${plan.blockedReason} ${plan.fallbackSuggestion || ''}`.trim()
+					)
+					.join('\n')
+			: '- none';
 
 	return `# Multi-LLM Orchestrator
 
@@ -447,9 +690,15 @@ Auto enable by keys: ${options.autoEnableByKeys !== false ? 'enabled' : 'disable
 Auto route by task: ${options.autoRouteByTask !== false ? 'enabled' : 'disabled'}
 API-key-ready providers: ${keyConnectedProviders}
 Connected MCP capabilities: ${mcpCapabilities}
+MCP tool catalog size: ${(options.mcpTools || []).length}
+MCP plans ready: ${readyCount}
+MCP plans blocked: ${blockedPlans.length}
 
 Providers and assignments:
 ${providerLines.join('\n')}
+
+Blocked MCP plans:
+${blockedLines}
 
 Execution rules:
 1. Use each provider prompt as generated by Spawner.
@@ -469,10 +718,21 @@ interface BuildProviderPromptInput {
 	baseUrl: string;
 	taskSkillMap?: Map<string, string[]>;
 	mcpCapabilities: MultiLLMCapability[];
+	mcpTaskPlans: Record<string, MultiLLMMCPTaskPlan>;
 }
 
 function buildProviderPrompt(input: BuildProviderPromptInput): string {
-	const { mission, provider, assignment, strategy, primaryProviderId, baseUrl, taskSkillMap, mcpCapabilities } = input;
+	const {
+		mission,
+		provider,
+		assignment,
+		strategy,
+		primaryProviderId,
+		baseUrl,
+		taskSkillMap,
+		mcpCapabilities,
+		mcpTaskPlans
+	} = input;
 	const isPrimary = provider.id === primaryProviderId;
 	const canReportTaskLifecycle =
 		assignment.mode === 'execute' &&
@@ -488,13 +748,14 @@ function buildProviderPrompt(input: BuildProviderPromptInput): string {
 		.map((task, index) => {
 			const deps = task.dependsOn?.length ? ` after: ${task.dependsOn.join(', ')}` : '';
 			const recommendedSkills = taskSkillMap?.get(task.id) || [];
-			const skillsLine =
-				recommendedSkills.length > 0
-					? `\n   Load H70 skills: ${recommendedSkills.map((skill) => `\`${skill}\``).join(', ')}`
-					: '';
-			return `${index + 1}. ${task.title} (id: ${task.id}${deps})\n   ${task.description}${skillsLine}`;
-		})
-		.join('\n\n');
+				const skillsLine =
+					recommendedSkills.length > 0
+						? `\n   Load H70 skills: ${recommendedSkills.map((skill) => `\`${skill}\``).join(', ')}`
+						: '';
+				const mcpPlanLine = formatTaskMcpPlan(mcpTaskPlans[task.id]);
+				return `${index + 1}. ${task.title} (id: ${task.id}${deps})\n   ${task.description}${skillsLine}${mcpPlanLine}`;
+			})
+			.join('\n\n');
 
 	const reportingBlock = canReportTaskLifecycle
 		? `Report lifecycle events:

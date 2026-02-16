@@ -37,6 +37,7 @@ import {
 } from '$lib/stores/canvas.svelte';
 import { validateForMission } from './mission-builder';
 import { missionExecutor } from './mission-executor';
+import type { MultiLLMOrchestratorOptions } from './multi-llm-orchestrator';
 import { skills as skillsStore, loadSkillsStatic } from '$lib/stores/skills.svelte';
 import { mcpClient } from './mcp-client';
 import { mcpState } from '$lib/stores/mcp.svelte';
@@ -94,6 +95,7 @@ export interface ExecuteWorkflowData {
 	name?: string;
 	description?: string;
 	mode?: 'preview' | 'live';
+	orchestratorOptions?: MultiLLMOrchestratorOptions;
 }
 
 export interface WorkflowTemplate {
@@ -992,9 +994,27 @@ async function handleExecuteWorkflow(data: ExecuteWorkflowData): Promise<void> {
 			currentConnections,
 			{
 				name: workflowName,
-				description: workflowDescription
+				description: workflowDescription,
+				orchestratorOptions: data.orchestratorOptions
 			}
 		);
+
+		const mcpPlanSummary = result.multiLLMExecution
+			? {
+					readyTasks: Object.values(result.multiLLMExecution.mcpTaskPlans).filter((plan) => plan.status === 'ready').length,
+					blockedTasks: result.multiLLMExecution.blockedTaskIds.length
+				}
+			: null;
+		if (mcpPlanSummary) {
+			syncClient.broadcast({
+				type: 'canvas_execution' as SyncEvent['type'],
+				data: {
+					status: 'running',
+					missionId: result.missionId,
+					mcpPlanning: mcpPlanSummary
+				}
+			});
+		}
 
 		log.debug(' Execution started:', result.missionId);
 
