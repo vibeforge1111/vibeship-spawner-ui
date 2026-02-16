@@ -377,9 +377,9 @@
 
 	function getTrendIcon(trend: string): string {
 		switch (trend) {
-			case 'improving': return '↑';
-			case 'declining': return '↓';
-			default: return '→';
+			case 'improving': return '^';
+			case 'declining': return 'v';
+			default: return '->';
 		}
 	}
 
@@ -478,7 +478,7 @@
 		{:else if !mindConnected}
 			<!-- Mind Not Connected -->
 			<div class="bg-bg-secondary border border-surface-border p-8 text-center">
-				<div class="text-4xl mb-4">🧠</div>
+				<div class="text-4xl mb-4">[Mind]</div>
 				<h2 class="text-xl font-semibold mb-2">Mind Not Connected</h2>
 				<p class="text-text-secondary mb-6">Start Mind v5 to enable learning and pattern recognition.</p>
 				<div class="bg-bg-primary p-4 border border-surface-border font-mono text-sm text-left max-w-md mx-auto mb-6">
@@ -493,7 +493,7 @@
 		{:else if totalAnalyses === 0}
 			<!-- No Data Yet -->
 			<div class="bg-bg-secondary border border-surface-border p-8 text-center">
-				<div class="text-4xl mb-4">📊</div>
+				<div class="text-4xl mb-4">[Data]</div>
 				<h2 class="text-xl font-semibold mb-2">No Analyses Yet</h2>
 				<p class="text-text-secondary mb-6">Start analyzing content in ContentForge to build your learning profile.</p>
 				<a href="/tools/contentforge" class="inline-block px-4 py-2 bg-accent-primary text-white font-medium hover:bg-accent-secondary transition-colors">
@@ -534,7 +534,7 @@
 											</div>
 											{#if pattern.examples.length > 0}
 												<div class="text-sm text-text-tertiary">
-													Examples: {pattern.examples.join(' • ')}
+													Examples: {pattern.examples.join(' | ')}
 												</div>
 											{/if}
 										</div>

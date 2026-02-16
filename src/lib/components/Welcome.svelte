@@ -61,12 +61,12 @@
 	} | null = null;
 
 	const skillCategories = [
-		{ name: 'Frontend', count: 45, icon: '◧' },
-		{ name: 'Backend', count: 62, icon: '⬡' },
-		{ name: 'DevOps', count: 38, icon: '⚙' },
-		{ name: 'Security', count: 41, icon: '⛨' },
-		{ name: 'Data', count: 35, icon: '◉' },
-		{ name: 'AI/ML', count: 28, icon: '◈' }
+		{ name: 'Frontend', count: 45, icon: '<>' },
+		{ name: 'Backend', count: 62, icon: '[]' },
+		{ name: 'DevOps', count: 38, icon: '{}' },
+		{ name: 'Security', count: 41, icon: '!!' },
+		{ name: 'Data', count: 35, icon: '()' },
+		{ name: 'AI/ML', count: 28, icon: 'AI' }
 	];
 
 	const benchmarks = [
@@ -603,7 +603,7 @@ wrangler dev</code>
 						<div class="p-4 bg-accent-primary/10 border border-accent-primary/30 rounded">
 							<p class="text-sm text-accent-primary font-medium mb-2">How it works:</p>
 							<ul class="text-xs text-text-secondary space-y-1">
-								<li>- Spawner UI creates missions → stored in MCP server</li>
+								<li>- Spawner UI creates missions -> stored in MCP server</li>
 								<li>- Claude Code reads missions via spawner_mission tools</li>
 								<li>- Changes sync instantly via WebSocket</li>
 								<li>- Both see real-time updates</li>
@@ -700,13 +700,13 @@ wrangler dev</code>
 		<div class="grid lg:grid-cols-2 gap-12 items-center">
 			<!-- Left: Content -->
 			<div class="animate-slide-up" style="animation-delay: 150ms;">
-				<p class="font-mono text-xs text-accent-primary mb-3 tracking-widest">01 — SKILLED AGENTS</p>
+				<p class="font-mono text-xs text-accent-primary mb-3 tracking-widest">01 - SKILLED AGENTS</p>
 				<h2 class="text-3xl font-serif text-text-primary mb-4">
 					Not generic LLMs.<br/>
 					<span class="text-accent-primary">Specialized experts.</span>
 				</h2>
 				<p class="text-text-secondary mb-8 leading-relaxed">
-					Each skill transforms Claude into a domain expert — with curated patterns,
+					Each skill transforms Claude into a domain expert - with curated patterns,
 					anti-patterns, and decision frameworks baked in. No more starting from zero.
 				</p>
 
@@ -751,7 +751,7 @@ wrangler dev</code>
 					<div class="px-5 py-4">
 						<p class="text-xs text-accent-primary font-mono uppercase tracking-wider mb-3">With Skill</p>
 						<p class="text-sm text-text-primary leading-relaxed">
-							Expert-level from the start. Anthropic recommends skills over general prompting — each of ours is benchmarked to prove it.
+							Expert-level from the start. Anthropic recommends skills over general prompting - each of ours is benchmarked to prove it.
 						</p>
 					</div>
 				</div>
@@ -801,13 +801,13 @@ wrangler dev</code>
 
 				<!-- Right: Content -->
 				<div class="order-1 lg:order-2 animate-slide-up" style="animation-delay: 200ms;">
-					<p class="font-mono text-xs text-accent-primary mb-3 tracking-widest">02 — BENCHMARKED</p>
+					<p class="font-mono text-xs text-accent-primary mb-3 tracking-widest">02 - BENCHMARKED</p>
 					<h2 class="text-3xl font-serif text-text-primary mb-4">
 						Every skill is<br/>
 						<span class="text-accent-primary">tested and proven.</span>
 					</h2>
 					<p class="text-text-secondary mb-6 leading-relaxed">
-						We don't just collect skills — we benchmark them. Each skill is tested against
+						We don't just collect skills - we benchmark them. Each skill is tested against
 						baseline Claude to measure real improvement in accuracy, code quality, and success rate.
 					</p>
 					<div class="flex items-center gap-6 text-sm">
@@ -830,12 +830,12 @@ wrangler dev</code>
 	<section class="border-t border-surface-border">
 		<div class="max-w-6xl mx-auto px-6 py-24">
 			<div class="text-center mb-16 animate-slide-up" style="animation-delay: 300ms;">
-				<p class="font-mono text-xs text-accent-secondary mb-3 tracking-widest">03 — MIND</p>
+				<p class="font-mono text-xs text-accent-secondary mb-3 tracking-widest">03 - MIND</p>
 				<h2 class="text-3xl font-serif text-text-primary mb-4">
 					Memory that <span class="text-accent-secondary">compounds.</span>
 				</h2>
 				<p class="text-text-secondary max-w-2xl mx-auto">
-					Agents don't just execute — they remember. Every decision, every context, every outcome
+					Agents don't just execute - they remember. Every decision, every context, every outcome
 					is stored and retrieved. Your agents get smarter with every interaction.
 				</p>
 			</div>
@@ -844,7 +844,7 @@ wrangler dev</code>
 			<div class="grid md:grid-cols-3 gap-6 mb-16">
 				<div class="p-6 bg-bg-secondary border border-surface-border animate-slide-up" style="animation-delay: 350ms;">
 					<div class="w-10 h-10 flex items-center justify-center border border-accent-secondary/30 text-accent-secondary mb-4">
-						<span class="text-lg">α</span>
+						<span class="text-lg">A</span>
 					</div>
 					<h3 class="font-serif text-lg text-text-primary mb-2">Agent A executes</h3>
 					<p class="text-sm text-text-secondary leading-relaxed">
@@ -854,17 +854,17 @@ wrangler dev</code>
 
 				<div class="p-6 bg-bg-secondary border border-surface-border animate-slide-up" style="animation-delay: 400ms;">
 					<div class="w-10 h-10 flex items-center justify-center border border-accent-secondary/30 text-accent-secondary mb-4">
-						<span class="text-lg">◈</span>
+						<span class="text-lg">M</span>
 					</div>
 					<h3 class="font-serif text-lg text-text-primary mb-2">Mind remembers</h3>
 					<p class="text-sm text-text-secondary leading-relaxed">
-						Semantic memory stores what matters. Not logs — understanding. Patterns emerge over time.
+						Semantic memory stores what matters. Not logs - understanding. Patterns emerge over time.
 					</p>
 				</div>
 
 				<div class="p-6 bg-bg-secondary border border-surface-border animate-slide-up" style="animation-delay: 450ms;">
 					<div class="w-10 h-10 flex items-center justify-center border border-accent-secondary/30 text-accent-secondary mb-4">
-						<span class="text-lg">β</span>
+						<span class="text-lg">B</span>
 					</div>
 					<h3 class="font-serif text-lg text-text-primary mb-2">Agent B improves</h3>
 					<p class="text-sm text-text-secondary leading-relaxed">
@@ -876,7 +876,7 @@ wrangler dev</code>
 			<!-- Stats row -->
 			<div class="flex flex-wrap items-center justify-center gap-12 pt-8 border-t border-surface-border">
 				<div class="text-center">
-					<p class="text-3xl font-display font-bold text-accent-secondary mb-1">∞</p>
+					<p class="text-3xl font-display font-bold text-accent-secondary mb-1">INF</p>
 					<p class="font-mono text-text-tertiary text-xs uppercase tracking-wider">Memory Depth</p>
 				</div>
 				<div class="text-center">

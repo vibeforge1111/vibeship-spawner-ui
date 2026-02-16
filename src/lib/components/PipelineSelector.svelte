@@ -277,7 +277,7 @@
 										</svg>
 										{pipeline.nodeCount} nodes
 									</span>
-									<span class="text-text-quaternary">·</span>
+									<span class="text-text-quaternary">|</span>
 									<span>{formatDate(pipeline.updatedAt)}</span>
 								</div>
 							</div>
