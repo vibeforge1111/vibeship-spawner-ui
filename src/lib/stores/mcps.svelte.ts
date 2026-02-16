@@ -246,6 +246,9 @@ export function createInstance(
 		attachedToMissions: [],
 		autoFeedback: true,
 		enabled: true,
+		lastSmokeTestAt: undefined,
+		lastSmokeTestStatus: undefined,
+		lastSmokeTestMessage: undefined,
 		createdAt: new Date().toISOString(),
 		updatedAt: new Date().toISOString()
 	};
@@ -409,6 +412,95 @@ export async function callMCPTool(
 		console.error(`[MCP] Tool call error:`, error);
 		throw error;
 	}
+}
+
+function buildSmokeArgs(toolName: string): Record<string, unknown> {
+	const normalized = toolName.toLowerCase();
+	if (normalized === 'echo') return { message: 'spawner smoke test' };
+	if (normalized === 'add') return { a: 1, b: 2 };
+	if (normalized === 'random_number') return { min: 0, max: 10 };
+	if (normalized === 'query') return { query: 'SELECT 1' };
+	return {};
+}
+
+/**
+ * Run a smoke test against at least one tool on a connected MCP instance.
+ */
+export async function runInstanceSmokeTest(
+	instanceId: string
+): Promise<{ ok: boolean; toolName?: string; message: string }> {
+	const state = get(mcpStore);
+	const instance = state.instances.find((i) => i.id === instanceId);
+
+	if (!instance) {
+		return { ok: false, message: 'MCP instance not found' };
+	}
+
+	if (instance.status !== 'connected') {
+		return { ok: false, message: 'MCP instance is not connected' };
+	}
+
+	const tools = instance.tools || [];
+	const timestamp = new Date().toISOString();
+	if (tools.length === 0) {
+		const message = 'Connected, but no tools were reported by server';
+		mcpStore.update((s) => ({
+			...s,
+			instances: s.instances.map((i) =>
+				i.id === instanceId
+					? {
+						...i,
+						lastSmokeTestAt: timestamp,
+						lastSmokeTestStatus: 'failed',
+						lastSmokeTestMessage: message,
+						updatedAt: timestamp
+					}
+					: i
+			)
+		}));
+		return { ok: false, message };
+	}
+
+	for (const tool of tools) {
+		try {
+			await callMCPTool(instanceId, tool.name, buildSmokeArgs(tool.name));
+			const message = `Smoke test passed using tool "${tool.name}"`;
+			mcpStore.update((s) => ({
+				...s,
+				instances: s.instances.map((i) =>
+					i.id === instanceId
+						? {
+							...i,
+							lastSmokeTestAt: timestamp,
+							lastSmokeTestStatus: 'passed',
+							lastSmokeTestMessage: message,
+							updatedAt: timestamp
+						}
+						: i
+				)
+			}));
+			return { ok: true, toolName: tool.name, message };
+		} catch {
+			// try next tool
+		}
+	}
+
+	const message = `Connected, but all smoke test calls failed (${tools.length} tool${tools.length === 1 ? '' : 's'} attempted)`;
+	mcpStore.update((s) => ({
+		...s,
+		instances: s.instances.map((i) =>
+			i.id === instanceId
+				? {
+					...i,
+					lastSmokeTestAt: timestamp,
+					lastSmokeTestStatus: 'failed',
+					lastSmokeTestMessage: message,
+					updatedAt: timestamp
+				}
+				: i
+		)
+	}));
+	return { ok: false, message };
 }
 
 /**

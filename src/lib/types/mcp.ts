@@ -131,6 +131,9 @@ export interface MCPInstance {
 	autoFeedback: boolean; // Automatically send feedback to Mind
 	feedbackThreshold?: number; // Min confidence to act on
 	enabled: boolean;
+	lastSmokeTestAt?: string;
+	lastSmokeTestStatus?: 'passed' | 'failed';
+	lastSmokeTestMessage?: string;
 
 	createdAt: string;
 	updatedAt: string;

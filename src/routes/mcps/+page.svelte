@@ -10,6 +10,7 @@
 		initializeMCPStore,
 		createInstance,
 		connectInstance,
+		runInstanceSmokeTest,
 		disconnectInstance,
 		removeInstance,
 		setFilterCategory,
@@ -49,6 +50,10 @@
 	let showConnectModal = $state(false);
 	let selectedMCP: MCPRegistryItem | null = $state(null);
 	let connecting = $state(false);
+	let setupName = $state('');
+	let setupConfigRows = $state<Array<{ key: string; value: string }>>([{ key: '', value: '' }]);
+	let setupMessage = $state<string | null>(null);
+	let setupMessageKind = $state<'success' | 'error' | null>(null);
 
 	// Search
 	let searchInputEl: HTMLInputElement;
@@ -136,21 +141,65 @@
 
 	async function handleConnect(mcp: MCPRegistryItem) {
 		selectedMCP = mcp;
+		setupName = mcp.name;
+		setupConfigRows = [{ key: '', value: '' }];
+		setupMessage = null;
+		setupMessageKind = null;
 		showConnectModal = true;
+	}
+
+	function closeConnectModal() {
+		showConnectModal = false;
+		selectedMCP = null;
+		connecting = false;
+		setupMessage = null;
+		setupMessageKind = null;
+	}
+
+	function addConfigRow() {
+		setupConfigRows = [...setupConfigRows, { key: '', value: '' }];
+	}
+
+	function removeConfigRow(index: number) {
+		setupConfigRows = setupConfigRows.filter((_, i) => i !== index);
+		if (setupConfigRows.length === 0) {
+			setupConfigRows = [{ key: '', value: '' }];
+		}
 	}
 
 	async function confirmConnect() {
 		if (!selectedMCP) return;
 
 		connecting = true;
+		setupMessage = null;
+		setupMessageKind = null;
 		try {
-			const instance = createInstance(selectedMCP.id);
-			await connectInstance(instance.id);
-			showConnectModal = false;
-			selectedMCP = null;
+			const config = Object.fromEntries(
+				setupConfigRows
+					.map((row) => [row.key.trim(), row.value.trim()] as const)
+					.filter(([key]) => key.length > 0)
+			);
+			const instance = createInstance(
+				selectedMCP.id,
+				config,
+				setupName.trim().length > 0 ? setupName.trim() : undefined
+			);
+			const connected = await connectInstance(instance.id);
+			if (!connected) {
+				setupMessage = 'Connection failed. Check configuration or server availability.';
+				setupMessageKind = 'error';
+				return;
+			}
+
+			const smoke = await runInstanceSmokeTest(instance.id);
+			setupMessage = smoke.message;
+			setupMessageKind = smoke.ok ? 'success' : 'error';
+
 			activeTab = 'connected';
 		} catch (e) {
 			console.error('Failed to connect MCP:', e);
+			setupMessage = 'Failed to connect MCP.';
+			setupMessageKind = 'error';
 		} finally {
 			connecting = false;
 		}
@@ -678,6 +727,17 @@
 											Error: {instance.lastError}
 										</div>
 									{/if}
+									{#if instance.lastSmokeTestMessage}
+										<div
+											class={`mt-2 p-2 text-xs font-mono border ${
+												instance.lastSmokeTestStatus === 'passed'
+													? 'bg-green-500/10 border-green-500/30 text-green-400'
+													: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400'
+											}`}
+										>
+											Smoke test: {instance.lastSmokeTestMessage}
+										</div>
+									{/if}
 								</div>
 
 								<!-- Content Grid -->
@@ -922,13 +982,13 @@
 <!-- Connect Modal -->
 {#if showConnectModal && selectedMCP}
 	<div class="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Connect MCP">
-		<button class="absolute inset-0 bg-black/60" onclick={() => (showConnectModal = false)} aria-label="Close connect modal"></button>
+		<button class="absolute inset-0 bg-black/60" onclick={closeConnectModal} aria-label="Close connect modal"></button>
 
 		<div class="relative w-full max-w-md bg-bg-secondary border border-surface-border shadow-xl">
 			<div class="p-4 border-b border-surface-border flex items-center justify-between">
 				<h2 class="text-lg font-medium text-text-primary">Connect {selectedMCP.name}</h2>
 				<button
-					onclick={() => (showConnectModal = false)}
+					onclick={closeConnectModal}
 					class="text-text-tertiary hover:text-text-secondary"
 				>
 					<Icon name="x" size={20} />
@@ -984,11 +1044,89 @@
 						<p class="text-sm font-mono text-text-secondary">{selectedMCP.repository}</p>
 					</div>
 				{/if}
+
+				<div class="mb-4">
+					<label class="block text-xs font-mono text-text-tertiary mb-2">Instance Name</label>
+					<input
+						type="text"
+						value={setupName}
+						oninput={(e) => (setupName = (e.currentTarget as HTMLInputElement).value)}
+						class="w-full px-3 py-2 bg-bg-primary border border-surface-border text-text-primary font-mono text-sm focus:outline-none focus:border-accent-primary"
+						placeholder={selectedMCP.name}
+					/>
+				</div>
+
+				<div class="mb-4">
+					<div class="flex items-center justify-between mb-2">
+						<label class="block text-xs font-mono text-text-tertiary">Optional Config (ENV / params)</label>
+						<button
+							type="button"
+							onclick={addConfigRow}
+							class="text-[11px] font-mono text-accent-primary hover:underline"
+						>
+							+ Add
+						</button>
+					</div>
+					<div class="space-y-2">
+						{#each setupConfigRows as row, index}
+							<div class="flex items-center gap-2">
+								<input
+									type="text"
+									value={row.key}
+									oninput={(e) =>
+										(setupConfigRows = setupConfigRows.map((entry, i) =>
+											i === index ? { ...entry, key: (e.currentTarget as HTMLInputElement).value } : entry
+										))}
+									placeholder="KEY"
+									class="w-1/2 px-2 py-1.5 bg-bg-primary border border-surface-border text-text-primary font-mono text-xs focus:outline-none focus:border-accent-primary"
+								/>
+								<input
+									type="text"
+									value={row.value}
+									oninput={(e) =>
+										(setupConfigRows = setupConfigRows.map((entry, i) =>
+											i === index ? { ...entry, value: (e.currentTarget as HTMLInputElement).value } : entry
+										))}
+									placeholder="value"
+									class="w-1/2 px-2 py-1.5 bg-bg-primary border border-surface-border text-text-primary font-mono text-xs focus:outline-none focus:border-accent-primary"
+								/>
+								{#if setupConfigRows.length > 1}
+									<button
+										type="button"
+										onclick={() => removeConfigRow(index)}
+										class="text-text-tertiary hover:text-red-400"
+										aria-label="Remove config row"
+									>
+										<Icon name="x" size={14} />
+									</button>
+								{/if}
+							</div>
+						{/each}
+					</div>
+				</div>
+
+				<div class="p-3 bg-bg-primary border border-surface-border">
+					<p class="text-xs text-text-tertiary">
+						Setup flow: connect MCP -> run automatic smoke test using at least one tool.
+					</p>
+				</div>
+
+				{#if setupMessage}
+					<div
+						class={`mt-3 p-3 border text-xs font-mono ${
+							setupMessageKind === 'success'
+								? 'border-green-500/40 bg-green-500/10 text-green-400'
+								: 'border-red-500/40 bg-red-500/10 text-red-400'
+						}`}
+					>
+						{setupMessage}
+					</div>
+				{/if}
 			</div>
 
 			<div class="p-4 border-t border-surface-border flex items-center justify-end gap-2">
 				<button
-					onclick={() => (showConnectModal = false)}
+					onclick={closeConnectModal}
 					class="px-4 py-2 text-sm font-mono text-text-secondary border border-surface-border hover:border-text-tertiary transition-all"
 				>
 					Cancel
