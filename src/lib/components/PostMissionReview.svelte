@@ -76,12 +76,10 @@
 </script>
 
 <!-- Post-Mission Review Modal -->
-<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick={onClose} role="button" tabindex="-1">
+<div class="fixed inset-0 flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="review-title">
+	<button class="absolute inset-0 bg-black/50" onclick={onClose} aria-label="Close mission review"></button>
 	<div
-		class="bg-bg-secondary border border-surface-border w-full max-w-lg max-h-[85vh] flex flex-col"
-		onclick={(e) => e.stopPropagation()}
-		role="dialog"
-		aria-labelledby="review-title"
+		class="relative bg-bg-secondary border border-surface-border w-full max-w-lg max-h-[85vh] flex flex-col"
 	>
 		<!-- Header -->
 		<div class="flex items-center justify-between p-4 border-b border-surface-border">
@@ -265,6 +263,7 @@
 <style>
 	.line-clamp-2 {
 		display: -webkit-box;
+		line-clamp: 2;
 		-webkit-line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;

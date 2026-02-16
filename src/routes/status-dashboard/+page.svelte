@@ -165,8 +165,9 @@
 
 <!-- Add Service Modal -->
 {#if showAddForm}
-	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick={() => showAddForm = false}>
-		<div class="bg-bg-secondary border border-surface-border p-6 w-full max-w-md" onclick={(e) => e.stopPropagation()}>
+	<div class="fixed inset-0 flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-label="Add service">
+		<button class="absolute inset-0 bg-black/50" onclick={() => showAddForm = false} aria-label="Close add service form"></button>
+		<div class="relative bg-bg-secondary border border-surface-border p-6 w-full max-w-md">
 			<h2 class="text-lg font-serif text-text-primary mb-4">Add New Service</h2>
 			<AddServiceForm
 				onSubmit={handleAddService}

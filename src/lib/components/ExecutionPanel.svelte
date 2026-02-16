@@ -27,7 +27,7 @@
 	let currentConnections = $state<Connection[]>([]);
 	let executionProgress = $state<ExecutionProgress | null>(null);
 	let logs = $state<MissionLog[]>([]);
-	let logsContainer: HTMLDivElement;
+	let logsContainer = $state<HTMLDivElement | undefined>(undefined);
 	let mcpConnected = $state(false);
 
 	// Pre-mission context state
@@ -199,6 +199,14 @@
 			.split('\\n')
 			.map((l) => l.trim())
 			.filter(Boolean);
+	}
+
+	function getCurrentTaskSkills(progress: ExecutionProgress | null): LoadedSkillInfo[] {
+		if (!isRunning || !progress?.loadedSkills || !progress.currentTaskId) {
+			return [];
+		}
+		const currentTaskId = progress.currentTaskId;
+		return progress.loadedSkills.filter((skill) => skill.taskIds.includes(currentTaskId));
 	}
 
 	// Fetch pre-mission context when panel opens and nodes exist
@@ -411,20 +419,12 @@
 		if (!memoryConnected) return;
 		try {
 			// Map activity types to appropriate Mind content types
-			const contentTypeMap: Record<string, string> = {
-				'progress': 'task_outcome',
-				'decision': 'project_decision',
-				'learning': 'agent_learning',
-				'issue': 'project_issue',
-				'session': 'session_summary',
-				'improvement': 'system_improvement',
-				'pattern': 'agent_learning'
-			};
+			const patternType = type === 'learning' ? 'success' : type === 'issue' ? 'failure' : 'optimization';
 
 			await memoryClient.recordLearning('spawner-ui', {
 				content: message,
 				missionId: executionProgress?.missionId || undefined,
-				patternType: type === 'learning' ? 'success' : type === 'issue' ? 'failure' : undefined,
+				patternType,
 				confidence: 0.8
 			});
 			mindLogsCount++;
@@ -728,12 +728,11 @@
 	class:top-0={minimized}
 	class:bottom-0={minimized}
 	class:w-96={minimized}
-	onclick={!minimized ? handleClose : undefined}
-	role="button"
-	tabindex="-1"
+	role="dialog"
+	aria-modal={!minimized ? 'true' : undefined}
 >
 	{#if !minimized}
-		<div class="absolute inset-0 bg-black/50"></div>
+		<button class="absolute inset-0 bg-black/50" onclick={handleClose} aria-label="Close execution panel"></button>
 	{/if}
 	<div
 		class="relative bg-bg-secondary border-l border-surface-border flex flex-col h-full"
@@ -743,8 +742,6 @@
 		class:max-h-[80vh]={!minimized}
 		class:inset-y-[10vh]={!minimized}
 		class:border={!minimized}
-		onclick={(e) => e.stopPropagation()}
-		role="dialog"
 	>
 		<!-- Header -->
 		<div class="flex items-center justify-between p-4 border-b border-surface-border">
@@ -782,13 +779,14 @@
 						onclick={onToggleMinimize}
 						class="p-1.5 text-text-tertiary hover:text-text-primary hover:bg-surface transition-all"
 						title="Minimize to see canvas"
+						aria-label="Minimize execution panel"
 					>
 						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
 						</svg>
 					</button>
 				{/if}
-				<button onclick={handleClose} class="p-1.5 text-text-tertiary hover:text-text-primary hover:bg-surface transition-all" disabled={isRunning}>
+				<button onclick={handleClose} class="p-1.5 text-text-tertiary hover:text-text-primary hover:bg-surface transition-all" disabled={isRunning} aria-label="Close execution panel">
 					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
 					</svg>
@@ -890,7 +888,7 @@
 					<span>{currentNodes.length} nodes</span>
 					<span>{getExecutionDuration()}</span>
 				</div>
-				{#if executionProgress.executionPrompt}
+				{#if executionProgress?.executionPrompt}
 					<div class="mt-3 border border-accent-primary/30">
 						<!-- Collapsible Header -->
 						<div
@@ -910,7 +908,7 @@
 								class="px-3 py-1 bg-accent-primary hover:bg-accent-primary-hover text-bg-primary text-xs font-mono transition-all flex items-center gap-2"
 								onclick={(e) => {
 									e.stopPropagation();
-									navigator.clipboard.writeText(executionProgress.executionPrompt || '');
+									navigator.clipboard.writeText(executionProgress?.executionPrompt || '');
 									toasts.success('Copied! Paste this prompt into Claude Code to execute');
 								}}
 							>
@@ -924,7 +922,7 @@
 						{#if !copyPromptCollapsed}
 							<div class="p-3 bg-accent-primary/5">
 								<div class="max-h-32 overflow-y-auto bg-bg-primary p-2 border border-surface-border text-xs font-mono text-text-secondary select-text">
-									<pre class="whitespace-pre-wrap break-all">{executionProgress.executionPrompt.slice(0, 500)}{executionProgress.executionPrompt.length > 500 ? '...' : ''}</pre>
+									<pre class="whitespace-pre-wrap break-all">{(executionProgress?.executionPrompt || '').slice(0, 500)}{(executionProgress?.executionPrompt || '').length > 500 ? '...' : ''}</pre>
 								</div>
 								<p class="mt-2 text-xs text-text-tertiary">
 									Paste this prompt into Claude Code to execute the workflow.
@@ -942,10 +940,8 @@
 				{/if}
 
 				<!-- H70 Skills - Compact with Working Animation -->
-				{#if executionProgress.loadedSkills && executionProgress.loadedSkills.length > 0}
-					{@const currentTaskSkills = isRunning && executionProgress.currentTaskId
-						? executionProgress.loadedSkills.filter(s => s.taskIds.includes(executionProgress.currentTaskId || ''))
-						: []}
+				{#if executionProgress?.loadedSkills && executionProgress.loadedSkills.length > 0}
+					{@const currentTaskSkills = getCurrentTaskSkills(executionProgress)}
 					<div class="mt-3 flex items-center gap-3 px-3 py-2 bg-indigo-500/10 border border-indigo-500/30">
 						<!-- Skill Icon with Hammering Animation when active -->
 						<div class="relative">
@@ -1444,8 +1440,9 @@
 
 <!-- Orphan Node Warning Modal -->
 {#if showOrphanWarning && orphanedNodes.length > 0}
-	<div class="fixed inset-0 bg-black/60 flex items-center justify-center z-[60]" role="dialog">
-		<div class="bg-bg-secondary border border-surface-border w-full max-w-md p-6" onclick={(e) => e.stopPropagation()}>
+	<div class="fixed inset-0 flex items-center justify-center z-[60]" role="dialog" aria-modal="true" aria-label="Orphan node warning">
+		<button class="absolute inset-0 bg-black/60" onclick={() => (showOrphanWarning = false)} aria-label="Close orphan warning"></button>
+		<div class="relative bg-bg-secondary border border-surface-border w-full max-w-md p-6">
 			<!-- Warning Icon & Title -->
 			<div class="flex items-center gap-3 mb-4">
 				<div class="w-10 h-10 bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">

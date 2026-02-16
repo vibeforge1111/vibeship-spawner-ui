@@ -28,6 +28,20 @@
 		removeConnection(connection.id);
 	}
 
+	function handleConnectionKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			selectConnection(connection.id);
+		}
+	}
+
+	function handleDeleteKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			removeConnection(connection.id);
+		}
+	}
+
 	const sourceNode = $derived(nodes.find((n) => n.id === connection.sourceNodeId));
 	const targetNode = $derived(nodes.find((n) => n.id === connection.targetNodeId));
 
@@ -125,7 +139,7 @@
 {#if sourceNode && targetNode}
 	{@const style = connectionStyle()}
 	{@const color = selected ? '#fff' : connectionColor}
-	<g class="connection-group" class:selected onclick={handleClick}>
+	<g class="connection-group" class:selected onclick={handleClick} onkeydown={handleConnectionKeydown} role="button" tabindex="0">
 		<!-- Invisible wider hit area for easier clicking -->
 		<path
 			d={pathD()}
@@ -177,7 +191,7 @@
 		{#if selected}
 			{@const midX = (sourceNode.position.x + nodeWidth + OUTPUT_INSET + targetNode.position.x - PORT_OFFSET) / 2}
 			{@const midY = (sourceNode.position.y + getPortY(sourceNode, connection.sourcePortId, true) + targetNode.position.y + getPortY(targetNode, connection.targetPortId, false)) / 2}
-			<g class="delete-button" transform="translate({midX}, {midY})" onclick={handleDelete} role="button" tabindex="0">
+			<g class="delete-button" transform="translate({midX}, {midY})" onclick={handleDelete} onkeydown={handleDeleteKeydown} role="button" tabindex="0">
 				<rect x="-8" y="-8" width="16" height="16" fill="var(--bg-secondary, #1a1a24)" stroke="var(--status-error, #ef4444)" stroke-width="1" class="delete-bg" />
 				<path d="M-4,-4 L4,4 M-4,4 L4,-4" stroke="var(--status-error, #ef4444)" stroke-width="1.5" />
 			</g>

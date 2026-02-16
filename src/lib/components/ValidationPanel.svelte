@@ -85,11 +85,10 @@
 	}
 </script>
 
-<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick={onClose} role="button" tabindex="-1">
+<div class="fixed inset-0 flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-label="Workflow validation">
+	<button class="absolute inset-0 bg-black/50" onclick={onClose} aria-label="Close validation panel"></button>
 	<div
-		class="bg-bg-secondary border border-surface-border w-full max-w-lg max-h-[80vh] flex flex-col"
-		onclick={(e) => e.stopPropagation()}
-		role="dialog"
+		class="relative bg-bg-secondary border border-surface-border w-full max-w-lg max-h-[80vh] flex flex-col"
 	>
 		<!-- Header -->
 		<div class="flex items-center justify-between p-4 border-b border-surface-border">

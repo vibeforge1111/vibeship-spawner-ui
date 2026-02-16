@@ -921,8 +921,8 @@
 
 <!-- Connect Modal -->
 {#if showConnectModal && selectedMCP}
-	<div class="fixed inset-0 z-50 flex items-center justify-center">
-		<div class="absolute inset-0 bg-black/60" onclick={() => (showConnectModal = false)}></div>
+	<div class="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Connect MCP">
+		<button class="absolute inset-0 bg-black/60" onclick={() => (showConnectModal = false)} aria-label="Close connect modal"></button>
 
 		<div class="relative w-full max-w-md bg-bg-secondary border border-surface-border shadow-xl">
 			<div class="p-4 border-b border-surface-border flex items-center justify-between">
