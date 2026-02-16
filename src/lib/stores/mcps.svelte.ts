@@ -427,13 +427,17 @@ export function removeInstance(instanceId: string) {
  * Update instance config
  */
 export function updateInstanceConfig(instanceId: string, config: Partial<MCPConfig>) {
+	const sanitizedConfig = Object.fromEntries(
+		Object.entries(config).filter(([, value]) => value !== undefined)
+	) as MCPConfig;
+
 	mcpStore.update((s) => ({
 		...s,
 		instances: s.instances.map((i) =>
 			i.id === instanceId
 				? {
 						...i,
-						config: { ...i.config, ...config },
+						config: { ...i.config, ...sanitizedConfig },
 						updatedAt: new Date().toISOString()
 					}
 				: i

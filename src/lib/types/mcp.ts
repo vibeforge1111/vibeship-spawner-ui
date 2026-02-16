@@ -45,7 +45,7 @@ export type MCPCapability =
 	| 'payment' // Payment processing
 	| 'custom'; // Custom capability
 
-export interface MCPTool {
+export interface MCPDefinitionTool {
 	name: string;
 	description: string;
 	inputSchema?: Record<string, unknown>;
@@ -67,7 +67,7 @@ export interface MCPDefinition {
 	tags: string[];
 
 	// What it provides
-	tools: MCPTool[];
+	tools: MCPDefinitionTool[];
 	feedbackTypes?: string[]; // What feedback it can provide to Mind
 
 	// Requirements
@@ -90,7 +90,7 @@ export interface MCPConfig {
 	[key: string]: string | number | boolean;
 }
 
-export interface MCPTool {
+export interface MCPInstanceTool {
 	name: string;
 	description?: string;
 	inputSchema?: Record<string, unknown>;
@@ -115,7 +115,7 @@ export interface MCPInstance {
 
 	// Server info (populated after connection)
 	serverInfo?: MCPServerInfo;
-	tools?: MCPTool[];
+	tools?: MCPInstanceTool[];
 
 	// Usage tracking
 	usageCount: number;
