@@ -4,16 +4,11 @@
 
 Spawner now supports a provider-agnostic orchestration layer that can coordinate multiple LLMs in one mission run.
 
-Current built-in providers:
-- `claude` (terminal CLI template)
-- `codex` (terminal CLI template)
-- `openai` (OpenAI-compatible API template)
-- `minimax` (OpenAI-compatible API template)
-- `kimi` (OpenAI-compatible API template)
-- `openrouter` (OpenAI-compatible API template)
-- `ollama` (OpenAI-compatible API template)
-- `replicate` (custom image/video provider template)
-- `runway` (custom video provider template)
+Current Step-1 built-in providers:
+- `claude` (terminal CLI template, env readiness via `ANTHROPIC_API_KEY`)
+- `codex` (terminal CLI template, env readiness via `OPENAI_API_KEY`)
+
+All other provider templates are intentionally disabled from the default registry for now.
 
 ## Core Design
 

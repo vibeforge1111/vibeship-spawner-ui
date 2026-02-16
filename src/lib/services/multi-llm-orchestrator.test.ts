@@ -38,12 +38,11 @@ function createMission(taskCount = 3): Mission {
 }
 
 describe('multi-llm-orchestrator', () => {
-	it('creates default options with providers', () => {
+	it('creates default options with only codex + claude providers', () => {
 		const options = createDefaultMultiLLMOptions();
 		expect(options.enabled).toBe(false);
 		expect(options.strategy).toBe('round_robin');
-		expect(options.providers.length).toBeGreaterThan(1);
-		expect(options.providers.some((provider) => provider.id === 'claude')).toBe(true);
+		expect(options.providers.map((provider) => provider.id)).toEqual(['claude', 'codex']);
 	});
 
 	it('assigns tasks round-robin across enabled providers', () => {
@@ -108,14 +107,14 @@ describe('multi-llm-orchestrator', () => {
 		expect(pack.providerPrompts.claude).toContain('provider_feedback');
 	});
 
-	it('generates openai-compatible launch command for minimax', () => {
+	it('generates terminal launch command for codex', () => {
 		const options = createDefaultMultiLLMOptions();
 		options.enabled = true;
 		options.strategy = 'single';
-		options.primaryProviderId = 'minimax';
+		options.primaryProviderId = 'codex';
 		options.providers = options.providers.map((provider) => ({
 			...provider,
-			enabled: provider.id === 'minimax'
+			enabled: provider.id === 'codex'
 		}));
 
 		const pack = buildMultiLLMExecutionPack({
@@ -123,10 +122,8 @@ describe('multi-llm-orchestrator', () => {
 			options
 		});
 
-		expect(pack.providers[0].id).toBe('minimax');
-		expect(pack.launchCommands.minimax).toContain('/chat/completions');
-		expect(pack.launchCommands.minimax).toContain('$MINIMAX_API_KEY');
-		expect(pack.launchCommands.minimax).toContain('minimax-request.json');
+		expect(pack.providers[0].id).toBe('codex');
+		expect(pack.launchCommands.codex).toContain('codex exec --model gpt-5.3-codex');
 	});
 
 	it('auto-enables providers when matching API keys are present', () => {
@@ -134,28 +131,28 @@ describe('multi-llm-orchestrator', () => {
 		options.enabled = true;
 		options.strategy = 'single';
 		options.autoEnableByKeys = true;
-		options.keyPresence = { minimax: true };
+		options.keyPresence = { codex: true };
 		options.providers = options.providers.map((provider) => ({
 			...provider,
 			enabled: false
 		}));
-		options.primaryProviderId = 'minimax';
+		options.primaryProviderId = 'codex';
 
 		const pack = buildMultiLLMExecutionPack({
 			mission: createMission(1),
 			options
 		});
 
-		expect(pack.providers.map((provider) => provider.id)).toContain('minimax');
-		expect(pack.primaryProviderId).toBe('minimax');
+		expect(pack.providers.map((provider) => provider.id)).toContain('codex');
+		expect(pack.primaryProviderId).toBe('codex');
 	});
 
-	it('routes image tasks to image-capable providers when auto-route is enabled', () => {
+	it('routes deployment-heavy tasks to codex when auto-route is enabled', () => {
 		const mission = createMission(2);
-		mission.tasks[0].title = 'Generate hero image';
-		mission.tasks[0].description = 'Create marketing banner visuals and thumbnails';
-		mission.tasks[1].title = 'Implement API handler';
-		mission.tasks[1].description = 'Build backend endpoint and validation';
+		mission.tasks[0].title = 'Deploy backend service';
+		mission.tasks[0].description = 'Release to production and verify deployment pipeline';
+		mission.tasks[1].title = 'Write release notes';
+		mission.tasks[1].description = 'Summarize changes and rollout guidance';
 
 		const options = createDefaultMultiLLMOptions();
 		options.enabled = true;
@@ -163,18 +160,16 @@ describe('multi-llm-orchestrator', () => {
 		options.autoRouteByTask = true;
 		options.providers = options.providers.map((provider) => ({
 			...provider,
-			enabled: provider.id === 'codex' || provider.id === 'replicate'
+			enabled: provider.id === 'codex' || provider.id === 'claude'
 		}));
 		options.primaryProviderId = 'codex';
-		options.keyPresence = { replicate: true };
 
 		const pack = buildMultiLLMExecutionPack({
 			mission,
 			options
 		});
 
-		expect(pack.assignments.replicate.taskIds).toContain('task-1');
-		expect(pack.assignments.codex.taskIds).toContain('task-2');
+		expect(pack.assignments.codex.taskIds).toContain('task-1');
 	});
 
 	it('builds explicit MCP tool plans for matching tasks', () => {

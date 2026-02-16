@@ -13,6 +13,12 @@ import { requireControlAuth, enforceRateLimit } from '$lib/server/mcp-auth';
 import { eventBridge } from '$lib/services/event-bridge';
 import { providerRuntime } from '$lib/server/provider-runtime';
 
+const ALLOWED_PROVIDER_IDS = new Set(['claude', 'codex']);
+
+function isConfiguredApiKey(value: string | undefined): value is string {
+	return Boolean(value && value.trim() && !value.startsWith('your_'));
+}
+
 export const POST: RequestHandler = async (event) => {
 	// Auth: allow localhost without key
 	const unauthorized = requireControlAuth(event, {
@@ -46,6 +52,18 @@ export const POST: RequestHandler = async (event) => {
 			);
 		}
 
+		const requestedProviderIds: string[] = executionPack.providers.map((provider: { id: string }) => provider.id);
+		const unsupportedProviderIds = requestedProviderIds.filter((id) => !ALLOWED_PROVIDER_IDS.has(id));
+		if (unsupportedProviderIds.length > 0) {
+			return json(
+				{
+					success: false,
+					error: `Unsupported provider(s) in execution pack: ${unsupportedProviderIds.join(', ')}. Allowed: claude, codex.`
+				},
+				{ status: 400 }
+			);
+		}
+
 		// Merge server env vars with UI-provided keys (UI keys take precedence)
 		// Cast env to Record for dynamic key access (SvelteKit types it strictly)
 		const envRecord = env as Record<string, string | undefined>;
@@ -53,18 +71,43 @@ export const POST: RequestHandler = async (event) => {
 		for (const provider of executionPack.providers) {
 			if (provider.apiKeyEnv) {
 				const val = envRecord[provider.apiKeyEnv];
-				if (val && val.trim() && !val.startsWith('your_')) {
+				if (isConfiguredApiKey(val)) {
 					serverEnvKeys[provider.id] = val.trim();
 				}
 			}
 		}
-		// Also check ANTHROPIC_API_KEY for claude specifically
-		const anthropicKey = envRecord['ANTHROPIC_API_KEY'];
-		if (anthropicKey && anthropicKey.trim() && !anthropicKey.startsWith('your_')) {
-			serverEnvKeys['claude'] = anthropicKey.trim();
-		}
 
-		const mergedApiKeys = { ...serverEnvKeys, ...(apiKeys || {}) };
+		const uiApiKeys = apiKeys || {};
+		const mergedApiKeys = {
+			...serverEnvKeys,
+			...Object.fromEntries(
+				Object.entries(uiApiKeys)
+					.filter(([, value]) => isConfiguredApiKey(typeof value === 'string' ? value : undefined))
+					.map(([providerId, value]) => [providerId, (value as string).trim()])
+			)
+		};
+
+		const missingRequiredKeyProviders = executionPack.providers
+			.filter((provider: { id: string; requiresApiKey?: boolean; apiKeyEnv?: string }) => provider.requiresApiKey)
+			.filter((provider: { id: string }) => !isConfiguredApiKey(mergedApiKeys[provider.id]))
+			.map((provider: { id: string; label?: string; apiKeyEnv?: string }) => ({
+				id: provider.id,
+				label: provider.label || provider.id,
+				apiKeyEnv: provider.apiKeyEnv || 'API_KEY'
+			}));
+
+		if (missingRequiredKeyProviders.length > 0) {
+			return json(
+				{
+					success: false,
+					error: `Missing required API keys: ${missingRequiredKeyProviders
+						.map((provider) => `${provider.label} (${provider.apiKeyEnv})`)
+						.join(', ')}`,
+					missingProviders: missingRequiredKeyProviders
+				},
+				{ status: 400 }
+			);
+		}
 
 		const result = await providerRuntime.dispatch({
 			executionPack,

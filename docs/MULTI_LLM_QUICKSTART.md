@@ -11,12 +11,8 @@ Turn on `Enable`.
 ## 3) Add API Keys
 
 Paste keys into provider rows you want to use:
-- OpenAI -> `OPENAI_API_KEY`
-- Minimax -> `MINIMAX_API_KEY`
-- Kimi -> `KIMI_API_KEY`
-- OpenRouter -> `OPENROUTER_API_KEY`
-- Replicate -> `REPLICATE_API_TOKEN`
-- Runway -> `RUNWAY_API_KEY`
+- Claude -> `ANTHROPIC_API_KEY`
+- Codex -> `OPENAI_API_KEY`
 
 These keys are stored in your local browser storage on your machine.
 

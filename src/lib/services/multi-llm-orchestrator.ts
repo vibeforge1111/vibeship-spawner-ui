@@ -103,6 +103,8 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		kind: 'terminal_cli',
 		eventSource: 'claude-code',
 		capabilities: ['reasoning', 'planning', 'review', 'code_analysis'],
+		apiKeyEnv: 'ANTHROPIC_API_KEY',
+		requiresApiKey: true,
 		commandTemplate: 'claude --model {model}'
 	},
 	{
@@ -113,91 +115,9 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		kind: 'terminal_cli',
 		eventSource: 'codex',
 		capabilities: ['reasoning', 'planning', 'code_analysis', 'code_exec', 'database', 'deployment'],
-		commandTemplate: 'codex exec --model {model}'
-	},
-	{
-		id: 'openai',
-		label: 'OpenAI',
-		model: 'gpt-4.1',
-		enabled: false,
-		kind: 'openai_compat',
-		eventSource: 'openai',
-		capabilities: ['reasoning', 'planning', 'code_analysis', 'image_gen', 'audio_gen', 'web_search'],
-		baseUrl: 'https://api.openai.com/v1',
 		apiKeyEnv: 'OPENAI_API_KEY',
-		requiresApiKey: true
-	},
-	{
-		id: 'minimax',
-		label: 'Minimax',
-		model: 'MiniMax-M2.5',
-		enabled: false,
-		kind: 'openai_compat',
-		eventSource: 'minimax',
-		capabilities: ['reasoning', 'planning', 'code_analysis'],
-		baseUrl: 'https://api.minimax.io/v1',
-		apiKeyEnv: 'MINIMAX_API_KEY',
-		requiresApiKey: true
-	},
-	{
-		id: 'kimi',
-		label: 'Kimi',
-		model: 'kimi-k2.5',
-		enabled: false,
-		kind: 'openai_compat',
-		eventSource: 'kimi',
-		capabilities: ['reasoning', 'planning', 'code_analysis', 'web_search'],
-		baseUrl: 'https://api.moonshot.cn/v1',
-		apiKeyEnv: 'KIMI_API_KEY',
-		requiresApiKey: true
-	},
-	{
-		id: 'openrouter',
-		label: 'OpenRouter',
-		model: 'anthropic/claude-3.5-sonnet',
-		enabled: false,
-		kind: 'openai_compat',
-		eventSource: 'openrouter',
-		capabilities: ['reasoning', 'planning', 'code_analysis', 'image_gen'],
-		baseUrl: 'https://openrouter.ai/api/v1',
-		apiKeyEnv: 'OPENROUTER_API_KEY',
-		requiresApiKey: true
-	},
-	{
-		id: 'ollama',
-		label: 'Ollama',
-		model: 'qwen2.5-coder:latest',
-		enabled: false,
-		kind: 'openai_compat',
-		eventSource: 'ollama',
-		capabilities: ['reasoning', 'planning', 'code_analysis'],
-		baseUrl: 'http://127.0.0.1:11434/v1',
-		apiKeyEnv: 'OLLAMA_API_KEY',
-		requiresApiKey: false
-	},
-	{
-		id: 'replicate',
-		label: 'Replicate',
-		model: 'black-forest-labs/flux-1.1-pro',
-		enabled: false,
-		kind: 'custom',
-		eventSource: 'replicate',
-		capabilities: ['image_gen', 'video_gen'],
-		apiKeyEnv: 'REPLICATE_API_TOKEN',
 		requiresApiKey: true,
-		commandTemplate: 'echo "Use Replicate API with model {model} and provider prompt payload"'
-	},
-	{
-		id: 'runway',
-		label: 'Runway',
-		model: 'gen-4-turbo',
-		enabled: false,
-		kind: 'custom',
-		eventSource: 'runway',
-		capabilities: ['video_gen'],
-		apiKeyEnv: 'RUNWAY_API_KEY',
-		requiresApiKey: true,
-		commandTemplate: 'echo "Use Runway API with model {model} and provider prompt payload"'
+		commandTemplate: 'codex exec --model {model}'
 	}
 ];
 
