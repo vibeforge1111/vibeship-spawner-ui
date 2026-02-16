@@ -6,6 +6,22 @@ Date: 2026-02-16
 
 Make MCP support production-ready in Spawner UI and enable direct control of Spawner workflows/canvas from Openclaw chat.
 
+## Implementation Status
+
+Completed in this repository:
+
+- [x] Phase 0 -> `fix(mcp): align tool and config type contracts` (`6db3078`)
+- [x] Phase 1 -> `feat(mcp): add unified runtime snapshot service` (`d87c423`)
+- [x] Phase 2 -> `feat(mcp): add beginner setup flow with smoke tests` (`9351f2b`)
+- [x] Phase 3 -> `feat(orchestrator): add executable mcp tool planning` (`a0196d9`)
+- [x] Phase 4 -> `feat(openclaw): add session bridge for canvas mission and mcp control` (`a2f574c`)
+- [x] Phase 5 -> `fix(security): harden openclaw and mcp control surfaces` (`8d3d15a`)
+
+Notes:
+
+- `npm run check` still reports pre-existing baseline errors outside this roadmap scope.
+- New integration coverage includes `/api/openclaw/*` session + command + stream flow.
+
 ## Current State (What Exists)
 
 - Single MCP server connection (Spawner MCP) exists via:
@@ -119,7 +135,7 @@ Scope:
   - test connection
   - test one tool call
   - mark as ready
-- Add per-MCP “quick fix” UI for common errors.
+- Add per-MCP quick-fix UI for common errors.
 
 Files:
 - `src/routes/mcps/+page.svelte`
@@ -250,3 +266,4 @@ Commit:
 6. Phase 5
 
 This order minimizes regressions by stabilizing MCP contracts before introducing external chat control.
+
