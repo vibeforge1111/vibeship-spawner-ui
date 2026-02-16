@@ -320,7 +320,7 @@ class McpClient {
 	async createMission(options: {
 		name: string;
 		description?: string;
-		mode?: 'claude-code' | 'api' | 'sdk';
+		mode?: 'claude-code' | 'api' | 'sdk' | 'multi-llm-orchestrator';
 		agents?: MissionAgent[];
 		tasks?: MissionTask[];
 		context?: Partial<MissionContext>;
@@ -511,7 +511,7 @@ export interface Mission {
 	user_id: string;
 	name: string;
 	description: string | null;
-	mode: 'claude-code' | 'api' | 'sdk';
+	mode: 'claude-code' | 'api' | 'sdk' | 'multi-llm-orchestrator';
 	status: 'draft' | 'ready' | 'running' | 'paused' | 'completed' | 'failed';
 	agents: MissionAgent[];
 	tasks: MissionTask[];

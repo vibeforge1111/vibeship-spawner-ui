@@ -20,6 +20,12 @@ const logLearning = logger.scope('Learning');
 const logMind = logger.scope('Mind');
 import { buildMissionFromCanvas, validateForMission, generateExecutionPrompt, type MissionBuildOptions, type ExecutionPromptOptions } from './mission-builder';
 import type { H70SkillContent } from './h70-skills';
+import {
+	buildMultiLLMExecutionPack,
+	createDefaultMultiLLMOptions,
+	type MultiLLMExecutionPack,
+	type MultiLLMOrchestratorOptions
+} from './multi-llm-orchestrator';
 import { syncClient, broadcastMissionEvent, broadcastLearningEvent, broadcastTaskEvent, broadcastExecutionControl, isConnected, type SyncEvent } from './sync-client';
 import { clientEventBridge, type BridgeEvent } from './event-bridge';
 import { memoryClient } from './memory-client';
@@ -58,6 +64,8 @@ export interface ExecutionProgress {
 	missionId: string | null;
 	mission: Mission | null;
 	executionPrompt: string | null;  // Copy-pasteable prompt for Claude Code
+	multiLLMOptions: MultiLLMOrchestratorOptions;
+	multiLLMExecution: MultiLLMExecutionPack | null;
 	progress: number;              // Overall mission progress 0-100
 	currentTaskId: string | null;
 	currentTaskName: string | null;
@@ -73,6 +81,10 @@ export interface ExecutionProgress {
 	taskSkillMap: Map<string, string[]>;  // taskId -> skillIds
 }
 
+export interface ExecutionRunOptions extends MissionBuildOptions {
+	orchestratorOptions?: MultiLLMOrchestratorOptions;
+}
+
 export interface ExecutionCallbacks {
 	onStatusChange?: (status: ExecutionStatus) => void;
 	onProgress?: (progress: number) => void;
@@ -82,6 +94,27 @@ export interface ExecutionCallbacks {
 	onTaskComplete?: (taskId: string, success: boolean) => void;
 	onComplete?: (mission: Mission) => void;
 	onError?: (error: string) => void;
+}
+
+function normalizeMultiLLMOptions(
+	options?: MultiLLMOrchestratorOptions
+): MultiLLMOrchestratorOptions {
+	const defaults = createDefaultMultiLLMOptions();
+	if (!options) {
+		return defaults;
+	}
+
+	const providers =
+		options.providers && options.providers.length > 0
+			? options.providers
+			: defaults.providers;
+
+	return {
+		enabled: options.enabled ?? defaults.enabled,
+		strategy: options.strategy ?? defaults.strategy,
+		primaryProviderId: options.primaryProviderId ?? defaults.primaryProviderId,
+		providers: providers.map((provider) => ({ ...provider }))
+	};
 }
 
 class MissionExecutor {
@@ -129,6 +162,8 @@ class MissionExecutor {
 			missionId: this.progress.missionId,
 			mission: this.progress.mission,
 			executionPrompt: this.progress.executionPrompt,
+			multiLLMOptions: normalizeMultiLLMOptions(this.progress.multiLLMOptions),
+			multiLLMExecution: this.progress.multiLLMExecution,
 			progress: this.progress.progress,
 			currentTaskId: this.progress.currentTaskId,
 			currentTaskName: this.progress.currentTaskName,
@@ -144,7 +179,7 @@ class MissionExecutor {
 			loadedSkills: this.progress.loadedSkills,
 			taskSkillMap: Object.fromEntries(this.progress.taskSkillMap),
 			savedAt: new Date().toISOString(),
-			version: 1
+			version: 3
 		};
 	}
 
@@ -156,6 +191,8 @@ class MissionExecutor {
 		this.progress.missionId = saved.missionId;
 		this.progress.mission = saved.mission;
 		this.progress.executionPrompt = saved.executionPrompt;
+		this.progress.multiLLMOptions = normalizeMultiLLMOptions(saved.multiLLMOptions);
+		this.progress.multiLLMExecution = saved.multiLLMExecution || null;
 		this.progress.progress = saved.progress;
 		this.progress.currentTaskId = saved.currentTaskId;
 		this.progress.currentTaskName = saved.currentTaskName;
@@ -250,7 +287,9 @@ class MissionExecutor {
 						progress: this.progress.progress,
 						currentTaskId: this.progress.currentTaskId,
 						currentTaskName: this.progress.currentTaskName,
-						executionPrompt: this.progress.executionPrompt,
+						executionPrompt:
+							this.progress.multiLLMExecution?.masterPrompt || this.progress.executionPrompt,
+						multiLLMExecution: this.progress.multiLLMExecution,
 						tasks,
 						completedTasks,
 						failedTasks
@@ -618,6 +657,19 @@ class MissionExecutor {
 					}
 					break;
 
+				case 'provider_feedback':
+					const feedbackProvider =
+						(event.data?.provider as string) ||
+						(event.data?.providerId as string) ||
+						(event.source as string) ||
+						'provider';
+					const feedbackSummary =
+						(event.data?.summary as string) ||
+						(event.message as string) ||
+						'Feedback received';
+					this.addLocalLog('info', `[${feedbackProvider}] ${feedbackSummary}`);
+					break;
+
 				default:
 					// Log unknown event types for debugging
 					log.debug('Unknown event type:', event.type);
@@ -730,6 +782,8 @@ class MissionExecutor {
 			missionId: null,
 			mission: null,
 			executionPrompt: null,
+			multiLLMOptions: createDefaultMultiLLMOptions(),
+			multiLLMExecution: null,
 			progress: 0,
 			currentTaskId: null,
 			currentTaskName: null,
@@ -774,12 +828,13 @@ class MissionExecutor {
 	async execute(
 		nodes: CanvasNode[],
 		connections: Connection[],
-		options: MissionBuildOptions
+		options: ExecutionRunOptions
 	): Promise<ExecutionProgress> {
 		// Reset state
 		this.progress = this.createInitialProgress();
 		this.progress.status = 'creating';
 		this.progress.startTime = new Date();
+		this.progress.multiLLMOptions = normalizeMultiLLMOptions(options.orchestratorOptions);
 		this.callbacks.onStatusChange?.('creating');
 
 		// Reset learning tracking for new execution
@@ -794,7 +849,11 @@ class MissionExecutor {
 
 			// Step 2: Build mission from canvas (locally, no MCP call)
 			this.addLocalLog('info', 'Creating mission from workflow...');
-			const buildResult = await buildMissionFromCanvas(nodes, connections, options);
+			const normalizedMissionBuildOptions: MissionBuildOptions = {
+				...options,
+				mode: this.progress.multiLLMOptions.enabled ? 'multi-llm-orchestrator' : options.mode
+			};
+			const buildResult = await buildMissionFromCanvas(nodes, connections, normalizedMissionBuildOptions);
 
 			if (!buildResult.success || !buildResult.mission) {
 				throw new Error(buildResult.error || 'Failed to create mission');
@@ -835,18 +894,35 @@ class MissionExecutor {
 			}
 
 			// Step 3: Generate copy-pasteable execution prompt (with H70 skills)
+			const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
 			const executionPrompt = generateExecutionPrompt(buildResult.mission, {
 				loadedSkills: buildResult.loadedSkills,
 				taskSkillMap: buildResult.taskSkillMap,
-				baseUrl: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173'
+				baseUrl
 			});
 			this.progress.executionPrompt = executionPrompt;
-			this.addLocalLog('info', 'Execution prompt generated - copy to Claude Code to start');
+			this.progress.multiLLMExecution = null;
+
+			if (this.progress.multiLLMOptions.enabled) {
+				this.progress.multiLLMExecution = buildMultiLLMExecutionPack({
+					mission: buildResult.mission,
+					options: this.progress.multiLLMOptions,
+					taskSkillMap: buildResult.taskSkillMap,
+					baseUrl
+				});
+				this.addLocalLog(
+					'info',
+					`Multi-LLM Orchestrator ready: ${this.progress.multiLLMExecution.providers.length} provider(s), strategy "${this.progress.multiLLMExecution.strategy}"`
+				);
+			} else {
+				this.addLocalLog('info', 'Execution prompt generated - copy to Claude Code to start');
+			}
 
 			// Broadcast mission created event for sync
 			broadcastMissionEvent('mission_created', buildResult.mission.id, {
 				mission: buildResult.mission,
-				executionPrompt
+				executionPrompt,
+				multiLLMExecution: this.progress.multiLLMExecution
 			});
 
 			// Set status to running (waiting for Claude Code to pick up)
@@ -864,7 +940,11 @@ class MissionExecutor {
 			if (this.useWebSocket) {
 				this.addLocalLog('info', 'Listening for updates from Claude Code...');
 			} else {
-				this.addLocalLog('info', 'Copy the prompt below and paste it into Claude Code');
+				if (this.progress.multiLLMExecution?.enabled) {
+					this.addLocalLog('info', 'Copy each provider prompt below and launch your configured models');
+				} else {
+					this.addLocalLog('info', 'Copy the prompt below and paste it into Claude Code');
+				}
 			}
 
 			return this.progress;

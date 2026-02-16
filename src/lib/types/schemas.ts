@@ -542,7 +542,7 @@ export const ClientBridgeEventSchema = z.object({
 	message: z.string().optional(),
 	data: z.record(z.unknown()).optional(),
 	timestamp: z.string(),
-	source: z.enum(['claude-code', 'spawner-ui', 'server'])
+	source: z.string()
 });
 
 // =============================================================================

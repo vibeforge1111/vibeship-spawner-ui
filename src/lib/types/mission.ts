@@ -7,7 +7,7 @@
  * - Option C: Claude Code SDK
  */
 
-export type ExecutionMode = 'claude-code' | 'api' | 'sdk';
+export type ExecutionMode = 'claude-code' | 'api' | 'sdk' | 'multi-llm-orchestrator';
 
 export type AgentRole =
   | 'planner'

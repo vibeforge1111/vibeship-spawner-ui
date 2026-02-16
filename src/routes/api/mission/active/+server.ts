@@ -14,6 +14,7 @@ import type { RequestHandler } from './$types';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
+import type { MultiLLMExecutionPack } from '$lib/services/multi-llm-orchestrator';
 
 const SPAWNER_DIR = '.spawner';
 const ACTIVE_MISSION_FILE = 'active-mission.json';
@@ -26,6 +27,7 @@ interface ActiveMissionState {
 	currentTaskId: string | null;
 	currentTaskName: string | null;
 	executionPrompt: string;
+	multiLLMExecution?: MultiLLMExecutionPack | null;
 	tasks: Array<{
 		id: string;
 		title: string;
@@ -79,6 +81,7 @@ export const GET: RequestHandler = async ({ url }) => {
 			tasks: state.tasks,
 			completedTasks: state.completedTasks,
 			failedTasks: state.failedTasks,
+			multiLLMExecution: state.multiLLMExecution || null,
 			executionPrompt: state.executionPrompt,
 			resumeInstructions: state.resumeInstructions,
 			lastUpdated: state.lastUpdated
@@ -117,6 +120,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			currentTaskId: body.currentTaskId || null,
 			currentTaskName: body.currentTaskName || null,
 			executionPrompt: body.executionPrompt || '',
+			multiLLMExecution: body.multiLLMExecution || null,
 			tasks: body.tasks || [],
 			completedTasks: body.completedTasks || [],
 			failedTasks: body.failedTasks || [],
@@ -177,6 +181,7 @@ function generateResumeInstructions(state: {
 	currentTaskName?: string;
 	completedTasks?: string[];
 	tasks?: Array<{ id: string; title: string; status: string; skills: string[] }>;
+	multiLLMExecution?: MultiLLMExecutionPack | null;
 }): string {
 	const completedCount = state.completedTasks?.length || 0;
 	const totalTasks = state.tasks?.length || 0;
@@ -207,6 +212,22 @@ Continue from where you left off on this task.
 			instructions += `- [ ] ${task.title}${skillsNote}\n`;
 		}
 		instructions += '\n';
+	}
+
+	if (state.multiLLMExecution?.enabled) {
+		const providerList = state.multiLLMExecution.providers
+			.map((provider) => `- ${provider.label} (${provider.id}): ${provider.model}`)
+			.join('\n');
+		instructions += `### Multi-LLM Orchestrator
+Strategy: ${state.multiLLMExecution.strategy}
+Primary Provider: ${state.multiLLMExecution.primaryProviderId}
+
+Providers:
+${providerList}
+
+Resume by loading provider-specific prompts from mission state and continue emitting events to /api/events.
+
+`;
 	}
 
 	instructions += `### How to Resume

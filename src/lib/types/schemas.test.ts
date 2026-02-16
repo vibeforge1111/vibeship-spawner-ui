@@ -19,6 +19,7 @@ import {
 	PipelineDataSchema,
 	SkillSchema,
 	BridgeEventSchema,
+	ClientBridgeEventSchema,
 	MemorySettingsSchema,
 	StoredSkillSchema
 } from './schemas';
@@ -259,6 +260,23 @@ describe('BridgeEventSchema', () => {
 		const event = { type: 'invalid_type' };
 		const result = BridgeEventSchema.safeParse(event);
 		expect(result.success).toBe(false);
+	});
+});
+
+describe('ClientBridgeEventSchema', () => {
+	it('accepts custom provider sources', () => {
+		const event = {
+			type: 'provider_feedback',
+			missionId: 'mission-1',
+			timestamp: new Date().toISOString(),
+			source: 'kimi',
+			data: {
+				provider: 'kimi',
+				summary: 'Looks good'
+			}
+		};
+		const result = ClientBridgeEventSchema.safeParse(event);
+		expect(result.success).toBe(true);
 	});
 });
 

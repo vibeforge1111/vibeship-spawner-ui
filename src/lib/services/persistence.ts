@@ -11,6 +11,10 @@
 import { browser } from '$app/environment';
 import type { Mission, MissionLog } from '$lib/services/mcp-client';
 import { BackupDataSchema, MissionStateSchema, safeJsonParse } from '$lib/types/schemas';
+import type {
+	MultiLLMExecutionPack,
+	MultiLLMOrchestratorOptions
+} from './multi-llm-orchestrator';
 import { logger } from '$lib/utils/logger';
 
 const log = logger.scope('Persistence');
@@ -337,6 +341,8 @@ export interface PersistedMissionState {
 	missionId: string | null;
 	mission: Mission | null;
 	executionPrompt: string | null;
+	multiLLMOptions?: MultiLLMOrchestratorOptions;
+	multiLLMExecution?: MultiLLMExecutionPack | null;
 	progress: number;
 	currentTaskId: string | null;
 	currentTaskName: string | null;
@@ -371,7 +377,8 @@ export interface MissionHistoryEntry {
 
 // IMPORTANT: Increment this when mission state format changes
 // Version 2: Just-in-time skill loading - executionPrompt should be ~200 lines, not 20,000+
-const MISSION_STATE_VERSION = 2;
+// Version 3: Added Multi-LLM orchestrator state
+const MISSION_STATE_VERSION = 3;
 const MAX_HISTORY_ENTRIES = 10;
 const MAX_VALID_PROMPT_LENGTH = 10000; // ~200-300 lines max for just-in-time prompt
 

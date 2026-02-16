@@ -22,7 +22,7 @@ export interface BridgeEvent {
 	message?: string;
 	data?: Record<string, unknown>;
 	timestamp: string;
-	source: 'claude-code' | 'spawner-ui' | 'server';
+	source: string;
 }
 
 type EventCallback = (event: BridgeEvent) => void;
