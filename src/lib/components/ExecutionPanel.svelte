@@ -4,7 +4,7 @@
 	import { nodes, connections, updateNodeStatus, resetAllNodeStatus, addConnection } from '$lib/stores/canvas.svelte';
 	import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 	import { isConnected } from '$lib/stores/mcp.svelte';
-	import { mcpStore } from '$lib/stores/mcps.svelte';
+	import { mcpRuntime } from '$lib/services/mcp-runtime';
 	import type { MultiLLMCapability } from '$lib/services/multi-llm-orchestrator';
 	import { toasts } from '$lib/stores/toast.svelte';
 	import { getPreMissionContext, type PreMissionContext, type PatternSuggestion } from '$lib/services/pre-mission-context';
@@ -122,6 +122,7 @@
 	let multiLLMAutoRouteByTask = $state(defaultMultiLLMOptions.autoRouteByTask ?? true);
 	let multiLLMApiKeys = $state<Record<string, string>>({});
 	let connectedMcpCapabilities = $state<MultiLLMCapability[]>([]);
+	let connectedMcpToolCount = $state(0);
 	let multiLLMProviders = $state<MultiLLMProviderConfig[]>(
 		defaultMultiLLMOptions.providers.map((provider) => ({ ...provider }))
 	);
@@ -242,20 +243,9 @@
 		const unsub2 = connections.subscribe((c) => (currentConnections = c));
 		const unsub3 = isConnected.subscribe((connected) => (mcpConnected = connected));
 		const unsub4 = isMemoryConnected.subscribe((connected) => (memoryConnected = connected));
-		const unsub5 = mcpStore.subscribe((state) => {
-			const connectedIds = new Set(
-				state.instances
-					.filter((instance) => instance.status === 'connected')
-					.map((instance) => instance.definitionId)
-			);
-			const caps = new Set<MultiLLMCapability>();
-			for (const mcp of state.registry) {
-				if (!connectedIds.has(mcp.id)) continue;
-				for (const capability of mcp.capabilities) {
-					caps.add(capability as MultiLLMCapability);
-				}
-			}
-			connectedMcpCapabilities = [...caps];
+		const unsub5 = mcpRuntime.subscribe((runtime) => {
+			connectedMcpCapabilities = runtime.capabilities as MultiLLMCapability[];
+			connectedMcpToolCount = runtime.tools.length;
 		});
 		return () => {
 			unsub1();
@@ -1647,6 +1637,9 @@
 											{connectedMcpCapabilities.length > 0
 												? connectedMcpCapabilities.join(', ')
 												: 'No connected MCP capabilities detected'}
+										</div>
+										<div class="text-[11px] text-text-tertiary mt-1">
+											Detected tools: {connectedMcpToolCount}
 										</div>
 									</div>
 
