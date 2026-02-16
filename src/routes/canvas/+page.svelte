@@ -228,7 +228,7 @@ import { get } from 'svelte/store';
 		}
 	});
 
-	onMount(async () => {
+	onMount(() => {
 		// Reset all transient store state first (handles client-side navigation)
 		resetTransientState();
 		// Reset local states
@@ -238,6 +238,30 @@ import { get } from 'svelte/store';
 
 		// Initialize pipeline system
 		initPipelines();
+		let disposed = false;
+		let disableAutoSave: (() => void) | null = null;
+		let pipelineAutoSaveInterval: ReturnType<typeof setInterval> | null = null;
+		let cleanupCanvasSync: (() => void) | null = null;
+		let stuckStateInterval: ReturnType<typeof setInterval> | null = null;
+		let resizeObserver: ResizeObserver | null = null;
+
+		// Global mouseup handler to reset stuck states (catches mouseup outside canvas)
+		function handleGlobalMouseUp() {
+			if (isPanning || isCutting || isSelecting) {
+				handleMouseUp();
+			}
+		}
+
+		// Builder panel requests to frame newly added nodes
+		function handleBuilderFrameSelected() {
+			if (canvasEl) {
+				const rect = canvasEl.getBoundingClientRect();
+				frameSelected(rect.width, rect.height);
+			}
+		}
+
+		void (async () => {
+		try {
 
 		// Auto-show execution panel if there's an active/resumable mission
 		const hasResumable = hasResumableMission();
@@ -254,6 +278,7 @@ import { get } from 'svelte/store';
 		// =====================================================================
 
 		const pendingLoad = await getPendingLoad();
+		if (disposed) return;
 
 		if (pendingLoad) {
 			// PENDING LOAD: PRD analysis or goal processing queued a pipeline
@@ -301,29 +326,23 @@ import { get } from 'svelte/store';
 		clearHistory();
 
 		// Enable auto-save with pipeline support
-		const disableAutoSave = enableAutoSave(1000);
+		disableAutoSave = enableAutoSave(1000);
 
 		// Set up pipeline auto-save (syncs to pipeline storage)
-		const pipelineAutoSaveInterval = setInterval(() => {
+		pipelineAutoSaveInterval = setInterval(() => {
 			saveCurrentPipelineData();
 		}, 2000);
 
 		// Initialize canvas sync for Claude Code integration
-		const cleanupCanvasSync = initCanvasSync();
+		cleanupCanvasSync = initCanvasSync();
 
-		// Global mouseup handler to reset stuck states (catches mouseup outside canvas)
-		function handleGlobalMouseUp() {
-			if (isPanning || isCutting || isSelecting) {
-				handleMouseUp();
-			}
-		}
 		window.addEventListener('mouseup', handleGlobalMouseUp);
 
 		// FIX 15: Safety valve - detect and reset stuck interaction states
 		// This runs periodically to catch any states that got stuck due to edge cases
 		let lastInteractionCheck = Date.now();
 		let wasInteracting = false;
-		const stuckStateInterval = setInterval(() => {
+		stuckStateInterval = setInterval(() => {
 			const isInteracting = isPanning || isCutting || isSelecting || currentDraggingConnection !== null;
 			const now = Date.now();
 
@@ -349,17 +368,10 @@ import { get } from 'svelte/store';
 			}
 		}, 1000);
 
-		// Builder panel requests to frame newly added nodes
-		function handleBuilderFrameSelected() {
-			if (canvasEl) {
-				const rect = canvasEl.getBoundingClientRect();
-				frameSelected(rect.width, rect.height);
-			}
-		}
 		window.addEventListener('builder:frame-selected', handleBuilderFrameSelected);
 
 		// Track canvas dimensions for minimap
-		const resizeObserver = new ResizeObserver((entries) => {
+		resizeObserver = new ResizeObserver((entries) => {
 			for (const entry of entries) {
 				canvasWidth = entry.contentRect.width;
 				canvasHeight = entry.contentRect.height;
@@ -368,6 +380,7 @@ import { get } from 'svelte/store';
 
 		// Use requestAnimationFrame to ensure canvasEl is bound after render
 		requestAnimationFrame(() => {
+			if (disposed || !resizeObserver) return;
 			if (canvasEl) {
 				resizeObserver.observe(canvasEl);
 				// Get initial dimensions
@@ -381,16 +394,21 @@ import { get } from 'svelte/store';
 			// This triggers goal processing if there's a pending goal
 			isMounted = true;
 		});
+		} catch (mountError) {
+			console.error('[Canvas] Mount initialization failed:', mountError);
+		}
+		})();
 
 		return () => {
+			disposed = true;
 			// Fix 3: Mark as unmounted before cleanup
 			isMounted = false;
 			pendingGoalProcess = false;
-			disableAutoSave();
-			clearInterval(pipelineAutoSaveInterval);
-			clearInterval(stuckStateInterval); // FIX 15: Clean up stuck state detector
-			cleanupCanvasSync();
-			resizeObserver.disconnect();
+			disableAutoSave?.();
+			if (pipelineAutoSaveInterval) clearInterval(pipelineAutoSaveInterval);
+			if (stuckStateInterval) clearInterval(stuckStateInterval); // FIX 15: Clean up stuck state detector
+			cleanupCanvasSync?.();
+			resizeObserver?.disconnect();
 			window.removeEventListener('mouseup', handleGlobalMouseUp);
 			window.removeEventListener('builder:frame-selected', handleBuilderFrameSelected);
 			// Save current pipeline before unmount
