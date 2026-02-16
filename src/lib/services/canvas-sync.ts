@@ -160,6 +160,7 @@ async function handleSyncEvent(event: SyncEvent): Promise<void> {
 
 	// Handle canvas-specific events
 	if (!eventType.startsWith('canvas_')) return;
+	if (!eventTargetsActivePipeline(event)) return;
 
 	// Prevent duplicate processing (multiple HMR clients)
 	if (isProcessing) {
@@ -236,6 +237,33 @@ async function handleSyncEvent(event: SyncEvent): Promise<void> {
 		// Reset processing flag after a short delay to debounce duplicate events
 		setTimeout(() => { isProcessing = false; }, 100);
 	}
+}
+
+function eventTargetsActivePipeline(event: SyncEvent): boolean {
+	const data = (event.data || {}) as Record<string, unknown>;
+	const targetPipelineId =
+		(typeof data.pipelineId === 'string' && data.pipelineId) ||
+		(typeof data.targetPipelineId === 'string' && data.targetPipelineId) ||
+		null;
+
+	if (!targetPipelineId) return true;
+
+	const currentPipelineId = get(activePipeline)?.id;
+	if (!currentPipelineId) return true;
+
+	if (targetPipelineId !== currentPipelineId) {
+		log.debug(
+			' Ignoring canvas event for different pipeline:',
+			event.type,
+			'target=',
+			targetPipelineId,
+			'active=',
+			currentPipelineId
+		);
+		return false;
+	}
+
+	return true;
 }
 
 /**
@@ -666,6 +694,7 @@ export function broadcastCanvasState(): void {
 	syncClient.broadcast({
 		type: 'canvas_state' as SyncEvent['type'],
 		data: {
+			pipelineId: currentPipeline?.id || null,
 			pipeline: currentPipeline ? {
 				id: currentPipeline.id,
 				name: currentPipeline.name,

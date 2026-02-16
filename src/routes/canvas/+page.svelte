@@ -24,7 +24,7 @@ import { get } from 'svelte/store';
 	import { initCanvasSync } from '$lib/services/canvas-sync';
 	import PipelineSelector from '$lib/components/PipelineSelector.svelte';
 	import SessionStateBar from '$lib/components/SessionStateBar.svelte';
-	import { initPipelines, saveCurrentPipeline, getActivePipelineData, activePipelineId, createNewPipeline, switchPipeline, type PipelineData } from '$lib/stores/pipelines.svelte';
+	import { initPipelines, saveCurrentPipeline, getActivePipelineData, ensurePipeline, type PipelineData } from '$lib/stores/pipelines.svelte';
 	import { hasResumableMission } from '$lib/services/persistence';
 	import { DroppedSkillSchema, safeJsonParse } from '$lib/types/schemas';
 	import { getPendingLoad } from '$lib/services/pipeline-loader';
@@ -285,8 +285,8 @@ import { get } from 'svelte/store';
 			console.log('[Canvas] Loading queued pipeline:', pendingLoad.pipelineName);
 			console.log('[Canvas] Source:', pendingLoad.source, '| Nodes:', pendingLoad.nodes.length, '| Connections:', pendingLoad.connections.length);
 
-			// Create pipeline in registry
-			const newPipeline = createNewPipeline(pendingLoad.pipelineName);
+			// Ensure the exact queued pipeline ID exists and is active
+			const targetPipeline = ensurePipeline(pendingLoad.pipelineId, pendingLoad.pipelineName);
 
 			// Clear and load the exact nodes/connections
 			clearCanvas();
@@ -303,7 +303,16 @@ import { get } from 'svelte/store';
 			});
 
 			lastSaved = new Date();
-			console.log('[Canvas] Loaded pipeline:', newPipeline.name, 'with', get(nodes).length, 'nodes and', get(connections).length, 'connections');
+			console.log(
+				'[Canvas] Loaded pipeline:',
+				targetPipeline.name,
+				`(${targetPipeline.id})`,
+				'with',
+				get(nodes).length,
+				'nodes and',
+				get(connections).length,
+				'connections'
+			);
 		} else {
 			// NO PENDING LOAD: Load active pipeline from localStorage
 			const pipelineData = getActivePipelineData();

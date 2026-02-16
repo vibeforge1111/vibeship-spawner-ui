@@ -60,6 +60,10 @@
 		connections: { sourceIndex: number; targetIndex: number }[];
 	} | null = null;
 
+	function createQueuedPipelineId(): string {
+		return `pipe-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+	}
+
 	const skillCategories = [
 		{ name: 'Frontend', count: 45, icon: '<>' },
 		{ name: 'Backend', count: 62, icon: '[]' },
@@ -376,7 +380,7 @@
 
 			// Queue the pipeline load - canvas will pick this up on mount
 			const queued = await queuePipelineLoad({
-				pipelineId: `pipe-${Date.now().toString(36)}`,
+				pipelineId: createQueuedPipelineId(),
 				pipelineName,
 				nodes: pendingWorkflow.nodes,
 				connections: pendingWorkflow.connections,
@@ -392,7 +396,7 @@
 			// Queue empty pipeline so we don't load old one
 			console.warn('[PRD] No workflow nodes, queueing empty pipeline');
 			await queuePipelineLoad({
-				pipelineId: `pipe-${Date.now().toString(36)}`,
+				pipelineId: createQueuedPipelineId(),
 				pipelineName,
 				nodes: [],
 				connections: [],

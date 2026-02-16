@@ -64,8 +64,8 @@ export async function queuePipelineLoad(load: Omit<PendingPipelineLoad, 'timesta
 
 /**
  * Get and consume the pending pipeline load.
- * Returns the load data and DELETES the pending file.
- * This ensures the load only happens once.
+ * Returns the load data and consumes it server-side.
+ * The API GET already deletes the pending file.
  */
 export async function getPendingLoad(): Promise<PendingPipelineLoad | null> {
 	if (!browser) return null;
@@ -91,9 +91,6 @@ export async function getPendingLoad(): Promise<PendingPipelineLoad | null> {
 		}
 
 		console.log('[PipelineLoader] Found pending load:', data.load.pipelineName);
-
-		// DELETE the pending load so it doesn't load again
-		await fetch(PENDING_LOAD_ENDPOINT, { method: 'DELETE' });
 
 		return data.load as PendingPipelineLoad;
 	} catch (error) {

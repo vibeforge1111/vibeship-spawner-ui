@@ -250,6 +250,64 @@ export function createNewPipeline(name: string = 'Untitled Pipeline'): PipelineM
 }
 
 /**
+ * Ensure a pipeline exists with a specific ID and make it active.
+ * Used by file-queued loads to preserve stable IDs across navigation/processes.
+ */
+export function ensurePipeline(id: string, name: string = 'Untitled Pipeline'): PipelineMetadata {
+	if (!browser) throw new Error('Cannot ensure pipeline on server');
+
+	const state = get(pipelinesState);
+	const existing = state.pipelines.find((p) => p.id === id);
+	const now = new Date().toISOString();
+
+	if (existing) {
+		const shouldRename = existing.name !== name;
+		pipelinesState.update((s) => ({
+			...s,
+			activePipelineId: id,
+			pipelines: s.pipelines.map((p) =>
+				p.id === id
+					? {
+						...p,
+						name: shouldRename ? name : p.name,
+						updatedAt: shouldRename ? now : p.updatedAt
+					}
+					: p
+			)
+		}));
+		saveRegistry();
+		return { ...existing, name: shouldRename ? name : existing.name, updatedAt: shouldRename ? now : existing.updatedAt };
+	}
+
+	const metadata: PipelineMetadata = {
+		id,
+		name,
+		nodeCount: 0,
+		connectionCount: 0,
+		createdAt: now,
+		updatedAt: now
+	};
+
+	const data: PipelineData = {
+		nodes: [],
+		connections: [],
+		zoom: 1,
+		pan: { x: 0, y: 0 }
+	};
+
+	localStorage.setItem(getPipelineStorageKey(id), JSON.stringify(data));
+
+	pipelinesState.update((s) => ({
+		...s,
+		pipelines: [...s.pipelines, metadata],
+		activePipelineId: id
+	}));
+	saveRegistry();
+
+	return metadata;
+}
+
+/**
  * Switch to a different pipeline
  */
 export function switchPipeline(id: string): PipelineData | null {
