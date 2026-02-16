@@ -8,6 +8,12 @@
 	import { getPreMissionContext, type PreMissionContext, type PatternSuggestion } from '$lib/services/pre-mission-context';
 	import { reinforceMission } from '$lib/services/learning-reinforcement';
 	import { validateForMission } from '$lib/services/mission-builder';
+	import {
+		createDefaultMultiLLMOptions,
+		type MultiLLMOrchestratorOptions,
+		type MultiLLMProviderConfig,
+		type MultiLLMStrategy
+	} from '$lib/services/multi-llm-orchestrator';
 	import PreMissionContextPanel from './PreMissionContextPanel.svelte';
 	import PostMissionReview from './PostMissionReview.svelte';
 	import MidMissionGuidance from './MidMissionGuidance.svelte';
@@ -85,6 +91,7 @@
 
 	// Copy prompt collapsed state - default to collapsed to save space
 	let copyPromptCollapsed = $state(true);
+	let multiLLMPanelCollapsed = $state(false);
 
 	// H70 skills collapsed state - show active skill in header when collapsed
 	let h70SkillsCollapsed = $state(true);
@@ -104,6 +111,13 @@
 		].join('\\n')
 	);
 	let defaultsLoaded = $state(false);
+	const defaultMultiLLMOptions = createDefaultMultiLLMOptions();
+	let multiLLMEnabled = $state(defaultMultiLLMOptions.enabled);
+	let multiLLMStrategy = $state<MultiLLMStrategy>(defaultMultiLLMOptions.strategy);
+	let multiLLMPrimaryProviderId = $state(defaultMultiLLMOptions.primaryProviderId || 'claude');
+	let multiLLMProviders = $state<MultiLLMProviderConfig[]>(
+		defaultMultiLLMOptions.providers.map((provider) => ({ ...provider }))
+	);
 
 	// Guard to ensure mount-only effects run once
 	let hasCheckedResumable = $state(false);
@@ -116,6 +130,65 @@
 	let canCancel = $derived(isRunning || isPaused);
 	// Note: MCP not required anymore - we build missions locally and generate copy-pasteable prompts
 	let canRun = $derived(!isRunning && !isPaused && currentNodes.length > 0);
+
+	function applyMultiLLMOptions(options?: MultiLLMOrchestratorOptions) {
+		const defaults = createDefaultMultiLLMOptions();
+		const incoming = options || defaults;
+		const incomingProviders = incoming.providers || [];
+
+		const mergedProviders = defaults.providers.map((defaultProvider) => {
+			const savedProvider = incomingProviders.find((provider) => provider.id === defaultProvider.id);
+			if (!savedProvider) {
+				return { ...defaultProvider };
+			}
+			return {
+				...defaultProvider,
+				enabled: typeof savedProvider.enabled === 'boolean' ? savedProvider.enabled : defaultProvider.enabled,
+				model:
+					typeof savedProvider.model === 'string' && savedProvider.model.trim()
+						? savedProvider.model
+						: defaultProvider.model
+			};
+		});
+
+		multiLLMEnabled = incoming.enabled ?? defaults.enabled;
+		multiLLMStrategy = incoming.strategy ?? defaults.strategy;
+		multiLLMPrimaryProviderId = incoming.primaryProviderId ?? defaults.primaryProviderId ?? 'claude';
+		multiLLMProviders = mergedProviders;
+	}
+
+	function getMultiLLMOptions(): MultiLLMOrchestratorOptions {
+		return {
+			enabled: multiLLMEnabled,
+			strategy: multiLLMStrategy,
+			primaryProviderId: multiLLMPrimaryProviderId,
+			providers: multiLLMProviders.map((provider) => ({ ...provider }))
+		};
+	}
+
+	function toggleMultiLLMProvider(providerId: string) {
+		multiLLMProviders = multiLLMProviders.map((provider) =>
+			provider.id === providerId ? { ...provider, enabled: !provider.enabled } : provider
+		);
+
+		const enabledProviderIds = multiLLMProviders
+			.filter((provider) => provider.enabled)
+			.map((provider) => provider.id);
+		if (enabledProviderIds.length > 0 && !enabledProviderIds.includes(multiLLMPrimaryProviderId)) {
+			multiLLMPrimaryProviderId = enabledProviderIds[0];
+		}
+	}
+
+	function updateMultiLLMProviderModel(providerId: string, model: string) {
+		multiLLMProviders = multiLLMProviders.map((provider) =>
+			provider.id === providerId ? { ...provider, model } : provider
+		);
+	}
+
+	function copyToClipboard(text: string, successMessage: string) {
+		navigator.clipboard.writeText(text);
+		toasts.success(successMessage);
+	}
 
 	// Svelte 5: Use $effect with store subscriptions - run once and cleanup
 	$effect(() => {
@@ -143,6 +216,9 @@
 			// Restore the full execution progress
 			const progress = missionExecutor.getProgress();
 			executionProgress = progress;
+			if (progress?.multiLLMOptions) {
+				applyMultiLLMOptions(progress.multiLLMOptions);
+			}
 			logs = progress?.logs || [];
 
 			// Restore task tracking state from mission
@@ -177,6 +253,29 @@
 			if (typeof parsed?.projectPath === 'string' && parsed.projectPath.trim()) projectPath = parsed.projectPath;
 			if (typeof parsed?.projectType === 'string' && parsed.projectType.trim()) projectType = parsed.projectType;
 			if (typeof parsed?.goalsText === 'string') goalsText = parsed.goalsText;
+			if (
+				typeof parsed?.multiLLMEnabled === 'boolean' ||
+				typeof parsed?.multiLLMStrategy === 'string' ||
+				Array.isArray(parsed?.multiLLMProviders)
+			) {
+				applyMultiLLMOptions({
+					enabled:
+						typeof parsed?.multiLLMEnabled === 'boolean'
+							? parsed.multiLLMEnabled
+							: defaultMultiLLMOptions.enabled,
+					strategy:
+						typeof parsed?.multiLLMStrategy === 'string'
+							? (parsed.multiLLMStrategy as MultiLLMStrategy)
+							: defaultMultiLLMOptions.strategy,
+					primaryProviderId:
+						typeof parsed?.multiLLMPrimaryProviderId === 'string'
+							? parsed.multiLLMPrimaryProviderId
+							: defaultMultiLLMOptions.primaryProviderId,
+					providers: Array.isArray(parsed?.multiLLMProviders)
+						? (parsed.multiLLMProviders as MultiLLMProviderConfig[])
+						: defaultMultiLLMOptions.providers
+				});
+			}
 		} catch {
 			// ignore
 		}
@@ -187,7 +286,17 @@
 		try {
 			localStorage.setItem(
 				MISSION_DEFAULTS_KEY,
-				JSON.stringify({ missionName, missionDescription, projectPath, projectType, goalsText })
+				JSON.stringify({
+					missionName,
+					missionDescription,
+					projectPath,
+					projectType,
+					goalsText,
+					multiLLMEnabled,
+					multiLLMStrategy,
+					multiLLMPrimaryProviderId,
+					multiLLMProviders
+				})
 			);
 		} catch {
 			// ignore
@@ -598,12 +707,13 @@
 		persistDefaults();
 
 		executionProgress = await missionExecutor.execute(currentNodes, currentConnections, {
-			mode: 'claude-code',
+			mode: multiLLMEnabled ? 'multi-llm-orchestrator' : 'claude-code',
 			name,
 			description: description || undefined,
 			projectPath: path,
 			projectType: (projectType || '').trim() || 'general',
-			goals: goals.length ? goals : undefined
+			goals: goals.length ? goals : undefined,
+			orchestratorOptions: getMultiLLMOptions()
 		});
 	}
 
@@ -888,7 +998,82 @@
 					<span>{currentNodes.length} nodes</span>
 					<span>{getExecutionDuration()}</span>
 				</div>
-				{#if executionProgress?.executionPrompt}
+				{#if executionProgress?.multiLLMExecution?.enabled}
+					{@const multiPack = executionProgress.multiLLMExecution}
+					<div class="mt-3 border border-vibe-teal/30">
+						<div
+							onclick={() => (multiLLMPanelCollapsed = !multiLLMPanelCollapsed)}
+							onkeydown={(e) => e.key === 'Enter' && (multiLLMPanelCollapsed = !multiLLMPanelCollapsed)}
+							role="button"
+							tabindex="0"
+							class="w-full flex items-center justify-between px-3 py-2 bg-vibe-teal/10 hover:bg-vibe-teal/15 transition-colors cursor-pointer"
+						>
+							<div class="flex items-center gap-2">
+								<svg class="w-4 h-4 text-vibe-teal transition-transform {multiLLMPanelCollapsed ? '' : 'rotate-90'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+								</svg>
+								<span class="text-xs font-mono text-vibe-teal uppercase tracking-wider">Multi-LLM Orchestrator</span>
+								<span class="text-[10px] font-mono text-text-tertiary">
+									{multiPack.strategy} • {multiPack.providers.length} provider(s)
+								</span>
+							</div>
+							<button
+								class="px-3 py-1 bg-vibe-teal hover:bg-vibe-teal/90 text-bg-primary text-xs font-mono transition-all"
+								onclick={(e) => {
+									e.stopPropagation();
+									copyToClipboard(
+										multiPack.masterPrompt,
+										'Master orchestration prompt copied'
+									);
+								}}
+							>
+								Copy Master
+							</button>
+						</div>
+						{#if !multiLLMPanelCollapsed}
+							<div class="p-3 bg-vibe-teal/5 space-y-2">
+								{#each multiPack.providers as provider}
+									{@const assignment = multiPack.assignments[provider.id]}
+									<div class="p-2 border border-surface-border bg-bg-primary">
+										<div class="flex items-center justify-between gap-2">
+											<div class="text-xs">
+												<div class="font-mono text-text-primary">
+													{provider.label} ({provider.id})
+												</div>
+												<div class="text-text-tertiary">
+													{provider.model} • {assignment?.mode || 'execute'} • {assignment?.taskIds?.length || 0} task(s)
+												</div>
+											</div>
+											<div class="flex items-center gap-1">
+												<button
+													onclick={() =>
+														copyToClipboard(
+															multiPack.providerPrompts[provider.id] || '',
+															`Copied ${provider.label} prompt`
+														)}
+													class="px-2 py-1 text-[10px] font-mono text-text-secondary border border-surface-border hover:border-vibe-teal/60 transition-all"
+												>
+													Copy Prompt
+												</button>
+												<button
+													onclick={() =>
+														copyToClipboard(
+															multiPack.launchCommands[provider.id] || '',
+															`Copied ${provider.label} launch command`
+														)}
+													class="px-2 py-1 text-[10px] font-mono text-text-secondary border border-surface-border hover:border-vibe-teal/60 transition-all"
+												>
+													Copy Launch
+												</button>
+											</div>
+										</div>
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				{/if}
+				{#if executionProgress?.executionPrompt && !executionProgress?.multiLLMExecution?.enabled}
 					<div class="mt-3 border border-accent-primary/30">
 						<!-- Collapsible Header -->
 						<div
@@ -902,14 +1087,16 @@
 								<svg class="w-4 h-4 text-accent-primary transition-transform {copyPromptCollapsed ? '' : 'rotate-90'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 								</svg>
-								<span class="text-xs font-mono text-accent-primary uppercase tracking-wider">Copy to Claude Code</span>
+								<span class="text-xs font-mono text-accent-primary uppercase tracking-wider">Single-LLM Prompt</span>
 							</div>
 							<button
 								class="px-3 py-1 bg-accent-primary hover:bg-accent-primary-hover text-bg-primary text-xs font-mono transition-all flex items-center gap-2"
 								onclick={(e) => {
 									e.stopPropagation();
-									navigator.clipboard.writeText(executionProgress?.executionPrompt || '');
-									toasts.success('Copied! Paste this prompt into Claude Code to execute');
+									copyToClipboard(
+										executionProgress?.executionPrompt || '',
+										'Copied single-LLM prompt'
+									);
 								}}
 							>
 								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -925,7 +1112,7 @@
 									<pre class="whitespace-pre-wrap break-all">{(executionProgress?.executionPrompt || '').slice(0, 500)}{(executionProgress?.executionPrompt || '').length > 500 ? '...' : ''}</pre>
 								</div>
 								<p class="mt-2 text-xs text-text-tertiary">
-									Paste this prompt into Claude Code to execute the workflow.
+									Paste this into your preferred single-agent CLI.
 								</p>
 							</div>
 						{/if}
@@ -1326,6 +1513,82 @@
 							<div class="text-xs font-mono text-text-tertiary mb-1">Goals (one per line)</div>
 							<textarea class="input" rows="3" bind:value={goalsText}></textarea>
 						</label>
+
+						<div class="p-3 border border-surface-border bg-bg-primary">
+							<div class="flex items-center justify-between">
+								<div class="text-xs font-mono text-text-tertiary uppercase tracking-wider">
+									Multi-LLM Orchestrator
+								</div>
+								<label class="flex items-center gap-2 text-xs text-text-secondary">
+									<input
+										type="checkbox"
+										checked={multiLLMEnabled}
+										onchange={(e) => (multiLLMEnabled = (e.currentTarget as HTMLInputElement).checked)}
+									/>
+									Enable
+								</label>
+							</div>
+
+							{#if multiLLMEnabled}
+								<div class="mt-3 grid grid-cols-1 gap-2">
+									<label class="block">
+										<div class="text-xs font-mono text-text-tertiary mb-1">Strategy</div>
+										<select
+											class="input"
+											value={multiLLMStrategy}
+											onchange={(e) =>
+												(multiLLMStrategy = (e.currentTarget as HTMLSelectElement).value as MultiLLMStrategy)}
+										>
+											<option value="single">Single</option>
+											<option value="round_robin">Round Robin</option>
+											<option value="parallel_consensus">Parallel Consensus</option>
+											<option value="lead_reviewer">Lead + Reviewers</option>
+										</select>
+									</label>
+
+									<label class="block">
+										<div class="text-xs font-mono text-text-tertiary mb-1">Primary Provider</div>
+										<select
+											class="input"
+											value={multiLLMPrimaryProviderId}
+											onchange={(e) => (multiLLMPrimaryProviderId = (e.currentTarget as HTMLSelectElement).value)}
+										>
+											{#each multiLLMProviders.filter((provider) => provider.enabled) as provider}
+												<option value={provider.id}>{provider.label}</option>
+											{/each}
+										</select>
+									</label>
+
+									<div>
+										<div class="text-xs font-mono text-text-tertiary mb-1">Providers</div>
+										<div class="space-y-1">
+											{#each multiLLMProviders as provider}
+												<div class="flex items-center gap-2 p-2 border border-surface-border">
+													<label class="flex items-center gap-2 min-w-28">
+														<input
+															type="checkbox"
+															checked={provider.enabled}
+															onchange={() => toggleMultiLLMProvider(provider.id)}
+														/>
+														<span class="text-xs font-mono text-text-secondary">{provider.label}</span>
+													</label>
+													<input
+														class="input flex-1 !py-1"
+														value={provider.model}
+														oninput={(e) =>
+															updateMultiLLMProviderModel(
+																provider.id,
+																(e.currentTarget as HTMLInputElement).value
+															)}
+														placeholder="Model"
+													/>
+												</div>
+											{/each}
+										</div>
+									</div>
+								</div>
+							{/if}
+						</div>
 
 						<div class="flex items-center justify-between">
 							<div class="text-xs text-text-tertiary">
