@@ -599,9 +599,15 @@ export const DroppedSkillSchema = z.object({
 	id: z.string(),
 	name: z.string().optional(),
 	description: z.string().optional(),
-	tier: z.number().optional(),
+	category: z.string().optional(),
+	tier: z.union([z.number(), z.enum(['free', 'premium'])]).optional(),
 	tags: z.array(z.string()).optional(),
 	triggers: z.array(z.string()).optional(),
+	handoffs: z.array(z.object({
+		trigger: z.string(),
+		to: z.string()
+	})).optional(),
+	pairsWell: z.array(z.string()).optional(),
 	owns: z.array(z.string()).optional(),
 	delegates: z.array(z.string()).optional()
 }).passthrough();

@@ -785,11 +785,25 @@ import { get } from 'svelte/store';
 			console.error('Invalid skill data dropped on canvas');
 			return;
 		}
+
+		const normalizedTier = typeof skill.tier === 'number' ? (skill.tier > 1 ? 'premium' : 'free') : (skill.tier || 'free');
+		const normalizedSkill: Skill = {
+			id: skill.id,
+			name: skill.name || skill.id,
+			description: skill.description || '',
+			category: (skill.category as Skill['category']) || 'development',
+			tier: normalizedTier,
+			tags: skill.tags || [],
+			triggers: skill.triggers || [],
+			handoffs: skill.handoffs || [],
+			pairsWell: skill.pairsWell || []
+		};
+
 		const rect = canvasEl.getBoundingClientRect();
 		const rawX = (e.clientX - rect.left - pan.x) / zoom;
 		const rawY = (e.clientY - rect.top - pan.y) / zoom;
 		const snapped = snapPosition(rawX, rawY);
-		addNode(skill, snapped);
+		addNode(normalizedSkill, snapped);
 	}
 
 	function handleDragOver(e: DragEvent) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; }

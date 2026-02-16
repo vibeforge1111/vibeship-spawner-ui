@@ -313,9 +313,9 @@
 								metadata: {
 									...d.metadata,
 									type: 'contentforge_analysis',
-									virality_score: d.extractedScore,
-									hook_type: d.extractedHook,
-									emotional_trigger: d.extractedEmotion,
+									virality_score: d.extractedScore ?? undefined,
+									hook_type: d.extractedHook ?? undefined,
+									emotional_trigger: d.extractedEmotion ?? undefined,
 									patterns: d.extractedPatterns
 								}
 							}));
