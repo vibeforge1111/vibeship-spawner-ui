@@ -1,9 +1,10 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { POST as startSession } from './session/start/+server';
 import { POST as command } from './command/+server';
 import { GET as events } from './events/+server';
 import { POST as endSession } from './session/end/+server';
 import { openclawBridge } from '$lib/services/openclaw-bridge';
+import { getConnections } from '$lib/services/mcp/client';
 
 async function readChunk(response: Response, timeoutMs = 1000): Promise<string> {
 	if (!response.body) {
@@ -22,6 +23,7 @@ async function readChunk(response: Response, timeoutMs = 1000): Promise<string> 
 }
 
 afterEach(() => {
+	getConnections().clear();
 	openclawBridge.resetForTests();
 });
 
@@ -213,5 +215,120 @@ describe('/api/openclaw integration', () => {
 		expect(firstChunk).toContain('"type":"connected"');
 		expect(firstChunk).toContain(sessionId);
 		abortController.abort();
+	});
+
+	it('isolates MCP instances by session for list, call, and disconnect', async () => {
+		const startA = await startSession({
+			request: new Request('http://localhost/api/openclaw/session/start', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ actor: 'session-a' })
+			})
+		} as never);
+		const sessionA = (await startA.json()).session.id as string;
+
+		const startB = await startSession({
+			request: new Request('http://localhost/api/openclaw/session/start', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ actor: 'session-b' })
+			})
+		} as never);
+		const sessionB = (await startB.json()).session.id as string;
+
+		const ownCallTool = vi.fn().mockResolvedValue({ content: [{ type: 'text', text: 'ok' }] });
+		const foreignCallTool = vi.fn().mockResolvedValue({ content: [{ type: 'text', text: 'nope' }] });
+		const ownClose = vi.fn().mockResolvedValue(undefined);
+		const foreignClose = vi.fn().mockResolvedValue(undefined);
+
+		const connections = getConnections();
+		connections.set(
+			'instance-owned',
+			{
+				client: { callTool: ownCallTool, close: ownClose },
+				transport: {},
+				tools: [{ name: 'ping', description: 'Ping tool' }],
+				serverInfo: { name: 'owned-server', version: '1.0.0' }
+			} as never
+		);
+		connections.set(
+			'instance-foreign',
+			{
+				client: { callTool: foreignCallTool, close: foreignClose },
+				transport: {},
+				tools: [{ name: 'ping', description: 'Ping tool' }],
+				serverInfo: { name: 'foreign-server', version: '1.0.0' }
+			} as never
+		);
+
+		const bridgeInternals = openclawBridge as unknown as {
+			instanceOwners: Map<string, { sessionId: string; mcpId?: string }>;
+		};
+		bridgeInternals.instanceOwners.set('instance-owned', { sessionId: sessionA, mcpId: 'filesystem' });
+		bridgeInternals.instanceOwners.set('instance-foreign', { sessionId: sessionB, mcpId: 'filesystem' });
+
+		const listResponse = await command({
+			request: new Request('http://localhost/api/openclaw/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ sessionId: sessionA, command: 'mcp.list' })
+			})
+		} as never);
+		expect(listResponse.status).toBe(200);
+		const listBody = await listResponse.json();
+		expect(listBody.data.connected).toHaveLength(1);
+		expect(listBody.data.connected[0].instanceId).toBe('instance-owned');
+
+		const ownCallResponse = await command({
+			request: new Request('http://localhost/api/openclaw/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					sessionId: sessionA,
+					command: 'mcp.call_tool',
+					params: {
+						instanceId: 'instance-owned',
+						toolName: 'ping',
+						args: { value: 1 }
+					}
+				})
+			})
+		} as never);
+		expect(ownCallResponse.status).toBe(200);
+		expect(ownCallTool).toHaveBeenCalledTimes(1);
+
+		const foreignCallResponse = await command({
+			request: new Request('http://localhost/api/openclaw/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					sessionId: sessionA,
+					command: 'mcp.call_tool',
+					params: {
+						instanceId: 'instance-foreign',
+						toolName: 'ping',
+						args: {}
+					}
+				})
+			})
+		} as never);
+		expect(foreignCallResponse.status).toBe(400);
+		const foreignCallBody = await foreignCallResponse.json();
+		expect(foreignCallBody.error).toContain('owned by another session');
+		expect(foreignCallTool).not.toHaveBeenCalled();
+
+		const foreignDisconnectResponse = await command({
+			request: new Request('http://localhost/api/openclaw/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					sessionId: sessionA,
+					command: 'mcp.disconnect',
+					params: { instanceId: 'instance-foreign' }
+				})
+			})
+		} as never);
+		expect(foreignDisconnectResponse.status).toBe(400);
+		expect(foreignClose).not.toHaveBeenCalled();
 	});
 });

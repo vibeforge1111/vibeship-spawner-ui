@@ -603,17 +603,17 @@ class OpenclawBridgeService {
 	}
 
 	private handleMcpList(session: OpenclawSession): Record<string, unknown> {
-		const connected = Array.from(getConnections().entries()).map(([instanceId, connection]) => {
-			const owner = this.instanceOwners.get(instanceId);
-			return {
-				instanceId,
-				mcpId: owner?.mcpId || null,
-				sessionId: owner?.sessionId || null,
-				ownedBySession: owner?.sessionId === session.id,
-				serverInfo: connection.serverInfo,
-				toolCount: connection.tools.length
-			};
-		});
+		const connected = Array.from(getConnections().entries())
+			.filter(([instanceId]) => this.instanceOwners.get(instanceId)?.sessionId === session.id)
+			.map(([instanceId, connection]) => {
+				const owner = this.instanceOwners.get(instanceId);
+				return {
+					instanceId,
+					mcpId: owner?.mcpId || null,
+					serverInfo: connection.serverInfo,
+					toolCount: connection.tools.length
+				};
+			});
 
 		return {
 			preconfigured: Object.keys(PRECONFIGURED_MCPS),
@@ -628,6 +628,13 @@ class OpenclawBridgeService {
 	): Promise<Record<string, unknown>> {
 		const instanceId = toString(params.instanceId, createId('mcp'));
 		const mcpId = toStringOrUndefined(params.mcpId);
+		const owner = this.instanceOwners.get(instanceId);
+		if (owner && owner.sessionId !== session.id) {
+			throw new Error(`MCP instance "${instanceId}" is owned by another session`);
+		}
+		if (!owner && isConnected(instanceId)) {
+			throw new Error(`MCP instance "${instanceId}" is already connected outside this session`);
+		}
 
 		let config: MCPClientConfig | null = null;
 		if (mcpId && PRECONFIGURED_MCPS[mcpId]) {
@@ -669,6 +676,7 @@ class OpenclawBridgeService {
 		if (!isConnected(instanceId)) {
 			throw new Error(`MCP instance "${instanceId}" is not connected`);
 		}
+		this.assertSessionOwnsInstance(session, instanceId);
 
 		const args = isRecord(params.args) ? params.args : {};
 		const result = await callTool(instanceId, toolName, args);
@@ -691,6 +699,7 @@ class OpenclawBridgeService {
 		if (!instanceId) {
 			throw new Error('instanceId is required');
 		}
+		this.assertSessionOwnsInstance(session, instanceId);
 
 		await disconnectMCP(instanceId);
 		this.instanceOwners.delete(instanceId);
@@ -702,6 +711,20 @@ class OpenclawBridgeService {
 			connected: isConnected(instanceId),
 			toolCount: getTools(instanceId).length
 		};
+	}
+
+	private assertSessionOwnsInstance(
+		session: OpenclawSession,
+		instanceId: string
+	): { sessionId: string; mcpId?: string } {
+		const owner = this.instanceOwners.get(instanceId);
+		if (!owner) {
+			throw new Error(`MCP instance "${instanceId}" is not managed by an openclaw session`);
+		}
+		if (owner.sessionId !== session.id) {
+			throw new Error(`MCP instance "${instanceId}" is owned by another session`);
+		}
+		return owner;
 	}
 }
 
