@@ -8,6 +8,8 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
+import { env } from '$env/dynamic/private';
+import { basename } from 'node:path';
 
 export interface MCPClientConfig {
 	/** Command to run the MCP server */
@@ -30,6 +32,65 @@ export interface ConnectedMCP {
 
 // Active connections
 const connections = new Map<string, ConnectedMCP>();
+const COMMAND_EXT_SUFFIX = /\.(exe|cmd|bat)$/i;
+const DEFAULT_ALLOWED_COMMANDS = ['npx', 'node'];
+
+function parseCsv(value: string | undefined): string[] {
+	if (!value) {
+		return [];
+	}
+	return value
+		.split(',')
+		.map((item) => item.trim())
+		.filter((item) => item.length > 0);
+}
+
+function normalizeCommand(command: string): string {
+	return basename(command).replace(COMMAND_EXT_SUFFIX, '').toLowerCase();
+}
+
+function getAllowedCommands(): Set<string> {
+	const configured = parseCsv(env.MCP_ALLOWED_COMMANDS);
+	const allowed = configured.length > 0 ? configured : DEFAULT_ALLOWED_COMMANDS;
+	return new Set(allowed.map((command) => normalizeCommand(command)));
+}
+
+function assertCommandAllowed(command: string): void {
+	const normalized = normalizeCommand(command);
+	const allowed = getAllowedCommands();
+	if (!allowed.has(normalized)) {
+		throw new Error(
+			`MCP command "${command}" is not allowed. Allowed commands: ${Array.from(allowed).join(', ')}`
+		);
+	}
+}
+
+function sanitizeEnv(envVars?: Record<string, string>): Record<string, string> | undefined {
+	if (!envVars) {
+		return undefined;
+	}
+
+	const allowedKeys = new Set(parseCsv(env.MCP_ALLOWED_ENV_KEYS));
+	const envEntries = Object.entries(envVars);
+
+	if (envEntries.length === 0) {
+		return undefined;
+	}
+
+	if (allowedKeys.size === 0) {
+		throw new Error('Custom MCP environment variables are disabled');
+	}
+
+	const sanitized: Record<string, string> = {};
+	for (const [key, value] of envEntries) {
+		if (!allowedKeys.has(key)) {
+			throw new Error(`MCP environment variable "${key}" is not allowed`);
+		}
+		sanitized[key] = value;
+	}
+
+	return sanitized;
+}
 
 /**
  * Connect to an MCP server via stdio
@@ -44,6 +105,9 @@ export async function connectMCP(
 		return existing;
 	}
 
+	assertCommandAllowed(config.command);
+	const safeEnv = sanitizeEnv(config.env);
+
 	console.log(`[MCP] Connecting to: ${config.command} ${config.args?.join(' ') || ''}`);
 
 	// Create transport
@@ -52,7 +116,7 @@ export async function connectMCP(
 		args: config.args || [],
 		env: {
 			...process.env,
-			...config.env,
+			...safeEnv,
 		} as Record<string, string>,
 	});
 

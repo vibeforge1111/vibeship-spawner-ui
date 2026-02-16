@@ -17,19 +17,25 @@ import type { RequestHandler } from './$types';
 import {
 	connectMCP,
 	disconnectMCP,
-	callTool,
 	isConnected,
 	getTools,
 	getConnectionInfo,
 	PRECONFIGURED_MCPS,
 	type MCPClientConfig,
 } from '$lib/services/mcp/client';
+import { requireMcpAuth } from '$lib/server/mcp-auth';
 
 /**
  * POST - Connect to an MCP server
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireMcpAuth(event);
+	if (unauthorized) {
+		return unauthorized;
+	}
+
 	try {
+		const { request } = event;
 		const body = await request.json();
 		const { instanceId, mcpId, config } = body as {
 			instanceId: string;
@@ -51,7 +57,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			return json({ error: 'Either mcpId or config is required' }, { status: 400 });
 		}
 
-		console.log(`[API] Connecting MCP: ${instanceId}`, mcpConfig);
+		console.log(`[API] Connecting MCP: ${instanceId} (${mcpConfig.command})`);
 
 		const connection = await connectMCP(instanceId, mcpConfig);
 
@@ -79,8 +85,14 @@ export const POST: RequestHandler = async ({ request }) => {
 /**
  * DELETE - Disconnect from an MCP server
  */
-export const DELETE: RequestHandler = async ({ request }) => {
+export const DELETE: RequestHandler = async (event) => {
+	const unauthorized = requireMcpAuth(event);
+	if (unauthorized) {
+		return unauthorized;
+	}
+
 	try {
+		const { request } = event;
 		const body = await request.json();
 		const { instanceId } = body as { instanceId: string };
 
@@ -105,7 +117,13 @@ export const DELETE: RequestHandler = async ({ request }) => {
 /**
  * GET - Get MCP connection status and tools
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireMcpAuth(event);
+	if (unauthorized) {
+		return unauthorized;
+	}
+
+	const { url } = event;
 	const instanceId = url.searchParams.get('instanceId');
 
 	if (!instanceId) {

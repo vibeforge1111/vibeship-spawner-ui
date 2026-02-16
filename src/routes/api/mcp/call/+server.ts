@@ -7,9 +7,16 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { callTool, isConnected } from '$lib/services/mcp/client';
+import { requireMcpAuth } from '$lib/server/mcp-auth';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireMcpAuth(event);
+	if (unauthorized) {
+		return unauthorized;
+	}
+
 	try {
+		const { request } = event;
 		const body = await request.json();
 		const { instanceId, toolName, args } = body as {
 			instanceId: string;
