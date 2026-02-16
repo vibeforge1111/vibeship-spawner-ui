@@ -1,11 +1,33 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { openclawBridge } from '$lib/services/openclaw-bridge';
+import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 
-export const GET: RequestHandler = async ({ request, url }) => {
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'Openclaw',
+		apiKeyEnvVar: 'OPENCLAW_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'OPENCLAW_ALLOWED_ORIGINS'
+	});
+	if (unauthorized) return unauthorized;
+
+	const rateLimited = enforceRateLimit(event, {
+		scope: 'openclaw_events_stream',
+		limit: 120,
+		windowMs: 60_000
+	});
+	if (rateLimited) return rateLimited;
+
+	const { request, url } = event;
 	const sessionId = url.searchParams.get('sessionId');
 	if (!sessionId) {
 		return json({ error: 'sessionId is required' }, { status: 400 });
+	}
+	const scopedSessionHeader = request.headers.get('x-openclaw-session-id');
+	if (scopedSessionHeader && scopedSessionHeader !== sessionId) {
+		return json({ error: 'Session scope mismatch between header and query' }, { status: 403 });
 	}
 
 	const session = openclawBridge.getSession(sessionId);

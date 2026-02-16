@@ -242,10 +242,13 @@ class OpenclawBridgeService {
 			};
 		}
 
+		const actor = input.actor || 'unknown';
 		session.commandCount += 1;
 		session.updatedAt = nowIso();
+		session.actor = actor;
 		this.emitEvent(input.sessionId, 'openclaw.command.received', {
 			command: input.command,
+			actor,
 			requestId: input.requestId || null,
 			params: input.params || {}
 		});
@@ -254,6 +257,7 @@ class OpenclawBridgeService {
 			const data = await this.dispatchCommand(session, input.command, input.params || {});
 			this.emitEvent(input.sessionId, 'openclaw.command.completed', {
 				command: input.command,
+				actor,
 				requestId: input.requestId || null,
 				data
 			});
@@ -268,6 +272,7 @@ class OpenclawBridgeService {
 			const message = error instanceof Error ? error.message : 'Command failed';
 			this.emitEvent(input.sessionId, 'openclaw.command.failed', {
 				command: input.command,
+				actor,
 				requestId: input.requestId || null,
 				error: message
 			});

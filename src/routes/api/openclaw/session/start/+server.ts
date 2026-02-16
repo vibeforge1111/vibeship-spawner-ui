@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { openclawBridge } from '$lib/services/openclaw-bridge';
+import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 
 function parseBody(value: unknown): { sessionId?: string; actor?: string; metadata?: Record<string, unknown> } {
 	if (!value || typeof value !== 'object') {
@@ -17,9 +18,25 @@ function parseBody(value: unknown): { sessionId?: string; actor?: string; metada
 	};
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'Openclaw',
+		apiKeyEnvVar: 'OPENCLAW_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'OPENCLAW_ALLOWED_ORIGINS'
+	});
+	if (unauthorized) return unauthorized;
+
+	const rateLimited = enforceRateLimit(event, {
+		scope: 'openclaw_session_start',
+		limit: 30,
+		windowMs: 60_000
+	});
+	if (rateLimited) return rateLimited;
+
 	try {
-		const body = parseBody(await request.json().catch(() => ({})));
+		const body = parseBody(await event.request.json().catch(() => ({})));
 		const session = openclawBridge.startSession(body);
 		return json({
 			success: true,

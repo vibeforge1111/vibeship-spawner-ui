@@ -26,6 +26,20 @@ afterEach(() => {
 });
 
 describe('/api/openclaw integration', () => {
+	it('rejects non-local requests without an API key', async () => {
+		const response = await command({
+			request: new Request('https://example.com/api/openclaw/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					sessionId: 'non-local',
+					command: 'canvas.get_state'
+				})
+			})
+		} as never);
+		expect(response.status).toBe(401);
+	});
+
 	it('runs a full session flow: start -> canvas -> mission -> status -> end', async () => {
 		const startResponse = await startSession({
 			request: new Request('http://localhost/api/openclaw/session/start', {
