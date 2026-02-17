@@ -10,7 +10,8 @@ import type { RequestHandler } from './$types';
 import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
-import { spawn, execFileSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
+import { openclawBridge } from '$lib/services/openclaw-bridge';
 
 // Store pending PRDs in the project's .spawner directory
 const SPAWNER_DIR = join(process.cwd(), '.spawner');
@@ -155,35 +156,37 @@ async function startCodexAutoAnalysis(requestId: string, projectName: string): P
 		}
 
 		const prompt = buildCodexPrompt(requestId, projectName);
-		const isCmdShim = codexBinary.toLowerCase().endsWith('.cmd');
-		const spawnBinary = isCmdShim ? 'cmd.exe' : codexBinary;
-		const spawnArgs = isCmdShim
-			? ['/c', codexBinary, 'exec', '--yolo', prompt]
-			: ['exec', '--yolo', prompt];
+		const missionId = `prd-auto-${normalizeRequestId(requestId)}`;
 
-		const child = spawn(spawnBinary, spawnArgs, {
-			cwd: process.cwd(),
-			detached: true,
-			stdio: 'ignore',
-			windowsHide: true,
-			env: { ...process.env }
-		});
-
-		await appendPrdTrace(requestId, 'auto_spawned', {
+		await appendPrdTrace(requestId, 'auto_worker_dispatch', {
 			provider: 'codex',
-			spawnBinary,
-			pid: child.pid || null,
-			commandShim: isCmdShim
+			missionId,
+			workingDirectory: process.cwd()
 		});
 
-		child.once('error', (error) => {
-			void appendPrdTrace(requestId, 'auto_spawn_error', {
-				provider: 'codex',
-				error: error instanceof Error ? error.message : String(error)
+		void openclawBridge
+			.executeProviderTask({
+				providerId: 'codex',
+				missionId,
+				prompt,
+				model: 'gpt-5.3-codex',
+				commandTemplate: 'codex exec --yolo',
+				workingDirectory: process.cwd()
+			})
+			.then((result) => {
+				void appendPrdTrace(requestId, 'auto_worker_finished', {
+					success: result.success,
+					error: result.error || null,
+					durationMs: result.durationMs || null,
+					sessionId: result.openclawSessionId
+				});
+			})
+			.catch((error: unknown) => {
+				void appendPrdTrace(requestId, 'auto_worker_error', {
+					error: error instanceof Error ? error.message : String(error)
+				});
 			});
-		});
 
-		child.unref();
 		return true;
 	} catch (error) {
 		await appendPrdTrace(requestId, 'auto_start_failed', {
