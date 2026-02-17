@@ -569,6 +569,63 @@ class MissionExecutor {
 		});
 	}
 
+	private registerLoadedSkills(taskId: string | null | undefined, skillIds: string[]): void {
+		if (!taskId || skillIds.length === 0) return;
+
+		for (const rawSkillId of skillIds) {
+			const skillId = rawSkillId.trim();
+			if (!skillId) continue;
+			const existing = this.progress.loadedSkills.find((entry) => entry.id === skillId);
+			if (existing) {
+				if (!existing.taskIds.includes(taskId)) {
+					existing.taskIds = [...existing.taskIds, taskId];
+				}
+				continue;
+			}
+
+			this.progress.loadedSkills.push({
+				id: skillId,
+				name: skillId,
+				taskIds: [taskId]
+			});
+			this.completedSkillSequence.push(skillId);
+		}
+	}
+
+	private parseSkillLoadedSignal(message?: string, fallbackTaskId?: string | null): { taskId: string | null; skillIds: string[] } | null {
+		if (!message) return null;
+		if (!message.startsWith('SKILL_LOADED:')) return null;
+
+		const parts = message.split(':');
+		if (parts.length < 3) return null;
+		const taskId = parts[1]?.trim() || fallbackTaskId || null;
+		const skillIds = parts
+			.slice(2)
+			.join(':')
+			.split(',')
+			.map((entry) => entry.trim())
+			.filter(Boolean);
+
+		return { taskId, skillIds };
+	}
+
+	private getRequiredSkillsForTask(taskId: string): string[] {
+		return this.progress.taskSkillMap.get(taskId) || [];
+	}
+
+	private getLoadedSkillIdsForTask(taskId: string): string[] {
+		return this.progress.loadedSkills
+			.filter((entry) => entry.taskIds.includes(taskId))
+			.map((entry) => entry.id);
+	}
+
+	private getMissingSkillsForTask(taskId: string): string[] {
+		const required = this.getRequiredSkillsForTask(taskId);
+		if (required.length === 0) return [];
+		const loaded = new Set(this.getLoadedSkillIdsForTask(taskId));
+		return required.filter((skillId) => !loaded.has(skillId));
+	}
+
 	/**
 	 * Setup Event Bridge subscription for real-time updates from Claude Code
 	 * This is the primary mechanism for receiving events via HTTP POST
@@ -650,6 +707,12 @@ class MissionExecutor {
 					const progressTaskId = event.taskId || this.progress.currentTaskId;
 					const progressValue = event.progress ?? (event.data?.percent as number) ?? 0;
 					const progressMessage = event.message || event.data?.message as string;
+					const skillSignal = this.parseSkillLoadedSignal(progressMessage, progressTaskId);
+					if (skillSignal) {
+						this.registerLoadedSkills(skillSignal.taskId, skillSignal.skillIds);
+						this.addLocalLog('info', `Skill load signal received for ${skillSignal.taskId}: ${skillSignal.skillIds.join(', ')}`);
+						this.persistState();
+					}
 					if (progressTaskId) {
 						this.handleTaskProgress(progressTaskId, progressValue, progressMessage);
 						if (runtimeAgent) {
@@ -685,7 +748,14 @@ class MissionExecutor {
 					this.updateLastProgress();  // Health monitoring
 					const completedTaskId = event.taskId || event.data?.taskId as string;
 					const completedTaskName = event.taskName || event.data?.taskName as string || completedTaskId;
-					const success = event.type === 'task_completed' && event.data?.success !== false;
+					let success = event.type === 'task_completed' && event.data?.success !== false;
+					if (completedTaskId && success) {
+						const missingSkills = this.getMissingSkillsForTask(completedTaskId);
+						if (missingSkills.length > 0) {
+							success = false;
+							this.addLocalLog('info', `DoD gate: task ${completedTaskId} blocked - missing required skill loads: ${missingSkills.join(', ')}`);
+						}
+					}
 					if (completedTaskId) {
 						const existingProgress = this.progress.taskProgressMap.get(completedTaskId);
 						this.progress.taskProgressMap.set(completedTaskId, {
@@ -755,25 +825,21 @@ class MissionExecutor {
 					// Track which skills have been loaded during execution
 					const loadedSkillId = event.data?.skillId as string;
 					const loadedSkillName = event.data?.skillName as string || loadedSkillId;
-					if (loadedSkillId && !this.progress.loadedSkills.some(s => s.id === loadedSkillId)) {
-						// Add as LoadedSkillInfo object
-						const skillInfo: LoadedSkillInfo = {
-							id: loadedSkillId,
-							name: loadedSkillName,
-							taskIds: this.progress.currentTaskId ? [this.progress.currentTaskId] : []
-						};
-						this.progress.loadedSkills.push(skillInfo);
-						this.completedSkillSequence.push(loadedSkillId);
+					const skillTaskId = (event.data?.taskId as string) || this.progress.currentTaskId;
+					if (loadedSkillId) {
+						this.registerLoadedSkills(skillTaskId, [loadedSkillId]);
+						const skillEntry = this.progress.loadedSkills.find((entry) => entry.id === loadedSkillId);
+						if (skillEntry) {
+							skillEntry.name = loadedSkillName;
+						}
 						this.addLocalLog('info', `Skill loaded: ${loadedSkillId}`);
 						this.persistState();
 
 						// Check if current task has required skills loaded
-						if (this.progress.currentTaskId) {
-							const requiredSkills = this.progress.taskSkillMap.get(this.progress.currentTaskId) || [];
-							const loadedIds = this.progress.loadedSkills.map(s => s.id);
-							const loadedForTask = requiredSkills.filter(s => loadedIds.includes(s));
-							if (requiredSkills.length > 0 && loadedForTask.length === requiredSkills.length) {
-								this.addLocalLog('info', `All ${requiredSkills.length} skills loaded for current task`);
+						if (skillTaskId) {
+							const missing = this.getMissingSkillsForTask(skillTaskId);
+							if (missing.length === 0 && this.getRequiredSkillsForTask(skillTaskId).length > 0) {
+								this.addLocalLog('info', `All required skills loaded for task ${skillTaskId}`);
 							}
 						}
 					}

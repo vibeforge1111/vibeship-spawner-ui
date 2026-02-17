@@ -435,8 +435,8 @@ function extractExplicitFeatures(content: string, techStack: TechStack): Actiona
 		const line = lines[i].trim();
 		const lowerLine = line.toLowerCase();
 
-		// Detect features section
-		if (/^#{1,3}\s*(features?|requirements?|user\s*stor|functional\s*spec)/i.test(line)) {
+		// Detect features/requirements section (supports numbered headings)
+		if (/^#{1,3}\s*/.test(line) && /(feature|requirement|user\s*stor|functional\s*spec)/i.test(line)) {
 			inFeaturesSection = true;
 			continue;
 		}
@@ -446,11 +446,11 @@ function extractExplicitFeatures(content: string, techStack: TechStack): Actiona
 			inFeaturesSection = false;
 		}
 
-		// Only extract from bullet points in features section, or explicit user stories
+		// Only extract from bullet points inside a feature/requirements section, or explicit user stories
 		const isBullet = /^[-*•]\s+/.test(line) || /^\d+[.)]\s+/.test(line);
 		const isUserStory = /as a .+?, i (want|need|should)/i.test(line);
 
-		if (!isBullet && !isUserStory) continue;
+		if (!(inFeaturesSection && isBullet) && !isUserStory) continue;
 
 		// Get the content
 		let rawContent = line.replace(/^[-*•]\s+/, '').replace(/^\d+[.)]\s+/, '').trim();
@@ -544,6 +544,14 @@ function makeActionable(text: string): string {
 	const actionVerbs = ['implement', 'create', 'build', 'add', 'design', 'develop', 'set up', 'configure'];
 	if (actionVerbs.some(v => text.toLowerCase().startsWith(v))) {
 		return text.charAt(0).toUpperCase() + text.slice(1);
+	}
+
+	// Normalize requirement-style phrasing
+	if (/^user\s+can\s+/i.test(text)) {
+		return `Implement ${text.replace(/^user\s+can\s+/i, '').trim()}`;
+	}
+	if (/^system\s+(accepts|returns|uses|must|should)\s+/i.test(text)) {
+		return `Implement ${text.replace(/^system\s+/i, '').trim()}`;
 	}
 
 	// Add appropriate verb
