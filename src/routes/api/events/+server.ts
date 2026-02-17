@@ -11,7 +11,7 @@ import { eventBridge } from '$lib/services/event-bridge';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir, appendFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { execFile } from 'node:child_process';
@@ -19,6 +19,7 @@ import { promisify } from 'node:util';
 
 const SPAWNER_DIR = join(process.cwd(), '.spawner');
 const RESULTS_DIR = join(SPAWNER_DIR, 'results');
+const PRD_AUTO_TRACE_FILE = join(SPAWNER_DIR, 'prd-auto-trace.jsonl');
 const EVENTS_AUTH_COOKIE = 'spawner_events_api_key';
 const PROGRESS_NOTIFICATION_WINDOW_MS = 60_000;
 const PROGRESS_NOTIFICATION_MAX_ENTRIES = 300;
@@ -143,6 +144,18 @@ async function pushProgressSignal(event: Record<string, unknown>): Promise<void>
 /**
  * Store PRD analysis result to file for polling fallback
  */
+async function appendPrdTrace(requestId: string, event: string, details: Record<string, unknown> = {}): Promise<void> {
+	try {
+		await appendFile(
+			PRD_AUTO_TRACE_FILE,
+			`${JSON.stringify({ ts: new Date().toISOString(), requestId, event, ...details })}\n`,
+			'utf-8'
+		);
+	} catch {
+		// Trace failures are non-fatal.
+	}
+}
+
 async function storePRDResult(requestId: string, result: unknown): Promise<void> {
 	try {
 		assertSafeId(requestId, 'requestId');
@@ -209,9 +222,19 @@ export const POST: RequestHandler = async (event) => {
 		// Push native progress signal to OpenClaw chat for milestone events
 		void pushProgressSignal(fullEvent as Record<string, unknown>);
 
-		// Store PRD results for polling fallback
+		// Store PRD results for polling fallback and trace runtime receipt
 		if (fullEvent.type === 'prd_analysis_complete' && fullEvent.data?.requestId && fullEvent.data?.result) {
+			await appendPrdTrace(fullEvent.data.requestId, 'events_received_complete', {
+				source: fullEvent.source || 'unknown'
+			});
 			await storePRDResult(fullEvent.data.requestId, fullEvent.data.result);
+		}
+
+		if (fullEvent.type === 'prd_analysis_error' && fullEvent.data?.requestId) {
+			await appendPrdTrace(fullEvent.data.requestId, 'events_received_error', {
+				source: fullEvent.source || 'unknown',
+				error: fullEvent.data?.error || null
+			});
 		}
 
 		const headers = new Headers();

@@ -7,16 +7,85 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { spawn, execFileSync } from 'node:child_process';
 
 // Store pending PRDs in the project's .spawner directory
 const SPAWNER_DIR = join(process.cwd(), '.spawner');
+const RESULTS_DIR = join(SPAWNER_DIR, 'results');
 const PENDING_PRD_FILE = join(SPAWNER_DIR, 'pending-prd.md');
 const PENDING_REQUEST_FILE = join(SPAWNER_DIR, 'pending-request.json');
+const PRD_AUTO_TRACE_FILE = join(SPAWNER_DIR, 'prd-auto-trace.jsonl');
 const AUTO_ANALYSIS_ENDPOINT = 'http://127.0.0.1:5173/api/events';
+const AUTO_ANALYSIS_TIMEOUT_MS = 55_000;
+
+function normalizeRequestId(requestId: string): string {
+	return requestId.replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+async function appendPrdTrace(requestId: string, event: string, details: Record<string, unknown> = {}): Promise<void> {
+	try {
+		const row = {
+			ts: new Date().toISOString(),
+			requestId,
+			event,
+			...details
+		};
+		await appendFile(PRD_AUTO_TRACE_FILE, `${JSON.stringify(row)}\n`, 'utf-8');
+	} catch {
+		// Never fail request flow on trace write.
+	}
+}
+
+async function updatePendingRequestStatus(
+	requestId: string,
+	status: 'pending' | 'processed' | 'timeout' | 'error',
+	extra: Record<string, unknown> = {}
+): Promise<void> {
+	try {
+		if (!existsSync(PENDING_REQUEST_FILE)) return;
+		const raw = await readFile(PENDING_REQUEST_FILE, 'utf-8');
+		const current = JSON.parse(raw) as Record<string, unknown>;
+		if (current.requestId !== requestId) return;
+
+		const next = {
+			...current,
+			status,
+			updatedAt: new Date().toISOString(),
+			...extra
+		};
+		await writeFile(PENDING_REQUEST_FILE, JSON.stringify(next, null, 2), 'utf-8');
+	} catch {
+		// Keep analysis flow alive even if status updates fail.
+	}
+}
+
+function scheduleAutoAnalysisWatchdog(requestId: string): void {
+	const timer = setTimeout(async () => {
+		const safeRequestId = normalizeRequestId(requestId);
+		const resultFile = join(RESULTS_DIR, `${safeRequestId}.json`);
+		const hasResult = existsSync(resultFile);
+		if (hasResult) {
+			await appendPrdTrace(requestId, 'watchdog_result_found');
+			return;
+		}
+
+		await updatePendingRequestStatus(requestId, 'timeout', {
+			timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
+			reason: 'No runtime analysis result written before timeout'
+		});
+		await appendPrdTrace(requestId, 'watchdog_timeout', {
+			timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
+			expectedResultFile: resultFile
+		});
+	}, AUTO_ANALYSIS_TIMEOUT_MS);
+
+	if (typeof timer.unref === 'function') {
+		timer.unref();
+	}
+}
 
 function resolveCodexBinary(): string | null {
 	const configured = process.env.CODEX_PATH?.trim();
@@ -66,22 +135,22 @@ function buildCodexPrompt(requestId: string, projectName: string): string {
 	].join('\n');
 }
 
-function startCodexAutoAnalysis(requestId: string, projectName: string): boolean {
+async function startCodexAutoAnalysis(requestId: string, projectName: string): Promise<boolean> {
 	const provider = (process.env.SPAWNER_PRD_AUTO_PROVIDER || 'codex').trim().toLowerCase();
 	if (provider === 'none') {
-		console.log('[PRDBridge] Auto-analysis disabled by SPAWNER_PRD_AUTO_PROVIDER=none');
+		await appendPrdTrace(requestId, 'auto_disabled', { provider });
 		return false;
 	}
 
 	if (provider !== 'codex') {
-		console.log(`[PRDBridge] Unsupported auto provider: ${provider}`);
+		await appendPrdTrace(requestId, 'auto_unsupported_provider', { provider });
 		return false;
 	}
 
 	try {
 		const codexBinary = resolveCodexBinary();
 		if (!codexBinary) {
-			console.warn('[PRDBridge] Codex binary not found; skipping auto-analysis');
+			await appendPrdTrace(requestId, 'auto_binary_missing', { provider: 'codex' });
 			return false;
 		}
 
@@ -100,14 +169,27 @@ function startCodexAutoAnalysis(requestId: string, projectName: string): boolean
 			env: { ...process.env }
 		});
 
+		await appendPrdTrace(requestId, 'auto_spawned', {
+			provider: 'codex',
+			spawnBinary,
+			pid: child.pid || null,
+			commandShim: isCmdShim
+		});
+
 		child.once('error', (error) => {
-			console.warn('[PRDBridge] Codex auto-analysis spawn error:', error);
+			void appendPrdTrace(requestId, 'auto_spawn_error', {
+				provider: 'codex',
+				error: error instanceof Error ? error.message : String(error)
+			});
 		});
 
 		child.unref();
 		return true;
 	} catch (error) {
-		console.warn('[PRDBridge] Failed to start codex auto analysis:', error);
+		await appendPrdTrace(requestId, 'auto_start_failed', {
+			provider: 'codex',
+			error: error instanceof Error ? error.message : String(error)
+		});
 		return false;
 	}
 }
@@ -124,11 +206,14 @@ export const POST: RequestHandler = async ({ request }) => {
 		if (!existsSync(SPAWNER_DIR)) {
 			await mkdir(SPAWNER_DIR, { recursive: true });
 		}
+		if (!existsSync(RESULTS_DIR)) {
+			await mkdir(RESULTS_DIR, { recursive: true });
+		}
 
 		// Write the PRD content to file
 		await writeFile(PENDING_PRD_FILE, content, 'utf-8');
 
-		// Write the request metadata
+		// Write request metadata
 		const requestMeta = {
 			requestId,
 			projectName: projectName || 'Untitled Project',
@@ -137,8 +222,14 @@ export const POST: RequestHandler = async ({ request }) => {
 			status: 'pending'
 		};
 		await writeFile(PENDING_REQUEST_FILE, JSON.stringify(requestMeta, null, 2), 'utf-8');
+		await appendPrdTrace(requestId, 'request_written', {
+			projectName: requestMeta.projectName
+		});
 
-		const codexStarted = startCodexAutoAnalysis(requestId, requestMeta.projectName);
+		const codexStarted = await startCodexAutoAnalysis(requestId, requestMeta.projectName);
+		if (codexStarted) {
+			scheduleAutoAnalysisWatchdog(requestId);
+		}
 
 		console.log(`[PRDBridge] PRD written to ${PENDING_PRD_FILE}`);
 		console.log(`[PRDBridge] Request ID: ${requestId}`);
