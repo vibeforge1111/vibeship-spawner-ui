@@ -1040,21 +1040,29 @@ ${taskList}
 ## Completion Protocol
 
 1. **Complete ALL ${mission.totalTasks} tasks** - no skipping
-2. **Verify each task** before moving to next
-3. **Check all "Done when" criteria** are satisfied
-4. **Report blockers** immediately if stuck
+2. **Auto-continue through tasks** until full mission completion (do not pause for confirmation between tasks)
+3. **Check all "Done when" criteria** are satisfied per task before moving on
+4. **Report blockers** immediately if truly blocked, otherwise keep executing
+
+### Per-task Definition of Done (mandatory):
+- Implement the task deliverable in code
+- Verify acceptance criteria for the task
+- Run relevant checks/tests for that task
+- Commit focused changes with a clear message
+- Continue automatically to the next task
 
 ### After EACH task:
 - Run \`npm run check\` to verify no TypeScript errors
-- Test the feature works as expected
-- Move to next task only when current is verified
+- Run task-relevant tests (at minimum targeted validation)
+- Move to next task only when current task DoD is satisfied
 
 ### At the END:
 - All ${mission.totalTasks} tasks complete
 - \`npm run build\` succeeds
 - App runs locally without errors
+- Final summary includes completed tasks, test evidence, and remaining risks
 
 ---
 
-**START with Task 1. Load its skills first.**`;
+**START with Task 1. Load its skills first and continue until fully done.**`;
 }
