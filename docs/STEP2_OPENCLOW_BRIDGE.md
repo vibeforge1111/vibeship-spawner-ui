@@ -37,3 +37,4 @@
 ## Notes
 - This step intentionally excludes OpenCode/Pi and any UI redesign.
 - Existing auth/rate-limiting for OpenClaw routes remains intact.
+- Local operational playbook: `docs/OPENCLAW_CANVAS_LOCALHOST_RUNBOOK.md`
