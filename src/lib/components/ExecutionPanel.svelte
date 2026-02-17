@@ -149,7 +149,7 @@
 	let canPause = $derived(executionProgress?.status === 'running');
 	let canResume = $derived(executionProgress?.status === 'paused');
 	let canCancel = $derived(isRunning || isPaused);
-	// Note: MCP not required anymore - we build missions locally and generate copy-pasteable prompts
+	// Note: MCP not required anymore - we build missions locally and run directly by default (copy prompt is fallback)
 	let canRun = $derived(!isRunning && !isPaused && currentNodes.length > 0);
 	let runtimeAgents = $derived.by(() => {
 		if (!executionProgress?.agentRuntime) return [] as AgentRuntimeStatus[];
@@ -1381,7 +1381,7 @@
 									<pre class="whitespace-pre-wrap break-all">{(executionProgress?.executionPrompt || '').slice(0, 500)}{(executionProgress?.executionPrompt || '').length > 500 ? '...' : ''}</pre>
 								</div>
 								<p class="mt-2 text-xs text-text-tertiary">
-									Paste this into your preferred single-agent CLI.
+									Optional fallback only. Direct auto-run does not require copy/paste.
 								</p>
 							</div>
 						{/if}
@@ -1832,7 +1832,7 @@
 												onchange={(e) =>
 													(multiLLMAutoDispatch = (e.currentTarget as HTMLInputElement).checked)}
 											/>
-											Auto-dispatch (server-side execution)
+											Direct run (no copy/paste)
 										</label>
 									</div>
 

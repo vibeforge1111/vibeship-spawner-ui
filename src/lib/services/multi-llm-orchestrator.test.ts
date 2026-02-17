@@ -40,7 +40,7 @@ function createMission(taskCount = 3): Mission {
 describe('multi-llm-orchestrator', () => {
 	it('creates default options with only codex + claude providers', () => {
 		const options = createDefaultMultiLLMOptions();
-		expect(options.enabled).toBe(false);
+		expect(options.enabled).toBe(true);
 		expect(options.strategy).toBe('round_robin');
 		expect(options.providers.map((provider) => provider.id)).toEqual(['claude', 'codex']);
 	});

@@ -104,7 +104,7 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		eventSource: 'claude-code',
 		capabilities: ['reasoning', 'planning', 'review', 'code_analysis'],
 		apiKeyEnv: 'ANTHROPIC_API_KEY',
-		requiresApiKey: true,
+		requiresApiKey: false,
 		commandTemplate: 'claude --model {model}'
 	},
 	{
@@ -116,14 +116,14 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		eventSource: 'codex',
 		capabilities: ['reasoning', 'planning', 'code_analysis', 'code_exec', 'database', 'deployment'],
 		apiKeyEnv: 'OPENAI_API_KEY',
-		requiresApiKey: true,
+		requiresApiKey: false,
 		commandTemplate: 'codex exec --model {model}'
 	}
 ];
 
 export function createDefaultMultiLLMOptions(): MultiLLMOrchestratorOptions {
 	return {
-		enabled: false,
+		enabled: true,
 		strategy: 'round_robin',
 		primaryProviderId: 'claude',
 		autoEnableByKeys: true,
@@ -210,8 +210,7 @@ function getActiveProviders(options: MultiLLMOrchestratorOptions): MultiLLMProvi
 		const keyPresence = options.keyPresence || {};
 		for (const provider of providers) {
 			const hasKey = keyPresence[provider.id] || false;
-			const requiresApiKey = provider.requiresApiKey ?? !!provider.apiKeyEnv;
-			if (hasKey && requiresApiKey && !provider.enabled) {
+			if (hasKey && !provider.enabled) {
 				provider.enabled = true;
 			}
 		}
