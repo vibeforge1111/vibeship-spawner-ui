@@ -5,10 +5,10 @@
  * 1. NO fixed task counts - tasks based on actual PRD content
  * 2. NO automatic infrastructure - only if explicitly needed
  * 3. Transforms observations into actionable tasks
- * 4. Generates smaller, completable missions (max 8 tasks)
+ * 4. Generates delivery-focused missions (dynamic cap)
  * 5. Each task has verification criteria
  *
- * Philosophy: Less is more. 8 completed tasks > 27 abandoned tasks.
+ * Philosophy: complete delivery over shallow scaffolds.
  */
 
 import type { Skill, SkillCategory } from '$lib/stores/skills.svelte';
@@ -744,12 +744,13 @@ function calculateConfidence(
 // =============================================================================
 
 /**
- * Generate a smart mission from PRD analysis
- * MAX 8 TASKS to ensure Claude can complete it
+ * Generate a smart mission from PRD analysis.
+ * Delivery mode intentionally allows deeper task graphs to reduce scaffold-only outputs.
  */
 export function generateSmartMission(analysis: SmartPRDAnalysis): SmartMission {
 	const tasks: SmartTask[] = [];
 	let taskId = 0;
+	const maxTasks = Math.min(20, Math.max(10, analysis.explicitFeatures.length + 6));
 
 	// Phase 1: Setup (always, but minimal)
 	tasks.push({
@@ -817,8 +818,8 @@ export function generateSmartMission(analysis: SmartPRDAnalysis): SmartMission {
 	const lastInfraTask = `task-${taskId}`;
 
 	for (const feature of analysis.explicitFeatures) {
-		// Limit total tasks
-		if (tasks.length >= 7) break;
+		// Dynamic task budget for fuller delivery
+		if (tasks.length >= maxTasks - 2) break;
 
 		tasks.push({
 			id: `task-${++taskId}`,
@@ -831,8 +832,23 @@ export function generateSmartMission(analysis: SmartPRDAnalysis): SmartMission {
 		});
 	}
 
-	// Phase 4: Final verification (only if we have room)
-	if (tasks.length < 8) {
+	// Phase 4: Validation and hardening (if room in budget)
+	if (tasks.length < maxTasks) {
+		tasks.push({
+			id: `task-${++taskId}`,
+			title: 'Integration Test Coverage',
+			description: 'Add API/flow integration tests for core PRD features',
+			skills: ['test-architect', 'code-quality'],
+			verification: {
+				commands: ['npm test'],
+				criteria: ['Core flows covered by tests', 'Tests pass consistently']
+			},
+			dependsOn: [`task-${taskId - 1}`],
+			phase: 4
+		});
+	}
+
+	if (tasks.length < maxTasks) {
 		tasks.push({
 			id: `task-${++taskId}`,
 			title: 'Final Verification',
