@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { spawn, execSync, type ChildProcess } from 'node:child_process';
 import type { Mission } from '$lib/services/mcp-client';
 import { TOP_100_MCPS } from '$lib/types/mcp';
 import { eventBridge } from '$lib/services/event-bridge';
@@ -28,7 +29,10 @@ export type OpenclawCommandName =
 	| 'mcp.connect'
 	| 'mcp.call_tool'
 	| 'mcp.disconnect'
-	| 'events.subscribe';
+	| 'events.subscribe'
+	| 'worker.run'
+	| 'worker.cancel'
+	| 'worker.status';
 
 export const OPENCLAW_ALLOWED_COMMANDS: OpenclawCommandName[] = [
 	'canvas.create_pipeline',
@@ -45,7 +49,10 @@ export const OPENCLAW_ALLOWED_COMMANDS: OpenclawCommandName[] = [
 	'mcp.connect',
 	'mcp.call_tool',
 	'mcp.disconnect',
-	'events.subscribe'
+	'events.subscribe',
+	'worker.run',
+	'worker.cancel',
+	'worker.status'
 ];
 
 export interface OpenclawBridgeEvent {
@@ -98,6 +105,59 @@ export interface OpenclawCommandResult {
 	error?: string;
 }
 
+export type OpenclawProviderId = 'claude' | 'codex';
+
+export interface OpenclawProviderTaskInput {
+	providerId: OpenclawProviderId;
+	missionId: string;
+	prompt: string;
+	model?: string;
+	workingDirectory?: string;
+	commandTemplate?: string;
+	taskId?: string;
+	openclawSessionId?: string;
+	signal?: AbortSignal;
+}
+
+export interface OpenclawProviderTaskResult {
+	success: boolean;
+	openclawSessionId: string;
+	response?: string;
+	error?: string;
+	durationMs?: number;
+}
+
+interface OpenclawWorkerState {
+	sessionId: string;
+	providerId: OpenclawProviderId;
+	missionId: string;
+	taskId?: string;
+	status: 'running' | 'completed' | 'failed' | 'cancelled';
+	startedAt: string;
+	completedAt?: string;
+	error?: string;
+	response?: string;
+	process?: ChildProcess;
+	progress: number;
+}
+
+interface OpenclawWorkerExecutorContext {
+	sessionId: string;
+	providerId: OpenclawProviderId;
+	missionId: string;
+	taskId?: string;
+	prompt: string;
+	model: string;
+	commandTemplate: string;
+	workingDirectory?: string;
+	signal?: AbortSignal;
+	emitProgress: (progress: number, message: string) => void;
+}
+
+type OpenclawWorkerExecutor = (
+	context: OpenclawWorkerExecutorContext
+) => Promise<{ success: boolean; response?: string; error?: string }>;
+
 interface OpenclawCanvasNode {
 	id: string;
 	skillId: string;
@@ -141,6 +201,26 @@ function createId(prefix: string): string {
 	return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function isProviderId(value: unknown): value is OpenclawProviderId {
+	return value === 'claude' || value === 'codex';
+}
+
+function isBinaryAvailable(binaryName: string): boolean {
+	try {
+		execSync(`where ${binaryName}`, { stdio: 'pipe', timeout: 5000 });
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function resolveProviderCommandTemplate(providerId: OpenclawProviderId, model?: string, template?: string): string {
+	const fallbackTemplate = providerId === 'claude' ? 'claude --model {model}' : 'codex exec --model {model}';
+	const commandTemplate = template && template.trim() ? template : fallbackTemplate;
+	const fallbackModel = providerId === 'claude' ? 'claude-opus-4-1' : 'gpt-5.3-codex';
+	return commandTemplate.replace('{model}', (model && model.trim()) || fallbackModel);
+}
+
 function sanitizeMcpConfig(value: unknown): MCPClientConfig | null {
 	if (!isRecord(value)) return null;
 	const command = toStringOrUndefined(value.command);
@@ -164,6 +244,8 @@ class OpenclawBridgeService {
 	private sessions = new Map<string, OpenclawSession>();
 	private subscribers = new Map<string, Set<OpenclawSubscriber>>();
 	private instanceOwners = new Map<string, { sessionId: string; mcpId?: string }>();
+	private workerSessions = new Map<string, OpenclawWorkerState>();
+	private workerExecutorOverride: OpenclawWorkerExecutor | null = null;
 
 	startSession(input: OpenclawSessionStartInput = {}): OpenclawSession {
 		const sessionId = input.sessionId || randomUUID();
@@ -205,6 +287,15 @@ class OpenclawBridgeService {
 			return session;
 		}
 
+		const workerState = this.workerSessions.get(sessionId);
+		if (workerState?.status === 'running') {
+			try {
+				workerState.process?.kill('SIGTERM');
+			} catch {
+				// noop
+			}
+		}
+
 		session.status = 'ended';
 		session.endedAt = nowIso();
 		session.updatedAt = session.endedAt;
@@ -228,6 +319,158 @@ class OpenclawBridgeService {
 		return () => {
 			this.subscribers.get(sessionId)?.delete(callback);
 		};
+	}
+
+	setWorkerExecutorForTests(executor: OpenclawWorkerExecutor | null): void {
+		this.workerExecutorOverride = executor;
+	}
+
+	getWorkerSession(sessionId: string): OpenclawWorkerState | null {
+		return this.workerSessions.get(sessionId) || null;
+	}
+
+	async executeProviderTask(input: OpenclawProviderTaskInput): Promise<OpenclawProviderTaskResult> {
+		const startedAtMs = Date.now();
+		const { providerId, missionId, prompt } = input;
+		const taskId = input.taskId;
+		const session = this.startSession({
+			sessionId: input.openclawSessionId,
+			actor: 'provider-runtime',
+			metadata: {
+				kind: 'provider_worker',
+				providerId,
+				missionId,
+				taskId: taskId || null
+			}
+		});
+		const openclawSessionId = session.id;
+		const command = resolveProviderCommandTemplate(providerId, input.model, input.commandTemplate);
+
+		const workerState: OpenclawWorkerState = {
+			sessionId: openclawSessionId,
+			providerId,
+			missionId,
+			taskId,
+			status: 'running',
+			startedAt: nowIso(),
+			progress: 0
+		};
+		this.workerSessions.set(openclawSessionId, workerState);
+
+		this.emitProviderEvent(workerState, 'task_started', {
+			message: `${providerId} worker started`
+		});
+
+		const emitProgress = (progress: number, message: string) => {
+			if (workerState.status !== 'running') return;
+			workerState.progress = Math.max(workerState.progress, Math.min(99, Math.round(progress)));
+			this.emitProviderEvent(workerState, 'task_progress', {
+				progress: workerState.progress,
+				message
+			});
+		};
+
+		const executor = this.workerExecutorOverride || this.executeProviderTaskViaProcess.bind(this);
+
+		try {
+			const result = await executor({
+				sessionId: openclawSessionId,
+				providerId,
+				missionId,
+				taskId,
+				prompt,
+				model: input.model || '',
+				commandTemplate: command,
+				workingDirectory: input.workingDirectory,
+				signal: input.signal,
+				emitProgress
+			});
+
+			if (workerState.status === 'cancelled') {
+				return {
+					success: false,
+					openclawSessionId,
+					error: 'Cancelled',
+					durationMs: Date.now() - startedAtMs
+				};
+			}
+
+			if (result.success) {
+				workerState.status = 'completed';
+				workerState.response = result.response;
+				workerState.completedAt = nowIso();
+				this.emitProviderEvent(workerState, 'task_completed', {
+					progress: 100,
+					message: `${providerId} worker completed`,
+					response: result.response || ''
+				});
+				this.endSession(openclawSessionId, 'completed');
+				return {
+					success: true,
+					openclawSessionId,
+					response: result.response,
+					durationMs: Date.now() - startedAtMs
+				};
+			}
+
+			workerState.status = 'failed';
+			workerState.error = result.error || 'Worker execution failed';
+			workerState.completedAt = nowIso();
+			this.emitProviderEvent(workerState, 'task_failed', {
+				message: workerState.error,
+				error: {
+					message: workerState.error,
+					providerId
+				}
+			});
+			this.endSession(openclawSessionId, 'failed');
+			return {
+				success: false,
+				openclawSessionId,
+				error: workerState.error,
+				durationMs: Date.now() - startedAtMs
+			};
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Worker execution failed';
+			if (workerState.status !== 'cancelled') {
+				workerState.status = 'failed';
+				workerState.error = message;
+				workerState.completedAt = nowIso();
+				this.emitProviderEvent(workerState, 'task_failed', {
+					message,
+					error: { message, providerId }
+				});
+				this.endSession(openclawSessionId, 'failed');
+			}
+			return {
+				success: false,
+				openclawSessionId,
+				error: message,
+				durationMs: Date.now() - startedAtMs
+			};
+		}
+	}
+
+	cancelProviderTask(sessionId: string, reason = 'cancelled'): boolean {
+		const workerState = this.workerSessions.get(sessionId);
+		if (!workerState) return false;
+		if (workerState.status !== 'running') return false;
+
+		workerState.status = 'cancelled';
+		workerState.error = reason;
+		workerState.completedAt = nowIso();
+		try {
+			workerState.process?.kill('SIGTERM');
+		} catch {
+			// noop
+		}
+
+		this.emitProviderEvent(workerState, 'task_cancelled', {
+			message: reason,
+			error: { message: reason, providerId: workerState.providerId }
+		});
+		this.endSession(sessionId, reason);
+		return true;
 	}
 
 	async executeCommand(input: OpenclawCommandInput): Promise<OpenclawCommandResult> {
@@ -290,6 +533,8 @@ class OpenclawBridgeService {
 		this.sessions.clear();
 		this.subscribers.clear();
 		this.instanceOwners.clear();
+		this.workerSessions.clear();
+		this.workerExecutorOverride = null;
 	}
 
 	private requireSession(sessionId: string): OpenclawSession {
@@ -317,18 +562,24 @@ class OpenclawBridgeService {
 			session.events.splice(0, session.events.length - MAX_SESSION_EVENTS);
 		}
 
+		const metadataMissionId =
+			typeof session.metadata?.missionId === 'string' ? (session.metadata.missionId as string) : undefined;
+
 		// Emit into the global event bridge for shared observability.
-		eventBridge.emit({
-			id: event.id,
-			type,
-			source: 'openclaw',
-			timestamp: event.timestamp,
-			missionId: session.mission?.id,
-			data: {
-				...data,
-				sessionId
-			}
-		});
+		// Provider runtime lifecycle events are emitted separately with normalized payloads.
+		if (!type.startsWith('task_')) {
+			eventBridge.emit({
+				id: event.id,
+				type,
+				source: 'openclaw',
+				timestamp: event.timestamp,
+				missionId: session.mission?.id || metadataMissionId,
+				data: {
+					...data,
+					sessionId
+				}
+			});
+		}
 
 		const scoped = this.subscribers.get(sessionId);
 		scoped?.forEach((callback) => callback(event));
@@ -373,6 +624,12 @@ class OpenclawBridgeService {
 					endpoint: `/api/openclaw/events?sessionId=${encodeURIComponent(session.id)}`,
 					sessionId: session.id
 				};
+			case 'worker.run':
+				return await this.handleWorkerRun(session, params);
+			case 'worker.cancel':
+				return this.handleWorkerCancel(session, params);
+			case 'worker.status':
+				return this.handleWorkerStatus(session);
 		}
 	}
 
@@ -711,6 +968,182 @@ class OpenclawBridgeService {
 			connected: isConnected(instanceId),
 			toolCount: getTools(instanceId).length
 		};
+	}
+
+	private async handleWorkerRun(
+		session: OpenclawSession,
+		params: Record<string, unknown>
+	): Promise<Record<string, unknown>> {
+		const providerIdRaw = toStringOrUndefined(params.providerId);
+		if (!providerIdRaw || !isProviderId(providerIdRaw)) {
+			throw new Error('worker.run requires providerId: claude|codex');
+		}
+		const missionId = toStringOrUndefined(params.missionId);
+		const prompt = toStringOrUndefined(params.prompt);
+		if (!missionId || !prompt) {
+			throw new Error('worker.run requires missionId and prompt');
+		}
+
+		const result = await this.executeProviderTask({
+			providerId: providerIdRaw,
+			missionId,
+			prompt,
+			model: toStringOrUndefined(params.model),
+			workingDirectory: toStringOrUndefined(params.workingDirectory),
+			commandTemplate: toStringOrUndefined(params.commandTemplate),
+			taskId: toStringOrUndefined(params.taskId),
+			openclawSessionId: session.id
+		});
+
+		return {
+			providerId: providerIdRaw,
+			missionId,
+			openclawSessionId: result.openclawSessionId,
+			success: result.success,
+			error: result.error || null,
+			response: result.response || null,
+			durationMs: result.durationMs || 0
+		};
+	}
+
+	private handleWorkerCancel(session: OpenclawSession, params: Record<string, unknown>): Record<string, unknown> {
+		const reason = toString(params.reason, 'cancelled');
+		const cancelled = this.cancelProviderTask(session.id, reason);
+		return {
+			openclawSessionId: session.id,
+			cancelled,
+			reason
+		};
+	}
+
+	private handleWorkerStatus(session: OpenclawSession): Record<string, unknown> {
+		const worker = this.workerSessions.get(session.id);
+		if (!worker) {
+			return {
+				openclawSessionId: session.id,
+				status: 'idle'
+			};
+		}
+		return {
+			openclawSessionId: session.id,
+			providerId: worker.providerId,
+			missionId: worker.missionId,
+			taskId: worker.taskId || null,
+			status: worker.status,
+			progress: worker.progress,
+			error: worker.error || null
+		};
+	}
+
+	private emitProviderEvent(
+		worker: OpenclawWorkerState,
+		type: 'task_started' | 'task_progress' | 'task_completed' | 'task_failed' | 'task_cancelled',
+		payload: Record<string, unknown>
+	): void {
+		const timestamp = nowIso();
+		const data = {
+			missionId: worker.missionId,
+			providerId: worker.providerId,
+			openclawSessionId: worker.sessionId,
+			taskId: worker.taskId || null,
+			...payload
+		};
+
+		this.emitEvent(worker.sessionId, type, data);
+		eventBridge.emit({
+			id: createId('ocl-norm'),
+			type,
+			missionId: worker.missionId,
+			taskId: worker.taskId,
+			source: worker.providerId,
+			timestamp,
+			message: typeof payload.message === 'string' ? payload.message : undefined,
+			progress: typeof payload.progress === 'number' ? payload.progress : undefined,
+			data
+		});
+	}
+
+	private async executeProviderTaskViaProcess(
+		context: OpenclawWorkerExecutorContext
+	): Promise<{ success: boolean; response?: string; error?: string }> {
+		const args = context.commandTemplate.split(/\s+/).filter(Boolean);
+		const binary = args.shift();
+		if (!binary) {
+			return { success: false, error: 'Invalid command template' };
+		}
+		if (!isBinaryAvailable(binary)) {
+			return { success: false, error: `${context.providerId} CLI "${binary}" not found in PATH` };
+		}
+
+		return await new Promise((resolve) => {
+			let stdout = '';
+			let stderr = '';
+			let finished = false;
+			let progressMarks = 0;
+			const child = spawn(binary, args, {
+				cwd: context.workingDirectory || process.cwd(),
+				shell: true,
+				stdio: ['pipe', 'pipe', 'pipe'],
+				env: { ...process.env }
+			});
+
+			const workerState = this.workerSessions.get(context.sessionId);
+			if (workerState) {
+				workerState.process = child;
+			}
+
+			const finalize = (result: { success: boolean; response?: string; error?: string }) => {
+				if (finished) return;
+				finished = true;
+				resolve(result);
+			};
+
+			if (context.signal) {
+				const onAbort = () => {
+					try {
+						child.kill('SIGTERM');
+					} catch {
+						// noop
+					}
+					finalize({ success: false, error: 'Cancelled' });
+				};
+				if (context.signal.aborted) {
+					onAbort();
+					return;
+				}
+				context.signal.addEventListener('abort', onAbort, { once: true });
+			}
+
+			child.stdout?.on('data', (chunk: Buffer) => {
+				const text = chunk.toString();
+				stdout += text;
+				progressMarks += 1;
+				context.emitProgress(Math.min(90, progressMarks * 10), `${context.providerId} processing...`);
+			});
+
+			child.stderr?.on('data', (chunk: Buffer) => {
+				stderr += chunk.toString();
+			});
+
+			child.on('error', (err) => {
+				finalize({ success: false, error: err.message });
+			});
+
+			child.on('close', (code) => {
+				const trimmed = stdout.trim();
+				if (code === 0) {
+					finalize({ success: true, response: trimmed });
+					return;
+				}
+				const message = stderr.trim() || `Exited with code ${code}`;
+				finalize({ success: false, error: message });
+			});
+
+			if (child.stdin) {
+				child.stdin.write(context.prompt);
+				child.stdin.end();
+			}
+		});
 	}
 
 	private assertSessionOwnsInstance(

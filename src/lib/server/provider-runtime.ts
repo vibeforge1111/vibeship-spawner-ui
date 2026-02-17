@@ -21,10 +21,7 @@ import {
 	executeOpenAICompatRequest,
 	type OpenAICompatOptions
 } from './provider-clients/openai-compat-client';
-import {
-	executeCodexCliRequest as executeTerminalCliRequest,
-	type CodexCliOptions as TerminalCliOptions
-} from './provider-clients/codex-cli-client';
+import { openclawBridge } from '$lib/services/openclaw-bridge';
 
 export interface DispatchOptions {
 	executionPack: MultiLLMExecutionPack;
@@ -42,6 +39,7 @@ export interface DispatchResult {
 
 class ProviderRuntimeManager {
 	private sessions = new Map<string, ProviderSession>();
+	private openclawSessionIds = new Map<string, string>();
 
 	private sessionKey(missionId: string, providerId: string): string {
 		return `${missionId}:${providerId}`;
@@ -125,8 +123,13 @@ class ProviderRuntimeManager {
 				onEvent
 			).then((result) => {
 				session.result = result;
-				session.status = result.success ? 'completed' : 'failed';
-				session.error = result.error || null;
+				if (session.status === 'cancelled' || result.error === 'Cancelled') {
+					session.status = 'cancelled';
+					session.error = result.error || session.error;
+				} else {
+					session.status = result.success ? 'completed' : 'failed';
+					session.error = result.error || null;
+				}
 				session.completedAt = new Date();
 				sessionStatuses[provider.id] = {
 					status: session.status,
@@ -200,16 +203,34 @@ class ProviderRuntimeManager {
 			}
 
 			if (provider.kind === 'terminal_cli') {
-				// All terminal CLI providers (Claude, Codex, etc.) use the same
-				// child_process spawn pattern - no API keys needed locally
-				const opts: TerminalCliOptions = {
-					provider,
+				if (provider.id !== 'claude' && provider.id !== 'codex') {
+					return {
+						success: false,
+						error: `OpenClaw runtime bridge only supports claude/codex in Step 2 (received: ${provider.id})`
+					};
+				}
+
+				const sessionKey = this.sessionKey(missionId, provider.id);
+				const requestedOpenclawSessionId = `${missionId}-${provider.id}-${Date.now().toString(36)}`;
+				this.openclawSessionIds.set(sessionKey, requestedOpenclawSessionId);
+
+				const workerResult = await openclawBridge.executeProviderTask({
+					providerId: provider.id,
 					missionId,
-					signal: abortController.signal,
-					onEvent,
-					workingDirectory
+					prompt,
+					model: provider.model,
+					workingDirectory,
+					commandTemplate: provider.commandTemplate,
+					openclawSessionId: requestedOpenclawSessionId,
+					signal: abortController.signal
+				});
+				this.openclawSessionIds.set(sessionKey, workerResult.openclawSessionId);
+				return {
+					success: workerResult.success,
+					response: workerResult.response,
+					error: workerResult.error,
+					durationMs: workerResult.durationMs
 				};
-				return await executeTerminalCliRequest(opts, prompt);
 			}
 
 			// Custom or unhandled provider kind
@@ -234,6 +255,10 @@ class ProviderRuntimeManager {
 		if (!session || session.status !== 'running') return false;
 
 		session.abortController.abort();
+		const openclawSessionId = this.openclawSessionIds.get(key);
+		if (openclawSessionId) {
+			openclawBridge.cancelProviderTask(openclawSessionId, 'Cancelled by user');
+		}
 		session.status = 'cancelled';
 		session.completedAt = new Date();
 		return true;
@@ -243,6 +268,10 @@ class ProviderRuntimeManager {
 		for (const [key, session] of this.sessions) {
 			if (session.missionId === missionId && session.status === 'running') {
 				session.abortController.abort();
+				const openclawSessionId = this.openclawSessionIds.get(key);
+				if (openclawSessionId) {
+					openclawBridge.cancelProviderTask(openclawSessionId, 'Mission cancelled');
+				}
 				session.status = 'cancelled';
 				session.completedAt = new Date();
 			}
@@ -282,7 +311,12 @@ class ProviderRuntimeManager {
 			if (session.missionId === missionId) {
 				if (session.status === 'running') {
 					session.abortController.abort();
+					const openclawSessionId = this.openclawSessionIds.get(key);
+					if (openclawSessionId) {
+						openclawBridge.cancelProviderTask(openclawSessionId, 'Runtime cleanup');
+					}
 				}
+				this.openclawSessionIds.delete(key);
 				this.sessions.delete(key);
 			}
 		}

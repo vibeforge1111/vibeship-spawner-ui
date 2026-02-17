@@ -564,38 +564,40 @@ class MissionExecutor {
 					break;
 
 				case 'task_completed':
-					// Claude Code completed a task
+				case 'task_failed':
+				case 'task_cancelled': {
+					// Provider runtime reported terminal task state
 					this.updateLastProgress();  // Health monitoring
 					const completedTaskId = event.taskId || event.data?.taskId as string;
 					const completedTaskName = event.taskName || event.data?.taskName as string || completedTaskId;
-					const success = event.data?.success !== false;
+					const success = event.type === 'task_completed' && event.data?.success !== false;
 					if (completedTaskId) {
-						// Store task name in progress map so recordTaskComplete can find it
 						const existingProgress = this.progress.taskProgressMap.get(completedTaskId);
 						this.progress.taskProgressMap.set(completedTaskId, {
 							taskId: completedTaskId,
 							taskName: completedTaskName,
 							progress: 100,
-							message: success ? 'Completed' : 'Failed',
+							message: success ? 'Completed' : event.type === 'task_cancelled' ? 'Cancelled' : 'Failed',
 							startedAt: existingProgress?.startedAt || Date.now()
 						});
 
-						// Update task status in mission
 						if (this.progress.mission?.tasks) {
 							const task = this.progress.mission.tasks.find(t => t.id === completedTaskId);
 							if (task) {
 								task.status = success ? 'completed' : 'failed';
 							}
 						}
-						// Recalculate overall progress
 						this.recalculateOverallProgress();
 						this.callbacks.onTaskComplete?.(completedTaskId, success);
 						this.recordTaskComplete(completedTaskId, success);
-						this.addLocalLog(success ? 'info' : 'info', `${success ? 'Completed' : 'Failed'}: ${completedTaskName}`);
-						// Persist the updated state
+						this.addLocalLog(
+							'info',
+							`${success ? 'Completed' : event.type === 'task_cancelled' ? 'Cancelled' : 'Failed'}: ${completedTaskName}`
+						);
 						this.persistState();
 					}
 					break;
+				}
 
 				case 'handoff':
 					// Agent handoff between tasks

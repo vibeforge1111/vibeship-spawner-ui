@@ -217,6 +217,65 @@ describe('/api/openclaw integration', () => {
 		abortController.abort();
 	});
 
+	it('streams normalized worker lifecycle events (started/progress/completed)', async () => {
+		openclawBridge.setWorkerExecutorForTests(async (context) => {
+			context.emitProgress(40, `${context.providerId} boot`);
+			context.emitProgress(85, `${context.providerId} run`);
+			return { success: true, response: 'done' };
+		});
+
+		const startResponse = await startSession({
+			request: new Request('http://localhost/api/openclaw/session/start', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ actor: 'worker-test' })
+			})
+		} as never);
+		const sessionId = (await startResponse.json()).session.id as string;
+
+		const runResponse = await command({
+			request: new Request('http://localhost/api/openclaw/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					sessionId,
+					command: 'worker.run',
+					params: {
+						providerId: 'codex',
+						missionId: 'mission-worker-events',
+						prompt: 'Do the work',
+						model: 'gpt-5.3-codex'
+					}
+				})
+			})
+		} as never);
+		expect(runResponse.status).toBe(200);
+		const runBody = await runResponse.json();
+		expect(runBody.data.success).toBe(true);
+		expect(runBody.data.openclawSessionId).toBe(sessionId);
+
+		const abortController = new AbortController();
+		const eventsResponse = await events({
+			request: new Request(`http://localhost/api/openclaw/events?sessionId=${sessionId}`, {
+				method: 'GET',
+				signal: abortController.signal
+			}),
+			url: new URL(`http://localhost/api/openclaw/events?sessionId=${sessionId}`)
+		} as never);
+		expect(eventsResponse.status).toBe(200);
+
+		const chunk = await readChunk(eventsResponse, 1000);
+		expect(chunk).toContain('"type":"connected"');
+		expect(chunk).toContain(sessionId);
+
+		const sessionEvents = openclawBridge.getSessionEvents(sessionId);
+		expect(sessionEvents.some((event) => event.type === 'task_started')).toBe(true);
+		expect(sessionEvents.some((event) => event.type === 'task_progress')).toBe(true);
+		expect(sessionEvents.some((event) => event.type === 'task_completed')).toBe(true);
+		expect(sessionEvents.some((event) => event.data.openclawSessionId === sessionId)).toBe(true);
+		abortController.abort();
+	});
+
 	it('isolates MCP instances by session for list, call, and disconnect', async () => {
 		const startA = await startSession({
 			request: new Request('http://localhost/api/openclaw/session/start', {
