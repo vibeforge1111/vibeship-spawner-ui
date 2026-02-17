@@ -63,6 +63,15 @@ export interface OpenclawBridgeEvent {
 	data: Record<string, unknown>;
 }
 
+export interface OpenclawCanvasSnapshot {
+	sessionId: string;
+	updatedAt: string;
+	pipelineId: string;
+	pipelineName: string;
+	nodes: OpenclawCanvasNode[];
+	connections: OpenclawCanvasConnection[];
+}
+
 export interface OpenclawSession {
 	id: string;
 	status: 'active' | 'ended';
@@ -158,7 +167,7 @@ type OpenclawWorkerExecutor = (
 	context: OpenclawWorkerExecutorContext
 ) => Promise<{ success: boolean; response?: string; error?: string }>;
 
-interface OpenclawCanvasNode {
+export interface OpenclawCanvasNode {
 	id: string;
 	skillId: string;
 	skillName: string;
@@ -166,7 +175,7 @@ interface OpenclawCanvasNode {
 	position: { x: number; y: number };
 }
 
-interface OpenclawCanvasConnection {
+export interface OpenclawCanvasConnection {
 	id: string;
 	sourceNodeId: string;
 	targetNodeId: string;
@@ -310,6 +319,30 @@ class OpenclawBridgeService {
 
 	getSessionEvents(sessionId: string): OpenclawBridgeEvent[] {
 		return [...(this.sessions.get(sessionId)?.events || [])];
+	}
+
+	getLatestCanvasSnapshot(since?: string): OpenclawCanvasSnapshot | null {
+		const sinceTs = since ? Date.parse(since) : Number.NaN;
+		const sessions = [...this.sessions.values()].filter((session) =>
+			session.events.some((event) => event.type === 'openclaw.canvas.updated')
+		);
+		if (sessions.length === 0) return null;
+
+		sessions.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+		const latest = sessions[0];
+		const latestTs = Date.parse(latest.updatedAt);
+		if (!Number.isNaN(sinceTs) && !Number.isNaN(latestTs) && latestTs <= sinceTs) {
+			return null;
+		}
+
+		return {
+			sessionId: latest.id,
+			updatedAt: latest.updatedAt,
+			pipelineId: latest.canvas.pipelineId,
+			pipelineName: latest.canvas.pipelineName,
+			nodes: latest.canvas.nodes.map((node) => ({ ...node, position: { ...node.position } })),
+			connections: latest.canvas.connections.map((connection) => ({ ...connection }))
+		};
 	}
 
 	subscribe(sessionId: string, callback: OpenclawSubscriber): () => void {

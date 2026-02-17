@@ -29,6 +29,7 @@ import { get } from 'svelte/store';
 	import { DroppedSkillSchema, safeJsonParse } from '$lib/types/schemas';
 	import { getPendingLoad } from '$lib/services/pipeline-loader';
 	import { loadSkills, skills as skillsStore } from '$lib/stores/skills.svelte';
+	import type { OpenclawCanvasSnapshot } from '$lib/services/openclaw-bridge';
 
 	let activeTab = $state('skills');
 	let chatExpanded = $state(false);
@@ -62,6 +63,22 @@ import { get } from 'svelte/store';
 	// Fix 1 & 3: Track mount state to ensure goal processing waits for full initialization
 	let isMounted = $state(false);
 	let pendingGoalProcess = $state(false);
+	let lastOpenclawSyncAt: string | null = null;
+	let isApplyingOpenclawUpdate = false;
+
+	type OpenclawCanvasSkillNode = {
+		id: string;
+		skillId: string;
+		skillName: string;
+		description: string;
+		position: { x: number; y: number };
+	};
+
+	type OpenclawCanvasLink = {
+		id: string;
+		sourceNodeId: string;
+		targetNodeId: string;
+	};
 
 	// Force sync local state from stores
 	// This ensures local variables are in sync after async operations
@@ -228,6 +245,95 @@ import { get } from 'svelte/store';
 		}
 	});
 
+	function resolveOpenclawSkill(node: OpenclawCanvasSkillNode): Skill {
+		const availableSkills = get(skillsStore);
+		const existing =
+			availableSkills.find((skill) => skill.id === node.skillId) ||
+			availableSkills.find((skill) => skill.name === node.skillName);
+		if (existing) return existing;
+
+		return {
+			id: node.skillId,
+			name: node.skillName || node.skillId,
+			description: node.description || `OpenClaw skill ${node.skillName || node.skillId}`,
+			category: 'development',
+			tier: 'free',
+			tags: [],
+			triggers: [],
+			handoffs: [],
+			pairsWell: []
+		};
+	}
+
+	async function applyOpenclawSnapshot(snapshot: OpenclawCanvasSnapshot): Promise<void> {
+		if (isApplyingOpenclawUpdate) return;
+		isApplyingOpenclawUpdate = true;
+
+		try {
+			const incomingNodes = snapshot.nodes as OpenclawCanvasSkillNode[];
+			const incomingConnections = snapshot.connections as OpenclawCanvasLink[];
+			const nodeIds = new Set(incomingNodes.map((node) => node.id));
+
+			const canvasNodes: CanvasNode[] = incomingNodes.map((node) => ({
+				id: node.id,
+				skillId: node.skillId,
+				skill: resolveOpenclawSkill(node),
+				position: node.position,
+				status: 'idle'
+			}));
+
+			const canvasConnections: Connection[] = incomingConnections
+				.filter((connection) => nodeIds.has(connection.sourceNodeId) && nodeIds.has(connection.targetNodeId))
+				.map((connection) => ({
+					id: connection.id,
+					sourceNodeId: connection.sourceNodeId,
+					sourcePortId: 'output',
+					targetNodeId: connection.targetNodeId,
+					targetPortId: 'input'
+				}));
+
+			ensurePipeline(snapshot.pipelineId, snapshot.pipelineName);
+			canvasState.update((state) => ({
+				...state,
+				nodes: canvasNodes,
+				connections: canvasConnections,
+				selectedNodeId: null,
+				selectedNodeIds: [],
+				selectedConnectionId: null
+			}));
+
+			saveCurrentPipeline({
+				nodes: canvasNodes,
+				connections: canvasConnections,
+				zoom: get(canvasState).zoom,
+				pan: get(canvasState).pan
+			});
+			lastSaved = new Date();
+			clearHistory();
+			await tick();
+			forceStoreSync();
+		} finally {
+			isApplyingOpenclawUpdate = false;
+		}
+	}
+
+	async function syncOpenclawCanvasState(): Promise<void> {
+		if (goalProcessing) return;
+
+		const query = lastOpenclawSyncAt ? `?since=${encodeURIComponent(lastOpenclawSyncAt)}` : '';
+		const response = await fetch(`/api/openclaw/canvas-state${query}`);
+		if (!response.ok) return;
+
+		const payload = (await response.json()) as {
+			hasUpdate?: boolean;
+			snapshot?: OpenclawCanvasSnapshot | null;
+		};
+
+		if (!payload?.hasUpdate || !payload.snapshot) return;
+		lastOpenclawSyncAt = payload.snapshot.updatedAt;
+		await applyOpenclawSnapshot(payload.snapshot);
+	}
+
 	onMount(() => {
 		// Reset all transient store state first (handles client-side navigation)
 		resetTransientState();
@@ -243,6 +349,7 @@ import { get } from 'svelte/store';
 		let pipelineAutoSaveInterval: ReturnType<typeof setInterval> | null = null;
 		let cleanupCanvasSync: (() => void) | null = null;
 		let stuckStateInterval: ReturnType<typeof setInterval> | null = null;
+		let openclawSyncInterval: ReturnType<typeof setInterval> | null = null;
 		let resizeObserver: ResizeObserver | null = null;
 
 		// Global mouseup handler to reset stuck states (catches mouseup outside canvas)
@@ -262,6 +369,8 @@ import { get } from 'svelte/store';
 
 		void (async () => {
 		try {
+			await loadSkills();
+			if (disposed) return;
 
 		// Auto-show execution panel if there's an active/resumable mission
 		const hasResumable = hasResumableMission();
@@ -346,6 +455,16 @@ import { get } from 'svelte/store';
 		// Initialize canvas sync for Claude Code integration
 		cleanupCanvasSync = initCanvasSync();
 
+		// Keep /canvas in sync with external OpenClaw command API updates
+		await syncOpenclawCanvasState().catch((error) => {
+			console.warn('[Canvas] Initial OpenClaw sync failed:', error);
+		});
+		openclawSyncInterval = setInterval(() => {
+			void syncOpenclawCanvasState().catch((error) => {
+				console.warn('[Canvas] OpenClaw sync poll failed:', error);
+			});
+		}, 1200);
+
 		window.addEventListener('mouseup', handleGlobalMouseUp);
 
 		// FIX 15: Safety valve - detect and reset stuck interaction states
@@ -417,6 +536,7 @@ import { get } from 'svelte/store';
 			disableAutoSave?.();
 			if (pipelineAutoSaveInterval) clearInterval(pipelineAutoSaveInterval);
 			if (stuckStateInterval) clearInterval(stuckStateInterval); // FIX 15: Clean up stuck state detector
+			if (openclawSyncInterval) clearInterval(openclawSyncInterval);
 			cleanupCanvasSync?.();
 			resizeObserver?.disconnect();
 			window.removeEventListener('mouseup', handleGlobalMouseUp);

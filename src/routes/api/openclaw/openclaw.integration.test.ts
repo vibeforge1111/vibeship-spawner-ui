@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { POST as startSession } from './session/start/+server';
 import { POST as command } from './command/+server';
 import { GET as events } from './events/+server';
+import { GET as canvasState } from './canvas-state/+server';
 import { POST as endSession } from './session/end/+server';
 import { openclawBridge } from '$lib/services/openclaw-bridge';
 import { getConnections } from '$lib/services/mcp/client';
@@ -215,6 +216,54 @@ describe('/api/openclaw integration', () => {
 		expect(firstChunk).toContain('"type":"connected"');
 		expect(firstChunk).toContain(sessionId);
 		abortController.abort();
+	});
+
+	it('returns latest canvas snapshot for browser polling', async () => {
+		const startResponse = await startSession({
+			request: new Request('http://localhost/api/openclaw/session/start', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ actor: 'canvas-sync-test' })
+			})
+		} as never);
+		const sessionId = (await startResponse.json()).session.id as string;
+
+		await command({
+			request: new Request('http://localhost/api/openclaw/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					sessionId,
+					command: 'canvas.create_pipeline',
+					params: {
+						pipelineId: 'pipe-live-sync',
+						name: 'Live Sync Pipeline'
+					}
+				})
+			})
+		} as never);
+
+		const response = await canvasState({
+			request: new Request('http://localhost/api/openclaw/canvas-state', {
+				method: 'GET'
+			}),
+			url: new URL('http://localhost/api/openclaw/canvas-state')
+		} as never);
+		expect(response.status).toBe(200);
+		const body = await response.json();
+		expect(body.hasUpdate).toBe(true);
+		expect(body.snapshot.pipelineId).toBe('pipe-live-sync');
+
+		const sinceResponse = await canvasState({
+			request: new Request(`http://localhost/api/openclaw/canvas-state?since=${encodeURIComponent(body.snapshot.updatedAt)}`, {
+				method: 'GET'
+			}),
+			url: new URL(`http://localhost/api/openclaw/canvas-state?since=${encodeURIComponent(body.snapshot.updatedAt)}`)
+		} as never);
+		expect(sinceResponse.status).toBe(200);
+		const sinceBody = await sinceResponse.json();
+		expect(sinceBody.hasUpdate).toBe(false);
+		expect(sinceBody.snapshot).toBeNull();
 	});
 
 	it('streams normalized worker lifecycle events (started/progress/completed)', async () => {
