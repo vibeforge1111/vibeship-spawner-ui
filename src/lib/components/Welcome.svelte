@@ -255,8 +255,8 @@
 								}
 							}, 2000);
 
-							// Auto-fallback to local smart analysis when bridge isn't active
-							setTimeout(() => settle(false), 12000);
+							// Give runtime bridge/codex auto-analysis enough time before local fallback
+							setTimeout(() => settle(false), 45000);
 						});
 
 						if (aiCompleted) {
@@ -265,7 +265,7 @@
 
 						waitingForClaude = false;
 						useAIMode = false;
-						toasts.info('Claude bridge not responding. Continuing automatically with local smart analysis.');
+						toasts.info('Runtime analysis did not respond in time. Continuing automatically with local smart analysis.');
 
 					} catch (err) {
 						console.error('[PRD-AI] Setup failed:', err);
