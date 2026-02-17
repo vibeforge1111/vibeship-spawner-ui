@@ -1,5 +1,12 @@
 <script lang="ts">
-	import { missionExecutor, type ExecutionProgress, type ExecutionStatus, type LoadedSkillInfo } from '$lib/services/mission-executor';
+	import {
+		missionExecutor,
+		type AgentRuntimeStatus,
+		type ExecutionProgress,
+		type ExecutionStatus,
+		type LoadedSkillInfo,
+		type TaskTransitionEvent
+	} from '$lib/services/mission-executor';
 	import type { MissionLog, Mission } from '$lib/services/mcp-client';
 	import { nodes, connections, updateNodeStatus, resetAllNodeStatus, addConnection } from '$lib/stores/canvas.svelte';
 	import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
@@ -27,9 +34,10 @@
 		onClose: () => void;
 		minimized?: boolean;
 		onToggleMinimize?: () => void;
+		autoRunToken?: number;
 	}
 
-	let { onClose, minimized = false, onToggleMinimize }: Props = $props();
+	let { onClose, minimized = false, onToggleMinimize, autoRunToken }: Props = $props();
 
 	let currentNodes = $state<CanvasNode[]>([]);
 	let currentConnections = $state<Connection[]>([]);
@@ -133,6 +141,7 @@
 
 	// Guard to ensure mount-only effects run once
 	let hasCheckedResumable = $state(false);
+	let lastHandledAutoRunToken = $state<number | null>(null);
 
 	// Derived states
 	let isRunning = $derived(executionProgress?.status === 'running' || executionProgress?.status === 'creating');
@@ -142,6 +151,16 @@
 	let canCancel = $derived(isRunning || isPaused);
 	// Note: MCP not required anymore - we build missions locally and generate copy-pasteable prompts
 	let canRun = $derived(!isRunning && !isPaused && currentNodes.length > 0);
+	let runtimeAgents = $derived.by(() => {
+		if (!executionProgress?.agentRuntime) return [] as AgentRuntimeStatus[];
+		return Array.from(executionProgress.agentRuntime.values()).sort((a, b) =>
+			Date.parse(b.updatedAt) - Date.parse(a.updatedAt)
+		);
+	});
+	let recentTaskTransitions = $derived.by(() => {
+		if (!executionProgress?.taskTransitions) return [] as TaskTransitionEvent[];
+		return executionProgress.taskTransitions.slice(-12).reverse();
+	});
 
 	function applyMultiLLMOptions(options?: MultiLLMOrchestratorOptions) {
 		const defaults = createDefaultMultiLLMOptions();
@@ -590,6 +609,14 @@
 		executeWorkflow();
 	}
 
+	$effect(() => {
+		if (!autoRunToken) return;
+		if (autoRunToken === lastHandledAutoRunToken) return;
+		if (isRunning || isPaused || currentNodes.length === 0) return;
+		lastHandledAutoRunToken = autoRunToken;
+		runWorkflow();
+	});
+
 	/**
 	 * Log progress to Mind and track activity for UI
 	 * Supports all Mind activity types: progress, decision, learning, issue, session, improvement, pattern
@@ -674,6 +701,7 @@
 			},
 			onLog: (log) => {
 				logs = [...logs, log];
+				executionProgress = missionExecutor.getProgress();
 			},
 			onTaskStart: (taskId, taskName) => {
 				// Reset task progress for new task
@@ -867,6 +895,40 @@
 				return 'text-gray-400';
 			default:
 				return 'text-text-secondary';
+		}
+	}
+
+	function getAgentStatusColor(status: AgentRuntimeStatus['status']): string {
+		switch (status) {
+			case 'running':
+				return 'text-vibe-teal border-vibe-teal/40 bg-vibe-teal/10';
+			case 'completed':
+				return 'text-green-400 border-green-500/30 bg-green-500/10';
+			case 'failed':
+				return 'text-red-400 border-red-500/30 bg-red-500/10';
+			case 'cancelled':
+				return 'text-amber-400 border-amber-500/30 bg-amber-500/10';
+			default:
+				return 'text-text-tertiary border-surface-border bg-bg-tertiary';
+		}
+	}
+
+	function getTransitionBadge(state: TaskTransitionEvent['state']): string {
+		switch (state) {
+			case 'started':
+				return 'bg-blue-500/20 text-blue-300';
+			case 'progress':
+				return 'bg-vibe-teal/20 text-vibe-teal';
+			case 'completed':
+				return 'bg-green-500/20 text-green-300';
+			case 'failed':
+				return 'bg-red-500/20 text-red-300';
+			case 'cancelled':
+				return 'bg-amber-500/20 text-amber-300';
+			case 'handoff':
+				return 'bg-purple-500/20 text-purple-300';
+			default:
+				return 'bg-surface text-text-secondary';
 		}
 	}
 
@@ -1075,6 +1137,59 @@
 						{#if currentTaskMessage}
 							<p class="mt-2 text-xs text-text-tertiary italic">{currentTaskMessage}</p>
 						{/if}
+					</div>
+				{/if}
+
+				{#if runtimeAgents.length > 0}
+					<div class="mt-3 border border-surface-border">
+						<div class="px-3 py-2 bg-bg-tertiary border-b border-surface-border text-xs font-mono text-text-tertiary uppercase tracking-wider">
+							Live Agent Activity
+						</div>
+						<div class="divide-y divide-surface-border bg-bg-primary">
+							{#each runtimeAgents as agent}
+								<div class="px-3 py-2 text-xs">
+									<div class="flex items-center justify-between gap-2">
+										<div class="font-mono text-text-primary">{agent.label}</div>
+										<span class="px-1.5 py-0.5 border font-mono uppercase text-[10px] {getAgentStatusColor(agent.status)}">{agent.status}</span>
+									</div>
+									<div class="mt-1 text-text-secondary">
+										{agent.currentTaskName || 'Waiting for task'}
+									</div>
+									<div class="mt-1 h-1 bg-surface overflow-hidden">
+										<div class="h-full bg-vibe-teal transition-all duration-200" style="width: {Math.max(0, Math.min(100, agent.progress || 0))}%"></div>
+									</div>
+									{#if agent.message}
+										<div class="mt-1 text-[11px] text-text-tertiary italic">{agent.message}</div>
+									{/if}
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				{#if recentTaskTransitions.length > 0}
+					<div class="mt-3 border border-surface-border bg-bg-primary">
+						<div class="px-3 py-2 bg-bg-tertiary border-b border-surface-border flex items-center justify-between">
+							<span class="text-xs font-mono text-text-tertiary uppercase tracking-wider">Task Event Stream</span>
+							<span class="text-[10px] text-text-tertiary">latest {recentTaskTransitions.length}</span>
+						</div>
+						<div class="max-h-40 overflow-y-auto divide-y divide-surface-border">
+							{#each recentTaskTransitions as transition}
+								<div class="px-3 py-2 text-xs">
+									<div class="flex items-center gap-2">
+										<span class="text-[10px] text-text-tertiary font-mono w-14">{formatTime(transition.timestamp)}</span>
+										<span class="px-1.5 py-0.5 text-[10px] font-mono uppercase {getTransitionBadge(transition.state)}">{transition.state}</span>
+										{#if transition.agentLabel}
+											<span class="text-[10px] text-vibe-teal font-mono">{transition.agentLabel}</span>
+										{/if}
+										{#if typeof transition.progress === 'number'}
+											<span class="text-[10px] text-text-tertiary font-mono">{transition.progress}%</span>
+										{/if}
+									</div>
+									<div class="mt-1 text-text-secondary">{transition.message}</div>
+								</div>
+							{/each}
+						</div>
 					</div>
 				{/if}
 

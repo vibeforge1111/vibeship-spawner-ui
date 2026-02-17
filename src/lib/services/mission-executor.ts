@@ -61,6 +61,29 @@ export interface LoadedSkillInfo {
 	taskIds: string[];  // Which tasks use this skill
 }
 
+export interface AgentRuntimeStatus {
+	agentId: string;
+	label: string;
+	status: 'idle' | 'running' | 'completed' | 'failed' | 'cancelled';
+	currentTaskId?: string;
+	currentTaskName?: string;
+	progress: number;
+	message?: string;
+	updatedAt: string;
+}
+
+export interface TaskTransitionEvent {
+	id: string;
+	timestamp: string;
+	state: 'started' | 'progress' | 'completed' | 'failed' | 'cancelled' | 'handoff' | 'info';
+	taskId?: string;
+	taskName?: string;
+	agentId?: string;
+	agentLabel?: string;
+	message: string;
+	progress?: number;
+}
+
 export interface ExecutionProgress {
 	status: ExecutionStatus;
 	missionId: string | null;
@@ -81,6 +104,9 @@ export interface ExecutionProgress {
 	// H70 Skills
 	loadedSkills: LoadedSkillInfo[];  // Skills loaded for this mission
 	taskSkillMap: Map<string, string[]>;  // taskId -> skillIds
+	// Live runtime visibility
+	agentRuntime: Map<string, AgentRuntimeStatus>;  // provider/agent runtime statuses
+	taskTransitions: TaskTransitionEvent[];  // chronological task/event transitions
 }
 
 export interface ExecutionRunOptions extends MissionBuildOptions {
@@ -214,6 +240,9 @@ class MissionExecutor {
 		// H70 Skills
 		this.progress.loadedSkills = saved.loadedSkills || [];
 		this.progress.taskSkillMap = new Map(Object.entries(saved.taskSkillMap || {}));
+		// Live runtime visibility (not persisted currently)
+		this.progress.agentRuntime = new Map();
+		this.progress.taskTransitions = [];
 	}
 
 	/**
@@ -493,6 +522,53 @@ class MissionExecutor {
 		});
 	}
 
+	private appendTaskTransition(event: Omit<TaskTransitionEvent, 'id' | 'timestamp'>): void {
+		const transition: TaskTransitionEvent = {
+			id: `transition-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+			timestamp: new Date().toISOString(),
+			...event
+		};
+		this.progress.taskTransitions = [...this.progress.taskTransitions, transition].slice(-120);
+	}
+
+	private resolveAgentFromBridgeEvent(event: BridgeEvent): { agentId: string; agentLabel: string } | null {
+		const providerId = event.data?.providerId as string | undefined;
+		const explicitSource = event.source && event.source !== 'spawner-ui' ? event.source : undefined;
+		const agentId = providerId || explicitSource;
+		if (!agentId || agentId === 'claude-code' || agentId === 'openclaw') {
+			return null;
+		}
+		const agentLabel = agentId === 'codex'
+			? 'Codex'
+			: agentId === 'claude'
+				? 'Claude'
+				: agentId;
+		return { agentId, agentLabel };
+	}
+
+	private updateAgentRuntime(
+		agentId: string,
+		agentLabel: string,
+		partial: Partial<AgentRuntimeStatus>
+	): void {
+		const existing = this.progress.agentRuntime.get(agentId);
+		this.progress.agentRuntime.set(agentId, {
+			agentId,
+			label: agentLabel,
+			status: partial.status || existing?.status || 'idle',
+			currentTaskId: partial.currentTaskId ?? existing?.currentTaskId,
+			currentTaskName: partial.currentTaskName ?? existing?.currentTaskName,
+			progress:
+				typeof partial.progress === 'number'
+					? partial.progress
+					: typeof existing?.progress === 'number'
+						? existing.progress
+						: 0,
+			message: partial.message ?? existing?.message,
+			updatedAt: partial.updatedAt || new Date().toISOString()
+		});
+	}
+
 	/**
 	 * Setup Event Bridge subscription for real-time updates from Claude Code
 	 * This is the primary mechanism for receiving events via HTTP POST
@@ -508,6 +584,7 @@ class MissionExecutor {
 			if (event.source === 'spawner-ui') return;
 
 			log.debug('Received event bridge event:', event.type, event);
+			const runtimeAgent = this.resolveAgentFromBridgeEvent(event);
 
 			switch (event.type) {
 				case 'task_started':
@@ -543,6 +620,24 @@ class MissionExecutor {
 
 						this.callbacks.onTaskStart?.(taskId, taskName || taskId);
 						this.addLocalLog('info', `Started: ${taskName || taskId}`);
+						if (runtimeAgent) {
+							this.updateAgentRuntime(runtimeAgent.agentId, runtimeAgent.agentLabel, {
+								status: 'running',
+								currentTaskId: taskId,
+								currentTaskName: taskName || taskId,
+								progress: 0,
+								message: event.message || `Started ${taskName || taskId}`
+							});
+						}
+						this.appendTaskTransition({
+							state: 'started',
+							taskId,
+							taskName: taskName || taskId,
+							agentId: runtimeAgent?.agentId,
+							agentLabel: runtimeAgent?.agentLabel,
+							message: event.message || `Started ${taskName || taskId}`,
+							progress: 0
+						});
 
 						// Persist the updated state
 						this.persistState();
@@ -557,8 +652,28 @@ class MissionExecutor {
 					const progressMessage = event.message || event.data?.message as string;
 					if (progressTaskId) {
 						this.handleTaskProgress(progressTaskId, progressValue, progressMessage);
+						if (runtimeAgent) {
+							this.updateAgentRuntime(runtimeAgent.agentId, runtimeAgent.agentLabel, {
+								status: 'running',
+								currentTaskId: progressTaskId,
+								currentTaskName: this.progress.currentTaskName || progressTaskId,
+								progress: progressValue,
+								message: progressMessage
+							});
+						}
 						if (progressMessage) {
 							this.addLocalLog('info', progressMessage);
+						}
+						if (progressMessage || progressValue % 25 === 0) {
+							this.appendTaskTransition({
+								state: 'progress',
+								taskId: progressTaskId,
+								taskName: this.progress.currentTaskName || progressTaskId,
+								agentId: runtimeAgent?.agentId,
+								agentLabel: runtimeAgent?.agentLabel,
+								message: progressMessage || `Progress ${progressValue}%`,
+								progress: progressValue
+							});
 						}
 					}
 					break;
@@ -590,10 +705,34 @@ class MissionExecutor {
 						this.recalculateOverallProgress();
 						this.callbacks.onTaskComplete?.(completedTaskId, success);
 						this.recordTaskComplete(completedTaskId, success);
+						const terminalState = success ? 'completed' : event.type === 'task_cancelled' ? 'cancelled' : 'failed';
 						this.addLocalLog(
 							'info',
 							`${success ? 'Completed' : event.type === 'task_cancelled' ? 'Cancelled' : 'Failed'}: ${completedTaskName}`
 						);
+						if (runtimeAgent) {
+							this.updateAgentRuntime(runtimeAgent.agentId, runtimeAgent.agentLabel, {
+								status: terminalState,
+								currentTaskId: completedTaskId,
+								currentTaskName: completedTaskName,
+								progress: 100,
+								message:
+									terminalState === 'completed'
+										? 'Task completed'
+										: terminalState === 'cancelled'
+											? 'Task cancelled'
+											: 'Task failed'
+							});
+						}
+						this.appendTaskTransition({
+							state: terminalState,
+							taskId: completedTaskId,
+							taskName: completedTaskName,
+							agentId: runtimeAgent?.agentId,
+							agentLabel: runtimeAgent?.agentLabel,
+							message: `${terminalState === 'completed' ? 'Completed' : terminalState === 'cancelled' ? 'Cancelled' : 'Failed'} ${completedTaskName}`,
+							progress: 100
+						});
 						this.persistState();
 					}
 					break;
@@ -604,6 +743,12 @@ class MissionExecutor {
 					const from = event.data?.from as string || 'previous task';
 					const to = event.data?.to as string || 'next task';
 					this.addLocalLog('info', `Handoff: ${from} → ${to}`);
+					this.appendTaskTransition({
+						state: 'handoff',
+						agentId: runtimeAgent?.agentId,
+						agentLabel: runtimeAgent?.agentLabel,
+						message: `Handoff: ${from} → ${to}`
+					});
 					break;
 
 				case 'skill_loaded':
@@ -642,6 +787,11 @@ class MissionExecutor {
 						this.callbacks.onComplete?.(this.progress.mission);
 						this.recordMissionComplete(this.progress.mission);
 					}
+					for (const [agentId, agent] of this.progress.agentRuntime.entries()) {
+						if (agent.status === 'running') {
+							this.progress.agentRuntime.set(agentId, { ...agent, status: 'completed', progress: 100, updatedAt: new Date().toISOString() });
+						}
+					}
 					this.addLocalLog('info', 'Mission completed successfully');
 					this.persistState();  // Persist completed state
 					break;
@@ -654,6 +804,11 @@ class MissionExecutor {
 					this.progress.endTime = new Date();
 					this.callbacks.onStatusChange?.('failed');
 					this.callbacks.onError?.(errorMsg);
+					for (const [agentId, agent] of this.progress.agentRuntime.entries()) {
+						if (agent.status === 'running') {
+							this.progress.agentRuntime.set(agentId, { ...agent, status: 'failed', updatedAt: new Date().toISOString() });
+						}
+					}
 					this.addLocalLog('info', `Error: ${errorMsg}`);
 					this.persistState();  // Persist failed state
 					break;
@@ -677,6 +832,34 @@ class MissionExecutor {
 						(event.message as string) ||
 						'Feedback received';
 					this.addLocalLog('info', `[${feedbackProvider}] ${feedbackSummary}`);
+					if (runtimeAgent) {
+						this.updateAgentRuntime(runtimeAgent.agentId, runtimeAgent.agentLabel, {
+							status: 'running',
+							message: feedbackSummary
+						});
+					}
+					this.appendTaskTransition({
+						state: 'info',
+						agentId: runtimeAgent?.agentId,
+						agentLabel: runtimeAgent?.agentLabel,
+						message: `[${feedbackProvider}] ${feedbackSummary}`
+					});
+					break;
+
+				case 'dispatch_started':
+					if (Array.isArray(event.data?.providers)) {
+						for (const provider of event.data.providers as string[]) {
+							this.updateAgentRuntime(provider, provider.toUpperCase(), {
+								status: 'running',
+								progress: 0,
+								message: 'Dispatched'
+							});
+						}
+					}
+					this.appendTaskTransition({
+						state: 'info',
+						message: event.message || 'Dispatch started'
+					});
 					break;
 
 				default:
@@ -804,7 +987,9 @@ class MissionExecutor {
 			endTime: null,
 			error: null,
 			loadedSkills: [],
-			taskSkillMap: new Map()
+			taskSkillMap: new Map(),
+			agentRuntime: new Map(),
+			taskTransitions: []
 		};
 	}
 

@@ -37,6 +37,7 @@ import { get } from 'svelte/store';
 	let showValidation = $state(false);
 	let showExecution = $state(false);
 	let executionMinimized = $state(false);
+	let executionAutoRunToken = $state<number | null>(null);
 	let showNodeDetails = $state(false);
 	let showMissionExport = $state(false);
 	let missionName = $state('');
@@ -1237,7 +1238,15 @@ import { get } from 'svelte/store';
 					>
 						Export
 					</button>
-					<button onclick={() => (showExecution = true)} class="px-2.5 py-1 text-xs font-mono bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all disabled:opacity-50" disabled={currentNodes.length === 0}>
+					<button
+						onclick={() => {
+							executionAutoRunToken = Date.now();
+							showExecution = true;
+							executionMinimized = false;
+						}}
+						class="px-2.5 py-1 text-xs font-mono bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all disabled:opacity-50"
+						disabled={currentNodes.length === 0}
+					>
 						Run
 					</button>
 				</div>
@@ -1508,6 +1517,7 @@ import { get } from 'svelte/store';
 		onClose={() => (showExecution = false)}
 		minimized={executionMinimized}
 		onToggleMinimize={() => (executionMinimized = !executionMinimized)}
+		autoRunToken={executionAutoRunToken || undefined}
 	/>
 {/if}
 
