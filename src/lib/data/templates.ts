@@ -102,6 +102,34 @@ export const workflowTemplates: WorkflowTemplate[] = [
 			{ sourceIndex: 1, targetIndex: 3 }
 		],
 		suggestedFor: ['ai-app']
+	},
+	{
+		id: 'adventure-joy',
+		name: 'Adventure / Joy Pipeline',
+		description: 'Parallel discovery, build, and quality lanes with an orchestration spine.',
+		category: 'tool',
+		icon: 'git-branch',
+		nodes: [
+			{ skillId: 'llm-architect', offsetX: 0, offsetY: 140 },
+			{ skillId: 'ai-agents-architect', offsetX: 260, offsetY: 140 },
+			{ skillId: 'prompt-engineer', offsetX: 260, offsetY: 0 },
+			{ skillId: 'backend', offsetX: 520, offsetY: 0 },
+			{ skillId: 'frontend', offsetX: 520, offsetY: 280 },
+			{ skillId: 'langfuse', offsetX: 780, offsetY: 140 },
+			{ skillId: 'test-architect', offsetX: 1040, offsetY: 140 },
+			{ skillId: 'vercel-deployment', offsetX: 1300, offsetY: 140 }
+		],
+		connections: [
+			{ sourceIndex: 0, targetIndex: 1 },
+			{ sourceIndex: 0, targetIndex: 2 },
+			{ sourceIndex: 2, targetIndex: 3 },
+			{ sourceIndex: 1, targetIndex: 4 },
+			{ sourceIndex: 3, targetIndex: 5 },
+			{ sourceIndex: 4, targetIndex: 5 },
+			{ sourceIndex: 5, targetIndex: 6 },
+			{ sourceIndex: 6, targetIndex: 7 }
+		],
+		suggestedFor: ['tool', 'ai-app', 'saas']
 	}
 ];
 

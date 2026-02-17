@@ -27,6 +27,8 @@
 
 	let isDragging = $state(false);
 	let dragOffset = $state({ x: 0, y: 0 });
+	let previousStatus = $state<'idle' | 'running' | 'success' | 'error'>('idle');
+	let statusTransitionPulse = $state(false);
 
 	// FIX: Helper to get current zoom/pan from store (avoids stale closure values)
 	function getCurrentTransform() {
@@ -42,6 +44,21 @@
 			window.removeEventListener('mouseup', handleMouseUp);
 			window.removeEventListener('mousemove', handleConnectionDragMove);
 			window.removeEventListener('mouseup', handleConnectionDragEnd);
+		};
+	});
+
+	$effect(() => {
+		const currentStatus = node.status || 'idle';
+		let timeout: ReturnType<typeof setTimeout> | null = null;
+		if (currentStatus !== previousStatus) {
+			statusTransitionPulse = true;
+			timeout = setTimeout(() => {
+				statusTransitionPulse = false;
+			}, 420);
+			previousStatus = currentStatus;
+		}
+		return () => {
+			if (timeout) clearTimeout(timeout);
 		};
 	});
 
@@ -212,6 +229,7 @@
 	class:running={node.status === 'running'}
 	class:success={node.status === 'success'}
 	class:error={node.status === 'error'}
+	class:status-transition={statusTransitionPulse}
 	style="left: {node.position.x}px; top: {node.position.y}px; pointer-events: auto !important;"
 	onmousedown={handleMouseDown}
 	ondblclick={() => onOpenDetails?.()}
@@ -290,6 +308,10 @@
 
 	.draggable-node.selected {
 		z-index: 50;
+	}
+
+	.draggable-node.status-transition {
+		animation: statusTransitionPop 0.4s ease-out;
 	}
 
 	.delete-btn {
@@ -402,6 +424,18 @@
 	}
 
 	/* ====== ANIMATIONS ====== */
+	@keyframes statusTransitionPop {
+		0% {
+			transform: scale(0.98);
+		}
+		55% {
+			transform: scale(1.015);
+		}
+		100% {
+			transform: scale(1);
+		}
+	}
+
 	@keyframes ringPulse {
 		0%, 100% {
 			opacity: 1;

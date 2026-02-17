@@ -29,6 +29,7 @@ import { get } from 'svelte/store';
 	import { DroppedSkillSchema, safeJsonParse } from '$lib/types/schemas';
 	import { getPendingLoad } from '$lib/services/pipeline-loader';
 	import { loadSkills, skills as skillsStore } from '$lib/stores/skills.svelte';
+	import { workflowTemplates } from '$lib/data/templates';
 	import type { OpenclawCanvasSnapshot } from '$lib/services/openclaw-bridge';
 
 	let activeTab = $state('skills');
@@ -738,6 +739,32 @@ import { get } from 'svelte/store';
 		showLayoutMenu = false;
 	}
 
+	function addAdventureJoyPreset() {
+		const template = workflowTemplates.find((entry) => entry.id === 'adventure-joy');
+		if (!template) return;
+
+		const state = get(canvasState);
+		const baseX = 120 - state.pan.x / state.zoom;
+		const baseY = 120 - state.pan.y / state.zoom;
+
+		const nodeDefs: { skill: Skill; position: { x: number; y: number } }[] = [];
+		for (const templateNode of template.nodes) {
+			const skill = getSkillById(templateNode.skillId);
+			if (!skill) continue;
+			nodeDefs.push({
+				skill,
+				position: snapPosition(baseX + templateNode.offsetX, baseY + templateNode.offsetY)
+			});
+		}
+
+		if (nodeDefs.length === 0) return;
+		addNodesWithConnections(nodeDefs, template.connections);
+		if (canvasEl) {
+			const rect = canvasEl.getBoundingClientRect();
+			frameSelected(rect.width, rect.height);
+		}
+	}
+
 	// Export/Import
 	let fileInputEl: HTMLInputElement;
 
@@ -1325,6 +1352,17 @@ import { get } from 'svelte/store';
 
 				<div class="flex-1"></div>
 
+				<button
+					class="toolbar-btn-sm text-amber-300 hover:text-amber-200 hover:bg-amber-500/10"
+					onclick={addAdventureJoyPreset}
+					title="Quick add: Adventure / Joy pipeline"
+				>
+					<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3l2.6 5.27L20 9l-4 3.9.94 5.47L12 15.9l-4.94 2.47L8 12.9 4 9l5.4-.73L12 3z"/>
+					</svg>
+					<span>Adventure/Joy</span>
+				</button>
+
 				<!-- Danger zone (hidden in menu) -->
 				<button
 					class="toolbar-btn-sm text-red-400 hover:text-red-300 hover:bg-red-500/10"
@@ -1343,7 +1381,7 @@ import { get } from 'svelte/store';
 		<div bind:this={canvasEl} class="canvas-area flex-1 relative overflow-hidden bg-bg-primary" class:panning={isPanning} class:cutting={isCutting} class:selecting={isSelecting} ondrop={handleDrop} ondragover={handleDragOver} onclick={handleCanvasClick} oncontextmenu={handleCanvasContextMenu} onmousedown={handleMouseDown} onmousemove={handleMouseMove} onmouseup={handleMouseUp} onmouseleave={handleMouseUp} role="application">
 			<div class="absolute inset-0 opacity-20 pointer-events-none" style="background-image: radial-gradient(circle, #2a2a38 1px, transparent 1px); background-size: {24 * zoom}px {24 * zoom}px; background-position: {pan.x}px {pan.y}px;"></div>
 			<div class="absolute pointer-events-none" style="transform: translate({pan.x}px, {pan.y}px);"><div class="pointer-events-none" style="transform: scale({zoom}); transform-origin: 0 0;">
-				<svg class="absolute inset-0 pointer-events-none overflow-visible" style="z-index: 1;"><defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#00C49A" /></marker></defs>{#each currentConnections as connection}<ConnectionLine {connection} nodes={currentNodes} selected={currentSelectedConnectionId === connection.id} />{/each}{#if currentDraggingConnection}<path d={getTempConnectionPath(currentDraggingConnection)} fill="none" stroke="#00C49A" stroke-width="2" stroke-dasharray="4 4" class="temp-connection" />{/if}{#if currentCuttingLine}<line x1={currentCuttingLine.startX} y1={currentCuttingLine.startY} x2={currentCuttingLine.currentX} y2={currentCuttingLine.currentY} stroke="#ef4444" stroke-width="2" stroke-dasharray="6 3" class="cutting-line" /><circle cx={currentCuttingLine.startX} cy={currentCuttingLine.startY} r="4" fill="#ef4444" /><circle cx={currentCuttingLine.currentX} cy={currentCuttingLine.currentY} r="4" fill="#ef4444" />{/if}{#if currentSelectionBox}{@const x = Math.min(currentSelectionBox.startX, currentSelectionBox.currentX)}{@const y = Math.min(currentSelectionBox.startY, currentSelectionBox.currentY)}{@const w = Math.abs(currentSelectionBox.currentX - currentSelectionBox.startX)}{@const h = Math.abs(currentSelectionBox.currentY - currentSelectionBox.startY)}<rect {x} {y} width={w} height={h} fill="rgba(0, 196, 154, 0.1)" stroke="#00C49A" stroke-width="1" stroke-dasharray="4 2" class="selection-box" />{/if}</svg>
+				<svg class="absolute inset-0 pointer-events-none overflow-visible" style="z-index: 1;"><defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#00C49A" /></marker></defs>{#each currentConnections as connection}{@const sourceNode = currentNodes.find((node) => node.id === connection.sourceNodeId)}{@const targetNode = currentNodes.find((node) => node.id === connection.targetNodeId)}<ConnectionLine {connection} nodes={currentNodes} selected={currentSelectedConnectionId === connection.id} isActive={sourceNode?.status === 'running' || targetNode?.status === 'running'} isCompleted={sourceNode?.status === 'success' && targetNode?.status === 'success'} hasError={sourceNode?.status === 'error' || targetNode?.status === 'error'} />{/each}{#if currentDraggingConnection}<path d={getTempConnectionPath(currentDraggingConnection)} fill="none" stroke="#00C49A" stroke-width="2" stroke-dasharray="4 4" class="temp-connection" />{/if}{#if currentCuttingLine}<line x1={currentCuttingLine.startX} y1={currentCuttingLine.startY} x2={currentCuttingLine.currentX} y2={currentCuttingLine.currentY} stroke="#ef4444" stroke-width="2" stroke-dasharray="6 3" class="cutting-line" /><circle cx={currentCuttingLine.startX} cy={currentCuttingLine.startY} r="4" fill="#ef4444" /><circle cx={currentCuttingLine.currentX} cy={currentCuttingLine.currentY} r="4" fill="#ef4444" />{/if}{#if currentSelectionBox}{@const x = Math.min(currentSelectionBox.startX, currentSelectionBox.currentX)}{@const y = Math.min(currentSelectionBox.startY, currentSelectionBox.currentY)}{@const w = Math.abs(currentSelectionBox.currentX - currentSelectionBox.startX)}{@const h = Math.abs(currentSelectionBox.currentY - currentSelectionBox.startY)}<rect {x} {y} width={w} height={h} fill="rgba(0, 196, 154, 0.1)" stroke="#00C49A" stroke-width="1" stroke-dasharray="4 2" class="selection-box" />{/if}</svg>
 				{#each currentNodes as node (node.id)}<DraggableNode {node} selected={currentSelectedNodeIds.includes(node.id)} {zoom} {pan} onOpenDetails={() => (showNodeDetails = true)} onContextMenu={(e) => handleNodeContextMenu(node.id, e)} onHandoffClick={handleHandoffClick} />{/each}
 			</div></div>
 			{#if currentNodes.length === 0}<div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="text-center"><h3 class="text-lg font-medium text-text-primary mb-2">No skills on canvas</h3><p class="text-sm text-text-secondary">Drag skills from the sidebar</p></div></div>{/if}

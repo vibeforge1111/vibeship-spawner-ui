@@ -8,12 +8,18 @@
 		connection,
 		nodes,
 		selected = false,
+		isActive = false,
+		isCompleted = false,
+		hasError = false,
 		nodeWidth = 192,
 		nodeHeight = 48
 	}: {
 		connection: Connection;
 		nodes: CanvasNode[];
 		selected?: boolean;
+		isActive?: boolean;
+		isCompleted?: boolean;
+		hasError?: boolean;
 		nodeWidth?: number;
 		nodeHeight?: number;
 	} = $props();
@@ -58,8 +64,16 @@
 		return port?.type || 'any';
 	});
 
-	// Get connection color based on source port type
+	// Get base connection color based on source port type
 	const connectionColor = $derived(getPortColor(sourcePortType()));
+
+	const visualColor = $derived(() => {
+		if (hasError) return '#ff6b6b';
+		if (isActive) return '#00d4aa';
+		if (isCompleted) return '#34d399';
+		if (selected) return '#ffffff';
+		return connectionColor;
+	});
 
 	// Get node heights based on port count
 	const getNodeHeight = (node: CanvasNode) => {
@@ -114,32 +128,50 @@
 			' C ' + midX + ' ' + startY + ', ' + midX + ' ' + endY + ', ' + endX + ' ' + endY;
 	});
 
-	// Connection style based on port type
+	// Connection style based on port type + execution state
 	const connectionStyle = $derived(() => {
 		const type = sourcePortType();
+		let dasharray = '8 4';
+		let width = 2;
+
 		switch (type) {
 			case 'skill':
-				return { dasharray: '4 4', width: 3 };
+				dasharray = '4 4';
+				width = 3;
+				break;
 			case 'text':
-				return { dasharray: '8 4', width: 2 };
+				dasharray = '8 4';
+				break;
 			case 'object':
-				return { dasharray: 'none', width: 2 };
+				dasharray = 'none';
+				break;
 			case 'array':
-				return { dasharray: '2 2', width: 2 };
+				dasharray = '2 2';
+				break;
 			case 'number':
-				return { dasharray: '12 4', width: 2 };
+				dasharray = '12 4';
+				break;
 			case 'boolean':
-				return { dasharray: '6 2 2 2', width: 2 };
-			default:
-				return { dasharray: '8 4', width: 2 };
+				dasharray = '6 2 2 2';
+				break;
 		}
+
+		if (isActive) {
+			dasharray = '10 6';
+			width += 1;
+		}
+		if (isCompleted) {
+			dasharray = 'none';
+		}
+
+		return { dasharray, width };
 	});
 </script>
 
 {#if sourceNode && targetNode}
 	{@const style = connectionStyle()}
-	{@const color = selected ? '#fff' : connectionColor}
-	<g class="connection-group" class:selected onclick={handleClick} onkeydown={handleConnectionKeydown} role="button" tabindex="0">
+	{@const color = visualColor()}
+	<g class="connection-group" class:selected class:active={isActive} class:completed={isCompleted} class:error={hasError} onclick={handleClick} onkeydown={handleConnectionKeydown} role="button" tabindex="0">
 		<!-- Invisible wider hit area for easier clicking -->
 		<path
 			d={pathD()}
@@ -179,6 +211,11 @@
 			class="connection-line"
 			class:animated={style.dasharray !== 'none'}
 		/>
+		{#if isActive}
+			<circle r="3" fill={color} class="connection-traveler">
+				<animateMotion dur="1.2s" repeatCount="indefinite" path={pathD()} rotate="auto" />
+			</circle>
+		{/if}
 		<!-- Arrow marker at end -->
 		<circle
 			cx={targetNode.position.x - PORT_OFFSET}
@@ -216,7 +253,23 @@
 
 	.connection-line {
 		filter: drop-shadow(0 0 2px currentColor);
-		transition: stroke-width 0.15s;
+		transition: stroke-width 0.15s, stroke 0.15s, opacity 0.15s;
+	}
+
+	.connection-group.active .connection-line {
+		filter: drop-shadow(0 0 6px currentColor);
+	}
+
+	.connection-group.completed .connection-line {
+		opacity: 0.9;
+	}
+
+	.connection-group.error .connection-line {
+		opacity: 0.95;
+	}
+
+	.connection-traveler {
+		filter: drop-shadow(0 0 6px currentColor);
 	}
 
 	.connection-line.animated {

@@ -259,6 +259,28 @@
 		);
 	}
 
+	function hasProviderApiKey(providerId: string): boolean {
+		return Boolean((multiLLMApiKeys[providerId] || '').trim());
+	}
+
+	function hasDualProviderKeys(): boolean {
+		return hasProviderApiKey('claude') && hasProviderApiKey('codex');
+	}
+
+	function prepareDualProviderRunIfReady() {
+		if (!hasDualProviderKeys()) return;
+
+		multiLLMEnabled = true;
+		multiLLMStrategy = 'parallel_consensus';
+		multiLLMAutoDispatch = true;
+		multiLLMPrimaryProviderId = 'claude';
+		multiLLMProviders = multiLLMProviders.map((provider) =>
+			provider.id === 'claude' || provider.id === 'codex'
+				? { ...provider, enabled: true }
+				: provider
+		);
+	}
+
 	function copyToClipboard(text: string, successMessage: string) {
 		navigator.clipboard.writeText(text);
 		toasts.success(successMessage);
@@ -659,6 +681,7 @@
 	async function executeWorkflow() {
 		logs = [];
 		resetAllNodeStatus();
+		prepareDualProviderRunIfReady();
 
 		// Reset review state
 		showReview = false;
@@ -1774,6 +1797,12 @@
 									Enable
 								</label>
 							</div>
+
+							{#if hasDualProviderKeys()}
+								<div class="mt-2 p-2 border border-vibe-teal/30 bg-vibe-teal/10 text-xs text-vibe-teal font-mono">
+									Run flow will auto-launch Codex + Claude in parallel consensus mode.
+								</div>
+							{/if}
 
 							{#if multiLLMEnabled}
 								<div class="mt-3 grid grid-cols-1 gap-2">
