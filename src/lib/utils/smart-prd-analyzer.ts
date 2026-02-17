@@ -1045,6 +1045,7 @@ ${taskList}
 4. **Report blockers** immediately if truly blocked, otherwise keep executing
 
 ### Per-task Definition of Done (mandatory):
+- Load any listed H70 skills for the task before implementation
 - Implement the task deliverable in code
 - Verify acceptance criteria for the task
 - Run relevant checks/tests for that task

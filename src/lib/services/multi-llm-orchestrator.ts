@@ -673,7 +673,7 @@ function buildProviderPrompt(input: BuildProviderPromptInput): string {
 			const recommendedSkills = taskSkillMap?.get(task.id) || [];
 				const skillsLine =
 					recommendedSkills.length > 0
-						? `\n   Load H70 skills: ${recommendedSkills.map((skill) => `\`${skill}\``).join(', ')}`
+						? `\n   Required H70 skills (load BEFORE task_started): ${recommendedSkills.map((skill) => `\`${skill}\``).join(', ')}`
 						: '';
 				const mcpPlanLine = formatTaskMcpPlan(mcpTaskPlans[task.id]);
 				return `${index + 1}. ${task.title} (id: ${task.id}${deps})\n   ${task.description}${skillsLine}${mcpPlanLine}`;
@@ -709,15 +709,18 @@ Connected MCP capabilities: ${mcpCapsLine}
 Assigned tasks:
 ${taskList || '- none'}
 
-H70 skill loading:
-- Use /api/h70-skills/<skill-id> to fetch full skill YAML and patterns.
-- Apply anti-pattern and disaster guidance before implementation.
+H70 skill loading (mandatory):
+- For each assigned task with listed skills, fetch every required skill via /api/h70-skills/<skill-id> BEFORE starting the task.
+- Do not start task execution until required task skills are loaded.
+- Emit one progress event documenting loaded skills before task_started (message format: "SKILL_LOADED:<taskId>:<skillId,...>").
+- Apply anti-pattern and disaster guidance from loaded skills before implementation.
 
 Execution expectations:
 - Work only on your assigned tasks.
 - Keep file changes focused and production-safe.
 - If blocked, emit a progress event with the blocker.
 - If a task needs external tools (image/video/data/deploy), use matching connected MCP capabilities first.
+- Treat task completion as valid only after task-level DoD checks pass (implementation + verification + tests).
 
 ${reportingBlock}
 `;
