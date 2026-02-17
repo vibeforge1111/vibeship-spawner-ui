@@ -14,10 +14,17 @@ import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 
 const SPAWNER_DIR = join(process.cwd(), '.spawner');
 const RESULTS_DIR = join(SPAWNER_DIR, 'results');
 const EVENTS_AUTH_COOKIE = 'spawner_events_api_key';
+const PROGRESS_NOTIFICATION_WINDOW_MS = 60_000;
+const PROGRESS_NOTIFICATION_MAX_ENTRIES = 300;
+
+const execFileAsync = promisify(execFile);
+const progressNotificationCache = new Map<string, number>();
 
 function extractApiKeyFromRequest(request: Request): string | null {
 	const headerKey = request.headers.get('x-api-key') || request.headers.get('x-mcp-api-key');
@@ -54,6 +61,83 @@ function createAuthCookieHeader(request: Request): string | null {
 
 	const isSecure = request.url.startsWith('https://');
 	return `${EVENTS_AUTH_COOKIE}=${encodeURIComponent(apiKey)}; Path=/; HttpOnly; SameSite=Lax${isSecure ? '; Secure' : ''}`;
+}
+
+function buildProgressNotificationText(event: Record<string, unknown>): string | null {
+	const type = typeof event.type === 'string' ? event.type : '';
+	const missionId = typeof event.missionId === 'string' ? event.missionId : undefined;
+	const taskName =
+		typeof event.taskName === 'string'
+			? event.taskName
+			: typeof event.taskId === 'string'
+				? event.taskId
+				: 'task';
+
+	if (type === 'task_completed') {
+		return `Spawner progress: completed ${taskName}${missionId ? ` (${missionId})` : ''}.`;
+	}
+	if (type === 'task_failed') {
+		return `Spawner progress: failed ${taskName}${missionId ? ` (${missionId})` : ''}.`;
+	}
+	if (type === 'task_cancelled') {
+		return `Spawner progress: cancelled ${taskName}${missionId ? ` (${missionId})` : ''}.`;
+	}
+	if (type === 'mission_completed') {
+		return `Spawner mission completed${missionId ? ` (${missionId})` : ''}.`;
+	}
+	if (type === 'mission_failed') {
+		return `Spawner mission failed${missionId ? ` (${missionId})` : ''}.`;
+	}
+
+	return null;
+}
+
+function shouldSendProgressSignal(event: Record<string, unknown>): boolean {
+	const type = typeof event.type === 'string' ? event.type : '';
+	if (!['task_completed', 'task_failed', 'task_cancelled', 'mission_completed', 'mission_failed'].includes(type)) {
+		return false;
+	}
+
+	const missionId = typeof event.missionId === 'string' ? event.missionId : 'unknown-mission';
+	const taskId = typeof event.taskId === 'string' ? event.taskId : 'mission';
+	const signature = `${type}:${missionId}:${taskId}`;
+	const now = Date.now();
+	const previous = progressNotificationCache.get(signature);
+	if (typeof previous === 'number' && now - previous < PROGRESS_NOTIFICATION_WINDOW_MS) {
+		return false;
+	}
+
+	progressNotificationCache.set(signature, now);
+	if (progressNotificationCache.size > PROGRESS_NOTIFICATION_MAX_ENTRIES) {
+		const cutoff = now - PROGRESS_NOTIFICATION_WINDOW_MS;
+		for (const [key, timestamp] of progressNotificationCache.entries()) {
+			if (timestamp < cutoff) {
+				progressNotificationCache.delete(key);
+			}
+		}
+	}
+
+	return true;
+}
+
+async function pushProgressSignal(event: Record<string, unknown>): Promise<void> {
+	if (process.env.NODE_ENV === 'test') return;
+	if (!shouldSendProgressSignal(event)) return;
+
+	const source = typeof event.source === 'string' ? event.source : '';
+	if (source === 'spawner-ui') return;
+
+	const text = buildProgressNotificationText(event);
+	if (!text) return;
+
+	try {
+		await execFileAsync('openclaw', ['system', 'event', '--text', text, '--mode', 'now'], {
+			windowsHide: true,
+			timeout: 8000
+		});
+	} catch (error) {
+		console.warn('[EventBridge] Failed to push OpenClaw progress signal:', error);
+	}
 }
 
 /**
@@ -121,6 +205,9 @@ export const POST: RequestHandler = async (event) => {
 
 		// Broadcast to all connected clients
 		eventBridge.emit(fullEvent);
+
+		// Push native progress signal to OpenClaw chat for milestone events
+		void pushProgressSignal(fullEvent as Record<string, unknown>);
 
 		// Store PRD results for polling fallback
 		if (fullEvent.type === 'prd_analysis_complete' && fullEvent.data?.requestId && fullEvent.data?.result) {
