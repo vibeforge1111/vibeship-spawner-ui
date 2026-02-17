@@ -200,50 +200,72 @@
 							}
 						}
 
-						// Set up listener for Claude's response
-						const unsubscribe = analysisStatus.subscribe(status => {
-							console.log('[PRD-AI] Status changed to:', status);
-							if (status === 'complete' && !resultProcessed) {
-								// Claude responded! Get the result from the store
-								import('$lib/services/prd-bridge').then(({ analysisResult }) => {
-									const result = get(analysisResult);
-									console.log('[PRD-AI] Got result via SSE:', result?.projectName);
+						let unsubscribe = () => {};
+						const aiCompleted = await new Promise<boolean>((resolve) => {
+							let settled = false;
+							const settle = (success: boolean) => {
+								if (settled) return;
+								settled = true;
+								if (pollInterval) {
+									clearInterval(pollInterval);
+									pollInterval = null;
+								}
+								unsubscribe();
+								resolve(success);
+							};
 
-									if (result) {
-										processClaudeResult(result);
-										unsubscribe();
+							// Set up listener for Claude's response
+							unsubscribe = analysisStatus.subscribe(status => {
+								console.log('[PRD-AI] Status changed to:', status);
+								if (status === 'complete' && !resultProcessed) {
+									// Claude responded! Get the result from the store
+									import('$lib/services/prd-bridge').then(({ analysisResult }) => {
+										const result = get(analysisResult);
+										console.log('[PRD-AI] Got result via SSE:', result?.projectName);
+
+										if (result) {
+											processClaudeResult(result);
+											settle(true);
+										}
+									}).catch(err => {
+										console.error('[PRD-AI] Import error:', err);
+									});
+								}
+							});
+
+							// POLLING FALLBACK: Check for stored results every 2 seconds
+							pollInterval = setInterval(async () => {
+								if (resultProcessed) {
+									settle(true);
+									return;
+								}
+
+								try {
+									const response = await fetch(`/api/prd-bridge/result?requestId=${requestId}`);
+									const data = await response.json();
+
+									if (data.found && data.result && !resultProcessed) {
+										console.log('[PRD-AI] Got result via POLLING:', data.result.projectName);
+										processClaudeResult(data.result);
+										await fetch('/api/prd-bridge/pending', { method: 'DELETE' });
+										settle(true);
 									}
-								}).catch(err => {
-									console.error('[PRD-AI] Import error:', err);
-								});
-							}
+								} catch (err) {
+									console.debug('[PRD-AI] Polling check failed:', err);
+								}
+							}, 2000);
+
+							// Auto-fallback to local smart analysis when bridge isn't active
+							setTimeout(() => settle(false), 12000);
 						});
 
-						// POLLING FALLBACK: Check for stored results every 2 seconds
-						// This handles cases where SSE connection was not active when Claude responded
-						pollInterval = setInterval(async () => {
-							if (resultProcessed) {
-								if (pollInterval) clearInterval(pollInterval);
-								return;
-							}
+						if (aiCompleted) {
+							return;
+						}
 
-							try {
-								const response = await fetch(`/api/prd-bridge/result?requestId=${requestId}`);
-								const data = await response.json();
-
-								if (data.found && data.result && !resultProcessed) {
-									console.log('[PRD-AI] Got result via POLLING:', data.result.projectName);
-									processClaudeResult(data.result);
-									unsubscribe();
-									await fetch('/api/prd-bridge/pending', { method: 'DELETE' });
-								}
-							} catch (err) {
-								console.debug('[PRD-AI] Polling check failed:', err);
-							}
-						}, 2000);
-
-						// Don't block - let user copy/paste the prompt
-						return;
+						waitingForClaude = false;
+						useAIMode = false;
+						toasts.info('Claude bridge not responding. Continuing automatically with local smart analysis.');
 
 					} catch (err) {
 						console.error('[PRD-AI] Setup failed:', err);

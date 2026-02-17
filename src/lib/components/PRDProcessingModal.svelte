@@ -145,14 +145,14 @@
 									<span class="text-lg">◈</span>
 								</div>
 								<div>
-									<p class="text-sm font-medium text-text-primary mb-1">Paste in Claude Code</p>
-									<p class="text-xs text-text-secondary">Copy this prompt and paste it in your Claude Code terminal</p>
+									<p class="text-sm font-medium text-text-primary mb-1">Automatic analysis in progress</p>
+									<p class="text-xs text-text-secondary">Spawner is trying connected runtimes first. No copy/paste required.</p>
 								</div>
 							</div>
 
-							<!-- Copyable prompt box -->
+							<!-- Optional manual fallback prompt -->
 							<div class="relative">
-								<code class="block p-3 bg-bg-primary border border-surface-border text-sm font-mono text-accent-primary break-all">
+								<code class="block p-3 bg-bg-primary border border-surface-border text-sm font-mono text-accent-primary break-all opacity-80">
 									{claudePrompt}
 								</code>
 								<button
@@ -160,13 +160,13 @@
 									class="absolute top-2 right-2 px-2 py-1 text-xs font-mono bg-surface hover:bg-surface-active border border-surface-border transition-colors"
 									onclick={copyPrompt}
 								>
-									{copied ? '✓ Copied' : 'Copy'}
+									{copied ? '✓ Copied' : 'Copy fallback'}
 								</button>
 							</div>
 
 							<p class="text-xs text-text-tertiary mt-3 flex items-center gap-2">
 								<span class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
-								Waiting for Claude to analyze...
+								Waiting for runtime response. Auto-fallback to local analyzer if no response.
 							</p>
 						</div>
 
