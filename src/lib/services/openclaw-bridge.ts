@@ -175,6 +175,7 @@ interface OpenclawCanvasConnection {
 type OpenclawSubscriber = (event: OpenclawBridgeEvent) => void;
 
 const MAX_SESSION_EVENTS = 500;
+const CANCELLED_ERROR = 'Cancelled';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -390,7 +391,7 @@ class OpenclawBridgeService {
 				return {
 					success: false,
 					openclawSessionId,
-					error: 'Cancelled',
+					error: CANCELLED_ERROR,
 					durationMs: Date.now() - startedAtMs
 				};
 			}
@@ -445,13 +446,13 @@ class OpenclawBridgeService {
 			return {
 				success: false,
 				openclawSessionId,
-				error: message,
+				error: workerState.status === 'cancelled' ? CANCELLED_ERROR : message,
 				durationMs: Date.now() - startedAtMs
 			};
 		}
 	}
 
-	cancelProviderTask(sessionId: string, reason = 'cancelled'): boolean {
+	cancelProviderTask(sessionId: string, reason = CANCELLED_ERROR): boolean {
 		const workerState = this.workerSessions.get(sessionId);
 		if (!workerState) return false;
 		if (workerState.status !== 'running') return false;
@@ -1045,7 +1046,7 @@ class OpenclawBridgeService {
 			missionId: worker.missionId,
 			providerId: worker.providerId,
 			openclawSessionId: worker.sessionId,
-			taskId: worker.taskId || null,
+			...(worker.taskId ? { taskId: worker.taskId } : {}),
 			...payload
 		};
 
@@ -1105,7 +1106,7 @@ class OpenclawBridgeService {
 					} catch {
 						// noop
 					}
-					finalize({ success: false, error: 'Cancelled' });
+					finalize({ success: false, error: CANCELLED_ERROR });
 				};
 				if (context.signal.aborted) {
 					onAbort();
@@ -1162,3 +1163,4 @@ class OpenclawBridgeService {
 }
 
 export const openclawBridge = new OpenclawBridgeService();
+
