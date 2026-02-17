@@ -128,7 +128,7 @@
 	let multiLLMPrimaryProviderId = $state(defaultMultiLLMOptions.primaryProviderId || 'claude');
 	let multiLLMAutoEnableByKeys = $state(defaultMultiLLMOptions.autoEnableByKeys ?? true);
 	let multiLLMAutoRouteByTask = $state(defaultMultiLLMOptions.autoRouteByTask ?? true);
-	let multiLLMAutoDispatch = $state(false);
+	let multiLLMAutoDispatch = $state(true);
 	let multiLLMApiKeys = $state<Record<string, string>>({});
 	let isDispatching = $state(false);
 	let dispatchStatus = $state<Record<string, string>>({});
@@ -187,7 +187,7 @@
 		multiLLMPrimaryProviderId = incoming.primaryProviderId ?? defaults.primaryProviderId ?? 'claude';
 		multiLLMAutoEnableByKeys = incoming.autoEnableByKeys ?? defaults.autoEnableByKeys ?? true;
 		multiLLMAutoRouteByTask = incoming.autoRouteByTask ?? defaults.autoRouteByTask ?? true;
-		multiLLMAutoDispatch = incoming.autoDispatch ?? false;
+		multiLLMAutoDispatch = incoming.autoDispatch ?? true;
 		multiLLMProviders = mergedProviders;
 	}
 

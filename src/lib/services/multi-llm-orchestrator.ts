@@ -128,6 +128,7 @@ export function createDefaultMultiLLMOptions(): MultiLLMOrchestratorOptions {
 		primaryProviderId: 'claude',
 		autoEnableByKeys: true,
 		autoRouteByTask: true,
+		autoDispatch: true,
 		keyPresence: {},
 		mcpCapabilities: [],
 		mcpTools: [],
