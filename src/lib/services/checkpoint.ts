@@ -7,6 +7,7 @@
 
 import type { Mission, MissionTask } from '$lib/services/mcp-client';
 import type { TaskCompletionQuality } from './completion-gates';
+import type { ScanResponse } from './scanner';
 
 export interface AutomatedResults {
 	tasksCompleted: number;
@@ -38,6 +39,20 @@ export interface ReviewSummary {
 	knownIssues: string[];
 }
 
+export interface ServerVerification {
+	build: { success: boolean; output: string; duration: number } | null;
+	typecheck: { success: boolean; errorCount: number; output: string; duration: number } | null;
+	test: { success: boolean; passed: number; failed: number; hasTestScript: boolean; duration: number } | null;
+}
+
+export interface SpecAlignment {
+	totalTasks: number;
+	attemptedTasks: number;
+	completedTasks: number;
+	coverageRate: number;  // 0-1
+	unmetRequirements: Array<{ taskId: string; title: string; status: string }>;
+}
+
 export interface ProjectCheckpoint {
 	missionId: string;
 	missionName: string;
@@ -47,6 +62,12 @@ export interface ProjectCheckpoint {
 	// Automated Results
 	automated: AutomatedResults;
 
+	// Server-side independent verification (Longshot harness)
+	serverVerification: ServerVerification | null;
+
+	// Spec alignment (PRD vs actual)
+	specAlignment: SpecAlignment | null;
+
 	// Quality Metrics
 	quality: QualityMetrics;
 
@@ -55,6 +76,9 @@ export interface ProjectCheckpoint {
 
 	// Task quality details
 	taskQualities: TaskCompletionQuality[];
+
+	// Security scan results
+	securityScan: ScanResponse | null;
 
 	// Overall status
 	status: 'success' | 'partial' | 'failed';
@@ -73,12 +97,28 @@ export function generateCheckpoint(
 		startTime: Date;
 		endTime: Date;
 		logs: Array<{ level: string; message: string }>;
+		serverVerification?: ServerVerification | null;
+		securityScan?: ScanResponse | null;
 	}
 ): ProjectCheckpoint {
-	const { loadedSkills, requiredSkills, taskQualities, startTime, endTime, logs } = options;
+	const { loadedSkills, requiredSkills, taskQualities, startTime, endTime, logs, serverVerification, securityScan } = options;
 
-	// Calculate automated results
+	// Calculate automated results from logs (baseline)
 	const automated = calculateAutomatedResults(mission, logs);
+
+	// Override with real server verification when available (Longshot: trust server, not agent)
+	if (serverVerification) {
+		if (serverVerification.build) {
+			automated.buildSucceeded = serverVerification.build.success;
+		}
+		if (serverVerification.typecheck) {
+			automated.typeCheckPassed = serverVerification.typecheck.success;
+		}
+		if (serverVerification.test && serverVerification.test.hasTestScript) {
+			automated.testsRun = serverVerification.test.passed + serverVerification.test.failed;
+			automated.testsPassed = serverVerification.test.passed;
+		}
+	}
 
 	// Calculate quality metrics
 	const quality = calculateQualityMetrics(mission, loadedSkills, requiredSkills, taskQualities);
@@ -86,9 +126,26 @@ export function generateCheckpoint(
 	// Generate review summary
 	const review = generateReviewSummary(mission, taskQualities, logs);
 
+	// Spec alignment: compare PRD tasks vs actual completion
+	const specAlignment = calculateSpecAlignment(mission);
+
 	// Determine overall status
 	const status = determineStatus(automated, quality);
-	const canShip = status === 'success' && quality.completionRate >= 0.9;
+
+	// canShip: server verification is the final authority if available
+	let canShip = status === 'success' && quality.completionRate >= 0.9;
+	if (serverVerification?.build && !serverVerification.build.success) {
+		canShip = false;  // Independent build failed — cannot ship regardless of other factors
+	}
+	if (serverVerification?.typecheck && !serverVerification.typecheck.success) {
+		canShip = false;  // Independent typecheck failed — cannot ship with type errors
+	}
+	if (specAlignment && specAlignment.coverageRate < 0.8) {
+		canShip = false;  // Less than 80% of PRD requirements met
+	}
+	if (securityScan && securityScan.criticalCount > 0) {
+		canShip = false;  // Critical security findings — cannot ship
+	}
 
 	return {
 		missionId: mission.id,
@@ -96,11 +153,35 @@ export function generateCheckpoint(
 		completedAt: endTime,
 		duration: Math.round((endTime.getTime() - startTime.getTime()) / 1000),
 		automated,
+		serverVerification: serverVerification || null,
+		securityScan: securityScan || null,
+		specAlignment,
 		quality,
 		review,
 		taskQualities,
 		status,
 		canShip
+	};
+}
+
+/**
+ * Calculate spec alignment: how well does the output match the PRD tasks?
+ */
+function calculateSpecAlignment(mission: Mission): SpecAlignment {
+	const tasks = mission.tasks;
+	const totalTasks = tasks.length;
+	const attemptedTasks = tasks.filter(t => t.status !== 'pending').length;
+	const completedTasks = tasks.filter(t => t.status === 'completed').length;
+	const unmetRequirements = tasks
+		.filter(t => t.status !== 'completed')
+		.map(t => ({ taskId: t.id, title: t.title, status: t.status }));
+
+	return {
+		totalTasks,
+		attemptedTasks,
+		completedTasks,
+		coverageRate: totalTasks > 0 ? completedTasks / totalTasks : 0,
+		unmetRequirements
 	};
 }
 

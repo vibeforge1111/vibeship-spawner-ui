@@ -2,12 +2,21 @@
  * Task Completion Gates Service
  *
  * Prevents marking tasks complete without verification.
- * KISS: Simple gates that prevent common completion failures.
+ * v1.1: Blocking quality gates with configurable thresholds and rework feedback.
  */
 
 import type { MissionTask } from '$lib/types/mission';
 
 export type GateType = 'build' | 'test' | 'typecheck' | 'lint' | 'artifacts' | 'manual';
+
+/** Quality threshold for general tasks */
+export const QUALITY_THRESHOLD = 60;
+/** Stricter threshold for testing/deployment tasks */
+export const QUALITY_THRESHOLD_STRICT = 75;
+/** Max retries before marking task as failed */
+export const MAX_TASK_RETRIES = 2;
+/** Strict-mode categories that use the higher threshold */
+const STRICT_CATEGORIES = ['testing', 'deployment'];
 
 export interface CompletionGate {
 	type: GateType;
@@ -32,6 +41,15 @@ export interface TaskCompletionQuality {
 	gatesPassed: boolean;       // +25 points
 	score: number;              // 0-100
 	details: string[];
+}
+
+export interface ReworkInstruction {
+	taskId: string;
+	taskName: string;
+	score: number;
+	threshold: number;
+	failedFactors: string[];
+	instructions: string;
 }
 
 // Category-based gate definitions
@@ -143,10 +161,67 @@ export function calculateCompletionQuality(
 }
 
 /**
- * Check if a task completion should be flagged as low quality
+ * Get the quality threshold for a task based on its category.
+ * Testing/deployment tasks use the stricter threshold.
  */
-export function isLowQualityCompletion(quality: TaskCompletionQuality): boolean {
-	return quality.score < 50;
+export function getQualityThreshold(task?: MissionTask): number {
+	if (!task) return QUALITY_THRESHOLD;
+	const category = inferTaskCategory(task);
+	return STRICT_CATEGORIES.includes(category) ? QUALITY_THRESHOLD_STRICT : QUALITY_THRESHOLD;
+}
+
+/**
+ * Check if a task completion should be flagged as low quality.
+ * Uses configurable thresholds: 60 (general) or 75 (testing/deployment).
+ */
+export function isLowQualityCompletion(quality: TaskCompletionQuality, task?: MissionTask): boolean {
+	const threshold = getQualityThreshold(task);
+	return quality.score < threshold;
+}
+
+/**
+ * Build a rework instruction for a rejected task.
+ * Provides actionable feedback so the agent knows exactly what to fix.
+ */
+export function buildReworkInstruction(quality: TaskCompletionQuality, task?: MissionTask): ReworkInstruction {
+	const threshold = getQualityThreshold(task);
+	const failedFactors: string[] = [];
+	const fixes: string[] = [];
+
+	if (!quality.skillsLoaded) {
+		failedFactors.push('skillsLoaded');
+		fixes.push('Load required H70 skills before starting the task (emit SKILL_LOADED event)');
+	}
+	if (!quality.artifactsCreated) {
+		failedFactors.push('artifactsCreated');
+		fixes.push('Create or modify files — the task produced no detectable file changes');
+	}
+	if (!quality.noErrors) {
+		failedFactors.push('noErrors');
+		fixes.push('Fix reported errors before marking the task complete');
+	}
+	if (!quality.gatesPassed) {
+		failedFactors.push('gatesPassed');
+		fixes.push('Ensure build and typecheck pass (run npm run build and npx tsc --noEmit)');
+	}
+
+	const instructions = [
+		`Task "${quality.taskName}" scored ${quality.score}/100 (threshold: ${threshold}).`,
+		'',
+		'Required fixes:',
+		...fixes.map((f, i) => `${i + 1}. ${f}`),
+		'',
+		'Re-attempt the task addressing all issues above, then report task_completed again.'
+	].join('\n');
+
+	return {
+		taskId: quality.taskId,
+		taskName: quality.taskName,
+		score: quality.score,
+		threshold,
+		failedFactors,
+		instructions
+	};
 }
 
 /**

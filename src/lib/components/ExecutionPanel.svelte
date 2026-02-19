@@ -77,6 +77,7 @@
 	let completedTasks = $state<string[]>([]);
 	let failedTasks = $state<string[]>([]);
 	let pendingTasks = $state<string[]>([]);
+	let reworkTasks = $state<Map<string, { name: string; retry: number; maxRetries: number }>>(new Map());
 	let mindLogsCount = $state(0);
 
 	// Tab state - workflow vs mind
@@ -501,6 +502,8 @@
 		// Mission is already restored, just continue
 		if (resumableMission?.status === 'paused') {
 			handleResume();
+		} else if (resumableMission?.status === 'partial') {
+			handleResumePartial();
 		}
 		toasts.success(`Continuing mission: ${resumableMission?.name}`);
 	}
@@ -700,6 +703,7 @@
 		completedTasks = [];
 		failedTasks = [];
 		pendingTasks = currentNodes.map(n => n.skill.name);
+		reworkTasks = new Map();
 		mindLogsCount = 0;
 		mindActivities = [];
 
@@ -767,6 +771,10 @@
 					updateNodeStatus(node.id, success ? 'success' : 'error');
 				}
 
+				// Clear rework state if task is now truly done
+				reworkTasks.delete(taskId);
+				reworkTasks = new Map(reworkTasks);
+
 				// Update tracking
 				if (success) {
 					completedTasks = [...completedTasks, taskName];
@@ -777,6 +785,17 @@
 				}
 
 				// Update executionProgress to reflect task completion
+				executionProgress = missionExecutor.getProgress();
+			},
+			onTaskRework: (taskId, taskName, retryNumber, maxRetries) => {
+				// Track rework state for UI badges
+				const node = currentNodes.find(n => n.id === taskId);
+				if (node) {
+					updateNodeStatus(node.id, 'idle'); // Reset to idle — task is back to pending
+				}
+				reworkTasks.set(taskId, { name: taskName, retry: retryNumber, maxRetries });
+				reworkTasks = new Map(reworkTasks);
+				logToMind('issue', `Task rework required: ${taskName} (retry ${retryNumber}/${maxRetries})`, taskName);
 				executionProgress = missionExecutor.getProgress();
 			},
 			onComplete: async (mission) => {
@@ -887,6 +906,23 @@
 	async function handleCancel() {
 		await missionExecutor.cancel();
 		executionProgress = missionExecutor.getProgress();
+	}
+
+	async function handleResumePartial() {
+		try {
+			await missionExecutor.resumePartial();
+			executionProgress = missionExecutor.getProgress();
+			toasts.success('Resuming pending tasks...');
+		} catch (err) {
+			toasts.error(`Failed to resume: ${err instanceof Error ? err.message : String(err)}`);
+		}
+	}
+
+	function handleDismissPartial() {
+		missionExecutor.stop();
+		executionProgress = null;
+		logs = [];
+		toasts.info('Partial mission dismissed');
 	}
 
 	function getLogColor(type: MissionLog['type']): string {
@@ -1499,6 +1535,17 @@
 								<div class="text-xs font-mono text-red-400/70 uppercase tracking-wider">Failed</div>
 							</div>
 						</div>
+						{#if reworkTasks.size > 0}
+							<div class="px-3 py-2 bg-orange-500/5 border-t border-orange-500/20">
+								{#each [...reworkTasks.entries()] as [taskId, rework]}
+									<div class="flex items-center gap-2 py-0.5">
+										<span class="px-1.5 py-0.5 bg-orange-500/20 border border-orange-500/40 text-orange-400 text-[10px] font-mono uppercase tracking-wider">Rework</span>
+										<span class="text-xs text-text-primary font-mono">{rework.name}</span>
+										<span class="text-[10px] text-orange-400/60 font-mono">retry {rework.retry}/{rework.maxRetries}</span>
+									</div>
+								{/each}
+							</div>
+						{/if}
 						{#if pendingTasks.length > 0 && isRunning}
 							<div class="px-3 py-2 bg-amber-500/5 border-t border-amber-500/20 flex items-center gap-2">
 								<span class="text-xs font-mono text-amber-400 uppercase tracking-wider">Next →</span>
@@ -1554,6 +1601,20 @@
 									{#each executionProgress.reconciliation.pendingTasks as task}
 										<div class="ml-2 mt-0.5 text-text-tertiary">- {task.title} <span class="text-yellow-400/50">({task.status})</span></div>
 									{/each}
+								</div>
+								<div class="mt-3 flex gap-2">
+									<button
+										class="px-3 py-1.5 bg-yellow-500/20 border border-yellow-500/50 text-yellow-400 text-xs font-mono uppercase tracking-wider hover:bg-yellow-500/30 transition-colors"
+										onclick={handleResumePartial}
+									>
+										Resume {executionProgress.reconciliation.pendingTasks.length} Pending Task{executionProgress.reconciliation.pendingTasks.length !== 1 ? 's' : ''}
+									</button>
+									<button
+										class="px-3 py-1.5 bg-surface-secondary border border-surface-border text-text-secondary text-xs font-mono uppercase tracking-wider hover:bg-surface-hover transition-colors"
+										onclick={handleDismissPartial}
+									>
+										Dismiss
+									</button>
 								</div>
 							{/if}
 						{:else}

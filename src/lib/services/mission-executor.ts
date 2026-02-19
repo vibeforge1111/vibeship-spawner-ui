@@ -18,7 +18,7 @@ import { logger } from '$lib/utils/logger';
 const log = logger.scope('MissionExecutor');
 const logLearning = logger.scope('Learning');
 const logMind = logger.scope('Mind');
-import { buildMissionFromCanvas, validateForMission, generateExecutionPrompt, type MissionBuildOptions, type ExecutionPromptOptions } from './mission-builder';
+import { buildMissionFromCanvas, validateForMission, generateExecutionPrompt, generateResumeExecutionPrompt, type MissionBuildOptions, type ExecutionPromptOptions } from './mission-builder';
 import type { H70SkillContent } from './h70-skills';
 import {
 	buildMultiLLMExecutionPack,
@@ -29,7 +29,7 @@ import {
 } from './multi-llm-orchestrator';
 import { getMcpRuntimeSnapshot } from './mcp-runtime';
 import { getPipelineOptions } from '$lib/stores/project-goal.svelte';
-import { calculateCompletionQuality, isLowQualityCompletion, type TaskCompletionQuality } from './completion-gates';
+import { calculateCompletionQuality, isLowQualityCompletion, buildReworkInstruction, MAX_TASK_RETRIES, type TaskCompletionQuality, type ReworkInstruction } from './completion-gates';
 import { parseFilesFromLogs } from './artifacts';
 import { generateCheckpoint, type ProjectCheckpoint } from './checkpoint';
 import { syncClient, broadcastMissionEvent, broadcastLearningEvent, broadcastTaskEvent, broadcastExecutionControl, isConnected, type SyncEvent } from './sync-client';
@@ -135,6 +135,7 @@ export interface ExecutionCallbacks {
 	onLog?: (log: MissionLog) => void;
 	onTaskStart?: (taskId: string, taskName: string) => void;
 	onTaskComplete?: (taskId: string, success: boolean) => void;
+	onTaskRework?: (taskId: string, taskName: string, retryNumber: number, maxRetries: number) => void;
 	onComplete?: (mission: Mission) => void;
 	onError?: (error: string) => void;
 }
@@ -179,6 +180,7 @@ class MissionExecutor {
 	private taskDecisionIds: Map<string, string> = new Map();  // taskId -> memory_id
 	private completedSkillSequence: string[] = [];
 	private taskQualities: Map<string, TaskCompletionQuality> = new Map();
+	private taskRetryCount: Map<string, number> = new Map();
 
 	// Health monitoring
 	private lastProgressTime: number = Date.now();
@@ -465,9 +467,9 @@ class MissionExecutor {
 							this.progress.status = 'completed';
 							this.callbacks.onStatusChange?.('completed');
 						}
+						this.generateMissionCheckpoint(syncMission);
 						this.callbacks.onComplete?.(syncMission);
 						this.recordMissionComplete(syncMission);
-						this.generateMissionCheckpoint(syncMission);
 					} else {
 						this.progress.status = 'completed';
 						this.callbacks.onStatusChange?.('completed');
@@ -804,8 +806,41 @@ class MissionExecutor {
 						);
 						this.taskQualities.set(completedTaskId, quality);
 
-						if (success && isLowQualityCompletion(quality)) {
-							this.addLocalLog('info', `Quality gate: task ${completedTaskId} scored ${quality.score}/100 (${quality.details.filter(d => d.startsWith('Missing') || d.startsWith('Warning')).join('; ')})`);
+						// Find task for threshold calculation
+						const missionTask = this.progress.mission?.tasks?.find(t => t.id === completedTaskId);
+						if (success && isLowQualityCompletion(quality, missionTask)) {
+							const retries = this.taskRetryCount.get(completedTaskId) || 0;
+							const rework = buildReworkInstruction(quality, missionTask);
+
+							if (retries < MAX_TASK_RETRIES) {
+								// REWORK: Set task back to pending for retry
+								this.taskRetryCount.set(completedTaskId, retries + 1);
+								success = false;
+								this.addLocalLog('info', `Quality gate REWORK: task ${completedTaskId} scored ${rework.score}/${rework.threshold} — retry ${retries + 1}/${MAX_TASK_RETRIES}. Fix: ${rework.failedFactors.join(', ')}`);
+								broadcastTaskEvent('task_progress', this.progress.mission?.id || '', {
+									taskId: completedTaskId,
+									taskName: completedTaskName,
+									message: `REWORK: scored ${rework.score}/${rework.threshold} — retry ${retries + 1}/${MAX_TASK_RETRIES}`,
+									rework,
+									retriesRemaining: MAX_TASK_RETRIES - retries - 1
+								});
+								// Set task back to pending so agent can retry
+								if (missionTask) {
+									missionTask.status = 'pending';
+								}
+								this.callbacks.onTaskRework?.(completedTaskId, completedTaskName, retries + 1, MAX_TASK_RETRIES);
+								// Skip the rest of the completion flow — task is not done yet
+								break;
+							} else {
+								// BLOCKED: Max retries exhausted, mark as failed
+								success = false;
+								this.addLocalLog('info', `Quality gate BLOCKED: task ${completedTaskId} scored ${rework.score}/${rework.threshold} — max retries (${MAX_TASK_RETRIES}) exhausted. (${rework.failedFactors.join(', ')})`);
+							}
+						}
+
+						// Active verification: check if reported files actually exist on disk
+						if (filesChanged.length > 0 && this.progress.mission?.context?.projectPath) {
+							this.verifyFilesOnDisk(completedTaskId, filesChanged, this.progress.mission.context.projectPath);
 						}
 					}
 
@@ -908,9 +943,9 @@ class MissionExecutor {
 							this.callbacks.onStatusChange?.('completed');
 							this.addLocalLog('info', 'Mission completed successfully');
 						}
+						this.generateMissionCheckpoint(bridgeMission);
 						this.callbacks.onComplete?.(bridgeMission);
 						this.recordMissionComplete(bridgeMission);
-						this.generateMissionCheckpoint(bridgeMission);
 					} else {
 						this.progress.status = 'completed';
 						this.callbacks.onStatusChange?.('completed');
@@ -1507,6 +1542,57 @@ class MissionExecutor {
 	}
 
 	/**
+	 * Resume a partial mission — re-runs only pending/failed tasks
+	 */
+	async resumePartial(): Promise<void> {
+		if (this.progress.status !== 'partial' || !this.progress.mission) {
+			this.addLocalLog('info', 'No partial mission to resume');
+			return;
+		}
+
+		const mission = this.progress.mission;
+		const pendingTasks = mission.tasks.filter(
+			t => t.status === 'pending' || t.status === 'in_progress'
+		);
+
+		if (pendingTasks.length === 0) {
+			this.addLocalLog('info', 'No pending tasks to resume — all tasks finished');
+			return;
+		}
+
+		// Reset to running state
+		this.progress.status = 'running';
+		this.progress.endTime = null;
+		this.progress.reconciliation = null;
+		this.progress.checkpoint = null;
+		this.callbacks.onStatusChange?.('running');
+
+		// Generate resume prompt with only pending tasks
+		const resumePrompt = generateResumeExecutionPrompt(
+			mission,
+			pendingTasks,
+			{
+				taskSkillMap: this.progress.taskSkillMap,
+				baseUrl: typeof window !== 'undefined' ? window.location.origin : undefined
+			}
+		);
+		this.progress.executionPrompt = resumePrompt;
+
+		this.addLocalLog('info', `Resuming ${pendingTasks.length} pending tasks from partial mission`);
+
+		// Restart monitoring
+		this.startPolling();
+		this.startHealthMonitoring();
+
+		// Persist and broadcast
+		this.persistState();
+		broadcastMissionEvent('mission_resumed', mission.id, {
+			pendingTasks: pendingTasks.map(t => t.id),
+			resumedAt: Date.now()
+		});
+	}
+
+	/**
 	 * Full cleanup including sync subscription and event bridge
 	 */
 	destroy(): void {
@@ -1686,11 +1772,12 @@ class MissionExecutor {
 						this.progress.status = 'completed';
 						this.callbacks.onStatusChange?.('completed');
 					}
+					this.generateMissionCheckpoint(mission);
 					this.callbacks.onComplete?.(mission);
 
 					// Record mission completion for learning
 					this.recordMissionComplete(mission);
-					this.generateMissionCheckpoint(mission);
+					this.persistState();
 				} else if (mission.status === 'failed') {
 					this.progress.status = 'failed';
 					this.progress.error = mission.error || 'Mission failed';
@@ -2009,12 +2096,17 @@ class MissionExecutor {
 	/**
 	 * Generate post-mission checkpoint with quality metrics and review summary
 	 */
+	/**
+	 * Phase 1 (sync): Generate checkpoint from available data — fast, shows modal immediately
+	 * Phase 2 (async): Run server-side verification — updates checkpoint with real build/test results
+	 */
 	private generateMissionCheckpoint(mission: Mission): void {
 		try {
 			const loadedSkills = this.progress.loadedSkills?.map(s => s.id) || [];
 			const requiredSkills = [...this.progress.taskSkillMap.values()].flat();
 			const taskQualities = [...this.taskQualities.values()];
 
+			// Phase 1: Generate checkpoint from log-parsed data (immediate)
 			const checkpoint = generateCheckpoint(mission, {
 				loadedSkills,
 				requiredSkills,
@@ -2025,10 +2117,184 @@ class MissionExecutor {
 			});
 
 			this.progress.checkpoint = checkpoint;
-			this.addLocalLog('info', `Checkpoint: ${checkpoint.status} — ${checkpoint.canShip ? 'Ready to ship' : 'Needs review'} (quality: ${Math.round(checkpoint.quality.averageTaskQuality)}/100)`);
+			const specCoverage = checkpoint.specAlignment ? `${Math.round(checkpoint.specAlignment.coverageRate * 100)}%` : 'N/A';
+			this.addLocalLog('info', `Checkpoint (preliminary): ${checkpoint.status} | Spec: ${specCoverage} | Ship: ${checkpoint.canShip ? 'YES' : 'NO'} (quality: ${Math.round(checkpoint.quality.averageTaskQuality)}/100)`);
+
+			// Phase 2: Run independent server-side verification (async, upgrades checkpoint)
+			const projectPath = mission.context?.projectPath;
+			if (projectPath) {
+				this.runServerVerificationAndUpgrade(mission, projectPath);
+			}
 		} catch (err) {
 			this.addLocalLog('error', `Failed to generate checkpoint: ${err instanceof Error ? err.message : String(err)}`);
 		}
+	}
+
+	/**
+	 * Async phase: run real build/typecheck/test verification and upgrade the checkpoint
+	 * This is the Longshot active harness — independent of agent self-reporting
+	 */
+	private async runServerVerificationAndUpgrade(mission: Mission, projectPath: string): Promise<void> {
+		try {
+			this.addLocalLog('info', 'Running independent server-side verification...');
+			const serverVerification = await this.runIndependentVerification(projectPath);
+
+			// Run security scan (non-blocking — catch errors silently)
+			let securityScan = null;
+			try {
+				this.addLocalLog('info', 'Running security scan (gitleaks, trivy, opengrep)...');
+				const scanResp = await fetch('/api/scan', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ projectPath })
+				});
+				if (scanResp.ok) {
+					securityScan = await scanResp.json();
+					this.addLocalLog('info', `Security scan: ${securityScan.totalFindings} findings (${securityScan.criticalCount} critical, ${securityScan.highCount} high). Ship: ${securityScan.canShip ? 'OK' : 'BLOCKED'}`);
+				}
+			} catch {
+				// Security scan is optional — don't block checkpoint on failure
+			}
+
+			// Regenerate checkpoint with real server data
+			const loadedSkills = this.progress.loadedSkills?.map(s => s.id) || [];
+			const requiredSkills = [...this.progress.taskSkillMap.values()].flat();
+			const taskQualities = [...this.taskQualities.values()];
+
+			const upgradedCheckpoint = generateCheckpoint(mission, {
+				loadedSkills,
+				requiredSkills,
+				taskQualities,
+				startTime: this.progress.startTime || new Date(),
+				endTime: this.progress.endTime || new Date(),
+				logs: this.progress.logs.map(l => ({ level: l.type === 'error' ? 'error' : 'info', message: l.message })),
+				serverVerification,
+				securityScan
+			});
+
+			this.progress.checkpoint = upgradedCheckpoint;
+
+			const buildStatus = serverVerification.build ? (serverVerification.build.success ? 'PASS' : 'FAIL') : 'N/A';
+			const tcStatus = serverVerification.typecheck ? (serverVerification.typecheck.success ? 'PASS' : 'FAIL') : 'N/A';
+			const specCoverage = upgradedCheckpoint.specAlignment ? `${Math.round(upgradedCheckpoint.specAlignment.coverageRate * 100)}%` : 'N/A';
+			this.addLocalLog('info', `Checkpoint (verified): ${upgradedCheckpoint.status} | Build: ${buildStatus} | TypeCheck: ${tcStatus} | Spec: ${specCoverage} | Ship: ${upgradedCheckpoint.canShip ? 'YES' : 'NO'}`);
+
+			// Re-persist with verified data
+			this.persistState();
+		} catch (err) {
+			this.addLocalLog('error', `Server verification failed: ${err instanceof Error ? err.message : String(err)}`);
+		}
+	}
+
+	/**
+	 * Active verification: check if agent-reported files actually exist on disk
+	 * Fires async — updates quality score when results return
+	 */
+	private async verifyFilesOnDisk(taskId: string, files: string[], projectPath: string): Promise<void> {
+		try {
+			const response = await fetch('/api/verify', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'files', projectPath, files })
+			});
+			if (!response.ok) return;
+			const result = await response.json();
+			if (result.missing?.length > 0) {
+				this.addLocalLog('info', `File verification: ${result.found?.length || 0}/${files.length} files exist. Missing: ${result.missing.join(', ')}`);
+				// Downgrade quality if files are missing
+				const existing = this.taskQualities.get(taskId);
+				if (existing && result.existenceRate < 0.5) {
+					existing.artifactsCreated = false;
+					existing.score = Math.max(0, existing.score - 25);
+					existing.details.push(`Filesystem check: ${result.missing.length} reported files not found on disk`);
+					this.taskQualities.set(taskId, existing);
+				}
+			} else {
+				this.addLocalLog('info', `File verification: all ${files.length} files confirmed on disk`);
+			}
+		} catch {
+			// Non-blocking — API may not be reachable during testing
+		}
+	}
+
+	/**
+	 * Run independent build/typecheck verification against the project directory
+	 * Called during checkpoint generation for real server-side verification
+	 */
+	async runIndependentVerification(projectPath: string): Promise<{
+		build: { success: boolean; output: string; duration: number } | null;
+		typecheck: { success: boolean; errorCount: number; output: string; duration: number } | null;
+		test: { success: boolean; passed: number; failed: number; hasTestScript: boolean; duration: number } | null;
+	}> {
+		const results: {
+			build: { success: boolean; output: string; duration: number } | null;
+			typecheck: { success: boolean; errorCount: number; output: string; duration: number } | null;
+			test: { success: boolean; passed: number; failed: number; hasTestScript: boolean; duration: number } | null;
+		} = { build: null, typecheck: null, test: null };
+
+		try {
+			// Run build
+			this.addLocalLog('info', 'Independent verification: running build...');
+			const buildRes = await fetch('/api/verify', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'build', projectPath })
+			});
+			if (buildRes.ok) {
+				const buildData = await buildRes.json();
+				results.build = {
+					success: buildData.success,
+					output: buildData.stderr || buildData.stdout || '',
+					duration: buildData.duration
+				};
+				this.addLocalLog('info', `Independent verification: build ${buildData.success ? 'PASSED' : 'FAILED'} (${buildData.duration}ms)`);
+			}
+
+			// Run typecheck
+			this.addLocalLog('info', 'Independent verification: running typecheck...');
+			const tcRes = await fetch('/api/verify', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'typecheck', projectPath })
+			});
+			if (tcRes.ok) {
+				const tcData = await tcRes.json();
+				results.typecheck = {
+					success: tcData.success,
+					errorCount: tcData.errorCount,
+					output: tcData.stderr || tcData.stdout || '',
+					duration: tcData.duration
+				};
+				this.addLocalLog('info', `Independent verification: typecheck ${tcData.success ? 'PASSED' : `FAILED (${tcData.errorCount} errors)`} (${tcData.duration}ms)`);
+			}
+
+			// Run tests
+			this.addLocalLog('info', 'Independent verification: checking for tests...');
+			const testRes = await fetch('/api/verify', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'test', projectPath })
+			});
+			if (testRes.ok) {
+				const testData = await testRes.json();
+				results.test = {
+					success: testData.success,
+					passed: testData.passed,
+					failed: testData.failed,
+					hasTestScript: testData.hasTestScript,
+					duration: testData.duration
+				};
+				if (testData.hasTestScript) {
+					this.addLocalLog('info', `Independent verification: tests ${testData.success ? 'PASSED' : 'FAILED'} (${testData.passed} passed, ${testData.failed} failed)`);
+				} else {
+					this.addLocalLog('info', 'Independent verification: no test script found');
+				}
+			}
+		} catch (err) {
+			this.addLocalLog('error', `Independent verification failed: ${err instanceof Error ? err.message : String(err)}`);
+		}
+
+		return results;
 	}
 
 	/**
@@ -2292,6 +2558,7 @@ class MissionExecutor {
 		this.taskDecisionIds.clear();
 		this.completedSkillSequence = [];
 		this.taskQualities.clear();
+		this.taskRetryCount.clear();
 	}
 }
 

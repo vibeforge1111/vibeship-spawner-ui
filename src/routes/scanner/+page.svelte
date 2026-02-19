@@ -1,53 +1,45 @@
 <script lang="ts">
 	import Navbar from '$lib/components/Navbar.svelte';
 	import Footer from '$lib/components/Footer.svelte';
+	import { runSecurityScan, type ScanResponse, type ScanResult } from '$lib/services/scanner';
 
 	let scanTarget = $state('');
 	let isScanning = $state(false);
-	let scanResults = $state<{ category: string; issues: { title: string; severity: string; description: string }[] }[] | null>(null);
+	let scanResponse = $state<ScanResponse | null>(null);
+	let scanError = $state<string | null>(null);
 
 	async function handleScan() {
 		if (!scanTarget.trim()) return;
 
 		isScanning = true;
-		scanResults = null;
+		scanResponse = null;
+		scanError = null;
 
-		// Simulate scanning
-		await new Promise((resolve) => setTimeout(resolve, 2000));
-
-		// Demo results
-		scanResults = [
-			{
-				category: 'Security',
-				issues: [
-					{ title: 'Exposed API Keys', severity: 'critical', description: 'Found potential API keys in source files' },
-					{ title: 'Missing HTTPS', severity: 'warning', description: 'Some endpoints not using HTTPS' }
-				]
-			},
-			{
-				category: 'Dependencies',
-				issues: [
-					{ title: 'Outdated Packages', severity: 'warning', description: '5 packages have updates available' },
-					{ title: 'Known Vulnerabilities', severity: 'high', description: '2 packages have known CVEs' }
-				]
-			},
-			{
-				category: 'Code Quality',
-				issues: [
-					{ title: 'Missing Error Handling', severity: 'info', description: 'Some async functions lack try/catch' }
-				]
-			}
-		];
-
-		isScanning = false;
+		try {
+			scanResponse = await runSecurityScan({ projectPath: scanTarget.trim() });
+		} catch (err) {
+			scanError = err instanceof Error ? err.message : String(err);
+		} finally {
+			isScanning = false;
+		}
 	}
 
 	function getSeverityColor(severity: string): string {
 		switch (severity) {
 			case 'critical': return 'text-red-500 bg-red-500/10 border-red-500/50';
 			case 'high': return 'text-orange-500 bg-orange-500/10 border-orange-500/50';
-			case 'warning': return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/50';
+			case 'medium': return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/50';
+			case 'low': return 'text-blue-400 bg-blue-400/10 border-blue-400/50';
 			default: return 'text-blue-500 bg-blue-500/10 border-blue-500/50';
+		}
+	}
+
+	function getScannerLabel(scanner: string): string {
+		switch (scanner) {
+			case 'gitleaks': return 'Gitleaks (Secret Detection)';
+			case 'trivy': return 'Trivy (CVE Scanner)';
+			case 'opengrep': return 'OpenGrep (SAST)';
+			default: return scanner;
 		}
 	}
 </script>
@@ -65,19 +57,19 @@
 			<div class="text-center mb-12">
 				<h1 class="font-serif text-4xl text-text-primary mb-4">Security Scanner</h1>
 				<p class="text-text-secondary text-lg max-w-2xl mx-auto">
-					Scan your codebase for security issues, vulnerabilities, and best practice violations.
+					Scan your codebase for secrets, vulnerabilities, and code issues using Gitleaks, Trivy, and OpenGrep.
 				</p>
 			</div>
 
 			<!-- Scanner Input -->
 			<div class="mb-12 p-6 border border-surface-border bg-bg-secondary">
-				<label for="scan-target" class="block text-sm text-text-tertiary mb-2">Repository URL or Path</label>
+				<label for="scan-target" class="block text-sm text-text-tertiary mb-2">Project Path (absolute)</label>
 				<div class="flex gap-4">
 					<input
 						id="scan-target"
 						type="text"
 						bind:value={scanTarget}
-						placeholder="https://github.com/user/repo or /path/to/project"
+						placeholder="C:\Users\USER\Desktop\my-project"
 						class="flex-1 px-4 py-2 bg-surface border border-surface-border text-text-primary font-mono focus:outline-none focus:border-accent-primary"
 					/>
 					<button
@@ -94,95 +86,107 @@
 			{#if isScanning}
 				<div class="text-center py-12">
 					<div class="inline-block w-8 h-8 border-2 border-accent-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-					<p class="text-text-secondary">Scanning for issues...</p>
+					<p class="text-text-secondary">Running security scanners...</p>
+					<p class="text-xs text-text-tertiary mt-1">Gitleaks + Trivy + OpenGrep (up to 60s each)</p>
+				</div>
+			{/if}
+
+			<!-- Error -->
+			{#if scanError}
+				<div class="p-4 bg-red-500/10 border border-red-500/30 text-red-400 font-mono text-sm mb-6">
+					{scanError}
 				</div>
 			{/if}
 
 			<!-- Results -->
-			{#if scanResults}
+			{#if scanResponse}
+				<!-- Summary Bar -->
+				<div class="mb-6 p-4 border border-surface-border bg-bg-secondary flex items-center justify-between">
+					<div class="flex items-center gap-4">
+						<span class="text-lg font-mono {scanResponse.canShip ? 'text-green-400' : 'text-red-400'}">
+							{scanResponse.canShip ? 'CLEAR' : 'BLOCKED'}
+						</span>
+						<span class="text-text-tertiary text-sm">{scanResponse.totalFindings} findings in {(scanResponse.duration / 1000).toFixed(1)}s</span>
+					</div>
+					<div class="flex gap-4 text-center">
+						<div>
+							<div class="text-xl font-mono text-red-500">{scanResponse.criticalCount}</div>
+							<div class="text-[10px] text-text-tertiary uppercase">Critical</div>
+						</div>
+						<div>
+							<div class="text-xl font-mono text-orange-500">{scanResponse.highCount}</div>
+							<div class="text-[10px] text-text-tertiary uppercase">High</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Per-Scanner Results -->
 				<div class="space-y-6">
-					{#each scanResults as category}
+					{#each scanResponse.results as result}
 						<div class="border border-surface-border">
 							<div class="p-4 border-b border-surface-border bg-bg-secondary">
 								<div class="flex items-center justify-between">
-									<h2 class="font-medium text-text-primary">{category.category}</h2>
-									<span class="text-sm text-text-tertiary">{category.issues.length} issues</span>
-								</div>
-							</div>
-							<div class="divide-y divide-surface-border">
-								{#each category.issues as issue}
-									<div class="p-4 flex items-start gap-4">
-										<span class="px-2 py-0.5 text-xs font-mono border {getSeverityColor(issue.severity)}">
-											{issue.severity.toUpperCase()}
-										</span>
-										<div class="flex-1">
-											<h3 class="font-medium text-text-primary">{issue.title}</h3>
-											<p class="text-sm text-text-secondary">{issue.description}</p>
-										</div>
+									<div class="flex items-center gap-2">
+										<h2 class="font-medium text-text-primary">{getScannerLabel(result.scanner)}</h2>
+										{#if !result.available}
+											<span class="px-2 py-0.5 text-[10px] font-mono bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 uppercase">Not Installed</span>
+										{/if}
 									</div>
-								{/each}
+									<div class="flex items-center gap-3 text-sm text-text-tertiary">
+										<span>{(result.duration / 1000).toFixed(1)}s</span>
+										{#if result.available}
+											<span class="font-mono">{result.findings.length} findings</span>
+										{/if}
+									</div>
+								</div>
+								{#if result.error && !result.available}
+									<p class="text-xs text-text-tertiary mt-1">Install: {result.scanner === 'gitleaks' ? 'brew install gitleaks' : result.scanner === 'trivy' ? 'brew install trivy' : 'pip install opengrep'}</p>
+								{/if}
 							</div>
+							{#if result.findings.length > 0}
+								<div class="divide-y divide-surface-border">
+									{#each result.findings as finding}
+										<div class="p-4 flex items-start gap-4">
+											<span class="px-2 py-0.5 text-xs font-mono border shrink-0 {getSeverityColor(finding.severity)}">
+												{finding.severity.toUpperCase()}
+											</span>
+											<div class="flex-1 min-w-0">
+												<h3 class="font-medium text-text-primary text-sm">{finding.title}</h3>
+												<p class="text-sm text-text-secondary">{finding.description}</p>
+												{#if finding.file}
+													<p class="text-xs text-text-tertiary font-mono mt-1">{finding.file}{finding.line ? `:${finding.line}` : ''}</p>
+												{/if}
+											</div>
+										</div>
+									{/each}
+								</div>
+							{:else if result.available}
+								<div class="p-4 text-center text-green-400 text-sm font-mono">No issues found</div>
+							{/if}
 						</div>
 					{/each}
-				</div>
-
-				<!-- Summary -->
-				<div class="mt-8 p-6 border border-surface-border bg-bg-secondary">
-					<h3 class="font-medium text-text-primary mb-4">Scan Summary</h3>
-					<div class="grid grid-cols-4 gap-4 text-center">
-						<div>
-							<div class="text-2xl font-mono text-red-500">
-								{scanResults.reduce((acc, c) => acc + c.issues.filter(i => i.severity === 'critical').length, 0)}
-							</div>
-							<div class="text-xs text-text-tertiary">Critical</div>
-						</div>
-						<div>
-							<div class="text-2xl font-mono text-orange-500">
-								{scanResults.reduce((acc, c) => acc + c.issues.filter(i => i.severity === 'high').length, 0)}
-							</div>
-							<div class="text-xs text-text-tertiary">High</div>
-						</div>
-						<div>
-							<div class="text-2xl font-mono text-yellow-500">
-								{scanResults.reduce((acc, c) => acc + c.issues.filter(i => i.severity === 'warning').length, 0)}
-							</div>
-							<div class="text-xs text-text-tertiary">Warning</div>
-						</div>
-						<div>
-							<div class="text-2xl font-mono text-blue-500">
-								{scanResults.reduce((acc, c) => acc + c.issues.filter(i => i.severity === 'info').length, 0)}
-							</div>
-							<div class="text-xs text-text-tertiary">Info</div>
-						</div>
-					</div>
 				</div>
 			{/if}
 
 			<!-- Features -->
-			{#if !scanResults && !isScanning}
-				<div class="grid md:grid-cols-2 gap-6">
+			{#if !scanResponse && !isScanning && !scanError}
+				<div class="grid md:grid-cols-3 gap-6">
 					<div class="p-6 border border-surface-border">
-						<h3 class="font-mono text-accent-primary mb-2">Security Analysis</h3>
+						<h3 class="font-mono text-accent-primary mb-2">Gitleaks</h3>
 						<p class="text-sm text-text-secondary">
-							Detect exposed secrets, SQL injection, XSS vulnerabilities, and OWASP top 10 issues.
+							Detect hardcoded secrets, API keys, tokens, and credentials in your source code.
 						</p>
 					</div>
 					<div class="p-6 border border-surface-border">
-						<h3 class="font-mono text-accent-primary mb-2">Dependency Audit</h3>
+						<h3 class="font-mono text-accent-primary mb-2">Trivy</h3>
 						<p class="text-sm text-text-secondary">
-							Check for known vulnerabilities in npm, pip, and other package managers.
+							Scan dependencies for known CVEs. Checks npm, pip, and other package managers.
 						</p>
 					</div>
 					<div class="p-6 border border-surface-border">
-						<h3 class="font-mono text-accent-primary mb-2">Code Quality</h3>
+						<h3 class="font-mono text-accent-primary mb-2">OpenGrep</h3>
 						<p class="text-sm text-text-secondary">
-							Find anti-patterns, missing error handling, and code smells.
-						</p>
-					</div>
-					<div class="p-6 border border-surface-border">
-						<h3 class="font-mono text-accent-primary mb-2">Best Practices</h3>
-						<p class="text-sm text-text-secondary">
-							Ensure your code follows industry best practices and patterns.
+							Static analysis for anti-patterns, injection vulnerabilities, and code quality issues.
 						</p>
 					</div>
 				</div>

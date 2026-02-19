@@ -759,6 +759,93 @@ Check \`.spawner/active-mission.json\` manually for state.
 }
 
 /**
+ * Generate a resume execution prompt for partial missions.
+ * Only includes pending/failed tasks — completed tasks are listed as context.
+ */
+export function generateResumeExecutionPrompt(
+	mission: Mission,
+	pendingTasks: MissionTask[],
+	options?: ExecutionPromptOptions
+): string {
+	const { taskSkillMap, baseUrl } = options || {};
+	const eventUrl = baseUrl || 'http://localhost:5173';
+
+	const completedTasks = mission.tasks.filter(t => t.status === 'completed');
+	const failedTasks = mission.tasks.filter(t => t.status === 'failed');
+
+	const completedList = completedTasks.length > 0
+		? completedTasks.map(t => `- [DONE] ${t.title} (${t.id})`).join('\n')
+		: '- None';
+
+	const failedList = failedTasks.length > 0
+		? failedTasks.map(t => `- [FAILED] ${t.title} (${t.id})`).join('\n')
+		: '';
+
+	const taskList = pendingTasks
+		.map((t, i) => {
+			const deps = t.dependsOn?.length ? ` (after: ${t.dependsOn.join(', ')})` : '';
+			const recommendedSkills = taskSkillMap?.get(t.id) || [];
+			const skillsLine = recommendedSkills.length
+				? `\n   **Load H70 Skills**: ${recommendedSkills.map(s => `\`${s}\``).join(', ')}`
+				: '';
+			return `${i + 1}. **${t.title}** (id: ${t.id})${deps}\n   ${t.description}${skillsLine}`;
+		})
+		.join('\n\n');
+
+	return `# RESUME Mission: ${mission.name}
+
+**This is a RESUME of a partial mission. Some tasks are already completed.**
+
+## Context
+- **Mission ID**: ${mission.id}
+- **Project Path**: ${mission.context.projectPath}
+- **Project Type**: ${mission.context.projectType}
+- **Tech Stack**: ${mission.context.techStack?.join(', ') || 'Not specified'}
+
+## Already Completed (DO NOT re-do these)
+${completedList}
+${failedList ? `\n## Previously Failed\n${failedList}\n` : ''}
+## Remaining Tasks (Execute These)
+
+${taskList}
+
+## Workflow Per Task
+
+For each remaining task:
+
+1. **Report Start**
+   \`\`\`bash
+   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"task_started","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME"}'
+   \`\`\`
+
+2. **Execute** - Complete the task fully
+
+3. **Verify Before Complete** - Run \`npm run build\`, check for errors
+
+4. **Report Complete**
+   \`\`\`bash
+   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"task_completed","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME","data":{"success":true,"verification":{"build":true,"typecheck":true,"filesChanged":["..."]}}}'
+   \`\`\`
+
+## Mission Completion Gate
+
+Do NOT send \`mission_completed\` until ALL ${pendingTasks.length} remaining tasks have been attempted.
+
+\`\`\`bash
+curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"mission_completed","missionId":"${mission.id}"}'
+\`\`\`
+
+### AUTONOMOUS EXECUTION RULES
+- **Do NOT re-do completed tasks** listed above
+- **Do NOT stop to ask questions** during task execution
+- **Complete all remaining tasks sequentially**
+
+---
+
+**START**: Begin with the first remaining task above.`;
+}
+
+/**
  * Preview mission structure without creating it
  */
 export function previewMission(

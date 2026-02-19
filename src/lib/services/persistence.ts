@@ -506,8 +506,8 @@ export function hasResumableMission(): boolean {
 		return false;
 	}
 
-	// Only resumable if paused or running (interrupted)
-	const isResumable = state.status === 'paused' || state.status === 'running' || state.status === 'creating';
+	// Resumable if paused, running (interrupted), creating, or partial (incomplete tasks)
+	const isResumable = state.status === 'paused' || state.status === 'running' || state.status === 'creating' || state.status === 'partial';
 	log.debug('isResumable:', isResumable);
 	return isResumable;
 }

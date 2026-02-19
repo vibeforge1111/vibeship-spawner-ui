@@ -101,7 +101,7 @@ export const POST: RequestHandler = async (event) => {
 				{
 					success: false,
 					error: `Missing required API keys: ${missingRequiredKeyProviders
-						.map((provider) => `${provider.label} (${provider.apiKeyEnv})`)
+						.map((provider: { id: string; label: string; apiKeyEnv: string }) => `${provider.label} (${provider.apiKeyEnv})`)
 						.join(', ')}`,
 					missingProviders: missingRequiredKeyProviders
 				},
