@@ -113,6 +113,15 @@ export interface MCPInstance {
 	lastConnected?: string;
 	lastError?: string;
 
+	// Reconnect config (how the MCP was originally connected)
+	connectionConfig?: {
+		npmPackage?: string;
+		defaultArgs?: string[];
+		command?: string;
+		args?: string[];
+		envVars?: Record<string, string>;
+	};
+
 	// Server info (populated after connection)
 	serverInfo?: MCPServerInfo;
 	tools?: MCPInstanceTool[];
@@ -688,13 +697,47 @@ export const SKILL_MCP_MAP: Record<string, { mcps: string[]; priority: 'required
 
 	// Marketing & Content
 	'seo': [
-		{ mcps: ['serpapi', 'brave-search'], priority: 'recommended' }
+		{ mcps: ['serpapi', 'brave-search', 'google-analytics'], priority: 'recommended' },
+		{ mcps: ['exa', 'tavily'], priority: 'optional' }
 	],
 	'marketing': [
-		{ mcps: ['analytics-tracker'], priority: 'recommended' }
+		{ mcps: ['analytics-tracker', 'google-analytics', 'hubspot'], priority: 'recommended' },
+		{ mcps: ['mailchimp', 'meta-ads', 'google-ads'], priority: 'optional' }
 	],
 	'content-strategy': [
-		{ mcps: ['notion', 'web-research'], priority: 'recommended' }
+		{ mcps: ['notion', 'web-research', 'contentful'], priority: 'recommended' },
+		{ mcps: ['canva', 'unsplash', 'youtube'], priority: 'optional' }
+	],
+	'social-media': [
+		{ mcps: ['twitter', 'linkedin', 'instagram', 'tiktok'], priority: 'recommended' },
+		{ mcps: ['buffer', 'hootsuite', 'later'], priority: 'optional' }
+	],
+	'email-marketing': [
+		{ mcps: ['mailchimp', 'klaviyo', 'sendgrid'], priority: 'recommended' },
+		{ mcps: ['activecampaign', 'convertkit', 'beehiiv'], priority: 'optional' }
+	],
+	'paid-acquisition': [
+		{ mcps: ['google-ads', 'meta-ads', 'google-analytics'], priority: 'recommended' },
+		{ mcps: ['tiktok-ads', 'linkedin-ads'], priority: 'optional' }
+	],
+	'community-building': [
+		{ mcps: ['reddit', 'discord', 'slack'], priority: 'recommended' }
+	],
+	'brand-strategy': [
+		{ mcps: ['canva', 'figma', 'unsplash'], priority: 'recommended' },
+		{ mcps: ['twitter', 'linkedin'], priority: 'optional' }
+	],
+	'growth-hacking': [
+		{ mcps: ['google-analytics', 'mixpanel', 'amplitude'], priority: 'recommended' },
+		{ mcps: ['posthog', 'segment', 'clearbit'], priority: 'optional' }
+	],
+	'sales-automation': [
+		{ mcps: ['salesforce', 'hubspot', 'pipedrive'], priority: 'recommended' },
+		{ mcps: ['apollo', 'close', 'intercom'], priority: 'optional' }
+	],
+	'customer-success': [
+		{ mcps: ['intercom', 'zendesk'], priority: 'recommended' },
+		{ mcps: ['freshdesk', 'hubspot'], priority: 'optional' }
 	],
 
 	// Creative
@@ -721,6 +764,12 @@ export interface MCPRegistryItem {
 	popularity: number; // 1-100
 	skills: string[];
 	capabilities: MCPCapability[];
+	/** npm package to run via npx (e.g. '@modelcontextprotocol/server-filesystem') */
+	npmPackage?: string;
+	/** Extra CLI args appended after the npx package */
+	defaultArgs?: string[];
+	/** Environment variables required for this MCP (key = env var name, value = description) */
+	requiredEnvVars?: Record<string, string>;
 }
 
 export const TOP_100_MCPS: MCPRegistryItem[] = [
@@ -728,21 +777,22 @@ export const TOP_100_MCPS: MCPRegistryItem[] = [
 	// Pre-configured MCPs (Local - No Auth Required)
 	// ============================================
 	{ id: 'test-server', name: 'Test MCP Server', description: 'Local test server with echo, time, random number, and add tools. No auth required!', category: 'Development', subcategory: 'Testing', official: false, popularity: 100, skills: ['testing-strategies'], capabilities: ['custom'] },
-	{ id: 'filesystem', name: 'Filesystem MCP', description: 'Official MCP for reading/writing local files. Provides read_file, write_file, list_directory, and more.', category: 'Development', subcategory: 'Files', repository: 'modelcontextprotocol/servers', official: true, popularity: 95, skills: ['file-operations'], capabilities: ['file_system'] },
+	{ id: 'filesystem', name: 'Filesystem MCP', description: 'Official MCP for reading/writing local files. Provides read_file, write_file, list_directory, and more.', category: 'Development', subcategory: 'Files', repository: 'modelcontextprotocol/servers', official: true, popularity: 95, skills: ['file-operations'], capabilities: ['file_system'], npmPackage: '@modelcontextprotocol/server-filesystem', defaultArgs: ['.'] },
+	{ id: 'everything', name: 'Everything MCP', description: 'Official reference MCP server with all protocol features: resources, prompts, tools, sampling. Great for testing.', category: 'Development', subcategory: 'Testing', repository: 'modelcontextprotocol/servers', official: true, popularity: 80, skills: ['testing-strategies'], capabilities: ['custom'], npmPackage: '@modelcontextprotocol/server-everything' },
 
 	// Version Control (1-5)
-	{ id: 'github', name: 'GitHub MCP', description: 'Repos, PRs, issues, actions, code search', category: 'Development', subcategory: 'Version Control', repository: 'modelcontextprotocol/servers', official: true, popularity: 100, skills: ['git-workflow', 'code-review', 'ci-cd-pipeline'], capabilities: ['code_analysis'] },
-	{ id: 'gitlab', name: 'GitLab MCP', description: 'GitLab API - repos, MRs, CI/CD', category: 'Development', subcategory: 'Version Control', official: false, popularity: 85, skills: ['git-workflow', 'ci-cd-pipeline', 'devops'], capabilities: ['code_analysis'] },
+	{ id: 'github', name: 'GitHub MCP', description: 'Repos, PRs, issues, actions, code search', category: 'Development', subcategory: 'Version Control', repository: 'modelcontextprotocol/servers', official: true, popularity: 100, skills: ['git-workflow', 'code-review', 'ci-cd-pipeline'], capabilities: ['code_analysis'], npmPackage: '@modelcontextprotocol/server-github', requiredEnvVars: { 'GITHUB_PERSONAL_ACCESS_TOKEN': 'GitHub Personal Access Token' } },
+	{ id: 'gitlab', name: 'GitLab MCP', description: 'GitLab API - repos, MRs, CI/CD', category: 'Development', subcategory: 'Version Control', official: false, popularity: 85, skills: ['git-workflow', 'ci-cd-pipeline', 'devops'], capabilities: ['code_analysis'], npmPackage: '@modelcontextprotocol/server-gitlab', requiredEnvVars: { 'GITLAB_PERSONAL_ACCESS_TOKEN': 'GitLab Personal Access Token', 'GITLAB_API_URL': 'GitLab API URL (optional, defaults to gitlab.com)' } },
 	{ id: 'azure-devops', name: 'Azure DevOps MCP', description: 'Azure Repos, pipelines, boards', category: 'Development', subcategory: 'Version Control', official: false, popularity: 75, skills: ['devops', 'ci-cd-pipeline'], capabilities: ['code_analysis'] },
 	{ id: 'bitbucket', name: 'Bitbucket MCP', description: 'Atlassian Bitbucket integration', category: 'Development', subcategory: 'Version Control', official: false, popularity: 60, skills: ['git-workflow'], capabilities: ['code_analysis'] },
-	{ id: 'git', name: 'Git MCP', description: 'Local git operations', category: 'Development', subcategory: 'Version Control', repository: 'modelcontextprotocol/servers', official: true, popularity: 95, skills: ['git-workflow', 'code-cleanup'], capabilities: ['code_analysis'] },
+	{ id: 'git', name: 'Git MCP', description: 'Local git operations', category: 'Development', subcategory: 'Version Control', repository: 'modelcontextprotocol/servers', official: true, popularity: 95, skills: ['git-workflow', 'code-cleanup'], capabilities: ['code_analysis'], npmPackage: '@modelcontextprotocol/server-git' },
 
 	// Code Execution (6-10)
 	{ id: 'e2b', name: 'E2B MCP', description: 'Sandboxed code execution', category: 'Development', subcategory: 'Code Execution', official: false, popularity: 80, skills: ['testing-strategies', 'debugging-master'], capabilities: ['code_exec'] },
 	{ id: 'jupyter', name: 'Jupyter MCP', description: 'Notebook execution', category: 'Development', subcategory: 'Code Execution', official: false, popularity: 75, skills: ['python-craftsman', 'data-science'], capabilities: ['code_exec'] },
 	{ id: 'replit', name: 'Replit MCP', description: 'Cloud IDE integration', category: 'Development', subcategory: 'Code Execution', official: false, popularity: 70, skills: [], capabilities: ['code_exec'] },
 	{ id: 'codesandbox', name: 'CodeSandbox MCP', description: 'Browser-based dev environments', category: 'Development', subcategory: 'Code Execution', official: false, popularity: 65, skills: ['frontend', 'react-patterns'], capabilities: ['code_exec'] },
-	{ id: 'docker', name: 'Docker MCP', description: 'Container management', category: 'Development', subcategory: 'Containers', repository: 'modelcontextprotocol/servers', official: true, popularity: 95, skills: ['docker', 'devops', 'kubernetes'], capabilities: ['deployment'] },
+	{ id: 'docker', name: 'Docker MCP', description: 'Container management', category: 'Development', subcategory: 'Containers', repository: 'modelcontextprotocol/servers', official: true, popularity: 95, skills: ['docker', 'devops', 'kubernetes'], capabilities: ['deployment'], npmPackage: '@modelcontextprotocol/server-docker' },
 
 	// Code Analysis (11-15)
 	{ id: 'sonarqube', name: 'SonarQube MCP', description: 'Code quality metrics', category: 'Development', subcategory: 'Code Analysis', official: false, popularity: 80, skills: ['code-review', 'security'], capabilities: ['code_analysis'] },
@@ -759,9 +809,9 @@ export const TOP_100_MCPS: MCPRegistryItem[] = [
 	{ id: 'docusaurus', name: 'Docusaurus MCP', description: 'React doc sites', category: 'Development', subcategory: 'Documentation', official: false, popularity: 50, skills: ['frontend', 'documentation-engineer'], capabilities: ['file_system'] },
 
 	// Relational Databases (21-25)
-	{ id: 'postgresql', name: 'PostgreSQL MCP', description: 'Postgres queries, schema', category: 'Databases', subcategory: 'Relational', repository: 'modelcontextprotocol/servers', official: true, popularity: 100, skills: ['postgres-wizard', 'database-architect', 'supabase-backend'], capabilities: ['database'] },
+	{ id: 'postgresql', name: 'PostgreSQL MCP', description: 'Postgres queries, schema', category: 'Databases', subcategory: 'Relational', repository: 'modelcontextprotocol/servers', official: true, popularity: 100, skills: ['postgres-wizard', 'database-architect', 'supabase-backend'], capabilities: ['database'], npmPackage: '@modelcontextprotocol/server-postgres', requiredEnvVars: { 'POSTGRES_CONNECTION_STRING': 'PostgreSQL connection string (e.g. postgresql://user:pass@localhost/db)' } },
 	{ id: 'mysql', name: 'MySQL MCP', description: 'MySQL operations', category: 'Databases', subcategory: 'Relational', official: false, popularity: 80, skills: ['database-architect'], capabilities: ['database'] },
-	{ id: 'sqlite', name: 'SQLite MCP', description: 'Local SQLite', category: 'Databases', subcategory: 'Relational', repository: 'modelcontextprotocol/servers', official: true, popularity: 85, skills: ['database-architect', 'prisma'], capabilities: ['database'] },
+	{ id: 'sqlite', name: 'SQLite MCP', description: 'Local SQLite', category: 'Databases', subcategory: 'Relational', repository: 'modelcontextprotocol/servers', official: true, popularity: 85, skills: ['database-architect', 'prisma'], capabilities: ['database'], npmPackage: '@modelcontextprotocol/server-sqlite' },
 	{ id: 'supabase', name: 'Supabase MCP', description: 'Full Supabase platform', category: 'Databases', subcategory: 'Platform', official: false, popularity: 90, skills: ['supabase-backend', 'realtime-sync'], capabilities: ['database', 'storage'] },
 	{ id: 'neon', name: 'Neon MCP', description: 'Serverless Postgres', category: 'Databases', subcategory: 'Relational', official: false, popularity: 75, skills: ['postgres-wizard', 'neon-postgres'], capabilities: ['database'] },
 
@@ -822,14 +872,14 @@ export const TOP_100_MCPS: MCPRegistryItem[] = [
 	{ id: 'replicate', name: 'Replicate MCP', description: 'Model deployment', category: 'AI', subcategory: 'MLOps', official: false, popularity: 80, skills: ['ai-image-generation', 'text-to-video'], capabilities: ['image_gen', 'video_gen'] },
 
 	// Memory & Knowledge (66-70)
-	{ id: 'memory', name: 'Memory MCP', description: 'Persistent agent memory', category: 'AI', subcategory: 'Memory', repository: 'modelcontextprotocol/servers', official: true, popularity: 85, skills: ['agent-memory-systems'], capabilities: ['database'] },
+	{ id: 'memory', name: 'Memory MCP', description: 'Persistent agent memory', category: 'AI', subcategory: 'Memory', repository: 'modelcontextprotocol/servers', official: true, popularity: 85, skills: ['agent-memory-systems'], capabilities: ['database'], npmPackage: '@modelcontextprotocol/server-memory' },
 	{ id: 'mem0', name: 'Mem0 MCP', description: 'User memory layer', category: 'AI', subcategory: 'Memory', official: false, popularity: 75, skills: ['agent-memory-systems'], capabilities: ['database'] },
 	{ id: 'graphiti', name: 'Graphiti MCP', description: 'Knowledge graphs', category: 'AI', subcategory: 'Memory', official: false, popularity: 70, skills: ['agent-memory-systems', 'graph-engineer'], capabilities: ['database'] },
 	{ id: 'zep', name: 'Zep MCP', description: 'Long-term memory', category: 'AI', subcategory: 'Memory', official: false, popularity: 70, skills: ['agent-memory-systems'], capabilities: ['database'] },
 	{ id: 'letta', name: 'Letta MCP', description: 'Stateful agents', category: 'AI', subcategory: 'Memory', official: false, popularity: 65, skills: ['autonomous-agents'], capabilities: ['database'] },
 
 	// Communication (71-80)
-	{ id: 'slack', name: 'Slack MCP', description: 'Workspace messaging', category: 'Communication', subcategory: 'Messaging', repository: 'modelcontextprotocol/servers', official: true, popularity: 90, skills: ['team-communications', 'slack-bot-builder'], capabilities: ['notification'] },
+	{ id: 'slack', name: 'Slack MCP', description: 'Workspace messaging', category: 'Communication', subcategory: 'Messaging', repository: 'modelcontextprotocol/servers', official: true, popularity: 90, skills: ['team-communications', 'slack-bot-builder'], capabilities: ['notification'], npmPackage: '@modelcontextprotocol/server-slack', requiredEnvVars: { 'SLACK_BOT_TOKEN': 'Slack Bot Token (xoxb-...)' , 'SLACK_TEAM_ID': 'Slack Team/Workspace ID' } },
 	{ id: 'discord', name: 'Discord MCP', description: 'Community platform', category: 'Communication', subcategory: 'Messaging', official: false, popularity: 80, skills: ['discord-bot-architect', 'community-building'], capabilities: ['notification'] },
 	{ id: 'email', name: 'Email MCP', description: 'SMTP/IMAP access', category: 'Communication', subcategory: 'Email', official: false, popularity: 75, skills: ['email-systems'], capabilities: ['email'] },
 	{ id: 'twilio', name: 'Twilio MCP', description: 'SMS/Voice', category: 'Communication', subcategory: 'SMS', official: false, popularity: 80, skills: ['twilio-communications'], capabilities: ['notification'] },
@@ -841,13 +891,13 @@ export const TOP_100_MCPS: MCPRegistryItem[] = [
 	{ id: 'zoom', name: 'Zoom MCP', description: 'Video conferencing', category: 'Communication', subcategory: 'Video', official: false, popularity: 70, skills: ['team-communications'], capabilities: ['custom'] },
 
 	// Browser & Web (81-90)
-	{ id: 'puppeteer', name: 'Puppeteer MCP', description: 'Browser automation', category: 'Browser', subcategory: 'Automation', repository: 'modelcontextprotocol/servers', official: true, popularity: 90, skills: ['browser-automation', 'testing-strategies'], capabilities: ['web_fetch'] },
+	{ id: 'puppeteer', name: 'Puppeteer MCP', description: 'Browser automation', category: 'Browser', subcategory: 'Automation', repository: 'modelcontextprotocol/servers', official: true, popularity: 90, skills: ['browser-automation', 'testing-strategies'], capabilities: ['web_fetch'], npmPackage: '@modelcontextprotocol/server-puppeteer' },
 	{ id: 'playwright', name: 'Playwright MCP', description: 'Cross-browser testing', category: 'Browser', subcategory: 'Automation', official: false, popularity: 90, skills: ['browser-automation', 'testing-strategies'], capabilities: ['web_fetch'] },
 	{ id: 'browserbase', name: 'Browserbase MCP', description: 'Cloud browsers', category: 'Browser', subcategory: 'Automation', official: false, popularity: 70, skills: ['browser-automation'], capabilities: ['web_fetch'] },
 	{ id: 'firecrawl', name: 'Firecrawl MCP', description: 'Web scraping', category: 'Browser', subcategory: 'Scraping', official: false, popularity: 80, skills: [], capabilities: ['web_fetch'] },
 	{ id: 'exa', name: 'Exa MCP', description: 'AI-powered search', category: 'Browser', subcategory: 'Search', official: false, popularity: 75, skills: [], capabilities: ['web_search'] },
 	{ id: 'tavily', name: 'Tavily MCP', description: 'Research search', category: 'Browser', subcategory: 'Search', official: false, popularity: 75, skills: [], capabilities: ['web_search'] },
-	{ id: 'brave-search', name: 'Brave Search MCP', description: 'Privacy search', category: 'Browser', subcategory: 'Search', official: false, popularity: 70, skills: [], capabilities: ['web_search'] },
+	{ id: 'brave-search', name: 'Brave Search MCP', description: 'Privacy search', category: 'Browser', subcategory: 'Search', official: false, popularity: 70, skills: [], capabilities: ['web_search'], npmPackage: '@brave/brave-search-mcp-server', requiredEnvVars: { 'BRAVE_API_KEY': 'Brave Search API key' } },
 	{ id: 'perplexity', name: 'Perplexity MCP', description: 'AI search', category: 'Browser', subcategory: 'Search', official: false, popularity: 75, skills: [], capabilities: ['web_search'] },
 	{ id: 'serpapi', name: 'SerpAPI MCP', description: 'Google search API', category: 'Browser', subcategory: 'Search', official: false, popularity: 70, skills: ['seo'], capabilities: ['web_search'] },
 	{ id: 'screenshot', name: 'Screenshot MCP', description: 'Page capture', category: 'Browser', subcategory: 'Automation', official: false, popularity: 65, skills: ['browser-automation'], capabilities: ['web_fetch'] },
@@ -869,7 +919,7 @@ export const TOP_100_MCPS: MCPRegistryItem[] = [
 	// ============================================
 	// Productivity (101-115)
 	// ============================================
-	{ id: 'google-drive', name: 'Google Drive MCP', description: 'File storage and collaboration', category: 'Productivity', subcategory: 'Storage', repository: 'modelcontextprotocol/servers', official: true, popularity: 95, skills: ['documentation-engineer'], capabilities: ['file_system', 'storage'] },
+	{ id: 'google-drive', name: 'Google Drive MCP', description: 'File storage and collaboration', category: 'Productivity', subcategory: 'Storage', repository: 'modelcontextprotocol/servers', official: true, popularity: 95, skills: ['documentation-engineer'], capabilities: ['file_system', 'storage'], npmPackage: '@modelcontextprotocol/server-gdrive' },
 	{ id: 'dropbox', name: 'Dropbox MCP', description: 'Cloud file storage', category: 'Productivity', subcategory: 'Storage', official: false, popularity: 80, skills: [], capabilities: ['file_system', 'storage'] },
 	{ id: 'onedrive', name: 'OneDrive MCP', description: 'Microsoft cloud storage', category: 'Productivity', subcategory: 'Storage', official: false, popularity: 75, skills: [], capabilities: ['file_system', 'storage'] },
 	{ id: 'box', name: 'Box MCP', description: 'Enterprise file sharing', category: 'Productivity', subcategory: 'Storage', official: false, popularity: 65, skills: [], capabilities: ['file_system', 'storage'] },

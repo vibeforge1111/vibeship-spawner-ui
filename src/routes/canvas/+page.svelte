@@ -18,6 +18,7 @@ import { get } from 'svelte/store';
 	import { type Skill, getSkillById } from '$lib/stores/skills.svelte';
 	import { validateForMission, buildMissionFromCanvas } from '$lib/services/mission-builder';
 	import { mcpState } from '$lib/stores/mcp.svelte';
+	import { reconnectAll as reconnectMCPs, connectedInstances } from '$lib/stores/mcps.svelte';
 	import { isMemoryConnected } from '$lib/stores/memory-settings.svelte';
 	import { getGoalState, hasPendingGoal, clearGoal } from '$lib/stores/project-goal.svelte';
 	import { generatePipeline, storePipelineLearning } from '$lib/services/smart-pipeline';
@@ -46,6 +47,7 @@ import { get } from 'svelte/store';
 	let missionExporting = $state(false);
 	let missionExportError = $state<string | null>(null);
 	let isMcpConnected = $state(false);
+	let mcpConnectedCount = $state(0);
 	let isMindConnected = $state(false);
 	let canvasEl: HTMLDivElement;
 	let lastSaved = $state<Date | null>(null);
@@ -374,6 +376,9 @@ import { get } from 'svelte/store';
 			await loadSkills();
 			if (disposed) return;
 
+			// Reconnect any previously-connected MCPs so tools are available for missions
+			reconnectMCPs().catch((e) => console.warn('[Canvas] MCP reconnect error:', e));
+
 		// Auto-show execution panel if there's an active/resumable mission
 		const hasResumable = hasResumableMission();
 		console.log('[Canvas] hasResumableMission:', hasResumable);
@@ -637,7 +642,8 @@ import { get } from 'svelte/store';
 	$effect(() => {
 		const unsub1 = mcpState.subscribe((s) => (isMcpConnected = s.status === 'connected'));
 		const unsub2 = isMemoryConnected.subscribe((v) => (isMindConnected = v));
-		return () => { unsub1(); unsub2(); };
+		const unsub3 = connectedInstances.subscribe((instances) => (mcpConnectedCount = instances.length));
+		return () => { unsub1(); unsub2(); unsub3(); };
 	});
 
 	// Mission export handlers
@@ -1164,8 +1170,11 @@ import { get } from 'svelte/store';
 		<div class="p-3 border-t border-surface-border">
 			<div class="flex items-center justify-between">
 				<div class="text-xs text-text-tertiary font-mono">{currentNodes.length} nodes</div>
-				<div class="flex items-center gap-1.5">
-					<span class="w-1.5 h-1.5 rounded-full {isMcpConnected ? 'bg-green-500' : 'bg-text-tertiary'}" title={isMcpConnected ? 'MCP Connected' : 'MCP Disconnected'}></span>
+				<div class="flex items-center gap-2">
+					<a href="/mcps" class="flex items-center gap-1 text-xs font-mono transition-colors {mcpConnectedCount > 0 ? 'text-accent-primary' : 'text-text-tertiary'} hover:text-accent-primary" title="{mcpConnectedCount} MCP{mcpConnectedCount !== 1 ? 's' : ''} connected">
+						<span class="w-1.5 h-1.5 rounded-full {mcpConnectedCount > 0 ? 'bg-green-500' : 'bg-text-tertiary'}"></span>
+						{mcpConnectedCount} MCP{mcpConnectedCount !== 1 ? 's' : ''}
+					</a>
 					<span class="w-1.5 h-1.5 rounded-full {isMindConnected ? 'bg-purple-500' : 'bg-text-tertiary'}" title={isMindConnected ? 'Mind Connected' : 'Mind Disconnected'}></span>
 				</div>
 			</div>

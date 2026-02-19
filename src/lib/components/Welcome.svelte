@@ -20,7 +20,7 @@
 	import { toasts } from '$lib/stores/toast.svelte';
 	import { get } from 'svelte/store';
 
-	let { onStart }: { onStart?: (goal: string) => void } = $props();
+	let { onStart }: { onStart?: (goal: string, options?: { includeSkills?: boolean; includeMCPs?: boolean }) => void } = $props();
 	let showSetupGuide = $state(false);
 
 	let inputValue = $state('');
@@ -35,6 +35,10 @@
 	// AI Mode - uses real Claude AI via bridge for intelligent PRD analysis
 	let useAIMode = $state(true);  // Default ON - this is the PREFERRED mode
 	let aiAnalysisStatus = $state<'idle' | 'pending' | 'analyzing' | 'complete' | 'error'>('idle');
+
+	// Pipeline options - what to include in generated pipeline
+	let includeSkills = $state(true);   // Include H70 skill recommendations per task
+	let includeMCPs = $state(true);     // Include best MCP tool recommendations per task
 
 	// Initialize PRD bridge on mount
 	onMount(() => {
@@ -82,7 +86,7 @@
 	function handleSubmit() {
 		if (inputValue.trim() && onStart && !isSubmitting) {
 			isSubmitting = true;
-			onStart(inputValue.trim());
+			onStart(inputValue.trim(), { includeSkills, includeMCPs });
 		}
 	}
 
@@ -142,7 +146,8 @@
 							body: JSON.stringify({
 								content,
 								requestId: `prd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-								projectName: processingProjectName
+								projectName: processingProjectName,
+								options: { includeSkills, includeMCPs }
 							})
 						});
 
@@ -314,6 +319,20 @@
 						showProcessingModal = false;
 						toasts.error('Could not extract tasks from PRD. Try adding more detail.');
 						return;
+					}
+
+					// Apply pipeline options
+					if (!includeSkills) {
+						// Strip skill assignments from workflow nodes
+						for (const node of result.workflow.nodes) {
+							if (node.skill) {
+								node.skill.skillChain = [];
+							}
+						}
+						// Strip skills from mission tasks
+						for (const task of result.mission.tasks) {
+							task.skills = [];
+						}
 					}
 
 					pendingWorkflow = result.workflow;
@@ -666,6 +685,36 @@ wrangler dev</code>
 					rows="3"
 					class="w-full bg-transparent px-5 py-4 text-lg text-text-primary placeholder:text-text-tertiary resize-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 font-mono"
 				></textarea>
+
+				<div
+					class="flex items-center gap-4 px-5 py-2 border-t transition-colors duration-normal {isFocused ? 'border-accent-primary/30' : 'border-surface-border'}"
+				>
+					<span class="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">Include:</span>
+					<label class="flex items-center gap-1.5 cursor-pointer group">
+						<button
+							type="button"
+							role="switch"
+							aria-checked={includeSkills}
+							onclick={() => includeSkills = !includeSkills}
+							class="relative w-7 h-4 rounded-full transition-colors {includeSkills ? 'bg-accent-primary' : 'bg-surface-border'}"
+						>
+							<span class="absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform {includeSkills ? 'translate-x-3' : ''}"></span>
+						</button>
+						<span class="text-xs font-mono {includeSkills ? 'text-accent-primary' : 'text-text-tertiary'} group-hover:text-text-primary transition-colors">Skills</span>
+					</label>
+					<label class="flex items-center gap-1.5 cursor-pointer group">
+						<button
+							type="button"
+							role="switch"
+							aria-checked={includeMCPs}
+							onclick={() => includeMCPs = !includeMCPs}
+							class="relative w-7 h-4 rounded-full transition-colors {includeMCPs ? 'bg-accent-primary' : 'bg-surface-border'}"
+						>
+							<span class="absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform {includeMCPs ? 'translate-x-3' : ''}"></span>
+						</button>
+						<span class="text-xs font-mono {includeMCPs ? 'text-accent-primary' : 'text-text-tertiary'} group-hover:text-text-primary transition-colors">MCPs</span>
+					</label>
+				</div>
 
 				<div
 					class="flex items-center justify-between px-5 py-3 border-t transition-colors duration-normal"

@@ -13,6 +13,8 @@ import type { MissionAgent, MissionTask, MissionContext, Mission } from '$lib/se
 import { mcpClient } from '$lib/services/mcp-client';
 import { getAllRequiredSkills, getSkillPriorities, matchTaskToSkills } from './h70-skill-matcher';
 import { loadSkillsForMission, type H70SkillContent } from './h70-skills';
+import type { MCPRuntimeSnapshot, MCPRuntimeTool } from './mcp-runtime';
+import { SKILL_MCP_MAP } from '$lib/types/mcp';
 import { browser } from '$app/environment';
 
 export interface MissionBuildOptions {
@@ -39,6 +41,8 @@ export interface MissionBuildResult {
 	loadedSkills?: Map<string, H70SkillContent>;
 	/** Skill IDs matched per task */
 	taskSkillMap?: Map<string, string[]>;
+	/** MCP IDs recommended per task (derived from SKILL_MCP_MAP) */
+	taskMCPMap?: Map<string, string[]>;
 }
 
 /**
@@ -423,11 +427,34 @@ export async function buildMissionFromCanvas(
 			}
 		}
 
+		// Build per-task MCP recommendations from SKILL_MCP_MAP
+		let taskMCPMap: Map<string, string[]> | undefined;
+		if (taskSkillMap) {
+			taskMCPMap = new Map();
+			for (const [taskId, skillIds] of taskSkillMap.entries()) {
+				const mcpIds = new Set<string>();
+				for (const skillId of skillIds) {
+					const entries = SKILL_MCP_MAP[skillId] || [];
+					for (const entry of entries) {
+						if (entry.priority !== 'optional') {
+							entry.mcps.forEach((m) => mcpIds.add(m));
+						}
+					}
+				}
+				if (mcpIds.size > 0) taskMCPMap.set(taskId, [...mcpIds]);
+			}
+			if (taskMCPMap.size > 0) {
+				const totalMCPs = new Set([...taskMCPMap.values()].flat());
+				console.log(`[MissionBuilder] Mapped ${totalMCPs.size} recommended MCPs across ${taskMCPMap.size} tasks`);
+			}
+		}
+
 		return {
 			success: true,
 			mission,
 			loadedSkills,
-			taskSkillMap
+			taskSkillMap,
+			taskMCPMap
 		};
 	} catch (e) {
 		return {
@@ -445,8 +472,16 @@ export interface ExecutionPromptOptions {
 	loadedSkills?: Map<string, H70SkillContent>;
 	/** Mapping of task ID to skill IDs - these are listed in the prompt for just-in-time loading */
 	taskSkillMap?: Map<string, string[]>;
+	/** Mapping of task ID to recommended MCP IDs (from SKILL_MCP_MAP) */
+	taskMCPMap?: Map<string, string[]>;
 	/** Base URL for event reporting (defaults to window.location.origin in browser) */
 	baseUrl?: string;
+	/** Connected MCP tools snapshot — included in the prompt so Claude Code can use them */
+	mcpSnapshot?: MCPRuntimeSnapshot;
+	/** Whether to include H70 skills in the prompt (default: true) */
+	includeSkills?: boolean;
+	/** Whether to include MCP tools in the prompt (default: true) */
+	includeMCPs?: boolean;
 }
 
 /**
@@ -462,51 +497,103 @@ export function generateExecutionPrompt(
 	mission: Mission,
 	options?: ExecutionPromptOptions
 ): string {
-	const { taskSkillMap, baseUrl } = options || {};
+	const { taskSkillMap, taskMCPMap, baseUrl, mcpSnapshot, includeSkills = true, includeMCPs = true } = options || {};
 
 	// Use provided baseUrl, or default to localhost:5173 (caller should pass window.location.origin)
 	const eventUrl = baseUrl || 'http://localhost:5173';
 
-	// Build task list with skill IDs (not content)
+	// Build task list with skill IDs and MCP recommendations
 	const taskList = mission.tasks
 		.map((t, i) => {
 			const deps = t.dependsOn?.length ? ` (after: ${t.dependsOn.join(', ')})` : '';
-			const recommendedSkills = taskSkillMap?.get(t.id) || [];
+			const recommendedSkills = includeSkills ? (taskSkillMap?.get(t.id) || []) : [];
 			const skillsLine = recommendedSkills.length
 				? `\n   **Load H70 Skills**: ${recommendedSkills.map(s => `\`${s}\``).join(', ')}`
 				: '';
-			return `${i + 1}. **${t.title}** (id: ${t.id})${deps}\n   ${t.description}${skillsLine}`;
+			const recommendedMCPs = includeMCPs ? (taskMCPMap?.get(t.id) || []) : [];
+			const mcpLine = recommendedMCPs.length
+				? `\n   **Use MCP Tools**: ${recommendedMCPs.map(m => `\`${m}\``).join(', ')}`
+				: '';
+			return `${i + 1}. **${t.title}** (id: ${t.id})${deps}\n   ${t.description}${skillsLine}${mcpLine}`;
 		})
 		.join('\n\n');
 
-	// Collect all unique skill IDs across all tasks
+	// Collect all unique skill IDs across all tasks (only if skills enabled)
 	const allSkillIds = new Set<string>();
-	if (taskSkillMap) {
+	if (includeSkills && taskSkillMap) {
 		for (const skills of taskSkillMap.values()) {
 			skills.forEach(s => allSkillIds.add(s));
 		}
 	}
 	const skillIdList = [...allSkillIds].sort().join(', ');
 
-	return `# Mission: ${mission.name}
+	// Build MCP tools section if MCPs are connected and enabled
+	let mcpSection = '';
+	if (includeMCPs && mcpSnapshot?.connected && mcpSnapshot.tools.length > 0) {
+		// Collect all MCP IDs recommended by tasks
+		const missionRelevantMCPIds = new Set<string>();
+		if (taskMCPMap) {
+			for (const mcpIds of taskMCPMap.values()) {
+				mcpIds.forEach((m) => missionRelevantMCPIds.add(m));
+			}
+		}
 
-${mission.description || ''}
+		// Group tools by MCP name
+		const byMcp = new Map<string, { tools: MCPRuntimeTool[]; instanceId: string; definitionId: string }>();
+		for (const tool of mcpSnapshot.tools) {
+			const key = `${tool.mcpName}|||${tool.instanceId}`;
+			if (!byMcp.has(key)) byMcp.set(key, { tools: [], instanceId: tool.instanceId, definitionId: tool.definitionId });
+			byMcp.get(key)!.tools.push(tool);
+		}
 
-## Context
-- **Mission ID**: ${mission.id}
-- **Project Path**: ${mission.context.projectPath}
-- **Project Type**: ${mission.context.projectType}
-- **Tech Stack**: ${mission.context.techStack?.join(', ') || 'Not specified'}
-- **Goals**: ${mission.context.goals?.join('; ') || mission.description}
+		function formatMcpGroup(key: string, data: { tools: MCPRuntimeTool[]; instanceId: string }) {
+			const [mcpName] = key.split('|||');
+			const toolLines = data.tools.map((t) => {
+				const desc = t.description ? ` — ${t.description}` : '';
+				return `- \`${t.toolName}\`${desc}`;
+			}).join('\n');
+			return `### ${mcpName} (instance: ${data.instanceId})\n${toolLines}`;
+		}
 
-## H70 Skills Required
-${skillIdList || 'None specified'}
+		// Split into mission-relevant and other
+		const relevant: string[] = [];
+		const other: string[] = [];
+		for (const [key, data] of byMcp.entries()) {
+			const entry = formatMcpGroup(key, data);
+			if (missionRelevantMCPIds.has(data.definitionId)) {
+				relevant.push(entry);
+			} else {
+				other.push(entry);
+			}
+		}
 
-## Tasks (Execute in Order)
+		// If no task-level routing, show all as general
+		const hasRouting = relevant.length > 0;
+		const mcpEntries = hasRouting
+			? `### Mission-Relevant MCPs\n\n${relevant.join('\n\n')}\n\n### Also Available\n\n${other.length > 0 ? other.join('\n\n') : '_None_'}`
+			: [...byMcp.entries()].map(([key, data]) => formatMcpGroup(key, data)).join('\n\n');
 
-${taskList}
+		mcpSection = `
+## Connected MCP Tools
 
-## CRITICAL: How to Load H70 Skills
+The following MCP servers are connected and their tools are available during this mission.
+
+**To call an MCP tool:**
+\`\`\`bash
+curl -X POST ${eventUrl}/api/mcp/call -H "Content-Type: application/json" -d '{"instanceId":"INSTANCE_ID","toolName":"TOOL_NAME","args":{...}}'
+\`\`\`
+
+${mcpEntries}
+`;
+	}
+
+	// Build conditional sections
+	const skillsRequiredSection = includeSkills
+		? `## H70 Skills Required\n${skillIdList || 'None specified'}\n`
+		: '';
+
+	const skillLoadingSection = includeSkills
+		? `## CRITICAL: How to Load H70 Skills
 
 **Before starting each task**, load its H70 skills using ONE of these methods:
 
@@ -529,34 +616,17 @@ Read: C:/Users/USER/Desktop/vibeship-h70/skill-lab/<skill-id>/skill.yaml
 - **anti_patterns**: Mistakes to avoid (with code smells)
 - **patterns**: Recommended implementations
 
-## Workflow Per Task
+`
+		: '';
 
-For each task in order:
+	const skillWorkflowSteps = includeSkills
+		? `2. **Load Skills** - Fetch the H70 skills listed for this task (see "Load H70 Skills" in task)
 
-1. **Report Start**
-   \`\`\`bash
-   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"task_started","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME"}'
-   \`\`\`
+3. **Execute** - Complete the task following the skill's patterns, avoiding anti-patterns`
+		: `2. **Execute** - Complete the task`;
 
-2. **Load Skills** - Fetch the H70 skills listed for this task (see "Load H70 Skills" in task)
-
-3. **Execute** - Complete the task following the skill's patterns, avoiding anti-patterns
-
-4. **Report Progress** (for long tasks)
-   \`\`\`bash
-   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"progress","missionId":"${mission.id}","taskId":"TASK_ID","progress":50,"message":"Working on..."}'
-   \`\`\`
-
-5. **Report Complete**
-   \`\`\`bash
-   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"task_completed","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME","data":{"success":true}}'
-   \`\`\`
-
-6. **Move to Next Task** - Load the next task's skills and repeat
-
-## Completion Protocol
-
-### Per-Task Requirements
+	const skillCompletionLines = includeSkills
+		? `### Per-Task Requirements
 1. **Load Skills First** - Report: \`curl POST ${eventUrl}/api/events {"type":"skill_loaded","skillId":"..."}\`
 2. **Execute Task** - Follow skill patterns, avoid anti-patterns
 3. **Report Progress** - At 25%, 50%, 75% for long tasks
@@ -572,7 +642,64 @@ For each task in order:
 Each task should produce:
 - **Artifacts**: Files created/modified
 - **No Errors**: Code compiles, tests pass
-- **Skills Applied**: Patterns from loaded skills used
+- **Skills Applied**: Patterns from loaded skills used`
+		: `### Per-Task Requirements
+1. **Execute Task** - Complete the task fully
+2. **Report Progress** - At 25%, 50%, 75% for long tasks
+3. **Verify Before Complete** - Check artifacts exist, no errors
+
+### DO NOT
+- Skip feature tasks after infrastructure is set up
+- Mark tasks "complete" without verification
+- Rush to "mission_completed" - complete ALL tasks first
+
+### Task Completion Quality
+Each task should produce:
+- **Artifacts**: Files created/modified
+- **No Errors**: Code compiles, tests pass`;
+
+	return `# Mission: ${mission.name}
+
+${mission.description || ''}
+
+## Context
+- **Mission ID**: ${mission.id}
+- **Project Path**: ${mission.context.projectPath}
+- **Project Type**: ${mission.context.projectType}
+- **Tech Stack**: ${mission.context.techStack?.join(', ') || 'Not specified'}
+- **Goals**: ${mission.context.goals?.join('; ') || mission.description}
+
+${skillsRequiredSection}${mcpSection}
+## Tasks (Execute in Order)
+
+${taskList}
+
+${skillLoadingSection}## Workflow Per Task
+
+For each task in order:
+
+1. **Report Start**
+   \`\`\`bash
+   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"task_started","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME"}'
+   \`\`\`
+
+${skillWorkflowSteps}
+
+4. **Report Progress** (for long tasks)
+   \`\`\`bash
+   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"progress","missionId":"${mission.id}","taskId":"TASK_ID","progress":50,"message":"Working on..."}'
+   \`\`\`
+
+5. **Report Complete**
+   \`\`\`bash
+   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"task_completed","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME","data":{"success":true}}'
+   \`\`\`
+
+6. **Move to Next Task**${includeSkills ? " - Load the next task's skills and repeat" : ''}
+
+## Completion Protocol
+
+${skillCompletionLines}
 
 ## Mission Complete
 

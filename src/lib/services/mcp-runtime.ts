@@ -8,6 +8,7 @@ export interface MCPRuntimeTool {
 	mcpName: string;
 	toolName: string;
 	description?: string;
+	inputSchema?: Record<string, unknown>;
 	capabilities: MCPCapability[];
 }
 
@@ -37,6 +38,7 @@ function buildSnapshot(state: MCPState): MCPRuntimeSnapshot {
 				mcpName: instance.name,
 				toolName: tool.name,
 				description: tool.description,
+				inputSchema: tool.inputSchema,
 				capabilities: [...mcpCapabilities]
 			});
 		}

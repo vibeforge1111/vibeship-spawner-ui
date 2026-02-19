@@ -45,7 +45,8 @@ export const GET: RequestHandler = async () => {
 			requestId: requestMeta.requestId,
 			projectName: requestMeta.projectName,
 			timestamp: requestMeta.timestamp,
-			prdContent
+			prdContent,
+			options: requestMeta.options || { includeSkills: true, includeMCPs: true }
 		});
 	} catch (error) {
 		console.error('[PRDBridge] Error reading pending request:', error);

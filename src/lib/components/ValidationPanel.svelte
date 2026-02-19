@@ -4,6 +4,9 @@
 	import { mcpState } from '$lib/stores/mcp.svelte';
 	import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 	import Icon from './Icon.svelte';
+	import { SKILL_MCP_MAP } from '$lib/types/mcp';
+	import { connectedInstances } from '$lib/stores/mcps.svelte';
+	import type { MCPInstance } from '$lib/types/mcp';
 
 	interface Props {
 		onClose: () => void;
@@ -18,21 +21,56 @@
 	let mcpConnected = $state(false);
 	let loadingMcp = $state(false);
 	let showSharpEdges = $state(false);
+	let connectedMcpIds = $state<Set<string>>(new Set());
 
 	$effect(() => {
 		const unsub1 = nodes.subscribe((n) => (currentNodes = n));
 		const unsub2 = connections.subscribe((c) => (currentConnections = c));
 		const unsub3 = mcpState.subscribe((s) => (mcpConnected = s.status === 'connected'));
+		const unsub4 = connectedInstances.subscribe((instances: MCPInstance[]) => {
+			connectedMcpIds = new Set(instances.map((i) => i.definitionId));
+		});
 		return () => {
 			unsub1();
 			unsub2();
 			unsub3();
+			unsub4();
 		};
 	});
 
-	// Run local validation immediately
+	// Run local validation + MCP availability checks
 	$effect(() => {
-		result = validateCanvas(currentNodes, currentConnections);
+		const baseResult = validateCanvas(currentNodes, currentConnections);
+
+		// Add MCP availability warnings
+		const mcpWarnings: ValidationIssue[] = [];
+		for (const node of currentNodes) {
+			const entries = SKILL_MCP_MAP[node.skillId] || [];
+			const recommended = entries
+				.filter((e) => e.priority !== 'optional')
+				.flatMap((e) => e.mcps);
+			if (recommended.length > 0) {
+				const connected = recommended.filter((id) => connectedMcpIds.has(id));
+				if (connected.length === 0) {
+					mcpWarnings.push({
+						id: `mcp-${node.id}`,
+						severity: 'warning',
+						message: `"${node.skill.name}" recommends MCPs (${recommended.join(', ')}) but none are connected`,
+						suggestion: 'Go to MCPs page to connect recommended tools',
+						nodeId: node.id
+					});
+				}
+			}
+		}
+
+		if (mcpWarnings.length > 0) {
+			result = {
+				...baseResult,
+				issues: [...baseResult.issues, ...mcpWarnings]
+			};
+		} else {
+			result = baseResult;
+		}
 	});
 
 	// Run MCP validation when connected

@@ -10,9 +10,12 @@
 		initializeMCPStore,
 		createInstance,
 		connectInstance,
+		reconnectAll,
+		getSuggestedMCPs,
 		runInstanceSmokeTest,
 		disconnectInstance,
 		removeInstance,
+		callMCPTool,
 		setFilterCategory,
 		setFilterSubcategory,
 		setSearchQuery,
@@ -20,6 +23,7 @@
 		type MCPState
 	} from '$lib/stores/mcps.svelte';
 	import type { MCPInstance, MCPConnectionStatus, MCPRegistryItem } from '$lib/types/mcp';
+	import { nodes as canvasNodes } from '$lib/stores/canvas.svelte';
 
 	let mcpState: MCPState = $state({
 		registry: [],
@@ -42,6 +46,8 @@
 	let instances: MCPInstance[] = $state([]);
 	let feedbackCount = $state(0);
 	let categories: string[] = $state([]);
+	let suggestedMCPs: MCPRegistryItem[] = $state([]);
+	let canvasNodesList: { skillId: string }[] = $state([]);
 
 	// Tabs
 	let activeTab: 'discover' | 'connected' | 'feedback' = $state('discover');
@@ -54,6 +60,16 @@
 	let setupConfigRows = $state<Array<{ key: string; value: string }>>([{ key: '', value: '' }]);
 	let setupMessage = $state<string | null>(null);
 	let setupMessageKind = $state<'success' | 'error' | null>(null);
+	let setupCommand = $state('npx');
+	let setupArgs = $state('');
+
+	// Tool playground state
+	let playgroundInstanceId = $state<string | null>(null);
+	let playgroundToolName = $state<string | null>(null);
+	let playgroundArgs = $state('{}');
+	let playgroundResult = $state<string | null>(null);
+	let playgroundError = $state<string | null>(null);
+	let playgroundLoading = $state(false);
 
 	// Search
 	let searchInputEl: HTMLInputElement;
@@ -64,17 +80,28 @@
 		const unsub3 = connectedInstances.subscribe((i) => (instances = i));
 		const unsub4 = pendingFeedbackCount.subscribe((c) => (feedbackCount = c));
 		const unsub5 = mcpCategories.subscribe((c) => (categories = c));
+		const unsub6 = canvasNodes.subscribe((n) => {
+			canvasNodesList = n;
+			const skillIds = [...new Set(n.map((node) => node.skillId))];
+			suggestedMCPs = getSuggestedMCPs(skillIds);
+		});
 		return () => {
 			unsub1();
 			unsub2();
 			unsub3();
 			unsub4();
 			unsub5();
+			unsub6();
 		};
 	});
 
+	let reconnecting = $state(false);
+
 	onMount(() => {
 		initializeMCPStore();
+		// Reconnect previously-connected MCPs after store loads
+		reconnecting = true;
+		reconnectAll().finally(() => { reconnecting = false; });
 	});
 
 	// Category styling configuration - consolidated from three separate switch statements
@@ -142,7 +169,19 @@
 	async function handleConnect(mcp: MCPRegistryItem) {
 		selectedMCP = mcp;
 		setupName = mcp.name;
-		setupConfigRows = [{ key: '', value: '' }];
+
+		// Pre-populate config rows from requiredEnvVars
+		if (mcp.requiredEnvVars && Object.keys(mcp.requiredEnvVars).length > 0) {
+			setupConfigRows = Object.entries(mcp.requiredEnvVars).map(([key]) => ({
+				key,
+				value: ''
+			}));
+		} else {
+			setupConfigRows = [{ key: '', value: '' }];
+		}
+
+		setupCommand = 'npx';
+		setupArgs = mcp.npmPackage ? `-y ${mcp.npmPackage}${mcp.defaultArgs?.length ? ' ' + mcp.defaultArgs.join(' ') : ''}` : '';
 		setupMessage = null;
 		setupMessageKind = null;
 		showConnectModal = true;
@@ -154,6 +193,8 @@
 		connecting = false;
 		setupMessage = null;
 		setupMessageKind = null;
+		setupCommand = 'npx';
+		setupArgs = '';
 	}
 
 	function addConfigRow() {
@@ -184,7 +225,21 @@
 				config,
 				setupName.trim().length > 0 ? setupName.trim() : undefined
 			);
-			const connected = await connectInstance(instance.id);
+
+			// Build overrides for manual command/args
+			const commandTrimmed = setupCommand.trim();
+			const argsParsed = setupArgs.trim().split(/\s+/).filter(Boolean);
+			const envVars: Record<string, string> = {};
+			for (const [k, v] of Object.entries(config)) {
+				if (typeof v === 'string') envVars[k] = v;
+			}
+			const overrides = {
+				command: commandTrimmed || undefined,
+				args: argsParsed.length > 0 ? argsParsed : undefined,
+				envVars: Object.keys(envVars).length > 0 ? envVars : undefined
+			};
+
+			const connected = await connectInstance(instance.id, overrides);
 			if (!connected) {
 				setupMessage = 'Connection failed. Check configuration or server availability.';
 				setupMessageKind = 'error';
@@ -215,6 +270,37 @@
 
 	async function handleProcessFeedback() {
 		await processAllFeedback();
+	}
+
+	function openToolPlayground(instanceId: string, toolName: string) {
+		playgroundInstanceId = instanceId;
+		playgroundToolName = toolName;
+		playgroundArgs = '{}';
+		playgroundResult = null;
+		playgroundError = null;
+		playgroundLoading = false;
+	}
+
+	function closeToolPlayground() {
+		playgroundInstanceId = null;
+		playgroundToolName = null;
+	}
+
+	async function executePlaygroundTool() {
+		if (!playgroundInstanceId || !playgroundToolName) return;
+		playgroundLoading = true;
+		playgroundResult = null;
+		playgroundError = null;
+
+		try {
+			const args = JSON.parse(playgroundArgs);
+			const result = await callMCPTool(playgroundInstanceId, playgroundToolName, args);
+			playgroundResult = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+		} catch (e) {
+			playgroundError = e instanceof Error ? e.message : 'Tool call failed';
+		} finally {
+			playgroundLoading = false;
+		}
 	}
 
 	function handleCategoryClick(category: string) {
@@ -525,6 +611,70 @@
 					</p>
 				</div>
 
+				<!-- Suggested for Your Workflow -->
+				{#if suggestedMCPs.length > 0}
+					<div class="mb-6">
+						<div class="flex items-center gap-2 mb-3">
+							<Icon name="sparkles" size={16} class="text-accent-primary" />
+							<h3 class="text-sm font-mono font-medium text-accent-primary">Suggested for your workflow</h3>
+							<span class="text-xs text-text-tertiary font-mono">({suggestedMCPs.length} based on canvas skills)</span>
+						</div>
+						<div class="space-y-2">
+							{#each suggestedMCPs as mcp}
+								{@const connected = isConnected(mcp.id)}
+								<div
+									class="border border-accent-primary/40 bg-accent-primary/5 hover:border-accent-primary/60 transition-all"
+								>
+									<div class="p-4 flex items-center gap-4">
+										<div
+											class="w-10 h-10 flex items-center justify-center border flex-shrink-0 {getCategoryBgColor(mcp.category)}"
+										>
+											<Icon
+												name={getCategoryIcon(mcp.category)}
+												size={20}
+												class={getCategoryColor(mcp.category)}
+											/>
+										</div>
+										<div class="flex-1 min-w-0">
+											<div class="flex items-center gap-2 mb-1">
+												<h3 class="font-medium text-text-primary">{mcp.name}</h3>
+												<span
+													class="px-1.5 py-0.5 text-[10px] font-mono text-accent-primary border border-accent-primary/30 bg-accent-primary/10"
+												>
+													Recommended
+												</span>
+												{#if connected}
+													<span class="text-green-400">
+														<Icon name="check-circle" size={14} />
+													</span>
+												{/if}
+											</div>
+											<p class="text-xs text-text-secondary truncate">{mcp.description}</p>
+										</div>
+										<div class="flex items-center gap-2">
+											{#if connected}
+												<button
+													class="px-3 py-1.5 text-xs font-mono border border-green-500/30 text-green-400 bg-green-500/10"
+													disabled
+												>
+													Connected
+												</button>
+											{:else}
+												<button
+													class="px-3 py-1.5 text-xs font-mono border border-accent-primary text-accent-primary hover:bg-accent-primary/10 transition-colors"
+													onclick={() => handleConnect(mcp)}
+												>
+													Connect
+												</button>
+											{/if}
+										</div>
+									</div>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
 				<!-- MCP List -->
 				<div class="space-y-2">
 					{#each registry as mcp}
@@ -801,8 +951,16 @@
 											<div class="space-y-2 max-h-48 overflow-y-auto">
 												{#each instance.tools as tool}
 													<div class="p-2 bg-bg-primary border border-surface-border hover:border-accent-primary/30 transition-all">
-														<div class="flex items-center gap-2">
+														<div class="flex items-center justify-between">
 															<span class="text-accent-primary font-mono text-sm">{tool.name}</span>
+															{#if instance.status === 'connected'}
+																<button
+																	onclick={() => openToolPlayground(instance.id, tool.name)}
+																	class="px-2 py-0.5 text-[10px] font-mono text-accent-secondary border border-accent-secondary/30 hover:bg-accent-secondary/10 transition-all"
+																>
+																	Try
+																</button>
+															{/if}
 														</div>
 														{#if tool.description}
 															<p class="text-xs text-text-tertiary mt-1 line-clamp-2">{tool.description}</p>
@@ -1038,12 +1196,47 @@
 					</div>
 				{/if}
 
-				{#if selectedMCP.repository}
+				{#if selectedMCP.npmPackage}
+					<div class="mb-4 p-3 bg-green-500/10 border border-green-500/30">
+						<p class="text-xs text-green-400 mb-1 font-mono">AUTO-CONNECTABLE via npx</p>
+						<p class="text-sm font-mono text-text-primary">{selectedMCP.npmPackage}</p>
+						{#if selectedMCP.defaultArgs?.length}
+							<p class="text-xs text-text-tertiary mt-1">Args: {selectedMCP.defaultArgs.join(' ')}</p>
+						{/if}
+					</div>
+				{:else if selectedMCP.repository}
 					<div class="mb-4 p-3 bg-bg-primary border border-surface-border">
 						<p class="text-xs text-text-tertiary mb-1">Repository</p>
 						<p class="text-sm font-mono text-text-secondary">{selectedMCP.repository}</p>
 					</div>
+				{:else}
+					<div class="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30">
+						<p class="text-xs text-yellow-400 font-mono">MANUAL SETUP</p>
+						<p class="text-xs text-text-tertiary mt-1">Enter the command and arguments to start this MCP server.</p>
+					</div>
 				{/if}
+
+				<!-- Command / Args fields -->
+				<div class="mb-4">
+					<label class="block text-xs font-mono text-text-tertiary mb-2">Command</label>
+					<input
+						type="text"
+						value={setupCommand}
+						oninput={(e) => (setupCommand = (e.currentTarget as HTMLInputElement).value)}
+						class="w-full px-3 py-2 bg-bg-primary border border-surface-border text-text-primary font-mono text-sm focus:outline-none focus:border-accent-primary"
+						placeholder="npx"
+					/>
+				</div>
+				<div class="mb-4">
+					<label class="block text-xs font-mono text-text-tertiary mb-2">Arguments</label>
+					<input
+						type="text"
+						value={setupArgs}
+						oninput={(e) => (setupArgs = (e.currentTarget as HTMLInputElement).value)}
+						class="w-full px-3 py-2 bg-bg-primary border border-surface-border text-text-primary font-mono text-sm focus:outline-none focus:border-accent-primary"
+						placeholder="-y @modelcontextprotocol/server-name"
+					/>
+				</div>
 
 				<div class="mb-4">
 					<label class="block text-xs font-mono text-text-tertiary mb-2">Instance Name</label>
@@ -1058,7 +1251,9 @@
 
 				<div class="mb-4">
 					<div class="flex items-center justify-between mb-2">
-						<label class="block text-xs font-mono text-text-tertiary">Optional Config (ENV / params)</label>
+						<label class="block text-xs font-mono text-text-tertiary">
+							{selectedMCP.requiredEnvVars && Object.keys(selectedMCP.requiredEnvVars).length > 0 ? 'Required Config (API Keys / ENV)' : 'Optional Config (ENV / params)'}
+						</label>
 						<button
 							type="button"
 							onclick={addConfigRow}
@@ -1087,7 +1282,7 @@
 										(setupConfigRows = setupConfigRows.map((entry, i) =>
 											i === index ? { ...entry, value: (e.currentTarget as HTMLInputElement).value } : entry
 										))}
-									placeholder="value"
+									placeholder={selectedMCP.requiredEnvVars?.[row.key] || 'value'}
 									class="w-1/2 px-2 py-1.5 bg-bg-primary border border-surface-border text-text-primary font-mono text-xs focus:outline-none focus:border-accent-primary"
 								/>
 								{#if setupConfigRows.length > 1}
@@ -1138,6 +1333,58 @@
 				>
 					{connecting ? 'Connecting...' : 'Connect'}
 				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Tool Playground Modal -->
+{#if playgroundInstanceId && playgroundToolName}
+	<div class="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Tool Playground">
+		<button class="absolute inset-0 bg-black/60" onclick={closeToolPlayground} aria-label="Close playground"></button>
+
+		<div class="relative w-full max-w-lg bg-bg-secondary border border-surface-border shadow-xl">
+			<div class="p-4 border-b border-surface-border flex items-center justify-between">
+				<div>
+					<h2 class="text-lg font-medium text-text-primary font-mono">{playgroundToolName}</h2>
+					<p class="text-xs text-text-tertiary">Tool Playground - invoke in real-time</p>
+				</div>
+				<button onclick={closeToolPlayground} class="text-text-tertiary hover:text-text-secondary">
+					<Icon name="x" size={20} />
+				</button>
+			</div>
+
+			<div class="p-4">
+				<label class="block text-xs font-mono text-text-tertiary mb-2">Arguments (JSON)</label>
+				<textarea
+					value={playgroundArgs}
+					oninput={(e) => (playgroundArgs = (e.currentTarget as HTMLTextAreaElement).value)}
+					rows={4}
+					class="w-full px-3 py-2 bg-bg-primary border border-surface-border text-text-primary font-mono text-sm focus:outline-none focus:border-accent-primary resize-y"
+					placeholder={'{ }'}
+				></textarea>
+
+				<button
+					onclick={executePlaygroundTool}
+					disabled={playgroundLoading}
+					class="mt-3 w-full py-2 font-mono text-sm bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all disabled:opacity-50"
+				>
+					{playgroundLoading ? 'Executing...' : 'Execute Tool'}
+				</button>
+
+				{#if playgroundResult !== null}
+					<div class="mt-4">
+						<p class="text-xs font-mono text-green-400 mb-2">RESULT</p>
+						<pre class="p-3 bg-bg-primary border border-green-500/30 text-sm text-text-primary font-mono overflow-auto max-h-64 whitespace-pre-wrap">{playgroundResult}</pre>
+					</div>
+				{/if}
+
+				{#if playgroundError}
+					<div class="mt-4">
+						<p class="text-xs font-mono text-red-400 mb-2">ERROR</p>
+						<pre class="p-3 bg-bg-primary border border-red-500/30 text-sm text-red-400 font-mono overflow-auto max-h-64 whitespace-pre-wrap">{playgroundError}</pre>
+					</div>
+				{/if}
 			</div>
 		</div>
 	</div>

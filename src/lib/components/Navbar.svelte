@@ -2,11 +2,20 @@
 	import Icon from './Icon.svelte';
 	import PipelineSelector from './PipelineSelector.svelte';
 	import { initPipelines } from '$lib/stores/pipelines.svelte';
+	import { connectedInstances } from '$lib/stores/mcps.svelte';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 
 	let skillsDropdownOpen = $state(false);
 	let pipelinesReady = $state(false);
+	let mcpConnectedCount = $state(0);
+
+	$effect(() => {
+		const unsub = connectedInstances.subscribe((instances) => {
+			mcpConnectedCount = instances.length;
+		});
+		return unsub;
+	});
 
 	onMount(() => {
 		if (browser) {
@@ -82,6 +91,11 @@
 			>
 				<Icon name="plug" size={14} />
 				<span class="hidden sm:inline">MCPs</span>
+				{#if mcpConnectedCount > 0}
+					<span class="ml-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-accent-primary/20 text-accent-primary border border-accent-primary/30">
+						{mcpConnectedCount}
+					</span>
+				{/if}
 			</a>
 
 			<!-- Skills Dropdown -->

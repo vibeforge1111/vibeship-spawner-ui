@@ -28,6 +28,7 @@ import {
 	type MultiLLMCapability
 } from './multi-llm-orchestrator';
 import { getMcpRuntimeSnapshot } from './mcp-runtime';
+import { getPipelineOptions } from '$lib/stores/project-goal.svelte';
 import { syncClient, broadcastMissionEvent, broadcastLearningEvent, broadcastTaskEvent, broadcastExecutionControl, isConnected, type SyncEvent } from './sync-client';
 import { clientEventBridge, type BridgeEvent } from './event-bridge';
 import { memoryClient } from './memory-client';
@@ -860,6 +861,9 @@ class MissionExecutor {
 					}
 					this.addLocalLog('info', 'Mission completed successfully');
 					this.persistState();  // Persist completed state
+
+					// Record MCP usage to Mind for learning (non-blocking)
+					this.recordMcpUsageToMind();
 					break;
 
 				case 'mission_failed':
@@ -1162,9 +1166,11 @@ class MissionExecutor {
 
 			// Step 2: Build mission from canvas (locally, no MCP call)
 			this.addLocalLog('info', 'Creating mission from workflow...');
+			const pipelineConfig = getPipelineOptions();
 			const normalizedMissionBuildOptions: MissionBuildOptions = {
 				...options,
-				mode: this.progress.multiLLMOptions.enabled ? 'multi-llm-orchestrator' : options.mode
+				mode: this.progress.multiLLMOptions.enabled ? 'multi-llm-orchestrator' : options.mode,
+				loadH70Skills: pipelineConfig.includeSkills
 			};
 			const buildResult = await buildMissionFromCanvas(nodes, connections, normalizedMissionBuildOptions);
 
@@ -1208,10 +1214,20 @@ class MissionExecutor {
 
 			// Step 3: Generate copy-pasteable execution prompt (with H70 skills)
 			const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
+			// Get MCP runtime snapshot for execution prompt
+			const mcpSnapshot = getMcpRuntimeSnapshot();
+			if (mcpSnapshot.connected) {
+				this.addLocalLog('info', `${mcpSnapshot.connectedCount} MCP(s) with ${mcpSnapshot.tools.length} tool(s) available for this mission`);
+			}
+
 			const executionPrompt = generateExecutionPrompt(buildResult.mission, {
 				loadedSkills: buildResult.loadedSkills,
 				taskSkillMap: buildResult.taskSkillMap,
-				baseUrl
+				taskMCPMap: buildResult.taskMCPMap,
+				baseUrl,
+				mcpSnapshot,
+				includeSkills: pipelineConfig.includeSkills,
+				includeMCPs: pipelineConfig.includeMCPs
 			});
 			this.progress.executionPrompt = executionPrompt;
 			this.progress.multiLLMExecution = null;
@@ -2031,6 +2047,32 @@ class MissionExecutor {
 
 		} catch (error) {
 			logLearning.error('Failed to record mission complete:', error);
+		}
+	}
+
+	/**
+	 * Record MCP tool availability to Mind for learning (non-blocking)
+	 */
+	private recordMcpUsageToMind(): void {
+		try {
+			const snapshot = getMcpRuntimeSnapshot();
+			if (!snapshot.connected || snapshot.tools.length === 0) return;
+
+			const missionName = this.progress.mission?.name || 'Unknown';
+			const toolList = snapshot.tools.map(t => `${t.mcpName}.${t.toolName}`).join(', ');
+
+			fetch('http://localhost:8080/v1/memories/', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					content: `Mission "${missionName}" had ${snapshot.connectedCount} MCP(s) with ${snapshot.tools.length} tool(s) available: ${toolList}`,
+					temporal_level: 2,
+					content_type: 'agent_learning',
+					salience: 0.5
+				})
+			}).catch(() => { /* Mind offline is fine */ });
+		} catch {
+			// Non-critical — never block mission completion
 		}
 	}
 

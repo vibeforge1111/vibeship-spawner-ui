@@ -199,7 +199,7 @@ async function startCodexAutoAnalysis(requestId: string, projectName: string): P
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
-		const { content, requestId, projectName } = await request.json();
+		const { content, requestId, projectName, options } = await request.json();
 
 		if (!content || !requestId) {
 			return json({ error: 'Content and requestId are required' }, { status: 400 });
@@ -222,7 +222,11 @@ export const POST: RequestHandler = async ({ request }) => {
 			projectName: projectName || 'Untitled Project',
 			timestamp: new Date().toISOString(),
 			prdPath: PENDING_PRD_FILE,
-			status: 'pending'
+			status: 'pending',
+			options: {
+				includeSkills: options?.includeSkills !== false,
+				includeMCPs: options?.includeMCPs !== false
+			}
 		};
 		await writeFile(PENDING_REQUEST_FILE, JSON.stringify(requestMeta, null, 2), 'utf-8');
 		await appendPrdTrace(requestId, 'request_written', {

@@ -102,6 +102,7 @@
 	// Copy prompt collapsed state - default to collapsed to save space
 	let copyPromptCollapsed = $state(true);
 	let multiLLMPanelCollapsed = $state(false);
+	let mcpDetailOpen = $state(false);
 
 	// H70 skills collapsed state - show active skill in header when collapsed
 	let h70SkillsCollapsed = $state(true);
@@ -1217,9 +1218,28 @@
 				{/if}
 
 				<div class="flex justify-between mt-2 text-xs text-text-tertiary">
-					<span>{currentNodes.length} nodes</span>
+					<span>{currentNodes.length} nodes{#if $mcpRuntime.connectedCount > 0} &bull; <span class="text-accent-primary">{$mcpRuntime.connectedCount} MCP{$mcpRuntime.connectedCount > 1 ? 's' : ''}</span>{/if}</span>
 					<span>{getExecutionDuration()}</span>
 				</div>
+				{#if $mcpRuntime.connectedCount > 0}
+					<button
+						class="mt-1 text-[10px] font-mono text-text-tertiary hover:text-accent-primary transition-colors text-left"
+						onclick={() => mcpDetailOpen = !mcpDetailOpen}
+					>
+						{mcpDetailOpen ? '\u25BE' : '\u25B8'} {$mcpRuntime.tools.length} tools across {$mcpRuntime.connectedCount} MCP{$mcpRuntime.connectedCount > 1 ? 's' : ''}
+					</button>
+					{#if mcpDetailOpen}
+						<div class="mt-1 pl-2 border-l border-accent-primary/30 space-y-0.5">
+							{#each [...new Map($mcpRuntime.tools.map(t => [t.mcpName, t])).keys()] as mcpName}
+								{@const tools = $mcpRuntime.tools.filter(t => t.mcpName === mcpName)}
+								<div class="text-[10px] font-mono">
+									<span class="text-accent-primary">{mcpName}</span>
+									<span class="text-text-tertiary">: {tools.map(t => t.toolName).join(', ')}</span>
+								</div>
+							{/each}
+						</div>
+					{/if}
+				{/if}
 				{#if executionProgress?.multiLLMExecution?.enabled}
 					{@const multiPack = executionProgress.multiLLMExecution}
 					<div class="mt-3 border border-vibe-teal/30">

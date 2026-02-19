@@ -65,31 +65,44 @@ function assertCommandAllowed(command: string): void {
 	}
 }
 
+// Common MCP env vars allowed by default in local dev
+const DEFAULT_ALLOWED_ENV_KEYS = new Set([
+	'GITHUB_PERSONAL_ACCESS_TOKEN',
+	'GITLAB_PERSONAL_ACCESS_TOKEN',
+	'GITLAB_API_URL',
+	'BRAVE_API_KEY',
+	'SLACK_BOT_TOKEN',
+	'SLACK_TEAM_ID',
+	'POSTGRES_CONNECTION_STRING',
+	'OPENAI_API_KEY',
+	'ANTHROPIC_API_KEY',
+]);
+
 function sanitizeEnv(envVars?: Record<string, string>): Record<string, string> | undefined {
 	if (!envVars) {
 		return undefined;
 	}
 
-	const allowedKeys = new Set(parseCsv(env.MCP_ALLOWED_ENV_KEYS));
+	const configuredKeys = parseCsv(env.MCP_ALLOWED_ENV_KEYS);
+	const allowedKeys = configuredKeys.length > 0
+		? new Set(configuredKeys)
+		: DEFAULT_ALLOWED_ENV_KEYS;
 	const envEntries = Object.entries(envVars);
 
 	if (envEntries.length === 0) {
 		return undefined;
 	}
 
-	if (allowedKeys.size === 0) {
-		throw new Error('Custom MCP environment variables are disabled');
-	}
-
 	const sanitized: Record<string, string> = {};
 	for (const [key, value] of envEntries) {
 		if (!allowedKeys.has(key)) {
-			throw new Error(`MCP environment variable "${key}" is not allowed`);
+			console.warn(`[MCP] Environment variable "${key}" is not in the allowed list, skipping`);
+			continue;
 		}
 		sanitized[key] = value;
 	}
 
-	return sanitized;
+	return Object.keys(sanitized).length > 0 ? sanitized : undefined;
 }
 
 /**
@@ -241,4 +254,43 @@ export const PRECONFIGURED_MCPS: Record<string, MCPClientConfig> = {
 		command: 'npx',
 		args: ['-y', '@modelcontextprotocol/server-filesystem', process.cwd()],
 	},
+	'everything': {
+		command: 'npx',
+		args: ['-y', '@modelcontextprotocol/server-everything'],
+	},
+	'memory': {
+		command: 'npx',
+		args: ['-y', '@modelcontextprotocol/server-memory'],
+	},
 };
+
+/**
+ * Build MCPClientConfig from a registry item's npmPackage field.
+ * Falls back to PRECONFIGURED_MCPS if no npmPackage is set.
+ */
+export function buildConfigFromRegistry(
+	mcpId: string,
+	npmPackage?: string,
+	defaultArgs?: string[],
+	userEnv?: Record<string, string>
+): MCPClientConfig | null {
+	// Check preconfigured first
+	if (PRECONFIGURED_MCPS[mcpId]) {
+		const base = PRECONFIGURED_MCPS[mcpId];
+		if (userEnv && Object.keys(userEnv).length > 0) {
+			return { ...base, env: { ...base.env, ...userEnv } };
+		}
+		return base;
+	}
+
+	// Build from npmPackage
+	if (npmPackage) {
+		return {
+			command: 'npx',
+			args: ['-y', npmPackage, ...(defaultArgs || [])],
+			env: userEnv,
+		};
+	}
+
+	return null;
+}

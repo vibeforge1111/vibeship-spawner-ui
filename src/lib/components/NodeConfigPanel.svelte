@@ -3,6 +3,9 @@
 	import type { CanvasNode } from '$lib/stores/canvas.svelte';
 	import { mcpClient } from '$lib/services/mcp-client';
 	import { mcpState } from '$lib/stores/mcp.svelte';
+	import { SKILL_MCP_MAP } from '$lib/types/mcp';
+	import { connectedInstances } from '$lib/stores/mcps.svelte';
+	import type { MCPInstance } from '$lib/types/mcp';
 
 	let { node, onClose, onDelete }: {
 		node: CanvasNode;
@@ -14,11 +17,27 @@
 	let warnings = $state<string[]>([]);
 	let loadingWarnings = $state(false);
 	let mcpConnected = $state(false);
+	let connectedMcpIds = $state<Set<string>>(new Set());
+
+	// Derive recommended MCPs for this skill
+	const recommendedMcps = $derived.by(() => {
+		const entries = SKILL_MCP_MAP[node.skillId] || [];
+		const flat: { id: string; priority: string }[] = [];
+		for (const entry of entries) {
+			for (const mcpId of entry.mcps) {
+				flat.push({ id: mcpId, priority: entry.priority });
+			}
+		}
+		return flat;
+	});
 
 	// Subscribe to MCP state
 	$effect(() => {
-		const unsub = mcpState.subscribe((s) => (mcpConnected = s.status === 'connected'));
-		return unsub;
+		const unsub1 = mcpState.subscribe((s) => (mcpConnected = s.status === 'connected'));
+		const unsub2 = connectedInstances.subscribe((instances: MCPInstance[]) => {
+			connectedMcpIds = new Set(instances.map((i) => i.definitionId));
+		});
+		return () => { unsub1(); unsub2(); };
 	});
 
 	// Load sharp edges when warnings tab is selected
@@ -187,6 +206,30 @@
 							<span class="px-2 py-0.5 text-xs font-mono text-accent-primary bg-accent-primary/10 border border-accent-primary/30">
 								{pair}
 							</span>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			<!-- Recommended MCPs -->
+			{#if recommendedMcps.length > 0}
+				<div class="mb-5">
+					<h3 class="text-xs font-mono text-text-tertiary uppercase tracking-wider mb-2">Recommended MCPs</h3>
+					<div class="space-y-1.5">
+						{#each recommendedMcps as mcp}
+							{@const isConnected = connectedMcpIds.has(mcp.id)}
+							<div class="flex items-center justify-between p-2 bg-bg-tertiary border border-surface-border text-xs">
+								<div class="flex items-center gap-2">
+									<span class="w-1.5 h-1.5 rounded-full {isConnected ? 'bg-green-500' : 'bg-text-tertiary'}"></span>
+									<span class="font-mono text-text-primary">{mcp.id}</span>
+									<span class="text-[10px] px-1 py-0.5 border {mcp.priority === 'required' ? 'text-red-400 border-red-400/30' : mcp.priority === 'recommended' ? 'text-accent-primary border-accent-primary/30' : 'text-text-tertiary border-surface-border'}">{mcp.priority}</span>
+								</div>
+								{#if isConnected}
+									<span class="text-green-400 text-[10px] font-mono">Connected</span>
+								{:else}
+									<a href="/mcps" class="text-accent-primary text-[10px] font-mono hover:underline">Connect</a>
+								{/if}
+							</div>
 						{/each}
 					</div>
 				</div>

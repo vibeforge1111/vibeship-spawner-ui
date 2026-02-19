@@ -9,6 +9,14 @@ import type { AnalyzedGoal, MatchResult, GeneratedWorkflow, GoalProcessingState 
 import { browser } from '$app/environment';
 
 const STORAGE_KEY = 'spawner-pending-goal';
+const OPTIONS_KEY = 'spawner-pipeline-options';
+
+export interface PipelineOptions {
+	includeSkills: boolean;
+	includeMCPs: boolean;
+}
+
+const DEFAULT_PIPELINE_OPTIONS: PipelineOptions = { includeSkills: true, includeMCPs: true };
 
 // Load from sessionStorage on init (browser only)
 function loadFromStorage(): string {
@@ -18,6 +26,16 @@ function loadFromStorage(): string {
 	return '';
 }
 
+function loadOptionsFromStorage(): PipelineOptions {
+	if (browser) {
+		try {
+			const raw = sessionStorage.getItem(OPTIONS_KEY);
+			if (raw) return JSON.parse(raw);
+		} catch { /* ignore */ }
+	}
+	return DEFAULT_PIPELINE_OPTIONS;
+}
+
 // State for goal processing
 let goalState = $state<{
 	input: string;
@@ -25,6 +43,7 @@ let goalState = $state<{
 	matchResult: MatchResult | null;
 	workflow: GeneratedWorkflow | null;
 	processing: GoalProcessingState;
+	pipelineOptions: PipelineOptions;
 }>({
 	input: loadFromStorage(),
 	analyzedGoal: null,
@@ -34,7 +53,8 @@ let goalState = $state<{
 		status: 'idle',
 		progress: 0,
 		message: ''
-	}
+	},
+	pipelineOptions: loadOptionsFromStorage()
 });
 
 /**
@@ -122,6 +142,23 @@ export function hasPendingGoal(): boolean {
  */
 export function isGoalComplete(): boolean {
 	return goalState.processing.status === 'complete' && goalState.workflow !== null;
+}
+
+/**
+ * Set pipeline options (skills/MCPs toggles)
+ */
+export function setPipelineOptions(options: Partial<PipelineOptions>): void {
+	goalState.pipelineOptions = { ...goalState.pipelineOptions, ...options };
+	if (browser) {
+		sessionStorage.setItem(OPTIONS_KEY, JSON.stringify(goalState.pipelineOptions));
+	}
+}
+
+/**
+ * Get current pipeline options
+ */
+export function getPipelineOptions(): PipelineOptions {
+	return goalState.pipelineOptions;
 }
 
 /**

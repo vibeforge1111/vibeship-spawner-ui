@@ -21,6 +21,7 @@ import {
 	getTools,
 	getConnectionInfo,
 	PRECONFIGURED_MCPS,
+	buildConfigFromRegistry,
 	type MCPClientConfig,
 } from '$lib/services/mcp/client';
 import { requireMcpAuth } from '$lib/server/mcp-auth';
@@ -37,27 +38,46 @@ export const POST: RequestHandler = async (event) => {
 	try {
 		const { request } = event;
 		const body = await request.json();
-		const { instanceId, mcpId, config } = body as {
+		const { instanceId, mcpId, config, npmPackage, defaultArgs, envVars, command, args } = body as {
 			instanceId: string;
 			mcpId?: string;
 			config?: MCPClientConfig;
+			npmPackage?: string;
+			defaultArgs?: string[];
+			envVars?: Record<string, string>;
+			command?: string;
+			args?: string[];
 		};
 
 		if (!instanceId) {
 			return json({ error: 'instanceId is required' }, { status: 400 });
 		}
 
-		// Get config from preconfigured MCPs or use provided config
-		let mcpConfig: MCPClientConfig;
-		if (mcpId && PRECONFIGURED_MCPS[mcpId]) {
-			mcpConfig = PRECONFIGURED_MCPS[mcpId];
-		} else if (config) {
-			mcpConfig = config;
-		} else {
-			return json({ error: 'Either mcpId or config is required' }, { status: 400 });
+		// Build config: preconfigured > registry npmPackage > explicit config
+		let mcpConfig: MCPClientConfig | null = null;
+
+		if (mcpId) {
+			mcpConfig = buildConfigFromRegistry(mcpId, npmPackage, defaultArgs, envVars);
 		}
 
-		console.log(`[API] Connecting MCP: ${instanceId} (${mcpConfig.command})`);
+		if (!mcpConfig && config) {
+			mcpConfig = config;
+		}
+
+		// Fallback: explicit command/args from the client
+		if (!mcpConfig && command) {
+			mcpConfig = {
+				command,
+				args: args || [],
+				env: envVars
+			};
+		}
+
+		if (!mcpConfig) {
+			return json({ error: 'Cannot determine how to connect. Provide mcpId with npmPackage, or explicit command/args.' }, { status: 400 });
+		}
+
+		console.log(`[API] Connecting MCP: ${instanceId} (${mcpConfig.command} ${mcpConfig.args?.join(' ') || ''})`);
 
 		const connection = await connectMCP(instanceId, mcpConfig);
 

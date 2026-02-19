@@ -3,6 +3,7 @@
 	import { getPortColor } from '$lib/utils/ports';
 	import { draggingConnection, wouldConnectionBeValid } from '$lib/stores/canvas.svelte';
 	import type { DraggingConnection } from '$lib/stores/canvas.svelte';
+	import { SKILL_MCP_MAP } from '$lib/types/mcp';
 
 	let {
 		data,
@@ -147,6 +148,10 @@
 	const categoryColor = categoryColors[data.category] || 'bg-surface-active';
 	const badgeClass = categoryBadges[data.category] || '';
 
+	// MCP tool count for this skill
+	const skillMcpEntries = SKILL_MCP_MAP[data.id] || [];
+	const mcpToolCount = skillMcpEntries.reduce((acc: number, e: { mcps: string[] }) => acc + e.mcps.length, 0);
+
 	// Calculate port positions
 	const maxPorts = $derived(Math.max(data.inputs?.length || 1, data.outputs?.length || 1));
 	const nodeHeight = $derived(Math.max(48, 20 + maxPorts * 18));
@@ -272,6 +277,16 @@
 						</span>
 					{/if}
 				</div>
+			</div>
+		{/if}
+
+		<!-- MCP tool indicator -->
+		{#if mcpToolCount > 0}
+			<div class="mcp-badge">
+				<svg class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+					<path d="M12 2v6m0 8v6M2 12h6m8 0h6" />
+				</svg>
+				{mcpToolCount} MCP tools
 			</div>
 		{/if}
 	</div>
@@ -420,5 +435,26 @@
 		color: var(--text-tertiary);
 		background: var(--bg-tertiary, rgba(255, 255, 255, 0.05));
 		border-color: var(--border-surface, rgba(255, 255, 255, 0.1));
+	}
+
+	/* MCP tool indicator */
+	.mcp-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 3px;
+		margin-top: 4px;
+		font-size: 8px;
+		font-family: var(--font-mono);
+		color: var(--text-tertiary);
+		opacity: 0.7;
+		transition: opacity 0.15s;
+	}
+
+	.mcp-badge svg {
+		color: var(--accent-primary, #00C49A);
+	}
+
+	.node:hover .mcp-badge {
+		opacity: 1;
 	}
 </style>

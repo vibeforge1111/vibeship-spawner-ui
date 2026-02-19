@@ -21,7 +21,7 @@ import type {
 	MCPConnectionStatus,
 	MCPRegistryItem
 } from '$lib/types/mcp';
-import { TOP_100_MCPS, getMCPCategories } from '$lib/types/mcp';
+import { TOP_100_MCPS, getMCPCategories, SKILL_MCP_MAP } from '$lib/types/mcp';
 import { MCPStorageSchema, safeJsonParse } from '$lib/types/schemas';
 
 // ============================================
@@ -185,6 +185,35 @@ export const getMCPsForTeam = (teamId: string) =>
 		return $state.instances.filter((i) => bindingIds.includes(i.id));
 	});
 
+/**
+ * Get MCPs suggested for the current canvas workflow.
+ * Pass an array of skill IDs from the canvas nodes.
+ * Returns registry items sorted by relevance.
+ */
+export function getSuggestedMCPs(canvasSkillIds: string[]): MCPRegistryItem[] {
+	if (canvasSkillIds.length === 0) return [];
+
+	// Collect recommended MCP IDs from SKILL_MCP_MAP
+	const mcpScores = new Map<string, number>();
+	for (const skillId of canvasSkillIds) {
+		const entries = SKILL_MCP_MAP[skillId] || [];
+		for (const entry of entries) {
+			const score = entry.priority === 'required' ? 3 : entry.priority === 'recommended' ? 2 : 1;
+			for (const mcpId of entry.mcps) {
+				mcpScores.set(mcpId, (mcpScores.get(mcpId) || 0) + score);
+			}
+		}
+	}
+
+	if (mcpScores.size === 0) return [];
+
+	// Look up registry items
+	const state = get(mcpStore);
+	return state.registry
+		.filter((m) => mcpScores.has(m.id))
+		.sort((a, b) => (mcpScores.get(b.id) || 0) - (mcpScores.get(a.id) || 0));
+}
+
 // ============================================
 // Actions
 // ============================================
@@ -264,7 +293,10 @@ export function createInstance(
 /**
  * Connect an MCP instance
  */
-export async function connectInstance(instanceId: string): Promise<boolean> {
+export async function connectInstance(
+	instanceId: string,
+	overrides?: { command?: string; args?: string[]; envVars?: Record<string, string> }
+): Promise<boolean> {
 	const state = get(mcpStore);
 	const instance = state.instances.find((i) => i.id === instanceId);
 	if (!instance) {
@@ -280,6 +312,23 @@ export async function connectInstance(instanceId: string): Promise<boolean> {
 	}));
 
 	try {
+		// Look up registry info for npmPackage/defaultArgs/requiredEnvVars
+		const registryItem = state.registry.find((m) => m.id === instance.definitionId);
+
+		// Build env vars from user config (key-value pairs that match requiredEnvVars)
+		const envVars: Record<string, string> = {};
+		if (instance.config && registryItem?.requiredEnvVars) {
+			for (const key of Object.keys(registryItem.requiredEnvVars)) {
+				const val = instance.config[key];
+				if (val && typeof val === 'string' && val.trim().length > 0) {
+					envVars[key] = val.trim();
+				}
+			}
+		}
+
+		// Merge override env vars with config-derived env vars
+		const mergedEnvVars = { ...envVars, ...overrides?.envVars };
+
 		// Call the server-side MCP connection API
 		const response = await fetch('/api/mcp', {
 			method: 'POST',
@@ -287,7 +336,12 @@ export async function connectInstance(instanceId: string): Promise<boolean> {
 			body: JSON.stringify({
 				instanceId,
 				mcpId: instance.definitionId,
-				config: instance.config
+				npmPackage: registryItem?.npmPackage,
+				defaultArgs: registryItem?.defaultArgs,
+				envVars: Object.keys(mergedEnvVars).length > 0 ? mergedEnvVars : undefined,
+				config: instance.config,
+				command: overrides?.command,
+				args: overrides?.args
 			})
 		});
 
@@ -297,7 +351,7 @@ export async function connectInstance(instanceId: string): Promise<boolean> {
 			throw new Error(result.error || 'Connection failed');
 		}
 
-		// Successfully connected - update with server info and tools
+		// Successfully connected - update with server info, tools, and connection config for reconnect
 		mcpStore.update((s) => ({
 			...s,
 			instances: s.instances.map((i) =>
@@ -308,7 +362,14 @@ export async function connectInstance(instanceId: string): Promise<boolean> {
 							lastConnected: new Date().toISOString(),
 							updatedAt: new Date().toISOString(),
 							serverInfo: result.serverInfo,
-							tools: result.tools
+							tools: result.tools,
+							connectionConfig: {
+								npmPackage: registryItem?.npmPackage,
+								defaultArgs: registryItem?.defaultArgs,
+								command: overrides?.command,
+								args: overrides?.args,
+								envVars: Object.keys(mergedEnvVars).length > 0 ? mergedEnvVars : undefined
+							}
 						}
 					: i
 			)
@@ -363,6 +424,33 @@ export async function disconnectInstance(instanceId: string): Promise<void> {
 				: i
 		)
 	}));
+}
+
+/**
+ * Reconnect all instances that have a stored connectionConfig.
+ * Called on page load to restore live connections after a reload.
+ */
+export async function reconnectAll(): Promise<void> {
+	const state = get(mcpStore);
+	const staleInstances = state.instances.filter(
+		(i) => i.status === 'disconnected' && i.connectionConfig
+	);
+
+	if (staleInstances.length === 0) return;
+
+	console.log(`[MCP] Reconnecting ${staleInstances.length} instance(s)...`);
+	for (const instance of staleInstances) {
+		const cc = instance.connectionConfig!;
+		try {
+			await connectInstance(instance.id, {
+				command: cc.command,
+				args: cc.args,
+				envVars: cc.envVars
+			});
+		} catch (e) {
+			console.error(`[MCP] Reconnect failed for ${instance.name}:`, e);
+		}
+	}
 }
 
 /**
@@ -790,10 +878,13 @@ export function loadFromStorage() {
 				console.warn('[MCP] Invalid stored data, skipping load');
 				return;
 			}
+			// Mark previously-connected instances as disconnected (stdio processes are dead after reload)
+			const instances = ((data.instances || []) as unknown as MCPInstance[]).map((i) =>
+				i.status === 'connected' ? { ...i, status: 'disconnected' as MCPConnectionStatus } : i
+			);
 			mcpStore.update((s) => ({
 				...s,
-				// Cast through unknown since schema validates structure but types may differ
-				instances: (data.instances || []) as unknown as MCPInstance[],
+				instances,
 				skillBindings: (data.skillBindings || []) as unknown as SkillMCPBinding[],
 				teamBindings: (data.teamBindings || []) as unknown as TeamMCPBinding[]
 			}));
