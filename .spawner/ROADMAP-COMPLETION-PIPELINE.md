@@ -17,18 +17,34 @@ Currently, Claude completes tasks but the "finishing touches" are inconsistent. 
 
 ---
 
-## Current State
+## Current State (Updated 2026-02-19)
 
-**What happens now:**
-1. Claude executes all tasks
-2. Claude may or may not test
-3. Project is "done" (but quality varies)
+**"Done Means Done" verification system is IMPLEMENTED.** See `VERIFICATION-SYSTEM.md` for full details.
 
-**Problems:**
-- No automated testing enforcement
-- No security scanning
-- No code review
-- No consistency in completion quality
+**What happens now (post-verification system):**
+1. Claude executes all tasks with verification steps in the prompt
+2. Each `task_completed` event is quality-scored (0-100) using completion-gates.ts
+3. On `mission_completed`, task count reconciliation verifies ALL tasks are done
+4. If tasks remain pending → mission marked `partial` (yellow UI), not `completed` (green)
+5. Checkpoint generated with quality metrics, automated results, review summary
+6. CheckpointReview modal shown to user for verify/reject decision
+7. UI nodes reflect actual task status (not blanket green)
+
+**Solved:**
+- [x] Task quality scoring (completion-gates.ts — 224 lines activated)
+- [x] Task count reconciliation (prevents premature "done")
+- [x] Force-success bug fixed (nodes reflect actual status)
+- [x] Checkpoint generation (checkpoint.ts — 467 lines activated)
+- [x] Human verify/reject flow (CheckpointReview modal)
+- [x] Partial completion status + UI
+- [x] Prompt-level verification requirements (build, typecheck, files)
+
+**Remaining problems:**
+- No server-side independent verification (all client-side)
+- No automated test execution by Spawner itself
+- No security scanning integration
+- No code review automation
+- Quality gates are informational only (don't block)
 
 ---
 
@@ -154,25 +170,33 @@ Currently, Claude completes tasks but the "finishing touches" are inconsistent. 
 
 ## Implementation Roadmap
 
-### v1.0 - Foundation (Next Sprint)
-- [ ] Build verification as mandatory final step
-- [ ] Basic smoke testing
-- [ ] Completion summary report
+### v1.0 - Foundation ✅ DONE (2026-02-19)
+- [x] Build verification in execution prompt (agent-side)
+- [x] Task quality scoring (completion-gates.ts)
+- [x] Task count reconciliation (prevents premature "done")
+- [x] Checkpoint generation with quality metrics
+- [x] CheckpointReview modal (human verify/reject)
+- [x] Partial completion status + UI
+- [x] Fix force-success bug (actual task status on nodes)
+- [x] 940 lines of dead code activated
 
-### v1.1 - Security (Following Sprint)
-- [ ] Scanner integration
-- [ ] Auto-fix for common issues
-- [ ] Security report in completion
+### v1.1 - Enforcement (Next)
+- [ ] Blocking quality gates (reject low-quality tasks, not just log)
+- [ ] Resume from partial (re-run pending tasks)
+- [ ] Server-side build/test verification (independent of agent)
+- [ ] Scanner integration (Trivy/Gitleaks/OpenGrep)
 
-### v1.2 - Quality (Future)
-- [ ] Automated code review
-- [ ] Test generation
-- [ ] Documentation generation
+### v1.2 - Intelligence (Future)
+- [ ] Planner-Worker-Judge pattern (separate verification agent)
+- [ ] Spec alignment checking (output vs PRD)
+- [ ] Automated code review against H70 patterns
+- [ ] Regression test generation (P2P)
 
 ### v2.0 - Full Pipeline (Future)
 - [ ] All phases integrated
 - [ ] Configurable pipeline per project type
 - [ ] Quality score/badge
+- [ ] CI/CD generation (GitHub Actions)
 
 ---
 
@@ -292,7 +316,9 @@ type CompletionEvent =
 
 ## Next Steps
 
-1. **Immediate:** Enforce build verification in all workflows
-2. **This week:** Add Scanner integration design
-3. **This month:** Implement v1.0 completion pipeline
-4. **Future:** Full pipeline with quality scoring
+1. **v1.0 DONE** — Verification system shipped (commit 7fe7447)
+2. **Next:** Make quality gates blocking (reject low-quality tasks)
+3. **Next:** Add "Resume Mission" button for partial completions
+4. **Next:** Server-side verification (independent build/test runner)
+5. **Future:** Scanner integration (Trivy/Gitleaks/OpenGrep)
+6. **Future:** Planner-Worker-Judge architecture for spec alignment
