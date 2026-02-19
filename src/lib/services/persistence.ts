@@ -314,7 +314,7 @@ export function downloadBackup(): void {
 // ============================================
 
 // Define types locally to avoid circular dependency with mission-executor
-type ExecutionStatus = 'idle' | 'creating' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
+type ExecutionStatus = 'idle' | 'creating' | 'running' | 'paused' | 'completed' | 'partial' | 'failed' | 'cancelled';
 
 interface TaskProgress {
 	taskId: string;
@@ -356,6 +356,15 @@ export interface PersistedMissionState {
 	// H70 Skills
 	loadedSkills?: LoadedSkillInfo[];  // Skills loaded for this mission
 	taskSkillMap?: Record<string, string[]>;  // Object instead of Map
+	// Post-completion verification
+	reconciliation?: {
+		totalTasks: number;
+		completedTasks: number;
+		failedTasks: number;
+		pendingTasks: Array<{ id: string; title: string; status: string }>;
+		verdict: 'complete' | 'mostly_done' | 'incomplete';
+	} | null;
+	checkpoint?: unknown | null;  // ProjectCheckpoint — avoid circular import
 	// Metadata for recovery
 	savedAt: string;
 	version: number;

@@ -690,25 +690,36 @@ ${skillWorkflowSteps}
    curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"progress","missionId":"${mission.id}","taskId":"TASK_ID","progress":50,"message":"Working on..."}'
    \`\`\`
 
-5. **Report Complete**
-   \`\`\`bash
-   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"task_completed","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME","data":{"success":true}}'
-   \`\`\`
+5. **Verify Before Reporting Complete**
+   - Run \`npm run build\` (or equivalent) — check for errors
+   - Run type check if applicable (\`npx tsc --noEmit\`)
+   - List files created/modified for this task
 
-6. **Move to Next Task**${includeSkills ? " - Load the next task's skills and repeat" : ''}
+6. **Report Complete with Verification**
+   \`\`\`bash
+   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"task_completed","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME","data":{"success":true,"verification":{"build":true,"typecheck":true,"filesChanged":["src/file1.ts","src/file2.ts"]}}}'
+   \`\`\`
+   If verification fails, set the relevant field to false and \`success\` to false.
+
+7. **Move to Next Task**${includeSkills ? " - Load the next task's skills and repeat" : ''}
 
 ## Completion Protocol
 
 ${skillCompletionLines}
 
-## Mission Complete
+## Mission Completion Gate
 
-Only send \`mission_completed\` after ALL ${mission.tasks.length} tasks are done:
+Do NOT send \`mission_completed\` until:
+- ALL ${mission.tasks.length} tasks have been attempted and reported
+- Final build passes (run \`npm run build\` or equivalent one last time)
+- No unresolved TypeScript/lint errors remain
+
+Only then send:
 \`\`\`bash
 curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"mission_completed","missionId":"${mission.id}"}'
 \`\`\`
 
-The system will then run automated tests and generate a checkpoint for human review.
+The system will reconcile task statuses and generate a checkpoint for human review. If tasks are still pending, the mission will be marked as partial — not complete.
 
 ## IMPORTANT: Resume After Interruption
 

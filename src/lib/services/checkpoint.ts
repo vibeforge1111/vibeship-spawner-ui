@@ -5,7 +5,7 @@
  * Generates a comprehensive review summary for human QA.
  */
 
-import type { Mission, MissionTask } from '$lib/types/mission';
+import type { Mission, MissionTask } from '$lib/services/mcp-client';
 import type { TaskCompletionQuality } from './completion-gates';
 
 export interface AutomatedResults {

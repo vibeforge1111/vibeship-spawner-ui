@@ -25,7 +25,9 @@
 	} from '$lib/services/multi-llm-orchestrator';
 	import PreMissionContextPanel from './PreMissionContextPanel.svelte';
 	import PostMissionReview from './PostMissionReview.svelte';
+	import CheckpointReview from './CheckpointReview.svelte';
 	import MidMissionGuidance from './MidMissionGuidance.svelte';
+	import type { ProjectCheckpoint } from '$lib/services/checkpoint';
 	import { isMemoryConnected } from '$lib/stores/memory-settings.svelte';
 	import { memoryClient } from '$lib/services/memory-client';
 	import { browser } from '$app/environment';
@@ -57,6 +59,10 @@
 	let completedMission = $state<Mission | null>(null);
 	let missionStartTime = $state<Date | null>(null);
 	let missionEndTime = $state<Date | null>(null);
+
+	// Checkpoint review state
+	let showCheckpointReview = $state(false);
+	let missionCheckpoint = $state<ProjectCheckpoint | null>(null);
 
 	// Mid-mission guidance state
 	let guidanceCollapsed = $state(true);
@@ -781,12 +787,27 @@
 				// Clear pending tasks
 				pendingTasks = [];
 
-				// Mark all nodes as success when mission completes
-				// This handles cases where individual task completion events weren't received
-				for (const node of currentNodes) {
-					if (node.status === 'running' || node.status === 'idle') {
-						updateNodeStatus(node.id, 'success');
+				// Update node statuses based on ACTUAL task status, not blanket success
+				if (mission.tasks) {
+					for (const task of mission.tasks) {
+						const node = currentNodes.find(n => n.id === task.id);
+						if (node) {
+							if (task.status === 'completed') {
+								updateNodeStatus(node.id, 'success');
+							} else if (task.status === 'failed') {
+								updateNodeStatus(node.id, 'error');
+							} else {
+								// Task never started or still pending — mark as idle (not success)
+								updateNodeStatus(node.id, 'idle');
+							}
+						}
 					}
+				}
+
+				// Show checkpoint review if available
+				if (executionProgress?.checkpoint) {
+					missionCheckpoint = executionProgress.checkpoint;
+					showCheckpointReview = true;
 				}
 
 				// Log completion to Mind with summary
@@ -1129,6 +1150,7 @@
 					<div
 						class="h-full transition-all duration-300"
 						class:bg-accent-primary={executionProgress.status === 'completed'}
+						class:bg-yellow-500={executionProgress.status === 'partial'}
 						class:bg-vibe-teal={executionProgress.status === 'running' || executionProgress.status === 'creating'}
 						class:bg-blue-500={executionProgress.status === 'paused'}
 						class:bg-red-500={executionProgress.status === 'failed'}
@@ -1506,6 +1528,37 @@
 						{#if !memoryConnected}
 							<p class="text-xs text-amber-400 mt-1">
 								Connect Mind to save learnings from this workflow.
+							</p>
+						{/if}
+					</div>
+				{:else if executionProgress.status === 'partial'}
+					<div class="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/30">
+						<div class="flex items-center gap-2 mb-2">
+							<div class="w-5 h-5 flex items-center justify-center bg-yellow-500/20 border border-yellow-500/50">
+								<svg class="w-3 h-3 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.194-.833-2.964 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+								</svg>
+							</div>
+							<span class="text-yellow-400 font-medium font-mono uppercase tracking-wide text-sm">Mission Partially Complete</span>
+						</div>
+						{#if executionProgress.reconciliation}
+							<p class="text-xs text-text-secondary">
+								{executionProgress.reconciliation.completedTasks}/{executionProgress.reconciliation.totalTasks} tasks completed
+								{#if executionProgress.reconciliation.failedTasks > 0}
+									, {executionProgress.reconciliation.failedTasks} failed
+								{/if}
+							</p>
+							{#if executionProgress.reconciliation.pendingTasks.length > 0}
+								<div class="mt-2 text-xs text-yellow-400/70">
+									<span class="font-mono uppercase text-[10px] tracking-wider">Incomplete:</span>
+									{#each executionProgress.reconciliation.pendingTasks as task}
+										<div class="ml-2 mt-0.5 text-text-tertiary">- {task.title} <span class="text-yellow-400/50">({task.status})</span></div>
+									{/each}
+								</div>
+							{/if}
+						{:else}
+							<p class="text-xs text-text-secondary">
+								Agent reported completion but some tasks were not finished.
 							</p>
 						{/if}
 					</div>
@@ -2123,6 +2176,25 @@
 					Proceed Anyway
 				</button>
 			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Checkpoint Review Modal -->
+{#if showCheckpointReview && missionCheckpoint}
+	<div class="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+		<div class="max-w-2xl w-full max-h-[80vh] overflow-y-auto mx-4">
+			<CheckpointReview
+				checkpoint={missionCheckpoint}
+				onVerify={() => {
+					showCheckpointReview = false;
+					toasts.success('Checkpoint verified — mission approved');
+				}}
+				onReject={() => {
+					showCheckpointReview = false;
+					toasts.warning('Checkpoint rejected — review needed');
+				}}
+			/>
 		</div>
 	</div>
 {/if}

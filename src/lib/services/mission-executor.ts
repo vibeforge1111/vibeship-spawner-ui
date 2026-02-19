@@ -29,6 +29,9 @@ import {
 } from './multi-llm-orchestrator';
 import { getMcpRuntimeSnapshot } from './mcp-runtime';
 import { getPipelineOptions } from '$lib/stores/project-goal.svelte';
+import { calculateCompletionQuality, isLowQualityCompletion, type TaskCompletionQuality } from './completion-gates';
+import { parseFilesFromLogs } from './artifacts';
+import { generateCheckpoint, type ProjectCheckpoint } from './checkpoint';
 import { syncClient, broadcastMissionEvent, broadcastLearningEvent, broadcastTaskEvent, broadcastExecutionControl, isConnected, type SyncEvent } from './sync-client';
 import { clientEventBridge, type BridgeEvent } from './event-bridge';
 import { memoryClient } from './memory-client';
@@ -44,7 +47,7 @@ import {
 } from './persistence';
 
 export type ExecutionMode = 'preview' | 'live';
-export type ExecutionStatus = 'idle' | 'creating' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
+export type ExecutionStatus = 'idle' | 'creating' | 'running' | 'paused' | 'completed' | 'partial' | 'failed' | 'cancelled';
 
 export interface TaskProgress {
 	taskId: string;
@@ -85,6 +88,14 @@ export interface TaskTransitionEvent {
 	progress?: number;
 }
 
+export interface ReconciliationResult {
+	totalTasks: number;
+	completedTasks: number;
+	failedTasks: number;
+	pendingTasks: Array<{ id: string; title: string; status: string }>;
+	verdict: 'complete' | 'mostly_done' | 'incomplete';
+}
+
 export interface ExecutionProgress {
 	status: ExecutionStatus;
 	missionId: string | null;
@@ -108,6 +119,9 @@ export interface ExecutionProgress {
 	// Live runtime visibility
 	agentRuntime: Map<string, AgentRuntimeStatus>;  // provider/agent runtime statuses
 	taskTransitions: TaskTransitionEvent[];  // chronological task/event transitions
+	// Post-completion verification
+	reconciliation: ReconciliationResult | null;
+	checkpoint: ProjectCheckpoint | null;
 }
 
 export interface ExecutionRunOptions extends MissionBuildOptions {
@@ -164,6 +178,7 @@ class MissionExecutor {
 	private taskStartTimes: Map<string, Date> = new Map();
 	private taskDecisionIds: Map<string, string> = new Map();  // taskId -> memory_id
 	private completedSkillSequence: string[] = [];
+	private taskQualities: Map<string, TaskCompletionQuality> = new Map();
 
 	// Health monitoring
 	private lastProgressTime: number = Date.now();
@@ -212,6 +227,9 @@ class MissionExecutor {
 			// H70 Skills
 			loadedSkills: this.progress.loadedSkills,
 			taskSkillMap: Object.fromEntries(this.progress.taskSkillMap),
+			// Post-completion verification
+			reconciliation: this.progress.reconciliation,
+			checkpoint: this.progress.checkpoint,
 			savedAt: new Date().toISOString(),
 			version: 3
 		};
@@ -241,6 +259,9 @@ class MissionExecutor {
 		// H70 Skills
 		this.progress.loadedSkills = saved.loadedSkills || [];
 		this.progress.taskSkillMap = new Map(Object.entries(saved.taskSkillMap || {}));
+		// Post-completion verification
+		this.progress.reconciliation = saved.reconciliation || null;
+		this.progress.checkpoint = (saved.checkpoint as ProjectCheckpoint) || null;
 		// Live runtime visibility (not persisted currently)
 		this.progress.agentRuntime = new Map();
 		this.progress.taskTransitions = [];
@@ -434,19 +455,26 @@ class MissionExecutor {
 					}
 					break;
 
-				case 'mission_completed':
-					this.progress.status = 'completed';
+				case 'mission_completed': {
 					this.progress.endTime = new Date();
 					this.stopPolling();
-					this.callbacks.onStatusChange?.('completed');
-					if (event.data.mission) {
-						const mission = event.data.mission as Mission;
-						this.callbacks.onComplete?.(mission);
-						// Record mission completion for learning
-						this.recordMissionComplete(mission);
+					const syncMission = (event.data.mission as Mission) || this.progress.mission;
+					if (syncMission) {
+						const isFullyComplete = this.reconcileMissionCompletion(syncMission);
+						if (isFullyComplete) {
+							this.progress.status = 'completed';
+							this.callbacks.onStatusChange?.('completed');
+						}
+						this.callbacks.onComplete?.(syncMission);
+						this.recordMissionComplete(syncMission);
+						this.generateMissionCheckpoint(syncMission);
+					} else {
+						this.progress.status = 'completed';
+						this.callbacks.onStatusChange?.('completed');
 					}
-					this.persistState();  // Persist completed state
+					this.persistState();
 					break;
+				}
 
 				case 'mission_failed':
 					this.progress.status = 'failed';
@@ -757,6 +785,30 @@ class MissionExecutor {
 							this.addLocalLog('info', `DoD gate: task ${completedTaskId} blocked - missing required skill loads: ${missingSkills.join(', ')}`);
 						}
 					}
+
+					// Quality gate: calculate task completion quality
+					if (completedTaskId) {
+						const hasErrors = event.type === 'task_failed' || event.data?.success === false;
+						const verification = event.data?.verification as Record<string, unknown> | undefined;
+						const filesChanged = (verification?.filesChanged as string[]) || [];
+						const taskLogs = this.progress.logs.filter(l => l.task_id === completedTaskId);
+						const parsedFiles = parseFilesFromLogs(taskLogs);
+						const artifactsCreated = filesChanged.length > 0 || parsedFiles.length > 0;
+						const skillsLoaded = !this.getMissingSkillsForTask(completedTaskId).length;
+						const gatesPassed = verification?.build !== false && verification?.typecheck !== false;
+
+						const quality = calculateCompletionQuality(
+							completedTaskId,
+							completedTaskName,
+							{ skillsLoaded, artifactsCreated, noErrors: !hasErrors, gatesPassed }
+						);
+						this.taskQualities.set(completedTaskId, quality);
+
+						if (success && isLowQualityCompletion(quality)) {
+							this.addLocalLog('info', `Quality gate: task ${completedTaskId} scored ${quality.score}/100 (${quality.details.filter(d => d.startsWith('Missing') || d.startsWith('Warning')).join('; ')})`);
+						}
+					}
+
 					if (completedTaskId) {
 						const existingProgress = this.progress.taskProgressMap.get(completedTaskId);
 						this.progress.taskProgressMap.set(completedTaskId, {
@@ -846,28 +898,38 @@ class MissionExecutor {
 					}
 					break;
 
-				case 'mission_completed':
-					this.progress.status = 'completed';
+				case 'mission_completed': {
 					this.progress.endTime = new Date();
-					this.callbacks.onStatusChange?.('completed');
-					if (this.progress.mission) {
-						this.callbacks.onComplete?.(this.progress.mission);
-						this.recordMissionComplete(this.progress.mission);
+					const bridgeMission = this.progress.mission;
+					if (bridgeMission) {
+						const isFullyComplete = this.reconcileMissionCompletion(bridgeMission);
+						if (isFullyComplete) {
+							this.progress.status = 'completed';
+							this.callbacks.onStatusChange?.('completed');
+							this.addLocalLog('info', 'Mission completed successfully');
+						}
+						this.callbacks.onComplete?.(bridgeMission);
+						this.recordMissionComplete(bridgeMission);
+						this.generateMissionCheckpoint(bridgeMission);
+					} else {
+						this.progress.status = 'completed';
+						this.callbacks.onStatusChange?.('completed');
+						this.addLocalLog('info', 'Mission completed successfully');
 					}
 					for (const [agentId, agent] of this.progress.agentRuntime.entries()) {
 						if (agent.status === 'running') {
 							this.progress.agentRuntime.set(agentId, { ...agent, status: 'completed', progress: 100, updatedAt: new Date().toISOString() });
 						}
 					}
-					this.addLocalLog('info', 'Mission completed successfully');
-					this.persistState();  // Persist completed state
+					this.persistState();
 
 					// Record MCP usage to Mind for learning (non-blocking)
 					this.recordMcpUsageToMind();
 					break;
+				}
 
 				case 'mission_failed':
-				case 'error':
+				case 'error': {
 					const errorMsg = event.message || event.data?.error as string || 'Mission failed';
 					this.progress.status = 'failed';
 					this.progress.error = errorMsg;
@@ -882,6 +944,7 @@ class MissionExecutor {
 					this.addLocalLog('info', `Error: ${errorMsg}`);
 					this.persistState();  // Persist failed state
 					break;
+				}
 
 				case 'log':
 					// Generic log message
@@ -1059,7 +1122,9 @@ class MissionExecutor {
 			loadedSkills: [],
 			taskSkillMap: new Map(),
 			agentRuntime: new Map(),
-			taskTransitions: []
+			taskTransitions: [],
+			reconciliation: null,
+			checkpoint: null
 		};
 	}
 
@@ -1614,14 +1679,18 @@ class MissionExecutor {
 
 				// Check for completion
 				if (mission.status === 'completed') {
-					this.progress.status = 'completed';
 					this.progress.endTime = new Date();
 					this.stopPolling();
-					this.callbacks.onStatusChange?.('completed');
+					const isFullyComplete = this.reconcileMissionCompletion(mission);
+					if (isFullyComplete) {
+						this.progress.status = 'completed';
+						this.callbacks.onStatusChange?.('completed');
+					}
 					this.callbacks.onComplete?.(mission);
 
 					// Record mission completion for learning
 					this.recordMissionComplete(mission);
+					this.generateMissionCheckpoint(mission);
 				} else if (mission.status === 'failed') {
 					this.progress.status = 'failed';
 					this.progress.error = mission.error || 'Mission failed';
@@ -1902,6 +1971,67 @@ class MissionExecutor {
 	}
 
 	/**
+	 * Reconcile mission completion — verify all tasks actually completed before accepting "done"
+	 * Returns true if mission is fully complete, false if partial
+	 */
+	private reconcileMissionCompletion(mission: Mission): boolean {
+		const totalTasks = mission.tasks.length;
+		const completedCount = mission.tasks.filter(t => t.status === 'completed').length;
+		const failedCount = mission.tasks.filter(t => t.status === 'failed').length;
+		const pendingTasks = mission.tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
+
+		if (pendingTasks.length > 0) {
+			const completionRatio = completedCount / totalTasks;
+			this.progress.reconciliation = {
+				totalTasks,
+				completedTasks: completedCount,
+				failedTasks: failedCount,
+				pendingTasks: pendingTasks.map(t => ({ id: t.id, title: t.title, status: t.status })),
+				verdict: completionRatio >= 0.8 ? 'mostly_done' : 'incomplete'
+			};
+			this.addLocalLog('info', `Reconciler: ${pendingTasks.length}/${totalTasks} tasks incomplete — mission marked partial (${completedCount} completed, ${failedCount} failed)`);
+			this.progress.status = 'partial';
+			this.callbacks.onStatusChange?.('partial');
+			return false;
+		}
+
+		// All tasks completed or failed — mission is genuinely done
+		this.progress.reconciliation = {
+			totalTasks,
+			completedTasks: completedCount,
+			failedTasks: failedCount,
+			pendingTasks: [],
+			verdict: 'complete'
+		};
+		return true;
+	}
+
+	/**
+	 * Generate post-mission checkpoint with quality metrics and review summary
+	 */
+	private generateMissionCheckpoint(mission: Mission): void {
+		try {
+			const loadedSkills = this.progress.loadedSkills?.map(s => s.id) || [];
+			const requiredSkills = [...this.progress.taskSkillMap.values()].flat();
+			const taskQualities = [...this.taskQualities.values()];
+
+			const checkpoint = generateCheckpoint(mission, {
+				loadedSkills,
+				requiredSkills,
+				taskQualities,
+				startTime: this.progress.startTime || new Date(),
+				endTime: this.progress.endTime || new Date(),
+				logs: this.progress.logs.map(l => ({ level: l.type === 'error' ? 'error' : 'info', message: l.message }))
+			});
+
+			this.progress.checkpoint = checkpoint;
+			this.addLocalLog('info', `Checkpoint: ${checkpoint.status} — ${checkpoint.canShip ? 'Ready to ship' : 'Needs review'} (quality: ${Math.round(checkpoint.quality.averageTaskQuality)}/100)`);
+		} catch (err) {
+			this.addLocalLog('error', `Failed to generate checkpoint: ${err instanceof Error ? err.message : String(err)}`);
+		}
+	}
+
+	/**
 	 * Record mission completion - extracts learnings and patterns
 	 * NOW USES LITE+ PATTERN EXTRACTION for decision-based patterns
 	 */
@@ -2161,6 +2291,7 @@ class MissionExecutor {
 		this.taskStartTimes.clear();
 		this.taskDecisionIds.clear();
 		this.completedSkillSequence = [];
+		this.taskQualities.clear();
 	}
 }
 
