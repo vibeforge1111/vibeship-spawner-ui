@@ -7,9 +7,11 @@
  */
 
 import type { BridgeEvent } from '$lib/services/event-bridge';
-import type {
-	MultiLLMExecutionPack,
-	MultiLLMProviderConfig
+import {
+	buildMultiLLMExecutionPack,
+	createDefaultMultiLLMOptions,
+	type MultiLLMExecutionPack,
+	type MultiLLMProviderConfig
 } from '$lib/services/multi-llm-orchestrator';
 import type {
 	ProviderResult,
@@ -23,6 +25,7 @@ import {
 } from './provider-clients/openai-compat-client';
 import { openclawBridge } from '$lib/services/openclaw-bridge';
 import { eventBridge } from '$lib/services/event-bridge';
+import { mcpClient } from '$lib/services/mcp-client';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -69,21 +72,51 @@ class ProviderRuntimeManager {
 	private async recoverDispatchSnapshot(missionId: string): Promise<MissionDispatchSnapshot | null> {
 		const existing = this.dispatchSnapshots.get(missionId);
 		if (existing) return existing;
-		if (!existsSync(ACTIVE_MISSION_PATH)) return null;
+
+		if (existsSync(ACTIVE_MISSION_PATH)) {
+			try {
+				const raw = await readFile(ACTIVE_MISSION_PATH, 'utf-8');
+				const state = JSON.parse(raw) as {
+					missionId?: string;
+					multiLLMExecution?: MultiLLMExecutionPack | null;
+				};
+				if (state.missionId === missionId && state.multiLLMExecution) {
+					const apiKeys: Record<string, string> = {};
+					for (const provider of state.multiLLMExecution.providers || []) {
+						if (provider.requiresApiKey && provider.apiKeyEnv) {
+							const value = process.env[provider.apiKeyEnv];
+							if (value && value.trim()) {
+								apiKeys[provider.id] = value.trim();
+							}
+						}
+					}
+
+					const snapshot: MissionDispatchSnapshot = {
+						executionPack: state.multiLLMExecution,
+						apiKeys,
+						workingDirectory: undefined
+					};
+					this.dispatchSnapshots.set(missionId, snapshot);
+					this.rememberStatusReason(missionId, 'Recovered dispatch snapshot from active mission state');
+					return snapshot;
+				}
+			} catch (error) {
+				console.warn('[ProviderRuntime] Failed to recover dispatch snapshot from active mission file:', error);
+			}
+		}
 
 		try {
-			const raw = await readFile(ACTIVE_MISSION_PATH, 'utf-8');
-			const state = JSON.parse(raw) as {
-				missionId?: string;
-				multiLLMExecution?: MultiLLMExecutionPack | null;
-			};
-			if (state.missionId !== missionId || !state.multiLLMExecution) {
+			const missionResult = await mcpClient.getMission(missionId);
+			const mission = missionResult.success ? missionResult.data?.mission : null;
+			if (!mission) {
 				return null;
 			}
 
+			const options = createDefaultMultiLLMOptions();
+			const executionPack = buildMultiLLMExecutionPack({ mission, options });
 			const apiKeys: Record<string, string> = {};
-			for (const provider of state.multiLLMExecution.providers || []) {
-				if (provider.requiresApiKey && provider.apiKeyEnv) {
+			for (const provider of executionPack.providers) {
+				if (provider.apiKeyEnv) {
 					const value = process.env[provider.apiKeyEnv];
 					if (value && value.trim()) {
 						apiKeys[provider.id] = value.trim();
@@ -92,15 +125,15 @@ class ProviderRuntimeManager {
 			}
 
 			const snapshot: MissionDispatchSnapshot = {
-				executionPack: state.multiLLMExecution,
+				executionPack,
 				apiKeys,
 				workingDirectory: undefined
 			};
 			this.dispatchSnapshots.set(missionId, snapshot);
-			this.rememberStatusReason(missionId, 'Recovered dispatch snapshot from active mission state');
+			this.rememberStatusReason(missionId, 'Rebuilt dispatch snapshot from mission record');
 			return snapshot;
 		} catch (error) {
-			console.warn('[ProviderRuntime] Failed to recover dispatch snapshot:', error);
+			console.warn('[ProviderRuntime] Failed to rebuild dispatch snapshot from mission record:', error);
 			return null;
 		}
 	}
@@ -379,7 +412,7 @@ class ProviderRuntimeManager {
 
 		const snapshot = await this.recoverDispatchSnapshot(missionId);
 		if (!snapshot) {
-			const reason = 'No dispatch snapshot available to resume mission.';
+			const reason = 'No dispatch snapshot available to resume mission (recovery failed from active state/mission record).';
 			this.pausedReasons.set(missionId, reason);
 			this.rememberStatusReason(missionId, reason);
 			return { resumed: false, reason };
@@ -423,6 +456,8 @@ class ProviderRuntimeManager {
 		pausedReason: string | null;
 		lastReason: string | null;
 		snapshotAvailable: boolean;
+		resumeable: boolean;
+		resumeBlocker: string | null;
 		providers: Record<string, ProviderSessionStatus>;
 	} {
 		const sessions = this.getSessionsForMission(missionId);
@@ -431,13 +466,23 @@ class ProviderRuntimeManager {
 			providers[s.providerId] = s.status;
 		}
 		const terminal: ProviderSessionStatus[] = ['completed', 'failed', 'cancelled'];
+		const paused = this.pausedMissions.has(missionId);
+		const snapshotAvailable = this.dispatchSnapshots.has(missionId);
+		const pausedReason = this.pausedReasons.get(missionId) || null;
+		const resumeable = paused && snapshotAvailable;
+		const resumeBlocker = paused && !snapshotAvailable
+			? pausedReason || 'Missing dispatch snapshot; resume will attempt reconstruction on demand.'
+			: null;
+
 		return {
 			allComplete: sessions.length > 0 && sessions.every((s) => terminal.includes(s.status)),
 			anyFailed: sessions.some((s) => s.status === 'failed'),
-			paused: this.pausedMissions.has(missionId),
-			pausedReason: this.pausedReasons.get(missionId) || null,
+			paused,
+			pausedReason,
 			lastReason: this.lastStatusReason.get(missionId) || null,
-			snapshotAvailable: this.dispatchSnapshots.has(missionId),
+			snapshotAvailable,
+			resumeable,
+			resumeBlocker,
 			providers
 		};
 	}
