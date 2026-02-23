@@ -282,6 +282,9 @@
 					<p class="text-[11px] font-mono text-text-tertiary mt-1">
 						Pending: {visibleSentinelActions().length} · Reviewed: {reviewedSentinelCount()}
 					</p>
+					<p class="text-[11px] text-text-tertiary mt-1">
+						“Create mission” turns this queue item into a tracked work card for review (it does not auto-merge PRs).
+					</p>
 				</div>
 				<div class="flex items-center gap-3">
 					{#if reviewedSentinelCount() > 0}
@@ -324,6 +327,7 @@
 								<button
 									onclick={() => createMissionFromSentinelAction(action)}
 									disabled={sentinelActionBusy === action.id}
+									title="Creates a new mission card from this item so you or agents can review it."
 									class="px-2 py-1 text-[11px] font-mono border border-accent-primary/40 text-accent-primary hover:bg-accent-primary/10 disabled:opacity-50"
 								>
 									{sentinelActionBusy === action.id ? 'Creating...' : 'Create mission'}
