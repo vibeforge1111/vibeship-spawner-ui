@@ -10,6 +10,7 @@ import type { RequestHandler } from './$types';
 import { eventBridge } from '$lib/services/event-bridge';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
+import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 
 import { writeFile, mkdir, appendFile } from 'fs/promises';
 import { join } from 'path';
@@ -74,6 +75,21 @@ function buildProgressNotificationText(event: Record<string, unknown>): string |
 				? event.taskId
 				: 'task';
 
+	if (type === 'mission_created') {
+		return `Spawner mission created${missionId ? ` (${missionId})` : ''}.`;
+	}
+	if (type === 'mission_started') {
+		return `Spawner mission started${missionId ? ` (${missionId})` : ''}.`;
+	}
+	if (type === 'mission_paused') {
+		return `Spawner mission paused${missionId ? ` (${missionId})` : ''}.`;
+	}
+	if (type === 'mission_resumed') {
+		return `Spawner mission resumed${missionId ? ` (${missionId})` : ''}.`;
+	}
+	if (type === 'task_started') {
+		return `Spawner progress: started ${taskName}${missionId ? ` (${missionId})` : ''}.`;
+	}
 	if (type === 'task_completed') {
 		return `Spawner progress: completed ${taskName}${missionId ? ` (${missionId})` : ''}.`;
 	}
@@ -95,7 +111,20 @@ function buildProgressNotificationText(event: Record<string, unknown>): string |
 
 function shouldSendProgressSignal(event: Record<string, unknown>): boolean {
 	const type = typeof event.type === 'string' ? event.type : '';
-	if (!['task_completed', 'task_failed', 'task_cancelled', 'mission_completed', 'mission_failed'].includes(type)) {
+	if (
+		![
+			'mission_created',
+			'mission_started',
+			'mission_paused',
+			'mission_resumed',
+			'task_started',
+			'task_completed',
+			'task_failed',
+			'task_cancelled',
+			'mission_completed',
+			'mission_failed'
+		].includes(type)
+	) {
 		return false;
 	}
 
@@ -221,6 +250,9 @@ export const POST: RequestHandler = async (event) => {
 
 		// Push native progress signal to OpenClaw chat for milestone events
 		void pushProgressSignal(fullEvent as Record<string, unknown>);
+
+		// Relay mission-control events into Spark Intelligence and optional webhooks.
+		void relayMissionControlEvent(fullEvent as Record<string, unknown>);
 
 		// Store PRD results for polling fallback and trace runtime receipt
 		if (fullEvent.type === 'prd_analysis_complete' && fullEvent.data?.requestId && fullEvent.data?.result) {

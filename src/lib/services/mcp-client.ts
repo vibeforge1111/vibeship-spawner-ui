@@ -363,6 +363,7 @@ class McpClient {
 		agents?: MissionAgent[];
 		tasks?: MissionTask[];
 		context?: MissionContext;
+		status?: Mission['status'];
 		current_task_id?: string;
 		outputs?: Record<string, unknown>;
 	}): Promise<McpToolResult<{ success: boolean; mission: Mission }>> {

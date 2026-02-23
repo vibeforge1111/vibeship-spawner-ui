@@ -33,6 +33,30 @@
 	let showPrompt = $state(false);
 	let copiedPrompt = $state(false);
 
+	type MissionControlEntry = {
+		eventType: string;
+		missionId: string;
+		taskId: string | null;
+		taskName: string | null;
+		summary: string;
+		timestamp: string;
+		source: string;
+	};
+
+	type MissionControlSnapshot = {
+		enabled: { sparkIngest: boolean; webhooks: boolean };
+		targets: { sparkIngestUrl: string | null; webhookCount: number };
+		stats: { totalRelayed: number; perMission: Record<string, number> };
+		recent: MissionControlEntry[];
+	};
+
+	let missionControlLoading = $state(false);
+	let missionControlError = $state<string | null>(null);
+	let missionControl = $state<MissionControlSnapshot | null>(null);
+	let missionControlPoller: ReturnType<typeof setInterval> | null = null;
+	let missionControlActionLoading = $state(false);
+	let missionControlActionMessage = $state<string | null>(null);
+
 	$effect(() => {
 		const unsub = page.subscribe((p) => {
 			missionId = p.params.id ?? '';
@@ -46,21 +70,82 @@
 		return () => { unsub1(); unsub2(); };
 	});
 
+	async function loadMissionControlStatus(): Promise<void> {
+		if (!missionId || !mcpConnected) return;
+		missionControlLoading = true;
+		missionControlError = null;
+		try {
+			const response = await fetch(`/api/mission-control/status?missionId=${encodeURIComponent(missionId)}`);
+			if (!response.ok) {
+				throw new Error(`Mission control status failed (${response.status})`);
+			}
+			const body = await response.json();
+			missionControl = (body?.snapshot || null) as MissionControlSnapshot | null;
+		} catch (error) {
+			missionControlError = error instanceof Error ? error.message : 'Unable to load mission control status';
+		} finally {
+			missionControlLoading = false;
+		}
+	}
+
+	async function executeMissionControlAction(action: 'pause' | 'resume' | 'kill'): Promise<void> {
+		if (!missionId) return;
+		missionControlActionLoading = true;
+		missionControlActionMessage = null;
+		missionControlError = null;
+		try {
+			const response = await fetch('/api/mission-control/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ missionId, action, source: 'spawner-ui' })
+			});
+			const body = await response.json().catch(() => ({}));
+			if (!response.ok || !body?.ok) {
+				throw new Error(body?.error || `Action failed (${response.status})`);
+			}
+
+			missionControlActionMessage = body?.message || `Mission ${action} executed.`;
+			await loadMissionControlStatus();
+			await loadMissionLogs(missionId);
+			await loadMission(missionId);
+		} catch (error) {
+			missionControlError = error instanceof Error ? error.message : 'Mission control action failed';
+		} finally {
+			missionControlActionLoading = false;
+		}
+	}
+
+	function startMissionControlPolling(): void {
+		if (missionControlPoller) return;
+		missionControlPoller = setInterval(() => {
+			void loadMissionControlStatus();
+		}, 4000);
+	}
+
+	function stopMissionControlPolling(): void {
+		if (!missionControlPoller) return;
+		clearInterval(missionControlPoller);
+		missionControlPoller = null;
+	}
+
 	onMount(async () => {
 		await new Promise(r => setTimeout(r, 300));
 		if (mcpConnected && missionId) {
 			await loadMission(missionId);
 			await loadMissionLogs(missionId);
+			await loadMissionControlStatus();
 
 			// Start polling if mission is running
 			if (currentState.currentMission?.status === 'running') {
 				startLogPolling(missionId);
 			}
+			startMissionControlPolling();
 		}
 	});
 
 	onDestroy(() => {
 		stopLogPolling();
+		stopMissionControlPolling();
 	});
 
 	// Reload when missionId changes
@@ -68,6 +153,10 @@
 		if (mcpConnected && missionId && !currentState.loading) {
 			loadMission(missionId);
 			loadMissionLogs(missionId);
+			void loadMissionControlStatus();
+			startMissionControlPolling();
+		} else if (!mcpConnected) {
+			stopMissionControlPolling();
 		}
 	});
 
@@ -316,6 +405,89 @@
 								{showPrompt ? 'Hide' : 'Show'} Claude Code Prompt
 							</button>
 						</div>
+					</div>
+
+					<!-- Mission Control -->
+					<div class="border border-surface-border bg-bg-secondary p-4">
+						<div class="flex items-center justify-between mb-3">
+							<h3 class="font-medium text-text-primary">Mission Control</h3>
+							<button
+								onclick={() => loadMissionControlStatus()}
+								class="text-xs font-mono text-accent-primary hover:underline"
+							>
+								Refresh
+							</button>
+						</div>
+
+						<div class="grid grid-cols-3 gap-2 mb-3">
+							<button
+								onclick={() => executeMissionControlAction('pause')}
+								disabled={missionControlActionLoading || mission.status !== 'running'}
+								class="px-2 py-1 text-xs font-mono border border-surface-border text-text-secondary hover:border-blue-400 disabled:opacity-40 disabled:cursor-not-allowed"
+							>
+								Pause
+							</button>
+							<button
+								onclick={() => executeMissionControlAction('resume')}
+								disabled={missionControlActionLoading || mission.status !== 'paused'}
+								class="px-2 py-1 text-xs font-mono border border-surface-border text-text-secondary hover:border-green-400 disabled:opacity-40 disabled:cursor-not-allowed"
+							>
+								Resume
+							</button>
+							<button
+								onclick={() => executeMissionControlAction('kill')}
+								disabled={missionControlActionLoading || mission.status === 'completed' || mission.status === 'failed'}
+								class="px-2 py-1 text-xs font-mono border border-red-500/40 text-red-400 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+							>
+								Kill
+							</button>
+						</div>
+
+						{#if missionControlActionMessage}
+							<p class="text-xs font-mono text-green-400 mb-2">{missionControlActionMessage}</p>
+						{/if}
+
+						{#if missionControlLoading && !missionControl}
+							<p class="text-xs font-mono text-text-tertiary">Loading mission control telemetry...</p>
+						{:else if missionControlError}
+							<p class="text-xs font-mono text-red-400">{missionControlError}</p>
+						{:else if missionControl}
+							<div class="space-y-3 text-xs font-mono">
+								<div class="grid grid-cols-2 gap-2 text-text-secondary">
+									<div class="border border-surface-border p-2">
+										<div class="text-text-tertiary mb-1">Spark Ingest</div>
+										<div class={missionControl.enabled.sparkIngest ? 'text-green-400' : 'text-text-tertiary'}>
+											{missionControl.enabled.sparkIngest ? 'ENABLED' : 'DISABLED'}
+										</div>
+									</div>
+									<div class="border border-surface-border p-2">
+										<div class="text-text-tertiary mb-1">Webhooks</div>
+										<div class={missionControl.enabled.webhooks ? 'text-green-400' : 'text-text-tertiary'}>
+											{missionControl.targets.webhookCount}
+										</div>
+									</div>
+								</div>
+
+								<div class="text-text-secondary">
+									Relayed for this mission: {missionControl.stats.perMission[mission.id] || 0}
+								</div>
+
+								<div class="border border-surface-border max-h-36 overflow-y-auto">
+									{#if missionControl.recent.length === 0}
+										<div class="p-2 text-text-tertiary">No relay events yet.</div>
+									{:else}
+										{#each missionControl.recent as event, index (`${event.timestamp}-${index}`)}
+											<div class="px-2 py-1.5 border-b border-surface-border/60 last:border-0">
+												<div class="text-text-secondary">{event.summary}</div>
+												<div class="text-text-tertiary">{formatTime(event.timestamp)} • {event.source}</div>
+											</div>
+										{/each}
+									{/if}
+								</div>
+							</div>
+						{:else}
+							<p class="text-xs font-mono text-text-tertiary">Mission control not initialized yet.</p>
+						{/if}
 					</div>
 
 					<!-- Claude Code Prompt -->
