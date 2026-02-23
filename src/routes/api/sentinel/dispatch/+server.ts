@@ -15,6 +15,7 @@ interface SentinelActionEntry {
 	priority: string;
 	title: string;
 	reasons: string[];
+	url?: string;
 }
 
 const recentSentinelActions: SentinelActionEntry[] = [];
@@ -57,7 +58,8 @@ export const POST: RequestHandler = async (event) => {
 				id: action.id,
 				priority: action.priority,
 				title: action.title,
-				reasons: action.reasons
+				reasons: action.reasons,
+				url: typeof action.url === 'string' ? action.url : undefined
 			});
 			if (recentSentinelActions.length > MAX_SENTINEL_ACTIONS) {
 				recentSentinelActions.length = MAX_SENTINEL_ACTIONS;

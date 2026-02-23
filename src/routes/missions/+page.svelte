@@ -2,7 +2,14 @@
 	import { onDestroy, onMount } from 'svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
 	import Footer from '$lib/components/Footer.svelte';
-	import { missionsState, loadMissions, deleteMission, setCurrentMission, type MissionsState } from '$lib/stores/missions.svelte';
+	import {
+		missionsState,
+		createMission,
+		loadMissions,
+		deleteMission,
+		setCurrentMission,
+		type MissionsState
+	} from '$lib/stores/missions.svelte';
 	import { mcpState } from '$lib/stores/mcp.svelte';
 	import type { Mission } from '$lib/services/mcp-client';
 
@@ -25,12 +32,15 @@
 		priority: string;
 		title: string;
 		reasons: string[];
+		url?: string;
 	};
 
 	let sentinelLoading = $state(false);
 	let sentinelError = $state<string | null>(null);
 	let sentinelActions = $state<SentinelAction[]>([]);
 	let sentinelPoller: ReturnType<typeof setInterval> | null = null;
+	let reviewedSentinelIds = $state<string[]>([]);
+	let sentinelActionBusy = $state<string | null>(null);
 
 	$effect(() => {
 		const unsub1 = missionsState.subscribe((s) => (currentState = s));
@@ -116,6 +126,74 @@
 		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 	}
 
+	function actionUrl(action: SentinelAction): string {
+		if (action.url && action.url.trim()) return action.url;
+		const prMatch = action.id.match(/^pr#(\d+)$/i);
+		if (prMatch) {
+			return `https://github.com/vibeforge1111/vibeship-spark-intelligence/pull/${prMatch[1]}`;
+		}
+		return '';
+	}
+
+	function markSentinelReviewed(action: SentinelAction): void {
+		if (!reviewedSentinelIds.includes(action.id)) {
+			reviewedSentinelIds = [action.id, ...reviewedSentinelIds].slice(0, 500);
+		}
+	}
+
+	async function createMissionFromSentinelAction(action: SentinelAction): Promise<void> {
+		if (!mcpConnected) {
+			sentinelError = 'MCP is not connected. Connect MCP first to create mission.';
+			return;
+		}
+
+		sentinelActionBusy = action.id;
+		sentinelError = null;
+		try {
+			const mission = await createMission({
+				name: `[Sentinel] ${action.priority} ${action.id}`,
+				description: action.title,
+				mode: 'multi-llm-orchestrator',
+				tasks: [
+					{
+						id: `sentinel-task-${Date.now()}`,
+						title: action.title,
+						description: [
+							`Source: ${action.id}`,
+							`Kind: ${action.kind}`,
+							`Priority: ${action.priority}`,
+							action.reasons?.length ? `Reasons: ${action.reasons.join(' | ')}` : '',
+							actionUrl(action) ? `Reference: ${actionUrl(action)}` : ''
+						]
+							.filter(Boolean)
+							.join('\n'),
+						assignedTo: 'agent-1',
+						status: 'pending',
+						handoffType: 'sequential'
+					}
+				],
+				agents: [
+					{
+						id: 'agent-1',
+						name: 'Sentinel Reviewer',
+						role: 'reviewer',
+						skills: ['review', 'security', 'validation'],
+						model: 'sonnet'
+					}
+				]
+			});
+
+			if (mission) {
+				markSentinelReviewed(action);
+				window.location.href = `/missions/${mission.id}`;
+			}
+		} catch (error) {
+			sentinelError = error instanceof Error ? error.message : 'Unable to create mission from action';
+		} finally {
+			sentinelActionBusy = null;
+		}
+	}
+
 	async function handleDelete(mission: Mission) {
 		if (confirm(`Delete mission "${mission.name}"? This cannot be undone.`)) {
 			await deleteMission(mission.id);
@@ -134,6 +212,10 @@
 		}
 		return counts;
 	});
+
+	const visibleSentinelActions = $derived(() =>
+		sentinelActions.filter((action) => !reviewedSentinelIds.includes(action.id))
+	);
 </script>
 
 <div class="min-h-screen bg-bg-primary flex flex-col">
@@ -196,15 +278,15 @@
 				</button>
 			</div>
 
-			{#if sentinelLoading && sentinelActions.length === 0}
+			{#if sentinelLoading && visibleSentinelActions().length === 0}
 				<p class="text-xs font-mono text-text-tertiary">Loading sentinel queue...</p>
 			{:else if sentinelError}
 				<p class="text-xs font-mono text-red-400">{sentinelError}</p>
-			{:else if sentinelActions.length === 0}
-				<p class="text-xs font-mono text-text-tertiary">No sentinel actions received yet.</p>
+			{:else if visibleSentinelActions().length === 0}
+				<p class="text-xs font-mono text-text-tertiary">No pending sentinel actions right now.</p>
 			{:else}
-				<div class="max-h-44 overflow-y-auto border border-surface-border">
-					{#each sentinelActions as action, index (`${action.receivedAt}-${action.id}-${index}`)}
+				<div class="max-h-52 overflow-y-auto border border-surface-border">
+					{#each visibleSentinelActions() as action, index (`${action.receivedAt}-${action.id}-${index}`)}
 						<div class="px-3 py-2 border-b border-surface-border/60 last:border-0">
 							<div class="flex items-center gap-2 mb-1">
 								<span class="text-[10px] font-mono px-1.5 py-0.5 border border-surface-border text-text-secondary">{action.priority}</span>
@@ -213,8 +295,33 @@
 							</div>
 							<div class="text-sm text-text-primary truncate">{action.title}</div>
 							{#if action.reasons?.length}
-								<div class="text-xs text-text-tertiary truncate">{action.reasons[0]}</div>
+								<div class="text-xs text-text-tertiary truncate mb-2">{action.reasons[0]}</div>
 							{/if}
+							<div class="flex items-center gap-2">
+								<button
+									onclick={() => createMissionFromSentinelAction(action)}
+									disabled={sentinelActionBusy === action.id}
+									class="px-2 py-1 text-[11px] font-mono border border-accent-primary/40 text-accent-primary hover:bg-accent-primary/10 disabled:opacity-50"
+								>
+									{sentinelActionBusy === action.id ? 'Creating...' : 'Create mission'}
+								</button>
+								{#if actionUrl(action)}
+									<a
+										href={actionUrl(action)}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="px-2 py-1 text-[11px] font-mono border border-surface-border text-text-secondary hover:text-text-primary hover:border-text-tertiary"
+									>
+										Open
+									</a>
+								{/if}
+								<button
+									onclick={() => markSentinelReviewed(action)}
+									class="px-2 py-1 text-[11px] font-mono border border-surface-border text-text-tertiary hover:text-text-secondary"
+								>
+									Mark reviewed
+								</button>
+							</div>
 						</div>
 					{/each}
 				</div>
