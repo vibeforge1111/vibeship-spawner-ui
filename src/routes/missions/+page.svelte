@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
 	import Footer from '$lib/components/Footer.svelte';
 	import { missionsState, loadMissions, deleteMission, setCurrentMission, type MissionsState } from '$lib/stores/missions.svelte';
@@ -18,11 +18,55 @@
 	let mcpConnected = $state(false);
 	let filterStatus = $state<string>('all');
 
+	type SentinelAction = {
+		receivedAt: string;
+		kind: string;
+		id: string;
+		priority: string;
+		title: string;
+		reasons: string[];
+	};
+
+	let sentinelLoading = $state(false);
+	let sentinelError = $state<string | null>(null);
+	let sentinelActions = $state<SentinelAction[]>([]);
+	let sentinelPoller: ReturnType<typeof setInterval> | null = null;
+
 	$effect(() => {
 		const unsub1 = missionsState.subscribe((s) => (currentState = s));
 		const unsub2 = mcpState.subscribe((s) => (mcpConnected = s.status === 'connected'));
 		return () => { unsub1(); unsub2(); };
 	});
+
+	async function loadSentinelActions(): Promise<void> {
+		sentinelLoading = true;
+		sentinelError = null;
+		try {
+			const response = await fetch('/api/sentinel/dispatch?limit=20');
+			if (!response.ok) {
+				throw new Error(`Sentinel queue request failed (${response.status})`);
+			}
+			const body = (await response.json()) as { actions?: SentinelAction[] };
+			sentinelActions = Array.isArray(body.actions) ? body.actions : [];
+		} catch (error) {
+			sentinelError = error instanceof Error ? error.message : 'Unable to load sentinel queue';
+		} finally {
+			sentinelLoading = false;
+		}
+	}
+
+	function startSentinelPolling(): void {
+		if (sentinelPoller) return;
+		sentinelPoller = setInterval(() => {
+			void loadSentinelActions();
+		}, 6000);
+	}
+
+	function stopSentinelPolling(): void {
+		if (!sentinelPoller) return;
+		clearInterval(sentinelPoller);
+		sentinelPoller = null;
+	}
 
 	onMount(async () => {
 		// Wait a bit for MCP connection to establish
@@ -30,6 +74,12 @@
 		if (mcpConnected) {
 			await loadMissions();
 		}
+		await loadSentinelActions();
+		startSentinelPolling();
+	});
+
+	onDestroy(() => {
+		stopSentinelPolling();
 	});
 
 	// Reload when MCP connects
@@ -132,6 +182,43 @@
 			>
 				+ New Mission
 			</a>
+		</div>
+
+		<!-- Sentinel Queue -->
+		<div class="mb-6 border border-surface-border bg-bg-secondary p-4">
+			<div class="flex items-center justify-between mb-3">
+				<h3 class="text-sm font-mono text-text-primary">Sentinel Queue (latest actions)</h3>
+				<button
+					onclick={() => loadSentinelActions()}
+					class="text-xs font-mono text-accent-primary hover:underline"
+				>
+					Refresh
+				</button>
+			</div>
+
+			{#if sentinelLoading && sentinelActions.length === 0}
+				<p class="text-xs font-mono text-text-tertiary">Loading sentinel queue...</p>
+			{:else if sentinelError}
+				<p class="text-xs font-mono text-red-400">{sentinelError}</p>
+			{:else if sentinelActions.length === 0}
+				<p class="text-xs font-mono text-text-tertiary">No sentinel actions received yet.</p>
+			{:else}
+				<div class="max-h-44 overflow-y-auto border border-surface-border">
+					{#each sentinelActions as action, index (`${action.receivedAt}-${action.id}-${index}`)}
+						<div class="px-3 py-2 border-b border-surface-border/60 last:border-0">
+							<div class="flex items-center gap-2 mb-1">
+								<span class="text-[10px] font-mono px-1.5 py-0.5 border border-surface-border text-text-secondary">{action.priority}</span>
+								<span class="text-[10px] font-mono text-text-tertiary">{action.kind}</span>
+								<span class="text-[10px] font-mono text-text-tertiary ml-auto">{formatDate(action.receivedAt)}</span>
+							</div>
+							<div class="text-sm text-text-primary truncate">{action.title}</div>
+							{#if action.reasons?.length}
+								<div class="text-xs text-text-tertiary truncate">{action.reasons[0]}</div>
+							{/if}
+						</div>
+					{/each}
+				</div>
+			{/if}
 		</div>
 
 		<!-- Mission List -->

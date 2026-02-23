@@ -8,6 +8,18 @@ import {
 } from '$lib/server/sentinel-dispatch';
 import { eventBridge } from '$lib/services/event-bridge';
 
+interface SentinelActionEntry {
+	receivedAt: string;
+	kind: string;
+	id: string;
+	priority: string;
+	title: string;
+	reasons: string[];
+}
+
+const recentSentinelActions: SentinelActionEntry[] = [];
+const MAX_SENTINEL_ACTIONS = 200;
+
 export const POST: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
 		surface: 'SentinelDispatch',
@@ -39,6 +51,18 @@ export const POST: RequestHandler = async (event) => {
 		const receivedAt = new Date().toISOString();
 
 		for (const action of normalized.actions.slice(0, 50)) {
+			recentSentinelActions.unshift({
+				receivedAt,
+				kind: action.kind,
+				id: action.id,
+				priority: action.priority,
+				title: action.title,
+				reasons: action.reasons
+			});
+			if (recentSentinelActions.length > MAX_SENTINEL_ACTIONS) {
+				recentSentinelActions.length = MAX_SENTINEL_ACTIONS;
+			}
+
 			eventBridge.emit({
 				type: 'sentinel_action_received',
 				missionId: 'sentinel-dispatch',
@@ -67,4 +91,36 @@ export const POST: RequestHandler = async (event) => {
 			{ status: 500 }
 		);
 	}
+};
+
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'SentinelDispatch',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+	if (unauthorized) return unauthorized;
+
+	const rateLimited = enforceRateLimit(event, {
+		scope: 'sentinel_dispatch_get',
+		limit: 120,
+		windowMs: 60_000
+	});
+	if (rateLimited) return rateLimited;
+
+	const requestedLimit = Number(new URL(event.request.url).searchParams.get('limit') || '20');
+	const limit = Number.isFinite(requestedLimit)
+		? Math.max(1, Math.min(100, Math.trunc(requestedLimit)))
+		: 20;
+
+	return json({
+		ok: true,
+		count: Math.min(limit, recentSentinelActions.length),
+		total: recentSentinelActions.length,
+		actions: recentSentinelActions.slice(0, limit)
+	});
 };
