@@ -1,8 +1,9 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { providerRuntime } from './provider-runtime';
 import { openclawBridge } from '$lib/services/openclaw-bridge';
 import { eventBridge, type BridgeEvent } from '$lib/services/event-bridge';
 import type { MultiLLMExecutionPack, MultiLLMProviderConfig } from '$lib/services/multi-llm-orchestrator';
+import { mcpClient, type Mission } from '$lib/services/mcp-client';
 
 function provider(id: 'claude' | 'codex', model: string): MultiLLMProviderConfig {
 	return {
@@ -50,9 +51,11 @@ async function waitFor(fn: () => boolean, timeoutMs = 1500): Promise<void> {
 
 afterEach(() => {
 	openclawBridge.resetForTests();
+	vi.restoreAllMocks();
 	providerRuntime.cleanup('mission-step2-success');
 	providerRuntime.cleanup('mission-step2-failure');
 	providerRuntime.cleanup('mission-step2-cancel');
+	providerRuntime.cleanup('mission-step2-rebuild');
 });
 
 describe('provider-runtime openclaw bridge', () => {
@@ -163,5 +166,71 @@ describe('provider-runtime openclaw bridge', () => {
 
 		unsubscribe();
 		expect(emitted.some((event) => event.type === 'task_cancelled')).toBe(true);
+	});
+
+	it('rebuilds dispatch snapshot from mission record when resuming a paused orphan mission', async () => {
+		openclawBridge.setWorkerExecutorForTests(async (context) => {
+			context.emitProgress(40, `${context.providerId} resumed`);
+			return { success: true, response: `${context.providerId}-resumed` };
+		});
+
+		const mission: Mission = {
+			id: 'mission-step2-rebuild',
+			user_id: 'test-user',
+			name: 'Resume Rebuild Mission',
+			description: 'Validate resume fallback reconstruction',
+			mode: 'multi-llm-orchestrator',
+			status: 'paused',
+			agents: [
+				{ id: 'agent-1', name: 'Agent', role: 'builder', skills: ['code_analysis'], model: 'sonnet' }
+			],
+			tasks: [
+				{
+					id: 'task-1',
+					title: 'Rebuild and resume',
+					description: 'Resume mission from reconstructed execution pack',
+					assignedTo: 'agent-1',
+					status: 'pending',
+					handoffType: 'sequential'
+				}
+			],
+			context: {
+				projectPath: process.cwd(),
+				projectType: 'typescript',
+				goals: ['prove resume reconstruction']
+			},
+			current_task_id: null,
+			outputs: {},
+			error: null,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+			started_at: null,
+			completed_at: null
+		};
+
+		const missionSpy = vi.spyOn(mcpClient, 'getMission').mockResolvedValue({
+			success: true,
+			data: {
+				mission,
+				execution_prompt: 'Mission ID: mission-step2-rebuild',
+				_instruction: ''
+			}
+		});
+
+		const pauseResult = await providerRuntime.pauseMission('mission-step2-rebuild');
+		expect(pauseResult.paused).toBe(true);
+		const before = providerRuntime.getMissionStatus('mission-step2-rebuild');
+		expect(before.paused).toBe(true);
+		expect(before.snapshotAvailable).toBe(false);
+
+		const resumed = await providerRuntime.resumeMission('mission-step2-rebuild');
+		expect(resumed.resumed).toBe(true);
+		expect(missionSpy).toHaveBeenCalledWith('mission-step2-rebuild');
+
+		await waitFor(() => providerRuntime.getMissionStatus('mission-step2-rebuild').allComplete);
+		const after = providerRuntime.getMissionStatus('mission-step2-rebuild');
+		expect(after.snapshotAvailable).toBe(true);
+		expect(after.paused).toBe(false);
+		expect(Object.keys(after.providers).length).toBeGreaterThan(0);
 	});
 });
