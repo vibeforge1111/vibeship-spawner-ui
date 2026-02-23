@@ -141,6 +141,10 @@
 		}
 	}
 
+	function clearReviewedSentinelActions(): void {
+		reviewedSentinelIds = [];
+	}
+
 	async function createMissionFromSentinelAction(action: SentinelAction): Promise<void> {
 		if (!mcpConnected) {
 			sentinelError = 'MCP is not connected. Connect MCP first to create mission.';
@@ -216,6 +220,10 @@
 	const visibleSentinelActions = $derived(() =>
 		sentinelActions.filter((action) => !reviewedSentinelIds.includes(action.id))
 	);
+
+	const reviewedSentinelCount = $derived(() =>
+		sentinelActions.filter((action) => reviewedSentinelIds.includes(action.id)).length
+	);
 </script>
 
 <div class="min-h-screen bg-bg-primary flex flex-col">
@@ -268,14 +276,29 @@
 
 		<!-- Sentinel Queue -->
 		<div class="mb-6 border border-surface-border bg-bg-secondary p-4">
-			<div class="flex items-center justify-between mb-3">
-				<h3 class="text-sm font-mono text-text-primary">Sentinel Queue (latest actions)</h3>
-				<button
-					onclick={() => loadSentinelActions()}
-					class="text-xs font-mono text-accent-primary hover:underline"
-				>
-					Refresh
-				</button>
+			<div class="flex items-center justify-between mb-3 gap-3">
+				<div>
+					<h3 class="text-sm font-mono text-text-primary">Sentinel Queue (latest actions)</h3>
+					<p class="text-[11px] font-mono text-text-tertiary mt-1">
+						Pending: {visibleSentinelActions().length} · Reviewed: {reviewedSentinelCount()}
+					</p>
+				</div>
+				<div class="flex items-center gap-3">
+					{#if reviewedSentinelCount() > 0}
+						<button
+							onclick={clearReviewedSentinelActions}
+							class="text-xs font-mono text-text-tertiary hover:text-text-secondary hover:underline"
+						>
+							Clear reviewed
+						</button>
+					{/if}
+					<button
+						onclick={() => loadSentinelActions()}
+						class="text-xs font-mono text-accent-primary hover:underline"
+					>
+						Refresh
+					</button>
+				</div>
 			</div>
 
 			{#if sentinelLoading && visibleSentinelActions().length === 0}
