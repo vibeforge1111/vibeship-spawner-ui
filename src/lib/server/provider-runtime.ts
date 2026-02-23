@@ -23,6 +23,9 @@ import {
 } from './provider-clients/openai-compat-client';
 import { openclawBridge } from '$lib/services/openclaw-bridge';
 import { eventBridge } from '$lib/services/event-bridge';
+import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 
 export interface DispatchOptions {
 	executionPack: MultiLLMExecutionPack;
@@ -44,14 +47,62 @@ interface MissionDispatchSnapshot {
 	workingDirectory?: string;
 }
 
+const ACTIVE_MISSION_PATH = path.join(process.cwd(), '.spawner', 'active-mission.json');
+
 class ProviderRuntimeManager {
 	private sessions = new Map<string, ProviderSession>();
 	private openclawSessionIds = new Map<string, string>();
 	private dispatchSnapshots = new Map<string, MissionDispatchSnapshot>();
 	private pausedMissions = new Set<string>();
+	private pausedReasons = new Map<string, string>();
+	private lastStatusReason = new Map<string, string>();
 
 	private sessionKey(missionId: string, providerId: string): string {
 		return `${missionId}:${providerId}`;
+	}
+
+	private rememberStatusReason(missionId: string, reason?: string): void {
+		if (!reason) return;
+		this.lastStatusReason.set(missionId, reason);
+	}
+
+	private async recoverDispatchSnapshot(missionId: string): Promise<MissionDispatchSnapshot | null> {
+		const existing = this.dispatchSnapshots.get(missionId);
+		if (existing) return existing;
+		if (!existsSync(ACTIVE_MISSION_PATH)) return null;
+
+		try {
+			const raw = await readFile(ACTIVE_MISSION_PATH, 'utf-8');
+			const state = JSON.parse(raw) as {
+				missionId?: string;
+				multiLLMExecution?: MultiLLMExecutionPack | null;
+			};
+			if (state.missionId !== missionId || !state.multiLLMExecution) {
+				return null;
+			}
+
+			const apiKeys: Record<string, string> = {};
+			for (const provider of state.multiLLMExecution.providers || []) {
+				if (provider.requiresApiKey && provider.apiKeyEnv) {
+					const value = process.env[provider.apiKeyEnv];
+					if (value && value.trim()) {
+						apiKeys[provider.id] = value.trim();
+					}
+				}
+			}
+
+			const snapshot: MissionDispatchSnapshot = {
+				executionPack: state.multiLLMExecution,
+				apiKeys,
+				workingDirectory: undefined
+			};
+			this.dispatchSnapshots.set(missionId, snapshot);
+			this.rememberStatusReason(missionId, 'Recovered dispatch snapshot from active mission state');
+			return snapshot;
+		} catch (error) {
+			console.warn('[ProviderRuntime] Failed to recover dispatch snapshot:', error);
+			return null;
+		}
 	}
 
 	async dispatch(options: DispatchOptions): Promise<DispatchResult> {
@@ -66,6 +117,8 @@ class ProviderRuntimeManager {
 			workingDirectory
 		});
 		this.pausedMissions.delete(missionId);
+		this.pausedReasons.delete(missionId);
+		this.lastStatusReason.set(missionId, 'Dispatch started');
 
 		onEvent({
 			type: 'dispatch_started',
@@ -167,6 +220,10 @@ class ProviderRuntimeManager {
 
 			if (allComplete) {
 				const type = anyFailed ? 'mission_failed' : 'mission_completed';
+				this.rememberStatusReason(
+					missionId,
+					anyFailed ? 'Mission completed with provider failures' : 'Mission completed successfully'
+				);
 				onEvent({
 					type,
 					missionId,
@@ -293,35 +350,48 @@ class ProviderRuntimeManager {
 				session.completedAt = new Date();
 			}
 		}
+		this.rememberStatusReason(missionId, reason);
 	}
 
 	async pauseMission(missionId: string): Promise<{ paused: boolean; reason?: string }> {
 		const running = this.getSessionsForMission(missionId).filter((s) => s.status === 'running');
 		if (running.length === 0) {
+			const reason = 'No active provider sessions. Mission marked as paused.';
 			this.pausedMissions.add(missionId);
-			return { paused: true, reason: 'No active provider sessions. Mission marked as paused.' };
+			this.pausedReasons.set(missionId, reason);
+			this.rememberStatusReason(missionId, reason);
+			return { paused: true, reason };
 		}
 
 		await this.cancelMission(missionId, 'Mission paused');
 		this.pausedMissions.add(missionId);
-		return { paused: true };
+		this.pausedReasons.set(missionId, 'Mission paused');
+		this.rememberStatusReason(missionId, 'Mission paused');
+		return { paused: true, reason: 'Mission paused' };
 	}
 
 	async resumeMission(missionId: string): Promise<{ resumed: boolean; reason?: string }> {
 		if (!this.pausedMissions.has(missionId)) {
-			return { resumed: false, reason: 'Mission is not paused.' };
+			const reason = 'Mission is not paused.';
+			this.rememberStatusReason(missionId, reason);
+			return { resumed: false, reason };
 		}
 
-		const snapshot = this.dispatchSnapshots.get(missionId);
+		const snapshot = await this.recoverDispatchSnapshot(missionId);
 		if (!snapshot) {
-			this.pausedMissions.delete(missionId);
-			return { resumed: false, reason: 'No dispatch snapshot available to resume mission.' };
+			const reason = 'No dispatch snapshot available to resume mission.';
+			this.pausedReasons.set(missionId, reason);
+			this.rememberStatusReason(missionId, reason);
+			return { resumed: false, reason };
 		}
 
 		const active = this.getSessionsForMission(missionId).some((s) => s.status === 'running');
 		if (active) {
 			this.pausedMissions.delete(missionId);
-			return { resumed: true, reason: 'Mission already has running provider sessions.' };
+			this.pausedReasons.delete(missionId);
+			const reason = 'Mission already has running provider sessions.';
+			this.rememberStatusReason(missionId, reason);
+			return { resumed: true, reason };
 		}
 
 		await this.dispatch({
@@ -331,7 +401,9 @@ class ProviderRuntimeManager {
 			onEvent: (evt) => eventBridge.emit(evt)
 		});
 		this.pausedMissions.delete(missionId);
-		return { resumed: true };
+		this.pausedReasons.delete(missionId);
+		this.rememberStatusReason(missionId, 'Mission resumed');
+		return { resumed: true, reason: 'Mission resumed' };
 	}
 
 	getSessionsForMission(missionId: string): ProviderSession[] {
@@ -348,6 +420,9 @@ class ProviderRuntimeManager {
 		allComplete: boolean;
 		anyFailed: boolean;
 		paused: boolean;
+		pausedReason: string | null;
+		lastReason: string | null;
+		snapshotAvailable: boolean;
 		providers: Record<string, ProviderSessionStatus>;
 	} {
 		const sessions = this.getSessionsForMission(missionId);
@@ -360,6 +435,9 @@ class ProviderRuntimeManager {
 			allComplete: sessions.length > 0 && sessions.every((s) => terminal.includes(s.status)),
 			anyFailed: sessions.some((s) => s.status === 'failed'),
 			paused: this.pausedMissions.has(missionId),
+			pausedReason: this.pausedReasons.get(missionId) || null,
+			lastReason: this.lastStatusReason.get(missionId) || null,
+			snapshotAvailable: this.dispatchSnapshots.has(missionId),
 			providers
 		};
 	}
@@ -380,6 +458,8 @@ class ProviderRuntimeManager {
 		}
 		this.dispatchSnapshots.delete(missionId);
 		this.pausedMissions.delete(missionId);
+		this.pausedReasons.delete(missionId);
+		this.lastStatusReason.delete(missionId);
 	}
 }
 
