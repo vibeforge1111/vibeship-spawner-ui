@@ -24,3 +24,7 @@ vite.config.ts.timestamp-*
 
 # Windows reserved-device artifact occasionally produced by terminal tooling
 nul
+
+# Local orchestrator/runtime payloads
+.spawner/
+svelte-check-output.txt
