@@ -1,0 +1,92 @@
+{
+  "schema": "spawner-bridge-implementation.v1",
+  "project": "Spawner UI mission-control + kanban bridge",
+  "target_repo_path": "C:\\Users\\USER\\Desktop\\spawner-ui",
+  "guardrails": [
+    "Implement only in spawner-ui repo",
+    "Do not modify vibeship-spark-intelligence in this task set",
+    "Use existing pipeline-loader and canvas flow; avoid creating parallel loaders"
+  ],
+  "tasks": [
+    {
+      "id": "BR-001",
+      "title": "Create kanban-to-pipeline mapper service",
+      "intent": "Convert terminal_build_queue tasks into pipeline-loader payload format",
+      "target_files": [
+        "src/lib/services/kanban-bridge.ts"
+      ],
+      "acceptance": [
+        "Validates incoming kanban schema",
+        "Maps tasks -> nodes with skill object and status tags",
+        "Maps order/dependencies -> sourceIndex/targetIndex connections"
+      ]
+    },
+    {
+      "id": "BR-002",
+      "title": "Add /api/kanban/import endpoint",
+      "intent": "Queue mapped pipeline into existing /api/pipeline-loader flow",
+      "target_files": [
+        "src/routes/api/kanban/import/+server.ts"
+      ],
+      "acceptance": [
+        "POST accepts kanban JSON",
+        "Returns queued counts and pipelineId",
+        "Uses pipeline-loader payload contract"
+      ]
+    },
+    {
+      "id": "BR-003",
+      "title": "Add /api/kanban/import/preview endpoint",
+      "intent": "Preview mapped payload without queuing",
+      "target_files": [
+        "src/routes/api/kanban/import/preview/+server.ts"
+      ],
+      "acceptance": [
+        "GET or POST returns mapped nodes/connections",
+        "No file queue side effects"
+      ]
+    },
+    {
+      "id": "BR-004",
+      "title": "TaskId-nodeId sync map persistence",
+      "intent": "Prevent duplicate nodes on re-import",
+      "target_files": [
+        "src/lib/services/kanban-bridge.ts"
+      ],
+      "acceptance": [
+        "Maintains map file under .spawner",
+        "Re-import updates existing nodes when possible",
+        "Marks removed tasks as stale instead of deleting in v1"
+      ]
+    },
+    {
+      "id": "BR-005",
+      "title": "UI import action",
+      "intent": "Enable user to import kanban JSON directly from Spawner UI",
+      "target_files": [
+        "src/lib/components/BuilderPanel.svelte",
+        "src/routes/canvas/+page.svelte"
+      ],
+      "acceptance": [
+        "User can upload/paste kanban JSON",
+        "Calls /api/kanban/import",
+        "Navigates/refreshes canvas after queue"
+      ]
+    },
+    {
+      "id": "BR-006",
+      "title": "Tests for mapper and import endpoints",
+      "intent": "Ensure contract stability",
+      "target_files": [
+        "src/lib/services/kanban-bridge.test.ts",
+        "src/routes/api/kanban/import/import.integration.test.ts"
+      ],
+      "acceptance": [
+        "Schema validation test",
+        "Mapping correctness test",
+        "Endpoint success + error path test"
+      ]
+    }
+  ],
+  "execution_order": ["BR-001", "BR-002", "BR-003", "BR-004", "BR-005", "BR-006"]
+}
