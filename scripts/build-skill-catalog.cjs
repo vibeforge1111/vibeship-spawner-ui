@@ -14,19 +14,16 @@ const fs = require('fs');
 const path = require('path');
 const yaml = require('yaml');
 
-const H70_PATH = 'C:/Users/USER/Desktop/vibeship-h70/skill-lab';
+const H70_PATH =
+  process.env.SPAWNER_H70_SKILLS_DIR ||
+  process.env.H70_SKILLS_LAB_DIR ||
+  'C:/Users/USER/Desktop/spark-skill-graphs';
 const OUTPUT_PATH = path.join(__dirname, '../src/lib/data/skill-catalog.json');
 
 /**
  * Extract relevant context from a skill
  */
-function extractSkillContext(skillDir, skillName) {
-  const skillPath = path.join(skillDir, 'skill.yaml');
-
-  if (!fs.existsSync(skillPath)) {
-    return null;
-  }
-
+function extractSkillContext(skillPath, skillName, category) {
   const content = fs.readFileSync(skillPath, 'utf-8');
 
   let skill;
@@ -62,7 +59,7 @@ function extractSkillContext(skillDir, skillName) {
     name: skill.name || skillName,
     description: description,
     owns: owns.slice(0, 10), // Limit to top 10 expertise areas
-    category: skill.category || 'general'
+    category: skill.category || category || 'general'
   };
 }
 
@@ -90,19 +87,32 @@ function main() {
   console.log('=== Building Skill Catalog for Claude ===\n');
   console.log(`Reading skills from: ${H70_PATH}\n`);
 
-  const skillDirs = fs.readdirSync(H70_PATH, { withFileTypes: true })
-    .filter(d => d.isDirectory())
+  const categories = fs.readdirSync(H70_PATH, { withFileTypes: true })
+    .filter(d => d.isDirectory() && !d.name.startsWith('_'))
     .map(d => d.name);
 
-  console.log(`Found ${skillDirs.length} skill directories\n`);
+  const skillFiles = [];
+  for (const category of categories) {
+    const categoryDir = path.join(H70_PATH, category);
+    const files = fs.readdirSync(categoryDir, { withFileTypes: true })
+      .filter(entry => entry.isFile() && entry.name.endsWith('.yaml'))
+      .map(entry => ({
+        category,
+        skillName: path.basename(entry.name, '.yaml'),
+        skillPath: path.join(categoryDir, entry.name)
+      }));
+
+    skillFiles.push(...files);
+  }
+
+  console.log(`Found ${skillFiles.length} skill files\n`);
 
   const catalog = [];
   let success = 0;
   let failed = 0;
 
-  for (const skillName of skillDirs) {
-    const skillDir = path.join(H70_PATH, skillName);
-    const context = extractSkillContext(skillDir, skillName);
+  for (const { skillName, skillPath, category } of skillFiles) {
+    const context = extractSkillContext(skillPath, skillName, category);
 
     if (context) {
       catalog.push(context);

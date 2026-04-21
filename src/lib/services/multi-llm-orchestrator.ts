@@ -9,6 +9,7 @@ export type MultiLLMStrategy =
 	| 'round_robin'
 	| 'parallel_consensus'
 	| 'lead_reviewer';
+export type MultiLLMTaskProviderPreference = 'auto' | 'all' | 'both' | string;
 
 export interface MultiLLMProviderConfig {
 	id: string;
@@ -35,6 +36,7 @@ export interface MultiLLMOrchestratorOptions {
 	keyPresence?: Record<string, boolean>;
 	mcpCapabilities?: MultiLLMCapability[];
 	mcpTools?: MultiLLMMCPTool[];
+	taskProviderPreferences?: Record<string, MultiLLMTaskProviderPreference>;
 	providers: MultiLLMProviderConfig[];
 }
 
@@ -118,6 +120,30 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		apiKeyEnv: 'OPENAI_API_KEY',
 		requiresApiKey: false,
 		commandTemplate: 'codex exec --model {model}'
+	},
+	{
+		id: 'zai',
+		label: 'Z.AI',
+		model: 'glm-5.1',
+		enabled: false,
+		kind: 'openai_compat',
+		eventSource: 'zai',
+		capabilities: ['reasoning', 'planning', 'review', 'code_analysis'],
+		apiKeyEnv: 'ZAI_API_KEY',
+		requiresApiKey: true,
+		baseUrl: 'https://api.z.ai/api/coding/paas/v4'
+	},
+	{
+		id: 'minimax',
+		label: 'MiniMax',
+		model: 'MiniMax-M2.7',
+		enabled: false,
+		kind: 'openai_compat',
+		eventSource: 'minimax',
+		capabilities: ['reasoning', 'planning', 'review', 'code_analysis'],
+		apiKeyEnv: 'MINIMAX_API_KEY',
+		requiresApiKey: true,
+		baseUrl: 'https://api.minimax.io/v1'
 	}
 ];
 
@@ -132,6 +158,7 @@ export function createDefaultMultiLLMOptions(): MultiLLMOrchestratorOptions {
 		keyPresence: {},
 		mcpCapabilities: [],
 		mcpTools: [],
+		taskProviderPreferences: {},
 		providers: DEFAULT_MULTI_LLM_PROVIDERS.map((provider) => ({ ...provider }))
 	};
 }
@@ -150,7 +177,8 @@ export function buildMultiLLMExecutionPack(input: MultiLLMBuildInput): MultiLLME
 		primaryProviderId,
 		input.options.autoRouteByTask !== false,
 		input.taskSkillMap,
-		mcpCapabilities
+		mcpCapabilities,
+		input.options.taskProviderPreferences || {}
 	);
 	const mcpTaskPlans = buildMcpTaskPlans(input.mission, input.taskSkillMap, mcpCapabilities, mcpTools);
 	const blockedTaskIds = Object.values(mcpTaskPlans)
@@ -242,10 +270,13 @@ function assignTasks(
 	primaryProviderId: string,
 	autoRouteByTask: boolean,
 	taskSkillMap?: Map<string, string[]>,
-	mcpCapabilities: MultiLLMCapability[] = []
+	mcpCapabilities: MultiLLMCapability[] = [],
+	taskProviderPreferences: Record<string, MultiLLMTaskProviderPreference> = {}
 ): Record<string, MultiLLMTaskAssignment> {
 	const assignments: Record<string, MultiLLMTaskAssignment> = {};
 	const taskIds = mission.tasks.map((task) => task.id);
+	const providerById = new Map(providers.map((provider) => [provider.id, provider]));
+	const primaryProvider = providers.find((provider) => provider.id === primaryProviderId) || providers[0];
 
 	for (const provider of providers) {
 		assignments[provider.id] = {
@@ -255,43 +286,118 @@ function assignTasks(
 		};
 	}
 
+	const addTaskToProvider = (providerId: string, taskId: string): boolean => {
+		const assignment = assignments[providerId];
+		if (!assignment) return false;
+		if (!assignment.taskIds.includes(taskId)) {
+			assignment.taskIds.push(taskId);
+		}
+		return true;
+	};
+
+	const resolveTaskPreference = (taskId: string): MultiLLMTaskProviderPreference => {
+		const preference = taskProviderPreferences[taskId]?.trim();
+		if (!preference || preference === 'auto') {
+			return 'auto';
+		}
+		if (preference === 'all' || preference === 'both') {
+			return preference;
+		}
+		if (providerById.has(preference)) {
+			return preference;
+		}
+		return 'auto';
+	};
+
+	const unassignedTaskIds: string[] = [];
+	for (const taskId of taskIds) {
+		const preference = resolveTaskPreference(taskId);
+		if (preference === 'all') {
+			for (const provider of providers) {
+				addTaskToProvider(provider.id, taskId);
+			}
+			continue;
+		}
+		if (preference === 'both') {
+			const selectedProviderIds = ['claude', 'codex'].filter((providerId) => providerById.has(providerId));
+			if (selectedProviderIds.length > 0) {
+				for (const providerId of selectedProviderIds) {
+					addTaskToProvider(providerId, taskId);
+				}
+				continue;
+			}
+		} else if (preference !== 'auto') {
+			if (addTaskToProvider(preference, taskId)) {
+				continue;
+			}
+		}
+
+		unassignedTaskIds.push(taskId);
+	}
+
 	if (strategy === 'single') {
-		assignments[primaryProviderId].taskIds = taskIds;
+		for (const taskId of unassignedTaskIds) {
+			addTaskToProvider(primaryProvider.id, taskId);
+		}
 		return assignments;
 	}
 
 	if (strategy === 'round_robin') {
 		const taskById = new Map(mission.tasks.map((task) => [task.id, task]));
-		taskIds.forEach((taskId, index) => {
+		unassignedTaskIds.forEach((taskId, index) => {
 			const task = taskById.get(taskId);
 			if (autoRouteByTask && task) {
+				const taskCapabilities = inferTaskCapabilities(
+					task.title,
+					task.description,
+					taskSkillMap?.get(task.id) || [],
+					mcpCapabilities
+				);
+				const specificCapabilities = taskCapabilities.filter(
+					(capability) =>
+						capability !== 'reasoning' && capability !== 'planning' && capability !== 'review'
+				);
+				if (specificCapabilities.length === 0) {
+					const fallbackProvider = providers[index % providers.length];
+					addTaskToProvider(fallbackProvider.id, taskId);
+					return;
+				}
+
 				const preferredProvider = selectBestProviderForTask(
 					task,
 					providers,
 					taskSkillMap?.get(task.id) || [],
 					mcpCapabilities
 				);
-				assignments[preferredProvider.id].taskIds.push(taskId);
+				addTaskToProvider(preferredProvider.id, taskId);
 				return;
 			}
 
 			const provider = providers[index % providers.length];
-			assignments[provider.id].taskIds.push(taskId);
+			addTaskToProvider(provider.id, taskId);
 		});
 		return assignments;
 	}
 
 	if (strategy === 'parallel_consensus') {
 		for (const provider of providers) {
-			assignments[provider.id].taskIds = [...taskIds];
+			for (const taskId of unassignedTaskIds) {
+				addTaskToProvider(provider.id, taskId);
+			}
 		}
 		return assignments;
 	}
 
 	// lead_reviewer
-	assignments[primaryProviderId].taskIds = [...taskIds];
+	for (const taskId of unassignedTaskIds) {
+		addTaskToProvider(primaryProvider.id, taskId);
+	}
 	for (const provider of providers) {
 		if (provider.id === primaryProviderId) continue;
+		if (assignments[provider.id].taskIds.length > 0) {
+			assignments[provider.id].mode = 'execute';
+			continue;
+		}
 		assignments[provider.id].mode = 'review';
 		assignments[provider.id].taskIds = [...taskIds];
 	}
@@ -361,7 +467,7 @@ function inferTaskCapabilities(
 	if (/\b(database|schema|migration|sql|postgres|mysql|redis)\b/.test(text)) {
 		capabilities.add('database');
 	}
-	if (/\b(deploy|release|production|ci|cd|pipeline|infra|infrastructure)\b/.test(text)) {
+	if (/\b(deploy|release|production|ci|pipeline|infra|infrastructure)\b|ci\/cd|ci-cd|\bcicd\b/.test(text)) {
 		capabilities.add('deployment');
 	}
 
@@ -387,7 +493,10 @@ function inferTaskCapabilities(
 const MCP_REQUIRED_RULES: Array<{ capability: MultiLLMCapability; pattern: RegExp }> = [
 	{ capability: 'web_search', pattern: /\b(search|research|crawl|discover|investigate|benchmark|compare|trend)\b/ },
 	{ capability: 'database', pattern: /\b(database|schema|migration|sql|postgres|mysql|redis|query|data model)\b/ },
-	{ capability: 'deployment', pattern: /\b(deploy|release|production|rollout|infra|infrastructure|ci|cd)\b/ },
+	{
+		capability: 'deployment',
+		pattern: /\b(deploy|release|production|rollout|infra|infrastructure|ci)\b|ci\/cd|ci-cd|\bcicd\b/
+	},
 	{ capability: 'image_gen', pattern: /\b(image|logo|illustration|thumbnail|banner|poster|graphic|visual)\b/ },
 	{ capability: 'video_gen', pattern: /\b(video|animation|clip|cinematic|trailer|motion)\b/ },
 	{ capability: 'audio_gen', pattern: /\b(audio|voice|tts|podcast|music)\b/ },
@@ -683,7 +792,7 @@ function buildProviderPrompt(input: BuildProviderPromptInput): string {
 		? `Report lifecycle events:
 curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -d '{"type":"task_started","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME","source":"${eventSource}"}'
 curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -d '{"type":"progress","missionId":"${mission.id}","taskId":"TASK_ID","progress":50,"message":"Working...","source":"${eventSource}"}'
-curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -d '{"type":"task_completed","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME","data":{"success":true},"source":"${eventSource}"}'
+curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -d '{"type":"task_completed","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME","data":{"success":true,"verification":{"build":true,"typecheck":true,"filesChanged":["src/file.ts"]}},"source":"${eventSource}"}'
 
 When all assigned tasks are complete:
 curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -d '{"type":"mission_completed","missionId":"${mission.id}","source":"${eventSource}"}'`
@@ -720,6 +829,20 @@ Execution expectations:
 - If blocked, emit a progress event with the blocker.
 - If a task needs external tools (image/video/data/deploy), use matching connected MCP capabilities first.
 - Treat task completion as valid only after task-level DoD checks pass (implementation + verification + tests).
+
+Verify Before Reporting Complete (REQUIRED per task):
+1. Run the project build command (npm run build or equivalent) — report pass/fail
+2. Run type checking (npx tsc --noEmit or framework equivalent) — report error count
+3. List all files you created or modified for this task
+Include verification results in your task_completed event data.verification field:
+{"build": true/false, "typecheck": true/false, "filesChanged": ["path/to/file.ts"]}
+
+Mission Completion Gate:
+Do NOT send mission_completed until:
+- ALL assigned tasks have been attempted and report success
+- Final build passes with zero errors
+- No TypeScript errors remain
+The system will reconcile task statuses and generate a checkpoint for human review. If tasks are still pending, the mission will be marked as partial — not complete.
 
 ${reportingBlock}
 `;

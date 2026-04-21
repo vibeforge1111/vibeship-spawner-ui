@@ -15,6 +15,7 @@ import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server
 
 const SKILLS_LAB_PATH_FALLBACKS = [
 	path.resolve(process.cwd(), 'skills-lab'),
+	path.resolve(process.cwd(), '..', 'spark-skill-graphs'),
 	path.resolve(process.cwd(), '..', 'vibeship-skills-lab')
 ];
 
@@ -27,8 +28,8 @@ const SKILL_CATEGORIES = [
 	'frontend', 'gamedev', 'game-dev', 'game-dev-llm', 'hardware', 'infrastructure',
 	'integration', 'integrations', 'legal', 'maker', 'marketing', 'mcp', 'mcp-server',
 	'mind', 'mobile', 'nocode', 'performance', 'product', 'productivity', 'robotics',
-	'science', 'security', 'simulation', 'space', 'startup', 'strategy', 'support',
-	'testing', 'trading', 'web3'
+	'science', 'security', 'simulation', 'space', 'sparknet-council', 'startup', 'strategy',
+	'support', 'testing', 'trading', 'web3', 'methodology'
 ];
 
 interface H70Skill {
@@ -76,6 +77,10 @@ function resolveSkillsLabPath(): string | null {
 	}
 
 	return null;
+}
+
+function getSkillsSourceName(skillsLabPath: string): string {
+	return path.basename(skillsLabPath) || 'local-skills';
 }
 
 function formatH70SkillContent(skill: H70Skill & { id: string }, rawYaml: string): string {
@@ -286,7 +291,7 @@ export const GET: RequestHandler = async ({ params }) => {
 			skill: skillWithId,
 			rawYaml,
 			formattedContent,
-			source: 'vibeship-skills-lab',
+			source: getSkillsSourceName(skillsLabPath),
 			path: skillPath,
 			category
 		});

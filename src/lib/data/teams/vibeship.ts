@@ -13,7 +13,7 @@ export const vibeshipTeam: AgenticTeam = {
 		h70_mcp: {
 			server: 'spawner-h70',
 			tool: 'spawner_h70_skills',
-			skill_lab: 'C:/Users/USER/Desktop/vibeship-h70/skill-lab'
+			skill_lab: 'C:/Users/USER/Desktop/spark-skill-graphs'
 		},
 		mind_v5: {
 			api: 'http://localhost:8080',

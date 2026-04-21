@@ -16,8 +16,6 @@ import { mcpClient } from '$lib/services/mcp-client';
 import { logger } from '$lib/utils/logger';
 
 const log = logger.scope('MissionExecutor');
-const logLearning = logger.scope('Learning');
-const logMind = logger.scope('Mind');
 import { buildMissionFromCanvas, validateForMission, generateExecutionPrompt, generateResumeExecutionPrompt, type MissionBuildOptions, type ExecutionPromptOptions } from './mission-builder';
 import type { H70SkillContent } from './h70-skills';
 import {
@@ -32,12 +30,10 @@ import { getPipelineOptions } from '$lib/stores/project-goal.svelte';
 import { calculateCompletionQuality, isLowQualityCompletion, buildReworkInstruction, MAX_TASK_RETRIES, type TaskCompletionQuality, type ReworkInstruction } from './completion-gates';
 import { parseFilesFromLogs } from './artifacts';
 import { generateCheckpoint, type ProjectCheckpoint } from './checkpoint';
-import { syncClient, broadcastMissionEvent, broadcastLearningEvent, broadcastTaskEvent, broadcastExecutionControl, isConnected, type SyncEvent } from './sync-client';
+import { syncClient, broadcastMissionEvent, broadcastTaskEvent, broadcastExecutionControl, isConnected, type SyncEvent } from './sync-client';
 import { clientEventBridge, type BridgeEvent } from './event-bridge';
-import { memoryClient } from './memory-client';
-import { get } from 'svelte/store';
 import { browser } from '$app/environment';
-import { memorySettings, isMemoryConnected, shouldRecordDecision } from '$lib/stores/memory-settings.svelte';
+import { get } from 'svelte/store';
 import {
 	saveMissionState,
 	getActiveMissionState,
@@ -162,6 +158,7 @@ function normalizeMultiLLMOptions(
 		keyPresence: options.keyPresence ?? {},
 		mcpCapabilities: options.mcpCapabilities ?? [],
 		mcpTools: options.mcpTools ?? [],
+		taskProviderPreferences: options.taskProviderPreferences ?? {},
 		providers: providers.map((provider) => ({ ...provider }))
 	};
 }
@@ -175,10 +172,7 @@ class MissionExecutor {
 	private eventBridgeUnsubscribe: (() => void) | null = null;
 	private useWebSocket = false;
 
-	// Learning tracking
-	private taskStartTimes: Map<string, Date> = new Map();
-	private taskDecisionIds: Map<string, string> = new Map();  // taskId -> memory_id
-	private completedSkillSequence: string[] = [];
+	// Execution quality tracking
 	private taskQualities: Map<string, TaskCompletionQuality> = new Map();
 	private taskRetryCount: Map<string, number> = new Map();
 
@@ -469,7 +463,6 @@ class MissionExecutor {
 						}
 						this.generateMissionCheckpoint(syncMission);
 						this.callbacks.onComplete?.(syncMission);
-						this.recordMissionComplete(syncMission);
 					} else {
 						this.progress.status = 'completed';
 						this.callbacks.onStatusChange?.('completed');
@@ -485,10 +478,6 @@ class MissionExecutor {
 					this.stopPolling();
 					this.callbacks.onStatusChange?.('failed');
 					this.callbacks.onError?.(this.progress.error);
-					// Record mission failure for learning
-					if (this.progress.mission) {
-						this.recordMissionComplete(this.progress.mission);
-					}
 					this.persistState();  // Persist failed state
 					break;
 
@@ -534,8 +523,6 @@ class MissionExecutor {
 					// Real-time task completion
 					const completeData = event.data as { taskId: string; success: boolean };
 					this.callbacks.onTaskComplete?.(completeData.taskId, completeData.success);
-					// Record for learning
-					this.recordTaskComplete(completeData.taskId, completeData.success);
 					break;
 
 				case 'mission_log':
@@ -619,7 +606,6 @@ class MissionExecutor {
 				name: skillId,
 				taskIds: [taskId]
 			});
-			this.completedSkillSequence.push(skillId);
 		}
 	}
 
@@ -686,7 +672,7 @@ class MissionExecutor {
 						this.progress.currentTaskProgress = 0;
 						this.progress.currentTaskMessage = event.message || null;
 
-						// Store in progress map so recordTaskComplete can find it later
+						// Store in progress map so completion handling can find it later
 						this.progress.taskProgressMap.set(taskId, {
 							taskId,
 							taskName: taskName || taskId,
@@ -694,9 +680,6 @@ class MissionExecutor {
 							message: event.message,
 							startedAt: Date.now()
 						});
-
-						// Track start time for duration calculation
-						this.taskStartTimes.set(taskId, new Date());
 
 						// Update task status in mission to 'in_progress'
 						if (this.progress.mission?.tasks) {
@@ -862,7 +845,6 @@ class MissionExecutor {
 						}
 						this.recalculateOverallProgress();
 						this.callbacks.onTaskComplete?.(completedTaskId, success);
-						this.recordTaskComplete(completedTaskId, success);
 						const terminalState = success ? 'completed' : event.type === 'task_cancelled' ? 'cancelled' : 'failed';
 						this.addLocalLog(
 							'info',
@@ -945,7 +927,6 @@ class MissionExecutor {
 						}
 						this.generateMissionCheckpoint(bridgeMission);
 						this.callbacks.onComplete?.(bridgeMission);
-						this.recordMissionComplete(bridgeMission);
 					} else {
 						this.progress.status = 'completed';
 						this.callbacks.onStatusChange?.('completed');
@@ -957,9 +938,6 @@ class MissionExecutor {
 						}
 					}
 					this.persistState();
-
-					// Record MCP usage to Mind for learning (non-blocking)
-					this.recordMcpUsageToMind();
 					break;
 				}
 
@@ -1050,9 +1028,6 @@ class MissionExecutor {
 				this.progress.currentTaskProgress = 0;  // Reset task progress
 				this.progress.currentTaskMessage = null;
 				this.callbacks.onTaskStart?.(task.id, task.title);
-
-				// Record task start for learning
-				this.recordTaskStart(task as MissionTask, task.assignedTo);
 			}
 		}
 
@@ -1254,7 +1229,7 @@ class MissionExecutor {
 		this.progress.multiLLMOptions = normalizeMultiLLMOptions(options.orchestratorOptions);
 		this.callbacks.onStatusChange?.('creating');
 
-		// Reset learning tracking for new execution
+		// Reset execution tracking for new execution
 		this.resetLearningTracking();
 
 		try {
@@ -1728,9 +1703,6 @@ class MissionExecutor {
 							agentId: task.assignedTo,
 							skillId: this.getSkillIdForAgent(task.assignedTo)
 						});
-
-						// Record task start for learning
-						this.recordTaskStart(task, task.assignedTo);
 					}
 				}
 
@@ -1774,9 +1746,6 @@ class MissionExecutor {
 					}
 					this.generateMissionCheckpoint(mission);
 					this.callbacks.onComplete?.(mission);
-
-					// Record mission completion for learning
-					this.recordMissionComplete(mission);
 					this.persistState();
 				} else if (mission.status === 'failed') {
 					this.progress.status = 'failed';
@@ -1785,9 +1754,6 @@ class MissionExecutor {
 					this.stopPolling();
 					this.callbacks.onStatusChange?.('failed');
 					this.callbacks.onError?.(this.progress.error);
-
-					// Record mission failure for learning
-					this.recordMissionComplete(mission);
 				}
 			}
 
@@ -1809,12 +1775,8 @@ class MissionExecutor {
 					// Track task completions
 					if (log.type === 'complete' && log.task_id) {
 						this.callbacks.onTaskComplete?.(log.task_id, true);
-						// Record task completion for learning
-						this.recordTaskComplete(log.task_id, true);
 					} else if (log.type === 'error' && log.task_id) {
 						this.callbacks.onTaskComplete?.(log.task_id, false);
-						// Record task failure for learning
-						this.recordTaskComplete(log.task_id, false);
 					}
 				}
 
@@ -1855,208 +1817,7 @@ class MissionExecutor {
 		this.callbacks.onLog?.(log);
 	}
 
-	// ============================================
-	// Learning Integration Methods
-	// ============================================
-
-	/**
-	 * Check if learning should be recorded
-	 */
-	private shouldRecordLearning(): boolean {
-		const settings = get(memorySettings);
-		return settings.enabled && get(isMemoryConnected);
-	}
-
-	/**
-	 * Record when a task starts - captures the decision to execute this task
-	 * NOW USES LITE+ DECISION TRACING for proper outcome attribution
-	 */
-	private async recordTaskStart(task: MissionTask, agentId: string): Promise<void> {
-		if (!this.shouldRecordLearning()) return;
-
-		try {
-			// Track start time
-			this.taskStartTimes.set(task.id, new Date());
-
-			// Find the agent info
-			const agent = this.progress.mission?.agents.find(a => a.id === agentId);
-			const agentName = agent?.name || agentId;
-			const skillId = agent?.skills?.[0];  // Primary skill
-
-			// Only record if granularity setting allows
-			if (!shouldRecordDecision(0.7)) return;
-
-			// LITE+ CHANGE: Use recordExperience to create decision trace with memory linkage
-			// This searches for relevant past memories and links them to this decision
-			const taskDescription = `${task.title}: ${task.description || ''}`;
-			const reasoning = `Agent ${agentName} executing task "${task.title}" ${skillId ? `using skill ${skillId}` : ''} in mission "${this.progress.mission?.name || 'Unknown'}"`;
-
-			const result = await memoryClient.recordExperience({
-				taskDescription,
-				decisionType: `task_execution:${skillId || 'general'}`,
-				decisionSummary: `Execute task: ${task.title}`,
-				reasoning,
-				confidence: 0.7,
-				sessionId: this.progress.missionId || undefined
-			});
-
-			if (result.success && result.data) {
-				// Store TRACE ID instead of memory ID for later outcome attribution
-				this.taskDecisionIds.set(task.id, result.data.traceId);
-
-				logLearning.debug(`LITE+ Decision trace created: ${task.title}`);
-				logLearning.debug(`  Linked to ${result.data.memoriesUsed.length} past memories`);
-
-				// Broadcast decision event with attribution info
-				broadcastLearningEvent('decision_tracked', {
-					traceId: result.data.traceId,
-					memoryId: result.data.traceId, // For backwards compat
-					agentId,
-					skillId,
-					missionId: this.progress.missionId || undefined,
-					content: `Execute task: ${task.title}`,
-					memoriesLinked: result.data.memoriesUsed.length
-				});
-			} else {
-				// Fallback to old method if LITE+ fails
-				const fallbackResult = await memoryClient.recordAgentDecision(
-					agentId,
-					agentName,
-					{
-						skillId,
-						missionId: this.progress.missionId || undefined,
-						taskId: task.id,
-						decision: `Execute task: ${task.title}`,
-						reasoning: task.description,
-						confidence: 0.7,
-						context: `Mission: ${this.progress.mission?.name || 'Unknown'}`
-					}
-				);
-				if (fallbackResult.success && fallbackResult.data) {
-					this.taskDecisionIds.set(task.id, fallbackResult.data.memory_id);
-				}
-			}
-		} catch (error) {
-			logLearning.error('Failed to record task start:', error);
-		}
-	}
-
-	/**
-	 * Record when a task completes - captures the outcome
-	 * NOW USES LITE+ OUTCOME ATTRIBUTION to propagate results back to source memories
-	 */
-	private async recordTaskComplete(taskId: string, success: boolean): Promise<void> {
-		if (!this.shouldRecordLearning()) return;
-
-		try {
-			// Try to find full task info, but continue even if not found
-			const task = this.progress.mission?.tasks.find(t => t.id === taskId);
-
-			// Use task info if available, otherwise fall back to tracked progress or current task
-			const taskName = task?.title
-				|| this.progress.taskProgressMap.get(taskId)?.taskName
-				|| (taskId === this.progress.currentTaskId ? this.progress.currentTaskName : null)
-				|| taskId;
-
-			const missionName = this.progress.mission?.name || 'Unknown Mission';
-
-			// Calculate duration
-			const startTime = this.taskStartTimes.get(taskId);
-			const duration = startTime ? Date.now() - startTime.getTime() : 0;
-
-			// Find agent info (may be undefined)
-			const agentId = task?.assignedTo;
-			const agent = agentId ? this.progress.mission?.agents.find(a => a.id === agentId) : undefined;
-			const skillId = agent?.skills?.[0];
-
-			// LITE+ CHANGE: Check if we have a decision trace for this task
-			const traceId = this.taskDecisionIds.get(taskId);
-
-			if (traceId) {
-				// Use LITE+ completeExperience for outcome attribution
-				// This propagates the outcome back to all source memories
-				const outcomeQuality = success ? 0.8 : -0.5;
-				const signal = success ? 'task_success' : 'task_failure';
-				const learning = success
-					? `Task "${taskName}" succeeded using skill ${skillId || 'general'} - pattern reinforced`
-					: `Task "${taskName}" failed - consider alternative approach`;
-
-				const result = await memoryClient.completeExperience(traceId, {
-					success,
-					quality: outcomeQuality,
-					signal,
-					learningExtracted: learning
-				});
-
-				if (result.success && result.data) {
-					logLearning.debug(`LITE+ Outcome attributed to ${result.data.attributed_memories} memories`);
-					if (result.data.learning_id) {
-						logLearning.debug(`Learning extracted: ${result.data.learning_id}`);
-					}
-				}
-			} else {
-				// Fallback: Record outcome without attribution (old method)
-				await memoryClient.recordTaskOutcome(
-					this.progress.missionId || '',
-					taskId,
-					{
-						success,
-						details: success
-							? `Task "${taskName}" completed successfully in ${Math.round(duration / 1000)}s`
-							: `Task "${taskName}" failed`,
-						agentId,
-						skillId
-					}
-				);
-			}
-
-			// Track skill sequence for pattern extraction
-			if (success && skillId) {
-				this.completedSkillSequence.push(skillId);
-			}
-
-			// Auto-create decision when task succeeds (non-blocking)
-			if (success) {
-				const what = `Completed: ${taskName}`;
-				const why = `Task "${taskName}" in mission "${missionName}" completed successfully${skillId ? ` using ${skillId} skill` : ''} in ${Math.round(duration / 1000)}s`;
-				memoryClient.createProjectDecision(what, why).then(() => {
-					logMind.debug(`Auto-created decision for completed task: ${taskName}`);
-				}).catch(err => {
-					logMind.warn('Failed to create decision:', err);
-				});
-			}
-
-			// Auto-create issue when task fails (non-blocking)
-			if (!success) {
-				const errorDetails = 'Task execution failed';
-				memoryClient.createProjectIssue(
-					`[${missionName}] Task failed: ${taskName} - ${errorDetails}`,
-					'open'
-				).then(() => {
-					logMind.debug(`Auto-created issue for failed task: ${taskName}`);
-				}).catch(err => {
-					logMind.warn('Failed to create issue:', err);
-				});
-			}
-
-			logLearning.debug(`Recorded task outcome: ${taskName} - ${success ? 'success' : 'failed'}`);
-
-			// Broadcast outcome event with attribution info
-			broadcastLearningEvent('outcome_recorded', {
-				traceId,
-				agentId,
-				skillId,
-				missionId: this.progress.missionId || undefined,
-				content: success ? `Task completed: ${taskName}` : `Task failed: ${taskName}`,
-				success,
-				duration,
-				attributed: !!traceId
-			});
-		} catch (error) {
-			logLearning.error('Failed to record task outcome:', error);
-		}
-	}
-
+	
 	/**
 	 * Reconcile mission completion — verify all tasks actually completed before accepting "done"
 	 * Returns true if mission is fully complete, false if partial
@@ -2298,265 +2059,9 @@ class MissionExecutor {
 	}
 
 	/**
-	 * Record mission completion - extracts learnings and patterns
-	 * NOW USES LITE+ PATTERN EXTRACTION for decision-based patterns
-	 */
-	private async recordMissionComplete(mission: Mission): Promise<void> {
-		if (!this.shouldRecordLearning()) return;
-
-		try {
-			const successfulTasks = mission.tasks.filter(t => t.status === 'completed').length;
-			const totalTasks = mission.tasks.length;
-			const successRate = successfulTasks / totalTasks;
-
-			// LITE+ CHANGE: Extract patterns from decision traces
-			// This finds decision types that frequently succeed
-			const settings = get(memorySettings);
-			if (settings.autoExtractPatterns && successRate >= 0.5) {
-				try {
-					const extractResult = await memoryClient.extractPatterns(2);
-					if (extractResult.success && extractResult.data) {
-						logLearning.debug(`LITE+ Extracted ${extractResult.data.extracted} patterns from decision traces`);
-					}
-				} catch (err) {
-					logLearning.warn('LITE+ Pattern extraction failed:', err);
-				}
-			}
-
-			// Only extract workflow pattern if mission was mostly successful
-			if (successRate >= 0.7 && this.completedSkillSequence.length >= 2) {
-				if (settings.autoExtractPatterns) {
-					// Record workflow pattern (memory-based, complements LITE+ patterns)
-					const patternResult = await memoryClient.recordWorkflowPattern({
-						name: `${mission.name} workflow`,
-						description: `Successful workflow pattern from mission "${mission.name}" with ${successRate * 100}% success rate`,
-						skillSequence: this.completedSkillSequence,
-						applicableTo: [mission.context?.projectType || 'general'],
-						missionId: mission.id
-					});
-
-					logLearning.debug(`Recorded workflow pattern: ${this.completedSkillSequence.join(' → ')}`);
-
-					// Broadcast pattern detected event
-					broadcastLearningEvent('pattern_detected', {
-						memoryId: patternResult.data?.memory_id,
-						missionId: mission.id,
-						content: `Workflow pattern: ${this.completedSkillSequence.join(' → ')}`,
-						skillSequence: this.completedSkillSequence,
-						successRate
-					});
-				}
-
-				// Record a learning about what worked
-				const primaryAgent = mission.agents[0];
-				if (primaryAgent) {
-					const learningResult = await memoryClient.recordLearning(
-						primaryAgent.id,
-						{
-							content: `Mission "${mission.name}" succeeded with skill sequence: ${this.completedSkillSequence.join(' → ')}`,
-							skillId: primaryAgent.skills?.[0],
-							missionId: mission.id,
-							patternType: 'success',
-							confidence: successRate
-						}
-					);
-
-					// Broadcast learning recorded event
-					broadcastLearningEvent('learning_recorded', {
-						memoryId: learningResult.data?.memory_id,
-						agentId: primaryAgent.id,
-						skillId: primaryAgent.skills?.[0],
-						missionId: mission.id,
-						content: `Mission succeeded: ${mission.name}`,
-						patternType: 'success'
-					});
-				}
-			}
-
-			// If mission failed, record the failure pattern
-			if (mission.status === 'failed' && mission.error) {
-				const failedTask = mission.tasks.find(t => t.status === 'failed');
-				const agent = failedTask
-					? mission.agents.find(a => a.id === failedTask.assignedTo)
-					: mission.agents[0];
-
-				if (agent) {
-					const learningResult = await memoryClient.recordLearning(
-						agent.id,
-						{
-							content: `Mission "${mission.name}" failed: ${mission.error}`,
-							skillId: agent.skills?.[0],
-							missionId: mission.id,
-							patternType: 'failure',
-							confidence: 0.8
-						}
-					);
-
-					logLearning.debug(`Recorded failure learning: ${mission.error}`);
-
-					// Broadcast failure learning event
-					broadcastLearningEvent('learning_recorded', {
-						memoryId: learningResult.data?.memory_id,
-						agentId: agent.id,
-						skillId: agent.skills?.[0],
-						missionId: mission.id,
-						content: `Mission failed: ${mission.name}`,
-						patternType: 'failure'
-					});
-				}
-			}
-
-			// Auto-generate session summary (non-blocking)
-			const completedTasks = mission.tasks.filter(t => t.status === 'completed');
-			const failedTasks = mission.tasks.filter(t => t.status === 'failed');
-			const agentNames = mission.agents.map(a => a.name).join(', ');
-
-			const sessionSummary = mission.status === 'completed'
-				? `Mission "${mission.name}" completed successfully. ${completedTasks.length}/${totalTasks} tasks done. Agents: ${agentNames}. Skills used: ${this.completedSkillSequence.join(', ') || 'none tracked'}.`
-				: `Mission "${mission.name}" ${mission.status}. ${completedTasks.length}/${totalTasks} tasks completed, ${failedTasks.length} failed. ${mission.error || ''}`;
-
-			memoryClient.createSessionSummary(sessionSummary).then(() => {
-				logMind.debug(`Auto-created session summary for mission: ${mission.name}`);
-			}).catch(err => {
-				logMind.warn('Failed to create session summary:', err);
-			});
-
-			// Auto-generate improvement suggestions (non-blocking)
-			this.generateImprovementSuggestions(mission, successRate).catch(err => {
-				logMind.warn('Failed to generate improvements:', err);
-			});
-
-			// LITE+ CHANGE: Log self-improvement metrics at mission end
-			memoryClient.getSelfImprovementMetrics().then(result => {
-				if (result.success && result.data) {
-					logLearning.debug('LITE+ Self-Improvement Metrics:');
-					logLearning.debug(`  Total decisions: ${result.data.totalDecisions}`);
-					logLearning.debug(`  With outcomes: ${result.data.decisionsWithOutcomes}`);
-					logLearning.debug(`  Success rate: ${(result.data.successRate * 100).toFixed(1)}%`);
-					logLearning.debug(`  Memories attributed: ${result.data.memoriesAttributed}`);
-					logLearning.debug(`  Patterns found: ${result.data.topPatterns.length}`);
-				}
-			}).catch((err) => {
-				// Non-critical: metrics are informational only
-				logLearning.debug('Failed to fetch self-improvement metrics:', err);
-			});
-
-		} catch (error) {
-			logLearning.error('Failed to record mission complete:', error);
-		}
-	}
-
-	/**
-	 * Record MCP tool availability to Mind for learning (non-blocking)
-	 */
-	private recordMcpUsageToMind(): void {
-		try {
-			const snapshot = getMcpRuntimeSnapshot();
-			if (!snapshot.connected || snapshot.tools.length === 0) return;
-
-			const missionName = this.progress.mission?.name || 'Unknown';
-			const toolList = snapshot.tools.map(t => `${t.mcpName}.${t.toolName}`).join(', ');
-
-			fetch('http://localhost:8080/v1/memories/', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					content: `Mission "${missionName}" had ${snapshot.connectedCount} MCP(s) with ${snapshot.tools.length} tool(s) available: ${toolList}`,
-					temporal_level: 2,
-					content_type: 'agent_learning',
-					salience: 0.5
-				})
-			}).catch(() => { /* Mind offline is fine */ });
-		} catch {
-			// Non-critical — never block mission completion
-		}
-	}
-
-	/**
-	 * Generate improvement suggestions based on mission outcomes
-	 */
-	private async generateImprovementSuggestions(mission: Mission, successRate: number): Promise<void> {
-		try {
-			const failedTasks = mission.tasks.filter(t => t.status === 'failed');
-			const completedTasks = mission.tasks.filter(t => t.status === 'completed');
-
-			// Suggest agent improvements for agents with failed tasks
-			for (const task of failedTasks) {
-				const agent = mission.agents.find(a => a.id === task.assignedTo);
-				if (agent) {
-					await memoryClient.createImprovement({
-						type: 'agent',
-						targetId: agent.id,
-						targetName: agent.name,
-						suggestion: `Agent "${agent.name}" failed task "${task.title}". Consider improving error handling or adding retry logic for similar tasks.`,
-						impact: 0.15,
-						confidence: 0.7,
-						evidenceCount: 1,
-						sourceMissions: [mission.id]
-					});
-					logMind.debug(`Suggested improvement for agent: ${agent.name}`);
-				}
-
-				// Suggest skill improvements if skill info available
-				const skillId = agent?.skills?.[0];
-				if (skillId) {
-					await memoryClient.createImprovement({
-						type: 'skill',
-						targetId: skillId,
-						targetName: skillId,
-						suggestion: `Skill "${skillId}" was used in failed task "${task.title}". Review skill implementation for edge cases.`,
-						impact: 0.1,
-						confidence: 0.6,
-						evidenceCount: 1,
-						sourceMissions: [mission.id]
-					});
-				}
-			}
-
-			// If overall success rate is low, suggest pipeline improvement
-			if (successRate < 0.7 && mission.tasks.length > 2) {
-				await memoryClient.createImprovement({
-					type: 'pipeline',
-					targetId: mission.id,
-					targetName: mission.name,
-					suggestion: `Mission "${mission.name}" had ${Math.round(successRate * 100)}% success rate. Consider restructuring task dependencies or adding validation steps.`,
-					impact: 0.2,
-					confidence: 0.75,
-					evidenceCount: failedTasks.length,
-					sourceMissions: [mission.id]
-				});
-				logMind.debug(`Suggested pipeline improvement for mission: ${mission.name}`);
-			}
-
-			// If mission was highly successful, suggest positive reinforcement
-			if (successRate >= 0.9 && completedTasks.length >= 3) {
-				const primaryAgent = mission.agents[0];
-				if (primaryAgent) {
-					await memoryClient.createImprovement({
-						type: 'team',
-						targetId: 'team-composition',
-						targetName: `${mission.name} Team`,
-						suggestion: `Team composition for "${mission.name}" achieved ${Math.round(successRate * 100)}% success. Consider reusing this agent configuration: ${mission.agents.map(a => a.name).join(', ')}.`,
-						impact: 0.25,
-						confidence: 0.85,
-						evidenceCount: completedTasks.length,
-						sourceMissions: [mission.id]
-					});
-					logMind.debug('Recorded successful team composition');
-				}
-			}
-		} catch (error) {
-			logMind.error('Failed to generate improvement suggestions:', error);
-		}
-	}
-
-	/**
-	 * Reset learning tracking for new execution
+	 * Reset execution tracking for new execution
 	 */
 	private resetLearningTracking(): void {
-		this.taskStartTimes.clear();
-		this.taskDecisionIds.clear();
-		this.completedSkillSequence = [];
 		this.taskQualities.clear();
 		this.taskRetryCount.clear();
 	}

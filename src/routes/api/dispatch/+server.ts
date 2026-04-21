@@ -12,8 +12,10 @@ import { env } from '$env/dynamic/private';
 import { requireControlAuth, enforceRateLimit } from '$lib/server/mcp-auth';
 import { eventBridge } from '$lib/services/event-bridge';
 import { providerRuntime } from '$lib/server/provider-runtime';
+import { DEFAULT_MULTI_LLM_PROVIDERS } from '$lib/services/multi-llm-orchestrator';
 
-const ALLOWED_PROVIDER_IDS = new Set(['claude', 'codex']);
+const ALLOWED_PROVIDER_IDS = new Set(DEFAULT_MULTI_LLM_PROVIDERS.map((provider) => provider.id));
+const ALLOWED_PROVIDER_LABEL = [...ALLOWED_PROVIDER_IDS].join(', ');
 
 function isConfiguredApiKey(value: string | undefined): value is string {
 	return Boolean(value && value.trim() && !value.startsWith('your_'));
@@ -58,7 +60,7 @@ export const POST: RequestHandler = async (event) => {
 			return json(
 				{
 					success: false,
-					error: `Unsupported provider(s) in execution pack: ${unsupportedProviderIds.join(', ')}. Allowed: claude, codex.`
+					error: `Unsupported provider(s) in execution pack: ${unsupportedProviderIds.join(', ')}. Allowed: ${ALLOWED_PROVIDER_LABEL}.`
 				},
 				{ status: 400 }
 			);

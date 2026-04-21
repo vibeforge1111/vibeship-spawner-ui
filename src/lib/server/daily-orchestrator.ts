@@ -1,5 +1,6 @@
 import type { Mission } from '$lib/services/mcp-client';
 import type { MissionControlAction } from '$lib/server/mission-control-command';
+export type { MissionControlAction };
 
 export interface DailyTopMission {
 	id: string;
