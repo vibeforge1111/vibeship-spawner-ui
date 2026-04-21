@@ -21,7 +21,6 @@
 		type MultiLLMProviderConfig,
 		type MultiLLMStrategy
 	} from '$lib/services/multi-llm-orchestrator';
-	import PostMissionReview from './PostMissionReview.svelte';
 	import CheckpointReview from './CheckpointReview.svelte';
 	import type { ProjectCheckpoint } from '$lib/services/checkpoint';
 	import { browser } from '$app/environment';
@@ -41,12 +40,6 @@
 	let logs = $state<MissionLog[]>([]);
 	let logsContainer = $state<HTMLDivElement | undefined>(undefined);
 	let mcpConnected = $state(false);
-
-	// Post-mission review state
-	let showReview = $state(false);
-	let completedMission = $state<Mission | null>(null);
-	let missionStartTime = $state<Date | null>(null);
-	let missionEndTime = $state<Date | null>(null);
 
 	// Checkpoint review state
 	let showCheckpointReview = $state(false);
@@ -681,12 +674,6 @@
 		resetAllNodeStatus();
 		prepareDualProviderRunIfReady();
 
-		// Reset review state
-		showReview = false;
-		completedMission = null;
-		missionStartTime = new Date();
-		missionEndTime = null;
-
 		// Reset task tracking
 		completedTasks = [];
 		failedTasks = [];
@@ -762,8 +749,6 @@
 			},
 			onComplete: async (mission) => {
 				executionProgress = missionExecutor.getProgress();
-				missionEndTime = new Date();
-				completedMission = mission;
 
 				// Clear pending tasks
 				pendingTasks = [];
@@ -791,16 +776,10 @@
 					showCheckpointReview = true;
 				}
 
-				toasts.success('Workflow completed successfully', {
-					label: 'View Review',
-					onClick: () => {
-						showReview = true;
-					}
-				});
+				toasts.success('Workflow completed successfully');
 			},
 			onError: async (error) => {
 				executionProgress = missionExecutor.getProgress();
-				missionEndTime = new Date();
 
 				toasts.error(`Execution failed: ${error}`, {
 					label: 'Retry',
@@ -1861,15 +1840,6 @@
 				{:else}
 					Ready to run
 				{/if}
-				<!-- View Review button after completion -->
-				{#if completedMission && !isRunning}
-					<button
-						onclick={() => showReview = true}
-						class="text-accent-secondary hover:text-accent-secondary-hover transition-colors"
-					>
-						View Review
-					</button>
-				{/if}
 			</div>
 			<div class="flex gap-2">
 				<!-- Cancel button -->
@@ -1929,20 +1899,6 @@
 		</div>
 	</div>
 </div>
-{/if}
-
-<!-- Post-Mission Review Modal -->
-{#if showReview && completedMission && missionStartTime && missionEndTime}
-	<PostMissionReview
-		mission={completedMission}
-		startTime={missionStartTime}
-		endTime={missionEndTime}
-		onClose={() => showReview = false}
-		onViewLearnings={() => {
-			showReview = false;
-			window.location.href = '/missions';
-		}}
-	/>
 {/if}
 
 <!-- Orphan Node Warning Modal -->
