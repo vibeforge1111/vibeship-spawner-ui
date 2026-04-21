@@ -122,6 +122,8 @@ Make `Spawner UI` the thin execution plane for `Spark Intelligence` across Teleg
   - status visible
   - completion event emitted
   verify: the builder Telegram route works end to end on localhost
+- [x] Run a localhost bridge smoke test for the same path without relying on manual polling for terminal state.
+  verify: `/api/spark/run` mission `spark-1776766317580` reached `mission_completed`, `/api/mission-control/command` showed both providers `completed`, and `/api/mission-control/board` moved the mission into `completed`
 
 ## Acceptance Criteria
 

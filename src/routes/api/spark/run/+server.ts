@@ -184,8 +184,10 @@ export const POST: RequestHandler = async (event) => {
 			onEvent: (bridgeEvent) => {
 				const relayEvent = {
 					...bridgeEvent,
+					source: 'spark-run',
 					data: {
 						...missionMetadata,
+						originalSource: bridgeEvent.source,
 						...(bridgeEvent.data || {})
 					}
 				};
