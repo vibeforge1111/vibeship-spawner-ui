@@ -29,7 +29,6 @@ export const STORAGE_KEYS = {
 	PIPELINES: 'spawner-pipelines',
 	CURRENT_PIPELINE: 'spawner-current-pipeline',
 	GENERATED_SKILLS: 'spawner-generated-skills',
-	MEMORY_SETTINGS: 'spawner-memory-settings',
 	MCP_URL: 'mcp-url',
 	// Mission execution state
 	ACTIVE_MISSION: 'spawner-active-mission',

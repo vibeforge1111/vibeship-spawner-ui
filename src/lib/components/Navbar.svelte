@@ -2,20 +2,10 @@
 	import Icon from './Icon.svelte';
 	import PipelineSelector from './PipelineSelector.svelte';
 	import { initPipelines } from '$lib/stores/pipelines.svelte';
-	import { connectedInstances } from '$lib/stores/mcps.svelte';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 
-	let skillsDropdownOpen = $state(false);
 	let pipelinesReady = $state(false);
-	let mcpConnectedCount = $state(0);
-
-	$effect(() => {
-		const unsub = connectedInstances.subscribe((instances) => {
-			mcpConnectedCount = instances.length;
-		});
-		return unsub;
-	});
 
 	onMount(() => {
 		if (browser) {
@@ -23,50 +13,43 @@
 			pipelinesReady = true;
 		}
 	});
-
-	function toggleSkillsDropdown() {
-		skillsDropdownOpen = !skillsDropdownOpen;
-	}
-
-	function closeDropdown() {
-		skillsDropdownOpen = false;
-	}
 </script>
-
-<svelte:window
-	onclick={(e) => {
-		const target = e.target as HTMLElement;
-		if (!target.closest('.skills-dropdown-container')) {
-			skillsDropdownOpen = false;
-		}
-	}}
-/>
 
 <nav class="h-[52px] sticky top-0 border-b border-surface-border bg-bg-primary z-50">
 	<div class="h-full max-w-6xl mx-auto flex items-center justify-between px-6">
-		<!-- Left side: Logo -->
 		<div class="flex items-center gap-4">
-			<!-- Logo -->
 			<a href="/" class="flex items-center gap-1.5">
 				<img src="/logo.png" alt="vibeship" class="w-6 h-6 -ml-0.5" />
 				<span class="font-serif text-[1.36rem] text-text-primary" style="font-family: 'Instrument Serif', Georgia, serif;">vibeship</span>
 				<span class="font-serif text-[1.36rem] text-accent-primary" style="font-family: 'Instrument Serif', Georgia, serif;">spawner</span>
 			</a>
-
 		</div>
 
-		<!-- Right side -->
 		<div class="flex items-center gap-2">
-			<!-- Guide link -->
 			<a
-				href="/guide"
+				href="/canvas"
 				class="inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-sm text-text-secondary border border-transparent hover:text-text-primary hover:border-surface-border transition-all"
 			>
-				<Icon name="book" size={14} />
-				<span class="hidden sm:inline">Guide</span>
+				<Icon name="grid" size={14} />
+				<span class="hidden sm:inline">Canvas</span>
 			</a>
 
-			<!-- Tools link -->
+			<a
+				href="/missions"
+				class="inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-sm text-text-secondary border border-transparent hover:text-text-primary hover:border-surface-border transition-all"
+			>
+				<Icon name="play" size={14} />
+				<span class="hidden sm:inline">Missions</span>
+			</a>
+
+			<a
+				href="/skills"
+				class="inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-sm text-text-secondary border border-transparent hover:text-text-primary hover:border-surface-border transition-all"
+			>
+				<Icon name="layers" size={14} />
+				<span class="hidden sm:inline">Skills</span>
+			</a>
+
 			<a
 				href="/tools"
 				class="inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-sm text-text-secondary border border-transparent hover:text-text-primary hover:border-surface-border transition-all"
@@ -75,97 +58,6 @@
 				<span class="hidden sm:inline">Tools</span>
 			</a>
 
-			<!-- Mind link -->
-			<a
-				href="/mind"
-				class="inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-sm text-text-secondary border border-transparent hover:text-text-primary hover:border-surface-border transition-all"
-			>
-				<Icon name="brain" size={14} />
-				<span class="hidden sm:inline">Mind</span>
-			</a>
-
-			<!-- MCPs link -->
-			<a
-				href="/mcps"
-				class="inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-sm text-text-secondary border border-transparent hover:text-text-primary hover:border-surface-border transition-all"
-			>
-				<Icon name="plug" size={14} />
-				<span class="hidden sm:inline">MCPs</span>
-				{#if mcpConnectedCount > 0}
-					<span class="ml-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-accent-primary/20 text-accent-primary border border-accent-primary/30">
-						{mcpConnectedCount}
-					</span>
-				{/if}
-			</a>
-
-			<!-- Skills Dropdown -->
-			<div class="skills-dropdown-container relative">
-				<button
-					class="inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-sm text-text-secondary border border-transparent hover:text-text-primary hover:border-surface-border transition-all cursor-pointer bg-transparent"
-					onclick={toggleSkillsDropdown}
-				>
-					<Icon name="layers" size={14} />
-					<span class="hidden sm:inline">Skills</span>
-					<Icon name="chevron-down" size={12} />
-				</button>
-
-				{#if skillsDropdownOpen}
-					<div class="absolute top-full right-0 mt-1 min-w-[180px] bg-bg-primary border border-surface-border shadow-lg py-2 z-50 animate-fade-in">
-						<a
-							href="/skills"
-							class="flex items-center gap-2 px-4 py-2 font-mono text-sm text-text-secondary hover:bg-bg-secondary hover:text-text-primary transition-colors"
-							onclick={closeDropdown}
-						>
-							<Icon name="grid" size={14} />
-							<span>Browse All</span>
-						</a>
-						<a
-							href="/skills/find"
-							class="flex items-center gap-2 px-4 py-2 font-mono text-sm text-text-secondary hover:bg-bg-secondary hover:text-text-primary transition-colors"
-							onclick={closeDropdown}
-						>
-							<Icon name="compass" size={14} />
-							<span>Find a Skill</span>
-						</a>
-
-						<div class="h-px bg-surface-border my-2"></div>
-
-						<div class="px-4 py-1 font-mono text-[0.7rem] uppercase tracking-wider text-text-tertiary">
-							Categories
-						</div>
-						<a
-							href="/skills?category=development"
-							class="block px-4 py-2 font-mono text-sm text-text-secondary hover:bg-bg-secondary hover:text-text-primary transition-colors"
-							onclick={closeDropdown}
-						>
-							Development
-						</a>
-						<a
-							href="/skills?category=frameworks"
-							class="block px-4 py-2 font-mono text-sm text-text-secondary hover:bg-bg-secondary hover:text-text-primary transition-colors"
-							onclick={closeDropdown}
-						>
-							Frameworks
-						</a>
-						<a
-							href="/skills?category=design"
-							class="block px-4 py-2 font-mono text-sm text-text-secondary hover:bg-bg-secondary hover:text-text-primary transition-colors"
-							onclick={closeDropdown}
-						>
-							Design
-						</a>
-						<a
-							href="/skills?category=strategy"
-							class="block px-4 py-2 font-mono text-sm text-text-secondary hover:bg-bg-secondary hover:text-text-primary transition-colors"
-							onclick={closeDropdown}
-						>
-							Strategy
-						</a>
-					</div>
-				{/if}
-			</div>
-
-			<!-- Settings link -->
 			<a
 				href="/settings"
 				class="inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-sm text-text-secondary border border-transparent hover:text-text-primary hover:border-surface-border transition-all"
@@ -174,16 +66,13 @@
 				<span class="hidden sm:inline">Settings</span>
 			</a>
 
-			<!-- Divider before Pipeline -->
 			<div class="w-px h-5 bg-surface-border hidden md:block"></div>
 
-			<!-- Pipeline Selector - Navigate to canvas on switch -->
 			{#if pipelinesReady}
 				<div class="hidden md:block">
 					<PipelineSelector navigateOnSwitch={true} />
 				</div>
 			{/if}
-
 		</div>
 	</div>
 </nav>

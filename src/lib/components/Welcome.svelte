@@ -4,9 +4,6 @@
 	import Navbar from './Navbar.svelte';
 	import Footer from './Footer.svelte';
 	import PRDProcessingModal from './PRDProcessingModal.svelte';
-	import { isConnected as mcpConnected, isConnecting as mcpConnecting } from '$lib/stores/mcp.svelte';
-	import { isConnected as syncConnected, syncStatus } from '$lib/services/sync-client';
-	import { isMemoryConnected, memoryConnectionStatus } from '$lib/stores/memory-settings.svelte';
 	import { setPRD, setProjectName } from '$lib/stores/project-docs.svelte';
 	import { analyzePRD, generateTasksFromPRD, tasksToWorkflow, type PRDAnalysis, type GeneratedTask } from '$lib/utils/prd-analyzer';
 	import { processSmartPRD, type SmartPRDAnalysis, type SmartMission } from '$lib/utils/smart-prd-analyzer';
@@ -21,7 +18,6 @@
 	import { get } from 'svelte/store';
 
 	let { onStart }: { onStart?: (goal: string, options?: { includeSkills?: boolean; includeMCPs?: boolean }) => void } = $props();
-	let showSetupGuide = $state(false);
 
 	let inputValue = $state('');
 	let isFocused = $state(false);
@@ -544,13 +540,13 @@
 	<!-- Hero Section -->
 	<section class="max-w-6xl mx-auto px-6 pt-20 pb-16">
 		<div class="text-center mb-16 animate-fade-in">
-			<p class="font-mono text-sm mb-4 tracking-wider"><span class="text-accent-primary">SKILLED AGENTS</span> <span class="text-text-tertiary">|</span> <span class="text-accent-secondary">CONTEXT/MEMORY LAYER</span> <span class="text-text-tertiary">|</span> <span class="text-accent-primary">AUTOMATED PIPELINES</span></p>
+			<p class="font-mono text-sm mb-4 tracking-wider"><span class="text-accent-primary">SKILLED AGENTS</span> <span class="text-text-tertiary">|</span> <span class="text-accent-secondary">EXECUTION PLANE</span> <span class="text-text-tertiary">|</span> <span class="text-accent-primary">AUTOMATED PIPELINES</span></p>
 			<h1 class="text-[3.5rem] leading-tight font-serif font-normal text-text-primary mb-6">
 				A Framework To <span class="text-accent-primary relative inline-block">Level Up Claude<span class="claude-underline"></span></span>
 			</h1>
 			<p class="text-lg text-text-secondary max-w-2xl mx-auto mb-6">
-				450+ specialized skills transform Claude into domain experts. Chain them into pipelines.
-				Give your agents and teams persistent memory with Mind.
+				593 specialized skills turn agents into domain experts. Build workflows on canvas,
+				dispatch missions, and run providers from one place.
 			</p>
 			<div class="flex items-center justify-center gap-6 text-sm font-mono text-text-tertiary">
 				<span class="flex items-center gap-2">
@@ -559,114 +555,10 @@
 				</span>
 				<span class="flex items-center gap-2">
 					<span class="w-2 h-2 bg-accent-secondary"></span>
-					Memory that persists
+					Execution that stays visible
 				</span>
 			</div>
-
-			<!-- Connection Status -->
-			<div class="mt-6 flex flex-col items-center gap-2">
-				<div class="flex items-center gap-2">
-					<!-- MCP Status -->
-					{#if $mcpConnected}
-						<div class="flex items-center gap-1.5 px-2.5 py-1 bg-green-500/10 border border-green-500/30">
-							<span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-							<span class="text-xs font-mono text-green-400">MCP</span>
-						</div>
-					{:else if $mcpConnecting}
-						<div class="flex items-center gap-1.5 px-2.5 py-1 bg-yellow-500/10 border border-yellow-500/30">
-							<span class="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></span>
-							<span class="text-xs font-mono text-yellow-400">MCP</span>
-						</div>
-					{:else}
-						<div class="flex items-center gap-1.5 px-2.5 py-1 bg-text-tertiary/10 border border-surface-border">
-							<span class="w-1.5 h-1.5 bg-text-tertiary rounded-full"></span>
-							<span class="text-xs font-mono text-text-tertiary">MCP</span>
-						</div>
-					{/if}
-
-					<!-- Mind Status -->
-					{#if $isMemoryConnected}
-						<div class="flex items-center gap-1.5 px-2.5 py-1 bg-purple-500/10 border border-purple-500/30">
-							<span class="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
-							<span class="text-xs font-mono text-purple-400">Mind</span>
-						</div>
-					{:else}
-						<div class="flex items-center gap-1.5 px-2.5 py-1 bg-text-tertiary/10 border border-surface-border">
-							<span class="w-1.5 h-1.5 bg-text-tertiary rounded-full"></span>
-							<span class="text-xs font-mono text-text-tertiary">Mind</span>
-						</div>
-					{/if}
-
-					<!-- Real-time Sync Status -->
-					{#if $syncConnected}
-						<div class="flex items-center gap-1.5 px-2.5 py-1 bg-accent-primary/10 border border-accent-primary/30">
-							<span class="w-1.5 h-1.5 bg-accent-primary rounded-full"></span>
-							<span class="text-xs font-mono text-accent-primary">Sync</span>
-						</div>
-					{/if}
-				</div>
-			</div>
 		</div>
-
-		<!-- Setup Guide Modal -->
-		{#if showSetupGuide}
-			<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_interactive_supports_focus -->
-			<div class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onclick={() => showSetupGuide = false} role="dialog" aria-modal="true" tabindex="-1">
-				<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-				<div class="bg-bg-secondary border border-surface-border max-w-lg w-full max-h-[80vh] overflow-y-auto" onclick={(e) => e.stopPropagation()} role="document">
-					<div class="flex items-center justify-between px-5 py-4 border-b border-surface-border">
-						<h3 class="font-serif text-lg text-text-primary">Setup Bidirectional Sync</h3>
-						<button onclick={() => showSetupGuide = false} class="text-text-tertiary hover:text-text-primary" aria-label="Close dialog">
-							<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-							</svg>
-						</button>
-					</div>
-
-					<div class="px-5 py-4 space-y-6">
-						<div>
-							<p class="font-mono text-xs text-accent-primary mb-2 tracking-widest">STEP 1</p>
-							<p class="text-sm text-text-secondary mb-2">Clone spawner-v2 (the sync server):</p>
-							<code class="block p-3 bg-surface rounded text-sm font-mono text-text-primary">
-								git clone https://github.com/vibeship/spawner-v2.git
-							</code>
-						</div>
-
-						<div>
-							<p class="font-mono text-xs text-accent-primary mb-2 tracking-widest">STEP 2</p>
-							<p class="text-sm text-text-secondary mb-2">Install and run locally:</p>
-							<code class="block p-3 bg-surface rounded text-sm font-mono text-text-primary whitespace-pre">cd spawner-v2
-npm install
-wrangler dev</code>
-						</div>
-
-						<div>
-							<p class="font-mono text-xs text-accent-primary mb-2 tracking-widest">STEP 3</p>
-							<p class="text-sm text-text-secondary mb-2">Server runs at localhost:8787. Both Spawner UI and Claude Code connect here.</p>
-						</div>
-
-						<div class="p-4 bg-accent-primary/10 border border-accent-primary/30 rounded">
-							<p class="text-sm text-accent-primary font-medium mb-2">How it works:</p>
-							<ul class="text-xs text-text-secondary space-y-1">
-								<li>- Spawner UI creates missions -> stored in MCP server</li>
-								<li>- Claude Code reads missions via spawner_mission tools</li>
-								<li>- Changes sync instantly via WebSocket</li>
-								<li>- Both see real-time updates</li>
-							</ul>
-						</div>
-					</div>
-
-					<div class="px-5 py-4 border-t border-surface-border">
-						<button
-							onclick={() => showSetupGuide = false}
-							class="w-full py-2 bg-accent-primary text-bg-primary font-medium hover:bg-accent-primary/90 transition-colors"
-						>
-							Got it
-						</button>
-					</div>
-				</div>
-			</div>
-		{/if}
 
 		<!-- Main Input -->
 		<div class="max-w-2xl mx-auto mb-20 animate-slide-up" style="animation-delay: 100ms;">
@@ -896,71 +788,6 @@ wrangler dev</code>
 							<p class="text-xs text-text-tertiary">Skills Tested</p>
 						</div>
 					</div>
-				</div>
-			</div>
-		</div>
-	</section>
-
-	<!-- Section 3: Mind - Memory That Compounds -->
-	<section class="border-t border-surface-border">
-		<div class="max-w-6xl mx-auto px-6 py-24">
-			<div class="text-center mb-16 animate-slide-up" style="animation-delay: 300ms;">
-				<p class="font-mono text-xs text-accent-secondary mb-3 tracking-widest">03 - MIND</p>
-				<h2 class="text-3xl font-serif text-text-primary mb-4">
-					Memory that <span class="text-accent-secondary">compounds.</span>
-				</h2>
-				<p class="text-text-secondary max-w-2xl mx-auto">
-					Agents don't just execute - they remember. Every decision, every context, every outcome
-					is stored and retrieved. Your agents get smarter with every interaction.
-				</p>
-			</div>
-
-			<!-- Memory flow visualization -->
-			<div class="grid md:grid-cols-3 gap-6 mb-16">
-				<div class="p-6 bg-bg-secondary border border-surface-border animate-slide-up" style="animation-delay: 350ms;">
-					<div class="w-10 h-10 flex items-center justify-center border border-accent-secondary/30 text-accent-secondary mb-4">
-						<span class="text-lg">A</span>
-					</div>
-					<h3 class="font-serif text-lg text-text-primary mb-2">Agent A executes</h3>
-					<p class="text-sm text-text-secondary leading-relaxed">
-						Completes a task with full context. Decisions, reasoning, and outcomes are captured.
-					</p>
-				</div>
-
-				<div class="p-6 bg-bg-secondary border border-surface-border animate-slide-up" style="animation-delay: 400ms;">
-					<div class="w-10 h-10 flex items-center justify-center border border-accent-secondary/30 text-accent-secondary mb-4">
-						<span class="text-lg">M</span>
-					</div>
-					<h3 class="font-serif text-lg text-text-primary mb-2">Mind remembers</h3>
-					<p class="text-sm text-text-secondary leading-relaxed">
-						Semantic memory stores what matters. Not logs - understanding. Patterns emerge over time.
-					</p>
-				</div>
-
-				<div class="p-6 bg-bg-secondary border border-surface-border animate-slide-up" style="animation-delay: 450ms;">
-					<div class="w-10 h-10 flex items-center justify-center border border-accent-secondary/30 text-accent-secondary mb-4">
-						<span class="text-lg">B</span>
-					</div>
-					<h3 class="font-serif text-lg text-text-primary mb-2">Agent B improves</h3>
-					<p class="text-sm text-text-secondary leading-relaxed">
-						Picks up context instantly. No re-explanation. Builds on previous decisions. Compounds.
-					</p>
-				</div>
-			</div>
-
-			<!-- Stats row -->
-			<div class="flex flex-wrap items-center justify-center gap-12 pt-8 border-t border-surface-border">
-				<div class="text-center">
-					<p class="text-3xl font-display font-bold text-accent-secondary mb-1">INF</p>
-					<p class="font-mono text-text-tertiary text-xs uppercase tracking-wider">Memory Depth</p>
-				</div>
-				<div class="text-center">
-					<p class="text-3xl font-display font-bold text-text-primary mb-1">0</p>
-					<p class="font-mono text-text-tertiary text-xs uppercase tracking-wider">Context Lost</p>
-				</div>
-				<div class="text-center">
-					<p class="text-3xl font-display font-bold text-accent-primary mb-1">100%</p>
-					<p class="font-mono text-text-tertiary text-xs uppercase tracking-wider">Continuity</p>
 				</div>
 			</div>
 		</div>

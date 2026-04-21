@@ -2,16 +2,14 @@
 	import '../app.css';
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import { mcpState, connect, setMcpUrl, connectLocal, connectProduction } from '$lib/stores/mcp.svelte';
 	import { syncClient } from '$lib/services/sync-client';
-	import { initializeMemory } from '$lib/stores/memory-settings.svelte';
 	import { initPipelines } from '$lib/stores/pipelines.svelte';
 	import { initPersistence } from '$lib/services/persistence';
 	import ToastContainer from '$lib/components/ToastContainer.svelte';
 
 	let { children } = $props();
 
-	// Auto-connect to MCP, Sync, and Mind on app load
+	// Initialize app state and optional local sync on app load
 	onMount(async () => {
 		if (!browser) return;
 
@@ -24,54 +22,8 @@
 		// Initialize pipeline system (ensures localStorage is loaded)
 		initPipelines();
 
-		// Always try local sync first (for canvas bridge during development)
-		// This runs in parallel with MCP connection
+		// Keep canvas sync available when the local bridge is running.
 		tryConnectSync('ws://localhost:8787/sync');
-
-		// Initialize Mind memory system (connects to local Mind API if available)
-		initializeMemory().then(connected => {
-			if (connected) {
-				console.log('[Mind] Connected to memory API');
-			} else {
-				console.log('[Mind] Memory API not available, learnings will not persist');
-			}
-		}).catch(err => {
-			console.log('[Mind] Memory initialization failed:', err);
-		});
-
-		// Check for saved preference
-		const savedUrl = localStorage.getItem('mcp-url');
-
-		if (savedUrl) {
-			// Use saved URL preference
-			setMcpUrl(savedUrl);
-			const success = await connect();
-			if (success) {
-				console.log('[MCP] Connected to saved server:', savedUrl);
-				return;
-			}
-		}
-
-		// Try local first (for development)
-		console.log('[MCP] Attempting local connection...');
-		const localSuccess = await connectLocal();
-		if (localSuccess) {
-			localStorage.setItem('mcp-url', 'http://localhost:8787');
-			console.log('[MCP] Connected to local server');
-			return;
-		}
-
-		// Fall back to production
-		console.log('[MCP] Local failed, trying production...');
-		const prodSuccess = await connectProduction();
-		if (prodSuccess) {
-			localStorage.setItem('mcp-url', 'https://mcp.vibeship.co');
-			console.log('[MCP] Connected to production server');
-			return;
-		}
-
-		// Neither worked - app will use static fallbacks
-		console.log('[MCP] No server available, using static data');
 	});
 
 	// Try to connect WebSocket for real-time sync
