@@ -73,12 +73,6 @@
 		{ name: 'AI/ML', count: 28, icon: 'AI' }
 	];
 
-	const benchmarks = [
-		{ skill: 'nextjs-app-router', metric: 'Accuracy', value: '94%', baseline: '71%', improvement: '+32%' },
-		{ skill: 'supabase-auth', metric: 'Success Rate', value: '98%', baseline: '82%', improvement: '+20%' },
-		{ skill: 'react-patterns', metric: 'Code Quality', value: '91%', baseline: '68%', improvement: '+34%' }
-	];
-
 	function handleSubmit() {
 		if (inputValue.trim() && onStart && !isSubmitting) {
 			isSubmitting = true;
@@ -720,73 +714,6 @@
 						<p class="text-sm text-text-primary leading-relaxed">
 							Expert-level from the start. Anthropic recommends skills over general prompting - each of ours is benchmarked to prove it.
 						</p>
-					</div>
-				</div>
-			</div>
-		</div>
-	</section>
-
-	<!-- Section 2: Benchmarked Performance -->
-	<section class="border-t border-surface-border">
-		<div class="max-w-6xl mx-auto px-6 py-24">
-			<div class="grid lg:grid-cols-2 gap-12 items-center">
-				<!-- Left: Benchmarks visual -->
-				<div class="order-2 lg:order-1 animate-slide-up" style="animation-delay: 250ms;">
-					<div class="space-y-4">
-						{#each benchmarks as bench, i}
-							<div class="p-4 bg-bg-secondary border border-surface-border">
-								<div class="flex items-center justify-between mb-3">
-									<span class="font-mono text-sm text-accent-primary">{bench.skill}</span>
-									<span class="text-xs text-text-tertiary">{bench.metric}</span>
-								</div>
-
-								<!-- Progress bar comparison -->
-								<div class="space-y-2">
-									<div class="flex items-center gap-3">
-										<span class="text-xs text-text-tertiary w-16">Baseline</span>
-										<div class="flex-1 h-2 bg-surface-border rounded-full overflow-hidden">
-											<div class="h-full bg-text-tertiary/50 rounded-full" style="width: {bench.baseline}"></div>
-										</div>
-										<span class="text-xs text-text-tertiary w-10">{bench.baseline}</span>
-									</div>
-									<div class="flex items-center gap-3">
-										<span class="text-xs text-accent-primary w-16">Skilled</span>
-										<div class="flex-1 h-2 bg-surface-border rounded-full overflow-hidden">
-											<div class="h-full bg-accent-primary rounded-full transition-all duration-1000" style="width: {bench.value}"></div>
-										</div>
-										<span class="text-xs text-accent-primary w-10">{bench.value}</span>
-									</div>
-								</div>
-
-								<p class="text-right mt-2">
-									<span class="text-xs font-mono text-green-400">{bench.improvement}</span>
-								</p>
-							</div>
-						{/each}
-					</div>
-				</div>
-
-				<!-- Right: Content -->
-				<div class="order-1 lg:order-2 animate-slide-up" style="animation-delay: 200ms;">
-					<p class="font-mono text-xs text-accent-primary mb-3 tracking-widest">02 - BENCHMARKED</p>
-					<h2 class="text-3xl font-serif text-text-primary mb-4">
-						Every skill is<br/>
-						<span class="text-accent-primary">tested and proven.</span>
-					</h2>
-					<p class="text-text-secondary mb-6 leading-relaxed">
-						We don't just collect skills - we benchmark them. Each skill is tested against
-						baseline Claude to measure real improvement in accuracy, code quality, and success rate.
-					</p>
-					<div class="flex items-center gap-6 text-sm">
-						<div>
-							<p class="text-2xl font-display font-bold text-accent-primary">+28%</p>
-							<p class="text-xs text-text-tertiary">Avg. Improvement</p>
-						</div>
-						<div class="w-px h-10 bg-surface-border"></div>
-						<div>
-							<p class="text-2xl font-display font-bold text-text-primary">450+</p>
-							<p class="text-xs text-text-tertiary">Skills Tested</p>
-						</div>
 					</div>
 				</div>
 			</div>
