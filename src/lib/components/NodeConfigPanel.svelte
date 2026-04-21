@@ -225,9 +225,9 @@
 									<span class="text-[10px] px-1 py-0.5 border {mcp.priority === 'required' ? 'text-red-400 border-red-400/30' : mcp.priority === 'recommended' ? 'text-accent-primary border-accent-primary/30' : 'text-text-tertiary border-surface-border'}">{mcp.priority}</span>
 								</div>
 								{#if isConnected}
-									<span class="text-green-400 text-[10px] font-mono">Connected</span>
+									<span class="text-accent-primary text-[10px] font-mono">Connected</span>
 								{:else}
-									<a href="/mcps" class="text-accent-primary text-[10px] font-mono hover:underline">Connect</a>
+									<span class="text-text-tertiary text-[10px] font-mono">Not connected</span>
 								{/if}
 							</div>
 						{/each}

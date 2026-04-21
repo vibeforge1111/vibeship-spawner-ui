@@ -1156,10 +1156,10 @@ import { get } from 'svelte/store';
 			<div class="flex items-center justify-between">
 				<div class="text-xs text-text-tertiary font-mono">{currentNodes.length} nodes</div>
 				<div class="flex items-center gap-2">
-					<a href="/mcps" class="flex items-center gap-1 text-xs font-mono transition-colors {mcpConnectedCount > 0 ? 'text-accent-primary' : 'text-text-tertiary'} hover:text-accent-primary" title="{mcpConnectedCount} MCP{mcpConnectedCount !== 1 ? 's' : ''} connected">
-						<span class="w-1.5 h-1.5 rounded-full {mcpConnectedCount > 0 ? 'bg-green-500' : 'bg-text-tertiary'}"></span>
+					<span class="flex items-center gap-1 text-xs font-mono {mcpConnectedCount > 0 ? 'text-accent-primary' : 'text-text-tertiary'}" title="{mcpConnectedCount} MCP{mcpConnectedCount !== 1 ? 's' : ''} connected">
+						<span class="w-1.5 h-1.5 rounded-full {mcpConnectedCount > 0 ? 'bg-accent-primary' : 'bg-text-tertiary'}"></span>
 						{mcpConnectedCount} MCP{mcpConnectedCount !== 1 ? 's' : ''}
-					</a>
+					</span>
 				</div>
 			</div>
 		</div>
