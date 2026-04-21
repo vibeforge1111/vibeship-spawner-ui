@@ -92,10 +92,23 @@
 		return [...byId.values()];
 	});
 
-	const toDo = $derived(cards().filter((c) => c.status === 'draft' || c.status === 'ready'));
-	const inProgress = $derived(cards().filter((c) => c.status === 'running' || c.status === 'paused'));
+	// Search + source filter applied before column splitting.
+	let searchQuery = $state('');
+	let sourceFilter = $state<'all' | 'mcp' | 'spark'>('all');
+
+	const filteredCards = $derived(() => {
+		const q = searchQuery.trim().toLowerCase();
+		return cards().filter((c) => {
+			if (sourceFilter !== 'all' && c.source !== sourceFilter) return false;
+			if (!q) return true;
+			return c.name.toLowerCase().includes(q) || (c.summary ?? '').toLowerCase().includes(q);
+		});
+	});
+
+	const toDo = $derived(filteredCards().filter((c) => c.status === 'draft' || c.status === 'ready'));
+	const inProgress = $derived(filteredCards().filter((c) => c.status === 'running' || c.status === 'paused'));
 	const done = $derived(
-		cards()
+		filteredCards()
 			.filter((c) => c.status === 'completed' || c.status === 'failed')
 			.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
 	);
@@ -205,6 +218,32 @@
 		</header>
 
 		{#if activeTab === 'board'}
+			<!-- Board filter row -->
+			<div class="flex items-center gap-3 mb-4 flex-wrap">
+				<div class="relative flex-1 min-w-[200px] max-w-md">
+					<Icon name="search" size={14} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-tertiary" />
+					<input
+						type="text"
+						placeholder="Search missions..."
+						bind:value={searchQuery}
+						class="w-full pl-8 pr-3 py-1.5 bg-bg-secondary border border-surface-border rounded-md text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary"
+					/>
+				</div>
+				<div class="flex items-center gap-1 p-0.5 border border-surface-border rounded-md bg-bg-secondary">
+					{#each [{id: 'all', label: 'All'}, {id: 'mcp', label: 'MCP'}, {id: 'spark', label: 'Spark'}] as opt}
+						<button
+							class="px-2.5 py-0.5 text-[11px] font-mono rounded-sm transition-colors {sourceFilter === opt.id ? 'bg-accent-primary text-bg-primary' : 'text-text-secondary hover:text-text-primary'}"
+							onclick={() => sourceFilter = opt.id as typeof sourceFilter}
+						>
+							{opt.label}
+						</button>
+					{/each}
+				</div>
+				{#if searchQuery || sourceFilter !== 'all'}
+					<span class="font-mono text-[11px] text-text-tertiary">{filteredCards().length} / {cards().length}</span>
+				{/if}
+			</div>
+
 			{#if !mcpConnected && !loading && cards().length === 0}
 				<div class="border border-surface-border rounded-lg bg-bg-secondary px-5 py-10 text-center">
 					<p class="font-mono text-xs text-text-tertiary">
