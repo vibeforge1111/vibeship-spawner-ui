@@ -34,15 +34,11 @@
 			.sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? ''))
 	);
 
-	function relTime(iso: string | null): string {
+	function formatDate(iso: string | null): string {
 		if (!iso) return '';
-		const d = Date.now() - new Date(iso).getTime();
-		const m = Math.floor(d / 60000);
-		if (m < 1) return 'just now';
-		if (m < 60) return `${m}m ago`;
-		const h = Math.floor(m / 60);
-		if (h < 24) return `${h}h ago`;
-		return `${Math.floor(h / 24)}d ago`;
+		const d = new Date(iso);
+		const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
+		return d.toLocaleString(undefined, opts);
 	}
 
 	function statusDot(s: Mission['status']): string {
@@ -54,6 +50,28 @@
 			case 'ready': return 'bg-text-secondary';
 			default: return 'bg-text-faint';
 		}
+	}
+
+	// Priority is inferred until a real priority field ships on Mission.
+	// Multi-LLM + running/paused → High; short backlog → Medium; everything else → Low.
+	function priorityOf(m: Mission): 'High' | 'Medium' | 'Low' {
+		if (m.status === 'running' || m.status === 'paused') return 'High';
+		if (m.mode === 'multi-llm-orchestrator') return 'High';
+		if ((m.tasks?.length ?? 0) > 5) return 'High';
+		if (m.status === 'ready' || m.status === 'draft') return 'Medium';
+		return 'Low';
+	}
+
+	function priorityClass(p: 'High' | 'Medium' | 'Low'): string {
+		if (p === 'High')   return 'bg-status-error/15 text-status-error border-status-error/30';
+		if (p === 'Medium') return 'bg-status-amber/15 text-status-amber border-status-amber/30';
+		return 'bg-bg-primary text-text-tertiary border-surface-border';
+	}
+
+	function columnDot(title: string): string {
+		if (title === 'To do')       return 'bg-text-tertiary';
+		if (title === 'In progress') return 'bg-accent-primary';
+		return 'bg-status-success';
 	}
 
 	async function handleStart(m: Mission) {
@@ -112,38 +130,47 @@
 					<p class="font-mono text-xs text-text-tertiary">{error}</p>
 				</div>
 			{:else}
-				<div class="grid md:grid-cols-3 gap-4">
+				<div class="grid md:grid-cols-3 gap-5">
 					{#each [
-						{ title: 'To do', items: toDo, hint: 'draft · ready', empty: 'No pending missions' },
-						{ title: 'In progress', items: inProgress, hint: 'running · paused', empty: 'Nothing running' },
-						{ title: 'Done', items: done, hint: 'completed · failed', empty: 'No history yet' }
+						{ title: 'To do', items: toDo, empty: 'No pending missions' },
+						{ title: 'In progress', items: inProgress, empty: 'Nothing running' },
+						{ title: 'Done', items: done, empty: 'No history yet' }
 					] as col}
-						<section class="border border-surface-border rounded-lg bg-bg-secondary flex flex-col min-h-[320px]">
-							<div class="flex items-center justify-between px-4 py-3 border-b border-surface-border">
-								<span class="font-mono text-xs font-semibold text-text-bright tracking-wide">{col.title}</span>
-								<span class="font-mono text-[10px] text-text-tertiary">{col.items.length} · {col.hint}</span>
+						<section class="flex flex-col min-h-[320px]">
+							<!-- Column header: pill + count, like the reference board -->
+							<div class="flex items-center gap-2 px-1 pb-3">
+								<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-bg-secondary border border-surface-border">
+									<span class="w-1.5 h-1.5 rounded-full {columnDot(col.title)}"></span>
+									<span class="font-sans text-[11px] font-medium text-text-bright">{col.title}</span>
+								</span>
+								<span class="font-mono text-[11px] text-text-tertiary">{col.items.length}</span>
 							</div>
-							<div class="p-2 space-y-1.5 flex-1 overflow-y-auto">
+
+							<div class="flex-1 space-y-2">
 								{#each col.items as m (m.id)}
-									<article class="group px-3 py-2.5 rounded-md border border-transparent hover:border-surface-border hover:bg-bg-primary transition-all">
-										<a href={`/missions/${m.id}`} class="block mb-1.5">
-											<div class="flex items-center gap-2 mb-1">
-												<span class="w-1.5 h-1.5 rounded-full {statusDot(m.status)}"></span>
-												<span class="font-sans text-sm text-text-primary truncate group-hover:text-accent-primary transition-colors">
+									{@const p = priorityOf(m)}
+									<article class="group px-3.5 py-3 rounded-lg border border-surface-border bg-bg-secondary hover:border-border-strong transition-all">
+										<a href={`/missions/${m.id}`} class="block">
+											<div class="flex items-start gap-2 mb-2">
+												<Icon name="file-text" size={14} class="text-text-tertiary mt-0.5 shrink-0" />
+												<span class="font-sans text-sm leading-snug text-text-primary group-hover:text-accent-primary transition-colors">
 													{m.name || 'Untitled mission'}
 												</span>
 											</div>
-											<div class="flex items-center gap-2 font-mono text-[10px] text-text-tertiary">
-												<span>{m.mode}</span>
-												<span>·</span>
-												<span>{relTime(m.updated_at ?? m.created_at)}</span>
-												{#if m.tasks?.length}
-													<span>·</span>
-													<span>{m.tasks.length} task{m.tasks.length !== 1 ? 's' : ''}</span>
+											<div class="flex items-center gap-2 flex-wrap">
+												<span class="px-1.5 py-0.5 text-[10px] font-mono rounded-sm border {priorityClass(p)}">{p}</span>
+												<span class="font-mono text-[10px] text-text-tertiary">
+													{formatDate(m.updated_at ?? m.created_at)}
+												</span>
+												{#if m.status === 'running' || m.status === 'paused'}
+													<span class="ml-auto inline-flex items-center gap-1 font-mono text-[10px] text-text-tertiary">
+														<span class="w-1.5 h-1.5 rounded-full {statusDot(m.status)}"></span>
+														{m.status}
+													</span>
 												{/if}
 											</div>
 										</a>
-										<div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+										<div class="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
 											{#if m.status === 'ready' || m.status === 'draft'}
 												<button
 													onclick={() => handleStart(m)}
@@ -168,7 +195,9 @@
 										</div>
 									</article>
 								{:else}
-									<p class="px-3 py-8 font-mono text-[11px] text-text-faint text-center">{col.empty}</p>
+									<div class="px-3.5 py-5 rounded-lg border border-dashed border-surface-border bg-bg-secondary/40 text-center">
+										<p class="font-mono text-[11px] text-text-faint">{col.empty}</p>
+									</div>
 								{/each}
 							</div>
 						</section>
