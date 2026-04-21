@@ -254,9 +254,9 @@
 
 /* Node component styles */
 @layer components {
-  /* Base node - Vibeship style (sharp corners) */
+  /* Base node — SPARK surface, 6px radius per §5 */
   .node {
-    @apply bg-bg-secondary border border-surface-border transition-all duration-normal;
+    @apply bg-bg-secondary border border-surface-border transition-all duration-normal rounded-lg;
   }
 
   .node:hover {
@@ -281,7 +281,7 @@
     @apply px-3 py-2;
   }
 
-  /* Port - with glow on hover */
+  /* Port — with glow on hover */
   .port {
     @apply w-3 h-3 rounded-full border-2 border-bg-primary transition-all duration-fast;
   }
@@ -294,9 +294,9 @@
     @apply animate-pulse-glow;
   }
 
-  /* Buttons - Vibeship style (sharp corners) */
+  /* Buttons — SPARK 6px default radius */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 font-medium transition-all duration-fast;
+    @apply inline-flex items-center justify-center gap-2 font-medium transition-all duration-fast rounded-lg;
   }
 
   .btn-primary {
@@ -323,9 +323,9 @@
     @apply px-6 py-3 text-lg;
   }
 
-  /* Input fields - Vibeship style (sharp corners) */
+  /* Input fields — SPARK 5px radius */
   .input {
-    @apply w-full bg-bg-secondary border border-surface-border px-4 py-2.5 text-text-primary placeholder:text-text-tertiary transition-all duration-fast font-mono;
+    @apply w-full bg-bg-secondary border border-surface-border px-4 py-2.5 text-text-primary placeholder:text-text-tertiary transition-all duration-fast font-mono rounded-md;
   }
 
   .input:hover {
@@ -336,9 +336,9 @@
     @apply border-accent-primary shadow-glow-teal outline-none;
   }
 
-  /* Panels (sharp corners) */
+  /* Panels */
   .panel {
-    @apply bg-bg-secondary border border-surface-border;
+    @apply bg-bg-secondary border border-surface-border rounded-lg;
   }
 
   /* Status badges (sharp corners) */

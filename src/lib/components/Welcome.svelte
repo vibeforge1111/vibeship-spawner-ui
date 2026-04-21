@@ -557,7 +557,7 @@
 		<!-- Main Input -->
 		<div class="max-w-2xl mx-auto mb-20 animate-slide-up" style="animation-delay: 100ms;">
 			<div
-				class="input-container relative border bg-bg-secondary transition-all duration-normal outline-none ring-0"
+				class="input-container relative border bg-bg-secondary transition-all duration-normal outline-none ring-0 rounded-lg overflow-hidden"
 				class:border-accent-primary={isFocused}
 				class:input-glow={isFocused}
 				class:border-surface-border={!isFocused}
@@ -675,7 +675,7 @@
 				<div class="grid grid-cols-3 gap-3">
 					{#each skillCategories as cat, i}
 						<div
-							class="group p-3 bg-bg-secondary border border-surface-border hover:border-accent-primary/30 transition-all cursor-default"
+							class="group p-3 bg-bg-secondary border border-surface-border hover:border-accent-primary/30 transition-all cursor-default rounded-md"
 							style="animation-delay: {200 + i * 50}ms;"
 						>
 							<span class="text-lg mb-1 block text-accent-primary/70 group-hover:text-accent-primary transition-colors">{cat.icon}</span>
@@ -688,7 +688,7 @@
 
 			<!-- Right: Visual - Single terminal box, divided -->
 			<div class="animate-slide-up" style="animation-delay: 200ms;">
-				<div class="bg-bg-secondary border border-surface-border">
+				<div class="bg-bg-secondary border border-surface-border rounded-lg overflow-hidden">
 					<!-- Terminal header -->
 					<div class="flex items-center gap-2 px-5 py-3 border-b border-surface-border">
 						<span class="w-2.5 h-2.5 rounded-full bg-red-500/70"></span>
