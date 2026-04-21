@@ -251,9 +251,10 @@
 		</a>
 
 		{#if !mcpConnected && missionControl && missionControl.recent.length > 0}
-			{@const events = missionControl.recent}
-			{@const latest = events[0]}
-			{@const earliest = events[events.length - 1]}
+			{@const recentDesc = missionControl.recent}
+			{@const events = [...recentDesc].reverse()}
+			{@const latest = recentDesc[0]}
+			{@const earliest = events[0]}
 			{@const sparkName = events.find((e) => e.missionName)?.missionName ?? missionId}
 			{@const sparkStatus = latest.eventType.startsWith('mission_') ? latest.eventType.replace('mission_', '') : 'in progress'}
 

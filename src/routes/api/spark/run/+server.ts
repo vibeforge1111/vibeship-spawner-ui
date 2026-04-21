@@ -185,15 +185,23 @@ export const POST: RequestHandler = async (event) => {
 			apiKeys,
 			workingDirectory: mission.context.projectPath,
 			onEvent: (bridgeEvent) => {
+				// Per-provider task events arrive with source = provider.id (e.g. 'zai',
+				// 'minimax'). Tag that as taskName so the relay labels "Task started: zai"
+				// instead of the generic "task" that's the same for every provider.
+				const providerId = typeof bridgeEvent.source === 'string' ? bridgeEvent.source : null;
+				const isTaskEvent = typeof bridgeEvent.type === 'string' && bridgeEvent.type.startsWith('task_');
+				const taskName = isTaskEvent && providerId ? providerId : bridgeEvent.taskName;
 				const relayEvent = {
 					...bridgeEvent,
 					missionName: mission.name,
+					taskName,
 					source: 'spark-run',
 					data: {
 						...missionMetadata,
 						missionName: mission.name,
 						goal,
-						originalSource: bridgeEvent.source,
+						originalSource: providerId,
+						provider: providerId,
 						...(bridgeEvent.data || {})
 					}
 				};
