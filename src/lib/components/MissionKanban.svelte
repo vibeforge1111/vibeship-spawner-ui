@@ -70,8 +70,8 @@
 				What's running.
 			</h2>
 		</div>
-		<a href="/missions" class="font-mono text-xs text-text-secondary hover:text-accent-primary transition-colors">
-			Open missions →
+		<a href="/kanban" class="font-mono text-xs text-text-secondary hover:text-accent-primary transition-colors">
+			Open kanban →
 		</a>
 	</div>
 

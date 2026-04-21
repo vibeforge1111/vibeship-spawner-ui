@@ -32,6 +32,14 @@
 			</a>
 
 			<a
+				href="/kanban"
+				class="inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-sm text-text-secondary border border-transparent rounded-md hover:text-text-primary hover:border-surface-border transition-all"
+			>
+				<Icon name="clipboard" size={14} />
+				<span class="hidden sm:inline">Kanban</span>
+			</a>
+
+			<a
 				href="/skills"
 				class="inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-sm text-text-secondary border border-transparent rounded-md hover:text-text-primary hover:border-surface-border transition-all"
 			>

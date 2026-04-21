@@ -12,6 +12,7 @@
 
 		<div class="flex items-center gap-5">
 			<a href="/canvas" class="font-mono text-xs text-text-secondary hover:text-accent-primary transition-colors">Canvas</a>
+			<a href="/kanban" class="font-mono text-xs text-text-secondary hover:text-accent-primary transition-colors">Kanban</a>
 			<a href="/skills" class="font-mono text-xs text-text-secondary hover:text-accent-primary transition-colors">Skills</a>
 			<a href="https://github.com/vibeforge1111/vibeship-spawner-skills" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 font-mono text-xs text-text-secondary hover:text-accent-primary transition-colors">
 				<Icon name="github" size={12} />
