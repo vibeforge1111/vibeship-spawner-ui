@@ -69,6 +69,7 @@ const DEFAULT_WEBHOOKS = (env.MISSION_CONTROL_WEBHOOK_URLS || '')
 	.split(',')
 	.map((value) => value.trim())
 	.filter(Boolean);
+const DEFAULT_TELEGRAM_RELAY_SECRET = env.TELEGRAM_RELAY_SECRET || '';
 
 const relayState: {
 	totalRelayed: number;
@@ -288,13 +289,16 @@ export function buildSparkMissionControlEvent(event: MissionControlBridgeEvent):
 	};
 }
 
-async function postJson(url: string, payload: unknown, token?: string): Promise<void> {
+async function postJson(url: string, payload: unknown, token?: string, extraHeaders?: Record<string, string>): Promise<void> {
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), 7_000);
 	try {
 		const headers: Record<string, string> = {
 			'Content-Type': 'application/json'
 		};
+		if (extraHeaders) {
+			Object.assign(headers, extraHeaders);
+		}
 		if (token) {
 			headers.Authorization = `Bearer ${token}`;
 		}
@@ -340,9 +344,12 @@ export async function relayMissionControlEvent(event: MissionControlBridgeEvent)
 			summary: summarizeMissionControlEvent(event),
 			event
 		};
+		const relayHeaders = DEFAULT_TELEGRAM_RELAY_SECRET
+			? { 'X-Spark-Telegram-Relay-Secret': DEFAULT_TELEGRAM_RELAY_SECRET }
+			: undefined;
 		for (const url of DEFAULT_WEBHOOKS) {
 			tasks.push(
-				postJson(url, webhookPayload).catch((error) => {
+				postJson(url, webhookPayload, undefined, relayHeaders).catch((error) => {
 					console.warn(`[MissionControlRelay] Webhook relay failed (${url}):`, error);
 				})
 			);

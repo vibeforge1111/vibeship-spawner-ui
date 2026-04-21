@@ -136,8 +136,8 @@ Support a stable webhook-owned Telegram gateway without making `Spawner UI` resp
   verify: Spawner never owns Telegram polling or webhook ingress directly in the production path
 - [ ] Keep `/api/spark/run` and mission-control routes as the only Telegram-facing execution surface needed by the gateway.
   verify: no second Spark-to-Spawner protocol is introduced
-- [ ] Protect mission relay delivery to the gateway with an explicit trust boundary.
-  verify: relay endpoint uses localhost-only delivery or a shared secret if moved off-box
+- [x] Protect mission relay delivery to the gateway with an explicit trust boundary.
+  verify: `TELEGRAM_RELAY_SECRET` can require `X-Spark-Telegram-Relay-Secret` on relay delivery to the Telegram gateway
 - [ ] Ensure relay env/config loading works correctly in production mode.
   verify: webhook relay targets load from SvelteKit server env at runtime
 
