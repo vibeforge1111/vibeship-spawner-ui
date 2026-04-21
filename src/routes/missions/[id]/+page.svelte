@@ -3,7 +3,6 @@
 	import { onMount, onDestroy } from 'svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
 	import Footer from '$lib/components/Footer.svelte';
-	import ProactiveSuggestions from '$lib/components/ProactiveSuggestions.svelte';
 	import {
 		missionsState,
 		loadMission,
@@ -17,8 +16,6 @@
 	} from '$lib/stores/missions.svelte';
 	import { mcpState } from '$lib/stores/mcp.svelte';
 	import type { Mission, MissionLog, MissionTask, MissionAgent } from '$lib/services/mcp-client';
-
-	let showSuggestions = $state(true);
 
 	let missionId = $state('');
 	let currentState = $state<MissionsState>({
@@ -369,15 +366,6 @@
 
 				<!-- Right column: Logs & Actions -->
 				<div class="space-y-6">
-					<!-- Proactive Suggestions (shown for draft/ready missions) -->
-					{#if (mission.status === 'draft' || mission.status === 'ready') && showSuggestions}
-						<ProactiveSuggestions
-							goalDescription={mission.description || mission.name}
-							skillIds={mission.agents.flatMap(a => a.skills)}
-							onDismiss={() => showSuggestions = false}
-						/>
-					{/if}
-
 					<!-- Actions -->
 					<div class="border border-surface-border bg-bg-secondary p-4">
 						<h3 class="font-medium text-text-primary mb-4">Actions</h3>

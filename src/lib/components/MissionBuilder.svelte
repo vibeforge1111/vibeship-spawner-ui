@@ -19,11 +19,6 @@
 	import { mcpState, isConnected } from '$lib/stores/mcp.svelte';
 	import { selectedAgents as selectedAgentsStore } from '$lib/stores/stack.svelte';
 	import type { MissionAgent, MissionTask, MissionContext } from '$lib/services/mcp-client';
-	import ProactiveSuggestions from './ProactiveSuggestions.svelte';
-	import type { Memory } from '$lib/types/memory';
-
-	// Track if suggestions are shown
-	let showSuggestions = $state(true);
 
 	// Form state
 	let missionName = $state('');
@@ -284,18 +279,6 @@
 								{/each}
 							</div>
 						</div>
-
-						<!-- Proactive Suggestions -->
-						{#if $currentMission.status === 'draft' && showSuggestions}
-							<div class="mt-4">
-								<ProactiveSuggestions
-									goalDescription={$currentMission.description || $currentMission.name}
-									skillIds={$currentMission.agents.flatMap(a => a.skills)}
-									onDismiss={() => showSuggestions = false}
-								/>
-							</div>
-						{/if}
-
 						<!-- Actions -->
 						<div class="flex gap-2 pt-4 border-t border-zinc-700">
 							{#if $currentMission.status === 'draft'}
