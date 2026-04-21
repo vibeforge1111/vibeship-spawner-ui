@@ -14,8 +14,6 @@
 	import { mcpRuntime } from '$lib/services/mcp-runtime';
 	import type { MultiLLMCapability, MultiLLMMCPTool } from '$lib/services/multi-llm-orchestrator';
 	import { toasts } from '$lib/stores/toast.svelte';
-	import { getPreMissionContext, type PreMissionContext, type PatternSuggestion } from '$lib/services/pre-mission-context';
-	import { reinforceMission } from '$lib/services/learning-reinforcement';
 	import { validateForMission } from '$lib/services/mission-builder';
 	import {
 		createDefaultMultiLLMOptions,
@@ -23,13 +21,9 @@
 		type MultiLLMProviderConfig,
 		type MultiLLMStrategy
 	} from '$lib/services/multi-llm-orchestrator';
-	import PreMissionContextPanel from './PreMissionContextPanel.svelte';
 	import PostMissionReview from './PostMissionReview.svelte';
 	import CheckpointReview from './CheckpointReview.svelte';
-	import MidMissionGuidance from './MidMissionGuidance.svelte';
 	import type { ProjectCheckpoint } from '$lib/services/checkpoint';
-	import { isMemoryConnected } from '$lib/stores/memory-settings.svelte';
-	import { memoryClient } from '$lib/services/memory-client';
 	import { browser } from '$app/environment';
 
 	interface Props {
@@ -48,12 +42,6 @@
 	let logsContainer = $state<HTMLDivElement | undefined>(undefined);
 	let mcpConnected = $state(false);
 
-	// Pre-mission context state
-	let preMissionContext = $state<PreMissionContext | null>(null);
-	let contextLoading = $state(false);
-	let contextCollapsed = $state(false);
-	let memoryConnected = $state(false);
-
 	// Post-mission review state
 	let showReview = $state(false);
 	let completedMission = $state<Mission | null>(null);
@@ -64,11 +52,6 @@
 	let showCheckpointReview = $state(false);
 	let missionCheckpoint = $state<ProjectCheckpoint | null>(null);
 
-	// Mid-mission guidance state
-	let guidanceCollapsed = $state(true);
-	let currentSkillId = $state<string | undefined>(undefined);
-	let currentAgentId = $state<string | undefined>(undefined);
-
 	// Orphan node warning state
 	let showOrphanWarning = $state(false);
 	let orphanedNodes = $state<CanvasNode[]>([]);
@@ -78,20 +61,6 @@
 	let failedTasks = $state<string[]>([]);
 	let pendingTasks = $state<string[]>([]);
 	let reworkTasks = $state<Map<string, { name: string; retry: number; maxRetries: number }>>(new Map());
-	let mindLogsCount = $state(0);
-
-	// Tab state - workflow vs mind
-	let activeTab = $state<'workflow' | 'mind'>('workflow');
-
-	// Mind activity tracking - all Mind categories supported
-	interface MindActivity {
-		id: string;
-		type: 'decision' | 'learning' | 'pattern' | 'progress' | 'issue' | 'session' | 'improvement';
-		content: string;
-		timestamp: Date;
-		taskName?: string;
-	}
-	let mindActivities = $state<MindActivity[]>([]);
 
 	// Current task progress tracking
 	let currentTaskProgress = $state(0);
@@ -116,7 +85,7 @@
 
 	// Mission settings (persisted locally)
 	const MISSION_DEFAULTS_KEY = 'spawner-mission-defaults';
-	let showMissionSettings = $state(true);
+	let showMissionSettings = $state(false);
 	let missionName = $state('Spark Intelligence Launch Readiness');
 	let missionDescription = $state('Prepare Spark Intelligence to go live with safety, reliability, docs, and launch comms.');
 	let projectPath = $state('C:/Users/USER/Desktop/vibeship-spark-intelligence');
@@ -138,11 +107,13 @@
 	let multiLLMAutoRouteByTask = $state(defaultMultiLLMOptions.autoRouteByTask ?? true);
 	let multiLLMAutoDispatch = $state(true);
 	let multiLLMApiKeys = $state<Record<string, string>>({});
+	let serverProviderKeyPresence = $state<Record<string, boolean>>({});
 	let isDispatching = $state(false);
 	let dispatchStatus = $state<Record<string, string>>({});
 	let connectedMcpCapabilities = $state<MultiLLMCapability[]>([]);
 	let connectedMcpTools = $state<MultiLLMMCPTool[]>([]);
 	let connectedMcpToolCount = $state(0);
+	let showAdvancedMultiLLM = $state(false);
 	let multiLLMProviders = $state<MultiLLMProviderConfig[]>(
 		defaultMultiLLMOptions.providers.map((provider) => ({ ...provider }))
 	);
@@ -201,7 +172,10 @@
 
 	function getMultiLLMOptions(): MultiLLMOrchestratorOptions {
 		const keyPresence = Object.fromEntries(
-			multiLLMProviders.map((provider) => [provider.id, Boolean((multiLLMApiKeys[provider.id] || '').trim())])
+			multiLLMProviders.map((provider) => [
+				provider.id,
+				Boolean((multiLLMApiKeys[provider.id] || '').trim()) || Boolean(serverProviderKeyPresence[provider.id])
+			])
 		);
 		return {
 			enabled: multiLLMEnabled,
@@ -248,6 +222,42 @@
 		};
 	}
 
+	function applyServerProviderKeyPresence(presence: Record<string, boolean>) {
+		serverProviderKeyPresence = presence;
+		if (!multiLLMAutoEnableByKeys) return;
+
+		multiLLMProviders = multiLLMProviders.map((provider) =>
+			presence[provider.id] && !provider.enabled ? { ...provider, enabled: true } : provider
+		);
+
+		const enabledProviderIds = multiLLMProviders
+			.filter((provider) => provider.enabled)
+			.map((provider) => provider.id);
+		if (enabledProviderIds.length > 0 && !enabledProviderIds.includes(multiLLMPrimaryProviderId)) {
+			multiLLMPrimaryProviderId = enabledProviderIds[0];
+		}
+	}
+
+	async function loadServerProviderKeyPresence() {
+		if (!browser) return;
+		try {
+			const response = await fetch('/api/providers');
+			if (!response.ok) return;
+			const result = await response.json();
+			if (!Array.isArray(result?.providers)) return;
+
+			const presence = Object.fromEntries(
+				result.providers.map((provider: { id: string; envKeyConfigured?: boolean }) => [
+					provider.id,
+					Boolean(provider.envKeyConfigured)
+				])
+			);
+			applyServerProviderKeyPresence(presence);
+		} catch {
+			// ignore
+		}
+	}
+
 	function toggleMultiLLMProvider(providerId: string) {
 		multiLLMProviders = multiLLMProviders.map((provider) =>
 			provider.id === providerId ? { ...provider, enabled: !provider.enabled } : provider
@@ -267,8 +277,53 @@
 		);
 	}
 
+	type ExecutionMode = 'single' | 'multi';
+
+	function getExecutionMode(): ExecutionMode {
+		if (!multiLLMEnabled) return 'single';
+		return multiLLMStrategy === 'single' ? 'single' : 'multi';
+	}
+
+	function setSingleProvider(providerId: string) {
+		multiLLMPrimaryProviderId = providerId;
+		multiLLMProviders = multiLLMProviders.map((provider) => {
+			if (provider.id === providerId) {
+				return { ...provider, enabled: true };
+			}
+			return { ...provider, enabled: false };
+		});
+	}
+
+	function setExecutionMode(mode: ExecutionMode) {
+		multiLLMEnabled = true;
+		if (mode === 'single') {
+			multiLLMStrategy = 'single';
+			multiLLMAutoRouteByTask = false;
+			const selectedProvider =
+				multiLLMProviders.find((provider) => provider.id === multiLLMPrimaryProviderId) ||
+				multiLLMProviders.find((provider) => provider.id === 'claude') ||
+				multiLLMProviders[0];
+			if (selectedProvider) {
+				setSingleProvider(selectedProvider.id);
+			}
+			return;
+		}
+
+		if (multiLLMStrategy === 'single') {
+			multiLLMStrategy = 'round_robin';
+		}
+		multiLLMAutoRouteByTask = true;
+		multiLLMProviders = multiLLMProviders.map((provider) =>
+			provider.id === 'claude' ||
+			provider.id === 'codex' ||
+			hasProviderApiKey(provider.id)
+				? { ...provider, enabled: true }
+				: provider
+		);
+	}
+
 	function hasProviderApiKey(providerId: string): boolean {
-		return Boolean((multiLLMApiKeys[providerId] || '').trim());
+		return Boolean((multiLLMApiKeys[providerId] || '').trim()) || Boolean(serverProviderKeyPresence[providerId]);
 	}
 
 	function hasDualProviderKeys(): boolean {
@@ -276,6 +331,7 @@
 	}
 
 	function prepareDualProviderRunIfReady() {
+		if (getExecutionMode() !== 'multi') return;
 		if (!hasDualProviderKeys()) return;
 
 		multiLLMEnabled = true;
@@ -299,8 +355,7 @@
 		const unsub1 = nodes.subscribe((n) => (currentNodes = n));
 		const unsub2 = connections.subscribe((c) => (currentConnections = c));
 		const unsub3 = isConnected.subscribe((connected) => (mcpConnected = connected));
-		const unsub4 = isMemoryConnected.subscribe((connected) => (memoryConnected = connected));
-		const unsub5 = mcpRuntime.subscribe((runtime) => {
+		const unsub4 = mcpRuntime.subscribe((runtime) => {
 			connectedMcpCapabilities = runtime.capabilities as MultiLLMCapability[];
 			connectedMcpTools = runtime.tools.map((tool) => ({
 				instanceId: tool.instanceId,
@@ -316,7 +371,6 @@
 			unsub2();
 			unsub3();
 			unsub4();
-			unsub5();
 		};
 	});
 
@@ -361,6 +415,7 @@
 		defaultsLoaded = true;
 		if (!browser) return;
 		loadMultiLLMApiKeys();
+		void loadServerProviderKeyPresence();
 		try {
 			const raw = localStorage.getItem(MISSION_DEFAULTS_KEY);
 			if (!raw) return;
@@ -449,37 +504,6 @@
 		}
 		const currentTaskId = progress.currentTaskId;
 		return progress.loadedSkills.filter((skill) => skill.taskIds.includes(currentTaskId));
-	}
-
-	// Fetch pre-mission context when panel opens and nodes exist
-	// Guard prevents multiple fetches - only fetch once when conditions are first met
-	let hasAttemptedContextFetch = $state(false);
-	$effect(() => {
-		if (hasAttemptedContextFetch) return;
-		if (currentNodes.length > 0 && memoryConnected && !executionProgress) {
-			hasAttemptedContextFetch = true;
-			fetchContext();
-		}
-	});
-
-	async function fetchContext() {
-		if (contextLoading || currentNodes.length === 0) return;
-
-		contextLoading = true;
-		try {
-			// Build goal description from node names
-			const goalDescription = currentNodes.map(n => n.skill.name).join(', ');
-			preMissionContext = await getPreMissionContext(goalDescription, currentNodes);
-		} catch (error) {
-			console.error('[ExecutionPanel] Failed to fetch context:', error);
-		} finally {
-			contextLoading = false;
-		}
-	}
-
-	function handleApplyPattern(pattern: PatternSuggestion) {
-		// For now, just show a toast - in future could auto-arrange nodes
-		toasts.info(`Pattern applied: ${pattern.content.slice(0, 50)}...`);
 	}
 
 	/**
@@ -650,42 +674,6 @@
 	});
 
 	/**
-	 * Log progress to Mind and track activity for UI
-	 * Supports all Mind activity types: progress, decision, learning, issue, session, improvement, pattern
-	 */
-	async function logToMind(
-		type: 'progress' | 'decision' | 'learning' | 'issue' | 'session' | 'improvement' | 'pattern',
-		message: string,
-		taskName?: string
-	) {
-		// Track activity for UI regardless of Mind connection
-		const activity: MindActivity = {
-			id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-			type,
-			content: message,
-			timestamp: new Date(),
-			taskName
-		};
-		mindActivities = [...mindActivities, activity];
-
-		if (!memoryConnected) return;
-		try {
-			// Map activity types to appropriate Mind content types
-			const patternType = type === 'learning' ? 'success' : type === 'issue' ? 'failure' : 'optimization';
-
-			await memoryClient.recordLearning('spawner-ui', {
-				content: message,
-				missionId: executionProgress?.missionId || undefined,
-				patternType,
-				confidence: 0.8
-			});
-			mindLogsCount++;
-		} catch (e) {
-			console.error('[ExecutionPanel] Failed to log to Mind:', e);
-		}
-	}
-
-	/**
 	 * Actually execute the workflow (called after validation passes)
 	 */
 	async function executeWorkflow() {
@@ -704,25 +692,11 @@
 		failedTasks = [];
 		pendingTasks = currentNodes.map(n => n.skill.name);
 		reworkTasks = new Map();
-		mindLogsCount = 0;
-		mindActivities = [];
-
-		// Track task outcomes for reinforcement
-		const taskOutcomes: Record<string, boolean> = {};
-
-		// Log mission start to Mind
-		logToMind('progress', `Starting workflow execution with ${currentNodes.length} tasks: ${currentNodes.map(n => n.skill.name).join(', ')}`);
 
 		// Set up callbacks
 		missionExecutor.setCallbacks({
-			onStatusChange: (status) => {
+			onStatusChange: () => {
 				executionProgress = missionExecutor.getProgress();
-				// Log status changes to Mind
-				if (status === 'running') {
-					logToMind('progress', 'Workflow execution started');
-				} else if (status === 'paused') {
-					logToMind('progress', 'Workflow execution paused');
-				}
 			},
 			onProgress: (progress) => {
 				executionProgress = missionExecutor.getProgress();
@@ -746,24 +720,15 @@
 				const node = currentNodes.find(n => n.skill.name === taskName || n.id === taskId);
 				if (node) {
 					updateNodeStatus(node.id, 'running');
-					// Update skill/agent IDs for mid-mission guidance
-					currentSkillId = node.skill.id;
-					currentAgentId = node.skill.id; // Use skill as agent proxy
 
 					// Remove from pending, update UI
 					pendingTasks = pendingTasks.filter(t => t !== taskName);
-
-					// Log to Mind with task context
-					logToMind('decision', `Executing skill: ${taskName}`, taskName);
 				}
 
 				// Update executionProgress to reflect new current task name
 				executionProgress = missionExecutor.getProgress();
 			},
 			onTaskComplete: (taskId, success) => {
-				// Track outcome for reinforcement
-				taskOutcomes[taskId] = success;
-
 				// Find the node and update its status
 				const node = currentNodes.find(n => n.id === taskId);
 				const taskName = node?.skill.name || taskId;
@@ -778,10 +743,8 @@
 				// Update tracking
 				if (success) {
 					completedTasks = [...completedTasks, taskName];
-					logToMind('learning', `Task completed successfully: ${taskName}`, taskName);
 				} else {
 					failedTasks = [...failedTasks, taskName];
-					logToMind('learning', `Task failed: ${taskName}`, taskName);
 				}
 
 				// Update executionProgress to reflect task completion
@@ -795,7 +758,6 @@
 				}
 				reworkTasks.set(taskId, { name: taskName, retry: retryNumber, maxRetries });
 				reworkTasks = new Map(reworkTasks);
-				logToMind('issue', `Task rework required: ${taskName} (retry ${retryNumber}/${maxRetries})`, taskName);
 				executionProgress = missionExecutor.getProgress();
 			},
 			onComplete: async (mission) => {
@@ -829,21 +791,6 @@
 					showCheckpointReview = true;
 				}
 
-				// Log completion to Mind with summary
-				const duration = missionEndTime.getTime() - (missionStartTime?.getTime() || 0);
-				const durationStr = duration < 60000 ? `${Math.round(duration / 1000)}s` : `${Math.round(duration / 60000)}m`;
-				logToMind('learning', `Workflow completed successfully in ${durationStr}. Completed ${completedTasks.length} tasks: ${completedTasks.join(', ')}`);
-
-				// Run reinforcement if memory is connected
-				if (memoryConnected) {
-					try {
-						const result = await reinforceMission(mission.id, taskOutcomes);
-						console.log('[ExecutionPanel] Reinforcement result:', result);
-					} catch (error) {
-						console.error('[ExecutionPanel] Reinforcement failed:', error);
-					}
-				}
-
 				toasts.success('Workflow completed successfully', {
 					label: 'View Review',
 					onClick: () => {
@@ -854,18 +801,6 @@
 			onError: async (error) => {
 				executionProgress = missionExecutor.getProgress();
 				missionEndTime = new Date();
-
-				// Log failure to Mind
-				logToMind('learning', `Workflow failed: ${error}. Completed ${completedTasks.length}/${currentNodes.length} tasks before failure.`);
-
-				// Still run reinforcement for partial results
-				if (memoryConnected && executionProgress?.missionId) {
-					try {
-						await reinforceMission(executionProgress.missionId, taskOutcomes);
-					} catch (e) {
-						console.error('[ExecutionPanel] Reinforcement failed:', e);
-					}
-				}
 
 				toasts.error(`Execution failed: ${error}`, {
 					label: 'Retry',
@@ -1083,25 +1018,8 @@
 		<!-- Header -->
 		<div class="flex items-center justify-between p-4 border-b border-surface-border">
 			<div class="flex items-center gap-4">
-				<!-- Tab Selector -->
-				<div class="flex bg-bg-tertiary border border-surface-border">
-					<button
-						onclick={() => activeTab = 'workflow'}
-						class="px-4 py-1.5 text-xs font-mono uppercase tracking-wider transition-all {activeTab === 'workflow' ? 'bg-accent-primary text-bg-primary' : 'text-text-secondary hover:text-text-primary'}"
-					>
-						Workflow
-					</button>
-					<button
-						onclick={() => activeTab = 'mind'}
-						class="px-4 py-1.5 text-xs font-mono uppercase tracking-wider transition-all flex items-center gap-2 {activeTab === 'mind' ? 'bg-purple-500 text-white' : 'text-text-secondary hover:text-text-primary'}"
-					>
-						Mind
-						{#if mindActivities.length > 0}
-							<span class="w-5 h-5 flex items-center justify-center text-[10px] {activeTab === 'mind' ? 'bg-white/20' : 'bg-purple-500/20 text-purple-400'}">
-								{mindActivities.length}
-							</span>
-						{/if}
-					</button>
+				<div class="px-4 py-1.5 text-xs font-mono uppercase tracking-wider bg-accent-primary text-bg-primary">
+					Execution
 				</div>
 				{#if executionProgress}
 					<span class="text-sm font-mono {getStatusColor(executionProgress.status)}">
@@ -1171,9 +1089,6 @@
 				</div>
 			</div>
 		{/if}
-
-		<!-- Tab Content -->
-		{#if activeTab === 'workflow'}
 		<!-- Progress -->
 		{#if executionProgress}
 			<div class="p-4 border-b border-surface-border">
@@ -1511,15 +1426,6 @@
 					<div class="mt-4 border border-surface-border">
 						<div class="flex items-center justify-between px-3 py-2 bg-bg-tertiary border-b border-surface-border">
 							<span class="text-xs font-mono text-text-tertiary uppercase tracking-wider">Task Status</span>
-							{#if mindActivities.length > 0}
-								<button
-									onclick={() => activeTab = 'mind'}
-									class="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1.5 transition-colors"
-								>
-									<span class="w-1.5 h-1.5 bg-purple-400"></span>
-									<span class="font-mono">{mindActivities.length}</span> Mind events
-								</button>
-							{/if}
 						</div>
 						<div class="grid grid-cols-3">
 							<div class="p-3 text-center border-r border-surface-border bg-green-500/5">
@@ -1568,15 +1474,7 @@
 						</div>
 						<p class="text-xs text-text-secondary">
 							Successfully completed {completedTasks.length} task{completedTasks.length !== 1 ? 's' : ''} in {getExecutionDuration()}.
-							{#if memoryConnected}
-								{mindLogsCount} events logged to Mind.
-							{/if}
 						</p>
-						{#if !memoryConnected}
-							<p class="text-xs text-amber-400 mt-1">
-								Connect Mind to save learnings from this workflow.
-							</p>
-						{/if}
 					</div>
 				{:else if executionProgress.status === 'partial'}
 					<div class="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/30">
@@ -1641,32 +1539,6 @@
 						</p>
 					</div>
 				{/if}
-			</div>
-		{/if}
-
-		<!-- Pre-Mission Context (Mind Suggestions) -->
-		{#if memoryConnected && !isRunning && !isPaused}
-			<div class="border-b border-surface-border">
-				<PreMissionContextPanel
-					context={preMissionContext}
-					loading={contextLoading}
-					collapsed={contextCollapsed}
-					onToggle={() => (contextCollapsed = !contextCollapsed)}
-					onApplyPattern={handleApplyPattern}
-				/>
-			</div>
-		{/if}
-
-		<!-- Mid-Mission Guidance (during execution) -->
-		{#if memoryConnected && isRunning && executionProgress?.currentTaskName}
-			<div class="border-b border-surface-border">
-				<MidMissionGuidance
-					currentTaskName={executionProgress.currentTaskName}
-					skillId={currentSkillId}
-					agentId={currentAgentId}
-					collapsed={guidanceCollapsed}
-					onToggle={() => (guidanceCollapsed = !guidanceCollapsed)}
-				/>
 			</div>
 		{/if}
 
@@ -1743,132 +1615,6 @@
 				{/if}
 			</div>
 		</div>
-		{:else}
-		<!-- Mind Activity Tab -->
-		<div class="flex-1 overflow-y-auto bg-bg-primary">
-			{#if mindActivities.length === 0}
-				<div class="flex flex-col items-center justify-center h-full py-12 text-center px-4">
-					<div class="w-16 h-16 mb-4 flex items-center justify-center bg-purple-500/10 border border-purple-500/30">
-						<svg class="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="1.5" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-						</svg>
-					</div>
-					<h3 class="text-lg font-serif text-text-primary mb-2">No Mind Activity Yet</h3>
-					<p class="text-sm text-text-secondary max-w-xs">
-						{#if !isRunning}
-							Start a workflow execution to see decisions and learnings being recorded.
-						{:else}
-							Mind will track decisions and learnings as tasks execute.
-						{/if}
-					</p>
-					{#if !memoryConnected}
-						<p class="text-xs text-amber-400 mt-3">
-							Connect Mind to persist learnings across sessions.
-						</p>
-					{/if}
-				</div>
-			{:else}
-				<!-- Mind Activity Header -->
-				<div class="px-4 py-3 bg-bg-tertiary border-b border-surface-border sticky top-0">
-					<div class="flex items-center justify-between">
-						<div class="flex items-center gap-2">
-							<span class="text-xs font-mono text-purple-400 uppercase tracking-wider">Mind Activity</span>
-							<span class="text-xs text-text-tertiary">({mindActivities.length} events)</span>
-						</div>
-						{#if memoryConnected}
-							<span class="text-xs text-accent-primary flex items-center gap-1">
-								<span class="w-1.5 h-1.5 bg-accent-primary"></span>
-								Syncing to Mind
-							</span>
-						{:else}
-							<span class="text-xs text-amber-400 flex items-center gap-1">
-								<span class="w-1.5 h-1.5 bg-amber-400"></span>
-								Local only
-							</span>
-						{/if}
-					</div>
-				</div>
-
-				<!-- Activity List -->
-				<div class="divide-y divide-surface-border">
-					{#each [...mindActivities].reverse() as activity}
-						<div class="px-4 py-3 hover:bg-surface/30 transition-colors">
-							<div class="flex items-start gap-3">
-								<!-- Activity Type Icon -->
-								<div class="flex-shrink-0 mt-0.5">
-									{#if activity.type === 'decision'}
-										<div class="w-6 h-6 flex items-center justify-center bg-blue-500/20 border border-blue-500/30">
-											<svg class="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M9 5l7 7-7 7" />
-											</svg>
-										</div>
-									{:else if activity.type === 'learning'}
-										<div class="w-6 h-6 flex items-center justify-center bg-accent-primary/20 border border-accent-primary/30">
-											<svg class="w-3 h-3 text-accent-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="3" d="M5 13l4 4L19 7" />
-											</svg>
-										</div>
-									{:else if activity.type === 'pattern'}
-										<div class="w-6 h-6 flex items-center justify-center bg-purple-500/20 border border-purple-500/30">
-											<svg class="w-3.5 h-3.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-											</svg>
-										</div>
-									{:else if activity.type === 'issue'}
-										<div class="w-6 h-6 flex items-center justify-center bg-red-500/20 border border-red-500/30">
-											<svg class="w-3.5 h-3.5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-											</svg>
-										</div>
-									{:else if activity.type === 'session'}
-										<div class="w-6 h-6 flex items-center justify-center bg-amber-500/20 border border-amber-500/30">
-											<svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-											</svg>
-										</div>
-									{:else if activity.type === 'improvement'}
-										<div class="w-6 h-6 flex items-center justify-center bg-emerald-500/20 border border-emerald-500/30">
-											<svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-											</svg>
-										</div>
-									{:else}
-										<div class="w-6 h-6 flex items-center justify-center bg-vibe-teal/20 border border-vibe-teal/30">
-											<svg class="w-3.5 h-3.5 text-vibe-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-											</svg>
-										</div>
-									{/if}
-								</div>
-
-								<!-- Activity Content -->
-								<div class="flex-1 min-w-0">
-									<div class="flex items-center gap-2 mb-1">
-										<span class="text-xs font-mono uppercase tracking-wider {
-											activity.type === 'decision' ? 'text-blue-400' :
-											activity.type === 'learning' ? 'text-accent-primary' :
-											activity.type === 'pattern' ? 'text-purple-400' :
-											activity.type === 'issue' ? 'text-red-400' :
-											activity.type === 'session' ? 'text-amber-400' :
-											activity.type === 'improvement' ? 'text-emerald-400' :
-											'text-vibe-teal'
-										}">
-											{activity.type}
-										</span>
-										{#if activity.taskName}
-											<span class="text-xs text-text-tertiary">• {activity.taskName}</span>
-										{/if}
-									</div>
-									<p class="text-sm text-text-primary">{activity.content}</p>
-									<p class="text-xs text-text-tertiary mt-1">{formatTime(activity.timestamp)}</p>
-								</div>
-							</div>
-						</div>
-					{/each}
-				</div>
-			{/if}
-		</div>
-		{/if}
 
 		<!-- Mission Settings (shown when not running) -->
 		{#if !isRunning && !isPaused}
@@ -1938,8 +1684,37 @@
 								</div>
 							{/if}
 
-							{#if multiLLMEnabled}
-								<div class="mt-3 grid grid-cols-1 gap-2">
+							<div class="mt-3 p-2 border border-surface-border bg-bg-tertiary">
+								<div class="text-xs font-mono text-text-tertiary mb-1">Execution Mode</div>
+								<div class="grid grid-cols-2 gap-2">
+									<button
+										type="button"
+										class="px-2 py-1 text-xs font-mono border transition-colors {getExecutionMode() === 'single' ? 'border-accent-primary text-accent-primary bg-accent-primary/10' : 'border-surface-border text-text-secondary hover:text-text-primary'}"
+										onclick={() => setExecutionMode('single')}
+									>
+										Single LLM
+									</button>
+									<button
+										type="button"
+										class="px-2 py-1 text-xs font-mono border transition-colors {getExecutionMode() === 'multi' ? 'border-accent-primary text-accent-primary bg-accent-primary/10' : 'border-surface-border text-text-secondary hover:text-text-primary'}"
+										onclick={() => setExecutionMode('multi')}
+									>
+										Multi LLM
+									</button>
+								</div>
+								<div class="mt-2 flex justify-end">
+									<button
+										type="button"
+										class="text-[11px] font-mono text-text-tertiary hover:text-text-secondary"
+										onclick={() => (showAdvancedMultiLLM = !showAdvancedMultiLLM)}
+									>
+										{showAdvancedMultiLLM ? 'Hide Advanced' : 'Show Advanced'}
+									</button>
+								</div>
+							</div>
+
+							{#if multiLLMEnabled && showAdvancedMultiLLM}
+								<div class="mt-2 grid grid-cols-1 gap-2">
 									<div class="grid grid-cols-2 gap-2">
 										<label class="flex items-center gap-2 text-xs text-text-secondary p-2 border border-surface-border">
 											<input
@@ -2021,8 +1796,11 @@
 															checked={provider.enabled}
 															onchange={() => toggleMultiLLMProvider(provider.id)}
 														/>
-														<span class="text-xs font-mono text-text-secondary">{provider.label}</span>
-													</label>
+										<span class="text-xs font-mono text-text-secondary">{provider.label}</span>
+										{#if serverProviderKeyPresence[provider.id] && !multiLLMApiKeys[provider.id]}
+											<span class="text-[10px] font-mono text-green-400">env</span>
+										{/if}
+									</label>
 													<input
 														class="input flex-1 !py-1"
 														value={provider.model}
@@ -2050,7 +1828,7 @@
 											{/each}
 										</div>
 										<p class="mt-1 text-[11px] text-text-tertiary">
-											Keys are stored in this browser only and used for provider readiness/auto-routing.
+											Browser keys override server env keys. Server-side key presence is used for readiness only.
 										</p>
 									</div>
 								</div>
@@ -2084,7 +1862,7 @@
 					Ready to run
 				{/if}
 				<!-- View Review button after completion -->
-				{#if completedMission && memoryConnected && !isRunning}
+				{#if completedMission && !isRunning}
 					<button
 						onclick={() => showReview = true}
 						class="text-accent-secondary hover:text-accent-secondary-hover transition-colors"
@@ -2162,8 +1940,7 @@
 		onClose={() => showReview = false}
 		onViewLearnings={() => {
 			showReview = false;
-			// Navigate to mind learnings page
-			window.location.href = '/mind';
+			window.location.href = '/missions';
 		}}
 	/>
 {/if}
