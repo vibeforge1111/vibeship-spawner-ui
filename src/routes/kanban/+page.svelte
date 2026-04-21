@@ -33,6 +33,8 @@
 	type RelayEntry = { missionId: string; status: string; lastEventType: string; lastUpdated: string; lastSummary: string; taskName: string | null };
 	let relay = $state<RelayEntry[]>([]);
 	let relayTimer: ReturnType<typeof setInterval> | null = null;
+	let lastRefresh = $state<number>(0);
+	let refreshPulse = $state(false);
 
 	async function fetchRelay() {
 		try {
@@ -45,6 +47,9 @@
 				for (const entry of buckets[key] ?? []) flat.push(entry as RelayEntry);
 			}
 			relay = flat;
+			lastRefresh = Date.now();
+			refreshPulse = true;
+			setTimeout(() => { refreshPulse = false; }, 600);
 		} catch {
 			/* swallow — relay endpoint isn't critical for MCP missions */
 		}
@@ -196,7 +201,13 @@
 	<main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-8">
 		<header class="mb-6 flex items-end justify-between gap-4">
 			<div>
-				<p class="overline">Mission board</p>
+				<p class="overline flex items-center gap-2">
+					<span>Mission board</span>
+					<span
+						class="w-1.5 h-1.5 rounded-full transition-all {refreshPulse ? 'bg-accent-primary scale-150' : 'bg-text-faint'}"
+						title={lastRefresh ? `Synced ${formatDate(new Date(lastRefresh).toISOString())}` : 'Syncing…'}
+					></span>
+				</p>
 				<h1 class="text-2xl font-sans font-semibold text-text-primary tracking-tight">
 					{cards().length} missions · {inProgress.length} running
 				</h1>
@@ -282,6 +293,9 @@
 													{c.name}
 												</span>
 											</div>
+											{#if c.source === 'spark' && c.summary}
+												<p class="font-mono text-[10px] text-text-tertiary leading-snug mb-2 line-clamp-2">{c.summary}</p>
+											{/if}
 											<div class="flex items-center gap-2 flex-wrap">
 												<span class="px-1.5 py-0.5 text-[10px] font-mono rounded-sm border {priorityClass(p)}">{p}</span>
 												<span class="font-mono text-[10px] text-text-tertiary">
