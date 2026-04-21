@@ -94,9 +94,9 @@ Make `Spawner UI` the thin execution plane for `Spark Intelligence` across Teleg
 
 ### Phase 2. Event Relay
 
-- [ ] Send mission start, progress, completion, and failure updates back to Spark or the bot.
+- [x] Send mission start, progress, completion, and failure updates back to Spark or the bot.
   verify: a Telegram `/run` can complete without manual polling for normal cases
-- [ ] Reuse existing mission-control events instead of inventing a parallel event system.
+- [x] Reuse existing mission-control events instead of inventing a parallel event system.
   verify: the same status/control path still powers `/status`, `/pause`, `/resume`, `/kill`
 
 ### Phase 3. Telegram Reporting

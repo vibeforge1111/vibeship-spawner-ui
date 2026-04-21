@@ -3,6 +3,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import type { Mission } from '$lib/services/mcp-client';
 import { eventBridge } from '$lib/services/event-bridge';
+import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { buildMultiLLMExecutionPack, createDefaultMultiLLMOptions } from '$lib/services/multi-llm-orchestrator';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { providerRuntime } from '$lib/server/provider-runtime';
@@ -133,6 +134,24 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		const mission = createSparkMission(body, goal, selectedProviderIds);
+		const missionMetadata = mission.outputs.spark as Record<string, unknown>;
+		const emitMissionEvent = (type: string, message: string, data?: Record<string, unknown>) => {
+			const bridgeEvent = {
+				type,
+				missionId: mission.id,
+				source: 'spark-run',
+				timestamp: new Date().toISOString(),
+				message,
+				data: {
+					...missionMetadata,
+					...(data || {})
+				}
+			};
+			eventBridge.emit(bridgeEvent);
+			void relayMissionControlEvent(bridgeEvent);
+		};
+
+		emitMissionEvent('mission_created', `Mission created (${mission.id}).`);
 		const options = createDefaultMultiLLMOptions();
 		options.enabled = true;
 		options.autoEnableByKeys = false;
@@ -162,7 +181,21 @@ export const POST: RequestHandler = async (event) => {
 			executionPack,
 			apiKeys,
 			workingDirectory: mission.context.projectPath,
-			onEvent: (bridgeEvent) => eventBridge.emit(bridgeEvent)
+			onEvent: (bridgeEvent) => {
+				const relayEvent = {
+					...bridgeEvent,
+					data: {
+						...missionMetadata,
+						...(bridgeEvent.data || {})
+					}
+				};
+				eventBridge.emit(relayEvent);
+				void relayMissionControlEvent(relayEvent);
+			}
+		});
+
+		emitMissionEvent('mission_started', `Mission started (${dispatchResult.missionId}).`, {
+			startedAt: dispatchResult.startedAt
 		});
 
 		return json({
