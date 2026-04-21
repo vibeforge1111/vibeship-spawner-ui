@@ -4,13 +4,11 @@
  * KISS Principle: Simple, reliable, intelligent.
  *
  * Uses Claude to understand goals and generate complete pipelines.
- * Integrates with Mind for past learnings and context.
  * Returns atomic results - canvas never in broken state.
  */
 
 import { get } from 'svelte/store';
 import { skills as skillsStore, loadSkillsStatic, type Skill } from '$lib/stores/skills.svelte';
-import { memoryClient } from './memory-client';
 
 // ============================================
 // Types
@@ -40,7 +38,6 @@ export interface PipelineResult {
 	success: boolean;
 	pipeline?: GeneratedPipeline;
 	error?: string;
-	mindContext?: string[];  // Relevant learnings from Mind
 }
 
 // ============================================
@@ -52,10 +49,9 @@ export interface PipelineResult {
  *
  * Simple flow:
  * 1. Load skills if needed
- * 2. Query Mind for relevant learnings
- * 3. Use Claude to analyze goal and select skills
- * 4. Generate layout and connections
- * 5. Return complete pipeline
+ * 2. Analyze goal and select skills
+ * 3. Generate layout and connections
+ * 4. Return complete pipeline
  */
 export async function generatePipeline(goal: string): Promise<PipelineResult> {
 	try {
@@ -70,11 +66,8 @@ export async function generatePipeline(goal: string): Promise<PipelineResult> {
 			return { success: false, error: 'No skills available' };
 		}
 
-		// Step 2: Query Mind for relevant context (non-blocking, optional)
-		const mindContext = await getMindContext(goal);
-
-		// Step 3: Analyze goal and select skills
-		const selectedSkills = await selectSkillsForGoal(goal, skills, mindContext);
+		// Step 2: Analyze goal and select skills
+		const selectedSkills = await selectSkillsForGoal(goal, skills);
 
 		if (selectedSkills.length === 0) {
 			return {
@@ -83,14 +76,13 @@ export async function generatePipeline(goal: string): Promise<PipelineResult> {
 			};
 		}
 
-		// Step 4: Generate the pipeline with layout
+		// Step 3: Generate the pipeline with layout
 		const pipeline = createPipeline(selectedSkills, goal);
 
-		// Step 5: Return complete result
+		// Step 4: Return complete result
 		return {
 			success: true,
-			pipeline,
-			mindContext
+			pipeline
 		};
 
 	} catch (error) {
@@ -103,44 +95,17 @@ export async function generatePipeline(goal: string): Promise<PipelineResult> {
 }
 
 // ============================================
-// Mind Integration
-// ============================================
-
-/**
- * Query Mind for relevant past learnings
- */
-async function getMindContext(goal: string): Promise<string[]> {
-	try {
-		const result = await memoryClient.retrieve(goal, {
-			limit: 5,
-			content_types: ['agent_learning', 'workflow_pattern', 'agent_decision']
-		});
-
-		if (result.success && result.data?.memories) {
-			return result.data.memories
-				.filter(m => m.score > 0.3)  // Only relevant matches
-				.map(m => m.memory.content);
-		}
-	} catch (error) {
-		console.warn('[SmartPipeline] Mind query failed (continuing without context):', error);
-	}
-
-	return [];
-}
-
-// ============================================
 // Skill Selection (Intelligent Matching)
 // ============================================
 
 /**
  * Select appropriate skills for the goal
  *
- * Uses keyword matching + category inference + Mind context
+ * Uses keyword matching + category inference
  */
 async function selectSkillsForGoal(
 	goal: string,
-	skills: Skill[],
-	mindContext: string[]
+	skills: Skill[]
 ): Promise<Skill[]> {
 	const goalLower = goal.toLowerCase();
 	const words = goalLower.split(/\s+/);
@@ -182,13 +147,6 @@ async function selectSkillsForGoal(
 				w.length > 3 && descWords.some(d => d.includes(w))
 			);
 			score += matchingWords.length * 3;
-		}
-
-		// Mind context boost
-		for (const context of mindContext) {
-			if (context.toLowerCase().includes(skill.name.toLowerCase())) {
-				score += 15;  // Skill was mentioned in past learnings
-			}
 		}
 
 		return { skill, score };

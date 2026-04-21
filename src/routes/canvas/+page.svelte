@@ -4,7 +4,6 @@
 	import BuilderPanel from '$lib/components/BuilderPanel.svelte';
 	import ConnectionLine from '$lib/components/ConnectionLine.svelte';
 	import ChatPanel from '$lib/components/chat/ChatPanel.svelte';
-	import MindPanel from '$lib/components/MindPanel.svelte';
 	import ValidationPanel from '$lib/components/ValidationPanel.svelte';
 	import ExecutionPanel from '$lib/components/ExecutionPanel.svelte';
 	import ContextMenu from '$lib/components/ContextMenu.svelte';
@@ -19,7 +18,6 @@ import { get } from 'svelte/store';
 	import { validateForMission, buildMissionFromCanvas } from '$lib/services/mission-builder';
 	import { mcpState } from '$lib/stores/mcp.svelte';
 	import { reconnectAll as reconnectMCPs, connectedInstances } from '$lib/stores/mcps.svelte';
-	import { isMemoryConnected } from '$lib/stores/memory-settings.svelte';
 	import { getGoalState, hasPendingGoal, clearGoal } from '$lib/stores/project-goal.svelte';
 	import { generatePipeline, storePipelineLearning } from '$lib/services/smart-pipeline';
 	import { initCanvasSync } from '$lib/services/canvas-sync';
@@ -35,7 +33,6 @@ import { get } from 'svelte/store';
 
 	let activeTab = $state('skills');
 	let chatExpanded = $state(false);
-	let bottomTab = $state<'chat' | 'mind'>('chat');
 	let showValidation = $state(false);
 	let showExecution = $state(false);
 	let executionMinimized = $state(false);
@@ -48,7 +45,6 @@ import { get } from 'svelte/store';
 	let missionExportError = $state<string | null>(null);
 	let isMcpConnected = $state(false);
 	let mcpConnectedCount = $state(0);
-	let isMindConnected = $state(false);
 	let canvasEl: HTMLDivElement;
 	let lastSaved = $state<Date | null>(null);
 
@@ -160,12 +156,7 @@ import { get } from 'svelte/store';
 				return;
 			}
 
-			const { pipeline, mindContext } = result;
-
-			// Show Mind context if available
-			if (mindContext && mindContext.length > 0) {
-				goalProcessingMessage = `Found ${mindContext.length} relevant past learnings...`;
-			}
+			const { pipeline } = result;
 
 			// Create nodes with proper IDs, keeping track of skill-to-node mapping
 			const skillToNodeId = new Map<string, string>();
@@ -641,9 +632,8 @@ import { get } from 'svelte/store';
 	// Subscribe to connection states
 	$effect(() => {
 		const unsub1 = mcpState.subscribe((s) => (isMcpConnected = s.status === 'connected'));
-		const unsub2 = isMemoryConnected.subscribe((v) => (isMindConnected = v));
-		const unsub3 = connectedInstances.subscribe((instances) => (mcpConnectedCount = instances.length));
-		return () => { unsub1(); unsub2(); unsub3(); };
+		const unsub2 = connectedInstances.subscribe((instances) => (mcpConnectedCount = instances.length));
+		return () => { unsub1(); unsub2(); };
 	});
 
 	// Mission export handlers
@@ -1175,7 +1165,6 @@ import { get } from 'svelte/store';
 						<span class="w-1.5 h-1.5 rounded-full {mcpConnectedCount > 0 ? 'bg-green-500' : 'bg-text-tertiary'}"></span>
 						{mcpConnectedCount} MCP{mcpConnectedCount !== 1 ? 's' : ''}
 					</a>
-					<span class="w-1.5 h-1.5 rounded-full {isMindConnected ? 'bg-purple-500' : 'bg-text-tertiary'}" title={isMindConnected ? 'Mind Connected' : 'Mind Disconnected'}></span>
 				</div>
 			</div>
 		</div>
@@ -1276,7 +1265,7 @@ import { get } from 'svelte/store';
 					</button>
 					<button
 						onclick={() => {
-							executionAutoRunToken = Date.now();
+							executionAutoRunToken = null;
 							showExecution = true;
 							executionMinimized = false;
 						}}
@@ -1488,33 +1477,12 @@ import { get } from 'svelte/store';
 				/>
 			{/if}
 		</div>
-		<!-- Bottom Panel (Chat/Mind, expandable) -->
+		<!-- Bottom Panel (Chat, expandable) -->
 		<div class="border-t border-surface-border bg-bg-secondary transition-all relative" class:h-72={chatExpanded} class:h-12={!chatExpanded}>
 			{#if chatExpanded}
-				<!-- Tab buttons and minimize -->
+				<!-- Header and minimize -->
 				<div class="absolute top-0 left-0 right-0 h-8 flex items-center justify-between px-3 border-b border-surface-border/50 bg-bg-secondary z-10">
-					<div class="flex items-center gap-1">
-						<button
-							onclick={() => (bottomTab = 'chat')}
-							class="px-3 py-1 text-xs font-mono transition-all"
-							class:bg-accent-primary={bottomTab === 'chat'}
-							class:text-bg-primary={bottomTab === 'chat'}
-							class:text-text-secondary={bottomTab !== 'chat'}
-							class:hover:text-text-primary={bottomTab !== 'chat'}
-						>
-							Chat
-						</button>
-						<button
-							onclick={() => (bottomTab = 'mind')}
-							class="px-3 py-1 text-xs font-mono transition-all"
-							class:bg-accent-secondary={bottomTab === 'mind'}
-							class:text-bg-primary={bottomTab === 'mind'}
-							class:text-text-secondary={bottomTab !== 'mind'}
-							class:hover:text-text-primary={bottomTab !== 'mind'}
-						>
-							Mind
-						</button>
-					</div>
+					<div class="px-3 py-1 text-xs font-mono bg-accent-primary text-bg-primary">Chat</div>
 					<button
 						onclick={() => (chatExpanded = false)}
 						class="text-text-tertiary hover:text-text-secondary text-xs font-mono"
@@ -1523,21 +1491,15 @@ import { get } from 'svelte/store';
 					</button>
 				</div>
 				<div class="h-full pt-8">
-					{#if bottomTab === 'chat'}
-						<ChatPanel />
-					{:else}
-						<MindPanel />
-					{/if}
+					<ChatPanel />
 				</div>
 			{:else}
 				<button
 					onclick={() => (chatExpanded = true)}
 					class="w-full h-full flex items-center justify-center gap-2 text-text-secondary hover:text-text-primary hover:bg-surface transition-all"
 				>
-					<span class="font-mono text-sm">Open {bottomTab === 'chat' ? 'Chat' : 'Mind'}</span>
-					<span class="text-xs text-text-tertiary">
-						{#if bottomTab === 'chat'}/help for commands{:else}decisions & sessions{/if}
-					</span>
+					<span class="font-mono text-sm">Open Chat</span>
+					<span class="text-xs text-text-tertiary">/help for commands</span>
 				</button>
 			{/if}
 		</div>
