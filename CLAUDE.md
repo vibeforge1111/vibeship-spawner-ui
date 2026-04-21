@@ -78,7 +78,7 @@ Spawner UI is a SvelteKit application that provides a visual canvas for building
 
 ### Why Local Skills Lab
 
-- **443+ valid skills** available locally (H70-C+ format)
+- **593 valid skills** sourced from spark-skill-graphs (H70-C+ format, 33 categories)
 - **Zero network latency** - skills loaded from local disk
 - **No API costs** - no external service calls required
 - **Comprehensive** - skills include identity, disasters, anti-patterns, patterns
@@ -116,7 +116,7 @@ Skills use the H70-C+ format with embedded detection commands:
 - `src/lib/services/h70-skills.ts` - Skill service for frontend
 - `src/routes/api/h70-skills/[skillId]/+server.ts` - API route (searches across categories)
 - `src/lib/services/h70-skill-matcher.ts` - Keyword-to-skill matching
-- `static/skills.json` - Skills metadata (443 skills)
+- `static/skills.json` - Skills metadata (593 skills, synced from spark-skill-graphs)
 
 ### Testing Skills
 
@@ -255,7 +255,7 @@ PRD Input ("Describe what you want to build")
 |------|---------|
 | `src/lib/types/goal.ts` | `MAX_SKILLS_TO_SUGGEST: 50`, `getDynamicSkillLimit()` |
 | `src/lib/services/skill-matcher.ts` | PRD -> initial skill matching |
-| `src/lib/services/h70-skill-matcher.ts` | 391 keyword mappings -> H70 skill IDs |
+| `src/lib/services/h70-skill-matcher.ts` | 402 keyword mappings -> H70 skill IDs |
 | `src/lib/services/h70-skills.ts` | `loadSkillsForMission()` - loads full skills for matching/UI |
 | `src/lib/services/mission-builder.ts` | Builds missions, generates prompt with skill IDs (just-in-time) |
 
@@ -266,8 +266,8 @@ PRD Input ("Describe what you want to build")
 | MAX_SKILLS_TO_SUGGEST | 50 | `goal.ts` |
 | Max skills per task | 3-5 (dynamic) | `mission-builder.ts` |
 | Max total skills | 15-50 (dynamic) | `mission-builder.ts` |
-| Keyword mappings | 391 | `h70-skill-matcher.ts` |
-| Total H70 skills available | 470 | `static/skills.json` |
+| Keyword mappings | 402 | `h70-skill-matcher.ts` |
+| Total H70 skills available | 593 | `static/skills.json` (spark-skill-graphs) |
 
 ### Dynamic Skill Calculation
 
