@@ -1,3 +1,5 @@
+import { env } from '$env/dynamic/private';
+
 export interface MissionControlBridgeEvent {
 	id?: string;
 	type?: string;
@@ -61,9 +63,9 @@ const RELAY_EVENT_TYPES = new Set([
 
 const MAX_RECENT_EVENTS = 80;
 
-const DEFAULT_SPARK_INGEST_URL = process.env.SPARK_MISSION_CONTROL_INGEST_URL || '';
-const DEFAULT_SPARK_TOKEN = process.env.SPARKD_TOKEN || '';
-const DEFAULT_WEBHOOKS = (process.env.MISSION_CONTROL_WEBHOOK_URLS || '')
+const DEFAULT_SPARK_INGEST_URL = env.SPARK_MISSION_CONTROL_INGEST_URL || '';
+const DEFAULT_SPARK_TOKEN = env.SPARKD_TOKEN || '';
+const DEFAULT_WEBHOOKS = (env.MISSION_CONTROL_WEBHOOK_URLS || '')
 	.split(',')
 	.map((value) => value.trim())
 	.filter(Boolean);
