@@ -3,6 +3,58 @@
 @tailwind components;
 @tailwind utilities;
 
+/* SPARK design tokens — see Desktop/SPARK.md.
+   Vars are exposed as space-separated rgb channels so Tailwind opacity
+   modifiers (bg-accent-primary/50) compose with var() colors. */
+:root,
+[data-theme='navy'] {
+  /* Channel triplets for Tailwind <alpha-value> composition */
+  --bg-rgb: 14 16 24;
+  --bg-subtle-rgb: 20 24 32;
+  --surface-rgb: 24 28 38;
+  --surface-raised-rgb: 30 34 48;
+  --border-rgb: 34 36 48;
+  --border-strong-rgb: 42 46 64;
+  --text-rgb: 240 240 244;
+  --text-bright-rgb: 224 226 236;
+  --text-secondary-rgb: 136 144 176;
+  --text-tertiary-rgb: 106 112 128;
+  --text-ghost-rgb: 80 96 112;
+  --text-faint-rgb: 58 64 80;
+  --accent-rgb: 47 202 148;
+  --accent-hover-rgb: 34 184 132;
+  --accent-fg-rgb: 10 56 32;
+  --iris-rgb: 184 168 220;
+  --iris-dim-rgb: 110 92 160;
+  --status-green-rgb: 61 221 164;
+  --status-red-rgb: 224 136 120;
+  --status-amber-rgb: 216 200 104;
+
+  /* Hex aliases for direct CSS usage */
+  --bg: rgb(var(--bg-rgb));
+  --bg-subtle: rgb(var(--bg-subtle-rgb));
+  --surface: rgb(var(--surface-rgb));
+  --surface-raised: rgb(var(--surface-raised-rgb));
+  --border: rgb(var(--border-rgb));
+  --border-strong: rgb(var(--border-strong-rgb));
+  --text: rgb(var(--text-rgb));
+  --text-bright: rgb(var(--text-bright-rgb));
+  --text-secondary: rgb(var(--text-secondary-rgb));
+  --text-tertiary: rgb(var(--text-tertiary-rgb));
+  --text-ghost: rgb(var(--text-ghost-rgb));
+  --text-faint: rgb(var(--text-faint-rgb));
+  --accent: rgb(var(--accent-rgb));
+  --accent-hover: rgb(var(--accent-hover-rgb));
+  --accent-fg: rgb(var(--accent-fg-rgb));
+  --accent-subtle: rgb(var(--accent-rgb) / 0.08);
+  --accent-mid: rgb(var(--accent-rgb) / 0.15);
+  --iris: rgb(var(--iris-rgb));
+  --iris-dim: rgb(var(--iris-dim-rgb));
+  --status-green: rgb(var(--status-green-rgb));
+  --status-red: rgb(var(--status-red-rgb));
+  --status-amber: rgb(var(--status-amber-rgb));
+}
+
 /* Base styles */
 @layer base {
   html {
@@ -135,7 +187,7 @@
   .vibe-card::before {
     content: '';
     @apply absolute inset-0 opacity-0 transition-opacity duration-normal;
-    background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(0, 212, 255, 0.06), transparent 40%);
+    background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), var(--accent-subtle), transparent 40%);
   }
 
   .vibe-card:hover::before {

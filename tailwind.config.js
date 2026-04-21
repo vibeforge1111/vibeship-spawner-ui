@@ -1,99 +1,107 @@
 /** @type {import('tailwindcss').Config} */
+
+// SPARK token references — channel triplets in src/app.css drive these.
+// Using rgb(var(--x-rgb) / <alpha-value>) lets Tailwind opacity modifiers
+// (bg-accent-primary/50) compose with theme vars.
+const v = (name) => `rgb(var(--${name}-rgb) / <alpha-value>)`;
+
 export default {
   content: ['./src/**/*.{html,js,svelte,ts}'],
   darkMode: 'class',
   theme: {
     extend: {
-      // Vibeship exact color palette
       colors: {
-        // Background colors - Vibeship dark theme
         bg: {
-          primary: '#0e1016',
-          secondary: '#151820',
-          tertiary: '#1c202a',
-          elevated: '#242936',
+          primary: v('bg'),
+          secondary: v('bg-subtle'),
+          tertiary: v('surface'),
+          elevated: v('surface-raised'),
           inverse: '#ffffff',
-          overlay: 'rgba(0, 0, 0, 0.8)'
+          overlay: 'rgba(0, 0, 0, 0.8)',
+          subtle: v('bg-subtle'),
+          raised: v('surface-raised')
         },
-        // Surface colors
         surface: {
-          DEFAULT: '#151820',
-          hover: '#1c202a',
-          active: '#242936',
-          border: '#2a3042',
-          'border-strong': '#3d4558'
+          DEFAULT: v('surface'),
+          hover: v('bg-subtle'),
+          active: v('surface-raised'),
+          raised: v('surface-raised'),
+          border: v('border'),
+          'border-strong': v('border-strong')
         },
-        // Text colors - Vibeship
         text: {
-          primary: '#e2e4e9',
-          secondary: '#9aa3b5',
-          tertiary: '#6b7489',
-          inverse: '#0e1016'
+          primary: v('text'),
+          bright: v('text-bright'),
+          secondary: v('text-secondary'),
+          tertiary: v('text-tertiary'),
+          ghost: v('text-ghost'),
+          faint: v('text-faint'),
+          inverse: v('bg')
         },
-        // Accent colors - Vibeship teal
         accent: {
-          primary: '#00C49A', // Vibeship teal
-          'primary-hover': '#00e6b5',
-          'primary-dim': '#00a882',
-          secondary: '#9D8CFF', // Violet
-          'secondary-hover': '#b3a5ff'
+          DEFAULT: v('accent'),
+          primary: v('accent'),
+          'primary-hover': v('accent-hover'),
+          'primary-dim': v('accent-hover'),
+          fg: v('accent-fg'),
+          secondary: v('iris'),
+          'secondary-hover': v('iris')
         },
-        // Vibeship brand colors
-        vibe: {
-          teal: '#00C49A',
-          'teal-glow': 'rgba(0, 196, 154, 0.15)',
-          'teal-border': 'rgba(0, 196, 154, 0.3)',
-          green: '#2ECC71',
-          'green-glow': 'rgba(46, 204, 113, 0.15)',
-          violet: '#9D8CFF',
-          'violet-glow': 'rgba(157, 140, 255, 0.15)',
-          orange: '#FFB020',
-          pink: '#FF66C4',
-          blue: '#3399FF'
+        iris: {
+          DEFAULT: v('iris'),
+          dim: v('iris-dim')
         },
-        // Category colors (for skill nodes) - Vibeship palette
-        category: {
-          development: '#2ECC71', // Green
-          integration: '#00C49A', // Teal
-          ai: '#FFB020', // Orange
-          data: '#3399FF', // Blue
-          marketing: '#FF66C4', // Pink
-          strategy: '#00C49A', // Teal
-          agents: '#FFB020', // Orange
-          mind: '#9D8CFF' // Violet
-        },
-        // Status colors - Vibeship
         status: {
-          success: '#2ECC71',
-          'success-bg': 'rgba(46, 204, 113, 0.1)',
-          warning: '#FFB020',
-          'warning-bg': 'rgba(255, 176, 32, 0.1)',
-          error: '#FF4D4D',
-          'error-bg': 'rgba(255, 77, 77, 0.1)',
-          info: '#00C49A',
-          'info-bg': 'rgba(0, 196, 154, 0.1)'
+          success: v('status-green'),
+          'success-bg': 'rgba(61, 221, 164, 0.1)',
+          warning: v('status-amber'),
+          'warning-bg': 'rgba(216, 200, 104, 0.1)',
+          error: v('status-red'),
+          'error-bg': 'rgba(224, 136, 120, 0.1)',
+          info: v('accent'),
+          'info-bg': 'rgba(47, 202, 148, 0.08)'
         },
-        // Port type colors - Vibeship
-        port: {
-          text: '#2ECC71',
-          number: '#3399FF',
-          boolean: '#FFB020',
-          object: '#9D8CFF',
-          array: '#FF66C4',
-          any: '#6b7489',
-          skill: '#00C49A'
-        },
-        // Ghost state - Vibeship teal
         ghost: {
-          bg: 'rgba(0, 196, 154, 0.08)',
-          border: 'rgba(0, 196, 154, 0.25)'
+          bg: 'rgba(47, 202, 148, 0.08)',
+          border: 'rgba(47, 202, 148, 0.25)'
+        },
+        // Skill node category coloring — restrained palette using accent + iris + neutrals
+        category: {
+          development: v('accent'),
+          integration: v('accent'),
+          ai: v('iris'),
+          data: v('text-secondary'),
+          marketing: v('iris'),
+          strategy: v('accent'),
+          agents: v('iris'),
+          mind: v('iris')
+        },
+        port: {
+          text: v('accent'),
+          number: v('text-secondary'),
+          boolean: v('status-amber'),
+          object: v('iris'),
+          array: v('iris-dim'),
+          any: v('text-tertiary'),
+          skill: v('accent')
+        },
+        vibe: {
+          teal: v('accent'),
+          'teal-glow': 'rgba(47, 202, 148, 0.15)',
+          'teal-border': 'rgba(47, 202, 148, 0.3)',
+          green: v('status-green'),
+          'green-glow': 'rgba(61, 221, 164, 0.15)',
+          violet: v('iris'),
+          'violet-glow': 'rgba(184, 168, 220, 0.15)',
+          orange: v('status-amber'),
+          pink: v('iris'),
+          blue: v('text-secondary')
         }
       },
-      // Typography
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Consolas', 'monospace'],
-        display: ['Space Grotesk', 'system-ui', 'sans-serif'],
+        sans: ['DM Sans', 'Inter', 'system-ui', 'sans-serif'],
+        mono: ['DM Mono', 'JetBrains Mono', 'Consolas', 'monospace'],
+        display: ['DM Sans', 'system-ui', 'sans-serif'],
         serif: ['Instrument Serif', 'Georgia', 'serif']
       },
       fontSize: {
@@ -109,7 +117,6 @@ export default {
         'display': ['3.5rem', { lineHeight: '1', letterSpacing: '-0.03em' }],
         'stat': ['4rem', { lineHeight: '1', letterSpacing: '-0.02em', fontWeight: '700' }]
       },
-      // Spacing (using 4px base)
       spacing: {
         '0.5': '2px',
         '1': '4px',
@@ -127,33 +134,28 @@ export default {
         '20': '80px',
         '24': '96px'
       },
-      // Border radius - Sharp Vibeship style
       borderRadius: {
         'none': '0',
-        'sm': '2px',
-        'DEFAULT': '4px',
-        'md': '6px',
-        'lg': '8px',
+        'sm': '3px',
+        'DEFAULT': '5px',
+        'md': '5px',
+        'lg': '6px',
         'xl': '8px',
         'full': '9999px'
       },
-      // Shadows with Vibeship teal glow
       boxShadow: {
         'sm': '0 1px 2px rgba(0, 0, 0, 0.4)',
         'DEFAULT': '0 4px 12px rgba(0, 0, 0, 0.5)',
         'lg': '0 8px 24px rgba(0, 0, 0, 0.6)',
         'xl': '0 12px 48px rgba(0, 0, 0, 0.7)',
-        // Vibeship glow effects - teal
-        'glow-teal': '0 0 20px rgba(0, 196, 154, 0.4)',
-        'glow-teal-lg': '0 0 40px rgba(0, 196, 154, 0.3)',
-        'glow-teal-intense': '0 0 30px rgba(0, 196, 154, 0.6), 0 0 60px rgba(0, 196, 154, 0.3)',
-        'glow-green': '0 0 20px rgba(0, 196, 154, 0.3)',
-        'glow-violet': '0 0 20px rgba(157, 140, 255, 0.4)',
-        'glow-error': '0 0 20px rgba(255, 77, 77, 0.4)',
-        // Card glow on hover - Vibeship teal
-        'card-glow': '0 0 0 1px rgba(0, 196, 154, 0.2), 0 0 20px rgba(0, 196, 154, 0.1)'
+        'glow-teal': '0 0 20px rgba(47, 202, 148, 0.4)',
+        'glow-teal-lg': '0 0 40px rgba(47, 202, 148, 0.3)',
+        'glow-teal-intense': '0 0 30px rgba(47, 202, 148, 0.6), 0 0 60px rgba(47, 202, 148, 0.3)',
+        'glow-green': '0 0 20px rgba(47, 202, 148, 0.3)',
+        'glow-violet': '0 0 20px rgba(184, 168, 220, 0.4)',
+        'glow-error': '0 0 20px rgba(224, 136, 120, 0.4)',
+        'card-glow': '0 0 0 1px rgba(47, 202, 148, 0.2), 0 0 20px rgba(47, 202, 148, 0.1)'
       },
-      // Animation
       animation: {
         'fade-in': 'fadeIn 300ms ease-out',
         'slide-up': 'slideUp 300ms ease-out',
@@ -197,15 +199,14 @@ export default {
           '100%': { opacity: '1', transform: 'scale(1)' }
         },
         pulseGlow: {
-          '0%, 100%': { boxShadow: '0 0 20px rgba(0, 212, 255, 0.2)' },
-          '50%': { boxShadow: '0 0 30px rgba(0, 212, 255, 0.4)' }
+          '0%, 100%': { boxShadow: '0 0 20px rgba(47, 202, 148, 0.2)' },
+          '50%': { boxShadow: '0 0 30px rgba(47, 202, 148, 0.4)' }
         },
         glowPulse: {
           '0%, 100%': { opacity: '0.5' },
           '50%': { opacity: '1' }
         }
       },
-      // Transitions
       transitionDuration: {
         'fast': '150ms',
         'normal': '250ms',
@@ -213,14 +214,12 @@ export default {
       },
       transitionTimingFunction: {
         'spring': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
-        'smooth': 'cubic-bezier(0.4, 0, 0.2, 1)'
+        'smooth': 'cubic-bezier(0.4, 0, 0.2, 1)',
+        'spark': 'cubic-bezier(0.23, 1, 0.32, 1)'
       },
-      // Background images for effects
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
-        'vibe-gradient': 'linear-gradient(135deg, rgba(0, 212, 255, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%)',
-        'vibe-glow': 'radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(0, 212, 255, 0.06), transparent 40%)'
+        'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))'
       }
     }
   },
