@@ -15,6 +15,14 @@ Make `Spawner UI` the thin execution plane for `Spark Intelligence` across Teleg
 - No cleanup outside the active Spark/Spawner path unless code is fully orphaned.
 - If a simpler endpoint or screen works, use that instead of adding a framework.
 
+## Diligence
+
+- Keep Telegram as a mirror of real Spawner mission state.
+- Carry `missionId`, `requestId`, `chatId`, and `userId` together wherever possible.
+- Prefer concise lifecycle updates over log spam.
+- Keep admin boundaries strict on control commands.
+- Make failures say where the bridge broke.
+
 ## In Scope
 
 - Let `Spark` use `Spawner` as the execution plane.
@@ -67,13 +75,13 @@ Make `Spawner UI` the thin execution plane for `Spark Intelligence` across Teleg
 - [x] Remove legacy Mind and memory UI surfaces.
 - [x] Remove orphaned memory service/store code that no longer powers the app.
 
-## Next Slice
+## Phases
 
-### 1. Spark Run Contract
+### Phase 1. Contract + Correlation
 
-- [ ] Lock one request contract from Spark to Spawner.
+- [x] Lock one request contract from Spark to Spawner.
   verify: one request shape and one response shape power both Telegram and builder runs
-- [ ] Keep `/api/spark/run` limited to fields we actually need:
+- [x] Keep `/api/spark/run` limited to fields we actually need:
   - `goal`
   - optional `providers`
   - optional `projectPath`
@@ -81,29 +89,31 @@ Make `Spawner UI` the thin execution plane for `Spark Intelligence` across Teleg
   - optional `userId`
   - optional `requestId`
   verify: no second orchestration protocol is introduced
+- [x] Store correlation metadata on created missions.
+  verify: a Spark-originated mission is traceable from Spawner
 
-### 2. Event Relay Back To Spark
+### Phase 2. Event Relay
 
 - [ ] Send mission start, progress, completion, and failure updates back to Spark or the bot.
   verify: a Telegram `/run` can complete without manual polling for normal cases
 - [ ] Reuse existing mission-control events instead of inventing a parallel event system.
   verify: the same status/control path still powers `/status`, `/pause`, `/resume`, `/kill`
 
-### 3. Mission Correlation
+### Phase 3. Telegram Reporting
 
-- [ ] Add `requestId`, `chatId`, and `userId` plumbing for Spark-originated missions.
-  verify: every Telegram mission is traceable across bot logs and Spawner status
-- [ ] Make retries idempotent where practical for the narrow Spark route.
-  verify: a repeated request can be identified without creating silent duplicates
+- [ ] Add a compact Telegram mission board command.
+  verify: Telegram can group real mission states for quick reporting
+- [ ] Keep the board message-native, not a second workflow model.
+  verify: no separate kanban state is introduced
 
-### 4. Builder Visibility
+### Phase 4. Builder Visibility
 
 - [ ] Add one simple way to inspect bot-created missions from the UI.
   verify: a Telegram-triggered mission is easy to find without using canvas as the main control surface
 - [ ] Keep canvas available, but do not make it the only mission inspection flow.
   verify: a simple filtered mission list or tag-based view is enough
 
-### 5. End-To-End Smoke Test
+### Phase 5. End-To-End Smoke Test
 
 - [ ] Run one real vertical test:
   - Telegram `/run say exactly OK`
@@ -113,13 +123,6 @@ Make `Spawner UI` the thin execution plane for `Spark Intelligence` across Teleg
   - completion event emitted
   verify: the builder Telegram route works end to end on localhost
 
-## Optional Later
-
-- [ ] Add a lightweight kanban mission board if the mission list becomes hard to scan.
-  verify: board columns reflect real mission states, not a second workflow model
-- [ ] Only do this if it improves operator visibility for Spark runs.
-  verify: no new planning system or issue tracker is introduced
-
 ## Acceptance Criteria
 
 - Spawner UI shows `Z.AI` and `MiniMax` as runnable providers.
@@ -127,4 +130,4 @@ Make `Spawner UI` the thin execution plane for `Spark Intelligence` across Teleg
 - A mission can be dispatched to either provider through the existing dispatch path.
 - The Spark bridge stays a thin adapter, not a parallel orchestration system.
 - A Telegram-created mission can be traced, controlled, and inspected from Spawner.
-- Any future kanban view, if added, is only an operator dashboard over mission states.
+- Any Telegram board or kanban-like report is only an operator dashboard over real mission states.
