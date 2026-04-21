@@ -19,7 +19,7 @@ import { get } from 'svelte/store';
 	import { mcpState } from '$lib/stores/mcp.svelte';
 	import { reconnectAll as reconnectMCPs, connectedInstances } from '$lib/stores/mcps.svelte';
 	import { getGoalState, hasPendingGoal, clearGoal } from '$lib/stores/project-goal.svelte';
-	import { generatePipeline, storePipelineLearning } from '$lib/services/smart-pipeline';
+	import { generatePipeline } from '$lib/services/smart-pipeline';
 	import { initCanvasSync } from '$lib/services/canvas-sync';
 	import PipelineSelector from '$lib/components/PipelineSelector.svelte';
 	import SessionStateBar from '$lib/components/SessionStateBar.svelte';
@@ -217,9 +217,6 @@ import { get } from 'svelte/store';
 				const rect = canvasEl.getBoundingClientRect();
 				zoomToFit(rect.width, rect.height);
 			}
-
-			// Store learning for future use (non-blocking)
-			storePipelineLearning(goalState.input, pipeline).catch(console.warn);
 
 		} catch (error) {
 			console.error('[Canvas] Goal processing error:', error);

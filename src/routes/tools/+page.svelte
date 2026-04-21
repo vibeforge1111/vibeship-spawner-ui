@@ -1,17 +1,6 @@
 <script lang="ts">
 	import Navbar from '$lib/components/Navbar.svelte';
 
-	const tools = [
-		{
-			id: 'agentic-teams',
-			name: 'Agentic Teams',
-			description: 'Orchestrate multi-agent teams with H70 skills and Mind v5 memory',
-			agents: ['6 Divisions', '36 Agents', 'H70 Skills', 'Mind v5'],
-			color: 'accent-secondary',
-			href: '/tools/agentic-teams'
-		}
-	];
-
 	// External tools (in separate repos)
 	const externalTools = [
 		{
@@ -37,42 +26,12 @@
 			<p class="font-mono text-xs text-accent-primary mb-3 tracking-widest">STANDALONE TOOLS</p>
 			<h1 class="text-4xl font-serif text-text-primary mb-4">Tools</h1>
 			<p class="text-text-secondary max-w-2xl mx-auto">
-				Powerful standalone tools that also work as pipeline nodes. 
+				Powerful standalone tools that also work as pipeline nodes.
 				Use them directly or chain them into automated workflows.
 			</p>
 		</div>
 
 		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-			{#each tools as tool}
-				<a
-					href={tool.href}
-					class="group bg-bg-secondary border border-surface-border hover:border-accent-primary/50 transition-all"
-				>
-					<div class="p-6">
-						<div class="flex items-center gap-3 mb-4">
-							<div class="w-10 h-10 flex items-center justify-center bg-accent-primary/20 text-accent-primary">
-								<span class="text-lg font-bold">{tool.name.charAt(0)}</span>
-							</div>
-							<h2 class="text-xl font-serif text-text-primary group-hover:text-accent-primary transition-colors">
-								{tool.name}
-							</h2>
-						</div>
-						<p class="text-text-secondary text-sm mb-4">{tool.description}</p>
-						<div class="flex flex-wrap gap-2">
-							{#each tool.agents as agent}
-								<span class="text-xs font-mono px-2 py-1 bg-bg-primary border border-surface-border text-text-tertiary">
-									{agent}
-								</span>
-							{/each}
-						</div>
-					</div>
-					<div class="px-6 py-3 border-t border-surface-border bg-bg-primary/50 flex items-center justify-between">
-						<span class="text-xs font-mono text-text-tertiary">Open tool</span>
-						<span class="text-accent-primary group-hover:translate-x-1 transition-transform">→</span>
-					</div>
-				</a>
-			{/each}
-
 			<!-- Coming Soon placeholder -->
 			<div class="bg-bg-secondary border border-dashed border-surface-border opacity-60">
 				<div class="p-6">

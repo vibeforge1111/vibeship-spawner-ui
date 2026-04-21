@@ -305,34 +305,3 @@ function createPipeline(skills: Skill[], goal: string): GeneratedPipeline {
 	};
 }
 
-// ============================================
-// Store Learning
-// ============================================
-
-/**
- * Store successful pipeline generation as a learning
- */
-export async function storePipelineLearning(
-	goal: string,
-	pipeline: GeneratedPipeline
-): Promise<void> {
-	try {
-		const skillNames = pipeline.nodes.map(n => n.skill.name).join(', ');
-		const content = `Generated pipeline for "${goal.slice(0, 50)}..." using skills: ${skillNames}`;
-
-		await memoryClient.createMemory({
-			content,
-			content_type: 'workflow_pattern',
-			temporal_level: 3,  // Seasonal - useful for future reference
-			salience: 0.7,
-			metadata: {
-				goal_summary: goal.slice(0, 200),
-				skill_ids: pipeline.nodes.map(n => n.skillId),
-				skill_count: pipeline.nodes.length,
-				connection_count: pipeline.connections.length
-			}
-		});
-	} catch (error) {
-		console.warn('[SmartPipeline] Failed to store learning:', error);
-	}
-}
