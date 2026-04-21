@@ -183,6 +183,38 @@
 		await loadMissions({ limit: 200 });
 	}
 
+	// Quick-add: POST /api/spark/run with a one-line goal.
+	let quickAddOpen = $state(false);
+	let quickAddGoal = $state('');
+	let quickAddDispatching = $state(false);
+	let quickAddError = $state<string | null>(null);
+
+	async function handleQuickAdd() {
+		const goal = quickAddGoal.trim();
+		if (!goal || quickAddDispatching) return;
+		quickAddDispatching = true;
+		quickAddError = null;
+		try {
+			const r = await fetch('/api/spark/run', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ goal, userId: 'kanban-quickadd', requestId: `quickadd-${Date.now()}` })
+			});
+			const data = await r.json();
+			if (!r.ok || !data?.success) {
+				quickAddError = data?.error ?? `HTTP ${r.status}`;
+			} else {
+				quickAddGoal = '';
+				quickAddOpen = false;
+				await fetchRelay();
+			}
+		} catch (e) {
+			quickAddError = e instanceof Error ? e.message : 'dispatch failed';
+		} finally {
+			quickAddDispatching = false;
+		}
+	}
+
 	async function handleDelete(card: BoardCard) {
 		if (card.source !== 'mcp') return;
 		if (!confirm(`Delete mission "${card.name}"?`)) return;
@@ -253,7 +285,51 @@
 				{#if searchQuery || sourceFilter !== 'all'}
 					<span class="font-mono text-[11px] text-text-tertiary">{filteredCards().length} / {cards().length}</span>
 				{/if}
+				<div class="flex-1"></div>
+				<button
+					onclick={() => { quickAddOpen = !quickAddOpen; quickAddError = null; }}
+					class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-mono bg-accent-primary text-bg-primary rounded-md hover:bg-accent-primary-hover transition-all"
+				>
+					<Icon name="plus" size={12} />
+					<span>New mission</span>
+				</button>
 			</div>
+
+			{#if quickAddOpen}
+				<div class="mb-4 border border-surface-border rounded-lg bg-bg-secondary p-3">
+					<div class="flex items-start gap-2">
+						<input
+							type="text"
+							placeholder="Describe what Spark should run..."
+							bind:value={quickAddGoal}
+							onkeydown={(e) => { if (e.key === 'Enter') handleQuickAdd(); if (e.key === 'Escape') { quickAddOpen = false; quickAddGoal = ''; } }}
+							class="flex-1 px-3 py-2 bg-bg-primary border border-surface-border rounded-md text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary font-mono"
+						/>
+						<button
+							onclick={handleQuickAdd}
+							disabled={!quickAddGoal.trim() || quickAddDispatching}
+							class="px-3 py-2 text-xs font-mono bg-accent-primary text-bg-primary rounded-md hover:bg-accent-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+						>
+							{quickAddDispatching ? 'Dispatching…' : 'Run'}
+						</button>
+						<button
+							onclick={() => { quickAddOpen = false; quickAddGoal = ''; quickAddError = null; }}
+							class="px-2 py-2 text-xs font-mono text-text-tertiary rounded-md hover:text-text-primary transition-all"
+							aria-label="Cancel"
+						>
+							<Icon name="x" size={14} />
+						</button>
+					</div>
+					{#if quickAddError}
+						<p class="mt-2 font-mono text-[11px] text-status-error">{quickAddError}</p>
+					{:else}
+						<p class="mt-2 font-mono text-[10px] text-text-tertiary">
+							Routes through <code class="text-accent-primary">/api/spark/run</code> → mission-control-relay → this board.
+							Press Enter to dispatch, Esc to cancel.
+						</p>
+					{/if}
+				</div>
+			{/if}
 
 			{#if !mcpConnected && !loading && cards().length === 0}
 				<div class="border border-surface-border rounded-lg bg-bg-secondary px-5 py-10 text-center">
