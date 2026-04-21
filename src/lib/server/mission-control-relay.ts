@@ -37,6 +37,15 @@ export interface MissionControlRelaySnapshot {
 	recent: MissionControlRelayStatusEntry[];
 }
 
+export interface MissionControlBoardEntry {
+	missionId: string;
+	status: 'created' | 'running' | 'paused' | 'completed' | 'failed';
+	lastEventType: string;
+	lastUpdated: string;
+	lastSummary: string;
+	taskName: string | null;
+}
+
 const RELAY_EVENT_TYPES = new Set([
 	'mission_created',
 	'mission_started',
@@ -125,6 +134,72 @@ export function getMissionControlRelaySnapshot(missionId?: string): MissionContr
 		},
 		recent
 	};
+}
+
+function mapEventTypeToBoardStatus(eventType: string): MissionControlBoardEntry['status'] | null {
+	switch (eventType) {
+		case 'mission_created':
+			return 'created';
+		case 'mission_started':
+		case 'mission_resumed':
+		case 'task_started':
+		case 'task_completed':
+		case 'task_failed':
+		case 'task_cancelled':
+			return 'running';
+		case 'mission_paused':
+			return 'paused';
+		case 'mission_completed':
+			return 'completed';
+		case 'mission_failed':
+			return 'failed';
+		default:
+			return null;
+	}
+}
+
+export function getMissionControlBoard(): Record<string, MissionControlBoardEntry[]> {
+	const byMission = new Map<string, MissionControlBoardEntry>();
+
+	for (const entry of relayState.recent) {
+		const status = mapEventTypeToBoardStatus(entry.eventType);
+		if (!status) continue;
+
+		const existing = byMission.get(entry.missionId);
+		if (!existing) {
+			byMission.set(entry.missionId, {
+				missionId: entry.missionId,
+				status,
+				lastEventType: entry.eventType,
+				lastUpdated: entry.timestamp,
+				lastSummary: entry.summary,
+				taskName: entry.taskName
+			});
+			continue;
+		}
+
+		if (!existing.taskName && entry.taskName) {
+			existing.taskName = entry.taskName;
+		}
+	}
+
+	const board: Record<string, MissionControlBoardEntry[]> = {
+		running: [],
+		paused: [],
+		completed: [],
+		failed: [],
+		created: []
+	};
+
+	for (const entry of byMission.values()) {
+		board[entry.status].push(entry);
+	}
+
+	for (const entries of Object.values(board)) {
+		entries.sort((a, b) => Date.parse(b.lastUpdated) - Date.parse(a.lastUpdated));
+	}
+
+	return board;
 }
 
 export function shouldRelayMissionControlEvent(event: MissionControlBridgeEvent): boolean {

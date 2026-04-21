@@ -101,9 +101,9 @@ Make `Spawner UI` the thin execution plane for `Spark Intelligence` across Teleg
 
 ### Phase 3. Telegram Reporting
 
-- [ ] Add a compact Telegram mission board command.
+- [x] Add a compact Telegram mission board command.
   verify: Telegram can group real mission states for quick reporting
-- [ ] Keep the board message-native, not a second workflow model.
+- [x] Keep the board message-native, not a second workflow model.
   verify: no separate kanban state is introduced
 
 ### Phase 4. Builder Visibility
