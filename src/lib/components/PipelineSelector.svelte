@@ -210,7 +210,7 @@
 <div class="relative" bind:this={dropdownEl}>
 	<!-- Trigger button -->
 	<button
-		class="flex items-center gap-2 px-2.5 py-1.5 text-sm font-mono bg-bg-tertiary border border-surface-border hover:border-text-tertiary transition-all max-w-[200px]"
+		class="flex items-center gap-2 px-2.5 py-1.5 text-sm font-mono bg-bg-tertiary border border-surface-border rounded-md hover:border-text-tertiary transition-all max-w-[200px]"
 		onclick={handleToggle}
 		title={currentActive?.name || 'Select pipeline'}
 	>
@@ -225,7 +225,7 @@
 
 	<!-- Dropdown -->
 	{#if isOpen}
-		<div class="absolute top-full left-0 mt-1 w-80 bg-bg-secondary border border-surface-border shadow-xl z-50">
+		<div class="absolute top-full left-0 mt-1 w-80 bg-bg-secondary border border-surface-border rounded-lg shadow-xl z-50 overflow-hidden">
 			<!-- Header -->
 			<div class="px-3 py-2 border-b border-surface-border">
 				<span class="text-xs font-mono text-text-tertiary uppercase tracking-wide">Your Pipelines</span>
@@ -253,7 +253,7 @@
 									<input
 										bind:this={renameInputEl}
 										bind:value={renameValue}
-										class="w-full px-1.5 py-0.5 text-sm font-mono bg-bg-primary border border-accent-primary text-text-primary focus:outline-none"
+										class="w-full px-1.5 py-0.5 text-sm font-mono bg-bg-primary border border-accent-primary rounded-sm text-text-primary focus:outline-none"
 										onclick={(e) => e.stopPropagation()}
 										onblur={commitRename}
 										onkeydown={handleRenameKeydown}
@@ -347,7 +347,7 @@
 				<!-- Main actions row -->
 				<div class="flex gap-2">
 					<button
-						class="flex-1 flex items-center justify-center gap-2 px-3 py-2 font-mono text-sm text-accent-primary bg-accent-primary/5 hover:bg-accent-primary/15 border border-accent-primary/30 hover:border-accent-primary/50 transition-all"
+						class="flex-1 flex items-center justify-center gap-2 px-3 py-2 font-mono text-sm text-accent-primary bg-accent-primary/5 hover:bg-accent-primary/15 border border-accent-primary/30 hover:border-accent-primary/50 rounded-md transition-all"
 						onclick={handleCreate}
 					>
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -356,7 +356,7 @@
 						<span>New</span>
 					</button>
 					<button
-						class="flex-1 flex items-center justify-center gap-2 px-3 py-2 font-mono text-sm text-text-secondary bg-bg-tertiary hover:bg-bg-primary border border-surface-border hover:border-text-tertiary transition-all"
+						class="flex-1 flex items-center justify-center gap-2 px-3 py-2 font-mono text-sm text-text-secondary bg-bg-tertiary hover:bg-bg-primary border border-surface-border hover:border-text-tertiary rounded-md transition-all"
 						onclick={handleImport}
 					>
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -368,7 +368,7 @@
 				<!-- Secondary action -->
 				{#if currentPipelines.length > 0}
 					<button
-						class="w-full flex items-center justify-center gap-2 px-3 py-1.5 font-mono text-xs text-text-tertiary bg-bg-secondary hover:bg-bg-tertiary border border-surface-border/50 hover:border-surface-border transition-all"
+						class="w-full flex items-center justify-center gap-2 px-3 py-1.5 font-mono text-xs text-text-tertiary bg-bg-secondary hover:bg-bg-tertiary border border-surface-border/50 hover:border-surface-border rounded-md transition-all"
 						onclick={handleBackupAll}
 						title="Export all pipelines as backup"
 					>

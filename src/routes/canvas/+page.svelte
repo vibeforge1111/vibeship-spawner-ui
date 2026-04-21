@@ -1,6 +1,7 @@
 <script lang="ts">
 	import DraggableNode from '$lib/components/nodes/DraggableNode.svelte';
 	import SkillsPanel from '$lib/components/SkillsPanel.svelte';
+	import BrandLogo from '$lib/components/BrandLogo.svelte';
 	import BuilderPanel from '$lib/components/BuilderPanel.svelte';
 	import ConnectionLine from '$lib/components/ConnectionLine.svelte';
 	import ChatPanel from '$lib/components/chat/ChatPanel.svelte';
@@ -1151,8 +1152,8 @@ import { get } from 'svelte/store';
 
 <div class="h-screen flex bg-bg-primary relative">
 	<aside class="w-64 border-r border-surface-border bg-bg-secondary flex flex-col z-10">
-		<div class="p-4 border-b border-surface-border"><a href="/" class="flex items-center gap-1.5"><img src="/logo.png" alt="vibeship" class="w-6 h-6" /><span class="font-serif text-[1.36rem] text-text-primary">vibeship</span><span class="font-serif text-[1.36rem] text-accent-primary">spawner</span></a></div>
-		<div class="p-3 border-b border-surface-border"><div class="flex p-0.5 border border-surface-border"><button class="flex-1 py-1.5 px-3 text-sm font-mono transition-all" class:bg-accent-primary={activeTab === 'skills'} class:text-bg-primary={activeTab === 'skills'} class:text-text-secondary={activeTab !== 'skills'} onclick={() => (activeTab = 'skills')}>Skills</button><button class="flex-1 py-1.5 px-3 text-sm font-mono transition-all" class:bg-accent-secondary={activeTab === 'builder'} class:text-bg-primary={activeTab === 'builder'} class:text-text-secondary={activeTab !== 'builder'} onclick={() => (activeTab = 'builder')}>Builder</button></div></div>
+		<div class="p-4 border-b border-surface-border"><BrandLogo size="sm" /></div>
+		<div class="p-3 border-b border-surface-border"><div class="flex p-0.5 border border-surface-border rounded-md"><button class="flex-1 py-1.5 px-3 text-sm font-mono rounded-sm transition-all" class:bg-accent-primary={activeTab === 'skills'} class:text-bg-primary={activeTab === 'skills'} class:text-text-secondary={activeTab !== 'skills'} onclick={() => (activeTab = 'skills')}>Skills</button><button class="flex-1 py-1.5 px-3 text-sm font-mono rounded-sm transition-all" class:bg-accent-secondary={activeTab === 'builder'} class:text-bg-primary={activeTab === 'builder'} class:text-text-secondary={activeTab !== 'builder'} onclick={() => (activeTab = 'builder')}>Builder</button></div></div>
 		<div class="flex-1 overflow-hidden">{#if activeTab === 'skills'}<SkillsPanel />{:else}<BuilderPanel />{/if}</div>
 		<div class="p-3 border-t border-surface-border">
 			<div class="flex items-center justify-between">
@@ -1249,12 +1250,12 @@ import { get } from 'svelte/store';
 
 				<!-- Primary actions -->
 				<div class="flex items-center gap-2">
-					<button onclick={() => (showValidation = true)} class="px-2.5 py-1 text-xs font-mono text-text-secondary border border-surface-border hover:border-text-tertiary hover:text-text-primary transition-all">
+					<button onclick={() => (showValidation = true)} class="px-2.5 py-1 text-xs font-mono text-text-secondary border border-surface-border rounded-md hover:border-text-tertiary hover:text-text-primary transition-all">
 						Validate
 					</button>
 					<button
 						onclick={openMissionExport}
-						class="px-2.5 py-1 text-xs font-mono text-text-secondary border border-surface-border hover:border-text-tertiary hover:text-text-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+						class="px-2.5 py-1 text-xs font-mono text-text-secondary border border-surface-border rounded-md hover:border-text-tertiary hover:text-text-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
 						disabled={currentNodes.length === 0 || !isMcpConnected}
 						title={!isMcpConnected ? 'Connect to MCP to export missions' : 'Export workflow as mission'}
 					>
@@ -1266,7 +1267,7 @@ import { get } from 'svelte/store';
 							showExecution = true;
 							executionMinimized = false;
 						}}
-						class="px-2.5 py-1 text-xs font-mono bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all disabled:opacity-50"
+						class="px-2.5 py-1 text-xs font-mono bg-accent-primary text-bg-primary rounded-md hover:bg-accent-primary-hover transition-all disabled:opacity-50"
 						disabled={currentNodes.length === 0}
 					>
 						Run
@@ -1336,7 +1337,7 @@ import { get } from 'svelte/store';
 						</svg>
 					</button>
 					{#if showLayoutMenu}
-						<div class="absolute top-full left-0 mt-1 bg-bg-secondary border border-surface-border shadow-lg z-50 min-w-28">
+						<div class="absolute top-full left-0 mt-1 bg-bg-secondary border border-surface-border rounded-md shadow-lg z-50 min-w-28 overflow-hidden">
 							<button class="w-full px-3 py-1.5 text-left text-xs font-mono hover:bg-surface-active text-text-secondary hover:text-text-primary" onclick={() => handleAutoLayout('category')}>By Category</button>
 							<button class="w-full px-3 py-1.5 text-left text-xs font-mono hover:bg-surface-active text-text-secondary hover:text-text-primary" onclick={() => handleAutoLayout('grid')}>Grid</button>
 							<button class="w-full px-3 py-1.5 text-left text-xs font-mono hover:bg-surface-active text-text-secondary hover:text-text-primary" onclick={() => handleAutoLayout('horizontal')}>Horizontal</button>
@@ -1382,7 +1383,7 @@ import { get } from 'svelte/store';
 			{#if currentNodes.length === 0}<div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="text-center"><h3 class="text-lg font-medium text-text-primary mb-2">No skills on canvas</h3><p class="text-sm text-text-secondary">Drag skills from the sidebar</p></div></div>{/if}
 			<!-- Search overlay -->
 			{#if showSearch}
-				<div class="absolute top-4 left-1/2 -translate-x-1/2 z-50 w-80 bg-bg-secondary border border-surface-border shadow-lg">
+				<div class="absolute top-4 left-1/2 -translate-x-1/2 z-50 w-80 bg-bg-secondary border border-surface-border rounded-lg shadow-lg overflow-hidden">
 					<div class="flex items-center gap-2 p-2 border-b border-surface-border">
 						<svg class="w-4 h-4 text-text-tertiary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
 						<input
@@ -1420,7 +1421,7 @@ import { get } from 'svelte/store';
 			<!-- Goal processing overlay -->
 			{#if goalProcessing}
 				<div class="absolute inset-0 z-40 flex items-center justify-center bg-bg-primary/80 backdrop-blur-sm pointer-events-none">
-					<div class="bg-bg-secondary border border-surface-border p-6 max-w-sm text-center">
+					<div class="bg-bg-secondary border border-surface-border rounded-lg p-6 max-w-sm text-center">
 						<div class="animate-spin w-8 h-8 border-2 border-accent-primary border-t-transparent rounded-full mx-auto mb-4"></div>
 						<p class="text-text-primary font-mono text-sm">{goalProcessingMessage}</p>
 						<p class="text-text-tertiary text-xs mt-2">Matching skills to your project...</p>
@@ -1429,7 +1430,7 @@ import { get } from 'svelte/store';
 			{/if}
 			<!-- Goal summary banner -->
 			{#if goalSummary && !goalProcessing}
-				<div class="absolute top-4 left-4 z-30 bg-bg-secondary border border-accent-primary/30 px-3 py-2 max-w-xs">
+				<div class="absolute top-4 left-4 z-30 bg-bg-secondary border border-accent-primary/30 rounded-md px-3 py-2 max-w-xs">
 					<p class="text-xs font-mono text-accent-primary mb-0.5">Project Goal</p>
 					<p class="text-sm text-text-primary truncate">{goalSummary}</p>
 					<button
@@ -1443,7 +1444,7 @@ import { get } from 'svelte/store';
 			{/if}
 			<!-- Goal error toast -->
 			{#if goalProcessingError}
-				<div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 bg-red-500/10 border border-red-500/30 px-4 py-3 max-w-md">
+				<div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 bg-red-500/10 border border-red-500/30 rounded-md px-4 py-3 max-w-md">
 					<div class="flex items-start gap-3">
 						<svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
@@ -1538,7 +1539,7 @@ import { get } from 'svelte/store';
 		<div class="absolute inset-0 bg-black/60" onclick={closeMissionExport} role="presentation"></div>
 
 		<!-- Modal -->
-		<div class="relative w-full max-w-md bg-bg-secondary border border-surface-border shadow-xl">
+		<div class="relative w-full max-w-md bg-bg-secondary border border-surface-border rounded-lg shadow-xl overflow-hidden">
 			<div class="p-4 border-b border-surface-border flex items-center justify-between">
 				<h2 class="text-lg font-medium text-text-primary">Export to Mission</h2>
 				<button onclick={closeMissionExport} class="text-text-tertiary hover:text-text-secondary" aria-label="Close export dialog">
@@ -1564,7 +1565,7 @@ import { get } from 'svelte/store';
 						type="text"
 						bind:value={missionName}
 						placeholder="My Workflow"
-						class="w-full px-3 py-2 bg-bg-primary border border-surface-border text-text-primary font-mono text-sm placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary"
+						class="w-full px-3 py-2 bg-bg-primary border border-surface-border rounded-md text-text-primary font-mono text-sm placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary"
 					/>
 				</div>
 
@@ -1577,7 +1578,7 @@ import { get } from 'svelte/store';
 						bind:value={missionDescription}
 						placeholder="What does this workflow accomplish?"
 						rows="3"
-						class="w-full px-3 py-2 bg-bg-primary border border-surface-border text-text-primary font-mono text-sm placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary resize-none"
+						class="w-full px-3 py-2 bg-bg-primary border border-surface-border rounded-md text-text-primary font-mono text-sm placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary resize-none"
 					></textarea>
 				</div>
 
@@ -1589,14 +1590,14 @@ import { get } from 'svelte/store';
 			<div class="p-4 border-t border-surface-border flex items-center justify-end gap-2">
 				<button
 					onclick={closeMissionExport}
-					class="px-4 py-2 text-sm font-mono text-text-secondary border border-surface-border hover:border-text-tertiary hover:text-text-primary transition-all"
+					class="px-4 py-2 text-sm font-mono text-text-secondary border border-surface-border rounded-md hover:border-text-tertiary hover:text-text-primary transition-all"
 				>
 					Cancel
 				</button>
 				<button
 					onclick={handleMissionExport}
 					disabled={missionExporting || !missionName.trim()}
-					class="px-4 py-2 text-sm font-mono bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+					class="px-4 py-2 text-sm font-mono bg-accent-primary text-bg-primary rounded-md hover:bg-accent-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
 				>
 					{missionExporting ? 'Creating...' : 'Create Mission'}
 				</button>
@@ -1612,9 +1613,9 @@ import { get } from 'svelte/store';
 		<div class="absolute inset-0 bg-black/60" onclick={cancelClear} role="presentation"></div>
 
 		<!-- Modal -->
-		<div class="relative w-full max-w-sm bg-bg-secondary border border-red-500/30 shadow-xl">
+		<div class="relative w-full max-w-sm bg-bg-secondary border border-red-500/30 rounded-lg shadow-xl overflow-hidden">
 			<div class="p-4 border-b border-surface-border flex items-center gap-3">
-				<div class="w-10 h-10 flex items-center justify-center bg-red-500/10 border border-red-500/30">
+				<div class="w-10 h-10 flex items-center justify-center bg-red-500/10 border border-red-500/30 rounded-md">
 					<svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
 					</svg>
@@ -1637,13 +1638,13 @@ import { get } from 'svelte/store';
 			<div class="p-4 border-t border-surface-border flex items-center justify-end gap-2">
 				<button
 					onclick={cancelClear}
-					class="px-4 py-2 text-sm font-mono text-text-secondary border border-surface-border hover:border-text-tertiary hover:text-text-primary transition-all"
+					class="px-4 py-2 text-sm font-mono text-text-secondary border border-surface-border rounded-md hover:border-text-tertiary hover:text-text-primary transition-all"
 				>
 					Cancel
 				</button>
 				<button
 					onclick={confirmClear}
-					class="px-4 py-2 text-sm font-mono bg-red-500 text-white hover:bg-red-600 transition-all"
+					class="px-4 py-2 text-sm font-mono bg-red-500 text-white rounded-md hover:bg-red-600 transition-all"
 				>
 					Clear All
 				</button>
@@ -1696,6 +1697,7 @@ import { get } from 'svelte/store';
 		color: var(--text-secondary);
 		background: transparent;
 		border: none;
+		border-radius: 5px;
 		cursor: pointer;
 		transition: all 0.15s;
 	}
@@ -1724,6 +1726,7 @@ import { get } from 'svelte/store';
 		color: var(--text-tertiary);
 		background: transparent;
 		border: none;
+		border-radius: 5px;
 		cursor: pointer;
 		transition: all 0.15s;
 	}
@@ -1732,10 +1735,10 @@ import { get } from 'svelte/store';
 		background: var(--surface-active);
 	}
 	:global(.toolbar-btn-sm.active) {
-		color: var(--accent-primary);
-		background: rgba(0, 196, 154, 0.1);
+		color: var(--accent);
+		background: var(--accent-subtle);
 	}
 	:global(.toolbar-btn-sm.active:hover) {
-		background: rgba(0, 196, 154, 0.15);
+		background: var(--accent-mid);
 	}
 </style>
