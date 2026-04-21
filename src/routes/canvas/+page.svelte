@@ -1169,204 +1169,111 @@ import { get } from 'svelte/store';
 		<SessionStateBar onOpenExecution={() => showExecution = true} />
 
 		<!-- Two-row toolbar -->
-		<header class="border-b border-surface-border bg-bg-secondary">
-			<!-- Row 1: Primary actions -->
-			<div class="h-10 flex items-center px-3 gap-3 border-b border-surface-border/50">
-				<!-- Pipeline selector -->
-				<PipelineSelector
-					onSwitch={handlePipelineSwitch}
-					onBeforeSwitch={getCurrentCanvasData}
-				/>
+		<header class="h-11 flex items-center px-3 gap-3 border-b border-surface-border bg-bg-secondary">
+			<!-- Pipeline selector -->
+			<PipelineSelector
+				onSwitch={handlePipelineSwitch}
+				onBeforeSwitch={getCurrentCanvasData}
+			/>
 
-				<div class="w-px h-5 bg-surface-border"></div>
+			<div class="w-px h-5 bg-surface-border"></div>
 
-				<!-- File operations (non-destructive) -->
-				<div class="flex items-center gap-1">
-					<button class="toolbar-btn" onclick={handleExport} title="Export canvas">
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-						</svg>
-					</button>
-					<button class="toolbar-btn" onclick={() => fileInputEl?.click()} title="Import canvas">
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-						</svg>
-					</button>
-					<input bind:this={fileInputEl} type="file" accept=".json" class="hidden" onchange={handleImport} />
-				</div>
-
-				<div class="w-px h-5 bg-surface-border"></div>
-
-				<!-- Undo/Redo -->
-				<div class="flex items-center gap-1">
-					<button class="toolbar-btn" onclick={() => undo()} disabled={!currentCanUndo} title="Undo (Ctrl+Z)">
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
-						</svg>
-					</button>
-					<button class="toolbar-btn" onclick={() => redo()} disabled={!currentCanRedo} title="Redo (Ctrl+Y)">
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"/>
-						</svg>
-					</button>
-				</div>
-
-				<div class="w-px h-5 bg-surface-border"></div>
-
-				<!-- Zoom controls -->
-				<div class="flex items-center gap-1">
-					<button class="toolbar-btn" onclick={handleZoomOut} title="Zoom out">
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
-						</svg>
-					</button>
-					<button class="toolbar-btn min-w-[3.5rem] font-mono text-xs" onclick={handleZoomReset} title="Reset zoom">
-						{Math.round(zoom * 100)}%
-					</button>
-					<button class="toolbar-btn" onclick={handleZoomIn} title="Zoom in">
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-						</svg>
-					</button>
-					<button class="toolbar-btn" onclick={handleZoomToFit} title="Fit all nodes">
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
-						</svg>
-					</button>
-				</div>
-
-				<div class="flex-1"></div>
-
-				<!-- Status -->
-				<div class="flex items-center gap-2 text-xs font-mono text-text-tertiary">
-					<span>{currentNodes.length} nodes</span>
-					{#if lastSaved}<span class="text-accent-primary">saved</span>{/if}
-				</div>
-
-				<div class="w-px h-5 bg-surface-border"></div>
-
-				<!-- Primary actions -->
-				<div class="flex items-center gap-2">
-					<button onclick={() => (showValidation = true)} class="px-2.5 py-1 text-xs font-mono text-text-secondary border border-surface-border rounded-md hover:border-text-tertiary hover:text-text-primary transition-all">
-						Validate
-					</button>
-					<button
-						onclick={openMissionExport}
-						class="px-2.5 py-1 text-xs font-mono text-text-secondary border border-surface-border rounded-md hover:border-text-tertiary hover:text-text-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-						disabled={currentNodes.length === 0 || !isMcpConnected}
-						title={!isMcpConnected ? 'Connect to MCP to export missions' : 'Export workflow as mission'}
-					>
-						Export
-					</button>
-					<button
-						onclick={() => {
-							executionAutoRunToken = null;
-							showExecution = true;
-							executionMinimized = false;
-						}}
-						class="px-2.5 py-1 text-xs font-mono bg-accent-primary text-bg-primary rounded-md hover:bg-accent-primary-hover transition-all disabled:opacity-50"
-						disabled={currentNodes.length === 0}
-					>
-						Run
-					</button>
-				</div>
+			<!-- File operations -->
+			<div class="flex items-center gap-1">
+				<button class="toolbar-btn" onclick={handleExport} title="Export canvas">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+					</svg>
+				</button>
+				<button class="toolbar-btn" onclick={() => fileInputEl?.click()} title="Import canvas">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+					</svg>
+				</button>
+				<input bind:this={fileInputEl} type="file" accept=".json" class="hidden" onchange={handleImport} />
 			</div>
 
-			<!-- Row 2: View options -->
-			<div class="h-8 flex items-center px-3 gap-3">
-				<!-- Grid snap -->
-				<button
-					class="toolbar-btn-sm"
-					class:active={currentSnapToGrid}
-					onclick={() => toggleSnapToGrid()}
-					title="Snap to grid"
-				>
-					<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/>
+			<div class="w-px h-5 bg-surface-border"></div>
+
+			<!-- Undo/Redo -->
+			<div class="flex items-center gap-1">
+				<button class="toolbar-btn" onclick={() => undo()} disabled={!currentCanUndo} title="Undo (Ctrl+Z)">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
 					</svg>
-					<span>Grid</span>
 				</button>
-
-				<div class="w-px h-4 bg-surface-border"></div>
-
-				<!-- Search -->
-				<button
-					class="toolbar-btn-sm"
-					class:active={showSearch}
-					onclick={toggleSearch}
-					title="Search nodes (Ctrl+F)"
-				>
-					<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+				<button class="toolbar-btn" onclick={() => redo()} disabled={!currentCanRedo} title="Redo (Ctrl+Y)">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"/>
 					</svg>
-					<span>Search</span>
 				</button>
+			</div>
 
-				<!-- Minimap -->
-				<button
-					class="toolbar-btn-sm"
-					class:active={showMinimap}
-					onclick={() => (showMinimap = !showMinimap)}
-					title="Toggle minimap"
-				>
-					<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+			<div class="w-px h-5 bg-surface-border"></div>
+
+			<!-- Zoom controls -->
+			<div class="flex items-center gap-1">
+				<button class="toolbar-btn" onclick={handleZoomOut} title="Zoom out">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
 					</svg>
-					<span>Minimap</span>
 				</button>
-
-				<div class="w-px h-4 bg-surface-border"></div>
-
-				<!-- Auto-layout dropdown -->
-				<div class="relative">
-					<button
-						class="toolbar-btn-sm"
-						class:active={showLayoutMenu}
-						onclick={() => (showLayoutMenu = !showLayoutMenu)}
-						title="Auto-layout nodes"
-					>
-						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
-						</svg>
-						<span>Layout</span>
-						<svg class="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-						</svg>
-					</button>
-					{#if showLayoutMenu}
-						<div class="absolute top-full left-0 mt-1 bg-bg-secondary border border-surface-border rounded-md shadow-lg z-50 min-w-28 overflow-hidden">
-							<button class="w-full px-3 py-1.5 text-left text-xs font-mono hover:bg-surface-active text-text-secondary hover:text-text-primary" onclick={() => handleAutoLayout('category')}>By Category</button>
-							<button class="w-full px-3 py-1.5 text-left text-xs font-mono hover:bg-surface-active text-text-secondary hover:text-text-primary" onclick={() => handleAutoLayout('grid')}>Grid</button>
-							<button class="w-full px-3 py-1.5 text-left text-xs font-mono hover:bg-surface-active text-text-secondary hover:text-text-primary" onclick={() => handleAutoLayout('horizontal')}>Horizontal</button>
-							<button class="w-full px-3 py-1.5 text-left text-xs font-mono hover:bg-surface-active text-text-secondary hover:text-text-primary" onclick={() => handleAutoLayout('vertical')}>Vertical</button>
-						</div>
-					{/if}
-				</div>
-
-				<div class="flex-1"></div>
-
-				<button
-					class="toolbar-btn-sm text-amber-300 hover:text-amber-200 hover:bg-amber-500/10"
-					onclick={addAdventureJoyPreset}
-					title="Quick add: Adventure / Joy pipeline"
-				>
-					<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3l2.6 5.27L20 9l-4 3.9.94 5.47L12 15.9l-4.94 2.47L8 12.9 4 9l5.4-.73L12 3z"/>
+				<button class="toolbar-btn min-w-[3.25rem] font-mono text-xs" onclick={handleZoomReset} title="Reset zoom">
+					{Math.round(zoom * 100)}%
+				</button>
+				<button class="toolbar-btn" onclick={handleZoomIn} title="Zoom in">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
 					</svg>
-					<span>Adventure/Joy</span>
 				</button>
+				<button class="toolbar-btn" onclick={handleZoomToFit} title="Fit all nodes">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+					</svg>
+				</button>
+			</div>
 
-				<!-- Danger zone (hidden in menu) -->
+			<div class="flex-1"></div>
+
+			<!-- Status -->
+			<div class="flex items-center gap-2 text-xs font-mono text-text-tertiary">
+				<span>{currentNodes.length} nodes</span>
+				{#if lastSaved}<span class="text-accent-primary">saved</span>{/if}
+			</div>
+
+			<div class="w-px h-5 bg-surface-border"></div>
+
+			<!-- Primary actions -->
+			<div class="flex items-center gap-2">
 				<button
-					class="toolbar-btn-sm text-red-400 hover:text-red-300 hover:bg-red-500/10"
 					onclick={handleClear}
 					disabled={currentNodes.length === 0}
-					title="Clear entire canvas"
+					class="px-2.5 py-1 text-xs font-mono text-text-tertiary border border-transparent rounded-md hover:border-surface-border hover:text-status-red transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+					title="Clear canvas"
 				>
-					<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-					</svg>
-					<span>Clear All</span>
+					Clear
+				</button>
+				<button onclick={() => (showValidation = true)} class="px-2.5 py-1 text-xs font-mono text-text-secondary border border-surface-border rounded-md hover:border-text-tertiary hover:text-text-primary transition-all">
+					Validate
+				</button>
+				<button
+					onclick={openMissionExport}
+					class="px-2.5 py-1 text-xs font-mono text-text-secondary border border-surface-border rounded-md hover:border-text-tertiary hover:text-text-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+					disabled={currentNodes.length === 0 || !isMcpConnected}
+					title={!isMcpConnected ? 'Connect to MCP to export missions' : 'Export workflow as mission'}
+				>
+					Export
+				</button>
+				<button
+					onclick={() => {
+						executionAutoRunToken = null;
+						showExecution = true;
+						executionMinimized = false;
+					}}
+					class="px-2.5 py-1 text-xs font-mono bg-accent-primary text-bg-primary rounded-md hover:bg-accent-primary-hover transition-all disabled:opacity-50"
+					disabled={currentNodes.length === 0}
+				>
+					Run
 				</button>
 			</div>
 		</header>
