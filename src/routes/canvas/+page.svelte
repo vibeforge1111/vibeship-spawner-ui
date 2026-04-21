@@ -3,7 +3,6 @@
 	import SkillsPanel from '$lib/components/SkillsPanel.svelte';
 	import BrandLogo from '$lib/components/BrandLogo.svelte';
 	import ConnectionLine from '$lib/components/ConnectionLine.svelte';
-	import ChatPanel from '$lib/components/chat/ChatPanel.svelte';
 	import ValidationPanel from '$lib/components/ValidationPanel.svelte';
 	import ExecutionPanel from '$lib/components/ExecutionPanel.svelte';
 	import ContextMenu from '$lib/components/ContextMenu.svelte';
@@ -31,7 +30,6 @@ import { get } from 'svelte/store';
 	import { workflowTemplates } from '$lib/data/templates';
 	import type { OpenclawCanvasSnapshot } from '$lib/services/openclaw-bridge';
 
-	let chatExpanded = $state(false);
 	let showValidation = $state(false);
 	let showExecution = $state(false);
 	let executionMinimized = $state(false);
@@ -1377,32 +1375,6 @@ import { get } from 'svelte/store';
 					viewportHeight={canvasHeight}
 					onPanTo={handleMinimapPan}
 				/>
-			{/if}
-		</div>
-		<!-- Bottom Panel (Chat, expandable) -->
-		<div class="border-t border-surface-border bg-bg-secondary transition-all relative" class:h-72={chatExpanded} class:h-12={!chatExpanded}>
-			{#if chatExpanded}
-				<!-- Header and minimize -->
-				<div class="absolute top-0 left-0 right-0 h-8 flex items-center justify-between px-3 border-b border-surface-border/50 bg-bg-secondary z-10">
-					<div class="px-3 py-1 text-xs font-mono bg-accent-primary text-bg-primary">Chat</div>
-					<button
-						onclick={() => (chatExpanded = false)}
-						class="text-text-tertiary hover:text-text-secondary text-xs font-mono"
-					>
-						[minimize]
-					</button>
-				</div>
-				<div class="h-full pt-8">
-					<ChatPanel />
-				</div>
-			{:else}
-				<button
-					onclick={() => (chatExpanded = true)}
-					class="w-full h-full flex items-center justify-center gap-2 text-text-secondary hover:text-text-primary hover:bg-surface transition-all"
-				>
-					<span class="font-mono text-sm">Open Chat</span>
-					<span class="text-xs text-text-tertiary">/help for commands</span>
-				</button>
 			{/if}
 		</div>
 	</main>
