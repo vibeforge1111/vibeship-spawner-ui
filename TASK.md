@@ -7,6 +7,10 @@ Date: 2026-04-21
 
 Make `Spawner UI` the thin execution plane for `Spark Intelligence` across Telegram and the builder UI, without turning it back into a broad orchestration product.
 
+Follow-on goal:
+
+Support a stable webhook-owned Telegram gateway without making `Spawner UI` responsible for Telegram ingress.
+
 ## Principles
 
 - No features beyond the Spark execution route.
@@ -22,6 +26,7 @@ Make `Spawner UI` the thin execution plane for `Spark Intelligence` across Teleg
 - Prefer concise lifecycle updates over log spam.
 - Keep admin boundaries strict on control commands.
 - Make failures say where the bridge broke.
+- Keep Telegram ownership out of Spawner; Spawner only emits trusted mission lifecycle events.
 
 ## In Scope
 
@@ -125,6 +130,17 @@ Make `Spawner UI` the thin execution plane for `Spark Intelligence` across Teleg
 - [x] Run a localhost bridge smoke test for the same path without relying on manual polling for terminal state.
   verify: `/api/spark/run` mission `spark-1776766317580` reached `mission_completed`, `/api/mission-control/command` showed both providers `completed`, and `/api/mission-control/board` moved the mission into `completed`
 
+### Phase 6. Webhook Gateway Support
+
+- [ ] Keep Spawner as an internal mission runner behind a single Telegram webhook gateway.
+  verify: Spawner never owns Telegram polling or webhook ingress directly in the production path
+- [ ] Keep `/api/spark/run` and mission-control routes as the only Telegram-facing execution surface needed by the gateway.
+  verify: no second Spark-to-Spawner protocol is introduced
+- [ ] Protect mission relay delivery to the gateway with an explicit trust boundary.
+  verify: relay endpoint uses localhost-only delivery or a shared secret if moved off-box
+- [ ] Ensure relay env/config loading works correctly in production mode.
+  verify: webhook relay targets load from SvelteKit server env at runtime
+
 ## Acceptance Criteria
 
 - Spawner UI shows `Z.AI` and `MiniMax` as runnable providers.
@@ -133,3 +149,4 @@ Make `Spawner UI` the thin execution plane for `Spark Intelligence` across Teleg
 - The Spark bridge stays a thin adapter, not a parallel orchestration system.
 - A Telegram-created mission can be traced, controlled, and inspected from Spawner.
 - Any Telegram board or kanban-like report is only an operator dashboard over real mission states.
+- Spawner remains behind the webhook gateway instead of competing for Telegram token ownership.
