@@ -30,7 +30,7 @@
 
 	// Spark-dispatched missions live in mission-control-relay, not MCP. Pull
 	// that board every few seconds and merge so /kanban shows the union.
-	type RelayEntry = { missionId: string; status: string; lastEventType: string; lastUpdated: string; lastSummary: string; taskName: string | null };
+	type RelayEntry = { missionId: string; missionName: string | null; status: string; lastEventType: string; lastUpdated: string; lastSummary: string; taskName: string | null };
 	let relay = $state<RelayEntry[]>([]);
 	let relayTimer: ReturnType<typeof setInterval> | null = null;
 	let lastRefresh = $state<number>(0);
@@ -75,17 +75,25 @@
 	}
 
 	function relayToCard(e: RelayEntry): BoardCard {
-		const name = e.taskName ?? e.missionId;
+		// Prefer the mission's own name (set by /api/spark/run when dispatching).
+		// Fall back to the task name, then the raw id as a last resort.
+		const name = e.missionName ?? e.taskName ?? e.missionId;
+		const status = relayStatusToCard(e.status);
+		// The relay's lastSummary is the latest *event* summary, which is often
+		// stale for still-running missions (e.g. "Task completed: task" while
+		// the mission is still running waiting for mission_completed). Only
+		// surface the summary once the mission has reached a terminal state.
+		const showSummary = status === 'completed' || status === 'failed';
 		return {
 			id: e.missionId,
 			name,
-			status: relayStatusToCard(e.status),
+			status,
 			mode: 'spark',
 			source: 'spark',
 			updatedAt: e.lastUpdated ?? null,
 			createdAt: e.lastUpdated ?? null,
 			taskCount: 0,
-			summary: e.lastSummary
+			summary: showSummary ? e.lastSummary : undefined
 		};
 	}
 

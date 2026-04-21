@@ -4,6 +4,7 @@ export interface MissionControlBridgeEvent {
 	id?: string;
 	type?: string;
 	missionId?: string;
+	missionName?: string;
 	taskId?: string;
 	taskName?: string;
 	message?: string;
@@ -16,6 +17,7 @@ export interface MissionControlBridgeEvent {
 export interface MissionControlRelayStatusEntry {
 	eventType: string;
 	missionId: string;
+	missionName: string | null;
 	taskId: string | null;
 	taskName: string | null;
 	summary: string;
@@ -41,6 +43,7 @@ export interface MissionControlRelaySnapshot {
 
 export interface MissionControlBoardEntry {
 	missionId: string;
+	missionName: string | null;
 	status: 'created' | 'running' | 'paused' | 'completed' | 'failed';
 	lastEventType: string;
 	lastUpdated: string;
@@ -92,9 +95,15 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 			? event.timestamp
 			: new Date().toISOString();
 
+	const dataMissionName =
+		event.data && typeof (event.data as Record<string, unknown>).missionName === 'string'
+			? ((event.data as Record<string, unknown>).missionName as string)
+			: null;
+
 	return {
 		eventType: typeof event.type === 'string' ? event.type : 'unknown',
 		missionId,
+		missionName: typeof event.missionName === 'string' ? event.missionName : dataMissionName,
 		taskId: typeof event.taskId === 'string' ? event.taskId : null,
 		taskName: typeof event.taskName === 'string' ? event.taskName : null,
 		summary: summarizeMissionControlEvent(event),
@@ -172,6 +181,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 		if (!existing) {
 			byMission.set(entry.missionId, {
 				missionId: entry.missionId,
+				missionName: entry.missionName,
 				status,
 				lastEventType: entry.eventType,
 				lastUpdated: entry.timestamp,
@@ -183,6 +193,9 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 
 		if (!existing.taskName && entry.taskName) {
 			existing.taskName = entry.taskName;
+		}
+		if (!existing.missionName && entry.missionName) {
+			existing.missionName = entry.missionName;
 		}
 	}
 

@@ -139,11 +139,14 @@ export const POST: RequestHandler = async (event) => {
 			const bridgeEvent = {
 				type,
 				missionId: mission.id,
+				missionName: mission.name,
 				source: 'spark-run',
 				timestamp: new Date().toISOString(),
 				message,
 				data: {
 					...missionMetadata,
+					missionName: mission.name,
+					goal,
 					...(data || {})
 				}
 			};
@@ -184,9 +187,12 @@ export const POST: RequestHandler = async (event) => {
 			onEvent: (bridgeEvent) => {
 				const relayEvent = {
 					...bridgeEvent,
+					missionName: mission.name,
 					source: 'spark-run',
 					data: {
 						...missionMetadata,
+						missionName: mission.name,
+						goal,
 						originalSource: bridgeEvent.source,
 						...(bridgeEvent.data || {})
 					}
