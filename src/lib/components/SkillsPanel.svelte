@@ -63,46 +63,47 @@
 	const pipelineSkills = $derived(currentNodes.map((node) => node.skill));
 	const pipelineSkillIds = $derived(new Set(currentNodes.map((node) => node.skill.id)));
 
+	// One distinct icon per spark-skill-graphs category (see skills-registry-summary.md).
+	// Every category must pick a different glyph so the sidebar reads at a glance.
 	const categoryIcons: Record<string, string> = {
-		// Core categories
-		development: 'cpu',
-		frameworks: 'layers',
-		integrations: 'zap',
-		'ai-ml': 'brain',
-		agents: 'sparkles',
-		data: 'grid',
-		design: 'compass',
-		marketing: 'play',
-		strategy: 'book',
-		enterprise: 'shield',
-		finance: 'trending-up',
-		legal: 'book-open',
-		science: 'flask',
-		startup: 'rocket',
-		
-		// Additional categories from skills.json
 		ai: 'brain',
 		'ai-agents': 'sparkles',
-		'ai-tools': 'cpu',
+		architecture: 'building',
 		backend: 'server',
 		biotech: 'heart',
 		blockchain: 'link',
+		business: 'briefcase',
 		climate: 'sun',
+		communications: 'message-circle',
 		community: 'users',
 		creative: 'palette',
+		data: 'database',
+		design: 'pen-tool',
+		development: 'code',
 		devops: 'settings',
-		education: 'book',
+		ecommerce: 'shopping-cart',
+		education: 'graduation-cap',
+		engineering: 'wrench',
+		enterprise: 'scale',
+		finance: 'dollar-sign',
+		frameworks: 'layers',
 		frontend: 'layout',
-		'game-dev': 'play',
-		hardware: 'cpu',
-		maker: 'tool',
-		mind: 'brain',
-		product: 'package',
+		'game-dev': 'gamepad',
+		infrastructure: 'cloud',
+		integrations: 'zap',
+		marketing: 'megaphone',
+		mcp: 'plug',
+		'mcp-server': 'plug',
+		methodology: 'compass',
+		performance: 'activity',
+		product: 'box',
 		security: 'shield',
-		simulation: 'grid',
 		space: 'star',
-		testing: 'check',
-		trading: 'trending-up'
+		'sparknet-council': 'crown',
+		startup: 'rocket',
+		strategy: 'target',
+		testing: 'test-tube',
+		trading: 'bar-chart'
 	};
 
 	const filteredSkills = $derived(
