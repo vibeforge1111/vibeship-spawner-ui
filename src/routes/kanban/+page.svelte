@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
 	import Footer from '$lib/components/Footer.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -10,10 +10,95 @@
 	type Tab = 'board' | 'scheduled';
 	let activeTab = $state<Tab>('board');
 
+	type CardStatus = 'draft' | 'ready' | 'running' | 'paused' | 'completed' | 'failed';
+	type BoardCard = {
+		id: string;
+		name: string;
+		status: CardStatus;
+		mode: string;
+		source: 'mcp' | 'spark';
+		updatedAt: string | null;
+		createdAt: string | null;
+		taskCount: number;
+		summary?: string | null;
+	};
+
 	let missions = $state<Mission[]>([]);
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 	let mcpConnected = $state(false);
+
+	// Spark-dispatched missions live in mission-control-relay, not MCP. Pull
+	// that board every few seconds and merge so /kanban shows the union.
+	type RelayEntry = { missionId: string; status: string; lastEventType: string; lastUpdated: string; lastSummary: string; taskName: string | null };
+	let relay = $state<RelayEntry[]>([]);
+	let relayTimer: ReturnType<typeof setInterval> | null = null;
+
+	async function fetchRelay() {
+		try {
+			const r = await fetch('/api/mission-control/board');
+			if (!r.ok) return;
+			const data = await r.json();
+			const buckets = data?.board ?? {};
+			const flat: RelayEntry[] = [];
+			for (const key of ['created', 'running', 'paused', 'completed', 'failed'] as const) {
+				for (const entry of buckets[key] ?? []) flat.push(entry as RelayEntry);
+			}
+			relay = flat;
+		} catch {
+			/* swallow — relay endpoint isn't critical for MCP missions */
+		}
+	}
+
+	function mcpToCard(m: Mission): BoardCard {
+		return {
+			id: m.id,
+			name: m.name || 'Untitled mission',
+			status: m.status,
+			mode: m.mode,
+			source: 'mcp',
+			updatedAt: m.updated_at ?? null,
+			createdAt: m.created_at ?? null,
+			taskCount: m.tasks?.length ?? 0
+		};
+	}
+
+	function relayStatusToCard(s: string): CardStatus {
+		if (s === 'created') return 'ready';
+		if (s === 'running' || s === 'paused' || s === 'completed' || s === 'failed') return s;
+		return 'ready';
+	}
+
+	function relayToCard(e: RelayEntry): BoardCard {
+		const name = e.taskName ?? e.missionId;
+		return {
+			id: e.missionId,
+			name,
+			status: relayStatusToCard(e.status),
+			mode: 'spark',
+			source: 'spark',
+			updatedAt: e.lastUpdated ?? null,
+			createdAt: e.lastUpdated ?? null,
+			taskCount: 0,
+			summary: e.lastSummary
+		};
+	}
+
+	// Merge — MCP wins on id collision because it carries richer data.
+	const cards = $derived(() => {
+		const byId = new Map<string, BoardCard>();
+		for (const e of relay) byId.set(e.missionId, relayToCard(e));
+		for (const m of missions) byId.set(m.id, mcpToCard(m));
+		return [...byId.values()];
+	});
+
+	const toDo = $derived(cards().filter((c) => c.status === 'draft' || c.status === 'ready'));
+	const inProgress = $derived(cards().filter((c) => c.status === 'running' || c.status === 'paused'));
+	const done = $derived(
+		cards()
+			.filter((c) => c.status === 'completed' || c.status === 'failed')
+			.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
+	);
 
 	onMount(() => {
 		const unsubMcp = mcpState.subscribe((s) => { mcpConnected = s.status === 'connected'; });
@@ -23,16 +108,14 @@
 			error = s.error;
 		});
 		loadMissions({ limit: 200 }).catch(() => {});
+		fetchRelay();
+		relayTimer = setInterval(fetchRelay, 4000);
 		return () => { unsub(); unsubMcp(); };
 	});
 
-	const toDo = $derived(missions.filter((m) => m.status === 'draft' || m.status === 'ready'));
-	const inProgress = $derived(missions.filter((m) => m.status === 'running' || m.status === 'paused'));
-	const done = $derived(
-		missions
-			.filter((m) => m.status === 'completed' || m.status === 'failed')
-			.sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? ''))
-	);
+	onDestroy(() => {
+		if (relayTimer) clearInterval(relayTimer);
+	});
 
 	function formatDate(iso: string | null): string {
 		if (!iso) return '';
@@ -41,7 +124,7 @@
 		return d.toLocaleString(undefined, opts);
 	}
 
-	function statusDot(s: Mission['status']): string {
+	function statusDot(s: CardStatus): string {
 		switch (s) {
 			case 'running': return 'bg-accent-primary animate-pulse';
 			case 'paused': return 'bg-status-amber';
@@ -52,13 +135,12 @@
 		}
 	}
 
-	// Priority is inferred until a real priority field ships on Mission.
-	// Multi-LLM + running/paused → High; short backlog → Medium; everything else → Low.
-	function priorityOf(m: Mission): 'High' | 'Medium' | 'Low' {
-		if (m.status === 'running' || m.status === 'paused') return 'High';
-		if (m.mode === 'multi-llm-orchestrator') return 'High';
-		if ((m.tasks?.length ?? 0) > 5) return 'High';
-		if (m.status === 'ready' || m.status === 'draft') return 'Medium';
+	// Priority is inferred until a real priority field ships on cards.
+	function priorityOf(c: BoardCard): 'High' | 'Medium' | 'Low' {
+		if (c.status === 'running' || c.status === 'paused') return 'High';
+		if (c.mode === 'multi-llm-orchestrator' || c.mode === 'spark') return 'High';
+		if (c.taskCount > 5) return 'High';
+		if (c.status === 'ready' || c.status === 'draft') return 'Medium';
 		return 'Low';
 	}
 
@@ -74,15 +156,19 @@
 		return 'bg-status-success';
 	}
 
-	async function handleStart(m: Mission) {
+	async function handleStart(card: BoardCard) {
+		if (card.source !== 'mcp') return; // Spark missions auto-start via /api/spark/run
+		const m = missions.find((x) => x.id === card.id);
+		if (!m) return;
 		setCurrentMission(m);
 		await startCurrent();
 		await loadMissions({ limit: 200 });
 	}
 
-	async function handleDelete(m: Mission) {
-		if (!confirm(`Delete mission "${m.name}"?`)) return;
-		await deleteMission(m.id);
+	async function handleDelete(card: BoardCard) {
+		if (card.source !== 'mcp') return;
+		if (!confirm(`Delete mission "${card.name}"?`)) return;
+		await deleteMission(card.id);
 		await loadMissions({ limit: 200 });
 	}
 </script>
@@ -99,7 +185,7 @@
 			<div>
 				<p class="overline">Mission board</p>
 				<h1 class="text-2xl font-sans font-semibold text-text-primary tracking-tight">
-					{missions.length} missions · {inProgress.length} running
+					{cards().length} missions · {inProgress.length} running
 				</h1>
 			</div>
 			<div class="flex items-center gap-1 p-0.5 border border-surface-border rounded-md bg-bg-secondary">
@@ -119,13 +205,13 @@
 		</header>
 
 		{#if activeTab === 'board'}
-			{#if !mcpConnected && !loading && missions.length === 0}
+			{#if !mcpConnected && !loading && cards().length === 0}
 				<div class="border border-surface-border rounded-lg bg-bg-secondary px-5 py-10 text-center">
 					<p class="font-mono text-xs text-text-tertiary">
-						MCP server offline — board will populate when a mission is created from the canvas.
+						No missions yet. Create one from the canvas or fire <code class="font-mono text-accent-primary">POST /api/spark/run</code>.
 					</p>
 				</div>
-			{:else if error && missions.length === 0}
+			{:else if error && cards().length === 0}
 				<div class="border border-surface-border rounded-lg bg-bg-secondary px-5 py-10 text-center">
 					<p class="font-mono text-xs text-text-tertiary">{error}</p>
 				</div>
@@ -147,51 +233,56 @@
 							</div>
 
 							<div class="flex-1 space-y-2">
-								{#each col.items as m (m.id)}
-									{@const p = priorityOf(m)}
+								{#each col.items as c (c.id)}
+									{@const p = priorityOf(c)}
 									<article class="group px-3.5 py-3 rounded-lg border border-surface-border bg-bg-secondary hover:border-border-strong transition-all">
-										<a href={`/missions/${m.id}`} class="block">
+										<a href={`/missions/${c.id}`} class="block">
 											<div class="flex items-start gap-2 mb-2">
 												<Icon name="file-text" size={14} class="text-text-tertiary mt-0.5 shrink-0" />
 												<span class="font-sans text-sm leading-snug text-text-primary group-hover:text-accent-primary transition-colors">
-													{m.name || 'Untitled mission'}
+													{c.name}
 												</span>
 											</div>
 											<div class="flex items-center gap-2 flex-wrap">
 												<span class="px-1.5 py-0.5 text-[10px] font-mono rounded-sm border {priorityClass(p)}">{p}</span>
 												<span class="font-mono text-[10px] text-text-tertiary">
-													{formatDate(m.updated_at ?? m.created_at)}
+													{formatDate(c.updatedAt ?? c.createdAt)}
 												</span>
-												{#if m.status === 'running' || m.status === 'paused'}
+												{#if c.source === 'spark'}
+													<span class="px-1.5 py-0.5 text-[10px] font-mono rounded-sm border border-accent-mid text-accent-primary bg-accent-subtle">spark</span>
+												{/if}
+												{#if c.status === 'running' || c.status === 'paused'}
 													<span class="ml-auto inline-flex items-center gap-1 font-mono text-[10px] text-text-tertiary">
-														<span class="w-1.5 h-1.5 rounded-full {statusDot(m.status)}"></span>
-														{m.status}
+														<span class="w-1.5 h-1.5 rounded-full {statusDot(c.status)}"></span>
+														{c.status}
 													</span>
 												{/if}
 											</div>
 										</a>
 										<div class="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-											{#if m.status === 'ready' || m.status === 'draft'}
+											{#if c.source === 'mcp' && (c.status === 'ready' || c.status === 'draft')}
 												<button
-													onclick={() => handleStart(m)}
+													onclick={() => handleStart(c)}
 													class="px-2 py-0.5 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all"
 												>
 													Start
 												</button>
 											{/if}
 											<a
-												href={`/missions/${m.id}`}
+												href={`/missions/${c.id}`}
 												class="px-2 py-0.5 text-[10px] font-mono text-text-secondary border border-surface-border rounded-sm hover:border-text-tertiary hover:text-text-primary transition-all"
 											>
 												Open
 											</a>
-											<button
-												onclick={() => handleDelete(m)}
-												class="ml-auto px-2 py-0.5 text-[10px] font-mono text-text-tertiary rounded-sm hover:text-status-red transition-all"
-												title="Delete mission"
-											>
-												Delete
-											</button>
+											{#if c.source === 'mcp'}
+												<button
+													onclick={() => handleDelete(c)}
+													class="ml-auto px-2 py-0.5 text-[10px] font-mono text-text-tertiary rounded-sm hover:text-status-red transition-all"
+													title="Delete mission"
+												>
+													Delete
+												</button>
+											{/if}
 										</div>
 									</article>
 								{:else}
