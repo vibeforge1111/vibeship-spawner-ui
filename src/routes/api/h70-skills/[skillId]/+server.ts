@@ -19,17 +19,20 @@ const SKILLS_LAB_PATH_FALLBACKS = [
 	path.resolve(process.cwd(), '..', 'vibeship-skills-lab')
 ];
 
-// Categories to search for skills
+// Categories to search — sourced from spark-skill-graphs skills-registry.
+// Canonical 33 from skills-registry-summary.md + 4 historical aliases
+// (architecture, enterprise, performance, mcp-server) so pre-rename
+// skill files still resolve during transitions.
 const SKILL_CATEGORIES = [
-	'ai', 'ai-agents', 'ai-tools', 'analytics', 'architecture', 'backend', 'benchmarks',
-	'biotech', 'blockchain', 'business', 'cli', 'climate', 'communications', 'community',
-	'compliance', 'creative', 'data', 'data-science', 'design', 'development', 'devops',
-	'ecommerce', 'education', 'engineering', 'enterprise', 'finance', 'founder', 'frameworks',
-	'frontend', 'gamedev', 'game-dev', 'game-dev-llm', 'hardware', 'infrastructure',
-	'integration', 'integrations', 'legal', 'maker', 'marketing', 'mcp', 'mcp-server',
-	'mind', 'mobile', 'nocode', 'performance', 'product', 'productivity', 'robotics',
-	'science', 'security', 'simulation', 'space', 'sparknet-council', 'startup', 'strategy',
-	'support', 'testing', 'trading', 'web3', 'methodology'
+	'ai', 'ai-agents', 'architecture', 'backend',
+	'biotech', 'blockchain', 'business', 'climate', 'communications', 'community',
+	'creative', 'data', 'design', 'development', 'devops',
+	'ecommerce', 'education', 'engineering', 'enterprise', 'finance', 'frameworks',
+	'frontend', 'game-dev', 'infrastructure',
+	'integrations', 'marketing', 'mcp', 'mcp-server',
+	'methodology', 'performance', 'product',
+	'security', 'space', 'sparknet-council', 'startup', 'strategy',
+	'testing', 'trading'
 ];
 
 interface H70Skill {
