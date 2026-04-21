@@ -3,6 +3,7 @@
 	// to avoid Svelte reactivity issues with canvas (see handleProcessingComplete)
 	import Navbar from './Navbar.svelte';
 	import Footer from './Footer.svelte';
+	import MissionKanban from './MissionKanban.svelte';
 	import PRDProcessingModal from './PRDProcessingModal.svelte';
 	import { setPRD, setProjectName } from '$lib/stores/project-docs.svelte';
 	import { analyzePRD, generateTasksFromPRD, tasksToWorkflow, type PRDAnalysis, type GeneratedTask } from '$lib/utils/prd-analyzer';
@@ -63,15 +64,6 @@
 	function createQueuedPipelineId(): string {
 		return `pipe-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 	}
-
-	const skillCategories = [
-		{ name: 'Frontend', count: 45, icon: '<>' },
-		{ name: 'Backend', count: 62, icon: '[]' },
-		{ name: 'DevOps', count: 38, icon: '{}' },
-		{ name: 'Security', count: 41, icon: '!!' },
-		{ name: 'Data', count: 35, icon: '()' },
-		{ name: 'AI/ML', count: 28, icon: 'AI' }
-	];
 
 	function handleSubmit() {
 		if (inputValue.trim() && onStart && !isSubmitting) {
@@ -532,30 +524,16 @@
 	<Navbar />
 
 	<!-- Hero Section -->
-	<section class="max-w-6xl mx-auto px-6 pt-20 pb-16">
-		<div class="text-center mb-16 animate-fade-in">
-			<p class="overline" style="color: var(--text-ghost); letter-spacing: 1.5px;">Skilled agents · Execution plane · Automated pipelines</p>
-			<h1 class="text-[3.25rem] leading-[1.08] font-sans font-semibold text-text-primary mb-6 tracking-tight">
-				A framework to <span class="text-accent-primary relative inline-block">level up Claude<span class="claude-underline"></span></span>
+	<section class="max-w-3xl mx-auto px-6 pt-16 pb-10">
+		<div class="mb-8 animate-fade-in">
+			<p class="overline">New mission</p>
+			<h1 class="text-2xl font-sans font-semibold text-text-primary tracking-tight">
+				What do you want to build?
 			</h1>
-			<p class="text-lg text-text-secondary max-w-2xl mx-auto mb-6 leading-relaxed">
-				593 specialized skills turn agents into domain experts. Build workflows on canvas,
-				dispatch missions, and run providers from one place.
-			</p>
-			<div class="flex items-center justify-center gap-6 text-sm font-mono text-text-tertiary">
-				<span class="flex items-center gap-2">
-					<span class="cursor-blocks pulsing"><span></span><span></span><span></span></span>
-					Better than regular Opus 4.5
-				</span>
-				<span class="flex items-center gap-2">
-					<span class="w-1.5 h-1.5 bg-accent-primary rounded-full animate-pulse"></span>
-					Execution that stays visible
-				</span>
-			</div>
 		</div>
 
 		<!-- Main Input -->
-		<div class="max-w-2xl mx-auto mb-20 animate-slide-up" style="animation-delay: 100ms;">
+		<div class="mb-12 animate-slide-up" style="animation-delay: 100ms;">
 			<div
 				class="input-container relative border bg-bg-secondary transition-all duration-normal outline-none ring-0 rounded-lg overflow-hidden"
 				class:border-accent-primary={isFocused}
@@ -656,69 +634,7 @@
 		</div>
 	</section>
 
-	<!-- Section 1: Skilled Agents -->
-	<section class="max-w-6xl mx-auto px-6 pb-24">
-		<div class="grid lg:grid-cols-2 gap-12 items-center">
-			<!-- Left: Content -->
-			<div class="animate-slide-up" style="animation-delay: 150ms;">
-				<p class="overline">01 — Skilled agents</p>
-				<h2 class="text-3xl font-sans font-semibold text-text-primary mb-4 tracking-tight">
-					Not generic LLMs.<br/>
-					<span class="text-accent-primary">Specialized experts.</span>
-				</h2>
-				<p class="text-text-secondary mb-8 leading-relaxed">
-					Each skill transforms Claude into a domain expert - with curated patterns,
-					anti-patterns, and decision frameworks baked in. No more starting from zero.
-				</p>
-
-				<!-- Skill categories grid -->
-				<div class="grid grid-cols-3 gap-3">
-					{#each skillCategories as cat, i}
-						<div
-							class="group p-3 bg-bg-secondary border border-surface-border hover:border-accent-primary/30 transition-all cursor-default rounded-md"
-							style="animation-delay: {200 + i * 50}ms;"
-						>
-							<span class="text-lg mb-1 block text-accent-primary/70 group-hover:text-accent-primary transition-colors">{cat.icon}</span>
-							<p class="text-sm text-text-primary font-medium">{cat.name}</p>
-							<p class="text-xs text-text-tertiary font-mono">{cat.count} skills</p>
-						</div>
-					{/each}
-				</div>
-			</div>
-
-			<!-- Right: Visual - Single terminal box, divided -->
-			<div class="animate-slide-up" style="animation-delay: 200ms;">
-				<div class="bg-bg-secondary border border-surface-border rounded-lg overflow-hidden">
-					<!-- Terminal header -->
-					<div class="flex items-center gap-2 px-5 py-3 border-b border-surface-border">
-						<span class="w-2.5 h-2.5 rounded-full bg-red-500/70"></span>
-						<span class="w-2.5 h-2.5 rounded-full bg-yellow-500/70"></span>
-						<span class="w-2.5 h-2.5 rounded-full bg-green-500/70"></span>
-						<span class="ml-2 text-xs text-text-tertiary font-mono">the difference</span>
-					</div>
-
-					<!-- Without Skill - Top -->
-					<div class="px-5 py-4">
-						<p class="text-xs text-text-tertiary font-mono uppercase tracking-wider mb-3">Without Skill</p>
-						<p class="text-sm text-text-secondary leading-relaxed">
-							Generic output. You iterate, debug, and learn the edge cases yourself.
-						</p>
-					</div>
-
-					<!-- Divider -->
-					<div class="border-t border-dashed border-surface-border mx-5"></div>
-
-					<!-- With Skill - Bottom -->
-					<div class="px-5 py-4">
-						<p class="text-xs text-accent-primary font-mono uppercase tracking-wider mb-3">With Skill</p>
-						<p class="text-sm text-text-primary leading-relaxed">
-							Expert-level from the start. Anthropic recommends skills over general prompting - each of ours is benchmarked to prove it.
-						</p>
-					</div>
-				</div>
-			</div>
-		</div>
-	</section>
+	<MissionKanban />
 
 	<!-- Footer -->
 	<Footer />
