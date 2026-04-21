@@ -120,13 +120,13 @@ Support a stable webhook-owned Telegram gateway without making `Spawner UI` resp
 
 ### Phase 5. End-To-End Smoke Test
 
-- [ ] Run one real vertical test:
+- [x] Run one real vertical test:
   - Telegram `/run say exactly OK`
   - Spawner mission created
   - provider executed
   - status visible
   - completion event emitted
-  verify: the builder Telegram route works end to end on localhost
+  verify: live Telegram runs `spark-1776768300668`, `spark-1776769087811`, and `spark-1776769277790` were created from `/run say exactly OK`, status was visible through `/mission status` and `/board`, and Spawner emitted terminal completion events before later dev-server restarts cleared in-memory relay state
 - [x] Run a localhost bridge smoke test for the same path without relying on manual polling for terminal state.
   verify: `/api/spark/run` mission `spark-1776766317580` reached `mission_completed`, `/api/mission-control/command` showed both providers `completed`, and `/api/mission-control/board` moved the mission into `completed`
 
