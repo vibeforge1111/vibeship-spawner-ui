@@ -349,8 +349,8 @@
 						{ title: 'Done', items: done, empty: 'No history yet' }
 					] as col}
 						<section class="flex flex-col min-h-[320px]">
-							<!-- Column header: pill + count, like the reference board -->
-							<div class="flex items-center gap-2 px-1 pb-3">
+							<!-- Column header: pill + count, sticks when the list scrolls past viewport -->
+							<div class="sticky top-0 z-10 flex items-center gap-2 px-1 py-3 bg-bg-primary/90 backdrop-blur-sm">
 								<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-bg-secondary border border-surface-border">
 									<span class="w-1.5 h-1.5 rounded-full {columnDot(col.title)}"></span>
 									<span class="font-sans text-[11px] font-medium text-text-bright">{col.title}</span>
