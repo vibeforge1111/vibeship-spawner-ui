@@ -33,6 +33,7 @@
 	type MissionControlEntry = {
 		eventType: string;
 		missionId: string;
+		missionName: string | null;
 		taskId: string | null;
 		taskName: string | null;
 		summary: string;
@@ -68,7 +69,7 @@
 	});
 
 	async function loadMissionControlStatus(): Promise<void> {
-		if (!missionId || !mcpConnected) return;
+		if (!missionId) return;
 		missionControlLoading = true;
 		missionControlError = null;
 		try {
@@ -127,16 +128,18 @@
 
 	onMount(async () => {
 		await new Promise(r => setTimeout(r, 300));
-		if (mcpConnected && missionId) {
+		if (!missionId) return;
+
+		// Relay always works regardless of MCP — Spark missions live there.
+		await loadMissionControlStatus();
+		startMissionControlPolling();
+
+		if (mcpConnected) {
 			await loadMission(missionId);
 			await loadMissionLogs(missionId);
-			await loadMissionControlStatus();
-
-			// Start polling if mission is running
 			if (currentState.currentMission?.status === 'running') {
 				startLogPolling(missionId);
 			}
-			startMissionControlPolling();
 		}
 	});
 
@@ -147,13 +150,12 @@
 
 	// Reload when missionId changes
 	$effect(() => {
-		if (mcpConnected && missionId && !currentState.loading) {
+		if (!missionId) return;
+		void loadMissionControlStatus();
+		startMissionControlPolling();
+		if (mcpConnected && !currentState.loading) {
 			loadMission(missionId);
 			loadMissionLogs(missionId);
-			void loadMissionControlStatus();
-			startMissionControlPolling();
-		} else if (!mcpConnected) {
-			stopMissionControlPolling();
 		}
 	});
 
@@ -248,10 +250,63 @@
 			&larr; Back to Missions
 		</a>
 
-		{#if !mcpConnected}
-			<div class="border border-surface-border bg-bg-secondary p-12 text-center">
+		{#if !mcpConnected && missionControl && missionControl.recent.length > 0}
+			{@const events = missionControl.recent}
+			{@const latest = events[0]}
+			{@const earliest = events[events.length - 1]}
+			{@const sparkName = events.find((e) => e.missionName)?.missionName ?? missionId}
+			{@const sparkStatus = latest.eventType.startsWith('mission_') ? latest.eventType.replace('mission_', '') : 'in progress'}
+
+			<!-- Spark mission detail: MCP has no record but relay tracked the lifecycle -->
+			<div class="mb-8">
+				<div class="flex items-center gap-3 mb-2 flex-wrap">
+					<h1 class="text-2xl font-sans font-semibold text-text-primary tracking-tight">{sparkName}</h1>
+					<span class="px-2 py-0.5 text-[10px] font-mono rounded-sm border border-accent-mid text-accent-primary bg-accent-subtle">spark</span>
+					<span class="px-2 py-0.5 text-[10px] font-mono rounded-sm border {getStatusBadge(sparkStatus as Mission['status']) ?? 'border-surface-border text-text-tertiary'}">{sparkStatus}</span>
+				</div>
+				<p class="font-mono text-xs text-text-tertiary">
+					{missionId} · started {new Date(earliest.timestamp).toLocaleString()} · {events.length} event{events.length !== 1 ? 's' : ''}
+				</p>
+			</div>
+
+			<div class="border border-surface-border rounded-lg bg-bg-secondary">
+				<div class="px-5 py-3 border-b border-surface-border flex items-center justify-between">
+					<h2 class="font-mono text-xs font-semibold text-text-bright tracking-wide">Event timeline</h2>
+					<span class="font-mono text-[10px] text-text-tertiary">
+						sparkIngest: {missionControl.enabled.sparkIngest ? 'on' : 'off'} · webhooks: {missionControl.targets.webhookCount}
+					</span>
+				</div>
+				<ol class="divide-y divide-surface-border/50">
+					{#each events as ev, i (ev.timestamp + '-' + i)}
+						<li class="px-5 py-3 flex items-start gap-3">
+							<span class="w-1.5 h-1.5 rounded-full mt-2 shrink-0 {ev.eventType.endsWith('_failed') ? 'bg-status-error' : ev.eventType.endsWith('_completed') ? 'bg-status-success' : ev.eventType.endsWith('_started') ? 'bg-accent-primary' : 'bg-text-tertiary'}"></span>
+							<div class="flex-1 min-w-0">
+								<div class="flex items-center gap-2 flex-wrap">
+									<span class="font-mono text-xs font-medium text-text-primary">{ev.eventType}</span>
+									{#if ev.taskName}
+										<span class="font-mono text-[10px] text-text-tertiary">· task: {ev.taskName}</span>
+									{/if}
+								</div>
+								<p class="font-mono text-[11px] text-text-secondary mt-0.5">{ev.summary}</p>
+								<p class="font-mono text-[10px] text-text-faint mt-0.5">
+									{new Date(ev.timestamp).toLocaleString()} · {ev.source}
+								</p>
+							</div>
+						</li>
+					{/each}
+				</ol>
+			</div>
+
+			<p class="mt-4 font-mono text-[11px] text-text-tertiary">
+				This mission was dispatched through <code class="text-accent-primary">/api/spark/run</code> — it doesn't exist in MCP, so full task/agent detail isn't available.
+			</p>
+		{:else if !mcpConnected}
+			<div class="border border-surface-border rounded-lg bg-bg-secondary p-12 text-center">
 				<h3 class="text-lg text-text-primary mb-2">MCP Server Offline</h3>
-				<p class="text-sm text-text-secondary">Connect to view mission details.</p>
+				<p class="text-sm text-text-secondary">Connect to view canvas mission details.</p>
+				{#if missionControl && missionControl.recent.length === 0}
+					<p class="text-xs font-mono text-text-tertiary mt-3">No relay activity for {missionId} either.</p>
+				{/if}
 			</div>
 		{:else if currentState.loading}
 			<div class="border border-surface-border bg-bg-secondary p-12 text-center">
