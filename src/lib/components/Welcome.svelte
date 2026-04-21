@@ -534,21 +534,21 @@
 	<!-- Hero Section -->
 	<section class="max-w-6xl mx-auto px-6 pt-20 pb-16">
 		<div class="text-center mb-16 animate-fade-in">
-			<p class="font-mono text-sm mb-4 tracking-wider"><span class="text-accent-primary">SKILLED AGENTS</span> <span class="text-text-tertiary">|</span> <span class="text-accent-secondary">EXECUTION PLANE</span> <span class="text-text-tertiary">|</span> <span class="text-accent-primary">AUTOMATED PIPELINES</span></p>
-			<h1 class="text-[3.5rem] leading-tight font-serif font-normal text-text-primary mb-6">
-				A Framework To <span class="text-accent-primary relative inline-block">Level Up Claude<span class="claude-underline"></span></span>
+			<p class="overline" style="color: var(--text-ghost); letter-spacing: 1.5px;">Skilled agents · Execution plane · Automated pipelines</p>
+			<h1 class="text-[3.25rem] leading-[1.08] font-sans font-semibold text-text-primary mb-6 tracking-tight">
+				A framework to <span class="text-accent-primary relative inline-block">level up Claude<span class="claude-underline"></span></span>
 			</h1>
-			<p class="text-lg text-text-secondary max-w-2xl mx-auto mb-6">
+			<p class="text-lg text-text-secondary max-w-2xl mx-auto mb-6 leading-relaxed">
 				593 specialized skills turn agents into domain experts. Build workflows on canvas,
 				dispatch missions, and run providers from one place.
 			</p>
 			<div class="flex items-center justify-center gap-6 text-sm font-mono text-text-tertiary">
 				<span class="flex items-center gap-2">
-					<span class="w-2 h-2 bg-accent-primary"></span>
+					<span class="cursor-blocks pulsing"><span></span><span></span><span></span></span>
 					Better than regular Opus 4.5
 				</span>
 				<span class="flex items-center gap-2">
-					<span class="w-2 h-2 bg-accent-secondary"></span>
+					<span class="w-1.5 h-1.5 bg-accent-primary rounded-full animate-pulse"></span>
 					Execution that stays visible
 				</span>
 			</div>
@@ -661,8 +661,8 @@
 		<div class="grid lg:grid-cols-2 gap-12 items-center">
 			<!-- Left: Content -->
 			<div class="animate-slide-up" style="animation-delay: 150ms;">
-				<p class="font-mono text-xs text-accent-primary mb-3 tracking-widest">01 - SKILLED AGENTS</p>
-				<h2 class="text-3xl font-serif text-text-primary mb-4">
+				<p class="overline">01 — Skilled agents</p>
+				<h2 class="text-3xl font-sans font-semibold text-text-primary mb-4 tracking-tight">
 					Not generic LLMs.<br/>
 					<span class="text-accent-primary">Specialized experts.</span>
 				</h2>

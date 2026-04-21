@@ -101,6 +101,63 @@
   }
 }
 
+/* SPARK signature motifs — see Desktop/SPARK.md §9 */
+@layer components {
+  /* Mono overline — 10px uppercase label above section titles */
+  .overline {
+    font-family: theme('fontFamily.mono');
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-ghost);
+    margin-bottom: 12px;
+  }
+
+  /* Slash-tag — typographic brand mark (/loop, /scanner, /spawner) */
+  .slash-tag {
+    font-family: theme('fontFamily.mono');
+    font-weight: 500;
+    font-size: 11px;
+    color: var(--accent);
+    background: var(--surface-raised);
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Cursor blocks — three descending accent bars (14/10/7 px) */
+  .cursor-blocks {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 14px;
+  }
+  .cursor-blocks > span {
+    width: 8px;
+    background: var(--accent);
+    border-radius: 1px;
+    display: block;
+  }
+  .cursor-blocks > span:nth-child(1) { height: 14px; }
+  .cursor-blocks > span:nth-child(2) { height: 10px; }
+  .cursor-blocks > span:nth-child(3) { height: 7px; }
+
+  /* Animated variant for loaders */
+  .cursor-blocks.pulsing > span {
+    animation: cursorPulse 1.2s cubic-bezier(0.23, 1, 0.32, 1) infinite;
+  }
+  .cursor-blocks.pulsing > span:nth-child(2) { animation-delay: 0.15s; }
+  .cursor-blocks.pulsing > span:nth-child(3) { animation-delay: 0.3s; }
+}
+
+@keyframes cursorPulse {
+  0%, 100% { opacity: 1; transform: scaleY(1); }
+  50%      { opacity: 0.4; transform: scaleY(0.7); transform-origin: bottom; }
+}
+
 /* Component utilities */
 @layer utilities {
   /* Ghost state for AI proposals - cyan themed */

@@ -18,10 +18,9 @@
 <nav class="h-[52px] sticky top-0 border-b border-surface-border bg-bg-primary z-50">
 	<div class="h-full max-w-6xl mx-auto flex items-center justify-between px-6">
 		<div class="flex items-center gap-4">
-			<a href="/" class="flex items-center gap-1.5">
-				<img src="/logo.png" alt="vibeship" class="w-6 h-6 -ml-0.5" />
-				<span class="font-serif text-[1.36rem] text-text-primary" style="font-family: 'Instrument Serif', Georgia, serif;">vibeship</span>
-				<span class="font-serif text-[1.36rem] text-accent-primary" style="font-family: 'Instrument Serif', Georgia, serif;">spawner</span>
+			<a href="/" class="flex items-center gap-2 group">
+				<img src="/logo.png" alt="spawner" class="w-5 h-5 -ml-0.5 opacity-90 group-hover:opacity-100 transition-opacity" />
+				<span class="slash-tag">/spawner</span>
 			</a>
 		</div>
 

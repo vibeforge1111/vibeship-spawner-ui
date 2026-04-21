@@ -4,11 +4,10 @@
 
 <footer class="border-t border-surface-border bg-bg-secondary">
 	<div class="max-w-6xl mx-auto px-8 py-5 flex items-center justify-between gap-6 flex-col sm:flex-row">
-		<a href="/" class="flex items-center gap-1.5">
-			<img src="/logo.png" alt="vibeship" class="w-5 h-5" />
-			<span class="text-text-primary text-[1.05rem]" style="font-family: 'Instrument Serif', Georgia, serif;">vibeship</span>
-			<span class="text-accent-primary text-[1.05rem]" style="font-family: 'Instrument Serif', Georgia, serif;">spawner</span>
-			<span class="font-mono text-xs text-text-tertiary ml-3 hidden sm:inline">© 2025</span>
+		<a href="/" class="flex items-center gap-2">
+			<img src="/logo.png" alt="spawner" class="w-4 h-4 opacity-80" />
+			<span class="slash-tag">/spawner</span>
+			<span class="font-mono text-xs text-text-tertiary ml-1 hidden sm:inline">© 2025</span>
 		</a>
 
 		<div class="flex items-center gap-5">
