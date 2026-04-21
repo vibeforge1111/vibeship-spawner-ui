@@ -293,7 +293,7 @@
 					/>
 				</div>
 				<div class="flex items-center gap-1 p-0.5 border border-surface-border rounded-md bg-bg-secondary">
-					{#each [{id: 'all', label: 'All'}, {id: 'mcp', label: 'MCP'}, {id: 'spark', label: 'Spark'}] as opt}
+					{#each [{id: 'all', label: 'All'}, {id: 'mcp', label: 'Canvas'}, {id: 'spark', label: 'Spark'}] as opt}
 						<button
 							class="px-2.5 py-0.5 text-[11px] font-mono rounded-sm transition-colors {sourceFilter === opt.id ? 'bg-accent-primary text-bg-primary' : 'text-text-secondary hover:text-text-primary'}"
 							onclick={() => sourceFilter = opt.id as typeof sourceFilter}
