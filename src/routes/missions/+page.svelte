@@ -126,6 +126,15 @@
 		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 	}
 
+	function getSparkMetadata(mission: Mission): Record<string, unknown> | null {
+		const spark = mission.outputs?.spark;
+		return spark && typeof spark === 'object' ? (spark as Record<string, unknown>) : null;
+	}
+
+	function isSparkMission(mission: Mission): boolean {
+		return Boolean(getSparkMetadata(mission));
+	}
+
 	function actionUrl(action: SentinelAction): string {
 		if (action.url && action.url.trim()) return action.url;
 		const prMatch = action.id.match(/^pr#(\d+)$/i);
@@ -206,11 +215,13 @@
 
 	const filteredMissions = $derived(() => {
 		if (filterStatus === 'all') return currentState.missions;
+		if (filterStatus === 'spark') return currentState.missions.filter((mission) => isSparkMission(mission));
 		return currentState.missions.filter(m => m.status === filterStatus);
 	});
 
 	const statusCounts = $derived(() => {
 		const counts: Record<string, number> = { all: currentState.missions.length };
+		counts.spark = currentState.missions.filter((mission) => isSparkMission(mission)).length;
 		for (const m of currentState.missions) {
 			counts[m.status] = (counts[m.status] || 0) + 1;
 		}
@@ -248,7 +259,7 @@
 		<!-- Filters & Actions -->
 		<div class="flex items-center justify-between mb-6">
 			<div class="flex items-center gap-2">
-				{#each ['all', 'draft', 'ready', 'running', 'completed', 'failed'] as status}
+				{#each ['all', 'spark', 'draft', 'ready', 'running', 'completed', 'failed'] as status}
 					{@const count = statusCounts()[status] || 0}
 					<button
 						onclick={() => filterStatus = status}
@@ -395,6 +406,7 @@
 		{:else}
 			<div class="space-y-3">
 				{#each filteredMissions() as mission (mission.id)}
+					{@const sparkMeta = getSparkMetadata(mission)}
 					<div class="group border border-surface-border bg-bg-secondary hover:border-surface-border-hover transition-all">
 						<div class="p-4">
 							<div class="flex items-start justify-between gap-4">
@@ -409,9 +421,25 @@
 										<span class="px-2 py-0.5 text-xs font-mono border {getStatusBadge(mission.status)}">
 											{mission.status}
 										</span>
+										{#if sparkMeta}
+											<span class="px-2 py-0.5 text-xs font-mono border border-accent-primary/30 bg-accent-primary/10 text-accent-primary">
+												spark
+											</span>
+										{/if}
 									</div>
 									{#if mission.description}
 										<p class="text-sm text-text-secondary truncate">{mission.description}</p>
+									{/if}
+									{#if sparkMeta}
+										<p class="mt-2 text-xs font-mono text-text-tertiary truncate">
+											Req: {typeof sparkMeta.requestId === 'string' ? sparkMeta.requestId : 'n/a'}
+											{#if typeof sparkMeta.chatId === 'string'}
+												Â· Chat: {sparkMeta.chatId}
+											{/if}
+											{#if Array.isArray(sparkMeta.providers) && sparkMeta.providers.length > 0}
+												Â· Providers: {sparkMeta.providers.join(', ')}
+											{/if}
+										</p>
 									{/if}
 								</div>
 

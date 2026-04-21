@@ -113,10 +113,10 @@ Support a stable webhook-owned Telegram gateway without making `Spawner UI` resp
 
 ### Phase 4. Builder Visibility
 
-- [ ] Add one simple way to inspect bot-created missions from the UI.
-  verify: a Telegram-triggered mission is easy to find without using canvas as the main control surface
-- [ ] Keep canvas available, but do not make it the only mission inspection flow.
-  verify: a simple filtered mission list or tag-based view is enough
+- [x] Add one simple way to inspect bot-created missions from the UI.
+  verify: the Missions page now supports a `spark` filter and shows request/chat/provider metadata for Spark-created runs
+- [x] Keep canvas available, but do not make it the only mission inspection flow.
+  verify: Telegram-created missions are discoverable from `/missions` without using canvas as the main control surface
 
 ### Phase 5. End-To-End Smoke Test
 
