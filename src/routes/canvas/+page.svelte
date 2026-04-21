@@ -2,7 +2,6 @@
 	import DraggableNode from '$lib/components/nodes/DraggableNode.svelte';
 	import SkillsPanel from '$lib/components/SkillsPanel.svelte';
 	import BrandLogo from '$lib/components/BrandLogo.svelte';
-	import BuilderPanel from '$lib/components/BuilderPanel.svelte';
 	import ConnectionLine from '$lib/components/ConnectionLine.svelte';
 	import ChatPanel from '$lib/components/chat/ChatPanel.svelte';
 	import ValidationPanel from '$lib/components/ValidationPanel.svelte';
@@ -32,7 +31,6 @@ import { get } from 'svelte/store';
 	import { workflowTemplates } from '$lib/data/templates';
 	import type { OpenclawCanvasSnapshot } from '$lib/services/openclaw-bridge';
 
-	let activeTab = $state('skills');
 	let chatExpanded = $state(false);
 	let showValidation = $state(false);
 	let showExecution = $state(false);
@@ -1153,8 +1151,7 @@ import { get } from 'svelte/store';
 <div class="h-screen flex bg-bg-primary relative">
 	<aside class="w-64 border-r border-surface-border bg-bg-secondary flex flex-col z-10">
 		<div class="p-4 border-b border-surface-border"><BrandLogo size="sm" /></div>
-		<div class="p-3 border-b border-surface-border"><div class="flex p-0.5 border border-surface-border rounded-md"><button class="flex-1 py-1.5 px-3 text-sm font-mono rounded-sm transition-all" class:bg-accent-primary={activeTab === 'skills'} class:text-bg-primary={activeTab === 'skills'} class:text-text-secondary={activeTab !== 'skills'} onclick={() => (activeTab = 'skills')}>Skills</button><button class="flex-1 py-1.5 px-3 text-sm font-mono rounded-sm transition-all" class:bg-accent-secondary={activeTab === 'builder'} class:text-bg-primary={activeTab === 'builder'} class:text-text-secondary={activeTab !== 'builder'} onclick={() => (activeTab = 'builder')}>Builder</button></div></div>
-		<div class="flex-1 overflow-hidden">{#if activeTab === 'skills'}<SkillsPanel />{:else}<BuilderPanel />{/if}</div>
+		<div class="flex-1 overflow-hidden"><SkillsPanel /></div>
 		<div class="p-3 border-t border-surface-border">
 			<div class="flex items-center justify-between">
 				<div class="text-xs text-text-tertiary font-mono">{currentNodes.length} nodes</div>

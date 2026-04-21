@@ -1,14 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Icon from './Icon.svelte';
-	import { skills, loadSkills, loadSkillsStatic, type Skill } from '$lib/stores/skills.svelte';
+	import { loadSkills, type Skill } from '$lib/stores/skills.svelte';
 	import { addNode, nodes, type CanvasNode } from '$lib/stores/canvas.svelte';
-
-	type ViewMode = 'pipeline' | 'all';
 
 	let searchQuery = $state('');
 	let expandedCategory = $state<string | null>(null);
-	let viewMode = $state<ViewMode>('pipeline');
 	let allSkillsLoaded = $state(false);
 	let allSkillsList = $state<Skill[]>([]);
 	let currentNodes = $state<CanvasNode[]>([]);
@@ -21,14 +18,14 @@
 
 	onMount(() => {
 		loadSkills();
+		loadAllSkills();
 	});
 
-	// Load all skills when switching to "all" view
+	// Load the full catalog from /skills.json
 	async function loadAllSkills() {
 		if (allSkillsLoaded) return;
 
 		try {
-			// Fetch fresh from static JSON to get full catalog
 			const response = await fetch('/skills.json');
 			if (response.ok) {
 				const data = await response.json();
@@ -62,22 +59,9 @@
 		}
 	}
 
-	function handleViewChange(mode: ViewMode) {
-		viewMode = mode;
-		if (mode === 'all' && !allSkillsLoaded) {
-			loadAllSkills();
-		}
-	}
-
-	// Get skills in current pipeline (canvas nodes)
-	const pipelineSkills = $derived(
-		currentNodes.map((node) => node.skill)
-	);
-
-	// Get unique pipeline skill IDs for "already added" indicator
-	const pipelineSkillIds = $derived(
-		new Set(currentNodes.map((node) => node.skill.id))
-	);
+	// Pipeline skills (on canvas) and their ids for "in pipeline" highlighting
+	const pipelineSkills = $derived(currentNodes.map((node) => node.skill));
+	const pipelineSkillIds = $derived(new Set(currentNodes.map((node) => node.skill.id)));
 
 	const categoryIcons: Record<string, string> = {
 		// Core categories
@@ -121,13 +105,8 @@
 		trading: 'trending-up'
 	};
 
-	// Choose source based on view mode
-	const sourceSkills = $derived(
-		viewMode === 'pipeline' ? pipelineSkills : allSkillsList
-	);
-
 	const filteredSkills = $derived(
-		sourceSkills.filter(
+		allSkillsList.filter(
 			(skill) =>
 				skill.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
 				skill.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -166,38 +145,18 @@
 </script>
 
 <div class="skills-panel h-full flex flex-col">
-	<!-- View Toggle Tabs -->
-	<div class="flex border-b border-surface-border">
-		<button
-			class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-mono transition-colors"
-			class:bg-bg-secondary={viewMode === 'pipeline'}
-			class:text-accent-primary={viewMode === 'pipeline'}
-			class:border-b-2={viewMode === 'pipeline'}
-			class:border-accent-primary={viewMode === 'pipeline'}
-			class:text-text-tertiary={viewMode !== 'pipeline'}
-			class:hover:text-text-secondary={viewMode !== 'pipeline'}
-			onclick={() => handleViewChange('pipeline')}
-		>
-			<Icon name="git-branch" size={12} />
-			<span>Pipeline</span>
-			<span class="text-[10px] px-1 py-0.5 rounded bg-surface">{pipelineSkills.length}</span>
-		</button>
-		<button
-			class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-mono transition-colors"
-			class:bg-bg-secondary={viewMode === 'all'}
-			class:text-accent-primary={viewMode === 'all'}
-			class:border-b-2={viewMode === 'all'}
-			class:border-accent-primary={viewMode === 'all'}
-			class:text-text-tertiary={viewMode !== 'all'}
-			class:hover:text-text-secondary={viewMode !== 'all'}
-			onclick={() => handleViewChange('all')}
-		>
-			<Icon name="grid" size={12} />
-			<span>All</span>
-			{#if allSkillsLoaded}
-				<span class="text-[10px] px-1 py-0.5 rounded bg-surface">{allSkillsList.length}</span>
+	<!-- Header — catalog size + in-pipeline count -->
+	<div class="flex items-center justify-between px-3 py-2.5 border-b border-surface-border">
+		<span class="overline" style="margin-bottom: 0;">Skills</span>
+		<div class="flex items-center gap-1.5 font-mono text-[10px]">
+			<span class="text-text-tertiary">{allSkillsList.length} total</span>
+			{#if pipelineSkills.length > 0}
+				<span class="text-text-faint">·</span>
+				<span class="px-1.5 py-0.5 rounded-sm bg-accent-subtle text-accent-primary border border-accent-mid">
+					{pipelineSkills.length} in pipeline
+				</span>
 			{/if}
-		</button>
+		</div>
 	</div>
 
 	<!-- Search -->
@@ -208,12 +167,29 @@
 			</div>
 			<input
 				type="text"
-				placeholder={viewMode === 'pipeline' ? "Search pipeline skills..." : "Search all skills..."}
+				placeholder="Search skills..."
 				bind:value={searchQuery}
-				class="w-full pl-8 pr-3 py-2 bg-bg-primary border border-surface-border text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary"
+				class="w-full pl-8 pr-3 py-2 bg-bg-primary border border-surface-border rounded-md text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary"
 			/>
 		</div>
 	</div>
+
+	{#if pipelineSkills.length > 0 && !searchQuery}
+		<!-- Pinned: skills currently on canvas -->
+		<div class="border-b border-surface-border bg-bg-primary/40">
+			<div class="px-3 py-2 flex items-center gap-2">
+				<span class="w-1.5 h-1.5 rounded-full bg-accent-primary animate-pulse"></span>
+				<span class="overline" style="margin-bottom: 0;">In pipeline</span>
+			</div>
+			<div class="px-2 pb-2 flex flex-wrap gap-1">
+				{#each pipelineSkills as skill (skill.id)}
+					<span class="px-2 py-0.5 text-[11px] font-mono bg-accent-subtle text-accent-primary border border-accent-mid rounded-sm truncate max-w-[180px]" title={skill.name}>
+						{skill.name}
+					</span>
+				{/each}
+			</div>
+		</div>
+	{/if}
 
 	<!-- Skills List -->
 	<div class="flex-1 overflow-y-auto">
@@ -234,9 +210,9 @@
 				{#if expandedCategory === category}
 					<div class="pb-2">
 						{#each categorySkills as skill}
-							{@const inPipeline = viewMode === 'all' && isInPipeline(skill.id)}
+							{@const inPipeline = isInPipeline(skill.id)}
 							<div
-								class="skill-item mx-2 mb-1 p-2 bg-bg-primary border transition-colors {inPipeline ? 'border-green-500/50 bg-green-500/5' : 'border-surface-border hover:border-accent-primary cursor-grab'}"
+								class="skill-item mx-2 mb-1 p-2 bg-bg-primary border rounded-md transition-colors {inPipeline ? 'border-accent-mid bg-accent-subtle' : 'border-surface-border hover:border-accent-primary cursor-grab'}"
 								draggable={!inPipeline}
 								ondragstart={(e) => !inPipeline && handleDragStart(e, skill)}
 								role="button"
@@ -246,8 +222,8 @@
 									<span class="text-sm font-medium text-text-primary truncate">{skill.name}</span>
 									<div class="flex items-center gap-1">
 										{#if inPipeline}
-											<span class="text-[10px] px-1.5 py-0.5 bg-green-500 bg-opacity-20 text-green-400 font-mono">
-												IN PIPELINE
+											<span class="text-[10px] px-1.5 py-0.5 rounded-sm bg-accent-subtle text-accent-primary border border-accent-mid font-mono">
+												in pipeline
 											</span>
 										{/if}
 										{#if skill.tier === 'premium'}
@@ -261,16 +237,16 @@
 
 								<!-- Quick Add Button -->
 								{#if inPipeline}
-									<div class="mt-2 w-full py-1 text-xs font-mono text-green-400 text-center border border-green-500 border-opacity-30 bg-green-500 bg-opacity-10 flex items-center justify-center gap-1">
+									<div class="mt-2 w-full py-1 text-xs font-mono text-accent-primary text-center border border-accent-mid bg-accent-subtle rounded-sm flex items-center justify-center gap-1">
 										<Icon name="check" size={10} />
-										Already Added
+										on canvas
 									</div>
 								{:else}
 									<button
-										class="mt-2 w-full py-1 text-xs font-mono text-accent-primary border border-accent-primary border-opacity-30 hover:bg-accent-primary hover:text-bg-primary transition-colors"
+										class="mt-2 w-full py-1 text-xs font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-colors"
 										onclick={(e) => { e.stopPropagation(); handleAddToCanvas(skill); }}
 									>
-										+ Add to Canvas
+										+ Add to canvas
 									</button>
 								{/if}
 							</div>
@@ -280,50 +256,24 @@
 			</div>
 		{/each}
 
-		{#if viewMode === 'all' && !allSkillsLoaded}
+		{#if !allSkillsLoaded}
 			<div class="p-6 text-center">
 				<div class="animate-spin w-5 h-5 border-2 border-accent-primary/30 border-t-accent-primary rounded-full mx-auto mb-2"></div>
 				<p class="text-text-tertiary text-sm">Loading skills...</p>
 			</div>
 		{:else if filteredSkills.length === 0}
 			<div class="p-4 text-center text-text-tertiary text-sm">
-				{#if viewMode === 'pipeline'}
-					{#if searchQuery}
-						No matching skills in pipeline
-					{:else}
-						<div class="space-y-2">
-							<p>No skills in pipeline yet</p>
-							<button
-								class="text-accent-primary hover:underline"
-								onclick={() => handleViewChange('all')}
-							>
-								Browse all skills to add some
-							</button>
-						</div>
-					{/if}
-				{:else}
-					No skills found matching "{searchQuery}"
-				{/if}
+				{searchQuery ? `No skills match "${searchQuery}"` : 'No skills available'}
 			</div>
 		{/if}
 	</div>
 
 	<!-- Footer -->
 	<div class="p-3 border-t border-surface-border bg-bg-tertiary">
-		{#if viewMode === 'pipeline'}
-			<button
-				class="w-full flex items-center justify-center gap-1 text-xs text-accent-primary hover:underline"
-				onclick={() => handleViewChange('all')}
-			>
-				<Icon name="grid" size={10} />
-				<span>Browse all</span>
-			</button>
-		{:else}
-			<a href="/skills" class="flex items-center justify-center gap-1 text-xs text-text-tertiary hover:text-text-secondary">
-				<span>Open skills page</span>
-				<Icon name="external-link" size={10} />
-			</a>
-		{/if}
+		<a href="/skills" class="flex items-center justify-center gap-1 text-xs text-text-tertiary hover:text-text-secondary">
+			<span>Open skills page</span>
+			<Icon name="external-link" size={10} />
+		</a>
 	</div>
 </div>
 
