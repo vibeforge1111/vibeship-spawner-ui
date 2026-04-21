@@ -1,4 +1,6 @@
 import { env } from '$env/dynamic/private';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export interface MissionControlBridgeEvent {
 	id?: string;
@@ -74,11 +76,49 @@ const DEFAULT_WEBHOOKS = (env.MISSION_CONTROL_WEBHOOK_URLS || '')
 	.filter(Boolean);
 const DEFAULT_TELEGRAM_RELAY_SECRET = env.TELEGRAM_RELAY_SECRET || '';
 
+// Persist relay state so HMR reloads + server restarts don't wipe the history.
+// Small file, synchronous writes; we're on the order of tens of events.
+const PERSIST_PATH = path.resolve(process.cwd(), '.spawner', 'mission-control.json');
+
+function loadPersistedState() {
+	try {
+		if (!fs.existsSync(PERSIST_PATH)) return null;
+		const raw = fs.readFileSync(PERSIST_PATH, 'utf-8');
+		const parsed = JSON.parse(raw);
+		return {
+			totalRelayed: Number(parsed.totalRelayed) || 0,
+			perMission: new Map<string, number>(Object.entries(parsed.perMission ?? {}).map(([k, v]) => [k, Number(v) || 0])),
+			recent: Array.isArray(parsed.recent) ? parsed.recent.slice(0, MAX_RECENT_EVENTS) : []
+		};
+	} catch {
+		return null;
+	}
+}
+
+function persistState() {
+	try {
+		const dir = path.dirname(PERSIST_PATH);
+		if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+		fs.writeFileSync(
+			PERSIST_PATH,
+			JSON.stringify({
+				totalRelayed: relayState.totalRelayed,
+				perMission: Object.fromEntries(relayState.perMission),
+				recent: relayState.recent
+			}),
+			'utf-8'
+		);
+	} catch {
+		/* persist is best-effort */
+	}
+}
+
+const persisted = loadPersistedState();
 const relayState: {
 	totalRelayed: number;
 	perMission: Map<string, number>;
 	recent: MissionControlRelayStatusEntry[];
-} = {
+} = persisted ?? {
 	totalRelayed: 0,
 	perMission: new Map<string, number>(),
 	recent: []
@@ -120,6 +160,7 @@ function recordRelayEvent(event: MissionControlBridgeEvent): void {
 	if (relayState.recent.length > MAX_RECENT_EVENTS) {
 		relayState.recent.length = MAX_RECENT_EVENTS;
 	}
+	persistState();
 }
 
 export function getMissionControlRelaySnapshot(missionId?: string): MissionControlRelaySnapshot {

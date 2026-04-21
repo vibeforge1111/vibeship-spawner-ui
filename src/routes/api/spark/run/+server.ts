@@ -36,7 +36,7 @@ function createSparkMission(body: SparkRunBody, goal: string, selectedProviderId
 	return {
 		id: missionId,
 		user_id: userId,
-		name: `Spark Run: ${goal.slice(0, 60)}`,
+		name: `Spark Run: ${goal.length > 140 ? goal.slice(0, 137) + '…' : goal}`,
 		description: goal,
 		mode: 'multi-llm-orchestrator',
 		status: 'ready',
