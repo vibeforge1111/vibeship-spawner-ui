@@ -51,6 +51,8 @@ export interface MissionControlBoardEntry {
 	lastUpdated: string;
 	lastSummary: string;
 	taskName: string | null;
+	taskCount: number;
+	taskNames: string[];
 }
 
 const RELAY_EVENT_TYPES = new Set([
@@ -227,16 +229,23 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 				lastEventType: entry.eventType,
 				lastUpdated: entry.timestamp,
 				lastSummary: entry.summary,
-				taskName: entry.taskName
+				taskName: entry.taskName,
+				taskCount: 0,
+				taskNames: []
 			});
-			continue;
+		} else {
+			if (!existing.taskName && entry.taskName) existing.taskName = entry.taskName;
+			if (!existing.missionName && entry.missionName) existing.missionName = entry.missionName;
 		}
 
-		if (!existing.taskName && entry.taskName) {
-			existing.taskName = entry.taskName;
-		}
-		if (!existing.missionName && entry.missionName) {
-			existing.missionName = entry.missionName;
+		// Count distinct tasks by watching task_started events.
+		if (entry.eventType === 'task_started') {
+			const current = byMission.get(entry.missionId)!;
+			const label = entry.taskName ?? 'task';
+			if (!current.taskNames.includes(label)) {
+				current.taskNames.push(label);
+				current.taskCount = current.taskNames.length;
+			}
 		}
 	}
 

@@ -20,6 +20,8 @@
 		updatedAt: string | null;
 		createdAt: string | null;
 		taskCount: number;
+		strategy?: string;
+		taskNames?: string[];
 		summary?: string | null;
 	};
 
@@ -30,7 +32,17 @@
 
 	// Spark-dispatched missions live in mission-control-relay, not MCP. Pull
 	// that board every few seconds and merge so /kanban shows the union.
-	type RelayEntry = { missionId: string; missionName: string | null; status: string; lastEventType: string; lastUpdated: string; lastSummary: string; taskName: string | null };
+	type RelayEntry = {
+		missionId: string;
+		missionName: string | null;
+		status: string;
+		lastEventType: string;
+		lastUpdated: string;
+		lastSummary: string;
+		taskName: string | null;
+		taskCount?: number;
+		taskNames?: string[];
+	};
 	let relay = $state<RelayEntry[]>([]);
 	let relayTimer: ReturnType<typeof setInterval> | null = null;
 	let lastRefresh = $state<number>(0);
@@ -64,7 +76,8 @@
 			source: 'mcp',
 			updatedAt: m.updated_at ?? null,
 			createdAt: m.created_at ?? null,
-			taskCount: m.tasks?.length ?? 0
+			taskCount: m.tasks?.length ?? 0,
+			strategy: m.mode // canvas: 'claude-code' | 'multi-llm-orchestrator' etc
 		};
 	}
 
@@ -75,15 +88,12 @@
 	}
 
 	function relayToCard(e: RelayEntry): BoardCard {
-		// Prefer the mission's own name (set by /api/spark/run when dispatching).
-		// Fall back to the task name, then the raw id as a last resort.
 		const name = e.missionName ?? e.taskName ?? e.missionId;
 		const status = relayStatusToCard(e.status);
-		// The relay's lastSummary is the latest *event* summary, which is often
-		// stale for still-running missions (e.g. "Task completed: task" while
-		// the mission is still running waiting for mission_completed). Only
-		// surface the summary once the mission has reached a terminal state.
 		const showSummary = status === 'completed' || status === 'failed';
+		const taskCount = e.taskCount ?? 0;
+		// Derive strategy from the fan-out: 1 task = single, 2+ = parallel_consensus.
+		const strategy = taskCount <= 1 ? 'single' : 'parallel_consensus';
 		return {
 			id: e.missionId,
 			name,
@@ -92,7 +102,9 @@
 			source: 'spark',
 			updatedAt: e.lastUpdated ?? null,
 			createdAt: e.lastUpdated ?? null,
-			taskCount: 0,
+			taskCount,
+			strategy,
+			taskNames: e.taskNames,
 			summary: showSummary ? e.lastSummary : undefined
 		};
 	}
@@ -385,8 +397,13 @@
 												<span class="font-mono text-[10px] text-text-tertiary">
 													{formatDate(c.updatedAt ?? c.createdAt)}
 												</span>
+												{#if c.taskCount > 0}
+													<span class="font-mono text-[10px] text-text-tertiary" title={c.taskNames?.join(', ') ?? ''}>
+														{c.taskCount} task{c.taskCount !== 1 ? 's' : ''}
+													</span>
+												{/if}
 												{#if c.source === 'spark'}
-													<span class="px-1.5 py-0.5 text-[10px] font-mono rounded-sm border border-accent-mid text-accent-primary bg-accent-subtle">spark</span>
+													<span class="px-1.5 py-0.5 text-[10px] font-mono rounded-sm border border-accent-mid text-accent-primary bg-accent-subtle" title={c.strategy ?? ''}>spark</span>
 												{/if}
 												{#if c.status === 'running' || c.status === 'paused'}
 													<span class="ml-auto inline-flex items-center gap-1 font-mono text-[10px] text-text-tertiary">

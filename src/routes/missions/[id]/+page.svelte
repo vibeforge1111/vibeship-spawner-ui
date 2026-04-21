@@ -252,10 +252,24 @@
 
 		{#if !mcpConnected && missionControl && missionControl.recent.length > 0}
 			{@const recentDesc = missionControl.recent}
-			{@const events = [...recentDesc].reverse()}
+			{@const chronological = [...recentDesc].reverse()}
 			{@const latest = recentDesc[0]}
-			{@const earliest = events[0]}
-			{@const sparkName = events.find((e) => e.missionName)?.missionName ?? missionId}
+			{@const earliest = chronological[0]}
+			{@const sparkName = chronological.find((e) => e.missionName)?.missionName ?? missionId}
+			{@const events = (() => {
+				const groups: Array<{ key: string; eventType: string; timestamp: string; source: string; items: typeof chronological }> = [];
+				for (const ev of chronological) {
+					const last = groups[groups.length - 1];
+					const isTask = ev.eventType.startsWith('task_');
+					// Collapse same-type task events that fire within 5s of each other.
+					if (last && isTask && last.eventType === ev.eventType && Math.abs(Date.parse(ev.timestamp) - Date.parse(last.items[last.items.length - 1].timestamp)) < 5000) {
+						last.items.push(ev);
+					} else {
+						groups.push({ key: ev.timestamp + '-' + ev.eventType, eventType: ev.eventType, timestamp: ev.timestamp, source: ev.source, items: [ev] });
+					}
+				}
+				return groups;
+			})()}
 			{@const sparkStatus = latest.eventType.startsWith('mission_') ? latest.eventType.replace('mission_', '') : 'in progress'}
 
 			<!-- Spark mission detail: MCP has no record but relay tracked the lifecycle -->
@@ -278,19 +292,24 @@
 					</span>
 				</div>
 				<ol class="divide-y divide-surface-border/50">
-					{#each events as ev, i (ev.timestamp + '-' + i)}
+					{#each events as group (group.key)}
+						{@const head = group.items[0]}
+						{@const multi = group.items.length > 1}
+						{@const taskLabels = group.items.map((it) => it.taskName).filter(Boolean).join(', ')}
 						<li class="px-5 py-3 flex items-start gap-3">
-							<span class="w-1.5 h-1.5 rounded-full mt-2 shrink-0 {ev.eventType.endsWith('_failed') ? 'bg-status-error' : ev.eventType.endsWith('_completed') ? 'bg-status-success' : ev.eventType.endsWith('_started') ? 'bg-accent-primary' : 'bg-text-tertiary'}"></span>
+							<span class="w-1.5 h-1.5 rounded-full mt-2 shrink-0 {group.eventType.endsWith('_failed') ? 'bg-status-error' : group.eventType.endsWith('_completed') ? 'bg-status-success' : group.eventType.endsWith('_started') ? 'bg-accent-primary' : 'bg-text-tertiary'}"></span>
 							<div class="flex-1 min-w-0">
 								<div class="flex items-center gap-2 flex-wrap">
-									<span class="font-mono text-xs font-medium text-text-primary">{ev.eventType}</span>
-									{#if ev.taskName}
-										<span class="font-mono text-[10px] text-text-tertiary">· task: {ev.taskName}</span>
+									<span class="font-mono text-xs font-medium text-text-primary">{group.eventType}</span>
+									{#if multi}
+										<span class="font-mono text-[10px] text-text-tertiary">· {group.items.length} tasks{taskLabels ? `: ${taskLabels}` : ''}</span>
+									{:else if head.taskName}
+										<span class="font-mono text-[10px] text-text-tertiary">· task: {head.taskName}</span>
 									{/if}
 								</div>
-								<p class="font-mono text-[11px] text-text-secondary mt-0.5">{ev.summary}</p>
+								<p class="font-mono text-[11px] text-text-secondary mt-0.5">{head.summary}</p>
 								<p class="font-mono text-[10px] text-text-faint mt-0.5">
-									{new Date(ev.timestamp).toLocaleString()} · {ev.source}
+									{new Date(group.timestamp).toLocaleString()} · {group.source}
 								</p>
 							</div>
 						</li>
