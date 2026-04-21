@@ -519,10 +519,11 @@
 	onSkipToLocal={handleSkipToLocal}
 />
 
-<div class="min-h-screen bg-bg-primary">
+<div class="min-h-screen bg-bg-primary flex flex-col">
 	<!-- Navbar -->
 	<Navbar />
 
+	<main class="flex-1">
 	<!-- Hero Section -->
 	<section class="max-w-3xl mx-auto px-6 pt-16 pb-10">
 		<div class="mb-8 animate-fade-in">
@@ -635,6 +636,7 @@
 	</section>
 
 	<MissionKanban />
+	</main>
 
 	<!-- Footer -->
 	<Footer />
