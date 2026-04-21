@@ -78,7 +78,8 @@ Spawner UI is a SvelteKit application that provides a visual canvas for building
 
 ### Why Local Skills Lab
 
-- **593 valid skills** sourced from spark-skill-graphs (H70-C+ format, 33 categories)
+- **593 valid skills** sourced from spark-skill-graphs (H70-C+ format, 36 categories after remap)
+- `sparknet-council` category is **remapped at build time** — the 52 breadth/literacy skills are assigned to their topical home (e.g. `machine-learning-fundamentals` → `ai`, `cybersecurity-fundamentals` → `security`). See `SPARKNET_COUNCIL_REMAP` in `scripts/build-skill-catalog.cjs` + `build-skill-index.cjs`.
 - **Zero network latency** - skills loaded from local disk
 - **No API costs** - no external service calls required
 - **Comprehensive** - skills include identity, disasters, anti-patterns, patterns

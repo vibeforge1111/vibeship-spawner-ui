@@ -6820,7 +6820,7 @@
   "dev-communications": {
     "id": "dev-communications",
     "name": "Developer Communications",
-    "description": "The craft of communicating technical concepts clearly to developers. Developer communications\nisn't marketing—it's about building trust through transparency, accuracy, and genuine utility.\nThe best devrel content helps developers solve real problems.\n\nThis skill covers technical documentation, developer tutorials, API references, changelog\nwriting, developer blog posts, and developer community engagement. Great developer communications\ntreats developers as peers, not leads to convert.\n",
+    "description": "The craft of communicating technical concepts clearly to developers. Developer communications\nisn't marketing\u00e2\u20ac\u201dit's about building trust through transparency, accuracy, and genuine utility.\nThe best devrel content helps developers solve real problems.\n\nThis skill covers technical documentation, developer tutorials, API references, changelog\nwriting, developer blog posts, and developer community engagement. Great developer communications\ntreats developers as peers, not leads to convert.\n",
     "owns": [
       "API documentation and reference guides",
       "Developer tutorials and getting started guides",
@@ -7246,13 +7246,13 @@
       "Community-market fit validation and hypothesis testing",
       "Culture architecture and value design",
       "Community positioning and differentiation",
-      "Member journey design (awareness → activation → retention → advocacy)",
+      "Member journey design (awareness \u00e2\u2020\u2019 activation \u00e2\u2020\u2019 retention \u00e2\u2020\u2019 advocacy)",
       "Governance models and evolution planning",
       "Community growth strategy (organic vs accelerated)",
       "Community business models and monetization",
       "Community health metrics and OKRs",
       "Platform selection and migration strategy",
-      "Community lifecycle planning (launch → growth → maturity → sunset)"
+      "Community lifecycle planning (launch \u00e2\u2020\u2019 growth \u00e2\u2020\u2019 maturity \u00e2\u2020\u2019 sunset)"
     ],
     "triggers": [
       "community strategy",
@@ -9536,7 +9536,7 @@
   "branding": {
     "id": "branding",
     "name": "Branding",
-    "description": "The craft of creating and maintaining cohesive brand identity systems. Branding translates\nbrand strategy into tangible visual and verbal identity—logos, color systems, typography,\nimagery, and voice guidelines that work together to make a brand recognizable and memorable.\n",
+    "description": "The craft of creating and maintaining cohesive brand identity systems. Branding translates\nbrand strategy into tangible visual and verbal identity\u00e2\u20ac\u201dlogos, color systems, typography,\nimagery, and voice guidelines that work together to make a brand recognizable and memorable.\n",
     "owns": [
       "logo-design",
       "visual-identity-systems",
@@ -9859,7 +9859,7 @@
     "delegates": [
       {
         "skill": "copywriting",
-        "when": "Need persuasive headlines, CTA copy, or benefit statements—provide conversion goal, target audience, and key objections"
+        "when": "Need persuasive headlines, CTA copy, or benefit statements\u00e2\u20ac\u201dprovide conversion goal, target audience, and key objections"
       },
       {
         "skill": "ui-design",
@@ -19299,7 +19299,7 @@
   "a-b-testing": {
     "id": "a-b-testing",
     "name": "a-b-testing",
-    "description": "The science of learning through controlled experimentation. A/B testing isn't about\npicking winners—it's about building a culture of validated learning and reducing\nthe cost of being wrong.\n",
+    "description": "The science of learning through controlled experimentation. A/B testing isn't about\npicking winners\u00e2\u20ac\u201dit's about building a culture of validated learning and reducing\nthe cost of being wrong.\n",
     "owns": [
       "Experiment design and hypothesis formation",
       "Statistical testing and power analysis",
@@ -20342,7 +20342,7 @@
       "Animation state machines (blend trees, transition graphs, conditional animation)"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "creative",
     "delegates": [
       {
         "skill": "frontend-development",
@@ -20384,7 +20384,7 @@
       "Webhook design and delivery guarantees"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "backend",
     "delegates": [
       {
         "skill": "cybersecurity-fundamentals",
@@ -20423,7 +20423,7 @@
       "Urban design context (site planning, solar orientation, wind analysis, stormwater)"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "architecture",
     "delegates": [
       {
         "skill": "physics-fundamentals",
@@ -20461,7 +20461,7 @@
       "Sci-fi physics fact-checking"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "space",
     "delegates": [
       {
         "skill": "physics-fundamentals",
@@ -20496,7 +20496,7 @@
       "Biological safety and biosecurity basics"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "biotech",
     "delegates": [
       {
         "skill": "chemistry-fundamentals",
@@ -20541,7 +20541,7 @@
       "Gas optimization and contract efficiency"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "blockchain",
     "delegates": [
       {
         "skill": "cybersecurity-fundamentals",
@@ -20575,7 +20575,7 @@
       "Common reaction types and mechanisms"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "biotech",
     "delegates": [
       {
         "skill": "materials-science",
@@ -20609,7 +20609,7 @@
       "Cognitive defusion techniques"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "methodology",
     "delegates": [
       {
         "skill": "mental-health",
@@ -20646,7 +20646,7 @@
       "Cross-cultural and remote communication"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "communications",
     "delegates": [
       {
         "skill": "leadership-fundamentals",
@@ -20684,7 +20684,7 @@
       "Repair and reconciliation processes"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "communications",
     "delegates": [
       {
         "skill": "psychology-fundamentals",
@@ -20723,7 +20723,7 @@
       "Maker tools and workshop safety (CNC, laser, 3D printer, hand tools, PPE)"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "creative",
     "delegates": [
       {
         "skill": "physics-fundamentals",
@@ -20764,7 +20764,7 @@
       "Expatriate preparation and repatriation support"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "community",
     "delegates": [
       {
         "skill": "communication-fundamentals",
@@ -20809,7 +20809,7 @@
       "Cryptographic implementation review (not design - leave that to cryptographers)"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "security",
     "delegates": [
       {
         "skill": "blockchain-security",
@@ -20850,7 +20850,7 @@
       "CDC (Change Data Capture) pipeline design"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "data",
     "delegates": [
       {
         "skill": "database-fundamentals",
@@ -20891,7 +20891,7 @@
       "Infrastructure cost optimization and right-sizing"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "devops",
     "delegates": [
       {
         "skill": "cybersecurity-fundamentals",
@@ -20928,7 +20928,7 @@
       "Greenwashing detection and claims verification"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "climate",
     "delegates": [
       {
         "skill": "physics-fundamentals",
@@ -20973,7 +20973,7 @@
       "Pivot vs persevere decision making"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "startup",
     "delegates": [
       {
         "skill": "product-management",
@@ -21011,7 +21011,7 @@
       "Deep time and macroevolution"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "biotech",
     "delegates": [
       {
         "skill": "genetics-fundamentals",
@@ -21048,7 +21048,7 @@
       "Organizational purpose beyond purpose-washing"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "methodology",
     "delegates": [
       {
         "skill": "psychology-fundamentals",
@@ -21090,7 +21090,7 @@
       "Cognitive load management"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "methodology",
     "delegates": [
       {
         "skill": "productivity-systems",
@@ -21127,7 +21127,7 @@
       "Cross-browser compatibility and progressive enhancement"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "frontend",
     "delegates": [
       {
         "skill": "design-fundamentals",
@@ -21173,7 +21173,7 @@
       "Wild card and black swan identification"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "strategy",
     "delegates": [
       {
         "skill": "entrepreneurship-fundamentals",
@@ -21217,7 +21217,7 @@
       "Systems design (interlocking mechanics, emergent gameplay, second-order effects)"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "game-dev",
     "delegates": [
       {
         "skill": "psychology-fundamentals",
@@ -21263,7 +21263,7 @@
       "Incrementality measurement and attribution"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "marketing",
     "delegates": [
       {
         "skill": "marketing",
@@ -21301,7 +21301,7 @@
       "Common health misconceptions"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "biotech",
     "delegates": [
       {
         "skill": "nutrition-science",
@@ -21335,7 +21335,7 @@
       "Behavioral finance basics"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "finance",
     "delegates": [
       {
         "skill": "personal-finance-fundamentals",
@@ -21369,7 +21369,7 @@
       "Avoiding common leadership anti-patterns"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "business",
     "delegates": [
       {
         "skill": "organizational-behavior",
@@ -21403,7 +21403,7 @@
       "Epistemic humility and uncertainty"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "methodology",
     "delegates": [
       {
         "skill": "philosophy-fundamentals",
@@ -21440,7 +21440,7 @@
       "Ensemble methods (bagging, boosting, stacking)"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "ai",
     "delegates": [
       {
         "skill": "distributed-training",
@@ -21482,7 +21482,7 @@
       "Applied problem-solving methods"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "engineering",
     "delegates": [
       {
         "skill": "statistics-advanced",
@@ -21516,7 +21516,7 @@
       "Crisis resource awareness (NOT crisis intervention)"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "biotech",
     "delegates": [
       {
         "skill": "crisis-hotline",
@@ -21553,7 +21553,7 @@
       "Metacognitive monitoring (calibration, judgment of learning)"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "methodology",
     "delegates": [
       {
         "skill": "psychology-fundamentals",
@@ -21598,7 +21598,7 @@
       "Mobile security (keychain, biometrics, certificate pinning)"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "frontend",
     "delegates": [
       {
         "skill": "frontend-development",
@@ -21634,7 +21634,7 @@
       "Loudness standards and compliance (LUFS, EBU R128, AES streaming specs)"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "creative",
     "delegates": [
       {
         "skill": "physics-fundamentals",
@@ -21672,7 +21672,7 @@
       "Brain-based design principles (evidence-based only)"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "biotech",
     "delegates": [
       {
         "skill": "brain-computer-interface",
@@ -21709,7 +21709,7 @@
       "Process automation strategy and build-vs-buy decisions"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "devops",
     "delegates": [
       {
         "skill": "data-engineering-fundamentals",
@@ -21747,7 +21747,7 @@
       "Attachment parenting and secure base theory"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "education",
     "delegates": [
       {
         "skill": "psychology-fundamentals",
@@ -21789,7 +21789,7 @@
       "Financial independence concepts (FIRE basics)"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "finance",
     "delegates": [
       {
         "skill": "investment-basics",
@@ -21823,7 +21823,7 @@
       "Epistemic humility and uncertainty handling"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "methodology",
     "delegates": [
       {
         "skill": "epistemology",
@@ -21857,7 +21857,7 @@
       "Physics-based sanity checking of calculations"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "engineering",
     "delegates": [
       {
         "skill": "quantum-mechanics",
@@ -21891,7 +21891,7 @@
       "Evidence-based productivity (what actually works)"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "methodology",
     "delegates": [
       {
         "skill": "focus-techniques",
@@ -21925,7 +21925,7 @@
       "Ethical boundaries of psychological intervention"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "community",
     "delegates": [
       {
         "skill": "cognitive-behavioral",
@@ -21959,7 +21959,7 @@
       "Decoherence and error sources"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "engineering",
     "delegates": [
       {
         "skill": "quantum-computing",
@@ -21997,7 +21997,7 @@
       "Codependency identification and healthy interdependence"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "community",
     "delegates": [
       {
         "skill": "psychology-fundamentals",
@@ -22044,7 +22044,7 @@
       "Proposal and SOW construction (pricing strategy, terms, risk mitigation)"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "marketing",
     "delegates": [
       {
         "skill": "communication-fundamentals",
@@ -22082,7 +22082,7 @@
       "Culture and norms"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "community",
     "delegates": [
       {
         "skill": "psychology-fundamentals",
@@ -22119,7 +22119,7 @@
       "Trade-off analysis between consistency, availability, and partition tolerance"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "architecture",
     "delegates": [
       {
         "skill": "api-design",
@@ -22163,7 +22163,7 @@
       "Readability optimization (Flesch-Kincaid, sentence structure, scannability)"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "creative",
     "delegates": [
       {
         "skill": "communication-fundamentals",
@@ -22201,7 +22201,7 @@
       "Team retrospectives and improvement"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "business",
     "delegates": [
       {
         "skill": "leadership-fundamentals",
@@ -22238,7 +22238,7 @@
       "Stakeholder impact analysis (who benefits, who is harmed)"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "methodology",
     "delegates": [
       {
         "skill": "cybersecurity-fundamentals",
@@ -22285,7 +22285,7 @@
       "Accessibility in typography (WCAG contrast, dyslexia-friendly choices, screen reader interaction)"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "design",
     "delegates": [
       {
         "skill": "visual-design",
@@ -22325,7 +22325,7 @@
       "Accessibility in visual design (WCAG contrast, color blindness, readability)"
     ],
     "triggers": [],
-    "category": "sparknet-council",
+    "category": "design",
     "delegates": [
       {
         "skill": "frontend-development",

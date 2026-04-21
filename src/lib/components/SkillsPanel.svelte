@@ -99,7 +99,6 @@
 		product: 'box',
 		security: 'shield',
 		space: 'star',
-		'sparknet-council': 'crown',
 		startup: 'rocket',
 		strategy: 'target',
 		testing: 'test-tube',

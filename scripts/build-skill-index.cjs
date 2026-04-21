@@ -81,11 +81,48 @@ function processSkill(skillPath, skillName, category) {
     description: skill.description || '',
     owns: skill.owns || [],
     triggers: skill.triggers || [],
-    category: skill.category || category || 'general',
+    category: remapCategory(skill.category || category || 'general', skillName),
     delegates: skill.delegates || []
   };
 
   return { minimal, full };
+}
+
+// Keep in sync with scripts/build-skill-catalog.cjs SPARKNET_COUNCIL_REMAP.
+const SPARKNET_COUNCIL_REMAP = {
+  'animation-motion': 'creative', 'api-design-fundamentals': 'backend',
+  'architecture-spaces': 'architecture', 'astrophysics-fundamentals': 'space',
+  'biology-fundamentals': 'biotech', 'blockchain-web3': 'blockchain',
+  'chemistry-fundamentals': 'biotech', 'cognitive-behavioral': 'methodology',
+  'communication-fundamentals': 'communications', 'conflict-resolution': 'communications',
+  'craft-making': 'creative', 'cross-cultural-wisdom': 'community',
+  'cybersecurity-fundamentals': 'security', 'data-engineering-fundamentals': 'data',
+  'devops-automation': 'devops', 'earth-climate-science': 'climate',
+  'entrepreneurship-fundamentals': 'startup', 'evolutionary-biology': 'biotech',
+  'existential-philosophy': 'methodology', 'focus-techniques': 'methodology',
+  'frontend-development': 'frontend', 'futures-thinking': 'strategy',
+  'game-design-fundamentals': 'game-dev', 'growth-marketing': 'marketing',
+  'health-fundamentals': 'biotech', 'investment-basics': 'finance',
+  'leadership-fundamentals': 'business', 'logical-reasoning': 'methodology',
+  'machine-learning-fundamentals': 'ai', 'mathematics-fundamentals': 'engineering',
+  'mental-health': 'biotech', 'meta-learning': 'methodology',
+  'mobile-development': 'frontend', 'music-audio': 'creative',
+  'neuroscience-fundamentals': 'biotech', 'operations-systems': 'devops',
+  'parenting-education': 'education', 'personal-finance-fundamentals': 'finance',
+  'philosophy-fundamentals': 'methodology', 'physics-fundamentals': 'engineering',
+  'productivity-systems': 'methodology', 'psychology-fundamentals': 'community',
+  'quantum-mechanics': 'engineering', 'relationship-fundamentals': 'community',
+  'sales-fundamentals': 'marketing', 'sociology-fundamentals': 'community',
+  'software-architecture': 'architecture', 'storytelling-writing': 'creative',
+  'team-dynamics-fundamentals': 'business', 'tech-ethics': 'methodology',
+  'typography-fundamentals': 'design', 'visual-design': 'design'
+};
+
+function remapCategory(category, skillName) {
+  if (category === 'sparknet-council' && SPARKNET_COUNCIL_REMAP[skillName]) {
+    return SPARKNET_COUNCIL_REMAP[skillName];
+  }
+  return category;
 }
 
 /**

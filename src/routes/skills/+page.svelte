@@ -34,7 +34,7 @@
 		<header class="mb-6">
 			<p class="overline">Skills library</p>
 			<h1 class="text-2xl font-sans font-semibold text-text-primary tracking-tight">
-				{$skillCounts.total} skills across 33 categories
+				{$skillCounts.total} skills across {Object.keys($categoryCounts ?? {}).length} categories
 			</h1>
 		</header>
 

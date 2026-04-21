@@ -31,7 +31,7 @@ const SKILL_CATEGORIES = [
 	'frontend', 'game-dev', 'infrastructure',
 	'integrations', 'marketing', 'mcp', 'mcp-server',
 	'methodology', 'performance', 'product',
-	'security', 'space', 'sparknet-council', 'startup', 'strategy',
+	'security', 'space', 'startup', 'strategy',
 	'testing', 'trading'
 ];
 
