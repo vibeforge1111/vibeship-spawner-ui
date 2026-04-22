@@ -254,7 +254,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 			if (!current.taskNames.includes(label)) {
 				current.taskNames.push(label);
 				current.taskCount = current.taskNames.length;
-				current.tasks.push({ title: label, skills: entry.taskSkills });
+				current.tasks.push({ title: label, skills: entry.taskSkills ?? [] });
 			}
 		}
 	}

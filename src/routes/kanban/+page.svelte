@@ -406,7 +406,7 @@
 													{#each c.tasks.slice(0, 3) as task}
 														<li>
 															<div class="font-sans text-[11px] text-text-secondary leading-snug line-clamp-1">{task.title}</div>
-															{#if task.skills.length > 0}
+															{#if task.skills && task.skills.length > 0}
 																<div class="flex items-center gap-1 flex-wrap mt-0.5">
 																	{#each task.skills.slice(0, 3) as skill}
 																		<span class="px-1.5 py-px text-[9px] font-mono rounded-full text-accent-primary bg-accent-subtle border border-accent-mid/50">{skill}</span>
