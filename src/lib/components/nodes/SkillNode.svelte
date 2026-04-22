@@ -253,12 +253,9 @@
 		{/each}
 	{/if}
 
-	<!-- Color accent bar -->
-	<div class="h-0.5 {categoryColor}"></div>
-
 	<!-- Clean Node Content -->
 	<div class="px-3 py-2.5">
-		<h3 class="text-sm font-mono text-text-primary truncate">{data.name}</h3>
+		<h3 class="task-name text-sm font-mono text-text-primary">{data.name}</h3>
 
 		<!-- Skills badges (shows which skills handle this task) -->
 		{#if data.skillChain && data.skillChain.length > 0}
@@ -298,12 +295,22 @@
 		overflow: hidden;
 	}
 
+	.task-name {
+		display: -webkit-box;
+		-webkit-line-clamp: 3;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		word-break: break-word;
+		line-height: 1.35;
+	}
+
 	.port-handle {
 		position: absolute;
 		width: 12px;
 		height: 12px;
 		background: var(--bg-secondary);
 		border: 2px solid;
+		border-radius: 50%;
 		cursor: crosshair;
 		z-index: 20;
 		transition: all 0.1s;
@@ -412,12 +419,13 @@
 	}
 
 	.skill-tag {
-		font-size: 8px;
+		font-size: 9px;
 		font-family: var(--font-mono);
 		color: var(--accent-primary, #00C49A);
 		background: rgba(0, 196, 154, 0.1);
 		border: 1px solid rgba(0, 196, 154, 0.2);
-		padding: 1px 5px;
+		padding: 1px 7px;
+		border-radius: 9999px;
 		white-space: nowrap;
 		cursor: default;
 		transition: all 0.15s;
