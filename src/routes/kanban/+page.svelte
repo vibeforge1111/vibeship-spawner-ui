@@ -22,6 +22,7 @@
 		taskCount: number;
 		strategy?: string;
 		taskNames?: string[];
+		tasks?: Array<{ title: string; skills: string[] }>;
 		summary?: string | null;
 	};
 
@@ -42,6 +43,7 @@
 		taskName: string | null;
 		taskCount?: number;
 		taskNames?: string[];
+		tasks?: Array<{ title: string; skills: string[] }>;
 	};
 	let relay = $state<RelayEntry[]>([]);
 	let relayTimer: ReturnType<typeof setInterval> | null = null;
@@ -68,6 +70,11 @@
 	}
 
 	function mcpToCard(m: Mission): BoardCard {
+		// Tasks don't carry skills directly — resolve via the agent assigned to each task
+		const tasks = m.tasks?.map((t) => {
+			const agent = m.agents?.find((a) => a.id === t.assignedTo);
+			return { title: t.title, skills: agent?.skills ?? [] };
+		});
 		return {
 			id: m.id,
 			name: m.name || 'Untitled mission',
@@ -77,7 +84,8 @@
 			updatedAt: m.updated_at ?? null,
 			createdAt: m.created_at ?? null,
 			taskCount: m.tasks?.length ?? 0,
-			strategy: m.mode // canvas: 'claude-code' | 'multi-llm-orchestrator' etc
+			strategy: m.mode, // canvas: 'claude-code' | 'multi-llm-orchestrator' etc
+			tasks
 		};
 	}
 
@@ -105,6 +113,7 @@
 			taskCount,
 			strategy,
 			taskNames: e.taskNames,
+			tasks: e.tasks ?? e.taskNames?.map((title) => ({ title, skills: [] })),
 			summary: showSummary ? e.lastSummary : undefined
 		};
 	}
@@ -392,12 +401,34 @@
 											{#if c.source === 'spark' && c.summary}
 												<p class="font-mono text-[10px] text-text-tertiary leading-snug mb-2 line-clamp-2">{c.summary}</p>
 											{/if}
+											{#if c.tasks && c.tasks.length > 0}
+												<ul class="space-y-1 mb-2">
+													{#each c.tasks.slice(0, 3) as task}
+														<li>
+															<div class="font-sans text-[11px] text-text-secondary leading-snug line-clamp-1">{task.title}</div>
+															{#if task.skills.length > 0}
+																<div class="flex items-center gap-1 flex-wrap mt-0.5">
+																	{#each task.skills.slice(0, 3) as skill}
+																		<span class="px-1.5 py-px text-[9px] font-mono rounded-full text-accent-primary bg-accent-subtle border border-accent-mid/50">{skill}</span>
+																	{/each}
+																	{#if task.skills.length > 3}
+																		<span class="text-[9px] font-mono text-text-tertiary">+{task.skills.length - 3}</span>
+																	{/if}
+																</div>
+															{/if}
+														</li>
+													{/each}
+													{#if c.tasks.length > 3}
+														<li class="font-mono text-[10px] text-text-tertiary">+{c.tasks.length - 3} more task{c.tasks.length - 3 !== 1 ? 's' : ''}</li>
+													{/if}
+												</ul>
+											{/if}
 											<div class="flex items-center gap-2 flex-wrap">
 												<span class="px-1.5 py-0.5 text-[10px] font-mono rounded-sm border {priorityClass(p)}">{p}</span>
 												<span class="font-mono text-[10px] text-text-tertiary">
 													{formatDate(c.updatedAt ?? c.createdAt)}
 												</span>
-												{#if c.taskCount > 0}
+												{#if c.taskCount > 0 && (!c.tasks || c.tasks.length === 0)}
 													<span class="font-mono text-[10px] text-text-tertiary" title={c.taskNames?.join(', ') ?? ''}>
 														{c.taskCount} task{c.taskCount !== 1 ? 's' : ''}
 													</span>

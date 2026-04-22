@@ -22,6 +22,7 @@ export interface MissionControlRelayStatusEntry {
 	missionName: string | null;
 	taskId: string | null;
 	taskName: string | null;
+	taskSkills: string[];
 	summary: string;
 	timestamp: string;
 	source: string;
@@ -53,6 +54,7 @@ export interface MissionControlBoardEntry {
 	taskName: string | null;
 	taskCount: number;
 	taskNames: string[];
+	tasks: Array<{ title: string; skills: string[] }>;
 }
 
 const RELAY_EVENT_TYPES = new Set([
@@ -142,12 +144,18 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 			? ((event.data as Record<string, unknown>).missionName as string)
 			: null;
 
+	const dataSkillsRaw = event.data && (event.data as Record<string, unknown>).skills;
+	const taskSkills = Array.isArray(dataSkillsRaw)
+		? dataSkillsRaw.filter((s): s is string => typeof s === 'string')
+		: [];
+
 	return {
 		eventType: typeof event.type === 'string' ? event.type : 'unknown',
 		missionId,
 		missionName: typeof event.missionName === 'string' ? event.missionName : dataMissionName,
 		taskId: typeof event.taskId === 'string' ? event.taskId : null,
 		taskName: typeof event.taskName === 'string' ? event.taskName : null,
+		taskSkills,
 		summary: summarizeMissionControlEvent(event),
 		timestamp,
 		source: typeof event.source === 'string' ? event.source : 'unknown'
@@ -231,7 +239,8 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 				lastSummary: entry.summary,
 				taskName: entry.taskName,
 				taskCount: 0,
-				taskNames: []
+				taskNames: [],
+				tasks: []
 			});
 		} else {
 			if (!existing.taskName && entry.taskName) existing.taskName = entry.taskName;
@@ -245,6 +254,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 			if (!current.taskNames.includes(label)) {
 				current.taskNames.push(label);
 				current.taskCount = current.taskNames.length;
+				current.tasks.push({ title: label, skills: entry.taskSkills });
 			}
 		}
 	}
