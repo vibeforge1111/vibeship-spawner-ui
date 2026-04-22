@@ -926,26 +926,25 @@ export function smartMissionToWorkflow(
 			const task = phaseTasks[i];
 			const phaseY = START_Y + i * (NODE_HEIGHT + GAP_Y);
 
-			// Find skill or create placeholder
-			const skillId = task.skills[0] || 'development';
-			let skill = availableSkills.find(s => s.id === skillId);
+			// Always create a TASK-shaped node: task.title as primary label,
+			// task.skills rendered as badges beneath via skillChain.
+			// Inherit category from the first matching skill so coloring still works.
+			const firstSkill = availableSkills.find(s => s.id === task.skills[0]);
 
-			if (!skill) {
-				// Create placeholder skill for the task
-				skill = {
-					id: `smart-${task.id}`,
-					name: task.title,
-					description: task.description,
-					category: 'development' as SkillCategory,
-					tier: 'free' as const,
-					tags: task.skills,
-					triggers: []  // Required by Skill interface
-				};
-			}
+			const skill: Skill = {
+				id: task.id,
+				name: task.title,
+				description: task.description,
+				category: firstSkill?.category || ('development' as SkillCategory),
+				tier: 'free' as const,
+				tags: task.skills,
+				triggers: [],
+				skillChain: task.skills
+			};
 
 			taskIndexMap.set(task.id, nodeIndex);
 			nodes.push({
-				skill: skill!,
+				skill,
 				position: { x: phaseX, y: phaseY }
 			});
 			nodeIndex++;
