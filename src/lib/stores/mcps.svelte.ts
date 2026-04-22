@@ -4,7 +4,7 @@
  * Manages:
  * - Available MCP definitions
  * - Connected MCP instances
- * - MCP feedback to Mind
+ * - MCP feedback
  * - Skill/Team MCP bindings
  */
 
@@ -155,7 +155,7 @@ export const instancesByStatus = derived(mcpStore, ($state) => {
 	return byStatus;
 });
 
-// Feedback MCPs (ones that can provide feedback to Mind - based on capabilities)
+// Feedback MCPs (ones that can provide feedback - based on capabilities)
 export const feedbackMCPs = derived(mcpStore, ($state) =>
 	$state.registry.filter((m) =>
 		m.capabilities.includes('analytics') ||
@@ -755,7 +755,7 @@ export function addFeedback(feedback: Omit<MCPFeedback, 'id' | 'createdAt' | 'st
 }
 
 /**
- * Process feedback (send to Mind)
+ * Process feedback (store locally)
  */
 export async function processFeedback(feedbackId: string): Promise<boolean> {
 	const state = get(mcpStore);
@@ -769,8 +769,6 @@ export async function processFeedback(feedbackId: string): Promise<boolean> {
 	}));
 
 	try {
-		// Mind API integration deferred - feedback stored locally for now
-		// When Mind v5 adds feedback endpoints, send via memoryClient here
 		const processedFeedback: MCPFeedback = {
 			...feedback,
 			status: 'processed',

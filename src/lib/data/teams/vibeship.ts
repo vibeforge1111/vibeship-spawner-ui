@@ -14,11 +14,6 @@ export const vibeshipTeam: AgenticTeam = {
 			server: 'spawner-h70',
 			tool: 'spawner_h70_skills',
 			skill_lab: 'C:/Users/USER/Desktop/spark-skill-graphs'
-		},
-		mind_v5: {
-			api: 'http://localhost:8080',
-			user_id: '550e8400-e29b-41d4-a716-446655440000',
-			version: '5.0.0'
 		}
 	},
 	divisions: {

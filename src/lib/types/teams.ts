@@ -47,11 +47,6 @@ export interface TeamInfrastructure {
     tool: string;
     skill_lab: string;
   };
-  mind_v5: {
-    api: string;
-    user_id: string;
-    version: string;
-  };
 }
 
 export interface TeamHandoff {

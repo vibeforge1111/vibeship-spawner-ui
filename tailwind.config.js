@@ -73,8 +73,7 @@ export default {
           data: v('text-secondary'),
           marketing: v('iris'),
           strategy: v('accent'),
-          agents: v('iris'),
-          mind: v('iris')
+          agents: v('iris')
         },
         port: {
           text: v('accent'),

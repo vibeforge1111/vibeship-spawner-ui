@@ -20,7 +20,6 @@ import {
 	SkillSchema,
 	BridgeEventSchema,
 	ClientBridgeEventSchema,
-	MemorySettingsSchema,
 	StoredSkillSchema
 } from './schemas';
 import { z } from 'zod';
@@ -277,49 +276,6 @@ describe('ClientBridgeEventSchema', () => {
 		};
 		const result = ClientBridgeEventSchema.safeParse(event);
 		expect(result.success).toBe(true);
-	});
-});
-
-// =============================================================================
-// MemorySettings Schema Tests
-// =============================================================================
-
-describe('MemorySettingsSchema', () => {
-	it('validates full settings', () => {
-		const settings = {
-			enabled: true,
-			backend: 'lite',
-			liteEndpoint: 'http://localhost:8080',
-			standardEndpoint: 'http://localhost:8081',
-			userId: 'user-123',
-			learningGranularity: 'moderate',
-			autoExtractPatterns: true
-		};
-		const result = MemorySettingsSchema.safeParse(settings);
-		expect(result.success).toBe(true);
-	});
-
-	it('validates partial settings (all optional)', () => {
-		const settings = { enabled: false };
-		const result = MemorySettingsSchema.safeParse(settings);
-		expect(result.success).toBe(true);
-	});
-
-	it('validates empty object (all fields optional)', () => {
-		const result = MemorySettingsSchema.safeParse({});
-		expect(result.success).toBe(true);
-	});
-
-	it('rejects invalid backend value', () => {
-		const settings = { backend: 'invalid' };
-		const result = MemorySettingsSchema.safeParse(settings);
-		expect(result.success).toBe(false);
-	});
-
-	it('rejects invalid learningGranularity', () => {
-		const settings = { learningGranularity: 'invalid' };
-		const result = MemorySettingsSchema.safeParse(settings);
-		expect(result.success).toBe(false);
 	});
 });
 

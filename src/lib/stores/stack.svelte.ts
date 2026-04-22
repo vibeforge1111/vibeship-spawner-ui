@@ -14,7 +14,7 @@ export type AgentRole =
 	| 'security'
 	| 'mobile';
 
-export type McpType = 'spawner' | 'mind' | 'scanner' | 'filesystem' | 'github' | 'browser';
+export type McpType = 'spawner' | 'scanner' | 'filesystem' | 'github' | 'browser';
 
 export interface Agent {
 	id: string;
@@ -180,23 +180,6 @@ const defaultMcps: MCP[] = [
 		tier: 'free'
 	},
 	{
-		id: 'mind',
-		name: 'Mind',
-		type: 'mind',
-		description: 'Semantic memory that persists across sessions',
-		icon: '🧠',
-		installCommand: 'npx @anthropic/mind-mcp',
-		configExample: `{
-  "mcpServers": {
-    "mind": {
-      "command": "npx",
-      "args": ["@anthropic/mind-mcp"]
-    }
-  }
-}`,
-		tier: 'free'
-	},
-	{
 		id: 'scanner',
 		name: 'Scanner',
 		type: 'scanner',
@@ -274,7 +257,7 @@ const initialState: StackState = {
 	agents: defaultAgents,
 	mcps: defaultMcps,
 	selectedAgentIds: ['planner'], // Planner always selected
-	selectedMcpIds: ['spawner', 'mind'], // Core MCPs
+	selectedMcpIds: ['spawner'], // Core MCPs
 	projectDescription: '',
 	projectType: 'saas'
 };

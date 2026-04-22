@@ -234,7 +234,6 @@
   .category-marketing { @apply bg-category-marketing/20 text-category-marketing; }
   .category-strategy { @apply bg-category-strategy/20 text-category-strategy; }
   .category-agents { @apply bg-category-agents/20 text-category-agents; }
-  .category-mind { @apply bg-category-mind/20 text-category-mind; }
 
   /* Vibeship card hover effect */
   .vibe-card {

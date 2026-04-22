@@ -3,12 +3,11 @@
 	import SkillsPanel from '$lib/components/SkillsPanel.svelte';
 	import BrandLogo from '$lib/components/BrandLogo.svelte';
 	import ConnectionLine from '$lib/components/ConnectionLine.svelte';
-	import ValidationPanel from '$lib/components/ValidationPanel.svelte';
 	import ExecutionPanel from '$lib/components/ExecutionPanel.svelte';
 	import ContextMenu from '$lib/components/ContextMenu.svelte';
 	import Minimap from '$lib/components/Minimap.svelte';
 	import NodeConfigPanel from '$lib/components/NodeConfigPanel.svelte';
-	import { canvasState, nodes, connections, selectedNodeId, selectedNodeIds, selectedConnectionId, selectedNode, draggingConnection, cuttingLine, selectionBox, snapToGrid, gridSize, addNode, addConnection, addNodesWithConnections, selectNode, selectConnection, selectAllNodes, clearSelection, deleteSelected, duplicateSelected, copySelected, pasteFromClipboard, removeConnection, removeNode, setZoom, setPan, zoomToFit, frameSelected, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory, startConnectionCut, updateConnectionCut, endConnectionCut, cancelConnectionCut, startSelectionBox, updateSelectionBox, endSelectionBox, cancelSelectionBox, toggleSnapToGrid, snapPosition, autoLayout, exportCanvasToFile, importCanvasFromFile, endConnectionDrag, resetTransientState } from '$lib/stores/canvas.svelte';
+	import { canvasState, nodes, connections, selectedNodeId, selectedNodeIds, selectedConnectionId, selectedNode, draggingConnection, cuttingLine, selectionBox, snapToGrid, gridSize, addNode, addConnection, addNodesWithConnections, selectNode, selectConnection, selectAllNodes, clearSelection, deleteSelected, duplicateSelected, copySelected, pasteFromClipboard, removeConnection, removeNode, setZoom, setPan, zoomToFit, frameSelected, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory, startConnectionCut, updateConnectionCut, endConnectionCut, cancelConnectionCut, startSelectionBox, updateSelectionBox, endSelectionBox, cancelSelectionBox, toggleSnapToGrid, snapPosition, autoLayout, endConnectionDrag, resetTransientState } from '$lib/stores/canvas.svelte';
 import { get } from 'svelte/store';
 	import type { CuttingLine, CanvasNode, Connection, DraggingConnection, SelectionBox } from '$lib/stores/canvas.svelte';
 	import { onMount, tick } from 'svelte';
@@ -30,7 +29,6 @@ import { get } from 'svelte/store';
 	import { workflowTemplates } from '$lib/data/templates';
 	import type { OpenclawCanvasSnapshot } from '$lib/services/openclaw-bridge';
 
-	let showValidation = $state(false);
 	let showExecution = $state(false);
 	let executionMinimized = $state(false);
 	let executionAutoRunToken = $state<number | null>(null);
@@ -755,29 +753,6 @@ import { get } from 'svelte/store';
 		}
 	}
 
-	// Export/Import
-	let fileInputEl: HTMLInputElement;
-
-	function handleExport() {
-		const timestamp = new Date().toISOString().slice(0, 10);
-		exportCanvasToFile(`canvas-${timestamp}.json`);
-	}
-
-	async function handleImport(e: Event) {
-		const input = e.target as HTMLInputElement;
-		const file = input.files?.[0];
-		if (!file) return;
-
-		const success = await importCanvasFromFile(file);
-		if (success) {
-			lastSaved = null;
-		} else {
-			alert('Failed to import canvas. Please check the file format.');
-		}
-		// Reset input so the same file can be imported again
-		input.value = '';
-	}
-
 	// Filter nodes matching search query
 	const matchingNodes = $derived(() => {
 		if (!searchQuery.trim()) return [];
@@ -1176,23 +1151,6 @@ import { get } from 'svelte/store';
 
 			<div class="w-px h-5 bg-surface-border"></div>
 
-			<!-- File operations -->
-			<div class="flex items-center gap-1">
-				<button class="toolbar-btn" onclick={handleExport} title="Export canvas">
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-					</svg>
-				</button>
-				<button class="toolbar-btn" onclick={() => fileInputEl?.click()} title="Import canvas">
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-					</svg>
-				</button>
-				<input bind:this={fileInputEl} type="file" accept=".json" class="hidden" onchange={handleImport} />
-			</div>
-
-			<div class="w-px h-5 bg-surface-border"></div>
-
 			<!-- Undo/Redo -->
 			<div class="flex items-center gap-1">
 				<button class="toolbar-btn" onclick={() => undo()} disabled={!currentCanUndo} title="Undo (Ctrl+Z)">
@@ -1224,35 +1182,19 @@ import { get } from 'svelte/store';
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
 					</svg>
 				</button>
-				<button class="toolbar-btn" onclick={handleZoomToFit} title="Fit all nodes">
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
-					</svg>
-				</button>
 			</div>
 
 			<div class="flex-1"></div>
-
-			<!-- Status -->
-			<div class="flex items-center gap-2 text-xs font-mono text-text-tertiary">
-				<span>{currentNodes.length} nodes</span>
-				{#if lastSaved}<span class="text-accent-primary">saved</span>{/if}
-			</div>
-
-			<div class="w-px h-5 bg-surface-border"></div>
 
 			<!-- Primary actions -->
 			<div class="flex items-center gap-2">
 				<button
 					onclick={handleClear}
 					disabled={currentNodes.length === 0}
-					class="px-2.5 py-1 text-xs font-mono text-text-tertiary border border-transparent rounded-md hover:border-surface-border hover:text-status-red transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-					title="Clear canvas"
+					class="px-2.5 py-1 text-xs font-mono text-text-secondary border border-surface-border rounded-md hover:border-text-tertiary hover:text-text-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+					title="Clear all nodes from canvas"
 				>
-					Clear
-				</button>
-				<button onclick={() => (showValidation = true)} class="px-2.5 py-1 text-xs font-mono text-text-secondary border border-surface-border rounded-md hover:border-text-tertiary hover:text-text-primary transition-all">
-					Validate
+					Clear All
 				</button>
 				<button
 					onclick={openMissionExport}
@@ -1389,10 +1331,6 @@ import { get } from 'svelte/store';
 			onDelete={() => { removeNode(currentSelectedNode!.id); showNodeDetails = false; }}
 		/>
 	</div>
-{/if}
-
-{#if showValidation}
-	<ValidationPanel onClose={() => (showValidation = false)} />
 {/if}
 
 {#if showExecution}

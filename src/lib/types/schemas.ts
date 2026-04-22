@@ -186,29 +186,6 @@ export const SkillArraySchema = z.array(SkillSchema);
 export type Skill = z.infer<typeof SkillSchema>;
 
 // =============================================================================
-// Memory Settings Schemas (for localStorage - matches memory.ts types)
-// =============================================================================
-
-export const LearningGranularitySchema = z.enum([
-	'everything',
-	'almost-everything',
-	'moderate',
-	'significant',
-	'manual'
-]);
-
-export const MemorySettingsSchema = z.object({
-	enabled: z.boolean(),
-	backend: z.enum(['lite', 'standard', 'auto']),
-	liteEndpoint: z.string(),
-	standardEndpoint: z.string(),
-	userId: z.string(),
-	learningGranularity: LearningGranularitySchema,
-	autoExtractPatterns: z.boolean(),
-	syncLearnings: z.boolean().optional()
-}).partial();  // All fields optional for partial updates from storage
-
-// =============================================================================
 // Service State Schemas (for status-storage)
 // =============================================================================
 

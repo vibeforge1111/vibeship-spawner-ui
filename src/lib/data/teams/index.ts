@@ -42,8 +42,7 @@ export const myTeam: AgenticTeam = {
   description: 'Description of what this team does',
   source_path: '/path/to/agent/configs',
   infrastructure: {
-    h70_mcp: { server: 'spawner-h70', tool: 'spawner_h70_skills', skill_lab: '/path/to/skills' },
-    mind_v5: { api: 'http://localhost:8080', user_id: 'your-user-id', version: '5.0.0' }
+    h70_mcp: { server: 'spawner-h70', tool: 'spawner_h70_skills', skill_lab: '/path/to/skills' }
   },
   divisions: {
     // Your divisions here

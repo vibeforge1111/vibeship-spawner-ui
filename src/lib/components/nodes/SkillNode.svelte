@@ -65,8 +65,7 @@
 		marketing: 'bg-category-marketing',
 		strategy: 'bg-category-strategy',
 		agents: 'bg-category-agents',
-		mind: 'bg-category-mind',
-		
+
 		// Map additional categories to existing color schemes
 		backend: 'bg-category-development',
 		frontend: 'bg-category-development',
@@ -111,8 +110,7 @@
 		marketing: 'category-marketing',
 		strategy: 'category-strategy',
 		agents: 'category-agents',
-		mind: 'category-mind',
-		
+
 		// Map additional categories
 		backend: 'category-development',
 		frontend: 'category-development',

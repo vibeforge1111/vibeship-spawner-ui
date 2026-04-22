@@ -66,7 +66,7 @@ curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json
 Spawner UI is a SvelteKit application that provides a visual canvas for building AI agent workflows. It allows users to:
 - Create visual pipelines of skills/agents
 - Execute multi-step missions
-- Track progress through the Mind system
+- Track progress through the events/mission API
 
 ## Vibeship Skills Lab - PRIMARY SKILL SOURCE
 
@@ -385,28 +385,16 @@ npm run dev
 - Verify with `/mcp` command - look for `spawner-h70`
 - Provides 480 H70 skills locally
 
-### 3. Mind v5 Lite (for memory/learning features)
-```bash
-cd C:\Users\USER\Desktop\the-mind
-start_mind_lite.bat
-# API: http://localhost:8080
-# Dashboard: http://localhost:8501
-```
-
 ### Quick Start All Services
 ```bash
 # Terminal 1: Spawner UI
 cd C:\Users\USER\Desktop\spawner-ui && npm run dev
-
-# Terminal 2: Mind v5
-cd C:\Users\USER\Desktop\the-mind && start_mind_lite.bat
 ```
 
 ### Verify Everything is Running
 | Service | URL | Check |
 |---------|-----|-------|
 | Spawner UI | http://localhost:5173 | Page loads |
-| Mind v5 API | http://localhost:8080/health | Returns `{"status":"healthy"}` |
 | H70 MCP | `/mcp` in Claude Code | Shows `spawner-h70` connected |
 
 ## Common Development Commands
@@ -644,67 +632,6 @@ The old approach had 4+ competing loading paths which caused race conditions. No
 
 ## Environment
 
-- **Skills Lab Path**: `C:/Users/USER/Desktop/vibeship-skills-lab`
+- **Skill source (primary)**: `C:/Users/USER/Desktop/spark-skill-graphs` (repo: https://github.com/vibeforge1111/spark-skill-graphs)
 - **Dev Server**: `http://localhost:5173` (or `http://localhost:5500` if custom port)
 - **MCP Fallback**: `https://mcp.vibeship.co/mcp`
-- **Mind v5 API**: `http://localhost:8080`
-- **Mind Dashboard**: `http://localhost:8501`
-
-## Mind v5 - Memory System
-
-Mind v5 provides persistent memory for learning and improvement. See `MIND.md` for full documentation.
-
-### Quick Reference
-
-**Start Mind v5:**
-```bash
-# From C:\Users\USER\Desktop\the-mind:
-start_mind_lite.bat
-```
-
-### The Five Tabs (at /mind)
-
-| Tab | Purpose | Auto-Created |
-|-----|---------|--------------|
-| **Learnings** | Task outcomes and patterns | Yes, after each task |
-| **Improvements** | System improvement suggestions | Yes, after missions |
-| **Decisions** | What was accomplished | Yes, on task success |
-| **Issues** | Problems and blockers | Yes, on task failure |
-| **Sessions** | Mission summaries | Yes, after missions |
-
-### Key Behaviors
-
-1. **Auto-capture**: Mind automatically records everything during mission execution
-2. **Auto-apply improvements**: All improvements are applied automatically (no pending state)
-3. **UTC timestamps**: Stored in UTC, displayed in local time
-4. **Pagination**: Learnings load 50 initially, click "Load All" for more
-
-### Memory Content Types
-
-- `agent_learning`, `task_outcome` - Learnings tab
-- `project_decision` - Decisions tab
-- `project_issue` - Issues tab
-- `session_summary` - Sessions tab
-- `*_improvement` - Improvements tab
-
-### API Quick Reference
-
-```bash
-# Check connection
-curl http://localhost:8080/health
-
-# List recent memories
-curl "http://localhost:8080/v1/memories/?limit=20"
-
-# Search
-curl -X POST http://localhost:8080/v1/memories/retrieve \
-  -H "Content-Type: application/json" \
-  -d '{"query": "authentication"}'
-```
-
-### Troubleshooting
-
-- **Connection refused**: Start Mind with `start_mind_lite.bat`
-- **Empty tabs**: Click the tab to trigger lazy loading
-- **Improvements show "pending"**: Change filter from "Pending" to "All"
-- **Learnings stuck at 50**: Click "Load All Learnings" button

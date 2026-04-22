@@ -2,7 +2,6 @@
  * MCP Types for Spawner UI
  *
  * MCPs (Model Context Protocol servers) can:
- * - Feed data to Mind for learning
  * - Be attached to skills for enhanced capabilities
  * - Be part of teams/pipelines
  * - Run independently and provide feedback
@@ -68,7 +67,7 @@ export interface MCPDefinition {
 
 	// What it provides
 	tools: MCPDefinitionTool[];
-	feedbackTypes?: string[]; // What feedback it can provide to Mind
+	feedbackTypes?: string[]; // What feedback it can provide
 
 	// Requirements
 	requiresAuth: boolean;
@@ -129,7 +128,7 @@ export interface MCPInstance {
 	// Usage tracking
 	usageCount: number;
 	lastUsed?: string;
-	feedbackCount: number; // How many feedback items sent to Mind
+	feedbackCount: number; // How many feedback items processed
 
 	// Attachments
 	attachedToSkills: string[]; // Skill IDs this MCP is attached to
@@ -137,7 +136,7 @@ export interface MCPInstance {
 	attachedToMissions: string[]; // Active mission IDs
 
 	// Settings
-	autoFeedback: boolean; // Automatically send feedback to Mind
+	autoFeedback: boolean; // Automatically emit feedback events
 	feedbackThreshold?: number; // Min confidence to act on
 	enabled: boolean;
 	lastSmokeTestAt?: string;
@@ -149,7 +148,7 @@ export interface MCPInstance {
 }
 
 // ============================================
-// MCP Feedback (Data flowing to Mind)
+// MCP Feedback
 // ============================================
 
 export interface MCPFeedback {
@@ -177,7 +176,7 @@ export interface MCPFeedback {
 	details?: string;
 	recommendations?: string[];
 
-	// Impact on Mind
+	// Impact
 	confidenceImpact: number; // -1.0 to +1.0
 	learningsAffected: string[]; // Memory IDs
 	newLearningsCreated: string[];

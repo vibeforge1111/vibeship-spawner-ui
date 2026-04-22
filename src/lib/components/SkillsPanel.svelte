@@ -60,7 +60,9 @@
 	}
 
 	// Pipeline skills (on canvas) and their ids for "in pipeline" highlighting
-	const pipelineSkills = $derived(currentNodes.map((node) => node.skill));
+	const pipelineSkills = $derived(
+		Array.from(new Map(currentNodes.map((node) => [node.skill.id, node.skill])).values())
+	);
 	const pipelineSkillIds = $derived(new Set(currentNodes.map((node) => node.skill.id)));
 
 	// One distinct icon per spark-skill-graphs category (see skills-registry-summary.md).
