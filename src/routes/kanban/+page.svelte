@@ -129,6 +129,7 @@
 	// Search + source filter applied before column splitting.
 	let searchQuery = $state('');
 	let sourceFilter = $state<'all' | 'mcp' | 'spark'>('all');
+	let searchFocused = $state(false);
 
 	const filteredCards = $derived(() => {
 		const q = searchQuery.trim().toLowerCase();
@@ -260,7 +261,7 @@
 	<Navbar />
 
 	<main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-8">
-		<header class="mb-6 flex items-end justify-between gap-4">
+		<header class="mb-6 flex items-end justify-between gap-4 flex-wrap">
 			<div>
 				<p class="overline flex items-center gap-2">
 					<span>Mission board</span>
@@ -273,56 +274,69 @@
 					{cards().length} missions · {inProgress.length} running
 				</h1>
 			</div>
-			<div class="flex items-center gap-1 p-0.5 border border-surface-border rounded-md bg-bg-secondary">
-				<button
-					class="px-3 py-1 text-xs font-mono rounded-sm transition-colors {activeTab === 'board' ? 'bg-accent-primary text-bg-primary' : 'text-text-secondary hover:text-text-primary'}"
-					onclick={() => activeTab = 'board'}
-				>
-					Board
-				</button>
-				<button
-					class="px-3 py-1 text-xs font-mono rounded-sm transition-colors {activeTab === 'scheduled' ? 'bg-accent-primary text-bg-primary' : 'text-text-secondary hover:text-text-primary'}"
-					onclick={() => activeTab = 'scheduled'}
-				>
-					Scheduled
-				</button>
+
+			<!-- Right-side controls: compact search, filter, new, tab toggle -->
+			<div class="flex items-center gap-2 flex-wrap justify-end">
+				{#if activeTab === 'board'}
+					<div
+						class="relative transition-all"
+						class:w-40={!searchFocused && !searchQuery}
+						class:w-64={searchFocused || !!searchQuery}
+					>
+						<Icon name="search" size={12} class="absolute left-2 top-1/2 -translate-y-1/2 text-text-tertiary" />
+						<input
+							type="text"
+							placeholder="Search…"
+							bind:value={searchQuery}
+							onfocus={() => (searchFocused = true)}
+							onblur={() => (searchFocused = false)}
+							class="w-full pl-7 pr-2 py-1 bg-bg-secondary border border-surface-border rounded-md text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary"
+						/>
+					</div>
+
+					<div class="flex items-center gap-0.5 p-0.5 border border-surface-border rounded-md bg-bg-secondary">
+						{#each [{id: 'all', label: 'All'}, {id: 'mcp', label: 'Canvas'}, {id: 'spark', label: 'Spark'}] as opt}
+							<button
+								class="px-2 py-0.5 text-[10px] font-mono rounded-sm transition-colors {sourceFilter === opt.id ? 'bg-accent-primary text-bg-primary' : 'text-text-secondary hover:text-text-primary'}"
+								onclick={() => sourceFilter = opt.id as typeof sourceFilter}
+							>
+								{opt.label}
+							</button>
+						{/each}
+					</div>
+
+					{#if searchQuery || sourceFilter !== 'all'}
+						<span class="font-mono text-[10px] text-text-tertiary">{filteredCards().length}/{cards().length}</span>
+					{/if}
+
+					<button
+						onclick={() => { quickAddOpen = !quickAddOpen; quickAddError = null; }}
+						class="inline-flex items-center gap-1 px-2 py-1 text-xs font-mono bg-accent-primary text-bg-primary rounded-md hover:bg-accent-primary-hover transition-all"
+						title="New mission"
+					>
+						<Icon name="plus" size={12} />
+						<span class="hidden sm:inline">New</span>
+					</button>
+				{/if}
+
+				<div class="flex items-center gap-1 p-0.5 border border-surface-border rounded-md bg-bg-secondary">
+					<button
+						class="px-2.5 py-0.5 text-[11px] font-mono rounded-sm transition-colors {activeTab === 'board' ? 'bg-accent-primary text-bg-primary' : 'text-text-secondary hover:text-text-primary'}"
+						onclick={() => activeTab = 'board'}
+					>
+						Board
+					</button>
+					<button
+						class="px-2.5 py-0.5 text-[11px] font-mono rounded-sm transition-colors {activeTab === 'scheduled' ? 'bg-accent-primary text-bg-primary' : 'text-text-secondary hover:text-text-primary'}"
+						onclick={() => activeTab = 'scheduled'}
+					>
+						Scheduled
+					</button>
+				</div>
 			</div>
 		</header>
 
 		{#if activeTab === 'board'}
-			<!-- Board filter row -->
-			<div class="flex items-center gap-3 mb-4 flex-wrap">
-				<div class="relative flex-1 min-w-[200px] max-w-md">
-					<Icon name="search" size={14} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-tertiary" />
-					<input
-						type="text"
-						placeholder="Search missions..."
-						bind:value={searchQuery}
-						class="w-full pl-8 pr-3 py-1.5 bg-bg-secondary border border-surface-border rounded-md text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary"
-					/>
-				</div>
-				<div class="flex items-center gap-1 p-0.5 border border-surface-border rounded-md bg-bg-secondary">
-					{#each [{id: 'all', label: 'All'}, {id: 'mcp', label: 'Canvas'}, {id: 'spark', label: 'Spark'}] as opt}
-						<button
-							class="px-2.5 py-0.5 text-[11px] font-mono rounded-sm transition-colors {sourceFilter === opt.id ? 'bg-accent-primary text-bg-primary' : 'text-text-secondary hover:text-text-primary'}"
-							onclick={() => sourceFilter = opt.id as typeof sourceFilter}
-						>
-							{opt.label}
-						</button>
-					{/each}
-				</div>
-				{#if searchQuery || sourceFilter !== 'all'}
-					<span class="font-mono text-[11px] text-text-tertiary">{filteredCards().length} / {cards().length}</span>
-				{/if}
-				<div class="flex-1"></div>
-				<button
-					onclick={() => { quickAddOpen = !quickAddOpen; quickAddError = null; }}
-					class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-mono bg-accent-primary text-bg-primary rounded-md hover:bg-accent-primary-hover transition-all"
-				>
-					<Icon name="plus" size={12} />
-					<span>New mission</span>
-				</button>
-			</div>
 
 			{#if quickAddOpen}
 				<div class="mb-4 border border-surface-border rounded-lg bg-bg-secondary p-3">
