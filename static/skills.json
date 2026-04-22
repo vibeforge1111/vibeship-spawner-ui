@@ -4014,9 +4014,42 @@
     "category": "enterprise",
     "tier": "free",
     "layer": 1,
-    "tags": [],
-    "triggers": [],
-    "handoffs": [],
+    "tags": [
+      "role",
+      "design",
+      "permission",
+      "matrix",
+      "construction",
+      "scoped",
+      "roles",
+      "project",
+      "team",
+      "resource"
+    ],
+    "triggers": [
+      "rbac",
+      "role based access control",
+      "permission matrix",
+      "custom roles",
+      "scoped roles",
+      "admin permissions",
+      "role inheritance",
+      "authorization model"
+    ],
+    "handoffs": [
+      {
+        "to": "identity-access-management",
+        "trigger": "Need canonical principal, membership, or machine identity design"
+      },
+      {
+        "to": "multi-tenancy",
+        "trigger": "Role scopes and authorization boundaries vary by tenant architecture"
+      },
+      {
+        "to": "compliance-automation",
+        "trigger": "Need access review workflows, segregation of duties, or control evidence"
+      }
+    ],
     "pairsWell": []
   },
   {
@@ -4026,9 +4059,42 @@
     "category": "enterprise",
     "tier": "free",
     "layer": 1,
-    "tags": [],
-    "triggers": [],
-    "handoffs": [],
+    "tags": [
+      "saml",
+      "tenant",
+      "configuration",
+      "identity-provider",
+      "onboarding",
+      "sp-initiated",
+      "idp-initiated",
+      "login",
+      "flow",
+      "design"
+    ],
+    "triggers": [
+      "saml",
+      "sso",
+      "enterprise sso",
+      "okta",
+      "entra id",
+      "onelogin",
+      "acs url",
+      "just in time provisioning"
+    ],
+    "handoffs": [
+      {
+        "to": "identity-access-management",
+        "trigger": "Need canonical principal mapping, membership model, or permission boundaries"
+      },
+      {
+        "to": "authentication-oauth",
+        "trigger": "Need hybrid auth strategy that combines SAML with OIDC or session patterns"
+      },
+      {
+        "to": "scim-provisioning",
+        "trigger": "Need lifecycle sync beyond login-time provisioning"
+      }
+    ],
     "pairsWell": []
   },
   {
@@ -4050,9 +4116,42 @@
     "category": "enterprise",
     "tier": "free",
     "layer": 1,
-    "tags": [],
-    "triggers": [],
-    "handoffs": [],
+    "tags": [
+      "scim",
+      "user",
+      "group",
+      "endpoint",
+      "behavior",
+      "external",
+      "directory",
+      "internal",
+      "identity",
+      "mapping"
+    ],
+    "triggers": [
+      "scim",
+      "provisioning",
+      "deprovisioning",
+      "directory sync",
+      "okta push",
+      "entra provisioning",
+      "group mapping",
+      "identity lifecycle"
+    ],
+    "handoffs": [
+      {
+        "to": "identity-access-management",
+        "trigger": "Need canonical principal IDs, membership state, or machine identity boundaries"
+      },
+      {
+        "to": "rbac-enterprise",
+        "trigger": "Need group-to-role mapping and scoped authorization design"
+      },
+      {
+        "to": "sso-saml",
+        "trigger": "Need federation and provisioning to align on the same tenant identity model"
+      }
+    ],
     "pairsWell": []
   },
   {
@@ -6360,15 +6459,93 @@
     "pairsWell": []
   },
   {
+    "id": "api-security",
+    "name": "API Security",
+    "description": "Secure API design and defense covering authentication, authorization, request validation, replay protection, rate limiting, and common abuse paths in public and internal APIs.",
+    "category": "security",
+    "tier": "free",
+    "layer": 1,
+    "tags": [
+      "authentication",
+      "authorization",
+      "patterns",
+      "apis",
+      "bola",
+      "idor",
+      "broken-function-level",
+      "prevention",
+      "schema",
+      "validation"
+    ],
+    "triggers": [
+      "api security",
+      "bola",
+      "idor",
+      "request signing",
+      "replay attack",
+      "api auth",
+      "webhook signature",
+      "api abuse prevention"
+    ],
+    "handoffs": [
+      {
+        "to": "api-design",
+        "trigger": "Need broader resource modeling, pagination, versioning, or DX decisions"
+      },
+      {
+        "to": "auth-specialist",
+        "trigger": "Need OAuth, JWT, session, or credential-flow implementation detail"
+      },
+      {
+        "to": "threat-modeling",
+        "trigger": "Need attacker-path analysis across a larger system than one API surface"
+      }
+    ],
+    "pairsWell": []
+  },
+  {
     "id": "audit-logging",
     "name": "Audit Logging",
     "description": "Tamper-resistant audit logging for security-sensitive product actions, admin activity, identity changes, and compliance-grade operational traceability.",
     "category": "security",
     "tier": "free",
     "layer": 1,
-    "tags": [],
-    "triggers": [],
-    "handoffs": [],
+    "tags": [
+      "audit",
+      "event",
+      "schema",
+      "actor",
+      "action",
+      "target",
+      "context",
+      "tamper-resistant",
+      "storage",
+      "retention"
+    ],
+    "triggers": [
+      "audit logging",
+      "audit trail",
+      "immutable logs",
+      "admin activity log",
+      "security events",
+      "compliance logs",
+      "who changed what",
+      "tamper resistant logging"
+    ],
+    "handoffs": [
+      {
+        "to": "identity-access-management",
+        "trigger": "Need actor identity, membership, or machine identity semantics"
+      },
+      {
+        "to": "compliance-automation",
+        "trigger": "Need control evidence, retention policy, or audit export workflows"
+      },
+      {
+        "to": "security-engineer",
+        "trigger": "Need broader incident response or security control design around the logs"
+      }
+    ],
     "pairsWell": []
   },
   {
@@ -6417,6 +6594,51 @@
     "tags": [],
     "triggers": [],
     "handoffs": [],
+    "pairsWell": []
+  },
+  {
+    "id": "container-security",
+    "name": "Container Security",
+    "description": "Container security for image hardening, runtime isolation, secret safety, registry policy, and Kubernetes or container deployment risk reduction.",
+    "category": "security",
+    "tier": "free",
+    "layer": 1,
+    "tags": [
+      "base",
+      "image",
+      "trust",
+      "hardening",
+      "strategy",
+      "non-root",
+      "execution",
+      "privilege",
+      "reduction",
+      "secret"
+    ],
+    "triggers": [
+      "container security",
+      "docker security",
+      "image hardening",
+      "non-root container",
+      "container runtime",
+      "registry scanning",
+      "pod security",
+      "container escape"
+    ],
+    "handoffs": [
+      {
+        "to": "docker-containerization",
+        "trigger": "Need broader Docker build optimization and multi-stage authoring patterns"
+      },
+      {
+        "to": "kubernetes-deployment",
+        "trigger": "Need deployment rollout, Helm, or cluster operations implementation detail"
+      },
+      {
+        "to": "secrets-management",
+        "trigger": "Need secret rotation and storage policy beyond container injection mechanics"
+      }
+    ],
     "pairsWell": []
   },
   {
@@ -6474,9 +6696,42 @@
     "category": "security",
     "tier": "free",
     "layer": 1,
-    "tags": [],
-    "triggers": [],
-    "handoffs": [],
+    "tags": [
+      "principal",
+      "model",
+      "users",
+      "orgs",
+      "teams",
+      "service",
+      "accounts",
+      "authentication",
+      "versus",
+      "authorization"
+    ],
+    "triggers": [
+      "iam",
+      "identity access management",
+      "permissions model",
+      "service accounts",
+      "least privilege",
+      "role mapping",
+      "principal model",
+      "authorization boundary"
+    ],
+    "handoffs": [
+      {
+        "to": "auth-specialist",
+        "trigger": "Need implementation detail for OAuth, sessions, MFA, or credential flows"
+      },
+      {
+        "to": "rbac-enterprise",
+        "trigger": "Need enterprise-grade role hierarchy, scoped roles, or permission matrix design"
+      },
+      {
+        "to": "compliance-automation",
+        "trigger": "Need evidence controls, access review workflows, or regulated access policies"
+      }
+    ],
     "pairsWell": []
   },
   {
@@ -6510,9 +6765,42 @@
     "category": "security",
     "tier": "free",
     "layer": 1,
-    "tags": [],
-    "triggers": [],
-    "handoffs": [],
+    "tags": [
+      "secret",
+      "storage",
+      "systems",
+      "access",
+      "boundary",
+      "design",
+      "credential",
+      "rotation",
+      "workflows",
+      "expiry"
+    ],
+    "triggers": [
+      "secrets management",
+      "secret rotation",
+      "vault",
+      "aws secrets manager",
+      "environment secrets",
+      "api key leak",
+      "credential rotation",
+      "secret injection"
+    ],
+    "handoffs": [
+      {
+        "to": "identity-access-management",
+        "trigger": "Need machine identity boundaries or service-account trust design"
+      },
+      {
+        "to": "compliance-automation",
+        "trigger": "Need evidence collection for rotation, access review, or policy enforcement"
+      },
+      {
+        "to": "security-engineer",
+        "trigger": "Need broader application-hardening decisions beyond credential lifecycle"
+      }
+    ],
     "pairsWell": []
   },
   {
@@ -6564,15 +6852,93 @@
     "pairsWell": []
   },
   {
+    "id": "supply-chain-security",
+    "name": "Supply Chain Security",
+    "description": "Software supply chain security for dependencies, build integrity, provenance, artifact trust, CI hardening, and third-party component risk management.",
+    "category": "security",
+    "tier": "free",
+    "layer": 1,
+    "tags": [
+      "dependency",
+      "trust",
+      "update",
+      "policy",
+      "confusion",
+      "package",
+      "source",
+      "control",
+      "build",
+      "provenance"
+    ],
+    "triggers": [
+      "supply chain security",
+      "dependency security",
+      "artifact signing",
+      "provenance",
+      "sbom",
+      "build integrity",
+      "github actions security",
+      "dependency confusion"
+    ],
+    "handoffs": [
+      {
+        "to": "container-security",
+        "trigger": "Need image-specific hardening, registry policy, or runtime controls"
+      },
+      {
+        "to": "secrets-management",
+        "trigger": "Need credential handling for CI, registries, or signing keys"
+      },
+      {
+        "to": "compliance-automation",
+        "trigger": "Need evidence trails, control mapping, or policy enforcement at scale"
+      }
+    ],
+    "pairsWell": []
+  },
+  {
     "id": "threat-modeling",
     "name": "Threat Modeling",
     "description": "Practical threat modeling for product, API, infra, and AI systems using trust boundaries, abuse cases, attacker thinking, and backlog-ready mitigations.",
     "category": "security",
     "tier": "free",
     "layer": 1,
-    "tags": [],
-    "triggers": [],
-    "handoffs": [],
+    "tags": [
+      "threat-modeling",
+      "workflow",
+      "facilitation",
+      "trust",
+      "boundary",
+      "identification",
+      "product",
+      "infra",
+      "systems",
+      "abuse"
+    ],
+    "triggers": [
+      "threat model",
+      "threat modeling",
+      "stride",
+      "attack tree",
+      "abuse case",
+      "trust boundary",
+      "security design review",
+      "attacker mindset"
+    ],
+    "handoffs": [
+      {
+        "to": "security-engineer",
+        "trigger": "Need concrete secure implementation work after risks are identified"
+      },
+      {
+        "to": "api-security",
+        "trigger": "The main attack surface is public or internal APIs and request flows"
+      },
+      {
+        "to": "ai-code-security",
+        "trigger": "Threat model needs LLM-specific abuse cases, prompt injection, or tool misuse analysis"
+      }
+    ],
     "pairsWell": []
   },
   {

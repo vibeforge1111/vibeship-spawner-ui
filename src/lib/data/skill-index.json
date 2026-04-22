@@ -1,6 +1,6 @@
 {
   "version": "2.0.0",
-  "totalSkills": 600,
+  "totalSkills": 603,
   "domains": {
     "game": [
       {
@@ -1579,6 +1579,32 @@
         ]
       },
       {
+        "id": "container-security",
+        "kw": [
+          "container",
+          "security",
+          "image",
+          "kubernetes",
+          "base",
+          "trust",
+          "non",
+          "root"
+        ]
+      },
+      {
+        "id": "supply-chain-security",
+        "kw": [
+          "supply",
+          "chain",
+          "security",
+          "ci",
+          "component",
+          "dependency",
+          "trust",
+          "and"
+        ]
+      },
+      {
         "id": "blockchain-web3",
         "kw": [
           "blockchain",
@@ -2386,6 +2412,19 @@
           "resource",
           "uri",
           "patterns"
+        ]
+      },
+      {
+        "id": "api-security",
+        "kw": [
+          "api",
+          "security",
+          "authentication",
+          "and",
+          "authorization",
+          "bola",
+          "idor",
+          "schema"
         ]
       }
     ],
@@ -14008,6 +14047,19 @@
       ]
     },
     {
+      "id": "api-security",
+      "kw": [
+        "api",
+        "security",
+        "authentication",
+        "and",
+        "authorization",
+        "bola",
+        "idor",
+        "schema"
+      ]
+    },
+    {
       "id": "audit-logging",
       "kw": [
         "audit",
@@ -14070,6 +14122,19 @@
         "continuous",
         "monitoring",
         "automated"
+      ]
+    },
+    {
+      "id": "container-security",
+      "kw": [
+        "container",
+        "security",
+        "image",
+        "kubernetes",
+        "base",
+        "trust",
+        "non",
+        "root"
       ]
     },
     {
@@ -14213,6 +14278,19 @@
         "level",
         "uid",
         "based"
+      ]
+    },
+    {
+      "id": "supply-chain-security",
+      "kw": [
+        "supply",
+        "chain",
+        "security",
+        "ci",
+        "component",
+        "dependency",
+        "trust",
+        "and"
       ]
     },
     {

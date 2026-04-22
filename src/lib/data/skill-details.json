@@ -19693,6 +19693,46 @@
       }
     ]
   },
+  "api-security": {
+    "id": "api-security",
+    "name": "API Security",
+    "description": "Secure API design and defense covering authentication, authorization, request validation, replay protection, rate limiting, and common abuse paths in public and internal APIs.",
+    "owns": [
+      "Authentication and authorization patterns for APIs",
+      "BOLA, IDOR, and broken-function-level authorization prevention",
+      "Schema validation and request normalization",
+      "Request signing and replay protection",
+      "API key, token, and secret handling for integrations",
+      "Webhook verification and partner callback security",
+      "Abuse controls including quotas, rate limits, and anti-enumeration design",
+      "API-specific security testing and rollout guardrails"
+    ],
+    "triggers": [
+      "api security",
+      "bola",
+      "idor",
+      "request signing",
+      "replay attack",
+      "api auth",
+      "webhook signature",
+      "api abuse prevention"
+    ],
+    "category": "security",
+    "delegates": [
+      {
+        "skill": "api-design",
+        "when": "Need broader resource modeling, pagination, versioning, or DX decisions"
+      },
+      {
+        "skill": "auth-specialist",
+        "when": "Need OAuth, JWT, session, or credential-flow implementation detail"
+      },
+      {
+        "skill": "threat-modeling",
+        "when": "Need attacker-path analysis across a larger system than one API surface"
+      }
+    ]
+  },
   "audit-logging": {
     "id": "audit-logging",
     "name": "Audit Logging",
@@ -19884,6 +19924,46 @@
       {
         "skill": "authentication-oauth",
         "when": "Access control policies and identity management"
+      }
+    ]
+  },
+  "container-security": {
+    "id": "container-security",
+    "name": "Container Security",
+    "description": "Container security for image hardening, runtime isolation, secret safety, registry policy, and Kubernetes or container deployment risk reduction.",
+    "owns": [
+      "Base image trust and image hardening strategy",
+      "Non-root execution and privilege reduction",
+      "Secret exposure prevention in images and runtime",
+      "Filesystem, capability, and syscall hardening",
+      "Registry policy, image scanning, and admission expectations",
+      "Container runtime risk and escape-aware design",
+      "Security defaults for Kubernetes and orchestrated workloads",
+      "Operational response to vulnerable or compromised images"
+    ],
+    "triggers": [
+      "container security",
+      "docker security",
+      "image hardening",
+      "non-root container",
+      "container runtime",
+      "registry scanning",
+      "pod security",
+      "container escape"
+    ],
+    "category": "security",
+    "delegates": [
+      {
+        "skill": "docker-containerization",
+        "when": "Need broader Docker build optimization and multi-stage authoring patterns"
+      },
+      {
+        "skill": "kubernetes-deployment",
+        "when": "Need deployment rollout, Helm, or cluster operations implementation detail"
+      },
+      {
+        "skill": "secrets-management",
+        "when": "Need secret rotation and storage policy beyond container injection mechanics"
       }
     ]
   },
@@ -20308,6 +20388,46 @@
       {
         "skill": "api-design",
         "when": "API endpoint design beyond Supabase client queries"
+      }
+    ]
+  },
+  "supply-chain-security": {
+    "id": "supply-chain-security",
+    "name": "Supply Chain Security",
+    "description": "Software supply chain security for dependencies, build integrity, provenance, artifact trust, CI hardening, and third-party component risk management.",
+    "owns": [
+      "Dependency trust and update policy",
+      "Dependency confusion and package source control",
+      "Build provenance, artifact signing, and release integrity",
+      "CI pipeline hardening and third-party action risk",
+      "SBOM generation and use in response workflows",
+      "Lockfile discipline and deterministic builds",
+      "Artifact repository trust boundaries and publish controls",
+      "Incident response for compromised packages or build systems"
+    ],
+    "triggers": [
+      "supply chain security",
+      "dependency security",
+      "artifact signing",
+      "provenance",
+      "sbom",
+      "build integrity",
+      "github actions security",
+      "dependency confusion"
+    ],
+    "category": "security",
+    "delegates": [
+      {
+        "skill": "container-security",
+        "when": "Need image-specific hardening, registry policy, or runtime controls"
+      },
+      {
+        "skill": "secrets-management",
+        "when": "Need credential handling for CI, registries, or signing keys"
+      },
+      {
+        "skill": "compliance-automation",
+        "when": "Need evidence trails, control mapping, or policy enforcement at scale"
       }
     ]
   },
