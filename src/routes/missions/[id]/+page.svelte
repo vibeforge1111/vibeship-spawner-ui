@@ -36,9 +36,20 @@
 		missionName: string | null;
 		taskId: string | null;
 		taskName: string | null;
+		taskSkills?: string[];
 		summary: string;
 		timestamp: string;
 		source: string;
+	};
+
+	type TaskRollup = {
+		key: string;
+		title: string;
+		skills: string[];
+		status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+		startedAt: string;
+		updatedAt: string;
+		lastSummary: string;
 	};
 
 	type MissionControlSnapshot = {
@@ -256,20 +267,34 @@
 			{@const latest = recentDesc[0]}
 			{@const earliest = chronological[0]}
 			{@const sparkName = chronological.find((e) => e.missionName)?.missionName ?? missionId}
-			{@const events = (() => {
-				const groups: Array<{ key: string; eventType: string; timestamp: string; source: string; items: typeof chronological }> = [];
+			{@const taskRollups = (() => {
+				const map = new Map<string, TaskRollup>();
 				for (const ev of chronological) {
-					const last = groups[groups.length - 1];
-					const isTask = ev.eventType.startsWith('task_');
-					// Collapse same-type task events that fire within 5s of each other.
-					if (last && isTask && last.eventType === ev.eventType && Math.abs(Date.parse(ev.timestamp) - Date.parse(last.items[last.items.length - 1].timestamp)) < 5000) {
-						last.items.push(ev);
-					} else {
-						groups.push({ key: ev.timestamp + '-' + ev.eventType, eventType: ev.eventType, timestamp: ev.timestamp, source: ev.source, items: [ev] });
+					if (!ev.taskName && !ev.taskId) continue;
+					const key = ev.taskId ?? ev.taskName ?? 'task';
+					if (!map.has(key)) {
+						map.set(key, {
+							key,
+							title: ev.taskName ?? key,
+							skills: ev.taskSkills ?? [],
+							status: 'pending',
+							startedAt: ev.timestamp,
+							updatedAt: ev.timestamp,
+							lastSummary: ev.summary
+						});
 					}
+					const t = map.get(key)!;
+					t.updatedAt = ev.timestamp;
+					t.lastSummary = ev.summary;
+					if (ev.taskSkills && ev.taskSkills.length > 0 && t.skills.length === 0) t.skills = ev.taskSkills;
+					if (ev.eventType === 'task_started') t.status = 'running';
+					else if (ev.eventType === 'task_completed') t.status = 'completed';
+					else if (ev.eventType === 'task_failed') t.status = 'failed';
+					else if (ev.eventType === 'task_cancelled') t.status = 'cancelled';
 				}
-				return groups;
+				return [...map.values()];
 			})()}
+			{@const missionEvents = chronological.filter((e) => e.eventType.startsWith('mission_'))}
 			{@const sparkStatus = latest.eventType.startsWith('mission_') ? latest.eventType.replace('mission_', '') : 'in progress'}
 
 			<!-- Spark mission detail: MCP has no record but relay tracked the lifecycle -->
@@ -280,42 +305,63 @@
 					<span class="px-2 py-0.5 text-[10px] font-mono rounded-sm border {getStatusBadge(sparkStatus as Mission['status']) ?? 'border-surface-border text-text-tertiary'}">{sparkStatus}</span>
 				</div>
 				<p class="font-mono text-xs text-text-tertiary">
-					{missionId} · started {new Date(earliest.timestamp).toLocaleString()} · {events.length} event{events.length !== 1 ? 's' : ''}
+					{missionId} · started {new Date(earliest.timestamp).toLocaleString()} · {taskRollups.length} task{taskRollups.length !== 1 ? 's' : ''}
 				</p>
 			</div>
 
-			<div class="border border-surface-border rounded-lg bg-bg-secondary">
-				<div class="px-5 py-3 border-b border-surface-border flex items-center justify-between">
-					<h2 class="font-mono text-xs font-semibold text-text-bright tracking-wide">Event timeline</h2>
-					<span class="font-mono text-[10px] text-text-tertiary">
-						sparkIngest: {missionControl.enabled.sparkIngest ? 'on' : 'off'} · webhooks: {missionControl.targets.webhookCount}
-					</span>
-				</div>
-				<ol class="divide-y divide-surface-border/50">
-					{#each events as group (group.key)}
-						{@const head = group.items[0]}
-						{@const multi = group.items.length > 1}
-						{@const taskLabels = group.items.map((it) => it.taskName).filter(Boolean).join(', ')}
-						<li class="px-5 py-3 flex items-start gap-3">
-							<span class="w-1.5 h-1.5 rounded-full mt-2 shrink-0 {group.eventType.endsWith('_failed') ? 'bg-status-error' : group.eventType.endsWith('_completed') ? 'bg-status-success' : group.eventType.endsWith('_started') ? 'bg-accent-primary' : 'bg-text-tertiary'}"></span>
-							<div class="flex-1 min-w-0">
-								<div class="flex items-center gap-2 flex-wrap">
-									<span class="font-mono text-xs font-medium text-text-primary">{group.eventType}</span>
-									{#if multi}
-										<span class="font-mono text-[10px] text-text-tertiary">· {group.items.length} tasks{taskLabels ? `: ${taskLabels}` : ''}</span>
-									{:else if head.taskName}
-										<span class="font-mono text-[10px] text-text-tertiary">· task: {head.taskName}</span>
-									{/if}
+			<!-- Per-task cards -->
+			{#if taskRollups.length > 0}
+				<div class="mb-6">
+					<h2 class="font-mono text-xs font-semibold text-text-bright tracking-wide mb-3">Tasks</h2>
+					<div class="grid gap-3">
+						{#each taskRollups as task (task.key)}
+							{@const dot = task.status === 'failed' ? 'bg-status-error' : task.status === 'completed' ? 'bg-status-success' : task.status === 'running' ? 'bg-accent-primary animate-pulse' : task.status === 'cancelled' ? 'bg-text-faint' : 'bg-text-tertiary'}
+							<article class="px-4 py-3.5 rounded-lg border border-surface-border bg-bg-secondary">
+								<div class="flex items-center gap-2 mb-2">
+									<span class="w-1.5 h-1.5 rounded-full shrink-0 {dot}"></span>
+									<h3 class="font-sans text-sm font-semibold text-text-primary leading-tight flex-1">{task.title}</h3>
+									<span class="font-mono text-[10px] text-text-tertiary uppercase tracking-wider">{task.status}</span>
 								</div>
-								<p class="font-mono text-[11px] text-text-secondary mt-0.5">{head.summary}</p>
-								<p class="font-mono text-[10px] text-text-faint mt-0.5">
-									{new Date(group.timestamp).toLocaleString()} · {group.source}
+								{#if task.skills.length > 0}
+									<div class="flex items-center gap-1 flex-wrap mb-2 pl-3.5">
+										{#each task.skills as skill}
+											<span class="px-1.5 py-px text-[9px] font-mono rounded-full text-text-tertiary bg-bg-primary/60 border border-surface-border/70">{skill}</span>
+										{/each}
+									</div>
+								{/if}
+								<p class="font-mono text-[10px] text-text-faint pl-3.5">
+									{new Date(task.startedAt).toLocaleTimeString()}{task.updatedAt !== task.startedAt ? ` → ${new Date(task.updatedAt).toLocaleTimeString()}` : ''}
 								</p>
-							</div>
-						</li>
-					{/each}
-				</ol>
-			</div>
+							</article>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			<!-- Compact mission-level events -->
+			{#if missionEvents.length > 0}
+				<div class="border border-surface-border rounded-lg bg-bg-secondary">
+					<div class="px-5 py-3 border-b border-surface-border flex items-center justify-between">
+						<h2 class="font-mono text-xs font-semibold text-text-bright tracking-wide">Mission events</h2>
+						<span class="font-mono text-[10px] text-text-tertiary">
+							sparkIngest: {missionControl.enabled.sparkIngest ? 'on' : 'off'} · webhooks: {missionControl.targets.webhookCount}
+						</span>
+					</div>
+					<ol class="divide-y divide-surface-border/50">
+						{#each missionEvents as ev (ev.timestamp + '-' + ev.eventType)}
+							<li class="px-5 py-2.5 flex items-start gap-3">
+								<span class="w-1.5 h-1.5 rounded-full mt-2 shrink-0 {ev.eventType.endsWith('_failed') ? 'bg-status-error' : ev.eventType.endsWith('_completed') ? 'bg-status-success' : ev.eventType.endsWith('_started') ? 'bg-accent-primary' : 'bg-text-tertiary'}"></span>
+								<div class="flex-1 min-w-0">
+									<span class="font-mono text-xs font-medium text-text-primary">{ev.eventType}</span>
+									<p class="font-mono text-[10px] text-text-faint">
+										{new Date(ev.timestamp).toLocaleString()} · {ev.source}
+									</p>
+								</div>
+							</li>
+						{/each}
+					</ol>
+				</div>
+			{/if}
 
 			<p class="mt-4 font-mono text-[11px] text-text-tertiary">
 				This mission was dispatched through <code class="text-accent-primary">/api/spark/run</code> — it doesn't exist in MCP, so full task/agent detail isn't available.
