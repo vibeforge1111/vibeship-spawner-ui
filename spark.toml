@@ -1,0 +1,70 @@
+[module]
+name = "spawner-ui"
+version = "0.0.1"
+kind = "app"
+plane = "execution"
+description = "Spark execution plane and local dashboard"
+homepage = "https://github.com/spark/spawner-ui"
+license = "UNLICENSED"
+
+[runtime]
+kind = "node"
+version = ">=22"
+package_manager = "npm"
+lockfile = "package-lock.json"
+
+[install.dev]
+commands = ["npm ci"]
+
+[provides]
+capabilities = [
+  "mission.execution",
+  "mission.dashboard",
+]
+
+[needs]
+modules = []
+capabilities = []
+secrets = []
+
+[claims]
+secrets = []
+ports = [5173]
+routes = [
+  "http.api.providers",
+  "http.api.spark.run",
+  "http.api.mission-control.board",
+  "http.api.mission-control.command",
+]
+
+[run.default]
+command = "npm run dev"
+cwd = "."
+ready_check = "http://127.0.0.1:5173/api/providers"
+
+[healthcheck]
+command = "npm run health:spark"
+timeout_seconds = 20
+success_hint = "Spawner UI execution plane is healthy."
+failure_hint = "Run `npm run health:spark` in the module home for the repair detail."
+
+[config]
+format = "env"
+output = ".env"
+installer_owned = true
+
+[paths]
+home = "~/.spark/modules/spawner-ui"
+state = "~/.spark/state/spawner-ui"
+logs = "~/.spark/logs/spawner-ui"
+
+[profiles.telegram_starter]
+role = "execution-plane"
+owns = [
+  "mission.execution",
+  "mission.dashboard",
+]
+does_not_own = [
+  "telegram.ingress",
+  "telegram.bot_token",
+]
