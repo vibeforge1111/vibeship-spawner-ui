@@ -243,7 +243,7 @@
   },
   {
     "id": "multimodal-ai",
-    "desc": "",
+    "desc": "Production multimodal systems for text, image, audio, and document workflows with cost control, prep",
     "owns": [
       "Vision API integration (GPT-4o, Claude, Gemini)",
       "Audio transcription pipelines (Whisper, AssemblyAI)",
@@ -276,7 +276,7 @@
   },
   {
     "id": "on-device-ai",
-    "desc": "",
+    "desc": "Browser and edge on-device AI with WebGPU and WASM inference, quantization, caching, and offline-fir",
     "owns": [
       "Browser-based ML inference (WebGPU, WASM, WebGL backends)",
       "Transformers.js, WebLLM, ONNX Runtime Web implementations",
@@ -397,7 +397,7 @@
   },
   {
     "id": "agent-memory-systems",
-    "desc": "",
+    "desc": "Persistent memory architectures for AI agents across short-term, semantic, episodic, and long-term r",
     "owns": [
       "Agent memory architecture (short-term, long-term, working memory)",
       "Memory type selection (semantic, episodic, procedural per CoALA)",
@@ -430,7 +430,7 @@
   },
   {
     "id": "autonomous-agents",
-    "desc": "",
+    "desc": "Autonomous agent loops with planning, reflection, guardrails, checkpoints, and human interrupt contr",
     "owns": [
       "Autonomous agent architecture and loops (ReAct, Plan-Execute)",
       "Goal decomposition and task planning",
@@ -562,7 +562,7 @@
   },
   {
     "id": "voice-agents",
-    "desc": "",
+    "desc": "Production voice agent systems with STT, TTS, turn-taking, interruption handling, realtime APIs, and",
     "owns": [
       "Voice agent architecture (S2S vs pipeline decisions)",
       "Speech-to-text integration (Whisper, Deepgram, AssemblyAI)",
@@ -826,7 +826,7 @@
   },
   {
     "id": "microservices-patterns",
-    "desc": "",
+    "desc": "Battle-tested microservices architecture covering service boundaries, async communication, resilienc",
     "owns": [
       "Service decomposition and bounded context design",
       "Inter-service communication patterns (sync and async)",
@@ -881,7 +881,7 @@
   },
   {
     "id": "presence-indicators",
-    "desc": "",
+    "desc": "Real-time presence systems for online status, typing indicators, last-seen tracking, privacy control",
     "owns": [
       "WebSocket heartbeat and keep-alive configuration",
       "Presence channel management (Supabase Realtime, Socket.io)",
@@ -892,7 +892,7 @@
   },
   {
     "id": "prisma",
-    "desc": "",
+    "desc": "Type-safe Prisma schema design, migrations, queries, transactions, and serverless-safe performance o",
     "owns": [
       "Prisma schema design and data modeling",
       "Database migrations and schema evolution",
@@ -903,7 +903,7 @@
   },
   {
     "id": "push-notifications",
-    "desc": "",
+    "desc": "Web and mobile push notification systems covering service workers, FCM and VAPID, delivery UX, and s",
     "owns": [
       "Web Push API implementation and browser compatibility",
       "Service worker registration and lifecycle management",
@@ -936,7 +936,7 @@
   },
   {
     "id": "queue-workers",
-    "desc": "",
+    "desc": "Reliable background job systems with queues, retries, DLQs, idempotency, scheduling, and worker obse",
     "owns": [
       "BullMQ/Redis job queue architecture and configuration",
       "Worker pool management, concurrency, and scaling",
@@ -947,7 +947,7 @@
   },
   {
     "id": "rate-limiting",
-    "desc": "",
+    "desc": "Distributed rate limiting and throttling with quota design, Redis-backed enforcement, abuse preventi",
     "owns": [
       "Rate limiting algorithm selection (token bucket, sliding window, fixed window)",
       "Distributed rate limiting with Redis (Lua scripts, atomicity, consistency)",
@@ -958,7 +958,7 @@
   },
   {
     "id": "realtime-chat-systems",
-    "desc": "",
+    "desc": "Production real-time chat backends with WebSockets, presence, persistence, unread state, moderation,",
     "owns": [
       "WebSocket connection management and reconnection strategies",
       "Supabase Realtime channel configuration and presence",
@@ -1024,7 +1024,7 @@
   },
   {
     "id": "social-features",
-    "desc": "",
+    "desc": "Backend systems for likes, follows, feeds, notifications, ranking, and social graph queries at scale",
     "owns": [
       "Follow/unfollow system with bidirectional relationship tracking",
       "Like, bookmark, and reaction systems with count consistency",
@@ -1123,7 +1123,7 @@
   },
   {
     "id": "websockets-realtime",
-    "desc": "",
+    "desc": "WebSocket and SSE infrastructure for real-time apps with reconnection, scaling, auth, message orderi",
     "owns": [
       "WebSocket server architecture and connection lifecycle",
       "Server-Sent Events (SSE) for unidirectional real-time",
@@ -1167,7 +1167,7 @@
   },
   {
     "id": "drug-discovery-informatics",
-    "desc": "",
+    "desc": "Computational drug discovery workflows covering virtual screening, docking, ADMET, SAR, QSAR, and le",
     "owns": [
       "Virtual screening campaigns (structure-based and ligand-based)",
       "Molecular docking and pose prediction",
@@ -1365,7 +1365,7 @@
   },
   {
     "id": "rwa-tokenization",
-    "desc": "",
+    "desc": "Real-world asset tokenization systems with compliance-aware security tokens, transfer controls, on-c",
     "owns": [
       "Security token architecture and ERC-3643 (T-REX) implementation",
       "Transfer restriction logic and modular compliance modules",
@@ -3037,7 +3037,7 @@
   },
   {
     "id": "plausible-analytics",
-    "desc": "",
+    "desc": "Privacy-first analytics implementation with Plausible or Umami, custom events, attribution, self-hos",
     "owns": [
       "Plausible and Umami SDK setup and configuration",
       "Custom event tracking for goal conversions and funnels",
@@ -3081,7 +3081,7 @@
   },
   {
     "id": "sentry-error-tracking",
-    "desc": "",
+    "desc": "Sentry setup and production monitoring for errors, traces, releases, session replay, alerting, and p",
     "owns": [
       "Sentry SDK initialization (Next.js, React, Node.js, Edge)",
       "Source map upload and release management",
@@ -3125,7 +3125,7 @@
   },
   {
     "id": "digital-product-delivery",
-    "desc": "",
+    "desc": "Secure fulfillment for digital products with signed downloads, license keys, post-purchase access co",
     "owns": [
       "License key generation with collision prevention",
       "Secure download links (signed URLs with expiration)",
@@ -3136,7 +3136,7 @@
   },
   {
     "id": "ecommerce-cart-checkout",
-    "desc": "",
+    "desc": "Cart and checkout architecture for ecommerce with persistence, stock validation, tax and shipping lo",
     "owns": [
       "Cart state management (client-side, server-side, hybrid)",
       "Cart persistence across sessions and devices",
@@ -3587,7 +3587,7 @@
   },
   {
     "id": "image-optimization-cdn",
-    "desc": "",
+    "desc": "Image delivery pipelines with responsive assets, CDN transforms, modern formats, caching, and Core W",
     "owns": [
       "Next.js Image component configuration and optimization",
       "Responsive image strategy (srcset, sizes, art direction)",
@@ -4346,7 +4346,7 @@
   },
   {
     "id": "headless-cms-integration",
-    "desc": "",
+    "desc": "Headless CMS integration patterns for structured content, previews, ISR and revalidation, localizati",
     "owns": [
       "Headless CMS selection and integration (Sanity, Contentful, Strapi)",
       "Content modeling and schema design for structured content",
@@ -4445,7 +4445,7 @@
   },
   {
     "id": "resend-email",
-    "desc": "",
+    "desc": "Transactional email with Resend and React Email, domain authentication, deliverability, webhooks, an",
     "owns": [
       "Resend SDK setup and API key management",
       "React Email template design and rendering",
@@ -4566,7 +4566,7 @@
   },
   {
     "id": "video-embedding-streaming",
-    "desc": "",
+    "desc": "Video platform integration and streaming delivery with embeds, HLS and DASH, uploads, captions, anal",
     "owns": [
       "Video platform selection and integration (Mux, Cloudflare Stream)",
       "YouTube and Vimeo embed optimization and privacy-compliant embedding",
@@ -5225,6 +5225,17 @@
     ]
   },
   {
+    "id": "audit-logging",
+    "desc": "Tamper-resistant audit logging for security-sensitive product actions, admin activity, identity chan",
+    "owns": [
+      "Audit event schema for actor, action, target, and context",
+      "Tamper-resistant storage and retention expectations",
+      "Coverage of security-sensitive and admin workflows",
+      "Correlation between product events and supporting system context",
+      "Sensitive field redaction within audit records"
+    ]
+  },
+  {
     "id": "auth-specialist",
     "desc": "Authentication and authorization expert for OAuth, sessions, JWT, MFA, and identity security",
     "owns": [
@@ -5302,6 +5313,17 @@
     ]
   },
   {
+    "id": "identity-access-management",
+    "desc": "Enterprise identity and access architecture for users, orgs, service accounts, permissions, and leas",
+    "owns": [
+      "Principal model for users, orgs, teams, and service accounts",
+      "Authentication versus authorization boundary definition",
+      "Permission vocabulary and action-resource modeling",
+      "Membership lifecycle and org/account state transitions",
+      "Least-privilege defaults and privileged access escalation paths"
+    ]
+  },
+  {
     "id": "passkeys-webauthn",
     "desc": "Passwordless authentication with WebAuthn and passkeys including registration, authentication, cross",
     "owns": [
@@ -5321,6 +5343,17 @@
       "Output validation and filtering",
       "Jailbreak and injection detection",
       "Defense in depth architecture for LLM applications"
+    ]
+  },
+  {
+    "id": "secrets-management",
+    "desc": "Secure secret storage, rotation, access control, injection, and leak recovery patterns for applicati",
+    "owns": [
+      "Secret storage systems and access boundary design",
+      "Credential rotation workflows and expiry policy",
+      "Runtime secret injection for apps, jobs, and CI",
+      "Local development secret hygiene",
+      "Least-privilege access to secrets by workload"
     ]
   },
   {
@@ -5365,6 +5398,17 @@
       "Service role vs anon key usage patterns",
       "Magic link authentication setup",
       "Social provider configuration (Google, GitHub, etc.)"
+    ]
+  },
+  {
+    "id": "threat-modeling",
+    "desc": "Practical threat modeling for product, API, infra, and AI systems using trust boundaries, abuse case",
+    "owns": [
+      "Threat-modeling workflow and facilitation",
+      "Trust boundary identification across product, infra, and AI systems",
+      "Abuse case generation and attacker-path analysis",
+      "STRIDE-style categorization without cargo-culting the framework",
+      "Attack-tree and failure-scenario decomposition"
     ]
   },
   {
@@ -6333,6 +6377,39 @@
       "Competitive positioning and differentiation",
       "Value proposition definition",
       "Problem discovery and validation"
+    ]
+  },
+  {
+    "id": "rbac-enterprise",
+    "desc": "Enterprise-grade role-based access control with permission matrices, scoped roles, inheritance, admi",
+    "owns": [
+      "Role design and permission matrix construction",
+      "Scoped roles across org, project, team, and resource boundaries",
+      "Role inheritance and override semantics",
+      "Custom role governance and role explosion prevention",
+      "Admin boundary design for support, billing, and security workflows"
+    ]
+  },
+  {
+    "id": "scim-provisioning",
+    "desc": "SCIM provisioning and deprovisioning systems for enterprise identity lifecycle sync, group mapping, ",
+    "owns": [
+      "SCIM user and group endpoint behavior",
+      "External directory to internal identity mapping",
+      "Provisioning, update, suspend, and deprovision lifecycle semantics",
+      "Idempotency and retry-safe SCIM handlers",
+      "Group-to-role and org-assignment mapping"
+    ]
+  },
+  {
+    "id": "sso-saml",
+    "desc": "Production SAML SSO implementation for enterprise apps including IdP/SP configuration, assertion val",
+    "owns": [
+      "SAML tenant configuration and identity-provider onboarding",
+      "SP-initiated and IdP-initiated login flow design",
+      "Assertion, audience, issuer, and signature validation",
+      "ACS routing and tenant-safe callback handling",
+      "JIT provisioning guardrails and account linking"
     ]
   },
   {

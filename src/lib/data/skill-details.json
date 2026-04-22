@@ -499,7 +499,20 @@
       "character drift"
     ],
     "category": "ai",
-    "delegates": []
+    "delegates": [
+      {
+        "skill": "ai-image-generation",
+        "when": "New still images need to be generated after style and character constraints are locked"
+      },
+      {
+        "skill": "ai-video-generation",
+        "when": "Consistency requirements need to carry across multiple shots or animation frames"
+      },
+      {
+        "skill": "branding",
+        "when": "The work expands from asset consistency into brand identity systems and guidelines"
+      }
+    ]
   },
   "causal-scientist": {
     "id": "causal-scientist",
@@ -832,7 +845,20 @@
       "token optimization"
     ],
     "category": "ai",
-    "delegates": []
+    "delegates": [
+      {
+        "skill": "vector-specialist",
+        "when": "Retrieval quality, chunking, embeddings, or vector index design becomes the bottleneck"
+      },
+      {
+        "skill": "ml-memory",
+        "when": "The system needs persistent cross-session memory or hierarchical recall instead of plain RAG"
+      },
+      {
+        "skill": "privacy-guardian",
+        "when": "Prompt pipelines touch regulated data, PII, or high-risk retention requirements"
+      }
+    ]
   },
   "llm-fine-tuning": {
     "id": "llm-fine-tuning",
@@ -897,7 +923,20 @@
       "entity resolution"
     ],
     "category": "ai",
-    "delegates": []
+    "delegates": [
+      {
+        "skill": "vector-specialist",
+        "when": "Embedding strategy, vector storage, or retrieval ranking needs dedicated optimization"
+      },
+      {
+        "skill": "graph-engineer",
+        "when": "Entity relationships, knowledge graphs, or multi-hop memory traversal become central"
+      },
+      {
+        "skill": "privacy-guardian",
+        "when": "Memory retention includes sensitive user data or requires deletion and compliance workflows"
+      }
+    ]
   },
   "model-optimization": {
     "id": "model-optimization",
@@ -937,7 +976,7 @@
   "multimodal-ai": {
     "id": "multimodal-ai",
     "name": "Multimodal AI",
-    "description": "",
+    "description": "Production multimodal systems for text, image, audio, and document workflows with cost control, preprocessing, and reliability guardrails.",
     "owns": [
       "Vision API integration (GPT-4o, Claude, Gemini)",
       "Audio transcription pipelines (Whisper, AssemblyAI)",
@@ -1069,7 +1108,7 @@
   "on-device-ai": {
     "id": "on-device-ai",
     "name": "On-Device AI",
-    "description": "",
+    "description": "Browser and edge on-device AI with WebGPU and WASM inference, quantization, caching, and offline-first model delivery.",
     "owns": [
       "Browser-based ML inference (WebGPU, WASM, WebGL backends)",
       "Transformers.js, WebLLM, ONNX Runtime Web implementations",
@@ -1544,7 +1583,7 @@
   "agent-memory-systems": {
     "id": "agent-memory-systems",
     "name": "Agent Memory Systems",
-    "description": "",
+    "description": "Persistent memory architectures for AI agents across short-term, semantic, episodic, and long-term recall without retrieval poisoning.",
     "owns": [
       "Agent memory architecture (short-term, long-term, working memory)",
       "Memory type selection (semantic, episodic, procedural per CoALA)",
@@ -1663,7 +1702,7 @@
   "autonomous-agents": {
     "id": "autonomous-agents",
     "name": "Autonomous Agents",
-    "description": "",
+    "description": "Autonomous agent loops with planning, reflection, guardrails, checkpoints, and human interrupt controls for production use.",
     "owns": [
       "Autonomous agent architecture and loops (ReAct, Plan-Execute)",
       "Goal decomposition and task planning",
@@ -2223,7 +2262,7 @@
   "voice-agents": {
     "id": "voice-agents",
     "name": "Voice Agents",
-    "description": "",
+    "description": "Production voice agent systems with STT, TTS, turn-taking, interruption handling, realtime APIs, and low-latency voice UX.",
     "owns": [
       "Voice agent architecture (S2S vs pipeline decisions)",
       "Speech-to-text integration (Whisper, Deepgram, AssemblyAI)",
@@ -3377,7 +3416,7 @@
   "microservices-patterns": {
     "id": "microservices-patterns",
     "name": "Microservices Patterns",
-    "description": "",
+    "description": "Battle-tested microservices architecture covering service boundaries, async communication, resilience patterns, sagas, and observability.",
     "owns": [
       "Service decomposition and bounded context design",
       "Inter-service communication patterns (sync and async)",
@@ -3639,7 +3678,7 @@
   "presence-indicators": {
     "id": "presence-indicators",
     "name": "Presence Indicators & Online Status",
-    "description": "",
+    "description": "Real-time presence systems for online status, typing indicators, last-seen tracking, privacy controls, and multi-device coordination.",
     "owns": [
       "WebSocket heartbeat and keep-alive configuration",
       "Presence channel management (Supabase Realtime, Socket.io)",
@@ -3680,7 +3719,7 @@
   "prisma": {
     "id": "prisma",
     "name": "Prisma",
-    "description": "",
+    "description": "Type-safe Prisma schema design, migrations, queries, transactions, and serverless-safe performance optimization.",
     "owns": [
       "Prisma schema design and data modeling",
       "Database migrations and schema evolution",
@@ -3730,7 +3769,7 @@
   "push-notifications": {
     "id": "push-notifications",
     "name": "Push Notification Systems",
-    "description": "",
+    "description": "Web and mobile push notification systems covering service workers, FCM and VAPID, delivery UX, and subscription lifecycle management.",
     "owns": [
       "Web Push API implementation and browser compatibility",
       "Service worker registration and lifecycle management",
@@ -3885,7 +3924,7 @@
   "queue-workers": {
     "id": "queue-workers",
     "name": "Queue & Background Workers",
-    "description": "",
+    "description": "Reliable background job systems with queues, retries, DLQs, idempotency, scheduling, and worker observability.",
     "owns": [
       "BullMQ/Redis job queue architecture and configuration",
       "Worker pool management, concurrency, and scaling",
@@ -3937,7 +3976,7 @@
   "rate-limiting": {
     "id": "rate-limiting",
     "name": "Rate Limiting & Throttling",
-    "description": "",
+    "description": "Distributed rate limiting and throttling with quota design, Redis-backed enforcement, abuse prevention, and tier-aware controls.",
     "owns": [
       "Rate limiting algorithm selection (token bucket, sliding window, fixed window)",
       "Distributed rate limiting with Redis (Lua scripts, atomicity, consistency)",
@@ -3982,7 +4021,7 @@
   "realtime-chat-systems": {
     "id": "realtime-chat-systems",
     "name": "Real-Time Chat Implementation",
-    "description": "",
+    "description": "Production real-time chat backends with WebSockets, presence, persistence, unread state, moderation, and media handling.",
     "owns": [
       "WebSocket connection management and reconnection strategies",
       "Supabase Realtime channel configuration and presence",
@@ -4273,7 +4312,7 @@
   "social-features": {
     "id": "social-features",
     "name": "Social Features (Likes/Follows/Feeds)",
-    "description": "",
+    "description": "Backend systems for likes, follows, feeds, notifications, ranking, and social graph queries at scale.",
     "owns": [
       "Follow/unfollow system with bidirectional relationship tracking",
       "Like, bookmark, and reaction systems with count consistency",
@@ -4685,7 +4724,7 @@
   "websockets-realtime": {
     "id": "websockets-realtime",
     "name": "WebSockets & Real-time",
-    "description": "",
+    "description": "WebSocket and SSE infrastructure for real-time apps with reconnection, scaling, auth, message ordering, and fallback strategies.",
     "owns": [
       "WebSocket server architecture and connection lifecycle",
       "Server-Sent Events (SSE) for unidirectional real-time",
@@ -4882,7 +4921,7 @@
   "drug-discovery-informatics": {
     "id": "drug-discovery-informatics",
     "name": "Drug Discovery Informatics",
-    "description": "",
+    "description": "Computational drug discovery workflows covering virtual screening, docking, ADMET, SAR, QSAR, and lead optimization.",
     "owns": [
       "Virtual screening campaigns (structure-based and ligand-based)",
       "Molecular docking and pose prediction",
@@ -5763,7 +5802,7 @@
   "rwa-tokenization": {
     "id": "rwa-tokenization",
     "name": "RWA Tokenization Specialist",
-    "description": "",
+    "description": "Real-world asset tokenization systems with compliance-aware security tokens, transfer controls, on-chain identity, and corporate actions.",
     "owns": [
       "Security token architecture and ERC-3643 (T-REX) implementation",
       "Transfer restriction logic and modular compliance modules",
@@ -6820,7 +6859,7 @@
   "dev-communications": {
     "id": "dev-communications",
     "name": "Developer Communications",
-    "description": "The craft of communicating technical concepts clearly to developers. Developer communications\nisn't marketing\u00e2\u20ac\u201dit's about building trust through transparency, accuracy, and genuine utility.\nThe best devrel content helps developers solve real problems.\n\nThis skill covers technical documentation, developer tutorials, API references, changelog\nwriting, developer blog posts, and developer community engagement. Great developer communications\ntreats developers as peers, not leads to convert.\n",
+    "description": "The craft of communicating technical concepts clearly to developers. Developer communications\nisn't marketing—it's about building trust through transparency, accuracy, and genuine utility.\nThe best devrel content helps developers solve real problems.\n\nThis skill covers technical documentation, developer tutorials, API references, changelog\nwriting, developer blog posts, and developer community engagement. Great developer communications\ntreats developers as peers, not leads to convert.\n",
     "owns": [
       "API documentation and reference guides",
       "Developer tutorials and getting started guides",
@@ -7246,13 +7285,13 @@
       "Community-market fit validation and hypothesis testing",
       "Culture architecture and value design",
       "Community positioning and differentiation",
-      "Member journey design (awareness \u00e2\u2020\u2019 activation \u00e2\u2020\u2019 retention \u00e2\u2020\u2019 advocacy)",
+      "Member journey design (awareness → activation → retention → advocacy)",
       "Governance models and evolution planning",
       "Community growth strategy (organic vs accelerated)",
       "Community business models and monetization",
       "Community health metrics and OKRs",
       "Platform selection and migration strategy",
-      "Community lifecycle planning (launch \u00e2\u2020\u2019 growth \u00e2\u2020\u2019 maturity \u00e2\u2020\u2019 sunset)"
+      "Community lifecycle planning (launch → growth → maturity → sunset)"
     ],
     "triggers": [
       "community strategy",
@@ -9536,7 +9575,7 @@
   "branding": {
     "id": "branding",
     "name": "Branding",
-    "description": "The craft of creating and maintaining cohesive brand identity systems. Branding translates\nbrand strategy into tangible visual and verbal identity\u00e2\u20ac\u201dlogos, color systems, typography,\nimagery, and voice guidelines that work together to make a brand recognizable and memorable.\n",
+    "description": "The craft of creating and maintaining cohesive brand identity systems. Branding translates\nbrand strategy into tangible visual and verbal identity—logos, color systems, typography,\nimagery, and voice guidelines that work together to make a brand recognizable and memorable.\n",
     "owns": [
       "logo-design",
       "visual-identity-systems",
@@ -9859,7 +9898,7 @@
     "delegates": [
       {
         "skill": "copywriting",
-        "when": "Need persuasive headlines, CTA copy, or benefit statements\u00e2\u20ac\u201dprovide conversion goal, target audience, and key objections"
+        "when": "Need persuasive headlines, CTA copy, or benefit statements—provide conversion goal, target audience, and key objections"
       },
       {
         "skill": "ui-design",
@@ -12170,7 +12209,7 @@
   "plausible-analytics": {
     "id": "plausible-analytics",
     "name": "Privacy-First Analytics (Plausible/Umami)",
-    "description": "",
+    "description": "Privacy-first analytics implementation with Plausible or Umami, custom events, attribution, self-hosting, and GDPR-safe tracking.",
     "owns": [
       "Plausible and Umami SDK setup and configuration",
       "Custom event tracking for goal conversions and funnels",
@@ -12354,7 +12393,7 @@
   "sentry-error-tracking": {
     "id": "sentry-error-tracking",
     "name": "Sentry Error Tracking & Monitoring",
-    "description": "",
+    "description": "Sentry setup and production monitoring for errors, traces, releases, session replay, alerting, and privacy-safe observability.",
     "owns": [
       "Sentry SDK initialization (Next.js, React, Node.js, Edge)",
       "Source map upload and release management",
@@ -12520,7 +12559,7 @@
   "digital-product-delivery": {
     "id": "digital-product-delivery",
     "name": "Digital Product Delivery & Fulfillment",
-    "description": "",
+    "description": "Secure fulfillment for digital products with signed downloads, license keys, post-purchase access control, and refund revocation.",
     "owns": [
       "License key generation with collision prevention",
       "Secure download links (signed URLs with expiration)",
@@ -12561,7 +12600,7 @@
   "ecommerce-cart-checkout": {
     "id": "ecommerce-cart-checkout",
     "name": "Shopping Cart & Checkout",
-    "description": "",
+    "description": "Cart and checkout architecture for ecommerce with persistence, stock validation, tax and shipping logic, and conversion-safe flows.",
     "owns": [
       "Cart state management (client-side, server-side, hybrid)",
       "Cart persistence across sessions and devices",
@@ -14153,7 +14192,7 @@
   "image-optimization-cdn": {
     "id": "image-optimization-cdn",
     "name": "Image Optimization & CDN",
-    "description": "",
+    "description": "Image delivery pipelines with responsive assets, CDN transforms, modern formats, caching, and Core Web Vitals optimization.",
     "owns": [
       "Next.js Image component configuration and optimization",
       "Responsive image strategy (srcset, sizes, art direction)",
@@ -16742,7 +16781,7 @@
   "headless-cms-integration": {
     "id": "headless-cms-integration",
     "name": "Headless CMS Integration",
-    "description": "",
+    "description": "Headless CMS integration patterns for structured content, previews, ISR and revalidation, localization, and content delivery performance.",
     "owns": [
       "Headless CMS selection and integration (Sanity, Contentful, Strapi)",
       "Content modeling and schema design for structured content",
@@ -17041,7 +17080,7 @@
   "resend-email": {
     "id": "resend-email",
     "name": "Resend Transactional Email",
-    "description": "",
+    "description": "Transactional email with Resend and React Email, domain authentication, deliverability, webhooks, and template-safe sending workflows.",
     "owns": [
       "Resend SDK setup and API key management",
       "React Email template design and rendering",
@@ -17411,7 +17450,7 @@
   "video-embedding-streaming": {
     "id": "video-embedding-streaming",
     "name": "Video Embedding & Streaming",
-    "description": "",
+    "description": "Video platform integration and streaming delivery with embeds, HLS and DASH, uploads, captions, analytics, and CDN optimization.",
     "owns": [
       "Video platform selection and integration (Mux, Cloudflare Stream)",
       "YouTube and Vimeo embed optimization and privacy-compliant embedding",
@@ -19299,7 +19338,7 @@
   "a-b-testing": {
     "id": "a-b-testing",
     "name": "a-b-testing",
-    "description": "The science of learning through controlled experimentation. A/B testing isn't about\npicking winners\u00e2\u20ac\u201dit's about building a culture of validated learning and reducing\nthe cost of being wrong.\n",
+    "description": "The science of learning through controlled experimentation. A/B testing isn't about\npicking winners—it's about building a culture of validated learning and reducing\nthe cost of being wrong.\n",
     "owns": [
       "Experiment design and hypothesis formation",
       "Statistical testing and power analysis",
@@ -19654,6 +19693,46 @@
       }
     ]
   },
+  "audit-logging": {
+    "id": "audit-logging",
+    "name": "Audit Logging",
+    "description": "Tamper-resistant audit logging for security-sensitive product actions, admin activity, identity changes, and compliance-grade operational traceability.",
+    "owns": [
+      "Audit event schema for actor, action, target, and context",
+      "Tamper-resistant storage and retention expectations",
+      "Coverage of security-sensitive and admin workflows",
+      "Correlation between product events and supporting system context",
+      "Sensitive field redaction within audit records",
+      "Searchability and export for compliance or incident response",
+      "Separation between audit logs and general observability logs",
+      "Backfill and gap detection for missing audit events"
+    ],
+    "triggers": [
+      "audit logging",
+      "audit trail",
+      "immutable logs",
+      "admin activity log",
+      "security events",
+      "compliance logs",
+      "who changed what",
+      "tamper resistant logging"
+    ],
+    "category": "security",
+    "delegates": [
+      {
+        "skill": "identity-access-management",
+        "when": "Need actor identity, membership, or machine identity semantics"
+      },
+      {
+        "skill": "compliance-automation",
+        "when": "Need control evidence, retention policy, or audit export workflows"
+      },
+      {
+        "skill": "security-engineer",
+        "when": "Need broader incident response or security control design around the logs"
+      }
+    ]
+  },
   "auth-specialist": {
     "id": "auth-specialist",
     "name": "auth-specialist",
@@ -19905,6 +19984,46 @@
       }
     ]
   },
+  "identity-access-management": {
+    "id": "identity-access-management",
+    "name": "Identity Access Management",
+    "description": "Enterprise identity and access architecture for users, orgs, service accounts, permissions, and least-privilege enforcement across product and infrastructure boundaries.",
+    "owns": [
+      "Principal model for users, orgs, teams, and service accounts",
+      "Authentication versus authorization boundary definition",
+      "Permission vocabulary and action-resource modeling",
+      "Membership lifecycle and org/account state transitions",
+      "Least-privilege defaults and privileged access escalation paths",
+      "Machine identity and service account scoping",
+      "Session and token trust boundary design",
+      "Cross-system identity mapping and canonical identifiers"
+    ],
+    "triggers": [
+      "iam",
+      "identity access management",
+      "permissions model",
+      "service accounts",
+      "least privilege",
+      "role mapping",
+      "principal model",
+      "authorization boundary"
+    ],
+    "category": "security",
+    "delegates": [
+      {
+        "skill": "auth-specialist",
+        "when": "Need implementation detail for OAuth, sessions, MFA, or credential flows"
+      },
+      {
+        "skill": "rbac-enterprise",
+        "when": "Need enterprise-grade role hierarchy, scoped roles, or permission matrix design"
+      },
+      {
+        "skill": "compliance-automation",
+        "when": "Need evidence controls, access review workflows, or regulated access policies"
+      }
+    ]
+  },
   "passkeys-webauthn": {
     "id": "passkeys-webauthn",
     "name": "passkeys-webauthn",
@@ -19990,6 +20109,46 @@
       {
         "skill": "authentication-oauth",
         "when": "Need to secure API endpoints that expose LLM capabilities"
+      }
+    ]
+  },
+  "secrets-management": {
+    "id": "secrets-management",
+    "name": "Secrets Management",
+    "description": "Secure secret storage, rotation, access control, injection, and leak recovery patterns for applications, CI, containers, and cloud infrastructure.",
+    "owns": [
+      "Secret storage systems and access boundary design",
+      "Credential rotation workflows and expiry policy",
+      "Runtime secret injection for apps, jobs, and CI",
+      "Local development secret hygiene",
+      "Least-privilege access to secrets by workload",
+      "Secret scanning and leak detection response",
+      "Key versus token versus password lifecycle differences",
+      "Emergency secret revocation and blast-radius reduction"
+    ],
+    "triggers": [
+      "secrets management",
+      "secret rotation",
+      "vault",
+      "aws secrets manager",
+      "environment secrets",
+      "api key leak",
+      "credential rotation",
+      "secret injection"
+    ],
+    "category": "security",
+    "delegates": [
+      {
+        "skill": "identity-access-management",
+        "when": "Need machine identity boundaries or service-account trust design"
+      },
+      {
+        "skill": "compliance-automation",
+        "when": "Need evidence collection for rotation, access review, or policy enforcement"
+      },
+      {
+        "skill": "security-engineer",
+        "when": "Need broader application-hardening decisions beyond credential lifecycle"
       }
     ]
   },
@@ -20149,6 +20308,46 @@
       {
         "skill": "api-design",
         "when": "API endpoint design beyond Supabase client queries"
+      }
+    ]
+  },
+  "threat-modeling": {
+    "id": "threat-modeling",
+    "name": "Threat Modeling",
+    "description": "Practical threat modeling for product, API, infra, and AI systems using trust boundaries, abuse cases, attacker thinking, and backlog-ready mitigations.",
+    "owns": [
+      "Threat-modeling workflow and facilitation",
+      "Trust boundary identification across product, infra, and AI systems",
+      "Abuse case generation and attacker-path analysis",
+      "STRIDE-style categorization without cargo-culting the framework",
+      "Attack-tree and failure-scenario decomposition",
+      "Mitigation prioritization by likelihood and blast radius",
+      "Turning security review output into backlog-ready engineering work",
+      "Recurring threat review triggers for major architecture change"
+    ],
+    "triggers": [
+      "threat model",
+      "threat modeling",
+      "stride",
+      "attack tree",
+      "abuse case",
+      "trust boundary",
+      "security design review",
+      "attacker mindset"
+    ],
+    "category": "security",
+    "delegates": [
+      {
+        "skill": "security-engineer",
+        "when": "Need concrete secure implementation work after risks are identified"
+      },
+      {
+        "skill": "api-security",
+        "when": "The main attack surface is public or internal APIs and request flows"
+      },
+      {
+        "skill": "ai-code-security",
+        "when": "Threat model needs LLM-specific abuse cases, prompt injection, or tool misuse analysis"
       }
     ]
   },
@@ -23477,6 +23676,126 @@
       {
         "skill": "ux-design",
         "when": "Interface design and user flows"
+      }
+    ]
+  },
+  "rbac-enterprise": {
+    "id": "rbac-enterprise",
+    "name": "Enterprise RBAC",
+    "description": "Enterprise-grade role-based access control with permission matrices, scoped roles, inheritance, admin boundaries, and safe authorization evolution.",
+    "owns": [
+      "Role design and permission matrix construction",
+      "Scoped roles across org, project, team, and resource boundaries",
+      "Role inheritance and override semantics",
+      "Custom role governance and role explosion prevention",
+      "Admin boundary design for support, billing, and security workflows",
+      "Permission naming conventions and evolution strategy",
+      "Deny rules and restricted action modeling",
+      "RBAC compatibility with audit and enterprise reviews"
+    ],
+    "triggers": [
+      "rbac",
+      "role based access control",
+      "permission matrix",
+      "custom roles",
+      "scoped roles",
+      "admin permissions",
+      "role inheritance",
+      "authorization model"
+    ],
+    "category": "enterprise",
+    "delegates": [
+      {
+        "skill": "identity-access-management",
+        "when": "Need canonical principal, membership, or machine identity design"
+      },
+      {
+        "skill": "multi-tenancy",
+        "when": "Role scopes and authorization boundaries vary by tenant architecture"
+      },
+      {
+        "skill": "compliance-automation",
+        "when": "Need access review workflows, segregation of duties, or control evidence"
+      }
+    ]
+  },
+  "scim-provisioning": {
+    "id": "scim-provisioning",
+    "name": "SCIM Provisioning",
+    "description": "SCIM provisioning and deprovisioning systems for enterprise identity lifecycle sync, group mapping, account drift correction, and reliable directory integration.",
+    "owns": [
+      "SCIM user and group endpoint behavior",
+      "External directory to internal identity mapping",
+      "Provisioning, update, suspend, and deprovision lifecycle semantics",
+      "Idempotency and retry-safe SCIM handlers",
+      "Group-to-role and org-assignment mapping",
+      "Drift detection between IdP and product state",
+      "Safe deletion, suspension, and access revocation workflows",
+      "Operational observability for enterprise provisioning sync"
+    ],
+    "triggers": [
+      "scim",
+      "provisioning",
+      "deprovisioning",
+      "directory sync",
+      "okta push",
+      "entra provisioning",
+      "group mapping",
+      "identity lifecycle"
+    ],
+    "category": "enterprise",
+    "delegates": [
+      {
+        "skill": "identity-access-management",
+        "when": "Need canonical principal IDs, membership state, or machine identity boundaries"
+      },
+      {
+        "skill": "rbac-enterprise",
+        "when": "Need group-to-role mapping and scoped authorization design"
+      },
+      {
+        "skill": "sso-saml",
+        "when": "Need federation and provisioning to align on the same tenant identity model"
+      }
+    ]
+  },
+  "sso-saml": {
+    "id": "sso-saml",
+    "name": "Enterprise SSO with SAML",
+    "description": "Production SAML SSO implementation for enterprise apps including IdP/SP configuration, assertion validation, JIT provisioning, and tenant-safe login flows.",
+    "owns": [
+      "SAML tenant configuration and identity-provider onboarding",
+      "SP-initiated and IdP-initiated login flow design",
+      "Assertion, audience, issuer, and signature validation",
+      "ACS routing and tenant-safe callback handling",
+      "JIT provisioning guardrails and account linking",
+      "Certificate rollover and metadata lifecycle",
+      "SAML error handling, debugging, and support playbooks",
+      "Enterprise SSO rollout and readiness checklists"
+    ],
+    "triggers": [
+      "saml",
+      "sso",
+      "enterprise sso",
+      "okta",
+      "entra id",
+      "onelogin",
+      "acs url",
+      "just in time provisioning"
+    ],
+    "category": "enterprise",
+    "delegates": [
+      {
+        "skill": "identity-access-management",
+        "when": "Need canonical principal mapping, membership model, or permission boundaries"
+      },
+      {
+        "skill": "authentication-oauth",
+        "when": "Need hybrid auth strategy that combines SAML with OIDC or session patterns"
+      },
+      {
+        "skill": "scim-provisioning",
+        "when": "Need lifecycle sync beyond login-time provisioning"
       }
     ]
   },

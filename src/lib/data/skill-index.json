@@ -1,6 +1,6 @@
 {
   "version": "2.0.0",
-  "totalSkills": 593,
+  "totalSkills": 600,
   "domains": {
     "game": [
       {
@@ -737,13 +737,13 @@
         "id": "multimodal-ai",
         "kw": [
           "multimodal",
+          "image",
+          "audio",
           "vision",
           "api",
           "integration",
-          "audio",
           "transcription",
-          "pipelines",
-          "image"
+          "pipelines"
         ]
       },
       {
@@ -751,12 +751,12 @@
         "kw": [
           "device",
           "browser",
+          "ai",
           "based",
           "inference",
           "transformers",
           "webllm",
-          "onnx",
-          "model"
+          "onnx"
         ]
       },
       {
@@ -817,11 +817,11 @@
           "agent",
           "memory",
           "systems",
+          "ai",
           "architecture",
           "type",
           "selection",
-          "chunking",
-          "strategies"
+          "chunking"
         ]
       },
       {
@@ -999,11 +999,11 @@
           "voice",
           "agents",
           "agent",
+          "realtime",
           "architecture",
           "speech",
           "text",
-          "integration",
-          "activity"
+          "integration"
         ]
       },
       {
@@ -1362,9 +1362,9 @@
         "kw": [
           "resend",
           "email",
+          "react",
           "sdk",
           "setup",
-          "react",
           "template",
           "domain",
           "verification"
@@ -2421,12 +2421,12 @@
         "kw": [
           "social",
           "features",
+          "backend",
           "follow",
           "unfollow",
           "system",
           "like",
-          "bookmark",
-          "and"
+          "bookmark"
         ]
       },
       {
@@ -2791,6 +2791,19 @@
           "off",
           "analysis",
           "reversibility"
+        ]
+      },
+      {
+        "id": "scim-provisioning",
+        "kw": [
+          "scim",
+          "provisioning",
+          "user",
+          "and",
+          "external",
+          "directory",
+          "internal",
+          "update"
         ]
       }
     ],
@@ -3831,11 +3844,11 @@
           "push",
           "notifications",
           "web",
+          "mobile",
+          "notification",
           "api",
           "service",
-          "worker",
-          "registration",
-          "vapid"
+          "worker"
         ]
       },
       {
@@ -3856,12 +3869,12 @@
         "kw": [
           "rate",
           "limiting",
+          "redis",
           "algorithm",
           "distributed",
           "per",
           "user",
-          "and",
-          "api"
+          "and"
         ]
       },
       {
@@ -4013,11 +4026,11 @@
           "websockets",
           "realtime",
           "websocket",
+          "auth",
+          "message",
           "server",
           "architecture",
-          "sent",
-          "events",
-          "reconnection"
+          "sent"
         ]
       },
       {
@@ -5846,11 +5859,11 @@
           "image",
           "optimization",
           "cdn",
+          "web",
           "next",
           "component",
           "responsive",
-          "strategy",
-          "lazy"
+          "strategy"
         ]
       },
       {
@@ -6249,11 +6262,11 @@
           "video",
           "embedding",
           "streaming",
+          "analytics",
           "platform",
           "selection",
           "youtube",
-          "and",
-          "vimeo"
+          "and"
         ]
       },
       {
@@ -6647,6 +6660,19 @@
         ]
       },
       {
+        "id": "audit-logging",
+        "kw": [
+          "audit",
+          "logging",
+          "security",
+          "admin",
+          "event",
+          "schema",
+          "tamper",
+          "resistant"
+        ]
+      },
+      {
         "id": "compliance-automation",
         "kw": [
           "compliance",
@@ -6699,6 +6725,19 @@
         ]
       },
       {
+        "id": "identity-access-management",
+        "kw": [
+          "identity",
+          "access",
+          "management",
+          "principal",
+          "model",
+          "for",
+          "authentication",
+          "versus"
+        ]
+      },
+      {
         "id": "prompt-injection-defense",
         "kw": [
           "prompt",
@@ -6709,6 +6748,19 @@
           "and",
           "system",
           "protection"
+        ]
+      },
+      {
+        "id": "secrets-management",
+        "kw": [
+          "secrets",
+          "management",
+          "ci",
+          "secret",
+          "storage",
+          "systems",
+          "credential",
+          "rotation"
         ]
       },
       {
@@ -6735,6 +6787,19 @@
           "input",
           "validation",
           "and"
+        ]
+      },
+      {
+        "id": "threat-modeling",
+        "kw": [
+          "threat",
+          "modeling",
+          "api",
+          "ai",
+          "workflow",
+          "trust",
+          "boundary",
+          "identification"
         ]
       },
       {
@@ -7635,6 +7700,32 @@
         ]
       },
       {
+        "id": "rbac-enterprise",
+        "kw": [
+          "rbac",
+          "enterprise",
+          "admin",
+          "role",
+          "design",
+          "and",
+          "scoped",
+          "roles"
+        ]
+      },
+      {
+        "id": "sso-saml",
+        "kw": [
+          "sso",
+          "saml",
+          "tenant",
+          "configuration",
+          "initiated",
+          "and",
+          "idp",
+          "assertion"
+        ]
+      },
+      {
         "id": "strategic-partnerships",
         "kw": [
           "strategic",
@@ -8031,13 +8122,13 @@
       "id": "multimodal-ai",
       "kw": [
         "multimodal",
+        "image",
+        "audio",
         "vision",
         "api",
         "integration",
-        "audio",
         "transcription",
-        "pipelines",
-        "image"
+        "pipelines"
       ]
     },
     {
@@ -8071,12 +8162,12 @@
       "kw": [
         "device",
         "browser",
+        "ai",
         "based",
         "inference",
         "transformers",
         "webllm",
-        "onnx",
-        "model"
+        "onnx"
       ]
     },
     {
@@ -8215,11 +8306,11 @@
         "agent",
         "memory",
         "systems",
+        "ai",
         "architecture",
         "type",
         "selection",
-        "chunking",
-        "strategies"
+        "chunking"
       ]
     },
     {
@@ -8410,11 +8501,11 @@
         "voice",
         "agents",
         "agent",
+        "realtime",
         "architecture",
         "speech",
         "text",
-        "integration",
-        "activity"
+        "integration"
       ]
     },
     {
@@ -8813,11 +8904,11 @@
         "push",
         "notifications",
         "web",
+        "mobile",
+        "notification",
         "api",
         "service",
-        "worker",
-        "registration",
-        "vapid"
+        "worker"
       ]
     },
     {
@@ -8864,12 +8955,12 @@
       "kw": [
         "rate",
         "limiting",
+        "redis",
         "algorithm",
         "distributed",
         "per",
         "user",
-        "and",
-        "api"
+        "and"
       ]
     },
     {
@@ -8955,12 +9046,12 @@
       "kw": [
         "social",
         "features",
+        "backend",
         "follow",
         "unfollow",
         "system",
         "like",
-        "bookmark",
-        "and"
+        "bookmark"
       ]
     },
     {
@@ -9073,11 +9164,11 @@
         "websockets",
         "realtime",
         "websocket",
+        "auth",
+        "message",
         "server",
         "architecture",
-        "sent",
-        "events",
-        "reconnection"
+        "sent"
       ]
     },
     {
@@ -11985,11 +12076,11 @@
         "image",
         "optimization",
         "cdn",
+        "web",
         "next",
         "component",
         "responsive",
-        "strategy",
-        "lazy"
+        "strategy"
       ]
     },
     {
@@ -12998,9 +13089,9 @@
       "kw": [
         "resend",
         "email",
+        "react",
         "sdk",
         "setup",
-        "react",
         "template",
         "domain",
         "verification"
@@ -13142,11 +13233,11 @@
         "video",
         "embedding",
         "streaming",
+        "analytics",
         "platform",
         "selection",
         "youtube",
-        "and",
-        "vimeo"
+        "and"
       ]
     },
     {
@@ -13917,6 +14008,19 @@
       ]
     },
     {
+      "id": "audit-logging",
+      "kw": [
+        "audit",
+        "logging",
+        "security",
+        "admin",
+        "event",
+        "schema",
+        "tamper",
+        "resistant"
+      ]
+    },
+    {
       "id": "auth-specialist",
       "kw": [
         "auth",
@@ -14008,6 +14112,19 @@
       ]
     },
     {
+      "id": "identity-access-management",
+      "kw": [
+        "identity",
+        "access",
+        "management",
+        "principal",
+        "model",
+        "for",
+        "authentication",
+        "versus"
+      ]
+    },
+    {
       "id": "passkeys-webauthn",
       "kw": [
         "passkeys",
@@ -14031,6 +14148,19 @@
         "and",
         "system",
         "protection"
+      ]
+    },
+    {
+      "id": "secrets-management",
+      "kw": [
+        "secrets",
+        "management",
+        "ci",
+        "secret",
+        "storage",
+        "systems",
+        "credential",
+        "rotation"
       ]
     },
     {
@@ -14083,6 +14213,19 @@
         "level",
         "uid",
         "based"
+      ]
+    },
+    {
+      "id": "threat-modeling",
+      "kw": [
+        "threat",
+        "modeling",
+        "api",
+        "ai",
+        "workflow",
+        "trust",
+        "boundary",
+        "identification"
       ]
     },
     {
@@ -15227,6 +15370,45 @@
         "fit",
         "competitive",
         "positioning"
+      ]
+    },
+    {
+      "id": "rbac-enterprise",
+      "kw": [
+        "rbac",
+        "enterprise",
+        "admin",
+        "role",
+        "design",
+        "and",
+        "scoped",
+        "roles"
+      ]
+    },
+    {
+      "id": "scim-provisioning",
+      "kw": [
+        "scim",
+        "provisioning",
+        "user",
+        "and",
+        "external",
+        "directory",
+        "internal",
+        "update"
+      ]
+    },
+    {
+      "id": "sso-saml",
+      "kw": [
+        "sso",
+        "saml",
+        "tenant",
+        "configuration",
+        "initiated",
+        "and",
+        "idp",
+        "assertion"
       ]
     },
     {
