@@ -389,62 +389,61 @@
 
 							<div class="flex-1 space-y-2">
 								{#each col.items as c (c.id)}
-									{@const p = priorityOf(c)}
-									<article class="group px-3.5 py-3 rounded-lg border border-surface-border bg-bg-secondary hover:border-border-strong transition-all">
+									<article class="group relative px-4 py-3.5 rounded-lg border border-surface-border bg-bg-secondary hover:border-border-strong transition-all">
 										<a href={`/missions/${c.id}`} class="block">
-											<div class="flex items-start gap-2 mb-2">
-												<Icon name="file-text" size={14} class="text-text-tertiary mt-0.5 shrink-0" />
-												<span class="font-sans text-sm leading-snug text-text-primary group-hover:text-accent-primary transition-colors">
+											<!-- Header: status dot + mission name -->
+											<div class="flex items-center gap-2 mb-2.5">
+												<span class="w-1.5 h-1.5 rounded-full shrink-0 {statusDot(c.status)}"></span>
+												<h3 class="font-sans text-sm font-semibold leading-tight text-text-primary group-hover:text-accent-primary transition-colors line-clamp-2">
 													{c.name}
-												</span>
+												</h3>
 											</div>
+
 											{#if c.source === 'spark' && c.summary}
-												<p class="font-mono text-[10px] text-text-tertiary leading-snug mb-2 line-clamp-2">{c.summary}</p>
+												<p class="font-mono text-[10px] text-text-tertiary leading-snug mb-2.5 line-clamp-2">{c.summary}</p>
 											{/if}
+
+											<!-- Task list with left-rail for grouping -->
 											{#if c.tasks && c.tasks.length > 0}
-												<ul class="space-y-1 mb-2">
+												<ul class="space-y-2 mb-3 border-l border-surface-border/70 pl-3">
 													{#each c.tasks.slice(0, 3) as task}
 														<li>
-															<div class="font-sans text-[11px] text-text-secondary leading-snug line-clamp-1">{task.title}</div>
+															<div class="font-sans text-[12px] text-text-secondary leading-snug line-clamp-1">{task.title}</div>
 															{#if task.skills && task.skills.length > 0}
-																<div class="flex items-center gap-1 flex-wrap mt-0.5">
+																<div class="flex items-center gap-1 flex-wrap mt-1">
 																	{#each task.skills.slice(0, 3) as skill}
-																		<span class="px-1.5 py-px text-[9px] font-mono rounded-full text-accent-primary bg-accent-subtle border border-accent-mid/50">{skill}</span>
+																		<span class="px-1.5 py-px text-[9px] font-mono rounded-full text-text-tertiary bg-bg-primary/60 border border-surface-border/70">{skill}</span>
 																	{/each}
 																	{#if task.skills.length > 3}
-																		<span class="text-[9px] font-mono text-text-tertiary">+{task.skills.length - 3}</span>
+																		<span class="text-[9px] font-mono text-text-faint">+{task.skills.length - 3}</span>
 																	{/if}
 																</div>
 															{/if}
 														</li>
 													{/each}
 													{#if c.tasks.length > 3}
-														<li class="font-mono text-[10px] text-text-tertiary">+{c.tasks.length - 3} more task{c.tasks.length - 3 !== 1 ? 's' : ''}</li>
+														<li class="font-mono text-[10px] text-text-faint">+{c.tasks.length - 3} more</li>
 													{/if}
 												</ul>
 											{/if}
-											<div class="flex items-center gap-2 flex-wrap">
-												<span class="px-1.5 py-0.5 text-[10px] font-mono rounded-sm border {priorityClass(p)}">{p}</span>
-												<span class="font-mono text-[10px] text-text-tertiary">
-													{formatDate(c.updatedAt ?? c.createdAt)}
-												</span>
+
+											<!-- Meta row: single muted line -->
+											<div class="font-mono text-[10px] text-text-tertiary flex items-center gap-2">
+												<span>{formatDate(c.updatedAt ?? c.createdAt)}</span>
 												{#if c.taskCount > 0 && (!c.tasks || c.tasks.length === 0)}
-													<span class="font-mono text-[10px] text-text-tertiary" title={c.taskNames?.join(', ') ?? ''}>
-														{c.taskCount} task{c.taskCount !== 1 ? 's' : ''}
-													</span>
+													<span>· {c.taskCount} task{c.taskCount !== 1 ? 's' : ''}</span>
 												{/if}
 												{#if c.source === 'spark'}
-													<span class="px-1.5 py-0.5 text-[10px] font-mono rounded-sm border border-accent-mid text-accent-primary bg-accent-subtle" title={c.strategy ?? ''}>spark</span>
+													<span class="text-accent-primary/70" title={c.strategy ?? ''}>· spark</span>
 												{/if}
 												{#if c.status === 'running' || c.status === 'paused'}
-													<span class="ml-auto inline-flex items-center gap-1 font-mono text-[10px] text-text-tertiary">
-														<span class="w-1.5 h-1.5 rounded-full {statusDot(c.status)}"></span>
-														{c.status}
-													</span>
+													<span class="ml-auto">{c.status}</span>
 												{/if}
 											</div>
 										</a>
-										<div class="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+
+										<!-- Hover actions (compact, bottom-right absolute overlay) -->
+										<div class="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
 											{#if c.source === 'mcp' && (c.status === 'ready' || c.status === 'draft')}
 												<button
 													onclick={() => handleStart(c)}
@@ -453,16 +452,10 @@
 													Start
 												</button>
 											{/if}
-											<a
-												href={`/missions/${c.id}`}
-												class="px-2 py-0.5 text-[10px] font-mono text-text-secondary border border-surface-border rounded-sm hover:border-text-tertiary hover:text-text-primary transition-all"
-											>
-												Open
-											</a>
 											{#if c.source === 'mcp'}
 												<button
 													onclick={() => handleDelete(c)}
-													class="ml-auto px-2 py-0.5 text-[10px] font-mono text-text-tertiary rounded-sm hover:text-status-red transition-all"
+													class="px-2 py-0.5 text-[10px] font-mono text-text-tertiary rounded-sm hover:text-status-red transition-all"
 													title="Delete mission"
 												>
 													Delete
