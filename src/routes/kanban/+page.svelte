@@ -50,6 +50,126 @@
 	let lastRefresh = $state<number>(0);
 	let refreshPulse = $state(false);
 
+	// --- Scheduled tab state ---
+	type ScheduleRecord = {
+		id: string;
+		cron: string;
+		action: 'mission' | 'loop';
+		payload: Record<string, unknown>;
+		chatId?: string | null;
+		createdAt: string;
+		lastFiredAt: string | null;
+		nextFireAt: string | null;
+		fireCount: number;
+		lastStatus: string | null;
+		enabled: boolean;
+	};
+	let schedules = $state<ScheduleRecord[]>([]);
+	let schedulesLoading = $state(false);
+	let schedulesError = $state<string | null>(null);
+	let scheduleTimer: ReturnType<typeof setInterval> | null = null;
+	let showCreate = $state(false);
+	let newCron = $state('0 3 * * *');
+	let newAction = $state<'mission' | 'loop'>('loop');
+	let newGoal = $state('');
+	let newChip = $state('domain-chip-spark-ops-critic');
+	let newRounds = $state(1);
+	let newChatId = $state('8319079055');
+	let creating = $state(false);
+
+	async function fetchSchedules() {
+		schedulesLoading = true;
+		try {
+			const r = await fetch('/api/scheduled');
+			const data = await r.json();
+			schedules = Array.isArray(data.schedules) ? data.schedules : [];
+			schedulesError = null;
+		} catch (err: unknown) {
+			schedulesError = err instanceof Error ? err.message : 'fetch failed';
+		} finally {
+			schedulesLoading = false;
+		}
+	}
+
+	async function createScheduleFromForm() {
+		creating = true;
+		try {
+			const payload =
+				newAction === 'mission'
+					? { goal: newGoal }
+					: { chipKey: newChip, rounds: newRounds };
+			const r = await fetch('/api/scheduled', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					cron: newCron,
+					action: newAction,
+					payload,
+					chatId: newChatId || null
+				})
+			});
+			const data = await r.json();
+			if (!data.ok) {
+				schedulesError = data.error || 'create failed';
+			} else {
+				schedulesError = null;
+				showCreate = false;
+				newGoal = '';
+				await fetchSchedules();
+			}
+		} catch (err: unknown) {
+			schedulesError = err instanceof Error ? err.message : 'create failed';
+		} finally {
+			creating = false;
+		}
+	}
+
+	async function deleteScheduleById(id: string) {
+		try {
+			const r = await fetch(`/api/scheduled?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+			const data = await r.json();
+			if (data.ok) await fetchSchedules();
+			else schedulesError = data.error || 'delete failed';
+		} catch (err: unknown) {
+			schedulesError = err instanceof Error ? err.message : 'delete failed';
+		}
+	}
+
+	function formatNextFire(iso: string | null): string {
+		if (!iso) return '-';
+		try {
+			const ms = new Date(iso).getTime() - Date.now();
+			if (ms <= 0) return 'due now';
+			const s = Math.floor(ms / 1000);
+			if (s < 60) return `${s}s`;
+			const m = Math.floor(s / 60);
+			if (m < 60) return `${m}m`;
+			const h = Math.floor(m / 60);
+			if (h < 24) return `${h}h${m % 60}m`;
+			const d = Math.floor(h / 24);
+			return `${d}d${h % 24}h`;
+		} catch {
+			return iso;
+		}
+	}
+
+	function payloadSummary(rec: ScheduleRecord): string {
+		if (rec.action === 'mission') return String((rec.payload as { goal?: string }).goal ?? '');
+		const p = rec.payload as { chipKey?: string; rounds?: number };
+		return `${p.chipKey} x${p.rounds ?? 1}`;
+	}
+
+	$effect(() => {
+		if (activeTab === 'scheduled') {
+			fetchSchedules();
+			scheduleTimer = setInterval(fetchSchedules, 15_000);
+			return () => {
+				if (scheduleTimer) clearInterval(scheduleTimer);
+				scheduleTimer = null;
+			};
+		}
+	});
+
 	async function fetchRelay() {
 		try {
 			const r = await fetch('/api/mission-control/board');
@@ -488,18 +608,144 @@
 				</div>
 			{/if}
 		{:else}
-			<!-- Scheduled tab — placeholder for phase 2 -->
-			<div class="border border-surface-border rounded-lg bg-bg-secondary px-5 py-12 text-center">
-				<p class="overline" style="margin-bottom: 8px;">Coming in next pass</p>
-				<h2 class="text-lg font-sans font-medium text-text-primary mb-2">Scheduled missions</h2>
-				<p class="text-sm text-text-secondary max-w-md mx-auto mb-4">
-					Recurring missions with cron expressions, dispatched through <code class="font-mono text-accent-primary">/api/spark/run</code>
-					so they relay to Spark Intelligence Builder and the Telegram bridge.
-				</p>
-				<p class="font-mono text-[11px] text-text-tertiary">
-					Next: cron input · run history · "Run now" · pause/resume.
-				</p>
+			<div class="flex items-center justify-between mb-4">
+				<div>
+					<p class="overline">Scheduled missions ({schedules.length})</p>
+					<h2 class="text-lg font-sans font-medium text-text-primary">Cron-driven missions + autoloops</h2>
+				</div>
+				<button
+					class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-mono bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all"
+					onclick={() => (showCreate = !showCreate)}
+				>
+					{showCreate ? 'Cancel' : '+ New schedule'}
+				</button>
 			</div>
+
+			{#if schedulesError}
+				<div class="mb-4 border border-red-500 bg-red-500/10 p-3 font-mono text-xs text-red-400">
+					{schedulesError}
+				</div>
+			{/if}
+
+			{#if showCreate}
+				<div class="mb-4 border border-surface-border bg-bg-secondary p-4 space-y-3">
+					<div class="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-3 items-center">
+						<label class="font-mono text-[11px] text-text-tertiary">Cron</label>
+						<input
+							type="text"
+							bind:value={newCron}
+							placeholder="*/5 * * * *"
+							class="w-full px-2 py-1 bg-bg-primary border border-surface-border font-mono text-sm text-text-primary focus:outline-none focus:border-accent-primary"
+						/>
+						<label class="font-mono text-[11px] text-text-tertiary">Action</label>
+						<select
+							bind:value={newAction}
+							class="w-full px-2 py-1 bg-bg-primary border border-surface-border font-mono text-sm text-text-primary focus:outline-none focus:border-accent-primary"
+						>
+							<option value="loop">loop (runs chip suggest+evaluate)</option>
+							<option value="mission">mission (POST /api/spark/run)</option>
+						</select>
+						{#if newAction === 'mission'}
+							<label class="font-mono text-[11px] text-text-tertiary">Goal</label>
+							<input
+								type="text"
+								bind:value={newGoal}
+								placeholder="research seedify news today"
+								class="w-full px-2 py-1 bg-bg-primary border border-surface-border font-mono text-sm text-text-primary focus:outline-none focus:border-accent-primary"
+							/>
+						{:else}
+							<label class="font-mono text-[11px] text-text-tertiary">Chip key</label>
+							<input
+								type="text"
+								bind:value={newChip}
+								class="w-full px-2 py-1 bg-bg-primary border border-surface-border font-mono text-sm text-text-primary focus:outline-none focus:border-accent-primary"
+							/>
+							<label class="font-mono text-[11px] text-text-tertiary">Rounds</label>
+							<input
+								type="number"
+								min="1"
+								max="10"
+								bind:value={newRounds}
+								class="w-20 px-2 py-1 bg-bg-primary border border-surface-border font-mono text-sm text-text-primary focus:outline-none focus:border-accent-primary"
+							/>
+						{/if}
+						<label class="font-mono text-[11px] text-text-tertiary">Chat id (optional)</label>
+						<input
+							type="text"
+							bind:value={newChatId}
+							placeholder="Telegram chat id to notify on fire"
+							class="w-full px-2 py-1 bg-bg-primary border border-surface-border font-mono text-sm text-text-primary focus:outline-none focus:border-accent-primary"
+						/>
+					</div>
+					<button
+						class="px-3 py-1.5 text-xs font-mono bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all disabled:opacity-50"
+						disabled={creating || !newCron || (newAction === 'mission' ? !newGoal : !newChip)}
+						onclick={createScheduleFromForm}
+					>
+						{creating ? 'Creating...' : 'Create schedule'}
+					</button>
+				</div>
+			{/if}
+
+			{#if schedulesLoading && schedules.length === 0}
+				<div class="border border-surface-border bg-bg-secondary px-5 py-10 text-center font-mono text-xs text-text-tertiary">
+					Loading...
+				</div>
+			{:else if schedules.length === 0}
+				<div class="border border-surface-border bg-bg-secondary px-5 py-10 text-center">
+					<p class="font-mono text-xs text-text-tertiary">
+						No schedules yet. Click <span class="text-accent-primary">+ New schedule</span> or fire
+						<code class="font-mono text-accent-primary">POST /api/scheduled</code>.
+					</p>
+				</div>
+			{:else}
+				<div class="border border-surface-border overflow-hidden">
+					<table class="w-full text-sm font-mono">
+						<thead class="bg-bg-secondary border-b border-surface-border">
+							<tr>
+								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Id</th>
+								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Cron</th>
+								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Action</th>
+								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Payload</th>
+								<th class="text-right px-3 py-2 text-[11px] text-text-tertiary">Fires</th>
+								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Next</th>
+								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Last status</th>
+								<th class="text-right px-3 py-2 text-[11px] text-text-tertiary"></th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each schedules as rec (rec.id)}
+								<tr class="border-b border-surface-border hover:bg-bg-secondary/50">
+									<td class="px-3 py-2 text-[11px] text-text-secondary">{rec.id}</td>
+									<td class="px-3 py-2 text-text-primary">{rec.cron}</td>
+									<td class="px-3 py-2">
+										<span class="inline-block px-1.5 py-0.5 text-[10px] bg-bg-secondary border border-surface-border text-accent-primary">
+											{rec.action}
+										</span>
+									</td>
+									<td class="px-3 py-2 text-text-secondary max-w-xs truncate" title={payloadSummary(rec)}>
+										{payloadSummary(rec)}
+									</td>
+									<td class="px-3 py-2 text-right text-text-secondary">{rec.fireCount}</td>
+									<td class="px-3 py-2 text-text-secondary">{formatNextFire(rec.nextFireAt)}</td>
+									<td class="px-3 py-2 text-[11px] text-text-tertiary max-w-xs truncate" title={rec.lastStatus ?? ''}>
+										{rec.lastStatus ?? '-'}
+									</td>
+									<td class="px-3 py-2 text-right">
+										<button
+											class="text-[11px] text-red-400 hover:text-red-300"
+											onclick={() => deleteScheduleById(rec.id)}
+											title="Delete schedule"
+										>
+											delete
+										</button>
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			{/if}
 		{/if}
 	</main>
 
