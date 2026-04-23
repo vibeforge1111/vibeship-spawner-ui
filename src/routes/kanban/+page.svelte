@@ -138,26 +138,100 @@
 	function formatNextFire(iso: string | null): string {
 		if (!iso) return '-';
 		try {
-			const ms = new Date(iso).getTime() - Date.now();
-			if (ms <= 0) return 'due now';
+			const d = new Date(iso);
+			const ms = d.getTime() - Date.now();
+			const localTime = d.toLocaleString(undefined, {
+				weekday: 'short',
+				hour: 'numeric',
+				minute: '2-digit',
+				hour12: true
+			});
+			if (ms <= 0) return `due now (${localTime})`;
 			const s = Math.floor(ms / 1000);
-			if (s < 60) return `${s}s`;
-			const m = Math.floor(s / 60);
-			if (m < 60) return `${m}m`;
-			const h = Math.floor(m / 60);
-			if (h < 24) return `${h}h${m % 60}m`;
-			const d = Math.floor(h / 24);
-			return `${d}d${h % 24}h`;
+			let rel: string;
+			if (s < 60) rel = `${s}s`;
+			else if (s < 3600) rel = `${Math.floor(s / 60)}m`;
+			else if (s < 86_400) rel = `${Math.floor(s / 3600)}h`;
+			else rel = `${Math.floor(s / 86_400)}d`;
+			return `${localTime} (in ${rel})`;
 		} catch {
 			return iso;
 		}
 	}
+
+	function formatTime12(h: number, m: number): string {
+		const hh = ((h + 11) % 12) + 1;
+		const mm = String(m).padStart(2, '0');
+		const suffix = h < 12 ? 'AM' : 'PM';
+		return mm === '00' ? `${hh} ${suffix}` : `${hh}:${mm} ${suffix}`;
+	}
+
+	const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+	const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+	function humanizeCron(cron: string): string {
+		const parts = cron.trim().split(/\s+/);
+		if (parts.length !== 5) return cron;
+		const [minute, hour, dom, month, dow] = parts;
+
+		// Every N minutes
+		if (hour === '*' && dom === '*' && month === '*' && dow === '*') {
+			if (minute === '*') return 'Every minute';
+			const m = /^\*\/(\d+)$/.exec(minute);
+			if (m) return `Every ${m[1]} minute${m[1] === '1' ? '' : 's'}`;
+			if (/^\d+$/.test(minute)) return `At ${minute} min past every hour`;
+		}
+
+		// Every N hours on minute M
+		if (dom === '*' && month === '*' && dow === '*') {
+			const h = /^\*\/(\d+)$/.exec(hour);
+			if (h && /^\d+$/.test(minute)) return `Every ${h[1]} hour${h[1] === '1' ? '' : 's'} at :${minute.padStart(2, '0')}`;
+			if (/^\d+$/.test(hour) && /^\d+$/.test(minute)) {
+				const label = dow === '*' ? 'Daily' : '';
+				return `${label} at ${formatTime12(+hour, +minute)}`.trim();
+			}
+		}
+
+		// Weekly on specific day
+		if (/^\d+$/.test(minute) && /^\d+$/.test(hour) && dom === '*' && month === '*' && /^\d$/.test(dow)) {
+			return `Every ${DOW[+dow]} at ${formatTime12(+hour, +minute)}`;
+		}
+
+		// Monthly on specific day of month
+		if (/^\d+$/.test(minute) && /^\d+$/.test(hour) && /^\d+$/.test(dom) && month === '*' && dow === '*') {
+			return `Monthly on day ${dom} at ${formatTime12(+hour, +minute)}`;
+		}
+
+		// Yearly
+		if (/^\d+$/.test(minute) && /^\d+$/.test(hour) && /^\d+$/.test(dom) && /^\d+$/.test(month) && dow === '*') {
+			return `Yearly on ${MON[+month - 1]} ${dom} at ${formatTime12(+hour, +minute)}`;
+		}
+
+		return `Custom: ${cron}`;
+	}
+
+	const ACTION_DESCRIPTIONS: Record<string, string> = {
+		loop: "Runs the chip's recursive self-improvement cycle (suggest -> evaluate). No LLM tokens consumed.",
+		mission: 'Spawns a new mission via /api/spark/run that dispatches to all configured LLM providers in parallel. Uses LLM tokens.'
+	};
 
 	function payloadSummary(rec: ScheduleRecord): string {
 		if (rec.action === 'mission') return String((rec.payload as { goal?: string }).goal ?? '');
 		const p = rec.payload as { chipKey?: string; rounds?: number };
 		return `${p.chipKey} x${p.rounds ?? 1}`;
 	}
+
+	function humanSummary(rec: ScheduleRecord): string {
+		const when = humanizeCron(rec.cron);
+		if (rec.action === 'mission') {
+			const goal = String((rec.payload as { goal?: string }).goal ?? '(no goal)');
+			return `${when}: run mission "${goal}"`;
+		}
+		const p = rec.payload as { chipKey?: string; rounds?: number };
+		return `${when}: run ${p.rounds ?? 1} loop round${(p.rounds ?? 1) === 1 ? '' : 's'} on ${p.chipKey}`;
+	}
+
+	const LOCAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 	$effect(() => {
 		if (activeTab === 'scheduled') {
@@ -629,22 +703,35 @@
 
 			{#if showCreate}
 				<div class="mb-4 border border-surface-border bg-bg-secondary p-4 space-y-3">
-					<div class="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-3 items-center">
-						<label class="font-mono text-[11px] text-text-tertiary">Cron</label>
-						<input
-							type="text"
-							bind:value={newCron}
-							placeholder="*/5 * * * *"
-							class="w-full px-2 py-1 bg-bg-primary border border-surface-border font-mono text-sm text-text-primary focus:outline-none focus:border-accent-primary"
-						/>
-						<label class="font-mono text-[11px] text-text-tertiary">Action</label>
-						<select
-							bind:value={newAction}
-							class="w-full px-2 py-1 bg-bg-primary border border-surface-border font-mono text-sm text-text-primary focus:outline-none focus:border-accent-primary"
-						>
-							<option value="loop">loop (runs chip suggest+evaluate)</option>
-							<option value="mission">mission (POST /api/spark/run)</option>
-						</select>
+					<div class="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-3 items-start">
+						<label class="font-mono text-[11px] text-text-tertiary pt-1">Cron</label>
+						<div>
+							<input
+								type="text"
+								bind:value={newCron}
+								placeholder="0 9 * * *"
+								class="w-full px-2 py-1 bg-bg-primary border border-surface-border font-mono text-sm text-text-primary focus:outline-none focus:border-accent-primary"
+							/>
+							<p class="font-mono text-[10px] text-accent-primary mt-1">
+								{humanizeCron(newCron)} <span class="text-text-tertiary">(in your timezone, {LOCAL_TZ})</span>
+							</p>
+							<p class="font-mono text-[10px] text-text-tertiary mt-1">
+								Examples: <code>*/5 * * * *</code> every 5 min · <code>0 9 * * *</code> daily 9 AM · <code>0 */6 * * *</code> every 6 hours · <code>0 0 * * 0</code> weekly Sunday midnight
+							</p>
+						</div>
+						<label class="font-mono text-[11px] text-text-tertiary pt-1">Action</label>
+						<div>
+							<select
+								bind:value={newAction}
+								class="w-full px-2 py-1 bg-bg-primary border border-surface-border font-mono text-sm text-text-primary focus:outline-none focus:border-accent-primary"
+							>
+								<option value="loop">loop - recursive self-improvement cycle</option>
+								<option value="mission">mission - dispatch to all LLM providers</option>
+							</select>
+							<p class="font-mono text-[10px] text-text-tertiary mt-1">
+								{ACTION_DESCRIPTIONS[newAction] ?? ''}
+							</p>
+						</div>
 						{#if newAction === 'mission'}
 							<label class="font-mono text-[11px] text-text-tertiary">Goal</label>
 							<input
@@ -699,16 +786,18 @@
 					</p>
 				</div>
 			{:else}
+				<p class="font-mono text-[10px] text-text-tertiary mb-2">
+					All times in your local timezone ({LOCAL_TZ}). Hover any cell for details.
+				</p>
 				<div class="border border-surface-border overflow-hidden">
 					<table class="w-full text-sm font-mono">
 						<thead class="bg-bg-secondary border-b border-surface-border">
 							<tr>
-								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Id</th>
-								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Cron</th>
+								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">What it does</th>
 								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Action</th>
-								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Payload</th>
+								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Schedule</th>
 								<th class="text-right px-3 py-2 text-[11px] text-text-tertiary">Fires</th>
-								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Next</th>
+								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Next run (local)</th>
 								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Last status</th>
 								<th class="text-right px-3 py-2 text-[11px] text-text-tertiary"></th>
 							</tr>
@@ -716,26 +805,35 @@
 						<tbody>
 							{#each schedules as rec (rec.id)}
 								<tr class="border-b border-surface-border hover:bg-bg-secondary/50">
-									<td class="px-3 py-2 text-[11px] text-text-secondary">{rec.id}</td>
-									<td class="px-3 py-2 text-text-primary">{rec.cron}</td>
+									<td class="px-3 py-2 text-text-primary" title={`Schedule id: ${rec.id}\nCreated: ${new Date(rec.createdAt).toLocaleString()}`}>
+										<div class="text-sm">{humanSummary(rec)}</div>
+										<div class="text-[10px] text-text-tertiary">{rec.id}</div>
+									</td>
 									<td class="px-3 py-2">
-										<span class="inline-block px-1.5 py-0.5 text-[10px] bg-bg-secondary border border-surface-border text-accent-primary">
+										<span
+											class="inline-block px-1.5 py-0.5 text-[10px] bg-bg-secondary border border-surface-border text-accent-primary cursor-help"
+											title={ACTION_DESCRIPTIONS[rec.action] ?? ''}
+										>
 											{rec.action}
 										</span>
 									</td>
-									<td class="px-3 py-2 text-text-secondary max-w-xs truncate" title={payloadSummary(rec)}>
-										{payloadSummary(rec)}
+									<td class="px-3 py-2 text-text-secondary cursor-help" title={`cron: ${rec.cron}\n(in your local timezone)`}>
+										{humanizeCron(rec.cron)}
 									</td>
-									<td class="px-3 py-2 text-right text-text-secondary">{rec.fireCount}</td>
-									<td class="px-3 py-2 text-text-secondary">{formatNextFire(rec.nextFireAt)}</td>
-									<td class="px-3 py-2 text-[11px] text-text-tertiary max-w-xs truncate" title={rec.lastStatus ?? ''}>
+									<td class="px-3 py-2 text-right text-text-secondary" title={rec.lastFiredAt ? `Last fired: ${new Date(rec.lastFiredAt).toLocaleString()}` : 'Never fired yet'}>
+										{rec.fireCount}
+									</td>
+									<td class="px-3 py-2 text-text-secondary" title={rec.nextFireAt ? new Date(rec.nextFireAt).toLocaleString() : '-'}>
+										{formatNextFire(rec.nextFireAt)}
+									</td>
+									<td class="px-3 py-2 text-[11px] text-text-tertiary max-w-xs truncate" title={rec.lastStatus ?? 'no fires yet'}>
 										{rec.lastStatus ?? '-'}
 									</td>
 									<td class="px-3 py-2 text-right">
 										<button
 											class="text-[11px] text-red-400 hover:text-red-300"
 											onclick={() => deleteScheduleById(rec.id)}
-											title="Delete schedule"
+											title="Delete this schedule permanently"
 										>
 											delete
 										</button>
