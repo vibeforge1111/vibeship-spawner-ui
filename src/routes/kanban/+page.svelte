@@ -222,13 +222,27 @@
 	}
 
 	function humanSummary(rec: ScheduleRecord): string {
-		const when = humanizeCron(rec.cron);
 		if (rec.action === 'mission') {
 			const goal = String((rec.payload as { goal?: string }).goal ?? '(no goal)');
-			return `${when}: run mission "${goal}"`;
+			return `Run mission "${goal}"`;
 		}
 		const p = rec.payload as { chipKey?: string; rounds?: number };
-		return `${when}: run ${p.rounds ?? 1} loop round${(p.rounds ?? 1) === 1 ? '' : 's'} on ${p.chipKey}`;
+		const n = p.rounds ?? 1;
+		return `Run ${n} loop round${n === 1 ? '' : 's'} on ${p.chipKey}`;
+	}
+
+	function scheduleCell(rec: ScheduleRecord): string {
+		const pattern = humanizeCron(rec.cron);
+		if (!rec.nextFireAt) return pattern;
+		const ms = new Date(rec.nextFireAt).getTime() - Date.now();
+		if (ms <= 0) return `${pattern} · due now`;
+		const s = Math.floor(ms / 1000);
+		let rel: string;
+		if (s < 60) rel = `${s}s`;
+		else if (s < 3600) rel = `${Math.floor(s / 60)}m`;
+		else if (s < 86_400) rel = `${Math.floor(s / 3600)}h`;
+		else rel = `${Math.floor(s / 86_400)}d`;
+		return `${pattern} · next in ${rel}`;
 	}
 
 	const LOCAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -796,7 +810,7 @@
 								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">What it does</th>
 								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Action</th>
 								<th class="text-right px-3 py-2 text-[11px] text-text-tertiary">Fires</th>
-								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Next run</th>
+								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Schedule</th>
 								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Last status</th>
 								<th class="text-right px-3 py-2 text-[11px] text-text-tertiary"></th>
 							</tr>
@@ -819,8 +833,8 @@
 									<td class="px-3 py-2 text-right text-text-secondary" title={rec.lastFiredAt ? `Last fired: ${new Date(rec.lastFiredAt).toLocaleString()}` : 'Never fired yet'}>
 										{rec.fireCount}
 									</td>
-									<td class="px-3 py-2 text-text-secondary" title={rec.nextFireAt ? new Date(rec.nextFireAt).toLocaleString() : '-'}>
-										{formatNextFire(rec.nextFireAt)}
+									<td class="px-3 py-2 text-text-secondary cursor-help" title={`cron: ${rec.cron}${rec.nextFireAt ? `\nNext fire (local): ${new Date(rec.nextFireAt).toLocaleString()}` : ''}`}>
+										{scheduleCell(rec)}
 									</td>
 									<td class="px-3 py-2 text-[11px] text-text-tertiary max-w-xs truncate" title={rec.lastStatus ?? 'no fires yet'}>
 										{rec.lastStatus ?? '-'}
