@@ -211,8 +211,8 @@
 	}
 
 	const ACTION_DESCRIPTIONS: Record<string, string> = {
-		loop: "Runs the chip's recursive self-improvement cycle (suggest -> evaluate). No LLM tokens consumed.",
-		mission: 'Spawns a new mission via /api/spark/run that dispatches to all configured LLM providers in parallel. Uses LLM tokens.'
+		loop: "Runs the chip's recursive self-improvement cycle (suggest -> evaluate). Token cost depends on the chip's hooks.",
+		mission: 'Spawns a new mission via /api/spark/run that dispatches to all configured LLM providers in parallel.'
 	};
 
 	function payloadSummary(rec: ScheduleRecord): string {
