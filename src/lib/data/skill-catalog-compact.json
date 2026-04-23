@@ -231,6 +231,17 @@
     ]
   },
   {
+    "id": "ml-ops",
+    "desc": "Production ML operations covering model training pipelines, registry, deployment, drift detection, A",
+    "owns": [
+      "Model training pipelines with reproducible artifacts",
+      "Model registry, versioning, and stage promotion (dev/staging/prod)",
+      "Feature stores with point-in-time correctness for training and serving parity",
+      "Shadow and canary deployment architectures",
+      "Drift detection (PSI, KL divergence) per feature"
+    ]
+  },
+  {
     "id": "model-optimization",
     "desc": "Use when reducing model size, improving inference speed, or deploying to edge devices - covers quant",
     "owns": [
@@ -2142,6 +2153,17 @@
       "Data quality rules and monitoring",
       "Data lineage and impact analysis",
       "Data classification (PII, PHI, confidential)"
+    ]
+  },
+  {
+    "id": "data-pipeline",
+    "desc": "ETL/ELT pipeline design and operation covering ingestion, transformation, idempotent backfills, sche",
+    "owns": [
+      "Pipeline architecture (batch, micro-batch, streaming, CDC)",
+      "Idempotent transforms keyed on stable identifiers",
+      "Schema contract enforcement at ingest with quarantine routing",
+      "Backfill design and watermark-aware re-merging",
+      "Lag and freshness observability with explicit SLOs"
     ]
   },
   {
@@ -5104,19 +5126,8 @@
     ]
   },
   {
-    "id": "productivity-ai-tools",
-    "desc": "Master AI tools for meetings, email, scheduling, and personal productivity to eliminate administrati",
-    "owns": [
-      "Meeting AI tools (Otter.ai, Fireflies.ai, Krisp) - transcription, notes, summaries",
-      "Email AI tools (Superhuman, Shortwave, SaneBox) - triage, drafting, automation",
-      "Calendar AI tools (Reclaim, Clockwise, Motion) - scheduling, focus time, optimization",
-      "Note-taking AI (Notion AI, Reflect) - knowledge management, writing assistance",
-      "Privacy and consent workflows for AI recording tools"
-    ]
-  },
-  {
     "id": "a-b-testing",
-    "desc": "The science of learning through controlled experimentation. A/B testing isn't about\npicking winners—",
+    "desc": "The science of learning through controlled experimentation. A/B testing isn't about\npicking winners ",
     "owns": [
       "Experiment design and hypothesis formation",
       "Statistical testing and power analysis",
@@ -5211,6 +5222,17 @@
       "Requirements definition and PRDs",
       "User stories and acceptance criteria",
       "Stakeholder alignment and communication"
+    ]
+  },
+  {
+    "id": "statistical-analysis",
+    "desc": "Applied statistical analysis for product, ML, and research decisions covering hypothesis tests, conf",
+    "owns": [
+      "Hypothesis test selection (t-test, chi-square, Mann-Whitney, etc.)",
+      "Sample-size and power calculation before running experiments",
+      "Confidence interval construction and interpretation",
+      "Multiple-comparison correction (Bonferroni, BH-FDR)",
+      "Effect size measurement separate from significance testing"
     ]
   },
   {

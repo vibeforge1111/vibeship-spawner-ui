@@ -1,6 +1,6 @@
 {
   "version": "2.0.0",
-  "totalSkills": 603,
+  "totalSkills": 605,
   "domains": {
     "game": [
       {
@@ -1550,19 +1550,6 @@
           "visual",
           "metaphors",
           "scripting"
-        ]
-      },
-      {
-        "id": "productivity-ai-tools",
-        "kw": [
-          "productivity",
-          "tools",
-          "ai",
-          "email",
-          "meeting",
-          "otter",
-          "superhuman",
-          "calendar"
         ]
       },
       {
@@ -3501,6 +3488,19 @@
         ]
       },
       {
+        "id": "ml-ops",
+        "kw": [
+          "ops",
+          "ml",
+          "model",
+          "training",
+          "pipelines",
+          "registry",
+          "versioning",
+          "feature"
+        ]
+      },
+      {
         "id": "model-optimization",
         "kw": [
           "model",
@@ -4889,6 +4889,19 @@
           "catalog",
           "quality",
           "rules"
+        ]
+      },
+      {
+        "id": "data-pipeline",
+        "kw": [
+          "data",
+          "pipeline",
+          "analytics",
+          "ml",
+          "architecture",
+          "batch",
+          "idempotent",
+          "transforms"
         ]
       },
       {
@@ -6699,6 +6712,19 @@
         ]
       },
       {
+        "id": "statistical-analysis",
+        "kw": [
+          "statistical",
+          "analysis",
+          "ml",
+          "next",
+          "hypothesis",
+          "test",
+          "selection",
+          "sample"
+        ]
+      },
+      {
         "id": "audit-logging",
         "kw": [
           "audit",
@@ -8142,6 +8168,19 @@
         "learning",
         "entity",
         "resolution"
+      ]
+    },
+    {
+      "id": "ml-ops",
+      "kw": [
+        "ops",
+        "ml",
+        "model",
+        "training",
+        "pipelines",
+        "registry",
+        "versioning",
+        "feature"
       ]
     },
     {
@@ -10404,6 +10443,19 @@
         "catalog",
         "quality",
         "rules"
+      ]
+    },
+    {
+      "id": "data-pipeline",
+      "kw": [
+        "data",
+        "pipeline",
+        "analytics",
+        "ml",
+        "architecture",
+        "batch",
+        "idempotent",
+        "transforms"
       ]
     },
     {
@@ -13904,19 +13956,6 @@
       ]
     },
     {
-      "id": "productivity-ai-tools",
-      "kw": [
-        "productivity",
-        "tools",
-        "ai",
-        "email",
-        "meeting",
-        "otter",
-        "superhuman",
-        "calendar"
-      ]
-    },
-    {
       "id": "a-b-testing",
       "kw": [
         "testing",
@@ -14031,6 +14070,19 @@
         "prioritization",
         "rice",
         "requirements"
+      ]
+    },
+    {
+      "id": "statistical-analysis",
+      "kw": [
+        "statistical",
+        "analysis",
+        "ml",
+        "next",
+        "hypothesis",
+        "test",
+        "selection",
+        "sample"
       ]
     },
     {

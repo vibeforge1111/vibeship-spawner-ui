@@ -191,8 +191,9 @@ function createCategorizedIndex(skills) {
 function main() {
   console.log('=== Building Skill Index ===\n');
 
+  const NON_SKILL_DIRS = new Set(['mcp-server', 'tools', 'viz', 'benchmark', 'benchmarks', 'h70-to-clawdbot', '.github', 'config', 'bundles', 'release-artifacts', 'eval', 'methodology']);
   const categories = fs.readdirSync(H70_PATH, { withFileTypes: true })
-    .filter(d => d.isDirectory() && !d.name.startsWith('_'))
+    .filter(d => d.isDirectory() && !d.name.startsWith('_') && !d.name.startsWith('.') && !NON_SKILL_DIRS.has(d.name))
     .map(d => d.name);
 
   const skillFiles = [];

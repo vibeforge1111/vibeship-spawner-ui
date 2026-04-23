@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-04-22T10:20:30.244Z",
-  "totalSkills": 603,
+  "generatedAt": "2026-04-23T13:24:43.230Z",
+  "totalSkills": 605,
   "categories": [
     "ai",
     "ai-agents",
@@ -29,11 +29,12 @@
     "integrations",
     "marketing",
     "mcp",
-    "methodology",
     "product",
+    "science",
     "security",
     "space",
     "architecture",
+    "methodology",
     "startup",
     "strategy",
     "enterprise",
@@ -382,6 +383,22 @@
         "entity-resolution",
         "outcome-feedback",
         "temporal-memory"
+      ],
+      "category": "ai"
+    },
+    {
+      "id": "ml-ops",
+      "name": "MLOps",
+      "description": "Production ML operations covering model training pipelines, registry, deployment, drift detection, A/B rollouts, and the observability gap between \"model performs in notebook\" and \"model performs at 3am on Black Friday\"",
+      "owns": [
+        "Model training pipelines with reproducible artifacts",
+        "Model registry, versioning, and stage promotion (dev/staging/prod)",
+        "Feature stores with point-in-time correctness for training and serving parity",
+        "Shadow and canary deployment architectures",
+        "Drift detection (PSI, KL divergence) per feature",
+        "Per-tier prediction quotas and budget alarms",
+        "Training-serving feature pipeline unification",
+        "Inference observability (latency, error rate, cost per prediction)"
       ],
       "category": "ai"
     },
@@ -3272,6 +3289,22 @@
         "Access governance and audit",
         "Business glossary and terminology",
         "Master data management"
+      ],
+      "category": "data"
+    },
+    {
+      "id": "data-pipeline",
+      "name": "Data Pipeline",
+      "description": "ETL/ELT pipeline design and operation covering ingestion, transformation, idempotent backfills, schema drift handling, and end-to-end observability for analytics and ML workloads.",
+      "owns": [
+        "Pipeline architecture (batch, micro-batch, streaming, CDC)",
+        "Idempotent transforms keyed on stable identifiers",
+        "Schema contract enforcement at ingest with quarantine routing",
+        "Backfill design and watermark-aware re-merging",
+        "Lag and freshness observability with explicit SLOs",
+        "Cost ceilings and budget alarms per pipeline",
+        "Dead-letter handling and replay paths",
+        "dbt incremental models and orchestrator dependency graphs"
       ],
       "category": "data"
     },
@@ -7679,24 +7712,9 @@
       "category": "mcp"
     },
     {
-      "id": "productivity-ai-tools",
-      "name": "productivity-ai-tools",
-      "description": "Master AI tools for meetings, email, scheduling, and personal productivity to eliminate administrative overhead",
-      "owns": [
-        "Meeting AI tools (Otter.ai, Fireflies.ai, Krisp) - transcription, notes, summaries",
-        "Email AI tools (Superhuman, Shortwave, SaneBox) - triage, drafting, automation",
-        "Calendar AI tools (Reclaim, Clockwise, Motion) - scheduling, focus time, optimization",
-        "Note-taking AI (Notion AI, Reflect) - knowledge management, writing assistance",
-        "Privacy and consent workflows for AI recording tools",
-        "Tool selection and stack design for different team sizes",
-        "ROI measurement and tool consolidation strategies"
-      ],
-      "category": "methodology"
-    },
-    {
       "id": "a-b-testing",
       "name": "a-b-testing",
-      "description": "The science of learning through controlled experimentation. A/B testing isn't about\npicking winners—it's about building a culture of validated learning and reducing\nthe cost of being wrong.",
+      "description": "The science of learning through controlled experimentation. A/B testing isn't about\npicking winners - it's about building a culture of validated learning and reducing\nthe cost of being wrong.",
       "owns": [
         "Experiment design and hypothesis formation",
         "Statistical testing and power analysis",
@@ -7843,6 +7861,22 @@
         "Product metrics and OKRs"
       ],
       "category": "product"
+    },
+    {
+      "id": "statistical-analysis",
+      "name": "Statistical Analysis",
+      "description": "Applied statistical analysis for product, ML, and research decisions covering hypothesis tests, confidence intervals, sample-size calculation, multiple-comparison correction, and the gap between \"p < 0",
+      "owns": [
+        "Hypothesis test selection (t-test, chi-square, Mann-Whitney, etc.)",
+        "Sample-size and power calculation before running experiments",
+        "Confidence interval construction and interpretation",
+        "Multiple-comparison correction (Bonferroni, BH-FDR)",
+        "Effect size measurement separate from significance testing",
+        "Bayesian analysis where uncertainty quantification matters",
+        "Pre-registration of analysis plans to prevent p-hacking",
+        "Translation of statistical findings into non-statistician decisions"
+      ],
+      "category": "science"
     },
     {
       "id": "ai-code-security",
@@ -10296,6 +10330,22 @@
           "entity-resolution",
           "outcome-feedback",
           "temporal-memory"
+        ],
+        "category": "ai"
+      },
+      {
+        "id": "ml-ops",
+        "name": "MLOps",
+        "description": "Production ML operations covering model training pipelines, registry, deployment, drift detection, A/B rollouts, and the observability gap between \"model performs in notebook\" and \"model performs at 3am on Black Friday\"",
+        "owns": [
+          "Model training pipelines with reproducible artifacts",
+          "Model registry, versioning, and stage promotion (dev/staging/prod)",
+          "Feature stores with point-in-time correctness for training and serving parity",
+          "Shadow and canary deployment architectures",
+          "Drift detection (PSI, KL divergence) per feature",
+          "Per-tier prediction quotas and budget alarms",
+          "Training-serving feature pipeline unification",
+          "Inference observability (latency, error rate, cost per prediction)"
         ],
         "category": "ai"
       },
@@ -13567,6 +13617,22 @@
           "Access governance and audit",
           "Business glossary and terminology",
           "Master data management"
+        ],
+        "category": "data"
+      },
+      {
+        "id": "data-pipeline",
+        "name": "Data Pipeline",
+        "description": "ETL/ELT pipeline design and operation covering ingestion, transformation, idempotent backfills, schema drift handling, and end-to-end observability for analytics and ML workloads.",
+        "owns": [
+          "Pipeline architecture (batch, micro-batch, streaming, CDC)",
+          "Idempotent transforms keyed on stable identifiers",
+          "Schema contract enforcement at ingest with quarantine routing",
+          "Backfill design and watermark-aware re-merging",
+          "Lag and freshness observability with explicit SLOs",
+          "Cost ceilings and budget alarms per pipeline",
+          "Dead-letter handling and replay paths",
+          "dbt incremental models and orchestrator dependency graphs"
         ],
         "category": "data"
       },
@@ -18275,157 +18341,11 @@
         "category": "mcp"
       }
     ],
-    "methodology": [
-      {
-        "id": "productivity-ai-tools",
-        "name": "productivity-ai-tools",
-        "description": "Master AI tools for meetings, email, scheduling, and personal productivity to eliminate administrative overhead",
-        "owns": [
-          "Meeting AI tools (Otter.ai, Fireflies.ai, Krisp) - transcription, notes, summaries",
-          "Email AI tools (Superhuman, Shortwave, SaneBox) - triage, drafting, automation",
-          "Calendar AI tools (Reclaim, Clockwise, Motion) - scheduling, focus time, optimization",
-          "Note-taking AI (Notion AI, Reflect) - knowledge management, writing assistance",
-          "Privacy and consent workflows for AI recording tools",
-          "Tool selection and stack design for different team sizes",
-          "ROI measurement and tool consolidation strategies"
-        ],
-        "category": "methodology"
-      },
-      {
-        "id": "cognitive-behavioral",
-        "name": "cognitive-behavioral",
-        "description": "Evidence-based cognitive behavioral techniques for thought pattern restructuring",
-        "owns": [
-          "Cognitive distortion identification",
-          "Thought challenging and restructuring",
-          "Behavioral activation strategies",
-          "Exposure hierarchy design",
-          "Automatic thought records",
-          "Core belief modification",
-          "Cognitive defusion techniques"
-        ],
-        "category": "methodology"
-      },
-      {
-        "id": "existential-philosophy",
-        "name": "existential-philosophy",
-        "description": "Existential philosophy and meaning-making frameworks for purpose discovery and philosophical counseling",
-        "owns": [
-          "Existential philosophy frameworks (Frankl, Camus, Kierkegaard, Sartre, Heidegger)",
-          "Logotherapy and meaning-making processes",
-          "Purpose discovery and values clarification",
-          "Existential psychology (Yalom, May, van Deurzen)",
-          "Philosophical counseling and Socratic dialogue",
-          "Absurdism and creative response to meaninglessness",
-          "Authenticity assessment and bad faith detection",
-          "Existential anxiety navigation (death, freedom, isolation, meaninglessness)",
-          "Ikigai framework and life purpose synthesis",
-          "Organizational purpose beyond purpose-washing"
-        ],
-        "category": "methodology"
-      },
-      {
-        "id": "focus-techniques",
-        "name": "focus-techniques",
-        "description": "Deep work strategies and attention management for sustained cognitive performance",
-        "owns": [
-          "Deep work methodology and practice",
-          "Attention management systems",
-          "Distraction elimination strategies",
-          "Flow state optimization",
-          "Context switching cost analysis",
-          "Environmental design for focus",
-          "Cognitive load management"
-        ],
-        "category": "methodology"
-      },
-      {
-        "id": "logical-reasoning",
-        "name": "logical-reasoning",
-        "description": "Core principles of valid reasoning and argument analysis",
-        "owns": [
-          "Argument structure and validity",
-          "Logical fallacy identification",
-          "Deductive and inductive reasoning",
-          "Evidence evaluation",
-          "Critical thinking frameworks",
-          "Argumentation mapping",
-          "Epistemic humility and uncertainty"
-        ],
-        "category": "methodology"
-      },
-      {
-        "id": "meta-learning",
-        "name": "meta-learning",
-        "description": "Learning how to learn - knowledge transfer, skill acquisition, cognitive strategies, and spaced repetition systems",
-        "owns": [
-          "Spaced repetition system design and scheduling algorithms",
-          "Deliberate practice frameworks and feedback loop design",
-          "Knowledge transfer strategies (near transfer, far transfer)",
-          "Cognitive load management (intrinsic, extraneous, germane)",
-          "Expertise development pathways (novice to expert progression)",
-          "Learning assessment design (formative, summative, authentic)",
-          "Retrieval practice implementation (testing effect, flashcards, self-quizzing)",
-          "Interleaving and variation in practice design",
-          "Elaborative interrogation and self-explanation strategies",
-          "Metacognitive monitoring (calibration, judgment of learning)"
-        ],
-        "category": "methodology"
-      },
-      {
-        "id": "philosophy-fundamentals",
-        "name": "philosophy-fundamentals",
-        "description": "Core philosophical reasoning for clear thinking and ethical decision-making",
-        "owns": [
-          "Logical reasoning and argument structure",
-          "Fallacy identification and avoidance",
-          "Ethical frameworks (consequentialism, deontology, virtue ethics)",
-          "Critical thinking methodology",
-          "Assumption identification and questioning",
-          "Thought experiments and edge cases",
-          "Epistemic humility and uncertainty handling"
-        ],
-        "category": "methodology"
-      },
-      {
-        "id": "productivity-systems",
-        "name": "productivity-systems",
-        "description": "Evidence-based productivity frameworks for sustainable high performance",
-        "owns": [
-          "Deep work and focus management",
-          "Task prioritization frameworks",
-          "Energy management (not just time)",
-          "Context switching minimization",
-          "Sustainable pace practices",
-          "Productivity anti-patterns (hustleporn, theater)",
-          "Evidence-based productivity (what actually works)"
-        ],
-        "category": "methodology"
-      },
-      {
-        "id": "tech-ethics",
-        "name": "tech-ethics",
-        "description": "AI ethics, algorithmic bias detection, privacy by design, and responsible technology development",
-        "owns": [
-          "Algorithmic bias detection and fairness metric selection",
-          "Disparate impact testing across protected categories",
-          "Privacy impact assessments and data minimization",
-          "Dark pattern identification and consent design review",
-          "AI transparency and explainability requirements",
-          "Algorithmic accountability frameworks and documentation",
-          "Ethical red-teaming and adversarial testing for harm",
-          "Consent flow design and review",
-          "Data collection ethics and purpose limitation",
-          "Stakeholder impact analysis (who benefits, who is harmed)"
-        ],
-        "category": "methodology"
-      }
-    ],
     "product": [
       {
         "id": "a-b-testing",
         "name": "a-b-testing",
-        "description": "The science of learning through controlled experimentation. A/B testing isn't about\npicking winners—it's about building a culture of validated learning and reducing\nthe cost of being wrong.",
+        "description": "The science of learning through controlled experimentation. A/B testing isn't about\npicking winners - it's about building a culture of validated learning and reducing\nthe cost of being wrong.",
         "owns": [
           "Experiment design and hypothesis formation",
           "Statistical testing and power analysis",
@@ -18572,6 +18492,24 @@
           "Product metrics and OKRs"
         ],
         "category": "product"
+      }
+    ],
+    "science": [
+      {
+        "id": "statistical-analysis",
+        "name": "Statistical Analysis",
+        "description": "Applied statistical analysis for product, ML, and research decisions covering hypothesis tests, confidence intervals, sample-size calculation, multiple-comparison correction, and the gap between \"p < 0",
+        "owns": [
+          "Hypothesis test selection (t-test, chi-square, Mann-Whitney, etc.)",
+          "Sample-size and power calculation before running experiments",
+          "Confidence interval construction and interpretation",
+          "Multiple-comparison correction (Bonferroni, BH-FDR)",
+          "Effect size measurement separate from significance testing",
+          "Bayesian analysis where uncertainty quantification matters",
+          "Pre-registration of analysis plans to prevent p-hacking",
+          "Translation of statistical findings into non-statistician decisions"
+        ],
+        "category": "science"
       }
     ],
     "security": [
@@ -19112,6 +19050,137 @@
           "Eventual consistency patterns"
         ],
         "category": "architecture"
+      }
+    ],
+    "methodology": [
+      {
+        "id": "cognitive-behavioral",
+        "name": "cognitive-behavioral",
+        "description": "Evidence-based cognitive behavioral techniques for thought pattern restructuring",
+        "owns": [
+          "Cognitive distortion identification",
+          "Thought challenging and restructuring",
+          "Behavioral activation strategies",
+          "Exposure hierarchy design",
+          "Automatic thought records",
+          "Core belief modification",
+          "Cognitive defusion techniques"
+        ],
+        "category": "methodology"
+      },
+      {
+        "id": "existential-philosophy",
+        "name": "existential-philosophy",
+        "description": "Existential philosophy and meaning-making frameworks for purpose discovery and philosophical counseling",
+        "owns": [
+          "Existential philosophy frameworks (Frankl, Camus, Kierkegaard, Sartre, Heidegger)",
+          "Logotherapy and meaning-making processes",
+          "Purpose discovery and values clarification",
+          "Existential psychology (Yalom, May, van Deurzen)",
+          "Philosophical counseling and Socratic dialogue",
+          "Absurdism and creative response to meaninglessness",
+          "Authenticity assessment and bad faith detection",
+          "Existential anxiety navigation (death, freedom, isolation, meaninglessness)",
+          "Ikigai framework and life purpose synthesis",
+          "Organizational purpose beyond purpose-washing"
+        ],
+        "category": "methodology"
+      },
+      {
+        "id": "focus-techniques",
+        "name": "focus-techniques",
+        "description": "Deep work strategies and attention management for sustained cognitive performance",
+        "owns": [
+          "Deep work methodology and practice",
+          "Attention management systems",
+          "Distraction elimination strategies",
+          "Flow state optimization",
+          "Context switching cost analysis",
+          "Environmental design for focus",
+          "Cognitive load management"
+        ],
+        "category": "methodology"
+      },
+      {
+        "id": "logical-reasoning",
+        "name": "logical-reasoning",
+        "description": "Core principles of valid reasoning and argument analysis",
+        "owns": [
+          "Argument structure and validity",
+          "Logical fallacy identification",
+          "Deductive and inductive reasoning",
+          "Evidence evaluation",
+          "Critical thinking frameworks",
+          "Argumentation mapping",
+          "Epistemic humility and uncertainty"
+        ],
+        "category": "methodology"
+      },
+      {
+        "id": "meta-learning",
+        "name": "meta-learning",
+        "description": "Learning how to learn - knowledge transfer, skill acquisition, cognitive strategies, and spaced repetition systems",
+        "owns": [
+          "Spaced repetition system design and scheduling algorithms",
+          "Deliberate practice frameworks and feedback loop design",
+          "Knowledge transfer strategies (near transfer, far transfer)",
+          "Cognitive load management (intrinsic, extraneous, germane)",
+          "Expertise development pathways (novice to expert progression)",
+          "Learning assessment design (formative, summative, authentic)",
+          "Retrieval practice implementation (testing effect, flashcards, self-quizzing)",
+          "Interleaving and variation in practice design",
+          "Elaborative interrogation and self-explanation strategies",
+          "Metacognitive monitoring (calibration, judgment of learning)"
+        ],
+        "category": "methodology"
+      },
+      {
+        "id": "philosophy-fundamentals",
+        "name": "philosophy-fundamentals",
+        "description": "Core philosophical reasoning for clear thinking and ethical decision-making",
+        "owns": [
+          "Logical reasoning and argument structure",
+          "Fallacy identification and avoidance",
+          "Ethical frameworks (consequentialism, deontology, virtue ethics)",
+          "Critical thinking methodology",
+          "Assumption identification and questioning",
+          "Thought experiments and edge cases",
+          "Epistemic humility and uncertainty handling"
+        ],
+        "category": "methodology"
+      },
+      {
+        "id": "productivity-systems",
+        "name": "productivity-systems",
+        "description": "Evidence-based productivity frameworks for sustainable high performance",
+        "owns": [
+          "Deep work and focus management",
+          "Task prioritization frameworks",
+          "Energy management (not just time)",
+          "Context switching minimization",
+          "Sustainable pace practices",
+          "Productivity anti-patterns (hustleporn, theater)",
+          "Evidence-based productivity (what actually works)"
+        ],
+        "category": "methodology"
+      },
+      {
+        "id": "tech-ethics",
+        "name": "tech-ethics",
+        "description": "AI ethics, algorithmic bias detection, privacy by design, and responsible technology development",
+        "owns": [
+          "Algorithmic bias detection and fairness metric selection",
+          "Disparate impact testing across protected categories",
+          "Privacy impact assessments and data minimization",
+          "Dark pattern identification and consent design review",
+          "AI transparency and explainability requirements",
+          "Algorithmic accountability frameworks and documentation",
+          "Ethical red-teaming and adversarial testing for harm",
+          "Consent flow design and review",
+          "Data collection ethics and purpose limitation",
+          "Stakeholder impact analysis (who benefits, who is harmed)"
+        ],
+        "category": "methodology"
       }
     ],
     "startup": [
