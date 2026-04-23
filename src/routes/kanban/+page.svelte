@@ -795,9 +795,8 @@
 							<tr>
 								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">What it does</th>
 								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Action</th>
-								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Schedule</th>
 								<th class="text-right px-3 py-2 text-[11px] text-text-tertiary">Fires</th>
-								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Next run (local)</th>
+								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Next run</th>
 								<th class="text-left px-3 py-2 text-[11px] text-text-tertiary">Last status</th>
 								<th class="text-right px-3 py-2 text-[11px] text-text-tertiary"></th>
 							</tr>
@@ -805,7 +804,7 @@
 						<tbody>
 							{#each schedules as rec (rec.id)}
 								<tr class="border-b border-surface-border hover:bg-bg-secondary/50">
-									<td class="px-3 py-2 text-text-primary" title={`Schedule id: ${rec.id}\nCreated: ${new Date(rec.createdAt).toLocaleString()}`}>
+									<td class="px-3 py-2 text-text-primary" title={`Schedule id: ${rec.id}\nCron: ${rec.cron}\nCreated: ${new Date(rec.createdAt).toLocaleString()}`}>
 										<div class="text-sm">{humanSummary(rec)}</div>
 										<div class="text-[10px] text-text-tertiary">{rec.id}</div>
 									</td>
@@ -816,9 +815,6 @@
 										>
 											{rec.action}
 										</span>
-									</td>
-									<td class="px-3 py-2 text-text-secondary cursor-help" title={`cron: ${rec.cron}\n(in your local timezone)`}>
-										{humanizeCron(rec.cron)}
 									</td>
 									<td class="px-3 py-2 text-right text-text-secondary" title={rec.lastFiredAt ? `Last fired: ${new Date(rec.lastFiredAt).toLocaleString()}` : 'Never fired yet'}>
 										{rec.fireCount}
