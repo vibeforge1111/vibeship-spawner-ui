@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-04-23T13:24:43.230Z",
-  "totalSkills": 605,
+  "generatedAt": "2026-04-23T17:50:58.620Z",
+  "totalSkills": 608,
   "categories": [
     "ai",
     "ai-agents",
@@ -745,6 +745,24 @@
         "memory-persistence",
         "memory-retrieval",
         "memory-consolidation"
+      ],
+      "category": "ai-agents"
+    },
+    {
+      "id": "conversational-intent-design",
+      "name": "Conversational Intent Design",
+      "description": "Expert at designing conversational intent systems that feel like a human,\nnot a help-desk form",
+      "owns": [
+        "Intent taxonomy design (disjoint coverage, out-of-scope fallback)",
+        "Hybrid routing (tier-1 deterministic rules, tier-2 LLM classifier)",
+        "Confidence thresholds and escalation paths",
+        "Natural-language phrasing coverage per intent (10-20 variants each)",
+        "Disambiguation conversation patterns (one clarifying question, not a menu)",
+        "Destructive-action confirmation patterns",
+        "Cancel/recover paths (never mind, cancel, oops)",
+        "Tone mirroring / register matching (read the room)",
+        "Humanized output templates (no field dumps)",
+        "Collision resolution between overlapping intents"
       ],
       "category": "ai-agents"
     },
@@ -3837,6 +3855,22 @@
         "ai-feature-scoping",
         "confidence-communication",
         "graceful-degradation"
+      ],
+      "category": "development"
+    },
+    {
+      "id": "android-kotlin-specialist",
+      "name": "Android Kotlin Specialist",
+      "description": "Production Android development with Kotlin covering Jetpack Compose, coroutines, lifecycle, dependency injection, app size, and the gap between \"works on my Pixel\" and \"works across 18,000 Android device models with 7 different OS versions still in active use\"",
+      "owns": [
+        "Jetpack Compose (state, recomposition, side effects, navigation)",
+        "Coroutines and structured concurrency (scopes, dispatchers, cancellation)",
+        "Lifecycle-aware components (ViewModel, LiveData, StateFlow, lifecycleScope)",
+        "Dependency injection (Hilt, Koin) and module organization",
+        "App size (R8/ProGuard, APK splits, on-demand modules, baseline profiles)",
+        "Background work (WorkManager, foreground services, exact alarms)",
+        "Storage (DataStore, Room, Scoped Storage migration)",
+        "Cross-device compatibility (screen sizes, OS versions, OEM quirks)"
       ],
       "category": "development"
     },
@@ -9688,6 +9722,22 @@
       "category": "enterprise"
     },
     {
+      "id": "sales-strategy",
+      "name": "Sales Strategy",
+      "description": "Founder-led and early-stage sales strategy covering ICP definition, pipeline construction, deal qualification, pricing, objection handling, and the gap between \"we have leads\" and \"we have repeatable revenue\"",
+      "owns": [
+        "ICP definition and disqualification criteria",
+        "Pipeline construction with stage definitions and exit criteria",
+        "Deal qualification (MEDDPICC or equivalent) and forecasting",
+        "Pricing strategy and discount discipline",
+        "Objection handling playbooks",
+        "Procurement, security, and legal navigation",
+        "Champion development and multi-threading inside accounts",
+        "Founder-led sales motion and the handoff to first sales hires"
+      ],
+      "category": "strategy"
+    },
+    {
       "id": "scim-provisioning",
       "name": "SCIM Provisioning",
       "description": "SCIM provisioning and deprovisioning systems for enterprise identity lifecycle sync, group mapping, account drift correction, and reliable directory integration.",
@@ -10712,6 +10762,24 @@
           "memory-persistence",
           "memory-retrieval",
           "memory-consolidation"
+        ],
+        "category": "ai-agents"
+      },
+      {
+        "id": "conversational-intent-design",
+        "name": "Conversational Intent Design",
+        "description": "Expert at designing conversational intent systems that feel like a human,\nnot a help-desk form",
+        "owns": [
+          "Intent taxonomy design (disjoint coverage, out-of-scope fallback)",
+          "Hybrid routing (tier-1 deterministic rules, tier-2 LLM classifier)",
+          "Confidence thresholds and escalation paths",
+          "Natural-language phrasing coverage per intent (10-20 variants each)",
+          "Disambiguation conversation patterns (one clarifying question, not a menu)",
+          "Destructive-action confirmation patterns",
+          "Cancel/recover paths (never mind, cancel, oops)",
+          "Tone mirroring / register matching (read the room)",
+          "Humanized output templates (no field dumps)",
+          "Collision resolution between overlapping intents"
         ],
         "category": "ai-agents"
       },
@@ -14222,6 +14290,22 @@
           "ai-feature-scoping",
           "confidence-communication",
           "graceful-degradation"
+        ],
+        "category": "development"
+      },
+      {
+        "id": "android-kotlin-specialist",
+        "name": "Android Kotlin Specialist",
+        "description": "Production Android development with Kotlin covering Jetpack Compose, coroutines, lifecycle, dependency injection, app size, and the gap between \"works on my Pixel\" and \"works across 18,000 Android device models with 7 different OS versions still in active use\"",
+        "owns": [
+          "Jetpack Compose (state, recomposition, side effects, navigation)",
+          "Coroutines and structured concurrency (scopes, dispatchers, cancellation)",
+          "Lifecycle-aware components (ViewModel, LiveData, StateFlow, lifecycleScope)",
+          "Dependency injection (Hilt, Koin) and module organization",
+          "App size (R8/ProGuard, APK splits, on-demand modules, baseline profiles)",
+          "Background work (WorkManager, foreground services, exact alarms)",
+          "Storage (DataStore, Room, Scoped Storage migration)",
+          "Cross-device compatibility (screen sizes, OS versions, OEM quirks)"
         ],
         "category": "development"
       },
@@ -19645,6 +19729,22 @@
           "Problem discovery and validation",
           "Customer discovery strategy",
           "MVP scoping and prioritization"
+        ],
+        "category": "strategy"
+      },
+      {
+        "id": "sales-strategy",
+        "name": "Sales Strategy",
+        "description": "Founder-led and early-stage sales strategy covering ICP definition, pipeline construction, deal qualification, pricing, objection handling, and the gap between \"we have leads\" and \"we have repeatable revenue\"",
+        "owns": [
+          "ICP definition and disqualification criteria",
+          "Pipeline construction with stage definitions and exit criteria",
+          "Deal qualification (MEDDPICC or equivalent) and forecasting",
+          "Pricing strategy and discount discipline",
+          "Objection handling playbooks",
+          "Procurement, security, and legal navigation",
+          "Champion development and multi-threading inside accounts",
+          "Founder-led sales motion and the handoff to first sales hires"
         ],
         "category": "strategy"
       },

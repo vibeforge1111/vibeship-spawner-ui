@@ -2243,6 +2243,86 @@
       }
     ]
   },
+  "conversational-intent-design": {
+    "id": "conversational-intent-design",
+    "name": "Conversational Intent Design",
+    "description": "Expert at designing conversational intent systems that feel like a human,\nnot a help-desk form. Covers hybrid rule+LLM routing, disjoint intent\ntaxonomy, confidence gating, disambiguation turns, tone mirroring,\nand humanized outputs. Builds chat surfaces that read the room and\nmatch the user's energy instead of dumping fields.\n",
+    "owns": [
+      "Intent taxonomy design (disjoint coverage, out-of-scope fallback)",
+      "Hybrid routing (tier-1 deterministic rules, tier-2 LLM classifier)",
+      "Confidence thresholds and escalation paths",
+      "Natural-language phrasing coverage per intent (10-20 variants each)",
+      "Disambiguation conversation patterns (one clarifying question, not a menu)",
+      "Destructive-action confirmation patterns",
+      "Cancel/recover paths (\"never mind\", \"cancel\", \"oops\")",
+      "Tone mirroring / register matching (read the room)",
+      "Humanized output templates (no field dumps)",
+      "Collision resolution between overlapping intents",
+      "Testing strategy for intent systems (fixture-based, adversarial probes)"
+    ],
+    "triggers": [
+      "intent classification",
+      "natural language intent",
+      "NL routing",
+      "chatbot intent design",
+      "conversational AI",
+      "slash command NL alternative",
+      "hybrid NLU",
+      "intent taxonomy",
+      "disambiguation",
+      "tone matching",
+      "read the room",
+      "match user energy",
+      "conversational UX"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "prompt-engineering",
+        "when": "User needs the LLM-fallback prompt (tier-2 classifier) tuned for few-shot intent extraction",
+        "pass_context": [
+          "Known intent labels + one-line descriptions",
+          "3-5 representative phrasings per intent",
+          "Output JSON schema expected from the classifier"
+        ],
+        "expect_back": [
+          "Reusable system prompt with few-shot block",
+          "Temperature + max_tokens recommendation",
+          "Schema-strict parser with fallback on malformed output"
+        ],
+        "sla": "synchronous"
+      },
+      {
+        "skill": "api-design",
+        "when": "The intent router exposes a REST surface to other services",
+        "pass_context": [
+          "Endpoint shape (POST /intent/classify with message + context)",
+          "Auth model",
+          "Expected latency budget"
+        ],
+        "expect_back": [
+          "Request/response schema",
+          "Error envelope for low-confidence / ambiguous cases",
+          "Rate-limit recommendations"
+        ],
+        "sla": "synchronous"
+      },
+      {
+        "skill": "security-owasp",
+        "when": "User-supplied text will be matched against prompts or executed as commands (injection surface)",
+        "pass_context": [
+          "Where the user message flows (regex, LLM, subprocess)",
+          "Commands the router can trigger (delete, create, schedule)"
+        ],
+        "expect_back": [
+          "Input sanitization strategy",
+          "Confirmation gates on destructive actions",
+          "Audit trail requirements"
+        ],
+        "sla": "synchronous"
+      }
+    ]
+  },
   "crewai": {
     "id": "crewai",
     "name": "CrewAI",
@@ -10489,23 +10569,78 @@
     "delegates": [
       {
         "skill": "postgres-wizard",
-        "when": "Query optimization, slow queries, EXPLAIN analysis, PostgreSQL-specific features"
+        "when": "Query optimization, slow queries, EXPLAIN analysis, PostgreSQL-specific features",
+        "pass_context": [
+          "Slow query EXPLAIN plans with timing",
+          "Current index inventory",
+          "Postgres version and config"
+        ],
+        "expect_back": [
+          "Index plan with measured improvement",
+          "Query rewrite if needed",
+          "Maintenance recommendations (vacuum, cluster)"
+        ],
+        "sla": "synchronous"
       },
       {
         "skill": "backend",
-        "when": "Moving from schema to API implementation, ORM usage patterns"
+        "when": "Moving from schema to API implementation, ORM usage patterns",
+        "pass_context": [
+          "Schema with FK constraints and access patterns",
+          "ORM choice (Prisma, Drizzle, SQLAlchemy, etc)",
+          "Performance budget per query"
+        ],
+        "expect_back": [
+          "Repository pattern aligned to access patterns",
+          "N+1 prevention strategy",
+          "Transaction boundary decisions"
+        ],
+        "sla": "synchronous"
       },
       {
         "skill": "supabase-backend",
-        "when": "Authentication-aware schema design, RLS policies, Supabase-specific patterns"
+        "when": "Authentication-aware schema design, RLS policies, Supabase-specific patterns",
+        "pass_context": [
+          "User table model and tenant isolation",
+          "RLS performance considerations",
+          "Realtime subscription requirements"
+        ],
+        "expect_back": [
+          "RLS policies aligned to access patterns",
+          "Schema with tenant boundary enforced",
+          "Realtime channel design"
+        ],
+        "sla": "synchronous"
       },
       {
         "skill": "devops",
-        "when": "Database deployment, replication, backups, infrastructure"
+        "when": "Database deployment, replication, backups, infrastructure",
+        "pass_context": [
+          "Hosting model (managed RDS, self-hosted, Supabase)",
+          "RTO/RPO targets",
+          "Multi-AZ or multi-region requirement"
+        ],
+        "expect_back": [
+          "Replication topology",
+          "Backup cadence and tested restore",
+          "Failover runbook"
+        ],
+        "sla": "synchronous"
       },
       {
         "skill": "performance-hunter",
-        "when": "Database performance profiling, bottleneck identification"
+        "when": "Database performance profiling, bottleneck identification",
+        "pass_context": [
+          "Slow query log excerpt",
+          "Connection pool stats",
+          "Lock contention metrics if any"
+        ],
+        "expect_back": [
+          "Root cause per slow path",
+          "Concrete fix (index, rewrite, schema change)",
+          "Load test plan to verify"
+        ],
+        "sla": "synchronous"
       }
     ]
   },
@@ -11751,27 +11886,93 @@
     "delegates": [
       {
         "skill": "ux-design",
-        "when": "Need user research, user flows, or usability testing"
+        "when": "Need user research, user flows, or usability testing",
+        "pass_context": [
+          "Visual design produced and the user goals it serves",
+          "Friction points hypothesized",
+          "Audience characteristics"
+        ],
+        "expect_back": [
+          "Validated user flows",
+          "Usability findings with severity",
+          "Recommendations to refine the visual design"
+        ],
+        "sla": "synchronous"
       },
       {
         "skill": "typography",
-        "when": "Need type scale, font selection, or text hierarchy"
+        "when": "Need type scale, font selection, or text hierarchy",
+        "pass_context": [
+          "Brand voice and product personality",
+          "Performance budget for web fonts",
+          "Multilingual requirements"
+        ],
+        "expect_back": [
+          "Type scale and font stack",
+          "Hierarchy rules per content type",
+          "Performance-aware loading strategy"
+        ],
+        "sla": "synchronous"
       },
       {
-        "skill": "accessibility-audit",
-        "when": "Need comprehensive WCAG compliance audit"
+        "skill": "accessibility",
+        "when": "Need comprehensive WCAG compliance audit",
+        "pass_context": [
+          "WCAG level required (AA, AAA)",
+          "Components and pages in scope",
+          "Automated tooling already in place"
+        ],
+        "expect_back": [
+          "Audit report with severity-ranked issues",
+          "Concrete fix per finding",
+          "CI-integrated checks to prevent regression"
+        ],
+        "sla": "synchronous"
       },
       {
-        "skill": "frontend-react",
-        "when": "Need React component implementation"
+        "skill": "react-patterns",
+        "when": "Need React component implementation",
+        "pass_context": [
+          "Component design with states (default, hover, active, disabled, loading)",
+          "Reuse expectations",
+          "Existing component library if any"
+        ],
+        "expect_back": [
+          "Component API with props and slots",
+          "State management aligned to interaction model",
+          "Accessibility hooks built in"
+        ],
+        "sla": "synchronous"
       },
       {
-        "skill": "css-architecture",
-        "when": "Need CSS methodology or architecture decisions"
+        "skill": "tailwind-ui",
+        "when": "Need CSS methodology or architecture decisions",
+        "pass_context": [
+          "Existing CSS approach (utility, BEM, CSS-in-JS)",
+          "Component reuse patterns",
+          "Theme tokens"
+        ],
+        "expect_back": [
+          "Class-organization convention (cva, tailwind-merge)",
+          "Theme config with tokens",
+          "Migration plan if changing methodology"
+        ],
+        "sla": "synchronous"
       },
       {
         "skill": "design-systems",
-        "when": "Need full design system architecture and governance"
+        "when": "Need full design system architecture and governance",
+        "pass_context": [
+          "Component inventory",
+          "Multi-product or single-product",
+          "Design token source of truth"
+        ],
+        "expect_back": [
+          "Component API conventions",
+          "Versioning policy",
+          "Documentation tooling"
+        ],
+        "sla": "synchronous"
       }
     ]
   },
@@ -11920,6 +12121,86 @@
       {
         "skill": "ux-designer",
         "when": "Detailed UI/UX design work"
+      }
+    ]
+  },
+  "android-kotlin-specialist": {
+    "id": "android-kotlin-specialist",
+    "name": "Android Kotlin Specialist",
+    "description": "Production Android development with Kotlin covering Jetpack Compose, coroutines, lifecycle, dependency injection, app size, and the gap between \"works on my Pixel\" and \"works across 18,000 Android device models with 7 different OS versions still in active use\".",
+    "owns": [
+      "Jetpack Compose (state, recomposition, side effects, navigation)",
+      "Coroutines and structured concurrency (scopes, dispatchers, cancellation)",
+      "Lifecycle-aware components (ViewModel, LiveData, StateFlow, lifecycleScope)",
+      "Dependency injection (Hilt, Koin) and module organization",
+      "App size (R8/ProGuard, APK splits, on-demand modules, baseline profiles)",
+      "Background work (WorkManager, foreground services, exact alarms)",
+      "Storage (DataStore, Room, Scoped Storage migration)",
+      "Cross-device compatibility (screen sizes, OS versions, OEM quirks)"
+    ],
+    "triggers": [
+      "android development",
+      "kotlin",
+      "jetpack compose",
+      "coroutines",
+      "hilt",
+      "workmanager",
+      "room",
+      "datastore",
+      "viewmodel",
+      "lifecycle",
+      "r8",
+      "baseline profile",
+      "android sdk",
+      "okhttp",
+      "retrofit"
+    ],
+    "category": "development",
+    "delegates": [
+      {
+        "skill": "mobile-development",
+        "when": "Cross-platform mobile concerns (push notifications, app store, deep linking)",
+        "pass_context": [
+          "Target API levels and minSdk",
+          "Push provider (FCM) and message types expected",
+          "Deep-link surface and fallback handling"
+        ],
+        "expect_back": [
+          "Push notification config with permission flow",
+          "Deep-link routing with cold-start handling",
+          "App-store submission checklist"
+        ],
+        "sla": "synchronous"
+      },
+      {
+        "skill": "performance-optimization",
+        "when": "Cold start, frame jank, app size, or battery drain optimization",
+        "pass_context": [
+          "Macrobenchmark trace showing the regression",
+          "Target metric (cold start time, jank percentage, app size)",
+          "Target device class (high-end Pixel vs low-end MediaTek)"
+        ],
+        "expect_back": [
+          "Concrete fix with measured improvement",
+          "Baseline profile recommendation",
+          "Trade-off if optimization sacrifices a feature"
+        ],
+        "sla": "synchronous"
+      },
+      {
+        "skill": "testing-strategies",
+        "when": "Unit, integration, instrumentation, or screenshot testing strategy",
+        "pass_context": [
+          "Coverage target and current state",
+          "Whether device farm or local emulator",
+          "Critical user paths"
+        ],
+        "expect_back": [
+          "Test pyramid for Android (Robolectric vs instrumentation vs Compose UI)",
+          "Screenshot test framework recommendation (Paparazzi, Roborazzi)",
+          "CI integration with retry-on-flake budget"
+        ],
+        "sla": "synchronous"
       }
     ]
   },
@@ -16041,27 +16322,93 @@
     "delegates": [
       {
         "skill": "react-patterns",
-        "when": "Client-side state management, complex hooks, or React-specific patterns unrelated to Next.js"
+        "when": "Client-side state management, complex hooks, or React-specific patterns unrelated to Next.js",
+        "pass_context": [
+          "Component tree structure (server/client split)",
+          "State that needs to live where (URL, server, client, form)",
+          "Existing hook patterns"
+        ],
+        "expect_back": [
+          "Hook patterns aligned to Server Component boundary",
+          "State location decisions documented",
+          "Re-render minimization plan"
+        ],
+        "sla": "synchronous"
       },
       {
         "skill": "typescript-strict",
-        "when": "Advanced TypeScript types, generics, or type system questions"
+        "when": "Advanced TypeScript types, generics, or type system questions",
+        "pass_context": [
+          "Specific type problem (inference, narrowing, generic)",
+          "Existing tsconfig strictness flags",
+          "Performance constraints on type checking"
+        ],
+        "expect_back": [
+          "Type-safe solution with rationale",
+          "Trade-offs (DX vs runtime safety)",
+          "Lint rule additions if applicable"
+        ],
+        "sla": "synchronous"
       },
       {
         "skill": "supabase-backend",
-        "when": "Supabase-specific integration patterns beyond basic data fetching"
+        "when": "Supabase-specific integration patterns beyond basic data fetching",
+        "pass_context": [
+          "Auth model (RLS, JWT custom claims, etc)",
+          "Realtime requirements",
+          "Row count expectations per table"
+        ],
+        "expect_back": [
+          "RLS policies aligned to access patterns",
+          "Server Action vs client SDK split decisions",
+          "Caching strategy on Supabase reads"
+        ],
+        "sla": "synchronous"
       },
       {
         "skill": "authentication-oauth",
-        "when": "OAuth flows, session management, or authentication architecture"
+        "when": "OAuth flows, session management, or authentication architecture",
+        "pass_context": [
+          "Provider choice (Auth.js, Clerk, Supabase Auth, custom)",
+          "Session strategy (JWT, database, hybrid)",
+          "SSR auth requirements"
+        ],
+        "expect_back": [
+          "Middleware auth gate plan",
+          "Token refresh strategy across server/client boundary",
+          "Logout flow that invalidates sessions"
+        ],
+        "sla": "synchronous"
       },
       {
         "skill": "api-design",
-        "when": "REST API design principles for route handlers"
+        "when": "REST API design principles for route handlers",
+        "pass_context": [
+          "Resources to expose",
+          "Auth boundary per route",
+          "Whether to use Route Handlers, Server Actions, or both"
+        ],
+        "expect_back": [
+          "Endpoint surface with auth markers",
+          "Error envelope contract",
+          "Caching headers strategy"
+        ],
+        "sla": "synchronous"
       },
       {
-        "skill": "database-patterns",
-        "when": "Database schema design, queries, or ORM patterns beyond Next.js context"
+        "skill": "database-schema-design",
+        "when": "Database schema design, queries, or ORM patterns beyond Next.js context",
+        "pass_context": [
+          "Domain entities and access patterns",
+          "ORM choice (Prisma, Drizzle, Kysely)",
+          "Read/write ratio per entity"
+        ],
+        "expect_back": [
+          "Schema with FK constraints and indexes",
+          "Query patterns aligned to ORM",
+          "Migration strategy"
+        ],
+        "sla": "synchronous"
       }
     ]
   },
@@ -17270,19 +17617,62 @@
     "delegates": [
       {
         "skill": "nextjs-app-router",
-        "when": "Next.js App Router, Server Components, server actions"
+        "when": "Next.js App Router, Server Components, server actions",
+        "pass_context": [
+          "Routing structure",
+          "Data-fetching boundary (RSC, client, hybrid)",
+          "Auth requirements"
+        ],
+        "expect_back": [
+          "App Router file layout",
+          "Server vs client component split",
+          "Caching strategy"
+        ],
+        "sla": "synchronous"
       },
       {
         "skill": "typescript-strict",
-        "when": "TypeScript generics, type safety, interfaces"
+        "when": "TypeScript generics, type safety, interfaces",
+        "pass_context": [
+          "Specific type problem",
+          "Strictness flags in tsconfig",
+          "DX vs safety priority"
+        ],
+        "expect_back": [
+          "Type-safe solution with trade-offs",
+          "Lint rules if applicable"
+        ],
+        "sla": "synchronous"
       },
       {
         "skill": "tailwind-ui",
-        "when": "Styling, CSS, Tailwind, responsive design"
+        "when": "Styling, CSS, Tailwind, responsive design",
+        "pass_context": [
+          "Existing theme and tokens",
+          "Reusable primitives needed",
+          "Dark mode requirement"
+        ],
+        "expect_back": [
+          "Theme config",
+          "Class-organization convention",
+          "Responsive strategy"
+        ],
+        "sla": "synchronous"
       },
       {
         "skill": "supabase-backend",
-        "when": "Database, authentication, backend queries"
+        "when": "Database, authentication, backend queries",
+        "pass_context": [
+          "Auth and RLS requirements",
+          "Realtime needs",
+          "Volume expectations"
+        ],
+        "expect_back": [
+          "Schema with RLS",
+          "SDK usage decisions (client vs server)",
+          "Caching plan"
+        ],
+        "sla": "synchronous"
       }
     ]
   },
@@ -18336,27 +18726,93 @@
     "delegates": [
       {
         "skill": "unity-development",
-        "when": "Unity implementation of designed systems"
+        "when": "Unity implementation of designed systems",
+        "pass_context": [
+          "Design doc with core loop and systems",
+          "Target platforms (PC, mobile, console)",
+          "Performance budget per platform"
+        ],
+        "expect_back": [
+          "Implementation plan with system breakdown",
+          "Performance estimates per system",
+          "Risk areas needing prototyping"
+        ],
+        "sla": "synchronous"
       },
       {
         "skill": "godot-development",
-        "when": "Godot implementation of designed systems"
+        "when": "Godot implementation of designed systems",
+        "pass_context": [
+          "Design doc with core loop and systems",
+          "Godot version and renderer (Forward+, Mobile, Compatibility)",
+          "Asset pipeline expectations"
+        ],
+        "expect_back": [
+          "Scene/node structure",
+          "Signal-based architecture",
+          "Performance considerations per system"
+        ],
+        "sla": "synchronous"
       },
       {
         "skill": "unreal-engine",
-        "when": "Unreal implementation of designed systems"
+        "when": "Unreal implementation of designed systems",
+        "pass_context": [
+          "Design doc with core loop",
+          "Blueprint vs C++ split preference",
+          "Target hardware"
+        ],
+        "expect_back": [
+          "Class architecture",
+          "Subsystem organization",
+          "Performance plan"
+        ],
+        "sla": "synchronous"
       },
       {
         "skill": "game-ai-behavior",
-        "when": "Technical AI implementation details"
+        "when": "Technical AI implementation details",
+        "pass_context": [
+          "Behavior described from player POV",
+          "Performance budget for AI per frame",
+          "Difficulty curve targets"
+        ],
+        "expect_back": [
+          "State machine or behavior tree design",
+          "LOD strategy for AI",
+          "Tuning parameters surfaced"
+        ],
+        "sla": "synchronous"
       },
       {
         "skill": "game-networking",
-        "when": "Technical multiplayer implementation"
+        "when": "Technical multiplayer implementation",
+        "pass_context": [
+          "Multiplayer model (P2P, dedicated, listen server)",
+          "Player count and tick rate",
+          "Authoritative server vs client trust"
+        ],
+        "expect_back": [
+          "Networking architecture",
+          "State sync strategy",
+          "Cheat-prevention plan"
+        ],
+        "sla": "synchronous"
       },
       {
         "skill": "game-monetization",
-        "when": "Detailed monetization strategy and IAP design"
+        "when": "Detailed monetization strategy and IAP design",
+        "pass_context": [
+          "Genre and target audience",
+          "Monetization model (premium, F2P, ads, hybrid)",
+          "Regulatory constraints (loot boxes, gambling)"
+        ],
+        "expect_back": [
+          "IAP economy design",
+          "Fair-play guarantees",
+          "Pricing strategy by region"
+        ],
+        "sla": "synchronous"
       }
     ]
   },
@@ -22085,19 +22541,63 @@
     "delegates": [
       {
         "skill": "copywriting",
-        "when": "Writing headlines, CTAs, landing page copy"
+        "when": "Writing headlines, CTAs, landing page copy",
+        "pass_context": [
+          "Audience persona and the action wanted",
+          "Strategic angle the copy must support",
+          "Brand voice constraints"
+        ],
+        "expect_back": [
+          "Headline + variants for testing",
+          "CTA copy with clear value",
+          "Body copy that delivers on the headline promise"
+        ],
+        "sla": "synchronous"
       },
       {
         "skill": "blog-writing",
-        "when": "Long-form content execution and article writing"
+        "when": "Long-form content execution and article writing",
+        "pass_context": [
+          "Topic with the non-obvious angle",
+          "Target reader's existing knowledge",
+          "SEO target keyword and search intent"
+        ],
+        "expect_back": [
+          "Draft with hook, scannable structure, takeaway",
+          "Internal/external link suggestions",
+          "Title variants"
+        ],
+        "sla": "synchronous"
       },
       {
         "skill": "analytics",
-        "when": "Content measurement and performance tracking"
+        "when": "Content measurement and performance tracking",
+        "pass_context": [
+          "Success metric per content piece (signups, traffic, shares)",
+          "Existing analytics stack",
+          "Attribution model"
+        ],
+        "expect_back": [
+          "Event taxonomy for content interactions",
+          "Dashboards for content performance",
+          "Cohort analysis for content-driven users"
+        ],
+        "sla": "synchronous"
       },
       {
         "skill": "marketing",
-        "when": "Campaign integration and demand generation"
+        "when": "Campaign integration and demand generation",
+        "pass_context": [
+          "Content calendar",
+          "Distribution channels available",
+          "Promotion budget if any"
+        ],
+        "expect_back": [
+          "Distribution plan per piece",
+          "Paid amplification recommendations",
+          "Tie-in to broader campaigns"
+        ],
+        "sla": "synchronous"
       }
     ]
   },
@@ -29378,6 +29878,83 @@
       {
         "skill": "compliance-automation",
         "when": "Need access review workflows, segregation of duties, or control evidence"
+      }
+    ]
+  },
+  "sales-strategy": {
+    "id": "sales-strategy",
+    "name": "Sales Strategy",
+    "description": "Founder-led and early-stage sales strategy covering ICP definition, pipeline construction, deal qualification, pricing, objection handling, and the gap between \"we have leads\" and \"we have repeatable revenue\".",
+    "owns": [
+      "ICP definition and disqualification criteria",
+      "Pipeline construction with stage definitions and exit criteria",
+      "Deal qualification (MEDDPICC or equivalent) and forecasting",
+      "Pricing strategy and discount discipline",
+      "Objection handling playbooks",
+      "Procurement, security, and legal navigation",
+      "Champion development and multi-threading inside accounts",
+      "Founder-led sales motion and the handoff to first sales hires"
+    ],
+    "triggers": [
+      "sales strategy",
+      "founder sales",
+      "icp",
+      "deal qualification",
+      "meddpicc",
+      "sales pipeline",
+      "pricing strategy",
+      "sales objections",
+      "sales playbook",
+      "sales motion",
+      "first sales hire",
+      "procurement navigation"
+    ],
+    "category": "strategy",
+    "delegates": [
+      {
+        "skill": "marketing",
+        "when": "Top-of-funnel demand generation, content, or brand awareness",
+        "pass_context": [
+          "ICP definition that sales is qualifying for",
+          "Stages where pipeline is thinning vs converting",
+          "Sales-qualified-lead definition both teams agree on"
+        ],
+        "expect_back": [
+          "Demand-gen plan tied to the ICP",
+          "Lead-scoring criteria that map to SQL definition",
+          "Content gaps blocking specific deal stages"
+        ],
+        "sla": "synchronous"
+      },
+      {
+        "skill": "pricing-strategy",
+        "when": "Repeatable pricing decisions or packaging changes",
+        "pass_context": [
+          "Win/loss data on pricing objections",
+          "Discount frequency and magnitude in current deals",
+          "Competitive pricing intelligence"
+        ],
+        "expect_back": [
+          "Tier structure with anchor pricing",
+          "Discount approval matrix",
+          "Packaging that aligns to ICP value"
+        ],
+        "sla": "synchronous"
+      },
+      {
+        "skill": "hiring-strategy",
+        "when": "Hiring first sales rep, sales engineer, or sales leader",
+        "pass_context": [
+          "Current monthly recurring revenue and growth rate",
+          "ACV and sales cycle length",
+          "Founder-sales bandwidth that needs replacing"
+        ],
+        "expect_back": [
+          "Role profile (AE, SDR, full-cycle, founding AE)",
+          "Compensation structure tied to the motion",
+          "Ramp plan with measurable 30-60-90 milestones"
+        ],
+        "sla": "30 days from need to first interview"
       }
     ]
   },

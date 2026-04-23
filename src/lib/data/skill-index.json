@@ -1,6 +1,6 @@
 {
   "version": "2.0.0",
-  "totalSkills": 605,
+  "totalSkills": 608,
   "domains": {
     "game": [
       {
@@ -913,6 +913,19 @@
           "long",
           "entity",
           "persistence"
+        ]
+      },
+      {
+        "id": "conversational-intent-design",
+        "kw": [
+          "conversational",
+          "intent",
+          "design",
+          "llm",
+          "chat",
+          "user",
+          "taxonomy",
+          "hybrid"
         ]
       },
       {
@@ -2518,6 +2531,19 @@
           "selection",
           "database",
           "design"
+        ]
+      },
+      {
+        "id": "android-kotlin-specialist",
+        "kw": [
+          "android",
+          "kotlin",
+          "specialist",
+          "jetpack",
+          "compose",
+          "state",
+          "coroutines",
+          "and"
         ]
       },
       {
@@ -7778,6 +7804,19 @@
         ]
       },
       {
+        "id": "sales-strategy",
+        "kw": [
+          "sales",
+          "strategy",
+          "icp",
+          "definition",
+          "and",
+          "pipeline",
+          "construction",
+          "with"
+        ]
+      },
+      {
         "id": "sso-saml",
         "kw": [
           "sso",
@@ -8480,6 +8519,19 @@
         "long",
         "entity",
         "persistence"
+      ]
+    },
+    {
+      "id": "conversational-intent-design",
+      "kw": [
+        "conversational",
+        "intent",
+        "design",
+        "llm",
+        "chat",
+        "user",
+        "taxonomy",
+        "hybrid"
       ]
     },
     {
@@ -10858,6 +10910,19 @@
         "llm",
         "patterns",
         "trust",
+        "and"
+      ]
+    },
+    {
+      "id": "android-kotlin-specialist",
+      "kw": [
+        "android",
+        "kotlin",
+        "specialist",
+        "jetpack",
+        "compose",
+        "state",
+        "coroutines",
         "and"
       ]
     },
@@ -15513,6 +15578,19 @@
         "and",
         "scoped",
         "roles"
+      ]
+    },
+    {
+      "id": "sales-strategy",
+      "kw": [
+        "sales",
+        "strategy",
+        "icp",
+        "definition",
+        "and",
+        "pipeline",
+        "construction",
+        "with"
       ]
     },
     {

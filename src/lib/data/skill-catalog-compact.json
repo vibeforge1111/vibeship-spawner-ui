@@ -495,6 +495,17 @@
     ]
   },
   {
+    "id": "conversational-intent-design",
+    "desc": "Expert at designing conversational intent systems that feel like a human,\nnot a help-desk form",
+    "owns": [
+      "Intent taxonomy design (disjoint coverage, out-of-scope fallback)",
+      "Hybrid routing (tier-1 deterministic rules, tier-2 LLM classifier)",
+      "Confidence thresholds and escalation paths",
+      "Natural-language phrasing coverage per intent (10-20 variants each)",
+      "Disambiguation conversation patterns (one clarifying question, not a menu)"
+    ]
+  },
+  {
     "id": "crewai",
     "desc": "Expert in CrewAI - the leading role-based multi-agent framework used by 60% of Fortune 500\ncompanies",
     "owns": [
@@ -2505,6 +2516,17 @@
       "trust-and-transparency",
       "ai-cost-architecture",
       "human-ai-interaction"
+    ]
+  },
+  {
+    "id": "android-kotlin-specialist",
+    "desc": "Production Android development with Kotlin covering Jetpack Compose, coroutines, lifecycle, dependen",
+    "owns": [
+      "Jetpack Compose (state, recomposition, side effects, navigation)",
+      "Coroutines and structured concurrency (scopes, dispatchers, cancellation)",
+      "Lifecycle-aware components (ViewModel, LiveData, StateFlow, lifecycleScope)",
+      "Dependency injection (Hilt, Koin) and module organization",
+      "App size (R8/ProGuard, APK splits, on-demand modules, baseline profiles)"
     ]
   },
   {
@@ -6443,6 +6465,17 @@
       "Role inheritance and override semantics",
       "Custom role governance and role explosion prevention",
       "Admin boundary design for support, billing, and security workflows"
+    ]
+  },
+  {
+    "id": "sales-strategy",
+    "desc": "Founder-led and early-stage sales strategy covering ICP definition, pipeline construction, deal qual",
+    "owns": [
+      "ICP definition and disqualification criteria",
+      "Pipeline construction with stage definitions and exit criteria",
+      "Deal qualification (MEDDPICC or equivalent) and forecasting",
+      "Pricing strategy and discount discipline",
+      "Objection handling playbooks"
     ]
   },
   {
