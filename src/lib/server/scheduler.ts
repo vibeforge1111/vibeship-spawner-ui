@@ -4,8 +4,17 @@ import { randomBytes } from 'node:crypto';
 import { Cron } from 'croner';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
+import { env as privateEnv } from '$env/dynamic/private';
 
 const execAsync = promisify(exec);
+
+function _envVar(name: string): string | undefined {
+  const v = (privateEnv as Record<string, string | undefined>)[name];
+  if (v && v.trim()) return v;
+  const p = process.env[name];
+  if (p && p.trim()) return p;
+  return undefined;
+}
 
 const SCHEDULES_FILE = path.resolve(process.cwd(), '.spawner', 'schedules.json');
 const TICK_MS = 30_000;
@@ -170,18 +179,26 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
 }
 
 async function _relayToTelegram(record: ScheduleRecord, result: { ok: boolean; summary: string }): Promise<void> {
-  if (!record.chatId) return;
-  const token = process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN;
-  if (!token) return;
+  if (!record.chatId) {
+    console.log('[scheduler] relay skipped: no chatId on', record.id);
+    return;
+  }
+  const token = _envVar('TELEGRAM_BOT_TOKEN') || _envVar('BOT_TOKEN');
+  if (!token) {
+    console.log('[scheduler] relay skipped: no TELEGRAM_BOT_TOKEN or BOT_TOKEN in env');
+    return;
+  }
   const text = `[sched ${record.id}] ${record.action} ${result.ok ? 'ok' : 'fail'}\n${result.summary}`;
   try {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    const resp = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: record.chatId, text }),
     });
-  } catch {
-    // best-effort
+    const bodyText = await resp.text();
+    console.log('[scheduler] relay', record.id, 'status', resp.status, 'body', bodyText.slice(0, 200));
+  } catch (err: any) {
+    console.log('[scheduler] relay fetch error on', record.id, err?.message || err);
   }
 }
 
