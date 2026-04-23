@@ -125,12 +125,22 @@
 	}
 
 	async function deleteScheduleById(id: string) {
+		// Optimistic update so the row disappears immediately
+		const prev = schedules;
+		schedules = schedules.filter((s) => s.id !== id);
 		try {
 			const r = await fetch(`/api/scheduled?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
 			const data = await r.json();
-			if (data.ok) await fetchSchedules();
-			else schedulesError = data.error || 'delete failed';
+			if (!data.ok) {
+				schedules = prev;
+				schedulesError = data.error || 'delete failed';
+			} else {
+				schedulesError = null;
+				// Refresh in the background to pick up any concurrent changes
+				fetchSchedules();
+			}
 		} catch (err: unknown) {
+			schedules = prev;
 			schedulesError = err instanceof Error ? err.message : 'delete failed';
 		}
 	}
