@@ -194,10 +194,11 @@
 	}
 
 	function getPortStyle(port: Port, index: number, total: number): string {
-		const color = getPortColor(port.type);
+		// Border color intentionally NOT set here — CSS handles it with a neutral
+		// dark ring. Per-type color info is still exposed via title tooltip.
 		const spacing = nodeHeight / (total + 1);
 		const top = spacing * (index + 1);
-		return `border-color: ${color}; top: ${top}px;`;
+		return `top: ${top}px;`;
 	}
 </script>
 
