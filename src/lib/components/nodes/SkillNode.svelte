@@ -146,6 +146,24 @@
 	const categoryColor = categoryColors[data.category] || 'bg-surface-active';
 	const badgeClass = categoryBadges[data.category] || '';
 
+	// Chrome header tag mapping — short mono label per category
+	const categoryTags: Record<string, string> = {
+		development: 'DEV', backend: 'DEV', frontend: 'DEV', frameworks: 'DEV',
+		devops: 'DEV', 'game-dev': 'GAME', testing: 'TEST', hardware: 'HW', maker: 'HW',
+		integration: 'INT', integrations: 'INT',
+		ai: 'AI', 'ai-agents': 'AGENT', 'ai-tools': 'AI',
+		data: 'DATA', blockchain: 'CHAIN', finance: 'FIN', trading: 'TRADE', security: 'SEC',
+		marketing: 'MKT', creative: 'DESIGN', design: 'DESIGN', community: 'COMM',
+		strategy: 'STRAT', enterprise: 'ENT', startup: 'START', product: 'PROD',
+		education: 'EDU', legal: 'LEGAL', climate: 'CLIM',
+		biotech: 'BIO', science: 'SCI', simulation: 'SIM', space: 'SPACE',
+		agents: 'AGENT'
+	};
+	const chromeTag = categoryTags[data.category] || data.category.slice(0, 4).toUpperCase();
+	const chromeSubLabel = data.skillChain && data.skillChain.length > 0
+		? `${data.skillChain.length} skill${data.skillChain.length === 1 ? '' : 's'}`
+		: data.category;
+
 	// MCP tool count for this skill
 	const skillMcpEntries = SKILL_MCP_MAP[data.id] || [];
 	const mcpToolCount = skillMcpEntries.reduce((acc: number, e: { mcps: string[] }) => acc + e.mcps.length, 0);
@@ -253,29 +271,24 @@
 		{/each}
 	{/if}
 
-	<!-- Clean Node Content -->
-	<div class="px-3 py-2.5">
-		<h3 class="task-name text-sm font-mono text-text-primary">{data.name}</h3>
+	<!-- Chrome header: mono tag left, italic secondary right -->
+	<div class="node-chrome">
+		<span class="chrome-tag">{chromeTag}</span>
+		<i class="chrome-sub">{chromeSubLabel}</i>
+	</div>
 
-		<!-- Skills badges (shows which skills handle this task) -->
+	<!-- Body: title + sub + optional tags/mcp -->
+	<div class="node-body">
+		<h3 class="node-title">{data.name}</h3>
+
 		{#if data.skillChain && data.skillChain.length > 0}
-			<div class="skill-tags-row mt-1.5">
-				<div class="skill-tags">
-					{#each data.skillChain.slice(0, 4) as skill}
-						<span class="skill-tag" title={skill}>
-							{skill}
-						</span>
-					{/each}
-					{#if data.skillChain.length > 4}
-						<span class="skill-tag skill-tag-more" title={data.skillChain.slice(4).join(', ')}>
-							+{data.skillChain.length - 4}
-						</span>
-					{/if}
-				</div>
+			<div class="node-sub skill-sub">
+				{data.skillChain.slice(0, 2).join(' · ')}{data.skillChain.length > 2 ? ` +${data.skillChain.length - 2}` : ''}
 			</div>
+		{:else}
+			<div class="node-sub">{data.category}</div>
 		{/if}
 
-		<!-- MCP tool indicator -->
 		{#if mcpToolCount > 0}
 			<div class="mcp-badge">
 				<svg class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -288,28 +301,93 @@
 </div>
 
 <style>
-	.line-clamp-2 {
+	/* ── Spark-agent aesthetic: card with chrome header + body ── */
+
+	.node {
+		background: var(--surface-raised);
+		border: 1px solid var(--border-strong);
+		border-radius: 8px;
+		box-shadow: 0 8px 24px -8px rgba(0,0,0,0.35);
+		transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+	}
+
+	.node:hover {
+		border-color: var(--accent);
+		box-shadow: 0 16px 40px -12px rgba(0,0,0,0.5), 0 0 0 1px var(--accent-mid);
+	}
+
+	.node.selected {
+		border-color: var(--accent);
+		box-shadow: 0 0 0 1px var(--accent-mid), 0 20px 50px -15px rgba(47,202,148,0.25);
+	}
+
+	.node.ghost {
+		opacity: 0.45;
+	}
+
+	/* Chrome header — mono tag left, italic secondary right */
+	.node-chrome {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 7px 10px;
+		background: var(--bg-subtle);
+		border-bottom: 1px solid var(--border);
+		border-radius: 8px 8px 0 0;
+		font-family: var(--font-mono, 'DM Mono', ui-monospace, monospace);
+		font-size: 10px;
+		font-weight: 500;
+		letter-spacing: 1px;
+	}
+
+	.chrome-tag {
+		color: var(--text);
+		letter-spacing: 1.5px;
+	}
+
+	.chrome-sub {
+		font-style: normal;
+		color: var(--text-tertiary);
+	}
+
+	/* Body — title + sub */
+	.node-body {
+		padding: 12px 14px;
+	}
+
+	.node-title {
+		font-family: var(--font-sans, 'DM Sans', system-ui, sans-serif);
+		font-size: 14px;
+		font-weight: 500;
+		color: var(--text);
+		margin: 0 0 2px 0;
+		line-height: 1.3;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
-	}
-
-	.task-name {
-		display: -webkit-box;
-		-webkit-line-clamp: 3;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
 		word-break: break-word;
-		line-height: 1.35;
 	}
 
+	.node-sub {
+		font-family: var(--font-mono, 'DM Mono', ui-monospace, monospace);
+		font-size: 11px;
+		font-weight: 400;
+		color: var(--text-tertiary);
+		letter-spacing: 0.3px;
+	}
+
+	.skill-sub {
+		color: var(--text-secondary);
+	}
+
+	/* Ports — small teal dots at card edge */
 	.port-handle {
 		position: absolute;
-		width: 12px;
-		height: 12px;
-		background: var(--bg-secondary);
-		border: 2px solid;
+		width: 10px;
+		height: 10px;
+		background: var(--accent);
+		border: 2px solid var(--surface);
 		border-radius: 50%;
 		cursor: crosshair;
 		z-index: 20;
@@ -318,16 +396,18 @@
 	}
 
 	.port-handle:hover {
-		background: currentColor;
-		transform: translateY(-50%) scale(1.2);
+		background: var(--accent);
+		border-color: var(--accent-mid);
+		transform: translateY(-50%) scale(1.35);
+		box-shadow: 0 0 8px var(--accent-mid);
 	}
 
 	.port-input {
-		left: -7px;
+		left: -6px;
 	}
 
 	.port-output {
-		right: -7px;
+		right: -6px;
 	}
 
 	.port-label {

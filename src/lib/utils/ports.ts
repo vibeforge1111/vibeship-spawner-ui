@@ -173,7 +173,7 @@ export function getPortColor(type: PortType): string {
 		boolean: '#00C49A', // green
 		object: '#A78BFA',  // purple
 		array: '#F59E0B',   // orange
-		any: '#6B7280',     // gray
+		any: '#2FCA94',     // accent teal (was gray — matched spark-agent aesthetic)
 		skill: '#3B82F6'    // blue
 	};
 	return colorMap[type] || '#6B7280';

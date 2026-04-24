@@ -273,7 +273,7 @@
 	}
 
 	.connection-line.animated {
-		animation: flow 1s linear infinite;
+		animation: flow 2s linear infinite;
 	}
 
 	.connection-glow {

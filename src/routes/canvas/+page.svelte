@@ -1219,7 +1219,7 @@ import { get } from 'svelte/store';
 		</header>
 		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 		<div bind:this={canvasEl} class="canvas-area flex-1 relative overflow-hidden bg-bg-primary" class:panning={isPanning} class:cutting={isCutting} class:selecting={isSelecting} ondrop={handleDrop} ondragover={handleDragOver} onclick={handleCanvasClick} oncontextmenu={handleCanvasContextMenu} onmousedown={handleMouseDown} onmousemove={handleMouseMove} onmouseup={handleMouseUp} onmouseleave={handleMouseUp} role="application">
-			<div class="absolute inset-0 opacity-20 pointer-events-none" style="background-image: radial-gradient(circle, #2a2a38 1px, transparent 1px); background-size: {24 * zoom}px {24 * zoom}px; background-position: {pan.x}px {pan.y}px;"></div>
+			<div class="canvas-grid absolute inset-0 pointer-events-none" style="background-size: {40 * zoom}px {40 * zoom}px; background-position: {pan.x}px {pan.y}px;"></div>
 			<div class="absolute pointer-events-none" style="transform: translate({pan.x}px, {pan.y}px);"><div class="pointer-events-none" style="transform: scale({zoom}); transform-origin: 0 0;">
 				<svg class="absolute inset-0 pointer-events-none overflow-visible" style="z-index: 1;"><defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#00C49A" /></marker></defs>{#each currentConnections as connection}{@const sourceNode = currentNodes.find((node) => node.id === connection.sourceNodeId)}{@const targetNode = currentNodes.find((node) => node.id === connection.targetNodeId)}<ConnectionLine {connection} nodes={currentNodes} selected={currentSelectedConnectionId === connection.id} isActive={sourceNode?.status === 'running' || targetNode?.status === 'running'} isCompleted={sourceNode?.status === 'success' && targetNode?.status === 'success'} hasError={sourceNode?.status === 'error' || targetNode?.status === 'error'} />{/each}{#if currentDraggingConnection}<path d={getTempConnectionPath(currentDraggingConnection)} fill="none" stroke="#00C49A" stroke-width="2" stroke-dasharray="4 4" class="temp-connection" />{/if}{#if currentCuttingLine}<line x1={currentCuttingLine.startX} y1={currentCuttingLine.startY} x2={currentCuttingLine.currentX} y2={currentCuttingLine.currentY} stroke="#ef4444" stroke-width="2" stroke-dasharray="6 3" class="cutting-line" /><circle cx={currentCuttingLine.startX} cy={currentCuttingLine.startY} r="4" fill="#ef4444" /><circle cx={currentCuttingLine.currentX} cy={currentCuttingLine.currentY} r="4" fill="#ef4444" />{/if}{#if currentSelectionBox}{@const x = Math.min(currentSelectionBox.startX, currentSelectionBox.currentX)}{@const y = Math.min(currentSelectionBox.startY, currentSelectionBox.currentY)}{@const w = Math.abs(currentSelectionBox.currentX - currentSelectionBox.startX)}{@const h = Math.abs(currentSelectionBox.currentY - currentSelectionBox.startY)}<rect {x} {y} width={w} height={h} fill="rgba(0, 196, 154, 0.1)" stroke="#00C49A" stroke-width="1" stroke-dasharray="4 2" class="selection-box" />{/if}</svg>
 				{#each currentNodes as node (node.id)}<DraggableNode {node} selected={currentSelectedNodeIds.includes(node.id)} {zoom} {pan} onOpenDetails={() => (showNodeDetails = true)} onContextMenu={(e) => handleNodeContextMenu(node.id, e)} onHandoffClick={handleHandoffClick} />{/each}
@@ -1468,7 +1468,17 @@ import { get } from 'svelte/store';
 {/if}
 
 <style>
-	.canvas-area { cursor: grab; }
+	.canvas-area {
+		cursor: grab;
+		background: var(--bg);
+	}
+	.canvas-grid {
+		/* Crossing line grid at 40px — same as spark-agent board-stage */
+		background-image:
+			linear-gradient(var(--border) 1px, transparent 1px),
+			linear-gradient(90deg, var(--border) 1px, transparent 1px);
+		opacity: 0.5;
+	}
 	.canvas-area.panning { cursor: grabbing; }
 	.canvas-area.cutting { cursor: crosshair; }
 	.canvas-area.selecting { cursor: crosshair; }
