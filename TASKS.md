@@ -24,7 +24,7 @@ This file tracks what's built, what's missing, and the implementation order.
 ```
 
 **MCP Server URL:**
-- Local: `http://localhost:8787` (wrangler dev)
+- Local: `http://localhost:8797` (wrangler dev)
 - Production: `https://mcp.vibeship.co`
 
 ---

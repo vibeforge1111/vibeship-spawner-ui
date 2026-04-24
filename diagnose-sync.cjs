@@ -15,7 +15,7 @@ async function diagnose() {
   // Test 1: WebSocket Connection
   await runTest('WebSocket Server Connection', () => {
     return new Promise((resolve) => {
-      const ws = new WebSocket('ws://localhost:8787/sync');
+      const ws = new WebSocket('ws://localhost:8797/sync');
       
       ws.on('open', () => {
         console.log('  ✅ Connected to sync server');
@@ -40,7 +40,7 @@ async function diagnose() {
   // Test 2: Message Echo
   await runTest('Message Echo Test', () => {
     return new Promise((resolve) => {
-      const ws = new WebSocket('ws://localhost:8787/sync');
+      const ws = new WebSocket('ws://localhost:8797/sync');
       let received = false;
       
       ws.on('open', () => {
@@ -75,7 +75,7 @@ async function diagnose() {
   // Test 3: Canvas Command
   await runTest('Canvas Command Routing', () => {
     return new Promise((resolve) => {
-      const ws = new WebSocket('ws://localhost:8787/sync');
+      const ws = new WebSocket('ws://localhost:8797/sync');
       
       ws.on('open', () => {
         ws.send(JSON.stringify({
@@ -111,7 +111,7 @@ async function diagnose() {
     return new Promise((resolve) => {
       const http = require('http');
       
-      http.get('http://localhost:8787/health', (res) => {
+      http.get('http://localhost:8797/health', (res) => {
         let data = '';
         res.on('data', chunk => data += chunk);
         res.on('end', () => {
@@ -153,7 +153,7 @@ async function diagnose() {
   } else {
     console.log('\n❌ Sync system not working. Check:');
     console.log('   1. Is the sync server running? (npm run sync)');
-    console.log('   2. Is port 8787 available?');
+    console.log('   2. Is port 8797 available?');
     console.log('   3. Any firewall blocking WebSocket connections?');
   }
   

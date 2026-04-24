@@ -3,7 +3,7 @@ const WebSocket = require('ws');
 console.log('=== Integration Test Workflow ===\n');
 console.log('This will test the full bidirectional sync once skills are ready.\n');
 
-const ws = new WebSocket('ws://localhost:8787/sync');
+const ws = new WebSocket('ws://localhost:8797/sync');
 
 ws.on('open', () => {
   console.log('✓ Connected to sync server\n');

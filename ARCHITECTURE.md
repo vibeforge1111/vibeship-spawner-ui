@@ -902,7 +902,7 @@ CREATE INDEX idx_memories_type ON memories(type);
 │  CONNECTION MODES:                                                      │
 │                                                                         │
 │  Cloud:  Spawner UI ──HTTPS──▶ Spawner Workers (Cloudflare)            │
-│  Local:  Spawner UI ──HTTP───▶ Spawner MCP (localhost:8787)            │
+│  Local:  Spawner UI ──HTTP───▶ Spawner MCP (localhost:8797)            │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```

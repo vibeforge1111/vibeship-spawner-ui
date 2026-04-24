@@ -22,8 +22,10 @@
 		// Initialize pipeline system (ensures localStorage is loaded)
 		initPipelines();
 
-		// Keep canvas sync available when the local bridge is running.
-		tryConnectSync('ws://localhost:8787/sync');
+		const syncWsUrl = import.meta.env.PUBLIC_SYNC_WS_URL?.trim();
+		if (syncWsUrl) {
+			tryConnectSync(syncWsUrl);
+		}
 	});
 
 	// Try to connect WebSocket for real-time sync

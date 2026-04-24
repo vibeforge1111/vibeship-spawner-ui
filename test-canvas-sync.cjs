@@ -4,7 +4,7 @@ console.log('Testing Canvas Sync with Skills...\n');
 
 function testCanvasSync() {
   return new Promise((resolve) => {
-    const ws = new WebSocket('ws://localhost:8787/sync');
+    const ws = new WebSocket('ws://localhost:8797/sync');
     
     ws.on('open', () => {
       console.log('✅ Connected to sync server');

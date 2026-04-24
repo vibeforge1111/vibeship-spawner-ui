@@ -2,7 +2,7 @@ const WebSocket = require('ws');
 
 console.log('Adding skills to your canvas...\n');
 
-const ws = new WebSocket('ws://localhost:8787/sync');
+const ws = new WebSocket('ws://localhost:8797/sync');
 
 ws.on('open', () => {
   console.log('✓ Connected to sync server');

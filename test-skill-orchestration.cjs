@@ -4,7 +4,7 @@ console.log('🎭 Testing Skill Orchestration Flow...\n');
 
 function testOrchestration() {
   return new Promise((resolve) => {
-    const ws = new WebSocket('ws://localhost:8787/sync');
+    const ws = new WebSocket('ws://localhost:8797/sync');
     
     ws.on('open', () => {
       console.log('✅ Connected to sync server');

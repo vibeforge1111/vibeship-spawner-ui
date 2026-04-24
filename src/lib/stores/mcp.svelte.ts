@@ -7,6 +7,8 @@ import { writable, derived } from 'svelte/store';
 import { mcpClient, type McpToolDefinition } from '$lib/services/mcp-client';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+const DEFAULT_MCP_URL = import.meta.env.PUBLIC_MCP_URL?.trim() ?? '';
+const PRODUCTION_MCP_URL = import.meta.env.PUBLIC_PRODUCTION_MCP_URL?.trim() ?? 'https://mcp.vibeship.co';
 
 export interface McpState {
 	status: ConnectionStatus;
@@ -22,7 +24,7 @@ const initialState: McpState = {
 	serverInfo: null,
 	tools: [],
 	error: null,
-	baseUrl: 'http://localhost:8787'
+	baseUrl: DEFAULT_MCP_URL
 };
 
 export const mcpState = writable<McpState>(initialState);
@@ -107,7 +109,15 @@ export function disconnect() {
  * Quick connect to local dev server
  */
 export async function connectLocal(): Promise<boolean> {
-	setMcpUrl('http://localhost:8787');
+	if (!DEFAULT_MCP_URL) {
+		mcpState.update((s) => ({
+			...s,
+			status: 'error',
+			error: 'Local MCP URL is not configured for this launch build.'
+		}));
+		return false;
+	}
+	setMcpUrl(DEFAULT_MCP_URL);
 	return connect();
 }
 
@@ -115,6 +125,6 @@ export async function connectLocal(): Promise<boolean> {
  * Connect to production server
  */
 export async function connectProduction(): Promise<boolean> {
-	setMcpUrl('https://mcp.vibeship.co');
+	setMcpUrl(PRODUCTION_MCP_URL);
 	return connect();
 }

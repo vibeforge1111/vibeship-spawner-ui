@@ -2,7 +2,7 @@
  * MCP Client - Connects to Spawner MCP Server
  *
  * The MCP server uses JSON-RPC 2.0 over HTTP.
- * Local dev: http://localhost:8787
+ * Local dev: set PUBLIC_MCP_URL when a local MCP bridge is running.
  * Production: https://mcp.vibeship.co
  */
 
@@ -70,7 +70,7 @@ class McpClient {
 
 	constructor(config?: Partial<McpConfig>) {
 		this.config = {
-			baseUrl: config?.baseUrl ?? 'http://localhost:8787',
+			baseUrl: config?.baseUrl ?? '',
 			userId: config?.userId
 		};
 	}
@@ -101,6 +101,10 @@ class McpClient {
 	 * Send a raw JSON-RPC request
 	 */
 	private async request<T>(method: string, params?: Record<string, unknown>): Promise<McpResponse<T>> {
+		if (!this.config.baseUrl) {
+			throw new Error('MCP URL is not configured');
+		}
+
 		const id = ++this.requestId;
 
 		const body: McpRequest = {

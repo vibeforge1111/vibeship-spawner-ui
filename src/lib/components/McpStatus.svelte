@@ -134,7 +134,7 @@
 							Connect to Local Server
 						</button>
 						<div class="text-[10px] text-text-tertiary text-center">
-							localhost:8787
+				not configured
 						</div>
 					</div>
 				{/if}

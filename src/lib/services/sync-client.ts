@@ -49,10 +49,11 @@ export interface SyncConfig {
 	heartbeatInterval: number;
 }
 
-// Default config - tries local first, then production
+// Default config is intentionally disconnected for launch. Set public env vars
+// when a local or hosted sync bridge is available.
 const DEFAULT_CONFIG: SyncConfig = {
-	wsUrl: 'ws://localhost:8787/sync',
-	httpUrl: 'http://localhost:8787',
+	wsUrl: '',
+	httpUrl: '',
 	reconnectInterval: 3000,
 	maxReconnectAttempts: 10,
 	heartbeatInterval: 30000
@@ -106,6 +107,12 @@ class SyncClient {
 		// Don't reconnect if already connected
 		if (this.ws?.readyState === WebSocket.OPEN) {
 			return true;
+		}
+
+		if (!this.config.wsUrl && !this.config.httpUrl) {
+			syncStatus.set('disconnected');
+			connectionError.set(null);
+			return false;
 		}
 
 		syncStatus.set('connecting');

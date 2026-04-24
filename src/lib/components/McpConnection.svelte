@@ -141,7 +141,7 @@
 				<input
 					type="text"
 					bind:value={customUrl}
-					placeholder="http://localhost:8787"
+					placeholder="Set PUBLIC_MCP_URL or enter a bridge URL"
 					class="flex-1 px-2 py-1.5 text-sm rounded bg-gray-900 border border-gray-700 text-gray-200 focus:border-blue-500 focus:outline-none"
 				/>
 				<button
@@ -152,7 +152,7 @@
 				</button>
 			</div>
 			<p class="text-xs text-gray-500 mt-1">
-				Local: http://localhost:8787 | Prod: https://mcp.vibeship.co
+				Local bridge URL is configured with PUBLIC_MCP_URL.
 			</p>
 		</div>
 	{/if}

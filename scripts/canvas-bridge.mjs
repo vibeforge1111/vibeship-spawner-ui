@@ -9,7 +9,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
 
-const PORT = 8787;
+const PORT = 8797;
 const clients = new Map();
 
 // Create HTTP server to handle /sync path
