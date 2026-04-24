@@ -71,7 +71,7 @@ describe('provider-runtime openclaw bridge', () => {
 
 		const pack = buildPack('mission-step2-success', [
 			provider('claude', 'claude-opus-4-1'),
-			provider('codex', 'gpt-5.3-codex')
+			provider('codex', 'gpt-5.5')
 		]);
 
 		await providerRuntime.dispatch({
@@ -113,7 +113,7 @@ describe('provider-runtime openclaw bridge', () => {
 
 		const pack = buildPack('mission-step2-failure', [
 			provider('claude', 'claude-opus-4-1'),
-			provider('codex', 'gpt-5.3-codex')
+			provider('codex', 'gpt-5.5')
 		]);
 
 		await providerRuntime.dispatch({

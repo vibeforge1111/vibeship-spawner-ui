@@ -227,7 +227,7 @@ function isBinaryAvailable(binaryName: string): boolean {
 function resolveProviderCommandTemplate(providerId: OpenclawProviderId, model?: string, template?: string): string {
 	const fallbackTemplate = providerId === 'claude' ? 'claude --model {model}' : 'codex exec --model {model}';
 	const commandTemplate = template && template.trim() ? template : fallbackTemplate;
-	const fallbackModel = providerId === 'claude' ? 'claude-opus-4-1' : 'gpt-5.3-codex';
+	const fallbackModel = providerId === 'claude' ? 'claude-opus-4-1' : 'gpt-5.5';
 	return commandTemplate.replace('{model}', (model && model.trim()) || fallbackModel);
 }
 

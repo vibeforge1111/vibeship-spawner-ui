@@ -64,7 +64,7 @@ export async function executeCodexCliRequest(
 	writeFileSync(promptFile, prompt, 'utf-8');
 
 	return new Promise<ProviderResult>((resolve) => {
-		const model = provider.model || 'gpt-5.3-codex';
+		const model = provider.model || 'gpt-5.5';
 		const command = commandTemplate.replace('{model}', model);
 
 		const args = command.split(/\s+/);

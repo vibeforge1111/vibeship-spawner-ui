@@ -144,7 +144,7 @@ describe('multi-llm-orchestrator', () => {
 		});
 
 		expect(pack.providers[0].id).toBe('codex');
-		expect(pack.launchCommands.codex).toContain('codex exec --model gpt-5.3-codex');
+		expect(pack.launchCommands.codex).toContain('codex exec --model gpt-5.5');
 	});
 
 	it('auto-enables providers when matching API keys are present', () => {

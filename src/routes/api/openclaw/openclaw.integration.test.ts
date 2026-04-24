@@ -293,7 +293,7 @@ describe('/api/openclaw integration', () => {
 						providerId: 'codex',
 						missionId: 'mission-worker-events',
 						prompt: 'Do the work',
-						model: 'gpt-5.3-codex'
+						model: 'gpt-5.5'
 					}
 				})
 			})

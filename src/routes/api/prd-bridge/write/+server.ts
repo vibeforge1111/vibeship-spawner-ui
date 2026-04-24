@@ -169,7 +169,7 @@ async function startCodexAutoAnalysis(requestId: string, projectName: string): P
 				providerId: 'codex',
 				missionId,
 				prompt,
-				model: 'gpt-5.3-codex',
+				model: 'gpt-5.5',
 				commandTemplate: 'codex exec --yolo',
 				workingDirectory: process.cwd()
 			})

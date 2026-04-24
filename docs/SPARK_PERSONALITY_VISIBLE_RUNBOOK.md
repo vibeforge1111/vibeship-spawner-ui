@@ -143,7 +143,7 @@ Invoke-RestMethod -Method Post -Uri "$base/api/openclaw/command" -ContentType "a
     providerId = 'codex'
     missionId = "spark-personality-mission-$ts"
     taskId = 'codex-impl'
-    model = 'gpt-5.3-codex'
+    model = 'gpt-5.5'
     prompt = 'Implement trait delta scaffolding and tests for concise communication mode.'
   }
 } | ConvertTo-Json -Depth 8)

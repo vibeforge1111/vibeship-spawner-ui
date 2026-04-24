@@ -38,7 +38,7 @@ describe('/api/mission/active integration', () => {
 					{
 						id: 'codex',
 						label: 'Codex',
-						model: 'gpt-5.3-codex',
+						model: 'gpt-5.5',
 						enabled: true,
 						kind: 'terminal_cli',
 						eventSource: 'codex'
