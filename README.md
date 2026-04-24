@@ -43,8 +43,8 @@ specific provider integration explicitly requires them.
 
 ## Local Development
 
-1. Copy `.env.example` to `.env`.
-2. Fill in only the provider keys and local settings you actually need.
+1. Copy `.env.example` to `.env` for manual local development only.
+2. Fill in only the provider keys and local settings you actually need, and keep secrets out of docs, command arguments, screenshots, and issue reports.
 3. Start the app:
 
 ```bash
