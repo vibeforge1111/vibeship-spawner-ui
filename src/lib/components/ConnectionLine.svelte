@@ -191,16 +191,6 @@
 				opacity="0.3"
 			/>
 		{/if}
-		<!-- Glow layer -->
-		<path
-			d={pathD()}
-			fill="none"
-			stroke={color}
-			stroke-width={style.width + 4}
-			stroke-dasharray={style.dasharray}
-			class="connection-glow"
-			opacity="0.2"
-		/>
 		<!-- Main connection line -->
 		<path
 			d={pathD()}
