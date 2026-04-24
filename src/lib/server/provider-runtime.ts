@@ -331,6 +331,32 @@ class ProviderRuntimeManager {
 					signal: abortController.signal
 				});
 				this.openclawSessionIds.set(sessionKey, workerResult.openclawSessionId);
+				if (workerResult.success && workerResult.response) {
+					onEvent(
+						createBridgeEvent('task_completed', { provider, missionId, onEvent, signal: abortController.signal }, {
+							message: `${provider.label} completed (${workerResult.response.length} chars)`,
+							data: {
+								success: true,
+								responseLength: workerResult.response.length,
+								response: workerResult.response,
+								provider: provider.id,
+								providerLabel: provider.label
+							}
+						})
+					);
+				} else if (!workerResult.success) {
+					onEvent(
+						createBridgeEvent('task_failed', { provider, missionId, onEvent, signal: abortController.signal }, {
+							message: `${provider.label} failed: ${workerResult.error || 'unknown error'}`,
+							data: {
+								success: false,
+								error: workerResult.error || 'unknown error',
+								provider: provider.id,
+								providerLabel: provider.label
+							}
+						})
+					);
+				}
 				return {
 					success: workerResult.success,
 					response: workerResult.response,
@@ -509,7 +535,8 @@ class ProviderRuntimeManager {
 }
 
 function extractMissionId(pack: MultiLLMExecutionPack): string {
-	// Mission ID is embedded in provider prompts (Mission ID: xxx)
+	if (pack.missionId) return pack.missionId;
+	// Legacy fallback: orchestrator prompts embed "Mission ID: xxx"
 	const firstPrompt = Object.values(pack.providerPrompts)[0] || '';
 	const match = firstPrompt.match(/Mission ID:\s*(\S+)/);
 	return match?.[1] || `dispatch-${Date.now()}`;

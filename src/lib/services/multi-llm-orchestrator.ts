@@ -87,6 +87,7 @@ export interface MultiLLMExecutionPack {
 	providerPrompts: Record<string, string>;
 	launchCommands: Record<string, string>;
 	createdAt: string;
+	missionId?: string;
 }
 
 export interface MultiLLMBuildInput {

@@ -15,6 +15,7 @@ interface SparkRunBody {
 	chatId?: string;
 	userId?: string;
 	requestId?: string;
+	promptMode?: 'simple' | 'orchestrator';
 }
 
 function isConfiguredApiKey(value: string | undefined): value is string {
@@ -107,12 +108,15 @@ export const POST: RequestHandler = async (event) => {
 		const defaults = createDefaultMultiLLMOptions();
 		const envRecord = env as Record<string, string | undefined>;
 		const requestedProviderIds = normalizeProviderIds(body.providers);
+		const configuredDefault = envRecord.DEFAULT_MISSION_PROVIDER?.trim();
 		const selectedProviderIds =
 			requestedProviderIds.length > 0
 				? requestedProviderIds
-				: defaults.providers
-						.filter((provider) => provider.requiresApiKey && provider.apiKeyEnv && isConfiguredApiKey(envRecord[provider.apiKeyEnv]))
-						.map((provider) => provider.id);
+				: configuredDefault && defaults.providers.some((p) => p.id === configuredDefault)
+					? [configuredDefault]
+					: defaults.providers
+							.filter((provider) => provider.requiresApiKey && provider.apiKeyEnv && isConfiguredApiKey(envRecord[provider.apiKeyEnv]))
+							.map((provider) => provider.id);
 
 		if (selectedProviderIds.length === 0) {
 			return json({ success: false, error: 'No runnable Spark providers are configured' }, { status: 400 });
@@ -172,6 +176,15 @@ export const POST: RequestHandler = async (event) => {
 			options,
 			baseUrl: new URL(event.request.url).origin
 		});
+		executionPack.missionId = mission.id;
+
+		if (body.promptMode === 'simple') {
+			const simpleProviderPrompts: Record<string, string> = {};
+			for (const provider of executionPack.providers) {
+				simpleProviderPrompts[provider.id] = goal;
+			}
+			executionPack.providerPrompts = simpleProviderPrompts;
+		}
 
 		const apiKeys = Object.fromEntries(
 			selectedProviders

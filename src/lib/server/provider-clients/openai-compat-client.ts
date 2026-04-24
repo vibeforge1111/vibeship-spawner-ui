@@ -107,16 +107,22 @@ export async function executeOpenAICompatRequest(
 		}
 	}
 
+	const failureMessage = lastError || `${provider.label} failed after ${MAX_RETRIES} retries`;
 	onEvent(
-		createBridgeEvent('error', options, {
+		createBridgeEvent('task_failed', options, {
 			message: `${provider.label} failed after ${MAX_RETRIES} attempts: ${lastError}`,
-			data: { error: lastError }
+			data: {
+				success: false,
+				error: failureMessage,
+				provider: provider.id,
+				providerLabel: provider.label
+			}
 		})
 	);
 
 	return {
 		success: false,
-		error: lastError || `${provider.label} failed after ${MAX_RETRIES} retries`,
+		error: failureMessage,
 		durationMs: Date.now() - startTime
 	};
 }
@@ -190,7 +196,13 @@ async function handleStreamingResponse(
 	onEvent(
 		createBridgeEvent('task_completed', options, {
 			message: `${provider.label} completed (${fullContent.length} chars)`,
-			data: { success: true, responseLength: fullContent.length }
+			data: {
+				success: true,
+				responseLength: fullContent.length,
+				response: fullContent,
+				provider: provider.id,
+				providerLabel: provider.label
+			}
 		})
 	);
 
@@ -223,7 +235,13 @@ async function handleNonStreamingResponse(
 	onEvent(
 		createBridgeEvent('task_completed', options, {
 			message: `${provider.label} completed (${content.length} chars)`,
-			data: { success: true, responseLength: content.length }
+			data: {
+				success: true,
+				responseLength: content.length,
+				response: content,
+				provider: provider.id,
+				providerLabel: provider.label
+			}
 		})
 	);
 
