@@ -160,13 +160,19 @@
 		agents: 'AGENT'
 	};
 	const chromeTag = categoryTags[data.category] || data.category.slice(0, 4).toUpperCase();
-	const chromeSubLabel = data.skillChain && data.skillChain.length > 0
-		? `${data.skillChain.length} skill${data.skillChain.length === 1 ? '' : 's'}`
-		: data.category;
 
 	// MCP tool count for this skill
 	const skillMcpEntries = SKILL_MCP_MAP[data.id] || [];
 	const mcpToolCount = skillMcpEntries.reduce((acc: number, e: { mcps: string[] }) => acc + e.mcps.length, 0);
+
+	// Right-slot label: only render when it carries non-redundant info. The
+	// left tag already encodes category; right should show skill count / MCP
+	// count / status, or stay empty.
+	const chromeSubLabel = data.skillChain && data.skillChain.length > 0
+		? `${data.skillChain.length} skill${data.skillChain.length === 1 ? '' : 's'}`
+		: mcpToolCount > 0
+			? `${mcpToolCount} mcp`
+			: '';
 
 	// Calculate port positions
 	const maxPorts = $derived(Math.max(data.inputs?.length || 1, data.outputs?.length || 1));
@@ -272,10 +278,12 @@
 		{/each}
 	{/if}
 
-	<!-- Chrome header: mono tag left, italic secondary right -->
+	<!-- Chrome header: mono tag left, italic secondary right (only if non-redundant) -->
 	<div class="node-chrome">
 		<span class="chrome-tag">{chromeTag}</span>
-		<i class="chrome-sub">{chromeSubLabel}</i>
+		{#if chromeSubLabel}
+			<i class="chrome-sub">{chromeSubLabel}</i>
+		{/if}
 	</div>
 
 	<!-- Body: title + sub + optional tags/mcp -->
