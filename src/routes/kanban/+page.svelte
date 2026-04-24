@@ -266,6 +266,7 @@
 				scheduleTimer = null;
 			};
 		}
+		return undefined;
 	});
 
 	async function fetchRelay() {
