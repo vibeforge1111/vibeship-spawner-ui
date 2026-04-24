@@ -17,6 +17,8 @@ webhooks directly.
 - exposes the local APIs used by the Telegram gateway for `/run`, `/board`, and
   `/mission`
 - runs multi-step execution flows behind the gateway and Builder
+- receives mission lifecycle callbacks from Spawner to Telegram through the
+  local relay URL configured by Spark CLI
 
 ## Current Role In The Spark Stack
 
@@ -29,6 +31,15 @@ Telegram
 
 Spawner UI is the execution backend in that shape, not a competing ingress
 surface.
+
+Spark CLI starter setup writes:
+
+- `MISSION_CONTROL_WEBHOOK_URLS` pointing at the Telegram relay
+- `TELEGRAM_RELAY_SECRET` shared with `spark-telegram-bot`
+- non-secret LLM provider metadata such as provider, model, and base URL
+
+Do not put Telegram bot tokens or cloud LLM API keys in Spawner UI env unless a
+specific provider integration explicitly requires them.
 
 ## Local Development
 
@@ -49,9 +60,8 @@ npm run check
 npm run test:run
 ```
 
-## Important Install Note
+## Spark CLI Install Note
 
-If you are installing the Telegram starter stack through the future `spark`
-installer, the installer should configure this module automatically behind the
-gateway. You should not need to hand-wire relay URLs, Telegram ownership, or
-repo-to-repo boundaries yourself.
+If you are installing the Telegram starter stack through `spark setup`, the
+installer configures this module behind the gateway. You should not need to
+hand-wire relay URLs, Telegram ownership, or repo-to-repo boundaries yourself.
