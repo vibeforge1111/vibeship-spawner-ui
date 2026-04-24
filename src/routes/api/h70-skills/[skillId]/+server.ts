@@ -41,7 +41,14 @@ interface H70Skill {
 	version?: string;
 	identity?: string;
 	owns?: string[];
-	delegates?: Array<{ skill: string; when: string }>;
+	delegates_version?: number;
+	delegates?: Array<{
+		skill: string;
+		when: string;
+		pass_context?: string[];
+		expect_back?: string[];
+		sla?: string;
+	}>;
 	disasters?: Array<{ title: string; story: string; lesson: string }>;
 	anti_patterns?: Array<{ name: string; why_bad: string; instead: string; code_smell?: string }>;
 	patterns?: Array<{ name: string; when: string; implementation: string; gotchas?: string[] }>;
