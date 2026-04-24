@@ -10,6 +10,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { validateProjectPath, runCommand, isToolAvailable } from '$lib/server/command-runner';
 
 const SCANNER_TIMEOUT_MS = 60_000; // 60 seconds per scanner
@@ -46,9 +47,27 @@ type ScannerName = 'gitleaks' | 'trivy' | 'opengrep';
 
 const ALL_SCANNERS: ScannerName[] = ['gitleaks', 'trivy', 'opengrep'];
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
 	try {
-		const body = await request.json();
+		const unauthorized = requireControlAuth(event, {
+			surface: 'SecurityScan',
+			apiKeyEnvVar: 'SPAWNER_SCAN_API_KEY',
+			fallbackApiKeyEnvVar: 'MCP_API_KEY',
+			apiKeyQueryParam: 'apiKey',
+			apiKeyCookieName: 'spawner_events_api_key',
+			allowLoopbackWithoutKey: true,
+			allowedOriginsEnvVar: 'SPAWNER_ALLOWED_ORIGINS'
+		});
+		if (unauthorized) return unauthorized;
+
+		const rateLimited = enforceRateLimit(event, {
+			scope: 'security_scan',
+			limit: 12,
+			windowMs: 60_000
+		});
+		if (rateLimited) return rateLimited;
+
+		const body = await event.request.json();
 		const { projectPath, scanners } = body as {
 			projectPath: string;
 			scanners?: ScannerName[];

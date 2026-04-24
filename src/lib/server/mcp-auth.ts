@@ -93,9 +93,15 @@ function parseCsv(value: string | undefined): string[] {
 function isOriginAllowed(event: RequestEvent, allowedOriginsEnvVar?: string): boolean {
 	const origin = event.request.headers.get('origin');
 	if (!origin) return true;
-	if (!allowedOriginsEnvVar) return true;
 
 	const allowedOrigins = parseCsv(env[allowedOriginsEnvVar as keyof typeof env] as string | undefined);
+	if (!allowedOriginsEnvVar || allowedOrigins.length === 0) {
+		try {
+			return new URL(origin).origin === new URL(event.request.url).origin;
+		} catch {
+			return false;
+		}
+	}
 	if (allowedOrigins.length === 0) return true;
 	if (allowedOrigins.includes('*')) return true;
 	return allowedOrigins.includes(origin);

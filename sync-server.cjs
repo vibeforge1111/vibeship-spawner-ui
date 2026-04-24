@@ -10,15 +10,16 @@ const cors = require('cors');
 const app = express();
 const PORT = 8797;
 
-// Middleware
-app.use(cors());
+// Middleware: this helper is local-only. Do not accept browser calls from
+// arbitrary origins when it is running on a developer machine.
+app.use(cors({ origin: false }));
 app.use(express.json());
 
 // Store connected clients
 const clients = new Set();
 
 // Create WebSocket server
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, '127.0.0.1', () => {
   console.log(`[Sync Server] Running on http://localhost:${PORT}`);
   console.log(`[Sync Server] WebSocket endpoint: ws://localhost:${PORT}/sync`);
 });

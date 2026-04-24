@@ -15,6 +15,10 @@ import type { RequestHandler } from './$types';
 import { stat } from 'node:fs/promises';
 import { join, isAbsolute, resolve } from 'node:path';
 import {
+	enforceRateLimit,
+	requireControlAuth
+} from '$lib/server/mcp-auth';
+import {
 	validateProjectPath,
 	runCommand,
 	detectTypecheckCommand,
@@ -28,7 +32,6 @@ export interface VerifyRequest {
 	action: 'build' | 'typecheck' | 'test' | 'files' | 'scan';
 	projectPath: string;
 	files?: string[];
-	command?: string;
 }
 
 export interface VerifyBuildResult {
@@ -81,10 +84,28 @@ export interface VerifyScanResult {
 
 export type VerifyResult = VerifyBuildResult | VerifyTypecheckResult | VerifyTestResult | VerifyFilesResult | VerifyScanResult;
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
 	try {
-		const body = await request.json() as VerifyRequest;
-		const { action, projectPath, files, command } = body;
+		const unauthorized = requireControlAuth(event, {
+			surface: 'Verify',
+			apiKeyEnvVar: 'SPAWNER_VERIFY_API_KEY',
+			fallbackApiKeyEnvVar: 'MCP_API_KEY',
+			apiKeyQueryParam: 'apiKey',
+			apiKeyCookieName: 'spawner_events_api_key',
+			allowLoopbackWithoutKey: true,
+			allowedOriginsEnvVar: 'SPAWNER_ALLOWED_ORIGINS'
+		});
+		if (unauthorized) return unauthorized;
+
+		const rateLimited = enforceRateLimit(event, {
+			scope: 'verify',
+			limit: 30,
+			windowMs: 60_000
+		});
+		if (rateLimited) return rateLimited;
+
+		const body = await event.request.json() as VerifyRequest;
+		const { action, projectPath, files } = body;
 
 		if (!action || !['build', 'typecheck', 'test', 'files', 'scan'].includes(action)) {
 			return json({ error: 'Invalid action. Must be: build, typecheck, test, files, scan' }, { status: 400 });
@@ -97,9 +118,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		switch (action) {
 			case 'build': {
-				const buildCmd = command || 'npm';
-				const buildArgs = command ? [] : ['run', 'build'];
-				const result = await runCommand(buildCmd, buildArgs, projectPath);
+				const result = await runCommand('npm', ['run', 'build'], projectPath);
 				const response: VerifyBuildResult = {
 					action: 'build',
 					success: result.exitCode === 0,
@@ -112,9 +131,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			}
 
 			case 'typecheck': {
-				const tcCmd = command
-					? { command: command.split(' ')[0], args: command.split(' ').slice(1) }
-					: await detectTypecheckCommand(projectPath);
+				const tcCmd = await detectTypecheckCommand(projectPath);
 				const result = await runCommand(tcCmd.command, tcCmd.args, projectPath);
 				const errorCount = parseErrorCount(result.stdout + '\n' + result.stderr);
 				const response: VerifyTypecheckResult = {

@@ -12,6 +12,7 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import { execFileSync } from 'node:child_process';
 import { openclawBridge } from '$lib/services/openclaw-bridge';
+import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 
 // Store pending PRDs in the project's .spawner directory
 const SPAWNER_DIR = join(process.cwd(), '.spawner');
@@ -197,9 +198,27 @@ async function startCodexAutoAnalysis(requestId: string, projectName: string): P
 	}
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
 	try {
-		const { content, requestId, projectName, options } = await request.json();
+		const unauthorized = requireControlAuth(event, {
+			surface: 'PRDBridgeWrite',
+			apiKeyEnvVar: 'SPAWNER_PRD_API_KEY',
+			fallbackApiKeyEnvVar: 'MCP_API_KEY',
+			apiKeyQueryParam: 'apiKey',
+			apiKeyCookieName: 'spawner_events_api_key',
+			allowLoopbackWithoutKey: true,
+			allowedOriginsEnvVar: 'SPAWNER_ALLOWED_ORIGINS'
+		});
+		if (unauthorized) return unauthorized;
+
+		const rateLimited = enforceRateLimit(event, {
+			scope: 'prd_bridge_write',
+			limit: 20,
+			windowMs: 60_000
+		});
+		if (rateLimited) return rateLimited;
+
+		const { content, requestId, projectName, options } = await event.request.json();
 
 		if (!content || !requestId) {
 			return json({ error: 'Content and requestId are required' }, { status: 400 });
