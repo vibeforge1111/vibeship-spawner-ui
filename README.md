@@ -11,6 +11,18 @@ In the current supported starter architecture:
 Spawner UI does not own the Telegram bot token and does not receive Telegram
 webhooks directly.
 
+## Where It Fits
+
+```mermaid
+flowchart LR
+  Telegram["spark-telegram-bot"] --> Run["/run goal"]
+  Run --> API["Spawner UI APIs"]
+  API --> Mission["Mission builder and executor"]
+  Mission --> Canvas["Canvas / project workspace"]
+  Mission --> Events["Mission events"]
+  Events --> Telegram
+```
+
 ## What It Does
 
 - provides the mission-building and mission-control UI
@@ -19,6 +31,8 @@ webhooks directly.
 - runs multi-step execution flows behind the gateway and Builder
 - receives mission lifecycle callbacks from Spawner to Telegram through the
   local relay URL configured by Spark CLI
+- loads PRD/project plans into the visual canvas
+- coordinates configured LLM/provider runtimes through the mission orchestration layer
 
 ## Current Role In The Spark Stack
 
@@ -40,6 +54,46 @@ Spark CLI starter setup writes:
 
 Do not put Telegram bot tokens or cloud LLM API keys in Spawner UI env unless a
 specific provider integration explicitly requires them.
+
+## First Run
+
+Most users should let Spark CLI install and wire this module:
+
+```bash
+spark setup
+spark start spawner-ui
+spark status
+```
+
+Manual local development:
+
+```bash
+git clone https://github.com/vibeforge1111/vibeship-spawner-ui
+cd vibeship-spawner-ui
+npm install
+npm run dev
+```
+
+Then open the local URL printed by Vite.
+
+## Agent Operating Guide
+
+If you are an LLM agent reading this repo:
+
+1. Use the APIs below only from a local trusted environment unless explicitly deploying.
+2. Keep `TELEGRAM_RELAY_SECRET` secret; it authenticates callbacks to Telegram.
+3. Do not add Telegram bot token handling here.
+4. Prefer `npm run test:run`, `npm run check`, and `npm run build` before claiming the UI is ready.
+5. Use the canvas/PRD bridge for project setup instead of inventing a second mission format.
+
+Key local API surfaces:
+
+- `/api/spark/run` - start a mission from a goal.
+- `/api/mission-control/status` - mission status.
+- `/api/mission-control/command` - pause/resume/kill/status.
+- `/api/mission-control/board` - board summary.
+- `/api/prd-bridge/write` - write a PRD into the workspace.
+- `/api/prd-bridge/load-to-canvas` - load a PRD/project into the visual canvas.
 
 ## Local Development
 
@@ -65,3 +119,9 @@ npm run test:run
 If you are installing the Telegram starter stack through `spark setup`, the
 installer configures this module behind the gateway. You should not need to
 hand-wire relay URLs, Telegram ownership, or repo-to-repo boundaries yourself.
+
+## Security Notes
+
+- Do not commit `.env`, provider keys, screenshots with tokens, local mission state, or private project files.
+- Keep mission relay URLs on localhost for the launch stack.
+- Treat browser-facing APIs as local operator surfaces unless explicitly hardened for hosting.
