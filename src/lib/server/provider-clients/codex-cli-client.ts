@@ -5,7 +5,7 @@
  * Captures stdout/stderr and emits progress events.
  */
 
-import { spawn, execSync } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ProviderResult, ProviderClientOptions } from './types';
@@ -15,9 +15,36 @@ export interface CodexCliOptions extends ProviderClientOptions {
 	workingDirectory?: string;
 }
 
-export async function isCliBinaryAvailable(binaryName: string): Promise<boolean> {
+interface CodexCliCommand {
+	binary: 'codex';
+	args: string[];
+}
+
+function isSafeCommandToken(value: string): boolean {
+	return /^[A-Za-z0-9._:/@+=-]+$/.test(value);
+}
+
+function parseCodexCliCommand(commandTemplate: string): CodexCliCommand {
+	const tokens = commandTemplate.split(/\s+/).filter(Boolean);
+	if (tokens.some((token) => !isSafeCommandToken(token))) {
+		throw new Error('Codex command template contains unsafe shell characters');
+	}
+	if (tokens[0] !== 'codex' || tokens[1] !== 'exec') {
+		throw new Error('Codex command template must start with: codex exec');
+	}
+	if (tokens.length === 3 && tokens[2] === '--yolo') {
+		return { binary: 'codex', args: ['exec', '--yolo'] };
+	}
+	if (tokens.length === 4 && tokens[2] === '--model') {
+		return { binary: 'codex', args: ['exec', '--model', tokens[3]] };
+	}
+	throw new Error('Codex command template must be: codex exec --model <model> or codex exec --yolo');
+}
+
+export async function isCliBinaryAvailable(binaryName: CodexCliCommand['binary']): Promise<boolean> {
 	try {
-		execSync(`where ${binaryName}`, { stdio: 'pipe', timeout: 5000 });
+		const locator = process.platform === 'win32' ? 'where.exe' : 'which';
+		execFileSync(locator, [binaryName], { stdio: 'pipe', timeout: 5000 });
 		return true;
 	} catch {
 		return false;
@@ -39,13 +66,26 @@ export async function executeCodexCliRequest(
 	);
 
 	// Detect the binary name from the command template
-	const commandTemplate = provider.commandTemplate || `${provider.id} --model {model}`;
-	const binaryName = commandTemplate.split(/\s+/)[0];
+	const commandTemplate = provider.commandTemplate || 'codex exec --model {model}';
+	const model = provider.model || 'gpt-5.5';
+	let command: CodexCliCommand;
+	try {
+		command = parseCodexCliCommand(commandTemplate.replace('{model}', model));
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		onEvent(
+			createBridgeEvent('error', options, {
+				message,
+				data: { error: message }
+			})
+		);
+		return { success: false, error: message, durationMs: Date.now() - startTime };
+	}
 
 	// Check if binary exists in PATH
-	const available = await isCliBinaryAvailable(binaryName);
+	const available = await isCliBinaryAvailable(command.binary);
 	if (!available) {
-		const error = `${provider.label} CLI "${binaryName}" not found in PATH`;
+		const error = `${provider.label} CLI "${command.binary}" not found in PATH`;
 		onEvent(
 			createBridgeEvent('error', options, {
 				message: error,
@@ -64,12 +104,6 @@ export async function executeCodexCliRequest(
 	writeFileSync(promptFile, prompt, 'utf-8');
 
 	return new Promise<ProviderResult>((resolve) => {
-		const model = provider.model || 'gpt-5.5';
-		const command = commandTemplate.replace('{model}', model);
-
-		const args = command.split(/\s+/);
-		const bin = args.shift()!;
-
 		const cwd = workingDirectory || process.cwd();
 
 		let stdout = '';
@@ -77,10 +111,10 @@ export async function executeCodexCliRequest(
 		let lastProgressEmit = Date.now();
 		let killed = false;
 
-		const child = spawn(bin, args, {
+		const child = spawn(command.binary, command.args, {
 			cwd,
 			stdio: ['pipe', 'pipe', 'pipe'],
-			shell: true,
+			shell: process.platform === 'win32',
 			env: { ...process.env }
 		});
 

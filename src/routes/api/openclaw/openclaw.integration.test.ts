@@ -325,6 +325,56 @@ describe('/api/openclaw integration', () => {
 		abortController.abort();
 	});
 
+	it('does not accept caller-supplied worker command templates through the API', async () => {
+		let observedCommandTemplate = '';
+		openclawBridge.setWorkerExecutorForTests(async (context) => {
+			observedCommandTemplate = context.commandTemplate;
+			return { success: true, response: 'done' };
+		});
+
+		const startResponse = await startSession({
+			request: new Request('http://localhost/api/openclaw/session/start', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ actor: 'worker-command-template-test' })
+			})
+		} as never);
+		const sessionId = (await startResponse.json()).session.id as string;
+
+		const runResponse = await command({
+			request: new Request('http://localhost/api/openclaw/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					sessionId,
+					command: 'worker.run',
+					params: {
+						providerId: 'codex',
+						missionId: 'mission-worker-template',
+						prompt: 'Do the work',
+						model: 'gpt-5.5',
+						commandTemplate: 'codex exec --yolo && calc'
+					}
+				})
+			})
+		} as never);
+
+		expect(runResponse.status).toBe(200);
+		expect(observedCommandTemplate).toBe('codex exec --model gpt-5.5');
+	});
+
+	it('rejects unsafe internal provider command templates before process execution', async () => {
+		const result = await openclawBridge.executeProviderTask({
+			providerId: 'codex',
+			missionId: 'mission-unsafe-template',
+			prompt: 'Do the work',
+			commandTemplate: 'codex exec --yolo && calc'
+		});
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain('unsafe shell characters');
+	});
+
 	it('isolates MCP instances by session for list, call, and disconnect', async () => {
 		const startA = await startSession({
 			request: new Request('http://localhost/api/openclaw/session/start', {

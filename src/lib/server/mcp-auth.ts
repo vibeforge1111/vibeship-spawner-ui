@@ -103,7 +103,9 @@ function isOriginAllowed(event: RequestEvent, allowedOriginsEnvVar?: string): bo
 		}
 	}
 	if (allowedOrigins.length === 0) return true;
-	if (allowedOrigins.includes('*')) return true;
+	if (allowedOrigins.includes('*')) {
+		return (env.SPAWNER_ALLOW_WILDCARD_ORIGINS as string | undefined)?.trim() === '1';
+	}
 	return allowedOrigins.includes(origin);
 }
 
@@ -193,8 +195,8 @@ function isLoopbackRequest(event: RequestEvent): boolean {
 		const clientAddress = event.getClientAddress();
 		return LOOPBACK_HOSTS.has(clientAddress);
 	} catch {
-		// Some adapters do not expose client address; host validation is still enforced.
-		return true;
+		// Production loopback bypass must not rely on a spoofable Host header alone.
+		return process.env.NODE_ENV === 'test';
 	}
 }
 

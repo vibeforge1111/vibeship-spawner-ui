@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { spawn, execSync, type ChildProcess } from 'node:child_process';
+import { spawn, execFileSync, type ChildProcess } from 'node:child_process';
 import type { Mission } from '$lib/services/mcp-client';
 import { TOP_100_MCPS } from '$lib/types/mcp';
 import { eventBridge } from '$lib/services/event-bridge';
@@ -215,9 +215,19 @@ function isProviderId(value: unknown): value is OpenclawProviderId {
 	return value === 'claude' || value === 'codex';
 }
 
-function isBinaryAvailable(binaryName: string): boolean {
+interface ProviderCommand {
+	binary: 'claude' | 'codex';
+	args: string[];
+}
+
+function isSafeCommandToken(value: string): boolean {
+	return /^[A-Za-z0-9._:/@+=-]+$/.test(value);
+}
+
+function isBinaryAvailable(binaryName: ProviderCommand['binary']): boolean {
 	try {
-		execSync(`where ${binaryName}`, { stdio: 'pipe', timeout: 5000 });
+		const locator = process.platform === 'win32' ? 'where.exe' : 'which';
+		execFileSync(locator, [binaryName], { stdio: 'pipe', timeout: 5000 });
 		return true;
 	} catch {
 		return false;
@@ -229,6 +239,34 @@ function resolveProviderCommandTemplate(providerId: OpenclawProviderId, model?: 
 	const commandTemplate = template && template.trim() ? template : fallbackTemplate;
 	const fallbackModel = providerId === 'claude' ? 'claude-opus-4-1' : 'gpt-5.5';
 	return commandTemplate.replace('{model}', (model && model.trim()) || fallbackModel);
+}
+
+function parseProviderCommand(providerId: OpenclawProviderId, commandTemplate: string): ProviderCommand {
+	const tokens = commandTemplate.split(/\s+/).filter(Boolean);
+	if (tokens.length === 0) {
+		throw new Error('Provider command template is empty');
+	}
+	if (tokens.some((token) => !isSafeCommandToken(token))) {
+		throw new Error('Provider command template contains unsafe shell characters');
+	}
+
+	if (providerId === 'claude') {
+		if (tokens[0] !== 'claude' || tokens.length !== 3 || tokens[1] !== '--model') {
+			throw new Error('Claude provider command must be: claude --model <model>');
+		}
+		return { binary: 'claude', args: ['--model', tokens[2]] };
+	}
+
+	if (tokens[0] !== 'codex' || tokens[1] !== 'exec') {
+		throw new Error('Codex provider command must start with: codex exec');
+	}
+	if (tokens.length === 3 && tokens[2] === '--yolo') {
+		return { binary: 'codex', args: ['exec', '--yolo'] };
+	}
+	if (tokens.length === 4 && tokens[2] === '--model') {
+		return { binary: 'codex', args: ['exec', '--model', tokens[3]] };
+	}
+	throw new Error('Codex provider command must be: codex exec --model <model> or codex exec --yolo');
 }
 
 function sanitizeMcpConfig(value: unknown): MCPClientConfig | null {
@@ -1024,7 +1062,6 @@ class OpenclawBridgeService {
 			prompt,
 			model: toStringOrUndefined(params.model),
 			workingDirectory: toStringOrUndefined(params.workingDirectory),
-			commandTemplate: toStringOrUndefined(params.commandTemplate),
 			taskId: toStringOrUndefined(params.taskId),
 			openclawSessionId: session.id
 		});
@@ -1100,13 +1137,15 @@ class OpenclawBridgeService {
 	private async executeProviderTaskViaProcess(
 		context: OpenclawWorkerExecutorContext
 	): Promise<{ success: boolean; response?: string; error?: string }> {
-		const args = context.commandTemplate.split(/\s+/).filter(Boolean);
-		const binary = args.shift();
-		if (!binary) {
-			return { success: false, error: 'Invalid command template' };
+		let command: ProviderCommand;
+		try {
+			command = parseProviderCommand(context.providerId, context.commandTemplate);
+		} catch (error) {
+			return { success: false, error: error instanceof Error ? error.message : String(error) };
 		}
-		if (!isBinaryAvailable(binary)) {
-			return { success: false, error: `${context.providerId} CLI "${binary}" not found in PATH` };
+
+		if (!isBinaryAvailable(command.binary)) {
+			return { success: false, error: `${context.providerId} CLI "${command.binary}" not found in PATH` };
 		}
 
 		return await new Promise((resolve) => {
@@ -1114,9 +1153,9 @@ class OpenclawBridgeService {
 			let stderr = '';
 			let finished = false;
 			let progressMarks = 0;
-			const child = spawn(binary, args, {
+			const child = spawn(command.binary, command.args, {
 				cwd: context.workingDirectory || process.cwd(),
-				shell: true,
+				shell: process.platform === 'win32',
 				stdio: ['pipe', 'pipe', 'pipe'],
 				env: { ...process.env }
 			});
