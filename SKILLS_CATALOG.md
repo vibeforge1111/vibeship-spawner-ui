@@ -9,22 +9,22 @@
 
 | What | Path |
 |---|---|
-| **Primary source (YAML, H70-C+ format)** | `C:/Users/USER/Desktop/spark-skill-graphs/{category}/{skill-id}.yaml` |
+| **Primary source (YAML, H70-C+ format)** | `<workspace>/spark-skill-graphs/{category}/{skill-id}.yaml` |
 | **Upstream repo** | `https://github.com/vibeforge1111/spark-skill-graphs` (remote `origin`) |
 | **Build-script env override** | `SPAWNER_H70_SKILLS_DIR` or `H70_SKILLS_LAB_DIR` |
-| **UI metadata index (built from source)** | `C:/Users/USER/Desktop/spawner-ui/static/skills.json` |
-| **Collaboration graph** | `C:/Users/USER/Desktop/spawner-ui/static/skill-collaboration.json` |
-| **Skill catalog (owns + context for Claude)** | `C:/Users/USER/Desktop/spawner-ui/src/lib/data/skill-catalog.json` |
-| **Keyword -> skill mappings** (402 entries) | `C:/Users/USER/Desktop/spawner-ui/src/lib/services/h70-skill-matcher.ts` |
+| **UI metadata index (built from source)** | `<workspace>/spawner-ui/static/skills.json` |
+| **Collaboration graph** | `<workspace>/spawner-ui/static/skill-collaboration.json` |
+| **Skill catalog (owns + context for Claude)** | `<workspace>/spawner-ui/src/lib/data/skill-catalog.json` |
+| **Keyword -> skill mappings** (402 entries) | `<workspace>/spawner-ui/src/lib/services/h70-skill-matcher.ts` |
 | **Catalog/index builders** | `spawner-ui/scripts/build-skill-catalog.cjs`, `build-skill-index.cjs` |
 | **API (single skill, full YAML)** | `GET http://localhost:5173/api/h70-skills/{skillId}` |
 | **MCP fallback** | `https://mcp.vibeship.co/mcp` |
 
 **Loading order at runtime:** local YAML in `spark-skill-graphs` (via `/api/h70-skills/[skillId]`) -> MCP fallback. Local wins; MCP is only hit if the skill is not in the repo.
 
-**How to open a skill on disk:** `C:/Users/USER/Desktop/spark-skill-graphs/<category>/<id>.yaml` - the `<category>` column below matches the folder name exactly (except internal remaps like the existing enterprise and sparknet-council placements handled at build time).
+**How to open a skill on disk:** `<workspace>/spark-skill-graphs/<category>/<id>.yaml` - the `<category>` column below matches the folder name exactly (except internal remaps like the existing enterprise and sparknet-council placements handled at build time).
 
-> Note: `C:/Users/USER/Desktop/vibeship-skills-lab` is the **authoring/tooling workspace** (validator, graph builder, MCP server). The spawner UI reads directly from `spark-skill-graphs`, not from the lab.
+> Note: `<workspace>/vibeship-skills-lab` is the **authoring/tooling workspace** (validator, graph builder, MCP server). The spawner UI reads directly from `spark-skill-graphs`, not from the lab.
 
 ## Category Summary
 

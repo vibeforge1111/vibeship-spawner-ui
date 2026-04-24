@@ -4,7 +4,7 @@
       "command": "node",
       "args": ["mcp-h70/index.js"],
       "env": {
-        "H70_SKILL_LAB": "C:/Users/USER/Desktop/vibeship-h70/skill-lab"
+        "H70_SKILL_LAB": "<path-to-h70-skill-lab>"
       }
     }
   }

@@ -6,7 +6,7 @@ Use this runbook to create and execute a visible multi-agent personality-evoluti
 
 ## 0) Prerequisites
 
-- Repo: `C:\Users\USER\Desktop\spawner-ui`
+- Repo: `<workspace>\\spawner-ui`
 - Node deps installed (`npm install`)
 - (Optional but recommended) provider keys in `.env`:
   - `OPENAI_API_KEY` (Codex)
@@ -17,7 +17,7 @@ Use this runbook to create and execute a visible multi-agent personality-evoluti
 ## 1) Start Spawner on port 3333
 
 ```powershell
-cd C:\Users\USER\Desktop\spawner-ui
+cd <workspace>\\spawner-ui
 npm run dev -- --port 3333
 ```
 

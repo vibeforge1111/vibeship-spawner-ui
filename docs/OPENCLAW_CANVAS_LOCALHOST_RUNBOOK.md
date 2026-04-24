@@ -7,7 +7,7 @@ This is the practical checklist to reproduce the live OpenClaw-to-canvas sync fl
 ## 1) Start local app
 
 ```powershell
-cd C:\Users\USER\Desktop\spawner-ui
+cd <workspace>\\spawner-ui
 npm run dev -- --port 3333
 ```
 

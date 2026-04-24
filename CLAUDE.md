@@ -74,7 +74,7 @@ Spawner UI is a SvelteKit application that provides a visual canvas for building
 
 ### Skills Lab Location
 
-`C:/Users/USER/Desktop/vibeship-skills-lab`
+`<workspace>/vibeship-skills-lab`
 
 ### Why Local Skills Lab
 
@@ -139,7 +139,7 @@ curl http://localhost:5500/api/h70-skills/react-native-specialist | grep categor
 
 1. **Identify relevant skills** for the task (e.g., `typescript-strict`, `code-quality`, `test-architect`, `sveltekit`)
 2. **Load via API**: `curl http://localhost:5500/api/h70-skills/{skill-id}`
-3. **Or read directly** from `C:/Users/USER/Desktop/vibeship-skills-lab/{category}/{skill-name}.yaml`
+3. **Or read directly** from `<workspace>/vibeship-skills-lab/{category}/{skill-name}.yaml`
 4. **Check these sections:**
    - `disasters`: Real failures to avoid (fear-first learning)
    - `anti_patterns`: What NOT to do
@@ -375,7 +375,7 @@ Only extracts from:
 
 ### 1. Spawner UI Dev Server
 ```bash
-cd C:\Users\USER\Desktop\spawner-ui
+cd <workspace>\\spawner-ui
 npm run dev
 # Runs at http://localhost:5173
 ```
@@ -388,7 +388,7 @@ npm run dev
 ### Quick Start All Services
 ```bash
 # Terminal 1: Spawner UI
-cd C:\Users\USER\Desktop\spawner-ui && npm run dev
+cd <workspace>\\spawner-ui && npm run dev
 ```
 
 ### Verify Everything is Running
@@ -632,6 +632,6 @@ The old approach had 4+ competing loading paths which caused race conditions. No
 
 ## Environment
 
-- **Skill source (primary)**: `C:/Users/USER/Desktop/spark-skill-graphs` (repo: https://github.com/vibeforge1111/spark-skill-graphs)
+- **Skill source (primary)**: `<workspace>/spark-skill-graphs` (repo: https://github.com/vibeforge1111/spark-skill-graphs)
 - **Dev Server**: `http://localhost:5173` (or `http://localhost:5500` if custom port)
 - **MCP Fallback**: `https://mcp.vibeship.co/mcp`
