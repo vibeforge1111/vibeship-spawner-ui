@@ -286,8 +286,6 @@
 			<div class="node-sub skill-sub">
 				{data.skillChain.slice(0, 2).join(' · ')}{data.skillChain.length > 2 ? ` +${data.skillChain.length - 2}` : ''}
 			</div>
-		{:else}
-			<div class="node-sub">{data.category}</div>
 		{/if}
 
 		{#if mcpToolCount > 0}
