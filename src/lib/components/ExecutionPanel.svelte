@@ -30,9 +30,18 @@
 		minimized?: boolean;
 		onToggleMinimize?: () => void;
 		autoRunToken?: number;
+		relay?: {
+			chatId?: string;
+			userId?: string;
+			requestId?: string;
+			goal?: string;
+			autoRun?: boolean;
+			buildMode?: 'direct' | 'advanced_prd';
+			buildModeReason?: string;
+		};
 	}
 
-	let { onClose, minimized = false, onToggleMinimize, autoRunToken }: Props = $props();
+	let { onClose, minimized = false, onToggleMinimize, autoRunToken, relay }: Props = $props();
 
 	let currentNodes = $state<CanvasNode[]>([]);
 	let currentConnections = $state<Connection[]>([]);
@@ -114,6 +123,7 @@
 	// Guard to ensure mount-only effects run once
 	let hasCheckedResumable = $state(false);
 	let lastHandledAutoRunToken = $state<number | null>(null);
+	let lastAppliedRelayRequestId = $state<string | null>(null);
 
 	// Derived states
 	let isRunning = $derived(executionProgress?.status === 'running' || executionProgress?.status === 'creating');
@@ -215,8 +225,51 @@
 		};
 	}
 
-	function applyServerProviderKeyPresence(presence: Record<string, boolean>) {
+	interface ServerProviderInfo {
+		id: string;
+		envKeyConfigured?: boolean;
+		model?: string;
+		baseUrl?: string | null;
+	}
+
+	function applySparkSingleProviderSelection(
+		providers: ServerProviderInfo[],
+		sparkDefaultProvider?: string | null
+	) {
+		multiLLMProviders = multiLLMProviders.map((provider) => {
+			const serverProvider = providers.find((entry) => entry.id === provider.id);
+			return {
+				...provider,
+				enabled: Boolean(sparkDefaultProvider && provider.id === sparkDefaultProvider),
+				model:
+					typeof serverProvider?.model === 'string' && serverProvider.model.trim()
+						? serverProvider.model
+						: provider.model,
+				baseUrl:
+					typeof serverProvider?.baseUrl === 'string' && serverProvider.baseUrl.trim()
+						? serverProvider.baseUrl
+						: provider.baseUrl
+			};
+		});
+
+		if (!sparkDefaultProvider) return;
+
+		multiLLMEnabled = true;
+		multiLLMStrategy = 'single';
+		multiLLMPrimaryProviderId = sparkDefaultProvider;
+		multiLLMAutoEnableByKeys = true;
+		multiLLMAutoRouteByTask = false;
+		multiLLMAutoDispatch = true;
+	}
+
+	function applyServerProviderKeyPresence(
+		presence: Record<string, boolean>,
+		providers: ServerProviderInfo[] = [],
+		sparkDefaultProvider?: string | null
+	) {
 		serverProviderKeyPresence = presence;
+		applySparkSingleProviderSelection(providers, sparkDefaultProvider);
+		if (sparkDefaultProvider) return;
 		if (!multiLLMAutoEnableByKeys) return;
 
 		multiLLMProviders = multiLLMProviders.map((provider) =>
@@ -240,12 +293,16 @@
 			if (!Array.isArray(result?.providers)) return;
 
 			const presence = Object.fromEntries(
-				result.providers.map((provider: { id: string; envKeyConfigured?: boolean }) => [
+				result.providers.map((provider: ServerProviderInfo) => [
 					provider.id,
 					Boolean(provider.envKeyConfigured)
 				])
 			);
-			applyServerProviderKeyPresence(presence);
+			applyServerProviderKeyPresence(
+				presence,
+				result.providers as ServerProviderInfo[],
+				typeof result?.sparkDefaultProvider === 'string' ? result.sparkDefaultProvider : null
+			);
 		} catch {
 			// ignore
 		}
@@ -491,6 +548,41 @@
 			.filter(Boolean);
 	}
 
+	function extractTargetWorkspaceFromText(text?: string): string | null {
+		if (!text) return null;
+		const match = text.match(/Target workspace:\s*`([^`]+)`/i) || text.match(/Target workspace:\s*([^\r\n]+)/i);
+		return match?.[1]?.trim().replace(/[.,;]+$/, '') || null;
+	}
+
+	function applyRelayMissionDefaults() {
+		if (!relay?.requestId || relay.requestId === lastAppliedRelayRequestId) return;
+		lastAppliedRelayRequestId = relay.requestId;
+
+		const buildMode = relay.buildMode || 'direct';
+		missionName = missionName.trim() || `Telegram Build ${relay.requestId}`;
+		const targetWorkspace = extractTargetWorkspaceFromText(relay.goal);
+		if (targetWorkspace) projectPath = targetWorkspace;
+		missionDescription = [
+			`Build mode: ${buildMode}`,
+			relay.buildModeReason ? `Reason: ${relay.buildModeReason}` : null,
+			relay.goal || ''
+		]
+			.filter((line): line is string => Boolean(line && line.trim()))
+			.join('\n\n');
+		goalsText =
+			buildMode === 'advanced_prd'
+				? [
+						'Create or follow a compact PRD before implementation.',
+						'Execute the TAS-style task plan with acceptance criteria.',
+						'Verify the completed project in the target workspace.'
+					].join('\n')
+				: ['Complete the requested files exactly.', 'Verify the result in the target workspace.'].join('\n');
+	}
+
+	$effect(() => {
+		applyRelayMissionDefaults();
+	});
+
 	function getCurrentTaskSkills(progress: ExecutionProgress | null): LoadedSkillInfo[] {
 		if (!isRunning || !progress?.loadedSkills || !progress.currentTaskId) {
 			return [];
@@ -672,7 +764,6 @@
 	async function executeWorkflow() {
 		logs = [];
 		resetAllNodeStatus();
-		prepareDualProviderRunIfReady();
 
 		// Reset task tracking
 		completedTasks = [];
@@ -803,6 +894,7 @@
 			projectPath: path,
 			projectType: (projectType || '').trim() || 'general',
 			goals: goals.length ? goals : undefined,
+			relay,
 			orchestratorOptions: getMultiLLMOptions()
 		});
 	}
@@ -844,9 +936,9 @@
 			case 'complete':
 				return 'text-accent-primary';
 			case 'error':
-				return 'text-red-400';
+				return 'text-status-error';
 			case 'handoff':
-				return 'text-yellow-400';
+				return 'text-status-warning';
 			case 'start':
 			case 'progress':
 			default:
@@ -880,7 +972,7 @@
 			case 'completed':
 				return 'text-accent-primary';
 			case 'failed':
-				return 'text-red-400';
+				return 'text-status-error';
 			case 'running':
 			case 'creating':
 				return 'text-vibe-teal';
@@ -898,11 +990,11 @@
 			case 'running':
 				return 'text-vibe-teal border-vibe-teal/40 bg-vibe-teal/10';
 			case 'completed':
-				return 'text-green-400 border-green-500/30 bg-green-500/10';
+				return 'text-accent-primary border-accent-primary/30 bg-accent-primary/10';
 			case 'failed':
-				return 'text-red-400 border-red-500/30 bg-red-500/10';
+				return 'text-status-error border-status-error/30 bg-status-error/10';
 			case 'cancelled':
-				return 'text-amber-400 border-amber-500/30 bg-amber-500/10';
+				return 'text-status-warning border-status-warning/30 bg-status-warning/10';
 			default:
 				return 'text-text-tertiary border-surface-border bg-bg-tertiary';
 		}
@@ -915,13 +1007,13 @@
 			case 'progress':
 				return 'bg-vibe-teal/20 text-vibe-teal';
 			case 'completed':
-				return 'bg-green-500/20 text-green-300';
+				return 'bg-accent-primary/20 text-accent-primary';
 			case 'failed':
-				return 'bg-red-500/20 text-red-300';
+				return 'bg-status-error/20 text-status-error';
 			case 'cancelled':
-				return 'bg-amber-500/20 text-amber-300';
+				return 'bg-status-warning/20 text-status-warning';
 			case 'handoff':
-				return 'bg-purple-500/20 text-purple-300';
+				return 'bg-iris/20 text-iris';
 			default:
 				return 'bg-surface text-text-secondary';
 		}
@@ -953,7 +1045,7 @@
 {#if minimized && (isRunning || isPaused)}
 	<button
 		onclick={onToggleMinimize}
-		class="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 bg-bg-secondary border border-surface-border shadow-lg hover:border-accent-primary transition-all group"
+		class="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 bg-bg-secondary border border-surface-border rounded-lg shadow-lg hover:border-accent-primary transition-all group"
 	>
 		<div class="relative">
 			{#if isRunning}
@@ -997,7 +1089,7 @@
 		<!-- Header -->
 		<div class="flex items-center justify-between p-4 border-b border-surface-border">
 			<div class="flex items-center gap-4">
-				<div class="px-4 py-1.5 text-xs font-mono uppercase tracking-wider bg-accent-primary text-bg-primary">
+				<div class="px-4 py-1.5 text-xs font-mono uppercase tracking-wider bg-accent-primary text-bg-primary rounded-md">
 					Execution
 				</div>
 				{#if executionProgress}
@@ -1046,7 +1138,7 @@
 								{#if resumableMission.status === 'paused'}
 									<span class="ml-1 text-blue-400">(Paused)</span>
 								{:else if resumableMission.status === 'running'}
-									<span class="ml-1 text-yellow-400">(Interrupted)</span>
+									<span class="ml-1 text-status-warning">(Interrupted)</span>
 								{/if}
 							</p>
 						</div>
@@ -1060,7 +1152,7 @@
 						</button>
 						<button
 							onclick={dismissResumeBanner}
-							class="px-3 py-1.5 text-xs font-mono text-text-secondary border border-surface-border hover:border-text-tertiary transition-all"
+							class="px-3 py-1.5 text-xs font-mono text-text-secondary border border-surface-border hover:border-text-tertiary rounded-md transition-all"
 						>
 							Dismiss
 						</button>
@@ -1080,10 +1172,10 @@
 					<div
 						class="h-full transition-all duration-300"
 						class:bg-accent-primary={executionProgress.status === 'completed'}
-						class:bg-yellow-500={executionProgress.status === 'partial'}
+						class:bg-status-warning={executionProgress.status === 'partial'}
 						class:bg-vibe-teal={executionProgress.status === 'running' || executionProgress.status === 'creating'}
 						class:bg-blue-500={executionProgress.status === 'paused'}
-						class:bg-red-500={executionProgress.status === 'failed'}
+						class:bg-status-error={executionProgress.status === 'failed'}
 						class:bg-gray-500={executionProgress.status === 'cancelled'}
 						style="width: {executionProgress.progress}%"
 					></div>
@@ -1117,7 +1209,7 @@
 				{/if}
 
 				{#if runtimeAgents.length > 0}
-					<div class="mt-3 border border-surface-border">
+					<div class="mt-3 border border-surface-border rounded-lg overflow-hidden">
 						<div class="px-3 py-2 bg-bg-tertiary border-b border-surface-border text-xs font-mono text-text-tertiary uppercase tracking-wider">
 							Live Agent Activity
 						</div>
@@ -1144,7 +1236,7 @@
 				{/if}
 
 				{#if recentTaskTransitions.length > 0}
-					<div class="mt-3 border border-surface-border bg-bg-primary">
+					<div class="mt-3 border border-surface-border rounded-lg overflow-hidden bg-bg-primary">
 						<div class="px-3 py-2 bg-bg-tertiary border-b border-surface-border flex items-center justify-between">
 							<span class="text-xs font-mono text-text-tertiary uppercase tracking-wider">Task Event Stream</span>
 							<span class="text-[10px] text-text-tertiary">latest {recentTaskTransitions.length}</span>
@@ -1213,7 +1305,7 @@
 							</div>
 							<div class="flex items-center gap-1">
 								<button
-									class="px-3 py-1 bg-green-600 hover:bg-green-500 text-white text-xs font-mono transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+									class="px-3 py-1 bg-accent-primary hover:bg-accent-primary-hover text-white rounded-md text-xs font-mono transition-all disabled:opacity-50 disabled:cursor-not-allowed"
 									disabled={isDispatching}
 									onclick={async (e) => {
 										e.stopPropagation();
@@ -1279,7 +1371,7 @@
 												<div class="text-text-tertiary">
 													{provider.model} • {assignment?.mode || 'execute'} • {assignment?.taskIds?.length || 0} task(s)
 													{#if pStatus}
-														<span class="ml-1 {pStatus === 'completed' ? 'text-green-400' : pStatus === 'failed' ? 'text-red-400' : 'text-yellow-400'}">
+														<span class="ml-1 {pStatus === 'completed' ? 'text-accent-primary' : pStatus === 'failed' ? 'text-status-error' : 'text-status-warning'}">
 															[{pStatus}]
 														</span>
 													{/if}
@@ -1292,7 +1384,7 @@
 															multiPack.providerPrompts[provider.id] || '',
 															`Copied ${provider.label} prompt`
 														)}
-													class="px-2 py-1 text-[10px] font-mono text-text-secondary border border-surface-border hover:border-vibe-teal/60 transition-all"
+													class="px-2 py-1 text-[10px] font-mono text-text-secondary border border-surface-border hover:border-vibe-teal/60 rounded-md transition-all"
 												>
 													Copy Prompt
 												</button>
@@ -1302,7 +1394,7 @@
 															multiPack.launchCommands[provider.id] || '',
 															`Copied ${provider.label} launch command`
 														)}
-													class="px-2 py-1 text-[10px] font-mono text-text-secondary border border-surface-border hover:border-vibe-teal/60 transition-all"
+													class="px-2 py-1 text-[10px] font-mono text-text-secondary border border-surface-border hover:border-vibe-teal/60 rounded-md transition-all"
 												>
 													Copy Launch
 												</button>
@@ -1315,7 +1407,7 @@
 					</div>
 				{/if}
 				{#if executionProgress?.executionPrompt && !executionProgress?.multiLLMExecution?.enabled}
-					<div class="mt-3 border border-accent-primary/30">
+					<div class="mt-3 border border-accent-primary/30 rounded-lg overflow-hidden">
 						<!-- Collapsible Header -->
 						<div
 							onclick={() => copyPromptCollapsed = !copyPromptCollapsed}
@@ -1402,22 +1494,22 @@
 
 				<!-- Task Status Summary -->
 				{#if completedTasks.length > 0 || failedTasks.length > 0 || pendingTasks.length > 0}
-					<div class="mt-4 border border-surface-border">
+					<div class="mt-4 border border-surface-border rounded-lg overflow-hidden">
 						<div class="flex items-center justify-between px-3 py-2 bg-bg-tertiary border-b border-surface-border">
 							<span class="text-xs font-mono text-text-tertiary uppercase tracking-wider">Task Status</span>
 						</div>
 						<div class="grid grid-cols-3">
-							<div class="p-3 text-center border-r border-surface-border bg-green-500/5">
-								<div class="text-2xl font-mono font-bold text-green-400">{completedTasks.length}</div>
-								<div class="text-xs font-mono text-green-400/70 uppercase tracking-wider">Completed</div>
+							<div class="p-3 text-center border-r border-surface-border bg-accent-primary/5">
+								<div class="text-2xl font-mono font-bold text-accent-primary">{completedTasks.length}</div>
+								<div class="text-xs font-mono text-accent-primary/70 uppercase tracking-wider">Completed</div>
 							</div>
 							<div class="p-3 text-center border-r border-surface-border bg-amber-500/5">
-								<div class="text-2xl font-mono font-bold text-amber-400">{pendingTasks.length}</div>
-								<div class="text-xs font-mono text-amber-400/70 uppercase tracking-wider">Pending</div>
+								<div class="text-2xl font-mono font-bold text-status-warning">{pendingTasks.length}</div>
+								<div class="text-xs font-mono text-status-warning/70 uppercase tracking-wider">Pending</div>
 							</div>
-							<div class="p-3 text-center bg-red-500/5">
-								<div class="text-2xl font-mono font-bold text-red-400">{failedTasks.length}</div>
-								<div class="text-xs font-mono text-red-400/70 uppercase tracking-wider">Failed</div>
+							<div class="p-3 text-center bg-status-error/5">
+								<div class="text-2xl font-mono font-bold text-status-error">{failedTasks.length}</div>
+								<div class="text-xs font-mono text-status-error/70 uppercase tracking-wider">Failed</div>
 							</div>
 						</div>
 						{#if reworkTasks.size > 0}
@@ -1433,7 +1525,7 @@
 						{/if}
 						{#if pendingTasks.length > 0 && isRunning}
 							<div class="px-3 py-2 bg-amber-500/5 border-t border-amber-500/20 flex items-center gap-2">
-								<span class="text-xs font-mono text-amber-400 uppercase tracking-wider">Next →</span>
+								<span class="text-xs font-mono text-status-warning uppercase tracking-wider">Next →</span>
 								<span class="text-sm text-text-primary font-mono">{pendingTasks[0]}</span>
 							</div>
 						{/if}
@@ -1442,7 +1534,7 @@
 
 				<!-- Completion Summary -->
 				{#if executionProgress.status === 'completed'}
-					<div class="mt-3 p-3 bg-accent-primary/10 border border-accent-primary/30">
+					<div class="mt-3 p-3 bg-accent-primary/10 border border-accent-primary/30 rounded-lg">
 						<div class="flex items-center gap-2 mb-2">
 							<div class="w-5 h-5 flex items-center justify-center bg-accent-primary/20 border border-accent-primary/50">
 								<svg class="w-3 h-3 text-accent-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1456,14 +1548,14 @@
 						</p>
 					</div>
 				{:else if executionProgress.status === 'partial'}
-					<div class="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/30">
+					<div class="mt-3 p-3 bg-status-warning/10 border border-yellow-500/30">
 						<div class="flex items-center gap-2 mb-2">
-							<div class="w-5 h-5 flex items-center justify-center bg-yellow-500/20 border border-yellow-500/50">
-								<svg class="w-3 h-3 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<div class="w-5 h-5 flex items-center justify-center bg-status-warning/20 border border-yellow-500/50">
+								<svg class="w-3 h-3 text-status-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.194-.833-2.964 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
 								</svg>
 							</div>
-							<span class="text-yellow-400 font-medium font-mono uppercase tracking-wide text-sm">Mission Partially Complete</span>
+							<span class="text-status-warning font-medium font-mono uppercase tracking-wide text-sm">Mission Partially Complete</span>
 						</div>
 						{#if executionProgress.reconciliation}
 							<p class="text-xs text-text-secondary">
@@ -1473,15 +1565,15 @@
 								{/if}
 							</p>
 							{#if executionProgress.reconciliation.pendingTasks.length > 0}
-								<div class="mt-2 text-xs text-yellow-400/70">
+								<div class="mt-2 text-xs text-status-warning/70">
 									<span class="font-mono uppercase text-[10px] tracking-wider">Incomplete:</span>
 									{#each executionProgress.reconciliation.pendingTasks as task}
-										<div class="ml-2 mt-0.5 text-text-tertiary">- {task.title} <span class="text-yellow-400/50">({task.status})</span></div>
+										<div class="ml-2 mt-0.5 text-text-tertiary">- {task.title} <span class="text-status-warning/50">({task.status})</span></div>
 									{/each}
 								</div>
 								<div class="mt-3 flex gap-2">
 									<button
-										class="px-3 py-1.5 bg-yellow-500/20 border border-yellow-500/50 text-yellow-400 text-xs font-mono uppercase tracking-wider hover:bg-yellow-500/30 transition-colors"
+										class="px-3 py-1.5 bg-status-warning/20 border border-yellow-500/50 text-status-warning text-xs font-mono uppercase tracking-wider hover:bg-status-warning/30 transition-colors"
 										onclick={handleResumePartial}
 									>
 										Resume {executionProgress.reconciliation.pendingTasks.length} Pending Task{executionProgress.reconciliation.pendingTasks.length !== 1 ? 's' : ''}
@@ -1501,14 +1593,14 @@
 						{/if}
 					</div>
 				{:else if executionProgress.status === 'failed'}
-					<div class="mt-3 p-3 bg-red-500/10 border border-red-500/30">
+					<div class="mt-3 p-3 bg-status-error/10 border border-status-error/30 rounded-lg">
 						<div class="flex items-center gap-2 mb-2">
-							<div class="w-5 h-5 flex items-center justify-center bg-red-500/20 border border-red-500/50">
-								<svg class="w-3 h-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<div class="w-5 h-5 flex items-center justify-center bg-status-error/20 border border-red-500/50">
+								<svg class="w-3 h-3 text-status-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="3" d="M6 6l12 12M6 18L18 6" />
 								</svg>
 							</div>
-							<span class="text-red-400 font-medium font-mono uppercase tracking-wide text-sm">Workflow Failed</span>
+							<span class="text-status-error font-medium font-mono uppercase tracking-wide text-sm">Workflow Failed</span>
 						</div>
 						<p class="text-xs text-text-secondary">
 							Completed {completedTasks.length} of {currentNodes.length} tasks before failure.
@@ -1541,7 +1633,7 @@
 							navigator.clipboard.writeText(logText);
 							toasts.success('Logs copied to clipboard');
 						}}
-						class="text-xs text-text-tertiary hover:text-text-secondary px-2 py-1 border border-surface-border hover:border-vibe-teal/50 transition-all flex items-center gap-1"
+						class="text-xs text-text-tertiary hover:text-text-secondary px-2 py-1 border border-surface-border hover:border-vibe-teal/50 rounded-md transition-all flex items-center gap-1"
 					>
 						<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -1777,7 +1869,7 @@
 														/>
 										<span class="text-xs font-mono text-text-secondary">{provider.label}</span>
 										{#if serverProviderKeyPresence[provider.id] && !multiLLMApiKeys[provider.id]}
-											<span class="text-[10px] font-mono text-green-400">env</span>
+											<span class="text-[10px] font-mono text-accent-primary">env</span>
 										{/if}
 									</label>
 													<input
@@ -1820,7 +1912,7 @@
 							</div>
 							<button
 								onclick={persistDefaults}
-								class="px-3 py-1.5 text-xs font-mono text-text-secondary border border-surface-border hover:border-text-tertiary transition-all"
+								class="px-3 py-1.5 text-xs font-mono text-text-secondary border border-surface-border hover:border-text-tertiary rounded-md transition-all"
 							>
 								Save Now
 							</button>
@@ -1846,7 +1938,7 @@
 				{#if canCancel}
 					<button
 						onclick={handleCancel}
-						class="px-4 py-1.5 text-sm font-mono text-red-400 border border-red-400/50 hover:bg-red-400/10 transition-all"
+						class="px-4 py-1.5 text-sm font-mono text-status-error border border-red-400/50 hover:bg-red-400/10 transition-all"
 					>
 						Cancel
 					</button>
@@ -1874,7 +1966,7 @@
 				{#if !isRunning && !isPaused}
 					<button
 						onclick={handleClose}
-						class="px-4 py-1.5 text-sm font-mono text-text-secondary border border-surface-border hover:border-text-tertiary transition-all"
+						class="px-4 py-1.5 text-sm font-mono text-text-secondary border border-surface-border hover:border-text-tertiary rounded-md transition-all"
 					>
 						Close
 					</button>
@@ -1884,7 +1976,7 @@
 				<button
 					onclick={runWorkflow}
 					disabled={!canRun}
-					class="px-4 py-1.5 text-sm font-mono bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+					class="px-4 py-1.5 text-sm font-mono bg-accent-primary text-bg-primary rounded-md hover:bg-accent-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
 					title={currentNodes.length === 0 ? 'No nodes to execute' : ''}
 				>
 					{#if isRunning}
@@ -1908,8 +2000,8 @@
 		<div class="relative bg-bg-secondary border border-surface-border w-full max-w-md p-6">
 			<!-- Warning Icon & Title -->
 			<div class="flex items-center gap-3 mb-4">
-				<div class="w-10 h-10 bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
-					<svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+				<div class="w-10 h-10 bg-status-warning/20 border border-status-warning/30 flex items-center justify-center">
+					<svg class="w-6 h-6 text-status-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 						<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
 					</svg>
 				</div>
@@ -1942,7 +2034,7 @@
 				<!-- Auto-connect Option (Primary) -->
 				<button
 					onclick={autoConnectOrphans}
-					class="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-mono bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all"
+					class="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-mono bg-accent-primary text-bg-primary rounded-md hover:bg-accent-primary-hover transition-all"
 				>
 					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
@@ -1953,7 +2045,7 @@
 				<!-- View on Canvas Option -->
 				<button
 					onclick={handleViewOnCanvas}
-					class="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-mono text-text-secondary border border-surface-border hover:border-text-tertiary transition-all"
+					class="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-mono text-text-secondary border border-surface-border hover:border-text-tertiary rounded-md transition-all"
 				>
 					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
