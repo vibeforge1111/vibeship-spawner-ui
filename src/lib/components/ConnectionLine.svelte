@@ -72,7 +72,9 @@
 		if (isActive) return '#00d4aa';
 		if (isCompleted) return '#34d399';
 		if (selected) return '#ffffff';
-		return connectionColor;
+		// Idle edges: always accent teal regardless of port type. Per-type
+		// dasharray (from connectionStyle) still encodes type variety visually.
+		return '#2FCA94';
 	});
 
 	// Get node heights based on port count
@@ -103,9 +105,9 @@
 	};
 
 	// Port handle dimensions - must match SkillNode.svelte
-	const PORT_OFFSET = 7; // How far ports stick out from node edge
+	const PORT_OFFSET = 1; // Port-center sits ~1px from node edge (10px port at left:-6px)
 	const PORT_SIZE = 12;  // Port handle width/height
-	const OUTPUT_INSET = 3; // Start line closer to node for "coming from" feel
+	const OUTPUT_INSET = -1; // Start line 1px past node edge to meet the output port center
 
 	const pathD = $derived(() => {
 		if (!sourceNode || !targetNode) return '';
@@ -206,14 +208,7 @@
 				<animateMotion dur="1.2s" repeatCount="indefinite" path={pathD()} rotate="auto" />
 			</circle>
 		{/if}
-		<!-- Arrow marker at end -->
-		<circle
-			cx={targetNode.position.x - PORT_OFFSET}
-			cy={targetNode.position.y + getPortY(targetNode, connection.targetPortId, false)}
-			r={selected ? 5 : 4}
-			fill={color}
-			class="connection-endpoint"
-		/>
+		<!-- Endpoint circle removed - line runs directly to port dot on node edge -->
 		<!-- Delete button on hover/selected -->
 		{#if selected}
 			{@const midX = (sourceNode.position.x + nodeWidth + OUTPUT_INSET + targetNode.position.x - PORT_OFFSET) / 2}
