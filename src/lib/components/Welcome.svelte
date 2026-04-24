@@ -3,7 +3,7 @@
 	// to avoid Svelte reactivity issues with canvas (see handleProcessingComplete)
 	import Navbar from './Navbar.svelte';
 	import Footer from './Footer.svelte';
-	import MissionKanban from './MissionKanban.svelte';
+	import MissionBoard from './MissionBoard.svelte';
 	import PRDProcessingModal from './PRDProcessingModal.svelte';
 	import { setPRD, setProjectName } from '$lib/stores/project-docs.svelte';
 	import { analyzePRD, generateTasksFromPRD, tasksToWorkflow, type PRDAnalysis, type GeneratedTask } from '$lib/utils/prd-analyzer';
@@ -538,7 +538,6 @@
 			<div
 				class="input-container relative border bg-bg-secondary transition-all duration-normal outline-none ring-0 rounded-lg overflow-hidden"
 				class:border-accent-primary={isFocused}
-				class:input-glow={isFocused}
 				class:border-surface-border={!isFocused}
 			>
 				<textarea
@@ -550,36 +549,6 @@
 					rows="3"
 					class="w-full bg-transparent px-5 py-4 text-lg text-text-primary placeholder:text-text-tertiary resize-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 font-mono"
 				></textarea>
-
-				<div
-					class="flex items-center gap-4 px-5 py-2 border-t transition-colors duration-normal {isFocused ? 'border-accent-primary/30' : 'border-surface-border'}"
-				>
-					<span class="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">Include:</span>
-					<label class="flex items-center gap-1.5 cursor-pointer group">
-						<button
-							type="button"
-							role="switch"
-							aria-checked={includeSkills}
-							onclick={() => includeSkills = !includeSkills}
-							class="relative w-7 h-4 rounded-full transition-colors {includeSkills ? 'bg-accent-primary' : 'bg-surface-border'}"
-						>
-							<span class="absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform {includeSkills ? 'translate-x-3' : ''}"></span>
-						</button>
-						<span class="text-xs font-mono {includeSkills ? 'text-accent-primary' : 'text-text-tertiary'} group-hover:text-text-primary transition-colors">Skills</span>
-					</label>
-					<label class="flex items-center gap-1.5 cursor-pointer group">
-						<button
-							type="button"
-							role="switch"
-							aria-checked={includeMCPs}
-							onclick={() => includeMCPs = !includeMCPs}
-							class="relative w-7 h-4 rounded-full transition-colors {includeMCPs ? 'bg-accent-primary' : 'bg-surface-border'}"
-						>
-							<span class="absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform {includeMCPs ? 'translate-x-3' : ''}"></span>
-						</button>
-						<span class="text-xs font-mono {includeMCPs ? 'text-accent-primary' : 'text-text-tertiary'} group-hover:text-text-primary transition-colors">MCPs</span>
-					</label>
-				</div>
 
 				<div
 					class="flex items-center justify-between px-5 py-3 border-t transition-colors duration-normal"
@@ -601,10 +570,10 @@
 							class="hidden"
 						/>
 
-						<!-- Upload PRD Button -->
+						<!-- Upload PRD Button (Spark GhostButton) -->
 						<button
 							onclick={() => fileInputEl?.click()}
-							class="flex items-center gap-2 px-3 py-1.5 text-sm font-mono text-accent-secondary border border-accent-secondary/40 hover:bg-accent-secondary/10 transition-all"
+							class="inline-flex items-center gap-2 rounded-[5px] border border-border-strong bg-surface px-4 py-2 text-sm font-medium text-text-secondary transition-all duration-200 hover:border-accent-primary hover:text-text-primary active:scale-[0.98]"
 						>
 							<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -612,16 +581,14 @@
 							<span>PRD</span>
 						</button>
 
-						<!-- Spawn Button -->
+						<!-- Spawn Button (Spark AccentButton) -->
 						<button
 							onclick={handleSubmit}
 							disabled={!inputValue.trim() || isSubmitting}
-							class="group flex items-center gap-2 px-4 py-2 font-medium transition-all disabled:cursor-not-allowed"
-							class:button-active={inputValue.trim() && !isSubmitting}
-							class:button-inactive={!inputValue.trim() || isSubmitting}
+							class="group inline-flex items-center gap-2 rounded-[5px] bg-accent-primary px-4 py-2 text-sm font-medium text-accent-fg transition-all duration-200 hover:opacity-85 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
 						>
 							{#if isSubmitting}
-								<span class="animate-pulse">analyzing...</span>
+								<span>analyzing...</span>
 							{:else}
 								<span>spawn()</span>
 								<svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -635,7 +602,9 @@
 		</div>
 	</section>
 
-	<MissionKanban />
+	<section class="max-w-7xl mx-auto w-full px-6 pb-24">
+		<MissionBoard />
+	</section>
 	</main>
 
 	<!-- Footer -->
@@ -643,29 +612,6 @@
 </div>
 
 <style>
-	.input-glow {
-		box-shadow: inset 0 0 30px -8px rgb(45 212 191 / 0.5);
-	}
-
-	.button-inactive {
-		background: transparent;
-		border: 1px solid rgb(45 212 191 / 0.5);
-		color: rgb(45 212 191);
-		opacity: 0.7;
-	}
-
-	.button-active {
-		background: rgb(45 212 191);
-		border: 1px solid rgb(45 212 191);
-		color: rgb(15 23 42);
-		box-shadow: 0 0 10px rgb(45 212 191 / 0.4);
-	}
-
-	.button-active:hover {
-		background: rgb(94 234 212);
-		border-color: rgb(94 234 212);
-	}
-
 	/* Override global focus-visible ring that causes border overflow */
 	:global(.input-container textarea:focus),
 	:global(.input-container textarea:focus-visible) {
@@ -676,7 +622,4 @@
 		box-shadow: none !important;
 	}
 
-	.input-container.input-glow {
-		box-shadow: inset 0 0 30px -8px rgb(45 212 191 / 0.5) !important;
-	}
 </style>

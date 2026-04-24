@@ -20,7 +20,9 @@ const RESULTS_DIR = join(SPAWNER_DIR, 'results');
 const PENDING_PRD_FILE = join(SPAWNER_DIR, 'pending-prd.md');
 const PENDING_REQUEST_FILE = join(SPAWNER_DIR, 'pending-request.json');
 const PRD_AUTO_TRACE_FILE = join(SPAWNER_DIR, 'prd-auto-trace.jsonl');
-const AUTO_ANALYSIS_ENDPOINT = 'http://127.0.0.1:5173/api/events';
+const AUTO_ANALYSIS_ENDPOINT = process.env.SPAWNER_UI_SELF_URL
+  ? `${process.env.SPAWNER_UI_SELF_URL.replace(/\/+$/, '')}/api/events`
+  : 'http://127.0.0.1:4174/api/events';
 const AUTO_ANALYSIS_TIMEOUT_MS = 55_000;
 
 function normalizeRequestId(requestId: string): string {
@@ -111,18 +113,41 @@ function resolveCodexBinary(): string | null {
 	}
 }
 
-function buildCodexPrompt(requestId: string, projectName: string): string {
+function normalizeBuildMode(value: unknown): 'direct' | 'advanced_prd' {
+	return value === 'advanced_prd' ? 'advanced_prd' : 'direct';
+}
+
+function buildCodexPrompt(requestId: string, projectName: string, buildMode: 'direct' | 'advanced_prd'): string {
+	const planningContract =
+		buildMode === 'advanced_prd'
+			? [
+					'Advanced build contract:',
+					'- Treat .spawner/pending-prd.md as the source request and turn it into a compact PRD before tasking.',
+					'- Use the Founder UI pattern: summary, objective, scope, non-goals, target UX, technical constraints, phased task plan, exit criteria.',
+					'- Convert the PRD into TAS-style tasks: each task needs acceptance criteria, dependencies, file/workspace targets, and verification commands.',
+					'- Keep task count practical. Prefer 3-8 high-signal implementation tasks over many tiny chores.',
+					'- Preserve explicit user constraints such as "No build step" or exact file lists.'
+				].join('\n')
+			: [
+					'Direct build contract:',
+					'- Preserve the user request as-is and create only the tasks needed to execute it.',
+					'- Do not inflate small explicit builds into a broad product plan.'
+				].join('\n');
+
 	return [
 		'You are running inside spawner-ui and must complete PRD analysis autonomously.',
 		`Request ID: ${requestId}`,
 		`Project Name Hint: ${projectName}`,
+		`Build Mode: ${buildMode}`,
+		'',
+		planningContract,
 		'',
 		'Execution steps (strict):',
 		'1) Read .spawner/pending-request.json and confirm requestId matches.',
 		'2) Read .spawner/pending-prd.md completely.',
 		'3) Produce a valid PRD analysis result JSON with:',
 		'   requestId, success, projectName, projectType, complexity, infrastructure, techStack, tasks, skills, executionPrompt.',
-		'4) Include actionable tasks with skills, dependencies, and verification criteria.',
+		'4) Include actionable tasks with skills, dependencies, and verification criteria. For advanced_prd, make these TAS-style tasks with acceptance criteria.',
 		'5) POST result event to Spawner API via PowerShell Invoke-RestMethod using this shape:',
 		`   {"type":"prd_analysis_complete","data":{"requestId":"${requestId}","result":<analysis>},"source":"codex-auto"}`,
 		`   URL: ${AUTO_ANALYSIS_ENDPOINT}`,
@@ -137,7 +162,11 @@ function buildCodexPrompt(requestId: string, projectName: string): string {
 	].join('\n');
 }
 
-async function startCodexAutoAnalysis(requestId: string, projectName: string): Promise<boolean> {
+async function startCodexAutoAnalysis(
+	requestId: string,
+	projectName: string,
+	buildMode: 'direct' | 'advanced_prd'
+): Promise<boolean> {
 	const provider = (process.env.SPAWNER_PRD_AUTO_PROVIDER || 'codex').trim().toLowerCase();
 	if (provider === 'none') {
 		await appendPrdTrace(requestId, 'auto_disabled', { provider });
@@ -156,7 +185,7 @@ async function startCodexAutoAnalysis(requestId: string, projectName: string): P
 			return false;
 		}
 
-		const prompt = buildCodexPrompt(requestId, projectName);
+		const prompt = buildCodexPrompt(requestId, projectName, buildMode);
 		const missionId = `prd-auto-${normalizeRequestId(requestId)}`;
 
 		await appendPrdTrace(requestId, 'auto_worker_dispatch', {
@@ -218,7 +247,9 @@ export const POST: RequestHandler = async (event) => {
 		});
 		if (rateLimited) return rateLimited;
 
-		const { content, requestId, projectName, options } = await event.request.json();
+		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason } =
+			await event.request.json();
+		const normalizedBuildMode = normalizeBuildMode(buildMode);
 
 		if (!content || !requestId) {
 			return json({ error: 'Content and requestId are required' }, { status: 400 });
@@ -239,20 +270,41 @@ export const POST: RequestHandler = async (event) => {
 		const requestMeta = {
 			requestId,
 			projectName: projectName || 'Untitled Project',
+			buildMode: normalizedBuildMode,
+			buildModeReason:
+				typeof buildModeReason === 'string' && buildModeReason.trim()
+					? buildModeReason.trim()
+					: normalizedBuildMode === 'advanced_prd'
+						? 'Advanced PRD planning requested.'
+						: 'Direct build requested.',
 			timestamp: new Date().toISOString(),
 			prdPath: PENDING_PRD_FILE,
 			status: 'pending',
 			options: {
 				includeSkills: options?.includeSkills !== false,
 				includeMCPs: options?.includeMCPs !== false
-			}
+			},
+			relay:
+				typeof chatId === 'string' && chatId.trim()
+					? {
+							chatId: chatId.trim(),
+							userId: typeof userId === 'string' && userId.trim() ? userId.trim() : 'telegram',
+							requestId,
+							goal: content.slice(0, 500)
+						}
+					: undefined
 		};
 		await writeFile(PENDING_REQUEST_FILE, JSON.stringify(requestMeta, null, 2), 'utf-8');
 		await appendPrdTrace(requestId, 'request_written', {
-			projectName: requestMeta.projectName
+			projectName: requestMeta.projectName,
+			buildMode: requestMeta.buildMode
 		});
 
-		const codexStarted = await startCodexAutoAnalysis(requestId, requestMeta.projectName);
+		const codexStarted = await startCodexAutoAnalysis(
+			requestId,
+			requestMeta.projectName,
+			requestMeta.buildMode
+		);
 		if (codexStarted) {
 			scheduleAutoAnalysisWatchdog(requestId);
 		}

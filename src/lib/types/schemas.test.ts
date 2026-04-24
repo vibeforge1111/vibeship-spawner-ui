@@ -158,6 +158,18 @@ describe('CanvasStoreSavedStateSchema', () => {
 		const result = CanvasStoreSavedStateSchema.safeParse(withSavedAt);
 		expect(result.success).toBe(true);
 	});
+
+	it('accepts queued node status from execution startup', () => {
+		const withQueuedNode = {
+			...validState,
+			nodes: [{
+				...validState.nodes[0],
+				status: 'queued'
+			}]
+		};
+		const result = CanvasStoreSavedStateSchema.safeParse(withQueuedNode);
+		expect(result.success).toBe(true);
+	});
 });
 
 // =============================================================================

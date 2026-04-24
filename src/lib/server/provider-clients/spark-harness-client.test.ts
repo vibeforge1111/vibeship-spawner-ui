@@ -1,0 +1,130 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { executeSparkHarnessRequest } from './spark-harness-client';
+import type { BridgeEvent } from '$lib/services/event-bridge';
+import type { MultiLLMProviderConfig } from '$lib/services/multi-llm-orchestrator';
+
+const provider: MultiLLMProviderConfig = {
+	id: 'zai',
+	label: 'Z.AI',
+	model: 'glm-5.1',
+	enabled: true,
+	kind: 'openai_compat',
+	eventSource: 'zai',
+	capabilities: ['reasoning', 'planning', 'code_analysis'],
+	executesFilesystem: true,
+	sparkExecutionBridge: 'codex',
+	requiresApiKey: true,
+	apiKeyEnv: 'ZAI_API_KEY'
+};
+
+afterEach(() => {
+	vi.restoreAllMocks();
+});
+
+describe('spark-harness-client', () => {
+	it('emits canvas task ids when Spark completes a provider-level task', async () => {
+		const events: BridgeEvent[] = [];
+		const fetchMock = vi.fn(async (url: string | URL) => {
+			const value = String(url);
+			if (value.endsWith('/v1/tasks')) {
+				return new Response(JSON.stringify({ task_id: 'spark-task-1' }), { status: 200 });
+			}
+			if (value.endsWith('/v1/tasks/spark-task-1')) {
+				return new Response(
+					JSON.stringify({
+						status: 'completed',
+						result: {
+							output: JSON.stringify({
+								status: 'completed',
+								changed_files: ['index.html']
+							}),
+							metadata: {
+								changed_files: ['index.html']
+							}
+						}
+					}),
+					{ status: 200 }
+				);
+			}
+			return new Response('not found', { status: 404 });
+		});
+		vi.stubGlobal('fetch', fetchMock);
+
+		const result = await executeSparkHarnessRequest(
+			{
+				provider,
+				missionId: 'mission-spark-visual',
+				prompt: [
+					'Mission ID: mission-spark-visual',
+					'Assigned tasks:',
+					'1. task-1: Create scaffold (id: node-1)',
+					'2. task-2: Build UI (id: node-2 after: node-1)',
+					'H70 skill loading'
+				].join('\n'),
+				onEvent: (event) => events.push(event)
+			}
+		);
+
+		expect(result.success).toBe(true);
+		expect(events.some((event) => event.type === 'task_started' && event.taskId === 'node-1')).toBe(true);
+		expect(events.some((event) => event.type === 'task_completed' && event.taskId === 'node-1')).toBe(true);
+		expect(events.some((event) => event.type === 'task_started' && event.taskId === 'node-2')).toBe(true);
+		expect(events.some((event) => event.type === 'task_completed' && event.taskId === 'node-2')).toBe(true);
+	});
+
+	it('sends no-build verification instructions to the Spark harness for vanilla projects', async () => {
+		let submittedInstruction = '';
+		const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
+			const value = String(url);
+			if (value.endsWith('/v1/tasks')) {
+				const submittedBody = JSON.parse(String(init?.body || '{}')) as { instruction?: string };
+				submittedInstruction = submittedBody.instruction || '';
+				return new Response(JSON.stringify({ task_id: 'spark-task-vanilla' }), { status: 200 });
+			}
+			if (value.endsWith('/v1/tasks/spark-task-vanilla')) {
+				return new Response(
+					JSON.stringify({
+						status: 'completed',
+						result: {
+							output: JSON.stringify({
+								status: 'completed',
+								changed_files: ['index.html', 'styles.css', 'app.js', 'README.md']
+							}),
+							metadata: {
+								changed_files: ['index.html', 'styles.css', 'app.js', 'README.md']
+							}
+						}
+					}),
+					{ status: 200 }
+				);
+			}
+			return new Response('not found', { status: 404 });
+		});
+		vi.stubGlobal('fetch', fetchMock);
+
+		const result = await executeSparkHarnessRequest({
+			provider,
+			missionId: 'mission-spark-vanilla',
+			workingDirectory: 'C:\\Users\\USER\\Desktop\\spark-contract-test',
+			prompt: [
+				'Mission ID: mission-spark-vanilla',
+				'Project contract:',
+				'- Source request:',
+				'  Build a vanilla-JS app. Files: index.html, styles.css, app.js, README.md. No build step. No dependencies.',
+				'Assigned tasks:',
+				'1. task-1: Create static app (id: node-1)',
+				'H70 skill loading',
+				'Verify Before Reporting Complete (REQUIRED per task):',
+				'1. Run the project build command (npm run build or equivalent)',
+				'Mission Completion Gate'
+			].join('\n'),
+			onEvent: () => {}
+		});
+
+		expect(result.success).toBe(true);
+		const instruction = submittedInstruction;
+		expect(instruction).toContain('No-build static project verification');
+		expect(instruction).toContain('Do not run npm install, npm run build, npx tsc');
+		expect(instruction).not.toContain('Run the project build command (npm run build or equivalent)');
+	});
+});

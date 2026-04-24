@@ -23,6 +23,7 @@ export interface AutomatedResults {
 export interface QualityMetrics {
 	skillUsageRatio: number;      // 0-1 (loaded skills / required skills)
 	averageTaskQuality: number;   // 0-100
+	taskQualityCount: number;     // number of independent task quality scores captured
 	completionRate: number;       // 0-1 (completed / total)
 }
 
@@ -290,6 +291,7 @@ function calculateQualityMetrics(
 	return {
 		skillUsageRatio,
 		averageTaskQuality,
+		taskQualityCount: taskQualities.length,
 		completionRate
 	};
 }
@@ -458,7 +460,7 @@ function determineStatus(automated: AutomatedResults, quality: QualityMetrics): 
 	// Partial if not fully complete
 	if (quality.completionRate < 1) return 'partial';
 	if (automated.tasksSkipped > 0) return 'partial';
-	if (quality.averageTaskQuality < 50) return 'partial';
+	if (quality.taskQualityCount > 0 && quality.averageTaskQuality < 50) return 'partial';
 
 	return 'success';
 }
@@ -498,7 +500,7 @@ export function formatCheckpointReport(checkpoint: ProjectCheckpoint): string {
 	lines.push('## Quality Metrics');
 	lines.push('');
 	lines.push(`- **Skill Usage:** ${Math.round(checkpoint.quality.skillUsageRatio * 100)}%`);
-	lines.push(`- **Average Task Quality:** ${Math.round(checkpoint.quality.averageTaskQuality)}/100`);
+	lines.push(`- **Average Task Quality:** ${checkpoint.quality.taskQualityCount > 0 ? `${Math.round(checkpoint.quality.averageTaskQuality)}/100` : 'Not scored'}`);
 	lines.push(`- **Completion Rate:** ${Math.round(checkpoint.quality.completionRate * 100)}%`);
 	lines.push('');
 

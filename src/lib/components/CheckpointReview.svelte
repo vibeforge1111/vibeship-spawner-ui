@@ -258,7 +258,9 @@
 			</div>
 			<div class="bg-surface-primary p-2 border border-surface-border">
 				<p class="text-text-secondary text-sm">Avg Task Quality</p>
-				<p class="font-mono text-lg">{Math.round(checkpoint.quality.averageTaskQuality)}/100</p>
+				<p class="font-mono text-lg">
+					{checkpoint.quality.taskQualityCount > 0 ? `${Math.round(checkpoint.quality.averageTaskQuality)}/100` : 'Not scored'}
+				</p>
 			</div>
 			<div class="bg-surface-primary p-2 border border-surface-border">
 				<p class="text-text-secondary text-sm">Completion Rate</p>

@@ -16,8 +16,15 @@ import { existsSync } from 'fs';
 import path from 'path';
 import type { MultiLLMExecutionPack } from '$lib/services/multi-llm-orchestrator';
 
-const SPAWNER_DIR = '.spawner';
 const ACTIVE_MISSION_FILE = 'active-mission.json';
+
+function getSpawnerDir(): string {
+	return process.env.SPAWNER_STATE_DIR || path.join(process.cwd(), '.spawner');
+}
+
+function getActiveMissionPath(): string {
+	return path.join(getSpawnerDir(), ACTIVE_MISSION_FILE);
+}
 
 interface ActiveMissionState {
 	missionId: string;
@@ -46,8 +53,7 @@ interface ActiveMissionState {
  */
 export const GET: RequestHandler = async ({ url }) => {
 	try {
-		const projectRoot = process.cwd();
-		const missionPath = path.join(projectRoot, SPAWNER_DIR, ACTIVE_MISSION_FILE);
+		const missionPath = getActiveMissionPath();
 
 		if (!existsSync(missionPath)) {
 			return json({
@@ -102,9 +108,8 @@ export const GET: RequestHandler = async ({ url }) => {
 export const POST: RequestHandler = async ({ request }) => {
 	try {
 		const body = await request.json();
-		const projectRoot = process.cwd();
-		const spawnerDir = path.join(projectRoot, SPAWNER_DIR);
-		const missionPath = path.join(spawnerDir, ACTIVE_MISSION_FILE);
+		const spawnerDir = getSpawnerDir();
+		const missionPath = getActiveMissionPath();
 
 		// Ensure .spawner directory exists
 		if (!existsSync(spawnerDir)) {
@@ -150,8 +155,7 @@ export const POST: RequestHandler = async ({ request }) => {
  */
 export const DELETE: RequestHandler = async () => {
 	try {
-		const projectRoot = process.cwd();
-		const missionPath = path.join(projectRoot, SPAWNER_DIR, ACTIVE_MISSION_FILE);
+		const missionPath = getActiveMissionPath();
 
 		if (existsSync(missionPath)) {
 			const { unlink } = await import('fs/promises');

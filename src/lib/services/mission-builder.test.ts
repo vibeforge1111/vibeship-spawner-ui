@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { validateForMission } from './mission-builder';
+import { buildMissionFromCanvas, validateForMission } from './mission-builder';
 import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 
 // Helper to create test nodes
@@ -88,5 +88,37 @@ describe('validateForMission', () => {
 		];
 		const result = validateForMission(nodes, connections);
 		expect(result.valid).toBe(true);
+	});
+});
+
+describe('buildMissionFromCanvas', () => {
+	it('does not inject framework build skills into no-build vanilla projects', async () => {
+		const nodes = [
+			createNode(
+				'1',
+				'task-1-foundation-layout: Create static app shell and responsive layout'
+			)
+		];
+		nodes[0].skill.description = [
+			'Build a vanilla-JS static app.',
+			'Acceptance criteria:',
+			'- No build step.',
+			'- No package.json or dependency installation.',
+			'- Opening index.html directly renders the app.'
+		].join('\n');
+
+		const result = await buildMissionFromCanvas(nodes, [], {
+			name: 'Spark Static App',
+			description: 'Build a vanilla-JS app with no build step and no dependencies.',
+			projectPath: 'C:\\Users\\USER\\Desktop\\spark-static-app',
+			loadH70Skills: true
+		});
+
+		expect(result.success).toBe(true);
+		const skills = [...(result.taskSkillMap?.values() || [])].flat();
+		expect(skills).not.toContain('react-patterns');
+		expect(skills).not.toContain('tailwind-css');
+		expect(skills).not.toContain('vite');
+		expect(skills).not.toContain('typescript-strict');
 	});
 });

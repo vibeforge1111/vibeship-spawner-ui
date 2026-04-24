@@ -19,6 +19,8 @@ export interface MultiLLMProviderConfig {
 	kind: MultiLLMProviderKind;
 	eventSource: string;
 	capabilities?: MultiLLMCapability[];
+	executesFilesystem?: boolean;
+	sparkExecutionBridge?: 'claude' | 'codex';
 	requiresApiKey?: boolean;
 	baseUrl?: string;
 	apiKeyEnv?: string;
@@ -106,6 +108,7 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		kind: 'terminal_cli',
 		eventSource: 'claude-code',
 		capabilities: ['reasoning', 'planning', 'review', 'code_analysis'],
+		executesFilesystem: true,
 		apiKeyEnv: 'ANTHROPIC_API_KEY',
 		requiresApiKey: false,
 		commandTemplate: 'claude --model {model}'
@@ -118,6 +121,7 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		kind: 'terminal_cli',
 		eventSource: 'codex',
 		capabilities: ['reasoning', 'planning', 'code_analysis', 'code_exec', 'database', 'deployment'],
+		executesFilesystem: true,
 		apiKeyEnv: 'OPENAI_API_KEY',
 		requiresApiKey: false,
 		commandTemplate: 'codex exec --model {model}'
@@ -130,6 +134,8 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		kind: 'openai_compat',
 		eventSource: 'zai',
 		capabilities: ['reasoning', 'planning', 'review', 'code_analysis'],
+		executesFilesystem: true,
+		sparkExecutionBridge: 'codex',
 		apiKeyEnv: 'ZAI_API_KEY',
 		requiresApiKey: true,
 		baseUrl: 'https://api.z.ai/api/coding/paas/v4'
@@ -142,6 +148,7 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		kind: 'openai_compat',
 		eventSource: 'minimax',
 		capabilities: ['reasoning', 'planning', 'review', 'code_analysis'],
+		executesFilesystem: false,
 		apiKeyEnv: 'MINIMAX_API_KEY',
 		requiresApiKey: true,
 		baseUrl: 'https://api.minimax.io/v1'
@@ -239,13 +246,52 @@ function getActiveProviders(options: MultiLLMOrchestratorOptions): MultiLLMProvi
 		const keyPresence = options.keyPresence || {};
 		for (const provider of providers) {
 			const hasKey = keyPresence[provider.id] || false;
-			if (hasKey && !provider.enabled) {
+			const shouldAutoEnable =
+				options.strategy !== 'single' ||
+				!options.primaryProviderId ||
+				provider.id === options.primaryProviderId;
+			if (hasKey && shouldAutoEnable && !provider.enabled) {
 				provider.enabled = true;
 			}
 		}
 	}
 
 	const active = providers.filter((provider) => provider.enabled);
+	if (options.strategy === 'single' && options.primaryProviderId) {
+		const selectedProviderIds = new Set<string>([options.primaryProviderId]);
+		const preferences = Object.values(options.taskProviderPreferences || {});
+
+		for (const rawPreference of preferences) {
+			const preference = rawPreference?.trim();
+			if (!preference || preference === 'auto') continue;
+			if (preference === 'all') {
+				for (const provider of active) {
+					selectedProviderIds.add(provider.id);
+				}
+				continue;
+			}
+			if (preference === 'both') {
+				selectedProviderIds.add('claude');
+				selectedProviderIds.add('codex');
+				continue;
+			}
+			selectedProviderIds.add(preference);
+		}
+
+		const selectedProviders = providers
+			.filter((provider) => selectedProviderIds.has(provider.id))
+			.filter(
+				(provider) =>
+					provider.id === options.primaryProviderId ||
+					provider.enabled ||
+					Boolean(options.keyPresence?.[provider.id])
+			)
+			.map((provider) => ({ ...provider, enabled: true }));
+		if (selectedProviders.length > 0) {
+			return selectedProviders;
+		}
+	}
+
 	if (active.length > 0) {
 		return active;
 	}
@@ -803,6 +849,8 @@ curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -d '{"typ
 	const roleLine = assignment.mode === 'review' ? 'Role: Reviewer' : 'Role: Executor';
 	const providerCaps = (provider.capabilities || []).join(', ') || 'reasoning';
 	const mcpCapsLine = mcpCapabilities.length > 0 ? mcpCapabilities.join(', ') : 'none';
+	const projectContract = buildProjectContractBlock(mission);
+	const verificationBlock = buildVerificationBlock(mission);
 
 	return `# Provider Prompt: ${provider.label}
 
@@ -814,6 +862,8 @@ Provider capabilities: ${providerCaps}
 ${roleLine}
 Strategy: ${strategy}
 Connected MCP capabilities: ${mcpCapsLine}
+
+${projectContract}
 
 Assigned tasks:
 ${taskList || '- none'}
@@ -831,6 +881,10 @@ Execution expectations:
 - If a task needs external tools (image/video/data/deploy), use matching connected MCP capabilities first.
 - Treat task completion as valid only after task-level DoD checks pass (implementation + verification + tests).
 
+Project-specific verification override:
+${verificationBlock}
+If this conflicts with the generic verification checklist below, follow the project-specific override.
+
 Verify Before Reporting Complete (REQUIRED per task):
 1. Run the project build command (npm run build or equivalent) — report pass/fail
 2. Run type checking (npx tsc --noEmit or framework equivalent) — report error count
@@ -847,6 +901,80 @@ The system will reconcile task statuses and generate a checkpoint for human revi
 
 ${reportingBlock}
 `;
+}
+
+function buildProjectContractBlock(mission: Mission): string {
+	const context = mission.context;
+	const lines = [
+		'Project contract:',
+		`- Project path: ${context?.projectPath || '.'}`,
+		`- Project type: ${context?.projectType || 'general'}`
+	];
+
+	if (context?.techStack?.length) {
+		lines.push(`- Tech stack / constraints: ${context.techStack.join(', ')}`);
+	}
+
+	if (context?.goals?.length) {
+		lines.push('- Goals and constraints:');
+		for (const goal of context.goals) {
+			lines.push(`  - ${goal}`);
+		}
+	}
+
+	if (mission.description?.trim()) {
+		lines.push('- Source request:', indentForPrompt(mission.description.trim(), '  '));
+	}
+
+	return lines.join('\n');
+}
+
+function missionContractText(mission: Mission): string {
+	return [
+		mission.name,
+		mission.description,
+		mission.context?.projectPath,
+		mission.context?.projectType,
+		...(mission.context?.techStack || []),
+		...(mission.context?.goals || []),
+		...mission.tasks.flatMap((task) => [task.title, task.description])
+	].join('\n');
+}
+
+function isNoBuildVanillaMission(mission: Mission): boolean {
+	const text = missionContractText(mission).toLowerCase();
+	return (
+		/\bno\s+build\s+step\b/.test(text) ||
+		/\bvanilla[-\s]?js\b/.test(text) ||
+		/\bno\s+dependencies\b/.test(text) ||
+		/\bopen(?:ing)?\s+index\.html\s+directly\b/.test(text)
+	);
+}
+
+function buildVerificationBlock(mission: Mission): string {
+	if (isNoBuildVanillaMission(mission)) {
+		return [
+			'No-build static project verification:',
+			'- Do not add npm, package.json, lockfiles, TypeScript config, framework scaffold, bundler config, or dependency installation unless explicitly requested.',
+			'- Confirm the requested root files exist in the project path and use direct relative browser links.',
+			'- Run syntax/content checks appropriate for static files, such as node --check app.js and Select-String/Test-Path checks from the task acceptance criteria.',
+			'- List all files you created or modified for this task.'
+		].join('\n');
+	}
+
+	return [
+		'Standard project verification:',
+		'- Run the project build command if the project defines one and report pass/fail.',
+		'- Run type checking only if the project uses TypeScript or defines a typecheck script; otherwise report it as not applicable.',
+		'- List all files you created or modified for this task.'
+	].join('\n');
+}
+
+function indentForPrompt(text: string, prefix: string): string {
+	return text
+		.split(/\r?\n/)
+		.map((line) => `${prefix}${line}`)
+		.join('\n');
 }
 
 function buildLaunchCommand(provider: MultiLLMProviderConfig, missionId: string): string {

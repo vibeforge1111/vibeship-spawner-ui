@@ -8,7 +8,7 @@
 		type TaskTransitionEvent
 	} from '$lib/services/mission-executor';
 	import type { MissionLog, Mission } from '$lib/services/mcp-client';
-	import { nodes, connections, updateNodeStatus, resetAllNodeStatus, addConnection } from '$lib/stores/canvas.svelte';
+	import { nodes, connections, canvasState, updateNodeStatus, resetAllNodeStatus, addConnection } from '$lib/stores/canvas.svelte';
 	import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 	import { isConnected } from '$lib/stores/mcp.svelte';
 	import { mcpRuntime } from '$lib/services/mcp-runtime';
@@ -16,6 +16,7 @@
 	import { toasts } from '$lib/stores/toast.svelte';
 	import { validateForMission } from '$lib/services/mission-builder';
 	import {
+		DEFAULT_MULTI_LLM_PROVIDERS,
 		createDefaultMultiLLMOptions,
 		type MultiLLMOrchestratorOptions,
 		type MultiLLMProviderConfig,
@@ -23,7 +24,9 @@
 	} from '$lib/services/multi-llm-orchestrator';
 	import CheckpointReview from './CheckpointReview.svelte';
 	import type { ProjectCheckpoint } from '$lib/services/checkpoint';
+	import { saveCurrentPipeline } from '$lib/stores/pipelines.svelte';
 	import { browser } from '$app/environment';
+	import { get } from 'svelte/store';
 
 	interface Props {
 		onClose: () => void;
@@ -124,6 +127,7 @@
 	let hasCheckedResumable = $state(false);
 	let lastHandledAutoRunToken = $state<number | null>(null);
 	let lastAppliedRelayRequestId = $state<string | null>(null);
+	let autoRunRetryTimer: ReturnType<typeof setTimeout> | null = null;
 
 	// Derived states
 	let isRunning = $derived(executionProgress?.status === 'running' || executionProgress?.status === 'creating');
@@ -143,6 +147,124 @@
 		if (!executionProgress?.taskTransitions) return [] as TaskTransitionEvent[];
 		return executionProgress.taskTransitions.slice(-12).reverse();
 	});
+	type TaskRowStatus = 'completed' | 'running' | 'pending' | 'failed' | 'blocked';
+	interface TaskStatusRow {
+		id: string;
+		index: number;
+		title: string;
+		status: TaskRowStatus;
+		progress: number;
+		message?: string;
+	}
+	let taskRows = $derived.by((): TaskStatusRow[] => {
+		const missionTasks = executionProgress?.mission?.tasks;
+		if (!missionTasks?.length) {
+			return currentNodes.map((node, index) => ({
+				id: node.id,
+				index: index + 1,
+				title: node.skill.name,
+				status:
+					node.status === 'success'
+						? 'completed'
+						: node.status === 'error'
+							? 'failed'
+							: node.status === 'running'
+								? 'running'
+								: 'pending',
+				progress: node.status === 'success' || node.status === 'error' ? 100 : node.status === 'running' ? 8 : 0
+			}));
+		}
+
+		return missionTasks.map((task, index) => {
+			const tracked = executionProgress?.taskProgressMap?.get(task.id);
+			const status: TaskRowStatus =
+				task.status === 'completed'
+					? 'completed'
+					: task.status === 'failed'
+						? 'failed'
+						: task.status === 'blocked'
+							? 'blocked'
+							: task.status === 'in_progress'
+								? 'running'
+								: 'pending';
+			const inferredProgress =
+				status === 'completed' || status === 'failed'
+					? 100
+					: status === 'running'
+						? tracked?.progress ?? 8
+						: 0;
+			return {
+				id: task.id,
+				index: index + 1,
+				title: task.title,
+				status,
+				progress: Math.max(0, Math.min(100, tracked?.progress ?? inferredProgress)),
+				message: tracked?.message
+			};
+		});
+	});
+	let taskSummary = $derived.by(() => ({
+		completed: taskRows.filter((task) => task.status === 'completed').length,
+		running: taskRows.filter((task) => task.status === 'running').length,
+		pending: taskRows.filter((task) => task.status === 'pending' || task.status === 'blocked').length,
+		failed: taskRows.filter((task) => task.status === 'failed').length
+	}));
+	let nextTask = $derived.by(() => taskRows.find((task) => task.status === 'running') || taskRows.find((task) => task.status === 'pending'));
+
+	function taskMatchesNode(node: CanvasNode, taskId: string, taskName?: string): boolean {
+		const nodeName = node.skill.name || '';
+		const skillId = node.skill.id || '';
+		const normalizedTaskName = (taskName || '').trim().toLowerCase();
+		const normalizedNodeName = nodeName.trim().toLowerCase();
+		return (
+			node.id === taskId ||
+			skillId === taskId ||
+			skillId === `task-${taskId}` ||
+			nodeName === taskName ||
+			nodeName === taskId ||
+			nodeName.startsWith(`${taskId}:`) ||
+			(Boolean(taskName) && nodeName.startsWith(`${taskName}:`)) ||
+			(Boolean(normalizedTaskName) && normalizedNodeName.includes(normalizedTaskName))
+		);
+	}
+
+	function findNodeForTask(taskId: string, taskName?: string): CanvasNode | undefined {
+		return currentNodes.find((node) => taskMatchesNode(node, taskId, taskName));
+	}
+
+	function persistCanvasStatusSnapshot() {
+		const state = get(canvasState);
+		saveCurrentPipeline({
+			nodes: state.nodes,
+			connections: state.connections,
+			zoom: state.zoom,
+			pan: state.pan
+		});
+	}
+
+	function applyMissionTaskStatuses(mission: Mission) {
+		for (const task of mission.tasks || []) {
+			const node = findNodeForTask(task.id, task.title);
+			if (!node) continue;
+			if (task.status === 'completed') {
+				updateNodeStatus(node.id, 'success');
+			} else if (task.status === 'failed') {
+				updateNodeStatus(node.id, 'error');
+			} else if (task.status === 'in_progress') {
+				updateNodeStatus(node.id, 'running');
+			} else {
+				updateNodeStatus(node.id, 'queued');
+			}
+		}
+		persistCanvasStatusSnapshot();
+	}
+
+	function syncMissionTaskStatusesFromExecutor() {
+		const mission = missionExecutor.getProgress().mission;
+		if (mission?.tasks?.length) {
+			applyMissionTaskStatuses(mission);
+		}
+	}
 
 	function applyMultiLLMOptions(options?: MultiLLMOrchestratorOptions) {
 		const defaults = createDefaultMultiLLMOptions();
@@ -554,14 +676,40 @@
 		return match?.[1]?.trim().replace(/[.,;]+$/, '') || null;
 	}
 
+	function extractMissionTitleFromRelay(text?: string): string | null {
+		if (!text) return null;
+		const heading = text.match(/^\s*#\s+(.+)$/m);
+		if (heading?.[1]?.trim()) return heading[1].trim();
+		const project = text.match(/Project:\s*([^\r\n]+)/i);
+		return project?.[1]?.trim() || null;
+	}
+
+	function forceRelaySparkProvider() {
+		const providers = DEFAULT_MULTI_LLM_PROVIDERS.map((provider) => ({
+			...provider,
+			enabled: provider.id === 'zai'
+		}));
+		const zai = providers.find((provider) => provider.id === 'zai');
+		if (!zai) return;
+
+		multiLLMEnabled = true;
+		multiLLMStrategy = 'single';
+		multiLLMPrimaryProviderId = 'zai';
+		multiLLMAutoEnableByKeys = true;
+		multiLLMAutoRouteByTask = false;
+		multiLLMAutoDispatch = true;
+		multiLLMProviders = providers;
+	}
+
 	function applyRelayMissionDefaults() {
 		if (!relay?.requestId || relay.requestId === lastAppliedRelayRequestId) return;
 		lastAppliedRelayRequestId = relay.requestId;
 
 		const buildMode = relay.buildMode || 'direct';
-		missionName = missionName.trim() || `Telegram Build ${relay.requestId}`;
+		missionName = extractMissionTitleFromRelay(relay.goal) || `Telegram Build ${relay.requestId}`;
 		const targetWorkspace = extractTargetWorkspaceFromText(relay.goal);
 		if (targetWorkspace) projectPath = targetWorkspace;
+		forceRelaySparkProvider();
 		missionDescription = [
 			`Build mode: ${buildMode}`,
 			relay.buildModeReason ? `Reason: ${relay.buildModeReason}` : null,
@@ -698,7 +846,7 @@
 	/**
 	 * Pre-run validation to check for orphans and errors
 	 */
-	function checkWorkflowBeforeRun(): boolean {
+	function checkWorkflowBeforeRun(options: { autoRun?: boolean } = {}): boolean {
 		const validation = validateForMission(currentNodes, currentConnections);
 
 		// Check for blocking errors first (circular deps, empty canvas)
@@ -710,6 +858,9 @@
 		// Check for orphan warnings - show prompt but allow proceeding
 		const orphans = findOrphanedNodes();
 		if (orphans.length > 0) {
+			if (options.autoRun) {
+				return false;
+			}
 			orphanedNodes = orphans;
 			showOrphanWarning = true;
 			return false; // Don't run yet, show warning first
@@ -743,19 +894,46 @@
 	/**
 	 * Entry point for running workflow - validates first
 	 */
-	function runWorkflow() {
-		if (!checkWorkflowBeforeRun()) {
-			return; // Validation failed, warning shown
+	function runWorkflow(options: { autoRun?: boolean } = {}): boolean {
+		if (!checkWorkflowBeforeRun(options)) {
+			return false; // Validation failed, warning shown
 		}
-		executeWorkflow();
+		void executeWorkflow();
+		return true;
 	}
 
 	$effect(() => {
 		if (!autoRunToken) return;
 		if (autoRunToken === lastHandledAutoRunToken) return;
 		if (isRunning || isPaused || currentNodes.length === 0) return;
-		lastHandledAutoRunToken = autoRunToken;
-		runWorkflow();
+		if (autoRunRetryTimer) clearTimeout(autoRunRetryTimer);
+
+		const token = autoRunToken;
+		const tryAutoRun = (attempt = 0) => {
+			if (token !== autoRunToken || token === lastHandledAutoRunToken) return;
+			if (isRunning || isPaused) return;
+			if (currentNodes.length === 0) {
+				if (attempt < 20) {
+					autoRunRetryTimer = setTimeout(() => tryAutoRun(attempt + 1), 250);
+				}
+				return;
+			}
+
+			const started = runWorkflow({ autoRun: true });
+			if (started) {
+				lastHandledAutoRunToken = token;
+				return;
+			}
+
+			if (attempt < 20) {
+				autoRunRetryTimer = setTimeout(() => tryAutoRun(attempt + 1), 250);
+			}
+		};
+
+		autoRunRetryTimer = setTimeout(() => tryAutoRun(), 250);
+		return () => {
+			if (autoRunRetryTimer) clearTimeout(autoRunRetryTimer);
+		};
 	});
 
 	/**
@@ -764,6 +942,10 @@
 	async function executeWorkflow() {
 		logs = [];
 		resetAllNodeStatus();
+		for (const node of currentNodes) {
+			updateNodeStatus(node.id, 'queued');
+		}
+		persistCanvasStatusSnapshot();
 
 		// Reset task tracking
 		completedTasks = [];
@@ -775,15 +957,18 @@
 		missionExecutor.setCallbacks({
 			onStatusChange: () => {
 				executionProgress = missionExecutor.getProgress();
+				syncMissionTaskStatusesFromExecutor();
 			},
 			onProgress: (progress) => {
 				executionProgress = missionExecutor.getProgress();
+				syncMissionTaskStatusesFromExecutor();
 			},
 			onTaskProgress: (taskId, progress, message) => {
 				// Update task-level progress for smoother UI updates
 				currentTaskProgress = progress;
 				currentTaskMessage = message || null;
 				executionProgress = missionExecutor.getProgress();
+				syncMissionTaskStatusesFromExecutor();
 			},
 			onLog: (log) => {
 				logs = [...logs, log];
@@ -795,12 +980,13 @@
 				currentTaskMessage = null;
 
 				// Find the node matching this task and update its status
-				const node = currentNodes.find(n => n.skill.name === taskName || n.id === taskId);
+				const node = findNodeForTask(taskId, taskName);
 				if (node) {
 					updateNodeStatus(node.id, 'running');
+					persistCanvasStatusSnapshot();
 
 					// Remove from pending, update UI
-					pendingTasks = pendingTasks.filter(t => t !== taskName);
+					pendingTasks = pendingTasks.filter(t => t !== taskName && t !== taskId);
 				}
 
 				// Update executionProgress to reflect new current task name
@@ -808,10 +994,11 @@
 			},
 			onTaskComplete: (taskId, success) => {
 				// Find the node and update its status
-				const node = currentNodes.find(n => n.id === taskId);
+				const node = findNodeForTask(taskId);
 				const taskName = node?.skill.name || taskId;
 				if (node) {
 					updateNodeStatus(node.id, success ? 'success' : 'error');
+					persistCanvasStatusSnapshot();
 				}
 
 				// Clear rework state if task is now truly done
@@ -820,19 +1007,21 @@
 
 				// Update tracking
 				if (success) {
-					completedTasks = [...completedTasks, taskName];
+					completedTasks = [...new Set([...completedTasks, taskName])];
 				} else {
-					failedTasks = [...failedTasks, taskName];
+					failedTasks = [...new Set([...failedTasks, taskName])];
 				}
+				pendingTasks = pendingTasks.filter(t => t !== taskName && t !== taskId);
 
 				// Update executionProgress to reflect task completion
 				executionProgress = missionExecutor.getProgress();
 			},
 			onTaskRework: (taskId, taskName, retryNumber, maxRetries) => {
 				// Track rework state for UI badges
-				const node = currentNodes.find(n => n.id === taskId);
+				const node = findNodeForTask(taskId, taskName);
 				if (node) {
 					updateNodeStatus(node.id, 'idle'); // Reset to idle — task is back to pending
+					persistCanvasStatusSnapshot();
 				}
 				reworkTasks.set(taskId, { name: taskName, retry: retryNumber, maxRetries });
 				reworkTasks = new Map(reworkTasks);
@@ -844,22 +1033,8 @@
 				// Clear pending tasks
 				pendingTasks = [];
 
-				// Update node statuses based on ACTUAL task status, not blanket success
-				if (mission.tasks) {
-					for (const task of mission.tasks) {
-						const node = currentNodes.find(n => n.id === task.id);
-						if (node) {
-							if (task.status === 'completed') {
-								updateNodeStatus(node.id, 'success');
-							} else if (task.status === 'failed') {
-								updateNodeStatus(node.id, 'error');
-							} else {
-								// Task never started or still pending — mark as idle (not success)
-								updateNodeStatus(node.id, 'idle');
-							}
-						}
-					}
-				}
+				// Update node statuses based on actual mission task state and persist them.
+				applyMissionTaskStatuses(mission);
 
 				// Show checkpoint review if available
 				if (executionProgress?.checkpoint) {
@@ -1019,6 +1194,36 @@
 		}
 	}
 
+	function getTaskRowClass(status: TaskRowStatus): string {
+		switch (status) {
+			case 'completed':
+				return 'border-accent-primary/30 bg-accent-primary/5';
+			case 'running':
+				return 'border-vibe-teal/50 bg-vibe-teal/10';
+			case 'failed':
+				return 'border-status-error/40 bg-status-error/10';
+			case 'blocked':
+				return 'border-status-warning/40 bg-status-warning/10';
+			default:
+				return 'border-surface-border bg-bg-primary';
+		}
+	}
+
+	function getTaskBadgeClass(status: TaskRowStatus): string {
+		switch (status) {
+			case 'completed':
+				return 'bg-accent-primary/20 text-accent-primary border-accent-primary/30';
+			case 'running':
+				return 'bg-vibe-teal/20 text-vibe-teal border-vibe-teal/30';
+			case 'failed':
+				return 'bg-status-error/20 text-status-error border-status-error/30';
+			case 'blocked':
+				return 'bg-status-warning/20 text-status-warning border-status-warning/30';
+			default:
+				return 'bg-surface text-text-tertiary border-surface-border';
+		}
+	}
+
 	function getExecutionDuration(): string {
 		if (!executionProgress?.startTime) return '0s';
 		const end = executionProgress.endTime || new Date();
@@ -1034,8 +1239,7 @@
 	function handleClose() {
 		if (!isRunning) {
 			missionExecutor.stop();
-			// Reset all node statuses when closing panel (prevents "stuck" visual states)
-			resetAllNodeStatus();
+			persistCanvasStatusSnapshot();
 			onClose();
 		}
 	}
@@ -1493,24 +1697,62 @@
 				{/if}
 
 				<!-- Task Status Summary -->
-				{#if completedTasks.length > 0 || failedTasks.length > 0 || pendingTasks.length > 0}
+				{#if taskRows.length > 0}
 					<div class="mt-4 border border-surface-border rounded-lg overflow-hidden">
 						<div class="flex items-center justify-between px-3 py-2 bg-bg-tertiary border-b border-surface-border">
 							<span class="text-xs font-mono text-text-tertiary uppercase tracking-wider">Task Status</span>
+							{#if nextTask && isRunning}
+								<span class="text-[10px] font-mono text-vibe-teal uppercase">Active step {nextTask.index}/{taskRows.length}</span>
+							{/if}
 						</div>
-						<div class="grid grid-cols-3">
+						<div class="grid grid-cols-4">
 							<div class="p-3 text-center border-r border-surface-border bg-accent-primary/5">
-								<div class="text-2xl font-mono font-bold text-accent-primary">{completedTasks.length}</div>
+								<div class="text-2xl font-mono font-bold text-accent-primary">{taskSummary.completed}</div>
 								<div class="text-xs font-mono text-accent-primary/70 uppercase tracking-wider">Completed</div>
 							</div>
+							<div class="p-3 text-center border-r border-surface-border bg-vibe-teal/5">
+								<div class="text-2xl font-mono font-bold text-vibe-teal">{taskSummary.running}</div>
+								<div class="text-xs font-mono text-vibe-teal/70 uppercase tracking-wider">Running</div>
+							</div>
 							<div class="p-3 text-center border-r border-surface-border bg-amber-500/5">
-								<div class="text-2xl font-mono font-bold text-status-warning">{pendingTasks.length}</div>
+								<div class="text-2xl font-mono font-bold text-status-warning">{taskSummary.pending}</div>
 								<div class="text-xs font-mono text-status-warning/70 uppercase tracking-wider">Pending</div>
 							</div>
 							<div class="p-3 text-center bg-status-error/5">
-								<div class="text-2xl font-mono font-bold text-status-error">{failedTasks.length}</div>
+								<div class="text-2xl font-mono font-bold text-status-error">{taskSummary.failed}</div>
 								<div class="text-xs font-mono text-status-error/70 uppercase tracking-wider">Failed</div>
 							</div>
+						</div>
+						<div class="max-h-52 overflow-y-auto border-t border-surface-border bg-bg-primary">
+							{#each taskRows as task}
+								<div class="px-3 py-2 border-b last:border-b-0 {getTaskRowClass(task.status)}">
+									<div class="flex items-start justify-between gap-3">
+										<div class="min-w-0 flex-1">
+											<div class="flex items-center gap-2">
+												<span class="w-6 shrink-0 text-[10px] font-mono text-text-tertiary">#{task.index}</span>
+												<span class="truncate text-xs font-mono text-text-primary">{task.title}</span>
+											</div>
+											<div class="mt-1 h-1.5 bg-surface overflow-hidden">
+												<div
+													class="h-full transition-all duration-300"
+													class:bg-accent-primary={task.status === 'completed'}
+													class:bg-vibe-teal={task.status === 'running'}
+													class:bg-status-error={task.status === 'failed'}
+													class:bg-status-warning={task.status === 'blocked'}
+													class:bg-text-tertiary={task.status === 'pending'}
+													style="width: {task.progress}%"
+												></div>
+											</div>
+											{#if task.message && task.status === 'running'}
+												<div class="mt-1 text-[11px] text-text-tertiary truncate">{task.message}</div>
+											{/if}
+										</div>
+										<span class="px-1.5 py-0.5 border text-[10px] font-mono uppercase {getTaskBadgeClass(task.status)}">
+											{task.status}
+										</span>
+									</div>
+								</div>
+							{/each}
 						</div>
 						{#if reworkTasks.size > 0}
 							<div class="px-3 py-2 bg-orange-500/5 border-t border-orange-500/20">
@@ -1523,10 +1765,10 @@
 								{/each}
 							</div>
 						{/if}
-						{#if pendingTasks.length > 0 && isRunning}
+						{#if nextTask && isRunning}
 							<div class="px-3 py-2 bg-amber-500/5 border-t border-amber-500/20 flex items-center gap-2">
-								<span class="text-xs font-mono text-status-warning uppercase tracking-wider">Next →</span>
-								<span class="text-sm text-text-primary font-mono">{pendingTasks[0]}</span>
+								<span class="text-xs font-mono text-status-warning uppercase tracking-wider">{nextTask.status === 'running' ? 'Now' : 'Next'} -&gt;</span>
+								<span class="text-sm text-text-primary font-mono truncate">{nextTask.title}</span>
 							</div>
 						{/if}
 					</div>
@@ -1544,7 +1786,7 @@
 							<span class="text-accent-primary font-medium font-mono uppercase tracking-wide text-sm">Workflow Completed</span>
 						</div>
 						<p class="text-xs text-text-secondary">
-							Successfully completed {completedTasks.length} task{completedTasks.length !== 1 ? 's' : ''} in {getExecutionDuration()}.
+							Successfully completed {taskSummary.completed} task{taskSummary.completed !== 1 ? 's' : ''} in {getExecutionDuration()}.
 						</p>
 					</div>
 				{:else if executionProgress.status === 'partial'}
@@ -1603,7 +1845,7 @@
 							<span class="text-status-error font-medium font-mono uppercase tracking-wide text-sm">Workflow Failed</span>
 						</div>
 						<p class="text-xs text-text-secondary">
-							Completed {completedTasks.length} of {currentNodes.length} tasks before failure.
+							Completed {taskSummary.completed} of {taskRows.length || currentNodes.length} tasks before failure.
 							{#if executionProgress.error}
 								<br/>Error: {executionProgress.error}
 							{/if}
@@ -1974,7 +2216,7 @@
 
 				<!-- Run button -->
 				<button
-					onclick={runWorkflow}
+					onclick={() => runWorkflow()}
 					disabled={!canRun}
 					class="px-4 py-1.5 text-sm font-mono bg-accent-primary text-bg-primary rounded-md hover:bg-accent-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
 					title={currentNodes.length === 0 ? 'No nodes to execute' : ''}

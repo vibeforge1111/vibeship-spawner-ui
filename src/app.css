@@ -163,7 +163,6 @@
   /* Ghost state for AI proposals - cyan themed */
   .ghost-state {
     @apply bg-ghost-bg border-ghost-border border-dashed;
-    animation: pulseGlow 2s ease-in-out infinite;
   }
 
   /* Skeleton loading */
@@ -259,11 +258,11 @@
   }
 
   .node:hover {
-    @apply border-vibe-teal-border shadow-card-glow;
+    @apply border-accent-primary;
   }
 
   .node.selected {
-    @apply border-accent-primary shadow-glow-teal;
+    @apply border-accent-primary;
   }
 
   .node.ghost {
@@ -286,11 +285,11 @@
   }
 
   .port:hover {
-    @apply scale-125 shadow-glow-teal;
+    @apply scale-125;
   }
 
   .port.compatible {
-    @apply animate-pulse-glow;
+    @apply border-accent-primary;
   }
 
   /* Buttons — SPARK 6px default radius */
@@ -299,7 +298,7 @@
   }
 
   .btn-primary {
-    @apply btn bg-accent-primary text-bg-primary hover:bg-accent-primary-hover hover:shadow-glow-teal active:scale-[0.98];
+    @apply btn bg-accent-primary text-bg-primary hover:bg-accent-primary-hover active:scale-[0.98];
   }
 
   .btn-secondary {

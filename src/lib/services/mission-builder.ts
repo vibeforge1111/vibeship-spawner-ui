@@ -17,6 +17,40 @@ import type { MCPRuntimeSnapshot, MCPRuntimeTool } from './mcp-runtime';
 import { SKILL_MCP_MAP } from '$lib/types/mcp';
 import { browser } from '$app/environment';
 
+const NO_BUILD_INCOMPATIBLE_SKILLS = new Set([
+	'vite',
+	'nextjs-app-router',
+	'sveltekit',
+	'svelte-kit',
+	'react-patterns',
+	'react-native-specialist',
+	'tailwind-css',
+	'tailwind-ui',
+	'typescript-strict'
+]);
+
+function isNoBuildVanillaMission(options: MissionBuildOptions, tasks: MissionTask[]): boolean {
+	const text = [
+		options.description || '',
+		options.projectType || '',
+		...(options.techStack || []),
+		...(options.goals || []),
+		...tasks.flatMap((task) => [task.title, task.description])
+	].join('\n').toLowerCase();
+
+	return (
+		/\bno\s+build\s+step\b/.test(text) ||
+		/\bvanilla[-\s]?js\b/.test(text) ||
+		/\bno\s+dependencies\b/.test(text) ||
+		/\bopen(?:ing)?\s+index\.html\s+directly\b/.test(text)
+	);
+}
+
+function filterSkillsForMissionContract(skills: string[], options: MissionBuildOptions, tasks: MissionTask[]): string[] {
+	if (!isNoBuildVanillaMission(options, tasks)) return skills;
+	return skills.filter((skill) => !NO_BUILD_INCOMPATIBLE_SKILLS.has(skill));
+}
+
 export interface MissionBuildOptions {
 	name: string;
 	description?: string;
@@ -406,12 +440,18 @@ export async function buildMissionFromCanvas(
 			const taskInfos = tasks.map(t => ({ name: t.title, description: t.description }));
 
 			for (const task of tasks) {
-				const matchedSkills = matchTaskToSkills(task.title, task.description, maxPerTask);
+				const matchedSkills = filterSkillsForMissionContract(
+					matchTaskToSkills(task.title, task.description, maxPerTask),
+					options,
+					tasks
+				);
 				taskSkillMap.set(task.id, matchedSkills);
 			}
 
 			// Get prioritized skills (most relevant across all tasks)
-			const priorities = getSkillPriorities(taskInfos);
+			const priorities = getSkillPriorities(taskInfos).filter((priority) =>
+				filterSkillsForMissionContract([priority.skillId], options, tasks).length > 0
+			);
 			const skillsToLoad = priorities.slice(0, maxTotal).map(p => p.skillId);
 
 			console.log(`[MissionBuilder] Loading ${skillsToLoad.length} H70 skills (${taskCount} tasks, max ${maxTotal}):`, skillsToLoad);

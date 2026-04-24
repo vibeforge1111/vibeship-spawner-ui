@@ -63,7 +63,7 @@ export const CanvasStoreNodeSchema = z.object({
 		x: z.number(),
 		y: z.number()
 	}),
-	status: z.enum(['idle', 'running', 'success', 'error']).optional()
+	status: z.enum(['idle', 'queued', 'running', 'success', 'error']).optional()
 });
 
 // Connection as used in canvas.svelte.ts

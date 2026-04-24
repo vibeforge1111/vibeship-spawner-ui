@@ -9,7 +9,7 @@ import {
 
 describe('mission-control-relay', () => {
 	it('filters unsupported event types', () => {
-		expect(shouldRelayMissionControlEvent({ type: 'progress' })).toBe(false);
+		expect(shouldRelayMissionControlEvent({ type: 'debug_noise' })).toBe(false);
 		expect(shouldRelayMissionControlEvent({ type: 'task_completed' })).toBe(true);
 	});
 

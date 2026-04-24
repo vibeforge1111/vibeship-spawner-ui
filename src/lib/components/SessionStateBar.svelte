@@ -306,7 +306,7 @@
 		gap: 0.5rem;
 		padding: 0.25rem 0.5rem;
 		background: var(--surface-tertiary, #1a1a2e);
-		border-left: 2px solid var(--vibe-teal, #06B6D4);
+		border-left: 2px solid var(--accent, #2FCA94);
 	}
 
 	.task-label {
@@ -387,7 +387,7 @@
 
 	/* Color utilities */
 	.bg-vibe-teal {
-		background-color: #06B6D4;
+		background-color: #2FCA94;
 	}
 
 	.bg-blue-500 {

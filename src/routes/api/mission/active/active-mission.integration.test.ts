@@ -1,24 +1,30 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import path from 'path';
 import { existsSync } from 'fs';
-import { unlink } from 'fs/promises';
+import { mkdtemp, rm } from 'fs/promises';
+import { tmpdir } from 'os';
 import { GET, POST, DELETE } from './+server';
 
-const missionFile = path.join(process.cwd(), '.spawner', 'active-mission.json');
+let testSpawnerDir: string;
+let missionFile: string;
 
-async function cleanupMissionFile() {
-	if (existsSync(missionFile)) {
-		await unlink(missionFile);
+async function resetTestSpawnerDir() {
+	delete process.env.SPAWNER_STATE_DIR;
+	if (testSpawnerDir && existsSync(testSpawnerDir)) {
+		await rm(testSpawnerDir, { recursive: true, force: true });
 	}
 }
 
 describe('/api/mission/active integration', () => {
 	beforeEach(async () => {
-		await cleanupMissionFile();
+		await resetTestSpawnerDir();
+		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-active-mission-'));
+		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
+		missionFile = path.join(testSpawnerDir, 'active-mission.json');
 	});
 
 	afterEach(async () => {
-		await cleanupMissionFile();
+		await resetTestSpawnerDir();
 	});
 
 	it('round-trips multi-llm execution state and resume instructions', async () => {

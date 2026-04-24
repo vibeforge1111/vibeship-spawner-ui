@@ -80,7 +80,7 @@
 
 <a
 	href="/skills/{skill.id}"
-	class="group block p-5 bg-bg-secondary border border-surface-border hover:border-accent-primary transition-all duration-normal"
+	class="group block p-5 bg-bg-secondary border border-surface-border hover:border-accent-primary transition-all duration-normal rounded-lg"
 >
 	<!-- Header -->
 	<div class="flex items-start justify-between mb-3">

@@ -15,13 +15,23 @@ import { writeFile, readFile, unlink, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
-const SPAWNER_DIR = join(process.cwd(), '.spawner');
-const PENDING_LOAD_FILE = join(SPAWNER_DIR, 'pending-load.json');
+function getSpawnerDir(): string {
+	return process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
+}
+
+function getPendingLoadFile(): string {
+	return join(getSpawnerDir(), 'pending-load.json');
+}
+
+function getLastLoadFile(): string {
+	return join(getSpawnerDir(), 'last-canvas-load.json');
+}
 
 // Ensure .spawner directory exists
 async function ensureDir(): Promise<void> {
-	if (!existsSync(SPAWNER_DIR)) {
-		await mkdir(SPAWNER_DIR, { recursive: true });
+	const spawnerDir = getSpawnerDir();
+	if (!existsSync(spawnerDir)) {
+		await mkdir(spawnerDir, { recursive: true });
 	}
 }
 
@@ -45,10 +55,16 @@ export const POST: RequestHandler = async ({ request }) => {
 			nodes: Array.isArray(payload.nodes) ? payload.nodes : [],
 			connections: Array.isArray(payload.connections) ? payload.connections : [],
 			source: payload.source || 'new',
+			buildMode: payload.buildMode,
+			buildModeReason: payload.buildModeReason,
+			executionPrompt: payload.executionPrompt,
+			autoRun: payload.autoRun === true,
+			relay: payload.relay,
 			timestamp: payload.timestamp || new Date().toISOString()
 		};
 
-		await writeFile(PENDING_LOAD_FILE, JSON.stringify(load, null, 2), 'utf-8');
+		await writeFile(getPendingLoadFile(), JSON.stringify(load, null, 2), 'utf-8');
+		await writeFile(getLastLoadFile(), JSON.stringify(load, null, 2), 'utf-8');
 
 		console.log(`[PipelineLoader] Queued: ${load.pipelineName} (${load.nodes.length} nodes, ${load.connections.length} connections)`);
 
@@ -65,18 +81,33 @@ export const POST: RequestHandler = async ({ request }) => {
 export const GET: RequestHandler = async ({ url }) => {
 	try {
 		const peek = url.searchParams.get('peek') === 'true';
+		const latest = url.searchParams.get('latest') === 'true';
+		const loadFile = latest ? getLastLoadFile() : getPendingLoadFile();
 
-		if (!existsSync(PENDING_LOAD_FILE)) {
+		if (!existsSync(loadFile)) {
 			return json({ pending: false });
 		}
 
-		const content = await readFile(PENDING_LOAD_FILE, 'utf-8');
+		const content = await readFile(loadFile, 'utf-8');
 		const load = JSON.parse(content);
 
-		// If not peeking, delete the file (consume the load)
-		if (!peek) {
-			await unlink(PENDING_LOAD_FILE);
-			console.log(`[PipelineLoader] Consumed: ${load.pipelineName}`);
+		// If not peeking, delete the file (consume the load). Multiple canvas
+		// tabs can race here; the read load is still valid even when another
+		// client deletes the queue file first or Windows briefly denies unlink.
+		if (!peek && !latest) {
+			try {
+				await unlink(loadFile);
+				console.log(`[PipelineLoader] Consumed: ${load.pipelineName}`);
+			} catch (unlinkError) {
+				const code = unlinkError && typeof unlinkError === 'object' && 'code' in unlinkError
+					? String((unlinkError as { code?: unknown }).code)
+					: 'unknown';
+				if (code === 'ENOENT' || code === 'EPERM') {
+					console.warn(`[PipelineLoader] Queue already consumed or locked after read (${code}); returning load anyway.`);
+				} else {
+					throw unlinkError;
+				}
+			}
 		}
 
 		return json({ pending: true, load });
@@ -91,8 +122,9 @@ export const GET: RequestHandler = async ({ url }) => {
  */
 export const DELETE: RequestHandler = async () => {
 	try {
-		if (existsSync(PENDING_LOAD_FILE)) {
-			await unlink(PENDING_LOAD_FILE);
+		const pendingLoadFile = getPendingLoadFile();
+		if (existsSync(pendingLoadFile)) {
+			await unlink(pendingLoadFile);
 			console.log('[PipelineLoader] Cleared pending load');
 		}
 		return json({ success: true });

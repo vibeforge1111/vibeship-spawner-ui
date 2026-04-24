@@ -8,7 +8,7 @@
 </script>
 
 <div
-	class="mcp-card border transition-all duration-200 {selected
+	class="mcp-card border rounded-lg transition-all duration-200 {selected
 		? 'bg-accent-primary/10 border-accent-primary'
 		: 'bg-bg-secondary border-surface-border hover:border-text-tertiary'}"
 >

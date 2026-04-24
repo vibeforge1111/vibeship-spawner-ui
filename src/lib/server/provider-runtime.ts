@@ -23,6 +23,7 @@ import {
 	executeOpenAICompatRequest,
 	type OpenAICompatOptions
 } from './provider-clients/openai-compat-client';
+import { executeSparkHarnessRequest } from './provider-clients/spark-harness-client';
 import { openclawBridge } from '$lib/services/openclaw-bridge';
 import { eventBridge } from '$lib/services/event-bridge';
 import { mcpClient } from '$lib/services/mcp-client';
@@ -212,6 +213,36 @@ class ProviderRuntimeManager {
 				continue;
 			}
 
+			const assignment = executionPack.assignments[provider.id];
+			const assignedExecutionTasks =
+				assignment?.mode === 'execute' ? assignment.taskIds.length : 0;
+			const executesFilesystem =
+				provider.executesFilesystem === true ||
+				(provider.kind === 'terminal_cli' && (provider.id === 'claude' || provider.id === 'codex'));
+			if (assignedExecutionTasks > 0 && !executesFilesystem) {
+				session.status = 'failed';
+				session.error =
+					`${provider.label} is connected for chat/reasoning, but it is not configured as a filesystem executor. ` +
+					`Use a terminal executor provider or add an execution bridge before auto-dispatching implementation tasks.`;
+				session.completedAt = new Date();
+				sessionStatuses[provider.id] = { status: 'failed', error: session.error };
+				this.rememberStatusReason(missionId, session.error);
+				onEvent(
+					createBridgeEvent('task_failed', { provider, missionId, onEvent, signal: abortController.signal }, {
+						message: session.error,
+						data: {
+							success: false,
+							error: session.error,
+							provider: provider.id,
+							providerLabel: provider.label,
+							assignedTaskCount: assignedExecutionTasks,
+							requiresFilesystemExecutor: true
+						}
+					})
+				);
+				continue;
+			}
+
 			session.status = 'running';
 			sessionStatuses[provider.id] = { status: 'running' };
 
@@ -296,6 +327,17 @@ class ProviderRuntimeManager {
 	): Promise<ProviderResult> {
 		try {
 			if (provider.kind === 'openai_compat') {
+				if (provider.sparkExecutionBridge) {
+					return await executeSparkHarnessRequest({
+						provider,
+						missionId,
+						prompt,
+						workingDirectory,
+						signal: abortController.signal,
+						onEvent
+					});
+				}
+
 				const opts: OpenAICompatOptions = {
 					provider,
 					apiKey,

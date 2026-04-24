@@ -65,9 +65,14 @@ const RELAY_EVENT_TYPES = new Set([
 	'mission_completed',
 	'mission_failed',
 	'task_started',
+	'task_progress',
+	'progress',
 	'task_completed',
 	'task_failed',
-	'task_cancelled'
+	'task_cancelled',
+	'dispatch_started',
+	'provider_feedback',
+	'log'
 ]);
 
 const MAX_RECENT_EVENTS = 80;
@@ -206,9 +211,14 @@ function mapEventTypeToBoardStatus(eventType: string): MissionControlBoardEntry[
 		case 'mission_started':
 		case 'mission_resumed':
 		case 'task_started':
+		case 'task_progress':
+		case 'progress':
 		case 'task_completed':
 		case 'task_failed':
 		case 'task_cancelled':
+		case 'dispatch_started':
+		case 'provider_feedback':
+		case 'log':
 			return 'running';
 		case 'mission_paused':
 			return 'paused';
@@ -317,12 +327,21 @@ export function summarizeMissionControlEvent(event: MissionControlBridgeEvent): 
 			return `[MissionControl] Mission failed (${missionId}).`;
 		case 'task_started':
 			return `[MissionControl] Task started: ${taskName || 'task'} (${missionId}).`;
+		case 'task_progress':
+		case 'progress':
+			return `[MissionControl] Progress: ${event.message || taskName || 'working'} (${missionId}).`;
 		case 'task_completed':
 			return `[MissionControl] Task completed: ${taskName || 'task'} (${missionId}).`;
 		case 'task_failed':
 			return `[MissionControl] Task failed: ${taskName || 'task'} (${missionId}).`;
 		case 'task_cancelled':
 			return `[MissionControl] Task cancelled: ${taskName || 'task'} (${missionId}).`;
+		case 'dispatch_started':
+			return `[MissionControl] Dispatch started (${missionId}).`;
+		case 'provider_feedback':
+			return `[MissionControl] Provider feedback: ${event.message || taskName || 'update'} (${missionId}).`;
+		case 'log':
+			return `[MissionControl] ${event.message || 'Log update'} (${missionId}).`;
 		default:
 			return `[MissionControl] ${type} (${missionId}).`;
 	}

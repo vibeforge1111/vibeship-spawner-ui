@@ -24,7 +24,20 @@ export interface PendingPipelineLoad {
 	pipelineName: string;
 	nodes: Array<{ skill: Skill; position: { x: number; y: number } }>;
 	connections: Array<{ sourceIndex: number; targetIndex: number; sourcePortId?: string; targetPortId?: string }>;
-	source: 'prd' | 'goal' | 'new' | 'switch';
+	source: 'prd' | 'prd-bridge' | 'goal' | 'new' | 'switch';
+	buildMode?: 'direct' | 'advanced_prd';
+	buildModeReason?: string;
+	executionPrompt?: string;
+	autoRun?: boolean;
+	relay?: {
+		chatId?: string;
+		userId?: string;
+		requestId?: string;
+		goal?: string;
+		autoRun?: boolean;
+		buildMode?: 'direct' | 'advanced_prd';
+		buildModeReason?: string;
+	};
 	timestamp: string;
 }
 
@@ -95,6 +108,36 @@ export async function getPendingLoad(): Promise<PendingPipelineLoad | null> {
 		return data.load as PendingPipelineLoad;
 	} catch (error) {
 		console.error('[PipelineLoader] Error getting pending load:', error);
+		return null;
+	}
+}
+
+/**
+ * Get the most recent queued canvas load without consuming it.
+ * This lets /canvas recover when another tab consumed the one-shot queue
+ * before the user's visible tab had valid pipeline state saved locally.
+ */
+export async function getLatestPipelineLoad(): Promise<PendingPipelineLoad | null> {
+	if (!browser) return null;
+
+	try {
+		const response = await fetch(`${PENDING_LOAD_ENDPOINT}?latest=true`, {
+			method: 'GET'
+		});
+
+		if (!response.ok) {
+			console.error('[PipelineLoader] Failed to get latest load:', response.statusText);
+			return null;
+		}
+
+		const data = await response.json();
+		if (!data.pending) {
+			return null;
+		}
+
+		return data.load as PendingPipelineLoad;
+	} catch (error) {
+		console.error('[PipelineLoader] Error getting latest load:', error);
 		return null;
 	}
 }

@@ -122,6 +122,15 @@ export interface ExecutionProgress {
 
 export interface ExecutionRunOptions extends MissionBuildOptions {
 	orchestratorOptions?: MultiLLMOrchestratorOptions;
+	relay?: {
+		chatId?: string;
+		userId?: string;
+		requestId?: string;
+		goal?: string;
+		autoRun?: boolean;
+		buildMode?: 'direct' | 'advanced_prd';
+		buildModeReason?: string;
+	};
 }
 
 export interface ExecutionCallbacks {
@@ -155,6 +164,7 @@ function normalizeMultiLLMOptions(
 		primaryProviderId: options.primaryProviderId ?? defaults.primaryProviderId,
 		autoEnableByKeys: options.autoEnableByKeys ?? defaults.autoEnableByKeys,
 		autoRouteByTask: options.autoRouteByTask ?? defaults.autoRouteByTask,
+		autoDispatch: options.autoDispatch ?? defaults.autoDispatch,
 		keyPresence: options.keyPresence ?? {},
 		mcpCapabilities: options.mcpCapabilities ?? [],
 		mcpTools: options.mcpTools ?? [],
@@ -433,8 +443,8 @@ class MissionExecutor {
 			// Only process events for our current mission
 			if (event.missionId !== this.progress.missionId) return;
 
-			// Skip events we sent ourselves
-			if (event.source === 'spawner-ui') return;
+			// Skip UI-originated events, but accept server dispatch lifecycle events.
+			if (event.source === 'spawner-ui' && !this.isServerDispatchEvent(event)) return;
 
 			log.debug('Received sync event:', event.type);
 
@@ -453,19 +463,23 @@ class MissionExecutor {
 
 				case 'mission_completed': {
 					this.progress.endTime = new Date();
-					this.stopPolling();
 					const syncMission = (event.data.mission as Mission) || this.progress.mission;
 					if (syncMission) {
+						this.progress.mission = syncMission;
+						const providerCompletionEvent = this.withProviderCompletionData(event as BridgeEvent);
+						this.applyProviderMissionCompletionFallback(providerCompletionEvent, syncMission);
 						const isFullyComplete = this.reconcileMissionCompletion(syncMission);
 						if (isFullyComplete) {
 							this.progress.status = 'completed';
 							this.callbacks.onStatusChange?.('completed');
 						}
+						this.stopPolling();
 						this.generateMissionCheckpoint(syncMission);
 						this.callbacks.onComplete?.(syncMission);
 					} else {
 						this.progress.status = 'completed';
 						this.callbacks.onStatusChange?.('completed');
+						this.stopPolling();
 					}
 					this.persistState();
 					break;
@@ -562,6 +576,142 @@ class MissionExecutor {
 				? 'Claude'
 				: agentId;
 		return { agentId, agentLabel };
+	}
+
+	private isServerDispatchEvent(event: BridgeEvent): boolean {
+		if (event.source !== 'spawner-ui') return false;
+		if (!this.progress.multiLLMExecution?.enabled) return false;
+		if (event.missionId && event.missionId !== this.progress.missionId) return false;
+
+		return ['dispatch_started', 'mission_completed', 'mission_failed'].includes(event.type);
+	}
+
+	private hasProviderCompletionData(event: BridgeEvent): boolean {
+		const providers = event.data?.providers;
+		return Boolean(providers && typeof providers === 'object');
+	}
+
+	private withProviderCompletionData(event: BridgeEvent): BridgeEvent {
+		if (event.type !== 'mission_completed') return event;
+		if (this.hasProviderCompletionData(event)) return event;
+
+		const enabledProviders = this.progress.multiLLMExecution?.providers?.filter((provider) => provider.enabled) || [];
+		if (enabledProviders.length === 0) return event;
+
+		return {
+			...event,
+			data: {
+				...(event.data || {}),
+				providers: Object.fromEntries(
+					enabledProviders.map((provider) => [provider.id, { status: 'completed' }])
+				)
+			}
+		};
+	}
+
+	private ensureProviderFallbackTaskStarted(
+		event: BridgeEvent,
+		message = 'Provider is working',
+		initialProgress = 8
+	): MissionTask | null {
+		if (!this.progress.multiLLMExecution?.enabled) return null;
+		const mission = this.progress.mission;
+		if (!mission?.tasks?.length) return null;
+
+		const currentTask = mission.tasks.find((task) => task.id === this.progress.currentTaskId);
+		if (currentTask && currentTask.status === 'in_progress') return currentTask;
+
+		const task = mission.tasks.find((entry) => entry.status === 'in_progress')
+			|| mission.tasks.find((entry) => entry.status === 'pending');
+		if (!task) return null;
+
+		task.status = 'in_progress';
+		mission.current_task_id = task.id;
+		this.progress.currentTaskId = task.id;
+		this.progress.currentTaskName = task.title;
+		this.progress.currentTaskProgress = initialProgress;
+		this.progress.currentTaskMessage = message;
+		this.progress.taskProgressMap.set(task.id, {
+			taskId: task.id,
+			taskName: task.title,
+			progress: initialProgress,
+			message,
+			startedAt: Date.now()
+		});
+
+		const runtimeAgent = this.resolveAgentFromBridgeEvent(event);
+		this.callbacks.onTaskStart?.(task.id, task.title);
+		this.callbacks.onTaskProgress?.(task.id, initialProgress, message);
+		this.addLocalLog('info', `Provider started: ${task.title}`);
+		if (runtimeAgent) {
+			this.updateAgentRuntime(runtimeAgent.agentId, runtimeAgent.agentLabel, {
+				status: 'running',
+				currentTaskId: task.id,
+				currentTaskName: task.title,
+				progress: initialProgress,
+				message
+			});
+		}
+		this.appendTaskTransition({
+			state: 'started',
+			taskId: task.id,
+			taskName: task.title,
+			agentId: runtimeAgent?.agentId,
+			agentLabel: runtimeAgent?.agentLabel,
+			message,
+			progress: initialProgress
+		});
+		this.recalculateOverallProgress();
+		this.persistState();
+
+		return task;
+	}
+
+	private applyProviderMissionCompletionFallback(event: BridgeEvent, mission: Mission): number {
+		if (!this.progress.multiLLMExecution?.enabled) return 0;
+		if (event.type !== 'mission_completed') return 0;
+		if (!this.hasProviderCompletionData(event)) return 0;
+
+		const unresolvedTasks = mission.tasks.filter(
+			(task) => task.status === 'pending' || task.status === 'in_progress'
+		);
+		if (unresolvedTasks.length === 0) return 0;
+
+		const runtimeAgent = this.resolveAgentFromBridgeEvent(event);
+		const completedAt = Date.now();
+		for (const task of unresolvedTasks) {
+			const existingProgress = this.progress.taskProgressMap.get(task.id);
+			task.status = 'completed';
+			this.progress.taskProgressMap.set(task.id, {
+				taskId: task.id,
+				taskName: task.title,
+				progress: 100,
+				message: 'Completed by provider mission result',
+				startedAt: existingProgress?.startedAt || completedAt
+			});
+			this.callbacks.onTaskComplete?.(task.id, true);
+			this.appendTaskTransition({
+				state: 'completed',
+				taskId: task.id,
+				taskName: task.title,
+				agentId: runtimeAgent?.agentId,
+				agentLabel: runtimeAgent?.agentLabel,
+				message: `Completed ${task.title}`,
+				progress: 100
+			});
+		}
+
+		mission.current_task_id = null;
+		mission.status = 'completed';
+		this.progress.currentTaskId = null;
+		this.progress.currentTaskName = null;
+		this.progress.currentTaskProgress = 100;
+		this.progress.currentTaskMessage = 'Provider completed the mission';
+		this.progress.progress = 100;
+		this.callbacks.onProgress?.(100);
+		this.addLocalLog('info', `Provider completion reconciled ${unresolvedTasks.length} canvas task(s).`);
+
+		return unresolvedTasks.length;
 	}
 
 	private updateAgentRuntime(
@@ -718,7 +868,12 @@ class MissionExecutor {
 				case 'task_progress':
 				case 'progress':
 					// Progress update within a task
-					const progressTaskId = event.taskId || this.progress.currentTaskId;
+					const fallbackTask = event.taskId ? null : this.ensureProviderFallbackTaskStarted(
+						event,
+						event.message || event.data?.message as string || 'Provider is working',
+						Math.max(8, event.progress ?? (event.data?.percent as number) ?? 0)
+					);
+					const progressTaskId = event.taskId || this.progress.currentTaskId || fallbackTask?.id;
 					const progressValue = event.progress ?? (event.data?.percent as number) ?? 0;
 					const progressMessage = event.message || event.data?.message as string;
 					const skillSignal = this.parseSkillLoadedSignal(progressMessage, progressTaskId);
@@ -919,6 +1074,8 @@ class MissionExecutor {
 					this.progress.endTime = new Date();
 					const bridgeMission = this.progress.mission;
 					if (bridgeMission) {
+						const providerCompletionEvent = this.withProviderCompletionData(event);
+						this.applyProviderMissionCompletionFallback(providerCompletionEvent, bridgeMission);
 						const isFullyComplete = this.reconcileMissionCompletion(bridgeMission);
 						if (isFullyComplete) {
 							this.progress.status = 'completed';
@@ -1002,6 +1159,7 @@ class MissionExecutor {
 							});
 						}
 					}
+					this.ensureProviderFallbackTaskStarted(event, event.message || 'Provider dispatched', 8);
 					this.appendTaskTransition({
 						state: 'info',
 						message: event.message || 'Dispatch started'
@@ -1315,6 +1473,7 @@ class MissionExecutor {
 					taskSkillMap: buildResult.taskSkillMap,
 					baseUrl
 				});
+				this.progress.multiLLMExecution.missionId = buildResult.mission.id;
 				this.emitMcpPlanningLogs(this.progress.multiLLMExecution);
 				this.addLocalLog(
 					'info',
@@ -1343,11 +1502,13 @@ class MissionExecutor {
 				try {
 					const dispatchResult = await this.dispatchToProviders(
 						this.progress.multiLLMExecution,
-						this.progress.multiLLMOptions
+						this.progress.multiLLMOptions,
+						options.relay
 					);
 					if (dispatchResult.success) {
 						const providerCount = Object.keys(dispatchResult.sessions || {}).length;
 						this.addLocalLog('info', `Auto-dispatched to ${providerCount} provider(s) - execution in progress`);
+						this.startPolling();
 					} else {
 						this.addLocalLog('info', `Auto-dispatch failed: ${dispatchResult.error || 'unknown'} - copy prompts manually`);
 					}
@@ -1392,7 +1553,8 @@ class MissionExecutor {
 	 */
 	private async dispatchToProviders(
 		executionPack: import('$lib/services/multi-llm-orchestrator').MultiLLMExecutionPack,
-		options: import('$lib/services/multi-llm-orchestrator').MultiLLMOrchestratorOptions
+		options: import('$lib/services/multi-llm-orchestrator').MultiLLMOrchestratorOptions,
+		relay?: ExecutionRunOptions['relay']
 	): Promise<{ success: boolean; sessions?: Record<string, unknown>; error?: string }> {
 		const response = await fetch('/api/dispatch', {
 			method: 'POST',
@@ -1400,7 +1562,8 @@ class MissionExecutor {
 			body: JSON.stringify({
 				executionPack,
 				apiKeys: options.apiKeys || {},
-				workingDirectory: this.progress.mission?.context?.projectPath
+				workingDirectory: this.progress.mission?.context?.projectPath,
+				relay
 			})
 		});
 		return response.json();
@@ -1675,10 +1838,99 @@ class MissionExecutor {
 	/**
 	 * Poll mission status and logs
 	 */
+	private async pollProviderRuntimeStatus(): Promise<boolean> {
+		if (!browser) return false;
+		if (!this.progress.multiLLMExecution?.enabled) return false;
+		if (!this.progress.missionId || !this.progress.mission) return false;
+		if (!['creating', 'running'].includes(this.progress.status)) return false;
+
+		const response = await fetch(`/api/dispatch?missionId=${encodeURIComponent(this.progress.missionId)}`);
+		if (!response.ok) return false;
+
+		const status = await response.json() as {
+			allComplete?: boolean;
+			anyFailed?: boolean;
+			lastReason?: string | null;
+			providers?: Record<string, AgentRuntimeStatus['status']>;
+		};
+		const providers = status.providers || {};
+		const providerIds = Object.keys(providers);
+		if (providerIds.length === 0) return false;
+
+		for (const [providerId, providerStatus] of Object.entries(providers)) {
+			this.updateAgentRuntime(providerId, providerId.toUpperCase(), {
+				status: providerStatus,
+				progress: providerStatus === 'completed' || providerStatus === 'failed' || providerStatus === 'cancelled' ? 100 : 8,
+				message: status.lastReason || providerStatus
+			});
+		}
+
+		if (!status.allComplete) {
+			this.ensureProviderFallbackTaskStarted(
+				{
+					type: 'dispatch_started',
+					missionId: this.progress.missionId,
+					source: 'spawner-ui',
+					timestamp: new Date().toISOString(),
+					message: status.lastReason || 'Provider dispatch running',
+					data: { providers: providerIds }
+				},
+				status.lastReason || 'Provider dispatch running',
+				8
+			);
+			return true;
+		}
+
+		if (status.anyFailed) {
+			this.progress.status = 'failed';
+			this.progress.error = status.lastReason || 'Provider mission failed';
+			this.progress.endTime = new Date();
+			this.stopPolling();
+			this.callbacks.onStatusChange?.('failed');
+			this.callbacks.onError?.(this.progress.error);
+			this.addLocalLog('info', `Provider runtime reported failure: ${this.progress.error}`);
+			this.persistState();
+			return true;
+		}
+
+		const completionEvent: BridgeEvent = {
+			type: 'mission_completed',
+			missionId: this.progress.missionId,
+			source: 'spawner-ui',
+			timestamp: new Date().toISOString(),
+			message: status.lastReason || 'All providers completed successfully',
+			data: {
+				providers: Object.fromEntries(
+					Object.entries(providers).map(([providerId, providerStatus]) => [
+						providerId,
+						{ status: providerStatus }
+					])
+				)
+			}
+		};
+
+		this.progress.endTime = new Date();
+		this.applyProviderMissionCompletionFallback(completionEvent, this.progress.mission);
+		const isFullyComplete = this.reconcileMissionCompletion(this.progress.mission);
+		if (isFullyComplete) {
+			this.progress.status = 'completed';
+			this.callbacks.onStatusChange?.('completed');
+			this.addLocalLog('info', 'Mission completed successfully');
+		}
+		this.stopPolling();
+		this.generateMissionCheckpoint(this.progress.mission);
+		this.callbacks.onComplete?.(this.progress.mission);
+		this.persistState();
+		return true;
+	}
+
 	private async pollMissionStatus(): Promise<void> {
 		if (!this.progress.missionId) return;
 
 		try {
+			const providerSettled = await this.pollProviderRuntimeStatus();
+			if (providerSettled) return;
+
 			// Get mission status
 			const missionResult = await mcpClient.getMission(this.progress.missionId);
 			if (missionResult.success && missionResult.data?.mission) {
@@ -1879,7 +2131,8 @@ class MissionExecutor {
 
 			this.progress.checkpoint = checkpoint;
 			const specCoverage = checkpoint.specAlignment ? `${Math.round(checkpoint.specAlignment.coverageRate * 100)}%` : 'N/A';
-			this.addLocalLog('info', `Checkpoint (preliminary): ${checkpoint.status} | Spec: ${specCoverage} | Ship: ${checkpoint.canShip ? 'YES' : 'NO'} (quality: ${Math.round(checkpoint.quality.averageTaskQuality)}/100)`);
+			const qualitySummary = checkpoint.quality.taskQualityCount > 0 ? `${Math.round(checkpoint.quality.averageTaskQuality)}/100` : 'not scored';
+			this.addLocalLog('info', `Checkpoint (preliminary): ${checkpoint.status} | Spec: ${specCoverage} | Ship: ${checkpoint.canShip ? 'YES' : 'NO'} (quality: ${qualitySummary})`);
 
 			// Phase 2: Run independent server-side verification (async, upgrades checkpoint)
 			const projectPath = mission.context?.projectPath;

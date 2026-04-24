@@ -12,7 +12,7 @@ export interface CanvasNode {
 	skillId: string;
 	skill: Skill;
 	position: { x: number; y: number };
-	status?: 'idle' | 'running' | 'success' | 'error';
+	status?: 'idle' | 'queued' | 'running' | 'success' | 'error';
 }
 
 export interface Connection {

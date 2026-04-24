@@ -27,7 +27,7 @@
 
 	let isDragging = $state(false);
 	let dragOffset = $state({ x: 0, y: 0 });
-	let previousStatus = $state<'idle' | 'running' | 'success' | 'error'>('idle');
+	let previousStatus = $state<'idle' | 'queued' | 'running' | 'success' | 'error'>('idle');
 	let statusTransitionPulse = $state(false);
 
 	// FIX: Helper to get current zoom/pan from store (avoids stale closure values)
@@ -226,6 +226,7 @@
 	class="draggable-node absolute"
 	class:dragging={isDragging}
 	class:selected
+	class:queued={node.status === 'queued'}
 	class:running={node.status === 'running'}
 	class:success={node.status === 'success'}
 	class:error={node.status === 'error'}
@@ -240,13 +241,20 @@
 	<!-- Inner wrapper for relative positioning of status indicators -->
 	<div class="node-content-wrapper">
 		<!-- Running status - animated ring around node -->
+		{#if node.status === 'queued'}
+			<div class="queued-badge">QUEUED</div>
+		{/if}
+
+		<!-- Running status - animated ring around node -->
 		{#if node.status === 'running'}
 			<div class="running-ring"></div>
 			<div class="running-glow"></div>
+			<div class="running-badge">RUN</div>
 		{/if}
 
 		<!-- Success status - corner badge with animation -->
 		{#if node.status === 'success'}
+			<div class="success-label">DONE</div>
 			<div class="success-badge">
 				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
 					<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
@@ -343,6 +351,28 @@
 		opacity: 1;
 	}
 
+	/* ====== QUEUED STATE ====== */
+	.queued-badge,
+	.running-badge,
+	.success-label {
+		position: absolute;
+		top: -8px;
+		left: 8px;
+		padding: 2px 6px;
+		background: var(--bg-secondary, #141B2D);
+		border: 1px solid rgb(var(--status-amber-rgb, 216 200 104) / 0.65);
+		color: var(--status-amber, #D8C868);
+		font-family: var(--font-mono);
+		font-size: 9px;
+		line-height: 1;
+		letter-spacing: 0;
+		z-index: 20;
+	}
+
+	.draggable-node.queued {
+		opacity: 0.82;
+	}
+
 	/* ====== RUNNING STATE ====== */
 	.running-ring {
 		position: absolute;
@@ -361,11 +391,17 @@
 		z-index: -1;
 	}
 
-	.draggable-node.running {
-		/* No glow - flat design, ring indicates activity */
+	.running-badge {
+		border-color: rgb(var(--accent-rgb, 47 202 148) / 0.7);
+		color: var(--accent, #2FCA94);
 	}
 
 	/* ====== SUCCESS STATE ====== */
+	.success-label {
+		border-color: rgb(var(--accent-rgb, 47 202 148) / 0.75);
+		color: var(--accent, #2FCA94);
+	}
+
 	.success-badge {
 		position: absolute;
 		top: -8px;
@@ -376,8 +412,8 @@
 		align-items: center;
 		justify-content: center;
 		background: var(--bg-secondary, #141B2D);
-		color: #00FF88;
-		border: 1px solid #00FF88;
+		color: var(--accent, #2FCA94);
+		border: 1px solid var(--accent, #2FCA94);
 		z-index: 20;
 		animation: badgePopIn 200ms ease-out;
 	}
@@ -385,13 +421,9 @@
 	.success-glow {
 		position: absolute;
 		inset: -2px;
-		border: 1px solid rgba(0, 255, 136, 0.3);
+		border: 1px solid rgb(var(--accent-rgb, 47 202 148) / 0.3);
 		pointer-events: none;
 		animation: successFadeIn 150ms ease-out;
-	}
-
-	.draggable-node.success {
-		/* No glow - flat design */
 	}
 
 	/* ====== ERROR STATE ====== */
@@ -417,10 +449,6 @@
 		border: 1px solid rgba(255, 77, 77, 0.3);
 		pointer-events: none;
 		animation: successFadeIn 150ms ease-out;
-	}
-
-	.draggable-node.error {
-		/* No glow - flat design */
 	}
 
 	/* ====== ANIMATIONS ====== */

@@ -13,6 +13,7 @@ import { requireControlAuth, enforceRateLimit } from '$lib/server/mcp-auth';
 import { eventBridge } from '$lib/services/event-bridge';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { DEFAULT_MULTI_LLM_PROVIDERS } from '$lib/services/multi-llm-orchestrator';
+import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 
 const ALLOWED_PROVIDER_IDS = new Set(DEFAULT_MULTI_LLM_PROVIDERS.map((provider) => provider.id));
 const ALLOWED_PROVIDER_LABEL = [...ALLOWED_PROVIDER_IDS].join(', ');
@@ -41,7 +42,7 @@ export const POST: RequestHandler = async (event) => {
 
 	try {
 		const body = await event.request.json();
-		const { executionPack, apiKeys, workingDirectory } = body;
+		const { executionPack, apiKeys, workingDirectory, relay } = body;
 
 		if (!executionPack || !executionPack.providers || !Array.isArray(executionPack.providers)) {
 			return json({ success: false, error: 'Invalid execution pack' }, { status: 400 });
@@ -111,12 +112,55 @@ export const POST: RequestHandler = async (event) => {
 			);
 		}
 
+		const relayMeta =
+			relay && typeof relay === 'object'
+				? {
+						chatId: typeof relay.chatId === 'string' ? relay.chatId : undefined,
+						userId: typeof relay.userId === 'string' ? relay.userId : undefined,
+						requestId: typeof relay.requestId === 'string' ? relay.requestId : undefined,
+						goal: typeof relay.goal === 'string' ? relay.goal : undefined
+					}
+				: {};
+		const relayData = {
+			...relayMeta,
+			missionName: typeof executionPack.masterPrompt === 'string'
+				? executionPack.masterPrompt.match(/Mission:\s*(.+)/)?.[1]
+				: undefined,
+			providers: executionPack.providers.map((provider: { id: string }) => provider.id)
+		};
+		const relayBridgeEvent = (bridgeEvent: Record<string, unknown>) => {
+			const relayEvent = {
+				...bridgeEvent,
+				source:
+					typeof bridgeEvent.source === 'string' && bridgeEvent.source !== 'spawner-ui'
+						? bridgeEvent.source
+						: 'canvas-dispatch',
+				data: {
+					...relayData,
+					...((bridgeEvent.data as Record<string, unknown> | undefined) || {})
+				}
+			};
+			void relayMissionControlEvent(relayEvent);
+		};
+
+		const missionCreatedEvent = {
+			type: 'mission_created',
+			missionId: executionPack.missionId,
+			source: 'canvas-dispatch',
+			timestamp: new Date().toISOString(),
+			message: `Canvas mission created for ${executionPack.providers.length} provider(s)`,
+			data: relayData
+		};
+		eventBridge.emit(missionCreatedEvent);
+		void relayMissionControlEvent(missionCreatedEvent);
+
 		const result = await providerRuntime.dispatch({
 			executionPack,
 			apiKeys: mergedApiKeys,
 			workingDirectory,
 			onEvent: (evt) => {
 				eventBridge.emit(evt);
+				relayBridgeEvent(evt as unknown as Record<string, unknown>);
 			}
 		});
 

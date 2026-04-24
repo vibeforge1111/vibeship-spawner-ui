@@ -190,6 +190,28 @@ describe('multi-llm-orchestrator', () => {
 		expect(pack.launchCommands.zai).toContain('https://api.z.ai/api/coding/paas/v4/chat/completions');
 	});
 
+	it('keeps single-provider runs on the selected provider even when other keys are present', () => {
+		const options = createDefaultMultiLLMOptions();
+		options.enabled = true;
+		options.strategy = 'single';
+		options.autoEnableByKeys = true;
+		options.primaryProviderId = 'zai';
+		options.keyPresence = { zai: true, minimax: true, codex: true };
+		options.providers = options.providers.map((provider) => ({
+			...provider,
+			enabled: false
+		}));
+
+		const pack = buildMultiLLMExecutionPack({
+			mission: createMission(3),
+			options
+		});
+
+		expect(pack.strategy).toBe('single');
+		expect(pack.providers.map((provider) => provider.id)).toEqual(['zai']);
+		expect(pack.assignments.zai.taskIds).toEqual(['task-1', 'task-2', 'task-3']);
+	});
+
 	it('routes deployment-heavy tasks to codex when auto-route is enabled', () => {
 		const mission = createMission(2);
 		mission.tasks[0].title = 'Deploy backend service';

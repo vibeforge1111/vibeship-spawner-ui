@@ -21,10 +21,10 @@ import { get } from 'svelte/store';
 	import { initCanvasSync } from '$lib/services/canvas-sync';
 	import PipelineSelector from '$lib/components/PipelineSelector.svelte';
 	import SessionStateBar from '$lib/components/SessionStateBar.svelte';
-	import { initPipelines, saveCurrentPipeline, getActivePipelineData, ensurePipeline, type PipelineData } from '$lib/stores/pipelines.svelte';
+	import { initPipelines, saveCurrentPipeline, getActivePipelineData, ensurePipeline, activePipelineId as activePipelineIdStore, type PipelineData } from '$lib/stores/pipelines.svelte';
 	import { hasResumableMission } from '$lib/services/persistence';
 	import { DroppedSkillSchema, safeJsonParse } from '$lib/types/schemas';
-	import { getPendingLoad } from '$lib/services/pipeline-loader';
+	import { getLatestPipelineLoad, getPendingLoad, type PendingPipelineLoad } from '$lib/services/pipeline-loader';
 	import { loadSkills, skills as skillsStore } from '$lib/stores/skills.svelte';
 	import { workflowTemplates } from '$lib/data/templates';
 	import type { OpenclawCanvasSnapshot } from '$lib/services/openclaw-bridge';
@@ -32,6 +32,15 @@ import { get } from 'svelte/store';
 	let showExecution = $state(false);
 	let executionMinimized = $state(false);
 	let executionAutoRunToken = $state<number | null>(null);
+	let executionRelay = $state<{
+		chatId?: string;
+		userId?: string;
+		requestId?: string;
+		goal?: string;
+		autoRun?: boolean;
+		buildMode?: 'direct' | 'advanced_prd';
+		buildModeReason?: string;
+	} | null>(null);
 	let showNodeDetails = $state(false);
 	let showMissionExport = $state(false);
 	let missionName = $state('');
@@ -60,6 +69,7 @@ import { get } from 'svelte/store';
 	let pendingGoalProcess = $state(false);
 	let lastOpenclawSyncAt: string | null = null;
 	let isApplyingOpenclawUpdate = false;
+	let sparkPipelineActive = false;
 
 	type OpenclawCanvasSkillNode = {
 		id: string;
@@ -306,6 +316,7 @@ import { get } from 'svelte/store';
 
 	async function syncOpenclawCanvasState(): Promise<void> {
 		if (goalProcessing) return;
+		if (sparkPipelineActive) return;
 
 		const query = lastOpenclawSyncAt ? `?since=${encodeURIComponent(lastOpenclawSyncAt)}` : '';
 		const response = await fetch(`/api/openclaw/canvas-state${query}`);
@@ -331,12 +342,14 @@ import { get } from 'svelte/store';
 
 		// Initialize pipeline system
 		initPipelines();
+		sparkPipelineActive = (get(activePipelineIdStore) || '').startsWith('prd-tg-build');
 		let disposed = false;
 		let disableAutoSave: (() => void) | null = null;
 		let pipelineAutoSaveInterval: ReturnType<typeof setInterval> | null = null;
 		let cleanupCanvasSync: (() => void) | null = null;
 		let stuckStateInterval: ReturnType<typeof setInterval> | null = null;
 		let openclawSyncInterval: ReturnType<typeof setInterval> | null = null;
+		let pendingLoadPollInterval: ReturnType<typeof setInterval> | null = null;
 		let resizeObserver: ResizeObserver | null = null;
 
 		// Global mouseup handler to reset stuck states (catches mouseup outside canvas)
@@ -352,6 +365,107 @@ import { get } from 'svelte/store';
 				const rect = canvasEl.getBoundingClientRect();
 				frameSelected(rect.width, rect.height);
 			}
+		}
+
+		let lastAppliedLatestLoadKey: string | null = null;
+
+		function getPipelineLoadKey(load: PendingPipelineLoad): string {
+			return `${load.pipelineId}:${load.timestamp || ''}`;
+		}
+
+		function getLoadNodeSignature(load: PendingPipelineLoad): string {
+			return load.nodes
+				.map((node) => `${node.skill?.id || ''}:${node.skill?.name || ''}`)
+				.join('|');
+		}
+
+		function getCurrentNodeSignature(): string {
+			return get(nodes)
+				.map((node) => `${node.skill?.id || ''}:${node.skill?.name || ''}`)
+				.join('|');
+		}
+
+		function shouldAutoApplyLatestLoad(load: PendingPipelineLoad): boolean {
+			if (disposed) return false;
+			if (load.source !== 'prd-bridge') return false;
+			if (!(load.autoRun || load.relay?.autoRun)) return false;
+			if (!load.nodes?.length) return false;
+
+			const loadKey = getPipelineLoadKey(load);
+			if (loadKey === lastAppliedLatestLoadKey) return false;
+
+			const activeId = get(activePipelineIdStore);
+			if (activeId !== load.pipelineId) return true;
+
+			const currentNodes = get(nodes);
+			if (currentNodes.length === 0) return true;
+			if (currentNodes.length !== load.nodes.length) return true;
+
+			return getCurrentNodeSignature() !== getLoadNodeSignature(load);
+		}
+
+		function applyPipelineLoad(load: PendingPipelineLoad, reason: 'queued' | 'latest-recovery' | 'latest-sync'): boolean {
+			if (disposed) return false;
+
+			// PENDING LOAD: PRD analysis or goal processing queued a pipeline
+			console.log(`[Canvas] Loading ${reason} pipeline:`, load.pipelineName);
+			console.log('[Canvas] Source:', load.source, '| Nodes:', load.nodes.length, '| Connections:', load.connections.length);
+
+			// Ensure the exact queued pipeline ID exists and is active
+			const targetPipeline = ensurePipeline(load.pipelineId, load.pipelineName);
+
+			// Clear and load the exact nodes/connections
+			clearCanvas();
+			if (load.nodes.length > 0) {
+				addNodesWithConnections(load.nodes, load.connections);
+			}
+			executionRelay = load.relay || null;
+			sparkPipelineActive = load.source === 'prd-bridge';
+
+			// Save immediately
+			saveCurrentPipeline({
+				nodes: get(nodes),
+				connections: get(connections),
+				zoom: 1,
+				pan: { x: 0, y: 0 }
+			});
+
+			lastSaved = new Date();
+			console.log(
+				'[Canvas] Loaded pipeline:',
+				targetPipeline.name,
+				`(${targetPipeline.id})`,
+				'with',
+				get(nodes).length,
+				'nodes and',
+				get(connections).length,
+				'connections'
+			);
+			forceStoreSync();
+			if (reason === 'queued' && (load.autoRun || load.relay?.autoRun)) {
+				showExecution = true;
+				executionMinimized = false;
+				executionAutoRunToken = Date.now();
+			} else if (load.autoRun || load.relay?.autoRun) {
+				showExecution = true;
+				executionMinimized = false;
+				executionAutoRunToken = null;
+			}
+			lastAppliedLatestLoadKey = getPipelineLoadKey(load);
+			return true;
+		}
+
+		async function consumePendingLoadFromQueue(): Promise<boolean> {
+			const pendingLoad = await getPendingLoad();
+			if (disposed || !pendingLoad) return false;
+			return applyPipelineLoad(pendingLoad, 'queued');
+		}
+
+		async function syncLatestSparkLoad(): Promise<boolean> {
+			const latestLoad = await getLatestPipelineLoad();
+			if (disposed || !latestLoad || !shouldAutoApplyLatestLoad(latestLoad)) return false;
+			console.log('[Canvas] Syncing latest Spark pipeline load:', latestLoad.pipelineName);
+			return applyPipelineLoad(latestLoad, 'latest-sync');
 		}
 
 		void (async () => {
@@ -376,56 +490,40 @@ import { get } from 'svelte/store';
 		// Priority: 1. Pending load (from PRD/goal) → 2. Active pipeline
 		// =====================================================================
 
-		const pendingLoad = await getPendingLoad();
+		const consumedPendingLoad = await consumePendingLoadFromQueue();
 		if (disposed) return;
 
-		if (pendingLoad) {
-			// PENDING LOAD: PRD analysis or goal processing queued a pipeline
-			console.log('[Canvas] Loading queued pipeline:', pendingLoad.pipelineName);
-			console.log('[Canvas] Source:', pendingLoad.source, '| Nodes:', pendingLoad.nodes.length, '| Connections:', pendingLoad.connections.length);
-
-			// Ensure the exact queued pipeline ID exists and is active
-			const targetPipeline = ensurePipeline(pendingLoad.pipelineId, pendingLoad.pipelineName);
-
-			// Clear and load the exact nodes/connections
-			clearCanvas();
-			if (pendingLoad.nodes.length > 0) {
-				addNodesWithConnections(pendingLoad.nodes, pendingLoad.connections);
-			}
-
-			// Save immediately
-			saveCurrentPipeline({
-				nodes: get(nodes),
-				connections: get(connections),
-				zoom: 1,
-				pan: { x: 0, y: 0 }
-			});
-
-			lastSaved = new Date();
-			console.log(
-				'[Canvas] Loaded pipeline:',
-				targetPipeline.name,
-				`(${targetPipeline.id})`,
-				'with',
-				get(nodes).length,
-				'nodes and',
-				get(connections).length,
-				'connections'
-			);
-		} else {
+		if (!consumedPendingLoad) {
 			// NO PENDING LOAD: Load active pipeline from localStorage
-			const pipelineData = getActivePipelineData();
-			if (pipelineData) {
-				loadPipelineToCanvas(pipelineData);
-				lastSaved = new Date();
-				console.log('[Canvas] Loaded active pipeline with', pipelineData.nodes?.length || 0, 'nodes');
+			const latestSynced = await syncLatestSparkLoad();
+			if (disposed) return;
+			if (latestSynced) {
+				// Latest Spark load wins when another tab/client already consumed
+				// the one-shot pending queue before this visible canvas tab.
 			} else {
-				// Fallback: try old format for migration
-				const loaded = loadCanvas();
-				if (loaded) {
-					const info = getSavedCanvasInfo();
-					if (info) {
-						lastSaved = info.savedAt;
+				const pipelineData = getActivePipelineData();
+				if (pipelineData && pipelineData.nodes?.length > 0) {
+					loadPipelineToCanvas(pipelineData);
+					lastSaved = new Date();
+					console.log('[Canvas] Loaded active pipeline with', pipelineData.nodes?.length || 0, 'nodes');
+				} else {
+					const latestLoad = await getLatestPipelineLoad();
+					if (latestLoad?.nodes?.length) {
+						console.log('[Canvas] Active pipeline is empty; recovering latest Spark pipeline load');
+						applyPipelineLoad(latestLoad, 'latest-recovery');
+					} else if (pipelineData) {
+						loadPipelineToCanvas(pipelineData);
+						lastSaved = new Date();
+						console.log('[Canvas] Loaded empty active pipeline');
+					} else {
+						// Fallback: try old format for migration
+						const loaded = loadCanvas();
+						if (loaded) {
+							const info = getSavedCanvasInfo();
+							if (info) {
+								lastSaved = info.savedAt;
+							}
+						}
 					}
 				}
 			}
@@ -454,6 +552,16 @@ import { get } from 'svelte/store';
 				console.warn('[Canvas] OpenClaw sync poll failed:', error);
 			});
 		}, 1200);
+		pendingLoadPollInterval = setInterval(() => {
+			void (async () => {
+				const consumed = await consumePendingLoadFromQueue();
+				if (!consumed) {
+					await syncLatestSparkLoad();
+				}
+			})().catch((error) => {
+				console.warn('[Canvas] Pending/latest load poll failed:', error);
+			});
+		}, 2500);
 
 		window.addEventListener('mouseup', handleGlobalMouseUp);
 
@@ -527,6 +635,7 @@ import { get } from 'svelte/store';
 			if (pipelineAutoSaveInterval) clearInterval(pipelineAutoSaveInterval);
 			if (stuckStateInterval) clearInterval(stuckStateInterval); // FIX 15: Clean up stuck state detector
 			if (openclawSyncInterval) clearInterval(openclawSyncInterval);
+			if (pendingLoadPollInterval) clearInterval(pendingLoadPollInterval);
 			cleanupCanvasSync?.();
 			resizeObserver?.disconnect();
 			window.removeEventListener('mouseup', handleGlobalMouseUp);
@@ -1339,6 +1448,7 @@ import { get } from 'svelte/store';
 		minimized={executionMinimized}
 		onToggleMinimize={() => (executionMinimized = !executionMinimized)}
 		autoRunToken={executionAutoRunToken || undefined}
+		relay={executionRelay || undefined}
 	/>
 {/if}
 
