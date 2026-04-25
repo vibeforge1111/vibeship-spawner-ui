@@ -16,7 +16,7 @@ export interface CodexCliOptions extends ProviderClientOptions {
 	workingDirectory?: string;
 }
 
-interface CodexCliCommand {
+export interface CodexCliCommand {
 	binary: 'codex' | string;
 	args: string[];
 }
@@ -25,7 +25,7 @@ function isSafeCommandToken(value: string): boolean {
 	return /^[A-Za-z0-9._:/@+=-]+$/.test(value);
 }
 
-function parseCodexCliCommand(commandTemplate: string): CodexCliCommand {
+export function parseCodexCliCommand(commandTemplate: string): CodexCliCommand {
 	const tokens = commandTemplate.split(/\s+/).filter(Boolean);
 	if (tokens.some((token) => !isSafeCommandToken(token))) {
 		throw new Error('Codex command template contains unsafe shell characters');
@@ -34,10 +34,10 @@ function parseCodexCliCommand(commandTemplate: string): CodexCliCommand {
 		throw new Error('Codex command template must start with: codex exec');
 	}
 	if (tokens.length === 3 && tokens[2] === '--yolo') {
-		return { binary: 'codex', args: ['exec', '--yolo'] };
+		return { binary: 'codex', args: ['exec', '--skip-git-repo-check', '--yolo'] };
 	}
 	if (tokens.length === 4 && tokens[2] === '--model') {
-		return { binary: 'codex', args: ['exec', '--model', tokens[3]] };
+		return { binary: 'codex', args: ['exec', '--skip-git-repo-check', '--model', tokens[3]] };
 	}
 	throw new Error('Codex command template must be: codex exec --model <model> or codex exec --yolo');
 }

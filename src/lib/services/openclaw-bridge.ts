@@ -257,10 +257,18 @@ function parseProviderCommand(providerId: OpenclawProviderId, commandTemplate: s
 		throw new Error('Codex provider command must start with: codex exec');
 	}
 	if (tokens.length === 3 && tokens[2] === '--yolo') {
-		return { binary: 'codex', resolvedBinary: resolveCliBinary('codex') || 'codex', args: ['exec', '--yolo'] };
+		return {
+			binary: 'codex',
+			resolvedBinary: resolveCliBinary('codex') || 'codex',
+			args: ['exec', '--skip-git-repo-check', '--yolo']
+		};
 	}
 	if (tokens.length === 4 && tokens[2] === '--model') {
-		return { binary: 'codex', resolvedBinary: resolveCliBinary('codex') || 'codex', args: ['exec', '--model', tokens[3]] };
+		return {
+			binary: 'codex',
+			resolvedBinary: resolveCliBinary('codex') || 'codex',
+			args: ['exec', '--skip-git-repo-check', '--model', tokens[3]]
+		};
 	}
 	throw new Error('Codex provider command must be: codex exec --model <model> or codex exec --yolo');
 }
@@ -1231,4 +1239,3 @@ class OpenclawBridgeService {
 }
 
 export const openclawBridge = new OpenclawBridgeService();
-
