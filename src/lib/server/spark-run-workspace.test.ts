@@ -6,11 +6,13 @@ import { resolveSparkRunProjectPath } from './spark-run-workspace';
 
 const originalSparkWorkspaceRoot = process.env.SPARK_WORKSPACE_ROOT;
 const originalSpawnerWorkspaceRoot = process.env.SPAWNER_WORKSPACE_ROOT;
+const originalSparkHome = process.env.SPARK_HOME;
 const cleanupPaths: string[] = [];
 
 afterEach(() => {
 	process.env.SPARK_WORKSPACE_ROOT = originalSparkWorkspaceRoot;
 	process.env.SPAWNER_WORKSPACE_ROOT = originalSpawnerWorkspaceRoot;
+	process.env.SPARK_HOME = originalSparkHome;
 	for (const path of cleanupPaths.splice(0)) {
 		rmSync(path, { recursive: true, force: true });
 	}
@@ -28,6 +30,19 @@ describe('resolveSparkRunProjectPath', () => {
 		expect(resolved).toBe(join(root, 'default'));
 		expect(existsSync(resolved)).toBe(true);
 		expect(resolved).not.toContain('C:/Users/USER/Desktop');
+	});
+
+	it('uses SPARK_HOME workspaces for sandboxed installs when no explicit root is set', () => {
+		const sparkHome = mkdtempSync(join(tmpdir(), 'spark-home-'));
+		cleanupPaths.push(sparkHome);
+		delete process.env.SPARK_WORKSPACE_ROOT;
+		delete process.env.SPAWNER_WORKSPACE_ROOT;
+		process.env.SPARK_HOME = sparkHome;
+
+		const resolved = resolveSparkRunProjectPath();
+
+		expect(resolved).toBe(join(sparkHome, 'workspaces', 'default'));
+		expect(existsSync(resolved)).toBe(true);
 	});
 
 	it('creates and returns explicit absolute project paths', () => {

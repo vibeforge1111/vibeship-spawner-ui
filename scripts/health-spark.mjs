@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const baseUrl = (process.env.SPAWNER_UI_URL || "http://127.0.0.1:5173").replace(/\/$/, "");
 const healthUrl = `${baseUrl}/api/providers`;
@@ -53,6 +54,14 @@ async function getJson(url) {
   return await response.json();
 }
 
+export function resolveSparkWorkspaceRoot(env = process.env, fallbackHome = homedir()) {
+  return (
+    env.SPARK_WORKSPACE_ROOT?.trim() ||
+    env.SPAWNER_WORKSPACE_ROOT?.trim() ||
+    (env.SPARK_HOME?.trim() ? join(env.SPARK_HOME.trim(), "workspaces") : join(fallbackHome, ".spark", "workspaces"))
+  );
+}
+
 async function main() {
   const payload = await getJson(healthUrl);
   if (!payload || !Array.isArray(payload.providers)) {
@@ -86,10 +95,7 @@ async function main() {
     throw new Error("mission board payload is not JSON");
   }
 
-  const workspaceRoot =
-    process.env.SPARK_WORKSPACE_ROOT ||
-    process.env.SPAWNER_WORKSPACE_ROOT ||
-    join(homedir(), ".spark", "workspaces");
+  const workspaceRoot = resolveSparkWorkspaceRoot();
   const smokeWorkspace = join(workspaceRoot, ".health-smoke");
   mkdirSync(smokeWorkspace, { recursive: true });
   writeFileSync(join(smokeWorkspace, "write-check.txt"), `spark-health ${new Date().toISOString()}\n`, "utf-8");
@@ -124,8 +130,10 @@ async function main() {
   );
 }
 
-main().catch((error) => {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(`Spawner UI unhealthy: ${message}`);
-  process.exitCode = 1;
-});
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  main().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Spawner UI unhealthy: ${message}`);
+    process.exitCode = 1;
+  });
+}
