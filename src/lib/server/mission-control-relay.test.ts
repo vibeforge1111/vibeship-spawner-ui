@@ -17,6 +17,16 @@ describe('mission-control-relay', () => {
 		expect(shouldRelayMissionControlEvent({ type: 'mission_started', source: 'spawner-ui' })).toBe(false);
 	});
 
+	it('does not relay diagnostic-only Spark run events', () => {
+		expect(
+			shouldRelayMissionControlEvent({
+				type: 'mission_started',
+				source: 'spark-run',
+				data: { suppressRelay: true }
+			})
+		).toBe(false);
+	});
+
 	it('builds a valid SparkEventV1 payload', () => {
 		const payload = buildSparkMissionControlEvent({
 			id: 'evt-123',

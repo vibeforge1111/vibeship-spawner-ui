@@ -17,6 +17,7 @@ interface SparkRunBody {
 	userId?: string;
 	requestId?: string;
 	promptMode?: 'simple' | 'orchestrator';
+	suppressRelay?: boolean;
 }
 
 function isConfiguredApiKey(value: string | undefined): value is string {
@@ -72,7 +73,8 @@ function createSparkMission(body: SparkRunBody, goal: string, selectedProviderId
 				requestId,
 				chatId,
 				userId,
-				providers: selectedProviderIds
+				providers: selectedProviderIds,
+				suppressRelay: body.suppressRelay === true
 			}
 		},
 		error: null,

@@ -299,6 +299,10 @@ export function shouldRelayMissionControlEvent(event: MissionControlBridgeEvent)
 		return false;
 	}
 
+	if (event.data && (event.data as Record<string, unknown>).suppressRelay === true) {
+		return false;
+	}
+
 	return true;
 }
 
