@@ -38,13 +38,13 @@ routes = [
 ]
 
 [run.default]
-command = "npm run dev"
+command = "npm run dev -- --host 127.0.0.1"
 cwd = "."
 ready_check = "http://127.0.0.1:5173/api/providers"
 
 [healthcheck]
 command = "npm run health:spark"
-timeout_seconds = 20
+timeout_seconds = 60
 success_hint = "Spawner UI execution plane is healthy."
 failure_hint = "Run `npm run health:spark` in the module home for the repair detail."
 
