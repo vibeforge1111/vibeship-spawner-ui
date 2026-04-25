@@ -16,10 +16,12 @@ function normalizeProviderId(value: string | undefined): string | null {
 export const GET: RequestHandler = async () => {
 	const envRecord = env as Record<string, string | undefined>;
 	const sparkDefaultProvider =
-		normalizeProviderId(envRecord.SPARK_LLM_PROVIDER) ||
-		normalizeProviderId(envRecord.SPARK_SPARK_LLM_PROVIDER) ||
+		normalizeProviderId(envRecord.DEFAULT_MISSION_PROVIDER) ||
+		normalizeProviderId(envRecord.SPARK_MISSION_LLM_BOT_PROVIDER) ||
+		normalizeProviderId(envRecord.SPARK_MISSION_LLM_PROVIDER) ||
 		normalizeProviderId(envRecord.SPARK_BOT_DEFAULT_PROVIDER) ||
-		normalizeProviderId(envRecord.DEFAULT_MISSION_PROVIDER);
+		normalizeProviderId(envRecord.SPARK_LLM_PROVIDER) ||
+		normalizeProviderId(envRecord.SPARK_SPARK_LLM_PROVIDER);
 
 	return json({
 		sparkDefaultProvider,
