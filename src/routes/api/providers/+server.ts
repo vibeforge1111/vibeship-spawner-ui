@@ -2,10 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { DEFAULT_MULTI_LLM_PROVIDERS } from '$lib/services/multi-llm-orchestrator';
-
-function isConfiguredApiKey(value: string | undefined): value is string {
-	return Boolean(value && value.trim() && !value.startsWith('your_'));
-}
+import { resolveProviderRuntimeConfiguration } from '$lib/server/provider-config';
 
 function normalizeProviderId(value: string | undefined): string | null {
 	if (!value) return null;
@@ -35,6 +32,7 @@ export const GET: RequestHandler = async () => {
 			const sparkCommandTemplate = envRecord[`SPARK_${upperId}_COMMAND_TEMPLATE`];
 			const commandTemplate =
 				sparkCommandTemplate || envRecord[`${upperId}_COMMAND_TEMPLATE`] || provider.commandTemplate || null;
+			const runtimeConfig = resolveProviderRuntimeConfiguration(provider, envRecord);
 
 			return {
 				id: provider.id,
@@ -45,9 +43,11 @@ export const GET: RequestHandler = async () => {
 				sparkExecutionBridge: provider.sparkExecutionBridge || null,
 				executesFilesystem: provider.executesFilesystem === true,
 				apiKeyEnv: provider.apiKeyEnv || null,
-				envKeyConfigured: provider.apiKeyEnv
-					? isConfiguredApiKey(envRecord[provider.apiKeyEnv])
-					: false,
+				envKeyConfigured: runtimeConfig.envKeyConfigured,
+				cliConfigured: runtimeConfig.cliConfigured,
+				cliPath: runtimeConfig.cliPath,
+				configured: runtimeConfig.configured,
+				configurationMode: runtimeConfig.configurationMode,
 				sparkSelected: sparkDefaultProvider === provider.id
 			};
 		})

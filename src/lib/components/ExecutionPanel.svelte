@@ -350,6 +350,8 @@
 	interface ServerProviderInfo {
 		id: string;
 		envKeyConfigured?: boolean;
+		cliConfigured?: boolean;
+		configured?: boolean;
 		model?: string;
 		baseUrl?: string | null;
 	}
@@ -417,7 +419,7 @@
 			const presence = Object.fromEntries(
 				result.providers.map((provider: ServerProviderInfo) => [
 					provider.id,
-					Boolean(provider.envKeyConfigured)
+					Boolean(provider.configured ?? provider.cliConfigured ?? provider.envKeyConfigured)
 				])
 			);
 			applyServerProviderKeyPresence(
@@ -2036,7 +2038,7 @@
 												onchange={(e) =>
 													(multiLLMAutoEnableByKeys = (e.currentTarget as HTMLInputElement).checked)}
 											/>
-											Auto-enable by API keys
+											Auto-enable configured providers
 										</label>
 										<label class="flex items-center gap-2 text-xs text-text-secondary p-2 border border-surface-border">
 											<input

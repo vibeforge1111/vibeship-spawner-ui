@@ -60,7 +60,11 @@ async function main() {
   }
 
   const configuredCount = payload.providers.filter(
-    (provider) => provider && provider.envKeyConfigured === true,
+    (provider) =>
+      provider &&
+      (provider.configured === true ||
+        provider.envKeyConfigured === true ||
+        provider.cliConfigured === true),
   ).length;
   const providerIds = payload.providers
     .map((provider) => provider && provider.id)
