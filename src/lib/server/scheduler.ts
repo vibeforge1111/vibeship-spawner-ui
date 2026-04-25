@@ -1,12 +1,14 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { homedir } from 'node:os';
 import { randomBytes } from 'node:crypto';
 import { Cron } from 'croner';
-import { exec } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { env as privateEnv } from '$env/dynamic/private';
+import { resolveSparkRunProjectPath } from './spark-run-workspace';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 function _envVar(name: string): string | undefined {
   const v = (privateEnv as Record<string, string | undefined>)[name];
@@ -130,7 +132,10 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
     const goal = String(record.payload.goal ?? '');
     if (!goal) return { ok: false, summary: 'mission has no goal' };
     const requestId = `sched-${record.id}-${Date.now()}`;
-    const res = await fetch('http://127.0.0.1:4174/api/spark/run', {
+    const baseUrl = (_envVar('SPAWNER_UI_URL') || 'http://127.0.0.1:5173').replace(/\/$/, '');
+    const requestedProjectPath =
+      typeof record.payload.projectPath === 'string' ? record.payload.projectPath : undefined;
+    const res = await fetch(`${baseUrl}/api/spark/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -138,7 +143,7 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
         chatId: String(record.chatId || 'scheduler'),
         userId: 'scheduler',
         requestId,
-        projectPath: 'C:/Users/USER/Desktop',
+        projectPath: resolveSparkRunProjectPath(requestedProjectPath),
       }),
     });
     const body = (await res.json()) as { success?: boolean; missionId?: string; error?: string };
@@ -152,13 +157,24 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
     const rounds = Math.max(1, Number(record.payload.rounds ?? 2));
     if (!chipKey) return { ok: false, summary: 'loop has no chipKey' };
     const builderRepo =
-      process.env.SPARK_BUILDER_REPO || 'C:/Users/USER/Desktop/spark-intelligence-builder';
+      process.env.SPARK_BUILDER_REPO || path.resolve(process.cwd(), '..', 'spark-intelligence-builder');
     const home =
-      process.env.SPARK_BUILDER_HOME || path.join(builderRepo, '.tmp-home-live-telegram-real');
+      process.env.SPARK_BUILDER_HOME || path.join(homedir(), '.spark', 'state', 'spark-intelligence');
     const python = process.env.SPARK_BUILDER_PYTHON || 'python';
-    const cmd = `"${python}" -m spark_intelligence.cli loops run --home "${home}" --chip "${chipKey}" --rounds ${rounds} --json`;
     try {
-      const { stdout } = await execAsync(cmd, {
+      const { stdout } = await execFileAsync(python, [
+        '-m',
+        'spark_intelligence.cli',
+        'loops',
+        'run',
+        '--home',
+        home,
+        '--chip',
+        chipKey,
+        '--rounds',
+        String(rounds),
+        '--json',
+      ], {
         cwd: builderRepo,
         env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
         maxBuffer: 10 * 1024 * 1024,

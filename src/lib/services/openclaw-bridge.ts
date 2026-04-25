@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { spawn, execFileSync, type ChildProcess } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import type { Mission } from '$lib/services/mcp-client';
 import { TOP_100_MCPS } from '$lib/types/mcp';
 import { eventBridge } from '$lib/services/event-bridge';
+import { resolveCliBinary } from '$lib/server/cli-resolver';
 import {
 	PRECONFIGURED_MCPS,
 	callTool,
@@ -217,6 +218,7 @@ function isProviderId(value: unknown): value is OpenclawProviderId {
 
 interface ProviderCommand {
 	binary: 'claude' | 'codex';
+	resolvedBinary: string;
 	args: string[];
 }
 
@@ -225,13 +227,7 @@ function isSafeCommandToken(value: string): boolean {
 }
 
 function isBinaryAvailable(binaryName: ProviderCommand['binary']): boolean {
-	try {
-		const locator = process.platform === 'win32' ? 'where.exe' : 'which';
-		execFileSync(locator, [binaryName], { stdio: 'pipe', timeout: 5000 });
-		return true;
-	} catch {
-		return false;
-	}
+	return resolveCliBinary(binaryName) !== null;
 }
 
 function resolveProviderCommandTemplate(providerId: OpenclawProviderId, model?: string, template?: string): string {
@@ -254,17 +250,17 @@ function parseProviderCommand(providerId: OpenclawProviderId, commandTemplate: s
 		if (tokens[0] !== 'claude' || tokens.length !== 3 || tokens[1] !== '--model') {
 			throw new Error('Claude provider command must be: claude --model <model>');
 		}
-		return { binary: 'claude', args: ['--model', tokens[2]] };
+		return { binary: 'claude', resolvedBinary: resolveCliBinary('claude') || 'claude', args: ['--model', tokens[2]] };
 	}
 
 	if (tokens[0] !== 'codex' || tokens[1] !== 'exec') {
 		throw new Error('Codex provider command must start with: codex exec');
 	}
 	if (tokens.length === 3 && tokens[2] === '--yolo') {
-		return { binary: 'codex', args: ['exec', '--yolo'] };
+		return { binary: 'codex', resolvedBinary: resolveCliBinary('codex') || 'codex', args: ['exec', '--yolo'] };
 	}
 	if (tokens.length === 4 && tokens[2] === '--model') {
-		return { binary: 'codex', args: ['exec', '--model', tokens[3]] };
+		return { binary: 'codex', resolvedBinary: resolveCliBinary('codex') || 'codex', args: ['exec', '--model', tokens[3]] };
 	}
 	throw new Error('Codex provider command must be: codex exec --model <model> or codex exec --yolo');
 }
@@ -1153,7 +1149,7 @@ class OpenclawBridgeService {
 			let stderr = '';
 			let finished = false;
 			let progressMarks = 0;
-			const child = spawn(command.binary, command.args, {
+			const child = spawn(command.resolvedBinary, command.args, {
 				cwd: context.workingDirectory || process.cwd(),
 				shell: process.platform === 'win32',
 				stdio: ['pipe', 'pipe', 'pipe'],

@@ -10,9 +10,9 @@ import type { RequestHandler } from './$types';
 import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
-import { execFileSync } from 'node:child_process';
 import { openclawBridge } from '$lib/services/openclaw-bridge';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
+import { resolveCliBinary } from '$lib/server/cli-resolver';
 
 // Store pending PRDs in the project's .spawner directory
 const SPAWNER_DIR = join(process.cwd(), '.spawner');
@@ -92,25 +92,7 @@ function scheduleAutoAnalysisWatchdog(requestId: string): void {
 }
 
 function resolveCodexBinary(): string | null {
-	const configured = process.env.CODEX_PATH?.trim();
-	if (configured) return configured;
-
-	try {
-		const output = execFileSync('cmd.exe', ['/c', 'where', 'codex'], {
-			encoding: 'utf-8',
-			windowsHide: true,
-			stdio: ['ignore', 'pipe', 'ignore']
-		});
-		const matches = output
-			.split(/\r?\n/)
-			.map((line) => line.trim())
-			.filter(Boolean);
-		if (matches.length === 0) return null;
-		const cmdPath = matches.find((line) => line.toLowerCase().endsWith('.cmd'));
-		return cmdPath || matches[0] || null;
-	} catch {
-		return null;
-	}
+	return resolveCliBinary('codex');
 }
 
 function normalizeBuildMode(value: unknown): 'direct' | 'advanced_prd' {

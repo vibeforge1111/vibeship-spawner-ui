@@ -268,9 +268,9 @@
 
 	<!-- Footer -->
 	<div class="p-3 border-t border-surface-border bg-bg-tertiary">
-		<a href="/builder" class="flex items-center justify-center gap-1 text-xs text-accent-primary hover:underline">
-			<span>Open full builder</span>
-			<Icon name="external-link" size={10} />
+		<a href="/canvas" class="flex items-center justify-center gap-1 text-xs text-accent-primary hover:underline">
+			<span>Mission canvas</span>
+			<Icon name="git-branch" size={10} />
 		</a>
 	</div>
 </div>

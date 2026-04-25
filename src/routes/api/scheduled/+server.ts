@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import { building } from '$app/environment';
 import type { RequestHandler } from './$types';
 import {
   createSchedule,
@@ -8,7 +9,9 @@ import {
   type ScheduleAction,
 } from '$lib/server/scheduler';
 
-startScheduler();
+if (!building) {
+  startScheduler();
+}
 
 export const GET: RequestHandler = async () => {
   const schedules = await listSchedules();

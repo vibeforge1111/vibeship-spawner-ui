@@ -5,18 +5,19 @@
  * Captures stdout/stderr and emits progress events.
  */
 
-import { spawn, execFileSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ProviderResult, ProviderClientOptions } from './types';
 import { createBridgeEvent } from './types';
+import { resolveCliBinary } from '../cli-resolver';
 
 export interface CodexCliOptions extends ProviderClientOptions {
 	workingDirectory?: string;
 }
 
 interface CodexCliCommand {
-	binary: 'codex';
+	binary: 'codex' | string;
 	args: string[];
 }
 
@@ -41,14 +42,8 @@ function parseCodexCliCommand(commandTemplate: string): CodexCliCommand {
 	throw new Error('Codex command template must be: codex exec --model <model> or codex exec --yolo');
 }
 
-export async function isCliBinaryAvailable(binaryName: CodexCliCommand['binary']): Promise<boolean> {
-	try {
-		const locator = process.platform === 'win32' ? 'where.exe' : 'which';
-		execFileSync(locator, [binaryName], { stdio: 'pipe', timeout: 5000 });
-		return true;
-	} catch {
-		return false;
-	}
+export async function isCliBinaryAvailable(binaryName: 'codex'): Promise<boolean> {
+	return resolveCliBinary(binaryName) !== null;
 }
 
 export async function executeCodexCliRequest(
@@ -82,9 +77,8 @@ export async function executeCodexCliRequest(
 		return { success: false, error: message, durationMs: Date.now() - startTime };
 	}
 
-	// Check if binary exists in PATH
-	const available = await isCliBinaryAvailable(command.binary);
-	if (!available) {
+	const resolvedBinary = resolveCliBinary('codex');
+	if (!resolvedBinary) {
 		const error = `${provider.label} CLI "${command.binary}" not found in PATH`;
 		onEvent(
 			createBridgeEvent('error', options, {
@@ -111,7 +105,7 @@ export async function executeCodexCliRequest(
 		let lastProgressEmit = Date.now();
 		let killed = false;
 
-		const child = spawn(command.binary, command.args, {
+		const child = spawn(resolvedBinary, command.args, {
 			cwd,
 			stdio: ['pipe', 'pipe', 'pipe'],
 			shell: process.platform === 'win32',

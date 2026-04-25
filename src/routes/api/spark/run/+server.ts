@@ -7,6 +7,7 @@ import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { buildMultiLLMExecutionPack, createDefaultMultiLLMOptions } from '$lib/services/multi-llm-orchestrator';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { providerRuntime } from '$lib/server/provider-runtime';
+import { resolveSparkRunProjectPath } from '$lib/server/spark-run-workspace';
 
 interface SparkRunBody {
 	goal?: string;
@@ -60,7 +61,7 @@ function createSparkMission(body: SparkRunBody, goal: string, selectedProviderId
 			}
 		],
 		context: {
-			projectPath: body.projectPath?.trim() || 'C:/Users/USER/Desktop',
+			projectPath: resolveSparkRunProjectPath(body.projectPath),
 			projectType: 'tool',
 			goals: [goal]
 		},
