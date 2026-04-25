@@ -56,6 +56,7 @@ afterEach(() => {
 	providerRuntime.cleanup('mission-step2-failure');
 	providerRuntime.cleanup('mission-step2-cancel');
 	providerRuntime.cleanup('mission-step2-rebuild');
+	providerRuntime.cleanup('mission-step2-persist');
 });
 
 describe('provider-runtime openclaw bridge', () => {
@@ -232,5 +233,36 @@ describe('provider-runtime openclaw bridge', () => {
 		expect(after.snapshotAvailable).toBe(true);
 		expect(after.paused).toBe(false);
 		expect(Object.keys(after.providers).length).toBeGreaterThan(0);
+	});
+
+	it('keeps provider result details after in-memory sessions are cleared', async () => {
+		openclawBridge.setWorkerExecutorForTests(async (context) => {
+			return { success: true, response: `${context.providerId}-durable`, durationMs: 12 };
+		});
+
+		const pack = buildPack('mission-step2-persist', [provider('codex', 'gpt-5.5')]);
+		await providerRuntime.dispatch({
+			executionPack: pack,
+			apiKeys: { codex: 'test-codex' },
+			onEvent: () => {},
+			workingDirectory: process.cwd()
+		});
+
+		await waitFor(() => providerRuntime.getMissionStatus('mission-step2-persist').allComplete);
+		expect(providerRuntime.getMissionResults('mission-step2-persist')[0]).toMatchObject({
+			providerId: 'codex',
+			status: 'completed',
+			response: 'codex-durable'
+		});
+		expect(providerRuntime.getMissionResults('mission-step2-persist')[0].durationMs).toEqual(expect.any(Number));
+
+		providerRuntime.clearInMemoryForTests('mission-step2-persist');
+		expect(providerRuntime.getSessionsForMission('mission-step2-persist')).toEqual([]);
+		expect(providerRuntime.getMissionResults('mission-step2-persist')[0]).toMatchObject({
+			providerId: 'codex',
+			status: 'completed',
+			response: 'codex-durable'
+		});
+		expect(providerRuntime.getMissionResults('mission-step2-persist')[0].durationMs).toEqual(expect.any(Number));
 	});
 });

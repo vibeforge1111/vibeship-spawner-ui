@@ -27,21 +27,10 @@ export const GET: RequestHandler = async (event) => {
 		return json({ ok: false, error: 'missionId query parameter is required' }, { status: 400 });
 	}
 
-	const sessions = providerRuntime.getSessionsForMission(missionId);
-	if (sessions.length === 0) {
+	const results = providerRuntime.getMissionResults(missionId);
+	if (results.length === 0) {
 		return json({ ok: false, error: 'mission not found or no provider sessions' }, { status: 404 });
 	}
-
-	const results = sessions.map((s) => ({
-		providerId: s.providerId,
-		status: s.status,
-		response: s.result?.response ?? null,
-		error: s.error ?? s.result?.error ?? null,
-		durationMs: s.result?.durationMs ?? null,
-		tokenUsage: s.result?.tokenUsage ?? null,
-		startedAt: s.startedAt.toISOString(),
-		completedAt: s.completedAt ? s.completedAt.toISOString() : null
-	}));
 
 	return json({
 		ok: true,

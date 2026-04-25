@@ -28,7 +28,7 @@ import { openclawBridge } from '$lib/services/openclaw-bridge';
 import { eventBridge } from '$lib/services/event-bridge';
 import { mcpClient } from '$lib/services/mcp-client';
 import { readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 export interface DispatchOptions {
@@ -51,7 +51,41 @@ interface MissionDispatchSnapshot {
 	workingDirectory?: string;
 }
 
-const ACTIVE_MISSION_PATH = path.join(process.cwd(), '.spawner', 'active-mission.json');
+export interface ProviderMissionResultSnapshot {
+	providerId: string;
+	status: ProviderSessionStatus;
+	response: string | null;
+	error: string | null;
+	durationMs: number | null;
+	tokenUsage: ProviderResult['tokenUsage'] | null;
+	startedAt: string;
+	completedAt: string | null;
+}
+
+function getSpawnerStateDir(): string {
+	return process.env.SPAWNER_STATE_DIR || path.join(process.cwd(), '.spawner');
+}
+
+function getActiveMissionPath(): string {
+	return path.join(getSpawnerStateDir(), 'active-mission.json');
+}
+
+function getProviderResultsPath(): string {
+	return path.join(getSpawnerStateDir(), 'mission-provider-results.json');
+}
+
+function sessionToResultSnapshot(session: ProviderSession): ProviderMissionResultSnapshot {
+	return {
+		providerId: session.providerId,
+		status: session.status,
+		response: session.result?.response ?? null,
+		error: session.error ?? session.result?.error ?? null,
+		durationMs: session.result?.durationMs ?? null,
+		tokenUsage: session.result?.tokenUsage ?? null,
+		startedAt: session.startedAt.toISOString(),
+		completedAt: session.completedAt ? session.completedAt.toISOString() : null
+	};
+}
 
 class ProviderRuntimeManager {
 	private sessions = new Map<string, ProviderSession>();
@@ -60,6 +94,7 @@ class ProviderRuntimeManager {
 	private pausedMissions = new Set<string>();
 	private pausedReasons = new Map<string, string>();
 	private lastStatusReason = new Map<string, string>();
+	private persistedResults = this.loadPersistedResults();
 
 	private sessionKey(missionId: string, providerId: string): string {
 		return `${missionId}:${providerId}`;
@@ -70,13 +105,53 @@ class ProviderRuntimeManager {
 		this.lastStatusReason.set(missionId, reason);
 	}
 
+	private loadPersistedResults(): Map<string, ProviderMissionResultSnapshot[]> {
+		try {
+			const persistPath = getProviderResultsPath();
+			if (!existsSync(persistPath)) return new Map();
+			const raw = readFileSync(persistPath, 'utf-8');
+			const parsed = JSON.parse(raw) as { missions?: Record<string, ProviderMissionResultSnapshot[]> };
+			return new Map(
+				Object.entries(parsed.missions ?? {}).map(([missionId, results]) => [
+					missionId,
+					Array.isArray(results) ? results : []
+				])
+			);
+		} catch (error) {
+			console.warn('[ProviderRuntime] Failed to load persisted provider results:', error);
+			return new Map();
+		}
+	}
+
+	private persistResults(): void {
+		try {
+			const persistPath = getProviderResultsPath();
+			mkdirSync(path.dirname(persistPath), { recursive: true });
+			writeFileSync(
+				persistPath,
+				JSON.stringify({ missions: Object.fromEntries(this.persistedResults) }, null, 2),
+				'utf-8'
+			);
+		} catch (error) {
+			console.warn('[ProviderRuntime] Failed to persist provider results:', error);
+		}
+	}
+
+	private persistMissionSessions(missionId: string): void {
+		const snapshots = this.getSessionsForMission(missionId).map(sessionToResultSnapshot);
+		if (snapshots.length === 0) return;
+		this.persistedResults.set(missionId, snapshots);
+		this.persistResults();
+	}
+
 	private async recoverDispatchSnapshot(missionId: string): Promise<MissionDispatchSnapshot | null> {
 		const existing = this.dispatchSnapshots.get(missionId);
 		if (existing) return existing;
 
-		if (existsSync(ACTIVE_MISSION_PATH)) {
+		const activeMissionPath = getActiveMissionPath();
+		if (existsSync(activeMissionPath)) {
 			try {
-				const raw = await readFile(ACTIVE_MISSION_PATH, 'utf-8');
+				const raw = await readFile(activeMissionPath, 'utf-8');
 				const state = JSON.parse(raw) as {
 					missionId?: string;
 					multiLLMExecution?: MultiLLMExecutionPack | null;
@@ -193,6 +268,7 @@ class ProviderRuntimeManager {
 				session.status = 'failed';
 				session.error = 'No provider prompt generated';
 				sessionStatuses[provider.id] = { status: 'failed', error: session.error };
+				this.persistMissionSessions(missionId);
 				onEvent(
 					createBridgeEvent('log', { provider, missionId, onEvent, signal: abortController.signal }, {
 						message: `Skipping ${provider.label}: no prompt generated`
@@ -205,6 +281,7 @@ class ProviderRuntimeManager {
 				session.status = 'failed';
 				session.error = `No API key for ${provider.label} (set ${provider.apiKeyEnv} in .env or provide in UI)`;
 				sessionStatuses[provider.id] = { status: 'failed', error: session.error };
+				this.persistMissionSessions(missionId);
 				onEvent(
 					createBridgeEvent('log', { provider, missionId, onEvent, signal: abortController.signal }, {
 						message: `Skipping ${provider.label}: no API key configured`
@@ -227,6 +304,7 @@ class ProviderRuntimeManager {
 				session.completedAt = new Date();
 				sessionStatuses[provider.id] = { status: 'failed', error: session.error };
 				this.rememberStatusReason(missionId, session.error);
+				this.persistMissionSessions(missionId);
 				onEvent(
 					createBridgeEvent('task_failed', { provider, missionId, onEvent, signal: abortController.signal }, {
 						message: session.error,
@@ -245,6 +323,7 @@ class ProviderRuntimeManager {
 
 			session.status = 'running';
 			sessionStatuses[provider.id] = { status: 'running' };
+			this.persistMissionSessions(missionId);
 
 			const promise = this.executeProvider(
 				provider,
@@ -268,6 +347,7 @@ class ProviderRuntimeManager {
 					status: session.status,
 					error: session.error || undefined
 				};
+				this.persistMissionSessions(missionId);
 			});
 
 			providerPromises.push(promise);
@@ -307,6 +387,7 @@ class ProviderRuntimeManager {
 				});
 			}
 		});
+		this.persistMissionSessions(missionId);
 
 		return {
 			success: true,
@@ -435,6 +516,7 @@ class ProviderRuntimeManager {
 		}
 		session.status = 'cancelled';
 		session.completedAt = new Date();
+		this.persistMissionSessions(missionId);
 		return true;
 	}
 
@@ -451,6 +533,7 @@ class ProviderRuntimeManager {
 				session.completedAt = new Date();
 			}
 		}
+		this.persistMissionSessions(missionId);
 		this.rememberStatusReason(missionId, reason);
 	}
 
@@ -517,6 +600,14 @@ class ProviderRuntimeManager {
 		return sessions;
 	}
 
+	getMissionResults(missionId: string): ProviderMissionResultSnapshot[] {
+		const live = this.getSessionsForMission(missionId);
+		if (live.length > 0) {
+			return live.map(sessionToResultSnapshot);
+		}
+		return this.persistedResults.get(missionId) ?? [];
+	}
+
 	getMissionStatus(missionId: string): {
 		allComplete: boolean;
 		anyFailed: boolean;
@@ -565,6 +656,21 @@ class ProviderRuntimeManager {
 						openclawBridge.cancelProviderTask(openclawSessionId, 'Runtime cleanup');
 					}
 				}
+				this.openclawSessionIds.delete(key);
+				this.sessions.delete(key);
+			}
+		}
+		this.dispatchSnapshots.delete(missionId);
+		this.pausedMissions.delete(missionId);
+		this.pausedReasons.delete(missionId);
+		this.lastStatusReason.delete(missionId);
+		this.persistedResults.delete(missionId);
+		this.persistResults();
+	}
+
+	clearInMemoryForTests(missionId: string): void {
+		for (const [key, session] of this.sessions) {
+			if (session.missionId === missionId) {
 				this.openclawSessionIds.delete(key);
 				this.sessions.delete(key);
 			}
