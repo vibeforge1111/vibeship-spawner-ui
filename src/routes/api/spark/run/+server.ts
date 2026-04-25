@@ -18,6 +18,11 @@ interface SparkRunBody {
 	requestId?: string;
 	promptMode?: 'simple' | 'orchestrator';
 	suppressRelay?: boolean;
+	telegramRelay?: {
+		port?: string | number;
+		profile?: string;
+		url?: string;
+	};
 }
 
 function isConfiguredApiKey(value: string | undefined): value is string {
@@ -29,12 +34,33 @@ function normalizeProviderIds(value: unknown): string[] {
 	return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
 }
 
+function normalizeTelegramRelay(value: SparkRunBody['telegramRelay']): Record<string, unknown> | null {
+	if (!value || typeof value !== 'object') return null;
+	const relay: Record<string, unknown> = {};
+	if (typeof value.profile === 'string' && value.profile.trim()) {
+		relay.profile = value.profile.trim();
+	}
+	if (typeof value.url === 'string' && value.url.trim()) {
+		relay.url = value.url.trim();
+	}
+	const port = typeof value.port === 'number'
+		? value.port
+		: typeof value.port === 'string'
+			? Number(value.port.trim())
+			: NaN;
+	if (Number.isFinite(port) && port > 0) {
+		relay.port = Math.trunc(port);
+	}
+	return Object.keys(relay).length > 0 ? relay : null;
+}
+
 function createSparkMission(body: SparkRunBody, goal: string, selectedProviderIds: string[]): Mission {
 	const now = new Date().toISOString();
 	const missionId = `spark-${Date.now()}`;
 	const requestId = body.requestId?.trim() || missionId;
 	const chatId = body.chatId?.trim() || null;
 	const userId = body.userId?.trim() || 'spark-telegram';
+	const telegramRelay = normalizeTelegramRelay(body.telegramRelay);
 
 	return {
 		id: missionId,
@@ -74,7 +100,8 @@ function createSparkMission(body: SparkRunBody, goal: string, selectedProviderId
 				chatId,
 				userId,
 				providers: selectedProviderIds,
-				suppressRelay: body.suppressRelay === true
+				suppressRelay: body.suppressRelay === true,
+				...(telegramRelay ? { telegramRelay } : {})
 			}
 		},
 		error: null,

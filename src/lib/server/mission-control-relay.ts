@@ -415,6 +415,59 @@ async function postJson(url: string, payload: unknown, token?: string, extraHead
 	}
 }
 
+function normalizeRelayPort(value: unknown): number | null {
+	if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+		return Math.trunc(value);
+	}
+	if (typeof value === 'string' && value.trim()) {
+		const parsed = Number(value.trim());
+		return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : null;
+	}
+	return null;
+}
+
+function webhookPort(url: string): number | null {
+	try {
+		const parsed = new URL(url);
+		if (parsed.port) {
+			return normalizeRelayPort(parsed.port);
+		}
+		return parsed.protocol === 'https:' ? 443 : parsed.protocol === 'http:' ? 80 : null;
+	} catch {
+		return null;
+	}
+}
+
+function getTelegramRelayTarget(event: MissionControlBridgeEvent): { port: number | null; url: string | null } {
+	const data = event.data;
+	if (!data || typeof data !== 'object') {
+		return { port: null, url: null };
+	}
+	const relay = data.telegramRelay && typeof data.telegramRelay === 'object'
+		? data.telegramRelay as Record<string, unknown>
+		: null;
+	const urlRaw = relay?.url ?? data.telegramRelayUrl;
+	const port = normalizeRelayPort(relay?.port ?? data.telegramRelayPort);
+	const url = typeof urlRaw === 'string' && urlRaw.trim() ? urlRaw.trim() : null;
+	return { port, url };
+}
+
+export function selectWebhookUrlsForMissionEvent(event: MissionControlBridgeEvent, urls = DEFAULT_WEBHOOKS): string[] {
+	const target = getTelegramRelayTarget(event);
+	if (!target.url && target.port === null) {
+		return urls;
+	}
+	return urls.filter((url) => {
+		if (target.url && url === target.url) {
+			return true;
+		}
+		if (target.port !== null && webhookPort(url) === target.port) {
+			return true;
+		}
+		return false;
+	});
+}
+
 export async function relayMissionControlEvent(event: MissionControlBridgeEvent): Promise<void> {
 	if (!shouldRelayMissionControlEvent(event)) {
 		return;
@@ -433,7 +486,8 @@ export async function relayMissionControlEvent(event: MissionControlBridgeEvent)
 		);
 	}
 
-	if (DEFAULT_WEBHOOKS.length > 0) {
+	const webhookUrls = selectWebhookUrlsForMissionEvent(event);
+	if (webhookUrls.length > 0) {
 		const webhookPayload = {
 			type: 'mission_control_event',
 			timestamp: new Date().toISOString(),
@@ -443,7 +497,7 @@ export async function relayMissionControlEvent(event: MissionControlBridgeEvent)
 		const relayHeaders = DEFAULT_TELEGRAM_RELAY_SECRET
 			? { 'X-Spark-Telegram-Relay-Secret': DEFAULT_TELEGRAM_RELAY_SECRET }
 			: undefined;
-		for (const url of DEFAULT_WEBHOOKS) {
+		for (const url of webhookUrls) {
 			tasks.push(
 				postJson(url, webhookPayload, undefined, relayHeaders).catch((error) => {
 					console.warn(`[MissionControlRelay] Webhook relay failed (${url}):`, error);

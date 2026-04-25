@@ -3,6 +3,7 @@ import {
 	buildSparkMissionControlEvent,
 	getMissionControlRelaySnapshot,
 	relayMissionControlEvent,
+	selectWebhookUrlsForMissionEvent,
 	shouldRelayMissionControlEvent,
 	summarizeMissionControlEvent
 } from './mission-control-relay';
@@ -25,6 +26,35 @@ describe('mission-control-relay', () => {
 				data: { suppressRelay: true }
 			})
 		).toBe(false);
+	});
+
+	it('routes Telegram mission events only to the originating relay port', () => {
+		const urls = [
+			'http://127.0.0.1:8788/spawner-events',
+			'http://127.0.0.1:8789/spawner-events'
+		];
+
+		expect(
+			selectWebhookUrlsForMissionEvent({
+				type: 'mission_started',
+				missionId: 'spark-1',
+				data: { telegramRelay: { port: 8789, profile: 'spark-agi' } }
+			}, urls)
+		).toEqual(['http://127.0.0.1:8789/spawner-events']);
+	});
+
+	it('keeps legacy broadcast behavior when no Telegram relay target is present', () => {
+		const urls = [
+			'http://127.0.0.1:8788/spawner-events',
+			'http://127.0.0.1:8789/spawner-events'
+		];
+
+		expect(
+			selectWebhookUrlsForMissionEvent({
+				type: 'mission_started',
+				missionId: 'spark-1'
+			}, urls)
+		).toEqual(urls);
 	});
 
 	it('builds a valid SparkEventV1 payload', () => {
