@@ -8,6 +8,13 @@ const baseUrl = (process.env.SPAWNER_UI_URL || "http://127.0.0.1:5173").replace(
 const healthUrl = `${baseUrl}/api/providers`;
 const boardUrl = `${baseUrl}/api/mission-control/board`;
 
+function parseCsv(value) {
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function resolveCli(binaryName) {
   const upper = binaryName.toUpperCase();
   const configured =
@@ -63,6 +70,11 @@ export function resolveSparkWorkspaceRoot(env = process.env, fallbackHome = home
 }
 
 async function main() {
+  const relayWebhooks = parseCsv(process.env.MISSION_CONTROL_WEBHOOK_URLS);
+  if (relayWebhooks.length > 0 && !process.env.TELEGRAM_RELAY_SECRET?.trim()) {
+    throw new Error("MISSION_CONTROL_WEBHOOK_URLS is configured but TELEGRAM_RELAY_SECRET is missing");
+  }
+
   const payload = await getJson(healthUrl);
   if (!payload || !Array.isArray(payload.providers)) {
     throw new Error("provider payload missing providers[]");
@@ -125,6 +137,7 @@ async function main() {
       `${payload.providers.length} providers listed`,
       `${configuredCount} configured`,
       wantsCodex ? `codex=${codexPath}` : "codex=not-required",
+      relayWebhooks.length > 0 ? `relay_webhooks=${relayWebhooks.length}` : "relay_webhooks=none",
       `workspace=${smokeWorkspace}`,
     ].join(" | "),
   );

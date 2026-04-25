@@ -7,7 +7,7 @@ import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { buildMultiLLMExecutionPack, createDefaultMultiLLMOptions } from '$lib/services/multi-llm-orchestrator';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { providerRuntime } from '$lib/server/provider-runtime';
-import { resolveSparkRunProjectPath } from '$lib/server/spark-run-workspace';
+import { resolveSparkRunProjectPath, SparkRunWorkspaceError } from '$lib/server/spark-run-workspace';
 
 interface SparkRunBody {
 	goal?: string;
@@ -236,6 +236,9 @@ export const POST: RequestHandler = async (event) => {
 			startedAt: dispatchResult.startedAt
 		});
 	} catch (error) {
+		if (error instanceof SparkRunWorkspaceError) {
+			return json({ success: false, error: error.message }, { status: error.status });
+		}
 		return json(
 			{ success: false, error: error instanceof Error ? error.message : 'Spark run failed' },
 			{ status: 500 }
