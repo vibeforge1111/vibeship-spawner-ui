@@ -25,7 +25,12 @@ capabilities = [
 [needs]
 modules = []
 capabilities = []
-secrets = []
+secrets = [
+  "llm.zai.api_key",
+  "llm.openai.api_key",
+  "llm.anthropic.api_key",
+  "llm.minimax.api_key",
+]
 
 [claims]
 secrets = []
@@ -36,6 +41,30 @@ routes = [
   "http.api.mission-control.board",
   "http.api.mission-control.command",
 ]
+
+[secrets.llm_zai_api_key]
+prompt = "Z.AI API key for Spawner mission execution"
+required = false
+storage = "keychain"
+env_var = "ZAI_API_KEY"
+
+[secrets.llm_openai_api_key]
+prompt = "OpenAI API key for Spawner mission execution"
+required = false
+storage = "keychain"
+env_var = "OPENAI_API_KEY"
+
+[secrets.llm_anthropic_api_key]
+prompt = "Anthropic API key for Spawner mission execution"
+required = false
+storage = "keychain"
+env_var = "ANTHROPIC_API_KEY"
+
+[secrets.llm_minimax_api_key]
+prompt = "MiniMax API key for Spawner mission execution"
+required = false
+storage = "keychain"
+env_var = "MINIMAX_API_KEY"
 
 [run.default]
 command = "npm run dev -- --host 127.0.0.1"
