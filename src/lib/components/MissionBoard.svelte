@@ -27,6 +27,8 @@
 		taskNames?: string[];
 		tasks?: Array<{ title: string; skills: string[] }>;
 		summary?: string | null;
+		providerSummary?: string | null;
+		providerResults?: Array<{ providerId: string; status: string; summary: string }>;
 	};
 
 	let missions = $state<Mission[]>([]);
@@ -45,6 +47,8 @@
 		taskCount?: number;
 		taskNames?: string[];
 		tasks?: Array<{ title: string; skills: string[] }>;
+		providerSummary?: string | null;
+		providerResults?: Array<{ providerId: string; status: string; summary: string }>;
 	};
 	let relay = $state<RelayEntry[]>([]);
 	let relayTimer: ReturnType<typeof setInterval> | null = null;
@@ -324,7 +328,9 @@
 			strategy,
 			taskNames: e.taskNames,
 			tasks: e.tasks ?? e.taskNames?.map((title) => ({ title, skills: [] })),
-			summary: showSummary ? e.lastSummary : undefined
+			summary: showSummary ? e.lastSummary : undefined,
+			providerSummary: e.providerSummary,
+			providerResults: e.providerResults
 		};
 	}
 
@@ -611,6 +617,10 @@
 
 										{#if c.source === 'spark' && c.summary}
 											<p class="font-mono text-[10px] text-text-tertiary leading-snug mb-2.5 line-clamp-2">{c.summary}</p>
+										{/if}
+
+										{#if c.source === 'spark' && c.providerSummary}
+											<p class="font-mono text-[10px] text-accent-primary/80 leading-snug mb-2.5 line-clamp-3">{c.providerSummary}</p>
 										{/if}
 
 										{#if c.tasks && c.tasks.length > 0}

@@ -57,6 +57,14 @@
 		targets: { sparkIngestUrl: string | null; webhookCount: number };
 		stats: { totalRelayed: number; perMission: Record<string, number> };
 		recent: MissionControlEntry[];
+		providerSummary?: string | null;
+		providerResults?: Array<{
+			providerId: string;
+			status: string;
+			summary: string;
+			durationMs: number | null;
+			completedAt: string | null;
+		}>;
 	};
 
 	let missionControlLoading = $state(false);
@@ -309,6 +317,27 @@
 				</p>
 			</div>
 
+			{#if missionControl.providerResults && missionControl.providerResults.length > 0}
+				<div class="mb-6">
+					<h2 class="font-mono text-xs font-semibold text-text-bright tracking-wide mb-3">Agent results</h2>
+					<div class="grid gap-3">
+						{#each missionControl.providerResults as result (result.providerId)}
+							<article class="px-4 py-3.5 rounded-lg border border-surface-border bg-bg-secondary">
+								<div class="flex items-center gap-2 mb-2">
+									<span class="w-1.5 h-1.5 rounded-full shrink-0 {result.status === 'failed' ? 'bg-status-error' : result.status === 'completed' ? 'bg-status-success' : 'bg-accent-primary animate-pulse'}"></span>
+									<h3 class="font-sans text-sm font-semibold text-text-primary leading-tight flex-1">{result.providerId}</h3>
+									<span class="font-mono text-[10px] text-text-tertiary uppercase tracking-wider">{result.status}</span>
+								</div>
+								<p class="font-mono text-xs text-text-secondary leading-relaxed pl-3.5">{result.summary}</p>
+								{#if result.durationMs}
+									<p class="font-mono text-[10px] text-text-faint pl-3.5 mt-2">{Math.round(result.durationMs / 1000)}s</p>
+								{/if}
+							</article>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
 			<!-- Per-task cards -->
 			{#if taskRollups.length > 0}
 				<div class="mb-6">
@@ -364,7 +393,7 @@
 			{/if}
 
 			<p class="mt-4 font-mono text-[11px] text-text-tertiary">
-				This mission was dispatched through <code class="text-accent-primary">/api/spark/run</code> — it doesn't exist in MCP, so full task/agent detail isn't available.
+				This mission was dispatched through <code class="text-accent-primary">/api/spark/run</code>; provider output is retained separately from MCP task records.
 			</p>
 		{:else if !mcpConnected}
 			<div class="border border-surface-border rounded-lg bg-bg-secondary p-12 text-center">

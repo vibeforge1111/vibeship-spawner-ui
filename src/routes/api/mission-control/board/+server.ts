@@ -2,6 +2,8 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { getMissionControlBoard } from '$lib/server/mission-control-relay';
+import { enrichMissionControlBoardWithProviderResults } from '$lib/server/mission-control-results';
+import { providerRuntime } from '$lib/server/provider-runtime';
 
 export const GET: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
@@ -24,7 +26,10 @@ export const GET: RequestHandler = async (event) => {
 
 	return json({
 		ok: true,
-		board: getMissionControlBoard(),
+		board: enrichMissionControlBoardWithProviderResults(
+			getMissionControlBoard(),
+			(missionId) => providerRuntime.getMissionResults(missionId)
+		),
 		serverTime: new Date().toISOString()
 	});
 };
