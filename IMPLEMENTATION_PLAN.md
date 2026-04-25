@@ -54,17 +54,17 @@ src/
 
 ---
 
-### Phase 2: Agent Builder
-**Goal:** Select and compose agents for projects
+### Phase 2: Mission Surfaces
+**Goal:** Use the current Canvas, Kanban, Missions, and Skills surfaces for project orchestration
 
 | Task | Priority | Files |
 |------|----------|-------|
 | Create stack store (agents, MCPs, selection) | P0 | `stores/stack.ts` |
 | Build AgentCard component | P0 | `components/AgentCard.svelte` |
 | Build McpCard component | P0 | `components/McpCard.svelte` |
-| Create /builder route | P0 | `routes/builder/+page.svelte` |
+| Create /kanban route | P0 | `routes/kanban/+page.svelte` |
 | Add recommendation service | P1 | `services/recommendations.ts` |
-| Show compatible skills per agent | P1 | Update builder page |
+| Show compatible skills per mission | P1 | Update Canvas/Kanban surfaces |
 | Add agent orchestration preview | P2 | Canvas integration |
 
 **Agents to include:**
@@ -210,7 +210,7 @@ interface CanvasStore {
 /skills/[id]                Skill detail page
 /skills/create              Skill creation guide
 /skills/find                Skill finder
-/builder                    Agent/MCP builder
+/kanban                     Mission board and live run tracking
 /discovery                  Project discovery flow
 /summary                    Export configuration
 /guide                      MCP installation guide
@@ -233,10 +233,10 @@ interface CanvasStore {
 3. ✅ Collaboration section
 4. ✅ Handoff triggers display
 
-### Sprint 3: Builder
+### Sprint 3: Mission Surfaces
 1. ✅ Stack store
 2. ✅ AgentCard + McpCard
-3. ✅ /builder page
+3. ✅ /kanban mission board
 4. ✅ Recommendations engine
 
 ### Sprint 4: Discovery + Export
