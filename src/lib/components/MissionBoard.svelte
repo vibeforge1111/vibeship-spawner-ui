@@ -607,7 +607,7 @@
 						<div class="flex-1 space-y-2">
 							{#each col.items as c (c.id)}
 								<article class="group relative px-4 py-3.5 rounded-lg border border-surface-border bg-bg-secondary hover:border-border-strong transition-all">
-									<a href={`/missions/${c.id}`} class="block">
+									<div class="block">
 										<div class="flex items-center gap-2 mb-2.5">
 											<span class="w-1.5 h-1.5 rounded-full shrink-0 {statusDot(c.status)}"></span>
 											<h3 class="font-sans text-sm font-semibold leading-tight text-text-primary group-hover:text-accent-primary transition-colors line-clamp-2">
@@ -658,7 +658,7 @@
 												<span class="ml-auto">{c.status}</span>
 											{/if}
 										</div>
-									</a>
+									</div>
 
 									<div class="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
 										{#if c.source === 'mcp' && (c.status === 'ready' || c.status === 'draft')}
