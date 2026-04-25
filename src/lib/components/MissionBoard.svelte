@@ -417,6 +417,12 @@
 		return 'bg-status-success';
 	}
 
+	let expandedCardId = $state<string | null>(null);
+
+	function toggleCard(card: BoardCard) {
+		expandedCardId = expandedCardId === card.id ? null : card.id;
+	}
+
 	async function handleStart(card: BoardCard) {
 		if (card.source !== 'mcp') return;
 		const m = missions.find((x) => x.id === card.id);
@@ -606,8 +612,13 @@
 
 						<div class="flex-1 space-y-2">
 							{#each col.items as c (c.id)}
-								<article class="group relative px-4 py-3.5 rounded-lg border border-surface-border bg-bg-secondary hover:border-border-strong transition-all">
-									<div class="block">
+								<article class="group relative px-4 py-3.5 rounded-lg border border-surface-border bg-bg-secondary hover:border-border-strong transition-all" class:border-accent-primary={expandedCardId === c.id}>
+									<button
+										type="button"
+										class="block w-full p-0 border-0 bg-transparent text-left text-inherit cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-primary/70 rounded-md"
+										aria-expanded={expandedCardId === c.id}
+										onclick={() => toggleCard(c)}
+									>
 										<div class="flex items-center gap-2 mb-2.5">
 											<span class="w-1.5 h-1.5 rounded-full shrink-0 {statusDot(c.status)}"></span>
 											<h3 class="font-sans text-sm font-semibold leading-tight text-text-primary group-hover:text-accent-primary transition-colors line-clamp-2">
@@ -658,7 +669,42 @@
 												<span class="ml-auto">{c.status}</span>
 											{/if}
 										</div>
-									</div>
+
+										{#if expandedCardId === c.id}
+											<div class="mt-3 border-t border-surface-border/70 pt-3 space-y-2">
+												<div class="grid grid-cols-2 gap-2 font-mono text-[10px] text-text-tertiary">
+													<span>ID: {c.id}</span>
+													<span>Status: {c.status}</span>
+													<span>Source: {c.source}</span>
+													<span>Priority: {priorityOf(c)}</span>
+												</div>
+
+												{#if c.summary}
+													<p class="font-mono text-[10px] text-text-secondary leading-snug">{c.summary}</p>
+												{/if}
+
+												{#if c.providerSummary}
+													<p class="font-mono text-[10px] text-accent-primary/80 leading-snug">{c.providerSummary}</p>
+												{/if}
+
+												{#if c.providerResults && c.providerResults.length > 0}
+													<div class="space-y-1">
+														{#each c.providerResults.slice(0, 3) as result}
+															<p class="font-mono text-[10px] text-text-tertiary">
+																<span class="text-text-secondary">{result.providerId}</span>
+																<span> {result.status}</span>
+																{#if result.summary}
+																	<span>: {result.summary}</span>
+																{/if}
+															</p>
+														{/each}
+													</div>
+												{/if}
+
+												<p class="font-mono text-[10px] text-text-faint">Click again to collapse.</p>
+											</div>
+										{/if}
+									</button>
 
 									<div class="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
 										{#if c.source === 'mcp' && (c.status === 'ready' || c.status === 'draft')}
