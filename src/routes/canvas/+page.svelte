@@ -21,7 +21,7 @@ import { get } from 'svelte/store';
 	import { initCanvasSync } from '$lib/services/canvas-sync';
 	import PipelineSelector from '$lib/components/PipelineSelector.svelte';
 	import SessionStateBar from '$lib/components/SessionStateBar.svelte';
-	import { initPipelines, saveCurrentPipeline, getActivePipelineData, ensurePipeline, activePipelineId as activePipelineIdStore, type PipelineData } from '$lib/stores/pipelines.svelte';
+	import { initPipelines, saveCurrentPipeline, getActivePipelineData, ensurePipeline, switchPipeline, activePipelineId as activePipelineIdStore, type PipelineData } from '$lib/stores/pipelines.svelte';
 	import { hasResumableMission } from '$lib/services/persistence';
 	import { DroppedSkillSchema, safeJsonParse } from '$lib/types/schemas';
 	import { getLatestPipelineLoad, getPendingLoad, type PendingPipelineLoad } from '$lib/services/pipeline-loader';
@@ -456,6 +456,23 @@ import { get } from 'svelte/store';
 			return true;
 		}
 
+		function loadExplicitPipelineFromUrl(url: URL): boolean {
+			const pipelineId = url.searchParams.get('pipeline')?.trim();
+			if (!pipelineId) return false;
+
+			const data = switchPipeline(pipelineId);
+			if (!data) {
+				console.warn('[Canvas] Requested pipeline not found:', pipelineId);
+				return false;
+			}
+
+			loadPipelineToCanvas(data);
+			lastSaved = new Date();
+			sparkPipelineActive = pipelineId.startsWith('prd-');
+			console.log('[Canvas] Loaded explicit pipeline from URL:', pipelineId);
+			return true;
+		}
+
 		async function consumePendingLoadFromQueue(): Promise<boolean> {
 			const pendingLoad = await getPendingLoad();
 			if (disposed || !pendingLoad) return false;
@@ -481,6 +498,7 @@ import { get } from 'svelte/store';
 		// (suppressed via ?noexec=1 query for landing-page screenshot capture)
 		const url = new URL(window.location.href);
 		const suppressExec = url.searchParams.get('noexec') === '1';
+		const loadedExplicitPipeline = loadExplicitPipelineFromUrl(url);
 		const hasResumable = hasResumableMission();
 		console.log('[Canvas] hasResumableMission:', hasResumable);
 		if (hasResumable && !suppressExec) {
@@ -494,10 +512,10 @@ import { get } from 'svelte/store';
 		// Priority: 1. Pending load (from PRD/goal) → 2. Active pipeline
 		// =====================================================================
 
-		const consumedPendingLoad = await consumePendingLoadFromQueue();
+		const consumedPendingLoad = loadedExplicitPipeline ? false : await consumePendingLoadFromQueue();
 		if (disposed) return;
 
-		if (!consumedPendingLoad) {
+		if (!loadedExplicitPipeline && !consumedPendingLoad) {
 			// NO PENDING LOAD: Load active pipeline from localStorage
 			const latestSynced = await syncLatestSparkLoad();
 			if (disposed) return;

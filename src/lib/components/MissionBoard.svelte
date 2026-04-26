@@ -8,7 +8,9 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import { missionsState, loadMissions, startMission as startCurrent, setCurrentMission, deleteMission } from '$lib/stores/missions.svelte';
 	import { mcpState } from '$lib/stores/mcp.svelte';
+	import { initPipelines, pipelines } from '$lib/stores/pipelines.svelte';
 	import type { Mission } from '$lib/services/mcp-client';
+	import type { PipelineMetadata } from '$lib/stores/pipelines.svelte';
 
 	type Tab = 'board' | 'scheduled';
 	let activeTab = $state<Tab>('board');
@@ -29,12 +31,14 @@
 		summary?: string | null;
 		providerSummary?: string | null;
 		providerResults?: Array<{ providerId: string; status: string; summary: string }>;
+		canvasHref?: string | null;
 	};
 
 	let missions = $state<Mission[]>([]);
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 	let mcpConnected = $state(false);
+	let currentPipelines = $state<PipelineMetadata[]>([]);
 
 	type RelayEntry = {
 		missionId: string;
@@ -330,8 +334,32 @@
 			tasks: e.tasks ?? e.taskNames?.map((title) => ({ title, skills: [] })),
 			summary: showSummary ? e.lastSummary : undefined,
 			providerSummary: e.providerSummary,
-			providerResults: e.providerResults
+			providerResults: e.providerResults,
+			canvasHref: canvasHrefForMission(e.missionId, name)
 		};
+	}
+
+	function missionNumericSuffix(id: string): string {
+		return id.replace(/^(spark|mission)-/, '');
+	}
+
+	function normalizeTitle(value: string | null | undefined): string {
+		return (value || '')
+			.toLowerCase()
+			.replace(/^spark run:\s*/, '')
+			.replace(/[^\p{L}\p{N}]+/gu, ' ')
+			.trim();
+	}
+
+	function canvasHrefForMission(missionId: string, missionName?: string | null): string | null {
+		const suffix = missionNumericSuffix(missionId);
+		const normalizedMission = normalizeTitle(missionName);
+		const pipeline = currentPipelines.find((candidate) => {
+			if (suffix && candidate.id.includes(suffix)) return true;
+			if (normalizedMission && normalizeTitle(candidate.name) === normalizedMission) return true;
+			return false;
+		});
+		return pipeline ? `/canvas?pipeline=${encodeURIComponent(pipeline.id)}` : null;
 	}
 
 	const cards = $derived(() => {
@@ -363,7 +391,9 @@
 	);
 
 	onMount(() => {
+		initPipelines();
 		const unsubMcp = mcpState.subscribe((s) => { mcpConnected = s.status === 'connected'; });
+		const unsubPipelines = pipelines.subscribe((p) => { currentPipelines = p; });
 		const unsub = missionsState.subscribe((s) => {
 			missions = s.missions;
 			loading = s.loading;
@@ -372,7 +402,7 @@
 		loadMissions({ limit: 200 }).catch(() => {});
 		fetchRelay();
 		relayTimer = setInterval(fetchRelay, 4000);
-		return () => { unsub(); unsubMcp(); };
+		return () => { unsub(); unsubMcp(); unsubPipelines(); };
 	});
 
 	onDestroy(() => {
@@ -707,6 +737,17 @@
 									</button>
 
 									<div class="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+										{#if c.canvasHref}
+											<a
+												href={c.canvasHref}
+												data-sveltekit-reload
+												onclick={(event) => event.stopPropagation()}
+												class="px-2 py-0.5 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all"
+												title="Open this project's canvas"
+											>
+												Canvas
+											</a>
+										{/if}
 										{#if c.source === 'mcp' && (c.status === 'ready' || c.status === 'draft')}
 											<button
 												onclick={() => handleStart(c)}

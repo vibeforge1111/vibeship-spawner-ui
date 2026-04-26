@@ -11,7 +11,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { readFile, writeFile, mkdir, unlink } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import type { MultiLLMExecutionPack } from '$lib/services/multi-llm-orchestrator';
@@ -132,6 +132,18 @@ export const POST: RequestHandler = async ({ request }) => {
 		const body = await request.json();
 		const spawnerDir = getSpawnerDir();
 		const missionPath = getActiveMissionPath();
+		const status = typeof body.status === 'string' ? body.status : 'running';
+
+		if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+			if (existsSync(missionPath)) {
+				await unlink(missionPath);
+			}
+			return json({
+				success: true,
+				active: false,
+				message: 'Terminal mission state cleared'
+			});
+		}
 
 		// Ensure .spawner directory exists
 		if (!existsSync(spawnerDir)) {
@@ -142,7 +154,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const state: ActiveMissionState = {
 			missionId: body.missionId,
 			missionName: body.missionName || 'Unnamed Mission',
-			status: body.status || 'running',
+			status: status === 'paused' || status === 'creating' ? status : 'running',
 			progress: body.progress || 0,
 			currentTaskId: body.currentTaskId || null,
 			currentTaskName: body.currentTaskName || null,

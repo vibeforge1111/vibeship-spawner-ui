@@ -139,6 +139,41 @@ describe('/api/mission/active integration', () => {
 		expect(existsSync(missionFile)).toBe(false);
 	});
 
+	it('clears active file instead of persisting terminal mission states', async () => {
+		await writeFile(missionFile, JSON.stringify({
+			missionId: 'mission-old-running',
+			missionName: 'Old running mission',
+			status: 'running',
+			progress: 40,
+			tasks: [],
+			completedTasks: [],
+			failedTasks: [],
+			lastUpdated: new Date().toISOString(),
+			resumeInstructions: 'old'
+		}, null, 2));
+
+		const postResponse = await POST({
+			request: new Request('http://localhost/api/mission/active', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					missionId: 'mission-old-running',
+					missionName: 'Old running mission',
+					status: 'completed',
+					progress: 100,
+					tasks: [],
+					completedTasks: [],
+					failedTasks: []
+				})
+			})
+		} as never);
+		expect(postResponse.status).toBe(200);
+		const body = await postResponse.json();
+
+		expect(body.active).toBe(false);
+		expect(existsSync(missionFile)).toBe(false);
+	});
+
 	it('reports stale mission state as inactive by default', async () => {
 		await writeFile(missionFile, JSON.stringify({
 			missionId: 'mission-stale-test',

@@ -302,15 +302,16 @@ class MissionExecutor {
 			});
 		}
 
-		// Sync to file for Claude Code resume capability (debounced)
-		this.syncStateToFile();
-
 		// If completed/failed/cancelled, move to history and clear file
 		if (this.progress.status === 'completed' || this.progress.status === 'failed' || this.progress.status === 'cancelled') {
 			addToMissionHistory(serialized);
 			clearMissionState();
 			this.clearFileSyncState();
+			return;
 		}
+
+		// Sync to file for Claude Code resume capability (debounced)
+		this.syncStateToFile();
 	}
 
 	/**
@@ -327,6 +328,9 @@ class MissionExecutor {
 
 		this.fileSyncDebounceTimer = setTimeout(async () => {
 			try {
+				if (this.progress.status === 'completed' || this.progress.status === 'failed' || this.progress.status === 'cancelled') {
+					return;
+				}
 				const mission = this.progress.mission;
 				if (!mission || !this.progress.missionId) return;
 
@@ -383,6 +387,10 @@ class MissionExecutor {
 		if (!browser) return;
 
 		try {
+			if (this.fileSyncDebounceTimer) {
+				clearTimeout(this.fileSyncDebounceTimer);
+				this.fileSyncDebounceTimer = null;
+			}
 			await fetch('/api/mission/active', { method: 'DELETE' });
 			log.debug('File sync state cleared');
 		} catch (error) {
