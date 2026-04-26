@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	buildSparkMissionControlEvent,
+	getMissionControlPersistPath,
 	getMissionControlBoard,
 	getMissionControlRelaySnapshot,
 	relayMissionControlEvent,
@@ -27,6 +28,20 @@ describe('mission-control-relay', () => {
 				data: { suppressRelay: true }
 			})
 		).toBe(false);
+	});
+
+	it('persists Mission Control state under configured Spawner state directory', () => {
+		const previous = process.env.SPAWNER_STATE_DIR;
+		process.env.SPAWNER_STATE_DIR = 'C:\\spark-state\\spawner-ui';
+		try {
+			expect(getMissionControlPersistPath()).toBe('C:\\spark-state\\spawner-ui\\mission-control.json');
+		} finally {
+			if (previous === undefined) {
+				delete process.env.SPAWNER_STATE_DIR;
+			} else {
+				process.env.SPAWNER_STATE_DIR = previous;
+			}
+		}
 	});
 
 	it('routes Telegram mission events only to the originating relay port', () => {

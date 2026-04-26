@@ -90,7 +90,10 @@ const STALE_NON_TERMINAL_MS = Number(env.MISSION_CONTROL_STALE_NONTERMINAL_MS) |
 
 // Persist relay state so HMR reloads + server restarts don't wipe the history.
 // Small file, synchronous writes; we're on the order of tens of events.
-const PERSIST_PATH = path.resolve(process.cwd(), '.spawner', 'mission-control.json');
+export function getMissionControlPersistPath(): string {
+	const spawnerDir = process.env.SPAWNER_STATE_DIR || env.SPAWNER_STATE_DIR || path.resolve(process.cwd(), '.spawner');
+	return path.resolve(spawnerDir, 'mission-control.json');
+}
 
 function isMissionControlMissionId(value: unknown): value is string {
 	return typeof value === 'string' && /^spark-[A-Za-z0-9_-]+$/.test(value.trim());
@@ -98,8 +101,9 @@ function isMissionControlMissionId(value: unknown): value is string {
 
 function loadPersistedState() {
 	try {
-		if (!fs.existsSync(PERSIST_PATH)) return null;
-		const raw = fs.readFileSync(PERSIST_PATH, 'utf-8');
+		const persistPath = getMissionControlPersistPath();
+		if (!fs.existsSync(persistPath)) return null;
+		const raw = fs.readFileSync(persistPath, 'utf-8');
 		const parsed = JSON.parse(raw);
 		const recent = Array.isArray(parsed.recent)
 			? parsed.recent
@@ -121,10 +125,11 @@ function loadPersistedState() {
 
 function persistState() {
 	try {
-		const dir = path.dirname(PERSIST_PATH);
+		const persistPath = getMissionControlPersistPath();
+		const dir = path.dirname(persistPath);
 		if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 		fs.writeFileSync(
-			PERSIST_PATH,
+			persistPath,
 			JSON.stringify({
 				totalRelayed: relayState.totalRelayed,
 				perMission: Object.fromEntries(relayState.perMission),
