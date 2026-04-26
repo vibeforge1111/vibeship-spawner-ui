@@ -28,7 +28,7 @@ import { openclawBridge } from '$lib/services/openclaw-bridge';
 import { eventBridge } from '$lib/services/event-bridge';
 import { mcpClient } from '$lib/services/mcp-client';
 import { readFile } from 'node:fs/promises';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 export interface DispatchOptions {
@@ -110,6 +110,7 @@ class ProviderRuntimeManager {
 			const persistPath = getProviderResultsPath();
 			if (!existsSync(persistPath)) return new Map();
 			const raw = readFileSync(persistPath, 'utf-8');
+			if (!raw.trim()) return new Map();
 			const parsed = JSON.parse(raw) as { missions?: Record<string, ProviderMissionResultSnapshot[]> };
 			return new Map(
 				Object.entries(parsed.missions ?? {}).map(([missionId, results]) => [
@@ -127,11 +128,13 @@ class ProviderRuntimeManager {
 		try {
 			const persistPath = getProviderResultsPath();
 			mkdirSync(path.dirname(persistPath), { recursive: true });
+			const tempPath = `${persistPath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
 			writeFileSync(
-				persistPath,
+				tempPath,
 				JSON.stringify({ missions: Object.fromEntries(this.persistedResults) }, null, 2),
 				'utf-8'
 			);
+			renameSync(tempPath, persistPath);
 		} catch (error) {
 			console.warn('[ProviderRuntime] Failed to persist provider results:', error);
 		}
@@ -545,6 +548,25 @@ class ProviderRuntimeManager {
 				this.persistedResults.has(missionId) ||
 				this.dispatchSnapshots.has(missionId) ||
 				this.pausedMissions.has(missionId);
+			if (!knownMission) {
+				try {
+					const missionResult = await mcpClient.getMission(missionId);
+					const mission = missionResult.success ? missionResult.data?.mission : null;
+					if (mission) {
+						if (mission.status === 'completed' || mission.status === 'failed') {
+							const reason = `Mission is already ${mission.status}.`;
+							this.rememberStatusReason(missionId, reason);
+							return { paused: false, reason };
+						}
+						this.pausedMissions.add(missionId);
+						this.pausedReasons.set(missionId, 'Mission paused; no active provider sessions were running.');
+						this.rememberStatusReason(missionId, 'Mission paused');
+						return { paused: true, reason: 'Mission paused' };
+					}
+				} catch {
+					// Keep the user-facing not-found path below; pause should not fail loudly while probing storage.
+				}
+			}
 			const reason = knownMission
 				? 'No active provider sessions to pause.'
 				: 'Mission not found or no provider sessions.';
