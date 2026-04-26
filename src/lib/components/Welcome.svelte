@@ -25,8 +25,6 @@
 
 	let { onStart: _onStart }: { onStart?: (goal: string, options?: { includeSkills?: boolean; includeMCPs?: boolean }) => void } = $props();
 
-	let fileInputEl: HTMLInputElement;
-
 	// Smart Mode - uses new analyzer that generates smaller, completable missions
 	let useSmartMode = $state(true);  // Default ON
 	let smartPrompt = $state<string | null>(null);  // Store generated prompt
@@ -512,15 +510,6 @@
 	<Navbar />
 
 	<main class="flex-1">
-	<!-- Hidden file input (still wired so other entry points can trigger PRD upload) -->
-	<input
-		type="file"
-		accept=".md,.txt"
-		onchange={handlePRDUpload}
-		bind:this={fileInputEl}
-		class="hidden"
-	/>
-
 	<!-- Hero — live mission demo -->
 	<MissionLive />
 

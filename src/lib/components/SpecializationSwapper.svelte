@@ -122,13 +122,13 @@
 				<!-- Mini canvas -->
 				<div class="rounded-md border border-surface-border bg-bg-primary p-5 fade-in" style="animation-delay: 100ms">
 					<p class="font-mono text-xs text-text-tertiary tracking-widest mb-4">CANVAS</p>
-					<div class="flex flex-wrap items-center gap-2">
+					<div class="flex flex-wrap items-center gap-y-3">
 						{#each current.canvasNodes as node, i}
-							<span class="inline-flex items-center px-3 py-1.5 rounded-md border border-accent-primary/40 bg-accent-primary/10 font-mono text-sm text-text-primary">
+							<span class="inline-flex items-center px-3 py-1.5 rounded-md border border-accent-primary/40 bg-accent-primary/10 font-mono text-sm text-text-primary shadow-[0_0_18px_-6px_rgb(var(--accent-rgb)/0.3)]">
 								{node}
 							</span>
 							{#if i < current.canvasNodes.length - 1}
-								<span class="text-accent-primary/60 text-base">→</span>
+								<span class="inline-block w-5 mx-1 border-t border-dashed border-accent-primary/60" aria-hidden="true"></span>
 							{/if}
 						{/each}
 					</div>
