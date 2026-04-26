@@ -60,6 +60,22 @@ describe('mission-control-results', () => {
 		expect(summary.providerResults[0].summary).toBe('Codex exited 1');
 	});
 
+	it('redacts local file paths from provider summaries before display', () => {
+		const summary = summarizeProviderResults([
+			result({
+				providerId: 'codex',
+				response:
+					'Wrote [agent.py](C:/Users/USER/.spark/modules/spark-intelligence-builder/source/src/agent.py) and `/Users/leventcem/.spark/logs/spawner-ui.log`.'
+			})
+		]);
+
+		expect(summary.providerSummary).toBe(
+			'Codex: Wrote [agent.py]([local path]) and `[local path]`.'
+		);
+		expect(summary.providerSummary).not.toContain('C:/Users/USER');
+		expect(summary.providerSummary).not.toContain('/Users/leventcem');
+	});
+
 	it('enriches each board entry through the supplied result lookup', () => {
 		const enriched = enrichMissionControlBoardWithProviderResults(
 			{ completed: [entry('mission-1')], failed: [] },

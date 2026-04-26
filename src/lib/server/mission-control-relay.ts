@@ -1,6 +1,7 @@
 import { env } from '$env/dynamic/private';
 import * as fs from 'fs';
 import * as path from 'path';
+import { sanitizeMissionControlDisplayText } from './mission-control-display';
 
 export interface MissionControlBridgeEvent {
 	id?: string;
@@ -272,25 +273,27 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 		if (!existing) {
 			byMission.set(entry.missionId, {
 				missionId: entry.missionId,
-				missionName: entry.missionName,
+				missionName: entry.missionName ? sanitizeMissionControlDisplayText(entry.missionName) : null,
 				status,
 				lastEventType: entry.eventType,
 				lastUpdated: entry.timestamp,
-				lastSummary: entry.summary,
-				taskName: entry.taskName,
+				lastSummary: sanitizeMissionControlDisplayText(entry.summary),
+				taskName: entry.taskName ? sanitizeMissionControlDisplayText(entry.taskName) : null,
 				taskCount: 0,
 				taskNames: [],
 				tasks: []
 			});
 		} else {
-			if (!existing.taskName && entry.taskName) existing.taskName = entry.taskName;
-			if (!existing.missionName && entry.missionName) existing.missionName = entry.missionName;
+			if (!existing.taskName && entry.taskName) existing.taskName = sanitizeMissionControlDisplayText(entry.taskName);
+			if (!existing.missionName && entry.missionName) {
+				existing.missionName = sanitizeMissionControlDisplayText(entry.missionName);
+			}
 		}
 
 		// Count distinct tasks by watching task_started events.
 		if (entry.eventType === 'task_started') {
 			const current = byMission.get(entry.missionId)!;
-			const label = entry.taskName ?? 'task';
+			const label = entry.taskName ? sanitizeMissionControlDisplayText(entry.taskName) : 'task';
 			if (!current.taskNames.includes(label)) {
 				current.taskNames.push(label);
 				current.taskCount = current.taskNames.length;

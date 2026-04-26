@@ -1,6 +1,7 @@
 import type { MissionControlBoardEntry } from './mission-control-relay';
 import type { ProviderMissionResultSnapshot } from './provider-runtime';
 import type { ProviderSessionStatus } from './provider-clients/types';
+import { compactMissionControlDisplayText } from './mission-control-display';
 
 export interface MissionControlProviderResultSummary {
 	providerId: string;
@@ -18,18 +19,6 @@ export interface MissionControlResultSummary {
 type BoardBuckets = Record<string, MissionControlBoardEntry[]>;
 type ResultLookup = (missionId: string) => ProviderMissionResultSnapshot[];
 
-function compactText(value: string | null | undefined): string | null {
-	if (!value) return null;
-	const compact = value
-		.replace(/\r/g, '')
-		.split('\n')
-		.map((line) => line.trim())
-		.filter(Boolean)
-		.join(' ');
-	if (!compact) return null;
-	return compact.length > 360 ? `${compact.slice(0, 357)}...` : compact;
-}
-
 function providerLabel(providerId: string): string {
 	if (providerId === 'codex') return 'Codex';
 	if (providerId === 'claude') return 'Claude';
@@ -40,8 +29,8 @@ export function summarizeProviderResults(
 	results: ProviderMissionResultSnapshot[]
 ): MissionControlResultSummary {
 	const providerResults = results.map((result) => {
-		const responseSummary = compactText(result.response);
-		const errorSummary = compactText(result.error);
+		const responseSummary = compactMissionControlDisplayText(result.response);
+		const errorSummary = compactMissionControlDisplayText(result.error);
 		const fallback =
 			result.status === 'completed'
 				? 'completed without a text response'

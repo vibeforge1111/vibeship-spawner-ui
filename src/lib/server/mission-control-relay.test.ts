@@ -230,4 +230,28 @@ describe('mission-control-relay', () => {
 			skills: ['kanban', 'canvas']
 		});
 	});
+
+	it('redacts local paths from board display fields', async () => {
+		const missionId = `spark-local-path-display-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'task_progress',
+			missionId,
+			missionName: 'Inspect C:/Users/USER/.spark/modules/spawner-ui/source',
+			taskName: '/Users/leventcem/.spark/logs/spawner-ui.log',
+			source: 'codex',
+			message: 'Read C:\\Users\\USER\\.spark\\logs\\spark-telegram-bot.log',
+			timestamp: new Date().toISOString(),
+			data: { telegramRelay: { port: 1 } }
+		});
+
+		const board = getMissionControlBoard();
+		const entry = board.running.find((candidate) => candidate.missionId === missionId);
+
+		expect(entry?.missionName).toBe('Inspect [local path]');
+		expect(entry?.taskName).toBe('[local path]');
+		expect(entry?.lastSummary).toContain('[local path]');
+		expect(entry?.lastSummary).not.toContain('C:\\Users\\USER');
+		expect(entry?.lastSummary).not.toContain('/Users/leventcem');
+	});
 });
