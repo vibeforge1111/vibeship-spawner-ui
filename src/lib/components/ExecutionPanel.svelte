@@ -22,6 +22,7 @@
 		type MultiLLMProviderConfig,
 		type MultiLLMStrategy
 	} from '$lib/services/multi-llm-orchestrator';
+	import { resolveRelayMissionProvider } from '$lib/services/relay-mission-provider';
 	import CheckpointReview from './CheckpointReview.svelte';
 	import type { ProjectCheckpoint } from '$lib/services/checkpoint';
 	import { saveCurrentPipeline } from '$lib/stores/pipelines.svelte';
@@ -129,6 +130,7 @@
 	// Guard to ensure mount-only effects run once
 	let hasCheckedResumable = $state(false);
 	let lastHandledAutoRunToken = $state<number | null>(null);
+	let autoRunInFlightToken = $state<number | null>(null);
 	let lastAppliedRelayRequestId = $state<string | null>(null);
 	let autoRunRetryTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -689,17 +691,18 @@
 		return project?.[1]?.trim() || null;
 	}
 
-	function forceRelaySparkProvider() {
+	function forceRelayMissionProvider(providerId = 'codex') {
+		const selectedProvider = resolveRelayMissionProvider(DEFAULT_MULTI_LLM_PROVIDERS, providerId);
+		if (!selectedProvider) return;
+
 		const providers = DEFAULT_MULTI_LLM_PROVIDERS.map((provider) => ({
 			...provider,
-			enabled: provider.id === 'zai'
+			enabled: provider.id === selectedProvider.id
 		}));
-		const zai = providers.find((provider) => provider.id === 'zai');
-		if (!zai) return;
 
 		multiLLMEnabled = true;
 		multiLLMStrategy = 'single';
-		multiLLMPrimaryProviderId = 'zai';
+		multiLLMPrimaryProviderId = selectedProvider.id;
 		multiLLMAutoEnableByKeys = true;
 		multiLLMAutoRouteByTask = false;
 		multiLLMAutoDispatch = true;
@@ -714,7 +717,7 @@
 		missionName = extractMissionTitleFromRelay(relay.goal) || `Telegram Build ${relay.requestId}`;
 		const targetWorkspace = extractTargetWorkspaceFromText(relay.goal);
 		if (targetWorkspace) projectPath = targetWorkspace;
-		forceRelaySparkProvider();
+		forceRelayMissionProvider();
 		missionDescription = [
 			`Build mode: ${buildMode}`,
 			relay.buildModeReason ? `Reason: ${relay.buildModeReason}` : null,
@@ -910,12 +913,14 @@
 	$effect(() => {
 		if (!autoRunToken) return;
 		if (autoRunToken === lastHandledAutoRunToken) return;
+		if (autoRunToken === autoRunInFlightToken) return;
 		if (isRunning || isPaused || currentNodes.length === 0) return;
 		if (autoRunRetryTimer) clearTimeout(autoRunRetryTimer);
 
 		const token = autoRunToken;
 		const tryAutoRun = (attempt = 0) => {
 			if (token !== autoRunToken || token === lastHandledAutoRunToken) return;
+			if (token === autoRunInFlightToken) return;
 			if (isRunning || isPaused) return;
 			if (currentNodes.length === 0) {
 				if (attempt < 20) {
@@ -924,11 +929,13 @@
 				return;
 			}
 
+			autoRunInFlightToken = token;
 			const started = runWorkflow({ autoRun: true });
 			if (started) {
 				lastHandledAutoRunToken = token;
 				return;
 			}
+			autoRunInFlightToken = null;
 
 			if (attempt < 20) {
 				autoRunRetryTimer = setTimeout(() => tryAutoRun(attempt + 1), 250);
