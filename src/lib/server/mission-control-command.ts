@@ -1,5 +1,9 @@
 import { eventBridge } from '$lib/services/event-bridge';
-import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
+import {
+	getMissionControlBoard,
+	relayMissionControlEvent,
+	type MissionControlBoardEntry
+} from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { mcpClient } from '$lib/services/mcp-client';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -27,6 +31,24 @@ function buildBridgeEvent(missionId: string, type: string, source: string) {
 		timestamp: new Date().toISOString(),
 		id: `mc-cmd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 	};
+}
+
+function findMissionBoardEntry(missionId: string): MissionControlBoardEntry | null {
+	const board = getMissionControlBoard();
+	for (const entries of Object.values(board)) {
+		const match = entries.find((entry) => entry.missionId === missionId);
+		if (match) return match;
+	}
+	return null;
+}
+
+function hasRuntimeStatusSignal(status: ReturnType<typeof providerRuntime.getMissionStatus>): boolean {
+	return (
+		Object.keys(status.providers).length > 0 ||
+		status.paused ||
+		Boolean(status.pausedReason) ||
+		status.snapshotAvailable
+	);
 }
 
 async function syncActiveMissionFile(
@@ -89,7 +111,46 @@ export async function executeMissionControlAction(input: {
 
 	if (action === 'status') {
 		const status = providerRuntime.getMissionStatus(missionId);
-		return { ok: true, missionId, action, status };
+		const boardEntry = findMissionBoardEntry(missionId);
+		if (!hasRuntimeStatusSignal(status) && !boardEntry) {
+			return {
+				ok: false,
+				missionId,
+				action,
+				error: `Mission ${missionId} was not found. Use /board to pick a current mission ID.`
+			};
+		}
+		return {
+			ok: true,
+			missionId,
+			action,
+			status: {
+				...status,
+				boardStatus: boardEntry?.status ?? null,
+				lastEventType: boardEntry?.lastEventType ?? null,
+				lastUpdated: boardEntry?.lastUpdated ?? null
+			}
+		};
+	}
+
+	const currentStatus = providerRuntime.getMissionStatus(missionId);
+	const boardEntry = findMissionBoardEntry(missionId);
+	if (!hasRuntimeStatusSignal(currentStatus) && !boardEntry) {
+		return {
+			ok: false,
+			missionId,
+			action,
+			error: `Mission ${missionId} was not found. Use /board to pick a current mission ID.`
+		};
+	}
+
+	if (action === 'pause' && boardEntry && ['completed', 'failed'].includes(boardEntry.status)) {
+		return {
+			ok: false,
+			missionId,
+			action,
+			error: `Mission ${missionId} is already ${boardEntry.status} and cannot be paused.`
+		};
 	}
 
 	if (action === 'kill') {

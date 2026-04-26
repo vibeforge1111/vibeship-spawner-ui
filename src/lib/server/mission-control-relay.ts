@@ -76,6 +76,7 @@ const RELAY_EVENT_TYPES = new Set([
 ]);
 
 const MAX_RECENT_EVENTS = 80;
+const DEFAULT_STALE_NON_TERMINAL_MS = 6 * 60 * 60 * 1000;
 
 const DEFAULT_SPARK_INGEST_URL = env.SPARK_MISSION_CONTROL_INGEST_URL || '';
 const DEFAULT_SPARK_TOKEN = env.SPARKD_TOKEN || '';
@@ -84,20 +85,33 @@ const DEFAULT_WEBHOOKS = (env.MISSION_CONTROL_WEBHOOK_URLS || '')
 	.map((value) => value.trim())
 	.filter(Boolean);
 const DEFAULT_TELEGRAM_RELAY_SECRET = env.TELEGRAM_RELAY_SECRET || '';
+const STALE_NON_TERMINAL_MS = Number(env.MISSION_CONTROL_STALE_NONTERMINAL_MS) || DEFAULT_STALE_NON_TERMINAL_MS;
 
 // Persist relay state so HMR reloads + server restarts don't wipe the history.
 // Small file, synchronous writes; we're on the order of tens of events.
 const PERSIST_PATH = path.resolve(process.cwd(), '.spawner', 'mission-control.json');
+
+function isMissionControlMissionId(value: unknown): value is string {
+	return typeof value === 'string' && /^spark-[A-Za-z0-9_-]+$/.test(value.trim());
+}
 
 function loadPersistedState() {
 	try {
 		if (!fs.existsSync(PERSIST_PATH)) return null;
 		const raw = fs.readFileSync(PERSIST_PATH, 'utf-8');
 		const parsed = JSON.parse(raw);
+		const recent = Array.isArray(parsed.recent)
+			? parsed.recent
+					.filter((entry: MissionControlRelayStatusEntry) => isMissionControlMissionId(entry?.missionId))
+					.slice(0, MAX_RECENT_EVENTS)
+			: [];
+		const perMission = Object.entries(parsed.perMission ?? {})
+			.filter(([missionId]) => isMissionControlMissionId(missionId))
+			.map(([k, v]) => [k, Number(v) || 0] as [string, number]);
 		return {
 			totalRelayed: Number(parsed.totalRelayed) || 0,
-			perMission: new Map<string, number>(Object.entries(parsed.perMission ?? {}).map(([k, v]) => [k, Number(v) || 0])),
-			recent: Array.isArray(parsed.recent) ? parsed.recent.slice(0, MAX_RECENT_EVENTS) : []
+			perMission: new Map<string, number>(perMission),
+			recent
 		};
 	} catch {
 		return null;
@@ -169,6 +183,9 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 
 function recordRelayEvent(event: MissionControlBridgeEvent): void {
 	const entry = toStatusEntry(event);
+	if (!isMissionControlMissionId(entry.missionId)) {
+		return;
+	}
 	relayState.totalRelayed += 1;
 	relayState.perMission.set(entry.missionId, (relayState.perMission.get(entry.missionId) || 0) + 1);
 	relayState.recent.unshift(entry);
@@ -231,12 +248,25 @@ function mapEventTypeToBoardStatus(eventType: string): MissionControlBoardEntry[
 	}
 }
 
+function isStaleNonTerminalStatus(status: MissionControlBoardEntry['status'], timestamp: string): boolean {
+	if (status === 'completed' || status === 'failed' || status === 'paused') {
+		return false;
+	}
+	const updatedAt = Date.parse(timestamp);
+	if (!Number.isFinite(updatedAt)) {
+		return false;
+	}
+	return Date.now() - updatedAt > STALE_NON_TERMINAL_MS;
+}
+
 export function getMissionControlBoard(): Record<string, MissionControlBoardEntry[]> {
 	const byMission = new Map<string, MissionControlBoardEntry>();
 
 	for (const entry of relayState.recent) {
+		if (!isMissionControlMissionId(entry.missionId)) continue;
 		const status = mapEventTypeToBoardStatus(entry.eventType);
 		if (!status) continue;
+		if (isStaleNonTerminalStatus(status, entry.timestamp)) continue;
 
 		const existing = byMission.get(entry.missionId);
 		if (!existing) {
@@ -457,10 +487,10 @@ export function selectWebhookUrlsForMissionEvent(event: MissionControlBridgeEven
 	if (!target.url && target.port === null) {
 		return urls;
 	}
+	if (target.url) {
+		return urls.filter((url) => url === target.url);
+	}
 	return urls.filter((url) => {
-		if (target.url && url === target.url) {
-			return true;
-		}
 		if (target.port !== null && webhookPort(url) === target.port) {
 			return true;
 		}

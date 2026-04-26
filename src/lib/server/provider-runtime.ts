@@ -540,11 +540,16 @@ class ProviderRuntimeManager {
 	async pauseMission(missionId: string): Promise<{ paused: boolean; reason?: string }> {
 		const running = this.getSessionsForMission(missionId).filter((s) => s.status === 'running');
 		if (running.length === 0) {
-			const reason = 'No active provider sessions. Mission marked as paused.';
-			this.pausedMissions.add(missionId);
-			this.pausedReasons.set(missionId, reason);
+			const knownMission =
+				this.getSessionsForMission(missionId).length > 0 ||
+				this.persistedResults.has(missionId) ||
+				this.dispatchSnapshots.has(missionId) ||
+				this.pausedMissions.has(missionId);
+			const reason = knownMission
+				? 'No active provider sessions to pause.'
+				: 'Mission not found or no provider sessions.';
 			this.rememberStatusReason(missionId, reason);
-			return { paused: true, reason };
+			return { paused: false, reason };
 		}
 
 		await this.cancelMission(missionId, 'Mission paused');

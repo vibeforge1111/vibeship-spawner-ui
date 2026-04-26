@@ -143,9 +143,6 @@
 		space: 'category-ai'
 	};
 
-	const categoryColor = categoryColors[data.category] || 'bg-surface-active';
-	const badgeClass = categoryBadges[data.category] || '';
-
 	// Chrome header tag mapping — short mono label per category
 	const categoryTags: Record<string, string> = {
 		development: 'DEV', backend: 'DEV', frontend: 'DEV', frameworks: 'DEV',
@@ -159,20 +156,20 @@
 		biotech: 'BIO', science: 'SCI', simulation: 'SIM', space: 'SPACE',
 		agents: 'AGENT'
 	};
-	const chromeTag = categoryTags[data.category] || data.category.slice(0, 4).toUpperCase();
+	const chromeTag = $derived(categoryTags[data.category] || data.category.slice(0, 4).toUpperCase());
 
 	// MCP tool count for this skill
-	const skillMcpEntries = SKILL_MCP_MAP[data.id] || [];
-	const mcpToolCount = skillMcpEntries.reduce((acc: number, e: { mcps: string[] }) => acc + e.mcps.length, 0);
+	const skillMcpEntries = $derived(SKILL_MCP_MAP[data.id] || []);
+	const mcpToolCount = $derived(skillMcpEntries.reduce((acc: number, e: { mcps: string[] }) => acc + e.mcps.length, 0));
 
 	// Right-slot label: only render when it carries non-redundant info. The
 	// left tag already encodes category; right should show skill count / MCP
 	// count / status, or stay empty.
-	const chromeSubLabel = data.skillChain && data.skillChain.length > 0
+	const chromeSubLabel = $derived(data.skillChain && data.skillChain.length > 0
 		? `${data.skillChain.length} skill${data.skillChain.length === 1 ? '' : 's'}`
 		: mcpToolCount > 0
 			? `${mcpToolCount} mcp`
-			: '';
+			: '');
 
 	// Calculate port positions
 	const maxPorts = $derived(Math.max(data.inputs?.length || 1, data.outputs?.length || 1));
@@ -370,6 +367,7 @@
 		margin: 0 0 2px 0;
 		line-height: 1.3;
 		display: -webkit-box;
+		line-clamp: 2;
 		-webkit-line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
@@ -483,51 +481,6 @@
 		font-size: 10px;
 		color: #3B82F6;
 		opacity: 0.7;
-	}
-
-	/* Skill Tags - shows which skills handle this task */
-	.skill-tags-row {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		padding: 2px 0;
-		border-top: 1px solid var(--border-surface, rgba(255, 255, 255, 0.1));
-		margin-top: 4px;
-		padding-top: 4px;
-	}
-
-	.skill-tags {
-		display: flex;
-		align-items: center;
-		gap: 3px;
-		flex-wrap: wrap;
-		overflow: hidden;
-		flex: 1;
-	}
-
-	.skill-tag {
-		font-size: 9px;
-		font-family: var(--font-mono);
-		color: var(--accent-primary, #00C49A);
-		background: rgba(0, 196, 154, 0.1);
-		border: 1px solid rgba(0, 196, 154, 0.2);
-		padding: 1px 7px;
-		border-radius: 9999px;
-		white-space: nowrap;
-		cursor: default;
-		transition: all 0.15s;
-	}
-
-	.skill-tag:hover {
-		color: var(--text-primary);
-		background: rgba(0, 196, 154, 0.2);
-		border-color: rgba(0, 196, 154, 0.4);
-	}
-
-	.skill-tag-more {
-		color: var(--text-tertiary);
-		background: var(--bg-tertiary, rgba(255, 255, 255, 0.05));
-		border-color: var(--border-surface, rgba(255, 255, 255, 0.1));
 	}
 
 	/* MCP tool indicator */

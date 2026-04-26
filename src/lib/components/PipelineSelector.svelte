@@ -29,9 +29,9 @@
 	let isOpen = $state(false);
 	let isRenaming = $state<string | null>(null);
 	let renameValue = $state('');
-	let dropdownEl: HTMLDivElement;
-	let renameInputEl: HTMLInputElement;
-	let fileInputEl: HTMLInputElement;
+	let dropdownEl = $state<HTMLDivElement>();
+	let renameInputEl = $state<HTMLInputElement>();
+	let fileInputEl = $state<HTMLInputElement>();
 
 	// Get current values from stores
 	let currentPipelines = $state<PipelineMetadata[]>([]);

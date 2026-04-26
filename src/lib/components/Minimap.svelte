@@ -125,6 +125,12 @@
 		isDragging = false;
 	}
 
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key !== 'Enter' && e.key !== ' ') return;
+		e.preventDefault();
+		navigateToPoint(MINIMAP_WIDTH / 2, MINIMAP_HEIGHT / 2);
+	}
+
 	function navigateToPoint(minimapX: number, minimapY: number) {
 		const b = bounds();
 		const s = scale();
@@ -146,6 +152,7 @@
 	onmousemove={handleMouseMove}
 	onmouseup={handleMouseUp}
 	onmouseleave={handleMouseUp}
+	onkeydown={handleKeydown}
 	role="button"
 	tabindex="0"
 >

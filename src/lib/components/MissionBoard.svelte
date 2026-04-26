@@ -759,9 +759,10 @@
 		{#if showCreate}
 			<div class="mb-4 border border-surface-border bg-bg-secondary p-4 space-y-3">
 				<div class="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-3 items-start">
-					<label class="font-mono text-[11px] text-text-tertiary pt-1">Cron</label>
+					<label for="schedule-cron" class="font-mono text-[11px] text-text-tertiary pt-1">Cron</label>
 					<div>
 						<input
+							id="schedule-cron"
 							type="text"
 							bind:value={newCron}
 							placeholder="0 9 * * *"
@@ -774,9 +775,10 @@
 							Examples: <code>*/5 * * * *</code> every 5 min · <code>0 9 * * *</code> daily 9 AM · <code>0 */6 * * *</code> every 6 hours · <code>0 0 * * 0</code> weekly Sunday midnight
 						</p>
 					</div>
-					<label class="font-mono text-[11px] text-text-tertiary pt-1">Action</label>
+					<label for="schedule-action" class="font-mono text-[11px] text-text-tertiary pt-1">Action</label>
 					<div>
 						<select
+							id="schedule-action"
 							bind:value={newAction}
 							class="w-full px-2 py-1 bg-bg-primary border border-surface-border font-mono text-sm text-text-primary focus:outline-none focus:border-accent-primary"
 						>
@@ -788,22 +790,25 @@
 						</p>
 					</div>
 					{#if newAction === 'mission'}
-						<label class="font-mono text-[11px] text-text-tertiary">Goal</label>
+						<label for="schedule-goal" class="font-mono text-[11px] text-text-tertiary">Goal</label>
 						<input
+							id="schedule-goal"
 							type="text"
 							bind:value={newGoal}
 							placeholder="research seedify news today"
 							class="w-full px-2 py-1 bg-bg-primary border border-surface-border font-mono text-sm text-text-primary focus:outline-none focus:border-accent-primary"
 						/>
 					{:else}
-						<label class="font-mono text-[11px] text-text-tertiary">Chip key</label>
+						<label for="schedule-chip-key" class="font-mono text-[11px] text-text-tertiary">Chip key</label>
 						<input
+							id="schedule-chip-key"
 							type="text"
 							bind:value={newChip}
 							class="w-full px-2 py-1 bg-bg-primary border border-surface-border font-mono text-sm text-text-primary focus:outline-none focus:border-accent-primary"
 						/>
-						<label class="font-mono text-[11px] text-text-tertiary">Rounds</label>
+						<label for="schedule-rounds" class="font-mono text-[11px] text-text-tertiary">Rounds</label>
 						<input
+							id="schedule-rounds"
 							type="number"
 							min="1"
 							max="10"
@@ -811,8 +816,9 @@
 							class="w-20 px-2 py-1 bg-bg-primary border border-surface-border font-mono text-sm text-text-primary focus:outline-none focus:border-accent-primary"
 						/>
 					{/if}
-					<label class="font-mono text-[11px] text-text-tertiary">Chat id (optional)</label>
+					<label for="schedule-chat-id" class="font-mono text-[11px] text-text-tertiary">Chat id (optional)</label>
 					<input
+						id="schedule-chat-id"
 						type="text"
 						bind:value={newChatId}
 						placeholder="Telegram chat id to notify on fire"

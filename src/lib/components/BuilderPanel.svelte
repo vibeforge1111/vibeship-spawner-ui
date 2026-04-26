@@ -148,7 +148,7 @@
 
 	<!-- Project Type Selector -->
 	<div class="p-3 border-b border-surface-border">
-		<label class="block text-xs font-mono text-text-tertiary mb-2">Project Type</label>
+		<div class="block text-xs font-mono text-text-tertiary mb-2">Project Type</div>
 		<div class="flex flex-wrap gap-1">
 			{#each projectTypes as type}
 				<button
@@ -278,6 +278,7 @@
 <style>
 	.line-clamp-2 {
 		display: -webkit-box;
+		line-clamp: 2;
 		-webkit-line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;

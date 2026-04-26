@@ -327,8 +327,7 @@
 
 	.skills-indicator {
 		padding: 0.25rem 0.5rem;
-		background: var(--indigo-500, #6366F1);
-		background-opacity: 0.2;
+		background: rgba(99, 102, 241, 0.2);
 		border: 1px solid rgba(99, 102, 241, 0.4);
 	}
 

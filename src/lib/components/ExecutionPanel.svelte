@@ -38,6 +38,11 @@
 			userId?: string;
 			requestId?: string;
 			goal?: string;
+			telegramRelay?: {
+				port?: number;
+				profile?: string;
+				url?: string;
+			};
 			autoRun?: boolean;
 			buildMode?: 'direct' | 'advanced_prd';
 			buildModeReason?: string;

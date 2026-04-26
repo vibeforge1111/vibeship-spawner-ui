@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { parseDiscordMissionControlCommand } from './mission-control-command';
+import {
+	executeMissionControlAction,
+	parseDiscordMissionControlCommand
+} from './mission-control-command';
 
 describe('mission-control-command parser', () => {
 	it('parses standard mission command', () => {
@@ -26,5 +29,27 @@ describe('mission-control-command parser', () => {
 		if (!parsed.ok) {
 			expect(parsed.help).toContain('mission <status|pause|resume|kill> <missionId>');
 		}
+	});
+
+	it('does not invent status for an unknown mission id', async () => {
+		const result = await executeMissionControlAction({
+			action: 'status',
+			missionId: 'spark-definitely-not-real-status',
+			source: 'test'
+		});
+
+		expect(result.ok).toBe(false);
+		expect(result.error).toContain('not found');
+	});
+
+	it('does not pause an unknown mission id', async () => {
+		const result = await executeMissionControlAction({
+			action: 'pause',
+			missionId: 'spark-definitely-not-real-pause',
+			source: 'test'
+		});
+
+		expect(result.ok).toBe(false);
+		expect(result.error).toContain('not found');
 	});
 });

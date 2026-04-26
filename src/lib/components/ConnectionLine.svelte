@@ -261,17 +261,8 @@
 		animation: flow 2s linear infinite;
 	}
 
-	.connection-glow {
-		filter: blur(4px);
-	}
-
 	.connection-selection-glow {
 		filter: blur(6px);
-	}
-
-	.connection-endpoint {
-		filter: drop-shadow(0 0 4px currentColor);
-		transition: r 0.15s;
 	}
 
 	.delete-button {

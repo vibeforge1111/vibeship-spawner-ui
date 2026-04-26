@@ -13,6 +13,23 @@ function resultFilePath(requestId: string): string {
 	return join(getSpawnerDir(), 'results', `${safe}.json`);
 }
 
+function normalizeTelegramRelay(value: unknown): Record<string, unknown> | undefined {
+	if (!value || typeof value !== 'object') return undefined;
+	const raw = value as Record<string, unknown>;
+	const relay: Record<string, unknown> = {};
+	if (typeof raw.profile === 'string' && raw.profile.trim()) {
+		relay.profile = raw.profile.trim();
+	}
+	if (typeof raw.url === 'string' && raw.url.trim()) {
+		relay.url = raw.url.trim();
+	}
+	const port = typeof raw.port === 'number' ? raw.port : typeof raw.port === 'string' ? Number(raw.port.trim()) : NaN;
+	if (Number.isFinite(port) && port > 0) {
+		relay.port = Math.trunc(port);
+	}
+	return Object.keys(relay).length > 0 ? relay : undefined;
+}
+
 interface TaskRecord {
 	id: string;
 	title: string;
@@ -77,7 +94,8 @@ function buildConnections(tasks: TaskRecord[]): Array<{ sourceIndex: number; tar
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
-		const { requestId, autoRun } = await request.json();
+		const { requestId, autoRun, telegramRelay } = await request.json();
+		const normalizedTelegramRelay = normalizeTelegramRelay(telegramRelay);
 		if (!requestId || typeof requestId !== 'string') {
 			return json({ error: 'requestId (string) required' }, { status: 400 });
 		}
@@ -129,6 +147,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				if (pending.requestId === requestId && pending.relay) {
 					relay = {
 						...pending.relay,
+						...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {}),
 						requestId,
 						autoRun: autoRun !== false,
 						buildMode,

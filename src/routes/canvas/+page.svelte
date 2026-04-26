@@ -37,6 +37,11 @@ import { get } from 'svelte/store';
 		userId?: string;
 		requestId?: string;
 		goal?: string;
+		telegramRelay?: {
+			port?: number;
+			profile?: string;
+			url?: string;
+		};
 		autoRun?: boolean;
 		buildMode?: 'direct' | 'advanced_prd';
 		buildModeReason?: string;
@@ -49,7 +54,7 @@ import { get } from 'svelte/store';
 	let missionExportError = $state<string | null>(null);
 	let isMcpConnected = $state(false);
 	let mcpConnectedCount = $state(0);
-	let canvasEl: HTMLDivElement;
+	let canvasEl = $state<HTMLDivElement>();
 	let lastSaved = $state<Date | null>(null);
 
 	// Context menu state
@@ -821,7 +826,7 @@ import { get } from 'svelte/store';
 	// Node search
 	let searchQuery = $state('');
 	let showSearch = $state(false);
-	let searchInputEl: HTMLInputElement;
+	let searchInputEl = $state<HTMLInputElement>();
 
 	// Minimap
 	let showMinimap = $state(true);
@@ -890,6 +895,7 @@ import { get } from 'svelte/store';
 		selectNode(nodeId);
 
 		// Center viewport on node
+		if (!canvasEl) return;
 		const rect = canvasEl.getBoundingClientRect();
 		const NODE_WIDTH = 192;
 		const NODE_HEIGHT = 48;
@@ -1030,6 +1036,7 @@ import { get } from 'svelte/store';
 			pairsWell: skill.pairsWell || []
 		};
 
+		if (!canvasEl) return;
 		const rect = canvasEl.getBoundingClientRect();
 		const rawX = (e.clientX - rect.left - pan.x) / zoom;
 		const rawY = (e.clientY - rect.top - pan.y) / zoom;
@@ -1069,6 +1076,12 @@ import { get } from 'svelte/store';
 	}
 
 	function handleCanvasClick(e: MouseEvent) { if (e.target === e.currentTarget) { clearSelection(); showLayoutMenu = false; } }
+	function handleCanvasAreaKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape') {
+			clearSelection();
+			showLayoutMenu = false;
+		}
+	}
 	function handleZoomIn() { setZoom(zoom + 0.1); }
 	function handleZoomOut() { setZoom(zoom - 0.1); }
 	function handleZoomReset() { setZoom(1); }
@@ -1327,7 +1340,8 @@ import { get } from 'svelte/store';
 			</div>
 		</header>
 		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-		<div bind:this={canvasEl} class="canvas-area flex-1 relative overflow-hidden bg-bg-primary" class:panning={isPanning} class:cutting={isCutting} class:selecting={isSelecting} ondrop={handleDrop} ondragover={handleDragOver} onclick={handleCanvasClick} oncontextmenu={handleCanvasContextMenu} onmousedown={handleMouseDown} onmousemove={handleMouseMove} onmouseup={handleMouseUp} onmouseleave={handleMouseUp} role="application">
+		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+		<div bind:this={canvasEl} class="canvas-area flex-1 relative overflow-hidden bg-bg-primary" class:panning={isPanning} class:cutting={isCutting} class:selecting={isSelecting} ondrop={handleDrop} ondragover={handleDragOver} onclick={handleCanvasClick} oncontextmenu={handleCanvasContextMenu} onmousedown={handleMouseDown} onmousemove={handleMouseMove} onmouseup={handleMouseUp} onmouseleave={handleMouseUp} onkeydown={handleCanvasAreaKeydown} role="application" tabindex="0">
 			<div class="canvas-grid absolute inset-0 pointer-events-none" style="background-size: {40 * zoom}px {40 * zoom}px; background-position: {pan.x}px {pan.y}px;"></div>
 			<div class="absolute pointer-events-none" style="transform: translate({pan.x}px, {pan.y}px);"><div class="pointer-events-none" style="transform: scale({zoom}); transform-origin: 0 0;">
 				<svg class="absolute inset-0 pointer-events-none overflow-visible" style="z-index: 1;"><defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#00C49A" /></marker></defs>{#each currentConnections as connection}{@const sourceNode = currentNodes.find((node) => node.id === connection.sourceNodeId)}{@const targetNode = currentNodes.find((node) => node.id === connection.targetNodeId)}<ConnectionLine {connection} nodes={currentNodes} selected={currentSelectedConnectionId === connection.id} isActive={sourceNode?.status === 'running' || targetNode?.status === 'running'} isCompleted={sourceNode?.status === 'success' && targetNode?.status === 'success'} hasError={sourceNode?.status === 'error' || targetNode?.status === 'error'} />{/each}{#if currentDraggingConnection}<path d={getTempConnectionPath(currentDraggingConnection)} fill="none" stroke="#00C49A" stroke-width="2" stroke-dasharray="4 4" class="temp-connection" />{/if}{#if currentCuttingLine}<line x1={currentCuttingLine.startX} y1={currentCuttingLine.startY} x2={currentCuttingLine.currentX} y2={currentCuttingLine.currentY} stroke="#ef4444" stroke-width="2" stroke-dasharray="6 3" class="cutting-line" /><circle cx={currentCuttingLine.startX} cy={currentCuttingLine.startY} r="4" fill="#ef4444" /><circle cx={currentCuttingLine.currentX} cy={currentCuttingLine.currentY} r="4" fill="#ef4444" />{/if}{#if currentSelectionBox}{@const x = Math.min(currentSelectionBox.startX, currentSelectionBox.currentX)}{@const y = Math.min(currentSelectionBox.startY, currentSelectionBox.currentY)}{@const w = Math.abs(currentSelectionBox.currentX - currentSelectionBox.startX)}{@const h = Math.abs(currentSelectionBox.currentY - currentSelectionBox.startY)}<rect {x} {y} width={w} height={h} fill="rgba(0, 196, 154, 0.1)" stroke="#00C49A" stroke-width="1" stroke-dasharray="4 2" class="selection-box" />{/if}</svg>

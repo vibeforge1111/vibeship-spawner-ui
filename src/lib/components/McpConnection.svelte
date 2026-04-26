@@ -2,8 +2,8 @@
 	import { mcpState, connect, disconnect, setMcpUrl, connectLocal, connectProduction } from '$lib/stores/mcp.svelte';
 	import { loadSkills, skillSource } from '$lib/stores/skills.svelte';
 
-	let customUrl = $mcpState.baseUrl;
-	let showAdvanced = false;
+	let customUrl = $state($mcpState.baseUrl);
+	let showAdvanced = $state(false);
 
 	async function handleConnect() {
 		const success = await connect();
@@ -136,9 +136,10 @@
 
 	{#if showAdvanced}
 		<div class="mt-3 pt-3 border-t border-gray-700">
-			<label class="block text-xs text-gray-400 mb-1">Custom MCP URL</label>
+			<label for="custom-mcp-url" class="block text-xs text-gray-400 mb-1">Custom MCP URL</label>
 			<div class="flex gap-2">
 				<input
+					id="custom-mcp-url"
 					type="text"
 					bind:value={customUrl}
 					placeholder="Set PUBLIC_MCP_URL or enter a bridge URL"

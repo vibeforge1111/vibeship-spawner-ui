@@ -118,7 +118,11 @@ export const POST: RequestHandler = async (event) => {
 						chatId: typeof relay.chatId === 'string' ? relay.chatId : undefined,
 						userId: typeof relay.userId === 'string' ? relay.userId : undefined,
 						requestId: typeof relay.requestId === 'string' ? relay.requestId : undefined,
-						goal: typeof relay.goal === 'string' ? relay.goal : undefined
+						goal: typeof relay.goal === 'string' ? relay.goal : undefined,
+						telegramRelay:
+							relay.telegramRelay && typeof relay.telegramRelay === 'object'
+								? relay.telegramRelay
+								: undefined
 					}
 				: {};
 		const relayData = {

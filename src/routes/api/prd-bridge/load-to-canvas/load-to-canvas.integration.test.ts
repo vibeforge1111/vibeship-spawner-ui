@@ -75,4 +75,63 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		expect(description).toContain('Verification commands:');
 		expect(description).toContain('Select-String');
 	});
+
+	it('preserves Telegram relay target metadata for canvas auto-run dispatch', async () => {
+		const requestId = 'tg-relay-target-test';
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify({
+				requestId,
+				success: true,
+				projectName: 'Spark Relay Target Test',
+				tasks: [
+					{
+						id: 'task-1',
+						title: 'Build relay target',
+						summary: 'Confirm Telegram relay metadata survives PRD bridge loading.',
+						skills: ['telegram-relay']
+					}
+				],
+				executionPrompt: 'Build the relay target test.'
+			}),
+			'utf-8'
+		);
+		await writeFile(
+			path.join(testSpawnerDir, 'pending-request.json'),
+			JSON.stringify({
+				requestId,
+				buildMode: 'advanced_prd',
+				buildModeReason: 'Multi-agent Telegram relay test.',
+				relay: {
+					chatId: '8319079055',
+					userId: '8319079055',
+					requestId,
+					goal: 'Build through spark-agi.',
+					telegramRelay: { port: 8789, profile: 'spark-agi' }
+				}
+			}),
+			'utf-8'
+		);
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ requestId, autoRun: true })
+			})
+		} as never);
+
+		expect(response.status).toBe(200);
+		const pendingRaw = await readFile(path.join(testSpawnerDir, 'pending-load.json'), 'utf-8');
+		const pending = JSON.parse(pendingRaw);
+		expect(pending.relay).toMatchObject({
+			chatId: '8319079055',
+			userId: '8319079055',
+			requestId,
+			autoRun: true,
+			buildMode: 'advanced_prd',
+			buildModeReason: 'Multi-agent Telegram relay test.',
+			telegramRelay: { port: 8789, profile: 'spark-agi' }
+		});
+	});
 });

@@ -99,6 +99,23 @@ function normalizeBuildMode(value: unknown): 'direct' | 'advanced_prd' {
 	return value === 'advanced_prd' ? 'advanced_prd' : 'direct';
 }
 
+function normalizeTelegramRelay(value: unknown): Record<string, unknown> | undefined {
+	if (!value || typeof value !== 'object') return undefined;
+	const raw = value as Record<string, unknown>;
+	const relay: Record<string, unknown> = {};
+	if (typeof raw.profile === 'string' && raw.profile.trim()) {
+		relay.profile = raw.profile.trim();
+	}
+	if (typeof raw.url === 'string' && raw.url.trim()) {
+		relay.url = raw.url.trim();
+	}
+	const port = typeof raw.port === 'number' ? raw.port : typeof raw.port === 'string' ? Number(raw.port.trim()) : NaN;
+	if (Number.isFinite(port) && port > 0) {
+		relay.port = Math.trunc(port);
+	}
+	return Object.keys(relay).length > 0 ? relay : undefined;
+}
+
 function buildCodexPrompt(requestId: string, projectName: string, buildMode: 'direct' | 'advanced_prd'): string {
 	const planningContract =
 		buildMode === 'advanced_prd'
@@ -229,9 +246,10 @@ export const POST: RequestHandler = async (event) => {
 		});
 		if (rateLimited) return rateLimited;
 
-		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason } =
+		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, telegramRelay } =
 			await event.request.json();
 		const normalizedBuildMode = normalizeBuildMode(buildMode);
+		const normalizedTelegramRelay = normalizeTelegramRelay(telegramRelay);
 
 		if (!content || !requestId) {
 			return json({ error: 'Content and requestId are required' }, { status: 400 });
@@ -272,7 +290,8 @@ export const POST: RequestHandler = async (event) => {
 							chatId: chatId.trim(),
 							userId: typeof userId === 'string' && userId.trim() ? userId.trim() : 'telegram',
 							requestId,
-							goal: content.slice(0, 500)
+							goal: content.slice(0, 500),
+							...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {})
 						}
 					: undefined
 		};
