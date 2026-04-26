@@ -7,7 +7,6 @@
 	import MissionLive from './MissionLive.svelte';
 	import JourneyDemo from './JourneyDemo.svelte';
 	import SkillCloud from './SkillCloud.svelte';
-	import SpecializationSwapper from './SpecializationSwapper.svelte';
 	import TelegramPhone from './TelegramPhone.svelte';
 	import PRDProcessingModal from './PRDProcessingModal.svelte';
 	import { setPRD, setProjectName } from '$lib/stores/project-docs.svelte';
@@ -640,26 +639,11 @@
 		<SkillCloud />
 	</section>
 
-	<!-- 004 — Specializations preview -->
-	<section class="max-w-6xl mx-auto w-full px-6 pb-24 border-t border-surface-border pt-20">
-		<div class="mb-12">
-			<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">004 — COMING SOON</p>
-			<h2 class="text-[34px] md:text-[44px] font-sans font-semibold text-text-primary tracking-tight leading-[1.1] max-w-3xl mb-4">
-				Pick a <em class="text-accent-primary not-italic">specialization</em>. The workspace re-tunes.
-			</h2>
-			<p class="text-base md:text-[17px] text-text-secondary max-w-2xl leading-relaxed">
-				Trading, content, voice, ops. Same canvas + kanban, different muscle memory.
-			</p>
-		</div>
-
-		<SpecializationSwapper />
-	</section>
-
-	<!-- 005 — Telegram -->
+	<!-- 004 — Telegram -->
 	<section class="max-w-6xl mx-auto w-full px-6 pb-32 border-t border-surface-border pt-20">
 		<div class="grid md:grid-cols-2 gap-12 items-center">
 			<div>
-				<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">005 — FROM YOUR PHONE</p>
+				<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">004 — FROM YOUR PHONE</p>
 				<h2 class="text-[34px] md:text-[44px] font-sans font-semibold text-text-primary tracking-tight leading-[1.1] mb-5">
 					Message your <em class="text-accent-primary not-italic">Telegram bot</em>. Watch it ship.
 				</h2>
