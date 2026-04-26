@@ -252,14 +252,9 @@
 			<div class="running-badge">RUN</div>
 		{/if}
 
-		<!-- Success status - corner badge with animation -->
+		<!-- Success status - DONE label + soft glow (no redundant tick) -->
 		{#if node.status === 'success'}
 			<div class="success-label">DONE</div>
-			<div class="success-badge">
-				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-					<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-				</svg>
-			</div>
 			<div class="success-glow"></div>
 		{/if}
 

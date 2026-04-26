@@ -389,52 +389,82 @@ export function prdResultToWorkflow(result: PRDAnalysisResult, skillsList: Skill
 		return 'development';
 	}
 
-	// Group tasks by phase
-	const phases = new Map<number, typeof result.tasks>();
-	for (const task of result.tasks) {
-		const phase = task.phase || 1;
-		if (!phases.has(phase)) phases.set(phase, []);
-		phases.get(phase)!.push(task);
-	}
-
 	// Layout constants
 	const NODE_WIDTH = 300;
 	const NODE_HEIGHT = 140;
 	const HORIZONTAL_GAP = 100;
-	const VERTICAL_GAP = 50;
+	const VERTICAL_GAP = 60;
 	const START_X = 100;
 	const START_Y = 100;
+	const MAX_PER_ROW = 4; // Wrap to next row after this many in a single rank
 
-	// Create nodes for each task, positioned by phase
+	// ── Layered layout ─────────────────────────────────────────────────
+	// Assign each task a "depth" (longest path from any root via dependsOn).
+	// Tasks with no deps land in column 0. A task that depends on a depth-N
+	// task lands at depth >= N+1. Same-depth tasks stack in a single column,
+	// wrapping to multiple sub-rows when a column gets too tall to keep the
+	// canvas readable instead of spaghetti.
+
+	const taskById = new Map<string, typeof result.tasks[number]>();
+	for (const t of result.tasks) taskById.set(t.id, t);
+
+	const depthCache = new Map<string, number>();
+	function depthOf(taskId: string, stack: Set<string> = new Set()): number {
+		if (depthCache.has(taskId)) return depthCache.get(taskId)!;
+		if (stack.has(taskId)) return 0; // cycle guard
+		const task = taskById.get(taskId);
+		if (!task) return 0;
+		stack.add(taskId);
+		let d = 0;
+		for (const dep of task.dependsOn || []) {
+			if (taskById.has(dep)) d = Math.max(d, depthOf(dep, stack) + 1);
+		}
+		// If a task has no deps but a non-1 phase, respect the phase as a hint
+		if ((task.dependsOn?.length ?? 0) === 0 && task.phase && task.phase > 1) {
+			d = Math.max(d, task.phase - 1);
+		}
+		stack.delete(taskId);
+		depthCache.set(taskId, d);
+		return d;
+	}
+
+	// Bucket tasks by depth, preserving incoming order
+	const byDepth = new Map<number, typeof result.tasks>();
+	for (const task of result.tasks) {
+		const d = depthOf(task.id);
+		if (!byDepth.has(d)) byDepth.set(d, []);
+		byDepth.get(d)!.push(task);
+	}
+
 	const taskIndexMap = new Map<string, number>();
 	let nodeIndex = 0;
+	const sortedDepths = [...byDepth.keys()].sort((a, b) => a - b);
 
-	const sortedPhases = [...phases.keys()].sort((a, b) => a - b);
+	for (const d of sortedDepths) {
+		const column = byDepth.get(d)!;
+		// If a column gets too tall, wrap into sub-columns to avoid a thin spike
+		const subColumns = Math.ceil(column.length / MAX_PER_ROW);
+		const colHeight = Math.ceil(column.length / subColumns);
 
-	for (const phase of sortedPhases) {
-		const phaseTasks = phases.get(phase)!;
-		const phaseX = START_X + (phase - 1) * (NODE_WIDTH + HORIZONTAL_GAP);
+		for (let i = 0; i < column.length; i++) {
+			const task = column[i];
+			const subCol = Math.floor(i / colHeight);
+			const rowInSub = i % colHeight;
 
-		for (let i = 0; i < phaseTasks.length; i++) {
-			const task = phaseTasks[i];
-
-			// Create a TASK node (not a skill node)
-			// The task title shows WHAT we're building
-			// The tags show WHICH skills are used
 			const taskNode: Skill = {
 				id: task.id,
 				name: task.title,
 				description: task.description,
 				category: inferCategory(task.skills),
 				tier: 'free',
-				tags: task.skills,  // Skills appear as tags on the node
+				tags: task.skills,
 				triggers: [],
-				skillChain: task.skills  // Also store in skillChain for reference
+				skillChain: task.skills
 			};
 
 			const position = {
-				x: phaseX,
-				y: START_Y + i * (NODE_HEIGHT + VERTICAL_GAP)
+				x: START_X + (d + subCol) * (NODE_WIDTH + HORIZONTAL_GAP),
+				y: START_Y + rowInSub * (NODE_HEIGHT + VERTICAL_GAP)
 			};
 
 			nodes.push({ skill: taskNode, position });
@@ -443,12 +473,11 @@ export function prdResultToWorkflow(result: PRDAnalysisResult, skillsList: Skill
 		}
 	}
 
-	// Create connections based on task dependencies
+	// Connections from explicit dependsOn
 	for (const task of result.tasks) {
 		const targetIndex = taskIndexMap.get(task.id);
 		if (targetIndex === undefined) continue;
-
-		for (const depId of task.dependsOn) {
+		for (const depId of task.dependsOn || []) {
 			const sourceIndex = taskIndexMap.get(depId);
 			if (sourceIndex !== undefined) {
 				connections.push({ sourceIndex, targetIndex });
@@ -456,21 +485,12 @@ export function prdResultToWorkflow(result: PRDAnalysisResult, skillsList: Skill
 		}
 	}
 
-	// If no explicit connections, connect phases sequentially
-	if (connections.length === 0 && sortedPhases.length > 1) {
-		for (let p = 0; p < sortedPhases.length - 1; p++) {
-			const currentPhase = phases.get(sortedPhases[p])!;
-			const nextPhase = phases.get(sortedPhases[p + 1])!;
-
-			// Connect last task of current phase to first task of next phase
-			const lastTaskId = currentPhase[currentPhase.length - 1].id;
-			const firstTaskId = nextPhase[0].id;
-			const sourceIndex = taskIndexMap.get(lastTaskId);
-			const targetIndex = taskIndexMap.get(firstTaskId);
-
-			if (sourceIndex !== undefined && targetIndex !== undefined) {
-				connections.push({ sourceIndex, targetIndex });
-			}
+	// Fallback — if no explicit dependencies were declared, chain tasks
+	// sequentially in the order they were emitted. This produces a clean
+	// left-to-right line instead of one source feeding every other node.
+	if (connections.length === 0 && nodes.length > 1) {
+		for (let i = 0; i < nodes.length - 1; i++) {
+			connections.push({ sourceIndex: i, targetIndex: i + 1 });
 		}
 	}
 
