@@ -371,7 +371,7 @@
 	}
 
 	.draggable-node.queued {
-		opacity: 0.82;
+		opacity: 0.95;
 	}
 
 	/* ====== RUNNING STATE ====== */
@@ -425,7 +425,7 @@
 	.success-glow {
 		position: absolute;
 		inset: -2px;
-		border: 1px solid rgb(var(--accent-rgb, 47 202 148) / 0.3);
+		border: 1px solid rgb(var(--accent-rgb, 47 202 148) / 0.18);
 		border-radius: 10px;
 		pointer-events: none;
 		animation: successFadeIn 150ms ease-out;
