@@ -39,21 +39,28 @@
 	];
 
 	let cycle = $state(0);
-	let step = $state(0); // 0=prompt, 1=tasks, 2=skills, 3=done
+	// Start at "done" so the first paint shows the full journey populated;
+	// then the loop walks back through prompt -> tasks -> skills -> done.
+	let step = $state(3);
 	let timer: ReturnType<typeof setInterval> | null = null;
 
 	const current = $derived(EXAMPLES[cycle % EXAMPLES.length]);
 
 	onMount(() => {
-		// 4 phases × 1.6s = 6.4s per example
-		const PHASE_MS = 1600;
-		timer = setInterval(() => {
-			step += 1;
-			if (step > 3) {
-				step = 0;
-				cycle += 1;
-			}
-		}, PHASE_MS);
+		// First user-facing animation kicks in after a short hold so they
+		// can register the full picture before it resets and replays.
+		setTimeout(() => {
+			cycle = 1;
+			step = 0;
+			const PHASE_MS = 2200;
+			timer = setInterval(() => {
+				step += 1;
+				if (step > 3) {
+					step = 0;
+					cycle += 1;
+				}
+			}, PHASE_MS);
+		}, 3500);
 	});
 
 	onDestroy(() => {
