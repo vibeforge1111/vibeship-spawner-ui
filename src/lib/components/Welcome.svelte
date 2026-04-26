@@ -549,10 +549,10 @@
 				<div class="p-8">
 					<p class="font-mono text-xs text-accent-primary tracking-widest mb-3">CANVAS</p>
 					<h3 class="text-2xl font-sans font-semibold text-text-primary mb-3 leading-tight">
-						Draw it like a <em class="text-accent-primary not-italic">flowchart</em>.
+						See it like a <em class="text-accent-primary not-italic">flowchart</em>.
 					</h3>
 					<p class="text-base text-text-secondary leading-relaxed mb-6">
-						Drag skills, wire them up, hit Run.
+						Seeing your agent build hasn't been this fun.
 					</p>
 					<span class="inline-flex items-center gap-2 text-base font-medium text-accent-primary group-hover:gap-3 transition-all">
 						Open canvas
