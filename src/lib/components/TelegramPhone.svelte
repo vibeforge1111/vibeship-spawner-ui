@@ -93,21 +93,66 @@
 					</div>
 				{/if}
 
-				<!-- Mini canvas + kanban thumbnails -->
+				<!-- Mini mission live (matches hero aesthetic) -->
 				{#if showThumbs}
 					<div class="flex justify-start fade-in" style="animation-delay: 200ms">
-						<div class="max-w-[88%] w-full p-3 rounded-2xl rounded-bl-md bg-bg-secondary border border-surface-border">
-							<p class="font-mono text-[10px] text-text-tertiary tracking-widest mb-2">PIPELINE</p>
-							<div class="flex items-center gap-1.5 flex-wrap">
-								{#each ['layout', 'page', 'form', 'analytics', 'ship'] as task, i}
-									<span class="px-2 py-0.5 rounded-md text-[10px] font-mono border border-accent-primary/40 bg-accent-primary/10 text-text-primary">
-										{task}
+						<div class="max-w-[94%] w-full p-3 rounded-2xl rounded-bl-md bg-bg-secondary border border-surface-border">
+							<!-- Top status -->
+							<div class="flex items-center justify-between mb-2.5">
+								<div class="flex items-center gap-1.5">
+									<span class="relative flex h-1.5 w-1.5">
+										<span class="absolute inline-flex h-full w-full rounded-full bg-accent-primary opacity-60 animate-ping-slow"></span>
+										<span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-accent-primary"></span>
 									</span>
-									{#if i < 4}
-										<span class="text-accent-primary/60 text-xs">→</span>
-									{/if}
-								{/each}
+									<span class="font-mono text-[10px] text-text-primary">running · 5 tasks</span>
+								</div>
+								<span class="font-mono text-[10px] text-text-tertiary tabular-nums">2/5</span>
 							</div>
+
+							<!-- Overall progress -->
+							<div class="h-1 rounded-full bg-bg-primary overflow-hidden mb-3">
+								<div class="h-full rounded-full bg-accent-primary" style="width: 45%"></div>
+							</div>
+
+							<!-- Mini task rows -->
+							<ul class="space-y-1.5">
+								{#each [
+									{ title: 'sketch the layout', state: 'done' },
+									{ title: 'build the page', state: 'running' },
+									{ title: 'wire the signup form', state: 'queued' },
+									{ title: 'add analytics + tracking', state: 'queued' },
+									{ title: 'ship to preview URL', state: 'queued' }
+								] as task, i}
+									<li
+										class="flex items-center gap-2 px-2 py-1.5 rounded-md border"
+										class:border-accent-primary={task.state === 'running'}
+										class:border-surface-border={task.state !== 'running'}
+										class:bg-bg-primary={task.state !== 'running'}
+										class:bg-accent-primary={false}
+										style={task.state === 'running' ? 'background: rgb(var(--accent-rgb) / 0.06); box-shadow: 0 0 0 1px rgb(var(--accent-rgb) / 0.15);' : ''}
+									>
+										<span class="shrink-0 w-3.5 h-3.5 rounded-full border flex items-center justify-center"
+											class:border-accent-primary={task.state !== 'queued'}
+											class:bg-accent-primary={task.state === 'done'}
+											class:border-surface-border={task.state === 'queued'}
+										>
+											{#if task.state === 'done'}
+												<svg class="w-2 h-2 text-accent-fg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+											{:else if task.state === 'running'}
+												<span class="w-1 h-1 rounded-full bg-accent-primary animate-pulse-slow"></span>
+											{:else}
+												<span class="font-mono text-[7px] text-text-tertiary leading-none">{i + 1}</span>
+											{/if}
+										</span>
+										<span class="flex-1 text-[11px] font-sans text-text-primary leading-tight truncate">{task.title}</span>
+										{#if task.state === 'done'}
+											<span class="font-mono text-[8px] text-accent-primary tracking-widest shrink-0">DONE</span>
+										{:else if task.state === 'running'}
+											<span class="font-mono text-[8px] text-accent-primary tracking-widest tabular-nums shrink-0">45%</span>
+										{/if}
+									</li>
+								{/each}
+							</ul>
 						</div>
 					</div>
 				{/if}
