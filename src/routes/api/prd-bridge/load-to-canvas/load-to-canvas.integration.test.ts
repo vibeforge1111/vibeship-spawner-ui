@@ -125,6 +125,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const pendingRaw = await readFile(path.join(testSpawnerDir, 'pending-load.json'), 'utf-8');
 		const pending = JSON.parse(pendingRaw);
 		expect(pending.relay).toMatchObject({
+			missionId: 'mission-tg-relay-target-test',
 			chatId: '8319079055',
 			userId: '8319079055',
 			requestId,
@@ -132,6 +133,48 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 			buildMode: 'advanced_prd',
 			buildModeReason: 'Multi-agent Telegram relay test.',
 			telegramRelay: { port: 8789, profile: 'primary' }
+		});
+	});
+
+	it('builds relay metadata from request body when pending request metadata is stale', async () => {
+		const requestId = 'tg-build-123-456-1777211869020';
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify({
+				requestId,
+				success: true,
+				projectName: 'Spark Body Relay Test',
+				tasks: [{ id: 'task-1', title: 'Build body relay', summary: 'Use body fallback.', skills: [] }],
+				executionPrompt: 'Build with body relay.'
+			}),
+			'utf-8'
+		);
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					requestId,
+					autoRun: true,
+					chatId: '8319079055',
+					userId: '8319079055',
+					goal: 'Build through body relay metadata.',
+					telegramRelay: { port: 8789, profile: 'spark-agi' }
+				})
+			})
+		} as never);
+
+		expect(response.status).toBe(200);
+		const pendingRaw = await readFile(path.join(testSpawnerDir, 'pending-load.json'), 'utf-8');
+		const pending = JSON.parse(pendingRaw);
+		expect(pending.relay).toMatchObject({
+			missionId: 'mission-1777211869020',
+			chatId: '8319079055',
+			userId: '8319079055',
+			requestId,
+			autoRun: true,
+			telegramRelay: { port: 8789, profile: 'spark-agi' }
 		});
 	});
 });

@@ -447,14 +447,10 @@ import { get } from 'svelte/store';
 				'connections'
 			);
 			forceStoreSync();
-			if (reason === 'queued' && (load.autoRun || load.relay?.autoRun)) {
+			if (load.autoRun || load.relay?.autoRun) {
 				showExecution = true;
 				executionMinimized = false;
 				executionAutoRunToken = Date.now();
-			} else if (load.autoRun || load.relay?.autoRun) {
-				showExecution = true;
-				executionMinimized = false;
-				executionAutoRunToken = null;
 			}
 			lastAppliedLatestLoadKey = getPipelineLoadKey(load);
 			return true;

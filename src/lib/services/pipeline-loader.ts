@@ -30,6 +30,7 @@ export interface PendingPipelineLoad {
 	executionPrompt?: string;
 	autoRun?: boolean;
 	relay?: {
+		missionId?: string;
 		chatId?: string;
 		userId?: string;
 		requestId?: string;

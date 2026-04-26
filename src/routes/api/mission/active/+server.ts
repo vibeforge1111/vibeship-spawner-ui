@@ -69,6 +69,28 @@ export const GET: RequestHandler = async ({ url }) => {
 		const lastUpdated = new Date(state.lastUpdated);
 		const minutesSinceUpdate = (Date.now() - lastUpdated.getTime()) / 60000;
 		const isStale = minutesSinceUpdate > 30;
+		const includeStale =
+			url.searchParams.get('includeStale') === '1' ||
+			url.searchParams.get('includeStale') === 'true';
+
+		if (isStale && !includeStale) {
+			return json({
+				active: false,
+				stale: true,
+				minutesSinceUpdate: Math.round(minutesSinceUpdate),
+				staleMission: {
+					id: state.missionId,
+					name: state.missionName,
+					status: state.status,
+					progress: state.progress,
+					currentTask: state.currentTaskId ? {
+						id: state.currentTaskId,
+						name: state.currentTaskName
+					} : null
+				},
+				message: 'Active mission state is stale. Pass includeStale=1 to inspect it.'
+			});
+		}
 
 		return json({
 			active: true,

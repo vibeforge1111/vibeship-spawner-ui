@@ -35,6 +35,7 @@
 		onToggleMinimize?: () => void;
 		autoRunToken?: number;
 		relay?: {
+			missionId?: string;
 			chatId?: string;
 			userId?: string;
 			requestId?: string;
@@ -1081,6 +1082,7 @@
 			projectPath: path,
 			projectType: (projectType || '').trim() || 'general',
 			goals: goals.length ? goals : undefined,
+			missionId: relay?.missionId,
 			relay,
 			orchestratorOptions: getMultiLLMOptions()
 		});

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import path from 'path';
 import { existsSync } from 'fs';
-import { mkdtemp, rm } from 'fs/promises';
+import { mkdtemp, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { GET, POST, DELETE } from './+server';
 
@@ -137,5 +137,33 @@ describe('/api/mission/active integration', () => {
 		const deleteResponse = await DELETE({} as never);
 		expect(deleteResponse.status).toBe(200);
 		expect(existsSync(missionFile)).toBe(false);
+	});
+
+	it('reports stale mission state as inactive by default', async () => {
+		await writeFile(missionFile, JSON.stringify({
+			missionId: 'mission-stale-test',
+			missionName: 'Stale test',
+			status: 'running',
+			progress: 40,
+			currentTaskId: 'task-old',
+			currentTaskName: 'Old task',
+			executionPrompt: 'old prompt',
+			tasks: [],
+			completedTasks: [],
+			failedTasks: [],
+			lastUpdated: new Date(Date.now() - 31 * 60 * 1000).toISOString(),
+			resumeInstructions: 'old resume instructions'
+		}, null, 2));
+
+		const getResponse = await GET({
+			url: new URL('http://localhost/api/mission/active')
+		} as never);
+		expect(getResponse.status).toBe(200);
+		const body = await getResponse.json();
+
+		expect(body.active).toBe(false);
+		expect(body.stale).toBe(true);
+		expect(body.staleMission?.id).toBe('mission-stale-test');
+		expect(body.mission).toBeUndefined();
 	});
 });

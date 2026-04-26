@@ -13,6 +13,7 @@ import { existsSync } from 'fs';
 import { openclawBridge } from '$lib/services/openclaw-bridge';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { resolveCliBinary } from '$lib/server/cli-resolver';
+import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 
 function getPrdBridgePaths() {
 	const spawnerDir = process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
@@ -31,6 +32,12 @@ const AUTO_ANALYSIS_TIMEOUT_MS = 55_000;
 
 function normalizeRequestId(requestId: string): string {
 	return requestId.replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+function missionIdFromRequestId(requestId: string): string {
+	const normalized = normalizeRequestId(requestId);
+	const stamp = normalized.match(/(\d{10,})$/)?.[1];
+	return `mission-${stamp || normalized}`;
 }
 
 async function appendPrdTrace(requestId: string, event: string, details: Record<string, unknown> = {}): Promise<void> {
@@ -286,10 +293,12 @@ export const POST: RequestHandler = async (event) => {
 
 		// Write the PRD content to file
 		await writeFile(paths.pendingPrdFile, content, 'utf-8');
+		const missionId = missionIdFromRequestId(requestId);
 
 		// Write request metadata
 		const requestMeta = {
 			requestId,
+			missionId,
 			projectName: projectName || 'Untitled Project',
 			buildMode: normalizedBuildMode,
 			buildModeReason:
@@ -310,6 +319,7 @@ export const POST: RequestHandler = async (event) => {
 					? {
 							chatId: chatId.trim(),
 							userId: typeof userId === 'string' && userId.trim() ? userId.trim() : 'telegram',
+							missionId,
 							requestId,
 							goal: content.slice(0, 500),
 							...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {})
@@ -320,6 +330,20 @@ export const POST: RequestHandler = async (event) => {
 		await appendPrdTrace(requestId, 'request_written', {
 			projectName: requestMeta.projectName,
 			buildMode: requestMeta.buildMode
+		});
+		void relayMissionControlEvent({
+			type: 'mission_started',
+			missionId,
+			missionName: requestMeta.projectName,
+			taskName: 'Preparing canvas',
+			message: 'Spark is shaping the PRD and preparing the canvas.',
+			source: 'prd-bridge',
+			data: {
+				requestId,
+				buildMode: requestMeta.buildMode,
+				buildModeReason: requestMeta.buildModeReason,
+				...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {})
+			}
 		});
 
 		const codexStarted = await startCodexAutoAnalysis(

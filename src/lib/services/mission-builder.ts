@@ -52,6 +52,7 @@ function filterSkillsForMissionContract(skills: string[], options: MissionBuildO
 }
 
 export interface MissionBuildOptions {
+	missionId?: string;
 	name: string;
 	description?: string;
 	mode?: Mission['mode'];
@@ -400,7 +401,7 @@ export async function buildMissionFromCanvas(
 
 		// Build mission locally (no MCP call - spawner_mission doesn't exist)
 		const mission: Mission = {
-			id: `mission-${Date.now()}`,
+			id: options.missionId || `mission-${Date.now()}`,
 			user_id: 'local',
 			name: options.name,
 			description: options.description || '',
