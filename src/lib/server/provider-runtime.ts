@@ -28,7 +28,7 @@ import { openclawBridge } from '$lib/services/openclaw-bridge';
 import { eventBridge } from '$lib/services/event-bridge';
 import { mcpClient } from '$lib/services/mcp-client';
 import { readFile } from 'node:fs/promises';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 export interface DispatchOptions {
@@ -134,7 +134,12 @@ class ProviderRuntimeManager {
 				JSON.stringify({ missions: Object.fromEntries(this.persistedResults) }, null, 2),
 				'utf-8'
 			);
-			renameSync(tempPath, persistPath);
+			try {
+				renameSync(tempPath, persistPath);
+			} catch {
+				copyFileSync(tempPath, persistPath);
+				rmSync(tempPath, { force: true });
+			}
 		} catch (error) {
 			console.warn('[ProviderRuntime] Failed to persist provider results:', error);
 		}
