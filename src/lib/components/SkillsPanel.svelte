@@ -176,23 +176,6 @@
 		</div>
 	</div>
 
-	{#if pipelineSkills.length > 0 && !searchQuery}
-		<!-- Pinned: skills currently on canvas -->
-		<div class="border-b border-surface-border bg-bg-primary/40">
-			<div class="px-3 py-2 flex items-center gap-2">
-				<span class="w-1.5 h-1.5 rounded-full bg-accent-primary animate-pulse"></span>
-				<span class="overline" style="margin-bottom: 0;">In pipeline</span>
-			</div>
-			<div class="px-2 pb-2 flex flex-wrap gap-1">
-				{#each pipelineSkills as skill (skill.id)}
-					<span class="px-2 py-0.5 text-[11px] font-mono bg-accent-subtle text-accent-primary border border-accent-mid rounded-sm truncate max-w-[180px]" title={skill.name}>
-						{skill.name}
-					</span>
-				{/each}
-			</div>
-		</div>
-	{/if}
-
 	<!-- Skills List -->
 	<div class="flex-1 overflow-y-auto">
 		{#each Object.entries(groupedSkills()) as [category, categorySkills]}
