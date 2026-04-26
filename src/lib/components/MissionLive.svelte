@@ -26,10 +26,17 @@
 		{ id: 't5', title: 'Ship to preview URL',        skills: ['cloudflare', 'devops']      }
 	];
 
+	// Initialize mid-flight so first paint looks like work in progress —
+	// the eye lands on a running mission, not an idle queue. Task 1 is
+	// already done, task 2 is partway through.
 	let tasks = $state<Task[]>(
-		SCRIPT.map((t) => ({ ...t, state: 'queued' as TaskState, progress: 0 }))
+		SCRIPT.map((t, i) => {
+			if (i === 0) return { ...t, state: 'done' as TaskState, progress: 100 };
+			if (i === 1) return { ...t, state: 'running' as TaskState, progress: 45 };
+			return { ...t, state: 'queued' as TaskState, progress: 0 };
+		})
 	);
-	let elapsed = $state('00:00');
+	let elapsed = $state('00:42');
 
 	let phaseTimer: ReturnType<typeof setInterval> | null = null;
 	let elapsedTimer: ReturnType<typeof setInterval> | null = null;
@@ -75,7 +82,9 @@
 	}
 
 	onMount(() => {
-		startedAt = Date.now();
+		// Backdate the clock 42s so it picks up where the seeded "mid-flight"
+		// state suggests we are. Reset() snaps it back to zero.
+		startedAt = Date.now() - 42000;
 		elapsedTimer = setInterval(() => {
 			elapsed = fmtElapsed(Date.now() - startedAt);
 		}, 500);

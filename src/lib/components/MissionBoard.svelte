@@ -602,62 +602,62 @@
 					{ title: 'Done', items: done, empty: 'No history yet' }
 				] as col}
 					<section class="flex flex-col min-h-[320px]">
-						<div class="sticky top-0 z-10 flex items-center gap-2 px-1 py-3 bg-bg-primary/90 backdrop-blur-sm">
-							<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-bg-secondary border border-surface-border">
-								<span class="w-1.5 h-1.5 rounded-full {columnDot(col.title)}"></span>
-								<span class="font-sans text-[11px] font-medium text-text-bright">{col.title}</span>
-							</span>
-							<span class="font-mono text-[11px] text-text-tertiary">{col.items.length}</span>
+						<div class="sticky top-0 z-10 flex items-center justify-between gap-2 px-1 py-4 mb-1 bg-bg-primary/90 backdrop-blur-sm border-b border-surface-border">
+							<div class="flex items-center gap-2.5">
+								<span class="w-2 h-2 rounded-full {columnDot(col.title)}"></span>
+								<span class="font-mono text-xs font-semibold text-text-bright tracking-widest uppercase">{col.title}</span>
+							</div>
+							<span class="font-mono text-sm text-text-tertiary tabular-nums">{col.items.length}</span>
 						</div>
 
-						<div class="flex-1 space-y-2">
+						<div class="flex-1 space-y-3">
 							{#each col.items as c (c.id)}
-								<article class="group relative px-4 py-3.5 rounded-lg border border-surface-border bg-bg-secondary hover:border-border-strong transition-all" class:border-accent-primary={expandedCardId === c.id}>
+								<article class="group relative px-5 py-4 rounded-md border border-surface-border bg-bg-secondary hover:border-border-strong transition-all" class:border-accent-primary={expandedCardId === c.id}>
 									<button
 										type="button"
 										class="block w-full p-0 border-0 bg-transparent text-left text-inherit cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-primary/70 rounded-md"
 										aria-expanded={expandedCardId === c.id}
 										onclick={() => toggleCard(c)}
 									>
-										<div class="flex items-center gap-2 mb-2.5">
-											<span class="w-1.5 h-1.5 rounded-full shrink-0 {statusDot(c.status)}"></span>
-											<h3 class="font-sans text-sm font-semibold leading-tight text-text-primary group-hover:text-accent-primary transition-colors line-clamp-2">
+										<div class="flex items-center gap-2.5 mb-3">
+											<span class="w-2 h-2 rounded-full shrink-0 {statusDot(c.status)}"></span>
+											<h3 class="font-sans text-base font-semibold leading-snug text-text-primary group-hover:text-accent-primary transition-colors line-clamp-2">
 												{c.name}
 											</h3>
 										</div>
 
 										{#if c.source === 'spark' && c.summary}
-											<p class="font-mono text-[10px] text-text-tertiary leading-snug mb-2.5 line-clamp-2">{c.summary}</p>
+											<p class="text-sm text-text-secondary leading-relaxed mb-3 line-clamp-2">{c.summary}</p>
 										{/if}
 
 										{#if c.source === 'spark' && c.providerSummary}
-											<p class="font-mono text-[10px] text-accent-primary/80 leading-snug mb-2.5 line-clamp-3">{c.providerSummary}</p>
+											<p class="text-sm text-accent-primary/90 leading-relaxed mb-3 line-clamp-3">{c.providerSummary}</p>
 										{/if}
 
 										{#if c.tasks && c.tasks.length > 0}
-											<ul class="space-y-2 mb-3 border-l border-surface-border/70 pl-3">
+											<ul class="space-y-2.5 mb-3 border-l-2 border-surface-border/60 pl-3.5">
 												{#each c.tasks.slice(0, 3) as task}
 													<li>
-														<div class="font-sans text-[12px] text-text-secondary leading-snug line-clamp-1">{task.title}</div>
+														<div class="font-sans text-sm text-text-secondary leading-snug line-clamp-1">{task.title}</div>
 														{#if task.skills && task.skills.length > 0}
-															<div class="flex items-center gap-1 flex-wrap mt-1">
+															<div class="flex items-center gap-1.5 flex-wrap mt-1.5">
 																{#each task.skills.slice(0, 3) as skill}
-																	<span class="px-1.5 py-px text-[9px] font-mono rounded-full text-text-tertiary bg-bg-primary/60 border border-surface-border/70">{skill}</span>
+																	<span class="px-2 py-0.5 text-[11px] font-mono rounded-full text-text-tertiary bg-bg-primary/60 border border-surface-border/70">{skill}</span>
 																{/each}
 																{#if task.skills.length > 3}
-																	<span class="text-[9px] font-mono text-text-faint">+{task.skills.length - 3}</span>
+																	<span class="text-[11px] font-mono text-text-faint">+{task.skills.length - 3}</span>
 																{/if}
 															</div>
 														{/if}
 													</li>
 												{/each}
 												{#if c.tasks.length > 3}
-													<li class="font-mono text-[10px] text-text-faint">+{c.tasks.length - 3} more</li>
+													<li class="font-mono text-xs text-text-faint">+{c.tasks.length - 3} more</li>
 												{/if}
 											</ul>
 										{/if}
 
-										<div class="font-mono text-[10px] text-text-tertiary flex items-center gap-2">
+										<div class="font-mono text-xs text-text-tertiary flex items-center gap-2">
 											<span>{formatDate(c.updatedAt ?? c.createdAt)}</span>
 											{#if c.taskCount > 0 && (!c.tasks || c.tasks.length === 0)}
 												<span>· {c.taskCount} task{c.taskCount !== 1 ? 's' : ''}</span>
