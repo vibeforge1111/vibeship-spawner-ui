@@ -8,6 +8,7 @@
 	import JourneyDemo from './JourneyDemo.svelte';
 	import SkillCloud from './SkillCloud.svelte';
 	import SpecializationSwapper from './SpecializationSwapper.svelte';
+	import TelegramPhone from './TelegramPhone.svelte';
 	import PRDProcessingModal from './PRDProcessingModal.svelte';
 	import { setPRD, setProjectName } from '$lib/stores/project-docs.svelte';
 	import { analyzePRD, generateTasksFromPRD, tasksToWorkflow, type PRDAnalysis, type GeneratedTask } from '$lib/utils/prd-analyzer';
@@ -527,7 +528,7 @@
 	<section class="max-w-6xl mx-auto w-full px-6 pt-24 pb-24">
 		<div class="mb-12">
 			<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">001 — WORKSPACES</p>
-			<h2 class="text-4xl md:text-5xl font-sans font-semibold text-text-primary tracking-tight leading-[1.1]">
+			<h2 class="text-[34px] md:text-[44px] font-sans font-semibold text-text-primary tracking-tight leading-[1.1]">
 				Pick how you want to <em class="text-accent-primary not-italic">work</em>.
 			</h2>
 		</div>
@@ -548,7 +549,7 @@
 				</div>
 				<div class="p-8">
 					<p class="font-mono text-xs text-accent-primary tracking-widest mb-3">CANVAS</p>
-					<h3 class="text-2xl font-sans font-semibold text-text-primary mb-3 leading-tight">
+					<h3 class="text-[22px] font-sans font-semibold text-text-primary mb-3 leading-tight">
 						See it like a <em class="text-accent-primary not-italic">flowchart</em>.
 					</h3>
 					<p class="text-base text-text-secondary leading-relaxed mb-6">
@@ -576,7 +577,7 @@
 				</div>
 				<div class="p-8">
 					<p class="font-mono text-xs text-accent-primary tracking-widest mb-3">KANBAN</p>
-					<h3 class="text-2xl font-sans font-semibold text-text-primary mb-3 leading-tight">
+					<h3 class="text-[22px] font-sans font-semibold text-text-primary mb-3 leading-tight">
 						Watch it like a <em class="text-accent-primary not-italic">board</em>.
 					</h3>
 					<p class="text-base text-text-secondary leading-relaxed mb-6">
@@ -595,10 +596,10 @@
 	<section class="max-w-6xl mx-auto w-full px-6 pb-24 border-t border-surface-border pt-20">
 		<div class="mb-12">
 			<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">002 — SEE IT WORK</p>
-			<h2 class="text-4xl md:text-5xl font-sans font-semibold text-text-primary tracking-tight leading-[1.1] max-w-3xl mb-4">
+			<h2 class="text-[34px] md:text-[44px] font-sans font-semibold text-text-primary tracking-tight leading-[1.1] max-w-3xl mb-4">
 				No more guessing if the agent is <em class="text-accent-primary not-italic">actually</em> doing the thing.
 			</h2>
-			<p class="text-lg text-text-secondary max-w-2xl leading-relaxed">
+			<p class="text-base md:text-[17px] text-text-secondary max-w-2xl leading-relaxed">
 				Every mission breaks into tasks. Every task pulls in a skill. You watch each one happen, in order, in real time.
 			</p>
 		</div>
@@ -610,10 +611,10 @@
 	<section class="max-w-6xl mx-auto w-full px-6 pb-24 border-t border-surface-border pt-20">
 		<div class="mb-12">
 			<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">003 — SKILLS</p>
-			<h2 class="text-4xl md:text-5xl font-sans font-semibold text-text-primary tracking-tight leading-[1.1] max-w-3xl mb-4">
+			<h2 class="text-[34px] md:text-[44px] font-sans font-semibold text-text-primary tracking-tight leading-[1.1] max-w-3xl mb-4">
 				Tasks <em class="text-accent-primary not-italic">attach</em> their own skills.
 			</h2>
-			<p class="text-lg text-text-secondary max-w-3xl leading-relaxed">
+			<p class="text-base md:text-[17px] text-text-secondary max-w-3xl leading-relaxed">
 				You don't pick the right skill — the task does. Free covers the basics. Pro unlocks the full library.
 			</p>
 		</div>
@@ -654,10 +655,10 @@
 	<section class="max-w-6xl mx-auto w-full px-6 pb-24 border-t border-surface-border pt-20">
 		<div class="mb-12">
 			<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">004 — COMING SOON</p>
-			<h2 class="text-4xl md:text-5xl font-sans font-semibold text-text-primary tracking-tight leading-[1.1] max-w-3xl mb-4">
+			<h2 class="text-[34px] md:text-[44px] font-sans font-semibold text-text-primary tracking-tight leading-[1.1] max-w-3xl mb-4">
 				Pick a <em class="text-accent-primary not-italic">specialization</em>. The workspace re-tunes.
 			</h2>
-			<p class="text-lg text-text-secondary max-w-2xl leading-relaxed">
+			<p class="text-base md:text-[17px] text-text-secondary max-w-2xl leading-relaxed">
 				Trading, content, voice, ops. Same canvas + kanban, different muscle memory.
 			</p>
 		</div>
@@ -667,44 +668,32 @@
 
 	<!-- 005 — Telegram -->
 	<section class="max-w-6xl mx-auto w-full px-6 pb-32 border-t border-surface-border pt-20">
-		<div class="mb-12">
-			<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">005 — FROM YOUR PHONE</p>
-			<h2 class="text-4xl md:text-5xl font-sans font-semibold text-text-primary tracking-tight leading-[1.1] max-w-3xl">
-				Message your <em class="text-accent-primary not-italic">Telegram bot</em>. Watch it ship.
-			</h2>
-			<p class="mt-6 text-lg text-text-secondary max-w-2xl leading-relaxed">
-				Get stuff done from anywhere. The mission gets built on canvas, the tasks land on kanban, you see it happening in real time.
-			</p>
-		</div>
+		<div class="grid md:grid-cols-2 gap-12 items-center">
+			<div>
+				<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">005 — FROM YOUR PHONE</p>
+				<h2 class="text-[34px] md:text-[44px] font-sans font-semibold text-text-primary tracking-tight leading-[1.1] mb-5">
+					Message your <em class="text-accent-primary not-italic">Telegram bot</em>. Watch it ship.
+				</h2>
+				<p class="text-base md:text-[17px] text-text-secondary max-w-md leading-relaxed mb-6">
+					Get stuff done from anywhere. The mission gets built on canvas, the tasks land on kanban — you see it happening, in real time.
+				</p>
+				<ul class="space-y-3 max-w-md">
+					<li class="flex items-start gap-3">
+						<span class="font-mono text-xs text-accent-primary tracking-widest mt-1.5 shrink-0">01</span>
+						<span class="text-base text-text-secondary leading-relaxed">Tap send. Anywhere — phone, couch, queue.</span>
+					</li>
+					<li class="flex items-start gap-3">
+						<span class="font-mono text-xs text-accent-primary tracking-widest mt-1.5 shrink-0">02</span>
+						<span class="text-base text-text-secondary leading-relaxed">Spawner builds it on canvas, skills auto-couple.</span>
+					</li>
+					<li class="flex items-start gap-3">
+						<span class="font-mono text-xs text-accent-primary tracking-widest mt-1.5 shrink-0">03</span>
+						<span class="text-base text-text-secondary leading-relaxed">Result lands back in chat with a preview link.</span>
+					</li>
+				</ul>
+			</div>
 
-		<div class="grid md:grid-cols-3 gap-px bg-surface-border rounded-lg overflow-hidden">
-			<div class="bg-bg-secondary p-8">
-				<p class="font-mono text-xs text-text-tertiary tracking-widest mb-3">YOU</p>
-				<p class="text-lg text-text-primary leading-snug font-sans">
-					Tap <em class="text-accent-primary not-italic">send</em>.
-				</p>
-				<p class="mt-3 text-base text-text-secondary leading-relaxed">
-					Anywhere. Phone. Couch. Boarding queue.
-				</p>
-			</div>
-			<div class="bg-bg-secondary p-8">
-				<p class="font-mono text-xs text-text-tertiary tracking-widest mb-3">SPAWNER</p>
-				<p class="text-lg text-text-primary leading-snug font-sans">
-					Builds it on <em class="text-accent-primary not-italic">canvas</em>.
-				</p>
-				<p class="mt-3 text-base text-text-secondary leading-relaxed">
-					The pipeline draws itself. Skills auto-couple.
-				</p>
-			</div>
-			<div class="bg-bg-secondary p-8">
-				<p class="font-mono text-xs text-text-tertiary tracking-widest mb-3">YOU AGAIN</p>
-				<p class="text-lg text-text-primary leading-snug font-sans">
-					Watch it on <em class="text-accent-primary not-italic">kanban</em>.
-				</p>
-				<p class="mt-3 text-base text-text-secondary leading-relaxed">
-					Live status, task by task. Result lands back in chat.
-				</p>
-			</div>
+			<TelegramPhone />
 		</div>
 	</section>
 

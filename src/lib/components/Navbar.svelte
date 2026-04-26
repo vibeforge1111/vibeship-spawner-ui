@@ -25,7 +25,7 @@
 		<div class="flex items-center gap-2">
 			<a
 				href="/canvas"
-				class="inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-sm text-text-secondary border border-transparent rounded-md hover:text-text-primary hover:border-surface-border transition-all"
+				class="inline-flex items-center gap-2 px-3.5 py-2 font-sans text-[15px] font-medium text-text-secondary border border-transparent rounded-md hover:text-text-primary hover:border-surface-border transition-all"
 			>
 				<Icon name="grid" size={14} />
 				<span class="hidden sm:inline">Canvas</span>
@@ -33,7 +33,7 @@
 
 			<a
 				href="/kanban"
-				class="inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-sm text-text-secondary border border-transparent rounded-md hover:text-text-primary hover:border-surface-border transition-all"
+				class="inline-flex items-center gap-2 px-3.5 py-2 font-sans text-[15px] font-medium text-text-secondary border border-transparent rounded-md hover:text-text-primary hover:border-surface-border transition-all"
 			>
 				<Icon name="clipboard" size={14} />
 				<span class="hidden sm:inline">Kanban</span>
@@ -41,7 +41,7 @@
 
 			<a
 				href="/skills"
-				class="inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-sm text-text-secondary border border-transparent rounded-md hover:text-text-primary hover:border-surface-border transition-all"
+				class="inline-flex items-center gap-2 px-3.5 py-2 font-sans text-[15px] font-medium text-text-secondary border border-transparent rounded-md hover:text-text-primary hover:border-surface-border transition-all"
 			>
 				<Icon name="layers" size={14} />
 				<span class="hidden sm:inline">Skills</span>
@@ -49,7 +49,7 @@
 
 			<a
 				href="/settings"
-				class="inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-sm text-text-secondary border border-transparent rounded-md hover:text-text-primary hover:border-surface-border transition-all"
+				class="inline-flex items-center gap-2 px-3.5 py-2 font-sans text-[15px] font-medium text-text-secondary border border-transparent rounded-md hover:text-text-primary hover:border-surface-border transition-all"
 			>
 				<Icon name="settings" size={14} />
 				<span class="hidden sm:inline">Settings</span>

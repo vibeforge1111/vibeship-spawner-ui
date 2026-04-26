@@ -102,21 +102,21 @@
 </script>
 
 <section class="border-b border-surface-border">
-	<div class="max-w-6xl mx-auto px-6 pt-16 pb-20">
+	<div class="max-w-6xl mx-auto px-6 pt-14 pb-16">
 		<!-- Header strip -->
-		<div class="flex items-end justify-between flex-wrap gap-4 mb-8">
+		<div class="flex items-end justify-between flex-wrap gap-4 mb-7">
 			<div>
-				<p class="font-mono text-sm text-accent-primary tracking-widest mb-3">LIVE · MISSION</p>
-				<h1 class="text-4xl md:text-6xl font-sans font-semibold text-text-primary tracking-tight leading-[1.05]">
+				<p class="font-mono text-xs text-accent-primary tracking-widest mb-3">LIVE · MISSION</p>
+				<h1 class="text-4xl md:text-[52px] font-sans font-semibold text-text-primary tracking-tight leading-[1.05]">
 					Watch your agent <em class="text-accent-primary not-italic">actually</em> ship.
 				</h1>
-				<p class="mt-5 text-lg md:text-xl text-text-secondary max-w-2xl leading-relaxed">
+				<p class="mt-4 text-base md:text-lg text-text-secondary max-w-2xl leading-relaxed">
 					No second-guessing. Every task, every skill, every step — visible.
 				</p>
 			</div>
 			<div class="text-right shrink-0 hidden sm:block">
-				<p class="font-mono text-xs text-text-tertiary tracking-widest mb-1">ELAPSED</p>
-				<p class="font-mono text-3xl font-medium text-text-primary tabular-nums">{elapsed}</p>
+				<p class="font-mono text-[10px] text-text-tertiary tracking-widest mb-1">ELAPSED</p>
+				<p class="font-mono text-[26px] font-medium text-text-primary tabular-nums">{elapsed}</p>
 			</div>
 		</div>
 
@@ -224,6 +224,14 @@
 				{/each}
 			</ol>
 		</div>
+
+		<!-- Scroll cue -->
+		<div class="mt-10 flex flex-col items-center gap-2 text-text-tertiary">
+			<span class="font-mono text-xs tracking-widest">SCROLL TO SEE HOW</span>
+			<svg class="w-4 h-4 animate-bounce-slow" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+				<path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+			</svg>
+		</div>
 	</div>
 </section>
 
@@ -241,5 +249,12 @@
 	}
 	:global(.animate-pulse-slow) {
 		animation: pulse-slow 2s ease-in-out infinite;
+	}
+	@keyframes bounce-slow {
+		0%, 100% { transform: translateY(0); opacity: 0.7; }
+		50% { transform: translateY(6px); opacity: 1; }
+	}
+	:global(.animate-bounce-slow) {
+		animation: bounce-slow 2.4s ease-in-out infinite;
 	}
 </style>
