@@ -4,6 +4,9 @@
 	import Navbar from './Navbar.svelte';
 	import Footer from './Footer.svelte';
 	import Icon from './Icon.svelte';
+	import JourneyDemo from './JourneyDemo.svelte';
+	import SkillCloud from './SkillCloud.svelte';
+	import SpecializationSwapper from './SpecializationSwapper.svelte';
 	import PRDProcessingModal from './PRDProcessingModal.svelte';
 	import { setPRD, setProjectName } from '$lib/stores/project-docs.svelte';
 	import { analyzePRD, generateTasksFromPRD, tasksToWorkflow, type PRDAnalysis, type GeneratedTask } from '$lib/utils/prd-analyzer';
@@ -584,114 +587,90 @@
 		</div>
 	</section>
 
-	<!-- 002 — Skill coupling -->
+	<!-- 002 — Animated journey -->
 	<section class="max-w-6xl mx-auto w-full px-6 pb-24 border-t border-surface-border pt-20">
 		<div class="mb-12">
-			<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">002 — HOW IT WORKS</p>
-			<h2 class="text-4xl md:text-5xl font-sans font-semibold text-text-primary tracking-tight leading-[1.1] max-w-3xl">
+			<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">002 — THE JOURNEY</p>
+			<h2 class="text-4xl md:text-5xl font-sans font-semibold text-text-primary tracking-tight leading-[1.1] max-w-3xl mb-4">
 				One mission. The <em class="text-accent-primary not-italic">right skill</em>. Every time.
 			</h2>
+			<p class="text-lg text-text-secondary max-w-2xl leading-relaxed">
+				Watch the same flow handle three very different missions.
+			</p>
+		</div>
+
+		<JourneyDemo />
+	</section>
+
+	<!-- 003 — Spark Pro live skill cloud -->
+	<section class="max-w-6xl mx-auto w-full px-6 pb-24 border-t border-surface-border pt-20">
+		<div class="mb-12">
+			<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">003 — SPARK PRO</p>
+			<h2 class="text-4xl md:text-5xl font-sans font-semibold text-text-primary tracking-tight leading-[1.1] max-w-3xl mb-4">
+				<em class="text-accent-primary not-italic">600+</em> skills, all benchmarked.
+			</h2>
+			<p class="text-lg text-text-secondary max-w-2xl leading-relaxed">
+				Backend, frontend, design, security, trading — each one earned its spot.
+			</p>
+		</div>
+
+		<SkillCloud />
+	</section>
+
+	<!-- 004 — Specializations preview -->
+	<section class="max-w-6xl mx-auto w-full px-6 pb-24 border-t border-surface-border pt-20">
+		<div class="mb-12">
+			<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">004 — COMING SOON</p>
+			<h2 class="text-4xl md:text-5xl font-sans font-semibold text-text-primary tracking-tight leading-[1.1] max-w-3xl mb-4">
+				Pick a <em class="text-accent-primary not-italic">specialization</em>. The workspace re-tunes.
+			</h2>
+			<p class="text-lg text-text-secondary max-w-2xl leading-relaxed">
+				Trading, content, voice, ops. Same canvas + kanban, different muscle memory.
+			</p>
+		</div>
+
+		<SpecializationSwapper />
+	</section>
+
+	<!-- 005 — Telegram -->
+	<section class="max-w-6xl mx-auto w-full px-6 pb-32 border-t border-surface-border pt-20">
+		<div class="mb-12">
+			<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">005 — FROM YOUR PHONE</p>
+			<h2 class="text-4xl md:text-5xl font-sans font-semibold text-text-primary tracking-tight leading-[1.1] max-w-3xl">
+				Message your <em class="text-accent-primary not-italic">Telegram bot</em>. Watch it ship.
+			</h2>
+			<p class="mt-6 text-lg text-text-secondary max-w-2xl leading-relaxed">
+				Get stuff done from anywhere. The mission gets built on canvas, the tasks land on kanban, you see it happening in real time.
+			</p>
 		</div>
 
 		<div class="grid md:grid-cols-3 gap-px bg-surface-border rounded-lg overflow-hidden">
 			<div class="bg-bg-secondary p-8">
-				<p class="font-mono text-5xl font-semibold text-accent-primary mb-4">→</p>
-				<h3 class="text-xl font-sans font-semibold text-text-primary mb-3">
-					You describe.
-				</h3>
-				<p class="text-base text-text-secondary leading-relaxed">
-					One sentence. A rough goal. A PRD.
+				<p class="font-mono text-xs text-text-tertiary tracking-widest mb-3">YOU</p>
+				<p class="text-lg text-text-primary leading-snug font-sans">
+					Tap <em class="text-accent-primary not-italic">send</em>.
+				</p>
+				<p class="mt-3 text-base text-text-secondary leading-relaxed">
+					Anywhere. Phone. Couch. Boarding queue.
 				</p>
 			</div>
 			<div class="bg-bg-secondary p-8">
-				<p class="font-mono text-5xl font-semibold text-accent-primary mb-4">⚡</p>
-				<h3 class="text-xl font-sans font-semibold text-text-primary mb-3">
-					Spawner couples.
-				</h3>
-				<p class="text-base text-text-secondary leading-relaxed">
-					Each task auto-routes to the skill that's best at it.
+				<p class="font-mono text-xs text-text-tertiary tracking-widest mb-3">SPAWNER</p>
+				<p class="text-lg text-text-primary leading-snug font-sans">
+					Builds it on <em class="text-accent-primary not-italic">canvas</em>.
+				</p>
+				<p class="mt-3 text-base text-text-secondary leading-relaxed">
+					The pipeline draws itself. Skills auto-couple.
 				</p>
 			</div>
 			<div class="bg-bg-secondary p-8">
-				<p class="font-mono text-5xl font-semibold text-accent-primary mb-4">✓</p>
-				<h3 class="text-xl font-sans font-semibold text-text-primary mb-3">
-					It ships.
-				</h3>
-				<p class="text-base text-text-secondary leading-relaxed">
-					You watch it on the board.
+				<p class="font-mono text-xs text-text-tertiary tracking-widest mb-3">YOU AGAIN</p>
+				<p class="text-lg text-text-primary leading-snug font-sans">
+					Watch it on <em class="text-accent-primary not-italic">kanban</em>.
 				</p>
-			</div>
-		</div>
-	</section>
-
-	<!-- 003 — Spark Pro -->
-	<section class="max-w-6xl mx-auto w-full px-6 pb-24 border-t border-surface-border pt-20">
-		<div class="grid md:grid-cols-2 gap-12 items-center">
-			<div>
-				<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">003 — SPARK PRO</p>
-				<h2 class="text-4xl md:text-5xl font-sans font-semibold text-text-primary tracking-tight leading-[1.1] mb-6">
-					<em class="text-accent-primary not-italic">600+</em> skills, all benchmarked.
-				</h2>
-				<p class="text-lg text-text-secondary leading-relaxed">
-					Backend. Frontend. Design. Security. Trading. Each skill earned its spot in a benchmark.
+				<p class="mt-3 text-base text-text-secondary leading-relaxed">
+					Live status, task by task. Result lands back in chat.
 				</p>
-			</div>
-			<div class="rounded-lg border border-surface-border bg-bg-secondary p-8">
-				<p class="font-mono text-xs text-text-tertiary tracking-widest mb-2">SOON</p>
-				<h3 class="text-2xl font-sans font-semibold text-text-primary mb-3 leading-tight">
-					Specializations on canvas + kanban.
-				</h3>
-				<p class="text-base text-text-secondary leading-relaxed">
-					Pick a domain. The workspace re-tunes itself.
-				</p>
-			</div>
-		</div>
-	</section>
-
-	<!-- 004 — Telegram -->
-	<section class="max-w-6xl mx-auto w-full px-6 pb-32 border-t border-surface-border pt-20">
-		<div class="mb-12">
-			<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">004 — FROM YOUR PHONE</p>
-			<h2 class="text-4xl md:text-5xl font-sans font-semibold text-text-primary tracking-tight leading-[1.1] max-w-3xl">
-				Run Spawner from <em class="text-accent-primary not-italic">Telegram</em>.
-			</h2>
-			<p class="mt-6 text-lg text-text-secondary max-w-2xl leading-relaxed">
-				Message <a href="https://t.me/SparkAGI_bot" target="_blank" rel="noopener" class="text-accent-primary hover:underline">@SparkAGI_bot</a>. Same skills, same kanban. No laptop needed.
-			</p>
-		</div>
-
-		<div class="grid md:grid-cols-2 gap-12 items-start">
-			<div>
-				<a
-					href="https://t.me/SparkAGI_bot"
-					target="_blank"
-					rel="noopener"
-					class="inline-flex items-center gap-2 px-5 py-3 rounded-[5px] bg-accent-primary text-accent-fg font-medium text-base hover:opacity-85 transition-all"
-				>
-					<Icon name="message-circle" size={16} />
-					<span>Open @SparkAGI_bot</span>
-				</a>
-			</div>
-			<div>
-				<p class="font-mono text-xs text-text-tertiary tracking-widest mb-4">COMMANDS</p>
-				<ul class="space-y-3">
-					<li class="flex items-baseline gap-4">
-						<code class="font-mono text-sm text-accent-primary shrink-0 min-w-[140px]">build &lt;idea&gt;</code>
-						<span class="text-base text-text-secondary">Spawn a mission</span>
-					</li>
-					<li class="flex items-baseline gap-4">
-						<code class="font-mono text-sm text-accent-primary shrink-0 min-w-[140px]">score &lt;text&gt;</code>
-						<span class="text-base text-text-secondary">Grade content</span>
-					</li>
-					<li class="flex items-baseline gap-4">
-						<code class="font-mono text-sm text-accent-primary shrink-0 min-w-[140px]">optimize this</code>
-						<span class="text-base text-text-secondary">Iterate on the last reply</span>
-					</li>
-					<li class="flex items-baseline gap-4">
-						<code class="font-mono text-sm text-accent-primary shrink-0 min-w-[140px]">remember this:</code>
-						<span class="text-base text-text-secondary">Pin a fact</span>
-					</li>
-				</ul>
 			</div>
 		</div>
 	</section>
