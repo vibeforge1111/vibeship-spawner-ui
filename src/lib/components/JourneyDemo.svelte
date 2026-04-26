@@ -1,40 +1,51 @@
 <!--
-	Animated journey: prompt → tasks → skills → ship
-	Cycles through 3 example missions to show how the same flow handles
-	any kind of work. Pure CSS keyframes driven by a single $state cycle.
+	Animated journey: prompt → tasks → bound to right skill → ship.
+	Cycles through 3 example missions. Each cycle renders the
+	task↔skill binding in a different view (list / kanban / canvas)
+	to drive home: same coupling, every view.
 -->
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 
+	type ViewKind = 'list' | 'kanban' | 'canvas';
+	type Task = { title: string; skills: string[]; column?: 'todo' | 'doing' | 'done' };
 	type Example = {
 		prompt: string;
-		tasks: { title: string; skills: string[] }[];
+		view: ViewKind;
+		tasks: Task[];
+		result: string;
 	};
 
 	const EXAMPLES: Example[] = [
 		{
 			prompt: 'Build a landing page for my SaaS',
+			view: 'list',
 			tasks: [
-				{ title: 'Design a layout', skills: ['ui-design', 'web3-ui'] },
-				{ title: 'Build the page', skills: ['frontend', 'sveltekit'] },
-				{ title: 'Wire the form', skills: ['backend', 'api-design'] }
-			]
+				{ title: 'Design a layout',  skills: ['ui-design', 'web3-ui'] },
+				{ title: 'Build the page',   skills: ['frontend', 'sveltekit'] },
+				{ title: 'Wire the form',    skills: ['backend', 'api-design'] }
+			],
+			result: 'Mission shipped — open it on the canvas.'
 		},
 		{
 			prompt: 'Audit my smart contract',
+			view: 'kanban',
 			tasks: [
-				{ title: 'Static analysis', skills: ['security-owasp', 'opengrep'] },
-				{ title: 'Reentrancy check', skills: ['solidity', 'web3-contracts'] },
-				{ title: 'Write the report', skills: ['compliance', 'docs'] }
-			]
+				{ title: 'Static analysis',     skills: ['security-owasp', 'opengrep'], column: 'done' },
+				{ title: 'Reentrancy check',    skills: ['solidity', 'web3-contracts'], column: 'doing' },
+				{ title: 'Write the report',    skills: ['compliance', 'docs'],          column: 'todo' }
+			],
+			result: 'Tracked on kanban — every task, every skill.'
 		},
 		{
 			prompt: 'Launch a content campaign',
+			view: 'canvas',
 			tasks: [
-				{ title: 'Find the angle', skills: ['marketing', 'xcontent'] },
-				{ title: 'Draft 10 posts', skills: ['copywriting', 'voice-style'] },
-				{ title: 'Schedule + score', skills: ['scheduling', 'virality'] }
-			]
+				{ title: 'Find the angle',     skills: ['marketing', 'xcontent'] },
+				{ title: 'Draft 10 posts',     skills: ['copywriting', 'voice-style'] },
+				{ title: 'Schedule + score',   skills: ['scheduling', 'virality'] }
+			],
+			result: 'Wired on canvas — flowchart you can edit.'
 		}
 	];
 
@@ -45,14 +56,23 @@
 	let timer: ReturnType<typeof setInterval> | null = null;
 
 	const current = $derived(EXAMPLES[cycle % EXAMPLES.length]);
+	const viewLabel = $derived({
+		list:   'BOUND IN THE LIST',
+		kanban: 'BOUND ON THE KANBAN',
+		canvas: 'BOUND ON THE CANVAS'
+	}[current.view]);
+
+	const kanbanColumns: { id: 'todo' | 'doing' | 'done'; label: string; dot: string }[] = [
+		{ id: 'todo',  label: 'To do',       dot: 'bg-text-tertiary'   },
+		{ id: 'doing', label: 'In progress', dot: 'bg-accent-primary'  },
+		{ id: 'done',  label: 'Done',        dot: 'bg-status-amber'    }
+	];
 
 	onMount(() => {
-		// First user-facing animation kicks in after a short hold so they
-		// can register the full picture before it resets and replays.
 		setTimeout(() => {
 			cycle = 1;
 			step = 0;
-			const PHASE_MS = 4200; // ~17s per example, easy to read
+			const PHASE_MS = 4200;
 			timer = setInterval(() => {
 				step += 1;
 				if (step > 3) {
@@ -102,29 +122,97 @@
 		</div>
 	</div>
 
-	<!-- Phase 3: skills couple in -->
+	<!-- Phase 3: bound — view changes per example -->
 	<div class="mb-10">
 		<p class="font-mono text-xs text-text-tertiary tracking-widest mb-3">
-			RIGHT SKILL FOR EACH TASK
+			{viewLabel}
 			<span class="text-accent-primary ml-2" class:opacity-0={step < 2}>↓</span>
 		</p>
-		<div class="grid md:grid-cols-3 gap-3">
-			{#each current.tasks as task, i (cycle + '-skills-' + i)}
-				<div class="flex flex-wrap gap-2">
-					{#each task.skills as skill, j}
-						<span
-							class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-accent-primary/40 bg-accent-primary/10 transition-all duration-500"
-							class:skill-in={step >= 2}
-							class:skill-pre={step < 2}
-							style="--delay: {(i * 200) + (j * 100)}ms"
-						>
-							<span class="w-1.5 h-1.5 rounded-full bg-accent-primary" class:pulse={step >= 2}></span>
-							<span class="font-mono text-sm text-text-primary">{skill}</span>
-						</span>
+
+		{#key cycle}
+			{#if current.view === 'list'}
+				<!-- LIST VIEW: tasks stacked, skill chips below each -->
+				<div class="grid md:grid-cols-3 gap-3 view-fade">
+					{#each current.tasks as task, i}
+						<div class="flex flex-wrap gap-2">
+							{#each task.skills as skill, j}
+								<span
+									class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-accent-primary/40 bg-accent-primary/10 transition-all duration-500"
+									class:skill-in={step >= 2}
+									class:skill-pre={step < 2}
+									style="--delay: {(i * 200) + (j * 100)}ms"
+								>
+									<span class="w-1.5 h-1.5 rounded-full bg-accent-primary" class:pulse={step >= 2}></span>
+									<span class="font-mono text-sm text-text-primary">{skill}</span>
+								</span>
+							{/each}
+						</div>
 					{/each}
 				</div>
-			{/each}
-		</div>
+
+			{:else if current.view === 'kanban'}
+				<!-- KANBAN VIEW: three columns, tasks distributed by .column -->
+				<div class="grid md:grid-cols-3 gap-3 view-fade">
+					{#each kanbanColumns as col, c}
+						<div
+							class="rounded-md border border-surface-border bg-bg-primary/50 p-3 transition-all duration-500"
+							class:skill-in={step >= 2}
+							class:skill-pre={step < 2}
+							style="--delay: {c * 200}ms"
+						>
+							<div class="flex items-center gap-2 mb-3">
+								<span class="w-2 h-2 rounded-full {col.dot}"></span>
+								<span class="font-mono text-[10px] tracking-widest uppercase text-text-tertiary">{col.label}</span>
+							</div>
+							<div class="space-y-2">
+								{#each current.tasks.filter((t) => t.column === col.id) as task}
+									<div class="rounded-md border border-surface-border bg-bg-secondary p-3">
+										<p class="text-sm font-sans text-text-primary leading-snug mb-2">{task.title}</p>
+										<div class="flex flex-wrap gap-1.5">
+											{#each task.skills as skill}
+												<span class="inline-flex items-center px-2 py-0.5 rounded-full border border-accent-primary/40 bg-accent-primary/10 font-mono text-[11px] text-text-primary">
+													{skill}
+												</span>
+											{/each}
+										</div>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/each}
+				</div>
+
+			{:else}
+				<!-- CANVAS VIEW: horizontal flowchart with dashed connectors -->
+				<div class="rounded-md border border-surface-border bg-bg-primary p-5 view-fade">
+					<div class="flex items-stretch gap-3 flex-wrap md:flex-nowrap">
+						{#each current.tasks as task, i}
+							<div
+								class="flex-1 min-w-[180px] rounded-md border border-accent-primary/40 bg-accent-primary/5 p-3 transition-all duration-500 shadow-[0_0_24px_-8px_rgb(var(--accent-rgb)/0.35)]"
+								class:skill-in={step >= 2}
+								class:skill-pre={step < 2}
+								style="--delay: {i * 200}ms"
+							>
+								<p class="font-mono text-[10px] text-accent-primary tracking-widest mb-2">NODE {i + 1}</p>
+								<p class="text-sm font-sans text-text-primary leading-snug mb-3">{task.title}</p>
+								<div class="flex flex-wrap gap-1.5">
+									{#each task.skills as skill}
+										<span class="inline-flex items-center px-2 py-0.5 rounded-full border border-accent-primary/40 bg-accent-primary/10 font-mono text-[11px] text-text-primary">
+											{skill}
+										</span>
+									{/each}
+								</div>
+							</div>
+							{#if i < current.tasks.length - 1}
+								<div class="hidden md:flex items-center">
+									<span class="block w-6 border-t border-dashed border-accent-primary/60"></span>
+								</div>
+							{/if}
+						{/each}
+					</div>
+				</div>
+			{/if}
+		{/key}
 	</div>
 
 	<!-- Phase 4: ship -->
@@ -137,7 +225,7 @@
 		>
 			<div class="flex items-center gap-3">
 				<span class="text-accent-primary text-2xl leading-none" class:check-pop={step >= 3}>✓</span>
-				<p class="text-lg font-sans text-text-primary">Mission shipped — track it on the kanban.</p>
+				<p class="text-lg font-sans text-text-primary">{current.result}</p>
 			</div>
 		</div>
 	</div>
@@ -174,7 +262,7 @@
 
 	.skill-pre {
 		opacity: 0;
-		transform: scale(0.9);
+		transform: scale(0.94);
 	}
 	.skill-in {
 		opacity: 1;
@@ -215,5 +303,13 @@
 	@keyframes type-in {
 		from { opacity: 0; transform: translateX(-8px); }
 		to { opacity: 1; transform: translateX(0); }
+	}
+
+	.view-fade {
+		animation: view-fade 0.6s ease-out;
+	}
+	@keyframes view-fade {
+		from { opacity: 0; transform: translateY(6px); }
+		to { opacity: 1; transform: translateY(0); }
 	}
 </style>
