@@ -17,6 +17,12 @@ export interface MissionControlBridgeEvent {
 	[key: string]: unknown;
 }
 
+export interface TelegramRelayTarget {
+	port: number | null;
+	profile: string | null;
+	url: string | null;
+}
+
 export interface MissionControlRelayStatusEntry {
 	eventType: string;
 	missionId: string;
@@ -27,6 +33,7 @@ export interface MissionControlRelayStatusEntry {
 	summary: string;
 	timestamp: string;
 	source: string;
+	telegramRelay?: TelegramRelayTarget | null;
 }
 
 export interface MissionControlRelaySnapshot {
@@ -56,6 +63,7 @@ export interface MissionControlBoardEntry {
 	taskCount: number;
 	taskNames: string[];
 	tasks: Array<{ title: string; skills: string[] }>;
+	telegramRelay?: TelegramRelayTarget | null;
 }
 
 const RELAY_EVENT_TYPES = new Set([
@@ -184,6 +192,9 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 	const dataTaskName = event.data && typeof (event.data as Record<string, unknown>).taskName === 'string'
 		? ((event.data as Record<string, unknown>).taskName as string)
 		: null;
+	const telegramRelay = getTelegramRelayTarget(event);
+	const hasTelegramRelay =
+		telegramRelay.port !== null || telegramRelay.profile !== null || telegramRelay.url !== null;
 
 	return {
 		eventType: typeof event.type === 'string' ? event.type : 'unknown',
@@ -194,7 +205,8 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		taskSkills,
 		summary: summarizeMissionControlEvent(event),
 		timestamp,
-		source: typeof event.source === 'string' ? event.source : 'unknown'
+		source: typeof event.source === 'string' ? event.source : 'unknown',
+		telegramRelay: hasTelegramRelay ? telegramRelay : null
 	};
 }
 
@@ -310,12 +322,16 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 				taskName: entry.taskName ? sanitizeMissionControlDisplayText(entry.taskName) : null,
 				taskCount: 0,
 				taskNames: [],
-				tasks: []
+				tasks: [],
+				telegramRelay: entry.telegramRelay ?? null
 			});
 		} else {
 			if (!existing.taskName && entry.taskName) existing.taskName = sanitizeMissionControlDisplayText(entry.taskName);
 			if (!existing.missionName && entry.missionName) {
 				existing.missionName = sanitizeMissionControlDisplayText(entry.missionName);
+			}
+			if (!existing.telegramRelay && entry.telegramRelay) {
+				existing.telegramRelay = entry.telegramRelay;
 			}
 		}
 
@@ -503,18 +519,23 @@ function webhookPort(url: string): number | null {
 	}
 }
 
-function getTelegramRelayTarget(event: MissionControlBridgeEvent): { port: number | null; url: string | null } {
+function normalizeRelayProfile(value: unknown): string | null {
+	return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function getTelegramRelayTarget(event: MissionControlBridgeEvent): TelegramRelayTarget {
 	const data = event.data;
 	if (!data || typeof data !== 'object') {
-		return { port: null, url: null };
+		return { port: null, profile: null, url: null };
 	}
 	const relay = data.telegramRelay && typeof data.telegramRelay === 'object'
 		? data.telegramRelay as Record<string, unknown>
 		: null;
 	const urlRaw = relay?.url ?? data.telegramRelayUrl;
 	const port = normalizeRelayPort(relay?.port ?? data.telegramRelayPort);
+	const profile = normalizeRelayProfile(relay?.profile ?? data.telegramRelayProfile);
 	const url = typeof urlRaw === 'string' && urlRaw.trim() ? urlRaw.trim() : null;
-	return { port, url };
+	return { port, profile, url };
 }
 
 export function selectWebhookUrlsForMissionEvent(event: MissionControlBridgeEvent, urls = DEFAULT_WEBHOOKS): string[] {

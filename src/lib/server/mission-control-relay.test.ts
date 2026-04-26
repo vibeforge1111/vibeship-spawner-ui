@@ -169,6 +169,34 @@ describe('mission-control-relay', () => {
 		expect((raw.data as Record<string, unknown>).telegramRelay).toEqual({ port: 8788, profile: 'primary' });
 	});
 
+	it('keeps Telegram relay target metadata in relay snapshots and board entries', async () => {
+		const missionId = `mission-relay-target-board-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'mission_started',
+			missionId,
+			source: 'spark-run',
+			data: {
+				telegramRelay: { port: 8789, profile: 'primary', url: 'http://127.0.0.1:8789/spawner-events' }
+			}
+		});
+
+		const snapshot = getMissionControlRelaySnapshot(missionId);
+		expect(snapshot.recent[0].telegramRelay).toEqual({
+			port: 8789,
+			profile: 'primary',
+			url: 'http://127.0.0.1:8789/spawner-events'
+		});
+
+		const board = getMissionControlBoard();
+		const entry = board.running.find((candidate) => candidate.missionId === missionId);
+		expect(entry?.telegramRelay).toEqual({
+			port: 8789,
+			profile: 'primary',
+			url: 'http://127.0.0.1:8789/spawner-events'
+		});
+	});
+
 	it('creates readable summaries', () => {
 		const text = summarizeMissionControlEvent({ type: 'mission_failed', missionId: 'm-22' });
 		expect(text).toContain('Mission failed');
