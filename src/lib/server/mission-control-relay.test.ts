@@ -90,7 +90,7 @@ describe('mission-control-relay', () => {
 			selectWebhookUrlsForMissionEvent({
 				type: 'mission_started',
 				missionId: 'spark-1',
-				data: { telegramRelay: { port: 8789, profile: 'spark-agi' } }
+				data: { telegramRelay: { port: 8789, profile: 'primary' } }
 			}, urls)
 		).toEqual(['http://127.0.0.1:8789/spawner-events']);
 	});
@@ -109,7 +109,7 @@ describe('mission-control-relay', () => {
 					telegramRelay: {
 						url: 'http://127.0.0.1:8788/spawner-events',
 						port: 8789,
-						profile: 'spark-agi'
+						profile: 'primary'
 					}
 				}
 			}, urls)
@@ -158,15 +158,15 @@ describe('mission-control-relay', () => {
 			source: 'spark-run',
 			data: {
 				goal: 'Build through Telegram and show the Kanban board.',
-				telegramRelay: { port: 8788, profile: 'spark-agi' }
+				telegramRelay: { port: 8788, profile: 'primary' }
 			}
 		});
 		const body = payload.payload as Record<string, unknown>;
 		const data = body.data as Record<string, unknown>;
 		const raw = body.raw as Record<string, unknown>;
 
-		expect(data.telegramRelay).toEqual({ port: 8788, profile: 'spark-agi' });
-		expect((raw.data as Record<string, unknown>).telegramRelay).toEqual({ port: 8788, profile: 'spark-agi' });
+		expect(data.telegramRelay).toEqual({ port: 8788, profile: 'primary' });
+		expect((raw.data as Record<string, unknown>).telegramRelay).toEqual({ port: 8788, profile: 'primary' });
 	});
 
 	it('creates readable summaries', () => {

@@ -106,8 +106,8 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 					chatId: '8319079055',
 					userId: '8319079055',
 					requestId,
-					goal: 'Build through spark-agi.',
-					telegramRelay: { port: 8789, profile: 'spark-agi' }
+					goal: 'Build through the primary Telegram relay.',
+					telegramRelay: { port: 8789, profile: 'primary' }
 				}
 			}),
 			'utf-8'
@@ -131,7 +131,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 			autoRun: true,
 			buildMode: 'advanced_prd',
 			buildModeReason: 'Multi-agent Telegram relay test.',
-			telegramRelay: { port: 8789, profile: 'spark-agi' }
+			telegramRelay: { port: 8789, profile: 'primary' }
 		});
 	});
 });
