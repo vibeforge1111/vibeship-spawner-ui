@@ -96,7 +96,7 @@ export function getMissionControlPersistPath(): string {
 }
 
 function isMissionControlMissionId(value: unknown): value is string {
-	return typeof value === 'string' && /^spark-[A-Za-z0-9_-]+$/.test(value.trim());
+	return typeof value === 'string' && /^(spark|mission)-[A-Za-z0-9_-]+$/.test(value.trim());
 }
 
 function loadPersistedState() {
@@ -168,23 +168,47 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		event.data && typeof (event.data as Record<string, unknown>).missionName === 'string'
 			? ((event.data as Record<string, unknown>).missionName as string)
 			: null;
+	const dataMission =
+		event.data && typeof (event.data as Record<string, unknown>).mission === 'object'
+			? ((event.data as Record<string, unknown>).mission as Record<string, unknown>)
+			: null;
+	const missionObjectName = typeof dataMission?.name === 'string' ? dataMission.name : null;
 
 	const dataSkillsRaw = event.data && (event.data as Record<string, unknown>).skills;
 	const taskSkills = Array.isArray(dataSkillsRaw)
 		? dataSkillsRaw.filter((s): s is string => typeof s === 'string')
 		: [];
+	const dataTaskId = event.data && typeof (event.data as Record<string, unknown>).taskId === 'string'
+		? ((event.data as Record<string, unknown>).taskId as string)
+		: null;
+	const dataTaskName = event.data && typeof (event.data as Record<string, unknown>).taskName === 'string'
+		? ((event.data as Record<string, unknown>).taskName as string)
+		: null;
 
 	return {
 		eventType: typeof event.type === 'string' ? event.type : 'unknown',
 		missionId,
-		missionName: typeof event.missionName === 'string' ? event.missionName : dataMissionName,
-		taskId: typeof event.taskId === 'string' ? event.taskId : null,
-		taskName: typeof event.taskName === 'string' ? event.taskName : null,
+		missionName: typeof event.missionName === 'string' ? event.missionName : dataMissionName || missionObjectName,
+		taskId: typeof event.taskId === 'string' ? event.taskId : dataTaskId,
+		taskName: typeof event.taskName === 'string' ? event.taskName : dataTaskName,
 		taskSkills,
 		summary: summarizeMissionControlEvent(event),
 		timestamp,
 		source: typeof event.source === 'string' ? event.source : 'unknown'
 	};
+}
+
+function shouldRecordMissionControlEvent(event: MissionControlBridgeEvent): boolean {
+	const type = typeof event.type === 'string' ? event.type : '';
+	if (!type || !RELAY_EVENT_TYPES.has(type)) {
+		return false;
+	}
+
+	if (event.data && (event.data as Record<string, unknown>).suppressRelay === true) {
+		return false;
+	}
+
+	return true;
 }
 
 function recordRelayEvent(event: MissionControlBridgeEvent): void {
@@ -327,8 +351,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 }
 
 export function shouldRelayMissionControlEvent(event: MissionControlBridgeEvent): boolean {
-	const type = typeof event.type === 'string' ? event.type : '';
-	if (!type || !RELAY_EVENT_TYPES.has(type)) {
+	if (!shouldRecordMissionControlEvent(event)) {
 		return false;
 	}
 
@@ -347,12 +370,16 @@ export function shouldRelayMissionControlEvent(event: MissionControlBridgeEvent)
 export function summarizeMissionControlEvent(event: MissionControlBridgeEvent): string {
 	const type = typeof event.type === 'string' ? event.type : 'event';
 	const missionId = normalizeMissionId(event);
+	const dataTaskName =
+		event.data && typeof (event.data as Record<string, unknown>).taskName === 'string'
+			? ((event.data as Record<string, unknown>).taskName as string)
+			: undefined;
 	const taskName =
 		typeof event.taskName === 'string'
 			? event.taskName
 			: typeof event.taskId === 'string'
 				? event.taskId
-				: undefined;
+				: dataTaskName;
 
 	switch (type) {
 		case 'mission_created':
@@ -507,11 +534,15 @@ export function selectWebhookUrlsForMissionEvent(event: MissionControlBridgeEven
 }
 
 export async function relayMissionControlEvent(event: MissionControlBridgeEvent): Promise<void> {
-	if (!shouldRelayMissionControlEvent(event)) {
+	if (!shouldRecordMissionControlEvent(event)) {
 		return;
 	}
 
 	recordRelayEvent(event);
+
+	if (!shouldRelayMissionControlEvent(event)) {
+		return;
+	}
 
 	const tasks: Promise<void>[] = [];
 	const sparkIngestUrl = DEFAULT_SPARK_INGEST_URL;

@@ -118,8 +118,6 @@
 	let multiLLMAutoDispatch = $state(true);
 	let multiLLMApiKeys = $state<Record<string, string>>({});
 	let serverProviderKeyPresence = $state<Record<string, boolean>>({});
-	let isDispatching = $state(false);
-	let dispatchStatus = $state<Record<string, string>>({});
 	let connectedMcpCapabilities = $state<MultiLLMCapability[]>([]);
 	let connectedMcpTools = $state<MultiLLMMCPTool[]>([]);
 	let connectedMcpToolCount = $state(0);
@@ -1514,102 +1512,32 @@
 									{multiPack.strategy} • {multiPack.providers.length} provider(s)
 								</span>
 							</div>
-							<div class="flex items-center gap-1">
-								<button
-									class="px-3 py-1 bg-accent-primary hover:bg-accent-primary-hover text-white rounded-md text-xs font-mono transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-									disabled={isDispatching}
-									onclick={async (e) => {
-										e.stopPropagation();
-										isDispatching = true;
-										dispatchStatus = {};
-										try {
-											const response = await fetch('/api/dispatch', {
-												method: 'POST',
-												headers: { 'Content-Type': 'application/json' },
-												body: JSON.stringify({
-													executionPack: multiPack,
-													apiKeys: multiLLMApiKeys,
-													workingDirectory: projectPath
-												})
-											});
-											const result = await response.json();
-											if (result.success) {
-												dispatchStatus = Object.fromEntries(
-													Object.entries(result.sessions || {}).map(([id, s]) => [id, (s as {status: string}).status])
-												);
-											}
-										} catch (err) {
-											console.error('[Dispatch] Error:', err);
-										} finally {
-											isDispatching = false;
-										}
-									}}
-								>
-									{isDispatching ? 'Dispatching...' : 'Dispatch All'}
-								</button>
-								<button
-									class="px-3 py-1 bg-vibe-teal hover:bg-vibe-teal/90 text-bg-primary text-xs font-mono transition-all"
-									onclick={(e) => {
-										e.stopPropagation();
-										copyToClipboard(
-											multiPack.masterPrompt,
-											'Master orchestration prompt copied'
-										);
-									}}
-								>
-									Copy Master
-								</button>
-							</div>
+							<span class="text-[10px] font-mono text-text-tertiary">auto-dispatch</span>
 						</div>
 						{#if !multiLLMPanelCollapsed}
 							<div class="p-3 bg-vibe-teal/5 space-y-2">
 								{#each multiPack.providers as provider}
 									{@const assignment = multiPack.assignments[provider.id]}
-									{@const pStatus = dispatchStatus[provider.id]}
-									<div class="p-2 border border-surface-border bg-bg-primary {pStatus === 'running' ? 'border-l-2 border-l-yellow-400' : pStatus === 'completed' ? 'border-l-2 border-l-green-400' : pStatus === 'failed' ? 'border-l-2 border-l-red-400' : ''}">
+									<div class="p-2 border border-surface-border bg-bg-primary">
 										<div class="flex items-center justify-between gap-2">
 											<div class="text-xs">
 												<div class="font-mono text-text-primary flex items-center gap-1.5">
 													{provider.label} ({provider.id})
-													{#if pStatus === 'running'}
+													{#if runtimeAgents.some((agent) => agent.agentId === provider.id && agent.status === 'running')}
 														<span class="inline-block w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse"></span>
-													{:else if pStatus === 'completed'}
+													{:else if runtimeAgents.some((agent) => agent.agentId === provider.id && agent.status === 'completed')}
 														<span class="inline-block w-1.5 h-1.5 rounded-full bg-green-400"></span>
-													{:else if pStatus === 'failed'}
+													{:else if runtimeAgents.some((agent) => agent.agentId === provider.id && agent.status === 'failed')}
 														<span class="inline-block w-1.5 h-1.5 rounded-full bg-red-400"></span>
 													{/if}
 												</div>
 												<div class="text-text-tertiary">
 													{provider.model} • {assignment?.mode || 'execute'} • {assignment?.taskIds?.length || 0} task(s)
-													{#if pStatus}
-														<span class="ml-1 {pStatus === 'completed' ? 'text-accent-primary' : pStatus === 'failed' ? 'text-status-error' : 'text-status-warning'}">
-															[{pStatus}]
-														</span>
-													{/if}
 												</div>
 											</div>
-											<div class="flex items-center gap-1">
-												<button
-													onclick={() =>
-														copyToClipboard(
-															multiPack.providerPrompts[provider.id] || '',
-															`Copied ${provider.label} prompt`
-														)}
-													class="px-2 py-1 text-[10px] font-mono text-text-secondary border border-surface-border hover:border-vibe-teal/60 rounded-md transition-all"
-												>
-													Copy Prompt
-												</button>
-												<button
-													onclick={() =>
-														copyToClipboard(
-															multiPack.launchCommands[provider.id] || '',
-															`Copied ${provider.label} launch command`
-														)}
-													class="px-2 py-1 text-[10px] font-mono text-text-secondary border border-surface-border hover:border-vibe-teal/60 rounded-md transition-all"
-												>
-													Copy Launch
-												</button>
-											</div>
+											<span class="text-[10px] font-mono text-vibe-teal">
+												{runtimeAgents.find((agent) => agent.agentId === provider.id)?.status || 'assigned'}
+											</span>
 										</div>
 									</div>
 								{/each}

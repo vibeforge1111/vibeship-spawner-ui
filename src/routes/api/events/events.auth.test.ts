@@ -1,4 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { existsSync } from 'fs';
+import { mkdtemp, rm } from 'fs/promises';
+import { tmpdir } from 'os';
+import path from 'path';
 
 vi.mock('$env/dynamic/private', () => ({
 	env: {
@@ -9,6 +13,16 @@ vi.mock('$env/dynamic/private', () => ({
 }));
 
 import { GET, POST } from './+server';
+
+let testSpawnerDir: string | null = null;
+
+afterEach(async () => {
+	delete process.env.SPAWNER_STATE_DIR;
+	if (testSpawnerDir && existsSync(testSpawnerDir)) {
+		await rm(testSpawnerDir, { recursive: true, force: true });
+	}
+	testSpawnerDir = null;
+});
 
 function createEvent(url: string, init?: RequestInit) {
 	return {
@@ -50,5 +64,36 @@ describe('/api/events auth', () => {
 
 		expect(response.status).toBe(200);
 		expect(response.headers.get('set-cookie')).toContain('spawner_events_api_key=');
+	});
+
+	it('stores PRD analysis results under configured Spawner state directory', async () => {
+		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-events-state-'));
+		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
+		const requestId = 'events-state-dir-test';
+
+		const response = await POST(
+			createEvent('https://example.com/api/events', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-api-key': 'events-secret'
+				},
+				body: JSON.stringify({
+					type: 'prd_analysis_complete',
+					source: 'codex-auto',
+					data: {
+						requestId,
+						result: {
+							success: true,
+							projectName: 'Events State Dir Test',
+							tasks: [{ id: 'TAS-1', title: 'Store result consistently' }]
+						}
+					}
+				})
+			})
+		);
+
+		expect(response.status).toBe(200);
+		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(true);
 	});
 });

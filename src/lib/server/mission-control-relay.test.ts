@@ -20,6 +20,42 @@ describe('mission-control-relay', () => {
 		expect(shouldRelayMissionControlEvent({ type: 'mission_started', source: 'spawner-ui' })).toBe(false);
 	});
 
+	it('records self-originated canvas events for Kanban without relaying them externally', async () => {
+		const missionId = `mission-canvas-local-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			source: 'spawner-ui',
+			data: {
+				mission: {
+					name: 'Canvas-created Galaxy Garden'
+				}
+			}
+		});
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			source: 'spawner-ui',
+			data: {
+				taskId: 'TAS-1',
+				taskName: 'Create static app shell',
+				skills: ['frontend']
+			}
+		});
+
+		expect(shouldRelayMissionControlEvent({ type: 'mission_created', missionId, source: 'spawner-ui' })).toBe(false);
+
+		const board = getMissionControlBoard();
+		const entry = board.running.find((candidate) => candidate.missionId === missionId);
+		expect(entry?.missionName).toBe('Canvas-created Galaxy Garden');
+		expect(entry?.taskNames).toContain('Create static app shell');
+		expect(entry?.tasks[0]).toEqual({
+			title: 'Create static app shell',
+			skills: ['frontend']
+		});
+	});
+
 	it('does not relay diagnostic-only Spark run events', () => {
 		expect(
 			shouldRelayMissionControlEvent({

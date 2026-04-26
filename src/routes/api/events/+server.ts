@@ -16,10 +16,19 @@ import { writeFile, mkdir, appendFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
-const SPAWNER_DIR = join(process.cwd(), '.spawner');
-const RESULTS_DIR = join(SPAWNER_DIR, 'results');
-const PRD_AUTO_TRACE_FILE = join(SPAWNER_DIR, 'prd-auto-trace.jsonl');
 const EVENTS_AUTH_COOKIE = 'spawner_events_api_key';
+
+function getSpawnerDir(): string {
+	return process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
+}
+
+function getResultsDir(): string {
+	return join(getSpawnerDir(), 'results');
+}
+
+function getPrdAutoTraceFile(): string {
+	return join(getSpawnerDir(), 'prd-auto-trace.jsonl');
+}
 
 function extractApiKeyFromRequest(request: Request): string | null {
 	const headerKey = request.headers.get('x-api-key') || request.headers.get('x-mcp-api-key');
@@ -64,7 +73,7 @@ function createAuthCookieHeader(request: Request): string | null {
 async function appendPrdTrace(requestId: string, event: string, details: Record<string, unknown> = {}): Promise<void> {
 	try {
 		await appendFile(
-			PRD_AUTO_TRACE_FILE,
+			getPrdAutoTraceFile(),
 			`${JSON.stringify({ ts: new Date().toISOString(), requestId, event, ...details })}\n`,
 			'utf-8'
 		);
@@ -76,11 +85,12 @@ async function appendPrdTrace(requestId: string, event: string, details: Record<
 async function storePRDResult(requestId: string, result: unknown): Promise<void> {
 	try {
 		assertSafeId(requestId, 'requestId');
+		const resultsDir = getResultsDir();
 
-		if (!existsSync(RESULTS_DIR)) {
-			await mkdir(RESULTS_DIR, { recursive: true });
+		if (!existsSync(resultsDir)) {
+			await mkdir(resultsDir, { recursive: true });
 		}
-		const resultFile = resolveWithinBaseDir(RESULTS_DIR, `${requestId}.json`);
+		const resultFile = resolveWithinBaseDir(resultsDir, `${requestId}.json`);
 		await writeFile(resultFile, JSON.stringify(result, null, 2), 'utf-8');
 		console.log('[EventBridge] Stored PRD result for polling:', requestId);
 	} catch (err) {
