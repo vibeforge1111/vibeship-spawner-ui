@@ -447,7 +447,7 @@ import { get } from 'svelte/store';
 				'connections'
 			);
 			forceStoreSync();
-			if (load.autoRun || load.relay?.autoRun) {
+			if ((load.autoRun || load.relay?.autoRun) && new URL(window.location.href).searchParams.get('noexec') !== '1') {
 				showExecution = true;
 				executionMinimized = false;
 				executionAutoRunToken = Date.now();
@@ -478,9 +478,12 @@ import { get } from 'svelte/store';
 			reconnectMCPs().catch((e) => console.warn('[Canvas] MCP reconnect error:', e));
 
 		// Auto-show execution panel if there's an active/resumable mission
+		// (suppressed via ?noexec=1 query for landing-page screenshot capture)
+		const url = new URL(window.location.href);
+		const suppressExec = url.searchParams.get('noexec') === '1';
 		const hasResumable = hasResumableMission();
 		console.log('[Canvas] hasResumableMission:', hasResumable);
-		if (hasResumable) {
+		if (hasResumable && !suppressExec) {
 			showExecution = true;
 			console.log('[Canvas] Auto-showing execution panel');
 		}
