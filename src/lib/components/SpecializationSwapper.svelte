@@ -73,7 +73,7 @@
 	onMount(() => {
 		timer = setInterval(() => {
 			active = (active + 1) % SPECS.length;
-		}, 4500);
+		}, 8000);
 	});
 
 	onDestroy(() => {
@@ -87,7 +87,7 @@
 		setTimeout(() => {
 			timer = setInterval(() => {
 				active = (active + 1) % SPECS.length;
-			}, 4500);
+			}, 8000);
 		}, 8000);
 	}
 </script>
@@ -159,7 +159,7 @@
 
 <style>
 	.fade-in {
-		animation: fade 0.5s ease-out backwards;
+		animation: fade 0.9s ease-out backwards;
 	}
 	@keyframes fade {
 		from { opacity: 0; transform: translateY(8px); }

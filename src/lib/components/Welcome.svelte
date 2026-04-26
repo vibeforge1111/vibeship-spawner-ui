@@ -4,6 +4,7 @@
 	import Navbar from './Navbar.svelte';
 	import Footer from './Footer.svelte';
 	import Icon from './Icon.svelte';
+	import MissionLive from './MissionLive.svelte';
 	import JourneyDemo from './JourneyDemo.svelte';
 	import SkillCloud from './SkillCloud.svelte';
 	import SpecializationSwapper from './SpecializationSwapper.svelte';
@@ -519,8 +520,11 @@
 		class="hidden"
 	/>
 
+	<!-- Hero — live mission demo -->
+	<MissionLive />
+
 	<!-- 001 — Pick a workspace -->
-	<section class="max-w-6xl mx-auto w-full px-6 pt-20 pb-24">
+	<section class="max-w-6xl mx-auto w-full px-6 pt-24 pb-24">
 		<div class="mb-12">
 			<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">001 — WORKSPACES</p>
 			<h2 class="text-4xl md:text-5xl font-sans font-semibold text-text-primary tracking-tight leading-[1.1]">
@@ -587,31 +591,60 @@
 		</div>
 	</section>
 
-	<!-- 002 — Animated journey -->
+	<!-- 002 — See the harness work -->
 	<section class="max-w-6xl mx-auto w-full px-6 pb-24 border-t border-surface-border pt-20">
 		<div class="mb-12">
-			<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">002 — THE JOURNEY</p>
+			<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">002 — SEE IT WORK</p>
 			<h2 class="text-4xl md:text-5xl font-sans font-semibold text-text-primary tracking-tight leading-[1.1] max-w-3xl mb-4">
-				One mission. The <em class="text-accent-primary not-italic">right skill</em>. Every time.
+				No more guessing if the agent is <em class="text-accent-primary not-italic">actually</em> doing the thing.
 			</h2>
 			<p class="text-lg text-text-secondary max-w-2xl leading-relaxed">
-				Watch the same flow handle three very different missions.
+				Every mission breaks into tasks. Every task pulls in a skill. You watch each one happen, in order, in real time.
 			</p>
 		</div>
 
 		<JourneyDemo />
 	</section>
 
-	<!-- 003 — Spark Pro live skill cloud -->
+	<!-- 003 — Skills auto-couple to tasks -->
 	<section class="max-w-6xl mx-auto w-full px-6 pb-24 border-t border-surface-border pt-20">
 		<div class="mb-12">
-			<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">003 — SPARK PRO</p>
+			<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">003 — SKILLS</p>
 			<h2 class="text-4xl md:text-5xl font-sans font-semibold text-text-primary tracking-tight leading-[1.1] max-w-3xl mb-4">
-				<em class="text-accent-primary not-italic">600+</em> skills, all benchmarked.
+				Tasks <em class="text-accent-primary not-italic">attach</em> their own skills.
 			</h2>
-			<p class="text-lg text-text-secondary max-w-2xl leading-relaxed">
-				Backend, frontend, design, security, trading — each one earned its spot.
+			<p class="text-lg text-text-secondary max-w-3xl leading-relaxed">
+				You don't pick the right skill — the task does. Free covers the basics. Pro unlocks the full library.
 			</p>
+		</div>
+
+		<!-- Free vs Pro -->
+		<div class="grid md:grid-cols-2 gap-6 mb-10">
+			<div class="rounded-lg border border-surface-border bg-bg-secondary p-8">
+				<div class="flex items-baseline justify-between mb-4">
+					<p class="font-mono text-xs text-text-tertiary tracking-widest">FREE</p>
+					<p class="font-mono text-sm text-text-tertiary">included</p>
+				</div>
+				<p class="text-5xl font-sans font-semibold text-text-primary mb-3 leading-none">
+					30<span class="text-accent-primary">+</span>
+				</p>
+				<p class="text-base text-text-secondary leading-relaxed">
+					Enough to ship landing pages, scripts, content drafts, basic audits.
+				</p>
+			</div>
+			<div class="rounded-lg border border-accent-primary/40 bg-accent-primary/5 p-8 relative overflow-hidden">
+				<div class="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-accent-primary/10 blur-3xl pointer-events-none"></div>
+				<div class="flex items-baseline justify-between mb-4 relative">
+					<p class="font-mono text-xs text-accent-primary tracking-widest">SPARK PRO</p>
+					<p class="font-mono text-sm text-accent-primary">benchmarked</p>
+				</div>
+				<p class="text-5xl font-sans font-semibold text-text-primary mb-3 leading-none relative">
+					600<span class="text-accent-primary">+</span>
+				</p>
+				<p class="text-base text-text-secondary leading-relaxed relative">
+					Backend, frontend, design, security, trading, ops — every domain has its expert.
+				</p>
+			</div>
 		</div>
 
 		<SkillCloud />

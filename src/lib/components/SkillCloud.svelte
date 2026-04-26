@@ -66,7 +66,7 @@
 	<!-- Three rows of marqueeing chips, opposite directions -->
 	<div class="space-y-3">
 		{#each [0, 1, 2] as row}
-			<div class="flex gap-3 marquee" class:reverse={row === 1} style="--duration: {60 + row * 8}s">
+			<div class="flex gap-3 marquee" class:reverse={row === 1} style="--duration: {110 + row * 14}s">
 				{#each [...skills.slice(row * 25, row * 25 + 30), ...skills.slice(row * 25, row * 25 + 30)] as skill, i (row + '-' + i)}
 					<span class="shrink-0 inline-flex items-center px-3 py-1.5 rounded-full border border-surface-border bg-bg-primary font-mono text-sm text-text-secondary whitespace-nowrap">
 						{skill}

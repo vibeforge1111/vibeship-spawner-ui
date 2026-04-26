@@ -52,7 +52,7 @@
 		setTimeout(() => {
 			cycle = 1;
 			step = 0;
-			const PHASE_MS = 2200;
+			const PHASE_MS = 4200; // ~17s per example, easy to read
 			timer = setInterval(() => {
 				step += 1;
 				if (step > 3) {
@@ -60,7 +60,7 @@
 					cycle += 1;
 				}
 			}, PHASE_MS);
-		}, 3500);
+		}, 5000);
 	});
 
 	onDestroy(() => {
@@ -202,7 +202,7 @@
 	}
 
 	.pulse {
-		animation: pulse 1.6s ease-in-out infinite;
+		animation: pulse 2.6s ease-in-out infinite;
 	}
 	@keyframes pulse {
 		0%, 100% { opacity: 1; }
