@@ -270,7 +270,7 @@ describe('multi-llm-orchestrator', () => {
 		expect(pack.providerPrompts.claude).toContain('search-mcp.web.search');
 	});
 
-	it('marks tasks blocked with deterministic fallback when required MCP capability is missing', () => {
+	it('treats unavailable MCP capabilities as advisory fallback guidance', () => {
 		const mission = createMission(1);
 		mission.tasks[0].title = 'Deploy to production';
 		mission.tasks[0].description = 'Release this service to production infrastructure';
@@ -293,7 +293,37 @@ describe('multi-llm-orchestrator', () => {
 		expect(plan.blockedReason).toContain('deployment');
 		expect(plan.fallbackSuggestion).toContain('Fallback');
 		expect(pack.blockedTaskIds).toContain('task-1');
-		expect(pack.providerPrompts.codex).toContain('MCP plan: BLOCKED');
+		expect(pack.providerPrompts.codex).toContain('MCP plan: optional MCP unavailable');
+		expect(pack.providerPrompts.codex).not.toContain('MCP plan: BLOCKED');
+		expect(pack.masterPrompt).toContain('MCP advisories unavailable: 1');
+		expect(pack.masterPrompt).not.toContain('MCP plans blocked');
+	});
+
+	it('does not infer media MCPs from normal UI animation language', () => {
+		const mission = createMission(2);
+		mission.tasks[0].title = 'Build orbiting clock UI';
+		mission.tasks[0].description = 'Create an animated orbiting clock interface with styled hands and labels';
+		mission.tasks[1].title = 'Add three speed controls';
+		mission.tasks[1].description = 'Wire slow, normal, and fast buttons to change the UI animation speed';
+
+		const options = createDefaultMultiLLMOptions();
+		options.enabled = true;
+		options.strategy = 'single';
+		options.primaryProviderId = 'codex';
+		options.providers = options.providers.map((provider) => ({
+			...provider,
+			enabled: provider.id === 'codex'
+		}));
+		options.mcpCapabilities = [];
+		options.mcpTools = [];
+
+		const pack = buildMultiLLMExecutionPack({ mission, options });
+
+		expect(pack.mcpTaskPlans['task-1'].status).toBe('not_needed');
+		expect(pack.mcpTaskPlans['task-2'].status).toBe('not_needed');
+		expect(pack.blockedTaskIds).toEqual([]);
+		expect(pack.providerPrompts.codex).not.toContain('image_gen');
+		expect(pack.providerPrompts.codex).not.toContain('video_gen');
 	});
 
 	it('honors a forced single-provider task preference', () => {

@@ -1328,12 +1328,12 @@ class MissionExecutor {
 		const blockedPlans = plans.filter((plan) => plan.status === 'blocked');
 		this.addLocalLog(
 			'info',
-			`MCP planning: ${readyPlans.length} task(s) ready, ${blockedPlans.length} task(s) blocked`
+			`MCP planning: ${readyPlans.length} task(s) ready, ${blockedPlans.length} optional advisory unavailable`
 		);
 		broadcastMissionEvent('mission_log', this.progress.missionId, {
 			category: 'mcp_planning',
 			readyTaskCount: readyPlans.length,
-			blockedTaskCount: blockedPlans.length
+			unavailableTaskCount: blockedPlans.length
 		});
 
 		for (const plan of readyPlans) {
@@ -1343,9 +1343,9 @@ class MissionExecutor {
 		}
 
 		for (const plan of blockedPlans) {
-			this.addLocalLog('error', `MCP blocked for ${plan.taskTitle}: ${plan.blockedReason}`);
+			this.addLocalLog('info', `Optional MCP unavailable for ${plan.taskTitle}: ${plan.blockedReason} Continuing with fallback.`);
 			broadcastMissionEvent('mission_log', this.progress.missionId, {
-				category: 'mcp_blocked',
+				category: 'mcp_advisory_unavailable',
 				taskId: plan.taskId,
 				taskTitle: plan.taskTitle,
 				blockedReason: plan.blockedReason,
