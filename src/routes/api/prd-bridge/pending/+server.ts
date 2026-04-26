@@ -14,20 +14,26 @@ import { readFile, writeFile, unlink } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
-const SPAWNER_DIR = join(process.cwd(), '.spawner');
-const PENDING_PRD_FILE = join(SPAWNER_DIR, 'pending-prd.md');
-const PENDING_REQUEST_FILE = join(SPAWNER_DIR, 'pending-request.json');
+function getPrdBridgePaths() {
+	const spawnerDir = process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
+	return {
+		pendingPrdFile: join(spawnerDir, 'pending-prd.md'),
+		pendingRequestFile: join(spawnerDir, 'pending-request.json')
+	};
+}
 
 /**
  * GET - Check if there's a pending PRD analysis request
  */
 export const GET: RequestHandler = async () => {
 	try {
-		if (!existsSync(PENDING_REQUEST_FILE)) {
+		const { pendingPrdFile, pendingRequestFile } = getPrdBridgePaths();
+
+		if (!existsSync(pendingRequestFile)) {
 			return json({ pending: false });
 		}
 
-		const requestMeta = JSON.parse(await readFile(PENDING_REQUEST_FILE, 'utf-8'));
+		const requestMeta = JSON.parse(await readFile(pendingRequestFile, 'utf-8'));
 
 		// Only return if status is pending
 		if (requestMeta.status !== 'pending') {
@@ -36,8 +42,8 @@ export const GET: RequestHandler = async () => {
 
 		// Read the PRD content
 		let prdContent = '';
-		if (existsSync(PENDING_PRD_FILE)) {
-			prdContent = await readFile(PENDING_PRD_FILE, 'utf-8');
+		if (existsSync(pendingPrdFile)) {
+			prdContent = await readFile(pendingPrdFile, 'utf-8');
 		}
 
 		return json({
@@ -59,11 +65,13 @@ export const GET: RequestHandler = async () => {
  */
 export const DELETE: RequestHandler = async () => {
 	try {
-		if (existsSync(PENDING_REQUEST_FILE)) {
-			const requestMeta = JSON.parse(await readFile(PENDING_REQUEST_FILE, 'utf-8'));
+		const { pendingRequestFile } = getPrdBridgePaths();
+
+		if (existsSync(pendingRequestFile)) {
+			const requestMeta = JSON.parse(await readFile(pendingRequestFile, 'utf-8'));
 			requestMeta.status = 'processed';
 			requestMeta.processedAt = new Date().toISOString();
-			await writeFile(PENDING_REQUEST_FILE, JSON.stringify(requestMeta, null, 2), 'utf-8');
+			await writeFile(pendingRequestFile, JSON.stringify(requestMeta, null, 2), 'utf-8');
 		}
 
 		return json({ success: true });

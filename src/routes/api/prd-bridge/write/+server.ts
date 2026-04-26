@@ -14,12 +14,16 @@ import { openclawBridge } from '$lib/services/openclaw-bridge';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { resolveCliBinary } from '$lib/server/cli-resolver';
 
-// Store pending PRDs in the project's .spawner directory
-const SPAWNER_DIR = join(process.cwd(), '.spawner');
-const RESULTS_DIR = join(SPAWNER_DIR, 'results');
-const PENDING_PRD_FILE = join(SPAWNER_DIR, 'pending-prd.md');
-const PENDING_REQUEST_FILE = join(SPAWNER_DIR, 'pending-request.json');
-const PRD_AUTO_TRACE_FILE = join(SPAWNER_DIR, 'prd-auto-trace.jsonl');
+function getPrdBridgePaths() {
+	const spawnerDir = process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
+	return {
+		spawnerDir,
+		resultsDir: join(spawnerDir, 'results'),
+		pendingPrdFile: join(spawnerDir, 'pending-prd.md'),
+		pendingRequestFile: join(spawnerDir, 'pending-request.json'),
+		prdAutoTraceFile: join(spawnerDir, 'prd-auto-trace.jsonl')
+	};
+}
 const AUTO_ANALYSIS_ENDPOINT = process.env.SPAWNER_UI_SELF_URL
   ? `${process.env.SPAWNER_UI_SELF_URL.replace(/\/+$/, '')}/api/events`
   : 'http://127.0.0.1:4174/api/events';
@@ -31,13 +35,14 @@ function normalizeRequestId(requestId: string): string {
 
 async function appendPrdTrace(requestId: string, event: string, details: Record<string, unknown> = {}): Promise<void> {
 	try {
+		const { prdAutoTraceFile } = getPrdBridgePaths();
 		const row = {
 			ts: new Date().toISOString(),
 			requestId,
 			event,
 			...details
 		};
-		await appendFile(PRD_AUTO_TRACE_FILE, `${JSON.stringify(row)}\n`, 'utf-8');
+		await appendFile(prdAutoTraceFile, `${JSON.stringify(row)}\n`, 'utf-8');
 	} catch {
 		// Never fail request flow on trace write.
 	}
@@ -49,8 +54,9 @@ async function updatePendingRequestStatus(
 	extra: Record<string, unknown> = {}
 ): Promise<void> {
 	try {
-		if (!existsSync(PENDING_REQUEST_FILE)) return;
-		const raw = await readFile(PENDING_REQUEST_FILE, 'utf-8');
+		const { pendingRequestFile } = getPrdBridgePaths();
+		if (!existsSync(pendingRequestFile)) return;
+		const raw = await readFile(pendingRequestFile, 'utf-8');
 		const current = JSON.parse(raw) as Record<string, unknown>;
 		if (current.requestId !== requestId) return;
 
@@ -60,7 +66,7 @@ async function updatePendingRequestStatus(
 			updatedAt: new Date().toISOString(),
 			...extra
 		};
-		await writeFile(PENDING_REQUEST_FILE, JSON.stringify(next, null, 2), 'utf-8');
+		await writeFile(pendingRequestFile, JSON.stringify(next, null, 2), 'utf-8');
 	} catch {
 		// Keep analysis flow alive even if status updates fail.
 	}
@@ -68,8 +74,9 @@ async function updatePendingRequestStatus(
 
 function scheduleAutoAnalysisWatchdog(requestId: string): void {
 	const timer = setTimeout(async () => {
+		const { resultsDir } = getPrdBridgePaths();
 		const safeRequestId = normalizeRequestId(requestId);
-		const resultFile = join(RESULTS_DIR, `${safeRequestId}.json`);
+		const resultFile = join(resultsDir, `${safeRequestId}.json`);
 		const hasResult = existsSync(resultFile);
 		if (hasResult) {
 			await appendPrdTrace(requestId, 'watchdog_result_found');
@@ -116,7 +123,12 @@ function normalizeTelegramRelay(value: unknown): Record<string, unknown> | undef
 	return Object.keys(relay).length > 0 ? relay : undefined;
 }
 
-function buildCodexPrompt(requestId: string, projectName: string, buildMode: 'direct' | 'advanced_prd'): string {
+function buildCodexPrompt(
+	requestId: string,
+	projectName: string,
+	buildMode: 'direct' | 'advanced_prd',
+	paths: ReturnType<typeof getPrdBridgePaths>
+): string {
 	const planningContract =
 		buildMode === 'advanced_prd'
 			? [
@@ -141,9 +153,15 @@ function buildCodexPrompt(requestId: string, projectName: string, buildMode: 'di
 		'',
 		planningContract,
 		'',
+		'Configured bridge paths:',
+		`- State directory: ${paths.spawnerDir}`,
+		`- Pending request metadata: ${paths.pendingRequestFile}`,
+		`- Pending PRD: ${paths.pendingPrdFile}`,
+		`- Results directory: ${paths.resultsDir}`,
+		'',
 		'Execution steps (strict):',
-		'1) Read .spawner/pending-request.json and confirm requestId matches.',
-		'2) Read .spawner/pending-prd.md completely.',
+		'1) Read the pending request metadata path above and confirm requestId matches.',
+		'2) Read the pending PRD path above completely.',
 		'3) Produce a valid PRD analysis result JSON with:',
 		'   requestId, success, projectName, projectType, complexity, infrastructure, techStack, tasks, skills, executionPrompt.',
 		'4) Include actionable tasks with skills, dependencies, and verification criteria. For advanced_prd, make these TAS-style tasks with acceptance criteria.',
@@ -184,13 +202,15 @@ async function startCodexAutoAnalysis(
 			return false;
 		}
 
-		const prompt = buildCodexPrompt(requestId, projectName, buildMode);
+		const paths = getPrdBridgePaths();
+		const prompt = buildCodexPrompt(requestId, projectName, buildMode, paths);
 		const missionId = `prd-auto-${normalizeRequestId(requestId)}`;
 
 		await appendPrdTrace(requestId, 'auto_worker_dispatch', {
 			provider: 'codex',
 			missionId,
-			workingDirectory: process.cwd()
+			workingDirectory: process.cwd(),
+			stateDirectory: paths.spawnerDir
 		});
 
 		void openclawBridge
@@ -250,21 +270,22 @@ export const POST: RequestHandler = async (event) => {
 			await event.request.json();
 		const normalizedBuildMode = normalizeBuildMode(buildMode);
 		const normalizedTelegramRelay = normalizeTelegramRelay(telegramRelay);
+		const paths = getPrdBridgePaths();
 
 		if (!content || !requestId) {
 			return json({ error: 'Content and requestId are required' }, { status: 400 });
 		}
 
 		// Ensure .spawner directory exists
-		if (!existsSync(SPAWNER_DIR)) {
-			await mkdir(SPAWNER_DIR, { recursive: true });
+		if (!existsSync(paths.spawnerDir)) {
+			await mkdir(paths.spawnerDir, { recursive: true });
 		}
-		if (!existsSync(RESULTS_DIR)) {
-			await mkdir(RESULTS_DIR, { recursive: true });
+		if (!existsSync(paths.resultsDir)) {
+			await mkdir(paths.resultsDir, { recursive: true });
 		}
 
 		// Write the PRD content to file
-		await writeFile(PENDING_PRD_FILE, content, 'utf-8');
+		await writeFile(paths.pendingPrdFile, content, 'utf-8');
 
 		// Write request metadata
 		const requestMeta = {
@@ -278,7 +299,7 @@ export const POST: RequestHandler = async (event) => {
 						? 'Advanced PRD planning requested.'
 						: 'Direct build requested.',
 			timestamp: new Date().toISOString(),
-			prdPath: PENDING_PRD_FILE,
+			prdPath: paths.pendingPrdFile,
 			status: 'pending',
 			options: {
 				includeSkills: options?.includeSkills !== false,
@@ -295,7 +316,7 @@ export const POST: RequestHandler = async (event) => {
 						}
 					: undefined
 		};
-		await writeFile(PENDING_REQUEST_FILE, JSON.stringify(requestMeta, null, 2), 'utf-8');
+		await writeFile(paths.pendingRequestFile, JSON.stringify(requestMeta, null, 2), 'utf-8');
 		await appendPrdTrace(requestId, 'request_written', {
 			projectName: requestMeta.projectName,
 			buildMode: requestMeta.buildMode
@@ -310,13 +331,13 @@ export const POST: RequestHandler = async (event) => {
 			scheduleAutoAnalysisWatchdog(requestId);
 		}
 
-		console.log(`[PRDBridge] PRD written to ${PENDING_PRD_FILE}`);
+		console.log(`[PRDBridge] PRD written to ${paths.pendingPrdFile}`);
 		console.log(`[PRDBridge] Request ID: ${requestId}`);
 		console.log(`[PRDBridge] Codex auto-analysis: ${codexStarted ? 'started' : 'not-started'}`);
 
 		return json({
 			success: true,
-			path: PENDING_PRD_FILE,
+			path: paths.pendingPrdFile,
 			requestId,
 			autoAnalysis: {
 				provider: 'codex',
