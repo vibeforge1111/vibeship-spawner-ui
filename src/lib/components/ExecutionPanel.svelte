@@ -1502,6 +1502,12 @@
 				{/if}
 				{#if executionProgress?.multiLLMExecution?.enabled}
 					{@const multiPack = executionProgress.multiLLMExecution}
+					{@const activeProvider = multiPack.providers.find((provider) =>
+						runtimeAgents.some((agent) => agent.agentId === provider.id && agent.status === 'running')
+					) || multiPack.providers[0]}
+					{@const activeAgent = activeProvider
+						? runtimeAgents.find((agent) => agent.agentId === activeProvider.id)
+						: null}
 					<div class="mt-3 border border-vibe-teal/30">
 						<div
 							onclick={() => (multiLLMPanelCollapsed = !multiLLMPanelCollapsed)}
@@ -1519,7 +1525,16 @@
 									{multiPack.strategy} • {multiPack.providers.length} provider(s)
 								</span>
 							</div>
-							<span class="text-[10px] font-mono text-text-tertiary">auto-dispatch</span>
+							{#if activeProvider}
+								<div class="text-right">
+									<div class="text-[10px] font-mono text-vibe-teal uppercase tracking-wider">
+										{activeAgent?.status || 'assigned'}
+									</div>
+									<div class="text-[11px] font-mono text-text-primary">
+										{activeProvider.label}
+									</div>
+								</div>
+							{/if}
 						</div>
 						{#if !multiLLMPanelCollapsed}
 							<div class="p-3 bg-vibe-teal/5 space-y-2">
