@@ -158,15 +158,15 @@ describe('mission-control-relay', () => {
 			source: 'spark-run',
 			data: {
 				goal: 'Build through Telegram and show the Kanban board.',
-				telegramRelay: { port: 8788, profile: 'default' }
+				telegramRelay: { port: 8788, profile: 'spark-agi' }
 			}
 		});
 		const body = payload.payload as Record<string, unknown>;
 		const data = body.data as Record<string, unknown>;
 		const raw = body.raw as Record<string, unknown>;
 
-		expect(data.telegramRelay).toEqual({ port: 8788, profile: 'default' });
-		expect((raw.data as Record<string, unknown>).telegramRelay).toEqual({ port: 8788, profile: 'default' });
+		expect(data.telegramRelay).toEqual({ port: 8788, profile: 'spark-agi' });
+		expect((raw.data as Record<string, unknown>).telegramRelay).toEqual({ port: 8788, profile: 'spark-agi' });
 	});
 
 	it('creates readable summaries', () => {
