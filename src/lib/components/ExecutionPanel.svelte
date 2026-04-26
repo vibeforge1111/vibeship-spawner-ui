@@ -1294,12 +1294,13 @@
 		<button class="absolute inset-0 bg-black/50" onclick={handleClose} aria-label="Close execution panel"></button>
 	{/if}
 	<div
-		class="relative bg-bg-secondary border-l border-surface-border flex flex-col h-full"
-		class:max-w-2xl={!minimized}
+		class="relative bg-bg-secondary border-l border-surface-border flex flex-col h-full overscroll-contain"
+		class:max-w-4xl={!minimized}
 		class:mx-auto={!minimized}
-		class:my-auto={!minimized}
-		class:max-h-[80vh]={!minimized}
-		class:inset-y-[10vh]={!minimized}
+		class:my-8={!minimized}
+		class:max-h-[calc(100vh-4rem)]={!minimized}
+		class:overflow-y-auto={!minimized}
+		class:overflow-x-hidden={!minimized}
 		class:border={!minimized}
 	>
 		<!-- Header -->
@@ -2268,7 +2269,7 @@
 <!-- Checkpoint Review Modal -->
 {#if showCheckpointReview && missionCheckpoint}
 	<div class="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-		<div class="max-w-2xl w-full max-h-[80vh] overflow-y-auto mx-4">
+		<div class="w-full max-w-5xl max-h-[calc(100vh-4rem)] overflow-y-auto overscroll-contain mx-4 border border-surface-border">
 			<CheckpointReview
 				checkpoint={missionCheckpoint}
 				onVerify={() => {
