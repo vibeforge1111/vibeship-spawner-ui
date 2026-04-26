@@ -1400,86 +1400,6 @@
 					></div>
 				</div>
 
-				<!-- Current Task Progress (shown during running) -->
-				{#if isRunning && executionProgress.currentTaskName}
-					<div class="mt-3 p-3 bg-vibe-teal/5 border border-vibe-teal/30">
-						<div class="flex items-center justify-between mb-1">
-							<span class="text-xs font-mono text-text-tertiary uppercase tracking-wider">Current Task</span>
-							<span class="text-xs font-mono text-vibe-teal">{currentTaskProgress}%</span>
-						</div>
-						<div class="flex items-center gap-2 mb-2">
-							<div class="relative">
-								<div class="w-2 h-2 bg-vibe-teal"></div>
-								<div class="absolute inset-0 w-2 h-2 bg-vibe-teal animate-ping opacity-75"></div>
-							</div>
-							<span class="text-sm text-text-primary font-medium">{executionProgress.currentTaskName}</span>
-						</div>
-						<!-- Task progress bar -->
-						<div class="w-full h-1.5 bg-surface overflow-hidden">
-							<div
-								class="h-full bg-vibe-teal transition-all duration-200"
-								style="width: {currentTaskProgress}%"
-							></div>
-						</div>
-						{#if currentTaskMessage}
-							<p class="mt-2 text-xs text-text-tertiary italic">{currentTaskMessage}</p>
-						{/if}
-					</div>
-				{/if}
-
-				{#if runtimeAgents.length > 0}
-					<div class="mt-3 border border-surface-border rounded-lg overflow-hidden">
-						<div class="px-3 py-2 bg-bg-tertiary border-b border-surface-border text-xs font-mono text-text-tertiary uppercase tracking-wider">
-							Live Agent Activity
-						</div>
-						<div class="divide-y divide-surface-border bg-bg-primary">
-							{#each runtimeAgents as agent}
-								<div class="px-3 py-2 text-xs">
-									<div class="flex items-center justify-between gap-2">
-										<div class="font-mono text-text-primary">{agent.label}</div>
-										<span class="px-1.5 py-0.5 border font-mono uppercase text-[10px] {getAgentStatusColor(agent.status)}">{agent.status}</span>
-									</div>
-									<div class="mt-1 text-text-secondary">
-										{agent.currentTaskName || 'Waiting for task'}
-									</div>
-									<div class="mt-1 h-1 bg-surface overflow-hidden">
-										<div class="h-full bg-vibe-teal transition-all duration-200" style="width: {Math.max(0, Math.min(100, agent.progress || 0))}%"></div>
-									</div>
-									{#if agent.message}
-										<div class="mt-1 text-[11px] text-text-tertiary italic">{agent.message}</div>
-									{/if}
-								</div>
-							{/each}
-						</div>
-					</div>
-				{/if}
-
-				{#if recentTaskTransitions.length > 0}
-					<div class="mt-3 border border-surface-border rounded-lg overflow-hidden bg-bg-primary">
-						<div class="px-3 py-2 bg-bg-tertiary border-b border-surface-border flex items-center justify-between">
-							<span class="text-xs font-mono text-text-tertiary uppercase tracking-wider">Task Event Stream</span>
-							<span class="text-[10px] text-text-tertiary">latest {recentTaskTransitions.length}</span>
-						</div>
-						<div class="max-h-40 overflow-y-auto divide-y divide-surface-border">
-							{#each recentTaskTransitions as transition}
-								<div class="px-3 py-2 text-xs">
-									<div class="flex items-center gap-2">
-										<span class="text-[10px] text-text-tertiary font-mono w-14">{formatTime(transition.timestamp)}</span>
-										<span class="px-1.5 py-0.5 text-[10px] font-mono uppercase {getTransitionBadge(transition.state)}">{transition.state}</span>
-										{#if transition.agentLabel}
-											<span class="text-[10px] text-vibe-teal font-mono">{transition.agentLabel}</span>
-										{/if}
-										{#if typeof transition.progress === 'number'}
-											<span class="text-[10px] text-text-tertiary font-mono">{transition.progress}%</span>
-										{/if}
-									</div>
-									<div class="mt-1 text-text-secondary">{transition.message}</div>
-								</div>
-							{/each}
-						</div>
-					</div>
-				{/if}
-
 				<div class="flex justify-between mt-2 text-xs text-text-tertiary">
 					<span>{currentNodes.length} nodes{#if $mcpRuntime.connectedCount > 0} &bull; <span class="text-accent-primary">{$mcpRuntime.connectedCount} MCP{$mcpRuntime.connectedCount > 1 ? 's' : ''}</span>{/if}</span>
 					<span>{getExecutionDuration()}</span>
@@ -1523,7 +1443,7 @@
 								<svg class="w-4 h-4 text-vibe-teal transition-transform {multiLLMPanelCollapsed ? '' : 'rotate-90'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 								</svg>
-								<span class="text-xs font-mono text-vibe-teal uppercase tracking-wider">Multi-LLM Orchestrator</span>
+								<span class="text-xs font-mono text-vibe-teal uppercase tracking-wider">Agent Activity</span>
 								<span class="text-[10px] font-mono text-text-tertiary">
 									{multiPack.strategy} • {multiPack.providers.length} provider(s)
 								</span>
@@ -1658,32 +1578,36 @@
 
 				<!-- Task Status Summary -->
 				{#if taskRows.length > 0}
-					<div class="mt-4 border border-surface-border rounded-lg overflow-hidden">
-						<div class="flex items-center justify-between px-3 py-2 bg-bg-tertiary border-b border-surface-border">
-							<span class="text-xs font-mono text-text-tertiary uppercase tracking-wider">Task Status</span>
-							{#if nextTask && isRunning}
-								<span class="text-[10px] font-mono text-vibe-teal uppercase">Active step {nextTask.index}/{taskRows.length}</span>
-							{/if}
+					<div class="mt-4 border border-surface-border overflow-hidden">
+						<div class="flex flex-wrap items-center justify-between gap-3 px-3 py-2 bg-bg-tertiary border-b border-surface-border">
+							<div>
+								<span class="text-xs font-mono text-text-tertiary uppercase tracking-wider">Task Status</span>
+								{#if nextTask && isRunning}
+									<div class="mt-0.5 text-[11px] font-mono text-vibe-teal truncate max-w-[36rem]">
+										Active {nextTask.index}/{taskRows.length}: {nextTask.title}
+									</div>
+								{/if}
+							</div>
+							<div class="grid grid-cols-4 gap-1 text-right">
+								<div class="min-w-16 border border-accent-primary/20 bg-accent-primary/5 px-2 py-1">
+									<div class="text-sm font-mono font-bold text-accent-primary">{taskSummary.completed}</div>
+									<div class="text-[10px] font-mono text-accent-primary/70 uppercase">Done</div>
+								</div>
+								<div class="min-w-16 border border-vibe-teal/20 bg-vibe-teal/5 px-2 py-1">
+									<div class="text-sm font-mono font-bold text-vibe-teal">{taskSummary.running}</div>
+									<div class="text-[10px] font-mono text-vibe-teal/70 uppercase">Run</div>
+								</div>
+								<div class="min-w-16 border border-amber-500/20 bg-amber-500/5 px-2 py-1">
+									<div class="text-sm font-mono font-bold text-status-warning">{taskSummary.pending}</div>
+									<div class="text-[10px] font-mono text-status-warning/70 uppercase">Wait</div>
+								</div>
+								<div class="min-w-16 border border-status-error/20 bg-status-error/5 px-2 py-1">
+									<div class="text-sm font-mono font-bold text-status-error">{taskSummary.failed}</div>
+									<div class="text-[10px] font-mono text-status-error/70 uppercase">Fail</div>
+								</div>
+							</div>
 						</div>
-						<div class="grid grid-cols-4">
-							<div class="p-3 text-center border-r border-surface-border bg-accent-primary/5">
-								<div class="text-2xl font-mono font-bold text-accent-primary">{taskSummary.completed}</div>
-								<div class="text-xs font-mono text-accent-primary/70 uppercase tracking-wider">Completed</div>
-							</div>
-							<div class="p-3 text-center border-r border-surface-border bg-vibe-teal/5">
-								<div class="text-2xl font-mono font-bold text-vibe-teal">{taskSummary.running}</div>
-								<div class="text-xs font-mono text-vibe-teal/70 uppercase tracking-wider">Running</div>
-							</div>
-							<div class="p-3 text-center border-r border-surface-border bg-amber-500/5">
-								<div class="text-2xl font-mono font-bold text-status-warning">{taskSummary.pending}</div>
-								<div class="text-xs font-mono text-status-warning/70 uppercase tracking-wider">Pending</div>
-							</div>
-							<div class="p-3 text-center bg-status-error/5">
-								<div class="text-2xl font-mono font-bold text-status-error">{taskSummary.failed}</div>
-								<div class="text-xs font-mono text-status-error/70 uppercase tracking-wider">Failed</div>
-							</div>
-						</div>
-						<div class="max-h-52 overflow-y-auto border-t border-surface-border bg-bg-primary">
+						<div class="max-h-56 overflow-y-auto bg-bg-primary">
 							{#each taskRows as task}
 								<div class="px-3 py-2 border-b last:border-b-0 {getTaskRowClass(task.status)}">
 									<div class="flex items-start justify-between gap-3">
@@ -1723,12 +1647,6 @@
 										<span class="text-[10px] text-orange-400/60 font-mono">retry {rework.retry}/{rework.maxRetries}</span>
 									</div>
 								{/each}
-							</div>
-						{/if}
-						{#if nextTask && isRunning}
-							<div class="px-3 py-2 bg-amber-500/5 border-t border-amber-500/20 flex items-center gap-2">
-								<span class="text-xs font-mono text-status-warning uppercase tracking-wider">{nextTask.status === 'running' ? 'Now' : 'Next'} -&gt;</span>
-								<span class="text-sm text-text-primary font-mono truncate">{nextTask.title}</span>
 							</div>
 						{/if}
 					</div>
