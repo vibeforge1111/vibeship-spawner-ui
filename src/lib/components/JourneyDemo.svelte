@@ -183,24 +183,33 @@
 				</div>
 
 			{:else}
-				<!-- CANVAS VIEW: horizontal flowchart with dashed connectors -->
-				<div class="rounded-md border border-surface-border bg-bg-primary p-5 view-fade">
+				<!-- CANVAS VIEW: real Spark node styling — chromed header + body -->
+				<div class="rounded-md border border-surface-border bg-bg-primary p-5 view-fade canvas-grid">
 					<div class="flex items-stretch gap-3 flex-wrap md:flex-nowrap">
 						{#each current.tasks as task, i}
 							<div
-								class="flex-1 min-w-[180px] rounded-md border border-accent-primary/40 bg-accent-primary/5 p-3 transition-all duration-500 shadow-[0_0_24px_-8px_rgb(var(--accent-rgb)/0.35)]"
+								class="flex-1 min-w-[200px] canvas-node transition-all duration-500"
 								class:skill-in={step >= 2}
 								class:skill-pre={step < 2}
 								style="--delay: {i * 200}ms"
 							>
-								<p class="font-mono text-[10px] text-accent-primary tracking-widest mb-2">NODE {i + 1}</p>
-								<p class="text-sm font-sans text-text-primary leading-snug mb-3">{task.title}</p>
-								<div class="flex flex-wrap gap-1.5">
-									{#each task.skills as skill}
-										<span class="inline-flex items-center px-2 py-0.5 rounded-full border border-accent-primary/40 bg-accent-primary/10 font-mono text-[11px] text-text-primary">
-											{skill}
-										</span>
-									{/each}
+								<!-- Chrome header (mono tag + secondary label) -->
+								<div class="canvas-chrome">
+									<span class="chrome-tag">PROJ</span>
+									<i class="chrome-sub">node {i + 1}</i>
+								</div>
+								<!-- Body -->
+								<div class="canvas-body">
+									<p class="text-[15px] font-sans font-medium text-text-primary leading-snug mb-2">
+										{task.title}
+									</p>
+									<div class="flex flex-wrap gap-1.5">
+										{#each task.skills as skill}
+											<span class="inline-flex items-center px-2 py-0.5 rounded-full border border-accent-primary/40 bg-accent-primary/10 font-mono text-[11px] text-text-primary">
+												{skill}
+											</span>
+										{/each}
+									</div>
 								</div>
 							</div>
 							{#if i < current.tasks.length - 1}
@@ -311,5 +320,49 @@
 	@keyframes view-fade {
 		from { opacity: 0; transform: translateY(6px); }
 		to { opacity: 1; transform: translateY(0); }
+	}
+
+	/* Faint canvas-style grid behind nodes */
+	.canvas-grid {
+		background-image:
+			linear-gradient(to right, rgb(var(--border-rgb) / 0.45) 1px, transparent 1px),
+			linear-gradient(to bottom, rgb(var(--border-rgb) / 0.45) 1px, transparent 1px);
+		background-size: 28px 28px;
+	}
+
+	/* Spark canvas node — chrome header + body, matching SkillNode.svelte */
+	.canvas-node {
+		background: rgb(var(--surface-raised-rgb));
+		border: 1px solid rgb(var(--border-strong-rgb));
+		border-radius: 8px;
+		box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.35), 0 0 0 1px rgb(var(--accent-rgb) / 0.18), 0 0 28px -10px rgb(var(--accent-rgb) / 0.35);
+		overflow: hidden;
+	}
+
+	.canvas-chrome {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 7px 10px;
+		background: rgb(var(--bg-subtle-rgb));
+		border-bottom: 1px solid rgb(var(--border-rgb));
+		font-family: var(--font-mono, ui-monospace, monospace);
+		font-size: 10px;
+		letter-spacing: 1.5px;
+	}
+
+	.canvas-chrome .chrome-tag {
+		color: rgb(var(--text-rgb));
+		font-weight: 500;
+	}
+
+	.canvas-chrome .chrome-sub {
+		font-style: normal;
+		color: rgb(var(--text-tertiary-rgb));
+		letter-spacing: 1px;
+	}
+
+	.canvas-body {
+		padding: 12px 14px 14px;
 	}
 </style>
