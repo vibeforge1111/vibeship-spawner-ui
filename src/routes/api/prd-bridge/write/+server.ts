@@ -17,6 +17,7 @@ import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { formatSkillsByCategory, getTierSkills, normalizeTier, type SkillTier } from '$lib/server/skill-tiers';
 import { startClaudeAutoAnalysis } from '$lib/server/claude-auto-analysis';
 import { classifyBrief, formatBundleForPrompt } from '$lib/server/bundle-classifier';
+import { enrichBrief } from '$lib/server/brief-enricher';
 
 function getPrdBridgePaths() {
 	const spawnerDir = process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
@@ -432,8 +433,23 @@ export const POST: RequestHandler = async (event) => {
 			await mkdir(paths.resultsDir, { recursive: true });
 		}
 
-		// Write the PRD content to file
-		await writeFile(paths.pendingPrdFile, content, 'utf-8');
+		// Brief enrichment: lift a vague brief into something the canvas
+		// generator can actually plan against. Skipped when the input is
+		// already specific enough (length / keyword density / has section
+		// headers). Always returns a safe enrichedContent — never blocks.
+		const enrichment = await enrichBrief(content);
+		const finalContent = enrichment.enrichedContent;
+		if (enrichment.wasEnriched) {
+			await appendPrdTrace(requestId, 'brief_enriched', {
+				originalLength: content.length,
+				enrichedLength: finalContent.length,
+				addedAssumptions: enrichment.addedAssumptions,
+				openQuestions: enrichment.openQuestions
+			});
+		}
+
+		// Write the (possibly enriched) PRD content to file
+		await writeFile(paths.pendingPrdFile, finalContent, 'utf-8');
 		const missionId = missionIdFromRequestId(requestId);
 
 		// Write request metadata
@@ -508,6 +524,11 @@ export const POST: RequestHandler = async (event) => {
 			autoAnalysis: {
 				provider: auto.provider,
 				started: auto.started
+			},
+			enrichment: {
+				wasEnriched: enrichment.wasEnriched,
+				addedAssumptions: enrichment.addedAssumptions,
+				openQuestions: enrichment.openQuestions
 			}
 		});
 	} catch (error) {

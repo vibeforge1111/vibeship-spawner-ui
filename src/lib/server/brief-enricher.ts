@@ -1,0 +1,183 @@
+/**
+ * brief-enricher.ts — pre-generation pass that lifts vague briefs into
+ * something the canvas generator can actually plan against.
+ *
+ * The eval suite found that vague inputs ("build me an app") plateau at
+ * grade B no matter how many improver iterations run, because feedback
+ * injection cannot invent missing requirements. The fix is upstream:
+ * before the canvas generator runs, ask claude to (1) infer reasonable
+ * defaults, (2) flag what's still ambiguous so the user can clarify.
+ *
+ * Output shape (the enricher always returns an enrichedContent that's
+ * safe to pass downstream — it never blocks on missing info):
+ *
+ *   {
+ *     enrichedContent: string,         // PRD with inferred defaults baked in
+ *     addedAssumptions: string[],      // defaults the enricher chose
+ *     openQuestions: string[],         // things the user could clarify
+ *     wasEnriched: boolean             // true when defaults were added
+ *   }
+ *
+ * Skipped (passes brief through untouched) when content is already long
+ * + specific (>= 600 chars, includes ## section headers, or > 8 distinct
+ * concrete keywords). Threshold tunable via env.
+ */
+
+import { spawn } from 'child_process';
+
+const ENRICH_TIMEOUT_MS = Number(process.env.BRIEF_ENRICH_TIMEOUT_MS || 90_000);
+const ENRICH_MIN_LENGTH = Number(process.env.BRIEF_ENRICH_MIN_LENGTH || 600);
+const ENRICH_MIN_KEYWORDS = Number(process.env.BRIEF_ENRICH_MIN_KEYWORDS || 8);
+
+export interface EnrichmentResult {
+	enrichedContent: string;
+	addedAssumptions: string[];
+	openQuestions: string[];
+	wasEnriched: boolean;
+}
+
+const KEYWORD_HINTS = [
+	'auth', 'oauth', 'login', 'database', 'postgres', 'stripe', 'payment',
+	'subscription', 'email', 'admin', 'dashboard', 'rate limit', 'queue',
+	'realtime', 'websocket', 'api', 'mobile', 'web', 'static', 'rest',
+	'graphql', 'analytics', 'ssr', 'spa', 'cdn', 'cache', 'redis', 's3',
+	'arweave', 'solana', 'evm', 'nft', 'audit', 'compliance', 'rbac',
+	'multi-tenant', 'tenant', 'workspace', 'org', 'role', 'mfa', 'sso',
+	'webhook', 'event', 'pipeline', 'agent', 'llm', 'rag', 'retrieval',
+	'classifier', 'scorer', 'feedback'
+];
+
+function estimateSpecificity(content: string): { length: number; keywords: number; hasSections: boolean } {
+	const length = content.length;
+	const lower = content.toLowerCase();
+	let keywords = 0;
+	for (const kw of KEYWORD_HINTS) if (lower.includes(kw)) keywords++;
+	const hasSections = /^##\s+\w+/m.test(content);
+	return { length, keywords, hasSections };
+}
+
+function shouldSkipEnrichment(content: string): boolean {
+	const sig = estimateSpecificity(content);
+	if (sig.length >= ENRICH_MIN_LENGTH) return true;
+	if (sig.hasSections && sig.keywords >= 4) return true;
+	if (sig.keywords >= ENRICH_MIN_KEYWORDS) return true;
+	return false;
+}
+
+const ENRICH_PROMPT_TEMPLATE = `You are the spawner-ui brief enricher. The user submitted a project brief that may be too vague for a downstream canvas generator. Your job is to (1) infer reasonable defaults from the founder-mode software-product domain, (2) bake those defaults into a usable PRD, (3) list any remaining ambiguity as open questions.
+
+Output strict JSON in a fenced \`\`\`json block. No prose outside the block.
+
+Schema:
+{
+  "enrichedContent": "<a more complete PRD-style brief, ready for a canvas generator. Preserve user's actual phrasing where present, add inferred defaults clearly marked '(assumed)'>",
+  "addedAssumptions": ["<one-line assumption you made>", ...],
+  "openQuestions": ["<one-line question the user could answer to tighten the brief>", ...]
+}
+
+Guidance:
+- Always output a usable enrichedContent. Never block.
+- Choose defaults a sensible solo founder would pick: web app, modern stack, single-tenant v1, OAuth via managed provider, Postgres, basic analytics, deploy on Vercel/Cloudflare.
+- Keep the enrichedContent under 1500 characters.
+- 3-6 addedAssumptions max.
+- 3-6 openQuestions max — the SHARPEST clarifications that would change the canvas materially.
+- Do not invent product features the user didn't gesture at. Stay close to their wording; expand only the structural defaults around it.
+
+USER BRIEF:
+{{BRIEF}}`;
+
+function extractJson(text: string): string | null {
+	const fence = /\`\`\`json\s*([\s\S]*?)\`\`\`/i;
+	const m = text.match(fence);
+	if (m && m[1].trim()) return m[1].trim();
+	const looseFence = /\`\`\`\s*([\s\S]*?)\`\`\`/;
+	const m2 = text.match(looseFence);
+	if (m2 && m2[1].trim().startsWith('{')) return m2[1].trim();
+	const firstBrace = text.indexOf('{');
+	const lastBrace = text.lastIndexOf('}');
+	if (firstBrace >= 0 && lastBrace > firstBrace) {
+		const candidate = text.slice(firstBrace, lastBrace + 1).trim();
+		try {
+			JSON.parse(candidate);
+			return candidate;
+		} catch {
+			return null;
+		}
+	}
+	return null;
+}
+
+function runClaudePrint(prompt: string): Promise<string> {
+	return new Promise((resolve, reject) => {
+		const useShell = process.platform === 'win32';
+		const child = spawn('claude', ['--print'], {
+			stdio: ['pipe', 'pipe', 'pipe'],
+			windowsHide: true,
+			shell: useShell
+		});
+		let stdout = '';
+		let stderr = '';
+		const timer = setTimeout(() => {
+			child.kill('SIGKILL');
+			reject(new Error(`brief-enricher claude --print timed out after ${ENRICH_TIMEOUT_MS}ms`));
+		}, ENRICH_TIMEOUT_MS);
+		child.stdout.on('data', (chunk) => {
+			stdout += chunk.toString('utf-8');
+		});
+		child.stderr.on('data', (chunk) => {
+			stderr += chunk.toString('utf-8');
+		});
+		child.on('error', (err) => {
+			clearTimeout(timer);
+			reject(new Error(`brief-enricher spawn failed: ${err.message}`));
+		});
+		child.on('close', (code) => {
+			clearTimeout(timer);
+			if (code !== 0) {
+				reject(new Error(`brief-enricher exited ${code}. stderr: ${stderr.slice(0, 300)}`));
+				return;
+			}
+			resolve(stdout);
+		});
+		child.stdin.write(prompt);
+		child.stdin.end();
+	});
+}
+
+export async function enrichBrief(content: string): Promise<EnrichmentResult> {
+	if (shouldSkipEnrichment(content)) {
+		return {
+			enrichedContent: content,
+			addedAssumptions: [],
+			openQuestions: [],
+			wasEnriched: false
+		};
+	}
+
+	try {
+		const prompt = ENRICH_PROMPT_TEMPLATE.replace('{{BRIEF}}', content);
+		const stdout = await runClaudePrint(prompt);
+		const json = extractJson(stdout);
+		if (!json) {
+			console.warn('[brief-enricher] no JSON in claude output, falling back to raw brief');
+			return { enrichedContent: content, addedAssumptions: [], openQuestions: [], wasEnriched: false };
+		}
+		const parsed = JSON.parse(json) as Partial<EnrichmentResult>;
+		const enrichedContent = typeof parsed.enrichedContent === 'string' && parsed.enrichedContent.trim()
+			? parsed.enrichedContent
+			: content;
+		return {
+			enrichedContent,
+			addedAssumptions: Array.isArray(parsed.addedAssumptions)
+				? parsed.addedAssumptions.filter((a): a is string => typeof a === 'string')
+				: [],
+			openQuestions: Array.isArray(parsed.openQuestions)
+				? parsed.openQuestions.filter((q): q is string => typeof q === 'string')
+				: [],
+			wasEnriched: enrichedContent !== content
+		};
+	} catch (err) {
+		console.warn('[brief-enricher] enrichment failed, falling back to raw brief:', err);
+		return { enrichedContent: content, addedAssumptions: [], openQuestions: [], wasEnriched: false };
+	}
+}

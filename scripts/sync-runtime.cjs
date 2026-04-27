@@ -26,6 +26,7 @@ const SYNCED_PATHS = [
 	'src/lib/server/skill-tiers.ts',
 	'src/lib/server/claude-auto-analysis.ts',
 	'src/lib/server/bundle-classifier.ts',
+	'src/lib/server/brief-enricher.ts',
 	'src/routes/api/prd-bridge/write/+server.ts',
 	'src/routes/api/spark/run/+server.ts',
 	'static/bundles'
