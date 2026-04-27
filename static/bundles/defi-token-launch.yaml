@@ -1,0 +1,23 @@
+id: defi-token-launch
+name: DeFi token launch
+task_pattern: deploy a DeFi token with smart contracts, audit, liquidity, and a frontend wallet UI
+required_skills:
+  - smart-contract-engineer
+  - smart-contract-auditor
+  - blockchain-defi
+  - token-launch
+  - frontend-engineer
+optional_skills:
+  - defi-architect
+load_order:
+  - smart-contract-engineer  # write the contract suite (token, vesting, staking)
+  - smart-contract-auditor   # audit BEFORE testnet deploy, not after mainnet
+  - blockchain-defi          # liquidity pool, AMM integration, oracle wiring
+  - token-launch             # tokenomics, vesting schedule, launch mechanics
+  - frontend-engineer        # wallet connect UI and transaction UX
+notes: |
+  Audit order matters. Audit happens after the engineer ships v1 of the contract
+  suite, before any testnet deploy. Doing it after mainnet means the bug is
+  already public. defi-architect is optional but worth loading if the design
+  involves AMM curves, leverage, or cross-chain bridges - those design decisions
+  are hard to reverse once liquidity is in.

@@ -1,0 +1,23 @@
+id: ai-feature-shipping
+name: AI feature shipping
+task_pattern: add an LLM-powered feature to an existing app with caching, tool use, observability, and rate limits
+required_skills:
+  - llm-architect
+  - prompt-caching
+  - ai-function-calling
+  - rate-limiting
+  - observability
+optional_skills:
+  - audit-logging
+load_order:
+  - llm-architect         # pick model, prompt structure, fallback strategy
+  - prompt-caching        # 90% cost reduction on repeated context
+  - ai-function-calling   # structured tool use and JSON output
+  - rate-limiting         # per-user caps to bound API spend
+  - observability         # token cost tracking, latency, error rate, prompt versions
+notes: |
+  Common gotcha: shipping without observability means you find out about a
+  $10K/day cost spike from your bank, not your dashboard. Rate limit early on
+  the per-user level, not just at the gateway - one abusive user can dwarf the
+  rest. Prompt-caching has the largest ROI of anything in this bundle and the
+  smallest install effort.

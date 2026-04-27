@@ -1,0 +1,23 @@
+id: internal-admin-dashboard
+name: Internal admin dashboard
+task_pattern: build a backoffice or internal admin dashboard with role-based auth, audit trail, and data CRUD
+required_skills:
+  - backend-engineer
+  - database-architect
+  - frontend-engineer
+  - authentication-oauth
+  - audit-logging
+optional_skills:
+  - compliance-automation
+  - rate-limiting
+load_order:
+  - database-architect    # data model and access patterns drive every other choice
+  - backend-engineer      # API surface with explicit role checks at every endpoint
+  - authentication-oauth  # auth + role hierarchy (admin, support, viewer)
+  - frontend-engineer     # admin UI with destructive-action confirmations
+  - audit-logging         # every privileged action must be traceable
+notes: |
+  Audit logging is required, not optional, the moment more than one human can
+  act on customer data. The first time an angry customer asks "who deleted my
+  account" you'll wish you had it. Role-based auth must enforce on the API,
+  not just hide UI buttons - the buttons are not the security boundary.

@@ -1,0 +1,27 @@
+id: mvp-launch
+name: MVP launch
+task_pattern: ship a minimum-viable product fast - single core feature, basic auth, payment, analytics, no scaling complexity yet
+required_skills:
+  - frontend-engineer
+  - backend-engineer
+  - postgres-wizard
+  - authentication-oauth
+  - landing-page-design
+optional_skills:
+  - stripe-integration
+  - analytics
+  - email-systems
+  - waitlist-launch-pages
+load_order:
+  - landing-page-design    # validate the offer before writing code
+  - postgres-wizard        # minimal schema for the one core feature
+  - authentication-oauth   # managed identity (Clerk/Supabase) - dont roll your own
+  - backend-engineer       # API surface for the one feature
+  - frontend-engineer      # UI tied to that one core feature
+notes: |
+  MVP means MINIMUM. The biggest mistake here is building the v2 feature set on
+  day one, missing the validation window, and shipping something that does five
+  things badly instead of one thing well. The landing page goes first because
+  it tests demand without code. Pick a managed auth provider - Clerk, Supabase,
+  Auth.js - rolling your own auth at MVP stage is a 2-week detour from
+  validating product-market fit.

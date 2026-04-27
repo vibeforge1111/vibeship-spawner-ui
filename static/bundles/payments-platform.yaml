@@ -1,0 +1,28 @@
+id: payments-platform
+name: Payments platform
+task_pattern: build a marketplace or platform that handles money flowing between multiple parties - merchants, customers, payouts, KYC, refunds, disputes
+required_skills:
+  - stripe-integration
+  - postgres-wizard
+  - authentication-oauth
+  - audit-logging
+  - rate-limiting
+optional_skills:
+  - compliance-automation
+  - multi-tenancy
+  - observability
+  - subscription-billing
+load_order:
+  - postgres-wizard        # money tables: ledger, double-entry, idempotency keys
+  - authentication-oauth   # accounts and KYC verification states
+  - stripe-integration     # Connect for marketplaces, charges + transfers + payouts
+  - audit-logging          # every money-touching action logged immutably
+  - rate-limiting          # webhook replay protection, abuse on high-value endpoints
+notes: |
+  Money systems demand a different bar than CRUD. Idempotency keys on every
+  state-mutating endpoint. Double-entry ledger from day one - reconstruction
+  after the fact is hell. Webhook signature verification on raw bytes, not
+  parsed JSON. KYC state machine before any payout flows. Refund and dispute
+  handling are not optional features - they are how this becomes regulated
+  infrastructure. Audit logs must be tamper-evident and retained per the
+  jurisdictions you operate in.

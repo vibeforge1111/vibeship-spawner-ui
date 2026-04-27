@@ -1,0 +1,26 @@
+id: realtime-collab-app
+name: Realtime collaborative app
+task_pattern: build a multiplayer or collaborative app with live presence, sync, and chat - Figma/Notion/Linear style
+required_skills:
+  - websocket-realtime
+  - redis-specialist
+  - authentication-oauth
+  - frontend-engineer
+  - observability
+optional_skills:
+  - queue-workers
+  - rate-limiting
+  - postgres-wizard
+load_order:
+  - postgres-wizard        # source-of-truth schema before any sync layer
+  - websocket-realtime     # connection lifecycle, reconnect, fallback to SSE
+  - redis-specialist       # presence + pub-sub + ephemeral state
+  - authentication-oauth   # auth on the WS handshake, not just HTTP
+  - frontend-engineer      # optimistic updates with conflict reconciliation
+  - observability          # connection counts, message latency, drop reasons
+notes: |
+  WebSocket auth is the most common screwup - HTTP cookies don't always survive
+  the upgrade, validate the token in the handshake explicitly. Optimistic UI is
+  required (sync feels broken at >100ms perceived latency) but you must have a
+  reconciliation path when the server says no. Don't roll your own CRDT unless
+  you're sure - Yjs and Automerge handle the hard cases.
