@@ -111,7 +111,7 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		executesFilesystem: true,
 		apiKeyEnv: 'ANTHROPIC_API_KEY',
 		requiresApiKey: false,
-		commandTemplate: 'claude --model {model}'
+		commandTemplate: 'claude --print --model {model}'
 	},
 	{
 		id: 'codex',
@@ -152,6 +152,32 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		apiKeyEnv: 'MINIMAX_API_KEY',
 		requiresApiKey: true,
 		baseUrl: 'https://api.minimax.io/v1'
+	},
+	{
+		id: 'openrouter',
+		label: 'OpenRouter',
+		model: 'openai/gpt-5.5',
+		enabled: false,
+		kind: 'openai_compat',
+		eventSource: 'openrouter',
+		capabilities: ['reasoning', 'planning', 'review', 'code_analysis'],
+		executesFilesystem: false,
+		apiKeyEnv: 'OPENROUTER_API_KEY',
+		requiresApiKey: true,
+		baseUrl: 'https://openrouter.ai/api/v1'
+	},
+	{
+		id: 'huggingface',
+		label: 'Hugging Face',
+		model: 'deepseek-ai/DeepSeek-R1:fastest',
+		enabled: false,
+		kind: 'openai_compat',
+		eventSource: 'huggingface',
+		capabilities: ['reasoning', 'planning', 'review', 'code_analysis'],
+		executesFilesystem: false,
+		apiKeyEnv: 'HF_TOKEN',
+		requiresApiKey: true,
+		baseUrl: 'https://router.huggingface.co/v1'
 	}
 ];
 

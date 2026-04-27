@@ -231,7 +231,7 @@ function isBinaryAvailable(binaryName: ProviderCommand['binary']): boolean {
 }
 
 function resolveProviderCommandTemplate(providerId: OpenclawProviderId, model?: string, template?: string): string {
-	const fallbackTemplate = providerId === 'claude' ? 'claude --model {model}' : 'codex exec --model {model}';
+	const fallbackTemplate = providerId === 'claude' ? 'claude --print --model {model}' : 'codex exec --model {model}';
 	const commandTemplate = template && template.trim() ? template : fallbackTemplate;
 	const fallbackModel = providerId === 'claude' ? 'claude-opus-4-1' : 'gpt-5.5';
 	return commandTemplate.replace('{model}', (model && model.trim()) || fallbackModel);
@@ -247,10 +247,13 @@ function parseProviderCommand(providerId: OpenclawProviderId, commandTemplate: s
 	}
 
 	if (providerId === 'claude') {
-		if (tokens[0] !== 'claude' || tokens.length !== 3 || tokens[1] !== '--model') {
-			throw new Error('Claude provider command must be: claude --model <model>');
+		if (tokens[0] === 'claude' && tokens.length === 3 && tokens[1] === '--model') {
+			return { binary: 'claude', resolvedBinary: resolveCliBinary('claude') || 'claude', args: ['--model', tokens[2]] };
 		}
-		return { binary: 'claude', resolvedBinary: resolveCliBinary('claude') || 'claude', args: ['--model', tokens[2]] };
+		if (tokens[0] === 'claude' && tokens.length === 4 && (tokens[1] === '--print' || tokens[1] === '-p') && tokens[2] === '--model') {
+			return { binary: 'claude', resolvedBinary: resolveCliBinary('claude') || 'claude', args: [tokens[1], '--model', tokens[3]] };
+		}
+		throw new Error('Claude provider command must be: claude --print --model <model> or claude -p --model <model>');
 	}
 
 	if (tokens[0] !== 'codex' || tokens[1] !== 'exec') {
