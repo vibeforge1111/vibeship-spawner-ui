@@ -15,6 +15,7 @@ import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { resolveCliBinary } from '$lib/server/cli-resolver';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { formatSkillsByCategory, getTierSkills, normalizeTier, type SkillTier } from '$lib/server/skill-tiers';
+import { startClaudeAutoAnalysis } from '$lib/server/claude-auto-analysis';
 
 function getPrdBridgePaths() {
 	const spawnerDir = process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
@@ -131,6 +132,61 @@ function normalizeTelegramRelay(value: unknown): Record<string, unknown> | undef
 	return Object.keys(relay).length > 0 ? relay : undefined;
 }
 
+async function buildPromptParts(
+	buildMode: 'direct' | 'advanced_prd',
+	tier: SkillTier
+): Promise<{ planningContract: string; tierBlock: string; workflowGuidance: string }> {
+	const planningContract =
+		buildMode === 'advanced_prd'
+			? [
+					'Advanced build contract:',
+					'- Treat the PRD content as the source request and turn it into a compact PRD before tasking.',
+					'- Use the Founder UI pattern: summary, objective, scope, non-goals, target UX, technical constraints, phased task plan, exit criteria.',
+					'- Convert the PRD into TAS-style tasks: each task needs acceptance criteria, dependencies, file/workspace targets, and verification commands.',
+					'- Keep task count practical. Prefer 3-8 high-signal implementation tasks over many tiny chores.',
+					'- Preserve explicit user constraints such as "No build step" or exact file lists.'
+				].join('\n')
+			: [
+					'Direct build contract:',
+					'- Preserve the user request as-is and create only the tasks needed to execute it.',
+					'- Do not inflate small explicit builds into a broad product plan.'
+				].join('\n');
+
+	const tierSkills = await getTierSkills(tier);
+	const tierIds = tierSkills.map((s) => s.id).sort();
+	const tierBlock =
+		tier === 'base'
+			? [
+					`User skill tier: BASE (${tierIds.length} skills available)`,
+					'',
+					'Each task\'s "skills" array MUST contain only IDs from this allowlist:',
+					tierIds.join(', '),
+					'',
+					'If no listed skill fits a task, pick the closest match. Do NOT invent IDs.',
+					'Do NOT use pro-only IDs like "phaser-3", "vite-project-setup", "smart-contract-auditor", or "react-native-specialist" on a base build — they are not licensed for this user.'
+				].join('\n')
+			: [
+					`User skill tier: PRO (${tierIds.length} skills available, full spark-skill-graphs catalog)`,
+					'',
+					'Each task\'s "skills" array MUST contain only valid IDs from spark-skill-graphs.',
+					'Pick 1-5 specific skills per task — prefer specialists over generalists.',
+					'Available IDs grouped by category:',
+					formatSkillsByCategory(tierSkills),
+					'',
+					'Do NOT invent IDs. Do NOT use shorthand like "frontend" when "frontend-engineer" or a more specific specialist exists.'
+				].join('\n');
+
+	const workflowGuidance = [
+		'Workflow shape requirements:',
+		'- Tasks must form a DAG. Set dependencies only when a task TRULY blocks another.',
+		'- Independent tasks must run in parallel — do NOT add a dependency just to make the graph linear.',
+		'- A 6-task plan should usually have 2-3 dependency layers, not 6.',
+		'- Each task needs at least one acceptance criterion and one verification command.'
+	].join('\n');
+
+	return { planningContract, tierBlock, workflowGuidance };
+}
+
 async function buildCodexPrompt(
 	requestId: string,
 	projectName: string,
@@ -226,28 +282,43 @@ async function buildCodexPrompt(
 	].join('\n');
 }
 
-async function startCodexAutoAnalysis(
+async function startAutoAnalysis(
 	requestId: string,
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier
-): Promise<boolean> {
-	const provider = (process.env.SPAWNER_PRD_AUTO_PROVIDER || 'codex').trim().toLowerCase();
+): Promise<{ started: boolean; provider: string }> {
+	const provider = (process.env.SPAWNER_PRD_AUTO_PROVIDER || 'claude').trim().toLowerCase();
 	if (provider === 'none') {
 		await appendPrdTrace(requestId, 'auto_disabled', { provider });
-		return false;
+		return { started: false, provider };
+	}
+
+	if (provider === 'claude') {
+		const paths = getPrdBridgePaths();
+		const parts = await buildPromptParts(buildMode, tier);
+		const started = await startClaudeAutoAnalysis({
+			requestId,
+			projectName,
+			buildMode,
+			tier,
+			paths,
+			...parts,
+			appendTrace: (event, details) => appendPrdTrace(requestId, event, details)
+		});
+		return { started, provider: 'claude' };
 	}
 
 	if (provider !== 'codex') {
 		await appendPrdTrace(requestId, 'auto_unsupported_provider', { provider });
-		return false;
+		return { started: false, provider };
 	}
 
 	try {
 		const codexBinary = resolveCodexBinary();
 		if (!codexBinary) {
 			await appendPrdTrace(requestId, 'auto_binary_missing', { provider: 'codex' });
-			return false;
+			return { started: false, provider: 'codex' };
 		}
 
 		const paths = getPrdBridgePaths();
@@ -284,13 +355,13 @@ async function startCodexAutoAnalysis(
 				});
 			});
 
-		return true;
+		return { started: true, provider: 'codex' };
 	} catch (error) {
 		await appendPrdTrace(requestId, 'auto_start_failed', {
 			provider: 'codex',
 			error: error instanceof Error ? error.message : String(error)
 		});
-		return false;
+		return { started: false, provider: 'codex' };
 	}
 }
 
@@ -388,27 +459,27 @@ export const POST: RequestHandler = async (event) => {
 			}
 		});
 
-		const codexStarted = await startCodexAutoAnalysis(
+		const auto = await startAutoAnalysis(
 			requestId,
 			requestMeta.projectName,
 			requestMeta.buildMode,
 			normalizedTier
 		);
-		if (codexStarted) {
+		if (auto.started) {
 			scheduleAutoAnalysisWatchdog(requestId);
 		}
 
 		console.log(`[PRDBridge] PRD written to ${paths.pendingPrdFile}`);
 		console.log(`[PRDBridge] Request ID: ${requestId}`);
-		console.log(`[PRDBridge] Codex auto-analysis: ${codexStarted ? 'started' : 'not-started'}`);
+		console.log(`[PRDBridge] Auto-analysis (${auto.provider}): ${auto.started ? 'started' : 'not-started'}`);
 
 		return json({
 			success: true,
 			path: paths.pendingPrdFile,
 			requestId,
 			autoAnalysis: {
-				provider: 'codex',
-				started: codexStarted
+				provider: auto.provider,
+				started: auto.started
 			}
 		});
 	} catch (error) {
