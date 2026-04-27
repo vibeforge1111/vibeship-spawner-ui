@@ -109,7 +109,8 @@ export async function executeCodexCliRequest(
 			cwd,
 			stdio: ['pipe', 'pipe', 'pipe'],
 			shell: process.platform === 'win32',
-			env: { ...process.env }
+			env: { ...process.env },
+			windowsHide: true
 		});
 
 		// Send prompt via stdin

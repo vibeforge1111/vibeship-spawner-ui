@@ -1164,7 +1164,8 @@ class OpenclawBridgeService {
 				cwd: context.workingDirectory || process.cwd(),
 				shell: process.platform === 'win32',
 				stdio: ['pipe', 'pipe', 'pipe'],
-				env: { ...process.env }
+				env: { ...process.env },
+				windowsHide: true
 			});
 
 			const workerState = this.workerSessions.get(context.sessionId);

@@ -60,7 +60,8 @@ export function runCommand(
 			cwd,
 			shell: true,
 			timeout: timeoutMs,
-			env: { ...process.env, FORCE_COLOR: '0', CI: 'true' }
+			env: { ...process.env, FORCE_COLOR: '0', CI: 'true' },
+			windowsHide: true
 		});
 
 		child.stdout?.on('data', (data: Buffer) => {
