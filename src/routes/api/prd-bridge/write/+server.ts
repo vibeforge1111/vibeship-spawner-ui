@@ -16,6 +16,7 @@ import { resolveCliBinary } from '$lib/server/cli-resolver';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { formatSkillsByCategory, getTierSkills, normalizeTier, type SkillTier } from '$lib/server/skill-tiers';
 import { startClaudeAutoAnalysis } from '$lib/server/claude-auto-analysis';
+import { classifyBrief, formatBundleForPrompt } from '$lib/server/bundle-classifier';
 
 function getPrdBridgePaths() {
 	const spawnerDir = process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
@@ -134,8 +135,9 @@ function normalizeTelegramRelay(value: unknown): Record<string, unknown> | undef
 
 async function buildPromptParts(
 	buildMode: 'direct' | 'advanced_prd',
-	tier: SkillTier
-): Promise<{ planningContract: string; tierBlock: string; workflowGuidance: string }> {
+	tier: SkillTier,
+	briefBody?: string
+): Promise<{ planningContract: string; tierBlock: string; workflowGuidance: string; bundleBlock: string }> {
 	const planningContract =
 		buildMode === 'advanced_prd'
 			? [
@@ -184,7 +186,24 @@ async function buildPromptParts(
 		'- Each task needs at least one acceptance criterion and one verification command.'
 	].join('\n');
 
-	return { planningContract, tierBlock, workflowGuidance };
+	let bundleBlock = '';
+	if (briefBody) {
+		try {
+			const classification = await classifyBrief(briefBody);
+			if (classification.bestMatch) {
+				bundleBlock = formatBundleForPrompt(classification.bestMatch);
+				console.log(
+					`[PRDBridge] bundle classifier: ${classification.bestMatch.id} confidence=${classification.confidence.toFixed(2)}`
+				);
+			} else {
+				console.log('[PRDBridge] bundle classifier: no match above threshold');
+			}
+		} catch (err) {
+			console.warn('[PRDBridge] bundle classifier failed:', err);
+		}
+	}
+
+	return { planningContract, tierBlock, workflowGuidance, bundleBlock };
 }
 
 async function buildCodexPrompt(
@@ -192,7 +211,8 @@ async function buildCodexPrompt(
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier,
-	paths: ReturnType<typeof getPrdBridgePaths>
+	paths: ReturnType<typeof getPrdBridgePaths>,
+	bundleBlock?: string
 ): Promise<string> {
 	const planningContract =
 		buildMode === 'advanced_prd'
@@ -254,6 +274,7 @@ async function buildCodexPrompt(
 		'',
 		workflowGuidance,
 		'',
+		...(bundleBlock ? [bundleBlock, ''] : []),
 		'Configured bridge paths:',
 		`- State directory: ${paths.spawnerDir}`,
 		`- Pending request metadata: ${paths.pendingRequestFile}`,
@@ -296,7 +317,10 @@ async function startAutoAnalysis(
 
 	if (provider === 'claude') {
 		const paths = getPrdBridgePaths();
-		const parts = await buildPromptParts(buildMode, tier);
+		const briefBody = existsSync(paths.pendingPrdFile)
+			? await readFile(paths.pendingPrdFile, 'utf-8')
+			: undefined;
+		const parts = await buildPromptParts(buildMode, tier, briefBody);
 		const started = await startClaudeAutoAnalysis({
 			requestId,
 			projectName,
@@ -322,7 +346,11 @@ async function startAutoAnalysis(
 		}
 
 		const paths = getPrdBridgePaths();
-		const prompt = await buildCodexPrompt(requestId, projectName, buildMode, tier, paths);
+		const briefBody = existsSync(paths.pendingPrdFile)
+			? await readFile(paths.pendingPrdFile, 'utf-8')
+			: undefined;
+		const parts = await buildPromptParts(buildMode, tier, briefBody);
+		const prompt = await buildCodexPrompt(requestId, projectName, buildMode, tier, paths, parts.bundleBlock);
 		const missionId = `prd-auto-${normalizeRequestId(requestId)}`;
 
 		await appendPrdTrace(requestId, 'auto_worker_dispatch', {

@@ -25,6 +25,7 @@ const RUNTIME_ROOT = path.join(os.homedir(), '.spark', 'modules', 'spawner-ui', 
 const SYNCED_PATHS = [
 	'src/lib/server/skill-tiers.ts',
 	'src/lib/server/claude-auto-analysis.ts',
+	'src/lib/server/bundle-classifier.ts',
 	'src/routes/api/prd-bridge/write/+server.ts',
 	'src/routes/api/spark/run/+server.ts',
 	'static/bundles'
