@@ -8,6 +8,7 @@ import { buildMultiLLMExecutionPack, createDefaultMultiLLMOptions } from '$lib/s
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { resolveSparkRunProjectPath, SparkRunWorkspaceError } from '$lib/server/spark-run-workspace';
+import { normalizeTier, type SkillTier } from '$lib/server/skill-tiers';
 
 interface SparkRunBody {
 	goal?: string;
@@ -16,6 +17,7 @@ interface SparkRunBody {
 	chatId?: string;
 	userId?: string;
 	requestId?: string;
+	tier?: 'base' | 'pro';
 	promptMode?: 'simple' | 'orchestrator';
 	suppressRelay?: boolean;
 	telegramRelay?: {
@@ -54,7 +56,12 @@ function normalizeTelegramRelay(value: SparkRunBody['telegramRelay']): Record<st
 	return Object.keys(relay).length > 0 ? relay : null;
 }
 
-function createSparkMission(body: SparkRunBody, goal: string, selectedProviderIds: string[]): Mission {
+function createSparkMission(
+	body: SparkRunBody,
+	goal: string,
+	selectedProviderIds: string[],
+	tier: SkillTier
+): Mission {
 	const now = new Date().toISOString();
 	const missionId = `spark-${Date.now()}`;
 	const requestId = body.requestId?.trim() || missionId;
@@ -100,6 +107,7 @@ function createSparkMission(body: SparkRunBody, goal: string, selectedProviderId
 				chatId,
 				userId,
 				providers: selectedProviderIds,
+				tier,
 				suppressRelay: body.suppressRelay === true,
 				...(telegramRelay ? { telegramRelay } : {})
 			}
@@ -167,7 +175,8 @@ export const POST: RequestHandler = async (event) => {
 			);
 		}
 
-		const mission = createSparkMission(body, goal, selectedProviderIds);
+		const tier = normalizeTier(body.tier);
+		const mission = createSparkMission(body, goal, selectedProviderIds, tier);
 		const missionMetadata = mission.outputs.spark as Record<string, unknown>;
 		const emitMissionEvent = (type: string, message: string, data?: Record<string, unknown>) => {
 			const bridgeEvent = {
@@ -208,12 +217,21 @@ export const POST: RequestHandler = async (event) => {
 		});
 		executionPack.missionId = mission.id;
 
+		const tierNotice =
+			tier === 'base'
+				? '\n\n[Skill tier: BASE — load only skills from the curated bundle loadout (~41 skills). Do not request pro-only skills.]'
+				: '\n\n[Skill tier: PRO — full spark-skill-graphs catalog (~615 skills) is available for /api/h70-skills/<id> loading.]';
+
 		if (body.promptMode === 'simple') {
 			const simpleProviderPrompts: Record<string, string> = {};
 			for (const provider of executionPack.providers) {
-				simpleProviderPrompts[provider.id] = goal;
+				simpleProviderPrompts[provider.id] = `${goal}${tierNotice}`;
 			}
 			executionPack.providerPrompts = simpleProviderPrompts;
+		} else if (executionPack.providerPrompts) {
+			for (const id of Object.keys(executionPack.providerPrompts)) {
+				executionPack.providerPrompts[id] = `${executionPack.providerPrompts[id]}${tierNotice}`;
+			}
 		}
 
 		const apiKeys = Object.fromEntries(
