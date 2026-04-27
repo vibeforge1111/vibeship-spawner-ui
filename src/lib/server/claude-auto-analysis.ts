@@ -16,11 +16,12 @@
  * Selected when SPAWNER_PRD_AUTO_PROVIDER=claude.
  */
 
-import { spawn } from 'child_process';
 import { readFile, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import type { SkillTier } from './skill-tiers';
+import { resolveCliBinary } from './cli-resolver';
+import { spawnHidden } from './hidden-process';
 
 const CLAUDE_TIMEOUT_MS = Number(process.env.SPAWNER_CLAUDE_TIMEOUT_MS || 240_000);
 
@@ -104,11 +105,10 @@ function extractJson(text: string): string | null {
 
 function runClaude(prompt: string): Promise<{ stdout: string; stderr: string; code: number }> {
 	return new Promise((resolve, reject) => {
-		const useShell = process.platform === 'win32';
-		const child = spawn('claude', ['--print'], {
+		const claudeBinary = resolveCliBinary('claude') || 'claude';
+		const child = spawnHidden(claudeBinary, ['--print'], {
 			stdio: ['pipe', 'pipe', 'pipe'],
-			windowsHide: true,
-			shell: useShell
+			env: { ...process.env }
 		});
 
 		let stdout = '';
@@ -118,10 +118,10 @@ function runClaude(prompt: string): Promise<{ stdout: string; stderr: string; co
 			reject(new Error(`claude --print timed out after ${CLAUDE_TIMEOUT_MS}ms`));
 		}, CLAUDE_TIMEOUT_MS);
 
-		child.stdout.on('data', (chunk) => {
+		child.stdout?.on('data', (chunk) => {
 			stdout += chunk.toString('utf-8');
 		});
-		child.stderr.on('data', (chunk) => {
+		child.stderr?.on('data', (chunk) => {
 			stderr += chunk.toString('utf-8');
 		});
 		child.on('error', (err) => {
@@ -133,6 +133,11 @@ function runClaude(prompt: string): Promise<{ stdout: string; stderr: string; co
 			resolve({ stdout, stderr, code: code ?? -1 });
 		});
 
+		if (!child.stdin) {
+			clearTimeout(timer);
+			reject(new Error('claude stdin unavailable'));
+			return;
+		}
 		child.stdin.write(prompt);
 		child.stdin.end();
 	});

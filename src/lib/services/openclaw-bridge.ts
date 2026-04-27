@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { spawn, type ChildProcess } from 'node:child_process';
+import type { ChildProcess } from 'node:child_process';
 import type { Mission } from '$lib/services/mcp-client';
 import { TOP_100_MCPS } from '$lib/types/mcp';
 import { eventBridge } from '$lib/services/event-bridge';
 import { resolveCliBinary } from '$lib/server/cli-resolver';
+import { spawnHidden } from '$lib/server/hidden-process';
 import {
 	PRECONFIGURED_MCPS,
 	callTool,
@@ -1160,12 +1161,10 @@ class OpenclawBridgeService {
 			let stderr = '';
 			let finished = false;
 			let progressMarks = 0;
-			const child = spawn(command.resolvedBinary, command.args, {
+			const child = spawnHidden(command.resolvedBinary, command.args, {
 				cwd: context.workingDirectory || process.cwd(),
-				shell: process.platform === 'win32',
 				stdio: ['pipe', 'pipe', 'pipe'],
-				env: { ...process.env },
-				windowsHide: true
+				env: { ...process.env }
 			});
 
 			const workerState = this.workerSessions.get(context.sessionId);

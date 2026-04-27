@@ -23,9 +23,13 @@
  * concrete keywords). Threshold tunable via env.
  */
 
-import { spawn } from 'child_process';
+import { resolveCliBinary } from './cli-resolver';
+import { spawnHidden } from './hidden-process';
 
-const ENRICH_TIMEOUT_MS = Number(process.env.BRIEF_ENRICH_TIMEOUT_MS || 90_000);
+// Aggressive timeout: enrichment is a nice-to-have. If claude can't
+// respond fast, fall through with the raw brief so the user's request
+// doesn't stall the bot. Override via BRIEF_ENRICH_TIMEOUT_MS.
+const ENRICH_TIMEOUT_MS = Number(process.env.BRIEF_ENRICH_TIMEOUT_MS || 20_000);
 const ENRICH_MIN_LENGTH = Number(process.env.BRIEF_ENRICH_MIN_LENGTH || 600);
 const ENRICH_MIN_KEYWORDS = Number(process.env.BRIEF_ENRICH_MIN_KEYWORDS || 8);
 
@@ -109,11 +113,10 @@ function extractJson(text: string): string | null {
 
 function runClaudePrint(prompt: string): Promise<string> {
 	return new Promise((resolve, reject) => {
-		const useShell = process.platform === 'win32';
-		const child = spawn('claude', ['--print'], {
+		const claudeBinary = resolveCliBinary('claude') || 'claude';
+		const child = spawnHidden(claudeBinary, ['--print'], {
 			stdio: ['pipe', 'pipe', 'pipe'],
-			windowsHide: true,
-			shell: useShell
+			env: { ...process.env }
 		});
 		let stdout = '';
 		let stderr = '';
@@ -121,10 +124,10 @@ function runClaudePrint(prompt: string): Promise<string> {
 			child.kill('SIGKILL');
 			reject(new Error(`brief-enricher claude --print timed out after ${ENRICH_TIMEOUT_MS}ms`));
 		}, ENRICH_TIMEOUT_MS);
-		child.stdout.on('data', (chunk) => {
+		child.stdout?.on('data', (chunk) => {
 			stdout += chunk.toString('utf-8');
 		});
-		child.stderr.on('data', (chunk) => {
+		child.stderr?.on('data', (chunk) => {
 			stderr += chunk.toString('utf-8');
 		});
 		child.on('error', (err) => {
@@ -139,6 +142,11 @@ function runClaudePrint(prompt: string): Promise<string> {
 			}
 			resolve(stdout);
 		});
+		if (!child.stdin) {
+			clearTimeout(timer);
+			reject(new Error('brief-enricher stdin unavailable'));
+			return;
+		}
 		child.stdin.write(prompt);
 		child.stdin.end();
 	});

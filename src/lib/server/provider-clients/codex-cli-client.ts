@@ -5,12 +5,12 @@
  * Captures stdout/stderr and emits progress events.
  */
 
-import { spawn } from 'node:child_process';
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ProviderResult, ProviderClientOptions } from './types';
 import { createBridgeEvent } from './types';
 import { resolveCliBinary } from '../cli-resolver';
+import { spawnHidden } from '../hidden-process';
 
 export interface CodexCliOptions extends ProviderClientOptions {
 	workingDirectory?: string;
@@ -105,12 +105,10 @@ export async function executeCodexCliRequest(
 		let lastProgressEmit = Date.now();
 		let killed = false;
 
-		const child = spawn(resolvedBinary, command.args, {
+		const child = spawnHidden(resolvedBinary, command.args, {
 			cwd,
 			stdio: ['pipe', 'pipe', 'pipe'],
-			shell: process.platform === 'win32',
-			env: { ...process.env },
-			windowsHide: true
+			env: { ...process.env }
 		});
 
 		// Send prompt via stdin
