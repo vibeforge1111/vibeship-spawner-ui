@@ -303,12 +303,17 @@ function isStaleNonTerminalStatus(status: MissionControlBoardEntry['status'], ti
 
 export function getMissionControlBoard(): Record<string, MissionControlBoardEntry[]> {
 	const byMission = new Map<string, MissionControlBoardEntry>();
+	const terminalMissionIds = new Set(
+		relayState.recent
+			.filter((entry) => ['mission_completed', 'mission_failed', 'mission_paused'].includes(entry.eventType))
+			.map((entry) => entry.missionId)
+	);
 
 	for (const entry of relayState.recent) {
 		if (!isMissionControlMissionId(entry.missionId)) continue;
 		const status = mapEventTypeToBoardStatus(entry.eventType);
 		if (!status) continue;
-		if (isStaleNonTerminalStatus(status, entry.timestamp)) continue;
+		if (isStaleNonTerminalStatus(status, entry.timestamp) && !terminalMissionIds.has(entry.missionId)) continue;
 
 		const existing = byMission.get(entry.missionId);
 		if (!existing) {
