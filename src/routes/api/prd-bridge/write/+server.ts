@@ -414,11 +414,12 @@ export const POST: RequestHandler = async (event) => {
 		});
 		if (rateLimited) return rateLimited;
 
-		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, telegramRelay, tier } =
+		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, telegramRelay, tier, forceDispatch } =
 			await event.request.json();
 		const normalizedBuildMode = normalizeBuildMode(buildMode);
 		const normalizedTier = normalizeTier(tier);
 		const normalizedTelegramRelay = normalizeTelegramRelay(telegramRelay);
+		const skipClarification = forceDispatch === true;
 		const paths = getPrdBridgePaths();
 
 		if (!content || !requestId) {
@@ -445,6 +446,47 @@ export const POST: RequestHandler = async (event) => {
 				enrichedLength: finalContent.length,
 				addedAssumptions: enrichment.addedAssumptions,
 				openQuestions: enrichment.openQuestions
+			});
+		}
+
+		// Clarification gate: if the enricher surfaced open questions on a
+		// short brief, return needsClarification:true so the caller (bot)
+		// can ask the user before we burn an LLM dispatch on a vague input.
+		// forceDispatch:true bypasses (used when the bot re-dispatches with
+		// answers).
+		const briefIsShort = content.length < 400;
+		const hasQuestions = enrichment.openQuestions && enrichment.openQuestions.length > 0;
+		if (!skipClarification && briefIsShort && hasQuestions) {
+			await appendPrdTrace(requestId, 'clarification_requested', {
+				questionCount: enrichment.openQuestions.length,
+				briefLength: content.length
+			});
+			// Persist the original + enriched content so the bot can re-dispatch
+			// with answers later via forceDispatch.
+			const pendingClarFile = join(paths.spawnerDir, 'pending-clarifications', `${normalizeRequestId(requestId)}.json`);
+			await mkdir(join(paths.spawnerDir, 'pending-clarifications'), { recursive: true });
+			await writeFile(
+				pendingClarFile,
+				JSON.stringify({
+					requestId,
+					projectName: projectName || 'Untitled Project',
+					originalContent: content,
+					enrichedContent: finalContent,
+					addedAssumptions: enrichment.addedAssumptions,
+					openQuestions: enrichment.openQuestions,
+					tier: normalizedTier,
+					buildMode: normalizedBuildMode,
+					timestamp: new Date().toISOString()
+				}, null, 2),
+				'utf-8'
+			);
+			return json({
+				success: true,
+				needsClarification: true,
+				requestId,
+				openQuestions: enrichment.openQuestions,
+				addedAssumptions: enrichment.addedAssumptions,
+				message: 'Brief is too thin to plan against confidently. Answer the questions and re-submit with forceDispatch:true to bypass.'
 			});
 		}
 
