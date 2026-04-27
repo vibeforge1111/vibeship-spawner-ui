@@ -24,6 +24,7 @@ const RUNTIME_ROOT = path.join(os.homedir(), '.spark', 'modules', 'spawner-ui', 
 // Files / dirs that shape canvas generation. Add to this list as the surface grows.
 const SYNCED_PATHS = [
 	'src/lib/server/skill-tiers.ts',
+	'src/lib/server/claude-auto-analysis.ts',
 	'src/routes/api/prd-bridge/write/+server.ts',
 	'src/routes/api/spark/run/+server.ts',
 	'static/bundles'
