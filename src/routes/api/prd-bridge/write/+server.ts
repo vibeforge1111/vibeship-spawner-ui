@@ -14,6 +14,7 @@ import { openclawBridge } from '$lib/services/openclaw-bridge';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { resolveCliBinary } from '$lib/server/cli-resolver';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
+import { formatSkillsByCategory, getTierSkills, normalizeTier, type SkillTier } from '$lib/server/skill-tiers';
 
 function getPrdBridgePaths() {
 	const spawnerDir = process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
@@ -130,12 +131,13 @@ function normalizeTelegramRelay(value: unknown): Record<string, unknown> | undef
 	return Object.keys(relay).length > 0 ? relay : undefined;
 }
 
-function buildCodexPrompt(
+async function buildCodexPrompt(
 	requestId: string,
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
+	tier: SkillTier,
 	paths: ReturnType<typeof getPrdBridgePaths>
-): string {
+): Promise<string> {
 	const planningContract =
 		buildMode === 'advanced_prd'
 			? [
@@ -152,6 +154,38 @@ function buildCodexPrompt(
 					'- Do not inflate small explicit builds into a broad product plan.'
 				].join('\n');
 
+	const tierSkills = await getTierSkills(tier);
+	const tierIds = tierSkills.map((s) => s.id).sort();
+	const tierBlock =
+		tier === 'base'
+			? [
+					`User skill tier: BASE (${tierIds.length} skills available)`,
+					'',
+					'Each task\'s "skills" array MUST contain only IDs from this allowlist:',
+					tierIds.join(', '),
+					'',
+					'If no listed skill fits a task, pick the closest match. Do NOT invent IDs.',
+					'Do NOT use pro-only IDs like "phaser-3", "vite-project-setup", "smart-contract-auditor", or "react-native-specialist" on a base build — they are not licensed for this user.'
+				].join('\n')
+			: [
+					`User skill tier: PRO (${tierIds.length} skills available, full spark-skill-graphs catalog)`,
+					'',
+					'Each task\'s "skills" array MUST contain only valid IDs from spark-skill-graphs.',
+					'Pick 1-5 specific skills per task — prefer specialists over generalists.',
+					'Available IDs grouped by category:',
+					formatSkillsByCategory(tierSkills),
+					'',
+					'Do NOT invent IDs. Do NOT use shorthand like "frontend" when "frontend-engineer" or a more specific specialist exists.'
+				].join('\n');
+
+	const workflowGuidance = [
+		'Workflow shape requirements:',
+		'- Tasks must form a DAG. Set dependencies only when a task TRULY blocks another.',
+		'- Independent tasks must run in parallel — do NOT add a dependency just to make the graph linear.',
+		'- A 6-task plan should usually have 2-3 dependency layers, not 6.',
+		'- Each task needs at least one acceptance criterion and one verification command.'
+	].join('\n');
+
 	return [
 		'You are running inside spawner-ui and must complete PRD analysis autonomously.',
 		`Request ID: ${requestId}`,
@@ -159,6 +193,10 @@ function buildCodexPrompt(
 		`Build Mode: ${buildMode}`,
 		'',
 		planningContract,
+		'',
+		tierBlock,
+		'',
+		workflowGuidance,
 		'',
 		'Configured bridge paths:',
 		`- State directory: ${paths.spawnerDir}`,
@@ -172,15 +210,17 @@ function buildCodexPrompt(
 		'3) Produce a valid PRD analysis result JSON with:',
 		'   requestId, success, projectName, projectType, complexity, infrastructure, techStack, tasks, skills, executionPrompt.',
 		'4) Include actionable tasks with skills, dependencies, and verification criteria. For advanced_prd, make these TAS-style tasks with acceptance criteria.',
-		'5) POST result event to Spawner API via PowerShell Invoke-RestMethod using this shape:',
+		'5) Validate every skill ID before emitting — if it is not in the allowlist above, replace it with the closest valid ID or omit the task.',
+		'6) POST result event to Spawner API via PowerShell Invoke-RestMethod using this shape:',
 		`   {"type":"prd_analysis_complete","data":{"requestId":"${requestId}","result":<analysis>},"source":"codex-auto"}`,
 		`   URL: ${AUTO_ANALYSIS_ENDPOINT}`,
-		'6) If any failure happens, POST {"type":"prd_analysis_error", ...} with the same requestId.',
+		'7) If any failure happens, POST {"type":"prd_analysis_error", ...} with the same requestId.',
 		'',
 		'Hard constraints:',
 		'- Do not wait for human input.',
 		'- Do not leave placeholders.',
 		'- Ensure posted JSON is complete and parseable.',
+		'- Skill IDs MUST come from the allowlist. This is non-negotiable.',
 		'',
 		'When finished successfully, print exactly: PRD_ANALYSIS_SENT'
 	].join('\n');
@@ -189,7 +229,8 @@ function buildCodexPrompt(
 async function startCodexAutoAnalysis(
 	requestId: string,
 	projectName: string,
-	buildMode: 'direct' | 'advanced_prd'
+	buildMode: 'direct' | 'advanced_prd',
+	tier: SkillTier
 ): Promise<boolean> {
 	const provider = (process.env.SPAWNER_PRD_AUTO_PROVIDER || 'codex').trim().toLowerCase();
 	if (provider === 'none') {
@@ -210,7 +251,7 @@ async function startCodexAutoAnalysis(
 		}
 
 		const paths = getPrdBridgePaths();
-		const prompt = buildCodexPrompt(requestId, projectName, buildMode, paths);
+		const prompt = await buildCodexPrompt(requestId, projectName, buildMode, tier, paths);
 		const missionId = `prd-auto-${normalizeRequestId(requestId)}`;
 
 		await appendPrdTrace(requestId, 'auto_worker_dispatch', {
@@ -273,9 +314,10 @@ export const POST: RequestHandler = async (event) => {
 		});
 		if (rateLimited) return rateLimited;
 
-		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, telegramRelay } =
+		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, telegramRelay, tier } =
 			await event.request.json();
 		const normalizedBuildMode = normalizeBuildMode(buildMode);
+		const normalizedTier = normalizeTier(tier);
 		const normalizedTelegramRelay = normalizeTelegramRelay(telegramRelay);
 		const paths = getPrdBridgePaths();
 
@@ -349,7 +391,8 @@ export const POST: RequestHandler = async (event) => {
 		const codexStarted = await startCodexAutoAnalysis(
 			requestId,
 			requestMeta.projectName,
-			requestMeta.buildMode
+			requestMeta.buildMode,
+			normalizedTier
 		);
 		if (codexStarted) {
 			scheduleAutoAnalysisWatchdog(requestId);

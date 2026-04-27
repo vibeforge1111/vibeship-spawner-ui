@@ -1,0 +1,26 @@
+id: saas-with-auth-and-billing
+name: SaaS with auth and billing
+task_pattern: build a B2B SaaS app with user accounts, subscription billing, and Stripe payments
+required_skills:
+  - postgres-wizard
+  - authentication-oauth
+  - stripe-subscriptions
+  - subscription-billing
+  - rate-limiting
+optional_skills:
+  - audit-logging
+  - gdpr-privacy
+  - email-systems
+  - clerk-auth
+  - supabase-auth-rls
+load_order:
+  - postgres-wizard       # schema first - users, orgs, subscriptions tables
+  - authentication-oauth  # OAuth/OIDC on top of schema
+  - stripe-subscriptions  # plans, trials, dunning, webhooks
+  - subscription-billing  # business logic around plan tiers and limits
+  - rate-limiting         # per-plan request caps
+notes: |
+  Why this set: every B2B SaaS hits this exact combination on day 1. Skipping
+  rate-limiting until first abuse incident is the most common mistake. Pick
+  clerk-auth or supabase-auth-rls if you want a managed identity layer instead
+  of rolling your own OAuth.

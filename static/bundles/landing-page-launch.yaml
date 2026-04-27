@@ -1,0 +1,24 @@
+id: landing-page-launch
+name: Landing page launch
+task_pattern: ship a high-converting landing page or marketing site with copy, design, SEO, and analytics instrumented
+required_skills:
+  - landing-page-design
+  - copywriting
+  - seo
+  - analytics
+  - a-b-testing
+optional_skills:
+  - waitlist-launch-pages
+  - email-systems
+  - conversion-rate-optimization
+load_order:
+  - copywriting           # message and offer first - everything serves the copy
+  - landing-page-design   # visual hierarchy that supports the copy
+  - seo                   # technical and on-page optimization
+  - analytics             # event instrumentation before launch, not after
+  - a-b-testing           # variant infrastructure for iteration
+notes: |
+  Common mistake: building the design before the copy. The copy decides what the
+  page says; the design decides how it says it. Reverse the order and you ship a
+  beautiful page that says nothing. Analytics must be wired pre-launch or you
+  lose week-one signal forever.

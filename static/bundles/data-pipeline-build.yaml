@@ -1,0 +1,24 @@
+id: data-pipeline-build
+name: Data pipeline build
+task_pattern: build a data pipeline - ETL or ELT - to ingest events into a warehouse, transform them, and serve analytics or ML datasets downstream
+required_skills:
+  - data-engineer
+  - postgres-wizard
+  - queue-workers
+  - observability
+  - analytics
+optional_skills:
+  - database-architect
+  - backend-engineer
+load_order:
+  - data-engineer          # pipeline shape, idempotency, backfill strategy
+  - postgres-wizard        # warehouse schema and partitioning
+  - queue-workers          # async ingestion, retry, dead-letter handling
+  - observability          # pipeline lag, row counts, schema drift alarms
+  - analytics              # downstream consumption shape and dashboards
+notes: |
+  Idempotency is the foundation - every transform must be safe to re-run on the
+  same window without duplicating output. Without it, backfills become
+  hand-curated nightmares. Schema drift kills more pipelines than logic bugs:
+  alert on it. Build for the worst-day case (10x normal volume, half the source
+  schemas changed) - normal-day code is easy.

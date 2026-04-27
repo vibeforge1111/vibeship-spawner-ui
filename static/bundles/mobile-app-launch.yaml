@@ -1,0 +1,25 @@
+id: mobile-app-launch
+name: Mobile app launch
+task_pattern: build and ship a cross-platform mobile app with auth, push notifications, analytics, and crash reporting
+required_skills:
+  - mobile-development
+  - react-native-specialist
+  - authentication-oauth
+  - push-notifications
+  - analytics
+optional_skills:
+  - expo
+  - ios-swift-specialist
+  - observability
+load_order:
+  - mobile-development     # platform constraints, app store rules, lifecycle gotchas
+  - react-native-specialist # framework-specific patterns (or swap for native)
+  - authentication-oauth   # secure token storage, biometric unlock, refresh
+  - push-notifications     # APNs/FCM setup, token rotation, permission flows
+  - analytics              # event taxonomy + crash reporting before launch
+notes: |
+  App store review delays are the silent killer here - bake 2 weeks of slack into
+  any launch date. Push notification permissions: ask in context (after a
+  meaningful interaction), never on first launch. Crash reporting (Sentry,
+  Bugsnag) is non-negotiable on mobile - you cannot ssh into a user's phone.
+  Pick expo if you can live with its constraints, eject only when forced.
