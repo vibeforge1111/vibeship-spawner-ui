@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import { healthRequiresCodex, resolveSparkWorkspaceRoot } from "./health-spark.mjs";
+import { healthRequiresCodex, resolveSparkWorkspaceRoot, sparkHealthAuthHeaders } from "./health-spark.mjs";
 
 describe("resolveSparkWorkspaceRoot", () => {
   it("prefers explicit Spark workspace roots", () => {
@@ -46,6 +46,22 @@ describe("healthRequiresCodex", () => {
 
   it("requires Codex when the provider is actually configured", () => {
     expect(healthRequiresCodex([{ id: "codex", cliConfigured: true }], {})).toBe(true);
+  });
+});
+
+describe("sparkHealthAuthHeaders", () => {
+  it("uses the hosted UI key for local private health probes", () => {
+    expect(sparkHealthAuthHeaders({ SPARK_UI_API_KEY: "ui", SPARK_BRIDGE_API_KEY: "bridge" })).toEqual({
+      "x-spawner-ui-key": "ui",
+      "x-api-key": "ui",
+    });
+  });
+
+  it("falls back to the bridge key when no UI key is configured", () => {
+    expect(sparkHealthAuthHeaders({ SPARK_BRIDGE_API_KEY: "bridge" })).toEqual({
+      "x-spawner-ui-key": "bridge",
+      "x-api-key": "bridge",
+    });
   });
 });
 

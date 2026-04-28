@@ -48,6 +48,7 @@ async function getJson(url) {
     response = await fetch(url, {
       headers: {
         accept: "application/json",
+        ...sparkHealthAuthHeaders(),
       },
     });
   } catch (error) {
@@ -60,6 +61,15 @@ async function getJson(url) {
   }
 
   return await response.json();
+}
+
+export function sparkHealthAuthHeaders(env = process.env) {
+  const key = env.SPARK_UI_API_KEY?.trim() || env.SPARK_BRIDGE_API_KEY?.trim();
+  if (!key) return {};
+  return {
+    "x-spawner-ui-key": key,
+    "x-api-key": key,
+  };
 }
 
 export function resolveSparkWorkspaceRoot(env = process.env, fallbackHome = homedir()) {
@@ -128,7 +138,7 @@ async function main() {
     const requestId = `health-${Date.now()}`;
     const runResponse = await fetch(`${baseUrl}/api/spark/run`, {
       method: "POST",
-      headers: { "content-type": "application/json", accept: "application/json" },
+      headers: { "content-type": "application/json", accept: "application/json", ...sparkHealthAuthHeaders() },
       body: JSON.stringify({
         goal: "Reply with exactly: SPARK_HEALTH_OK",
         providers: ["codex"],
