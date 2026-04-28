@@ -63,11 +63,12 @@ function alignProviderResultsWithBoardStatus(
 	entry: MissionControlBoardEntry,
 	results: ProviderMissionResultSnapshot[]
 ): ProviderMissionResultSnapshot[] {
-	if (entry.status !== 'completed' && entry.status !== 'failed') return results;
+	if (entry.status !== 'completed' && entry.status !== 'failed' && entry.status !== 'cancelled') return results;
 
 	return results.map((result) => {
 		if (!NON_TERMINAL_PROVIDER_STATUSES.includes(result.status)) return result;
-		const terminalStatus: ProviderSessionStatus = entry.status === 'completed' ? 'completed' : 'failed';
+		const terminalStatus: ProviderSessionStatus =
+			entry.status === 'completed' ? 'completed' : entry.status === 'cancelled' ? 'cancelled' : 'failed';
 		return {
 			...result,
 			status: terminalStatus,
@@ -78,6 +79,8 @@ function alignProviderResultsWithBoardStatus(
 			error:
 				entry.status === 'failed'
 					? result.error || 'failed from Mission Control lifecycle events'
+					: entry.status === 'cancelled'
+						? result.error || 'cancelled from Mission Control lifecycle events'
 					: result.error,
 			completedAt: result.completedAt || entry.lastUpdated
 		};
@@ -90,6 +93,7 @@ function statusFromProviderResults(
 	if (results.length === 0) return null;
 	if (results.some((result) => result.status === 'running')) return 'running';
 	if (!results.every((result) => TERMINAL_PROVIDER_STATUSES.includes(result.status))) return null;
+	if (results.every((result) => result.status === 'cancelled')) return 'cancelled';
 	if (results.some((result) => result.status === 'failed' || result.status === 'cancelled')) return 'failed';
 	return 'completed';
 }
@@ -115,7 +119,7 @@ function reconcileEntryWithProviderResults(
 ): MissionControlBoardEntry {
 	const providerStatus = statusFromProviderResults(results);
 	if (!providerStatus) return entry;
-	if (entry.status === 'completed' || entry.status === 'failed' || entry.status === providerStatus) return entry;
+	if (entry.status === 'completed' || entry.status === 'failed' || entry.status === 'cancelled' || entry.status === providerStatus) return entry;
 
 	const tasks =
 		providerStatus === 'completed'

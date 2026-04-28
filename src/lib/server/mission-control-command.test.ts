@@ -123,4 +123,33 @@ describe('mission-control-command parser', () => {
 		expect(status.paused).toBe(true);
 		expect(status.snapshotAvailable).toBe(false);
 	});
+
+	it('marks killed board-visible missions as cancelled rather than failed', async () => {
+		const missionId = 'mission-command-cancelled';
+		const failMission = vi.spyOn(mcpClient, 'failMission').mockResolvedValue({
+			success: true,
+			data: {
+				success: true,
+				mission: missionRecord(missionId),
+				_instruction: ''
+			}
+		});
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			missionName: 'Cancel Me',
+			source: 'spawner-ui'
+		});
+
+		const result = await executeMissionControlAction({
+			action: 'kill',
+			missionId,
+			source: 'test'
+		});
+
+		expect(result.ok).toBe(true);
+		expect(result.message).toContain('cancelled');
+		expect(failMission).toHaveBeenCalledWith(missionId, 'Mission cancelled from mission control');
+	});
 });

@@ -642,7 +642,7 @@ class ProviderRuntimeManager {
 
 	markMissionTerminalFromLifecycleEvent(input: {
 		missionId: string;
-		status: 'completed' | 'failed';
+		status: 'completed' | 'failed' | 'cancelled';
 		providerId?: string | null;
 		response?: string | null;
 		error?: string | null;

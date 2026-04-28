@@ -189,7 +189,7 @@ export const POST: RequestHandler = async (event) => {
 		eventBridge.emit(fullEvent);
 
 		if (
-			(fullEvent.type === 'mission_completed' || fullEvent.type === 'mission_failed') &&
+			(fullEvent.type === 'mission_completed' || fullEvent.type === 'mission_failed' || fullEvent.type === 'mission_cancelled') &&
 			typeof fullEvent.missionId === 'string'
 		) {
 			const data = fullEvent.data && typeof fullEvent.data === 'object' ? fullEvent.data : {};
@@ -203,11 +203,16 @@ export const POST: RequestHandler = async (event) => {
 							: null;
 			providerRuntime.markMissionTerminalFromLifecycleEvent({
 				missionId: fullEvent.missionId,
-				status: fullEvent.type === 'mission_completed' ? 'completed' : 'failed',
+				status:
+					fullEvent.type === 'mission_completed'
+						? 'completed'
+						: fullEvent.type === 'mission_cancelled'
+							? 'cancelled'
+							: 'failed',
 				providerId,
 				response: typeof data.response === 'string' ? data.response : null,
 				error:
-					typeof fullEvent.message === 'string' && fullEvent.type === 'mission_failed'
+					typeof fullEvent.message === 'string' && (fullEvent.type === 'mission_failed' || fullEvent.type === 'mission_cancelled')
 						? fullEvent.message
 						: typeof data.error === 'string'
 							? data.error

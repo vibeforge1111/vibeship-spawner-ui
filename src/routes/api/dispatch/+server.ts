@@ -39,6 +39,7 @@ export function _terminalBoardStatusForAutoRun(
 	if (board.running?.some((entry) => entry.missionId === missionId)) return 'running';
 	if (board.completed?.some((entry) => entry.missionId === missionId)) return 'completed';
 	if (board.failed?.some((entry) => entry.missionId === missionId)) return 'failed';
+	if (board.cancelled?.some((entry) => entry.missionId === missionId)) return 'failed';
 	return null;
 }
 

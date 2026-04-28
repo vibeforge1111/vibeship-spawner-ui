@@ -1,4 +1,4 @@
-export type MissionBoardCardStatus = 'draft' | 'ready' | 'running' | 'paused' | 'completed' | 'failed';
+export type MissionBoardCardStatus = 'draft' | 'ready' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
 
 export type MissionBoardCardSource = 'mcp' | 'spark';
 

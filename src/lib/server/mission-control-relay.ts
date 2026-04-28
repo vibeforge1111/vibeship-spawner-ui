@@ -56,7 +56,7 @@ export interface MissionControlRelaySnapshot {
 export interface MissionControlBoardEntry {
 	missionId: string;
 	missionName: string | null;
-	status: 'created' | 'running' | 'paused' | 'completed' | 'failed';
+	status: 'created' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
 	lastEventType: string;
 	lastUpdated: string;
 	queuedAt: string | null;
@@ -88,6 +88,7 @@ const RELAY_EVENT_TYPES = new Set([
 	'mission_resumed',
 	'mission_completed',
 	'mission_failed',
+	'mission_cancelled',
 	'task_started',
 	'task_progress',
 	'progress',
@@ -316,6 +317,8 @@ function mapEventTypeToBoardStatus(eventType: string): MissionControlBoardEntry[
 			return 'completed';
 		case 'mission_failed':
 			return 'failed';
+		case 'mission_cancelled':
+			return 'cancelled';
 		default:
 			return null;
 	}
@@ -342,7 +345,7 @@ function earlierTimestamp(current: string | null, candidate: string): string {
 }
 
 function isStaleNonTerminalStatus(status: MissionControlBoardEntry['status'], timestamp: string): boolean {
-	if (status === 'completed' || status === 'failed' || status === 'paused') {
+	if (status === 'completed' || status === 'failed' || status === 'paused' || status === 'cancelled') {
 		return false;
 	}
 	const updatedAt = Date.parse(timestamp);
@@ -482,8 +485,9 @@ function seedPlannedTasks(entry: MissionControlBoardEntry, event: MissionControl
 }
 
 function closeOpenTasksForTerminalMission(entry: MissionControlBoardEntry): void {
-	if (entry.status !== 'completed' && entry.status !== 'failed') return;
-	const terminalTaskStatus = entry.status === 'completed' ? 'completed' : 'failed';
+	if (entry.status !== 'completed' && entry.status !== 'failed' && entry.status !== 'cancelled') return;
+	const terminalTaskStatus =
+		entry.status === 'completed' ? 'completed' : entry.status === 'cancelled' ? 'cancelled' : 'failed';
 	for (const task of entry.tasks) {
 		if (!task.status || task.status === 'queued' || task.status === 'running') {
 			task.status = terminalTaskStatus;
@@ -507,7 +511,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 	const byMission = new Map<string, MissionControlBoardEntry>();
 	const terminalMissionIds = new Set(
 		relayState.recent
-			.filter((entry) => ['mission_completed', 'mission_failed', 'mission_paused'].includes(entry.eventType))
+			.filter((entry) => ['mission_completed', 'mission_failed', 'mission_cancelled', 'mission_paused'].includes(entry.eventType))
 			.map((entry) => entry.missionId)
 	);
 
@@ -520,6 +524,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 			terminalMissionIds.has(entry.missionId) &&
 			status !== 'completed' &&
 			status !== 'failed' &&
+			status !== 'cancelled' &&
 			status !== 'paused' &&
 			!byMission.has(entry.missionId)
 		) continue;
@@ -563,6 +568,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 		paused: [],
 		completed: [],
 		failed: [],
+		cancelled: [],
 		created: []
 	};
 
@@ -623,6 +629,8 @@ export function summarizeMissionControlEvent(event: MissionControlBridgeEvent): 
 			return `[MissionControl] Mission completed (${missionId}).`;
 		case 'mission_failed':
 			return `[MissionControl] Mission failed (${missionId}).`;
+		case 'mission_cancelled':
+			return `[MissionControl] Mission cancelled by user (${missionId}).`;
 		case 'task_started':
 			return `[MissionControl] Task started: ${taskName || 'task'} (${missionId}).`;
 		case 'task_progress':

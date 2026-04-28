@@ -743,6 +743,54 @@ describe('mission-control-relay', () => {
 		});
 	});
 
+	it('closes open task states as cancelled when a mission is cancelled', async () => {
+		const missionId = `mission-cancelled-closes-open-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			missionName: 'Cancelled Mission',
+			source: 'spawner-ui',
+			timestamp: '2026-04-28T10:00:00.000Z',
+			data: {
+				plannedTasks: [
+					{ title: 'Create static shell', skills: [] },
+					{ title: 'Run final verification', skills: [] }
+				],
+				telegramRelay: { port: 1 }
+			}
+		});
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			taskName: 'Create static shell',
+			source: 'codex',
+			timestamp: '2026-04-28T10:00:05.000Z',
+			data: { telegramRelay: { port: 1 } }
+		});
+		await relayMissionControlEvent({
+			type: 'mission_cancelled',
+			missionId,
+			source: 'telegram',
+			timestamp: '2026-04-28T10:00:20.000Z',
+			data: { telegramRelay: { port: 1 } }
+		});
+
+		const board = getMissionControlBoard();
+		const cancelled = board.cancelled.find((candidate) => candidate.missionId === missionId);
+
+		expect(cancelled?.status).toBe('cancelled');
+		expect(cancelled?.lastSummary).toContain('Mission cancelled by user');
+		expect(cancelled?.taskStatusCounts).toMatchObject({
+			queued: 0,
+			running: 0,
+			completed: 0,
+			failed: 0,
+			cancelled: 2,
+			total: 2
+		});
+	});
+
 	it('redacts local paths from board display fields', async () => {
 		const missionId = `spark-local-path-display-${Date.now()}`;
 

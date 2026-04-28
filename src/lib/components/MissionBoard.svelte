@@ -271,7 +271,7 @@
 			const data = await r.json();
 			const buckets = data?.board ?? {};
 			const flat: RelayEntry[] = [];
-			for (const key of ['created', 'running', 'paused', 'completed', 'failed'] as const) {
+			for (const key of ['created', 'running', 'paused', 'completed', 'failed', 'cancelled'] as const) {
 				for (const entry of buckets[key] ?? []) flat.push(entry as RelayEntry);
 			}
 			relay = flat;
@@ -306,14 +306,14 @@
 
 	function relayStatusToCard(s: string): CardStatus {
 		if (s === 'created') return 'ready';
-		if (s === 'running' || s === 'paused' || s === 'completed' || s === 'failed') return s;
+		if (s === 'running' || s === 'paused' || s === 'completed' || s === 'failed' || s === 'cancelled') return s;
 		return 'ready';
 	}
 
 	function relayToCard(e: RelayEntry): BoardCard {
 		const name = e.missionName ?? e.taskName ?? e.missionId;
 		const status = relayStatusToCard(e.status);
-		const showSummary = status === 'completed' || status === 'failed';
+		const showSummary = status === 'completed' || status === 'failed' || status === 'cancelled';
 		const taskCount = e.taskCount ?? 0;
 		const strategy = taskCount <= 1 ? 'single' : 'parallel_consensus';
 		return {
@@ -382,7 +382,7 @@
 	const inProgress = $derived(filteredCards().filter((c) => c.status === 'running' || c.status === 'paused'));
 	const done = $derived(
 		filteredCards()
-			.filter((c) => c.status === 'completed' || c.status === 'failed')
+			.filter((c) => c.status === 'completed' || c.status === 'failed' || c.status === 'cancelled')
 			.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
 	);
 
@@ -417,6 +417,7 @@
 			case 'running': return 'bg-accent-primary animate-pulse';
 			case 'paused': return 'bg-status-amber';
 			case 'failed': return 'bg-status-error';
+			case 'cancelled': return 'bg-text-tertiary';
 			case 'completed': return 'bg-status-success';
 			case 'ready': return 'bg-text-secondary';
 			default: return 'bg-text-faint';
