@@ -43,6 +43,10 @@ describe('multi-llm-orchestrator', () => {
 		expect(options.enabled).toBe(true);
 		expect(options.strategy).toBe('round_robin');
 		expect(options.providers.map((provider) => provider.id)).toEqual(['claude', 'codex', 'zai', 'minimax', 'openrouter', 'huggingface']);
+		expect(options.providers.find((provider) => provider.id === 'claude')?.model).toBe('opus');
+		expect(options.providers.find((provider) => provider.id === 'claude')?.commandTemplate).toBe(
+			'claude -p --model {model}'
+		);
 		expect(options.providers.find((provider) => provider.id === 'zai')?.enabled).toBe(false);
 		expect(options.providers.find((provider) => provider.id === 'minimax')?.enabled).toBe(false);
 		expect(options.providers.find((provider) => provider.id === 'openrouter')?.enabled).toBe(false);

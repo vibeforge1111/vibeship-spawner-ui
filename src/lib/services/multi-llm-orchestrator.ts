@@ -103,7 +103,7 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 	{
 		id: 'claude',
 		label: 'Claude',
-		model: 'claude-opus-4-1',
+		model: 'opus',
 		enabled: true,
 		kind: 'terminal_cli',
 		eventSource: 'claude-code',
@@ -111,7 +111,7 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		executesFilesystem: true,
 		apiKeyEnv: 'ANTHROPIC_API_KEY',
 		requiresApiKey: false,
-		commandTemplate: 'claude --print --model {model}'
+		commandTemplate: 'claude -p --model {model}'
 	},
 	{
 		id: 'codex',

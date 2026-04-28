@@ -156,7 +156,7 @@ Invoke-RestMethod -Method Post -Uri "$base/api/openclaw/command" -ContentType "a
     providerId = 'claude'
     missionId = "spark-personality-mission-$ts"
     taskId = 'claude-review'
-    model = 'claude-opus-4-1'
+    model = 'opus'
     prompt = 'Review implementation for safety boundaries, reversibility, and user-guided evolution constraints.'
   }
 } | ConvertTo-Json -Depth 8)
