@@ -1,0 +1,78 @@
+import { redirect, type Cookies } from '@sveltejs/kit';
+import { timingSafeEqual } from 'node:crypto';
+
+export interface HostedUiAuthEnv {
+	SPARK_UI_API_KEY?: string;
+	SPARK_BRIDGE_API_KEY?: string;
+	EVENTS_API_KEY?: string;
+	MCP_API_KEY?: string;
+}
+
+const STATIC_PREFIXES = ['/_app/', '/favicon', '/robots.txt'];
+const COOKIE_OPTIONS = {
+	httpOnly: true,
+	sameSite: 'strict' as const,
+	secure: true,
+	path: '/',
+	maxAge: 60 * 60 * 12
+};
+
+function constantTimeEquals(left: string, right: string): boolean {
+	const leftBuffer = Buffer.from(left);
+	const rightBuffer = Buffer.from(right);
+	return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+export function hostedUiAuthEnabled(env: HostedUiAuthEnv): boolean {
+	return Boolean(env.SPARK_UI_API_KEY?.trim());
+}
+
+export function hostedUiAuthPathIsExempt(pathname: string): boolean {
+	return STATIC_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
+}
+
+export function hostedUiRequestToken(request: Request, url: URL, cookies: Cookies): string | null {
+	const headerToken =
+		request.headers.get('x-spawner-ui-key') ||
+		request.headers.get('x-api-key') ||
+		request.headers.get('x-mcp-api-key');
+	if (headerToken?.trim()) return headerToken.trim();
+
+	const authorization = request.headers.get('authorization');
+	const bearer = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+	if (bearer) return bearer;
+
+	const queryToken = url.searchParams.get('uiKey') || url.searchParams.get('apiKey');
+	if (queryToken?.trim()) return queryToken.trim();
+
+	return cookies.get('spawner_ui_api_key') || null;
+}
+
+export function hostedUiTokenIsValid(token: string | null, env: HostedUiAuthEnv): boolean {
+	const expected = env.SPARK_UI_API_KEY?.trim();
+	return Boolean(token && expected && constantTimeEquals(token, expected));
+}
+
+export function persistHostedUiAuth(cookies: Cookies, env: HostedUiAuthEnv): void {
+	const uiKey = env.SPARK_UI_API_KEY?.trim();
+	if (uiKey) {
+		cookies.set('spawner_ui_api_key', uiKey, COOKIE_OPTIONS);
+	}
+
+	const controlKey = env.SPARK_BRIDGE_API_KEY?.trim() || env.MCP_API_KEY?.trim();
+	if (controlKey) {
+		cookies.set('spawner_control_api_key', controlKey, COOKIE_OPTIONS);
+	}
+
+	const eventsKey = env.EVENTS_API_KEY?.trim() || env.MCP_API_KEY?.trim() || controlKey;
+	if (eventsKey) {
+		cookies.set('spawner_events_api_key', eventsKey, COOKIE_OPTIONS);
+	}
+}
+
+export function redirectWithoutAuthQuery(url: URL): never {
+	const clean = new URL(url);
+	clean.searchParams.delete('uiKey');
+	clean.searchParams.delete('apiKey');
+	throw redirect(303, clean.pathname + clean.search + clean.hash);
+}

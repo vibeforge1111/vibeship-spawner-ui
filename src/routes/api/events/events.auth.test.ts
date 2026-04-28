@@ -59,6 +59,19 @@ describe('/api/events auth', () => {
 		expect(response.status).toBe(401);
 	});
 
+	it('accepts the generic hosted UI events cookie', async () => {
+		const response = await GET(
+			createEvent('https://example.com/api/events', {
+				method: 'GET',
+				headers: {
+					cookie: 'spawner_events_api_key=events-secret'
+				}
+			})
+		);
+
+		expect(response.status).toBe(200);
+	});
+
 	it('accepts POST events with x-api-key and persists auth cookie', async () => {
 		const response = await POST(
 			createEvent('https://example.com/api/events', {
