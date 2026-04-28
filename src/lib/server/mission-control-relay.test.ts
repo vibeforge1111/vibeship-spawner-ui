@@ -109,6 +109,53 @@ describe('mission-control-relay', () => {
 		expect(entry?.taskStatusCounts).toMatchObject({ completed: 1, total: 1 });
 	});
 
+	it('seeds planned canvas tasks as queued before task execution starts', async () => {
+		const missionId = `mission-planned-tasks-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			source: 'canvas-dispatch',
+			data: {
+				missionName: 'Planned Task Mission',
+				plannedTasks: [
+					{ title: 'Create app shell', skills: ['frontend-engineer'] },
+					{ title: 'Wire interactions', skills: ['state-management'] }
+				]
+			}
+		});
+
+		let board = getMissionControlBoard();
+		let entry = board.created.find((candidate) => candidate.missionId === missionId);
+		expect(entry?.taskStatusCounts).toMatchObject({ queued: 2, running: 0, completed: 0, total: 2 });
+		expect(entry?.tasks).toEqual([
+			{ title: 'Create app shell', skills: ['frontend-engineer'], status: 'queued' },
+			{ title: 'Wire interactions', skills: ['state-management'], status: 'queued' }
+		]);
+
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			source: 'codex',
+			taskName: 'Create app shell'
+		});
+
+		board = getMissionControlBoard();
+		entry = board.running.find((candidate) => candidate.missionId === missionId);
+		expect(entry?.taskStatusCounts).toMatchObject({ queued: 1, running: 1, completed: 0, total: 2 });
+
+		await relayMissionControlEvent({
+			type: 'task_completed',
+			missionId,
+			source: 'codex',
+			taskName: 'Create app shell'
+		});
+
+		board = getMissionControlBoard();
+		entry = board.running.find((candidate) => candidate.missionId === missionId);
+		expect(entry?.taskStatusCounts).toMatchObject({ queued: 1, running: 0, completed: 1, total: 2 });
+	});
+
 	it('does not relay diagnostic-only Spark run events', () => {
 		expect(
 			shouldRelayMissionControlEvent({

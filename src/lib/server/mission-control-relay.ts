@@ -30,6 +30,7 @@ export interface MissionControlRelayStatusEntry {
 	taskId: string | null;
 	taskName: string | null;
 	taskSkills: string[];
+	plannedTasks: Array<{ title: string; skills: string[] }>;
 	summary: string;
 	timestamp: string;
 	source: string;
@@ -198,6 +199,21 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 	const taskSkills = Array.isArray(dataSkillsRaw)
 		? dataSkillsRaw.filter((s): s is string => typeof s === 'string')
 		: [];
+	const plannedTasksRaw = event.data && (event.data as Record<string, unknown>).plannedTasks;
+	const plannedTasks = Array.isArray(plannedTasksRaw)
+		? plannedTasksRaw
+				.map((task) => {
+					if (!task || typeof task !== 'object') return null;
+					const raw = task as Record<string, unknown>;
+					const title = typeof raw.title === 'string' ? sanitizeMissionControlDisplayText(raw.title) : '';
+					if (!title) return null;
+					const skills = Array.isArray(raw.skills)
+						? raw.skills.filter((skill): skill is string => typeof skill === 'string')
+						: [];
+					return { title, skills };
+				})
+				.filter((task): task is { title: string; skills: string[] } => Boolean(task))
+		: [];
 	const dataTaskId = event.data && typeof (event.data as Record<string, unknown>).taskId === 'string'
 		? ((event.data as Record<string, unknown>).taskId as string)
 		: null;
@@ -215,6 +231,7 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		taskId: typeof event.taskId === 'string' ? event.taskId : dataTaskId,
 		taskName: typeof event.taskName === 'string' ? event.taskName : dataTaskName,
 		taskSkills,
+		plannedTasks,
 		summary: summarizeMissionControlEvent(event),
 		timestamp,
 		source: typeof event.source === 'string' ? event.source : 'unknown',
@@ -345,6 +362,15 @@ function canonicalTaskTitle(title: string): string {
 	return title.replace(/^T\d+\s*:\s*/i, '').trim().toLowerCase();
 }
 
+function mergeTaskStatus(
+	current: MissionControlTaskStatus | undefined,
+	next: MissionControlTaskStatus
+): MissionControlTaskStatus {
+	if (!current) return next;
+	if (current === 'failed' || current === 'cancelled' || current === 'completed') return current;
+	return next;
+}
+
 function recalculateTaskStatusCounts(entry: MissionControlBoardEntry): void {
 	const counts = emptyTaskStatusCounts();
 	for (const task of entry.tasks) {
@@ -374,10 +400,28 @@ function maybeRecordTask(entry: MissionControlBoardEntry, event: MissionControlR
 		return;
 	}
 
-	if (!task.status) task.status = status;
+	task.status = mergeTaskStatus(task.status, status);
 	if ((!task.skills || task.skills.length === 0) && event.taskSkills.length > 0) {
 		task.skills = event.taskSkills;
 	}
+}
+
+function seedPlannedTasks(entry: MissionControlBoardEntry, event: MissionControlRelayStatusEntry): void {
+	const plannedTasks = Array.isArray(event.plannedTasks) ? event.plannedTasks : [];
+	if (plannedTasks.length === 0) return;
+	for (const planned of plannedTasks) {
+		const canonicalLabel = canonicalTaskTitle(planned.title);
+		const existing = entry.tasks.find((candidate) => canonicalTaskTitle(candidate.title) === canonicalLabel);
+		if (existing) {
+			if ((!existing.skills || existing.skills.length === 0) && planned.skills.length > 0) {
+				existing.skills = planned.skills;
+			}
+			continue;
+		}
+		entry.tasks.push({ title: planned.title, skills: planned.skills, status: 'queued' });
+		entry.taskNames.push(planned.title);
+	}
+	entry.taskCount = entry.taskNames.length;
 }
 
 function completeOpenTasksForCompletedMission(entry: MissionControlBoardEntry): void {
@@ -436,7 +480,9 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 			}
 		}
 
-		maybeRecordTask(byMission.get(entry.missionId)!, entry);
+		const current = byMission.get(entry.missionId)!;
+		seedPlannedTasks(current, entry);
+		maybeRecordTask(current, entry);
 	}
 
 	const board: Record<string, MissionControlBoardEntry[]> = {

@@ -25,7 +25,7 @@ function _plannedTasksFromExecutionPack(executionPack: {
 	return Object.values(executionPack.mcpTaskPlans)
 		.map((task): { title: string; skills: string[] } | null => {
 			const title = typeof task.taskTitle === 'string' ? task.taskTitle.trim() : '';
-			return title ? { title, skills: [] } : null;
+			return title ? { title, skills: [] as string[] } : null;
 		})
 		.filter((task): task is { title: string; skills: string[] } => Boolean(task));
 }
