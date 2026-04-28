@@ -1,3 +1,5 @@
+import type { MissionControlTaskStatus, MissionControlTaskStatusCounts } from '$lib/types/mission-control';
+
 export type MissionBoardCardStatus = 'draft' | 'ready' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
 
 export type MissionBoardCardSource = 'mcp' | 'spark';
@@ -5,7 +7,7 @@ export type MissionBoardCardSource = 'mcp' | 'spark';
 export interface MissionBoardTaskSummary {
 	title: string;
 	skills: string[];
-	status?: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+	status?: MissionControlTaskStatus;
 }
 
 export interface MissionBoardProviderResult {
@@ -25,14 +27,7 @@ export interface MissionBoardCard {
 	queuedAt?: string | null;
 	startedAt?: string | null;
 	taskCount: number;
-	taskStatusCounts?: {
-		queued: number;
-		running: number;
-		completed: number;
-		failed: number;
-		cancelled: number;
-		total: number;
-	};
+	taskStatusCounts?: MissionControlTaskStatusCounts;
 	strategy?: string;
 	taskNames?: string[];
 	tasks?: MissionBoardTaskSummary[];

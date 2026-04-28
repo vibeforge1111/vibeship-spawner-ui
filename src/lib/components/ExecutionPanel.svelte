@@ -27,6 +27,7 @@
 	import CheckpointReview from './CheckpointReview.svelte';
 	import type { ProjectCheckpoint } from '$lib/services/checkpoint';
 	import { saveCurrentPipeline } from '$lib/stores/pipelines.svelte';
+	import type { MissionControlBoardEntry, MissionControlTaskStatus } from '$lib/types/mission-control';
 	import { browser } from '$app/environment';
 	import { get } from 'svelte/store';
 
@@ -309,7 +310,6 @@
 		multiLLMProviders = mergedProviders;
 	}
 
-	type MissionControlTaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
 	type MissionControlEvent = {
 		eventType: string;
 		missionId: string;
@@ -320,17 +320,7 @@
 		timestamp: string;
 		source: string;
 	};
-	type MissionControlTask = { title: string; skills?: string[]; status?: MissionControlTaskStatus };
-	type MissionControlBoardEntry = {
-		missionId: string;
-		missionName: string | null;
-		status: 'created' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
-		lastUpdated: string;
-		queuedAt: string | null;
-		startedAt: string | null;
-		tasks: MissionControlTask[];
-		providerSummary?: string | null;
-	};
+	type MissionControlTask = MissionControlBoardEntry['tasks'][number];
 
 	function executionStatusFromBoard(status: MissionControlBoardEntry['status']): ExecutionStatus {
 		if (status === 'created') return 'idle';

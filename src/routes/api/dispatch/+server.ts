@@ -14,6 +14,7 @@ import { eventBridge } from '$lib/services/event-bridge';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { DEFAULT_MULTI_LLM_PROVIDERS } from '$lib/services/multi-llm-orchestrator';
 import { getMissionControlBoard, relayMissionControlEvent } from '$lib/server/mission-control-relay';
+import type { MissionControlBoardStatus } from '$lib/types/mission-control';
 
 const ALLOWED_PROVIDER_IDS = new Set(DEFAULT_MULTI_LLM_PROVIDERS.map((provider) => provider.id));
 const ALLOWED_PROVIDER_LABEL = [...ALLOWED_PROVIDER_IDS].join(', ');
@@ -34,12 +35,12 @@ export function _terminalBoardStatusForAutoRun(
 	missionId: string,
 	autoRun: boolean,
 	board = getMissionControlBoard()
-): 'running' | 'completed' | 'failed' | null {
+): Extract<MissionControlBoardStatus, 'running' | 'completed' | 'failed' | 'cancelled'> | null {
 	if (!autoRun) return null;
 	if (board.running?.some((entry) => entry.missionId === missionId)) return 'running';
 	if (board.completed?.some((entry) => entry.missionId === missionId)) return 'completed';
 	if (board.failed?.some((entry) => entry.missionId === missionId)) return 'failed';
-	if (board.cancelled?.some((entry) => entry.missionId === missionId)) return 'failed';
+	if (board.cancelled?.some((entry) => entry.missionId === missionId)) return 'cancelled';
 	return null;
 }
 

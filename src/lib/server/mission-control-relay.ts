@@ -2,6 +2,23 @@ import { env } from '$env/dynamic/private';
 import * as fs from 'fs';
 import * as path from 'path';
 import { sanitizeMissionControlDisplayText } from './mission-control-display';
+import {
+	emptyMissionControlTaskStatusCounts,
+	isMissionControlTerminalStatus,
+	type MissionControlBoardEntry,
+	type MissionControlBoardStatus,
+	type MissionControlRelayTarget,
+	type MissionControlTaskStatus,
+	type MissionControlTaskStatusCounts
+} from '$lib/types/mission-control';
+
+export type {
+	MissionControlBoardEntry,
+	MissionControlBoardStatus,
+	MissionControlRelayTarget,
+	MissionControlTaskStatus,
+	MissionControlTaskStatusCounts
+} from '$lib/types/mission-control';
 
 export interface MissionControlBridgeEvent {
 	id?: string;
@@ -17,12 +34,6 @@ export interface MissionControlBridgeEvent {
 	[key: string]: unknown;
 }
 
-export interface TelegramRelayTarget {
-	port: number | null;
-	profile: string | null;
-	url: string | null;
-}
-
 export interface MissionControlRelayStatusEntry {
 	eventType: string;
 	missionId: string;
@@ -34,7 +45,7 @@ export interface MissionControlRelayStatusEntry {
 	summary: string;
 	timestamp: string;
 	source: string;
-	telegramRelay?: TelegramRelayTarget | null;
+	telegramRelay?: MissionControlRelayTarget | null;
 }
 
 export interface MissionControlRelaySnapshot {
@@ -56,34 +67,6 @@ export interface MissionControlRelaySnapshot {
 		perMission: Record<string, number>;
 	};
 	recent: MissionControlRelayStatusEntry[];
-}
-
-export interface MissionControlBoardEntry {
-	missionId: string;
-	missionName: string | null;
-	status: 'created' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
-	lastEventType: string;
-	lastUpdated: string;
-	queuedAt: string | null;
-	startedAt: string | null;
-	lastSummary: string;
-	taskName: string | null;
-	taskCount: number;
-	taskNames: string[];
-	taskStatusCounts: MissionControlTaskStatusCounts;
-	tasks: Array<{ title: string; skills: string[]; status?: MissionControlTaskStatus }>;
-	telegramRelay?: TelegramRelayTarget | null;
-}
-
-export type MissionControlTaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
-
-export interface MissionControlTaskStatusCounts {
-	queued: number;
-	running: number;
-	completed: number;
-	failed: number;
-	cancelled: number;
-	total: number;
 }
 
 const RELAY_EVENT_TYPES = new Set([
@@ -319,7 +302,7 @@ export function getMissionControlRelaySnapshot(missionId?: string): MissionContr
 	};
 }
 
-function mapEventTypeToBoardStatus(eventType: string): MissionControlBoardEntry['status'] | null {
+function mapEventTypeToBoardStatus(eventType: string): MissionControlBoardStatus | null {
 	switch (eventType) {
 		case 'mission_created':
 			return 'created';
@@ -368,8 +351,8 @@ function earlierTimestamp(current: string | null, candidate: string): string {
 	return candidateMs < currentMs ? candidate : current;
 }
 
-function isStaleNonTerminalStatus(status: MissionControlBoardEntry['status'], timestamp: string): boolean {
-	if (status === 'completed' || status === 'failed' || status === 'paused' || status === 'cancelled') {
+function isStaleNonTerminalStatus(status: MissionControlBoardStatus, timestamp: string): boolean {
+	if (isMissionControlTerminalStatus(status) || status === 'paused') {
 		return false;
 	}
 	const updatedAt = Date.parse(timestamp);
@@ -380,14 +363,7 @@ function isStaleNonTerminalStatus(status: MissionControlBoardEntry['status'], ti
 }
 
 function emptyTaskStatusCounts(): MissionControlTaskStatusCounts {
-	return {
-		queued: 0,
-		running: 0,
-		completed: 0,
-		failed: 0,
-		cancelled: 0,
-		total: 0
-	};
+	return emptyMissionControlTaskStatusCounts();
 }
 
 function taskStatusForEvent(eventType: string): MissionControlTaskStatus | null {
@@ -509,7 +485,7 @@ function seedPlannedTasks(entry: MissionControlBoardEntry, event: MissionControl
 }
 
 function closeOpenTasksForTerminalMission(entry: MissionControlBoardEntry): void {
-	if (entry.status !== 'completed' && entry.status !== 'failed' && entry.status !== 'cancelled') return;
+	if (!isMissionControlTerminalStatus(entry.status)) return;
 	const terminalTaskStatus =
 		entry.status === 'completed' ? 'completed' : entry.status === 'cancelled' ? 'cancelled' : 'failed';
 	for (const task of entry.tasks) {
@@ -587,7 +563,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 		maybeRecordTask(current, entry);
 	}
 
-	const board: Record<string, MissionControlBoardEntry[]> = {
+	const board: Record<MissionControlBoardStatus, MissionControlBoardEntry[]> = {
 		running: [],
 		paused: [],
 		completed: [],
@@ -768,7 +744,7 @@ function normalizeRelayProfile(value: unknown): string | null {
 	return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
-function getTelegramRelayTarget(event: MissionControlBridgeEvent): TelegramRelayTarget {
+function getTelegramRelayTarget(event: MissionControlBridgeEvent): MissionControlRelayTarget {
 	const data = event.data;
 	if (!data || typeof data !== 'object') {
 		return { port: null, profile: null, url: null };

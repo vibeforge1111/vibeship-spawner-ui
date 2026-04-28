@@ -12,6 +12,7 @@ import {
 	type MissionControlResultSummary
 } from './mission-control-results';
 import type { ProviderMissionResultSnapshot } from './provider-runtime';
+import type { MissionControlTracePhase } from '$lib/types/mission-control';
 
 type BoardBuckets = Record<string, Array<MissionControlBoardEntry & MissionControlResultSummary>>;
 
@@ -19,7 +20,7 @@ export interface MissionControlTrace {
 	ok: true;
 	missionId: string | null;
 	requestId: string | null;
-	phase: 'unknown' | 'accepted' | 'planning' | 'canvas_ready' | 'executing' | 'completed' | 'failed' | 'paused' | 'cancelled';
+	phase: MissionControlTracePhase;
 	summary: string;
 	progress: {
 		percent: number;
@@ -144,7 +145,7 @@ function phaseFor(input: {
 	pendingRequest: Record<string, unknown> | null;
 	analysisResult: Record<string, unknown> | null;
 	lastCanvasLoad: Record<string, unknown> | null;
-}): MissionControlTrace['phase'] {
+}): MissionControlTracePhase {
 	if (input.boardBucket === 'failed' || input.dispatchStatus?.anyFailed) return 'failed';
 	if (input.boardBucket === 'cancelled') return 'cancelled';
 	if (input.boardBucket === 'paused' || input.dispatchStatus?.paused) return 'paused';
@@ -158,7 +159,7 @@ function phaseFor(input: {
 	return 'unknown';
 }
 
-function summaryFor(phase: MissionControlTrace['phase'], entry: MissionControlBoardEntry | null): string {
+function summaryFor(phase: MissionControlTracePhase, entry: MissionControlBoardEntry | null): string {
 	if (entry?.lastSummary) return entry.lastSummary;
 	switch (phase) {
 		case 'planning':

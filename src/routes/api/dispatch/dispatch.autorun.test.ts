@@ -73,4 +73,17 @@ describe('dispatch auto-run terminal guard', () => {
 			})
 		).toBeNull();
 	});
+
+	it('reports cancelled board history distinctly from failed missions', () => {
+		expect(
+			_terminalBoardStatusForAutoRun('mission-cancelled', true, {
+				completed: [],
+				failed: [],
+				cancelled: [entry('mission-cancelled', 'cancelled')],
+				running: [],
+				paused: [],
+				created: []
+			})
+		).toBe('cancelled');
+	});
 });
