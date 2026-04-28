@@ -45,11 +45,13 @@ describe('multi-llm-orchestrator', () => {
 		expect(options.providers.map((provider) => provider.id)).toEqual([
 			'claude',
 			'codex',
+			'openai',
 			'zai',
 			'minimax',
 			'openrouter',
 			'huggingface',
-			'lmstudio'
+			'lmstudio',
+			'ollama'
 		]);
 		expect(options.providers.find((provider) => provider.id === 'claude')?.model).toBe('opus');
 		expect(options.providers.find((provider) => provider.id === 'claude')?.commandTemplate).toBe(
@@ -58,11 +60,16 @@ describe('multi-llm-orchestrator', () => {
 		expect(options.providers.find((provider) => provider.id === 'lmstudio')?.baseUrl).toBe(
 			'http://localhost:1234/v1'
 		);
+		expect(options.providers.find((provider) => provider.id === 'ollama')?.baseUrl).toBe(
+			'http://localhost:11434/v1'
+		);
+		expect(options.providers.find((provider) => provider.id === 'openai')?.enabled).toBe(false);
 		expect(options.providers.find((provider) => provider.id === 'zai')?.enabled).toBe(false);
 		expect(options.providers.find((provider) => provider.id === 'minimax')?.enabled).toBe(false);
 		expect(options.providers.find((provider) => provider.id === 'openrouter')?.enabled).toBe(false);
 		expect(options.providers.find((provider) => provider.id === 'huggingface')?.enabled).toBe(false);
 		expect(options.providers.find((provider) => provider.id === 'lmstudio')?.enabled).toBe(false);
+		expect(options.providers.find((provider) => provider.id === 'ollama')?.enabled).toBe(false);
 	});
 
 	it('assigns tasks round-robin across enabled providers', () => {
@@ -231,6 +238,25 @@ describe('multi-llm-orchestrator', () => {
 		expect(pack.providers[0].sparkExecutionBridge).toBe('codex');
 		expect(pack.launchCommands.lmstudio).toContain('http://localhost:1234/v1/chat/completions');
 		expect(pack.launchCommands.lmstudio).not.toContain('Authorization: Bearer');
+	});
+
+	it('supports every setup provider family as an explicit mission provider', () => {
+		const options = createDefaultMultiLLMOptions();
+		const missionProviderIds = options.providers.map((provider) => provider.id);
+
+		expect(missionProviderIds).toEqual(
+			expect.arrayContaining([
+				'claude',
+				'codex',
+				'openai',
+				'zai',
+				'minimax',
+				'openrouter',
+				'huggingface',
+				'lmstudio',
+				'ollama'
+			])
+		);
 	});
 
 	it('keeps single-provider runs on the selected provider even when other keys are present', () => {

@@ -38,7 +38,7 @@ export function resolveProviderRuntimeConfiguration(
 	const localOpenAICompatConfigured =
 		provider.kind === 'openai_compat' &&
 		!provider.apiKeyEnv &&
-		provider.id === 'lmstudio';
+		(provider.id === 'lmstudio' || provider.id === 'ollama');
 	const configured = envKeyConfigured || cliConfigured || localOpenAICompatConfigured;
 	const configurationMode: ProviderConfigurationMode = cliConfigured
 		? 'cli'

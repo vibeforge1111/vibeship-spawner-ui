@@ -127,6 +127,20 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		commandTemplate: 'codex exec --model {model}'
 	},
 	{
+		id: 'openai',
+		label: 'OpenAI',
+		model: 'gpt-5.5',
+		enabled: false,
+		kind: 'openai_compat',
+		eventSource: 'openai',
+		capabilities: ['reasoning', 'planning', 'review', 'code_analysis'],
+		executesFilesystem: true,
+		sparkExecutionBridge: 'codex',
+		apiKeyEnv: 'OPENAI_API_KEY',
+		requiresApiKey: true,
+		baseUrl: 'https://api.openai.com/v1'
+	},
+	{
 		id: 'zai',
 		label: 'Z.AI',
 		model: 'glm-5.1',
@@ -194,6 +208,19 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		sparkExecutionBridge: 'codex',
 		requiresApiKey: false,
 		baseUrl: 'http://localhost:1234/v1'
+	},
+	{
+		id: 'ollama',
+		label: 'Ollama',
+		model: 'llama3.2:3b',
+		enabled: false,
+		kind: 'openai_compat',
+		eventSource: 'ollama',
+		capabilities: ['reasoning', 'planning', 'review', 'code_analysis'],
+		executesFilesystem: true,
+		sparkExecutionBridge: 'codex',
+		requiresApiKey: false,
+		baseUrl: 'http://localhost:11434/v1'
 	}
 ];
 

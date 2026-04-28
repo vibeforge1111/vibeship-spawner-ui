@@ -85,6 +85,20 @@ describe('resolveProviderRuntimeConfiguration', () => {
 		});
 	});
 
+	it('reports Ollama as a local provider without requiring an API key', () => {
+		const result = resolveProviderRuntimeConfiguration(
+			{ id: 'ollama', kind: 'openai_compat', apiKeyEnv: undefined },
+			{}
+		);
+
+		expect(result).toMatchObject({
+			envKeyConfigured: false,
+			cliConfigured: false,
+			configured: true,
+			configurationMode: 'local'
+		});
+	});
+
 	it('applies mission-scoped model and base-url overrides only to the selected provider', () => {
 		const provider = {
 			id: 'lmstudio',

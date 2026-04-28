@@ -18,6 +18,18 @@ import { getMissionControlBoard, relayMissionControlEvent } from '$lib/server/mi
 const ALLOWED_PROVIDER_IDS = new Set(DEFAULT_MULTI_LLM_PROVIDERS.map((provider) => provider.id));
 const ALLOWED_PROVIDER_LABEL = [...ALLOWED_PROVIDER_IDS].join(', ');
 
+function _plannedTasksFromExecutionPack(executionPack: {
+	mcpTaskPlans?: Record<string, { taskTitle?: unknown }>;
+}): Array<{ title: string; skills: string[] }> {
+	if (!executionPack.mcpTaskPlans || typeof executionPack.mcpTaskPlans !== 'object') return [];
+	return Object.values(executionPack.mcpTaskPlans)
+		.map((task): { title: string; skills: string[] } | null => {
+			const title = typeof task.taskTitle === 'string' ? task.taskTitle.trim() : '';
+			return title ? { title, skills: [] } : null;
+		})
+		.filter((task): task is { title: string; skills: string[] } => Boolean(task));
+}
+
 export function _terminalBoardStatusForAutoRun(
 	missionId: string,
 	autoRun: boolean,
@@ -141,6 +153,7 @@ export const POST: RequestHandler = async (event) => {
 			missionName: typeof executionPack.masterPrompt === 'string'
 				? executionPack.masterPrompt.match(/Mission:\s*(.+)/)?.[1]
 				: undefined,
+			plannedTasks: _plannedTasksFromExecutionPack(executionPack),
 			providers: executionPack.providers.map((provider: { id: string }) => provider.id)
 		};
 		const terminalStatus = _terminalBoardStatusForAutoRun(
