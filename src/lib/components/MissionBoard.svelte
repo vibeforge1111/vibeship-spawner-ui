@@ -11,28 +11,12 @@
 	import { initPipelines, pipelines } from '$lib/stores/pipelines.svelte';
 	import type { Mission } from '$lib/services/mcp-client';
 	import type { PipelineMetadata } from '$lib/stores/pipelines.svelte';
+	import { mergeMissionBoardCards, type MissionBoardCard as BoardCard } from '$lib/services/mission-board-cards';
 
 	type Tab = 'board' | 'scheduled';
 	let activeTab = $state<Tab>('board');
 
-	type CardStatus = 'draft' | 'ready' | 'running' | 'paused' | 'completed' | 'failed';
-	type BoardCard = {
-		id: string;
-		name: string;
-		status: CardStatus;
-		mode: string;
-		source: 'mcp' | 'spark';
-		updatedAt: string | null;
-		createdAt: string | null;
-		taskCount: number;
-		strategy?: string;
-		taskNames?: string[];
-		tasks?: Array<{ title: string; skills: string[] }>;
-		summary?: string | null;
-		providerSummary?: string | null;
-		providerResults?: Array<{ providerId: string; status: string; summary: string }>;
-		canvasHref?: string | null;
-	};
+	type CardStatus = BoardCard['status'];
 
 	let missions = $state<Mission[]>([]);
 	let loading = $state(false);
@@ -363,10 +347,7 @@
 	}
 
 	const cards = $derived(() => {
-		const byId = new Map<string, BoardCard>();
-		for (const e of relay) byId.set(e.missionId, relayToCard(e));
-		for (const m of missions) byId.set(m.id, mcpToCard(m));
-		return [...byId.values()];
+		return mergeMissionBoardCards(relay.map(relayToCard), missions.map(mcpToCard));
 	});
 
 	let searchQuery = $state('');
