@@ -2,6 +2,7 @@ import { redirect, type Cookies } from '@sveltejs/kit';
 import { timingSafeEqual } from 'node:crypto';
 
 export interface HostedUiAuthEnv {
+	[key: string]: string | undefined;
 	SPARK_UI_API_KEY?: string;
 	SPARK_BRIDGE_API_KEY?: string;
 	EVENTS_API_KEY?: string;

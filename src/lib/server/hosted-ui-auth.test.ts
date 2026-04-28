@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { Cookies } from '@sveltejs/kit';
 import {
 	hostedUiAuthEnabled,
 	hostedUiAuthPathIsExempt,
@@ -7,12 +8,24 @@ import {
 	persistHostedUiAuth
 } from './hosted-ui-auth';
 
-function fakeCookies(initial: Record<string, string> = {}) {
+type FakeCookies = Cookies & {
+	get: ReturnType<typeof vi.fn>;
+	set: ReturnType<typeof vi.fn>;
+};
+
+function fakeCookies(initial: Record<string, string> = {}): FakeCookies {
 	const values = new Map(Object.entries(initial));
 	return {
 		get: vi.fn((name: string) => values.get(name)),
-		set: vi.fn((name: string, value: string) => values.set(name, value))
-	} as never;
+		getAll: vi.fn(() => Array.from(values, ([name, value]) => ({ name, value }))),
+		set: vi.fn((name: string, value: string) => {
+			values.set(name, value);
+		}),
+		delete: vi.fn((name: string) => {
+			values.delete(name);
+		}),
+		serialize: vi.fn((name: string, value: string) => `${name}=${value}`)
+	} as unknown as FakeCookies;
 }
 
 describe('hosted UI auth', () => {
