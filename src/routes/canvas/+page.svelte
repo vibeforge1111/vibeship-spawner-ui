@@ -32,6 +32,7 @@ import { get } from 'svelte/store';
 	let showExecution = $state(false);
 	let executionMinimized = $state(false);
 	let executionAutoRunToken = $state<number | null>(null);
+	let executionPanelKey = $state('manual');
 	let executionRelay = $state<{
 		chatId?: string;
 		userId?: string;
@@ -448,6 +449,7 @@ import { get } from 'svelte/store';
 			);
 			forceStoreSync();
 			if ((load.autoRun || load.relay?.autoRun) && new URL(window.location.href).searchParams.get('noexec') !== '1') {
+				executionPanelKey = `${load.pipelineId}:${load.timestamp || Date.now()}`;
 				showExecution = true;
 				executionMinimized = false;
 				executionAutoRunToken = Date.now();
@@ -1346,6 +1348,7 @@ import { get } from 'svelte/store';
 				<button
 					onclick={() => {
 						executionAutoRunToken = null;
+						executionPanelKey = `manual:${get(activePipelineIdStore) || Date.now()}`;
 						showExecution = true;
 						executionMinimized = false;
 					}}
@@ -1474,13 +1477,15 @@ import { get } from 'svelte/store';
 {/if}
 
 {#if showExecution}
-	<ExecutionPanel
-		onClose={() => (showExecution = false)}
-		minimized={executionMinimized}
-		onToggleMinimize={() => (executionMinimized = !executionMinimized)}
-		autoRunToken={executionAutoRunToken || undefined}
-		relay={executionRelay || undefined}
-	/>
+	{#key executionPanelKey}
+		<ExecutionPanel
+			onClose={() => (showExecution = false)}
+			minimized={executionMinimized}
+			onToggleMinimize={() => (executionMinimized = !executionMinimized)}
+			autoRunToken={executionAutoRunToken || undefined}
+			relay={executionRelay || undefined}
+		/>
+	{/key}
 {/if}
 
 {#if contextMenu}

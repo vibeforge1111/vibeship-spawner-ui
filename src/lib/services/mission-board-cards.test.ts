@@ -23,6 +23,7 @@ describe('mergeMissionBoardCards', () => {
 			source: 'spark',
 			updatedAt: '2026-04-28T10:05:00.000Z',
 			taskCount: 1,
+			taskStatusCounts: { queued: 0, running: 1, completed: 0, failed: 0, cancelled: 0, total: 1 },
 			tasks: [{ title: 'Build UI', skills: ['canvas'] }]
 		});
 		const staleStatic = card({
@@ -46,6 +47,7 @@ describe('mergeMissionBoardCards', () => {
 		expect(merged.mode).toBe('spark');
 		expect(merged.updatedAt).toBe('2026-04-28T10:05:00.000Z');
 		expect(merged.taskCount).toBe(3);
+		expect(merged.taskStatusCounts).toEqual({ queued: 0, running: 1, completed: 0, failed: 0, cancelled: 0, total: 1 });
 		expect(merged.tasks).toEqual([{ title: 'Build UI', skills: ['canvas'] }]);
 	});
 

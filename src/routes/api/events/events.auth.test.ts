@@ -12,12 +12,24 @@ vi.mock('$env/dynamic/private', () => ({
 	}
 }));
 
+vi.mock('$lib/server/mission-control-relay', () => ({
+	relayMissionControlEvent: vi.fn()
+}));
+
+vi.mock('$lib/server/provider-runtime', () => ({
+	providerRuntime: {
+		markMissionTerminalFromLifecycleEvent: vi.fn()
+	}
+}));
+
 import { GET, POST } from './+server';
+import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 
 let testSpawnerDir: string | null = null;
 
 afterEach(async () => {
 	delete process.env.SPAWNER_STATE_DIR;
+	vi.mocked(relayMissionControlEvent).mockClear();
 	if (testSpawnerDir && existsSync(testSpawnerDir)) {
 		await rm(testSpawnerDir, { recursive: true, force: true });
 	}
@@ -95,5 +107,56 @@ describe('/api/events auth', () => {
 
 		expect(response.status).toBe(200);
 		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(true);
+	});
+
+	it('adds Telegram relay metadata to provider lifecycle events from the current canvas load', async () => {
+		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-events-relay-'));
+		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
+		await import('fs/promises').then(({ writeFile }) =>
+			writeFile(
+				path.join(testSpawnerDir!, 'last-canvas-load.json'),
+				JSON.stringify({
+					relay: {
+						missionId: 'mission-relay-test',
+						chatId: '8319079055',
+						userId: '8319079055',
+						requestId: 'tg-build-test',
+						goal: 'Build a tiny app',
+						telegramRelay: { port: 8789, profile: 'spark-agi' }
+					}
+				}),
+				'utf-8'
+			)
+		);
+
+		const response = await POST(
+			createEvent('https://example.com/api/events', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-api-key': 'events-secret'
+				},
+				body: JSON.stringify({
+					type: 'task_started',
+					missionId: 'mission-relay-test',
+					source: 'codex',
+					taskId: 'T1',
+					taskName: 'Scaffold'
+				})
+			})
+		);
+
+		expect(response.status).toBe(200);
+		expect(relayMissionControlEvent).toHaveBeenCalledWith(
+			expect.objectContaining({
+				missionId: 'mission-relay-test',
+				data: expect.objectContaining({
+					chatId: '8319079055',
+					userId: '8319079055',
+					requestId: 'tg-build-test',
+					telegramRelay: { port: 8789, profile: 'spark-agi' }
+				})
+			})
+		);
 	});
 });

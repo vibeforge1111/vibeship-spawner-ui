@@ -212,7 +212,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			pipelineName: load.pipelineName,
 			taskCount: nodes.length,
 			connectionCount: connections.length,
-			canvasUrl: '/canvas'
+			canvasUrl: `/canvas?pipeline=${encodeURIComponent(load.pipelineId)}`
 		});
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);

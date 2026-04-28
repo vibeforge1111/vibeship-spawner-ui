@@ -62,8 +62,20 @@ export interface MissionControlBoardEntry {
 	taskName: string | null;
 	taskCount: number;
 	taskNames: string[];
-	tasks: Array<{ title: string; skills: string[] }>;
+	taskStatusCounts: MissionControlTaskStatusCounts;
+	tasks: Array<{ title: string; skills: string[]; status?: MissionControlTaskStatus }>;
 	telegramRelay?: TelegramRelayTarget | null;
+}
+
+export type MissionControlTaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+
+export interface MissionControlTaskStatusCounts {
+	queued: number;
+	running: number;
+	completed: number;
+	failed: number;
+	cancelled: number;
+	total: number;
 }
 
 const RELAY_EVENT_TYPES = new Set([
@@ -301,6 +313,82 @@ function isStaleNonTerminalStatus(status: MissionControlBoardEntry['status'], ti
 	return Date.now() - updatedAt > STALE_NON_TERMINAL_MS;
 }
 
+function emptyTaskStatusCounts(): MissionControlTaskStatusCounts {
+	return {
+		queued: 0,
+		running: 0,
+		completed: 0,
+		failed: 0,
+		cancelled: 0,
+		total: 0
+	};
+}
+
+function taskStatusForEvent(eventType: string): MissionControlTaskStatus | null {
+	switch (eventType) {
+		case 'task_started':
+		case 'task_progress':
+		case 'progress':
+			return 'running';
+		case 'task_completed':
+			return 'completed';
+		case 'task_failed':
+			return 'failed';
+		case 'task_cancelled':
+			return 'cancelled';
+		default:
+			return null;
+	}
+}
+
+function canonicalTaskTitle(title: string): string {
+	return title.replace(/^T\d+\s*:\s*/i, '').trim().toLowerCase();
+}
+
+function recalculateTaskStatusCounts(entry: MissionControlBoardEntry): void {
+	const counts = emptyTaskStatusCounts();
+	for (const task of entry.tasks) {
+		const status = task.status ?? 'queued';
+		counts[status] += 1;
+	}
+	counts.total = entry.tasks.length;
+	entry.taskStatusCounts = counts;
+}
+
+function maybeRecordTask(entry: MissionControlBoardEntry, event: MissionControlRelayStatusEntry): void {
+	const status = taskStatusForEvent(event.eventType);
+	if (!status) return;
+	if (!event.taskName && !event.taskId) return;
+
+	const label = sanitizeMissionControlDisplayText(event.taskName || event.taskId || 'task');
+	const canonicalLabel = canonicalTaskTitle(label);
+	let task = entry.tasks.find((candidate) => canonicalTaskTitle(candidate.title) === canonicalLabel);
+	if (!task && (event.eventType === 'task_progress' || event.eventType === 'progress')) {
+		return;
+	}
+	if (!task) {
+		task = { title: label, skills: event.taskSkills ?? [], status };
+		entry.tasks.push(task);
+		entry.taskNames.push(label);
+		entry.taskCount = entry.taskNames.length;
+		return;
+	}
+
+	if (!task.status) task.status = status;
+	if ((!task.skills || task.skills.length === 0) && event.taskSkills.length > 0) {
+		task.skills = event.taskSkills;
+	}
+}
+
+function completeOpenTasksForCompletedMission(entry: MissionControlBoardEntry): void {
+	if (entry.status !== 'completed') return;
+	for (const task of entry.tasks) {
+		if (!task.status || task.status === 'queued' || task.status === 'running') {
+			task.status = 'completed';
+		}
+	}
+}
+
 export function getMissionControlBoard(): Record<string, MissionControlBoardEntry[]> {
 	const byMission = new Map<string, MissionControlBoardEntry>();
 	const terminalMissionIds = new Set(
@@ -314,6 +402,13 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 		const status = mapEventTypeToBoardStatus(entry.eventType);
 		if (!status) continue;
 		if (isStaleNonTerminalStatus(status, entry.timestamp) && !terminalMissionIds.has(entry.missionId)) continue;
+		if (
+			terminalMissionIds.has(entry.missionId) &&
+			status !== 'completed' &&
+			status !== 'failed' &&
+			status !== 'paused' &&
+			!byMission.has(entry.missionId)
+		) continue;
 
 		const existing = byMission.get(entry.missionId);
 		if (!existing) {
@@ -327,6 +422,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 				taskName: entry.taskName ? sanitizeMissionControlDisplayText(entry.taskName) : null,
 				taskCount: 0,
 				taskNames: [],
+				taskStatusCounts: emptyTaskStatusCounts(),
 				tasks: [],
 				telegramRelay: entry.telegramRelay ?? null
 			});
@@ -340,16 +436,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 			}
 		}
 
-		// Count distinct tasks by watching task_started events.
-		if (entry.eventType === 'task_started') {
-			const current = byMission.get(entry.missionId)!;
-			const label = entry.taskName ? sanitizeMissionControlDisplayText(entry.taskName) : 'task';
-			if (!current.taskNames.includes(label)) {
-				current.taskNames.push(label);
-				current.taskCount = current.taskNames.length;
-				current.tasks.push({ title: label, skills: entry.taskSkills ?? [] });
-			}
-		}
+		maybeRecordTask(byMission.get(entry.missionId)!, entry);
 	}
 
 	const board: Record<string, MissionControlBoardEntry[]> = {
@@ -361,6 +448,8 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 	};
 
 	for (const entry of byMission.values()) {
+		completeOpenTasksForCompletedMission(entry);
+		recalculateTaskStatusCounts(entry);
 		board[entry.status].push(entry);
 	}
 

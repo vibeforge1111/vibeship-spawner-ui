@@ -11,8 +11,9 @@ import { eventBridge } from '$lib/services/event-bridge';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
+import { providerRuntime } from '$lib/server/provider-runtime';
 
-import { writeFile, mkdir, appendFile } from 'fs/promises';
+import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
@@ -102,6 +103,35 @@ async function storePRDResult(requestId: string, result: unknown): Promise<void>
 	}
 }
 
+async function relayMetadataForMission(missionId: string): Promise<Record<string, unknown>> {
+	try {
+		const loadFile = join(getSpawnerDir(), 'last-canvas-load.json');
+		if (!existsSync(loadFile)) return {};
+		const raw = await readFile(loadFile, 'utf-8');
+		const load = JSON.parse(raw) as { relay?: Record<string, unknown> };
+		const relay = load.relay && typeof load.relay === 'object' ? load.relay : null;
+		if (!relay || relay.missionId !== missionId) return {};
+		return {
+			chatId: typeof relay.chatId === 'string' ? relay.chatId : undefined,
+			userId: typeof relay.userId === 'string' ? relay.userId : undefined,
+			requestId: typeof relay.requestId === 'string' ? relay.requestId : undefined,
+			goal: typeof relay.goal === 'string' ? relay.goal : undefined,
+			telegramRelay:
+				relay.telegramRelay && typeof relay.telegramRelay === 'object'
+					? relay.telegramRelay
+					: undefined,
+			telegramRelayPort:
+				typeof relay.telegramRelayPort === 'string' || typeof relay.telegramRelayPort === 'number'
+					? relay.telegramRelayPort
+					: undefined,
+			telegramRelayProfile:
+				typeof relay.telegramRelayProfile === 'string' ? relay.telegramRelayProfile : undefined
+		};
+	} catch {
+		return {};
+	}
+}
+
 
 /**
  * POST handler - receives events from Claude Code
@@ -136,15 +166,55 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		// Add metadata
-		const fullEvent = {
+		let fullEvent = {
 			...payload,
 			timestamp: payload.timestamp || new Date().toISOString(),
 			source: payload.source || 'claude-code',
 			id: payload.id || `evt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 		};
+		if (typeof fullEvent.missionId === 'string') {
+			const relayMeta = await relayMetadataForMission(fullEvent.missionId);
+			if (Object.keys(relayMeta).length > 0) {
+				fullEvent = {
+					...fullEvent,
+					data: {
+						...relayMeta,
+						...(fullEvent.data && typeof fullEvent.data === 'object' ? fullEvent.data : {})
+					}
+				};
+			}
+		}
 
 		// Broadcast to all connected clients
 		eventBridge.emit(fullEvent);
+
+		if (
+			(fullEvent.type === 'mission_completed' || fullEvent.type === 'mission_failed') &&
+			typeof fullEvent.missionId === 'string'
+		) {
+			const data = fullEvent.data && typeof fullEvent.data === 'object' ? fullEvent.data : {};
+			const providerId =
+				typeof data.provider === 'string'
+					? data.provider
+					: typeof data.providerId === 'string'
+						? data.providerId
+						: typeof fullEvent.source === 'string' && fullEvent.source !== 'spawner-ui'
+							? fullEvent.source
+							: null;
+			providerRuntime.markMissionTerminalFromLifecycleEvent({
+				missionId: fullEvent.missionId,
+				status: fullEvent.type === 'mission_completed' ? 'completed' : 'failed',
+				providerId,
+				response: typeof data.response === 'string' ? data.response : null,
+				error:
+					typeof fullEvent.message === 'string' && fullEvent.type === 'mission_failed'
+						? fullEvent.message
+						: typeof data.error === 'string'
+							? data.error
+							: null,
+				completedAt: typeof fullEvent.timestamp === 'string' ? fullEvent.timestamp : null
+			});
+		}
 
 		// Relay mission-control events into Spark Intelligence and optional webhooks.
 		void relayMissionControlEvent(fullEvent as Record<string, unknown>);

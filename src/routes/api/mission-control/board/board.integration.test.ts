@@ -92,13 +92,14 @@ describe('/api/mission-control/board integration', () => {
 			status: 'completed',
 			lastEventType: 'mission_completed',
 			taskCount: 2,
+			taskStatusCounts: { queued: 0, running: 0, completed: 2, failed: 0, cancelled: 0, total: 2 },
 			taskNames: ['Build canvas flow', 'Shape build plan'],
 			telegramRelay: { port: 8789, profile: 'primary', url: null },
 			providerSummary: 'Codex: Built the Telegram canvas mission and updated Kanban.'
 		});
 		expect(entry.tasks).toEqual([
-			{ title: 'Build canvas flow', skills: ['canvas', 'kanban'] },
-			{ title: 'Shape build plan', skills: ['planning'] }
+			{ title: 'Build canvas flow', skills: ['canvas', 'kanban'], status: 'completed' },
+			{ title: 'Shape build plan', skills: ['planning'], status: 'completed' }
 		]);
 		expect(entry.providerResults).toEqual([
 			expect.objectContaining({

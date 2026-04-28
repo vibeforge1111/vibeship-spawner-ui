@@ -18,6 +18,7 @@ export interface MissionControlResultSummary {
 
 type BoardBuckets = Record<string, MissionControlBoardEntry[]>;
 type ResultLookup = (missionId: string) => ProviderMissionResultSnapshot[];
+const NON_TERMINAL_PROVIDER_STATUSES: ProviderSessionStatus[] = ['idle', 'running'];
 
 function providerLabel(providerId: string): string {
 	if (providerId === 'codex') return 'Codex';
@@ -57,6 +58,31 @@ export function summarizeProviderResults(
 	return { providerResults, providerSummary };
 }
 
+function alignProviderResultsWithBoardStatus(
+	entry: MissionControlBoardEntry,
+	results: ProviderMissionResultSnapshot[]
+): ProviderMissionResultSnapshot[] {
+	if (entry.status !== 'completed' && entry.status !== 'failed') return results;
+
+	return results.map((result) => {
+		if (!NON_TERMINAL_PROVIDER_STATUSES.includes(result.status)) return result;
+		const terminalStatus: ProviderSessionStatus = entry.status === 'completed' ? 'completed' : 'failed';
+		return {
+			...result,
+			status: terminalStatus,
+			response:
+				entry.status === 'completed'
+					? 'completed from Mission Control lifecycle events'
+					: result.response,
+			error:
+				entry.status === 'failed'
+					? result.error || 'failed from Mission Control lifecycle events'
+					: result.error,
+			completedAt: result.completedAt || entry.lastUpdated
+		};
+	});
+}
+
 export function enrichMissionControlBoardWithProviderResults(
 	board: BoardBuckets,
 	getResults: ResultLookup
@@ -64,10 +90,13 @@ export function enrichMissionControlBoardWithProviderResults(
 	return Object.fromEntries(
 		Object.entries(board).map(([bucket, entries]) => [
 			bucket,
-			entries.map((entry) => ({
-				...entry,
-				...summarizeProviderResults(getResults(entry.missionId))
-			}))
+			entries.map((entry) => {
+				const results = alignProviderResultsWithBoardStatus(entry, getResults(entry.missionId));
+				return {
+					...entry,
+					...summarizeProviderResults(results)
+				};
+			})
 		])
 	);
 }

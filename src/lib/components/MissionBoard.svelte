@@ -33,8 +33,16 @@
 		lastSummary: string;
 		taskName: string | null;
 		taskCount?: number;
+		taskStatusCounts?: {
+			queued: number;
+			running: number;
+			completed: number;
+			failed: number;
+			cancelled: number;
+			total: number;
+		};
 		taskNames?: string[];
-		tasks?: Array<{ title: string; skills: string[] }>;
+		tasks?: Array<{ title: string; skills: string[]; status?: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' }>;
 		providerSummary?: string | null;
 		providerResults?: Array<{ providerId: string; status: string; summary: string }>;
 	};
@@ -313,6 +321,7 @@
 			updatedAt: e.lastUpdated ?? null,
 			createdAt: e.lastUpdated ?? null,
 			taskCount,
+			taskStatusCounts: e.taskStatusCounts,
 			strategy,
 			taskNames: e.taskNames,
 			tasks: e.tasks ?? e.taskNames?.map((title) => ({ title, skills: [] })),
@@ -420,6 +429,34 @@
 		if (p === 'High')   return 'bg-status-error/15 text-status-error border-status-error/30';
 		if (p === 'Medium') return 'bg-status-amber/15 text-status-amber border-status-amber/30';
 		return 'bg-bg-primary text-text-tertiary border-surface-border';
+	}
+
+	function taskStatusClass(status: string | undefined): string {
+		if (status === 'completed') return 'text-status-success border-status-success/40 bg-status-success/10';
+		if (status === 'failed') return 'text-status-error border-status-error/40 bg-status-error/10';
+		if (status === 'cancelled') return 'text-text-tertiary border-surface-border bg-bg-primary/70';
+		if (status === 'running') return 'text-accent-primary border-accent-primary/40 bg-accent-primary/10';
+		return 'text-status-amber border-status-amber/35 bg-status-amber/10';
+	}
+
+	function taskStatusLabel(status: string | undefined): string {
+		if (status === 'completed') return 'Done';
+		if (status === 'failed') return 'Failed';
+		if (status === 'cancelled') return 'Cancelled';
+		if (status === 'running') return 'Running';
+		return 'Queued';
+	}
+
+	function taskProgressSummary(card: BoardCard): string | null {
+		const counts = card.taskStatusCounts;
+		if (!counts || counts.total <= 0) return null;
+		const parts = [];
+		if (counts.completed) parts.push(`${counts.completed} done`);
+		if (counts.running) parts.push(`${counts.running} running`);
+		if (counts.failed) parts.push(`${counts.failed} failed`);
+		if (counts.cancelled) parts.push(`${counts.cancelled} cancelled`);
+		if (counts.queued) parts.push(`${counts.queued} queued`);
+		return parts.length ? parts.join(' / ') : `${counts.total} tasks`;
 	}
 
 	function columnDot(title: string): string {
@@ -649,7 +686,12 @@
 											<ul class="space-y-2.5 mb-3 border-l-2 border-surface-border/60 pl-3.5">
 												{#each c.tasks.slice(0, 3) as task}
 													<li>
-														<div class="font-sans text-sm text-text-secondary leading-snug line-clamp-1">{task.title}</div>
+														<div class="flex items-center gap-2">
+															<div class="font-sans text-sm text-text-secondary leading-snug line-clamp-1 min-w-0 flex-1">{task.title}</div>
+															<span class="shrink-0 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-wide rounded-sm border {taskStatusClass(task.status)}">
+																{taskStatusLabel(task.status)}
+															</span>
+														</div>
 														{#if task.skills && task.skills.length > 0}
 															<div class="flex items-center gap-1.5 flex-wrap mt-1.5">
 																{#each task.skills.slice(0, 3) as skill}
@@ -672,6 +714,9 @@
 											<span>{formatDate(c.updatedAt ?? c.createdAt)}</span>
 											{#if c.taskCount > 0 && (!c.tasks || c.tasks.length === 0)}
 												<span>· {c.taskCount} task{c.taskCount !== 1 ? 's' : ''}</span>
+											{/if}
+											{#if taskProgressSummary(c)}
+												<span>· {taskProgressSummary(c)}</span>
 											{/if}
 											{#if c.source === 'spark'}
 												<span class="text-accent-primary/70" title={c.strategy ?? ''}>· spark</span>
@@ -696,6 +741,10 @@
 
 												{#if c.providerSummary}
 													<p class="font-mono text-[10px] text-accent-primary/80 leading-snug">{c.providerSummary}</p>
+												{/if}
+
+												{#if taskProgressSummary(c)}
+													<p class="font-mono text-[10px] text-text-secondary leading-snug">Tasks: {taskProgressSummary(c)}</p>
 												{/if}
 
 												{#if c.providerResults && c.providerResults.length > 0}

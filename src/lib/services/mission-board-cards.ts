@@ -5,6 +5,7 @@ export type MissionBoardCardSource = 'mcp' | 'spark';
 export interface MissionBoardTaskSummary {
 	title: string;
 	skills: string[];
+	status?: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
 }
 
 export interface MissionBoardProviderResult {
@@ -22,6 +23,14 @@ export interface MissionBoardCard {
 	updatedAt: string | null;
 	createdAt: string | null;
 	taskCount: number;
+	taskStatusCounts?: {
+		queued: number;
+		running: number;
+		completed: number;
+		failed: number;
+		cancelled: number;
+		total: number;
+	};
 	strategy?: string;
 	taskNames?: string[];
 	tasks?: MissionBoardTaskSummary[];
@@ -48,6 +57,7 @@ function mergeLiveWithStaticCard(live: MissionBoardCard, staticCard: MissionBoar
 		updatedAt: latestTimestamp(live.updatedAt, staticCard.updatedAt),
 		createdAt: live.createdAt || staticCard.createdAt,
 		taskCount: Math.max(live.taskCount || 0, staticCard.taskCount || 0),
+		taskStatusCounts: live.taskStatusCounts ?? staticCard.taskStatusCounts,
 		taskNames: live.taskNames?.length ? live.taskNames : staticCard.taskNames,
 		tasks: live.tasks?.length ? live.tasks : staticCard.tasks,
 		summary: live.summary ?? staticCard.summary,
