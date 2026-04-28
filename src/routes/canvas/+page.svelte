@@ -476,6 +476,31 @@ import { get } from 'svelte/store';
 			return true;
 		}
 
+		function readablePipelineNameFromId(pipelineId: string): string {
+			return pipelineId
+				.replace(/^prd-/, '')
+				.replace(/^tg-build-[^-]+-\d+-/, '')
+				.replace(/-\d{10,}$/, '')
+				.replace(/[_-]+/g, ' ')
+				.trim() || pipelineId;
+		}
+
+		function holdRequestedPipelineWhileWaiting(pipelineId: string): boolean {
+			if (!pipelineId) return false;
+			const metadata = ensurePipeline(pipelineId, readablePipelineNameFromId(pipelineId));
+			const data = switchPipeline(pipelineId) || {
+				nodes: [],
+				connections: [],
+				zoom: 1,
+				pan: { x: 0, y: 0 }
+			};
+			loadPipelineToCanvas(data);
+			lastSaved = new Date();
+			sparkPipelineActive = pipelineId.startsWith('prd-');
+			console.log('[Canvas] Waiting for requested pipeline load:', metadata.id);
+			return true;
+		}
+
 		async function consumePendingLoadFromQueue(requestedPipelineId: string | null = null): Promise<boolean> {
 			const pendingLoad = await getPendingLoad(requestedPipelineId);
 			if (disposed || !pendingLoad) return false;
@@ -526,6 +551,12 @@ import { get } from 'svelte/store';
 			if (latestSynced) {
 				// Latest Spark load wins when another tab/client already consumed
 				// the one-shot pending queue before this visible canvas tab.
+			} else if (requestedPipelineId) {
+				// A mission-specific canvas link must not show whatever project
+				// happened to be active locally while its PRD analysis is still
+				// pending. Hold the requested pipeline id and keep polling for its
+				// matching load instead.
+				holdRequestedPipelineWhileWaiting(requestedPipelineId);
 			} else {
 				const pipelineData = getActivePipelineData();
 				if (pipelineData && pipelineData.nodes?.length > 0) {
