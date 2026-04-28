@@ -10,14 +10,33 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import * as yaml from 'yaml';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
 
-const SKILLS_LAB_PATH_FALLBACKS = [
-	path.resolve(process.cwd(), 'skills-lab'),
-	path.resolve(process.cwd(), '..', 'spark-skill-graphs'),
-	path.resolve(process.cwd(), '..', 'vibeship-skills-lab')
-];
+function uniquePaths(paths: string[]): string[] {
+	return [...new Set(paths.map((candidate) => path.resolve(candidate)))];
+}
+
+function getSkillsLabPathFallbacks(): string[] {
+	return uniquePaths([
+		path.resolve(process.cwd(), 'skills-lab'),
+		path.resolve(process.cwd(), '..', 'spark-skill-graphs'),
+		path.resolve(process.cwd(), '..', '..', 'spark-skill-graphs'),
+		path.resolve(process.cwd(), '..', '..', 'spark-skill-graphs', 'source'),
+		path.resolve(os.homedir(), 'Desktop', 'spark-skill-graphs'),
+		path.resolve(os.homedir(), '.spark', 'modules', 'spark-skill-graphs', 'source'),
+		path.resolve(process.cwd(), '..', 'vibeship-skills-lab')
+	]);
+}
+
+function getStaticSkillsJsonFallbacks(): string[] {
+	return uniquePaths([
+		path.resolve(process.cwd(), 'static', 'skills.json'),
+		path.resolve(os.homedir(), '.spark', 'modules', 'spawner-ui', 'source', 'static', 'skills.json'),
+		path.resolve(os.homedir(), 'Desktop', 'spawner-ui', 'static', 'skills.json')
+	]);
+}
 
 // Categories to search — sourced from spark-skill-graphs skills-registry.
 // Canonical 33 from skills-registry-summary.md + 4 historical aliases
@@ -56,6 +75,18 @@ interface H70Skill {
 	tags?: string[];
 }
 
+interface SparkSkillGraphMetadata {
+	id: string;
+	name?: string;
+	description?: string;
+	category?: string;
+	tier?: string;
+	tags?: string[];
+	triggers?: string[];
+	handoffs?: string[];
+	pairsWell?: string[];
+}
+
 function isDirectory(dir: string): boolean {
 	try {
 		return fs.statSync(dir).isDirectory();
@@ -80,7 +111,7 @@ function resolveSkillsLabPath(): string | null {
 		return null;
 	}
 
-	for (const candidate of SKILLS_LAB_PATH_FALLBACKS) {
+	for (const candidate of getSkillsLabPathFallbacks()) {
 		if (isDirectory(candidate)) {
 			return candidate;
 		}
@@ -91,6 +122,58 @@ function resolveSkillsLabPath(): string | null {
 
 function getSkillsSourceName(skillsLabPath: string): string {
 	return path.basename(skillsLabPath) || 'local-skills';
+}
+
+function resolveStaticSkillsJsonPath(): string | null {
+	const configuredPath = process.env.SPAWNER_SKILLS_JSON || process.env.SPARK_SKILLS_JSON;
+	const candidates = configuredPath ? [configuredPath, ...getStaticSkillsJsonFallbacks()] : getStaticSkillsJsonFallbacks();
+	for (const candidate of candidates) {
+		const resolved = path.resolve(candidate);
+		if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
+			return resolved;
+		}
+	}
+	return null;
+}
+
+function findStaticSkillMetadata(skillId: string): { skill: SparkSkillGraphMetadata; path: string } | null {
+	const skillsPath = resolveStaticSkillsJsonPath();
+	if (!skillsPath) return null;
+	try {
+		const parsed = JSON.parse(fs.readFileSync(skillsPath, 'utf-8')) as SparkSkillGraphMetadata[];
+		const skill = parsed.find((candidate) => candidate.id === skillId);
+		return skill ? { skill, path: skillsPath } : null;
+	} catch (e) {
+		console.warn(`[Skills API] Failed to read static skills graph metadata: ${skillsPath}`, e);
+		return null;
+	}
+}
+
+function formatStaticSkillContent(skill: SparkSkillGraphMetadata): string {
+	const lines = [
+		`# ${skill.name || skill.id}`,
+		'',
+		`> ${skill.description || 'Spark skill graph metadata skill.'}`,
+		'',
+		`**Skill ID:** ${skill.id}`,
+		'**Source:** spark-skill-graphs static metadata',
+		''
+	];
+
+	if (skill.category) lines.push(`**Category:** ${skill.category}`);
+	if (skill.tier) lines.push(`**Tier:** ${skill.tier}`);
+	if (skill.tags?.length) lines.push(`**Tags:** ${skill.tags.join(', ')}`);
+	if (skill.triggers?.length) lines.push(`**Triggers:** ${skill.triggers.join(', ')}`);
+	if (skill.handoffs?.length) lines.push(`**Handoffs:** ${skill.handoffs.join(', ')}`);
+	if (skill.pairsWell?.length) lines.push(`**Pairs well with:** ${skill.pairsWell.join(', ')}`);
+
+	lines.push(
+		'',
+		'## Usage',
+		'Use this Spark skill graph entry as the task-specific capability signal. Full YAML skill bodies are preferred when a local spark-skill-graphs checkout is available; this metadata fallback prevents missions from losing skill context when only the bundled graph is installed.'
+	);
+
+	return lines.join('\n');
 }
 
 function formatH70SkillContent(skill: H70Skill & { id: string }, rawYaml: string): string {
@@ -256,10 +339,21 @@ export const GET: RequestHandler = async ({ params }) => {
 
 	const skillsLabPath = resolveSkillsLabPath();
 	if (!skillsLabPath) {
-		throw error(
-			500,
-			'H70 skills directory not found. Set SPAWNER_H70_SKILLS_DIR or H70_SKILLS_LAB_DIR.'
-		);
+		const metadata = findStaticSkillMetadata(skillId);
+		if (!metadata) {
+			throw error(
+				500,
+				'Spark skill graph source not found. Set SPAWNER_H70_SKILLS_DIR, H70_SKILLS_LAB_DIR, or SPAWNER_SKILLS_JSON.'
+			);
+		}
+		return json({
+			skill: metadata.skill,
+			rawYaml: JSON.stringify(metadata.skill, null, 2),
+			formattedContent: formatStaticSkillContent(metadata.skill),
+			source: 'spark-skill-graphs-static',
+			path: metadata.path,
+			category: metadata.skill.category || null
+		});
 	}
 
 	// Find skill across categories
@@ -275,6 +369,17 @@ export const GET: RequestHandler = async ({ params }) => {
 
 	// Check if skill exists
 	if (!skillPath) {
+		const metadata = findStaticSkillMetadata(skillId);
+		if (metadata) {
+			return json({
+				skill: metadata.skill,
+				rawYaml: JSON.stringify(metadata.skill, null, 2),
+				formattedContent: formatStaticSkillContent(metadata.skill),
+				source: 'spark-skill-graphs-static',
+				path: metadata.path,
+				category: metadata.skill.category || null
+			});
+		}
 		throw error(404, `Skill not found: ${skillId}`);
 	}
 
@@ -322,14 +427,20 @@ export const HEAD: RequestHandler = async ({ params }) => {
 		assertSafeId(skillId, 'skillId');
 		const skillsLabPath = resolveSkillsLabPath();
 		if (!skillsLabPath) {
+			if (findStaticSkillMetadata(skillId)) {
+				return new Response(null, { status: 200 });
+			}
 			throw error(
 				500,
-				'H70 skills directory not found. Set SPAWNER_H70_SKILLS_DIR or H70_SKILLS_LAB_DIR.'
+				'Spark skill graph source not found. Set SPAWNER_H70_SKILLS_DIR, H70_SKILLS_LAB_DIR, or SPAWNER_SKILLS_JSON.'
 			);
 		}
 		const skillPath = findSkillPath(skillsLabPath, skillId);
 
 		if (!skillPath) {
+			if (findStaticSkillMetadata(skillId)) {
+				return new Response(null, { status: 200 });
+			}
 			throw error(404, `Skill not found: ${skillId}`);
 		}
 	} catch (e) {

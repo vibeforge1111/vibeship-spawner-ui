@@ -36,6 +36,7 @@ const SYNCED_PATHS = [
 	'src/routes/api/prd-bridge/write/+server.ts',
 	'src/routes/api/prd-bridge/load-to-canvas/+server.ts',
 	'src/routes/api/dispatch/+server.ts',
+	'src/routes/api/h70-skills/[skillId]/+server.ts',
 	'src/routes/api/spark/run/+server.ts',
 	'static/bundles'
 ];
