@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, mkdir, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
@@ -28,12 +28,17 @@ function providerResult(overrides: Partial<ProviderMissionResultSnapshot> = {}):
 	};
 }
 
-afterEach(() => {
-	vi.restoreAllMocks();
-	delete process.env.SPAWNER_STATE_DIR;
-});
-
 describe('/api/mission-control/trace integration', () => {
+	beforeEach(() => {
+		vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+		vi.unstubAllGlobals();
+		delete process.env.SPAWNER_STATE_DIR;
+	});
+
 	it('stitches request, canvas, dispatch, kanban, provider, and timeline state for a Telegram mission', async () => {
 		const stateDir = await mkdtemp(path.join(tmpdir(), 'spawner-trace-'));
 		process.env.SPAWNER_STATE_DIR = stateDir;

@@ -441,11 +441,12 @@ function seedPlannedTasks(entry: MissionControlBoardEntry, event: MissionControl
 	entry.taskCount = entry.taskNames.length;
 }
 
-function completeOpenTasksForCompletedMission(entry: MissionControlBoardEntry): void {
-	if (entry.status !== 'completed') return;
+function closeOpenTasksForTerminalMission(entry: MissionControlBoardEntry): void {
+	if (entry.status !== 'completed' && entry.status !== 'failed') return;
+	const terminalTaskStatus = entry.status === 'completed' ? 'completed' : 'failed';
 	for (const task of entry.tasks) {
 		if (!task.status || task.status === 'queued' || task.status === 'running') {
-			task.status = 'completed';
+			task.status = terminalTaskStatus;
 		}
 	}
 }
@@ -511,7 +512,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 	};
 
 	for (const entry of byMission.values()) {
-		completeOpenTasksForCompletedMission(entry);
+		closeOpenTasksForTerminalMission(entry);
 		recalculateTaskStatusCounts(entry);
 		board[entry.status].push(entry);
 	}

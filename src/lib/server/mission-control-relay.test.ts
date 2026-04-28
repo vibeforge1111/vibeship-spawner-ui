@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	buildSparkMissionControlEvent,
 	getMissionControlPersistPath,
@@ -11,6 +11,14 @@ import {
 } from './mission-control-relay';
 
 describe('mission-control-relay', () => {
+	beforeEach(() => {
+		vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
 	it('filters unsupported event types', () => {
 		expect(shouldRelayMissionControlEvent({ type: 'debug_noise' })).toBe(false);
 		expect(shouldRelayMissionControlEvent({ type: 'task_completed' })).toBe(true);
@@ -601,6 +609,58 @@ describe('mission-control-relay', () => {
 			status: 'completed'
 		});
 		expect(completed?.taskNames).not.toContain('Replayed task after completion');
+	});
+
+	it('closes open task states when a mission fails', async () => {
+		const missionId = `mission-failed-closes-open-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			source: 'canvas-dispatch',
+			timestamp: '2026-04-28T10:00:00.000Z',
+			data: {
+				plannedTasks: [
+					{ title: 'Create static shell', skills: [] },
+					{ title: 'Run final verification', skills: [] }
+				],
+				telegramRelay: { port: 1 }
+			}
+		});
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			taskName: 'Create static shell',
+			source: 'codex',
+			timestamp: '2026-04-28T10:00:05.000Z',
+			data: { telegramRelay: { port: 1 } }
+		});
+		await relayMissionControlEvent({
+			type: 'task_failed',
+			missionId,
+			taskName: 'Run final verification',
+			source: 'codex',
+			timestamp: '2026-04-28T10:00:10.000Z',
+			data: { telegramRelay: { port: 1 } }
+		});
+		await relayMissionControlEvent({
+			type: 'mission_failed',
+			missionId,
+			source: 'canvas-dispatch',
+			timestamp: '2026-04-28T10:00:20.000Z',
+			data: { telegramRelay: { port: 1 } }
+		});
+
+		const board = getMissionControlBoard();
+		const failed = board.failed.find((candidate) => candidate.missionId === missionId);
+
+		expect(failed?.taskStatusCounts).toMatchObject({
+			queued: 0,
+			running: 0,
+			completed: 0,
+			failed: 2,
+			total: 2
+		});
 	});
 
 	it('redacts local paths from board display fields', async () => {

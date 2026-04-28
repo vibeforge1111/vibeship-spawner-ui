@@ -145,9 +145,9 @@ function phaseFor(input: {
 	analysisResult: Record<string, unknown> | null;
 	lastCanvasLoad: Record<string, unknown> | null;
 }): MissionControlTrace['phase'] {
-	if (input.boardBucket === 'completed' || input.dispatchStatus?.allComplete) return 'completed';
 	if (input.boardBucket === 'failed' || input.dispatchStatus?.anyFailed) return 'failed';
 	if (input.boardBucket === 'paused' || input.dispatchStatus?.paused) return 'paused';
+	if (input.boardBucket === 'completed' || input.dispatchStatus?.allComplete) return 'completed';
 	if (input.boardBucket === 'running' || Object.values(input.dispatchStatus?.providers || {}).includes('running')) {
 		return 'executing';
 	}
