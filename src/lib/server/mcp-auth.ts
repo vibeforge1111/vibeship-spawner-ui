@@ -69,6 +69,13 @@ function extractApiKey(event: RequestEvent, options: ApiKeyExtractionOptions = {
 		return cookieToken;
 	}
 
+	const genericCookieToken =
+		getCookieValue(event.request.headers.get('cookie'), 'spawner_control_api_key') ||
+		getCookieValue(event.request.headers.get('cookie'), 'spawner_events_api_key');
+	if (genericCookieToken) {
+		return genericCookieToken;
+	}
+
 	return null;
 }
 
