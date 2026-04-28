@@ -4,7 +4,8 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const baseUrl = (process.env.SPAWNER_UI_URL || "http://127.0.0.1:5173").replace(/\/$/, "");
+const spawnerPort = process.env.SPARK_SPAWNER_PORT || process.env.PORT || "5173";
+const baseUrl = (process.env.SPAWNER_UI_URL || `http://127.0.0.1:${spawnerPort}`).replace(/\/$/, "");
 const healthUrl = `${baseUrl}/api/providers`;
 const boardUrl = `${baseUrl}/api/mission-control/board`;
 
