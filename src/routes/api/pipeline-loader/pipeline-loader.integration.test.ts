@@ -78,6 +78,43 @@ describe('/api/pipeline-loader integration', () => {
 		expect(secondBody.pending).toBe(false);
 	});
 
+	it('does not consume a pending load when an explicit pipeline filter does not match', async () => {
+		const payload = {
+			pipelineId: 'pipe-target-project',
+			pipelineName: 'Target Project Pipeline',
+			nodes: [],
+			connections: [],
+			source: 'prd-bridge',
+			autoRun: true
+		};
+
+		const postResponse = await POST({
+			request: new Request('http://localhost/api/pipeline-loader', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			})
+		} as never);
+		expect(postResponse.status).toBe(200);
+
+		const mismatchGet = await GET({
+			url: new URL('http://localhost/api/pipeline-loader?pipeline=pipe-other-project')
+		} as never);
+		expect(mismatchGet.status).toBe(200);
+		const mismatchBody = await mismatchGet.json();
+		expect(mismatchBody.pending).toBe(false);
+		expect(existsSync(pendingLoadFile)).toBe(true);
+
+		const matchGet = await GET({
+			url: new URL('http://localhost/api/pipeline-loader?pipeline=pipe-target-project')
+		} as never);
+		expect(matchGet.status).toBe(200);
+		const matchBody = await matchGet.json();
+		expect(matchBody.pending).toBe(true);
+		expect(matchBody.load.pipelineId).toBe('pipe-target-project');
+		expect(existsSync(pendingLoadFile)).toBe(false);
+	});
+
 	it('preserves Spark relay and build metadata for canvas auto-run', async () => {
 		const payload = {
 			pipelineId: 'pipe-spark-relay',

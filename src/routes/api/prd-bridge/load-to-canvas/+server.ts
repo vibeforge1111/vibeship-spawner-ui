@@ -3,6 +3,8 @@ import type { RequestHandler } from './$types';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
+import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
+import { autoDispatchPrdCanvasLoad } from '$lib/server/prd-auto-dispatch';
 
 function getSpawnerDir(): string {
 	return process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
@@ -28,6 +30,16 @@ function normalizeTelegramRelay(value: unknown): Record<string, unknown> | undef
 		relay.port = Math.trunc(port);
 	}
 	return Object.keys(relay).length > 0 ? relay : undefined;
+}
+
+function normalizeRequestId(requestId: string): string {
+	return requestId.replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+function missionIdFromRequestId(requestId: string): string {
+	const normalized = normalizeRequestId(requestId);
+	const stamp = normalized.match(/(\d{10,})$/)?.[1];
+	return `mission-${stamp || normalized}`;
 }
 
 interface TaskRecord {
@@ -94,11 +106,14 @@ function buildConnections(tasks: TaskRecord[]): Array<{ sourceIndex: number; tar
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
-		const { requestId, autoRun, telegramRelay } = await request.json();
+		const { requestId, autoRun, telegramRelay, missionId, chatId, userId, goal, buildMode: bodyBuildMode, buildModeReason: bodyBuildModeReason } = await request.json();
 		const normalizedTelegramRelay = normalizeTelegramRelay(telegramRelay);
 		if (!requestId || typeof requestId !== 'string') {
 			return json({ error: 'requestId (string) required' }, { status: 400 });
 		}
+		const resolvedMissionId = typeof missionId === 'string' && missionId.trim()
+			? missionId.trim()
+			: missionIdFromRequestId(requestId);
 
 		const path = resultFilePath(requestId);
 		const spawnerDir = getSpawnerDir();
@@ -129,8 +144,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		let relay: Record<string, unknown> | undefined;
-		let buildMode: 'direct' | 'advanced_prd' = 'direct';
-		let buildModeReason = '';
+		let buildMode: 'direct' | 'advanced_prd' = bodyBuildMode === 'advanced_prd' ? 'advanced_prd' : 'direct';
+		let buildModeReason = typeof bodyBuildModeReason === 'string' ? bodyBuildModeReason : '';
+		let pendingRequestMeta: Record<string, unknown> | null = null;
 		if (existsSync(pendingRequestFile)) {
 			try {
 				const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
@@ -141,12 +157,16 @@ export const POST: RequestHandler = async ({ request }) => {
 					buildModeReason?: string;
 				};
 				if (pending.requestId === requestId) {
+					pendingRequestMeta = pending as Record<string, unknown>;
+				}
+				if (pending.requestId === requestId) {
 					buildMode = pending.buildMode === 'advanced_prd' ? 'advanced_prd' : 'direct';
 					buildModeReason = typeof pending.buildModeReason === 'string' ? pending.buildModeReason : '';
 				}
 				if (pending.requestId === requestId && pending.relay) {
 					relay = {
 						...pending.relay,
+						missionId: resolvedMissionId,
 						...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {}),
 						requestId,
 						autoRun: autoRun !== false,
@@ -158,8 +178,26 @@ export const POST: RequestHandler = async ({ request }) => {
 				// Relay metadata is best-effort; canvas loading should still work.
 			}
 		}
+		if (!relay && (typeof chatId === 'string' || typeof userId === 'string' || typeof goal === 'string' || normalizedTelegramRelay)) {
+			relay = {
+				missionId: resolvedMissionId,
+				...(typeof chatId === 'string' && chatId.trim() ? { chatId: chatId.trim() } : {}),
+				...(typeof userId === 'string' && userId.trim() ? { userId: userId.trim() } : {}),
+				requestId,
+				...(typeof goal === 'string' && goal.trim() ? { goal } : {}),
+				...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {}),
+				autoRun: autoRun !== false,
+				buildMode,
+				buildModeReason
+			};
+		}
+		if (relay && !relay.missionId) {
+			relay.missionId = resolvedMissionId;
+		}
 
 		const load = {
+			requestId,
+			missionId: resolvedMissionId,
 			pipelineId: `prd-${requestId}`,
 			pipelineName: parsed.projectName || `PRD ${requestId}`,
 			nodes,
@@ -175,6 +213,62 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		await writeFile(pendingLoadFile, JSON.stringify(load, null, 2), 'utf-8');
 		await writeFile(lastLoadFile, JSON.stringify(load, null, 2), 'utf-8');
+		if (pendingRequestMeta) {
+			await writeFile(
+				pendingRequestFile,
+				JSON.stringify(
+					{
+						...pendingRequestMeta,
+						status: 'canvas_loaded',
+						canvasLoadedAt: new Date().toISOString(),
+						pipelineId: load.pipelineId,
+						canvasUrl: `/canvas?pipeline=${encodeURIComponent(load.pipelineId)}&mission=${encodeURIComponent(resolvedMissionId)}`
+					},
+					null,
+					2
+				),
+				'utf-8'
+			);
+		}
+		void relayMissionControlEvent({
+			type: 'mission_created',
+			missionId: resolvedMissionId,
+			missionName: load.pipelineName,
+			taskName: 'Canvas ready',
+			message: `Canvas ready for ${load.pipelineName}. ${nodes.length} task(s) queued.`,
+			source: 'prd-bridge',
+			data: {
+				requestId,
+				buildMode,
+				buildModeReason,
+				plannedTasks: parsed.tasks.map((task) => ({
+					title: task.title,
+					skills: task.skills || []
+				})),
+				...(relay ? { telegramRelay: relay.telegramRelay } : {})
+			}
+		});
+
+		const autoDispatchResult = autoRun !== false
+			? await autoDispatchPrdCanvasLoad(load)
+			: { started: false, skipped: true, reason: 'autoRun disabled', missionId: resolvedMissionId };
+		if (!autoDispatchResult.started && !autoDispatchResult.skipped) {
+			void relayMissionControlEvent({
+				type: 'log',
+				missionId: resolvedMissionId,
+				missionName: load.pipelineName,
+				taskName: 'Auto-start',
+				message: `Canvas auto-start failed: ${autoDispatchResult.error || 'unknown error'}`,
+				source: 'prd-auto-dispatch',
+				data: {
+					requestId,
+					buildMode,
+					buildModeReason,
+					error: autoDispatchResult.error,
+					...(relay ? { telegramRelay: relay.telegramRelay } : {})
+				}
+			});
+		}
 
 		return json({
 			success: true,
@@ -182,7 +276,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			pipelineName: load.pipelineName,
 			taskCount: nodes.length,
 			connectionCount: connections.length,
-			canvasUrl: '/canvas'
+			autoDispatch: autoDispatchResult,
+			canvasUrl: `/canvas?pipeline=${encodeURIComponent(load.pipelineId)}&mission=${encodeURIComponent(resolvedMissionId)}`
 		});
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);

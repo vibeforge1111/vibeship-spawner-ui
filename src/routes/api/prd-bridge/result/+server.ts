@@ -15,8 +15,10 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
 
-const SPAWNER_DIR = join(process.cwd(), '.spawner');
-const RESULTS_DIR = join(SPAWNER_DIR, 'results');
+function getResultsDir(): string {
+	const spawnerDir = process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
+	return join(spawnerDir, 'results');
+}
 
 /**
  * POST - Store an analysis result
@@ -31,12 +33,14 @@ export const POST: RequestHandler = async ({ request }) => {
 		assertSafeId(requestId, 'requestId');
 
 		// Ensure results directory exists
-		if (!existsSync(RESULTS_DIR)) {
-			await mkdir(RESULTS_DIR, { recursive: true });
+		const resultsDir = getResultsDir();
+
+		if (!existsSync(resultsDir)) {
+			await mkdir(resultsDir, { recursive: true });
 		}
 
 		// Write result to file
-		const resultFile = resolveWithinBaseDir(RESULTS_DIR, `${requestId}.json`);
+		const resultFile = resolveWithinBaseDir(resultsDir, `${requestId}.json`);
 		await writeFile(resultFile, JSON.stringify(result, null, 2), 'utf-8');
 
 		console.log('[PRDBridge] Stored result for:', requestId);
@@ -63,7 +67,8 @@ export const GET: RequestHandler = async ({ url }) => {
 		}
 		assertSafeId(requestId, 'requestId');
 
-		const resultFile = resolveWithinBaseDir(RESULTS_DIR, `${requestId}.json`);
+		const resultsDir = getResultsDir();
+		const resultFile = resolveWithinBaseDir(resultsDir, `${requestId}.json`);
 
 		if (!existsSync(resultFile)) {
 			return json({ found: false, requestId });

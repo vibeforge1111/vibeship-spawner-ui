@@ -35,6 +35,20 @@ describe('pipeline-loader service', () => {
 		expect(fetchMock).toHaveBeenCalledWith('/api/pipeline-loader', { method: 'GET' });
 	});
 
+	it('passes explicit pipeline filters through to the API', async () => {
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: async () => ({ pending: false })
+		});
+		vi.stubGlobal('fetch', fetchMock);
+
+		const result = await getPendingLoad('prd-tg-build-123');
+
+		expect(result).toBeNull();
+		expect(fetchMock).toHaveBeenCalledWith('/api/pipeline-loader?pipeline=prd-tg-build-123', { method: 'GET' });
+	});
+
 	it('returns null when there is no pending load', async () => {
 		const fetchMock = vi.fn().mockResolvedValue({
 			ok: true,
