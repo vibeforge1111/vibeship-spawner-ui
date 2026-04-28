@@ -47,6 +47,7 @@ describe('multi-llm-orchestrator', () => {
 			'codex',
 			'openai',
 			'zai',
+			'kimi',
 			'minimax',
 			'openrouter',
 			'huggingface',
@@ -65,6 +66,10 @@ describe('multi-llm-orchestrator', () => {
 		);
 		expect(options.providers.find((provider) => provider.id === 'openai')?.enabled).toBe(false);
 		expect(options.providers.find((provider) => provider.id === 'zai')?.enabled).toBe(false);
+		expect(options.providers.find((provider) => provider.id === 'kimi')?.enabled).toBe(false);
+		expect(options.providers.find((provider) => provider.id === 'kimi')?.baseUrl).toBe(
+			'https://api.moonshot.ai/v1'
+		);
 		expect(options.providers.find((provider) => provider.id === 'minimax')?.enabled).toBe(false);
 		expect(options.providers.find((provider) => provider.id === 'openrouter')?.enabled).toBe(false);
 		expect(options.providers.find((provider) => provider.id === 'huggingface')?.enabled).toBe(false);
@@ -250,6 +255,7 @@ describe('multi-llm-orchestrator', () => {
 				'codex',
 				'openai',
 				'zai',
+				'kimi',
 				'minimax',
 				'openrouter',
 				'huggingface',

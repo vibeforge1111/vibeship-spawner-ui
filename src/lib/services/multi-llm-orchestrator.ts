@@ -155,6 +155,20 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		baseUrl: 'https://api.z.ai/api/coding/paas/v4'
 	},
 	{
+		id: 'kimi',
+		label: 'Kimi',
+		model: 'kimi-k2.6',
+		enabled: false,
+		kind: 'openai_compat',
+		eventSource: 'kimi',
+		capabilities: ['reasoning', 'planning', 'review', 'code_analysis'],
+		executesFilesystem: true,
+		sparkExecutionBridge: 'codex',
+		apiKeyEnv: 'KIMI_API_KEY',
+		requiresApiKey: true,
+		baseUrl: 'https://api.moonshot.ai/v1'
+	},
+	{
 		id: 'minimax',
 		label: 'MiniMax',
 		model: 'MiniMax-M2.7',
