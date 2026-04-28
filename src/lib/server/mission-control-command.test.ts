@@ -145,7 +145,7 @@ describe('mission-control-command parser', () => {
 		const result = await executeMissionControlAction({
 			action: 'kill',
 			missionId,
-			source: 'test'
+			source: 'spawner-ui'
 		});
 
 		expect(result.ok).toBe(true);

@@ -236,7 +236,7 @@ describe('mission-control-trace', () => {
 		await relayMissionControlEvent({
 			type: 'mission_cancelled',
 			missionId,
-			source: 'test',
+			source: 'spawner-ui',
 			message: 'Mission cancelled by user'
 		});
 

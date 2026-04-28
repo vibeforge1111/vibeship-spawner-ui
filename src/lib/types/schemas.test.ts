@@ -11,7 +11,7 @@
  * - Test helper functions
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	safeJsonParse,
 	parseJsonWithDefault,
@@ -23,6 +23,14 @@ import {
 	StoredSkillSchema
 } from './schemas';
 import { z } from 'zod';
+
+beforeEach(() => {
+	vi.spyOn(console, 'warn').mockImplementation(() => {});
+});
+
+afterEach(() => {
+	vi.restoreAllMocks();
+});
 
 // =============================================================================
 // safeJsonParse Tests
