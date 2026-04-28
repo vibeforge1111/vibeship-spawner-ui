@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { ChildProcess } from 'node:child_process';
+import { mkdirSync } from 'node:fs';
 import type { Mission } from '$lib/services/mcp-client';
 import { TOP_100_MCPS } from '$lib/types/mcp';
 import { eventBridge } from '$lib/services/event-bridge';
@@ -229,6 +230,14 @@ function isSafeCommandToken(value: string): boolean {
 
 function isBinaryAvailable(binaryName: ProviderCommand['binary']): boolean {
 	return resolveCliBinary(binaryName) !== null;
+}
+
+export function prepareProviderWorkingDirectory(workingDirectory?: string): string {
+	const cwd = workingDirectory && workingDirectory.trim() ? workingDirectory : process.cwd();
+	if (workingDirectory && workingDirectory.trim()) {
+		mkdirSync(cwd, { recursive: true });
+	}
+	return cwd;
 }
 
 function resolveProviderCommandTemplate(providerId: OpenclawProviderId, model?: string, template?: string): string {
@@ -1161,8 +1170,18 @@ class OpenclawBridgeService {
 			let stderr = '';
 			let finished = false;
 			let progressMarks = 0;
+			let cwd: string;
+			try {
+				cwd = prepareProviderWorkingDirectory(context.workingDirectory);
+			} catch (error) {
+				resolve({
+					success: false,
+					error: error instanceof Error ? error.message : String(error)
+				});
+				return;
+			}
 			const child = spawnHidden(command.resolvedBinary, command.args, {
-				cwd: context.workingDirectory || process.cwd(),
+				cwd,
 				stdio: ['pipe', 'pipe', 'pipe'],
 				env: { ...process.env }
 			});

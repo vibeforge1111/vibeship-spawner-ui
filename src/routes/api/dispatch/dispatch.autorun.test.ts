@@ -59,4 +59,16 @@ describe('dispatch auto-run terminal guard', () => {
 			})
 		).toBe('running');
 	});
+
+	it('allows auto-run dispatch for missions that are only queued on the board', () => {
+		expect(
+			_terminalBoardStatusForAutoRun('mission-queued', true, {
+				completed: [],
+				failed: [],
+				running: [],
+				paused: [],
+				created: [entry('mission-queued', 'created')]
+			})
+		).toBeNull();
+	});
 });

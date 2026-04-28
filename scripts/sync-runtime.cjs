@@ -29,9 +29,13 @@ const SYNCED_PATHS = [
 	'src/lib/server/brief-enricher.ts',
 	'src/lib/server/mission-control-relay.ts',
 	'src/lib/server/mission-control-results.ts',
+	'src/lib/server/provider-clients/codex-cli-client.ts',
+	'src/lib/services/openclaw-bridge.ts',
 	'src/lib/services/mission-board-cards.ts',
 	'src/lib/components/MissionBoard.svelte',
 	'src/routes/api/prd-bridge/write/+server.ts',
+	'src/routes/api/prd-bridge/load-to-canvas/+server.ts',
+	'src/routes/api/dispatch/+server.ts',
 	'src/routes/api/spark/run/+server.ts',
 	'static/bundles'
 ];

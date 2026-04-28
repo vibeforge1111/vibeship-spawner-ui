@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
+import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 
 function getSpawnerDir(): string {
 	return process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
@@ -190,6 +191,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		const load = {
+			requestId,
+			missionId: resolvedMissionId,
 			pipelineId: `prd-${requestId}`,
 			pipelineName: parsed.projectName || `PRD ${requestId}`,
 			nodes,
@@ -205,6 +208,24 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		await writeFile(pendingLoadFile, JSON.stringify(load, null, 2), 'utf-8');
 		await writeFile(lastLoadFile, JSON.stringify(load, null, 2), 'utf-8');
+		void relayMissionControlEvent({
+			type: 'mission_created',
+			missionId: resolvedMissionId,
+			missionName: load.pipelineName,
+			taskName: 'Canvas ready',
+			message: `Canvas ready for ${load.pipelineName}. ${nodes.length} task(s) queued.`,
+			source: 'prd-bridge',
+			data: {
+				requestId,
+				buildMode,
+				buildModeReason,
+				plannedTasks: parsed.tasks.map((task) => ({
+					title: task.title,
+					skills: task.skills || []
+				})),
+				...(relay ? { telegramRelay: relay.telegramRelay } : {})
+			}
+		});
 
 		return json({
 			success: true,

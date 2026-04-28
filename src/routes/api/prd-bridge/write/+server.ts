@@ -34,10 +34,10 @@ const AUTO_ANALYSIS_BASE_URL = (process.env.SPAWNER_UI_SELF_URL || 'http://127.0
 	''
 );
 const AUTO_ANALYSIS_ENDPOINT = `${AUTO_ANALYSIS_BASE_URL}/api/events`;
-const configuredAnalysisTimeoutMs = Number(process.env.SPAWNER_AUTO_ANALYSIS_TIMEOUT_MS || 180_000);
+const configuredAnalysisTimeoutMs = Number(process.env.SPAWNER_AUTO_ANALYSIS_TIMEOUT_MS || 0);
 const AUTO_ANALYSIS_TIMEOUT_MS = Number.isFinite(configuredAnalysisTimeoutMs)
 	? configuredAnalysisTimeoutMs
-	: 180_000;
+	: 0;
 
 function normalizeRequestId(requestId: string): string {
 	return requestId.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -89,6 +89,7 @@ async function updatePendingRequestStatus(
 }
 
 function scheduleAutoAnalysisWatchdog(requestId: string): void {
+	if (AUTO_ANALYSIS_TIMEOUT_MS <= 0) return;
 	const timer = setTimeout(async () => {
 		const { resultsDir } = getPrdBridgePaths();
 		const safeRequestId = normalizeRequestId(requestId);
@@ -541,7 +542,7 @@ export const POST: RequestHandler = async (event) => {
 			buildMode: requestMeta.buildMode
 		});
 		void relayMissionControlEvent({
-			type: 'mission_started',
+			type: 'mission_created',
 			missionId,
 			missionName: requestMeta.projectName,
 			taskName: 'Preparing canvas',

@@ -11,6 +11,7 @@ import type { ProviderResult, ProviderClientOptions } from './types';
 import { createBridgeEvent } from './types';
 import { resolveCliBinary } from '../cli-resolver';
 import { spawnHidden } from '../hidden-process';
+import { prepareProviderWorkingDirectory } from '$lib/services/openclaw-bridge';
 
 export interface CodexCliOptions extends ProviderClientOptions {
 	workingDirectory?: string;
@@ -98,7 +99,14 @@ export async function executeCodexCliRequest(
 	writeFileSync(promptFile, prompt, 'utf-8');
 
 	return new Promise<ProviderResult>((resolve) => {
-		const cwd = workingDirectory || process.cwd();
+		let cwd: string;
+		try {
+			cwd = prepareProviderWorkingDirectory(workingDirectory);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			resolve({ success: false, error: message, durationMs: Date.now() - startTime });
+			return;
+		}
 
 		let stdout = '';
 		let stderr = '';
