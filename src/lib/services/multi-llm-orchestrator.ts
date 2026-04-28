@@ -102,7 +102,7 @@ export interface MultiLLMBuildInput {
 export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 	{
 		id: 'claude',
-		label: 'Claude',
+		label: 'Anthropic Claude',
 		model: 'opus',
 		enabled: true,
 		kind: 'terminal_cli',
@@ -115,7 +115,7 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 	},
 	{
 		id: 'codex',
-		label: 'Codex',
+		label: 'OpenAI Codex',
 		model: 'gpt-5.5',
 		enabled: true,
 		kind: 'terminal_cli',
@@ -142,7 +142,7 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 	},
 	{
 		id: 'zai',
-		label: 'Z.AI',
+		label: 'Z.AI GLM',
 		model: 'glm-5.1',
 		enabled: false,
 		kind: 'openai_compat',
