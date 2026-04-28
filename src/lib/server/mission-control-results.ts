@@ -18,6 +18,8 @@ export interface MissionControlResultSummary {
 
 type BoardBuckets = Record<string, MissionControlBoardEntry[]>;
 type ResultLookup = (missionId: string) => ProviderMissionResultSnapshot[];
+const NON_TERMINAL_PROVIDER_STATUSES: ProviderSessionStatus[] = ['idle', 'running'];
+const TERMINAL_PROVIDER_STATUSES: ProviderSessionStatus[] = ['completed', 'failed', 'cancelled'];
 
 function providerLabel(providerId: string): string {
 	if (providerId === 'codex') return 'Codex';
@@ -57,17 +59,117 @@ export function summarizeProviderResults(
 	return { providerResults, providerSummary };
 }
 
+function alignProviderResultsWithBoardStatus(
+	entry: MissionControlBoardEntry,
+	results: ProviderMissionResultSnapshot[]
+): ProviderMissionResultSnapshot[] {
+	if (entry.status !== 'completed' && entry.status !== 'failed' && entry.status !== 'cancelled') return results;
+
+	return results.map((result) => {
+		if (!NON_TERMINAL_PROVIDER_STATUSES.includes(result.status)) return result;
+		const terminalStatus: ProviderSessionStatus =
+			entry.status === 'completed' ? 'completed' : entry.status === 'cancelled' ? 'cancelled' : 'failed';
+		return {
+			...result,
+			status: terminalStatus,
+			response:
+				entry.status === 'completed'
+					? 'completed from Mission Control lifecycle events'
+					: result.response,
+			error:
+				entry.status === 'failed'
+					? result.error || 'failed from Mission Control lifecycle events'
+					: entry.status === 'cancelled'
+						? result.error || 'cancelled from Mission Control lifecycle events'
+					: result.error,
+			completedAt: result.completedAt || entry.lastUpdated
+		};
+	});
+}
+
+function statusFromProviderResults(
+	results: ProviderMissionResultSnapshot[]
+): MissionControlBoardEntry['status'] | null {
+	if (results.length === 0) return null;
+	if (results.some((result) => result.status === 'running')) return 'running';
+	if (!results.every((result) => TERMINAL_PROVIDER_STATUSES.includes(result.status))) return null;
+	if (results.every((result) => result.status === 'cancelled')) return 'cancelled';
+	if (results.some((result) => result.status === 'failed' || result.status === 'cancelled')) return 'failed';
+	return 'completed';
+}
+
+function taskStatusCounts(entry: MissionControlBoardEntry): MissionControlBoardEntry['taskStatusCounts'] {
+	const counts: MissionControlBoardEntry['taskStatusCounts'] = {
+		queued: 0,
+		running: 0,
+		completed: 0,
+		failed: 0,
+		cancelled: 0,
+		total: entry.tasks.length
+	};
+	for (const task of entry.tasks) {
+		counts[task.status ?? 'queued'] += 1;
+	}
+	return counts;
+}
+
+function reconcileEntryWithProviderResults(
+	entry: MissionControlBoardEntry,
+	results: ProviderMissionResultSnapshot[]
+): MissionControlBoardEntry {
+	const providerStatus = statusFromProviderResults(results);
+	if (!providerStatus) return entry;
+	if (entry.status === 'completed' || entry.status === 'failed' || entry.status === 'cancelled' || entry.status === providerStatus) return entry;
+
+	const tasks =
+		providerStatus === 'completed'
+			? entry.tasks.map((task) => ({
+					...task,
+					status:
+						task.status === 'failed' || task.status === 'cancelled'
+							? task.status
+							: ('completed' as const)
+				}))
+			: entry.tasks;
+
+	const reconciled = {
+		...entry,
+		status: providerStatus,
+		lastEventType: `provider_${providerStatus}`,
+		tasks
+	};
+	return {
+		...reconciled,
+		taskStatusCounts: taskStatusCounts(reconciled)
+	};
+}
+
 export function enrichMissionControlBoardWithProviderResults(
 	board: BoardBuckets,
 	getResults: ResultLookup
 ): Record<string, Array<MissionControlBoardEntry & MissionControlResultSummary>> {
-	return Object.fromEntries(
-		Object.entries(board).map(([bucket, entries]) => [
-			bucket,
-			entries.map((entry) => ({
-				...entry,
-				...summarizeProviderResults(getResults(entry.missionId))
-			}))
-		])
-	);
+	const enriched: Record<string, Array<MissionControlBoardEntry & MissionControlResultSummary>> = {};
+	for (const bucket of Object.keys(board)) {
+		enriched[bucket] = [];
+	}
+
+	for (const entries of Object.values(board)) {
+		for (const entry of entries) {
+			const providerResults = getResults(entry.missionId);
+			const reconciled = reconcileEntryWithProviderResults(entry, providerResults);
+			const results = alignProviderResultsWithBoardStatus(reconciled, providerResults);
+			const bucket = reconciled.status;
+			if (!enriched[bucket]) enriched[bucket] = [];
+			enriched[bucket].push({
+				...reconciled,
+				...summarizeProviderResults(results)
+			});
+		}
+	}
+
+	for (const entries of Object.values(enriched)) {
+		entries.sort((a, b) => Date.parse(b.lastUpdated) - Date.parse(a.lastUpdated));
+	}
+
+	return enriched;
 }

@@ -53,7 +53,7 @@ function hasRuntimeStatusSignal(status: ReturnType<typeof providerRuntime.getMis
 
 async function syncActiveMissionFile(
 	missionId: string,
-	status: 'running' | 'paused' | 'failed',
+	status: 'running' | 'paused' | 'failed' | 'cancelled',
 	note?: string
 ): Promise<void> {
 	if (!existsSync(ACTIVE_MISSION_PATH)) return;
@@ -154,20 +154,20 @@ export async function executeMissionControlAction(input: {
 	}
 
 	if (action === 'kill') {
-		await providerRuntime.cancelMission(missionId, 'Mission killed');
-		await syncActiveMissionFile(missionId, 'failed', 'Mission killed from mission control');
-		await syncMissionRecord(missionId, action, 'Mission killed from mission control');
-		const bridgeEvent = buildBridgeEvent(missionId, 'mission_failed', source);
+		await providerRuntime.cancelMission(missionId, 'Mission cancelled by user');
+		await syncActiveMissionFile(missionId, 'cancelled', 'Mission cancelled from mission control');
+		await syncMissionRecord(missionId, action, 'Mission cancelled from mission control');
+		const bridgeEvent = buildBridgeEvent(missionId, 'mission_cancelled', source);
 		eventBridge.emit(bridgeEvent);
 		void relayMissionControlEvent({
 			...bridgeEvent,
-			message: 'Mission killed from mission control command endpoint'
+			message: 'Mission cancelled from mission control command endpoint'
 		});
 		return {
 			ok: true,
 			missionId,
 			action,
-			message: `Mission ${missionId} kill command executed.`
+			message: `Mission ${missionId} cancelled.`
 		};
 	}
 

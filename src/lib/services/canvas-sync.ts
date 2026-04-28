@@ -1002,7 +1002,7 @@ async function handleExecuteWorkflow(data: ExecuteWorkflowData): Promise<void> {
 		const mcpPlanSummary = result.multiLLMExecution
 			? {
 					readyTasks: Object.values(result.multiLLMExecution.mcpTaskPlans).filter((plan) => plan.status === 'ready').length,
-					blockedTasks: result.multiLLMExecution.blockedTaskIds.length
+					unavailableAdvisories: result.multiLLMExecution.blockedTaskIds.length
 				}
 			: null;
 		if (mcpPlanSummary) {

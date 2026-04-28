@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import path from 'path';
 import { existsSync } from 'fs';
-import { mkdtemp, rm } from 'fs/promises';
+import { mkdtemp, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { GET, POST, DELETE } from './+server';
 
@@ -137,5 +137,142 @@ describe('/api/mission/active integration', () => {
 		const deleteResponse = await DELETE({} as never);
 		expect(deleteResponse.status).toBe(200);
 		expect(existsSync(missionFile)).toBe(false);
+	});
+
+	it('clears active file instead of persisting terminal mission states', async () => {
+		await writeFile(missionFile, JSON.stringify({
+			missionId: 'mission-old-running',
+			missionName: 'Old running mission',
+			status: 'running',
+			progress: 40,
+			tasks: [],
+			completedTasks: [],
+			failedTasks: [],
+			lastUpdated: new Date().toISOString(),
+			resumeInstructions: 'old'
+		}, null, 2));
+
+		const postResponse = await POST({
+			request: new Request('http://localhost/api/mission/active', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					missionId: 'mission-old-running',
+					missionName: 'Old running mission',
+					status: 'completed',
+					progress: 100,
+					tasks: [],
+					completedTasks: [],
+					failedTasks: []
+				})
+			})
+		} as never);
+		expect(postResponse.status).toBe(200);
+		const body = await postResponse.json();
+
+		expect(body.active).toBe(false);
+		expect(existsSync(missionFile)).toBe(false);
+	});
+
+	it('clears stale active state when Mission Control already has a terminal event', async () => {
+		await writeFile(path.join(testSpawnerDir, 'mission-control.json'), JSON.stringify({
+			totalRelayed: 1,
+			perMission: { 'mission-terminal-history': 1 },
+			recent: [
+				{
+					eventType: 'mission_completed',
+					missionId: 'mission-terminal-history',
+					timestamp: new Date().toISOString()
+				}
+			]
+		}, null, 2));
+		await writeFile(missionFile, JSON.stringify({
+			missionId: 'mission-terminal-history',
+			missionName: 'Already done',
+			status: 'running',
+			progress: 0,
+			currentTaskId: 'task-replayed',
+			currentTaskName: 'Replayed task',
+			executionPrompt: 'old prompt',
+			tasks: [],
+			completedTasks: [],
+			failedTasks: [],
+			lastUpdated: new Date().toISOString(),
+			resumeInstructions: 'old resume instructions'
+		}, null, 2));
+
+		const getResponse = await GET({
+			url: new URL('http://localhost/api/mission/active')
+		} as never);
+		expect(getResponse.status).toBe(200);
+		const body = await getResponse.json();
+
+		expect(body.active).toBe(false);
+		expect(body.terminal).toBe(true);
+		expect(existsSync(missionFile)).toBe(false);
+	});
+
+	it('ignores stale running updates after a terminal Mission Control event', async () => {
+		await writeFile(path.join(testSpawnerDir, 'mission-control.json'), JSON.stringify({
+			totalRelayed: 1,
+			perMission: { 'mission-terminal-post': 1 },
+			recent: [
+				{
+					eventType: 'mission_completed',
+					missionId: 'mission-terminal-post',
+					timestamp: new Date().toISOString()
+				}
+			]
+		}, null, 2));
+
+		const postResponse = await POST({
+			request: new Request('http://localhost/api/mission/active', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					missionId: 'mission-terminal-post',
+					missionName: 'Already done',
+					status: 'running',
+					progress: 0,
+					tasks: [],
+					completedTasks: [],
+					failedTasks: []
+				})
+			})
+		} as never);
+		expect(postResponse.status).toBe(200);
+		const body = await postResponse.json();
+
+		expect(body.active).toBe(false);
+		expect(body.terminal).toBe(true);
+		expect(existsSync(missionFile)).toBe(false);
+	});
+
+	it('reports stale mission state as inactive by default', async () => {
+		await writeFile(missionFile, JSON.stringify({
+			missionId: 'mission-stale-test',
+			missionName: 'Stale test',
+			status: 'running',
+			progress: 40,
+			currentTaskId: 'task-old',
+			currentTaskName: 'Old task',
+			executionPrompt: 'old prompt',
+			tasks: [],
+			completedTasks: [],
+			failedTasks: [],
+			lastUpdated: new Date(Date.now() - 31 * 60 * 1000).toISOString(),
+			resumeInstructions: 'old resume instructions'
+		}, null, 2));
+
+		const getResponse = await GET({
+			url: new URL('http://localhost/api/mission/active')
+		} as never);
+		expect(getResponse.status).toBe(200);
+		const body = await getResponse.json();
+
+		expect(body.active).toBe(false);
+		expect(body.stale).toBe(true);
+		expect(body.staleMission?.id).toBe('mission-stale-test');
+		expect(body.mission).toBeUndefined();
 	});
 });

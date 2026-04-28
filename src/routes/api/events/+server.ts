@@ -11,15 +11,25 @@ import { eventBridge } from '$lib/services/event-bridge';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
+import { providerRuntime } from '$lib/server/provider-runtime';
 
-import { writeFile, mkdir, appendFile } from 'fs/promises';
+import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
-const SPAWNER_DIR = join(process.cwd(), '.spawner');
-const RESULTS_DIR = join(SPAWNER_DIR, 'results');
-const PRD_AUTO_TRACE_FILE = join(SPAWNER_DIR, 'prd-auto-trace.jsonl');
 const EVENTS_AUTH_COOKIE = 'spawner_events_api_key';
+
+function getSpawnerDir(): string {
+	return process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
+}
+
+function getResultsDir(): string {
+	return join(getSpawnerDir(), 'results');
+}
+
+function getPrdAutoTraceFile(): string {
+	return join(getSpawnerDir(), 'prd-auto-trace.jsonl');
+}
 
 function extractApiKeyFromRequest(request: Request): string | null {
 	const headerKey = request.headers.get('x-api-key') || request.headers.get('x-mcp-api-key');
@@ -64,7 +74,7 @@ function createAuthCookieHeader(request: Request): string | null {
 async function appendPrdTrace(requestId: string, event: string, details: Record<string, unknown> = {}): Promise<void> {
 	try {
 		await appendFile(
-			PRD_AUTO_TRACE_FILE,
+			getPrdAutoTraceFile(),
 			`${JSON.stringify({ ts: new Date().toISOString(), requestId, event, ...details })}\n`,
 			'utf-8'
 		);
@@ -76,11 +86,12 @@ async function appendPrdTrace(requestId: string, event: string, details: Record<
 async function storePRDResult(requestId: string, result: unknown): Promise<void> {
 	try {
 		assertSafeId(requestId, 'requestId');
+		const resultsDir = getResultsDir();
 
-		if (!existsSync(RESULTS_DIR)) {
-			await mkdir(RESULTS_DIR, { recursive: true });
+		if (!existsSync(resultsDir)) {
+			await mkdir(resultsDir, { recursive: true });
 		}
-		const resultFile = resolveWithinBaseDir(RESULTS_DIR, `${requestId}.json`);
+		const resultFile = resolveWithinBaseDir(resultsDir, `${requestId}.json`);
 		await writeFile(resultFile, JSON.stringify(result, null, 2), 'utf-8');
 		console.log('[EventBridge] Stored PRD result for polling:', requestId);
 	} catch (err) {
@@ -89,6 +100,35 @@ async function storePRDResult(requestId: string, result: unknown): Promise<void>
 			return;
 		}
 		console.error('[EventBridge] Failed to store PRD result:', err);
+	}
+}
+
+async function relayMetadataForMission(missionId: string): Promise<Record<string, unknown>> {
+	try {
+		const loadFile = join(getSpawnerDir(), 'last-canvas-load.json');
+		if (!existsSync(loadFile)) return {};
+		const raw = await readFile(loadFile, 'utf-8');
+		const load = JSON.parse(raw) as { relay?: Record<string, unknown> };
+		const relay = load.relay && typeof load.relay === 'object' ? load.relay : null;
+		if (!relay || relay.missionId !== missionId) return {};
+		return {
+			chatId: typeof relay.chatId === 'string' ? relay.chatId : undefined,
+			userId: typeof relay.userId === 'string' ? relay.userId : undefined,
+			requestId: typeof relay.requestId === 'string' ? relay.requestId : undefined,
+			goal: typeof relay.goal === 'string' ? relay.goal : undefined,
+			telegramRelay:
+				relay.telegramRelay && typeof relay.telegramRelay === 'object'
+					? relay.telegramRelay
+					: undefined,
+			telegramRelayPort:
+				typeof relay.telegramRelayPort === 'string' || typeof relay.telegramRelayPort === 'number'
+					? relay.telegramRelayPort
+					: undefined,
+			telegramRelayProfile:
+				typeof relay.telegramRelayProfile === 'string' ? relay.telegramRelayProfile : undefined
+		};
+	} catch {
+		return {};
 	}
 }
 
@@ -126,15 +166,60 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		// Add metadata
-		const fullEvent = {
+		let fullEvent = {
 			...payload,
 			timestamp: payload.timestamp || new Date().toISOString(),
 			source: payload.source || 'claude-code',
 			id: payload.id || `evt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 		};
+		if (typeof fullEvent.missionId === 'string') {
+			const relayMeta = await relayMetadataForMission(fullEvent.missionId);
+			if (Object.keys(relayMeta).length > 0) {
+				fullEvent = {
+					...fullEvent,
+					data: {
+						...relayMeta,
+						...(fullEvent.data && typeof fullEvent.data === 'object' ? fullEvent.data : {})
+					}
+				};
+			}
+		}
 
 		// Broadcast to all connected clients
 		eventBridge.emit(fullEvent);
+
+		if (
+			(fullEvent.type === 'mission_completed' || fullEvent.type === 'mission_failed' || fullEvent.type === 'mission_cancelled') &&
+			typeof fullEvent.missionId === 'string'
+		) {
+			const data = fullEvent.data && typeof fullEvent.data === 'object' ? fullEvent.data : {};
+			const providerId =
+				typeof data.provider === 'string'
+					? data.provider
+					: typeof data.providerId === 'string'
+						? data.providerId
+						: typeof fullEvent.source === 'string' && fullEvent.source !== 'spawner-ui'
+							? fullEvent.source
+							: null;
+			providerRuntime.markMissionTerminalFromLifecycleEvent({
+				missionId: fullEvent.missionId,
+				status:
+					fullEvent.type === 'mission_completed'
+						? 'completed'
+						: fullEvent.type === 'mission_cancelled'
+							? 'cancelled'
+							: 'failed',
+				providerId,
+				response: typeof data.response === 'string' ? data.response : null,
+				error:
+					typeof fullEvent.message === 'string' && (fullEvent.type === 'mission_failed' || fullEvent.type === 'mission_cancelled')
+						? fullEvent.message
+						: typeof data.error === 'string'
+							? data.error
+							: null,
+				completedAt: typeof fullEvent.timestamp === 'string' ? fullEvent.timestamp : null
+			});
+		}
 
 		// Relay mission-control events into Spark Intelligence and optional webhooks.
 		void relayMissionControlEvent(fullEvent as Record<string, unknown>);

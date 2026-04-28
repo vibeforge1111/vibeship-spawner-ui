@@ -11,12 +11,13 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { readFile, writeFile, mkdir, unlink } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import type { MultiLLMExecutionPack } from '$lib/services/multi-llm-orchestrator';
 
 const ACTIVE_MISSION_FILE = 'active-mission.json';
+const TERMINAL_MISSION_EVENTS = new Set(['mission_completed', 'mission_failed', 'mission_paused']);
 
 function getSpawnerDir(): string {
 	return process.env.SPAWNER_STATE_DIR || path.join(process.cwd(), '.spawner');
@@ -24,6 +25,31 @@ function getSpawnerDir(): string {
 
 function getActiveMissionPath(): string {
 	return path.join(getSpawnerDir(), ACTIVE_MISSION_FILE);
+}
+
+function getMissionControlPath(): string {
+	return path.join(getSpawnerDir(), 'mission-control.json');
+}
+
+async function missionHasTerminalRelayEvent(missionId: string | undefined): Promise<boolean> {
+	if (!missionId) return false;
+	const missionControlPath = getMissionControlPath();
+	if (!existsSync(missionControlPath)) return false;
+
+	try {
+		const raw = await readFile(missionControlPath, 'utf-8');
+		const parsed = JSON.parse(raw) as {
+			recent?: Array<{ eventType?: unknown; missionId?: unknown }>;
+		};
+		return (parsed.recent || []).some(
+			(entry) =>
+				entry.missionId === missionId &&
+				typeof entry.eventType === 'string' &&
+				TERMINAL_MISSION_EVENTS.has(entry.eventType)
+		);
+	} catch {
+		return false;
+	}
 }
 
 interface ActiveMissionState {
@@ -65,10 +91,41 @@ export const GET: RequestHandler = async ({ url }) => {
 		const content = await readFile(missionPath, 'utf-8');
 		const state: ActiveMissionState = JSON.parse(content);
 
+		if (await missionHasTerminalRelayEvent(state.missionId)) {
+			await unlink(missionPath).catch(() => undefined);
+			return json({
+				active: false,
+				terminal: true,
+				message: 'Active mission was already terminal in Mission Control history and was cleared.'
+			});
+		}
+
 		// Check if mission is stale (no update in 30 minutes)
 		const lastUpdated = new Date(state.lastUpdated);
 		const minutesSinceUpdate = (Date.now() - lastUpdated.getTime()) / 60000;
 		const isStale = minutesSinceUpdate > 30;
+		const includeStale =
+			url.searchParams.get('includeStale') === '1' ||
+			url.searchParams.get('includeStale') === 'true';
+
+		if (isStale && !includeStale) {
+			return json({
+				active: false,
+				stale: true,
+				minutesSinceUpdate: Math.round(minutesSinceUpdate),
+				staleMission: {
+					id: state.missionId,
+					name: state.missionName,
+					status: state.status,
+					progress: state.progress,
+					currentTask: state.currentTaskId ? {
+						id: state.currentTaskId,
+						name: state.currentTaskName
+					} : null
+				},
+				message: 'Active mission state is stale. Pass includeStale=1 to inspect it.'
+			});
+		}
 
 		return json({
 			active: true,
@@ -110,6 +167,30 @@ export const POST: RequestHandler = async ({ request }) => {
 		const body = await request.json();
 		const spawnerDir = getSpawnerDir();
 		const missionPath = getActiveMissionPath();
+		const status = typeof body.status === 'string' ? body.status : 'running';
+
+		if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+			if (existsSync(missionPath)) {
+				await unlink(missionPath);
+			}
+			return json({
+				success: true,
+				active: false,
+				message: 'Terminal mission state cleared'
+			});
+		}
+
+		if (await missionHasTerminalRelayEvent(body.missionId)) {
+			if (existsSync(missionPath)) {
+				await unlink(missionPath);
+			}
+			return json({
+				success: true,
+				active: false,
+				terminal: true,
+				message: 'Ignored stale active mission update because Mission Control already has a terminal event.'
+			});
+		}
 
 		// Ensure .spawner directory exists
 		if (!existsSync(spawnerDir)) {
@@ -120,7 +201,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const state: ActiveMissionState = {
 			missionId: body.missionId,
 			missionName: body.missionName || 'Unnamed Mission',
-			status: body.status || 'running',
+			status: status === 'paused' || status === 'creating' ? status : 'running',
 			progress: body.progress || 0,
 			currentTaskId: body.currentTaskId || null,
 			currentTaskName: body.currentTaskName || null,

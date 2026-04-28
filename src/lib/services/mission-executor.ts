@@ -194,8 +194,10 @@ class MissionExecutor {
 	// Health monitoring
 	private lastProgressTime: number = Date.now();
 	private healthCheckInterval: ReturnType<typeof setInterval> | null = null;
+	private providerHeartbeatInterval: ReturnType<typeof setInterval> | null = null;
 	private readonly STALL_WARNING_MINUTES = 5;
 	private readonly STALL_CRITICAL_MINUTES = 15;
+	private readonly PROVIDER_HEARTBEAT_MS = 30_000;
 
 	// File sync for Claude Code resume capability
 	private fileSyncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -302,15 +304,16 @@ class MissionExecutor {
 			});
 		}
 
-		// Sync to file for Claude Code resume capability (debounced)
-		this.syncStateToFile();
-
 		// If completed/failed/cancelled, move to history and clear file
 		if (this.progress.status === 'completed' || this.progress.status === 'failed' || this.progress.status === 'cancelled') {
 			addToMissionHistory(serialized);
 			clearMissionState();
 			this.clearFileSyncState();
+			return;
 		}
+
+		// Sync to file for Claude Code resume capability (debounced)
+		this.syncStateToFile();
 	}
 
 	/**
@@ -327,6 +330,9 @@ class MissionExecutor {
 
 		this.fileSyncDebounceTimer = setTimeout(async () => {
 			try {
+				if (this.progress.status === 'completed' || this.progress.status === 'failed' || this.progress.status === 'cancelled') {
+					return;
+				}
 				const mission = this.progress.mission;
 				if (!mission || !this.progress.missionId) return;
 
@@ -383,6 +389,10 @@ class MissionExecutor {
 		if (!browser) return;
 
 		try {
+			if (this.fileSyncDebounceTimer) {
+				clearTimeout(this.fileSyncDebounceTimer);
+				this.fileSyncDebounceTimer = null;
+			}
 			await fetch('/api/mission/active', { method: 'DELETE' });
 			log.debug('File sync state cleared');
 		} catch (error) {
@@ -413,6 +423,7 @@ class MissionExecutor {
 
 			// If was running, resume polling
 			if (saved.status === 'running') {
+				this.startProviderHeartbeat();
 				this.startPolling();
 			}
 		}
@@ -478,12 +489,14 @@ class MissionExecutor {
 							this.progress.status = 'completed';
 							this.callbacks.onStatusChange?.('completed');
 						}
+						this.stopProviderHeartbeat();
 						this.stopPolling();
 						this.generateMissionCheckpoint(syncMission);
 						this.callbacks.onComplete?.(syncMission);
 					} else {
 						this.progress.status = 'completed';
 						this.callbacks.onStatusChange?.('completed');
+						this.stopProviderHeartbeat();
 						this.stopPolling();
 					}
 					this.persistState();
@@ -494,6 +507,7 @@ class MissionExecutor {
 					this.progress.status = 'failed';
 					this.progress.error = (event.data.error as string) || 'Mission failed';
 					this.progress.endTime = new Date();
+					this.stopProviderHeartbeat();
 					this.stopPolling();
 					this.callbacks.onStatusChange?.('failed');
 					this.callbacks.onError?.(this.progress.error);
@@ -831,7 +845,7 @@ class MissionExecutor {
 						this.progress.taskProgressMap.set(taskId, {
 							taskId,
 							taskName: taskName || taskId,
-							progress: 0,
+							progress: 8,
 							message: event.message,
 							startedAt: Date.now()
 						});
@@ -845,6 +859,7 @@ class MissionExecutor {
 						}
 
 						this.callbacks.onTaskStart?.(taskId, taskName || taskId);
+						this.callbacks.onTaskProgress?.(taskId, 8, event.message || 'Task started');
 						this.addLocalLog('info', `Started: ${taskName || taskId}`);
 						if (runtimeAgent) {
 							this.updateAgentRuntime(runtimeAgent.agentId, runtimeAgent.agentLabel, {
@@ -882,33 +897,36 @@ class MissionExecutor {
 					const progressValue = event.progress ?? (event.data?.percent as number) ?? 0;
 					const progressMessage = event.message || event.data?.message as string;
 					const skillSignal = this.parseSkillLoadedSignal(progressMessage, progressTaskId);
+					const displayProgressMessage = skillSignal
+						? `Skills loaded: ${skillSignal.skillIds.join(', ')}`
+						: progressMessage;
 					if (skillSignal) {
 						this.registerLoadedSkills(skillSignal.taskId, skillSignal.skillIds);
-						this.addLocalLog('info', `Skill load signal received for ${skillSignal.taskId}: ${skillSignal.skillIds.join(', ')}`);
+						this.addLocalLog('info', `Skills loaded for ${skillSignal.taskId || 'current task'}: ${skillSignal.skillIds.join(', ')}`);
 						this.persistState();
 					}
 					if (progressTaskId) {
-						this.handleTaskProgress(progressTaskId, progressValue, progressMessage);
+						this.handleTaskProgress(progressTaskId, progressValue, displayProgressMessage);
 						if (runtimeAgent) {
 							this.updateAgentRuntime(runtimeAgent.agentId, runtimeAgent.agentLabel, {
 								status: 'running',
 								currentTaskId: progressTaskId,
 								currentTaskName: this.progress.currentTaskName || progressTaskId,
 								progress: progressValue,
-								message: progressMessage
+								message: displayProgressMessage
 							});
 						}
-						if (progressMessage) {
-							this.addLocalLog('info', progressMessage);
+						if (displayProgressMessage && !skillSignal) {
+							this.addLocalLog('info', displayProgressMessage);
 						}
-						if (progressMessage || progressValue % 25 === 0) {
+						if (displayProgressMessage || progressValue % 25 === 0) {
 							this.appendTaskTransition({
 								state: 'progress',
 								taskId: progressTaskId,
 								taskName: this.progress.currentTaskName || progressTaskId,
 								agentId: runtimeAgent?.agentId,
 								agentLabel: runtimeAgent?.agentLabel,
-								message: progressMessage || `Progress ${progressValue}%`,
+								message: displayProgressMessage || `Progress ${progressValue}%`,
 								progress: progressValue
 							});
 						}
@@ -1099,6 +1117,7 @@ class MissionExecutor {
 							this.progress.agentRuntime.set(agentId, { ...agent, status: 'completed', progress: 100, updatedAt: new Date().toISOString() });
 						}
 					}
+					this.stopProviderHeartbeat();
 					this.persistState();
 					break;
 				}
@@ -1116,6 +1135,7 @@ class MissionExecutor {
 							this.progress.agentRuntime.set(agentId, { ...agent, status: 'failed', updatedAt: new Date().toISOString() });
 						}
 					}
+					this.stopProviderHeartbeat();
 					this.addLocalLog('info', `Error: ${errorMsg}`);
 					this.persistState();  // Persist failed state
 					break;
@@ -1328,12 +1348,12 @@ class MissionExecutor {
 		const blockedPlans = plans.filter((plan) => plan.status === 'blocked');
 		this.addLocalLog(
 			'info',
-			`MCP planning: ${readyPlans.length} task(s) ready, ${blockedPlans.length} task(s) blocked`
+			`MCP planning: ${readyPlans.length} task(s) ready, ${blockedPlans.length} optional advisory unavailable`
 		);
 		broadcastMissionEvent('mission_log', this.progress.missionId, {
 			category: 'mcp_planning',
 			readyTaskCount: readyPlans.length,
-			blockedTaskCount: blockedPlans.length
+			unavailableTaskCount: blockedPlans.length
 		});
 
 		for (const plan of readyPlans) {
@@ -1343,9 +1363,9 @@ class MissionExecutor {
 		}
 
 		for (const plan of blockedPlans) {
-			this.addLocalLog('error', `MCP blocked for ${plan.taskTitle}: ${plan.blockedReason}`);
+			this.addLocalLog('info', `Optional MCP unavailable for ${plan.taskTitle}: ${plan.blockedReason} Continuing with fallback.`);
 			broadcastMissionEvent('mission_log', this.progress.missionId, {
-				category: 'mcp_blocked',
+				category: 'mcp_advisory_unavailable',
 				taskId: plan.taskId,
 				taskTitle: plan.taskTitle,
 				blockedReason: plan.blockedReason,
@@ -1513,6 +1533,7 @@ class MissionExecutor {
 					if (dispatchResult.success) {
 						const providerCount = Object.keys(dispatchResult.sessions || {}).length;
 						this.addLocalLog('info', `Auto-dispatched to ${providerCount} provider(s) - execution in progress`);
+						this.startProviderHeartbeat();
 						this.startPolling();
 					} else {
 						this.addLocalLog('info', `Auto-dispatch failed: ${dispatchResult.error || 'unknown'} - copy prompts manually`);
@@ -1585,6 +1606,7 @@ class MissionExecutor {
 		try {
 			// Update local state immediately for responsive UI
 			this.progress.status = 'paused';
+			this.stopProviderHeartbeat();
 			this.stopPolling();
 			this.callbacks.onStatusChange?.('paused');
 			this.addLocalLog('info', 'Execution paused');
@@ -1620,6 +1642,7 @@ class MissionExecutor {
 		try {
 			// Update local state immediately
 			this.progress.status = 'running';
+			this.startProviderHeartbeat();
 			this.startPolling();
 			this.callbacks.onStatusChange?.('running');
 			this.addLocalLog('info', 'Execution resumed');
@@ -1661,6 +1684,7 @@ class MissionExecutor {
 			if (result.success) {
 				this.progress.status = 'cancelled';
 				this.progress.endTime = new Date();
+				this.stopProviderHeartbeat();
 				this.stopPolling();
 				this.callbacks.onStatusChange?.('cancelled');
 				this.addLocalLog('info', 'Execution cancelled');
@@ -1679,6 +1703,7 @@ class MissionExecutor {
 	 */
 	stop(): void {
 		this.stopPolling();
+		this.stopProviderHeartbeat();
 		this.stopHealthMonitoring();
 		this.progress = this.createInitialProgress();
 		clearMissionState();  // Clear persisted state when stopping
@@ -1724,6 +1749,7 @@ class MissionExecutor {
 		this.addLocalLog('info', `Resuming ${pendingTasks.length} pending tasks from partial mission`);
 
 		// Restart monitoring
+		this.startProviderHeartbeat();
 		this.startPolling();
 		this.startHealthMonitoring();
 
@@ -1840,6 +1866,76 @@ class MissionExecutor {
 		this.lastProgressTime = Date.now();
 	}
 
+	private formatElapsed(ms: number): string {
+		const seconds = Math.max(0, Math.floor(ms / 1000));
+		if (seconds < 60) return `${seconds}s`;
+		const minutes = Math.floor(seconds / 60);
+		const remainingSeconds = seconds % 60;
+		return `${minutes}m ${remainingSeconds}s`;
+	}
+
+	private startProviderHeartbeat(): void {
+		this.stopProviderHeartbeat();
+		if (!browser) return;
+
+		this.providerHeartbeatInterval = setInterval(() => {
+			if (this.progress.status !== 'running') return;
+			if (!this.progress.multiLLMExecution?.enabled) return;
+			if (!this.progress.mission?.tasks?.length) return;
+
+			const currentTask =
+				this.progress.mission.tasks.find((task) => task.id === this.progress.currentTaskId) ||
+				this.progress.mission.tasks.find((task) => task.status === 'in_progress') ||
+				this.progress.mission.tasks.find((task) => task.status === 'pending');
+			if (!currentTask) return;
+
+			const tracked = this.progress.taskProgressMap.get(currentTask.id);
+			const startedAt = tracked?.startedAt || this.progress.startTime?.getTime() || Date.now();
+			const elapsedMs = Date.now() - startedAt;
+			const nextProgress = Math.min(
+				82,
+				Math.max(tracked?.progress ?? 8, 10 + Math.floor(elapsedMs / this.PROVIDER_HEARTBEAT_MS) * 6)
+			);
+			const providerLabel =
+				[...this.progress.agentRuntime.values()].find((agent) => agent.status === 'running')?.label ||
+				this.progress.multiLLMExecution?.providers.find((provider) => provider.enabled)?.label ||
+				'Agent';
+			const message = `${providerLabel} is still working on ${currentTask.title} (${this.formatElapsed(elapsedMs)} elapsed)`;
+
+			currentTask.status = 'in_progress';
+			this.progress.currentTaskId = currentTask.id;
+			this.progress.currentTaskName = currentTask.title;
+			this.progress.currentTaskProgress = nextProgress;
+			this.progress.currentTaskMessage = message;
+			this.progress.taskProgressMap.set(currentTask.id, {
+				taskId: currentTask.id,
+				taskName: currentTask.title,
+				progress: nextProgress,
+				message,
+				startedAt
+			});
+			this.callbacks.onTaskProgress?.(currentTask.id, nextProgress, message);
+			this.recalculateOverallProgress();
+			this.addLocalLog('info', message);
+			this.appendTaskTransition({
+				state: 'progress',
+				taskId: currentTask.id,
+				taskName: currentTask.title,
+				agentLabel: providerLabel,
+				message,
+				progress: nextProgress
+			});
+			this.persistState();
+		}, this.PROVIDER_HEARTBEAT_MS);
+	}
+
+	private stopProviderHeartbeat(): void {
+		if (this.providerHeartbeatInterval) {
+			clearInterval(this.providerHeartbeatInterval);
+			this.providerHeartbeatInterval = null;
+		}
+	}
+
 	/**
 	 * Poll mission status and logs
 	 */
@@ -1890,6 +1986,7 @@ class MissionExecutor {
 			this.progress.status = 'failed';
 			this.progress.error = status.lastReason || 'Provider mission failed';
 			this.progress.endTime = new Date();
+			this.stopProviderHeartbeat();
 			this.stopPolling();
 			this.callbacks.onStatusChange?.('failed');
 			this.callbacks.onError?.(this.progress.error);
@@ -1922,6 +2019,7 @@ class MissionExecutor {
 			this.callbacks.onStatusChange?.('completed');
 			this.addLocalLog('info', 'Mission completed successfully');
 		}
+		this.stopProviderHeartbeat();
 		this.stopPolling();
 		this.generateMissionCheckpoint(this.progress.mission);
 		this.callbacks.onComplete?.(this.progress.mission);
@@ -1995,6 +2093,7 @@ class MissionExecutor {
 				// Check for completion
 				if (mission.status === 'completed') {
 					this.progress.endTime = new Date();
+					this.stopProviderHeartbeat();
 					this.stopPolling();
 					const isFullyComplete = this.reconcileMissionCompletion(mission);
 					if (isFullyComplete) {
@@ -2008,6 +2107,7 @@ class MissionExecutor {
 					this.progress.status = 'failed';
 					this.progress.error = mission.error || 'Mission failed';
 					this.progress.endTime = new Date();
+					this.stopProviderHeartbeat();
 					this.stopPolling();
 					this.callbacks.onStatusChange?.('failed');
 					this.callbacks.onError?.(this.progress.error);

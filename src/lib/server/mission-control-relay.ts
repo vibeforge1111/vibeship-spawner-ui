@@ -17,6 +17,12 @@ export interface MissionControlBridgeEvent {
 	[key: string]: unknown;
 }
 
+export interface TelegramRelayTarget {
+	port: number | null;
+	profile: string | null;
+	url: string | null;
+}
+
 export interface MissionControlRelayStatusEntry {
 	eventType: string;
 	missionId: string;
@@ -24,15 +30,22 @@ export interface MissionControlRelayStatusEntry {
 	taskId: string | null;
 	taskName: string | null;
 	taskSkills: string[];
+	plannedTasks: Array<{ title: string; skills: string[] }>;
 	summary: string;
 	timestamp: string;
 	source: string;
+	telegramRelay?: TelegramRelayTarget | null;
 }
 
 export interface MissionControlRelaySnapshot {
 	enabled: {
 		sparkIngest: boolean;
 		webhooks: boolean;
+	};
+	persistence: {
+		path: string;
+		exists: boolean;
+		sizeBytes: number | null;
 	};
 	targets: {
 		sparkIngestUrl: string | null;
@@ -48,14 +61,29 @@ export interface MissionControlRelaySnapshot {
 export interface MissionControlBoardEntry {
 	missionId: string;
 	missionName: string | null;
-	status: 'created' | 'running' | 'paused' | 'completed' | 'failed';
+	status: 'created' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
 	lastEventType: string;
 	lastUpdated: string;
+	queuedAt: string | null;
+	startedAt: string | null;
 	lastSummary: string;
 	taskName: string | null;
 	taskCount: number;
 	taskNames: string[];
-	tasks: Array<{ title: string; skills: string[] }>;
+	taskStatusCounts: MissionControlTaskStatusCounts;
+	tasks: Array<{ title: string; skills: string[]; status?: MissionControlTaskStatus }>;
+	telegramRelay?: TelegramRelayTarget | null;
+}
+
+export type MissionControlTaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+
+export interface MissionControlTaskStatusCounts {
+	queued: number;
+	running: number;
+	completed: number;
+	failed: number;
+	cancelled: number;
+	total: number;
 }
 
 const RELAY_EVENT_TYPES = new Set([
@@ -65,6 +93,7 @@ const RELAY_EVENT_TYPES = new Set([
 	'mission_resumed',
 	'mission_completed',
 	'mission_failed',
+	'mission_cancelled',
 	'task_started',
 	'task_progress',
 	'progress',
@@ -77,7 +106,7 @@ const RELAY_EVENT_TYPES = new Set([
 ]);
 
 const MAX_RECENT_EVENTS = 80;
-const DEFAULT_STALE_NON_TERMINAL_MS = 6 * 60 * 60 * 1000;
+const DEFAULT_STALE_NON_TERMINAL_MS = 24 * 60 * 60 * 1000;
 
 const DEFAULT_SPARK_INGEST_URL = env.SPARK_MISSION_CONTROL_INGEST_URL || '';
 const DEFAULT_SPARK_TOKEN = env.SPARKD_TOKEN || '';
@@ -90,16 +119,38 @@ const STALE_NON_TERMINAL_MS = Number(env.MISSION_CONTROL_STALE_NONTERMINAL_MS) |
 
 // Persist relay state so HMR reloads + server restarts don't wipe the history.
 // Small file, synchronous writes; we're on the order of tens of events.
-const PERSIST_PATH = path.resolve(process.cwd(), '.spawner', 'mission-control.json');
+export function getMissionControlPersistPath(): string {
+	const spawnerDir = process.env.SPAWNER_STATE_DIR || env.SPAWNER_STATE_DIR || path.resolve(process.cwd(), '.spawner');
+	return path.resolve(spawnerDir, 'mission-control.json');
+}
+
+function getMissionControlPersistenceInfo(): MissionControlRelaySnapshot['persistence'] {
+	const persistPath = getMissionControlPersistPath();
+	try {
+		const stat = fs.existsSync(persistPath) ? fs.statSync(persistPath) : null;
+		return {
+			path: persistPath,
+			exists: Boolean(stat),
+			sizeBytes: stat?.size ?? null
+		};
+	} catch {
+		return {
+			path: persistPath,
+			exists: false,
+			sizeBytes: null
+		};
+	}
+}
 
 function isMissionControlMissionId(value: unknown): value is string {
-	return typeof value === 'string' && /^spark-[A-Za-z0-9_-]+$/.test(value.trim());
+	return typeof value === 'string' && /^(spark|mission)-[A-Za-z0-9_-]+$/.test(value.trim());
 }
 
 function loadPersistedState() {
 	try {
-		if (!fs.existsSync(PERSIST_PATH)) return null;
-		const raw = fs.readFileSync(PERSIST_PATH, 'utf-8');
+		const persistPath = getMissionControlPersistPath();
+		if (!fs.existsSync(persistPath)) return null;
+		const raw = fs.readFileSync(persistPath, 'utf-8').replace(/^\uFEFF/, '');
 		const parsed = JSON.parse(raw);
 		const recent = Array.isArray(parsed.recent)
 			? parsed.recent
@@ -121,10 +172,11 @@ function loadPersistedState() {
 
 function persistState() {
 	try {
-		const dir = path.dirname(PERSIST_PATH);
+		const persistPath = getMissionControlPersistPath();
+		const dir = path.dirname(persistPath);
 		if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 		fs.writeFileSync(
-			PERSIST_PATH,
+			persistPath,
 			JSON.stringify({
 				totalRelayed: relayState.totalRelayed,
 				perMission: Object.fromEntries(relayState.perMission),
@@ -163,23 +215,67 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		event.data && typeof (event.data as Record<string, unknown>).missionName === 'string'
 			? ((event.data as Record<string, unknown>).missionName as string)
 			: null;
+	const dataMission =
+		event.data && typeof (event.data as Record<string, unknown>).mission === 'object'
+			? ((event.data as Record<string, unknown>).mission as Record<string, unknown>)
+			: null;
+	const missionObjectName = typeof dataMission?.name === 'string' ? dataMission.name : null;
 
 	const dataSkillsRaw = event.data && (event.data as Record<string, unknown>).skills;
 	const taskSkills = Array.isArray(dataSkillsRaw)
 		? dataSkillsRaw.filter((s): s is string => typeof s === 'string')
 		: [];
+	const plannedTasksRaw = event.data && (event.data as Record<string, unknown>).plannedTasks;
+	const plannedTasks = Array.isArray(plannedTasksRaw)
+		? plannedTasksRaw
+				.map((task) => {
+					if (!task || typeof task !== 'object') return null;
+					const raw = task as Record<string, unknown>;
+					const title = typeof raw.title === 'string' ? sanitizeMissionControlDisplayText(raw.title) : '';
+					if (!title) return null;
+					const skills = Array.isArray(raw.skills)
+						? raw.skills.filter((skill): skill is string => typeof skill === 'string')
+						: [];
+					return { title, skills };
+				})
+				.filter((task): task is { title: string; skills: string[] } => Boolean(task))
+		: [];
+	const dataTaskId = event.data && typeof (event.data as Record<string, unknown>).taskId === 'string'
+		? ((event.data as Record<string, unknown>).taskId as string)
+		: null;
+	const dataTaskName = event.data && typeof (event.data as Record<string, unknown>).taskName === 'string'
+		? ((event.data as Record<string, unknown>).taskName as string)
+		: null;
+	const telegramRelay = getTelegramRelayTarget(event);
+	const hasTelegramRelay =
+		telegramRelay.port !== null || telegramRelay.profile !== null || telegramRelay.url !== null;
 
 	return {
 		eventType: typeof event.type === 'string' ? event.type : 'unknown',
 		missionId,
-		missionName: typeof event.missionName === 'string' ? event.missionName : dataMissionName,
-		taskId: typeof event.taskId === 'string' ? event.taskId : null,
-		taskName: typeof event.taskName === 'string' ? event.taskName : null,
+		missionName: typeof event.missionName === 'string' ? event.missionName : dataMissionName || missionObjectName,
+		taskId: typeof event.taskId === 'string' ? event.taskId : dataTaskId,
+		taskName: typeof event.taskName === 'string' ? event.taskName : dataTaskName,
 		taskSkills,
+		plannedTasks,
 		summary: summarizeMissionControlEvent(event),
 		timestamp,
-		source: typeof event.source === 'string' ? event.source : 'unknown'
+		source: typeof event.source === 'string' ? event.source : 'unknown',
+		telegramRelay: hasTelegramRelay ? telegramRelay : null
 	};
+}
+
+function shouldRecordMissionControlEvent(event: MissionControlBridgeEvent): boolean {
+	const type = typeof event.type === 'string' ? event.type : '';
+	if (!type || !RELAY_EVENT_TYPES.has(type)) {
+		return false;
+	}
+
+	if (event.data && (event.data as Record<string, unknown>).suppressRelay === true) {
+		return false;
+	}
+
+	return true;
 }
 
 function recordRelayEvent(event: MissionControlBridgeEvent): void {
@@ -210,6 +306,7 @@ export function getMissionControlRelaySnapshot(missionId?: string): MissionContr
 			sparkIngest: Boolean(DEFAULT_SPARK_INGEST_URL),
 			webhooks: DEFAULT_WEBHOOKS.length > 0
 		},
+		persistence: getMissionControlPersistenceInfo(),
 		targets: {
 			sparkIngestUrl: DEFAULT_SPARK_INGEST_URL || null,
 			webhookCount: DEFAULT_WEBHOOKS.length
@@ -244,13 +341,35 @@ function mapEventTypeToBoardStatus(eventType: string): MissionControlBoardEntry[
 			return 'completed';
 		case 'mission_failed':
 			return 'failed';
+		case 'mission_cancelled':
+			return 'cancelled';
 		default:
 			return null;
 	}
 }
 
+function isMissionStartEvent(eventType: string): boolean {
+	return [
+		'mission_started',
+		'mission_resumed',
+		'dispatch_started',
+		'task_started',
+		'task_progress',
+		'progress'
+	].includes(eventType);
+}
+
+function earlierTimestamp(current: string | null, candidate: string): string {
+	if (!current) return candidate;
+	const currentMs = Date.parse(current);
+	const candidateMs = Date.parse(candidate);
+	if (!Number.isFinite(currentMs)) return candidate;
+	if (!Number.isFinite(candidateMs)) return current;
+	return candidateMs < currentMs ? candidate : current;
+}
+
 function isStaleNonTerminalStatus(status: MissionControlBoardEntry['status'], timestamp: string): boolean {
-	if (status === 'completed' || status === 'failed' || status === 'paused') {
+	if (status === 'completed' || status === 'failed' || status === 'paused' || status === 'cancelled') {
 		return false;
 	}
 	const updatedAt = Date.parse(timestamp);
@@ -260,14 +379,179 @@ function isStaleNonTerminalStatus(status: MissionControlBoardEntry['status'], ti
 	return Date.now() - updatedAt > STALE_NON_TERMINAL_MS;
 }
 
+function emptyTaskStatusCounts(): MissionControlTaskStatusCounts {
+	return {
+		queued: 0,
+		running: 0,
+		completed: 0,
+		failed: 0,
+		cancelled: 0,
+		total: 0
+	};
+}
+
+function taskStatusForEvent(eventType: string): MissionControlTaskStatus | null {
+	switch (eventType) {
+		case 'task_started':
+		case 'task_progress':
+		case 'progress':
+			return 'running';
+		case 'task_completed':
+			return 'completed';
+		case 'task_failed':
+			return 'failed';
+		case 'task_cancelled':
+			return 'cancelled';
+		default:
+			return null;
+	}
+}
+
+function canonicalTaskTitle(title: string): string {
+	return title
+		.replace(/^T\d+\s*:\s*/i, '')
+		.replace(/^task-[a-z0-9_-]+\s*:\s*/i, '')
+		.trim()
+		.toLowerCase();
+}
+
+function taskOrdinalFromLabel(title: string): number | null {
+	const match = title.match(/^task-(\d+)(?:\b|-|_)/i);
+	if (!match) return null;
+	const parsed = Number(match[1]);
+	return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function taskKeyFromLabel(title: string): string | null {
+	const match = title.match(/^([a-z0-9]+(?:[-_][a-z0-9]+)+)(?:\s*:|\b)/i);
+	return match ? match[1].toLowerCase() : null;
+}
+
+function mergeTaskStatus(
+	current: MissionControlTaskStatus | undefined,
+	next: MissionControlTaskStatus
+): MissionControlTaskStatus {
+	if (!current) return next;
+	if (current === 'failed' || current === 'cancelled' || current === 'completed') return current;
+	return next;
+}
+
+function recalculateTaskStatusCounts(entry: MissionControlBoardEntry): void {
+	const counts = emptyTaskStatusCounts();
+	for (const task of entry.tasks) {
+		const status = task.status ?? 'queued';
+		counts[status] += 1;
+	}
+	counts.total = entry.tasks.length;
+	entry.taskNames = entry.tasks.map((task) => task.title);
+	entry.taskCount = entry.tasks.length;
+	entry.taskStatusCounts = counts;
+}
+
+function maybeRecordTask(entry: MissionControlBoardEntry, event: MissionControlRelayStatusEntry): void {
+	const status = taskStatusForEvent(event.eventType);
+	if (!status) return;
+	if (!event.taskName && !event.taskId) return;
+
+	const label = sanitizeMissionControlDisplayText(event.taskName || event.taskId || 'task');
+	const canonicalLabel = canonicalTaskTitle(label);
+	let task = entry.tasks.find((candidate) => canonicalTaskTitle(candidate.title) === canonicalLabel);
+	if (!task) {
+		const labelKey = taskKeyFromLabel(label);
+		if (labelKey) {
+			task = entry.tasks.find((candidate) => taskKeyFromLabel(candidate.title) === labelKey);
+		}
+	}
+	if (!task) {
+		const ordinal = taskOrdinalFromLabel(label);
+		if (ordinal !== null && entry.tasks.length >= ordinal) {
+			task = entry.tasks[ordinal - 1];
+		}
+	}
+	if (!task && (event.eventType === 'task_progress' || event.eventType === 'progress')) {
+		return;
+	}
+	if (!task) {
+		task = { title: label, skills: event.taskSkills ?? [], status };
+		entry.tasks.push(task);
+		entry.taskNames.push(label);
+		entry.taskCount = entry.taskNames.length;
+		return;
+	}
+
+	task.status = mergeTaskStatus(task.status, status);
+	if ((!task.skills || task.skills.length === 0) && event.taskSkills.length > 0) {
+		task.skills = event.taskSkills;
+	}
+}
+
+function seedPlannedTasks(entry: MissionControlBoardEntry, event: MissionControlRelayStatusEntry): void {
+	const plannedTasks = Array.isArray(event.plannedTasks) ? event.plannedTasks : [];
+	if (plannedTasks.length === 0) return;
+	for (const planned of plannedTasks) {
+		const canonicalLabel = canonicalTaskTitle(planned.title);
+		const plannedKey = taskKeyFromLabel(planned.title);
+		const existing = entry.tasks.find((candidate) => {
+			if (canonicalTaskTitle(candidate.title) === canonicalLabel) return true;
+			return Boolean(plannedKey && taskKeyFromLabel(candidate.title) === plannedKey);
+		});
+		if (existing) {
+			existing.title = planned.title;
+			if ((!existing.skills || existing.skills.length === 0) && planned.skills.length > 0) {
+				existing.skills = planned.skills;
+			}
+			continue;
+		}
+		entry.tasks.push({ title: planned.title, skills: planned.skills, status: 'queued' });
+		entry.taskNames.push(planned.title);
+	}
+	entry.taskCount = entry.taskNames.length;
+}
+
+function closeOpenTasksForTerminalMission(entry: MissionControlBoardEntry): void {
+	if (entry.status !== 'completed' && entry.status !== 'failed' && entry.status !== 'cancelled') return;
+	const terminalTaskStatus =
+		entry.status === 'completed' ? 'completed' : entry.status === 'cancelled' ? 'cancelled' : 'failed';
+	for (const task of entry.tasks) {
+		if (!task.status || task.status === 'queued' || task.status === 'running') {
+			task.status = terminalTaskStatus;
+		}
+	}
+}
+
+function recordLifecycleTimestamps(
+	entry: MissionControlBoardEntry,
+	event: MissionControlRelayStatusEntry
+): void {
+	if (event.eventType === 'mission_created') {
+		entry.queuedAt = earlierTimestamp(entry.queuedAt, event.timestamp);
+	}
+	if (isMissionStartEvent(event.eventType)) {
+		entry.startedAt = earlierTimestamp(entry.startedAt, event.timestamp);
+	}
+}
+
 export function getMissionControlBoard(): Record<string, MissionControlBoardEntry[]> {
 	const byMission = new Map<string, MissionControlBoardEntry>();
+	const terminalMissionIds = new Set(
+		relayState.recent
+			.filter((entry) => ['mission_completed', 'mission_failed', 'mission_cancelled', 'mission_paused'].includes(entry.eventType))
+			.map((entry) => entry.missionId)
+	);
 
 	for (const entry of relayState.recent) {
 		if (!isMissionControlMissionId(entry.missionId)) continue;
 		const status = mapEventTypeToBoardStatus(entry.eventType);
 		if (!status) continue;
-		if (isStaleNonTerminalStatus(status, entry.timestamp)) continue;
+		if (isStaleNonTerminalStatus(status, entry.timestamp) && !terminalMissionIds.has(entry.missionId)) continue;
+		if (
+			terminalMissionIds.has(entry.missionId) &&
+			status !== 'completed' &&
+			status !== 'failed' &&
+			status !== 'cancelled' &&
+			status !== 'paused' &&
+			!byMission.has(entry.missionId)
+		) continue;
 
 		const existing = byMission.get(entry.missionId);
 		if (!existing) {
@@ -277,29 +561,30 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 				status,
 				lastEventType: entry.eventType,
 				lastUpdated: entry.timestamp,
+				queuedAt: entry.eventType === 'mission_created' ? entry.timestamp : null,
+				startedAt: isMissionStartEvent(entry.eventType) ? entry.timestamp : null,
 				lastSummary: sanitizeMissionControlDisplayText(entry.summary),
 				taskName: entry.taskName ? sanitizeMissionControlDisplayText(entry.taskName) : null,
 				taskCount: 0,
 				taskNames: [],
-				tasks: []
+				taskStatusCounts: emptyTaskStatusCounts(),
+				tasks: [],
+				telegramRelay: entry.telegramRelay ?? null
 			});
 		} else {
 			if (!existing.taskName && entry.taskName) existing.taskName = sanitizeMissionControlDisplayText(entry.taskName);
 			if (!existing.missionName && entry.missionName) {
 				existing.missionName = sanitizeMissionControlDisplayText(entry.missionName);
 			}
-		}
-
-		// Count distinct tasks by watching task_started events.
-		if (entry.eventType === 'task_started') {
-			const current = byMission.get(entry.missionId)!;
-			const label = entry.taskName ? sanitizeMissionControlDisplayText(entry.taskName) : 'task';
-			if (!current.taskNames.includes(label)) {
-				current.taskNames.push(label);
-				current.taskCount = current.taskNames.length;
-				current.tasks.push({ title: label, skills: entry.taskSkills ?? [] });
+			if (!existing.telegramRelay && entry.telegramRelay) {
+				existing.telegramRelay = entry.telegramRelay;
 			}
 		}
+
+		const current = byMission.get(entry.missionId)!;
+		recordLifecycleTimestamps(current, entry);
+		seedPlannedTasks(current, entry);
+		maybeRecordTask(current, entry);
 	}
 
 	const board: Record<string, MissionControlBoardEntry[]> = {
@@ -307,10 +592,13 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 		paused: [],
 		completed: [],
 		failed: [],
+		cancelled: [],
 		created: []
 	};
 
 	for (const entry of byMission.values()) {
+		closeOpenTasksForTerminalMission(entry);
+		recalculateTaskStatusCounts(entry);
 		board[entry.status].push(entry);
 	}
 
@@ -322,8 +610,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 }
 
 export function shouldRelayMissionControlEvent(event: MissionControlBridgeEvent): boolean {
-	const type = typeof event.type === 'string' ? event.type : '';
-	if (!type || !RELAY_EVENT_TYPES.has(type)) {
+	if (!shouldRecordMissionControlEvent(event)) {
 		return false;
 	}
 
@@ -342,16 +629,20 @@ export function shouldRelayMissionControlEvent(event: MissionControlBridgeEvent)
 export function summarizeMissionControlEvent(event: MissionControlBridgeEvent): string {
 	const type = typeof event.type === 'string' ? event.type : 'event';
 	const missionId = normalizeMissionId(event);
+	const dataTaskName =
+		event.data && typeof (event.data as Record<string, unknown>).taskName === 'string'
+			? ((event.data as Record<string, unknown>).taskName as string)
+			: undefined;
 	const taskName =
 		typeof event.taskName === 'string'
 			? event.taskName
 			: typeof event.taskId === 'string'
 				? event.taskId
-				: undefined;
+				: dataTaskName;
 
 	switch (type) {
 		case 'mission_created':
-			return `[MissionControl] Mission created (${missionId}).`;
+			return `[MissionControl] Queued: ${event.missionName || 'mission'} entered To do (${missionId}).`;
 		case 'mission_started':
 			return `[MissionControl] Mission started (${missionId}).`;
 		case 'mission_paused':
@@ -362,6 +653,8 @@ export function summarizeMissionControlEvent(event: MissionControlBridgeEvent): 
 			return `[MissionControl] Mission completed (${missionId}).`;
 		case 'mission_failed':
 			return `[MissionControl] Mission failed (${missionId}).`;
+		case 'mission_cancelled':
+			return `[MissionControl] Mission cancelled by user (${missionId}).`;
 		case 'task_started':
 			return `[MissionControl] Task started: ${taskName || 'task'} (${missionId}).`;
 		case 'task_progress':
@@ -471,18 +764,23 @@ function webhookPort(url: string): number | null {
 	}
 }
 
-function getTelegramRelayTarget(event: MissionControlBridgeEvent): { port: number | null; url: string | null } {
+function normalizeRelayProfile(value: unknown): string | null {
+	return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function getTelegramRelayTarget(event: MissionControlBridgeEvent): TelegramRelayTarget {
 	const data = event.data;
 	if (!data || typeof data !== 'object') {
-		return { port: null, url: null };
+		return { port: null, profile: null, url: null };
 	}
 	const relay = data.telegramRelay && typeof data.telegramRelay === 'object'
 		? data.telegramRelay as Record<string, unknown>
 		: null;
 	const urlRaw = relay?.url ?? data.telegramRelayUrl;
 	const port = normalizeRelayPort(relay?.port ?? data.telegramRelayPort);
+	const profile = normalizeRelayProfile(relay?.profile ?? data.telegramRelayProfile);
 	const url = typeof urlRaw === 'string' && urlRaw.trim() ? urlRaw.trim() : null;
-	return { port, url };
+	return { port, profile, url };
 }
 
 export function selectWebhookUrlsForMissionEvent(event: MissionControlBridgeEvent, urls = DEFAULT_WEBHOOKS): string[] {
@@ -502,11 +800,15 @@ export function selectWebhookUrlsForMissionEvent(event: MissionControlBridgeEven
 }
 
 export async function relayMissionControlEvent(event: MissionControlBridgeEvent): Promise<void> {
-	if (!shouldRelayMissionControlEvent(event)) {
+	if (!shouldRecordMissionControlEvent(event)) {
 		return;
 	}
 
 	recordRelayEvent(event);
+
+	if (!shouldRelayMissionControlEvent(event)) {
+		return;
+	}
 
 	const tasks: Promise<void>[] = [];
 	const sparkIngestUrl = DEFAULT_SPARK_INGEST_URL;

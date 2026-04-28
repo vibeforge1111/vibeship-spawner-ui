@@ -138,6 +138,10 @@ export function requireControlAuth(event: RequestEvent, options: ControlAuthOpti
 		);
 	}
 
+	if (allowLoopback && isLoopbackRequest(event)) {
+		return null;
+	}
+
 	if (configuredKey) {
 		const incomingKey = extractApiKey(event, {
 			queryParam: options.apiKeyQueryParam,
@@ -146,10 +150,6 @@ export function requireControlAuth(event: RequestEvent, options: ControlAuthOpti
 		if (!incomingKey || !constantTimeEquals(configuredKey, incomingKey)) {
 			return json({ error: `Unauthorized ${options.surface} request` }, { status: 401 });
 		}
-		return null;
-	}
-
-	if (allowLoopback && isLoopbackRequest(event)) {
 		return null;
 	}
 

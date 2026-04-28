@@ -20,18 +20,25 @@ function result(overrides: Partial<ProviderMissionResultSnapshot>): ProviderMiss
 	};
 }
 
-function entry(missionId: string): MissionControlBoardEntry {
+function entry(
+	missionId: string,
+	overrides: Partial<MissionControlBoardEntry> = {}
+): MissionControlBoardEntry {
 	return {
 		missionId,
 		missionName: null,
 		status: 'completed',
 		lastEventType: 'mission_completed',
 		lastUpdated: '2026-04-25T00:00:01.000Z',
+		queuedAt: null,
+		startedAt: null,
 		lastSummary: '[MissionControl] Mission completed.',
 		taskName: null,
 		taskCount: 0,
 		taskNames: [],
-		tasks: []
+		taskStatusCounts: { queued: 0, running: 0, completed: 0, failed: 0, cancelled: 0, total: 0 },
+		tasks: [],
+		...overrides
 	};
 }
 
@@ -84,5 +91,59 @@ describe('mission-control-results', () => {
 
 		expect(enriched.completed[0].providerSummary).toBe('Codex: done');
 		expect(enriched.completed[0].providerResults).toHaveLength(1);
+	});
+
+	it('does not show stale running provider summaries on completed board cards', () => {
+		const enriched = enrichMissionControlBoardWithProviderResults(
+			{ completed: [entry('mission-stale-provider')], failed: [] },
+			() => [result({ status: 'running', response: null, completedAt: null })]
+		);
+
+		expect(enriched.completed[0].providerResults[0]).toEqual(
+			expect.objectContaining({
+				status: 'completed',
+				summary: 'completed from Mission Control lifecycle events',
+				completedAt: '2026-04-25T00:00:01.000Z'
+			})
+		);
+		expect(enriched.completed[0].providerSummary).toBe(
+			'Codex: completed from Mission Control lifecycle events'
+		);
+	});
+
+	it('moves non-terminal board cards to completed when provider results are completed', () => {
+		const enriched = enrichMissionControlBoardWithProviderResults(
+			{
+				created: [
+					entry('mission-provider-done', {
+						status: 'created',
+						lastEventType: 'mission_created',
+						tasks: [{ title: 'Build the thing', skills: [], status: 'queued' }],
+						taskStatusCounts: {
+							queued: 1,
+							running: 0,
+							completed: 0,
+							failed: 0,
+							cancelled: 0,
+							total: 1
+						}
+					})
+				],
+				completed: [],
+				failed: [],
+				running: [],
+				paused: []
+			},
+			() => [result({ status: 'completed', response: 'done' })]
+		);
+
+		expect(enriched.created).toEqual([]);
+		expect(enriched.completed[0]).toMatchObject({
+			missionId: 'mission-provider-done',
+			status: 'completed',
+			lastEventType: 'provider_completed',
+			taskStatusCounts: { completed: 1, total: 1 },
+			providerSummary: 'Codex: done'
+		});
 	});
 });
