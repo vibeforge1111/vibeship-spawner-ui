@@ -40,6 +40,14 @@
 			</a>
 
 			<a
+				href="/trace"
+				class="inline-flex items-center gap-2 px-3.5 py-2 font-sans text-[15px] font-medium text-text-secondary border border-transparent rounded-md hover:text-text-primary hover:border-surface-border transition-all"
+			>
+				<Icon name="scan" size={14} />
+				<span class="hidden sm:inline">Trace</span>
+			</a>
+
+			<a
 				href="/skills"
 				class="inline-flex items-center gap-2 px-3.5 py-2 font-sans text-[15px] font-medium text-text-secondary border border-transparent rounded-md hover:text-text-primary hover:border-surface-border transition-all"
 			>
