@@ -76,4 +76,84 @@ describe('mergeMissionBoardCards', () => {
 		expect(merged.taskCount).toBe(2);
 		expect(merged.tasks).toEqual(staticCard.tasks);
 	});
+
+	it('keeps completed live progress visible when static mission storage is stale', () => {
+		const live = card({
+			id: 'mission-3',
+			status: 'completed',
+			source: 'spark',
+			updatedAt: '2026-04-28T10:10:00.000Z',
+			taskCount: 3,
+			taskStatusCounts: { queued: 0, running: 0, completed: 3, failed: 0, cancelled: 0, total: 3 },
+			taskNames: ['Create shell', 'Wire controls', 'Write README'],
+			tasks: [
+				{ title: 'Create shell', skills: [], status: 'completed' },
+				{ title: 'Wire controls', skills: [], status: 'completed' },
+				{ title: 'Write README', skills: [], status: 'completed' }
+			],
+			providerSummary: 'Codex: shipped and verified'
+		});
+		const staleStatic = card({
+			id: 'mission-3',
+			status: 'running',
+			source: 'mcp',
+			mode: 'multi-llm-orchestrator',
+			updatedAt: '2026-04-28T10:05:00.000Z',
+			taskCount: 3,
+			tasks: [
+				{ title: 'Create shell', skills: [], status: 'running' },
+				{ title: 'Wire controls', skills: [], status: 'queued' },
+				{ title: 'Write README', skills: [], status: 'queued' }
+			]
+		});
+
+		const [merged] = mergeMissionBoardCards([live], [staleStatic]);
+
+		expect(merged.status).toBe('completed');
+		expect(merged.updatedAt).toBe('2026-04-28T10:10:00.000Z');
+		expect(merged.taskStatusCounts).toEqual({
+			queued: 0,
+			running: 0,
+			completed: 3,
+			failed: 0,
+			cancelled: 0,
+			total: 3
+		});
+		expect(merged.tasks?.map((task) => task.status)).toEqual(['completed', 'completed', 'completed']);
+		expect(merged.providerSummary).toBe('Codex: shipped and verified');
+	});
+
+	it('preserves failed provider details over older static task text', () => {
+		const live = card({
+			id: 'mission-4',
+			status: 'failed',
+			source: 'spark',
+			updatedAt: '2026-04-28T10:20:00.000Z',
+			taskCount: 2,
+			taskStatusCounts: { queued: 0, running: 0, completed: 0, failed: 2, cancelled: 0, total: 2 },
+			tasks: [
+				{ title: 'Create shell', skills: [], status: 'failed' },
+				{ title: 'Run final smoke verification', skills: [], status: 'failed' }
+			],
+			providerSummary: 'Codex: command exited 1',
+			providerResults: [{ providerId: 'codex', status: 'failed', summary: 'command exited 1' }]
+		});
+		const staleStatic = card({
+			id: 'mission-4',
+			status: 'ready',
+			source: 'mcp',
+			updatedAt: '2026-04-28T10:00:00.000Z',
+			taskCount: 2,
+			summary: 'Static plan only'
+		});
+
+		const [merged] = mergeMissionBoardCards([live], [staleStatic]);
+
+		expect(merged.status).toBe('failed');
+		expect(merged.taskStatusCounts).toMatchObject({ failed: 2, total: 2 });
+		expect(merged.providerSummary).toBe('Codex: command exited 1');
+		expect(merged.providerResults).toEqual([
+			{ providerId: 'codex', status: 'failed', summary: 'command exited 1' }
+		]);
+	});
 });
