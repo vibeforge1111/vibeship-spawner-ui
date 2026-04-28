@@ -20,7 +20,10 @@ function result(overrides: Partial<ProviderMissionResultSnapshot>): ProviderMiss
 	};
 }
 
-function entry(missionId: string): MissionControlBoardEntry {
+function entry(
+	missionId: string,
+	overrides: Partial<MissionControlBoardEntry> = {}
+): MissionControlBoardEntry {
 	return {
 		missionId,
 		missionName: null,
@@ -32,7 +35,8 @@ function entry(missionId: string): MissionControlBoardEntry {
 		taskCount: 0,
 		taskNames: [],
 		taskStatusCounts: { queued: 0, running: 0, completed: 0, failed: 0, cancelled: 0, total: 0 },
-		tasks: []
+		tasks: [],
+		...overrides
 	};
 }
 
@@ -103,5 +107,41 @@ describe('mission-control-results', () => {
 		expect(enriched.completed[0].providerSummary).toBe(
 			'Codex: completed from Mission Control lifecycle events'
 		);
+	});
+
+	it('moves non-terminal board cards to completed when provider results are completed', () => {
+		const enriched = enrichMissionControlBoardWithProviderResults(
+			{
+				created: [
+					entry('mission-provider-done', {
+						status: 'created',
+						lastEventType: 'mission_created',
+						tasks: [{ title: 'Build the thing', skills: [], status: 'queued' }],
+						taskStatusCounts: {
+							queued: 1,
+							running: 0,
+							completed: 0,
+							failed: 0,
+							cancelled: 0,
+							total: 1
+						}
+					})
+				],
+				completed: [],
+				failed: [],
+				running: [],
+				paused: []
+			},
+			() => [result({ status: 'completed', response: 'done' })]
+		);
+
+		expect(enriched.created).toEqual([]);
+		expect(enriched.completed[0]).toMatchObject({
+			missionId: 'mission-provider-done',
+			status: 'completed',
+			lastEventType: 'provider_completed',
+			taskStatusCounts: { completed: 1, total: 1 },
+			providerSummary: 'Codex: done'
+		});
 	});
 });

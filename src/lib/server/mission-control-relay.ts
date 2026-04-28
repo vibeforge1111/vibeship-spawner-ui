@@ -359,7 +359,18 @@ function taskStatusForEvent(eventType: string): MissionControlTaskStatus | null 
 }
 
 function canonicalTaskTitle(title: string): string {
-	return title.replace(/^T\d+\s*:\s*/i, '').trim().toLowerCase();
+	return title
+		.replace(/^T\d+\s*:\s*/i, '')
+		.replace(/^task-[a-z0-9_-]+\s*:\s*/i, '')
+		.trim()
+		.toLowerCase();
+}
+
+function taskOrdinalFromLabel(title: string): number | null {
+	const match = title.match(/^task-(\d+)(?:\b|-|_)/i);
+	if (!match) return null;
+	const parsed = Number(match[1]);
+	return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
 function mergeTaskStatus(
@@ -389,6 +400,12 @@ function maybeRecordTask(entry: MissionControlBoardEntry, event: MissionControlR
 	const label = sanitizeMissionControlDisplayText(event.taskName || event.taskId || 'task');
 	const canonicalLabel = canonicalTaskTitle(label);
 	let task = entry.tasks.find((candidate) => canonicalTaskTitle(candidate.title) === canonicalLabel);
+	if (!task) {
+		const ordinal = taskOrdinalFromLabel(label);
+		if (ordinal !== null && entry.tasks.length >= ordinal) {
+			task = entry.tasks[ordinal - 1];
+		}
+	}
 	if (!task && (event.eventType === 'task_progress' || event.eventType === 'progress')) {
 		return;
 	}

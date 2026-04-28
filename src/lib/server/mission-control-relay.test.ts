@@ -483,6 +483,73 @@ describe('mission-control-relay', () => {
 		]);
 	});
 
+	it('deduplicates PRD task titles across canvas and provider label formats', async () => {
+		const missionId = `mission-prd-dedupe-${Date.now()}`;
+
+		const plannedTasks = [
+			{ title: 'Create static app file structure', skills: [] },
+			{ title: 'Implement playful first-screen trace dashboard', skills: [] },
+			{ title: 'Implement progress, persistence, and trace lock behavior', skills: [] },
+			{ title: 'Document launch steps and manual smoke test', skills: [] }
+		];
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			source: 'canvas-dispatch',
+			timestamp: '2026-04-28T10:00:00.000Z',
+			data: { plannedTasks, telegramRelay: { port: 1 } }
+		});
+		await relayMissionControlEvent({
+			type: 'dispatch_started',
+			missionId,
+			source: 'canvas-dispatch',
+			timestamp: '2026-04-28T10:00:01.000Z',
+			data: {
+				plannedTasks: [
+					{ title: 'task-1-scaffold-static-app: Create static app file structure', skills: [] },
+					{
+						title: 'task-2-build-trace-dashboard-ui: Implement playful first-screen trace dashboard',
+						skills: []
+					},
+					{
+						title: 'task-3-implement-state-and-launch-logic: Implement progress, persistence, and trace lock behavior',
+						skills: []
+					},
+					{ title: 'task-4-write-readme-and-smoke-test: Document launch steps and manual smoke test', skills: [] }
+				],
+				telegramRelay: { port: 1 }
+			}
+		});
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			taskName: 'task-1-scaffold-static-app',
+			source: 'codex',
+			timestamp: '2026-04-28T10:00:02.000Z',
+			data: { telegramRelay: { port: 1 } }
+		});
+		await relayMissionControlEvent({
+			type: 'mission_completed',
+			missionId,
+			source: 'canvas-dispatch',
+			timestamp: '2026-04-28T10:01:00.000Z',
+			data: { plannedTasks, telegramRelay: { port: 1 } }
+		});
+
+		const board = getMissionControlBoard();
+		const completed = board.completed.find((candidate) => candidate.missionId === missionId);
+
+		expect(completed?.taskCount).toBe(4);
+		expect(completed?.taskStatusCounts).toMatchObject({ completed: 4, total: 4 });
+		expect(completed?.taskNames).toEqual([
+			'Create static app file structure',
+			'Implement playful first-screen trace dashboard',
+			'Implement progress, persistence, and trace lock behavior',
+			'Document launch steps and manual smoke test'
+		]);
+	});
+
 	it('keeps completed missions completed when stale canvas task events replay later', async () => {
 		const missionId = `mission-terminal-wins-${Date.now()}`;
 

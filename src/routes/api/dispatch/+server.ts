@@ -34,8 +34,10 @@ export function _terminalBoardStatusForAutoRun(
 	missionId: string,
 	autoRun: boolean,
 	board = getMissionControlBoard()
-): 'completed' | 'failed' | null {
+): 'running' | 'created' | 'completed' | 'failed' | null {
 	if (!autoRun) return null;
+	if (board.running?.some((entry) => entry.missionId === missionId)) return 'running';
+	if (board.created?.some((entry) => entry.missionId === missionId)) return 'created';
 	if (board.completed?.some((entry) => entry.missionId === missionId)) return 'completed';
 	if (board.failed?.some((entry) => entry.missionId === missionId)) return 'failed';
 	return null;

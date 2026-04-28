@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { _terminalBoardStatusForAutoRun } from './+server';
 import type { MissionControlBoardEntry } from '$lib/server/mission-control-relay';
 
-function entry(missionId: string): MissionControlBoardEntry {
+function entry(
+	missionId: string,
+	status: MissionControlBoardEntry['status'] = 'completed'
+): MissionControlBoardEntry {
 	return {
 		missionId,
 		missionName: null,
-		status: 'completed',
-		lastEventType: 'mission_completed',
+		status,
+		lastEventType: status === 'completed' ? 'mission_completed' : 'mission_started',
 		lastUpdated: '2026-04-28T00:00:00.000Z',
 		lastSummary: 'done',
 		taskName: null,
@@ -41,5 +44,17 @@ describe('dispatch auto-run terminal guard', () => {
 				created: []
 			})
 		).toBeNull();
+	});
+
+	it('skips auto-run dispatch for missions already running on the board', () => {
+		expect(
+			_terminalBoardStatusForAutoRun('mission-live', true, {
+				completed: [],
+				failed: [],
+				running: [entry('mission-live', 'running')],
+				paused: [],
+				created: []
+			})
+		).toBe('running');
 	});
 });
