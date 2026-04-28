@@ -29,10 +29,15 @@ function getPrdBridgePaths() {
 		prdAutoTraceFile: join(spawnerDir, 'prd-auto-trace.jsonl')
 	};
 }
-const AUTO_ANALYSIS_ENDPOINT = process.env.SPAWNER_UI_SELF_URL
-  ? `${process.env.SPAWNER_UI_SELF_URL.replace(/\/+$/, '')}/api/events`
-  : 'http://127.0.0.1:4174/api/events';
-const AUTO_ANALYSIS_TIMEOUT_MS = 55_000;
+const AUTO_ANALYSIS_BASE_URL = (process.env.SPAWNER_UI_SELF_URL || 'http://127.0.0.1:5173').replace(
+	/\/+$/,
+	''
+);
+const AUTO_ANALYSIS_ENDPOINT = `${AUTO_ANALYSIS_BASE_URL}/api/events`;
+const configuredAnalysisTimeoutMs = Number(process.env.SPAWNER_AUTO_ANALYSIS_TIMEOUT_MS || 180_000);
+const AUTO_ANALYSIS_TIMEOUT_MS = Number.isFinite(configuredAnalysisTimeoutMs)
+	? configuredAnalysisTimeoutMs
+	: 180_000;
 
 function normalizeRequestId(requestId: string): string {
 	return requestId.replace(/[^a-zA-Z0-9_-]/g, '_');
