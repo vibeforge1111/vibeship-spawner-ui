@@ -83,6 +83,8 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		expect(body.canvasUrl).toBe('/canvas?pipeline=prd-tg-contract-test&mission=mission-tg-contract-test');
 		const pendingRaw = await readFile(path.join(testSpawnerDir, 'pending-load.json'), 'utf-8');
 		const pending = JSON.parse(pendingRaw);
+		expect(pending.requestId).toBe(requestId);
+		expect(pending.missionId).toBe('mission-tg-contract-test');
 		const description = pending.nodes[0].skill.description;
 		expect(description).toContain('Build the direct-launch app shell.');
 		expect(description).toContain('Workspace targets:');

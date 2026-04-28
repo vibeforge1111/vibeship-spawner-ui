@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import { resolveSparkWorkspaceRoot } from "./health-spark.mjs";
+import { healthRequiresCodex, resolveSparkWorkspaceRoot } from "./health-spark.mjs";
 
 describe("resolveSparkWorkspaceRoot", () => {
   it("prefers explicit Spark workspace roots", () => {
@@ -24,6 +24,28 @@ describe("resolveSparkWorkspaceRoot", () => {
 
   it("falls back to the user Spark home only when no sandbox is provided", () => {
     expect(resolveSparkWorkspaceRoot({}, "/home/example")).toBe(join("/home/example", ".spark", "workspaces"));
+  });
+});
+
+describe("healthRequiresCodex", () => {
+  it("does not require Codex just because the provider is listed", () => {
+    expect(
+      healthRequiresCodex([{ id: "codex", configured: false, cliConfigured: false }], {
+        DEFAULT_MISSION_PROVIDER: "zai",
+      }),
+    ).toBe(false);
+  });
+
+  it("requires Codex when it is the selected mission provider", () => {
+    expect(
+      healthRequiresCodex([{ id: "codex", configured: false, cliConfigured: false }], {
+        DEFAULT_MISSION_PROVIDER: "codex",
+      }),
+    ).toBe(true);
+  });
+
+  it("requires Codex when the provider is actually configured", () => {
+    expect(healthRequiresCodex([{ id: "codex", cliConfigured: true }], {})).toBe(true);
   });
 });
 

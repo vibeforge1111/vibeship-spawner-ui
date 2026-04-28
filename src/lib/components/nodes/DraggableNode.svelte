@@ -252,14 +252,9 @@
 			<div class="running-badge">RUN</div>
 		{/if}
 
-		<!-- Success status - corner badge with animation -->
+		<!-- Success status - DONE label + soft glow (no redundant tick) -->
 		{#if node.status === 'success'}
 			<div class="success-label">DONE</div>
-			<div class="success-badge">
-				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-					<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-				</svg>
-			</div>
 			<div class="success-glow"></div>
 		{/if}
 
@@ -356,21 +351,22 @@
 	.running-badge,
 	.success-label {
 		position: absolute;
-		top: -8px;
+		top: -9px;
 		left: 8px;
-		padding: 2px 6px;
+		padding: 3px 8px;
 		background: var(--bg-secondary, #141B2D);
 		border: 1px solid rgb(var(--status-amber-rgb, 216 200 104) / 0.65);
+		border-radius: 5px;
 		color: var(--status-amber, #D8C868);
 		font-family: var(--font-mono);
-		font-size: 9px;
+		font-size: 10px;
 		line-height: 1;
-		letter-spacing: 0;
+		letter-spacing: 0.5px;
 		z-index: 20;
 	}
 
 	.draggable-node.queued {
-		opacity: 0.82;
+		opacity: 0.95;
 	}
 
 	/* ====== RUNNING STATE ====== */
@@ -378,6 +374,7 @@
 		position: absolute;
 		inset: -3px;
 		border: 1px solid #00C49A;
+		border-radius: 11px;
 		animation: ringPulse 1.5s ease-in-out infinite;
 		pointer-events: none;
 	}
@@ -386,6 +383,7 @@
 		position: absolute;
 		inset: -6px;
 		border: 1px solid rgba(0, 196, 154, 0.2);
+		border-radius: 14px;
 		animation: glowPulse 1.5s ease-in-out infinite;
 		pointer-events: none;
 		z-index: -1;
@@ -402,26 +400,11 @@
 		color: var(--accent, #2FCA94);
 	}
 
-	.success-badge {
-		position: absolute;
-		top: -8px;
-		right: -8px;
-		width: 20px;
-		height: 20px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: var(--bg-secondary, #141B2D);
-		color: var(--accent, #2FCA94);
-		border: 1px solid var(--accent, #2FCA94);
-		z-index: 20;
-		animation: badgePopIn 200ms ease-out;
-	}
-
 	.success-glow {
 		position: absolute;
 		inset: -2px;
-		border: 1px solid rgb(var(--accent-rgb, 47 202 148) / 0.3);
+		border: 1px solid rgb(var(--accent-rgb, 47 202 148) / 0.18);
+		border-radius: 10px;
 		pointer-events: none;
 		animation: successFadeIn 150ms ease-out;
 	}
@@ -431,14 +414,15 @@
 		position: absolute;
 		top: -8px;
 		right: -8px;
-		width: 20px;
-		height: 20px;
+		width: 22px;
+		height: 22px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		background: var(--bg-secondary, #141B2D);
 		color: #FF4D4D;
 		border: 1px solid #FF4D4D;
+		border-radius: 6px;
 		z-index: 20;
 		animation: badgePopIn 200ms ease-out;
 	}
@@ -447,6 +431,7 @@
 		position: absolute;
 		inset: -2px;
 		border: 1px solid rgba(255, 77, 77, 0.3);
+		border-radius: 10px;
 		pointer-events: none;
 		animation: successFadeIn 150ms ease-out;
 	}

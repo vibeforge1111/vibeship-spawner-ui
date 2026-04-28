@@ -72,6 +72,42 @@ describe('mission-control-relay', () => {
 		expect(entry?.taskStatusCounts).toMatchObject({ running: 1, completed: 0, failed: 0, total: 1 });
 	});
 
+	it('preserves the queued timestamp after a mission moves into progress', async () => {
+		const missionId = `mission-queued-lifecycle-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			missionName: 'Spark Queue Visibility',
+			source: 'telegram',
+			timestamp: '2026-04-28T10:00:00.000Z',
+			data: {
+				plannedTasks: [{ title: 'Plan the canvas', skills: ['mission-control'] }],
+				telegramRelay: { port: 1 }
+			}
+		});
+
+		let board = getMissionControlBoard();
+		const created = board.created.find((candidate) => candidate.missionId === missionId);
+		expect(created?.queuedAt).toBe('2026-04-28T10:00:00.000Z');
+		expect(created?.lastSummary).toContain('Queued: Spark Queue Visibility entered To do');
+
+		await relayMissionControlEvent({
+			type: 'mission_started',
+			missionId,
+			missionName: 'Spark Queue Visibility',
+			source: 'canvas-dispatch',
+			timestamp: '2026-04-28T10:00:05.000Z',
+			data: { telegramRelay: { port: 1 } }
+		});
+
+		board = getMissionControlBoard();
+		const running = board.running.find((candidate) => candidate.missionId === missionId);
+		expect(running?.queuedAt).toBe('2026-04-28T10:00:00.000Z');
+		expect(running?.startedAt).toBe('2026-04-28T10:00:05.000Z');
+		expect(running?.taskStatusCounts).toMatchObject({ queued: 1, running: 0, completed: 0, total: 1 });
+	});
+
 	it('does not add provider-level completion events as anonymous board tasks', async () => {
 		const missionId = `mission-provider-completion-${Date.now()}`;
 
@@ -602,6 +638,50 @@ describe('mission-control-relay', () => {
 		]);
 	});
 
+	it('matches a running task id back to its planned PRD task when newer events are processed first', async () => {
+		const missionId = `mission-prd-running-dedupe-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			source: 'canvas-dispatch',
+			timestamp: '2026-04-28T10:00:00.000Z',
+			data: {
+				plannedTasks: [
+					{ title: 'task-1-static-app-scaffold: Create the no-build static app files', skills: ['frontend'] },
+					{ title: 'task-2-route-check-state-and-actions: Implement route checks', skills: ['state'] }
+				],
+				telegramRelay: { port: 1 }
+			}
+		});
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			taskName: 'task-1-static-app-scaffold',
+			source: 'codex',
+			timestamp: '2026-04-28T10:00:05.000Z',
+			data: { telegramRelay: { port: 1 } }
+		});
+
+		const board = getMissionControlBoard();
+		const running = board.running.find((candidate) => candidate.missionId === missionId);
+
+		expect(running?.taskCount).toBe(2);
+		expect(running?.taskStatusCounts).toMatchObject({ queued: 1, running: 1, total: 2 });
+		expect(running?.tasks).toEqual([
+			{
+				title: 'task-1-static-app-scaffold: Create the no-build static app files',
+				skills: ['frontend'],
+				status: 'running'
+			},
+			{
+				title: 'task-2-route-check-state-and-actions: Implement route checks',
+				skills: ['state'],
+				status: 'queued'
+			}
+		]);
+	});
+
 	it('keeps completed missions completed when stale canvas task events replay later', async () => {
 		const missionId = `mission-terminal-wins-${Date.now()}`;
 
@@ -703,6 +783,54 @@ describe('mission-control-relay', () => {
 			running: 0,
 			completed: 0,
 			failed: 2,
+			total: 2
+		});
+	});
+
+	it('closes open task states as cancelled when a mission is cancelled', async () => {
+		const missionId = `mission-cancelled-closes-open-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			missionName: 'Cancelled Mission',
+			source: 'spawner-ui',
+			timestamp: '2026-04-28T10:00:00.000Z',
+			data: {
+				plannedTasks: [
+					{ title: 'Create static shell', skills: [] },
+					{ title: 'Run final verification', skills: [] }
+				],
+				telegramRelay: { port: 1 }
+			}
+		});
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			taskName: 'Create static shell',
+			source: 'codex',
+			timestamp: '2026-04-28T10:00:05.000Z',
+			data: { telegramRelay: { port: 1 } }
+		});
+		await relayMissionControlEvent({
+			type: 'mission_cancelled',
+			missionId,
+			source: 'telegram',
+			timestamp: '2026-04-28T10:00:20.000Z',
+			data: { telegramRelay: { port: 1 } }
+		});
+
+		const board = getMissionControlBoard();
+		const cancelled = board.cancelled.find((candidate) => candidate.missionId === missionId);
+
+		expect(cancelled?.status).toBe('cancelled');
+		expect(cancelled?.lastSummary).toContain('Mission cancelled by user');
+		expect(cancelled?.taskStatusCounts).toMatchObject({
+			queued: 0,
+			running: 0,
+			completed: 0,
+			failed: 0,
+			cancelled: 2,
 			total: 2
 		});
 	});

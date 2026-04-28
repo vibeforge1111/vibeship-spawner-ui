@@ -75,6 +75,16 @@ function getProviderResultsPath(): string {
 	return path.join(getSpawnerStateDir(), 'mission-provider-results.json');
 }
 
+export function providerShouldUseSparkExecutionBridge(
+	provider: Pick<MultiLLMProviderConfig, 'sparkExecutionBridge'>,
+	env: Record<string, string | undefined> = process.env
+): boolean {
+	return Boolean(
+		provider.sparkExecutionBridge &&
+			((env.SPARK_AGENT_HARNESS_URL || '').trim() || (env.SPARK_HARNESS_URL || '').trim())
+	);
+}
+
 function sessionToResultSnapshot(session: ProviderSession): ProviderMissionResultSnapshot {
 	return {
 		providerId: session.providerId,
@@ -448,7 +458,7 @@ class ProviderRuntimeManager {
 	): Promise<ProviderResult> {
 		try {
 			if (provider.kind === 'openai_compat') {
-				if (provider.sparkExecutionBridge) {
+				if (providerShouldUseSparkExecutionBridge(provider)) {
 					return await executeSparkHarnessRequest({
 						provider,
 						missionId,

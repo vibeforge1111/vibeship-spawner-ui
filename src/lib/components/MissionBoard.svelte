@@ -793,7 +793,7 @@
 										{/if}
 									</button>
 
-									<div class="absolute top-3 right-3 flex items-center gap-1 opacity-100 transition-opacity">
+		<div class="absolute top-3 right-3 flex items-center gap-1 opacity-100 transition-opacity">
 										{#if c.canvasHref}
 											<a
 												href={c.canvasHref}

@@ -1229,38 +1229,60 @@ export function tasksToWorkflow(
 	const connections: { sourceIndex: number; targetIndex: number }[] = [];
 	const taskIndexMap = new Map<string, number>();
 
-	// Group tasks by phase for positioning
-	const tasksByPhase = new Map<number, GeneratedTask[]>();
-	for (const task of tasks) {
-		if (!tasksByPhase.has(task.phase)) {
-			tasksByPhase.set(task.phase, []);
-		}
-		tasksByPhase.get(task.phase)!.push(task);
-	}
-
-	// Position constants
-	const START_X = 100;
-	const START_Y = 100;
 	const NODE_WIDTH = 220;
 	const NODE_HEIGHT = 80;
 	const GAP_X = 100;
-	const GAP_Y = 50;
+	const GAP_Y = 60;
+	const START_X = 100;
+	const START_Y = 100;
+	const MAX_PER_ROW = 4;
+
+	// Layered layout (longest-path depth) — same algorithm as prd-bridge
+	const taskById = new Map<string, GeneratedTask>();
+	for (const t of tasks) taskById.set(t.id, t);
+
+	const depthCache = new Map<string, number>();
+	function depthOf(id: string, stack: Set<string> = new Set()): number {
+		if (depthCache.has(id)) return depthCache.get(id)!;
+		if (stack.has(id)) return 0;
+		const t = taskById.get(id);
+		if (!t) return 0;
+		stack.add(id);
+		let d = 0;
+		for (const dep of t.dependsOn || []) {
+			if (taskById.has(dep)) d = Math.max(d, depthOf(dep, stack) + 1);
+		}
+		if ((t.dependsOn?.length ?? 0) === 0 && t.phase && t.phase > 1) {
+			d = Math.max(d, t.phase - 1);
+		}
+		stack.delete(id);
+		depthCache.set(id, d);
+		return d;
+	}
+
+	const byDepth = new Map<number, GeneratedTask[]>();
+	for (const task of tasks) {
+		const d = depthOf(task.id);
+		if (!byDepth.has(d)) byDepth.set(d, []);
+		byDepth.get(d)!.push(task);
+	}
 
 	let nodeIndex = 0;
-	const phases = [...tasksByPhase.keys()].sort();
+	const sortedDepths = [...byDepth.keys()].sort((a, b) => a - b);
 
-	for (const phase of phases) {
-		const phaseTasks = tasksByPhase.get(phase)!;
-		const phaseX = START_X + (phase - 1) * (NODE_WIDTH + GAP_X);
+	for (const d of sortedDepths) {
+		const column = byDepth.get(d)!;
+		const subColumns = Math.ceil(column.length / MAX_PER_ROW);
+		const colHeight = Math.ceil(column.length / subColumns);
 
-		for (let i = 0; i < phaseTasks.length; i++) {
-			const task = phaseTasks[i];
-			const phaseY = START_Y + i * (NODE_HEIGHT + GAP_Y);
+		for (let i = 0; i < column.length; i++) {
+			const task = column[i];
+			const subCol = Math.floor(i / colHeight);
+			const rowInSub = i % colHeight;
 
-			// Find or create skill
 			let skill: Skill;
 			if (task.skillMatch) {
-				const foundSkill = availableSkills.find(s => s.id === task.skillMatch);
+				const foundSkill = availableSkills.find((s) => s.id === task.skillMatch);
 				skill = foundSkill || createPlaceholderSkill(task);
 			} else {
 				skill = createPlaceholderSkill(task);
@@ -1269,22 +1291,29 @@ export function tasksToWorkflow(
 			taskIndexMap.set(task.id, nodeIndex);
 			nodes.push({
 				skill,
-				position: { x: phaseX, y: phaseY }
+				position: {
+					x: START_X + (d + subCol) * (NODE_WIDTH + GAP_X),
+					y: START_Y + rowInSub * (NODE_HEIGHT + GAP_Y)
+				}
 			});
 			nodeIndex++;
 		}
 	}
 
-	// Create connections based on dependencies
 	for (const task of tasks) {
 		const targetIndex = taskIndexMap.get(task.id);
 		if (targetIndex === undefined) continue;
-
 		for (const depId of task.dependsOn) {
 			const sourceIndex = taskIndexMap.get(depId);
 			if (sourceIndex !== undefined) {
 				connections.push({ sourceIndex, targetIndex });
 			}
+		}
+	}
+
+	if (connections.length === 0 && nodes.length > 1) {
+		for (let i = 0; i < nodes.length - 1; i++) {
+			connections.push({ sourceIndex: i, targetIndex: i + 1 });
 		}
 	}
 

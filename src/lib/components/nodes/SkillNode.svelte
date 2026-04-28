@@ -326,7 +326,7 @@
 	}
 
 	.node.ghost {
-		opacity: 0.45;
+		opacity: 0.75;
 	}
 
 	/* Chrome header — mono tag left, italic secondary right */

@@ -72,7 +72,7 @@ describe('provider-runtime openclaw bridge', () => {
 		const unsubscribe = eventBridge.subscribe((event) => emitted.push(event));
 
 		const pack = buildPack('mission-step2-success', [
-			provider('claude', 'claude-opus-4-1'),
+			provider('claude', 'opus'),
 			provider('codex', 'gpt-5.5')
 		]);
 
@@ -114,7 +114,7 @@ describe('provider-runtime openclaw bridge', () => {
 		const unsubscribe = eventBridge.subscribe((event) => emitted.push(event));
 
 		const pack = buildPack('mission-step2-failure', [
-			provider('claude', 'claude-opus-4-1'),
+			provider('claude', 'opus'),
 			provider('codex', 'gpt-5.5')
 		]);
 
@@ -154,7 +154,7 @@ describe('provider-runtime openclaw bridge', () => {
 		const emitted: BridgeEvent[] = [];
 		const unsubscribe = eventBridge.subscribe((event) => emitted.push(event));
 
-		const pack = buildPack('mission-step2-cancel', [provider('claude', 'claude-opus-4-1')]);
+		const pack = buildPack('mission-step2-cancel', [provider('claude', 'opus')]);
 		await providerRuntime.dispatch({
 			executionPack: pack,
 			apiKeys: { claude: 'test-claude' },

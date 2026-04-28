@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { DEFAULT_MULTI_LLM_PROVIDERS } from '$lib/services/multi-llm-orchestrator';
-import { resolveProviderRuntimeConfiguration } from '$lib/server/provider-config';
+import { applyProviderEnvOverrides, resolveProviderRuntimeConfiguration } from '$lib/server/provider-config';
 
 function normalizeProviderId(value: string | undefined): string | null {
 	if (!value) return null;
@@ -25,24 +25,19 @@ export const GET: RequestHandler = async () => {
 
 	return json({
 		sparkDefaultProvider,
-		providers: DEFAULT_MULTI_LLM_PROVIDERS.map((provider) => {
-			const upperId = provider.id.toUpperCase().replace(/[^A-Z0-9]/g, '_');
-			const sparkModel = envRecord[`SPARK_${upperId}_MODEL`];
-			const model = sparkModel || envRecord[`${upperId}_MODEL`] || provider.model;
-			const sparkBaseUrl = envRecord[`SPARK_${upperId}_BASE_URL`];
-			const baseUrl = sparkBaseUrl || envRecord[`${upperId}_BASE_URL`] || provider.baseUrl || null;
-			const sparkCommandTemplate = envRecord[`SPARK_${upperId}_COMMAND_TEMPLATE`];
-			const commandTemplate =
-				sparkCommandTemplate || envRecord[`${upperId}_COMMAND_TEMPLATE`] || provider.commandTemplate || null;
+		providers: DEFAULT_MULTI_LLM_PROVIDERS.map((defaultProvider) => {
+			const provider = applyProviderEnvOverrides(defaultProvider, envRecord, {
+				missionDefaultProviderId: sparkDefaultProvider
+			});
 			const runtimeConfig = resolveProviderRuntimeConfiguration(provider, envRecord);
 
 			return {
 				id: provider.id,
 				label: provider.label,
 				kind: provider.kind,
-				model,
-				baseUrl,
-				commandTemplate,
+				model: provider.model,
+				baseUrl: provider.baseUrl || null,
+				commandTemplate: provider.commandTemplate || null,
 				sparkExecutionBridge: provider.sparkExecutionBridge || null,
 				executesFilesystem: provider.executesFilesystem === true,
 				apiKeyEnv: provider.apiKeyEnv || null,

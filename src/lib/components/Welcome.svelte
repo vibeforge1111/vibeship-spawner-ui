@@ -3,7 +3,11 @@
 	// to avoid Svelte reactivity issues with canvas (see handleProcessingComplete)
 	import Navbar from './Navbar.svelte';
 	import Footer from './Footer.svelte';
-	import MissionBoard from './MissionBoard.svelte';
+	import Icon from './Icon.svelte';
+	import MissionLive from './MissionLive.svelte';
+	import JourneyDemo from './JourneyDemo.svelte';
+	import SkillCloud from './SkillCloud.svelte';
+	import TelegramPhone from './TelegramPhone.svelte';
 	import PRDProcessingModal from './PRDProcessingModal.svelte';
 	import { setPRD, setProjectName } from '$lib/stores/project-docs.svelte';
 	import { analyzePRD, generateTasksFromPRD, tasksToWorkflow, type PRDAnalysis, type GeneratedTask } from '$lib/utils/prd-analyzer';
@@ -18,12 +22,7 @@
 	import { toasts } from '$lib/stores/toast.svelte';
 	import { get } from 'svelte/store';
 
-	let { onStart }: { onStart?: (goal: string, options?: { includeSkills?: boolean; includeMCPs?: boolean }) => void } = $props();
-
-	let inputValue = $state('');
-	let isFocused = $state(false);
-	let isSubmitting = $state(false);
-	let fileInputEl: HTMLInputElement;
+	let { onStart: _onStart }: { onStart?: (goal: string, options?: { includeSkills?: boolean; includeMCPs?: boolean }) => void } = $props();
 
 	// Smart Mode - uses new analyzer that generates smaller, completable missions
 	let useSmartMode = $state(true);  // Default ON
@@ -63,20 +62,6 @@
 
 	function createQueuedPipelineId(): string {
 		return `pipe-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
-	}
-
-	function handleSubmit() {
-		if (inputValue.trim() && onStart && !isSubmitting) {
-			isSubmitting = true;
-			onStart(inputValue.trim(), { includeSkills, includeMCPs });
-		}
-	}
-
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Enter' && !e.shiftKey) {
-			e.preventDefault();
-			handleSubmit();
-		}
 	}
 
 	async function handlePRDUpload(e: Event) {
@@ -524,102 +509,169 @@
 	<Navbar />
 
 	<main class="flex-1">
-	<!-- Hero Section -->
-	<section class="max-w-3xl mx-auto px-6 pt-16 pb-10">
-		<div class="mb-8 animate-fade-in">
-			<p class="overline">New mission</p>
-			<h1 class="text-2xl font-sans font-semibold text-text-primary tracking-tight">
-				What do you want to build?
-			</h1>
+	<!-- Hero — live mission demo -->
+	<MissionLive />
+
+	<!-- 001 — Pick a workspace -->
+	<section class="max-w-6xl mx-auto w-full px-6 pt-24 pb-24">
+		<div class="mb-12">
+			<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">001 — WORKSPACES</p>
+			<h2 class="text-[34px] md:text-[44px] font-sans font-semibold text-text-primary tracking-tight leading-[1.1]">
+				Pick how you want to <em class="text-accent-primary not-italic">work</em>.
+			</h2>
 		</div>
 
-		<!-- Main Input -->
-		<div class="mb-12 animate-slide-up" style="animation-delay: 100ms;">
-			<div
-				class="input-container relative border bg-bg-secondary transition-all duration-normal outline-none ring-0 rounded-lg overflow-hidden"
-				class:border-accent-primary={isFocused}
-				class:border-surface-border={!isFocused}
+		<div class="grid md:grid-cols-2 gap-6">
+			<!-- Canvas card -->
+			<a
+				href="/canvas"
+				class="group relative block rounded-lg border border-surface-border bg-bg-secondary overflow-hidden transition-all hover:border-accent-primary/60 hover:-translate-y-1"
 			>
-				<textarea
-					bind:value={inputValue}
-					onfocus={() => isFocused = true}
-					onblur={() => isFocused = false}
-					onkeydown={handleKeydown}
-					placeholder="Describe what you want to build..."
-					rows="3"
-					class="w-full bg-transparent px-5 py-4 text-lg text-text-primary placeholder:text-text-tertiary resize-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 font-mono"
-				></textarea>
-
-				<div
-					class="flex items-center justify-between px-5 py-3 border-t transition-colors duration-normal"
-					class:border-accent-primary={isFocused}
-					class:border-surface-border={!isFocused}
-				>
-					<div class="flex items-center gap-2 text-sm text-text-tertiary font-mono">
-						<kbd class="px-1.5 py-0.5 bg-surface rounded text-xs border border-surface-border">Enter</kbd>
-						<span>to spawn</span>
-					</div>
-
-					<div class="flex items-center gap-3">
-						<!-- Hidden file input -->
-						<input
-							type="file"
-							accept=".md,.txt"
-							onchange={handlePRDUpload}
-							bind:this={fileInputEl}
-							class="hidden"
-						/>
-
-						<!-- Upload PRD Button (Spark GhostButton) -->
-						<button
-							onclick={() => fileInputEl?.click()}
-							class="inline-flex items-center gap-2 rounded-[5px] border border-border-strong bg-surface px-4 py-2 text-sm font-medium text-text-secondary transition-all duration-200 hover:border-accent-primary hover:text-text-primary active:scale-[0.98]"
-						>
-							<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-							</svg>
-							<span>PRD</span>
-						</button>
-
-						<!-- Spawn Button (Spark AccentButton) -->
-						<button
-							onclick={handleSubmit}
-							disabled={!inputValue.trim() || isSubmitting}
-							class="group inline-flex items-center gap-2 rounded-[5px] bg-accent-primary px-4 py-2 text-sm font-medium text-accent-fg transition-all duration-200 hover:opacity-85 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-						>
-							{#if isSubmitting}
-								<span>analyzing...</span>
-							{:else}
-								<span>spawn()</span>
-								<svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-								</svg>
-							{/if}
-						</button>
-					</div>
+				<div class="aspect-[16/10] bg-bg-primary border-b border-surface-border overflow-hidden relative">
+					<img
+						src="/landing-canvas.png"
+						alt="Spawner Canvas"
+						class="absolute inset-0 w-full h-full object-cover object-top opacity-90 group-hover:opacity-100 transition-opacity"
+						loading="lazy"
+					/>
 				</div>
+				<div class="p-8">
+					<p class="font-mono text-xs text-accent-primary tracking-widest mb-3">CANVAS</p>
+					<h3 class="text-[22px] font-sans font-semibold text-text-primary mb-3 leading-tight">
+						See it like a <em class="text-accent-primary not-italic">flowchart</em>.
+					</h3>
+					<p class="text-base text-text-secondary leading-relaxed mb-6">
+						Seeing your agent build hasn't been this fun.
+					</p>
+					<span class="inline-flex items-center gap-2 text-base font-medium text-accent-primary group-hover:gap-3 transition-all">
+						Open canvas
+						<Icon name="arrow-right" size={16} />
+					</span>
+				</div>
+			</a>
+
+			<!-- Kanban card -->
+			<a
+				href="/kanban"
+				class="group relative block rounded-lg border border-surface-border bg-bg-secondary overflow-hidden transition-all hover:border-accent-primary/60 hover:-translate-y-1"
+			>
+				<div class="aspect-[16/10] bg-bg-primary border-b border-surface-border overflow-hidden relative">
+					<img
+						src="/landing-kanban.png"
+						alt="Spawner Kanban"
+						class="absolute inset-0 w-full h-full object-cover object-top opacity-90 group-hover:opacity-100 transition-opacity"
+						loading="lazy"
+					/>
+				</div>
+				<div class="p-8">
+					<p class="font-mono text-xs text-accent-primary tracking-widest mb-3">KANBAN</p>
+					<h3 class="text-[22px] font-sans font-semibold text-text-primary mb-3 leading-tight">
+						Watch it like a <em class="text-accent-primary not-italic">board</em>.
+					</h3>
+					<p class="text-base text-text-secondary leading-relaxed mb-6">
+						Every mission, To do / In progress / Done.
+					</p>
+					<span class="inline-flex items-center gap-2 text-base font-medium text-accent-primary group-hover:gap-3 transition-all">
+						Open kanban
+						<Icon name="arrow-right" size={16} />
+					</span>
+				</div>
+			</a>
+		</div>
+	</section>
+
+	<!-- 002 — See the harness work -->
+	<section class="max-w-6xl mx-auto w-full px-6 pb-24 border-t border-surface-border pt-20">
+		<div class="mb-12">
+			<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">002 — SEE IT WORK</p>
+			<h2 class="text-[34px] md:text-[44px] font-sans font-semibold text-text-primary tracking-tight leading-[1.1] max-w-3xl mb-4">
+				No more guessing if the agent is <em class="text-accent-primary not-italic">actually</em> doing the thing.
+			</h2>
+			<p class="text-base md:text-[17px] text-text-secondary max-w-2xl leading-relaxed">
+				Every mission breaks into tasks. Every task pulls in a skill. You watch each one happen, in order, in real time.
+			</p>
+		</div>
+
+		<JourneyDemo />
+	</section>
+
+	<!-- 003 — Skills auto-couple to tasks -->
+	<section class="max-w-6xl mx-auto w-full px-6 pb-24 border-t border-surface-border pt-20">
+		<div class="mb-12">
+			<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">003 — SKILLS</p>
+			<h2 class="text-[34px] md:text-[44px] font-sans font-semibold text-text-primary tracking-tight leading-[1.1] max-w-3xl mb-4">
+				Tasks <em class="text-accent-primary not-italic">attach</em> their own skills.
+			</h2>
+			<p class="text-base md:text-[17px] text-text-secondary max-w-3xl leading-relaxed">
+				You don't pick the right skill — the task does. Free covers the basics. Pro unlocks the full library.
+			</p>
+		</div>
+
+		<!-- Free vs Pro -->
+		<div class="grid md:grid-cols-2 gap-6 mb-10">
+			<div class="rounded-lg border border-surface-border bg-bg-secondary p-8">
+				<div class="flex items-baseline justify-between mb-4">
+					<p class="font-mono text-xs text-text-tertiary tracking-widest">FREE</p>
+					<p class="font-mono text-sm text-text-tertiary">included</p>
+				</div>
+				<p class="text-5xl font-sans font-semibold text-text-primary mb-3 leading-none">
+					30<span class="text-accent-primary">+</span>
+				</p>
+				<p class="text-base text-text-secondary leading-relaxed">
+					Enough to ship landing pages, scripts, content drafts, basic audits.
+				</p>
+			</div>
+			<div class="rounded-lg border border-accent-primary/40 bg-accent-primary/5 p-8 relative overflow-hidden">
+				<div class="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-accent-primary/10 blur-3xl pointer-events-none"></div>
+				<div class="flex items-baseline justify-between mb-4 relative">
+					<p class="font-mono text-xs text-accent-primary tracking-widest">SPARK PRO</p>
+					<p class="font-mono text-sm text-accent-primary">benchmarked</p>
+				</div>
+				<p class="text-5xl font-sans font-semibold text-text-primary mb-3 leading-none relative">
+					600<span class="text-accent-primary">+</span>
+				</p>
+				<p class="text-base text-text-secondary leading-relaxed relative">
+					Backend, frontend, design, security, trading, ops — every domain has its expert.
+				</p>
 			</div>
 		</div>
+
+		<SkillCloud />
 	</section>
 
-	<section class="max-w-7xl mx-auto w-full px-6 pb-24">
-		<MissionBoard />
+	<!-- 004 — Telegram -->
+	<section class="max-w-6xl mx-auto w-full px-6 pb-32 border-t border-surface-border pt-20">
+		<div class="grid md:grid-cols-2 gap-12 items-center">
+			<div>
+				<p class="font-mono text-sm text-accent-primary tracking-widest mb-4">004 — FROM YOUR PHONE</p>
+				<h2 class="text-[34px] md:text-[44px] font-sans font-semibold text-text-primary tracking-tight leading-[1.1] mb-5">
+					Message your <em class="text-accent-primary not-italic">Telegram bot</em>. Watch it ship.
+				</h2>
+				<p class="text-base md:text-[17px] text-text-secondary max-w-md leading-relaxed mb-6">
+					Get stuff done from anywhere. The mission gets built on canvas, the tasks land on kanban — you see it happening, in real time.
+				</p>
+				<ul class="space-y-3 max-w-md">
+					<li class="flex items-start gap-3">
+						<span class="font-mono text-xs text-accent-primary tracking-widest mt-1.5 shrink-0">01</span>
+						<span class="text-base text-text-secondary leading-relaxed">Tap send. Anywhere — phone, couch, queue.</span>
+					</li>
+					<li class="flex items-start gap-3">
+						<span class="font-mono text-xs text-accent-primary tracking-widest mt-1.5 shrink-0">02</span>
+						<span class="text-base text-text-secondary leading-relaxed">Spawner builds it on canvas, skills auto-couple.</span>
+					</li>
+					<li class="flex items-start gap-3">
+						<span class="font-mono text-xs text-accent-primary tracking-widest mt-1.5 shrink-0">03</span>
+						<span class="text-base text-text-secondary leading-relaxed">Result lands back in chat with a preview link.</span>
+					</li>
+				</ul>
+			</div>
+
+			<TelegramPhone />
+		</div>
 	</section>
+
 	</main>
 
 	<!-- Footer -->
 	<Footer />
 </div>
-
-<style>
-	/* Override global focus-visible ring that causes border overflow */
-	:global(.input-container textarea:focus),
-	:global(.input-container textarea:focus-visible) {
-		outline: none !important;
-		--tw-ring-offset-width: 0px !important;
-		--tw-ring-shadow: 0 0 #0000 !important;
-		--tw-ring-color: transparent !important;
-		box-shadow: none !important;
-	}
-
-</style>

@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { resolveProviderRuntimeConfiguration } from './provider-config';
+import { applyProviderEnvOverrides, resolveProviderRuntimeConfiguration } from './provider-config';
 
 const originalCodexPath = process.env.CODEX_PATH;
 const originalSparkCodexPath = process.env.SPARK_CODEX_PATH;
@@ -69,5 +69,67 @@ describe('resolveProviderRuntimeConfiguration', () => {
 			configured: true,
 			configurationMode: 'api_key'
 		});
+	});
+
+	it('reports LM Studio as a local provider without requiring an API key', () => {
+		const result = resolveProviderRuntimeConfiguration(
+			{ id: 'lmstudio', kind: 'openai_compat', apiKeyEnv: undefined },
+			{}
+		);
+
+		expect(result).toMatchObject({
+			envKeyConfigured: false,
+			cliConfigured: false,
+			configured: true,
+			configurationMode: 'local'
+		});
+	});
+
+	it('reports Ollama as a local provider without requiring an API key', () => {
+		const result = resolveProviderRuntimeConfiguration(
+			{ id: 'ollama', kind: 'openai_compat', apiKeyEnv: undefined },
+			{}
+		);
+
+		expect(result).toMatchObject({
+			envKeyConfigured: false,
+			cliConfigured: false,
+			configured: true,
+			configurationMode: 'local'
+		});
+	});
+
+	it('applies mission-scoped model and base-url overrides only to the selected provider', () => {
+		const provider = {
+			id: 'lmstudio',
+			label: 'LM Studio',
+			model: 'local-model',
+			enabled: false,
+			kind: 'openai_compat' as const,
+			eventSource: 'lmstudio',
+			baseUrl: 'http://localhost:1234/v1'
+		};
+
+		const selected = applyProviderEnvOverrides(
+			provider,
+			{
+				SPARK_MISSION_LLM_MODEL: 'loaded-local-model',
+				SPARK_MISSION_LLM_BASE_URL: 'http://127.0.0.1:1234/v1'
+			},
+			{ missionDefaultProviderId: 'lmstudio' }
+		);
+		const unselected = applyProviderEnvOverrides(
+			provider,
+			{
+				SPARK_MISSION_LLM_MODEL: 'other-model',
+				SPARK_MISSION_LLM_BASE_URL: 'http://127.0.0.1:9999/v1'
+			},
+			{ missionDefaultProviderId: 'codex' }
+		);
+
+		expect(selected.model).toBe('loaded-local-model');
+		expect(selected.baseUrl).toBe('http://127.0.0.1:1234/v1');
+		expect(unselected.model).toBe('local-model');
+		expect(unselected.baseUrl).toBe('http://localhost:1234/v1');
 	});
 });
