@@ -103,7 +103,7 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 	{
 		id: 'claude',
 		label: 'Claude',
-		model: 'claude-opus-4-1',
+		model: 'opus',
 		enabled: true,
 		kind: 'terminal_cli',
 		eventSource: 'claude-code',
@@ -111,7 +111,7 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		executesFilesystem: true,
 		apiKeyEnv: 'ANTHROPIC_API_KEY',
 		requiresApiKey: false,
-		commandTemplate: 'claude --model {model}'
+		commandTemplate: 'claude -p --model {model}'
 	},
 	{
 		id: 'codex',
@@ -152,6 +152,32 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		apiKeyEnv: 'MINIMAX_API_KEY',
 		requiresApiKey: true,
 		baseUrl: 'https://api.minimax.io/v1'
+	},
+	{
+		id: 'openrouter',
+		label: 'OpenRouter',
+		model: 'openai/gpt-5.5',
+		enabled: false,
+		kind: 'openai_compat',
+		eventSource: 'openrouter',
+		capabilities: ['reasoning', 'planning', 'review', 'code_analysis'],
+		executesFilesystem: false,
+		apiKeyEnv: 'OPENROUTER_API_KEY',
+		requiresApiKey: true,
+		baseUrl: 'https://openrouter.ai/api/v1'
+	},
+	{
+		id: 'huggingface',
+		label: 'Hugging Face',
+		model: 'deepseek-ai/DeepSeek-R1:fastest',
+		enabled: false,
+		kind: 'openai_compat',
+		eventSource: 'huggingface',
+		capabilities: ['reasoning', 'planning', 'review', 'code_analysis'],
+		executesFilesystem: false,
+		apiKeyEnv: 'HF_TOKEN',
+		requiresApiKey: true,
+		baseUrl: 'https://router.huggingface.co/v1'
 	}
 ];
 
@@ -523,10 +549,10 @@ function inferTaskCapabilities(
 		if (mcpCapability === 'database' && /\b(data|db|schema|migration|query)\b/.test(text)) {
 			capabilities.add('database');
 		}
-		if (mcpCapability === 'image_gen' && /\b(image|visual|design)\b/.test(text)) {
+		if (mcpCapability === 'image_gen' && /\b(image|logo|illustration|thumbnail|banner|poster|sprite|icon asset|generated asset)\b/.test(text)) {
 			capabilities.add('image_gen');
 		}
-		if (mcpCapability === 'video_gen' && /\b(video|animation|motion)\b/.test(text)) {
+		if (mcpCapability === 'video_gen' && /\b(video|clip|cinematic|trailer|rendered animation|generated animation)\b/.test(text)) {
 			capabilities.add('video_gen');
 		}
 		if (mcpCapability === 'web_search' && /\b(research|compare|trend)\b/.test(text)) {
@@ -544,8 +570,14 @@ const MCP_REQUIRED_RULES: Array<{ capability: MultiLLMCapability; pattern: RegEx
 		capability: 'deployment',
 		pattern: /\b(deploy|release|production|rollout|infra|infrastructure|ci)\b|ci\/cd|ci-cd|\bcicd\b/
 	},
-	{ capability: 'image_gen', pattern: /\b(image|logo|illustration|thumbnail|banner|poster|graphic|visual)\b/ },
-	{ capability: 'video_gen', pattern: /\b(video|animation|clip|cinematic|trailer|motion)\b/ },
+	{
+		capability: 'image_gen',
+		pattern: /\b(generate|create|make|render|draw)\s+(an?\s+)?(image|logo|illustration|thumbnail|banner|poster|sprite|icon|graphic|asset)\b|\b(image generation|ai image|generated image|placeholder asset)\b/
+	},
+	{
+		capability: 'video_gen',
+		pattern: /\b(generate|create|make|render|produce)\s+(a\s+)?(video|clip|cinematic|trailer|rendered animation)\b|\b(video generation|generated video)\b/
+	},
 	{ capability: 'audio_gen', pattern: /\b(audio|voice|tts|podcast|music)\b/ },
 	{ capability: 'payment', pattern: /\b(payment|checkout|billing|invoice|stripe|paypal)\b/ }
 ];
@@ -687,7 +719,7 @@ function buildMcpTaskPlans(
 				requiredCapabilities,
 				toolCalls,
 				blockedCapabilities,
-				blockedReason: `Task "${task.title}" requires MCP capabilities not currently available: ${blockedLabel}.`,
+				blockedReason: `Optional MCP capability unavailable for "${task.title}": ${blockedLabel}.`,
 				fallbackSuggestion: getFallbackSuggestion(blockedCapabilities)
 			};
 			continue;
@@ -710,7 +742,7 @@ function formatTaskMcpPlan(plan: MultiLLMMCPTaskPlan | undefined): string {
 		return '\n   MCP plan: not required';
 	}
 	if (plan.status === 'blocked') {
-		return `\n   MCP plan: BLOCKED\n   - ${plan.blockedReason}\n   - ${plan.fallbackSuggestion}`;
+		return `\n   MCP plan: optional MCP unavailable\n   - ${plan.blockedReason}\n   - ${plan.fallbackSuggestion}`;
 	}
 	if (plan.toolCalls.length === 0) {
 		return '\n   MCP plan: ready (no explicit tool calls)';
@@ -747,7 +779,7 @@ function buildMasterPrompt(
 	const taskPlans = Object.values(mcpTaskPlans);
 	const readyCount = taskPlans.filter((plan) => plan.status === 'ready').length;
 	const blockedPlans = taskPlans.filter((plan) => plan.status === 'blocked');
-	const blockedLines =
+	const unavailableLines =
 		blockedPlans.length > 0
 			? blockedPlans
 					.map(
@@ -770,13 +802,13 @@ API-key-ready providers: ${keyConnectedProviders}
 Connected MCP capabilities: ${mcpCapabilities}
 MCP tool catalog size: ${(options.mcpTools || []).length}
 MCP plans ready: ${readyCount}
-MCP plans blocked: ${blockedPlans.length}
+MCP advisories unavailable: ${blockedPlans.length}
 
 Providers and assignments:
 ${providerLines.join('\n')}
 
-Blocked MCP plans:
-${blockedLines}
+Unavailable MCP advisories:
+${unavailableLines}
 
 Execution rules:
 1. Use each provider prompt as generated by Spawner.
@@ -877,8 +909,8 @@ H70 skill loading (mandatory):
 Execution expectations:
 - Work only on your assigned tasks.
 - Keep file changes focused and production-safe.
-- If blocked, emit a progress event with the blocker.
-- If a task needs external tools (image/video/data/deploy), use matching connected MCP capabilities first.
+- If blocked by implementation constraints, emit a progress event with the blocker.
+- If a task explicitly needs external tools (image/video/data/deploy), use matching connected MCP capabilities when connected; otherwise continue with the fallback plan.
 - Treat task completion as valid only after task-level DoD checks pass (implementation + verification + tests).
 
 Project-specific verification override:

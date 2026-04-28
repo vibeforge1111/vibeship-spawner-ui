@@ -57,6 +57,7 @@ afterEach(() => {
 	providerRuntime.cleanup('mission-step2-cancel');
 	providerRuntime.cleanup('mission-step2-rebuild');
 	providerRuntime.cleanup('mission-step2-persist');
+	providerRuntime.cleanup('mission-step2-lifecycle');
 });
 
 describe('provider-runtime openclaw bridge', () => {
@@ -257,6 +258,10 @@ describe('provider-runtime openclaw bridge', () => {
 		expect(providerRuntime.getMissionResults('mission-step2-persist')[0].durationMs).toEqual(expect.any(Number));
 
 		providerRuntime.clearInMemoryForTests('mission-step2-persist');
+		expect(providerRuntime.getMissionStatus('mission-step2-persist')).toMatchObject({
+			allComplete: true,
+			providers: { codex: 'completed' }
+		});
 		expect(providerRuntime.getSessionsForMission('mission-step2-persist')).toEqual([]);
 		expect(providerRuntime.getMissionResults('mission-step2-persist')[0]).toMatchObject({
 			providerId: 'codex',
@@ -264,5 +269,43 @@ describe('provider-runtime openclaw bridge', () => {
 			response: 'codex-durable'
 		});
 		expect(providerRuntime.getMissionResults('mission-step2-persist')[0].durationMs).toEqual(expect.any(Number));
+	});
+
+	it('reconciles running provider sessions from external mission lifecycle completion', async () => {
+		openclawBridge.setWorkerExecutorForTests(
+			() =>
+				new Promise(() => {
+					// Simulate a CLI worker whose process exits after it has already posted lifecycle events.
+				})
+		);
+
+		const pack = buildPack('mission-step2-lifecycle', [provider('codex', 'gpt-5.5')]);
+		await providerRuntime.dispatch({
+			executionPack: pack,
+			apiKeys: { codex: 'test-codex' },
+			onEvent: () => {},
+			workingDirectory: process.cwd()
+		});
+
+		expect(providerRuntime.getMissionStatus('mission-step2-lifecycle').providers.codex).toBe('running');
+
+		providerRuntime.markMissionTerminalFromLifecycleEvent({
+			missionId: 'mission-step2-lifecycle',
+			providerId: 'codex',
+			status: 'completed',
+			response: 'completed from event stream',
+			completedAt: '2026-04-28T00:00:00.000Z'
+		});
+
+		const status = providerRuntime.getMissionStatus('mission-step2-lifecycle');
+		expect(status.allComplete).toBe(true);
+		expect(status.providers.codex).toBe('completed');
+		expect(status.lastReason).toBe('Mission completed from lifecycle event');
+		expect(providerRuntime.getMissionResults('mission-step2-lifecycle')[0]).toMatchObject({
+			providerId: 'codex',
+			status: 'completed',
+			response: 'completed from event stream',
+			completedAt: '2026-04-28T00:00:00.000Z'
+		});
 	});
 });

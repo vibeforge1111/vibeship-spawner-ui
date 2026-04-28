@@ -9,9 +9,10 @@ import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { join, isAbsolute, resolve } from 'node:path';
 import { existsSync } from 'node:fs';
+import { commandTimeoutMs } from './timeout-config';
 
 export const MAX_OUTPUT_LENGTH = 5000;
-export const COMMAND_TIMEOUT_MS = 120_000; // 2 minutes
+export const COMMAND_TIMEOUT_MS = commandTimeoutMs();
 
 export interface CommandResult {
 	exitCode: number;
@@ -60,7 +61,8 @@ export function runCommand(
 			cwd,
 			shell: true,
 			timeout: timeoutMs,
-			env: { ...process.env, FORCE_COLOR: '0', CI: 'true' }
+			env: { ...process.env, FORCE_COLOR: '0', CI: 'true' },
+			windowsHide: true
 		});
 
 		child.stdout?.on('data', (data: Buffer) => {

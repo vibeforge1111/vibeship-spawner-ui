@@ -27,8 +27,9 @@ import { executeSparkHarnessRequest } from './provider-clients/spark-harness-cli
 import { openclawBridge } from '$lib/services/openclaw-bridge';
 import { eventBridge } from '$lib/services/event-bridge';
 import { mcpClient } from '$lib/services/mcp-client';
+import { agentWorkTimeoutMs } from './timeout-config';
 import { readFile } from 'node:fs/promises';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 export interface DispatchOptions {
@@ -110,6 +111,7 @@ class ProviderRuntimeManager {
 			const persistPath = getProviderResultsPath();
 			if (!existsSync(persistPath)) return new Map();
 			const raw = readFileSync(persistPath, 'utf-8');
+			if (!raw.trim()) return new Map();
 			const parsed = JSON.parse(raw) as { missions?: Record<string, ProviderMissionResultSnapshot[]> };
 			return new Map(
 				Object.entries(parsed.missions ?? {}).map(([missionId, results]) => [
@@ -127,11 +129,18 @@ class ProviderRuntimeManager {
 		try {
 			const persistPath = getProviderResultsPath();
 			mkdirSync(path.dirname(persistPath), { recursive: true });
+			const tempPath = `${persistPath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
 			writeFileSync(
-				persistPath,
+				tempPath,
 				JSON.stringify({ missions: Object.fromEntries(this.persistedResults) }, null, 2),
 				'utf-8'
 			);
+			try {
+				renameSync(tempPath, persistPath);
+			} catch {
+				copyFileSync(tempPath, persistPath);
+				rmSync(tempPath, { force: true });
+			}
 		} catch (error) {
 			console.warn('[ProviderRuntime] Failed to persist provider results:', error);
 		}
@@ -325,6 +334,29 @@ class ProviderRuntimeManager {
 			sessionStatuses[provider.id] = { status: 'running' };
 			this.persistMissionSessions(missionId);
 
+			const providerTimeoutMs = agentWorkTimeoutMs();
+			let providerTimedOut = false;
+			const providerTimeout = setTimeout(() => {
+				providerTimedOut = true;
+				abortController.abort();
+				this.rememberStatusReason(
+					missionId,
+					`${provider.label} timed out after ${Math.round(providerTimeoutMs / 1000)}s`
+				);
+				onEvent(
+					createBridgeEvent('task_failed', { provider, missionId, onEvent, signal: abortController.signal }, {
+						message: `${provider.label} timed out after ${Math.round(providerTimeoutMs / 1000)}s`,
+						data: {
+							success: false,
+							error: 'Provider execution timed out',
+							provider: provider.id,
+							providerLabel: provider.label,
+							timeoutMs: providerTimeoutMs
+						}
+					})
+				);
+			}, providerTimeoutMs);
+
 			const promise = this.executeProvider(
 				provider,
 				providerPrompt,
@@ -334,6 +366,14 @@ class ProviderRuntimeManager {
 				workingDirectory,
 				onEvent
 			).then((result) => {
+				clearTimeout(providerTimeout);
+				if (providerTimedOut && (result.error === 'Cancelled' || result.error === 'AbortError')) {
+					result = {
+						success: false,
+						error: `${provider.label} timed out after ${Math.round(providerTimeoutMs / 1000)}s`,
+						durationMs: providerTimeoutMs
+					};
+				}
 				session.result = result;
 				if (session.status === 'cancelled' || result.error === 'Cancelled') {
 					session.status = 'cancelled';
@@ -545,6 +585,25 @@ class ProviderRuntimeManager {
 				this.persistedResults.has(missionId) ||
 				this.dispatchSnapshots.has(missionId) ||
 				this.pausedMissions.has(missionId);
+			if (!knownMission) {
+				try {
+					const missionResult = await mcpClient.getMission(missionId);
+					const mission = missionResult.success ? missionResult.data?.mission : null;
+					if (mission) {
+						if (mission.status === 'completed' || mission.status === 'failed') {
+							const reason = `Mission is already ${mission.status}.`;
+							this.rememberStatusReason(missionId, reason);
+							return { paused: false, reason };
+						}
+						this.pausedMissions.add(missionId);
+						this.pausedReasons.set(missionId, 'Mission paused; no active provider sessions were running.');
+						this.rememberStatusReason(missionId, 'Mission paused');
+						return { paused: true, reason: 'Mission paused' };
+					}
+				} catch {
+					// Keep the user-facing not-found path below; pause should not fail loudly while probing storage.
+				}
+			}
 			const reason = knownMission
 				? 'No active provider sessions to pause.'
 				: 'Mission not found or no provider sessions.';
@@ -613,6 +672,77 @@ class ProviderRuntimeManager {
 		return this.persistedResults.get(missionId) ?? [];
 	}
 
+	markMissionTerminalFromLifecycleEvent(input: {
+		missionId: string;
+		status: 'completed' | 'failed' | 'cancelled';
+		providerId?: string | null;
+		response?: string | null;
+		error?: string | null;
+		completedAt?: string | null;
+		reason?: string | null;
+	}): void {
+		const terminalStatus: ProviderSessionStatus = input.status;
+		const completedAt = input.completedAt ? new Date(input.completedAt) : new Date();
+		const sessionMatches = this.getSessionsForMission(input.missionId).filter(
+			(session) => !input.providerId || session.providerId === input.providerId
+		);
+
+		for (const session of sessionMatches) {
+			if (session.status === 'completed' || session.status === 'failed' || session.status === 'cancelled') {
+				continue;
+			}
+			session.status = terminalStatus;
+			session.completedAt = completedAt;
+			session.error = terminalStatus === 'failed' ? input.error || session.error || 'Mission failed' : session.error;
+			session.result = {
+				success: terminalStatus === 'completed',
+				response: input.response || session.result?.response,
+				error: terminalStatus === 'failed' ? input.error || session.result?.error || 'Mission failed' : session.result?.error,
+				durationMs: session.result?.durationMs ?? Math.max(0, completedAt.getTime() - session.startedAt.getTime()),
+				tokenUsage: session.result?.tokenUsage
+			};
+		}
+
+		const persisted = this.persistedResults.get(input.missionId) ?? [];
+		const providerIds =
+			input.providerId
+				? [input.providerId]
+				: sessionMatches.length > 0
+					? sessionMatches.map((session) => session.providerId)
+					: persisted.map((result) => result.providerId);
+
+		if (persisted.length > 0 && providerIds.length > 0) {
+			const next = persisted.map((result) => {
+				if (!providerIds.includes(result.providerId)) return result;
+				if (result.status === 'completed' || result.status === 'failed' || result.status === 'cancelled') {
+					return result;
+				}
+				return {
+					...result,
+					status: terminalStatus,
+					response: input.response || result.response,
+					error: terminalStatus === 'failed' ? input.error || result.error || 'Mission failed' : result.error,
+					durationMs:
+						result.durationMs ??
+						Math.max(0, completedAt.getTime() - Date.parse(result.startedAt || completedAt.toISOString())),
+					completedAt: result.completedAt || completedAt.toISOString()
+				};
+			});
+			this.persistedResults.set(input.missionId, next);
+			this.persistResults();
+		} else {
+			this.persistMissionSessions(input.missionId);
+		}
+
+		this.rememberStatusReason(
+			input.missionId,
+			input.reason ||
+				(terminalStatus === 'completed'
+					? 'Mission completed from lifecycle event'
+					: 'Mission failed from lifecycle event')
+		);
+	}
+
 	getMissionStatus(missionId: string): {
 		allComplete: boolean;
 		anyFailed: boolean;
@@ -625,9 +755,13 @@ class ProviderRuntimeManager {
 		providers: Record<string, ProviderSessionStatus>;
 	} {
 		const sessions = this.getSessionsForMission(missionId);
+		const persisted = sessions.length === 0 ? this.persistedResults.get(missionId) ?? [] : [];
 		const providers: Record<string, ProviderSessionStatus> = {};
 		for (const s of sessions) {
 			providers[s.providerId] = s.status;
+		}
+		for (const result of persisted) {
+			providers[result.providerId] = result.status;
 		}
 		const terminal: ProviderSessionStatus[] = ['completed', 'failed', 'cancelled'];
 		const paused = this.pausedMissions.has(missionId);
@@ -639,8 +773,11 @@ class ProviderRuntimeManager {
 			: null;
 
 		return {
-			allComplete: sessions.length > 0 && sessions.every((s) => terminal.includes(s.status)),
-			anyFailed: sessions.some((s) => s.status === 'failed'),
+			allComplete:
+				sessions.length > 0
+					? sessions.every((s) => terminal.includes(s.status))
+					: persisted.length > 0 && persisted.every((result) => terminal.includes(result.status)),
+			anyFailed: sessions.some((s) => s.status === 'failed') || persisted.some((result) => result.status === 'failed'),
 			paused,
 			pausedReason,
 			lastReason: this.lastStatusReason.get(missionId) || null,

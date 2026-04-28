@@ -13,10 +13,35 @@ import { requireControlAuth, enforceRateLimit } from '$lib/server/mcp-auth';
 import { eventBridge } from '$lib/services/event-bridge';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { DEFAULT_MULTI_LLM_PROVIDERS } from '$lib/services/multi-llm-orchestrator';
-import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
+import { getMissionControlBoard, relayMissionControlEvent } from '$lib/server/mission-control-relay';
 
 const ALLOWED_PROVIDER_IDS = new Set(DEFAULT_MULTI_LLM_PROVIDERS.map((provider) => provider.id));
 const ALLOWED_PROVIDER_LABEL = [...ALLOWED_PROVIDER_IDS].join(', ');
+
+function _plannedTasksFromExecutionPack(executionPack: {
+	mcpTaskPlans?: Record<string, { taskTitle?: unknown }>;
+}): Array<{ title: string; skills: string[] }> {
+	if (!executionPack.mcpTaskPlans || typeof executionPack.mcpTaskPlans !== 'object') return [];
+	return Object.values(executionPack.mcpTaskPlans)
+		.map((task): { title: string; skills: string[] } | null => {
+			const title = typeof task.taskTitle === 'string' ? task.taskTitle.trim() : '';
+			return title ? { title, skills: [] as string[] } : null;
+		})
+		.filter((task): task is { title: string; skills: string[] } => Boolean(task));
+}
+
+export function _terminalBoardStatusForAutoRun(
+	missionId: string,
+	autoRun: boolean,
+	board = getMissionControlBoard()
+): 'running' | 'completed' | 'failed' | null {
+	if (!autoRun) return null;
+	if (board.running?.some((entry) => entry.missionId === missionId)) return 'running';
+	if (board.completed?.some((entry) => entry.missionId === missionId)) return 'completed';
+	if (board.failed?.some((entry) => entry.missionId === missionId)) return 'failed';
+	if (board.cancelled?.some((entry) => entry.missionId === missionId)) return 'failed';
+	return null;
+}
 
 function isConfiguredApiKey(value: string | undefined): value is string {
 	return Boolean(value && value.trim() && !value.startsWith('your_'));
@@ -130,8 +155,25 @@ export const POST: RequestHandler = async (event) => {
 			missionName: typeof executionPack.masterPrompt === 'string'
 				? executionPack.masterPrompt.match(/Mission:\s*(.+)/)?.[1]
 				: undefined,
+			plannedTasks: _plannedTasksFromExecutionPack(executionPack),
 			providers: executionPack.providers.map((provider: { id: string }) => provider.id)
 		};
+		const terminalStatus = _terminalBoardStatusForAutoRun(
+			executionPack.missionId,
+			relay && typeof relay === 'object' && relay.autoRun === true
+		);
+		if (terminalStatus) {
+			return json({
+				success: true,
+				missionId: executionPack.missionId,
+				skipped: true,
+				reason: `Auto-run skipped because mission is already ${terminalStatus}`,
+				sessions: Object.fromEntries(
+					executionPack.providers.map((provider: { id: string }) => [provider.id, { status: terminalStatus }])
+				),
+				startedAt: new Date().toISOString()
+			});
+		}
 		const relayBridgeEvent = (bridgeEvent: Record<string, unknown>) => {
 			const relayEvent = {
 				...bridgeEvent,

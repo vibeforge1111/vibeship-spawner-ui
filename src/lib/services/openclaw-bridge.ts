@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { spawn, type ChildProcess } from 'node:child_process';
+import type { ChildProcess } from 'node:child_process';
+import { mkdirSync } from 'node:fs';
 import type { Mission } from '$lib/services/mcp-client';
 import { TOP_100_MCPS } from '$lib/types/mcp';
 import { eventBridge } from '$lib/services/event-bridge';
 import { resolveCliBinary } from '$lib/server/cli-resolver';
+import { spawnHidden } from '$lib/server/hidden-process';
 import {
 	PRECONFIGURED_MCPS,
 	callTool,
@@ -230,10 +232,18 @@ function isBinaryAvailable(binaryName: ProviderCommand['binary']): boolean {
 	return resolveCliBinary(binaryName) !== null;
 }
 
+export function prepareProviderWorkingDirectory(workingDirectory?: string): string {
+	const cwd = workingDirectory && workingDirectory.trim() ? workingDirectory : process.cwd();
+	if (workingDirectory && workingDirectory.trim()) {
+		mkdirSync(cwd, { recursive: true });
+	}
+	return cwd;
+}
+
 function resolveProviderCommandTemplate(providerId: OpenclawProviderId, model?: string, template?: string): string {
-	const fallbackTemplate = providerId === 'claude' ? 'claude --model {model}' : 'codex exec --model {model}';
+	const fallbackTemplate = providerId === 'claude' ? 'claude -p --model {model}' : 'codex exec --model {model}';
 	const commandTemplate = template && template.trim() ? template : fallbackTemplate;
-	const fallbackModel = providerId === 'claude' ? 'claude-opus-4-1' : 'gpt-5.5';
+	const fallbackModel = providerId === 'claude' ? 'opus' : 'gpt-5.5';
 	return commandTemplate.replace('{model}', (model && model.trim()) || fallbackModel);
 }
 
@@ -247,10 +257,13 @@ function parseProviderCommand(providerId: OpenclawProviderId, commandTemplate: s
 	}
 
 	if (providerId === 'claude') {
-		if (tokens[0] !== 'claude' || tokens.length !== 3 || tokens[1] !== '--model') {
-			throw new Error('Claude provider command must be: claude --model <model>');
+		if (tokens[0] === 'claude' && tokens.length === 3 && tokens[1] === '--model') {
+			return { binary: 'claude', resolvedBinary: resolveCliBinary('claude') || 'claude', args: ['--model', tokens[2]] };
 		}
-		return { binary: 'claude', resolvedBinary: resolveCliBinary('claude') || 'claude', args: ['--model', tokens[2]] };
+		if (tokens[0] === 'claude' && tokens.length === 4 && (tokens[1] === '--print' || tokens[1] === '-p') && tokens[2] === '--model') {
+			return { binary: 'claude', resolvedBinary: resolveCliBinary('claude') || 'claude', args: [tokens[1], '--model', tokens[3]] };
+		}
+		throw new Error('Claude provider command must be: claude --print --model <model> or claude -p --model <model>');
 	}
 
 	if (tokens[0] !== 'codex' || tokens[1] !== 'exec') {
@@ -1157,9 +1170,18 @@ class OpenclawBridgeService {
 			let stderr = '';
 			let finished = false;
 			let progressMarks = 0;
-			const child = spawn(command.resolvedBinary, command.args, {
-				cwd: context.workingDirectory || process.cwd(),
-				shell: process.platform === 'win32',
+			let cwd: string;
+			try {
+				cwd = prepareProviderWorkingDirectory(context.workingDirectory);
+			} catch (error) {
+				resolve({
+					success: false,
+					error: error instanceof Error ? error.message : String(error)
+				});
+				return;
+			}
+			const child = spawnHidden(command.resolvedBinary, command.args, {
+				cwd,
 				stdio: ['pipe', 'pipe', 'pipe'],
 				env: { ...process.env }
 			});

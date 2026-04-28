@@ -30,6 +30,7 @@ secrets = [
   "llm.openai.api_key",
   "llm.anthropic.api_key",
   "llm.minimax.api_key",
+  "telegram.relay_secret",
 ]
 
 [claims]
@@ -65,6 +66,12 @@ prompt = "MiniMax API key for Spawner mission execution"
 required = false
 storage = "keychain"
 env_var = "MINIMAX_API_KEY"
+
+[secrets.telegram_relay_secret]
+prompt = "Local Telegram mission relay secret"
+required = false
+storage = "keychain"
+env_var = "TELEGRAM_RELAY_SECRET"
 
 [run.default]
 command = "npm run dev -- --host 127.0.0.1"
