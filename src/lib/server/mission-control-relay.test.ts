@@ -594,6 +594,50 @@ describe('mission-control-relay', () => {
 		]);
 	});
 
+	it('matches a running task id back to its planned PRD task when newer events are processed first', async () => {
+		const missionId = `mission-prd-running-dedupe-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			source: 'canvas-dispatch',
+			timestamp: '2026-04-28T10:00:00.000Z',
+			data: {
+				plannedTasks: [
+					{ title: 'task-1-static-app-scaffold: Create the no-build static app files', skills: ['frontend'] },
+					{ title: 'task-2-route-check-state-and-actions: Implement route checks', skills: ['state'] }
+				],
+				telegramRelay: { port: 1 }
+			}
+		});
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			taskName: 'task-1-static-app-scaffold',
+			source: 'codex',
+			timestamp: '2026-04-28T10:00:05.000Z',
+			data: { telegramRelay: { port: 1 } }
+		});
+
+		const board = getMissionControlBoard();
+		const running = board.running.find((candidate) => candidate.missionId === missionId);
+
+		expect(running?.taskCount).toBe(2);
+		expect(running?.taskStatusCounts).toMatchObject({ queued: 1, running: 1, total: 2 });
+		expect(running?.tasks).toEqual([
+			{
+				title: 'task-1-static-app-scaffold: Create the no-build static app files',
+				skills: ['frontend'],
+				status: 'running'
+			},
+			{
+				title: 'task-2-route-check-state-and-actions: Implement route checks',
+				skills: ['state'],
+				status: 'queued'
+			}
+		]);
+	});
+
 	it('keeps completed missions completed when stale canvas task events replay later', async () => {
 		const missionId = `mission-terminal-wins-${Date.now()}`;
 

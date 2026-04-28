@@ -395,6 +395,11 @@ function taskOrdinalFromLabel(title: string): number | null {
 	return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+function taskKeyFromLabel(title: string): string | null {
+	const match = title.match(/^(task-\d+(?:[-_][a-z0-9]+)*)(?:\s*:|\b)/i);
+	return match ? match[1].toLowerCase() : null;
+}
+
 function mergeTaskStatus(
 	current: MissionControlTaskStatus | undefined,
 	next: MissionControlTaskStatus
@@ -411,6 +416,8 @@ function recalculateTaskStatusCounts(entry: MissionControlBoardEntry): void {
 		counts[status] += 1;
 	}
 	counts.total = entry.tasks.length;
+	entry.taskNames = entry.tasks.map((task) => task.title);
+	entry.taskCount = entry.tasks.length;
 	entry.taskStatusCounts = counts;
 }
 
@@ -422,6 +429,12 @@ function maybeRecordTask(entry: MissionControlBoardEntry, event: MissionControlR
 	const label = sanitizeMissionControlDisplayText(event.taskName || event.taskId || 'task');
 	const canonicalLabel = canonicalTaskTitle(label);
 	let task = entry.tasks.find((candidate) => canonicalTaskTitle(candidate.title) === canonicalLabel);
+	if (!task) {
+		const labelKey = taskKeyFromLabel(label);
+		if (labelKey) {
+			task = entry.tasks.find((candidate) => taskKeyFromLabel(candidate.title) === labelKey);
+		}
+	}
 	if (!task) {
 		const ordinal = taskOrdinalFromLabel(label);
 		if (ordinal !== null && entry.tasks.length >= ordinal) {
@@ -450,8 +463,13 @@ function seedPlannedTasks(entry: MissionControlBoardEntry, event: MissionControl
 	if (plannedTasks.length === 0) return;
 	for (const planned of plannedTasks) {
 		const canonicalLabel = canonicalTaskTitle(planned.title);
-		const existing = entry.tasks.find((candidate) => canonicalTaskTitle(candidate.title) === canonicalLabel);
+		const plannedKey = taskKeyFromLabel(planned.title);
+		const existing = entry.tasks.find((candidate) => {
+			if (canonicalTaskTitle(candidate.title) === canonicalLabel) return true;
+			return Boolean(plannedKey && taskKeyFromLabel(candidate.title) === plannedKey);
+		});
 		if (existing) {
+			existing.title = planned.title;
 			if ((!existing.skills || existing.skills.length === 0) && planned.skills.length > 0) {
 				existing.skills = planned.skills;
 			}
