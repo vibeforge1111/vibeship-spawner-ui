@@ -310,7 +310,12 @@ async function startAutoAnalysis(
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier
 ): Promise<{ started: boolean; provider: string }> {
-	const provider = (process.env.SPAWNER_PRD_AUTO_PROVIDER || 'claude').trim().toLowerCase();
+	const provider = (
+		process.env.SPAWNER_PRD_AUTO_PROVIDER ||
+		process.env.SPARK_MISSION_LLM_PROVIDER ||
+		process.env.DEFAULT_MISSION_PROVIDER ||
+		'codex'
+	).trim().toLowerCase();
 	if (provider === 'none') {
 		await appendPrdTrace(requestId, 'auto_disabled', { provider });
 		return { started: false, provider };

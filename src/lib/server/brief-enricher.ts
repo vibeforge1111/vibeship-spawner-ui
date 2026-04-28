@@ -5,8 +5,8 @@
  * The eval suite found that vague inputs ("build me an app") plateau at
  * grade B no matter how many improver iterations run, because feedback
  * injection cannot invent missing requirements. The fix is upstream:
- * before the canvas generator runs, ask claude to (1) infer reasonable
- * defaults, (2) flag what's still ambiguous so the user can clarify.
+ * before the canvas generator runs, infer sensible defaults and flag
+ * what's still ambiguous so the user can clarify.
  *
  * Output shape (the enricher always returns an enrichedContent that's
  * safe to pass downstream — it never blocks on missing info):
@@ -23,15 +23,18 @@
  * concrete keywords). Threshold tunable via env.
  */
 
+import { spawn } from 'child_process';
+import { existsSync } from 'fs';
+import { dirname, join } from 'path';
 import { resolveCliBinary } from './cli-resolver';
-import { spawnHidden } from './hidden-process';
 
 // Aggressive timeout: enrichment is a nice-to-have. If claude can't
-// respond fast, fall through with the raw brief so the user's request
-// doesn't stall the bot. Override via BRIEF_ENRICH_TIMEOUT_MS.
-const ENRICH_TIMEOUT_MS = Number(process.env.BRIEF_ENRICH_TIMEOUT_MS || 20_000);
+// respond fast, use deterministic assumptions/questions so the user's
+// request doesn't stall the bot. Override via BRIEF_ENRICH_TIMEOUT_MS.
+const ENRICH_TIMEOUT_MS = Number(process.env.BRIEF_ENRICH_TIMEOUT_MS || 12_000);
 const ENRICH_MIN_LENGTH = Number(process.env.BRIEF_ENRICH_MIN_LENGTH || 600);
 const ENRICH_MIN_KEYWORDS = Number(process.env.BRIEF_ENRICH_MIN_KEYWORDS || 8);
+const ENRICH_PROVIDER = (process.env.SPAWNER_BRIEF_ENRICH_PROVIDER || 'deterministic').trim().toLowerCase();
 
 export interface EnrichmentResult {
 	enrichedContent: string;
@@ -111,11 +114,105 @@ function extractJson(text: string): string | null {
 	return null;
 }
 
+export function buildDeterministicEnrichment(content: string): EnrichmentResult {
+	const brief = content.trim();
+	const productName = brief.length <= 80 ? brief : `${brief.slice(0, 77)}...`;
+	const addedAssumptions = [
+		'Assume this is a web app unless the user specifies mobile, desktop, or another surface.',
+		'Assume a practical solo-founder v1 with authentication, persisted data, and a clean core workflow.',
+		'Assume the build should include basic error states, responsive UI, and a simple verification path.'
+	];
+	const openQuestions = [
+		'Who is the first user this app is for?',
+		'What is the one action the app must make easy?',
+		'Does it need accounts/login in v1?',
+		'What data should be saved or shown first?'
+	];
+	const enrichedContent = [
+		'# Inferred Project Brief',
+		`Original user request: ${brief}`,
+		'',
+		'## Product Direction',
+		`Build a small but usable web app for: ${productName}.`,
+		'Focus on one clear user workflow, a polished first screen, and enough structure that the project can be extended after v1.',
+		'',
+		'## Assumed V1 Scope',
+		'- Responsive web UI with a clear primary action.',
+		'- Basic state/data persistence where the product needs memory between sessions.',
+		'- Friendly empty, loading, and error states.',
+		'- Minimal verification steps so the builder can prove the app works.',
+		'',
+		'## Open Questions',
+		...openQuestions.map((question) => `- ${question}`)
+	].join('\n');
+
+	return {
+		enrichedContent,
+		addedAssumptions,
+		openQuestions,
+		wasEnriched: true
+	};
+}
+
+export interface ClaudePrintSpawnCommand {
+	command: string;
+	args: string[];
+	shell: boolean;
+	windowsVerbatimArguments?: boolean;
+}
+
+function quoteForCmd(value: string): string {
+	return `"${value.replace(/"/g, '""')}"`;
+}
+
+function resolveWindowsClaudeExecutable(resolvedBinary: string): string | null {
+	if (!resolvedBinary.toLowerCase().endsWith('.cmd')) return null;
+	const candidate = join(dirname(resolvedBinary), 'node_modules', '@anthropic-ai', 'claude-code', 'bin', 'claude.exe');
+	return existsSync(candidate) ? candidate : null;
+}
+
+export function buildClaudePrintSpawnCommand(
+	resolvedBinary = resolveCliBinary('claude') || 'claude',
+	platform = process.platform
+): ClaudePrintSpawnCommand {
+	if (platform === 'win32') {
+		if (!resolvedBinary.toLowerCase().endsWith('.cmd')) {
+			return {
+				command: resolvedBinary,
+				args: ['--print'],
+				shell: false
+			};
+		}
+		const directExecutable = resolveWindowsClaudeExecutable(resolvedBinary);
+		if (directExecutable) {
+			return {
+				command: directExecutable,
+				args: ['--print'],
+				shell: false
+			};
+		}
+		return {
+			command: process.env.ComSpec || 'cmd.exe',
+			args: ['/d', '/c', `${quoteForCmd(resolvedBinary)} --print`],
+			shell: false,
+			windowsVerbatimArguments: true
+		};
+	}
+	return {
+		command: resolvedBinary,
+		args: ['--print'],
+		shell: false
+	};
+}
+
 function runClaudePrint(prompt: string): Promise<string> {
 	return new Promise((resolve, reject) => {
-		const claudeBinary = resolveCliBinary('claude') || 'claude';
-		const child = spawnHidden(claudeBinary, ['--print'], {
+		const command = buildClaudePrintSpawnCommand();
+		const child = spawn(command.command, command.args, {
 			stdio: ['pipe', 'pipe', 'pipe'],
+			windowsHide: true,
+			shell: command.shell,
+			windowsVerbatimArguments: command.windowsVerbatimArguments,
 			env: { ...process.env }
 		});
 		let stdout = '';
@@ -124,10 +221,10 @@ function runClaudePrint(prompt: string): Promise<string> {
 			child.kill('SIGKILL');
 			reject(new Error(`brief-enricher claude --print timed out after ${ENRICH_TIMEOUT_MS}ms`));
 		}, ENRICH_TIMEOUT_MS);
-		child.stdout?.on('data', (chunk) => {
+		child.stdout.on('data', (chunk) => {
 			stdout += chunk.toString('utf-8');
 		});
-		child.stderr?.on('data', (chunk) => {
+		child.stderr.on('data', (chunk) => {
 			stderr += chunk.toString('utf-8');
 		});
 		child.on('error', (err) => {
@@ -142,11 +239,6 @@ function runClaudePrint(prompt: string): Promise<string> {
 			}
 			resolve(stdout);
 		});
-		if (!child.stdin) {
-			clearTimeout(timer);
-			reject(new Error('brief-enricher stdin unavailable'));
-			return;
-		}
 		child.stdin.write(prompt);
 		child.stdin.end();
 	});
@@ -162,13 +254,17 @@ export async function enrichBrief(content: string): Promise<EnrichmentResult> {
 		};
 	}
 
+	if (ENRICH_PROVIDER !== 'claude') {
+		return buildDeterministicEnrichment(content);
+	}
+
 	try {
 		const prompt = ENRICH_PROMPT_TEMPLATE.replace('{{BRIEF}}', content);
 		const stdout = await runClaudePrint(prompt);
 		const json = extractJson(stdout);
 		if (!json) {
-			console.warn('[brief-enricher] no JSON in claude output, falling back to raw brief');
-			return { enrichedContent: content, addedAssumptions: [], openQuestions: [], wasEnriched: false };
+			console.warn('[brief-enricher] no JSON in claude output, falling back to deterministic brief');
+			return buildDeterministicEnrichment(content);
 		}
 		const parsed = JSON.parse(json) as Partial<EnrichmentResult>;
 		const enrichedContent = typeof parsed.enrichedContent === 'string' && parsed.enrichedContent.trim()
@@ -185,7 +281,7 @@ export async function enrichBrief(content: string): Promise<EnrichmentResult> {
 			wasEnriched: enrichedContent !== content
 		};
 	} catch (err) {
-		console.warn('[brief-enricher] enrichment failed, falling back to raw brief:', err);
-		return { enrichedContent: content, addedAssumptions: [], openQuestions: [], wasEnriched: false };
+		console.warn('[brief-enricher] enrichment failed, falling back to deterministic brief:', err);
+		return buildDeterministicEnrichment(content);
 	}
 }
