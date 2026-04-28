@@ -69,6 +69,23 @@ export function resolveSparkWorkspaceRoot(env = process.env, fallbackHome = home
   );
 }
 
+export function healthRequiresCodex(providers, env = process.env) {
+  const selectedProvider =
+    env.DEFAULT_MISSION_PROVIDER?.trim() ||
+    env.SPAWNER_PRD_AUTO_PROVIDER?.trim() ||
+    env.SPARK_MISSION_LLM_BOT_PROVIDER?.trim() ||
+    env.SPARK_BOT_DEFAULT_PROVIDER?.trim() ||
+    "";
+  if (selectedProvider === "codex") return true;
+  const codexProvider = providers.find((provider) => provider && provider.id === "codex");
+  return Boolean(
+    codexProvider &&
+      (codexProvider.configured === true ||
+        codexProvider.envKeyConfigured === true ||
+        codexProvider.cliConfigured === true),
+  );
+}
+
 async function main() {
   const relayWebhooks = parseCsv(process.env.MISSION_CONTROL_WEBHOOK_URLS);
   if (relayWebhooks.length > 0 && !process.env.TELEGRAM_RELAY_SECRET?.trim()) {
@@ -87,13 +104,7 @@ async function main() {
         provider.envKeyConfigured === true ||
         provider.cliConfigured === true),
   ).length;
-  const providerIds = payload.providers
-    .map((provider) => provider && provider.id)
-    .filter(Boolean);
-  const wantsCodex =
-    process.env.DEFAULT_MISSION_PROVIDER === "codex" ||
-    process.env.SPAWNER_PRD_AUTO_PROVIDER === "codex" ||
-    providerIds.includes("codex");
+  const wantsCodex = healthRequiresCodex(payload.providers);
   const codexPath = wantsCodex ? resolveCli("codex") : null;
 
   if (wantsCodex && !codexPath) {
