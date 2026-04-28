@@ -42,15 +42,27 @@ describe('multi-llm-orchestrator', () => {
 		const options = createDefaultMultiLLMOptions();
 		expect(options.enabled).toBe(true);
 		expect(options.strategy).toBe('round_robin');
-		expect(options.providers.map((provider) => provider.id)).toEqual(['claude', 'codex', 'zai', 'minimax', 'openrouter', 'huggingface']);
+		expect(options.providers.map((provider) => provider.id)).toEqual([
+			'claude',
+			'codex',
+			'zai',
+			'minimax',
+			'openrouter',
+			'huggingface',
+			'lmstudio'
+		]);
 		expect(options.providers.find((provider) => provider.id === 'claude')?.model).toBe('opus');
 		expect(options.providers.find((provider) => provider.id === 'claude')?.commandTemplate).toBe(
 			'claude -p --model {model}'
+		);
+		expect(options.providers.find((provider) => provider.id === 'lmstudio')?.baseUrl).toBe(
+			'http://localhost:1234/v1'
 		);
 		expect(options.providers.find((provider) => provider.id === 'zai')?.enabled).toBe(false);
 		expect(options.providers.find((provider) => provider.id === 'minimax')?.enabled).toBe(false);
 		expect(options.providers.find((provider) => provider.id === 'openrouter')?.enabled).toBe(false);
 		expect(options.providers.find((provider) => provider.id === 'huggingface')?.enabled).toBe(false);
+		expect(options.providers.find((provider) => provider.id === 'lmstudio')?.enabled).toBe(false);
 	});
 
 	it('assigns tasks round-robin across enabled providers', () => {
@@ -194,6 +206,31 @@ describe('multi-llm-orchestrator', () => {
 		expect(pack.providers.map((provider) => provider.id)).toEqual(['zai']);
 		expect(pack.primaryProviderId).toBe('zai');
 		expect(pack.launchCommands.zai).toContain('https://api.z.ai/api/coding/paas/v4/chat/completions');
+	});
+
+	it('supports LM Studio as an explicit mission provider without an API key', () => {
+		const options = createDefaultMultiLLMOptions();
+		options.enabled = true;
+		options.strategy = 'single';
+		options.autoEnableByKeys = false;
+		options.primaryProviderId = 'lmstudio';
+		options.providers = options.providers.map((provider) => ({
+			...provider,
+			enabled: provider.id === 'lmstudio',
+			model: provider.id === 'lmstudio' ? 'loaded-local-model' : provider.model
+		}));
+
+		const pack = buildMultiLLMExecutionPack({
+			mission: createMission(1),
+			options
+		});
+
+		expect(pack.providers.map((provider) => provider.id)).toEqual(['lmstudio']);
+		expect(pack.primaryProviderId).toBe('lmstudio');
+		expect(pack.providers[0].requiresApiKey).toBe(false);
+		expect(pack.providers[0].sparkExecutionBridge).toBe('codex');
+		expect(pack.launchCommands.lmstudio).toContain('http://localhost:1234/v1/chat/completions');
+		expect(pack.launchCommands.lmstudio).not.toContain('Authorization: Bearer');
 	});
 
 	it('keeps single-provider runs on the selected provider even when other keys are present', () => {

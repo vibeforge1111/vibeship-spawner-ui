@@ -7,6 +7,7 @@ import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { buildMultiLLMExecutionPack, createDefaultMultiLLMOptions } from '$lib/services/multi-llm-orchestrator';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { providerRuntime } from '$lib/server/provider-runtime';
+import { applyProviderEnvOverrides } from '$lib/server/provider-config';
 import { resolveSparkRunProjectPath, SparkRunWorkspaceError } from '$lib/server/spark-run-workspace';
 import { normalizeTier, type SkillTier } from '$lib/server/skill-tiers';
 
@@ -160,7 +161,13 @@ export const POST: RequestHandler = async (event) => {
 			return json({ success: false, error: 'No runnable Spark providers are configured' }, { status: 400 });
 		}
 
-		const selectedProviders = defaults.providers.filter((provider) => selectedProviderIds.includes(provider.id));
+		const selectedProviders = defaults.providers
+			.filter((provider) => selectedProviderIds.includes(provider.id))
+			.map((provider) =>
+				applyProviderEnvOverrides(provider, envRecord, {
+					missionDefaultProviderId: configuredDefault || selectedProviderIds[0] || null
+				})
+			);
 		if (selectedProviders.length === 0) {
 			return json({ success: false, error: `Unknown providerIds: ${selectedProviderIds.join(', ')}` }, { status: 400 });
 		}
@@ -206,7 +213,9 @@ export const POST: RequestHandler = async (event) => {
 		options.strategy = selectedProviders.length > 1 ? 'parallel_consensus' : 'single';
 		options.primaryProviderId = selectedProviderIds[0];
 		options.providers = defaults.providers.map((provider) => ({
-			...provider,
+			...applyProviderEnvOverrides(provider, envRecord, {
+				missionDefaultProviderId: configuredDefault || selectedProviderIds[0] || null
+			}),
 			enabled: selectedProviderIds.includes(provider.id)
 		}));
 

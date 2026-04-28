@@ -148,7 +148,8 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		kind: 'openai_compat',
 		eventSource: 'minimax',
 		capabilities: ['reasoning', 'planning', 'review', 'code_analysis'],
-		executesFilesystem: false,
+		executesFilesystem: true,
+		sparkExecutionBridge: 'codex',
 		apiKeyEnv: 'MINIMAX_API_KEY',
 		requiresApiKey: true,
 		baseUrl: 'https://api.minimax.io/v1'
@@ -161,7 +162,8 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		kind: 'openai_compat',
 		eventSource: 'openrouter',
 		capabilities: ['reasoning', 'planning', 'review', 'code_analysis'],
-		executesFilesystem: false,
+		executesFilesystem: true,
+		sparkExecutionBridge: 'codex',
 		apiKeyEnv: 'OPENROUTER_API_KEY',
 		requiresApiKey: true,
 		baseUrl: 'https://openrouter.ai/api/v1'
@@ -169,15 +171,29 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 	{
 		id: 'huggingface',
 		label: 'Hugging Face',
-		model: 'deepseek-ai/DeepSeek-R1:fastest',
+		model: 'google/gemma-4-31B-it:fastest',
 		enabled: false,
 		kind: 'openai_compat',
 		eventSource: 'huggingface',
 		capabilities: ['reasoning', 'planning', 'review', 'code_analysis'],
-		executesFilesystem: false,
+		executesFilesystem: true,
+		sparkExecutionBridge: 'codex',
 		apiKeyEnv: 'HF_TOKEN',
 		requiresApiKey: true,
 		baseUrl: 'https://router.huggingface.co/v1'
+	},
+	{
+		id: 'lmstudio',
+		label: 'LM Studio',
+		model: 'local-model',
+		enabled: false,
+		kind: 'openai_compat',
+		eventSource: 'lmstudio',
+		capabilities: ['reasoning', 'planning', 'review', 'code_analysis'],
+		executesFilesystem: true,
+		sparkExecutionBridge: 'codex',
+		requiresApiKey: false,
+		baseUrl: 'http://localhost:1234/v1'
 	}
 ];
 
@@ -1025,12 +1041,15 @@ function buildLaunchCommand(provider: MultiLLMProviderConfig, missionId: string)
 	if (provider.kind === 'openai_compat') {
 		const baseUrl = provider.baseUrl || '<BASE_URL>';
 		const apiKeyEnv = provider.apiKeyEnv || 'API_KEY';
+		const authHeader = provider.requiresApiKey
+			? `  -H "Authorization: Bearer $${apiKeyEnv}" \\`
+			: '  # No API key required for this local OpenAI-compatible provider \\';
 		return [
 			`# ${provider.label} OpenAI-compatible launch`,
 			`# 1) Save this provider prompt to ${promptFile}`,
 			`# 2) Build a request JSON using model "${provider.model}" and prompt content`,
 			`curl -sS ${baseUrl}/chat/completions \\`,
-			`  -H "Authorization: Bearer $${apiKeyEnv}" \\`,
+			authHeader,
 			`  -H "Content-Type: application/json" \\`,
 			`  -d @${provider.id}-request.json`
 		].join('\n');
