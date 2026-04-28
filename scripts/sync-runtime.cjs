@@ -27,6 +27,10 @@ const SYNCED_PATHS = [
 	'src/lib/server/claude-auto-analysis.ts',
 	'src/lib/server/bundle-classifier.ts',
 	'src/lib/server/brief-enricher.ts',
+	'src/lib/server/mission-control-relay.ts',
+	'src/lib/server/mission-control-results.ts',
+	'src/lib/services/mission-board-cards.ts',
+	'src/lib/components/MissionBoard.svelte',
 	'src/routes/api/prd-bridge/write/+server.ts',
 	'src/routes/api/spark/run/+server.ts',
 	'static/bundles'

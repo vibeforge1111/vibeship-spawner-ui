@@ -66,6 +66,42 @@ describe('mission-control-relay', () => {
 		expect(entry?.taskStatusCounts).toMatchObject({ running: 1, completed: 0, failed: 0, total: 1 });
 	});
 
+	it('preserves the queued timestamp after a mission moves into progress', async () => {
+		const missionId = `mission-queued-lifecycle-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			missionName: 'Spark Queue Visibility',
+			source: 'telegram',
+			timestamp: '2026-04-28T10:00:00.000Z',
+			data: {
+				plannedTasks: [{ title: 'Plan the canvas', skills: ['mission-control'] }],
+				telegramRelay: { port: 1 }
+			}
+		});
+
+		let board = getMissionControlBoard();
+		const created = board.created.find((candidate) => candidate.missionId === missionId);
+		expect(created?.queuedAt).toBe('2026-04-28T10:00:00.000Z');
+		expect(created?.lastSummary).toContain('Queued: Spark Queue Visibility entered To do');
+
+		await relayMissionControlEvent({
+			type: 'mission_started',
+			missionId,
+			missionName: 'Spark Queue Visibility',
+			source: 'canvas-dispatch',
+			timestamp: '2026-04-28T10:00:05.000Z',
+			data: { telegramRelay: { port: 1 } }
+		});
+
+		board = getMissionControlBoard();
+		const running = board.running.find((candidate) => candidate.missionId === missionId);
+		expect(running?.queuedAt).toBe('2026-04-28T10:00:00.000Z');
+		expect(running?.startedAt).toBe('2026-04-28T10:00:05.000Z');
+		expect(running?.taskStatusCounts).toMatchObject({ queued: 1, running: 0, completed: 0, total: 1 });
+	});
+
 	it('does not add provider-level completion events as anonymous board tasks', async () => {
 		const missionId = `mission-provider-completion-${Date.now()}`;
 

@@ -30,6 +30,8 @@ function entry(
 		status: 'completed',
 		lastEventType: 'mission_completed',
 		lastUpdated: '2026-04-25T00:00:01.000Z',
+		queuedAt: null,
+		startedAt: null,
 		lastSummary: '[MissionControl] Mission completed.',
 		taskName: null,
 		taskCount: 0,

@@ -30,6 +30,8 @@
 		status: string;
 		lastEventType: string;
 		lastUpdated: string;
+		queuedAt?: string | null;
+		startedAt?: string | null;
 		lastSummary: string;
 		taskName: string | null;
 		taskCount?: number;
@@ -294,6 +296,8 @@
 			source: 'mcp',
 			updatedAt: m.updated_at ?? null,
 			createdAt: m.created_at ?? null,
+			queuedAt: m.created_at ?? null,
+			startedAt: m.status === 'running' ? (m.updated_at ?? null) : null,
 			taskCount: m.tasks?.length ?? 0,
 			strategy: m.mode,
 			tasks
@@ -320,6 +324,8 @@
 			source: 'spark',
 			updatedAt: e.lastUpdated ?? null,
 			createdAt: e.lastUpdated ?? null,
+			queuedAt: e.queuedAt ?? null,
+			startedAt: e.startedAt ?? null,
 			taskCount,
 			taskStatusCounts: e.taskStatusCounts,
 			strategy,
@@ -457,6 +463,16 @@
 		if (counts.cancelled) parts.push(`${counts.cancelled} cancelled`);
 		if (counts.queued) parts.push(`${counts.queued} queued`);
 		return parts.length ? parts.join(' / ') : `${counts.total} tasks`;
+	}
+
+	function lifecycleSummary(card: BoardCard): string | null {
+		if (card.source !== 'spark') return null;
+		if (card.status === 'ready' && card.queuedAt) return `Queued ${formatDate(card.queuedAt)}`;
+		if ((card.status === 'running' || card.status === 'paused') && card.startedAt) {
+			const queued = card.queuedAt ? `Queued ${formatDate(card.queuedAt)} - ` : '';
+			return `${queued}Started ${formatDate(card.startedAt)}`;
+		}
+		return null;
 	}
 
 	function columnDot(title: string): string {
@@ -682,6 +698,10 @@
 											<p class="text-sm text-accent-primary/90 leading-relaxed mb-3 line-clamp-3">{c.providerSummary}</p>
 										{/if}
 
+										{#if lifecycleSummary(c)}
+											<p class="font-mono text-[11px] text-accent-primary/80 mb-3">{lifecycleSummary(c)}</p>
+										{/if}
+
 										{#if c.tasks && c.tasks.length > 0}
 											<ul class="space-y-2.5 mb-3 border-l-2 border-surface-border/60 pl-3.5">
 												{#each c.tasks.slice(0, 3) as task}
@@ -745,6 +765,10 @@
 
 												{#if taskProgressSummary(c)}
 													<p class="font-mono text-[10px] text-text-secondary leading-snug">Tasks: {taskProgressSummary(c)}</p>
+												{/if}
+
+												{#if lifecycleSummary(c)}
+													<p class="font-mono text-[10px] text-accent-primary/80 leading-snug">Lifecycle: {lifecycleSummary(c)}</p>
 												{/if}
 
 												{#if c.providerResults && c.providerResults.length > 0}

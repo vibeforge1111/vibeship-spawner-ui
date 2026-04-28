@@ -59,6 +59,8 @@ export interface MissionControlBoardEntry {
 	status: 'created' | 'running' | 'paused' | 'completed' | 'failed';
 	lastEventType: string;
 	lastUpdated: string;
+	queuedAt: string | null;
+	startedAt: string | null;
 	lastSummary: string;
 	taskName: string | null;
 	taskCount: number;
@@ -319,6 +321,26 @@ function mapEventTypeToBoardStatus(eventType: string): MissionControlBoardEntry[
 	}
 }
 
+function isMissionStartEvent(eventType: string): boolean {
+	return [
+		'mission_started',
+		'mission_resumed',
+		'dispatch_started',
+		'task_started',
+		'task_progress',
+		'progress'
+	].includes(eventType);
+}
+
+function earlierTimestamp(current: string | null, candidate: string): string {
+	if (!current) return candidate;
+	const currentMs = Date.parse(current);
+	const candidateMs = Date.parse(candidate);
+	if (!Number.isFinite(currentMs)) return candidate;
+	if (!Number.isFinite(candidateMs)) return current;
+	return candidateMs < currentMs ? candidate : current;
+}
+
 function isStaleNonTerminalStatus(status: MissionControlBoardEntry['status'], timestamp: string): boolean {
 	if (status === 'completed' || status === 'failed' || status === 'paused') {
 		return false;
@@ -451,6 +473,18 @@ function closeOpenTasksForTerminalMission(entry: MissionControlBoardEntry): void
 	}
 }
 
+function recordLifecycleTimestamps(
+	entry: MissionControlBoardEntry,
+	event: MissionControlRelayStatusEntry
+): void {
+	if (event.eventType === 'mission_created') {
+		entry.queuedAt = earlierTimestamp(entry.queuedAt, event.timestamp);
+	}
+	if (isMissionStartEvent(event.eventType)) {
+		entry.startedAt = earlierTimestamp(entry.startedAt, event.timestamp);
+	}
+}
+
 export function getMissionControlBoard(): Record<string, MissionControlBoardEntry[]> {
 	const byMission = new Map<string, MissionControlBoardEntry>();
 	const terminalMissionIds = new Set(
@@ -480,6 +514,8 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 				status,
 				lastEventType: entry.eventType,
 				lastUpdated: entry.timestamp,
+				queuedAt: entry.eventType === 'mission_created' ? entry.timestamp : null,
+				startedAt: isMissionStartEvent(entry.eventType) ? entry.timestamp : null,
 				lastSummary: sanitizeMissionControlDisplayText(entry.summary),
 				taskName: entry.taskName ? sanitizeMissionControlDisplayText(entry.taskName) : null,
 				taskCount: 0,
@@ -499,6 +535,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 		}
 
 		const current = byMission.get(entry.missionId)!;
+		recordLifecycleTimestamps(current, entry);
 		seedPlannedTasks(current, entry);
 		maybeRecordTask(current, entry);
 	}
@@ -557,7 +594,7 @@ export function summarizeMissionControlEvent(event: MissionControlBridgeEvent): 
 
 	switch (type) {
 		case 'mission_created':
-			return `[MissionControl] Mission created (${missionId}).`;
+			return `[MissionControl] Queued: ${event.missionName || 'mission'} entered To do (${missionId}).`;
 		case 'mission_started':
 			return `[MissionControl] Mission started (${missionId}).`;
 		case 'mission_paused':

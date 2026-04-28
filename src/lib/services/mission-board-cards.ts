@@ -22,6 +22,8 @@ export interface MissionBoardCard {
 	source: MissionBoardCardSource;
 	updatedAt: string | null;
 	createdAt: string | null;
+	queuedAt?: string | null;
+	startedAt?: string | null;
 	taskCount: number;
 	taskStatusCounts?: {
 		queued: number;
@@ -56,6 +58,8 @@ function mergeLiveWithStaticCard(live: MissionBoardCard, staticCard: MissionBoar
 		mode: live.mode || staticCard.mode,
 		updatedAt: latestTimestamp(live.updatedAt, staticCard.updatedAt),
 		createdAt: live.createdAt || staticCard.createdAt,
+		queuedAt: live.queuedAt ?? staticCard.queuedAt,
+		startedAt: live.startedAt ?? staticCard.startedAt,
 		taskCount: Math.max(live.taskCount || 0, staticCard.taskCount || 0),
 		taskStatusCounts: live.taskStatusCounts ?? staticCard.taskStatusCounts,
 		taskNames: live.taskNames?.length ? live.taskNames : staticCard.taskNames,

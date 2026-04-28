@@ -12,6 +12,8 @@ function entry(
 		status,
 		lastEventType: status === 'completed' ? 'mission_completed' : 'mission_started',
 		lastUpdated: '2026-04-28T00:00:00.000Z',
+		queuedAt: null,
+		startedAt: null,
 		lastSummary: 'done',
 		taskName: null,
 		taskCount: 0,
