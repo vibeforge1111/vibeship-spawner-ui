@@ -22,8 +22,9 @@ import { join } from 'path';
 import type { SkillTier } from './skill-tiers';
 import { resolveCliBinary } from './cli-resolver';
 import { spawnHidden } from './hidden-process';
+import { claudeAutoAnalysisTimeoutMs } from './timeout-config';
 
-const CLAUDE_TIMEOUT_MS = Number(process.env.SPAWNER_CLAUDE_TIMEOUT_MS || 240_000);
+const CLAUDE_TIMEOUT_MS = claudeAutoAnalysisTimeoutMs();
 
 interface PrdBridgePaths {
 	spawnerDir: string;

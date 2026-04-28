@@ -1,5 +1,6 @@
 import type { BridgeEvent } from '$lib/services/event-bridge';
 import type { MultiLLMProviderConfig } from '$lib/services/multi-llm-orchestrator';
+import { sparkHarnessTimeoutMs } from '$lib/server/timeout-config';
 import type { ProviderResult } from './types';
 import { createBridgeEvent } from './types';
 
@@ -30,7 +31,7 @@ interface AssignedCanvasTask {
 
 const DEFAULT_SPARK_HARNESS_URL = 'http://127.0.0.1:8011';
 const POLL_INTERVAL_MS = 1500;
-const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
+const DEFAULT_TIMEOUT_MS = sparkHarnessTimeoutMs();
 
 export async function executeSparkHarnessRequest(options: SparkHarnessOptions): Promise<ProviderResult> {
 	const { provider, missionId, prompt, workingDirectory, signal, onEvent } = options;

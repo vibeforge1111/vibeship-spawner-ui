@@ -20,6 +20,8 @@ import type { BridgeEvent } from './event-bridge';
 import type { Skill } from '$lib/stores/skills.svelte';
 import { getEventsAuthHeaders } from '$lib/services/events-auth-client';
 
+const PRD_BRIDGE_TIMEOUT_MS = 30 * 60 * 1000;
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -147,7 +149,7 @@ export async function initPRDBridge(): Promise<void> {
 export async function requestPRDAnalysis(
 	prdContent: string,
 	projectName?: string,
-	timeoutMs: number = 120000 // 2 minute timeout
+	timeoutMs: number = PRD_BRIDGE_TIMEOUT_MS
 ): Promise<PRDAnalysisResult> {
 	const requestId = `prd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 

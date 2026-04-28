@@ -27,6 +27,7 @@ import { executeSparkHarnessRequest } from './provider-clients/spark-harness-cli
 import { openclawBridge } from '$lib/services/openclaw-bridge';
 import { eventBridge } from '$lib/services/event-bridge';
 import { mcpClient } from '$lib/services/mcp-client';
+import { agentWorkTimeoutMs } from './timeout-config';
 import { readFile } from 'node:fs/promises';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -83,6 +84,7 @@ export function providerShouldUseSparkExecutionBridge(
 			((env.SPARK_AGENT_HARNESS_URL || '').trim() || (env.SPARK_HARNESS_URL || '').trim())
 	);
 }
+
 function sessionToResultSnapshot(session: ProviderSession): ProviderMissionResultSnapshot {
 	return {
 		providerId: session.providerId,
@@ -342,6 +344,29 @@ class ProviderRuntimeManager {
 			sessionStatuses[provider.id] = { status: 'running' };
 			this.persistMissionSessions(missionId);
 
+			const providerTimeoutMs = agentWorkTimeoutMs();
+			let providerTimedOut = false;
+			const providerTimeout = setTimeout(() => {
+				providerTimedOut = true;
+				abortController.abort();
+				this.rememberStatusReason(
+					missionId,
+					`${provider.label} timed out after ${Math.round(providerTimeoutMs / 1000)}s`
+				);
+				onEvent(
+					createBridgeEvent('task_failed', { provider, missionId, onEvent, signal: abortController.signal }, {
+						message: `${provider.label} timed out after ${Math.round(providerTimeoutMs / 1000)}s`,
+						data: {
+							success: false,
+							error: 'Provider execution timed out',
+							provider: provider.id,
+							providerLabel: provider.label,
+							timeoutMs: providerTimeoutMs
+						}
+					})
+				);
+			}, providerTimeoutMs);
+
 			const promise = this.executeProvider(
 				provider,
 				providerPrompt,
@@ -351,6 +376,14 @@ class ProviderRuntimeManager {
 				workingDirectory,
 				onEvent
 			).then((result) => {
+				clearTimeout(providerTimeout);
+				if (providerTimedOut && (result.error === 'Cancelled' || result.error === 'AbortError')) {
+					result = {
+						success: false,
+						error: `${provider.label} timed out after ${Math.round(providerTimeoutMs / 1000)}s`,
+						durationMs: providerTimeoutMs
+					};
+				}
 				session.result = result;
 				if (session.status === 'cancelled' || result.error === 'Cancelled') {
 					session.status = 'cancelled';
