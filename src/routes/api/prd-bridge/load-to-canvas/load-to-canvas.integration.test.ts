@@ -66,7 +66,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 
 		expect(response.status).toBe(200);
 		const body = await response.json();
-		expect(body.canvasUrl).toBe('/canvas?pipeline=prd-tg-contract-test');
+		expect(body.canvasUrl).toBe('/canvas?pipeline=prd-tg-contract-test&mission=mission-tg-contract-test');
 		const pendingRaw = await readFile(path.join(testSpawnerDir, 'pending-load.json'), 'utf-8');
 		const pending = JSON.parse(pendingRaw);
 		const description = pending.nodes[0].skill.description;
@@ -253,7 +253,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 			pipelineName: 'Spark Mission Arcade',
 			taskCount: 3,
 			connectionCount: 2,
-			canvasUrl: `/canvas?pipeline=prd-${requestId}`
+			canvasUrl: `/canvas?pipeline=prd-${requestId}&mission=mission-1777300000000`
 		});
 
 		const pendingRaw = await readFile(path.join(testSpawnerDir, 'pending-load.json'), 'utf-8');

@@ -86,11 +86,14 @@ export async function queuePipelineLoad(load: Omit<PendingPipelineLoad, 'timesta
  * Returns the load data and consumes it server-side.
  * The API GET already deletes the pending file.
  */
-export async function getPendingLoad(): Promise<PendingPipelineLoad | null> {
+export async function getPendingLoad(requestedPipelineId: string | null = null): Promise<PendingPipelineLoad | null> {
 	if (!browser) return null;
 
 	try {
-		const response = await fetch(PENDING_LOAD_ENDPOINT, {
+		const url = requestedPipelineId
+			? `${PENDING_LOAD_ENDPOINT}?pipeline=${encodeURIComponent(requestedPipelineId)}`
+			: PENDING_LOAD_ENDPOINT;
+		const response = await fetch(url, {
 			method: 'GET'
 		});
 

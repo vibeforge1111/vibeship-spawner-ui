@@ -8,10 +8,20 @@ describe('brief-enricher', () => {
 		expect(result.wasEnriched).toBe(true);
 		expect(result.enrichedContent).toContain('# Inferred Project Brief');
 		expect(result.enrichedContent).toContain('Original user request: build me a useful dashboard');
-		expect(result.addedAssumptions).toContain(
-			'Assume this is a web app unless the user specifies mobile, desktop, or another surface.'
+		expect(result.addedAssumptions).toContain('Assume this is a responsive web dashboard unless another surface is specified.');
+		expect(result.openQuestions).toContain('What is the main decision this dashboard should help you make?');
+	});
+
+	it('asks project-specific questions for vague game briefs', () => {
+		const result = buildDeterministicEnrichment("let's build a maze game");
+
+		expect(result.wasEnriched).toBe(true);
+		expect(result.enrichedContent).toContain('Build a small, playable browser game');
+		expect(result.addedAssumptions).toContain('Assume no accounts or backend in v1; keep state local to the browser.');
+		expect(result.openQuestions).toContain(
+			'What should make this game feel surprising: shifting walls, power-ups, enemies, time pressure, or something stranger?'
 		);
-		expect(result.openQuestions).toContain('What is the one action the app must make easy?');
+		expect(result.openQuestions.join('\n')).not.toContain('Does it need accounts/login in v1?');
 	});
 
 	it('uses a direct Claude executable on Windows when one exists beside the cmd shim', () => {

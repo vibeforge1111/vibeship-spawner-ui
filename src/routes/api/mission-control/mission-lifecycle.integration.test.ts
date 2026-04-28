@@ -169,7 +169,7 @@ describe('Mission Control lifecycle integration', () => {
 			pipelineName: 'Spark System Lifecycle',
 			taskCount: 3,
 			connectionCount: 2,
-			canvasUrl: `/canvas?pipeline=prd-${requestId}`
+			canvasUrl: `/canvas?pipeline=prd-${requestId}&mission=mission-1777370000000`
 		});
 		const pendingLoad = JSON.parse(await readFile(path.join(stateDir, 'pending-load.json'), 'utf-8'));
 		expect(pendingLoad).toMatchObject({

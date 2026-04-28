@@ -82,6 +82,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	try {
 		const peek = url.searchParams.get('peek') === 'true';
 		const latest = url.searchParams.get('latest') === 'true';
+		const requestedPipelineId = url.searchParams.get('pipeline')?.trim() || null;
 		const loadFile = latest ? getLastLoadFile() : getPendingLoadFile();
 
 		if (!existsSync(loadFile)) {
@@ -90,6 +91,9 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		const content = await readFile(loadFile, 'utf-8');
 		const load = JSON.parse(content);
+		if (!latest && requestedPipelineId && load?.pipelineId !== requestedPipelineId) {
+			return json({ pending: false });
+		}
 
 		// If not peeking, delete the file (consume the load). Multiple canvas
 		// tabs can race here; the read load is still valid even when another

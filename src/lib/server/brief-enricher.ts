@@ -117,30 +117,103 @@ function extractJson(text: string): string | null {
 export function buildDeterministicEnrichment(content: string): EnrichmentResult {
 	const brief = content.trim();
 	const productName = brief.length <= 80 ? brief : `${brief.slice(0, 77)}...`;
-	const addedAssumptions = [
-		'Assume this is a web app unless the user specifies mobile, desktop, or another surface.',
-		'Assume a practical solo-founder v1 with authentication, persisted data, and a clean core workflow.',
-		'Assume the build should include basic error states, responsive UI, and a simple verification path.'
-	];
-	const openQuestions = [
-		'Who is the first user this app is for?',
-		'What is the one action the app must make easy?',
-		'Does it need accounts/login in v1?',
-		'What data should be saved or shown first?'
-	];
+	const lower = brief.toLowerCase();
+	const isGame = /\b(game|maze|puzzle|arcade|runner|platformer|rpg|quest|level|player|score|enemy|boss)\b/.test(lower);
+	const isDashboard = /\b(dashboard|analytics|metrics|monitor|report|tracker|board)\b/.test(lower);
+	const isContentTool = /\b(journal|notes|writer|prompt|story|blog|content|editor)\b/.test(lower);
+
+	let addedAssumptions: string[];
+	let openQuestions: string[];
+	let productDirection: string;
+	let assumedScope: string[];
+
+	if (isGame) {
+		addedAssumptions = [
+			'Assume this is a browser-playable game unless another platform is specified.',
+			'Assume no accounts or backend in v1; keep state local to the browser.',
+			'Assume the v1 should include a clear win condition, restart flow, keyboard controls, and a short smoke test.'
+		];
+		openQuestions = [
+			'What should make this game feel surprising: shifting walls, power-ups, enemies, time pressure, or something stranger?',
+			'Should it be chill and atmospheric or fast and score-chasing?',
+			'Do you want generated mazes, hand-built levels, or one polished level for v1?',
+			'What should count as winning?'
+		];
+		productDirection = `Build a small, playable browser game for: ${productName}.`;
+		assumedScope = [
+			'- A first screen that drops the player straight into the game.',
+			'- Keyboard controls, restart, win/lose state, score or progress feedback, and responsive layout.',
+			'- Local browser state only where useful, such as best time or best score.',
+			'- Lightweight verification steps that prove movement, winning, restart, and persistence work.'
+		];
+	} else if (isDashboard) {
+		addedAssumptions = [
+			'Assume this is a responsive web dashboard unless another surface is specified.',
+			'Assume the v1 can use local/mock data until a live source is named.',
+			'Assume the dashboard should prioritize scanability, filters, empty states, and a simple verification path.'
+		];
+		openQuestions = [
+			'What is the main decision this dashboard should help you make?',
+			'Which three metrics matter most on the first screen?',
+			'Should v1 use live data, imported files, or seeded sample data?',
+			'Who checks this dashboard most often?'
+		];
+		productDirection = `Build a focused monitoring surface for: ${productName}.`;
+		assumedScope = [
+			'- A compact first screen with the most important status and trend information.',
+			'- Filters or time range controls if they help the main decision.',
+			'- Seeded data with clear seams for a live source when not specified.',
+			'- Basic loading, empty, and error states plus verification steps.'
+		];
+	} else if (isContentTool) {
+		addedAssumptions = [
+			'Assume this is a local-first web tool unless another surface is specified.',
+			'Assume no accounts in v1; save drafts and settings in browser storage.',
+			'Assume the v1 should make the main creation loop fast, calm, and easy to verify.'
+		];
+		openQuestions = [
+			'What should the user create or capture first?',
+			'Should the experience feel focused and minimal or playful and generative?',
+			'What should be saved between sessions?',
+			'What is the most useful export, sharing, or history behavior for v1?'
+		];
+		productDirection = `Build a simple creation tool for: ${productName}.`;
+		assumedScope = [
+			'- A first screen centered on creating or capturing the primary item.',
+			'- Local persistence for drafts, history, or settings.',
+			'- Clear empty state, edit state, and saved state.',
+			'- A README smoke test for creating, refreshing, restoring, and resetting.'
+		];
+	} else {
+		addedAssumptions = [
+			'Assume this is a web app unless the user specifies mobile, desktop, or another surface.',
+			'Assume a focused v1 with local or lightweight persistence rather than heavy infrastructure by default.',
+			'Assume the build should include basic empty/error states, responsive UI, and a simple verification path.'
+		];
+		openQuestions = [
+			'Who should this first version be for?',
+			'What is the one thing it should make satisfyingly easy?',
+			'What should be saved or remembered between sessions?',
+			'Should the vibe be practical, playful, premium, weird, or something else?'
+		];
+		productDirection = `Build a small but usable web app for: ${productName}.`;
+		assumedScope = [
+			'- Responsive web UI with a clear primary action.',
+			'- Basic state/data persistence where the product needs memory between sessions.',
+			'- Friendly empty, loading, and error states.',
+			'- Minimal verification steps so the builder can prove the app works.'
+		];
+	}
 	const enrichedContent = [
 		'# Inferred Project Brief',
 		`Original user request: ${brief}`,
 		'',
 		'## Product Direction',
-		`Build a small but usable web app for: ${productName}.`,
+		productDirection,
 		'Focus on one clear user workflow, a polished first screen, and enough structure that the project can be extended after v1.',
 		'',
 		'## Assumed V1 Scope',
-		'- Responsive web UI with a clear primary action.',
-		'- Basic state/data persistence where the product needs memory between sessions.',
-		'- Friendly empty, loading, and error states.',
-		'- Minimal verification steps so the builder can prove the app works.',
+		...assumedScope,
 		'',
 		'## Open Questions',
 		...openQuestions.map((question) => `- ${question}`)
