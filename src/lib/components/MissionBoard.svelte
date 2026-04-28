@@ -8,33 +8,21 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import { missionsState, loadMissions, startMission as startCurrent, setCurrentMission, deleteMission } from '$lib/stores/missions.svelte';
 	import { mcpState } from '$lib/stores/mcp.svelte';
+	import { initPipelines, pipelines } from '$lib/stores/pipelines.svelte';
 	import type { Mission } from '$lib/services/mcp-client';
+	import type { PipelineMetadata } from '$lib/stores/pipelines.svelte';
+	import { mergeMissionBoardCards, type MissionBoardCard as BoardCard } from '$lib/services/mission-board-cards';
 
 	type Tab = 'board' | 'scheduled';
 	let activeTab = $state<Tab>('board');
 
-	type CardStatus = 'draft' | 'ready' | 'running' | 'paused' | 'completed' | 'failed';
-	type BoardCard = {
-		id: string;
-		name: string;
-		status: CardStatus;
-		mode: string;
-		source: 'mcp' | 'spark';
-		updatedAt: string | null;
-		createdAt: string | null;
-		taskCount: number;
-		strategy?: string;
-		taskNames?: string[];
-		tasks?: Array<{ title: string; skills: string[] }>;
-		summary?: string | null;
-		providerSummary?: string | null;
-		providerResults?: Array<{ providerId: string; status: string; summary: string }>;
-	};
+	type CardStatus = BoardCard['status'];
 
 	let missions = $state<Mission[]>([]);
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 	let mcpConnected = $state(false);
+	let currentPipelines = $state<PipelineMetadata[]>([]);
 
 	type RelayEntry = {
 		missionId: string;
@@ -42,11 +30,21 @@
 		status: string;
 		lastEventType: string;
 		lastUpdated: string;
+		queuedAt?: string | null;
+		startedAt?: string | null;
 		lastSummary: string;
 		taskName: string | null;
 		taskCount?: number;
+		taskStatusCounts?: {
+			queued: number;
+			running: number;
+			completed: number;
+			failed: number;
+			cancelled: number;
+			total: number;
+		};
 		taskNames?: string[];
-		tasks?: Array<{ title: string; skills: string[] }>;
+		tasks?: Array<{ title: string; skills: string[]; status?: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' }>;
 		providerSummary?: string | null;
 		providerResults?: Array<{ providerId: string; status: string; summary: string }>;
 	};
@@ -273,7 +271,7 @@
 			const data = await r.json();
 			const buckets = data?.board ?? {};
 			const flat: RelayEntry[] = [];
-			for (const key of ['created', 'running', 'paused', 'completed', 'failed'] as const) {
+			for (const key of ['created', 'running', 'paused', 'completed', 'failed', 'cancelled'] as const) {
 				for (const entry of buckets[key] ?? []) flat.push(entry as RelayEntry);
 			}
 			relay = flat;
@@ -298,6 +296,8 @@
 			source: 'mcp',
 			updatedAt: m.updated_at ?? null,
 			createdAt: m.created_at ?? null,
+			queuedAt: m.created_at ?? null,
+			startedAt: m.status === 'running' ? (m.updated_at ?? null) : null,
 			taskCount: m.tasks?.length ?? 0,
 			strategy: m.mode,
 			tasks
@@ -306,14 +306,14 @@
 
 	function relayStatusToCard(s: string): CardStatus {
 		if (s === 'created') return 'ready';
-		if (s === 'running' || s === 'paused' || s === 'completed' || s === 'failed') return s;
+		if (s === 'running' || s === 'paused' || s === 'completed' || s === 'failed' || s === 'cancelled') return s;
 		return 'ready';
 	}
 
 	function relayToCard(e: RelayEntry): BoardCard {
 		const name = e.missionName ?? e.taskName ?? e.missionId;
 		const status = relayStatusToCard(e.status);
-		const showSummary = status === 'completed' || status === 'failed';
+		const showSummary = status === 'completed' || status === 'failed' || status === 'cancelled';
 		const taskCount = e.taskCount ?? 0;
 		const strategy = taskCount <= 1 ? 'single' : 'parallel_consensus';
 		return {
@@ -324,21 +324,47 @@
 			source: 'spark',
 			updatedAt: e.lastUpdated ?? null,
 			createdAt: e.lastUpdated ?? null,
+			queuedAt: e.queuedAt ?? null,
+			startedAt: e.startedAt ?? null,
 			taskCount,
+			taskStatusCounts: e.taskStatusCounts,
 			strategy,
 			taskNames: e.taskNames,
 			tasks: e.tasks ?? e.taskNames?.map((title) => ({ title, skills: [] })),
 			summary: showSummary ? e.lastSummary : undefined,
 			providerSummary: e.providerSummary,
-			providerResults: e.providerResults
+			providerResults: e.providerResults,
+			canvasHref: canvasHrefForMission(e.missionId, name)
 		};
 	}
 
+	function missionNumericSuffix(id: string): string {
+		return id.replace(/^(spark|mission)-/, '');
+	}
+
+	function normalizeTitle(value: string | null | undefined): string {
+		return (value || '')
+			.toLowerCase()
+			.replace(/^spark run:\s*/, '')
+			.replace(/[^\p{L}\p{N}]+/gu, ' ')
+			.trim();
+	}
+
+	function canvasHrefForMission(missionId: string, missionName?: string | null): string | null {
+		const suffix = missionNumericSuffix(missionId);
+		const normalizedMission = normalizeTitle(missionName);
+		const pipeline = currentPipelines.find((candidate) => {
+			if (suffix && candidate.id.includes(suffix)) return true;
+			if (normalizedMission && normalizeTitle(candidate.name) === normalizedMission) return true;
+			return false;
+		});
+		return pipeline
+			? `/canvas?pipeline=${encodeURIComponent(pipeline.id)}&mission=${encodeURIComponent(missionId)}`
+			: null;
+	}
+
 	const cards = $derived(() => {
-		const byId = new Map<string, BoardCard>();
-		for (const e of relay) byId.set(e.missionId, relayToCard(e));
-		for (const m of missions) byId.set(m.id, mcpToCard(m));
-		return [...byId.values()];
+		return mergeMissionBoardCards(relay.map(relayToCard), missions.map(mcpToCard));
 	});
 
 	let searchQuery = $state('');
@@ -358,12 +384,14 @@
 	const inProgress = $derived(filteredCards().filter((c) => c.status === 'running' || c.status === 'paused'));
 	const done = $derived(
 		filteredCards()
-			.filter((c) => c.status === 'completed' || c.status === 'failed')
+			.filter((c) => c.status === 'completed' || c.status === 'failed' || c.status === 'cancelled')
 			.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
 	);
 
 	onMount(() => {
+		initPipelines();
 		const unsubMcp = mcpState.subscribe((s) => { mcpConnected = s.status === 'connected'; });
+		const unsubPipelines = pipelines.subscribe((p) => { currentPipelines = p; });
 		const unsub = missionsState.subscribe((s) => {
 			missions = s.missions;
 			loading = s.loading;
@@ -372,7 +400,7 @@
 		loadMissions({ limit: 200 }).catch(() => {});
 		fetchRelay();
 		relayTimer = setInterval(fetchRelay, 4000);
-		return () => { unsub(); unsubMcp(); };
+		return () => { unsub(); unsubMcp(); unsubPipelines(); };
 	});
 
 	onDestroy(() => {
@@ -391,6 +419,7 @@
 			case 'running': return 'bg-accent-primary animate-pulse';
 			case 'paused': return 'bg-status-amber';
 			case 'failed': return 'bg-status-error';
+			case 'cancelled': return 'bg-text-tertiary';
 			case 'completed': return 'bg-status-success';
 			case 'ready': return 'bg-text-secondary';
 			default: return 'bg-text-faint';
@@ -409,6 +438,44 @@
 		if (p === 'High')   return 'bg-status-error/15 text-status-error border-status-error/30';
 		if (p === 'Medium') return 'bg-status-amber/15 text-status-amber border-status-amber/30';
 		return 'bg-bg-primary text-text-tertiary border-surface-border';
+	}
+
+	function taskStatusClass(status: string | undefined): string {
+		if (status === 'completed') return 'text-status-success border-status-success/40 bg-status-success/10';
+		if (status === 'failed') return 'text-status-error border-status-error/40 bg-status-error/10';
+		if (status === 'cancelled') return 'text-text-tertiary border-surface-border bg-bg-primary/70';
+		if (status === 'running') return 'text-accent-primary border-accent-primary/40 bg-accent-primary/10';
+		return 'text-status-amber border-status-amber/35 bg-status-amber/10';
+	}
+
+	function taskStatusLabel(status: string | undefined): string {
+		if (status === 'completed') return 'Done';
+		if (status === 'failed') return 'Failed';
+		if (status === 'cancelled') return 'Cancelled';
+		if (status === 'running') return 'Running';
+		return 'Queued';
+	}
+
+	function taskProgressSummary(card: BoardCard): string | null {
+		const counts = card.taskStatusCounts;
+		if (!counts || counts.total <= 0) return null;
+		const parts = [];
+		if (counts.completed) parts.push(`${counts.completed} done`);
+		if (counts.running) parts.push(`${counts.running} running`);
+		if (counts.failed) parts.push(`${counts.failed} failed`);
+		if (counts.cancelled) parts.push(`${counts.cancelled} cancelled`);
+		if (counts.queued) parts.push(`${counts.queued} queued`);
+		return parts.length ? parts.join(' / ') : `${counts.total} tasks`;
+	}
+
+	function lifecycleSummary(card: BoardCard): string | null {
+		if (card.source !== 'spark') return null;
+		if (card.status === 'ready' && card.queuedAt) return `Queued ${formatDate(card.queuedAt)}`;
+		if ((card.status === 'running' || card.status === 'paused') && card.startedAt) {
+			const queued = card.queuedAt ? `Queued ${formatDate(card.queuedAt)} - ` : '';
+			return `${queued}Started ${formatDate(card.startedAt)}`;
+		}
+		return null;
 	}
 
 	function columnDot(title: string): string {
@@ -602,65 +669,77 @@
 					{ title: 'Done', items: done, empty: 'No history yet' }
 				] as col}
 					<section class="flex flex-col min-h-[320px]">
-						<div class="sticky top-0 z-10 flex items-center gap-2 px-1 py-3 bg-bg-primary/90 backdrop-blur-sm">
-							<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-bg-secondary border border-surface-border">
-								<span class="w-1.5 h-1.5 rounded-full {columnDot(col.title)}"></span>
-								<span class="font-sans text-[11px] font-medium text-text-bright">{col.title}</span>
-							</span>
-							<span class="font-mono text-[11px] text-text-tertiary">{col.items.length}</span>
+						<div class="sticky top-0 z-10 flex items-center justify-between gap-2 px-1 py-4 mb-1 bg-bg-primary/90 backdrop-blur-sm border-b border-surface-border">
+							<div class="flex items-center gap-2.5">
+								<span class="w-2 h-2 rounded-full {columnDot(col.title)}"></span>
+								<span class="font-mono text-xs font-semibold text-text-bright tracking-widest uppercase">{col.title}</span>
+							</div>
+							<span class="font-mono text-sm text-text-tertiary tabular-nums">{col.items.length}</span>
 						</div>
 
-						<div class="flex-1 space-y-2">
+						<div class="flex-1 space-y-3">
 							{#each col.items as c (c.id)}
-								<article class="group relative px-4 py-3.5 rounded-lg border border-surface-border bg-bg-secondary hover:border-border-strong transition-all" class:border-accent-primary={expandedCardId === c.id}>
+								<article class="group relative px-5 py-4 rounded-md border border-surface-border bg-bg-secondary hover:border-border-strong transition-all" class:border-accent-primary={expandedCardId === c.id}>
 									<button
 										type="button"
 										class="block w-full p-0 border-0 bg-transparent text-left text-inherit cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-primary/70 rounded-md"
 										aria-expanded={expandedCardId === c.id}
 										onclick={() => toggleCard(c)}
 									>
-										<div class="flex items-center gap-2 mb-2.5">
-											<span class="w-1.5 h-1.5 rounded-full shrink-0 {statusDot(c.status)}"></span>
-											<h3 class="font-sans text-sm font-semibold leading-tight text-text-primary group-hover:text-accent-primary transition-colors line-clamp-2">
+										<div class="flex items-center gap-2.5 mb-3">
+											<span class="w-2 h-2 rounded-full shrink-0 {statusDot(c.status)}"></span>
+											<h3 class="font-sans text-base font-semibold leading-snug text-text-primary group-hover:text-accent-primary transition-colors line-clamp-2">
 												{c.name}
 											</h3>
 										</div>
 
 										{#if c.source === 'spark' && c.summary}
-											<p class="font-mono text-[10px] text-text-tertiary leading-snug mb-2.5 line-clamp-2">{c.summary}</p>
+											<p class="text-sm text-text-secondary leading-relaxed mb-3 line-clamp-2">{c.summary}</p>
 										{/if}
 
 										{#if c.source === 'spark' && c.providerSummary}
-											<p class="font-mono text-[10px] text-accent-primary/80 leading-snug mb-2.5 line-clamp-3">{c.providerSummary}</p>
+											<p class="text-sm text-accent-primary/90 leading-relaxed mb-3 line-clamp-3">{c.providerSummary}</p>
+										{/if}
+
+										{#if lifecycleSummary(c)}
+											<p class="font-mono text-[11px] text-accent-primary/80 mb-3">{lifecycleSummary(c)}</p>
 										{/if}
 
 										{#if c.tasks && c.tasks.length > 0}
-											<ul class="space-y-2 mb-3 border-l border-surface-border/70 pl-3">
+											<ul class="space-y-2.5 mb-3 border-l-2 border-surface-border/60 pl-3.5">
 												{#each c.tasks.slice(0, 3) as task}
 													<li>
-														<div class="font-sans text-[12px] text-text-secondary leading-snug line-clamp-1">{task.title}</div>
+														<div class="flex items-center gap-2">
+															<div class="font-sans text-sm text-text-secondary leading-snug line-clamp-1 min-w-0 flex-1">{task.title}</div>
+															<span class="shrink-0 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-wide rounded-sm border {taskStatusClass(task.status)}">
+																{taskStatusLabel(task.status)}
+															</span>
+														</div>
 														{#if task.skills && task.skills.length > 0}
-															<div class="flex items-center gap-1 flex-wrap mt-1">
+															<div class="flex items-center gap-1.5 flex-wrap mt-1.5">
 																{#each task.skills.slice(0, 3) as skill}
-																	<span class="px-1.5 py-px text-[9px] font-mono rounded-full text-text-tertiary bg-bg-primary/60 border border-surface-border/70">{skill}</span>
+																	<span class="px-2 py-0.5 text-[11px] font-mono rounded-full text-text-tertiary bg-bg-primary/60 border border-surface-border/70">{skill}</span>
 																{/each}
 																{#if task.skills.length > 3}
-																	<span class="text-[9px] font-mono text-text-faint">+{task.skills.length - 3}</span>
+																	<span class="text-[11px] font-mono text-text-faint">+{task.skills.length - 3}</span>
 																{/if}
 															</div>
 														{/if}
 													</li>
 												{/each}
 												{#if c.tasks.length > 3}
-													<li class="font-mono text-[10px] text-text-faint">+{c.tasks.length - 3} more</li>
+													<li class="font-mono text-xs text-text-faint">+{c.tasks.length - 3} more</li>
 												{/if}
 											</ul>
 										{/if}
 
-										<div class="font-mono text-[10px] text-text-tertiary flex items-center gap-2">
+										<div class="font-mono text-xs text-text-tertiary flex items-center gap-2">
 											<span>{formatDate(c.updatedAt ?? c.createdAt)}</span>
 											{#if c.taskCount > 0 && (!c.tasks || c.tasks.length === 0)}
 												<span>· {c.taskCount} task{c.taskCount !== 1 ? 's' : ''}</span>
+											{/if}
+											{#if taskProgressSummary(c)}
+												<span>· {taskProgressSummary(c)}</span>
 											{/if}
 											{#if c.source === 'spark'}
 												<span class="text-accent-primary/70" title={c.strategy ?? ''}>· spark</span>
@@ -687,6 +766,14 @@
 													<p class="font-mono text-[10px] text-accent-primary/80 leading-snug">{c.providerSummary}</p>
 												{/if}
 
+												{#if taskProgressSummary(c)}
+													<p class="font-mono text-[10px] text-text-secondary leading-snug">Tasks: {taskProgressSummary(c)}</p>
+												{/if}
+
+												{#if lifecycleSummary(c)}
+													<p class="font-mono text-[10px] text-accent-primary/80 leading-snug">Lifecycle: {lifecycleSummary(c)}</p>
+												{/if}
+
 												{#if c.providerResults && c.providerResults.length > 0}
 													<div class="space-y-1">
 														{#each c.providerResults.slice(0, 3) as result}
@@ -706,7 +793,18 @@
 										{/if}
 									</button>
 
-									<div class="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+									<div class="absolute top-3 right-3 flex items-center gap-1 opacity-100 transition-opacity">
+										{#if c.canvasHref}
+											<a
+												href={c.canvasHref}
+												data-sveltekit-reload
+												onclick={(event) => event.stopPropagation()}
+												class="px-2 py-0.5 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all"
+												title="Open this project's canvas"
+											>
+												Canvas
+											</a>
+										{/if}
 										{#if c.source === 'mcp' && (c.status === 'ready' || c.status === 'draft')}
 											<button
 												onclick={() => handleStart(c)}

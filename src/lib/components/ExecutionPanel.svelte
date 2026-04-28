@@ -5,6 +5,7 @@
 		type ExecutionProgress,
 		type ExecutionStatus,
 		type LoadedSkillInfo,
+		type TaskProgress,
 		type TaskTransitionEvent
 	} from '$lib/services/mission-executor';
 	import type { MissionLog, Mission } from '$lib/services/mcp-client';
@@ -22,6 +23,7 @@
 		type MultiLLMProviderConfig,
 		type MultiLLMStrategy
 	} from '$lib/services/multi-llm-orchestrator';
+	import { resolveRelayMissionProvider } from '$lib/services/relay-mission-provider';
 	import CheckpointReview from './CheckpointReview.svelte';
 	import type { ProjectCheckpoint } from '$lib/services/checkpoint';
 	import { saveCurrentPipeline } from '$lib/stores/pipelines.svelte';
@@ -34,6 +36,7 @@
 		onToggleMinimize?: () => void;
 		autoRunToken?: number;
 		relay?: {
+			missionId?: string;
 			chatId?: string;
 			userId?: string;
 			requestId?: string;
@@ -118,8 +121,6 @@
 	let multiLLMAutoDispatch = $state(true);
 	let multiLLMApiKeys = $state<Record<string, string>>({});
 	let serverProviderKeyPresence = $state<Record<string, boolean>>({});
-	let isDispatching = $state(false);
-	let dispatchStatus = $state<Record<string, string>>({});
 	let connectedMcpCapabilities = $state<MultiLLMCapability[]>([]);
 	let connectedMcpTools = $state<MultiLLMMCPTool[]>([]);
 	let connectedMcpToolCount = $state(0);
@@ -131,17 +132,25 @@
 	// Guard to ensure mount-only effects run once
 	let hasCheckedResumable = $state(false);
 	let lastHandledAutoRunToken = $state<number | null>(null);
+	let autoRunInFlightToken = $state<number | null>(null);
 	let lastAppliedRelayRequestId = $state<string | null>(null);
+	let lastHydratedMissionId = $state<string | null>(null);
+	let hydrationInFlightMissionId = $state<string | null>(null);
 	let autoRunRetryTimer: ReturnType<typeof setTimeout> | null = null;
 
 	// Derived states
 	let isRunning = $derived(executionProgress?.status === 'running' || executionProgress?.status === 'creating');
 	let isPaused = $derived(executionProgress?.status === 'paused');
+	let isTerminal = $derived(
+		executionProgress?.status === 'completed' ||
+			executionProgress?.status === 'failed' ||
+			executionProgress?.status === 'cancelled'
+	);
 	let canPause = $derived(executionProgress?.status === 'running');
 	let canResume = $derived(executionProgress?.status === 'paused');
 	let canCancel = $derived(isRunning || isPaused);
 	// Note: MCP not required anymore - we build missions locally and run directly by default (copy prompt is fallback)
-	let canRun = $derived(!isRunning && !isPaused && currentNodes.length > 0);
+	let canRun = $derived(!isRunning && !isPaused && !isTerminal && currentNodes.length > 0);
 	let runtimeAgents = $derived.by(() => {
 		if (!executionProgress?.agentRuntime) return [] as AgentRuntimeStatus[];
 		return Array.from(executionProgress.agentRuntime.values()).sort((a, b) =>
@@ -298,6 +307,245 @@
 		multiLLMAutoRouteByTask = incoming.autoRouteByTask ?? defaults.autoRouteByTask ?? true;
 		multiLLMAutoDispatch = incoming.autoDispatch ?? true;
 		multiLLMProviders = mergedProviders;
+	}
+
+	type MissionControlTaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+	type MissionControlEvent = {
+		eventType: string;
+		missionId: string;
+		missionName: string | null;
+		taskId: string | null;
+		taskName: string | null;
+		summary: string;
+		timestamp: string;
+		source: string;
+	};
+	type MissionControlTask = { title: string; skills?: string[]; status?: MissionControlTaskStatus };
+	type MissionControlBoardEntry = {
+		missionId: string;
+		missionName: string | null;
+		status: 'created' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
+		lastUpdated: string;
+		queuedAt: string | null;
+		startedAt: string | null;
+		tasks: MissionControlTask[];
+		providerSummary?: string | null;
+	};
+
+	function executionStatusFromBoard(status: MissionControlBoardEntry['status']): ExecutionStatus {
+		if (status === 'created') return 'idle';
+		if (status === 'cancelled') return 'cancelled';
+		return status;
+	}
+
+	function missionTaskStatusFromBoard(status?: MissionControlTaskStatus): Mission['tasks'][number]['status'] {
+		if (status === 'completed') return 'completed';
+		if (status === 'failed' || status === 'cancelled') return 'failed';
+		if (status === 'running') return 'in_progress';
+		return 'pending';
+	}
+
+	function logTypeFromMissionControlEvent(eventType: string): MissionLog['type'] {
+		if (eventType === 'mission_completed' || eventType === 'task_completed') return 'complete';
+		if (eventType === 'mission_failed' || eventType === 'task_failed' || eventType === 'mission_cancelled') return 'error';
+		if (eventType === 'mission_started' || eventType === 'task_started' || eventType === 'dispatch_started') return 'start';
+		return 'progress';
+	}
+
+	function transitionStateFromMissionControlEvent(eventType: string): TaskTransitionEvent['state'] {
+		if (eventType === 'task_started' || eventType === 'mission_started' || eventType === 'dispatch_started') return 'started';
+		if (eventType === 'task_completed' || eventType === 'mission_completed') return 'completed';
+		if (eventType === 'task_failed' || eventType === 'mission_failed') return 'failed';
+		if (eventType === 'task_cancelled' || eventType === 'mission_cancelled') return 'cancelled';
+		if (eventType === 'provider_feedback' || eventType === 'log') return 'info';
+		return 'progress';
+	}
+
+	function applyBoardTaskStatuses(tasks: MissionControlTask[]) {
+		for (const task of tasks) {
+			const node = findNodeForTask(task.title, task.title);
+			if (!node) continue;
+			if (task.status === 'completed') {
+				updateNodeStatus(node.id, 'success');
+			} else if (task.status === 'failed' || task.status === 'cancelled') {
+				updateNodeStatus(node.id, 'error');
+			} else if (task.status === 'running') {
+				updateNodeStatus(node.id, 'running');
+			} else {
+				updateNodeStatus(node.id, 'queued');
+			}
+		}
+		persistCanvasStatusSnapshot();
+	}
+
+	async function loadMissionControlBoardEntry(missionId: string): Promise<MissionControlBoardEntry | null> {
+		const response = await fetch('/api/mission-control/board');
+		if (!response.ok) return null;
+		const data = await response.json();
+		const board = data?.board as Record<string, MissionControlBoardEntry[]> | undefined;
+		if (!board) return null;
+		for (const entries of Object.values(board)) {
+			const match = entries.find((entry) => entry.missionId === missionId);
+			if (match) return match;
+		}
+		return null;
+	}
+
+	async function hydrateMissionControlHistory(missionId: string) {
+		if (!browser || !missionId) return;
+		if (hydrationInFlightMissionId === missionId) return;
+		if (lastHydratedMissionId === missionId && executionProgress?.missionId === missionId) return;
+
+		hydrationInFlightMissionId = missionId;
+		try {
+			const [statusResponse, boardEntry] = await Promise.all([
+				fetch(`/api/mission-control/status?missionId=${encodeURIComponent(missionId)}`),
+				loadMissionControlBoardEntry(missionId)
+			]);
+			if (!statusResponse.ok || !boardEntry) return;
+
+			const statusData = await statusResponse.json();
+			const recent = ((statusData?.snapshot?.recent || []) as MissionControlEvent[])
+				.filter((entry) => entry.missionId === missionId)
+				.slice()
+				.reverse();
+			const status = executionStatusFromBoard(boardEntry.status);
+			const taskProgressMap = new Map<string, TaskProgress>();
+			const taskSkillMap = new Map<string, string[]>();
+			const missionTasks = boardEntry.tasks.map((task, index) => {
+				const id = task.title.match(/^(task-[a-z0-9_-]+)/i)?.[1] || `task-${index + 1}`;
+				taskSkillMap.set(id, task.skills || []);
+				taskProgressMap.set(id, {
+					taskId: id,
+					taskName: task.title,
+					progress: task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled' ? 100 : task.status === 'running' ? 20 : 0,
+					message:
+						task.status === 'completed'
+							? 'Completed'
+							: task.status === 'running'
+								? 'Running'
+								: task.status === 'failed' || task.status === 'cancelled'
+									? task.status
+									: 'Queued',
+					startedAt: Date.parse(boardEntry.startedAt || boardEntry.queuedAt || boardEntry.lastUpdated || new Date().toISOString())
+				});
+				return {
+					id,
+					title: task.title,
+					description: task.title,
+					assignedTo: 'codex',
+					status: missionTaskStatusFromBoard(task.status),
+					handoffType: 'sequential' as const,
+					handoffTo: [] as string[]
+				};
+			});
+
+			const historicalLogs: MissionLog[] = recent.map((entry, index) => ({
+				id: `${entry.missionId}-${entry.timestamp}-${index}`,
+				mission_id: entry.missionId,
+				agent_id: entry.source || null,
+				task_id: entry.taskId,
+				type: logTypeFromMissionControlEvent(entry.eventType),
+				message: entry.summary,
+				data: { eventType: entry.eventType, taskName: entry.taskName },
+				created_at: entry.timestamp
+			}));
+
+			const taskTransitions: TaskTransitionEvent[] = recent.map((entry, index) => ({
+				id: `${entry.missionId}-transition-${entry.timestamp}-${index}`,
+				timestamp: entry.timestamp,
+				state: transitionStateFromMissionControlEvent(entry.eventType),
+				taskId: entry.taskId || undefined,
+				taskName: entry.taskName || undefined,
+				agentId: entry.source,
+				agentLabel: entry.source,
+				message: entry.summary,
+				progress: entry.eventType === 'mission_completed' ? 100 : undefined
+			}));
+
+			const mission: Mission = {
+				id: missionId,
+				user_id: 'mission-control',
+				name: boardEntry.missionName || missionName || missionId,
+				description: 'Hydrated from Mission Control history.',
+				mode: 'multi-llm-orchestrator',
+				status: boardEntry.status === 'cancelled' ? 'failed' : boardEntry.status === 'created' ? 'ready' : boardEntry.status,
+				agents: [
+					{
+						id: 'codex',
+						name: 'Codex',
+						role: 'builder',
+						skills: []
+					}
+				],
+				tasks: missionTasks,
+				context: {
+					projectPath,
+					projectType,
+					goals: parseGoals(goalsText || '')
+				},
+				current_task_id: missionTasks.find((task) => task.status === 'in_progress')?.id || null,
+				outputs: {},
+				error: boardEntry.status === 'failed' || boardEntry.status === 'cancelled' ? boardEntry.providerSummary || null : null,
+				created_at: boardEntry.queuedAt || boardEntry.startedAt || boardEntry.lastUpdated,
+				updated_at: boardEntry.lastUpdated,
+				started_at: boardEntry.startedAt,
+				completed_at: status === 'completed' || status === 'failed' || status === 'cancelled' ? boardEntry.lastUpdated : null
+			};
+
+			executionProgress = {
+				status,
+				missionId,
+				mission,
+				executionPrompt: null,
+				multiLLMOptions: getMultiLLMOptions(),
+				multiLLMExecution: null,
+				progress: status === 'completed' ? 100 : Math.round(((boardEntry.tasks.filter((task) => task.status === 'completed').length) / Math.max(1, boardEntry.tasks.length)) * 100),
+				currentTaskId: mission.current_task_id,
+				currentTaskName: missionTasks.find((task) => task.id === mission.current_task_id)?.title || null,
+				currentTaskProgress: 0,
+				currentTaskMessage: boardEntry.providerSummary || null,
+				taskProgressMap,
+				logs: historicalLogs,
+				startTime: boardEntry.startedAt ? new Date(boardEntry.startedAt) : null,
+				endTime: mission.completed_at ? new Date(mission.completed_at) : null,
+				error: mission.error,
+				loadedSkills: [],
+				taskSkillMap,
+				agentRuntime: new Map([
+					[
+						'codex',
+						{
+							agentId: 'codex',
+							label: 'Codex',
+							status: status === 'completed' ? 'completed' : status === 'failed' ? 'failed' : status === 'cancelled' ? 'cancelled' : status === 'running' ? 'running' : 'idle',
+							progress: status === 'completed' ? 100 : 0,
+							message: boardEntry.providerSummary || undefined,
+							updatedAt: boardEntry.lastUpdated
+						}
+					]
+				]),
+				taskTransitions,
+				reconciliation: null,
+				checkpoint: null
+			};
+			logs = historicalLogs;
+			completedTasks = boardEntry.tasks.filter((task) => task.status === 'completed').map((task) => task.title);
+			failedTasks = boardEntry.tasks
+				.filter((task) => task.status === 'failed' || task.status === 'cancelled')
+				.map((task) => task.title);
+			pendingTasks = boardEntry.tasks
+				.filter((task) => !task.status || task.status === 'queued' || task.status === 'running')
+				.map((task) => task.title);
+			applyBoardTaskStatuses(boardEntry.tasks);
+			lastHydratedMissionId = missionId;
+		} catch (error) {
+			console.warn('[ExecutionPanel] Failed to hydrate mission-control history:', error);
+		} finally {
+			if (hydrationInFlightMissionId === missionId) {
+				hydrationInFlightMissionId = null;
+			}
+		}
 	}
 
 	function getMultiLLMOptions(): MultiLLMOrchestratorOptions {
@@ -588,6 +836,13 @@
 		}
 	});
 
+	$effect(() => {
+		const missionId = relay?.missionId;
+		if (!browser || !missionId) return;
+		if (isRunning || isPaused) return;
+		void hydrateMissionControlHistory(missionId);
+	});
+
 	// Load persisted mission defaults once (browser only)
 	$effect(() => {
 		if (defaultsLoaded) return;
@@ -691,17 +946,18 @@
 		return project?.[1]?.trim() || null;
 	}
 
-	function forceRelaySparkProvider() {
+	function forceRelayMissionProvider(providerId = 'codex') {
+		const selectedProvider = resolveRelayMissionProvider(DEFAULT_MULTI_LLM_PROVIDERS, providerId);
+		if (!selectedProvider) return;
+
 		const providers = DEFAULT_MULTI_LLM_PROVIDERS.map((provider) => ({
 			...provider,
-			enabled: provider.id === 'zai'
+			enabled: provider.id === selectedProvider.id
 		}));
-		const zai = providers.find((provider) => provider.id === 'zai');
-		if (!zai) return;
 
 		multiLLMEnabled = true;
 		multiLLMStrategy = 'single';
-		multiLLMPrimaryProviderId = 'zai';
+		multiLLMPrimaryProviderId = selectedProvider.id;
 		multiLLMAutoEnableByKeys = true;
 		multiLLMAutoRouteByTask = false;
 		multiLLMAutoDispatch = true;
@@ -716,7 +972,7 @@
 		missionName = extractMissionTitleFromRelay(relay.goal) || `Telegram Build ${relay.requestId}`;
 		const targetWorkspace = extractTargetWorkspaceFromText(relay.goal);
 		if (targetWorkspace) projectPath = targetWorkspace;
-		forceRelaySparkProvider();
+		forceRelayMissionProvider();
 		missionDescription = [
 			`Build mode: ${buildMode}`,
 			relay.buildModeReason ? `Reason: ${relay.buildModeReason}` : null,
@@ -902,6 +1158,10 @@
 	 * Entry point for running workflow - validates first
 	 */
 	function runWorkflow(options: { autoRun?: boolean } = {}): boolean {
+		if (isTerminal && executionProgress?.missionId) {
+			toasts.info(`Mission ${executionProgress.missionId} is already ${executionProgress.status}. Open the logs here or start a fresh mission from Telegram/Kanban.`);
+			return false;
+		}
 		if (!checkWorkflowBeforeRun(options)) {
 			return false; // Validation failed, warning shown
 		}
@@ -912,12 +1172,16 @@
 	$effect(() => {
 		if (!autoRunToken) return;
 		if (autoRunToken === lastHandledAutoRunToken) return;
+		if (autoRunToken === autoRunInFlightToken) return;
+		if (isTerminal) return;
 		if (isRunning || isPaused || currentNodes.length === 0) return;
 		if (autoRunRetryTimer) clearTimeout(autoRunRetryTimer);
 
 		const token = autoRunToken;
 		const tryAutoRun = (attempt = 0) => {
 			if (token !== autoRunToken || token === lastHandledAutoRunToken) return;
+			if (token === autoRunInFlightToken) return;
+			if (isTerminal) return;
 			if (isRunning || isPaused) return;
 			if (currentNodes.length === 0) {
 				if (attempt < 20) {
@@ -926,11 +1190,13 @@
 				return;
 			}
 
+			autoRunInFlightToken = token;
 			const started = runWorkflow({ autoRun: true });
 			if (started) {
 				lastHandledAutoRunToken = token;
 				return;
 			}
+			autoRunInFlightToken = null;
 
 			if (attempt < 20) {
 				autoRunRetryTimer = setTimeout(() => tryAutoRun(attempt + 1), 250);
@@ -1076,6 +1342,7 @@
 			projectPath: path,
 			projectType: (projectType || '').trim() || 'general',
 			goals: goals.length ? goals : undefined,
+			missionId: relay?.missionId,
 			relay,
 			orchestratorOptions: getMultiLLMOptions()
 		});
@@ -1289,12 +1556,13 @@
 		<button class="absolute inset-0 bg-black/50" onclick={handleClose} aria-label="Close execution panel"></button>
 	{/if}
 	<div
-		class="relative bg-bg-secondary border-l border-surface-border flex flex-col h-full"
-		class:max-w-2xl={!minimized}
+		class="relative bg-bg-secondary border-l border-surface-border flex flex-col h-full overscroll-contain"
+		class:max-w-4xl={!minimized}
 		class:mx-auto={!minimized}
-		class:my-auto={!minimized}
-		class:max-h-[80vh]={!minimized}
-		class:inset-y-[10vh]={!minimized}
+		class:my-8={!minimized}
+		class:max-h-[calc(100vh-4rem)]={!minimized}
+		class:overflow-y-auto={!minimized}
+		class:overflow-x-hidden={!minimized}
 		class:border={!minimized}
 	>
 		<!-- Header -->
@@ -1392,86 +1660,6 @@
 					></div>
 				</div>
 
-				<!-- Current Task Progress (shown during running) -->
-				{#if isRunning && executionProgress.currentTaskName}
-					<div class="mt-3 p-3 bg-vibe-teal/5 border border-vibe-teal/30">
-						<div class="flex items-center justify-between mb-1">
-							<span class="text-xs font-mono text-text-tertiary uppercase tracking-wider">Current Task</span>
-							<span class="text-xs font-mono text-vibe-teal">{currentTaskProgress}%</span>
-						</div>
-						<div class="flex items-center gap-2 mb-2">
-							<div class="relative">
-								<div class="w-2 h-2 bg-vibe-teal"></div>
-								<div class="absolute inset-0 w-2 h-2 bg-vibe-teal animate-ping opacity-75"></div>
-							</div>
-							<span class="text-sm text-text-primary font-medium">{executionProgress.currentTaskName}</span>
-						</div>
-						<!-- Task progress bar -->
-						<div class="w-full h-1.5 bg-surface overflow-hidden">
-							<div
-								class="h-full bg-vibe-teal transition-all duration-200"
-								style="width: {currentTaskProgress}%"
-							></div>
-						</div>
-						{#if currentTaskMessage}
-							<p class="mt-2 text-xs text-text-tertiary italic">{currentTaskMessage}</p>
-						{/if}
-					</div>
-				{/if}
-
-				{#if runtimeAgents.length > 0}
-					<div class="mt-3 border border-surface-border rounded-lg overflow-hidden">
-						<div class="px-3 py-2 bg-bg-tertiary border-b border-surface-border text-xs font-mono text-text-tertiary uppercase tracking-wider">
-							Live Agent Activity
-						</div>
-						<div class="divide-y divide-surface-border bg-bg-primary">
-							{#each runtimeAgents as agent}
-								<div class="px-3 py-2 text-xs">
-									<div class="flex items-center justify-between gap-2">
-										<div class="font-mono text-text-primary">{agent.label}</div>
-										<span class="px-1.5 py-0.5 border font-mono uppercase text-[10px] {getAgentStatusColor(agent.status)}">{agent.status}</span>
-									</div>
-									<div class="mt-1 text-text-secondary">
-										{agent.currentTaskName || 'Waiting for task'}
-									</div>
-									<div class="mt-1 h-1 bg-surface overflow-hidden">
-										<div class="h-full bg-vibe-teal transition-all duration-200" style="width: {Math.max(0, Math.min(100, agent.progress || 0))}%"></div>
-									</div>
-									{#if agent.message}
-										<div class="mt-1 text-[11px] text-text-tertiary italic">{agent.message}</div>
-									{/if}
-								</div>
-							{/each}
-						</div>
-					</div>
-				{/if}
-
-				{#if recentTaskTransitions.length > 0}
-					<div class="mt-3 border border-surface-border rounded-lg overflow-hidden bg-bg-primary">
-						<div class="px-3 py-2 bg-bg-tertiary border-b border-surface-border flex items-center justify-between">
-							<span class="text-xs font-mono text-text-tertiary uppercase tracking-wider">Task Event Stream</span>
-							<span class="text-[10px] text-text-tertiary">latest {recentTaskTransitions.length}</span>
-						</div>
-						<div class="max-h-40 overflow-y-auto divide-y divide-surface-border">
-							{#each recentTaskTransitions as transition}
-								<div class="px-3 py-2 text-xs">
-									<div class="flex items-center gap-2">
-										<span class="text-[10px] text-text-tertiary font-mono w-14">{formatTime(transition.timestamp)}</span>
-										<span class="px-1.5 py-0.5 text-[10px] font-mono uppercase {getTransitionBadge(transition.state)}">{transition.state}</span>
-										{#if transition.agentLabel}
-											<span class="text-[10px] text-vibe-teal font-mono">{transition.agentLabel}</span>
-										{/if}
-										{#if typeof transition.progress === 'number'}
-											<span class="text-[10px] text-text-tertiary font-mono">{transition.progress}%</span>
-										{/if}
-									</div>
-									<div class="mt-1 text-text-secondary">{transition.message}</div>
-								</div>
-							{/each}
-						</div>
-					</div>
-				{/if}
-
 				<div class="flex justify-between mt-2 text-xs text-text-tertiary">
 					<span>{currentNodes.length} nodes{#if $mcpRuntime.connectedCount > 0} &bull; <span class="text-accent-primary">{$mcpRuntime.connectedCount} MCP{$mcpRuntime.connectedCount > 1 ? 's' : ''}</span>{/if}</span>
 					<span>{getExecutionDuration()}</span>
@@ -1497,6 +1685,12 @@
 				{/if}
 				{#if executionProgress?.multiLLMExecution?.enabled}
 					{@const multiPack = executionProgress.multiLLMExecution}
+					{@const activeProvider = multiPack.providers.find((provider) =>
+						runtimeAgents.some((agent) => agent.agentId === provider.id && agent.status === 'running')
+					) || multiPack.providers[0]}
+					{@const activeAgent = activeProvider
+						? runtimeAgents.find((agent) => agent.agentId === activeProvider.id)
+						: null}
 					<div class="mt-3 border border-vibe-teal/30">
 						<div
 							onclick={() => (multiLLMPanelCollapsed = !multiLLMPanelCollapsed)}
@@ -1509,107 +1703,46 @@
 								<svg class="w-4 h-4 text-vibe-teal transition-transform {multiLLMPanelCollapsed ? '' : 'rotate-90'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 								</svg>
-								<span class="text-xs font-mono text-vibe-teal uppercase tracking-wider">Multi-LLM Orchestrator</span>
+								<span class="text-xs font-mono text-vibe-teal uppercase tracking-wider">Agent Activity</span>
 								<span class="text-[10px] font-mono text-text-tertiary">
 									{multiPack.strategy} • {multiPack.providers.length} provider(s)
 								</span>
 							</div>
-							<div class="flex items-center gap-1">
-								<button
-									class="px-3 py-1 bg-accent-primary hover:bg-accent-primary-hover text-white rounded-md text-xs font-mono transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-									disabled={isDispatching}
-									onclick={async (e) => {
-										e.stopPropagation();
-										isDispatching = true;
-										dispatchStatus = {};
-										try {
-											const response = await fetch('/api/dispatch', {
-												method: 'POST',
-												headers: { 'Content-Type': 'application/json' },
-												body: JSON.stringify({
-													executionPack: multiPack,
-													apiKeys: multiLLMApiKeys,
-													workingDirectory: projectPath
-												})
-											});
-											const result = await response.json();
-											if (result.success) {
-												dispatchStatus = Object.fromEntries(
-													Object.entries(result.sessions || {}).map(([id, s]) => [id, (s as {status: string}).status])
-												);
-											}
-										} catch (err) {
-											console.error('[Dispatch] Error:', err);
-										} finally {
-											isDispatching = false;
-										}
-									}}
-								>
-									{isDispatching ? 'Dispatching...' : 'Dispatch All'}
-								</button>
-								<button
-									class="px-3 py-1 bg-vibe-teal hover:bg-vibe-teal/90 text-bg-primary text-xs font-mono transition-all"
-									onclick={(e) => {
-										e.stopPropagation();
-										copyToClipboard(
-											multiPack.masterPrompt,
-											'Master orchestration prompt copied'
-										);
-									}}
-								>
-									Copy Master
-								</button>
-							</div>
+							{#if activeProvider}
+								<div class="text-right">
+									<div class="text-[10px] font-mono text-vibe-teal uppercase tracking-wider">
+										{activeAgent?.status || 'assigned'}
+									</div>
+									<div class="text-[11px] font-mono text-text-primary">
+										{activeProvider.label}
+									</div>
+								</div>
+							{/if}
 						</div>
 						{#if !multiLLMPanelCollapsed}
 							<div class="p-3 bg-vibe-teal/5 space-y-2">
 								{#each multiPack.providers as provider}
 									{@const assignment = multiPack.assignments[provider.id]}
-									{@const pStatus = dispatchStatus[provider.id]}
-									<div class="p-2 border border-surface-border bg-bg-primary {pStatus === 'running' ? 'border-l-2 border-l-yellow-400' : pStatus === 'completed' ? 'border-l-2 border-l-green-400' : pStatus === 'failed' ? 'border-l-2 border-l-red-400' : ''}">
+									<div class="p-2 border border-surface-border bg-bg-primary">
 										<div class="flex items-center justify-between gap-2">
 											<div class="text-xs">
 												<div class="font-mono text-text-primary flex items-center gap-1.5">
 													{provider.label} ({provider.id})
-													{#if pStatus === 'running'}
+													{#if runtimeAgents.some((agent) => agent.agentId === provider.id && agent.status === 'running')}
 														<span class="inline-block w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse"></span>
-													{:else if pStatus === 'completed'}
+													{:else if runtimeAgents.some((agent) => agent.agentId === provider.id && agent.status === 'completed')}
 														<span class="inline-block w-1.5 h-1.5 rounded-full bg-green-400"></span>
-													{:else if pStatus === 'failed'}
+													{:else if runtimeAgents.some((agent) => agent.agentId === provider.id && agent.status === 'failed')}
 														<span class="inline-block w-1.5 h-1.5 rounded-full bg-red-400"></span>
 													{/if}
 												</div>
 												<div class="text-text-tertiary">
 													{provider.model} • {assignment?.mode || 'execute'} • {assignment?.taskIds?.length || 0} task(s)
-													{#if pStatus}
-														<span class="ml-1 {pStatus === 'completed' ? 'text-accent-primary' : pStatus === 'failed' ? 'text-status-error' : 'text-status-warning'}">
-															[{pStatus}]
-														</span>
-													{/if}
 												</div>
 											</div>
-											<div class="flex items-center gap-1">
-												<button
-													onclick={() =>
-														copyToClipboard(
-															multiPack.providerPrompts[provider.id] || '',
-															`Copied ${provider.label} prompt`
-														)}
-													class="px-2 py-1 text-[10px] font-mono text-text-secondary border border-surface-border hover:border-vibe-teal/60 rounded-md transition-all"
-												>
-													Copy Prompt
-												</button>
-												<button
-													onclick={() =>
-														copyToClipboard(
-															multiPack.launchCommands[provider.id] || '',
-															`Copied ${provider.label} launch command`
-														)}
-													class="px-2 py-1 text-[10px] font-mono text-text-secondary border border-surface-border hover:border-vibe-teal/60 rounded-md transition-all"
-												>
-													Copy Launch
-												</button>
-											</div>
+											<span class="text-[10px] font-mono text-vibe-teal">
+												{runtimeAgents.find((agent) => agent.agentId === provider.id)?.status || 'assigned'}
+											</span>
 										</div>
 									</div>
 								{/each}
@@ -1705,32 +1838,36 @@
 
 				<!-- Task Status Summary -->
 				{#if taskRows.length > 0}
-					<div class="mt-4 border border-surface-border rounded-lg overflow-hidden">
-						<div class="flex items-center justify-between px-3 py-2 bg-bg-tertiary border-b border-surface-border">
-							<span class="text-xs font-mono text-text-tertiary uppercase tracking-wider">Task Status</span>
-							{#if nextTask && isRunning}
-								<span class="text-[10px] font-mono text-vibe-teal uppercase">Active step {nextTask.index}/{taskRows.length}</span>
-							{/if}
+					<div class="mt-4 border border-surface-border overflow-hidden">
+						<div class="flex flex-wrap items-center justify-between gap-3 px-3 py-2 bg-bg-tertiary border-b border-surface-border">
+							<div>
+								<span class="text-xs font-mono text-text-tertiary uppercase tracking-wider">Task Status</span>
+								{#if nextTask && isRunning}
+									<div class="mt-0.5 text-[11px] font-mono text-vibe-teal truncate max-w-[36rem]">
+										Active {nextTask.index}/{taskRows.length}: {nextTask.title}
+									</div>
+								{/if}
+							</div>
+							<div class="grid grid-cols-4 gap-1 text-right">
+								<div class="min-w-16 border border-accent-primary/20 bg-accent-primary/5 px-2 py-1">
+									<div class="text-sm font-mono font-bold text-accent-primary">{taskSummary.completed}</div>
+									<div class="text-[10px] font-mono text-accent-primary/70 uppercase">Done</div>
+								</div>
+								<div class="min-w-16 border border-vibe-teal/20 bg-vibe-teal/5 px-2 py-1">
+									<div class="text-sm font-mono font-bold text-vibe-teal">{taskSummary.running}</div>
+									<div class="text-[10px] font-mono text-vibe-teal/70 uppercase">Run</div>
+								</div>
+								<div class="min-w-16 border border-amber-500/20 bg-amber-500/5 px-2 py-1">
+									<div class="text-sm font-mono font-bold text-status-warning">{taskSummary.pending}</div>
+									<div class="text-[10px] font-mono text-status-warning/70 uppercase">Wait</div>
+								</div>
+								<div class="min-w-16 border border-status-error/20 bg-status-error/5 px-2 py-1">
+									<div class="text-sm font-mono font-bold text-status-error">{taskSummary.failed}</div>
+									<div class="text-[10px] font-mono text-status-error/70 uppercase">Fail</div>
+								</div>
+							</div>
 						</div>
-						<div class="grid grid-cols-4">
-							<div class="p-3 text-center border-r border-surface-border bg-accent-primary/5">
-								<div class="text-2xl font-mono font-bold text-accent-primary">{taskSummary.completed}</div>
-								<div class="text-xs font-mono text-accent-primary/70 uppercase tracking-wider">Completed</div>
-							</div>
-							<div class="p-3 text-center border-r border-surface-border bg-vibe-teal/5">
-								<div class="text-2xl font-mono font-bold text-vibe-teal">{taskSummary.running}</div>
-								<div class="text-xs font-mono text-vibe-teal/70 uppercase tracking-wider">Running</div>
-							</div>
-							<div class="p-3 text-center border-r border-surface-border bg-amber-500/5">
-								<div class="text-2xl font-mono font-bold text-status-warning">{taskSummary.pending}</div>
-								<div class="text-xs font-mono text-status-warning/70 uppercase tracking-wider">Pending</div>
-							</div>
-							<div class="p-3 text-center bg-status-error/5">
-								<div class="text-2xl font-mono font-bold text-status-error">{taskSummary.failed}</div>
-								<div class="text-xs font-mono text-status-error/70 uppercase tracking-wider">Failed</div>
-							</div>
-						</div>
-						<div class="max-h-52 overflow-y-auto border-t border-surface-border bg-bg-primary">
+						<div class="max-h-56 overflow-y-auto bg-bg-primary">
 							{#each taskRows as task}
 								<div class="px-3 py-2 border-b last:border-b-0 {getTaskRowClass(task.status)}">
 									<div class="flex items-start justify-between gap-3">
@@ -1770,12 +1907,6 @@
 										<span class="text-[10px] text-orange-400/60 font-mono">retry {rework.retry}/{rework.maxRetries}</span>
 									</div>
 								{/each}
-							</div>
-						{/if}
-						{#if nextTask && isRunning}
-							<div class="px-3 py-2 bg-amber-500/5 border-t border-amber-500/20 flex items-center gap-2">
-								<span class="text-xs font-mono text-status-warning uppercase tracking-wider">{nextTask.status === 'running' ? 'Now' : 'Next'} -&gt;</span>
-								<span class="text-sm text-text-primary font-mono truncate">{nextTask.title}</span>
 							</div>
 						{/if}
 					</div>
@@ -1859,6 +1990,48 @@
 						</p>
 					</div>
 				{/if}
+			</div>
+		{/if}
+
+		{#if executionProgress && recentTaskTransitions.length > 0}
+			<div class="px-4 py-3 border-b border-surface-border bg-bg-secondary">
+				<div class="mb-2 flex items-center justify-between gap-3">
+					<div class="flex items-center gap-2">
+						<div class="h-2 w-2 bg-vibe-teal animate-pulse"></div>
+						<span class="text-xs font-mono text-text-secondary uppercase tracking-wider">Build Activity</span>
+					</div>
+					<span class="text-[10px] font-mono text-text-tertiary">
+						{recentTaskTransitions.length} checkpoint{recentTaskTransitions.length === 1 ? '' : 's'}
+					</span>
+				</div>
+				<div class="grid gap-1.5">
+					{#each recentTaskTransitions.slice(0, 5) as item}
+						<div class="border border-surface-border bg-bg-primary px-3 py-2">
+							<div class="flex items-start justify-between gap-3">
+								<div class="min-w-0">
+									<div class="flex flex-wrap items-center gap-2">
+										<span class="px-1.5 py-0.5 text-[10px] font-mono uppercase {getTransitionBadge(item.state)}">
+											{item.state}
+										</span>
+										{#if item.agentLabel}
+											<span class="text-[10px] font-mono text-vibe-teal">{item.agentLabel}</span>
+										{/if}
+										{#if item.taskName}
+											<span class="truncate text-xs font-mono text-text-primary">{item.taskName}</span>
+										{/if}
+									</div>
+									<div class="mt-1 text-xs text-text-secondary break-words">{item.message}</div>
+								</div>
+								<div class="shrink-0 text-right">
+									<div class="text-[10px] font-mono text-text-tertiary">{formatTime(item.timestamp)}</div>
+									{#if typeof item.progress === 'number'}
+										<div class="mt-1 text-[10px] font-mono text-vibe-teal">{item.progress}%</div>
+									{/if}
+								</div>
+							</div>
+						</div>
+					{/each}
+				</div>
 			</div>
 		{/if}
 
@@ -2226,12 +2399,16 @@
 					onclick={() => runWorkflow()}
 					disabled={!canRun}
 					class="px-4 py-1.5 text-sm font-mono bg-accent-primary text-bg-primary rounded-md hover:bg-accent-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-					title={currentNodes.length === 0 ? 'No nodes to execute' : ''}
+					title={isTerminal ? 'This mission is complete. Inspect logs here instead of starting over.' : currentNodes.length === 0 ? 'No nodes to execute' : ''}
 				>
 					{#if isRunning}
 						Running...
-					{:else if executionProgress?.status === 'completed' || executionProgress?.status === 'failed' || executionProgress?.status === 'cancelled'}
-						Run Again
+					{:else if executionProgress?.status === 'completed'}
+						Completed
+					{:else if executionProgress?.status === 'failed'}
+						Failed
+					{:else if executionProgress?.status === 'cancelled'}
+						Cancelled
 					{:else}
 						Run Workflow
 					{/if}
@@ -2318,7 +2495,7 @@
 <!-- Checkpoint Review Modal -->
 {#if showCheckpointReview && missionCheckpoint}
 	<div class="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-		<div class="max-w-2xl w-full max-h-[80vh] overflow-y-auto mx-4">
+		<div class="w-full max-w-5xl max-h-[calc(100vh-4rem)] overflow-y-auto overscroll-contain mx-4 border border-surface-border">
 			<CheckpointReview
 				checkpoint={missionCheckpoint}
 				onVerify={() => {
