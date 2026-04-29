@@ -669,3 +669,31 @@ Branch: `codex/spawner-execution-task-status-list`
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes`.
 - Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
+
+## Continuation: Mission Settings Panel Extraction
+
+Branch: `codex/spawner-mission-settings-panel`
+
+### Step Checklist
+
+- [x] Inspect mission settings and multi-LLM settings rendering before editing.
+- [x] Extract mission settings presentation into `MissionSettingsPanel.svelte`.
+- [x] Keep persistence, relay defaults, provider mutation, and execution-mode helpers owned by `ExecutionPanel.svelte`.
+- [x] Run focused tests, typecheck, full tests, build, route smoke, and mission surface smoke.
+- [x] Commit, merge, and push.
+
+### Changes Made
+
+- Added `src/lib/components/MissionSettingsPanel.svelte` for the collapsible mission settings form, project fields, goals, execution mode selector, MCP capability summary, and provider controls.
+- Updated `src/lib/components/ExecutionPanel.svelte` to render `<MissionSettingsPanel />` while preserving all runtime state ownership and callbacks in the parent.
+- Reduced `ExecutionPanel.svelte` from 1968 lines to roughly 1620 lines before formatting.
+
+### Verification Log
+
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Focused execution/multi-LLM tests: PASS via `npm run test:run -- multi-llm-orchestrator execution-panel-formatting execution-task-rows mission-execution-progress mission-control-hydration` (5 files, 39 tests).
+- Whitespace check: PASS via `git diff --check`.
+- Full unit/integration suite: PASS via `npm run test:run` (49 files, 272 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes`.
+- Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
