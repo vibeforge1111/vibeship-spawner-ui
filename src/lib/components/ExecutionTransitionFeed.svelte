@@ -8,6 +8,7 @@
 	}
 
 	let { transitions, formatTime, getTransitionBadge }: Props = $props();
+	const visibleTransitions = $derived(transitions.slice(-5).reverse());
 </script>
 
 {#if transitions.length > 0}
@@ -22,7 +23,7 @@
 			</span>
 		</div>
 		<div class="grid gap-1.5">
-			{#each transitions.slice(0, 5) as item}
+			{#each visibleTransitions as item}
 				<div class="border border-surface-border bg-bg-primary px-3 py-2">
 					<div class="flex items-start justify-between gap-3">
 						<div class="min-w-0">

@@ -1060,7 +1060,12 @@
 				syncMissionTaskStatusesFromExecutor();
 			},
 			onLog: (log) => {
-				logs = [...logs, log];
+				const existingIndex = logs.findIndex((entry) => entry.id === log.id);
+				if (existingIndex >= 0) {
+					logs = logs.map((entry, index) => index === existingIndex ? log : entry);
+				} else {
+					logs = [...logs, log];
+				}
 				executionProgress = missionExecutor.getProgress();
 			},
 			onTaskStart: (taskId, taskName) => {

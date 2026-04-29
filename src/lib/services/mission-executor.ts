@@ -184,6 +184,17 @@ function normalizeMultiLLMOptions(
 	};
 }
 
+function normalizeFlowMessage(message: string | undefined): string {
+	return (message || '')
+		.replace(/\(\d+(?:m \d+s|m|s) elapsed,\s*(?:about )?\d+(?:m \d+s|m|s) left\)/gi, '(time estimate)')
+		.replace(/\(\d+(?:m \d+s|m|s) elapsed,\s*wrapping up\)/gi, '(time estimate)')
+		.replace(/\(\d+(?:m \d+s|m|s) elapsed\)/gi, '(time estimate)')
+		.replace(/\b\d+%\b/g, '#%')
+		.replace(/\s+/g, ' ')
+		.trim()
+		.toLowerCase();
+}
+
 class MissionExecutor {
 	private pollingInterval: ReturnType<typeof setInterval> | null = null;
 	private progress: ExecutionProgress;
@@ -201,8 +212,8 @@ class MissionExecutor {
 	private lastProgressTime: number = Date.now();
 	private healthCheckInterval: ReturnType<typeof setInterval> | null = null;
 	private providerHeartbeatInterval: ReturnType<typeof setInterval> | null = null;
-	private readonly STALL_WARNING_MINUTES = 5;
-	private readonly STALL_CRITICAL_MINUTES = 15;
+	private readonly STALL_WARNING_MINUTES = 3;
+	private readonly STALL_CRITICAL_MINUTES = 8;
 	private readonly PROVIDER_HEARTBEAT_MS = 30_000;
 
 	// File sync for Claude Code resume capability
@@ -585,15 +596,16 @@ class MissionExecutor {
 			timestamp: new Date().toISOString(),
 			...event
 		};
-		if (event.state === 'progress') {
+		if (event.state === 'progress' || event.state === 'started' || event.state === 'info') {
+			const normalizedMessage = normalizeFlowMessage(event.message);
 			let existingIndex = -1;
 			for (let index = this.progress.taskTransitions.length - 1; index >= 0; index -= 1) {
 				const item = this.progress.taskTransitions[index];
 				if (
-					item.state === 'progress' &&
+					item.state === event.state &&
 					item.taskId === event.taskId &&
 					item.agentId === event.agentId &&
-					item.message === event.message
+					normalizeFlowMessage(item.message) === normalizedMessage
 				) {
 					existingIndex = index;
 					break;
@@ -1256,11 +1268,15 @@ class MissionExecutor {
 	 * Handle task progress update (for granular progress within a task)
 	 */
 	private handleTaskProgress(taskId: string, progress: number, message?: string): void {
-		// Update health monitoring timestamp
-		this.updateLastProgress();
+		const existing = this.progress.taskProgressMap.get(taskId);
+		const meaningfulProgress =
+			progress > (existing?.progress ?? -1) ||
+			normalizeFlowMessage(message) !== normalizeFlowMessage(existing?.message);
+		if (meaningfulProgress) {
+			this.updateLastProgress();
+		}
 
 		// Update task progress map
-		const existing = this.progress.taskProgressMap.get(taskId);
 		this.progress.taskProgressMap.set(taskId, {
 			taskId,
 			taskName: existing?.taskName || this.progress.currentTaskName || taskId,
@@ -1895,7 +1911,15 @@ class MissionExecutor {
 		const minutesSinceProgress = (Date.now() - this.lastProgressTime) / 60000;
 
 		if (minutesSinceProgress >= this.STALL_CRITICAL_MINUTES) {
-			this.addLocalLog('error', `No progress for ${Math.round(minutesSinceProgress)} minutes - execution may be stalled`);
+			const message = `No meaningful progress for ${Math.round(minutesSinceProgress)} minutes - execution may be stalled`;
+			this.progress.currentTaskMessage = message;
+			this.addLocalLog('error', message);
+			this.appendTaskTransition({
+				state: 'info',
+				taskId: this.progress.currentTaskId || undefined,
+				taskName: this.progress.currentTaskName || undefined,
+				message
+			});
 			// Log stall event (using mission_log type for compatibility)
 			broadcastMissionEvent('mission_log', this.progress.missionId || '', {
 				type: 'stall_warning',
@@ -1904,7 +1928,15 @@ class MissionExecutor {
 				currentTaskName: this.progress.currentTaskName
 			});
 		} else if (minutesSinceProgress >= this.STALL_WARNING_MINUTES) {
-			this.addLocalLog('info', `No progress for ${Math.round(minutesSinceProgress)} minutes`);
+			const message = `No meaningful progress for ${Math.round(minutesSinceProgress)} minutes - still watching this run`;
+			this.progress.currentTaskMessage = message;
+			this.addLocalLog('info', message);
+			this.appendTaskTransition({
+				state: 'info',
+				taskId: this.progress.currentTaskId || undefined,
+				taskName: this.progress.currentTaskName || undefined,
+				message
+			});
 		}
 	}
 
@@ -2208,15 +2240,34 @@ class MissionExecutor {
 	 * Add a local log entry (for UI events, not from MCP)
 	 */
 	private addLocalLog(type: 'info' | 'error', message: string): void {
+		const createdAt = new Date().toISOString();
+		const logType = type === 'info' ? 'progress' : 'error';
+		const normalizedMessage = normalizeFlowMessage(message);
+		if (logType === 'progress' && normalizedMessage) {
+			for (let index = this.progress.logs.length - 1; index >= Math.max(0, this.progress.logs.length - 12); index -= 1) {
+				const existing = this.progress.logs[index];
+				if (existing.type !== logType) continue;
+				if (normalizeFlowMessage(existing.message) !== normalizedMessage) continue;
+				const updatedLog = {
+					...existing,
+					message,
+					created_at: createdAt
+				};
+				this.progress.logs[index] = updatedLog;
+				this.callbacks.onLog?.(updatedLog);
+				return;
+			}
+		}
+
 		const log: MissionLog = {
 			id: `local-${Date.now()}`,
 			mission_id: this.progress.missionId || '',
 			agent_id: null,
 			task_id: null,
-			type: type === 'info' ? 'progress' : 'error',
+			type: logType,
 			message,
 			data: {},
-			created_at: new Date().toISOString()
+			created_at: createdAt
 		};
 
 		this.progress.logs.push(log);

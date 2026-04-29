@@ -116,6 +116,16 @@ function formatProviderTaskActivityMessage(
 	return `${providerLabel} is working through ${packLabel} (${formatDurationCompact(elapsedMs)} elapsed, ${remainingLabel})`;
 }
 
+function isBusyFileSystemError(error: unknown): boolean {
+	return (
+		Boolean(error) &&
+		typeof error === 'object' &&
+		error !== null &&
+		'code' in error &&
+		((error as { code?: string }).code === 'EBUSY' || (error as { code?: string }).code === 'EPERM')
+	);
+}
+
 export function providerShouldUseSparkExecutionBridge(
 	provider: Pick<MultiLLMProviderConfig, 'sparkExecutionBridge'>,
 	env: Record<string, string | undefined> = process.env
@@ -189,9 +199,17 @@ class ProviderRuntimeManager {
 			);
 			try {
 				renameSync(tempPath, persistPath);
-			} catch {
-				copyFileSync(tempPath, persistPath);
-				rmSync(tempPath, { force: true });
+			} catch (renameError) {
+				try {
+					copyFileSync(tempPath, persistPath);
+					rmSync(tempPath, { force: true });
+				} catch (copyError) {
+					rmSync(tempPath, { force: true });
+					if (process.env.VITEST && isBusyFileSystemError(copyError)) {
+						return;
+					}
+					throw copyError;
+				}
 			}
 		} catch (error) {
 			console.warn('[ProviderRuntime] Failed to persist provider results:', error);
