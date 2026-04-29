@@ -39,6 +39,11 @@
 		buildMissionControlHydrationSnapshot,
 		type MissionControlHistoryEvent
 	} from '$lib/services/mission-control-hydration';
+	import {
+		MISSION_CONTROL_LIVE_SYNC_INTERVAL_MS,
+		shouldLiveSyncMissionControl,
+		shouldSkipMissionControlHydration
+	} from '$lib/services/mission-control-live-sync';
 	import { buildExecutionTaskRows } from '$lib/services/execution-task-rows';
 	import {
 		formatExecutionDuration,
@@ -297,10 +302,17 @@
 		return null;
 	}
 
-	async function hydrateMissionControlHistory(missionId: string) {
+	async function hydrateMissionControlHistory(missionId: string, options: { force?: boolean } = {}) {
 		if (!browser || !missionId) return;
-		if (hydrationInFlightMissionId === missionId) return;
-		if (lastHydratedMissionId === missionId && executionProgress?.missionId === missionId) return;
+		if (
+			shouldSkipMissionControlHydration({
+				missionId,
+				inFlightMissionId: hydrationInFlightMissionId,
+				lastHydratedMissionId,
+				currentMissionId: executionProgress?.missionId,
+				force: options.force
+			})
+		) return;
 
 		hydrationInFlightMissionId = missionId;
 		try {
@@ -635,6 +647,23 @@
 		if (!browser || !missionId) return;
 		if (isRunning || isPaused) return;
 		void hydrateMissionControlHistory(missionId);
+	});
+
+	$effect(() => {
+		const missionId = relay?.missionId;
+		if (!browser || !missionId) return;
+
+		const poll = () => {
+			if (!shouldLiveSyncMissionControl(executionProgress?.status)) return;
+			void hydrateMissionControlHistory(missionId, { force: true });
+		};
+
+		const initialLiveSyncTimer = setTimeout(poll, 0);
+		const liveSyncTimer = setInterval(poll, MISSION_CONTROL_LIVE_SYNC_INTERVAL_MS);
+		return () => {
+			clearTimeout(initialLiveSyncTimer);
+			clearInterval(liveSyncTimer);
+		};
 	});
 
 	// Load persisted mission defaults once (browser only)

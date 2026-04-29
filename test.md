@@ -973,3 +973,32 @@ Branch: `codex/spawner-kanban-canvas-unit-tests`
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes`.
 - Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
+
+## Continuation: Live Mission Canvas Sync
+
+Branch: `codex/spawner-live-mission-sync`
+
+### Step Checklist
+
+- [x] Investigate Telegram/Kanban/Canvas mismatch from `mission-1777463125945`.
+- [x] Confirm persisted Mission Control state had all task lifecycle events while the open canvas execution panel could stay on the local provider fallback.
+- [x] Add live Mission Control polling for relay-linked execution panels while missions are creating, running, or paused.
+- [x] Keep terminal completed/failed/cancelled missions inspectable without continuing to poll.
+- [x] Add focused unit coverage for live-sync status and hydration skip/force rules.
+- [x] Run focused tests, typecheck, full tests, build, route smoke, and mission surface smoke.
+
+### Changes Made
+
+- Added `src/lib/services/mission-control-live-sync.ts`.
+- Added `src/lib/services/mission-control-live-sync.test.ts`.
+- Updated `src/lib/components/ExecutionPanel.svelte` so relay missions periodically force-refresh Mission Control hydration while active.
+- The open canvas execution panel now follows the same persisted Mission Control board state that Telegram and Kanban use, instead of waiting for a refresh/reopen to catch up.
+
+### Verification Log
+
+- Focused live-sync/hydration/task-row tests: PASS via `npm run test:run -- mission-control-live-sync mission-control-hydration execution-task-rows` (3 files, 13 tests).
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Full unit/integration suite: PASS via `npm run test:run` (55 files, 301 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes`.
+- Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
