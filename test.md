@@ -770,7 +770,7 @@ Branch: `codex/spawner-execution-transition-feed`
 
 - Added `src/lib/components/ExecutionTransitionFeed.svelte` for recent task transition checkpoints.
 - Updated `src/lib/components/ExecutionPanel.svelte` to pass transitions, time formatting, and transition badge formatting into the extracted component.
-- Reduced `ExecutionPanel.svelte` from roughly 1390 lines to roughly 1357 lines.
+- Moved the inline Build Activity block out of `ExecutionPanel.svelte` so the parent keeps state ownership while the child owns rendering.
 
 ### Verification Log
 
