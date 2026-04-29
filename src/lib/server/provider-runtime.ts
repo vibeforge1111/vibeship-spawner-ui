@@ -68,6 +68,7 @@ const PROVIDER_TASK_ACTIVITY_MIN_ESTIMATE_MS = 90_000;
 const PROVIDER_TASK_ACTIVITY_MAX_ESTIMATE_MS = 8 * 60_000;
 const PROVIDER_TASK_ACTIVITY_BASE_MS = 55_000;
 const PROVIDER_TASK_ACTIVITY_PER_TASK_MS = 35_000;
+const PROVIDER_STALE_RUNNING_GRACE_MS = 5 * 60_000;
 
 function getSpawnerStateDir(): string {
 	return process.env.SPAWNER_STATE_DIR || path.join(process.cwd(), '.spawner');
@@ -79,6 +80,14 @@ function getActiveMissionPath(): string {
 
 function getProviderResultsPath(): string {
 	return path.join(getSpawnerStateDir(), 'mission-provider-results.json');
+}
+
+function staleRunningProviderMs(): number {
+	return Math.max(
+		60_000,
+		Number(process.env.SPAWNER_PROVIDER_STALE_RUNNING_MS) ||
+			agentWorkTimeoutMs() + PROVIDER_STALE_RUNNING_GRACE_MS
+	);
 }
 
 function estimateProviderTaskActivityMs(taskCount: number): number {
@@ -99,6 +108,33 @@ function formatDurationCompact(ms: number): string {
 	const seconds = totalSeconds % 60;
 	if (minutes < 10 && seconds > 0) return `${minutes}m ${seconds}s`;
 	return `${minutes}m`;
+}
+
+export function reconcileStaleProviderResults(
+	results: ProviderMissionResultSnapshot[],
+	options: { now?: number; staleMs?: number } = {}
+): { results: ProviderMissionResultSnapshot[]; changed: boolean } {
+	const now = options.now ?? Date.now();
+	const staleMs = options.staleMs ?? staleRunningProviderMs();
+	const completedAt = new Date(now).toISOString();
+	let changed = false;
+	const reconciled = results.map((result) => {
+		if (result.status !== 'running') return result;
+		const startedAtMs = Date.parse(result.startedAt);
+		if (!Number.isFinite(startedAtMs) || now - startedAtMs < staleMs) return result;
+		changed = true;
+		const durationMs = Math.max(0, now - startedAtMs);
+		return {
+			...result,
+			status: 'failed' as ProviderSessionStatus,
+			error:
+				result.error ||
+				`Provider runtime went quiet after ${formatDurationCompact(durationMs)}; marked stale so the mission stops reporting as active.`,
+			durationMs: result.durationMs ?? durationMs,
+			completedAt: result.completedAt || completedAt
+		};
+	});
+	return { results: reconciled, changed };
 }
 
 function formatProviderTaskActivityMessage(
@@ -217,6 +253,17 @@ class ProviderRuntimeManager {
 		if (snapshots.length === 0) return;
 		this.persistedResults.set(missionId, snapshots);
 		this.persistResults();
+	}
+
+	private getReconciledPersistedResults(missionId: string): ProviderMissionResultSnapshot[] {
+		const persisted = this.persistedResults.get(missionId) ?? [];
+		const reconciled = reconcileStaleProviderResults(persisted);
+		if (reconciled.changed) {
+			this.persistedResults.set(missionId, reconciled.results);
+			this.persistResults();
+			this.rememberStatusReason(missionId, 'Provider runtime went quiet; stale running session was closed.');
+		}
+		return reconciled.results;
 	}
 
 	private async recoverDispatchSnapshot(missionId: string): Promise<MissionDispatchSnapshot | null> {
@@ -854,7 +901,7 @@ class ProviderRuntimeManager {
 		if (live.length > 0) {
 			return live.map(sessionToResultSnapshot);
 		}
-		return this.persistedResults.get(missionId) ?? [];
+		return this.getReconciledPersistedResults(missionId);
 	}
 
 	markMissionTerminalFromLifecycleEvent(input: {
@@ -940,7 +987,7 @@ class ProviderRuntimeManager {
 		providers: Record<string, ProviderSessionStatus>;
 	} {
 		const sessions = this.getSessionsForMission(missionId);
-		const persisted = sessions.length === 0 ? this.persistedResults.get(missionId) ?? [] : [];
+		const persisted = sessions.length === 0 ? this.getReconciledPersistedResults(missionId) : [];
 		const providers: Record<string, ProviderSessionStatus> = {};
 		for (const s of sessions) {
 			providers[s.providerId] = s.status;

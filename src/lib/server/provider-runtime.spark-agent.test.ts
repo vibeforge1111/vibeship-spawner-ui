@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { providerRuntime } from './provider-runtime';
+import { providerRuntime, reconcileStaleProviderResults } from './provider-runtime';
 import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { eventBridge, type BridgeEvent } from '$lib/services/event-bridge';
 import type { MultiLLMExecutionPack, MultiLLMProviderConfig } from '$lib/services/multi-llm-orchestrator';
@@ -63,6 +63,56 @@ afterEach(() => {
 });
 
 describe('provider-runtime Spark agent bridge', () => {
+	it('reconciles persisted running provider results once they outlive the worker timeout', () => {
+		const startedAt = Date.parse('2026-04-29T10:00:00.000Z');
+		const result = reconcileStaleProviderResults(
+			[
+				{
+					providerId: 'codex',
+					status: 'running',
+					response: null,
+					error: null,
+					durationMs: null,
+					tokenUsage: null,
+					startedAt: new Date(startedAt).toISOString(),
+					completedAt: null
+				}
+			],
+			{ now: startedAt + 3_600_000, staleMs: 30_000 }
+		);
+
+		expect(result.changed).toBe(true);
+		expect(result.results[0]).toMatchObject({
+			providerId: 'codex',
+			status: 'failed',
+			durationMs: 3_600_000,
+			completedAt: '2026-04-29T11:00:00.000Z'
+		});
+		expect(result.results[0].error).toContain('Provider runtime went quiet');
+	});
+
+	it('leaves fresh persisted running provider results alone', () => {
+		const startedAt = Date.parse('2026-04-29T10:00:00.000Z');
+		const result = reconcileStaleProviderResults(
+			[
+				{
+					providerId: 'codex',
+					status: 'running',
+					response: null,
+					error: null,
+					durationMs: null,
+					tokenUsage: null,
+					startedAt: new Date(startedAt).toISOString(),
+					completedAt: null
+				}
+			],
+			{ now: startedAt + 10_000, staleMs: 30_000 }
+		);
+
+		expect(result.changed).toBe(false);
+		expect(result.results[0].status).toBe('running');
+	});
+
 	it('dispatches codex + claude through Spark agent worker sessions and emits normalized events', async () => {
 		sparkAgentBridge.setWorkerExecutorForTests(async (context) => {
 			context.emitProgress(35, `${context.providerId} booting`);
