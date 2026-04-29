@@ -16,6 +16,10 @@ import {
 	summarizeMissionControlEvent
 } from './mission-control-relay';
 
+function freshIso(offsetMs = 0): string {
+	return new Date(Date.now() + offsetMs).toISOString();
+}
+
 describe('mission-control-relay', () => {
 	beforeEach(() => {
 		vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
@@ -127,13 +131,15 @@ describe('mission-control-relay', () => {
 
 	it('preserves the queued timestamp after a mission moves into progress', async () => {
 		const missionId = `mission-queued-lifecycle-${Date.now()}`;
+		const queuedAt = freshIso();
+		const startedAt = freshIso(5_000);
 
 		await relayMissionControlEvent({
 			type: 'mission_created',
 			missionId,
 			missionName: 'Spark Queue Visibility',
 			source: 'telegram',
-			timestamp: '2026-04-28T10:00:00.000Z',
+			timestamp: queuedAt,
 			data: {
 				plannedTasks: [{ title: 'Plan the canvas', skills: ['mission-control'] }],
 				telegramRelay: { port: 1 }
@@ -142,7 +148,7 @@ describe('mission-control-relay', () => {
 
 		let board = getMissionControlBoard();
 		const created = board.created.find((candidate) => candidate.missionId === missionId);
-		expect(created?.queuedAt).toBe('2026-04-28T10:00:00.000Z');
+		expect(created?.queuedAt).toBe(queuedAt);
 		expect(created?.lastSummary).toContain('Queued: Spark Queue Visibility entered To do');
 
 		await relayMissionControlEvent({
@@ -150,14 +156,14 @@ describe('mission-control-relay', () => {
 			missionId,
 			missionName: 'Spark Queue Visibility',
 			source: 'canvas-dispatch',
-			timestamp: '2026-04-28T10:00:05.000Z',
+			timestamp: startedAt,
 			data: { telegramRelay: { port: 1 } }
 		});
 
 		board = getMissionControlBoard();
 		const running = board.running.find((candidate) => candidate.missionId === missionId);
-		expect(running?.queuedAt).toBe('2026-04-28T10:00:00.000Z');
-		expect(running?.startedAt).toBe('2026-04-28T10:00:05.000Z');
+		expect(running?.queuedAt).toBe(queuedAt);
+		expect(running?.startedAt).toBe(startedAt);
 		expect(running?.taskStatusCounts).toMatchObject({ queued: 1, running: 0, completed: 0, total: 1 });
 	});
 
@@ -561,13 +567,14 @@ describe('mission-control-relay', () => {
 
 	it('tracks explicit task completion and failure states on Kanban board entries', async () => {
 		const missionId = `mission-task-states-${Date.now()}`;
+		const startedAt = freshIso();
 
 		await relayMissionControlEvent({
 			type: 'mission_started',
 			missionId,
 			missionName: 'Build a stateful canvas mission',
 			source: 'spark-run',
-			timestamp: '2026-04-28T10:00:00.000Z',
+			timestamp: startedAt,
 			data: { telegramRelay: { port: 1 } }
 		});
 		await relayMissionControlEvent({
@@ -576,7 +583,7 @@ describe('mission-control-relay', () => {
 			taskId: 'task-shell',
 			taskName: 'Create static app shell',
 			source: 'codex',
-			timestamp: '2026-04-28T10:00:05.000Z',
+			timestamp: freshIso(5_000),
 			data: { skills: ['frontend'], telegramRelay: { port: 1 } }
 		});
 		await relayMissionControlEvent({
@@ -585,7 +592,7 @@ describe('mission-control-relay', () => {
 			taskId: 'task-shell',
 			taskName: 'Create static app shell',
 			source: 'codex',
-			timestamp: '2026-04-28T10:00:30.000Z',
+			timestamp: freshIso(30_000),
 			data: { telegramRelay: { port: 1 } }
 		});
 		await relayMissionControlEvent({
@@ -594,7 +601,7 @@ describe('mission-control-relay', () => {
 			taskId: 'task-ui',
 			taskName: 'Implement animated UI',
 			source: 'codex',
-			timestamp: '2026-04-28T10:00:40.000Z',
+			timestamp: freshIso(40_000),
 			data: { skills: ['ui'], telegramRelay: { port: 1 } }
 		});
 		await relayMissionControlEvent({
@@ -603,7 +610,7 @@ describe('mission-control-relay', () => {
 			taskId: 'task-readme',
 			taskName: 'Write README smoke test',
 			source: 'codex',
-			timestamp: '2026-04-28T10:00:50.000Z',
+			timestamp: freshIso(50_000),
 			data: { skills: ['docs'], telegramRelay: { port: 1 } }
 		});
 
@@ -698,7 +705,7 @@ describe('mission-control-relay', () => {
 			type: 'mission_created',
 			missionId,
 			source: 'canvas-dispatch',
-			timestamp: '2026-04-28T10:00:00.000Z',
+			timestamp: freshIso(),
 			data: {
 				plannedTasks: [
 					{ title: 'task-1-static-app-scaffold: Create the no-build static app files', skills: ['frontend'] },
@@ -712,7 +719,7 @@ describe('mission-control-relay', () => {
 			missionId,
 			taskName: 'task-1-static-app-scaffold',
 			source: 'codex',
-			timestamp: '2026-04-28T10:00:05.000Z',
+			timestamp: freshIso(5_000),
 			data: { telegramRelay: { port: 1 } }
 		});
 

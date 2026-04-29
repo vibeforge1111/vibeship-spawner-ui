@@ -892,3 +892,30 @@ Branch: `codex/spawner-display-unit-tests`
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes`.
 - Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
+
+## Continuation: Path Safety Unit Tests
+
+Branch: `codex/spawner-path-safety-tests`
+
+### Step Checklist
+
+- [x] Identify path safety as the next small security-relevant unit coverage gap.
+- [x] Add unit coverage for safe IDs, rejected unsafe IDs, allowed in-base paths, traversal rejection, and sibling-prefix rejection.
+- [x] Fix stale-sensitive Mission Control relay tests to use fresh non-terminal timestamps while preserving the year-2000 stale fixture.
+- [x] Run focused tests, typecheck, full tests, build, route smoke, and mission surface smoke.
+- [x] Commit, merge, and push.
+
+### Changes Made
+
+- Added `src/lib/server/path-safety.test.ts` for path-safe ID and base-directory resolution guardrails used by PRD result, events, and H70 skill APIs.
+- Updated `src/lib/server/mission-control-relay.test.ts` so non-terminal board fixtures do not age out as wall-clock time moves forward.
+
+### Verification Log
+
+- Focused path safety tests: PASS via `npm run test:run -- path-safety` (1 file, 5 tests).
+- Focused relay/path tests: PASS via `npm run test:run -- mission-control-relay path-safety` (2 files, 34 tests).
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Full unit/integration suite: PASS via `npm run test:run` (52 files, 284 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes`.
+- Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
