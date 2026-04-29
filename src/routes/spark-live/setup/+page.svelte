@@ -63,8 +63,9 @@
 		<div class="mt-6 rounded-lg border border-surface-border bg-surface-primary p-5">
 			<h2 class="text-base font-semibold text-text-bright">Next commands</h2>
 			<div class="mt-3 grid gap-2 font-mono text-sm text-text-secondary">
-				<p>spark verify --hosted --deep</p>
 				<p>spark live status</p>
+				<p>spark live verify --quick</p>
+				<p>spark live verify</p>
 				<p>spark logs spark-telegram-bot --lines 80</p>
 			</div>
 		</div>

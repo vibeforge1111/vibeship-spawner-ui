@@ -96,7 +96,7 @@ export function buildHostedSetupStatus(env: HostedSetupEnv): HostedSetupStatus {
 		},
 		{
 			id: 'bridge-auth',
-			label: 'Internal API key',
+			label: 'Bridge API key',
 			ok: configured(env.SPARK_BRIDGE_API_KEY),
 			detail: configured(env.SPARK_BRIDGE_API_KEY)
 				? 'Internal Spark APIs require the bridge key.'
