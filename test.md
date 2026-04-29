@@ -866,3 +866,29 @@ Branch: `main`
 - Split `MissionBoard.svelte` card rendering, details/actions, and filtering into smaller pieces if Kanban behavior changes again.
 - Keep `ExecutionPanel.svelte` stable unless a real bug appears; further changes there should be behavior-driven rather than extraction for extraction's sake.
 - Consider a later test-noise pass for intentional negative-path warnings so real failures remain easy to spot.
+
+## Continuation: Display And Bundle Unit Tests
+
+Branch: `codex/spawner-display-unit-tests`
+
+### Step Checklist
+
+- [x] Map existing mission/canvas/Kanban unit and integration coverage.
+- [x] Add unit coverage for Mission Control display sanitization and compaction.
+- [x] Add unit coverage for curated bundle classification and prompt hint formatting.
+- [x] Run focused tests, typecheck, full tests, build, route smoke, and mission surface smoke.
+- [x] Commit, merge, and push.
+
+### Changes Made
+
+- Added `src/lib/server/mission-control-display.test.ts` for path redaction, compact display text, blank handling, and truncation.
+- Added `src/lib/server/bundle-classifier.test.ts` for strong SaaS bundle matching, weak-brief non-matching, and bundle prompt formatting.
+
+### Verification Log
+
+- Focused new unit tests: PASS via `npm run test:run -- mission-control-display bundle-classifier` (2 files, 7 tests).
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Full unit/integration suite: PASS via `npm run test:run` (51 files, 279 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes`.
+- Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
