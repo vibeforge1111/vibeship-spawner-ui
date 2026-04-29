@@ -366,3 +366,31 @@ Branch: `codex/spawner-mission-surface-smoke`
 - Local route smoke: PASS via `npm run smoke:routes`, including `/missions/mission-smoke-route` and `/api/spark-agent/canvas-state`.
 - Full unit/integration suite: PASS via `npm run test:run` (44 files, 245 tests).
 - Production build: PASS via `npm run build`.
+
+## Continuation: Execution Task Rows
+
+Branch: `codex/spawner-execution-task-rows`
+
+### Step Checklist
+
+- [x] Extract execution task row/status summary mapping from `ExecutionPanel.svelte`.
+- [x] Add focused tests for canvas fallback rows, mission task rows, progress clamping, task summary, and next-task selection.
+- [x] Run focused tests.
+- [x] Run typecheck.
+- [x] Run full checks.
+- [x] Commit and push.
+
+### Changes Made
+
+- Added `src/lib/services/execution-task-rows.ts`.
+- Added `src/lib/services/execution-task-rows.test.ts`.
+- Replaced inline task-row derivation in `ExecutionPanel.svelte` with tested service helpers.
+
+### Verification Log
+
+- Focused task-row tests: PASS via `npm run test:run -- execution-task-rows` (1 file, 4 tests).
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Full unit/integration suite after rebasing onto origin/main: PASS via `npm run test:run` (46 files, 252 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes`.
+- Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.

@@ -31,6 +31,12 @@
 		buildMissionControlHydrationSnapshot,
 		type MissionControlHistoryEvent
 	} from '$lib/services/mission-control-hydration';
+	import {
+		buildExecutionTaskRows,
+		getNextTaskRow,
+		summarizeTaskRows,
+		type TaskRowStatus
+	} from '$lib/services/execution-task-rows';
 	import { browser } from '$app/environment';
 	import { get } from 'svelte/store';
 
@@ -165,69 +171,9 @@
 		if (!executionProgress?.taskTransitions) return [] as TaskTransitionEvent[];
 		return executionProgress.taskTransitions.slice(-12).reverse();
 	});
-	type TaskRowStatus = 'completed' | 'running' | 'pending' | 'failed' | 'blocked';
-	interface TaskStatusRow {
-		id: string;
-		index: number;
-		title: string;
-		status: TaskRowStatus;
-		progress: number;
-		message?: string;
-	}
-	let taskRows = $derived.by((): TaskStatusRow[] => {
-		const missionTasks = executionProgress?.mission?.tasks;
-		if (!missionTasks?.length) {
-			return currentNodes.map((node, index) => ({
-				id: node.id,
-				index: index + 1,
-				title: node.skill.name,
-				status:
-					node.status === 'success'
-						? 'completed'
-						: node.status === 'error'
-							? 'failed'
-							: node.status === 'running'
-								? 'running'
-								: 'pending',
-				progress: node.status === 'success' || node.status === 'error' ? 100 : node.status === 'running' ? 8 : 0
-			}));
-		}
-
-		return missionTasks.map((task, index) => {
-			const tracked = executionProgress?.taskProgressMap?.get(task.id);
-			const status: TaskRowStatus =
-				task.status === 'completed'
-					? 'completed'
-					: task.status === 'failed'
-						? 'failed'
-						: task.status === 'blocked'
-							? 'blocked'
-							: task.status === 'in_progress'
-								? 'running'
-								: 'pending';
-			const inferredProgress =
-				status === 'completed' || status === 'failed'
-					? 100
-					: status === 'running'
-						? tracked?.progress ?? 8
-						: 0;
-			return {
-				id: task.id,
-				index: index + 1,
-				title: task.title,
-				status,
-				progress: Math.max(0, Math.min(100, tracked?.progress ?? inferredProgress)),
-				message: tracked?.message
-			};
-		});
-	});
-	let taskSummary = $derived.by(() => ({
-		completed: taskRows.filter((task) => task.status === 'completed').length,
-		running: taskRows.filter((task) => task.status === 'running').length,
-		pending: taskRows.filter((task) => task.status === 'pending' || task.status === 'blocked').length,
-		failed: taskRows.filter((task) => task.status === 'failed').length
-	}));
-	let nextTask = $derived.by(() => taskRows.find((task) => task.status === 'running') || taskRows.find((task) => task.status === 'pending'));
+	let taskRows = $derived.by(() => buildExecutionTaskRows(executionProgress, currentNodes));
+	let taskSummary = $derived.by(() => summarizeTaskRows(taskRows));
+	let nextTask = $derived.by(() => getNextTaskRow(taskRows));
 
 	function taskMatchesNode(node: CanvasNode, taskId: string, taskName?: string): boolean {
 		const nodeName = node.skill.name || '';
