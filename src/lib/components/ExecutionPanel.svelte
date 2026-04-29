@@ -27,7 +27,13 @@
 	import CheckpointReview from './CheckpointReview.svelte';
 	import type { ProjectCheckpoint } from '$lib/services/checkpoint';
 	import { saveCurrentPipeline } from '$lib/stores/pipelines.svelte';
-	import type { MissionControlBoardEntry, MissionControlTaskStatus } from '$lib/types/mission-control';
+	import type { MissionControlBoardEntry } from '$lib/types/mission-control';
+	import {
+		executionStatusFromBoard,
+		logTypeFromMissionControlEvent,
+		missionTaskStatusFromBoard,
+		transitionStateFromMissionControlEvent
+	} from '$lib/services/mission-control-view-model';
 	import { browser } from '$app/environment';
 	import { get } from 'svelte/store';
 
@@ -321,35 +327,6 @@
 		source: string;
 	};
 	type MissionControlTask = MissionControlBoardEntry['tasks'][number];
-
-	function executionStatusFromBoard(status: MissionControlBoardEntry['status']): ExecutionStatus {
-		if (status === 'created') return 'idle';
-		if (status === 'cancelled') return 'cancelled';
-		return status;
-	}
-
-	function missionTaskStatusFromBoard(status?: MissionControlTaskStatus): Mission['tasks'][number]['status'] {
-		if (status === 'completed') return 'completed';
-		if (status === 'failed' || status === 'cancelled') return 'failed';
-		if (status === 'running') return 'in_progress';
-		return 'pending';
-	}
-
-	function logTypeFromMissionControlEvent(eventType: string): MissionLog['type'] {
-		if (eventType === 'mission_completed' || eventType === 'task_completed') return 'complete';
-		if (eventType === 'mission_failed' || eventType === 'task_failed' || eventType === 'mission_cancelled') return 'error';
-		if (eventType === 'mission_started' || eventType === 'task_started' || eventType === 'dispatch_started') return 'start';
-		return 'progress';
-	}
-
-	function transitionStateFromMissionControlEvent(eventType: string): TaskTransitionEvent['state'] {
-		if (eventType === 'task_started' || eventType === 'mission_started' || eventType === 'dispatch_started') return 'started';
-		if (eventType === 'task_completed' || eventType === 'mission_completed') return 'completed';
-		if (eventType === 'task_failed' || eventType === 'mission_failed') return 'failed';
-		if (eventType === 'task_cancelled' || eventType === 'mission_cancelled') return 'cancelled';
-		if (eventType === 'provider_feedback' || eventType === 'log') return 'info';
-		return 'progress';
-	}
 
 	function applyBoardTaskStatuses(tasks: MissionControlTask[]) {
 		for (const task of tasks) {

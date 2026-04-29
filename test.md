@@ -61,5 +61,31 @@ This run focuses on:
 
 - Split `ExecutionPanel.svelte`, `mission-executor.ts`, `canvas/+page.svelte`, `canvas-sync.ts`, and `canvas.svelte.ts` into smaller behavior-focused modules.
 - Move root-level ad hoc scripts and older planning docs into clearer `scripts/`, `docs/archive/`, or `docs/ops/` groupings.
-- Remove the `Welcome.svelte` duplicate static/dynamic `prd-bridge.ts` import path so production builds stay quiet.
 - Add a route-level smoke that exercises mission detail navigation after Kanban cards become project-clickable.
+
+## Continuation: Welcome Import + ExecutionPanel View Model
+
+Branch: `codex/spawner-welcome-import-cleanup`
+
+### Step Checklist
+
+- [x] Remove duplicate static/dynamic `prd-bridge.ts` import path from `Welcome.svelte`.
+- [x] Verify production build no longer prints the duplicate-import Vite warning.
+- [x] Extract pure Mission Control view-model mapping helpers from `ExecutionPanel.svelte`.
+- [x] Add focused tests for board status, task status, log type, and transition state mapping.
+- [x] Run full checks.
+- [x] Commit and push.
+
+### Changes Made
+
+- Imported `analysisResult` statically in `Welcome.svelte` and removed the runtime dynamic import of the same module.
+- Added `src/lib/services/mission-control-view-model.ts` for Mission Control to execution-panel mapping rules.
+- Added `src/lib/services/mission-control-view-model.test.ts`.
+
+### Verification Log
+
+- Focused view-model tests: PASS via `npm run test:run -- mission-control-view-model` (1 file, 4 tests).
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Production build: PASS via `npm run build`; duplicate `Welcome.svelte`/`prd-bridge.ts` warning removed.
+- Full unit/integration suite: PASS via `npm run test:run` (41 files, 227 tests).
+- Local route smoke: PASS via `npm run smoke:routes` against `http://127.0.0.1:5173` for `/`, `/kanban`, `/canvas`, `/trace`, `/api/mission-control/board`, and `/api/mission-control/trace`.

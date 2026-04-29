@@ -12,7 +12,7 @@
 	import { setPRD, setProjectName } from '$lib/stores/project-docs.svelte';
 	import { analyzePRD, generateTasksFromPRD, tasksToWorkflow, type PRDAnalysis, type GeneratedTask } from '$lib/utils/prd-analyzer';
 	import { processSmartPRD, type SmartPRDAnalysis, type SmartMission } from '$lib/utils/smart-prd-analyzer';
-	import { initPRDBridge, requestPRDAnalysis, analysisStatus, prdResultToWorkflow, type PRDAnalysisResult } from '$lib/services/prd-bridge';
+	import { initPRDBridge, requestPRDAnalysis, analysisStatus, analysisResult, prdResultToWorkflow, type PRDAnalysisResult } from '$lib/services/prd-bridge';
 	import { queuePipelineLoad } from '$lib/services/pipeline-loader';
 	import { onMount } from 'svelte';
 	import { skills as skillsStore, loadSkills, addSkills } from '$lib/stores/skills.svelte';
@@ -190,18 +190,14 @@
 							unsubscribe = analysisStatus.subscribe(status => {
 								console.log('[PRD-AI] Status changed to:', status);
 								if (status === 'complete' && !resultProcessed) {
-									// Claude responded! Get the result from the store
-									import('$lib/services/prd-bridge').then(({ analysisResult }) => {
-										const result = get(analysisResult);
-										console.log('[PRD-AI] Got result via SSE:', result?.projectName);
+									// Claude responded! Get the result from the store.
+									const result = get(analysisResult);
+									console.log('[PRD-AI] Got result via SSE:', result?.projectName);
 
-										if (result) {
-											processClaudeResult(result);
-											settle(true);
-										}
-									}).catch(err => {
-										console.error('[PRD-AI] Import error:', err);
-									});
+									if (result) {
+										processClaudeResult(result);
+										settle(true);
+									}
 								}
 							});
 
