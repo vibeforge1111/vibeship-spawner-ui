@@ -31,7 +31,6 @@
 	import MissionSettingsPanel from './MissionSettingsPanel.svelte';
 	import OrphanNodeWarningModal from './OrphanNodeWarningModal.svelte';
 	import ExecutionTaskStatusList from './ExecutionTaskStatusList.svelte';
-	import ExecutionTransitionFeed from './ExecutionTransitionFeed.svelte';
 	import type { ProjectCheckpoint } from '$lib/services/checkpoint';
 	import { saveCurrentPipeline } from '$lib/stores/pipelines.svelte';
 	import type { MissionControlBoardEntry } from '$lib/types/mission-control';
@@ -160,6 +159,7 @@
 	let lastHydratedMissionId = $state<string | null>(null);
 	let hydrationInFlightMissionId = $state<string | null>(null);
 	let autoRunRetryTimer: ReturnType<typeof setTimeout> | null = null;
+	let durationTick = $state(Date.now());
 
 	// Derived states
 	let isRunning = $derived(executionProgress?.status === 'running' || executionProgress?.status === 'creating');
@@ -185,6 +185,15 @@
 		return executionProgress.taskTransitions.slice(-12).reverse();
 	});
 	let taskRows = $derived.by(() => buildExecutionTaskRows(executionProgress, currentNodes));
+
+	$effect(() => {
+		if (!browser) return;
+		if (!executionProgress?.startTime || executionProgress.endTime) return;
+		const timer = setInterval(() => {
+			durationTick = Date.now();
+		}, 1000);
+		return () => clearInterval(timer);
+	});
 
 	function taskMatchesNode(node: CanvasNode, taskId: string, taskName?: string): boolean {
 		const nodeName = node.skill.name || '';
@@ -1207,6 +1216,7 @@
 	}
 
 	function getExecutionDuration(): string {
+		durationTick;
 		return formatExecutionDuration(executionProgress?.startTime, executionProgress?.endTime);
 	}
 
@@ -1345,15 +1355,14 @@
 			</div>
 		{/if}
 
-		{#if executionProgress}
-			<ExecutionTransitionFeed
-				transitions={recentTaskTransitions}
-				{formatTime}
-				{getTransitionBadge}
-			/>
-		{/if}
-
-		<ExecutionLogList logs={logs} isRunning={isRunning} status={executionProgress?.status} />
+		<ExecutionLogList
+			{logs}
+			{isRunning}
+			status={executionProgress?.status}
+			transitions={recentTaskTransitions}
+			{formatTime}
+			{getTransitionBadge}
+		/>
 
 		{#if !isRunning && !isPaused}
 			<MissionSettingsPanel

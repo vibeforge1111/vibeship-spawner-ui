@@ -106,14 +106,10 @@ function formatProviderTaskActivityMessage(
 	taskName: string,
 	assignedTaskCount: number,
 	elapsedMs: number,
-	estimatedRemainingMs: number
+	_estimatedRemainingMs: number
 ): string {
 	const packLabel = assignedTaskCount > 1 ? `${assignedTaskCount} task pack` : taskName;
-	const remainingLabel =
-		estimatedRemainingMs > 0
-			? `about ${formatDurationCompact(estimatedRemainingMs)} left`
-			: 'wrapping up';
-	return `${providerLabel} is working through ${packLabel} (${formatDurationCompact(elapsedMs)} elapsed, ${remainingLabel})`;
+	return `${providerLabel} is working through ${packLabel} (${formatDurationCompact(elapsedMs)} elapsed; estimate adjusting)`;
 }
 
 function isBusyFileSystemError(error: unknown): boolean {

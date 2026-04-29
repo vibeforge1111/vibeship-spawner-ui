@@ -162,6 +162,8 @@ describe('provider-runtime Spark agent bridge', () => {
 				event.data?.assignedTaskCount === 2
 		);
 		expect(activityProgress?.message).toContain('elapsed');
+		expect(activityProgress?.message).toContain('estimate adjusting');
+		expect(activityProgress?.message).not.toContain('left');
 		await waitFor(() => providerRuntime.getMissionStatus('mission-step2-activity').allComplete);
 	});
 

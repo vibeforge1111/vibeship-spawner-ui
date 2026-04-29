@@ -42,6 +42,8 @@ export interface MissionControlRelayStatusEntry {
 	taskName: string | null;
 	taskSkills: string[];
 	plannedTasks: Array<{ title: string; skills: string[] }>;
+	assignedTaskIds: string[];
+	progress: number | null;
 	summary: string;
 	timestamp: string;
 	source: string;
@@ -226,12 +228,28 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 				})
 				.filter((task): task is { title: string; skills: string[] } => Boolean(task))
 		: [];
+	const assignedTaskIdsRaw = event.data && (event.data as Record<string, unknown>).assignedTaskIds;
+	const assignedTaskIds = Array.isArray(assignedTaskIdsRaw)
+		? assignedTaskIdsRaw.filter((taskId): taskId is string => typeof taskId === 'string' && taskId.trim().length > 0)
+		: [];
 	const dataTaskId = event.data && typeof (event.data as Record<string, unknown>).taskId === 'string'
 		? ((event.data as Record<string, unknown>).taskId as string)
 		: null;
 	const dataTaskName = event.data && typeof (event.data as Record<string, unknown>).taskName === 'string'
 		? ((event.data as Record<string, unknown>).taskName as string)
 		: null;
+	const rawProgress =
+		typeof event.progress === 'number'
+			? event.progress
+			: event.data && typeof (event.data as Record<string, unknown>).progress === 'number'
+				? ((event.data as Record<string, unknown>).progress as number)
+				: event.data && typeof (event.data as Record<string, unknown>).percent === 'number'
+					? ((event.data as Record<string, unknown>).percent as number)
+					: null;
+	const progress =
+		typeof rawProgress === 'number' && Number.isFinite(rawProgress)
+			? Math.max(0, Math.min(100, Math.round(rawProgress)))
+			: null;
 	const telegramRelay = getTelegramRelayTarget(event);
 	const hasTelegramRelay =
 		telegramRelay.port !== null || telegramRelay.profile !== null || telegramRelay.url !== null;
@@ -244,6 +262,8 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		taskName: typeof event.taskName === 'string' ? event.taskName : dataTaskName,
 		taskSkills,
 		plannedTasks,
+		assignedTaskIds,
+		progress,
 		summary: summarizeMissionControlEvent(event),
 		timestamp,
 		source: typeof event.source === 'string' ? event.source : 'unknown',
@@ -493,6 +513,37 @@ function mergeTaskStatus(
 	return next;
 }
 
+function clampTaskProgress(progress: number): number {
+	if (!Number.isFinite(progress)) return 0;
+	return Math.max(0, Math.min(92, Math.round(progress)));
+}
+
+function distributeRelayTaskPackProgress(taskCount: number, providerProgress: number): number[] {
+	if (taskCount <= 0) return [];
+	const clampedProviderProgress = Math.max(0, Math.min(100, providerProgress));
+	const taskShare = 100 / taskCount;
+	return Array.from({ length: taskCount }, (_, index) => {
+		const taskStart = index * taskShare * 0.8;
+		const taskEnd = taskStart + taskShare * 1.4;
+		return clampTaskProgress(((clampedProviderProgress - taskStart) / (taskEnd - taskStart)) * 100);
+	});
+}
+
+function findTaskForAssignedTaskId(
+	entry: MissionControlBoardEntry,
+	assignedTaskId: string,
+	index: number
+): MissionControlBoardEntry['tasks'][number] | undefined {
+	const label = sanitizeMissionControlDisplayText(assignedTaskId);
+	const canonicalLabel = canonicalTaskTitle(label);
+	const labelKey = taskKeyFromLabel(label);
+	return (
+		entry.tasks.find((candidate) => canonicalTaskTitle(candidate.title) === canonicalLabel) ||
+		(labelKey ? entry.tasks.find((candidate) => taskKeyFromLabel(candidate.title) === labelKey) : undefined) ||
+		entry.tasks[index]
+	);
+}
+
 function recalculateTaskStatusCounts(entry: MissionControlBoardEntry): void {
 	const counts = emptyTaskStatusCounts();
 	for (const task of entry.tasks) {
@@ -503,6 +554,33 @@ function recalculateTaskStatusCounts(entry: MissionControlBoardEntry): void {
 	entry.taskNames = entry.tasks.map((task) => task.title);
 	entry.taskCount = entry.tasks.length;
 	entry.taskStatusCounts = counts;
+}
+
+function maybeRecordAssignedTaskPackProgress(
+	entry: MissionControlBoardEntry,
+	event: MissionControlRelayStatusEntry
+): void {
+	const assignedTaskIds = Array.isArray(event.assignedTaskIds) ? event.assignedTaskIds : [];
+	if (event.progress === null || assignedTaskIds.length === 0) return;
+	const distributed = distributeRelayTaskPackProgress(assignedTaskIds.length, event.progress);
+	assignedTaskIds.forEach((taskId, index) => {
+		const progress = distributed[index] ?? 0;
+		let task = findTaskForAssignedTaskId(entry, taskId, index);
+		if (!task) {
+			task = {
+				title: sanitizeMissionControlDisplayText(taskId),
+				skills: [],
+				status: progress > 0 ? 'running' : 'queued',
+				...(progress > 0 ? { progress } : {})
+			};
+			entry.tasks.push(task);
+			entry.taskNames.push(task.title);
+		}
+		if (progress <= 0) return;
+		if (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled') return;
+		task.status = 'running';
+		task.progress = Math.max(task.progress ?? 0, progress);
+	});
 }
 
 function maybeRecordTask(entry: MissionControlBoardEntry, event: MissionControlRelayStatusEntry): void {
@@ -529,7 +607,7 @@ function maybeRecordTask(entry: MissionControlBoardEntry, event: MissionControlR
 		return;
 	}
 	if (!task) {
-		task = { title: label, skills: event.taskSkills ?? [], status };
+		task = { title: label, skills: event.taskSkills ?? [], status, progress: event.progress ?? undefined };
 		entry.tasks.push(task);
 		entry.taskNames.push(label);
 		entry.taskCount = entry.taskNames.length;
@@ -537,6 +615,9 @@ function maybeRecordTask(entry: MissionControlBoardEntry, event: MissionControlR
 	}
 
 	task.status = mergeTaskStatus(task.status, status);
+	if (typeof event.progress === 'number') {
+		task.progress = Math.max(task.progress ?? 0, event.progress);
+	}
 	if ((!task.skills || task.skills.length === 0) && event.taskSkills.length > 0) {
 		task.skills = event.taskSkills;
 	}
@@ -641,6 +722,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 		const current = byMission.get(entry.missionId)!;
 		recordLifecycleTimestamps(current, entry);
 		seedPlannedTasks(current, entry);
+		maybeRecordAssignedTaskPackProgress(current, entry);
 		maybeRecordTask(current, entry);
 	}
 

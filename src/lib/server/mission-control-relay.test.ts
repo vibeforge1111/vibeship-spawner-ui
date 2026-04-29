@@ -742,6 +742,51 @@ describe('mission-control-relay', () => {
 		]);
 	});
 
+	it('projects bundled provider progress across planned board tasks', async () => {
+		const missionId = `mission-task-pack-progress-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			source: 'prd-bridge',
+			timestamp: freshIso(),
+			data: {
+				plannedTasks: [
+					{ title: 'task-1-shell: Create shell', skills: ['frontend'] },
+					{ title: 'task-2-scene: Build scene', skills: ['threejs'] },
+					{ title: 'task-3-controls: Add controls', skills: ['state'] },
+					{ title: 'task-4-docs: Write docs', skills: ['docs'] }
+				],
+				telegramRelay: { port: 1 }
+			}
+		});
+		await relayMissionControlEvent({
+			type: 'task_progress',
+			missionId,
+			taskId: 'task-1-shell',
+			taskName: 'task-1-shell: Create shell',
+			message: 'Codex is working through the task pack',
+			source: 'codex',
+			progress: 50,
+			timestamp: freshIso(5_000),
+			data: {
+				assignedTaskIds: ['task-1-shell', 'task-2-scene', 'task-3-controls', 'task-4-docs'],
+				telegramRelay: { port: 1 }
+			}
+		});
+
+		const board = getMissionControlBoard();
+		const running = board.running.find((candidate) => candidate.missionId === missionId);
+
+		expect(running?.tasks.map((task) => [task.title, task.status, task.progress ?? 0])).toEqual([
+			['task-1-shell: Create shell', 'running', 92],
+			['task-2-scene: Build scene', 'running', 86],
+			['task-3-controls: Add controls', 'running', 29],
+			['task-4-docs: Write docs', 'queued', 0]
+		]);
+		expect(running?.taskStatusCounts).toMatchObject({ queued: 1, running: 3, total: 4 });
+	});
+
 	it('keeps completed missions completed when stale canvas task events replay later', async () => {
 		const missionId = `mission-terminal-wins-${Date.now()}`;
 

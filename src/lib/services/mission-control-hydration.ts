@@ -21,6 +21,7 @@ export type MissionControlHistoryEvent = {
 	missionName: string | null;
 	taskId: string | null;
 	taskName: string | null;
+	progress?: number | null;
 	summary: string;
 	timestamp: string;
 	source: string;
@@ -59,7 +60,11 @@ function taskProgressMessage(status: MissionControlBoardEntry['tasks'][number]['
 	return 'Queued';
 }
 
-function taskProgressPercent(status: MissionControlBoardEntry['tasks'][number]['status']): number {
+function taskProgressPercent(task: MissionControlBoardEntry['tasks'][number]): number {
+	if (typeof task.progress === 'number' && Number.isFinite(task.progress)) {
+		return Math.max(0, Math.min(task.status === 'completed' ? 100 : 92, Math.round(task.progress)));
+	}
+	const status = task.status;
 	if (status === 'completed' || status === 'failed' || status === 'cancelled') return 100;
 	if (status === 'running') return 20;
 	return 0;
@@ -71,7 +76,7 @@ function missionProgressPercent(
 ): number {
 	if (status === 'completed') return 100;
 	if (tasks.length === 0) return 0;
-	const total = tasks.reduce((sum, task) => sum + taskProgressPercent(task.status), 0);
+	const total = tasks.reduce((sum, task) => sum + taskProgressPercent(task), 0);
 	return Math.round(total / tasks.length);
 }
 
@@ -195,7 +200,7 @@ export function buildMissionControlHydrationSnapshot(
 		taskProgressMap.set(id, {
 			taskId: id,
 			taskName: task.title,
-			progress: taskProgressPercent(task.status),
+			progress: taskProgressPercent(task),
 			message: taskProgressMessage(task.status),
 			startedAt: taskStartedAt
 		});
@@ -232,7 +237,12 @@ export function buildMissionControlHydrationSnapshot(
 		agentId: entry.source,
 		agentLabel: entry.source,
 		message: entry.summary,
-		progress: entry.eventType === 'mission_completed' ? 100 : undefined
+		progress:
+			typeof entry.progress === 'number'
+				? entry.progress
+				: entry.eventType === 'mission_completed'
+					? 100
+					: undefined
 	}));
 
 	const mission: Mission = {
@@ -275,11 +285,14 @@ export function buildMissionControlHydrationSnapshot(
 		progress: missionProgressPercent(boardEntry.tasks, status),
 		currentTaskId: mission.current_task_id,
 		currentTaskName: missionTasks.find((task) => task.id === mission.current_task_id)?.title || null,
-		currentTaskProgress: boardEntry.tasks.find((task) => missionTaskStatusFromBoard(task.status) === 'in_progress')
-			? taskProgressPercent('running')
-			: status === 'completed'
-				? 100
-				: 0,
+		currentTaskProgress:
+			taskProgressPercent(
+				boardEntry.tasks.find((task) => missionTaskStatusFromBoard(task.status) === 'in_progress') || {
+					title: '',
+					skills: [],
+					status: status === 'completed' ? 'completed' : 'queued'
+				}
+			),
 		currentTaskMessage: boardEntry.providerSummary || null,
 		taskProgressMap,
 		logs,

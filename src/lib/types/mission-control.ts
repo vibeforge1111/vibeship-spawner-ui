@@ -56,6 +56,7 @@ export interface MissionControlBoardTask {
 	title: string;
 	skills: string[];
 	status?: MissionControlTaskStatus;
+	progress?: number;
 }
 
 export interface MissionControlProviderResultSummary {
