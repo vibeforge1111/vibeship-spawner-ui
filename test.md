@@ -753,3 +753,31 @@ Branch: `codex/spawner-execution-progress-header`
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes`.
 - Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
+
+## Continuation: Execution Transition Feed Extraction
+
+Branch: `codex/spawner-execution-transition-feed`
+
+### Step Checklist
+
+- [x] Inspect recent task transition feed rendering before editing.
+- [x] Extract Build Activity presentation into `ExecutionTransitionFeed.svelte`.
+- [x] Keep transition derivation and execution state owned by `ExecutionPanel.svelte`.
+- [x] Run focused tests, typecheck, full tests, build, route smoke, and mission surface smoke.
+- [x] Commit, merge, and push.
+
+### Changes Made
+
+- Added `src/lib/components/ExecutionTransitionFeed.svelte` for recent task transition checkpoints.
+- Updated `src/lib/components/ExecutionPanel.svelte` to pass transitions, time formatting, and transition badge formatting into the extracted component.
+- Reduced `ExecutionPanel.svelte` from roughly 1390 lines to roughly 1357 lines.
+
+### Verification Log
+
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Focused execution tests: PASS via `npm run test:run -- execution-panel-formatting execution-task-rows mission-execution-progress mission-control-hydration` (4 files, 20 tests).
+- Whitespace check: PASS via `git diff --check`.
+- Full unit/integration suite: PASS via `npm run test:run` (49 files, 272 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes`.
+- Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
