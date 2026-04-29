@@ -640,3 +640,32 @@ Branch: `codex/spawner-execution-log-list`
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes`.
 - Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
+
+## Continuation: Execution Task Status List Extraction
+
+Branch: `codex/spawner-execution-task-status-list`
+
+### Step Checklist
+
+- [x] Inspect task status, rework, completion, partial, and failed-state rendering before editing.
+- [x] Extract task-status presentation into `ExecutionTaskStatusList.svelte`.
+- [x] Keep resume/dismiss partial mission callbacks owned by `ExecutionPanel.svelte`.
+- [x] Move task summary and next-task display math into the extracted component.
+- [x] Run focused tests, typecheck, full tests, build, route smoke, and mission surface smoke.
+- [x] Commit and push.
+
+### Changes Made
+
+- Added `src/lib/components/ExecutionTaskStatusList.svelte`.
+- Updated `src/lib/components/ExecutionPanel.svelte` to pass task rows, rework state, status, reconciliation, and callbacks into the extracted component.
+- Removed task summary, next-task, task row class, and task badge class presentation dependencies from `ExecutionPanel.svelte`.
+
+### Verification Log
+
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Focused execution task-status tests: PASS via `npm run test:run -- execution-task-rows execution-panel-formatting mission-execution-progress mission-control-hydration` (4 files, 20 tests).
+- Whitespace check: PASS via `git diff --check`.
+- Full unit/integration suite: PASS via `npm run test:run` (49 files, 272 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes`.
+- Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
