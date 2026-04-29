@@ -40,6 +40,7 @@ describe('hosted UI auth', () => {
 
 	it('exempts static assets', () => {
 		expect(hostedUiAuthPathIsExempt('/_app/immutable/app.js')).toBe(true);
+		expect(hostedUiAuthPathIsExempt('/spark-live/login')).toBe(true);
 		expect(hostedUiAuthPathIsExempt('/api/providers')).toBe(false);
 	});
 

@@ -1,5 +1,5 @@
 import { env } from '$env/dynamic/private';
-import type { Handle } from '@sveltejs/kit';
+import { redirect, type Handle } from '@sveltejs/kit';
 import {
 	hostedUiAuthEnabled,
 	hostedUiAuthClientKey,
@@ -32,7 +32,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 			});
 		}
 		recordHostedUiAuthFailure(clientKey);
-		return new Response('Spawner is private. Open this Spark Live URL with ?uiKey=<your-ui-key>.', {
+		if (event.request.method === 'GET' && event.request.headers.get('accept')?.includes('text/html')) {
+			const next = `${event.url.pathname}${event.url.search}${event.url.hash}`;
+			throw redirect(303, `/spark-live/login?next=${encodeURIComponent(next)}`);
+		}
+		return new Response('Spawner is private. Open /spark-live/login in a browser, or pass x-spawner-ui-key for API access.', {
 			status: 401,
 			headers: { 'content-type': 'text/plain; charset=utf-8' }
 		});

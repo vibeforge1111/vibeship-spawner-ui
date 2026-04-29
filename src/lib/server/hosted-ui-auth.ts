@@ -9,7 +9,7 @@ export interface HostedUiAuthEnv {
 	MCP_API_KEY?: string;
 }
 
-const STATIC_PREFIXES = ['/_app/', '/favicon', '/robots.txt'];
+const STATIC_PREFIXES = ['/_app/', '/favicon', '/robots.txt', '/spark-live/login'];
 const COOKIE_OPTIONS = {
 	httpOnly: true,
 	sameSite: 'strict' as const,
