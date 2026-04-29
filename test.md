@@ -781,3 +781,31 @@ Branch: `codex/spawner-execution-transition-feed`
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes`.
 - Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
+
+## Continuation: Orphan Node Warning Modal Extraction
+
+Branch: `codex/spawner-orphan-warning-modal`
+
+### Step Checklist
+
+- [x] Inspect disconnected-node warning behavior before editing.
+- [x] Extract the orphan-node warning presentation into `OrphanNodeWarningModal.svelte`.
+- [x] Keep orphan detection, auto-connect behavior, canvas close behavior, and workflow continuation owned by `ExecutionPanel.svelte`.
+- [x] Run focused tests, typecheck, full tests, build, route smoke, and mission surface smoke.
+- [x] Commit, merge, and push.
+
+### Changes Made
+
+- Added `src/lib/components/OrphanNodeWarningModal.svelte` for the disconnected-node warning dialog and actions.
+- Updated `src/lib/components/ExecutionPanel.svelte` to pass the orphan list and explicit action callbacks into the extracted modal.
+- Removed the inline orphan-warning markup from `ExecutionPanel.svelte` without changing the run validation flow.
+
+### Verification Log
+
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Focused execution/canvas tests: PASS via `npm run test:run -- execution-panel-formatting execution-task-rows mission-execution-progress mission-control-hydration canvas-execution-action` (5 files, 23 tests).
+- Whitespace check: PASS via `git diff --check`.
+- Full unit/integration suite: PASS via `npm run test:run` (49 files, 272 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes`.
+- Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
