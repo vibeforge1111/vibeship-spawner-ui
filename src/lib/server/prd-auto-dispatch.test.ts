@@ -67,6 +67,16 @@ describe('PRD auto-dispatch helpers', () => {
 		expect(inferProjectPathFromPrdLoad(load)).toBe('C:\\Users\\USER\\Desktop\\spark-test');
 	});
 
+	it('stops Windows target folders before prose after a colon', () => {
+		expect(
+			inferProjectPathFromPrdLoad({
+				...load,
+				executionPrompt:
+					'Build this at C:\\Users\\USER\\Desktop\\spark-progress-pause-probe: a vanilla-JS static app called Spark Progress Pause Probe.'
+			})
+		).toBe('C:\\Users\\USER\\Desktop\\spark-progress-pause-probe');
+	});
+
 	it('allows auto-dispatch only when the PRD load is runnable', () => {
 		expect(shouldAutoDispatchPrdLoad(load).ok).toBe(true);
 		expect(shouldAutoDispatchPrdLoad({ ...load, autoRun: false, relay: {} }).reason).toBe('autoRun disabled');

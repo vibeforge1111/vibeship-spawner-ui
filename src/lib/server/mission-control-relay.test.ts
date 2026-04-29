@@ -477,6 +477,36 @@ describe('mission-control-relay', () => {
 		expect(getMissionControlRelaySnapshot('not-spark-id').recent).toEqual([]);
 	});
 
+	it('moves paused missions back to running after a resume event', async () => {
+		const missionId = `mission-pause-resume-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'mission_started',
+			missionId,
+			source: 'codex',
+			timestamp: '2026-04-29T15:00:00.000Z'
+		});
+		await relayMissionControlEvent({
+			type: 'mission_paused',
+			missionId,
+			source: 'mission-control',
+			timestamp: '2026-04-29T15:00:10.000Z'
+		});
+		await relayMissionControlEvent({
+			type: 'mission_resumed',
+			missionId,
+			source: 'mission-control',
+			timestamp: '2026-04-29T15:00:20.000Z'
+		});
+
+		const board = getMissionControlBoard();
+		expect(board.paused.find((entry) => entry.missionId === missionId)).toBeUndefined();
+		expect(board.running.find((entry) => entry.missionId === missionId)).toMatchObject({
+			status: 'running',
+			lastEventType: 'mission_resumed'
+		});
+	});
+
 	it('does not keep stale non-terminal missions on the board', async () => {
 		const missionId = `spark-stale-running-${Date.now()}`;
 
@@ -785,6 +815,67 @@ describe('mission-control-relay', () => {
 			['task-4-docs: Write docs', 'queued', 0]
 		]);
 		expect(running?.taskStatusCounts).toMatchObject({ queued: 1, running: 3, total: 4 });
+	});
+
+	it('merges node-id task pack progress into later planned task titles', async () => {
+		const missionId = `mission-task-pack-node-dedupe-${Date.now()}`;
+		const plannedTasks = [
+			{ title: 'Create the static app shell', skills: ['frontend'] },
+			{ title: 'Implement checklist state and progress', skills: ['state'] },
+			{ title: 'Polish the dark Mission Control UI', skills: ['design'] },
+			{ title: 'Write README and run smoke checks', skills: ['docs'] }
+		];
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			source: 'prd-bridge',
+			timestamp: freshIso(),
+			data: {
+				plannedTasks,
+				telegramRelay: { port: 1 }
+			}
+		});
+		await relayMissionControlEvent({
+			type: 'task_progress',
+			missionId,
+			taskId: 'node-1-task-task-1-static-shell',
+			taskName: 'task-1-static-shell: Create the static app shell',
+			message: 'Codex is working through the task pack',
+			source: 'codex',
+			progress: 50,
+			timestamp: freshIso(5_000),
+			data: {
+				assignedTaskIds: [
+					'node-1-task-task-1-static-shell',
+					'node-2-task-task-2-checklist-state',
+					'node-3-task-task-3-dark-ui',
+					'node-4-task-task-4-smoke-docs'
+				],
+				telegramRelay: { port: 1 }
+			}
+		});
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			taskId: 'node-2-task-task-2-checklist-state',
+			taskName: 'task-2-checklist-state',
+			source: 'codex',
+			timestamp: freshIso(10_000),
+			data: { telegramRelay: { port: 1 } }
+		});
+
+		const board = getMissionControlBoard();
+		const running = board.running.find((candidate) => candidate.missionId === missionId);
+
+		expect(running?.taskCount).toBe(4);
+		expect(running?.taskNames).toEqual(plannedTasks.map((task) => task.title));
+		expect(running?.tasks.map((task) => [task.title, task.status, task.progress ?? 0])).toEqual([
+			['Create the static app shell', 'running', 92],
+			['Implement checklist state and progress', 'running', 86],
+			['Polish the dark Mission Control UI', 'running', 29],
+			['Write README and run smoke checks', 'queued', 0]
+		]);
 	});
 
 	it('keeps completed missions completed when stale canvas task events replay later', async () => {

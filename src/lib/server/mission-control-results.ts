@@ -63,6 +63,16 @@ function alignProviderResultsWithBoardStatus(
 	entry: MissionControlBoardEntry,
 	results: ProviderMissionResultSnapshot[]
 ): ProviderMissionResultSnapshot[] {
+	if (entry.status === 'paused') {
+		return results.map((result) => {
+			if (result.status !== 'cancelled') return result;
+			return {
+				...result,
+				error: 'paused; ready to resume',
+				completedAt: result.completedAt || entry.lastUpdated
+			};
+		});
+	}
 	if (entry.status !== 'completed' && entry.status !== 'failed' && entry.status !== 'cancelled') return results;
 
 	return results.map((result) => {
@@ -119,6 +129,7 @@ function reconcileEntryWithProviderResults(
 ): MissionControlBoardEntry {
 	const providerStatus = statusFromProviderResults(results);
 	if (!providerStatus) return entry;
+	if (entry.status === 'paused' && providerStatus !== 'running') return entry;
 	if (entry.status === 'completed' || entry.status === 'failed' || entry.status === 'cancelled' || entry.status === providerStatus) return entry;
 
 	const tasks =

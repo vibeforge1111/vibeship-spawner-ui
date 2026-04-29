@@ -180,6 +180,7 @@ export function inferProjectPathFromPrdLoad(load: PrdCanvasLoadForAutoDispatch):
 	return (
 		labeledPath
 			?.trim()
+			.replace(/:\s+.*$/i, '')
 			.replace(/\s+(?:as|inside|with|and)\b.*$/i, '')
 			.replace(/[).,;]+$/, '') || '.'
 	);

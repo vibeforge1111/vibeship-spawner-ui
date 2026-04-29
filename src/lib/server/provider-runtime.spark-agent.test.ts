@@ -55,6 +55,7 @@ afterEach(() => {
 	providerRuntime.cleanup('mission-step2-success');
 	providerRuntime.cleanup('mission-step2-failure');
 	providerRuntime.cleanup('mission-step2-cancel');
+	providerRuntime.cleanup('mission-step2-pause');
 	providerRuntime.cleanup('mission-step2-rebuild');
 	providerRuntime.cleanup('mission-step2-persist');
 	providerRuntime.cleanup('mission-step2-lifecycle');
@@ -236,6 +237,43 @@ describe('provider-runtime Spark agent bridge', () => {
 		expect(emitted.some((event) => event.type === 'task_cancelled')).toBe(true);
 	});
 
+	it('pauses without emitting terminal completion or failure lifecycle events', async () => {
+		sparkAgentBridge.setWorkerExecutorForTests(
+			(context) =>
+				new Promise((resolve) => {
+					const timer = setTimeout(() => resolve({ success: true, response: 'unexpected' }), 2000);
+					context.signal?.addEventListener(
+						'abort',
+						() => {
+							clearTimeout(timer);
+							resolve({ success: false, error: 'Cancelled' });
+						},
+						{ once: true }
+					);
+				})
+		);
+
+		const emitted: BridgeEvent[] = [];
+		const pack = buildPack('mission-step2-pause', [provider('codex', 'gpt-5.5')]);
+		await providerRuntime.dispatch({
+			executionPack: pack,
+			apiKeys: { codex: 'test-codex' },
+			onEvent: (event) => emitted.push(event),
+			workingDirectory: process.cwd()
+		});
+
+		await new Promise((r) => setTimeout(r, 50));
+		const paused = await providerRuntime.pauseMission('mission-step2-pause');
+		expect(paused.paused).toBe(true);
+		await waitFor(() => providerRuntime.getMissionStatus('mission-step2-pause').providers.codex === 'cancelled');
+
+		expect(providerRuntime.getMissionStatus('mission-step2-pause').paused).toBe(true);
+		expect(emitted.some((event) => event.type === 'task_failed')).toBe(false);
+		expect(emitted.some((event) => event.type === 'mission_completed')).toBe(false);
+		expect(emitted.some((event) => event.type === 'mission_failed')).toBe(false);
+		expect(emitted.some((event) => event.type === 'mission_cancelled')).toBe(false);
+	});
+
 	it('rebuilds dispatch snapshot from mission record when resuming a paused orphan mission', async () => {
 		sparkAgentBridge.setWorkerExecutorForTests(async (context) => {
 			context.emitProgress(40, `${context.providerId} resumed`);
@@ -291,9 +329,11 @@ describe('provider-runtime Spark agent bridge', () => {
 		expect(before.paused).toBe(true);
 		expect(before.snapshotAvailable).toBe(false);
 
-		const resumed = await providerRuntime.resumeMission('mission-step2-rebuild');
+		const resumedEvents: BridgeEvent[] = [];
+		const resumed = await providerRuntime.resumeMission('mission-step2-rebuild', (event) => resumedEvents.push(event));
 		expect(resumed.resumed).toBe(true);
 		expect(missionSpy).toHaveBeenCalledWith('mission-step2-rebuild');
+		expect(resumedEvents.some((event) => event.type === 'dispatch_started')).toBe(true);
 
 		await waitFor(() => providerRuntime.getMissionStatus('mission-step2-rebuild').allComplete);
 		const after = providerRuntime.getMissionStatus('mission-step2-rebuild');

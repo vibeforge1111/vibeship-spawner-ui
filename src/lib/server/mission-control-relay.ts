@@ -493,7 +493,7 @@ function canonicalTaskTitle(title: string): string {
 }
 
 function taskOrdinalFromLabel(title: string): number | null {
-	const match = title.match(/^task-(\d+)(?:\b|-|_)/i);
+	const match = title.match(/^task-(\d+)(?:\b|-|_)/i) || title.match(/^node-(\d+)-task-/i);
 	if (!match) return null;
 	const parsed = Number(match[1]);
 	return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
@@ -537,10 +537,16 @@ function findTaskForAssignedTaskId(
 	const label = sanitizeMissionControlDisplayText(assignedTaskId);
 	const canonicalLabel = canonicalTaskTitle(label);
 	const labelKey = taskKeyFromLabel(label);
+	const labelOrdinal = taskOrdinalFromLabel(label);
+	const indexedTask = entry.tasks[index];
+	const indexedOrdinal = indexedTask ? taskOrdinalFromLabel(indexedTask.title) : null;
 	return (
 		entry.tasks.find((candidate) => canonicalTaskTitle(candidate.title) === canonicalLabel) ||
 		(labelKey ? entry.tasks.find((candidate) => taskKeyFromLabel(candidate.title) === labelKey) : undefined) ||
-		entry.tasks[index]
+		(labelOrdinal !== null
+			? entry.tasks.find((candidate) => taskOrdinalFromLabel(candidate.title) === labelOrdinal)
+			: undefined) ||
+		(indexedTask && (indexedOrdinal === null || indexedOrdinal === index + 1) ? indexedTask : undefined)
 	);
 }
 
@@ -599,8 +605,13 @@ function maybeRecordTask(entry: MissionControlBoardEntry, event: MissionControlR
 	}
 	if (!task) {
 		const ordinal = taskOrdinalFromLabel(label);
-		if (ordinal !== null && entry.tasks.length >= ordinal) {
-			task = entry.tasks[ordinal - 1];
+		if (ordinal !== null) {
+			task = entry.tasks.find((candidate) => taskOrdinalFromLabel(candidate.title) === ordinal);
+			const indexedTask = entry.tasks[ordinal - 1];
+			const indexedOrdinal = indexedTask ? taskOrdinalFromLabel(indexedTask.title) : null;
+			if (!task && indexedTask && (indexedOrdinal === null || indexedOrdinal === ordinal)) {
+				task = indexedTask;
+			}
 		}
 	}
 	if (!task && (event.eventType === 'task_progress' || event.eventType === 'progress')) {
@@ -626,23 +637,30 @@ function maybeRecordTask(entry: MissionControlBoardEntry, event: MissionControlR
 function seedPlannedTasks(entry: MissionControlBoardEntry, event: MissionControlRelayStatusEntry): void {
 	const plannedTasks = Array.isArray(event.plannedTasks) ? event.plannedTasks : [];
 	if (plannedTasks.length === 0) return;
-	for (const planned of plannedTasks) {
+	const plannedOrder: MissionControlBoardEntry['tasks'] = [];
+	const plannedMatches = new Set<MissionControlBoardEntry['tasks'][number]>();
+	for (const [index, planned] of plannedTasks.entries()) {
 		const canonicalLabel = canonicalTaskTitle(planned.title);
 		const plannedKey = taskKeyFromLabel(planned.title);
-		const existing = entry.tasks.find((candidate) => {
+		const plannedOrdinal = index + 1;
+		let existing = entry.tasks.find((candidate) => {
 			if (canonicalTaskTitle(candidate.title) === canonicalLabel) return true;
 			return Boolean(plannedKey && taskKeyFromLabel(candidate.title) === plannedKey);
-		});
+		}) || entry.tasks.find((candidate) => taskOrdinalFromLabel(candidate.title) === plannedOrdinal);
 		if (existing) {
 			existing.title = planned.title;
 			if ((!existing.skills || existing.skills.length === 0) && planned.skills.length > 0) {
 				existing.skills = planned.skills;
 			}
-			continue;
+		} else {
+			existing = { title: planned.title, skills: planned.skills, status: 'queued' };
 		}
-		entry.tasks.push({ title: planned.title, skills: planned.skills, status: 'queued' });
-		entry.taskNames.push(planned.title);
+		plannedOrder.push(existing);
+		plannedMatches.add(existing);
 	}
+	const unplannedTasks = entry.tasks.filter((task) => !plannedMatches.has(task));
+	entry.tasks = [...plannedOrder, ...unplannedTasks];
+	entry.taskNames = entry.tasks.map((task) => task.title);
 	entry.taskCount = entry.taskNames.length;
 }
 
@@ -673,7 +691,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 	const byMission = new Map<string, MissionControlBoardEntry>();
 	const terminalMissionIds = new Set(
 		relayState.recent
-			.filter((entry) => ['mission_completed', 'mission_failed', 'mission_cancelled', 'mission_paused'].includes(entry.eventType))
+			.filter((entry) => ['mission_completed', 'mission_failed', 'mission_cancelled'].includes(entry.eventType))
 			.map((entry) => entry.missionId)
 	);
 

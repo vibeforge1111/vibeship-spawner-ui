@@ -146,4 +146,76 @@ describe('mission-control-results', () => {
 			providerSummary: 'Codex: done'
 		});
 	});
+
+	it('keeps paused board cards paused even when the underlying provider process was cancelled', () => {
+		const enriched = enrichMissionControlBoardWithProviderResults(
+			{
+				paused: [
+					entry('mission-paused-provider-cancelled', {
+						status: 'paused',
+						lastEventType: 'mission_paused',
+						tasks: [{ title: 'Build the thing', skills: [], status: 'running', progress: 72 }],
+						taskStatusCounts: {
+							queued: 0,
+							running: 1,
+							completed: 0,
+							failed: 0,
+							cancelled: 0,
+							total: 1
+						}
+					})
+				],
+				completed: [],
+				failed: [],
+				running: [],
+				created: [],
+				cancelled: []
+			},
+			() => [result({ status: 'cancelled', error: 'Mission paused' })]
+		);
+
+		expect(enriched.paused[0]).toMatchObject({
+			missionId: 'mission-paused-provider-cancelled',
+			status: 'paused',
+			lastEventType: 'mission_paused',
+			providerSummary: 'Codex: paused; ready to resume'
+		});
+		expect(enriched.cancelled).toEqual([]);
+	});
+
+	it('moves paused board cards back to running when the provider resumes', () => {
+		const enriched = enrichMissionControlBoardWithProviderResults(
+			{
+				paused: [
+					entry('mission-paused-provider-running', {
+						status: 'paused',
+						lastEventType: 'mission_paused',
+						tasks: [{ title: 'Build the thing', skills: [], status: 'running', progress: 72 }],
+						taskStatusCounts: {
+							queued: 0,
+							running: 1,
+							completed: 0,
+							failed: 0,
+							cancelled: 0,
+							total: 1
+						}
+					})
+				],
+				completed: [],
+				failed: [],
+				running: [],
+				created: [],
+				cancelled: []
+			},
+			() => [result({ status: 'running', response: null, error: null, completedAt: null })]
+		);
+
+		expect(enriched.paused).toEqual([]);
+		expect(enriched.running[0]).toMatchObject({
+			missionId: 'mission-paused-provider-running',
+			status: 'running',
+			lastEventType: 'provider_running',
+			providerSummary: 'Codex: running'
+		});
+	});
 });

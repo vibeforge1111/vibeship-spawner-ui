@@ -2,7 +2,8 @@ import { eventBridge } from '$lib/services/event-bridge';
 import {
 	getMissionControlBoard,
 	relayMissionControlEvent,
-	type MissionControlBoardEntry
+	type MissionControlBoardEntry,
+	type MissionControlBridgeEvent
 } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { mcpClient } from '$lib/services/mcp-client';
@@ -186,7 +187,10 @@ export async function executeMissionControlAction(input: {
 	}
 
 	if (action === 'resume') {
-		const runtime = await providerRuntime.resumeMission(missionId);
+		const runtime = await providerRuntime.resumeMission(missionId, (event) => {
+			eventBridge.emit(event);
+			void relayMissionControlEvent(event as unknown as MissionControlBridgeEvent);
+		});
 		if (!runtime.resumed) {
 			return {
 				ok: false,

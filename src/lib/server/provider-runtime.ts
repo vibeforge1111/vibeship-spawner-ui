@@ -479,18 +479,25 @@ class ProviderRuntimeManager {
 			);
 			const anyFailed = allSessions.some((s) => s.status === 'failed');
 
-			if (allComplete) {
-				const type = anyFailed ? 'mission_failed' : 'mission_completed';
+			if (allComplete && !this.pausedMissions.has(missionId)) {
+				const allCancelled = allSessions.every((s) => s.status === 'cancelled');
+				const type = allCancelled ? 'mission_cancelled' : anyFailed ? 'mission_failed' : 'mission_completed';
 				this.rememberStatusReason(
 					missionId,
-					anyFailed ? 'Mission completed with provider failures' : 'Mission completed successfully'
+					allCancelled
+						? 'Mission cancelled'
+						: anyFailed
+							? 'Mission completed with provider failures'
+							: 'Mission completed successfully'
 				);
 				onEvent({
 					type,
 					missionId,
 					source: 'spawner-ui',
 					timestamp: new Date().toISOString(),
-					message: anyFailed
+					message: allCancelled
+						? 'Mission cancelled'
+						: anyFailed
 						? `Mission completed with errors (${allSessions.filter((s) => s.status === 'failed').length} failed)`
 						: `All ${allSessions.length} providers completed successfully`,
 					data: {
@@ -682,7 +689,7 @@ class ProviderRuntimeManager {
 							}
 						})
 					);
-				} else if (!workerResult.success) {
+				} else if (!workerResult.success && !(workerResult.error === 'Cancelled' && this.pausedMissions.has(missionId))) {
 					onEvent(
 						createBridgeEvent('task_failed', { provider, missionId, onEvent, signal: abortController.signal }, {
 							message: `${provider.label} failed: ${workerResult.error || 'unknown error'}`,
@@ -786,14 +793,17 @@ class ProviderRuntimeManager {
 			return { paused: false, reason };
 		}
 
-		await this.cancelMission(missionId, 'Mission paused');
 		this.pausedMissions.add(missionId);
 		this.pausedReasons.set(missionId, 'Mission paused');
+		await this.cancelMission(missionId, 'Mission paused');
 		this.rememberStatusReason(missionId, 'Mission paused');
 		return { paused: true, reason: 'Mission paused' };
 	}
 
-	async resumeMission(missionId: string): Promise<{ resumed: boolean; reason?: string }> {
+	async resumeMission(
+		missionId: string,
+		onEvent: (event: BridgeEvent) => void = (event) => eventBridge.emit(event)
+	): Promise<{ resumed: boolean; reason?: string }> {
 		if (!this.pausedMissions.has(missionId)) {
 			const reason = 'Mission is not paused.';
 			this.rememberStatusReason(missionId, reason);
@@ -821,7 +831,7 @@ class ProviderRuntimeManager {
 			executionPack: snapshot.executionPack,
 			apiKeys: { ...snapshot.apiKeys },
 			workingDirectory: snapshot.workingDirectory,
-			onEvent: (evt) => eventBridge.emit(evt)
+			onEvent
 		});
 		this.pausedMissions.delete(missionId);
 		this.pausedReasons.delete(missionId);
