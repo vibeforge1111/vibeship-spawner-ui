@@ -611,3 +611,32 @@ Branch: `codex/spawner-mission-inspection-actions`
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes`.
 - Mission surface smoke: PASS via `npm run smoke:mission-surfaces`, including mission detail, mission-scoped canvas, and Trace stitching checks.
+
+## Continuation: Execution Log List Extraction
+
+Branch: `codex/spawner-execution-log-list`
+
+### Step Checklist
+
+- [x] Inspect `ExecutionPanel.svelte` log rendering, copy behavior, and autoscroll ownership before editing.
+- [x] Extract execution log header/content rendering into `ExecutionLogList.svelte`.
+- [x] Move log autoscroll and copy-log actions into the extracted component.
+- [x] Keep parent execution state, mission runtime wiring, and footer timestamps unchanged.
+- [x] Run focused tests, typecheck, full tests, build, route smoke, and mission surface smoke.
+- [x] Commit and push.
+
+### Changes Made
+
+- Added `src/lib/components/ExecutionLogList.svelte`.
+- Updated `src/lib/components/ExecutionPanel.svelte` to render `<ExecutionLogList />` instead of owning log markup directly.
+- Removed `logsContainer` state and direct log icon/color usage from `ExecutionPanel.svelte`.
+
+### Verification Log
+
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Focused execution panel tests: PASS via `npm run test:run -- execution-panel-formatting execution-task-rows mission-control-hydration` (3 files, 14 tests).
+- Whitespace check: PASS via `git diff --check`.
+- Full unit/integration suite: PASS via `npm run test:run` (49 files, 272 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes`.
+- Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
