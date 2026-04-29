@@ -72,6 +72,59 @@ describe('mission-control-relay', () => {
 		expect(entry?.taskStatusCounts).toMatchObject({ running: 1, completed: 0, failed: 0, total: 1 });
 	});
 
+	it('deduplicates repeated lifecycle status events while preserving actual transitions', async () => {
+		const missionId = `mission-lifecycle-dedupe-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			taskId: 'task-ui',
+			taskName: 'Build the UI',
+			source: 'codex',
+			timestamp: '2026-04-29T12:00:00.000Z',
+			data: { telegramRelay: { port: 1 } }
+		});
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			taskId: 'task-ui',
+			taskName: 'Build the UI',
+			source: 'codex',
+			timestamp: '2026-04-29T12:00:01.000Z',
+			data: { telegramRelay: { port: 1 } }
+		});
+		await relayMissionControlEvent({
+			type: 'task_completed',
+			missionId,
+			taskId: 'task-ui',
+			taskName: 'Build the UI',
+			source: 'codex',
+			timestamp: '2026-04-29T12:00:10.000Z',
+			data: { telegramRelay: { port: 1 } }
+		});
+		await relayMissionControlEvent({
+			type: 'task_completed',
+			missionId,
+			taskId: 'task-ui',
+			taskName: 'Build the UI',
+			source: 'codex',
+			timestamp: '2026-04-29T12:00:11.000Z',
+			data: { telegramRelay: { port: 1 } }
+		});
+
+		const snapshot = getMissionControlRelaySnapshot(missionId);
+		expect(snapshot.recent.map((entry) => entry.eventType)).toEqual(['task_completed', 'task_started']);
+
+		const board = getMissionControlBoard();
+		const entry = board.running.find((candidate) => candidate.missionId === missionId);
+		expect(entry?.taskStatusCounts).toMatchObject({
+			completed: 1,
+			running: 0,
+			failed: 0,
+			total: 1
+		});
+	});
+
 	it('preserves the queued timestamp after a mission moves into progress', async () => {
 		const missionId = `mission-queued-lifecycle-${Date.now()}`;
 

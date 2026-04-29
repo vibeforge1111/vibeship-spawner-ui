@@ -183,6 +183,9 @@ const relayState: {
 	recent: []
 };
 
+const missionLifecycleStates = new Map<string, string>();
+const taskLifecycleStates = new Map<string, string>();
+
 function normalizeMissionId(event: MissionControlBridgeEvent): string {
 	return typeof event.missionId === 'string' && event.missionId.trim().length > 0 ? event.missionId : 'unknown-mission';
 }
@@ -381,6 +384,84 @@ function taskStatusForEvent(eventType: string): MissionControlTaskStatus | null 
 		default:
 			return null;
 	}
+}
+
+function lifecycleTaskStatusForEvent(eventType: string): MissionControlTaskStatus | null {
+	switch (eventType) {
+		case 'task_started':
+			return 'running';
+		case 'task_completed':
+			return 'completed';
+		case 'task_failed':
+			return 'failed';
+		case 'task_cancelled':
+			return 'cancelled';
+		default:
+			return null;
+	}
+}
+
+function lifecycleMissionStatusForEvent(eventType: string): MissionControlBoardStatus | null {
+	switch (eventType) {
+		case 'mission_started':
+		case 'mission_resumed':
+			return 'running';
+		case 'mission_paused':
+			return 'paused';
+		case 'mission_completed':
+			return 'completed';
+		case 'mission_failed':
+			return 'failed';
+		case 'mission_cancelled':
+			return 'cancelled';
+		default:
+			return null;
+	}
+}
+
+function taskIdentityForEvent(event: MissionControlBridgeEvent): string | null {
+	const data = event.data && typeof event.data === 'object' ? event.data : {};
+	const taskId =
+		typeof event.taskId === 'string'
+			? event.taskId
+			: typeof data.taskId === 'string'
+				? data.taskId
+				: null;
+	if (taskId?.trim()) return `id:${taskId.trim()}`;
+
+	const taskName =
+		typeof event.taskName === 'string'
+			? event.taskName
+			: typeof data.taskName === 'string'
+				? data.taskName
+				: null;
+	if (taskName?.trim()) return `name:${canonicalTaskTitle(taskName)}`;
+
+	return null;
+}
+
+function shouldRecordLifecycleTransition(event: MissionControlBridgeEvent): boolean {
+	const type = typeof event.type === 'string' ? event.type : '';
+	const missionId = normalizeMissionId(event);
+	const taskStatus = lifecycleTaskStatusForEvent(type);
+	if (taskStatus) {
+		const taskIdentity = taskIdentityForEvent(event);
+		if (!taskIdentity) return true;
+		const key = `${missionId}:${taskIdentity}`;
+		if (taskLifecycleStates.get(key) === taskStatus) {
+			return false;
+		}
+		taskLifecycleStates.set(key, taskStatus);
+		return true;
+	}
+
+	const missionStatus = lifecycleMissionStatusForEvent(type);
+	if (!missionStatus) return true;
+	if (missionLifecycleStates.get(missionId) === missionStatus) {
+		return false;
+	}
+	missionLifecycleStates.set(missionId, missionStatus);
+	return true;
 }
 
 function canonicalTaskTitle(title: string): string {
@@ -777,6 +858,10 @@ export function selectWebhookUrlsForMissionEvent(event: MissionControlBridgeEven
 
 export async function relayMissionControlEvent(event: MissionControlBridgeEvent): Promise<void> {
 	if (!shouldRecordMissionControlEvent(event)) {
+		return;
+	}
+
+	if (!shouldRecordLifecycleTransition(event)) {
 		return;
 	}
 

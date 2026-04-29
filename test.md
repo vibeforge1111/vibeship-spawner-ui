@@ -195,3 +195,29 @@ Branch: `codex/spawner-hydration-fallback-logs`
 - Full unit/integration suite: PASS via `npm run test:run` (43 files, 239 tests).
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes` against `http://127.0.0.1:5173` for `/`, `/kanban`, `/missions/mission-smoke-route`, `/canvas`, `/trace`, `/api/mission-control/board`, and `/api/mission-control/trace`.
+
+## Continuation: Lifecycle Event Dedupe
+
+Branch: `codex/spawner-dedupe-lifecycle-events`
+
+### Step Checklist
+
+- [x] Suppress repeated mission/task lifecycle statuses before they spam Telegram, trace, or hydrated logs.
+- [x] Preserve real status transitions such as started -> completed.
+- [x] Run focused relay tests.
+- [x] Run typecheck.
+- [x] Run full checks.
+- [x] Commit and push.
+
+### Changes Made
+
+- Added lifecycle transition state tracking in `src/lib/server/mission-control-relay.ts`.
+- Added regression coverage in `src/lib/server/mission-control-relay.test.ts` for repeated task lifecycle events.
+
+### Verification Log
+
+- Focused relay tests: PASS via `npm run test:run -- mission-control-relay` (1 file, 29 tests).
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Full unit/integration suite: PASS via `npm run test:run` (43 files, 240 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes` against `http://127.0.0.1:5173` for `/`, `/kanban`, `/missions/mission-smoke-route`, `/canvas`, `/trace`, `/api/mission-control/board`, and `/api/mission-control/trace`.
