@@ -19,19 +19,18 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	const clientKey = hostedUiAuthClientKey(event.request);
-	const rateLimit = hostedUiAuthRateLimitStatus(clientKey);
-	if (rateLimit.blocked) {
-		return new Response('Too many Spark Live access attempts. Wait a moment, then try again.', {
-			status: 429,
-			headers: {
-				'content-type': 'text/plain; charset=utf-8',
-				'retry-after': String(rateLimit.retryAfterSeconds)
-			}
-		});
-	}
-
 	const token = hostedUiRequestToken(event.request, event.url, event.cookies);
 	if (!hostedUiTokenIsValid(token, env)) {
+		const rateLimit = hostedUiAuthRateLimitStatus(clientKey);
+		if (rateLimit.blocked) {
+			return new Response('Too many Spark Live access attempts. Wait a moment, then try again.', {
+				status: 429,
+				headers: {
+					'content-type': 'text/plain; charset=utf-8',
+					'retry-after': String(rateLimit.retryAfterSeconds)
+				}
+			});
+		}
 		recordHostedUiAuthFailure(clientKey);
 		return new Response('Spawner is private. Open this Spark Live URL with ?uiKey=<your-ui-key>.', {
 			status: 401,
