@@ -102,6 +102,7 @@ class ProviderRuntimeManager {
 	private sessions = new Map<string, ProviderSession>();
 	private sparkAgentSessionIds = new Map<string, string>();
 	private dispatchSnapshots = new Map<string, MissionDispatchSnapshot>();
+	private providerTaskHeartbeats = new Map<string, ReturnType<typeof setInterval>>();
 	private pausedMissions = new Set<string>();
 	private pausedReasons = new Map<string, string>();
 	private lastStatusReason = new Map<string, string>();
@@ -343,6 +344,13 @@ class ProviderRuntimeManager {
 			session.status = 'running';
 			sessionStatuses[provider.id] = { status: 'running' };
 			this.persistMissionSessions(missionId);
+			const stopTaskActivity = this.startProviderTaskActivity({
+				executionPack,
+				provider,
+				missionId,
+				signal: abortController.signal,
+				onEvent
+			});
 
 			const providerTimeoutMs = agentWorkTimeoutMs();
 			let providerTimedOut = false;
@@ -376,6 +384,7 @@ class ProviderRuntimeManager {
 				workingDirectory,
 				onEvent
 			).then((result) => {
+				stopTaskActivity();
 				clearTimeout(providerTimeout);
 				if (providerTimedOut && (result.error === 'Cancelled' || result.error === 'AbortError')) {
 					result = {
@@ -398,6 +407,9 @@ class ProviderRuntimeManager {
 					error: session.error || undefined
 				};
 				this.persistMissionSessions(missionId);
+			}).catch((error) => {
+				stopTaskActivity();
+				throw error;
 			});
 
 			providerPromises.push(promise);
@@ -445,6 +457,84 @@ class ProviderRuntimeManager {
 			sessions: sessionStatuses,
 			startedAt
 		};
+	}
+
+	private startProviderTaskActivity(options: {
+		executionPack: MultiLLMExecutionPack;
+		provider: MultiLLMProviderConfig;
+		missionId: string;
+		signal: AbortSignal;
+		onEvent: (event: BridgeEvent) => void;
+	}): () => void {
+		const { executionPack, provider, missionId, signal, onEvent } = options;
+		const assignment = executionPack.assignments[provider.id];
+		const taskIds = assignment?.mode === 'execute' ? assignment.taskIds : [];
+		if (taskIds.length === 0) return () => {};
+
+		const key = this.sessionKey(missionId, provider.id);
+		const previous = this.providerTaskHeartbeats.get(key);
+		if (previous) {
+			clearInterval(previous);
+			this.providerTaskHeartbeats.delete(key);
+		}
+
+		const taskId = taskIds[0];
+		const taskName = executionPack.mcpTaskPlans[taskId]?.taskTitle || taskId;
+		const startedAt = Date.now();
+		let lastProgress = 8;
+
+		const emitTaskProgress = () => {
+			const elapsedMs = Date.now() - startedAt;
+			const nextProgress = Math.min(82, Math.max(lastProgress, 12 + Math.floor(elapsedMs / 30_000) * 8));
+			lastProgress = nextProgress;
+			onEvent(
+				createBridgeEvent('task_progress', { provider, missionId, onEvent, signal }, {
+					taskId,
+					taskName,
+					progress: nextProgress,
+					message: `${provider.label} is building ${taskName}`,
+					data: {
+						taskId,
+						taskName,
+						progress: nextProgress,
+						provider: provider.id,
+						providerLabel: provider.label,
+						assignedTaskCount: taskIds.length
+					}
+				})
+			);
+		};
+
+		onEvent(
+			createBridgeEvent('task_started', { provider, missionId, onEvent, signal }, {
+				taskId,
+				taskName,
+				progress: lastProgress,
+				message: `${provider.label} started ${taskName}`,
+				data: {
+					taskId,
+					taskName,
+					progress: lastProgress,
+					provider: provider.id,
+					providerLabel: provider.label,
+					assignedTaskCount: taskIds.length
+				}
+			})
+		);
+		emitTaskProgress();
+
+		const interval = setInterval(emitTaskProgress, 30_000);
+		this.providerTaskHeartbeats.set(key, interval);
+
+		const stop = () => {
+			const active = this.providerTaskHeartbeats.get(key);
+			if (active) {
+				clearInterval(active);
+				this.providerTaskHeartbeats.delete(key);
+			}
+		};
+		signal.addEventListener('abort', stop, { once: true });
+		return stop;
 	}
 
 	private async executeProvider(
@@ -801,6 +891,11 @@ class ProviderRuntimeManager {
 	cleanup(missionId: string): void {
 		for (const [key, session] of this.sessions) {
 			if (session.missionId === missionId) {
+				const heartbeat = this.providerTaskHeartbeats.get(key);
+				if (heartbeat) {
+					clearInterval(heartbeat);
+					this.providerTaskHeartbeats.delete(key);
+				}
 				if (session.status === 'running') {
 					session.abortController.abort();
 					const sparkAgentSessionId = this.sparkAgentSessionIds.get(key);
@@ -823,6 +918,11 @@ class ProviderRuntimeManager {
 	clearInMemoryForTests(missionId: string): void {
 		for (const [key, session] of this.sessions) {
 			if (session.missionId === missionId) {
+				const heartbeat = this.providerTaskHeartbeats.get(key);
+				if (heartbeat) {
+					clearInterval(heartbeat);
+					this.providerTaskHeartbeats.delete(key);
+				}
 				this.sparkAgentSessionIds.delete(key);
 				this.sessions.delete(key);
 			}

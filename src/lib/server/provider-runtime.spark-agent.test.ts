@@ -58,6 +58,7 @@ afterEach(() => {
 	providerRuntime.cleanup('mission-step2-rebuild');
 	providerRuntime.cleanup('mission-step2-persist');
 	providerRuntime.cleanup('mission-step2-lifecycle');
+	providerRuntime.cleanup('mission-step2-activity');
 });
 
 describe('provider-runtime Spark agent bridge', () => {
@@ -99,6 +100,50 @@ describe('provider-runtime Spark agent bridge', () => {
 			expect(typeof event.data?.providerId).toBe('string');
 			expect(typeof event.data?.sparkAgentSessionId).toBe('string');
 		}
+	});
+
+	it('emits assigned task activity immediately for server-side auto-dispatch', async () => {
+		sparkAgentBridge.setWorkerExecutorForTests(async () => {
+			return { success: true, response: 'codex-ok' };
+		});
+
+		const emitted: BridgeEvent[] = [];
+		const pack = buildPack('mission-step2-activity', [provider('codex', 'gpt-5.5')]);
+		pack.mcpTaskPlans = {
+			'task-1': {
+				taskId: 'task-1',
+				taskTitle: 'Create the project shell',
+				status: 'not_needed',
+				requiredCapabilities: [],
+				toolCalls: []
+			}
+		};
+
+		await providerRuntime.dispatch({
+			executionPack: pack,
+			apiKeys: { codex: 'test-codex' },
+			onEvent: (event) => emitted.push(event),
+			workingDirectory: process.cwd()
+		});
+
+		expect(emitted).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					type: 'task_started',
+					taskId: 'task-1',
+					taskName: 'Create the project shell',
+					source: 'codex'
+				}),
+				expect.objectContaining({
+					type: 'task_progress',
+					taskId: 'task-1',
+					taskName: 'Create the project shell',
+					source: 'codex',
+					progress: expect.any(Number)
+				})
+			])
+		);
+		await waitFor(() => providerRuntime.getMissionStatus('mission-step2-activity').allComplete);
 	});
 
 	it('marks provider failures deterministically and emits task_failed', async () => {

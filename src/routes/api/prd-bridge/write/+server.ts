@@ -35,10 +35,12 @@ const AUTO_ANALYSIS_BASE_URL = (process.env.SPAWNER_UI_SELF_URL || 'http://127.0
 	''
 );
 const AUTO_ANALYSIS_ENDPOINT = `${AUTO_ANALYSIS_BASE_URL}/api/events`;
-const configuredAnalysisTimeoutMs = Number(process.env.SPAWNER_AUTO_ANALYSIS_TIMEOUT_MS || 0);
-const AUTO_ANALYSIS_TIMEOUT_MS = Number.isFinite(configuredAnalysisTimeoutMs)
-	? configuredAnalysisTimeoutMs
-	: 0;
+const DEFAULT_AUTO_ANALYSIS_TIMEOUT_MS = 180_000;
+const configuredAnalysisTimeoutMs = Number.parseInt(process.env.SPAWNER_AUTO_ANALYSIS_TIMEOUT_MS || '', 10);
+const AUTO_ANALYSIS_TIMEOUT_MS =
+	Number.isFinite(configuredAnalysisTimeoutMs) && configuredAnalysisTimeoutMs > 0
+		? configuredAnalysisTimeoutMs
+		: DEFAULT_AUTO_ANALYSIS_TIMEOUT_MS;
 
 function normalizeRequestId(requestId: string): string {
 	return requestId.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -89,7 +91,225 @@ async function updatePendingRequestStatus(
 	}
 }
 
-function scheduleAutoAnalysisWatchdog(requestId: string): void {
+function slugifyTaskId(value: string, fallback: string): string {
+	const slug = value
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '')
+		.slice(0, 48);
+	return slug || fallback;
+}
+
+function extractTargetFolder(content: string): string | null {
+	const match = content.match(/\bat\s+([A-Za-z]:\\[^\n\r]+?)(?::\s|\s+Files\b|$|\r|\n)/i);
+	return match?.[1]?.trim().replace(/[.:]+$/, '') || null;
+}
+
+function extractRequestedFiles(content: string): string[] {
+	const fileNames = new Set<string>();
+	const filePattern = /\b[\w.-]+\.(?:html|css|js|ts|tsx|json|md|py|svelte|vue|jsx)\b/gi;
+	for (const match of content.matchAll(filePattern)) {
+		fileNames.add(match[0]);
+	}
+	return [...fileNames].slice(0, 12);
+}
+
+function inferTechStack(content: string): { framework: string; language: string; styling: string; deployment: string } {
+	const lower = content.toLowerCase();
+	if (lower.includes('three.js') || lower.includes('threejs')) {
+		return {
+			framework: 'Vanilla JavaScript + Three.js',
+			language: 'JavaScript',
+			styling: 'CSS',
+			deployment: 'Static file hosting'
+		};
+	}
+	if (lower.includes('vanilla-js') || lower.includes('vanilla js') || lower.includes('no build step')) {
+		return {
+			framework: 'Vanilla JavaScript',
+			language: 'JavaScript',
+			styling: 'CSS',
+			deployment: 'Direct static launch'
+		};
+	}
+	if (lower.includes('svelte')) {
+		return {
+			framework: 'SvelteKit',
+			language: 'TypeScript',
+			styling: 'CSS',
+			deployment: 'Node adapter or static deployment'
+		};
+	}
+	return {
+		framework: 'Web app',
+		language: 'TypeScript or JavaScript',
+		styling: 'CSS',
+		deployment: 'Local development server'
+	};
+}
+
+export async function _buildFallbackAnalysisResult(
+	requestId: string,
+	projectName: string,
+	buildMode: 'direct' | 'advanced_prd',
+	tier: SkillTier,
+	paths: ReturnType<typeof getPrdBridgePaths>
+): Promise<Record<string, unknown>> {
+	const content = existsSync(paths.pendingPrdFile) ? await readFile(paths.pendingPrdFile, 'utf-8') : '';
+	const targetFolder = extractTargetFolder(content);
+	const requestedFiles = extractRequestedFiles(content);
+	const techStack = inferTechStack(content);
+	const lower = content.toLowerCase();
+	const isStaticApp = lower.includes('no build step') || lower.includes('vanilla-js') || lower.includes('vanilla js');
+	const isThree = lower.includes('three.js') || lower.includes('threejs');
+	const skillByTheme = isThree
+		? ['frontend-engineer', 'threejs-3d-graphics', 'ui-design', 'responsive-mobile-first']
+		: ['frontend-engineer', 'ui-design', 'responsive-mobile-first', 'state-management'];
+	const validSkills = new Set((await getTierSkills(tier)).map((skill) => skill.id));
+	const selectSkills = (skills: string[]) => skills.filter((skill) => validSkills.has(skill)).slice(0, 5);
+	const workspaceTargets = targetFolder ? [targetFolder] : [];
+	const fileList = requestedFiles.length > 0 ? requestedFiles.join(', ') : 'the requested project files';
+
+	const taskSpecs = [
+		{
+			title: isStaticApp ? 'Create the static app shell' : 'Create the app shell and project structure',
+			summary: `Set up ${fileList} and make the first screen match the requested product direction.`,
+			skills: selectSkills(['frontend-engineer', 'html-css', 'ui-design', 'responsive-mobile-first']),
+			dependencies: [] as string[],
+			acceptanceCriteria: [
+				'The project opens to a usable first screen.',
+				'Requested files and local project structure are present.',
+				'No unrelated framework or build tooling is added when the brief says no build step.'
+			],
+			verificationCommands: targetFolder
+				? [`Test-Path '${targetFolder}'`, `Get-ChildItem '${targetFolder}' | Select-Object -ExpandProperty Name`]
+				: ['Inspect the created project files.']
+		},
+		{
+			title: isThree ? 'Implement the interactive 3D scene and controls' : 'Implement the core interaction and state',
+			summary: isThree
+				? 'Build the animated Three.js experience, primary controls, and responsive fallback behavior.'
+				: 'Build the main user flow, controls, live status/progress, persistence, and reset or completion behavior.',
+			skills: selectSkills(skillByTheme),
+			dependencies: ['task-1'],
+			acceptanceCriteria: [
+				'The core workflow can be completed from the first screen.',
+				'Interactive state updates immediately and persists where requested.',
+				'Controls remain usable on desktop and mobile widths.'
+			],
+			verificationCommands: targetFolder
+				? [`Select-String -Path '${targetFolder}\\app.js' -Pattern 'localStorage'`]
+				: ['Run the project interaction smoke test.']
+		},
+		{
+			title: 'Polish the visual system and documentation',
+			summary: 'Finish the dark operational UI, responsive details, accessibility basics, and README smoke test.',
+			skills: selectSkills(['ui-design', 'accessibility', 'technical-writer', 'documentation-that-slaps']),
+			dependencies: ['task-1'],
+			acceptanceCriteria: [
+				'The UI is readable, responsive, and visually consistent.',
+				'README explains direct launch and a manual smoke test.',
+				'The implementation documents any fallback or browser requirement.'
+			],
+			verificationCommands: targetFolder
+				? [`Test-Path '${targetFolder}\\README.md'`, `Get-Content '${targetFolder}\\README.md'`]
+				: ['Read the README and perform the documented smoke test.']
+		},
+		{
+			title: 'Verify the completed build',
+			summary: 'Run the requested lightweight checks and confirm the finished project matches the brief.',
+			skills: selectSkills(['qa-engineering', 'testing-strategies', 'test-architect']),
+			dependencies: ['task-2', 'task-3'],
+			acceptanceCriteria: [
+				'Static syntax checks pass where applicable.',
+				'The requested completion state or primary success path works.',
+				'The final project can be opened locally.'
+			],
+			verificationCommands: targetFolder
+				? [
+						...(requestedFiles.includes('app.js') ? [`node --check '${targetFolder}\\app.js'`] : []),
+						`Get-ChildItem '${targetFolder}' | Select-Object -ExpandProperty Name`
+					]
+				: ['Run the repo-local verification commands.']
+		}
+	];
+
+	const tasks = taskSpecs.map((task, index) => {
+		const id = slugifyTaskId(task.title, `task-${index + 1}`);
+		const dependencyIds = task.dependencies.map((dependency, depIndex) => {
+			if (dependency === 'task-1') return slugifyTaskId(taskSpecs[0].title, 'task-1');
+			if (dependency === 'task-2') return slugifyTaskId(taskSpecs[1].title, 'task-2');
+			if (dependency === 'task-3') return slugifyTaskId(taskSpecs[2].title, 'task-3');
+			return slugifyTaskId(dependency, `task-${depIndex + 1}`);
+		});
+		return {
+			id,
+			title: task.title,
+			summary: task.summary,
+			description: task.summary,
+			skills: task.skills.length > 0 ? task.skills : selectSkills(['frontend-engineer']),
+			dependencies: dependencyIds,
+			workspaceTargets,
+			acceptanceCriteria: task.acceptanceCriteria,
+			verificationCommands: task.verificationCommands
+		};
+	});
+
+	const skills = [...new Set(tasks.flatMap((task) => task.skills as string[]))];
+
+	return {
+		requestId,
+		success: true,
+		projectName,
+		projectType: isStaticApp ? 'static-web-app' : 'web-app',
+		complexity: buildMode === 'advanced_prd' ? 'moderate' : 'simple',
+		infrastructure: {
+			needsAuth: false,
+			authReason: 'Not requested for v1.',
+			needsDatabase: false,
+			databaseReason: 'Use local files/browser persistence for v1 unless the brief requires a backend.',
+			needsAPI: false,
+			apiReason: 'No backend API required by the brief.'
+		},
+		techStack,
+		tasks,
+		skills,
+		executionPrompt: `Build ${projectName} from the user brief. Preserve explicit file, no-build, persistence, and smoke-test requirements.`
+	};
+}
+
+async function writeFallbackAnalysisResult(
+	requestId: string,
+	projectName: string,
+	buildMode: 'direct' | 'advanced_prd',
+	tier: SkillTier,
+	reason: string
+): Promise<void> {
+	const paths = getPrdBridgePaths();
+	const safeRequestId = normalizeRequestId(requestId);
+	const resultFile = join(paths.resultsDir, `${safeRequestId}.json`);
+	if (existsSync(resultFile)) return;
+
+	if (!existsSync(paths.resultsDir)) {
+		await mkdir(paths.resultsDir, { recursive: true });
+	}
+
+	const result = await _buildFallbackAnalysisResult(requestId, projectName, buildMode, tier, paths);
+	await writeFile(resultFile, JSON.stringify(result, null, 2), 'utf-8');
+	await appendPrdTrace(requestId, 'fallback_analysis_written', {
+		reason,
+		resultFile,
+		taskCount: Array.isArray(result.tasks) ? result.tasks.length : 0
+	});
+}
+
+function scheduleAutoAnalysisWatchdog(
+	requestId: string,
+	projectName: string,
+	buildMode: 'direct' | 'advanced_prd',
+	tier: SkillTier,
+	cancelAutoAnalysis?: () => void
+): void {
 	if (AUTO_ANALYSIS_TIMEOUT_MS <= 0) return;
 	const timer = setTimeout(async () => {
 		const { resultsDir } = getPrdBridgePaths();
@@ -101,14 +321,22 @@ function scheduleAutoAnalysisWatchdog(requestId: string): void {
 			return;
 		}
 
+		cancelAutoAnalysis?.();
 		await updatePendingRequestStatus(requestId, 'timeout', {
 			timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
-			reason: 'No runtime analysis result written before timeout'
+			reason: 'No runtime analysis result written before timeout; deterministic fallback queued'
 		});
 		await appendPrdTrace(requestId, 'watchdog_timeout', {
 			timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
 			expectedResultFile: resultFile
 		});
+		await writeFallbackAnalysisResult(
+			requestId,
+			projectName,
+			buildMode,
+			tier,
+			`auto-analysis timeout after ${AUTO_ANALYSIS_TIMEOUT_MS}ms`
+		);
 	}, AUTO_ANALYSIS_TIMEOUT_MS);
 
 	if (typeof timer.unref === 'function') {
@@ -316,7 +544,7 @@ async function startAutoAnalysis(
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier
-): Promise<{ started: boolean; provider: string }> {
+): Promise<{ started: boolean; provider: string; cancel?: () => void }> {
 	const provider = (
 		process.env.SPAWNER_PRD_AUTO_PROVIDER ||
 		process.env.SPARK_MISSION_LLM_PROVIDER ||
@@ -373,6 +601,7 @@ async function startAutoAnalysis(
 			stateDirectory: paths.spawnerDir
 		});
 
+		const controller = new AbortController();
 		void sparkAgentBridge
 			.executeProviderTask({
 				providerId: 'codex',
@@ -380,7 +609,8 @@ async function startAutoAnalysis(
 				prompt,
 				model: 'gpt-5.5',
 				commandTemplate: 'codex exec --yolo',
-				workingDirectory: process.cwd()
+				workingDirectory: process.cwd(),
+				signal: controller.signal
 			})
 			.then((result) => {
 				void appendPrdTrace(requestId, 'auto_worker_finished', {
@@ -396,7 +626,11 @@ async function startAutoAnalysis(
 				});
 			});
 
-		return { started: true, provider: 'codex' };
+		return {
+			started: true,
+			provider: 'codex',
+			cancel: () => controller.abort()
+		};
 	} catch (error) {
 		await appendPrdTrace(requestId, 'auto_start_failed', {
 			provider: 'codex',
@@ -564,7 +798,13 @@ export const POST: RequestHandler = async (event) => {
 			normalizedTier
 		);
 		if (auto.started) {
-			scheduleAutoAnalysisWatchdog(requestId);
+			scheduleAutoAnalysisWatchdog(
+				requestId,
+				requestMeta.projectName,
+				requestMeta.buildMode,
+				normalizedTier,
+				auto.cancel
+			);
 		}
 
 		logger.info(`[PRDBridge] PRD written to ${paths.pendingPrdFile}`);
