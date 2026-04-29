@@ -71,11 +71,10 @@ describe("sparkHealthAuthHeaders", () => {
 });
 
 describe("shouldRepairHostedWorkspaceOwnership", () => {
-  it("repairs only hosted Spark Live checks that are accidentally run as root", () => {
+  it("repairs Spark workspaces when health checks are accidentally run as root", () => {
     expect(
       shouldRepairHostedWorkspaceOwnership(
         {
-          SPARK_LIVE_CONTAINER: "1",
           SPARK_HOME: "/data/spark",
         },
         0,
@@ -90,7 +89,7 @@ describe("shouldRepairHostedWorkspaceOwnership", () => {
         1001,
       ),
     ).toBe(false);
-    expect(shouldRepairHostedWorkspaceOwnership({ SPARK_HOME: "/data/spark" }, 0)).toBe(false);
+    expect(shouldRepairHostedWorkspaceOwnership({}, 0)).toBe(false);
   });
 });
 

@@ -81,7 +81,7 @@ export function resolveSparkWorkspaceRoot(env = process.env, fallbackHome = home
 }
 
 export function shouldRepairHostedWorkspaceOwnership(env = process.env, getuid = process.getuid?.()) {
-  return env.SPARK_LIVE_CONTAINER === "1" && getuid === 0 && Boolean(env.SPARK_HOME?.trim());
+  return getuid === 0 && Boolean(env.SPARK_HOME?.trim());
 }
 
 function repairHostedWorkspaceOwnership(paths, env = process.env) {
