@@ -92,8 +92,10 @@ Key local API surfaces:
 - `/api/mission-control/status` - mission status.
 - `/api/mission-control/command` - pause/resume/kill/status.
 - `/api/mission-control/board` - board summary.
+- `/api/mission-control/trace` - stitched mission state across Telegram, PRD, Canvas, Dispatch, Kanban, and providers.
 - `/api/prd-bridge/write` - write a PRD into the workspace.
 - `/api/prd-bridge/load-to-canvas` - load a PRD/project into the visual canvas.
+- `/api/spark-agent/*` - Spark agent session bridge for canvas, mission, MCP, and event stream control.
 
 ## Local Development
 
@@ -112,7 +114,20 @@ Useful scripts:
 npm run build
 npm run check
 npm run test:run
+npm run smoke:routes
+npm run smoke:mission-surfaces
 ```
+
+## Documentation Map
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) - current Spark execution-plane architecture.
+- [SECURITY.md](SECURITY.md) - local control surface and secret-handling rules.
+- [CLAUDE.md](CLAUDE.md) - instructions for coding agents working in this repo.
+- [docs/MISSION_LIFECYCLE.md](docs/MISSION_LIFECYCLE.md) - canonical mission and task status vocabulary.
+- [docs/SPARK_MISSION_CONTROL_TRACE.md](docs/SPARK_MISSION_CONTROL_TRACE.md) - Telegram to PRD to Canvas to Dispatch to Kanban to Trace map.
+- [docs/SPARK_AGENT_BRIDGE_API.md](docs/SPARK_AGENT_BRIDGE_API.md) - Spark agent bridge API contract.
+- [docs/SPARK_AGENT_CANVAS_LOCALHOST_RUNBOOK.md](docs/SPARK_AGENT_CANVAS_LOCALHOST_RUNBOOK.md) - local Spark agent canvas smoke.
+- [docs/archive/retired-external-bridge/README.md](docs/archive/retired-external-bridge/README.md) - retired bridge archive notes.
 
 ## Spark CLI Install Note
 

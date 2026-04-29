@@ -2,7 +2,7 @@
  * Claude API Client Service
  *
  * Provides intelligent PRD analysis using Claude.
- * Claude sees ALL 480 skills organized by domain and selects with reasoning.
+ * Claude sees the current local skill catalog organized by domain and selects with reasoning.
  */
 
 export interface SkillSelection {

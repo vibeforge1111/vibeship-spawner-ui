@@ -2,7 +2,7 @@
  * Server-side API route for Claude goal analysis
  *
  * Intelligent PRD-to-skill matching using Claude with full skill context.
- * Claude sees ALL 480 skills organized by domain and selects with reasoning.
+ * Claude sees the local skill index organized by domain and selects with reasoning.
  */
 
 import { json } from '@sveltejs/kit';
@@ -52,7 +52,7 @@ Read the project description carefully and select 15-25 skills that are SPECIFIC
 - **Be FOCUSED**: Don't add generic skills that aren't relevant
 - **Think about HANDOFFS**: Which skill leads to which? Order matters.
 
-## Available Skills (480 total, organized by domain)
+## Available Skills (current local catalog, organized by domain)
 {{SKILLS}}
 
 ## Response Format

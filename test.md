@@ -505,3 +505,41 @@ Branch: `codex/spawner-mission-progress-rules`
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes`.
 - Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
+
+## Continuation: Spark Documentation Archive And Sync
+
+Branch: `codex/spawner-docs-archive-spark-sync`
+
+### Step Checklist
+
+- [x] Audit active Markdown docs, API routes, package scripts, and Spark bridge references before editing.
+- [x] Archive the retired external bridge documentation path instead of keeping it in the active docs map.
+- [x] Replace stale top-level architecture and agent guidance with the current Spark execution plane.
+- [x] Update README, SECURITY, and docs index to reflect Mission Control, Canvas, Kanban, Trace, Telegram, and Spark agent bridge routes.
+- [x] Update stale PRD/goal skill-matching docs and remove hard-coded skill-count comments from live code.
+- [x] Run active retired-name and stale-count scans.
+- [x] Run typecheck, tests, build, and smoke gates.
+- [x] Commit and push.
+
+### Changes Made
+
+- Replaced `ARCHITECTURE.md` with current Spark execution-plane architecture and state flow.
+- Replaced `CLAUDE.md` with current agent guidance for mission lifecycle work.
+- Updated `README.md` and `SECURITY.md` with current routes, scripts, and Spark agent bridge security notes.
+- Added `docs/README.md` as a documentation index.
+- Added `docs/archive/retired-external-bridge/README.md` for historical retired bridge recovery notes.
+- Rewrote `docs/GOAL-TO-WORKFLOW.md` and `docs/PRD-SKILL-MATCHING.md` to match the current Spark and H70 skill flow.
+- Removed stale fixed skill-count comments from `src/routes/api/analyze/+server.ts`, `src/lib/services/skill-matcher.ts`, and `src/lib/services/claude-api.ts`.
+
+### Verification Log
+
+- Active retired-name scan: PASS; no retired external bridge names outside `docs/archive/**`.
+- Stale-count scan: PASS; no old hard-coded skill-count claims in active docs or source comments.
+- Static skill catalog sanity check: PASS; `static/skills.json` parses as an array with 603 records.
+- Whitespace check: PASS via `git diff --check`.
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Full unit/integration suite: PASS via `npm run test:run` (49 files, 269 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes`.
+- Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
+- Production dependency audit: PASS at high threshold via `npm audit --omit=dev --audit-level=high`; residual moderate `uuid` advisory remains through `svelvet`, and the suggested automatic fix is a breaking upgrade.

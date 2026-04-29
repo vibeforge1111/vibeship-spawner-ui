@@ -4,7 +4,7 @@ import { logger } from '$lib/utils/logger';
  *
  * INTELLIGENT PRD-TO-SKILL MATCHING
  *
- * Primary: Claude API analyzes PRD with full skill context (480 skills)
+ * Primary: Claude API analyzes PRDs with the current local skill context
  * Fallback: Local keyword matching for offline operation
  *
  * Claude sees all skills organized by domain and selects with reasoning.
@@ -155,7 +155,7 @@ function matchSkillsLocal(goal: AnalyzedGoal, maxResults: number): MatchedSkill[
 /**
  * Main function: Match skills to a goal
  *
- * 1. Try Claude API for intelligent matching (sees all 480 skills)
+ * 1. Try Claude API for intelligent matching against the current local skill index
  * 2. Fall back to local keyword matching if Claude unavailable
  */
 export async function matchSkills(

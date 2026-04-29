@@ -166,7 +166,7 @@ const defaultMcps: MCP[] = [
 		id: 'spawner',
 		name: 'Spawner',
 		type: 'spawner',
-		description: 'Load 450+ specialized skills, validate code, and get sharp edges',
+		description: 'Load Spark skill graphs, validate code, and get sharp edges',
 		icon: '⚡',
 		installCommand: 'npx @anthropic/spawner-mcp',
 		configExample: `{

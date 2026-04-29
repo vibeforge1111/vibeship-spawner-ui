@@ -25,10 +25,21 @@ Spark CLI starter setup should provide `MISSION_CONTROL_WEBHOOK_URLS` and `TELEG
 Run:
 
 ```bash
-npm run test -- --run
 npm run check
+npm run test:run
 npm run build
+npm run smoke:routes
+npm run smoke:mission-surfaces
 npm audit --omit=dev --audit-level=high
 ```
 
 Do not expose local control APIs on `0.0.0.0` without an explicit auth and origin policy.
+
+## Spark Agent Bridge
+
+The Spark agent bridge (`/api/spark-agent/*`) is local-first. If it is exposed outside loopback, configure:
+
+- `SPARK_AGENT_API_KEY`
+- `SPARK_AGENT_ALLOWED_ORIGINS`
+
+Session commands also support `x-spark-agent-session-id` scoping. Keep this aligned with `docs/SPARK_AGENT_BRIDGE_API.md`.
