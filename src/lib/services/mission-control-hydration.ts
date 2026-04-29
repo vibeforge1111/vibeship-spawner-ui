@@ -65,6 +65,16 @@ function taskProgressPercent(status: MissionControlBoardEntry['tasks'][number]['
 	return 0;
 }
 
+function missionProgressPercent(
+	tasks: MissionControlBoardEntry['tasks'],
+	status: ExecutionStatus
+): number {
+	if (status === 'completed') return 100;
+	if (tasks.length === 0) return 0;
+	const total = tasks.reduce((sum, task) => sum + taskProgressPercent(task.status), 0);
+	return Math.round(total / tasks.length);
+}
+
 function agentRuntimeForStatus(
 	status: ExecutionStatus,
 	boardEntry: MissionControlBoardEntry
@@ -262,17 +272,14 @@ export function buildMissionControlHydrationSnapshot(
 		executionPrompt: null,
 		multiLLMOptions: input.multiLLMOptions,
 		multiLLMExecution: null,
-		progress:
-			status === 'completed'
-				? 100
-				: Math.round(
-						(boardEntry.tasks.filter((task) => task.status === 'completed').length /
-							Math.max(1, boardEntry.tasks.length)) *
-							100
-					),
+		progress: missionProgressPercent(boardEntry.tasks, status),
 		currentTaskId: mission.current_task_id,
 		currentTaskName: missionTasks.find((task) => task.id === mission.current_task_id)?.title || null,
-		currentTaskProgress: 0,
+		currentTaskProgress: boardEntry.tasks.find((task) => missionTaskStatusFromBoard(task.status) === 'in_progress')
+			? taskProgressPercent('running')
+			: status === 'completed'
+				? 100
+				: 0,
 		currentTaskMessage: boardEntry.providerSummary || null,
 		taskProgressMap,
 		logs,

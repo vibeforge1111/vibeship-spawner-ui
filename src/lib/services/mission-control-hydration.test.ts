@@ -101,9 +101,10 @@ describe('mission-control hydration', () => {
 		expect(snapshot.status).toBe('running');
 		expect(snapshot.executionProgress.status).toBe('running');
 		expect(snapshot.executionProgress.missionId).toBe('mission-1');
-		expect(snapshot.executionProgress.progress).toBe(33);
+		expect(snapshot.executionProgress.progress).toBe(40);
 		expect(snapshot.executionProgress.currentTaskId).toBe('task-2');
 		expect(snapshot.executionProgress.currentTaskName).toBe('task-2: Build UI');
+		expect(snapshot.executionProgress.currentTaskProgress).toBe(20);
 		expect(snapshot.mission.name).toBe('Hydration Test');
 		expect(snapshot.mission.context).toMatchObject({
 			projectPath: 'C:/tmp/project',
