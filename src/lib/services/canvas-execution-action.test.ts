@@ -51,4 +51,21 @@ describe('canvas execution action', () => {
 			label: 'Inspect'
 		});
 	});
+
+	it('treats blank relay mission IDs as regular manual canvas runs', () => {
+		expect(
+			getCanvasExecutionAction({
+				nodeCount: 2,
+				activePipelineId: null,
+				relay: { missionId: '   ' },
+				now: 456
+			})
+		).toEqual({
+			disabled: false,
+			label: 'Run',
+			title: 'Open workflow execution',
+			panelKey: 'manual:456',
+			autoRunToken: null
+		});
+	});
 });

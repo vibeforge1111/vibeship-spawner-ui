@@ -946,3 +946,30 @@ Branch: `codex/spawner-config-skill-unit-tests`
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes`.
 - Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
+
+## Continuation: Pipeline Loader And Canvas Action Unit Tests
+
+Branch: `codex/spawner-kanban-canvas-unit-tests`
+
+### Step Checklist
+
+- [x] Inspect current Kanban/canvas mission-flow coverage.
+- [x] Add client-side pipeline-loader tests for queueing, latest-load recovery, pending peek, and failure handling.
+- [x] Add canvas execution action coverage for blank relay mission IDs falling back to normal manual runs.
+- [x] Run focused tests, typecheck, full tests, build, route smoke, and mission surface smoke.
+- [x] Commit, merge, and push.
+
+### Changes Made
+
+- Expanded `src/lib/services/pipeline-loader.test.ts` to cover timestamped queue payloads, failed queue responses, latest-load fetches, and pending-load peek behavior.
+- Expanded `src/lib/services/canvas-execution-action.test.ts` so whitespace-only relay mission IDs do not force inspect/history mode.
+
+### Verification Log
+
+- Focused pipeline/canvas tests: PASS via `npm run test:run -- pipeline-loader canvas-execution-action` (3 files, 16 tests).
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Whitespace check: PASS via `git diff --check`.
+- Full unit/integration suite: PASS via `npm run test:run` (54 files, 298 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes`.
+- Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
