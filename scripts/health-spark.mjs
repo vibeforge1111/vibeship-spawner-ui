@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { chownSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -80,6 +80,30 @@ export function resolveSparkWorkspaceRoot(env = process.env, fallbackHome = home
   );
 }
 
+export function shouldRepairHostedWorkspaceOwnership(env = process.env, getuid = process.getuid?.()) {
+  return env.SPARK_LIVE_CONTAINER === "1" && getuid === 0 && Boolean(env.SPARK_HOME?.trim());
+}
+
+function repairHostedWorkspaceOwnership(paths, env = process.env) {
+  if (!shouldRepairHostedWorkspaceOwnership(env)) return;
+  let owner;
+  try {
+    owner = statSync(env.SPARK_HOME.trim());
+  } catch {
+    return;
+  }
+  if (owner.uid === 0) return;
+
+  for (const path of paths) {
+    try {
+      chownSync(path, owner.uid, owner.gid);
+    } catch {
+      // Health checks should report service health, not fail just because an
+      // ownership repair is unavailable on a particular host filesystem.
+    }
+  }
+}
+
 export function healthRequiresCodex(providers, env = process.env) {
   const selectedProvider =
     env.DEFAULT_MISSION_PROVIDER?.trim() ||
@@ -132,7 +156,10 @@ async function main() {
   const workspaceRoot = resolveSparkWorkspaceRoot();
   const smokeWorkspace = join(workspaceRoot, ".health-smoke");
   mkdirSync(smokeWorkspace, { recursive: true });
-  writeFileSync(join(smokeWorkspace, "write-check.txt"), `spark-health ${new Date().toISOString()}\n`, "utf-8");
+  repairHostedWorkspaceOwnership([workspaceRoot, smokeWorkspace]);
+  const writeCheckPath = join(smokeWorkspace, "write-check.txt");
+  writeFileSync(writeCheckPath, `spark-health ${new Date().toISOString()}\n`, "utf-8");
+  repairHostedWorkspaceOwnership([workspaceRoot, smokeWorkspace, writeCheckPath]);
 
   if (process.env.SPARK_HEALTH_DEEP === "1") {
     const requestId = `health-${Date.now()}`;

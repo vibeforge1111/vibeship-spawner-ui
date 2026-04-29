@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import { healthRequiresCodex, resolveSparkWorkspaceRoot, sparkHealthAuthHeaders } from "./health-spark.mjs";
+import {
+  healthRequiresCodex,
+  resolveSparkWorkspaceRoot,
+  shouldRepairHostedWorkspaceOwnership,
+  sparkHealthAuthHeaders,
+} from "./health-spark.mjs";
 
 describe("resolveSparkWorkspaceRoot", () => {
   it("prefers explicit Spark workspace roots", () => {
@@ -62,6 +67,30 @@ describe("sparkHealthAuthHeaders", () => {
       "x-spawner-ui-key": "bridge",
       "x-api-key": "bridge",
     });
+  });
+});
+
+describe("shouldRepairHostedWorkspaceOwnership", () => {
+  it("repairs only hosted Spark Live checks that are accidentally run as root", () => {
+    expect(
+      shouldRepairHostedWorkspaceOwnership(
+        {
+          SPARK_LIVE_CONTAINER: "1",
+          SPARK_HOME: "/data/spark",
+        },
+        0,
+      ),
+    ).toBe(true);
+    expect(
+      shouldRepairHostedWorkspaceOwnership(
+        {
+          SPARK_LIVE_CONTAINER: "1",
+          SPARK_HOME: "/data/spark",
+        },
+        1001,
+      ),
+    ).toBe(false);
+    expect(shouldRepairHostedWorkspaceOwnership({ SPARK_HOME: "/data/spark" }, 0)).toBe(false);
   });
 });
 
