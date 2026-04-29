@@ -725,3 +725,31 @@ Branch: `codex/spawner-execution-footer-panel`
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes`.
 - Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
+
+## Continuation: Execution Progress Header Extraction
+
+Branch: `codex/spawner-execution-progress-header`
+
+### Step Checklist
+
+- [x] Inspect progress, MCP, multi-LLM, prompt-copy, and loaded-skill presentation before editing.
+- [x] Extract the progress header presentation into `ExecutionProgressHeader.svelte`.
+- [x] Keep task-status rendering, mission runtime state, and execution behavior owned by `ExecutionPanel.svelte`.
+- [x] Run focused tests, typecheck, full tests, build, route smoke, and mission surface smoke.
+- [x] Commit, merge, and push.
+
+### Changes Made
+
+- Added `src/lib/components/ExecutionProgressHeader.svelte` for overall progress, MCP details, agent activity, single-LLM prompt copy, mission ID fallback, and loaded skill strip.
+- Updated `src/lib/components/ExecutionPanel.svelte` to pass explicit state, runtime agents, MCP tools, current task skills, and copy callback into the extracted component.
+- Reduced `ExecutionPanel.svelte` from roughly 1567 lines to roughly 1390 lines.
+
+### Verification Log
+
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Focused execution/multi-LLM tests: PASS via `npm run test:run -- execution-panel-formatting execution-task-rows mission-execution-progress mission-control-hydration multi-llm-orchestrator` (5 files, 39 tests).
+- Whitespace check: PASS via `git diff --check`.
+- Full unit/integration suite: PASS via `npm run test:run` (49 files, 272 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes`.
+- Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
