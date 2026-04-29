@@ -24,6 +24,7 @@
 	} from '$lib/services/multi-llm-orchestrator';
 	import { resolveRelayMissionProvider } from '$lib/services/relay-mission-provider';
 	import CheckpointReview from './CheckpointReview.svelte';
+	import ExecutionFooter from './ExecutionFooter.svelte';
 	import ExecutionLogList from './ExecutionLogList.svelte';
 	import MissionSettingsPanel from './MissionSettingsPanel.svelte';
 	import ExecutionTaskStatusList from './ExecutionTaskStatusList.svelte';
@@ -1592,81 +1593,23 @@
 			/>
 		{/if}
 
-		<!-- Footer -->
-		<div class="px-6 py-5 border-t border-surface-border flex justify-between items-center gap-4 flex-wrap">
-			<div class="flex items-center gap-2 text-sm text-text-tertiary font-mono">
-				{#if executionProgress?.endTime}
-					Finished at {formatTime(executionProgress.endTime)}
-				{:else if executionProgress?.startTime}
-					Started at {formatTime(executionProgress.startTime)}
-				{:else}
-					Ready to run
-				{/if}
-			</div>
-			<div class="flex gap-2 items-center">
-				<!-- Cancel button -->
-				{#if canCancel}
-					<button
-						onclick={handleCancel}
-						class="px-5 py-2.5 rounded-md text-sm font-medium text-status-error border border-status-error/50 hover:bg-status-error/10 transition-all"
-					>
-						Cancel
-					</button>
-				{/if}
-
-				<!-- Pause/Resume buttons -->
-				{#if canPause}
-					<button
-						onclick={handlePause}
-						class="px-5 py-2.5 rounded-md text-sm font-medium text-blue-400 border border-blue-400/50 hover:bg-blue-400/10 transition-all"
-					>
-						Pause
-					</button>
-				{/if}
-				{#if canResume}
-					<button
-						onclick={handleResume}
-						class="px-5 py-2.5 rounded-md text-sm font-medium text-blue-400 border border-blue-400/50 hover:bg-blue-400/10 transition-all"
-					>
-						Resume
-					</button>
-				{/if}
-
-				<!-- Close button -->
-				{#if !isRunning && !isPaused}
-					<button
-						onclick={handleClose}
-						class="px-5 py-2.5 rounded-md text-sm font-medium text-text-secondary border border-surface-border hover:border-text-tertiary hover:text-text-primary transition-all"
-					>
-						Close
-					</button>
-				{/if}
-
-				<!-- Run button -->
-				<button
-					onclick={() => runWorkflow()}
-					disabled={!canRun}
-					class="inline-flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-semibold bg-accent-primary text-accent-fg hover:opacity-85 active:scale-[0.98] transition-all disabled:cursor-not-allowed disabled:opacity-40"
-					title={isTerminal ? 'This mission is complete. Inspect logs here instead of starting over.' : currentNodes.length === 0 ? 'No nodes to execute' : ''}
-				>
-					{#if isRunning}
-						<span class="relative flex h-2 w-2">
-							<span class="absolute inline-flex h-full w-full rounded-full bg-accent-fg opacity-60 animate-ping-slow"></span>
-							<span class="relative inline-flex rounded-full h-2 w-2 bg-accent-fg"></span>
-						</span>
-						<span>Running...</span>
-					{:else if executionProgress?.status === 'completed'}
-						Completed
-					{:else if executionProgress?.status === 'failed'}
-						Failed
-					{:else if executionProgress?.status === 'cancelled'}
-						Cancelled
-					{:else}
-						Run Workflow
-					{/if}
-				</button>
-			</div>
-		</div>
+		<ExecutionFooter
+			{executionProgress}
+			{isRunning}
+			{isPaused}
+			{isTerminal}
+			{canCancel}
+			{canPause}
+			{canResume}
+			{canRun}
+			currentNodeCount={currentNodes.length}
+			{formatTime}
+			onCancel={handleCancel}
+			onPause={handlePause}
+			onResume={handleResume}
+			onClose={handleClose}
+			onRun={runWorkflow}
+		/>
 	</div>
 </div>
 {/if}
