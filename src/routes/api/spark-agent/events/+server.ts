@@ -1,20 +1,20 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { openclawBridge } from '$lib/services/openclaw-bridge';
+import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 
 export const GET: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
-		surface: 'Openclaw',
-		apiKeyEnvVar: 'OPENCLAW_API_KEY',
+		surface: 'Spark Agent',
+		apiKeyEnvVar: 'SPARK_AGENT_API_KEY',
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
 		allowLoopbackWithoutKey: true,
-		allowedOriginsEnvVar: 'OPENCLAW_ALLOWED_ORIGINS'
+		allowedOriginsEnvVar: 'SPARK_AGENT_ALLOWED_ORIGINS'
 	});
 	if (unauthorized) return unauthorized;
 
 	const rateLimited = enforceRateLimit(event, {
-		scope: 'openclaw_events_stream',
+		scope: 'spark_agent_events_stream',
 		limit: 120,
 		windowMs: 60_000
 	});
@@ -25,12 +25,12 @@ export const GET: RequestHandler = async (event) => {
 	if (!sessionId) {
 		return json({ error: 'sessionId is required' }, { status: 400 });
 	}
-	const scopedSessionHeader = request.headers.get('x-openclaw-session-id');
+	const scopedSessionHeader = request.headers.get('x-spark-agent-session-id');
 	if (scopedSessionHeader && scopedSessionHeader !== sessionId) {
 		return json({ error: 'Session scope mismatch between header and query' }, { status: 403 });
 	}
 
-	const session = openclawBridge.getSession(sessionId);
+	const session = sparkAgentBridge.getSession(sessionId);
 	if (!session) {
 		return json({ error: `Unknown session: ${sessionId}` }, { status: 404 });
 	}
@@ -58,7 +58,7 @@ export const GET: RequestHandler = async (event) => {
 				push(event);
 			}
 
-			const unsubscribe = openclawBridge.subscribe(sessionId, (event) => {
+			const unsubscribe = sparkAgentBridge.subscribe(sessionId, (event) => {
 				push(event);
 			});
 

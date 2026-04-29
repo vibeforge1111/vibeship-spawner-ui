@@ -4,7 +4,7 @@ import { POST as command } from './command/+server';
 import { GET as events } from './events/+server';
 import { GET as canvasState } from './canvas-state/+server';
 import { POST as endSession } from './session/end/+server';
-import { openclawBridge } from '$lib/services/openclaw-bridge';
+import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { getConnections } from '$lib/services/mcp/client';
 
 async function readChunk(response: Response, timeoutMs = 1000): Promise<string> {
@@ -25,13 +25,13 @@ async function readChunk(response: Response, timeoutMs = 1000): Promise<string> 
 
 afterEach(() => {
 	getConnections().clear();
-	openclawBridge.resetForTests();
+	sparkAgentBridge.resetForTests();
 });
 
-describe('/api/openclaw integration', () => {
+describe('/api/spark-agent integration', () => {
 	it('rejects non-local requests without an API key', async () => {
 		const response = await command({
-			request: new Request('https://example.com/api/openclaw/command', {
+			request: new Request('https://example.com/api/spark-agent/command', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -45,7 +45,7 @@ describe('/api/openclaw integration', () => {
 
 	it('runs a full session flow: start -> canvas -> mission -> status -> end', async () => {
 		const startResponse = await startSession({
-			request: new Request('http://localhost/api/openclaw/session/start', {
+			request: new Request('http://localhost/api/spark-agent/session/start', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ actor: 'integration-test' })
@@ -57,7 +57,7 @@ describe('/api/openclaw integration', () => {
 		expect(typeof sessionId).toBe('string');
 
 		const createPipelineResponse = await command({
-			request: new Request('http://localhost/api/openclaw/command', {
+			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -70,7 +70,7 @@ describe('/api/openclaw integration', () => {
 		expect(createPipelineResponse.status).toBe(200);
 
 		const addSkillAResponse = await command({
-			request: new Request('http://localhost/api/openclaw/command', {
+			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -88,7 +88,7 @@ describe('/api/openclaw integration', () => {
 		expect(addSkillAResponse.status).toBe(200);
 
 		const addSkillBResponse = await command({
-			request: new Request('http://localhost/api/openclaw/command', {
+			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -106,7 +106,7 @@ describe('/api/openclaw integration', () => {
 		expect(addSkillBResponse.status).toBe(200);
 
 		const addConnectionResponse = await command({
-			request: new Request('http://localhost/api/openclaw/command', {
+			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -122,7 +122,7 @@ describe('/api/openclaw integration', () => {
 		expect(addConnectionResponse.status).toBe(200);
 
 		const missionBuildResponse = await command({
-			request: new Request('http://localhost/api/openclaw/command', {
+			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -137,7 +137,7 @@ describe('/api/openclaw integration', () => {
 		expect(built.data.mission.tasks.length).toBe(2);
 
 		const missionStartResponse = await command({
-			request: new Request('http://localhost/api/openclaw/command', {
+			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -149,7 +149,7 @@ describe('/api/openclaw integration', () => {
 		expect(missionStartResponse.status).toBe(200);
 
 		const missionStatusResponse = await command({
-			request: new Request('http://localhost/api/openclaw/command', {
+			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -163,7 +163,7 @@ describe('/api/openclaw integration', () => {
 		expect(missionStatusBody.data.mission.status).toBe('running');
 
 		const mcpListResponse = await command({
-			request: new Request('http://localhost/api/openclaw/command', {
+			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -177,7 +177,7 @@ describe('/api/openclaw integration', () => {
 		expect(mcpListBody.data.registryCount).toBeGreaterThan(0);
 
 		const endResponse = await endSession({
-			request: new Request('http://localhost/api/openclaw/session/end', {
+			request: new Request('http://localhost/api/spark-agent/session/end', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -191,9 +191,9 @@ describe('/api/openclaw integration', () => {
 		expect(ended.session.status).toBe('ended');
 	});
 
-	it('streams session events over /api/openclaw/events', async () => {
+	it('streams session events over /api/spark-agent/events', async () => {
 		const startResponse = await startSession({
-			request: new Request('http://localhost/api/openclaw/session/start', {
+			request: new Request('http://localhost/api/spark-agent/session/start', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({})
@@ -204,11 +204,11 @@ describe('/api/openclaw integration', () => {
 
 		const abortController = new AbortController();
 		const eventsResponse = await events({
-			request: new Request(`http://localhost/api/openclaw/events?sessionId=${sessionId}`, {
+			request: new Request(`http://localhost/api/spark-agent/events?sessionId=${sessionId}`, {
 				method: 'GET',
 				signal: abortController.signal
 			}),
-			url: new URL(`http://localhost/api/openclaw/events?sessionId=${sessionId}`)
+			url: new URL(`http://localhost/api/spark-agent/events?sessionId=${sessionId}`)
 		} as never);
 		expect(eventsResponse.status).toBe(200);
 
@@ -220,7 +220,7 @@ describe('/api/openclaw integration', () => {
 
 	it('returns latest canvas snapshot for browser polling', async () => {
 		const startResponse = await startSession({
-			request: new Request('http://localhost/api/openclaw/session/start', {
+			request: new Request('http://localhost/api/spark-agent/session/start', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ actor: 'canvas-sync-test' })
@@ -229,7 +229,7 @@ describe('/api/openclaw integration', () => {
 		const sessionId = (await startResponse.json()).session.id as string;
 
 		await command({
-			request: new Request('http://localhost/api/openclaw/command', {
+			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -244,10 +244,10 @@ describe('/api/openclaw integration', () => {
 		} as never);
 
 		const response = await canvasState({
-			request: new Request('http://localhost/api/openclaw/canvas-state', {
+			request: new Request('http://localhost/api/spark-agent/canvas-state', {
 				method: 'GET'
 			}),
-			url: new URL('http://localhost/api/openclaw/canvas-state')
+			url: new URL('http://localhost/api/spark-agent/canvas-state')
 		} as never);
 		expect(response.status).toBe(200);
 		const body = await response.json();
@@ -255,10 +255,10 @@ describe('/api/openclaw integration', () => {
 		expect(body.snapshot.pipelineId).toBe('pipe-live-sync');
 
 		const sinceResponse = await canvasState({
-			request: new Request(`http://localhost/api/openclaw/canvas-state?since=${encodeURIComponent(body.snapshot.updatedAt)}`, {
+			request: new Request(`http://localhost/api/spark-agent/canvas-state?since=${encodeURIComponent(body.snapshot.updatedAt)}`, {
 				method: 'GET'
 			}),
-			url: new URL(`http://localhost/api/openclaw/canvas-state?since=${encodeURIComponent(body.snapshot.updatedAt)}`)
+			url: new URL(`http://localhost/api/spark-agent/canvas-state?since=${encodeURIComponent(body.snapshot.updatedAt)}`)
 		} as never);
 		expect(sinceResponse.status).toBe(200);
 		const sinceBody = await sinceResponse.json();
@@ -267,14 +267,14 @@ describe('/api/openclaw integration', () => {
 	});
 
 	it('streams normalized worker lifecycle events (started/progress/completed)', async () => {
-		openclawBridge.setWorkerExecutorForTests(async (context) => {
+		sparkAgentBridge.setWorkerExecutorForTests(async (context) => {
 			context.emitProgress(40, `${context.providerId} boot`);
 			context.emitProgress(85, `${context.providerId} run`);
 			return { success: true, response: 'done' };
 		});
 
 		const startResponse = await startSession({
-			request: new Request('http://localhost/api/openclaw/session/start', {
+			request: new Request('http://localhost/api/spark-agent/session/start', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ actor: 'worker-test' })
@@ -283,7 +283,7 @@ describe('/api/openclaw integration', () => {
 		const sessionId = (await startResponse.json()).session.id as string;
 
 		const runResponse = await command({
-			request: new Request('http://localhost/api/openclaw/command', {
+			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -301,15 +301,15 @@ describe('/api/openclaw integration', () => {
 		expect(runResponse.status).toBe(200);
 		const runBody = await runResponse.json();
 		expect(runBody.data.success).toBe(true);
-		expect(runBody.data.openclawSessionId).toBe(sessionId);
+		expect(runBody.data.sparkAgentSessionId).toBe(sessionId);
 
 		const abortController = new AbortController();
 		const eventsResponse = await events({
-			request: new Request(`http://localhost/api/openclaw/events?sessionId=${sessionId}`, {
+			request: new Request(`http://localhost/api/spark-agent/events?sessionId=${sessionId}`, {
 				method: 'GET',
 				signal: abortController.signal
 			}),
-			url: new URL(`http://localhost/api/openclaw/events?sessionId=${sessionId}`)
+			url: new URL(`http://localhost/api/spark-agent/events?sessionId=${sessionId}`)
 		} as never);
 		expect(eventsResponse.status).toBe(200);
 
@@ -317,23 +317,23 @@ describe('/api/openclaw integration', () => {
 		expect(chunk).toContain('"type":"connected"');
 		expect(chunk).toContain(sessionId);
 
-		const sessionEvents = openclawBridge.getSessionEvents(sessionId);
+		const sessionEvents = sparkAgentBridge.getSessionEvents(sessionId);
 		expect(sessionEvents.some((event) => event.type === 'task_started')).toBe(true);
 		expect(sessionEvents.some((event) => event.type === 'task_progress')).toBe(true);
 		expect(sessionEvents.some((event) => event.type === 'task_completed')).toBe(true);
-		expect(sessionEvents.some((event) => event.data.openclawSessionId === sessionId)).toBe(true);
+		expect(sessionEvents.some((event) => event.data.sparkAgentSessionId === sessionId)).toBe(true);
 		abortController.abort();
 	});
 
 	it('does not accept caller-supplied worker command templates through the API', async () => {
 		let observedCommandTemplate = '';
-		openclawBridge.setWorkerExecutorForTests(async (context) => {
+		sparkAgentBridge.setWorkerExecutorForTests(async (context) => {
 			observedCommandTemplate = context.commandTemplate;
 			return { success: true, response: 'done' };
 		});
 
 		const startResponse = await startSession({
-			request: new Request('http://localhost/api/openclaw/session/start', {
+			request: new Request('http://localhost/api/spark-agent/session/start', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ actor: 'worker-command-template-test' })
@@ -342,7 +342,7 @@ describe('/api/openclaw integration', () => {
 		const sessionId = (await startResponse.json()).session.id as string;
 
 		const runResponse = await command({
-			request: new Request('http://localhost/api/openclaw/command', {
+			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -364,7 +364,7 @@ describe('/api/openclaw integration', () => {
 	});
 
 	it('rejects unsafe internal provider command templates before process execution', async () => {
-		const result = await openclawBridge.executeProviderTask({
+		const result = await sparkAgentBridge.executeProviderTask({
 			providerId: 'codex',
 			missionId: 'mission-unsafe-template',
 			prompt: 'Do the work',
@@ -377,7 +377,7 @@ describe('/api/openclaw integration', () => {
 
 	it('isolates MCP instances by session for list, call, and disconnect', async () => {
 		const startA = await startSession({
-			request: new Request('http://localhost/api/openclaw/session/start', {
+			request: new Request('http://localhost/api/spark-agent/session/start', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ actor: 'session-a' })
@@ -386,7 +386,7 @@ describe('/api/openclaw integration', () => {
 		const sessionA = (await startA.json()).session.id as string;
 
 		const startB = await startSession({
-			request: new Request('http://localhost/api/openclaw/session/start', {
+			request: new Request('http://localhost/api/spark-agent/session/start', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ actor: 'session-b' })
@@ -419,14 +419,14 @@ describe('/api/openclaw integration', () => {
 			} as never
 		);
 
-		const bridgeInternals = openclawBridge as unknown as {
+		const bridgeInternals = sparkAgentBridge as unknown as {
 			instanceOwners: Map<string, { sessionId: string; mcpId?: string }>;
 		};
 		bridgeInternals.instanceOwners.set('instance-owned', { sessionId: sessionA, mcpId: 'filesystem' });
 		bridgeInternals.instanceOwners.set('instance-foreign', { sessionId: sessionB, mcpId: 'filesystem' });
 
 		const listResponse = await command({
-			request: new Request('http://localhost/api/openclaw/command', {
+			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ sessionId: sessionA, command: 'mcp.list' })
@@ -438,7 +438,7 @@ describe('/api/openclaw integration', () => {
 		expect(listBody.data.connected[0].instanceId).toBe('instance-owned');
 
 		const ownCallResponse = await command({
-			request: new Request('http://localhost/api/openclaw/command', {
+			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -456,7 +456,7 @@ describe('/api/openclaw integration', () => {
 		expect(ownCallTool).toHaveBeenCalledTimes(1);
 
 		const foreignCallResponse = await command({
-			request: new Request('http://localhost/api/openclaw/command', {
+			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -476,7 +476,7 @@ describe('/api/openclaw integration', () => {
 		expect(foreignCallTool).not.toHaveBeenCalled();
 
 		const foreignDisconnectResponse = await command({
-			request: new Request('http://localhost/api/openclaw/command', {
+			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({

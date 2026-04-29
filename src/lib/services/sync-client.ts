@@ -1,3 +1,4 @@
+import { logger } from '$lib/utils/logger';
 /**
  * Sync Client - Real-time bidirectional sync between Spawner UI and Claude Code
  *
@@ -128,7 +129,7 @@ class SyncClient {
 			const httpAvailable = await this.checkHttpAvailability();
 			if (httpAvailable) {
 				syncStatus.set('connected');
-				console.log('[SyncClient] Using HTTP polling fallback (WebSocket not available)');
+				logger.info('[SyncClient] Using HTTP polling fallback (WebSocket not available)');
 				return true;
 			}
 
@@ -155,7 +156,7 @@ class SyncClient {
 
 				this.ws.onopen = () => {
 					clearTimeout(timeout);
-					console.log('[SyncClient] WebSocket connected');
+					logger.info('[SyncClient] WebSocket connected');
 					syncStatus.set('connected');
 					this.reconnectAttempts = 0;
 					this.startHeartbeat();
@@ -192,7 +193,7 @@ class SyncClient {
 
 				this.ws.onclose = (event) => {
 					clearTimeout(timeout);
-					console.log('[SyncClient] WebSocket closed:', event.code, event.reason);
+					logger.info('[SyncClient] WebSocket closed:', event.code, event.reason);
 					this.stopHeartbeat();
 
 					if (get(syncStatus) === 'connected') {
@@ -341,7 +342,7 @@ class SyncClient {
 
 			case 'sync_state':
 				// Full state sync (on reconnect)
-				console.log('[SyncClient] Received state sync');
+				logger.info('[SyncClient] Received state sync');
 				break;
 
 			case 'error':
@@ -372,7 +373,7 @@ class SyncClient {
 					};
 					this.notifySubscribers(event);
 				} else {
-					console.log('[SyncClient] Unknown message type:', type);
+					logger.info('[SyncClient] Unknown message type:', type);
 				}
 		}
 	}
@@ -425,7 +426,7 @@ class SyncClient {
 	 */
 	private scheduleReconnect(): void {
 		if (this.reconnectAttempts >= this.config.maxReconnectAttempts) {
-			console.log('[SyncClient] Max reconnect attempts reached');
+			logger.info('[SyncClient] Max reconnect attempts reached');
 			syncStatus.set('error');
 			connectionError.set('Max reconnection attempts reached');
 			return;
@@ -435,7 +436,7 @@ class SyncClient {
 		this.reconnectAttempts++;
 
 		const delay = this.config.reconnectInterval * Math.pow(1.5, this.reconnectAttempts - 1);
-		console.log(`[SyncClient] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+		logger.info(`[SyncClient] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
 		this.reconnectTimer = setTimeout(() => {
 			this.connect();

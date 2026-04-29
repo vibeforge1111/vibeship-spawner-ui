@@ -9,7 +9,8 @@ const checks = [
 	{ path: '/canvas', kind: 'html' },
 	{ path: '/trace', kind: 'html' },
 	{ path: '/api/mission-control/board', kind: 'json', okKey: 'ok' },
-	{ path: '/api/mission-control/trace', kind: 'json', okKey: 'ok' }
+	{ path: '/api/mission-control/trace', kind: 'json', okKey: 'ok' },
+	{ path: '/api/spark-agent/canvas-state', kind: 'json', okKey: 'success' }
 ];
 
 async function smokeCheck(check) {

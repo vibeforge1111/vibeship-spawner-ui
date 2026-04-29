@@ -293,7 +293,7 @@ export const GET: RequestHandler = async (event) => {
 				} catch (e) {
 					// Client disconnected
 					isClosed = true;
-					console.log('[EventBridge] Client disconnected');
+					logger.info('[EventBridge] Client disconnected');
 				}
 			});
 

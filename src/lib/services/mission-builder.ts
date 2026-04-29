@@ -1,3 +1,4 @@
+import { logger } from '$lib/utils/logger';
 /**
  * Mission Builder Service
  *
@@ -124,7 +125,7 @@ function filterExecutableNodes(
 	);
 
 	if (removed.length > 0) {
-		console.log(
+		logger.info(
 			`[MissionBuilder] Filtered out ${removed.length} non-executable node(s): ${removed.map((n) => n.skill.name).join(', ')}`
 		);
 	}
@@ -193,7 +194,7 @@ function deduplicateNodes(
 		const mergeInfo = [...merged.entries()].map(([kept, removed]) =>
 			`${nodes.find(n => n.id === kept)?.skill.name}: merged ${removed.length} duplicates`
 		);
-		console.log(`[MissionBuilder] Deduplicated nodes: ${mergeInfo.join(', ')}`);
+		logger.info(`[MissionBuilder] Deduplicated nodes: ${mergeInfo.join(', ')}`);
 	}
 
 	return { nodes: dedupedNodes, connections: dedupedConnections, merged };
@@ -374,7 +375,7 @@ export async function buildMissionFromCanvas(
 		const { nodes: executableNodes, connections: executableConns, removed } = filterExecutableNodes(nodes, connections);
 
 		if (removed.length > 0) {
-			console.log(`[MissionBuilder] Removed ${removed.length} non-executable node(s)`);
+			logger.info(`[MissionBuilder] Removed ${removed.length} non-executable node(s)`);
 		}
 
 		// STEP 2: Deduplicate nodes with same skill ID
@@ -382,7 +383,7 @@ export async function buildMissionFromCanvas(
 		const { nodes: dedupedNodes, connections: dedupedConnections, merged } = deduplicateNodes(executableNodes, executableConns);
 
 		if (merged.size > 0) {
-			console.log(`[MissionBuilder] Reduced ${executableNodes.length} nodes to ${dedupedNodes.length} (merged ${executableNodes.length - dedupedNodes.length} duplicates)`);
+			logger.info(`[MissionBuilder] Reduced ${executableNodes.length} nodes to ${dedupedNodes.length} (merged ${executableNodes.length - dedupedNodes.length} duplicates)`);
 		}
 
 		// Generate agents based on skill categories
@@ -455,13 +456,13 @@ export async function buildMissionFromCanvas(
 			);
 			const skillsToLoad = priorities.slice(0, maxTotal).map(p => p.skillId);
 
-			console.log(`[MissionBuilder] Loading ${skillsToLoad.length} H70 skills (${taskCount} tasks, max ${maxTotal}):`, skillsToLoad);
+			logger.info(`[MissionBuilder] Loading ${skillsToLoad.length} H70 skills (${taskCount} tasks, max ${maxTotal}):`, skillsToLoad);
 
 			// Load the skills
 			try {
 				const { skills } = await loadSkillsForMission(skillsToLoad);
 				loadedSkills = skills;
-				console.log(`[MissionBuilder] Successfully loaded ${skills.size} H70 skills`);
+				logger.info(`[MissionBuilder] Successfully loaded ${skills.size} H70 skills`);
 			} catch (e) {
 				console.warn('[MissionBuilder] Failed to load H70 skills:', e);
 				// Continue without skills - don't fail the mission build
@@ -486,7 +487,7 @@ export async function buildMissionFromCanvas(
 			}
 			if (taskMCPMap.size > 0) {
 				const totalMCPs = new Set([...taskMCPMap.values()].flat());
-				console.log(`[MissionBuilder] Mapped ${totalMCPs.size} recommended MCPs across ${taskMCPMap.size} tasks`);
+				logger.info(`[MissionBuilder] Mapped ${totalMCPs.size} recommended MCPs across ${taskMCPMap.size} tasks`);
 			}
 		}
 

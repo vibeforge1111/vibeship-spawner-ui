@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { logger } from '$lib/utils/logger';
 	import '../app.css';
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
@@ -16,7 +17,7 @@
 		// Initialize persistence system (schema migrations, etc.)
 		const persistence = initPersistence();
 		if (persistence.migrated) {
-			console.log(`[App] Data migrated from v${persistence.fromVersion} to v${persistence.toVersion}`);
+			logger.info(`[App] Data migrated from v${persistence.fromVersion} to v${persistence.toVersion}`);
 		}
 
 		// Initialize pipeline system (ensures localStorage is loaded)
@@ -33,9 +34,9 @@
 		syncClient.configure({ wsUrl });
 		const connected = await syncClient.connect();
 		if (connected) {
-			console.log('[Sync] Real-time sync connected');
+			logger.info('[Sync] Real-time sync connected');
 		} else {
-			console.log('[Sync] WebSocket not available, using polling');
+			logger.info('[Sync] WebSocket not available, using polling');
 		}
 	}
 

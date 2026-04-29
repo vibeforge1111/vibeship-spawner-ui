@@ -1,3 +1,4 @@
+import { logger } from '$lib/utils/logger';
 /**
  * Skill Matcher Service v2
  *
@@ -171,7 +172,7 @@ export async function matchSkills(
 
 	// Try Claude API for intelligent matching (unless local preferred)
 	if (!options.preferLocal && claudeClient.isEnabled()) {
-		console.log('[SkillMatcher] Attempting Claude-powered intelligent matching...');
+		logger.info('[SkillMatcher] Attempting Claude-powered intelligent matching...');
 
 		const result = await claudeClient.analyzeGoal(goal.sanitized);
 
@@ -179,17 +180,17 @@ export async function matchSkills(
 			claudeAnalysis = result.analysis;
 			skills = convertClaudeSkills(result.analysis, allSkills);
 			source = 'claude';
-			console.log(`[SkillMatcher] Claude selected ${skills.length} skills with reasoning`);
+			logger.info(`[SkillMatcher] Claude selected ${skills.length} skills with reasoning`);
 		} else {
-			console.log('[SkillMatcher] Claude API unavailable, falling back to local');
+			logger.info('[SkillMatcher] Claude API unavailable, falling back to local');
 		}
 	}
 
 	// Fall back to local matching if Claude didn't work
 	if (skills.length === 0) {
-		console.log('[SkillMatcher] Using local keyword matching (H70 mappings)');
+		logger.info('[SkillMatcher] Using local keyword matching (H70 mappings)');
 		skills = matchSkillsLocal(goal, maxResults);
-		console.log(`[SkillMatcher] Matched ${skills.length} skills locally`);
+		logger.info(`[SkillMatcher] Matched ${skills.length} skills locally`);
 	}
 
 	// Apply minimum score filter if specified
@@ -203,7 +204,7 @@ export async function matchSkills(
 	// Fallback if no skills found
 	if (skills.length === 0 && goal.confidence > 0.3) {
 		skills = getDefaultSkills(goal.domains, maxResults);
-		console.log('[SkillMatcher] Added default skills as fallback');
+		logger.info('[SkillMatcher] Added default skills as fallback');
 	}
 
 	return {

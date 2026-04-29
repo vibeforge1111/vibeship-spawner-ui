@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { logger } from '$lib/utils/logger';
 	import SkillNode from './SkillNode.svelte';
 	import type { CanvasNode } from '$lib/stores/canvas.svelte';
 	import { updateNodePosition, selectNode, toggleNodeSelection, removeNode, startConnectionDrag, updateConnectionDrag, endConnectionDrag, completeConnection, snapPosition, canvasState } from '$lib/stores/canvas.svelte';
@@ -158,7 +159,7 @@
 	}
 
 	function handleTest() {
-		console.log('Testing node:', node.id, node.skill.name);
+		logger.info('Testing node:', node.id, node.skill.name);
 	}
 
 	// Port connection handlers

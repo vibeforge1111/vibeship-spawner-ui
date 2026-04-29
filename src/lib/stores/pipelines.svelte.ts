@@ -1,3 +1,4 @@
+import { logger } from '$lib/utils/logger';
 /**
  * Pipeline Manager Store
  *
@@ -244,7 +245,7 @@ export function createNewPipeline(name: string = 'Untitled Pipeline'): PipelineM
 	}));
 	saveRegistry();
 
-	console.log('[Pipelines] Created new pipeline:', id, name);
+	logger.info('[Pipelines] Created new pipeline:', id, name);
 
 	return metadata;
 }
@@ -561,7 +562,7 @@ export function exportPipeline(id: string): void {
 	document.body.removeChild(a);
 	URL.revokeObjectURL(url);
 
-	console.log('[Pipelines] Exported pipeline:', metadata.name);
+	logger.info('[Pipelines] Exported pipeline:', metadata.name);
 }
 
 /**
@@ -610,7 +611,7 @@ export async function importPipeline(file: File): Promise<PipelineMetadata | nul
 
 		saveRegistry();
 
-		console.log('[Pipelines] Imported pipeline:', newMetadata.name);
+		logger.info('[Pipelines] Imported pipeline:', newMetadata.name);
 		return newMetadata;
 	} catch (e) {
 		console.error('[Pipelines] Import failed:', e);
@@ -645,5 +646,5 @@ export function exportAllPipelines(): void {
 	document.body.removeChild(a);
 	URL.revokeObjectURL(url);
 
-	console.log('[Pipelines] Exported all pipelines:', allPipelines.length);
+	logger.info('[Pipelines] Exported all pipelines:', allPipelines.length);
 }

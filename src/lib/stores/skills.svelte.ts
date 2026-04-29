@@ -1,3 +1,4 @@
+import { logger } from '$lib/utils/logger';
 import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
 import { mcpClient, type McpSkill } from '$lib/services/mcp-client';
@@ -159,7 +160,7 @@ function saveGeneratedSkills(generatedSkills: Skill[]): void {
 	if (!browser) return;
 	try {
 		localStorage.setItem(GENERATED_SKILLS_KEY, JSON.stringify(generatedSkills));
-		console.log(`[Skills] Saved ${generatedSkills.length} generated skills to localStorage`);
+		logger.info(`[Skills] Saved ${generatedSkills.length} generated skills to localStorage`);
 	} catch (e) {
 		console.error('[Skills] Failed to save generated skills:', e);
 	}
@@ -182,7 +183,7 @@ function loadGeneratedSkills(): Skill[] {
 			}
 			// Cast to Skill[] since we've validated the structure
 			const skills = parsedSkills as unknown as Skill[];
-			console.log(`[Skills] Loaded ${skills.length} generated skills from localStorage`);
+			logger.info(`[Skills] Loaded ${skills.length} generated skills from localStorage`);
 			return skills;
 		}
 	} catch (e) {
@@ -251,7 +252,7 @@ export async function loadSkillsStatic() {
 		// FIX: Previously, old generated skills polluted the skill matcher
 		if (browser) {
 			localStorage.removeItem(GENERATED_SKILLS_KEY);
-			console.log('[Skills] Cleared old generated skills for fresh analysis');
+			logger.info('[Skills] Cleared old generated skills for fresh analysis');
 		}
 
 		// Set only the freshly loaded skills - no old generated skills
@@ -289,7 +290,7 @@ export async function loadSkillsMcp() {
 		// Each PRD analysis should start fresh with only real H70 skills
 		if (browser) {
 			localStorage.removeItem(GENERATED_SKILLS_KEY);
-			console.log('[Skills] Cleared old generated skills for fresh analysis');
+			logger.info('[Skills] Cleared old generated skills for fresh analysis');
 		}
 
 		// Set only the freshly loaded skills - no old generated skills

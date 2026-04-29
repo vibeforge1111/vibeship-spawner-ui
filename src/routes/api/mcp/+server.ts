@@ -1,3 +1,4 @@
+import { logger } from '$lib/utils/logger';
 /**
  * MCP Connection API
  *
@@ -77,7 +78,7 @@ export const POST: RequestHandler = async (event) => {
 			return json({ error: 'Cannot determine how to connect. Provide mcpId with npmPackage, or explicit command/args.' }, { status: 400 });
 		}
 
-		console.log(`[API] Connecting MCP: ${instanceId} (${mcpConfig.command} ${mcpConfig.args?.join(' ') || ''})`);
+		logger.info(`[API] Connecting MCP: ${instanceId} (${mcpConfig.command} ${mcpConfig.args?.join(' ') || ''})`);
 
 		const connection = await connectMCP(instanceId, mcpConfig);
 

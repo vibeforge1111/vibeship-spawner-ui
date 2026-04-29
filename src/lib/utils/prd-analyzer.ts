@@ -1,3 +1,4 @@
+import { logger } from '$lib/utils/logger';
 /**
  * PRD Analyzer
  *
@@ -783,8 +784,8 @@ export function generateTasksFromPRD(
 
 	// Log detected domains for debugging
 	if (analysis.detectedDomains?.length) {
-		console.log(`[PRDAnalyzer] Detected domains: ${analysis.detectedDomains.join(', ')}`);
-		console.log(`[PRDAnalyzer] Domain skills: ${analysis.domainSkills?.join(', ')}`);
+		logger.info(`[PRDAnalyzer] Detected domains: ${analysis.detectedDomains.join(', ')}`);
+		logger.info(`[PRDAnalyzer] Domain skills: ${analysis.domainSkills?.join(', ')}`);
 	}
 
 	// Prioritize domain-specific skills by ensuring they're in the available pool
@@ -935,7 +936,7 @@ export function generateTasksFromPRD(
 		if (chain) {
 			task.skillChain = chain.chain;
 			task.chainDescription = chain.description;
-			console.log(`[PRDAnalyzer] Chain detected for "${feature.name}": ${chain.chain.join(' → ')}`);
+			logger.info(`[PRDAnalyzer] Chain detected for "${feature.name}": ${chain.chain.join(' → ')}`);
 		}
 
 		tasks.push(task);

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { logger } from '$lib/utils/logger';
 	import { scale, fade } from 'svelte/transition';
 	import { backOut } from 'svelte/easing';
 
@@ -56,7 +57,7 @@
 	const isComplete = $derived(currentStage === stages.length - 1);
 
 	function handleViewPipeline() {
-		console.log('[PRD Modal] View Pipeline clicked, onComplete:', !!onComplete);
+		logger.info('[PRD Modal] View Pipeline clicked, onComplete:', !!onComplete);
 		if (onComplete) {
 			onComplete();
 		}
@@ -215,7 +216,7 @@
 						onclick={(e) => {
 							e.preventDefault();
 							e.stopPropagation();
-							console.log('[PRD Modal] Button clicked!');
+							logger.info('[PRD Modal] Button clicked!');
 							if (onComplete) {
 								onComplete();
 							}

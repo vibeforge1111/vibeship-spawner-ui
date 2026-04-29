@@ -1,3 +1,4 @@
+import { logger } from '$lib/utils/logger';
 /**
  * MCP Store - State management for MCPs in Spawner UI
  *
@@ -375,7 +376,7 @@ export async function connectInstance(
 			)
 		}));
 
-		console.log(`[MCP] Connected to ${result.serverInfo?.name}`, result.tools);
+		logger.info(`[MCP] Connected to ${result.serverInfo?.name}`, result.tools);
 		return true;
 	} catch (error) {
 		console.error(`[MCP] Connection error:`, error);
@@ -438,7 +439,7 @@ export async function reconnectAll(): Promise<void> {
 
 	if (staleInstances.length === 0) return;
 
-	console.log(`[MCP] Reconnecting ${staleInstances.length} instance(s)...`);
+	logger.info(`[MCP] Reconnecting ${staleInstances.length} instance(s)...`);
 	for (const instance of staleInstances) {
 		const cc = instance.connectionConfig!;
 		try {

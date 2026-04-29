@@ -586,7 +586,7 @@ class MissionExecutor {
 		const providerId = event.data?.providerId as string | undefined;
 		const explicitSource = event.source && event.source !== 'spawner-ui' ? event.source : undefined;
 		const agentId = providerId || explicitSource;
-		if (!agentId || agentId === 'claude-code' || agentId === 'openclaw') {
+		if (!agentId || agentId === 'claude-code' || agentId === 'sparkAgent') {
 			return null;
 		}
 		const agentLabel = agentId === 'codex'

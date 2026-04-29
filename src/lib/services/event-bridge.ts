@@ -1,3 +1,4 @@
+import { logger } from '$lib/utils/logger';
 /**
  * Event Bridge Service
  *
@@ -89,7 +90,7 @@ class ClientEventBridge {
 			this.eventSource = new EventSource(withEventsAuth('/api/events'));
 
 			this.eventSource.onopen = () => {
-				console.log('[EventBridge] Connected to event stream');
+				logger.info('[EventBridge] Connected to event stream');
 				this.connectionStatus.set('connected');
 			};
 

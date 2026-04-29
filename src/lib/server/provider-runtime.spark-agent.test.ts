@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { providerRuntime } from './provider-runtime';
-import { openclawBridge } from '$lib/services/openclaw-bridge';
+import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { eventBridge, type BridgeEvent } from '$lib/services/event-bridge';
 import type { MultiLLMExecutionPack, MultiLLMProviderConfig } from '$lib/services/multi-llm-orchestrator';
 import { mcpClient, type Mission } from '$lib/services/mcp-client';
@@ -50,7 +50,7 @@ async function waitFor(fn: () => boolean, timeoutMs = 1500): Promise<void> {
 }
 
 afterEach(() => {
-	openclawBridge.resetForTests();
+	sparkAgentBridge.resetForTests();
 	vi.restoreAllMocks();
 	providerRuntime.cleanup('mission-step2-success');
 	providerRuntime.cleanup('mission-step2-failure');
@@ -60,9 +60,9 @@ afterEach(() => {
 	providerRuntime.cleanup('mission-step2-lifecycle');
 });
 
-describe('provider-runtime openclaw bridge', () => {
-	it('dispatches codex + claude through openclaw worker sessions and emits normalized events', async () => {
-		openclawBridge.setWorkerExecutorForTests(async (context) => {
+describe('provider-runtime Spark agent bridge', () => {
+	it('dispatches codex + claude through Spark agent worker sessions and emits normalized events', async () => {
+		sparkAgentBridge.setWorkerExecutorForTests(async (context) => {
 			context.emitProgress(35, `${context.providerId} booting`);
 			context.emitProgress(80, `${context.providerId} running`);
 			return { success: true, response: `${context.providerId}-ok` };
@@ -90,19 +90,19 @@ describe('provider-runtime openclaw bridge', () => {
 		expect(status.providers.claude).toBe('completed');
 		expect(status.providers.codex).toBe('completed');
 
-		const normalized = emitted.filter((event) => event.data?.openclawSessionId);
+		const normalized = emitted.filter((event) => event.data?.sparkAgentSessionId);
 		expect(normalized.some((event) => event.type === 'task_started')).toBe(true);
 		expect(normalized.some((event) => event.type === 'task_progress')).toBe(true);
 		expect(normalized.some((event) => event.type === 'task_completed')).toBe(true);
 		for (const event of normalized) {
 			expect(event.data?.missionId).toBe('mission-step2-success');
 			expect(typeof event.data?.providerId).toBe('string');
-			expect(typeof event.data?.openclawSessionId).toBe('string');
+			expect(typeof event.data?.sparkAgentSessionId).toBe('string');
 		}
 	});
 
 	it('marks provider failures deterministically and emits task_failed', async () => {
-		openclawBridge.setWorkerExecutorForTests(async (context) => {
+		sparkAgentBridge.setWorkerExecutorForTests(async (context) => {
 			if (context.providerId === 'claude') {
 				context.emitProgress(20, 'claude failed while booting');
 				return { success: false, error: 'Claude worker crashed' };
@@ -135,7 +135,7 @@ describe('provider-runtime openclaw bridge', () => {
 	});
 
 	it('cancels an active worker session and emits task_cancelled', async () => {
-		openclawBridge.setWorkerExecutorForTests(
+		sparkAgentBridge.setWorkerExecutorForTests(
 			(context) =>
 				new Promise((resolve) => {
 					context.emitProgress(15, `${context.providerId} waiting`);
@@ -171,7 +171,7 @@ describe('provider-runtime openclaw bridge', () => {
 	});
 
 	it('rebuilds dispatch snapshot from mission record when resuming a paused orphan mission', async () => {
-		openclawBridge.setWorkerExecutorForTests(async (context) => {
+		sparkAgentBridge.setWorkerExecutorForTests(async (context) => {
 			context.emitProgress(40, `${context.providerId} resumed`);
 			return { success: true, response: `${context.providerId}-resumed` };
 		});
@@ -237,7 +237,7 @@ describe('provider-runtime openclaw bridge', () => {
 	});
 
 	it('keeps provider result details after in-memory sessions are cleared', async () => {
-		openclawBridge.setWorkerExecutorForTests(async (context) => {
+		sparkAgentBridge.setWorkerExecutorForTests(async (context) => {
 			return { success: true, response: `${context.providerId}-durable`, durationMs: 12 };
 		});
 
@@ -272,7 +272,7 @@ describe('provider-runtime openclaw bridge', () => {
 	});
 
 	it('reconciles running provider sessions from external mission lifecycle completion', async () => {
-		openclawBridge.setWorkerExecutorForTests(
+		sparkAgentBridge.setWorkerExecutorForTests(
 			() =>
 				new Promise(() => {
 					// Simulate a CLI worker whose process exits after it has already posted lifecycle events.

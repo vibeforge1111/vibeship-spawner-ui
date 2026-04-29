@@ -242,7 +242,7 @@ Branch: `codex/spawner-quiet-green-tests`
 
 ### Verification Log
 
-- Focused noisy-path/auth tests after rebasing onto origin/main: PASS via `npm run test:run -- pipeline-loader prd-bridge/result events.auth openclaw hosted-ui-auth` (8 files, 37 tests) with success-path stdout quiet.
+- Focused noisy-path/auth tests after rebasing onto origin/main: PASS via `npm run test:run -- pipeline-loader prd-bridge/result events.auth sparkAgent hosted-ui-auth` (8 files, 37 tests) with success-path stdout quiet.
 - Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
 - Full unit/integration suite after rebasing onto origin/main: PASS via `npm run test:run` (43 files, 242 tests) with the targeted success-path stdout noise removed.
 - Production build: PASS via `npm run build`.
@@ -303,3 +303,36 @@ Branch: `codex/spawner-kanban-mission-links`
 - Local route smoke: PASS via `npm run smoke:routes`; `/missions/mission-smoke-route` now returns 200 without redirecting away.
 - Full unit/integration suite: PASS via `npm run test:run` (44 files, 245 tests).
 - Production build: PASS via `npm run build`.
+
+## Continuation: Spark Agent Bridge Naming And Logging Cleanup
+
+Branch: `codex/spawner-logging-boundary-cleanup`
+
+### Step Checklist
+
+- [x] Remove the legacy bridge name from source paths, imports, routes, tests, headers, env vars, event names, and user-facing strings.
+- [x] Rename bridge/API surface to Spark agent bridge (`/api/spark-agent/*`).
+- [x] Move remaining app/runtime `console.log` calls behind the shared logger while leaving CLI script output intact.
+- [x] Add Spark agent canvas-state to route smoke coverage.
+- [x] Run focused bridge tests.
+- [x] Run typecheck.
+- [x] Run full checks.
+- [x] Commit and push.
+
+### Changes Made
+
+- Renamed the old worker bridge service to `src/lib/services/spark-agent-bridge.ts` and updated provider runtime/canvas callers.
+- Renamed the old worker API surface to `/api/spark-agent/*` and updated integration tests.
+- Updated control auth env/header naming to `SPARK_AGENT_*` and `x-spark-agent-*`.
+- Replaced app/runtime `console.log` usage with `logger.info` across PRD, canvas, sync, MCP, scheduler, pipeline, and mission-builder paths.
+- Extended `scripts/smoke-routes.mjs` to cover `/api/spark-agent/canvas-state`.
+
+### Verification Log
+
+- Legacy naming scan: PASS across `src`, `scripts`, and `test.md` with no remaining old bridge-name matches.
+- Runtime console scan: PASS via `rg -n "console\.log" src/routes src/lib --glob '!src/lib/data/**'` returning no matches.
+- Focused Spark agent bridge tests: PASS via `npm run test:run -- spark-agent provider-runtime.spark-agent spark-agent-bridge` (3 files, 16 tests).
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Full unit/integration suite: PASS via `npm run test:run` (44 files, 245 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes`, including `/api/spark-agent/canvas-state`.

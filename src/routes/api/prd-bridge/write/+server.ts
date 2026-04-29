@@ -1,3 +1,4 @@
+import { logger } from '$lib/utils/logger';
 /**
  * PRD Bridge - Write Endpoint
  *
@@ -10,7 +11,7 @@ import type { RequestHandler } from './$types';
 import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
-import { openclawBridge } from '$lib/services/openclaw-bridge';
+import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { resolveCliBinary } from '$lib/server/cli-resolver';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
@@ -199,11 +200,11 @@ async function buildPromptParts(
 			const classification = await classifyBrief(briefBody);
 			if (classification.bestMatch) {
 				bundleBlock = formatBundleForPrompt(classification.bestMatch);
-				console.log(
+				logger.info(
 					`[PRDBridge] bundle classifier: ${classification.bestMatch.id} confidence=${classification.confidence.toFixed(2)}`
 				);
 			} else {
-				console.log('[PRDBridge] bundle classifier: no match above threshold');
+				logger.info('[PRDBridge] bundle classifier: no match above threshold');
 			}
 		} catch (err) {
 			console.warn('[PRDBridge] bundle classifier failed:', err);
@@ -372,7 +373,7 @@ async function startAutoAnalysis(
 			stateDirectory: paths.spawnerDir
 		});
 
-		void openclawBridge
+		void sparkAgentBridge
 			.executeProviderTask({
 				providerId: 'codex',
 				missionId,
@@ -386,7 +387,7 @@ async function startAutoAnalysis(
 					success: result.success,
 					error: result.error || null,
 					durationMs: result.durationMs || null,
-					sessionId: result.openclawSessionId
+					sessionId: result.sparkAgentSessionId
 				});
 			})
 			.catch((error: unknown) => {
@@ -566,9 +567,9 @@ export const POST: RequestHandler = async (event) => {
 			scheduleAutoAnalysisWatchdog(requestId);
 		}
 
-		console.log(`[PRDBridge] PRD written to ${paths.pendingPrdFile}`);
-		console.log(`[PRDBridge] Request ID: ${requestId}`);
-		console.log(`[PRDBridge] Auto-analysis (${auto.provider}): ${auto.started ? 'started' : 'not-started'}`);
+		logger.info(`[PRDBridge] PRD written to ${paths.pendingPrdFile}`);
+		logger.info(`[PRDBridge] Request ID: ${requestId}`);
+		logger.info(`[PRDBridge] Auto-analysis (${auto.provider}): ${auto.started ? 'started' : 'not-started'}`);
 
 		return json({
 			success: true,

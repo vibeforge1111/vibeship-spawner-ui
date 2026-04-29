@@ -1,20 +1,20 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { openclawBridge } from '$lib/services/openclaw-bridge';
+import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 
 export const POST: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
-		surface: 'Openclaw',
-		apiKeyEnvVar: 'OPENCLAW_API_KEY',
+		surface: 'Spark Agent',
+		apiKeyEnvVar: 'SPARK_AGENT_API_KEY',
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
 		allowLoopbackWithoutKey: true,
-		allowedOriginsEnvVar: 'OPENCLAW_ALLOWED_ORIGINS'
+		allowedOriginsEnvVar: 'SPARK_AGENT_ALLOWED_ORIGINS'
 	});
 	if (unauthorized) return unauthorized;
 
 	const rateLimited = enforceRateLimit(event, {
-		scope: 'openclaw_session_end',
+		scope: 'spark_agent_session_end',
 		limit: 60,
 		windowMs: 60_000
 	});
@@ -28,7 +28,7 @@ export const POST: RequestHandler = async (event) => {
 			return json({ success: false, error: 'sessionId is required' }, { status: 400 });
 		}
 
-		const session = openclawBridge.endSession(sessionId, reason);
+		const session = sparkAgentBridge.endSession(sessionId, reason);
 		return json({
 			success: true,
 			session: {

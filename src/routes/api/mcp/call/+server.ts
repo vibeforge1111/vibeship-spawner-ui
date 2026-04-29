@@ -1,3 +1,4 @@
+import { logger } from '$lib/utils/logger';
 /**
  * MCP Tool Call API
  *
@@ -36,7 +37,7 @@ export const POST: RequestHandler = async (event) => {
 			return json({ error: 'MCP not connected' }, { status: 400 });
 		}
 
-		console.log(`[API] Calling tool: ${toolName} on ${instanceId}`);
+		logger.info(`[API] Calling tool: ${toolName} on ${instanceId}`);
 
 		const result = await callTool(instanceId, toolName, args || {});
 

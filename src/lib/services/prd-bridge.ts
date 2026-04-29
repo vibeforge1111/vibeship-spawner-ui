@@ -1,3 +1,4 @@
+import { logger } from '$lib/utils/logger';
 /**
  * PRD Bridge Service
  *
@@ -124,18 +125,18 @@ export async function initPRDBridge(): Promise<void> {
 
 		// Subscribe to bridge events
 		clientEventBridge.subscribe((event: BridgeEvent) => {
-			console.log('[PRDBridge] Received event:', event.type);
+			logger.info('[PRDBridge] Received event:', event.type);
 			if (event.type === 'prd_analysis_complete') {
 				handleAnalysisComplete(event);
 			} else if (event.type === 'prd_analysis_error') {
 				handleAnalysisError(event);
 			} else if (event.type === 'prd_analysis_progress') {
-				console.log('[PRDBridge] Analysis progress:', event.message);
+				logger.info('[PRDBridge] Analysis progress:', event.message);
 			}
 		});
 
 		bridgeInitialized = true;
-		console.log('[PRDBridge] Initialized, listening for analysis responses');
+		logger.info('[PRDBridge] Initialized, listening for analysis responses');
 	} catch (e) {
 		console.error('[PRDBridge] Failed to initialize:', e);
 	}
@@ -228,7 +229,7 @@ async function sendAnalysisRequest(request: PRDAnalysisRequest): Promise<void> {
 		throw new Error('Failed to send analysis request');
 	}
 
-	console.log('[PRDBridge] Analysis request sent:', request.requestId);
+	logger.info('[PRDBridge] Analysis request sent:', request.requestId);
 }
 
 /**
@@ -251,7 +252,7 @@ function waitForAnalysisResponse(requestId: string, timeoutMs: number): Promise<
 function handleAnalysisComplete(event: BridgeEvent): void {
 	const data = event.data as { requestId?: string; result?: PRDAnalysisResult };
 
-	console.log('[PRDBridge] Received analysis complete event:', data?.requestId);
+	logger.info('[PRDBridge] Received analysis complete event:', data?.requestId);
 
 	if (!data?.requestId) {
 		console.warn('[PRDBridge] Received analysis without requestId');
@@ -262,7 +263,7 @@ function handleAnalysisComplete(event: BridgeEvent): void {
 	if (data.result) {
 		analysisResult.set(data.result);
 		analysisStatus.set('complete');
-		console.log('[PRDBridge] Updated stores with result:', data.result.projectName);
+		logger.info('[PRDBridge] Updated stores with result:', data.result.projectName);
 	}
 
 	// Also resolve any pending promise-based requests
@@ -345,7 +346,7 @@ export async function checkPendingPRDResult(): Promise<PRDAnalysisResult | null>
 			return null;
 		}
 
-		console.log('[PRDBridge] Found pending result:', resultData.result.projectName);
+		logger.info('[PRDBridge] Found pending result:', resultData.result.projectName);
 
 		// Clear the pending request now that we've found the result
 		await fetch('/api/prd-bridge/pending', { method: 'DELETE' });

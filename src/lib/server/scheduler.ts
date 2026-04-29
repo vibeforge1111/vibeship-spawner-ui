@@ -1,3 +1,4 @@
+import { logger } from '$lib/utils/logger';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { homedir } from 'node:os';
@@ -196,12 +197,12 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
 
 async function _relayToTelegram(record: ScheduleRecord, result: { ok: boolean; summary: string }): Promise<void> {
   if (!record.chatId) {
-    console.log('[scheduler] relay skipped: no chatId on', record.id);
+    logger.info('[scheduler] relay skipped: no chatId on', record.id);
     return;
   }
   const token = _envVar('TELEGRAM_BOT_TOKEN') || _envVar('BOT_TOKEN');
   if (!token) {
-    console.log('[scheduler] relay skipped: no TELEGRAM_BOT_TOKEN or BOT_TOKEN in env');
+    logger.info('[scheduler] relay skipped: no TELEGRAM_BOT_TOKEN or BOT_TOKEN in env');
     return;
   }
   const text = `[sched ${record.id}] ${record.action} ${result.ok ? 'ok' : 'fail'}\n${result.summary}`;
@@ -212,9 +213,9 @@ async function _relayToTelegram(record: ScheduleRecord, result: { ok: boolean; s
       body: JSON.stringify({ chat_id: record.chatId, text }),
     });
     const bodyText = await resp.text();
-    console.log('[scheduler] relay', record.id, 'status', resp.status, 'body', bodyText.slice(0, 200));
+    logger.info('[scheduler] relay', record.id, 'status', resp.status, 'body', bodyText.slice(0, 200));
   } catch (err: any) {
-    console.log('[scheduler] relay fetch error on', record.id, err?.message || err);
+    logger.info('[scheduler] relay fetch error on', record.id, err?.message || err);
   }
 }
 

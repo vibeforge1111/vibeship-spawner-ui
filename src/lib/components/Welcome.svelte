@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { logger } from '$lib/utils/logger';
 	// Note: Using window.location.href instead of goto() for navigation
 	// to avoid Svelte reactivity issues with canvas (see handleProcessingComplete)
 	import Navbar from './Navbar.svelte';
@@ -87,7 +88,7 @@
 
 			try {
 				// Stage 0: Reading PRD
-				console.log('[PRD] Starting analysis, content length:', content.length, 'aiMode:', useAIMode, 'smartMode:', useSmartMode);
+				logger.info('[PRD] Starting analysis, content length:', content.length, 'aiMode:', useAIMode, 'smartMode:', useSmartMode);
 				await delay(600);
 
 				// Load skills first (needed for all modes)
@@ -100,7 +101,7 @@
 				if (useAIMode) {
 					// === AI MODE ===
 					// Uses REAL Claude AI intelligence via bridge (PREFERRED)
-					console.log('[PRD-AI] Setting up for Claude analysis...');
+					logger.info('[PRD-AI] Setting up for Claude analysis...');
 
 					// Stage 1: Writing PRD for Claude
 					processingStage = 1;
@@ -128,7 +129,7 @@
 						// Show "waiting for Claude" with copyable prompt
 						waitingForClaude = true;
 
-						console.log('[PRD-AI] PRD written, waiting for Claude. Request ID:', requestId);
+						logger.info('[PRD-AI] PRD written, waiting for Claude. Request ID:', requestId);
 
 						// Capture skillsList in closure
 						const capturedSkills = skillsList;
@@ -153,9 +154,9 @@
 								processingStage = 4;
 								processingTasksGenerated = result.tasks?.length || 0;
 
-								console.log('[PRD-AI] Converting to workflow with', capturedSkills.length, 'skills');
+								logger.info('[PRD-AI] Converting to workflow with', capturedSkills.length, 'skills');
 								pendingWorkflow = prdResultToWorkflow(result, capturedSkills);
-								console.log('[PRD-AI] Workflow created:', pendingWorkflow?.nodes?.length, 'nodes');
+								logger.info('[PRD-AI] Workflow created:', pendingWorkflow?.nodes?.length, 'nodes');
 
 								smartPrompt = result.executionPrompt;
 								processingStage = 5;
@@ -164,7 +165,7 @@
 									setProjectName(result.projectName);
 								}
 
-								console.log('[PRD-AI] Pipeline ready! Stage:', processingStage);
+								logger.info('[PRD-AI] Pipeline ready! Stage:', processingStage);
 							} catch (err) {
 								console.error('[PRD-AI] Error processing result:', err);
 								waitingForClaude = false;
@@ -188,11 +189,11 @@
 
 							// Set up listener for Claude's response
 							unsubscribe = analysisStatus.subscribe(status => {
-								console.log('[PRD-AI] Status changed to:', status);
+								logger.info('[PRD-AI] Status changed to:', status);
 								if (status === 'complete' && !resultProcessed) {
 									// Claude responded! Get the result from the store.
 									const result = get(analysisResult);
-									console.log('[PRD-AI] Got result via SSE:', result?.projectName);
+									logger.info('[PRD-AI] Got result via SSE:', result?.projectName);
 
 									if (result) {
 										processClaudeResult(result);
@@ -213,7 +214,7 @@
 									const data = await response.json();
 
 									if (data.found && data.result && !resultProcessed) {
-										console.log('[PRD-AI] Got result via POLLING:', data.result.projectName);
+										logger.info('[PRD-AI] Got result via POLLING:', data.result.projectName);
 										processClaudeResult(data.result);
 										await fetch('/api/prd-bridge/pending', { method: 'DELETE' });
 										settle(true);
@@ -254,7 +255,7 @@
 					await delay(400);
 					const result = processSmartPRD(content, skillsList);
 
-					console.log('[PRD-Smart] Analysis complete:', {
+					logger.info('[PRD-Smart] Analysis complete:', {
 						projectName: result.analysis.projectName,
 						projectType: result.analysis.projectType,
 						pipelineType: result.analysis.pipelineType,
@@ -309,7 +310,7 @@
 						setProjectName(result.analysis.projectName);
 					}
 
-					console.log('[PRD-Smart] Pipeline ready:',
+					logger.info('[PRD-Smart] Pipeline ready:',
 						result.mission.totalTasks, 'tasks,',
 						result.mission.estimatedComplexity, 'complexity');
 
@@ -321,7 +322,7 @@
 					processingStage = 1;
 					await delay(500);
 					const analysis = analyzePRD(content);
-					console.log('[PRD-Legacy] Analysis complete:', { projectName: analysis.projectName, features: analysis.features.length });
+					logger.info('[PRD-Legacy] Analysis complete:', { projectName: analysis.projectName, features: analysis.features.length });
 					processingProjectName = analysis.projectName || processingProjectName;
 					processingFeaturesFound = analysis.features.length;
 
@@ -336,7 +337,7 @@
 					// Stage 4: Building Pipeline
 					processingStage = 4;
 					const tasks = generateTasksFromPRD(analysis, skillsList);
-					console.log('[PRD-Legacy] Generated tasks:', tasks.length);
+					logger.info('[PRD-Legacy] Generated tasks:', tasks.length);
 					processingTasksGenerated = tasks.length;
 
 					if (tasks.length === 0) {
@@ -347,7 +348,7 @@
 
 					// Generate workflow
 					const workflow = tasksToWorkflow(tasks, skillsList);
-					console.log('[PRD-Legacy] Workflow nodes:', workflow.nodes.length, 'connections:', workflow.connections.length);
+					logger.info('[PRD-Legacy] Workflow nodes:', workflow.nodes.length, 'connections:', workflow.connections.length);
 					pendingWorkflow = workflow;
 					smartPrompt = null;  // No smart prompt in legacy mode
 					await delay(600);
@@ -371,12 +372,12 @@
 	}
 
 	async function handleProcessingComplete() {
-		console.log('[PRD] handleProcessingComplete called, pendingWorkflow:', !!pendingWorkflow);
+		logger.info('[PRD] handleProcessingComplete called, pendingWorkflow:', !!pendingWorkflow);
 
 		const pipelineName = processingProjectName || 'PRD Pipeline';
 
 		if (pendingWorkflow && pendingWorkflow.nodes.length > 0) {
-			console.log('[PRD] Queueing pipeline with', pendingWorkflow.nodes.length, 'nodes and', pendingWorkflow.connections.length, 'connections');
+			logger.info('[PRD] Queueing pipeline with', pendingWorkflow.nodes.length, 'nodes and', pendingWorkflow.connections.length, 'connections');
 
 			// Extract skills from workflow nodes and add to skills store (for sidebar)
 			const workflowSkills = pendingWorkflow.nodes.map(n => n.skill);
@@ -411,7 +412,7 @@
 
 		showProcessingModal = false;
 		pendingWorkflow = null;
-		console.log('[PRD] Navigating to /canvas');
+		logger.info('[PRD] Navigating to /canvas');
 		window.location.href = '/canvas';
 	}
 
@@ -423,7 +424,7 @@
 	 * Skip Claude AI and use local smart analyzer instead
 	 */
 	async function handleSkipToLocal() {
-		console.log('[PRD] Skipping to local analyzer...');
+		logger.info('[PRD] Skipping to local analyzer...');
 		waitingForClaude = false;
 
 		// Read the pending PRD content

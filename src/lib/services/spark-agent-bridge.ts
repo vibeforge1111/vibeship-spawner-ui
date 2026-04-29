@@ -17,7 +17,7 @@ import {
 	type MCPClientConfig
 } from '$lib/services/mcp/client';
 
-export type OpenclawCommandName =
+export type SparkAgentCommandName =
 	| 'canvas.create_pipeline'
 	| 'canvas.add_skill'
 	| 'canvas.add_connection'
@@ -37,7 +37,7 @@ export type OpenclawCommandName =
 	| 'worker.cancel'
 	| 'worker.status';
 
-export const OPENCLAW_ALLOWED_COMMANDS: OpenclawCommandName[] = [
+export const SPARK_AGENT_ALLOWED_COMMANDS: SparkAgentCommandName[] = [
 	'canvas.create_pipeline',
 	'canvas.add_skill',
 	'canvas.add_connection',
@@ -58,7 +58,7 @@ export const OPENCLAW_ALLOWED_COMMANDS: OpenclawCommandName[] = [
 	'worker.status'
 ];
 
-export interface OpenclawBridgeEvent {
+export interface SparkAgentBridgeEvent {
 	id: string;
 	type: string;
 	sessionId: string;
@@ -66,16 +66,16 @@ export interface OpenclawBridgeEvent {
 	data: Record<string, unknown>;
 }
 
-export interface OpenclawCanvasSnapshot {
+export interface SparkAgentCanvasSnapshot {
 	sessionId: string;
 	updatedAt: string;
 	pipelineId: string;
 	pipelineName: string;
-	nodes: OpenclawCanvasNode[];
-	connections: OpenclawCanvasConnection[];
+	nodes: SparkAgentCanvasNode[];
+	connections: SparkAgentCanvasConnection[];
 }
 
-export interface OpenclawSession {
+export interface SparkAgentSession {
 	id: string;
 	status: 'active' | 'ended';
 	createdAt: string;
@@ -87,61 +87,61 @@ export interface OpenclawSession {
 	canvas: {
 		pipelineId: string;
 		pipelineName: string;
-		nodes: OpenclawCanvasNode[];
-		connections: OpenclawCanvasConnection[];
+		nodes: SparkAgentCanvasNode[];
+		connections: SparkAgentCanvasConnection[];
 	};
 	mission: Mission | null;
-	events: OpenclawBridgeEvent[];
+	events: SparkAgentBridgeEvent[];
 }
 
-export interface OpenclawSessionStartInput {
+export interface SparkAgentSessionStartInput {
 	sessionId?: string;
 	actor?: string;
 	metadata?: Record<string, unknown>;
 }
 
-export interface OpenclawCommandInput {
+export interface SparkAgentCommandInput {
 	sessionId: string;
-	command: OpenclawCommandName;
+	command: SparkAgentCommandName;
 	params?: Record<string, unknown>;
 	requestId?: string;
 	actor?: string;
 }
 
-export interface OpenclawCommandResult {
+export interface SparkAgentCommandResult {
 	ok: boolean;
 	sessionId: string;
-	command: OpenclawCommandName;
+	command: SparkAgentCommandName;
 	requestId?: string;
 	data?: Record<string, unknown>;
 	error?: string;
 }
 
-export type OpenclawProviderId = 'claude' | 'codex';
+export type SparkAgentProviderId = 'claude' | 'codex';
 
-export interface OpenclawProviderTaskInput {
-	providerId: OpenclawProviderId;
+export interface SparkAgentProviderTaskInput {
+	providerId: SparkAgentProviderId;
 	missionId: string;
 	prompt: string;
 	model?: string;
 	workingDirectory?: string;
 	commandTemplate?: string;
 	taskId?: string;
-	openclawSessionId?: string;
+	sparkAgentSessionId?: string;
 	signal?: AbortSignal;
 }
 
-export interface OpenclawProviderTaskResult {
+export interface SparkAgentProviderTaskResult {
 	success: boolean;
-	openclawSessionId: string;
+	sparkAgentSessionId: string;
 	response?: string;
 	error?: string;
 	durationMs?: number;
 }
 
-interface OpenclawWorkerState {
+interface SparkAgentWorkerState {
 	sessionId: string;
-	providerId: OpenclawProviderId;
+	providerId: SparkAgentProviderId;
 	missionId: string;
 	taskId?: string;
 	status: 'running' | 'completed' | 'failed' | 'cancelled';
@@ -153,9 +153,9 @@ interface OpenclawWorkerState {
 	progress: number;
 }
 
-interface OpenclawWorkerExecutorContext {
+interface SparkAgentWorkerExecutorContext {
 	sessionId: string;
-	providerId: OpenclawProviderId;
+	providerId: SparkAgentProviderId;
 	missionId: string;
 	taskId?: string;
 	prompt: string;
@@ -166,11 +166,11 @@ interface OpenclawWorkerExecutorContext {
 	emitProgress: (progress: number, message: string) => void;
 }
 
-type OpenclawWorkerExecutor = (
-	context: OpenclawWorkerExecutorContext
+type SparkAgentWorkerExecutor = (
+	context: SparkAgentWorkerExecutorContext
 ) => Promise<{ success: boolean; response?: string; error?: string }>;
 
-export interface OpenclawCanvasNode {
+export interface SparkAgentCanvasNode {
 	id: string;
 	skillId: string;
 	skillName: string;
@@ -178,13 +178,13 @@ export interface OpenclawCanvasNode {
 	position: { x: number; y: number };
 }
 
-export interface OpenclawCanvasConnection {
+export interface SparkAgentCanvasConnection {
 	id: string;
 	sourceNodeId: string;
 	targetNodeId: string;
 }
 
-type OpenclawSubscriber = (event: OpenclawBridgeEvent) => void;
+type SparkAgentSubscriber = (event: SparkAgentBridgeEvent) => void;
 
 const MAX_SESSION_EVENTS = 500;
 const CANCELLED_ERROR = 'Cancelled';
@@ -214,7 +214,7 @@ function createId(prefix: string): string {
 	return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function isProviderId(value: unknown): value is OpenclawProviderId {
+function isProviderId(value: unknown): value is SparkAgentProviderId {
 	return value === 'claude' || value === 'codex';
 }
 
@@ -240,14 +240,14 @@ export function prepareProviderWorkingDirectory(workingDirectory?: string): stri
 	return cwd;
 }
 
-function resolveProviderCommandTemplate(providerId: OpenclawProviderId, model?: string, template?: string): string {
+function resolveProviderCommandTemplate(providerId: SparkAgentProviderId, model?: string, template?: string): string {
 	const fallbackTemplate = providerId === 'claude' ? 'claude -p --model {model}' : 'codex exec --model {model}';
 	const commandTemplate = template && template.trim() ? template : fallbackTemplate;
 	const fallbackModel = providerId === 'claude' ? 'opus' : 'gpt-5.5';
 	return commandTemplate.replace('{model}', (model && model.trim()) || fallbackModel);
 }
 
-function parseProviderCommand(providerId: OpenclawProviderId, commandTemplate: string): ProviderCommand {
+function parseProviderCommand(providerId: SparkAgentProviderId, commandTemplate: string): ProviderCommand {
 	const tokens = commandTemplate.split(/\s+/).filter(Boolean);
 	if (tokens.length === 0) {
 		throw new Error('Provider command template is empty');
@@ -305,14 +305,14 @@ function sanitizeMcpConfig(value: unknown): MCPClientConfig | null {
 	return { command, args, env };
 }
 
-class OpenclawBridgeService {
-	private sessions = new Map<string, OpenclawSession>();
-	private subscribers = new Map<string, Set<OpenclawSubscriber>>();
+class SparkAgentBridgeService {
+	private sessions = new Map<string, SparkAgentSession>();
+	private subscribers = new Map<string, Set<SparkAgentSubscriber>>();
 	private instanceOwners = new Map<string, { sessionId: string; mcpId?: string }>();
-	private workerSessions = new Map<string, OpenclawWorkerState>();
-	private workerExecutorOverride: OpenclawWorkerExecutor | null = null;
+	private workerSessions = new Map<string, SparkAgentWorkerState>();
+	private workerExecutorOverride: SparkAgentWorkerExecutor | null = null;
 
-	startSession(input: OpenclawSessionStartInput = {}): OpenclawSession {
+	startSession(input: SparkAgentSessionStartInput = {}): SparkAgentSession {
 		const sessionId = input.sessionId || randomUUID();
 		const existing = this.sessions.get(sessionId);
 		if (existing && existing.status === 'active') {
@@ -320,7 +320,7 @@ class OpenclawBridgeService {
 		}
 
 		const createdAt = nowIso();
-		const session: OpenclawSession = {
+		const session: SparkAgentSession = {
 			id: sessionId,
 			status: 'active',
 			createdAt,
@@ -330,7 +330,7 @@ class OpenclawBridgeService {
 			commandCount: 0,
 			canvas: {
 				pipelineId: createId('pipe'),
-				pipelineName: 'Openclaw Pipeline',
+				pipelineName: 'Spark Agent Pipeline',
 				nodes: [],
 				connections: []
 			},
@@ -339,14 +339,14 @@ class OpenclawBridgeService {
 		};
 
 		this.sessions.set(sessionId, session);
-		this.emitEvent(sessionId, 'openclaw.session.started', {
+		this.emitEvent(sessionId, 'spark_agent.session.started', {
 			actor: session.actor || null,
 			metadata: session.metadata
 		});
 		return session;
 	}
 
-	endSession(sessionId: string, reason = 'requested'): OpenclawSession {
+	endSession(sessionId: string, reason = 'requested'): SparkAgentSession {
 		const session = this.requireSession(sessionId);
 		if (session.status === 'ended') {
 			return session;
@@ -364,22 +364,22 @@ class OpenclawBridgeService {
 		session.status = 'ended';
 		session.endedAt = nowIso();
 		session.updatedAt = session.endedAt;
-		this.emitEvent(sessionId, 'openclaw.session.ended', { reason });
+		this.emitEvent(sessionId, 'spark_agent.session.ended', { reason });
 		return session;
 	}
 
-	getSession(sessionId: string): OpenclawSession | null {
+	getSession(sessionId: string): SparkAgentSession | null {
 		return this.sessions.get(sessionId) || null;
 	}
 
-	getSessionEvents(sessionId: string): OpenclawBridgeEvent[] {
+	getSessionEvents(sessionId: string): SparkAgentBridgeEvent[] {
 		return [...(this.sessions.get(sessionId)?.events || [])];
 	}
 
-	getLatestCanvasSnapshot(since?: string): OpenclawCanvasSnapshot | null {
+	getLatestCanvasSnapshot(since?: string): SparkAgentCanvasSnapshot | null {
 		const sinceTs = since ? Date.parse(since) : Number.NaN;
 		const sessions = [...this.sessions.values()].filter((session) =>
-			session.events.some((event) => event.type === 'openclaw.canvas.updated')
+			session.events.some((event) => event.type === 'spark_agent.canvas.updated')
 		);
 		if (sessions.length === 0) return null;
 
@@ -400,7 +400,7 @@ class OpenclawBridgeService {
 		};
 	}
 
-	subscribe(sessionId: string, callback: OpenclawSubscriber): () => void {
+	subscribe(sessionId: string, callback: SparkAgentSubscriber): () => void {
 		if (!this.subscribers.has(sessionId)) {
 			this.subscribers.set(sessionId, new Set());
 		}
@@ -410,20 +410,20 @@ class OpenclawBridgeService {
 		};
 	}
 
-	setWorkerExecutorForTests(executor: OpenclawWorkerExecutor | null): void {
+	setWorkerExecutorForTests(executor: SparkAgentWorkerExecutor | null): void {
 		this.workerExecutorOverride = executor;
 	}
 
-	getWorkerSession(sessionId: string): OpenclawWorkerState | null {
+	getWorkerSession(sessionId: string): SparkAgentWorkerState | null {
 		return this.workerSessions.get(sessionId) || null;
 	}
 
-	async executeProviderTask(input: OpenclawProviderTaskInput): Promise<OpenclawProviderTaskResult> {
+	async executeProviderTask(input: SparkAgentProviderTaskInput): Promise<SparkAgentProviderTaskResult> {
 		const startedAtMs = Date.now();
 		const { providerId, missionId, prompt } = input;
 		const taskId = input.taskId;
 		const session = this.startSession({
-			sessionId: input.openclawSessionId,
+			sessionId: input.sparkAgentSessionId,
 			actor: 'provider-runtime',
 			metadata: {
 				kind: 'provider_worker',
@@ -432,11 +432,11 @@ class OpenclawBridgeService {
 				taskId: taskId || null
 			}
 		});
-		const openclawSessionId = session.id;
+		const sparkAgentSessionId = session.id;
 		const command = resolveProviderCommandTemplate(providerId, input.model, input.commandTemplate);
 
-		const workerState: OpenclawWorkerState = {
-			sessionId: openclawSessionId,
+		const workerState: SparkAgentWorkerState = {
+			sessionId: sparkAgentSessionId,
 			providerId,
 			missionId,
 			taskId,
@@ -444,7 +444,7 @@ class OpenclawBridgeService {
 			startedAt: nowIso(),
 			progress: 0
 		};
-		this.workerSessions.set(openclawSessionId, workerState);
+		this.workerSessions.set(sparkAgentSessionId, workerState);
 
 		this.emitProviderEvent(workerState, 'task_started', {
 			message: `${providerId} worker started`
@@ -463,7 +463,7 @@ class OpenclawBridgeService {
 
 		try {
 			const result = await executor({
-				sessionId: openclawSessionId,
+				sessionId: sparkAgentSessionId,
 				providerId,
 				missionId,
 				taskId,
@@ -478,7 +478,7 @@ class OpenclawBridgeService {
 			if (workerState.status === 'cancelled') {
 				return {
 					success: false,
-					openclawSessionId,
+					sparkAgentSessionId,
 					error: CANCELLED_ERROR,
 					durationMs: Date.now() - startedAtMs
 				};
@@ -493,10 +493,10 @@ class OpenclawBridgeService {
 					message: `${providerId} worker completed`,
 					response: result.response || ''
 				});
-				this.endSession(openclawSessionId, 'completed');
+				this.endSession(sparkAgentSessionId, 'completed');
 				return {
 					success: true,
-					openclawSessionId,
+					sparkAgentSessionId,
 					response: result.response,
 					durationMs: Date.now() - startedAtMs
 				};
@@ -512,10 +512,10 @@ class OpenclawBridgeService {
 					providerId
 				}
 			});
-			this.endSession(openclawSessionId, 'failed');
+			this.endSession(sparkAgentSessionId, 'failed');
 			return {
 				success: false,
-				openclawSessionId,
+				sparkAgentSessionId,
 				error: workerState.error,
 				durationMs: Date.now() - startedAtMs
 			};
@@ -529,11 +529,11 @@ class OpenclawBridgeService {
 					message,
 					error: { message, providerId }
 				});
-				this.endSession(openclawSessionId, 'failed');
+				this.endSession(sparkAgentSessionId, 'failed');
 			}
 			return {
 				success: false,
-				openclawSessionId,
+				sparkAgentSessionId,
 				error: workerState.status === 'cancelled' ? CANCELLED_ERROR : message,
 				durationMs: Date.now() - startedAtMs
 			};
@@ -562,7 +562,7 @@ class OpenclawBridgeService {
 		return true;
 	}
 
-	async executeCommand(input: OpenclawCommandInput): Promise<OpenclawCommandResult> {
+	async executeCommand(input: SparkAgentCommandInput): Promise<SparkAgentCommandResult> {
 		const session = this.requireSession(input.sessionId);
 		if (session.status !== 'active') {
 			return {
@@ -578,7 +578,7 @@ class OpenclawBridgeService {
 		session.commandCount += 1;
 		session.updatedAt = nowIso();
 		session.actor = actor;
-		this.emitEvent(input.sessionId, 'openclaw.command.received', {
+		this.emitEvent(input.sessionId, 'spark_agent.command.received', {
 			command: input.command,
 			actor,
 			requestId: input.requestId || null,
@@ -587,7 +587,7 @@ class OpenclawBridgeService {
 
 		try {
 			const data = await this.dispatchCommand(session, input.command, input.params || {});
-			this.emitEvent(input.sessionId, 'openclaw.command.completed', {
+			this.emitEvent(input.sessionId, 'spark_agent.command.completed', {
 				command: input.command,
 				actor,
 				requestId: input.requestId || null,
@@ -602,7 +602,7 @@ class OpenclawBridgeService {
 			};
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Command failed';
-			this.emitEvent(input.sessionId, 'openclaw.command.failed', {
+			this.emitEvent(input.sessionId, 'spark_agent.command.failed', {
 				command: input.command,
 				actor,
 				requestId: input.requestId || null,
@@ -626,7 +626,7 @@ class OpenclawBridgeService {
 		this.workerExecutorOverride = null;
 	}
 
-	private requireSession(sessionId: string): OpenclawSession {
+	private requireSession(sessionId: string): SparkAgentSession {
 		const session = this.sessions.get(sessionId);
 		if (!session) {
 			throw new Error(`Unknown session: ${sessionId}`);
@@ -638,7 +638,7 @@ class OpenclawBridgeService {
 		const session = this.sessions.get(sessionId);
 		if (!session) return;
 
-		const event: OpenclawBridgeEvent = {
+		const event: SparkAgentBridgeEvent = {
 			id: createId('ocl-evt'),
 			type,
 			sessionId,
@@ -660,7 +660,7 @@ class OpenclawBridgeService {
 			eventBridge.emit({
 				id: event.id,
 				type,
-				source: 'openclaw',
+				source: 'spark-agent',
 				timestamp: event.timestamp,
 				missionId: session.mission?.id || metadataMissionId,
 				data: {
@@ -675,8 +675,8 @@ class OpenclawBridgeService {
 	}
 
 	private async dispatchCommand(
-		session: OpenclawSession,
-		command: OpenclawCommandName,
+		session: SparkAgentSession,
+		command: SparkAgentCommandName,
 		params: Record<string, unknown>
 	): Promise<Record<string, unknown>> {
 		switch (command) {
@@ -710,7 +710,7 @@ class OpenclawBridgeService {
 				return await this.handleMcpDisconnect(session, params);
 			case 'events.subscribe':
 				return {
-					endpoint: `/api/openclaw/events?sessionId=${encodeURIComponent(session.id)}`,
+					endpoint: `/api/spark-agent/events?sessionId=${encodeURIComponent(session.id)}`,
 					sessionId: session.id
 				};
 			case 'worker.run':
@@ -723,11 +723,11 @@ class OpenclawBridgeService {
 	}
 
 	private handleCanvasCreatePipeline(
-		session: OpenclawSession,
+		session: SparkAgentSession,
 		params: Record<string, unknown>
 	): Record<string, unknown> {
 		const pipelineId = toString(params.pipelineId, createId('pipe'));
-		const pipelineName = toString(params.name, 'Openclaw Pipeline');
+		const pipelineName = toString(params.name, 'Spark Agent Pipeline');
 		session.canvas = {
 			pipelineId,
 			pipelineName,
@@ -735,7 +735,7 @@ class OpenclawBridgeService {
 			connections: []
 		};
 		session.mission = null;
-		this.emitEvent(session.id, 'openclaw.canvas.updated', {
+		this.emitEvent(session.id, 'spark_agent.canvas.updated', {
 			action: 'create_pipeline',
 			pipelineId,
 			pipelineName
@@ -749,7 +749,7 @@ class OpenclawBridgeService {
 	}
 
 	private handleCanvasAddSkill(
-		session: OpenclawSession,
+		session: SparkAgentSession,
 		params: Record<string, unknown>
 	): Record<string, unknown> {
 		const skillId = toString(params.skillId, createId('skill'));
@@ -763,7 +763,7 @@ class OpenclawBridgeService {
 				}
 			: { x: session.canvas.nodes.length * 220, y: 120 };
 
-		const node: OpenclawCanvasNode = {
+		const node: SparkAgentCanvasNode = {
 			id: nodeId,
 			skillId,
 			skillName,
@@ -771,7 +771,7 @@ class OpenclawBridgeService {
 			position
 		};
 		session.canvas.nodes.push(node);
-		this.emitEvent(session.id, 'openclaw.canvas.updated', {
+		this.emitEvent(session.id, 'spark_agent.canvas.updated', {
 			action: 'add_skill',
 			node
 		});
@@ -783,7 +783,7 @@ class OpenclawBridgeService {
 	}
 
 	private handleCanvasAddConnection(
-		session: OpenclawSession,
+		session: SparkAgentSession,
 		params: Record<string, unknown>
 	): Record<string, unknown> {
 		const sourceNodeId = toStringOrUndefined(params.sourceNodeId);
@@ -798,13 +798,13 @@ class OpenclawBridgeService {
 			throw new Error('Both source and target nodes must exist');
 		}
 
-		const connection: OpenclawCanvasConnection = {
+		const connection: SparkAgentCanvasConnection = {
 			id: toString(params.connectionId, createId('conn')),
 			sourceNodeId,
 			targetNodeId
 		};
 		session.canvas.connections.push(connection);
-		this.emitEvent(session.id, 'openclaw.canvas.updated', {
+		this.emitEvent(session.id, 'spark_agent.canvas.updated', {
 			action: 'add_connection',
 			connection
 		});
@@ -814,7 +814,7 @@ class OpenclawBridgeService {
 		};
 	}
 
-	private handleCanvasGetState(session: OpenclawSession): Record<string, unknown> {
+	private handleCanvasGetState(session: SparkAgentSession): Record<string, unknown> {
 		return {
 			pipelineId: session.canvas.pipelineId,
 			pipelineName: session.canvas.pipelineName,
@@ -824,7 +824,7 @@ class OpenclawBridgeService {
 	}
 
 	private handleMissionBuild(
-		session: OpenclawSession,
+		session: SparkAgentSession,
 		params: Record<string, unknown>
 	): Record<string, unknown> {
 		if (session.canvas.nodes.length === 0) {
@@ -832,7 +832,7 @@ class OpenclawBridgeService {
 		}
 
 		const now = nowIso();
-		const agentId = 'openclaw-agent';
+		const agentId = 'spark-agent-worker';
 		const taskIdByNodeId = new Map<string, string>();
 		session.canvas.nodes.forEach((node, index) => {
 			taskIdByNodeId.set(node.id, `task-${index + 1}`);
@@ -858,7 +858,7 @@ class OpenclawBridgeService {
 
 		const mission: Mission = {
 			id: createId('mission'),
-			user_id: 'openclaw',
+			user_id: 'sparkAgent',
 			name: toString(params.name, session.canvas.pipelineName),
 			description: toString(params.description, `Mission generated from ${session.canvas.pipelineName}`),
 			mode: 'multi-llm-orchestrator',
@@ -866,7 +866,7 @@ class OpenclawBridgeService {
 			agents: [
 				{
 					id: agentId,
-					name: 'Openclaw Orchestrator',
+					name: 'Spark Agent Orchestrator',
 					role: 'orchestrator',
 					skills: session.canvas.nodes.map((node) => node.skillId)
 				}
@@ -889,7 +889,7 @@ class OpenclawBridgeService {
 		};
 
 		session.mission = mission;
-		this.emitEvent(session.id, 'openclaw.mission.built', {
+		this.emitEvent(session.id, 'spark_agent.mission.built', {
 			missionId: mission.id,
 			taskCount: mission.tasks.length
 		});
@@ -899,7 +899,7 @@ class OpenclawBridgeService {
 	}
 
 	private handleMissionStatusChange(
-		session: OpenclawSession,
+		session: SparkAgentSession,
 		nextStatus: Mission['status']
 	): Record<string, unknown> {
 		if (!session.mission) {
@@ -911,7 +911,7 @@ class OpenclawBridgeService {
 		if (nextStatus === 'running') {
 			session.mission.started_at = session.mission.started_at || nowIso();
 		}
-		this.emitEvent(session.id, 'openclaw.mission.status', {
+		this.emitEvent(session.id, 'spark_agent.mission.status', {
 			missionId: session.mission.id,
 			status: nextStatus
 		});
@@ -920,15 +920,15 @@ class OpenclawBridgeService {
 		};
 	}
 
-	private handleMissionStop(session: OpenclawSession): Record<string, unknown> {
+	private handleMissionStop(session: SparkAgentSession): Record<string, unknown> {
 		if (!session.mission) {
 			throw new Error('No mission has been built for this session');
 		}
 
 		session.mission.status = 'failed';
-		session.mission.error = 'Stopped by openclaw command';
+		session.mission.error = 'Stopped by Spark agent command';
 		session.mission.updated_at = nowIso();
-		this.emitEvent(session.id, 'openclaw.mission.status', {
+		this.emitEvent(session.id, 'spark_agent.mission.status', {
 			missionId: session.mission.id,
 			status: session.mission.status
 		});
@@ -937,7 +937,7 @@ class OpenclawBridgeService {
 		};
 	}
 
-	private handleMissionStatus(session: OpenclawSession): Record<string, unknown> {
+	private handleMissionStatus(session: SparkAgentSession): Record<string, unknown> {
 		if (!session.mission) {
 			return {
 				mission: null
@@ -948,7 +948,7 @@ class OpenclawBridgeService {
 		};
 	}
 
-	private handleMcpList(session: OpenclawSession): Record<string, unknown> {
+	private handleMcpList(session: SparkAgentSession): Record<string, unknown> {
 		const connected = Array.from(getConnections().entries())
 			.filter(([instanceId]) => this.instanceOwners.get(instanceId)?.sessionId === session.id)
 			.map(([instanceId, connection]) => {
@@ -969,7 +969,7 @@ class OpenclawBridgeService {
 	}
 
 	private async handleMcpConnect(
-		session: OpenclawSession,
+		session: SparkAgentSession,
 		params: Record<string, unknown>
 	): Promise<Record<string, unknown>> {
 		const instanceId = toString(params.instanceId, createId('mcp'));
@@ -994,7 +994,7 @@ class OpenclawBridgeService {
 
 		const connection = await connectMCP(instanceId, config);
 		this.instanceOwners.set(instanceId, { sessionId: session.id, mcpId });
-		this.emitEvent(session.id, 'openclaw.mcp.connected', {
+		this.emitEvent(session.id, 'spark_agent.mcp.connected', {
 			instanceId,
 			mcpId: mcpId || null,
 			serverInfo: connection.serverInfo
@@ -1011,7 +1011,7 @@ class OpenclawBridgeService {
 	}
 
 	private async handleMcpCallTool(
-		session: OpenclawSession,
+		session: SparkAgentSession,
 		params: Record<string, unknown>
 	): Promise<Record<string, unknown>> {
 		const instanceId = toStringOrUndefined(params.instanceId);
@@ -1026,7 +1026,7 @@ class OpenclawBridgeService {
 
 		const args = isRecord(params.args) ? params.args : {};
 		const result = await callTool(instanceId, toolName, args);
-		this.emitEvent(session.id, 'openclaw.mcp.tool_called', {
+		this.emitEvent(session.id, 'spark_agent.mcp.tool_called', {
 			instanceId,
 			toolName
 		});
@@ -1038,7 +1038,7 @@ class OpenclawBridgeService {
 	}
 
 	private async handleMcpDisconnect(
-		session: OpenclawSession,
+		session: SparkAgentSession,
 		params: Record<string, unknown>
 	): Promise<Record<string, unknown>> {
 		const instanceId = toStringOrUndefined(params.instanceId);
@@ -1049,7 +1049,7 @@ class OpenclawBridgeService {
 
 		await disconnectMCP(instanceId);
 		this.instanceOwners.delete(instanceId);
-		this.emitEvent(session.id, 'openclaw.mcp.disconnected', {
+		this.emitEvent(session.id, 'spark_agent.mcp.disconnected', {
 			instanceId
 		});
 		return {
@@ -1060,7 +1060,7 @@ class OpenclawBridgeService {
 	}
 
 	private async handleWorkerRun(
-		session: OpenclawSession,
+		session: SparkAgentSession,
 		params: Record<string, unknown>
 	): Promise<Record<string, unknown>> {
 		const providerIdRaw = toStringOrUndefined(params.providerId);
@@ -1080,13 +1080,13 @@ class OpenclawBridgeService {
 			model: toStringOrUndefined(params.model),
 			workingDirectory: toStringOrUndefined(params.workingDirectory),
 			taskId: toStringOrUndefined(params.taskId),
-			openclawSessionId: session.id
+			sparkAgentSessionId: session.id
 		});
 
 		return {
 			providerId: providerIdRaw,
 			missionId,
-			openclawSessionId: result.openclawSessionId,
+			sparkAgentSessionId: result.sparkAgentSessionId,
 			success: result.success,
 			error: result.error || null,
 			response: result.response || null,
@@ -1094,26 +1094,26 @@ class OpenclawBridgeService {
 		};
 	}
 
-	private handleWorkerCancel(session: OpenclawSession, params: Record<string, unknown>): Record<string, unknown> {
+	private handleWorkerCancel(session: SparkAgentSession, params: Record<string, unknown>): Record<string, unknown> {
 		const reason = toString(params.reason, 'cancelled');
 		const cancelled = this.cancelProviderTask(session.id, reason);
 		return {
-			openclawSessionId: session.id,
+			sparkAgentSessionId: session.id,
 			cancelled,
 			reason
 		};
 	}
 
-	private handleWorkerStatus(session: OpenclawSession): Record<string, unknown> {
+	private handleWorkerStatus(session: SparkAgentSession): Record<string, unknown> {
 		const worker = this.workerSessions.get(session.id);
 		if (!worker) {
 			return {
-				openclawSessionId: session.id,
+				sparkAgentSessionId: session.id,
 				status: 'idle'
 			};
 		}
 		return {
-			openclawSessionId: session.id,
+			sparkAgentSessionId: session.id,
 			providerId: worker.providerId,
 			missionId: worker.missionId,
 			taskId: worker.taskId || null,
@@ -1124,7 +1124,7 @@ class OpenclawBridgeService {
 	}
 
 	private emitProviderEvent(
-		worker: OpenclawWorkerState,
+		worker: SparkAgentWorkerState,
 		type: 'task_started' | 'task_progress' | 'task_completed' | 'task_failed' | 'task_cancelled',
 		payload: Record<string, unknown>
 	): void {
@@ -1132,7 +1132,7 @@ class OpenclawBridgeService {
 		const data = {
 			missionId: worker.missionId,
 			providerId: worker.providerId,
-			openclawSessionId: worker.sessionId,
+			sparkAgentSessionId: worker.sessionId,
 			...(worker.taskId ? { taskId: worker.taskId } : {}),
 			...payload
 		};
@@ -1152,7 +1152,7 @@ class OpenclawBridgeService {
 	}
 
 	private async executeProviderTaskViaProcess(
-		context: OpenclawWorkerExecutorContext
+		context: SparkAgentWorkerExecutorContext
 	): Promise<{ success: boolean; response?: string; error?: string }> {
 		let command: ProviderCommand;
 		try {
@@ -1246,12 +1246,12 @@ class OpenclawBridgeService {
 	}
 
 	private assertSessionOwnsInstance(
-		session: OpenclawSession,
+		session: SparkAgentSession,
 		instanceId: string
 	): { sessionId: string; mcpId?: string } {
 		const owner = this.instanceOwners.get(instanceId);
 		if (!owner) {
-			throw new Error(`MCP instance "${instanceId}" is not managed by an openclaw session`);
+			throw new Error(`MCP instance "${instanceId}" is not managed by a Spark agent session`);
 		}
 		if (owner.sessionId !== session.id) {
 			throw new Error(`MCP instance "${instanceId}" is owned by another session`);
@@ -1260,4 +1260,4 @@ class OpenclawBridgeService {
 	}
 }
 
-export const openclawBridge = new OpenclawBridgeService();
+export const sparkAgentBridge = new SparkAgentBridgeService();

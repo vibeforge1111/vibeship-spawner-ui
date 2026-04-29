@@ -11,7 +11,7 @@ import type { ProviderResult, ProviderClientOptions } from './types';
 import { createBridgeEvent } from './types';
 import { resolveCliBinary } from '../cli-resolver';
 import { spawnHidden } from '../hidden-process';
-import { prepareProviderWorkingDirectory } from '$lib/services/openclaw-bridge';
+import { prepareProviderWorkingDirectory } from '$lib/services/spark-agent-bridge';
 
 export interface CodexCliOptions extends ProviderClientOptions {
 	workingDirectory?: string;

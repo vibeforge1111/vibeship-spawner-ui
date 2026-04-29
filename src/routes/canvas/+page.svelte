@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { logger } from '$lib/utils/logger';
 	import DraggableNode from '$lib/components/nodes/DraggableNode.svelte';
 	import SkillsPanel from '$lib/components/SkillsPanel.svelte';
 	import BrandLogo from '$lib/components/BrandLogo.svelte';
@@ -28,7 +29,7 @@ import { get } from 'svelte/store';
 	import { getCanvasExecutionAction } from '$lib/services/canvas-execution-action';
 	import { loadSkills, skills as skillsStore } from '$lib/stores/skills.svelte';
 	import { workflowTemplates } from '$lib/data/templates';
-	import type { OpenclawCanvasSnapshot } from '$lib/services/openclaw-bridge';
+	import type { SparkAgentCanvasSnapshot } from '$lib/services/spark-agent-bridge';
 
 	let showExecution = $state(false);
 	let executionMinimized = $state(false);
@@ -75,12 +76,12 @@ import { get } from 'svelte/store';
 	// Fix 1 & 3: Track mount state to ensure goal processing waits for full initialization
 	let isMounted = $state(false);
 	let pendingGoalProcess = $state(false);
-	let lastOpenclawSyncAt: string | null = null;
-	let isApplyingOpenclawUpdate = false;
+	let lastSparkAgentSyncAt: string | null = null;
+	let isApplyingSparkAgentUpdate = false;
 	let sparkPipelineActive = false;
 	const APPLIED_PIPELINE_LOAD_PREFIX = 'spawner:canvas:applied-load:';
 
-	type OpenclawCanvasSkillNode = {
+	type SparkAgentCanvasSkillNode = {
 		id: string;
 		skillId: string;
 		skillName: string;
@@ -88,7 +89,7 @@ import { get } from 'svelte/store';
 		position: { x: number; y: number };
 	};
 
-	type OpenclawCanvasLink = {
+	type SparkAgentCanvasLink = {
 		id: string;
 		sourceNodeId: string;
 		targetNodeId: string;
@@ -251,7 +252,7 @@ import { get } from 'svelte/store';
 		}
 	});
 
-	function resolveOpenclawSkill(node: OpenclawCanvasSkillNode): Skill {
+	function resolveSparkAgentSkill(node: SparkAgentCanvasSkillNode): Skill {
 		const availableSkills = get(skillsStore);
 		const existing =
 			availableSkills.find((skill) => skill.id === node.skillId) ||
@@ -261,7 +262,7 @@ import { get } from 'svelte/store';
 		return {
 			id: node.skillId,
 			name: node.skillName || node.skillId,
-			description: node.description || `OpenClaw skill ${node.skillName || node.skillId}`,
+			description: node.description || `Spark skill ${node.skillName || node.skillId}`,
 			category: 'development',
 			tier: 'free',
 			tags: [],
@@ -271,19 +272,19 @@ import { get } from 'svelte/store';
 		};
 	}
 
-	async function applyOpenclawSnapshot(snapshot: OpenclawCanvasSnapshot): Promise<void> {
-		if (isApplyingOpenclawUpdate) return;
-		isApplyingOpenclawUpdate = true;
+	async function applySparkAgentSnapshot(snapshot: SparkAgentCanvasSnapshot): Promise<void> {
+		if (isApplyingSparkAgentUpdate) return;
+		isApplyingSparkAgentUpdate = true;
 
 		try {
-			const incomingNodes = snapshot.nodes as OpenclawCanvasSkillNode[];
-			const incomingConnections = snapshot.connections as OpenclawCanvasLink[];
+			const incomingNodes = snapshot.nodes as SparkAgentCanvasSkillNode[];
+			const incomingConnections = snapshot.connections as SparkAgentCanvasLink[];
 			const nodeIds = new Set(incomingNodes.map((node) => node.id));
 
 			const canvasNodes: CanvasNode[] = incomingNodes.map((node) => ({
 				id: node.id,
 				skillId: node.skillId,
-				skill: resolveOpenclawSkill(node),
+				skill: resolveSparkAgentSkill(node),
 				position: node.position,
 				status: 'idle'
 			}));
@@ -319,26 +320,26 @@ import { get } from 'svelte/store';
 			await tick();
 			forceStoreSync();
 		} finally {
-			isApplyingOpenclawUpdate = false;
+			isApplyingSparkAgentUpdate = false;
 		}
 	}
 
-	async function syncOpenclawCanvasState(): Promise<void> {
+	async function syncSparkAgentCanvasState(): Promise<void> {
 		if (goalProcessing) return;
 		if (sparkPipelineActive) return;
 
-		const query = lastOpenclawSyncAt ? `?since=${encodeURIComponent(lastOpenclawSyncAt)}` : '';
-		const response = await fetch(`/api/openclaw/canvas-state${query}`);
+		const query = lastSparkAgentSyncAt ? `?since=${encodeURIComponent(lastSparkAgentSyncAt)}` : '';
+		const response = await fetch(`/api/spark-agent/canvas-state${query}`);
 		if (!response.ok) return;
 
 		const payload = (await response.json()) as {
 			hasUpdate?: boolean;
-			snapshot?: OpenclawCanvasSnapshot | null;
+			snapshot?: SparkAgentCanvasSnapshot | null;
 		};
 
 		if (!payload?.hasUpdate || !payload.snapshot) return;
-		lastOpenclawSyncAt = payload.snapshot.updatedAt;
-		await applyOpenclawSnapshot(payload.snapshot);
+		lastSparkAgentSyncAt = payload.snapshot.updatedAt;
+		await applySparkAgentSnapshot(payload.snapshot);
 	}
 
 	onMount(() => {
@@ -357,7 +358,7 @@ import { get } from 'svelte/store';
 		let pipelineAutoSaveInterval: ReturnType<typeof setInterval> | null = null;
 		let cleanupCanvasSync: (() => void) | null = null;
 		let stuckStateInterval: ReturnType<typeof setInterval> | null = null;
-		let openclawSyncInterval: ReturnType<typeof setInterval> | null = null;
+		let sparkAgentSyncInterval: ReturnType<typeof setInterval> | null = null;
 		let pendingLoadPollInterval: ReturnType<typeof setInterval> | null = null;
 		let resizeObserver: ResizeObserver | null = null;
 
@@ -438,8 +439,8 @@ import { get } from 'svelte/store';
 			}
 
 			// PENDING LOAD: PRD analysis or goal processing queued a pipeline
-			console.log(`[Canvas] Loading ${reason} pipeline:`, load.pipelineName);
-			console.log('[Canvas] Source:', load.source, '| Nodes:', load.nodes.length, '| Connections:', load.connections.length);
+			logger.info(`[Canvas] Loading ${reason} pipeline:`, load.pipelineName);
+			logger.info('[Canvas] Source:', load.source, '| Nodes:', load.nodes.length, '| Connections:', load.connections.length);
 
 			// Ensure the exact queued pipeline ID exists and is active
 			const targetPipeline = ensurePipeline(load.pipelineId, load.pipelineName);
@@ -461,7 +462,7 @@ import { get } from 'svelte/store';
 			});
 
 			lastSaved = new Date();
-			console.log(
+			logger.info(
 				'[Canvas] Loaded pipeline:',
 				targetPipeline.name,
 				`(${targetPipeline.id})`,
@@ -505,7 +506,7 @@ import { get } from 'svelte/store';
 					executionMinimized = false;
 				}
 			}
-			console.log('[Canvas] Loaded explicit pipeline from URL:', pipelineId);
+			logger.info('[Canvas] Loaded explicit pipeline from URL:', pipelineId);
 			return true;
 		}
 
@@ -530,7 +531,7 @@ import { get } from 'svelte/store';
 			loadPipelineToCanvas(data);
 			lastSaved = new Date();
 			sparkPipelineActive = pipelineId.startsWith('prd-');
-			console.log('[Canvas] Waiting for requested pipeline load:', metadata.id);
+			logger.info('[Canvas] Waiting for requested pipeline load:', metadata.id);
 			return true;
 		}
 
@@ -543,7 +544,7 @@ import { get } from 'svelte/store';
 		async function syncLatestSparkLoad(requestedPipelineId: string | null = null): Promise<boolean> {
 			const latestLoad = await getLatestPipelineLoad();
 			if (disposed || !latestLoad || !shouldAutoApplyLatestLoad(latestLoad, requestedPipelineId)) return false;
-			console.log('[Canvas] Syncing latest Spark pipeline load:', latestLoad.pipelineName);
+			logger.info('[Canvas] Syncing latest Spark pipeline load:', latestLoad.pipelineName);
 			return applyPipelineLoad(latestLoad, 'latest-sync');
 		}
 
@@ -562,10 +563,10 @@ import { get } from 'svelte/store';
 		const requestedPipelineId = url.searchParams.get('pipeline')?.trim() || null;
 		const loadedExplicitPipeline = loadExplicitPipelineFromUrl(url);
 		const hasResumable = hasResumableMission();
-		console.log('[Canvas] hasResumableMission:', hasResumable);
+		logger.info('[Canvas] hasResumableMission:', hasResumable);
 		if (hasResumable && !suppressExec) {
 			showExecution = true;
-			console.log('[Canvas] Auto-showing execution panel');
+			logger.info('[Canvas] Auto-showing execution panel');
 		}
 
 		// =====================================================================
@@ -595,16 +596,16 @@ import { get } from 'svelte/store';
 				if (pipelineData && pipelineData.nodes?.length > 0) {
 					loadPipelineToCanvas(pipelineData);
 					lastSaved = new Date();
-					console.log('[Canvas] Loaded active pipeline with', pipelineData.nodes?.length || 0, 'nodes');
+					logger.info('[Canvas] Loaded active pipeline with', pipelineData.nodes?.length || 0, 'nodes');
 				} else {
 					const latestLoad = await getLatestPipelineLoad();
 					if (latestLoad?.nodes?.length && shouldAutoApplyLatestLoad(latestLoad, requestedPipelineId)) {
-						console.log('[Canvas] Active pipeline is empty; recovering latest Spark pipeline load');
+						logger.info('[Canvas] Active pipeline is empty; recovering latest Spark pipeline load');
 						applyPipelineLoad(latestLoad, 'latest-recovery');
 					} else if (pipelineData) {
 						loadPipelineToCanvas(pipelineData);
 						lastSaved = new Date();
-						console.log('[Canvas] Loaded empty active pipeline');
+						logger.info('[Canvas] Loaded empty active pipeline');
 					} else {
 						// Fallback: try old format for migration
 						const loaded = loadCanvas();
@@ -633,13 +634,13 @@ import { get } from 'svelte/store';
 		// Initialize canvas sync for Claude Code integration
 		cleanupCanvasSync = initCanvasSync();
 
-		// Keep /canvas in sync with external OpenClaw command API updates
-		await syncOpenclawCanvasState().catch((error) => {
-			console.warn('[Canvas] Initial OpenClaw sync failed:', error);
+		// Keep /canvas in sync with external Spark agent command API updates
+		await syncSparkAgentCanvasState().catch((error) => {
+			console.warn('[Canvas] Initial Spark Agent sync failed:', error);
 		});
-		openclawSyncInterval = setInterval(() => {
-			void syncOpenclawCanvasState().catch((error) => {
-				console.warn('[Canvas] OpenClaw sync poll failed:', error);
+		sparkAgentSyncInterval = setInterval(() => {
+			void syncSparkAgentCanvasState().catch((error) => {
+				console.warn('[Canvas] Spark Agent sync poll failed:', error);
 			});
 		}, 1200);
 		pendingLoadPollInterval = setInterval(() => {
@@ -724,7 +725,7 @@ import { get } from 'svelte/store';
 			disableAutoSave?.();
 			if (pipelineAutoSaveInterval) clearInterval(pipelineAutoSaveInterval);
 			if (stuckStateInterval) clearInterval(stuckStateInterval); // FIX 15: Clean up stuck state detector
-			if (openclawSyncInterval) clearInterval(openclawSyncInterval);
+			if (sparkAgentSyncInterval) clearInterval(sparkAgentSyncInterval);
 			if (pendingLoadPollInterval) clearInterval(pendingLoadPollInterval);
 			cleanupCanvasSync?.();
 			resizeObserver?.disconnect();

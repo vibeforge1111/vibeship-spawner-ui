@@ -24,7 +24,7 @@ import {
 	type OpenAICompatOptions
 } from './provider-clients/openai-compat-client';
 import { executeSparkHarnessRequest } from './provider-clients/spark-harness-client';
-import { openclawBridge } from '$lib/services/openclaw-bridge';
+import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { eventBridge } from '$lib/services/event-bridge';
 import { mcpClient } from '$lib/services/mcp-client';
 import { agentWorkTimeoutMs } from './timeout-config';
@@ -100,7 +100,7 @@ function sessionToResultSnapshot(session: ProviderSession): ProviderMissionResul
 
 class ProviderRuntimeManager {
 	private sessions = new Map<string, ProviderSession>();
-	private openclawSessionIds = new Map<string, string>();
+	private sparkAgentSessionIds = new Map<string, string>();
 	private dispatchSnapshots = new Map<string, MissionDispatchSnapshot>();
 	private pausedMissions = new Set<string>();
 	private pausedReasons = new Map<string, string>();
@@ -485,25 +485,25 @@ class ProviderRuntimeManager {
 				if (provider.id !== 'claude' && provider.id !== 'codex') {
 					return {
 						success: false,
-						error: `OpenClaw runtime bridge only supports claude/codex in Step 2 (received: ${provider.id})`
+						error: `Spark agent runtime bridge only supports claude/codex in Step 2 (received: ${provider.id})`
 					};
 				}
 
 				const sessionKey = this.sessionKey(missionId, provider.id);
-				const requestedOpenclawSessionId = `${missionId}-${provider.id}-${Date.now().toString(36)}`;
-				this.openclawSessionIds.set(sessionKey, requestedOpenclawSessionId);
+				const requestedSparkAgentSessionId = `${missionId}-${provider.id}-${Date.now().toString(36)}`;
+				this.sparkAgentSessionIds.set(sessionKey, requestedSparkAgentSessionId);
 
-				const workerResult = await openclawBridge.executeProviderTask({
+				const workerResult = await sparkAgentBridge.executeProviderTask({
 					providerId: provider.id,
 					missionId,
 					prompt,
 					model: provider.model,
 					workingDirectory,
 					commandTemplate: provider.commandTemplate,
-					openclawSessionId: requestedOpenclawSessionId,
+					sparkAgentSessionId: requestedSparkAgentSessionId,
 					signal: abortController.signal
 				});
-				this.openclawSessionIds.set(sessionKey, workerResult.openclawSessionId);
+				this.sparkAgentSessionIds.set(sessionKey, workerResult.sparkAgentSessionId);
 				if (workerResult.success && workerResult.response) {
 					onEvent(
 						createBridgeEvent('task_completed', { provider, missionId, onEvent, signal: abortController.signal }, {
@@ -560,9 +560,9 @@ class ProviderRuntimeManager {
 		if (!session || session.status !== 'running') return false;
 
 		session.abortController.abort();
-		const openclawSessionId = this.openclawSessionIds.get(key);
-		if (openclawSessionId) {
-			openclawBridge.cancelProviderTask(openclawSessionId, 'Cancelled by user');
+		const sparkAgentSessionId = this.sparkAgentSessionIds.get(key);
+		if (sparkAgentSessionId) {
+			sparkAgentBridge.cancelProviderTask(sparkAgentSessionId, 'Cancelled by user');
 		}
 		session.status = 'cancelled';
 		session.completedAt = new Date();
@@ -574,9 +574,9 @@ class ProviderRuntimeManager {
 		for (const [key, session] of this.sessions) {
 			if (session.missionId === missionId && session.status === 'running') {
 				session.abortController.abort();
-				const openclawSessionId = this.openclawSessionIds.get(key);
-				if (openclawSessionId) {
-					openclawBridge.cancelProviderTask(openclawSessionId, reason);
+				const sparkAgentSessionId = this.sparkAgentSessionIds.get(key);
+				if (sparkAgentSessionId) {
+					sparkAgentBridge.cancelProviderTask(sparkAgentSessionId, reason);
 				}
 				session.status = 'cancelled';
 				session.error = reason;
@@ -803,12 +803,12 @@ class ProviderRuntimeManager {
 			if (session.missionId === missionId) {
 				if (session.status === 'running') {
 					session.abortController.abort();
-					const openclawSessionId = this.openclawSessionIds.get(key);
-					if (openclawSessionId) {
-						openclawBridge.cancelProviderTask(openclawSessionId, 'Runtime cleanup');
+					const sparkAgentSessionId = this.sparkAgentSessionIds.get(key);
+					if (sparkAgentSessionId) {
+						sparkAgentBridge.cancelProviderTask(sparkAgentSessionId, 'Runtime cleanup');
 					}
 				}
-				this.openclawSessionIds.delete(key);
+				this.sparkAgentSessionIds.delete(key);
 				this.sessions.delete(key);
 			}
 		}
@@ -823,7 +823,7 @@ class ProviderRuntimeManager {
 	clearInMemoryForTests(missionId: string): void {
 		for (const [key, session] of this.sessions) {
 			if (session.missionId === missionId) {
-				this.openclawSessionIds.delete(key);
+				this.sparkAgentSessionIds.delete(key);
 				this.sessions.delete(key);
 			}
 		}

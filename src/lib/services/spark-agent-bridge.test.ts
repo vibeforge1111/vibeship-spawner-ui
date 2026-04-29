@@ -1,7 +1,7 @@
 import { existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { prepareProviderWorkingDirectory } from './openclaw-bridge';
+import { prepareProviderWorkingDirectory } from './spark-agent-bridge';
 
 const createdDirs: string[] = [];
 

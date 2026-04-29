@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { openclawBridge } from '$lib/services/openclaw-bridge';
+import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 
 function parseBody(value: unknown): { sessionId?: string; actor?: string; metadata?: Record<string, unknown> } {
@@ -20,16 +20,16 @@ function parseBody(value: unknown): { sessionId?: string; actor?: string; metada
 
 export const POST: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
-		surface: 'Openclaw',
-		apiKeyEnvVar: 'OPENCLAW_API_KEY',
+		surface: 'Spark Agent',
+		apiKeyEnvVar: 'SPARK_AGENT_API_KEY',
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
 		allowLoopbackWithoutKey: true,
-		allowedOriginsEnvVar: 'OPENCLAW_ALLOWED_ORIGINS'
+		allowedOriginsEnvVar: 'SPARK_AGENT_ALLOWED_ORIGINS'
 	});
 	if (unauthorized) return unauthorized;
 
 	const rateLimited = enforceRateLimit(event, {
-		scope: 'openclaw_session_start',
+		scope: 'spark_agent_session_start',
 		limit: 30,
 		windowMs: 60_000
 	});
@@ -37,15 +37,15 @@ export const POST: RequestHandler = async (event) => {
 
 	try {
 		const body = parseBody(await event.request.json().catch(() => ({})));
-		const session = openclawBridge.startSession(body);
+		const session = sparkAgentBridge.startSession(body);
 		return json({
 			success: true,
 			session: {
 				id: session.id,
 				status: session.status,
 				createdAt: session.createdAt,
-				eventsEndpoint: `/api/openclaw/events?sessionId=${encodeURIComponent(session.id)}`,
-				commandEndpoint: '/api/openclaw/command'
+				eventsEndpoint: `/api/spark-agent/events?sessionId=${encodeURIComponent(session.id)}`,
+				commandEndpoint: '/api/spark-agent/command'
 			}
 		});
 	} catch (error) {
