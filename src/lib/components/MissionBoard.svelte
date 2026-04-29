@@ -795,46 +795,48 @@
 										{/if}
 									</button>
 
-									<div class="absolute top-3 right-3 flex items-center gap-1 opacity-100 transition-opacity">
-										{#if c.detailHref}
-											<a
-												href={c.detailHref}
-												onclick={(event) => event.stopPropagation()}
-												class="px-2 py-0.5 text-[10px] font-mono text-text-secondary border border-surface-border rounded-sm hover:border-accent-primary/50 hover:text-accent-primary transition-all"
-												title="Open mission details"
-											>
-												Details
-											</a>
-										{/if}
-										{#if c.canvasHref}
-											<a
-												href={c.canvasHref}
-												data-sveltekit-reload
-												onclick={(event) => event.stopPropagation()}
-												class="px-2 py-0.5 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all"
-												title="Open this project's canvas"
-											>
-												Canvas
-											</a>
-										{/if}
-										{#if c.source === 'mcp' && (c.status === 'ready' || c.status === 'draft')}
-											<button
-												onclick={() => handleStart(c)}
-												class="px-2 py-0.5 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all"
-											>
-												Start
-											</button>
-										{/if}
-										{#if c.source === 'mcp'}
-											<button
-												onclick={() => handleDelete(c)}
-												class="px-2 py-0.5 text-[10px] font-mono text-text-tertiary rounded-sm hover:text-status-red transition-all"
-												title="Delete mission"
-											>
-												Delete
-											</button>
-										{/if}
-									</div>
+									{#if c.detailHref || c.canvasHref || c.source === 'mcp'}
+										<div class="mt-3 flex items-center gap-2 border-t border-surface-border/60 pt-3">
+											{#if c.detailHref}
+												<a
+													href={c.detailHref}
+													onclick={(event) => event.stopPropagation()}
+													class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-text-secondary border border-surface-border rounded-sm hover:border-accent-primary/50 hover:text-accent-primary transition-all"
+													title="Open this mission's full task and event detail"
+												>
+													Open mission
+												</a>
+											{/if}
+											{#if c.canvasHref}
+												<a
+													href={c.canvasHref}
+													data-sveltekit-reload
+													onclick={(event) => event.stopPropagation()}
+													class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all"
+													title="Open this project's mission-scoped canvas"
+												>
+													Open canvas
+												</a>
+											{/if}
+											{#if c.source === 'mcp' && (c.status === 'ready' || c.status === 'draft')}
+												<button
+													onclick={() => handleStart(c)}
+													class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all"
+												>
+													Start
+												</button>
+											{/if}
+											{#if c.source === 'mcp'}
+												<button
+													onclick={() => handleDelete(c)}
+													class="ml-auto inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-text-tertiary rounded-sm hover:text-status-red transition-all"
+													title="Delete mission"
+												>
+													Delete
+												</button>
+											{/if}
+										</div>
+									{/if}
 								</article>
 							{:else}
 								<div class="px-3.5 py-5 rounded-lg border border-dashed border-surface-border bg-bg-secondary/40 text-center">

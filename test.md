@@ -276,3 +276,30 @@ Branch: `codex/spawner-canvas-execution-action`
 - Full unit/integration suite: PASS via `npm run test:run` (44 files, 245 tests).
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes` against `http://127.0.0.1:5173` for `/`, `/kanban`, `/missions/mission-smoke-route`, `/canvas`, `/trace`, `/api/mission-control/board`, and `/api/mission-control/trace`.
+
+## Continuation: Kanban Mission Inspection Links
+
+Branch: `codex/spawner-kanban-mission-links`
+
+### Step Checklist
+
+- [x] Restore direct mission detail route rendering for `/missions/[id]`.
+- [x] Make route smoke fail if mission detail silently redirects back to `/kanban`.
+- [x] Make Kanban card actions readable as `Open mission` and `Open canvas`.
+- [x] Run typecheck.
+- [x] Run route smoke.
+- [x] Run full checks.
+- [x] Commit and push.
+
+### Changes Made
+
+- Updated `src/routes/missions/[id]/+page.server.ts` so mission detail pages render instead of redirecting.
+- Updated `scripts/smoke-routes.mjs` to verify `/missions/mission-smoke-route` stays on the mission detail route.
+- Updated `src/lib/components/MissionBoard.svelte` to show clear card-level inspection actions below each mission card.
+
+### Verification Log
+
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Local route smoke: PASS via `npm run smoke:routes`; `/missions/mission-smoke-route` now returns 200 without redirecting away.
+- Full unit/integration suite: PASS via `npm run test:run` (44 files, 245 tests).
+- Production build: PASS via `npm run build`.
