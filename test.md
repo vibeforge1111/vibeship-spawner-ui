@@ -837,3 +837,32 @@ Branch: `codex/spawner-resume-banner-component`
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes`.
 - Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
+
+## Wrap-Up: Spawner UI Maintenance Pass
+
+Branch: `main`
+
+### Current Status
+
+- [x] Mission execution routes, mission-scoped canvas links, Kanban rollups, trace stitching, and mission detail inspection are covered by repeatable smoke scripts.
+- [x] `ExecutionPanel.svelte` has been broken down into smaller rendering components while keeping workflow state and mission behavior in the parent.
+- [x] OpenClaw references are limited to `docs/archive/retired-external-bridge/README.md`, which preserves recovery notes for retired bridge documentation.
+- [x] The latest pushed `main` is clean and synced after the execution panel extraction series.
+
+### Components Extracted During This Pass
+
+- `ExecutionLogList.svelte`
+- `ExecutionTaskStatusList.svelte`
+- `MissionSettingsPanel.svelte`
+- `ExecutionFooter.svelte`
+- `ExecutionProgressHeader.svelte`
+- `ExecutionTransitionFeed.svelte`
+- `OrphanNodeWarningModal.svelte`
+- `ExecutionResumeBanner.svelte`
+
+### Remaining High-Value Follow-Ups
+
+- Split `src/routes/canvas/+page.svelte` into view-model/service modules and smaller canvas surface components; it is still the largest route surface and should be the next maintainability target.
+- Split `MissionBoard.svelte` card rendering, details/actions, and filtering into smaller pieces if Kanban behavior changes again.
+- Keep `ExecutionPanel.svelte` stable unless a real bug appears; further changes there should be behavior-driven rather than extraction for extraction's sake.
+- Consider a later test-noise pass for intentional negative-path warnings so real failures remain easy to spot.
