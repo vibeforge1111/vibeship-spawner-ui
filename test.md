@@ -919,3 +919,30 @@ Branch: `codex/spawner-path-safety-tests`
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes`.
 - Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
+
+## Continuation: Timeout And Skill Tier Unit Tests
+
+Branch: `codex/spawner-config-skill-unit-tests`
+
+### Step Checklist
+
+- [x] Identify timeout config and skill tiers as compact reliability/allowlist coverage gaps.
+- [x] Add timeout fallback/override tests for agent, command, Claude analysis, PRD bridge, and Spark harness timeouts.
+- [x] Add skill tier normalization, formatting, pro catalog, and base bundle allowlist tests.
+- [x] Run focused tests, typecheck, full tests, build, route smoke, and mission surface smoke.
+- [x] Commit, merge, and push.
+
+### Changes Made
+
+- Added `src/lib/server/timeout-config.test.ts` for positive env parsing, fallback behavior, and specialized timeout overrides.
+- Added `src/lib/server/skill-tiers.test.ts` for tier normalization, skill formatting, pro catalog loading, and base-bundle allowlist coverage.
+
+### Verification Log
+
+- Focused config/skill tests: PASS via `npm run test:run -- timeout-config skill-tiers` (2 files, 8 tests).
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Whitespace check: PASS via `git diff --check`.
+- Full unit/integration suite: PASS via `npm run test:run` (54 files, 292 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes`.
+- Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
