@@ -19,14 +19,6 @@ export interface TaskSummary {
 	failed: number;
 }
 
-function clampProgress(value: number): number {
-	return Math.max(0, Math.min(100, value));
-}
-
-function clampNonTerminalProgress(value: number): number {
-	return Math.max(0, Math.min(92, value));
-}
-
 function rowStatusFromCanvasNode(node: CanvasNode): TaskRowStatus {
 	if (node.status === 'success') return 'completed';
 	if (node.status === 'error') return 'failed';
@@ -36,7 +28,7 @@ function rowStatusFromCanvasNode(node: CanvasNode): TaskRowStatus {
 
 function rowProgressFromStatus(status: TaskRowStatus): number {
 	if (status === 'completed' || status === 'failed') return 100;
-	if (status === 'running') return 8;
+	if (status === 'running') return 12;
 	return 0;
 }
 
@@ -75,12 +67,7 @@ export function buildExecutionTaskRows(
 			index: index + 1,
 			title: task.title,
 			status,
-			progress:
-				status === 'completed' || status === 'failed'
-					? 100
-					: status === 'pending' || status === 'blocked'
-						? 0
-					: clampNonTerminalProgress(tracked?.progress ?? inferredProgress),
+			progress: inferredProgress,
 			message: tracked?.message
 		};
 	});

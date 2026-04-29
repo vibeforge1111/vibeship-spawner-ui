@@ -41,6 +41,7 @@
 
 	let taskSummary = $derived.by(() => summarizeTaskRows(taskRows));
 	let nextTask = $derived.by(() => getNextTaskRow(taskRows));
+	let taskCompletionLabel = $derived(`${taskSummary.completed}/${taskRows.length} done`);
 </script>
 
 {#if taskRows.length > 0}
@@ -48,6 +49,9 @@
 		<div class="flex flex-wrap items-center justify-between gap-3 px-3 py-2 bg-bg-tertiary border-b border-surface-border">
 			<div>
 				<span class="text-xs font-mono text-text-tertiary uppercase tracking-wider">Task Status</span>
+				<div class="mt-0.5 text-[11px] font-mono text-accent-primary">
+					{taskCompletionLabel}
+				</div>
 				{#if nextTask && isRunning}
 					<div class="mt-0.5 text-[11px] font-mono text-vibe-teal truncate max-w-[36rem]">
 						Active {nextTask.index}/{taskRows.length}: {nextTask.title}
@@ -81,17 +85,6 @@
 							<div class="flex items-center gap-2">
 								<span class="w-6 shrink-0 text-[10px] font-mono text-text-tertiary">#{task.index}</span>
 								<span class="truncate text-xs font-mono text-text-primary">{task.title}</span>
-							</div>
-							<div class="mt-1 h-1.5 bg-surface overflow-hidden">
-								<div
-									class="h-full transition-all duration-300"
-									class:bg-accent-primary={task.status === 'completed'}
-									class:bg-vibe-teal={task.status === 'running'}
-									class:bg-status-error={task.status === 'failed'}
-									class:bg-status-warning={task.status === 'blocked'}
-									class:bg-text-tertiary={task.status === 'pending'}
-									style="width: {task.progress}%"
-								></div>
 							</div>
 							{#if task.message && task.status === 'running'}
 								<div class="mt-1 text-[11px] text-text-tertiary truncate">{task.message}</div>

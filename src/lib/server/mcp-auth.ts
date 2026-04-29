@@ -101,6 +101,16 @@ function isOriginAllowed(event: RequestEvent, allowedOriginsEnvVar?: string): bo
 	const origin = event.request.headers.get('origin');
 	if (!origin) return true;
 
+	try {
+		const requestHost = new URL(event.request.url).hostname;
+		const originHost = new URL(origin).hostname;
+		if (LOOPBACK_HOSTS.has(requestHost) && LOOPBACK_HOSTS.has(originHost)) {
+			return true;
+		}
+	} catch {
+		return false;
+	}
+
 	const allowedOrigins = parseCsv(env[allowedOriginsEnvVar as keyof typeof env] as string | undefined);
 	if (!allowedOriginsEnvVar || allowedOrigins.length === 0) {
 		try {
@@ -203,7 +213,7 @@ function isLoopbackRequest(event: RequestEvent): boolean {
 		return LOOPBACK_HOSTS.has(clientAddress);
 	} catch {
 		// Production loopback bypass must not rely on a spoofable Host header alone.
-		return process.env.NODE_ENV === 'test';
+		return import.meta.env.MODE === 'test' || process.env.NODE_ENV === 'test';
 	}
 }
 

@@ -90,7 +90,7 @@ describe('execution task row helpers', () => {
 
 		expect(rows.map((row) => [row.title, row.status, row.progress])).toEqual([
 			['Plan', 'completed', 100],
-			['Build', 'running', 8],
+			['Build', 'running', 12],
 			['Verify', 'failed', 100],
 			['Ship', 'pending', 0]
 		]);
@@ -127,7 +127,7 @@ describe('execution task row helpers', () => {
 
 		expect(rows.map((row) => [row.id, row.status, row.progress, row.message])).toEqual([
 			['task-1', 'completed', 100, undefined],
-			['task-2', 'running', 47, 'Halfway there'],
+			['task-2', 'running', 12, 'Halfway there'],
 			['task-3', 'blocked', 0, 'Bad external value'],
 			['task-4', 'failed', 100, undefined]
 		]);
@@ -157,7 +157,7 @@ describe('execution task row helpers', () => {
 		);
 
 		expect(rows.map((row) => [row.id, row.status, row.progress])).toEqual([
-			['task-1', 'running', 92],
+			['task-1', 'running', 12],
 			['task-2', 'pending', 0],
 			['task-3', 'pending', 0],
 			['task-4', 'pending', 0]

@@ -22,7 +22,7 @@ vi.mock('$lib/server/provider-runtime', () => ({
 	}
 }));
 
-import { GET, POST } from './+server';
+import { GET, OPTIONS, POST } from './+server';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 
 let testSpawnerDir: string | null = null;
@@ -36,10 +36,10 @@ afterEach(async () => {
 	testSpawnerDir = null;
 });
 
-function createEvent(url: string, init?: RequestInit) {
+function createEvent(url: string, init?: RequestInit, clientAddress = '203.0.113.1') {
 	return {
 		request: new Request(url, init),
-		getClientAddress: () => '203.0.113.1'
+		getClientAddress: () => clientAddress
 	} as never;
 }
 
@@ -70,6 +70,45 @@ describe('/api/events auth', () => {
 		);
 
 		expect(response.status).toBe(200);
+	});
+
+	it('accepts a loopback theatre SSE origin without an events key', async () => {
+		const response = await GET(
+			createEvent(
+				'http://localhost:5173/api/events',
+				{
+					method: 'GET',
+					headers: {
+						origin: 'http://localhost:5600'
+					}
+				},
+				'127.0.0.1'
+			)
+		);
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get('access-control-allow-origin')).toBe('http://localhost:5600');
+	});
+
+	it('answers loopback theatre preflight for event posts', async () => {
+		const response = await OPTIONS(
+			createEvent(
+				'http://localhost:5173/api/events',
+				{
+					method: 'OPTIONS',
+					headers: {
+						origin: 'http://localhost:5600',
+						'access-control-request-method': 'POST',
+						'access-control-request-headers': 'content-type'
+					}
+				},
+				'127.0.0.1'
+			)
+		);
+
+		expect(response.status).toBe(204);
+		expect(response.headers.get('access-control-allow-origin')).toBe('http://localhost:5600');
+		expect(response.headers.get('access-control-allow-methods')).toContain('POST');
 	});
 
 	it('accepts POST events with x-api-key and persists auth cookie', async () => {

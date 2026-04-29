@@ -61,12 +61,9 @@ function taskProgressMessage(status: MissionControlBoardEntry['tasks'][number]['
 }
 
 function taskProgressPercent(task: MissionControlBoardEntry['tasks'][number]): number {
-	if (typeof task.progress === 'number' && Number.isFinite(task.progress)) {
-		return Math.max(0, Math.min(task.status === 'completed' ? 100 : 92, Math.round(task.progress)));
-	}
 	const status = task.status;
 	if (status === 'completed' || status === 'failed' || status === 'cancelled') return 100;
-	if (status === 'running') return 20;
+	if (status === 'running') return 12;
 	return 0;
 }
 
@@ -76,8 +73,8 @@ function missionProgressPercent(
 ): number {
 	if (status === 'completed') return 100;
 	if (tasks.length === 0) return 0;
-	const total = tasks.reduce((sum, task) => sum + taskProgressPercent(task), 0);
-	return Math.round(total / tasks.length);
+	const completed = tasks.filter((task) => task.status === 'completed').length;
+	return Math.round((completed / tasks.length) * 100);
 }
 
 function agentRuntimeForStatus(

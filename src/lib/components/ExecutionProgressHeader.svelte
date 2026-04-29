@@ -33,6 +33,14 @@
 		copyPromptCollapsed = $bindable(),
 		copyToClipboard
 	}: Props = $props();
+
+	let missionTaskCount = $derived(executionProgress.mission?.tasks?.length || nodeCount);
+	let missionCompletedTaskCount = $derived(
+		executionProgress.mission?.tasks?.filter((task) => task.status === 'completed').length || 0
+	);
+	let missionProgressLabel = $derived(
+		missionTaskCount > 0 ? `${missionCompletedTaskCount}/${missionTaskCount} tasks done` : `${nodeCount} nodes`
+	);
 </script>
 
 <div class="flex items-center justify-between mb-3">
@@ -54,7 +62,7 @@
 
 <div class="flex justify-between mt-3 text-sm text-text-tertiary font-mono">
 	<span>
-		{nodeCount} nodes{#if mcpConnectedCount > 0}
+		{missionProgressLabel}{#if mcpConnectedCount > 0}
 			&bull; <span class="text-accent-primary">{mcpConnectedCount} MCP{mcpConnectedCount > 1 ? 's' : ''}</span>
 		{/if}
 	</span>

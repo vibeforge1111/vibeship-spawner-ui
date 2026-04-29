@@ -381,7 +381,8 @@ async function buildPromptParts(
 					'- Treat the PRD content as the source request and turn it into a compact PRD before tasking.',
 					'- Use the Founder UI pattern: summary, objective, scope, non-goals, target UX, technical constraints, phased task plan, exit criteria.',
 					'- Convert the PRD into TAS-style tasks: each task needs acceptance criteria, dependencies, file/workspace targets, and verification commands.',
-					'- Keep task count practical. Prefer 3-8 high-signal implementation tasks over many tiny chores.',
+					'- Choose task count from the actual work. Tiny builds may use 3-4 tasks, normal apps usually need 5-8, and substantial projects may need 8-14.',
+					'- Do not default to four tasks. Split work by distinct skill sets, real dependencies, and verification boundaries.',
 					'- Preserve explicit user constraints such as "No build step" or exact file lists.'
 				].join('\n')
 			: [
@@ -457,7 +458,8 @@ async function buildCodexPrompt(
 					'- Treat .spawner/pending-prd.md as the source request and turn it into a compact PRD before tasking.',
 					'- Use the Founder UI pattern: summary, objective, scope, non-goals, target UX, technical constraints, phased task plan, exit criteria.',
 					'- Convert the PRD into TAS-style tasks: each task needs acceptance criteria, dependencies, file/workspace targets, and verification commands.',
-					'- Keep task count practical. Prefer 3-8 high-signal implementation tasks over many tiny chores.',
+					'- Choose task count from the actual work. Tiny builds may use 3-4 tasks, normal apps usually need 5-8, and substantial projects may need 8-14.',
+					'- Do not default to four tasks. Split work by distinct skill sets, real dependencies, and verification boundaries.',
 					'- Preserve explicit user constraints such as "No build step" or exact file lists.'
 				].join('\n')
 			: [
@@ -534,6 +536,7 @@ async function buildCodexPrompt(
 		'- Do not leave placeholders.',
 		'- Ensure posted JSON is complete and parseable.',
 		'- Skill IDs MUST come from the allowlist. This is non-negotiable.',
+		'- Choose task count from project complexity. Do not default to four tasks when distinct skill sets or verification boundaries justify more.',
 		'',
 		'When finished successfully, print exactly: PRD_ANALYSIS_SENT'
 	].join('\n');

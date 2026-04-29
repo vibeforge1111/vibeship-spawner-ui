@@ -38,29 +38,15 @@ function clampNonTerminalProgress(progress: number): number {
 
 export function calculateTaskCompletionProgress(tasks: Array<{ status: MissionTaskStatus }>): number {
 	if (tasks.length === 0) return 0;
-	const completedTasks = tasks.filter((task) => isTerminalTaskStatus(task.status)).length;
+	const completedTasks = tasks.filter((task) => task.status === 'completed').length;
 	return Math.round((completedTasks / tasks.length) * 100);
 }
 
 export function calculateGranularMissionProgress(
 	tasks: MissionProgressTask[],
-	taskProgressMap: Map<string, MissionTaskProgressValue>
+	_taskProgressMap: Map<string, MissionTaskProgressValue>
 ): number {
-	if (tasks.length === 0) return 0;
-
-	let progressSum = 0;
-	for (const task of tasks) {
-		const trackedProgress = taskProgressMap.get(task.id)?.progress;
-		if (isTerminalTaskStatus(task.status)) {
-			progressSum += 100;
-		} else if (task.status === 'in_progress') {
-			progressSum += clampNonTerminalProgress(trackedProgress ?? 50);
-		} else if (typeof trackedProgress === 'number') {
-			progressSum += clampNonTerminalProgress(trackedProgress);
-		}
-	}
-
-	return Math.round(progressSum / tasks.length);
+	return calculateTaskCompletionProgress(tasks);
 }
 
 export function distributeProviderProgressAcrossTasks(

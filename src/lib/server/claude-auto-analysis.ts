@@ -76,6 +76,8 @@ function buildClaudePrompt(
 		'Hard constraints:',
 		'- Skill IDs MUST come from the tier allowlist above. Non-negotiable.',
 		'- Form a DAG. Independent tasks must NOT depend on each other.',
+		'- Choose task count from project complexity. Tiny builds may use 3-4 tasks, normal apps usually need 5-8, and substantial projects may need 8-14.',
+		'- Do not default to four tasks when distinct skill sets or verification boundaries justify more.',
 		'- Every task: at least one acceptance criterion, at least one verification command.',
 		'- No placeholders, no TODOs, no prose outside the fenced block.'
 	].join('\n');

@@ -215,7 +215,6 @@ class MissionExecutor {
 	private providerHeartbeatInterval: ReturnType<typeof setInterval> | null = null;
 	private readonly STALL_WARNING_MINUTES = 3;
 	private readonly STALL_CRITICAL_MINUTES = 8;
-	private readonly PROVIDER_HEARTBEAT_MS = 30_000;
 
 	// File sync for Claude Code resume capability
 	private fileSyncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1952,67 +1951,11 @@ class MissionExecutor {
 		this.lastProgressTime = Date.now();
 	}
 
-	private formatElapsed(ms: number): string {
-		const seconds = Math.max(0, Math.floor(ms / 1000));
-		if (seconds < 60) return `${seconds}s`;
-		const minutes = Math.floor(seconds / 60);
-		const remainingSeconds = seconds % 60;
-		return `${minutes}m ${remainingSeconds}s`;
-	}
-
 	private startProviderHeartbeat(): void {
 		this.stopProviderHeartbeat();
-		if (!browser) return;
-
-		this.providerHeartbeatInterval = setInterval(() => {
-			if (this.progress.status !== 'running') return;
-			if (!this.progress.multiLLMExecution?.enabled) return;
-			if (!this.progress.mission?.tasks?.length) return;
-
-			const currentTask =
-				this.progress.mission.tasks.find((task) => task.id === this.progress.currentTaskId) ||
-				this.progress.mission.tasks.find((task) => task.status === 'in_progress') ||
-				this.progress.mission.tasks.find((task) => task.status === 'pending');
-			if (!currentTask) return;
-
-			const tracked = this.progress.taskProgressMap.get(currentTask.id);
-			const startedAt = tracked?.startedAt || this.progress.startTime?.getTime() || Date.now();
-			const elapsedMs = Date.now() - startedAt;
-			const nextProgress = Math.min(
-				82,
-				Math.max(tracked?.progress ?? 8, 10 + Math.floor(elapsedMs / this.PROVIDER_HEARTBEAT_MS) * 6)
-			);
-			const providerLabel =
-				[...this.progress.agentRuntime.values()].find((agent) => agent.status === 'running')?.label ||
-				this.progress.multiLLMExecution?.providers.find((provider) => provider.enabled)?.label ||
-				'Agent';
-			const message = `${providerLabel} is still working on ${currentTask.title} (${this.formatElapsed(elapsedMs)} elapsed)`;
-
-			currentTask.status = 'in_progress';
-			this.progress.currentTaskId = currentTask.id;
-			this.progress.currentTaskName = currentTask.title;
-			this.progress.currentTaskProgress = nextProgress;
-			this.progress.currentTaskMessage = message;
-			this.progress.taskProgressMap.set(currentTask.id, {
-				taskId: currentTask.id,
-				taskName: currentTask.title,
-				progress: nextProgress,
-				message,
-				startedAt
-			});
-			this.callbacks.onTaskProgress?.(currentTask.id, nextProgress, message);
-			this.recalculateOverallProgress();
-			this.addLocalLog('info', message);
-			this.appendTaskTransition({
-				state: 'progress',
-				taskId: currentTask.id,
-				taskName: currentTask.title,
-				agentLabel: providerLabel,
-				message,
-				progress: nextProgress
-			});
-			this.persistState();
-		}, this.PROVIDER_HEARTBEAT_MS);
+		// Canvas progress should reflect mission events, not elapsed-time guesses.
+		// Stall detection below still watches long quiet periods, but task state
+		// now updates only when the runner reports state or completion.
 	}
 
 	private stopProviderHeartbeat(): void {

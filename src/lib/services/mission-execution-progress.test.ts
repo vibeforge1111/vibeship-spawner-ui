@@ -25,23 +25,23 @@ describe('mission-execution-progress', () => {
 				{ status: 'pending' },
 				{ status: 'in_progress' }
 			])
-		).toBe(50);
+		).toBe(25);
 	});
 
-	it('calculates granular progress with tracked in-progress task values', () => {
+	it('keeps mission progress tied to completed task count', () => {
 		const progress = calculateGranularMissionProgress(
 			[task('one', 'completed'), task('two', 'in_progress'), task('three', 'pending')],
 			new Map([['two', { progress: 25 }]])
 		);
 
-		expect(progress).toBe(42);
+		expect(progress).toBe(33);
 	});
 
-	it('uses a 50 percent estimate for untracked in-progress tasks', () => {
-		expect(calculateGranularMissionProgress([task('one', 'in_progress')], new Map())).toBe(50);
+	it('does not invent progress for untracked in-progress tasks', () => {
+		expect(calculateGranularMissionProgress([task('one', 'in_progress')], new Map())).toBe(0);
 	});
 
-	it('includes tracked pending task progress for bundled provider runs without marking them terminal', () => {
+	it('ignores tracked pending task progress for overall mission progress', () => {
 		const progress = calculateGranularMissionProgress(
 			[task('one', 'in_progress'), task('two', 'pending'), task('three', 'pending')],
 			new Map([
@@ -51,10 +51,10 @@ describe('mission-execution-progress', () => {
 			])
 		);
 
-		expect(progress).toBe(32);
+		expect(progress).toBe(0);
 	});
 
-	it('clamps malformed tracked task progress and reserves full bars for terminal tasks', () => {
+	it('reserves full progress for completed tasks rather than malformed tracked values', () => {
 		expect(
 			calculateGranularMissionProgress(
 				[task('too-high', 'in_progress'), task('too-low', 'in_progress')],
@@ -63,7 +63,7 @@ describe('mission-execution-progress', () => {
 					['too-low', { progress: -20 }]
 				])
 			)
-		).toBe(46);
+		).toBe(0);
 	});
 
 	it('distributes a single provider heartbeat across its assigned task pack', () => {

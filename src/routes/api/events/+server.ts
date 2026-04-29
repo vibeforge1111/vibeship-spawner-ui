@@ -21,6 +21,17 @@ import { existsSync } from 'fs';
 const EVENTS_AUTH_COOKIE = 'spawner_events_api_key';
 const log = logger.scope('EventBridge');
 
+function corsHeaders(request: Request): Record<string, string> {
+	const origin = request.headers.get('origin');
+	if (!origin) return {};
+	return {
+		'Access-Control-Allow-Origin': origin,
+		'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+		'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key, x-mcp-api-key',
+		Vary: 'Origin'
+	};
+}
+
 function getSpawnerDir(): string {
 	return process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
 }
@@ -246,11 +257,29 @@ export const POST: RequestHandler = async (event) => {
 		if (authCookie) {
 			headers.set('Set-Cookie', authCookie);
 		}
+		for (const [key, value] of Object.entries(corsHeaders(event.request))) {
+			headers.set(key, value);
+		}
 		return json({ success: true, eventId: fullEvent.id }, { headers });
 	} catch (error) {
 		console.error('[EventBridge] Error processing event:', error);
-		return json({ error: 'Invalid event data' }, { status: 400 });
+		return json({ error: 'Invalid event data' }, { status: 400, headers: corsHeaders(event.request) });
 	}
+};
+
+export const OPTIONS: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'Events',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: EVENTS_AUTH_COOKIE,
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+	if (unauthorized) return unauthorized;
+
+	return new Response(null, { status: 204, headers: corsHeaders(event.request) });
 };
 
 /**
@@ -315,7 +344,8 @@ export const GET: RequestHandler = async (event) => {
 	const headers: Record<string, string> = {
 		'Content-Type': 'text/event-stream',
 		'Cache-Control': 'no-cache',
-		'Connection': 'keep-alive'
+		'Connection': 'keep-alive',
+		...corsHeaders(event.request)
 	};
 	const authCookie = createAuthCookieHeader(event.request);
 	if (authCookie) {
