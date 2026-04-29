@@ -34,9 +34,18 @@
 	import {
 		buildExecutionTaskRows,
 		getNextTaskRow,
-		summarizeTaskRows,
-		type TaskRowStatus
+		summarizeTaskRows
 	} from '$lib/services/execution-task-rows';
+	import {
+		formatExecutionDuration,
+		getAgentStatusColor,
+		getLogColor,
+		getLogIcon,
+		getStatusColor,
+		getTaskBadgeClass,
+		getTaskRowClass,
+		getTransitionBadge
+	} from '$lib/services/execution-panel-formatting';
 	import { browser } from '$app/environment';
 	import { get } from 'svelte/store';
 
@@ -1168,134 +1177,13 @@
 		toasts.info('Partial mission dismissed');
 	}
 
-	function getLogColor(type: MissionLog['type']): string {
-		switch (type) {
-			case 'complete':
-				return 'text-accent-primary';
-			case 'error':
-				return 'text-status-error';
-			case 'handoff':
-				return 'text-status-warning';
-			case 'start':
-			case 'progress':
-			default:
-				return 'text-text-secondary';
-		}
-	}
-
-	function getLogIcon(type: MissionLog['type']): string {
-		switch (type) {
-			case 'complete':
-				return '■';  // Sharp square checkmark style
-			case 'error':
-				return '✕';  // Sharp X
-			case 'handoff':
-				return '▸';  // Sharp arrow
-			case 'start':
-				return '▶';
-			case 'progress':
-			default:
-				return '▪';  // Small sharp square
-		}
-	}
-
 	function formatTime(dateStr: string | Date): string {
 		const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
 		return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 	}
 
-	function getStatusColor(status: ExecutionStatus): string {
-		switch (status) {
-			case 'completed':
-				return 'text-accent-primary';
-			case 'failed':
-				return 'text-status-error';
-			case 'running':
-			case 'creating':
-				return 'text-vibe-teal';
-			case 'paused':
-				return 'text-blue-400';
-			case 'cancelled':
-				return 'text-gray-400';
-			default:
-				return 'text-text-secondary';
-		}
-	}
-
-	function getAgentStatusColor(status: AgentRuntimeStatus['status']): string {
-		switch (status) {
-			case 'running':
-				return 'text-vibe-teal border-vibe-teal/40 bg-vibe-teal/10';
-			case 'completed':
-				return 'text-accent-primary border-accent-primary/30 bg-accent-primary/10';
-			case 'failed':
-				return 'text-status-error border-status-error/30 bg-status-error/10';
-			case 'cancelled':
-				return 'text-status-warning border-status-warning/30 bg-status-warning/10';
-			default:
-				return 'text-text-tertiary border-surface-border bg-bg-tertiary';
-		}
-	}
-
-	function getTransitionBadge(state: TaskTransitionEvent['state']): string {
-		switch (state) {
-			case 'started':
-				return 'bg-blue-500/20 text-blue-300';
-			case 'progress':
-				return 'bg-vibe-teal/20 text-vibe-teal';
-			case 'completed':
-				return 'bg-accent-primary/20 text-accent-primary';
-			case 'failed':
-				return 'bg-status-error/20 text-status-error';
-			case 'cancelled':
-				return 'bg-status-warning/20 text-status-warning';
-			case 'handoff':
-				return 'bg-iris/20 text-iris';
-			default:
-				return 'bg-surface text-text-secondary';
-		}
-	}
-
-	function getTaskRowClass(status: TaskRowStatus): string {
-		switch (status) {
-			case 'completed':
-				return 'border-accent-primary/30 bg-accent-primary/5';
-			case 'running':
-				return 'border-vibe-teal/50 bg-vibe-teal/10';
-			case 'failed':
-				return 'border-status-error/40 bg-status-error/10';
-			case 'blocked':
-				return 'border-status-warning/40 bg-status-warning/10';
-			default:
-				return 'border-surface-border bg-bg-primary';
-		}
-	}
-
-	function getTaskBadgeClass(status: TaskRowStatus): string {
-		switch (status) {
-			case 'completed':
-				return 'bg-accent-primary/20 text-accent-primary border-accent-primary/30';
-			case 'running':
-				return 'bg-vibe-teal/20 text-vibe-teal border-vibe-teal/30';
-			case 'failed':
-				return 'bg-status-error/20 text-status-error border-status-error/30';
-			case 'blocked':
-				return 'bg-status-warning/20 text-status-warning border-status-warning/30';
-			default:
-				return 'bg-surface text-text-tertiary border-surface-border';
-		}
-	}
-
 	function getExecutionDuration(): string {
-		if (!executionProgress?.startTime) return '0s';
-		const end = executionProgress.endTime || new Date();
-		const durationMs = end.getTime() - executionProgress.startTime.getTime();
-		if (durationMs < 1000) return `${durationMs}ms`;
-		const seconds = Math.floor(durationMs / 1000);
-		if (seconds < 60) return `${seconds}s`;
-		const minutes = Math.floor(seconds / 60);
-		const remainingSeconds = seconds % 60;
-		return `${minutes}m ${remainingSeconds}s`;
+		return formatExecutionDuration(executionProgress?.startTime, executionProgress?.endTime);
 	}
 
 	function handleClose() {

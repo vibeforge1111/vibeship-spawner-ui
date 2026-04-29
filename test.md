@@ -394,3 +394,31 @@ Branch: `codex/spawner-execution-task-rows`
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes`.
 - Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
+
+## Continuation: Execution Panel Formatting
+
+Branch: `codex/spawner-execution-formatting`
+
+### Step Checklist
+
+- [x] Extract execution panel presentation mapping helpers from `ExecutionPanel.svelte`.
+- [x] Add focused tests for log colors/icons, status classes, task badge classes, transition badges, and duration formatting.
+- [x] Run focused tests.
+- [x] Run typecheck.
+- [x] Run full checks.
+- [x] Commit and push.
+
+### Changes Made
+
+- Added `src/lib/services/execution-panel-formatting.ts`.
+- Added `src/lib/services/execution-panel-formatting.test.ts`.
+- Replaced inline presentation helper implementations in `ExecutionPanel.svelte` with tested service helpers.
+
+### Verification Log
+
+- Focused formatting tests: PASS via `npm run test:run -- execution-panel-formatting` (1 file, 4 tests).
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Full unit/integration suite: PASS via `npm run test:run` (47 files, 256 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes`.
+- Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
