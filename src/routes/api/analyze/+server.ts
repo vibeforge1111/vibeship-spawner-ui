@@ -10,6 +10,7 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import skillIndex from '$lib/data/skill-index-ultra.json';
 import { ClaudeApiAnalysisSchema, safeJsonParse } from '$lib/types/schemas';
+import { logger } from '$lib/utils/logger';
 
 interface AnalysisRequest {
 	goal: string;
@@ -36,6 +37,7 @@ interface ClaudeAnalysis {
 }
 
 const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
+const log = logger.scope('AnalyzeAPI');
 
 const ANALYSIS_PROMPT = `You are an expert software architect analyzing a project description to recommend the most relevant development skills.
 
@@ -143,7 +145,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		if (!response.ok) {
 			const errorText = await response.text();
-			console.error('Claude API error:', response.status, errorText);
+			log.error('Claude API error:', response.status, errorText);
 			return json({
 				error: 'Claude API request failed',
 				fallback: true
@@ -179,7 +181,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			// SECURITY: Validate JSON with Zod schema
 			const parsed = safeJsonParse(jsonText, ClaudeApiAnalysisSchema, 'claude-analysis');
 			if (!parsed) {
-				console.error('Failed to validate Claude response:', jsonText.slice(0, 500));
+				log.error('Failed to validate Claude response:', jsonText.slice(0, 500));
 				return json({
 					error: 'Invalid analysis response format',
 					fallback: true
@@ -247,7 +249,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				skillCount: analysis.suggestedSkills?.length || 0
 			});
 		} catch (parseError) {
-			console.error('Failed to parse Claude response:', textContent.text);
+			log.error('Failed to parse Claude response:', textContent.text);
 			return json({
 				error: 'Failed to parse Claude response',
 				fallback: true,
@@ -256,7 +258,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 	} catch (error) {
-		console.error('Analysis API error:', error);
+		log.error('Analysis API error:', error);
 		return json({
 			error: error instanceof Error ? error.message : 'Internal server error',
 			fallback: true

@@ -542,4 +542,40 @@ Branch: `codex/spawner-docs-archive-spark-sync`
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes`.
 - Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
-- Production dependency audit: PASS at high threshold via `npm audit --omit=dev --audit-level=high`; residual moderate `uuid` advisory remains through `svelvet`, and the suggested automatic fix is a breaking upgrade.
+- Production dependency audit: PASS at high threshold via `npm audit --omit=dev --audit-level=high`; a residual moderate `uuid` advisory remained through unused `svelvet` at this point and was resolved in the later maintenance optimization pass.
+
+## Continuation: Maintenance Optimization Pass
+
+Branch: `codex/spawner-maintenance-optimization-pass`
+
+### Step Checklist
+
+- [x] Investigate the residual dependency advisory before changing dependencies.
+- [x] Remove unused `svelvet` after confirming no source imports.
+- [x] Tighten low-risk scheduled route/server `any` usage.
+- [x] Move PRD analysis direct console calls to scoped logger usage.
+- [x] Add a current optimization diagnosis doc with measured file-size and debt findings.
+- [x] Run typecheck, tests, build, route smoke, mission smoke, and audit.
+- [x] Commit and push.
+
+### Changes Made
+
+- Removed unused `svelvet` from `package.json` and `package-lock.json`.
+- Updated `src/routes/api/scheduled/+server.ts` to parse unknown JSON into `Record<string, unknown>` and normalize unknown errors.
+- Updated `src/lib/server/scheduler.ts` to avoid `any` in scheduler error handling.
+- Updated `src/routes/api/analyze/+server.ts` and `src/lib/services/claude-api.ts` to use scoped logger instances.
+- Added `docs/SPAWNER_UI_OPTIMIZATION_DIAGNOSIS.md`.
+- Linked the diagnosis from `docs/README.md`.
+
+### Verification Log
+
+- Removed dependency scan: PASS; `svelvet` no longer appears in `package.json`, `package-lock.json`, or active source. Historical notes remain in this log and the diagnosis.
+- Loose error/request `any` scan: PASS for the patched scheduled API/server patterns.
+- Whitespace check: PASS via `git diff --check`.
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Full unit/integration suite: PASS via `npm run test:run` (49 files, 269 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes`.
+- Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
+- Production dependency audit: PASS via `npm audit --omit=dev` (0 vulnerabilities).
+- Production preview smoke: PASS via `npm run preview -- --host 127.0.0.1 --port 4191`; `/`, `/kanban`, `/canvas`, and `/trace` returned HTTP 200.

@@ -31,6 +31,7 @@ These documents are planning/spec artifacts. Treat them as context, not the acti
 - [Spark personality pipeline template](SPARK_PERSONALITY_PIPELINE_TEMPLATE.md)
 - [Codebase remediation plan](CODEBASE_REMEDIATION_PLAN.md)
 - [Optimization cleanup plan](OPTIMIZATION-CLEANUP-PLAN.md)
+- [Spawner UI optimization diagnosis](SPAWNER_UI_OPTIMIZATION_DIAGNOSIS.md)
 - [Stability improvements](STABILITY-IMPROVEMENTS.md)
 
 ## Archive

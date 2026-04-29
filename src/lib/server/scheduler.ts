@@ -19,6 +19,10 @@ function _envVar(name: string): string | undefined {
   return undefined;
 }
 
+function errorMessage(error: unknown, fallback = 'unknown'): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 const SCHEDULES_FILE = path.resolve(process.cwd(), '.spawner', 'schedules.json');
 const TICK_MS = 30_000;
 
@@ -188,8 +192,8 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
           ? `loop ${chipKey} rounds=${parsed.rounds_completed}`
           : `loop error: ${parsed.error || 'unknown'}`,
       };
-    } catch (err: any) {
-      return { ok: false, summary: `loop exec failed: ${err?.message || 'unknown'}` };
+    } catch (err: unknown) {
+      return { ok: false, summary: `loop exec failed: ${errorMessage(err)}` };
     }
   }
   return { ok: false, summary: `unknown action ${record.action}` };
@@ -214,8 +218,8 @@ async function _relayToTelegram(record: ScheduleRecord, result: { ok: boolean; s
     });
     const bodyText = await resp.text();
     logger.info('[scheduler] relay', record.id, 'status', resp.status, 'body', bodyText.slice(0, 200));
-  } catch (err: any) {
-    logger.info('[scheduler] relay fetch error on', record.id, err?.message || err);
+  } catch (err: unknown) {
+    logger.info('[scheduler] relay fetch error on', record.id, errorMessage(err, String(err)));
   }
 }
 
@@ -237,9 +241,9 @@ async function _tick(): Promise<void> {
       rec.fireCount += 1;
       rec.lastStatus = (result.ok ? 'ok: ' : 'fail: ') + result.summary.slice(0, 200);
       await _relayToTelegram(rec, result);
-    } catch (err: any) {
+    } catch (err: unknown) {
       rec.lastFiredAt = new Date().toISOString();
-      rec.lastStatus = 'crash: ' + (err?.message || 'unknown');
+      rec.lastStatus = 'crash: ' + errorMessage(err);
     }
     rec.nextFireAt = _computeNext(rec.cron);
     dirty = true;

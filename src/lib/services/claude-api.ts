@@ -5,6 +5,10 @@
  * Claude sees the current local skill catalog organized by domain and selects with reasoning.
  */
 
+import { logger } from '$lib/utils/logger';
+
+const log = logger.scope('ClaudeAPI');
+
 export interface SkillSelection {
 	id: string;
 	reason: string;
@@ -108,7 +112,7 @@ class ClaudeClient {
 			};
 
 		} catch (error) {
-			console.warn('Claude API call failed, falling back to local analysis:', error);
+			log.warn('Claude API call failed, falling back to local analysis:', error);
 			return {
 				success: false,
 				error: error instanceof Error ? error.message : 'Network error',

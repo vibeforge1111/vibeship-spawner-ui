@@ -9,6 +9,16 @@ import {
   type ScheduleAction,
 } from '$lib/server/scheduler';
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 if (!building) {
   startScheduler();
 }
@@ -19,15 +29,15 @@ export const GET: RequestHandler = async () => {
 };
 
 export const POST: RequestHandler = async ({ request }) => {
-  let body: any;
+  let body: Record<string, unknown>;
   try {
-    body = await request.json();
+    body = asRecord(await request.json());
   } catch {
     return json({ ok: false, error: 'invalid json' }, { status: 400 });
   }
   const action = String(body?.action || '').toLowerCase() as ScheduleAction;
   const cron = String(body?.cron || '').trim();
-  const payload = body?.payload && typeof body.payload === 'object' ? body.payload : {};
+  const payload = asRecord(body.payload);
   const chatId = body?.chatId ? String(body.chatId) : null;
   if (!cron) return json({ ok: false, error: 'cron required' }, { status: 400 });
   if (action !== 'mission' && action !== 'loop') {
@@ -36,16 +46,16 @@ export const POST: RequestHandler = async ({ request }) => {
   try {
     const record = await createSchedule({ cron, action, payload, chatId });
     return json({ ok: true, schedule: record });
-  } catch (err: any) {
-    return json({ ok: false, error: err?.message || 'create failed' }, { status: 400 });
+  } catch (err: unknown) {
+    return json({ ok: false, error: errorMessage(err, 'create failed') }, { status: 400 });
   }
 };
 
 export const DELETE: RequestHandler = async ({ request, url }) => {
   const id = url.searchParams.get('id') || '';
   if (!id) {
-    let body: any = {};
-    try { body = await request.json(); } catch {}
+    let body: Record<string, unknown> = {};
+    try { body = asRecord(await request.json()); } catch {}
     const bodyId = body?.id ? String(body.id) : '';
     if (!bodyId) return json({ ok: false, error: 'id required' }, { status: 400 });
     const ok = await deleteSchedule(bodyId);
