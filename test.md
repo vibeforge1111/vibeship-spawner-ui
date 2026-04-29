@@ -336,3 +336,33 @@ Branch: `codex/spawner-logging-boundary-cleanup`
 - Full unit/integration suite: PASS via `npm run test:run` (44 files, 245 tests).
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes`, including `/api/spark-agent/canvas-state`.
+
+## Continuation: Mission Surface Smoke
+
+Branch: `codex/spawner-mission-surface-smoke`
+
+### Step Checklist
+
+- [x] Add a live smoke that creates a synthetic PRD result.
+- [x] Load the synthetic result into a mission-scoped canvas without auto-running a provider.
+- [x] Relay mission/task lifecycle events through `/api/events`.
+- [x] Verify Kanban, mission detail, canvas, trace, and Spark agent bridge surfaces.
+- [x] Run the new smoke against the local Spawner server.
+- [x] Run typecheck.
+- [x] Run route smoke.
+- [x] Run full checks.
+- [x] Commit and push.
+
+### Changes Made
+
+- Added `scripts/smoke-mission-surfaces.mjs`.
+- Added `npm run smoke:mission-surfaces`.
+- The smoke stores a tiny PRD result, loads `/canvas?pipeline=...&mission=...` with `autoRun: false`, injects lifecycle events, and verifies the mission reaches completed state across board and trace.
+
+### Verification Log
+
+- Mission surface smoke: PASS via `npm run smoke:mission-surfaces` against `http://127.0.0.1:5173`.
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Local route smoke: PASS via `npm run smoke:routes`, including `/missions/mission-smoke-route` and `/api/spark-agent/canvas-state`.
+- Full unit/integration suite: PASS via `npm run test:run` (44 files, 245 tests).
+- Production build: PASS via `npm run build`.

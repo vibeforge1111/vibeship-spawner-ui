@@ -14,6 +14,7 @@
 		"test": "vitest",
 		"test:run": "vitest run",
 		"smoke:routes": "node scripts/smoke-routes.mjs",
+		"smoke:mission-surfaces": "node scripts/smoke-mission-surfaces.mjs",
 		"sync:runtime": "node scripts/sync-runtime.cjs",
 		"sync:watch": "node scripts/sync-runtime.cjs --watch",
 		"sync:check": "node scripts/sync-runtime.cjs --check",
