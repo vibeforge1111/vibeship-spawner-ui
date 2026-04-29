@@ -89,6 +89,14 @@ describe("shouldRepairHostedWorkspaceOwnership", () => {
         1001,
       ),
     ).toBe(false);
+    expect(
+      shouldRepairHostedWorkspaceOwnership(
+        {
+          SPARK_WORKSPACE_ROOT: "/data/spark/workspaces",
+        },
+        0,
+      ),
+    ).toBe(true);
     expect(shouldRepairHostedWorkspaceOwnership({}, 0)).toBe(false);
   });
 });

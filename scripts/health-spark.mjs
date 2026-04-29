@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { chownSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const spawnerPort = process.env.SPARK_SPAWNER_PORT || process.env.PORT || "5173";
@@ -81,14 +81,19 @@ export function resolveSparkWorkspaceRoot(env = process.env, fallbackHome = home
 }
 
 export function shouldRepairHostedWorkspaceOwnership(env = process.env, getuid = process.getuid?.()) {
-  return getuid === 0 && Boolean(env.SPARK_HOME?.trim());
+  return (
+    getuid === 0 &&
+    Boolean(env.SPARK_HOME?.trim() || env.SPARK_WORKSPACE_ROOT?.trim() || env.SPAWNER_WORKSPACE_ROOT?.trim())
+  );
 }
 
 function repairHostedWorkspaceOwnership(paths, env = process.env) {
   if (!shouldRepairHostedWorkspaceOwnership(env)) return;
+  const workspaceRoot = resolveSparkWorkspaceRoot(env);
+  const ownerPath = env.SPARK_HOME?.trim() || dirname(workspaceRoot);
   let owner;
   try {
-    owner = statSync(env.SPARK_HOME.trim());
+    owner = statSync(ownerPath);
   } catch {
     return;
   }
