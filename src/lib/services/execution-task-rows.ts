@@ -23,6 +23,10 @@ function clampProgress(value: number): number {
 	return Math.max(0, Math.min(100, value));
 }
 
+function clampNonTerminalProgress(value: number): number {
+	return Math.max(0, Math.min(92, value));
+}
+
 function rowStatusFromCanvasNode(node: CanvasNode): TaskRowStatus {
 	if (node.status === 'success') return 'completed';
 	if (node.status === 'error') return 'failed';
@@ -36,11 +40,12 @@ function rowProgressFromStatus(status: TaskRowStatus): number {
 	return 0;
 }
 
-function rowStatusFromMissionTask(status: string | undefined): TaskRowStatus {
+function rowStatusFromMissionTask(status: string | undefined, trackedProgress?: number): TaskRowStatus {
 	if (status === 'completed') return 'completed';
 	if (status === 'failed') return 'failed';
 	if (status === 'blocked') return 'blocked';
 	if (status === 'in_progress') return 'running';
+	if (typeof trackedProgress === 'number' && trackedProgress > 0) return 'running';
 	return 'pending';
 }
 
@@ -64,14 +69,17 @@ export function buildExecutionTaskRows(
 
 	return missionTasks.map((task, index) => {
 		const tracked = executionProgress?.taskProgressMap?.get(task.id);
-		const status = rowStatusFromMissionTask(task.status);
+		const status = rowStatusFromMissionTask(task.status, tracked?.progress);
 		const inferredProgress = rowProgressFromStatus(status);
 		return {
 			id: task.id,
 			index: index + 1,
 			title: task.title,
 			status,
-			progress: clampProgress(tracked?.progress ?? inferredProgress),
+			progress:
+				status === 'completed' || status === 'failed'
+					? 100
+					: clampNonTerminalProgress(tracked?.progress ?? inferredProgress),
 			message: tracked?.message
 		};
 	});

@@ -128,8 +128,39 @@ describe('execution task row helpers', () => {
 		expect(rows.map((row) => [row.id, row.status, row.progress, row.message])).toEqual([
 			['task-1', 'completed', 100, undefined],
 			['task-2', 'running', 47, 'Halfway there'],
-			['task-3', 'blocked', 100, 'Bad external value'],
+			['task-3', 'blocked', 92, 'Bad external value'],
 			['task-4', 'failed', 100, undefined]
+		]);
+	});
+
+	it('shows queued tasks with bundled provider progress as active running rows', () => {
+		const rows = buildExecutionTaskRows(
+			progress({
+				mission: mission([
+					task('task-1', 'Scaffold', 'in_progress'),
+					task('task-2', 'Canvas scene', 'pending'),
+					task('task-3', 'Controls', 'pending'),
+					task('task-4', 'Docs', 'pending')
+				]),
+				taskProgressMap: new Map([
+					[
+						'task-1',
+						{ taskId: 'task-1', taskName: 'Scaffold', progress: 92, message: 'Codex is building', startedAt: 1 }
+					],
+					[
+						'task-2',
+						{ taskId: 'task-2', taskName: 'Canvas scene', progress: 76, message: 'Queued in active agent run', startedAt: 1 }
+					]
+				])
+			}),
+			[]
+		);
+
+		expect(rows.map((row) => [row.id, row.status, row.progress])).toEqual([
+			['task-1', 'running', 92],
+			['task-2', 'running', 76],
+			['task-3', 'pending', 0],
+			['task-4', 'pending', 0]
 		]);
 	});
 
