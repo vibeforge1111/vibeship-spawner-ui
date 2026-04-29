@@ -17,6 +17,9 @@ const COOKIE_OPTIONS = {
 	path: '/',
 	maxAge: 60 * 60 * 12
 };
+const AUTH_WINDOW_MS = 60_000;
+const AUTH_MAX_FAILURES = 12;
+const authFailures = new Map<string, { count: number; resetAt: number }>();
 
 function constantTimeEquals(left: string, right: string): boolean {
 	const leftBuffer = Buffer.from(left);
@@ -26,6 +29,43 @@ function constantTimeEquals(left: string, right: string): boolean {
 
 export function hostedUiAuthEnabled(env: HostedUiAuthEnv): boolean {
 	return Boolean(env.SPARK_UI_API_KEY?.trim());
+}
+
+export function hostedUiAuthClientKey(request: Request): string {
+	const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+	return forwardedFor || request.headers.get('x-real-ip')?.trim() || 'unknown';
+}
+
+export function hostedUiAuthRateLimitStatus(clientKey: string, now = Date.now()): {
+	blocked: boolean;
+	retryAfterSeconds: number;
+} {
+	const current = authFailures.get(clientKey);
+	if (!current || current.resetAt <= now) {
+		authFailures.delete(clientKey);
+		return { blocked: false, retryAfterSeconds: 0 };
+	}
+	return {
+		blocked: current.count >= AUTH_MAX_FAILURES,
+		retryAfterSeconds: Math.max(1, Math.ceil((current.resetAt - now) / 1000))
+	};
+}
+
+export function recordHostedUiAuthFailure(clientKey: string, now = Date.now()): void {
+	const current = authFailures.get(clientKey);
+	if (!current || current.resetAt <= now) {
+		authFailures.set(clientKey, { count: 1, resetAt: now + AUTH_WINDOW_MS });
+		return;
+	}
+	current.count += 1;
+}
+
+export function clearHostedUiAuthFailures(clientKey: string): void {
+	authFailures.delete(clientKey);
+}
+
+export function resetHostedUiAuthRateLimits(): void {
+	authFailures.clear();
 }
 
 export function hostedUiAuthPathIsExempt(pathname: string): boolean {

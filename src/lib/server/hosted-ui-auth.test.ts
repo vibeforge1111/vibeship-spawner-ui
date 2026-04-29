@@ -2,10 +2,14 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Cookies } from '@sveltejs/kit';
 import {
 	hostedUiAuthEnabled,
+	hostedUiAuthClientKey,
 	hostedUiAuthPathIsExempt,
+	hostedUiAuthRateLimitStatus,
 	hostedUiRequestToken,
 	hostedUiTokenIsValid,
-	persistHostedUiAuth
+	persistHostedUiAuth,
+	recordHostedUiAuthFailure,
+	resetHostedUiAuthRateLimits
 } from './hosted-ui-auth';
 
 type FakeCookies = Cookies & {
@@ -63,5 +67,19 @@ describe('hosted UI auth', () => {
 	it('compares tokens exactly', () => {
 		expect(hostedUiTokenIsValid('secret', { SPARK_UI_API_KEY: 'secret' })).toBe(true);
 		expect(hostedUiTokenIsValid('wrong', { SPARK_UI_API_KEY: 'secret' })).toBe(false);
+	});
+
+	it('uses forwarded IP as the hosted auth rate-limit key', () => {
+		const request = new Request('https://x.test/', { headers: { 'x-forwarded-for': '203.0.113.10, 10.0.0.1' } });
+		expect(hostedUiAuthClientKey(request)).toBe('203.0.113.10');
+	});
+
+	it('rate-limits repeated hosted auth failures within the window', () => {
+		resetHostedUiAuthRateLimits();
+		for (let i = 0; i < 12; i += 1) {
+			recordHostedUiAuthFailure('client-a', 1_000);
+		}
+		expect(hostedUiAuthRateLimitStatus('client-a', 2_000)).toEqual({ blocked: true, retryAfterSeconds: 59 });
+		expect(hostedUiAuthRateLimitStatus('client-a', 62_000)).toEqual({ blocked: false, retryAfterSeconds: 0 });
 	});
 });
