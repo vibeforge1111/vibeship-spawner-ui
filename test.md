@@ -592,7 +592,7 @@ Branch: `codex/spawner-mission-inspection-actions`
 - [x] Route Trace actions through the existing mission filter and accept the legacy `mission` alias.
 - [x] Add a result anchor and fallback empty-state on the Spark mission detail view.
 - [x] Run full typecheck, tests, build, route smoke, and mission surface smoke.
-- [ ] Commit and push.
+- [x] Commit and push.
 
 ### Changes Made
 
