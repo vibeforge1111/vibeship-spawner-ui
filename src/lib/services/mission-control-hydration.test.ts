@@ -80,6 +80,20 @@ function hydrate(entry: MissionControlBoardEntry = boardEntry) {
 	});
 }
 
+function hydrateWithoutRecentEvents(entry: MissionControlBoardEntry = boardEntry) {
+	return buildMissionControlHydrationSnapshot({
+		missionId: entry.missionId,
+		boardEntry: entry,
+		recentEvents: [],
+		missionName: 'Fallback Mission',
+		projectPath: 'C:/tmp/project',
+		projectType: 'web-app',
+		goals: ['ship the UI'],
+		multiLLMOptions: createDefaultMultiLLMOptions(),
+		now: '2026-04-29T11:06:00.000Z'
+	});
+}
+
 describe('mission-control hydration', () => {
 	it('builds execution progress from a Mission Control board entry', () => {
 		const snapshot = hydrate();
@@ -130,6 +144,32 @@ describe('mission-control hydration', () => {
 			'started',
 			'completed',
 			'started'
+		]);
+	});
+
+	it('synthesizes readable logs and transitions from the board when trace history is empty', () => {
+		const snapshot = hydrateWithoutRecentEvents({
+			...boardEntry,
+			status: 'completed',
+			lastSummary: 'Mission completed cleanly.',
+			tasks: [
+				{ title: 'task-1: Scaffold', skills: ['frontend'], status: 'completed' },
+				{ title: 'task-2: Build UI', skills: ['ui'], status: 'completed' }
+			]
+		});
+
+		expect(snapshot.logs.map((log) => log.message)).toEqual([
+			'Mission started.',
+			'task-1: Scaffold completed.',
+			'task-2: Build UI completed.',
+			'Mission completed cleanly.'
+		]);
+		expect(snapshot.logs.map((log) => log.type)).toEqual(['start', 'complete', 'complete', 'complete']);
+		expect(snapshot.executionProgress.taskTransitions.map((transition) => transition.state)).toEqual([
+			'started',
+			'completed',
+			'completed',
+			'completed'
 		]);
 	});
 

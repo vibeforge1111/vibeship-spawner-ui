@@ -169,3 +169,29 @@ Branch: `codex/spawner-execution-hydration-model`
 - Full unit/integration suite: PASS via `npm run test:run` (43 files, 238 tests).
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes` against `http://127.0.0.1:5173` for `/`, `/kanban`, `/missions/mission-smoke-route`, `/canvas`, `/trace`, `/api/mission-control/board`, and `/api/mission-control/trace`.
+
+## Continuation: Hydration Fallback Logs
+
+Branch: `codex/spawner-hydration-fallback-logs`
+
+### Step Checklist
+
+- [x] Preserve completed/running mission inspectability when trace history is empty.
+- [x] Synthesize readable execution logs and task transitions from the Mission Control board entry.
+- [x] Run focused hydration tests.
+- [x] Run typecheck.
+- [x] Run full checks.
+- [x] Commit and push.
+
+### Changes Made
+
+- Updated `src/lib/services/mission-control-hydration.ts` to build fallback mission/task events from board state when `/api/mission-control/status` has no matching recent events.
+- Added regression coverage in `src/lib/services/mission-control-hydration.test.ts`.
+
+### Verification Log
+
+- Focused hydration tests: PASS via `npm run test:run -- mission-control-hydration` (1 file, 6 tests).
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Full unit/integration suite: PASS via `npm run test:run` (43 files, 239 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes` against `http://127.0.0.1:5173` for `/`, `/kanban`, `/missions/mission-smoke-route`, `/canvas`, `/trace`, `/api/mission-control/board`, and `/api/mission-control/trace`.

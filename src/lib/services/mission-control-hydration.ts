@@ -88,6 +88,86 @@ function agentRuntimeForStatus(
 	};
 }
 
+function taskEventTypeForBoardStatus(
+	status: MissionControlBoardEntry['tasks'][number]['status']
+): string {
+	if (status === 'completed') return 'task_completed';
+	if (status === 'failed') return 'task_failed';
+	if (status === 'cancelled') return 'task_cancelled';
+	if (status === 'running') return 'task_started';
+	return 'task_queued';
+}
+
+function taskSummaryForBoardStatus(task: MissionControlBoardEntry['tasks'][number]): string {
+	if (task.status === 'completed') return `${task.title} completed.`;
+	if (task.status === 'failed') return `${task.title} failed.`;
+	if (task.status === 'cancelled') return `${task.title} was cancelled.`;
+	if (task.status === 'running') return `${task.title} started working on it.`;
+	return `${task.title} is queued.`;
+}
+
+function missionTerminalEventType(status: MissionControlBoardEntry['status']): string | null {
+	if (status === 'completed') return 'mission_completed';
+	if (status === 'failed') return 'mission_failed';
+	if (status === 'cancelled') return 'mission_cancelled';
+	return null;
+}
+
+function missionTerminalSummary(boardEntry: MissionControlBoardEntry, missionId: string): string {
+	if (boardEntry.lastSummary) return boardEntry.lastSummary;
+	if (boardEntry.status === 'completed') return `${boardEntry.missionName || missionId} completed.`;
+	if (boardEntry.status === 'failed') return `${boardEntry.missionName || missionId} failed.`;
+	return `${boardEntry.missionName || missionId} was cancelled.`;
+}
+
+function buildFallbackHistoryEvents(input: MissionControlHydrationInput): MissionControlHistoryEvent[] {
+	const { boardEntry, missionId } = input;
+	const startedAt =
+		boardEntry.startedAt || boardEntry.queuedAt || boardEntry.lastUpdated || input.now || new Date().toISOString();
+	const updatedAt = boardEntry.lastUpdated || startedAt;
+	const events: MissionControlHistoryEvent[] = [
+		{
+			eventType: boardEntry.startedAt ? 'mission_started' : 'mission_created',
+			missionId,
+			missionName: boardEntry.missionName,
+			taskId: null,
+			taskName: null,
+			summary: boardEntry.startedAt ? 'Mission started.' : 'Mission queued.',
+			timestamp: startedAt,
+			source: 'mission-control'
+		}
+	];
+
+	boardEntry.tasks.forEach((task, index) => {
+		events.push({
+			eventType: taskEventTypeForBoardStatus(task.status),
+			missionId,
+			missionName: boardEntry.missionName,
+			taskId: taskIdForTitle(task.title, index),
+			taskName: task.title,
+			summary: taskSummaryForBoardStatus(task),
+			timestamp: updatedAt,
+			source: 'mission-control'
+		});
+	});
+
+	const terminalEventType = missionTerminalEventType(boardEntry.status);
+	if (terminalEventType) {
+		events.push({
+			eventType: terminalEventType,
+			missionId,
+			missionName: boardEntry.missionName,
+			taskId: null,
+			taskName: null,
+			summary: missionTerminalSummary(boardEntry, missionId),
+			timestamp: updatedAt,
+			source: 'mission-control'
+		});
+	}
+
+	return events;
+}
+
 export function buildMissionControlHydrationSnapshot(
 	input: MissionControlHydrationInput
 ): MissionControlHydrationSnapshot {
@@ -120,7 +200,9 @@ export function buildMissionControlHydrationSnapshot(
 		};
 	});
 
-	const logs: MissionLog[] = input.recentEvents.map((entry, index) => ({
+	const historyEvents = input.recentEvents.length > 0 ? input.recentEvents : buildFallbackHistoryEvents(input);
+
+	const logs: MissionLog[] = historyEvents.map((entry, index) => ({
 		id: `${entry.missionId}-${entry.timestamp}-${index}`,
 		mission_id: entry.missionId,
 		agent_id: entry.source || null,
@@ -131,7 +213,7 @@ export function buildMissionControlHydrationSnapshot(
 		created_at: entry.timestamp
 	}));
 
-	const taskTransitions: TaskTransitionEvent[] = input.recentEvents.map((entry, index) => ({
+	const taskTransitions: TaskTransitionEvent[] = historyEvents.map((entry, index) => ({
 		id: `${entry.missionId}-transition-${entry.timestamp}-${index}`,
 		timestamp: entry.timestamp,
 		state: transitionStateFromMissionControlEvent(entry.eventType),
