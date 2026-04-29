@@ -117,3 +117,29 @@ Branch: `codex/spawner-mission-detail-links`
 - Full unit/integration suite: PASS via `npm run test:run` (41 files, 228 tests).
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes` against `http://127.0.0.1:5173` for `/`, `/kanban`, `/missions/mission-smoke-route`, `/canvas`, `/trace`, `/api/mission-control/board`, and `/api/mission-control/trace`.
+
+## Continuation: Mission Detail View Model
+
+Branch: `codex/spawner-mission-detail-view-model`
+
+### Step Checklist
+
+- [x] Extract Spark relay mission detail shaping from `/missions/[id]`.
+- [x] Add focused tests for task rollups, mission event status, and empty history.
+- [x] Keep the route rendering behavior unchanged while removing inline template logic.
+- [x] Run full checks.
+- [x] Commit and push.
+
+### Changes Made
+
+- Added `src/lib/services/mission-detail-view-model.ts`.
+- Added `src/lib/services/mission-detail-view-model.test.ts`.
+- Updated `/missions/[id]` to consume the derived Spark mission detail model.
+
+### Verification Log
+
+- Focused mission detail tests: PASS via `npm run test:run -- mission-detail-view-model` (1 file, 5 tests).
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Full unit/integration suite: PASS via `npm run test:run` (42 files, 233 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes` against `http://127.0.0.1:5173` for `/`, `/kanban`, `/missions/mission-smoke-route`, `/canvas`, `/trace`, `/api/mission-control/board`, and `/api/mission-control/trace`.

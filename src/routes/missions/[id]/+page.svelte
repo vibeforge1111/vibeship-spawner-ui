@@ -16,6 +16,10 @@
 	} from '$lib/stores/missions.svelte';
 	import { mcpState } from '$lib/stores/mcp.svelte';
 	import type { Mission, MissionLog, MissionTask, MissionAgent } from '$lib/services/mcp-client';
+	import {
+		buildSparkMissionDetail,
+		type MissionControlEntry
+	} from '$lib/services/mission-detail-view-model';
 
 	let missionId = $state('');
 	let currentState = $state<MissionsState>({
@@ -29,28 +33,6 @@
 	let mcpConnected = $state(false);
 	let showPrompt = $state(false);
 	let copiedPrompt = $state(false);
-
-	type MissionControlEntry = {
-		eventType: string;
-		missionId: string;
-		missionName: string | null;
-		taskId: string | null;
-		taskName: string | null;
-		taskSkills?: string[];
-		summary: string;
-		timestamp: string;
-		source: string;
-	};
-
-	type TaskRollup = {
-		key: string;
-		title: string;
-		skills: string[];
-		status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
-		startedAt: string;
-		updatedAt: string;
-		lastSummary: string;
-	};
 
 	type MissionControlSnapshot = {
 		enabled: { sparkIngest: boolean; webhooks: boolean };
@@ -258,6 +240,9 @@
 
 	const completedTasks = $derived(() => mission?.tasks.filter(t => t.status === 'completed').length ?? 0);
 	const progress = $derived(() => mission && mission.tasks.length > 0 ? (completedTasks() / mission.tasks.length) * 100 : 0);
+	const sparkMissionDetail = $derived(
+		missionControl ? buildSparkMissionDetail(missionId, missionControl.recent) : null
+	);
 </script>
 
 <div class="min-h-screen bg-bg-primary flex flex-col">
@@ -269,51 +254,17 @@
 			&larr; Back to Mission board
 		</a>
 
-		{#if missionControl && missionControl.recent.length > 0 && (!mcpConnected || (!currentState.loading && !mission))}
-			{@const recentDesc = missionControl.recent}
-			{@const chronological = [...recentDesc].reverse()}
-			{@const latest = recentDesc[0]}
-			{@const earliest = chronological[0]}
-			{@const sparkName = chronological.find((e) => e.missionName)?.missionName ?? missionId}
-			{@const taskRollups = (() => {
-				const map = new Map<string, TaskRollup>();
-				for (const ev of chronological) {
-					if (!ev.taskName && !ev.taskId) continue;
-					const key = ev.taskId ?? ev.taskName ?? 'task';
-					if (!map.has(key)) {
-						map.set(key, {
-							key,
-							title: ev.taskName ?? key,
-							skills: ev.taskSkills ?? [],
-							status: 'pending',
-							startedAt: ev.timestamp,
-							updatedAt: ev.timestamp,
-							lastSummary: ev.summary
-						});
-					}
-					const t = map.get(key)!;
-					t.updatedAt = ev.timestamp;
-					t.lastSummary = ev.summary;
-					if (ev.taskSkills && ev.taskSkills.length > 0 && t.skills.length === 0) t.skills = ev.taskSkills;
-					if (ev.eventType === 'task_started') t.status = 'running';
-					else if (ev.eventType === 'task_completed') t.status = 'completed';
-					else if (ev.eventType === 'task_failed') t.status = 'failed';
-					else if (ev.eventType === 'task_cancelled') t.status = 'cancelled';
-				}
-				return [...map.values()];
-			})()}
-			{@const missionEvents = chronological.filter((e) => e.eventType.startsWith('mission_'))}
-			{@const sparkStatus = latest.eventType.startsWith('mission_') ? latest.eventType.replace('mission_', '') : 'in progress'}
+		{#if missionControl && sparkMissionDetail && (!mcpConnected || (!currentState.loading && !mission))}
 
 			<!-- Spark mission detail: MCP has no record but relay tracked the lifecycle -->
 			<div class="mb-8">
 				<div class="flex items-center gap-3 mb-2 flex-wrap">
-					<h1 class="text-2xl font-sans font-semibold text-text-primary tracking-tight">{sparkName}</h1>
+					<h1 class="text-2xl font-sans font-semibold text-text-primary tracking-tight">{sparkMissionDetail.sparkName}</h1>
 					<span class="px-2 py-0.5 text-[10px] font-mono rounded-sm border border-accent-mid text-accent-primary bg-accent-subtle">spark</span>
-					<span class="px-2 py-0.5 text-[10px] font-mono rounded-sm border {getStatusBadge(sparkStatus as Mission['status']) ?? 'border-surface-border text-text-tertiary'}">{sparkStatus}</span>
+					<span class="px-2 py-0.5 text-[10px] font-mono rounded-sm border {getStatusBadge(sparkMissionDetail.sparkStatus as Mission['status']) ?? 'border-surface-border text-text-tertiary'}">{sparkMissionDetail.sparkStatus}</span>
 				</div>
 				<p class="font-mono text-xs text-text-tertiary">
-					{missionId} · started {new Date(earliest.timestamp).toLocaleString()} · {taskRollups.length} task{taskRollups.length !== 1 ? 's' : ''}
+					{missionId} · started {new Date(sparkMissionDetail.earliest.timestamp).toLocaleString()} · {sparkMissionDetail.taskRollups.length} task{sparkMissionDetail.taskRollups.length !== 1 ? 's' : ''}
 				</p>
 			</div>
 
@@ -339,11 +290,11 @@
 			{/if}
 
 			<!-- Per-task cards -->
-			{#if taskRollups.length > 0}
+			{#if sparkMissionDetail.taskRollups.length > 0}
 				<div class="mb-6">
 					<h2 class="font-mono text-xs font-semibold text-text-bright tracking-wide mb-3">Tasks</h2>
 					<div class="grid gap-3">
-						{#each taskRollups as task (task.key)}
+						{#each sparkMissionDetail.taskRollups as task (task.key)}
 							{@const dot = task.status === 'failed' ? 'bg-status-error' : task.status === 'completed' ? 'bg-status-success' : task.status === 'running' ? 'bg-accent-primary animate-pulse' : task.status === 'cancelled' ? 'bg-text-faint' : 'bg-text-tertiary'}
 							<article class="px-4 py-3.5 rounded-lg border border-surface-border bg-bg-secondary">
 								<div class="flex items-center gap-2 mb-2">
@@ -368,7 +319,7 @@
 			{/if}
 
 			<!-- Compact mission-level events -->
-			{#if missionEvents.length > 0}
+			{#if sparkMissionDetail.missionEvents.length > 0}
 				<div class="border border-surface-border rounded-lg bg-bg-secondary">
 					<div class="px-5 py-3 border-b border-surface-border flex items-center justify-between">
 						<h2 class="font-mono text-xs font-semibold text-text-bright tracking-wide">Mission events</h2>
@@ -377,7 +328,7 @@
 						</span>
 					</div>
 					<ol class="divide-y divide-surface-border/50">
-						{#each missionEvents as ev (ev.timestamp + '-' + ev.eventType)}
+						{#each sparkMissionDetail.missionEvents as ev (ev.timestamp + '-' + ev.eventType)}
 							<li class="px-5 py-2.5 flex items-start gap-3">
 								<span class="w-1.5 h-1.5 rounded-full mt-2 shrink-0 {ev.eventType.endsWith('_failed') ? 'bg-status-error' : ev.eventType.endsWith('_completed') ? 'bg-status-success' : ev.eventType.endsWith('_started') ? 'bg-accent-primary' : 'bg-text-tertiary'}"></span>
 								<div class="flex-1 min-w-0">
