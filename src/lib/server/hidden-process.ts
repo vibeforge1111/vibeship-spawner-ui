@@ -9,6 +9,10 @@ export function windowsCmdShimArgs(command: string, args: string[]): string[] {
 	return ['/d', '/s', '/c', [quoteWindowsArg(command), ...args.map(quoteWindowsArg)].join(' ')];
 }
 
+export function windowsTaskkillArgs(pid: number): string[] {
+	return ['/pid', String(pid), '/t', '/f'];
+}
+
 export function spawnHidden(
 	command: string,
 	args: string[],
@@ -25,4 +29,30 @@ export function spawnHidden(
 	}
 
 	return spawn(command, args, spawnOptions);
+}
+
+export function terminateProcessTree(
+	child: Pick<ChildProcess, 'pid' | 'kill'>,
+	signal: NodeJS.Signals = 'SIGTERM'
+): void {
+	if (process.platform === 'win32' && child.pid) {
+		const killer = spawn('taskkill.exe', windowsTaskkillArgs(child.pid), {
+			stdio: 'ignore',
+			windowsHide: true
+		});
+		killer.on('error', () => {
+			try {
+				child.kill(signal);
+			} catch {
+				// noop
+			}
+		});
+		return;
+	}
+
+	try {
+		child.kill(signal);
+	} catch {
+		// noop
+	}
 }

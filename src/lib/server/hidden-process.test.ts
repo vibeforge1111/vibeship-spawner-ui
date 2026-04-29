@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { quoteWindowsArg, windowsCmdShimArgs } from './hidden-process';
+import { quoteWindowsArg, windowsCmdShimArgs, windowsTaskkillArgs } from './hidden-process';
 
 describe('hidden-process', () => {
 	it('quotes Windows command shims without shell interpolation', () => {
@@ -12,5 +12,9 @@ describe('hidden-process', () => {
 			'/c',
 			'"C:\\Program Files\\Spark\\codex.cmd" exec "hello world"'
 		]);
+	});
+
+	it('builds a process-tree kill command for Windows provider cleanup', () => {
+		expect(windowsTaskkillArgs(1234)).toEqual(['/pid', '1234', '/t', '/f']);
 	});
 });

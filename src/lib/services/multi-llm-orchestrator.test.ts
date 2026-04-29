@@ -177,6 +177,25 @@ describe('multi-llm-orchestrator', () => {
 		expect(pack.launchCommands.codex).toContain('codex exec --model gpt-5.5');
 	});
 
+	it('tells terminal providers not to leave long-lived QA servers running', () => {
+		const options = createDefaultMultiLLMOptions();
+		options.enabled = true;
+		options.strategy = 'single';
+		options.primaryProviderId = 'codex';
+		options.providers = options.providers.map((provider) => ({
+			...provider,
+			enabled: provider.id === 'codex'
+		}));
+
+		const pack = buildMultiLLMExecutionPack({
+			mission: createMission(1),
+			options
+		});
+
+		expect(pack.providerPrompts.codex).toContain('Do not leave foreground dev servers');
+		expect(pack.providerPrompts.codex).toContain('stop it before your final response');
+	});
+
 	it('auto-enables providers when matching API keys are present', () => {
 		const options = createDefaultMultiLLMOptions();
 		options.enabled = true;

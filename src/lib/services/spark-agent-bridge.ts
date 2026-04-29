@@ -5,7 +5,7 @@ import type { Mission } from '$lib/services/mcp-client';
 import { TOP_100_MCPS } from '$lib/types/mcp';
 import { eventBridge } from '$lib/services/event-bridge';
 import { resolveCliBinary } from '$lib/server/cli-resolver';
-import { spawnHidden } from '$lib/server/hidden-process';
+import { spawnHidden, terminateProcessTree } from '$lib/server/hidden-process';
 import {
 	PRECONFIGURED_MCPS,
 	callTool,
@@ -548,10 +548,8 @@ class SparkAgentBridgeService {
 		workerState.status = 'cancelled';
 		workerState.error = reason;
 		workerState.completedAt = nowIso();
-		try {
-			workerState.process?.kill('SIGTERM');
-		} catch {
-			// noop
+		if (workerState.process) {
+			terminateProcessTree(workerState.process, 'SIGTERM');
 		}
 
 		this.emitProviderEvent(workerState, 'task_cancelled', {
@@ -1199,11 +1197,7 @@ class SparkAgentBridgeService {
 
 			if (context.signal) {
 				const onAbort = () => {
-					try {
-						child.kill('SIGTERM');
-					} catch {
-						// noop
-					}
+					terminateProcessTree(child, 'SIGTERM');
 					finalize({ success: false, error: CANCELLED_ERROR });
 				};
 				if (context.signal.aborted) {

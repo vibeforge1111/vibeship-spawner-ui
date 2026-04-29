@@ -969,6 +969,7 @@ Execution expectations:
 - If blocked by implementation constraints, emit a progress event with the blocker.
 - If a task explicitly needs external tools (image/video/data/deploy), use matching connected MCP capabilities when connected; otherwise continue with the fallback plan.
 - Treat task completion as valid only after task-level DoD checks pass (implementation + verification + tests).
+- Do not leave foreground dev servers, preview servers, http servers, file watchers, or browser sessions running. If browser QA needs a server, start it in a bounded/background way, stop it before your final response, and never let the provider process wait on a long-lived server.
 
 Project-specific verification override:
 ${verificationBlock}

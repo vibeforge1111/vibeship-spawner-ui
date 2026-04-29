@@ -1002,3 +1002,35 @@ Branch: `codex/spawner-live-mission-sync`
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes`.
 - Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
+
+## Continuation: Provider Process Cleanup Guardrails
+
+Branch: `main`
+
+### Step Checklist
+
+- [x] Run a real Telegram/Spawner Three.js build mission for `Spark Orbit Forge`.
+- [x] Confirm Telegram, Kanban, Trace, and Canvas agree after completion.
+- [x] Investigate why the live Canvas appeared stuck on the first running node during execution.
+- [x] Identify the provider-side cause: Codex spawned a foreground local QA server that kept the provider process alive after the project was already built.
+- [x] Add process-tree cleanup for provider cancellation and abort paths.
+- [x] Add provider prompt guardrails so agents do not leave foreground dev servers, preview servers, file watchers, or browser sessions running.
+- [x] Run focused tests, typecheck, full tests, build, route smoke, and mission surface smoke.
+
+### Changes Made
+
+- Added `terminateProcessTree` and `windowsTaskkillArgs` to `src/lib/server/hidden-process.ts` so Windows provider cleanup can terminate child process trees instead of only signalling the top-level process.
+- Updated `src/lib/services/spark-agent-bridge.ts` to use process-tree cleanup for provider abort and explicit cancellation.
+- Updated the Multi-LLM provider prompt in `src/lib/services/multi-llm-orchestrator.ts` to require bounded/background QA servers and explicit cleanup before final response.
+- Added unit coverage in `src/lib/server/hidden-process.test.ts` and `src/lib/services/multi-llm-orchestrator.test.ts`.
+
+### Verification Log
+
+- Real Telegram/Spawner Three.js mission: PASS for `mission-1777464236780`; Trace reached `completed`, progress `100%`, 4/4 tasks done, 0 failed.
+- Built project check: PASS for `C:\Users\USER\Desktop\spark-orbit-forge`; requested files exist and `node --check app.js` passed.
+- Focused process/provider tests: PASS via `npm run test:run -- hidden-process multi-llm-orchestrator spark-agent-bridge` (3 files, 24 tests).
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Full unit/integration suite: PASS via `npm run test:run` (55 files, 303 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes`.
+- Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
