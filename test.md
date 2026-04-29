@@ -422,3 +422,31 @@ Branch: `codex/spawner-execution-formatting`
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes`.
 - Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
+
+## Continuation: Canvas Pipeline Load Rules
+
+Branch: `codex/spawner-canvas-load-rules`
+
+### Step Checklist
+
+- [x] Extract pure canvas pipeline-load key, signature, readable-name, and auto-apply decision rules.
+- [x] Add focused tests for duplicate protection, requested pipeline filtering, unchanged active canvases, and valid PRD bridge auto-run loads.
+- [x] Run focused tests.
+- [x] Run typecheck.
+- [x] Run full checks.
+- [x] Commit and push.
+
+### Changes Made
+
+- Added `src/lib/services/canvas-pipeline-load-rules.ts`.
+- Added `src/lib/services/canvas-pipeline-load-rules.test.ts`.
+- Updated `/canvas` to use the shared load-rule helpers while keeping session/store side effects in the page.
+
+### Verification Log
+
+- Focused canvas load-rule tests: PASS via `npm run test:run -- canvas-pipeline-load-rules` (1 file, 6 tests).
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Full unit/integration suite: PASS via `npm run test:run` (48 files, 262 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes`.
+- Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.

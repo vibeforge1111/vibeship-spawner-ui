@@ -27,6 +27,11 @@ import { get } from 'svelte/store';
 	import { DroppedSkillSchema, safeJsonParse } from '$lib/types/schemas';
 	import { getLatestPipelineLoad, getPendingLoad, type PendingPipelineLoad } from '$lib/services/pipeline-loader';
 	import { getCanvasExecutionAction } from '$lib/services/canvas-execution-action';
+	import {
+		getPipelineLoadKey,
+		readablePipelineNameFromId,
+		shouldAutoApplyLatestLoad as shouldAutoApplyPipelineLoad
+	} from '$lib/services/canvas-pipeline-load-rules';
 	import { loadSkills, skills as skillsStore } from '$lib/stores/skills.svelte';
 	import { workflowTemplates } from '$lib/data/templates';
 	import type { SparkAgentCanvasSnapshot } from '$lib/services/spark-agent-bridge';
@@ -379,10 +384,6 @@ import { get } from 'svelte/store';
 
 		let lastAppliedLatestLoadKey: string | null = null;
 
-		function getPipelineLoadKey(load: PendingPipelineLoad): string {
-			return `${load.pipelineId}:${load.timestamp || ''}`;
-		}
-
 		function getAppliedPipelineLoadKey(load: PendingPipelineLoad): string | null {
 			if (typeof sessionStorage === 'undefined') return null;
 			return sessionStorage.getItem(`${APPLIED_PIPELINE_LOAD_PREFIX}${load.pipelineId}`);
@@ -393,37 +394,16 @@ import { get } from 'svelte/store';
 			sessionStorage.setItem(`${APPLIED_PIPELINE_LOAD_PREFIX}${load.pipelineId}`, getPipelineLoadKey(load));
 		}
 
-		function getLoadNodeSignature(load: PendingPipelineLoad): string {
-			return load.nodes
-				.map((node) => `${node.skill?.id || ''}:${node.skill?.name || ''}`)
-				.join('|');
-		}
-
-		function getCurrentNodeSignature(): string {
-			return get(nodes)
-				.map((node) => `${node.skill?.id || ''}:${node.skill?.name || ''}`)
-				.join('|');
-		}
-
 		function shouldAutoApplyLatestLoad(load: PendingPipelineLoad, requestedPipelineId: string | null = null): boolean {
-			if (disposed) return false;
-			if (load.source !== 'prd-bridge') return false;
-			if (!(load.autoRun || load.relay?.autoRun)) return false;
-			if (!load.nodes?.length) return false;
-			if (requestedPipelineId && load.pipelineId !== requestedPipelineId) return false;
-
-			const loadKey = getPipelineLoadKey(load);
-			if (loadKey === lastAppliedLatestLoadKey) return false;
-			if (loadKey === getAppliedPipelineLoadKey(load)) return false;
-
-			const activeId = get(activePipelineIdStore);
-			if (activeId !== load.pipelineId) return true;
-
-			const currentNodes = get(nodes);
-			if (currentNodes.length === 0) return true;
-			if (currentNodes.length !== load.nodes.length) return true;
-
-			return getCurrentNodeSignature() !== getLoadNodeSignature(load);
+			return shouldAutoApplyPipelineLoad({
+				load,
+				disposed,
+				requestedPipelineId,
+				lastAppliedLatestLoadKey,
+				appliedPipelineLoadKey: getAppliedPipelineLoadKey(load),
+				activePipelineId: get(activePipelineIdStore),
+				currentNodes: get(nodes)
+			});
 		}
 
 		function applyPipelineLoad(load: PendingPipelineLoad, reason: 'queued' | 'latest-recovery' | 'latest-sync'): boolean {
@@ -508,15 +488,6 @@ import { get } from 'svelte/store';
 			}
 			logger.info('[Canvas] Loaded explicit pipeline from URL:', pipelineId);
 			return true;
-		}
-
-		function readablePipelineNameFromId(pipelineId: string): string {
-			return pipelineId
-				.replace(/^prd-/, '')
-				.replace(/^tg-build-[^-]+-\d+-/, '')
-				.replace(/-\d{10,}$/, '')
-				.replace(/[_-]+/g, ' ')
-				.trim() || pipelineId;
 		}
 
 		function holdRequestedPipelineWhileWaiting(pipelineId: string): boolean {
