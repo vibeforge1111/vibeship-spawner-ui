@@ -70,8 +70,8 @@ describe('mission-execution-progress', () => {
 		const distributed = distributeProviderProgressAcrossTasks(['one', 'two', 'three', 'four'], 50);
 
 		expect(distributed.get('one')).toBe(92);
-		expect(distributed.get('two')).toBe(92);
-		expect(distributed.get('three')).toBe(0);
+		expect(distributed.get('two')).toBe(86);
+		expect(distributed.get('three')).toBe(29);
 		expect(distributed.get('four')).toBe(0);
 	});
 

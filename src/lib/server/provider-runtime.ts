@@ -63,6 +63,12 @@ export interface ProviderMissionResultSnapshot {
 	completedAt: string | null;
 }
 
+const PROVIDER_TASK_ACTIVITY_INTERVAL_MS = 10_000;
+const PROVIDER_TASK_ACTIVITY_MIN_ESTIMATE_MS = 90_000;
+const PROVIDER_TASK_ACTIVITY_MAX_ESTIMATE_MS = 8 * 60_000;
+const PROVIDER_TASK_ACTIVITY_BASE_MS = 55_000;
+const PROVIDER_TASK_ACTIVITY_PER_TASK_MS = 35_000;
+
 function getSpawnerStateDir(): string {
 	return process.env.SPAWNER_STATE_DIR || path.join(process.cwd(), '.spawner');
 }
@@ -73,6 +79,41 @@ function getActiveMissionPath(): string {
 
 function getProviderResultsPath(): string {
 	return path.join(getSpawnerStateDir(), 'mission-provider-results.json');
+}
+
+function estimateProviderTaskActivityMs(taskCount: number): number {
+	const normalizedTaskCount = Math.max(1, Math.min(12, Math.trunc(taskCount) || 1));
+	return Math.min(
+		PROVIDER_TASK_ACTIVITY_MAX_ESTIMATE_MS,
+		Math.max(
+			PROVIDER_TASK_ACTIVITY_MIN_ESTIMATE_MS,
+			PROVIDER_TASK_ACTIVITY_BASE_MS + normalizedTaskCount * PROVIDER_TASK_ACTIVITY_PER_TASK_MS
+		)
+	);
+}
+
+function formatDurationCompact(ms: number): string {
+	const totalSeconds = Math.max(0, Math.round(ms / 1000));
+	if (totalSeconds < 60) return `${totalSeconds}s`;
+	const minutes = Math.floor(totalSeconds / 60);
+	const seconds = totalSeconds % 60;
+	if (minutes < 10 && seconds > 0) return `${minutes}m ${seconds}s`;
+	return `${minutes}m`;
+}
+
+function formatProviderTaskActivityMessage(
+	providerLabel: string,
+	taskName: string,
+	assignedTaskCount: number,
+	elapsedMs: number,
+	estimatedRemainingMs: number
+): string {
+	const packLabel = assignedTaskCount > 1 ? `${assignedTaskCount} task pack` : taskName;
+	const remainingLabel =
+		estimatedRemainingMs > 0
+			? `about ${formatDurationCompact(estimatedRemainingMs)} left`
+			: 'wrapping up';
+	return `${providerLabel} is working through ${packLabel} (${formatDurationCompact(elapsedMs)} elapsed, ${remainingLabel})`;
 }
 
 export function providerShouldUseSparkExecutionBridge(
@@ -481,18 +522,30 @@ class ProviderRuntimeManager {
 		const taskId = taskIds[0];
 		const taskName = executionPack.mcpTaskPlans[taskId]?.taskTitle || taskId;
 		const startedAt = Date.now();
+		const estimatedDurationMs = estimateProviderTaskActivityMs(taskIds.length);
 		let lastProgress = 8;
 
 		const emitTaskProgress = () => {
 			const elapsedMs = Date.now() - startedAt;
-			const nextProgress = Math.min(82, Math.max(lastProgress, 12 + Math.floor(elapsedMs / 30_000) * 8));
+			const estimatedRemainingMs = Math.max(0, estimatedDurationMs - elapsedMs);
+			const estimatedRatio = Math.min(1, elapsedMs / estimatedDurationMs);
+			const nextProgress = Math.min(
+				88,
+				Math.max(lastProgress, Math.round(10 + estimatedRatio * 78))
+			);
 			lastProgress = nextProgress;
 			onEvent(
 				createBridgeEvent('task_progress', { provider, missionId, onEvent, signal }, {
 					taskId,
 					taskName,
 					progress: nextProgress,
-					message: `${provider.label} is building ${taskName}`,
+					message: formatProviderTaskActivityMessage(
+						provider.label,
+						taskName,
+						taskIds.length,
+						elapsedMs,
+						estimatedRemainingMs
+					),
 					data: {
 						taskId,
 						taskName,
@@ -500,7 +553,10 @@ class ProviderRuntimeManager {
 						provider: provider.id,
 						providerLabel: provider.label,
 						assignedTaskIds: taskIds,
-						assignedTaskCount: taskIds.length
+						assignedTaskCount: taskIds.length,
+						elapsedMs,
+						estimatedDurationMs,
+						estimatedRemainingMs
 					}
 				})
 			);
@@ -519,13 +575,16 @@ class ProviderRuntimeManager {
 					provider: provider.id,
 					providerLabel: provider.label,
 					assignedTaskIds: taskIds,
-					assignedTaskCount: taskIds.length
+					assignedTaskCount: taskIds.length,
+					elapsedMs: 0,
+					estimatedDurationMs,
+					estimatedRemainingMs: estimatedDurationMs
 				}
 			})
 		);
 		emitTaskProgress();
 
-		const interval = setInterval(emitTaskProgress, 30_000);
+		const interval = setInterval(emitTaskProgress, PROVIDER_TASK_ACTIVITY_INTERVAL_MS);
 		this.providerTaskHeartbeats.set(key, interval);
 
 		const stop = () => {

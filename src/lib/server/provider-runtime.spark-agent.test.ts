@@ -147,11 +147,21 @@ describe('provider-runtime Spark agent bridge', () => {
 					progress: expect.any(Number),
 					data: expect.objectContaining({
 						assignedTaskIds: ['task-1', 'task-2'],
-						assignedTaskCount: 2
+						assignedTaskCount: 2,
+						elapsedMs: expect.any(Number),
+						estimatedDurationMs: expect.any(Number),
+						estimatedRemainingMs: expect.any(Number)
 					})
 				})
 			])
 		);
+		const activityProgress = emitted.find(
+			(event) =>
+				event.type === 'task_progress' &&
+				event.taskId === 'task-1' &&
+				event.data?.assignedTaskCount === 2
+		);
+		expect(activityProgress?.message).toContain('elapsed');
 		await waitFor(() => providerRuntime.getMissionStatus('mission-step2-activity').allComplete);
 	});
 

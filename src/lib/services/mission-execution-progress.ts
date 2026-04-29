@@ -72,10 +72,12 @@ export function distributeProviderProgressAcrossTasks(
 	if (taskIds.length === 0) return distributed;
 
 	const clampedProviderProgress = clampProgress(providerProgress);
-	const taskWindow = (clampedProviderProgress / 100) * taskIds.length;
+	const taskShare = 100 / taskIds.length;
 	taskIds.forEach((taskId, index) => {
-		const taskProgress = clampNonTerminalProgress((taskWindow - index) * 100);
-		distributed.set(taskId, taskProgress);
+		const taskStart = index * taskShare * 0.8;
+		const taskEnd = taskStart + taskShare * 1.4;
+		const taskProgress = Math.round(((clampedProviderProgress - taskStart) / (taskEnd - taskStart)) * 100);
+		distributed.set(taskId, clampNonTerminalProgress(taskProgress));
 	});
 	return distributed;
 }
