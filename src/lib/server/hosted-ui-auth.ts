@@ -9,7 +9,8 @@ export interface HostedUiAuthEnv {
 	MCP_API_KEY?: string;
 }
 
-const STATIC_PREFIXES = ['/_app/', '/favicon', '/robots.txt', '/spark-live/login'];
+const EXEMPT_EXACT_PATHS = new Set(['/robots.txt', '/spark-live/login']);
+const EXEMPT_PATH_PREFIXES = ['/_app/', '/favicon'];
 const COOKIE_OPTIONS = {
 	httpOnly: true,
 	sameSite: 'strict' as const,
@@ -69,7 +70,7 @@ export function resetHostedUiAuthRateLimits(): void {
 }
 
 export function hostedUiAuthPathIsExempt(pathname: string): boolean {
-	return STATIC_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
+	return EXEMPT_EXACT_PATHS.has(pathname) || EXEMPT_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
 export function hostedUiRequestToken(request: Request, url: URL, cookies: Cookies): string | null {
