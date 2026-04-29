@@ -300,7 +300,8 @@
 			startedAt: m.status === 'running' ? (m.updated_at ?? null) : null,
 			taskCount: m.tasks?.length ?? 0,
 			strategy: m.mode,
-			tasks
+			tasks,
+			detailHref: `/missions/${encodeURIComponent(m.id)}`
 		};
 	}
 
@@ -334,7 +335,8 @@
 			summary: showSummary ? e.lastSummary : undefined,
 			providerSummary: e.providerSummary,
 			providerResults: e.providerResults,
-			canvasHref: canvasHrefForMission(e.missionId, name)
+			canvasHref: canvasHrefForMission(e.missionId, name),
+			detailHref: `/missions/${encodeURIComponent(e.missionId)}`
 		};
 	}
 
@@ -793,7 +795,17 @@
 										{/if}
 									</button>
 
-		<div class="absolute top-3 right-3 flex items-center gap-1 opacity-100 transition-opacity">
+									<div class="absolute top-3 right-3 flex items-center gap-1 opacity-100 transition-opacity">
+										{#if c.detailHref}
+											<a
+												href={c.detailHref}
+												onclick={(event) => event.stopPropagation()}
+												class="px-2 py-0.5 text-[10px] font-mono text-text-secondary border border-surface-border rounded-sm hover:border-accent-primary/50 hover:text-accent-primary transition-all"
+												title="Open mission details"
+											>
+												Details
+											</a>
+										{/if}
 										{#if c.canvasHref}
 											<a
 												href={c.canvasHref}

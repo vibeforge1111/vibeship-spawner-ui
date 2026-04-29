@@ -156,4 +156,25 @@ describe('mergeMissionBoardCards', () => {
 			{ providerId: 'codex', status: 'failed', summary: 'command exited 1' }
 		]);
 	});
+
+	it('preserves mission detail links from live relay cards', () => {
+		const live = card({
+			id: 'mission-5',
+			source: 'spark',
+			status: 'running',
+			detailHref: '/missions/mission-5',
+			canvasHref: '/canvas?pipeline=prd-5&mission=mission-5'
+		});
+		const staticCard = card({
+			id: 'mission-5',
+			source: 'mcp',
+			status: 'ready',
+			detailHref: '/missions/static-mission-5'
+		});
+
+		const [merged] = mergeMissionBoardCards([live], [staticCard]);
+
+		expect(merged.detailHref).toBe('/missions/mission-5');
+		expect(merged.canvasHref).toBe('/canvas?pipeline=prd-5&mission=mission-5');
+	});
 });

@@ -89,3 +89,31 @@ Branch: `codex/spawner-welcome-import-cleanup`
 - Production build: PASS via `npm run build`; duplicate `Welcome.svelte`/`prd-bridge.ts` warning removed.
 - Full unit/integration suite: PASS via `npm run test:run` (41 files, 227 tests).
 - Local route smoke: PASS via `npm run smoke:routes` against `http://127.0.0.1:5173` for `/`, `/kanban`, `/canvas`, `/trace`, `/api/mission-control/board`, and `/api/mission-control/trace`.
+
+## Continuation: Mission Detail Links
+
+Branch: `codex/spawner-mission-detail-links`
+
+### Step Checklist
+
+- [x] Add explicit mission detail links to Kanban cards.
+- [x] Preserve detail links when live Spark relay cards merge with stale MCP cards.
+- [x] Let `/missions/[id]` render Spark relay details even when MCP is connected but the mission is not in MCP storage.
+- [x] Point the mission detail back link to `/kanban` instead of the redirecting `/missions` route.
+- [x] Run full checks.
+- [x] Commit and push.
+
+### Changes Made
+
+- Added `detailHref` to Mission Board card data.
+- Added a `Details` action next to the existing project `Canvas` action.
+- Updated the Spark mission detail route fallback so relay-tracked missions remain inspectable.
+- Added `/missions/mission-smoke-route` to the route smoke script.
+
+### Verification Log
+
+- Focused board-card tests: PASS via `npm run test:run -- mission-board-cards` (1 file, 5 tests).
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Full unit/integration suite: PASS via `npm run test:run` (41 files, 228 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes` against `http://127.0.0.1:5173` for `/`, `/kanban`, `/missions/mission-smoke-route`, `/canvas`, `/trace`, `/api/mission-control/board`, and `/api/mission-control/trace`.

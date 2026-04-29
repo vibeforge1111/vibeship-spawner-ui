@@ -265,11 +265,11 @@
 
 	<main class="flex-1 max-w-6xl mx-auto w-full px-6 py-12">
 		<!-- Back link -->
-		<a href="/missions" class="inline-flex items-center gap-1 text-sm font-mono text-text-tertiary hover:text-text-secondary mb-6">
-			&larr; Back to Missions
+		<a href="/kanban" class="inline-flex items-center gap-1 text-sm font-mono text-text-tertiary hover:text-text-secondary mb-6">
+			&larr; Back to Mission board
 		</a>
 
-		{#if !mcpConnected && missionControl && missionControl.recent.length > 0}
+		{#if missionControl && missionControl.recent.length > 0 && (!mcpConnected || (!currentState.loading && !mission))}
 			{@const recentDesc = missionControl.recent}
 			{@const chronological = [...recentDesc].reverse()}
 			{@const latest = recentDesc[0]}

@@ -35,6 +35,7 @@ export interface MissionBoardCard {
 	providerSummary?: string | null;
 	providerResults?: MissionBoardProviderResult[];
 	canvasHref?: string | null;
+	detailHref?: string | null;
 }
 
 function latestTimestamp(a: string | null, b: string | null): string | null {
@@ -62,7 +63,8 @@ function mergeLiveWithStaticCard(live: MissionBoardCard, staticCard: MissionBoar
 		summary: live.summary ?? staticCard.summary,
 		providerSummary: live.providerSummary ?? staticCard.providerSummary,
 		providerResults: live.providerResults?.length ? live.providerResults : staticCard.providerResults,
-		canvasHref: live.canvasHref ?? staticCard.canvasHref
+		canvasHref: live.canvasHref ?? staticCard.canvasHref,
+		detailHref: live.detailHref ?? staticCard.detailHref
 	};
 }
 
