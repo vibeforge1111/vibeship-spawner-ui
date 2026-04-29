@@ -65,12 +65,12 @@ You can resume using the same provider assignments and prompts.
 
 ## 8) Optional: Enable External Control APIs
 
-For Openclaw + external command control, set API keys before exposing endpoints:
-- `OPENCLAW_API_KEY`
+For Spark agent bridge and external command control, set API keys before exposing endpoints:
+- `SPARK_AGENT_API_KEY`
 - `EVENTS_API_KEY`
 - `MCP_API_KEY` (for MCP control routes)
 
 Optional origin allowlists:
-- `OPENCLAW_ALLOWED_ORIGINS`
+- `SPARK_AGENT_ALLOWED_ORIGINS`
 - `EVENTS_ALLOWED_ORIGINS`
 - `MCP_ALLOWED_ORIGINS`

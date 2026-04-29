@@ -446,7 +446,34 @@ Branch: `codex/spawner-canvas-load-rules`
 
 - Focused canvas load-rule tests: PASS via `npm run test:run -- canvas-pipeline-load-rules` (1 file, 6 tests).
 - Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
-- Full unit/integration suite: PASS via `npm run test:run` (48 files, 262 tests).
+- Full unit/integration suite after rebasing onto latest `origin/main`: PASS via `npm run test:run` (48 files, 263 tests).
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes`.
+- Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
+
+## Continuation: Spark Agent Documentation Cleanup
+
+Branch: `main`
+
+### Step Checklist
+
+- [x] Remove obsolete bridge documentation that still referred to the retired external bridge name.
+- [x] Add Spark agent bridge API and canvas localhost runbooks.
+- [x] Update surviving runbooks and quickstarts to reference `/api/spark-agent/*` and `SPARK_AGENT_*` settings.
+- [x] Run strict legacy-name scan.
+
+### Changes Made
+
+- Deleted obsolete retired-bridge docs that no longer matched the live Spark architecture.
+- Added `docs/SPARK_AGENT_BRIDGE_API.md`.
+- Added `docs/SPARK_AGENT_CANVAS_LOCALHOST_RUNBOOK.md`.
+- Updated multi-LLM and Spark personality docs to use the Spark agent bridge names.
+
+### Verification Log
+
+- Legacy bridge naming scan: PASS; the retired bridge name no longer appears in the repository.
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Full unit/integration suite: PASS via `npm run test:run` (48 files, 262 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes`, including `/api/spark-agent/canvas-state`.
 - Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.

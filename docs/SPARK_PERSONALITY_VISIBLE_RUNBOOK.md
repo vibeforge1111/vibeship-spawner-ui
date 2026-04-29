@@ -23,8 +23,8 @@ npm run dev -- --port 3333
 
 Open in browser:
 - Canvas: `http://localhost:3333/canvas`
-- Event stream endpoint: `http://localhost:3333/api/openclaw/events?sessionId=<SESSION_ID>`
-- Canvas snapshot endpoint: `http://localhost:3333/api/openclaw/canvas-state`
+- Event stream endpoint: `http://localhost:3333/api/spark-agent/events?sessionId=<SESSION_ID>`
+- Canvas snapshot endpoint: `http://localhost:3333/api/spark-agent/canvas-state`
 
 ---
 
@@ -39,14 +39,14 @@ $sid = "spark-personality-$ts"
 $pid = "spark-personality-pipe-$ts"
 
 # Start session
-Invoke-RestMethod -Method Post -Uri "$base/api/openclaw/session/start" -ContentType "application/json" -Body (@{
+Invoke-RestMethod -Method Post -Uri "$base/api/spark-agent/session/start" -ContentType "application/json" -Body (@{
   sessionId = $sid
   actor = 'spark'
   metadata = @{ missionId = "spark-personality-mission-$ts" }
 } | ConvertTo-Json -Depth 6) | Out-Null
 
 # Create pipeline
-Invoke-RestMethod -Method Post -Uri "$base/api/openclaw/command" -ContentType "application/json" -Body (@{
+Invoke-RestMethod -Method Post -Uri "$base/api/spark-agent/command" -ContentType "application/json" -Body (@{
   sessionId = $sid
   command = 'canvas.create_pipeline'
   params = @{ pipelineId = $pid; name = "Spark Personality Evolution $ts" }
@@ -64,7 +64,7 @@ $nodes = @(
 )
 
 foreach ($n in $nodes) {
-  Invoke-RestMethod -Method Post -Uri "$base/api/openclaw/command" -ContentType "application/json" -Body (@{
+  Invoke-RestMethod -Method Post -Uri "$base/api/spark-agent/command" -ContentType "application/json" -Body (@{
     sessionId = $sid
     command = 'canvas.add_skill'
     params = @{
@@ -90,7 +90,7 @@ $conns = @(
 )
 
 foreach ($c in $conns) {
-  Invoke-RestMethod -Method Post -Uri "$base/api/openclaw/command" -ContentType "application/json" -Body (@{
+  Invoke-RestMethod -Method Post -Uri "$base/api/spark-agent/command" -ContentType "application/json" -Body (@{
     sessionId = $sid
     command = 'canvas.add_connection'
     params = @{ connectionId=$c.id; sourceNodeId=$c.source; targetNodeId=$c.target }
@@ -98,7 +98,7 @@ foreach ($c in $conns) {
 }
 
 # Quick snapshot check
-$snap = Invoke-RestMethod -Method Get -Uri "$base/api/openclaw/canvas-state"
+$snap = Invoke-RestMethod -Method Get -Uri "$base/api/spark-agent/canvas-state"
 [pscustomobject]@{
   sessionId   = $sid
   pipelineId  = $pid
@@ -120,13 +120,13 @@ Expected:
 ```powershell
 $base = "http://localhost:3333"
 
-Invoke-RestMethod -Method Post -Uri "$base/api/openclaw/command" -ContentType "application/json" -Body (@{
+Invoke-RestMethod -Method Post -Uri "$base/api/spark-agent/command" -ContentType "application/json" -Body (@{
   sessionId = $sid
   command = 'mission.build'
   params = @{ name = "Spark Personality Evolution Mission $ts" }
 } | ConvertTo-Json -Depth 6)
 
-Invoke-RestMethod -Method Post -Uri "$base/api/openclaw/command" -ContentType "application/json" -Body (@{
+Invoke-RestMethod -Method Post -Uri "$base/api/spark-agent/command" -ContentType "application/json" -Body (@{
   sessionId = $sid
   command = 'mission.start'
 } | ConvertTo-Json -Depth 6)
@@ -136,7 +136,7 @@ Optional explicit provider tasks (to make Codex/Claude work visibility obvious):
 
 ```powershell
 # Codex implementation task
-Invoke-RestMethod -Method Post -Uri "$base/api/openclaw/command" -ContentType "application/json" -Body (@{
+Invoke-RestMethod -Method Post -Uri "$base/api/spark-agent/command" -ContentType "application/json" -Body (@{
   sessionId = $sid
   command = 'worker.run'
   params = @{
@@ -149,7 +149,7 @@ Invoke-RestMethod -Method Post -Uri "$base/api/openclaw/command" -ContentType "a
 } | ConvertTo-Json -Depth 8)
 
 # Claude review task
-Invoke-RestMethod -Method Post -Uri "$base/api/openclaw/command" -ContentType "application/json" -Body (@{
+Invoke-RestMethod -Method Post -Uri "$base/api/spark-agent/command" -ContentType "application/json" -Body (@{
   sessionId = $sid
   command = 'worker.run'
   params = @{
@@ -176,7 +176,7 @@ In `http://localhost:3333/canvas`:
 Use SSE stream in terminal:
 
 ```powershell
-curl.exe -N "http://localhost:3333/api/openclaw/events?sessionId=$sid"
+curl.exe -N "http://localhost:3333/api/spark-agent/events?sessionId=$sid"
 ```
 
 Look for provider-specific events:
@@ -189,7 +189,7 @@ This gives a direct timeline of **which agent worked on which task**.
 ## C) Mission status checks
 
 ```powershell
-Invoke-RestMethod -Method Post -Uri "$base/api/openclaw/command" -ContentType "application/json" -Body (@{
+Invoke-RestMethod -Method Post -Uri "$base/api/spark-agent/command" -ContentType "application/json" -Body (@{
   sessionId = $sid
   command = 'mission.status'
 } | ConvertTo-Json -Depth 6)
@@ -200,7 +200,7 @@ Invoke-RestMethod -Method Post -Uri "$base/api/openclaw/command" -ContentType "a
 ## 5) End session (clean shutdown)
 
 ```powershell
-Invoke-RestMethod -Method Post -Uri "$base/api/openclaw/session/end" -ContentType "application/json" -Body (@{
+Invoke-RestMethod -Method Post -Uri "$base/api/spark-agent/session/end" -ContentType "application/json" -Body (@{
   sessionId = $sid
   reason = 'runbook-complete'
 } | ConvertTo-Json -Depth 4)
@@ -210,7 +210,7 @@ Invoke-RestMethod -Method Post -Uri "$base/api/openclaw/session/end" -ContentTyp
 
 ## 6) Fast troubleshooting
 
-- Canvas not updating: refresh canvas and re-check `/api/openclaw/canvas-state`.
+- Canvas not updating: refresh canvas and re-check `/api/spark-agent/canvas-state`.
 - No provider events: verify `worker.run` command and provider IDs (`codex`, `claude`).
 - `mission.start` runs but no visible parallel activity: trigger explicit `worker.run` tasks for both providers.
 - Auth errors on non-localhost: configure required API keys for bridge endpoints.

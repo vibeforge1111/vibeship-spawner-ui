@@ -53,7 +53,7 @@ Recommended trait fields:
 4. `mission.build` compiles node graph into executable mission tasks.
 5. `mission.start` runs the pipeline.
 6. Optional provider-level work is executed via `worker.run` for Codex/Claude specific tasks.
-7. Event stream (`/api/openclaw/events`) keeps UI live and auditable.
+7. Event stream (`/api/spark-agent/events`) keeps UI live and auditable.
 
 ---
 
