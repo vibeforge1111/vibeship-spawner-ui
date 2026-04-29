@@ -5,7 +5,6 @@
 		type ExecutionProgress,
 		type ExecutionStatus,
 		type LoadedSkillInfo,
-		type TaskProgress,
 		type TaskTransitionEvent
 	} from '$lib/services/mission-executor';
 	import type { MissionLog, Mission } from '$lib/services/mcp-client';
@@ -29,11 +28,9 @@
 	import { saveCurrentPipeline } from '$lib/stores/pipelines.svelte';
 	import type { MissionControlBoardEntry } from '$lib/types/mission-control';
 	import {
-		executionStatusFromBoard,
-		logTypeFromMissionControlEvent,
-		missionTaskStatusFromBoard,
-		transitionStateFromMissionControlEvent
-	} from '$lib/services/mission-control-view-model';
+		buildMissionControlHydrationSnapshot,
+		type MissionControlHistoryEvent
+	} from '$lib/services/mission-control-hydration';
 	import { browser } from '$app/environment';
 	import { get } from 'svelte/store';
 
@@ -316,16 +313,6 @@
 		multiLLMProviders = mergedProviders;
 	}
 
-	type MissionControlEvent = {
-		eventType: string;
-		missionId: string;
-		missionName: string | null;
-		taskId: string | null;
-		taskName: string | null;
-		summary: string;
-		timestamp: string;
-		source: string;
-	};
 	type MissionControlTask = MissionControlBoardEntry['tasks'][number];
 
 	function applyBoardTaskStatuses(tasks: MissionControlTask[]) {
@@ -372,138 +359,26 @@
 			if (!statusResponse.ok || !boardEntry) return;
 
 			const statusData = await statusResponse.json();
-			const recent = ((statusData?.snapshot?.recent || []) as MissionControlEvent[])
+			const recent = ((statusData?.snapshot?.recent || []) as MissionControlHistoryEvent[])
 				.filter((entry) => entry.missionId === missionId)
 				.slice()
 				.reverse();
-			const status = executionStatusFromBoard(boardEntry.status);
-			const taskProgressMap = new Map<string, TaskProgress>();
-			const taskSkillMap = new Map<string, string[]>();
-			const missionTasks = boardEntry.tasks.map((task, index) => {
-				const id = task.title.match(/^(task-[a-z0-9_-]+)/i)?.[1] || `task-${index + 1}`;
-				taskSkillMap.set(id, task.skills || []);
-				taskProgressMap.set(id, {
-					taskId: id,
-					taskName: task.title,
-					progress: task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled' ? 100 : task.status === 'running' ? 20 : 0,
-					message:
-						task.status === 'completed'
-							? 'Completed'
-							: task.status === 'running'
-								? 'Running'
-								: task.status === 'failed' || task.status === 'cancelled'
-									? task.status
-									: 'Queued',
-					startedAt: Date.parse(boardEntry.startedAt || boardEntry.queuedAt || boardEntry.lastUpdated || new Date().toISOString())
-				});
-				return {
-					id,
-					title: task.title,
-					description: task.title,
-					assignedTo: 'codex',
-					status: missionTaskStatusFromBoard(task.status),
-					handoffType: 'sequential' as const,
-					handoffTo: [] as string[]
-				};
+			const snapshot = buildMissionControlHydrationSnapshot({
+				missionId,
+				boardEntry,
+				recentEvents: recent,
+				missionName,
+				projectPath,
+				projectType,
+				goals: parseGoals(goalsText || ''),
+				multiLLMOptions: getMultiLLMOptions()
 			});
 
-			const historicalLogs: MissionLog[] = recent.map((entry, index) => ({
-				id: `${entry.missionId}-${entry.timestamp}-${index}`,
-				mission_id: entry.missionId,
-				agent_id: entry.source || null,
-				task_id: entry.taskId,
-				type: logTypeFromMissionControlEvent(entry.eventType),
-				message: entry.summary,
-				data: { eventType: entry.eventType, taskName: entry.taskName },
-				created_at: entry.timestamp
-			}));
-
-			const taskTransitions: TaskTransitionEvent[] = recent.map((entry, index) => ({
-				id: `${entry.missionId}-transition-${entry.timestamp}-${index}`,
-				timestamp: entry.timestamp,
-				state: transitionStateFromMissionControlEvent(entry.eventType),
-				taskId: entry.taskId || undefined,
-				taskName: entry.taskName || undefined,
-				agentId: entry.source,
-				agentLabel: entry.source,
-				message: entry.summary,
-				progress: entry.eventType === 'mission_completed' ? 100 : undefined
-			}));
-
-			const mission: Mission = {
-				id: missionId,
-				user_id: 'mission-control',
-				name: boardEntry.missionName || missionName || missionId,
-				description: 'Hydrated from Mission Control history.',
-				mode: 'multi-llm-orchestrator',
-				status: boardEntry.status === 'cancelled' ? 'failed' : boardEntry.status === 'created' ? 'ready' : boardEntry.status,
-				agents: [
-					{
-						id: 'codex',
-						name: 'Codex',
-						role: 'builder',
-						skills: []
-					}
-				],
-				tasks: missionTasks,
-				context: {
-					projectPath,
-					projectType,
-					goals: parseGoals(goalsText || '')
-				},
-				current_task_id: missionTasks.find((task) => task.status === 'in_progress')?.id || null,
-				outputs: {},
-				error: boardEntry.status === 'failed' || boardEntry.status === 'cancelled' ? boardEntry.providerSummary || null : null,
-				created_at: boardEntry.queuedAt || boardEntry.startedAt || boardEntry.lastUpdated,
-				updated_at: boardEntry.lastUpdated,
-				started_at: boardEntry.startedAt,
-				completed_at: status === 'completed' || status === 'failed' || status === 'cancelled' ? boardEntry.lastUpdated : null
-			};
-
-			executionProgress = {
-				status,
-				missionId,
-				mission,
-				executionPrompt: null,
-				multiLLMOptions: getMultiLLMOptions(),
-				multiLLMExecution: null,
-				progress: status === 'completed' ? 100 : Math.round(((boardEntry.tasks.filter((task) => task.status === 'completed').length) / Math.max(1, boardEntry.tasks.length)) * 100),
-				currentTaskId: mission.current_task_id,
-				currentTaskName: missionTasks.find((task) => task.id === mission.current_task_id)?.title || null,
-				currentTaskProgress: 0,
-				currentTaskMessage: boardEntry.providerSummary || null,
-				taskProgressMap,
-				logs: historicalLogs,
-				startTime: boardEntry.startedAt ? new Date(boardEntry.startedAt) : null,
-				endTime: mission.completed_at ? new Date(mission.completed_at) : null,
-				error: mission.error,
-				loadedSkills: [],
-				taskSkillMap,
-				agentRuntime: new Map([
-					[
-						'codex',
-						{
-							agentId: 'codex',
-							label: 'Codex',
-							status: status === 'completed' ? 'completed' : status === 'failed' ? 'failed' : status === 'cancelled' ? 'cancelled' : status === 'running' ? 'running' : 'idle',
-							progress: status === 'completed' ? 100 : 0,
-							message: boardEntry.providerSummary || undefined,
-							updatedAt: boardEntry.lastUpdated
-						}
-					]
-				]),
-				taskTransitions,
-				reconciliation: null,
-				checkpoint: null
-			};
-			logs = historicalLogs;
-			completedTasks = boardEntry.tasks.filter((task) => task.status === 'completed').map((task) => task.title);
-			failedTasks = boardEntry.tasks
-				.filter((task) => task.status === 'failed' || task.status === 'cancelled')
-				.map((task) => task.title);
-			pendingTasks = boardEntry.tasks
-				.filter((task) => !task.status || task.status === 'queued' || task.status === 'running')
-				.map((task) => task.title);
+			executionProgress = snapshot.executionProgress;
+			logs = snapshot.logs;
+			completedTasks = snapshot.completedTasks;
+			failedTasks = snapshot.failedTasks;
+			pendingTasks = snapshot.pendingTasks;
 			applyBoardTaskStatuses(boardEntry.tasks);
 			lastHydratedMissionId = missionId;
 		} catch (error) {

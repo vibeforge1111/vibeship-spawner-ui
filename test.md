@@ -143,3 +143,29 @@ Branch: `codex/spawner-mission-detail-view-model`
 - Full unit/integration suite: PASS via `npm run test:run` (42 files, 233 tests).
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes` against `http://127.0.0.1:5173` for `/`, `/kanban`, `/missions/mission-smoke-route`, `/canvas`, `/trace`, `/api/mission-control/board`, and `/api/mission-control/trace`.
+
+## Continuation: Execution Hydration Model
+
+Branch: `codex/spawner-execution-hydration-model`
+
+### Step Checklist
+
+- [x] Extract Mission Control history hydration shaping from `ExecutionPanel.svelte`.
+- [x] Keep `ExecutionPanel.svelte` responsible for fetching, state assignment, and canvas node status updates.
+- [x] Add focused tests for execution progress, logs, transitions, task buckets, completed missions, and cancelled missions.
+- [x] Run full checks.
+- [x] Commit and push.
+
+### Changes Made
+
+- Added `src/lib/services/mission-control-hydration.ts`.
+- Added `src/lib/services/mission-control-hydration.test.ts`.
+- Replaced inline hydration model construction in `ExecutionPanel.svelte` with `buildMissionControlHydrationSnapshot`.
+
+### Verification Log
+
+- Focused hydration tests: PASS via `npm run test:run -- mission-control-hydration` (1 file, 5 tests).
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Full unit/integration suite: PASS via `npm run test:run` (43 files, 238 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes` against `http://127.0.0.1:5173` for `/`, `/kanban`, `/missions/mission-smoke-route`, `/canvas`, `/trace`, `/api/mission-control/board`, and `/api/mission-control/trace`.
