@@ -477,3 +477,31 @@ Branch: `main`
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes`, including `/api/spark-agent/canvas-state`.
 - Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
+
+## Continuation: Mission Execution Progress Rules
+
+Branch: `codex/spawner-mission-progress-rules`
+
+### Step Checklist
+
+- [x] Extract task completion, granular progress, and mission reconciliation rules from `mission-executor.ts`.
+- [x] Add focused tests for terminal progress, tracked task progress, malformed progress clamping, blocked tasks, and terminal failed tasks.
+- [x] Keep side effects in `mission-executor.ts`.
+- [x] Run focused tests.
+
+### Changes Made
+
+- Added `src/lib/services/mission-execution-progress.ts`.
+- Added `src/lib/services/mission-execution-progress.test.ts`.
+- Updated `src/lib/services/mission-executor.ts` to consume the tested progress/reconciliation helpers.
+- Blocked tasks now remain unresolved during completion reconciliation instead of being treated as implicitly complete.
+
+### Verification Log
+
+- Focused progress tests: PASS via `npm run test:run -- mission-execution-progress` (1 file, 6 tests).
+- Focused lifecycle coverage: PASS via `npm run test:run -- mission-execution-progress mission-control-hydration mission-lifecycle` (3 files, 14 tests).
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Full unit/integration suite: PASS via `npm run test:run` (49 files, 269 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes`.
+- Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.

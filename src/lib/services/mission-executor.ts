@@ -41,6 +41,11 @@ import {
 	addToMissionHistory,
 	type PersistedMissionState
 } from './persistence';
+import {
+	calculateGranularMissionProgress,
+	calculateTaskCompletionProgress,
+	reconcileMissionTasks
+} from './mission-execution-progress';
 
 export type ExecutionMode = 'preview' | 'live';
 export type ExecutionStatus = 'idle' | 'creating' | 'running' | 'paused' | 'completed' | 'partial' | 'failed' | 'cancelled';
@@ -1254,10 +1259,7 @@ class MissionExecutor {
 	 * Update overall progress based on task completion ratio
 	 */
 	private updateOverallProgress(tasks: Array<{ status: string }>): void {
-		const completedTasks = tasks.filter(
-			t => t.status === 'completed' || t.status === 'failed'
-		).length;
-		this.progress.progress = Math.round((completedTasks / tasks.length) * 100);
+		this.progress.progress = calculateTaskCompletionProgress(tasks);
 		this.callbacks.onProgress?.(this.progress.progress);
 	}
 
@@ -1269,23 +1271,7 @@ class MissionExecutor {
 		const mission = this.progress.mission;
 		if (!mission || !mission.tasks || mission.tasks.length === 0) return;
 
-		const totalTasks = mission.tasks.length;
-		let progressSum = 0;
-
-		for (const task of mission.tasks) {
-			if (task.status === 'completed') {
-				progressSum += 100;
-			} else if (task.status === 'failed') {
-				progressSum += 100;  // Failed tasks count as "done" for progress
-			} else if (task.status === 'in_progress') {
-				// Use tracked progress if available, otherwise estimate at 50%
-				const tracked = this.progress.taskProgressMap.get(task.id);
-				progressSum += tracked?.progress ?? 50;
-			}
-			// pending tasks contribute 0
-		}
-
-		const newProgress = Math.round(progressSum / totalTasks);
+		const newProgress = calculateGranularMissionProgress(mission.tasks, this.progress.taskProgressMap);
 		if (newProgress !== this.progress.progress) {
 			this.progress.progress = newProgress;
 			this.callbacks.onProgress?.(this.progress.progress);
@@ -2180,34 +2166,22 @@ class MissionExecutor {
 	 * Returns true if mission is fully complete, false if partial
 	 */
 	private reconcileMissionCompletion(mission: Mission): boolean {
-		const totalTasks = mission.tasks.length;
-		const completedCount = mission.tasks.filter(t => t.status === 'completed').length;
-		const failedCount = mission.tasks.filter(t => t.status === 'failed').length;
-		const pendingTasks = mission.tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
+		const snapshot = reconcileMissionTasks(mission.tasks);
+		this.progress.reconciliation = {
+			totalTasks: snapshot.totalTasks,
+			completedTasks: snapshot.completedTasks,
+			failedTasks: snapshot.failedTasks,
+			pendingTasks: snapshot.pendingTasks,
+			verdict: snapshot.verdict
+		};
 
-		if (pendingTasks.length > 0) {
-			const completionRatio = completedCount / totalTasks;
-			this.progress.reconciliation = {
-				totalTasks,
-				completedTasks: completedCount,
-				failedTasks: failedCount,
-				pendingTasks: pendingTasks.map(t => ({ id: t.id, title: t.title, status: t.status })),
-				verdict: completionRatio >= 0.8 ? 'mostly_done' : 'incomplete'
-			};
-			this.addLocalLog('info', `Reconciler: ${pendingTasks.length}/${totalTasks} tasks incomplete — mission marked partial (${completedCount} completed, ${failedCount} failed)`);
+		if (!snapshot.isFullyComplete) {
+			this.addLocalLog('info', `Reconciler: ${snapshot.pendingTasks.length}/${snapshot.totalTasks} tasks incomplete - mission marked partial (${snapshot.completedTasks} completed, ${snapshot.failedTasks} failed)`);
 			this.progress.status = 'partial';
 			this.callbacks.onStatusChange?.('partial');
 			return false;
 		}
 
-		// All tasks completed or failed — mission is genuinely done
-		this.progress.reconciliation = {
-			totalTasks,
-			completedTasks: completedCount,
-			failedTasks: failedCount,
-			pendingTasks: [],
-			verdict: 'complete'
-		};
 		return true;
 	}
 
