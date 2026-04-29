@@ -12,12 +12,14 @@ import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
+import { logger } from '$lib/utils/logger';
 
 import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
 const EVENTS_AUTH_COOKIE = 'spawner_events_api_key';
+const log = logger.scope('EventBridge');
 
 function getSpawnerDir(): string {
 	return process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
@@ -93,7 +95,7 @@ async function storePRDResult(requestId: string, result: unknown): Promise<void>
 		}
 		const resultFile = resolveWithinBaseDir(resultsDir, `${requestId}.json`);
 		await writeFile(resultFile, JSON.stringify(result, null, 2), 'utf-8');
-		console.log('[EventBridge] Stored PRD result for polling:', requestId);
+		log.info(`Stored PRD result for polling: ${requestId}`);
 	} catch (err) {
 		if (err instanceof PathSafetyError) {
 			console.warn(`[EventBridge] Skipping unsafe requestId "${requestId}": ${err.message}`);

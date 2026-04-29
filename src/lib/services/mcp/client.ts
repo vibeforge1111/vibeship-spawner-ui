@@ -10,6 +10,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { env } from '$env/dynamic/private';
 import { basename } from 'node:path';
+import { logger } from '$lib/utils/logger';
 
 export interface MCPClientConfig {
 	/** Command to run the MCP server */
@@ -34,6 +35,7 @@ export interface ConnectedMCP {
 const connections = new Map<string, ConnectedMCP>();
 const COMMAND_EXT_SUFFIX = /\.(exe|cmd|bat)$/i;
 const DEFAULT_ALLOWED_COMMANDS = ['npx', 'node'];
+const log = logger.scope('MCP');
 
 function parseCsv(value: string | undefined): string[] {
 	if (!value) {
@@ -121,7 +123,7 @@ export async function connectMCP(
 	assertCommandAllowed(config.command);
 	const safeEnv = sanitizeEnv(config.env);
 
-	console.log(`[MCP] Connecting to: ${config.command} ${config.args?.join(' ') || ''}`);
+	log.info(`Connecting to: ${config.command} ${config.args?.join(' ') || ''}`);
 
 	// Create transport
 	const transport = new StdioClientTransport({
@@ -154,8 +156,8 @@ export async function connectMCP(
 	const toolsResult = await client.listTools();
 	const tools = toolsResult.tools || [];
 
-	console.log(`[MCP] Connected to ${serverInfo.name} v${serverInfo.version}`);
-	console.log(`[MCP] Available tools: ${tools.map((t) => t.name).join(', ')}`);
+	log.info(`Connected to ${serverInfo.name} v${serverInfo.version}`);
+	log.info(`Available tools: ${tools.map((t) => t.name).join(', ')}`);
 
 	const connection: ConnectedMCP = {
 		client,
@@ -177,13 +179,13 @@ export async function connectMCP(
 export async function disconnectMCP(instanceId: string): Promise<void> {
 	const connection = connections.get(instanceId);
 	if (!connection) {
-		console.log(`[MCP] No connection found for ${instanceId}`);
+		log.info(`No connection found for ${instanceId}`);
 		return;
 	}
 
 	try {
 		await connection.client.close();
-		console.log(`[MCP] Disconnected from ${connection.serverInfo.name}`);
+		log.info(`Disconnected from ${connection.serverInfo.name}`);
 	} catch (e) {
 		console.error(`[MCP] Error disconnecting:`, e);
 	}
@@ -204,14 +206,14 @@ export async function callTool(
 		throw new Error(`Not connected to MCP: ${instanceId}`);
 	}
 
-	console.log(`[MCP] Calling tool: ${toolName}`, args);
+	log.info(`Calling tool: ${toolName}`, args);
 
 	const result = await connection.client.callTool({
 		name: toolName,
 		arguments: args,
 	});
 
-	console.log(`[MCP] Tool result:`, result);
+	log.info('Tool result:', result);
 	return result;
 }
 

@@ -221,3 +221,29 @@ Branch: `codex/spawner-dedupe-lifecycle-events`
 - Full unit/integration suite: PASS via `npm run test:run` (43 files, 240 tests).
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes` against `http://127.0.0.1:5173` for `/`, `/kanban`, `/missions/mission-smoke-route`, `/canvas`, `/trace`, `/api/mission-control/board`, and `/api/mission-control/trace`.
+
+## Continuation: Quiet Green Tests
+
+Branch: `codex/spawner-quiet-green-tests`
+
+### Step Checklist
+
+- [x] Keep `logger.info`/`logger.debug` quiet under Vitest while preserving warnings and errors.
+- [x] Move noisy success-path logs in pipeline-loader, PRD result storage, EventBridge result storage, and MCP client tool calls onto `logger.info`.
+- [x] Run focused noisy-path tests.
+- [x] Run typecheck.
+- [x] Run full checks.
+- [x] Commit and push.
+
+### Changes Made
+
+- Updated `src/lib/utils/logger.ts` to treat `import.meta.env.MODE === 'test'` as warning-only.
+- Replaced success-path `console.log` calls in the known noisy green-test paths with scoped `logger.info`.
+
+### Verification Log
+
+- Focused noisy-path/auth tests after rebasing onto origin/main: PASS via `npm run test:run -- pipeline-loader prd-bridge/result events.auth openclaw hosted-ui-auth` (8 files, 37 tests) with success-path stdout quiet.
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Full unit/integration suite after rebasing onto origin/main: PASS via `npm run test:run` (43 files, 242 tests) with the targeted success-path stdout noise removed.
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes` against `http://127.0.0.1:5173` for `/`, `/kanban`, `/missions/mission-smoke-route`, `/canvas`, `/trace`, `/api/mission-control/board`, and `/api/mission-control/trace`.

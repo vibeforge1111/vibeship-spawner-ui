@@ -14,6 +14,9 @@ import type { RequestHandler } from './$types';
 import { writeFile, readFile, unlink, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { logger } from '$lib/utils/logger';
+
+const log = logger.scope('PipelineLoader');
 
 function getSpawnerDir(): string {
 	return process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
@@ -66,7 +69,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		await writeFile(getPendingLoadFile(), JSON.stringify(load, null, 2), 'utf-8');
 		await writeFile(getLastLoadFile(), JSON.stringify(load, null, 2), 'utf-8');
 
-		console.log(`[PipelineLoader] Queued: ${load.pipelineName} (${load.nodes.length} nodes, ${load.connections.length} connections)`);
+		log.info(`Queued: ${load.pipelineName} (${load.nodes.length} nodes, ${load.connections.length} connections)`);
 
 		return json({ success: true, queued: load.pipelineName });
 	} catch (error) {
@@ -101,7 +104,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		if (!peek && !latest) {
 			try {
 				await unlink(loadFile);
-				console.log(`[PipelineLoader] Consumed: ${load.pipelineName}`);
+				log.info(`Consumed: ${load.pipelineName}`);
 			} catch (unlinkError) {
 				const code = unlinkError && typeof unlinkError === 'object' && 'code' in unlinkError
 					? String((unlinkError as { code?: unknown }).code)
@@ -129,7 +132,7 @@ export const DELETE: RequestHandler = async () => {
 		const pendingLoadFile = getPendingLoadFile();
 		if (existsSync(pendingLoadFile)) {
 			await unlink(pendingLoadFile);
-			console.log('[PipelineLoader] Cleared pending load');
+			log.info('Cleared pending load');
 		}
 		return json({ success: true });
 	} catch (error) {

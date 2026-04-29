@@ -18,6 +18,9 @@
 
 import { browser } from '$app/environment';
 import type { Skill } from '$lib/stores/skills.svelte';
+import { logger } from '$lib/utils/logger';
+
+const log = logger.scope('PipelineLoader');
 
 export interface PendingPipelineLoad {
 	pipelineId: string;
@@ -73,7 +76,9 @@ export async function queuePipelineLoad(load: Omit<PendingPipelineLoad, 'timesta
 			return false;
 		}
 
-		console.log('[PipelineLoader] Queued pipeline load:', load.pipelineName, 'with', load.nodes.length, 'nodes and', load.connections.length, 'connections');
+		log.info(
+			`Queued pipeline load: ${load.pipelineName} with ${load.nodes.length} nodes and ${load.connections.length} connections`
+		);
 		return true;
 	} catch (error) {
 		console.error('[PipelineLoader] Error queueing load:', error);
@@ -112,7 +117,7 @@ export async function getPendingLoad(requestedPipelineId: string | null = null):
 			return null;
 		}
 
-		console.log('[PipelineLoader] Found pending load:', data.load.pipelineName);
+		log.info(`Found pending load: ${data.load.pipelineName}`);
 
 		return data.load as PendingPipelineLoad;
 	} catch (error) {

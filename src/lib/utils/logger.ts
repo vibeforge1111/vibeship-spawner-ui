@@ -15,8 +15,9 @@ const LOG_LEVELS = {
 
 type LogLevel = keyof typeof LOG_LEVELS;
 
-// In production, only show warnings and errors
-const currentLevel: LogLevel = import.meta.env.DEV ? 'debug' : 'warn';
+// In production and tests, only show warnings and errors.
+// Vitest runs with DEV semantics, so check MODE first to keep green test output readable.
+const currentLevel: LogLevel = import.meta.env.MODE === 'test' ? 'warn' : import.meta.env.DEV ? 'debug' : 'warn';
 
 function shouldLog(level: LogLevel): boolean {
 	return LOG_LEVELS[level] >= LOG_LEVELS[currentLevel];

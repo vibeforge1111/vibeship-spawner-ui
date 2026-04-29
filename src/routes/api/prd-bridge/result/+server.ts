@@ -14,6 +14,9 @@ import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
+import { logger } from '$lib/utils/logger';
+
+const log = logger.scope('PRDBridge');
 
 function getResultsDir(): string {
 	const spawnerDir = process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
@@ -43,7 +46,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const resultFile = resolveWithinBaseDir(resultsDir, `${requestId}.json`);
 		await writeFile(resultFile, JSON.stringify(result, null, 2), 'utf-8');
 
-		console.log('[PRDBridge] Stored result for:', requestId);
+		log.info(`Stored result for: ${requestId}`);
 		return json({ success: true, requestId });
 	} catch (error) {
 		if (error instanceof PathSafetyError) {
