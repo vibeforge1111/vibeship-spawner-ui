@@ -568,21 +568,23 @@ function maybeRecordAssignedTaskPackProgress(
 ): void {
 	const assignedTaskIds = Array.isArray(event.assignedTaskIds) ? event.assignedTaskIds : [];
 	if (event.progress === null || assignedTaskIds.length === 0) return;
+	const activeTaskId = typeof event.taskId === 'string' && event.taskId.trim() ? event.taskId : assignedTaskIds[0];
 	const distributed = distributeRelayTaskPackProgress(assignedTaskIds.length, event.progress);
 	assignedTaskIds.forEach((taskId, index) => {
+		const isActiveTask = taskId === activeTaskId;
 		const progress = distributed[index] ?? 0;
 		let task = findTaskForAssignedTaskId(entry, taskId, index);
 		if (!task) {
 			task = {
 				title: sanitizeMissionControlDisplayText(taskId),
 				skills: [],
-				status: progress > 0 ? 'running' : 'queued',
-				...(progress > 0 ? { progress } : {})
+				status: isActiveTask && progress > 0 ? 'running' : 'queued',
+				...(isActiveTask && progress > 0 ? { progress } : {})
 			};
 			entry.tasks.push(task);
 			entry.taskNames.push(task.title);
 		}
-		if (progress <= 0) return;
+		if (!isActiveTask || progress <= 0) return;
 		if (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled') return;
 		task.status = 'running';
 		task.progress = Math.max(task.progress ?? 0, progress);

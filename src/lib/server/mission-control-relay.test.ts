@@ -772,7 +772,7 @@ describe('mission-control-relay', () => {
 		]);
 	});
 
-	it('projects bundled provider progress across planned board tasks', async () => {
+	it('keeps bundled provider progress on the active task until later tasks really start', async () => {
 		const missionId = `mission-task-pack-progress-${Date.now()}`;
 
 		await relayMissionControlEvent({
@@ -810,11 +810,11 @@ describe('mission-control-relay', () => {
 
 		expect(running?.tasks.map((task) => [task.title, task.status, task.progress ?? 0])).toEqual([
 			['task-1-shell: Create shell', 'running', 92],
-			['task-2-scene: Build scene', 'running', 86],
-			['task-3-controls: Add controls', 'running', 29],
+			['task-2-scene: Build scene', 'queued', 0],
+			['task-3-controls: Add controls', 'queued', 0],
 			['task-4-docs: Write docs', 'queued', 0]
 		]);
-		expect(running?.taskStatusCounts).toMatchObject({ queued: 1, running: 3, total: 4 });
+		expect(running?.taskStatusCounts).toMatchObject({ queued: 3, running: 1, total: 4 });
 	});
 
 	it('merges node-id task pack progress into later planned task titles', async () => {
@@ -872,8 +872,8 @@ describe('mission-control-relay', () => {
 		expect(running?.taskNames).toEqual(plannedTasks.map((task) => task.title));
 		expect(running?.tasks.map((task) => [task.title, task.status, task.progress ?? 0])).toEqual([
 			['Create the static app shell', 'running', 92],
-			['Implement checklist state and progress', 'running', 86],
-			['Polish the dark Mission Control UI', 'running', 29],
+			['Implement checklist state and progress', 'running', 0],
+			['Polish the dark Mission Control UI', 'queued', 0],
 			['Write README and run smoke checks', 'queued', 0]
 		]);
 	});

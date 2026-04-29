@@ -141,11 +141,11 @@ function formatProviderTaskActivityMessage(
 	providerLabel: string,
 	taskName: string,
 	assignedTaskCount: number,
-	elapsedMs: number,
+	_elapsedMs: number,
 	_estimatedRemainingMs: number
 ): string {
 	const packLabel = assignedTaskCount > 1 ? `${assignedTaskCount} task pack` : taskName;
-	return `${providerLabel} is working through ${packLabel} (${formatDurationCompact(elapsedMs)} elapsed; estimate adjusting)`;
+	return `${providerLabel} is working through ${packLabel}.`;
 }
 
 function isBusyFileSystemError(error: unknown): boolean {

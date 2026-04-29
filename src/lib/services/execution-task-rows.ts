@@ -40,12 +40,11 @@ function rowProgressFromStatus(status: TaskRowStatus): number {
 	return 0;
 }
 
-function rowStatusFromMissionTask(status: string | undefined, trackedProgress?: number): TaskRowStatus {
+function rowStatusFromMissionTask(status: string | undefined): TaskRowStatus {
 	if (status === 'completed') return 'completed';
 	if (status === 'failed') return 'failed';
 	if (status === 'blocked') return 'blocked';
 	if (status === 'in_progress') return 'running';
-	if (typeof trackedProgress === 'number' && trackedProgress > 0) return 'running';
 	return 'pending';
 }
 
@@ -69,7 +68,7 @@ export function buildExecutionTaskRows(
 
 	return missionTasks.map((task, index) => {
 		const tracked = executionProgress?.taskProgressMap?.get(task.id);
-		const status = rowStatusFromMissionTask(task.status, tracked?.progress);
+		const status = rowStatusFromMissionTask(task.status);
 		const inferredProgress = rowProgressFromStatus(status);
 		return {
 			id: task.id,
@@ -79,6 +78,8 @@ export function buildExecutionTaskRows(
 			progress:
 				status === 'completed' || status === 'failed'
 					? 100
+					: status === 'pending' || status === 'blocked'
+						? 0
 					: clampNonTerminalProgress(tracked?.progress ?? inferredProgress),
 			message: tracked?.message
 		};

@@ -188,6 +188,7 @@ function normalizeFlowMessage(message: string | undefined): string {
 	return (message || '')
 		.replace(/\(\d+(?:m \d+s|m|s) elapsed,\s*(?:about )?\d+(?:m \d+s|m|s) left\)/gi, '(time estimate)')
 		.replace(/\(\d+(?:m \d+s|m|s) elapsed,\s*wrapping up\)/gi, '(time estimate)')
+		.replace(/\(\d+(?:m \d+s|m|s) elapsed;\s*estimate adjusting\)/gi, '(time estimate)')
 		.replace(/\(\d+(?:m \d+s|m|s) elapsed\)/gi, '(time estimate)')
 		.replace(/\b\d+%\b/g, '#%')
 		.replace(/\s+/g, ' ')
@@ -1308,9 +1309,13 @@ class MissionExecutor {
 		const taskIds = assignedTaskIds.filter((taskId): taskId is string => typeof taskId === 'string');
 		const distributed = distributeProviderProgressAcrossTasks(taskIds, providerProgress);
 		if (distributed.size === 0) return;
+		const activeTaskId = this.progress.currentTaskId && taskIds.includes(this.progress.currentTaskId)
+			? this.progress.currentTaskId
+			: taskIds[0];
 
 		let changed = false;
 		for (const [taskId, taskProgress] of distributed) {
+			if (taskId !== activeTaskId) continue;
 			const missionTask = this.progress.mission.tasks.find((task) => task.id === taskId);
 			if (!missionTask || missionTask.status === 'completed' || missionTask.status === 'failed') continue;
 
@@ -1322,7 +1327,7 @@ class MissionExecutor {
 				taskId,
 				taskName: missionTask.title,
 				progress: nextProgress,
-				message: taskId === this.progress.currentTaskId ? message : 'Queued in active agent run',
+				message,
 				startedAt: existing?.startedAt || Date.now()
 			});
 			changed = true;

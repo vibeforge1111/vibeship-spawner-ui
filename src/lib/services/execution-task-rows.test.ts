@@ -128,12 +128,12 @@ describe('execution task row helpers', () => {
 		expect(rows.map((row) => [row.id, row.status, row.progress, row.message])).toEqual([
 			['task-1', 'completed', 100, undefined],
 			['task-2', 'running', 47, 'Halfway there'],
-			['task-3', 'blocked', 92, 'Bad external value'],
+			['task-3', 'blocked', 0, 'Bad external value'],
 			['task-4', 'failed', 100, undefined]
 		]);
 	});
 
-	it('shows queued tasks with bundled provider progress as active running rows', () => {
+	it('keeps queued tasks pending even when provider pack progress exists', () => {
 		const rows = buildExecutionTaskRows(
 			progress({
 				mission: mission([
@@ -158,7 +158,7 @@ describe('execution task row helpers', () => {
 
 		expect(rows.map((row) => [row.id, row.status, row.progress])).toEqual([
 			['task-1', 'running', 92],
-			['task-2', 'running', 76],
+			['task-2', 'pending', 0],
 			['task-3', 'pending', 0],
 			['task-4', 'pending', 0]
 		]);

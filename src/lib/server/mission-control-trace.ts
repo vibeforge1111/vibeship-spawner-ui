@@ -138,6 +138,15 @@ function progressPercent(entry: MissionControlBoardEntry | null): number {
 	const { completed, failed, cancelled, running, total } = entry.taskStatusCounts;
 	const terminalTasks = completed + failed + cancelled;
 	if (terminalTasks >= total) return 100;
+	if (entry.tasks.length > 0) {
+		const progressSum = entry.tasks.reduce((sum, task) => {
+			if (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled') return sum + 100;
+			if (task.status === 'running') return sum + Math.max(1, Math.min(92, Math.round(task.progress ?? 35)));
+			return sum;
+		}, 0);
+		const taskProgress = Math.round(progressSum / total);
+		if (taskProgress > 0) return Math.min(99, taskProgress);
+	}
 	if (running > 0) {
 		return Math.max(1, Math.round(((terminalTasks + running * 0.35) / total) * 100));
 	}
