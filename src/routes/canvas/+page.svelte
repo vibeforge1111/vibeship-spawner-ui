@@ -25,6 +25,7 @@ import { get } from 'svelte/store';
 	import { hasResumableMission } from '$lib/services/persistence';
 	import { DroppedSkillSchema, safeJsonParse } from '$lib/types/schemas';
 	import { getLatestPipelineLoad, getPendingLoad, type PendingPipelineLoad } from '$lib/services/pipeline-loader';
+	import { getCanvasExecutionAction } from '$lib/services/canvas-execution-action';
 	import { loadSkills, skills as skillsStore } from '$lib/stores/skills.svelte';
 	import { workflowTemplates } from '$lib/data/templates';
 	import type { OpenclawCanvasSnapshot } from '$lib/services/openclaw-bridge';
@@ -743,6 +744,20 @@ import { get } from 'svelte/store';
 		setPan({ x, y });
 	}
 
+	function openExecutionFromToolbar() {
+		const action = getCanvasExecutionAction({
+			nodeCount: currentNodes.length,
+			activePipelineId: get(activePipelineIdStore),
+			relay: executionRelay,
+			now: Date.now()
+		});
+		if (action.disabled) return;
+		executionAutoRunToken = action.autoRunToken;
+		executionPanelKey = action.panelKey;
+		showExecution = true;
+		executionMinimized = false;
+	}
+
 	function handleClear() {
 		if (currentNodes.length > 0) {
 			showClearConfirm = true;
@@ -906,6 +921,13 @@ import { get } from 'svelte/store';
 	let isSelecting = $state(false);
 	let currentCanUndo = $state(false);
 	let currentCanRedo = $state(false);
+	let toolbarExecutionAction = $derived.by(() =>
+		getCanvasExecutionAction({
+			nodeCount: currentNodes.length,
+			activePipelineId: get(activePipelineIdStore),
+			relay: executionRelay
+		})
+	);
 
 	// Node search
 	let searchQuery = $state('');
@@ -1411,16 +1433,12 @@ import { get } from 'svelte/store';
 					Export
 				</button>
 				<button
-					onclick={() => {
-						executionAutoRunToken = null;
-						executionPanelKey = `manual:${get(activePipelineIdStore) || Date.now()}`;
-						showExecution = true;
-						executionMinimized = false;
-					}}
+					onclick={openExecutionFromToolbar}
 					class="px-2.5 py-1 text-xs font-mono bg-accent-primary text-bg-primary rounded-md hover:bg-accent-primary-hover transition-all disabled:opacity-50"
-					disabled={currentNodes.length === 0}
+					disabled={toolbarExecutionAction.disabled}
+					title={toolbarExecutionAction.title}
 				>
-					Run
+					{toolbarExecutionAction.label}
 				</button>
 			</div>
 		</header>

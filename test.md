@@ -247,3 +247,32 @@ Branch: `codex/spawner-quiet-green-tests`
 - Full unit/integration suite after rebasing onto origin/main: PASS via `npm run test:run` (43 files, 242 tests) with the targeted success-path stdout noise removed.
 - Production build: PASS via `npm run build`.
 - Local route smoke: PASS via `npm run smoke:routes` against `http://127.0.0.1:5173` for `/`, `/kanban`, `/missions/mission-smoke-route`, `/canvas`, `/trace`, `/api/mission-control/board`, and `/api/mission-control/trace`.
+
+## Continuation: Canvas Execution Action
+
+Branch: `codex/spawner-canvas-execution-action`
+
+### Step Checklist
+
+- [x] Make mission-scoped canvases bias toward inspection instead of looking like a fresh run.
+- [x] Keep regular canvases in Run mode.
+- [x] Add focused tests for toolbar execution action selection.
+- [x] Run focused tests.
+- [x] Run typecheck.
+- [x] Run full checks.
+- [x] Commit and push.
+
+### Changes Made
+
+- Added `src/lib/services/canvas-execution-action.ts`.
+- Added `src/lib/services/canvas-execution-action.test.ts`.
+- Updated `/canvas` toolbar to show `Inspect` for mission-linked canvases and open the mission history execution panel key.
+
+### Verification Log
+
+- Focused canvas execution action tests: PASS via `npm run test:run -- canvas-execution-action` (1 file, 3 tests).
+- Post-rebase focused tests with hosted auth coverage: PASS via `npm run test:run -- canvas-execution-action hosted-ui-auth` (2 files, 10 tests).
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Full unit/integration suite: PASS via `npm run test:run` (44 files, 245 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes` against `http://127.0.0.1:5173` for `/`, `/kanban`, `/missions/mission-smoke-route`, `/canvas`, `/trace`, `/api/mission-control/board`, and `/api/mission-control/trace`.
