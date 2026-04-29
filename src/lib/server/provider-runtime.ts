@@ -499,6 +499,7 @@ class ProviderRuntimeManager {
 						progress: nextProgress,
 						provider: provider.id,
 						providerLabel: provider.label,
+						assignedTaskIds: taskIds,
 						assignedTaskCount: taskIds.length
 					}
 				})
@@ -517,6 +518,7 @@ class ProviderRuntimeManager {
 					progress: lastProgress,
 					provider: provider.id,
 					providerLabel: provider.label,
+					assignedTaskIds: taskIds,
 					assignedTaskCount: taskIds.length
 				}
 			})

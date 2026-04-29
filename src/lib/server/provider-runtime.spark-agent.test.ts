@@ -109,6 +109,11 @@ describe('provider-runtime Spark agent bridge', () => {
 
 		const emitted: BridgeEvent[] = [];
 		const pack = buildPack('mission-step2-activity', [provider('codex', 'gpt-5.5')]);
+		pack.assignments.codex = {
+			providerId: 'codex',
+			mode: 'execute',
+			taskIds: ['task-1', 'task-2']
+		};
 		pack.mcpTaskPlans = {
 			'task-1': {
 				taskId: 'task-1',
@@ -139,7 +144,11 @@ describe('provider-runtime Spark agent bridge', () => {
 					taskId: 'task-1',
 					taskName: 'Create the project shell',
 					source: 'codex',
-					progress: expect.any(Number)
+					progress: expect.any(Number),
+					data: expect.objectContaining({
+						assignedTaskIds: ['task-1', 'task-2'],
+						assignedTaskCount: 2
+					})
 				})
 			])
 		);

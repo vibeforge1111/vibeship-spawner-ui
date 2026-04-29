@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdir, mkdtemp, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
@@ -16,8 +16,13 @@ async function makeStateDir() {
 	return stateDir;
 }
 
+beforeEach(() => {
+	vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
+});
+
 afterEach(() => {
 	delete process.env.SPAWNER_STATE_DIR;
+	vi.restoreAllMocks();
 });
 
 describe('mission-control-trace', () => {
@@ -109,6 +114,41 @@ describe('mission-control-trace', () => {
 				}
 			}
 		});
+	});
+
+	it('shows non-zero progress while a mission has an active running task', async () => {
+		await makeStateDir();
+		const missionId = `mission-running-trace-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			missionName: 'Running Trace',
+			source: 'prd-bridge',
+			data: {
+				plannedTasks: [
+					{ title: 'Plan the project', skills: ['planning'] },
+					{ title: 'Build the project', skills: ['frontend-engineer'] },
+					{ title: 'Verify the project', skills: ['testing'] }
+				]
+			}
+		});
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			taskName: 'Plan the project',
+			source: 'codex'
+		});
+
+		const trace = await buildMissionControlTrace({
+			missionId,
+			getProviderResults: () => []
+		});
+
+		expect(trace.phase).toBe('executing');
+		expect(trace.progress.taskCounts).toMatchObject({ running: 1, queued: 2, total: 3 });
+		expect(trace.progress.percent).toBeGreaterThan(0);
+		expect(trace.progress.percent).toBeLessThan(100);
 	});
 
 	it('keeps analysis-only missions in planning until the matching canvas loads', async () => {

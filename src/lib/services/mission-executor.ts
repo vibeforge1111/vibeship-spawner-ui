@@ -44,6 +44,7 @@ import {
 import {
 	calculateGranularMissionProgress,
 	calculateTaskCompletionProgress,
+	distributeProviderProgressAcrossTasks,
 	reconcileMissionTasks
 } from './mission-execution-progress';
 
@@ -584,6 +585,27 @@ class MissionExecutor {
 			timestamp: new Date().toISOString(),
 			...event
 		};
+		if (event.state === 'progress') {
+			let existingIndex = -1;
+			for (let index = this.progress.taskTransitions.length - 1; index >= 0; index -= 1) {
+				const item = this.progress.taskTransitions[index];
+				if (
+					item.state === 'progress' &&
+					item.taskId === event.taskId &&
+					item.agentId === event.agentId &&
+					item.message === event.message
+				) {
+					existingIndex = index;
+					break;
+				}
+			}
+			if (existingIndex >= 0) {
+				const nextTransitions = [...this.progress.taskTransitions];
+				nextTransitions[existingIndex] = { ...nextTransitions[existingIndex], ...transition };
+				this.progress.taskTransitions = nextTransitions.slice(-120);
+				return;
+			}
+		}
 		this.progress.taskTransitions = [...this.progress.taskTransitions, transition].slice(-120);
 	}
 
@@ -912,6 +934,11 @@ class MissionExecutor {
 					}
 					if (progressTaskId) {
 						this.handleTaskProgress(progressTaskId, progressValue, displayProgressMessage);
+						this.applyAssignedTaskPackProgress(
+							event.data?.assignedTaskIds,
+							progressValue,
+							displayProgressMessage
+						);
 						if (runtimeAgent) {
 							this.updateAgentRuntime(runtimeAgent.agentId, runtimeAgent.agentLabel, {
 								status: 'running',
@@ -1253,6 +1280,42 @@ class MissionExecutor {
 
 		// Notify callback
 		this.callbacks.onTaskProgress?.(taskId, progress, message);
+	}
+
+	private applyAssignedTaskPackProgress(
+		assignedTaskIds: unknown,
+		providerProgress: number,
+		message?: string
+	): void {
+		if (!this.progress.mission?.tasks?.length || !Array.isArray(assignedTaskIds)) return;
+
+		const taskIds = assignedTaskIds.filter((taskId): taskId is string => typeof taskId === 'string');
+		const distributed = distributeProviderProgressAcrossTasks(taskIds, providerProgress);
+		if (distributed.size === 0) return;
+
+		let changed = false;
+		for (const [taskId, taskProgress] of distributed) {
+			const missionTask = this.progress.mission.tasks.find((task) => task.id === taskId);
+			if (!missionTask || missionTask.status === 'completed' || missionTask.status === 'failed') continue;
+
+			const existing = this.progress.taskProgressMap.get(taskId);
+			const nextProgress = Math.max(existing?.progress ?? 0, taskProgress);
+			if (existing && existing.progress >= nextProgress && existing.message === message) continue;
+
+			this.progress.taskProgressMap.set(taskId, {
+				taskId,
+				taskName: missionTask.title,
+				progress: nextProgress,
+				message: taskId === this.progress.currentTaskId ? message : 'Queued in active agent run',
+				startedAt: existing?.startedAt || Date.now()
+			});
+			changed = true;
+		}
+
+		if (changed) {
+			this.recalculateOverallProgress();
+			this.persistState();
+		}
 	}
 
 	/**

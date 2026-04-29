@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	calculateGranularMissionProgress,
 	calculateTaskCompletionProgress,
+	distributeProviderProgressAcrossTasks,
 	reconcileMissionTasks,
 	type MissionProgressTask
 } from './mission-execution-progress';
@@ -40,7 +41,20 @@ describe('mission-execution-progress', () => {
 		expect(calculateGranularMissionProgress([task('one', 'in_progress')], new Map())).toBe(50);
 	});
 
-	it('clamps malformed tracked task progress', () => {
+	it('includes tracked pending task progress for bundled provider runs without marking them terminal', () => {
+		const progress = calculateGranularMissionProgress(
+			[task('one', 'in_progress'), task('two', 'pending'), task('three', 'pending')],
+			new Map([
+				['one', { progress: 55 }],
+				['two', { progress: 30 }],
+				['three', { progress: 10 }]
+			])
+		);
+
+		expect(progress).toBe(32);
+	});
+
+	it('clamps malformed tracked task progress and reserves full bars for terminal tasks', () => {
 		expect(
 			calculateGranularMissionProgress(
 				[task('too-high', 'in_progress'), task('too-low', 'in_progress')],
@@ -49,7 +63,16 @@ describe('mission-execution-progress', () => {
 					['too-low', { progress: -20 }]
 				])
 			)
-		).toBe(50);
+		).toBe(46);
+	});
+
+	it('distributes a single provider heartbeat across its assigned task pack', () => {
+		const distributed = distributeProviderProgressAcrossTasks(['one', 'two', 'three', 'four'], 50);
+
+		expect(distributed.get('one')).toBe(92);
+		expect(distributed.get('two')).toBe(92);
+		expect(distributed.get('three')).toBe(0);
+		expect(distributed.get('four')).toBe(0);
 	});
 
 	it('marks pending, running, and blocked tasks as unresolved', () => {

@@ -32,6 +32,10 @@ function clampProgress(progress: number): number {
 	return Math.min(100, Math.max(0, progress));
 }
 
+function clampNonTerminalProgress(progress: number): number {
+	return Math.min(92, clampProgress(progress));
+}
+
 export function calculateTaskCompletionProgress(tasks: Array<{ status: MissionTaskStatus }>): number {
 	if (tasks.length === 0) return 0;
 	const completedTasks = tasks.filter((task) => isTerminalTaskStatus(task.status)).length;
@@ -46,14 +50,34 @@ export function calculateGranularMissionProgress(
 
 	let progressSum = 0;
 	for (const task of tasks) {
+		const trackedProgress = taskProgressMap.get(task.id)?.progress;
 		if (isTerminalTaskStatus(task.status)) {
 			progressSum += 100;
 		} else if (task.status === 'in_progress') {
-			progressSum += clampProgress(taskProgressMap.get(task.id)?.progress ?? 50);
+			progressSum += clampNonTerminalProgress(trackedProgress ?? 50);
+		} else if (typeof trackedProgress === 'number') {
+			progressSum += clampNonTerminalProgress(trackedProgress);
 		}
 	}
 
 	return Math.round(progressSum / tasks.length);
+}
+
+export function distributeProviderProgressAcrossTasks(
+	assignedTaskIds: string[],
+	providerProgress: number
+): Map<string, number> {
+	const taskIds = assignedTaskIds.map((taskId) => taskId.trim()).filter(Boolean);
+	const distributed = new Map<string, number>();
+	if (taskIds.length === 0) return distributed;
+
+	const clampedProviderProgress = clampProgress(providerProgress);
+	const taskWindow = (clampedProviderProgress / 100) * taskIds.length;
+	taskIds.forEach((taskId, index) => {
+		const taskProgress = clampNonTerminalProgress((taskWindow - index) * 100);
+		distributed.set(taskId, taskProgress);
+	});
+	return distributed;
 }
 
 export function reconcileMissionTasks(tasks: MissionProgressTask[]): MissionReconciliationSnapshot {
