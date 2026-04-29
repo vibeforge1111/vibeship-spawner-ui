@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { mergeMissionBoardCards, type MissionBoardCard } from './mission-board-cards';
+import {
+	getMissionBoardCardActionLinks,
+	mergeMissionBoardCards,
+	type MissionBoardCard
+} from './mission-board-cards';
 
 function card(partial: Partial<MissionBoardCard>): MissionBoardCard {
 	return {
@@ -176,5 +180,55 @@ describe('mergeMissionBoardCards', () => {
 
 		expect(merged.detailHref).toBe('/missions/mission-5');
 		expect(merged.canvasHref).toBe('/canvas?pipeline=prd-5&mission=mission-5');
+	});
+});
+
+describe('getMissionBoardCardActionLinks', () => {
+	it('creates inspectable mission links for completed Spark cards without a canvas', () => {
+		const actions = getMissionBoardCardActionLinks(
+			card({
+				id: 'mission-1777402152963',
+				status: 'completed',
+				source: 'spark'
+			})
+		);
+
+		expect(actions).toEqual({
+			detailHref: '/missions/mission-1777402152963',
+			canvasHref: null,
+			traceHref: '/trace?missionId=mission-1777402152963',
+			resultHref: '/missions/mission-1777402152963#result'
+		});
+	});
+
+	it('preserves known canvas/detail links and strips stale hashes before result anchoring', () => {
+		const actions = getMissionBoardCardActionLinks(
+			card({
+				id: 'mission 5/with spaces',
+				status: 'running',
+				detailHref: '/missions/custom-mission#old',
+				canvasHref: '/canvas?pipeline=prd-5&mission=mission-5',
+				providerResults: [{ providerId: 'codex', status: 'running', summary: 'Working' }]
+			})
+		);
+
+		expect(actions.detailHref).toBe('/missions/custom-mission#old');
+		expect(actions.canvasHref).toBe('/canvas?pipeline=prd-5&mission=mission-5');
+		expect(actions.traceHref).toBe('/trace?missionId=mission%205%2Fwith%20spaces');
+		expect(actions.resultHref).toBe('/missions/custom-mission#result');
+	});
+
+	it('hides the result action until a mission is terminal or has provider output', () => {
+		const actions = getMissionBoardCardActionLinks(
+			card({
+				id: 'mission-running',
+				status: 'running',
+				source: 'spark'
+			})
+		);
+
+		expect(actions.detailHref).toBe('/missions/mission-running');
+		expect(actions.traceHref).toBe('/trace?missionId=mission-running');
+		expect(actions.resultHref).toBeNull();
 	});
 });

@@ -579,3 +579,35 @@ Branch: `codex/spawner-maintenance-optimization-pass`
 - Mission surface smoke: PASS via `npm run smoke:mission-surfaces`.
 - Production dependency audit: PASS via `npm audit --omit=dev` (0 vulnerabilities).
 - Production preview smoke: PASS via `npm run preview -- --host 127.0.0.1 --port 4191`; `/`, `/kanban`, `/canvas`, and `/trace` returned HTTP 200.
+
+## Continuation: Mission Inspection Actions
+
+Branch: `codex/spawner-mission-inspection-actions`
+
+### Step Checklist
+
+- [x] Inspect Kanban card rendering, mission detail, Trace route parameters, and mission-board card merge tests before editing.
+- [x] Add deterministic action-link generation for Details, Canvas, Trace, and Result.
+- [x] Render explicit inspect actions on every Kanban mission card while preserving accordion expansion.
+- [x] Route Trace actions through the existing mission filter and accept the legacy `mission` alias.
+- [x] Add a result anchor and fallback empty-state on the Spark mission detail view.
+- [x] Run full typecheck, tests, build, route smoke, and mission surface smoke.
+- [ ] Commit and push.
+
+### Changes Made
+
+- Added `getMissionBoardCardActionLinks` in `src/lib/services/mission-board-cards.ts`.
+- Added focused tests for completed-card action links, trace query encoding, detail link preservation, result anchor generation, and hiding Result before output exists.
+- Updated `src/lib/components/MissionBoard.svelte` so card clicks still expand/collapse, but explicit actions now open Details, Canvas, Trace, and Result surfaces.
+- Updated `src/routes/trace/+page.svelte` to accept both `missionId` and `mission` URL params.
+- Added an always-present `id="result"` section to the Spark mission detail view in `src/routes/missions/[id]/+page.svelte`.
+
+### Verification Log
+
+- Focused mission-board card tests: PASS via `npm run test:run -- mission-board-cards` (1 file, 8 tests).
+- Typecheck: PASS via `npm run check` (0 errors, 0 warnings).
+- Whitespace check: PASS via `git diff --check`.
+- Full unit/integration suite: PASS via `npm run test:run` (49 files, 272 tests).
+- Production build: PASS via `npm run build`.
+- Local route smoke: PASS via `npm run smoke:routes`.
+- Mission surface smoke: PASS via `npm run smoke:mission-surfaces`, including mission detail, mission-scoped canvas, and Trace stitching checks.

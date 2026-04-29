@@ -268,9 +268,9 @@
 				</p>
 			</div>
 
-			{#if missionControl.providerResults && missionControl.providerResults.length > 0}
-				<div class="mb-6">
-					<h2 class="font-mono text-xs font-semibold text-text-bright tracking-wide mb-3">Agent results</h2>
+			<div id="result" class="mb-6 scroll-mt-24">
+				<h2 class="font-mono text-xs font-semibold text-text-bright tracking-wide mb-3">Agent results</h2>
+				{#if missionControl.providerResults && missionControl.providerResults.length > 0}
 					<div class="grid gap-3">
 						{#each missionControl.providerResults as result (result.providerId)}
 							<article class="px-4 py-3.5 rounded-lg border border-surface-border bg-bg-secondary">
@@ -286,8 +286,12 @@
 							</article>
 						{/each}
 					</div>
-				</div>
-			{/if}
+				{:else}
+					<div class="rounded-lg border border-surface-border bg-bg-secondary px-4 py-3 font-mono text-xs text-text-tertiary">
+						No provider result was recorded for this mission yet.
+					</div>
+				{/if}
+			</div>
 
 			<!-- Per-task cards -->
 			{#if sparkMissionDetail.taskRollups.length > 0}

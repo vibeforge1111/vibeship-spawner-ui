@@ -11,7 +11,11 @@
 	import { initPipelines, pipelines } from '$lib/stores/pipelines.svelte';
 	import type { Mission } from '$lib/services/mcp-client';
 	import type { PipelineMetadata } from '$lib/stores/pipelines.svelte';
-	import { mergeMissionBoardCards, type MissionBoardCard as BoardCard } from '$lib/services/mission-board-cards';
+	import {
+		getMissionBoardCardActionLinks,
+		mergeMissionBoardCards,
+		type MissionBoardCard as BoardCard
+	} from '$lib/services/mission-board-cards';
 
 	type Tab = 'board' | 'scheduled';
 	let activeTab = $state<Tab>('board');
@@ -681,6 +685,7 @@
 
 						<div class="flex-1 space-y-3">
 							{#each col.items as c (c.id)}
+								{@const actionLinks = getMissionBoardCardActionLinks(c)}
 								<article class="group relative px-5 py-4 rounded-md border border-surface-border bg-bg-secondary hover:border-border-strong transition-all" class:border-accent-primary={expandedCardId === c.id}>
 									<button
 										type="button"
@@ -795,48 +800,62 @@
 										{/if}
 									</button>
 
-									{#if c.detailHref || c.canvasHref || c.source === 'mcp'}
-										<div class="mt-3 flex items-center gap-2 border-t border-surface-border/60 pt-3">
-											{#if c.detailHref}
-												<a
-													href={c.detailHref}
-													onclick={(event) => event.stopPropagation()}
-													class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-text-secondary border border-surface-border rounded-sm hover:border-accent-primary/50 hover:text-accent-primary transition-all"
-													title="Open this mission's full task and event detail"
-												>
-													Open mission
-												</a>
-											{/if}
-											{#if c.canvasHref}
-												<a
-													href={c.canvasHref}
-													data-sveltekit-reload
-													onclick={(event) => event.stopPropagation()}
-													class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all"
-													title="Open this project's mission-scoped canvas"
-												>
-													Open canvas
-												</a>
-											{/if}
-											{#if c.source === 'mcp' && (c.status === 'ready' || c.status === 'draft')}
-												<button
-													onclick={() => handleStart(c)}
-													class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all"
-												>
-													Start
-												</button>
-											{/if}
-											{#if c.source === 'mcp'}
-												<button
-													onclick={() => handleDelete(c)}
-													class="ml-auto inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-text-tertiary rounded-sm hover:text-status-red transition-all"
-													title="Delete mission"
-												>
-													Delete
-												</button>
-											{/if}
-										</div>
-									{/if}
+									<div class="mt-3 flex flex-wrap items-center gap-2 border-t border-surface-border/60 pt-3">
+										<a
+											href={actionLinks.detailHref}
+											onclick={(event) => event.stopPropagation()}
+											class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-text-secondary border border-surface-border rounded-sm hover:border-accent-primary/50 hover:text-accent-primary transition-all"
+											title="Open this mission's full task and event detail"
+										>
+											Details
+										</a>
+										{#if actionLinks.canvasHref}
+											<a
+												href={actionLinks.canvasHref}
+												data-sveltekit-reload
+												onclick={(event) => event.stopPropagation()}
+												class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all"
+												title="Open this project's mission-scoped canvas"
+											>
+												Canvas
+											</a>
+										{/if}
+										<a
+											href={actionLinks.traceHref}
+											onclick={(event) => event.stopPropagation()}
+											class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-text-secondary border border-surface-border rounded-sm hover:border-accent-primary/50 hover:text-accent-primary transition-all"
+											title="Open the mission trace with Telegram, Kanban, Canvas, and dispatch state"
+										>
+											Trace
+										</a>
+										{#if actionLinks.resultHref}
+											<a
+												href={actionLinks.resultHref}
+												onclick={(event) => event.stopPropagation()}
+												class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-text-secondary border border-surface-border rounded-sm hover:border-accent-primary/50 hover:text-accent-primary transition-all"
+												title="Jump to the mission result section"
+											>
+												Result
+											</a>
+										{/if}
+										{#if c.source === 'mcp' && (c.status === 'ready' || c.status === 'draft')}
+											<button
+												onclick={() => handleStart(c)}
+												class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all"
+											>
+												Start
+											</button>
+										{/if}
+										{#if c.source === 'mcp'}
+											<button
+												onclick={() => handleDelete(c)}
+												class="ml-auto inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-text-tertiary rounded-sm hover:text-status-red transition-all"
+												title="Delete mission"
+											>
+												Delete
+											</button>
+										{/if}
+									</div>
 								</article>
 							{:else}
 								<div class="px-3.5 py-5 rounded-lg border border-dashed border-surface-border bg-bg-secondary/40 text-center">

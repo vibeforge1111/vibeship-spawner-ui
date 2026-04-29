@@ -171,7 +171,7 @@
 
 	function applyUrlParams(): void {
 		const params = new URLSearchParams(window.location.search);
-		missionId = params.get('missionId') || '';
+		missionId = params.get('missionId') || params.get('mission') || '';
 		requestId = params.get('requestId') || '';
 	}
 

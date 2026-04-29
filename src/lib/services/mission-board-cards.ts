@@ -38,6 +38,37 @@ export interface MissionBoardCard {
 	detailHref?: string | null;
 }
 
+export interface MissionBoardCardActionLinks {
+	detailHref: string;
+	canvasHref: string | null;
+	traceHref: string;
+	resultHref: string | null;
+}
+
+function missionDetailHref(missionId: string): string {
+	return `/missions/${encodeURIComponent(missionId)}`;
+}
+
+function withoutHash(href: string): string {
+	return href.split('#')[0] || href;
+}
+
+export function getMissionBoardCardActionLinks(
+	card: Pick<MissionBoardCard, 'id' | 'canvasHref' | 'detailHref' | 'providerResults' | 'status'>
+): MissionBoardCardActionLinks {
+	const encodedMissionId = encodeURIComponent(card.id);
+	const detailHref = card.detailHref ?? missionDetailHref(card.id);
+	const hasTerminalResult = ['completed', 'failed', 'cancelled'].includes(card.status);
+	const hasProviderResult = (card.providerResults?.length ?? 0) > 0;
+
+	return {
+		detailHref,
+		canvasHref: card.canvasHref ?? null,
+		traceHref: `/trace?missionId=${encodedMissionId}`,
+		resultHref: hasTerminalResult || hasProviderResult ? `${withoutHash(detailHref)}#result` : null
+	};
+}
+
 function latestTimestamp(a: string | null, b: string | null): string | null {
 	if (!a) return b;
 	if (!b) return a;
