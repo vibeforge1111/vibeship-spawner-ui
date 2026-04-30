@@ -12,6 +12,8 @@
 	import type { Mission } from '$lib/services/mcp-client';
 	import type { PipelineMetadata } from '$lib/stores/pipelines.svelte';
 	import {
+		canRunCreatorMissionBoardCard,
+		canValidateCreatorMissionBoardCard,
 		getMissionBoardCardActionLinks,
 		mergeMissionBoardCards,
 		type MissionBoardCard as BoardCard
@@ -34,6 +36,7 @@
 		status: string;
 		lastEventType: string;
 		lastUpdated: string;
+		executionStarted?: boolean;
 		queuedAt?: string | null;
 		startedAt?: string | null;
 		lastSummary: string;
@@ -325,10 +328,12 @@
 			id: e.missionId,
 			name,
 			status,
-			mode: 'spark',
+			mode: e.missionId.startsWith('mission-creator-') ? 'creator-mission' : 'spark',
 			source: 'spark',
 			updatedAt: e.lastUpdated ?? null,
 			createdAt: e.lastUpdated ?? null,
+			lastEventType: e.lastEventType,
+			executionStarted: e.executionStarted,
 			queuedAt: e.queuedAt ?? null,
 			startedAt: e.startedAt ?? null,
 			taskCount,
@@ -503,6 +508,106 @@
 		setCurrentMission(m);
 		await startCurrent();
 		await loadMissions({ limit: 200 });
+	}
+
+	let creatorRunMissionId = $state<string | null>(null);
+	let creatorRunMessage = $state<{ missionId: string; tone: 'info' | 'success' | 'error'; text: string } | null>(null);
+	let creatorValidateMissionId = $state<string | null>(null);
+	let creatorValidateMessage = $state<{ missionId: string; tone: 'info' | 'success' | 'error'; text: string } | null>(null);
+
+	function creatorRunMessageClass(tone: 'info' | 'success' | 'error'): string {
+		if (tone === 'success') return 'text-status-success';
+		if (tone === 'error') return 'text-status-error';
+		return 'text-accent-primary';
+	}
+
+	async function handleCreatorRun(card: BoardCard) {
+		if (!canRunCreatorMissionBoardCard(card) || creatorRunMissionId) return;
+		creatorRunMissionId = card.id;
+		creatorRunMessage = { missionId: card.id, tone: 'info', text: 'Starting creator execution...' };
+		try {
+			const r = await fetch('/api/creator/mission/execute', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ missionId: card.id })
+			});
+			const data = await r.json().catch(() => ({}));
+			if (!r.ok || data?.ok === false) {
+				throw new Error(data?.error || `HTTP ${r.status}`);
+			}
+			if (data?.started) {
+				creatorRunMessage = {
+					missionId: card.id,
+					tone: 'success',
+					text: `Execution started${data.providerId ? ` with ${data.providerId}` : ''}.`
+				};
+			} else if (data?.skipped) {
+				creatorRunMessage = {
+					missionId: card.id,
+					tone: 'info',
+					text: data.reason || 'Execution was skipped by the runtime.'
+				};
+			} else if (data?.error) {
+				throw new Error(data.error);
+			} else {
+				creatorRunMessage = { missionId: card.id, tone: 'info', text: 'Execution request accepted.' };
+			}
+			await fetchRelay();
+		} catch (e) {
+			creatorRunMessage = {
+				missionId: card.id,
+				tone: 'error',
+				text: e instanceof Error ? e.message : 'creator execution failed'
+			};
+		} finally {
+			creatorRunMissionId = null;
+		}
+	}
+
+	function creatorValidationSummary(data: Record<string, unknown>): { tone: 'info' | 'success' | 'error'; text: string } {
+		const run = data.run && typeof data.run === 'object' ? data.run as Record<string, unknown> : {};
+		const status = String(data.status || run.status || 'accepted');
+		const results = Array.isArray(run.results) ? run.results as Array<Record<string, unknown>> : [];
+		const passed = results.filter((result) => result.status === 'passed').length;
+		const failed = results.filter((result) => result.status === 'failed').length;
+		const skipped = results.filter((result) => result.status === 'skipped').length;
+		const tone = status === 'passed' ? 'success' : status === 'failed' ? 'error' : 'info';
+		return {
+			tone,
+			text: results.length > 0
+				? `Validation ${status}: ${passed} passed, ${failed} failed, ${skipped} skipped.`
+				: `Validation ${status}.`
+		};
+	}
+
+	async function handleCreatorValidate(card: BoardCard) {
+		if (!canValidateCreatorMissionBoardCard(card) || creatorValidateMissionId) return;
+		creatorValidateMissionId = card.id;
+		creatorValidateMessage = { missionId: card.id, tone: 'info', text: 'Running creator validation...' };
+		try {
+			const r = await fetch('/api/creator/mission/validate', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ missionId: card.id, async: true })
+			});
+			const data = await r.json().catch(() => ({}));
+			if (!r.ok || data?.ok === false) {
+				throw new Error(data?.error || `HTTP ${r.status}`);
+			}
+			creatorValidateMessage = {
+				missionId: card.id,
+				...creatorValidationSummary(data)
+			};
+			await fetchRelay();
+		} catch (e) {
+			creatorValidateMessage = {
+				missionId: card.id,
+				tone: 'error',
+				text: e instanceof Error ? e.message : 'creator validation failed'
+			};
+		} finally {
+			creatorValidateMissionId = null;
+		}
 	}
 
 	let quickAddOpen = $state(false);
@@ -838,6 +943,28 @@
 												Result
 											</a>
 										{/if}
+										{#if canRunCreatorMissionBoardCard(c)}
+											<button
+												onclick={() => handleCreatorRun(c)}
+												disabled={creatorRunMissionId === c.id}
+												class="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+												title="Execute this creator mission through the provider runtime"
+											>
+												<Icon name={creatorRunMissionId === c.id ? 'loader' : 'play'} size={10} />
+												{creatorRunMissionId === c.id ? 'Starting' : 'Run'}
+											</button>
+										{/if}
+										{#if canValidateCreatorMissionBoardCard(c)}
+											<button
+												onclick={() => handleCreatorValidate(c)}
+												disabled={creatorValidateMissionId === c.id}
+												class="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[10px] font-mono text-status-success border border-status-success/30 rounded-sm hover:bg-status-success hover:text-bg-primary transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+												title="Run this creator mission's validation commands"
+											>
+												<Icon name={creatorValidateMissionId === c.id ? 'loader' : 'check-circle'} size={10} />
+												{creatorValidateMissionId === c.id ? 'Validating' : 'Validate'}
+											</button>
+										{/if}
 										{#if c.source === 'mcp' && (c.status === 'ready' || c.status === 'draft')}
 											<button
 												onclick={() => handleStart(c)}
@@ -854,6 +981,16 @@
 											>
 												Delete
 											</button>
+										{/if}
+										{#if creatorRunMessage && creatorRunMessage.missionId === c.id}
+											<p class="basis-full font-mono text-[10px] leading-snug {creatorRunMessageClass(creatorRunMessage.tone)}">
+												{creatorRunMessage.text}
+											</p>
+										{/if}
+										{#if creatorValidateMessage && creatorValidateMessage.missionId === c.id}
+											<p class="basis-full font-mono text-[10px] leading-snug {creatorRunMessageClass(creatorValidateMessage.tone)}">
+												{creatorValidateMessage.text}
+											</p>
 										{/if}
 									</div>
 								</article>

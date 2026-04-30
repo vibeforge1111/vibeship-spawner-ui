@@ -431,7 +431,7 @@ import { get } from 'svelte/store';
 				addNodesWithConnections(load.nodes, load.connections);
 			}
 			executionRelay = load.relay || null;
-			sparkPipelineActive = load.source === 'prd-bridge';
+			sparkPipelineActive = load.source === 'prd-bridge' || load.source === 'creator-mission';
 
 			// Save immediately
 			saveCurrentPipeline({

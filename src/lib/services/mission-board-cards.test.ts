@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+	canRunCreatorMissionBoardCard,
+	canValidateCreatorMissionBoardCard,
 	getMissionBoardCardActionLinks,
+	isCreatorMissionBoardCard,
 	mergeMissionBoardCards,
 	type MissionBoardCard
 } from './mission-board-cards';
@@ -127,6 +130,28 @@ describe('mergeMissionBoardCards', () => {
 		expect(merged.providerSummary).toBe('Codex: shipped and verified');
 	});
 
+	it('preserves execution state from live relay cards', () => {
+		const live = card({
+			id: 'mission-creator-1',
+			status: 'running',
+			source: 'spark',
+			mode: 'creator-mission',
+			lastEventType: 'mission_started',
+			executionStarted: true
+		});
+		const staticCard = card({
+			id: 'mission-creator-1',
+			status: 'ready',
+			source: 'mcp',
+			executionStarted: false
+		});
+
+		const [merged] = mergeMissionBoardCards([live], [staticCard]);
+
+		expect(merged.lastEventType).toBe('mission_started');
+		expect(merged.executionStarted).toBe(true);
+	});
+
 	it('preserves failed provider details over older static task text', () => {
 		const live = card({
 			id: 'mission-4',
@@ -180,6 +205,68 @@ describe('mergeMissionBoardCards', () => {
 
 		expect(merged.detailHref).toBe('/missions/mission-5');
 		expect(merged.canvasHref).toBe('/canvas?pipeline=prd-5&mission=mission-5');
+	});
+});
+
+describe('creator mission run eligibility', () => {
+	it('allows creator missions that only completed planning task events', () => {
+		const plannedCreator = card({
+			id: 'mission-creator-1777402152963',
+			name: 'Creator Mission: Startup YC',
+			mode: 'spark',
+			source: 'spark',
+			status: 'running',
+			lastEventType: 'task_completed',
+			executionStarted: false
+		});
+
+		expect(isCreatorMissionBoardCard(plannedCreator)).toBe(true);
+		expect(canRunCreatorMissionBoardCard(plannedCreator)).toBe(true);
+	});
+
+	it('blocks creator run actions after execution has started', () => {
+		const executingCreator = card({
+			id: 'mission-creator-1777402152963',
+			name: 'Creator Mission: Startup YC',
+			mode: 'creator-mission',
+			source: 'spark',
+			status: 'running',
+			lastEventType: 'mission_started',
+			executionStarted: true
+		});
+
+		expect(canRunCreatorMissionBoardCard(executingCreator)).toBe(false);
+	});
+
+	it('does not show run actions for normal Spark missions', () => {
+		expect(canRunCreatorMissionBoardCard(card({ id: 'mission-plain', name: 'Regular mission', status: 'ready' }))).toBe(false);
+	});
+});
+
+describe('creator mission validation eligibility', () => {
+	it('allows validation for planned or already-executed creator missions', () => {
+		expect(canValidateCreatorMissionBoardCard(card({
+			id: 'mission-creator-1777402152963',
+			name: 'Creator Mission: Startup YC',
+			mode: 'creator-mission',
+			status: 'ready'
+		}))).toBe(true);
+		expect(canValidateCreatorMissionBoardCard(card({
+			id: 'mission-creator-1777402152963',
+			name: 'Creator Mission: Startup YC',
+			mode: 'creator-mission',
+			status: 'completed'
+		}))).toBe(true);
+	});
+
+	it('hides validation for cancelled creator missions and normal Spark missions', () => {
+		expect(canValidateCreatorMissionBoardCard(card({
+			id: 'mission-creator-1777402152963',
+			name: 'Creator Mission: Startup YC',
+			mode: 'creator-mission',
+			status: 'cancelled'
+		}))).toBe(false);
+		expect(canValidateCreatorMissionBoardCard(card({ id: 'mission-plain', name: 'Regular mission', status: 'ready' }))).toBe(false);
 	});
 });
 

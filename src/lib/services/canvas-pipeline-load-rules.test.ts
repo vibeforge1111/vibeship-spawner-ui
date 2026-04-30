@@ -70,6 +70,48 @@ describe('canvas pipeline load rules', () => {
 		).toBe(true);
 	});
 
+	it('applies a fresh creator mission load for mission-scoped Canvas recovery', () => {
+		const candidate = load({
+			pipelineId: 'creator-tg-creator-1',
+			source: 'creator-mission',
+			autoRun: true
+		});
+
+		expect(
+			shouldAutoApplyLatestLoad({
+				load: candidate,
+				activePipelineId: 'old-pipeline',
+				currentNodes: []
+			})
+		).toBe(true);
+	});
+
+	it('recovers a requested creator mission Canvas even when auto-run is disabled', () => {
+		const candidate = load({
+			pipelineId: 'creator-tg-creator-1',
+			source: 'creator-mission',
+			autoRun: false,
+			relay: { autoRun: false }
+		});
+
+		expect(
+			shouldAutoApplyLatestLoad({
+				load: candidate,
+				requestedPipelineId: 'creator-tg-creator-1',
+				activePipelineId: 'old-pipeline',
+				currentNodes: []
+			})
+		).toBe(true);
+
+		expect(
+			shouldAutoApplyLatestLoad({
+				load: candidate,
+				activePipelineId: 'old-pipeline',
+				currentNodes: []
+			})
+		).toBe(false);
+	});
+
 	it('does not reapply a duplicate or already-applied load', () => {
 		const candidate = load();
 		const loadKey = getPipelineLoadKey(candidate);

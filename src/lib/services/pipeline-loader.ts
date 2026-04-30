@@ -27,7 +27,7 @@ export interface PendingPipelineLoad {
 	pipelineName: string;
 	nodes: Array<{ skill: Skill; position: { x: number; y: number } }>;
 	connections: Array<{ sourceIndex: number; targetIndex: number; sourcePortId?: string; targetPortId?: string }>;
-	source: 'prd' | 'prd-bridge' | 'goal' | 'new' | 'switch';
+	source: 'prd' | 'prd-bridge' | 'creator-mission' | 'goal' | 'new' | 'switch';
 	buildMode?: 'direct' | 'advanced_prd';
 	buildModeReason?: string;
 	executionPrompt?: string;

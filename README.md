@@ -93,6 +93,8 @@ Key local API surfaces:
 - `/api/mission-control/command` - pause/resume/kill/status.
 - `/api/mission-control/board` - board summary.
 - `/api/mission-control/trace` - stitched mission state across Telegram, PRD, Canvas, Dispatch, Kanban, and providers.
+- `/memory-quality` - Spark memory recall quality dashboard; see
+  [docs/memory-quality-dashboard.md](docs/memory-quality-dashboard.md).
 - `/api/prd-bridge/write` - write a PRD into the workspace.
 - `/api/prd-bridge/load-to-canvas` - load a PRD/project into the visual canvas.
 - `/api/spark-agent/*` - Spark agent session bridge for canvas, mission, MCP, and event stream control.

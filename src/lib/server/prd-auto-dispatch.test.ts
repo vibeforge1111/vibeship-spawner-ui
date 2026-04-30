@@ -167,4 +167,10 @@ describe('PRD auto-dispatch helpers', () => {
 			expect(baseIds.has(skillId)).toBe(true);
 		}
 	});
+
+	it('can allow creator execution for missions that already exist on the board', () => {
+		expect(
+			shouldAutoDispatchPrdLoad(load, { allowExistingNonTerminalMission: true }).ok
+		).toBe(true);
+	});
 });
