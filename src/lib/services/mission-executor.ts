@@ -636,6 +636,22 @@ class MissionExecutor {
 		return { agentId, agentLabel };
 	}
 
+	private shouldQueueTaskStartFromSameProvider(taskId: string, agentId?: string): boolean {
+		const mission = this.progress.mission;
+		const execution = this.progress.multiLLMExecution;
+		if (!mission?.tasks?.length || !execution?.enabled) return false;
+
+		const runningTasks = mission.tasks.filter((task) => task.status === 'in_progress');
+		if (runningTasks.length === 0 || runningTasks.some((task) => task.id === taskId)) return false;
+
+		const isSingleProviderPack = execution.strategy === 'single' || execution.providers.length <= 1;
+		if (!isSingleProviderPack) return false;
+
+		if (!agentId) return true;
+		const activeAgent = this.progress.agentRuntime.get(agentId);
+		return !activeAgent || activeAgent.status === 'running';
+	}
+
 	private isServerDispatchEvent(event: BridgeEvent): boolean {
 		if (event.source !== 'spawner-ui') return false;
 		if (!this.progress.multiLLMExecution?.enabled) return false;
@@ -874,6 +890,9 @@ class MissionExecutor {
 					this.updateLastProgress();  // Health monitoring
 					const taskId = event.taskId || event.data?.taskId as string;
 					const taskName = event.taskName || event.data?.taskName as string;
+					if (taskId && this.shouldQueueTaskStartFromSameProvider(taskId, runtimeAgent?.agentId)) {
+						break;
+					}
 					if (taskId && taskId !== this.progress.currentTaskId) {
 						this.progress.currentTaskId = taskId;
 						this.progress.currentTaskName = taskName || taskId;
@@ -1068,6 +1087,13 @@ class MissionExecutor {
 							const task = this.progress.mission.tasks.find(t => t.id === completedTaskId);
 							if (task) {
 								task.status = success ? 'completed' : 'failed';
+							}
+							if (this.progress.currentTaskId === completedTaskId) {
+								const nextRunningTask = this.progress.mission.tasks.find(t => t.status === 'in_progress');
+								this.progress.currentTaskId = nextRunningTask?.id || null;
+								this.progress.currentTaskName = nextRunningTask?.title || null;
+								this.progress.currentTaskProgress = nextRunningTask ? this.progress.currentTaskProgress : 0;
+								this.progress.currentTaskMessage = nextRunningTask ? this.progress.currentTaskMessage : null;
 							}
 						}
 						this.recalculateOverallProgress();

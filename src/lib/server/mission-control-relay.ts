@@ -101,6 +101,7 @@ const DEFAULT_WEBHOOKS = (env.MISSION_CONTROL_WEBHOOK_URLS || '')
 	.filter(Boolean);
 const DEFAULT_TELEGRAM_RELAY_SECRET = env.TELEGRAM_RELAY_SECRET || '';
 const STALE_NON_TERMINAL_MS = Number(env.MISSION_CONTROL_STALE_NONTERMINAL_MS) || DEFAULT_STALE_NON_TERMINAL_MS;
+const TASK_TERMINAL_EVENTS = new Set(['task_completed', 'task_failed', 'task_cancelled']);
 
 // Persist relay state so HMR reloads + server restarts don't wipe the history.
 // Small file, synchronous writes; we're on the order of tens of events.
@@ -460,6 +461,47 @@ function taskIdentityForEvent(event: MissionControlBridgeEvent): string | null {
 	return null;
 }
 
+function taskIdentityForStatusEntry(entry: MissionControlRelayStatusEntry): string | null {
+	if (entry.taskId?.trim()) return `id:${entry.taskId.trim()}`;
+	if (entry.taskName?.trim()) return `name:${canonicalTaskTitle(entry.taskName)}`;
+	return null;
+}
+
+function eventAllowsParallelTaskStarts(event: MissionControlBridgeEvent): boolean {
+	const data = event.data && typeof event.data === 'object' ? event.data : {};
+	return data.parallel === true || data.allowParallel === true || data.executionMode === 'parallel';
+}
+
+function hasOpenTaskStartForSameSource(event: MissionControlBridgeEvent): boolean {
+	if (event.type !== 'task_started') return false;
+	if (eventAllowsParallelTaskStarts(event)) return false;
+
+	const missionId = normalizeMissionId(event);
+	const source = typeof event.source === 'string' ? event.source : 'unknown';
+	const taskIdentity = taskIdentityForEvent(event);
+	let skippedCurrent = false;
+
+	for (const entry of relayState.recent) {
+		if (entry.missionId !== missionId || entry.source !== source) continue;
+		if (
+			!skippedCurrent &&
+			entry.eventType === 'task_started' &&
+			taskIdentity &&
+			taskIdentityForStatusEntry(entry) === taskIdentity
+		) {
+			skippedCurrent = true;
+			continue;
+		}
+		if (TASK_TERMINAL_EVENTS.has(entry.eventType)) return false;
+		if (entry.eventType === 'mission_completed' || entry.eventType === 'mission_failed' || entry.eventType === 'mission_cancelled') {
+			return false;
+		}
+		if (entry.eventType === 'task_started') return true;
+	}
+
+	return false;
+}
+
 function shouldRecordLifecycleTransition(event: MissionControlBridgeEvent): boolean {
 	const type = typeof event.type === 'string' ? event.type : '';
 	const missionId = normalizeMissionId(event);
@@ -666,6 +708,53 @@ function seedPlannedTasks(entry: MissionControlBoardEntry, event: MissionControl
 	entry.taskCount = entry.taskNames.length;
 }
 
+function taskMatchesRelayEntry(task: MissionControlBoardEntry['tasks'][number], event: MissionControlRelayStatusEntry): boolean {
+	const label = event.taskName || event.taskId || '';
+	if (!label) return false;
+	if (canonicalTaskTitle(task.title) === canonicalTaskTitle(label)) return true;
+	const labelKey = taskKeyFromLabel(label);
+	if (labelKey && taskKeyFromLabel(task.title) === labelKey) return true;
+	const labelOrdinal = taskOrdinalFromLabel(label);
+	return labelOrdinal !== null && taskOrdinalFromLabel(task.title) === labelOrdinal;
+}
+
+function latestTaskStartSource(
+	task: MissionControlBoardEntry['tasks'][number],
+	events: MissionControlRelayStatusEntry[]
+): string | null {
+	const match = events.find((event) => event.eventType === 'task_started' && taskMatchesRelayEntry(task, event));
+	return match?.source || null;
+}
+
+function normalizeSingleSourceRunningTaskBurst(
+	entry: MissionControlBoardEntry,
+	events: MissionControlRelayStatusEntry[]
+): void {
+	const runningTasks = entry.tasks.filter((task) => task.status === 'running');
+	if (runningTasks.length <= 1) return;
+
+	const runningSources = new Set(
+		runningTasks
+			.map((task) => latestTaskStartSource(task, events))
+			.filter((source): source is string => Boolean(source))
+	);
+	if (runningSources.size > 1) return;
+
+	const activeTask = runningTasks.reduce((best, task) => {
+		const bestProgress = best.progress ?? 0;
+		const taskProgress = task.progress ?? 0;
+		return taskProgress > bestProgress ? task : best;
+	}, runningTasks[0]);
+
+	for (const task of runningTasks) {
+		if (task === activeTask) continue;
+		task.status = 'queued';
+		if ((task.progress ?? 0) <= 1) {
+			delete task.progress;
+		}
+	}
+}
+
 function closeOpenTasksForTerminalMission(entry: MissionControlBoardEntry): void {
 	if (!isMissionControlTerminalStatus(entry.status)) return;
 	const terminalTaskStatus =
@@ -756,6 +845,8 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 	};
 
 	for (const entry of byMission.values()) {
+		const missionEvents = relayState.recent.filter((event) => event.missionId === entry.missionId);
+		normalizeSingleSourceRunningTaskBurst(entry, missionEvents);
 		closeOpenTasksForTerminalMission(entry);
 		recalculateTaskStatusCounts(entry);
 		board[entry.status].push(entry);
@@ -779,6 +870,10 @@ export function shouldRelayMissionControlEvent(event: MissionControlBridgeEvent)
 	}
 
 	if (event.data && (event.data as Record<string, unknown>).suppressRelay === true) {
+		return false;
+	}
+
+	if (hasOpenTaskStartForSameSource(event)) {
 		return false;
 	}
 

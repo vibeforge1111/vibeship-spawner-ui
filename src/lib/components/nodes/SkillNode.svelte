@@ -170,6 +170,7 @@
 		: mcpToolCount > 0
 			? `${mcpToolCount} mcp`
 			: '');
+	const visibleTags = $derived((data.tags || []).slice(0, 3));
 
 	// Calculate port positions
 	const maxPorts = $derived(Math.max(data.inputs?.length || 1, data.outputs?.length || 1));
@@ -293,6 +294,14 @@
 			</div>
 		{/if}
 
+		{#if visibleTags.length > 0}
+			<div class="node-tags">
+				{#each visibleTags as tag}
+					<span class="node-tag">{tag}</span>
+				{/each}
+			</div>
+		{/if}
+
 		{#if mcpToolCount > 0}
 			<div class="mcp-badge">
 				<svg class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -384,6 +393,28 @@
 
 	.skill-sub {
 		color: var(--text-secondary);
+	}
+
+	.node-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px;
+		margin-top: 8px;
+	}
+
+	.node-tag {
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		padding: 2px 6px;
+		border: 1px solid rgb(var(--accent-rgb, 47 202 148) / 0.22);
+		border-radius: 999px;
+		background: rgb(var(--accent-rgb, 47 202 148) / 0.06);
+		color: var(--text-secondary);
+		font-family: var(--font-mono, 'DM Mono', ui-monospace, monospace);
+		font-size: 9px;
+		letter-spacing: 0;
 	}
 
 	/* Ports — small teal dots at card edge */

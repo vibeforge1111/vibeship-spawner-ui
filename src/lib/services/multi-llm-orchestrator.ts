@@ -965,6 +965,8 @@ H70 skill loading (mandatory):
 
 Execution expectations:
 - Work only on your assigned tasks.
+- In single-provider or task-pack runs, emit task_started only for the one task you are actively executing now. Do not pre-start future tasks after loading their skills.
+- If you prepare or load skills for future tasks, report that as progress only. Send task_started for the next task only after the previous task is completed or blocked.
 - Keep file changes focused and production-safe.
 - If blocked by implementation constraints, emit a progress event with the blocker.
 - If a task explicitly needs external tools (image/video/data/deploy), use matching connected MCP capabilities when connected; otherwise continue with the fallback plan.

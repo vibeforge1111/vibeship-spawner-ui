@@ -196,6 +196,25 @@ describe('multi-llm-orchestrator', () => {
 		expect(pack.providerPrompts.codex).toContain('stop it before your final response');
 	});
 
+	it('tells single providers not to pre-start every task in a task pack', () => {
+		const options = createDefaultMultiLLMOptions();
+		options.enabled = true;
+		options.strategy = 'single';
+		options.primaryProviderId = 'codex';
+		options.providers = options.providers.map((provider) => ({
+			...provider,
+			enabled: provider.id === 'codex'
+		}));
+
+		const pack = buildMultiLLMExecutionPack({
+			mission: createMission(3),
+			options
+		});
+
+		expect(pack.providerPrompts.codex).toContain('emit task_started only for the one task you are actively executing now');
+		expect(pack.providerPrompts.codex).toContain('Do not pre-start future tasks after loading their skills');
+	});
+
 	it('auto-enables providers when matching API keys are present', () => {
 		const options = createDefaultMultiLLMOptions();
 		options.enabled = true;

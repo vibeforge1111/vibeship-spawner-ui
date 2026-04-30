@@ -595,6 +595,119 @@ describe('mission-control-relay', () => {
 		});
 	});
 
+	it('keeps same-provider task start bursts from marking every planned task running', async () => {
+		const missionId = `mission-single-provider-burst-${Date.now()}`;
+		const plannedTasks = [
+			{ title: 'Define booking contracts', skills: ['schema'] },
+			{ title: 'Build service menu', skills: ['visual-design'] },
+			{ title: 'Wire booking flow', skills: ['forms'] }
+		];
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			missionName: 'Beauty Centre Website',
+			source: 'prd-bridge',
+			timestamp: freshIso(),
+			data: { plannedTasks, telegramRelay: { port: 1 } }
+		});
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			taskId: 'task-1-booking-contracts',
+			taskName: 'Define booking contracts',
+			source: 'codex',
+			timestamp: freshIso(1_000),
+			data: { telegramRelay: { port: 1 } }
+		});
+
+		expect(
+			shouldRelayMissionControlEvent({
+				type: 'task_started',
+				missionId,
+				taskId: 'task-2-service-menu',
+				taskName: 'Build service menu',
+				source: 'codex',
+				data: { telegramRelay: { port: 1 } }
+			})
+		).toBe(false);
+
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			taskId: 'task-2-service-menu',
+			taskName: 'Build service menu',
+			source: 'codex',
+			timestamp: freshIso(1_100),
+			data: { telegramRelay: { port: 1 } }
+		});
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			taskId: 'task-3-booking-flow',
+			taskName: 'Wire booking flow',
+			source: 'codex',
+			timestamp: freshIso(1_200),
+			data: { telegramRelay: { port: 1 } }
+		});
+
+		const board = getMissionControlBoard();
+		const running = board.running.find((candidate) => candidate.missionId === missionId);
+
+		expect(running?.taskStatusCounts).toMatchObject({
+			queued: 2,
+			running: 1,
+			completed: 0,
+			total: 3
+		});
+		expect(running?.tasks).toEqual([
+			{ title: 'Define booking contracts', skills: ['schema'], status: 'running' },
+			{ title: 'Build service menu', skills: ['visual-design'], status: 'queued' },
+			{ title: 'Wire booking flow', skills: ['forms'], status: 'queued' }
+		]);
+	});
+
+	it('allows multiple running tasks when different providers start different steps', async () => {
+		const missionId = `mission-parallel-provider-starts-${Date.now()}`;
+		const plannedTasks = [
+			{ title: 'Build frontend', skills: ['frontend'] },
+			{ title: 'Build backend', skills: ['backend'] }
+		];
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			source: 'prd-bridge',
+			timestamp: freshIso(),
+			data: { plannedTasks, telegramRelay: { port: 1 } }
+		});
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			taskName: 'Build frontend',
+			source: 'codex',
+			timestamp: freshIso(1_000),
+			data: { telegramRelay: { port: 1 } }
+		});
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			taskName: 'Build backend',
+			source: 'claude',
+			timestamp: freshIso(1_100),
+			data: { telegramRelay: { port: 1 } }
+		});
+
+		const board = getMissionControlBoard();
+		const running = board.running.find((candidate) => candidate.missionId === missionId);
+
+		expect(running?.taskStatusCounts).toMatchObject({
+			queued: 0,
+			running: 2,
+			total: 2
+		});
+	});
+
 	it('tracks explicit task completion and failure states on Kanban board entries', async () => {
 		const missionId = `mission-task-states-${Date.now()}`;
 		const startedAt = freshIso();
@@ -817,7 +930,7 @@ describe('mission-control-relay', () => {
 		expect(running?.taskStatusCounts).toMatchObject({ queued: 3, running: 1, total: 4 });
 	});
 
-	it('merges node-id task pack progress into later planned task titles', async () => {
+	it('keeps node-id task pack progress on the active planned task', async () => {
 		const missionId = `mission-task-pack-node-dedupe-${Date.now()}`;
 		const plannedTasks = [
 			{ title: 'Create the static app shell', skills: ['frontend'] },
@@ -872,7 +985,7 @@ describe('mission-control-relay', () => {
 		expect(running?.taskNames).toEqual(plannedTasks.map((task) => task.title));
 		expect(running?.tasks.map((task) => [task.title, task.status, task.progress ?? 0])).toEqual([
 			['Create the static app shell', 'running', 92],
-			['Implement checklist state and progress', 'running', 0],
+			['Implement checklist state and progress', 'queued', 0],
 			['Polish the dark Mission Control UI', 'queued', 0],
 			['Write README and run smoke checks', 'queued', 0]
 		]);

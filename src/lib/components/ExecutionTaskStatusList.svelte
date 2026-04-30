@@ -89,6 +89,15 @@
 							{#if task.message && task.status === 'running'}
 								<div class="mt-1 text-[11px] text-text-tertiary truncate">{task.message}</div>
 							{/if}
+							{#if task.skills.length > 0}
+								<div class="mt-1 flex flex-wrap gap-1">
+									{#each task.skills.slice(0, 4) as skill}
+										<span class="rounded-full border border-surface-border bg-bg-secondary px-1.5 py-0.5 text-[10px] font-mono text-text-tertiary">
+											{skill}
+										</span>
+									{/each}
+								</div>
+							{/if}
 						</div>
 						<span class="px-1.5 py-0.5 border text-[10px] font-mono uppercase {getTaskBadgeClass(task.status)}">
 							{task.status}

@@ -10,6 +10,7 @@ export interface TaskStatusRow {
 	status: TaskRowStatus;
 	progress: number;
 	message?: string;
+	skills: string[];
 }
 
 export interface TaskSummary {
@@ -52,7 +53,8 @@ export function buildExecutionTaskRows(
 				index: index + 1,
 				title: node.skill.name,
 				status,
-				progress: rowProgressFromStatus(status)
+				progress: rowProgressFromStatus(status),
+				skills: node.skill.tags || []
 			};
 		});
 	}
@@ -67,7 +69,8 @@ export function buildExecutionTaskRows(
 			title: task.title,
 			status,
 			progress: inferredProgress,
-			message: tracked?.message
+			message: tracked?.message,
+			skills: executionProgress?.taskSkillMap?.get(task.id) || []
 		};
 	});
 }

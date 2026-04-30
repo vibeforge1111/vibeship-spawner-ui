@@ -78,6 +78,7 @@
 		description: node.skill.description,
 		category: node.skill.category,
 		tier: node.skill.tier,
+		tags: node.skill.tags,
 		icon: getCategoryIcon(node.skill.category),
 		inputs: ports.inputs,
 		outputs: ports.outputs,

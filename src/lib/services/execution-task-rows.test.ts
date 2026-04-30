@@ -164,6 +164,27 @@ describe('execution task row helpers', () => {
 		]);
 	});
 
+	it('keeps task skill tags available for execution rows', () => {
+		const rows = buildExecutionTaskRows(
+			progress({
+				mission: mission([
+					task('task-1', 'Plan', 'in_progress'),
+					task('task-2', 'Verify', 'pending')
+				]),
+				taskSkillMap: new Map([
+					['task-1', ['ux-design', 'state-management']],
+					['task-2', ['qa-engineering']]
+				])
+			}),
+			[]
+		);
+
+		expect(rows.map((row) => [row.title, row.skills])).toEqual([
+			['Plan', ['ux-design', 'state-management']],
+			['Verify', ['qa-engineering']]
+		]);
+	});
+
 	it('summarizes rows using blocked tasks as pending work', () => {
 		const rows = buildExecutionTaskRows(
 			progress({
