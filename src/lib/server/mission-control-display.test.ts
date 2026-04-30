@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	compactProviderHandoffText,
 	compactMissionControlDisplayText,
 	sanitizeMissionControlDisplayText
 } from './mission-control-display';
@@ -54,5 +55,38 @@ describe('mission-control-display', () => {
 
 		expect(compact).toHaveLength(25);
 		expect(compact?.endsWith('...')).toBe(true);
+	});
+
+	it('compacts provider handoffs without local links or noisy file bullets', () => {
+		const compact = compactProviderHandoffText(`
+			OpenAI Codex says:
+
+			Done. Built the direct static app in \`C:\\Users\\USER\\Desktop\\spark-orbit-forge\`.
+
+			Created exactly the requested files:
+			- [index.html](C:/Users/USER/Desktop/spark-orbit-forge/index.html)
+			- [styles.css](C:/Users/USER/Desktop/spark-orbit-forge/styles.css)
+			- [app.js](C:/Users/USER/Desktop/spark-orbit-forge/app.js)
+			- [README.md](C:/Users/USER/Desktop/spark-orbit-forge/README.md)
+
+			What shipped:
+			- Full-viewport Three.js orbital forge from CDN, no bundler.
+			- Compact dark mission-control overlay.
+
+			Verification passed:
+			- node --check app.js
+			- Headless Chrome desktop/mobile visual checks passed.
+
+			Mission: mission-1777464236780
+		`);
+
+		expect(compact).toContain('Built the direct static app');
+		expect(compact).toContain('Full-viewport Three.js orbital forge');
+		expect(compact).toContain('Verification passed');
+		expect(compact).not.toContain('OpenAI Codex says');
+		expect(compact).not.toContain('C:/Users/USER');
+		expect(compact).not.toContain('C:\\Users\\USER');
+		expect(compact).not.toContain('[index.html]');
+		expect(compact).not.toContain('Mission: mission-');
 	});
 });

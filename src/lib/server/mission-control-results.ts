@@ -1,7 +1,7 @@
 import type { MissionControlBoardEntry } from './mission-control-relay';
 import type { ProviderMissionResultSnapshot } from './provider-runtime';
 import type { ProviderSessionStatus } from './provider-clients/types';
-import { compactMissionControlDisplayText } from './mission-control-display';
+import { compactMissionControlDisplayText, compactProviderHandoffText } from './mission-control-display';
 
 export interface MissionControlProviderResultSummary {
 	providerId: string;
@@ -31,7 +31,7 @@ export function summarizeProviderResults(
 	results: ProviderMissionResultSnapshot[]
 ): MissionControlResultSummary {
 	const providerResults = results.map((result) => {
-		const responseSummary = compactMissionControlDisplayText(result.response);
+		const responseSummary = compactProviderHandoffText(result.response);
 		const errorSummary = compactMissionControlDisplayText(result.error);
 		const fallback =
 			result.status === 'completed'

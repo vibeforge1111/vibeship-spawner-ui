@@ -1,7 +1,7 @@
 import { env } from '$env/dynamic/private';
 import * as fs from 'fs';
 import * as path from 'path';
-import { sanitizeMissionControlDisplayText } from './mission-control-display';
+import { compactMissionControlDisplayText, sanitizeMissionControlDisplayText } from './mission-control-display';
 import {
 	emptyMissionControlTaskStatusCounts,
 	isMissionControlTerminalStatus,
@@ -798,6 +798,9 @@ export function summarizeMissionControlEvent(event: MissionControlBridgeEvent): 
 			: typeof event.taskId === 'string'
 				? event.taskId
 				: dataTaskName;
+	const cleanTaskName = taskName ? sanitizeMissionControlDisplayText(taskName) : null;
+	const cleanMessage =
+		typeof event.message === 'string' ? compactMissionControlDisplayText(event.message, 220) : null;
 
 	switch (type) {
 		case 'mission_created':
@@ -815,22 +818,22 @@ export function summarizeMissionControlEvent(event: MissionControlBridgeEvent): 
 		case 'mission_cancelled':
 			return `[MissionControl] Mission cancelled by user (${missionId}).`;
 		case 'task_started':
-			return `[MissionControl] Task started: ${taskName || 'task'} (${missionId}).`;
+			return `[MissionControl] Task started: ${cleanTaskName || 'task'} (${missionId}).`;
 		case 'task_progress':
 		case 'progress':
-			return `[MissionControl] Progress: ${event.message || taskName || 'working'} (${missionId}).`;
+			return `[MissionControl] Progress: ${cleanMessage || cleanTaskName || 'working'} (${missionId}).`;
 		case 'task_completed':
-			return `[MissionControl] Task completed: ${taskName || 'task'} (${missionId}).`;
+			return `[MissionControl] Task completed: ${cleanTaskName || 'task'} (${missionId}).`;
 		case 'task_failed':
-			return `[MissionControl] Task failed: ${taskName || 'task'} (${missionId}).`;
+			return `[MissionControl] Task failed: ${cleanTaskName || 'task'} (${missionId}).`;
 		case 'task_cancelled':
-			return `[MissionControl] Task cancelled: ${taskName || 'task'} (${missionId}).`;
+			return `[MissionControl] Task cancelled: ${cleanTaskName || 'task'} (${missionId}).`;
 		case 'dispatch_started':
 			return `[MissionControl] Dispatch started (${missionId}).`;
 		case 'provider_feedback':
-			return `[MissionControl] Provider feedback: ${event.message || taskName || 'update'} (${missionId}).`;
+			return `[MissionControl] Provider feedback: ${cleanMessage || cleanTaskName || 'update'} (${missionId}).`;
 		case 'log':
-			return `[MissionControl] ${event.message || 'Log update'} (${missionId}).`;
+			return `[MissionControl] ${cleanMessage || 'Log update'} (${missionId}).`;
 		default:
 			return `[MissionControl] ${type} (${missionId}).`;
 	}

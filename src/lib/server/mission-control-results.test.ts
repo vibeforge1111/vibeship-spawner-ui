@@ -76,9 +76,7 @@ describe('mission-control-results', () => {
 			})
 		]);
 
-		expect(summary.providerSummary).toBe(
-			'Codex: Wrote [agent.py]([local path]) and `[local path]`.'
-		);
+		expect(summary.providerSummary).toBe('Codex: Wrote agent.py and local file.');
 		expect(summary.providerSummary).not.toContain('C:/Users/USER');
 		expect(summary.providerSummary).not.toContain('/Users/leventcem');
 	});

@@ -1054,4 +1054,26 @@ describe('mission-control-relay', () => {
 		expect(entry?.lastSummary).not.toContain('C:\\Users\\USER');
 		expect(entry?.lastSummary).not.toContain('/Users/leventcem');
 	});
+
+	it('compacts long progress messages before relaying them to board summaries', async () => {
+		const missionId = `spark-progress-compact-${Date.now()}`;
+		const longGoal = `Goal: ${'Build a long project description with too much detail. '.repeat(20)}`;
+
+		await relayMissionControlEvent({
+			type: 'progress',
+			missionId,
+			taskName: 'Create static shell',
+			source: 'codex',
+			message: longGoal,
+			timestamp: new Date().toISOString(),
+			data: { telegramRelay: { port: 1 } }
+		});
+
+		const board = getMissionControlBoard();
+		const entry = board.running.find((candidate) => candidate.missionId === missionId);
+
+		expect(entry?.lastSummary.length).toBeLessThanOrEqual(340);
+		expect(entry?.lastSummary).toContain('Goal: Build a long project');
+		expect(entry?.lastSummary).not.toContain('too much detail. Build a long project description with too much detail. Build a long project description with too much detail. Build a long project description with too much detail.');
+	});
 });
