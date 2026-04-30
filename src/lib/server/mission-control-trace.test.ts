@@ -157,6 +157,52 @@ describe('mission-control-trace', () => {
 		});
 	});
 
+	it('keeps planned task counts when other missions produce noisy relay events', async () => {
+		await makeStateDir();
+		const missionId = `mission-long-trace-${Date.now()}`;
+		const plannedTasks = Array.from({ length: 10 }, (_, index) => ({
+			title: `Task ${index + 1}`,
+			skills: [`skill-${index + 1}`]
+		}));
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			missionName: 'Long Trace',
+			source: 'prd-bridge',
+			data: { plannedTasks }
+		});
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			taskName: 'Task 1',
+			source: 'codex'
+		});
+
+		for (let index = 0; index < 90; index += 1) {
+			await relayMissionControlEvent({
+				type: 'mission_created',
+				missionId: `mission-noisy-${Date.now()}-${index}`,
+				missionName: `Noise ${index}`,
+				source: 'prd-bridge'
+			});
+		}
+
+		const trace = await buildMissionControlTrace({
+			missionId,
+			getProviderResults: () => []
+		});
+
+		expect(trace.phase).toBe('executing');
+		expect(trace.progress.taskCounts).toMatchObject({ running: 1, queued: 9, total: 10 });
+		expect(trace.skillPairing).toMatchObject({
+			source: 'kanban',
+			taskCount: 10,
+			pairedTaskCount: 10,
+			status: 'complete'
+		});
+	});
+
 	it('keeps analysis-only missions in planning until the matching canvas loads', async () => {
 		const stateDir = await makeStateDir();
 		const requestId = 'tg-unit-analysis-1777371000009';

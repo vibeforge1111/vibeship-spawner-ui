@@ -90,7 +90,8 @@ const RELAY_EVENT_TYPES = new Set([
 	'log'
 ]);
 
-const MAX_RECENT_EVENTS = 80;
+const MAX_RECENT_EVENTS = Number(env.MISSION_CONTROL_RECENT_EVENT_LIMIT) || 1000;
+const MAX_RECENT_EVENTS_PER_MISSION = Number(env.MISSION_CONTROL_RECENT_EVENT_LIMIT_PER_MISSION) || 120;
 const DEFAULT_STALE_NON_TERMINAL_MS = 24 * 60 * 60 * 1000;
 
 const DEFAULT_SPARK_INGEST_URL = env.SPARK_MISSION_CONTROL_INGEST_URL || '';
@@ -305,7 +306,7 @@ export function getMissionControlRelaySnapshot(missionId?: string): MissionContr
 
 	const perMission = Object.fromEntries(relayState.perMission.entries());
 	const recent = normalizedMission
-		? relayState.recent.filter((entry) => entry.missionId === normalizedMission).slice(0, 25)
+		? relayState.recent.filter((entry) => entry.missionId === normalizedMission).slice(0, MAX_RECENT_EVENTS_PER_MISSION)
 		: relayState.recent.slice(0, 25);
 
 	return {
