@@ -29,7 +29,7 @@ Each action requires:
 
 ## Example
 ```bash
-curl -X POST http://127.0.0.1:5173/api/sentinel/dispatch \
+curl -X POST http://127.0.0.1:3333/api/sentinel/dispatch \
   -H "Content-Type: application/json" \
   -H "x-api-key: <EVENTS_API_KEY>" \
   -d @reports/spawner_mission.json

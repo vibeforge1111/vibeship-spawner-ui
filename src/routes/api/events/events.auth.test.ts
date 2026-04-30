@@ -75,7 +75,7 @@ describe('/api/events auth', () => {
 	it('accepts a loopback theatre SSE origin without an events key', async () => {
 		const response = await GET(
 			createEvent(
-				'http://localhost:5173/api/events',
+				'http://localhost:3333/api/events',
 				{
 					method: 'GET',
 					headers: {
@@ -93,7 +93,7 @@ describe('/api/events auth', () => {
 	it('answers loopback theatre preflight for event posts', async () => {
 		const response = await OPTIONS(
 			createEvent(
-				'http://localhost:5173/api/events',
+				'http://localhost:3333/api/events',
 				{
 					method: 'OPTIONS',
 					headers: {

@@ -35,7 +35,7 @@ secrets = [
 
 [claims]
 secrets = []
-ports = [5173]
+ports = [3333]
 routes = [
   "http.api.providers",
   "http.api.spark.run",
@@ -74,9 +74,9 @@ storage = "keychain"
 env_var = "TELEGRAM_RELAY_SECRET"
 
 [run.default]
-command = "npm run dev -- --host 127.0.0.1"
+command = "npm run dev"
 cwd = "."
-ready_check = "http://127.0.0.1:5173/api/providers"
+ready_check = "http://127.0.0.1:3333/api/providers"
 
 [healthcheck]
 command = "npm run health:spark"

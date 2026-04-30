@@ -10,7 +10,7 @@ function configuredPreviewPort(): number {
 	const explicitPort = Number(process.env.SPARK_PROJECT_PREVIEW_PORT || '');
 	if (Number.isFinite(explicitPort) && explicitPort > 0) return Math.trunc(explicitPort);
 
-	const rawUrl = process.env.SPARK_PROJECT_PREVIEW_URL || 'http://127.0.0.1:5500';
+	const rawUrl = process.env.SPARK_PROJECT_PREVIEW_URL || 'http://127.0.0.1:5555';
 	try {
 		const parsed = new URL(rawUrl);
 		const parsedPort = Number(parsed.port);
@@ -18,7 +18,7 @@ function configuredPreviewPort(): number {
 	} catch {
 		// Fall through to the default local preview port.
 	}
-	return 5500;
+	return 5555;
 }
 
 function textResponse(status: number, body: string): Response {

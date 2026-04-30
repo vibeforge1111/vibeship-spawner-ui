@@ -2,7 +2,7 @@
 /**
  * sync-runtime.cjs — mirror Desktop spawner-ui edits into the live runtime copy.
  *
- * The dev server on :5173 and codex-auto runs from C:/Users/USER/.spark/modules/
+ * The dev server on :3333 and codex-auto runs from C:/Users/USER/.spark/modules/
  * spawner-ui/source. Edits made in C:/Users/USER/Desktop/spawner-ui must be
  * mirrored there, otherwise codex picks up the old prompt and we ship stale
  * behavior.

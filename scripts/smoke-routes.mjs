@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const baseUrl = (process.env.SPAWNER_SMOKE_BASE_URL || 'http://127.0.0.1:5173').replace(/\/$/, '');
+const baseUrl = (process.env.SPAWNER_SMOKE_BASE_URL || 'http://127.0.0.1:3333').replace(/\/$/, '');
 
 const checks = [
 	{ path: '/', kind: 'html' },

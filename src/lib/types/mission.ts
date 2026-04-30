@@ -238,12 +238,12 @@ ${taskList}
 
 ## Progress Reporting
 
-Report progress to Spawner UI via HTTP POST to \`http://localhost:5173/api/events\`:
+Report progress to Spawner UI via HTTP POST to \`http://localhost:3333/api/events\`:
 
 \`\`\`bash
-# Task started: curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type":"task_started","missionId":"${mission.id}","taskId":"ID","taskName":"NAME"}'
-# Progress: curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type":"progress","progress":50,"message":"..."}'
-# Task done: curl -X POST http://localhost:5173/api/events -H "Content-Type: application/json" -d '{"type":"task_completed","taskId":"ID","data":{"success":true}}'
+# Task started: curl -X POST http://localhost:3333/api/events -H "Content-Type: application/json" -d '{"type":"task_started","missionId":"${mission.id}","taskId":"ID","taskName":"NAME"}'
+# Progress: curl -X POST http://localhost:3333/api/events -H "Content-Type: application/json" -d '{"type":"progress","progress":50,"message":"..."}'
+# Task done: curl -X POST http://localhost:3333/api/events -H "Content-Type: application/json" -d '{"type":"task_completed","taskId":"ID","data":{"success":true}}'
 \`\`\`
 
 ## Execution Instructions

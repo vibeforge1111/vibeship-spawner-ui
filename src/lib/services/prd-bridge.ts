@@ -305,7 +305,7 @@ function handleAnalysisError(event: BridgeEvent): void {
  * Format for Claude Code to send analysis result
  *
  * Claude Code should call:
- * curl -X POST http://localhost:5173/api/events \
+ * curl -X POST http://localhost:3333/api/events \
  *   -H "Content-Type: application/json" \
  *   -d '{"type":"prd_analysis_complete","data":{"requestId":"...","result":{...}}}'
  */

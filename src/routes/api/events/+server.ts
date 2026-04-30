@@ -148,7 +148,7 @@ async function relayMetadataForMission(missionId: string): Promise<Record<string
 
 /**
  * POST handler - receives events from Claude Code
- * Claude can call: curl -X POST http://localhost:5173/api/events -d '{"type":"progress",...}'
+ * Claude can call: curl -X POST http://localhost:3333/api/events -d '{"type":"progress",...}'
  */
 export const POST: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {

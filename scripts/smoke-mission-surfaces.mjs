@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const baseUrl = (process.env.SPAWNER_SMOKE_BASE_URL || 'http://127.0.0.1:5173').replace(/\/$/, '');
+const baseUrl = (process.env.SPAWNER_SMOKE_BASE_URL || 'http://127.0.0.1:3333').replace(/\/$/, '');
 const stamp = Date.now();
 const requestId = `smoke-surfaces-${stamp}`;
 const missionId = `mission-${stamp}`;
@@ -101,7 +101,7 @@ async function relay(type, data = {}) {
 		data: {
 			requestId,
 			plannedTasks: tasks.map((task) => ({ title: task.title, skills: task.skills })),
-			telegramRelay: { profile: 'smoke', port: 5173 },
+			telegramRelay: { profile: 'smoke', port: 3333 },
 			...data.data
 		}
 	});
@@ -137,7 +137,7 @@ await check('load mission canvas without auto-run', async () => {
 		missionId,
 		autoRun: false,
 		buildMode: 'direct',
-		telegramRelay: { profile: 'smoke', port: 5173 },
+		telegramRelay: { profile: 'smoke', port: 3333 },
 		chatId: 'smoke-chat',
 		userId: 'smoke-user',
 		goal: 'Run Mission Control surface smoke.'

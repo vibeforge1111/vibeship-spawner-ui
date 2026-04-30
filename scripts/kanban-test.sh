@@ -15,7 +15,7 @@ set -euo pipefail
 # Windows cp1252 default encoding chokes on non-ascii. Force utf-8 for all python child processes.
 export PYTHONIOENCODING=utf-8
 
-BASE="${SPAWNER_BASE:-http://localhost:5173}"
+BASE="${SPAWNER_BASE:-http://localhost:3333}"
 
 # --- ANSI ---
 if [ -t 1 ]; then

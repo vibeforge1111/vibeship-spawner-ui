@@ -90,7 +90,7 @@ describe('multi-llm-orchestrator', () => {
 		const pack = buildMultiLLMExecutionPack({
 			mission: createMission(4),
 			options,
-			baseUrl: 'http://localhost:5173'
+			baseUrl: 'http://localhost:3333'
 		});
 
 		expect(pack.strategy).toBe('round_robin');

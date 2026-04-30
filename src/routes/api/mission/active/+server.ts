@@ -320,7 +320,7 @@ Resume by loading provider-specific prompts from mission state and continue emit
 2. Report progress: POST to /api/events with type "task_progress"
 3. Report completion: POST to /api/events with type "task_completed"
 
-**Base URL**: http://localhost:5173
+**Base URL**: http://localhost:3333
 `;
 
 	return instructions;

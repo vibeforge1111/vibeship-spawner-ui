@@ -213,9 +213,9 @@ Mission Control events should include:
 Use these checks when debugging a user report:
 
 ```powershell
-Invoke-RestMethod "http://127.0.0.1:5173/api/mission-control/trace?requestId=<request-id>" | ConvertTo-Json -Depth 12
-Invoke-RestMethod "http://127.0.0.1:5173/api/mission-control/board" | ConvertTo-Json -Depth 12
-Invoke-RestMethod "http://127.0.0.1:5173/api/dispatch?missionId=<mission-id>" | ConvertTo-Json -Depth 8
+Invoke-RestMethod "http://127.0.0.1:3333/api/mission-control/trace?requestId=<request-id>" | ConvertTo-Json -Depth 12
+Invoke-RestMethod "http://127.0.0.1:3333/api/mission-control/board" | ConvertTo-Json -Depth 12
+Invoke-RestMethod "http://127.0.0.1:3333/api/dispatch?missionId=<mission-id>" | ConvertTo-Json -Depth 8
 Get-Content "$env:USERPROFILE\.spark\state\spawner-ui\prd-auto-trace.jsonl" -Tail 20
 ```
 

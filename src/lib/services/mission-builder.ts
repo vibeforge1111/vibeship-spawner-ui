@@ -541,8 +541,8 @@ export function generateExecutionPrompt(
 ): string {
 	const { taskSkillMap, taskMCPMap, baseUrl, mcpSnapshot, includeSkills = true, includeMCPs = true } = options || {};
 
-	// Use provided baseUrl, or default to localhost:5173 (caller should pass window.location.origin)
-	const eventUrl = baseUrl || 'http://localhost:5173';
+	// Use provided baseUrl, or default to the local Spawner port.
+	const eventUrl = baseUrl || 'http://localhost:3333';
 
 	// Build task list with skill IDs and MCP recommendations
 	const taskList = mission.tasks
@@ -810,7 +810,7 @@ export function generateResumeExecutionPrompt(
 	options?: ExecutionPromptOptions
 ): string {
 	const { taskSkillMap, baseUrl } = options || {};
-	const eventUrl = baseUrl || 'http://localhost:5173';
+	const eventUrl = baseUrl || 'http://localhost:3333';
 
 	const completedTasks = mission.tasks.filter(t => t.status === 'completed');
 	const failedTasks = mission.tasks.filter(t => t.status === 'failed');

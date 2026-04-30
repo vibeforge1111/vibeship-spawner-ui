@@ -12,9 +12,9 @@ import {
 describe('project-preview', () => {
 	it('creates stable localhost preview URLs for static project folders', () => {
 		const projectPath = resolve('C:/Users/USER/Desktop/spark-demo');
-		const url = projectPreviewUrl('http://127.0.0.1:5173/', projectPath);
+		const url = projectPreviewUrl('http://127.0.0.1:5555/', projectPath);
 
-		expect(url).toMatch(/^http:\/\/127\.0\.0\.1:5173\/preview\/[A-Za-z0-9_-]+\/index\.html$/);
+		expect(url).toMatch(/^http:\/\/127\.0\.0\.1:5555\/preview\/[A-Za-z0-9_-]+\/index\.html$/);
 	});
 
 	it('resolves index and relative assets inside an allowed project root', () => {

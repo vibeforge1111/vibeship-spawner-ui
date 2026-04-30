@@ -1571,7 +1571,7 @@ class MissionExecutor {
 			}
 
 			// Step 3: Generate copy-pasteable execution prompt (with H70 skills)
-			const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
+			const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3333';
 			// Get MCP runtime snapshot for execution prompt
 			const mcpSnapshot = getMcpRuntimeSnapshot();
 			if (mcpSnapshot.connected) {

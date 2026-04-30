@@ -137,7 +137,7 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
     const goal = String(record.payload.goal ?? '');
     if (!goal) return { ok: false, summary: 'mission has no goal' };
     const requestId = `sched-${record.id}-${Date.now()}`;
-    const baseUrl = (_envVar('SPAWNER_UI_URL') || 'http://127.0.0.1:5173').replace(/\/$/, '');
+    const baseUrl = (_envVar('SPAWNER_UI_URL') || 'http://127.0.0.1:3333').replace(/\/$/, '');
     const requestedProjectPath =
       typeof record.payload.projectPath === 'string' ? record.payload.projectPath : undefined;
     const res = await fetch(`${baseUrl}/api/spark/run`, {

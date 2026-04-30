@@ -255,7 +255,7 @@ export function createDefaultMultiLLMOptions(): MultiLLMOrchestratorOptions {
 }
 
 export function buildMultiLLMExecutionPack(input: MultiLLMBuildInput): MultiLLMExecutionPack {
-	const baseUrl = input.baseUrl || 'http://localhost:5173';
+	const baseUrl = input.baseUrl || 'http://localhost:3333';
 	const mcpCapabilities = dedupeCapabilities(input.options.mcpCapabilities || []);
 	const mcpTools = dedupeMcpTools(input.options.mcpTools || []);
 	const providers = getActiveProviders(input.options);

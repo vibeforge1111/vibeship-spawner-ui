@@ -17,7 +17,7 @@
 | **Skill catalog (owns + context for Claude)** | `<workspace>/spawner-ui/src/lib/data/skill-catalog.json` |
 | **Keyword -> skill mappings** (402 entries) | `<workspace>/spawner-ui/src/lib/services/h70-skill-matcher.ts` |
 | **Catalog/index builders** | `spawner-ui/scripts/build-skill-catalog.cjs`, `build-skill-index.cjs` |
-| **API (single skill, full YAML)** | `GET http://localhost:5173/api/h70-skills/{skillId}` |
+| **API (single skill, full YAML)** | `GET http://localhost:3333/api/h70-skills/{skillId}` |
 | **MCP fallback** | `https://mcp.vibeship.co/mcp` |
 
 **Loading order at runtime:** local YAML in `spark-skill-graphs` (via `/api/h70-skills/[skillId]`) -> MCP fallback. Local wins; MCP is only hit if the skill is not in the repo.

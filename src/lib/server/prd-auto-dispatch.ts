@@ -357,7 +357,7 @@ export async function autoDispatchPrdCanvasLoad(load: PrdCanvasLoadForAutoDispat
 		const executionPack = buildMultiLLMExecutionPack({
 			mission: buildResult.mission,
 			taskSkillMap,
-			baseUrl: 'http://127.0.0.1:5173',
+			baseUrl: 'http://127.0.0.1:3333',
 			options: {
 				enabled: true,
 				strategy: 'single',

@@ -61,19 +61,19 @@ Stream:
 ## Quick Start
 
 ```bash
-curl -sS -X POST http://localhost:5173/api/spark-agent/session/start \
+curl -sS -X POST http://localhost:3333/api/spark-agent/session/start \
   -H "Content-Type: application/json" \
   -d '{"actor":"spark"}'
 ```
 
 ```bash
-curl -sS -X POST http://localhost:5173/api/spark-agent/command \
+curl -sS -X POST http://localhost:3333/api/spark-agent/command \
   -H "Content-Type: application/json" \
   -d '{"sessionId":"<SESSION_ID>","command":"canvas.create_pipeline","params":{"name":"Launch Pipeline"}}'
 ```
 
 ```bash
-curl -N "http://localhost:5173/api/spark-agent/events?sessionId=<SESSION_ID>"
+curl -N "http://localhost:3333/api/spark-agent/events?sessionId=<SESSION_ID>"
 ```
 
 ## Test Coverage

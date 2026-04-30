@@ -146,7 +146,7 @@ async function diagnose() {
     console.log('\n✅ All systems operational!');
   } else if (testsPassed > 0) {
     console.log('\n⚠️  Some issues detected. Recommendations:');
-    console.log('   1. Ensure the browser is open at http://localhost:5173');
+    console.log('   1. Ensure the browser is open at http://localhost:3333');
     console.log('   2. Do a hard refresh (Ctrl+F5) to reload the code');
     console.log('   3. Check browser console for errors');
     console.log('   4. Verify sync server is running (npm run sync)');

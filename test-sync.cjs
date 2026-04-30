@@ -28,7 +28,7 @@ ws.on('open', () => {
     
     setTimeout(() => {
       console.log('\nIf the skill appeared on your canvas, the sync is working!');
-      console.log('Check your browser at http://localhost:5173');
+      console.log('Check your browser at http://localhost:3333');
       process.exit(0);
     }, 2000);
   }, 500);
