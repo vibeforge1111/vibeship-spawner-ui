@@ -18,6 +18,7 @@ import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { formatSkillsByCategory, getTierSkills, normalizeTier, type SkillTier } from '$lib/server/skill-tiers';
 import { startClaudeAutoAnalysis } from '$lib/server/claude-auto-analysis';
 import { classifyBrief, formatBundleForPrompt } from '$lib/server/bundle-classifier';
+import { classifyMissionSize, formatMissionSizeGuidance } from '$lib/server/mission-size-classifier';
 import { enrichBrief } from '$lib/server/brief-enricher';
 
 function getPrdBridgePaths() {
@@ -373,7 +374,13 @@ async function buildPromptParts(
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier,
 	briefBody?: string
-): Promise<{ planningContract: string; tierBlock: string; workflowGuidance: string; bundleBlock: string }> {
+): Promise<{
+	planningContract: string;
+	tierBlock: string;
+	workflowGuidance: string;
+	bundleBlock: string;
+	missionSizeBlock: string;
+}> {
 	const planningContract =
 		buildMode === 'advanced_prd'
 			? [
@@ -424,7 +431,9 @@ async function buildPromptParts(
 	].join('\n');
 
 	let bundleBlock = '';
+	let missionSizeBlock = '';
 	if (briefBody) {
+		missionSizeBlock = formatMissionSizeGuidance(classifyMissionSize(briefBody));
 		try {
 			const classification = await classifyBrief(briefBody);
 			if (classification.bestMatch) {
@@ -440,7 +449,7 @@ async function buildPromptParts(
 		}
 	}
 
-	return { planningContract, tierBlock, workflowGuidance, bundleBlock };
+	return { planningContract, tierBlock, workflowGuidance, bundleBlock, missionSizeBlock };
 }
 
 async function buildCodexPrompt(
@@ -449,7 +458,8 @@ async function buildCodexPrompt(
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier,
 	paths: ReturnType<typeof getPrdBridgePaths>,
-	bundleBlock?: string
+	bundleBlock?: string,
+	missionSizeBlock?: string
 ): Promise<string> {
 	const planningContract =
 		buildMode === 'advanced_prd'
@@ -512,6 +522,7 @@ async function buildCodexPrompt(
 		'',
 		workflowGuidance,
 		'',
+		...(missionSizeBlock ? [missionSizeBlock, ''] : []),
 		...(bundleBlock ? [bundleBlock, ''] : []),
 		'Configured bridge paths:',
 		`- State directory: ${paths.spawnerDir}`,
@@ -594,7 +605,15 @@ async function startAutoAnalysis(
 			? await readFile(paths.pendingPrdFile, 'utf-8')
 			: undefined;
 		const parts = await buildPromptParts(buildMode, tier, briefBody);
-		const prompt = await buildCodexPrompt(requestId, projectName, buildMode, tier, paths, parts.bundleBlock);
+		const prompt = await buildCodexPrompt(
+			requestId,
+			projectName,
+			buildMode,
+			tier,
+			paths,
+			parts.bundleBlock,
+			parts.missionSizeBlock
+		);
 		const missionId = `prd-auto-${normalizeRequestId(requestId)}`;
 
 		await appendPrdTrace(requestId, 'auto_worker_dispatch', {

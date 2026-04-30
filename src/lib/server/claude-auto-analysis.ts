@@ -46,7 +46,8 @@ function buildClaudePrompt(
 	workflowGuidance: string,
 	planningContract: string,
 	prdContent: string,
-	bundleBlock?: string
+	bundleBlock?: string,
+	missionSizeBlock?: string
 ): string {
 	return [
 		'You are the spawner-ui PRD analyzer. Convert a PRD into a structured JSON canvas plan.',
@@ -60,6 +61,7 @@ function buildClaudePrompt(
 		'',
 		workflowGuidance,
 		'',
+		...(missionSizeBlock ? [missionSizeBlock, ''] : []),
 		...(bundleBlock ? [bundleBlock, ''] : []),
 		'## PRD content',
 		prdContent,
@@ -156,9 +158,10 @@ export async function startClaudeAutoAnalysis(opts: {
 	workflowGuidance: string;
 	planningContract: string;
 	bundleBlock?: string;
+	missionSizeBlock?: string;
 	appendTrace: (event: string, details?: Record<string, unknown>) => Promise<void>;
 }): Promise<boolean> {
-	const { requestId, projectName, buildMode, paths, tierBlock, workflowGuidance, planningContract, bundleBlock, appendTrace } =
+	const { requestId, projectName, buildMode, paths, tierBlock, workflowGuidance, planningContract, bundleBlock, missionSizeBlock, appendTrace } =
 		opts;
 
 	if (!existsSync(paths.pendingPrdFile)) {
@@ -175,7 +178,8 @@ export async function startClaudeAutoAnalysis(opts: {
 		workflowGuidance,
 		planningContract,
 		prdContent,
-		bundleBlock
+		bundleBlock,
+		missionSizeBlock
 	);
 
 	const missionId = `prd-auto-${normalizeRequestId(requestId)}`;
