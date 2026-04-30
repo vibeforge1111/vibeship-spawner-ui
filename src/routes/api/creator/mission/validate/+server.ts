@@ -22,12 +22,18 @@ function validationProgressPercent(progress: CreatorValidationCommandProgress): 
 	return Math.max(0, Math.min(99, Math.round((completedUnits / progress.total) * 100)));
 }
 
+function compactValidationCommand(command: string): string {
+	const compact = command.replace(/\s+/g, ' ').trim();
+	return compact.length > 120 ? `${compact.slice(0, 117)}...` : compact;
+}
+
 function emitValidationProgress(
 	trace: CreatorMissionTrace,
 	validationTask: CreatorMissionTrace['tasks'][number] | undefined,
 	progress: CreatorValidationCommandProgress
 ) {
 	const status = progress.result?.status || 'running';
+	const command = compactValidationCommand(progress.command);
 	void relayMissionControlEvent({
 		type: 'task_progress',
 		missionId: trace.mission_id,
@@ -38,8 +44,8 @@ function emitValidationProgress(
 		taskName: validationTask?.title || 'Run creator validation gates',
 		message:
 			progress.phase === 'started'
-				? `Validation ${progress.index}/${progress.total} started: ${progress.manifest.repo}`
-				: `Validation ${progress.index}/${progress.total} ${status}: ${progress.manifest.repo}`,
+				? `Validation ${progress.index}/${progress.total} started in ${progress.manifest.repo}: ${command}`
+				: `Validation ${progress.index}/${progress.total} ${status} in ${progress.manifest.repo}: ${command}`,
 		data: {
 			requestId: trace.request_id,
 			creatorMode: trace.creator_mode,

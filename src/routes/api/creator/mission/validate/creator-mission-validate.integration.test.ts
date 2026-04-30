@@ -9,6 +9,7 @@ import {
 	setCreatorValidationCommandRunnerForTests,
 	type CreatorIntentPacket
 } from '$lib/server/creator-mission';
+import { getMissionControlRelaySnapshot } from '$lib/server/mission-control-relay';
 
 function event(url: string, body?: unknown) {
 	return {
@@ -117,6 +118,12 @@ describe('/api/creator/mission/validate', () => {
 		expect(body.status).toBe('passed');
 		expect(body.trace.stage_status).toBe('validated');
 		expect(body.trace.validation_runs).toHaveLength(1);
+		const snapshot = getMissionControlRelaySnapshot('mission-creator-validate-api');
+		expect(snapshot.recent.some((entry) =>
+			entry.eventType === 'task_progress' &&
+			entry.summary.includes('Validation 1/1') &&
+			entry.summary.includes('python --version')
+		)).toBe(true);
 	});
 
 	it('accepts background validation and records the run asynchronously', async () => {
