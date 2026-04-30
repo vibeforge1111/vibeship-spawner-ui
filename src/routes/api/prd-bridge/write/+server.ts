@@ -19,6 +19,7 @@ import { formatSkillsByCategory, getTierSkills, normalizeTier, type SkillTier } 
 import { startClaudeAutoAnalysis } from '$lib/server/claude-auto-analysis';
 import { classifyBrief, formatBundleForPrompt } from '$lib/server/bundle-classifier';
 import { classifyMissionSize, formatMissionSizeGuidance } from '$lib/server/mission-size-classifier';
+import { formatTaskQualityGuidance } from '$lib/server/task-quality-rubric';
 import { enrichBrief } from '$lib/server/brief-enricher';
 
 function getPrdBridgePaths() {
@@ -427,7 +428,9 @@ async function buildPromptParts(
 		'- Tasks must form a DAG. Set dependencies only when a task TRULY blocks another.',
 		'- Independent tasks must run in parallel — do NOT add a dependency just to make the graph linear.',
 		'- A 6-task plan should usually have 2-3 dependency layers, not 6.',
-		'- Each task needs at least one acceptance criterion and one verification command.'
+		'- Each task needs at least one acceptance criterion and one verification command.',
+		'',
+		formatTaskQualityGuidance()
 	].join('\n');
 
 	let bundleBlock = '';
@@ -507,7 +510,9 @@ async function buildCodexPrompt(
 		'- Tasks must form a DAG. Set dependencies only when a task TRULY blocks another.',
 		'- Independent tasks must run in parallel — do NOT add a dependency just to make the graph linear.',
 		'- A 6-task plan should usually have 2-3 dependency layers, not 6.',
-		'- Each task needs at least one acceptance criterion and one verification command.'
+		'- Each task needs at least one acceptance criterion and one verification command.',
+		'',
+		formatTaskQualityGuidance()
 	].join('\n');
 
 	return [
