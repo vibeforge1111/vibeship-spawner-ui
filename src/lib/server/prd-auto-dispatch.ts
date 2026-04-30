@@ -3,6 +3,7 @@ import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import { eventBridge, type BridgeEvent } from '$lib/services/event-bridge';
 import type { Skill } from '$lib/stores/skills.svelte';
 import { buildMissionFromCanvas } from '$lib/services/mission-builder';
+import { matchTaskToSkills } from '$lib/services/h70-skill-matcher';
 import {
 	buildMultiLLMExecutionPack,
 	DEFAULT_MULTI_LLM_PROVIDERS,
@@ -16,6 +17,7 @@ import {
 	type MissionControlBoardEntry
 } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
+import { getTierSkills, normalizeTier, type SkillTier } from '$lib/server/skill-tiers';
 
 interface PrdAutoSkill {
 	id?: string;
@@ -32,6 +34,7 @@ export interface PrdCanvasLoadForAutoDispatch {
 	missionId: string;
 	pipelineId: string;
 	pipelineName: string;
+	tier?: string;
 	nodes: Array<{
 		skill?: PrdAutoSkill;
 		position?: CanvasNode['position'];
@@ -53,6 +56,20 @@ export interface PrdAutoDispatchResult {
 	providerId?: string;
 	error?: string;
 }
+
+type TaskForSkillPairing = { id: string; title: string; description?: string };
+
+const NO_BUILD_INCOMPATIBLE_SKILLS = new Set([
+	'vite',
+	'nextjs-app-router',
+	'sveltekit',
+	'svelte-kit',
+	'react-patterns',
+	'react-native-specialist',
+	'tailwind-css',
+	'tailwind-ui',
+	'typescript-strict'
+]);
 
 function normalizeProviderId(value: string | undefined): string | null {
 	if (!value) return null;
@@ -168,6 +185,83 @@ export function canvasLoadToMissionGraph(load: PrdCanvasLoadForAutoDispatch): {
 	return { nodes, connections };
 }
 
+function stringList(value: unknown): string[] {
+	return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
+}
+
+function normalizeLoadTier(load: PrdCanvasLoadForAutoDispatch): SkillTier {
+	const relayTier = typeof load.relay?.tier === 'string' ? load.relay.tier : undefined;
+	return normalizeTier(load.tier ?? relayTier);
+}
+
+function isNoBuildVanillaLoad(load: PrdCanvasLoadForAutoDispatch): boolean {
+	const text = [
+		load.executionPrompt || '',
+		typeof load.relay?.goal === 'string' ? load.relay.goal : '',
+		load.buildModeReason || '',
+		...load.nodes.flatMap((node) => [node.skill?.name || '', node.skill?.description || ''])
+	].join('\n').toLowerCase();
+
+	return (
+		/\bno\s+build\s+step\b/.test(text) ||
+		/\bvanilla[-\s]?js\b/.test(text) ||
+		/\bno\s+dependencies\b/.test(text) ||
+		/\bopen(?:ing)?\s+index\.html\s+directly\b/.test(text)
+	);
+}
+
+function filterMissionContractSkills(skills: string[], load: PrdCanvasLoadForAutoDispatch): string[] {
+	if (!isNoBuildVanillaLoad(load)) return skills;
+	return skills.filter((skill) => !NO_BUILD_INCOMPATIBLE_SKILLS.has(skill));
+}
+
+function mergeSkillIds(skillIds: string[], allowedSkillIds: Set<string>, maxSkills: number): string[] {
+	const merged: string[] = [];
+	for (const skillId of skillIds) {
+		if (!allowedSkillIds.has(skillId) || merged.includes(skillId)) continue;
+		merged.push(skillId);
+		if (merged.length >= maxSkills) break;
+	}
+	return merged;
+}
+
+function nodeProvidedSkillIds(loadNode: PrdCanvasLoadForAutoDispatch['nodes'][number] | undefined): string[] {
+	if (!loadNode?.skill) return [];
+	return [
+		...stringList(loadNode.skill.tags),
+		...(typeof loadNode.skill.id === 'string' ? [loadNode.skill.id] : [])
+	];
+}
+
+export async function buildAutoDispatchTaskSkillMap(
+	load: PrdCanvasLoadForAutoDispatch,
+	tasks: TaskForSkillPairing[],
+	existingTaskSkillMap?: Map<string, string[]>
+): Promise<Map<string, string[]>> {
+	const tier = normalizeLoadTier(load);
+	const allowedSkillIds = new Set((await getTierSkills(tier)).map((skill) => skill.id));
+	const maxSkillsPerTask = tier === 'base' ? 3 : 5;
+	const taskSkillMap = new Map<string, string[]>();
+
+	for (const [index, task] of tasks.entries()) {
+		const loadNode = load.nodes[index];
+		const providedSkills = nodeProvidedSkillIds(loadNode);
+		const inferredSkills = matchTaskToSkills(task.title, task.description, maxSkillsPerTask);
+		const existingSkills = existingTaskSkillMap?.get(task.id) || [];
+		const skills = mergeSkillIds(
+			filterMissionContractSkills([...existingSkills, ...providedSkills, ...inferredSkills], load),
+			allowedSkillIds,
+			maxSkillsPerTask
+		);
+
+		if (skills.length > 0) {
+			taskSkillMap.set(task.id, skills);
+		}
+	}
+
+	return taskSkillMap;
+}
+
 export function inferProjectPathFromPrdLoad(load: PrdCanvasLoadForAutoDispatch): string {
 	const text = [
 		load.executionPrompt || '',
@@ -186,15 +280,17 @@ export function inferProjectPathFromPrdLoad(load: PrdCanvasLoadForAutoDispatch):
 	);
 }
 
-function plannedTasksFromLoad(load: PrdCanvasLoadForAutoDispatch): Array<{ title: string; skills: string[] }> {
-	return load.nodes
-		.map((node) => {
-			const rawTitle = node.skill?.name || '';
-			const title = rawTitle.replace(/^task-[^:]+:\s*/i, '').trim();
+function plannedTasksFromMission(
+	tasks: TaskForSkillPairing[],
+	taskSkillMap: Map<string, string[]>
+): Array<{ title: string; skills: string[] }> {
+	return tasks
+		.map((task) => {
+			const title = task.title.replace(/^task-[^:]+:\s*/i, '').trim();
 			if (!title) return null;
 			return {
 				title,
-				skills: Array.isArray(node.skill?.tags) ? node.skill.tags.filter((tag): tag is string => typeof tag === 'string') : []
+				skills: taskSkillMap.get(task.id) || []
 			};
 		})
 		.filter((task): task is { title: string; skills: string[] } => Boolean(task));
@@ -256,9 +352,11 @@ export async function autoDispatchPrdCanvasLoad(load: PrdCanvasLoadForAutoDispat
 			};
 		}
 
+		const taskSkillMap = await buildAutoDispatchTaskSkillMap(load, buildResult.mission.tasks, buildResult.taskSkillMap);
+
 		const executionPack = buildMultiLLMExecutionPack({
 			mission: buildResult.mission,
-			taskSkillMap: buildResult.taskSkillMap,
+			taskSkillMap,
 			baseUrl: 'http://127.0.0.1:5173',
 			options: {
 				enabled: true,
@@ -283,7 +381,8 @@ export async function autoDispatchPrdCanvasLoad(load: PrdCanvasLoadForAutoDispat
 		const relayData = {
 			...load.relay,
 			missionName: load.pipelineName,
-			plannedTasks: plannedTasksFromLoad(load),
+			tier: normalizeLoadTier(load),
+			plannedTasks: plannedTasksFromMission(buildResult.mission.tasks, taskSkillMap),
 			providers: [provider.id]
 		};
 		const onEvent = (bridgeEvent: BridgeEvent) => {

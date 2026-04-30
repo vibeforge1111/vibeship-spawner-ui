@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+	buildAutoDispatchTaskSkillMap,
 	canvasLoadToMissionGraph,
 	inferProjectPathFromPrdLoad,
 	shouldAutoDispatchPrdLoad,
 	type PrdCanvasLoadForAutoDispatch
 } from './prd-auto-dispatch';
+import { getTierSkills } from './skill-tiers';
 
 const load: PrdCanvasLoadForAutoDispatch = {
 	requestId: 'tg-build-1',
@@ -81,5 +83,88 @@ describe('PRD auto-dispatch helpers', () => {
 		expect(shouldAutoDispatchPrdLoad(load).ok).toBe(true);
 		expect(shouldAutoDispatchPrdLoad({ ...load, autoRun: false, relay: {} }).reason).toBe('autoRun disabled');
 		expect(shouldAutoDispatchPrdLoad({ ...load, nodes: [] }).reason).toBe('no canvas nodes');
+	});
+
+	it('enriches PRD auto-dispatch tasks with tier-allowed H70 skills', async () => {
+		const skillMap = await buildAutoDispatchTaskSkillMap(load, [
+			{
+				id: 'task-1',
+				title: 'Create shell',
+				description: 'Create C:\\Users\\USER\\Desktop\\spark-test\\index.html'
+			},
+			{
+				id: 'task-2',
+				title: 'Verify shell',
+				description: 'Run smoke checks.'
+			}
+		]);
+
+		expect(skillMap.get('task-1')).toContain('frontend-engineer');
+		expect(skillMap.get('task-1')).not.toContain('task-task-1');
+		expect(skillMap.get('task-2')).toContain('test-architect');
+	});
+
+	it('infers pro skills for sparse Telegram PRD nodes', async () => {
+		const skillMap = await buildAutoDispatchTaskSkillMap(
+			{
+				...load,
+				tier: 'pro',
+				nodes: [
+					{
+						skill: {
+							id: 'task-task-1',
+							name: 'task-1: Build Three.js sprite canvas',
+							description: 'Implement a responsive WebGL game-dev editor with particles.',
+							tags: []
+						}
+					}
+				],
+				connections: []
+			},
+			[
+				{
+					id: 'task-1',
+					title: 'Build Three.js sprite canvas',
+					description: 'Implement a responsive WebGL game-dev editor with particles.'
+				}
+			]
+		);
+
+		expect(skillMap.get('task-1')).toContain('threejs-3d-graphics');
+	});
+
+	it('limits free-tier PRD auto-dispatch skills to the base allowlist', async () => {
+		const baseIds = new Set((await getTierSkills('base')).map((skill) => skill.id));
+		const skillMap = await buildAutoDispatchTaskSkillMap(
+			{
+				...load,
+				tier: 'free',
+				nodes: [
+					{
+						skill: {
+							id: 'task-task-1',
+							name: 'task-1: Build frontend dashboard',
+							description: 'Implement responsive UI, analytics charts, and accessibility checks.',
+							tags: ['frontend-engineer']
+						}
+					}
+				],
+				connections: []
+			},
+			[
+				{
+					id: 'task-1',
+					title: 'Build frontend dashboard',
+					description: 'Implement responsive UI, analytics charts, and accessibility checks.'
+				}
+			]
+		);
+
+		const skills = skillMap.get('task-1') || [];
+		expect(skills.length).toBeGreaterThan(0);
+		expect(skills.length).toBeLessThanOrEqual(3);
+		for (const skillId of skills) {
+			expect(baseIds.has(skillId)).toBe(true);
+		}
 	});
 });

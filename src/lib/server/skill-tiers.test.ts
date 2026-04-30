@@ -5,7 +5,9 @@ describe('skill-tiers', () => {
 	it('defaults unknown tier values to pro while preserving explicit base/pro', () => {
 		expect(normalizeTier('base')).toBe('base');
 		expect(normalizeTier('pro')).toBe('pro');
-		expect(normalizeTier('free')).toBe('pro');
+		expect(normalizeTier('free')).toBe('base');
+		expect(normalizeTier('basic')).toBe('base');
+		expect(normalizeTier('premium')).toBe('pro');
 		expect(normalizeTier(undefined)).toBe('pro');
 	});
 
