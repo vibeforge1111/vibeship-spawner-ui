@@ -63,7 +63,6 @@ function taskProgressMessage(status: MissionControlBoardEntry['tasks'][number]['
 function taskProgressPercent(task: MissionControlBoardEntry['tasks'][number]): number {
 	const status = task.status;
 	if (status === 'completed' || status === 'failed' || status === 'cancelled') return 100;
-	if (status === 'running') return 12;
 	return 0;
 }
 

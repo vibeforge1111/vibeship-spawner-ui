@@ -28,7 +28,6 @@ function rowStatusFromCanvasNode(node: CanvasNode): TaskRowStatus {
 
 function rowProgressFromStatus(status: TaskRowStatus): number {
 	if (status === 'completed' || status === 'failed') return 100;
-	if (status === 'running') return 12;
 	return 0;
 }
 

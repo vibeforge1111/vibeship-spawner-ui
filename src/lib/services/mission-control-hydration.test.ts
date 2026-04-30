@@ -104,7 +104,7 @@ describe('mission-control hydration', () => {
 		expect(snapshot.executionProgress.progress).toBe(33);
 		expect(snapshot.executionProgress.currentTaskId).toBe('task-2');
 		expect(snapshot.executionProgress.currentTaskName).toBe('task-2: Build UI');
-		expect(snapshot.executionProgress.currentTaskProgress).toBe(12);
+		expect(snapshot.executionProgress.currentTaskProgress).toBe(0);
 		expect(snapshot.mission.name).toBe('Hydration Test');
 		expect(snapshot.mission.context).toMatchObject({
 			projectPath: 'C:/tmp/project',
@@ -123,7 +123,7 @@ describe('mission-control hydration', () => {
 		});
 		expect(snapshot.executionProgress.taskProgressMap.get('task-2')).toMatchObject({
 			taskName: 'task-2: Build UI',
-			progress: 12,
+			progress: 0,
 			message: 'Running'
 		});
 		expect(snapshot.executionProgress.taskSkillMap.get('task-2')).toEqual(['ui']);
