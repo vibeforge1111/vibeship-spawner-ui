@@ -128,7 +128,7 @@ describe('/api/mission-control/trace integration', () => {
 			requestId,
 			phase: 'executing',
 			progress: {
-				percent: 35,
+				percent: 0,
 				taskCounts: { queued: 0, running: 1, completed: 0, failed: 0, cancelled: 0, total: 1 },
 				currentTask: 'Create the traceable app'
 			},

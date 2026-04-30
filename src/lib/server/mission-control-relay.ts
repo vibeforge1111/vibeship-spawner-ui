@@ -555,22 +555,6 @@ function mergeTaskStatus(
 	return next;
 }
 
-function clampTaskProgress(progress: number): number {
-	if (!Number.isFinite(progress)) return 0;
-	return Math.max(0, Math.min(92, Math.round(progress)));
-}
-
-function distributeRelayTaskPackProgress(taskCount: number, providerProgress: number): number[] {
-	if (taskCount <= 0) return [];
-	const clampedProviderProgress = Math.max(0, Math.min(100, providerProgress));
-	const taskShare = 100 / taskCount;
-	return Array.from({ length: taskCount }, (_, index) => {
-		const taskStart = index * taskShare * 0.8;
-		const taskEnd = taskStart + taskShare * 1.4;
-		return clampTaskProgress(((clampedProviderProgress - taskStart) / (taskEnd - taskStart)) * 100);
-	});
-}
-
 function findTaskForAssignedTaskId(
 	entry: MissionControlBoardEntry,
 	assignedTaskId: string,
@@ -611,25 +595,21 @@ function maybeRecordAssignedTaskPackProgress(
 	const assignedTaskIds = Array.isArray(event.assignedTaskIds) ? event.assignedTaskIds : [];
 	if (event.progress === null || assignedTaskIds.length === 0) return;
 	const activeTaskId = typeof event.taskId === 'string' && event.taskId.trim() ? event.taskId : assignedTaskIds[0];
-	const distributed = distributeRelayTaskPackProgress(assignedTaskIds.length, event.progress);
 	assignedTaskIds.forEach((taskId, index) => {
 		const isActiveTask = taskId === activeTaskId;
-		const progress = distributed[index] ?? 0;
 		let task = findTaskForAssignedTaskId(entry, taskId, index);
 		if (!task) {
 			task = {
 				title: sanitizeMissionControlDisplayText(taskId),
 				skills: [],
-				status: isActiveTask && progress > 0 ? 'running' : 'queued',
-				...(isActiveTask && progress > 0 ? { progress } : {})
+				status: isActiveTask ? 'running' : 'queued'
 			};
 			entry.tasks.push(task);
 			entry.taskNames.push(task.title);
 		}
-		if (!isActiveTask || progress <= 0) return;
+		if (!isActiveTask) return;
 		if (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled') return;
 		task.status = 'running';
-		task.progress = Math.max(task.progress ?? 0, progress);
 	});
 }
 
@@ -670,9 +650,6 @@ function maybeRecordTask(entry: MissionControlBoardEntry, event: MissionControlR
 	}
 
 	task.status = mergeTaskStatus(task.status, status);
-	if (typeof event.progress === 'number') {
-		task.progress = Math.max(task.progress ?? 0, event.progress);
-	}
 	if ((!task.skills || task.skills.length === 0) && event.taskSkills.length > 0) {
 		task.skills = event.taskSkills;
 	}
@@ -741,17 +718,15 @@ function normalizeSingleSourceRunningTaskBurst(
 	if (runningSources.size > 1) return;
 
 	const activeTask = runningTasks.reduce((best, task) => {
-		const bestProgress = best.progress ?? 0;
-		const taskProgress = task.progress ?? 0;
-		return taskProgress > bestProgress ? task : best;
+		const bestOrdinal = taskOrdinalFromLabel(best.title) ?? Number.MAX_SAFE_INTEGER;
+		const taskOrdinal = taskOrdinalFromLabel(task.title) ?? Number.MAX_SAFE_INTEGER;
+		return taskOrdinal < bestOrdinal ? task : best;
 	}, runningTasks[0]);
 
 	for (const task of runningTasks) {
 		if (task === activeTask) continue;
 		task.status = 'queued';
-		if ((task.progress ?? 0) <= 1) {
-			delete task.progress;
-		}
+		delete task.progress;
 	}
 }
 

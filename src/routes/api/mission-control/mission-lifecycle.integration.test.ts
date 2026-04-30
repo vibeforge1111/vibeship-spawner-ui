@@ -416,7 +416,7 @@ describe('Mission Control lifecycle integration', () => {
 			requestId,
 			phase: 'failed',
 			progress: {
-				percent: 100,
+				percent: 0,
 				taskCounts: { completed: 0, failed: 2, total: 2 }
 			},
 			surfaces: {

@@ -202,24 +202,12 @@
 								{#if task.state === 'done'}
 									<span class="font-mono text-xs text-accent-primary tracking-widest">DONE</span>
 								{:else if task.state === 'running'}
-									<span class="font-mono text-xs text-accent-primary tracking-widest tabular-nums">{task.progress}%</span>
+									<span class="font-mono text-xs text-accent-primary tracking-widest">RUNNING</span>
 								{:else}
 									<span class="font-mono text-xs text-text-tertiary tracking-widest">QUEUED</span>
 								{/if}
 							</div>
 						</div>
-
-						<!-- Per-task progress -->
-						{#if task.state === 'running'}
-							<div class="px-5 pb-3 -mt-1">
-								<div class="h-0.5 rounded-full bg-surface-border overflow-hidden">
-									<div
-										class="h-full bg-accent-primary transition-all duration-300 ease-linear"
-										style="width: {task.progress}%"
-									></div>
-								</div>
-							</div>
-						{/if}
 					</li>
 				{/each}
 			</ol>

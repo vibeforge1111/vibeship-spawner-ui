@@ -66,12 +66,12 @@ describe('mission-execution-progress', () => {
 		).toBe(0);
 	});
 
-	it('distributes a single provider heartbeat across its assigned task pack', () => {
+	it('does not invent per-task progress from a provider heartbeat', () => {
 		const distributed = distributeProviderProgressAcrossTasks(['one', 'two', 'three', 'four'], 50);
 
-		expect(distributed.get('one')).toBe(92);
-		expect(distributed.get('two')).toBe(86);
-		expect(distributed.get('three')).toBe(29);
+		expect(distributed.get('one')).toBe(0);
+		expect(distributed.get('two')).toBe(0);
+		expect(distributed.get('three')).toBe(0);
 		expect(distributed.get('four')).toBe(0);
 	});
 

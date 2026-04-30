@@ -152,22 +152,9 @@ function findBoardEntry(board: BoardBuckets, missionId: string | null) {
 
 function progressPercent(entry: MissionControlBoardEntry | null): number {
 	if (!entry?.taskStatusCounts?.total) return 0;
-	const { completed, failed, cancelled, running, total } = entry.taskStatusCounts;
-	const terminalTasks = completed + failed + cancelled;
-	if (terminalTasks >= total) return 100;
-	if (entry.tasks.length > 0) {
-		const progressSum = entry.tasks.reduce((sum, task) => {
-			if (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled') return sum + 100;
-			if (task.status === 'running') return sum + Math.max(1, Math.min(92, Math.round(task.progress ?? 35)));
-			return sum;
-		}, 0);
-		const taskProgress = Math.round(progressSum / total);
-		if (taskProgress > 0) return Math.min(99, taskProgress);
-	}
-	if (running > 0) {
-		return Math.max(1, Math.round(((terminalTasks + running * 0.35) / total) * 100));
-	}
-	return Math.round((terminalTasks / total) * 100);
+	const { completed, total } = entry.taskStatusCounts;
+	if (entry.status === 'completed') return 100;
+	return Math.round((completed / total) * 100);
 }
 
 function phaseFor(input: {

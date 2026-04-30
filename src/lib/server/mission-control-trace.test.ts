@@ -116,7 +116,7 @@ describe('mission-control-trace', () => {
 		});
 	});
 
-	it('shows non-zero progress while a mission has an active running task', async () => {
+	it('keeps mission progress tied to completed task count while a task is running', async () => {
 		await makeStateDir();
 		const missionId = `mission-running-trace-${Date.now()}`;
 
@@ -147,8 +147,7 @@ describe('mission-control-trace', () => {
 
 		expect(trace.phase).toBe('executing');
 		expect(trace.progress.taskCounts).toMatchObject({ running: 1, queued: 2, total: 3 });
-		expect(trace.progress.percent).toBeGreaterThan(0);
-		expect(trace.progress.percent).toBeLessThan(100);
+		expect(trace.progress.percent).toBe(0);
 		expect(trace.skillPairing).toMatchObject({
 			source: 'kanban',
 			taskCount: 3,

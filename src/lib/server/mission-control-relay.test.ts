@@ -85,7 +85,7 @@ describe('mission-control-relay', () => {
 			taskId: 'task-ui',
 			taskName: 'Build the UI',
 			source: 'codex',
-			timestamp: '2026-04-29T12:00:00.000Z',
+			timestamp: freshIso(),
 			data: { telegramRelay: { port: 1 } }
 		});
 		await relayMissionControlEvent({
@@ -94,7 +94,7 @@ describe('mission-control-relay', () => {
 			taskId: 'task-ui',
 			taskName: 'Build the UI',
 			source: 'codex',
-			timestamp: '2026-04-29T12:00:01.000Z',
+			timestamp: freshIso(1_000),
 			data: { telegramRelay: { port: 1 } }
 		});
 		await relayMissionControlEvent({
@@ -103,7 +103,7 @@ describe('mission-control-relay', () => {
 			taskId: 'task-ui',
 			taskName: 'Build the UI',
 			source: 'codex',
-			timestamp: '2026-04-29T12:00:10.000Z',
+			timestamp: freshIso(10_000),
 			data: { telegramRelay: { port: 1 } }
 		});
 		await relayMissionControlEvent({
@@ -112,7 +112,7 @@ describe('mission-control-relay', () => {
 			taskId: 'task-ui',
 			taskName: 'Build the UI',
 			source: 'codex',
-			timestamp: '2026-04-29T12:00:11.000Z',
+			timestamp: freshIso(11_000),
 			data: { telegramRelay: { port: 1 } }
 		});
 
@@ -885,7 +885,7 @@ describe('mission-control-relay', () => {
 		]);
 	});
 
-	it('keeps bundled provider progress on the active task until later tasks really start', async () => {
+	it('keeps bundled provider progress from inventing task percentages', async () => {
 		const missionId = `mission-task-pack-progress-${Date.now()}`;
 
 		await relayMissionControlEvent({
@@ -922,7 +922,7 @@ describe('mission-control-relay', () => {
 		const running = board.running.find((candidate) => candidate.missionId === missionId);
 
 		expect(running?.tasks.map((task) => [task.title, task.status, task.progress ?? 0])).toEqual([
-			['task-1-shell: Create shell', 'running', 92],
+			['task-1-shell: Create shell', 'running', 0],
 			['task-2-scene: Build scene', 'queued', 0],
 			['task-3-controls: Add controls', 'queued', 0],
 			['task-4-docs: Write docs', 'queued', 0]
@@ -984,7 +984,7 @@ describe('mission-control-relay', () => {
 		expect(running?.taskCount).toBe(4);
 		expect(running?.taskNames).toEqual(plannedTasks.map((task) => task.title));
 		expect(running?.tasks.map((task) => [task.title, task.status, task.progress ?? 0])).toEqual([
-			['Create the static app shell', 'running', 92],
+			['Create the static app shell', 'running', 0],
 			['Implement checklist state and progress', 'queued', 0],
 			['Polish the dark Mission Control UI', 'queued', 0],
 			['Write README and run smoke checks', 'queued', 0]

@@ -27,15 +27,6 @@ function isUnresolvedTaskStatus(status: MissionTaskStatus): boolean {
 	return status === 'pending' || status === 'in_progress' || status === 'blocked';
 }
 
-function clampProgress(progress: number): number {
-	if (!Number.isFinite(progress)) return 0;
-	return Math.min(100, Math.max(0, progress));
-}
-
-function clampNonTerminalProgress(progress: number): number {
-	return Math.min(92, clampProgress(progress));
-}
-
 export function calculateTaskCompletionProgress(tasks: Array<{ status: MissionTaskStatus }>): number {
 	if (tasks.length === 0) return 0;
 	const completedTasks = tasks.filter((task) => task.status === 'completed').length;
@@ -51,20 +42,11 @@ export function calculateGranularMissionProgress(
 
 export function distributeProviderProgressAcrossTasks(
 	assignedTaskIds: string[],
-	providerProgress: number
+	_providerProgress: number
 ): Map<string, number> {
 	const taskIds = assignedTaskIds.map((taskId) => taskId.trim()).filter(Boolean);
 	const distributed = new Map<string, number>();
-	if (taskIds.length === 0) return distributed;
-
-	const clampedProviderProgress = clampProgress(providerProgress);
-	const taskShare = 100 / taskIds.length;
-	taskIds.forEach((taskId, index) => {
-		const taskStart = index * taskShare * 0.8;
-		const taskEnd = taskStart + taskShare * 1.4;
-		const taskProgress = Math.round(((clampedProviderProgress - taskStart) / (taskEnd - taskStart)) * 100);
-		distributed.set(taskId, clampNonTerminalProgress(taskProgress));
-	});
+	for (const taskId of taskIds) distributed.set(taskId, 0);
 	return distributed;
 }
 
