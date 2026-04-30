@@ -8,6 +8,7 @@
 		"build": "vite build",
 		"health:spark": "node scripts/health-spark.mjs",
 		"preview": "vite preview",
+		"preview:app": "vite dev --host 127.0.0.1 --port 5500",
 		"preview:projects": "tsx scripts/project-preview-server.ts",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
