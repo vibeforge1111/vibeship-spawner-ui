@@ -85,6 +85,12 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const pending = JSON.parse(pendingRaw);
 		expect(pending.requestId).toBe(requestId);
 		expect(pending.missionId).toBe('mission-tg-contract-test');
+		expect(pending.nodes[0].skill).toMatchObject({
+			id: 'task-1-static-shell',
+			name: 'Create static shell',
+			tags: ['frontend-ui-implementation', 'responsive-css'],
+			skillChain: ['frontend-ui-implementation', 'responsive-css']
+		});
 		const description = pending.nodes[0].skill.description;
 		expect(description).toContain('Build the direct-launch app shell.');
 		expect(description).toContain('Workspace targets:');
@@ -293,10 +299,12 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		});
 		expect(pending.nodes).toHaveLength(3);
 		expect(pending.nodes.map((node: any) => node.skill.name)).toEqual([
-			'task-1: Create project shell',
-			'task-2: Implement game-like mission UI',
-			'task-3: Write smoke-test README'
+			'Create project shell',
+			'Implement game-like mission UI',
+			'Write smoke-test README'
 		]);
+		expect(pending.nodes.map((node: any) => node.skill.id)).toEqual(['task-1', 'task-2', 'task-3']);
+		expect(pending.nodes[1].skill.skillChain).toEqual(['ui-design', 'javascript-state']);
 		expect(pending.connections).toEqual([
 			{ sourceIndex: 0, targetIndex: 1 },
 			{ sourceIndex: 0, targetIndex: 2 }

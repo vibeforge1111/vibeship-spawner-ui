@@ -639,12 +639,23 @@ class MissionExecutor {
 	private shouldQueueTaskStartFromSameProvider(taskId: string, agentId?: string): boolean {
 		const mission = this.progress.mission;
 		const execution = this.progress.multiLLMExecution;
-		if (!mission?.tasks?.length || !execution?.enabled) return false;
+		if (!mission?.tasks?.length) return false;
 
 		const runningTasks = mission.tasks.filter((task) => task.status === 'in_progress');
 		if (runningTasks.length === 0 || runningTasks.some((task) => task.id === taskId)) return false;
 
-		const isSingleProviderPack = execution.strategy === 'single' || execution.providers.length <= 1;
+		const activeAgents = [...this.progress.agentRuntime.values()].filter(
+			(agent) => agent.status === 'running' && agent.currentTaskId
+		);
+		if (agentId && activeAgents.some((agent) => agent.agentId !== agentId)) {
+			return false;
+		}
+
+		const isSingleProviderPack =
+			!execution?.enabled ||
+			execution.strategy === 'single' ||
+			execution.providers.length <= 1 ||
+			activeAgents.length <= 1;
 		if (!isSingleProviderPack) return false;
 
 		if (!agentId) return true;

@@ -54,6 +54,21 @@ interface TaskRecord {
 	verificationCommands?: string[];
 }
 
+function taskSkillId(taskId: string): string {
+	const normalized = taskId.trim() || 'task';
+	return normalized.startsWith('task-') ? normalized : `task-${normalized}`;
+}
+
+function taskDisplayName(task: TaskRecord): string {
+	const title = (task.title || task.id || 'Untitled task').trim();
+	const prefix = `${task.id}:`;
+	return title.startsWith(prefix) ? title.slice(prefix.length).trim() || title : title;
+}
+
+function taskSkillTags(task: TaskRecord): string[] {
+	return [...new Set((task.skills || []).map((skill) => skill.trim()).filter(Boolean))];
+}
+
 function buildTaskDescription(task: TaskRecord): string {
 	const lines = [task.summary || task.description || task.title];
 
@@ -75,14 +90,17 @@ function buildTaskDescription(task: TaskRecord): string {
 function taskToNode(task: TaskRecord, index: number) {
 	const row = Math.floor(index / 3);
 	const col = index % 3;
+	const skills = taskSkillTags(task);
 	return {
 		skill: {
-			id: `task-${task.id}`,
-			name: `${task.id}: ${task.title}`,
+			id: taskSkillId(task.id),
+			name: taskDisplayName(task),
 			description: buildTaskDescription(task),
 			category: 'project',
 			tier: 'free',
-			tags: task.skills || [],
+			tags: skills,
+			skillChain: skills,
+			chainDescription: skills.length > 0 ? `Paired skills: ${skills.join(', ')}` : undefined,
 			triggers: ['prd-import']
 		},
 		position: { x: 160 + col * 320, y: 140 + row * 200 }
