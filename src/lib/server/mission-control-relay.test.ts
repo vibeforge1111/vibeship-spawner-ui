@@ -352,6 +352,26 @@ describe('mission-control-relay', () => {
 		).toBe(false);
 	});
 
+	it('can keep local board events while skipping external relays', async () => {
+		const missionId = `mission-local-only-relay-${Date.now()}`;
+		const event = {
+			type: 'task_completed',
+			missionId,
+			taskName: 'Run creator validation gates',
+			source: 'creator-mission',
+			data: { suppressExternalRelay: true }
+		};
+
+		expect(shouldRelayMissionControlEvent(event)).toBe(false);
+
+		await relayMissionControlEvent(event);
+		const board = getMissionControlBoard();
+		const entry = board.running.find((candidate) => candidate.missionId === missionId);
+
+		expect(entry?.taskNames).toContain('Run creator validation gates');
+		expect(entry?.taskStatusCounts).toMatchObject({ completed: 1, total: 1 });
+	});
+
 	it('persists Mission Control state under configured Spawner state directory', () => {
 		const previous = process.env.SPAWNER_STATE_DIR;
 		process.env.SPAWNER_STATE_DIR = 'C:\\spark-state\\spawner-ui';

@@ -13,6 +13,7 @@
 	import type { PipelineMetadata } from '$lib/stores/pipelines.svelte';
 	import {
 		canRunCreatorMissionBoardCard,
+		canValidateCreatorMissionBoardCard,
 		getMissionBoardCardActionLinks,
 		mergeMissionBoardCards,
 		type MissionBoardCard as BoardCard
@@ -511,6 +512,8 @@
 
 	let creatorRunMissionId = $state<string | null>(null);
 	let creatorRunMessage = $state<{ missionId: string; tone: 'info' | 'success' | 'error'; text: string } | null>(null);
+	let creatorValidateMissionId = $state<string | null>(null);
+	let creatorValidateMessage = $state<{ missionId: string; tone: 'info' | 'success' | 'error'; text: string } | null>(null);
 
 	function creatorRunMessageClass(tone: 'info' | 'success' | 'error'): string {
 		if (tone === 'success') return 'text-status-success';
@@ -558,6 +561,52 @@
 			};
 		} finally {
 			creatorRunMissionId = null;
+		}
+	}
+
+	function creatorValidationSummary(data: Record<string, unknown>): { tone: 'info' | 'success' | 'error'; text: string } {
+		const run = data.run && typeof data.run === 'object' ? data.run as Record<string, unknown> : {};
+		const status = String(data.status || run.status || 'accepted');
+		const results = Array.isArray(run.results) ? run.results as Array<Record<string, unknown>> : [];
+		const passed = results.filter((result) => result.status === 'passed').length;
+		const failed = results.filter((result) => result.status === 'failed').length;
+		const skipped = results.filter((result) => result.status === 'skipped').length;
+		const tone = status === 'passed' ? 'success' : status === 'failed' ? 'error' : 'info';
+		return {
+			tone,
+			text: results.length > 0
+				? `Validation ${status}: ${passed} passed, ${failed} failed, ${skipped} skipped.`
+				: `Validation ${status}.`
+		};
+	}
+
+	async function handleCreatorValidate(card: BoardCard) {
+		if (!canValidateCreatorMissionBoardCard(card) || creatorValidateMissionId) return;
+		creatorValidateMissionId = card.id;
+		creatorValidateMessage = { missionId: card.id, tone: 'info', text: 'Running creator validation...' };
+		try {
+			const r = await fetch('/api/creator/mission/validate', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ missionId: card.id })
+			});
+			const data = await r.json().catch(() => ({}));
+			if (!r.ok || data?.ok === false) {
+				throw new Error(data?.error || `HTTP ${r.status}`);
+			}
+			creatorValidateMessage = {
+				missionId: card.id,
+				...creatorValidationSummary(data)
+			};
+			await fetchRelay();
+		} catch (e) {
+			creatorValidateMessage = {
+				missionId: card.id,
+				tone: 'error',
+				text: e instanceof Error ? e.message : 'creator validation failed'
+			};
+		} finally {
+			creatorValidateMissionId = null;
 		}
 	}
 
@@ -905,6 +954,17 @@
 												{creatorRunMissionId === c.id ? 'Starting' : 'Run'}
 											</button>
 										{/if}
+										{#if canValidateCreatorMissionBoardCard(c)}
+											<button
+												onclick={() => handleCreatorValidate(c)}
+												disabled={creatorValidateMissionId === c.id}
+												class="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[10px] font-mono text-status-success border border-status-success/30 rounded-sm hover:bg-status-success hover:text-bg-primary transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+												title="Run this creator mission's validation commands"
+											>
+												<Icon name={creatorValidateMissionId === c.id ? 'loader' : 'check-circle'} size={10} />
+												{creatorValidateMissionId === c.id ? 'Validating' : 'Validate'}
+											</button>
+										{/if}
 										{#if c.source === 'mcp' && (c.status === 'ready' || c.status === 'draft')}
 											<button
 												onclick={() => handleStart(c)}
@@ -925,6 +985,11 @@
 										{#if creatorRunMessage && creatorRunMessage.missionId === c.id}
 											<p class="basis-full font-mono text-[10px] leading-snug {creatorRunMessageClass(creatorRunMessage.tone)}">
 												{creatorRunMessage.text}
+											</p>
+										{/if}
+										{#if creatorValidateMessage && creatorValidateMessage.missionId === c.id}
+											<p class="basis-full font-mono text-[10px] leading-snug {creatorRunMessageClass(creatorValidateMessage.tone)}">
+												{creatorValidateMessage.text}
 											</p>
 										{/if}
 									</div>

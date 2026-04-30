@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	canRunCreatorMissionBoardCard,
+	canValidateCreatorMissionBoardCard,
 	getMissionBoardCardActionLinks,
 	isCreatorMissionBoardCard,
 	mergeMissionBoardCards,
@@ -239,6 +240,33 @@ describe('creator mission run eligibility', () => {
 
 	it('does not show run actions for normal Spark missions', () => {
 		expect(canRunCreatorMissionBoardCard(card({ id: 'mission-plain', name: 'Regular mission', status: 'ready' }))).toBe(false);
+	});
+});
+
+describe('creator mission validation eligibility', () => {
+	it('allows validation for planned or already-executed creator missions', () => {
+		expect(canValidateCreatorMissionBoardCard(card({
+			id: 'mission-creator-1777402152963',
+			name: 'Creator Mission: Startup YC',
+			mode: 'creator-mission',
+			status: 'ready'
+		}))).toBe(true);
+		expect(canValidateCreatorMissionBoardCard(card({
+			id: 'mission-creator-1777402152963',
+			name: 'Creator Mission: Startup YC',
+			mode: 'creator-mission',
+			status: 'completed'
+		}))).toBe(true);
+	});
+
+	it('hides validation for cancelled creator missions and normal Spark missions', () => {
+		expect(canValidateCreatorMissionBoardCard(card({
+			id: 'mission-creator-1777402152963',
+			name: 'Creator Mission: Startup YC',
+			mode: 'creator-mission',
+			status: 'cancelled'
+		}))).toBe(false);
+		expect(canValidateCreatorMissionBoardCard(card({ id: 'mission-plain', name: 'Regular mission', status: 'ready' }))).toBe(false);
 	});
 });
 

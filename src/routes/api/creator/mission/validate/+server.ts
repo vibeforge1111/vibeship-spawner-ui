@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { validateCreatorMission } from '$lib/server/creator-mission';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
+import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 
 interface ValidateCreatorMissionBody {
 	missionId?: string;
@@ -33,10 +34,50 @@ export const POST: RequestHandler = async (event) => {
 			return json({ ok: false, error: 'missionId or requestId is required' }, { status: 400 });
 		}
 
+		const validationStartedAt = new Date().toISOString();
 		const result = await validateCreatorMission({
 			missionId,
 			requestId,
 			maxCommands: typeof body.maxCommands === 'number' ? body.maxCommands : undefined
+		});
+		const validationTask = result.trace.tasks.find((task) => task.id === 'creator-validation') || result.trace.tasks[0];
+		void relayMissionControlEvent({
+			type: 'task_started',
+			missionId: result.trace.mission_id,
+			missionName: `Creator Mission: ${result.trace.intent_packet.target_domain}`,
+			source: 'creator-mission',
+			timestamp: validationStartedAt,
+			taskId: validationTask?.id || 'creator-validation',
+			taskName: validationTask?.title || 'Run creator validation gates',
+			message: 'Running creator validation gates.',
+			data: {
+				requestId: result.trace.request_id,
+				creatorMode: result.trace.creator_mode,
+				targetDomain: result.trace.intent_packet.target_domain,
+				validationStatus: 'running',
+				suppressExternalRelay: true
+			}
+		});
+		void relayMissionControlEvent({
+			type: result.run.status === 'passed' ? 'task_completed' : 'task_failed',
+			missionId: result.trace.mission_id,
+			missionName: `Creator Mission: ${result.trace.intent_packet.target_domain}`,
+			source: 'creator-mission',
+			timestamp: result.run.completed_at,
+			taskId: validationTask?.id || 'creator-validation',
+			taskName: validationTask?.title || 'Run creator validation gates',
+			message: `Creator validation ${result.run.status}: ${result.run.results.length} command(s) checked.`,
+			data: {
+				requestId: result.trace.request_id,
+				creatorMode: result.trace.creator_mode,
+				targetDomain: result.trace.intent_packet.target_domain,
+				validationStatus: result.run.status,
+				validationRunId: result.run.run_id,
+				validationCommandCount: result.run.results.length,
+				validationFailures: result.run.results.filter((item) => item.status === 'failed').length,
+				validationSkipped: result.run.results.filter((item) => item.status === 'skipped').length,
+				suppressExternalRelay: true
+			}
 		});
 		return json({
 			ok: true,

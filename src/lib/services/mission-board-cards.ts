@@ -137,3 +137,10 @@ export function canRunCreatorMissionBoardCard(
 	if (card.executionStarted) return false;
 	return card.status !== 'completed' && card.status !== 'failed' && card.status !== 'cancelled' && card.status !== 'paused';
 }
+
+export function canValidateCreatorMissionBoardCard(
+	card: Pick<MissionBoardCard, 'id' | 'mode' | 'name' | 'status'>
+): boolean {
+	if (!isCreatorMissionBoardCard(card)) return false;
+	return card.status !== 'cancelled';
+}
