@@ -324,6 +324,63 @@ describe('creator mission trace', () => {
 		expect(saved.validation_runs).toHaveLength(1);
 	});
 
+	it('reports per-command validation progress', async () => {
+		const stateDir = await tempStateDir();
+		const progressEvents: Array<{ phase: string; index: number; total: number; command: string; status?: string }> = [];
+		await createCreatorMission(
+			{
+				brief: 'Create Startup YC path',
+				missionId: 'mission-creator-validate-progress',
+				requestId: 'req-validate-progress'
+			},
+			{
+				stateDir,
+				runManifestPlanner: async () => ({
+					intent_packet: packet({ target_domain: 'startup-yc' }),
+					artifact_manifests: [
+						{
+							schema_version: 'spark-artifact-manifest.v1',
+							artifact_id: 'startup-yc-validation-progress-v1',
+							artifact_type: 'creator_report',
+							repo: stateDir,
+							inputs: ['creator-intent-startup-yc-test'],
+							outputs: ['reports/creator-run-summary.json'],
+							validation_commands: ['python --version', 'python -m pytest tests'],
+							promotion_gates: ['schema_gate', 'rollback_gate'],
+							rollback_plan: 'Delete generated reports.'
+						}
+					],
+					validation_issues: []
+				})
+			}
+		);
+
+		const result = await validateCreatorMission(
+			{ missionId: 'mission-creator-validate-progress' },
+			{
+				stateDir,
+				commandRunner: async () => ({ exitCode: 0, stdout: 'ok', stderr: '' }),
+				onCommandProgress: (event) => {
+					progressEvents.push({
+						phase: event.phase,
+						index: event.index,
+						total: event.total,
+						command: event.command,
+						status: event.result?.status
+					});
+				}
+			}
+		);
+
+		expect(result.run.status).toBe('passed');
+		expect(progressEvents).toEqual([
+			{ phase: 'started', index: 1, total: 2, command: 'python --version', status: undefined },
+			{ phase: 'completed', index: 1, total: 2, command: 'python --version', status: 'passed' },
+			{ phase: 'started', index: 2, total: 2, command: 'python -m pytest tests', status: undefined },
+			{ phase: 'completed', index: 2, total: 2, command: 'python -m pytest tests', status: 'passed' }
+		]);
+	});
+
 	it('runs npm manifest validation commands through the platform executable', async () => {
 		const stateDir = await tempStateDir();
 		await createCreatorMission(

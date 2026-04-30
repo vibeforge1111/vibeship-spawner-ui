@@ -1,6 +1,11 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { readCreatorMissionTrace, validateCreatorMission } from '$lib/server/creator-mission';
+import {
+	readCreatorMissionTrace,
+	validateCreatorMission,
+	type CreatorMissionTrace,
+	type CreatorValidationCommandProgress
+} from '$lib/server/creator-mission';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 
@@ -8,6 +13,49 @@ interface ValidateCreatorMissionBody {
 	missionId?: string;
 	requestId?: string;
 	maxCommands?: number;
+}
+
+function validationProgressPercent(progress: CreatorValidationCommandProgress): number {
+	if (progress.total <= 0) return 0;
+	const completedUnits = progress.phase === 'completed' ? progress.index : progress.index - 1;
+	return Math.max(0, Math.min(99, Math.round((completedUnits / progress.total) * 100)));
+}
+
+function emitValidationProgress(
+	trace: CreatorMissionTrace,
+	validationTask: CreatorMissionTrace['tasks'][number] | undefined,
+	progress: CreatorValidationCommandProgress
+) {
+	const status = progress.result?.status || 'running';
+	void relayMissionControlEvent({
+		type: 'task_progress',
+		missionId: trace.mission_id,
+		missionName: `Creator Mission: ${trace.intent_packet.target_domain}`,
+		source: 'creator-mission',
+		timestamp: new Date().toISOString(),
+		taskId: validationTask?.id || 'creator-validation',
+		taskName: validationTask?.title || 'Run creator validation gates',
+		message:
+			progress.phase === 'started'
+				? `Validation ${progress.index}/${progress.total} started: ${progress.manifest.repo}`
+				: `Validation ${progress.index}/${progress.total} ${status}: ${progress.manifest.repo}`,
+		data: {
+			requestId: trace.request_id,
+			creatorMode: trace.creator_mode,
+			targetDomain: trace.intent_packet.target_domain,
+			validationStatus: status,
+			validationPhase: progress.phase,
+			validationCommandIndex: progress.index,
+			validationCommandTotal: progress.total,
+			validationArtifactId: progress.manifest.artifact_id,
+			validationArtifactType: progress.manifest.artifact_type,
+			validationRepo: progress.manifest.repo,
+			validationCommand: progress.command,
+			validationCommandStatus: progress.result?.status || null,
+			progress: validationProgressPercent(progress),
+			suppressExternalRelay: true
+		}
+	});
 }
 
 export const POST: RequestHandler = async (event) => {
@@ -57,11 +105,19 @@ export const POST: RequestHandler = async (event) => {
 			});
 		}
 
-		const result = await validateCreatorMission({
-			missionId,
-			requestId,
-			maxCommands: typeof body.maxCommands === 'number' ? body.maxCommands : undefined
-		});
+		const pendingValidationTask = pendingTrace?.tasks.find((task) => task.id === 'creator-validation') || pendingTrace?.tasks[0];
+		const result = await validateCreatorMission(
+			{
+				missionId,
+				requestId,
+				maxCommands: typeof body.maxCommands === 'number' ? body.maxCommands : undefined
+			},
+			{
+				onCommandProgress: pendingTrace
+					? (progress) => emitValidationProgress(pendingTrace, pendingValidationTask, progress)
+					: undefined
+			}
+		);
 		const validationTask = result.trace.tasks.find((task) => task.id === 'creator-validation') || result.trace.tasks[0];
 		void relayMissionControlEvent({
 			type: result.run.status === 'passed' ? 'task_completed' : 'task_failed',

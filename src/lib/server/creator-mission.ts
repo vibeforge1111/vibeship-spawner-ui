@@ -139,6 +139,15 @@ export interface CreatorValidationRun {
 	results: CreatorValidationCommandResult[];
 }
 
+export interface CreatorValidationCommandProgress {
+	phase: 'started' | 'completed';
+	index: number;
+	total: number;
+	manifest: CreatorArtifactManifest;
+	command: string;
+	result?: CreatorValidationCommandResult;
+}
+
 export interface CreatorMissionTrace {
 	schema_version: typeof CREATOR_TRACE_SCHEMA_VERSION;
 	trace_id: string;
@@ -229,6 +238,7 @@ interface ValidateCreatorMissionOptions {
 	timeoutMs?: number;
 	maxCommands?: number;
 	commandRunner?: CreatorValidationCommandRunner;
+	onCommandProgress?: (progress: CreatorValidationCommandProgress) => void | Promise<void>;
 }
 
 type CreatorPlanRunner = (
@@ -1219,16 +1229,36 @@ export async function validateCreatorMission(
 	const startedAt = now.toISOString();
 	const maxCommands = Math.max(1, input.maxCommands ?? options.maxCommands ?? 20);
 	const timeoutMs = options.timeoutMs ?? 120_000;
+	const pendingCommands: Array<{ manifest: CreatorArtifactManifest; command: string }> = [];
 	const results: CreatorValidationCommandResult[] = [];
-	let commandCount = 0;
 
 	for (const manifest of trace.artifact_manifests || []) {
 		for (const command of manifest.validation_commands || []) {
-			if (commandCount >= maxCommands) break;
-			commandCount += 1;
-			results.push(await runCreatorValidationCommand(manifest, command, { timeoutMs, commandRunner: options.commandRunner }));
+			if (pendingCommands.length >= maxCommands) break;
+			pendingCommands.push({ manifest, command });
 		}
-		if (commandCount >= maxCommands) break;
+		if (pendingCommands.length >= maxCommands) break;
+	}
+
+	for (const [index, item] of pendingCommands.entries()) {
+		const commandIndex = index + 1;
+		await options.onCommandProgress?.({
+			phase: 'started',
+			index: commandIndex,
+			total: pendingCommands.length,
+			manifest: item.manifest,
+			command: item.command
+		});
+		const result = await runCreatorValidationCommand(item.manifest, item.command, { timeoutMs, commandRunner: options.commandRunner });
+		results.push(result);
+		await options.onCommandProgress?.({
+			phase: 'completed',
+			index: commandIndex,
+			total: pendingCommands.length,
+			manifest: item.manifest,
+			command: item.command,
+			result
+		});
 	}
 
 	const completedAt = (options.now?.() ?? new Date()).toISOString();
