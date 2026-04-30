@@ -201,9 +201,7 @@ describe('provider-runtime Spark agent bridge', () => {
 						suppressRelay: true,
 						assignedTaskIds: ['task-1', 'task-2'],
 						assignedTaskCount: 2,
-						elapsedMs: expect.any(Number),
-						estimatedDurationMs: expect.any(Number),
-						estimatedRemainingMs: expect.any(Number)
+						elapsedMs: expect.any(Number)
 					})
 				})
 			])
@@ -218,6 +216,8 @@ describe('provider-runtime Spark agent bridge', () => {
 		expect(activityProgress?.message).not.toContain('elapsed');
 		expect(activityProgress?.message).not.toContain('estimate adjusting');
 		expect(activityProgress?.message).not.toContain('left');
+		expect(activityProgress?.data).not.toHaveProperty('estimatedRemainingMs');
+		expect(activityProgress?.data).not.toHaveProperty('estimatedDurationMs');
 		await waitFor(() => providerRuntime.getMissionStatus('mission-step2-activity').allComplete);
 	});
 

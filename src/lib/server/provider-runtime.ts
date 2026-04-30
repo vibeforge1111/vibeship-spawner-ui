@@ -140,9 +140,7 @@ export function reconcileStaleProviderResults(
 function formatProviderTaskActivityMessage(
 	providerLabel: string,
 	taskName: string,
-	assignedTaskCount: number,
-	_elapsedMs: number,
-	_estimatedRemainingMs: number
+	assignedTaskCount: number
 ): string {
 	const packLabel = assignedTaskCount > 1 ? `${assignedTaskCount} task pack` : taskName;
 	return `${providerLabel} is still working through ${packLabel}.`;
@@ -595,7 +593,6 @@ class ProviderRuntimeManager {
 
 		const emitTaskProgress = () => {
 			const elapsedMs = Date.now() - startedAt;
-			const estimatedRemainingMs = Math.max(0, estimatedDurationMs - elapsedMs);
 			const estimatedRatio = Math.min(1, elapsedMs / estimatedDurationMs);
 			const nextProgress = Math.min(
 				88,
@@ -610,9 +607,7 @@ class ProviderRuntimeManager {
 					message: formatProviderTaskActivityMessage(
 						provider.label,
 						taskName,
-						taskIds.length,
-						elapsedMs,
-						estimatedRemainingMs
+						taskIds.length
 					),
 					data: {
 						taskId,
@@ -624,9 +619,7 @@ class ProviderRuntimeManager {
 						providerLabel: provider.label,
 						assignedTaskIds: taskIds,
 						assignedTaskCount: taskIds.length,
-						elapsedMs,
-						estimatedDurationMs,
-						estimatedRemainingMs
+						elapsedMs
 					}
 				})
 			);
@@ -646,9 +639,7 @@ class ProviderRuntimeManager {
 					providerLabel: provider.label,
 					assignedTaskIds: taskIds,
 					assignedTaskCount: taskIds.length,
-					elapsedMs: 0,
-					estimatedDurationMs,
-					estimatedRemainingMs: estimatedDurationMs
+					elapsedMs: 0
 				}
 			})
 		);
