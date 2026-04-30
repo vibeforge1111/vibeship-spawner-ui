@@ -15,6 +15,22 @@ import type { ProviderMissionResultSnapshot } from './provider-runtime';
 import type { MissionControlTracePhase } from '$lib/types/mission-control';
 
 type BoardBuckets = Record<string, Array<MissionControlBoardEntry & MissionControlResultSummary>>;
+type SkillPairingSource = 'kanban' | 'analysis' | 'canvas' | 'none';
+
+interface TraceSkillTask {
+	title: string;
+	skills: string[];
+}
+
+export interface TraceSkillPairing {
+	taskCount: number;
+	pairedTaskCount: number;
+	skillCount: number;
+	pairingRatio: number;
+	status: 'complete' | 'partial' | 'missing';
+	source: SkillPairingSource;
+	unpairedTasks: string[];
+}
 
 export interface MissionControlTrace {
 	ok: true;
@@ -59,6 +75,7 @@ export interface MissionControlTrace {
 	timeline: ReturnType<typeof getMissionControlRelaySnapshot>['recent'];
 	providerResults: MissionControlResultSummary['providerResults'];
 	providerSummary: string | null;
+	skillPairing: TraceSkillPairing;
 	serverTime: string;
 }
 
@@ -195,6 +212,79 @@ function summaryFor(phase: MissionControlTracePhase, entry: MissionControlBoardE
 	}
 }
 
+function stringList(value: unknown): string[] {
+	if (!Array.isArray(value)) return [];
+	return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+}
+
+function taskTitle(value: unknown, fallback: string): string {
+	if (!value || typeof value !== 'object') return fallback;
+	const record = value as Record<string, unknown>;
+	return (
+		(typeof record.title === 'string' && record.title.trim()) ||
+		(typeof record.name === 'string' && record.name.trim()) ||
+		fallback
+	);
+}
+
+function skillTasksFromAnalysis(analysisResult: Record<string, unknown> | null): TraceSkillTask[] {
+	const tasks = Array.isArray(analysisResult?.tasks) ? analysisResult.tasks : [];
+	return tasks.map((task, index) => {
+		const record = task && typeof task === 'object' ? (task as Record<string, unknown>) : {};
+		return {
+			title: taskTitle(task, `task-${index + 1}`),
+			skills: stringList(record.skills)
+		};
+	});
+}
+
+function skillTasksFromCanvas(lastCanvasLoad: Record<string, unknown> | null): TraceSkillTask[] {
+	const nodes = Array.isArray(lastCanvasLoad?.nodes) ? lastCanvasLoad.nodes : [];
+	return nodes.map((node, index) => {
+		const record = node && typeof node === 'object' ? (node as Record<string, unknown>) : {};
+		const skill = record.skill && typeof record.skill === 'object' ? (record.skill as Record<string, unknown>) : {};
+		return {
+			title: taskTitle(skill, taskTitle(node, `task-${index + 1}`)),
+			skills: stringList(skill.tags)
+		};
+	});
+}
+
+function skillTasksFromEntry(entry: MissionControlBoardEntry | null): TraceSkillTask[] {
+	return (entry?.tasks || []).map((task, index) => ({
+		title: task.title || `task-${index + 1}`,
+		skills: stringList(task.skills)
+	}));
+}
+
+function buildSkillPairing(input: {
+	entry: MissionControlBoardEntry | null;
+	analysisResult: Record<string, unknown> | null;
+	lastCanvasLoad: Record<string, unknown> | null;
+}): TraceSkillPairing {
+	const sources: Array<{ source: SkillPairingSource; tasks: TraceSkillTask[] }> = [
+		{ source: 'kanban', tasks: skillTasksFromEntry(input.entry) },
+		{ source: 'analysis', tasks: skillTasksFromAnalysis(input.analysisResult) },
+		{ source: 'canvas', tasks: skillTasksFromCanvas(input.lastCanvasLoad) }
+	];
+	const selected = sources.find((source) => source.tasks.length > 0) || { source: 'none' as const, tasks: [] };
+	const taskCount = selected.tasks.length;
+	const pairedTasks = selected.tasks.filter((task) => task.skills.length > 0);
+	const uniqueSkills = new Set(selected.tasks.flatMap((task) => task.skills));
+	const pairingRatio = taskCount > 0 ? Math.round((pairedTasks.length / taskCount) * 100) : 0;
+	const status = taskCount === 0 || pairedTasks.length === 0 ? 'missing' : pairedTasks.length === taskCount ? 'complete' : 'partial';
+
+	return {
+		taskCount,
+		pairedTaskCount: pairedTasks.length,
+		skillCount: uniqueSkills.size,
+		pairingRatio,
+		status,
+		source: selected.source,
+		unpairedTasks: selected.tasks.filter((task) => task.skills.length === 0).map((task) => task.title).slice(0, 10)
+	};
+}
+
 export async function buildMissionControlTrace(input: {
 	missionId?: string | null;
 	requestId?: string | null;
@@ -241,6 +331,7 @@ export async function buildMissionControlTrace(input: {
 		analysisResult,
 		lastCanvasLoad
 	});
+	const skillPairing = buildSkillPairing({ entry, analysisResult, lastCanvasLoad });
 
 	return {
 		ok: true,
@@ -285,6 +376,7 @@ export async function buildMissionControlTrace(input: {
 		timeline: traceSnapshot.recent,
 		providerResults: entry?.providerResults ?? [],
 		providerSummary: entry?.providerSummary ?? null,
+		skillPairing,
 		serverTime: new Date().toISOString()
 	};
 }

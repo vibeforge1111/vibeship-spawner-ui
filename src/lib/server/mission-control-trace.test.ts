@@ -149,6 +149,13 @@ describe('mission-control-trace', () => {
 		expect(trace.progress.taskCounts).toMatchObject({ running: 1, queued: 2, total: 3 });
 		expect(trace.progress.percent).toBeGreaterThan(0);
 		expect(trace.progress.percent).toBeLessThan(100);
+		expect(trace.skillPairing).toMatchObject({
+			source: 'kanban',
+			taskCount: 3,
+			pairedTaskCount: 3,
+			pairingRatio: 100,
+			status: 'complete'
+		});
 	});
 
 	it('keeps analysis-only missions in planning until the matching canvas loads', async () => {
@@ -190,6 +197,47 @@ describe('mission-control-trace', () => {
 			surfaces: {
 				canvas: { pipelineId: null, nodeCount: null }
 			}
+		});
+		expect(trace.skillPairing).toMatchObject({
+			source: 'none',
+			taskCount: 0,
+			pairedTaskCount: 0,
+			status: 'missing'
+		});
+	});
+
+	it('uses analysis tasks to report partial skill pairing before Kanban exists', async () => {
+		const stateDir = await makeStateDir();
+		const requestId = 'tg-unit-skill-pairing-1777371000010';
+		const missionId = 'mission-1777371000010';
+
+		await writeJson(path.join(stateDir, 'pending-request.json'), {
+			requestId,
+			relay: { missionId, requestId }
+		});
+		await writeJson(path.join(stateDir, 'results', `${requestId}.json`), {
+			requestId,
+			success: true,
+			projectName: 'Skill Pairing Trace',
+			tasks: [
+				{ id: 'task-1', title: 'Create shell', skills: ['frontend-engineer'] },
+				{ id: 'task-2', title: 'Write docs', skills: [] }
+			]
+		});
+
+		const trace = await buildMissionControlTrace({
+			requestId,
+			getProviderResults: () => []
+		});
+
+		expect(trace.skillPairing).toMatchObject({
+			source: 'analysis',
+			taskCount: 2,
+			pairedTaskCount: 1,
+			skillCount: 1,
+			pairingRatio: 50,
+			status: 'partial',
+			unpairedTasks: ['Write docs']
 		});
 	});
 

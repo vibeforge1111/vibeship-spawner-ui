@@ -62,6 +62,15 @@
 		};
 		timeline: TimelineEntry[];
 		providerSummary: string | null;
+		skillPairing: {
+			taskCount: number;
+			pairedTaskCount: number;
+			skillCount: number;
+			pairingRatio: number;
+			status: string;
+			source: string;
+			unpairedTasks: string[];
+		};
 		serverTime: string;
 	};
 
@@ -299,7 +308,7 @@
 			</div>
 		</section>
 
-		<section class="grid gap-4 xl:grid-cols-4">
+		<section class="grid gap-4 xl:grid-cols-5">
 			<div class="rounded-md border border-surface-border bg-bg-secondary p-4">
 				<div class="flex items-center gap-2 font-mono text-sm uppercase tracking-[0.16em] text-text-tertiary">
 					<Icon name="message-circle" size={15} />
@@ -333,6 +342,18 @@
 					<div class="flex justify-between gap-3"><span class="text-text-tertiary">bucket</span><span class="text-text-primary">{trace?.surfaces.kanban.bucket || 'n/a'}</span></div>
 					<div class="flex justify-between gap-3"><span class="text-text-tertiary">tasks</span><span class="text-text-primary">{trace?.surfaces.kanban.entry?.taskCount ?? 0}</span></div>
 					<div class="flex justify-between gap-3"><span class="text-text-tertiary">current</span><span class="truncate text-text-primary">{trace?.progress.currentTask || 'n/a'}</span></div>
+				</div>
+			</div>
+
+			<div class="rounded-md border border-surface-border bg-bg-secondary p-4">
+				<div class="flex items-center gap-2 font-mono text-sm uppercase tracking-[0.16em] text-text-tertiary">
+					<Icon name="sparkles" size={15} />
+					<span>Skills</span>
+				</div>
+				<div class="mt-4 space-y-2 font-mono text-sm">
+					<div class="flex justify-between gap-3"><span class="text-text-tertiary">paired</span><span class="text-text-primary">{trace?.skillPairing.pairedTaskCount ?? 0}/{trace?.skillPairing.taskCount ?? 0}</span></div>
+					<div class="flex justify-between gap-3"><span class="text-text-tertiary">ratio</span><span class="text-text-primary">{trace?.skillPairing.pairingRatio ?? 0}%</span></div>
+					<div class="flex justify-between gap-3"><span class="text-text-tertiary">source</span><span class="truncate text-text-primary">{trace?.skillPairing.source || 'n/a'}</span></div>
 				</div>
 			</div>
 
