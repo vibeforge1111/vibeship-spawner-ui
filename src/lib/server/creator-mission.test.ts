@@ -8,6 +8,8 @@ import {
 	executeCreatorMission,
 	readCreatorMissionTrace,
 	setCreatorManifestRunnerForTests,
+	setCreatorValidationCommandRunnerForTests,
+	validateCreatorMission,
 	type CreatorArtifactBundle,
 	type CreatorArtifactManifest,
 	type CreatorArtifactType,
@@ -91,6 +93,7 @@ async function tempStateDir(): Promise<string> {
 afterEach(async () => {
 	const { setCreatorDispatchRunnerForTests } = await import('./creator-mission');
 	setCreatorManifestRunnerForTests(null);
+	setCreatorValidationCommandRunnerForTests(null);
 	setCreatorDispatchRunnerForTests(null);
 	for (const dir of tempDirs) {
 		await rm(dir, { recursive: true, force: true });
@@ -267,5 +270,57 @@ describe('creator mission trace', () => {
 
 		expect(trace.artifact_manifests).toHaveLength(1);
 		expect(trace.artifact_manifests[0].repo).toBe('specialization-path-startup-yc');
+	});
+
+	it('runs allowlisted manifest validation commands and updates the trace', async () => {
+		const stateDir = await tempStateDir();
+		setCreatorValidationCommandRunnerForTests(async (executable, args, options) => ({
+			exitCode: executable === 'python' && args[0] === '--version' && options.cwd === stateDir ? 0 : 1,
+			stdout: 'Python 3.13.5',
+			stderr: ''
+		}));
+		await createCreatorMission(
+			{
+				brief: 'Create Startup YC path',
+				missionId: 'mission-creator-validate',
+				requestId: 'req-validate'
+			},
+			{
+				stateDir,
+				runManifestPlanner: async () => ({
+					intent_packet: packet({ target_domain: 'startup-yc' }),
+					artifact_manifests: [
+						{
+							schema_version: 'spark-artifact-manifest.v1',
+							artifact_id: 'startup-yc-validation-v1',
+							artifact_type: 'creator_report',
+							repo: stateDir,
+							inputs: ['creator-intent-startup-yc-test'],
+							outputs: ['reports/creator-run-summary.json'],
+							validation_commands: ['python --version'],
+							promotion_gates: ['schema_gate', 'rollback_gate'],
+							rollback_plan: 'Delete generated reports.'
+						}
+					],
+					validation_issues: []
+				})
+			}
+		);
+
+		const result = await validateCreatorMission(
+			{ missionId: 'mission-creator-validate' },
+			{ stateDir, now: () => new Date('2026-04-30T12:00:00.000Z') }
+		);
+
+		expect(result.run.status).toBe('passed');
+		expect(result.run.results[0]).toMatchObject({
+			status: 'passed',
+			command: 'python --version',
+			stdout_tail: 'Python 3.13.5'
+		});
+		expect(result.trace.stage_status).toBe('validated');
+		expect(result.trace.publish_readiness).toBe('workspace_validated');
+		const saved = JSON.parse(await readFile(creatorMissionPath('mission-creator-validate', stateDir), 'utf-8'));
+		expect(saved.validation_runs).toHaveLength(1);
 	});
 });

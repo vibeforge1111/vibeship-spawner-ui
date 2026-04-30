@@ -116,6 +116,29 @@ export interface CreatorArtifactBundle {
 	validation_issues: CreatorValidationIssue[];
 }
 
+export interface CreatorValidationCommandResult {
+	artifact_id: string;
+	artifact_type: CreatorArtifactType;
+	repo: string;
+	command: string;
+	cwd: string;
+	status: 'passed' | 'failed' | 'skipped';
+	exit_code: number | null;
+	stdout_tail: string;
+	stderr_tail: string;
+	error: string | null;
+}
+
+export interface CreatorValidationRun {
+	schema_version: 'spark-creator-validation-run.v1';
+	run_id: string;
+	mission_id: string;
+	started_at: string;
+	completed_at: string;
+	status: 'passed' | 'failed' | 'blocked';
+	results: CreatorValidationCommandResult[];
+}
+
 export interface CreatorMissionTrace {
 	schema_version: typeof CREATOR_TRACE_SCHEMA_VERSION;
 	trace_id: string;
@@ -131,6 +154,7 @@ export interface CreatorMissionTrace {
 	repo_changes: string[];
 	benchmarks: string[];
 	publish_readiness: CreatorPublishReadiness;
+	validation_runs: CreatorValidationRun[];
 	tasks: CreatorMissionTask[];
 	validation_gates: CreatorValidationGate[];
 	current_stage: string;
@@ -187,10 +211,24 @@ export interface ExecuteCreatorMissionInput {
 	requestId?: string | null;
 }
 
+export interface ValidateCreatorMissionInput {
+	missionId?: string | null;
+	requestId?: string | null;
+	maxCommands?: number | null;
+}
+
 interface ExecuteCreatorMissionOptions {
 	stateDir?: string;
 	now?: () => Date;
 	dispatchRunner?: CreatorDispatchRunner;
+}
+
+interface ValidateCreatorMissionOptions {
+	stateDir?: string;
+	now?: () => Date;
+	timeoutMs?: number;
+	maxCommands?: number;
+	commandRunner?: CreatorValidationCommandRunner;
 }
 
 type CreatorPlanRunner = (
@@ -204,10 +242,16 @@ type CreatorManifestRunner = (
 
 type CreatorMissionCanvasLoad = ReturnType<typeof creatorMissionCanvasLoad>;
 type CreatorDispatchRunner = (load: CreatorMissionCanvasLoad) => Promise<PrdAutoDispatchResult>;
+type CreatorValidationCommandRunner = (
+	executable: string,
+	args: string[],
+	options: { cwd: string; timeoutMs: number }
+) => Promise<{ exitCode: number; stdout?: string; stderr?: string }>;
 
 let activeCreatorPlanRunner: CreatorPlanRunner | null = null;
 let activeCreatorManifestRunner: CreatorManifestRunner | null = null;
 let activeCreatorDispatchRunner: CreatorDispatchRunner | null = null;
+let activeCreatorValidationCommandRunner: CreatorValidationCommandRunner | null = null;
 
 export function setCreatorPlanRunnerForTests(runner: CreatorPlanRunner | null): void {
 	activeCreatorPlanRunner = runner;
@@ -219,6 +263,10 @@ export function setCreatorManifestRunnerForTests(runner: CreatorManifestRunner |
 
 export function setCreatorDispatchRunnerForTests(runner: CreatorDispatchRunner | null): void {
 	activeCreatorDispatchRunner = runner;
+}
+
+export function setCreatorValidationCommandRunnerForTests(runner: CreatorValidationCommandRunner | null): void {
+	activeCreatorValidationCommandRunner = runner;
 }
 
 function spawnerStateDir(): string {
@@ -752,7 +800,7 @@ function creatorExecutionPrompt(trace: CreatorMissionTrace): string {
 function fallbackArtifactManifestsFromIntent(packet: CreatorIntentPacket): CreatorArtifactManifest[] {
 	const domain = packet.target_domain || 'custom-domain';
 	const intentId = packet.intent_id || `creator-intent-${domain}`;
-	return artifactPlanFromIntent(packet).map((artifact) => ({
+	return fallbackManifestArtifactTypes(packet).map((artifact) => ({
 		schema_version: ARTIFACT_MANIFEST_SCHEMA_VERSION,
 		artifact_id: `${domain}-${artifact.replace(/_/g, '-')}-v1`,
 		artifact_type: artifact as CreatorArtifactType,
@@ -763,6 +811,32 @@ function fallbackArtifactManifestsFromIntent(packet: CreatorIntentPacket): Creat
 		promotion_gates: ['schema_gate', 'rollback_gate'],
 		rollback_plan: 'Revert generated scaffold artifacts and remove local creator trace references.'
 	}));
+}
+
+function fallbackManifestArtifactTypes(packet: CreatorIntentPacket): CreatorArtifactType[] {
+	const seen = new Set<CreatorArtifactType>();
+	const artifactTypes: CreatorArtifactType[] = [];
+	for (const artifact of artifactPlanFromIntent(packet)) {
+		const normalized = artifact === 'telegram_flow' || artifact === 'spawner_mission'
+			? 'tool_integration'
+			: artifact;
+		if (!isCreatorArtifactType(normalized) || seen.has(normalized)) continue;
+		seen.add(normalized);
+		artifactTypes.push(normalized);
+	}
+	return artifactTypes;
+}
+
+function isCreatorArtifactType(value: string): value is CreatorArtifactType {
+	return [
+		'domain_chip',
+		'benchmark_pack',
+		'specialization_path',
+		'autoloop_policy',
+		'tool_integration',
+		'swarm_publish_packet',
+		'creator_report'
+	].includes(value);
 }
 
 async function resolveCreatorArtifactBundle(
@@ -854,6 +928,7 @@ export async function createCreatorMission(
 		repo_changes: [],
 		benchmarks: [],
 		publish_readiness: 'private_draft',
+		validation_runs: [],
 		tasks: buildCreatorMissionTasks(intentPacket),
 		validation_gates: validationGatesForCreatorIntent(intentPacket),
 		current_stage: 'task_graph_created',
@@ -958,4 +1033,193 @@ export async function executeCreatorMission(
 	await saveCreatorMissionTrace(trace, options.stateDir);
 
 	return { trace, load, dispatch };
+}
+
+const VALIDATION_EXECUTABLE_ALLOWLIST = new Set(['python', 'python3', 'py', 'npm', 'npx', 'spark-intelligence']);
+
+function splitCommandLine(command: string): string[] {
+	const parts: string[] = [];
+	let current = '';
+	let quote: '"' | "'" | null = null;
+	for (let index = 0; index < command.length; index += 1) {
+		const char = command[index];
+		if (quote) {
+			if (char === quote) {
+				quote = null;
+			} else {
+				current += char;
+			}
+			continue;
+		}
+		if (char === '"' || char === "'") {
+			quote = char;
+			continue;
+		}
+		if (/\s/.test(char)) {
+			if (current) {
+				parts.push(current);
+				current = '';
+			}
+			continue;
+		}
+		current += char;
+	}
+	if (quote) {
+		throw new Error(`Unclosed quote in validation command: ${command}`);
+	}
+	if (current) parts.push(current);
+	return parts;
+}
+
+function tailText(value: unknown, maxLength = 2000): string {
+	const text = String(value ?? '');
+	return text.length > maxLength ? text.slice(text.length - maxLength) : text;
+}
+
+function resolveCreatorRepoRoot(repo: string): string {
+	return path.isAbsolute(repo) ? repo : path.join(creatorWorkspaceRoot(), repo);
+}
+
+async function defaultCreatorValidationCommandRunner(
+	executable: string,
+	args: string[],
+	options: { cwd: string; timeoutMs: number }
+): Promise<{ exitCode: number; stdout?: string; stderr?: string }> {
+	try {
+		const { stdout, stderr } = await execFileAsync(executable, args, {
+			cwd: options.cwd,
+			timeout: options.timeoutMs,
+			windowsHide: true,
+			maxBuffer: 1024 * 1024
+		});
+		return { exitCode: 0, stdout: String(stdout || ''), stderr: String(stderr || '') };
+	} catch (error) {
+		const failure = error as Error & { code?: number | string; stdout?: string; stderr?: string };
+		const code = typeof failure.code === 'number' ? failure.code : 1;
+		return {
+			exitCode: code,
+			stdout: String(failure.stdout || ''),
+			stderr: String(failure.stderr || failure.message || '')
+		};
+	}
+}
+
+async function runCreatorValidationCommand(
+	manifest: CreatorArtifactManifest,
+	command: string,
+	options: Required<Pick<ValidateCreatorMissionOptions, 'timeoutMs'>> & Pick<ValidateCreatorMissionOptions, 'commandRunner'>
+): Promise<CreatorValidationCommandResult> {
+	const cwd = resolveCreatorRepoRoot(manifest.repo);
+	if (!existsSync(cwd)) {
+		return {
+			artifact_id: manifest.artifact_id,
+			artifact_type: manifest.artifact_type,
+			repo: manifest.repo,
+			command,
+			cwd,
+			status: 'failed',
+			exit_code: null,
+			stdout_tail: '',
+			stderr_tail: '',
+			error: `Repository path not found: ${cwd}`
+		};
+	}
+	let parts: string[];
+	try {
+		parts = splitCommandLine(command);
+	} catch (error) {
+		return {
+			artifact_id: manifest.artifact_id,
+			artifact_type: manifest.artifact_type,
+			repo: manifest.repo,
+			command,
+			cwd,
+			status: 'failed',
+			exit_code: null,
+			stdout_tail: '',
+			stderr_tail: '',
+			error: error instanceof Error ? error.message : 'Unable to parse validation command'
+		};
+	}
+	const executable = parts[0];
+	const args = parts.slice(1);
+	if (!VALIDATION_EXECUTABLE_ALLOWLIST.has(executable)) {
+		return {
+			artifact_id: manifest.artifact_id,
+			artifact_type: manifest.artifact_type,
+			repo: manifest.repo,
+			command,
+			cwd,
+			status: 'skipped',
+			exit_code: null,
+			stdout_tail: '',
+			stderr_tail: '',
+			error: `Validation executable is not allowlisted: ${executable}`
+		};
+	}
+	const runner = options.commandRunner || activeCreatorValidationCommandRunner || defaultCreatorValidationCommandRunner;
+	const result = await runner(executable, args, { cwd, timeoutMs: options.timeoutMs });
+	return {
+		artifact_id: manifest.artifact_id,
+		artifact_type: manifest.artifact_type,
+		repo: manifest.repo,
+		command,
+		cwd,
+		status: result.exitCode === 0 ? 'passed' : 'failed',
+		exit_code: result.exitCode,
+		stdout_tail: tailText(result.stdout),
+		stderr_tail: tailText(result.stderr),
+		error: result.exitCode === 0 ? null : 'Validation command exited non-zero'
+	};
+}
+
+export async function validateCreatorMission(
+	input: ValidateCreatorMissionInput,
+	options: ValidateCreatorMissionOptions = {}
+): Promise<{ trace: CreatorMissionTrace; run: CreatorValidationRun }> {
+	const trace = await readCreatorMissionTrace(input, options.stateDir);
+	if (!trace) {
+		throw new Error('creator mission trace not found');
+	}
+	const now = options.now?.() ?? new Date();
+	const startedAt = now.toISOString();
+	const maxCommands = Math.max(1, input.maxCommands ?? options.maxCommands ?? 20);
+	const timeoutMs = options.timeoutMs ?? 120_000;
+	const results: CreatorValidationCommandResult[] = [];
+	let commandCount = 0;
+
+	for (const manifest of trace.artifact_manifests || []) {
+		for (const command of manifest.validation_commands || []) {
+			if (commandCount >= maxCommands) break;
+			commandCount += 1;
+			results.push(await runCreatorValidationCommand(manifest, command, { timeoutMs, commandRunner: options.commandRunner }));
+		}
+		if (commandCount >= maxCommands) break;
+	}
+
+	const completedAt = (options.now?.() ?? new Date()).toISOString();
+	const hasFailure = results.some((result) => result.status === 'failed');
+	const hasSkipped = results.some((result) => result.status === 'skipped');
+	const runStatus: CreatorValidationRun['status'] = hasFailure ? 'failed' : hasSkipped ? 'blocked' : 'passed';
+	const run: CreatorValidationRun = {
+		schema_version: 'spark-creator-validation-run.v1',
+		run_id: `creator-validation-${trace.mission_id}-${Date.now()}`,
+		mission_id: trace.mission_id,
+		started_at: startedAt,
+		completed_at: completedAt,
+		status: runStatus,
+		results
+	};
+
+	trace.validation_runs = [...(trace.validation_runs || []), run];
+	trace.current_stage = runStatus === 'passed' ? 'validation_completed' : runStatus === 'blocked' ? 'validation_blocked' : 'validation_failed';
+	trace.stage_status = runStatus === 'passed' ? 'validated' : runStatus === 'blocked' ? 'blocked' : 'failed';
+	trace.publish_readiness = runStatus === 'passed' ? 'workspace_validated' : trace.publish_readiness;
+	trace.updated_at = completedAt;
+	if (runStatus !== 'passed') {
+		const blocker = runStatus === 'blocked' ? 'One or more validation commands were skipped.' : 'One or more validation commands failed.';
+		if (!trace.blockers.includes(blocker)) trace.blockers.push(blocker);
+	}
+	await saveCreatorMissionTrace(trace, options.stateDir);
+	return { trace, run };
 }

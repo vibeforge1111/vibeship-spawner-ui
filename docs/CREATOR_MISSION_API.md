@@ -107,6 +107,22 @@ Response:
 
 Execution intentionally uses the same mission id instead of creating a second invisible run. The dispatcher is allowed to continue a non-terminal creator mission because planning already placed it on Kanban, but it still blocks terminal missions and active provider sessions.
 
+## Validate
+
+```http
+POST /api/creator/mission/validate
+Content-Type: application/json
+
+{
+  "missionId": "mission-creator-...",
+  "maxCommands": 20
+}
+```
+
+You can also validate by `requestId`.
+
+The validation runner executes manifest `validation_commands` without a shell, from the declared repo root, and only for allowlisted executables: `python`, `python3`, `py`, `npm`, `npx`, and `spark-intelligence`. Results are appended to `trace.validation_runs`; a fully passing run moves the trace to `stage_status: "validated"` and `publish_readiness: "workspace_validated"`.
+
 ## Kanban Operation
 
 Creator missions appear on `/kanban` like normal Spark missions. Planning may show the card as in progress because the intent/task-graph task has already started and completed, but real provider execution is tracked separately.
