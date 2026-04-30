@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
 	createCreatorMission,
 	creatorMissionPath,
+	executeCreatorMission,
 	readCreatorMissionTrace,
 	type CreatorIntentPacket
 } from './creator-mission';
@@ -44,6 +45,8 @@ async function tempStateDir(): Promise<string> {
 }
 
 afterEach(async () => {
+	const { setCreatorDispatchRunnerForTests } = await import('./creator-mission');
+	setCreatorDispatchRunnerForTests(null);
 	for (const dir of tempDirs) {
 		await rm(dir, { recursive: true, force: true });
 	}
@@ -118,5 +121,53 @@ describe('creator mission trace', () => {
 		const trace = await readCreatorMissionTrace({ requestId: 'req-lookup' }, stateDir);
 		expect(trace?.mission_id).toBe('mission-creator-lookup');
 		expect(trace?.intent_packet.target_domain).toBe('investor-diligence');
+	});
+
+	it('executes a persisted creator mission with an auto-run canvas load', async () => {
+		const stateDir = await tempStateDir();
+		await createCreatorMission(
+			{
+				brief: 'Create Startup YC path',
+				missionId: 'mission-creator-execute',
+				requestId: 'req-execute'
+			},
+			{
+				stateDir,
+				runPlanner: async () => packet({ target_domain: 'startup-yc' })
+			}
+		);
+
+		let capturedLoad: any = null;
+		const result = await executeCreatorMission(
+			{ missionId: 'mission-creator-execute' },
+			{
+				stateDir,
+				now: () => new Date('2026-04-30T11:00:00.000Z'),
+				dispatchRunner: async (load) => {
+					capturedLoad = load;
+					return {
+						started: true,
+						missionId: load.missionId,
+						projectPath: 'C:\\Users\\USER\\Desktop',
+						providerId: 'codex'
+					};
+				}
+			}
+		);
+
+		expect(result.dispatch.started).toBe(true);
+		expect(capturedLoad.autoRun).toBe(true);
+		expect(capturedLoad.relay.autoRun).toBe(true);
+		expect(capturedLoad.executionPrompt).toContain('Target operating-system folder:');
+		expect(result.trace.current_stage).toBe('execution_started');
+		expect(result.trace.stage_status).toBe('running');
+
+		const saved = JSON.parse(await readFile(creatorMissionPath('mission-creator-execute', stateDir), 'utf-8'));
+		expect(saved.current_stage).toBe('execution_started');
+		expect(saved.updated_at).toBe('2026-04-30T11:00:00.000Z');
+
+		const queuedCanvas = JSON.parse(await readFile(path.join(stateDir, 'last-canvas-load.json'), 'utf-8'));
+		expect(queuedCanvas.autoRun).toBe(true);
+		expect(queuedCanvas.relay.autoRun).toBe(true);
 	});
 });

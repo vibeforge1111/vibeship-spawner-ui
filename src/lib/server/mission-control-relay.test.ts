@@ -85,7 +85,7 @@ describe('mission-control-relay', () => {
 			taskId: 'task-ui',
 			taskName: 'Build the UI',
 			source: 'codex',
-			timestamp: '2026-04-29T12:00:00.000Z',
+			timestamp: freshIso(),
 			data: { telegramRelay: { port: 1 } }
 		});
 		await relayMissionControlEvent({
@@ -94,7 +94,7 @@ describe('mission-control-relay', () => {
 			taskId: 'task-ui',
 			taskName: 'Build the UI',
 			source: 'codex',
-			timestamp: '2026-04-29T12:00:01.000Z',
+			timestamp: freshIso(1_000),
 			data: { telegramRelay: { port: 1 } }
 		});
 		await relayMissionControlEvent({
@@ -103,7 +103,7 @@ describe('mission-control-relay', () => {
 			taskId: 'task-ui',
 			taskName: 'Build the UI',
 			source: 'codex',
-			timestamp: '2026-04-29T12:00:10.000Z',
+			timestamp: freshIso(10_000),
 			data: { telegramRelay: { port: 1 } }
 		});
 		await relayMissionControlEvent({
@@ -112,7 +112,7 @@ describe('mission-control-relay', () => {
 			taskId: 'task-ui',
 			taskName: 'Build the UI',
 			source: 'codex',
-			timestamp: '2026-04-29T12:00:11.000Z',
+			timestamp: freshIso(11_000),
 			data: { telegramRelay: { port: 1 } }
 		});
 

@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
+import { autoDispatchPrdCanvasLoad, type PrdAutoDispatchResult } from './prd-auto-dispatch';
 
 const execFileAsync = promisify(execFile);
 
@@ -125,15 +126,34 @@ interface CreateCreatorMissionOptions extends CreatorPlanOptions {
 	queueCanvas?: boolean;
 }
 
+export interface ExecuteCreatorMissionInput {
+	missionId?: string | null;
+	requestId?: string | null;
+}
+
+interface ExecuteCreatorMissionOptions {
+	stateDir?: string;
+	now?: () => Date;
+	dispatchRunner?: CreatorDispatchRunner;
+}
+
 type CreatorPlanRunner = (
 	input: CreateCreatorMissionInput,
 	options?: CreatorPlanOptions
 ) => Promise<CreatorIntentPacket>;
 
+type CreatorMissionCanvasLoad = ReturnType<typeof creatorMissionCanvasLoad>;
+type CreatorDispatchRunner = (load: CreatorMissionCanvasLoad) => Promise<PrdAutoDispatchResult>;
+
 let activeCreatorPlanRunner: CreatorPlanRunner | null = null;
+let activeCreatorDispatchRunner: CreatorDispatchRunner | null = null;
 
 export function setCreatorPlanRunnerForTests(runner: CreatorPlanRunner | null): void {
 	activeCreatorPlanRunner = runner;
+}
+
+export function setCreatorDispatchRunnerForTests(runner: CreatorDispatchRunner | null): void {
+	activeCreatorDispatchRunner = runner;
 }
 
 function spawnerStateDir(): string {
@@ -150,6 +170,15 @@ function pendingLoadPath(stateDir = spawnerStateDir()): string {
 
 function lastCanvasLoadPath(stateDir = spawnerStateDir()): string {
 	return path.join(stateDir, 'last-canvas-load.json');
+}
+
+function creatorWorkspaceRoot(): string {
+	const envRecord = env as Record<string, string | undefined>;
+	return path.resolve(
+		envRecord.SPARK_CREATOR_WORKSPACE_ROOT ||
+			process.env.SPARK_CREATOR_WORKSPACE_ROOT ||
+			path.resolve(process.cwd(), '..')
+	);
 }
 
 export function creatorMissionPath(missionId: string, stateDir = spawnerStateDir()): string {
@@ -558,6 +587,7 @@ function creatorExecutionPrompt(trace: CreatorMissionTrace): string {
 		`Creator mission for ${trace.intent_packet.target_domain}.`,
 		'Build the requested Spark creator artifacts as a gated, benchmarkable system.',
 		`User goal: ${trace.user_goal}`,
+		`Target operating-system folder: ${creatorWorkspaceRoot()}`,
 		`Creator mode: ${trace.creator_mode}`,
 		`Privacy mode: ${trace.intent_packet.privacy_mode}`,
 		`Risk level: ${trace.intent_packet.risk_level}`,
@@ -574,9 +604,9 @@ export function creatorMissionCanvasLoad(trace: CreatorMissionTrace, now = new D
 		pipelineName: `Creator Mission: ${trace.intent_packet.target_domain}`,
 		nodes: trace.tasks.map(taskToCanvasNode),
 		connections: taskConnections(trace.tasks),
-		source: 'creator-mission',
+		source: 'creator-mission' as const,
 		autoRun: false,
-		buildMode: 'advanced_prd',
+		buildMode: 'advanced_prd' as const,
 		buildModeReason: 'Creator missions require explicit validation gates before execution or Swarm publication.',
 		executionPrompt: creatorExecutionPrompt(trace),
 		relay: {
@@ -584,19 +614,23 @@ export function creatorMissionCanvasLoad(trace: CreatorMissionTrace, now = new D
 			requestId: trace.request_id,
 			goal: trace.user_goal,
 			autoRun: false,
-			buildMode: 'advanced_prd',
+			buildMode: 'advanced_prd' as const,
 			buildModeReason: 'Creator missions require explicit validation gates before execution or Swarm publication.'
 		},
 		timestamp: now.toISOString()
 	};
 }
 
-export async function queueCreatorMissionCanvasLoad(trace: CreatorMissionTrace, stateDir = spawnerStateDir()): Promise<ReturnType<typeof creatorMissionCanvasLoad>> {
-	const load = creatorMissionCanvasLoad(trace);
+async function writeCreatorMissionCanvasLoad(load: CreatorMissionCanvasLoad, stateDir = spawnerStateDir()): Promise<CreatorMissionCanvasLoad> {
 	await mkdir(stateDir, { recursive: true });
 	await writeFile(pendingLoadPath(stateDir), JSON.stringify(load, null, 2), 'utf-8');
 	await writeFile(lastCanvasLoadPath(stateDir), JSON.stringify(load, null, 2), 'utf-8');
 	return load;
+}
+
+export async function queueCreatorMissionCanvasLoad(trace: CreatorMissionTrace, stateDir = spawnerStateDir()): Promise<ReturnType<typeof creatorMissionCanvasLoad>> {
+	const load = creatorMissionCanvasLoad(trace);
+	return writeCreatorMissionCanvasLoad(load, stateDir);
 }
 
 export async function createCreatorMission(
@@ -682,4 +716,49 @@ export async function readCreatorMissionTrace(
 		if (trace.request_id === requestId) return trace;
 	}
 	return null;
+}
+
+function executableCreatorMissionCanvasLoad(trace: CreatorMissionTrace): CreatorMissionCanvasLoad {
+	const load = creatorMissionCanvasLoad(trace);
+	return {
+		...load,
+		autoRun: true,
+		relay: {
+			...load.relay,
+			autoRun: true
+		}
+	};
+}
+
+export async function executeCreatorMission(
+	input: ExecuteCreatorMissionInput,
+	options: ExecuteCreatorMissionOptions = {}
+): Promise<{ trace: CreatorMissionTrace; load: CreatorMissionCanvasLoad; dispatch: PrdAutoDispatchResult }> {
+	const trace = await readCreatorMissionTrace(input, options.stateDir);
+	if (!trace) {
+		throw new Error('creator mission trace not found');
+	}
+	if (trace.stage_status === 'published') {
+		throw new Error('creator mission is already published');
+	}
+
+	const now = options.now?.() ?? new Date();
+	const load = await writeCreatorMissionCanvasLoad(executableCreatorMissionCanvasLoad(trace), options.stateDir);
+	const runner = options.dispatchRunner || activeCreatorDispatchRunner || ((candidate: CreatorMissionCanvasLoad) =>
+		autoDispatchPrdCanvasLoad(candidate, { allowExistingNonTerminalMission: true }));
+	const dispatch = await runner(load);
+
+	trace.current_stage = dispatch.started
+		? 'execution_started'
+		: dispatch.skipped
+			? 'execution_skipped'
+			: 'execution_failed';
+	trace.stage_status = dispatch.started || dispatch.skipped ? 'running' : 'failed';
+	trace.updated_at = now.toISOString();
+	if (dispatch.error && !trace.blockers.includes(dispatch.error)) {
+		trace.blockers.push(dispatch.error);
+	}
+	await saveCreatorMissionTrace(trace, options.stateDir);
+
+	return { trace, load, dispatch };
 }

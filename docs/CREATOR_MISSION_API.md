@@ -60,6 +60,37 @@ GET /api/creator/mission?missionId=mission-creator-...
 GET /api/creator/mission?requestId=...
 ```
 
+## Execute
+
+```http
+POST /api/creator/mission/execute
+Content-Type: application/json
+
+{
+  "missionId": "mission-creator-..."
+}
+```
+
+You can also execute by `requestId`.
+
+Response:
+
+```json
+{
+  "ok": true,
+  "missionId": "mission-creator-...",
+  "started": true,
+  "providerId": "codex",
+  "projectPath": "C:\\Users\\USER\\Desktop",
+  "trace": {
+    "current_stage": "execution_started",
+    "stage_status": "running"
+  }
+}
+```
+
+Execution intentionally uses the same mission id instead of creating a second invisible run. The dispatcher is allowed to continue a non-terminal creator mission because planning already placed it on Kanban, but it still blocks terminal missions and active provider sessions.
+
 ## State
 
 Traces are stored under:
@@ -78,6 +109,8 @@ $SPAWNER_STATE_DIR/last-canvas-load.json
 ```
 
 Creator loads use `source: "creator-mission"` and `autoRun: false` by default. They are inspectable first because creator artifacts can affect benchmark rules, memory policy, and Swarm publication.
+
+When execution is requested, the same Canvas load is rewritten with `autoRun: true` and dispatched through the existing provider runtime. The working directory defaults to the parent of the Spawner checkout, or `SPARK_CREATOR_WORKSPACE_ROOT` when configured.
 
 ## Task Graph
 

@@ -54,6 +54,10 @@ export interface PrdAutoDispatchResult {
 	error?: string;
 }
 
+export interface PrdAutoDispatchOptions {
+	allowExistingNonTerminalMission?: boolean;
+}
+
 function normalizeProviderId(value: string | undefined): string | null {
 	if (!value) return null;
 	const normalized = value.trim().toLowerCase();
@@ -96,7 +100,10 @@ function isKnownNonTerminalMissionStatus(status: MissionControlBoardEntry['statu
 	return status === 'created' || status === 'running' || status === 'paused';
 }
 
-export function shouldAutoDispatchPrdLoad(load: PrdCanvasLoadForAutoDispatch): { ok: boolean; reason?: string } {
+export function shouldAutoDispatchPrdLoad(
+	load: PrdCanvasLoadForAutoDispatch,
+	options: PrdAutoDispatchOptions = {}
+): { ok: boolean; reason?: string } {
 	if (!(load.autoRun || load.relay?.autoRun === true)) {
 		return { ok: false, reason: 'autoRun disabled' };
 	}
@@ -111,6 +118,9 @@ export function shouldAutoDispatchPrdLoad(load: PrdCanvasLoadForAutoDispatch): {
 	for (const status of ['running', 'completed', 'failed', 'cancelled', 'paused'] as const) {
 		if ((board[status] || []).some((entry) => entry.missionId === load.missionId)) {
 			const terminal = !isKnownNonTerminalMissionStatus(status);
+			if (options.allowExistingNonTerminalMission && !terminal) {
+				continue;
+			}
 			return {
 				ok: false,
 				reason: terminal
@@ -200,8 +210,11 @@ function plannedTasksFromLoad(load: PrdCanvasLoadForAutoDispatch): Array<{ title
 		.filter((task): task is { title: string; skills: string[] } => Boolean(task));
 }
 
-export async function autoDispatchPrdCanvasLoad(load: PrdCanvasLoadForAutoDispatch): Promise<PrdAutoDispatchResult> {
-	const allowed = shouldAutoDispatchPrdLoad(load);
+export async function autoDispatchPrdCanvasLoad(
+	load: PrdCanvasLoadForAutoDispatch,
+	options: PrdAutoDispatchOptions = {}
+): Promise<PrdAutoDispatchResult> {
+	const allowed = shouldAutoDispatchPrdLoad(load, options);
 	if (!allowed.ok) {
 		return { started: false, skipped: true, reason: allowed.reason, missionId: load.missionId };
 	}
