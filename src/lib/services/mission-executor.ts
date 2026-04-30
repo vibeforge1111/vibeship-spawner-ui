@@ -927,6 +927,7 @@ class MissionExecutor {
 				case 'task_progress':
 				case 'progress':
 					// Progress update within a task
+					const isProviderHeartbeat = event.data?.kind === 'provider_heartbeat';
 					const fallbackTask = event.taskId ? null : this.ensureProviderFallbackTaskStarted(
 						event,
 						event.message || event.data?.message as string || 'Provider is working',
@@ -945,12 +946,16 @@ class MissionExecutor {
 						this.persistState();
 					}
 					if (progressTaskId) {
-						this.handleTaskProgress(progressTaskId, progressValue, displayProgressMessage);
-						this.applyAssignedTaskPackProgress(
-							event.data?.assignedTaskIds,
-							progressValue,
-							displayProgressMessage
-						);
+						if (!isProviderHeartbeat) {
+							this.handleTaskProgress(progressTaskId, progressValue, displayProgressMessage);
+							this.applyAssignedTaskPackProgress(
+								event.data?.assignedTaskIds,
+								progressValue,
+								displayProgressMessage
+							);
+						} else {
+							this.progress.currentTaskMessage = displayProgressMessage || null;
+						}
 						if (runtimeAgent) {
 							this.updateAgentRuntime(runtimeAgent.agentId, runtimeAgent.agentLabel, {
 								status: 'running',
@@ -960,10 +965,10 @@ class MissionExecutor {
 								message: displayProgressMessage
 							});
 						}
-						if (displayProgressMessage && !skillSignal) {
+						if (displayProgressMessage && !skillSignal && !isProviderHeartbeat) {
 							this.addLocalLog('info', displayProgressMessage);
 						}
-						if (displayProgressMessage || progressValue % 25 === 0) {
+						if (!isProviderHeartbeat && (displayProgressMessage || progressValue % 25 === 0)) {
 							this.appendTaskTransition({
 								state: 'progress',
 								taskId: progressTaskId,

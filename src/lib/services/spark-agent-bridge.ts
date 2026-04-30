@@ -637,7 +637,7 @@ class SparkAgentBridgeService {
 		if (!session) return;
 
 		const event: SparkAgentBridgeEvent = {
-			id: createId('ocl-evt'),
+			id: createId('spark-evt'),
 			type,
 			sessionId,
 			timestamp: nowIso(),
@@ -1137,7 +1137,7 @@ class SparkAgentBridgeService {
 
 		this.emitEvent(worker.sessionId, type, data);
 		eventBridge.emit({
-			id: createId('ocl-norm'),
+			id: createId('spark-norm'),
 			type,
 			missionId: worker.missionId,
 			taskId: worker.taskId,

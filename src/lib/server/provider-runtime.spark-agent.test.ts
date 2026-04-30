@@ -197,6 +197,8 @@ describe('provider-runtime Spark agent bridge', () => {
 					source: 'codex',
 					progress: expect.any(Number),
 					data: expect.objectContaining({
+						kind: 'provider_heartbeat',
+						suppressRelay: true,
 						assignedTaskIds: ['task-1', 'task-2'],
 						assignedTaskCount: 2,
 						elapsedMs: expect.any(Number),

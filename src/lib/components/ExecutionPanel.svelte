@@ -97,10 +97,6 @@
 	let pendingTasks = $state<string[]>([]);
 	let reworkTasks = $state<Map<string, { name: string; retry: number; maxRetries: number }>>(new Map());
 
-	// Current task progress tracking
-	let currentTaskProgress = $state(0);
-	let currentTaskMessage = $state<string | null>(null);
-
 	// Resumable mission state
 	let resumableMission = $state<{
 		id: string;
@@ -1057,14 +1053,11 @@
 				executionProgress = missionExecutor.getProgress();
 				syncMissionTaskStatusesFromExecutor();
 			},
-			onProgress: (progress) => {
+			onProgress: () => {
 				executionProgress = missionExecutor.getProgress();
 				syncMissionTaskStatusesFromExecutor();
 			},
-			onTaskProgress: (taskId, progress, message) => {
-				// Update task-level progress for smoother UI updates
-				currentTaskProgress = progress;
-				currentTaskMessage = message || null;
+			onTaskProgress: () => {
 				executionProgress = missionExecutor.getProgress();
 				syncMissionTaskStatusesFromExecutor();
 			},
@@ -1078,10 +1071,6 @@
 				executionProgress = missionExecutor.getProgress();
 			},
 			onTaskStart: (taskId, taskName) => {
-				// Reset task progress for new task
-				currentTaskProgress = 0;
-				currentTaskMessage = null;
-
 				// Find the node matching this task and update its status
 				const node = findNodeForTask(taskId, taskName);
 				if (node) {

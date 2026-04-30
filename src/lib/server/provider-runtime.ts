@@ -63,7 +63,7 @@ export interface ProviderMissionResultSnapshot {
 	completedAt: string | null;
 }
 
-const PROVIDER_TASK_ACTIVITY_INTERVAL_MS = 10_000;
+const PROVIDER_TASK_ACTIVITY_INTERVAL_MS = 120_000;
 const PROVIDER_TASK_ACTIVITY_MIN_ESTIMATE_MS = 90_000;
 const PROVIDER_TASK_ACTIVITY_MAX_ESTIMATE_MS = 8 * 60_000;
 const PROVIDER_TASK_ACTIVITY_BASE_MS = 55_000;
@@ -145,7 +145,7 @@ function formatProviderTaskActivityMessage(
 	_estimatedRemainingMs: number
 ): string {
 	const packLabel = assignedTaskCount > 1 ? `${assignedTaskCount} task pack` : taskName;
-	return `${providerLabel} is working through ${packLabel}.`;
+	return `${providerLabel} is still working through ${packLabel}.`;
 }
 
 function isBusyFileSystemError(error: unknown): boolean {
@@ -618,6 +618,8 @@ class ProviderRuntimeManager {
 						taskId,
 						taskName,
 						progress: nextProgress,
+						kind: 'provider_heartbeat',
+						suppressRelay: true,
 						provider: provider.id,
 						providerLabel: provider.label,
 						assignedTaskIds: taskIds,
