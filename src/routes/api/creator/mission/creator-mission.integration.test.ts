@@ -58,7 +58,22 @@ describe('/api/creator/mission', () => {
 				telegram_flow: true,
 				spawner_mission: false,
 				swarm_publish_packet: true
-			}
+			},
+			intent_id: 'creator-intent-startup-yc-route',
+			artifact_targets: ['domain_chip', 'benchmark_pack', 'specialization_path', 'autoloop_policy', 'tool_integration', 'swarm_publish_packet'],
+			usage_surfaces: ['telegram', 'builder', 'swarm'],
+			success_claim: 'Improve Spark startup-yc capability.',
+			capabilities_to_prove: ['detect default-dead risk'],
+			benchmark_requirements: {
+				visible_cases: 20,
+				fixed_suite: true,
+				held_out_cases: true,
+				trap_cases: true,
+				simulator_transfer: true,
+				fresh_agent_absorption: true,
+				human_calibration: false
+			},
+			network_contribution_policy: 'github_pr_required'
 		}));
 
 		const postResponse = await POST(event('http://127.0.0.1/api/creator/mission', {
@@ -69,6 +84,9 @@ describe('/api/creator/mission', () => {
 		expect(postResponse.status).toBe(200);
 		const postBody = await postResponse.json();
 		expect(postBody.trace.creator_mode).toBe('full_path');
+		expect(postBody.trace.trace_id).toBe('creator-trace-mission-creator-api');
+		expect(postBody.trace.intent_id).toBe('creator-intent-startup-yc-route');
+		expect(postBody.tracePath).toContain('mission-creator-api.json');
 		expect(postBody.trace.intent_packet.target_domain).toBe('startup-yc');
 		expect(postBody.taskCount).toBeGreaterThan(1);
 		expect(postBody.canvasUrl).toBe('http://127.0.0.1/canvas?pipeline=creator-creator-api-req&mission=mission-creator-api');
@@ -93,6 +111,7 @@ describe('/api/creator/mission', () => {
 		expect(getResponse.status).toBe(200);
 		const getBody = await getResponse.json();
 		expect(getBody.trace.mission_id).toBe('mission-creator-api');
+		expect(getBody.tracePath).toContain('mission-creator-api.json');
 	});
 
 	it('rejects missing briefs', async () => {

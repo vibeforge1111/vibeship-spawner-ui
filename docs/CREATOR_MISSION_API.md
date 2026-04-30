@@ -28,10 +28,14 @@ Response:
   "requestId": "mission-creator-...",
   "taskCount": 8,
   "canvasUrl": "http://127.0.0.1:5173/canvas?pipeline=creator-...&mission=mission-creator-...",
+  "tracePath": "C:\\path\\to\\.spawner\\creator-missions\\mission-creator-....json",
   "trace": {
     "schema_version": "spark-creator-trace.v1",
+    "trace_id": "creator-trace-mission-creator-...",
+    "intent_id": "creator-intent-startup-yc-...",
     "creator_mode": "full_path",
     "stage_status": "queued",
+    "publish_readiness": "private_draft",
     "intent_packet": {
       "schema_version": "spark-creator-intent.v1"
     },
@@ -82,6 +86,7 @@ Response:
   "started": true,
   "providerId": "codex",
   "projectPath": "C:\\Users\\USER\\Desktop",
+  "tracePath": "C:\\path\\to\\.spawner\\creator-missions\\mission-creator-....json",
   "trace": {
     "current_stage": "execution_started",
     "stage_status": "running"

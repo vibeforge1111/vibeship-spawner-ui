@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createCreatorMission, readCreatorMissionTrace, type CreatorPrivacyMode, type CreatorRiskLevel } from '$lib/server/creator-mission';
+import { createCreatorMission, creatorMissionPath, readCreatorMissionTrace, type CreatorPrivacyMode, type CreatorRiskLevel } from '$lib/server/creator-mission';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 
@@ -99,6 +99,7 @@ export const POST: RequestHandler = async (event) => {
 			requestId: trace.request_id,
 			taskCount: trace.tasks.length,
 			canvasUrl: trace.links.canvas,
+			tracePath: creatorMissionPath(trace.mission_id),
 			trace
 		});
 	} catch (error) {
@@ -126,5 +127,5 @@ export const GET: RequestHandler = async (event) => {
 	if (!trace) {
 		return json({ ok: false, error: 'creator mission trace not found' }, { status: 404 });
 	}
-	return json({ ok: true, trace });
+	return json({ ok: true, tracePath: creatorMissionPath(trace.mission_id), trace });
 };

@@ -42,7 +42,22 @@ function packet(): CreatorIntentPacket {
 			telegram_flow: true,
 			spawner_mission: true,
 			swarm_publish_packet: true
-		}
+		},
+		intent_id: 'creator-intent-startup-yc-api',
+		artifact_targets: ['domain_chip', 'benchmark_pack', 'specialization_path', 'autoloop_policy', 'tool_integration', 'swarm_publish_packet'],
+		usage_surfaces: ['telegram', 'builder', 'spawner', 'swarm'],
+		success_claim: 'Improve Spark startup-yc capability.',
+		capabilities_to_prove: ['detect default-dead risk'],
+		benchmark_requirements: {
+			visible_cases: 20,
+			fixed_suite: true,
+			held_out_cases: true,
+			trap_cases: true,
+			simulator_transfer: true,
+			fresh_agent_absorption: true,
+			human_calibration: false
+		},
+		network_contribution_policy: 'github_pr_required'
 	};
 }
 
@@ -86,7 +101,9 @@ describe('/api/creator/mission/execute', () => {
 		expect(body.ok).toBe(true);
 		expect(body.started).toBe(true);
 		expect(body.providerId).toBe('codex');
+		expect(body.tracePath).toContain('mission-creator-execute-api.json');
 		expect(body.trace.current_stage).toBe('execution_started');
+		expect(body.trace.trace_id).toBe('creator-trace-mission-creator-execute-api');
 		expect(capturedAutoRun).toBe(true);
 	});
 

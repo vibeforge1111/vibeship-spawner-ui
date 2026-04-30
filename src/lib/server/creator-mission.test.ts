@@ -34,6 +34,21 @@ function packet(overrides: Partial<CreatorIntentPacket> = {}): CreatorIntentPack
 			spawner_mission: false,
 			swarm_publish_packet: true
 		},
+		intent_id: 'creator-intent-startup-yc-test',
+		artifact_targets: ['domain_chip', 'benchmark_pack', 'specialization_path', 'autoloop_policy', 'tool_integration', 'swarm_publish_packet'],
+		usage_surfaces: ['telegram', 'builder', 'swarm'],
+		success_claim: 'Improve Spark startup-yc capability.',
+		capabilities_to_prove: ['detect default-dead risk'],
+		benchmark_requirements: {
+			visible_cases: 20,
+			fixed_suite: true,
+			held_out_cases: true,
+			trap_cases: true,
+			simulator_transfer: true,
+			fresh_agent_absorption: true,
+			human_calibration: false
+		},
+		network_contribution_policy: 'github_pr_required',
 		...overrides
 	};
 }
@@ -72,12 +87,17 @@ describe('creator mission trace', () => {
 
 		expect(trace).toMatchObject({
 			schema_version: 'spark-creator-trace.v1',
+			trace_id: 'creator-trace-mission-creator-test',
+			intent_id: 'creator-intent-startup-yc-test',
 			mission_id: 'mission-creator-test',
 			request_id: 'creator-request-test',
 			creator_mode: 'full_path',
 			current_stage: 'task_graph_created',
 			stage_status: 'queued',
-			artifacts: ['domain_chip', 'benchmark_pack', 'specialization_path', 'autoloop_policy', 'telegram_flow', 'swarm_publish_packet'],
+			artifacts: ['domain_chip', 'benchmark_pack', 'specialization_path', 'autoloop_policy', 'tool_integration', 'swarm_publish_packet'],
+			repo_changes: [],
+			benchmarks: [],
+			publish_readiness: 'private_draft',
 			swarm: { payload_ready: false, api_ready: false, publish_mode: 'swarm_shared' }
 		});
 		expect(trace.tasks.map((task) => task.id)).toEqual([

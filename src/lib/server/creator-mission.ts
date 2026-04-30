@@ -15,6 +15,14 @@ export type CreatorPrivacyMode = 'local_only' | 'github_pr' | 'swarm_shared';
 export type CreatorRiskLevel = 'low' | 'medium' | 'high';
 export type CreatorStageStatus = 'queued' | 'running' | 'blocked' | 'validated' | 'failed' | 'published';
 export type CreatorMode = 'domain_chip' | 'specialization_path' | 'benchmark' | 'autoloop' | 'full_path';
+export type CreatorPublishReadiness =
+	| 'private_draft'
+	| 'workspace_validated'
+	| 'pr_ready'
+	| 'pr_submitted'
+	| 'reviewed_candidate'
+	| 'network_absorbable'
+	| 'canonical';
 
 export type CreatorValidationGateId =
 	| 'schema_gate'
@@ -66,16 +74,28 @@ export interface CreatorIntentPacket {
 		spawner_mission: boolean;
 		swarm_publish_packet: boolean;
 	};
+	intent_id?: string;
+	artifact_targets?: string[];
+	usage_surfaces?: string[];
+	success_claim?: string;
+	capabilities_to_prove?: string[];
+	benchmark_requirements?: Record<string, boolean | number>;
+	network_contribution_policy?: 'workspace_only' | 'github_pr_required' | 'manual_review_required';
 }
 
 export interface CreatorMissionTrace {
 	schema_version: typeof CREATOR_TRACE_SCHEMA_VERSION;
+	trace_id: string;
+	intent_id: string;
 	mission_id: string;
 	request_id: string;
 	creator_mode: CreatorMode;
 	user_goal: string;
 	repo_root: string | null;
 	artifacts: string[];
+	repo_changes: string[];
+	benchmarks: string[];
+	publish_readiness: CreatorPublishReadiness;
 	tasks: CreatorMissionTask[];
 	validation_gates: CreatorValidationGate[];
 	current_stage: string;
@@ -273,6 +293,9 @@ export function creatorModeFromIntent(packet: CreatorIntentPacket): CreatorMode 
 }
 
 export function artifactPlanFromIntent(packet: CreatorIntentPacket): string[] {
+	if (Array.isArray(packet.artifact_targets) && packet.artifact_targets.length > 0) {
+		return [...packet.artifact_targets];
+	}
 	const outputs = packet.desired_outputs;
 	const artifacts: string[] = [];
 	if (outputs.domain_chip) artifacts.push('domain_chip');
@@ -283,6 +306,14 @@ export function artifactPlanFromIntent(packet: CreatorIntentPacket): string[] {
 	if (outputs.spawner_mission) artifacts.push('spawner_mission');
 	if (outputs.swarm_publish_packet) artifacts.push('swarm_publish_packet');
 	return artifacts;
+}
+
+function intentIdFromPacket(packet: CreatorIntentPacket, requestId: string): string {
+	return packet.intent_id?.trim() || `creator-intent-${requestId}`;
+}
+
+function traceIdFromMissionId(missionId: string): string {
+	return `creator-trace-${missionId}`;
 }
 
 export function validationGatesForCreatorIntent(packet: CreatorIntentPacket): CreatorValidationGate[] {
@@ -651,12 +682,17 @@ export async function createCreatorMission(
 	const canvasPath = creatorCanvasPath({ request_id: requestId, mission_id: missionId });
 	const trace: CreatorMissionTrace = {
 		schema_version: CREATOR_TRACE_SCHEMA_VERSION,
+		trace_id: traceIdFromMissionId(missionId),
+		intent_id: intentIdFromPacket(intentPacket, requestId),
 		mission_id: missionId,
 		request_id: requestId,
 		creator_mode: creatorModeFromIntent(intentPacket),
 		user_goal: brief,
 		repo_root: null,
 		artifacts: artifactPlanFromIntent(intentPacket),
+		repo_changes: [],
+		benchmarks: [],
+		publish_readiness: 'private_draft',
 		tasks: buildCreatorMissionTasks(intentPacket),
 		validation_gates: validationGatesForCreatorIntent(intentPacket),
 		current_stage: 'task_graph_created',

@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { executeCreatorMission } from '$lib/server/creator-mission';
+import { creatorMissionPath, executeCreatorMission } from '$lib/server/creator-mission';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 
 interface ExecuteCreatorMissionBody {
@@ -38,6 +38,7 @@ export const POST: RequestHandler = async (event) => {
 			missionId: result.trace.mission_id,
 			requestId: result.trace.request_id,
 			canvasUrl: result.trace.links.canvas,
+			tracePath: creatorMissionPath(result.trace.mission_id),
 			started: result.dispatch.started,
 			skipped: result.dispatch.skipped === true,
 			reason: result.dispatch.reason,
