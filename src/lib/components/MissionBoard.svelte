@@ -588,7 +588,7 @@
 			const r = await fetch('/api/creator/mission/validate', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ missionId: card.id })
+				body: JSON.stringify({ missionId: card.id, async: true })
 			});
 			const data = await r.json().catch(() => ({}));
 			if (!r.ok || data?.ok === false) {
