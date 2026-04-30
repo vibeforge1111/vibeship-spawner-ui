@@ -365,6 +365,10 @@ function isMissionStartEvent(eventType: string): boolean {
 	].includes(eventType);
 }
 
+function isExecutionStartEvent(eventType: string): boolean {
+	return eventType === 'mission_started' || eventType === 'dispatch_started';
+}
+
 function earlierTimestamp(current: string | null, candidate: string): string {
 	if (!current) return candidate;
 	const currentMs = Date.parse(current);
@@ -717,6 +721,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 				status,
 				lastEventType: entry.eventType,
 				lastUpdated: entry.timestamp,
+				executionStarted: isExecutionStartEvent(entry.eventType),
 				queuedAt: entry.eventType === 'mission_created' ? entry.timestamp : null,
 				startedAt: isMissionStartEvent(entry.eventType) ? entry.timestamp : null,
 				lastSummary: sanitizeMissionControlDisplayText(entry.summary),
@@ -734,6 +739,9 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 			}
 			if (!existing.telegramRelay && entry.telegramRelay) {
 				existing.telegramRelay = entry.telegramRelay;
+			}
+			if (isExecutionStartEvent(entry.eventType)) {
+				existing.executionStarted = true;
 			}
 		}
 

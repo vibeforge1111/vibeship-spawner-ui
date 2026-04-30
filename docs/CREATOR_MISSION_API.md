@@ -91,6 +91,12 @@ Response:
 
 Execution intentionally uses the same mission id instead of creating a second invisible run. The dispatcher is allowed to continue a non-terminal creator mission because planning already placed it on Kanban, but it still blocks terminal missions and active provider sessions.
 
+## Kanban Operation
+
+Creator missions appear on `/kanban` like normal Spark missions. Planning may show the card as in progress because the intent/task-graph task has already started and completed, but real provider execution is tracked separately.
+
+For planned creator missions, Kanban shows a `Run` action. That action calls `POST /api/creator/mission/execute`, updates the card from the same mission id, and disappears after Mission Control records provider execution start. This keeps the operator flow visible without requiring a manual HTTP call.
+
 ## State
 
 Traces are stored under:

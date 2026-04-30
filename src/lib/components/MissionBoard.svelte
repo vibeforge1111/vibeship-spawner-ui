@@ -12,6 +12,7 @@
 	import type { Mission } from '$lib/services/mcp-client';
 	import type { PipelineMetadata } from '$lib/stores/pipelines.svelte';
 	import {
+		canRunCreatorMissionBoardCard,
 		getMissionBoardCardActionLinks,
 		mergeMissionBoardCards,
 		type MissionBoardCard as BoardCard
@@ -34,6 +35,7 @@
 		status: string;
 		lastEventType: string;
 		lastUpdated: string;
+		executionStarted?: boolean;
 		queuedAt?: string | null;
 		startedAt?: string | null;
 		lastSummary: string;
@@ -325,10 +327,12 @@
 			id: e.missionId,
 			name,
 			status,
-			mode: 'spark',
+			mode: e.missionId.startsWith('mission-creator-') ? 'creator-mission' : 'spark',
 			source: 'spark',
 			updatedAt: e.lastUpdated ?? null,
 			createdAt: e.lastUpdated ?? null,
+			lastEventType: e.lastEventType,
+			executionStarted: e.executionStarted,
 			queuedAt: e.queuedAt ?? null,
 			startedAt: e.startedAt ?? null,
 			taskCount,
@@ -503,6 +507,58 @@
 		setCurrentMission(m);
 		await startCurrent();
 		await loadMissions({ limit: 200 });
+	}
+
+	let creatorRunMissionId = $state<string | null>(null);
+	let creatorRunMessage = $state<{ missionId: string; tone: 'info' | 'success' | 'error'; text: string } | null>(null);
+
+	function creatorRunMessageClass(tone: 'info' | 'success' | 'error'): string {
+		if (tone === 'success') return 'text-status-success';
+		if (tone === 'error') return 'text-status-error';
+		return 'text-accent-primary';
+	}
+
+	async function handleCreatorRun(card: BoardCard) {
+		if (!canRunCreatorMissionBoardCard(card) || creatorRunMissionId) return;
+		creatorRunMissionId = card.id;
+		creatorRunMessage = { missionId: card.id, tone: 'info', text: 'Starting creator execution...' };
+		try {
+			const r = await fetch('/api/creator/mission/execute', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ missionId: card.id })
+			});
+			const data = await r.json().catch(() => ({}));
+			if (!r.ok || data?.ok === false) {
+				throw new Error(data?.error || `HTTP ${r.status}`);
+			}
+			if (data?.started) {
+				creatorRunMessage = {
+					missionId: card.id,
+					tone: 'success',
+					text: `Execution started${data.providerId ? ` with ${data.providerId}` : ''}.`
+				};
+			} else if (data?.skipped) {
+				creatorRunMessage = {
+					missionId: card.id,
+					tone: 'info',
+					text: data.reason || 'Execution was skipped by the runtime.'
+				};
+			} else if (data?.error) {
+				throw new Error(data.error);
+			} else {
+				creatorRunMessage = { missionId: card.id, tone: 'info', text: 'Execution request accepted.' };
+			}
+			await fetchRelay();
+		} catch (e) {
+			creatorRunMessage = {
+				missionId: card.id,
+				tone: 'error',
+				text: e instanceof Error ? e.message : 'creator execution failed'
+			};
+		} finally {
+			creatorRunMissionId = null;
+		}
 	}
 
 	let quickAddOpen = $state(false);
@@ -838,6 +894,17 @@
 												Result
 											</a>
 										{/if}
+										{#if canRunCreatorMissionBoardCard(c)}
+											<button
+												onclick={() => handleCreatorRun(c)}
+												disabled={creatorRunMissionId === c.id}
+												class="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+												title="Execute this creator mission through the provider runtime"
+											>
+												<Icon name={creatorRunMissionId === c.id ? 'loader' : 'play'} size={10} />
+												{creatorRunMissionId === c.id ? 'Starting' : 'Run'}
+											</button>
+										{/if}
 										{#if c.source === 'mcp' && (c.status === 'ready' || c.status === 'draft')}
 											<button
 												onclick={() => handleStart(c)}
@@ -854,6 +921,11 @@
 											>
 												Delete
 											</button>
+										{/if}
+										{#if creatorRunMessage && creatorRunMessage.missionId === c.id}
+											<p class="basis-full font-mono text-[10px] leading-snug {creatorRunMessageClass(creatorRunMessage.tone)}">
+												{creatorRunMessage.text}
+											</p>
 										{/if}
 									</div>
 								</article>

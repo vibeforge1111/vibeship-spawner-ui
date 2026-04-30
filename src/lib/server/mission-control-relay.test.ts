@@ -149,6 +149,7 @@ describe('mission-control-relay', () => {
 		let board = getMissionControlBoard();
 		const created = board.created.find((candidate) => candidate.missionId === missionId);
 		expect(created?.queuedAt).toBe(queuedAt);
+		expect(created?.executionStarted).toBe(false);
 		expect(created?.lastSummary).toContain('Queued: Spark Queue Visibility entered To do');
 
 		await relayMissionControlEvent({
@@ -164,6 +165,7 @@ describe('mission-control-relay', () => {
 		const running = board.running.find((candidate) => candidate.missionId === missionId);
 		expect(running?.queuedAt).toBe(queuedAt);
 		expect(running?.startedAt).toBe(startedAt);
+		expect(running?.executionStarted).toBe(true);
 		expect(running?.taskStatusCounts).toMatchObject({ queued: 1, running: 0, completed: 0, total: 1 });
 	});
 
@@ -263,6 +265,43 @@ describe('mission-control-relay', () => {
 		board = getMissionControlBoard();
 		entry = board.running.find((candidate) => candidate.missionId === missionId);
 		expect(entry?.taskStatusCounts).toMatchObject({ queued: 1, running: 0, completed: 1, total: 2 });
+	});
+
+	it('keeps creator planning task events separate from provider execution start', async () => {
+		const missionId = `mission-creator-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			missionName: 'Creator Mission: Startup YC',
+			source: 'creator-mission',
+			timestamp: freshIso(),
+			data: {
+				plannedTasks: [
+					{ title: 'Lock Startup YC creator intent and task graph', skills: ['creator-system'] },
+					{ title: 'Build Startup YC benchmark pack', skills: ['benchmark-designer'] }
+				]
+			}
+		});
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			taskName: 'Lock Startup YC creator intent and task graph',
+			source: 'creator-mission',
+			timestamp: freshIso(1_000)
+		});
+		await relayMissionControlEvent({
+			type: 'task_completed',
+			missionId,
+			taskName: 'Lock Startup YC creator intent and task graph',
+			source: 'creator-mission',
+			timestamp: freshIso(2_000)
+		});
+
+		const board = getMissionControlBoard();
+		const entry = board.running.find((candidate) => candidate.missionId === missionId);
+		expect(entry?.executionStarted).toBe(false);
+		expect(entry?.taskStatusCounts).toMatchObject({ queued: 1, completed: 1, total: 2 });
 	});
 
 	it('merges slug task events with planned task titles instead of duplicating board rows', async () => {
@@ -484,26 +523,27 @@ describe('mission-control-relay', () => {
 			type: 'mission_started',
 			missionId,
 			source: 'codex',
-			timestamp: '2026-04-29T15:00:00.000Z'
+			timestamp: freshIso()
 		});
 		await relayMissionControlEvent({
 			type: 'mission_paused',
 			missionId,
 			source: 'mission-control',
-			timestamp: '2026-04-29T15:00:10.000Z'
+			timestamp: freshIso(10_000)
 		});
 		await relayMissionControlEvent({
 			type: 'mission_resumed',
 			missionId,
 			source: 'mission-control',
-			timestamp: '2026-04-29T15:00:20.000Z'
+			timestamp: freshIso(20_000)
 		});
 
 		const board = getMissionControlBoard();
 		expect(board.paused.find((entry) => entry.missionId === missionId)).toBeUndefined();
 		expect(board.running.find((entry) => entry.missionId === missionId)).toMatchObject({
 			status: 'running',
-			lastEventType: 'mission_resumed'
+			lastEventType: 'mission_resumed',
+			executionStarted: true
 		});
 	});
 

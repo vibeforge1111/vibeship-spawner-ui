@@ -24,6 +24,8 @@ export interface MissionBoardCard {
 	source: MissionBoardCardSource;
 	updatedAt: string | null;
 	createdAt: string | null;
+	lastEventType?: string | null;
+	executionStarted?: boolean;
 	queuedAt?: string | null;
 	startedAt?: string | null;
 	taskCount: number;
@@ -87,6 +89,8 @@ function mergeLiveWithStaticCard(live: MissionBoardCard, staticCard: MissionBoar
 		createdAt: live.createdAt || staticCard.createdAt,
 		queuedAt: live.queuedAt ?? staticCard.queuedAt,
 		startedAt: live.startedAt ?? staticCard.startedAt,
+		lastEventType: live.lastEventType ?? staticCard.lastEventType,
+		executionStarted: live.executionStarted ?? staticCard.executionStarted,
 		taskCount: Math.max(live.taskCount || 0, staticCard.taskCount || 0),
 		taskStatusCounts: live.taskStatusCounts ?? staticCard.taskStatusCounts,
 		taskNames: live.taskNames?.length ? live.taskNames : staticCard.taskNames,
@@ -114,4 +118,22 @@ export function mergeMissionBoardCards(
 	}
 
 	return [...byId.values()];
+}
+
+export function isCreatorMissionBoardCard(
+	card: Pick<MissionBoardCard, 'id' | 'mode' | 'name'>
+): boolean {
+	return (
+		card.id.startsWith('mission-creator-') ||
+		card.mode === 'creator-mission' ||
+		card.name.toLowerCase().startsWith('creator mission:')
+	);
+}
+
+export function canRunCreatorMissionBoardCard(
+	card: Pick<MissionBoardCard, 'id' | 'mode' | 'name' | 'status' | 'executionStarted'>
+): boolean {
+	if (!isCreatorMissionBoardCard(card)) return false;
+	if (card.executionStarted) return false;
+	return card.status !== 'completed' && card.status !== 'failed' && card.status !== 'cancelled' && card.status !== 'paused';
 }
