@@ -245,7 +245,7 @@ type CreatorDispatchRunner = (load: CreatorMissionCanvasLoad) => Promise<PrdAuto
 type CreatorValidationCommandRunner = (
 	executable: string,
 	args: string[],
-	options: { cwd: string; timeoutMs: number }
+	options: { cwd: string; timeoutMs: number; shell?: boolean }
 ) => Promise<{ exitCode: number; stdout?: string; stderr?: string }>;
 
 let activeCreatorPlanRunner: CreatorPlanRunner | null = null;
@@ -1035,7 +1035,7 @@ export async function executeCreatorMission(
 	return { trace, load, dispatch };
 }
 
-const VALIDATION_EXECUTABLE_ALLOWLIST = new Set(['python', 'python3', 'py', 'npm', 'npx', 'spark-intelligence']);
+const VALIDATION_EXECUTABLE_ALLOWLIST = new Set(['python', 'python3', 'py', 'npm', 'npx', 'pnpm', 'spark-intelligence']);
 
 function splitCommandLine(command: string): string[] {
 	const parts: string[] = [];
@@ -1071,9 +1071,41 @@ function splitCommandLine(command: string): string[] {
 	return parts;
 }
 
-function tailText(value: unknown, maxLength = 2000): string {
+function tailText(value: unknown, maxLength = 6000): string {
 	const text = String(value ?? '');
 	return text.length > maxLength ? text.slice(text.length - maxLength) : text;
+}
+
+interface ResolvedValidationCommand {
+	executable: string;
+	args: string[];
+	shell?: boolean;
+}
+
+function packageManagerCliPath(executable: string): string | null {
+	const npmExecPath = process.env.npm_execpath;
+	if (!npmExecPath || !existsSync(npmExecPath)) return null;
+	const execName = path.basename(npmExecPath).toLowerCase();
+	const execDir = path.dirname(npmExecPath);
+	if (executable === 'npm' && execName === 'npm-cli.js') return npmExecPath;
+	if (executable === 'npx') {
+		const npxCliPath = path.join(execDir, 'npx-cli.js');
+		return existsSync(npxCliPath) ? npxCliPath : null;
+	}
+	if (executable === 'pnpm' && execName.includes('pnpm')) return npmExecPath;
+	return null;
+}
+
+function resolveValidationCommand(executable: string, args: string[]): ResolvedValidationCommand {
+	if (process.platform !== 'win32') return { executable, args };
+	if (executable === 'npm' || executable === 'npx' || executable === 'pnpm') {
+		const cliPath = packageManagerCliPath(executable);
+		if (cliPath) {
+			return { executable: process.execPath, args: [cliPath, ...args] };
+		}
+		return { executable: `${executable}.cmd`, args, shell: true };
+	}
+	return { executable, args };
 }
 
 function resolveCreatorRepoRoot(repo: string): string {
@@ -1083,13 +1115,14 @@ function resolveCreatorRepoRoot(repo: string): string {
 async function defaultCreatorValidationCommandRunner(
 	executable: string,
 	args: string[],
-	options: { cwd: string; timeoutMs: number }
+	options: { cwd: string; timeoutMs: number; shell?: boolean }
 ): Promise<{ exitCode: number; stdout?: string; stderr?: string }> {
 	try {
 		const { stdout, stderr } = await execFileAsync(executable, args, {
 			cwd: options.cwd,
 			timeout: options.timeoutMs,
 			windowsHide: true,
+			shell: options.shell === true,
 			maxBuffer: 1024 * 1024
 		});
 		return { exitCode: 0, stdout: String(stdout || ''), stderr: String(stderr || '') };
@@ -1158,7 +1191,8 @@ async function runCreatorValidationCommand(
 		};
 	}
 	const runner = options.commandRunner || activeCreatorValidationCommandRunner || defaultCreatorValidationCommandRunner;
-	const result = await runner(executable, args, { cwd, timeoutMs: options.timeoutMs });
+	const resolved = options.commandRunner ? { executable, args } : resolveValidationCommand(executable, args);
+	const result = await runner(resolved.executable, resolved.args, { cwd, timeoutMs: options.timeoutMs, shell: resolved.shell });
 	return {
 		artifact_id: manifest.artifact_id,
 		artifact_type: manifest.artifact_type,

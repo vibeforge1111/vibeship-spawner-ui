@@ -323,4 +323,47 @@ describe('creator mission trace', () => {
 		const saved = JSON.parse(await readFile(creatorMissionPath('mission-creator-validate', stateDir), 'utf-8'));
 		expect(saved.validation_runs).toHaveLength(1);
 	});
+
+	it('runs npm manifest validation commands through the platform executable', async () => {
+		const stateDir = await tempStateDir();
+		await createCreatorMission(
+			{
+				brief: 'Create Startup YC path',
+				missionId: 'mission-creator-validate-npm',
+				requestId: 'req-validate-npm'
+			},
+			{
+				stateDir,
+				runManifestPlanner: async () => ({
+					intent_packet: packet({ target_domain: 'startup-yc' }),
+					artifact_manifests: [
+						{
+							schema_version: 'spark-artifact-manifest.v1',
+							artifact_id: 'startup-yc-node-validation-v1',
+							artifact_type: 'tool_integration',
+							repo: stateDir,
+							inputs: ['creator-intent-startup-yc-test'],
+							outputs: ['package.json'],
+							validation_commands: ['npm --version'],
+							promotion_gates: ['schema_gate', 'rollback_gate'],
+							rollback_plan: 'No generated files to remove.'
+						}
+					],
+					validation_issues: []
+				})
+			}
+		);
+
+		const result = await validateCreatorMission(
+			{ missionId: 'mission-creator-validate-npm' },
+			{ stateDir, timeoutMs: 30_000 }
+		);
+
+		expect(result.run.status).toBe('passed');
+		expect(result.run.results[0]).toMatchObject({
+			status: 'passed',
+			command: 'npm --version'
+		});
+		expect(result.run.results[0].stdout_tail.trim()).toMatch(/^\d+\.\d+\.\d+/);
+	});
 });
