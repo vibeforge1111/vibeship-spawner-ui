@@ -20,6 +20,7 @@ import { startClaudeAutoAnalysis } from '$lib/server/claude-auto-analysis';
 import { classifyBrief, formatBundleForPrompt } from '$lib/server/bundle-classifier';
 import { classifyMissionSize, formatMissionSizeGuidance } from '$lib/server/mission-size-classifier';
 import { formatTaskQualityGuidance } from '$lib/server/task-quality-rubric';
+import { formatVerificationPlanGuidance, generateVerificationPlan } from '$lib/server/verification-plan-generator';
 import { enrichBrief } from '$lib/server/brief-enricher';
 
 function getPrdBridgePaths() {
@@ -436,7 +437,12 @@ async function buildPromptParts(
 	let bundleBlock = '';
 	let missionSizeBlock = '';
 	if (briefBody) {
-		missionSizeBlock = formatMissionSizeGuidance(classifyMissionSize(briefBody));
+		const missionSizeClassification = classifyMissionSize(briefBody);
+		missionSizeBlock = [
+			formatMissionSizeGuidance(missionSizeClassification),
+			'',
+			formatVerificationPlanGuidance(generateVerificationPlan(missionSizeClassification))
+		].join('\n');
 		try {
 			const classification = await classifyBrief(briefBody);
 			if (classification.bestMatch) {
