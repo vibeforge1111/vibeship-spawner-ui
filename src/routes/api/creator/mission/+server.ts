@@ -21,6 +21,7 @@ function isRiskLevel(value: unknown): value is CreatorRiskLevel {
 }
 
 function emitCreatorEvent(type: string, trace: Awaited<ReturnType<typeof createCreatorMission>>, message: string, data: Record<string, unknown> = {}) {
+	const intentTask = trace.tasks.find((task) => task.id === 'creator-intent-plan') || trace.tasks[0];
 	void relayMissionControlEvent({
 		type,
 		missionId: trace.mission_id,
@@ -28,15 +29,20 @@ function emitCreatorEvent(type: string, trace: Awaited<ReturnType<typeof createC
 		source: 'creator-mission',
 		timestamp: new Date().toISOString(),
 		message,
-		taskName: type.startsWith('task_') ? 'Create creator intent packet' : undefined,
+		taskId: type.startsWith('task_') ? intentTask?.id : undefined,
+		taskName: type.startsWith('task_') ? intentTask?.title : undefined,
 		data: {
 			requestId: trace.request_id,
 			creatorMode: trace.creator_mode,
 			targetDomain: trace.intent_packet.target_domain,
 			artifacts: trace.artifacts,
-			plannedTasks: [
-				{ title: 'Create creator intent packet', skills: ['spark-intelligence-builder', 'creator-system'] }
-			],
+			creatorTaskCount: trace.tasks.length,
+			validationGates: trace.validation_gates,
+			plannedTasks: trace.tasks.map((task) => ({
+				title: task.title,
+				skills: task.skills
+			})),
+			canvasUrl: trace.links.canvas,
 			...data
 		}
 	});
@@ -80,12 +86,21 @@ export const POST: RequestHandler = async (event) => {
 			baseUrl: new URL(event.request.url).origin
 		});
 
-		emitCreatorEvent('mission_created', trace, `Creator mission created for ${trace.intent_packet.target_domain}.`);
-		emitCreatorEvent('task_started', trace, 'Creating creator intent packet.');
-		emitCreatorEvent('task_completed', trace, 'Creator intent packet created.', { intentPacket: trace.intent_packet });
-		emitCreatorEvent('mission_completed', trace, `Creator mission planned ${trace.artifacts.length} artifact type(s).`);
+		emitCreatorEvent('mission_created', trace, `Creator mission queued ${trace.tasks.length} task(s) for ${trace.intent_packet.target_domain}.`);
+		emitCreatorEvent('task_started', trace, 'Creating creator intent packet and task graph.');
+		emitCreatorEvent('task_completed', trace, 'Creator intent packet and task graph created.', {
+			intentPacket: trace.intent_packet,
+			taskGraph: trace.tasks
+		});
 
-		return json({ ok: true, missionId: trace.mission_id, requestId: trace.request_id, trace });
+		return json({
+			ok: true,
+			missionId: trace.mission_id,
+			requestId: trace.request_id,
+			taskCount: trace.tasks.length,
+			canvasUrl: trace.links.canvas,
+			trace
+		});
 	} catch (error) {
 		return json(
 			{ ok: false, error: error instanceof Error ? error.message : 'creator mission failed' },
@@ -113,4 +128,3 @@ export const GET: RequestHandler = async (event) => {
 	}
 	return json({ ok: true, trace });
 };
-

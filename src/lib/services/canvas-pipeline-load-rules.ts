@@ -54,7 +54,7 @@ export function shouldAutoApplyLatestLoad(input: AutoApplyLatestLoadInput): bool
 	} = input;
 
 	if (disposed) return false;
-	if (load.source !== 'prd-bridge') return false;
+	if (load.source !== 'prd-bridge' && load.source !== 'creator-mission') return false;
 	if (!(load.autoRun || load.relay?.autoRun)) return false;
 	if (!load.nodes?.length) return false;
 	if (requestedPipelineId && load.pipelineId !== requestedPipelineId) return false;

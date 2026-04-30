@@ -70,6 +70,24 @@ describe('/api/creator/mission', () => {
 		const postBody = await postResponse.json();
 		expect(postBody.trace.creator_mode).toBe('full_path');
 		expect(postBody.trace.intent_packet.target_domain).toBe('startup-yc');
+		expect(postBody.taskCount).toBeGreaterThan(1);
+		expect(postBody.canvasUrl).toBe('http://127.0.0.1/canvas?pipeline=creator-creator-api-req&mission=mission-creator-api');
+		expect(postBody.trace.tasks.map((task: { id: string }) => task.id)).toContain('benchmark-pack');
+
+		const { relayMissionControlEvent } = await import('$lib/server/mission-control-relay');
+		expect(vi.mocked(relayMissionControlEvent)).toHaveBeenCalledTimes(3);
+		const missionCreatedCall = vi.mocked(relayMissionControlEvent).mock.calls[0]?.[0] as {
+			type?: string;
+			data?: { plannedTasks?: Array<{ title: string }> };
+		};
+		const taskCompletedCall = vi.mocked(relayMissionControlEvent).mock.calls[2]?.[0] as {
+			type?: string;
+			data?: { taskGraph?: Array<{ id: string }> };
+		};
+		expect(missionCreatedCall.type).toBe('mission_created');
+		expect(missionCreatedCall.data?.plannedTasks?.length).toBe(postBody.taskCount);
+		expect(taskCompletedCall.type).toBe('task_completed');
+		expect(taskCompletedCall.data?.taskGraph?.map((task) => task.id)).toContain('creator-validation');
 
 		const getResponse = await GET(event('http://127.0.0.1/api/creator/mission?requestId=creator-api-req') as never);
 		expect(getResponse.status).toBe(200);

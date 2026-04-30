@@ -15,6 +15,35 @@ export type CreatorRiskLevel = 'low' | 'medium' | 'high';
 export type CreatorStageStatus = 'queued' | 'running' | 'blocked' | 'validated' | 'failed' | 'published';
 export type CreatorMode = 'domain_chip' | 'specialization_path' | 'benchmark' | 'autoloop' | 'full_path';
 
+export type CreatorValidationGateId =
+	| 'schema_gate'
+	| 'lineage_gate'
+	| 'benchmark_gate'
+	| 'complexity_gate'
+	| 'transfer_gate'
+	| 'memory_hygiene_gate'
+	| 'publish_review_gate';
+
+export interface CreatorValidationGate {
+	id: CreatorValidationGateId;
+	title: string;
+	status: 'pending' | 'pass' | 'warn' | 'fail';
+	blocks_promotion: boolean;
+	description: string;
+}
+
+export interface CreatorMissionTask {
+	id: string;
+	title: string;
+	artifact: string;
+	description: string;
+	skills: string[];
+	dependencies: string[];
+	acceptance_criteria: string[];
+	verification_commands: string[];
+	validation_gates: CreatorValidationGateId[];
+}
+
 export interface CreatorIntentPacket {
 	schema_version: typeof CREATOR_INTENT_SCHEMA_VERSION;
 	user_goal: string;
@@ -46,6 +75,8 @@ export interface CreatorMissionTrace {
 	user_goal: string;
 	repo_root: string | null;
 	artifacts: string[];
+	tasks: CreatorMissionTask[];
+	validation_gates: CreatorValidationGate[];
 	current_stage: string;
 	stage_status: CreatorStageStatus;
 	intent_packet: CreatorIntentPacket;
@@ -91,6 +122,7 @@ interface CreateCreatorMissionOptions extends CreatorPlanOptions {
 	stateDir?: string;
 	now?: () => Date;
 	runPlanner?: (input: CreateCreatorMissionInput) => Promise<CreatorIntentPacket>;
+	queueCanvas?: boolean;
 }
 
 type CreatorPlanRunner = (
@@ -110,6 +142,14 @@ function spawnerStateDir(): string {
 
 function creatorMissionDir(stateDir = spawnerStateDir()): string {
 	return path.join(stateDir, 'creator-missions');
+}
+
+function pendingLoadPath(stateDir = spawnerStateDir()): string {
+	return path.join(stateDir, 'pending-load.json');
+}
+
+function lastCanvasLoadPath(stateDir = spawnerStateDir()): string {
+	return path.join(stateDir, 'last-canvas-load.json');
 }
 
 export function creatorMissionPath(missionId: string, stateDir = spawnerStateDir()): string {
@@ -216,6 +256,349 @@ export function artifactPlanFromIntent(packet: CreatorIntentPacket): string[] {
 	return artifacts;
 }
 
+export function validationGatesForCreatorIntent(packet: CreatorIntentPacket): CreatorValidationGate[] {
+	const gates: CreatorValidationGate[] = [
+		{
+			id: 'schema_gate',
+			title: 'Schema compatibility',
+			status: 'pending',
+			blocks_promotion: true,
+			description: 'Generated packets, manifests, hooks, benchmarks, and Swarm payloads must match their active runtime schemas.'
+		},
+		{
+			id: 'lineage_gate',
+			title: 'Causal lineage',
+			status: 'pending',
+			blocks_promotion: true,
+			description: 'Any recursive improvement rule must name the failure pattern, counterfactual, and evidence that it is not formatting-only gain.'
+		},
+		{
+			id: 'benchmark_gate',
+			title: 'Benchmark evidence',
+			status: 'pending',
+			blocks_promotion: true,
+			description: 'Baseline and held-out cases must exist before a skill, path, or autoloop policy can be called improved.'
+		},
+		{
+			id: 'complexity_gate',
+			title: 'Complexity budget',
+			status: 'pending',
+			blocks_promotion: true,
+			description: 'The implementation must avoid adding branches, fields, or prompt mass unless measured capability improves.'
+		},
+		{
+			id: 'memory_hygiene_gate',
+			title: 'Memory hygiene',
+			status: 'pending',
+			blocks_promotion: true,
+			description: 'Operational residue, logs, and one-off tool chatter must not become long-lived doctrine or Swarm advice.'
+		}
+	];
+
+	if (packet.desired_outputs.specialization_path || packet.desired_outputs.autoloop_policy) {
+		gates.push({
+			id: 'transfer_gate',
+			title: 'Transfer shadow test',
+			status: 'pending',
+			blocks_promotion: false,
+			description: 'Domain logic should include an explicit label map before it is reused by another specialization path.'
+		});
+	}
+
+	if (packet.desired_outputs.swarm_publish_packet || packet.privacy_mode === 'swarm_shared') {
+		gates.push({
+			id: 'publish_review_gate',
+			title: 'GitHub PR publish review',
+			status: 'pending',
+			blocks_promotion: true,
+			description: 'Network-bound contributions must be reviewable through a repo/PR path before Swarm-wide absorption.'
+		});
+	}
+
+	return gates;
+}
+
+function compactDomainLabel(packet: CreatorIntentPacket): string {
+	return packet.target_domain.trim() || 'target domain';
+}
+
+function task(
+	input: Omit<CreatorMissionTask, 'skills' | 'dependencies' | 'acceptance_criteria' | 'verification_commands' | 'validation_gates'> &
+		Partial<Pick<CreatorMissionTask, 'skills' | 'dependencies' | 'acceptance_criteria' | 'verification_commands' | 'validation_gates'>>
+): CreatorMissionTask {
+	return {
+		...input,
+		skills: input.skills || [],
+		dependencies: input.dependencies || [],
+		acceptance_criteria: input.acceptance_criteria || [],
+		verification_commands: input.verification_commands || [],
+		validation_gates: input.validation_gates || []
+	};
+}
+
+export function buildCreatorMissionTasks(packet: CreatorIntentPacket): CreatorMissionTask[] {
+	const domain = compactDomainLabel(packet);
+	const outputs = packet.desired_outputs;
+	const tasks: CreatorMissionTask[] = [
+		task({
+			id: 'creator-intent-plan',
+			title: `Lock ${domain} creator intent and task graph`,
+			artifact: 'intent_packet',
+			description: 'Normalize the user goal into a creator intent packet, artifact plan, privacy mode, risk level, and executable task graph.',
+			skills: ['spark-intelligence-builder', 'creator-system'],
+			acceptance_criteria: [
+				'Intent packet names the target domain, operator surface, desired outputs, privacy mode, and risk level.',
+				'Task graph contains explicit dependencies and validation gates.',
+				'No network publish action is implied by local-only or GitHub-PR modes.'
+			],
+			verification_commands: ['GET /api/creator/mission?missionId=<mission-id>'],
+			validation_gates: ['schema_gate', 'memory_hygiene_gate']
+		})
+	];
+
+	if (outputs.domain_chip) {
+		tasks.push(task({
+			id: 'domain-chip-contract',
+			title: `Create ${domain} domain chip contract`,
+			artifact: 'domain_chip',
+			description: 'Design the chip manifest, routing boundaries, hook inputs/outputs, doctrine packet shape, and focused tests for the domain.',
+			skills: ['domain-chip-creator', 'spark-intelligence-builder'],
+			dependencies: ['creator-intent-plan'],
+			acceptance_criteria: [
+				'Manifest has precise routing keywords and avoids generic keyword hijacking.',
+				'Hook contracts are invokable by the active Spark runtime.',
+				'Tests include positive routing and unrelated fallthrough cases.'
+			],
+			verification_commands: ['npm test or pytest for generated chip router/hook tests'],
+			validation_gates: ['schema_gate', 'memory_hygiene_gate']
+		}));
+	}
+
+	if (outputs.benchmark_pack) {
+		tasks.push(task({
+			id: 'benchmark-pack',
+			title: `Build ${domain} benchmark pack`,
+			artifact: 'benchmark_pack',
+			description: 'Create a baseline plus held-out evaluation set that tests whether the agent makes better domain decisions instead of producing nicer wording.',
+			skills: ['benchmark-designer', 'evaluation-engineer'],
+			dependencies: ['creator-intent-plan'],
+			acceptance_criteria: [
+				'Benchmark contains scenario variety, expected good decisions, and explicit failure modes.',
+				'Scoring separates doctrine accuracy, tool-use quality, evidence quality, and outcome reasoning.',
+				'Held-out cases are not used as mutation prompts.'
+			],
+			verification_commands: ['Run benchmark baseline and record score artifact'],
+			validation_gates: ['benchmark_gate', 'schema_gate']
+		}));
+	}
+
+	if (outputs.specialization_path) {
+		const deps = ['creator-intent-plan'];
+		if (outputs.domain_chip) deps.push('domain-chip-contract');
+		if (outputs.benchmark_pack) deps.push('benchmark-pack');
+		tasks.push(task({
+			id: 'specialization-path',
+			title: `Assemble ${domain} specialization path`,
+			artifact: 'specialization_path',
+			description: 'Turn chip behavior, benchmark cases, operator playbooks, and proof-of-work criteria into a reusable path an agent can enter and climb.',
+			skills: ['specialization-path-architect', 'docs-engineer'],
+			dependencies: deps,
+			acceptance_criteria: [
+				'Path defines novice to mastery stages with evidence required at each step.',
+				'Agent-facing instructions say what to learn, what to avoid, and how to prove improvement.',
+				'The path can be read by Spark without relying on private chat context.'
+			],
+			verification_commands: ['Review generated path docs against benchmark and chip artifacts'],
+			validation_gates: ['schema_gate', 'transfer_gate', 'memory_hygiene_gate']
+		}));
+	}
+
+	if (outputs.autoloop_policy) {
+		const deps = ['creator-intent-plan'];
+		if (outputs.benchmark_pack) deps.push('benchmark-pack');
+		if (outputs.specialization_path) deps.push('specialization-path');
+		tasks.push(task({
+			id: 'autoloop-policy',
+			title: `Define ${domain} benchmark-gated autoloop`,
+			artifact: 'autoloop_policy',
+			description: 'Specify mutation surface, keep/reject rules, rollback rules, round history, and when a discovered pattern may become durable doctrine.',
+			skills: ['recursive-evolution-protocol', 'autoloop-engineer'],
+			dependencies: deps,
+			acceptance_criteria: [
+				'Every keep requires benchmark delta, held-out check, and anti-drift explanation.',
+				'No score-only mutation is promoted without a useful agent-facing lesson.',
+				'Rollback condition and round-history clearing policy are explicit.'
+			],
+			verification_commands: ['Run a short dry-run autoloop against fixture cases'],
+			validation_gates: ['lineage_gate', 'benchmark_gate', 'complexity_gate']
+		}));
+	}
+
+	if (outputs.telegram_flow || outputs.spawner_mission) {
+		const deps = ['creator-intent-plan'];
+		if (outputs.specialization_path) deps.push('specialization-path');
+		tasks.push(task({
+			id: 'telegram-spawner-flow',
+			title: `Wire ${domain} Telegram, Builder, and Spawner flow`,
+			artifact: 'telegram_flow',
+			description: 'Expose the creator path through Telegram and Spawner so a user can request, inspect, pause, and resume work without manual token juggling.',
+			skills: ['telegram-bot', 'spawner-ui', 'spark-intelligence-builder'],
+			dependencies: deps,
+			acceptance_criteria: [
+				'Telegram command creates a creator mission with stable mission and request ids.',
+				'Kanban shows all creator tasks with queued/running/completed states.',
+				'Canvas opens the mission-scoped task graph for inspection.'
+			],
+			verification_commands: ['/creator plan private risk medium <brief>', '/mission status <mission-id>'],
+			validation_gates: ['schema_gate']
+		}));
+	}
+
+	const validationDeps = tasks
+		.map((candidate) => candidate.id)
+		.filter((id) => id !== 'creator-intent-plan');
+	tasks.push(task({
+		id: 'creator-validation',
+		title: `Validate ${domain} creator artifacts`,
+		artifact: 'validation_report',
+		description: 'Run anti-drift checks before treating the generated chip, path, benchmark, or autoloop as intelligence rather than scaffolding.',
+		skills: ['recursive-evolution-protocol', 'test-architect'],
+		dependencies: validationDeps.length > 0 ? validationDeps : ['creator-intent-plan'],
+		acceptance_criteria: [
+			'Schema, lineage, benchmark, complexity, memory hygiene, and publish gates are recorded.',
+			'Benchmark evidence includes baseline, candidate, delta, and held-out verdict where applicable.',
+			'Open blockers are attached to the trace instead of being hidden in prose.'
+		],
+		verification_commands: ['Read creator trace and benchmark artifacts; fail closed when evidence is missing'],
+		validation_gates: validationGatesForCreatorIntent(packet).map((gate) => gate.id)
+	}));
+
+	if (outputs.swarm_publish_packet) {
+		tasks.push(task({
+			id: 'swarm-publish-packet',
+			title: `Prepare ${domain} Swarm publish packet`,
+			artifact: 'swarm_publish_packet',
+			description: packet.privacy_mode === 'swarm_shared'
+				? 'Prepare the reviewed packet that can be published to Spark Swarm after benchmark and safety gates pass.'
+				: 'Prepare a local or GitHub PR review packet without publishing directly to Spark Swarm.',
+			skills: ['spark-swarm', 'github-pr-review'],
+			dependencies: ['creator-validation'],
+			acceptance_criteria: [
+				'Publish packet includes provenance, benchmark evidence, intended consumers, and rollback note.',
+				'GitHub PR or local review mode is respected before network contribution.',
+				'Swarm payload is not marked ready until validation gates pass.'
+			],
+			verification_commands: ['Review Swarm packet JSON/Markdown before publish'],
+			validation_gates: ['publish_review_gate', 'memory_hygiene_gate']
+		}));
+	}
+
+	return tasks;
+}
+
+function buildTaskDescription(taskRecord: CreatorMissionTask): string {
+	const lines = [taskRecord.description];
+	if (taskRecord.dependencies.length > 0) {
+		lines.push('', 'Dependencies:', ...taskRecord.dependencies.map((dependency) => `- ${dependency}`));
+	}
+	if (taskRecord.acceptance_criteria.length > 0) {
+		lines.push('', 'Acceptance criteria:', ...taskRecord.acceptance_criteria.map((criterion) => `- ${criterion}`));
+	}
+	if (taskRecord.validation_gates.length > 0) {
+		lines.push('', 'Validation gates:', ...taskRecord.validation_gates.map((gate) => `- ${gate}`));
+	}
+	if (taskRecord.verification_commands.length > 0) {
+		lines.push('', 'Verification:', ...taskRecord.verification_commands.map((command) => `- ${command}`));
+	}
+	return lines.join('\n');
+}
+
+function taskToCanvasNode(taskRecord: CreatorMissionTask, index: number) {
+	const row = Math.floor(index / 3);
+	const col = index % 3;
+	return {
+		skill: {
+			id: `creator-${taskRecord.id}`,
+			name: `${taskRecord.id}: ${taskRecord.title}`,
+			description: buildTaskDescription(taskRecord),
+			category: 'creator-system',
+			tier: 'free',
+			tags: taskRecord.skills,
+			triggers: ['creator-mission', taskRecord.artifact]
+		},
+		position: { x: 160 + col * 360, y: 140 + row * 240 }
+	};
+}
+
+function taskConnections(tasks: CreatorMissionTask[]): Array<{ sourceIndex: number; targetIndex: number }> {
+	const indexById = new Map<string, number>();
+	tasks.forEach((candidate, index) => indexById.set(candidate.id, index));
+	const connections: Array<{ sourceIndex: number; targetIndex: number }> = [];
+	for (const [targetIndex, candidate] of tasks.entries()) {
+		for (const dependency of candidate.dependencies) {
+			const sourceIndex = indexById.get(dependency);
+			if (sourceIndex !== undefined) {
+				connections.push({ sourceIndex, targetIndex });
+			}
+		}
+	}
+	return connections;
+}
+
+function creatorPipelineId(requestId: string): string {
+	return `creator-${requestId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+}
+
+function creatorCanvasPath(trace: Pick<CreatorMissionTrace, 'request_id' | 'mission_id'>): string {
+	return `/canvas?pipeline=${encodeURIComponent(creatorPipelineId(trace.request_id))}&mission=${encodeURIComponent(trace.mission_id)}`;
+}
+
+function creatorExecutionPrompt(trace: CreatorMissionTrace): string {
+	return [
+		`Creator mission for ${trace.intent_packet.target_domain}.`,
+		'Build the requested Spark creator artifacts as a gated, benchmarkable system.',
+		`User goal: ${trace.user_goal}`,
+		`Creator mode: ${trace.creator_mode}`,
+		`Privacy mode: ${trace.intent_packet.privacy_mode}`,
+		`Risk level: ${trace.intent_packet.risk_level}`,
+		'Promotion rule: do not publish to Spark Swarm until validation gates pass and review mode allows it.'
+	].join('\n');
+}
+
+export function creatorMissionCanvasLoad(trace: CreatorMissionTrace, now = new Date()) {
+	const pipelineId = creatorPipelineId(trace.request_id);
+	return {
+		requestId: trace.request_id,
+		missionId: trace.mission_id,
+		pipelineId,
+		pipelineName: `Creator Mission: ${trace.intent_packet.target_domain}`,
+		nodes: trace.tasks.map(taskToCanvasNode),
+		connections: taskConnections(trace.tasks),
+		source: 'creator-mission',
+		autoRun: false,
+		buildMode: 'advanced_prd',
+		buildModeReason: 'Creator missions require explicit validation gates before execution or Swarm publication.',
+		executionPrompt: creatorExecutionPrompt(trace),
+		relay: {
+			missionId: trace.mission_id,
+			requestId: trace.request_id,
+			goal: trace.user_goal,
+			autoRun: false,
+			buildMode: 'advanced_prd',
+			buildModeReason: 'Creator missions require explicit validation gates before execution or Swarm publication.'
+		},
+		timestamp: now.toISOString()
+	};
+}
+
+export async function queueCreatorMissionCanvasLoad(trace: CreatorMissionTrace, stateDir = spawnerStateDir()): Promise<ReturnType<typeof creatorMissionCanvasLoad>> {
+	const load = creatorMissionCanvasLoad(trace);
+	await mkdir(stateDir, { recursive: true });
+	await writeFile(pendingLoadPath(stateDir), JSON.stringify(load, null, 2), 'utf-8');
+	await writeFile(lastCanvasLoadPath(stateDir), JSON.stringify(load, null, 2), 'utf-8');
+	return load;
+}
+
 export async function createCreatorMission(
 	input: CreateCreatorMissionInput,
 	options: CreateCreatorMissionOptions = {}
@@ -231,6 +614,7 @@ export async function createCreatorMission(
 	const planner = options.runPlanner || activeCreatorPlanRunner || runCreatorPlan;
 	const intentPacket = await planner({ ...input, brief }, options);
 	const baseUrl = input.baseUrl?.replace(/\/+$/, '') || '';
+	const canvasPath = creatorCanvasPath({ request_id: requestId, mission_id: missionId });
 	const trace: CreatorMissionTrace = {
 		schema_version: CREATOR_TRACE_SCHEMA_VERSION,
 		mission_id: missionId,
@@ -239,8 +623,10 @@ export async function createCreatorMission(
 		user_goal: brief,
 		repo_root: null,
 		artifacts: artifactPlanFromIntent(intentPacket),
-		current_stage: 'intent_packet_created',
-		stage_status: 'validated',
+		tasks: buildCreatorMissionTasks(intentPacket),
+		validation_gates: validationGatesForCreatorIntent(intentPacket),
+		current_stage: 'task_graph_created',
+		stage_status: 'queued',
 		intent_packet: intentPacket,
 		benchmark_summary: {
 			baseline_score: null,
@@ -255,7 +641,7 @@ export async function createCreatorMission(
 		},
 		blockers: [],
 		links: {
-			canvas: '',
+			canvas: baseUrl ? `${baseUrl}${canvasPath}` : canvasPath,
 			kanban: baseUrl ? `${baseUrl}/kanban?mission=${encodeURIComponent(missionId)}` : '',
 			repo: '',
 			pull_request: ''
@@ -263,6 +649,9 @@ export async function createCreatorMission(
 		created_at: createdAt,
 		updated_at: createdAt
 	};
+	if (options.queueCanvas !== false) {
+		await queueCreatorMissionCanvasLoad(trace, options.stateDir);
+	}
 	await saveCreatorMissionTrace(trace, options.stateDir);
 	return trace;
 }

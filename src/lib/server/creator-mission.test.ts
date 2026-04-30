@@ -72,15 +72,40 @@ describe('creator mission trace', () => {
 			mission_id: 'mission-creator-test',
 			request_id: 'creator-request-test',
 			creator_mode: 'full_path',
-			current_stage: 'intent_packet_created',
-			stage_status: 'validated',
+			current_stage: 'task_graph_created',
+			stage_status: 'queued',
 			artifacts: ['domain_chip', 'benchmark_pack', 'specialization_path', 'autoloop_policy', 'telegram_flow', 'swarm_publish_packet'],
 			swarm: { payload_ready: false, api_ready: false, publish_mode: 'swarm_shared' }
 		});
+		expect(trace.tasks.map((task) => task.id)).toEqual([
+			'creator-intent-plan',
+			'domain-chip-contract',
+			'benchmark-pack',
+			'specialization-path',
+			'autoloop-policy',
+			'telegram-spawner-flow',
+			'creator-validation',
+			'swarm-publish-packet'
+		]);
+		expect(trace.validation_gates.map((gate) => gate.id)).toContain('publish_review_gate');
+		expect(trace.links.canvas).toBe('http://127.0.0.1:4174/canvas?pipeline=creator-creator-request-test&mission=mission-creator-test');
 		expect(trace.links.kanban).toBe('http://127.0.0.1:4174/kanban?mission=mission-creator-test');
 
 		const saved = JSON.parse(await readFile(creatorMissionPath('mission-creator-test', stateDir), 'utf-8'));
 		expect(saved.intent_packet.target_domain).toBe('startup-yc');
+		expect(saved.tasks).toHaveLength(8);
+
+		const queuedCanvas = JSON.parse(await readFile(path.join(stateDir, 'pending-load.json'), 'utf-8'));
+		expect(queuedCanvas).toMatchObject({
+			requestId: 'creator-request-test',
+			missionId: 'mission-creator-test',
+			pipelineId: 'creator-creator-request-test',
+			source: 'creator-mission',
+			autoRun: false,
+			buildMode: 'advanced_prd'
+		});
+		expect(queuedCanvas.nodes).toHaveLength(8);
+		expect(queuedCanvas.connections.length).toBeGreaterThan(0);
 	});
 
 	it('can look up a trace by request id', async () => {
@@ -95,4 +120,3 @@ describe('creator mission trace', () => {
 		expect(trace?.intent_packet.target_domain).toBe('investor-diligence');
 	});
 });
-
