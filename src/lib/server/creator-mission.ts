@@ -10,6 +10,7 @@ const execFileAsync = promisify(execFile);
 
 export const CREATOR_TRACE_SCHEMA_VERSION = 'spark-creator-trace.v1';
 export const CREATOR_INTENT_SCHEMA_VERSION = 'spark-creator-intent.v1';
+export const ARTIFACT_MANIFEST_SCHEMA_VERSION = 'spark-artifact-manifest.v1';
 
 export type CreatorPrivacyMode = 'local_only' | 'github_pr' | 'swarm_shared';
 export type CreatorRiskLevel = 'low' | 'medium' | 'high';
@@ -23,6 +24,14 @@ export type CreatorPublishReadiness =
 	| 'reviewed_candidate'
 	| 'network_absorbable'
 	| 'canonical';
+export type CreatorArtifactType =
+	| 'domain_chip'
+	| 'benchmark_pack'
+	| 'specialization_path'
+	| 'autoloop_policy'
+	| 'tool_integration'
+	| 'swarm_publish_packet'
+	| 'creator_report';
 
 export type CreatorValidationGateId =
 	| 'schema_gate'
@@ -83,6 +92,30 @@ export interface CreatorIntentPacket {
 	network_contribution_policy?: 'workspace_only' | 'github_pr_required' | 'manual_review_required';
 }
 
+export interface CreatorValidationIssue {
+	path: string;
+	message: string;
+	severity: 'error' | 'warning' | string;
+}
+
+export interface CreatorArtifactManifest {
+	schema_version: typeof ARTIFACT_MANIFEST_SCHEMA_VERSION;
+	artifact_id: string;
+	artifact_type: CreatorArtifactType;
+	repo: string;
+	inputs: string[];
+	outputs: string[];
+	validation_commands: string[];
+	promotion_gates: string[];
+	rollback_plan: string;
+}
+
+export interface CreatorArtifactBundle {
+	intent_packet: CreatorIntentPacket;
+	artifact_manifests: CreatorArtifactManifest[];
+	validation_issues: CreatorValidationIssue[];
+}
+
 export interface CreatorMissionTrace {
 	schema_version: typeof CREATOR_TRACE_SCHEMA_VERSION;
 	trace_id: string;
@@ -93,6 +126,8 @@ export interface CreatorMissionTrace {
 	user_goal: string;
 	repo_root: string | null;
 	artifacts: string[];
+	artifact_manifests: CreatorArtifactManifest[];
+	artifact_manifest_validation_issues: CreatorValidationIssue[];
 	repo_changes: string[];
 	benchmarks: string[];
 	publish_readiness: CreatorPublishReadiness;
@@ -143,6 +178,7 @@ interface CreateCreatorMissionOptions extends CreatorPlanOptions {
 	stateDir?: string;
 	now?: () => Date;
 	runPlanner?: (input: CreateCreatorMissionInput) => Promise<CreatorIntentPacket>;
+	runManifestPlanner?: (input: CreateCreatorMissionInput) => Promise<CreatorArtifactBundle>;
 	queueCanvas?: boolean;
 }
 
@@ -161,15 +197,24 @@ type CreatorPlanRunner = (
 	input: CreateCreatorMissionInput,
 	options?: CreatorPlanOptions
 ) => Promise<CreatorIntentPacket>;
+type CreatorManifestRunner = (
+	input: CreateCreatorMissionInput,
+	options?: CreatorPlanOptions
+) => Promise<CreatorArtifactBundle>;
 
 type CreatorMissionCanvasLoad = ReturnType<typeof creatorMissionCanvasLoad>;
 type CreatorDispatchRunner = (load: CreatorMissionCanvasLoad) => Promise<PrdAutoDispatchResult>;
 
 let activeCreatorPlanRunner: CreatorPlanRunner | null = null;
+let activeCreatorManifestRunner: CreatorManifestRunner | null = null;
 let activeCreatorDispatchRunner: CreatorDispatchRunner | null = null;
 
 export function setCreatorPlanRunnerForTests(runner: CreatorPlanRunner | null): void {
 	activeCreatorPlanRunner = runner;
+}
+
+export function setCreatorManifestRunnerForTests(runner: CreatorManifestRunner | null): void {
+	activeCreatorManifestRunner = runner;
 }
 
 export function setCreatorDispatchRunnerForTests(runner: CreatorDispatchRunner | null): void {
@@ -236,6 +281,25 @@ function buildPlannerArgs(input: CreateCreatorMissionInput): string[] {
 	return args;
 }
 
+function buildManifestPlannerArgs(input: CreateCreatorMissionInput): string[] {
+	const args = [
+		'-m',
+		'spark_intelligence.cli',
+		'creator',
+		'manifests',
+		'--brief',
+		input.brief,
+		'--json'
+	];
+	if (input.privacyMode) {
+		args.push('--privacy-mode', input.privacyMode);
+	}
+	if (input.riskLevel) {
+		args.push('--risk-level', input.riskLevel);
+	}
+	return args;
+}
+
 function withBuilderPythonPath(baseEnv: NodeJS.ProcessEnv, builderRepo: string): NodeJS.ProcessEnv {
 	const srcPath = path.join(builderRepo, 'src');
 	const delimiter = path.delimiter;
@@ -261,6 +325,44 @@ function validateCreatorIntentPacket(value: unknown): CreatorIntentPacket {
 	return packet;
 }
 
+function validateCreatorArtifactBundle(value: unknown): CreatorArtifactBundle {
+	if (!value || typeof value !== 'object') {
+		throw new Error('creator manifests returned non-object JSON');
+	}
+	const record = value as Partial<CreatorArtifactBundle>;
+	const intentPacket = validateCreatorIntentPacket(record.intent_packet);
+	const manifests = Array.isArray(record.artifact_manifests) ? record.artifact_manifests : [];
+	if (manifests.length === 0) {
+		throw new Error('creator manifests returned no artifact manifests');
+	}
+	for (const manifest of manifests) {
+		validateCreatorArtifactManifest(manifest);
+	}
+	const validationIssues = Array.isArray(record.validation_issues) ? record.validation_issues : [];
+	return {
+		intent_packet: intentPacket,
+		artifact_manifests: manifests,
+		validation_issues: validationIssues
+	};
+}
+
+function validateCreatorArtifactManifest(value: unknown): CreatorArtifactManifest {
+	if (!value || typeof value !== 'object') {
+		throw new Error('creator manifests returned a non-object artifact manifest');
+	}
+	const manifest = value as CreatorArtifactManifest;
+	if (manifest.schema_version !== ARTIFACT_MANIFEST_SCHEMA_VERSION) {
+		throw new Error(`creator manifests returned unexpected artifact schema: ${String((value as Record<string, unknown>).schema_version)}`);
+	}
+	if (!manifest.artifact_id || !manifest.artifact_type || !manifest.repo) {
+		throw new Error('creator manifests returned incomplete artifact manifest');
+	}
+	if (!Array.isArray(manifest.outputs) || !Array.isArray(manifest.validation_commands) || !Array.isArray(manifest.promotion_gates)) {
+		throw new Error('creator manifests returned malformed artifact arrays');
+	}
+	return manifest;
+}
+
 export async function runCreatorPlan(
 	input: CreateCreatorMissionInput,
 	options: CreatorPlanOptions = {}
@@ -279,6 +381,26 @@ export async function runCreatorPlan(
 		maxBuffer: 1024 * 1024
 	});
 	return validateCreatorIntentPacket(JSON.parse(stdout));
+}
+
+export async function runCreatorArtifactBundle(
+	input: CreateCreatorMissionInput,
+	options: CreatorPlanOptions = {}
+): Promise<CreatorArtifactBundle> {
+	const envRecord = options.envRecord || env;
+	const builderRepo = path.resolve(options.builderRepo || defaultBuilderRepo(envRecord));
+	if (!existsSync(builderRepo)) {
+		throw new Error(`Builder repo not found: ${builderRepo}`);
+	}
+	const pythonCommand = options.pythonCommand || defaultPythonCommand(envRecord);
+	const { stdout } = await execFileAsync(pythonCommand, buildManifestPlannerArgs(input), {
+		cwd: builderRepo,
+		env: withBuilderPythonPath(process.env, builderRepo),
+		timeout: options.timeoutMs ?? 30_000,
+		windowsHide: true,
+		maxBuffer: 1024 * 1024
+	});
+	return validateCreatorArtifactBundle(JSON.parse(stdout));
 }
 
 export function creatorModeFromIntent(packet: CreatorIntentPacket): CreatorMode {
@@ -622,8 +744,45 @@ function creatorExecutionPrompt(trace: CreatorMissionTrace): string {
 		`Creator mode: ${trace.creator_mode}`,
 		`Privacy mode: ${trace.intent_packet.privacy_mode}`,
 		`Risk level: ${trace.intent_packet.risk_level}`,
+		`Artifact manifests: ${trace.artifact_manifests.map((manifest) => `${manifest.artifact_type}:${manifest.repo}`).join(', ') || 'none'}`,
 		'Promotion rule: do not publish to Spark Swarm until validation gates pass and review mode allows it.'
 	].join('\n');
+}
+
+function fallbackArtifactManifestsFromIntent(packet: CreatorIntentPacket): CreatorArtifactManifest[] {
+	const domain = packet.target_domain || 'custom-domain';
+	const intentId = packet.intent_id || `creator-intent-${domain}`;
+	return artifactPlanFromIntent(packet).map((artifact) => ({
+		schema_version: ARTIFACT_MANIFEST_SCHEMA_VERSION,
+		artifact_id: `${domain}-${artifact.replace(/_/g, '-')}-v1`,
+		artifact_type: artifact as CreatorArtifactType,
+		repo: artifact === 'swarm_publish_packet' ? 'spark-swarm' : domain,
+		inputs: [intentId],
+		outputs: [`scaffolds/${artifact}.json`],
+		validation_commands: ['manual validation required'],
+		promotion_gates: ['schema_gate', 'rollback_gate'],
+		rollback_plan: 'Revert generated scaffold artifacts and remove local creator trace references.'
+	}));
+}
+
+async function resolveCreatorArtifactBundle(
+	input: CreateCreatorMissionInput,
+	options: CreateCreatorMissionOptions
+): Promise<CreatorArtifactBundle> {
+	const manifestRunner = options.runManifestPlanner || activeCreatorManifestRunner;
+	if (manifestRunner) {
+		return manifestRunner(input, options);
+	}
+	if (options.runPlanner || activeCreatorPlanRunner) {
+		const planner = options.runPlanner || activeCreatorPlanRunner || runCreatorPlan;
+		const intentPacket = await planner(input, options);
+		return {
+			intent_packet: intentPacket,
+			artifact_manifests: fallbackArtifactManifestsFromIntent(intentPacket),
+			validation_issues: []
+		};
+	}
+	return runCreatorArtifactBundle(input, options);
 }
 
 export function creatorMissionCanvasLoad(trace: CreatorMissionTrace, now = new Date()) {
@@ -676,8 +835,8 @@ export async function createCreatorMission(
 	const createdAt = now.toISOString();
 	const missionId = input.missionId?.trim() || `mission-creator-${Date.now()}`;
 	const requestId = input.requestId?.trim() || missionId;
-	const planner = options.runPlanner || activeCreatorPlanRunner || runCreatorPlan;
-	const intentPacket = await planner({ ...input, brief }, options);
+	const bundle = await resolveCreatorArtifactBundle({ ...input, brief }, options);
+	const intentPacket = bundle.intent_packet;
 	const baseUrl = input.baseUrl?.replace(/\/+$/, '') || '';
 	const canvasPath = creatorCanvasPath({ request_id: requestId, mission_id: missionId });
 	const trace: CreatorMissionTrace = {
@@ -690,6 +849,8 @@ export async function createCreatorMission(
 		user_goal: brief,
 		repo_root: null,
 		artifacts: artifactPlanFromIntent(intentPacket),
+		artifact_manifests: bundle.artifact_manifests,
+		artifact_manifest_validation_issues: bundle.validation_issues,
 		repo_changes: [],
 		benchmarks: [],
 		publish_readiness: 'private_draft',

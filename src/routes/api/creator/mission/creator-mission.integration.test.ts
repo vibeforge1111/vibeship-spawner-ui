@@ -87,6 +87,7 @@ describe('/api/creator/mission', () => {
 		expect(postBody.trace.trace_id).toBe('creator-trace-mission-creator-api');
 		expect(postBody.trace.intent_id).toBe('creator-intent-startup-yc-route');
 		expect(postBody.tracePath).toContain('mission-creator-api.json');
+		expect(postBody.trace.artifact_manifests[0].artifact_type).toBe('domain_chip');
 		expect(postBody.trace.intent_packet.target_domain).toBe('startup-yc');
 		expect(postBody.taskCount).toBeGreaterThan(1);
 		expect(postBody.canvasUrl).toBe('http://127.0.0.1/canvas?pipeline=creator-creator-api-req&mission=mission-creator-api');

@@ -7,6 +7,10 @@ import {
 	creatorMissionPath,
 	executeCreatorMission,
 	readCreatorMissionTrace,
+	setCreatorManifestRunnerForTests,
+	type CreatorArtifactBundle,
+	type CreatorArtifactManifest,
+	type CreatorArtifactType,
 	type CreatorIntentPacket
 } from './creator-mission';
 
@@ -53,6 +57,31 @@ function packet(overrides: Partial<CreatorIntentPacket> = {}): CreatorIntentPack
 	};
 }
 
+function manifest(artifactType: CreatorArtifactType, repo: string): CreatorArtifactManifest {
+	return {
+		schema_version: 'spark-artifact-manifest.v1' as const,
+		artifact_id: `startup-yc-${artifactType.replace(/_/g, '-')}-v1`,
+		artifact_type: artifactType,
+		repo,
+		inputs: ['creator-intent-startup-yc-test'],
+		outputs: [`${artifactType}.json`],
+		validation_commands: ['python -m pytest tests'],
+		promotion_gates: ['schema_gate', 'rollback_gate'],
+		rollback_plan: `Revert ${artifactType}.`
+	};
+}
+
+function bundle(overrides: Partial<CreatorIntentPacket> = {}): CreatorArtifactBundle {
+	return {
+		intent_packet: packet(overrides),
+		artifact_manifests: [
+			manifest('domain_chip', 'domain-chip-startup-yc'),
+			manifest('benchmark_pack', 'startup-bench')
+		],
+		validation_issues: []
+	};
+}
+
 async function tempStateDir(): Promise<string> {
 	const dir = await mkdtemp(path.join(os.tmpdir(), 'spawner-creator-mission-'));
 	tempDirs.push(dir);
@@ -61,6 +90,7 @@ async function tempStateDir(): Promise<string> {
 
 afterEach(async () => {
 	const { setCreatorDispatchRunnerForTests } = await import('./creator-mission');
+	setCreatorManifestRunnerForTests(null);
 	setCreatorDispatchRunnerForTests(null);
 	for (const dir of tempDirs) {
 		await rm(dir, { recursive: true, force: true });
@@ -81,7 +111,7 @@ describe('creator mission trace', () => {
 			{
 				stateDir,
 				now: () => new Date('2026-04-30T10:00:00.000Z'),
-				runPlanner: async () => packet()
+				runManifestPlanner: async () => bundle()
 			}
 		);
 
@@ -95,6 +125,19 @@ describe('creator mission trace', () => {
 			current_stage: 'task_graph_created',
 			stage_status: 'queued',
 			artifacts: ['domain_chip', 'benchmark_pack', 'specialization_path', 'autoloop_policy', 'tool_integration', 'swarm_publish_packet'],
+			artifact_manifests: [
+				expect.objectContaining({
+					artifact_id: 'startup-yc-domain-chip-v1',
+					artifact_type: 'domain_chip',
+					repo: 'domain-chip-startup-yc'
+				}),
+				expect.objectContaining({
+					artifact_id: 'startup-yc-benchmark-pack-v1',
+					artifact_type: 'benchmark_pack',
+					repo: 'startup-bench'
+				})
+			],
+			artifact_manifest_validation_issues: [],
 			repo_changes: [],
 			benchmarks: [],
 			publish_readiness: 'private_draft',
@@ -116,6 +159,7 @@ describe('creator mission trace', () => {
 
 		const saved = JSON.parse(await readFile(creatorMissionPath('mission-creator-test', stateDir), 'utf-8'));
 		expect(saved.intent_packet.target_domain).toBe('startup-yc');
+		expect(saved.artifact_manifests.map((manifest: { artifact_id: string }) => manifest.artifact_id)).toContain('startup-yc-domain-chip-v1');
 		expect(saved.tasks).toHaveLength(8);
 
 		const queuedCanvas = JSON.parse(await readFile(path.join(stateDir, 'pending-load.json'), 'utf-8'));
@@ -135,7 +179,7 @@ describe('creator mission trace', () => {
 		const stateDir = await tempStateDir();
 		await createCreatorMission(
 			{ brief: 'Make Spark good at investor diligence', missionId: 'mission-creator-lookup', requestId: 'req-lookup' },
-			{ stateDir, runPlanner: async () => packet({ target_domain: 'investor-diligence' }) }
+			{ stateDir, runManifestPlanner: async () => bundle({ target_domain: 'investor-diligence' }) }
 		);
 
 		const trace = await readCreatorMissionTrace({ requestId: 'req-lookup' }, stateDir);
@@ -153,7 +197,7 @@ describe('creator mission trace', () => {
 			},
 			{
 				stateDir,
-				runPlanner: async () => packet({ target_domain: 'startup-yc' })
+				runManifestPlanner: async () => bundle({ target_domain: 'startup-yc' })
 			}
 		);
 
@@ -179,6 +223,7 @@ describe('creator mission trace', () => {
 		expect(capturedLoad.autoRun).toBe(true);
 		expect(capturedLoad.relay.autoRun).toBe(true);
 		expect(capturedLoad.executionPrompt).toContain('Target operating-system folder:');
+		expect(capturedLoad.executionPrompt).toContain('Artifact manifests: domain_chip:domain-chip-startup-yc');
 		expect(result.trace.current_stage).toBe('execution_started');
 		expect(result.trace.stage_status).toBe('running');
 
@@ -189,5 +234,38 @@ describe('creator mission trace', () => {
 		const queuedCanvas = JSON.parse(await readFile(path.join(stateDir, 'last-canvas-load.json'), 'utf-8'));
 		expect(queuedCanvas.autoRun).toBe(true);
 		expect(queuedCanvas.relay.autoRun).toBe(true);
+	});
+
+	it('can use Builder creator manifests as the planning source', async () => {
+		const stateDir = await tempStateDir();
+		setCreatorManifestRunnerForTests(async () => ({
+			intent_packet: packet({ target_domain: 'startup-yc' }),
+			artifact_manifests: [
+				{
+					schema_version: 'spark-artifact-manifest.v1',
+					artifact_id: 'startup-yc-specialization-path-v1',
+					artifact_type: 'specialization_path',
+					repo: 'specialization-path-startup-yc',
+					inputs: ['creator-intent-startup-yc-test'],
+					outputs: ['specialization-path.json'],
+					validation_commands: ['python -m pytest tests'],
+					promotion_gates: ['schema_gate', 'rollback_gate'],
+					rollback_plan: 'Revert the specialization path commit.'
+				}
+			],
+			validation_issues: []
+		}));
+
+		const trace = await createCreatorMission(
+			{
+				brief: 'Create Startup YC path',
+				missionId: 'mission-creator-manifests',
+				requestId: 'req-manifests'
+			},
+			{ stateDir }
+		);
+
+		expect(trace.artifact_manifests).toHaveLength(1);
+		expect(trace.artifact_manifests[0].repo).toBe('specialization-path-startup-yc');
 	});
 });

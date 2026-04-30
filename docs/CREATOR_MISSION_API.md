@@ -36,6 +36,17 @@ Response:
     "creator_mode": "full_path",
     "stage_status": "queued",
     "publish_readiness": "private_draft",
+    "artifact_manifests": [
+      {
+        "schema_version": "spark-artifact-manifest.v1",
+        "artifact_id": "startup-yc-benchmark-pack-v1",
+        "artifact_type": "benchmark_pack",
+        "repo": "startup-bench",
+        "validation_commands": ["python -m thestartupbench run-suite ..."],
+        "promotion_gates": ["schema_gate", "benchmark_gate", "risk_gate", "rollback_gate"]
+      }
+    ],
+    "artifact_manifest_validation_issues": [],
     "intent_packet": {
       "schema_version": "spark-creator-intent.v1"
     },
