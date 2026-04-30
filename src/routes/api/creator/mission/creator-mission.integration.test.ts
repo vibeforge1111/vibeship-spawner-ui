@@ -1,0 +1,86 @@
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { GET, POST } from './+server';
+
+vi.mock('$lib/server/mission-control-relay', () => ({
+	relayMissionControlEvent: vi.fn(async () => undefined)
+}));
+
+function event(url: string, body?: unknown) {
+	return {
+		request: new Request(url, body === undefined ? undefined : {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify(body)
+		}),
+		url: new URL(url),
+		getClientAddress: () => '127.0.0.1'
+	};
+}
+
+let tempDir = '';
+
+beforeEach(async () => {
+	tempDir = await mkdtemp(path.join(os.tmpdir(), 'spawner-creator-route-'));
+	process.env.SPAWNER_STATE_DIR = tempDir;
+});
+
+afterEach(async () => {
+	delete process.env.SPAWNER_STATE_DIR;
+	const { setCreatorPlanRunnerForTests } = await import('$lib/server/creator-mission');
+	setCreatorPlanRunnerForTests(null);
+	await rm(tempDir, { recursive: true, force: true });
+	vi.restoreAllMocks();
+});
+
+describe('/api/creator/mission', () => {
+	it('creates and reads a creator mission trace', async () => {
+		const { setCreatorPlanRunnerForTests } = await import('$lib/server/creator-mission');
+		setCreatorPlanRunnerForTests(async () => ({
+			schema_version: 'spark-creator-intent.v1',
+			user_goal: 'Create Startup YC path',
+			target_domain: 'startup-yc',
+			target_operator_surface: 'telegram+builder+swarm',
+			expected_agent_capability: 'Improve Spark startup-yc capability.',
+			success_examples: ['Held-out score improves.'],
+			failure_examples: ['Formatting-only score movement.'],
+			tools_in_scope: ['spark_telegram_bot', 'spark_swarm'],
+			data_sources_allowed: ['local_repo', 'spark_swarm'],
+			risk_level: 'medium',
+			privacy_mode: 'swarm_shared',
+			desired_outputs: {
+				domain_chip: true,
+				specialization_path: true,
+				benchmark_pack: true,
+				autoloop_policy: true,
+				telegram_flow: true,
+				spawner_mission: false,
+				swarm_publish_packet: true
+			}
+		}));
+
+		const postResponse = await POST(event('http://127.0.0.1/api/creator/mission', {
+			brief: 'Create Startup YC path',
+			missionId: 'mission-creator-api',
+			requestId: 'creator-api-req'
+		}) as never);
+		expect(postResponse.status).toBe(200);
+		const postBody = await postResponse.json();
+		expect(postBody.trace.creator_mode).toBe('full_path');
+		expect(postBody.trace.intent_packet.target_domain).toBe('startup-yc');
+
+		const getResponse = await GET(event('http://127.0.0.1/api/creator/mission?requestId=creator-api-req') as never);
+		expect(getResponse.status).toBe(200);
+		const getBody = await getResponse.json();
+		expect(getBody.trace.mission_id).toBe('mission-creator-api');
+	});
+
+	it('rejects missing briefs', async () => {
+		const response = await POST(event('http://127.0.0.1/api/creator/mission', {}) as never);
+		expect(response.status).toBe(400);
+		const body = await response.json();
+		expect(body.error).toBe('brief is required');
+	});
+});
