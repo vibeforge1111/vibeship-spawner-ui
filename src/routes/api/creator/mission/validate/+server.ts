@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { validateCreatorMission } from '$lib/server/creator-mission';
+import { readCreatorMissionTrace, validateCreatorMission } from '$lib/server/creator-mission';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 
@@ -35,29 +35,34 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		const validationStartedAt = new Date().toISOString();
+		const pendingTrace = await readCreatorMissionTrace({ missionId, requestId });
+		if (pendingTrace) {
+			const pendingValidationTask = pendingTrace.tasks.find((task) => task.id === 'creator-validation') || pendingTrace.tasks[0];
+			void relayMissionControlEvent({
+				type: 'task_started',
+				missionId: pendingTrace.mission_id,
+				missionName: `Creator Mission: ${pendingTrace.intent_packet.target_domain}`,
+				source: 'creator-mission',
+				timestamp: validationStartedAt,
+				taskId: pendingValidationTask?.id || 'creator-validation',
+				taskName: pendingValidationTask?.title || 'Run creator validation gates',
+				message: 'Running creator validation gates.',
+				data: {
+					requestId: pendingTrace.request_id,
+					creatorMode: pendingTrace.creator_mode,
+					targetDomain: pendingTrace.intent_packet.target_domain,
+					validationStatus: 'running',
+					suppressExternalRelay: true
+				}
+			});
+		}
+
 		const result = await validateCreatorMission({
 			missionId,
 			requestId,
 			maxCommands: typeof body.maxCommands === 'number' ? body.maxCommands : undefined
 		});
 		const validationTask = result.trace.tasks.find((task) => task.id === 'creator-validation') || result.trace.tasks[0];
-		void relayMissionControlEvent({
-			type: 'task_started',
-			missionId: result.trace.mission_id,
-			missionName: `Creator Mission: ${result.trace.intent_packet.target_domain}`,
-			source: 'creator-mission',
-			timestamp: validationStartedAt,
-			taskId: validationTask?.id || 'creator-validation',
-			taskName: validationTask?.title || 'Run creator validation gates',
-			message: 'Running creator validation gates.',
-			data: {
-				requestId: result.trace.request_id,
-				creatorMode: result.trace.creator_mode,
-				targetDomain: result.trace.intent_packet.target_domain,
-				validationStatus: 'running',
-				suppressExternalRelay: true
-			}
-		});
 		void relayMissionControlEvent({
 			type: result.run.status === 'passed' ? 'task_completed' : 'task_failed',
 			missionId: result.trace.mission_id,
