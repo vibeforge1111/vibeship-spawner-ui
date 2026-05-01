@@ -57,9 +57,33 @@
 		} | null;
 	};
 
+	type MissionTraceSnapshot = {
+		progress: {
+			percent: number;
+			taskCounts: {
+				queued: number;
+				running: number;
+				completed: number;
+				failed: number;
+				cancelled: number;
+				total: number;
+			} | null;
+			currentTask: string | null;
+		};
+		surfaces: {
+			kanban: {
+				entry: {
+					taskCount: number;
+					tasks: Array<{ title: string; status?: string; skills: string[] }>;
+				} | null;
+			};
+		};
+	};
+
 	let missionControlLoading = $state(false);
 	let missionControlError = $state<string | null>(null);
 	let missionControl = $state<MissionControlSnapshot | null>(null);
+	let missionTrace = $state<MissionTraceSnapshot | null>(null);
 	let missionControlPoller: ReturnType<typeof setInterval> | null = null;
 	let missionControlActionLoading = $state(false);
 	let missionControlActionMessage = $state<string | null>(null);
@@ -88,6 +112,8 @@
 			}
 			const body = await response.json();
 			missionControl = (body?.snapshot || null) as MissionControlSnapshot | null;
+			const traceResponse = await fetch(`/api/mission-control/trace?missionId=${encodeURIComponent(missionId)}`);
+			missionTrace = traceResponse.ok ? ((await traceResponse.json()) as MissionTraceSnapshot) : null;
 		} catch (error) {
 			missionControlError = error instanceof Error ? error.message : 'Unable to load mission control status';
 		} finally {
@@ -252,7 +278,19 @@
 		missionControl ? buildSparkMissionDetail(missionId, missionControl.recent) : null
 	);
 	const sparkProjectLineage = $derived(missionControl?.projectLineage ?? sparkMissionDetail?.projectLineage ?? null);
+	const traceTasks = $derived(missionTrace?.surfaces.kanban.entry?.tasks ?? []);
 	const sparkTaskCounts = $derived(() => {
+		const traceCounts = missionTrace?.progress.taskCounts;
+		if (traceCounts) {
+			return {
+				total: traceCounts.total,
+				completed: traceCounts.completed,
+				running: traceCounts.running,
+				failed: traceCounts.failed,
+				cancelled: traceCounts.cancelled,
+				pending: traceCounts.queued
+			};
+		}
 		const tasks = sparkMissionDetail?.taskRollups ?? [];
 		return {
 			total: tasks.length,
@@ -264,12 +302,17 @@
 		};
 	});
 	const sparkProgressPercent = $derived(() => {
+		if (missionTrace) return missionTrace.progress.percent;
 		const counts = sparkTaskCounts();
 		if (counts.total === 0) return sparkMissionDetail?.sparkStatus === 'completed' ? 100 : 0;
 		return Math.round(((counts.completed + counts.failed + counts.cancelled) / counts.total) * 100);
 	});
 	const sparkCurrentTask = $derived(
-		sparkMissionDetail?.taskRollups.find((task) => task.status === 'running') ||
+		sparkProgressPercent() >= 100
+			? null
+			: missionTrace?.progress.currentTask
+				? { title: missionTrace.progress.currentTask }
+				: sparkMissionDetail?.taskRollups.find((task) => task.status === 'running') ||
 			sparkMissionDetail?.taskRollups.find((task) => task.status === 'pending') ||
 			sparkMissionDetail?.taskRollups.at(-1) ||
 			null
@@ -327,7 +370,7 @@
 					<span class="px-2 py-0.5 text-[10px] font-mono rounded-sm border {getStatusBadge(sparkMissionDetail.sparkStatus as Mission['status']) ?? 'border-surface-border text-text-tertiary'}">{sparkMissionDetail.sparkStatus}</span>
 				</div>
 				<p class="font-mono text-xs text-text-tertiary">
-					{missionId} · started {new Date(sparkMissionDetail.earliest.timestamp).toLocaleString()} · {sparkMissionDetail.taskRollups.length} task{sparkMissionDetail.taskRollups.length !== 1 ? 's' : ''}
+					{missionId} · started {new Date(sparkMissionDetail.earliest.timestamp).toLocaleString()} · {sparkTaskCounts().total} task{sparkTaskCounts().total !== 1 ? 's' : ''}
 				</p>
 			</div>
 
@@ -336,7 +379,7 @@
 					<div>
 						<p class="font-mono text-xs uppercase tracking-[0.16em] text-text-tertiary">Trace progress</p>
 						<h2 class="mt-2 text-xl font-sans font-semibold text-text-primary">
-							{sparkCurrentTask ? sparkCurrentTask.title : 'No active task'}
+							{sparkCurrentTask ? sparkCurrentTask.title : sparkProgressPercent() >= 100 ? 'Mission complete' : 'No active task'}
 						</h2>
 					</div>
 					<div class="rounded-full border px-2.5 py-1 font-mono text-[10px] {sparkStatusBadge(sparkMissionDetail.sparkStatus)}">
@@ -411,11 +454,29 @@
 			</div>
 
 			<!-- Per-task cards -->
-			{#if sparkMissionDetail.taskRollups.length > 0}
+			{#if sparkTaskCounts().total > 0}
 				<div class="mb-6">
 					<h2 class="font-mono text-xs font-semibold text-text-bright tracking-wide mb-3">Tasks</h2>
 					<div class="grid gap-3">
-						{#each sparkMissionDetail.taskRollups as task (task.key)}
+						{#if traceTasks.length > 0}
+							{#each traceTasks as task (task.title)}
+								<article class="px-4 py-3.5 rounded-lg border border-surface-border bg-bg-secondary">
+									<div class="flex items-center gap-2 mb-2">
+										<span class="w-1.5 h-1.5 rounded-full shrink-0 {taskDot(task.status || 'pending')}"></span>
+										<h3 class="font-sans text-sm font-semibold text-text-primary leading-tight flex-1">{task.title}</h3>
+										<span class="font-mono text-[10px] text-text-tertiary uppercase tracking-wider">{task.status || 'pending'}</span>
+									</div>
+									{#if task.skills.length > 0}
+										<div class="flex items-center gap-1 flex-wrap pl-3.5">
+											{#each task.skills.slice(0, 6) as skill}
+												<span class="px-1.5 py-px text-[9px] font-mono rounded-full text-text-tertiary bg-bg-primary/60 border border-surface-border/70">{skill}</span>
+											{/each}
+										</div>
+									{/if}
+								</article>
+							{/each}
+						{:else}
+							{#each sparkMissionDetail.taskRollups as task (task.key)}
 							{@const dot = task.status === 'failed' ? 'bg-status-error' : task.status === 'completed' ? 'bg-status-success' : task.status === 'running' ? 'bg-accent-primary animate-pulse' : task.status === 'cancelled' ? 'bg-text-faint' : 'bg-text-tertiary'}
 							<article class="px-4 py-3.5 rounded-lg border border-surface-border bg-bg-secondary">
 								<div class="flex items-center gap-2 mb-2">
@@ -435,6 +496,7 @@
 								</p>
 							</article>
 						{/each}
+						{/if}
 					</div>
 				</div>
 			{/if}
