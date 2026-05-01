@@ -92,6 +92,9 @@ import { get } from 'svelte/store';
 		skillName: string;
 		description: string;
 		position: { x: number; y: number };
+		tags?: string[];
+		skills?: string[];
+		skillChain?: string[];
 	};
 
 	type SparkAgentCanvasLink = {
@@ -259,10 +262,22 @@ import { get } from 'svelte/store';
 
 	function resolveSparkAgentSkill(node: SparkAgentCanvasSkillNode): Skill {
 		const availableSkills = get(skillsStore);
+		const incomingSkillChain = node.skillChain?.length
+			? node.skillChain
+			: node.skills?.length
+				? node.skills
+				: [];
+		const incomingTags = node.tags || [];
 		const existing =
 			availableSkills.find((skill) => skill.id === node.skillId) ||
 			availableSkills.find((skill) => skill.name === node.skillName);
-		if (existing) return existing;
+		if (existing) {
+			return {
+				...existing,
+				tags: incomingTags.length > 0 ? incomingTags : existing.tags,
+				skillChain: incomingSkillChain.length > 0 ? incomingSkillChain : existing.skillChain
+			};
+		}
 
 		return {
 			id: node.skillId,
@@ -270,10 +285,11 @@ import { get } from 'svelte/store';
 			description: node.description || `Spark skill ${node.skillName || node.skillId}`,
 			category: 'development',
 			tier: 'free',
-			tags: [],
+			tags: incomingTags.length > 0 ? incomingTags : incomingSkillChain,
 			triggers: [],
 			handoffs: [],
-			pairsWell: []
+			pairsWell: [],
+			skillChain: incomingSkillChain.length > 0 ? incomingSkillChain : undefined
 		};
 	}
 

@@ -170,8 +170,9 @@
 		: mcpToolCount > 0
 			? `${mcpToolCount} mcp`
 			: '');
-	const visibleTags = $derived((data.tags || []).slice(0, 2));
-	const extraTagCount = $derived(Math.max(0, (data.tags || []).length - visibleTags.length));
+	const displayTags = $derived(data.skillChain && data.skillChain.length > 0 ? data.skillChain : (data.tags || []));
+	const visibleTags = $derived(displayTags.slice(0, 2));
+	const extraTagCount = $derived(Math.max(0, displayTags.length - visibleTags.length));
 
 	// Calculate port positions
 	const maxPorts = $derived(Math.max(data.inputs?.length || 1, data.outputs?.length || 1));
@@ -289,7 +290,7 @@
 	<div class="node-body">
 		<h3 class="node-title">{data.name}</h3>
 
-		{#if data.skillChain && data.skillChain.length > 0}
+		{#if data.skillChain && data.skillChain.length > 0 && visibleTags.length === 0}
 			<div class="node-sub skill-sub">
 				{data.skillChain.slice(0, 2).join(' · ')}{data.skillChain.length > 2 ? ` +${data.skillChain.length - 2}` : ''}
 			</div>

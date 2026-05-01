@@ -176,6 +176,8 @@ export interface SparkAgentCanvasNode {
 	skillName: string;
 	description: string;
 	position: { x: number; y: number };
+	tags?: string[];
+	skillChain?: string[];
 }
 
 export interface SparkAgentCanvasConnection {
@@ -204,6 +206,14 @@ function toString(value: unknown, fallback: string): string {
 
 function toNumber(value: unknown, fallback: number): number {
 	return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function toStringArray(value: unknown): string[] {
+	if (!Array.isArray(value)) return [];
+	return value
+		.filter((item): item is string => typeof item === 'string')
+		.map((item) => item.trim())
+		.filter((item) => item.length > 0);
 }
 
 function nowIso(): string {
@@ -754,6 +764,9 @@ class SparkAgentBridgeService {
 		const skillName = toString(params.skillName, skillId);
 		const description = toString(params.description, `Task for ${skillName}`);
 		const nodeId = toString(params.nodeId, createId('node'));
+		const tags = toStringArray(params.tags);
+		const skills = toStringArray(params.skills);
+		const skillChain = toStringArray(params.skillChain);
 		const position = isRecord(params.position)
 			? {
 					x: toNumber(params.position.x, session.canvas.nodes.length * 220),
@@ -766,7 +779,9 @@ class SparkAgentBridgeService {
 			skillId,
 			skillName,
 			description,
-			position
+			position,
+			tags: tags.length > 0 ? tags : undefined,
+			skillChain: skillChain.length > 0 ? skillChain : skills.length > 0 ? skills : undefined
 		};
 		session.canvas.nodes.push(node);
 		this.emitEvent(session.id, 'spark_agent.canvas.updated', {

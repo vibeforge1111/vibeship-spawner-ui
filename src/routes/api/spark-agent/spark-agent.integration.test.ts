@@ -243,6 +243,25 @@ describe('/api/spark-agent integration', () => {
 			})
 		} as never);
 
+		await command({
+			request: new Request('http://localhost/api/spark-agent/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					sessionId,
+					command: 'canvas.add_skill',
+					params: {
+						nodeId: 'node-tagged',
+						skillId: 'frontend-polish',
+						skillName: 'Frontend Polish',
+						description: 'Polish canvas nodes',
+						tags: ['canvas', 'visual-hierarchy'],
+						skills: ['frontend-engineer', 'ui-design', 'responsive-mobile-first']
+					}
+				})
+			})
+		} as never);
+
 		const response = await canvasState({
 			request: new Request('http://localhost/api/spark-agent/canvas-state', {
 				method: 'GET'
@@ -253,6 +272,11 @@ describe('/api/spark-agent integration', () => {
 		const body = await response.json();
 		expect(body.hasUpdate).toBe(true);
 		expect(body.snapshot.pipelineId).toBe('pipe-live-sync');
+		expect(body.snapshot.nodes[0]).toMatchObject({
+			id: 'node-tagged',
+			tags: ['canvas', 'visual-hierarchy'],
+			skillChain: ['frontend-engineer', 'ui-design', 'responsive-mobile-first']
+		});
 
 		const sinceResponse = await canvasState({
 			request: new Request(`http://localhost/api/spark-agent/canvas-state?since=${encodeURIComponent(body.snapshot.updatedAt)}`, {
