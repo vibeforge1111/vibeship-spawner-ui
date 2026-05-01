@@ -62,6 +62,14 @@
 		};
 		timeline: TimelineEntry[];
 		providerSummary: string | null;
+		projectLineage: {
+			projectId: string | null;
+			projectPath: string | null;
+			previewUrl: string | null;
+			parentMissionId: string | null;
+			iterationNumber: number | null;
+			improvementFeedback: string | null;
+		} | null;
 		skillPairing: {
 			taskCount: number;
 			pairedTaskCount: number;
@@ -286,6 +294,18 @@
 						<span class="ml-2">{trace.providerSummary}</span>
 					</div>
 				{/if}
+				{#if trace?.projectLineage}
+					<div class="mt-3 rounded-md border border-accent-primary/30 bg-accent-primary/10 p-3 text-sm text-text-secondary">
+						<div class="font-mono text-accent-primary">
+							Project iteration{trace.projectLineage.iterationNumber ? ` ${trace.projectLineage.iterationNumber}` : ''}
+						</div>
+						<div class="mt-1 grid gap-1 font-mono text-xs">
+							{#if trace.projectLineage.projectPath}<span>Project: {trace.projectLineage.projectPath}</span>{/if}
+							{#if trace.projectLineage.parentMissionId}<span>Parent: {trace.projectLineage.parentMissionId}</span>{/if}
+							{#if trace.projectLineage.improvementFeedback}<span>Feedback: {trace.projectLineage.improvementFeedback}</span>{/if}
+						</div>
+					</div>
+				{/if}
 			</div>
 
 			<div class="grid grid-cols-2 gap-3">
@@ -342,6 +362,7 @@
 					<div class="flex justify-between gap-3"><span class="text-text-tertiary">bucket</span><span class="text-text-primary">{trace?.surfaces.kanban.bucket || 'n/a'}</span></div>
 					<div class="flex justify-between gap-3"><span class="text-text-tertiary">tasks</span><span class="text-text-primary">{trace?.surfaces.kanban.entry?.taskCount ?? 0}</span></div>
 					<div class="flex justify-between gap-3"><span class="text-text-tertiary">current</span><span class="truncate text-text-primary">{trace?.progress.currentTask || 'n/a'}</span></div>
+					<div class="flex justify-between gap-3"><span class="text-text-tertiary">iteration</span><span class="text-text-primary">{trace?.projectLineage?.iterationNumber ?? 'n/a'}</span></div>
 				</div>
 			</div>
 

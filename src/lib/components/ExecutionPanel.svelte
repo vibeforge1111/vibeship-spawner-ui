@@ -154,6 +154,7 @@
 	let lastAppliedRelayRequestId = $state<string | null>(null);
 	let lastHydratedMissionId = $state<string | null>(null);
 	let hydrationInFlightMissionId = $state<string | null>(null);
+	let projectLineage = $state<MissionControlBoardEntry['projectLineage'] | null>(null);
 	let autoRunRetryTimer: ReturnType<typeof setTimeout> | null = null;
 	let durationTick = $state(Date.now());
 
@@ -326,6 +327,7 @@
 				loadMissionControlBoardEntry(missionId)
 			]);
 			if (!statusResponse.ok || !boardEntry) return;
+			projectLineage = boardEntry.projectLineage ?? projectLineage;
 
 			const statusData = await statusResponse.json();
 			const recent = ((statusData?.snapshot?.recent || []) as MissionControlHistoryEvent[])
@@ -1328,6 +1330,17 @@
 					bind:copyPromptCollapsed
 					{copyToClipboard}
 				/>
+
+				{#if projectLineage}
+					<div class="mt-3 rounded-md border border-accent-primary/30 bg-accent-primary/10 px-3 py-2 font-mono text-xs text-text-secondary">
+						<div class="text-accent-primary">
+							Project iteration{projectLineage.iterationNumber ? ` ${projectLineage.iterationNumber}` : ''}
+						</div>
+						{#if projectLineage.projectPath}<div class="mt-1 truncate">Project: {projectLineage.projectPath}</div>{/if}
+						{#if projectLineage.parentMissionId}<div>Parent: {projectLineage.parentMissionId}</div>{/if}
+						{#if projectLineage.improvementFeedback}<div class="text-text-tertiary">Feedback: {projectLineage.improvementFeedback}</div>{/if}
+					</div>
+				{/if}
 
 				<ExecutionTaskStatusList
 					taskRows={taskRows}

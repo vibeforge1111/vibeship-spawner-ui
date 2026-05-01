@@ -47,6 +47,14 @@
 			durationMs: number | null;
 			completedAt: string | null;
 		}>;
+		projectLineage?: {
+			projectId: string | null;
+			projectPath: string | null;
+			previewUrl: string | null;
+			parentMissionId: string | null;
+			iterationNumber: number | null;
+			improvementFeedback: string | null;
+		} | null;
 	};
 
 	let missionControlLoading = $state(false);
@@ -243,6 +251,15 @@
 	const sparkMissionDetail = $derived(
 		missionControl ? buildSparkMissionDetail(missionId, missionControl.recent) : null
 	);
+	const sparkProjectLineage = $derived(missionControl?.projectLineage ?? sparkMissionDetail?.projectLineage ?? null);
+
+	function improveHref(): string {
+		const params = new URLSearchParams();
+		if (sparkProjectLineage?.projectPath) params.set('improveProjectPath', sparkProjectLineage.projectPath);
+		params.set('parentMissionId', missionId);
+		if (sparkProjectLineage?.previewUrl) params.set('previewUrl', sparkProjectLineage.previewUrl);
+		return `/kanban?${params.toString()}`;
+	}
 </script>
 
 <div class="min-h-screen bg-bg-primary flex flex-col">
@@ -269,7 +286,30 @@
 			</div>
 
 			<div id="result" class="mb-6 scroll-mt-24">
-				<h2 class="font-mono text-xs font-semibold text-text-bright tracking-wide mb-3">Agent results</h2>
+				<div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+					<h2 class="font-mono text-xs font-semibold text-text-bright tracking-wide">Agent results</h2>
+					{#if sparkProjectLineage?.projectPath}
+						<a
+							href={improveHref()}
+							class="inline-flex items-center justify-center px-3 py-1.5 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all"
+						>
+							Improve this
+						</a>
+					{/if}
+				</div>
+				{#if sparkProjectLineage}
+					<div class="mb-3 rounded-md border border-accent-primary/30 bg-accent-primary/10 px-4 py-3 font-mono text-xs text-text-secondary">
+						<div class="text-accent-primary">
+							Project iteration{sparkProjectLineage.iterationNumber ? ` ${sparkProjectLineage.iterationNumber}` : ''}
+						</div>
+						{#if sparkProjectLineage.projectPath}<div class="mt-1">Project: {sparkProjectLineage.projectPath}</div>{/if}
+						{#if sparkProjectLineage.parentMissionId}<div>Parent: {sparkProjectLineage.parentMissionId}</div>{/if}
+						{#if sparkProjectLineage.previewUrl}
+							<a class="mt-1 inline-flex text-accent-primary hover:underline" href={sparkProjectLineage.previewUrl}>Open preview</a>
+						{/if}
+						{#if sparkProjectLineage.improvementFeedback}<div class="mt-1 text-text-tertiary">Feedback: {sparkProjectLineage.improvementFeedback}</div>{/if}
+					</div>
+				{/if}
 				{#if missionControl.providerResults && missionControl.providerResults.length > 0}
 					<div class="grid gap-3">
 						{#each missionControl.providerResults as result (result.providerId)}

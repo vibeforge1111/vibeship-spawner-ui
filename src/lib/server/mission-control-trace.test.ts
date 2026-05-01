@@ -203,6 +203,38 @@ describe('mission-control-trace', () => {
 		});
 	});
 
+	it('exposes project lineage for improvement missions', async () => {
+		await makeStateDir();
+		const missionId = `mission-lineage-trace-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			missionName: 'Founder Signal Room polish 2',
+			source: 'spark-run',
+			data: {
+				projectPath: 'C:\\Users\\USER\\Desktop\\founder-signal-room',
+				parentMissionId: 'mission-original-build',
+				iterationNumber: 2,
+				improvementFeedback: 'make this more Spark colored'
+			}
+		});
+
+		const trace = await buildMissionControlTrace({
+			missionId,
+			getProviderResults: () => []
+		});
+
+		expect(trace.projectLineage).toMatchObject({
+			projectPath: 'C:\\Users\\USER\\Desktop\\founder-signal-room',
+			parentMissionId: 'mission-original-build',
+			iterationNumber: 2,
+			improvementFeedback: 'make this more Spark colored'
+		});
+		expect(trace.projectLineage?.previewUrl).toContain('/preview/');
+		expect(trace.surfaces.kanban.entry?.projectLineage).toEqual(trace.projectLineage);
+	});
+
 	it('keeps analysis-only missions in planning until the matching canvas loads', async () => {
 		const stateDir = await makeStateDir();
 		const requestId = 'tg-unit-analysis-1777371000009';

@@ -21,6 +21,11 @@ interface SparkRunBody {
 	tier?: 'base' | 'pro';
 	promptMode?: 'simple' | 'orchestrator';
 	suppressRelay?: boolean;
+	projectId?: string;
+	previewUrl?: string;
+	parentMissionId?: string;
+	iterationNumber?: number;
+	improvementFeedback?: string;
 	telegramRelay?: {
 		port?: string | number;
 		profile?: string;
@@ -69,6 +74,7 @@ function createSparkMission(
 	const chatId = body.chatId?.trim() || null;
 	const userId = body.userId?.trim() || 'spark-telegram';
 	const telegramRelay = normalizeTelegramRelay(body.telegramRelay);
+	const projectPath = resolveSparkRunProjectPath(body.projectPath);
 
 	return {
 		id: missionId,
@@ -96,7 +102,7 @@ function createSparkMission(
 			}
 		],
 		context: {
-			projectPath: resolveSparkRunProjectPath(body.projectPath),
+			projectPath,
 			projectType: 'tool',
 			goals: [goal]
 		},
@@ -107,9 +113,17 @@ function createSparkMission(
 				requestId,
 				chatId,
 				userId,
+				projectPath,
 				providers: selectedProviderIds,
 				tier,
 				suppressRelay: body.suppressRelay === true,
+				...(body.projectId?.trim() ? { projectId: body.projectId.trim() } : {}),
+				...(body.previewUrl?.trim() ? { previewUrl: body.previewUrl.trim() } : {}),
+				...(body.parentMissionId?.trim() ? { parentMissionId: body.parentMissionId.trim() } : {}),
+				...(typeof body.iterationNumber === 'number' && Number.isFinite(body.iterationNumber) && body.iterationNumber > 0
+					? { iterationNumber: Math.trunc(body.iterationNumber) }
+					: {}),
+				...(body.improvementFeedback?.trim() ? { improvementFeedback: body.improvementFeedback.trim() } : {}),
 				...(telegramRelay ? { telegramRelay } : {})
 			}
 		},

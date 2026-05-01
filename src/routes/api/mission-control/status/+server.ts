@@ -1,9 +1,20 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
-import { getMissionControlRelaySnapshot } from '$lib/server/mission-control-relay';
+import { getMissionControlBoard, getMissionControlRelaySnapshot } from '$lib/server/mission-control-relay';
 import { summarizeProviderResults } from '$lib/server/mission-control-results';
 import { providerRuntime } from '$lib/server/provider-runtime';
+import type { MissionControlProjectLineage } from '$lib/types/mission-control';
+
+function findProjectLineage(missionId: string | undefined): MissionControlProjectLineage | null {
+	if (!missionId) return null;
+	const board = getMissionControlBoard();
+	for (const entries of Object.values(board)) {
+		const entry = entries.find((candidate) => candidate.missionId === missionId);
+		if (entry?.projectLineage) return entry.projectLineage;
+	}
+	return null;
+}
 
 export const GET: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
@@ -29,13 +40,15 @@ export const GET: RequestHandler = async (event) => {
 	const providerResultSummary = missionId
 		? summarizeProviderResults(providerRuntime.getMissionResults(missionId))
 		: { providerResults: [], providerSummary: null };
+	const projectLineage = findProjectLineage(missionId);
 
 	return json({
 		ok: true,
 		missionId: missionId || null,
 		snapshot: {
 			...snapshot,
-			...providerResultSummary
+			...providerResultSummary,
+			projectLineage
 		},
 		serverTime: new Date().toISOString()
 	});

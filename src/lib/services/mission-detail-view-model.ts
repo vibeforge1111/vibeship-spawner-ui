@@ -1,3 +1,5 @@
+import type { MissionControlProjectLineage } from '$lib/types/mission-control';
+
 export type MissionControlEntry = {
 	eventType: string;
 	missionId: string;
@@ -5,6 +7,7 @@ export type MissionControlEntry = {
 	taskId: string | null;
 	taskName: string | null;
 	taskSkills?: string[];
+	projectLineage?: MissionControlProjectLineage | null;
 	summary: string;
 	timestamp: string;
 	source: string;
@@ -30,6 +33,7 @@ export type SparkMissionDetail = {
 	sparkName: string;
 	taskRollups: MissionDetailTaskRollup[];
 	missionEvents: MissionControlEntry[];
+	projectLineage: MissionControlProjectLineage | null;
 	sparkStatus: string;
 };
 
@@ -95,6 +99,7 @@ export function buildSparkMissionDetail(
 		sparkName: chronological.find((event) => event.missionName)?.missionName ?? missionId,
 		taskRollups: buildMissionDetailTaskRollups(chronological),
 		missionEvents: chronological.filter((event) => event.eventType.startsWith('mission_')),
+		projectLineage: recentDesc.find((event) => event.projectLineage)?.projectLineage ?? null,
 		sparkStatus: sparkStatusFromMissionControlEvent(latest.eventType)
 	};
 }

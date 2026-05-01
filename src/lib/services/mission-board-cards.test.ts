@@ -206,6 +206,31 @@ describe('mergeMissionBoardCards', () => {
 		expect(merged.detailHref).toBe('/missions/mission-5');
 		expect(merged.canvasHref).toBe('/canvas?pipeline=prd-5&mission=mission-5');
 	});
+
+	it('preserves project lineage from live relay cards', () => {
+		const live = card({
+			id: 'mission-6',
+			source: 'spark',
+			status: 'completed',
+			projectLineage: {
+				projectId: 'project-founder-signal-room',
+				projectPath: 'C:\\Users\\USER\\Desktop\\founder-signal-room',
+				previewUrl: 'http://127.0.0.1:5555/preview/token/index.html',
+				parentMissionId: 'mission-parent',
+				iterationNumber: 2,
+				improvementFeedback: 'Make the strategy document feel alive.'
+			}
+		});
+		const staticCard = card({
+			id: 'mission-6',
+			source: 'mcp',
+			status: 'ready'
+		});
+
+		const [merged] = mergeMissionBoardCards([live], [staticCard]);
+
+		expect(merged.projectLineage).toEqual(live.projectLineage);
+	});
 });
 
 describe('creator mission run eligibility', () => {

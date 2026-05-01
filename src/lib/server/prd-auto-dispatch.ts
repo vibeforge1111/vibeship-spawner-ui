@@ -394,6 +394,7 @@ export async function autoDispatchPrdCanvasLoad(
 		const relayData = {
 			...load.relay,
 			missionName: load.pipelineName,
+			projectPath,
 			tier: normalizeLoadTier(load),
 			plannedTasks: plannedTasksFromMission(buildResult.mission.tasks, taskSkillMap),
 			providers: [provider.id]

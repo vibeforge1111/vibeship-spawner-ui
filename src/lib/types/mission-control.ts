@@ -52,6 +52,15 @@ export interface MissionControlRelayTarget {
 	url: string | null;
 }
 
+export interface MissionControlProjectLineage {
+	projectId: string | null;
+	projectPath: string | null;
+	previewUrl: string | null;
+	parentMissionId: string | null;
+	iterationNumber: number | null;
+	improvementFeedback: string | null;
+}
+
 export interface MissionControlBoardTask {
 	title: string;
 	skills: string[];
@@ -83,6 +92,7 @@ export interface MissionControlBoardEntry {
 	taskStatusCounts: MissionControlTaskStatusCounts;
 	tasks: MissionControlBoardTask[];
 	telegramRelay?: MissionControlRelayTarget | null;
+	projectLineage?: MissionControlProjectLineage | null;
 	providerSummary?: string | null;
 	providerResults?: MissionControlProviderResultSummary[];
 }

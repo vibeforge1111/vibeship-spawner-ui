@@ -1,4 +1,8 @@
-import type { MissionControlTaskStatus, MissionControlTaskStatusCounts } from '$lib/types/mission-control';
+import type {
+	MissionControlProjectLineage,
+	MissionControlTaskStatus,
+	MissionControlTaskStatusCounts
+} from '$lib/types/mission-control';
 
 export type MissionBoardCardStatus = 'draft' | 'ready' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
 
@@ -36,6 +40,7 @@ export interface MissionBoardCard {
 	summary?: string | null;
 	providerSummary?: string | null;
 	providerResults?: MissionBoardProviderResult[];
+	projectLineage?: MissionControlProjectLineage | null;
 	canvasHref?: string | null;
 	detailHref?: string | null;
 }
@@ -98,6 +103,7 @@ function mergeLiveWithStaticCard(live: MissionBoardCard, staticCard: MissionBoar
 		summary: live.summary ?? staticCard.summary,
 		providerSummary: live.providerSummary ?? staticCard.providerSummary,
 		providerResults: live.providerResults?.length ? live.providerResults : staticCard.providerResults,
+		projectLineage: live.projectLineage ?? staticCard.projectLineage,
 		canvasHref: live.canvasHref ?? staticCard.canvasHref,
 		detailHref: live.detailHref ?? staticCard.detailHref
 	};

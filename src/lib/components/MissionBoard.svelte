@@ -54,6 +54,7 @@
 		tasks?: Array<{ title: string; skills: string[]; status?: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' }>;
 		providerSummary?: string | null;
 		providerResults?: Array<{ providerId: string; status: string; summary: string }>;
+		projectLineage?: BoardCard['projectLineage'];
 	};
 	let relay = $state<RelayEntry[]>([]);
 	let relayTimer: ReturnType<typeof setInterval> | null = null;
@@ -344,6 +345,7 @@
 			summary: showSummary ? e.lastSummary : undefined,
 			providerSummary: e.providerSummary,
 			providerResults: e.providerResults,
+			projectLineage: e.projectLineage ?? null,
 			canvasHref: canvasHrefForMission(e.missionId, name),
 			detailHref: `/missions/${encodeURIComponent(e.missionId)}`
 		};
@@ -410,6 +412,7 @@
 		});
 		loadMissions({ limit: 200 }).catch(() => {});
 		fetchRelay();
+		applyImproveUrlParams();
 		relayTimer = setInterval(fetchRelay, 4000);
 		return () => { unsub(); unsubMcp(); unsubPipelines(); };
 	});
@@ -487,6 +490,16 @@
 			return `${queued}Started ${formatDate(card.startedAt)}`;
 		}
 		return null;
+	}
+
+	function lineageSummary(card: BoardCard): string | null {
+		const lineage = card.projectLineage;
+		if (!lineage) return null;
+		const parts = [];
+		if (lineage.iterationNumber) parts.push(`Iteration ${lineage.iterationNumber}`);
+		if (lineage.parentMissionId) parts.push(`Parent ${lineage.parentMissionId}`);
+		if (lineage.projectPath) parts.push(lineage.projectPath.split(/[\\/]/).filter(Boolean).pop() || lineage.projectPath);
+		return parts.length ? parts.join(' - ') : null;
 	}
 
 	function columnDot(title: string): string {
@@ -615,6 +628,36 @@
 	let quickAddDispatching = $state(false);
 	let quickAddError = $state<string | null>(null);
 
+	function buildImproveGoal(card: BoardCard): string {
+		const lineage = card.projectLineage;
+		const projectPath = lineage?.projectPath || '.';
+		return [
+			`Improve the existing shipped project "${card.name}" at ${projectPath}.`,
+			'',
+			'This is an iteration on an already shipped app, not a new scaffold.',
+			'',
+			'User feedback:',
+			lineage?.improvementFeedback || '',
+			'',
+			'Rules:',
+			'- Read the existing project files before editing.',
+			'- Preserve the current core workflow unless the user explicitly asks to change it.',
+			'- Update only the files needed for this polish pass.',
+			'- Return a concise handoff with project_path, what changed, and verification.',
+			'',
+			'Project context:',
+			`- Parent mission: ${card.id}`,
+			lineage?.previewUrl ? `- Current preview: ${lineage.previewUrl}` : null
+		].filter((line): line is string => line !== null).join('\n');
+	}
+
+	function handleImprove(card: BoardCard) {
+		quickAddGoal = buildImproveGoal(card);
+		quickAddOpen = true;
+		quickAddError = null;
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
+
 	async function handleQuickAdd() {
 		const goal = quickAddGoal.trim();
 		if (!goal || quickAddDispatching) return;
@@ -646,6 +689,26 @@
 		if (!confirm(`Delete mission "${card.name}"?`)) return;
 		await deleteMission(card.id);
 		await loadMissions({ limit: 200 });
+	}
+
+	function applyImproveUrlParams() {
+		const params = new URLSearchParams(window.location.search);
+		const projectPath = params.get('improveProjectPath');
+		const parentMissionId = params.get('parentMissionId');
+		const previewUrl = params.get('previewUrl');
+		if (!projectPath && !parentMissionId) return;
+		quickAddGoal = [
+			`Improve the existing shipped project at ${projectPath || '.'}.`,
+			'',
+			'This is an iteration on an already shipped app, not a new scaffold.',
+			'',
+			'User feedback:',
+			'',
+			'Project context:',
+			parentMissionId ? `- Parent mission: ${parentMissionId}` : null,
+			previewUrl ? `- Current preview: ${previewUrl}` : null
+		].filter((line): line is string => line !== null).join('\n');
+		quickAddOpen = true;
 	}
 </script>
 
@@ -817,6 +880,24 @@
 											<p class="font-mono text-[11px] text-accent-primary/80 mb-3">{lifecycleSummary(c)}</p>
 										{/if}
 
+										{#if lineageSummary(c)}
+											<div class="mb-3 flex flex-wrap items-center gap-1.5">
+												<span class="px-2 py-0.5 text-[10px] font-mono rounded-sm border border-accent-primary/30 bg-accent-primary/10 text-accent-primary">
+													{lineageSummary(c)}
+												</span>
+												{#if c.projectLineage?.previewUrl}
+													<a
+														href={c.projectLineage.previewUrl}
+														onclick={(event) => event.stopPropagation()}
+														class="px-2 py-0.5 text-[10px] font-mono rounded-sm border border-surface-border text-text-secondary hover:border-accent-primary/50 hover:text-accent-primary"
+														title="Open the shipped project preview"
+													>
+														Preview
+													</a>
+												{/if}
+											</div>
+										{/if}
+
 										{#if c.tasks && c.tasks.length > 0}
 											<ul class="space-y-2.5 mb-3 border-l-2 border-surface-border/60 pl-3.5">
 												{#each c.tasks.slice(0, 3) as task}
@@ -886,6 +967,14 @@
 													<p class="font-mono text-[10px] text-accent-primary/80 leading-snug">Lifecycle: {lifecycleSummary(c)}</p>
 												{/if}
 
+												{#if c.projectLineage}
+													<div class="font-mono text-[10px] text-text-secondary leading-snug space-y-0.5">
+														{#if c.projectLineage.projectPath}<p>Project: {c.projectLineage.projectPath}</p>{/if}
+														{#if c.projectLineage.parentMissionId}<p>Parent: {c.projectLineage.parentMissionId}</p>{/if}
+														{#if c.projectLineage.improvementFeedback}<p>Feedback: {c.projectLineage.improvementFeedback}</p>{/if}
+													</div>
+												{/if}
+
 												{#if c.providerResults && c.providerResults.length > 0}
 													<div class="space-y-1">
 														{#each c.providerResults.slice(0, 3) as result}
@@ -942,6 +1031,15 @@
 											>
 												Result
 											</a>
+										{/if}
+										{#if c.projectLineage?.projectPath}
+											<button
+												onclick={() => handleImprove(c)}
+												class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all"
+												title="Start another polish pass on this shipped project"
+											>
+												Improve
+											</button>
 										{/if}
 										{#if canRunCreatorMissionBoardCard(c)}
 											<button

@@ -503,6 +503,83 @@ describe('mission-control-relay', () => {
 		});
 	});
 
+	it('preserves shipped-project lineage metadata on snapshots and Kanban board entries', async () => {
+		const missionId = `mission-lineage-${Date.now()}`;
+		const projectPath = 'C:\\Users\\USER\\Desktop\\founder-signal-room';
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			missionName: 'Founder Signal Room polish 2',
+			source: 'spark-run',
+			message: 'Queued a polish pass',
+			data: {
+				projectId: 'project-founder-signal-room',
+				projectPath,
+				previewUrl: 'http://127.0.0.1:5555/preview/token/index.html',
+				parentMissionId: 'mission-parent-1',
+				iterationNumber: 2,
+				improvementFeedback: 'Make this more Spark colored.',
+				telegramRelay: { port: 1 }
+			}
+		});
+
+		const snapshot = getMissionControlRelaySnapshot(missionId);
+		expect(snapshot.recent[0].projectLineage).toEqual({
+			projectId: 'project-founder-signal-room',
+			projectPath,
+			previewUrl: 'http://127.0.0.1:5555/preview/token/index.html',
+			parentMissionId: 'mission-parent-1',
+			iterationNumber: 2,
+			improvementFeedback: 'Make this more Spark colored.'
+		});
+
+		const board = getMissionControlBoard();
+		const entry = board.created.find((candidate) => candidate.missionId === missionId);
+		expect(entry?.projectLineage).toEqual(snapshot.recent[0].projectLineage);
+	});
+
+	it('recovers improvement lineage from Telegram goal text when explicit fields are absent', async () => {
+		const missionId = `mission-lineage-text-${Date.now()}`;
+		const projectPath = 'C:\\Users\\USER\\Desktop\\founder-signal-room';
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			missionName: 'Founder Signal Room polish 3',
+			source: 'spark-run',
+			data: {
+				goal: [
+					`Improve the existing shipped project "Founder Signal Room" at ${projectPath}.`,
+					'',
+					'This is an iteration on an already shipped app, not a new scaffold.',
+					'',
+					'User feedback:',
+					'make this more Spark colored and make the strategy document feel more alive',
+					'',
+					'Rules:',
+					'- Read the existing project files before editing.',
+					'',
+					'Project context:',
+					'- Parent mission: mission-parent-2',
+					'- Current preview: http://127.0.0.1:5556/preview/example/index.html'
+				].join('\n')
+			}
+		});
+
+		const board = getMissionControlBoard();
+		const entry = board.created.find((candidate) => candidate.missionId === missionId);
+
+		expect(entry?.projectLineage).toMatchObject({
+			projectPath,
+			parentMissionId: 'mission-parent-2',
+			iterationNumber: 3,
+			previewUrl: 'http://127.0.0.1:5556/preview/example/index.html',
+			improvementFeedback: 'make this more Spark colored and make the strategy document feel more alive'
+		});
+		expect(entry?.projectLineage?.projectId).toMatch(/^project-founder-signal-room-[a-f0-9]{10}$/);
+	});
+
 	it('creates readable summaries', () => {
 		const text = summarizeMissionControlEvent({ type: 'mission_failed', missionId: 'm-22' });
 		expect(text).toContain('Mission failed');

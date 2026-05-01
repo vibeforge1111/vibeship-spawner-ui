@@ -12,7 +12,7 @@ import {
 	type MissionControlResultSummary
 } from './mission-control-results';
 import type { ProviderMissionResultSnapshot } from './provider-runtime';
-import type { MissionControlTracePhase } from '$lib/types/mission-control';
+import type { MissionControlProjectLineage, MissionControlTracePhase } from '$lib/types/mission-control';
 
 type BoardBuckets = Record<string, Array<MissionControlBoardEntry & MissionControlResultSummary>>;
 type SkillPairingSource = 'kanban' | 'analysis' | 'canvas' | 'none';
@@ -75,6 +75,7 @@ export interface MissionControlTrace {
 	timeline: ReturnType<typeof getMissionControlRelaySnapshot>['recent'];
 	providerResults: MissionControlResultSummary['providerResults'];
 	providerSummary: string | null;
+	projectLineage: MissionControlProjectLineage | null;
 	skillPairing: TraceSkillPairing;
 	serverTime: string;
 }
@@ -363,6 +364,7 @@ export async function buildMissionControlTrace(input: {
 		timeline: traceSnapshot.recent,
 		providerResults: entry?.providerResults ?? [],
 		providerSummary: entry?.providerSummary ?? null,
+		projectLineage: entry?.projectLineage ?? null,
 		skillPairing,
 		serverTime: new Date().toISOString()
 	};

@@ -258,7 +258,7 @@ export function buildMissionControlHydrationSnapshot(
 		],
 		tasks: missionTasks,
 		context: {
-			projectPath: input.projectPath,
+			projectPath: boardEntry.projectLineage?.projectPath || input.projectPath,
 			projectType: input.projectType,
 			goals: input.goals
 		},

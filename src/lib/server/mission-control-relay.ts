@@ -3,10 +3,15 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { compactMissionControlDisplayText, sanitizeMissionControlDisplayText } from './mission-control-display';
 import {
+	extractMissionControlProjectLineage,
+	mergeMissionControlProjectLineage
+} from './mission-control-lineage';
+import {
 	emptyMissionControlTaskStatusCounts,
 	isMissionControlTerminalStatus,
 	type MissionControlBoardEntry,
 	type MissionControlBoardStatus,
+	type MissionControlProjectLineage,
 	type MissionControlRelayTarget,
 	type MissionControlTaskStatus,
 	type MissionControlTaskStatusCounts
@@ -48,6 +53,7 @@ export interface MissionControlRelayStatusEntry {
 	timestamp: string;
 	source: string;
 	telegramRelay?: MissionControlRelayTarget | null;
+	projectLineage?: MissionControlProjectLineage | null;
 }
 
 export interface MissionControlRelaySnapshot {
@@ -255,6 +261,11 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 	const telegramRelay = getTelegramRelayTarget(event);
 	const hasTelegramRelay =
 		telegramRelay.port !== null || telegramRelay.profile !== null || telegramRelay.url !== null;
+	const projectLineage = extractMissionControlProjectLineage({
+		data: event.data ?? null,
+		missionName: typeof event.missionName === 'string' ? event.missionName : dataMissionName || missionObjectName,
+		message: typeof event.message === 'string' ? event.message : null
+	});
 
 	return {
 		eventType: typeof event.type === 'string' ? event.type : 'unknown',
@@ -269,7 +280,8 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		summary: summarizeMissionControlEvent(event),
 		timestamp,
 		source: typeof event.source === 'string' ? event.source : 'unknown',
-		telegramRelay: hasTelegramRelay ? telegramRelay : null
+		telegramRelay: hasTelegramRelay ? telegramRelay : null,
+		projectLineage
 	};
 }
 
@@ -797,7 +809,8 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 				taskNames: [],
 				taskStatusCounts: emptyTaskStatusCounts(),
 				tasks: [],
-				telegramRelay: entry.telegramRelay ?? null
+				telegramRelay: entry.telegramRelay ?? null,
+				projectLineage: entry.projectLineage ?? null
 			});
 		} else {
 			if (!existing.taskName && entry.taskName) existing.taskName = sanitizeMissionControlDisplayText(entry.taskName);
@@ -810,6 +823,10 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 			if (isExecutionStartEvent(entry.eventType)) {
 				existing.executionStarted = true;
 			}
+			existing.projectLineage = mergeMissionControlProjectLineage(
+				existing.projectLineage,
+				entry.projectLineage
+			);
 		}
 
 		const current = byMission.get(entry.missionId)!;
