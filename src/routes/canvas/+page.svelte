@@ -1409,14 +1409,14 @@ import { get } from 'svelte/store';
 				<button
 					onclick={handleClear}
 					disabled={currentNodes.length === 0}
-					class="px-2.5 py-1 text-xs font-mono text-text-secondary border border-surface-border rounded-md hover:border-text-tertiary hover:text-text-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+					class="canvas-action-btn"
 					title="Clear all nodes from canvas"
 				>
 					Clear All
 				</button>
 				<button
 					onclick={openMissionExport}
-					class="px-2.5 py-1 text-xs font-mono text-text-secondary border border-surface-border rounded-md hover:border-text-tertiary hover:text-text-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+					class="canvas-action-btn"
 					disabled={currentNodes.length === 0 || !isMcpConnected}
 					title={!isMcpConnected ? 'Connect to MCP to export missions' : 'Export workflow as mission'}
 				>
@@ -1424,7 +1424,7 @@ import { get } from 'svelte/store';
 				</button>
 				<button
 					onclick={openExecutionFromToolbar}
-					class="px-2.5 py-1 text-xs font-mono bg-accent-primary text-bg-primary rounded-md hover:bg-accent-primary-hover transition-all disabled:opacity-50"
+					class="canvas-action-btn canvas-action-btn-primary"
 					disabled={toolbarExecutionAction.disabled}
 					title={toolbarExecutionAction.title}
 				>
@@ -1735,18 +1735,19 @@ import { get } from 'svelte/store';
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 28px;
-		height: 28px;
+		width: 32px;
+		height: 32px;
 		color: var(--text-secondary);
-		background: transparent;
-		border: none;
-		border-radius: 5px;
+		background: rgb(var(--surface-rgb) / 0.24);
+		border: 1px solid transparent;
+		border-radius: 6px;
 		cursor: pointer;
 		transition: all 0.15s;
 	}
 	:global(.toolbar-btn:hover) {
 		color: var(--text-primary);
 		background: var(--surface-active);
+		border-color: var(--border);
 	}
 	:global(.toolbar-btn:disabled) {
 		opacity: 0.4;
@@ -1755,6 +1756,47 @@ import { get } from 'svelte/store';
 	:global(.toolbar-btn:disabled:hover) {
 		background: transparent;
 		color: var(--text-secondary);
+	}
+
+	:global(.canvas-action-btn) {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 32px;
+		padding: 0 12px;
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		background: rgb(var(--surface-rgb) / 0.26);
+		color: var(--text-secondary);
+		font-family: var(--font-mono);
+		font-size: 11px;
+		line-height: 1;
+		transition: all 0.15s ease;
+	}
+
+	:global(.canvas-action-btn:hover) {
+		border-color: var(--text-tertiary);
+		color: var(--text-primary);
+		background: var(--surface-active);
+	}
+
+	:global(.canvas-action-btn:disabled) {
+		cursor: not-allowed;
+		opacity: 0.45;
+	}
+
+	:global(.canvas-action-btn-primary) {
+		border-color: rgb(var(--accent-rgb) / 0.35);
+		background: var(--accent);
+		color: var(--accent-fg);
+		font-weight: 600;
+		box-shadow: 0 10px 26px -18px rgb(var(--accent-rgb) / 0.9);
+	}
+
+	:global(.canvas-action-btn-primary:hover) {
+		border-color: rgb(var(--accent-rgb) / 0.55);
+		background: var(--accent-hover);
+		color: var(--accent-fg);
 	}
 
 	/* Smaller toolbar buttons for row 2 */
