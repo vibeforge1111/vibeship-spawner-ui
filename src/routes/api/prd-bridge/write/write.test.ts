@@ -3,7 +3,7 @@ import { existsSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { _buildFallbackAnalysisResult, extractPrdBridgeProjectLineage } from './+server';
+import { _buildFallbackAnalysisResult, _extractPrdBridgeProjectLineage } from './+server';
 
 let testSpawnerDir = '';
 
@@ -69,7 +69,7 @@ describe('PRD bridge fallback analysis', () => {
 	});
 
 	it('extracts complete improvement lineage before mission-created relay', () => {
-		const lineage = extractPrdBridgeProjectLineage(
+		const lineage = _extractPrdBridgeProjectLineage(
 			[
 				'# Loop Lantern polish 2',
 				'',

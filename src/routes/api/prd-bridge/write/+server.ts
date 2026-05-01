@@ -394,7 +394,7 @@ function normalizeTelegramRelay(value: unknown): Record<string, unknown> | undef
 	return Object.keys(relay).length > 0 ? relay : undefined;
 }
 
-export function extractPrdBridgeProjectLineage(content: string, projectName?: string) {
+export function _extractPrdBridgeProjectLineage(content: string, projectName?: string) {
 	return extractMissionControlProjectLineage({
 		data: { goal: content },
 		missionName: projectName || 'Untitled Project'
@@ -804,7 +804,7 @@ export const POST: RequestHandler = async (event) => {
 		// Write the (possibly enriched) PRD content to file
 		await writeFile(paths.pendingPrdFile, finalContent, 'utf-8');
 		const missionId = missionIdFromRequestId(requestId);
-		const projectLineage = extractPrdBridgeProjectLineage(finalContent, projectName);
+		const projectLineage = _extractPrdBridgeProjectLineage(finalContent, projectName);
 
 		// Write request metadata
 		const requestMeta = {
