@@ -385,6 +385,20 @@
 		if (status === 'running') return 'border-accent-primary/30 bg-accent-primary/10 text-accent-primary';
 		return 'border-surface-border bg-bg-primary text-text-tertiary';
 	}
+
+	function headerStatusPill(status: string): string {
+		if (status === 'completed') return 'border-status-success/50 bg-status-success/10 text-status-success shadow-[0_0_24px_-12px_rgb(var(--accent-rgb)/0.85)]';
+		if (status === 'failed') return 'border-status-error/40 bg-status-error/10 text-status-error';
+		if (status === 'cancelled') return 'border-text-tertiary/40 bg-bg-primary text-text-tertiary';
+		return 'border-accent-primary/40 bg-accent-primary/10 text-accent-primary';
+	}
+
+	function headerStatusRail(status: string): string {
+		if (status === 'completed') return 'bg-status-success shadow-[0_0_12px_rgb(var(--accent-rgb)/0.85)]';
+		if (status === 'failed') return 'bg-status-error';
+		if (status === 'cancelled') return 'bg-text-tertiary';
+		return 'bg-accent-primary';
+	}
 </script>
 
 <div class="min-h-screen bg-bg-primary flex flex-col">
@@ -402,9 +416,14 @@
 			<section class="mb-6 rounded-md border border-surface-border bg-bg-secondary px-5 py-5">
 				<div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
 					<div class="min-w-0">
-						<div class="mb-2 flex min-w-0 items-center gap-3">
+						<div class="mb-2 flex min-w-0 flex-wrap items-center gap-3">
 							<span class="h-2.5 w-2.5 shrink-0 rounded-full {taskDot(sparkMissionDetail.sparkStatus)}"></span>
 							<h1 class="min-w-0 text-2xl font-sans font-semibold tracking-tight text-text-primary">{sparkMissionDetail.sparkName}</h1>
+							<span class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 font-sans text-xs font-semibold {headerStatusPill(sparkMissionDetail.sparkStatus)}">
+								<span class="h-4 w-0.5 rounded-full {headerStatusRail(sparkMissionDetail.sparkStatus)}"></span>
+								<Icon name="check" size={13} />
+								{statusLabel(sparkMissionDetail.sparkStatus)}
+							</span>
 						</div>
 						<p class="ml-5 flex flex-wrap items-center gap-2 font-mono text-xs text-text-secondary">
 							<Icon name="clock" size={12} class="text-text-tertiary" />
@@ -422,7 +441,6 @@
 							<Icon name="box" size={12} />
 							Canvas
 						</a>
-						<span class="inline-flex items-center justify-center rounded-sm border px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider {getStatusBadge(sparkMissionDetail.sparkStatus as Mission['status']) ?? 'border-surface-border text-text-tertiary'}">{statusLabel(sparkMissionDetail.sparkStatus)}</span>
 						{#if sparkProjectLineage?.previewUrl}
 							<a
 								href={sparkProjectLineage.previewUrl}
