@@ -1687,7 +1687,7 @@ import { get } from 'svelte/store';
 <style>
 	.canvas-area {
 		cursor: grab;
-		background: #111315;
+		background: #151719;
 	}
 	.canvas-grid {
 		/* Crossing line grid at 40px — same as spark-agent board-stage */
