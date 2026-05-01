@@ -386,13 +386,11 @@
 	});
 
 	let searchQuery = $state('');
-	let sourceFilter = $state<'all' | 'mcp' | 'spark'>('all');
 	let searchFocused = $state(false);
 
 	const filteredCards = $derived(() => {
 		const q = searchQuery.trim().toLowerCase();
 		return cards().filter((c) => {
-			if (sourceFilter !== 'all' && c.source !== sourceFilter) return false;
 			if (!q) return true;
 			return c.name.toLowerCase().includes(q) || (c.summary ?? '').toLowerCase().includes(q);
 		});
@@ -456,7 +454,6 @@
 	}
 
 	function hasTaskProgress(card: BoardCard): boolean {
-		if (card.status === 'completed') return false;
 		const counts = card.taskStatusCounts;
 		return Boolean(counts && counts.total > 0);
 	}
@@ -466,6 +463,12 @@
 		if (!counts || counts.total <= 0) return '';
 		const settled = counts.completed + counts.failed + counts.cancelled;
 		return `${settled}/${counts.total}`;
+	}
+
+	function taskProgressLabel(card: BoardCard): string {
+		const counts = card.taskStatusCounts;
+		if (!counts || counts.total <= 0) return '';
+		return `${counts.total} task${counts.total === 1 ? '' : 's'}`;
 	}
 
 	function focusLine(card: BoardCard): string | null {
@@ -480,28 +483,24 @@
 		return null;
 	}
 
-	function statusLabel(status: CardStatus): string {
-		if (status === 'ready' || status === 'draft') return 'To do';
-		if (status === 'running') return 'Running';
-		if (status === 'paused') return 'Paused';
-		if (status === 'completed') return 'Done';
-		if (status === 'failed') return 'Failed';
-		if (status === 'cancelled') return 'Cancelled';
-		return status;
-	}
-
-	function statusTextClass(status: CardStatus): string {
-		if (status === 'running') return 'text-accent-primary';
-		if (status === 'completed') return 'text-status-success';
-		if (status === 'failed') return 'text-status-error';
-		if (status === 'paused') return 'text-status-amber';
-		return 'text-text-tertiary';
+	function cardTimestampLabel(card: BoardCard): string {
+		if ((card.status === 'ready' || card.status === 'draft') && card.queuedAt) return 'Queued';
+		if ((card.status === 'running' || card.status === 'paused') && card.startedAt) return 'Started';
+		return 'Updated';
 	}
 
 	function cardTimestamp(card: BoardCard): string {
-		if ((card.status === 'ready' || card.status === 'draft') && card.queuedAt) return `Queued ${formatDate(card.queuedAt)}`;
-		if ((card.status === 'running' || card.status === 'paused') && card.startedAt) return `Started ${formatDate(card.startedAt)}`;
-		return `Updated ${formatDate(card.updatedAt ?? card.createdAt)}`;
+		if ((card.status === 'ready' || card.status === 'draft') && card.queuedAt) return formatDate(card.queuedAt);
+		if ((card.status === 'running' || card.status === 'paused') && card.startedAt) return formatDate(card.startedAt);
+		return formatDate(card.updatedAt ?? card.createdAt);
+	}
+
+	function typeIcon(card: BoardCard): string {
+		return card.source === 'spark' ? 'sparkles' : 'grid';
+	}
+
+	function typeLabel(card: BoardCard): string {
+		return card.source === 'spark' ? 'Spark' : 'Canvas';
 	}
 
 	function lineageSummary(card: BoardCard): string | null {
@@ -758,30 +757,19 @@
 					class:w-40={!searchFocused && !searchQuery}
 					class:w-64={searchFocused || !!searchQuery}
 				>
-					<Icon name="search" size={12} class="absolute left-2 top-1/2 -translate-y-1/2 text-text-tertiary" />
+					<Icon name="search" size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
 					<input
 						type="text"
 						placeholder="Search…"
 						bind:value={searchQuery}
 						onfocus={() => (searchFocused = true)}
 						onblur={() => (searchFocused = false)}
-						class="w-full pl-7 pr-2 py-1 bg-bg-secondary border border-surface-border rounded-md text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary"
+						class="w-full pl-9 pr-3 py-2 bg-bg-secondary border border-surface-border rounded-md text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary"
 					/>
 				</div>
 
-				<div class="flex items-center gap-0.5 p-0.5 border border-surface-border rounded-md bg-bg-secondary">
-					{#each [{id: 'all', label: 'All'}, {id: 'mcp', label: 'Canvas'}, {id: 'spark', label: 'Spark'}] as opt}
-						<button
-							class="px-2 py-0.5 text-[10px] font-mono rounded-sm transition-colors {sourceFilter === opt.id ? 'bg-accent-primary text-bg-primary' : 'text-text-secondary hover:text-text-primary'}"
-							onclick={() => sourceFilter = opt.id as typeof sourceFilter}
-						>
-							{opt.label}
-						</button>
-					{/each}
-				</div>
-
-				{#if searchQuery || sourceFilter !== 'all'}
-					<span class="font-mono text-[10px] text-text-tertiary">{filteredCards().length}/{cards().length}</span>
+				{#if searchQuery}
+					<span class="font-mono text-xs text-text-tertiary">{filteredCards().length}/{cards().length}</span>
 				{/if}
 
 				<button
@@ -795,23 +783,23 @@
 							quickAddFeedback = '';
 						}
 					}}
-					class="inline-flex items-center gap-1 px-2 py-1 text-xs font-mono bg-accent-primary text-bg-primary rounded-md hover:bg-accent-primary-hover transition-all"
+					class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-mono bg-accent-primary text-bg-primary rounded-md hover:bg-accent-primary-hover transition-all"
 					title="New mission"
 				>
-					<Icon name="plus" size={12} />
+					<Icon name="plus" size={14} />
 					<span class="hidden sm:inline">New</span>
 				</button>
 			{/if}
 
-			<div class="flex items-center gap-1 p-0.5 border border-surface-border rounded-md bg-bg-secondary">
+			<div class="flex items-center gap-1 p-1 border border-surface-border rounded-md bg-bg-secondary">
 				<button
-					class="px-2.5 py-0.5 text-[11px] font-mono rounded-sm transition-colors {activeTab === 'board' ? 'bg-accent-primary text-bg-primary' : 'text-text-secondary hover:text-text-primary'}"
+					class="px-3.5 py-1.5 text-xs font-mono rounded-sm transition-colors {activeTab === 'board' ? 'bg-accent-primary text-bg-primary' : 'text-text-secondary hover:text-text-primary'}"
 					onclick={() => activeTab = 'board'}
 				>
 					Board
 				</button>
 				<button
-					class="px-2.5 py-0.5 text-[11px] font-mono rounded-sm transition-colors {activeTab === 'scheduled' ? 'bg-accent-primary text-bg-primary' : 'text-text-secondary hover:text-text-primary'}"
+					class="px-3.5 py-1.5 text-xs font-mono rounded-sm transition-colors {activeTab === 'scheduled' ? 'bg-accent-primary text-bg-primary' : 'text-text-secondary hover:text-text-primary'}"
 					onclick={() => activeTab = 'scheduled'}
 				>
 					Scheduled
@@ -892,7 +880,7 @@
 				{#each [
 					{ title: 'To do', items: toDo, empty: 'No pending missions' },
 					{ title: 'In progress', items: inProgress, empty: 'Nothing running' },
-					{ title: 'Done', items: done, empty: 'No history yet' }
+					{ title: 'Completed', items: done, empty: 'No history yet' }
 				] as col}
 					<section class="flex flex-col min-h-[320px]">
 						<div class="sticky top-0 z-10 flex items-center justify-between gap-2 px-1 py-4 mb-1 bg-bg-primary/90 backdrop-blur-sm border-b border-surface-border">
@@ -916,18 +904,20 @@
 										class="block px-4 py-3.5 text-inherit focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-primary/70 rounded-md"
 										title="Open this mission"
 									>
-										<div class="mb-2.5 flex items-start justify-between gap-3">
+										<div class="mb-3 flex items-start justify-between gap-3">
 											<div class="min-w-0 flex-1">
-												<div class="mb-1.5 flex items-center gap-2">
-													<span class="w-2 h-2 rounded-full shrink-0 {statusDot(c.status)}"></span>
-													<span class="font-mono text-[10px] font-semibold uppercase tracking-wider {statusTextClass(c.status)}">{statusLabel(c.status)}</span>
-												</div>
-												<h3 class="font-sans text-base font-semibold leading-snug text-text-primary transition-colors group-hover:text-accent-primary line-clamp-2">
-													{c.name}
+												<h3 class="flex items-start gap-2 font-sans text-base font-semibold leading-snug text-text-primary transition-colors group-hover:text-accent-primary">
+													<span class="mt-1.5 h-2 w-2 rounded-full shrink-0 {statusDot(c.status)}"></span>
+													<span class="line-clamp-2">{c.name}</span>
 												</h3>
 											</div>
-											<div class="shrink-0 text-right">
-												<p class="font-mono text-[10px] leading-tight text-text-faint whitespace-nowrap">{cardTimestamp(c)}</p>
+											<div class="shrink-0 text-right space-y-1">
+												<div class="inline-flex items-center gap-1.5 rounded-sm border border-surface-border bg-bg-primary/70 px-2 py-1 font-mono text-[10px] text-text-secondary">
+													<Icon name={typeIcon(c)} size={11} />
+													<span>{typeLabel(c)}</span>
+												</div>
+												<p class="font-mono text-[10px] uppercase tracking-wider text-text-faint">{cardTimestampLabel(c)}</p>
+												<p class="font-mono text-[11px] leading-tight text-text-secondary whitespace-nowrap">{cardTimestamp(c)}</p>
 												<Icon name="arrow-right" size={14} class="ml-auto mt-2 text-text-tertiary transition-all group-hover:translate-x-0.5 group-hover:text-accent-primary" />
 											</div>
 										</div>
@@ -942,11 +932,12 @@
 
 										{#if hasProgress}
 										<div>
-											<div class="mb-1.5 flex items-center justify-between font-mono text-[10px] text-text-tertiary">
-												<span>{taskProgressRatio(c)}</span>
+											<div class="mb-1.5 flex items-center justify-between gap-3 font-mono text-[10px] text-text-tertiary">
+												<span>{taskProgressLabel(c)}</span>
+												<span>{taskProgressRatio(c)} complete</span>
 												<span>{taskProgressPercent(c)}%</span>
 											</div>
-											<div class="h-1 overflow-hidden rounded-full bg-bg-primary">
+											<div class="h-1.5 overflow-hidden rounded-full bg-bg-primary">
 												<div class="h-full rounded-full bg-accent-primary transition-all" style="width: {taskProgressPercent(c)}%"></div>
 											</div>
 										</div>
