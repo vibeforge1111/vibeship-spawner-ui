@@ -90,7 +90,7 @@ export function getTaskRowClass(status: TaskRowStatus): string {
 		case 'completed':
 			return 'border-accent-primary/30 bg-accent-primary/5';
 		case 'running':
-			return 'border-vibe-teal/50 bg-vibe-teal/10';
+			return 'border-sky-400/40 bg-sky-400/10';
 		case 'failed':
 			return 'border-status-error/40 bg-status-error/10';
 		case 'blocked':
@@ -105,7 +105,7 @@ export function getTaskBadgeClass(status: TaskRowStatus): string {
 		case 'completed':
 			return 'bg-accent-primary/20 text-accent-primary border-accent-primary/30';
 		case 'running':
-			return 'bg-vibe-teal/20 text-vibe-teal border-vibe-teal/30';
+			return 'bg-sky-400/15 text-sky-300 border-sky-400/30';
 		case 'failed':
 			return 'bg-status-error/20 text-status-error border-status-error/30';
 		case 'blocked':

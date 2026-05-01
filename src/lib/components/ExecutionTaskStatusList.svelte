@@ -49,31 +49,31 @@
 		<div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-bg-secondary border-b border-surface-border">
 			<div>
 				<span class="text-xs font-mono text-text-tertiary uppercase tracking-[0.16em]">Tasks</span>
-				<div class="mt-1 text-sm font-mono font-semibold text-text-primary">
+				<div class="mt-1 text-sm font-semibold text-text-primary">
 					{taskCompletionLabel}
 				</div>
 				{#if nextTask && isRunning}
-					<div class="mt-1 text-[11px] font-mono text-vibe-teal truncate max-w-[36rem]">
+					<div class="mt-1 max-w-[36rem] truncate text-[11px] font-medium text-sky-300">
 						Running {nextTask.index}/{taskRows.length}: {nextTask.title}
 					</div>
 				{/if}
 			</div>
-			<div class="grid grid-cols-4 gap-1.5 text-right">
-				<div class="min-w-16 rounded-md border border-accent-primary/20 bg-accent-primary/5 px-2 py-1.5">
-					<div class="text-sm font-mono font-semibold text-accent-primary">{taskSummary.completed}</div>
-					<div class="text-[9px] font-mono text-accent-primary/70 uppercase tracking-[0.12em]">Done</div>
+			<div class="grid grid-cols-2 gap-1.5 text-right sm:grid-cols-4">
+				<div class="min-w-16 rounded-md border border-accent-primary/25 bg-accent-primary/10 px-2.5 py-2 shadow-[0_10px_26px_-22px_rgba(47,202,148,0.75)]">
+					<div class="text-base font-semibold leading-none tabular-nums text-accent-primary">{taskSummary.completed}</div>
+					<div class="mt-1 text-[9px] font-medium uppercase tracking-[0.1em] text-accent-primary/70">Done</div>
 				</div>
-				<div class="min-w-16 rounded-md border border-vibe-teal/20 bg-vibe-teal/5 px-2 py-1.5">
-					<div class="text-sm font-mono font-semibold text-vibe-teal">{taskSummary.running}</div>
-					<div class="text-[9px] font-mono text-vibe-teal/70 uppercase tracking-[0.12em]">Active</div>
+				<div class="min-w-16 rounded-md border border-sky-400/25 bg-sky-400/10 px-2.5 py-2 shadow-[0_10px_26px_-22px_rgba(56,189,248,0.75)]">
+					<div class="text-base font-semibold leading-none tabular-nums text-sky-300">{taskSummary.running}</div>
+					<div class="mt-1 text-[9px] font-medium uppercase tracking-[0.1em] text-sky-300/75">Active</div>
 				</div>
-				<div class="min-w-16 rounded-md border border-amber-500/20 bg-amber-500/5 px-2 py-1.5">
-					<div class="text-sm font-mono font-semibold text-status-warning">{taskSummary.pending}</div>
-					<div class="text-[9px] font-mono text-status-warning/70 uppercase tracking-[0.12em]">Queued</div>
+				<div class="min-w-16 rounded-md border border-amber-400/25 bg-amber-400/10 px-2.5 py-2 shadow-[0_10px_26px_-22px_rgba(251,191,36,0.7)]">
+					<div class="text-base font-semibold leading-none tabular-nums text-amber-300">{taskSummary.pending}</div>
+					<div class="mt-1 text-[9px] font-medium uppercase tracking-[0.1em] text-amber-300/75">Queued</div>
 				</div>
-				<div class="min-w-16 rounded-md border border-status-error/20 bg-status-error/5 px-2 py-1.5">
-					<div class="text-sm font-mono font-semibold text-status-error">{taskSummary.failed}</div>
-					<div class="text-[9px] font-mono text-status-error/70 uppercase tracking-[0.12em]">Failed</div>
+				<div class="min-w-16 rounded-md border border-status-error/25 bg-status-error/10 px-2.5 py-2 shadow-[0_10px_26px_-22px_rgba(248,113,113,0.72)]">
+					<div class="text-base font-semibold leading-none tabular-nums text-status-error">{taskSummary.failed}</div>
+					<div class="mt-1 text-[9px] font-medium uppercase tracking-[0.1em] text-status-error/75">Failed</div>
 				</div>
 			</div>
 		</div>
@@ -81,7 +81,7 @@
 			{#each taskRows as task}
 				<div class="relative px-4 py-2.5 border-b last:border-b-0 {getTaskRowClass(task.status)}">
 					{#if task.status === 'running'}
-						<span class="absolute left-0 top-0 h-full w-0.5 bg-vibe-teal shadow-[0_0_18px_rgba(47,202,148,0.45)]"></span>
+						<span class="absolute left-0 top-0 h-full w-0.5 bg-sky-400 shadow-[0_0_18px_rgba(56,189,248,0.45)]"></span>
 					{/if}
 					<div class="flex items-start justify-between gap-3">
 						<div class="min-w-0 flex-1">
@@ -102,7 +102,7 @@
 								</div>
 							{/if}
 						</div>
-						<span class="rounded px-1.5 py-0.5 border text-[10px] font-mono uppercase tracking-[0.1em] {getTaskBadgeClass(task.status)}">
+						<span class="rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] {getTaskBadgeClass(task.status)}">
 							{task.status}
 						</span>
 					</div>

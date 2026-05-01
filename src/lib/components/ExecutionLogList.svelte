@@ -2,6 +2,7 @@
 	import type { MissionLog } from '$lib/services/mcp-client';
 	import type { ExecutionStatus, TaskTransitionEvent } from '$lib/services/mission-executor';
 	import { toasts } from '$lib/stores/toast.svelte';
+	import Icon from './Icon.svelte';
 
 	interface Props {
 		logs: MissionLog[];
@@ -77,9 +78,7 @@
 				onclick={copyAllLogs}
 				class="inline-flex items-center gap-1 rounded-md border border-surface-border px-2 py-1 text-xs text-text-tertiary transition-all hover:border-vibe-teal/50 hover:text-text-secondary"
 			>
-				<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
-				</svg>
+				<Icon name="copy" size={13} class="shrink-0" />
 				Copy
 			</button>
 		{/if}
@@ -112,12 +111,10 @@
 						<span class="select-text break-words leading-relaxed">{formatLogMessage(log.message)}</span>
 						<button
 							onclick={() => copyLogMessage(log.message)}
-							class="opacity-0 group-hover:opacity-100 text-xs text-text-tertiary hover:text-vibe-teal transition-all px-1"
+							class="rounded p-1 text-xs text-text-tertiary opacity-0 transition-all hover:bg-bg-secondary hover:text-vibe-teal group-hover:opacity-100"
 							title="Copy this log"
 						>
-							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
-							</svg>
+							<Icon name="copy" size={13} class="shrink-0" />
 						</button>
 					</div>
 				{/each}
