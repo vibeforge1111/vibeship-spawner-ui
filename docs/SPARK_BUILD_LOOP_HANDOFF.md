@@ -4,6 +4,190 @@ Internal handoff for the Spawner UI, Telegram bot, Canvas, Kanban, and project p
 
 Last updated: 2026-05-01
 
+## Archive Restart Packet - 2026-05-01
+
+Use this section first if this conversation was archived because Codex got slow.
+
+### Current status
+
+Stage two project lineage work is done and pushed in Spawner UI.
+
+Spawner UI `main` is aligned with `origin/main` at:
+
+```text
+d5c792f carry lineage through improve links
+```
+
+Telegram bot `main` is aligned with `origin/main` at:
+
+```text
+d532ba7 Merge remote-tracking branch 'origin/main'
+```
+
+Builder `origin/main` currently includes the self-awareness and LLM wiki status path at:
+
+```text
+82fe1b2 Make self-awareness style-aware
+```
+
+Services were restarted and `spark status` was green:
+
+```text
+spark-telegram-bot: OK
+spark-intelligence-builder: OK
+spawner-ui: OK at http://127.0.0.1:3333
+spark-researcher: OK
+domain-chip-memory: OK
+spark-character: OK
+```
+
+### What shipped after the original restart packet
+
+Spawner UI now has first-class improvement lineage support:
+
+- `projectId`
+- `projectPath`
+- `previewUrl`
+- `parentMissionId`
+- `iterationNumber`
+- `improvementFeedback`
+
+Lineage now flows through Mission Control relay, board, status, trace, run API, and PRD auto-dispatch. Kanban, result, and Canvas surfaces expose improve actions and carry lineage into follow-up missions.
+
+Telegram bot now has a safer context-window loop:
+
+- short option picks like `let's do two` resolve against the latest local list
+- access-level changes do not steal numbered list references
+- short resolved option picks answer from local conversation frame instead of waiting on a slow provider
+- long Telegram replies are split before send so self-awareness reports do not hit Telegram's 4096-character limit
+
+### Verification completed
+
+Spawner UI:
+
+```text
+npm run check
+npm run test:run -- src/lib/server/mission-control-relay.test.ts src/lib/server/mission-control-trace.test.ts src/lib/services/mission-board-cards.test.ts src/lib/services/mission-detail-view-model.test.ts src/lib/services/mission-control-hydration.test.ts
+npm run test:run -- src/routes/api/dispatch/dispatch.autorun.test.ts src/routes/api/mission-control/board/board.integration.test.ts src/routes/api/mission-control/trace/trace.integration.test.ts src/lib/server/prd-auto-dispatch.test.ts
+```
+
+Telegram bot:
+
+```text
+npm test
+npm run context:live
+```
+
+The latest context harness passed:
+
+```text
+20/20 passed
+```
+
+Live Telegram probe also passed from beginning to end:
+
+```text
+User: Here are three directions for a team ritual: 1. async demos 2. Friday notes 3. launch retro
+Bot:  Got it. I have these options on the table...
+
+User: Before we choose, give me one sentence about why rituals can help remote teams.
+Bot:  Rituals give distributed teams shared temporal anchors...
+
+User: Also keep it calm and not corporate.
+Bot:  Noted, I'll keep it calm and skip the corporate polish.
+
+User: let's do two
+Bot:  Friday notes it is.
+      I am resolving that against the current list context, not older memory.
+```
+
+Builder cold-memory check:
+
+```text
+python -c "import runpy, sys; sys.path.insert(0, sys.argv[1]); sys.argv = ['spark_intelligence.cli', *sys.argv[2:]]; runpy.run_module('spark_intelligence.cli', run_name='__main__')" C:\Users\USER\.spark\modules\spark-intelligence-builder\source\src memory inspect-capsule --home C:\Users\USER\.spark\state\spark-intelligence --query "let's do two" --subject human:telegram:8319079055 --limit 6 --no-record-activity --json
+```
+
+This succeeded after the earlier transient `build_llm_wiki_status` import failure.
+
+### Important caveats for the next chat
+
+Do not assume these runtime checkouts are clean just because the pushed branches are aligned.
+
+Spawner UI still has unrelated local dirty files, mostly memory-dashboard and PRD bridge work. Do not stage them accidentally.
+
+Telegram bot still shows broad local runtime modifications after restarts/autostash churn. `main` is aligned with `origin/main`, but the working tree is dirty. Do not run broad `git add .`.
+
+Builder is a detached dirty runtime checkout. `origin/main` tracks `src/spark_intelligence/llm_wiki/`, but the local detached checkout also has untracked `llm_wiki/` and self-awareness files. The exact cold-memory command now works, so do not "fix" Builder by force-updating the dirty runtime unless the user explicitly asks to clean/sync it.
+
+Runtime hygiene warnings are expected right now because installed module commits differ from the pinned registry. They are warnings, not proof of failure.
+
+### What I would do next
+
+1. Run one real product loop smoke:
+   - build a tiny app from Telegram
+   - confirm Kanban/Canvas/Trace/Result lineage
+   - click "Improve this"
+   - send feedback
+   - confirm the improvement mission targets the same project path
+
+2. Add a post-ship review/checklist surface:
+   - original brief match
+   - visual polish
+   - mobile usability
+   - preview health
+   - suggested next polish pass
+
+3. Add a managed preview health check:
+   - default preview base `http://127.0.0.1:5555`
+   - fallback port detection
+   - Telegram should report the project preview URL, not just Spawner UI
+
+4. Clean up runtime/worktree discipline separately:
+   - decide whether installed runtimes should be reset/synced to pushed `origin/main`
+   - preserve any intentional local work first
+   - never do this with `git reset --hard` unless the user explicitly approves
+
+### Correct path to start from
+
+Read this file first:
+
+```text
+C:\Users\USER\.spark\modules\spawner-ui\source\docs\SPARK_BUILD_LOOP_HANDOFF.md
+```
+
+Primary repos:
+
+```text
+C:\Users\USER\.spark\modules\spawner-ui\source
+C:\Users\USER\.spark\modules\spark-telegram-bot\source
+C:\Users\USER\.spark\modules\spark-intelligence-builder\source
+```
+
+### Correct prompt for the next Codex chat
+
+```text
+Read C:\Users\USER\.spark\modules\spawner-ui\source\docs\SPARK_BUILD_LOOP_HANDOFF.md first, especially "Archive Restart Packet - 2026-05-01".
+
+Continue from the archived Spark build-loop session.
+
+Current state:
+- Spawner UI stage two lineage/improve actions are implemented and pushed through d5c792f.
+- Telegram context fixes are implemented and pushed through d532ba7.
+- Live Telegram probe passed: "let's do two" resolves to Friday notes from current list context.
+- spark status was green after restart.
+
+Important constraints:
+- Do not stage unrelated dirty runtime files.
+- Do not use broad git add.
+- Do not reset or clean dirty runtime checkouts unless I explicitly ask.
+- Commit small, explicit changes often.
+
+Next goal:
+Run a real end-to-end product-loop smoke from Telegram: build a tiny app, verify Kanban/Canvas/Trace/Result lineage, use Improve this or natural feedback, confirm the improvement mission targets the same project path and iteration metadata.
+
+If that passes, start the next product layer: a post-ship review/checklist surface and managed preview health checks.
+```
+
 ## New Chat Restart Packet
 
 Use this section first when starting a fresh Codex chat.
