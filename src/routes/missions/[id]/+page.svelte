@@ -318,19 +318,6 @@
 			sparkMissionDetail?.taskRollups.at(-1) ||
 			null
 	);
-	const progressBarVariants = [
-		{ id: '01', name: 'Clean rails', className: 'progress-variant-clean' },
-		{ id: '02', name: 'Soft sweep', className: 'progress-variant-sweep' },
-		{ id: '03', name: 'Glass lane', className: 'progress-variant-glass' },
-		{ id: '04', name: 'Signal ticks', className: 'progress-variant-ticks' },
-		{ id: '05', name: 'Quiet pulse', className: 'progress-variant-pulse' },
-		{ id: '06', name: 'Tight bands', className: 'progress-variant-bands' },
-		{ id: '07', name: 'Focus rail', className: 'progress-variant-focus' },
-		{ id: '08', name: 'Trace flow', className: 'progress-variant-trace' },
-		{ id: '09', name: 'Solid scan', className: 'progress-variant-scan' },
-		{ id: '10', name: 'Calm meter', className: 'progress-variant-calm' }
-	];
-
 	function sparkStatusBadge(status: string): string {
 		if (status === 'completed') return 'border-status-success/30 bg-status-success/10 text-status-success';
 		if (status === 'failed') return 'border-status-error/30 bg-status-error/10 text-status-error';
@@ -467,9 +454,12 @@
 								{sparkCurrentTask ? sparkCurrentTask.title : sparkProgressPercent() >= 100 ? 'Mission complete' : 'Waiting for next task'}
 							</h2>
 						</div>
-						<div class="text-left sm:text-right">
-							<div class="font-mono text-sm font-semibold text-text-secondary">{taskProgressLabel()}</div>
-							<div class="mt-1 font-mono text-2xl font-semibold text-text-primary">{sparkProgressPercent()}%</div>
+						<div class="text-left font-sans sm:text-right">
+							<div class="text-[15px] font-medium text-text-secondary">
+								<span class="font-semibold tabular-nums text-text-primary">{sparkTaskCounts().completed}/{sparkTaskCounts().total}</span>
+								tasks completed
+							</div>
+							<div class="mt-1 text-3xl font-semibold leading-none tabular-nums text-text-primary">{sparkProgressPercent()}%</div>
 						</div>
 					</div>
 					<div class="mission-progress-track mission-progress-main mt-4">
@@ -496,32 +486,6 @@
 						<div class="font-mono text-[10px] uppercase tracking-wider text-text-tertiary">Total</div>
 						<div class="mt-1 text-lg font-semibold text-text-primary">{sparkTaskCounts().total}</div>
 					</div>
-				</div>
-			</section>
-
-			<section class="mb-6 rounded-md border border-surface-border bg-bg-secondary px-5 py-4">
-				<div class="mb-4 grid gap-3 sm:flex sm:items-center sm:justify-between">
-					<div>
-						<h2 class="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-text-bright">Progress styles</h2>
-						<p class="mt-1 text-sm text-text-secondary">Ten striped directions using the same mission completion value.</p>
-					</div>
-					<span class="font-mono text-sm font-semibold text-text-primary sm:text-right">{sparkProgressPercent()}%</span>
-				</div>
-				<div class="grid gap-3 md:grid-cols-2">
-					{#each progressBarVariants as variant}
-						<article class="min-w-0 rounded-md border border-surface-border/80 bg-bg-primary/55 px-3 py-3">
-							<div class="mb-2 grid gap-1 sm:flex sm:items-center sm:justify-between sm:gap-3">
-								<span class="font-mono text-[11px] font-semibold uppercase tracking-wider text-text-secondary">{variant.id}. {variant.name}</span>
-								<span class="font-mono text-[11px] text-text-tertiary sm:text-right">{taskProgressLabel()}</span>
-							</div>
-							<div class="mission-progress-track mission-progress-sample">
-								<div
-									class={`mission-progress-fill ${variant.className}`}
-									style="width: {sparkProgressPercent()}%"
-								></div>
-							</div>
-						</article>
-					{/each}
 				</div>
 			</section>
 
@@ -574,7 +538,7 @@
 				<div class="mb-6">
 					<div class="mb-3 flex items-center justify-between gap-3">
 						<h2 class="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-text-bright">Execution</h2>
-						<span class="font-mono text-xs text-text-secondary">{taskProgressLabel()}</span>
+						<span class="font-sans text-sm font-medium text-text-secondary">{taskProgressLabel()}</span>
 					</div>
 					<div class="grid gap-2">
 						{#if traceTasks.length > 0}
@@ -966,25 +930,6 @@
 		}
 	}
 
-	@keyframes progressSweep {
-		from {
-			transform: translateX(-130%) skewX(-18deg);
-		}
-		to {
-			transform: translateX(230%) skewX(-18deg);
-		}
-	}
-
-	@keyframes progressBreath {
-		0%,
-		100% {
-			opacity: 0.72;
-		}
-		50% {
-			opacity: 1;
-		}
-	}
-
 	.mission-progress-track {
 		position: relative;
 		overflow: hidden;
@@ -997,11 +942,6 @@
 
 	.mission-progress-main {
 		height: 1rem;
-		border-radius: 999px;
-	}
-
-	.mission-progress-sample {
-		height: 0.72rem;
 		border-radius: 999px;
 	}
 
@@ -1040,90 +980,5 @@
 	.progress-variant-clean {
 		background: rgb(var(--accent-rgb));
 		box-shadow: 0 0 20px rgb(var(--accent-rgb) / 0.28);
-	}
-
-	.progress-variant-sweep {
-		background: rgb(var(--accent-rgb) / 0.92);
-	}
-
-	.progress-variant-sweep::after {
-		background: linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 0.5) 48%, transparent 82%);
-		width: 40%;
-		animation: progressSweep 2.4s ease-in-out infinite;
-	}
-
-	.progress-variant-glass {
-		background: linear-gradient(180deg, rgb(80 224 180), rgb(var(--accent-rgb) / 0.78));
-		box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.28);
-	}
-
-	.progress-variant-glass::before {
-		background: repeating-linear-gradient(95deg, rgb(255 255 255 / 0.7) 0 2px, transparent 2px 10px);
-		animation-duration: 2.6s;
-	}
-
-	.progress-variant-ticks {
-		background: rgb(var(--accent-rgb) / 0.86);
-	}
-
-	.progress-variant-ticks::before {
-		background: repeating-linear-gradient(90deg, rgb(255 255 255 / 0.72) 0 2px, transparent 2px 8px);
-		animation-duration: 1.25s;
-	}
-
-	.progress-variant-pulse {
-		background: rgb(var(--accent-rgb) / 0.78);
-		animation: progressBreath 1.8s ease-in-out infinite;
-	}
-
-	.progress-variant-pulse::before {
-		background: repeating-linear-gradient(120deg, rgb(255 255 255 / 0.56) 0 4px, transparent 4px 14px);
-		animation-duration: 2.2s;
-	}
-
-	.progress-variant-bands {
-		background: rgb(var(--accent-rgb) / 0.95);
-	}
-
-	.progress-variant-bands::before {
-		background: repeating-linear-gradient(110deg, rgb(255 255 255 / 0.78) 0 5px, transparent 5px 16px);
-		animation-duration: 1.45s;
-	}
-
-	.progress-variant-focus {
-		background: rgb(var(--accent-rgb) / 0.9);
-		box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08) inset, 0 0 22px rgb(var(--accent-rgb) / 0.25);
-	}
-
-	.progress-variant-focus::before {
-		background: repeating-linear-gradient(100deg, rgb(255 255 255 / 0.66) 0 3px, transparent 3px 13px);
-		animation-duration: 3s;
-	}
-
-	.progress-variant-trace {
-		background: linear-gradient(90deg, rgb(var(--accent-rgb) / 0.88), rgb(var(--iris-rgb) / 0.82));
-	}
-
-	.progress-variant-trace::before {
-		background: repeating-linear-gradient(108deg, rgb(255 255 255 / 0.7) 0 2px, transparent 2px 12px);
-		animation-duration: 1.7s;
-	}
-
-	.progress-variant-scan {
-		background: rgb(var(--accent-rgb) / 0.82);
-	}
-
-	.progress-variant-scan::before {
-		background: repeating-linear-gradient(75deg, rgb(255 255 255 / 0.68) 0 4px, transparent 4px 18px);
-		animation-duration: 900ms;
-	}
-
-	.progress-variant-calm {
-		background: rgb(var(--accent-rgb) / 0.72);
-	}
-
-	.progress-variant-calm::before {
-		background: repeating-linear-gradient(105deg, rgb(255 255 255 / 0.48) 0 3px, transparent 3px 18px);
-		animation-duration: 4.2s;
 	}
 </style>
