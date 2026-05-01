@@ -468,7 +468,7 @@
 	function taskProgressLabel(card: BoardCard): string {
 		const counts = card.taskStatusCounts;
 		if (!counts || counts.total <= 0) return '';
-		return `${counts.total} task${counts.total === 1 ? '' : 's'}`;
+		return `${taskProgressRatio(card)} task${counts.total === 1 ? '' : 's'} completed`;
 	}
 
 	function focusLine(card: BoardCard): string | null {
@@ -483,12 +483,6 @@
 		return null;
 	}
 
-	function cardTimestampLabel(card: BoardCard): string {
-		if ((card.status === 'ready' || card.status === 'draft') && card.queuedAt) return 'Queued';
-		if ((card.status === 'running' || card.status === 'paused') && card.startedAt) return 'Started';
-		return 'Updated';
-	}
-
 	function cardTimestamp(card: BoardCard): string {
 		if ((card.status === 'ready' || card.status === 'draft') && card.queuedAt) return formatDate(card.queuedAt);
 		if ((card.status === 'running' || card.status === 'paused') && card.startedAt) return formatDate(card.startedAt);
@@ -496,11 +490,15 @@
 	}
 
 	function typeIcon(card: BoardCard): string {
-		return card.source === 'spark' ? 'sparkles' : 'grid';
+		return 'box';
 	}
 
 	function typeLabel(card: BoardCard): string {
-		return card.source === 'spark' ? 'Spark' : 'Canvas';
+		return 'Canvas';
+	}
+
+	function typeBadgeClass(card: BoardCard): string {
+		return 'border-surface-border bg-bg-primary/70 text-text-tertiary group-hover:border-iris/60 group-hover:text-iris';
 	}
 
 	function lineageSummary(card: BoardCard): string | null {
@@ -898,10 +896,10 @@
 								{@const lineage = lineageSummary(c)}
 								{@const hasProgress = hasTaskProgress(c)}
 								{@const hasActions = hasCardActions(c)}
-								<article class="group relative overflow-hidden rounded-md border border-surface-border bg-bg-secondary transition-all hover:border-accent-primary/50 hover:bg-bg-tertiary/40">
+								<article class="group relative overflow-hidden rounded-md border border-surface-border bg-bg-secondary transition-all hover:border-iris/60 hover:bg-bg-tertiary/40">
 									<a
 										href={actionLinks.detailHref}
-										class="block px-4 py-3.5 text-inherit focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-primary/70 rounded-md"
+										class="block px-4 py-3.5 text-inherit focus:outline-none focus-visible:ring-1 focus-visible:ring-iris/70 rounded-md"
 										title="Open this mission"
 									>
 										<div class="mb-3 flex items-start justify-between gap-3">
@@ -910,15 +908,17 @@
 													<span class="mt-1.5 h-2 w-2 rounded-full shrink-0 {statusDot(c.status)}"></span>
 													<span class="line-clamp-2">{c.name}</span>
 												</h3>
+												<p class="mt-1.5 flex items-center gap-1.5 font-mono text-[11px] leading-tight text-text-secondary">
+													<Icon name="clock" size={11} class="text-text-tertiary" />
+													<span>{cardTimestamp(c)}</span>
+												</p>
 											</div>
-											<div class="shrink-0 text-right space-y-1">
-												<div class="inline-flex items-center gap-1.5 rounded-sm border border-surface-border bg-bg-primary/70 px-2 py-1 font-mono text-[10px] text-text-secondary">
+											<div class="shrink-0 text-right space-y-2">
+												<div class="inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[9px] font-semibold uppercase tracking-wider shadow-sm transition-colors {typeBadgeClass(c)}" title="Open in canvas">
 													<Icon name={typeIcon(c)} size={11} />
 													<span>{typeLabel(c)}</span>
 												</div>
-												<p class="font-mono text-[10px] uppercase tracking-wider text-text-faint">{cardTimestampLabel(c)}</p>
-												<p class="font-mono text-[11px] leading-tight text-text-secondary whitespace-nowrap">{cardTimestamp(c)}</p>
-												<Icon name="arrow-right" size={14} class="ml-auto mt-2 text-text-tertiary transition-all group-hover:translate-x-0.5 group-hover:text-accent-primary" />
+												<Icon name="arrow-right" size={14} class="ml-auto text-text-tertiary transition-all group-hover:translate-x-0.5 group-hover:text-accent-primary" />
 											</div>
 										</div>
 
@@ -932,9 +932,8 @@
 
 										{#if hasProgress}
 										<div>
-											<div class="mb-1.5 flex items-center justify-between gap-3 font-mono text-[10px] text-text-tertiary">
+											<div class="mb-2 flex items-center justify-between gap-3 font-mono text-xs font-semibold text-text-secondary">
 												<span>{taskProgressLabel(c)}</span>
-												<span>{taskProgressRatio(c)} complete</span>
 												<span>{taskProgressPercent(c)}%</span>
 											</div>
 											<div class="h-1.5 overflow-hidden rounded-full bg-bg-primary">
