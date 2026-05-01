@@ -1218,6 +1218,14 @@
 			onClose();
 		}
 	}
+
+	function canvasImproveHref(): string {
+		const params = new URLSearchParams();
+		if (projectLineage?.projectPath) params.set('improveProjectPath', projectLineage.projectPath);
+		params.set('parentMissionId', executionProgress?.missionId || relay?.missionId || '');
+		if (projectLineage?.previewUrl) params.set('previewUrl', projectLineage.previewUrl);
+		return `/kanban?${params.toString()}`;
+	}
 </script>
 
 <!-- Minimized floating widget -->
@@ -1333,8 +1341,18 @@
 
 				{#if projectLineage}
 					<div class="mt-3 rounded-md border border-accent-primary/30 bg-accent-primary/10 px-3 py-2 font-mono text-xs text-text-secondary">
-						<div class="text-accent-primary">
-							Project iteration{projectLineage.iterationNumber ? ` ${projectLineage.iterationNumber}` : ''}
+						<div class="flex flex-wrap items-center justify-between gap-2">
+							<div class="text-accent-primary">
+								Project iteration{projectLineage.iterationNumber ? ` ${projectLineage.iterationNumber}` : ''}
+							</div>
+							{#if projectLineage.projectPath}
+								<a
+									href={canvasImproveHref()}
+									class="inline-flex items-center justify-center px-2 py-1 text-[10px] text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all"
+								>
+									Improve this
+								</a>
+							{/if}
 						</div>
 						{#if projectLineage.projectPath}<div class="mt-1 truncate">Project: {projectLineage.projectPath}</div>{/if}
 						{#if projectLineage.parentMissionId}<div>Parent: {projectLineage.parentMissionId}</div>{/if}
