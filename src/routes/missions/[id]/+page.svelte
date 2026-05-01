@@ -252,6 +252,49 @@
 		missionControl ? buildSparkMissionDetail(missionId, missionControl.recent) : null
 	);
 	const sparkProjectLineage = $derived(missionControl?.projectLineage ?? sparkMissionDetail?.projectLineage ?? null);
+	const sparkTaskCounts = $derived(() => {
+		const tasks = sparkMissionDetail?.taskRollups ?? [];
+		return {
+			total: tasks.length,
+			completed: tasks.filter((task) => task.status === 'completed').length,
+			running: tasks.filter((task) => task.status === 'running').length,
+			failed: tasks.filter((task) => task.status === 'failed').length,
+			cancelled: tasks.filter((task) => task.status === 'cancelled').length,
+			pending: tasks.filter((task) => task.status === 'pending').length
+		};
+	});
+	const sparkProgressPercent = $derived(() => {
+		const counts = sparkTaskCounts();
+		if (counts.total === 0) return sparkMissionDetail?.sparkStatus === 'completed' ? 100 : 0;
+		return Math.round(((counts.completed + counts.failed + counts.cancelled) / counts.total) * 100);
+	});
+	const sparkCurrentTask = $derived(
+		sparkMissionDetail?.taskRollups.find((task) => task.status === 'running') ||
+			sparkMissionDetail?.taskRollups.find((task) => task.status === 'pending') ||
+			sparkMissionDetail?.taskRollups.at(-1) ||
+			null
+	);
+
+	function sparkStatusBadge(status: string): string {
+		if (status === 'completed') return 'border-status-success/30 bg-status-success/10 text-status-success';
+		if (status === 'failed') return 'border-status-error/30 bg-status-error/10 text-status-error';
+		if (status === 'cancelled') return 'border-text-tertiary bg-bg-secondary text-text-tertiary';
+		if (status === 'paused') return 'border-status-amber/30 bg-status-amber/10 text-status-amber';
+		return 'border-accent-primary/30 bg-accent-primary/10 text-accent-primary';
+	}
+
+	function taskDot(status: string): string {
+		if (status === 'completed') return 'bg-status-success';
+		if (status === 'failed') return 'bg-status-error';
+		if (status === 'cancelled') return 'bg-text-tertiary';
+		if (status === 'running') return 'bg-accent-primary animate-pulse';
+		return 'bg-text-faint';
+	}
+
+	function shortTime(value: string | null | undefined): string {
+		if (!value) return '';
+		return new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+	}
 
 	function improveHref(): string {
 		const params = new URLSearchParams();
@@ -287,6 +330,37 @@
 					{missionId} · started {new Date(sparkMissionDetail.earliest.timestamp).toLocaleString()} · {sparkMissionDetail.taskRollups.length} task{sparkMissionDetail.taskRollups.length !== 1 ? 's' : ''}
 				</p>
 			</div>
+
+			<section class="mb-6 rounded-md border border-surface-border bg-bg-secondary px-5 py-5">
+				<div class="flex flex-wrap items-start justify-between gap-4">
+					<div>
+						<p class="font-mono text-xs uppercase tracking-[0.16em] text-text-tertiary">Trace progress</p>
+						<h2 class="mt-2 text-xl font-sans font-semibold text-text-primary">
+							{sparkCurrentTask ? sparkCurrentTask.title : 'No active task'}
+						</h2>
+					</div>
+					<div class="rounded-full border px-2.5 py-1 font-mono text-[10px] {sparkStatusBadge(sparkMissionDetail.sparkStatus)}">
+						{sparkProgressPercent()}%
+					</div>
+				</div>
+				<div class="mt-4 h-2 overflow-hidden rounded-full bg-bg-primary">
+					<div class="h-full rounded-full bg-accent-primary transition-all" style="width: {sparkProgressPercent()}%"></div>
+				</div>
+				<div class="mt-4 grid grid-cols-3 gap-2">
+					<div class="rounded border border-surface-border bg-bg-primary px-3 py-2">
+						<div class="font-mono text-[10px] text-text-tertiary">Done</div>
+						<div class="mt-1 text-lg font-semibold text-status-success">{sparkTaskCounts().completed}</div>
+					</div>
+					<div class="rounded border border-surface-border bg-bg-primary px-3 py-2">
+						<div class="font-mono text-[10px] text-text-tertiary">Running</div>
+						<div class="mt-1 text-lg font-semibold text-accent-primary">{sparkTaskCounts().running}</div>
+					</div>
+					<div class="rounded border border-surface-border bg-bg-primary px-3 py-2">
+						<div class="font-mono text-[10px] text-text-tertiary">Open</div>
+						<div class="mt-1 text-lg font-semibold text-text-secondary">{sparkTaskCounts().pending}</div>
+					</div>
+				</div>
+			</section>
 
 			<div id="result" class="mb-6 scroll-mt-24">
 				<div class="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -379,7 +453,7 @@
 							<li class="px-5 py-2.5 flex items-start gap-3">
 								<span class="w-1.5 h-1.5 rounded-full mt-2 shrink-0 {ev.eventType.endsWith('_failed') ? 'bg-status-error' : ev.eventType.endsWith('_completed') ? 'bg-status-success' : ev.eventType.endsWith('_started') ? 'bg-accent-primary' : 'bg-text-tertiary'}"></span>
 								<div class="flex-1 min-w-0">
-									<span class="font-mono text-xs font-medium text-text-primary">{ev.eventType}</span>
+									<span class="text-sm font-medium text-text-primary">{ev.summary}</span>
 									<p class="font-mono text-[10px] text-text-faint">
 										{new Date(ev.timestamp).toLocaleString()} · {ev.source}
 									</p>

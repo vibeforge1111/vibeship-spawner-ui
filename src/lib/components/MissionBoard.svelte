@@ -445,28 +445,6 @@
 		}
 	}
 
-	function priorityOf(c: BoardCard): 'High' | 'Medium' | 'Low' {
-		if (c.status === 'running' || c.status === 'paused') return 'High';
-		if (c.mode === 'multi-llm-orchestrator' || c.mode === 'spark') return 'High';
-		if (c.taskCount > 5) return 'High';
-		if (c.status === 'ready' || c.status === 'draft') return 'Medium';
-		return 'Low';
-	}
-
-	function priorityClass(p: 'High' | 'Medium' | 'Low'): string {
-		if (p === 'High')   return 'bg-status-error/15 text-status-error border-status-error/30';
-		if (p === 'Medium') return 'bg-status-amber/15 text-status-amber border-status-amber/30';
-		return 'bg-bg-primary text-text-tertiary border-surface-border';
-	}
-
-	function taskStatusClass(status: string | undefined): string {
-		if (status === 'completed') return 'text-status-success border-status-success/40 bg-status-success/10';
-		if (status === 'failed') return 'text-status-error border-status-error/40 bg-status-error/10';
-		if (status === 'cancelled') return 'text-text-tertiary border-surface-border bg-bg-primary/70';
-		if (status === 'running') return 'text-accent-primary border-accent-primary/40 bg-accent-primary/10';
-		return 'text-status-amber border-status-amber/35 bg-status-amber/10';
-	}
-
 	function taskStatusLabel(status: string | undefined): string {
 		if (status === 'completed') return 'Done';
 		if (status === 'failed') return 'Failed';
@@ -485,6 +463,43 @@
 		if (counts.cancelled) parts.push(`${counts.cancelled} cancelled`);
 		if (counts.queued) parts.push(`${counts.queued} queued`);
 		return parts.length ? parts.join(' / ') : `${counts.total} tasks`;
+	}
+
+	function taskProgressPercent(card: BoardCard): number {
+		const counts = card.taskStatusCounts;
+		if (!counts || counts.total <= 0) {
+			if (card.status === 'completed') return 100;
+			if (card.status === 'running') return 48;
+			return 0;
+		}
+		return Math.round(((counts.completed + counts.failed + counts.cancelled) / counts.total) * 100);
+	}
+
+	function focusLine(card: BoardCard): string | null {
+		const provider = card.providerSummary?.trim();
+		if (provider) return provider;
+		const summary = card.summary?.trim();
+		if (summary) return summary;
+		const firstTask = card.tasks?.find((task) => task.status === 'running') || card.tasks?.[0];
+		return firstTask?.title ?? null;
+	}
+
+	function statusLabel(status: CardStatus): string {
+		if (status === 'ready' || status === 'draft') return 'To do';
+		if (status === 'running') return 'Running';
+		if (status === 'paused') return 'Paused';
+		if (status === 'completed') return 'Done';
+		if (status === 'failed') return 'Failed';
+		if (status === 'cancelled') return 'Cancelled';
+		return status;
+	}
+
+	function statusPill(status: CardStatus): string {
+		if (status === 'running') return 'border-accent-primary/30 bg-accent-primary/10 text-accent-primary';
+		if (status === 'completed') return 'border-status-success/30 bg-status-success/10 text-status-success';
+		if (status === 'failed') return 'border-status-error/30 bg-status-error/10 text-status-error';
+		if (status === 'paused') return 'border-status-amber/30 bg-status-amber/10 text-status-amber';
+		return 'border-surface-border bg-bg-primary text-text-tertiary';
 	}
 
 	function lifecycleSummary(card: BoardCard): string | null {
@@ -511,12 +526,6 @@
 		if (title === 'To do')       return 'bg-text-tertiary';
 		if (title === 'In progress') return 'bg-accent-primary';
 		return 'bg-status-success';
-	}
-
-	let expandedCardId = $state<string | null>(null);
-
-	function toggleCard(card: BoardCard) {
-		expandedCardId = expandedCardId === card.id ? null : card.id;
 	}
 
 	async function handleStart(card: BoardCard) {
@@ -896,26 +905,28 @@
 						<div class="flex-1 space-y-3">
 							{#each col.items as c (c.id)}
 								{@const actionLinks = getMissionBoardCardActionLinks(c)}
-								<article class="group relative px-5 py-4 rounded-md border border-surface-border bg-bg-secondary hover:border-border-strong transition-all" class:border-accent-primary={expandedCardId === c.id}>
-									<button
-										type="button"
-										class="block w-full p-0 border-0 bg-transparent text-left text-inherit cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-primary/70 rounded-md"
-										aria-expanded={expandedCardId === c.id}
-										onclick={() => toggleCard(c)}
+								<article class="group relative overflow-hidden rounded-md border border-surface-border bg-bg-secondary transition-all hover:border-accent-primary/50 hover:bg-bg-tertiary/40">
+									<a
+										href={actionLinks.detailHref}
+										class="block px-5 py-4 text-inherit focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-primary/70 rounded-md"
+										title="Open this mission"
 									>
-										<div class="flex items-center gap-2.5 mb-3">
-											<span class="w-2 h-2 rounded-full shrink-0 {statusDot(c.status)}"></span>
-											<h3 class="font-sans text-base font-semibold leading-snug text-text-primary group-hover:text-accent-primary transition-colors line-clamp-2">
-												{c.name}
-											</h3>
+										<div class="mb-3 flex items-start justify-between gap-3">
+											<div class="min-w-0 flex-1">
+												<div class="mb-2 flex items-center gap-2">
+													<span class="w-2 h-2 rounded-full shrink-0 {statusDot(c.status)}"></span>
+													<span class="rounded-full border px-2 py-0.5 font-mono text-[10px] {statusPill(c.status)}">{statusLabel(c.status)}</span>
+													<span class="font-mono text-[10px] text-text-tertiary">{c.source === 'spark' ? 'Spark' : 'Canvas'}</span>
+												</div>
+												<h3 class="font-sans text-base font-semibold leading-snug text-text-primary transition-colors group-hover:text-accent-primary line-clamp-2">
+													{c.name}
+												</h3>
+											</div>
+											<Icon name="arrow-right" size={15} class="mt-1 text-text-tertiary transition-all group-hover:translate-x-0.5 group-hover:text-accent-primary" />
 										</div>
 
-										{#if c.source === 'spark' && c.summary}
-											<p class="text-sm text-text-secondary leading-relaxed mb-3 line-clamp-2">{c.summary}</p>
-										{/if}
-
-										{#if c.source === 'spark' && c.providerSummary}
-											<p class="text-sm text-accent-primary/90 leading-relaxed mb-3 line-clamp-3">{c.providerSummary}</p>
+										{#if focusLine(c)}
+											<p class="mb-4 text-sm leading-relaxed text-text-secondary line-clamp-3">{focusLine(c)}</p>
 										{/if}
 
 										{#if lifecycleSummary(c)}
@@ -927,44 +938,28 @@
 												<span class="px-2 py-0.5 text-[10px] font-mono rounded-sm border border-accent-primary/30 bg-accent-primary/10 text-accent-primary">
 													{lineageSummary(c)}
 												</span>
-												{#if c.projectLineage?.previewUrl}
-													<a
-														href={c.projectLineage.previewUrl}
-														onclick={(event) => event.stopPropagation()}
-														class="px-2 py-0.5 text-[10px] font-mono rounded-sm border border-surface-border text-text-secondary hover:border-accent-primary/50 hover:text-accent-primary"
-														title="Open the shipped project preview"
-													>
-														Preview
-													</a>
-												{/if}
 											</div>
 										{/if}
 
+										<div class="mb-3">
+											<div class="mb-1.5 flex items-center justify-between font-mono text-[10px] text-text-tertiary">
+												<span>{taskProgressSummary(c) || `${c.taskCount || 0} tasks`}</span>
+												<span>{taskProgressPercent(c)}%</span>
+											</div>
+											<div class="h-1.5 overflow-hidden rounded-full bg-bg-primary">
+												<div class="h-full rounded-full bg-accent-primary transition-all" style="width: {taskProgressPercent(c)}%"></div>
+											</div>
+										</div>
+
 										{#if c.tasks && c.tasks.length > 0}
-											<ul class="space-y-2.5 mb-3 border-l-2 border-surface-border/60 pl-3.5">
+											<ul class="mb-3 space-y-1.5">
 												{#each c.tasks.slice(0, 3) as task}
-													<li>
-														<div class="flex items-center gap-2">
-															<div class="font-sans text-sm text-text-secondary leading-snug line-clamp-1 min-w-0 flex-1">{task.title}</div>
-															<span class="shrink-0 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-wide rounded-sm border {taskStatusClass(task.status)}">
-																{taskStatusLabel(task.status)}
-															</span>
-														</div>
-														{#if task.skills && task.skills.length > 0}
-															<div class="flex items-center gap-1.5 flex-wrap mt-1.5">
-																{#each task.skills.slice(0, 3) as skill}
-																	<span class="px-2 py-0.5 text-[11px] font-mono rounded-full text-text-tertiary bg-bg-primary/60 border border-surface-border/70">{skill}</span>
-																{/each}
-																{#if task.skills.length > 3}
-																	<span class="text-[11px] font-mono text-text-faint">+{task.skills.length - 3}</span>
-																{/if}
-															</div>
-														{/if}
+													<li class="flex items-center gap-2">
+														<span class="h-1.5 w-1.5 shrink-0 rounded-full {statusDot(task.status as CardStatus)}"></span>
+														<span class="min-w-0 flex-1 truncate text-xs text-text-secondary">{task.title}</span>
+														<span class="shrink-0 font-mono text-[10px] text-text-tertiary">{taskStatusLabel(task.status)}</span>
 													</li>
 												{/each}
-												{#if c.tasks.length > 3}
-													<li class="font-mono text-xs text-text-faint">+{c.tasks.length - 3} more</li>
-												{/if}
 											</ul>
 										{/if}
 
@@ -984,67 +979,27 @@
 											{/if}
 										</div>
 
-										{#if expandedCardId === c.id}
-											<div class="mt-3 border-t border-surface-border/70 pt-3 space-y-2">
-												<div class="grid grid-cols-2 gap-2 font-mono text-[10px] text-text-tertiary">
-													<span>ID: {c.id}</span>
-													<span>Status: {c.status}</span>
-													<span>Source: {c.source}</span>
-													<span>Priority: {priorityOf(c)}</span>
-												</div>
+									</a>
 
-												{#if c.summary}
-													<p class="font-mono text-[10px] text-text-secondary leading-snug">{c.summary}</p>
-												{/if}
-
-												{#if c.providerSummary}
-													<p class="font-mono text-[10px] text-accent-primary/80 leading-snug">{c.providerSummary}</p>
-												{/if}
-
-												{#if taskProgressSummary(c)}
-													<p class="font-mono text-[10px] text-text-secondary leading-snug">Tasks: {taskProgressSummary(c)}</p>
-												{/if}
-
-												{#if lifecycleSummary(c)}
-													<p class="font-mono text-[10px] text-accent-primary/80 leading-snug">Lifecycle: {lifecycleSummary(c)}</p>
-												{/if}
-
-												{#if c.projectLineage}
-													<div class="font-mono text-[10px] text-text-secondary leading-snug space-y-0.5">
-														{#if c.projectLineage.projectPath}<p>Project: {c.projectLineage.projectPath}</p>{/if}
-														{#if c.projectLineage.parentMissionId}<p>Parent: {c.projectLineage.parentMissionId}</p>{/if}
-														{#if c.projectLineage.improvementFeedback}<p>Feedback: {c.projectLineage.improvementFeedback}</p>{/if}
-													</div>
-												{/if}
-
-												{#if c.providerResults && c.providerResults.length > 0}
-													<div class="space-y-1">
-														{#each c.providerResults.slice(0, 3) as result}
-															<p class="font-mono text-[10px] text-text-tertiary">
-																<span class="text-text-secondary">{result.providerId}</span>
-																<span> {result.status}</span>
-																{#if result.summary}
-																	<span>: {result.summary}</span>
-																{/if}
-															</p>
-														{/each}
-													</div>
-												{/if}
-
-												<p class="font-mono text-[10px] text-text-faint">Click again to collapse.</p>
-											</div>
-										{/if}
-									</button>
-
-									<div class="mt-3 flex flex-wrap items-center gap-2 border-t border-surface-border/60 pt-3">
+									<div class="flex flex-wrap items-center gap-2 border-t border-surface-border/60 px-5 py-3">
 										<a
 											href={actionLinks.detailHref}
-											onclick={(event) => event.stopPropagation()}
-											class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-text-secondary border border-surface-border rounded-sm hover:border-accent-primary/50 hover:text-accent-primary transition-all"
+											class="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all"
 											title="Open this mission's full task and event detail"
 										>
-											Details
+											Open
+											<Icon name="arrow-right" size={10} />
 										</a>
+										{#if c.projectLineage?.previewUrl}
+											<a
+												href={c.projectLineage.previewUrl}
+												onclick={(event) => event.stopPropagation()}
+												class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-text-secondary border border-surface-border rounded-sm hover:border-accent-primary/50 hover:text-accent-primary transition-all"
+												title="Open the shipped project preview"
+											>
+												Preview
+											</a>
+										{/if}
 										{#if actionLinks.canvasHref}
 											<a
 												href={actionLinks.canvasHref}
