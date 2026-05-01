@@ -640,3 +640,155 @@ The loop is not good enough until all of these are true:
 - The trace explains what happened without raw provider noise.
 - Unit tests cover build start, ship, preview link, feedback, improvement mission, and second improvement.
 - Live Telegram probes pass repeatedly without deterministic replies stealing the conversation.
+
+## Possible Missing Items To Recheck
+
+These are the things future work should re-verify because they are easy to forget after a long session.
+
+### Runtime restart and deployment state
+
+- The Telegram bot must be restarted after Telegram source changes. A passing `npm run build` does not mean the live bot is using the new code.
+- Spawner UI must be restarted after Spawner source changes. Old Vite/server state can make a fixed route look broken.
+- Confirm whether commits are pushed to `origin/main` before assuming another machine or Railway has the fix.
+- Check `spark status` after every restart and do not ignore a Spawner `429`, unhealthy dependency, or stopped tester profile.
+
+### Preview server ownership
+
+- We still need a clean answer for who owns the project preview server.
+- Preferred project preview URL is `http://127.0.0.1:5555`.
+- If port `5555` is occupied, Spark should detect that and say which fallback is active.
+- Telegram should never answer a shipped-app localhost question with only the Spawner UI URL unless the project really lives inside Spawner UI.
+
+### Data contract for shipped project context
+
+Telegram now stores latest shipped project context, but Spawner UI still needs a matching first-class project/iteration contract.
+
+Fields likely needed:
+
+- `projectId`
+- `projectName`
+- `projectPath`
+- `previewUrl`
+- `latestMissionId`
+- `parentMissionId`
+- `iterationNumber`
+- `feedbackText`
+- `reviewChecklist`
+- `createdAt`
+- `updatedAt`
+
+This should be shared by Kanban, Canvas, Trace, Result, and Telegram handoff messages.
+
+### Build quality review unit
+
+We discussed a stronger post-ship review unit, but it is not implemented yet.
+
+It should eventually:
+
+- open or inspect the shipped preview
+- compare against the original brief
+- produce a short product-quality review
+- produce a test checklist
+- suggest high-leverage improvements
+- let the user approve a polish pass
+- keep the review in the mission record
+
+This is where Spark can become clearly better than a raw coding agent.
+
+### UI design improvement loop
+
+The handoff mentions post-ship review, but future work should explicitly include visual/product feedback:
+
+- palette and brand fit
+- layout density
+- mobile usability
+- empty states
+- interaction polish
+- copy tone
+- accessibility
+- obvious next action
+- whether the first screen matches the product goal
+
+The improvement prompt should include these when the user gives vague design feedback like "make it more Spark", "make it cleaner", or "this feels boring".
+
+### Mission continuation versus new iteration
+
+There are two different flows and they should not be mixed:
+
+- Resume/partial continuation: finish missing or failed tasks from the same mission.
+- Improvement iteration: start a new mission on the same project after the project shipped.
+
+Kanban and Canvas should label these differently.
+
+### Parallel task truthfulness
+
+If all tasks start at once because one provider is handling a task pack, the UI must say that truthfully.
+
+Do not imply:
+
+- all tasks are individually completed
+- all tasks are independently running with separate agents
+- progress is precise when it is only inferred
+
+Better copy:
+
+```text
+Spark is working through a 10-step task pack.
+Completed: 0/10
+Current focus: booking data contracts
+```
+
+### Free versus pro skill tier
+
+We discussed:
+
+- base/free tier around 30 skills
+- pro tier with 600+ skills
+- the current user should be treated as pro
+
+Future tests should prove:
+
+- free users do not silently get pro-only skill routing
+- pro users get expanded skill pairing
+- Canvas shows skill pairing clearly enough for users to understand the benefit
+
+### Conversation probes still missing
+
+Add these probes to live testing later:
+
+```text
+make the app feel more like Spark, but keep the workflow the same
+```
+
+Expected: improvement mission on latest project.
+
+```text
+don't rebuild it, just improve the colors and spacing
+```
+
+Expected: improvement mission, explicit no-scaffold prompt.
+
+```text
+continue from the failed parts
+```
+
+Expected: resume/partial flow, not a new polish mission.
+
+```text
+ship a second version with better onboarding
+```
+
+Expected: improvement iteration, not brand-new project unless user asks for a new folder.
+
+```text
+what would you improve first after looking at it?
+```
+
+Expected: Spark gives review suggestions, not an immediate build unless the user says go.
+
+### Commit hygiene
+
+- Spawner UI has unrelated dirty files. Future commits must stage explicit files only.
+- Telegram bot has unrelated dirty runtime files. Future commits must stage explicit files only.
+- Do not use broad `git add .`.
+- Before archiving or pushing, run `git status --short --branch` in both repos.
