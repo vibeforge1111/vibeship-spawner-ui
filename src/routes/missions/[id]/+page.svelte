@@ -512,16 +512,28 @@
 					<h2 class="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-text-bright">Project output</h2>
 				</div>
 				{#if sparkProjectLineage}
-					<div class="mb-3 rounded-md border border-surface-border bg-bg-secondary px-4 py-3 font-mono text-xs text-text-secondary">
-						<div class="font-semibold uppercase tracking-wider text-accent-primary">
-							Project iteration{sparkProjectLineage.iterationNumber ? ` ${sparkProjectLineage.iterationNumber}` : ''}
+					<div class="mb-3 rounded-md border border-surface-border bg-bg-secondary px-5 py-4">
+						<div class="flex flex-wrap items-start justify-between gap-3">
+							<div>
+								<div class="font-mono text-xs font-semibold uppercase tracking-wider text-accent-primary">
+									Project iteration{sparkProjectLineage.iterationNumber ? ` ${sparkProjectLineage.iterationNumber}` : ''}
+								</div>
+								{#if sparkProjectLineage.projectPath}
+									<div class="mt-1 max-w-3xl break-all font-mono text-xs text-text-tertiary">{sparkProjectLineage.projectPath}</div>
+								{/if}
+							</div>
+							{#if sparkProjectLineage.previewUrl}
+								<a
+									class="inline-flex items-center gap-1.5 rounded-md border border-accent-primary/40 bg-accent-primary/10 px-3 py-2 font-sans text-sm font-semibold text-accent-primary transition-colors hover:border-accent-primary/70 hover:bg-accent-primary/15"
+									href={sparkProjectLineage.previewUrl}
+								>
+									<Icon name="external-link" size={14} />
+									Open preview
+								</a>
+							{/if}
 						</div>
-						{#if sparkProjectLineage.projectPath}<div class="mt-1">Project: {sparkProjectLineage.projectPath}</div>{/if}
-						{#if sparkProjectLineage.previewUrl}
-							<a class="mt-1 inline-flex text-accent-primary hover:underline" href={sparkProjectLineage.previewUrl}>Open preview</a>
-						{/if}
 						{#if sparkProjectLineage.improvementFeedback}
-							<div class="mt-3 rounded-sm border border-surface-border bg-bg-primary/70 px-3 py-2">
+							<div class="mt-4 rounded-md border border-surface-border bg-bg-primary/60 px-4 py-3">
 								<div class="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">Feedback</div>
 								<p class="mt-1 font-sans text-sm leading-relaxed text-text-secondary">{sparkProjectLineage.improvementFeedback}</p>
 							</div>
@@ -544,10 +556,6 @@
 							</article>
 						{/each}
 					</div>
-				{:else}
-					<div class="rounded-lg border border-surface-border bg-bg-secondary px-4 py-3 font-mono text-xs text-text-tertiary">
-						No provider result was recorded for this mission yet.
-					</div>
 				{/if}
 			</div>
 
@@ -565,7 +573,9 @@
 									<div class="flex items-center gap-2 mb-2">
 										<span class="w-2 h-2 rounded-full shrink-0 {taskDot(task.status || 'pending')}"></span>
 										<h3 class="font-sans text-[15px] font-semibold text-text-primary leading-tight flex-1">{task.title}</h3>
-										<span class="shrink-0 rounded-sm border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider {taskStatusPill(task.status)}">{taskStatusText(task.status)}</span>
+										{#if task.status !== 'completed'}
+											<span class="shrink-0 rounded-sm border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider {taskStatusPill(task.status)}">{taskStatusText(task.status)}</span>
+										{/if}
 									</div>
 									{#if task.skills.length > 0}
 										<div class="flex items-center gap-1.5 flex-wrap pl-3.5">
@@ -583,7 +593,9 @@
 								<div class="flex items-center gap-2 mb-2">
 									<span class="w-2 h-2 rounded-full shrink-0 {dot}"></span>
 									<h3 class="font-sans text-[15px] font-semibold text-text-primary leading-tight flex-1">{task.title}</h3>
-									<span class="shrink-0 rounded-sm border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider {taskStatusPill(task.status)}">{taskStatusText(task.status)}</span>
+									{#if task.status !== 'completed'}
+										<span class="shrink-0 rounded-sm border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider {taskStatusPill(task.status)}">{taskStatusText(task.status)}</span>
+									{/if}
 								</div>
 								{#if task.skills.length > 0}
 									<div class="flex items-center gap-1.5 flex-wrap mb-2 pl-3.5">
@@ -604,14 +616,14 @@
 
 			<!-- Compact mission-level events -->
 			{#if sparkMissionDetail.missionEvents.length > 0}
-				<div class="border border-surface-border rounded-lg bg-bg-secondary">
-					<div class="px-5 py-3 border-b border-surface-border flex items-center justify-between">
-						<h2 class="font-mono text-xs font-semibold text-text-bright tracking-wide">Mission events</h2>
+				<details class="rounded-lg border border-surface-border bg-bg-secondary">
+					<summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-3 marker:hidden">
+						<span class="font-mono text-xs font-semibold tracking-wide text-text-bright">Activity trace</span>
 						<span class="font-mono text-[10px] text-text-tertiary">
 							sparkIngest: {missionControl.enabled.sparkIngest ? 'on' : 'off'} · webhooks: {missionControl.targets.webhookCount}
 						</span>
-					</div>
-					<ol class="divide-y divide-surface-border/50">
+					</summary>
+					<ol class="divide-y divide-surface-border/50 border-t border-surface-border">
 						{#each sparkMissionDetail.missionEvents as ev (ev.timestamp + '-' + ev.eventType)}
 							<li class="px-5 py-2.5 flex items-start gap-3">
 								<span class="w-1.5 h-1.5 rounded-full mt-2 shrink-0 {ev.eventType.endsWith('_failed') ? 'bg-status-error' : ev.eventType.endsWith('_completed') ? 'bg-status-success' : ev.eventType.endsWith('_started') ? 'bg-accent-primary' : 'bg-text-tertiary'}"></span>
@@ -624,10 +636,10 @@
 							</li>
 						{/each}
 					</ol>
-				</div>
+				</details>
 			{/if}
 
-			<p class="mt-4 font-mono text-[11px] text-text-tertiary">
+			<p class="mt-4 font-mono text-[11px] text-text-faint">
 				This mission was dispatched through <code class="text-accent-primary">/api/spark/run</code>; provider output is retained separately from MCP task records.
 			</p>
 		{:else if !mcpConnected}
