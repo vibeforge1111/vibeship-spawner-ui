@@ -318,6 +318,18 @@
 			sparkMissionDetail?.taskRollups.at(-1) ||
 			null
 	);
+	const progressBarVariants = [
+		{ id: '01', name: 'Clean rails', className: 'progress-variant-clean' },
+		{ id: '02', name: 'Soft sweep', className: 'progress-variant-sweep' },
+		{ id: '03', name: 'Glass lane', className: 'progress-variant-glass' },
+		{ id: '04', name: 'Signal ticks', className: 'progress-variant-ticks' },
+		{ id: '05', name: 'Quiet pulse', className: 'progress-variant-pulse' },
+		{ id: '06', name: 'Tight bands', className: 'progress-variant-bands' },
+		{ id: '07', name: 'Focus rail', className: 'progress-variant-focus' },
+		{ id: '08', name: 'Trace flow', className: 'progress-variant-trace' },
+		{ id: '09', name: 'Solid scan', className: 'progress-variant-scan' },
+		{ id: '10', name: 'Calm meter', className: 'progress-variant-calm' }
+	];
 
 	function sparkStatusBadge(status: string): string {
 		if (status === 'completed') return 'border-status-success/30 bg-status-success/10 text-status-success';
@@ -391,7 +403,7 @@
 <div class="min-h-screen bg-bg-primary flex flex-col">
 	<Navbar />
 
-	<main class="flex-1 max-w-6xl mx-auto w-full px-6 py-12">
+	<main class="flex-1 max-w-6xl mx-auto w-full overflow-x-hidden px-4 py-12 sm:px-6">
 		<!-- Back link -->
 		<a href="/kanban" class="inline-flex items-center gap-1 text-sm font-mono text-text-tertiary hover:text-text-secondary mb-6">
 			&larr; Back to Mission board
@@ -400,69 +412,74 @@
 		{#if missionControl && sparkMissionDetail && (!mcpConnected || (!currentState.loading && !mission))}
 
 			<!-- Spark mission detail: MCP has no record but relay tracked the lifecycle -->
-			<div class="mb-8">
-				<div class="flex items-center gap-3 mb-2 flex-wrap">
-					<span class="h-2.5 w-2.5 shrink-0 rounded-full {taskDot(sparkMissionDetail.sparkStatus)}"></span>
-					<h1 class="text-2xl font-sans font-semibold text-text-primary tracking-tight">{sparkMissionDetail.sparkName}</h1>
-					<a
-						href={sparkCanvasHref()}
-						class="inline-flex items-center gap-1.5 rounded-sm border border-surface-border bg-bg-primary px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary transition-colors hover:border-iris/70 hover:text-iris"
-						title="Open this mission in Canvas"
-					>
-						<Icon name="box" size={12} />
-						Canvas
-					</a>
-					<span class="px-2.5 py-1 text-[10px] font-mono font-semibold uppercase tracking-wider rounded-sm border {getStatusBadge(sparkMissionDetail.sparkStatus as Mission['status']) ?? 'border-surface-border text-text-tertiary'}">{statusLabel(sparkMissionDetail.sparkStatus)}</span>
-					{#if sparkProjectLineage?.previewUrl}
+			<section class="mb-6 rounded-md border border-surface-border bg-bg-secondary px-5 py-5">
+				<div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+					<div class="min-w-0">
+						<div class="mb-2 flex min-w-0 items-center gap-3">
+							<span class="h-2.5 w-2.5 shrink-0 rounded-full {taskDot(sparkMissionDetail.sparkStatus)}"></span>
+							<h1 class="min-w-0 text-2xl font-sans font-semibold tracking-tight text-text-primary">{sparkMissionDetail.sparkName}</h1>
+						</div>
+						<p class="ml-5 flex flex-wrap items-center gap-2 font-mono text-xs text-text-secondary">
+							<Icon name="clock" size={12} class="text-text-tertiary" />
+							<span>{missionDateLabel()}</span>
+							<span class="text-text-faint">/</span>
+							<span class="break-all">{missionId}</span>
+						</p>
+					</div>
+					<div class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-start lg:justify-end">
 						<a
-							href={sparkProjectLineage.previewUrl}
-							class="inline-flex items-center gap-1.5 rounded-sm border border-surface-border bg-bg-primary px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary transition-colors hover:border-accent-primary/50 hover:text-accent-primary"
+							href={sparkCanvasHref()}
+							class="inline-flex items-center justify-center gap-1.5 rounded-sm border border-surface-border bg-bg-primary px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary transition-colors hover:border-iris/70 hover:text-iris"
+							title="Open this mission in Canvas"
 						>
-							<Icon name="external-link" size={12} />
-							Preview
+							<Icon name="box" size={12} />
+							Canvas
 						</a>
-					{/if}
-					{#if sparkProjectLineage?.projectPath}
-						<a
-							href={improveHref()}
-							class="inline-flex items-center gap-1.5 rounded-sm border border-surface-border bg-bg-primary px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary transition-colors hover:border-accent-primary/50 hover:text-accent-primary"
-						>
-							<Icon name="tool" size={12} />
-							Improve
-						</a>
-					{/if}
+						<span class="inline-flex items-center justify-center rounded-sm border px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider {getStatusBadge(sparkMissionDetail.sparkStatus as Mission['status']) ?? 'border-surface-border text-text-tertiary'}">{statusLabel(sparkMissionDetail.sparkStatus)}</span>
+						{#if sparkProjectLineage?.previewUrl}
+							<a
+								href={sparkProjectLineage.previewUrl}
+								class="inline-flex items-center justify-center gap-1.5 rounded-sm border border-surface-border bg-bg-primary px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary transition-colors hover:border-accent-primary/50 hover:text-accent-primary"
+							>
+								<Icon name="external-link" size={12} />
+								Preview
+							</a>
+						{/if}
+						{#if sparkProjectLineage?.projectPath}
+							<a
+								href={improveHref()}
+								class="inline-flex items-center justify-center gap-1.5 rounded-sm border border-surface-border bg-bg-primary px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary transition-colors hover:border-accent-primary/50 hover:text-accent-primary"
+							>
+								<Icon name="tool" size={12} />
+								Improve
+							</a>
+						{/if}
+					</div>
 				</div>
-				<p class="flex flex-wrap items-center gap-2 font-mono text-xs text-text-secondary">
-					<Icon name="clock" size={12} class="text-text-tertiary" />
-					<span>{missionDateLabel()}</span>
-					<span class="text-text-faint">/</span>
-					<span>{missionId}</span>
-				</p>
-			</div>
+			</section>
 
 			<section class="mb-6 overflow-hidden rounded-md border border-surface-border bg-bg-secondary">
 				<div class="px-5 py-5">
-				<div class="flex flex-wrap items-start justify-between gap-4">
-					<div>
-						<p class="font-mono text-xs uppercase tracking-[0.16em] text-text-tertiary">Progress</p>
-						<h2 class="mt-2 text-xl font-sans font-semibold text-text-primary">
-							{sparkCurrentTask ? sparkCurrentTask.title : sparkProgressPercent() >= 100 ? 'Mission complete' : 'Waiting for next task'}
-						</h2>
+					<div class="grid gap-4 sm:flex sm:items-start sm:justify-between">
+						<div class="min-w-0">
+							<p class="font-mono text-xs uppercase tracking-[0.16em] text-text-tertiary">Progress</p>
+							<h2 class="mt-2 text-xl font-sans font-semibold text-text-primary">
+								{sparkCurrentTask ? sparkCurrentTask.title : sparkProgressPercent() >= 100 ? 'Mission complete' : 'Waiting for next task'}
+							</h2>
+						</div>
+						<div class="text-left sm:text-right">
+							<div class="font-mono text-sm font-semibold text-text-secondary">{taskProgressLabel()}</div>
+							<div class="mt-1 font-mono text-2xl font-semibold text-text-primary">{sparkProgressPercent()}%</div>
+						</div>
 					</div>
-					<div class="text-right font-mono">
-						<div class="text-sm font-semibold text-text-secondary">{taskProgressLabel()}</div>
-						<div class="mt-1 text-2xl font-semibold text-iris">{sparkProgressPercent()}%</div>
+					<div class="mission-progress-track mission-progress-main mt-4">
+						<div
+							class="mission-progress-fill progress-variant-clean"
+							style="width: {sparkProgressPercent()}%"
+						></div>
 					</div>
 				</div>
-				<div class="relative mt-4 h-4 overflow-hidden rounded-full border border-iris/20 bg-bg-primary shadow-[inset_0_0_18px_rgba(0,0,0,0.45)]">
-					<div
-						class="h-full rounded-full bg-gradient-to-r from-accent-primary via-iris to-accent-primary shadow-[0_0_24px_rgb(var(--iris-rgb)/0.45)] transition-all duration-700"
-						style="width: {sparkProgressPercent()}%"
-					></div>
-					<div class="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,transparent_0%,rgba(255,255,255,0.18)_35%,transparent_70%)] opacity-40"></div>
-				</div>
-				</div>
-				<div class="grid grid-cols-4 divide-x divide-surface-border border-t border-surface-border bg-bg-primary/35">
+				<div class="grid grid-cols-2 divide-x divide-y divide-surface-border border-t border-surface-border bg-bg-primary/35 sm:grid-cols-4 sm:divide-y-0">
 					<div class="px-4 py-3">
 						<div class="font-mono text-[10px] uppercase tracking-wider text-text-tertiary">Completed</div>
 						<div class="mt-1 text-lg font-semibold text-status-success">{sparkTaskCounts().completed}</div>
@@ -482,6 +499,32 @@
 				</div>
 			</section>
 
+			<section class="mb-6 rounded-md border border-surface-border bg-bg-secondary px-5 py-4">
+				<div class="mb-4 grid gap-3 sm:flex sm:items-center sm:justify-between">
+					<div>
+						<h2 class="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-text-bright">Progress styles</h2>
+						<p class="mt-1 text-sm text-text-secondary">Ten striped directions using the same mission completion value.</p>
+					</div>
+					<span class="font-mono text-sm font-semibold text-text-primary sm:text-right">{sparkProgressPercent()}%</span>
+				</div>
+				<div class="grid gap-3 md:grid-cols-2">
+					{#each progressBarVariants as variant}
+						<article class="min-w-0 rounded-md border border-surface-border/80 bg-bg-primary/55 px-3 py-3">
+							<div class="mb-2 grid gap-1 sm:flex sm:items-center sm:justify-between sm:gap-3">
+								<span class="font-mono text-[11px] font-semibold uppercase tracking-wider text-text-secondary">{variant.id}. {variant.name}</span>
+								<span class="font-mono text-[11px] text-text-tertiary sm:text-right">{taskProgressLabel()}</span>
+							</div>
+							<div class="mission-progress-track mission-progress-sample">
+								<div
+									class={`mission-progress-fill ${variant.className}`}
+									style="width: {sparkProgressPercent()}%"
+								></div>
+							</div>
+						</article>
+					{/each}
+				</div>
+			</section>
+
 			<div id="result" class="mb-6 scroll-mt-24">
 				<div class="mb-3 flex flex-wrap items-center justify-between gap-3">
 					<h2 class="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-text-bright">Project output</h2>
@@ -495,7 +538,12 @@
 						{#if sparkProjectLineage.previewUrl}
 							<a class="mt-1 inline-flex text-accent-primary hover:underline" href={sparkProjectLineage.previewUrl}>Open preview</a>
 						{/if}
-						{#if sparkProjectLineage.improvementFeedback}<div class="mt-1 text-text-tertiary">Feedback: {sparkProjectLineage.improvementFeedback}</div>{/if}
+						{#if sparkProjectLineage.improvementFeedback}
+							<div class="mt-3 rounded-sm border border-surface-border bg-bg-primary/70 px-3 py-2">
+								<div class="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">Feedback</div>
+								<p class="mt-1 font-sans text-sm leading-relaxed text-text-secondary">{sparkProjectLineage.improvementFeedback}</p>
+							</div>
+						{/if}
 					</div>
 				{/if}
 				{#if missionControl.providerResults && missionControl.providerResults.length > 0}
@@ -534,13 +582,13 @@
 								<article class="rounded-md border border-surface-border bg-bg-secondary px-4 py-3.5">
 									<div class="flex items-center gap-2 mb-2">
 										<span class="w-2 h-2 rounded-full shrink-0 {taskDot(task.status || 'pending')}"></span>
-										<h3 class="font-sans text-sm font-semibold text-text-primary leading-tight flex-1">{task.title}</h3>
+										<h3 class="font-sans text-[15px] font-semibold text-text-primary leading-tight flex-1">{task.title}</h3>
 										<span class="shrink-0 rounded-sm border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider {taskStatusPill(task.status)}">{taskStatusText(task.status)}</span>
 									</div>
 									{#if task.skills.length > 0}
-										<div class="flex items-center gap-1 flex-wrap pl-3.5">
+										<div class="flex items-center gap-1.5 flex-wrap pl-3.5">
 											{#each task.skills.slice(0, 6) as skill}
-												<span class="rounded-sm border border-surface-border/70 bg-bg-primary/60 px-1.5 py-px font-mono text-[9px] text-text-tertiary">{skill}</span>
+												<span class="rounded-sm border border-surface-border/70 bg-bg-primary/70 px-2 py-0.5 font-mono text-[10px] text-text-secondary">{skill}</span>
 											{/each}
 										</div>
 									{/if}
@@ -552,13 +600,13 @@
 							<article class="rounded-md border border-surface-border bg-bg-secondary px-4 py-3.5">
 								<div class="flex items-center gap-2 mb-2">
 									<span class="w-2 h-2 rounded-full shrink-0 {dot}"></span>
-									<h3 class="font-sans text-sm font-semibold text-text-primary leading-tight flex-1">{task.title}</h3>
+									<h3 class="font-sans text-[15px] font-semibold text-text-primary leading-tight flex-1">{task.title}</h3>
 									<span class="shrink-0 rounded-sm border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider {taskStatusPill(task.status)}">{taskStatusText(task.status)}</span>
 								</div>
 								{#if task.skills.length > 0}
-									<div class="flex items-center gap-1 flex-wrap mb-2 pl-3.5">
+									<div class="flex items-center gap-1.5 flex-wrap mb-2 pl-3.5">
 										{#each task.skills as skill}
-											<span class="rounded-sm border border-surface-border/70 bg-bg-primary/60 px-1.5 py-px font-mono text-[9px] text-text-tertiary">{skill}</span>
+											<span class="rounded-sm border border-surface-border/70 bg-bg-primary/70 px-2 py-0.5 font-mono text-[10px] text-text-secondary">{skill}</span>
 										{/each}
 									</div>
 								{/if}
@@ -907,3 +955,175 @@
 
 	<Footer />
 </div>
+
+<style>
+	@keyframes progressStripes {
+		from {
+			background-position: 0 0;
+		}
+		to {
+			background-position: 34px 0;
+		}
+	}
+
+	@keyframes progressSweep {
+		from {
+			transform: translateX(-130%) skewX(-18deg);
+		}
+		to {
+			transform: translateX(230%) skewX(-18deg);
+		}
+	}
+
+	@keyframes progressBreath {
+		0%,
+		100% {
+			opacity: 0.72;
+		}
+		50% {
+			opacity: 1;
+		}
+	}
+
+	.mission-progress-track {
+		position: relative;
+		overflow: hidden;
+		border: 1px solid rgb(var(--accent-rgb) / 0.18);
+		background:
+			linear-gradient(180deg, rgb(255 255 255 / 0.035), rgb(0 0 0 / 0.08)),
+			rgb(var(--bg-primary-rgb, 10 13 17) / 0.92);
+		box-shadow: inset 0 0 18px rgb(0 0 0 / 0.42);
+	}
+
+	.mission-progress-main {
+		height: 1rem;
+		border-radius: 999px;
+	}
+
+	.mission-progress-sample {
+		height: 0.72rem;
+		border-radius: 999px;
+	}
+
+	.mission-progress-fill {
+		position: relative;
+		height: 100%;
+		min-width: 0.45rem;
+		overflow: hidden;
+		border-radius: inherit;
+		background: rgb(var(--accent-rgb));
+		transition: width 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
+	}
+
+	.mission-progress-fill::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: repeating-linear-gradient(
+			105deg,
+			rgb(255 255 255 / 0.62) 0 3px,
+			transparent 3px 11px
+		);
+		background-size: 34px 100%;
+		mix-blend-mode: soft-light;
+		animation: progressStripes 1.8s linear infinite;
+	}
+
+	.mission-progress-fill::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(180deg, rgb(255 255 255 / 0.28), transparent 48%, rgb(0 0 0 / 0.15));
+		pointer-events: none;
+	}
+
+	.progress-variant-clean {
+		background: rgb(var(--accent-rgb));
+		box-shadow: 0 0 20px rgb(var(--accent-rgb) / 0.28);
+	}
+
+	.progress-variant-sweep {
+		background: rgb(var(--accent-rgb) / 0.92);
+	}
+
+	.progress-variant-sweep::after {
+		background: linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 0.5) 48%, transparent 82%);
+		width: 40%;
+		animation: progressSweep 2.4s ease-in-out infinite;
+	}
+
+	.progress-variant-glass {
+		background: linear-gradient(180deg, rgb(80 224 180), rgb(var(--accent-rgb) / 0.78));
+		box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.28);
+	}
+
+	.progress-variant-glass::before {
+		background: repeating-linear-gradient(95deg, rgb(255 255 255 / 0.7) 0 2px, transparent 2px 10px);
+		animation-duration: 2.6s;
+	}
+
+	.progress-variant-ticks {
+		background: rgb(var(--accent-rgb) / 0.86);
+	}
+
+	.progress-variant-ticks::before {
+		background: repeating-linear-gradient(90deg, rgb(255 255 255 / 0.72) 0 2px, transparent 2px 8px);
+		animation-duration: 1.25s;
+	}
+
+	.progress-variant-pulse {
+		background: rgb(var(--accent-rgb) / 0.78);
+		animation: progressBreath 1.8s ease-in-out infinite;
+	}
+
+	.progress-variant-pulse::before {
+		background: repeating-linear-gradient(120deg, rgb(255 255 255 / 0.56) 0 4px, transparent 4px 14px);
+		animation-duration: 2.2s;
+	}
+
+	.progress-variant-bands {
+		background: rgb(var(--accent-rgb) / 0.95);
+	}
+
+	.progress-variant-bands::before {
+		background: repeating-linear-gradient(110deg, rgb(255 255 255 / 0.78) 0 5px, transparent 5px 16px);
+		animation-duration: 1.45s;
+	}
+
+	.progress-variant-focus {
+		background: rgb(var(--accent-rgb) / 0.9);
+		box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08) inset, 0 0 22px rgb(var(--accent-rgb) / 0.25);
+	}
+
+	.progress-variant-focus::before {
+		background: repeating-linear-gradient(100deg, rgb(255 255 255 / 0.66) 0 3px, transparent 3px 13px);
+		animation-duration: 3s;
+	}
+
+	.progress-variant-trace {
+		background: linear-gradient(90deg, rgb(var(--accent-rgb) / 0.88), rgb(var(--iris-rgb) / 0.82));
+	}
+
+	.progress-variant-trace::before {
+		background: repeating-linear-gradient(108deg, rgb(255 255 255 / 0.7) 0 2px, transparent 2px 12px);
+		animation-duration: 1.7s;
+	}
+
+	.progress-variant-scan {
+		background: rgb(var(--accent-rgb) / 0.82);
+	}
+
+	.progress-variant-scan::before {
+		background: repeating-linear-gradient(75deg, rgb(255 255 255 / 0.68) 0 4px, transparent 4px 18px);
+		animation-duration: 900ms;
+	}
+
+	.progress-variant-calm {
+		background: rgb(var(--accent-rgb) / 0.72);
+	}
+
+	.progress-variant-calm::before {
+		background: repeating-linear-gradient(105deg, rgb(255 255 255 / 0.48) 0 3px, transparent 3px 18px);
+		animation-duration: 4.2s;
+	}
+</style>
