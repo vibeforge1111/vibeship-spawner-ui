@@ -3,6 +3,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
 	import Footer from '$lib/components/Footer.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import {
 		missionsState,
 		loadMission,
@@ -349,6 +350,42 @@
 		if (sparkProjectLineage?.improvementFeedback) params.set('improvementFeedback', sparkProjectLineage.improvementFeedback);
 		return `/kanban?${params.toString()}`;
 	}
+
+	function sparkCanvasHref(): string {
+		return `/canvas?mission=${encodeURIComponent(missionId)}`;
+	}
+
+	function taskProgressLabel(): string {
+		const counts = sparkTaskCounts();
+		return `${counts.completed}/${counts.total} task${counts.total === 1 ? '' : 's'} completed`;
+	}
+
+	function missionDateLabel(): string {
+		const timestamp = sparkMissionDetail?.earliest.timestamp || mission?.created_at || null;
+		return timestamp ? formatDate(timestamp) : '';
+	}
+
+	function statusLabel(status: string): string {
+		if (status === 'completed') return 'Completed';
+		if (status === 'running') return 'Running';
+		if (status === 'failed') return 'Failed';
+		if (status === 'cancelled') return 'Cancelled';
+		if (status === 'paused') return 'Paused';
+		if (status === 'ready' || status === 'draft') return 'Queued';
+		return status;
+	}
+
+	function taskStatusText(status: string | undefined): string {
+		return statusLabel(status || 'pending');
+	}
+
+	function taskStatusPill(status: string | undefined): string {
+		if (status === 'completed') return 'border-status-success/30 bg-status-success/10 text-status-success';
+		if (status === 'failed') return 'border-status-error/30 bg-status-error/10 text-status-error';
+		if (status === 'cancelled') return 'border-text-tertiary bg-bg-primary text-text-tertiary';
+		if (status === 'running') return 'border-accent-primary/30 bg-accent-primary/10 text-accent-primary';
+		return 'border-surface-border bg-bg-primary text-text-tertiary';
+	}
 </script>
 
 <div class="min-h-screen bg-bg-primary flex flex-col">
@@ -365,65 +402,96 @@
 			<!-- Spark mission detail: MCP has no record but relay tracked the lifecycle -->
 			<div class="mb-8">
 				<div class="flex items-center gap-3 mb-2 flex-wrap">
+					<span class="h-2.5 w-2.5 shrink-0 rounded-full {taskDot(sparkMissionDetail.sparkStatus)}"></span>
 					<h1 class="text-2xl font-sans font-semibold text-text-primary tracking-tight">{sparkMissionDetail.sparkName}</h1>
-					<span class="px-2 py-0.5 text-[10px] font-mono rounded-sm border border-accent-mid text-accent-primary bg-accent-subtle">spark</span>
-					<span class="px-2 py-0.5 text-[10px] font-mono rounded-sm border {getStatusBadge(sparkMissionDetail.sparkStatus as Mission['status']) ?? 'border-surface-border text-text-tertiary'}">{sparkMissionDetail.sparkStatus}</span>
+					<a
+						href={sparkCanvasHref()}
+						class="inline-flex items-center gap-1.5 rounded-sm border border-surface-border bg-bg-primary px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary transition-colors hover:border-iris/70 hover:text-iris"
+						title="Open this mission in Canvas"
+					>
+						<Icon name="box" size={12} />
+						Canvas
+					</a>
+					<span class="px-2.5 py-1 text-[10px] font-mono font-semibold uppercase tracking-wider rounded-sm border {getStatusBadge(sparkMissionDetail.sparkStatus as Mission['status']) ?? 'border-surface-border text-text-tertiary'}">{statusLabel(sparkMissionDetail.sparkStatus)}</span>
+					{#if sparkProjectLineage?.previewUrl}
+						<a
+							href={sparkProjectLineage.previewUrl}
+							class="inline-flex items-center gap-1.5 rounded-sm border border-surface-border bg-bg-primary px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary transition-colors hover:border-accent-primary/50 hover:text-accent-primary"
+						>
+							<Icon name="external-link" size={12} />
+							Preview
+						</a>
+					{/if}
+					{#if sparkProjectLineage?.projectPath}
+						<a
+							href={improveHref()}
+							class="inline-flex items-center gap-1.5 rounded-sm border border-surface-border bg-bg-primary px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary transition-colors hover:border-accent-primary/50 hover:text-accent-primary"
+						>
+							<Icon name="tool" size={12} />
+							Improve
+						</a>
+					{/if}
 				</div>
-				<p class="font-mono text-xs text-text-tertiary">
-					{missionId} · started {new Date(sparkMissionDetail.earliest.timestamp).toLocaleString()} · {sparkTaskCounts().total} task{sparkTaskCounts().total !== 1 ? 's' : ''}
+				<p class="flex flex-wrap items-center gap-2 font-mono text-xs text-text-secondary">
+					<Icon name="clock" size={12} class="text-text-tertiary" />
+					<span>{missionDateLabel()}</span>
+					<span class="text-text-faint">/</span>
+					<span>{missionId}</span>
 				</p>
 			</div>
 
-			<section class="mb-6 rounded-md border border-surface-border bg-bg-secondary px-5 py-5">
+			<section class="mb-6 overflow-hidden rounded-md border border-surface-border bg-bg-secondary">
+				<div class="px-5 py-5">
 				<div class="flex flex-wrap items-start justify-between gap-4">
 					<div>
-						<p class="font-mono text-xs uppercase tracking-[0.16em] text-text-tertiary">Trace progress</p>
+						<p class="font-mono text-xs uppercase tracking-[0.16em] text-text-tertiary">Progress</p>
 						<h2 class="mt-2 text-xl font-sans font-semibold text-text-primary">
-							{sparkCurrentTask ? sparkCurrentTask.title : sparkProgressPercent() >= 100 ? 'Mission complete' : 'No active task'}
+							{sparkCurrentTask ? sparkCurrentTask.title : sparkProgressPercent() >= 100 ? 'Mission complete' : 'Waiting for next task'}
 						</h2>
 					</div>
-					<div class="rounded-full border px-2.5 py-1 font-mono text-[10px] {sparkStatusBadge(sparkMissionDetail.sparkStatus)}">
-						{sparkProgressPercent()}%
+					<div class="text-right font-mono">
+						<div class="text-sm font-semibold text-text-secondary">{taskProgressLabel()}</div>
+						<div class="mt-1 text-2xl font-semibold text-iris">{sparkProgressPercent()}%</div>
 					</div>
 				</div>
-				<div class="mt-4 h-2 overflow-hidden rounded-full bg-bg-primary">
-					<div class="h-full rounded-full bg-accent-primary transition-all" style="width: {sparkProgressPercent()}%"></div>
+				<div class="relative mt-4 h-4 overflow-hidden rounded-full border border-iris/20 bg-bg-primary shadow-[inset_0_0_18px_rgba(0,0,0,0.45)]">
+					<div
+						class="h-full rounded-full bg-gradient-to-r from-accent-primary via-iris to-accent-primary shadow-[0_0_24px_rgb(var(--iris-rgb)/0.45)] transition-all duration-700"
+						style="width: {sparkProgressPercent()}%"
+					></div>
+					<div class="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,transparent_0%,rgba(255,255,255,0.18)_35%,transparent_70%)] opacity-40"></div>
 				</div>
-				<div class="mt-4 grid grid-cols-3 gap-2">
-					<div class="rounded border border-surface-border bg-bg-primary px-3 py-2">
-						<div class="font-mono text-[10px] text-text-tertiary">Done</div>
+				</div>
+				<div class="grid grid-cols-4 divide-x divide-surface-border border-t border-surface-border bg-bg-primary/35">
+					<div class="px-4 py-3">
+						<div class="font-mono text-[10px] uppercase tracking-wider text-text-tertiary">Completed</div>
 						<div class="mt-1 text-lg font-semibold text-status-success">{sparkTaskCounts().completed}</div>
 					</div>
-					<div class="rounded border border-surface-border bg-bg-primary px-3 py-2">
-						<div class="font-mono text-[10px] text-text-tertiary">Running</div>
+					<div class="px-4 py-3">
+						<div class="font-mono text-[10px] uppercase tracking-wider text-text-tertiary">Running</div>
 						<div class="mt-1 text-lg font-semibold text-accent-primary">{sparkTaskCounts().running}</div>
 					</div>
-					<div class="rounded border border-surface-border bg-bg-primary px-3 py-2">
-						<div class="font-mono text-[10px] text-text-tertiary">Open</div>
+					<div class="px-4 py-3">
+						<div class="font-mono text-[10px] uppercase tracking-wider text-text-tertiary">Open</div>
 						<div class="mt-1 text-lg font-semibold text-text-secondary">{sparkTaskCounts().pending}</div>
+					</div>
+					<div class="px-4 py-3">
+						<div class="font-mono text-[10px] uppercase tracking-wider text-text-tertiary">Total</div>
+						<div class="mt-1 text-lg font-semibold text-text-primary">{sparkTaskCounts().total}</div>
 					</div>
 				</div>
 			</section>
 
 			<div id="result" class="mb-6 scroll-mt-24">
 				<div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-					<h2 class="font-mono text-xs font-semibold text-text-bright tracking-wide">Agent results</h2>
-					{#if sparkProjectLineage?.projectPath}
-						<a
-							href={improveHref()}
-							class="inline-flex items-center justify-center px-3 py-1.5 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all"
-						>
-							Improve this
-						</a>
-					{/if}
+					<h2 class="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-text-bright">Project output</h2>
 				</div>
 				{#if sparkProjectLineage}
-					<div class="mb-3 rounded-md border border-accent-primary/30 bg-accent-primary/10 px-4 py-3 font-mono text-xs text-text-secondary">
-						<div class="text-accent-primary">
+					<div class="mb-3 rounded-md border border-surface-border bg-bg-secondary px-4 py-3 font-mono text-xs text-text-secondary">
+						<div class="font-semibold uppercase tracking-wider text-accent-primary">
 							Project iteration{sparkProjectLineage.iterationNumber ? ` ${sparkProjectLineage.iterationNumber}` : ''}
 						</div>
 						{#if sparkProjectLineage.projectPath}<div class="mt-1">Project: {sparkProjectLineage.projectPath}</div>{/if}
-						{#if sparkProjectLineage.parentMissionId}<div>Parent: {sparkProjectLineage.parentMissionId}</div>{/if}
 						{#if sparkProjectLineage.previewUrl}
 							<a class="mt-1 inline-flex text-accent-primary hover:underline" href={sparkProjectLineage.previewUrl}>Open preview</a>
 						{/if}
@@ -456,20 +524,23 @@
 			<!-- Per-task cards -->
 			{#if sparkTaskCounts().total > 0}
 				<div class="mb-6">
-					<h2 class="font-mono text-xs font-semibold text-text-bright tracking-wide mb-3">Tasks</h2>
-					<div class="grid gap-3">
+					<div class="mb-3 flex items-center justify-between gap-3">
+						<h2 class="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-text-bright">Execution</h2>
+						<span class="font-mono text-xs text-text-secondary">{taskProgressLabel()}</span>
+					</div>
+					<div class="grid gap-2">
 						{#if traceTasks.length > 0}
 							{#each traceTasks as task (task.title)}
-								<article class="px-4 py-3.5 rounded-lg border border-surface-border bg-bg-secondary">
+								<article class="rounded-md border border-surface-border bg-bg-secondary px-4 py-3.5">
 									<div class="flex items-center gap-2 mb-2">
-										<span class="w-1.5 h-1.5 rounded-full shrink-0 {taskDot(task.status || 'pending')}"></span>
+										<span class="w-2 h-2 rounded-full shrink-0 {taskDot(task.status || 'pending')}"></span>
 										<h3 class="font-sans text-sm font-semibold text-text-primary leading-tight flex-1">{task.title}</h3>
-										<span class="font-mono text-[10px] text-text-tertiary uppercase tracking-wider">{task.status || 'pending'}</span>
+										<span class="shrink-0 rounded-sm border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider {taskStatusPill(task.status)}">{taskStatusText(task.status)}</span>
 									</div>
 									{#if task.skills.length > 0}
 										<div class="flex items-center gap-1 flex-wrap pl-3.5">
 											{#each task.skills.slice(0, 6) as skill}
-												<span class="px-1.5 py-px text-[9px] font-mono rounded-full text-text-tertiary bg-bg-primary/60 border border-surface-border/70">{skill}</span>
+												<span class="rounded-sm border border-surface-border/70 bg-bg-primary/60 px-1.5 py-px font-mono text-[9px] text-text-tertiary">{skill}</span>
 											{/each}
 										</div>
 									{/if}
@@ -478,16 +549,16 @@
 						{:else}
 							{#each sparkMissionDetail.taskRollups as task (task.key)}
 							{@const dot = task.status === 'failed' ? 'bg-status-error' : task.status === 'completed' ? 'bg-status-success' : task.status === 'running' ? 'bg-accent-primary animate-pulse' : task.status === 'cancelled' ? 'bg-text-faint' : 'bg-text-tertiary'}
-							<article class="px-4 py-3.5 rounded-lg border border-surface-border bg-bg-secondary">
+							<article class="rounded-md border border-surface-border bg-bg-secondary px-4 py-3.5">
 								<div class="flex items-center gap-2 mb-2">
-									<span class="w-1.5 h-1.5 rounded-full shrink-0 {dot}"></span>
+									<span class="w-2 h-2 rounded-full shrink-0 {dot}"></span>
 									<h3 class="font-sans text-sm font-semibold text-text-primary leading-tight flex-1">{task.title}</h3>
-									<span class="font-mono text-[10px] text-text-tertiary uppercase tracking-wider">{task.status}</span>
+									<span class="shrink-0 rounded-sm border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider {taskStatusPill(task.status)}">{taskStatusText(task.status)}</span>
 								</div>
 								{#if task.skills.length > 0}
 									<div class="flex items-center gap-1 flex-wrap mb-2 pl-3.5">
 										{#each task.skills as skill}
-											<span class="px-1.5 py-px text-[9px] font-mono rounded-full text-text-tertiary bg-bg-primary/60 border border-surface-border/70">{skill}</span>
+											<span class="rounded-sm border border-surface-border/70 bg-bg-primary/60 px-1.5 py-px font-mono text-[9px] text-text-tertiary">{skill}</span>
 										{/each}
 									</div>
 								{/if}
