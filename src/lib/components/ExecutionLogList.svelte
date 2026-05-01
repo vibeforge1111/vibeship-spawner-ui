@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { MissionLog } from '$lib/services/mcp-client';
 	import type { ExecutionStatus, TaskTransitionEvent } from '$lib/services/mission-executor';
-	import { getLogColor, getLogIcon } from '$lib/services/execution-panel-formatting';
 	import { toasts } from '$lib/stores/toast.svelte';
 
 	interface Props {
@@ -13,9 +12,8 @@
 		getTransitionBadge?: (state: TaskTransitionEvent['state']) => string;
 	}
 
-	let { logs, isRunning, status, transitions = [], formatTime: transitionTime, getTransitionBadge }: Props = $props();
+	let { logs, isRunning, status }: Props = $props();
 	let logsContainer = $state<HTMLDivElement | undefined>(undefined);
-	const visibleTransitions = $derived(transitions.slice(0, 5));
 
 	function formatTime(dateStr: string | Date): string {
 		const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
@@ -23,7 +21,7 @@
 	}
 
 	function copyAllLogs(): void {
-		const logText = logs.map((log) => `[${formatTime(log.created_at)}] ${getLogIcon(log.type)} ${log.message}`).join('\n');
+		const logText = logs.map((log) => `[${formatTime(log.created_at)}] ${log.message}`).join('\n');
 		navigator.clipboard.writeText(logText);
 		toasts.success('Logs copied to clipboard');
 	}
@@ -81,46 +79,13 @@
 				{/if}
 			</div>
 		{:else}
-			{#if visibleTransitions.length > 0}
-				<div class="mb-3 grid gap-1.5 border-b border-surface-border pb-3">
-					{#each visibleTransitions as item}
-						<div class="border border-surface-border bg-bg-secondary px-3 py-2">
-							<div class="flex items-start justify-between gap-3">
-								<div class="min-w-0">
-									<div class="flex flex-wrap items-center gap-2">
-										<span class="px-1.5 py-0.5 text-[10px] font-mono uppercase {getTransitionBadge ? getTransitionBadge(item.state) : ''}">
-											{item.state}
-										</span>
-										{#if item.agentLabel}
-											<span class="text-[10px] font-mono text-vibe-teal">{item.agentLabel}</span>
-										{/if}
-										{#if item.taskName}
-											<span class="truncate text-xs font-mono text-text-primary">{item.taskName}</span>
-										{/if}
-									</div>
-									<div class="mt-1 text-xs text-text-secondary break-words">{item.message}</div>
-								</div>
-								<div class="shrink-0 text-right">
-									<div class="text-[10px] font-mono text-text-tertiary">
-										{transitionTime ? transitionTime(item.timestamp) : formatTime(item.timestamp)}
-									</div>
-									{#if typeof item.progress === 'number'}
-										<div class="mt-1 text-[10px] font-mono text-vibe-teal">{item.progress}%</div>
-									{/if}
-								</div>
-							</div>
-						</div>
-					{/each}
-				</div>
-			{/if}
-			<div class="space-y-0.5">
+			<div class="space-y-1">
 				{#each logs as log}
-					<div class="flex gap-2 {getLogColor(log.type)} cursor-text hover:bg-vibe-teal/5 px-2 py-1 -mx-2 group transition-colors">
-						<span class="text-xs text-text-tertiary w-16 flex-shrink-0 select-text tabular-nums">
+					<div class="grid grid-cols-[72px_minmax(0,1fr)_20px] items-start gap-3 cursor-text hover:bg-vibe-teal/5 px-2 py-1.5 -mx-2 group transition-colors text-text-secondary">
+						<span class="text-xs text-text-tertiary flex-shrink-0 select-text tabular-nums">
 							{formatTime(log.created_at)}
 						</span>
-						<span class="w-4 flex-shrink-0 text-center">{getLogIcon(log.type)}</span>
-						<span class="flex-1 select-text break-all">{log.message}</span>
+						<span class="select-text break-words leading-relaxed">{log.message}</span>
 						<button
 							onclick={() => copyLogMessage(log.message)}
 							class="opacity-0 group-hover:opacity-100 text-xs text-text-tertiary hover:text-vibe-teal transition-all px-1"

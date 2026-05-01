@@ -150,7 +150,7 @@ describe('mission-control-relay', () => {
 		const created = board.created.find((candidate) => candidate.missionId === missionId);
 		expect(created?.queuedAt).toBe(queuedAt);
 		expect(created?.executionStarted).toBe(false);
-		expect(created?.lastSummary).toContain('Queued: Spark Queue Visibility entered To do');
+		expect(created?.lastSummary).toContain('Spark Queue Visibility entered To do');
 
 		await relayMissionControlEvent({
 			type: 'mission_started',
@@ -453,7 +453,7 @@ describe('mission-control-relay', () => {
 		expect(payload.session_id).toBe('mission-control:mission-1');
 		expect(payload.trace_id).toBe('evt-123');
 		expect((payload.payload as Record<string, unknown>).mission_event_type).toBe('task_completed');
-		expect((payload.payload as Record<string, unknown>).summary).toContain('Task completed');
+		expect((payload.payload as Record<string, unknown>).summary).toContain('Build connector is done.');
 	});
 
 	it('preserves Telegram relay target metadata in Spark ingest payloads', () => {
@@ -661,8 +661,7 @@ describe('mission-control-relay', () => {
 
 	it('creates readable summaries', () => {
 		const text = summarizeMissionControlEvent({ type: 'mission_failed', missionId: 'm-22' });
-		expect(text).toContain('Mission failed');
-		expect(text).toContain('m-22');
+		expect(text).toBe('Mission failed.');
 	});
 
 	it('tracks relay snapshot stats and recent entries', async () => {

@@ -1,7 +1,11 @@
 import { env } from '$env/dynamic/private';
 import * as fs from 'fs';
 import * as path from 'path';
-import { compactMissionControlDisplayText, sanitizeMissionControlDisplayText } from './mission-control-display';
+import {
+	compactMissionControlDisplayText,
+	readableMissionControlSummary,
+	sanitizeMissionControlDisplayText
+} from './mission-control-display';
 import {
 	extractMissionControlProjectLineage,
 	mergeMissionControlProjectLineage
@@ -320,6 +324,10 @@ export function getMissionControlRelaySnapshot(missionId?: string): MissionContr
 	const recent = normalizedMission
 		? relayState.recent.filter((entry) => entry.missionId === normalizedMission).slice(0, MAX_RECENT_EVENTS_PER_MISSION)
 		: relayState.recent.slice(0, 25);
+	const displayRecent = recent.map((entry) => ({
+		...entry,
+		summary: readableMissionControlSummary(entry.summary) || entry.summary
+	}));
 
 	return {
 		enabled: {
@@ -335,7 +343,7 @@ export function getMissionControlRelaySnapshot(missionId?: string): MissionContr
 			totalRelayed: relayState.totalRelayed,
 			perMission
 		},
-		recent
+		recent: displayRecent
 	};
 }
 
@@ -803,7 +811,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 				executionStarted: isExecutionStartEvent(entry.eventType),
 				queuedAt: entry.eventType === 'mission_created' ? entry.timestamp : null,
 				startedAt: isMissionStartEvent(entry.eventType) ? entry.timestamp : null,
-				lastSummary: sanitizeMissionControlDisplayText(entry.summary),
+				lastSummary: sanitizeMissionControlDisplayText(readableMissionControlSummary(entry.summary) || entry.summary),
 				taskName: entry.taskName ? sanitizeMissionControlDisplayText(entry.taskName) : null,
 				taskCount: 0,
 				taskNames: [],
@@ -887,7 +895,6 @@ export function shouldRelayMissionControlEvent(event: MissionControlBridgeEvent)
 
 export function summarizeMissionControlEvent(event: MissionControlBridgeEvent): string {
 	const type = typeof event.type === 'string' ? event.type : 'event';
-	const missionId = normalizeMissionId(event);
 	const dataTaskName =
 		event.data && typeof (event.data as Record<string, unknown>).taskName === 'string'
 			? ((event.data as Record<string, unknown>).taskName as string)
@@ -904,38 +911,38 @@ export function summarizeMissionControlEvent(event: MissionControlBridgeEvent): 
 
 	switch (type) {
 		case 'mission_created':
-			return `[MissionControl] Queued: ${event.missionName || 'mission'} entered To do (${missionId}).`;
+			return `${event.missionName || 'Mission'} entered To do.`;
 		case 'mission_started':
-			return `[MissionControl] Mission started (${missionId}).`;
+			return 'Mission started.';
 		case 'mission_paused':
-			return `[MissionControl] Mission paused (${missionId}).`;
+			return 'Mission paused.';
 		case 'mission_resumed':
-			return `[MissionControl] Mission resumed (${missionId}).`;
+			return 'Mission resumed.';
 		case 'mission_completed':
-			return `[MissionControl] Mission completed (${missionId}).`;
+			return 'Mission completed.';
 		case 'mission_failed':
-			return `[MissionControl] Mission failed (${missionId}).`;
+			return 'Mission failed.';
 		case 'mission_cancelled':
-			return `[MissionControl] Mission cancelled by user (${missionId}).`;
+			return 'Mission cancelled by user.';
 		case 'task_started':
-			return `[MissionControl] Task started: ${cleanTaskName || 'task'} (${missionId}).`;
+			return readableMissionControlSummary(`Task started: ${cleanTaskName || 'task'}`) || 'Task started.';
 		case 'task_progress':
 		case 'progress':
-			return `[MissionControl] Progress: ${cleanMessage || cleanTaskName || 'working'} (${missionId}).`;
+			return readableMissionControlSummary(cleanMessage || cleanTaskName || 'Working') || 'Working.';
 		case 'task_completed':
-			return `[MissionControl] Task completed: ${cleanTaskName || 'task'} (${missionId}).`;
+			return readableMissionControlSummary(`Task completed: ${cleanTaskName || 'task'}`) || 'Task completed.';
 		case 'task_failed':
-			return `[MissionControl] Task failed: ${cleanTaskName || 'task'} (${missionId}).`;
+			return readableMissionControlSummary(`Task failed: ${cleanTaskName || 'task'}`) || 'Task failed.';
 		case 'task_cancelled':
-			return `[MissionControl] Task cancelled: ${cleanTaskName || 'task'} (${missionId}).`;
+			return readableMissionControlSummary(`Task cancelled: ${cleanTaskName || 'task'}`) || 'Task cancelled.';
 		case 'dispatch_started':
-			return `[MissionControl] Dispatch started (${missionId}).`;
+			return 'Dispatch started.';
 		case 'provider_feedback':
-			return `[MissionControl] Provider feedback: ${cleanMessage || cleanTaskName || 'update'} (${missionId}).`;
+			return readableMissionControlSummary(cleanMessage || cleanTaskName || 'Update') || 'Update.';
 		case 'log':
-			return `[MissionControl] ${cleanMessage || 'Log update'} (${missionId}).`;
+			return readableMissionControlSummary(cleanMessage || 'Log update') || 'Log update.';
 		default:
-			return `[MissionControl] ${type} (${missionId}).`;
+			return readableMissionControlSummary(type) || 'Event recorded.';
 	}
 }
 

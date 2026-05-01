@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	compactProviderHandoffText,
 	compactMissionControlDisplayText,
+	readableMissionControlSummary,
 	sanitizeMissionControlDisplayText
 } from './mission-control-display';
 
@@ -55,6 +56,22 @@ describe('mission-control-display', () => {
 
 		expect(compact).toHaveLength(25);
 		expect(compact?.endsWith('...')).toBe(true);
+	});
+
+	it('removes redundant Mission Control prefixes and event labels from timeline summaries', () => {
+		expect(
+			readableMissionControlSummary(
+				'[MissionControl] Task started: Create the static app shell (mission-1777644961054).'
+			)
+		).toBe('Create the static app shell is running.');
+		expect(
+			readableMissionControlSummary('[MissionControl] Progress: Next polish pass card added. (mission-1777644961054).')
+		).toBe('Next polish pass card added.');
+		expect(
+			readableMissionControlSummary(
+				'[MissionControl] Progress: SKILL_LOADED:node-1-task-create-the-static-app-shell:frontend-engineer,ui-design (mission-1777644961054).'
+			)
+		).toBe('Loaded skills for Create the static app shell.');
 	});
 
 	it('compacts provider handoffs without local links or noisy file bullets', () => {
