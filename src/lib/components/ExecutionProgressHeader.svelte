@@ -15,7 +15,6 @@
 		runtimeAgents: AgentRuntimeStatus[];
 		currentTaskSkills: LoadedSkillInfo[];
 		mcpDetailOpen: boolean;
-		multiLLMPanelCollapsed: boolean;
 		copyPromptCollapsed: boolean;
 		copyToClipboard: (text: string, successMessage: string) => void;
 	}
@@ -29,7 +28,6 @@
 		runtimeAgents,
 		currentTaskSkills,
 		mcpDetailOpen = $bindable(),
-		multiLLMPanelCollapsed = $bindable(),
 		copyPromptCollapsed = $bindable(),
 		copyToClipboard
 	}: Props = $props();
@@ -38,15 +36,22 @@
 	let missionCompletedTaskCount = $derived(
 		executionProgress.mission?.tasks?.filter((task) => task.status === 'completed').length || 0
 	);
-	let missionProgressLabel = $derived(
-		missionTaskCount > 0 ? `${missionCompletedTaskCount}/${missionTaskCount} tasks done` : `${nodeCount} nodes`
-	);
 	let missionTitle = $derived(executionProgress.mission?.name || 'Canvas execution');
 	let activeTaskLabel = $derived(
 		executionProgress.currentTaskName ||
-			executionProgress.currentTaskMessage ||
+		executionProgress.currentTaskMessage ||
 			(executionProgress.status === 'completed' ? 'Execution complete' : 'Waiting for next task')
 	);
+	let providerRuntimeStatus = $derived.by(() => {
+		const multiPack = executionProgress.multiLLMExecution;
+		if (!multiPack?.enabled) return [];
+
+		return multiPack.providers.map((provider) => ({
+			provider,
+			assignment: multiPack.assignments[provider.id],
+			status: runtimeAgents.find((agent) => agent.agentId === provider.id)?.status || 'assigned'
+		}));
+	});
 </script>
 
 <div class="rounded-lg border border-surface-border bg-bg-primary/65 p-4">
@@ -57,7 +62,9 @@
 			<div class="mt-1 truncate text-xs font-mono text-text-tertiary">{activeTaskLabel}</div>
 		</div>
 		<div class="rounded-md border border-accent-primary/25 bg-accent-primary/10 px-3 py-2 text-right">
-			<div class="text-xl font-mono font-semibold tabular-nums text-text-primary">{executionProgress.progress}%</div>
+			<div class="text-2xl font-semibold leading-none tabular-nums text-text-primary">
+				{executionProgress.progress}<span class="ml-0.5 text-sm font-medium text-text-tertiary">%</span>
+			</div>
 			<div class="text-[10px] font-mono uppercase tracking-[0.14em] text-accent-primary">{executionProgress.status}</div>
 		</div>
 	</div>
@@ -78,19 +85,46 @@
 	<div class="mt-3 grid grid-cols-3 gap-2">
 		<div class="rounded-md border border-surface-border bg-bg-secondary px-3 py-2">
 			<div class="text-[10px] font-mono uppercase tracking-[0.14em] text-text-tertiary">Tasks</div>
-			<div class="mt-1 text-sm font-mono font-semibold text-text-primary">{missionProgressLabel}</div>
+			<div class="mt-1 text-sm font-semibold text-text-primary">
+				<span class="tabular-nums">{missionCompletedTaskCount}/{missionTaskCount}</span>
+				<span class="ml-1 font-medium text-text-tertiary">{missionTaskCount > 0 ? 'tasks done' : 'nodes'}</span>
+			</div>
 		</div>
 		<div class="rounded-md border border-surface-border bg-bg-secondary px-3 py-2">
 			<div class="text-[10px] font-mono uppercase tracking-[0.14em] text-text-tertiary">Elapsed</div>
-			<div class="mt-1 text-sm font-mono font-semibold tabular-nums text-text-primary">{executionDuration}</div>
+			<div class="mt-1 text-sm font-semibold tabular-nums text-text-primary">{executionDuration}</div>
 		</div>
 		<div class="rounded-md border border-surface-border bg-bg-secondary px-3 py-2">
 			<div class="text-[10px] font-mono uppercase tracking-[0.14em] text-text-tertiary">MCP</div>
-			<div class="mt-1 text-sm font-mono font-semibold {mcpConnectedCount > 0 ? 'text-accent-primary' : 'text-text-primary'}">
+			<div class="mt-1 text-sm font-semibold {mcpConnectedCount > 0 ? 'text-accent-primary' : 'text-text-primary'}">
 				{mcpConnectedCount > 0 ? `${mcpConnectedCount} connected` : 'Local'}
 			</div>
 		</div>
 	</div>
+
+	{#if executionProgress.multiLLMExecution?.enabled}
+		{@const multiPack = executionProgress.multiLLMExecution}
+		<div class="mt-3 flex flex-wrap items-center gap-2 border-t border-surface-border pt-3">
+			<span class="text-[10px] font-mono uppercase tracking-[0.14em] text-text-tertiary">Providers</span>
+			<span class="rounded-md border border-vibe-teal/20 bg-vibe-teal/10 px-2 py-1 text-[11px] font-semibold text-vibe-teal">
+				{multiPack.strategy}
+			</span>
+			{#each providerRuntimeStatus as item}
+				<span class="inline-flex min-w-0 items-center gap-1.5 rounded-md border border-surface-border bg-bg-secondary px-2 py-1 text-[11px] text-text-secondary">
+					<span
+						class="h-1.5 w-1.5 shrink-0 rounded-full"
+						class:bg-yellow-400={item.status === 'running'}
+						class:bg-green-400={item.status === 'completed'}
+						class:bg-red-400={item.status === 'failed'}
+						class:bg-text-tertiary={!['running', 'completed', 'failed'].includes(item.status)}
+					></span>
+					<span class="font-semibold text-text-primary">{item.provider.label}</span>
+					<span class="truncate text-text-tertiary">{item.provider.model}</span>
+					<span class="text-vibe-teal">{item.assignment?.taskIds?.length || 0}</span>
+				</span>
+			{/each}
+		</div>
+	{/if}
 </div>
 
 {#if mcpConnectedCount > 0}
@@ -125,75 +159,6 @@
 		background-size: 20px 20px;
 	}
 </style>
-
-{#if executionProgress.multiLLMExecution?.enabled}
-	{@const multiPack = executionProgress.multiLLMExecution}
-	{@const activeProvider =
-		multiPack.providers.find((provider) =>
-			runtimeAgents.some((agent) => agent.agentId === provider.id && agent.status === 'running')
-		) || multiPack.providers[0]}
-	{@const activeAgent = activeProvider
-		? runtimeAgents.find((agent) => agent.agentId === activeProvider.id)
-		: null}
-	<div class="mt-3 border border-vibe-teal/30">
-		<div
-			onclick={() => (multiLLMPanelCollapsed = !multiLLMPanelCollapsed)}
-			onkeydown={(event) => event.key === 'Enter' && (multiLLMPanelCollapsed = !multiLLMPanelCollapsed)}
-			role="button"
-			tabindex="0"
-			class="w-full flex items-center justify-between px-3 py-2 bg-vibe-teal/10 hover:bg-vibe-teal/15 transition-colors cursor-pointer"
-		>
-			<div class="flex items-center gap-2">
-				<svg class="w-4 h-4 text-vibe-teal transition-transform {multiLLMPanelCollapsed ? '' : 'rotate-90'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-				</svg>
-				<span class="text-xs font-mono text-vibe-teal uppercase tracking-wider">Agent Activity</span>
-				<span class="text-[10px] font-mono text-text-tertiary">
-					{multiPack.strategy} &bull; {multiPack.providers.length} provider(s)
-				</span>
-			</div>
-			{#if activeProvider}
-				<div class="text-right">
-					<div class="text-[10px] font-mono text-vibe-teal uppercase tracking-wider">
-						{activeAgent?.status || 'assigned'}
-					</div>
-					<div class="text-[11px] font-mono text-text-primary">
-						{activeProvider.label}
-					</div>
-				</div>
-			{/if}
-		</div>
-		{#if !multiLLMPanelCollapsed}
-			<div class="p-3 bg-vibe-teal/5 space-y-2">
-				{#each multiPack.providers as provider}
-					{@const assignment = multiPack.assignments[provider.id]}
-					<div class="p-2 border border-surface-border bg-bg-primary">
-						<div class="flex items-center justify-between gap-2">
-							<div class="text-xs">
-								<div class="font-mono text-text-primary flex items-center gap-1.5">
-									{provider.label} ({provider.id})
-									{#if runtimeAgents.some((agent) => agent.agentId === provider.id && agent.status === 'running')}
-										<span class="inline-block w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse"></span>
-									{:else if runtimeAgents.some((agent) => agent.agentId === provider.id && agent.status === 'completed')}
-										<span class="inline-block w-1.5 h-1.5 rounded-full bg-green-400"></span>
-									{:else if runtimeAgents.some((agent) => agent.agentId === provider.id && agent.status === 'failed')}
-										<span class="inline-block w-1.5 h-1.5 rounded-full bg-red-400"></span>
-									{/if}
-								</div>
-								<div class="text-text-tertiary">
-									{provider.model} &bull; {assignment?.mode || 'execute'} &bull; {assignment?.taskIds?.length || 0} task(s)
-								</div>
-							</div>
-							<span class="text-[10px] font-mono text-vibe-teal">
-								{runtimeAgents.find((agent) => agent.agentId === provider.id)?.status || 'assigned'}
-							</span>
-						</div>
-					</div>
-				{/each}
-			</div>
-		{/if}
-	</div>
-{/if}
 
 {#if executionProgress.executionPrompt && !executionProgress.multiLLMExecution?.enabled}
 	<div class="mt-3 border border-accent-primary/30 rounded-lg overflow-hidden">

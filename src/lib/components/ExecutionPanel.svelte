@@ -108,7 +108,6 @@
 
 	// Copy prompt collapsed state - default to collapsed to save space
 	let copyPromptCollapsed = $state(true);
-	let multiLLMPanelCollapsed = $state(false);
 	let mcpDetailOpen = $state(false);
 
 	// H70 skills collapsed state - show active skill in header when collapsed
@@ -1292,16 +1291,13 @@
 	>
 		<!-- Header -->
 		<div class="flex items-center justify-between gap-4 px-6 py-5 border-b border-surface-border bg-bg-secondary">
-			<div class="min-w-0 flex items-center gap-4">
-				<div class="inline-flex items-center gap-2 rounded-md border border-accent-primary/30 bg-accent-primary/10 px-3 py-2 text-accent-primary">
-					{#if isRunning}
-						<span class="relative flex h-2 w-2">
-							<span class="absolute inline-flex h-full w-full rounded-full bg-accent-primary opacity-60 animate-ping-slow"></span>
-							<span class="relative inline-flex rounded-full h-2 w-2 bg-accent-primary"></span>
-						</span>
-					{/if}
-					<span class="text-xs font-mono uppercase tracking-[0.18em] font-semibold">Trace</span>
-				</div>
+			<div class="min-w-0 flex items-center gap-3">
+				{#if isRunning}
+					<span class="relative flex h-2.5 w-2.5 shrink-0">
+						<span class="absolute inline-flex h-full w-full rounded-full bg-accent-primary opacity-60 animate-ping-slow"></span>
+						<span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-accent-primary"></span>
+					</span>
+				{/if}
 				<div class="min-w-0">
 					<div class="flex min-w-0 flex-wrap items-center gap-2">
 						<h2 class="truncate text-lg font-semibold leading-tight text-text-primary">{panelTitle}</h2>
@@ -1356,7 +1352,6 @@
 					{runtimeAgents}
 					currentTaskSkills={getCurrentTaskSkills(executionProgress)}
 					bind:mcpDetailOpen
-					bind:multiLLMPanelCollapsed
 					bind:copyPromptCollapsed
 					{copyToClipboard}
 				/>
