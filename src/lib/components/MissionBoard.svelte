@@ -378,7 +378,7 @@
 		});
 		return pipeline
 			? `/canvas?pipeline=${encodeURIComponent(pipeline.id)}&mission=${encodeURIComponent(missionId)}`
-			: null;
+			: `/canvas?mission=${encodeURIComponent(missionId)}`;
 	}
 
 	const cards = $derived(() => {
@@ -902,7 +902,7 @@
 										class="block px-4 py-3.5 text-inherit focus:outline-none focus-visible:ring-1 focus-visible:ring-iris/70 rounded-md"
 										title="Open this mission"
 									>
-										<div class="mb-3 flex items-start justify-between gap-3">
+										<div class="mb-3 flex items-start justify-between gap-3 pr-24">
 											<div class="min-w-0 flex-1">
 												<h3 class="flex items-start gap-2 font-sans text-base font-semibold leading-snug text-text-primary transition-colors group-hover:text-accent-primary">
 													<span class="mt-1.5 h-2 w-2 rounded-full shrink-0 {statusDot(c.status)}"></span>
@@ -913,11 +913,7 @@
 													<span>{cardTimestamp(c)}</span>
 												</p>
 											</div>
-											<div class="shrink-0 text-right space-y-2">
-												<div class="inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[9px] font-semibold uppercase tracking-wider shadow-sm transition-colors {typeBadgeClass(c)}" title="Open in canvas">
-													<Icon name={typeIcon(c)} size={11} />
-													<span>{typeLabel(c)}</span>
-												</div>
+											<div class="shrink-0 text-right">
 												<Icon name="arrow-right" size={14} class="ml-auto text-text-tertiary transition-all group-hover:translate-x-0.5 group-hover:text-accent-primary" />
 											</div>
 										</div>
@@ -943,6 +939,26 @@
 										{/if}
 
 									</a>
+
+									{#if actionLinks.canvasHref}
+										<a
+											href={actionLinks.canvasHref}
+											data-sveltekit-reload
+											class="absolute right-4 top-3.5 z-10 inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[9px] font-semibold uppercase tracking-wider shadow-sm transition-colors {typeBadgeClass(c)} hover:border-iris/70 hover:text-iris focus:outline-none focus-visible:ring-1 focus-visible:ring-iris/70"
+											title="Open this mission in Canvas"
+										>
+											<Icon name={typeIcon(c)} size={11} />
+											<span>{typeLabel(c)}</span>
+										</a>
+									{:else}
+										<span
+											class="absolute right-4 top-3.5 z-10 inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[9px] font-semibold uppercase tracking-wider shadow-sm transition-colors {typeBadgeClass(c)}"
+											title="Canvas link unavailable"
+										>
+											<Icon name={typeIcon(c)} size={11} />
+											<span>{typeLabel(c)}</span>
+										</span>
+									{/if}
 
 									<div class:hidden={!hasActions} class="flex flex-wrap items-center gap-2 border-t border-surface-border/60 px-4 py-2.5">
 										{#if c.projectLineage?.previewUrl}
