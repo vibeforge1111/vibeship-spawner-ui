@@ -701,22 +701,25 @@
 		const projectPath = params.get('improveProjectPath');
 		const parentMissionId = params.get('parentMissionId');
 		const previewUrl = params.get('previewUrl');
+		const projectId = params.get('projectId');
+		const iterationNumber = Number(params.get('iterationNumber') || '');
+		const improvementFeedback = params.get('improvementFeedback');
 		if (!projectPath && !parentMissionId) return;
 		const source = {
 			id: parentMissionId || 'unknown-parent-mission',
 			name: 'shipped project',
 			projectLineage: {
-				projectId: null,
+				projectId: projectId || null,
 				projectPath: projectPath || null,
 				previewUrl: previewUrl || null,
 				parentMissionId: null,
-				iterationNumber: null,
-				improvementFeedback: null
+				iterationNumber: Number.isFinite(iterationNumber) && iterationNumber > 0 ? iterationNumber : null,
+				improvementFeedback: improvementFeedback || null
 			}
 		};
 		const draft = buildMissionImprovementDraft(source);
 		quickAddGoal = draft.goal;
-		quickAddFeedback = '';
+		quickAddFeedback = improvementFeedback || '';
 		quickAddImprovementDraft = draft;
 		quickAddImprovementSource = source;
 		quickAddOpen = true;

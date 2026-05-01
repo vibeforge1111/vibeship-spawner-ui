@@ -257,7 +257,10 @@
 		const params = new URLSearchParams();
 		if (sparkProjectLineage?.projectPath) params.set('improveProjectPath', sparkProjectLineage.projectPath);
 		params.set('parentMissionId', missionId);
+		if (sparkProjectLineage?.projectId) params.set('projectId', sparkProjectLineage.projectId);
 		if (sparkProjectLineage?.previewUrl) params.set('previewUrl', sparkProjectLineage.previewUrl);
+		if (sparkProjectLineage?.iterationNumber) params.set('iterationNumber', String(sparkProjectLineage.iterationNumber));
+		if (sparkProjectLineage?.improvementFeedback) params.set('improvementFeedback', sparkProjectLineage.improvementFeedback);
 		return `/kanban?${params.toString()}`;
 	}
 </script>

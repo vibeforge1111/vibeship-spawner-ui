@@ -1223,7 +1223,10 @@
 		const params = new URLSearchParams();
 		if (projectLineage?.projectPath) params.set('improveProjectPath', projectLineage.projectPath);
 		params.set('parentMissionId', executionProgress?.missionId || relay?.missionId || '');
+		if (projectLineage?.projectId) params.set('projectId', projectLineage.projectId);
 		if (projectLineage?.previewUrl) params.set('previewUrl', projectLineage.previewUrl);
+		if (projectLineage?.iterationNumber) params.set('iterationNumber', String(projectLineage.iterationNumber));
+		if (projectLineage?.improvementFeedback) params.set('improvementFeedback', projectLineage.improvementFeedback);
 		return `/kanban?${params.toString()}`;
 	}
 </script>
