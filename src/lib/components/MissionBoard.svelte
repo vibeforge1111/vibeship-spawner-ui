@@ -18,6 +18,7 @@
 		mergeMissionBoardCards,
 		type MissionBoardCard as BoardCard
 	} from '$lib/services/mission-board-cards';
+	import { buildMissionImprovementDraft, type MissionImprovementDraft } from '$lib/services/mission-improvement';
 
 	type Tab = 'board' | 'scheduled';
 	let activeTab = $state<Tab>('board');
@@ -625,34 +626,14 @@
 
 	let quickAddOpen = $state(false);
 	let quickAddGoal = $state('');
+	let quickAddImprovementDraft = $state<MissionImprovementDraft | null>(null);
 	let quickAddDispatching = $state(false);
 	let quickAddError = $state<string | null>(null);
 
-	function buildImproveGoal(card: BoardCard): string {
-		const lineage = card.projectLineage;
-		const projectPath = lineage?.projectPath || '.';
-		return [
-			`Improve the existing shipped project "${card.name}" at ${projectPath}.`,
-			'',
-			'This is an iteration on an already shipped app, not a new scaffold.',
-			'',
-			'User feedback:',
-			lineage?.improvementFeedback || '',
-			'',
-			'Rules:',
-			'- Read the existing project files before editing.',
-			'- Preserve the current core workflow unless the user explicitly asks to change it.',
-			'- Update only the files needed for this polish pass.',
-			'- Return a concise handoff with project_path, what changed, and verification.',
-			'',
-			'Project context:',
-			`- Parent mission: ${card.id}`,
-			lineage?.previewUrl ? `- Current preview: ${lineage.previewUrl}` : null
-		].filter((line): line is string => line !== null).join('\n');
-	}
-
 	function handleImprove(card: BoardCard) {
-		quickAddGoal = buildImproveGoal(card);
+		const draft = buildMissionImprovementDraft(card);
+		quickAddGoal = draft.goal;
+		quickAddImprovementDraft = draft;
 		quickAddOpen = true;
 		quickAddError = null;
 		window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -667,13 +648,19 @@
 			const r = await fetch('/api/spark/run', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ goal, userId: 'kanban-quickadd', requestId: `quickadd-${Date.now()}` })
+				body: JSON.stringify({
+					goal,
+					userId: 'kanban-quickadd',
+					requestId: `quickadd-${Date.now()}`,
+					...(quickAddImprovementDraft?.payload ?? {})
+				})
 			});
 			const data = await r.json();
 			if (!r.ok || !data?.success) {
 				quickAddError = data?.error ?? `HTTP ${r.status}`;
 			} else {
 				quickAddGoal = '';
+				quickAddImprovementDraft = null;
 				quickAddOpen = false;
 				await fetchRelay();
 			}
@@ -697,17 +684,21 @@
 		const parentMissionId = params.get('parentMissionId');
 		const previewUrl = params.get('previewUrl');
 		if (!projectPath && !parentMissionId) return;
-		quickAddGoal = [
-			`Improve the existing shipped project at ${projectPath || '.'}.`,
-			'',
-			'This is an iteration on an already shipped app, not a new scaffold.',
-			'',
-			'User feedback:',
-			'',
-			'Project context:',
-			parentMissionId ? `- Parent mission: ${parentMissionId}` : null,
-			previewUrl ? `- Current preview: ${previewUrl}` : null
-		].filter((line): line is string => line !== null).join('\n');
+		const source = {
+			id: parentMissionId || 'unknown-parent-mission',
+			name: 'shipped project',
+			projectLineage: {
+				projectId: null,
+				projectPath: projectPath || null,
+				previewUrl: previewUrl || null,
+				parentMissionId: null,
+				iterationNumber: null,
+				improvementFeedback: null
+			}
+		};
+		const draft = buildMissionImprovementDraft(source);
+		quickAddGoal = draft.goal;
+		quickAddImprovementDraft = draft;
 		quickAddOpen = true;
 	}
 </script>
@@ -761,7 +752,7 @@
 				{/if}
 
 				<button
-					onclick={() => { quickAddOpen = !quickAddOpen; quickAddError = null; }}
+					onclick={() => { quickAddOpen = !quickAddOpen; quickAddError = null; quickAddImprovementDraft = null; }}
 					class="inline-flex items-center gap-1 px-2 py-1 text-xs font-mono bg-accent-primary text-bg-primary rounded-md hover:bg-accent-primary-hover transition-all"
 					title="New mission"
 				>
@@ -796,7 +787,7 @@
 						type="text"
 						placeholder="Describe what Spark should run..."
 						bind:value={quickAddGoal}
-						onkeydown={(e) => { if (e.key === 'Enter') handleQuickAdd(); if (e.key === 'Escape') { quickAddOpen = false; quickAddGoal = ''; } }}
+						onkeydown={(e) => { if (e.key === 'Enter') handleQuickAdd(); if (e.key === 'Escape') { quickAddOpen = false; quickAddGoal = ''; quickAddImprovementDraft = null; } }}
 						class="flex-1 px-3 py-2 bg-bg-primary border border-surface-border rounded-md text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary font-mono"
 					/>
 					<button
@@ -807,7 +798,7 @@
 						{quickAddDispatching ? 'Dispatching…' : 'Run'}
 					</button>
 					<button
-						onclick={() => { quickAddOpen = false; quickAddGoal = ''; quickAddError = null; }}
+						onclick={() => { quickAddOpen = false; quickAddGoal = ''; quickAddError = null; quickAddImprovementDraft = null; }}
 						class="px-2 py-2 text-xs font-mono text-text-tertiary rounded-md hover:text-text-primary transition-all"
 						aria-label="Cancel"
 					>
