@@ -45,46 +45,49 @@
 </script>
 
 {#if taskRows.length > 0}
-	<div class="mt-4 border border-surface-border overflow-hidden">
-		<div class="flex flex-wrap items-center justify-between gap-3 px-3 py-2 bg-bg-tertiary border-b border-surface-border">
+	<div class="mt-4 overflow-hidden rounded-lg border border-surface-border bg-bg-primary/70">
+		<div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-bg-secondary border-b border-surface-border">
 			<div>
-				<span class="text-xs font-mono text-text-tertiary uppercase tracking-wider">Task Status</span>
-				<div class="mt-0.5 text-[11px] font-mono text-accent-primary">
+				<span class="text-xs font-mono text-text-tertiary uppercase tracking-[0.16em]">Tasks</span>
+				<div class="mt-1 text-sm font-mono font-semibold text-text-primary">
 					{taskCompletionLabel}
 				</div>
 				{#if nextTask && isRunning}
-					<div class="mt-0.5 text-[11px] font-mono text-vibe-teal truncate max-w-[36rem]">
-						Active {nextTask.index}/{taskRows.length}: {nextTask.title}
+					<div class="mt-1 text-[11px] font-mono text-vibe-teal truncate max-w-[36rem]">
+						Running {nextTask.index}/{taskRows.length}: {nextTask.title}
 					</div>
 				{/if}
 			</div>
-			<div class="grid grid-cols-4 gap-1 text-right">
-				<div class="min-w-16 border border-accent-primary/20 bg-accent-primary/5 px-2 py-1">
-					<div class="text-sm font-mono font-bold text-accent-primary">{taskSummary.completed}</div>
-					<div class="text-[10px] font-mono text-accent-primary/70 uppercase">Done</div>
+			<div class="grid grid-cols-4 gap-1.5 text-right">
+				<div class="min-w-16 rounded-md border border-accent-primary/20 bg-accent-primary/5 px-2 py-1.5">
+					<div class="text-sm font-mono font-semibold text-accent-primary">{taskSummary.completed}</div>
+					<div class="text-[9px] font-mono text-accent-primary/70 uppercase tracking-[0.12em]">Done</div>
 				</div>
-				<div class="min-w-16 border border-vibe-teal/20 bg-vibe-teal/5 px-2 py-1">
-					<div class="text-sm font-mono font-bold text-vibe-teal">{taskSummary.running}</div>
-					<div class="text-[10px] font-mono text-vibe-teal/70 uppercase">Run</div>
+				<div class="min-w-16 rounded-md border border-vibe-teal/20 bg-vibe-teal/5 px-2 py-1.5">
+					<div class="text-sm font-mono font-semibold text-vibe-teal">{taskSummary.running}</div>
+					<div class="text-[9px] font-mono text-vibe-teal/70 uppercase tracking-[0.12em]">Active</div>
 				</div>
-				<div class="min-w-16 border border-amber-500/20 bg-amber-500/5 px-2 py-1">
-					<div class="text-sm font-mono font-bold text-status-warning">{taskSummary.pending}</div>
-					<div class="text-[10px] font-mono text-status-warning/70 uppercase">Wait</div>
+				<div class="min-w-16 rounded-md border border-amber-500/20 bg-amber-500/5 px-2 py-1.5">
+					<div class="text-sm font-mono font-semibold text-status-warning">{taskSummary.pending}</div>
+					<div class="text-[9px] font-mono text-status-warning/70 uppercase tracking-[0.12em]">Queued</div>
 				</div>
-				<div class="min-w-16 border border-status-error/20 bg-status-error/5 px-2 py-1">
-					<div class="text-sm font-mono font-bold text-status-error">{taskSummary.failed}</div>
-					<div class="text-[10px] font-mono text-status-error/70 uppercase">Fail</div>
+				<div class="min-w-16 rounded-md border border-status-error/20 bg-status-error/5 px-2 py-1.5">
+					<div class="text-sm font-mono font-semibold text-status-error">{taskSummary.failed}</div>
+					<div class="text-[9px] font-mono text-status-error/70 uppercase tracking-[0.12em]">Failed</div>
 				</div>
 			</div>
 		</div>
-		<div class="max-h-56 overflow-y-auto bg-bg-primary">
+		<div class="max-h-56 overflow-y-auto bg-bg-primary/80">
 			{#each taskRows as task}
-				<div class="px-3 py-2 border-b last:border-b-0 {getTaskRowClass(task.status)}">
+				<div class="relative px-4 py-2.5 border-b last:border-b-0 {getTaskRowClass(task.status)}">
+					{#if task.status === 'running'}
+						<span class="absolute left-0 top-0 h-full w-0.5 bg-vibe-teal shadow-[0_0_18px_rgba(47,202,148,0.45)]"></span>
+					{/if}
 					<div class="flex items-start justify-between gap-3">
 						<div class="min-w-0 flex-1">
 							<div class="flex items-center gap-2">
 								<span class="w-6 shrink-0 text-[10px] font-mono text-text-tertiary">#{task.index}</span>
-								<span class="truncate text-xs font-mono text-text-primary">{task.title}</span>
+								<span class="truncate text-sm font-medium text-text-primary">{task.title}</span>
 							</div>
 							{#if task.message && task.status === 'running'}
 								<div class="mt-1 text-[11px] text-text-tertiary truncate">{task.message}</div>
@@ -92,14 +95,14 @@
 							{#if task.skills.length > 0}
 								<div class="mt-1 flex flex-wrap gap-1">
 									{#each task.skills.slice(0, 4) as skill}
-										<span class="rounded-full border border-surface-border bg-bg-secondary px-1.5 py-0.5 text-[10px] font-mono text-text-tertiary">
+										<span class="rounded border border-surface-border bg-bg-secondary px-1.5 py-0.5 text-[10px] font-mono text-text-tertiary">
 											{skill}
 										</span>
 									{/each}
 								</div>
 							{/if}
 						</div>
-						<span class="px-1.5 py-0.5 border text-[10px] font-mono uppercase {getTaskBadgeClass(task.status)}">
+						<span class="rounded px-1.5 py-0.5 border text-[10px] font-mono uppercase tracking-[0.1em] {getTaskBadgeClass(task.status)}">
 							{task.status}
 						</span>
 					</div>

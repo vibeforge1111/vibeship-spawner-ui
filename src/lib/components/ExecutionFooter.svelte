@@ -38,7 +38,7 @@
 	}: Props = $props();
 </script>
 
-<div class="px-6 py-5 border-t border-surface-border flex justify-between items-center gap-4 flex-wrap">
+<div class="px-6 py-5 border-t border-surface-border bg-bg-secondary flex justify-between items-center gap-4 flex-wrap">
 	<div class="flex items-center gap-2 text-sm text-text-tertiary font-mono">
 		{#if executionProgress?.endTime}
 			Finished at {formatTime(executionProgress.endTime)}
@@ -52,7 +52,7 @@
 		{#if canCancel}
 			<button
 				onclick={onCancel}
-				class="px-5 py-2.5 rounded-md text-sm font-medium text-status-error border border-status-error/50 hover:bg-status-error/10 transition-all"
+				class="px-4 py-2.5 rounded-md text-sm font-medium text-status-error border border-status-error/40 hover:border-status-error/70 hover:bg-status-error/10 transition-all"
 			>
 				Cancel
 			</button>
@@ -61,7 +61,7 @@
 		{#if canPause}
 			<button
 				onclick={onPause}
-				class="px-5 py-2.5 rounded-md text-sm font-medium text-blue-400 border border-blue-400/50 hover:bg-blue-400/10 transition-all"
+				class="px-4 py-2.5 rounded-md text-sm font-medium text-blue-400 border border-blue-400/40 hover:border-blue-400/70 hover:bg-blue-400/10 transition-all"
 			>
 				Pause
 			</button>
@@ -69,7 +69,7 @@
 		{#if canResume}
 			<button
 				onclick={onResume}
-				class="px-5 py-2.5 rounded-md text-sm font-medium text-blue-400 border border-blue-400/50 hover:bg-blue-400/10 transition-all"
+				class="px-4 py-2.5 rounded-md text-sm font-medium text-blue-400 border border-blue-400/40 hover:border-blue-400/70 hover:bg-blue-400/10 transition-all"
 			>
 				Resume
 			</button>
@@ -78,7 +78,7 @@
 		{#if !isRunning && !isPaused}
 			<button
 				onclick={onClose}
-				class="px-5 py-2.5 rounded-md text-sm font-medium text-text-secondary border border-surface-border hover:border-text-tertiary hover:text-text-primary transition-all"
+				class="px-4 py-2.5 rounded-md text-sm font-medium text-text-secondary border border-surface-border bg-bg-primary hover:border-text-tertiary hover:text-text-primary transition-all"
 			>
 				Close
 			</button>
@@ -87,7 +87,7 @@
 		<button
 			onclick={onRun}
 			disabled={!canRun}
-			class="inline-flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-semibold bg-accent-primary text-accent-fg hover:opacity-85 active:scale-[0.98] transition-all disabled:cursor-not-allowed disabled:opacity-40"
+			class="inline-flex items-center gap-2 rounded-md border border-accent-primary/30 bg-accent-primary px-5 py-2.5 text-sm font-semibold text-accent-fg shadow-[0_10px_28px_-18px_rgba(47,202,148,0.9)] transition-all hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
 			title={isTerminal
 				? 'This mission is complete. Inspect logs here instead of starting over.'
 				: currentNodeCount === 0

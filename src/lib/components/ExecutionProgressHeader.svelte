@@ -41,36 +41,61 @@
 	let missionProgressLabel = $derived(
 		missionTaskCount > 0 ? `${missionCompletedTaskCount}/${missionTaskCount} tasks done` : `${nodeCount} nodes`
 	);
+	let missionTitle = $derived(executionProgress.mission?.name || 'Canvas execution');
+	let activeTaskLabel = $derived(
+		executionProgress.currentTaskName ||
+			executionProgress.currentTaskMessage ||
+			(executionProgress.status === 'completed' ? 'Execution complete' : 'Waiting for next task')
+	);
 </script>
 
-<div class="flex items-center justify-between mb-3">
-	<span class="font-mono text-xs text-text-tertiary tracking-widest uppercase">Overall Progress</span>
-	<span class="text-base font-mono font-medium text-text-primary tabular-nums">{executionProgress.progress}%</span>
-</div>
-<div class="w-full h-1.5 rounded-full bg-surface overflow-hidden">
-	<div
-		class="h-full rounded-full transition-all duration-500 ease-out"
-		class:bg-accent-primary={executionProgress.status === 'completed'}
-		class:bg-status-warning={executionProgress.status === 'partial'}
-		class:bg-vibe-teal={executionProgress.status === 'running' || executionProgress.status === 'creating'}
-		class:bg-blue-500={executionProgress.status === 'paused'}
-		class:bg-status-error={executionProgress.status === 'failed'}
-		class:bg-gray-500={executionProgress.status === 'cancelled'}
-		style="width: {executionProgress.progress}%"
-	></div>
+<div class="rounded-lg border border-surface-border bg-bg-primary/65 p-4">
+	<div class="flex flex-wrap items-start justify-between gap-3">
+		<div class="min-w-0">
+			<div class="font-mono text-[10px] uppercase tracking-[0.18em] text-text-tertiary">Mission Trace</div>
+			<div class="mt-1 truncate text-base font-semibold text-text-primary">{missionTitle}</div>
+			<div class="mt-1 truncate text-xs font-mono text-text-tertiary">{activeTaskLabel}</div>
+		</div>
+		<div class="rounded-md border border-accent-primary/25 bg-accent-primary/10 px-3 py-2 text-right">
+			<div class="text-xl font-mono font-semibold tabular-nums text-text-primary">{executionProgress.progress}%</div>
+			<div class="text-[10px] font-mono uppercase tracking-[0.14em] text-accent-primary">{executionProgress.status}</div>
+		</div>
+	</div>
+
+	<div class="mt-4 h-2 w-full overflow-hidden rounded-full bg-surface">
+		<div
+			class="execution-progress-fill h-full rounded-full transition-all duration-500 ease-out"
+			class:bg-accent-primary={executionProgress.status === 'completed'}
+			class:bg-status-warning={executionProgress.status === 'partial'}
+			class:bg-vibe-teal={executionProgress.status === 'running' || executionProgress.status === 'creating'}
+			class:bg-blue-500={executionProgress.status === 'paused'}
+			class:bg-status-error={executionProgress.status === 'failed'}
+			class:bg-gray-500={executionProgress.status === 'cancelled'}
+			style="width: {executionProgress.progress}%"
+		></div>
+	</div>
+
+	<div class="mt-3 grid grid-cols-3 gap-2">
+		<div class="rounded-md border border-surface-border bg-bg-secondary px-3 py-2">
+			<div class="text-[10px] font-mono uppercase tracking-[0.14em] text-text-tertiary">Tasks</div>
+			<div class="mt-1 text-sm font-mono font-semibold text-text-primary">{missionProgressLabel}</div>
+		</div>
+		<div class="rounded-md border border-surface-border bg-bg-secondary px-3 py-2">
+			<div class="text-[10px] font-mono uppercase tracking-[0.14em] text-text-tertiary">Elapsed</div>
+			<div class="mt-1 text-sm font-mono font-semibold tabular-nums text-text-primary">{executionDuration}</div>
+		</div>
+		<div class="rounded-md border border-surface-border bg-bg-secondary px-3 py-2">
+			<div class="text-[10px] font-mono uppercase tracking-[0.14em] text-text-tertiary">MCP</div>
+			<div class="mt-1 text-sm font-mono font-semibold {mcpConnectedCount > 0 ? 'text-accent-primary' : 'text-text-primary'}">
+				{mcpConnectedCount > 0 ? `${mcpConnectedCount} connected` : 'Local'}
+			</div>
+		</div>
+	</div>
 </div>
 
-<div class="flex justify-between mt-3 text-sm text-text-tertiary font-mono">
-	<span>
-		{missionProgressLabel}{#if mcpConnectedCount > 0}
-			&bull; <span class="text-accent-primary">{mcpConnectedCount} MCP{mcpConnectedCount > 1 ? 's' : ''}</span>
-		{/if}
-	</span>
-	<span class="tabular-nums">{executionDuration}</span>
-</div>
 {#if mcpConnectedCount > 0}
 	<button
-		class="mt-1 text-[10px] font-mono text-text-tertiary hover:text-accent-primary transition-colors text-left"
+		class="mt-2 text-[10px] font-mono text-text-tertiary hover:text-accent-primary transition-colors text-left"
 		onclick={() => (mcpDetailOpen = !mcpDetailOpen)}
 	>
 		{mcpDetailOpen ? '\u25BE' : '\u25B8'} {mcpTools.length} tools across {mcpConnectedCount} MCP{mcpConnectedCount > 1 ? 's' : ''}
@@ -87,6 +112,19 @@
 		</div>
 	{/if}
 {/if}
+
+<style>
+	.execution-progress-fill {
+		background-image: linear-gradient(
+			135deg,
+			rgb(255 255 255 / 0.32) 0 18%,
+			transparent 18% 50%,
+			rgb(255 255 255 / 0.2) 50% 68%,
+			transparent 68% 100%
+		);
+		background-size: 20px 20px;
+	}
+</style>
 
 {#if executionProgress.multiLLMExecution?.enabled}
 	{@const multiPack = executionProgress.multiLLMExecution}

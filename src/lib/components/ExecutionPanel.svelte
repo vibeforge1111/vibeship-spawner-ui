@@ -171,6 +171,19 @@
 	let canCancel = $derived(isRunning || isPaused);
 	// Note: MCP not required anymore - we build missions locally and run directly by default (copy prompt is fallback)
 	let canRun = $derived(!isRunning && !isPaused && !isTerminal && currentNodes.length > 0);
+	let panelTitle = $derived(
+		executionProgress?.mission?.name ||
+			missionName ||
+			relay?.goal ||
+			(currentNodes.length > 0 ? 'Canvas workflow' : 'Execution panel')
+	);
+	let panelSubtitle = $derived(
+		executionProgress?.currentTaskName ||
+			executionProgress?.currentTaskMessage ||
+			(currentNodes.length > 0
+				? `${currentNodes.length} node${currentNodes.length === 1 ? '' : 's'} ready`
+				: 'Build a canvas to run')
+	);
 	let runtimeAgents = $derived.by(() => {
 		if (!executionProgress?.agentRuntime) return [] as AgentRuntimeStatus[];
 		return Array.from(executionProgress.agentRuntime.values()).sort((a, b) =>
@@ -1278,22 +1291,28 @@
 		class:border={!minimized}
 	>
 		<!-- Header -->
-		<div class="flex items-center justify-between px-6 py-5 border-b border-surface-border">
-			<div class="flex items-center gap-4">
-				<div class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-accent-primary text-accent-fg">
+		<div class="flex items-center justify-between gap-4 px-6 py-5 border-b border-surface-border bg-bg-secondary">
+			<div class="min-w-0 flex items-center gap-4">
+				<div class="inline-flex items-center gap-2 rounded-md border border-accent-primary/30 bg-accent-primary/10 px-3 py-2 text-accent-primary">
 					{#if isRunning}
 						<span class="relative flex h-2 w-2">
-							<span class="absolute inline-flex h-full w-full rounded-full bg-accent-fg opacity-60 animate-ping-slow"></span>
-							<span class="relative inline-flex rounded-full h-2 w-2 bg-accent-fg"></span>
+							<span class="absolute inline-flex h-full w-full rounded-full bg-accent-primary opacity-60 animate-ping-slow"></span>
+							<span class="relative inline-flex rounded-full h-2 w-2 bg-accent-primary"></span>
 						</span>
 					{/if}
-					<span class="text-sm font-mono uppercase tracking-widest font-semibold">Execution</span>
+					<span class="text-xs font-mono uppercase tracking-[0.18em] font-semibold">Trace</span>
 				</div>
-				{#if executionProgress}
-					<span class="text-base font-mono font-medium {getStatusColor(executionProgress.status)}">
-						{executionProgress.status}
-					</span>
-				{/if}
+				<div class="min-w-0">
+					<div class="flex min-w-0 flex-wrap items-center gap-2">
+						<h2 class="truncate text-lg font-semibold leading-tight text-text-primary">{panelTitle}</h2>
+						{#if executionProgress}
+							<span class="rounded-md border border-surface-border bg-bg-primary px-2 py-1 text-[10px] font-mono uppercase tracking-[0.14em] {getStatusColor(executionProgress.status)}">
+								{executionProgress.status}
+							</span>
+						{/if}
+					</div>
+					<p class="mt-1 truncate text-xs font-mono text-text-tertiary">{panelSubtitle}</p>
+				</div>
 			</div>
 			<div class="flex items-center gap-1">
 				{#if (isRunning || isPaused) && onToggleMinimize}
