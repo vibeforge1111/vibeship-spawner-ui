@@ -1339,7 +1339,9 @@ import { get } from 'svelte/store';
 
 <div class="h-screen flex bg-bg-primary relative">
 	<aside class="w-64 border-r border-surface-border bg-bg-secondary flex flex-col z-10">
-		<div class="p-4 border-b border-surface-border"><BrandLogo size="sm" /></div>
+		<div class="h-14 px-4 border-b border-surface-border flex items-center justify-center">
+			<BrandLogo size="md" />
+		</div>
 		<div class="flex-1 overflow-hidden"><SkillsPanel /></div>
 		<div class="p-3 border-t border-surface-border">
 			<div class="flex items-center justify-between">
@@ -1358,7 +1360,7 @@ import { get } from 'svelte/store';
 		<SessionStateBar onOpenExecution={() => showExecution = true} />
 
 		<!-- Two-row toolbar -->
-		<header class="h-11 flex items-center px-3 gap-3 border-b border-surface-border bg-bg-secondary">
+		<header class="h-14 flex items-center px-4 gap-3 border-b border-surface-border bg-bg-secondary">
 			<!-- Pipeline selector -->
 			<PipelineSelector
 				onSwitch={handlePipelineSwitch}
@@ -1687,7 +1689,7 @@ import { get } from 'svelte/store';
 <style>
 	.canvas-area {
 		cursor: grab;
-		background: #151719;
+		background: #181c26;
 	}
 	.canvas-grid {
 		/* Crossing line grid at 40px — same as spark-agent board-stage */
