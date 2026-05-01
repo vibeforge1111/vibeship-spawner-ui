@@ -42,10 +42,29 @@ function compactFeedback(value: string | null): string | null {
 	return value.replace(/\s+/g, ' ').trim().slice(0, 500) || null;
 }
 
-function preferLongerText(current: string | null | undefined, incoming: string | null | undefined): string | null {
+const STATUS_FEEDBACK_PATTERN =
+	/\b(?:SKILL_LOADED|Preview URL|JS syntax|smoke path|verification|verified|task completed|syntax check passed|audit complete|responsive wrapping|visual token pass|progress:)\b/i;
+const USER_FEEDBACK_PATTERN =
+	/\b(?:same app|do not rebuild|from scratch|keep the|make the|feel more|more alive|user feedback)\b/i;
+
+function feedbackQuality(value: string | null | undefined): number {
+	if (!value) return 0;
+	let score = Math.min(value.length, 500);
+	if (USER_FEEDBACK_PATTERN.test(value)) score += 250;
+	if (STATUS_FEEDBACK_PATTERN.test(value)) score -= 400;
+	if (/[.:]\s*(?:passed|verified|complete|applied)\b/i.test(value)) score -= 150;
+	return score;
+}
+
+function preferFeedbackText(current: string | null | undefined, incoming: string | null | undefined): string | null {
 	if (!current) return incoming ?? null;
 	if (!incoming) return current;
-	return incoming.length > current.length ? incoming : current;
+	const currentQuality = feedbackQuality(current);
+	const incomingQuality = feedbackQuality(incoming);
+	if (incomingQuality === currentQuality) {
+		return incoming.length > current.length ? incoming : current;
+	}
+	return incomingQuality > currentQuality ? incoming : current;
 }
 
 function previewBaseUrl(): string {
@@ -129,7 +148,7 @@ export function mergeMissionControlProjectLineage(
 		previewUrl: current?.previewUrl ?? incoming?.previewUrl ?? null,
 		parentMissionId: current?.parentMissionId ?? incoming?.parentMissionId ?? null,
 		iterationNumber: current?.iterationNumber ?? incoming?.iterationNumber ?? null,
-		improvementFeedback: preferLongerText(current?.improvementFeedback, incoming?.improvementFeedback)
+		improvementFeedback: preferFeedbackText(current?.improvementFeedback, incoming?.improvementFeedback)
 	};
 	if (!merged.projectId) merged.projectId = projectIdFromPath(merged.projectPath);
 	if (!merged.previewUrl && merged.projectPath) {
