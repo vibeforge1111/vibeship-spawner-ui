@@ -170,11 +170,12 @@
 		: mcpToolCount > 0
 			? `${mcpToolCount} mcp`
 			: '');
-	const visibleTags = $derived((data.tags || []).slice(0, 3));
+	const visibleTags = $derived((data.tags || []).slice(0, 2));
+	const extraTagCount = $derived(Math.max(0, (data.tags || []).length - visibleTags.length));
 
 	// Calculate port positions
 	const maxPorts = $derived(Math.max(data.inputs?.length || 1, data.outputs?.length || 1));
-	const nodeHeight = $derived(Math.max(48, 20 + maxPorts * 18));
+	const nodeHeight = $derived(Math.max(86, 36 + maxPorts * 18));
 
 	function handlePortMouseDown(e: MouseEvent, portId: string, portType: 'input' | 'output', port?: Port) {
 		e.stopPropagation();
@@ -299,6 +300,9 @@
 				{#each visibleTags as tag}
 					<span class="node-tag">{tag}</span>
 				{/each}
+				{#if extraTagCount > 0}
+					<span class="node-tag node-tag-more">+{extraTagCount}</span>
+				{/if}
 			</div>
 		{/if}
 
@@ -320,18 +324,18 @@
 		background: var(--surface-raised);
 		border: 1px solid var(--border-strong);
 		border-radius: 8px;
-		box-shadow: 0 8px 24px -8px rgba(0,0,0,0.35);
+		box-shadow: 0 10px 28px -16px rgba(0,0,0,0.55), inset 0 1px 0 rgb(255 255 255 / 0.03);
 		transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
 	}
 
 	.node:hover {
 		border-color: var(--accent);
-		box-shadow: 0 16px 40px -12px rgba(0,0,0,0.5), 0 0 0 1px var(--accent-mid);
+		box-shadow: 0 16px 42px -18px rgba(0,0,0,0.62), 0 0 0 1px var(--accent-mid);
 	}
 
 	.node.selected {
 		border-color: var(--accent);
-		box-shadow: 0 0 0 1px var(--accent-mid), 0 20px 50px -15px rgba(47,202,148,0.25);
+		box-shadow: 0 0 0 1px var(--accent-mid), 0 20px 50px -18px rgba(47,202,148,0.26);
 	}
 
 	.node.ghost {
@@ -343,7 +347,8 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		padding: 7px 10px;
+		gap: 8px;
+		padding: 6px 10px;
 		background: var(--bg-subtle);
 		border-bottom: 1px solid var(--border);
 		border-radius: 8px 8px 0 0;
@@ -354,27 +359,33 @@
 	}
 
 	.chrome-tag {
+		min-width: 0;
 		color: var(--text);
 		letter-spacing: 1.5px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.chrome-sub {
+		flex: 0 0 auto;
 		font-style: normal;
 		color: var(--text-tertiary);
+		letter-spacing: 0.4px;
 	}
 
 	/* Body — title + sub */
 	.node-body {
-		padding: 12px 14px;
+		padding: 10px 12px 11px;
 	}
 
 	.node-title {
 		font-family: var(--font-sans, 'DM Sans', system-ui, sans-serif);
-		font-size: 14px;
-		font-weight: 500;
+		font-size: 13.5px;
+		font-weight: 600;
 		color: var(--text);
 		margin: 0 0 2px 0;
-		line-height: 1.3;
+		line-height: 1.25;
 		display: -webkit-box;
 		line-clamp: 2;
 		-webkit-line-clamp: 2;
@@ -384,11 +395,14 @@
 	}
 
 	.node-sub {
-		font-family: var(--font-mono, 'DM Mono', ui-monospace, monospace);
-		font-size: 11px;
-		font-weight: 400;
+		font-family: var(--font-sans, 'DM Sans', system-ui, sans-serif);
+		font-size: 10.5px;
+		font-weight: 500;
 		color: var(--text-tertiary);
-		letter-spacing: 0.3px;
+		letter-spacing: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.skill-sub {
@@ -397,24 +411,37 @@
 
 	.node-tags {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 4px;
-		margin-top: 8px;
+		flex-wrap: nowrap;
+		gap: 3px;
+		margin-top: 7px;
+		min-width: 0;
+		max-width: 100%;
+		overflow: hidden;
 	}
 
 	.node-tag {
-		max-width: 100%;
+		flex: 0 1 auto;
+		min-width: 0;
+		max-width: 72px;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		padding: 2px 6px;
-		border: 1px solid rgb(var(--accent-rgb, 47 202 148) / 0.22);
-		border-radius: 999px;
-		background: rgb(var(--accent-rgb, 47 202 148) / 0.06);
+		padding: 2px 5px;
+		border: 1px solid rgb(var(--accent-rgb, 47 202 148) / 0.18);
+		border-radius: 4px;
+		background: rgb(var(--accent-rgb, 47 202 148) / 0.045);
 		color: var(--text-secondary);
 		font-family: var(--font-mono, 'DM Mono', ui-monospace, monospace);
-		font-size: 9px;
+		font-size: 8.5px;
+		line-height: 1.15;
 		letter-spacing: 0;
+	}
+
+	.node-tag-more {
+		flex: 0 0 auto;
+		color: var(--accent);
+		border-color: rgb(var(--accent-rgb, 47 202 148) / 0.28);
+		background: rgb(var(--accent-rgb, 47 202 148) / 0.07);
 	}
 
 	/* Ports — small teal dots at card edge */
