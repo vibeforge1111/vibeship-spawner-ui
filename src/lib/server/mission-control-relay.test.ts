@@ -580,6 +580,44 @@ describe('mission-control-relay', () => {
 		expect(entry?.projectLineage?.projectId).toMatch(/^project-founder-signal-room-[a-f0-9]{10}$/);
 	});
 
+	it('keeps richer lineage when newer progress events carry partial feedback', async () => {
+		const missionId = `mission-lineage-merge-${Date.now()}`;
+		const fullFeedback = 'make the Loop Lantern preview feel more Spark colored and keep the same app';
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			missionName: 'Loop Lantern polish 2',
+			source: 'prd-bridge',
+			data: {
+				projectPath: 'C:/Users/USER/Desktop/loop-lantern',
+				parentMissionId: 'mission-original-loop',
+				iterationNumber: 2,
+				improvementFeedback: fullFeedback
+			}
+		});
+
+		await relayMissionControlEvent({
+			type: 'progress',
+			missionId,
+			source: 'codex',
+			message: 'make the',
+			data: {
+				projectPath: 'C:/Users/USER/Desktop/loop-lantern',
+				iterationNumber: 2,
+				improvementFeedback: 'make the'
+			}
+		});
+
+		const board = getMissionControlBoard();
+		const entry = [...board.running, ...board.created].find((candidate) => candidate.missionId === missionId);
+		expect(entry?.projectLineage).toMatchObject({
+			parentMissionId: 'mission-original-loop',
+			iterationNumber: 2,
+			improvementFeedback: fullFeedback
+		});
+	});
+
 	it('creates readable summaries', () => {
 		const text = summarizeMissionControlEvent({ type: 'mission_failed', missionId: 'm-22' });
 		expect(text).toContain('Mission failed');

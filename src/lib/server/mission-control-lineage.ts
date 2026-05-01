@@ -42,6 +42,12 @@ function compactFeedback(value: string | null): string | null {
 	return value.replace(/\s+/g, ' ').trim().slice(0, 500) || null;
 }
 
+function preferLongerText(current: string | null | undefined, incoming: string | null | undefined): string | null {
+	if (!current) return incoming ?? null;
+	if (!incoming) return current;
+	return incoming.length > current.length ? incoming : current;
+}
+
 function previewBaseUrl(): string {
 	return (
 		process.env.SPAWNER_PROJECT_PREVIEW_BASE_URL?.trim() ||
@@ -123,7 +129,7 @@ export function mergeMissionControlProjectLineage(
 		previewUrl: current?.previewUrl ?? incoming?.previewUrl ?? null,
 		parentMissionId: current?.parentMissionId ?? incoming?.parentMissionId ?? null,
 		iterationNumber: current?.iterationNumber ?? incoming?.iterationNumber ?? null,
-		improvementFeedback: current?.improvementFeedback ?? incoming?.improvementFeedback ?? null
+		improvementFeedback: preferLongerText(current?.improvementFeedback, incoming?.improvementFeedback)
 	};
 	if (!merged.projectId) merged.projectId = projectIdFromPath(merged.projectPath);
 	if (!merged.previewUrl && merged.projectPath) {
