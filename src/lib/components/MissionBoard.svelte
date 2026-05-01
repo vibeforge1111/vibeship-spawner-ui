@@ -18,7 +18,11 @@
 		mergeMissionBoardCards,
 		type MissionBoardCard as BoardCard
 	} from '$lib/services/mission-board-cards';
-	import { buildMissionImprovementDraft, type MissionImprovementDraft } from '$lib/services/mission-improvement';
+	import {
+		buildMissionImprovementDraft,
+		type MissionImprovementDraft,
+		type MissionImprovementSource
+	} from '$lib/services/mission-improvement';
 
 	type Tab = 'board' | 'scheduled';
 	let activeTab = $state<Tab>('board');
@@ -626,21 +630,37 @@
 
 	let quickAddOpen = $state(false);
 	let quickAddGoal = $state('');
+	let quickAddFeedback = $state('');
 	let quickAddImprovementDraft = $state<MissionImprovementDraft | null>(null);
+	let quickAddImprovementSource = $state<MissionImprovementSource | null>(null);
 	let quickAddDispatching = $state(false);
 	let quickAddError = $state<string | null>(null);
+
+	function resetQuickAdd() {
+		quickAddOpen = false;
+		quickAddGoal = '';
+		quickAddFeedback = '';
+		quickAddImprovementDraft = null;
+		quickAddImprovementSource = null;
+		quickAddError = null;
+	}
 
 	function handleImprove(card: BoardCard) {
 		const draft = buildMissionImprovementDraft(card);
 		quickAddGoal = draft.goal;
+		quickAddFeedback = card.projectLineage?.improvementFeedback || '';
 		quickAddImprovementDraft = draft;
+		quickAddImprovementSource = card;
 		quickAddOpen = true;
 		quickAddError = null;
 		window.scrollTo({ top: 0, behavior: 'smooth' });
 	}
 
 	async function handleQuickAdd() {
-		const goal = quickAddGoal.trim();
+		const improvementDraft = quickAddImprovementSource
+			? buildMissionImprovementDraft(quickAddImprovementSource, quickAddFeedback)
+			: quickAddImprovementDraft;
+		const goal = (improvementDraft?.goal ?? quickAddGoal).trim();
 		if (!goal || quickAddDispatching) return;
 		quickAddDispatching = true;
 		quickAddError = null;
@@ -652,16 +672,14 @@
 					goal,
 					userId: 'kanban-quickadd',
 					requestId: `quickadd-${Date.now()}`,
-					...(quickAddImprovementDraft?.payload ?? {})
+					...(improvementDraft?.payload ?? {})
 				})
 			});
 			const data = await r.json();
 			if (!r.ok || !data?.success) {
 				quickAddError = data?.error ?? `HTTP ${r.status}`;
 			} else {
-				quickAddGoal = '';
-				quickAddImprovementDraft = null;
-				quickAddOpen = false;
+				resetQuickAdd();
 				await fetchRelay();
 			}
 		} catch (e) {
@@ -698,7 +716,9 @@
 		};
 		const draft = buildMissionImprovementDraft(source);
 		quickAddGoal = draft.goal;
+		quickAddFeedback = '';
 		quickAddImprovementDraft = draft;
+		quickAddImprovementSource = source;
 		quickAddOpen = true;
 	}
 </script>
@@ -752,7 +772,16 @@
 				{/if}
 
 				<button
-					onclick={() => { quickAddOpen = !quickAddOpen; quickAddError = null; quickAddImprovementDraft = null; }}
+					onclick={() => {
+						if (quickAddOpen) resetQuickAdd();
+						else {
+							quickAddOpen = true;
+							quickAddError = null;
+							quickAddImprovementDraft = null;
+							quickAddImprovementSource = null;
+							quickAddFeedback = '';
+						}
+					}}
 					class="inline-flex items-center gap-1 px-2 py-1 text-xs font-mono bg-accent-primary text-bg-primary rounded-md hover:bg-accent-primary-hover transition-all"
 					title="New mission"
 				>
@@ -783,22 +812,41 @@
 		{#if quickAddOpen}
 			<div class="mb-4 border border-surface-border rounded-lg bg-bg-secondary p-3">
 				<div class="flex items-start gap-2">
-					<input
-						type="text"
-						placeholder="Describe what Spark should run..."
-						bind:value={quickAddGoal}
-						onkeydown={(e) => { if (e.key === 'Enter') handleQuickAdd(); if (e.key === 'Escape') { quickAddOpen = false; quickAddGoal = ''; quickAddImprovementDraft = null; } }}
-						class="flex-1 px-3 py-2 bg-bg-primary border border-surface-border rounded-md text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary font-mono"
-					/>
+					{#if quickAddImprovementSource}
+						<div class="flex-1 space-y-2">
+							<div class="flex flex-wrap items-center gap-2 font-mono text-[10px] text-text-tertiary">
+								<span class="text-accent-primary">Improve</span>
+								<span>{quickAddImprovementSource.name}</span>
+								{#if quickAddImprovementDraft?.payload.iterationNumber}
+									<span>Iteration {quickAddImprovementDraft.payload.iterationNumber}</span>
+								{/if}
+							</div>
+							<textarea
+								rows="3"
+								placeholder="What should change?"
+								bind:value={quickAddFeedback}
+								onkeydown={(e) => { if (e.key === 'Escape') resetQuickAdd(); }}
+								class="w-full resize-none px-3 py-2 bg-bg-primary border border-surface-border rounded-md text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary font-mono"
+							></textarea>
+						</div>
+					{:else}
+						<input
+							type="text"
+							placeholder="Describe what Spark should run..."
+							bind:value={quickAddGoal}
+							onkeydown={(e) => { if (e.key === 'Enter') handleQuickAdd(); if (e.key === 'Escape') resetQuickAdd(); }}
+							class="flex-1 px-3 py-2 bg-bg-primary border border-surface-border rounded-md text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary font-mono"
+						/>
+					{/if}
 					<button
 						onclick={handleQuickAdd}
-						disabled={!quickAddGoal.trim() || quickAddDispatching}
+						disabled={(quickAddImprovementSource ? !quickAddFeedback.trim() : !quickAddGoal.trim()) || quickAddDispatching}
 						class="px-3 py-2 text-xs font-mono bg-accent-primary text-bg-primary rounded-md hover:bg-accent-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
 					>
 						{quickAddDispatching ? 'Dispatching…' : 'Run'}
 					</button>
 					<button
-						onclick={() => { quickAddOpen = false; quickAddGoal = ''; quickAddError = null; quickAddImprovementDraft = null; }}
+						onclick={resetQuickAdd}
 						class="px-2 py-2 text-xs font-mono text-text-tertiary rounded-md hover:text-text-primary transition-all"
 						aria-label="Cancel"
 					>
