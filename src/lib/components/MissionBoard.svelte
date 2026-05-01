@@ -445,26 +445,6 @@
 		}
 	}
 
-	function taskStatusLabel(status: string | undefined): string {
-		if (status === 'completed') return 'Done';
-		if (status === 'failed') return 'Failed';
-		if (status === 'cancelled') return 'Cancelled';
-		if (status === 'running') return 'Running';
-		return 'Queued';
-	}
-
-	function taskProgressSummary(card: BoardCard): string | null {
-		const counts = card.taskStatusCounts;
-		if (!counts || counts.total <= 0) return null;
-		const parts = [];
-		if (counts.completed) parts.push(`${counts.completed} done`);
-		if (counts.running) parts.push(`${counts.running} running`);
-		if (counts.failed) parts.push(`${counts.failed} failed`);
-		if (counts.cancelled) parts.push(`${counts.cancelled} cancelled`);
-		if (counts.queued) parts.push(`${counts.queued} queued`);
-		return parts.length ? parts.join(' / ') : `${counts.total} tasks`;
-	}
-
 	function taskProgressPercent(card: BoardCard): number {
 		const counts = card.taskStatusCounts;
 		if (!counts || counts.total <= 0) {
@@ -475,13 +455,29 @@
 		return Math.round(((counts.completed + counts.failed + counts.cancelled) / counts.total) * 100);
 	}
 
+	function hasTaskProgress(card: BoardCard): boolean {
+		if (card.status === 'completed') return false;
+		const counts = card.taskStatusCounts;
+		return Boolean(counts && counts.total > 0);
+	}
+
+	function taskProgressRatio(card: BoardCard): string {
+		const counts = card.taskStatusCounts;
+		if (!counts || counts.total <= 0) return '';
+		const settled = counts.completed + counts.failed + counts.cancelled;
+		return `${settled}/${counts.total}`;
+	}
+
 	function focusLine(card: BoardCard): string | null {
-		const provider = card.providerSummary?.trim();
-		if (provider) return provider;
+		if (card.status === 'completed') return null;
 		const summary = card.summary?.trim();
-		if (summary) return summary;
-		const firstTask = card.tasks?.find((task) => task.status === 'running') || card.tasks?.[0];
-		return firstTask?.title ?? null;
+		if (summary && summary !== card.name) return summary;
+		if (card.status === 'running') return 'Running now.';
+		if (card.status === 'paused') return 'Paused and ready to resume.';
+		if (card.status === 'failed') return card.providerSummary?.replace(/^Codex:\s*/i, '').trim() || 'Needs attention.';
+		if (card.status === 'cancelled') return 'Cancelled.';
+		if (card.status === 'ready' || card.status === 'draft') return 'Queued for dispatch.';
+		return null;
 	}
 
 	function statusLabel(status: CardStatus): string {
@@ -494,22 +490,18 @@
 		return status;
 	}
 
-	function statusPill(status: CardStatus): string {
-		if (status === 'running') return 'border-accent-primary/30 bg-accent-primary/10 text-accent-primary';
-		if (status === 'completed') return 'border-status-success/30 bg-status-success/10 text-status-success';
-		if (status === 'failed') return 'border-status-error/30 bg-status-error/10 text-status-error';
-		if (status === 'paused') return 'border-status-amber/30 bg-status-amber/10 text-status-amber';
-		return 'border-surface-border bg-bg-primary text-text-tertiary';
+	function statusTextClass(status: CardStatus): string {
+		if (status === 'running') return 'text-accent-primary';
+		if (status === 'completed') return 'text-status-success';
+		if (status === 'failed') return 'text-status-error';
+		if (status === 'paused') return 'text-status-amber';
+		return 'text-text-tertiary';
 	}
 
-	function lifecycleSummary(card: BoardCard): string | null {
-		if (card.source !== 'spark') return null;
-		if (card.status === 'ready' && card.queuedAt) return `Queued ${formatDate(card.queuedAt)}`;
-		if ((card.status === 'running' || card.status === 'paused') && card.startedAt) {
-			const queued = card.queuedAt ? `Queued ${formatDate(card.queuedAt)} - ` : '';
-			return `${queued}Started ${formatDate(card.startedAt)}`;
-		}
-		return null;
+	function cardTimestamp(card: BoardCard): string {
+		if ((card.status === 'ready' || card.status === 'draft') && card.queuedAt) return `Queued ${formatDate(card.queuedAt)}`;
+		if ((card.status === 'running' || card.status === 'paused') && card.startedAt) return `Started ${formatDate(card.startedAt)}`;
+		return `Updated ${formatDate(card.updatedAt ?? card.createdAt)}`;
 	}
 
 	function lineageSummary(card: BoardCard): string | null {
@@ -517,9 +509,18 @@
 		if (!lineage) return null;
 		const parts = [];
 		if (lineage.iterationNumber) parts.push(`Iteration ${lineage.iterationNumber}`);
-		if (lineage.parentMissionId) parts.push(`Parent ${lineage.parentMissionId}`);
 		if (lineage.projectPath) parts.push(lineage.projectPath.split(/[\\/]/).filter(Boolean).pop() || lineage.projectPath);
-		return parts.length ? parts.join(' - ') : null;
+		return parts.length ? parts.join(' / ') : null;
+	}
+
+	function hasCardActions(card: BoardCard): boolean {
+		return Boolean(
+			card.projectLineage?.previewUrl ||
+			card.projectLineage?.projectPath ||
+			canRunCreatorMissionBoardCard(card) ||
+			canValidateCreatorMissionBoardCard(card) ||
+			card.source === 'mcp'
+		);
 	}
 
 	function columnDot(title: string): string {
@@ -905,91 +906,55 @@
 						<div class="flex-1 space-y-3">
 							{#each col.items as c (c.id)}
 								{@const actionLinks = getMissionBoardCardActionLinks(c)}
+								{@const summary = focusLine(c)}
+								{@const lineage = lineageSummary(c)}
+								{@const hasProgress = hasTaskProgress(c)}
+								{@const hasActions = hasCardActions(c)}
 								<article class="group relative overflow-hidden rounded-md border border-surface-border bg-bg-secondary transition-all hover:border-accent-primary/50 hover:bg-bg-tertiary/40">
 									<a
 										href={actionLinks.detailHref}
-										class="block px-5 py-4 text-inherit focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-primary/70 rounded-md"
+										class="block px-4 py-3.5 text-inherit focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-primary/70 rounded-md"
 										title="Open this mission"
 									>
-										<div class="mb-3 flex items-start justify-between gap-3">
+										<div class="mb-2.5 flex items-start justify-between gap-3">
 											<div class="min-w-0 flex-1">
-												<div class="mb-2 flex items-center gap-2">
+												<div class="mb-1.5 flex items-center gap-2">
 													<span class="w-2 h-2 rounded-full shrink-0 {statusDot(c.status)}"></span>
-													<span class="rounded-full border px-2 py-0.5 font-mono text-[10px] {statusPill(c.status)}">{statusLabel(c.status)}</span>
-													<span class="font-mono text-[10px] text-text-tertiary">{c.source === 'spark' ? 'Spark' : 'Canvas'}</span>
+													<span class="font-mono text-[10px] font-semibold uppercase tracking-wider {statusTextClass(c.status)}">{statusLabel(c.status)}</span>
 												</div>
 												<h3 class="font-sans text-base font-semibold leading-snug text-text-primary transition-colors group-hover:text-accent-primary line-clamp-2">
 													{c.name}
 												</h3>
 											</div>
-											<Icon name="arrow-right" size={15} class="mt-1 text-text-tertiary transition-all group-hover:translate-x-0.5 group-hover:text-accent-primary" />
+											<div class="shrink-0 text-right">
+												<p class="font-mono text-[10px] leading-tight text-text-faint whitespace-nowrap">{cardTimestamp(c)}</p>
+												<Icon name="arrow-right" size={14} class="ml-auto mt-2 text-text-tertiary transition-all group-hover:translate-x-0.5 group-hover:text-accent-primary" />
+											</div>
 										</div>
 
-										{#if focusLine(c)}
-											<p class="mb-4 text-sm leading-relaxed text-text-secondary line-clamp-3">{focusLine(c)}</p>
+										{#if summary}
+											<p class="mb-2.5 text-sm leading-relaxed text-text-secondary line-clamp-2">{summary}</p>
 										{/if}
 
-										{#if lifecycleSummary(c)}
-											<p class="font-mono text-[11px] text-accent-primary/80 mb-3">{lifecycleSummary(c)}</p>
+										{#if lineage}
+											<p class="mb-2.5 truncate font-mono text-[10px] text-text-tertiary">{lineage}</p>
 										{/if}
 
-										{#if lineageSummary(c)}
-											<div class="mb-3 flex flex-wrap items-center gap-1.5">
-												<span class="px-2 py-0.5 text-[10px] font-mono rounded-sm border border-accent-primary/30 bg-accent-primary/10 text-accent-primary">
-													{lineageSummary(c)}
-												</span>
-											</div>
-										{/if}
-
-										<div class="mb-3">
+										{#if hasProgress}
+										<div>
 											<div class="mb-1.5 flex items-center justify-between font-mono text-[10px] text-text-tertiary">
-												<span>{taskProgressSummary(c) || `${c.taskCount || 0} tasks`}</span>
+												<span>{taskProgressRatio(c)}</span>
 												<span>{taskProgressPercent(c)}%</span>
 											</div>
-											<div class="h-1.5 overflow-hidden rounded-full bg-bg-primary">
+											<div class="h-1 overflow-hidden rounded-full bg-bg-primary">
 												<div class="h-full rounded-full bg-accent-primary transition-all" style="width: {taskProgressPercent(c)}%"></div>
 											</div>
 										</div>
-
-										{#if c.tasks && c.tasks.length > 0}
-											<ul class="mb-3 space-y-1.5">
-												{#each c.tasks.slice(0, 3) as task}
-													<li class="flex items-center gap-2">
-														<span class="h-1.5 w-1.5 shrink-0 rounded-full {statusDot(task.status as CardStatus)}"></span>
-														<span class="min-w-0 flex-1 truncate text-xs text-text-secondary">{task.title}</span>
-														<span class="shrink-0 font-mono text-[10px] text-text-tertiary">{taskStatusLabel(task.status)}</span>
-													</li>
-												{/each}
-											</ul>
 										{/if}
-
-										<div class="font-mono text-xs text-text-tertiary flex items-center gap-2">
-											<span>{formatDate(c.updatedAt ?? c.createdAt)}</span>
-											{#if c.taskCount > 0 && (!c.tasks || c.tasks.length === 0)}
-												<span>· {c.taskCount} task{c.taskCount !== 1 ? 's' : ''}</span>
-											{/if}
-											{#if taskProgressSummary(c)}
-												<span>· {taskProgressSummary(c)}</span>
-											{/if}
-											{#if c.source === 'spark'}
-												<span class="text-accent-primary/70" title={c.strategy ?? ''}>· spark</span>
-											{/if}
-											{#if c.status === 'running' || c.status === 'paused'}
-												<span class="ml-auto">{c.status}</span>
-											{/if}
-										</div>
 
 									</a>
 
-									<div class="flex flex-wrap items-center gap-2 border-t border-surface-border/60 px-5 py-3">
-										<a
-											href={actionLinks.detailHref}
-											class="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all"
-											title="Open this mission's full task and event detail"
-										>
-											Open
-											<Icon name="arrow-right" size={10} />
-										</a>
+									<div class:hidden={!hasActions} class="flex flex-wrap items-center gap-2 border-t border-surface-border/60 px-4 py-2.5">
 										{#if c.projectLineage?.previewUrl}
 											<a
 												href={c.projectLineage.previewUrl}
@@ -1000,39 +965,10 @@
 												Preview
 											</a>
 										{/if}
-										{#if actionLinks.canvasHref}
-											<a
-												href={actionLinks.canvasHref}
-												data-sveltekit-reload
-												onclick={(event) => event.stopPropagation()}
-												class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all"
-												title="Open this project's mission-scoped canvas"
-											>
-												Canvas
-											</a>
-										{/if}
-										<a
-											href={actionLinks.traceHref}
-											onclick={(event) => event.stopPropagation()}
-											class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-text-secondary border border-surface-border rounded-sm hover:border-accent-primary/50 hover:text-accent-primary transition-all"
-											title="Open the mission trace with Telegram, Kanban, Canvas, and dispatch state"
-										>
-											Trace
-										</a>
-										{#if actionLinks.resultHref}
-											<a
-												href={actionLinks.resultHref}
-												onclick={(event) => event.stopPropagation()}
-												class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-text-secondary border border-surface-border rounded-sm hover:border-accent-primary/50 hover:text-accent-primary transition-all"
-												title="Jump to the mission result section"
-											>
-												Result
-											</a>
-										{/if}
 										{#if c.projectLineage?.projectPath}
 											<button
 												onclick={() => handleImprove(c)}
-												class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all"
+												class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-text-secondary border border-surface-border rounded-sm hover:border-accent-primary/50 hover:text-accent-primary transition-all"
 												title="Start another polish pass on this shipped project"
 											>
 												Improve
