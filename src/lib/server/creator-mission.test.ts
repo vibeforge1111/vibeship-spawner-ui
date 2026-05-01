@@ -4,16 +4,19 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
 	createCreatorMission,
+	creatorMissionStatusProjection,
 	creatorMissionPath,
 	executeCreatorMission,
 	readCreatorMissionTrace,
 	setCreatorManifestRunnerForTests,
 	setCreatorValidationCommandRunnerForTests,
+	validateCreatorMissionStatusPacket,
 	validateCreatorMission,
 	type CreatorArtifactBundle,
 	type CreatorArtifactManifest,
 	type CreatorArtifactType,
-	type CreatorIntentPacket
+	type CreatorIntentPacket,
+	type CreatorMissionStatusPacket
 } from './creator-mission';
 
 let tempDirs: string[] = [];
@@ -84,6 +87,57 @@ function bundle(overrides: Partial<CreatorIntentPacket> = {}): CreatorArtifactBu
 	};
 }
 
+function missionStatusPacket(overrides: Partial<CreatorMissionStatusPacket> = {}): CreatorMissionStatusPacket {
+	const packet: CreatorMissionStatusPacket = {
+		schema_version: 'adaptive_creator_loop.creator_mission_status.v1',
+		mission_id: 'creator-mission-startup-yc',
+		read_only: true,
+		claim_boundary: 'read-only product adapter over canonical creator-system outputs',
+		canonical: {
+			verdict: 'ready_for_swarm_packet',
+			stage_status: 'review_required',
+			evidence_tier: 'transfer_supported',
+			automation_blocked: false,
+			blocking_checks: [],
+			warning_checks: [],
+			missing_paths: [],
+			recommended_next_command: 'review Startup YC operator validation gates'
+		},
+		publication: {
+			publish_mode: 'swarm_shared',
+			swarm_shared_allowed: false,
+			network_absorbable: false,
+			required_gates: [
+				'multi_seed_validation',
+				'human_operator_calibration',
+				'privacy_review',
+				'rollback_review',
+				'publication_approval'
+			],
+			missing_gates: [
+				'multi_seed_validation',
+				'human_operator_calibration',
+				'privacy_review',
+				'rollback_review',
+				'publication_approval'
+			],
+			blocked_reason: 'Network absorption requires gated review.'
+		},
+		source_packets: [{ packet: 'smoke', present: true, state: 'ready' }],
+		blockers: [{ source: 'publication_gate', message: 'Network absorption is not approved.' }],
+		warnings: [],
+		next_actions: ['Keep publication local until network absorption gates are explicitly approved.'],
+		surface_adapters: {
+			builder: { packet_kind: 'builder_creator_readonly_handoff', may_mutate_state: false },
+			telegram: { packet_kind: 'telegram_creator_status_summary', may_request_secret_paste: false },
+			spawner: { packet_kind: 'spawner_creator_trace_readonly', may_execute: false },
+			canvas: { packet_kind: 'canvas_creator_graph_readonly', may_edit_artifacts: false },
+			kanban: { packet_kind: 'kanban_creator_columns_readonly', may_change_verdict: false }
+		}
+	};
+	return { ...packet, ...overrides };
+}
+
 async function tempStateDir(): Promise<string> {
 	const dir = await mkdtemp(path.join(os.tmpdir(), 'spawner-creator-mission-'));
 	tempDirs.push(dir);
@@ -102,6 +156,49 @@ afterEach(async () => {
 });
 
 describe('creator mission trace', () => {
+	it('projects canonical creator mission status as read-only Spawner state', () => {
+		const projection = creatorMissionStatusProjection(missionStatusPacket());
+
+		expect(projection).toMatchObject({
+			schema_version: 'spawner-creator-mission-status-projection.v1',
+			mission_id: 'creator-mission-startup-yc',
+			read_only: true,
+			stage_status: 'review_required',
+			canonical_verdict: 'ready_for_swarm_packet',
+			evidence_tier: 'transfer_supported',
+			publication: {
+				publish_mode: 'swarm_shared',
+				swarm_shared_allowed: false,
+				network_absorbable: false
+			}
+		});
+		expect(projection.surface_adapters.spawner.may_execute).toBe(false);
+		expect(projection.surface_adapters.canvas.may_edit_artifacts).toBe(false);
+		expect(projection.surface_adapters.kanban.may_change_verdict).toBe(false);
+	});
+
+	it('rejects creator mission status packets that claim network absorption', () => {
+		const packet = missionStatusPacket({
+			publication: {
+				...missionStatusPacket().publication,
+				network_absorbable: true
+			}
+		});
+
+		expect(() => validateCreatorMissionStatusPacket(packet)).toThrow(/network absorption/i);
+	});
+
+	it('rejects creator mission status packets that make Spawner executable', () => {
+		const packet = missionStatusPacket({
+			surface_adapters: {
+				...missionStatusPacket().surface_adapters,
+				spawner: { packet_kind: 'spawner_creator_trace_readonly', may_execute: true }
+			}
+		});
+
+		expect(() => validateCreatorMissionStatusPacket(packet)).toThrow(/non-executable/i);
+	});
+
 	it('creates a persisted full-path trace from a creator intent packet', async () => {
 		const stateDir = await tempStateDir();
 		const trace = await createCreatorMission(
