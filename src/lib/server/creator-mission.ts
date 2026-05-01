@@ -11,10 +11,15 @@ const execFileAsync = promisify(execFile);
 export const CREATOR_TRACE_SCHEMA_VERSION = 'spark-creator-trace.v1';
 export const CREATOR_INTENT_SCHEMA_VERSION = 'spark-creator-intent.v1';
 export const ARTIFACT_MANIFEST_SCHEMA_VERSION = 'spark-artifact-manifest.v1';
+export const CREATOR_MISSION_STATUS_SCHEMA_VERSION = 'adaptive_creator_loop.creator_mission_status.v1';
+export const CREATOR_MISSION_READONLY_PROJECTION_SCHEMA_VERSION = 'spawner-creator-mission-status-projection.v1';
 
 export type CreatorPrivacyMode = 'local_only' | 'github_pr' | 'swarm_shared';
 export type CreatorRiskLevel = 'low' | 'medium' | 'high';
 export type CreatorStageStatus = 'queued' | 'running' | 'blocked' | 'validated' | 'failed' | 'published';
+export type CreatorMissionStatusStageStatus = 'prototype' | 'ready_for_baseline' | 'review_required' | 'blocked' | 'unknown';
+export type CreatorMissionStatusVerdict = 'prototype' | 'ready_for_baseline' | 'ready_for_swarm_packet' | 'blocked';
+export type CreatorMissionEvidenceTier = 'local_only' | 'candidate_review' | 'transfer_supported';
 export type CreatorMode = 'domain_chip' | 'specialization_path' | 'benchmark' | 'autoloop' | 'full_path';
 export type CreatorPublishReadiness =
 	| 'private_draft'
@@ -137,6 +142,55 @@ export interface CreatorValidationRun {
 	completed_at: string;
 	status: 'passed' | 'failed' | 'blocked';
 	results: CreatorValidationCommandResult[];
+}
+
+export interface CreatorMissionStatusPacket {
+	schema_version: typeof CREATOR_MISSION_STATUS_SCHEMA_VERSION;
+	mission_id: string;
+	read_only: true;
+	claim_boundary: string;
+	canonical: {
+		verdict: CreatorMissionStatusVerdict;
+		stage_status: CreatorMissionStatusStageStatus;
+		evidence_tier: CreatorMissionEvidenceTier;
+		automation_blocked?: boolean;
+		blocking_checks?: string[];
+		warning_checks?: string[];
+		missing_paths?: string[];
+		recommended_next_command?: string | null;
+	};
+	publication: {
+		publish_mode: CreatorPrivacyMode;
+		swarm_shared_allowed: boolean;
+		network_absorbable: boolean;
+		required_gates: string[];
+		missing_gates: string[];
+		blocked_reason?: string | null;
+	};
+	source_packets: Array<Record<string, unknown>>;
+	blockers: Array<Record<string, unknown>>;
+	warnings?: string[];
+	next_actions?: string[];
+	surface_adapters: {
+		builder: Record<string, unknown>;
+		telegram: Record<string, unknown>;
+		spawner: Record<string, unknown>;
+		canvas: Record<string, unknown>;
+		kanban: Record<string, unknown>;
+	};
+}
+
+export interface CreatorMissionStatusProjection {
+	schema_version: typeof CREATOR_MISSION_READONLY_PROJECTION_SCHEMA_VERSION;
+	mission_id: string;
+	read_only: true;
+	stage_status: CreatorMissionStatusStageStatus;
+	canonical_verdict: CreatorMissionStatusVerdict;
+	evidence_tier: CreatorMissionEvidenceTier;
+	publication: CreatorMissionStatusPacket['publication'];
+	blockers: Array<Record<string, unknown>>;
+	next_actions: string[];
+	surface_adapters: Pick<CreatorMissionStatusPacket['surface_adapters'], 'spawner' | 'canvas' | 'kanban'>;
 }
 
 export interface CreatorValidationCommandProgress {
@@ -421,6 +475,87 @@ function validateCreatorArtifactManifest(value: unknown): CreatorArtifactManifes
 	return manifest;
 }
 
+export function validateCreatorMissionStatusPacket(value: unknown): CreatorMissionStatusPacket {
+	const packet = requireRecord(value, 'creator mission status');
+	if (packet.schema_version !== CREATOR_MISSION_STATUS_SCHEMA_VERSION) {
+		throw new Error(`creator mission status returned unexpected schema: ${String(packet.schema_version)}`);
+	}
+	if (packet.read_only !== true) {
+		throw new Error('creator mission status must be read-only');
+	}
+	if (!isNonEmptyString(packet.mission_id)) {
+		throw new Error('creator mission status missing mission_id');
+	}
+	if (!isNonEmptyString(packet.claim_boundary)) {
+		throw new Error('creator mission status missing claim boundary');
+	}
+
+	const canonical = requireRecord(packet.canonical, 'creator mission status canonical');
+	if (!['prototype', 'ready_for_baseline', 'ready_for_swarm_packet', 'blocked'].includes(String(canonical.verdict))) {
+		throw new Error('creator mission status has unsupported canonical verdict');
+	}
+	if (!['prototype', 'ready_for_baseline', 'review_required', 'blocked', 'unknown'].includes(String(canonical.stage_status))) {
+		throw new Error('creator mission status has unsupported stage status');
+	}
+	if (!['local_only', 'candidate_review', 'transfer_supported'].includes(String(canonical.evidence_tier))) {
+		throw new Error('creator mission status has unsupported evidence tier');
+	}
+
+	const publication = requireRecord(packet.publication, 'creator mission status publication');
+	if (!['local_only', 'github_pr', 'swarm_shared'].includes(String(publication.publish_mode))) {
+		throw new Error('creator mission status has unsupported publish mode');
+	}
+	if (typeof publication.swarm_shared_allowed !== 'boolean') {
+		throw new Error('creator mission status publication missing swarm_shared_allowed boolean');
+	}
+	if (publication.network_absorbable !== false) {
+		throw new Error('Spawner must not accept network absorption from read-only creator mission packets');
+	}
+	if (!Array.isArray(publication.required_gates) || !Array.isArray(publication.missing_gates)) {
+		throw new Error('creator mission status publication missing gate arrays');
+	}
+
+	const surfaceAdapters = requireRecord(packet.surface_adapters, 'creator mission status surface adapters');
+	for (const surface of ['builder', 'telegram', 'spawner', 'canvas', 'kanban']) {
+		requireRecord(surfaceAdapters[surface], `creator mission status ${surface} adapter`);
+	}
+	if ((surfaceAdapters.spawner as Record<string, unknown>).may_execute !== false) {
+		throw new Error('creator mission status spawner adapter must be non-executable');
+	}
+	if ((surfaceAdapters.canvas as Record<string, unknown>).may_edit_artifacts !== false) {
+		throw new Error('creator mission status canvas adapter must be read-only');
+	}
+	if ((surfaceAdapters.kanban as Record<string, unknown>).may_change_verdict !== false) {
+		throw new Error('creator mission status kanban adapter must preserve canonical verdict');
+	}
+
+	if (!Array.isArray(packet.source_packets) || !Array.isArray(packet.blockers)) {
+		throw new Error('creator mission status missing source packet or blocker arrays');
+	}
+
+	return packet as unknown as CreatorMissionStatusPacket;
+}
+
+export function creatorMissionStatusProjection(value: unknown): CreatorMissionStatusProjection {
+	const packet = validateCreatorMissionStatusPacket(value);
+	return {
+		schema_version: CREATOR_MISSION_READONLY_PROJECTION_SCHEMA_VERSION,
+		mission_id: packet.mission_id,
+		read_only: true,
+		stage_status: packet.canonical.stage_status,
+		canonical_verdict: packet.canonical.verdict,
+		evidence_tier: packet.canonical.evidence_tier,
+		publication: packet.publication,
+		blockers: packet.blockers,
+		next_actions: packet.next_actions || [],
+		surface_adapters: {
+			spawner: packet.surface_adapters.spawner,
+			canvas: packet.surface_adapters.canvas,
+			kanban: packet.surface_adapters.kanban
+		}
+	};
+}
+
 export async function runCreatorPlan(
 	input: CreateCreatorMissionInput,
 	options: CreatorPlanOptions = {}
@@ -470,6 +605,17 @@ export function creatorModeFromIntent(packet: CreatorIntentPacket): CreatorMode 
 	if (outputs.specialization_path) return 'specialization_path';
 	if (outputs.benchmark_pack && !outputs.domain_chip) return 'benchmark';
 	return 'domain_chip';
+}
+
+function requireRecord(value: unknown, label: string): Record<string, unknown> {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new Error(`${label} must be an object`);
+	}
+	return value as Record<string, unknown>;
+}
+
+function isNonEmptyString(value: unknown): value is string {
+	return typeof value === 'string' && value.trim().length > 0;
 }
 
 export function artifactPlanFromIntent(packet: CreatorIntentPacket): string[] {
