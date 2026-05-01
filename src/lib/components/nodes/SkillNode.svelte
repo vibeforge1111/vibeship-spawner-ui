@@ -32,6 +32,7 @@
 	// Track for double-click detection on handoff ports
 	let lastClickTime = $state<number>(0);
 	let lastClickPort = $state<string | null>(null);
+	let showTagMenu = $state(false);
 
 	let currentDraggingConnection = $state<DraggingConnection | null>(null);
 
@@ -172,7 +173,9 @@
 			: '');
 	const displayTags = $derived(data.skillChain && data.skillChain.length > 0 ? data.skillChain : (data.tags || []));
 	const visibleTags = $derived(displayTags.slice(0, 2));
+	const hiddenTags = $derived(displayTags.slice(2));
 	const extraTagCount = $derived(Math.max(0, displayTags.length - visibleTags.length));
+	const tagMenuTitle = $derived(data.skillChain && data.skillChain.length > 0 ? 'Other skills' : 'Other tags');
 
 	// Calculate port positions
 	const maxPorts = $derived(Math.max(data.inputs?.length || 1, data.outputs?.length || 1));
@@ -297,12 +300,48 @@
 		{/if}
 
 		{#if visibleTags.length > 0}
-			<div class="node-tags">
-				{#each visibleTags as tag}
-					<span class="node-tag">{tag}</span>
-				{/each}
-				{#if extraTagCount > 0}
-					<span class="node-tag node-tag-more">+{extraTagCount}</span>
+			<div class="node-tag-cluster">
+				<div class="node-tags">
+					{#each visibleTags as tag}
+						<span class="node-tag" title={tag}>{tag}</span>
+					{/each}
+					{#if extraTagCount > 0}
+						<button
+							type="button"
+							class="node-tag node-tag-more"
+							aria-expanded={showTagMenu}
+							aria-label={`Show ${extraTagCount} more ${data.skillChain && data.skillChain.length > 0 ? 'skills' : 'tags'}`}
+							title={`Show ${extraTagCount} more`}
+							onmousedown={(e) => {
+								e.preventDefault();
+								e.stopPropagation();
+							}}
+							onclick={(e) => {
+								e.stopPropagation();
+								showTagMenu = !showTagMenu;
+							}}
+						>
+							+{extraTagCount}
+						</button>
+					{/if}
+				</div>
+
+				{#if showTagMenu && hiddenTags.length > 0}
+					<!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_click_events_have_key_events -->
+					<div
+						class="node-tag-menu"
+						role="list"
+						onmousedown={(e) => e.stopPropagation()}
+						onclick={(e) => e.stopPropagation()}
+						onkeydown={(e) => e.stopPropagation()}
+					>
+						<div class="node-tag-menu-title">{tagMenuTitle}</div>
+						<div class="node-tag-menu-list">
+							{#each hiddenTags as tag}
+								<span class="node-tag-menu-item" role="listitem" title={tag}>{tag}</span>
+							{/each}
+						</div>
+					</div>
 				{/if}
 			</div>
 		{/if}
@@ -420,6 +459,11 @@
 		overflow: hidden;
 	}
 
+	.node-tag-cluster {
+		position: relative;
+		z-index: 30;
+	}
+
 	.node-tag {
 		flex: 0 1 auto;
 		min-width: 0;
@@ -443,6 +487,66 @@
 		color: var(--accent);
 		border-color: rgb(var(--accent-rgb, 47 202 148) / 0.28);
 		background: rgb(var(--accent-rgb, 47 202 148) / 0.07);
+		cursor: pointer;
+	}
+
+	button.node-tag {
+		appearance: none;
+		text-align: left;
+	}
+
+	.node-tag-more:hover,
+	.node-tag-more[aria-expanded='true'] {
+		border-color: rgb(var(--accent-rgb, 47 202 148) / 0.55);
+		background: rgb(var(--accent-rgb, 47 202 148) / 0.14);
+		color: var(--text);
+	}
+
+	.node-tag-menu {
+		position: absolute;
+		top: calc(100% + 6px);
+		left: 0;
+		width: max-content;
+		min-width: 156px;
+		max-width: 220px;
+		padding: 7px;
+		border: 1px solid rgb(var(--accent-rgb, 47 202 148) / 0.24);
+		border-radius: 6px;
+		background: rgb(18 20 24 / 0.98);
+		box-shadow: 0 18px 42px -22px rgb(0 0 0 / 0.85), 0 0 0 1px rgb(255 255 255 / 0.03);
+		backdrop-filter: blur(10px);
+		z-index: 80;
+	}
+
+	.node-tag-menu-title {
+		margin-bottom: 5px;
+		color: var(--text-tertiary);
+		font-family: var(--font-mono, 'DM Mono', ui-monospace, monospace);
+		font-size: 8px;
+		line-height: 1;
+		letter-spacing: 0.7px;
+		text-transform: uppercase;
+	}
+
+	.node-tag-menu-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px;
+	}
+
+	.node-tag-menu-item {
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		padding: 2px 5px;
+		border: 1px solid rgb(148 163 184 / 0.2);
+		border-radius: 4px;
+		background: rgb(255 255 255 / 0.035);
+		color: var(--text-secondary);
+		font-family: var(--font-mono, 'DM Mono', ui-monospace, monospace);
+		font-size: 8.5px;
+		line-height: 1.2;
 	}
 
 	/* Ports — small teal dots at card edge */

@@ -1687,14 +1687,14 @@ import { get } from 'svelte/store';
 <style>
 	.canvas-area {
 		cursor: grab;
-		background: var(--bg);
+		background: #111315;
 	}
 	.canvas-grid {
 		/* Crossing line grid at 40px — same as spark-agent board-stage */
 		background-image:
-			linear-gradient(var(--border) 1px, transparent 1px),
-			linear-gradient(90deg, var(--border) 1px, transparent 1px);
-		opacity: 0.5;
+			linear-gradient(rgb(148 163 184 / 0.105) 1px, transparent 1px),
+			linear-gradient(90deg, rgb(148 163 184 / 0.105) 1px, transparent 1px);
+		opacity: 0.62;
 	}
 	.canvas-area.panning { cursor: grabbing; }
 	.canvas-area.cutting { cursor: crosshair; }
