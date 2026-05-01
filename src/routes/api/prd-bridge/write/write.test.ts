@@ -3,7 +3,7 @@ import { existsSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { _buildFallbackAnalysisResult } from './+server';
+import { _buildFallbackAnalysisResult, extractPrdBridgeProjectLineage } from './+server';
 
 let testSpawnerDir = '';
 
@@ -66,5 +66,37 @@ describe('PRD bridge fallback analysis', () => {
 		expect(tasks[3].dependencies).toEqual(expect.arrayContaining([tasks[1].id, tasks[2].id]));
 		expect(tasks.every((task) => task.workspaceTargets.includes('C:\\Users\\USER\\Desktop\\spark-telegram-unit-smoke'))).toBe(true);
 		expect(tasks.flatMap((task) => task.verificationCommands).join('\n')).toContain('node --check');
+	});
+
+	it('extracts complete improvement lineage before mission-created relay', () => {
+		const lineage = extractPrdBridgeProjectLineage(
+			[
+				'# Loop Lantern polish 2',
+				'',
+				'Target operating-system folder: `C:/Users/USER/Desktop/loop-lantern`',
+				'',
+				'Improve the existing shipped project "Loop Lantern" at C:/Users/USER/Desktop/loop-lantern.',
+				'',
+				'User feedback:',
+				'make the Loop Lantern preview feel more Spark colored',
+				'',
+				'Rules:',
+				'- Preserve the current app.',
+				'',
+				'Project context:',
+				'- Parent mission: mission-1777644961054',
+				'- Current preview: http://127.0.0.1:5555/preview/example/index.html'
+			].join('\n'),
+			'Loop Lantern polish 2'
+		);
+
+		expect(lineage).toMatchObject({
+			projectPath: 'C:/Users/USER/Desktop/loop-lantern',
+			parentMissionId: 'mission-1777644961054',
+			iterationNumber: 2,
+			previewUrl: 'http://127.0.0.1:5555/preview/example/index.html',
+			improvementFeedback: 'make the Loop Lantern preview feel more Spark colored'
+		});
+		expect(lineage?.projectId).toMatch(/^project-loop-lantern-[a-f0-9]{10}$/);
 	});
 });

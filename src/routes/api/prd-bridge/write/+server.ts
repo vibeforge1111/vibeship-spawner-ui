@@ -15,6 +15,7 @@ import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { resolveCliBinary } from '$lib/server/cli-resolver';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
+import { extractMissionControlProjectLineage } from '$lib/server/mission-control-lineage';
 import { formatSkillsByCategory, getTierSkills, normalizeTier, type SkillTier } from '$lib/server/skill-tiers';
 import { startClaudeAutoAnalysis } from '$lib/server/claude-auto-analysis';
 import { classifyBrief, formatBundleForPrompt } from '$lib/server/bundle-classifier';
@@ -391,6 +392,13 @@ function normalizeTelegramRelay(value: unknown): Record<string, unknown> | undef
 		relay.port = Math.trunc(port);
 	}
 	return Object.keys(relay).length > 0 ? relay : undefined;
+}
+
+export function extractPrdBridgeProjectLineage(content: string, projectName?: string) {
+	return extractMissionControlProjectLineage({
+		data: { goal: content },
+		missionName: projectName || 'Untitled Project'
+	});
 }
 
 async function buildPromptParts(
@@ -796,6 +804,7 @@ export const POST: RequestHandler = async (event) => {
 		// Write the (possibly enriched) PRD content to file
 		await writeFile(paths.pendingPrdFile, finalContent, 'utf-8');
 		const missionId = missionIdFromRequestId(requestId);
+		const projectLineage = extractPrdBridgeProjectLineage(finalContent, projectName);
 
 		// Write request metadata
 		const requestMeta = {
@@ -816,6 +825,7 @@ export const POST: RequestHandler = async (event) => {
 				includeSkills: options?.includeSkills !== false,
 				includeMCPs: options?.includeMCPs !== false
 			},
+			projectLineage,
 			relay:
 				typeof chatId === 'string' && chatId.trim()
 					? {
@@ -824,6 +834,7 @@ export const POST: RequestHandler = async (event) => {
 							missionId,
 							requestId,
 							goal: content.slice(0, 500),
+							...(projectLineage ? { projectLineage } : {}),
 							...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {})
 						}
 					: undefined
@@ -844,6 +855,7 @@ export const POST: RequestHandler = async (event) => {
 				requestId,
 				buildMode: requestMeta.buildMode,
 				buildModeReason: requestMeta.buildModeReason,
+				...(projectLineage ? { projectLineage } : {}),
 				...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {})
 			}
 		});

@@ -263,6 +263,7 @@ export const POST: RequestHandler = async ({ request }) => {
 					title: task.title,
 					skills: task.skills || []
 				})),
+				...(relay?.projectLineage ? { projectLineage: relay.projectLineage } : {}),
 				...(relay ? { telegramRelay: relay.telegramRelay } : {})
 			}
 		});
@@ -283,6 +284,7 @@ export const POST: RequestHandler = async ({ request }) => {
 					buildMode,
 					buildModeReason,
 					error: autoDispatchResult.error,
+					...(relay?.projectLineage ? { projectLineage: relay.projectLineage } : {}),
 					...(relay ? { telegramRelay: relay.telegramRelay } : {})
 				}
 			});
