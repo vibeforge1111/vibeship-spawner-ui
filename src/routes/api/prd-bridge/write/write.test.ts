@@ -98,5 +98,13 @@ describe('PRD bridge fallback analysis', () => {
 			improvementFeedback: 'make the Loop Lantern preview feel more Spark colored'
 		});
 		expect(lineage?.projectId).toMatch(/^project-loop-lantern-[a-f0-9]{10}$/);
+
+		const inlineRulesLineage = _extractPrdBridgeProjectLineage(
+			'Improve the existing shipped project "Loop Lantern" at C:/Users/USER/Desktop/loop-lantern.\nUser feedback:\nmake the Loop Lantern preview feel more Spark colored, but do not rebuild from scratch Rules:\n- Read the existing project files before editing.\nProject context:\n- Parent mission: mission-1777644961054',
+			'Loop Lantern polish 2'
+		);
+		expect(inlineRulesLineage?.improvementFeedback).toBe(
+			'make the Loop Lantern preview feel more Spark colored, but do not rebuild from scratch'
+		);
 	});
 });

@@ -108,7 +108,7 @@ function extractIterationNumber(text: string): number | null {
 }
 
 function extractImprovementFeedback(text: string): string | null {
-	const block = text.match(/User feedback:\s*([\s\S]*?)(?:\n\s*\nRules:|\n\s*\nProject context:|$)/i)?.[1];
+	const block = text.match(/User feedback:\s*([\s\S]*?)(?:\s+Rules:|\s+Project context:|$)/i)?.[1];
 	return compactFeedback(block || null);
 }
 
