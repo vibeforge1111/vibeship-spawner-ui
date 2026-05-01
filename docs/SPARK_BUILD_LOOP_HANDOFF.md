@@ -4,6 +4,160 @@ Internal handoff for the Spawner UI, Telegram bot, Canvas, Kanban, and project p
 
 Last updated: 2026-05-01
 
+## New Chat Restart Packet
+
+Use this section first when starting a fresh Codex chat.
+
+### Primary goal
+
+Make Spark feel like a product-building partner, not a one-shot code generator.
+
+The important next product layer is the post-ship improvement loop:
+
+1. Spark builds a project.
+2. Spark ships a working preview link.
+3. User reviews the app.
+4. User gives natural feedback like "make this more Spark colored", "the mobile layout feels cramped", or "add a better onboarding moment".
+5. Spark understands the feedback as an iteration on the latest shipped project.
+6. Spark creates an improvement mission against the existing project folder.
+7. Kanban, Canvas, trace, and Telegram show the iteration clearly.
+8. Spark ships the improved preview and invites the next polish pass.
+
+The build loop should become a guided product-improvement loop, with testing and review after every ship.
+
+### Repos and paths
+
+Spawner UI:
+
+```text
+C:\Users\USER\.spark\modules\spawner-ui\source
+```
+
+Telegram bot:
+
+```text
+C:\Users\USER\.spark\modules\spark-telegram-bot\source
+```
+
+Current handoff document:
+
+```text
+C:\Users\USER\.spark\modules\spawner-ui\source\docs\SPARK_BUILD_LOOP_HANDOFF.md
+```
+
+Current reviewed app during this session:
+
+```text
+C:\Users\USER\Desktop\founder-signal-room
+```
+
+Temporary manual preview used during the session:
+
+```text
+http://127.0.0.1:5556/
+```
+
+Preferred runtime defaults:
+
+```text
+Spawner UI:       http://127.0.0.1:3333
+Project preview: http://127.0.0.1:5555
+Fallback preview: use 5556 only if 5555 is occupied
+```
+
+### Most relevant recent commits
+
+Spawner UI:
+
+```text
+c298b34 document Spark build loop handoff
+6efd69a stabilize mission trace task history
+7b86719 merge origin main into spawner ui
+```
+
+Telegram bot:
+
+```text
+198fb0a add shipped project improvement loop
+ebc836e prioritize build briefs in Telegram routing
+8b6dcc5 make Telegram tests token-safe
+```
+
+### What was fixed in this session
+
+1. Detailed Telegram build prompts now route to the builder instead of being intercepted by deterministic preference or local-service replies.
+2. Mission trace task history retention was increased so unrelated event noise should not collapse planned task counts for new missions.
+3. Telegram completion formatting is more readable and avoids dumping raw command noise in normal mode.
+4. Telegram now records the latest shipped project context per chat after a provider handoff includes a project path.
+5. Natural feedback like "make this more Spark colored" can become an improvement mission against the latest shipped project.
+6. This handoff document was created so the next chat can continue without depending on long-session memory.
+
+### Current worktree caveats
+
+Spawner UI has unrelated local changes and memory-dashboard files. Do not stage them accidentally.
+
+At the time this handoff was written, `spawner-ui` had unrelated dirty files similar to:
+
+```text
+package.json
+src/lib/server/brief-enricher.ts
+src/lib/server/mission-size-classifier.ts
+src/routes/api/prd-bridge/write/+server.ts
+docs/memory-dashboard.md
+scripts/smoke-memory-dashboard.mjs
+src/lib/server/prd-analysis-result-schema.ts
+src/lib/services/memory-dashboard*
+src/routes/memory-dashboard/
+```
+
+Telegram bot also had unrelated dirty runtime files before the improvement-loop patch. Do not revert them unless the user explicitly asks. Stage only explicit files.
+
+### Recommended first task in the next chat
+
+Start with Spawner UI stage two:
+
+1. Add first-class project lineage fields to mission records and/or trace payloads:
+   - `projectId`
+   - `projectPath`
+   - `previewUrl`
+   - `parentMissionId`
+   - `iterationNumber`
+   - `improvementFeedback`
+
+2. Show lineage in:
+   - Kanban cards
+   - Canvas execution header
+   - Trace page
+   - Mission result page
+
+3. Add "Improve this" actions in:
+   - Kanban card actions
+   - Mission result page
+   - Canvas execution panel
+
+4. Add unit tests first, then UI changes.
+
+### Recommended first prompt for the next Codex chat
+
+```text
+Read C:\Users\USER\.spark\modules\spawner-ui\source\docs\SPARK_BUILD_LOOP_HANDOFF.md first.
+
+Continue stage two of the Spark build loop.
+
+Goal:
+Make post-ship improvement missions first-class in Spawner UI. Start with project lineage metadata and tests.
+
+Scope:
+- spawner-ui only unless the handoff doc proves a Telegram change is required
+- do not touch unrelated memory-dashboard files
+- do not revert dirty runtime files
+- add unit tests before or alongside implementation
+- commit small, explicit changes
+
+First target:
+Add data/model support for parent mission, iteration number, project path, preview URL, and improvement feedback so Kanban, Canvas, Trace, and Result can all understand an improvement mission as an iteration on a shipped app.
+```
+
 ## Purpose
 
 Spark should not treat "shipped" as the end of a project.
@@ -224,6 +378,59 @@ Add or strengthen tests for:
 ## Telegram Conversation Probes
 
 Use these as live tests after each routing or message-quality change.
+
+### How to run the live probes safely
+
+Before testing:
+
+1. Check runtime health.
+
+```powershell
+spark status
+```
+
+2. Confirm Spawner UI is on the expected port.
+
+```text
+http://127.0.0.1:3333
+```
+
+3. Confirm the project preview base is available or intentionally using a fallback.
+
+```text
+http://127.0.0.1:5555
+```
+
+4. Restart only the service whose code changed.
+
+For Telegram routing changes:
+
+```powershell
+spark restart spark-telegram-bot
+```
+
+For Spawner UI changes:
+
+```powershell
+spark restart spawner-ui
+```
+
+5. Keep the browser open to:
+
+```text
+http://127.0.0.1:3333/kanban
+http://127.0.0.1:3333/canvas
+http://127.0.0.1:3333/trace
+```
+
+During each probe, watch four surfaces:
+
+- Telegram message quality
+- Kanban state
+- Canvas node/task state
+- Trace/event details
+
+Do not trust only the final Telegram message. The bug class we keep finding is cross-surface drift.
 
 ### Probe 1: Detailed build must start
 
