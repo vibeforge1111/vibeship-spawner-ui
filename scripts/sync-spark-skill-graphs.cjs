@@ -18,6 +18,39 @@ const SOURCE_DIR = path.resolve(
 );
 const OUTPUT_PATH = path.resolve(__dirname, '..', 'static', 'skills.json');
 
+const FREE_SKILL_IDS = new Set([
+	'ai-chatbot-builder',
+	'llm-architect',
+	'prompt-engineer',
+	'rag-engineer',
+	'agent-tool-builder',
+	'agent-evaluation',
+	'conversation-memory',
+	'browser-automation',
+	'structured-output',
+	'openai-api-patterns',
+	'claude-api-integration',
+	'ai-observability',
+	'prompt-caching',
+	'prompt-injection-defense',
+	'frontend-engineer',
+	'sveltekit',
+	'react-patterns',
+	'tailwind-css',
+	'design-systems',
+	'ui-design',
+	'backend-engineer',
+	'api-designer',
+	'database-architect',
+	'postgres-wizard',
+	'authentication-oauth',
+	'security-owasp',
+	'docker-specialist',
+	'railway-deployment',
+	'playwright-testing',
+	'git-workflow'
+]);
+
 const NON_SKILL_DIRS = new Set([
 	'.git',
 	'.github',
@@ -109,7 +142,9 @@ function toSummary({ id, category, parsed }, validIds) {
 		name: parsed.name || id,
 		description: parsed.description || '',
 		category: remapCategory(parsed.category || category),
-		tier: parsed.tier || 'free',
+		tier: FREE_SKILL_IDS.has(id) ? 'free' : 'premium',
+		requiresAuth: !FREE_SKILL_IDS.has(id),
+		fallbackAvailable: true,
 		layer: Number.isFinite(parsed.layer) ? parsed.layer : 1,
 		tags: Array.isArray(parsed.tags) && parsed.tags.length ? parsed.tags : termsFrom(owns),
 		triggers: triggersFor(parsed, id),

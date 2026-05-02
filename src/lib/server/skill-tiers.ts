@@ -3,19 +3,17 @@
  *
  * Source of truth is spark-skill-graphs (https://github.com/vibeforge1111/spark-skill-graphs):
  *  - pro:  every skill in static/skills.json (synced from spark-skill-graphs).
- *  - base: union of required + optional + load_order across the curated bundles
- *          in static/bundles/*.yaml. ~41 skills covering the highest-leverage
- *          paths (mvp-launch, saas-with-auth-and-billing, payments-platform, ...).
+ *  - base: the 30 public starter skills in FREE_SKILL_IDS.
  *
  * Used by buildCodexPrompt to constrain emitted skill IDs to a tier the user
  * actually has access to. Without this, the model hallucinates IDs like
  * "vite-project-setup", "phaser-3", "vanilla-javascript" that do not exist.
  */
 
-import { readFile, readdir } from 'fs/promises';
+import { readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
-import { parse as parseYaml } from 'yaml';
+import { FREE_SKILL_IDS } from '$lib/server/skill-entitlements';
 
 export type SkillTier = 'base' | 'pro';
 
@@ -23,13 +21,6 @@ interface SkillRecord {
 	id: string;
 	name?: string;
 	category?: string;
-}
-
-interface BundleYaml {
-	id?: string;
-	required_skills?: string[];
-	optional_skills?: string[];
-	load_order?: string[];
 }
 
 let cached: { base: SkillRecord[]; pro: SkillRecord[] } | null = null;
@@ -47,26 +38,8 @@ async function loadProSkills(): Promise<SkillRecord[]> {
 }
 
 async function loadBaseSkills(pro: SkillRecord[]): Promise<SkillRecord[]> {
-	const dir = join(staticDir(), 'bundles');
-	if (!existsSync(dir)) return [];
-	const files = (await readdir(dir)).filter((f) => f.endsWith('.yaml') || f.endsWith('.yml'));
 	const proById = new Map(pro.map((s) => [s.id, s]));
-	const out = new Map<string, SkillRecord>();
-	for (const f of files) {
-		const raw = await readFile(join(dir, f), 'utf-8');
-		const bundle = parseYaml(raw) as BundleYaml;
-		const ids = [
-			...(bundle.required_skills ?? []),
-			...(bundle.optional_skills ?? []),
-			...(bundle.load_order ?? [])
-		];
-		for (const id of ids) {
-			if (out.has(id)) continue;
-			const enriched = proById.get(id) ?? { id };
-			out.set(id, enriched);
-		}
-	}
-	return [...out.values()];
+	return FREE_SKILL_IDS.map((id) => proById.get(id) ?? { id });
 }
 
 async function loadAll(): Promise<{ base: SkillRecord[]; pro: SkillRecord[] }> {

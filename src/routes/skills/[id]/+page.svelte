@@ -179,11 +179,11 @@
 				{:else}
 					<div class="space-y-4">
 						<p class="text-text-secondary">
-							This is a premium skill with token-optimized patterns. Premium skills provide the same expertise
-							with 60-70% fewer tokens, resulting in faster responses and lower costs.
+							This is a Pro skill from the full Spark skill graph catalog. Free Spark can see the metadata,
+							while Pro unlocks the full benchmarked skill body for deeper mission execution.
 						</p>
 						<a href="/pricing" class="inline-flex items-center gap-2 px-4 py-2 bg-accent-secondary text-bg-primary font-mono text-sm">
-							Get Premium Access
+							Get Pro Access
 							<Icon name="arrow-right" size={14} />
 						</a>
 					</div>
