@@ -146,28 +146,11 @@
 		space: 'category-ai'
 	};
 
-	// Chrome header tag mapping — short mono label per category
-	const categoryTags: Record<string, string> = {
-		development: 'DEV', backend: 'DEV', frontend: 'DEV', frameworks: 'DEV',
-		devops: 'DEV', 'game-dev': 'GAME', testing: 'TEST', hardware: 'HW', maker: 'HW',
-		integration: 'INT', integrations: 'INT',
-		ai: 'AI', 'ai-agents': 'AGENT', 'ai-tools': 'AI',
-		data: 'DATA', blockchain: 'CHAIN', finance: 'FIN', trading: 'TRADE', security: 'SEC',
-		marketing: 'MKT', creative: 'DESIGN', design: 'DESIGN', community: 'COMM',
-		strategy: 'STRAT', enterprise: 'ENT', startup: 'START', product: 'PROD',
-		education: 'EDU', legal: 'LEGAL', climate: 'CLIM',
-		biotech: 'BIO', science: 'SCI', simulation: 'SIM', space: 'SPACE',
-		agents: 'AGENT'
-	};
-	const chromeTag = $derived(categoryTags[data.category] || data.category.slice(0, 4).toUpperCase());
-
 	// MCP tool count for this skill
 	const skillMcpEntries = $derived(SKILL_MCP_MAP[data.id] || []);
 	const mcpToolCount = $derived(skillMcpEntries.reduce((acc: number, e: { mcps: string[] }) => acc + e.mcps.length, 0));
 
-	// Right-slot label: only render when it carries non-redundant info. The
-	// left tag already encodes category; right should show skill count / MCP
-	// count / status, or stay empty.
+	// Right-slot label: only render useful counts; category/caps labels stay hidden.
 	const chromeSubLabel = $derived(data.skillChain && data.skillChain.length > 0
 		? `${data.skillChain.length} skill${data.skillChain.length === 1 ? '' : 's'}`
 		: mcpToolCount > 0
@@ -287,9 +270,8 @@
 		{/each}
 	{/if}
 
-	<!-- Chrome header: mono tag left, italic secondary right (only if non-redundant) -->
+	<!-- Chrome header: quiet strip with only the useful count on the right -->
 	<div class="node-chrome">
-		<span class="chrome-tag">{chromeTag}</span>
 		{#if chromeSubLabel}
 			<i class="chrome-sub">{chromeSubLabel}</i>
 		{/if}
@@ -398,10 +380,10 @@
 		opacity: 0.75;
 	}
 
-	/* Chrome header — mono tag left, italic secondary right */
+	/* Chrome header — quiet count strip */
 	.node-chrome {
 		display: flex;
-		justify-content: space-between;
+		justify-content: flex-end;
 		align-items: center;
 		gap: 8px;
 		padding: 6px 10px;
@@ -412,15 +394,6 @@
 		font-size: 10px;
 		font-weight: 500;
 		letter-spacing: 1px;
-	}
-
-	.chrome-tag {
-		min-width: 0;
-		color: var(--text);
-		letter-spacing: 1.5px;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
 	}
 
 	.chrome-sub {
