@@ -556,15 +556,16 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		font-size: 11px;
-		color: rgb(var(--text-tertiary-rgb) / 0.72);
+		font-size: 12px;
+		line-height: 1.35;
+		color: rgb(var(--text-secondary-rgb) / 0.88);
 	}
 
 	.search-result-intel {
 		display: flex;
 		min-width: 0;
 		flex-wrap: wrap;
-		gap: 5px;
+		gap: 6px;
 	}
 
 	.search-result-intel span {
@@ -572,14 +573,26 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		border: 1px solid rgb(var(--border-rgb) / 0.8);
+		border: 1px solid rgb(var(--accent-rgb) / 0.18);
 		border-radius: 999px;
-		background: rgb(var(--bg-rgb) / 0.48);
-		padding: 2px 6px;
+		background: rgb(var(--bg-rgb) / 0.72);
+		padding: 3px 7px;
 		font-family: var(--font-mono, ui-monospace, monospace);
-		font-size: 9px;
-		line-height: 1.15;
-		color: rgb(var(--text-secondary-rgb) / 0.7);
+		font-size: 10px;
+		line-height: 1.1;
+		color: rgb(var(--text-secondary-rgb) / 0.88);
+	}
+
+	.search-result:hover .search-result-desc,
+	.search-result.selected .search-result-desc {
+		color: rgb(var(--text-secondary-rgb) / 0.98);
+	}
+
+	.search-result:hover .search-result-intel span,
+	.search-result.selected .search-result-intel span {
+		border-color: rgb(var(--accent-rgb) / 0.26);
+		background: rgb(var(--bg-rgb) / 0.88);
+		color: rgb(var(--text-rgb) / 0.82);
 	}
 
 	.search-result-meta {
