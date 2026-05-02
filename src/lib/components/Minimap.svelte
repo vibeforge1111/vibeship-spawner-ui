@@ -23,7 +23,7 @@
 	const MINIMAP_HEIGHT = 120;
 	const NODE_WIDTH = 224;
 	const NODE_HEIGHT = 96;
-	const PADDING = 96;
+	const PADDING = 420;
 
 	// Calculate bounds of all nodes
 	const bounds = $derived(() => {
