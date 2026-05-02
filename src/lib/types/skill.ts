@@ -21,6 +21,7 @@ export interface SkillNodeData {
 	description?: string;
 	icon?: string;
 	category: string;
+	recommendationTier?: 'core' | 'supporting' | 'related';
 	inputs?: Port[];
 	outputs?: Port[];
 	sharpEdges?: SharpEdge[];

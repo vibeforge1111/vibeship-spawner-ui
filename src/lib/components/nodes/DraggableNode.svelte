@@ -77,6 +77,7 @@
 		name: node.skill.name,
 		description: node.skill.description,
 		category: node.skill.category,
+		recommendationTier: node.recommendationTier,
 		tier: node.skill.tier,
 		icon: getCategoryIcon(node.skill.category),
 		inputs: ports.inputs,

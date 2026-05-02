@@ -3,8 +3,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { buildMissionFromCanvas, validateForMission } from './mission-builder';
+import { buildMissionFromCanvas, generateExecutionPrompt, validateForMission } from './mission-builder';
 import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
+import type { Mission } from '$lib/services/mcp-client';
 
 // Helper to create test nodes
 function createNode(id: string, skillName: string = 'Test Skill'): CanvasNode {
@@ -120,5 +121,50 @@ describe('buildMissionFromCanvas', () => {
 		expect(skills).not.toContain('tailwind-css');
 		expect(skills).not.toContain('vite');
 		expect(skills).not.toContain('typescript-strict');
+	});
+});
+
+describe('generateExecutionPrompt', () => {
+	it('groups task skills by recommendation tier', () => {
+		const mission: Mission = {
+			id: 'mission-1',
+			user_id: 'user-1',
+			name: 'GraphQL API',
+			description: null,
+			mode: 'claude-code',
+			status: 'ready',
+			agents: [],
+			tasks: [{
+				id: 'task-1',
+				title: 'Build GraphQL API',
+				description: 'Build a GraphQL API with schema design, resolvers, subscriptions, and auth guards',
+				assignedTo: 'agent-1',
+				status: 'pending',
+				handoffType: 'sequential'
+			}],
+			context: {
+				projectPath: 'C:\\Users\\USER\\Desktop\\graphql-api',
+				projectType: 'web',
+				goals: ['Build API']
+			},
+			current_task_id: null,
+			outputs: {},
+			error: null,
+			created_at: '2026-05-02T00:00:00Z',
+			updated_at: '2026-05-02T00:00:00Z',
+			started_at: null,
+			completed_at: null
+		};
+
+		const prompt = generateExecutionPrompt(mission, {
+			taskSkillMap: new Map([
+				['task-1', ['graphql', 'graphql-architect', 'auth-specialist', 'database-architect']]
+			]),
+			includeMCPs: false
+		});
+
+		expect(prompt).toContain('Core: `graphql`, `graphql-architect`');
+		expect(prompt).toContain('Supporting:');
+		expect(prompt).toContain('`auth-specialist`');
 	});
 });

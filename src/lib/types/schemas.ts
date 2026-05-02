@@ -63,6 +63,7 @@ export const CanvasStoreNodeSchema = z.object({
 		x: z.number(),
 		y: z.number()
 	}),
+	recommendationTier: z.enum(['core', 'supporting', 'related']).optional(),
 	status: z.enum(['idle', 'queued', 'running', 'success', 'error']).optional()
 });
 

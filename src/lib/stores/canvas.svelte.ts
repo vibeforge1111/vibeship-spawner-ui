@@ -1,6 +1,7 @@
 import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
 import type { Skill } from './skills.svelte';
+import type { SkillRecommendationTier } from '$lib/services/h70-skill-matcher';
 import { generatePorts, arePortTypesCompatible } from '$lib/utils/ports';
 import { CanvasStoreSavedStateSchema, safeJsonParse } from '$lib/types/schemas';
 
@@ -11,6 +12,7 @@ export interface CanvasNode {
 	id: string;
 	skillId: string;
 	skill: Skill;
+	recommendationTier?: SkillRecommendationTier;
 	position: { x: number; y: number };
 	status?: 'idle' | 'queued' | 'running' | 'success' | 'error';
 }

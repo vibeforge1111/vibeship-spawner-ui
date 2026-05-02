@@ -157,6 +157,7 @@
 		agents: 'AGENT'
 	};
 	const chromeTag = $derived(categoryTags[data.category] || data.category.slice(0, 4).toUpperCase());
+	const tierLabel = $derived(data.recommendationTier ? data.recommendationTier.toUpperCase() : '');
 
 	// MCP tool count for this skill
 	const skillMcpEntries = $derived(SKILL_MCP_MAP[data.id] || []);
@@ -165,11 +166,12 @@
 	// Right-slot label: only render when it carries non-redundant info. The
 	// left tag already encodes category; right should show skill count / MCP
 	// count / status, or stay empty.
-	const chromeSubLabel = $derived(data.skillChain && data.skillChain.length > 0
-		? `${data.skillChain.length} skill${data.skillChain.length === 1 ? '' : 's'}`
-		: mcpToolCount > 0
-			? `${mcpToolCount} mcp`
-			: '');
+	const chromeSubLabel = $derived(tierLabel
+		|| (data.skillChain && data.skillChain.length > 0
+			? `${data.skillChain.length} skill${data.skillChain.length === 1 ? '' : 's'}`
+			: mcpToolCount > 0
+				? `${mcpToolCount} mcp`
+				: ''));
 
 	// Calculate port positions
 	const maxPorts = $derived(Math.max(data.inputs?.length || 1, data.outputs?.length || 1));
@@ -209,6 +211,9 @@
 	class="node w-48 select-none relative"
 	class:selected
 	class:ghost
+	class:core={data.recommendationTier === 'core'}
+	class:supporting={data.recommendationTier === 'supporting'}
+	class:related={data.recommendationTier === 'related'}
 	onclick={onSelect}
 	role="button"
 	tabindex="0"
@@ -279,7 +284,7 @@
 	<div class="node-chrome">
 		<span class="chrome-tag">{chromeTag}</span>
 		{#if chromeSubLabel}
-			<i class="chrome-sub">{chromeSubLabel}</i>
+			<i class="chrome-sub" class:tier-sub={tierLabel}>{chromeSubLabel}</i>
 		{/if}
 	</div>
 
@@ -325,6 +330,18 @@
 		box-shadow: 0 0 0 1px var(--accent-mid), 0 20px 50px -15px rgba(47,202,148,0.25);
 	}
 
+	.node.core {
+		border-left: 3px solid var(--accent, #2FCA94);
+	}
+
+	.node.supporting {
+		border-left: 3px solid rgb(var(--status-amber-rgb, 216 200 104) / 0.85);
+	}
+
+	.node.related {
+		border-left: 3px solid var(--border-strong);
+	}
+
 	.node.ghost {
 		opacity: 0.75;
 	}
@@ -352,6 +369,25 @@
 	.chrome-sub {
 		font-style: normal;
 		color: var(--text-tertiary);
+	}
+
+	.chrome-sub.tier-sub {
+		padding: 2px 5px;
+		border: 1px solid var(--border);
+		border-radius: 4px;
+		font-size: 9px;
+		line-height: 1;
+		color: var(--text-secondary);
+	}
+
+	.node.core .chrome-sub.tier-sub {
+		color: var(--accent, #2FCA94);
+		border-color: rgb(var(--accent-rgb, 47 202 148) / 0.45);
+	}
+
+	.node.supporting .chrome-sub.tier-sub {
+		color: var(--status-amber, #D8C868);
+		border-color: rgb(var(--status-amber-rgb, 216 200 104) / 0.45);
 	}
 
 	/* Body — title + sub */

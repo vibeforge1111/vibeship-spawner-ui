@@ -857,9 +857,7 @@ export function generateResumeExecutionPrompt(
 		.map((t, i) => {
 			const deps = t.dependsOn?.length ? ` (after: ${t.dependsOn.join(', ')})` : '';
 			const recommendedSkills = taskSkillMap?.get(t.id) || [];
-			const skillsLine = recommendedSkills.length
-				? `\n   **Load H70 Skills**: ${recommendedSkills.map(s => `\`${s}\``).join(', ')}`
-				: '';
+			const skillsLine = formatTieredSkillLine(t, recommendedSkills);
 			return `${i + 1}. **${t.title}** (id: ${t.id})${deps}\n   ${t.description}${skillsLine}`;
 		})
 		.join('\n\n');

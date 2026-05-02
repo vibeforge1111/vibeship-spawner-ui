@@ -178,6 +178,30 @@ describe('CanvasStoreSavedStateSchema', () => {
 		const result = CanvasStoreSavedStateSchema.safeParse(withQueuedNode);
 		expect(result.success).toBe(true);
 	});
+
+	it('accepts generated recommendation tiers on canvas nodes', () => {
+		const withTieredNode = {
+			...validState,
+			nodes: [{
+				...validState.nodes[0],
+				recommendationTier: 'core'
+			}]
+		};
+		const result = CanvasStoreSavedStateSchema.safeParse(withTieredNode);
+		expect(result.success).toBe(true);
+	});
+
+	it('rejects unknown recommendation tiers', () => {
+		const withInvalidTier = {
+			...validState,
+			nodes: [{
+				...validState.nodes[0],
+				recommendationTier: 'mandatory'
+			}]
+		};
+		const result = CanvasStoreSavedStateSchema.safeParse(withInvalidTier);
+		expect(result.success).toBe(false);
+	});
 });
 
 // =============================================================================

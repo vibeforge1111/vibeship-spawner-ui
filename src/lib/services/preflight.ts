@@ -83,17 +83,18 @@ export async function runPreFlight(mission: Mission): Promise<PreFlightResult> {
 async function checkSkillsAvailable(mission: Mission): Promise<PreFlightCheck> {
 	const allSkillIds = new Set<string>();
 
-	// Collect skill IDs from task descriptions that mention skills
-	// Format in descriptions: "Load H70 Skills: `skill-1`, `skill-2`"
+	// Collect skill IDs from task descriptions that mention skills.
+	// Supports flat and tiered formats:
+	// "Load H70 Skills: `skill-1`, `skill-2`"
+	// "Load H70 Skills: Core: `skill-1` | Supporting: `skill-2`"
 	for (const task of mission.tasks) {
-		const skillMatch = task.description.match(/Load H70 Skills?:\s*`([^`]+)`/gi);
+		const skillMatch = task.description.match(/Load H70 Skills?:[^\n]*/gi);
 		if (skillMatch) {
 			for (const match of skillMatch) {
-				const ids = match.replace(/Load H70 Skills?:\s*/i, '')
-					.split(/[,\s]+/)
-					.map(s => s.replace(/`/g, '').trim())
-					.filter(s => s.length > 0);
-				ids.forEach(id => allSkillIds.add(id));
+				for (const id of match.match(/`([^`]+)`/g) || []) {
+					const skillId = id.replace(/`/g, '').trim();
+					if (skillId) allSkillIds.add(skillId);
+				}
 			}
 		}
 	}

@@ -187,6 +187,7 @@ import { get } from 'svelte/store';
 					id: nodeId,
 					skillId: node.skillId,
 					skill: node.skill,
+					recommendationTier: node.recommendationTier,
 					position: node.position,
 					status: 'idle' as const
 				};
