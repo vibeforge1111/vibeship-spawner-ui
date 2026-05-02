@@ -438,7 +438,7 @@
 
 	.node-status {
 		position: absolute;
-		top: 8px;
+		top: 11px;
 		right: 9px;
 		display: inline-flex;
 		align-items: center;
@@ -503,7 +503,7 @@
 		margin-top: 8px;
 		min-width: 0;
 		max-width: 100%;
-		overflow: hidden;
+		overflow: visible;
 	}
 
 	.node-tag-cluster {
@@ -527,6 +527,23 @@
 		font-size: 9px;
 		line-height: 1.15;
 		letter-spacing: 0;
+		transition:
+			max-width 120ms ease,
+			font-size 120ms ease,
+			transform 120ms ease,
+			border-color 120ms ease,
+			background 120ms ease,
+			color 120ms ease;
+	}
+
+	.node-tag:hover {
+		max-width: 132px;
+		font-size: 9.5px;
+		border-color: rgb(var(--accent-rgb, 47 202 148) / 0.42);
+		background: rgb(var(--accent-rgb, 47 202 148) / 0.11);
+		color: var(--text);
+		transform: translateY(-1px) scale(1.05);
+		z-index: 55;
 	}
 
 	.node-tag-more {
@@ -554,9 +571,9 @@
 		top: calc(100% + 6px);
 		left: 0;
 		width: max-content;
-		min-width: 172px;
-		max-width: 240px;
-		padding: 8px;
+		min-width: 188px;
+		max-width: 276px;
+		padding: 9px;
 		border: 1px solid var(--border-strong);
 		border-radius: 8px;
 		background: rgb(17 21 28 / 0.98);
@@ -571,10 +588,10 @@
 		display: flex;
 		align-items: center;
 		gap: 6px;
-		margin-bottom: 6px;
+		margin-bottom: 7px;
 		color: var(--accent);
 		font-family: var(--font-mono, 'DM Mono', ui-monospace, monospace);
-		font-size: 8.5px;
+		font-size: 9.5px;
 		line-height: 1;
 		letter-spacing: 0.7px;
 		text-transform: uppercase;
@@ -592,7 +609,7 @@
 	.node-tag-menu-list {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 4px;
+		gap: 5px;
 	}
 
 	.node-tag-menu-item {
@@ -600,13 +617,13 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		padding: 3px 6px;
+		padding: 4px 7px;
 		border: 1px solid rgb(var(--accent-rgb, 47 202 148) / 0.16);
 		border-radius: 5px;
 		background: rgb(var(--accent-rgb, 47 202 148) / 0.055);
 		color: var(--text-secondary);
 		font-family: var(--font-mono, 'DM Mono', ui-monospace, monospace);
-		font-size: 8.5px;
+		font-size: 9.5px;
 		line-height: 1.2;
 	}
 
