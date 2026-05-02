@@ -1248,23 +1248,41 @@
 {#if minimized && (isRunning || isPaused)}
 	<button
 		onclick={onToggleMinimize}
-		class="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 bg-bg-secondary border border-surface-border rounded-lg shadow-lg hover:border-accent-primary transition-all group"
+		class="fixed left-1/2 top-3 z-50 w-[min(calc(100vw-2rem),32rem)] -translate-x-1/2 rounded-lg border border-accent-primary/35 bg-bg-secondary/95 px-4 py-3 text-left shadow-[0_18px_70px_rgba(0,0,0,0.38)] backdrop-blur transition-all hover:-translate-y-0.5 hover:border-accent-primary hover:shadow-[0_22px_80px_rgba(0,196,154,0.14)] md:left-[calc(50%+8rem)] group"
+		aria-label="Open workflow execution details"
 	>
-		<div class="relative">
-			{#if isRunning}
-				<div class="w-3 h-3 bg-vibe-teal animate-pulse"></div>
-				<div class="absolute inset-0 w-3 h-3 bg-vibe-teal/50 animate-ping"></div>
-			{:else if isPaused}
-				<div class="w-3 h-3 bg-blue-400"></div>
-			{/if}
+		<div class="flex items-center gap-3">
+			<div class="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-accent-primary/30 bg-accent-primary/10 font-mono text-sm font-semibold text-accent-primary tabular-nums">
+				{executionProgress?.progress || 0}%
+				{#if isRunning}
+					<span class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-vibe-teal shadow-[0_0_16px_rgba(0,196,154,0.55)]"></span>
+				{:else if isPaused}
+					<span class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-status-warning"></span>
+				{/if}
+			</div>
+			<div class="min-w-0 flex-1">
+				<div class="flex items-center justify-between gap-3">
+					<p class="font-mono text-[10px] uppercase tracking-[0.14em] text-text-tertiary">
+						{isPaused ? 'Workflow paused' : 'Workflow live'}
+					</p>
+					<span class="hidden font-mono text-[10px] uppercase tracking-[0.12em] text-accent-primary transition-colors group-hover:text-text-primary sm:inline">
+						Open details
+					</span>
+				</div>
+				<p class="mt-1 truncate text-sm font-medium text-text-primary">
+					{executionProgress?.currentTaskName || 'Running workflow'}
+				</p>
+				<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-bg-primary">
+					<div
+						class="h-full rounded-full bg-accent-primary transition-all duration-500"
+						style="width: {executionProgress?.progress || 0}%"
+					></div>
+				</div>
+			</div>
+			<svg class="h-4 w-4 shrink-0 text-text-tertiary transition-colors group-hover:text-accent-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-6-6 6 6-6 6" />
+			</svg>
 		</div>
-		<div class="text-left">
-			<p class="text-xs font-mono text-text-tertiary">WORKFLOW</p>
-			<p class="text-sm text-text-primary">{executionProgress?.progress || 0}% - {executionProgress?.currentTaskName || 'Running'}</p>
-		</div>
-		<svg class="w-4 h-4 text-text-tertiary group-hover:text-accent-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-		</svg>
 	</button>
 {:else}
 <div
