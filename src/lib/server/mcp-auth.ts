@@ -120,6 +120,7 @@ export interface ControlAuthOptions {
 	surface: string;
 	apiKeyEnvVar?: string;
 	fallbackApiKeyEnvVar?: string;
+	fallbackApiKeyEnvVars?: string[];
 	apiKeyQueryParam?: string;
 	apiKeyCookieName?: string;
 	allowLoopbackWithoutKey?: boolean;
@@ -134,9 +135,14 @@ export interface RateLimitOptions {
 
 export function requireControlAuth(event: RequestEvent, options: ControlAuthOptions): Response | null {
 	const allowLoopback = options.allowLoopbackWithoutKey !== false;
-	const configuredKey =
-		(env[options.apiKeyEnvVar as keyof typeof env] as string | undefined)?.trim() ||
-		(env[options.fallbackApiKeyEnvVar as keyof typeof env] as string | undefined)?.trim();
+	const keyEnvVars = [
+		options.apiKeyEnvVar,
+		options.fallbackApiKeyEnvVar,
+		...(options.fallbackApiKeyEnvVars || [])
+	].filter((key): key is string => Boolean(key));
+	const configuredKeys = keyEnvVars
+		.map((key) => (env[key as keyof typeof env] as string | undefined)?.trim())
+		.filter((key): key is string => Boolean(key));
 
 	if (!isOriginAllowed(event, options.allowedOriginsEnvVar)) {
 		return json(
@@ -149,12 +155,12 @@ export function requireControlAuth(event: RequestEvent, options: ControlAuthOpti
 		return null;
 	}
 
-	if (configuredKey) {
+	if (configuredKeys.length > 0) {
 		const incomingKey = extractApiKey(event, {
 			queryParam: options.apiKeyQueryParam,
 			cookieName: options.apiKeyCookieName
 		});
-		if (!incomingKey || !constantTimeEquals(configuredKey, incomingKey)) {
+		if (!incomingKey || !configuredKeys.some((configuredKey) => constantTimeEquals(configuredKey, incomingKey))) {
 			return json({ error: `Unauthorized ${options.surface} request` }, { status: 401 });
 		}
 		return null;

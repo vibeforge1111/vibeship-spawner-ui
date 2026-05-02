@@ -269,10 +269,12 @@ export async function autoDispatchPrdCanvasLoad(
 			};
 		}
 
+		const selfPort = process.env.PORT || process.env.SPARK_SPAWNER_PORT || '5173';
+		const selfBaseUrl = (process.env.SPAWNER_UI_SELF_URL || process.env.SPAWNER_UI_URL || `http://127.0.0.1:${selfPort}`).replace(/\/+$/, '');
 		const executionPack = buildMultiLLMExecutionPack({
 			mission: buildResult.mission,
 			taskSkillMap: buildResult.taskSkillMap,
-			baseUrl: 'http://127.0.0.1:5173',
+			baseUrl: selfBaseUrl,
 			options: {
 				enabled: true,
 				strategy: 'single',

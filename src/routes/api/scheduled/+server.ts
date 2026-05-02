@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { json, type RequestEvent } from '@sveltejs/kit';
 import { building } from '$app/environment';
 import type { RequestHandler } from './$types';
 import {
@@ -8,6 +8,7 @@ import {
   startScheduler,
   type ScheduleAction,
 } from '$lib/server/scheduler';
+import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -23,12 +24,32 @@ if (!building) {
   startScheduler();
 }
 
-export const GET: RequestHandler = async () => {
+function guardScheduled(event: RequestEvent): Response | null {
+  const unauthorized = requireControlAuth(event, {
+    surface: 'ScheduledMissions',
+    apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
+    fallbackApiKeyEnvVar: 'MCP_API_KEY',
+    allowLoopbackWithoutKey: true
+  });
+  if (unauthorized) return unauthorized;
+  return enforceRateLimit(event, {
+    scope: 'scheduled_missions',
+    limit: 60,
+    windowMs: 60_000
+  });
+}
+
+export const GET: RequestHandler = async (event) => {
+  const guarded = guardScheduled(event);
+  if (guarded) return guarded;
   const schedules = await listSchedules();
   return json({ ok: true, schedules });
 };
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+  const guarded = guardScheduled(event);
+  if (guarded) return guarded;
+  const { request } = event;
   let body: Record<string, unknown>;
   try {
     body = asRecord(await request.json());
@@ -51,7 +72,10 @@ export const POST: RequestHandler = async ({ request }) => {
   }
 };
 
-export const DELETE: RequestHandler = async ({ request, url }) => {
+export const DELETE: RequestHandler = async (event) => {
+  const guarded = guardScheduled(event);
+  if (guarded) return guarded;
+  const { request, url } = event;
   const id = url.searchParams.get('id') || '';
   if (!id) {
     let body: Record<string, unknown> = {};

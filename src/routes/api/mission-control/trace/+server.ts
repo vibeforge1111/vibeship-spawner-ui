@@ -7,8 +7,8 @@ import { buildMissionControlTrace } from '$lib/server/mission-control-trace';
 export const GET: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
 		surface: 'MissionControlTrace',
-		apiKeyEnvVar: 'EVENTS_API_KEY',
-		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
+		fallbackApiKeyEnvVars: ['EVENTS_API_KEY', 'MCP_API_KEY'],
 		apiKeyQueryParam: 'apiKey',
 		apiKeyCookieName: 'spawner_events_api_key',
 		allowLoopbackWithoutKey: true,

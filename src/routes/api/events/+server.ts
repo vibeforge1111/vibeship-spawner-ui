@@ -143,7 +143,7 @@ export const POST: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
 		surface: 'Events',
 		apiKeyEnvVar: 'EVENTS_API_KEY',
-		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		fallbackApiKeyEnvVars: ['MCP_API_KEY', 'SPARK_BRIDGE_API_KEY'],
 		apiKeyQueryParam: 'apiKey',
 		apiKeyCookieName: EVENTS_AUTH_COOKIE,
 		allowLoopbackWithoutKey: true,
@@ -260,7 +260,7 @@ export const GET: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
 		surface: 'Events',
 		apiKeyEnvVar: 'EVENTS_API_KEY',
-		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		fallbackApiKeyEnvVars: ['MCP_API_KEY', 'SPARK_BRIDGE_API_KEY'],
 		apiKeyQueryParam: 'apiKey',
 		apiKeyCookieName: EVENTS_AUTH_COOKIE,
 		allowLoopbackWithoutKey: true,

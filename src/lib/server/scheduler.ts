@@ -23,6 +23,11 @@ function errorMessage(error: unknown, fallback = 'unknown'): string {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
+function bridgeAuthHeaders(): Record<string, string> {
+  const key = _envVar('SPARK_BRIDGE_API_KEY') || _envVar('MCP_API_KEY');
+  return key ? { 'x-api-key': key, 'x-spawner-ui-key': key } : {};
+}
+
 const SCHEDULES_FILE = path.resolve(process.cwd(), '.spawner', 'schedules.json');
 const TICK_MS = 30_000;
 
@@ -137,12 +142,13 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
     const goal = String(record.payload.goal ?? '');
     if (!goal) return { ok: false, summary: 'mission has no goal' };
     const requestId = `sched-${record.id}-${Date.now()}`;
-    const baseUrl = (_envVar('SPAWNER_UI_URL') || 'http://127.0.0.1:5173').replace(/\/$/, '');
+    const selfPort = _envVar('PORT') || _envVar('SPARK_SPAWNER_PORT') || '5173';
+    const baseUrl = (_envVar('SPAWNER_UI_SELF_URL') || _envVar('SPAWNER_UI_URL') || `http://127.0.0.1:${selfPort}`).replace(/\/$/, '');
     const requestedProjectPath =
       typeof record.payload.projectPath === 'string' ? record.payload.projectPath : undefined;
     const res = await fetch(`${baseUrl}/api/spark/run`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...bridgeAuthHeaders() },
       body: JSON.stringify({
         goal,
         chatId: String(record.chatId || 'scheduler'),

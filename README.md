@@ -120,6 +120,25 @@ npm run smoke:routes
 npm run smoke:mission-surfaces
 ```
 
+## Railway / Docker
+
+This repo includes a Dockerfile for a hosted Spawner UI service. The production
+container uses SvelteKit's Node adapter and starts with `npm start`.
+
+For a two-service Railway deploy, keep `spark-telegram-bot` and `spawner-ui` in
+the same project environment and communicate over Railway private DNS:
+
+- `MISSION_CONTROL_WEBHOOK_URLS=http://spark-telegram-bot.railway.internal:8788/spawner-events`
+- `TELEGRAM_RELAY_SECRET=<same value as the bot>`
+- `SPARK_BRIDGE_API_KEY=<same long value as the bot>`
+- `SPAWNER_STATE_DIR=/data/spawner`
+- `SPARK_WORKSPACE_ROOT=/data/workspaces`
+- `SPARK_ALLOW_EXTERNAL_PROJECT_PATHS=0`
+
+Mount a persistent volume at `/data` for Spawner state and workspaces. If the
+service needs an explicit self-call URL, set `SPAWNER_UI_SELF_URL`; otherwise
+hosted builds derive local self-calls from Railway's `PORT`.
+
 ## Documentation Map
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) - current Spark execution-plane architecture.

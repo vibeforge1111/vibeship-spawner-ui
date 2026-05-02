@@ -1,0 +1,17 @@
+.git
+.spawner
+.spawner-test
+.svelte-kit
+build
+node_modules
+qa-screenshots
+.env
+.env.*
+*.log
+svelte-check-output.txt
+PROJECT.md
+test.md
+*.bat
+check-canvas*.cjs
+direct-test.cjs
+test-*.cjs

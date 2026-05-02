@@ -30,7 +30,12 @@ function getPrdBridgePaths() {
 		prdAutoTraceFile: join(spawnerDir, 'prd-auto-trace.jsonl')
 	};
 }
-const AUTO_ANALYSIS_BASE_URL = (process.env.SPAWNER_UI_SELF_URL || 'http://127.0.0.1:5173').replace(
+const SELF_PORT = process.env.PORT || process.env.SPARK_SPAWNER_PORT || '5173';
+const AUTO_ANALYSIS_BASE_URL = (
+	process.env.SPAWNER_UI_SELF_URL ||
+	process.env.SPAWNER_UI_URL ||
+	`http://127.0.0.1:${SELF_PORT}`
+).replace(
 	/\/+$/,
 	''
 );
