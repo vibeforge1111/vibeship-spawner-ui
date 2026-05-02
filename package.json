@@ -19,6 +19,7 @@
 		"sync:runtime": "node scripts/sync-runtime.cjs",
 		"sync:watch": "node scripts/sync-runtime.cjs --watch",
 		"sync:check": "node scripts/sync-runtime.cjs --check",
+		"sync:skills": "node scripts/sync-spark-skill-graphs.cjs && node scripts/build-skill-index.cjs",
 		"sync": "node sync-server.cjs"
 	},
 	"devDependencies": {

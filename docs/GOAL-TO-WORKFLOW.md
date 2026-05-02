@@ -44,6 +44,24 @@ The local static catalog is `static/skills.json`. At the time of this sync it co
 node -e "const fs=require('fs'); console.log(JSON.parse(fs.readFileSync('static/skills.json','utf8')).length)"
 ```
 
+Refresh Spawner from Spark Skill Graphs with:
+
+```bash
+npm run sync:skills
+```
+
+By default this reads the sibling `spark-skill-graphs` checkout. To use the standalone open standard artifact instead, generate a manifest in Spark and point Spawner at it:
+
+```bash
+# in spark-skill-graphs
+npm run export:standard -- --out spark-skill-manifest.json
+
+# in spawner-ui
+SPAWNER_SPARK_MANIFEST=../spark-skill-graphs/spark-skill-manifest.json npm run sync:skills
+```
+
+Both `static/skills.json` and the local matcher indexes under `src/lib/data/` are rebuilt by the same command, so the dashboard, Canvas pairing, and fallback matcher stay in sync.
+
 ## Workflow Generation
 
 The workflow generator converts matched skills into canvas nodes and connections. For mission-control builds, generated tasks become the visible unit of progress:
