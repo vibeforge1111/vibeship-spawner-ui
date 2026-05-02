@@ -507,25 +507,39 @@
 		top: calc(100% + 6px);
 		left: 0;
 		width: max-content;
-		min-width: 156px;
-		max-width: 220px;
-		padding: 7px;
-		border: 1px solid rgb(var(--accent-rgb, 47 202 148) / 0.24);
-		border-radius: 6px;
-		background: rgb(18 20 24 / 0.98);
-		box-shadow: 0 18px 42px -22px rgb(0 0 0 / 0.85), 0 0 0 1px rgb(255 255 255 / 0.03);
-		backdrop-filter: blur(10px);
+		min-width: 172px;
+		max-width: 240px;
+		padding: 8px;
+		border: 1px solid var(--border-strong);
+		border-radius: 8px;
+		background: rgb(17 21 28 / 0.98);
+		box-shadow:
+			0 18px 46px -22px rgb(0 0 0 / 0.88),
+			0 0 0 1px rgb(var(--accent-rgb, 47 202 148) / 0.1);
+		backdrop-filter: blur(12px);
 		z-index: 80;
 	}
 
 	.node-tag-menu-title {
-		margin-bottom: 5px;
-		color: var(--text-tertiary);
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		margin-bottom: 6px;
+		color: var(--accent);
 		font-family: var(--font-mono, 'DM Mono', ui-monospace, monospace);
-		font-size: 8px;
+		font-size: 8.5px;
 		line-height: 1;
 		letter-spacing: 0.7px;
 		text-transform: uppercase;
+	}
+
+	.node-tag-menu-title::before {
+		content: '';
+		width: 5px;
+		height: 5px;
+		border-radius: 999px;
+		background: var(--accent);
+		box-shadow: 0 0 10px rgb(var(--accent-rgb, 47 202 148) / 0.55);
 	}
 
 	.node-tag-menu-list {
@@ -539,43 +553,54 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		padding: 2px 5px;
-		border: 1px solid rgb(148 163 184 / 0.2);
-		border-radius: 4px;
-		background: rgb(255 255 255 / 0.035);
+		padding: 3px 6px;
+		border: 1px solid rgb(var(--accent-rgb, 47 202 148) / 0.16);
+		border-radius: 5px;
+		background: rgb(var(--accent-rgb, 47 202 148) / 0.055);
 		color: var(--text-secondary);
 		font-family: var(--font-mono, 'DM Mono', ui-monospace, monospace);
 		font-size: 8.5px;
 		line-height: 1.2;
 	}
 
-	/* Ports — small teal dots at card edge */
+	.node-tag-menu-item:hover {
+		border-color: rgb(var(--accent-rgb, 47 202 148) / 0.36);
+		background: rgb(var(--accent-rgb, 47 202 148) / 0.1);
+		color: var(--text);
+	}
+
+	/* Ports: large enough to click, centered exactly on the card edge */
 	.port-handle {
 		position: absolute;
-		width: 10px;
-		height: 10px;
+		width: 14px;
+		height: 14px;
 		background: var(--accent);
-		border: 2px solid var(--surface);
+		border: 2px solid var(--bg-primary);
 		border-radius: 50%;
 		cursor: crosshair;
-		z-index: 20;
+		z-index: 35;
 		transition: all 0.1s;
 		transform: translateY(-50%);
+		box-shadow:
+			0 0 0 1px rgb(var(--accent-rgb, 47 202 148) / 0.2),
+			0 0 10px rgb(var(--accent-rgb, 47 202 148) / 0.18);
 	}
 
 	.port-handle:hover {
 		background: var(--accent);
 		border-color: var(--accent-mid);
-		transform: translateY(-50%) scale(1.35);
-		box-shadow: 0 0 8px var(--accent-mid);
+		transform: translateY(-50%) scale(1.25);
+		box-shadow:
+			0 0 0 3px rgb(var(--accent-rgb, 47 202 148) / 0.14),
+			0 0 14px var(--accent-mid);
 	}
 
 	.port-input {
-		left: -6px;
+		left: -7px;
 	}
 
 	.port-output {
-		right: -6px;
+		right: -7px;
 	}
 
 	.port-label {
@@ -592,11 +617,11 @@
 	}
 
 	.port-label-left {
-		left: 16px;
+		left: 18px;
 	}
 
 	.port-label-right {
-		right: 16px;
+		right: 18px;
 	}
 
 	.port-handle:hover .port-label {
@@ -607,8 +632,10 @@
 	.port-handle.valid-target {
 		background: var(--accent-primary, #00C49A);
 		border-color: var(--accent-primary, #00C49A);
-		box-shadow: 0 0 8px var(--accent-primary, #00C49A);
-		transform: translateY(-50%) scale(1.3);
+		box-shadow:
+			0 0 0 3px rgb(var(--accent-rgb, 47 202 148) / 0.16),
+			0 0 12px var(--accent-primary, #00C49A);
+		transform: translateY(-50%) scale(1.2);
 	}
 
 	/* Invalid drop target indicator */

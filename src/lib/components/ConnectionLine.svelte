@@ -86,7 +86,7 @@
 			tags: node.skill.tags
 		});
 		const maxPorts = Math.max(ports.inputs.length, ports.outputs.length);
-		return Math.max(48, 20 + maxPorts * 18);
+		return Math.max(86, 36 + maxPorts * 18);
 	};
 
 	// Get port Y position within node
@@ -104,24 +104,16 @@
 		return spacing * (index + 1);
 	};
 
-	// Port handle dimensions - must match SkillNode.svelte
-	const PORT_OFFSET = 1; // Port-center sits ~1px from node edge (10px port at left:-6px)
-	const PORT_SIZE = 12;  // Port handle width/height
-	const OUTPUT_INSET = -1; // Start line 1px past node edge to meet the output port center
+	// Port centers sit on the node edge. Keep these in sync with SkillNode.svelte.
+	const PORT_CENTER_OFFSET = 0;
 
 	const pathD = $derived(() => {
 		if (!sourceNode || !targetNode) return '';
 
-		const sourceH = getNodeHeight(sourceNode);
-		const targetH = getNodeHeight(targetNode);
-
-		// Output port: start line close to node edge so it feels like it's coming from within
-		const startX = sourceNode.position.x + nodeWidth + OUTPUT_INSET;
+		const startX = sourceNode.position.x + nodeWidth + PORT_CENTER_OFFSET;
 		const startY = sourceNode.position.y + getPortY(sourceNode, connection.sourcePortId, true);
 
-		// Input port: left edge of node - offset to reach port center
-		// Port sticks out 6px to the left
-		const endX = targetNode.position.x - PORT_OFFSET;
+		const endX = targetNode.position.x - PORT_CENTER_OFFSET;
 		const endY = targetNode.position.y + getPortY(targetNode, connection.targetPortId, false);
 
 		const midX = (startX + endX) / 2;
@@ -134,12 +126,12 @@
 	const connectionStyle = $derived(() => {
 		const type = sourcePortType();
 		let dasharray = '8 4';
-		let width = 2;
+		let width = 2.5;
 
 		switch (type) {
 			case 'skill':
 				dasharray = '4 4';
-				width = 3;
+				width = 3.25;
 				break;
 			case 'text':
 				dasharray = '8 4';
@@ -160,7 +152,7 @@
 
 		if (isActive) {
 			dasharray = '10 6';
-			width += 1;
+			width += 1.25;
 		}
 		if (isCompleted) {
 			dasharray = 'none';
@@ -198,7 +190,7 @@
 			d={pathD()}
 			fill="none"
 			stroke={color}
-			stroke-width={selected ? style.width + 1 : style.width}
+			stroke-width={selected ? style.width + 1.25 : style.width}
 			stroke-dasharray={style.dasharray}
 			class="connection-line"
 			class:animated={style.dasharray !== 'none'}
@@ -211,7 +203,7 @@
 		<!-- Endpoint circle removed - line runs directly to port dot on node edge -->
 		<!-- Delete button on hover/selected -->
 		{#if selected}
-			{@const midX = (sourceNode.position.x + nodeWidth + OUTPUT_INSET + targetNode.position.x - PORT_OFFSET) / 2}
+			{@const midX = (sourceNode.position.x + nodeWidth + PORT_CENTER_OFFSET + targetNode.position.x - PORT_CENTER_OFFSET) / 2}
 			{@const midY = (sourceNode.position.y + getPortY(sourceNode, connection.sourcePortId, true) + targetNode.position.y + getPortY(targetNode, connection.targetPortId, false)) / 2}
 			<g class="delete-button" transform="translate({midX}, {midY})" onclick={handleDelete} onkeydown={handleDeleteKeydown} role="button" tabindex="0">
 				<rect x="-8" y="-8" width="16" height="16" fill="var(--bg-secondary, #1a1a24)" stroke="var(--status-error, #ef4444)" stroke-width="1" class="delete-bg" />
