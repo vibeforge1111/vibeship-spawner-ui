@@ -438,8 +438,8 @@
 
 	.node-status {
 		position: absolute;
-		top: 11px;
-		right: 9px;
+		top: 12px;
+		right: 10px;
 		display: inline-flex;
 		align-items: center;
 		height: 16px;
