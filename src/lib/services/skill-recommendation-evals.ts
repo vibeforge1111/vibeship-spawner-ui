@@ -3,6 +3,7 @@ import { rankSkillsForText } from './h70-skill-matcher';
 export interface SkillRecommendationEvalCase {
 	name: string;
 	prompt: string;
+	suite?: 'golden' | 'challenge';
 	mustInclude?: string[];
 	anyOf?: string[][];
 	mustNotInclude?: string[];
@@ -12,6 +13,7 @@ export interface SkillRecommendationEvalCase {
 export interface SkillRecommendationEvalResult {
 	name: string;
 	prompt: string;
+	suite: 'golden' | 'challenge';
 	ids: string[];
 	pass: boolean;
 	score: number;
@@ -354,6 +356,113 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 	}
 ];
 
+export const CHALLENGE_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
+	{
+		name: 'Password reset',
+		suite: 'challenge',
+		prompt: 'Add forgot password and reset password email flow with token expiry, session security, and success toast',
+		mustInclude: ['auth-specialist'],
+		anyOf: [['resend-email', 'email-deliverability', 'email-systems'], ['toast-notification-ui']],
+		mustNotInclude: ['passkeys-webauthn', 'nft-engineer']
+	},
+	{
+		name: 'CSV import admin',
+		suite: 'challenge',
+		prompt: 'Build an admin CSV import tool with upload validation, preview table, row errors, and audit log',
+		mustInclude: ['file-uploads', 'tanstack-table', 'audit-logging'],
+		anyOf: [['forms-validation', 'zod-validation']],
+		mustNotInclude: ['ai-image-generation', 'nft-engineer']
+	},
+	{
+		name: 'User settings page',
+		suite: 'challenge',
+		prompt: 'Create account settings for profile editing, email preferences, password change, notification toggles, and accessible forms',
+		mustInclude: ['forms-validation', 'accessibility'],
+		anyOf: [['auth-specialist', 'authentication-oauth'], ['toast-notification-ui', 'push-notifications']],
+		mustNotInclude: ['smart-contract-engineer']
+	},
+	{
+		name: 'Search filter table',
+		suite: 'challenge',
+		prompt: 'Add searchable sortable filterable data table with saved views, pagination, bulk actions, and CSV export',
+		mustInclude: ['tanstack-table', 'search-implementation'],
+		anyOf: [['analytics', 'product-analytics'], ['frontend']],
+		mustNotInclude: ['semantic-search', 'rag-engineer']
+	},
+	{
+		name: 'PWA offline sync',
+		suite: 'challenge',
+		prompt: 'Build a progressive web app that works offline, caches assets, syncs local changes later, and sends push notifications',
+		mustInclude: ['pwa-progressive-web-app', 'local-first-sync', 'push-notifications'],
+		anyOf: [['caching-patterns']],
+		mustNotInclude: ['kubernetes']
+	},
+	{
+		name: 'Calendar booking',
+		suite: 'challenge',
+		prompt: 'Build a calendar booking app with availability rules, reminders, timezone handling, email confirmations, and payment deposits',
+		anyOf: [
+			['productivity-ai-tools'],
+			['resend-email', 'email-deliverability', 'email-systems'],
+			['stripe-integration', 'stripe-subscriptions']
+		],
+		mustNotInclude: ['nft-engineer', 'smart-contract-engineer']
+	},
+	{
+		name: 'Invoice PDF receipts',
+		suite: 'challenge',
+		prompt: 'Generate invoices and PDF receipts after checkout, email them to customers, and store them for account history',
+		mustInclude: ['document-ai'],
+		anyOf: [['stripe-integration'], ['resend-email', 'email-deliverability', 'email-systems']],
+		mustNotInclude: ['nft-engineer']
+	},
+	{
+		name: 'Map directory',
+		suite: 'challenge',
+		prompt: 'Build a local business directory with map search, filters, saved places, reviews, and mobile responsive cards',
+		mustInclude: ['responsive-mobile-first', 'search-implementation'],
+		anyOf: [['social-features'], ['frontend']],
+		mustNotInclude: ['procedural-generation', 'game-development']
+	},
+	{
+		name: 'RBAC settings',
+		suite: 'challenge',
+		prompt: 'Add team settings with role based permissions, invites, audit log, organization billing, and SSO readiness',
+		mustInclude: ['rbac-enterprise', 'audit-logging', 'saas-teams-organizations'],
+		anyOf: [['sso-saml'], ['stripe-integration', 'subscription-billing']],
+		mustNotInclude: ['game-development']
+	},
+	{
+		name: 'Image gallery upload',
+		suite: 'challenge',
+		prompt: 'Build drag and drop image gallery upload with compression, CDN optimization, captions, moderation, and accessible keyboard controls',
+		mustInclude: ['file-uploads', 'image-optimization-cdn', 'accessibility'],
+		anyOf: [['social-features']],
+		mustNotInclude: ['model-optimization', 'portfolio-optimization']
+	},
+	{
+		name: 'Support ticket inbox',
+		suite: 'challenge',
+		prompt: 'Create a customer support ticket inbox with assignment, status filters, email replies, internal notes, SLA alerts, and analytics',
+		mustInclude: ['customer-support', 'email-systems', 'analytics'],
+		anyOf: [['tanstack-table'], ['push-notifications']],
+		mustNotInclude: ['nft-engineer']
+	},
+	{
+		name: 'AI meeting notes',
+		suite: 'challenge',
+		prompt: 'Build AI meeting notes from audio recordings with transcription, speaker summaries, action items, search, and export',
+		mustInclude: ['voice-ai-development', 'structured-output'],
+		anyOf: [['semantic-search'], ['document-ai']],
+		mustNotInclude: ['smart-contract-engineer']
+	}
+];
+
+export const DASHBOARD_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
+	...GOLDEN_RECOMMENDATION_CASES,
+	...CHALLENGE_RECOMMENDATION_CASES
+];
+
 export function evaluateSkillIds(
 	testCase: SkillRecommendationEvalCase,
 	ids: string[]
@@ -389,6 +498,7 @@ export function evaluateSkillIds(
 	return {
 		name: testCase.name,
 		prompt: testCase.prompt,
+		suite: testCase.suite || 'golden',
 		ids,
 		pass: missingRequired.length === 0 && missingAnyOf.length === 0 && unwanted.length === 0,
 		score,

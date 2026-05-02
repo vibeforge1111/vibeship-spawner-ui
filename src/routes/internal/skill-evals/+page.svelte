@@ -13,6 +13,7 @@
 	type EvalCase = {
 		name: string;
 		prompt: string;
+		suite: 'golden' | 'challenge';
 		pass: boolean;
 		score: number;
 		labeledPrecisionAtK: number;
@@ -31,12 +32,25 @@
 		};
 		skills: SkillRow[];
 	};
+	type SummaryStats = {
+		caseCount: number;
+		passCount: number;
+		passRate: number;
+		averageScore: number;
+		averageLabeledPrecisionAtK: number;
+		averageRequiredRecall: number;
+		averageAnyOfRecall: number;
+		averageMustNotCleanRate: number;
+		failures: string[];
+	};
 	type PageData = {
 		generatedAt: string;
 		project: {
 			name: string;
 			catalogSkillCount: number;
 			evalCaseCount: number;
+			goldenCaseCount: number;
+			challengeCaseCount: number;
 			topKLimitSlots: number;
 			returnedRecommendationCount: number;
 		};
@@ -50,6 +64,8 @@
 			averageAnyOfRecall: number;
 			averageMustNotCleanRate: number;
 			failures: string[];
+			golden: SummaryStats;
+			challenge: SummaryStats;
 			tierCounts: Record<Tier, number>;
 			lowPrecisionCases: string[];
 		};
@@ -123,7 +139,7 @@
 			</div>
 			<div class="flex flex-wrap gap-2 text-xs font-mono">
 				<span class={data.summary.passRate === 1 ? 'badge-success' : 'badge-warning'}>
-					{data.summary.passCount}/{data.summary.caseCount} tests passing
+					{data.summary.golden.passCount}/{data.summary.golden.caseCount} golden passing
 				</span>
 				<span class="border border-surface-border bg-bg-secondary px-2 py-1 text-text-secondary">
 					{new Date(data.generatedAt).toLocaleString()}
@@ -135,12 +151,12 @@
 			<div class="panel p-4">
 				<p class="font-mono text-xs uppercase text-text-tertiary">Verdict</p>
 				<h2 class="mt-1 text-xl font-semibold text-text-bright">
-					The matcher is passing the golden suite. Focus review on low-precision prompts, not broken recall.
+					The golden suite is healthy. The new challenge suite shows the next improvement targets.
 				</h2>
 				<p class="mt-2 text-sm text-text-secondary">
-					Required recall, any-of recall, and must-not cleanliness are all at {pct(data.summary.averageRequiredRecall)}.
-					The {pct(data.summary.averageLabeledPrecisionAtK)} precision number is conservative because useful supporting
-					skills are counted as unlabeled unless they are in the hand-labeled expected set.
+					Golden tests are {pct(data.summary.golden.passRate)} passing. Challenge tests are
+					{pct(data.summary.challenge.passRate)} passing, which is useful pressure from everyday product flows and
+					ambiguous edge cases.
 				</p>
 				<div class="mt-4 grid gap-2 sm:grid-cols-4">
 					<div>
@@ -150,6 +166,7 @@
 					<div>
 						<p class="font-mono text-xs text-text-tertiary">Tests</p>
 						<p class="text-lg font-semibold">{data.project.evalCaseCount}</p>
+						<p class="text-xs text-text-tertiary">{data.project.goldenCaseCount} golden, {data.project.challengeCaseCount} challenge</p>
 					</div>
 					<div>
 						<p class="font-mono text-xs text-text-tertiary">Pairings</p>
@@ -205,6 +222,7 @@
 						<summary class="grid cursor-pointer list-none gap-3 md:grid-cols-[220px_1fr_160px] md:items-center">
 							<div class="flex items-center gap-2">
 								<span class={testCase.pass ? 'badge-success' : 'badge-error'}>{testCase.pass ? 'pass' : 'fail'}</span>
+								<span class={testCase.suite === 'golden' ? 'badge-info' : 'badge-warning'}>{testCase.suite}</span>
 								<span class="font-semibold text-text-bright">{testCase.name}</span>
 							</div>
 							<div>

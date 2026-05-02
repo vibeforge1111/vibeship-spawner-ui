@@ -14,6 +14,7 @@
     {
       "name": "RAG chatbot",
       "prompt": "Build a production RAG chatbot with embeddings, vector retrieval, semantic search, citations, and prompt evaluation",
+      "suite": "golden",
       "ids": [
         "semantic-search",
         "rag-implementation",
@@ -46,6 +47,7 @@
     {
       "name": "AI art consistency",
       "prompt": "Create a consistent AI art series with the same character, visual style, image generation, and shot continuity",
+      "suite": "golden",
       "ids": [
         "art-consistency",
         "ai-game-art-generation",
@@ -76,6 +78,7 @@
     {
       "name": "Mobile app",
       "prompt": "Build a mobile app with Expo and React Native, native iOS and Android integrations, push notifications, and app store deployment",
+      "suite": "golden",
       "ids": [
         "expo",
         "push-notifications",
@@ -107,6 +110,7 @@
     {
       "name": "SaaS billing",
       "prompt": "Build a SaaS app with authentication, subscriptions, Stripe billing, dashboard analytics, and onboarding",
+      "suite": "golden",
       "ids": [
         "analytics",
         "stripe-subscriptions",
@@ -139,6 +143,7 @@
     {
       "name": "Multiplayer game",
       "prompt": "Build a multiplayer roguelike game with procedural dungeons, inventory, combat, and online sync",
+      "suite": "golden",
       "ids": [
         "game-design-core",
         "game-development",
@@ -170,6 +175,7 @@
     {
       "name": "Ecommerce checkout",
       "prompt": "Build an ecommerce checkout with cart, Stripe payments, digital product delivery, email receipts, and analytics",
+      "suite": "golden",
       "ids": [
         "digital-product-delivery",
         "analytics",
@@ -201,6 +207,7 @@
     {
       "name": "AI agent tooling",
       "prompt": "Build an AI agent with tool calling, memory, multi-agent orchestration, and MCP server integration",
+      "suite": "golden",
       "ids": [
         "agent-tool-builder",
         "ai-function-calling",
@@ -233,6 +240,7 @@
     {
       "name": "Realtime chat",
       "prompt": "Build a realtime chat app with websockets, presence indicators, push notifications, and message history",
+      "suite": "golden",
       "ids": [
         "push-notifications",
         "presence-indicators",
@@ -265,6 +273,7 @@
     {
       "name": "Devops deployment",
       "prompt": "Build a Kubernetes deployment pipeline with Docker containers, CI/CD, infrastructure as code, and monitoring",
+      "suite": "golden",
       "ids": [
         "infrastructure-as-code",
         "kubernetes",
@@ -298,6 +307,7 @@
     {
       "name": "Compliance privacy",
       "prompt": "Build a GDPR compliant healthcare app with audit logging, privacy controls, HIPAA compliance, and security hardening",
+      "suite": "golden",
       "ids": [
         "audit-logging",
         "security-hardening",
@@ -330,6 +340,7 @@
     {
       "name": "Web3 NFT marketplace",
       "prompt": "Build a Web3 NFT marketplace with wallet login, smart contracts, minting, royalties, and token-gated community",
+      "suite": "golden",
       "ids": [
         "web3-community",
         "nft-engineer",
@@ -361,6 +372,7 @@
     {
       "name": "SEO landing page",
       "prompt": "Build a SEO landing page with copywriting, conversion rate optimization, waitlist capture, and analytics",
+      "suite": "golden",
       "ids": [
         "conversion-rate-optimization",
         "copywriting",
@@ -393,6 +405,7 @@
     {
       "name": "Data pipeline",
       "prompt": "Build a data pipeline with ETL, warehouse analytics, dashboards, metrics, and data quality checks",
+      "suite": "golden",
       "ids": [
         "data-pipeline",
         "analytics",
@@ -424,6 +437,7 @@
     {
       "name": "Browser automation extension",
       "prompt": "Build a browser extension that automates websites with Playwright tests and background scripts",
+      "suite": "golden",
       "ids": [
         "browser-extension-builder",
         "browser-automation",
@@ -448,6 +462,7 @@
     {
       "name": "Document AI",
       "prompt": "Build a PDF document AI system with OCR, extraction, RAG over documents, and structured output",
+      "suite": "golden",
       "ids": [
         "document-ai",
         "structured-output",
@@ -478,6 +493,7 @@
     {
       "name": "Voice AI support",
       "prompt": "Build a voice AI support bot with speech to text, text to speech, Twilio calls, and conversation memory",
+      "suite": "golden",
       "ids": [
         "conversation-memory",
         "voice-ai-development",
@@ -509,6 +525,7 @@
     {
       "name": "Realtime whiteboard",
       "prompt": "Build a realtime collaborative whiteboard with presence, websocket sync, optimistic updates, and conflict resolution",
+      "suite": "golden",
       "ids": [
         "websockets-realtime",
         "websocket-realtime",
@@ -541,6 +558,7 @@
     {
       "name": "Social community",
       "prompt": "Build a social community app with profiles, feed, likes, comments, moderation, and notifications",
+      "suite": "golden",
       "ids": [
         "social-community",
         "social-features",
@@ -572,6 +590,7 @@
     {
       "name": "File upload storage",
       "prompt": "Add file upload with S3-compatible storage, image optimization, signed URLs, and upload validation",
+      "suite": "golden",
       "ids": [
         "file-uploads",
         "image-optimization-cdn",
@@ -601,6 +620,7 @@
     {
       "name": "Webhook ingestion",
       "prompt": "Implement webhook ingestion with signature verification, retries, idempotency, and event logging",
+      "suite": "golden",
       "ids": [
         "webhook-processing",
         "discrete-event-simulation",
@@ -628,6 +648,7 @@
     {
       "name": "Postgres migrations",
       "prompt": "Design a Postgres schema with migrations, Drizzle ORM, tenant-aware data model, and indexes",
+      "suite": "golden",
       "ids": [
         "drizzle-orm",
         "database-schema-design",
@@ -660,6 +681,7 @@
     {
       "name": "Faceted search",
       "prompt": "Build faceted search with Algolia, filters, sorting, typo tolerance, and semantic fallback",
+      "suite": "golden",
       "ids": [
         "algolia-search",
         "semantic-search",
@@ -684,6 +706,7 @@
     {
       "name": "Queue workers",
       "prompt": "Add queue workers for background jobs with retries, dead letters, and scheduled cron tasks",
+      "suite": "golden",
       "ids": [
         "queue-workers",
         "cron-scheduled-jobs",
@@ -712,6 +735,7 @@
     {
       "name": "Next.js frontend",
       "prompt": "Build a Next.js app router frontend with server actions, middleware auth, and Tailwind UI",
+      "suite": "golden",
       "ids": [
         "frontend",
         "tailwind-ui",
@@ -745,6 +769,7 @@
     {
       "name": "Form validation",
       "prompt": "Add form validation with Zod schemas, accessible errors, and multi-step wizard state",
+      "suite": "golden",
       "ids": [
         "zod-validation",
         "forms-validation",
@@ -770,6 +795,7 @@
     {
       "name": "API abuse defense",
       "prompt": "Implement rate limiting and API security for a public REST API with abuse monitoring",
+      "suite": "golden",
       "ids": [
         "api-security",
         "rate-limiting",
@@ -803,6 +829,7 @@
     {
       "name": "Observability stack",
       "prompt": "Add observability with structured logs, traces, metrics, alerts, and Sentry error tracking",
+      "suite": "golden",
       "ids": [
         "observability",
         "sentry-error-tracking",
@@ -833,6 +860,7 @@
     {
       "name": "API error handling",
       "prompt": "Add robust API error handling with typed error responses, retry-safe failures, logging, and user-facing fallbacks",
+      "suite": "golden",
       "ids": [
         "error-handling",
         "sentry-error-tracking",
@@ -865,6 +893,7 @@
     {
       "name": "Admin dashboard",
       "prompt": "Build an admin dashboard with TanStack Table, charts, filters, RBAC, and audit logs",
+      "suite": "golden",
       "ids": [
         "tanstack-table",
         "analytics-architecture",
@@ -892,6 +921,7 @@
     {
       "name": "Telegram mini app",
       "prompt": "Create a Telegram bot mini app with payments, notifications, and community onboarding",
+      "suite": "golden",
       "ids": [
         "telegram-bot-builder",
         "telegram-mini-app",
@@ -925,6 +955,7 @@
     {
       "name": "Shopify storefront",
       "prompt": "Build a Shopify storefront with Liquid theme edits, checkout extensions, product catalog, and Klaviyo email",
+      "suite": "golden",
       "ids": [
         "ecommerce-cart-checkout",
         "resend-email",
@@ -958,6 +989,7 @@
     {
       "name": "Internationalization",
       "prompt": "Add internationalization with locale routing, translation files, pluralization, and RTL layout",
+      "suite": "golden",
       "ids": [
         "i18n"
       ],
@@ -977,6 +1009,7 @@
     {
       "name": "Desktop app",
       "prompt": "Build a desktop app with Tauri, local storage, auto-updates, and native file access",
+      "suite": "golden",
       "ids": [
         "tauri-desktop",
         "file-uploads",
@@ -1002,6 +1035,7 @@
     {
       "name": "Chrome extension task",
       "prompt": "Create a Chrome extension with content scripts, background service worker, and Playwright tests",
+      "suite": "golden",
       "ids": [
         "browser-extension-builder",
         "microservices-patterns",
@@ -1027,6 +1061,7 @@
     {
       "name": "Passkeys auth",
       "prompt": "Add passkeys and WebAuthn login with session security and OAuth fallback",
+      "suite": "golden",
       "ids": [
         "security",
         "authentication-oauth",
@@ -1059,6 +1094,7 @@
     {
       "name": "Supabase backend",
       "prompt": "Build a Supabase backend with RLS policies, auth, edge functions, and storage buckets",
+      "suite": "golden",
       "ids": [
         "supabase-backend",
         "backend",
@@ -1092,6 +1128,7 @@
     {
       "name": "Claude Code CI",
       "prompt": "Set up CI/CD for Claude Code commands, hooks, testing automation, and release notes",
+      "suite": "golden",
       "ids": [
         "testing-automation",
         "claude-code-commands",
@@ -1125,6 +1162,7 @@
     {
       "name": "GraphQL API",
       "prompt": "Build a GraphQL API with schema design, resolvers, subscriptions, and auth guards",
+      "suite": "golden",
       "ids": [
         "graphql",
         "graphql-architect",
@@ -1158,6 +1196,7 @@
     {
       "name": "Caching stack",
       "prompt": "Add caching with Redis, CDN headers, TanStack Query, and invalidation rules",
+      "suite": "golden",
       "ids": [
         "tanstack-query",
         "caching-patterns",
@@ -1184,6 +1223,7 @@
     {
       "name": "Video streaming",
       "prompt": "Create a video streaming feature with upload processing, transcoding, thumbnails, and playback analytics",
+      "suite": "golden",
       "ids": [
         "analytics",
         "video-streaming-infrastructure",
@@ -1216,6 +1256,7 @@
     {
       "name": "Slack bot",
       "prompt": "Build a Slack bot with slash commands, OAuth install flow, webhooks, and alerts",
+      "suite": "golden",
       "ids": [
         "slack-bot-builder",
         "authentication-oauth",
@@ -1245,6 +1286,7 @@
     {
       "name": "Onboarding analytics",
       "prompt": "Design onboarding flows with activation analytics, lifecycle emails, and conversion experiments",
+      "suite": "golden",
       "ids": [
         "onboarding-flows",
         "analytics",
@@ -1277,6 +1319,7 @@
     {
       "name": "Enterprise SaaS",
       "prompt": "Build a multi-tenant enterprise SaaS with RBAC, SSO SAML, SCIM provisioning, and audit logs",
+      "suite": "golden",
       "ids": [
         "scim-provisioning",
         "sso-saml",
@@ -1307,6 +1350,7 @@
     {
       "name": "Security platform hardening",
       "prompt": "Implement secrets management, container security, supply chain scanning, and threat modeling",
+      "suite": "golden",
       "ids": [
         "secrets-management",
         "threat-modeling",
@@ -1340,6 +1384,7 @@
     {
       "name": "Fintech integration",
       "prompt": "Build a fintech integration with Plaid, Stripe payouts, ledger reconciliation, and risk checks",
+      "suite": "golden",
       "ids": [
         "fintech-integration",
         "stripe-integration",
@@ -1372,6 +1417,7 @@
     {
       "name": "Course platform",
       "prompt": "Create a course platform with live education, student progress, content modules, and community support",
+      "suite": "golden",
       "ids": [
         "live-education",
         "web3-community",
@@ -1405,6 +1451,7 @@
     {
       "name": "Monorepo devex",
       "prompt": "Set up monorepo management with Turborepo, package publishing, TypeScript strictness, and developer experience",
+      "suite": "golden",
       "ids": [
         "developer-experience",
         "monorepo-management",
@@ -1437,6 +1484,7 @@
     {
       "name": "Serverless edge API",
       "prompt": "Build a serverless edge API with Hono, Cloudflare Workers, rate limits, and durable caching",
+      "suite": "golden",
       "ids": [
         "cloudflare-workers-deep",
         "hono-edge",
@@ -1469,6 +1517,7 @@
     {
       "name": "AI evaluation harness",
       "prompt": "Create an AI evaluation harness with Langfuse tracing, RAGAS metrics, prompt caching, and regression tests",
+      "suite": "golden",
       "ids": [
         "prompt-caching",
         "langfuse",
@@ -1501,6 +1550,7 @@
     {
       "name": "Computer-use browser agent",
       "prompt": "Build computer-use agent browser automation with Playwright, screenshots, and tool-use safety",
+      "suite": "golden",
       "ids": [
         "browser-automation",
         "automation",

@@ -1,6 +1,8 @@
 import skillCatalog from '$lib/data/skill-matcher-catalog.json';
 import { rankSkillsForText, type SkillRecommendationTier } from '$lib/services/h70-skill-matcher';
 import {
+	CHALLENGE_RECOMMENDATION_CASES,
+	DASHBOARD_RECOMMENDATION_CASES,
 	evaluateSkillIds,
 	GOLDEN_RECOMMENDATION_CASES,
 	summarizeSkillRecommendationEvals,
@@ -25,7 +27,7 @@ function expectedLabels(testCase: SkillRecommendationEvalCase): string[] {
 }
 
 export function load() {
-	const cases = GOLDEN_RECOMMENDATION_CASES.map((testCase) => {
+	const cases = DASHBOARD_RECOMMENDATION_CASES.map((testCase) => {
 		const topK = testCase.maxResults || DEFAULT_TOP_K;
 		const ranks = rankSkillsForText(testCase.prompt, topK);
 		const result = evaluateSkillIds(testCase, ranks.map((rank) => rank.skillId));
@@ -53,6 +55,12 @@ export function load() {
 	});
 
 	const summary = summarizeSkillRecommendationEvals(cases);
+	const goldenSummary = summarizeSkillRecommendationEvals(
+		cases.filter((testCase) => testCase.suite === 'golden')
+	);
+	const challengeSummary = summarizeSkillRecommendationEvals(
+		cases.filter((testCase) => testCase.suite === 'challenge')
+	);
 	const returnedRecommendationCount = cases.reduce((sum, testCase) => sum + testCase.ids.length, 0);
 	const topKLimitSlots = cases.reduce((sum, testCase) => sum + testCase.topK, 0);
 	const tierCounts = cases
@@ -70,12 +78,16 @@ export function load() {
 		project: {
 			name: 'Spawner UI + spark-skill-graphs',
 			catalogSkillCount: Object.keys(catalog).length,
-			evalCaseCount: GOLDEN_RECOMMENDATION_CASES.length,
+			evalCaseCount: cases.length,
+			goldenCaseCount: GOLDEN_RECOMMENDATION_CASES.length,
+			challengeCaseCount: CHALLENGE_RECOMMENDATION_CASES.length,
 			topKLimitSlots,
 			returnedRecommendationCount
 		},
 		summary: {
 			...summary,
+			golden: goldenSummary,
+			challenge: challengeSummary,
 			tierCounts,
 			lowPrecisionCases: cases
 				.filter((testCase) => testCase.labeledPrecisionAtK < 0.5)
