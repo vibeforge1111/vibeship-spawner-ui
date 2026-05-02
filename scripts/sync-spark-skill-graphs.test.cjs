@@ -12,6 +12,8 @@ test('maps a Spark portable manifest into Spawner skill summaries', () => {
 				name: 'Auth Workflows',
 				description: 'Design login and session workflows.',
 				category: 'backend',
+				tags: ['auth'],
+				triggers: ['secure login'],
 				owns: ['Login and signup flow design'],
 				selection_hints: {
 					aliases: ['login', 'signup'],
@@ -53,5 +55,7 @@ test('maps a Spark portable manifest into Spawner skill summaries', () => {
 		}
 	]);
 	assert.equal(auth.triggers.includes('login'), true);
+	assert.equal(auth.triggers.includes('secure login'), true);
+	assert.deepEqual(auth.tags, ['auth']);
 	assert.equal(auth.selectionHints.boost_terms[0], 'authentication');
 });

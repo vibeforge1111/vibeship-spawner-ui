@@ -124,6 +124,11 @@ function toSummary({ id, category, parsed }, validIds) {
 
 function triggersFromManifestSkill(skill) {
 	const triggers = new Set();
+	if (Array.isArray(skill.triggers)) {
+		for (const trigger of skill.triggers) {
+			if (typeof trigger === 'string' && trigger.trim()) triggers.add(trigger.trim());
+		}
+	}
 	if (typeof skill.name === 'string') triggers.add(skill.name.toLowerCase());
 	triggers.add(String(skill.id || '').replace(/-/g, ' '));
 	const hints = skill.selection_hints || {};
@@ -151,7 +156,9 @@ function summaryFromManifestSkill(skill, validIds) {
 		category: remapCategory(skill.category || 'general'),
 		tier: 'free',
 		layer: 1,
-		tags: termsFrom([...(Array.isArray(skill.owns) ? skill.owns : []), skill.description || '']),
+		tags: Array.isArray(skill.tags) && skill.tags.length
+			? skill.tags.filter((tag) => typeof tag === 'string' && tag.trim())
+			: termsFrom([...(Array.isArray(skill.owns) ? skill.owns : []), skill.description || '']),
 		triggers: triggersFromManifestSkill(skill),
 		handoffs,
 		pairsWell: [],
