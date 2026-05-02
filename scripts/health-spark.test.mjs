@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import {
   healthRequiresCodex,
+  resolveHealthMissionProvider,
   resolveSparkWorkspaceRoot,
   shouldRepairHostedWorkspaceOwnership,
   sparkHealthAuthHeaders,
@@ -51,6 +52,30 @@ describe("healthRequiresCodex", () => {
 
   it("requires Codex when the provider is actually configured", () => {
     expect(healthRequiresCodex([{ id: "codex", cliConfigured: true }], {})).toBe(true);
+  });
+
+  it("does not let configured Codex override an explicit hosted mission provider", () => {
+    expect(
+      healthRequiresCodex([{ id: "codex", cliConfigured: true }], {
+        DEFAULT_MISSION_PROVIDER: "minimax",
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("resolveHealthMissionProvider", () => {
+  it("prefers the explicit health smoke provider", () => {
+    expect(
+      resolveHealthMissionProvider({
+        SPARK_HEALTH_PROVIDER: "zai",
+        DEFAULT_MISSION_PROVIDER: "codex",
+      }),
+    ).toBe("zai");
+  });
+
+  it("uses the selected mission provider before falling back to Codex", () => {
+    expect(resolveHealthMissionProvider({ DEFAULT_MISSION_PROVIDER: "minimax" })).toBe("minimax");
+    expect(resolveHealthMissionProvider({})).toBe("codex");
   });
 });
 
