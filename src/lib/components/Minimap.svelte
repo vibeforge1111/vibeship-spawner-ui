@@ -166,19 +166,6 @@
 				<stop offset="0%" stop-color="var(--bg-secondary)" />
 				<stop offset="100%" stop-color="var(--surface-raised)" />
 			</linearGradient>
-			<linearGradient id="minimap-viewport-fill" x1="0" y1="0" x2="1" y2="0">
-				<stop offset="0%" stop-color="rgb(var(--accent-rgb, 47 202 148) / 0.24)" />
-				<stop offset="62%" stop-color="rgb(var(--surface-rgb, 23 27 37) / 0.72)" />
-				<stop offset="100%" stop-color="rgb(var(--accent-rgb, 47 202 148) / 0.1)" />
-			</linearGradient>
-			<linearGradient id="minimap-viewport-stroke" x1="0" y1="0" x2="1" y2="1">
-				<stop offset="0%" stop-color="rgb(255 255 255 / 0.24)" />
-				<stop offset="46%" stop-color="var(--accent)" />
-				<stop offset="100%" stop-color="rgb(var(--accent-rgb, 47 202 148) / 0.42)" />
-			</linearGradient>
-			<pattern id="minimap-viewport-stripes" width="12" height="12" patternUnits="userSpaceOnUse">
-				<path d="M12 0H11V12H12Z" fill="rgb(255 255 255 / 0.08)" />
-			</pattern>
 		</defs>
 		<rect width="100%" height="100%" fill="url(#minimap-surface)" />
 		<rect width="100%" height="100%" fill="url(#minimap-grid)" />
@@ -207,18 +194,9 @@
 			y={viewport().y}
 			width={viewport().width}
 			height={viewport().height}
-			fill="url(#minimap-viewport-fill)"
-			stroke="url(#minimap-viewport-stroke)"
+			fill="rgb(var(--accent-rgb, 47 202 148) / 0.18)"
+			stroke="rgb(var(--accent-rgb, 47 202 148) / 0.78)"
 			stroke-width="1.25"
-			rx="5"
-		/>
-		<rect
-			class="viewport-stripes"
-			x={viewport().x}
-			y={viewport().y}
-			width={viewport().width}
-			height={viewport().height}
-			fill="url(#minimap-viewport-stripes)"
 			rx="5"
 		/>
 	</svg>
@@ -270,26 +248,12 @@
 	}
 
 	.viewport-window {
-		opacity: 0.82;
-		filter: drop-shadow(0 0 10px rgb(var(--accent-rgb, 47 202 148) / 0.28));
-		transition:
-			opacity 160ms ease,
-			filter 160ms ease;
-	}
-
-	.viewport-stripes {
-		opacity: 0.42;
-		pointer-events: none;
+		opacity: 0.9;
 		transition: opacity 160ms ease;
 	}
 
 	.minimap:hover .viewport-window {
-		opacity: 0.96;
-		filter: drop-shadow(0 0 14px rgb(var(--accent-rgb, 47 202 148) / 0.42));
-	}
-
-	.minimap:hover .viewport-stripes {
-		opacity: 0.58;
+		opacity: 1;
 	}
 
 	.minimap-label {
