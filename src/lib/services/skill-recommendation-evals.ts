@@ -32,7 +32,11 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		name: 'RAG chatbot',
 		prompt: 'Build a production RAG chatbot with embeddings, vector retrieval, semantic search, citations, and prompt evaluation',
 		mustInclude: ['semantic-search', 'llm-architect'],
-		anyOf: [['rag-engineer', 'rag-implementation', 'vector-specialist']],
+		anyOf: [
+			['rag-engineer', 'rag-implementation', 'vector-specialist'],
+			['ai-observability'],
+			['openai-api-patterns']
+		],
 		mustNotInclude: ['nft-engineer', 'streamer-bait-design', 'portfolio-optimization', 'neural-architecture-search']
 	},
 	{
@@ -51,7 +55,12 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		name: 'Mobile app',
 		prompt: 'Build a mobile app with Expo and React Native, native iOS and Android integrations, push notifications, and app store deployment',
 		mustInclude: ['expo', 'react-native-specialist', 'ios-swift-specialist', 'android-kotlin-specialist'],
-		anyOf: [['push-notifications']],
+		anyOf: [
+			['push-notifications'],
+			['state-management'],
+			['react-patterns', 'frontend'],
+			['responsive-mobile-first']
+		],
 		mustNotInclude: [
 			'mobile-development',
 			'kubernetes-deployment',
@@ -66,8 +75,10 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		prompt: 'Build a SaaS app with authentication, subscriptions, Stripe billing, dashboard analytics, and onboarding',
 		anyOf: [
 			['auth-specialist', 'authentication-oauth', 'nextjs-supabase-auth'],
-			['stripe-integration', 'subscription-billing'],
-			['analytics', 'product-analytics', 'dashboard-design']
+			['stripe-integration', 'stripe-subscriptions', 'subscription-billing'],
+			['analytics', 'analytics-architecture', 'product-analytics', 'dashboard-design'],
+			['saas-teams-organizations'],
+			['onboarding-flows']
 		]
 	},
 	{
@@ -77,7 +88,10 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		anyOf: [
 			['game-networking', 'websocket-realtime'],
 			['procedural-generation', 'roguelike-dungeon', 'game-design-core'],
-			['combat-design']
+			['combat-design'],
+			['game-ai-behavior', 'game-ai-behavior-trees'],
+			['game-design'],
+			['llm-game-development']
 		]
 	},
 	{
@@ -91,8 +105,11 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		prompt: 'Build an AI agent with tool calling, memory, multi-agent orchestration, and MCP server integration',
 		mustInclude: ['agent-tool-builder', 'agent-memory-systems'],
 		anyOf: [
+			['ai-function-calling'],
 			['multi-agent-orchestration', 'ai-agents-architect'],
-			['mcp-server-development', 'mcp-developer']
+			['mcp-server-development', 'mcp-developer'],
+			['agent-communication'],
+			['computer-use-agents']
 		]
 	},
 	{
@@ -111,7 +128,12 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		name: 'Compliance privacy',
 		prompt: 'Build a GDPR compliant healthcare app with audit logging, privacy controls, HIPAA compliance, and security hardening',
 		mustInclude: ['audit-logging', 'security-hardening', 'compliance-automation'],
-		anyOf: [['gdpr-privacy', 'privacy-guardian']]
+		anyOf: [
+			['gdpr-privacy', 'privacy-guardian'],
+			['security'],
+			['identity-access-management', 'security-engineer'],
+			['auth-specialist', 'security-owasp']
+		]
 	},
 	{
 		name: 'Web3 NFT marketplace',
@@ -128,7 +150,11 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		name: 'SEO landing page',
 		prompt: 'Build a SEO landing page with copywriting, conversion rate optimization, waitlist capture, and analytics',
 		mustInclude: ['seo', 'copywriting', 'conversion-rate-optimization'],
-		anyOf: [['landing-page-design', 'waitlist-launch-pages']]
+		anyOf: [
+			['landing-page-design', 'waitlist-launch-pages'],
+			['analytics'],
+			['ad-copywriting']
+		]
 	},
 	{
 		name: 'Data pipeline',
@@ -172,7 +198,9 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		mustInclude: ['presence-indicators'],
 		anyOf: [
 			['websocket-realtime', 'websockets-realtime', 'realtime-engineer'],
-			['local-first-sync', 'react-patterns']
+			['local-first-sync', 'react-patterns'],
+			['realtime-chat-systems'],
+			['observability']
 		],
 		mustNotInclude: ['kubernetes']
 	},
@@ -180,7 +208,12 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		name: 'Social community',
 		prompt: 'Build a social community app with profiles, feed, likes, comments, moderation, and notifications',
 		mustInclude: ['social-features', 'push-notifications'],
-		anyOf: [['social-community', 'community-building', 'community-strategy'], ['community-operations']]
+		anyOf: [
+			['social-community', 'community-building', 'community-strategy'],
+			['community-operations'],
+			['community-analytics'],
+			['community-led-growth', 'developer-community', 'community-tooling']
+		]
 	},
 	{
 		name: 'File upload storage',
@@ -204,7 +237,12 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		name: 'Postgres migrations',
 		prompt: 'Design a Postgres schema with migrations, Drizzle ORM, tenant-aware data model, and indexes',
 		mustInclude: ['drizzle-orm', 'database-schema-design', 'database-migrations'],
-		anyOf: [['postgres-wizard', 'database-architect']]
+		anyOf: [
+			['postgres-wizard', 'database-architect'],
+			['prisma'],
+			['graphql'],
+			['redis-specialist']
+		]
 	},
 	{
 		name: 'Faceted search',

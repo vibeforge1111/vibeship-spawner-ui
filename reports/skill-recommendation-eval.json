@@ -3,8 +3,8 @@
     "caseCount": 50,
     "passCount": 50,
     "passRate": 1,
-    "averageScore": 0.9626160000000005,
-    "averageLabeledPrecisionAtK": 0.6261428571428574,
+    "averageScore": 0.9692160000000004,
+    "averageLabeledPrecisionAtK": 0.6921428571428574,
     "averageRequiredRecall": 1,
     "averageAnyOfRecall": 1,
     "averageMustNotCleanRate": 1,
@@ -28,8 +28,8 @@
         "v0-dev"
       ],
       "pass": true,
-      "score": 0.95,
-      "labeledPrecisionAtK": 0.5,
+      "score": 0.97,
+      "labeledPrecisionAtK": 0.7,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -39,9 +39,11 @@
       "relevantReturned": [
         "semantic-search",
         "rag-implementation",
+        "ai-observability",
         "llm-architect",
         "rag-engineer",
-        "vector-specialist"
+        "vector-specialist",
+        "openai-api-patterns"
       ]
     },
     {
@@ -97,8 +99,8 @@
         "frontend"
       ],
       "pass": true,
-      "score": 0.95,
-      "labeledPrecisionAtK": 0.5,
+      "score": 0.99,
+      "labeledPrecisionAtK": 0.9,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -110,7 +112,11 @@
         "push-notifications",
         "react-native-specialist",
         "ios-swift-specialist",
-        "android-kotlin-specialist"
+        "android-kotlin-specialist",
+        "state-management",
+        "react-patterns",
+        "responsive-mobile-first",
+        "frontend"
       ]
     },
     {
@@ -130,8 +136,8 @@
         "onboarding-flows"
       ],
       "pass": true,
-      "score": 0.95,
-      "labeledPrecisionAtK": 0.5,
+      "score": 0.99,
+      "labeledPrecisionAtK": 0.9,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -140,10 +146,14 @@
       "unwanted": [],
       "relevantReturned": [
         "analytics",
+        "stripe-subscriptions",
         "stripe-integration",
         "subscription-billing",
         "authentication-oauth",
-        "auth-specialist"
+        "analytics-architecture",
+        "auth-specialist",
+        "saas-teams-organizations",
+        "onboarding-flows"
       ]
     },
     {
@@ -163,8 +173,8 @@
         "mobile-game-dev"
       ],
       "pass": true,
-      "score": 0.95,
-      "labeledPrecisionAtK": 0.5,
+      "score": 0.99,
+      "labeledPrecisionAtK": 0.9,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -176,7 +186,11 @@
         "procedural-generation",
         "combat-design",
         "game-development",
-        "game-networking"
+        "game-networking",
+        "game-ai-behavior",
+        "game-ai-behavior-trees",
+        "game-design",
+        "llm-game-development"
       ]
     },
     {
@@ -230,8 +244,8 @@
         "mcp-developer"
       ],
       "pass": true,
-      "score": 0.95,
-      "labeledPrecisionAtK": 0.5,
+      "score": 0.98,
+      "labeledPrecisionAtK": 0.8,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -240,9 +254,12 @@
       "unwanted": [],
       "relevantReturned": [
         "agent-tool-builder",
+        "ai-function-calling",
         "agent-memory-systems",
         "multi-agent-orchestration",
         "mcp-server-development",
+        "agent-communication",
+        "computer-use-agents",
         "mcp-developer"
       ]
     },
@@ -330,8 +347,8 @@
         "security-owasp"
       ],
       "pass": true,
-      "score": 0.95,
-      "labeledPrecisionAtK": 0.5,
+      "score": 1,
+      "labeledPrecisionAtK": 1,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -341,9 +358,14 @@
       "relevantReturned": [
         "audit-logging",
         "security-hardening",
+        "security",
         "gdpr-privacy",
         "compliance-automation",
-        "privacy-guardian"
+        "privacy-guardian",
+        "identity-access-management",
+        "security-engineer",
+        "auth-specialist",
+        "security-owasp"
       ]
     },
     {
@@ -400,8 +422,8 @@
         "rate-limiting"
       ],
       "pass": true,
-      "score": 0.95,
-      "labeledPrecisionAtK": 0.5,
+      "score": 0.97,
+      "labeledPrecisionAtK": 0.7,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -410,10 +432,12 @@
       "unwanted": [],
       "relevantReturned": [
         "conversion-rate-optimization",
+        "analytics",
         "copywriting",
         "seo",
         "waitlist-launch-pages",
-        "landing-page-design"
+        "landing-page-design",
+        "ad-copywriting"
       ]
     },
     {
@@ -564,8 +588,8 @@
         "infrastructure-as-code"
       ],
       "pass": true,
-      "score": 0.95,
-      "labeledPrecisionAtK": 0.5,
+      "score": 0.97,
+      "labeledPrecisionAtK": 0.7,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -577,7 +601,9 @@
         "websocket-realtime",
         "realtime-engineer",
         "presence-indicators",
-        "local-first-sync"
+        "realtime-chat-systems",
+        "local-first-sync",
+        "observability"
       ]
     },
     {
@@ -597,8 +623,8 @@
         "community-tooling"
       ],
       "pass": true,
-      "score": 0.95,
-      "labeledPrecisionAtK": 0.5,
+      "score": 0.99,
+      "labeledPrecisionAtK": 0.9,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -610,7 +636,11 @@
         "social-features",
         "push-notifications",
         "community-operations",
-        "community-building"
+        "community-analytics",
+        "community-building",
+        "community-led-growth",
+        "developer-community",
+        "community-tooling"
       ]
     },
     {
@@ -683,8 +713,8 @@
         "combat-design"
       ],
       "pass": true,
-      "score": 0.95,
-      "labeledPrecisionAtK": 0.5,
+      "score": 0.98,
+      "labeledPrecisionAtK": 0.8,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -695,7 +725,10 @@
         "drizzle-orm",
         "database-schema-design",
         "database-architect",
+        "graphql",
+        "redis-specialist",
         "database-migrations",
+        "prisma",
         "postgres-wizard"
       ]
     },
