@@ -62,21 +62,21 @@
 	});
 </script>
 
-<div class="flex-1 flex flex-col min-h-0 border-t border-surface-border">
-	<div class="flex items-center justify-between px-4 py-3 bg-bg-secondary border-b border-surface-border sticky top-0 z-10">
+<div class="shrink-0 border-t border-surface-border bg-bg-primary/40">
+	<div class="sticky top-0 z-10 flex items-center justify-between border-b border-surface-border bg-bg-secondary px-4 py-3">
 		<div class="flex items-center gap-2">
 			<svg class="w-4 h-4 text-text-tertiary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
 			</svg>
-			<span class="text-xs font-mono text-text-secondary uppercase tracking-[0.16em]">Trace Log</span>
+			<span class="text-xs font-mono text-text-secondary uppercase tracking-[0.14em]">Execution Log</span>
 			{#if logs.length > 0}
-				<span class="rounded border border-surface-border bg-bg-primary px-1.5 py-0.5 text-xs font-mono text-text-tertiary">{logs.length}</span>
+				<span class="rounded-md border border-surface-border bg-bg-primary px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-text-tertiary">{logs.length}</span>
 			{/if}
 		</div>
 		{#if logs.length > 0}
 			<button
 				onclick={copyAllLogs}
-				class="inline-flex items-center gap-1 rounded-md border border-surface-border px-2 py-1 text-xs text-text-tertiary transition-all hover:border-vibe-teal/50 hover:text-text-secondary"
+				class="inline-flex items-center gap-1.5 rounded-md border border-surface-border bg-bg-primary px-2.5 py-1.5 text-xs font-medium text-text-tertiary transition-all hover:border-vibe-teal/50 hover:text-text-secondary"
 			>
 				<Icon name="copy" size={13} class="shrink-0" />
 				Copy
@@ -84,7 +84,7 @@
 		{/if}
 	</div>
 
-	<div bind:this={logsContainer} class="flex-1 overflow-y-auto bg-bg-primary p-3 font-mono text-sm select-text">
+	<div bind:this={logsContainer} class="max-h-72 min-h-36 overflow-y-auto bg-bg-primary px-3 py-3 text-sm select-text">
 		{#if logs.length === 0}
 			<div class="flex flex-col items-center justify-center h-full py-8 text-text-tertiary">
 				{#if isRunning}
@@ -101,18 +101,21 @@
 				{/if}
 			</div>
 		{:else}
-			<div class="space-y-0.5">
+			<div class="space-y-1">
 				{#each logs as log}
-					<div class="group -mx-2 grid cursor-text grid-cols-[72px_8px_minmax(0,1fr)_20px] items-start gap-3 px-2 py-1.5 text-text-secondary transition-colors hover:bg-vibe-teal/5">
-						<span class="select-text text-xs tabular-nums text-text-tertiary">
+					<div class="group grid cursor-text grid-cols-[74px_8px_minmax(0,1fr)_28px] items-start gap-3 rounded-md border border-transparent px-2.5 py-2 text-text-secondary transition-colors hover:border-surface-border hover:bg-bg-secondary/70">
+						<span class="select-text pt-0.5 font-mono text-[11px] tabular-nums leading-5 text-text-tertiary">
 							{formatTime(log.created_at)}
 						</span>
-						<span class="mt-1.5 h-1.5 w-1.5 rounded-full {getLogDotClass(log.type)}"></span>
-						<span class="select-text break-words leading-relaxed">{formatLogMessage(log.message)}</span>
+						<span class="mt-2 h-1.5 w-1.5 rounded-full {getLogDotClass(log.type)}"></span>
+						<span class="select-text break-words font-sans text-sm leading-5 text-text-secondary">
+							{formatLogMessage(log.message)}
+						</span>
 						<button
 							onclick={() => copyLogMessage(log.message)}
-							class="rounded p-1 text-xs text-text-tertiary opacity-0 transition-all hover:bg-bg-secondary hover:text-vibe-teal group-hover:opacity-100"
+							class="rounded-md p-1.5 text-xs text-text-tertiary opacity-0 transition-all hover:bg-bg-primary hover:text-vibe-teal group-hover:opacity-100"
 							title="Copy this log"
+							aria-label="Copy this log"
 						>
 							<Icon name="copy" size={13} class="shrink-0" />
 						</button>
