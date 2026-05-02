@@ -1436,8 +1436,8 @@
 			<div class="border-t border-surface-border bg-bg-tertiary px-4 py-3">
 				<div class="space-y-2">
 					{#if activeMissionId}
-						<div class="rounded-md border border-surface-border bg-bg-secondary/80 px-3 py-2 font-mono text-xs text-text-secondary">
-							<div class="flex min-w-0 items-center gap-2 justify-end">
+						<div class="flex justify-end">
+							<div class="inline-flex max-w-full items-center gap-2 rounded-md border border-surface-border bg-bg-secondary/80 px-3 py-2 font-mono text-xs text-text-secondary">
 								<span class="shrink-0 text-text-tertiary">ID</span>
 								<code class="min-w-0 truncate font-mono text-accent-primary select-all">{activeMissionId}</code>
 							</div>

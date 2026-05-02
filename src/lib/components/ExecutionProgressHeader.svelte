@@ -120,7 +120,7 @@
 				</span>
 			</div>
 		</div>
-		<div class="min-w-28 justify-self-start rounded-md border border-surface-border bg-bg-secondary px-4 py-3 text-right sm:justify-self-end">
+		<div class="flex min-h-24 min-w-28 items-center justify-center justify-self-start rounded-md border border-surface-border bg-bg-secondary px-5 py-4 text-center sm:justify-self-end">
 			<div class="text-2xl font-semibold leading-none tabular-nums text-text-primary">
 				{executionProgress.progress}<span class="ml-0.5 text-sm font-medium text-text-tertiary">%</span>
 			</div>
@@ -337,31 +337,35 @@
 {/if}
 
 {#if executionProgress.loadedSkills && executionProgress.loadedSkills.length > 0}
-	<div class="mt-2 flex items-center gap-2 px-1 font-mono text-[10px] uppercase tracking-[0.14em] text-text-tertiary">
+	<div class="mt-5 flex items-center gap-2 px-1 font-mono text-[10px] uppercase tracking-[0.14em] text-text-tertiary">
 		<span>Skill at work</span>
 	</div>
-	<div class="mt-1 flex items-center gap-3 px-3 py-2 bg-indigo-500/10 border border-indigo-500/30">
-		<div class="relative">
+	<div class="mt-2 flex items-center gap-4 rounded-md border border-indigo-500/35 bg-indigo-500/10 px-4 py-3 shadow-[0_18px_48px_rgba(99,102,241,0.08)]">
+		<div class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-indigo-400/30 bg-indigo-400/10">
 			{#if currentTaskSkills.length > 0}
-				<svg class="w-5 h-5 text-indigo-400 animate-[hammer_0.4s_ease-in-out_infinite]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<svg class="w-5 h-5 text-indigo-300 animate-[hammer_0.4s_ease-in-out_infinite]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
 				</svg>
-				<span class="absolute -top-0.5 -right-0.5 w-1 h-1 bg-amber-400 animate-ping"></span>
-				<span class="absolute -bottom-0.5 -left-0.5 w-1 h-1 bg-indigo-300 animate-ping" style="animation-delay: 0.2s"></span>
+				<span class="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-300 animate-ping"></span>
+				<span class="absolute bottom-1 left-1 h-1.5 w-1.5 rounded-full bg-indigo-200 animate-ping" style="animation-delay: 0.2s"></span>
 			{:else}
 				<svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
 				</svg>
 			{/if}
 		</div>
-		<div class="flex-1 flex items-center gap-2">
+		<div class="min-w-0 flex-1">
 			{#if currentTaskSkills.length > 0}
-				<span class="text-xs font-mono text-indigo-200 font-medium">{currentTaskSkills[0].name}</span>
-				<span class="text-xs text-indigo-400/60">working...</span>
+				<div class="truncate text-sm font-semibold text-indigo-100">{currentTaskSkills[0].name}</div>
+				<div class="mt-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-indigo-300/75">working now</div>
 			{:else}
-				<span class="text-xs font-mono text-indigo-400">{executionProgress.loadedSkills.length} skills loaded</span>
+				<div class="truncate text-sm font-semibold text-indigo-200">Skills loaded</div>
+				<div class="mt-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-indigo-300/75">waiting for active task</div>
 			{/if}
 		</div>
-		<span class="px-2 py-0.5 bg-indigo-500/30 text-xs font-mono text-indigo-300">{executionProgress.loadedSkills.length}</span>
+		<div class="shrink-0 rounded-md border border-indigo-400/30 bg-indigo-500/20 px-2.5 py-1 text-center">
+			<div class="text-sm font-semibold tabular-nums text-indigo-100">{executionProgress.loadedSkills.length}</div>
+			<div class="mt-0.5 font-mono text-[8.5px] uppercase tracking-[0.08em] text-indigo-300">skills</div>
+		</div>
 	</div>
 {/if}
