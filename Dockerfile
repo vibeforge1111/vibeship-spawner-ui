@@ -14,7 +14,6 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 COPY --from=build /app/build ./build
 COPY --from=build /app/static ./static
-RUN mkdir -p /data/spawner /data/workspaces && chown -R node:node /app /data
-USER node
+RUN mkdir -p /data/spawner /data/workspaces
 EXPOSE 3000
 CMD ["npm", "start"]
