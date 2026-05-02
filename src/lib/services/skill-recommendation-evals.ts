@@ -39,7 +39,12 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		name: 'AI art consistency',
 		prompt: 'Create a consistent AI art series with the same character, visual style, image generation, and shot continuity',
 		mustInclude: ['art-consistency', 'ai-image-generation', 'ai-video-generation'],
-		anyOf: [['character-design', 'concept-art'], ['ai-creative-director']],
+		anyOf: [
+			['character-design', 'concept-art'],
+			['ai-creative-director'],
+			['ai-game-art-generation'],
+			['prompt-engineering-creative']
+		],
 		mustNotInclude: ['rate-limiting', 'digital-product-delivery']
 	},
 	{
@@ -434,7 +439,9 @@ export const CHALLENGE_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		anyOf: [
 			['productivity-ai-tools'],
 			['resend-email', 'email-deliverability', 'email-systems'],
-			['stripe-integration', 'stripe-subscriptions']
+			['stripe-integration', 'stripe-subscriptions'],
+			['push-notifications'],
+			['lemonsqueezy-payments']
 		],
 		mustNotInclude: ['nft-engineer', 'smart-contract-engineer']
 	},
@@ -443,7 +450,12 @@ export const CHALLENGE_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		suite: 'challenge',
 		prompt: 'Generate invoices and PDF receipts after checkout, email them to customers, and store them for account history',
 		mustInclude: ['document-ai'],
-		anyOf: [['stripe-integration'], ['resend-email', 'email-deliverability', 'email-systems']],
+		anyOf: [
+			['stripe-integration'],
+			['resend-email', 'email-deliverability', 'email-systems'],
+			['ecommerce-cart-checkout'],
+			['digital-product-delivery']
+		],
 		mustNotInclude: ['nft-engineer']
 	},
 	{
@@ -475,7 +487,14 @@ export const CHALLENGE_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		suite: 'challenge',
 		prompt: 'Create a customer support ticket inbox with assignment, status filters, email replies, internal notes, SLA alerts, and analytics',
 		mustInclude: ['customer-support', 'email-systems', 'analytics'],
-		anyOf: [['tanstack-table'], ['push-notifications']],
+		anyOf: [
+			['tanstack-table'],
+			['push-notifications'],
+			['resend-email'],
+			['customer-success'],
+			['team-communications'],
+			['analytics-architecture']
+		],
 		mustNotInclude: ['nft-engineer']
 	},
 	{
@@ -483,8 +502,12 @@ export const CHALLENGE_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		suite: 'challenge',
 		prompt: 'Build AI meeting notes from audio recordings with transcription, speaker summaries, action items, search, and export',
 		mustInclude: ['voice-ai-development', 'structured-output'],
-		anyOf: [['semantic-search'], ['productivity-ai-tools', 'document-ai']],
-		mustNotInclude: ['smart-contract-engineer']
+		anyOf: [
+			['semantic-search'],
+			['productivity-ai-tools', 'document-ai'],
+			['search-implementation', 'algolia-search']
+		],
+		mustNotInclude: ['smart-contract-engineer', 'neural-architecture-search']
 	}
 ];
 

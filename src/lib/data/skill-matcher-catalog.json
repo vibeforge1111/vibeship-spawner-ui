@@ -942,9 +942,14 @@
         "search implementation",
         "map search",
         "local business directory",
-        "search filters"
+        "search filters",
+        "meeting notes",
+        "audio recordings",
+        "speaker summaries",
+        "action items",
+        "search and export"
       ],
-      "penalty": 36
+      "penalty": 72
     }
   },
   "nlp-advanced": {

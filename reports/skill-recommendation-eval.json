@@ -3,8 +3,8 @@
     "caseCount": 50,
     "passCount": 50,
     "passRate": 1,
-    "averageScore": 0.9622160000000004,
-    "averageLabeledPrecisionAtK": 0.6221428571428574,
+    "averageScore": 0.9626160000000005,
+    "averageLabeledPrecisionAtK": 0.6261428571428574,
     "averageRequiredRecall": 1,
     "averageAnyOfRecall": 1,
     "averageMustNotCleanRate": 1,
@@ -61,8 +61,8 @@
         "ui-design"
       ],
       "pass": true,
-      "score": 0.96,
-      "labeledPrecisionAtK": 0.6,
+      "score": 0.98,
+      "labeledPrecisionAtK": 0.8,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -71,11 +71,13 @@
       "unwanted": [],
       "relevantReturned": [
         "art-consistency",
+        "ai-game-art-generation",
         "character-design",
         "concept-art",
         "ai-creative-director",
         "ai-image-generation",
-        "ai-video-generation"
+        "ai-video-generation",
+        "prompt-engineering-creative"
       ]
     },
     {
