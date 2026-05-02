@@ -2837,7 +2837,16 @@
       "security token architecture and erc-3643"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "penalty": 48,
+      "negative_terms": [
+        "token expiry",
+        "reset password",
+        "forgot password",
+        "password reset",
+        "session security"
+      ]
+    }
   },
   {
     "id": "smart-contract-auditor",
@@ -2917,7 +2926,16 @@
       "token"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "penalty": 48,
+      "negative_terms": [
+        "token expiry",
+        "reset password",
+        "forgot password",
+        "password reset",
+        "session security"
+      ]
+    }
   },
   {
     "id": "web3-gaming",
@@ -3848,7 +3866,15 @@
       "generation"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "penalty": 36,
+      "negative_terms": [
+        "file upload",
+        "image gallery upload",
+        "signed urls",
+        "upload validation"
+      ]
+    }
   },
   {
     "id": "board-game-design",
@@ -4318,7 +4344,16 @@
       "ownership"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "penalty": 36,
+      "negative_terms": [
+        "data table",
+        "filterable data table",
+        "searchable sortable",
+        "csv export",
+        "saved views"
+      ]
+    }
   },
   {
     "id": "data-pipeline",
@@ -4338,7 +4373,16 @@
       "dagster"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "penalty": 36,
+      "negative_terms": [
+        "data table",
+        "filterable data table",
+        "searchable sortable",
+        "csv export",
+        "saved views"
+      ]
+    }
   },
   {
     "id": "data-reproducibility",
@@ -4378,7 +4422,16 @@
       "drizzle migrate"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "penalty": 36,
+      "negative_terms": [
+        "preview table",
+        "data table",
+        "searchable sortable",
+        "saved views",
+        "bulk actions"
+      ]
+    }
   },
   {
     "id": "database-schema-design",
@@ -7080,7 +7133,15 @@
         "expo mobile app",
         "expo app",
         "app store deployment"
-      ]
+      ],
+      "negative_terms": [
+        "local business directory",
+        "map search",
+        "mobile responsive cards",
+        "responsive cards",
+        "saved places"
+      ],
+      "penalty": 42
     }
   },
   {
@@ -7332,7 +7393,15 @@
       "boost_terms": [
         "react native app",
         "native mobile app"
-      ]
+      ],
+      "negative_terms": [
+        "local business directory",
+        "map search",
+        "mobile responsive cards",
+        "responsive cards",
+        "saved places"
+      ],
+      "penalty": 42
     }
   },
   {
@@ -7782,7 +7851,18 @@
       "sound effect design and implementation"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "penalty": 36,
+      "negative_terms": [
+        "meeting notes",
+        "transcription",
+        "audio recordings",
+        "speaker summaries",
+        "procedural dungeons",
+        "inventory",
+        "online sync"
+      ]
+    }
   },
   {
     "id": "game-design-core",
@@ -7854,7 +7934,16 @@
       "monetization model selection and design"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "penalty": 36,
+      "negative_terms": [
+        "procedural dungeons",
+        "combat",
+        "inventory",
+        "online sync",
+        "roguelike"
+      ]
+    }
   },
   {
     "id": "game-networking",

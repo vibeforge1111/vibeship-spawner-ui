@@ -7821,7 +7821,16 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "penalty": 48,
+      "negative_terms": [
+        "token expiry",
+        "reset password",
+        "forgot password",
+        "password reset",
+        "session security"
+      ]
+    }
   },
   "smart-contract-auditor": {
     "id": "smart-contract-auditor",
@@ -8224,7 +8233,16 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "penalty": 48,
+      "negative_terms": [
+        "token expiry",
+        "reset password",
+        "forgot password",
+        "password reset",
+        "session security"
+      ]
+    }
   },
   "web3-gaming": {
     "id": "web3-gaming",
@@ -10577,7 +10595,15 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "penalty": 36,
+      "negative_terms": [
+        "file upload",
+        "image gallery upload",
+        "signed urls",
+        "upload validation"
+      ]
+    }
   },
   "board-game-design": {
     "id": "board-game-design",
@@ -11698,7 +11724,16 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "penalty": 36,
+      "negative_terms": [
+        "data table",
+        "filterable data table",
+        "searchable sortable",
+        "csv export",
+        "saved views"
+      ]
+    }
   },
   "data-pipeline": {
     "id": "data-pipeline",
@@ -11794,7 +11829,16 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "penalty": 36,
+      "negative_terms": [
+        "data table",
+        "filterable data table",
+        "searchable sortable",
+        "csv export",
+        "saved views"
+      ]
+    }
   },
   "data-reproducibility": {
     "id": "data-reproducibility",
@@ -11889,7 +11933,16 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "penalty": 36,
+      "negative_terms": [
+        "preview table",
+        "data table",
+        "searchable sortable",
+        "saved views",
+        "bulk actions"
+      ]
+    }
   },
   "database-schema-design": {
     "id": "database-schema-design",
@@ -19433,7 +19486,15 @@
         "expo mobile app",
         "expo app",
         "app store deployment"
-      ]
+      ],
+      "negative_terms": [
+        "local business directory",
+        "map search",
+        "mobile responsive cards",
+        "responsive cards",
+        "saved places"
+      ],
+      "penalty": 42
     }
   },
   "forms-validation": {
@@ -20118,7 +20179,15 @@
       "boost_terms": [
         "react native app",
         "native mobile app"
-      ]
+      ],
+      "negative_terms": [
+        "local business directory",
+        "map search",
+        "mobile responsive cards",
+        "responsive cards",
+        "saved places"
+      ],
+      "penalty": 42
     }
   },
   "react-patterns": {
@@ -21251,7 +21320,18 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "penalty": 36,
+      "negative_terms": [
+        "meeting notes",
+        "transcription",
+        "audio recordings",
+        "speaker summaries",
+        "procedural dungeons",
+        "inventory",
+        "online sync"
+      ]
+    }
   },
   "game-design-core": {
     "id": "game-design-core",
@@ -21478,7 +21558,16 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "penalty": 36,
+      "negative_terms": [
+        "procedural dungeons",
+        "combat",
+        "inventory",
+        "online sync",
+        "roguelike"
+      ]
+    }
   },
   "game-networking": {
     "id": "game-networking",

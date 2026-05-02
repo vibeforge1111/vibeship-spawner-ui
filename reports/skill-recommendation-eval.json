@@ -3,8 +3,8 @@
     "caseCount": 50,
     "passCount": 50,
     "passRate": 1,
-    "averageScore": 0.9555740000000001,
-    "averageLabeledPrecisionAtK": 0.5557142857142859,
+    "averageScore": 0.9580160000000003,
+    "averageLabeledPrecisionAtK": 0.5801428571428573,
     "averageRequiredRecall": 1,
     "averageAnyOfRecall": 1,
     "averageMustNotCleanRate": 1,
@@ -61,8 +61,8 @@
         "ui-design"
       ],
       "pass": true,
-      "score": 0.93,
-      "labeledPrecisionAtK": 0.3,
+      "score": 0.96,
+      "labeledPrecisionAtK": 0.6,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -71,6 +71,9 @@
       "unwanted": [],
       "relevantReturned": [
         "art-consistency",
+        "character-design",
+        "concept-art",
+        "ai-creative-director",
         "ai-image-generation",
         "ai-video-generation"
       ]
@@ -92,8 +95,8 @@
         "frontend"
       ],
       "pass": true,
-      "score": 0.94,
-      "labeledPrecisionAtK": 0.4,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -102,6 +105,7 @@
       "unwanted": [],
       "relevantReturned": [
         "expo",
+        "push-notifications",
         "react-native-specialist",
         "ios-swift-specialist",
         "android-kotlin-specialist"
@@ -152,13 +156,13 @@
         "game-networking",
         "game-ai-behavior",
         "game-ai-behavior-trees",
-        "game-audio",
         "game-design",
-        "game-monetization"
+        "llm-game-development",
+        "mobile-game-dev"
       ],
       "pass": true,
-      "score": 0.94,
-      "labeledPrecisionAtK": 0.4,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -168,6 +172,7 @@
       "relevantReturned": [
         "game-design-core",
         "procedural-generation",
+        "combat-design",
         "game-development",
         "game-networking"
       ]
@@ -189,8 +194,8 @@
         "klaviyo-ecommerce"
       ],
       "pass": true,
-      "score": 0.94,
-      "labeledPrecisionAtK": 0.4,
+      "score": 0.96,
+      "labeledPrecisionAtK": 0.6,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -199,8 +204,10 @@
       "unwanted": [],
       "relevantReturned": [
         "digital-product-delivery",
+        "analytics",
         "ecommerce-cart-checkout",
         "stripe-integration",
+        "email-systems",
         "resend-email"
       ]
     },
@@ -572,8 +579,8 @@
         "community-tooling"
       ],
       "pass": true,
-      "score": 0.94,
-      "labeledPrecisionAtK": 0.4,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -584,6 +591,7 @@
         "social-community",
         "social-features",
         "push-notifications",
+        "community-operations",
         "community-building"
       ]
     },
@@ -595,14 +603,11 @@
         "file-uploads",
         "image-optimization-cdn",
         "forms-validation",
-        "ai-game-art-generation",
-        "3d-modeling",
-        "concept-art",
         "docker"
       ],
       "pass": true,
-      "score": 0.9429,
-      "labeledPrecisionAtK": 0.42857142857142855,
+      "score": 0.975,
+      "labeledPrecisionAtK": 0.75,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -1295,8 +1300,8 @@
         "business-model-design"
       ],
       "pass": true,
-      "score": 0.94,
-      "labeledPrecisionAtK": 0.4,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -1306,6 +1311,7 @@
       "relevantReturned": [
         "analytics",
         "onboarding-flows",
+        "player-onboarding",
         "conversion-rate-optimization",
         "experimental-design"
       ]
