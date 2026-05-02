@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Icon from './Icon.svelte';
+	import SkillSearchPalette from './SkillSearchPalette.svelte';
 	import { loadSkills, type Skill } from '$lib/stores/skills.svelte';
 	import { addNode, nodes, type CanvasNode } from '$lib/stores/canvas.svelte';
 
-	let searchQuery = $state('');
 	let expandedCategory = $state<string | null>(null);
 	let allSkillsLoaded = $state(false);
 	let allSkillsList = $state<Skill[]>([]);
@@ -107,17 +107,9 @@
 		trading: 'bar-chart'
 	};
 
-	const filteredSkills = $derived(
-		allSkillsList.filter(
-			(skill) =>
-				skill.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				skill.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-		)
-	);
-
 	const groupedSkills = $derived(() => {
 		const groups: Record<string, Skill[]> = {};
-		for (const skill of filteredSkills) {
+		for (const skill of allSkillsList) {
 			if (!groups[skill.category]) {
 				groups[skill.category] = [];
 			}
@@ -163,17 +155,7 @@
 
 	<!-- Search -->
 	<div class="p-3 border-b border-surface-border">
-		<div class="relative">
-			<div class="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-tertiary">
-				<Icon name="search" size={14} />
-			</div>
-			<input
-				type="text"
-				placeholder="Search skills..."
-				bind:value={searchQuery}
-				class="w-full pl-8 pr-3 py-2 bg-bg-primary border border-surface-border rounded-md text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary"
-			/>
-		</div>
+		<SkillSearchPalette variant="sidebar" onSelect={handleAddToCanvas} />
 	</div>
 
 	<!-- Skills List -->
@@ -246,10 +228,8 @@
 				<div class="animate-spin w-5 h-5 border-2 border-accent-primary/30 border-t-accent-primary rounded-full mx-auto mb-2"></div>
 				<p class="text-text-tertiary text-sm">Loading skills...</p>
 			</div>
-		{:else if filteredSkills.length === 0}
-			<div class="p-4 text-center text-text-tertiary text-sm">
-				{searchQuery ? `No skills match "${searchQuery}"` : 'No skills available'}
-			</div>
+		{:else if allSkillsList.length === 0}
+			<div class="p-4 text-center text-text-tertiary text-sm">No skills available</div>
 		{/if}
 	</div>
 

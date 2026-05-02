@@ -4,7 +4,13 @@
 	import Icon from './Icon.svelte';
 	import { filters, loadSkills, loading, skills, type Skill } from '$lib/stores/skills.svelte';
 
-	let { variant = 'navbar' }: { variant?: 'navbar' | 'sidebar' } = $props();
+	let {
+		variant = 'navbar',
+		onSelect
+	}: {
+		variant?: 'navbar' | 'sidebar';
+		onSelect?: (skill: Skill) => void;
+	} = $props();
 
 	let open = $state(false);
 	let query = $state('');
@@ -14,23 +20,34 @@
 	const normalizedQuery = $derived(query.trim().toLowerCase());
 	const isSidebar = $derived(variant === 'sidebar');
 
-	const results = $derived.by(() => {
+	type SearchResult = {
+		skill: Skill;
+		score: number;
+		reason: string;
+		visibleTags: string[];
+	};
+
+	const searchResults = $derived.by<SearchResult[]>(() => {
 		if (!normalizedQuery) return [];
 
 		return $skills
-			.map((skill) => ({ skill, score: scoreSkill(skill, normalizedQuery) }))
+			.map((skill) => ({
+				skill,
+				score: scoreSkill(skill, normalizedQuery),
+				reason: getMatchReason(skill, normalizedQuery),
+				visibleTags: getVisibleTags(skill, normalizedQuery)
+			}))
 			.filter((result) => result.score > 0)
 			.sort((a, b) => b.score - a.score || a.skill.name.localeCompare(b.skill.name))
-			.slice(0, 9)
-			.map((result) => result.skill);
+			.slice(0, 9);
 	});
 
 	const groupedResults = $derived.by(() => {
-		const groups = new Map<string, Skill[]>();
-		for (const skill of results) {
-			const label = formatCategory(skill.category);
+		const groups = new Map<string, SearchResult[]>();
+		for (const result of searchResults) {
+			const label = formatCategory(result.skill.category);
 			const group = groups.get(label) ?? [];
-			group.push(skill);
+			group.push(result);
 			groups.set(label, group);
 		}
 		return Array.from(groups.entries()).map(([label, items]) => ({ label, items }));
@@ -57,6 +74,28 @@
 		if (tags.some((tag) => tag.includes(value))) return 36;
 		if (description.includes(value)) return 20;
 		return 0;
+	}
+
+	function getMatchReason(skill: Skill, value: string) {
+		const name = skill.name.toLowerCase();
+		const id = skill.id.toLowerCase();
+		const category = skill.category.toLowerCase();
+		const description = skill.description.toLowerCase();
+		const matchingTag = skill.tags.find((tag) => tag.toLowerCase().includes(value));
+
+		if (name === value || id === value) return 'exact skill match';
+		if (name.startsWith(value) || id.startsWith(value)) return 'strong name match';
+		if (name.includes(value) || id.includes(value)) return 'name match';
+		if (matchingTag) return `tag: ${matchingTag}`;
+		if (category.includes(value)) return 'category match';
+		if (description.includes(value)) return 'description match';
+		return 'related skill';
+	}
+
+	function getVisibleTags(skill: Skill, value: string) {
+		const matchingTags = skill.tags.filter((tag) => tag.toLowerCase().includes(value)).slice(0, 2);
+		if (matchingTags.length > 0) return matchingTags;
+		return skill.tags.slice(0, 2);
 	}
 
 	function formatCategory(category: string) {
@@ -90,44 +129,48 @@
 
 	function selectSkill(skill: Skill) {
 		closePalette();
+		if (onSelect) {
+			onSelect(skill);
+			return;
+		}
 		goto(`/skills/${encodeURIComponent(skill.id)}`);
 	}
 
 	function handleGlobalKeydown(event: KeyboardEvent) {
-		if (isSidebar) return;
-
 		const target = event.target as HTMLElement | null;
 		const isTyping =
 			target?.tagName === 'INPUT' ||
 			target?.tagName === 'TEXTAREA' ||
 			target?.isContentEditable;
 
-		if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-			event.preventDefault();
-			void openPalette();
+		if (!open) {
+			if (isSidebar) return;
+
+			if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+				event.preventDefault();
+				void openPalette();
+				return;
+			}
+
+			if (event.key === '/' && !isTyping) {
+				event.preventDefault();
+				void openPalette();
+			}
 			return;
 		}
-
-		if (!open && event.key === '/' && !isTyping) {
-			event.preventDefault();
-			void openPalette();
-			return;
-		}
-
-		if (!open) return;
 
 		if (event.key === 'Escape') {
 			event.preventDefault();
 			closePalette();
 		} else if (event.key === 'ArrowDown') {
 			event.preventDefault();
-			selectedIndex = Math.min(selectedIndex + 1, Math.max(results.length - 1, 0));
+			selectedIndex = Math.min(selectedIndex + 1, Math.max(searchResults.length - 1, 0));
 		} else if (event.key === 'ArrowUp') {
 			event.preventDefault();
 			selectedIndex = Math.max(selectedIndex - 1, 0);
-		} else if (event.key === 'Enter' && results[selectedIndex]) {
+		} else if (event.key === 'Enter' && searchResults[selectedIndex]) {
 			event.preventDefault();
-			selectSkill(results[selectedIndex]);
+			selectSkill(searchResults[selectedIndex].skill);
 		}
 	}
 </script>
@@ -175,7 +218,7 @@
 
 			{#if normalizedQuery}
 				<div class="search-results">
-					{#if results.length === 0}
+					{#if searchResults.length === 0}
 						<div class="search-empty">
 							<Icon name="search" size={18} />
 							<p>No matching skills</p>
@@ -184,23 +227,34 @@
 						{#each groupedResults as group}
 							<section>
 								<p class="search-group-label">{group.label}</p>
-								{#each group.items as skill}
-									{@const flatIndex = results.findIndex((candidate) => candidate.id === skill.id)}
+								{#each group.items as result}
+									{@const flatIndex = searchResults.findIndex((candidate) => candidate.skill.id === result.skill.id)}
 									<button
 										type="button"
 										class="search-result"
 										class:selected={flatIndex === selectedIndex}
 										onmouseenter={() => (selectedIndex = flatIndex)}
-										onclick={() => selectSkill(skill)}
+										onclick={() => selectSkill(result.skill)}
 									>
 										<span class="search-result-icon">
 											<Icon name="layers" size={15} />
 										</span>
 										<span class="search-result-body">
-											<span class="search-result-title">{skill.name}</span>
-											<span class="search-result-desc">{skill.description || skill.id}</span>
+											<span class="search-result-title-row">
+												<span class="search-result-title">{result.skill.name}</span>
+												{#if flatIndex === 0}
+													<span class="search-recommended">recommended</span>
+												{/if}
+											</span>
+											<span class="search-result-desc">{result.skill.description || result.skill.id}</span>
+											<span class="search-result-intel">
+												<span>{result.reason}</span>
+												{#each result.visibleTags as tag}
+													<span>{tag}</span>
+												{/each}
+											</span>
 										</span>
-										<span class="search-result-meta">{skill.tier}</span>
+										<span class="search-result-meta">{formatCategory(result.skill.category)}</span>
 										{#if flatIndex === selectedIndex}
 											<kbd class="search-enter">enter</kbd>
 										{/if}
@@ -464,8 +518,15 @@
 		display: grid;
 		min-width: 0;
 		flex: 1;
-		gap: 2px;
+		gap: 4px;
 		text-align: left;
+	}
+
+	.search-result-title-row {
+		display: flex;
+		min-width: 0;
+		align-items: center;
+		gap: 8px;
 	}
 
 	.search-result-title {
@@ -477,6 +538,20 @@
 		color: var(--text);
 	}
 
+	.search-recommended {
+		flex: 0 0 auto;
+		border: 1px solid rgb(var(--accent-rgb) / 0.32);
+		border-radius: 999px;
+		background: rgb(var(--accent-rgb) / 0.1);
+		padding: 2px 6px;
+		font-family: var(--font-mono, ui-monospace, monospace);
+		font-size: 9px;
+		font-weight: 700;
+		line-height: 1;
+		text-transform: uppercase;
+		color: var(--accent);
+	}
+
 	.search-result-desc {
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -485,8 +560,34 @@
 		color: rgb(var(--text-tertiary-rgb) / 0.72);
 	}
 
+	.search-result-intel {
+		display: flex;
+		min-width: 0;
+		flex-wrap: wrap;
+		gap: 5px;
+	}
+
+	.search-result-intel span {
+		max-width: 150px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		border: 1px solid rgb(var(--border-rgb) / 0.8);
+		border-radius: 999px;
+		background: rgb(var(--bg-rgb) / 0.48);
+		padding: 2px 6px;
+		font-family: var(--font-mono, ui-monospace, monospace);
+		font-size: 9px;
+		line-height: 1.15;
+		color: rgb(var(--text-secondary-rgb) / 0.7);
+	}
+
 	.search-result-meta {
 		flex: 0 0 auto;
+		max-width: 120px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 		border: 1px solid rgb(var(--accent-rgb) / 0.25);
 		border-radius: 5px;
 		padding: 3px 6px;
