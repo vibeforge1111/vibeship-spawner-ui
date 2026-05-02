@@ -201,8 +201,7 @@
 		const completed = summary.completed || executionProgress?.mission?.tasks?.filter((task) => task.status === 'completed').length || 0;
 		return {
 			total,
-			completed,
-			remaining: Math.max(0, total - completed)
+			completed
 		};
 	});
 
@@ -1262,7 +1261,7 @@
 		aria-label="Open workflow execution details"
 	>
 		<div class="flex items-center gap-3">
-			<div class="relative flex h-11 min-w-16 shrink-0 items-center justify-center rounded-md border border-surface-border bg-bg-primary px-2 text-right">
+			<div class="relative flex h-12 min-w-20 shrink-0 items-center justify-center rounded-md border border-surface-border bg-bg-primary px-3 text-right">
 				<span class="text-2xl font-semibold leading-none tabular-nums text-text-primary">
 					{executionProgress?.progress || 0}<span class="ml-0.5 text-sm font-medium text-text-tertiary">%</span>
 				</span>
@@ -1282,16 +1281,13 @@
 							{isPaused ? 'Paused' : 'Live'}
 						</p>
 						{#if minimizedTaskSummary.total > 0}
-							<span class="hidden font-mono text-[10px] text-text-tertiary sm:inline">
+							<span class="hidden font-mono text-xs font-semibold text-text-secondary tabular-nums sm:inline">
 								{minimizedTaskSummary.completed}/{minimizedTaskSummary.total} tasks
-								{#if minimizedTaskSummary.remaining > 0}
-									<span class="text-text-secondary">- {minimizedTaskSummary.remaining} left</span>
-								{/if}
 							</span>
 						{/if}
 					</div>
 					<span class="hidden rounded-md border border-accent-primary/30 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-accent-primary transition-colors group-hover:bg-accent-primary/10 group-hover:text-text-primary sm:inline">
-						Details
+						Execution panel
 					</span>
 				</div>
 				<p class="mt-1 truncate text-sm font-medium text-text-primary">
