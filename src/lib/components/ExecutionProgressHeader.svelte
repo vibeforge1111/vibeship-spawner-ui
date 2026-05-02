@@ -53,20 +53,41 @@
 			status: runtimeAgents.find((agent) => agent.agentId === provider.id)?.status || 'assigned'
 		}));
 	});
+
+	function progressDotClass(status: ExecutionProgress['status']): string {
+		if (status === 'completed') return 'bg-status-success';
+		if (status === 'failed') return 'bg-status-error';
+		if (status === 'partial') return 'bg-status-warning';
+		if (status === 'running' || status === 'creating') return 'bg-sky-400 animate-pulse';
+		if (status === 'paused') return 'bg-blue-400';
+		return 'bg-text-tertiary';
+	}
+
+	function progressTextClass(status: ExecutionProgress['status']): string {
+		if (status === 'completed') return 'text-status-success';
+		if (status === 'failed') return 'text-status-error';
+		if (status === 'partial') return 'text-status-warning';
+		if (status === 'running' || status === 'creating') return 'text-sky-300';
+		if (status === 'paused') return 'text-blue-300';
+		return 'text-text-tertiary';
+	}
 </script>
 
 <div class="rounded-lg border border-surface-border bg-bg-primary/65 p-4">
-	<div class="flex flex-wrap items-start justify-between gap-3">
+	<div class="grid items-start gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
 		<div class="min-w-0">
 			<div class="font-mono text-[10px] uppercase tracking-[0.18em] text-text-tertiary">Mission Trace</div>
 			<div class="mt-1 truncate text-base font-semibold text-text-primary">{missionTitle}</div>
 			<div class="mt-1 truncate text-xs font-mono text-text-tertiary">{activeTaskLabel}</div>
 		</div>
-		<div class="rounded-md border border-accent-primary/25 bg-accent-primary/10 px-3 py-2 text-right">
+		<div class="justify-self-start rounded-md border border-surface-border bg-bg-secondary px-3 py-2 text-right sm:justify-self-end">
 			<div class="text-2xl font-semibold leading-none tabular-nums text-text-primary">
 				{executionProgress.progress}<span class="ml-0.5 text-sm font-medium text-text-tertiary">%</span>
 			</div>
-			<div class="text-[10px] font-mono uppercase tracking-[0.14em] text-accent-primary">{executionProgress.status}</div>
+			<div class="mt-1 flex items-center justify-end gap-1.5">
+				<span class="h-1.5 w-1.5 rounded-full {progressDotClass(executionProgress.status)}"></span>
+				<span class="text-[10px] font-mono uppercase tracking-[0.14em] {progressTextClass(executionProgress.status)}">{executionProgress.status}</span>
+			</div>
 		</div>
 	</div>
 

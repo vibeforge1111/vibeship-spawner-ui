@@ -42,6 +42,14 @@
 	let taskSummary = $derived.by(() => summarizeTaskRows(taskRows));
 	let nextTask = $derived.by(() => getNextTaskRow(taskRows));
 	let taskCompletionLabel = $derived(`${taskSummary.completed}/${taskRows.length} done`);
+
+	function taskDotClass(status: TaskStatusRow['status']): string {
+		if (status === 'completed') return 'bg-status-success';
+		if (status === 'running') return 'bg-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.45)]';
+		if (status === 'failed') return 'bg-status-error';
+		if (status === 'blocked') return 'bg-status-warning';
+		return 'bg-text-tertiary';
+	}
 </script>
 
 {#if taskRows.length > 0}
@@ -59,20 +67,32 @@
 				{/if}
 			</div>
 			<div class="grid grid-cols-2 gap-1.5 text-right sm:grid-cols-4">
-				<div class="min-w-16 rounded-md border border-accent-primary/25 bg-accent-primary/10 px-2.5 py-2 shadow-[0_10px_26px_-22px_rgba(47,202,148,0.75)]">
-					<div class="text-base font-semibold leading-none tabular-nums text-accent-primary">{taskSummary.completed}</div>
-					<div class="mt-1 text-[9px] font-medium uppercase tracking-[0.1em] text-accent-primary/70">Done</div>
+				<div class="min-w-16 rounded-md border border-surface-border bg-bg-primary px-2.5 py-2 transition-colors hover:border-status-success/30">
+					<div class="flex items-center justify-end gap-1.5">
+						<span class="h-1.5 w-1.5 rounded-full bg-status-success"></span>
+						<span class="text-base font-semibold leading-none tabular-nums text-text-primary">{taskSummary.completed}</span>
+					</div>
+					<div class="mt-1 text-[9px] font-medium uppercase tracking-[0.1em] text-status-success/80">Done</div>
 				</div>
-				<div class="min-w-16 rounded-md border border-sky-400/25 bg-sky-400/10 px-2.5 py-2 shadow-[0_10px_26px_-22px_rgba(56,189,248,0.75)]">
-					<div class="text-base font-semibold leading-none tabular-nums text-sky-300">{taskSummary.running}</div>
+				<div class="min-w-16 rounded-md border border-surface-border bg-bg-primary px-2.5 py-2 transition-colors hover:border-sky-400/35">
+					<div class="flex items-center justify-end gap-1.5">
+						<span class="h-1.5 w-1.5 rounded-full bg-sky-400"></span>
+						<span class="text-base font-semibold leading-none tabular-nums text-text-primary">{taskSummary.running}</span>
+					</div>
 					<div class="mt-1 text-[9px] font-medium uppercase tracking-[0.1em] text-sky-300/75">Active</div>
 				</div>
-				<div class="min-w-16 rounded-md border border-amber-400/25 bg-amber-400/10 px-2.5 py-2 shadow-[0_10px_26px_-22px_rgba(251,191,36,0.7)]">
-					<div class="text-base font-semibold leading-none tabular-nums text-amber-300">{taskSummary.pending}</div>
+				<div class="min-w-16 rounded-md border border-surface-border bg-bg-primary px-2.5 py-2 transition-colors hover:border-amber-400/35">
+					<div class="flex items-center justify-end gap-1.5">
+						<span class="h-1.5 w-1.5 rounded-full bg-amber-300"></span>
+						<span class="text-base font-semibold leading-none tabular-nums text-text-primary">{taskSummary.pending}</span>
+					</div>
 					<div class="mt-1 text-[9px] font-medium uppercase tracking-[0.1em] text-amber-300/75">Queued</div>
 				</div>
-				<div class="min-w-16 rounded-md border border-status-error/25 bg-status-error/10 px-2.5 py-2 shadow-[0_10px_26px_-22px_rgba(248,113,113,0.72)]">
-					<div class="text-base font-semibold leading-none tabular-nums text-status-error">{taskSummary.failed}</div>
+				<div class="min-w-16 rounded-md border border-surface-border bg-bg-primary px-2.5 py-2 transition-colors hover:border-status-error/35">
+					<div class="flex items-center justify-end gap-1.5">
+						<span class="h-1.5 w-1.5 rounded-full bg-status-error"></span>
+						<span class="text-base font-semibold leading-none tabular-nums text-text-primary">{taskSummary.failed}</span>
+					</div>
 					<div class="mt-1 text-[9px] font-medium uppercase tracking-[0.1em] text-status-error/75">Failed</div>
 				</div>
 			</div>
@@ -87,6 +107,7 @@
 						<div class="min-w-0 flex-1">
 							<div class="flex items-center gap-2">
 								<span class="w-6 shrink-0 text-[10px] font-mono text-text-tertiary">#{task.index}</span>
+								<span class="h-1.5 w-1.5 shrink-0 rounded-full {taskDotClass(task.status)}"></span>
 								<span class="truncate text-sm font-medium text-text-primary">{task.title}</span>
 							</div>
 							{#if task.message && task.status === 'running'}
@@ -124,18 +145,19 @@
 {/if}
 
 {#if status === 'completed'}
-	<div class="mt-3 p-3 bg-accent-primary/10 border border-accent-primary/30 rounded-lg">
-		<div class="flex items-center gap-2 mb-2">
-			<div class="w-5 h-5 flex items-center justify-center bg-accent-primary/20 border border-accent-primary/50">
-				<svg class="w-3 h-3 text-accent-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="square" stroke-linejoin="miter" stroke-width="3" d="M5 13l4 4L19 7" />
-				</svg>
+	<div class="mt-3 rounded-lg border border-surface-border bg-bg-secondary px-4 py-3">
+		<div class="flex flex-wrap items-center justify-between gap-3">
+			<div class="flex min-w-0 items-center gap-2">
+				<span class="h-2 w-2 shrink-0 rounded-full bg-status-success"></span>
+				<span class="font-sans text-sm font-semibold text-text-primary">Run finished</span>
+				<span class="text-xs text-text-tertiary">
+					{taskSummary.completed} task{taskSummary.completed !== 1 ? 's' : ''} in {executionDuration}
+				</span>
 			</div>
-			<span class="text-accent-primary font-medium font-mono uppercase tracking-wide text-sm">Workflow Completed</span>
+			<span class="rounded-md border border-status-success/25 bg-bg-primary px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-status-success">
+				Ready
+			</span>
 		</div>
-		<p class="text-xs text-text-secondary">
-			Successfully completed {taskSummary.completed} task{taskSummary.completed !== 1 ? 's' : ''} in {executionDuration}.
-		</p>
 	</div>
 {:else if status === 'partial'}
 	<div class="mt-3 p-3 bg-status-warning/10 border border-yellow-500/30">

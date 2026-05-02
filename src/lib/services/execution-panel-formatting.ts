@@ -88,7 +88,7 @@ export function getTransitionBadge(state: TaskTransitionEvent['state']): string 
 export function getTaskRowClass(status: TaskRowStatus): string {
 	switch (status) {
 		case 'completed':
-			return 'border-accent-primary/30 bg-accent-primary/5';
+			return 'border-surface-border bg-bg-primary/80';
 		case 'running':
 			return 'border-sky-400/40 bg-sky-400/10';
 		case 'failed':
@@ -103,7 +103,7 @@ export function getTaskRowClass(status: TaskRowStatus): string {
 export function getTaskBadgeClass(status: TaskRowStatus): string {
 	switch (status) {
 		case 'completed':
-			return 'bg-accent-primary/20 text-accent-primary border-accent-primary/30';
+			return 'bg-bg-secondary text-status-success border-status-success/30';
 		case 'running':
 			return 'bg-sky-400/15 text-sky-300 border-sky-400/30';
 		case 'failed':
