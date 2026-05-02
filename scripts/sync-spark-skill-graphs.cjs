@@ -16,6 +16,9 @@ const SOURCE_DIR = path.resolve(
 		process.env.H70_SKILLS_LAB_DIR ||
 		path.join(os.homedir(), 'Desktop', 'spark-skill-graphs')
 );
+const MANIFEST_PATH = process.env.SPAWNER_SPARK_MANIFEST
+	? path.resolve(process.env.SPAWNER_SPARK_MANIFEST)
+	: path.join(SOURCE_DIR, 'spark-skill-manifest.json');
 const OUTPUT_PATH = path.resolve(__dirname, '..', 'static', 'skills.json');
 
 const NON_SKILL_DIRS = new Set([
@@ -119,7 +122,55 @@ function toSummary({ id, category, parsed }, validIds) {
 	};
 }
 
-function main() {
+function triggersFromManifestSkill(skill) {
+	const triggers = new Set();
+	if (typeof skill.name === 'string') triggers.add(skill.name.toLowerCase());
+	triggers.add(String(skill.id || '').replace(/-/g, ' '));
+	const hints = skill.selection_hints || {};
+	if (Array.isArray(hints.aliases)) {
+		for (const alias of hints.aliases) {
+			if (typeof alias === 'string' && alias.trim()) triggers.add(alias.trim());
+		}
+	}
+	return [...triggers].filter(Boolean).slice(0, 12);
+}
+
+function summaryFromManifestSkill(skill, validIds) {
+	const delegates = Array.isArray(skill.delegates) ? skill.delegates : [];
+	const handoffs = delegates
+		.map((delegate) => ({
+			trigger: String(delegate.when || 'handoff'),
+			to: delegate.target_id || delegate.skill
+		}))
+		.filter((delegate) => validIds.has(delegate.to));
+
+	return {
+		id: skill.id,
+		name: skill.name || skill.id,
+		description: skill.description || '',
+		category: remapCategory(skill.category || 'general'),
+		tier: 'free',
+		layer: 1,
+		tags: termsFrom([...(Array.isArray(skill.owns) ? skill.owns : []), skill.description || '']),
+		triggers: triggersFromManifestSkill(skill),
+		handoffs,
+		pairsWell: [],
+		selectionHints: skill.selection_hints || {}
+	};
+}
+
+function summariesFromManifest(manifest) {
+	if (!manifest || manifest.schema_version !== 'spark.skill.manifest.v1' || !Array.isArray(manifest.skills)) {
+		throw new Error('Invalid Spark skill manifest');
+	}
+	const valid = manifest.skills.filter((skill) => skill?.id && skill?.name && skill?.description);
+	const validIds = new Set(valid.map((skill) => skill.id));
+	return valid
+		.map((skill) => summaryFromManifestSkill(skill, validIds))
+		.sort((a, b) => a.category.localeCompare(b.category) || a.id.localeCompare(b.id));
+}
+
+function summariesFromYamlSource() {
 	const files = collectSkillFiles();
 	const parsed = files.map((file) => ({
 		...file,
@@ -130,10 +181,30 @@ function main() {
 	const summaries = valid
 		.map((skill) => toSummary(skill, validIds))
 		.sort((a, b) => a.category.localeCompare(b.category) || a.id.localeCompare(b.id));
+	return summaries;
+}
+
+function main() {
+	let summaries;
+	if (fs.existsSync(MANIFEST_PATH)) {
+		const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
+		summaries = summariesFromManifest(manifest);
+		console.log(`Synced ${summaries.length} skills from manifest ${MANIFEST_PATH}`);
+	} else {
+		summaries = summariesFromYamlSource();
+		console.log(`Synced ${summaries.length} skills from ${SOURCE_DIR}`);
+	}
 
 	fs.writeFileSync(OUTPUT_PATH, `${JSON.stringify(summaries, null, 2)}\n`);
-	console.log(`Synced ${summaries.length} skills from ${SOURCE_DIR}`);
 	console.log(`Wrote ${OUTPUT_PATH}`);
 }
 
-main();
+if (require.main === module) {
+	main();
+}
+
+module.exports = {
+	summariesFromManifest,
+	summaryFromManifestSkill,
+	triggersFromManifestSkill
+};
