@@ -3,8 +3,8 @@
     "caseCount": 50,
     "passCount": 50,
     "passRate": 1,
-    "averageScore": 0.9558480000000005,
-    "averageLabeledPrecisionAtK": 0.5584761904761907,
+    "averageScore": 0.9555740000000001,
+    "averageLabeledPrecisionAtK": 0.5557142857142859,
     "averageRequiredRecall": 1,
     "averageAnyOfRecall": 1,
     "averageMustNotCleanRate": 1,
@@ -53,12 +53,12 @@
         "ai-game-art-generation",
         "character-design",
         "concept-art",
-        "content-creation",
-        "ai-image-generation",
         "ai-creative-director",
+        "ai-image-generation",
         "ai-video-generation",
         "branding",
-        "prompt-engineering-creative"
+        "prompt-engineering-creative",
+        "ui-design"
       ],
       "pass": true,
       "score": 0.93,
@@ -116,8 +116,8 @@
         "stripe-subscriptions",
         "stripe-integration",
         "subscription-billing",
-        "analytics-architecture",
         "authentication-oauth",
+        "analytics-architecture",
         "auth-specialist",
         "saas-teams-organizations",
         "data-engineer",
@@ -146,15 +146,15 @@
       "suite": "golden",
       "ids": [
         "game-design-core",
-        "game-development",
         "procedural-generation",
         "combat-design",
+        "game-development",
         "game-networking",
         "game-ai-behavior",
+        "game-ai-behavior-trees",
         "game-audio",
-        "game-monetization",
-        "llm-game-development",
-        "mobile-game-dev"
+        "game-design",
+        "game-monetization"
       ],
       "pass": true,
       "score": 0.94,
@@ -167,8 +167,8 @@
       "unwanted": [],
       "relevantReturned": [
         "game-design-core",
-        "game-development",
         "procedural-generation",
+        "game-development",
         "game-networking"
       ]
     },
@@ -183,10 +183,10 @@
         "stripe-integration",
         "email-systems",
         "resend-email",
-        "product-analytics-engineering",
-        "data-engineer",
         "document-ai",
-        "lemonsqueezy-payments"
+        "data-engineer",
+        "lemonsqueezy-payments",
+        "klaviyo-ecommerce"
       ],
       "pass": true,
       "score": 0.94,
@@ -318,7 +318,7 @@
         "identity-access-management",
         "security-engineer",
         "auth-specialist",
-        "cybersecurity"
+        "security-owasp"
       ],
       "pass": true,
       "score": 0.95,
@@ -381,9 +381,9 @@
         "waitlist-launch-pages",
         "landing-page-design",
         "data-engineer",
-        "onchain-analytics",
-        "session-recording-analytics",
-        "analytics-architecture"
+        "ad-copywriting",
+        "burn-rate-management",
+        "rate-limiting"
       ],
       "pass": true,
       "score": 0.95,
@@ -410,13 +410,13 @@
         "data-pipeline",
         "analytics",
         "data-engineer",
-        "analytics-architecture",
         "event-architect",
         "infra-architect",
         "migration-specialist",
         "ml-memory",
         "observability-sre",
-        "postgres-wizard"
+        "postgres-wizard",
+        "analytics-architecture"
       ],
       "pass": true,
       "score": 0.94,
@@ -594,17 +594,15 @@
       "ids": [
         "file-uploads",
         "image-optimization-cdn",
-        "docker",
-        "ai-image-generation",
-        "codebase-optimization",
         "forms-validation",
-        "performance-optimization",
-        "content-creation",
-        "ai-game-art-generation"
+        "ai-game-art-generation",
+        "3d-modeling",
+        "concept-art",
+        "docker"
       ],
       "pass": true,
-      "score": 0.9333,
-      "labeledPrecisionAtK": 0.3333333333333333,
+      "score": 0.9429,
+      "labeledPrecisionAtK": 0.42857142857142855,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -962,19 +960,15 @@
       "suite": "golden",
       "ids": [
         "ecommerce-cart-checkout",
-        "resend-email",
         "shopify-store-builder",
+        "resend-email",
         "klaviyo-ecommerce",
-        "digital-product-delivery",
-        "ai-product",
-        "ai-wrapper-product",
-        "email-deliverability",
-        "email-systems",
-        "mcp-product"
+        "shopify-apps",
+        "digital-product-delivery"
       ],
       "pass": true,
-      "score": 0.96,
-      "labeledPrecisionAtK": 0.6,
+      "score": 0.9667,
+      "labeledPrecisionAtK": 0.6666666666666666,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -983,11 +977,9 @@
       "unwanted": [],
       "relevantReturned": [
         "ecommerce-cart-checkout",
-        "resend-email",
         "shopify-store-builder",
-        "klaviyo-ecommerce",
-        "email-deliverability",
-        "email-systems"
+        "resend-email",
+        "klaviyo-ecommerce"
       ]
     },
     {
@@ -1072,16 +1064,16 @@
         "authentication-oauth",
         "auth-specialist",
         "passkeys-webauthn",
+        "session-recording-analytics",
+        "ai-code-security",
+        "api-security",
+        "container-security",
         "cybersecurity",
-        "security-engineer",
-        "security-hardening",
-        "security-owasp",
-        "mcp-security",
-        "session-recording-analytics"
+        "security-engineer"
       ],
       "pass": true,
-      "score": 0.95,
-      "labeledPrecisionAtK": 0.5,
+      "score": 0.94,
+      "labeledPrecisionAtK": 0.4,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -1092,8 +1084,7 @@
         "security",
         "authentication-oauth",
         "auth-specialist",
-        "passkeys-webauthn",
-        "security-hardening"
+        "passkeys-webauthn"
       ]
     },
     {
@@ -1234,16 +1225,16 @@
         "video-streaming-infrastructure",
         "video-embedding-streaming",
         "data-engineer",
-        "analytics-architecture",
-        "ai-content-analytics",
         "ai-video-generation",
-        "community-analytics",
-        "onchain-analytics",
-        "plausible-analytics"
+        "space-data-processing",
+        "video-directing",
+        "video-production",
+        "video-scriptwriting",
+        "webhook-processing"
       ],
       "pass": true,
-      "score": 0.95,
-      "labeledPrecisionAtK": 0.5,
+      "score": 0.94,
+      "labeledPrecisionAtK": 0.4,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -1254,7 +1245,6 @@
         "analytics",
         "video-streaming-infrastructure",
         "video-embedding-streaming",
-        "analytics-architecture",
         "ai-video-generation"
       ]
     },
@@ -1296,17 +1286,17 @@
         "analytics",
         "onboarding-flows",
         "data-engineer",
-        "analytics-architecture",
-        "community-analytics",
         "player-onboarding",
         "conversion-rate-optimization",
         "experimental-design",
-        "product-analytics-engineering",
-        "firebase"
+        "analytics-architecture",
+        "firebase",
+        "board-game-design",
+        "business-model-design"
       ],
       "pass": true,
-      "score": 0.95,
-      "labeledPrecisionAtK": 0.5,
+      "score": 0.94,
+      "labeledPrecisionAtK": 0.4,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -1317,8 +1307,7 @@
         "analytics",
         "onboarding-flows",
         "conversion-rate-optimization",
-        "experimental-design",
-        "product-analytics-engineering"
+        "experimental-design"
       ]
     },
     {

@@ -81,6 +81,23 @@ const CATEGORY_HINTS: Record<string, string[]> = {
 	'security': ['security', 'privacy', 'gdpr', 'oauth', 'auth', 'encryption']
 };
 
+const LOW_SIGNAL_SINGLE_TRIGGERS = new Set([
+	'analytics',
+	'audio',
+	'business',
+	'data',
+	'email',
+	'export',
+	'game',
+	'image',
+	'mobile',
+	'optimization',
+	'product',
+	'security',
+	'success',
+	'web'
+]);
+
 function normalize(value: string): string {
 	return value.toLowerCase().replace(/[^a-z0-9+#.-]+/g, ' ').trim();
 }
@@ -202,6 +219,7 @@ function scoreSkill(skill: SkillDoc, query: string, queryTokens: string[]): Skil
 		if (hasPhrase(normalizedQuery, trigger)) {
 			const triggerTokenCount = tokenize(trigger).length;
 			if (triggerTokenCount === 0) continue;
+			if (triggerTokenCount === 1 && LOW_SIGNAL_SINGLE_TRIGGERS.has(normalize(trigger))) continue;
 			score += triggerTokenCount > 1 ? 42 : 14;
 			reasons.push(`trigger:${trigger}`);
 		}
