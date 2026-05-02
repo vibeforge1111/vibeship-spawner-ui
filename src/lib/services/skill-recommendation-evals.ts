@@ -31,7 +31,7 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		prompt: 'Build a production RAG chatbot with embeddings, vector retrieval, semantic search, citations, and prompt evaluation',
 		mustInclude: ['semantic-search', 'llm-architect'],
 		anyOf: [['rag-engineer', 'rag-implementation', 'vector-specialist']],
-		mustNotInclude: ['nft-engineer', 'streamer-bait-design', 'portfolio-optimization']
+		mustNotInclude: ['nft-engineer', 'streamer-bait-design', 'portfolio-optimization', 'neural-architecture-search']
 	},
 	{
 		name: 'AI art consistency',
@@ -158,7 +158,13 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		name: 'File upload storage',
 		prompt: 'Add file upload with S3-compatible storage, image optimization, signed URLs, and upload validation',
 		mustInclude: ['file-uploads'],
-		anyOf: [['image-optimization-cdn'], ['forms-validation', 'zod-validation']]
+		anyOf: [['image-optimization-cdn'], ['forms-validation', 'zod-validation']],
+		mustNotInclude: [
+			'conversion-rate-optimization',
+			'cloud-cost-optimization',
+			'model-optimization',
+			'portfolio-optimization'
+		]
 	},
 	{
 		name: 'Webhook ingestion',
@@ -247,7 +253,8 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		name: 'Chrome extension task',
 		prompt: 'Create a Chrome extension with content scripts, background service worker, and Playwright tests',
 		mustInclude: ['browser-extension-builder', 'playwright-testing'],
-		anyOf: [['browser-automation']]
+		anyOf: [['browser-automation']],
+		mustNotInclude: ['content-strategy', 'content-creation', 'ai-content-analytics', 'ai-content-qa', 'real-time-content']
 	},
 	{
 		name: 'Passkeys auth',

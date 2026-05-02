@@ -481,7 +481,14 @@
       "quantization"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "file upload",
+        "signed urls",
+        "upload validation"
+      ],
+      "penalty": 36
+    }
   },
   {
     "id": "multimodal-ai",
@@ -521,7 +528,14 @@
       "search space design and constraint definition"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "semantic search",
+        "faceted search",
+        "search implementation"
+      ],
+      "penalty": 36
+    }
   },
   {
     "id": "nlp-advanced",
@@ -3845,7 +3859,14 @@
       "image"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "chrome extension",
+        "content scripts",
+        "background service worker"
+      ],
+      "penalty": 36
+    }
   },
   {
     "id": "cultural-remix",
@@ -5610,7 +5631,14 @@
       "cloud cost analysis and optimization strategy across aws"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "file upload",
+        "image optimization",
+        "signed urls"
+      ],
+      "penalty": 36
+    }
   },
   {
     "id": "devops-engineer",
@@ -6538,7 +6566,14 @@
       "mean-variance optimization with constraints"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "file upload",
+        "image optimization",
+        "semantic search"
+      ],
+      "penalty": 36
+    }
   },
   {
     "id": "risk-modeling",
@@ -9044,7 +9079,14 @@
       "ai-content-performance-tracking"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "chrome extension",
+        "content scripts",
+        "background service worker"
+      ],
+      "penalty": 36
+    }
   },
   {
     "id": "ai-content-qa",
@@ -9064,7 +9106,14 @@
       "quality-checklists"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "chrome extension",
+        "content scripts",
+        "background service worker"
+      ],
+      "penalty": 36
+    }
   },
   {
     "id": "ai-creative-director",
@@ -9304,7 +9353,14 @@
       "content planning and editorial calendars"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "chrome extension",
+        "content scripts",
+        "background service worker"
+      ],
+      "penalty": 36
+    }
   },
   {
     "id": "copywriting",
@@ -9624,7 +9680,14 @@
       "content"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "chrome extension",
+        "content scripts",
+        "background service worker"
+      ],
+      "penalty": 36
+    }
   },
   {
     "id": "seo",
@@ -10959,7 +11022,14 @@
       "optimization"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "file upload",
+        "image optimization",
+        "signed urls"
+      ],
+      "penalty": 36
+    }
   },
   {
     "id": "creative-strategy",

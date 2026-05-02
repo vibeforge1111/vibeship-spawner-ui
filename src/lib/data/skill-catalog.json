@@ -784,7 +784,14 @@
       ],
       "category": "ai",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "negative_terms": [
+          "file upload",
+          "signed urls",
+          "upload validation"
+        ],
+        "penalty": 36
+      }
     },
     {
       "id": "multimodal-ai",
@@ -847,7 +854,14 @@
       ],
       "category": "ai",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "negative_terms": [
+          "semantic search",
+          "faceted search",
+          "search implementation"
+        ],
+        "penalty": 36
+      }
     },
     {
       "id": "nlp-advanced",
@@ -5913,7 +5927,14 @@
       ],
       "category": "creative",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "negative_terms": [
+          "chrome extension",
+          "content scripts",
+          "background service worker"
+        ],
+        "penalty": 36
+      }
     },
     {
       "id": "cultural-remix",
@@ -8574,7 +8595,14 @@
       ],
       "category": "devops",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "negative_terms": [
+          "file upload",
+          "image optimization",
+          "signed urls"
+        ],
+        "penalty": 36
+      }
     },
     {
       "id": "devops-engineer",
@@ -9945,7 +9973,14 @@
       ],
       "category": "finance",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "negative_terms": [
+          "file upload",
+          "image optimization",
+          "semantic search"
+        ],
+        "penalty": 36
+      }
     },
     {
       "id": "risk-modeling",
@@ -13650,7 +13685,14 @@
       ],
       "category": "marketing",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "negative_terms": [
+          "chrome extension",
+          "content scripts",
+          "background service worker"
+        ],
+        "penalty": 36
+      }
     },
     {
       "id": "ai-content-qa",
@@ -13681,7 +13723,14 @@
       ],
       "category": "marketing",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "negative_terms": [
+          "chrome extension",
+          "content scripts",
+          "background service worker"
+        ],
+        "penalty": 36
+      }
     },
     {
       "id": "ai-creative-director",
@@ -14055,7 +14104,14 @@
       ],
       "category": "marketing",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "negative_terms": [
+          "chrome extension",
+          "content scripts",
+          "background service worker"
+        ],
+        "penalty": 36
+      }
     },
     {
       "id": "copywriting",
@@ -14543,7 +14599,14 @@
       ],
       "category": "marketing",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "negative_terms": [
+          "chrome extension",
+          "content scripts",
+          "background service worker"
+        ],
+        "penalty": 36
+      }
     },
     {
       "id": "seo",
@@ -16517,7 +16580,14 @@
       ],
       "category": "strategy",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "negative_terms": [
+          "file upload",
+          "image optimization",
+          "signed urls"
+        ],
+        "penalty": 36
+      }
     },
     {
       "id": "creative-strategy",
@@ -18494,7 +18564,14 @@
         ],
         "category": "ai",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "negative_terms": [
+            "file upload",
+            "signed urls",
+            "upload validation"
+          ],
+          "penalty": 36
+        }
       },
       {
         "id": "multimodal-ai",
@@ -18557,7 +18634,14 @@
         ],
         "category": "ai",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "negative_terms": [
+            "semantic search",
+            "faceted search",
+            "search implementation"
+          ],
+          "penalty": 36
+        }
       },
       {
         "id": "nlp-advanced",
@@ -23641,7 +23725,14 @@
         ],
         "category": "creative",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "negative_terms": [
+            "chrome extension",
+            "content scripts",
+            "background service worker"
+          ],
+          "penalty": 36
+        }
       },
       {
         "id": "cultural-remix",
@@ -26310,7 +26401,14 @@
         ],
         "category": "devops",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "negative_terms": [
+            "file upload",
+            "image optimization",
+            "signed urls"
+          ],
+          "penalty": 36
+        }
       },
       {
         "id": "devops-engineer",
@@ -27691,7 +27789,14 @@
         ],
         "category": "finance",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "negative_terms": [
+            "file upload",
+            "image optimization",
+            "semantic search"
+          ],
+          "penalty": 36
+        }
       },
       {
         "id": "risk-modeling",
@@ -31408,7 +31513,14 @@
         ],
         "category": "marketing",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "negative_terms": [
+            "chrome extension",
+            "content scripts",
+            "background service worker"
+          ],
+          "penalty": 36
+        }
       },
       {
         "id": "ai-content-qa",
@@ -31439,7 +31551,14 @@
         ],
         "category": "marketing",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "negative_terms": [
+            "chrome extension",
+            "content scripts",
+            "background service worker"
+          ],
+          "penalty": 36
+        }
       },
       {
         "id": "ai-creative-director",
@@ -31813,7 +31932,14 @@
         ],
         "category": "marketing",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "negative_terms": [
+            "chrome extension",
+            "content scripts",
+            "background service worker"
+          ],
+          "penalty": 36
+        }
       },
       {
         "id": "copywriting",
@@ -32301,7 +32427,14 @@
         ],
         "category": "marketing",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "negative_terms": [
+            "chrome extension",
+            "content scripts",
+            "background service worker"
+          ],
+          "penalty": 36
+        }
       },
       {
         "id": "seo",
@@ -34291,7 +34424,14 @@
         ],
         "category": "strategy",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "negative_terms": [
+            "file upload",
+            "image optimization",
+            "signed urls"
+          ],
+          "penalty": 36
+        }
       },
       {
         "id": "creative-strategy",

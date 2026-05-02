@@ -1453,7 +1453,14 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "file upload",
+        "signed urls",
+        "upload validation"
+      ],
+      "penalty": 36
+    }
   },
   "multimodal-ai": {
     "id": "multimodal-ai",
@@ -1548,7 +1555,14 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "semantic search",
+        "faceted search",
+        "search implementation"
+      ],
+      "penalty": 36
+    }
   },
   "nlp-advanced": {
     "id": "nlp-advanced",
@@ -10734,7 +10748,14 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "chrome extension",
+        "content scripts",
+        "background service worker"
+      ],
+      "penalty": 36
+    }
   },
   "cultural-remix": {
     "id": "cultural-remix",
@@ -15703,7 +15724,14 @@
     "category": "devops",
     "delegates": [],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "file upload",
+        "image optimization",
+        "signed urls"
+      ],
+      "penalty": 36
+    }
   },
   "devops-engineer": {
     "id": "devops-engineer",
@@ -18209,7 +18237,14 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "file upload",
+        "image optimization",
+        "semantic search"
+      ],
+      "penalty": 36
+    }
   },
   "risk-modeling": {
     "id": "risk-modeling",
@@ -24747,7 +24782,14 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "chrome extension",
+        "content scripts",
+        "background service worker"
+      ],
+      "penalty": 36
+    }
   },
   "ai-content-qa": {
     "id": "ai-content-qa",
@@ -24796,7 +24838,14 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "chrome extension",
+        "content scripts",
+        "background service worker"
+      ],
+      "penalty": 36
+    }
   },
   "ai-creative-director": {
     "id": "ai-creative-director",
@@ -25659,7 +25708,14 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "chrome extension",
+        "content scripts",
+        "background service worker"
+      ],
+      "penalty": 36
+    }
   },
   "copywriting": {
     "id": "copywriting",
@@ -26690,7 +26746,14 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "chrome extension",
+        "content scripts",
+        "background service worker"
+      ],
+      "penalty": 36
+    }
   },
   "seo": {
     "id": "seo",
@@ -30275,7 +30338,14 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "file upload",
+        "image optimization",
+        "signed urls"
+      ],
+      "penalty": 36
+    }
   },
   "creative-strategy": {
     "id": "creative-strategy",
