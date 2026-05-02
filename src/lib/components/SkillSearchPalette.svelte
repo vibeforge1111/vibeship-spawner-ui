@@ -472,7 +472,7 @@
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 1.5px;
-		color: rgb(var(--text-tertiary-rgb) / 0.68);
+		color: rgb(var(--text-secondary-rgb) / 0.82);
 	}
 
 	.search-result {
@@ -564,7 +564,7 @@
 		white-space: normal;
 		font-size: 12px;
 		line-height: 1.35;
-		color: rgb(var(--text-secondary-rgb) / 0.88);
+		color: rgb(var(--text-secondary-rgb) / 0.96);
 	}
 
 	.search-result-aside {
@@ -596,19 +596,19 @@
 		font-family: var(--font-mono, ui-monospace, monospace);
 		font-size: 10px;
 		line-height: 1.1;
-		color: rgb(var(--text-secondary-rgb) / 0.88);
+		color: rgb(var(--text-secondary-rgb) / 0.94);
 	}
 
 	.search-result:hover .search-result-desc,
 	.search-result.selected .search-result-desc {
-		color: rgb(var(--text-secondary-rgb) / 0.98);
+		color: rgb(var(--text-rgb) / 0.88);
 	}
 
 	.search-result:hover .search-result-intel span,
 	.search-result.selected .search-result-intel span {
 		border-color: rgb(var(--accent-rgb) / 0.26);
 		background: rgb(var(--bg-rgb) / 0.88);
-		color: rgb(var(--text-rgb) / 0.82);
+		color: rgb(var(--text-rgb) / 0.9);
 	}
 
 	.search-result-meta {
@@ -633,7 +633,7 @@
 		gap: 8px;
 		padding: 34px 24px;
 		text-align: center;
-		color: rgb(var(--text-tertiary-rgb) / 0.72);
+		color: rgb(var(--text-secondary-rgb) / 0.84);
 	}
 
 	.search-hint-title {

@@ -23,7 +23,7 @@
 	const MINIMAP_HEIGHT = 120;
 	const NODE_WIDTH = 224;
 	const NODE_HEIGHT = 96;
-	const PADDING = 50;
+	const PADDING = 96;
 
 	// Calculate bounds of all nodes
 	const bounds = $derived(() => {
@@ -166,6 +166,19 @@
 				<stop offset="0%" stop-color="var(--bg-secondary)" />
 				<stop offset="100%" stop-color="var(--surface-raised)" />
 			</linearGradient>
+			<linearGradient id="minimap-viewport-fill" x1="0" y1="0" x2="1" y2="0">
+				<stop offset="0%" stop-color="rgb(var(--accent-rgb, 47 202 148) / 0.24)" />
+				<stop offset="62%" stop-color="rgb(var(--surface-rgb, 23 27 37) / 0.72)" />
+				<stop offset="100%" stop-color="rgb(var(--accent-rgb, 47 202 148) / 0.1)" />
+			</linearGradient>
+			<linearGradient id="minimap-viewport-stroke" x1="0" y1="0" x2="1" y2="1">
+				<stop offset="0%" stop-color="rgb(255 255 255 / 0.24)" />
+				<stop offset="46%" stop-color="var(--accent)" />
+				<stop offset="100%" stop-color="rgb(var(--accent-rgb, 47 202 148) / 0.42)" />
+			</linearGradient>
+			<pattern id="minimap-viewport-stripes" width="12" height="12" patternUnits="userSpaceOnUse">
+				<path d="M12 0H11V12H12Z" fill="rgb(255 255 255 / 0.08)" />
+			</pattern>
 		</defs>
 		<rect width="100%" height="100%" fill="url(#minimap-surface)" />
 		<rect width="100%" height="100%" fill="url(#minimap-grid)" />
@@ -189,14 +202,24 @@
 
 		<!-- Viewport indicator -->
 		<rect
+			class="viewport-window"
 			x={viewport().x}
 			y={viewport().y}
 			width={viewport().width}
 			height={viewport().height}
-			fill="rgba(47, 202, 148, 0.12)"
-			stroke="var(--accent)"
-			stroke-width="1.5"
-			rx="4"
+			fill="url(#minimap-viewport-fill)"
+			stroke="url(#minimap-viewport-stroke)"
+			stroke-width="1.25"
+			rx="5"
+		/>
+		<rect
+			class="viewport-stripes"
+			x={viewport().x}
+			y={viewport().y}
+			width={viewport().width}
+			height={viewport().height}
+			fill="url(#minimap-viewport-stripes)"
+			rx="5"
 		/>
 	</svg>
 
@@ -230,15 +253,43 @@
 
 	.minimap:hover {
 		border-color: rgb(var(--accent-rgb, 47 202 148) / 0.72);
+		background:
+			linear-gradient(90deg, rgb(var(--accent-rgb, 47 202 148) / 0.16), rgb(var(--surface-rgb, 23 27 37) / 0.86)),
+			repeating-linear-gradient(90deg, transparent 0 12px, rgb(255 255 255 / 0.055) 12px 13px),
+			color-mix(in srgb, var(--bg-secondary) 84%, black);
 		box-shadow:
 			0 20px 52px -28px rgb(0 0 0 / 0.95),
-			0 0 0 1px rgb(var(--accent-rgb, 47 202 148) / 0.18),
-			inset 0 1px 0 rgb(255 255 255 / 0.05);
+			0 0 0 1px rgb(var(--accent-rgb, 47 202 148) / 0.22),
+			0 12px 34px rgb(var(--accent-rgb, 47 202 148) / 0.16),
+			inset 0 1px 0 rgb(255 255 255 / 0.1);
 		transform: translateY(-1px);
 	}
 
 	.minimap svg {
 		display: block;
+	}
+
+	.viewport-window {
+		opacity: 0.82;
+		filter: drop-shadow(0 0 10px rgb(var(--accent-rgb, 47 202 148) / 0.28));
+		transition:
+			opacity 160ms ease,
+			filter 160ms ease;
+	}
+
+	.viewport-stripes {
+		opacity: 0.42;
+		pointer-events: none;
+		transition: opacity 160ms ease;
+	}
+
+	.minimap:hover .viewport-window {
+		opacity: 0.96;
+		filter: drop-shadow(0 0 14px rgb(var(--accent-rgb, 47 202 148) / 0.42));
+	}
+
+	.minimap:hover .viewport-stripes {
+		opacity: 0.58;
 	}
 
 	.minimap-label {
