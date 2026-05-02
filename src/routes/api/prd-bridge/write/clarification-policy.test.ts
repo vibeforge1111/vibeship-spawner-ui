@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shouldRequestBriefClarification } from './+server';
+import { _shouldRequestBriefClarification } from './+server';
 
 describe('PRD bridge clarification policy', () => {
 	it('lets concrete direct static builds continue without clarification', () => {
@@ -12,7 +12,7 @@ describe('PRD bridge clarification policy', () => {
 			'Build a tiny static landing page for a cafe with a menu section.'
 		].join('\n');
 
-		expect(shouldRequestBriefClarification({
+		expect(_shouldRequestBriefClarification({
 			content,
 			buildMode: 'direct',
 			openQuestions: ['Should the cafe feel modern or rustic?']
@@ -20,7 +20,7 @@ describe('PRD bridge clarification policy', () => {
 	});
 
 	it('still asks on vague short builds', () => {
-		expect(shouldRequestBriefClarification({
+		expect(_shouldRequestBriefClarification({
 			content: 'Build something cool.',
 			buildMode: 'direct',
 			openQuestions: ['Who is this for?']
@@ -28,14 +28,14 @@ describe('PRD bridge clarification policy', () => {
 	});
 
 	it('respects force dispatch and missing questions', () => {
-		expect(shouldRequestBriefClarification({
+		expect(_shouldRequestBriefClarification({
 			content: 'Build something cool.',
 			buildMode: 'direct',
 			openQuestions: ['Who is this for?'],
 			forceDispatch: true
 		})).toBe(false);
 
-		expect(shouldRequestBriefClarification({
+		expect(_shouldRequestBriefClarification({
 			content: 'Build something cool.',
 			buildMode: 'direct',
 			openQuestions: []
