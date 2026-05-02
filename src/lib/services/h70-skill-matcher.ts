@@ -1,687 +1,385 @@
 /**
- * H70 Skill Matcher Service
+ * Spark skill matcher
  *
- * Automatically matches task names/descriptions to relevant H70 skills.
- * Uses keyword matching, category mapping, and fuzzy matching.
+ * Uses the generated spark-skill-graphs catalog as the source of truth.
+ * The matcher is deliberately lexical and deterministic: exact ids, names,
+ * triggers, tags, owns, categories, delegates, and pairs drive ranking.
  */
 
-/**
- * Skill matching rules - maps keywords to H70 skill IDs
- * Format: keyword -> [primary skill, ...related skills]
- */
-const KEYWORD_TO_SKILLS: Record<string, string[]> = {
-	// Project Setup & Scaffolding
-	'project setup': ['typescript-strict', 'git-workflow', 'vite'],
-	'initialize': ['typescript-strict', 'git-workflow'],
-	'scaffold': ['nextjs-app-router', 'sveltekit', 'vite'],
-	'boilerplate': ['typescript-strict', 'code-quality'],
+import skillDetails from '../data/skill-matcher-catalog.json';
 
-	// Frontend & UI
-	'frontend': ['frontend', 'react-patterns', 'tailwind-css'],
-	'ui': ['ui-design', 'tailwind-ui', 'design-systems'],
-	'component': ['react-patterns', 'frontend', 'design-systems'],
-	'design system': ['design-systems', 'tailwind-css', 'typography'],
-	'layout': ['tailwind-css', 'ui-design', 'frontend'],
-	'responsive': ['tailwind-css', 'frontend', 'mobile-game-dev'],
-	'styling': ['tailwind-css', 'tailwind-ui', 'design-systems'],
-	'css': ['tailwind-css', 'tailwind-ui'],
-	'tailwind': ['tailwind-css', 'tailwind-ui'],
-
-	// 3D & Graphics
-	'three.js': ['threejs-3d-graphics', '3d-web-experience'],
-	'threejs': ['threejs-3d-graphics', '3d-web-experience'],
-	'3d': ['3d-web-experience', 'threejs-3d-graphics', '3d-modeling'],
-	'webgl': ['threejs-3d-graphics', '3d-web-experience'],
-	'visualization': ['3d-web-experience', 'threejs-3d-graphics', 'analytics'],
-	'animation': ['animation-systems', 'motion-graphics', 'motion-design'],
-	'canvas': ['threejs-3d-graphics', 'generative-art'],
-
-	// Backend & API
-	'backend': ['backend', 'api-designer', 'supabase-backend'],
-	'api': ['api-designer', 'api-design', 'graphql-architect'],
-	'rest': ['api-designer', 'api-design'],
-	'graphql': ['graphql', 'graphql-architect'],
-	'server': ['backend', 'api-designer', 'go-services'],
-	'endpoint': ['api-designer', 'api-design', 'backend'],
-
-	// Database
-	'database': ['database-architect', 'database-schema-design', 'postgres-wizard'],
-	'schema': ['database-schema-design', 'database-architect', 'drizzle-orm'],
-	'postgres': ['postgres-wizard', 'database-architect', 'neon-postgres'],
-	'sql': ['postgres-wizard', 'database-architect'],
-	'migration': ['database-migrations', 'migration-specialist'],
-	'orm': ['drizzle-orm', 'prisma'],
-	'supabase': ['supabase-backend', 'supabase-security', 'nextjs-supabase-auth'],
-
-	// Authentication
-	'auth': ['auth-specialist', 'authentication-oauth', 'nextjs-supabase-auth'],
-	'authentication': ['auth-specialist', 'authentication-oauth', 'clerk-auth'],
-	'login': ['auth-specialist', 'authentication-oauth'],
-	'signup': ['auth-specialist', 'authentication-oauth'],
-	'session': ['auth-specialist', 'authentication-oauth'],
-	'oauth': ['authentication-oauth', 'auth-specialist'],
-	'jwt': ['auth-specialist', 'authentication-oauth'],
-
-	// Testing
-	'test': ['test-architect', 'testing-automation', 'testing-strategies'],
-	'testing': ['testing-automation', 'test-architect', 'qa-engineering'],
-	'unit test': ['test-architect', 'testing-automation'],
-	'integration test': ['testing-automation', 'test-architect'],
-	'e2e': ['testing-automation', 'browser-automation'],
-	'qa': ['qa-engineering', 'testing-automation'],
-
-	// DevOps & CI/CD
-	'deploy': ['vercel-deployment', 'devops', 'ci-cd-pipeline'],
-	'deployment': ['vercel-deployment', 'devops', 'ci-cd-pipeline'],
-	'ci/cd': ['ci-cd-pipeline', 'cicd-pipelines', 'claude-code-cicd'],
-	'pipeline': ['ci-cd-pipeline', 'cicd-pipelines'],
-	'docker': ['docker', 'docker-specialist', 'docker-containerization'],
-	'kubernetes': ['kubernetes', 'kubernetes-deployment'],
-	'infrastructure': ['infra-architect', 'infrastructure-as-code'],
-
-	// Security
-	'security': ['security', 'security-hardening', 'security-owasp'],
-	'secure': ['security-hardening', 'security', 'llm-security-audit'],
-	'vulnerability': ['security-owasp', 'security-hardening'],
-	'owasp': ['security-owasp', 'security-hardening'],
-
-	// AI & LLM
-	'ai': ['llm-architect', 'ai-agents-architect', 'ai-product'],
-	'llm': ['llm-architect', 'ai-agents-architect', 'prompt-engineer'],
-	'agent': ['ai-agents-architect', 'autonomous-agents', 'multi-agent-orchestration'],
-	'prompt': ['prompt-engineer', 'prompt-engineering-creative'],
-	'rag': ['rag-engineer', 'rag-implementation'],
-	'embedding': ['vector-specialist', 'semantic-search'],
-	'openai': ['llm-architect', 'prompt-engineer'],
-	'anthropic': ['llm-architect', 'prompt-engineer'],
-	'claude': ['llm-architect', 'claude-code-hooks', 'claude-code-commands'],
-
-	// Real-time
-	'realtime': ['realtime-engineer', 'websocket-realtime', 'websockets-realtime'],
-	'websocket': ['websocket-realtime', 'websockets-realtime', 'realtime-engineer'],
-	'sse': ['realtime-engineer', 'websocket-realtime'],
-	'live': ['realtime-engineer', 'websocket-realtime'],
-
-	// State Management
-	'state': ['state-management', 'react-patterns'],
-	'store': ['state-management', 'react-patterns'],
-	'zustand': ['state-management', 'react-patterns'],
-	'redux': ['state-management', 'react-patterns'],
-
-	// Performance
-	'performance': ['performance-hunter', 'performance-optimization', 'performance-thinker'],
-	'optimize': ['performance-optimization', 'performance-hunter', 'codebase-optimization'],
-	'speed': ['performance-optimization', 'performance-hunter'],
-
-	// Documentation
-	'documentation': ['docs-engineer', 'technical-writer'],
-	'docs': ['docs-engineer', 'technical-writer'],
-	'readme': ['docs-engineer', 'technical-writer'],
-
-	// Frameworks
-	'nextjs': ['nextjs-app-router', 'nextjs-supabase-auth'],
-	'next.js': ['nextjs-app-router', 'nextjs-supabase-auth'],
-	'react': ['react-patterns', 'react-native-specialist'],
-	'svelte': ['sveltekit', 'svelte-kit'],
-	'sveltekit': ['sveltekit', 'svelte-kit'],
-	'vue': ['vue-nuxt'],
-	'nuxt': ['vue-nuxt'],
-	'angular': ['angular'],
-
-	// Mobile
-	'mobile': ['react-native-specialist', 'expo', 'ios-swift-specialist'],
-	'ios': ['ios-swift-specialist', 'react-native-specialist'],
-	'android': ['react-native-specialist', 'expo'],
-	'react native': ['react-native-specialist', 'expo'],
-
-	// Game Development
-	'game': ['game-development', 'game-design', 'game-design-core'],
-	'gamedev': ['game-development', 'game-design'],
-	'unity': ['unity-development', 'unity-llm-integration'],
-	'godot': ['godot-development', 'godot-llm-integration'],
-	'unreal': ['unreal-engine', 'unreal-llm-integration'],
-	'phaser': ['game-development', 'game-design'],
-	// Game genres and mechanics
-	'roguelike': ['game-design', 'procedural-generation', 'progression-systems'],
-	'roguelite': ['game-design', 'procedural-generation', 'progression-systems'],
-	'rpg': ['game-design', 'progression-systems', 'narrative-design'],
-	'platformer': ['game-development', 'physics-simulation', 'level-design'],
-	'puzzle': ['puzzle-design', 'game-design', 'level-design'],
-	'strategy': ['game-design', 'game-ai-behavior', 'level-design'],
-	'shooter': ['game-development', 'combat-design', 'game-ai-behavior'],
-	'simulation': ['game-development', 'physics-simulation', 'game-ai-behavior'],
-	// Game systems
-	'procedural': ['procedural-generation', 'level-design', 'game-development'],
-	'dungeon': ['procedural-generation', 'level-design', 'game-design'],
-	'combat': ['combat-design', 'game-ai-behavior', 'animation-systems'],
-	'inventory': ['inventory-management', 'game-ui-design', 'game-design', 'progression-systems', 'database-architect'],
-	'crafting': ['game-design', 'game-ui-design', 'progression-systems'],
-	'progression': ['progression-systems', 'game-design', 'player-onboarding'],
-	'level': ['level-design', 'game-design', 'procedural-generation'],
-	'enemy': ['game-ai-behavior', 'combat-design', 'character-design'],
-	'npc': ['game-ai-behavior', 'narrative-design', 'llm-npc-dialogue'],
-	'dialogue': ['narrative-design', 'llm-npc-dialogue', 'game-design'],
-	'quest': ['narrative-design', 'game-design', 'progression-systems'],
-	// Game art and visuals
-	'sprite': ['pixel-art', 'pixel-art-sprites', 'animation-systems'],
-	'pixel': ['pixel-art', 'pixel-art-sprites', 'game-development'],
-	'tilemap': ['level-design', 'game-development', 'pixel-art'],
-	'vfx': ['vfx-realtime', 'animation-systems', 'shader-programming'],
-	'shader': ['shader-programming', 'vfx-realtime', 'threejs-3d-graphics'],
-	// Game audio
-	'soundtrack': ['game-audio', 'ai-audio-production'],
-	'sfx': ['game-audio', 'ai-audio-production'],
-	'sound effect': ['game-audio', 'ai-audio-production'],
-	// Multiplayer
-	'multiplayer': ['game-networking', 'realtime-engineer', 'websockets-realtime'],
-	'co-op': ['game-networking', 'game-design', 'realtime-engineer'],
-	'pvp': ['game-networking', 'combat-design', 'game-design'],
-
-	// Payments
-	'payment': ['stripe-integration', 'subscription-billing'],
-	'stripe': ['stripe-integration', 'subscription-billing'],
-	'billing': ['subscription-billing', 'stripe-integration'],
-	'subscription': ['subscription-billing', 'stripe-integration'],
-
-	// Analytics
-	'analytics': ['analytics', 'analytics-architecture', 'product-analytics-engineering'],
-	'tracking': ['analytics', 'segment-cdp'],
-	'metrics': ['analytics', 'observability'],
-
-	// Marketing & Growth
-	'marketing': ['marketing', 'marketing-fundamentals', 'growth-strategy'],
-	'growth': ['growth-strategy', 'growth-loops', 'product-led-growth'],
-	'landing': ['landing-page-design', 'copywriting'],
-	'conversion': ['conversion-rate-optimization', 'landing-page-design'],
-	'seo': ['seo'],
-
-	// Content
-	'content': ['content-strategy', 'content-creation', 'copywriting'],
-	'copywriting': ['copywriting', 'content-creation'],
-	'blog': ['blog-writing', 'content-strategy'],
-
-	// Community
-	'community': ['community-building', 'community-strategy', 'community-growth'],
-	'discord': ['discord-bot-architect', 'discord-mastery'],
-	'slack': ['slack-bot-builder'],
-
-	// Blockchain & Web3
-	'blockchain': ['blockchain-defi', 'smart-contract-engineer'],
-	'web3': ['web3-gaming', 'web3-community', 'wallet-integration'],
-	'smart contract': ['smart-contract-engineer', 'smart-contract-auditor'],
-	'solidity': ['smart-contract-engineer', 'evm-deep-dive'],
-	'nft': ['nft-engineer', 'nft-systems'],
-	'defi': ['defi-architect', 'blockchain-defi'],
-
-	// E-commerce & Business
-	'ecommerce': ['ecommerce-architect', 'stripe-integration', 'inventory-management'],
-	'e-commerce': ['ecommerce-architect', 'stripe-integration'],
-	'shop': ['ecommerce-architect', 'stripe-integration'],
-	'cart': ['ecommerce-architect', 'frontend'],
-	'checkout': ['stripe-integration', 'ecommerce-architect'],
-	'order': ['ecommerce-architect', 'database-architect'],
-	'product': ['ecommerce-architect', 'database-schema-design'],
-
-	// Data & Analytics
-	'data': ['data-engineer', 'analytics', 'database-architect'],
-	'etl': ['data-engineer', 'data-pipeline'],
-	'data pipeline': ['data-pipeline', 'ci-cd-pipeline'],
-	'warehouse': ['data-engineer', 'analytics-architecture'],
-	'dashboard': ['analytics', 'admin-panel', 'frontend', 'visualization'],
-	'report': ['analytics', 'data-engineer'],
-	'chart': ['visualization', 'frontend', 'analytics'],
-	'graph': ['visualization', 'graphql', 'analytics'],
-
-	// File & Media
-	'file': ['file-upload', 'storage', 'media-processing'],
-	'upload': ['file-upload', 'storage', 'media-processing'],
-	'download': ['file-upload', 'storage'],
-	'storage': ['storage', 'cloudflare-r2', 's3'],
-	's3': ['storage', 'aws-specialist'],
-	'image': ['media-processing', 'image-optimization', 'computer-vision'],
-	'video': ['media-processing', 'video-streaming'],
-	'audio': ['media-processing', 'audio-engineering'],
-	'pdf': ['pdf-generation', 'document-processing', 'media-processing'],
-
-	// Search & Discovery
-	'search': ['search-engineer', 'elasticsearch', 'semantic-search'],
-	'elasticsearch': ['elasticsearch', 'search-engineer'],
-	'algolia': ['search-engineer', 'frontend'],
-	'filter': ['frontend', 'database-architect', 'search-engineer'],
-	'sort': ['frontend', 'database-architect'],
-
-	// Communication & Notifications
-	'email': ['email-specialist', 'notification-systems'],
-	'notification': ['notification-systems', 'realtime-engineer'],
-	'push': ['notification-systems', 'mobile'],
-	'sms': ['notification-systems', 'twilio'],
-	'chat': ['chat-systems', 'realtime-engineer', 'websocket-realtime'],
-	'messaging': ['chat-systems', 'realtime-engineer'],
-
-	// Localization & i18n
-	'i18n': ['i18n-specialist', 'frontend'],
-	'internationalization': ['i18n-specialist', 'frontend'],
-	'localization': ['i18n-specialist', 'frontend'],
-	'translation': ['i18n-specialist', 'content-strategy'],
-	'multilingual': ['i18n-specialist', 'frontend'],
-
-	// Scheduling & Calendar
-	'schedule': ['scheduling-systems', 'calendar-integration'],
-	'calendar': ['calendar-integration', 'scheduling-systems'],
-	'booking': ['scheduling-systems', 'ecommerce-architect'],
-	'appointment': ['scheduling-systems', 'calendar-integration'],
-	'cron': ['task-scheduling', 'backend'],
-
-	// Maps & Location
-	'map': ['maps-integration', 'geospatial'],
-	'location': ['geospatial', 'maps-integration'],
-	'geo': ['geospatial', 'maps-integration'],
-	'gps': ['geospatial', 'mobile'],
-
-	// Form & Input
-	'form': ['form-validation', 'frontend', 'react-patterns'],
-	'validation': ['form-validation', 'zod-validation', 'security'],
-	'input': ['form-validation', 'frontend'],
-	'wizard': ['frontend', 'form-validation', 'ux-design'],
-
-	// Admin & CMS
-	'admin': ['admin-panel', 'frontend', 'backend'],
-	'cms': ['cms-architect', 'content-strategy'],
-	'backoffice': ['admin-panel', 'backend'],
-
-	// Social & Sharing
-	'social': ['social-features', 'community-building'],
-	'share': ['social-features', 'frontend'],
-	'like': ['social-features', 'database-architect'],
-	'comment': ['social-features', 'realtime-engineer'],
-	'follow': ['social-features', 'database-architect'],
-	'feed': ['social-features', 'realtime-engineer', 'algorithm-design'],
-
-	// Monitoring & Logging
-	'monitor': ['observability', 'monitoring-alerting'],
-	'log': ['logging', 'observability'],
-	'trace': ['observability', 'tracing'],
-	'alert': ['monitoring-alerting', 'notification-systems'],
-	'error tracking': ['error-tracking', 'observability'],
-	'sentry': ['error-tracking', 'observability'],
-
-	// ML & Data Science
-	'machine learning': ['ml-engineer', 'data-scientist'],
-	'ml': ['ml-engineer', 'data-scientist'],
-	'model': ['ml-engineer', 'llm-architect'],
-	'training': ['ml-engineer', 'data-scientist'],
-	'prediction': ['ml-engineer', 'analytics'],
-	'classification': ['ml-engineer', 'computer-vision'],
-	'regression': ['ml-engineer', 'data-scientist'],
-	'neural': ['ml-engineer', 'deep-learning'],
-	'tensorflow': ['ml-engineer', 'deep-learning'],
-	'pytorch': ['ml-engineer', 'deep-learning'],
-
-	// Workflow & Automation
-	'workflow': ['workflow-automation', 'process-automation'],
-	'automation': ['automation-engineer', 'process-automation'],
-	'automate': ['automation-engineer', 'ci-cd-pipeline'],
-	'trigger': ['workflow-automation', 'event-driven'],
-	'hook': ['webhook-integration', 'event-driven'],
-	'webhook': ['webhook-integration', 'api-designer'],
-
-	// Accessibility
-	'accessibility': ['accessibility-specialist', 'frontend'],
-	'a11y': ['accessibility-specialist', 'frontend'],
-	'wcag': ['accessibility-specialist', 'frontend'],
-	'screen reader': ['accessibility-specialist', 'frontend'],
-
-	// Legal & Compliance
-	'gdpr': ['compliance-engineer', 'security'],
-	'compliance': ['compliance-engineer', 'security-hardening'],
-	'privacy': ['privacy-engineer', 'security'],
-	'consent': ['privacy-engineer', 'frontend'],
-	'audit': ['audit-specialist', 'security-hardening'],
-
-	// Multi-tenancy & SaaS
-	'tenant': ['multi-tenancy', 'saas-architect'],
-	'multi-tenant': ['multi-tenancy', 'saas-architect'],
-	'saas': ['saas-architect', 'subscription-billing'],
-	'workspace': ['multi-tenancy', 'collaboration-tools'],
-	'organization': ['multi-tenancy', 'database-architect'],
-
-	// Caching & Performance
-	'cache': ['caching-specialist', 'redis', 'performance-optimization'],
-	'redis': ['redis', 'caching-specialist'],
-	'memcached': ['caching-specialist', 'performance-optimization'],
-	'cdn': ['cdn-specialist', 'performance-optimization'],
-
-	// Queue & Messaging
-	'queue': ['queue-systems', 'message-broker'],
-	'message queue': ['message-broker', 'queue-systems'],
-	'rabbitmq': ['message-broker', 'queue-systems'],
-	'kafka': ['kafka', 'event-streaming'],
-	'pubsub': ['event-driven', 'realtime-engineer'],
-
-	// Version Control & Collaboration
-	'git': ['git-workflow', 'version-control'],
-	'github': ['github-actions', 'git-workflow'],
-	'gitlab': ['gitlab-ci', 'git-workflow'],
-	'pr': ['code-review', 'git-workflow'],
-	'code review': ['code-review', 'engineering-manager'],
-
-	// Architecture Patterns
-	'microservice': ['microservices-architect', 'api-designer'],
-	'monolith': ['backend', 'architecture-patterns'],
-	'serverless': ['serverless-architect', 'lambda'],
-	'event driven': ['event-driven', 'message-broker'],
-	'cqrs': ['cqrs-architect', 'event-driven'],
-	'domain driven': ['ddd-architect', 'architecture-patterns'],
-	'ddd': ['ddd-architect', 'architecture-patterns'],
-	'clean architecture': ['architecture-patterns', 'backend'],
-
-	// CLI & Tools
-	'cli': ['cli-architect', 'terminal-tools'],
-	'command line': ['cli-architect', 'terminal-tools'],
-	'terminal': ['terminal-tools', 'cli-architect'],
-	'script': ['scripting', 'automation-engineer'],
-	'bash': ['scripting', 'devops'],
-
-	// Documents
-	'document': ['document-processing', 'content-strategy'],
-	'export': ['pdf-generation', 'data-export'],
-	'import': ['data-import', 'etl'],
-
-	// Rate Limiting & Throttling
-	'rate limit': ['rate-limiting', 'api-security', 'backend'],
-	'throttle': ['rate-limiting', 'api-security', 'performance-optimization'],
-	'quota': ['rate-limiting', 'api-security', 'subscription-billing'],
-
-	// Advanced AI/ML Skills
-	'image generation': ['ai-image-editing', 'text-to-video', 'multimodal-ai'],
-	'image editing': ['ai-image-editing', 'computer-vision-deep'],
-	'music': ['ai-music-audio', 'audio-engineering'],
-	'audio generation': ['ai-music-audio', 'voice-ai-development'],
-	'code generation': ['ai-code-generation', 'llm-architect'],
-	'personalization': ['ai-personalization', 'recommendation-systems'],
-	'ai safety': ['ai-safety-alignment', 'llm-security-audit'],
-	'alignment': ['ai-safety-alignment', 'ai-safety-alignment'],
-	'fine-tuning': ['llm-fine-tuning', 'model-optimization'],
-	'fine tune': ['llm-fine-tuning', 'model-optimization'],
-	'lora': ['llm-fine-tuning', 'model-optimization'],
-	'qlora': ['llm-fine-tuning', 'distributed-training'],
-	'distributed training': ['distributed-training', 'ml-engineer'],
-	'document ai': ['document-ai', 'document-processing'],
-	'ocr': ['document-ai', 'computer-vision-deep'],
-	'memory system': ['ml-memory', 'agent-memory-systems'],
-	'model optimization': ['model-optimization', 'performance-optimization'],
-	'quantization': ['model-optimization', 'on-device-ai'],
-	'pruning': ['model-optimization', 'neural-architecture-search'],
-	'multimodal': ['multimodal-ai', 'computer-vision-deep'],
-	'vision language': ['multimodal-ai', 'computer-vision-deep'],
-	'nas': ['neural-architecture-search', 'ml-engineer'],
-	'automl': ['neural-architecture-search', 'ml-engineer'],
-	'nlp': ['nlp-advanced', 'llm-architect'],
-	'natural language': ['nlp-advanced', 'llm-architect'],
-	'ner': ['nlp-advanced', 'document-ai'],
-	'entity extraction': ['nlp-advanced', 'document-ai'],
-	'observability ai': ['ai-observability', 'observability'],
-	'llm monitoring': ['ai-observability', 'langfuse'],
-	'edge ai': ['on-device-ai', 'model-optimization'],
-	'on device': ['on-device-ai', 'mobile'],
-	'tflite': ['on-device-ai', 'model-optimization'],
-	'reinforcement': ['reinforcement-learning', 'ml-engineer'],
-	'rl': ['reinforcement-learning', 'ml-engineer'],
-	'text to video': ['text-to-video', 'ai-image-editing'],
-	'video generation': ['text-to-video', 'media-processing'],
-	'transformer': ['transformer-architecture', 'llm-architect'],
-	'attention': ['transformer-architecture', 'llm-architect'],
-
-	// Agent Skills
-	'agent evaluation': ['agent-evaluation', 'testing-automation'],
-	'agent testing': ['agent-evaluation', 'test-architect'],
-	'agent memory': ['agent-memory-systems', 'ml-memory'],
-	'tool builder': ['agent-tool-builder', 'mcp-builder'],
-	'computer use': ['computer-use-agents', 'browser-automation'],
-	'context window': ['context-window-management', 'prompt-engineer'],
-	'crewai': ['crewai', 'multi-agent-orchestration'],
-	'crew ai': ['crewai', 'ai-agents-architect'],
-	'langfuse': ['langfuse', 'ai-observability'],
-	'langgraph': ['langgraph', 'ai-agents-architect'],
-	'lang graph': ['langgraph', 'workflow-automation'],
-	'prompt caching': ['prompt-caching', 'performance-optimization'],
-	'voice ai': ['voice-ai-development', 'voice-agents'],
-	'voice agent': ['voice-agents', 'voice-ai-development'],
-	'speech': ['voice-ai-development', 'ai-music-audio'],
-	'tts': ['voice-ai-development', 'voice-agents'],
-	'stt': ['voice-ai-development', 'voice-agents'],
-
-	// Design & Creative AI
-	'brand': ['ai-brand-kit', 'design-systems'],
-	'brand kit': ['ai-brand-kit', 'design-systems'],
-	'art consistency': ['art-consistency', 'design-systems'],
-	'style guide': ['art-consistency', 'design-systems'],
-	'design ai': ['design-ai-tools', 'ai-image-editing'],
-	'figma': ['design-ai-tools', 'ui-design'],
-
-	// Architecture & Patterns
-	'caching pattern': ['caching-patterns', 'caching-specialist'],
-	'error handling': ['error-handling', 'error-handling-patterns'],
-	'event architecture': ['event-architect', 'event-driven'],
-	'microservices pattern': ['microservices-patterns', 'microservices-architect'],
-	'monorepo': ['monorepo-management', 'git-workflow'],
-	'turborepo': ['monorepo-management', 'ci-cd-pipeline'],
-	'nx': ['monorepo-management', 'ci-cd-pipeline'],
-	'queue worker': ['queue-workers', 'queue-systems'],
-	'worker': ['queue-workers', 'backend'],
-	'structured output': ['structured-output', 'llm-architect'],
-	'json schema': ['structured-output', 'api-design'],
-
-	// Language-Specific
-	'python': ['python-craftsman', 'ml-engineer'],
-	'rust': ['rust-craftsman', 'performance-optimization'],
-	'go': ['go-services', 'backend'],
-	'golang': ['go-services', 'backend'],
-
-	// Research & Science
-	'research': ['research', 'data-scientist'],
-	'bioinformatics': ['bioinformatics-workflows', 'data-pipeline'],
-	'clinical trial': ['clinical-trial-analysis', 'data-scientist'],
-	'drug discovery': ['drug-discovery-informatics', 'bioinformatics-workflows'],
-	'genomics': ['bioinformatics-workflows', 'data-engineer'],
-	'medical': ['clinical-trial-analysis', 'compliance-engineer'],
-	'healthcare': ['clinical-trial-analysis', 'hipaa'],
-	'hipaa': ['compliance-engineer', 'security-hardening'],
-
-	// Finance & Trading
-	'trading': ['algorithmic-trading', 'quantitative-finance'],
-	'algorithmic': ['algorithmic-trading', 'quantitative-finance'],
-	'quant': ['quantitative-finance', 'data-scientist'],
-	'portfolio': ['portfolio-optimization', 'quantitative-finance'],
-	'risk': ['risk-management', 'quantitative-finance'],
-	'finance ai': ['finance-ai-tools', 'quantitative-finance'],
-	'fintech': ['fintech-integration', 'stripe-integration'],
-	'derivatives': ['derivatives-pricing', 'quantitative-finance'],
-	'options': ['derivatives-pricing', 'quantitative-finance'],
-
-	// Aerospace & Space
-	'satellite': ['ground-station-ops', 'orbital-mechanics'],
-	'orbit': ['orbital-mechanics', 'mission-planning'],
-	'spacecraft': ['orbital-mechanics', 'mission-planning'],
-	'space': ['mission-planning', 'orbital-mechanics'],
-	'trajectory': ['orbital-mechanics', 'mission-planning'],
-	'ground station': ['ground-station-ops', 'realtime-engineer'],
-
-	// Legal & Patents
-	'patent': ['patent-drafting', 'technical-writer'],
-	'contract': ['contract-analysis', 'compliance-engineer'],
-	'legal': ['contract-analysis', 'compliance-engineer'],
-	'export control': ['export-control', 'compliance-engineer'],
-	'itar': ['export-control', 'compliance-engineer'],
-
-	// Enterprise & Architecture
-	'enterprise': ['enterprise-architecture', 'architecture-patterns'],
-	'togaf': ['enterprise-architecture', 'architecture-patterns'],
-	'capability map': ['enterprise-architecture', 'architecture-patterns'],
-	'integration': ['integration-patterns', 'api-designer'],
-	'esb': ['integration-patterns', 'message-broker'],
-	'legacy': ['legacy-modernization', 'architecture-patterns'],
-	'modernization': ['legacy-modernization', 'refactoring'],
-	'disaster recovery': ['disaster-recovery', 'devops'],
-	'failover': ['disaster-recovery', 'devops'],
-	'data governance': ['data-governance', 'compliance-engineer'],
-	'data catalog': ['data-governance', 'data-engineer'],
-	'data lineage': ['data-governance', 'data-pipeline'],
-
-	// More Development Tools
-	'development ai': ['development-ai-tools', 'ai-code-generation'],
-	'copilot': ['development-ai-tools', 'ai-code-generation'],
-	'cursor': ['development-ai-tools', 'ai-code-generation'],
+type RawDelegate = { skill?: string; when?: string };
+type RawSelectionHints = {
+	aliases?: string[];
+	boost_terms?: string[];
+	boostTerms?: string[];
+	boost?: number;
+	negative_terms?: string[];
+	negativeTerms?: string[];
+	penalty?: number;
+};
+type RawSkill = {
+	id?: string;
+	name?: string;
+	description?: string;
+	category?: string;
+	owns?: string[];
+	tags?: string[];
+	triggers?: string[];
+	delegates?: RawDelegate[];
+	pairsWell?: string[];
+	selectionHints?: RawSelectionHints;
 };
 
-/**
- * Task type to primary skill mapping
- */
-const TASK_TYPE_TO_SKILLS: Record<string, string[]> = {
-	'Project Setup': ['typescript-strict', 'git-workflow', 'code-quality'],
-	'Design System': ['design-systems', 'tailwind-css', 'ui-design', 'typography'],
-	'Authentication': ['auth-specialist', 'authentication-oauth', 'security-hardening'],
-	'Database': ['database-architect', 'database-schema-design', 'postgres-wizard'],
-	'API': ['api-designer', 'api-design', 'graphql-architect'],
-	'Frontend': ['frontend', 'react-patterns', 'tailwind-css'],
-	'Backend': ['backend', 'api-designer', 'database-architect'],
-	'Testing': ['test-architect', 'testing-automation', 'qa-engineering'],
-	'CI/CD': ['ci-cd-pipeline', 'cicd-pipelines', 'devops'],
-	'Deployment': ['vercel-deployment', 'devops', 'ci-cd-pipeline'],
-	'Security': ['security-hardening', 'security-owasp', 'security'],
-	'Performance': ['performance-hunter', 'performance-optimization', 'codebase-optimization'],
-	'Documentation': ['docs-engineer', 'technical-writer'],
-	'3D Visualization': ['3d-web-experience', 'threejs-3d-graphics', 'animation-systems'],
-	'Real-time': ['realtime-engineer', 'websocket-realtime'],
-	'AI Integration': ['llm-architect', 'ai-agents-architect', 'prompt-engineer'],
+type SkillDoc = Required<Pick<RawSkill, 'id' | 'name' | 'description' | 'category'>> & {
+	owns: string[];
+	tags: string[];
+	triggers: string[];
+	delegates: RawDelegate[];
+	pairsWell: string[];
+	selectionHints: {
+		aliases: string[];
+		boostTerms: string[];
+		boost: number;
+		negativeTerms: string[];
+		penalty: number;
+	};
+	text: string;
+	tokens: Set<string>;
 };
 
-/**
- * Extract keywords from task name/description
- */
-function extractKeywords(text: string): string[] {
-	const normalized = text.toLowerCase();
-	const keywords: string[] = [];
-
-	// Check multi-word phrases first
-	const phrases = Object.keys(KEYWORD_TO_SKILLS).filter(k => k.includes(' '));
-	for (const phrase of phrases) {
-		if (normalized.includes(phrase)) {
-			keywords.push(phrase);
-		}
-	}
-
-	// Then check individual words
-	const words = normalized.split(/[\s\-_:,.]+/).filter(w => w.length > 2);
-	for (const word of words) {
-		if (KEYWORD_TO_SKILLS[word]) {
-			keywords.push(word);
-		}
-	}
-
-	return [...new Set(keywords)];
+export interface SkillRank {
+	skillId: string;
+	score: number;
+	reason: string;
+	category: string;
 }
 
-/**
- * Match a task to relevant H70 skills
- * @param taskName - Name of the task
- * @param taskDescription - Optional task description for better matching
- * @param maxSkills - Maximum skills to return (default 5, was 3)
- */
-export function matchTaskToSkills(
-	taskName: string,
-	taskDescription?: string,
-	maxSkills: number = 5
-): string[] {
-	const matchedSkills: Map<string, number> = new Map();
+const STOP_WORDS = new Set([
+	'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
+	'by', 'from', 'as', 'is', 'are', 'be', 'build', 'create', 'make', 'implement',
+	'app', 'application', 'system', 'feature', 'project', 'user', 'users', 'need',
+	'needs', 'using', 'use', 'into', 'all', 'new', 'simple', 'custom'
+]);
 
-	// Combine task name and description for matching
-	const fullText = `${taskName} ${taskDescription || ''}`;
+const CATEGORY_HINTS: Record<string, string[]> = {
+	'ai': ['ai', 'llm', 'rag', 'chatbot', 'agent', 'prompt', 'embedding', 'vector', 'model', 'openai', 'claude'],
+	'ai-agents': ['agent', 'agents', 'tool', 'tools', 'orchestration', 'memory'],
+	'backend': ['api', 'server', 'backend', 'endpoint', 'auth', 'database', 'websocket', 'notification'],
+	'frontend': ['ui', 'frontend', 'react', 'svelte', 'vue', 'website', 'responsive', 'mobile'],
+	'game-dev': ['game', 'roguelike', 'dungeon', 'combat', 'inventory', 'sprite', 'multiplayer', 'procedural'],
+	'ecommerce': ['ecommerce', 'shop', 'cart', 'checkout', 'inventory', 'order', 'catalog'],
+	'finance': ['payment', 'stripe', 'billing', 'subscription', 'portfolio', 'fintech'],
+	'trading': ['trading', 'backtesting', 'technical', 'sentiment', 'risk', 'alpha'],
+	'creative': ['image', 'video', 'art', 'character', 'style', 'animation', 'visual'],
+	'design': ['design', 'brand', 'typography', 'accessibility', 'ui'],
+	'data': ['data', 'analytics', 'pipeline', 'metrics', 'dashboard'],
+	'devops': ['deploy', 'ci', 'cd', 'docker', 'kubernetes', 'infrastructure'],
+	'security': ['security', 'privacy', 'gdpr', 'oauth', 'auth', 'encryption']
+};
 
-	// 1. Check task type mapping first (highest priority)
-	for (const [taskType, skills] of Object.entries(TASK_TYPE_TO_SKILLS)) {
-		if (taskName.toLowerCase().includes(taskType.toLowerCase())) {
-			skills.forEach((skill, index) => {
-				const currentScore = matchedSkills.get(skill) || 0;
-				matchedSkills.set(skill, currentScore + (10 - index)); // Higher score for earlier matches
+function normalize(value: string): string {
+	return value.toLowerCase().replace(/[^a-z0-9+#.-]+/g, ' ').trim();
+}
+
+function tokenize(value: string): string[] {
+	return normalize(value)
+		.split(/\s+/)
+		.filter((token) => token.length > 2 && !STOP_WORDS.has(token));
+}
+
+function hasPhrase(haystack: string, phrase: string): boolean {
+	const normalizedPhrase = normalize(phrase);
+	if (!normalizedPhrase) return false;
+	return new RegExp(`(^|\\s)${normalizedPhrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s|$)`).test(haystack);
+}
+
+function stringList(value: unknown): string[] {
+	return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())) : [];
+}
+
+function coerceSkill(id: string, raw: RawSkill): SkillDoc {
+	const owns = Array.isArray(raw.owns) ? raw.owns.filter(Boolean) : [];
+	const tags = Array.isArray(raw.tags) ? raw.tags.filter(Boolean) : [];
+	const triggers = Array.isArray(raw.triggers) ? raw.triggers.filter(Boolean) : [];
+	const delegates = Array.isArray(raw.delegates) ? raw.delegates : [];
+	const pairsWell = Array.isArray(raw.pairsWell) ? raw.pairsWell.filter(Boolean) : [];
+	const rawSelectionHints = raw.selectionHints || {};
+	const selectionHints = {
+		aliases: stringList(rawSelectionHints.aliases),
+		boostTerms: [
+			...stringList(rawSelectionHints.boostTerms),
+			...stringList(rawSelectionHints.boost_terms)
+		],
+		boost: typeof rawSelectionHints.boost === 'number' ? rawSelectionHints.boost : 36,
+		negativeTerms: [
+			...stringList(rawSelectionHints.negativeTerms),
+			...stringList(rawSelectionHints.negative_terms)
+		],
+		penalty: typeof rawSelectionHints.penalty === 'number' ? rawSelectionHints.penalty : 32
+	};
+	const name = raw.name || id;
+	const description = raw.description || '';
+	const category = raw.category || 'development';
+	const text = [
+		id.replace(/-/g, ' '),
+		name,
+		description,
+		category,
+		...owns,
+		...tags,
+		...triggers,
+		...selectionHints.aliases,
+		...selectionHints.boostTerms
+	].join(' ');
+
+	return {
+		id,
+		name,
+		description,
+		category,
+		owns,
+		tags,
+		triggers,
+		delegates,
+		pairsWell,
+		selectionHints,
+		text: normalize(text),
+		tokens: new Set(tokenize(text))
+	};
+}
+
+const SKILLS: SkillDoc[] = Object.entries(skillDetails as Record<string, RawSkill>)
+	.map(([id, raw]) => coerceSkill(id, raw))
+	.sort((a, b) => a.id.localeCompare(b.id));
+
+const SKILL_BY_ID = new Map(SKILLS.map((skill) => [skill.id, skill]));
+
+function categoryBoost(queryTokens: Set<string>, category: string): number {
+	const hints = CATEGORY_HINTS[category] || [];
+	return hints.reduce((score, hint) => score + (queryTokens.has(hint) ? 6 : 0), 0);
+}
+
+function termMatches(term: string, normalizedQuery: string, queryTokens: Set<string>): boolean {
+	const normalizedTerm = normalize(term);
+	if (!normalizedTerm) return false;
+	if (normalizedTerm.includes(' ')) return hasPhrase(normalizedQuery, normalizedTerm);
+	return queryTokens.has(normalizedTerm);
+}
+
+function selectionHintScore(skill: SkillDoc, normalizedQuery: string, queryTokens: Set<string>): number {
+	let score = 0;
+	const boostTerms = [...skill.selectionHints.aliases, ...skill.selectionHints.boostTerms];
+	if (boostTerms.some((term) => termMatches(term, normalizedQuery, queryTokens))) {
+		score += skill.selectionHints.boost;
+	}
+	if (skill.selectionHints.negativeTerms.some((term) => termMatches(term, normalizedQuery, queryTokens))) {
+		score -= skill.selectionHints.penalty;
+	}
+	return score;
+}
+
+function scoreSkill(skill: SkillDoc, query: string, queryTokens: string[]): SkillRank | null {
+	const normalizedQuery = normalize(query);
+	const queryTokenSet = new Set(queryTokens);
+	let score = 0;
+	const reasons: string[] = [];
+
+	if (hasPhrase(normalizedQuery, skill.id.replace(/-/g, ' ')) || hasPhrase(normalizedQuery, skill.id)) {
+		score += 80;
+		reasons.push('id');
+	}
+
+	if (hasPhrase(normalizedQuery, skill.name)) {
+		score += 70;
+		reasons.push('name');
+	}
+
+	for (const trigger of skill.triggers) {
+		if (hasPhrase(normalizedQuery, trigger)) {
+			const triggerTokenCount = tokenize(trigger).length;
+			if (triggerTokenCount === 0) continue;
+			score += triggerTokenCount > 1 ? 42 : 14;
+			reasons.push(`trigger:${trigger}`);
+		}
+	}
+
+	for (const tag of skill.tags) {
+		if (hasPhrase(normalizedQuery, tag)) {
+			score += 28;
+			reasons.push(`tag:${tag}`);
+		}
+	}
+
+	for (const own of skill.owns) {
+		if (hasPhrase(normalizedQuery, own)) {
+			score += 34;
+			reasons.push(`owns:${own}`);
+		}
+	}
+
+	let overlap = 0;
+	for (const token of queryTokens) {
+		if (!skill.tokens.has(token)) continue;
+		overlap++;
+		if (skill.id.includes(token)) score += 16;
+		else if (normalize(skill.name).includes(token)) score += 13;
+		else if (skill.tags.some((tag) => normalize(tag).split(/\s+/).includes(token))) score += 10;
+		else if (skill.triggers.some((trigger) => normalize(trigger).split(/\s+/).includes(token))) score += 9;
+		else if (skill.owns.some((own) => normalize(own).includes(token))) score += 8;
+		else score += 2;
+	}
+	if (overlap > 0) reasons.push(`${overlap} term${overlap === 1 ? '' : 's'}`);
+
+	score += categoryBoost(queryTokenSet, skill.category);
+	score += selectionHintScore(skill, normalizedQuery, queryTokenSet);
+
+	if (score < 18) return null;
+	return {
+		skillId: skill.id,
+		score,
+		reason: reasons.slice(0, 3).join(', ') || 'catalog match',
+		category: skill.category
+	};
+}
+
+function addRelationshipContext(
+	ranks: SkillRank[],
+	maxResults: number,
+	normalizedQuery: string,
+	queryTokenSet: Set<string>
+): SkillRank[] {
+	const rankById = new Map(ranks.map((rank) => [rank.skillId, rank]));
+	const additions = new Map<string, SkillRank>();
+
+	for (const rank of ranks.slice(0, Math.min(8, ranks.length))) {
+		const skill = SKILL_BY_ID.get(rank.skillId);
+		if (!skill) continue;
+		const relatedTargets = [
+			...skill.delegates
+				.map((delegate) => ({ id: delegate.skill, multiplier: 0.24 }))
+				.filter((target): target is { id: string; multiplier: number } => Boolean(target.id)),
+			...skill.pairsWell.map((id) => ({ id, multiplier: 0.5 }))
+		];
+
+		for (const { id: targetId, multiplier } of relatedTargets) {
+			const targetSkill = SKILL_BY_ID.get(targetId);
+			if (!targetSkill) continue;
+			const relationshipScore = Math.max(20, rank.score * multiplier);
+			const existingRank = rankById.get(targetId);
+			if (existingRank) {
+				if (relationshipScore > existingRank.score) {
+					existingRank.score = relationshipScore;
+					existingRank.reason = `${existingRank.reason}, related to ${rank.skillId}`;
+				}
+				continue;
+			}
+			const isCuratedPair = multiplier >= 0.5;
+			if (
+				!isCuratedPair &&
+				categoryBoost(queryTokenSet, targetSkill.category) === 0 &&
+				selectionHintScore(targetSkill, normalizedQuery, queryTokenSet) <= 0
+			) {
+				continue;
+			}
+			if (additions.has(targetId)) continue;
+			additions.set(targetId, {
+				skillId: targetId,
+				score: relationshipScore,
+				reason: `related to ${rank.skillId}`,
+				category: targetSkill.category
 			});
 		}
 	}
 
-	// 2. Extract and match keywords
-	const keywords = extractKeywords(fullText);
-	for (const keyword of keywords) {
-		const skills = KEYWORD_TO_SKILLS[keyword] || [];
-		skills.forEach((skill, index) => {
-			const currentScore = matchedSkills.get(skill) || 0;
-			matchedSkills.set(skill, currentScore + (5 - index)); // Lower priority than task type
-		});
-	}
-
-	// 3. Sort by score and return top matches
-	const sortedSkills = [...matchedSkills.entries()]
-		.sort((a, b) => b[1] - a[1])
-		.map(([skill]) => skill)
-		.slice(0, maxSkills);
-
-	return sortedSkills;
+	return [...ranks, ...additions.values()]
+		.sort((a, b) => b.score - a.score || a.skillId.localeCompare(b.skillId))
+		.slice(0, maxResults);
 }
 
-/**
- * Match multiple tasks to skills (batch operation)
- */
+export function rankSkillsForText(text: string, maxResults = 10): SkillRank[] {
+	const queryTokens = tokenize(text);
+	if (queryTokens.length === 0) return [];
+	const normalizedQuery = normalize(text);
+
+	const ranks = SKILLS
+		.map((skill) => scoreSkill(skill, text, queryTokens))
+		.filter((rank): rank is SkillRank => Boolean(rank))
+		.sort((a, b) => b.score - a.score || a.skillId.localeCompare(b.skillId));
+
+	return addRelationshipContext(ranks, maxResults, normalizedQuery, new Set(queryTokens));
+}
+
+export function matchTaskToSkills(
+	taskName: string,
+	taskDescription?: string,
+	maxSkills = 5
+): string[] {
+	return rankSkillsForText(`${taskName}\n${taskDescription || ''}`, maxSkills).map((rank) => rank.skillId);
+}
+
 export function matchTasksToSkills(
 	tasks: Array<{ name: string; description?: string }>,
-	maxSkillsPerTask: number = 3
+	maxSkillsPerTask = 3
 ): Map<string, string[]> {
 	const result = new Map<string, string[]>();
-
 	for (const task of tasks) {
-		const skills = matchTaskToSkills(task.name, task.description, maxSkillsPerTask);
-		result.set(task.name, skills);
+		result.set(task.name, matchTaskToSkills(task.name, task.description, maxSkillsPerTask));
 	}
-
 	return result;
 }
 
-/**
- * Get all unique skills needed for a set of tasks
- */
 export function getAllRequiredSkills(
 	tasks: Array<{ name: string; description?: string }>,
-	maxSkillsPerTask: number = 3
+	maxSkillsPerTask = 3
 ): string[] {
 	const allSkills = new Set<string>();
-
-	for (const task of tasks) {
-		const skills = matchTaskToSkills(task.name, task.description, maxSkillsPerTask);
-		skills.forEach(skill => allSkills.add(skill));
+	for (const skills of matchTasksToSkills(tasks, maxSkillsPerTask).values()) {
+		skills.forEach((skill) => allSkills.add(skill));
 	}
-
 	return [...allSkills];
 }
 
-/**
- * Get skill priority/relevance for a mission
- */
 export function getSkillPriorities(
 	tasks: Array<{ name: string; description?: string }>
 ): Array<{ skillId: string; score: number; usedInTasks: string[] }> {
-	const skillScores = new Map<string, { score: number; tasks: string[] }>();
-
+	const scores = new Map<string, { score: number; usedInTasks: string[] }>();
 	for (const task of tasks) {
-		const skills = matchTaskToSkills(task.name, task.description, 5);
-		skills.forEach((skill, index) => {
-			const existing = skillScores.get(skill) || { score: 0, tasks: [] };
-			existing.score += (5 - index); // Higher score for higher priority matches
-			existing.tasks.push(task.name);
-			skillScores.set(skill, existing);
-		});
+		for (const rank of rankSkillsForText(`${task.name}\n${task.description || ''}`, 8)) {
+			const existing = scores.get(rank.skillId) || { score: 0, usedInTasks: [] };
+			existing.score += rank.score;
+			existing.usedInTasks.push(task.name);
+			scores.set(rank.skillId, existing);
+		}
 	}
-
-	return [...skillScores.entries()]
-		.map(([skillId, { score, tasks }]) => ({ skillId, score, usedInTasks: tasks }))
-		.sort((a, b) => b.score - a.score);
+	return [...scores.entries()]
+		.map(([skillId, value]) => ({ skillId, ...value }))
+		.sort((a, b) => b.score - a.score || a.skillId.localeCompare(b.skillId));
 }
 
-export { KEYWORD_TO_SKILLS, TASK_TYPE_TO_SKILLS };
+export const KEYWORD_TO_SKILLS: Record<string, string[]> = Object.fromEntries(
+	SKILLS.flatMap((skill) => {
+		const keys = new Set([
+			skill.id,
+			skill.id.replace(/-/g, ' '),
+			skill.name,
+			skill.category,
+			...skill.tags,
+			...skill.triggers
+		]);
+		return [...keys].map((key) => [normalize(key), [skill.id]] as const);
+	})
+);
+
+export const TASK_TYPE_TO_SKILLS: Record<string, string[]> = {
+	'Project Setup': matchTaskToSkills('project setup scaffold initialize repository', undefined, 5),
+	'Design System': matchTaskToSkills('design system ui components accessibility typography', undefined, 5),
+	Authentication: matchTaskToSkills('authentication oauth login session security', undefined, 5),
+	Database: matchTaskToSkills('database schema postgres migrations data model', undefined, 5),
+	API: matchTaskToSkills('api endpoint rest graphql backend', undefined, 5),
+	Frontend: matchTaskToSkills('frontend ui react svelte responsive', undefined, 5),
+	Backend: matchTaskToSkills('backend server api database', undefined, 5),
+	Testing: matchTaskToSkills('testing unit integration e2e qa', undefined, 5),
+	Deployment: matchTaskToSkills('deployment ci cd docker vercel', undefined, 5),
+	Security: matchTaskToSkills('security hardening owasp privacy', undefined, 5)
+};

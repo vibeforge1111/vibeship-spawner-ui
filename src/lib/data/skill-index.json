@@ -1,6 +1,6 @@
 {
   "version": "2.0.0",
-  "totalSkills": 608,
+  "totalSkills": 563,
   "domains": {
     "game": [
       {
@@ -469,45 +469,6 @@
           "prevention",
           "secure",
           "coding"
-        ]
-      },
-      {
-        "id": "astrophysics-fundamentals",
-        "kw": [
-          "astrophysics",
-          "fundamentals",
-          "stellar",
-          "physics",
-          "and",
-          "planetary",
-          "science",
-          "orbital"
-        ]
-      },
-      {
-        "id": "game-design-fundamentals",
-        "kw": [
-          "game",
-          "design",
-          "fundamentals",
-          "core",
-          "loop",
-          "reward",
-          "psychology",
-          "and"
-        ]
-      },
-      {
-        "id": "physics-fundamentals",
-        "kw": [
-          "physics",
-          "fundamentals",
-          "classical",
-          "mechanics",
-          "intuition",
-          "thermodynamics",
-          "heat",
-          "electromagnetism"
         ]
       },
       {
@@ -1566,6 +1527,19 @@
         ]
       },
       {
+        "id": "productivity-ai-tools",
+        "kw": [
+          "productivity",
+          "tools",
+          "ai",
+          "email",
+          "meeting",
+          "otter",
+          "superhuman",
+          "calendar"
+        ]
+      },
+      {
         "id": "ai-code-security",
         "kw": [
           "code",
@@ -1602,19 +1576,6 @@
           "dependency",
           "trust",
           "and"
-        ]
-      },
-      {
-        "id": "blockchain-web3",
-        "kw": [
-          "blockchain",
-          "web3",
-          "security",
-          "smart",
-          "contract",
-          "defi",
-          "protocol",
-          "design"
         ]
       },
       {
@@ -2137,45 +2098,6 @@
           "shareable",
           "result",
           "design"
-        ]
-      },
-      {
-        "id": "api-design-fundamentals",
-        "kw": [
-          "api",
-          "design",
-          "fundamentals",
-          "graphql",
-          "restful",
-          "schema",
-          "versioning",
-          "strategies"
-        ]
-      },
-      {
-        "id": "frontend-development",
-        "kw": [
-          "frontend",
-          "development",
-          "component",
-          "architecture",
-          "and",
-          "state",
-          "management",
-          "local"
-        ]
-      },
-      {
-        "id": "visual-design",
-        "kw": [
-          "visual",
-          "design",
-          "color",
-          "theory",
-          "and",
-          "typography",
-          "pairing",
-          "layout"
         ]
       },
       {
@@ -2768,58 +2690,6 @@
         ]
       },
       {
-        "id": "devops-automation",
-        "kw": [
-          "devops",
-          "automation",
-          "ci",
-          "cd",
-          "pipeline",
-          "design",
-          "and",
-          "infrastructure"
-        ]
-      },
-      {
-        "id": "earth-climate-science",
-        "kw": [
-          "earth",
-          "climate",
-          "science",
-          "carbon",
-          "footprint",
-          "analysis",
-          "modeling",
-          "fundamentals"
-        ]
-      },
-      {
-        "id": "neuroscience-fundamentals",
-        "kw": [
-          "neuroscience",
-          "fundamentals",
-          "neuroplasticity",
-          "and",
-          "learning",
-          "attention",
-          "focus",
-          "memory"
-        ]
-      },
-      {
-        "id": "sociology-fundamentals",
-        "kw": [
-          "sociology",
-          "fundamentals",
-          "social",
-          "structure",
-          "and",
-          "group",
-          "dynamics",
-          "socialization"
-        ]
-      },
-      {
         "id": "decision-frameworks",
         "kw": [
           "decision",
@@ -3098,19 +2968,6 @@
           "breakpoint",
           "container",
           "queries"
-        ]
-      },
-      {
-        "id": "mobile-development",
-        "kw": [
-          "mobile",
-          "development",
-          "react",
-          "cross",
-          "platform",
-          "native",
-          "ios",
-          "android"
         ]
       }
     ],
@@ -5633,6 +5490,19 @@
         ]
       },
       {
+        "id": "developer-experience",
+        "kw": [
+          "developer",
+          "experience",
+          "message",
+          "local",
+          "development",
+          "environment",
+          "build",
+          "test"
+        ]
+      },
+      {
         "id": "discrete-event-simulation",
         "kw": [
           "discrete",
@@ -5643,6 +5513,19 @@
           "scheduling",
           "and",
           "queue"
+        ]
+      },
+      {
+        "id": "distributed-systems",
+        "kw": [
+          "distributed",
+          "systems",
+          "consistency",
+          "models",
+          "linearizable",
+          "consensus",
+          "protocols",
+          "raft"
         ]
       },
       {
@@ -5812,6 +5695,19 @@
           "rewriting",
           "and",
           "redirect"
+        ]
+      },
+      {
+        "id": "npm-publishing",
+        "kw": [
+          "npm",
+          "publishing",
+          "typescript",
+          "security",
+          "semantic",
+          "versioning",
+          "discipline",
+          "dual"
         ]
       },
       {
@@ -6150,6 +6046,19 @@
           "lifecycle",
           "and",
           "prefab"
+        ]
+      },
+      {
+        "id": "vr-ar-development",
+        "kw": [
+          "development",
+          "user",
+          "rendering",
+          "budgets",
+          "minimum",
+          "comfort",
+          "settings",
+          "locomotion"
         ]
       },
       {
@@ -6777,6 +6686,19 @@
         ]
       },
       {
+        "id": "cryptography",
+        "kw": [
+          "cryptography",
+          "rest",
+          "symmetric",
+          "encryption",
+          "choice",
+          "asymmetric",
+          "rsa",
+          "digital"
+        ]
+      },
+      {
         "id": "cybersecurity",
         "kw": [
           "cybersecurity",
@@ -6969,526 +6891,6 @@
           "electrical",
           "power",
           "system"
-        ]
-      },
-      {
-        "id": "animation-motion",
-        "kw": [
-          "animation",
-          "motion",
-          "principles",
-          "disney",
-          "easing",
-          "curves",
-          "and",
-          "micro"
-        ]
-      },
-      {
-        "id": "architecture-spaces",
-        "kw": [
-          "architecture",
-          "spaces",
-          "structural",
-          "principles",
-          "load",
-          "spatial",
-          "planning",
-          "and"
-        ]
-      },
-      {
-        "id": "biology-fundamentals",
-        "kw": [
-          "biology",
-          "fundamentals",
-          "genetics",
-          "and",
-          "genomics",
-          "cell",
-          "ecology",
-          "ecosystems"
-        ]
-      },
-      {
-        "id": "chemistry-fundamentals",
-        "kw": [
-          "chemistry",
-          "fundamentals",
-          "molecular",
-          "structure",
-          "and",
-          "stoichiometry",
-          "reaction",
-          "acid"
-        ]
-      },
-      {
-        "id": "cognitive-behavioral",
-        "kw": [
-          "cognitive",
-          "behavioral",
-          "distortion",
-          "identification",
-          "thought",
-          "challenging",
-          "and",
-          "activation"
-        ]
-      },
-      {
-        "id": "communication-fundamentals",
-        "kw": [
-          "communication",
-          "fundamentals",
-          "technical",
-          "writing",
-          "documentation",
-          "presentation",
-          "design",
-          "and"
-        ]
-      },
-      {
-        "id": "conflict-resolution",
-        "kw": [
-          "conflict",
-          "resolution",
-          "identification",
-          "and",
-          "escalation",
-          "techniques",
-          "nonviolent",
-          "communication"
-        ]
-      },
-      {
-        "id": "craft-making",
-        "kw": [
-          "craft",
-          "making",
-          "material",
-          "selection",
-          "and",
-          "prototyping",
-          "methods",
-          "printing"
-        ]
-      },
-      {
-        "id": "cross-cultural-wisdom",
-        "kw": [
-          "cross",
-          "cultural",
-          "wisdom",
-          "dimensions",
-          "analysis",
-          "communication",
-          "due",
-          "diligence"
-        ]
-      },
-      {
-        "id": "cybersecurity-fundamentals",
-        "kw": [
-          "cybersecurity",
-          "fundamentals",
-          "security",
-          "owasp",
-          "top",
-          "vulnerability",
-          "threat",
-          "modeling"
-        ]
-      },
-      {
-        "id": "data-engineering-fundamentals",
-        "kw": [
-          "data",
-          "engineering",
-          "fundamentals",
-          "etl",
-          "elt",
-          "pipeline",
-          "quality",
-          "validation"
-        ]
-      },
-      {
-        "id": "entrepreneurship-fundamentals",
-        "kw": [
-          "entrepreneurship",
-          "fundamentals",
-          "customer",
-          "discovery",
-          "and",
-          "mvp",
-          "design",
-          "product"
-        ]
-      },
-      {
-        "id": "evolutionary-biology",
-        "kw": [
-          "evolutionary",
-          "biology",
-          "natural",
-          "selection",
-          "mechanisms",
-          "genetic",
-          "variation",
-          "and"
-        ]
-      },
-      {
-        "id": "existential-philosophy",
-        "kw": [
-          "existential",
-          "philosophy",
-          "frameworks",
-          "logotherapy",
-          "and",
-          "meaning",
-          "purpose",
-          "discovery"
-        ]
-      },
-      {
-        "id": "focus-techniques",
-        "kw": [
-          "focus",
-          "techniques",
-          "deep",
-          "work",
-          "methodology",
-          "attention",
-          "management",
-          "systems"
-        ]
-      },
-      {
-        "id": "futures-thinking",
-        "kw": [
-          "futures",
-          "thinking",
-          "scenario",
-          "planning",
-          "methodology",
-          "trend",
-          "analysis",
-          "and"
-        ]
-      },
-      {
-        "id": "growth-marketing",
-        "kw": [
-          "growth",
-          "marketing",
-          "loops",
-          "and",
-          "acquisition",
-          "channel",
-          "analysis",
-          "conversion"
-        ]
-      },
-      {
-        "id": "health-fundamentals",
-        "kw": [
-          "health",
-          "fundamentals",
-          "sleep",
-          "hygiene",
-          "and",
-          "movement",
-          "exercise",
-          "basic"
-        ]
-      },
-      {
-        "id": "investment-basics",
-        "kw": [
-          "investment",
-          "basics",
-          "asset",
-          "allocation",
-          "fundamentals",
-          "index",
-          "investing",
-          "principles"
-        ]
-      },
-      {
-        "id": "leadership-fundamentals",
-        "kw": [
-          "leadership",
-          "fundamentals",
-          "psychological",
-          "safety",
-          "and",
-          "delegation",
-          "empowerment",
-          "feedback"
-        ]
-      },
-      {
-        "id": "logical-reasoning",
-        "kw": [
-          "logical",
-          "reasoning",
-          "argument",
-          "structure",
-          "and",
-          "fallacy",
-          "identification",
-          "deductive"
-        ]
-      },
-      {
-        "id": "machine-learning-fundamentals",
-        "kw": [
-          "machine",
-          "learning",
-          "fundamentals",
-          "ml",
-          "feature",
-          "engineering",
-          "and",
-          "model"
-        ]
-      },
-      {
-        "id": "mathematics-fundamentals",
-        "kw": [
-          "mathematics",
-          "fundamentals",
-          "numerical",
-          "reasoning",
-          "and",
-          "basic",
-          "probability",
-          "percentages"
-        ]
-      },
-      {
-        "id": "mental-health",
-        "kw": [
-          "mental",
-          "health",
-          "literacy",
-          "recognizing",
-          "signs",
-          "that",
-          "supportive",
-          "listening"
-        ]
-      },
-      {
-        "id": "meta-learning",
-        "kw": [
-          "meta",
-          "learning",
-          "spaced",
-          "repetition",
-          "system",
-          "deliberate",
-          "practice",
-          "frameworks"
-        ]
-      },
-      {
-        "id": "music-audio",
-        "kw": [
-          "music",
-          "audio",
-          "theory",
-          "fundamentals",
-          "signal",
-          "processing",
-          "mixing",
-          "and"
-        ]
-      },
-      {
-        "id": "operations-systems",
-        "kw": [
-          "operations",
-          "systems",
-          "process",
-          "mapping",
-          "and",
-          "supply",
-          "chain",
-          "design"
-        ]
-      },
-      {
-        "id": "parenting-education",
-        "kw": [
-          "parenting",
-          "education",
-          "child",
-          "development",
-          "stages",
-          "learning",
-          "theories",
-          "montessori"
-        ]
-      },
-      {
-        "id": "personal-finance-fundamentals",
-        "kw": [
-          "personal",
-          "finance",
-          "fundamentals",
-          "security",
-          "budgeting",
-          "and",
-          "cash",
-          "emergency"
-        ]
-      },
-      {
-        "id": "philosophy-fundamentals",
-        "kw": [
-          "philosophy",
-          "fundamentals",
-          "logical",
-          "reasoning",
-          "and",
-          "fallacy",
-          "identification",
-          "ethical"
-        ]
-      },
-      {
-        "id": "productivity-systems",
-        "kw": [
-          "productivity",
-          "systems",
-          "deep",
-          "work",
-          "and",
-          "task",
-          "prioritization",
-          "frameworks"
-        ]
-      },
-      {
-        "id": "psychology-fundamentals",
-        "kw": [
-          "psychology",
-          "fundamentals",
-          "cognitive",
-          "biases",
-          "and",
-          "motivation",
-          "theory",
-          "intrinsic"
-        ]
-      },
-      {
-        "id": "quantum-mechanics",
-        "kw": [
-          "quantum",
-          "mechanics",
-          "superposition",
-          "and",
-          "entanglement",
-          "non",
-          "measurement",
-          "wavefunction"
-        ]
-      },
-      {
-        "id": "relationship-fundamentals",
-        "kw": [
-          "relationship",
-          "fundamentals",
-          "attachment",
-          "theory",
-          "application",
-          "emotional",
-          "intelligence",
-          "frameworks"
-        ]
-      },
-      {
-        "id": "sales-fundamentals",
-        "kw": [
-          "sales",
-          "fundamentals",
-          "consultative",
-          "selling",
-          "frameworks",
-          "pipeline",
-          "management",
-          "and"
-        ]
-      },
-      {
-        "id": "software-architecture",
-        "kw": [
-          "software",
-          "architecture",
-          "system",
-          "decomposition",
-          "and",
-          "coupling",
-          "analysis",
-          "solid"
-        ]
-      },
-      {
-        "id": "storytelling-writing",
-        "kw": [
-          "storytelling",
-          "writing",
-          "narrative",
-          "structure",
-          "hero",
-          "technical",
-          "documentation",
-          "api"
-        ]
-      },
-      {
-        "id": "team-dynamics-fundamentals",
-        "kw": [
-          "team",
-          "dynamics",
-          "fundamentals",
-          "formation",
-          "and",
-          "psychological",
-          "safety",
-          "measurement"
-        ]
-      },
-      {
-        "id": "tech-ethics",
-        "kw": [
-          "tech",
-          "ethics",
-          "ai",
-          "algorithmic",
-          "bias",
-          "detection",
-          "disparate",
-          "impact"
-        ]
-      },
-      {
-        "id": "typography-fundamentals",
-        "kw": [
-          "typography",
-          "fundamentals",
-          "type",
-          "classification",
-          "and",
-          "font",
-          "pairing",
-          "strategy"
         ]
       },
       {
@@ -7788,6 +7190,19 @@
           "fit",
           "competitive",
           "positioning"
+        ]
+      },
+      {
+        "id": "project-management",
+        "kw": [
+          "project",
+          "management",
+          "scope",
+          "decomposition",
+          "into",
+          "dependency",
+          "mapping",
+          "and"
         ]
       },
       {
@@ -11785,6 +11200,19 @@
       ]
     },
     {
+      "id": "developer-experience",
+      "kw": [
+        "developer",
+        "experience",
+        "message",
+        "local",
+        "development",
+        "environment",
+        "build",
+        "test"
+      ]
+    },
+    {
       "id": "digital-twin",
       "kw": [
         "digital",
@@ -11808,6 +11236,19 @@
         "scheduling",
         "and",
         "queue"
+      ]
+    },
+    {
+      "id": "distributed-systems",
+      "kw": [
+        "distributed",
+        "systems",
+        "consistency",
+        "models",
+        "linearizable",
+        "consensus",
+        "protocols",
+        "raft"
       ]
     },
     {
@@ -12029,6 +11470,19 @@
         "upload",
         "security",
         "action"
+      ]
+    },
+    {
+      "id": "npm-publishing",
+      "kw": [
+        "npm",
+        "publishing",
+        "typescript",
+        "security",
+        "semantic",
+        "versioning",
+        "discipline",
+        "dual"
       ]
     },
     {
@@ -12991,6 +12445,19 @@
         "palette",
         "design",
         "frame"
+      ]
+    },
+    {
+      "id": "vr-ar-development",
+      "kw": [
+        "development",
+        "user",
+        "rendering",
+        "budgets",
+        "minimum",
+        "comfort",
+        "settings",
+        "locomotion"
       ]
     },
     {
@@ -14021,6 +13488,19 @@
       ]
     },
     {
+      "id": "productivity-ai-tools",
+      "kw": [
+        "productivity",
+        "tools",
+        "ai",
+        "email",
+        "meeting",
+        "otter",
+        "superhuman",
+        "calendar"
+      ]
+    },
+    {
       "id": "a-b-testing",
       "kw": [
         "testing",
@@ -14252,6 +13732,19 @@
         "trust",
         "non",
         "root"
+      ]
+    },
+    {
+      "id": "cryptography",
+      "kw": [
+        "cryptography",
+        "rest",
+        "symmetric",
+        "encryption",
+        "choice",
+        "asymmetric",
+        "rsa",
+        "digital"
       ]
     },
     {
@@ -14499,682 +13992,6 @@
         "electrical",
         "power",
         "system"
-      ]
-    },
-    {
-      "id": "animation-motion",
-      "kw": [
-        "animation",
-        "motion",
-        "principles",
-        "disney",
-        "easing",
-        "curves",
-        "and",
-        "micro"
-      ]
-    },
-    {
-      "id": "api-design-fundamentals",
-      "kw": [
-        "api",
-        "design",
-        "fundamentals",
-        "graphql",
-        "restful",
-        "schema",
-        "versioning",
-        "strategies"
-      ]
-    },
-    {
-      "id": "architecture-spaces",
-      "kw": [
-        "architecture",
-        "spaces",
-        "structural",
-        "principles",
-        "load",
-        "spatial",
-        "planning",
-        "and"
-      ]
-    },
-    {
-      "id": "astrophysics-fundamentals",
-      "kw": [
-        "astrophysics",
-        "fundamentals",
-        "stellar",
-        "physics",
-        "and",
-        "planetary",
-        "science",
-        "orbital"
-      ]
-    },
-    {
-      "id": "biology-fundamentals",
-      "kw": [
-        "biology",
-        "fundamentals",
-        "genetics",
-        "and",
-        "genomics",
-        "cell",
-        "ecology",
-        "ecosystems"
-      ]
-    },
-    {
-      "id": "blockchain-web3",
-      "kw": [
-        "blockchain",
-        "web3",
-        "security",
-        "smart",
-        "contract",
-        "defi",
-        "protocol",
-        "design"
-      ]
-    },
-    {
-      "id": "chemistry-fundamentals",
-      "kw": [
-        "chemistry",
-        "fundamentals",
-        "molecular",
-        "structure",
-        "and",
-        "stoichiometry",
-        "reaction",
-        "acid"
-      ]
-    },
-    {
-      "id": "cognitive-behavioral",
-      "kw": [
-        "cognitive",
-        "behavioral",
-        "distortion",
-        "identification",
-        "thought",
-        "challenging",
-        "and",
-        "activation"
-      ]
-    },
-    {
-      "id": "communication-fundamentals",
-      "kw": [
-        "communication",
-        "fundamentals",
-        "technical",
-        "writing",
-        "documentation",
-        "presentation",
-        "design",
-        "and"
-      ]
-    },
-    {
-      "id": "conflict-resolution",
-      "kw": [
-        "conflict",
-        "resolution",
-        "identification",
-        "and",
-        "escalation",
-        "techniques",
-        "nonviolent",
-        "communication"
-      ]
-    },
-    {
-      "id": "craft-making",
-      "kw": [
-        "craft",
-        "making",
-        "material",
-        "selection",
-        "and",
-        "prototyping",
-        "methods",
-        "printing"
-      ]
-    },
-    {
-      "id": "cross-cultural-wisdom",
-      "kw": [
-        "cross",
-        "cultural",
-        "wisdom",
-        "dimensions",
-        "analysis",
-        "communication",
-        "due",
-        "diligence"
-      ]
-    },
-    {
-      "id": "cybersecurity-fundamentals",
-      "kw": [
-        "cybersecurity",
-        "fundamentals",
-        "security",
-        "owasp",
-        "top",
-        "vulnerability",
-        "threat",
-        "modeling"
-      ]
-    },
-    {
-      "id": "data-engineering-fundamentals",
-      "kw": [
-        "data",
-        "engineering",
-        "fundamentals",
-        "etl",
-        "elt",
-        "pipeline",
-        "quality",
-        "validation"
-      ]
-    },
-    {
-      "id": "devops-automation",
-      "kw": [
-        "devops",
-        "automation",
-        "ci",
-        "cd",
-        "pipeline",
-        "design",
-        "and",
-        "infrastructure"
-      ]
-    },
-    {
-      "id": "earth-climate-science",
-      "kw": [
-        "earth",
-        "climate",
-        "science",
-        "carbon",
-        "footprint",
-        "analysis",
-        "modeling",
-        "fundamentals"
-      ]
-    },
-    {
-      "id": "entrepreneurship-fundamentals",
-      "kw": [
-        "entrepreneurship",
-        "fundamentals",
-        "customer",
-        "discovery",
-        "and",
-        "mvp",
-        "design",
-        "product"
-      ]
-    },
-    {
-      "id": "evolutionary-biology",
-      "kw": [
-        "evolutionary",
-        "biology",
-        "natural",
-        "selection",
-        "mechanisms",
-        "genetic",
-        "variation",
-        "and"
-      ]
-    },
-    {
-      "id": "existential-philosophy",
-      "kw": [
-        "existential",
-        "philosophy",
-        "frameworks",
-        "logotherapy",
-        "and",
-        "meaning",
-        "purpose",
-        "discovery"
-      ]
-    },
-    {
-      "id": "focus-techniques",
-      "kw": [
-        "focus",
-        "techniques",
-        "deep",
-        "work",
-        "methodology",
-        "attention",
-        "management",
-        "systems"
-      ]
-    },
-    {
-      "id": "frontend-development",
-      "kw": [
-        "frontend",
-        "development",
-        "component",
-        "architecture",
-        "and",
-        "state",
-        "management",
-        "local"
-      ]
-    },
-    {
-      "id": "futures-thinking",
-      "kw": [
-        "futures",
-        "thinking",
-        "scenario",
-        "planning",
-        "methodology",
-        "trend",
-        "analysis",
-        "and"
-      ]
-    },
-    {
-      "id": "game-design-fundamentals",
-      "kw": [
-        "game",
-        "design",
-        "fundamentals",
-        "core",
-        "loop",
-        "reward",
-        "psychology",
-        "and"
-      ]
-    },
-    {
-      "id": "growth-marketing",
-      "kw": [
-        "growth",
-        "marketing",
-        "loops",
-        "and",
-        "acquisition",
-        "channel",
-        "analysis",
-        "conversion"
-      ]
-    },
-    {
-      "id": "health-fundamentals",
-      "kw": [
-        "health",
-        "fundamentals",
-        "sleep",
-        "hygiene",
-        "and",
-        "movement",
-        "exercise",
-        "basic"
-      ]
-    },
-    {
-      "id": "investment-basics",
-      "kw": [
-        "investment",
-        "basics",
-        "asset",
-        "allocation",
-        "fundamentals",
-        "index",
-        "investing",
-        "principles"
-      ]
-    },
-    {
-      "id": "leadership-fundamentals",
-      "kw": [
-        "leadership",
-        "fundamentals",
-        "psychological",
-        "safety",
-        "and",
-        "delegation",
-        "empowerment",
-        "feedback"
-      ]
-    },
-    {
-      "id": "logical-reasoning",
-      "kw": [
-        "logical",
-        "reasoning",
-        "argument",
-        "structure",
-        "and",
-        "fallacy",
-        "identification",
-        "deductive"
-      ]
-    },
-    {
-      "id": "machine-learning-fundamentals",
-      "kw": [
-        "machine",
-        "learning",
-        "fundamentals",
-        "ml",
-        "feature",
-        "engineering",
-        "and",
-        "model"
-      ]
-    },
-    {
-      "id": "mathematics-fundamentals",
-      "kw": [
-        "mathematics",
-        "fundamentals",
-        "numerical",
-        "reasoning",
-        "and",
-        "basic",
-        "probability",
-        "percentages"
-      ]
-    },
-    {
-      "id": "mental-health",
-      "kw": [
-        "mental",
-        "health",
-        "literacy",
-        "recognizing",
-        "signs",
-        "that",
-        "supportive",
-        "listening"
-      ]
-    },
-    {
-      "id": "meta-learning",
-      "kw": [
-        "meta",
-        "learning",
-        "spaced",
-        "repetition",
-        "system",
-        "deliberate",
-        "practice",
-        "frameworks"
-      ]
-    },
-    {
-      "id": "mobile-development",
-      "kw": [
-        "mobile",
-        "development",
-        "react",
-        "cross",
-        "platform",
-        "native",
-        "ios",
-        "android"
-      ]
-    },
-    {
-      "id": "music-audio",
-      "kw": [
-        "music",
-        "audio",
-        "theory",
-        "fundamentals",
-        "signal",
-        "processing",
-        "mixing",
-        "and"
-      ]
-    },
-    {
-      "id": "neuroscience-fundamentals",
-      "kw": [
-        "neuroscience",
-        "fundamentals",
-        "neuroplasticity",
-        "and",
-        "learning",
-        "attention",
-        "focus",
-        "memory"
-      ]
-    },
-    {
-      "id": "operations-systems",
-      "kw": [
-        "operations",
-        "systems",
-        "process",
-        "mapping",
-        "and",
-        "supply",
-        "chain",
-        "design"
-      ]
-    },
-    {
-      "id": "parenting-education",
-      "kw": [
-        "parenting",
-        "education",
-        "child",
-        "development",
-        "stages",
-        "learning",
-        "theories",
-        "montessori"
-      ]
-    },
-    {
-      "id": "personal-finance-fundamentals",
-      "kw": [
-        "personal",
-        "finance",
-        "fundamentals",
-        "security",
-        "budgeting",
-        "and",
-        "cash",
-        "emergency"
-      ]
-    },
-    {
-      "id": "philosophy-fundamentals",
-      "kw": [
-        "philosophy",
-        "fundamentals",
-        "logical",
-        "reasoning",
-        "and",
-        "fallacy",
-        "identification",
-        "ethical"
-      ]
-    },
-    {
-      "id": "physics-fundamentals",
-      "kw": [
-        "physics",
-        "fundamentals",
-        "classical",
-        "mechanics",
-        "intuition",
-        "thermodynamics",
-        "heat",
-        "electromagnetism"
-      ]
-    },
-    {
-      "id": "productivity-systems",
-      "kw": [
-        "productivity",
-        "systems",
-        "deep",
-        "work",
-        "and",
-        "task",
-        "prioritization",
-        "frameworks"
-      ]
-    },
-    {
-      "id": "psychology-fundamentals",
-      "kw": [
-        "psychology",
-        "fundamentals",
-        "cognitive",
-        "biases",
-        "and",
-        "motivation",
-        "theory",
-        "intrinsic"
-      ]
-    },
-    {
-      "id": "quantum-mechanics",
-      "kw": [
-        "quantum",
-        "mechanics",
-        "superposition",
-        "and",
-        "entanglement",
-        "non",
-        "measurement",
-        "wavefunction"
-      ]
-    },
-    {
-      "id": "relationship-fundamentals",
-      "kw": [
-        "relationship",
-        "fundamentals",
-        "attachment",
-        "theory",
-        "application",
-        "emotional",
-        "intelligence",
-        "frameworks"
-      ]
-    },
-    {
-      "id": "sales-fundamentals",
-      "kw": [
-        "sales",
-        "fundamentals",
-        "consultative",
-        "selling",
-        "frameworks",
-        "pipeline",
-        "management",
-        "and"
-      ]
-    },
-    {
-      "id": "sociology-fundamentals",
-      "kw": [
-        "sociology",
-        "fundamentals",
-        "social",
-        "structure",
-        "and",
-        "group",
-        "dynamics",
-        "socialization"
-      ]
-    },
-    {
-      "id": "software-architecture",
-      "kw": [
-        "software",
-        "architecture",
-        "system",
-        "decomposition",
-        "and",
-        "coupling",
-        "analysis",
-        "solid"
-      ]
-    },
-    {
-      "id": "storytelling-writing",
-      "kw": [
-        "storytelling",
-        "writing",
-        "narrative",
-        "structure",
-        "hero",
-        "technical",
-        "documentation",
-        "api"
-      ]
-    },
-    {
-      "id": "team-dynamics-fundamentals",
-      "kw": [
-        "team",
-        "dynamics",
-        "fundamentals",
-        "formation",
-        "and",
-        "psychological",
-        "safety",
-        "measurement"
-      ]
-    },
-    {
-      "id": "tech-ethics",
-      "kw": [
-        "tech",
-        "ethics",
-        "ai",
-        "algorithmic",
-        "bias",
-        "detection",
-        "disparate",
-        "impact"
-      ]
-    },
-    {
-      "id": "typography-fundamentals",
-      "kw": [
-        "typography",
-        "fundamentals",
-        "type",
-        "classification",
-        "and",
-        "font",
-        "pairing",
-        "strategy"
-      ]
-    },
-    {
-      "id": "visual-design",
-      "kw": [
-        "visual",
-        "design",
-        "color",
-        "theory",
-        "and",
-        "typography",
-        "pairing",
-        "layout"
       ]
     },
     {
@@ -15565,6 +14382,19 @@
         "fit",
         "competitive",
         "positioning"
+      ]
+    },
+    {
+      "id": "project-management",
+      "kw": [
+        "project",
+        "management",
+        "scope",
+        "decomposition",
+        "into",
+        "dependency",
+        "mapping",
+        "and"
       ]
     },
     {

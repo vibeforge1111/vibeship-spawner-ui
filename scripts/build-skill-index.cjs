@@ -81,48 +81,13 @@ function processSkill(skillPath, skillName, category) {
     description: skill.description || '',
     owns: skill.owns || [],
     triggers: skill.triggers || [],
-    category: remapCategory(skill.category || category || 'general', skillName),
-    delegates: skill.delegates || []
+    category: skill.category || category || 'general',
+    delegates: skill.delegates || [],
+    pairsWell: Array.isArray(skill.pairs_with) ? skill.pairs_with : [],
+    selectionHints: skill.selection_hints || {}
   };
 
   return { minimal, full };
-}
-
-// Keep in sync with scripts/build-skill-catalog.cjs SPARKNET_COUNCIL_REMAP.
-const SPARKNET_COUNCIL_REMAP = {
-  'animation-motion': 'creative', 'api-design-fundamentals': 'backend',
-  'architecture-spaces': 'architecture', 'astrophysics-fundamentals': 'space',
-  'biology-fundamentals': 'biotech', 'blockchain-web3': 'blockchain',
-  'chemistry-fundamentals': 'biotech', 'cognitive-behavioral': 'methodology',
-  'communication-fundamentals': 'communications', 'conflict-resolution': 'communications',
-  'craft-making': 'creative', 'cross-cultural-wisdom': 'community',
-  'cybersecurity-fundamentals': 'security', 'data-engineering-fundamentals': 'data',
-  'devops-automation': 'devops', 'earth-climate-science': 'climate',
-  'entrepreneurship-fundamentals': 'startup', 'evolutionary-biology': 'biotech',
-  'existential-philosophy': 'methodology', 'focus-techniques': 'methodology',
-  'frontend-development': 'frontend', 'futures-thinking': 'strategy',
-  'game-design-fundamentals': 'game-dev', 'growth-marketing': 'marketing',
-  'health-fundamentals': 'biotech', 'investment-basics': 'finance',
-  'leadership-fundamentals': 'business', 'logical-reasoning': 'methodology',
-  'machine-learning-fundamentals': 'ai', 'mathematics-fundamentals': 'engineering',
-  'mental-health': 'biotech', 'meta-learning': 'methodology',
-  'mobile-development': 'frontend', 'music-audio': 'creative',
-  'neuroscience-fundamentals': 'biotech', 'operations-systems': 'devops',
-  'parenting-education': 'education', 'personal-finance-fundamentals': 'finance',
-  'philosophy-fundamentals': 'methodology', 'physics-fundamentals': 'engineering',
-  'productivity-systems': 'methodology', 'psychology-fundamentals': 'community',
-  'quantum-mechanics': 'engineering', 'relationship-fundamentals': 'community',
-  'sales-fundamentals': 'marketing', 'sociology-fundamentals': 'community',
-  'software-architecture': 'architecture', 'storytelling-writing': 'creative',
-  'team-dynamics-fundamentals': 'business', 'tech-ethics': 'methodology',
-  'typography-fundamentals': 'design', 'visual-design': 'design'
-};
-
-function remapCategory(category, skillName) {
-  if (category === 'sparknet-council' && SPARKNET_COUNCIL_REMAP[skillName]) {
-    return SPARKNET_COUNCIL_REMAP[skillName];
-  }
-  return category;
 }
 
 /**
@@ -191,7 +156,7 @@ function createCategorizedIndex(skills) {
 function main() {
   console.log('=== Building Skill Index ===\n');
 
-  const NON_SKILL_DIRS = new Set(['mcp-server', 'tools', 'viz', 'benchmark', 'benchmarks', 'h70-to-clawdbot', '.github', 'config', 'bundles', 'release-artifacts', 'eval', 'methodology']);
+  const NON_SKILL_DIRS = new Set(['mcp-server', 'tools', 'viz', 'benchmark', 'benchmarks', 'h70-to-clawdbot', '.github', 'config', 'bundles', 'release-artifacts', 'eval']);
   const categories = fs.readdirSync(H70_PATH, { withFileTypes: true })
     .filter(d => d.isDirectory() && !d.name.startsWith('_') && !d.name.startsWith('.') && !NON_SKILL_DIRS.has(d.name))
     .map(d => d.name);
@@ -224,6 +189,16 @@ function main() {
     }
   }
 
+  const validIds = new Set(Object.keys(fullDetails));
+  for (const skill of Object.values(fullDetails)) {
+    skill.delegates = Array.isArray(skill.delegates)
+      ? skill.delegates.filter(delegate => delegate && validIds.has(delegate.skill))
+      : [];
+    skill.pairsWell = Array.isArray(skill.pairsWell)
+      ? skill.pairsWell.filter(skillId => validIds.has(skillId))
+      : [];
+  }
+
   // Create categorized index
   const categorized = createCategorizedIndex(minimalIndex);
 
@@ -246,6 +221,30 @@ function main() {
   // Write full details (for after selection)
   const fullPath = path.join(OUTPUT_DIR, 'skill-details.json');
   fs.writeFileSync(fullPath, JSON.stringify(fullDetails, null, 2));
+
+  const matcherCatalog = {};
+  for (const [skillName, skill] of Object.entries(fullDetails)) {
+    matcherCatalog[skillName] = {
+      id: skill.id,
+      name: skill.name,
+      description: String(skill.description || '').slice(0, 120),
+      owns: Array.isArray(skill.owns)
+        ? skill.owns.slice(0, 4).map(own => String(own).slice(0, 60))
+        : [],
+      triggers: Array.isArray(skill.triggers)
+        ? skill.triggers.slice(0, 5).map(trigger => String(trigger).slice(0, 50))
+        : [],
+      category: skill.category,
+      delegates: Array.isArray(skill.delegates)
+        ? skill.delegates.map(delegate => ({ skill: delegate.skill }))
+        : [],
+      pairsWell: skill.pairsWell,
+      selectionHints: skill.selectionHints || {}
+    };
+  }
+
+  const matcherPath = path.join(OUTPUT_DIR, 'skill-matcher-catalog.json');
+  fs.writeFileSync(matcherPath, JSON.stringify(matcherCatalog, null, 2));
 
   // Calculate sizes
   const minimalJson = JSON.stringify(minimalOutput);
@@ -279,6 +278,7 @@ function main() {
   console.log('\nFiles written:');
   console.log(`  ${minimalPath}`);
   console.log(`  ${fullPath}`);
+  console.log(`  ${matcherPath}`);
   console.log(`  ${ultraCompactPath}`);
 }
 

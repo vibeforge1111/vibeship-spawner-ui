@@ -5,6 +5,14 @@
  */
 
 import type { AnalyzedGoal, MatchedSkill, GeneratedWorkflow } from '$lib/types/goal';
+import skillDetails from '$lib/data/skill-details.json';
+
+type SkillRelationshipRecord = {
+	delegates?: Array<{ skill?: string }>;
+	pairsWell?: string[];
+};
+
+const RELATIONSHIP_DETAILS = skillDetails as Record<string, SkillRelationshipRecord>;
 
 // Layout configuration
 const LAYOUT = {
@@ -17,54 +25,41 @@ const LAYOUT = {
 	MAX_NODES_PER_ROW: 4
 };
 
-// Skill relationship mappings (which skills connect to which)
-const SKILL_RELATIONSHIPS: Record<string, string[]> = {
-	// Auth flows
-	'authentication-oauth': ['supabase-auth', 'nextjs-app-router', 'api-design'],
-	'supabase-auth': ['supabase-backend', 'api-design'],
-
-	// Backend flows
-	'supabase-backend': ['api-design', 'error-handling-patterns'],
-	'api-design': ['error-handling-patterns', 'integration-testing'],
-
-	// Frontend flows
-	'nextjs-app-router': ['react-patterns', 'tailwind-patterns'],
-	'react-patterns': ['frontend-design', 'state-management'],
-
-	// Payment flows
-	'stripe-payments': ['api-design', 'webhook-patterns', 'error-handling-patterns'],
-	'fintech-integration': ['stripe-payments', 'compliance-automation'],
-
-	// Data flows
-	'data-pipeline': ['supabase-backend', 'analytics-patterns'],
-	'elasticsearch-search': ['api-design', 'supabase-backend'],
-
-	// AI flows
-	'llm-integration': ['api-design', 'streaming-responses'],
-	'ai-patterns': ['llm-integration', 'error-handling-patterns'],
-
-	// Real-time flows
-	'realtime-patterns': ['supabase-backend', 'websocket-patterns'],
-	'chat-patterns': ['realtime-patterns', 'notification-patterns'],
-
-	// Integration flows
-	'webhook-patterns': ['api-design', 'error-handling-patterns'],
-	'integration-patterns': ['api-design', 'webhook-patterns']
-};
-
 // Category groupings for layout
 const CATEGORY_ROWS: Record<string, number> = {
-	'frameworks': 0,
-	'development': 1,
-	'integrations': 2,
+	frontend: 0,
+	frameworks: 0,
+	development: 1,
+	backend: 1,
+	'ai': 2,
+	'ai-agents': 2,
 	'ai-ml': 2,
-	'data': 3,
-	'design': 4,
-	'marketing': 5,
-	'enterprise': 3,
-	'finance': 3,
-	'agents': 2
+	agents: 2,
+	integrations: 2,
+	data: 3,
+	enterprise: 3,
+	finance: 3,
+	trading: 3,
+	design: 4,
+	creative: 4,
+	'game-dev': 4,
+	marketing: 5,
+	devops: 5,
+	security: 5,
+	testing: 5
 };
+
+function getRelatedSkillIds(skillId: string): string[] {
+	const details = RELATIONSHIP_DETAILS[skillId];
+	if (!details) return [];
+
+	return [
+		...(details.delegates || [])
+			.map((delegate) => delegate.skill)
+			.filter((id): id is string => Boolean(id)),
+		...(details.pairsWell || [])
+	].filter((id, index, all) => all.indexOf(id) === index && Boolean(RELATIONSHIP_DETAILS[id]));
+}
 
 /**
  * Determine node position based on tier and index
@@ -109,20 +104,26 @@ function inferConnections(skills: MatchedSkill[]): Array<{ sourceId: string; tar
 	const connections: Array<{ sourceId: string; targetId: string }> = [];
 	const addedConnections = new Set<string>();
 
-	for (const skill of skills) {
-		const relatedSkills = SKILL_RELATIONSHIPS[skill.skillId] || [];
+	for (let sourceIndex = 0; sourceIndex < skills.length; sourceIndex++) {
+		for (let targetIndex = sourceIndex + 1; targetIndex < skills.length; targetIndex++) {
+			const sourceSkill = skills[sourceIndex];
+			const targetSkill = skills[targetIndex];
+			const sourceRelatedSkills = getRelatedSkillIds(sourceSkill.skillId);
+			const targetRelatedSkills = getRelatedSkillIds(targetSkill.skillId);
+			const hasForwardRelation = sourceRelatedSkills.includes(targetSkill.skillId);
+			const hasReverseRelation = targetRelatedSkills.includes(sourceSkill.skillId);
 
-		for (const targetId of relatedSkills) {
-			if (skillIds.has(targetId)) {
-				const connectionKey = `${skill.skillId}->${targetId}`;
-				if (!addedConnections.has(connectionKey)) {
-					connections.push({
-						sourceId: skill.skillId,
-						targetId
-					});
-					addedConnections.add(connectionKey);
-				}
-			}
+			if (!skillIds.has(sourceSkill.skillId) || !skillIds.has(targetSkill.skillId)) continue;
+			if (!hasForwardRelation && !hasReverseRelation) continue;
+
+			const connectionKey = `${sourceSkill.skillId}->${targetSkill.skillId}`;
+			if (addedConnections.has(connectionKey)) continue;
+
+			connections.push({
+				sourceId: sourceSkill.skillId,
+				targetId: targetSkill.skillId
+			});
+			addedConnections.add(connectionKey);
 		}
 	}
 

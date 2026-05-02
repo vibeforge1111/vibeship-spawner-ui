@@ -17,19 +17,7 @@ import { get } from 'svelte/store';
 import { skills as skillsStore } from '$lib/stores/skills.svelte';
 import type { Skill } from '$lib/stores/skills.svelte';
 import { claudeClient, type ClaudeAnalysis } from './claude-api';
-import { KEYWORD_TO_SKILLS } from './h70-skill-matcher';
-
-// Skill category priorities (for local fallback sorting)
-const CATEGORY_PRIORITY: Record<string, number> = {
-	'frameworks': 1,
-	'development': 2,
-	'game': 3,
-	'ai': 4,
-	'integrations': 5,
-	'data': 6,
-	'design': 7,
-	'marketing': 8
-};
+import { rankSkillsForText } from './h70-skill-matcher';
 
 /**
  * Convert Claude's skill selections to MatchedSkill format
@@ -68,7 +56,7 @@ function convertClaudeSkills(
 }
 
 /**
- * Local fallback: Simple keyword matching using H70 mappings
+ * Local fallback: deterministic ranking against the generated Spark catalog
  * Only used when Claude API is unavailable
  */
 function matchSkillsLocal(goal: AnalyzedGoal, maxResults: number): MatchedSkill[] {
@@ -77,79 +65,32 @@ function matchSkillsLocal(goal: AnalyzedGoal, maxResults: number): MatchedSkill[
 		return [];
 	}
 
-	// Build a set of matched skill IDs from H70 keywords
-	const matchedIds = new Map<string, { score: number; reason: string }>();
+	const skillById = new Map(allSkills.map((skill) => [skill.id, skill]));
+	const searchText = [
+		goal.sanitized,
+		...goal.keywords,
+		...goal.features,
+		...goal.technologies,
+		...goal.domains
+	].join('\n');
 
-	// Match keywords against H70 mappings
-	for (const keyword of goal.keywords) {
-		const h70Skills = KEYWORD_TO_SKILLS[keyword.toLowerCase()] || [];
-		for (let i = 0; i < h70Skills.length; i++) {
-			const skillId = h70Skills[i];
-			const existing = matchedIds.get(skillId);
-			const positionScore = i === 0 ? 0.6 : 0.4;
-
-			if (!existing || existing.score < positionScore) {
-				matchedIds.set(skillId, {
-					score: existing ? Math.max(existing.score, positionScore) + 0.1 : positionScore,
-					reason: `matches "${keyword}"`
-				});
-			}
-		}
-	}
-
-	// Match features
-	for (const feature of goal.features) {
-		const h70Skills = KEYWORD_TO_SKILLS[feature.toLowerCase()] || [];
-		for (const skillId of h70Skills) {
-			const existing = matchedIds.get(skillId);
-			if (existing) {
-				existing.score += 0.2;
-			} else {
-				matchedIds.set(skillId, { score: 0.3, reason: `supports ${feature}` });
-			}
-		}
-	}
-
-	// Match technologies
-	for (const tech of goal.technologies) {
-		const h70Skills = KEYWORD_TO_SKILLS[tech.toLowerCase()] || [];
-		for (const skillId of h70Skills) {
-			const existing = matchedIds.get(skillId);
-			if (existing) {
-				existing.score += 0.3;
-			} else {
-				matchedIds.set(skillId, { score: 0.4, reason: `${tech} expertise` });
-			}
-		}
-	}
-
-	// Convert to MatchedSkill array
-	const matched: MatchedSkill[] = [];
-	for (const [skillId, match] of matchedIds.entries()) {
-		const skill = allSkills.find(s => s.id === skillId);
-		if (!skill) continue;
-
-		matched.push({
+	return rankSkillsForText(searchText, maxResults)
+		.map((rank): MatchedSkill | null => {
+			const skill = skillById.get(rank.skillId);
+			if (!skill) return null;
+			const score = Math.min(1, rank.score / 120);
+			return {
 			skillId: skill.id,
 			name: skill.name,
 			description: skill.description,
 			category: skill.category,
-			score: Math.min(1, match.score),
-			matchReason: match.reason,
-			tier: match.score >= 0.6 ? 1 : match.score >= 0.3 ? 2 : 3,
+				score,
+				matchReason: rank.reason,
+				tier: score >= 0.7 ? 1 : score >= 0.45 ? 2 : 3,
 			tags: skill.tags
-		});
-	}
-
-	// Sort by score
-	matched.sort((a, b) => {
-		if (b.score !== a.score) return b.score - a.score;
-		const priorityA = CATEGORY_PRIORITY[a.category] || 99;
-		const priorityB = CATEGORY_PRIORITY[b.category] || 99;
-		return priorityA - priorityB;
-	});
-
-	return matched.slice(0, maxResults);
+			};
+		})
+		.filter((skill): skill is MatchedSkill => Boolean(skill));
 }
 
 /**
@@ -188,7 +129,7 @@ export async function matchSkills(
 
 	// Fall back to local matching if Claude didn't work
 	if (skills.length === 0) {
-		logger.info('[SkillMatcher] Using local keyword matching (H70 mappings)');
+		logger.info('[SkillMatcher] Using local Spark catalog matching');
 		skills = matchSkillsLocal(goal, maxResults);
 		logger.info(`[SkillMatcher] Matched ${skills.length} skills locally`);
 	}

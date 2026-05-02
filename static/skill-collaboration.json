@@ -6,7 +6,7 @@
     "frontend": {
       "owns": ["react components", "vue components", "svelte components", "client state", "ui rendering", "client routing", "forms", "dom manipulation"],
       "specificity": 0.5,
-      "receives_from": ["design-systems", "ux-researcher", "accessibility-specialist"]
+      "receives_from": ["design-systems", "ux-design", "accessibility-design"]
     },
     "backend": {
       "owns": ["server logic", "api implementation", "business logic", "data processing", "server routing"],
@@ -21,7 +21,7 @@
       "owns": ["utility classes", "responsive design", "tailwind config", "custom utilities"],
       "specificity": 0.85
     },
-    "accessibility-specialist": {
+    "accessibility-design": {
       "owns": ["wcag compliance", "screen reader", "keyboard navigation", "aria labels", "color contrast", "focus management"],
       "specificity": 0.9
     },
@@ -121,11 +121,11 @@
       "owns": ["supabase tables", "supabase functions", "supabase realtime", "supabase storage", "supabase rls"],
       "specificity": 0.85
     },
-    "file-upload": {
+    "file-uploads": {
       "owns": ["file uploads", "multipart", "presigned urls", "upload progress", "file validation"],
       "specificity": 0.85
     },
-    "storage": {
+    "image-optimization-cdn": {
       "owns": ["s3", "r2", "blob storage", "file storage", "cdn"],
       "specificity": 0.8
     },
@@ -177,7 +177,7 @@
       "owns": ["event tracking", "user analytics", "funnels", "dashboards", "metrics"],
       "specificity": 0.7
     },
-    "ecommerce-architect": {
+    "ecommerce-cart-checkout": {
       "owns": ["product catalog", "cart", "checkout flow", "inventory", "orders"],
       "specificity": 0.8
     },
@@ -194,7 +194,7 @@
     },
     "gaming": {
       "triggers": ["game", "multiplayer", "unity", "godot", "phaser", "player", "score", "level"],
-      "skills": ["game-development", "game-networking", "game-dev-unity", "game-dev-godot", "phaser-game"]
+      "skills": ["game-development", "game-networking", "unity-development", "godot-development", "game-design-core"]
     },
     "ai-ml": {
       "triggers": ["llm", "ai", "ml", "gpt", "claude", "embedding", "vector", "rag", "agent", "chatbot", "prompt"],
@@ -202,7 +202,7 @@
     },
     "blockchain": {
       "triggers": ["blockchain", "web3", "crypto", "nft", "smart contract", "wallet", "ethereum", "solana", "defi", "token"],
-      "skills": ["smart-contract-engineer", "nft-engineer", "blockchain-defi", "web3-frontend"]
+      "skills": ["smart-contract-engineer", "nft-engineer", "blockchain-defi", "web3-gaming"]
     },
     "enterprise": {
       "triggers": ["compliance", "audit", "gdpr", "hipaa", "soc2", "enterprise", "governance"],
@@ -210,18 +210,18 @@
     },
     "mobile": {
       "triggers": ["mobile", "ios", "android", "react native", "flutter", "expo", "app store"],
-      "skills": ["react-native-specialist", "expo", "ios-swift-specialist", "flutter-mobile"]
+      "skills": ["react-native-specialist", "expo", "ios-swift-specialist", "android-kotlin-specialist"]
     },
     "ecommerce": {
       "triggers": ["ecommerce", "shop", "store", "product", "cart", "checkout", "inventory", "order", "shipping"],
-      "skills": ["ecommerce-architect", "stripe-integration", "inventory-management"]
+      "skills": ["ecommerce-cart-checkout", "stripe-integration", "digital-product-delivery"]
     }
   },
 
   "skill_chains": {
     "ui_feature": {
       "description": "Building a UI feature from scratch",
-      "chain": ["design-systems", "accessibility-specialist", "frontend", "testing-automation"]
+      "chain": ["design-systems", "accessibility-design", "frontend", "testing-automation"]
     },
     "api_endpoint": {
       "description": "Building an API endpoint",

@@ -1,0 +1,573 @@
+{
+  "summary": {
+    "caseCount": 18,
+    "passCount": 18,
+    "passRate": 1,
+    "averageScore": 0.9467611111111108,
+    "averageLabeledPrecisionAtK": 0.46759259259259267,
+    "averageRequiredRecall": 1,
+    "averageAnyOfRecall": 1,
+    "averageMustNotCleanRate": 1,
+    "failures": []
+  },
+  "results": [
+    {
+      "name": "RAG chatbot",
+      "prompt": "Build a production RAG chatbot with embeddings, vector retrieval, semantic search, citations, and prompt evaluation",
+      "ids": [
+        "semantic-search",
+        "rag-implementation",
+        "neural-architecture-search",
+        "ai-observability",
+        "ai-personalization",
+        "document-ai",
+        "llm-architect",
+        "rag-engineer",
+        "vector-specialist",
+        "openai-api-patterns"
+      ],
+      "pass": true,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "semantic-search",
+        "rag-implementation",
+        "llm-architect",
+        "rag-engineer",
+        "vector-specialist"
+      ]
+    },
+    {
+      "name": "AI art consistency",
+      "prompt": "Create a consistent AI art series with the same character, visual style, image generation, and shot continuity",
+      "ids": [
+        "art-consistency",
+        "ai-game-art-generation",
+        "character-design",
+        "concept-art",
+        "content-creation",
+        "ai-image-generation",
+        "ai-creative-director",
+        "ai-video-generation",
+        "branding",
+        "prompt-engineering-creative"
+      ],
+      "pass": true,
+      "score": 0.93,
+      "labeledPrecisionAtK": 0.3,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "art-consistency",
+        "ai-image-generation",
+        "ai-video-generation"
+      ]
+    },
+    {
+      "name": "Mobile app",
+      "prompt": "Build a mobile app with Expo and React Native, native iOS and Android integrations, push notifications, and app store deployment",
+      "ids": [
+        "expo",
+        "push-notifications",
+        "react-native-specialist",
+        "ios-swift-specialist",
+        "android-kotlin-specialist",
+        "state-management",
+        "react-patterns",
+        "framer-motion-react",
+        "responsive-mobile-first",
+        "forms-validation"
+      ],
+      "pass": true,
+      "score": 0.94,
+      "labeledPrecisionAtK": 0.4,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "expo",
+        "react-native-specialist",
+        "ios-swift-specialist",
+        "android-kotlin-specialist"
+      ]
+    },
+    {
+      "name": "SaaS billing",
+      "prompt": "Build a SaaS app with authentication, subscriptions, Stripe billing, dashboard analytics, and onboarding",
+      "ids": [
+        "analytics",
+        "stripe-subscriptions",
+        "stripe-integration",
+        "subscription-billing",
+        "analytics-architecture",
+        "authentication-oauth",
+        "auth-specialist",
+        "saas-teams-organizations",
+        "data-engineer",
+        "onboarding-flows"
+      ],
+      "pass": true,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "analytics",
+        "stripe-integration",
+        "subscription-billing",
+        "authentication-oauth",
+        "auth-specialist"
+      ]
+    },
+    {
+      "name": "Multiplayer game",
+      "prompt": "Build a multiplayer roguelike game with procedural dungeons, inventory, combat, and online sync",
+      "ids": [
+        "game-design-core",
+        "game-development",
+        "procedural-generation",
+        "combat-design",
+        "game-networking",
+        "game-ai-behavior",
+        "game-audio",
+        "game-monetization",
+        "llm-game-development",
+        "mobile-game-dev"
+      ],
+      "pass": true,
+      "score": 0.94,
+      "labeledPrecisionAtK": 0.4,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "game-design-core",
+        "game-development",
+        "procedural-generation",
+        "game-networking"
+      ]
+    },
+    {
+      "name": "Ecommerce checkout",
+      "prompt": "Build an ecommerce checkout with cart, Stripe payments, digital product delivery, email receipts, and analytics",
+      "ids": [
+        "digital-product-delivery",
+        "analytics",
+        "ecommerce-cart-checkout",
+        "stripe-integration",
+        "resend-email",
+        "product-analytics-engineering",
+        "data-engineer",
+        "lemonsqueezy-payments",
+        "analytics-architecture",
+        "klaviyo-ecommerce"
+      ],
+      "pass": true,
+      "score": 0.94,
+      "labeledPrecisionAtK": 0.4,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "digital-product-delivery",
+        "ecommerce-cart-checkout",
+        "stripe-integration",
+        "resend-email"
+      ]
+    },
+    {
+      "name": "AI agent tooling",
+      "prompt": "Build an AI agent with tool calling, memory, multi-agent orchestration, and MCP server integration",
+      "ids": [
+        "agent-tool-builder",
+        "ai-function-calling",
+        "agent-memory-systems",
+        "multi-agent-orchestration",
+        "mcp-server-development",
+        "voice-agents",
+        "crewai",
+        "agent-communication",
+        "computer-use-agents",
+        "mcp-developer"
+      ],
+      "pass": true,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "agent-tool-builder",
+        "agent-memory-systems",
+        "multi-agent-orchestration",
+        "mcp-server-development",
+        "mcp-developer"
+      ]
+    },
+    {
+      "name": "Realtime chat",
+      "prompt": "Build a realtime chat app with websockets, presence indicators, push notifications, and message history",
+      "ids": [
+        "push-notifications",
+        "presence-indicators",
+        "realtime-chat-systems",
+        "websockets-realtime",
+        "websocket-realtime",
+        "realtime-engineer",
+        "ai-chatbot-builder",
+        "vfx-realtime",
+        "conversation-memory"
+      ],
+      "pass": true,
+      "score": 0.9667,
+      "labeledPrecisionAtK": 0.6666666666666666,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "push-notifications",
+        "presence-indicators",
+        "realtime-chat-systems",
+        "websockets-realtime",
+        "websocket-realtime",
+        "realtime-engineer"
+      ]
+    },
+    {
+      "name": "Devops deployment",
+      "prompt": "Build a Kubernetes deployment pipeline with Docker containers, CI/CD, infrastructure as code, and monitoring",
+      "ids": [
+        "infrastructure-as-code",
+        "kubernetes",
+        "docker",
+        "kubernetes-deployment",
+        "devops-engineer",
+        "observability",
+        "mcp-deployment",
+        "ci-cd-pipeline",
+        "devops",
+        "docker-specialist"
+      ],
+      "pass": true,
+      "score": 0.96,
+      "labeledPrecisionAtK": 0.6,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "infrastructure-as-code",
+        "kubernetes",
+        "docker",
+        "devops-engineer",
+        "ci-cd-pipeline",
+        "devops"
+      ]
+    },
+    {
+      "name": "Compliance privacy",
+      "prompt": "Build a GDPR compliant healthcare app with audit logging, privacy controls, HIPAA compliance, and security hardening",
+      "ids": [
+        "audit-logging",
+        "security-hardening",
+        "security",
+        "gdpr-privacy",
+        "compliance-automation",
+        "privacy-guardian",
+        "identity-access-management",
+        "security-engineer",
+        "auth-specialist",
+        "cybersecurity"
+      ],
+      "pass": true,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "audit-logging",
+        "security-hardening",
+        "gdpr-privacy",
+        "compliance-automation",
+        "privacy-guardian"
+      ]
+    },
+    {
+      "name": "Web3 NFT marketplace",
+      "prompt": "Build a Web3 NFT marketplace with wallet login, smart contracts, minting, royalties, and token-gated community",
+      "ids": [
+        "web3-community",
+        "nft-engineer",
+        "nft-systems",
+        "smart-contract-engineer",
+        "wallet-integration",
+        "auth-specialist",
+        "community-analytics",
+        "community-building",
+        "community-led-growth",
+        "community-operations"
+      ],
+      "pass": true,
+      "score": 0.94,
+      "labeledPrecisionAtK": 0.4,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "web3-community",
+        "nft-engineer",
+        "smart-contract-engineer",
+        "wallet-integration"
+      ]
+    },
+    {
+      "name": "SEO landing page",
+      "prompt": "Build a SEO landing page with copywriting, conversion rate optimization, waitlist capture, and analytics",
+      "ids": [
+        "conversion-rate-optimization",
+        "copywriting",
+        "seo",
+        "analytics",
+        "waitlist-launch-pages",
+        "landing-page-design",
+        "data-engineer",
+        "onchain-analytics",
+        "session-recording-analytics",
+        "analytics-architecture"
+      ],
+      "pass": true,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "conversion-rate-optimization",
+        "copywriting",
+        "seo",
+        "waitlist-launch-pages",
+        "landing-page-design"
+      ]
+    },
+    {
+      "name": "Data pipeline",
+      "prompt": "Build a data pipeline with ETL, warehouse analytics, dashboards, metrics, and data quality checks",
+      "ids": [
+        "data-pipeline",
+        "analytics",
+        "data-engineer",
+        "analytics-architecture",
+        "event-architect",
+        "infra-architect",
+        "migration-specialist",
+        "ml-memory",
+        "observability-sre",
+        "postgres-wizard"
+      ],
+      "pass": true,
+      "score": 0.94,
+      "labeledPrecisionAtK": 0.4,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "data-pipeline",
+        "analytics",
+        "data-engineer",
+        "analytics-architecture"
+      ]
+    },
+    {
+      "name": "Browser automation extension",
+      "prompt": "Build a browser extension that automates websites with Playwright tests and background scripts",
+      "ids": [
+        "browser-extension-builder",
+        "browser-automation",
+        "playwright-testing",
+        "documentation-that-slaps"
+      ],
+      "pass": true,
+      "score": 0.975,
+      "labeledPrecisionAtK": 0.75,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "browser-extension-builder",
+        "browser-automation",
+        "playwright-testing"
+      ]
+    },
+    {
+      "name": "Document AI",
+      "prompt": "Build a PDF document AI system with OCR, extraction, RAG over documents, and structured output",
+      "ids": [
+        "document-ai",
+        "structured-output",
+        "llm-architect",
+        "ai-code-generation",
+        "ai-observability",
+        "semantic-search",
+        "api-designer",
+        "event-architect",
+        "performance-hunter",
+        "privacy-guardian"
+      ],
+      "pass": true,
+      "score": 0.93,
+      "labeledPrecisionAtK": 0.3,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "document-ai",
+        "structured-output",
+        "semantic-search"
+      ]
+    },
+    {
+      "name": "Voice AI support",
+      "prompt": "Build a voice AI support bot with speech to text, text to speech, Twilio calls, and conversation memory",
+      "ids": [
+        "conversation-memory",
+        "voice-ai-development",
+        "llm-npc-dialogue",
+        "voice-agents",
+        "twilio-communications",
+        "ai-music-audio",
+        "ai-chatbot-builder",
+        "context-window-management",
+        "prompt-caching",
+        "rag-implementation"
+      ],
+      "pass": true,
+      "score": 0.94,
+      "labeledPrecisionAtK": 0.4,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "conversation-memory",
+        "voice-ai-development",
+        "voice-agents",
+        "twilio-communications"
+      ]
+    },
+    {
+      "name": "Realtime whiteboard",
+      "prompt": "Build a realtime collaborative whiteboard with presence, websocket sync, optimistic updates, and conflict resolution",
+      "ids": [
+        "websockets-realtime",
+        "websocket-realtime",
+        "realtime-engineer",
+        "presence-indicators",
+        "realtime-chat-systems",
+        "local-first-sync",
+        "vfx-realtime",
+        "observability",
+        "api-design",
+        "infrastructure-as-code"
+      ],
+      "pass": true,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "websockets-realtime",
+        "websocket-realtime",
+        "realtime-engineer",
+        "presence-indicators",
+        "local-first-sync"
+      ]
+    },
+    {
+      "name": "Social community",
+      "prompt": "Build a social community app with profiles, feed, likes, comments, moderation, and notifications",
+      "ids": [
+        "social-community",
+        "social-features",
+        "web3-community",
+        "push-notifications",
+        "community-operations",
+        "community-analytics",
+        "community-building",
+        "community-led-growth",
+        "developer-community",
+        "community-tooling"
+      ],
+      "pass": true,
+      "score": 0.94,
+      "labeledPrecisionAtK": 0.4,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "social-community",
+        "social-features",
+        "push-notifications",
+        "community-building"
+      ]
+    }
+  ]
+}

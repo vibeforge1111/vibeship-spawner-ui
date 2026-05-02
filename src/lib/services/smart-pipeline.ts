@@ -9,6 +9,9 @@
 
 import { get } from 'svelte/store';
 import { skills as skillsStore, loadSkillsStatic, type Skill } from '$lib/stores/skills.svelte';
+import { rankSkillsForText } from './h70-skill-matcher';
+
+const MAX_PIPELINE_SKILLS = 10;
 
 // ============================================
 // Types
@@ -107,101 +110,10 @@ async function selectSkillsForGoal(
 	goal: string,
 	skills: Skill[]
 ): Promise<Skill[]> {
-	const goalLower = goal.toLowerCase();
-	const words = goalLower.split(/\s+/);
-
-	// Score each skill based on relevance
-	const scored = skills.map(skill => {
-		let score = 0;
-
-		// Direct name match (highest weight)
-		if (goalLower.includes(skill.name.toLowerCase())) {
-			score += 50;
-		}
-
-		// Tag matches
-		for (const tag of skill.tags || []) {
-			if (goalLower.includes(tag.toLowerCase())) {
-				score += 20;
-			}
-			// Partial word match
-			if (words.some(w => tag.toLowerCase().includes(w) || w.includes(tag.toLowerCase()))) {
-				score += 5;
-			}
-		}
-
-		// Trigger matches
-		for (const trigger of skill.triggers || []) {
-			if (goalLower.includes(trigger.toLowerCase())) {
-				score += 30;
-			}
-		}
-
-		// Category relevance
-		score += getCategoryScore(skill.category, goalLower);
-
-		// Description match
-		if (skill.description) {
-			const descWords = skill.description.toLowerCase().split(/\s+/);
-			const matchingWords = words.filter(w =>
-				w.length > 3 && descWords.some(d => d.includes(w))
-			);
-			score += matchingWords.length * 3;
-		}
-
-		return { skill, score };
-	});
-
-	// Sort by score and take top skills
-	const sorted = scored
-		.filter(s => s.score > 10)
-		.sort((a, b) => b.score - a.score);
-
-	// Select skills with good coverage (max 8 for readability)
-	const selected: Skill[] = [];
-	const categories = new Set<string>();
-
-	for (const { skill, score } of sorted) {
-		if (selected.length >= 8) break;
-
-		// Prefer variety of categories
-		if (!categories.has(skill.category) || score > 40 || selected.length < 3) {
-			selected.push(skill);
-			categories.add(skill.category);
-		}
-	}
-
-	return selected;
-}
-
-/**
- * Score skill category based on goal content
- */
-function getCategoryScore(category: string, goal: string): number {
-	const categoryKeywords: Record<string, string[]> = {
-		'development': ['build', 'code', 'develop', 'create', 'implement', 'app', 'application', 'software'],
-		'frontend': ['ui', 'interface', 'design', 'react', 'vue', 'svelte', 'web', 'website', 'frontend'],
-		'backend': ['api', 'server', 'database', 'backend', 'endpoint', 'rest', 'graphql'],
-		'ai': ['ai', 'ml', 'machine learning', 'gpt', 'claude', 'llm', 'intelligent', 'smart'],
-		'agents': ['agent', 'autonomous', 'automation', 'workflow', 'orchestrate'],
-		'data': ['data', 'analytics', 'dashboard', 'metrics', 'database', 'storage'],
-		'integration': ['integrate', 'connect', 'api', 'webhook', 'sync', 'third-party'],
-		'marketing': ['marketing', 'seo', 'content', 'social', 'campaign', 'email'],
-		'strategy': ['strategy', 'plan', 'business', 'growth', 'launch'],
-		'finance': ['payment', 'stripe', 'billing', 'subscription', 'fintech', 'money'],
-		'security': ['auth', 'authentication', 'security', 'oauth', 'login', 'protect']
-	};
-
-	const keywords = categoryKeywords[category] || [];
-	let score = 0;
-
-	for (const keyword of keywords) {
-		if (goal.includes(keyword)) {
-			score += 10;
-		}
-	}
-
-	return score;
+	const skillById = new Map(skills.map((skill) => [skill.id, skill]));
+	return rankSkillsForText(goal, MAX_PIPELINE_SKILLS)
+		.map((rank) => skillById.get(rank.skillId))
+		.filter((skill): skill is Skill => Boolean(skill));
 }
 
 // ============================================
