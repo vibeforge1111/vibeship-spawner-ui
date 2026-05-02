@@ -42,7 +42,7 @@
 		shouldLiveSyncMissionControl,
 		shouldSkipMissionControlHydration
 	} from '$lib/services/mission-control-live-sync';
-	import { buildExecutionTaskRows } from '$lib/services/execution-task-rows';
+	import { buildExecutionTaskRows, summarizeTaskRows } from '$lib/services/execution-task-rows';
 	import {
 		formatExecutionDuration,
 		getAgentStatusColor,
@@ -195,6 +195,16 @@
 		return executionProgress.taskTransitions.slice(-12).reverse();
 	});
 	let taskRows = $derived.by(() => buildExecutionTaskRows(executionProgress, currentNodes));
+	let minimizedTaskSummary = $derived.by(() => {
+		const summary = summarizeTaskRows(taskRows);
+		const total = taskRows.length || executionProgress?.mission?.tasks?.length || currentNodes.length || 0;
+		const completed = summary.completed || executionProgress?.mission?.tasks?.filter((task) => task.status === 'completed').length || 0;
+		return {
+			total,
+			completed,
+			remaining: Math.max(0, total - completed)
+		};
+	});
 
 	$effect(() => {
 		if (!browser) return;
@@ -1248,7 +1258,7 @@
 {#if minimized && (isRunning || isPaused)}
 	<button
 		onclick={onToggleMinimize}
-		class="fixed left-1/2 top-[4.25rem] z-50 w-[min(calc(100vw-2rem),32rem)] -translate-x-1/2 rounded-lg border border-accent-primary/35 bg-bg-secondary/95 px-4 py-3 text-left shadow-[0_18px_70px_rgba(0,0,0,0.38)] backdrop-blur transition-all hover:-translate-y-0.5 hover:border-accent-primary hover:shadow-[0_22px_80px_rgba(0,196,154,0.14)] md:left-[calc(50%+8rem)] group"
+		class="fixed left-1/2 top-[4.25rem] z-50 w-[min(calc(100vw-2rem),40rem)] -translate-x-1/2 rounded-lg border border-accent-primary/55 bg-bg-secondary/95 px-4 py-3 text-left shadow-[0_18px_70px_rgba(0,0,0,0.38)] backdrop-blur transition-all hover:-translate-y-0.5 hover:border-accent-primary hover:shadow-[0_22px_80px_rgba(0,196,154,0.16)] md:left-[calc(50%+8rem)] group"
 		aria-label="Open workflow execution details"
 	>
 		<div class="flex items-center gap-3">
@@ -1256,19 +1266,32 @@
 				<span class="text-2xl font-semibold leading-none tabular-nums text-text-primary">
 					{executionProgress?.progress || 0}<span class="ml-0.5 text-sm font-medium text-text-tertiary">%</span>
 				</span>
-				{#if isRunning}
-					<span class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-vibe-teal shadow-[0_0_16px_rgba(0,196,154,0.55)]"></span>
-				{:else if isPaused}
-					<span class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-status-warning"></span>
-				{/if}
 			</div>
 			<div class="min-w-0 flex-1">
 				<div class="flex items-center justify-between gap-3">
-					<p class="font-mono text-[10px] uppercase tracking-[0.14em] text-text-tertiary">
-						{isPaused ? 'Workflow paused' : 'Workflow live'}
-					</p>
-					<span class="hidden font-mono text-[10px] uppercase tracking-[0.12em] text-accent-primary transition-colors group-hover:text-text-primary sm:inline">
-						Open details
+					<div class="flex min-w-0 items-center gap-2">
+						<span class="relative flex h-2.5 w-2.5 shrink-0">
+							{#if isRunning}
+								<span class="absolute inline-flex h-full w-full rounded-full bg-vibe-teal opacity-60 animate-ping-slow"></span>
+								<span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-vibe-teal shadow-[0_0_16px_rgba(0,196,154,0.55)]"></span>
+							{:else if isPaused}
+								<span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-status-warning"></span>
+							{/if}
+						</span>
+						<p class="font-mono text-[10px] uppercase tracking-[0.14em] text-accent-primary">
+							{isPaused ? 'Paused' : 'Live'}
+						</p>
+						{#if minimizedTaskSummary.total > 0}
+							<span class="hidden font-mono text-[10px] text-text-tertiary sm:inline">
+								{minimizedTaskSummary.completed}/{minimizedTaskSummary.total} tasks
+								{#if minimizedTaskSummary.remaining > 0}
+									<span class="text-text-secondary">- {minimizedTaskSummary.remaining} left</span>
+								{/if}
+							</span>
+						{/if}
+					</div>
+					<span class="hidden rounded-md border border-accent-primary/30 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-accent-primary transition-colors group-hover:bg-accent-primary/10 group-hover:text-text-primary sm:inline">
+						Details
 					</span>
 				</div>
 				<p class="mt-1 truncate text-sm font-medium text-text-primary">
@@ -1276,7 +1299,7 @@
 				</p>
 				<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-bg-primary">
 					<div
-						class="h-full rounded-full bg-accent-primary transition-all duration-500"
+						class="minimized-execution-progress-fill h-full rounded-full bg-accent-primary transition-all duration-500"
 						style="width: {executionProgress?.progress || 0}%"
 					></div>
 				</div>
@@ -1472,7 +1495,18 @@
 	</div>
 </div>
 {/if}
-
+<style>
+	.minimized-execution-progress-fill {
+		background-image: linear-gradient(
+			135deg,
+			rgb(255 255 255 / 0.32) 0 18%,
+			transparent 18% 50%,
+			rgb(255 255 255 / 0.2) 50% 68%,
+			transparent 68% 100%
+		);
+		background-size: 20px 20px;
+	}
+</style>
 <!-- Orphan Node Warning Modal -->
 {#if showOrphanWarning && orphanedNodes.length > 0}
 	<OrphanNodeWarningModal
@@ -1502,3 +1536,4 @@
 		</div>
 	</div>
 {/if}
+
