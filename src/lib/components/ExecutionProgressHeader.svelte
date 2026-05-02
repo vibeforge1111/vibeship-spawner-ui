@@ -361,11 +361,6 @@
 			</div>
 		{/if}
 	</div>
-{:else if executionProgress.loadedSkills && executionProgress.loadedSkills.length > 0}
-	<div class="mt-2 flex items-center justify-between gap-2 px-1 font-mono text-[10px] uppercase tracking-[0.14em] text-text-tertiary">
-		<span>Skill at work</span>
-		<span>{currentTaskSkills.length > 0 ? 'Live now' : `${executionProgress.loadedSkills.length} loaded`}</span>
-	</div>
 {:else if executionProgress.missionId}
 	<div class="mt-2 p-2 bg-surface-secondary text-xs">
 		<div class="flex items-center justify-between gap-2">
@@ -376,6 +371,10 @@
 {/if}
 
 {#if executionProgress.loadedSkills && executionProgress.loadedSkills.length > 0}
+	<div class="mt-2 flex items-center justify-between gap-2 px-1 font-mono text-[10px] uppercase tracking-[0.14em] text-text-tertiary">
+		<span>Skill at work</span>
+		<span>{currentTaskSkills.length > 0 ? 'Live now' : `${executionProgress.loadedSkills.length} loaded`}</span>
+	</div>
 	<div class="mt-1 flex items-center gap-3 px-3 py-2 bg-indigo-500/10 border border-indigo-500/30">
 		<div class="relative">
 			{#if currentTaskSkills.length > 0}
