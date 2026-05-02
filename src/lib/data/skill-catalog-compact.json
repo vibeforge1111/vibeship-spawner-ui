@@ -1714,7 +1714,15 @@
       "service"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "chrome extension",
+        "browser extension",
+        "content scripts",
+        "background service worker"
+      ],
+      "penalty": 72
+    }
   },
   {
     "id": "monorepo-management",
@@ -1947,7 +1955,15 @@
       "bullmq/redis job queue architecture and configuration"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "chrome extension",
+        "browser extension",
+        "content scripts",
+        "background service worker"
+      ],
+      "penalty": 72
+    }
   },
   {
     "id": "rate-limiting",
@@ -7438,7 +7454,14 @@
         "syncs local changes",
         "offline sync",
         "service worker"
-      ]
+      ],
+      "negative_terms": [
+        "chrome extension",
+        "browser extension",
+        "content scripts",
+        "background service worker"
+      ],
+      "penalty": 72
     }
   },
   {

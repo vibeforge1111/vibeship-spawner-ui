@@ -2591,7 +2591,15 @@
       ],
       "category": "backend",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "negative_terms": [
+          "chrome extension",
+          "browser extension",
+          "content scripts",
+          "background service worker"
+        ],
+        "penalty": 72
+      }
     },
     {
       "id": "monorepo-management",
@@ -2944,7 +2952,15 @@
       ],
       "category": "backend",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "negative_terms": [
+          "chrome extension",
+          "browser extension",
+          "content scripts",
+          "background service worker"
+        ],
+        "penalty": 72
+      }
     },
     {
       "id": "rate-limiting",
@@ -11122,7 +11138,14 @@
           "syncs local changes",
           "offline sync",
           "service worker"
-        ]
+        ],
+        "negative_terms": [
+          "chrome extension",
+          "browser extension",
+          "content scripts",
+          "background service worker"
+        ],
+        "penalty": 72
       }
     },
     {
@@ -20785,7 +20808,15 @@
         ],
         "category": "backend",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "negative_terms": [
+            "chrome extension",
+            "browser extension",
+            "content scripts",
+            "background service worker"
+          ],
+          "penalty": 72
+        }
       },
       {
         "id": "monorepo-management",
@@ -21138,7 +21169,15 @@
         ],
         "category": "backend",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "negative_terms": [
+            "chrome extension",
+            "browser extension",
+            "content scripts",
+            "background service worker"
+          ],
+          "penalty": 72
+        }
       },
       {
         "id": "rate-limiting",
@@ -29352,7 +29391,14 @@
             "syncs local changes",
             "offline sync",
             "service worker"
-          ]
+          ],
+          "negative_terms": [
+            "chrome extension",
+            "browser extension",
+            "content scripts",
+            "background service worker"
+          ],
+          "penalty": 72
         }
       },
       {
