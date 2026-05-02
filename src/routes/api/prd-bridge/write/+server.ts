@@ -862,6 +862,17 @@ export const POST: RequestHandler = async (event) => {
 				normalizedTier,
 				auto.cancel
 			);
+		} else if (auto.provider !== 'none') {
+			await updatePendingRequestStatus(requestId, 'fallback', {
+				reason: `No ${auto.provider} auto-analysis worker started; deterministic fallback queued`
+			});
+			await writeFallbackAnalysisResult(
+				requestId,
+				requestMeta.projectName,
+				requestMeta.buildMode,
+				normalizedTier,
+				`auto-analysis not started for provider ${auto.provider}`
+			);
 		}
 
 		logger.info(`[PRDBridge] PRD written to ${paths.pendingPrdFile}`);
