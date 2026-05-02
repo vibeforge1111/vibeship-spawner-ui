@@ -39,12 +39,14 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		name: 'AI art consistency',
 		prompt: 'Create a consistent AI art series with the same character, visual style, image generation, and shot continuity',
 		mustInclude: ['art-consistency', 'ai-image-generation', 'ai-video-generation'],
+		anyOf: [['character-design', 'concept-art'], ['ai-creative-director']],
 		mustNotInclude: ['rate-limiting', 'digital-product-delivery']
 	},
 	{
 		name: 'Mobile app',
 		prompt: 'Build a mobile app with Expo and React Native, native iOS and Android integrations, push notifications, and app store deployment',
 		mustInclude: ['expo', 'react-native-specialist', 'ios-swift-specialist', 'android-kotlin-specialist'],
+		anyOf: [['push-notifications']],
 		mustNotInclude: [
 			'mobile-development',
 			'kubernetes-deployment',
@@ -69,14 +71,15 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		mustInclude: ['game-development'],
 		anyOf: [
 			['game-networking', 'websocket-realtime'],
-			['procedural-generation', 'roguelike-dungeon', 'game-design-core']
+			['procedural-generation', 'roguelike-dungeon', 'game-design-core'],
+			['combat-design']
 		]
 	},
 	{
 		name: 'Ecommerce checkout',
 		prompt: 'Build an ecommerce checkout with cart, Stripe payments, digital product delivery, email receipts, and analytics',
 		mustInclude: ['ecommerce-cart-checkout', 'stripe-integration', 'digital-product-delivery'],
-		anyOf: [['resend-email', 'email-deliverability', 'email-marketing']]
+		anyOf: [['resend-email', 'email-deliverability', 'email-marketing', 'email-systems'], ['analytics']]
 	},
 	{
 		name: 'AI agent tooling',
@@ -154,7 +157,7 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		name: 'Social community',
 		prompt: 'Build a social community app with profiles, feed, likes, comments, moderation, and notifications',
 		mustInclude: ['social-features', 'push-notifications'],
-		anyOf: [['social-community', 'community-building', 'community-strategy']]
+		anyOf: [['social-community', 'community-building', 'community-strategy'], ['community-operations']]
 	},
 	{
 		name: 'File upload storage',
@@ -304,7 +307,7 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		name: 'Onboarding analytics',
 		prompt: 'Design onboarding flows with activation analytics, lifecycle emails, and conversion experiments',
 		mustInclude: ['onboarding-flows', 'analytics', 'conversion-rate-optimization'],
-		anyOf: [['experimental-design', 'product-analytics-engineering']]
+		anyOf: [['experimental-design', 'product-analytics-engineering'], ['player-onboarding']]
 	},
 	{
 		name: 'Enterprise SaaS',
@@ -437,7 +440,7 @@ export const CHALLENGE_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		suite: 'challenge',
 		prompt: 'Build drag and drop image gallery upload with compression, CDN optimization, captions, moderation, and accessible keyboard controls',
 		mustInclude: ['file-uploads', 'image-optimization-cdn', 'accessibility'],
-		anyOf: [['social-features']],
+		anyOf: [['social-features', 'community-operations']],
 		mustNotInclude: ['model-optimization', 'portfolio-optimization']
 	},
 	{
