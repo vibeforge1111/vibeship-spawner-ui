@@ -563,8 +563,8 @@ export function setPan(pan: { x: number; y: number }) {
 	}));
 }
 
-const NODE_WIDTH = 192;
-const NODE_HEIGHT = 48;
+const NODE_WIDTH = 224;
+const NODE_HEIGHT = 96;
 
 export function zoomToFit(canvasWidth: number, canvasHeight: number, padding = 50) {
 	const state = get(canvasState);
@@ -1017,8 +1017,8 @@ export function autoLayout(
 
 	pushHistory();
 
-	const NODE_WIDTH = 192;
-	const NODE_HEIGHT = 60;
+	const NODE_WIDTH = 224;
+	const NODE_HEIGHT = 96;
 	const GAP_X = 48;
 	const GAP_Y = 36;
 	const PADDING = 50;

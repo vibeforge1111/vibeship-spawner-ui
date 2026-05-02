@@ -184,7 +184,7 @@
 
 	// Calculate port positions
 	const maxPorts = $derived(Math.max(data.inputs?.length || 1, data.outputs?.length || 1));
-	const nodeHeight = $derived(Math.max(86, 36 + maxPorts * 18));
+	const nodeHeight = $derived(Math.max(96, 46 + maxPorts * 18));
 
 	function handlePortMouseDown(e: MouseEvent, portId: string, portType: 'input' | 'output', port?: Port) {
 		e.stopPropagation();
@@ -217,7 +217,7 @@
 </script>
 
 <div
-	class="node w-48 select-none relative"
+	class="node w-56 select-none relative"
 	class:selected
 	class:ghost
 	class:has-status={!!statusLabel}
@@ -433,23 +433,23 @@
 	/* Body — title + sub */
 	.node-body {
 		position: relative;
-		padding: 10px 12px 11px;
+		padding: 11px 12px 12px;
 	}
 
 	.node-status {
 		position: absolute;
 		top: 8px;
-		right: 10px;
+		right: 9px;
 		display: inline-flex;
 		align-items: center;
 		height: 16px;
-		padding: 0 7px;
+		padding: 0 6px;
 		border: 1px solid rgb(var(--status-amber-rgb, 216 200 104) / 0.65);
 		border-radius: 5px;
 		background: var(--bg-secondary, #141B2D);
 		color: var(--status-amber, #D8C868);
 		font-family: var(--font-mono, 'DM Mono', ui-monospace, monospace);
-		font-size: 9.5px;
+		font-size: 9px;
 		font-weight: 500;
 		line-height: 1;
 		letter-spacing: 0.5px;
@@ -463,7 +463,7 @@
 	}
 
 	.node.has-status .node-title {
-		padding-right: 62px;
+		padding-right: 54px;
 	}
 
 	.node-title {
@@ -500,7 +500,7 @@
 		display: flex;
 		flex-wrap: nowrap;
 		gap: 3px;
-		margin-top: 7px;
+		margin-top: 8px;
 		min-width: 0;
 		max-width: 100%;
 		overflow: hidden;
@@ -514,7 +514,7 @@
 	.node-tag {
 		flex: 0 1 auto;
 		min-width: 0;
-		max-width: 72px;
+		max-width: 88px;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -524,7 +524,7 @@
 		background: rgb(var(--accent-rgb, 47 202 148) / 0.045);
 		color: var(--text-secondary);
 		font-family: var(--font-mono, 'DM Mono', ui-monospace, monospace);
-		font-size: 8.5px;
+		font-size: 9px;
 		line-height: 1.15;
 		letter-spacing: 0;
 	}

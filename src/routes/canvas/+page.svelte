@@ -991,8 +991,8 @@ import { get } from 'svelte/store';
 		// Center viewport on node
 		if (!canvasEl) return;
 		const rect = canvasEl.getBoundingClientRect();
-		const NODE_WIDTH = 192;
-		const NODE_HEIGHT = 48;
+		const NODE_WIDTH = 224;
+		const NODE_HEIGHT = 96;
 		const centerX = node.position.x + NODE_WIDTH / 2;
 		const centerY = node.position.y + NODE_HEIGHT / 2;
 		const panX = rect.width / 2 - centerX * zoom;

@@ -11,8 +11,8 @@
 		isActive = false,
 		isCompleted = false,
 		hasError = false,
-		nodeWidth = 192,
-		nodeHeight = 48
+		nodeWidth = 224,
+		nodeHeight = 96
 	}: {
 		connection: Connection;
 		nodes: CanvasNode[];
@@ -86,7 +86,7 @@
 			tags: node.skill.tags
 		});
 		const maxPorts = Math.max(ports.inputs.length, ports.outputs.length);
-		return Math.max(86, 36 + maxPorts * 18);
+		return Math.max(96, 46 + maxPorts * 18);
 	};
 
 	// Get port Y position within node

@@ -21,8 +21,8 @@
 	// Minimap dimensions
 	const MINIMAP_WIDTH = 160;
 	const MINIMAP_HEIGHT = 120;
-	const NODE_WIDTH = 192;
-	const NODE_HEIGHT = 48;
+	const NODE_WIDTH = 224;
+	const NODE_HEIGHT = 96;
 	const PADDING = 50;
 
 	// Calculate bounds of all nodes
