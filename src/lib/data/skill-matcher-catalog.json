@@ -5491,7 +5491,15 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "sentry error tracking",
+        "structured logs",
+        "traces metrics alerts",
+        "observability stack"
+      ],
+      "penalty": 72
+    }
   },
   "community-building": {
     "id": "community-building",
@@ -7214,14 +7222,18 @@
       "migration-specialist"
     ],
     "selectionHints": {
-      "penalty": 36,
+      "penalty": 140,
       "negative_terms": [
         "data table",
         "filterable data table",
         "searchable sortable",
         "csv export",
         "saved views",
-        "bulk actions"
+        "bulk actions",
+        "sentry error tracking",
+        "structured logs",
+        "traces metrics alerts",
+        "observability stack"
       ]
     }
   },
@@ -7300,14 +7312,18 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "penalty": 72,
+      "penalty": 140,
       "negative_terms": [
         "data table",
         "filterable data table",
         "searchable sortable",
         "csv export",
         "saved views",
-        "bulk actions"
+        "bulk actions",
+        "sentry error tracking",
+        "structured logs",
+        "traces metrics alerts",
+        "observability stack"
       ]
     }
   },
@@ -7693,14 +7709,18 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "penalty": 72,
+      "penalty": 140,
       "negative_terms": [
         "data table",
         "filterable data table",
         "searchable sortable",
         "csv export",
         "saved views",
-        "bulk actions"
+        "bulk actions",
+        "sentry error tracking",
+        "structured logs",
+        "traces metrics alerts",
+        "observability stack"
       ]
     }
   },

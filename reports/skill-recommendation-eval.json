@@ -3,8 +3,8 @@
     "caseCount": 50,
     "passCount": 50,
     "passRate": 1,
-    "averageScore": 0.9702160000000003,
-    "averageLabeledPrecisionAtK": 0.7021428571428575,
+    "averageScore": 0.9712160000000004,
+    "averageLabeledPrecisionAtK": 0.7121428571428574,
     "averageRequiredRecall": 1,
     "averageAnyOfRecall": 1,
     "averageMustNotCleanRate": 1,
@@ -615,12 +615,12 @@
         "social-features",
         "push-notifications",
         "community-operations",
-        "web3-community",
         "community-analytics",
         "community-building",
         "community-led-growth",
         "developer-community",
-        "community-tooling"
+        "community-tooling",
+        "web3-community"
       ],
       "pass": true,
       "score": 0.99,
@@ -889,18 +889,14 @@
       "ids": [
         "observability",
         "sentry-error-tracking",
-        "postgres-wizard",
         "analytics",
         "observability-sre",
         "ai-observability",
-        "sustainability-metrics",
-        "langfuse",
-        "data-engineer",
-        "data-pipeline"
+        "langfuse"
       ],
       "pass": true,
-      "score": 0.95,
-      "labeledPrecisionAtK": 0.5,
+      "score": 1,
+      "labeledPrecisionAtK": 1,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -910,6 +906,7 @@
       "relevantReturned": [
         "observability",
         "sentry-error-tracking",
+        "analytics",
         "observability-sre",
         "ai-observability",
         "langfuse"

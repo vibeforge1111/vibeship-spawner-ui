@@ -199,6 +199,10 @@ function selectionHintScore(skill: SkillDoc, normalizedQuery: string, queryToken
 	return score;
 }
 
+function hasNegativeSelectionHint(skill: SkillDoc, normalizedQuery: string, queryTokens: Set<string>): boolean {
+	return skill.selectionHints.negativeTerms.some((term) => termMatches(term, normalizedQuery, queryTokens));
+}
+
 function scoreSkill(skill: SkillDoc, query: string, queryTokens: string[]): SkillRank | null {
 	const normalizedQuery = normalize(query);
 	const queryTokenSet = new Set(queryTokens);
@@ -306,6 +310,7 @@ function addRelationshipContext(
 		for (const { id: targetId, multiplier } of relatedTargets) {
 			const targetSkill = SKILL_BY_ID.get(targetId);
 			if (!targetSkill) continue;
+			if (hasNegativeSelectionHint(targetSkill, normalizedQuery, queryTokenSet)) continue;
 			const relationshipScore = Math.max(20, rank.score * multiplier);
 			const existingRank = rankById.get(targetId);
 			if (existingRank) {

@@ -88,4 +88,14 @@ describe('Spark catalog skill matcher', () => {
 		expect(ranks.some((rank) => rank.recommendationTier !== 'core')).toBe(true);
 		expect(ranks.every((rank) => ['core', 'supporting', 'related'].includes(rank.recommendationTier))).toBe(true);
 	});
+
+	it('honors negative selection hints when expanding related skills', () => {
+		const ids = idsFor('Add observability with structured logs, traces, metrics, alerts, and Sentry error tracking', 10);
+
+		expect(ids).toEqual(expect.arrayContaining(['observability', 'sentry-error-tracking']));
+		expect(ids).not.toContain('postgres-wizard');
+		expect(ids).not.toContain('data-engineer');
+		expect(ids).not.toContain('data-pipeline');
+		expect(ids).not.toContain('sustainability-metrics');
+	});
 });

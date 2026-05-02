@@ -278,7 +278,8 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		name: 'Observability stack',
 		prompt: 'Add observability with structured logs, traces, metrics, alerts, and Sentry error tracking',
 		mustInclude: ['observability', 'sentry-error-tracking'],
-		anyOf: [['observability-sre', 'ai-observability', 'langfuse']]
+		anyOf: [['observability-sre', 'ai-observability', 'langfuse'], ['analytics']],
+		mustNotInclude: ['postgres-wizard', 'data-engineer', 'data-pipeline', 'sustainability-metrics']
 	},
 	{
 		name: 'API error handling',
