@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	buildAutoDispatchTaskSkillMap,
 	canvasLoadToMissionGraph,
+	_providerApiKeysFromEnv,
 	inferProjectPathFromPrdLoad,
 	shouldAutoDispatchPrdLoad,
 	type PrdCanvasLoadForAutoDispatch
@@ -83,6 +84,16 @@ describe('PRD auto-dispatch helpers', () => {
 		expect(shouldAutoDispatchPrdLoad(load).ok).toBe(true);
 		expect(shouldAutoDispatchPrdLoad({ ...load, autoRun: false, relay: {} }).reason).toBe('autoRun disabled');
 		expect(shouldAutoDispatchPrdLoad({ ...load, nodes: [] }).reason).toBe('no canvas nodes');
+	});
+
+	it('passes configured provider API keys into auto-dispatch runtime', () => {
+		expect(_providerApiKeysFromEnv(
+			[
+				{ id: 'zai', label: 'Z.AI GLM', enabled: true, kind: 'openai_compat', eventSource: 'zai', model: 'glm-5.1', apiKeyEnv: 'ZAI_API_KEY', requiresApiKey: true },
+				{ id: 'codex', label: 'Codex', enabled: false, kind: 'terminal_cli', eventSource: 'codex', model: 'gpt-5.5', requiresApiKey: false }
+			],
+			{ ZAI_API_KEY: 'zai-secret' }
+		)).toEqual({ zai: 'zai-secret' });
 	});
 
 	it('enriches PRD auto-dispatch tasks with tier-allowed H70 skills', async () => {
