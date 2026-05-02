@@ -28,7 +28,6 @@
 	import ExecutionLogList from './ExecutionLogList.svelte';
 	import ExecutionProgressHeader from './ExecutionProgressHeader.svelte';
 	import ExecutionResumeBanner from './ExecutionResumeBanner.svelte';
-	import MissionSettingsPanel from './MissionSettingsPanel.svelte';
 	import OrphanNodeWarningModal from './OrphanNodeWarningModal.svelte';
 	import ExecutionTaskStatusList from './ExecutionTaskStatusList.svelte';
 	import type { ProjectCheckpoint } from '$lib/services/checkpoint';
@@ -1359,35 +1358,6 @@
 					{copyToClipboard}
 				/>
 
-				{#if projectLineage}
-					<div class="mt-3 rounded-md border border-accent-primary/25 bg-bg-secondary/80 px-3 py-2 font-mono text-xs text-text-secondary">
-						<div class="grid gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-							<div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-								<span class="font-semibold text-accent-primary">
-									Iteration{projectLineage.iterationNumber ? ` ${projectLineage.iterationNumber}` : ''}
-								</span>
-								{#if projectLineage.projectPath}
-									<span class="min-w-0 max-w-full truncate text-text-secondary">Project: {projectLineage.projectPath}</span>
-								{/if}
-								{#if projectLineage.parentMissionId}
-									<span class="truncate text-text-tertiary">Parent: {projectLineage.parentMissionId}</span>
-								{/if}
-							</div>
-							{#if projectLineage.projectPath}
-								<a
-									href={canvasImproveHref()}
-									class="inline-flex justify-self-start items-center justify-center rounded px-2 py-1 text-[10px] text-accent-primary border border-accent-primary/30 hover:bg-accent-primary hover:text-bg-primary transition-all sm:justify-self-end"
-								>
-									Improve this
-								</a>
-							{/if}
-						</div>
-						{#if projectLineage.improvementFeedback}
-							<div class="mt-1 truncate text-text-tertiary">Feedback: {projectLineage.improvementFeedback}</div>
-						{/if}
-					</div>
-				{/if}
-
 				<ExecutionTaskStatusList
 					taskRows={taskRows}
 					reworkTasks={reworkTasks}
@@ -1413,34 +1383,35 @@
 			{getTransitionBadge}
 		/>
 
-		{#if !isRunning && !isPaused}
-			<MissionSettingsPanel
-				bind:showMissionSettings
-				bind:missionName
-				bind:missionDescription
-				bind:projectPath
-				bind:projectType
-				bind:goalsText
-				bind:multiLLMEnabled
-				bind:multiLLMStrategy
-				bind:multiLLMPrimaryProviderId
-				bind:multiLLMAutoEnableByKeys
-				bind:multiLLMAutoRouteByTask
-				bind:multiLLMAutoDispatch
-				bind:showAdvancedMultiLLM
-				{multiLLMApiKeys}
-				{serverProviderKeyPresence}
-				{connectedMcpCapabilities}
-				{connectedMcpToolCount}
-				{multiLLMProviders}
-				{hasDualProviderKeys}
-				{getExecutionMode}
-				{setExecutionMode}
-				{toggleMultiLLMProvider}
-				{updateMultiLLMProviderModel}
-				{updateMultiLLMApiKey}
-				{persistDefaults}
-			/>
+		{#if projectLineage && !isRunning && !isPaused}
+			<div class="border-t border-surface-border bg-bg-tertiary px-4 py-3">
+				<div class="rounded-md border border-accent-primary/25 bg-bg-secondary/80 px-3 py-2 font-mono text-xs text-text-secondary">
+					<div class="grid gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+						<div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+							<span class="font-semibold text-accent-primary">
+								Iteration{projectLineage.iterationNumber ? ` ${projectLineage.iterationNumber}` : ''}
+							</span>
+							{#if projectLineage.projectPath}
+								<span class="min-w-0 max-w-full truncate text-text-secondary">Project: {projectLineage.projectPath}</span>
+							{/if}
+							{#if projectLineage.parentMissionId}
+								<span class="truncate text-text-tertiary">Parent: {projectLineage.parentMissionId}</span>
+							{/if}
+						</div>
+						{#if projectLineage.projectPath}
+							<a
+								href={canvasImproveHref()}
+								class="inline-flex justify-self-start items-center justify-center rounded px-2 py-1 text-[10px] text-accent-primary border border-accent-primary/30 hover:bg-accent-primary hover:text-bg-primary transition-all sm:justify-self-end"
+							>
+								Improve this
+							</a>
+						{/if}
+					</div>
+					{#if projectLineage.improvementFeedback}
+						<div class="mt-1 truncate text-text-tertiary">Feedback: {projectLineage.improvementFeedback}</div>
+					{/if}
+				</div>
+			</div>
 		{/if}
 
 		<ExecutionFooter
