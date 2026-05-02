@@ -920,6 +920,7 @@ import { get } from 'svelte/store';
 	// Node search
 	let searchQuery = $state('');
 	let showSearch = $state(false);
+	let selectedSearchIndex = $state(0);
 	let searchInputEl = $state<HTMLInputElement>();
 
 	// Minimap
@@ -976,9 +977,11 @@ import { get } from 'svelte/store';
 	function toggleSearch() {
 		showSearch = !showSearch;
 		if (showSearch) {
+			selectedSearchIndex = 0;
 			setTimeout(() => searchInputEl?.focus(), 0);
 		} else {
 			searchQuery = '';
+			selectedSearchIndex = 0;
 		}
 	}
 
@@ -1003,11 +1006,22 @@ import { get } from 'svelte/store';
 
 	function handleSearchKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') {
+			e.preventDefault();
 			toggleSearch();
-		} else if (e.key === 'Enter') {
+		} else if (e.key === 'ArrowDown') {
+			e.preventDefault();
 			const matches = matchingNodes();
-			if (matches.length > 0) {
-				focusNode(matches[0].id);
+			selectedSearchIndex = Math.min(selectedSearchIndex + 1, Math.max(matches.length - 1, 0));
+		} else if (e.key === 'ArrowUp') {
+			e.preventDefault();
+			selectedSearchIndex = Math.max(selectedSearchIndex - 1, 0);
+		} else if (e.key === 'Enter') {
+			e.preventDefault();
+			const matches = matchingNodes();
+			const targetNode = matches[selectedSearchIndex] ?? matches[0];
+			if (targetNode) {
+				focusNode(targetNode.id);
+				toggleSearch();
 			}
 		}
 	}
@@ -1443,39 +1457,63 @@ import { get } from 'svelte/store';
 			{#if currentNodes.length === 0}<div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="text-center"><h3 class="text-lg font-medium text-text-primary mb-2">No skills on canvas</h3><p class="text-sm text-text-secondary">Drag skills from the sidebar</p></div></div>{/if}
 			<!-- Search overlay -->
 			{#if showSearch}
-				<div class="absolute top-4 left-1/2 -translate-x-1/2 z-50 w-80 bg-bg-secondary border border-surface-border rounded-lg shadow-lg overflow-hidden">
-					<div class="flex items-center gap-2 p-2 border-b border-surface-border">
-						<svg class="w-4 h-4 text-text-tertiary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-						<input
-							bind:this={searchInputEl}
-							bind:value={searchQuery}
-							onkeydown={handleSearchKeydown}
-							type="text"
-							placeholder="Search nodes..."
-							class="flex-1 bg-transparent border-none outline-none text-sm font-mono text-text-primary placeholder:text-text-tertiary"
-						/>
-						<button onclick={toggleSearch} class="text-text-tertiary hover:text-text-secondary" aria-label="Close search">
-							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-						</button>
-					</div>
-					{#if searchQuery.trim()}
-						<div class="max-h-48 overflow-y-auto">
-							{#each matchingNodes() as node}
-								<button
-									onclick={() => { focusNode(node.id); toggleSearch(); }}
-									class="w-full px-3 py-2 text-left hover:bg-surface-active flex items-center gap-2"
-								>
-									<span class="w-2 h-2 bg-accent-primary"></span>
-									<span class="text-sm font-mono text-text-primary truncate">{node.skill.name}</span>
-									<span class="text-xs text-text-tertiary ml-auto">{node.skill.category}</span>
+				<button type="button" class="canvas-search-overlay" aria-label="Close canvas search" onclick={toggleSearch}></button>
+				<div class="canvas-search-shell" role="dialog" aria-modal="true" aria-label="Search canvas nodes">
+					<div class="canvas-search-modal">
+						<div class="canvas-search-input-row">
+							<svg class="canvas-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+							</svg>
+							<input
+								bind:this={searchInputEl}
+								bind:value={searchQuery}
+								oninput={() => (selectedSearchIndex = 0)}
+								onkeydown={handleSearchKeydown}
+								type="text"
+								placeholder="Search canvas nodes..."
+								class="canvas-search-input"
+							/>
+							{#if searchQuery}
+								<button type="button" onclick={() => { searchQuery = ''; selectedSearchIndex = 0; searchInputEl?.focus(); }} class="canvas-search-clear" aria-label="Clear search">
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 18L18 6M6 6l12 12"/></svg>
 								</button>
-							{:else}
-								<div class="px-3 py-2 text-sm text-text-tertiary">No matching nodes</div>
-							{/each}
+							{/if}
+							<kbd class="canvas-search-key">esc</kbd>
 						</div>
-					{:else}
-						<div class="px-3 py-2 text-xs text-text-tertiary">Type to search by name, description, category, or tags</div>
-					{/if}
+						{#if searchQuery.trim()}
+							<div class="canvas-search-results">
+								<p class="canvas-search-group-label">Canvas nodes</p>
+								{#each matchingNodes() as node, index}
+									<button
+										type="button"
+										onmouseenter={() => (selectedSearchIndex = index)}
+										onclick={() => { focusNode(node.id); toggleSearch(); }}
+										class:selected={index === selectedSearchIndex}
+										class="canvas-search-result"
+									>
+										<span class="canvas-search-result-icon">
+											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m12 3 8 4.5-8 4.5-8-4.5L12 3Z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m4 12 8 4.5 8-4.5"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m4 16.5 8 4.5 8-4.5"/></svg>
+										</span>
+										<span class="canvas-search-result-body">
+											<span class="canvas-search-result-title">{node.skill.name}</span>
+											<span class="canvas-search-result-desc">{node.skill.description || node.skill.id}</span>
+										</span>
+										<span class="canvas-search-result-meta">{node.skill.category}</span>
+										{#if index === selectedSearchIndex}
+											<kbd class="canvas-search-key">enter</kbd>
+										{/if}
+									</button>
+								{:else}
+									<div class="canvas-search-empty">No matching nodes</div>
+								{/each}
+							</div>
+						{:else}
+							<div class="canvas-search-hint">
+								<p class="canvas-search-hint-title">Search the current canvas</p>
+								<p>Find a node by name, category, description, or tag, then jump straight to it.</p>
+							</div>
+						{/if}
+					</div>
 				</div>
 			{/if}
 			<!-- Goal processing overlay -->
@@ -1728,6 +1766,239 @@ import { get } from 'svelte/store';
 		to {
 			transform: translateX(0);
 		}
+	}
+
+	.canvas-search-overlay {
+		position: fixed;
+		inset: 0;
+		z-index: 80;
+		border: 0;
+		background: rgb(0 0 0 / 0.52);
+		backdrop-filter: blur(8px);
+		animation: canvasSearchOverlayIn 180ms ease-out both;
+	}
+
+	.canvas-search-shell {
+		position: fixed;
+		inset: 0;
+		z-index: 81;
+		display: flex;
+		align-items: flex-start;
+		justify-content: center;
+		padding: 14vh 16px 24px;
+		pointer-events: none;
+	}
+
+	.canvas-search-modal {
+		width: min(620px, 100%);
+		overflow: hidden;
+		border: 1px solid rgb(var(--accent-rgb) / 0.42);
+		border-radius: 8px;
+		background: var(--surface);
+		box-shadow:
+			0 0 0 3px rgb(var(--accent-rgb) / 0.08),
+			0 24px 80px -30px rgb(0 0 0 / 0.92);
+		pointer-events: auto;
+		animation: canvasSearchModalIn 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+	}
+
+	.canvas-search-input-row {
+		display: flex;
+		align-items: center;
+		gap: 16px;
+		border-bottom: 1px solid var(--border);
+		padding: 18px 22px;
+	}
+
+	.canvas-search-icon {
+		width: 20px;
+		height: 20px;
+		flex: 0 0 auto;
+		color: var(--accent);
+	}
+
+	.canvas-search-input {
+		min-width: 0;
+		flex: 1;
+		border: 0;
+		background: transparent;
+		color: var(--text);
+		font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+		font-size: 18px;
+		line-height: 1.35;
+		outline: none;
+		caret-color: var(--accent);
+	}
+
+	.canvas-search-input:focus,
+	.canvas-search-input:focus-visible {
+		outline: none;
+		box-shadow: none;
+	}
+
+	.canvas-search-input::placeholder {
+		color: rgb(var(--text-tertiary-rgb) / 0.45);
+	}
+
+	.canvas-search-clear {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 28px;
+		height: 28px;
+		border: 0;
+		border-radius: 6px;
+		background: transparent;
+		color: var(--text-tertiary);
+		cursor: pointer;
+		transition:
+			background-color 160ms ease,
+			color 160ms ease;
+	}
+
+	.canvas-search-clear:hover {
+		background: var(--bg-subtle);
+		color: var(--text);
+	}
+
+	.canvas-search-key {
+		border: 1px solid var(--border-strong);
+		border-radius: 5px;
+		background: var(--bg-subtle);
+		padding: 3px 6px;
+		font-family: var(--font-mono, ui-monospace, monospace);
+		font-size: 10px;
+		line-height: 1;
+		color: var(--text-tertiary);
+	}
+
+	.canvas-search-results {
+		max-height: min(430px, 54vh);
+		overflow-y: auto;
+		padding: 8px 0;
+	}
+
+	.canvas-search-group-label {
+		padding: 12px 20px 4px;
+		font-family: var(--font-mono, ui-monospace, monospace);
+		font-size: 10px;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 1.5px;
+		color: rgb(var(--text-tertiary-rgb) / 0.68);
+	}
+
+	.canvas-search-result {
+		display: flex;
+		width: 100%;
+		align-items: center;
+		gap: 12px;
+		border: 0;
+		background: transparent;
+		padding: 10px 20px;
+		color: var(--text-secondary);
+		cursor: pointer;
+		transition:
+			background-color 180ms ease,
+			color 180ms ease;
+	}
+
+	.canvas-search-result:hover,
+	.canvas-search-result.selected {
+		background: rgb(var(--accent-rgb) / 0.065);
+		color: var(--text);
+	}
+
+	.canvas-search-result-icon {
+		display: inline-flex;
+		width: 34px;
+		height: 34px;
+		flex: 0 0 auto;
+		align-items: center;
+		justify-content: center;
+		border-radius: 6px;
+		background: var(--border);
+		color: var(--text-tertiary);
+		transition:
+			background-color 180ms ease,
+			color 180ms ease;
+	}
+
+	.canvas-search-result.selected .canvas-search-result-icon,
+	.canvas-search-result:hover .canvas-search-result-icon {
+		background: rgb(var(--accent-rgb) / 0.15);
+		color: var(--accent);
+	}
+
+	.canvas-search-result-body {
+		display: grid;
+		min-width: 0;
+		flex: 1;
+		gap: 2px;
+		text-align: left;
+	}
+
+	.canvas-search-result-title {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: 14px;
+		font-weight: 650;
+		color: var(--text);
+	}
+
+	.canvas-search-result-desc {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: 11px;
+		color: rgb(var(--text-tertiary-rgb) / 0.72);
+	}
+
+	.canvas-search-result-meta {
+		max-width: 120px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		border: 1px solid rgb(var(--accent-rgb) / 0.25);
+		border-radius: 5px;
+		padding: 3px 6px;
+		font-family: var(--font-mono, ui-monospace, monospace);
+		font-size: 10px;
+		text-transform: uppercase;
+		color: var(--accent);
+	}
+
+	.canvas-search-hint,
+	.canvas-search-empty {
+		display: grid;
+		justify-items: center;
+		gap: 8px;
+		padding: 34px 24px;
+		text-align: center;
+		color: rgb(var(--text-tertiary-rgb) / 0.72);
+	}
+
+	.canvas-search-hint-title {
+		color: var(--text);
+		font-size: 14px;
+		font-weight: 650;
+	}
+
+	@keyframes canvasSearchModalIn {
+		0% {
+			opacity: 0;
+			transform: scale(0.95) translateY(-8px);
+		}
+		100% {
+			opacity: 1;
+			transform: scale(1) translateY(0);
+		}
+	}
+
+	@keyframes canvasSearchOverlayIn {
+		0% { opacity: 0; }
+		100% { opacity: 1; }
 	}
 
 	/* Toolbar button styles */

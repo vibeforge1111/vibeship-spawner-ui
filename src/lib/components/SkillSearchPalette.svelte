@@ -228,9 +228,7 @@
 		min-width: 0;
 		border: 1px solid var(--border);
 		border-radius: 6px;
-		background:
-			linear-gradient(135deg, rgb(var(--accent-rgb) / 0.055), transparent 54%),
-			rgb(var(--bg-subtle-rgb) / 0.72);
+		background: rgb(var(--bg-rgb) / 0.46);
 		color: var(--text-tertiary);
 		cursor: pointer;
 		transition:
@@ -243,9 +241,7 @@
 	.skill-search-trigger:hover {
 		color: var(--text);
 		border-color: rgb(var(--accent-rgb) / 0.38);
-		background:
-			linear-gradient(135deg, rgb(var(--accent-rgb) / 0.12), transparent 58%),
-			rgb(var(--bg-subtle-rgb) / 0.92);
+		background: rgb(var(--bg-subtle-rgb) / 0.82);
 		transform: translateY(-1px);
 	}
 
