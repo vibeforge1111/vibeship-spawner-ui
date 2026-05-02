@@ -160,9 +160,14 @@
 		<!-- Background grid -->
 		<defs>
 			<pattern id="minimap-grid" width="10" height="10" patternUnits="userSpaceOnUse">
-				<circle cx="5" cy="5" r="0.5" fill="var(--text-tertiary)" opacity="0.3" />
+				<circle cx="5" cy="5" r="0.55" fill="var(--text-tertiary)" opacity="0.18" />
 			</pattern>
+			<linearGradient id="minimap-surface" x1="0" y1="0" x2="1" y2="1">
+				<stop offset="0%" stop-color="var(--bg-secondary)" />
+				<stop offset="100%" stop-color="var(--surface-raised)" />
+			</linearGradient>
 		</defs>
+		<rect width="100%" height="100%" fill="url(#minimap-surface)" />
 		<rect width="100%" height="100%" fill="url(#minimap-grid)" />
 
 		<!-- Nodes -->
@@ -175,7 +180,10 @@
 				width={NODE_WIDTH * s}
 				height={NODE_HEIGHT * s}
 				fill={getNodeColor(node.skill.category)}
-				rx="1"
+				opacity="0.58"
+				stroke="rgba(255, 255, 255, 0.18)"
+				stroke-width="0.75"
+				rx="2.5"
 			/>
 		{/each}
 
@@ -185,10 +193,10 @@
 			y={viewport().y}
 			width={viewport().width}
 			height={viewport().height}
-			fill="rgba(0, 196, 154, 0.15)"
-			stroke="#00C49A"
-			stroke-width="1"
-			rx="2"
+			fill="rgba(47, 202, 148, 0.12)"
+			stroke="var(--accent)"
+			stroke-width="1.5"
+			rx="4"
 		/>
 	</svg>
 
@@ -204,31 +212,55 @@
 		position: absolute;
 		bottom: 16px;
 		right: 16px;
-		background: var(--bg-secondary);
-		border: 1px solid var(--surface-border);
+		background: color-mix(in srgb, var(--bg-secondary) 84%, black);
+		border: 1px solid var(--border-strong);
+		border-radius: 8px;
+		box-shadow:
+			0 18px 48px -28px rgb(0 0 0 / 0.9),
+			0 0 0 1px rgb(255 255 255 / 0.035),
+			inset 0 1px 0 rgb(255 255 255 / 0.04);
 		cursor: pointer;
 		z-index: 40;
 		overflow: hidden;
+		transition:
+			border-color 140ms ease,
+			box-shadow 140ms ease,
+			transform 140ms ease;
 	}
 
 	.minimap:hover {
-		border-color: var(--accent-primary);
+		border-color: rgb(var(--accent-rgb, 47 202 148) / 0.72);
+		box-shadow:
+			0 20px 52px -28px rgb(0 0 0 / 0.95),
+			0 0 0 1px rgb(var(--accent-rgb, 47 202 148) / 0.18),
+			inset 0 1px 0 rgb(255 255 255 / 0.05);
+		transform: translateY(-1px);
+	}
+
+	.minimap svg {
+		display: block;
 	}
 
 	.minimap-label {
 		position: absolute;
-		bottom: 2px;
-		left: 4px;
-		right: 4px;
+		bottom: 0;
+		left: 0;
+		right: 0;
 		display: flex;
 		justify-content: space-between;
-		font-size: 8px;
-		font-family: var(--font-mono);
+		align-items: center;
+		min-height: 17px;
+		padding: 0 6px;
+		border-top: 1px solid rgb(255 255 255 / 0.055);
+		background: rgb(7 10 15 / 0.42);
+		font-size: 8.5px;
+		font-family: var(--font-mono, 'DM Mono', ui-monospace, monospace);
 		color: var(--text-tertiary);
 		pointer-events: none;
+		letter-spacing: 0.1px;
 	}
 
 	.zoom-label {
-		color: var(--accent-primary);
+		color: var(--accent);
 	}
 </style>
