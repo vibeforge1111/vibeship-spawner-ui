@@ -14,6 +14,11 @@ describe('skill recommendation eval scoring', () => {
 		expect(summary.caseCount).toBe(GOLDEN_RECOMMENDATION_CASES.length);
 		expect(summary.passCount).toBe(summary.caseCount);
 		expect(summary.passRate).toBe(1);
+		expect(summary.averageRequiredRecall).toBe(1);
+		expect(summary.averageAnyOfRecall).toBe(1);
+		expect(summary.averageMustNotCleanRate).toBe(1);
+		expect(summary.averageLabeledPrecisionAtK).toBeGreaterThanOrEqual(0.55);
+		expect(results.reduce((sum, result) => sum + result.ids.length, 0)).toBeGreaterThan(400);
 	});
 
 	it('reports missing required, missing any-of, and unwanted skills', () => {
