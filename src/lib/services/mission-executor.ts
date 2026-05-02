@@ -531,6 +531,10 @@ class MissionExecutor {
 					this.persistState();  // Persist failed state
 					break;
 
+				case 'mission_cancelled':
+					this.markCancelled((event.data?.error as string) || 'Mission cancelled');
+					break;
+
 				case 'mission_paused':
 					// Remote client paused the mission
 					if (this.progress.status === 'running') {
@@ -876,6 +880,22 @@ class MissionExecutor {
 		if (required.length === 0) return [];
 		const loaded = new Set(this.getLoadedSkillIdsForTask(taskId));
 		return required.filter((skillId) => !loaded.has(skillId));
+	}
+
+	private markCancelled(message = 'Execution cancelled'): void {
+		this.progress.status = 'cancelled';
+		this.progress.error = message;
+		this.progress.endTime = new Date();
+		for (const [agentId, agent] of this.progress.agentRuntime.entries()) {
+			if (agent.status === 'running') {
+				this.progress.agentRuntime.set(agentId, { ...agent, status: 'cancelled', updatedAt: new Date().toISOString() });
+			}
+		}
+		this.stopProviderHeartbeat();
+		this.stopPolling();
+		this.callbacks.onStatusChange?.('cancelled');
+		this.addLocalLog('info', message);
+		this.persistState();
 	}
 
 	/**
@@ -1224,6 +1244,12 @@ class MissionExecutor {
 					this.stopProviderHeartbeat();
 					this.addLocalLog('info', `Error: ${errorMsg}`);
 					this.persistState();  // Persist failed state
+					break;
+				}
+
+				case 'mission_cancelled': {
+					const cancelMsg = event.message || event.data?.error as string || 'Mission cancelled';
+					this.markCancelled(cancelMsg);
 					break;
 				}
 
@@ -1786,20 +1812,40 @@ class MissionExecutor {
 			return false;
 		}
 
+		const missionId = this.progress.missionId;
+
+		if (browser && typeof fetch !== 'undefined') {
+			try {
+				const response = await fetch('/api/mission-control/command', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						missionId,
+						action: 'kill',
+						source: 'execution-panel'
+					})
+				});
+				const data = await response.json().catch(() => ({}));
+
+				if (response.ok && data?.ok !== false) {
+					this.markCancelled('Execution cancelled');
+					return true;
+				}
+
+				log.warn('Mission-control cancel failed:', data?.error || `HTTP ${response.status}`);
+			} catch (error) {
+				log.warn('Mission-control cancel request failed:', error);
+			}
+		}
+
 		try {
 			const result = await mcpClient.failMission(
-				this.progress.missionId,
+				missionId,
 				'Cancelled by user'
 			);
 
 			if (result.success) {
-				this.progress.status = 'cancelled';
-				this.progress.endTime = new Date();
-				this.stopProviderHeartbeat();
-				this.stopPolling();
-				this.callbacks.onStatusChange?.('cancelled');
-				this.addLocalLog('info', 'Execution cancelled');
-				this.persistState();  // Persist cancelled state (will move to history)
+				this.markCancelled('Execution cancelled');
 				return true;
 			}
 		} catch (error) {

@@ -24,6 +24,7 @@ export interface SyncEvent {
 		| 'mission_started'
 		| 'mission_completed'
 		| 'mission_failed'
+		| 'mission_cancelled'
 		| 'mission_paused'      // NEW: Mission paused by user
 		| 'mission_resumed'     // NEW: Mission resumed by user
 		| 'mission_log'
