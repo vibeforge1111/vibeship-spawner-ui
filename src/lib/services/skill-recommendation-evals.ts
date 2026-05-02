@@ -320,7 +320,16 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		prompt: 'Create a Chrome extension with content scripts, background service worker, and Playwright tests',
 		mustInclude: ['browser-extension-builder', 'playwright-testing'],
 		anyOf: [['browser-automation']],
-		mustNotInclude: ['content-strategy', 'content-creation', 'ai-content-analytics', 'ai-content-qa', 'real-time-content']
+		mustNotInclude: [
+			'content-strategy',
+			'content-creation',
+			'ai-content-analytics',
+			'ai-content-qa',
+			'real-time-content',
+			'pwa-progressive-web-app',
+			'microservices-patterns',
+			'queue-workers'
+		]
 	},
 	{
 		name: 'Passkeys auth',
