@@ -1280,10 +1280,12 @@
 		<button class="absolute inset-0 bg-black/50" onclick={handleClose} aria-label="Close execution panel"></button>
 	{/if}
 	<div
-		class="relative bg-bg-secondary border-l border-surface-border flex flex-col h-full overscroll-contain"
+		class="relative bg-bg-secondary border-l border-surface-border flex flex-col overscroll-contain"
+		class:h-full={minimized}
 		class:max-w-4xl={!minimized}
 		class:mx-auto={!minimized}
-		class:my-8={!minimized}
+		class:mt-10={!minimized}
+		class:mb-6={!minimized}
 		class:max-h-[calc(100vh-4rem)]={!minimized}
 		class:overflow-y-auto={!minimized}
 		class:overflow-x-hidden={!minimized}
