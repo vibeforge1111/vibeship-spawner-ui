@@ -372,7 +372,8 @@
 			<div class="text-sm font-semibold tabular-nums text-indigo-100">{executionProgress.loadedSkills.length}</div>
 			<div class="mt-0.5 font-mono text-[8.5px] uppercase tracking-[0.08em] text-indigo-300">skills</div>
 		</div>
-		<div class="pointer-events-none absolute right-0 top-[calc(100%+0.5rem)] z-30 hidden w-[min(24rem,calc(100vw-3rem))] rounded-md border border-indigo-400/30 bg-bg-primary/98 p-3 text-left shadow-[0_22px_70px_rgba(0,0,0,0.42)] backdrop-blur group-hover:block group-focus-within:block">
+		<div class="absolute right-0 top-full z-30 hidden h-2 w-[min(24rem,calc(100vw-3rem))] group-hover:block group-focus-within:block"></div>
+		<div class="absolute right-0 top-[calc(100%+0.5rem)] z-30 hidden w-[min(24rem,calc(100vw-3rem))] rounded-md border border-indigo-400/30 bg-bg-primary/98 p-3 text-left shadow-[0_22px_70px_rgba(0,0,0,0.42)] backdrop-blur group-hover:block group-focus-within:block">
 			<div class="mb-2 flex items-center justify-between gap-3">
 				<span class="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-indigo-300">Loaded skills</span>
 				<span class="font-mono text-[10px] text-text-tertiary">{executionProgress.loadedSkills.length}</span>
