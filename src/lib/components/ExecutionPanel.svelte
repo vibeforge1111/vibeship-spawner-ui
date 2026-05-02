@@ -183,7 +183,6 @@
 				: 'Build a canvas to run')
 	);
 	let activeMissionId = $derived(executionProgress?.missionId || relay?.missionId || '');
-	let activeMissionNumber = $derived(activeMissionId.replace(/^(spark|mission)-/, ''));
 	let runtimeAgents = $derived.by(() => {
 		if (!executionProgress?.agentRuntime) return [] as AgentRuntimeStatus[];
 		return Array.from(executionProgress.agentRuntime.values()).sort((a, b) =>
@@ -1437,12 +1436,8 @@
 			<div class="border-t border-surface-border bg-bg-tertiary px-4 py-3">
 				<div class="space-y-2">
 					{#if activeMissionId}
-						<div class="grid gap-2 rounded-md border border-surface-border bg-bg-secondary/80 px-3 py-2 font-mono text-xs text-text-secondary sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
-							<div class="flex flex-wrap items-center gap-2">
-								<span class="text-text-tertiary">Mission #</span>
-								<span class="font-semibold tabular-nums text-text-primary">{activeMissionNumber}</span>
-							</div>
-							<div class="flex min-w-0 items-center gap-2 sm:justify-end">
+						<div class="rounded-md border border-surface-border bg-bg-secondary/80 px-3 py-2 font-mono text-xs text-text-secondary">
+							<div class="flex min-w-0 items-center gap-2 justify-end">
 								<span class="shrink-0 text-text-tertiary">ID</span>
 								<code class="min-w-0 truncate font-mono text-accent-primary select-all">{activeMissionId}</code>
 							</div>
