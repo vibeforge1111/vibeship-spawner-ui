@@ -89,28 +89,39 @@
 	.nav-pop::before {
 		content: '';
 		position: absolute;
-		inset: auto 10px 4px;
-		height: 2px;
-		border-radius: 999px;
-		background: var(--accent);
+		inset: 0;
+		z-index: -1;
+		border-radius: inherit;
+		background:
+			linear-gradient(
+				105deg,
+				transparent 0%,
+				transparent 34%,
+				rgb(var(--accent-rgb) / 0.08) 46%,
+				rgb(var(--accent-rgb) / 0.14) 52%,
+				transparent 66%,
+				transparent 100%
+			),
+			rgb(var(--bg-subtle-rgb) / 0.62);
+		background-size: 230% 100%, auto;
+		background-position: 125% 0, 0 0;
 		opacity: 0;
-		transform: scaleX(0.35);
-		transform-origin: center;
+		pointer-events: none;
 		transition:
-			opacity 220ms cubic-bezier(0.23, 1, 0.32, 1),
-			transform 220ms cubic-bezier(0.23, 1, 0.32, 1);
+			opacity 280ms cubic-bezier(0.23, 1, 0.32, 1),
+			background-position 980ms cubic-bezier(0.23, 1, 0.32, 1);
 	}
 
 	.nav-pop::after {
 		content: '';
 		position: absolute;
 		inset: 0;
-		z-index: -1;
-		background:
-			linear-gradient(135deg, rgb(var(--accent-rgb) / 0.12), transparent 56%),
-			rgb(var(--bg-subtle-rgb) / 0.62);
+		z-index: -2;
+		border-radius: inherit;
+		background: rgb(var(--bg-subtle-rgb) / 0.52);
 		opacity: 0;
-		transition: opacity 220ms cubic-bezier(0.23, 1, 0.32, 1);
+		pointer-events: none;
+		transition: opacity 240ms cubic-bezier(0.23, 1, 0.32, 1);
 	}
 
 	.nav-pop:hover {
@@ -119,10 +130,13 @@
 		transform: translateY(-1px);
 	}
 
-	.nav-pop:hover::before,
+	.nav-pop:hover::before {
+		opacity: 1;
+		background-position: -95% 0, 0 0;
+	}
+
 	.nav-pop:hover::after {
 		opacity: 1;
-		transform: scaleX(1);
 	}
 
 	.nav-pop:active {
