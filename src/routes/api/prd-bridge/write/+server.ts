@@ -363,7 +363,7 @@ function isConcreteDirectStaticBuild(content: string): boolean {
 	return hasStaticSurface && hasDeliverable && hasFeatureSignal;
 }
 
-export function shouldRequestBriefClarification(input: {
+export function _shouldRequestBriefClarification(input: {
 	content: string;
 	buildMode: 'direct' | 'advanced_prd';
 	openQuestions: string[];
@@ -754,7 +754,7 @@ export const POST: RequestHandler = async (event) => {
 		// can ask the user before we burn an LLM dispatch on a vague input.
 		// forceDispatch:true bypasses (used when the bot re-dispatches with
 		// answers).
-		if (shouldRequestBriefClarification({
+		if (_shouldRequestBriefClarification({
 			content,
 			buildMode: normalizedBuildMode,
 			openQuestions: enrichment.openQuestions || [],
