@@ -144,7 +144,7 @@ function main() {
   // Build output
   const output = {
     version: '1.0.0',
-    generatedAt: new Date().toISOString(),
+    generatedAt: 'deterministic',
     totalSkills: catalog.length,
     categories: Object.keys(grouped),
     skills: catalog,

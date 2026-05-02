@@ -1,0 +1,46 @@
+name: Skill Integration
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  skill-integration:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout spawner-ui
+        uses: actions/checkout@v4
+        with:
+          path: spawner-ui
+
+      - name: Checkout spark-skill-graphs
+        uses: actions/checkout@v4
+        with:
+          repository: vibeforge1111/spark-skill-graphs
+          path: spark-skill-graphs
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            spawner-ui/package-lock.json
+            spark-skill-graphs/package-lock.json
+
+      - name: Install Spawner dependencies
+        working-directory: spawner-ui
+        run: npm ci
+
+      - name: Install Spark dependencies
+        working-directory: spark-skill-graphs
+        run: npm ci
+
+      - name: Run skill integration guard
+        working-directory: spawner-ui
+        env:
+          SPAWNER_H70_SKILLS_DIR: ${{ github.workspace }}/spark-skill-graphs
+        run: node scripts/guard-skill-integration.cjs --check-clean
