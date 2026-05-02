@@ -17,6 +17,9 @@ const H70_PATH =
   process.env.SPAWNER_H70_SKILLS_DIR ||
   process.env.H70_SKILLS_LAB_DIR ||
   'C:/Users/USER/Desktop/spark-skill-graphs';
+const MANIFEST_PATH = process.env.SPAWNER_SPARK_MANIFEST
+  ? path.resolve(process.env.SPAWNER_SPARK_MANIFEST)
+  : path.join(H70_PATH, 'spark-skill-manifest.json');
 const OUTPUT_DIR = path.join(__dirname, '../src/lib/data');
 
 /**
@@ -90,6 +93,130 @@ function processSkill(skillPath, skillName, category) {
   return { minimal, full };
 }
 
+function processManifestSkill(skill) {
+  const skillName = skill.id;
+  const delegates = Array.isArray(skill.delegates)
+    ? skill.delegates.map(delegate => ({
+        skill: delegate.target_id || delegate.skill,
+        when: delegate.when || '',
+        ...(delegate.pass_context ? { pass_context: delegate.pass_context } : {}),
+        ...(delegate.expect_back ? { expect_back: delegate.expect_back } : {}),
+        ...(delegate.sla ? { sla: delegate.sla } : {})
+      }))
+    : [];
+
+  const full = {
+    id: skillName,
+    name: skill.name || skillName,
+    description: skill.description || '',
+    owns: Array.isArray(skill.owns) ? skill.owns : [],
+    triggers: Array.isArray(skill.triggers) ? skill.triggers : [],
+    category: skill.category || 'general',
+    delegates,
+    pairsWell: [],
+    tags: Array.isArray(skill.tags) ? skill.tags : [],
+    selectionHints: skill.selection_hints || {}
+  };
+
+  return {
+    minimal: {
+      id: skillName,
+      kw: extractKeywords(full, skillName)
+    },
+    full
+  };
+}
+
+function readManifestSkills(manifestPath = MANIFEST_PATH) {
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  if (manifest.schema_version !== 'spark.skill.manifest.v1' || !Array.isArray(manifest.skills)) {
+    throw new Error(`Invalid Spark skill manifest: ${manifestPath}`);
+  }
+  return manifest.skills.filter(skill => skill?.id && skill?.name && skill?.description);
+}
+
+function collectYamlSkillFiles() {
+  const NON_SKILL_DIRS = new Set(['mcp-server', 'tools', 'viz', 'benchmark', 'benchmarks', 'h70-to-clawdbot', '.github', 'config', 'bundles', 'release-artifacts', 'eval', 'examples']);
+  const categories = fs.readdirSync(H70_PATH, { withFileTypes: true })
+    .filter(d => d.isDirectory() && !d.name.startsWith('_') && !d.name.startsWith('.') && !NON_SKILL_DIRS.has(d.name))
+    .map(d => d.name);
+
+  const skillFiles = [];
+  for (const category of categories) {
+    const categoryDir = path.join(H70_PATH, category);
+    const files = fs.readdirSync(categoryDir, { withFileTypes: true })
+      .filter(entry => entry.isFile() && entry.name.endsWith('.yaml'))
+      .map(entry => ({
+        category,
+        skillName: path.basename(entry.name, '.yaml'),
+        skillPath: path.join(categoryDir, entry.name)
+      }));
+
+    skillFiles.push(...files);
+  }
+  return skillFiles;
+}
+
+function buildIndexes(records) {
+  const minimalIndex = [];
+  const fullDetails = {};
+
+  for (const result of records) {
+    if (result) {
+      minimalIndex.push(result.minimal);
+      fullDetails[result.full.id] = result.full;
+    }
+  }
+
+  const validIds = new Set(Object.keys(fullDetails));
+  for (const skill of Object.values(fullDetails)) {
+    skill.delegates = Array.isArray(skill.delegates)
+      ? skill.delegates.filter(delegate => delegate && validIds.has(delegate.skill))
+      : [];
+    skill.pairsWell = Array.isArray(skill.pairsWell)
+      ? skill.pairsWell.filter(skillId => validIds.has(skillId))
+      : [];
+  }
+
+  const categorized = createCategorizedIndex(minimalIndex);
+  const minimalOutput = {
+    version: '2.0.0',
+    totalSkills: minimalIndex.length,
+    domains: categorized,
+    flat: minimalIndex
+  };
+
+  const matcherCatalog = {};
+  for (const [skillName, skill] of Object.entries(fullDetails)) {
+    matcherCatalog[skillName] = {
+      id: skill.id,
+      name: skill.name,
+      description: String(skill.description || '').slice(0, 120),
+      owns: Array.isArray(skill.owns)
+        ? skill.owns.slice(0, 4).map(own => String(own).slice(0, 60))
+        : [],
+      triggers: Array.isArray(skill.triggers)
+        ? skill.triggers.slice(0, 5).map(trigger => String(trigger).slice(0, 50))
+        : [],
+      category: skill.category,
+      delegates: Array.isArray(skill.delegates)
+        ? skill.delegates.map(delegate => ({ skill: delegate.skill }))
+        : [],
+      pairsWell: skill.pairsWell,
+      selectionHints: skill.selectionHints || {}
+    };
+  }
+
+  const ultraCompact = {};
+  for (const [domain, skills] of Object.entries(categorized)) {
+    if (skills.length > 0) {
+      ultraCompact[domain] = skills.map(s => s.id).join(', ');
+    }
+  }
+
+  return { minimalOutput, fullDetails, matcherCatalog, ultraCompact, categorized };
+}
+
 /**
  * Create categorized minimal index for better Claude understanding
  */
@@ -156,64 +283,23 @@ function createCategorizedIndex(skills) {
 function main() {
   console.log('=== Building Skill Index ===\n');
 
-  const NON_SKILL_DIRS = new Set(['mcp-server', 'tools', 'viz', 'benchmark', 'benchmarks', 'h70-to-clawdbot', '.github', 'config', 'bundles', 'release-artifacts', 'eval']);
-  const categories = fs.readdirSync(H70_PATH, { withFileTypes: true })
-    .filter(d => d.isDirectory() && !d.name.startsWith('_') && !d.name.startsWith('.') && !NON_SKILL_DIRS.has(d.name))
-    .map(d => d.name);
-
-  const skillFiles = [];
-  for (const category of categories) {
-    const categoryDir = path.join(H70_PATH, category);
-    const files = fs.readdirSync(categoryDir, { withFileTypes: true })
-      .filter(entry => entry.isFile() && entry.name.endsWith('.yaml'))
-      .map(entry => ({
-        category,
-        skillName: path.basename(entry.name, '.yaml'),
-        skillPath: path.join(categoryDir, entry.name)
-      }));
-
-    skillFiles.push(...files);
+  let records;
+  if (fs.existsSync(MANIFEST_PATH)) {
+    const manifestSkills = readManifestSkills(MANIFEST_PATH);
+    console.log(`Processing ${manifestSkills.length} skills from manifest ${MANIFEST_PATH}...\n`);
+    records = manifestSkills.map(processManifestSkill);
+  } else {
+    const skillFiles = collectYamlSkillFiles();
+    console.log(`Processing ${skillFiles.length} skills from YAML ${H70_PATH}...\n`);
+    records = skillFiles.map(({ skillName, skillPath, category }) => processSkill(skillPath, skillName, category));
   }
 
-  console.log(`Processing ${skillFiles.length} skills...\n`);
-
-  const minimalIndex = [];
-  const fullDetails = {};
-
-  for (const { skillName, skillPath, category } of skillFiles) {
-    const result = processSkill(skillPath, skillName, category);
-
-    if (result) {
-      minimalIndex.push(result.minimal);
-      fullDetails[skillName] = result.full;
-    }
-  }
-
-  const validIds = new Set(Object.keys(fullDetails));
-  for (const skill of Object.values(fullDetails)) {
-    skill.delegates = Array.isArray(skill.delegates)
-      ? skill.delegates.filter(delegate => delegate && validIds.has(delegate.skill))
-      : [];
-    skill.pairsWell = Array.isArray(skill.pairsWell)
-      ? skill.pairsWell.filter(skillId => validIds.has(skillId))
-      : [];
-  }
-
-  // Create categorized index
-  const categorized = createCategorizedIndex(minimalIndex);
+  const { minimalOutput, fullDetails, matcherCatalog, ultraCompact, categorized } = buildIndexes(records);
 
   // Ensure output directory exists
   if (!fs.existsSync(OUTPUT_DIR)) {
     fs.mkdirSync(OUTPUT_DIR, { recursive: true });
   }
-
-  // Write minimal index (for Claude)
-  const minimalOutput = {
-    version: '2.0.0',
-    totalSkills: minimalIndex.length,
-    domains: categorized,
-    flat: minimalIndex
-  };
 
   const minimalPath = path.join(OUTPUT_DIR, 'skill-index.json');
   fs.writeFileSync(minimalPath, JSON.stringify(minimalOutput, null, 2));
@@ -221,27 +307,6 @@ function main() {
   // Write full details (for after selection)
   const fullPath = path.join(OUTPUT_DIR, 'skill-details.json');
   fs.writeFileSync(fullPath, JSON.stringify(fullDetails, null, 2));
-
-  const matcherCatalog = {};
-  for (const [skillName, skill] of Object.entries(fullDetails)) {
-    matcherCatalog[skillName] = {
-      id: skill.id,
-      name: skill.name,
-      description: String(skill.description || '').slice(0, 120),
-      owns: Array.isArray(skill.owns)
-        ? skill.owns.slice(0, 4).map(own => String(own).slice(0, 60))
-        : [],
-      triggers: Array.isArray(skill.triggers)
-        ? skill.triggers.slice(0, 5).map(trigger => String(trigger).slice(0, 50))
-        : [],
-      category: skill.category,
-      delegates: Array.isArray(skill.delegates)
-        ? skill.delegates.map(delegate => ({ skill: delegate.skill }))
-        : [],
-      pairsWell: skill.pairsWell,
-      selectionHints: skill.selectionHints || {}
-    };
-  }
 
   const matcherPath = path.join(OUTPUT_DIR, 'skill-matcher-catalog.json');
   fs.writeFileSync(matcherPath, JSON.stringify(matcherCatalog, null, 2));
@@ -261,14 +326,6 @@ function main() {
     }
   }
 
-  // Create an even more compact format - just for Claude prompt
-  const ultraCompact = {};
-  for (const [domain, skills] of Object.entries(categorized)) {
-    if (skills.length > 0) {
-      ultraCompact[domain] = skills.map(s => s.id).join(', ');
-    }
-  }
-
   const ultraCompactPath = path.join(OUTPUT_DIR, 'skill-index-ultra.json');
   fs.writeFileSync(ultraCompactPath, JSON.stringify(ultraCompact, null, 2));
 
@@ -282,4 +339,13 @@ function main() {
   console.log(`  ${ultraCompactPath}`);
 }
 
-main();
+if (require.main === module) {
+  main();
+}
+
+module.exports = {
+  buildIndexes,
+  collectYamlSkillFiles,
+  processManifestSkill,
+  readManifestSkills
+};
