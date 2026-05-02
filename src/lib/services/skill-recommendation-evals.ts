@@ -556,6 +556,118 @@ export const CHALLENGE_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 			['search-implementation', 'algolia-search']
 		],
 		mustNotInclude: ['smart-contract-engineer', 'neural-architecture-search']
+	},
+	{
+		name: 'Notification preferences',
+		suite: 'challenge',
+		prompt: 'Create a notification preference center with email opt outs, push notification toggles, digest frequency, quiet hours, and accessible forms',
+		mustInclude: ['push-notifications', 'forms-validation', 'accessibility'],
+		anyOf: [
+			['resend-email', 'email-deliverability', 'email-systems'],
+			['toast-notification-ui']
+		],
+		mustNotInclude: ['nft-engineer', 'smart-contract-engineer']
+	},
+	{
+		name: 'Outgoing webhook platform',
+		suite: 'challenge',
+		prompt: 'Build an outgoing webhook platform with endpoint subscriptions, HMAC signing, retries, delivery logs, rate limits, and a developer portal',
+		mustInclude: ['webhook-processing', 'api-security', 'logging-strategies'],
+		anyOf: [['rate-limiting'], ['api-design', 'api-designer', 'developer-community']],
+		mustNotInclude: ['ai-image-generation', 'procedural-generation']
+	},
+	{
+		name: 'Bulk admin actions',
+		suite: 'challenge',
+		prompt: 'Add bulk admin actions to a data table with row selection, confirmation dialogs, partial failure handling, audit log entries, and undo toasts',
+		mustInclude: ['tanstack-table', 'audit-logging'],
+		anyOf: [['logging-strategies'], ['frontend']],
+		mustNotInclude: ['semantic-search', 'rag-engineer']
+	},
+	{
+		name: 'Data retention deletion',
+		suite: 'challenge',
+		prompt: 'Implement data retention policies with scheduled deletion jobs, account export, GDPR delete requests, audit logs, and privacy controls',
+		mustInclude: ['gdpr-privacy', 'audit-logging'],
+		anyOf: [['privacy-guardian'], ['cron-scheduled-jobs', 'queue-workers']],
+		mustNotInclude: ['nft-engineer', 'streamer-bait-design']
+	},
+	{
+		name: 'Usage metering entitlements',
+		suite: 'challenge',
+		prompt: 'Add usage metering for a SaaS plan with monthly quotas, feature entitlements, billing analytics, Stripe subscription limits, and upgrade prompts',
+		mustInclude: ['subscription-billing', 'stripe-integration', 'analytics'],
+		anyOf: [['stripe-subscriptions'], ['saas-teams-organizations'], ['api-monetization', 'analytics-architecture']],
+		mustNotInclude: ['game-development']
+	},
+	{
+		name: 'Onboarding checklist',
+		suite: 'challenge',
+		prompt: 'Build an onboarding checklist with activation milestones, progress tracking, lifecycle emails, analytics events, and completion celebration',
+		mustInclude: ['onboarding-flows', 'analytics'],
+		anyOf: [
+			['product-analytics-engineering', 'analytics-architecture'],
+			['player-onboarding']
+		],
+		mustNotInclude: ['smart-contract-engineer']
+	},
+	{
+		name: 'Permissioned file sharing',
+		suite: 'challenge',
+		prompt: 'Create permissioned file sharing with signed URLs, expiring share links, workspace access control, upload validation, and audit history',
+		mustInclude: ['file-uploads'],
+		anyOf: [
+			['auth-specialist', 'authentication-oauth', 'rbac-enterprise'],
+			['forms-validation', 'zod-validation']
+		],
+		mustNotInclude: ['ai-video-generation']
+	},
+	{
+		name: 'Product feedback board',
+		suite: 'challenge',
+		prompt: 'Build a product feedback board with idea submission, voting, status roadmap columns, admin moderation, user comments, and analytics',
+		mustInclude: ['analytics', 'social-features'],
+		anyOf: [
+			['changelog-roadmap', 'product-management'],
+			['product-analytics-engineering', 'analytics-architecture']
+		],
+		mustNotInclude: ['nft-engineer', 'kubernetes']
+	},
+	{
+		name: 'App store release ops',
+		suite: 'challenge',
+		prompt: 'Prepare an Expo React Native app for TestFlight and Play Console release with push notification credentials, app metadata, screenshots, and phased rollout',
+		mustInclude: ['expo', 'react-native-specialist', 'push-notifications'],
+		anyOf: [['firebase', 'state-management'], ['responsive-mobile-first', 'react-patterns']],
+		mustNotInclude: ['kubernetes-deployment', 'mobile-game-dev']
+	},
+	{
+		name: 'Accessibility QA pass',
+		suite: 'challenge',
+		prompt: 'Run an accessibility QA pass for keyboard navigation, focus states, screen reader labels, color contrast, Playwright checks, and form error messages',
+		mustInclude: ['accessibility', 'playwright-testing'],
+		anyOf: [['accessibility-design'], ['browser-automation', 'testing-automation'], ['ui-design']],
+		mustNotInclude: ['smart-contract-engineer']
+	},
+	{
+		name: 'Privacy consent manager',
+		suite: 'challenge',
+		prompt: 'Add cookie consent and privacy controls with analytics opt out, regional GDPR behavior, tracking preferences, and audit-friendly consent records',
+		mustInclude: ['gdpr-privacy', 'privacy-guardian', 'analytics'],
+		anyOf: [['analytics-architecture', 'posthog-analytics', 'plausible-analytics']],
+		mustNotInclude: ['nft-engineer']
+	},
+	{
+		name: 'Realtime collaboration conflicts',
+		suite: 'challenge',
+		prompt: 'Build realtime collaborative editing with presence cursors, websocket sync, offline local edits, conflict resolution, optimistic updates, and activity history',
+		mustInclude: ['presence-indicators', 'local-first-sync'],
+		anyOf: [
+			['websocket-realtime', 'websockets-realtime', 'realtime-engineer'],
+			['audit-logging', 'logging-strategies'],
+			['observability']
+		],
+		mustNotInclude: ['procedural-generation', 'game-development']
 	}
 ];
 

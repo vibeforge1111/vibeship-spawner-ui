@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { CHALLENGE_RECOMMENDATION_CASES, GOLDEN_RECOMMENDATION_CASES } from '$lib/services/skill-recommendation-evals';
 import { load } from './+page.server';
 
 describe('/internal/skill-evals route', () => {
@@ -6,9 +7,11 @@ describe('/internal/skill-evals route', () => {
 		const data = load();
 
 		expect(data.project.catalogSkillCount).toBeGreaterThan(500);
-		expect(data.project.goldenCaseCount).toBe(50);
-		expect(data.project.challengeCaseCount).toBe(12);
-		expect(data.project.evalCaseCount).toBe(62);
+		expect(data.project.goldenCaseCount).toBe(GOLDEN_RECOMMENDATION_CASES.length);
+		expect(data.project.challengeCaseCount).toBe(CHALLENGE_RECOMMENDATION_CASES.length);
+		expect(data.project.evalCaseCount).toBe(
+			GOLDEN_RECOMMENDATION_CASES.length + CHALLENGE_RECOMMENDATION_CASES.length
+		);
 		expect(data.summary.golden.passCount).toBe(data.summary.golden.caseCount);
 		expect(data.summary.challenge.passCount).toBe(data.summary.challenge.caseCount);
 		expect(data.project.returnedRecommendationCount).toBeGreaterThan(400);

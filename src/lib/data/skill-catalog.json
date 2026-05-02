@@ -2559,7 +2559,21 @@
       ],
       "category": "backend",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "boost": 36,
+        "aliases": [
+          "delivery logs",
+          "event logs",
+          "audit-friendly logs"
+        ],
+        "boost_terms": [
+          "delivery logs",
+          "request logs",
+          "correlation ids",
+          "structured logs",
+          "activity history"
+        ]
+      }
     },
     {
       "id": "microservices-patterns",
@@ -4885,6 +4899,13 @@
           "recurring billing",
           "subscription billing",
           "plan changes"
+        ],
+        "negative_terms": [
+          "endpoint subscriptions",
+          "webhook subscriptions",
+          "webhook platform",
+          "developer portal",
+          "delivery logs"
         ]
       }
     },
@@ -13727,6 +13748,13 @@
           "stripe billing",
           "stripe subscriptions",
           "saas billing"
+        ],
+        "negative_terms": [
+          "endpoint subscriptions",
+          "webhook subscriptions",
+          "webhook platform",
+          "developer portal",
+          "delivery logs"
         ]
       }
     },
@@ -15844,7 +15872,21 @@
       ],
       "category": "security",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "boost": 38,
+        "aliases": [
+          "api security",
+          "request signing",
+          "hmac signing"
+        ],
+        "boost_terms": [
+          "hmac signing",
+          "signed webhook",
+          "webhook signing",
+          "replay protection",
+          "developer portal"
+        ]
+      }
     },
     {
       "id": "audit-logging",
@@ -20796,7 +20838,21 @@
         ],
         "category": "backend",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "boost": 36,
+          "aliases": [
+            "delivery logs",
+            "event logs",
+            "audit-friendly logs"
+          ],
+          "boost_terms": [
+            "delivery logs",
+            "request logs",
+            "correlation ids",
+            "structured logs",
+            "activity history"
+          ]
+        }
       },
       {
         "id": "microservices-patterns",
@@ -23128,6 +23184,13 @@
             "recurring billing",
             "subscription billing",
             "plan changes"
+          ],
+          "negative_terms": [
+            "endpoint subscriptions",
+            "webhook subscriptions",
+            "webhook platform",
+            "developer portal",
+            "delivery logs"
           ]
         }
       }
@@ -32006,6 +32069,13 @@
             "stripe billing",
             "stripe subscriptions",
             "saas billing"
+          ],
+          "negative_terms": [
+            "endpoint subscriptions",
+            "webhook subscriptions",
+            "webhook platform",
+            "developer portal",
+            "delivery logs"
           ]
         }
       },
@@ -34135,7 +34205,21 @@
         ],
         "category": "security",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "boost": 38,
+          "aliases": [
+            "api security",
+            "request signing",
+            "hmac signing"
+          ],
+          "boost_terms": [
+            "hmac signing",
+            "signed webhook",
+            "webhook signing",
+            "replay protection",
+            "developer portal"
+          ]
+        }
       },
       {
         "id": "audit-logging",

@@ -26,7 +26,7 @@ describe('skill recommendation eval scoring', () => {
 		const results = evaluateSkillRecommendations(CHALLENGE_RECOMMENDATION_CASES);
 		const summary = summarizeSkillRecommendationEvals(results);
 
-		expect(summary.caseCount).toBe(12);
+		expect(summary.caseCount).toBe(CHALLENGE_RECOMMENDATION_CASES.length);
 		expect(summary.passCount).toBe(summary.caseCount);
 		expect(summary.averageLabeledPrecisionAtK).toBeGreaterThanOrEqual(0.45);
 	});
