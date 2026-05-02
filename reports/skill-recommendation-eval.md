@@ -175,7 +175,7 @@ Top skills: websockets-realtime, websocket-realtime, realtime-engineer, presence
 
 Prompt: Build a social community app with profiles, feed, likes, comments, moderation, and notifications
 
-Top skills: social-community, social-features, web3-community, push-notifications, community-operations, community-analytics, community-building, community-led-growth, developer-community, community-tooling
+Top skills: social-community, social-features, push-notifications, community-operations, web3-community, community-analytics, community-building, community-led-growth, developer-community, community-tooling
 
 ### File upload storage
 

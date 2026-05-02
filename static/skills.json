@@ -9366,7 +9366,17 @@
         "web3 community",
         "token gated community",
         "dao community"
-      ]
+      ],
+      "negative_terms": [
+        "token expiry",
+        "reset password",
+        "forgot password",
+        "password reset",
+        "session security",
+        "social community",
+        "social feed"
+      ],
+      "penalty": 48
     }
   },
   {
@@ -10662,7 +10672,17 @@
       "infra-architect",
       "migration-specialist"
     ],
-    "selectionHints": {}
+    "selectionHints": {
+      "penalty": 36,
+      "negative_terms": [
+        "data table",
+        "filterable data table",
+        "searchable sortable",
+        "csv export",
+        "saved views",
+        "bulk actions"
+      ]
+    }
   },
   {
     "id": "data-governance",
@@ -10826,7 +10846,17 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "penalty": 36,
+      "negative_terms": [
+        "data table",
+        "filterable data table",
+        "searchable sortable",
+        "csv export",
+        "saved views",
+        "bulk actions"
+      ]
+    }
   },
   {
     "id": "database-migrations",
@@ -11513,7 +11543,17 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "penalty": 36,
+      "negative_terms": [
+        "data table",
+        "filterable data table",
+        "searchable sortable",
+        "csv export",
+        "saved views",
+        "bulk actions"
+      ]
+    }
   },
   {
     "id": "vector-specialist",
