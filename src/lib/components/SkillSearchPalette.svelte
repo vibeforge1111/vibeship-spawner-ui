@@ -306,17 +306,19 @@
 												{/if}
 											</span>
 											<span class="search-result-desc">{result.skill.description || result.skill.id}</span>
+										</span>
+										<span class="search-result-aside">
+											<span class="search-result-meta">{formatCategory(result.skill.category)}</span>
 											<span class="search-result-intel">
 												<span>{result.reason}</span>
 												{#each result.visibleTags as tag}
 													<span>{tag}</span>
 												{/each}
 											</span>
+											{#if flatIndex === selectedIndex}
+												<kbd class="search-enter">enter</kbd>
+											{/if}
 										</span>
-										<span class="search-result-meta">{formatCategory(result.skill.category)}</span>
-										{#if flatIndex === selectedIndex}
-											<kbd class="search-enter">enter</kbd>
-										{/if}
 									</button>
 								{/each}
 							</section>
@@ -534,11 +536,11 @@
 	.search-result {
 		display: flex;
 		width: 100%;
-		align-items: center;
+		align-items: flex-start;
 		gap: 12px;
 		border: 0;
 		background: transparent;
-		padding: 10px 20px;
+		padding: 12px 20px;
 		color: var(--text-secondary);
 		cursor: pointer;
 		transition:
@@ -557,6 +559,7 @@
 		width: 34px;
 		height: 34px;
 		flex: 0 0 auto;
+		margin-top: 2px;
 		align-items: center;
 		justify-content: center;
 		border-radius: 6px;
@@ -577,7 +580,7 @@
 		display: grid;
 		min-width: 0;
 		flex: 1;
-		gap: 4px;
+		gap: 6px;
 		text-align: left;
 	}
 
@@ -600,7 +603,7 @@
 	.search-recommended {
 		flex: 0 0 auto;
 		border: 1px solid rgb(var(--accent-rgb) / 0.32);
-		border-radius: 999px;
+		border-radius: 5px;
 		background: rgb(var(--accent-rgb) / 0.1);
 		padding: 2px 6px;
 		font-family: var(--font-mono, ui-monospace, monospace);
@@ -613,11 +616,24 @@
 
 	.search-result-desc {
 		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		white-space: normal;
 		font-size: 12px;
 		line-height: 1.35;
 		color: rgb(var(--text-secondary-rgb) / 0.88);
+	}
+
+	.search-result-aside {
+		display: grid;
+		flex: 0 0 150px;
+		justify-items: end;
+		gap: 6px;
+		margin-left: auto;
+		padding-top: 1px;
+		text-align: right;
 	}
 
 	.search-result-intel {
@@ -625,15 +641,16 @@
 		min-width: 0;
 		flex-wrap: wrap;
 		gap: 6px;
+		justify-content: flex-end;
 	}
 
 	.search-result-intel span {
-		max-width: 150px;
+		max-width: 142px;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		border: 1px solid rgb(var(--accent-rgb) / 0.18);
-		border-radius: 999px;
+		border-radius: 5px;
 		background: rgb(var(--bg-rgb) / 0.72);
 		padding: 3px 7px;
 		font-family: var(--font-mono, ui-monospace, monospace);
@@ -721,6 +738,24 @@
 
 		.search-result {
 			padding-inline: 14px;
+		}
+
+		.search-result {
+			display: grid;
+			grid-template-columns: 34px minmax(0, 1fr);
+			align-items: start;
+		}
+
+		.search-result-aside {
+			grid-column: 2;
+			flex: none;
+			justify-items: start;
+			margin-left: 0;
+			text-align: left;
+		}
+
+		.search-result-intel {
+			justify-content: flex-start;
 		}
 
 		.navbar-trigger .search-trigger-label,
