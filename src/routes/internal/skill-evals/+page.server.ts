@@ -15,6 +15,26 @@ type CatalogSkill = {
 	name?: string;
 	category?: string;
 };
+type DashboardSkill = {
+	id: string;
+	name: string;
+	category: string;
+	score: number;
+	reason: string;
+	tier: SkillRecommendationTier;
+	isLabeledRelevant: boolean;
+	isUnwanted: boolean;
+};
+type DashboardCase = ReturnType<typeof evaluateSkillIds> & {
+	topK: number;
+	expected: {
+		mustInclude: string[];
+		anyOf: string[][];
+		mustNotInclude: string[];
+		labels: string[];
+	};
+	skills: DashboardSkill[];
+};
 
 const catalog = skillCatalog as Record<string, CatalogSkill>;
 
@@ -24,6 +44,45 @@ function expectedLabels(testCase: SkillRecommendationEvalCase): string[] {
 		...(testCase.anyOf || []).map((group) => `one of ${group.join(' / ')}`),
 		...(testCase.mustNotInclude || []).map((id) => `not ${id}`)
 	];
+}
+
+function buildPrecisionAudit(cases: DashboardCase[]) {
+	const noisySkillCounts = new Map<string, { id: string; name: string; count: number; cases: string[] }>();
+	const lowPrecisionCases = [...cases]
+		.sort((a, b) => a.labeledPrecisionAtK - b.labeledPrecisionAtK || a.score - b.score)
+		.slice(0, 12)
+		.map((testCase) => ({
+			name: testCase.name,
+			suite: testCase.suite,
+			precision: testCase.labeledPrecisionAtK,
+			score: testCase.score,
+			unlabeled: testCase.skills
+				.filter((skill) => !skill.isLabeledRelevant && !skill.isUnwanted)
+				.slice(0, 8)
+				.map((skill) => skill.id),
+			expected: testCase.relevantReturned
+		}));
+
+	for (const testCase of cases) {
+		for (const skill of testCase.skills) {
+			if (skill.isLabeledRelevant || skill.isUnwanted) continue;
+			const existing = noisySkillCounts.get(skill.id) || {
+				id: skill.id,
+				name: skill.name,
+				count: 0,
+				cases: []
+			};
+			existing.count += 1;
+			existing.cases.push(testCase.name);
+			noisySkillCounts.set(skill.id, existing);
+		}
+	}
+
+	const noisySkills = [...noisySkillCounts.values()]
+		.sort((a, b) => b.count - a.count || a.id.localeCompare(b.id))
+		.slice(0, 18);
+
+	return { lowPrecisionCases, noisySkills };
 }
 
 export function load() {
@@ -104,6 +163,7 @@ export function load() {
 			precisionNote:
 				'Precision is conservative: only explicitly labeled expected skills count as relevant, so plausible supporting skills are still treated as unlabeled.'
 		},
+		precisionAudit: buildPrecisionAudit(cases),
 		cases
 	};
 }

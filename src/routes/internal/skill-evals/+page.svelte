@@ -74,6 +74,22 @@
 			scoreWeights: Array<{ label: string; weight: number }>;
 			precisionNote: string;
 		};
+		precisionAudit: {
+			lowPrecisionCases: Array<{
+				name: string;
+				suite: 'golden' | 'challenge';
+				precision: number;
+				score: number;
+				unlabeled: string[];
+				expected: string[];
+			}>;
+			noisySkills: Array<{
+				id: string;
+				name: string;
+				count: number;
+				cases: string[];
+			}>;
+		};
 		cases: EvalCase[];
 	};
 
@@ -198,6 +214,51 @@
 						<p class="font-mono uppercase text-text-tertiary">related</p>
 						<p class="mt-1 text-lg font-semibold">{data.summary.tierCounts.related}</p>
 					</div>
+				</div>
+			</div>
+		</section>
+
+		<section class="grid gap-4 xl:grid-cols-[1fr_420px]" aria-label="Precision audit">
+			<div class="panel overflow-hidden">
+				<div class="border-b border-surface-border px-3 py-2">
+					<h2 class="text-sm font-semibold">Lowest precision cases</h2>
+					<p class="mt-0.5 text-xs text-text-tertiary">These pass recall, but their top 10 still contains extra unlabeled skills.</p>
+				</div>
+				<div class="divide-y divide-surface-border">
+					{#each data.precisionAudit.lowPrecisionCases as item}
+						<div class="grid gap-2 px-3 py-2 text-xs md:grid-cols-[190px_90px_1fr]">
+							<div>
+								<p class="font-semibold text-text-bright">{item.name}</p>
+								<p class="font-mono text-text-tertiary">{item.suite}</p>
+							</div>
+							<div>
+								<p class="font-mono text-text-tertiary">precision</p>
+								<p class="font-semibold">{pct(item.precision)}</p>
+							</div>
+							<div>
+								<p class="font-mono text-text-tertiary">unlabeled top skills</p>
+								<p class="mt-1 text-text-secondary">{item.unlabeled.join(', ') || 'none'}</p>
+							</div>
+						</div>
+					{/each}
+				</div>
+			</div>
+
+			<div class="panel overflow-hidden">
+				<div class="border-b border-surface-border px-3 py-2">
+					<h2 class="text-sm font-semibold">Recurring noisy skills</h2>
+					<p class="mt-0.5 text-xs text-text-tertiary">Use this as the next negative-hint and label-review queue.</p>
+				</div>
+				<div class="divide-y divide-surface-border">
+					{#each data.precisionAudit.noisySkills as skill}
+						<div class="px-3 py-2 text-xs">
+							<div class="flex items-center justify-between gap-3">
+								<p class="font-semibold text-text-bright">{skill.id}</p>
+								<span class="border border-surface-border bg-bg-secondary px-2 py-0.5 font-mono text-text-tertiary">{skill.count}</span>
+							</div>
+							<p class="mt-1 line-clamp-2 text-text-secondary">{skill.cases.slice(0, 4).join(', ')}</p>
+						</div>
+					{/each}
 				</div>
 			</div>
 		</section>
