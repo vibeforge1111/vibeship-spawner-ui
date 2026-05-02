@@ -355,6 +355,27 @@ function normalizeBuildMode(value: unknown): 'direct' | 'advanced_prd' {
 	return value === 'advanced_prd' ? 'advanced_prd' : 'direct';
 }
 
+function isConcreteDirectStaticBuild(content: string): boolean {
+	const lower = content.toLowerCase();
+	const hasStaticSurface = /\b(?:static|vanilla|single[- ]page|landing\s+page|html|css|javascript|no build step)\b/.test(lower);
+	const hasDeliverable = /\b(?:build|create|make|ship|scaffold|generate)\b/.test(lower) && /\b(?:page|site|app|website)\b/.test(lower);
+	const hasFeatureSignal = /\b(?:menu|section|hero|gallery|contact|pricing|form|cards?|responsive|button|navigation|localstorage)\b/.test(lower);
+	return hasStaticSurface && hasDeliverable && hasFeatureSignal;
+}
+
+export function shouldRequestBriefClarification(input: {
+	content: string;
+	buildMode: 'direct' | 'advanced_prd';
+	openQuestions: string[];
+	forceDispatch?: boolean;
+}): boolean {
+	if (input.forceDispatch) return false;
+	if (input.openQuestions.length === 0) return false;
+	if (input.content.length >= 400) return false;
+	if (input.buildMode === 'direct' && isConcreteDirectStaticBuild(input.content)) return false;
+	return true;
+}
+
 function normalizeTelegramRelay(value: unknown): Record<string, unknown> | undefined {
 	if (!value || typeof value !== 'object') return undefined;
 	const raw = value as Record<string, unknown>;
@@ -733,9 +754,12 @@ export const POST: RequestHandler = async (event) => {
 		// can ask the user before we burn an LLM dispatch on a vague input.
 		// forceDispatch:true bypasses (used when the bot re-dispatches with
 		// answers).
-		const briefIsShort = content.length < 400;
-		const hasQuestions = enrichment.openQuestions && enrichment.openQuestions.length > 0;
-		if (!skipClarification && briefIsShort && hasQuestions) {
+		if (shouldRequestBriefClarification({
+			content,
+			buildMode: normalizedBuildMode,
+			openQuestions: enrichment.openQuestions || [],
+			forceDispatch: skipClarification
+		})) {
 			await appendPrdTrace(requestId, 'clarification_requested', {
 				questionCount: enrichment.openQuestions.length,
 				briefLength: content.length
