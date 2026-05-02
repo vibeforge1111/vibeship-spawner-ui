@@ -25,6 +25,11 @@ type DashboardSkill = {
 	isLabeledRelevant: boolean;
 	isUnwanted: boolean;
 };
+type CoverageGap = {
+	skillId: string;
+	path: string;
+	why: string;
+};
 type DashboardCase = ReturnType<typeof evaluateSkillIds> & {
 	topK: number;
 	expected: {
@@ -33,10 +38,73 @@ type DashboardCase = ReturnType<typeof evaluateSkillIds> & {
 		mustNotInclude: string[];
 		labels: string[];
 	};
+	coverageGap?: CoverageGap;
 	skills: DashboardSkill[];
 };
 
 const catalog = skillCatalog as Record<string, CatalogSkill>;
+const COVERAGE_GAPS_BY_CASE: Record<string, CoverageGap> = {
+	'Notification preferences': {
+		skillId: 'notification-preferences',
+		path: 'backend/notification-preferences.yaml',
+		why: 'Current matches use push, email, forms, and accessibility proxies instead of a dedicated preference-center skill.'
+	},
+	'Outgoing webhook platform': {
+		skillId: 'webhook-provider-platform',
+		path: 'backend/webhook-provider-platform.yaml',
+		why: 'Current webhook skill is mostly inbound processing; outgoing subscriptions, signing, and delivery logs deserve their own surface.'
+	},
+	'Bulk admin actions': {
+		skillId: 'bulk-actions-safety',
+		path: 'frontend/bulk-actions-safety.yaml',
+		why: 'Current matches cover tables and audit logs, but not partial failure, undo, and confirmation ergonomics.'
+	},
+	'Data retention deletion': {
+		skillId: 'data-retention-deletion',
+		path: 'security/data-retention-deletion.yaml',
+		why: 'Current matches are privacy and cron proxies; retention policy implementation is a distinct recurring request.'
+	},
+	'Usage metering entitlements': {
+		skillId: 'usage-metering-entitlements',
+		path: 'backend/usage-metering-entitlements.yaml',
+		why: 'Current matches cover billing and analytics, but not runtime quotas, feature gates, and entitlement enforcement.'
+	},
+	'Onboarding checklist': {
+		skillId: 'feature-onboarding-checklists',
+		path: 'product/feature-onboarding-checklists.yaml',
+		why: 'Current matches cover analytics and onboarding broadly, but not checklist state, activation tasks, and completion UX.'
+	},
+	'Permissioned file sharing': {
+		skillId: 'permissioned-file-sharing',
+		path: 'backend/permissioned-file-sharing.yaml',
+		why: 'Current matches cover uploads and RBAC separately; share links, expiry, and file ACLs need one focused skill.'
+	},
+	'Product feedback board': {
+		skillId: 'product-feedback-roadmapping',
+		path: 'product/product-feedback-roadmapping.yaml',
+		why: 'Current matches use social, analytics, and changelog proxies instead of feedback capture and roadmap workflow.'
+	},
+	'App store release ops': {
+		skillId: 'app-store-release-ops',
+		path: 'mobile/app-store-release-ops.yaml',
+		why: 'Current matches cover Expo and push, but not TestFlight, Play Console, metadata, and rollout operations.'
+	},
+	'Accessibility QA pass': {
+		skillId: 'web-accessibility-qa',
+		path: 'testing/web-accessibility-qa.yaml',
+		why: 'Current matches cover accessibility and Playwright separately; QA pass structure should be its own skill.'
+	},
+	'Privacy consent manager': {
+		skillId: 'privacy-consent-management',
+		path: 'security/privacy-consent-management.yaml',
+		why: 'Current matches cover GDPR and analytics, but not cookie consent, tracking preferences, and consent records.'
+	},
+	'Realtime collaboration conflicts': {
+		skillId: 'realtime-collab-conflict-resolution',
+		path: 'backend/realtime-collab-conflict-resolution.yaml',
+		why: 'Current matches cover realtime and local-first primitives, not conflict-resolution decisions.'
+	}
+};
 
 function expectedLabels(testCase: SkillRecommendationEvalCase): string[] {
 	return [
@@ -60,7 +128,8 @@ function buildPrecisionAudit(cases: DashboardCase[]) {
 				.filter((skill) => !skill.isLabeledRelevant && !skill.isUnwanted)
 				.slice(0, 8)
 				.map((skill) => skill.id),
-			expected: testCase.relevantReturned
+			expected: testCase.relevantReturned,
+			coverageGap: testCase.coverageGap
 		}));
 
 	for (const testCase of cases) {
@@ -100,6 +169,7 @@ export function load() {
 				mustNotInclude: testCase.mustNotInclude || [],
 				labels: expectedLabels(testCase)
 			},
+			coverageGap: COVERAGE_GAPS_BY_CASE[testCase.name],
 			skills: ranks.map((rank) => ({
 				id: rank.skillId,
 				name: catalog[rank.skillId]?.name || rank.skillId,
@@ -122,6 +192,15 @@ export function load() {
 	);
 	const returnedRecommendationCount = cases.reduce((sum, testCase) => sum + testCase.ids.length, 0);
 	const topKLimitSlots = cases.reduce((sum, testCase) => sum + testCase.topK, 0);
+	const coverageGaps = cases
+		.filter((testCase) => testCase.coverageGap)
+		.map((testCase) => ({
+			caseName: testCase.name,
+			precision: testCase.labeledPrecisionAtK,
+			suite: testCase.suite,
+			...testCase.coverageGap!
+		}))
+		.sort((a, b) => a.precision - b.precision || a.caseName.localeCompare(b.caseName));
 	const tierCounts = cases
 		.flatMap((testCase) => testCase.skills)
 		.reduce(
@@ -140,6 +219,7 @@ export function load() {
 			evalCaseCount: cases.length,
 			goldenCaseCount: GOLDEN_RECOMMENDATION_CASES.length,
 			challengeCaseCount: CHALLENGE_RECOMMENDATION_CASES.length,
+			coverageGapCount: coverageGaps.length,
 			topKLimitSlots,
 			returnedRecommendationCount
 		},
@@ -152,6 +232,7 @@ export function load() {
 				.filter((testCase) => testCase.labeledPrecisionAtK < 0.5)
 				.map((testCase) => testCase.name)
 		},
+		coverageGaps,
 		scoring: {
 			passRule: 'All required skills present, every any-of group represented, and no must-not skills returned.',
 			scoreWeights: [

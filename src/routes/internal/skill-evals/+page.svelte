@@ -10,6 +10,11 @@
 		isLabeledRelevant: boolean;
 		isUnwanted: boolean;
 	};
+	type CoverageGap = {
+		skillId: string;
+		path: string;
+		why: string;
+	};
 	type EvalCase = {
 		name: string;
 		prompt: string;
@@ -30,6 +35,7 @@
 			mustNotInclude: string[];
 			labels: string[];
 		};
+		coverageGap?: CoverageGap;
 		skills: SkillRow[];
 	};
 	type SummaryStats = {
@@ -51,6 +57,7 @@
 			evalCaseCount: number;
 			goldenCaseCount: number;
 			challengeCaseCount: number;
+			coverageGapCount: number;
 			topKLimitSlots: number;
 			returnedRecommendationCount: number;
 		};
@@ -82,6 +89,7 @@
 				score: number;
 				unlabeled: string[];
 				expected: string[];
+				coverageGap?: CoverageGap;
 			}>;
 			noisySkills: Array<{
 				id: string;
@@ -90,6 +98,14 @@
 				cases: string[];
 			}>;
 		};
+		coverageGaps: Array<{
+			caseName: string;
+			suite: 'golden' | 'challenge';
+			precision: number;
+			skillId: string;
+			path: string;
+			why: string;
+		}>;
 		cases: EvalCase[];
 	};
 
@@ -215,6 +231,31 @@
 						<p class="mt-1 text-lg font-semibold">{data.summary.tierCounts.related}</p>
 					</div>
 				</div>
+				<div class="mt-3 border border-surface-border bg-bg-primary p-2 text-xs">
+					<p class="font-mono uppercase text-text-tertiary">planned gaps</p>
+					<p class="mt-1 text-lg font-semibold text-text-bright">{data.project.coverageGapCount}</p>
+					<p class="mt-0.5 text-text-secondary">Cases that pass today using proxy skills but should improve when new skills land.</p>
+				</div>
+			</div>
+		</section>
+
+		<section class="panel overflow-hidden" aria-label="Coverage gaps">
+			<div class="border-b border-surface-border px-3 py-2">
+				<h2 class="text-sm font-semibold">Coverage gaps to build next</h2>
+				<p class="mt-0.5 text-xs text-text-tertiary">These are passing cases where the matcher is relying on nearby skills instead of a dedicated one.</p>
+			</div>
+			<div class="grid divide-y divide-surface-border lg:grid-cols-2 lg:divide-x lg:divide-y-0">
+				{#each data.coverageGaps.slice(0, 8) as gap}
+					<div class="px-3 py-2 text-xs">
+						<div class="flex flex-wrap items-center justify-between gap-2">
+							<p class="font-semibold text-text-bright">{gap.skillId}</p>
+							<span class="border border-surface-border bg-bg-secondary px-2 py-0.5 font-mono text-text-tertiary">{pct(gap.precision)}</span>
+						</div>
+						<p class="mt-1 font-mono text-text-tertiary">{gap.path}</p>
+						<p class="mt-1 text-text-secondary">{gap.why}</p>
+						<p class="mt-1 text-text-tertiary">Triggered by: {gap.caseName}</p>
+					</div>
+				{/each}
 			</div>
 		</section>
 
@@ -238,6 +279,9 @@
 							<div>
 								<p class="font-mono text-text-tertiary">unlabeled top skills</p>
 								<p class="mt-1 text-text-secondary">{item.unlabeled.join(', ') || 'none'}</p>
+								{#if item.coverageGap}
+									<p class="mt-1 font-mono text-[11px] text-accent-primary">gap: {item.coverageGap.skillId}</p>
+								{/if}
 							</div>
 						</div>
 					{/each}
@@ -292,6 +336,9 @@
 									{#each coreSkills(testCase) as skill}
 										<span class={`border px-2 py-0.5 text-[11px] ${tierClass(skill.tier)}`}>{skill.id}</span>
 									{/each}
+									{#if testCase.coverageGap}
+										<span class="border border-accent-primary/40 bg-accent-primary/10 px-2 py-0.5 text-[11px] text-accent-primary">gap: {testCase.coverageGap.skillId}</span>
+									{/if}
 								</div>
 							</div>
 							<div class="text-left md:text-right">
@@ -314,6 +361,14 @@
 										{/each}
 									</div>
 								</div>
+								{#if testCase.coverageGap}
+									<div class="border border-accent-primary/30 bg-accent-primary/10 p-2 text-xs">
+										<p class="font-mono uppercase text-accent-primary">planned skill gap</p>
+										<p class="mt-1 font-semibold text-text-bright">{testCase.coverageGap.skillId}</p>
+										<p class="font-mono text-text-tertiary">{testCase.coverageGap.path}</p>
+										<p class="mt-1 text-text-secondary">{testCase.coverageGap.why}</p>
+									</div>
+								{/if}
 								<div class="grid grid-cols-4 gap-2 text-xs">
 									<div>
 										<p class="font-mono text-text-tertiary">score</p>
