@@ -1248,12 +1248,14 @@
 {#if minimized && (isRunning || isPaused)}
 	<button
 		onclick={onToggleMinimize}
-		class="fixed left-1/2 top-3 z-50 w-[min(calc(100vw-2rem),32rem)] -translate-x-1/2 rounded-lg border border-accent-primary/35 bg-bg-secondary/95 px-4 py-3 text-left shadow-[0_18px_70px_rgba(0,0,0,0.38)] backdrop-blur transition-all hover:-translate-y-0.5 hover:border-accent-primary hover:shadow-[0_22px_80px_rgba(0,196,154,0.14)] md:left-[calc(50%+8rem)] group"
+		class="fixed left-1/2 top-[4.25rem] z-50 w-[min(calc(100vw-2rem),32rem)] -translate-x-1/2 rounded-lg border border-accent-primary/35 bg-bg-secondary/95 px-4 py-3 text-left shadow-[0_18px_70px_rgba(0,0,0,0.38)] backdrop-blur transition-all hover:-translate-y-0.5 hover:border-accent-primary hover:shadow-[0_22px_80px_rgba(0,196,154,0.14)] md:left-[calc(50%+8rem)] group"
 		aria-label="Open workflow execution details"
 	>
 		<div class="flex items-center gap-3">
-			<div class="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-accent-primary/30 bg-accent-primary/10 font-mono text-sm font-semibold text-accent-primary tabular-nums">
-				{executionProgress?.progress || 0}%
+			<div class="relative flex h-11 min-w-16 shrink-0 items-center justify-center rounded-md border border-surface-border bg-bg-primary px-2 text-right">
+				<span class="text-2xl font-semibold leading-none tabular-nums text-text-primary">
+					{executionProgress?.progress || 0}<span class="ml-0.5 text-sm font-medium text-text-tertiary">%</span>
+				</span>
 				{#if isRunning}
 					<span class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-vibe-teal shadow-[0_0_16px_rgba(0,196,154,0.55)]"></span>
 				{:else if isPaused}
