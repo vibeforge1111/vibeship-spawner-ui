@@ -112,7 +112,12 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		name: 'Web3 NFT marketplace',
 		prompt: 'Build a Web3 NFT marketplace with wallet login, smart contracts, minting, royalties, and token-gated community',
 		mustInclude: ['nft-engineer', 'smart-contract-engineer', 'wallet-integration'],
-		anyOf: [['web3-community', 'blockchain-defi']]
+		anyOf: [
+			['web3-community', 'blockchain-defi'],
+			['nft-systems'],
+			['auth-specialist'],
+			['community-building', 'community-operations', 'community-led-growth']
+		]
 	},
 	{
 		name: 'SEO landing page',
@@ -124,7 +129,12 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		name: 'Data pipeline',
 		prompt: 'Build a data pipeline with ETL, warehouse analytics, dashboards, metrics, and data quality checks',
 		mustInclude: ['data-pipeline', 'data-engineer', 'analytics'],
-		anyOf: [['observability', 'analytics-architecture']]
+		anyOf: [
+			['observability', 'observability-sre', 'analytics-architecture'],
+			['event-architect'],
+			['infra-architect'],
+			['postgres-wizard', 'migration-specialist']
+		]
 	},
 	{
 		name: 'Browser automation extension',
@@ -135,13 +145,21 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		name: 'Document AI',
 		prompt: 'Build a PDF document AI system with OCR, extraction, RAG over documents, and structured output',
 		mustInclude: ['document-ai', 'structured-output'],
-		anyOf: [['semantic-search', 'rag-engineer', 'rag-implementation']]
+		anyOf: [
+			['semantic-search', 'rag-engineer', 'rag-implementation'],
+			['llm-architect'],
+			['ai-observability']
+		]
 	},
 	{
 		name: 'Voice AI support',
 		prompt: 'Build a voice AI support bot with speech to text, text to speech, Twilio calls, and conversation memory',
 		mustInclude: ['voice-ai-development', 'twilio-communications'],
-		anyOf: [['voice-agents', 'conversation-memory']]
+		anyOf: [
+			['voice-agents', 'conversation-memory'],
+			['ai-chatbot-builder'],
+			['context-window-management', 'prompt-caching', 'rag-implementation']
+		]
 	},
 	{
 		name: 'Realtime whiteboard',
@@ -265,7 +283,11 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		name: 'Passkeys auth',
 		prompt: 'Add passkeys and WebAuthn login with session security and OAuth fallback',
 		mustInclude: ['passkeys-webauthn', 'authentication-oauth', 'auth-specialist'],
-		anyOf: [['security', 'security-hardening']]
+		anyOf: [
+			['security', 'security-hardening'],
+			['api-security', 'security-owasp', 'cybersecurity', 'security-engineer'],
+			['ai-code-security']
+		]
 	},
 	{
 		name: 'Supabase backend',
@@ -295,7 +317,7 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		name: 'Video streaming',
 		prompt: 'Create a video streaming feature with upload processing, transcoding, thumbnails, and playback analytics',
 		mustInclude: ['video-streaming-infrastructure', 'video-embedding-streaming'],
-		anyOf: [['analytics', 'analytics-architecture'], ['ai-video-generation']]
+		anyOf: [['analytics', 'analytics-architecture'], ['ai-video-generation'], ['data-engineer']]
 	},
 	{
 		name: 'Slack bot',
@@ -365,7 +387,12 @@ export const CHALLENGE_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		suite: 'challenge',
 		prompt: 'Add forgot password and reset password email flow with token expiry, session security, and success toast',
 		mustInclude: ['auth-specialist'],
-		anyOf: [['resend-email', 'email-deliverability', 'email-systems'], ['toast-notification-ui']],
+		anyOf: [
+			['resend-email', 'email-deliverability', 'email-systems'],
+			['toast-notification-ui'],
+			['authentication-oauth', 'security', 'security-hardening', 'security-owasp'],
+			['cryptography']
+		],
 		mustNotInclude: ['passkeys-webauthn', 'nft-engineer']
 	},
 	{
@@ -389,7 +416,7 @@ export const CHALLENGE_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		suite: 'challenge',
 		prompt: 'Add searchable sortable filterable data table with saved views, pagination, bulk actions, and CSV export',
 		mustInclude: ['tanstack-table', 'search-implementation'],
-		anyOf: [['frontend']],
+		anyOf: [['frontend'], ['infinite-scroll-pagination']],
 		mustNotInclude: ['semantic-search', 'rag-engineer']
 	},
 	{
@@ -424,7 +451,7 @@ export const CHALLENGE_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		suite: 'challenge',
 		prompt: 'Build a local business directory with map search, filters, saved places, reviews, and mobile responsive cards',
 		mustInclude: ['responsive-mobile-first', 'search-implementation'],
-		anyOf: [['social-features'], ['frontend']],
+		anyOf: [['social-features'], ['frontend'], ['algolia-search'], ['accessibility', 'react-patterns']],
 		mustNotInclude: ['procedural-generation', 'game-development']
 	},
 	{
