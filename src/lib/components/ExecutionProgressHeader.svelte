@@ -255,8 +255,8 @@
 				<span class="inline-flex min-w-0 items-center gap-1.5 rounded-md border border-surface-border bg-bg-secondary px-2 py-1 text-[11px] text-text-secondary">
 					<span
 						class="h-1.5 w-1.5 shrink-0 rounded-full"
-						class:bg-yellow-400={item.status === 'running'}
-						class:bg-green-400={item.status === 'completed'}
+						class:bg-vibe-teal={item.status === 'running'}
+						class:bg-status-success={item.status === 'completed'}
 						class:bg-red-400={item.status === 'failed'}
 						class:bg-text-tertiary={!['running', 'completed', 'failed'].includes(item.status)}
 					></span>
