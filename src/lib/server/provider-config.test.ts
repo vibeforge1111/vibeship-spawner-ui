@@ -73,7 +73,12 @@ describe('resolveProviderRuntimeConfiguration', () => {
 
 	it('reports LM Studio as a local provider without requiring an API key', () => {
 		const result = resolveProviderRuntimeConfiguration(
-			{ id: 'lmstudio', kind: 'openai_compat', apiKeyEnv: undefined },
+			{
+				id: 'lmstudio',
+				kind: 'openai_compat',
+				apiKeyEnv: undefined,
+				baseUrl: 'http://localhost:1234/v1'
+			},
 			{}
 		);
 
@@ -87,8 +92,51 @@ describe('resolveProviderRuntimeConfiguration', () => {
 
 	it('reports Ollama as a local provider without requiring an API key', () => {
 		const result = resolveProviderRuntimeConfiguration(
-			{ id: 'ollama', kind: 'openai_compat', apiKeyEnv: undefined },
+			{
+				id: 'ollama',
+				kind: 'openai_compat',
+				apiKeyEnv: undefined,
+				baseUrl: 'http://localhost:11434/v1'
+			},
 			{}
+		);
+
+		expect(result).toMatchObject({
+			envKeyConfigured: false,
+			cliConfigured: false,
+			configured: true,
+			configurationMode: 'local'
+		});
+	});
+
+	it('does not report loopback local providers as configured in hosted runtimes', () => {
+		const result = resolveProviderRuntimeConfiguration(
+			{
+				id: 'ollama',
+				kind: 'openai_compat',
+				apiKeyEnv: undefined,
+				baseUrl: 'http://localhost:11434/v1'
+			},
+			{ RAILWAY_ENVIRONMENT: 'production' }
+		);
+
+		expect(result).toMatchObject({
+			envKeyConfigured: false,
+			cliConfigured: false,
+			configured: false,
+			configurationMode: 'none'
+		});
+	});
+
+	it('allows hosted local providers when they point at a non-loopback service URL', () => {
+		const result = resolveProviderRuntimeConfiguration(
+			{
+				id: 'ollama',
+				kind: 'openai_compat',
+				apiKeyEnv: undefined,
+				baseUrl: 'http://ollama.railway.internal:11434/v1'
+			},
+			{ RAILWAY_ENVIRONMENT: 'production' }
 		);
 
 		expect(result).toMatchObject({
