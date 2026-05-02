@@ -243,20 +243,13 @@
 	<!-- Inner wrapper for relative positioning of status indicators -->
 	<div class="node-content-wrapper">
 		<!-- Running status - animated ring around node -->
-		{#if node.status === 'queued'}
-			<div class="queued-badge">QUEUED</div>
-		{/if}
-
-		<!-- Running status - animated ring around node -->
 		{#if node.status === 'running'}
 			<div class="running-ring"></div>
 			<div class="running-glow"></div>
-			<div class="running-badge">RUN</div>
 		{/if}
 
 		<!-- Success status - DONE label + soft glow (no redundant tick) -->
 		{#if node.status === 'success'}
-			<div class="success-label">DONE</div>
 			<div class="success-glow"></div>
 		{/if}
 
@@ -274,6 +267,7 @@
 			data={nodeData}
 			nodeId={node.id}
 			{selected}
+			status={node.status || 'idle'}
 			onSelect={handleSelect}
 			onTest={handleTest}
 			onPortDragStart={handlePortDragStart}
@@ -331,6 +325,7 @@
 		background: var(--bg-secondary);
 		color: #FF4D4D;
 		border: 1px solid #FF4D4D;
+		border-radius: 5px;
 		cursor: pointer;
 		opacity: 0;
 		font-family: var(--font-mono);
@@ -349,24 +344,6 @@
 	}
 
 	/* ====== QUEUED STATE ====== */
-	.queued-badge,
-	.running-badge,
-	.success-label {
-		position: absolute;
-		top: -9px;
-		left: 8px;
-		padding: 3px 8px;
-		background: var(--bg-secondary, #141B2D);
-		border: 1px solid rgb(var(--status-amber-rgb, 216 200 104) / 0.65);
-		border-radius: 5px;
-		color: var(--status-amber, #D8C868);
-		font-family: var(--font-mono);
-		font-size: 10px;
-		line-height: 1;
-		letter-spacing: 0.5px;
-		z-index: 20;
-	}
-
 	.draggable-node.queued {
 		opacity: 0.95;
 	}
@@ -389,17 +366,6 @@
 		animation: glowPulse 1.5s ease-in-out infinite;
 		pointer-events: none;
 		z-index: -1;
-	}
-
-	.running-badge {
-		border-color: rgb(var(--accent-rgb, 47 202 148) / 0.7);
-		color: var(--accent, #2FCA94);
-	}
-
-	/* ====== SUCCESS STATE ====== */
-	.success-label {
-		border-color: rgb(var(--accent-rgb, 47 202 148) / 0.75);
-		color: var(--accent, #2FCA94);
 	}
 
 	.success-glow {

@@ -11,6 +11,7 @@
 		selected = false,
 		ghost = false,
 		collapsed = false,
+		status = 'idle',
 		onSelect,
 		onTest,
 		onPortDragStart,
@@ -22,6 +23,7 @@
 		selected?: boolean;
 		ghost?: boolean;
 		collapsed?: boolean;
+		status?: 'idle' | 'queued' | 'running' | 'success' | 'error';
 		onSelect?: () => void;
 		onTest?: () => void;
 		onPortDragStart?: (portId: string, portType: 'input' | 'output', e: MouseEvent) => void;
@@ -176,6 +178,9 @@
 	const hiddenTags = $derived(displayTags.slice(2));
 	const extraTagCount = $derived(Math.max(0, displayTags.length - visibleTags.length));
 	const tagMenuTitle = $derived(data.skillChain && data.skillChain.length > 0 ? 'Other skills' : 'Other tags');
+	const statusLabel = $derived(
+		status === 'queued' ? 'QUEUED' : status === 'running' ? 'RUN' : status === 'success' ? 'DONE' : ''
+	);
 
 	// Calculate port positions
 	const maxPorts = $derived(Math.max(data.inputs?.length || 1, data.outputs?.length || 1));
@@ -215,6 +220,7 @@
 	class="node w-48 select-none relative"
 	class:selected
 	class:ghost
+	class:has-status={!!statusLabel}
 	onclick={onSelect}
 	role="button"
 	tabindex="0"
@@ -292,6 +298,16 @@
 	<!-- Body: title + sub + optional tags/mcp -->
 	<div class="node-body">
 		<h3 class="node-title">{data.name}</h3>
+		{#if statusLabel}
+			<div
+				class="node-status"
+				class:node-status-queued={status === 'queued'}
+				class:node-status-running={status === 'running'}
+				class:node-status-success={status === 'success'}
+			>
+				{statusLabel}
+			</div>
+		{/if}
 
 		{#if data.skillChain && data.skillChain.length > 0 && visibleTags.length === 0}
 			<div class="node-sub skill-sub">
@@ -416,7 +432,38 @@
 
 	/* Body — title + sub */
 	.node-body {
+		position: relative;
 		padding: 10px 12px 11px;
+	}
+
+	.node-status {
+		position: absolute;
+		top: 8px;
+		right: 10px;
+		display: inline-flex;
+		align-items: center;
+		height: 16px;
+		padding: 0 7px;
+		border: 1px solid rgb(var(--status-amber-rgb, 216 200 104) / 0.65);
+		border-radius: 5px;
+		background: var(--bg-secondary, #141B2D);
+		color: var(--status-amber, #D8C868);
+		font-family: var(--font-mono, 'DM Mono', ui-monospace, monospace);
+		font-size: 9.5px;
+		font-weight: 500;
+		line-height: 1;
+		letter-spacing: 0.5px;
+	}
+
+	.node-status-running,
+	.node-status-success {
+		border-color: rgb(var(--accent-rgb, 47 202 148) / 0.72);
+		color: var(--accent, #2FCA94);
+		box-shadow: 0 0 12px rgb(var(--accent-rgb, 47 202 148) / 0.12);
+	}
+
+	.node.has-status .node-title {
+		padding-right: 62px;
 	}
 
 	.node-title {
@@ -572,8 +619,8 @@
 	/* Ports: large enough to click, centered exactly on the card edge */
 	.port-handle {
 		position: absolute;
-		width: 14px;
-		height: 14px;
+		width: 10px;
+		height: 10px;
 		background: var(--accent);
 		border: 2px solid var(--bg-primary);
 		border-radius: 50%;
@@ -583,7 +630,7 @@
 		transform: translateY(-50%);
 		box-shadow:
 			0 0 0 1px rgb(var(--accent-rgb, 47 202 148) / 0.2),
-			0 0 10px rgb(var(--accent-rgb, 47 202 148) / 0.18);
+			0 0 8px rgb(var(--accent-rgb, 47 202 148) / 0.16);
 	}
 
 	.port-handle:hover {
@@ -596,11 +643,11 @@
 	}
 
 	.port-input {
-		left: -7px;
+		left: -5px;
 	}
 
 	.port-output {
-		right: -7px;
+		right: -5px;
 	}
 
 	.port-label {
@@ -617,11 +664,11 @@
 	}
 
 	.port-label-left {
-		left: 18px;
+		left: 16px;
 	}
 
 	.port-label-right {
-		right: 18px;
+		right: 16px;
 	}
 
 	.port-handle:hover .port-label {
