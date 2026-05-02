@@ -113,6 +113,21 @@ function configuredProvider(provider: MultiLLMProviderConfig): MultiLLMProviderC
 	};
 }
 
+export function _providerApiKeysFromEnv(
+	providers: MultiLLMProviderConfig[],
+	envRecord: Record<string, string | undefined> = env as Record<string, string | undefined>
+): Record<string, string> {
+	const apiKeys: Record<string, string> = {};
+	for (const provider of providers) {
+		if (!provider.apiKeyEnv) continue;
+		const value = envRecord[provider.apiKeyEnv];
+		if (value && value.trim()) {
+			apiKeys[provider.id] = value.trim();
+		}
+	}
+	return apiKeys;
+}
+
 function isKnownNonTerminalMissionStatus(status: MissionControlBoardEntry['status']): boolean {
 	return status === 'created' || status === 'running' || status === 'paused';
 }
@@ -390,6 +405,7 @@ export async function autoDispatchPrdCanvasLoad(
 			}
 		});
 		executionPack.missionId = load.missionId;
+		const apiKeys = _providerApiKeysFromEnv(executionPack.providers);
 
 		const relayData = {
 			...load.relay,
@@ -431,7 +447,7 @@ export async function autoDispatchPrdCanvasLoad(
 
 		await providerRuntime.dispatch({
 			executionPack,
-			apiKeys: {},
+			apiKeys,
 			workingDirectory: projectPath,
 			onEvent
 		});
