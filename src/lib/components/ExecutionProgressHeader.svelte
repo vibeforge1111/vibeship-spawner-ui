@@ -340,7 +340,12 @@
 	<div class="mt-5 flex items-center gap-2 px-1 font-mono text-[10px] uppercase tracking-[0.14em] text-text-tertiary">
 		<span>Skill at work</span>
 	</div>
-	<div class="mt-2 flex items-center gap-4 rounded-md border border-indigo-500/35 bg-indigo-500/10 px-4 py-3 shadow-[0_18px_48px_rgba(99,102,241,0.08)]">
+	<div
+		class="group relative mt-2 flex items-center gap-4 rounded-md border border-indigo-500/35 bg-indigo-500/10 px-4 py-3 shadow-[0_18px_48px_rgba(99,102,241,0.08)] outline-none transition-colors hover:border-indigo-400/55 focus-visible:border-indigo-400/70"
+		tabindex="0"
+		role="button"
+		aria-label={`Show ${executionProgress.loadedSkills.length} loaded skills`}
+	>
 		<div class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-indigo-400/30 bg-indigo-400/10">
 			{#if currentTaskSkills.length > 0}
 				<svg class="w-5 h-5 text-indigo-300 animate-[hammer_0.4s_ease-in-out_infinite]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -366,6 +371,31 @@
 		<div class="shrink-0 rounded-md border border-indigo-400/30 bg-indigo-500/20 px-2.5 py-1 text-center">
 			<div class="text-sm font-semibold tabular-nums text-indigo-100">{executionProgress.loadedSkills.length}</div>
 			<div class="mt-0.5 font-mono text-[8.5px] uppercase tracking-[0.08em] text-indigo-300">skills</div>
+		</div>
+		<div class="pointer-events-none absolute right-0 top-[calc(100%+0.5rem)] z-30 hidden w-[min(24rem,calc(100vw-3rem))] rounded-md border border-indigo-400/30 bg-bg-primary/98 p-3 text-left shadow-[0_22px_70px_rgba(0,0,0,0.42)] backdrop-blur group-hover:block group-focus-within:block">
+			<div class="mb-2 flex items-center justify-between gap-3">
+				<span class="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-indigo-300">Loaded skills</span>
+				<span class="font-mono text-[10px] text-text-tertiary">{executionProgress.loadedSkills.length}</span>
+			</div>
+			<div class="max-h-56 space-y-1.5 overflow-y-auto pr-1">
+				{#each executionProgress.loadedSkills as skill}
+					<div class="rounded-md border border-surface-border bg-bg-secondary px-2.5 py-2">
+						<div class="flex min-w-0 items-center justify-between gap-2">
+							<span class="truncate text-xs font-semibold text-text-primary">{skill.name}</span>
+							{#if skill.taskIds.length > 0}
+								<span class="shrink-0 rounded border border-indigo-400/25 px-1.5 py-0.5 font-mono text-[9px] text-indigo-300">
+									{skill.taskIds.length} task{skill.taskIds.length === 1 ? '' : 's'}
+								</span>
+							{/if}
+						</div>
+						{#if skill.description}
+							<div class="mt-1 line-clamp-2 text-[10px] leading-4 text-text-tertiary">{skill.description}</div>
+						{:else}
+							<div class="mt-1 truncate font-mono text-[10px] text-text-tertiary">{skill.id}</div>
+						{/if}
+					</div>
+				{/each}
+			</div>
 		</div>
 	</div>
 {/if}
