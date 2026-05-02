@@ -2,10 +2,12 @@ import skillCatalog from '$lib/data/skill-matcher-catalog.json';
 import { rankSkillsForText, type SkillRecommendationTier } from '$lib/services/h70-skill-matcher';
 import {
 	CHALLENGE_RECOMMENDATION_CASES,
+	COVERAGE_GAPS_BY_CASE,
 	DASHBOARD_RECOMMENDATION_CASES,
 	evaluateSkillIds,
 	GOLDEN_RECOMMENDATION_CASES,
 	summarizeSkillRecommendationEvals,
+	type SkillCoverageGap,
 	type SkillRecommendationEvalCase
 } from '$lib/services/skill-recommendation-evals';
 
@@ -25,11 +27,6 @@ type DashboardSkill = {
 	isLabeledRelevant: boolean;
 	isUnwanted: boolean;
 };
-type CoverageGap = {
-	skillId: string;
-	path: string;
-	why: string;
-};
 type DashboardCase = ReturnType<typeof evaluateSkillIds> & {
 	topK: number;
 	expected: {
@@ -38,73 +35,11 @@ type DashboardCase = ReturnType<typeof evaluateSkillIds> & {
 		mustNotInclude: string[];
 		labels: string[];
 	};
-	coverageGap?: CoverageGap;
+	coverageGap?: SkillCoverageGap;
 	skills: DashboardSkill[];
 };
 
 const catalog = skillCatalog as Record<string, CatalogSkill>;
-const COVERAGE_GAPS_BY_CASE: Record<string, CoverageGap> = {
-	'Notification preferences': {
-		skillId: 'notification-preferences',
-		path: 'backend/notification-preferences.yaml',
-		why: 'Current matches use push, email, forms, and accessibility proxies instead of a dedicated preference-center skill.'
-	},
-	'Outgoing webhook platform': {
-		skillId: 'webhook-provider-platform',
-		path: 'backend/webhook-provider-platform.yaml',
-		why: 'Current webhook skill is mostly inbound processing; outgoing subscriptions, signing, and delivery logs deserve their own surface.'
-	},
-	'Bulk admin actions': {
-		skillId: 'bulk-actions-safety',
-		path: 'frontend/bulk-actions-safety.yaml',
-		why: 'Current matches cover tables and audit logs, but not partial failure, undo, and confirmation ergonomics.'
-	},
-	'Data retention deletion': {
-		skillId: 'data-retention-deletion',
-		path: 'security/data-retention-deletion.yaml',
-		why: 'Current matches are privacy and cron proxies; retention policy implementation is a distinct recurring request.'
-	},
-	'Usage metering entitlements': {
-		skillId: 'usage-metering-entitlements',
-		path: 'backend/usage-metering-entitlements.yaml',
-		why: 'Current matches cover billing and analytics, but not runtime quotas, feature gates, and entitlement enforcement.'
-	},
-	'Onboarding checklist': {
-		skillId: 'feature-onboarding-checklists',
-		path: 'product/feature-onboarding-checklists.yaml',
-		why: 'Current matches cover analytics and onboarding broadly, but not checklist state, activation tasks, and completion UX.'
-	},
-	'Permissioned file sharing': {
-		skillId: 'permissioned-file-sharing',
-		path: 'backend/permissioned-file-sharing.yaml',
-		why: 'Current matches cover uploads and RBAC separately; share links, expiry, and file ACLs need one focused skill.'
-	},
-	'Product feedback board': {
-		skillId: 'product-feedback-roadmapping',
-		path: 'product/product-feedback-roadmapping.yaml',
-		why: 'Current matches use social, analytics, and changelog proxies instead of feedback capture and roadmap workflow.'
-	},
-	'App store release ops': {
-		skillId: 'app-store-release-ops',
-		path: 'mobile/app-store-release-ops.yaml',
-		why: 'Current matches cover Expo and push, but not TestFlight, Play Console, metadata, and rollout operations.'
-	},
-	'Accessibility QA pass': {
-		skillId: 'web-accessibility-qa',
-		path: 'testing/web-accessibility-qa.yaml',
-		why: 'Current matches cover accessibility and Playwright separately; QA pass structure should be its own skill.'
-	},
-	'Privacy consent manager': {
-		skillId: 'privacy-consent-management',
-		path: 'security/privacy-consent-management.yaml',
-		why: 'Current matches cover GDPR and analytics, but not cookie consent, tracking preferences, and consent records.'
-	},
-	'Realtime collaboration conflicts': {
-		skillId: 'realtime-collab-conflict-resolution',
-		path: 'backend/realtime-collab-conflict-resolution.yaml',
-		why: 'Current matches cover realtime and local-first primitives, not conflict-resolution decisions.'
-	}
-};
 
 function expectedLabels(testCase: SkillRecommendationEvalCase): string[] {
 	return [

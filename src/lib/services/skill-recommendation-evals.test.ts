@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	COVERAGE_GAPS_BY_CASE,
 	evaluateSkillIds,
 	evaluateSkillRecommendations,
 	CHALLENGE_RECOMMENDATION_CASES,
@@ -29,6 +30,19 @@ describe('skill recommendation eval scoring', () => {
 		expect(summary.caseCount).toBe(CHALLENGE_RECOMMENDATION_CASES.length);
 		expect(summary.passCount).toBe(summary.caseCount);
 		expect(summary.averageLabeledPrecisionAtK).toBeGreaterThanOrEqual(0.45);
+	});
+
+	it('keeps planned coverage gaps tied to real challenge cases', () => {
+		const challengeCaseNames = new Set(CHALLENGE_RECOMMENDATION_CASES.map((testCase) => testCase.name));
+		const gapEntries = Object.entries(COVERAGE_GAPS_BY_CASE);
+
+		expect(gapEntries.length).toBe(12);
+		for (const [caseName, gap] of gapEntries) {
+			expect(challengeCaseNames.has(caseName)).toBe(true);
+			expect(gap.skillId).toMatch(/^[a-z0-9-]+$/);
+			expect(gap.path).toMatch(/^[a-z0-9-]+\/[a-z0-9-]+\.yaml$/);
+			expect(gap.why.length).toBeGreaterThan(40);
+		}
 	});
 
 	it('reports missing required, missing any-of, and unwanted skills', () => {
