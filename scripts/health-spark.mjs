@@ -110,19 +110,26 @@ function repairHostedWorkspaceOwnership(paths, env = process.env) {
 }
 
 export function healthRequiresCodex(providers, env = process.env) {
-  const selectedProvider =
-    env.DEFAULT_MISSION_PROVIDER?.trim() ||
-    env.SPAWNER_PRD_AUTO_PROVIDER?.trim() ||
-    env.SPARK_MISSION_LLM_BOT_PROVIDER?.trim() ||
-    env.SPARK_BOT_DEFAULT_PROVIDER?.trim() ||
-    "";
+  const selectedProvider = resolveHealthMissionProvider(env, "");
   if (selectedProvider === "codex") return true;
+  if (selectedProvider) return false;
   const codexProvider = providers.find((provider) => provider && provider.id === "codex");
   return Boolean(
     codexProvider &&
       (codexProvider.configured === true ||
         codexProvider.envKeyConfigured === true ||
         codexProvider.cliConfigured === true),
+  );
+}
+
+export function resolveHealthMissionProvider(env = process.env, fallback = "codex") {
+  return (
+    env.SPARK_HEALTH_PROVIDER?.trim() ||
+    env.DEFAULT_MISSION_PROVIDER?.trim() ||
+    env.SPAWNER_PRD_AUTO_PROVIDER?.trim() ||
+    env.SPARK_MISSION_LLM_BOT_PROVIDER?.trim() ||
+    env.SPARK_BOT_DEFAULT_PROVIDER?.trim() ||
+    fallback
   );
 }
 
@@ -168,12 +175,13 @@ async function main() {
 
   if (process.env.SPARK_HEALTH_DEEP === "1") {
     const requestId = `health-${Date.now()}`;
+    const providerId = resolveHealthMissionProvider();
     const runResponse = await fetch(`${baseUrl}/api/spark/run`, {
       method: "POST",
       headers: { "content-type": "application/json", accept: "application/json", ...sparkHealthAuthHeaders() },
       body: JSON.stringify({
         goal: "Reply with exactly: SPARK_HEALTH_OK",
-        providers: ["codex"],
+        providers: [providerId],
         promptMode: "simple",
         projectPath: smokeWorkspace,
         requestId,
@@ -191,6 +199,7 @@ async function main() {
       `${payload.providers.length} providers listed`,
       `${configuredCount} configured`,
       wantsCodex ? `codex=${codexPath}` : "codex=not-required",
+      `deep_provider=${resolveHealthMissionProvider()}`,
       relayWebhooks.length > 0 ? `relay_webhooks=${relayWebhooks.length}` : "relay_webhooks=none",
       `workspace=${smokeWorkspace}`,
     ].join(" | "),
