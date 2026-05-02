@@ -61,7 +61,7 @@
 		{#if canPause}
 			<button
 				onclick={onPause}
-				class="px-4 py-2.5 rounded-md text-sm font-medium text-blue-400 border border-blue-400/40 hover:border-blue-400/70 hover:bg-blue-400/10 transition-all"
+				class="px-4 py-2.5 rounded-md text-sm font-medium text-status-warning border border-status-warning/40 hover:border-status-warning/70 hover:bg-status-warning/10 transition-all"
 			>
 				Pause
 			</button>
