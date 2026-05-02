@@ -5,26 +5,10 @@
 	import Footer from '$lib/components/Footer.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { skills, loadSkills, type Skill } from '$lib/stores/skills.svelte';
+	import { getCategoryIcon } from '$lib/utils/skill-category-icons';
 
 	let skill = $state<Skill | null>(null);
 	let loading = $state(true);
-
-	const categoryIcons: Record<string, string> = {
-		development: 'cpu',
-		frameworks: 'layers',
-		integrations: 'zap',
-		'ai-ml': 'brain',
-		agents: 'sparkles',
-		data: 'grid',
-		design: 'compass',
-		marketing: 'play',
-		strategy: 'book',
-		enterprise: 'shield',
-		finance: 'zap',
-		legal: 'book-open',
-		science: 'sparkles',
-		startup: 'zap'
-	};
 
 	onMount(async () => {
 		await loadSkills();
@@ -81,7 +65,7 @@
 			<div class="flex items-start justify-between mb-8">
 				<div class="flex items-start gap-4">
 					<div class="w-14 h-14 flex items-center justify-center bg-bg-secondary border border-surface-border text-accent-primary">
-						<Icon name={categoryIcons[skill.category] || 'layers'} size={28} />
+						<Icon name={getCategoryIcon(skill.category)} size={28} />
 					</div>
 					<div>
 						<div class="flex items-center gap-3 mb-2">

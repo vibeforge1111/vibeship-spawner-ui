@@ -1,73 +1,9 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
 	import type { Skill } from '$lib/stores/skills.svelte';
+	import { getCategoryIcon } from '$lib/utils/skill-category-icons';
 
 	let { skill }: { skill: Skill } = $props();
-
-	const categoryIcons: Record<string, string> = {
-		// Development
-		development: 'cpu',
-		backend: 'server',
-		frontend: 'layout',
-		frameworks: 'layers',
-		mobile: 'smartphone',
-		// Infrastructure
-		devops: 'cloud',
-		infrastructure: 'server',
-		security: 'shield',
-		testing: 'check-circle',
-		performance: 'activity',
-		// AI & Data
-		ai: 'brain',
-		'ai-ml': 'brain',
-		'ai-agents': 'sparkles',
-		'ai-tools': 'wand',
-		agents: 'sparkles',
-		data: 'database',
-		'data-science': 'bar-chart',
-		// Game Dev
-		'game-dev': 'gamepad',
-		gamedev: 'gamepad',
-		'game-dev-llm': 'gamepad',
-		// Web3 & Finance
-		blockchain: 'link',
-		web3: 'globe',
-		finance: 'dollar-sign',
-		trading: 'trending-up',
-		// Business
-		business: 'briefcase',
-		strategy: 'target',
-		startup: 'rocket',
-		founder: 'lightbulb',
-		product: 'box',
-		enterprise: 'building',
-		// Marketing & Communications
-		marketing: 'megaphone',
-		community: 'users',
-		communications: 'message-circle',
-		// Creative
-		creative: 'pen-tool',
-		design: 'palette',
-		// Specialized
-		space: 'rocket',
-		biotech: 'flask',
-		robotics: 'cpu',
-		climate: 'globe',
-		education: 'graduation-cap',
-		legal: 'scale',
-		hardware: 'cpu',
-		// Integrations & Other
-		integrations: 'plug',
-		integration: 'plug',
-		mcp: 'plug',
-		compliance: 'clipboard',
-		architecture: 'layers',
-		analytics: 'bar-chart',
-		ecommerce: 'shopping-cart',
-		nocode: 'wand',
-		productivity: 'check-circle',
-		engineering: 'wrench'
-	};
 
 	function formatTokens(tokens: number | undefined): string {
 		if (!tokens) return '—';
@@ -84,7 +20,7 @@
 >
 	<!-- Icon -->
 	<div class="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-bg-tertiary border border-surface-border text-accent-primary">
-		<Icon name={categoryIcons[skill.category] || 'layers'} size={18} />
+		<Icon name={getCategoryIcon(skill.category)} size={18} />
 	</div>
 
 	<!-- Main content -->

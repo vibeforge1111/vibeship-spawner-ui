@@ -4,6 +4,7 @@
 	import SkillSearchPalette from './SkillSearchPalette.svelte';
 	import { loadSkills, type Skill } from '$lib/stores/skills.svelte';
 	import { addNode, nodes, type CanvasNode } from '$lib/stores/canvas.svelte';
+	import { getCategoryIcon } from '$lib/utils/skill-category-icons';
 
 	let expandedCategory = $state<string | null>(null);
 	let allSkillsLoaded = $state(false);
@@ -65,48 +66,6 @@
 	);
 	const pipelineSkillIds = $derived(new Set(currentNodes.map((node) => node.skill.id)));
 
-	// One distinct icon per spark-skill-graphs category (see skills-registry-summary.md).
-	// Every category must pick a different glyph so the sidebar reads at a glance.
-	const categoryIcons: Record<string, string> = {
-		ai: 'brain',
-		'ai-agents': 'sparkles',
-		architecture: 'building',
-		backend: 'server',
-		biotech: 'heart',
-		blockchain: 'link',
-		business: 'briefcase',
-		climate: 'sun',
-		communications: 'message-circle',
-		community: 'users',
-		creative: 'palette',
-		data: 'database',
-		design: 'pen-tool',
-		development: 'code',
-		devops: 'settings',
-		ecommerce: 'shopping-cart',
-		education: 'graduation-cap',
-		engineering: 'wrench',
-		enterprise: 'scale',
-		finance: 'dollar-sign',
-		frameworks: 'layers',
-		frontend: 'layout',
-		'game-dev': 'gamepad',
-		infrastructure: 'cloud',
-		integrations: 'zap',
-		marketing: 'megaphone',
-		mcp: 'plug',
-		'mcp-server': 'plug',
-		methodology: 'compass',
-		performance: 'activity',
-		product: 'box',
-		security: 'shield',
-		space: 'star',
-		startup: 'rocket',
-		strategy: 'target',
-		testing: 'test-tube',
-		trading: 'bar-chart'
-	};
-
 	const groupedSkills = $derived(() => {
 		const groups: Record<string, Skill[]> = {};
 		for (const skill of allSkillsList) {
@@ -167,7 +126,7 @@
 					class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-bg-tertiary transition-colors"
 					onclick={() => toggleCategory(category)}
 				>
-					<Icon name={categoryIcons[category] || 'layers'} size={14} />
+					<Icon name={getCategoryIcon(category)} size={14} />
 					<span class="flex-1 text-sm font-medium text-text-primary capitalize">{category}</span>
 					<span class="text-xs text-text-tertiary">{categorySkills.length}</span>
 					<Icon name={expandedCategory === category ? 'chevron-down' : 'chevron-right'} size={12} />

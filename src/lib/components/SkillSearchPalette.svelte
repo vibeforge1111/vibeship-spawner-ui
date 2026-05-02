@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import Icon from './Icon.svelte';
 	import { filters, loadSkills, loading, skills, type Skill } from '$lib/stores/skills.svelte';
+	import { getCategoryIcon } from '$lib/utils/skill-category-icons';
 
 	let {
 		variant = 'navbar',
@@ -25,61 +26,6 @@
 		score: number;
 		reason: string;
 		visibleTags: string[];
-	};
-
-	const categoryIcons: Record<string, string> = {
-		development: 'cpu',
-		backend: 'server',
-		frontend: 'layout',
-		frameworks: 'layers',
-		mobile: 'smartphone',
-		devops: 'cloud',
-		infrastructure: 'server',
-		security: 'shield',
-		testing: 'check-circle',
-		performance: 'activity',
-		ai: 'brain',
-		'ai-ml': 'brain',
-		'ai-agents': 'sparkles',
-		'ai-tools': 'wand',
-		agents: 'sparkles',
-		data: 'database',
-		'data-science': 'bar-chart',
-		'game-dev': 'gamepad',
-		gamedev: 'gamepad',
-		'game-dev-llm': 'gamepad',
-		blockchain: 'link',
-		web3: 'globe',
-		finance: 'dollar-sign',
-		trading: 'trending-up',
-		business: 'briefcase',
-		strategy: 'target',
-		startup: 'rocket',
-		founder: 'lightbulb',
-		product: 'box',
-		enterprise: 'building',
-		marketing: 'megaphone',
-		community: 'users',
-		communications: 'message-circle',
-		creative: 'pen-tool',
-		design: 'palette',
-		space: 'rocket',
-		biotech: 'flask',
-		robotics: 'cpu',
-		climate: 'globe',
-		education: 'graduation-cap',
-		legal: 'scale',
-		hardware: 'cpu',
-		integrations: 'plug',
-		integration: 'plug',
-		mcp: 'plug',
-		compliance: 'clipboard',
-		architecture: 'layers',
-		analytics: 'bar-chart',
-		ecommerce: 'shopping-cart',
-		nocode: 'wand',
-		productivity: 'check-circle',
-		engineering: 'wrench'
 	};
 
 	const searchResults = $derived.by<SearchResult[]>(() => {
@@ -159,10 +105,6 @@
 			.filter(Boolean)
 			.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
 			.join(' ');
-	}
-
-	function getCategoryIcon(category: string) {
-		return categoryIcons[category] || 'layers';
 	}
 
 	async function openPalette() {
