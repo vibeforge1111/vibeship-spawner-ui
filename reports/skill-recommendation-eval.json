@@ -3,8 +3,8 @@
     "caseCount": 50,
     "passCount": 50,
     "passRate": 1,
-    "averageScore": 0.9561640000000005,
-    "averageLabeledPrecisionAtK": 0.5616428571428574,
+    "averageScore": 0.9558480000000005,
+    "averageLabeledPrecisionAtK": 0.5584761904761907,
     "averageRequiredRecall": 1,
     "averageAnyOfRecall": 1,
     "averageMustNotCleanRate": 1,
@@ -89,7 +89,7 @@
         "react-patterns",
         "framer-motion-react",
         "responsive-mobile-first",
-        "forms-validation"
+        "frontend"
       ],
       "pass": true,
       "score": 0.94,
@@ -181,12 +181,12 @@
         "analytics",
         "ecommerce-cart-checkout",
         "stripe-integration",
+        "email-systems",
         "resend-email",
         "product-analytics-engineering",
         "data-engineer",
-        "lemonsqueezy-payments",
-        "analytics-architecture",
-        "klaviyo-ecommerce"
+        "document-ai",
+        "lemonsqueezy-payments"
       ],
       "pass": true,
       "score": 0.94,
@@ -375,9 +375,9 @@
       "suite": "golden",
       "ids": [
         "conversion-rate-optimization",
+        "analytics",
         "copywriting",
         "seo",
-        "analytics",
         "waitlist-launch-pages",
         "landing-page-design",
         "data-engineer",
@@ -467,9 +467,9 @@
         "document-ai",
         "structured-output",
         "llm-architect",
-        "ai-code-generation",
         "ai-observability",
         "semantic-search",
+        "ai-code-generation",
         "api-designer",
         "event-architect",
         "performance-hunter",
@@ -741,12 +741,12 @@
         "tailwind-ui",
         "auth-specialist",
         "nextjs-server-actions",
-        "nextjs-app-router",
-        "clerk-auth",
-        "server-sent-events",
         "framer-motion-react",
+        "nextjs-app-router",
         "state-management",
-        "sveltekit"
+        "sveltekit",
+        "clerk-auth",
+        "server-sent-events"
       ],
       "pass": true,
       "score": 0.96,
@@ -773,13 +773,14 @@
       "ids": [
         "zod-validation",
         "forms-validation",
+        "accessibility",
         "postgres-wizard",
         "state-management",
         "mcp-server-development"
       ],
       "pass": true,
-      "score": 0.96,
-      "labeledPrecisionAtK": 0.6,
+      "score": 0.9667,
+      "labeledPrecisionAtK": 0.6666666666666666,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -789,6 +790,7 @@
       "relevantReturned": [
         "zod-validation",
         "forms-validation",
+        "accessibility",
         "state-management"
       ]
     },
@@ -834,15 +836,17 @@
         "observability",
         "sentry-error-tracking",
         "postgres-wizard",
+        "analytics",
         "observability-sre",
         "ai-observability",
         "sustainability-metrics",
         "langfuse",
+        "data-engineer",
         "data-pipeline"
       ],
       "pass": true,
-      "score": 0.9625,
-      "labeledPrecisionAtK": 0.625,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -1038,14 +1042,15 @@
       "suite": "golden",
       "ids": [
         "browser-extension-builder",
+        "pwa-progressive-web-app",
         "microservices-patterns",
         "playwright-testing",
         "queue-workers",
         "browser-automation"
       ],
       "pass": true,
-      "score": 0.96,
-      "labeledPrecisionAtK": 0.6,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -1288,8 +1293,8 @@
       "prompt": "Design onboarding flows with activation analytics, lifecycle emails, and conversion experiments",
       "suite": "golden",
       "ids": [
-        "onboarding-flows",
         "analytics",
+        "onboarding-flows",
         "data-engineer",
         "analytics-architecture",
         "community-analytics",
@@ -1309,8 +1314,8 @@
       "missingAnyOf": [],
       "unwanted": [],
       "relevantReturned": [
-        "onboarding-flows",
         "analytics",
+        "onboarding-flows",
         "conversion-rate-optimization",
         "experimental-design",
         "product-analytics-engineering"
@@ -1521,14 +1526,14 @@
       "ids": [
         "prompt-caching",
         "langfuse",
+        "agent-evaluation",
         "observability",
         "ai-observability",
-        "caching-patterns",
-        "prompt-engineering-creative",
-        "prompt-injection-defense",
-        "prompt-to-game",
-        "sustainability-metrics",
-        "agent-evaluation"
+        "analytics",
+        "agent-communication",
+        "autonomous-agents",
+        "multi-agent-orchestration",
+        "caching-patterns"
       ],
       "pass": true,
       "score": 0.95,
@@ -1542,9 +1547,9 @@
       "relevantReturned": [
         "prompt-caching",
         "langfuse",
+        "agent-evaluation",
         "observability",
-        "ai-observability",
-        "agent-evaluation"
+        "ai-observability"
       ]
     },
     {

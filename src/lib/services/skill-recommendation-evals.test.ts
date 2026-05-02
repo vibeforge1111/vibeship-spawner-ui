@@ -22,14 +22,13 @@ describe('skill recommendation eval scoring', () => {
 		expect(results.reduce((sum, result) => sum + result.ids.length, 0)).toBeGreaterThan(400);
 	});
 
-	it('keeps harder everyday challenge cases visible as a non-blocking improvement queue', () => {
+	it('keeps harder everyday challenge cases visible as a passing stress suite', () => {
 		const results = evaluateSkillRecommendations(CHALLENGE_RECOMMENDATION_CASES);
 		const summary = summarizeSkillRecommendationEvals(results);
 
 		expect(summary.caseCount).toBe(12);
-		expect(summary.passCount).toBeGreaterThan(0);
-		expect(summary.passCount).toBeLessThan(summary.caseCount);
-		expect(summary.failures).toContain('AI meeting notes');
+		expect(summary.passCount).toBe(summary.caseCount);
+		expect(summary.averageLabeledPrecisionAtK).toBeGreaterThanOrEqual(0.45);
 	});
 
 	it('reports missing required, missing any-of, and unwanted skills', () => {

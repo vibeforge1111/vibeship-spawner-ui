@@ -619,7 +619,26 @@
       ],
       "category": "ai",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "boost": 48,
+        "aliases": [
+          "pdf",
+          "invoice",
+          "receipt",
+          "invoices",
+          "receipts"
+        ],
+        "boost_terms": [
+          "pdf receipts",
+          "invoice pdf",
+          "generate invoices",
+          "store receipts",
+          "account history",
+          "meeting notes export",
+          "notes export",
+          "export meeting notes"
+        ]
+      }
     },
     {
       "id": "llm-architect",
@@ -788,7 +807,11 @@
         "negative_terms": [
           "file upload",
           "signed urls",
-          "upload validation"
+          "upload validation",
+          "image optimization",
+          "image gallery",
+          "cdn optimization",
+          "image compression"
         ],
         "penalty": 36
       }
@@ -858,7 +881,10 @@
         "negative_terms": [
           "semantic search",
           "faceted search",
-          "search implementation"
+          "search implementation",
+          "map search",
+          "local business directory",
+          "search filters"
         ],
         "penalty": 36
       }
@@ -1211,7 +1237,22 @@
         "agent-communication",
         "autonomous-agents"
       ],
-      "selectionHints": {}
+      "selectionHints": {
+        "boost": 52,
+        "aliases": [
+          "evaluation harness",
+          "agent evals",
+          "regression tests"
+        ],
+        "boost_terms": [
+          "ai evaluation harness",
+          "agent evaluation",
+          "ragas metrics",
+          "regression tests",
+          "prompt caching",
+          "langfuse tracing"
+        ]
+      }
     },
     {
       "id": "agent-memory-systems",
@@ -1777,7 +1818,11 @@
         "boost_terms": [
           "voice ai",
           "speech to text",
-          "text to speech"
+          "text to speech",
+          "audio recordings",
+          "transcription",
+          "meeting notes",
+          "speaker summaries"
         ]
       }
     },
@@ -2029,7 +2074,20 @@
       ],
       "category": "backend",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "boost": 40,
+        "aliases": [
+          "cache",
+          "caches assets",
+          "cache assets"
+        ],
+        "boost_terms": [
+          "caches assets",
+          "cache strategies",
+          "offline cache",
+          "cache invalidation"
+        ]
+      }
     },
     {
       "id": "cloudflare-workers-deep",
@@ -2767,7 +2825,11 @@
         "boost_terms": [
           "push notifications",
           "mobile notifications",
-          "user notifications"
+          "user notifications",
+          "sla alerts",
+          "support alerts",
+          "notification toggles",
+          "reminders"
         ]
       }
     },
@@ -3095,7 +3157,22 @@
       ],
       "category": "backend",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "boost": 48,
+        "aliases": [
+          "searchable",
+          "filterable",
+          "map search"
+        ],
+        "boost_terms": [
+          "search filters",
+          "searchable sortable",
+          "local business directory",
+          "map search",
+          "saved places",
+          "directory search"
+        ]
+      }
     },
     {
       "id": "server-sent-events",
@@ -3170,7 +3247,11 @@
         "boost_terms": [
           "social feed",
           "community feed",
-          "likes comments"
+          "likes comments",
+          "reviews",
+          "saved places",
+          "captions",
+          "moderation"
         ]
       }
     },
@@ -3206,7 +3287,21 @@
       ],
       "category": "backend",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "boost": 44,
+        "aliases": [
+          "action items",
+          "speaker summaries",
+          "structured notes"
+        ],
+        "boost_terms": [
+          "speaker summaries",
+          "action items",
+          "meeting notes",
+          "extract structured notes",
+          "typed summary"
+        ]
+      }
     },
     {
       "id": "supabase-backend",
@@ -5389,7 +5484,21 @@
       ],
       "category": "community",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "boost": 44,
+        "aliases": [
+          "support inbox",
+          "ticket inbox",
+          "helpdesk"
+        ],
+        "boost_terms": [
+          "customer support ticket inbox",
+          "support ticket inbox",
+          "assignment",
+          "internal notes",
+          "sla alerts"
+        ]
+      }
     },
     {
       "id": "developer-community",
@@ -9977,7 +10086,10 @@
         "negative_terms": [
           "file upload",
           "image optimization",
-          "semantic search"
+          "semantic search",
+          "image gallery",
+          "cdn optimization",
+          "search filters"
         ],
         "penalty": 36
       }
@@ -10377,7 +10489,21 @@
       ],
       "category": "frontend",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "boost": 42,
+        "aliases": [
+          "accessible",
+          "keyboard controls",
+          "keyboard navigation"
+        ],
+        "boost_terms": [
+          "accessible forms",
+          "accessible keyboard controls",
+          "keyboard controls",
+          "screen reader",
+          "aria-live"
+        ]
+      }
     },
     {
       "id": "ai-streaming-interfaces",
@@ -10664,7 +10790,21 @@
       ],
       "category": "frontend",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "boost": 40,
+        "aliases": [
+          "frontend",
+          "ui",
+          "cards"
+        ],
+        "boost_terms": [
+          "data table",
+          "mobile responsive cards",
+          "responsive cards",
+          "filterable data table",
+          "saved views"
+        ]
+      }
     },
     {
       "id": "i18n",
@@ -10725,7 +10865,21 @@
       ],
       "category": "frontend",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "boost": 44,
+        "aliases": [
+          "image compression",
+          "image gallery",
+          "cdn optimization"
+        ],
+        "boost_terms": [
+          "image gallery upload",
+          "drag and drop image gallery",
+          "image compression",
+          "cdn optimization",
+          "captions"
+        ]
+      }
     },
     {
       "id": "infinite-scroll-pagination",
@@ -10819,7 +10973,21 @@
       ],
       "category": "frontend",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "boost": 46,
+        "aliases": [
+          "progressive web app",
+          "offline app",
+          "offline sync"
+        ],
+        "boost_terms": [
+          "works offline",
+          "caches assets",
+          "syncs local changes",
+          "offline sync",
+          "service worker"
+        ]
+      }
     },
     {
       "id": "react-native-specialist",
@@ -11124,7 +11292,23 @@
       ],
       "category": "frontend",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "boost": 48,
+        "aliases": [
+          "table",
+          "data table",
+          "admin table",
+          "preview table"
+        ],
+        "boost_terms": [
+          "searchable sortable filterable data table",
+          "csv import preview table",
+          "saved views",
+          "bulk actions",
+          "status filters",
+          "support ticket inbox"
+        ]
+      }
     },
     {
       "id": "threejs-3d-graphics",
@@ -11186,7 +11370,20 @@
       ],
       "category": "frontend",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "boost": 44,
+        "aliases": [
+          "toast",
+          "success toast",
+          "snackbar"
+        ],
+        "boost_terms": [
+          "success toast",
+          "toast after save",
+          "feedback message",
+          "notification toggles"
+        ]
+      }
     },
     {
       "id": "vue-nuxt",
@@ -12805,7 +13002,21 @@
       ],
       "category": "integrations",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "boost": 42,
+        "aliases": [
+          "email replies",
+          "email confirmations",
+          "email receipts"
+        ],
+        "boost_terms": [
+          "email replies",
+          "email confirmations",
+          "transactional email",
+          "support ticket email",
+          "customer email"
+        ]
+      }
     },
     {
       "id": "fintech-integration",
@@ -13262,7 +13473,11 @@
         "boost_terms": [
           "stripe payments",
           "checkout payments",
-          "payment processing"
+          "payment processing",
+          "payment deposits",
+          "checkout receipts",
+          "after checkout",
+          "organization billing"
         ]
       }
     },
@@ -15031,7 +15246,21 @@
       "triggers": [],
       "category": "methodology",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "boost": 44,
+        "aliases": [
+          "calendar",
+          "scheduling",
+          "booking"
+        ],
+        "boost_terms": [
+          "calendar booking",
+          "availability rules",
+          "timezone handling",
+          "email confirmations",
+          "meeting notes"
+        ]
+      }
     },
     {
       "id": "a-b-testing",
@@ -15092,7 +15321,19 @@
       ],
       "category": "product",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "boost": 40,
+        "aliases": [
+          "analytics",
+          "metrics"
+        ],
+        "boost_terms": [
+          "support analytics",
+          "ticket analytics",
+          "dashboard analytics",
+          "event tracking"
+        ]
+      }
     },
     {
       "id": "changelog-roadmap",
@@ -15467,7 +15708,12 @@
           "authentication",
           "authorization",
           "oauth login",
-          "user sessions"
+          "user sessions",
+          "forgot password",
+          "reset password",
+          "password change",
+          "account settings",
+          "session security"
         ]
       }
     },
@@ -18399,7 +18645,26 @@
         ],
         "category": "ai",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "boost": 48,
+          "aliases": [
+            "pdf",
+            "invoice",
+            "receipt",
+            "invoices",
+            "receipts"
+          ],
+          "boost_terms": [
+            "pdf receipts",
+            "invoice pdf",
+            "generate invoices",
+            "store receipts",
+            "account history",
+            "meeting notes export",
+            "notes export",
+            "export meeting notes"
+          ]
+        }
       },
       {
         "id": "llm-architect",
@@ -18568,7 +18833,11 @@
           "negative_terms": [
             "file upload",
             "signed urls",
-            "upload validation"
+            "upload validation",
+            "image optimization",
+            "image gallery",
+            "cdn optimization",
+            "image compression"
           ],
           "penalty": 36
         }
@@ -18638,7 +18907,10 @@
           "negative_terms": [
             "semantic search",
             "faceted search",
-            "search implementation"
+            "search implementation",
+            "map search",
+            "local business directory",
+            "search filters"
           ],
           "penalty": 36
         }
@@ -18993,7 +19265,22 @@
           "agent-communication",
           "autonomous-agents"
         ],
-        "selectionHints": {}
+        "selectionHints": {
+          "boost": 52,
+          "aliases": [
+            "evaluation harness",
+            "agent evals",
+            "regression tests"
+          ],
+          "boost_terms": [
+            "ai evaluation harness",
+            "agent evaluation",
+            "ragas metrics",
+            "regression tests",
+            "prompt caching",
+            "langfuse tracing"
+          ]
+        }
       },
       {
         "id": "agent-memory-systems",
@@ -19559,7 +19846,11 @@
           "boost_terms": [
             "voice ai",
             "speech to text",
-            "text to speech"
+            "text to speech",
+            "audio recordings",
+            "transcription",
+            "meeting notes",
+            "speaker summaries"
           ]
         }
       },
@@ -19813,7 +20104,20 @@
         ],
         "category": "backend",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "boost": 40,
+          "aliases": [
+            "cache",
+            "caches assets",
+            "cache assets"
+          ],
+          "boost_terms": [
+            "caches assets",
+            "cache strategies",
+            "offline cache",
+            "cache invalidation"
+          ]
+        }
       },
       {
         "id": "cloudflare-workers-deep",
@@ -20551,7 +20855,11 @@
           "boost_terms": [
             "push notifications",
             "mobile notifications",
-            "user notifications"
+            "user notifications",
+            "sla alerts",
+            "support alerts",
+            "notification toggles",
+            "reminders"
           ]
         }
       },
@@ -20879,7 +21187,22 @@
         ],
         "category": "backend",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "boost": 48,
+          "aliases": [
+            "searchable",
+            "filterable",
+            "map search"
+          ],
+          "boost_terms": [
+            "search filters",
+            "searchable sortable",
+            "local business directory",
+            "map search",
+            "saved places",
+            "directory search"
+          ]
+        }
       },
       {
         "id": "server-sent-events",
@@ -20954,7 +21277,11 @@
           "boost_terms": [
             "social feed",
             "community feed",
-            "likes comments"
+            "likes comments",
+            "reviews",
+            "saved places",
+            "captions",
+            "moderation"
           ]
         }
       },
@@ -20990,7 +21317,21 @@
         ],
         "category": "backend",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "boost": 44,
+          "aliases": [
+            "action items",
+            "speaker summaries",
+            "structured notes"
+          ],
+          "boost_terms": [
+            "speaker summaries",
+            "action items",
+            "meeting notes",
+            "extract structured notes",
+            "typed summary"
+          ]
+        }
       },
       {
         "id": "supabase-backend",
@@ -23185,7 +23526,21 @@
         ],
         "category": "community",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "boost": 44,
+          "aliases": [
+            "support inbox",
+            "ticket inbox",
+            "helpdesk"
+          ],
+          "boost_terms": [
+            "customer support ticket inbox",
+            "support ticket inbox",
+            "assignment",
+            "internal notes",
+            "sla alerts"
+          ]
+        }
       },
       {
         "id": "developer-community",
@@ -27793,7 +28148,10 @@
           "negative_terms": [
             "file upload",
             "image optimization",
-            "semantic search"
+            "semantic search",
+            "image gallery",
+            "cdn optimization",
+            "search filters"
           ],
           "penalty": 36
         }
@@ -28197,7 +28555,21 @@
         ],
         "category": "frontend",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "boost": 42,
+          "aliases": [
+            "accessible",
+            "keyboard controls",
+            "keyboard navigation"
+          ],
+          "boost_terms": [
+            "accessible forms",
+            "accessible keyboard controls",
+            "keyboard controls",
+            "screen reader",
+            "aria-live"
+          ]
+        }
       },
       {
         "id": "ai-streaming-interfaces",
@@ -28484,7 +28856,21 @@
         ],
         "category": "frontend",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "boost": 40,
+          "aliases": [
+            "frontend",
+            "ui",
+            "cards"
+          ],
+          "boost_terms": [
+            "data table",
+            "mobile responsive cards",
+            "responsive cards",
+            "filterable data table",
+            "saved views"
+          ]
+        }
       },
       {
         "id": "i18n",
@@ -28545,7 +28931,21 @@
         ],
         "category": "frontend",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "boost": 44,
+          "aliases": [
+            "image compression",
+            "image gallery",
+            "cdn optimization"
+          ],
+          "boost_terms": [
+            "image gallery upload",
+            "drag and drop image gallery",
+            "image compression",
+            "cdn optimization",
+            "captions"
+          ]
+        }
       },
       {
         "id": "infinite-scroll-pagination",
@@ -28639,7 +29039,21 @@
         ],
         "category": "frontend",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "boost": 46,
+          "aliases": [
+            "progressive web app",
+            "offline app",
+            "offline sync"
+          ],
+          "boost_terms": [
+            "works offline",
+            "caches assets",
+            "syncs local changes",
+            "offline sync",
+            "service worker"
+          ]
+        }
       },
       {
         "id": "react-native-specialist",
@@ -28944,7 +29358,23 @@
         ],
         "category": "frontend",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "boost": 48,
+          "aliases": [
+            "table",
+            "data table",
+            "admin table",
+            "preview table"
+          ],
+          "boost_terms": [
+            "searchable sortable filterable data table",
+            "csv import preview table",
+            "saved views",
+            "bulk actions",
+            "status filters",
+            "support ticket inbox"
+          ]
+        }
       },
       {
         "id": "threejs-3d-graphics",
@@ -29006,7 +29436,20 @@
         ],
         "category": "frontend",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "boost": 44,
+          "aliases": [
+            "toast",
+            "success toast",
+            "snackbar"
+          ],
+          "boost_terms": [
+            "success toast",
+            "toast after save",
+            "feedback message",
+            "notification toggles"
+          ]
+        }
       },
       {
         "id": "vue-nuxt",
@@ -30631,7 +31074,21 @@
         ],
         "category": "integrations",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "boost": 42,
+          "aliases": [
+            "email replies",
+            "email confirmations",
+            "email receipts"
+          ],
+          "boost_terms": [
+            "email replies",
+            "email confirmations",
+            "transactional email",
+            "support ticket email",
+            "customer email"
+          ]
+        }
       },
       {
         "id": "fintech-integration",
@@ -31088,7 +31545,11 @@
           "boost_terms": [
             "stripe payments",
             "checkout payments",
-            "payment processing"
+            "payment processing",
+            "payment deposits",
+            "checkout receipts",
+            "after checkout",
+            "organization billing"
           ]
         }
       },
@@ -32863,7 +33324,21 @@
         "triggers": [],
         "category": "methodology",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "boost": 44,
+          "aliases": [
+            "calendar",
+            "scheduling",
+            "booking"
+          ],
+          "boost_terms": [
+            "calendar booking",
+            "availability rules",
+            "timezone handling",
+            "email confirmations",
+            "meeting notes"
+          ]
+        }
       }
     ],
     "product": [
@@ -32926,7 +33401,19 @@
         ],
         "category": "product",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "boost": 40,
+          "aliases": [
+            "analytics",
+            "metrics"
+          ],
+          "boost_terms": [
+            "support analytics",
+            "ticket analytics",
+            "dashboard analytics",
+            "event tracking"
+          ]
+        }
       },
       {
         "id": "changelog-roadmap",
@@ -33305,7 +33792,12 @@
             "authentication",
             "authorization",
             "oauth login",
-            "user sessions"
+            "user sessions",
+            "forgot password",
+            "reset password",
+            "password change",
+            "account settings",
+            "session security"
           ]
         }
       },

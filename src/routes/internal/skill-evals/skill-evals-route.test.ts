@@ -10,7 +10,7 @@ describe('/internal/skill-evals route', () => {
 		expect(data.project.challengeCaseCount).toBe(12);
 		expect(data.project.evalCaseCount).toBe(62);
 		expect(data.summary.golden.passCount).toBe(data.summary.golden.caseCount);
-		expect(data.summary.challenge.passCount).toBeLessThan(data.summary.challenge.caseCount);
+		expect(data.summary.challenge.passCount).toBe(data.summary.challenge.caseCount);
 		expect(data.project.returnedRecommendationCount).toBeGreaterThan(400);
 		expect(data.cases[0].skills[0]).toEqual(
 			expect.objectContaining({

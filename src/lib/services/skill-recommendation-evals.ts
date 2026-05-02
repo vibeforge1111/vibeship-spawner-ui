@@ -386,7 +386,7 @@ export const CHALLENGE_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		suite: 'challenge',
 		prompt: 'Add searchable sortable filterable data table with saved views, pagination, bulk actions, and CSV export',
 		mustInclude: ['tanstack-table', 'search-implementation'],
-		anyOf: [['analytics', 'product-analytics'], ['frontend']],
+		anyOf: [['frontend']],
 		mustNotInclude: ['semantic-search', 'rag-engineer']
 	},
 	{
@@ -453,7 +453,7 @@ export const CHALLENGE_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		suite: 'challenge',
 		prompt: 'Build AI meeting notes from audio recordings with transcription, speaker summaries, action items, search, and export',
 		mustInclude: ['voice-ai-development', 'structured-output'],
-		anyOf: [['semantic-search'], ['document-ai']],
+		anyOf: [['semantic-search'], ['productivity-ai-tools', 'document-ai']],
 		mustNotInclude: ['smart-contract-engineer']
 	}
 ];
