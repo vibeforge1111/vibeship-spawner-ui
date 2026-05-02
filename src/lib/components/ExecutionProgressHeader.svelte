@@ -262,7 +262,9 @@
 					></span>
 					<span class="font-semibold text-text-primary">{item.provider.label}</span>
 					<span class="truncate text-text-tertiary">{item.provider.model}</span>
-					<span class="text-vibe-teal">{item.assignment?.taskIds?.length || 0}</span>
+					<span class="rounded border border-vibe-teal/20 bg-vibe-teal/10 px-1.5 py-0.5 font-mono text-[10px] text-vibe-teal">
+						{item.assignment?.taskIds?.length || 0} tasks
+					</span>
 				</span>
 			{/each}
 		</div>
