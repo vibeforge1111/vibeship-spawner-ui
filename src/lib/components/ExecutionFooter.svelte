@@ -88,7 +88,7 @@
 			onclick={onRun}
 			disabled={!canRun}
 			class="inline-flex items-center gap-2 rounded-md border px-5 py-2.5 text-sm font-semibold transition-all active:scale-[0.98] disabled:cursor-not-allowed {isRunning
-				? 'border-vibe-teal/60 bg-vibe-teal/15 text-vibe-teal shadow-[0_0_30px_-10px_rgba(47,202,148,0.9)]'
+				? 'border-vibe-teal/60 bg-vibe-teal/15 text-vibe-teal shadow-[0_0_18px_-9px_rgba(47,202,148,0.85)]'
 				: 'border-accent-primary/30 bg-accent-primary text-accent-fg shadow-[0_10px_28px_-18px_rgba(47,202,148,0.9)] hover:opacity-90'} {!canRun && !isRunning ? 'opacity-40' : ''}"
 			title={isTerminal
 				? 'This mission is complete. Inspect logs here instead of starting over.'
