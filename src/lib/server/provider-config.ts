@@ -19,12 +19,42 @@ function isCliProviderId(value: string): value is SparkCliBinary {
 	return value === 'claude' || value === 'codex';
 }
 
+function isHostedRuntime(envRecord: Record<string, string | undefined>): boolean {
+	return Boolean(
+		envRecord.RAILWAY_ENVIRONMENT ||
+			envRecord.RAILWAY_SERVICE_NAME ||
+			envRecord.RAILWAY_PROJECT_ID ||
+			envRecord.SPARK_LIVE_CONTAINER === '1' ||
+			envRecord.SPARK_SPAWNER_HOST === '0.0.0.0' ||
+			envRecord.HOST === '0.0.0.0'
+	);
+}
+
+function isLoopbackBaseUrl(value: string | undefined): boolean {
+	if (!value) return true;
+	try {
+		const hostname = new URL(value).hostname.toLowerCase();
+		return (
+			hostname === 'localhost' ||
+			hostname === '0.0.0.0' ||
+			hostname === '::1' ||
+			hostname.startsWith('127.')
+		);
+	} catch {
+		return true;
+	}
+}
+
+function isLocalOpenAICompatProvider(providerId: string): boolean {
+	return providerId === 'lmstudio' || providerId === 'ollama';
+}
+
 export function isConfiguredApiKey(value: string | undefined): value is string {
 	return Boolean(value && value.trim() && !value.startsWith('your_'));
 }
 
 export function resolveProviderRuntimeConfiguration(
-	provider: Pick<MultiLLMProviderConfig, 'id' | 'kind' | 'apiKeyEnv'>,
+	provider: Pick<MultiLLMProviderConfig, 'id' | 'kind' | 'apiKeyEnv' | 'baseUrl'>,
 	envRecord: Record<string, string | undefined>
 ): ProviderRuntimeConfiguration {
 	const envKeyConfigured = provider.apiKeyEnv
@@ -38,7 +68,8 @@ export function resolveProviderRuntimeConfiguration(
 	const localOpenAICompatConfigured =
 		provider.kind === 'openai_compat' &&
 		!provider.apiKeyEnv &&
-		(provider.id === 'lmstudio' || provider.id === 'ollama');
+		isLocalOpenAICompatProvider(provider.id) &&
+		(!isHostedRuntime(envRecord) || !isLoopbackBaseUrl(provider.baseUrl));
 	const configured = envKeyConfigured || cliConfigured || localOpenAICompatConfigured;
 	const configurationMode: ProviderConfigurationMode = cliConfigured
 		? 'cli'
