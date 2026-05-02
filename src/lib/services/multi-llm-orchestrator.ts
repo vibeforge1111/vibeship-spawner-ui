@@ -1,5 +1,9 @@
 import type { Mission } from '$lib/services/mcp-client';
 import type { MCPCapability } from '$lib/types/mcp';
+import {
+	matchTaskToSkillRecommendations,
+	type SkillRecommendationTier
+} from './h70-skill-matcher';
 
 export type MultiLLMProviderKind = 'terminal_cli' | 'openai_compat' | 'custom';
 export type MultiLLMCapability = MCPCapability | 'reasoning' | 'planning' | 'review';
@@ -812,6 +816,32 @@ function formatTaskMcpPlan(plan: MultiLLMMCPTaskPlan | undefined): string {
 	return `\n   MCP plan:${toolLines.join('')}`;
 }
 
+function formatTieredSkillLine(task: Mission['tasks'][number], recommendedSkills: string[]): string {
+	if (recommendedSkills.length === 0) return '';
+
+	const selected = new Set(recommendedSkills);
+	const ranked = matchTaskToSkillRecommendations(task.title, task.description, Math.max(10, recommendedSkills.length))
+		.filter((rank) => selected.has(rank.skillId));
+	const tierBySkill = new Map(ranked.map((rank) => [rank.skillId, rank.recommendationTier]));
+	const groups: Record<SkillRecommendationTier, string[]> = {
+		core: [],
+		supporting: [],
+		related: []
+	};
+
+	for (const skillId of recommendedSkills) {
+		groups[tierBySkill.get(skillId) || 'related'].push(skillId);
+	}
+
+	const parts = [
+		groups.core.length ? `Core: ${groups.core.map((skill) => `\`${skill}\``).join(', ')}` : '',
+		groups.supporting.length ? `Supporting: ${groups.supporting.map((skill) => `\`${skill}\``).join(', ')}` : '',
+		groups.related.length ? `Related: ${groups.related.map((skill) => `\`${skill}\``).join(', ')}` : ''
+	].filter(Boolean);
+
+	return `\n   Required H70 skills (load BEFORE task_started): ${parts.join(' | ')}`;
+}
+
 function buildMasterPrompt(
 	mission: Mission,
 	providers: MultiLLMProviderConfig[],
@@ -915,10 +945,7 @@ function buildProviderPrompt(input: BuildProviderPromptInput): string {
 		.map((task, index) => {
 			const deps = task.dependsOn?.length ? ` after: ${task.dependsOn.join(', ')}` : '';
 			const recommendedSkills = taskSkillMap?.get(task.id) || [];
-				const skillsLine =
-					recommendedSkills.length > 0
-						? `\n   Required H70 skills (load BEFORE task_started): ${recommendedSkills.map((skill) => `\`${skill}\``).join(', ')}`
-						: '';
+				const skillsLine = formatTieredSkillLine(task, recommendedSkills);
 				const mcpPlanLine = formatTaskMcpPlan(mcpTaskPlans[task.id]);
 				return `${index + 1}. ${task.title} (id: ${task.id}${deps})\n   ${task.description}${skillsLine}${mcpPlanLine}`;
 			})

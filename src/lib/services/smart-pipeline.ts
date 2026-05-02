@@ -9,7 +9,7 @@
 
 import { get } from 'svelte/store';
 import { skills as skillsStore, loadSkillsStatic, type Skill } from '$lib/stores/skills.svelte';
-import { rankSkillsForText } from './h70-skill-matcher';
+import { rankSkillsForText, type SkillRecommendationTier } from './h70-skill-matcher';
 
 const MAX_PIPELINE_SKILLS = 10;
 
@@ -20,6 +20,7 @@ const MAX_PIPELINE_SKILLS = 10;
 export interface PipelineNode {
 	skillId: string;
 	skill: Skill;
+	recommendationTier: SkillRecommendationTier;
 	position: { x: number; y: number };
 }
 
@@ -109,11 +110,14 @@ export async function generatePipeline(goal: string): Promise<PipelineResult> {
 async function selectSkillsForGoal(
 	goal: string,
 	skills: Skill[]
-): Promise<Skill[]> {
+): Promise<Array<{ skill: Skill; recommendationTier: SkillRecommendationTier }>> {
 	const skillById = new Map(skills.map((skill) => [skill.id, skill]));
 	return rankSkillsForText(goal, MAX_PIPELINE_SKILLS)
-		.map((rank) => skillById.get(rank.skillId))
-		.filter((skill): skill is Skill => Boolean(skill));
+		.map((rank) => {
+			const skill = skillById.get(rank.skillId);
+			return skill ? { skill, recommendationTier: rank.recommendationTier } : null;
+		})
+		.filter((entry): entry is { skill: Skill; recommendationTier: SkillRecommendationTier } => Boolean(entry));
 }
 
 // ============================================
@@ -123,7 +127,10 @@ async function selectSkillsForGoal(
 /**
  * Create a pipeline with proper layout and connections
  */
-function createPipeline(skills: Skill[], goal: string): GeneratedPipeline {
+function createPipeline(
+	skills: Array<{ skill: Skill; recommendationTier: SkillRecommendationTier }>,
+	goal: string
+): GeneratedPipeline {
 	const nodes: PipelineNode[] = [];
 	const connections: PipelineConnection[] = [];
 
@@ -138,10 +145,12 @@ function createPipeline(skills: Skill[], goal: string): GeneratedPipeline {
 	for (let i = 0; i < skills.length; i++) {
 		const col = i % COLS;
 		const row = Math.floor(i / COLS);
+		const { skill, recommendationTier } = skills[i];
 
 		nodes.push({
-			skillId: skills[i].id,
-			skill: skills[i],
+			skillId: skill.id,
+			skill,
+			recommendationTier,
 			position: {
 				x: 100 + col * (NODE_WIDTH + H_GAP),
 				y: 100 + row * (NODE_HEIGHT + V_GAP)

@@ -12,7 +12,13 @@ import { logger } from '$lib/utils/logger';
 import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import type { MissionAgent, MissionTask, MissionContext, Mission } from '$lib/services/mcp-client';
 import { mcpClient } from '$lib/services/mcp-client';
-import { getAllRequiredSkills, getSkillPriorities, matchTaskToSkills } from './h70-skill-matcher';
+import {
+	getAllRequiredSkills,
+	getSkillPriorities,
+	matchTaskToSkillRecommendations,
+	matchTaskToSkills
+} from './h70-skill-matcher';
+import type { SkillRecommendationTier } from './h70-skill-matcher';
 import { loadSkillsForMission, type H70SkillContent } from './h70-skills';
 import type { MCPRuntimeSnapshot, MCPRuntimeTool } from './mcp-runtime';
 import { SKILL_MCP_MAP } from '$lib/types/mcp';
@@ -526,6 +532,32 @@ export interface ExecutionPromptOptions {
 	includeMCPs?: boolean;
 }
 
+function formatTieredSkillLine(task: MissionTask, recommendedSkills: string[]): string {
+	if (recommendedSkills.length === 0) return '';
+
+	const selected = new Set(recommendedSkills);
+	const ranked = matchTaskToSkillRecommendations(task.title, task.description, Math.max(10, recommendedSkills.length))
+		.filter((rank) => selected.has(rank.skillId));
+	const tierBySkill = new Map(ranked.map((rank) => [rank.skillId, rank.recommendationTier]));
+	const groups: Record<SkillRecommendationTier, string[]> = {
+		core: [],
+		supporting: [],
+		related: []
+	};
+
+	for (const skillId of recommendedSkills) {
+		groups[tierBySkill.get(skillId) || 'related'].push(skillId);
+	}
+
+	const parts = [
+		groups.core.length ? `Core: ${groups.core.map((skill) => `\`${skill}\``).join(', ')}` : '',
+		groups.supporting.length ? `Supporting: ${groups.supporting.map((skill) => `\`${skill}\``).join(', ')}` : '',
+		groups.related.length ? `Related: ${groups.related.map((skill) => `\`${skill}\``).join(', ')}` : ''
+	].filter(Boolean);
+
+	return `\n   **Load H70 Skills**: ${parts.join(' | ')}`;
+}
+
 /**
  * Generate a copy-pasteable execution prompt for Claude Code
  *
@@ -549,9 +581,7 @@ export function generateExecutionPrompt(
 		.map((t, i) => {
 			const deps = t.dependsOn?.length ? ` (after: ${t.dependsOn.join(', ')})` : '';
 			const recommendedSkills = includeSkills ? (taskSkillMap?.get(t.id) || []) : [];
-			const skillsLine = recommendedSkills.length
-				? `\n   **Load H70 Skills**: ${recommendedSkills.map(s => `\`${s}\``).join(', ')}`
-				: '';
+			const skillsLine = formatTieredSkillLine(t, recommendedSkills);
 			const recommendedMCPs = includeMCPs ? (taskMCPMap?.get(t.id) || []) : [];
 			const mcpLine = recommendedMCPs.length
 				? `\n   **Use MCP Tools**: ${recommendedMCPs.map(m => `\`${m}\``).join(', ')}`

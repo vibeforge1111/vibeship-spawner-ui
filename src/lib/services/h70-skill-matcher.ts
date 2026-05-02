@@ -53,7 +53,10 @@ export interface SkillRank {
 	score: number;
 	reason: string;
 	category: string;
+	recommendationTier: SkillRecommendationTier;
 }
+
+export type SkillRecommendationTier = 'core' | 'supporting' | 'related';
 
 const STOP_WORDS = new Set([
 	'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
@@ -239,8 +242,28 @@ function scoreSkill(skill: SkillDoc, query: string, queryTokens: string[]): Skil
 		skillId: skill.id,
 		score,
 		reason: reasons.slice(0, 3).join(', ') || 'catalog match',
-		category: skill.category
+		category: skill.category,
+		recommendationTier: 'related'
 	};
+}
+
+function assignRecommendationTiers(ranks: SkillRank[]): SkillRank[] {
+	const topScore = ranks[0]?.score || 0;
+
+	return ranks.map((rank, index) => {
+		const isRelatedOnly = rank.reason.startsWith('related to ');
+		let recommendationTier: SkillRecommendationTier = 'related';
+
+		if (!isRelatedOnly && (index < 2 || rank.score >= Math.max(55, topScore * 0.62))) {
+			recommendationTier = 'core';
+		} else if (!isRelatedOnly && rank.score >= Math.max(30, topScore * 0.32)) {
+			recommendationTier = 'supporting';
+		} else if (isRelatedOnly && rank.score >= Math.max(36, topScore * 0.28)) {
+			recommendationTier = 'supporting';
+		}
+
+		return { ...rank, recommendationTier };
+	});
 }
 
 function addRelationshipContext(
@@ -287,14 +310,17 @@ function addRelationshipContext(
 				skillId: targetId,
 				score: relationshipScore,
 				reason: `related to ${rank.skillId}`,
-				category: targetSkill.category
+				category: targetSkill.category,
+				recommendationTier: 'related'
 			});
 		}
 	}
 
-	return [...ranks, ...additions.values()]
+	const merged = [...ranks, ...additions.values()]
 		.sort((a, b) => b.score - a.score || a.skillId.localeCompare(b.skillId))
 		.slice(0, maxResults);
+
+	return assignRecommendationTiers(merged);
 }
 
 export function rankSkillsForText(text: string, maxResults = 10): SkillRank[] {
@@ -316,6 +342,14 @@ export function matchTaskToSkills(
 	maxSkills = 5
 ): string[] {
 	return rankSkillsForText(`${taskName}\n${taskDescription || ''}`, maxSkills).map((rank) => rank.skillId);
+}
+
+export function matchTaskToSkillRecommendations(
+	taskName: string,
+	taskDescription?: string,
+	maxSkills = 5
+): SkillRank[] {
+	return rankSkillsForText(`${taskName}\n${taskDescription || ''}`, maxSkills);
 }
 
 export function matchTasksToSkills(

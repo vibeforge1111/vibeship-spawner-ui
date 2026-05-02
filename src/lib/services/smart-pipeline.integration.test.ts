@@ -44,6 +44,7 @@ describe('smart pipeline dogfood prompts', () => {
 			expect(evaluation.missingRequired).toEqual([]);
 			expect(evaluation.missingAnyOf).toEqual([]);
 			expect(evaluation.unwanted).toEqual([]);
+			expect(result.pipeline?.nodes.every((node) => ['core', 'supporting', 'related'].includes(node.recommendationTier))).toBe(true);
 
 			if (testCase.name === 'AI art consistency') {
 				expect(edgeIds(result)).toContain('art-consistency->ai-image-generation');

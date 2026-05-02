@@ -1,6 +1,6 @@
 import skillDetails from '$lib/data/skill-details.json';
 import { describe, expect, it } from 'vitest';
-import { matchTaskToSkills, rankSkillsForText } from './h70-skill-matcher';
+import { matchTaskToSkillRecommendations, matchTaskToSkills, rankSkillsForText } from './h70-skill-matcher';
 
 const skillIds = new Set(Object.keys(skillDetails));
 
@@ -71,5 +71,21 @@ describe('Spark catalog skill matcher', () => {
 		const realtime = matchTaskToSkills('Realtime websocket whiteboard presence sync', undefined, 10);
 		expect(realtime).toEqual(expect.arrayContaining(['presence-indicators']));
 		expect(realtime).not.toContain('kubernetes');
+	});
+
+	it('labels recommendations as core, supporting, or related without changing the flat API', () => {
+		const ranks = matchTaskToSkillRecommendations(
+			'Build a GraphQL API with schema design, resolvers, subscriptions, and auth guards',
+			undefined,
+			10
+		);
+		const tierById = new Map(ranks.map((rank) => [rank.skillId, rank.recommendationTier]));
+
+		expect(matchTaskToSkills('Build a GraphQL API with schema design, resolvers, subscriptions, and auth guards', undefined, 3))
+			.toEqual(ranks.slice(0, 3).map((rank) => rank.skillId));
+		expect(tierById.get('graphql')).toBe('core');
+		expect(tierById.get('graphql-architect')).toBe('core');
+		expect(ranks.some((rank) => rank.recommendationTier !== 'core')).toBe(true);
+		expect(ranks.every((rank) => ['core', 'supporting', 'related'].includes(rank.recommendationTier))).toBe(true);
 	});
 });
