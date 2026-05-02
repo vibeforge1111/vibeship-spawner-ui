@@ -205,6 +205,13 @@
 		};
 	});
 
+	function statusBadgeShellClass(status: ExecutionStatus): string {
+		if (status === 'running' || status === 'creating') {
+			return 'border-vibe-teal/40 bg-vibe-teal/10';
+		}
+		return 'border-surface-border bg-bg-primary';
+	}
+
 	$effect(() => {
 		if (!browser) return;
 		if (!executionProgress?.startTime || executionProgress.endTime) return;
@@ -1344,7 +1351,9 @@
 					<div class="flex min-w-0 flex-wrap items-center gap-2">
 						<h2 class="truncate text-lg font-semibold leading-tight text-text-primary">{panelTitle}</h2>
 						{#if executionProgress}
-							<span class="rounded-md border border-surface-border bg-bg-primary px-2 py-1 text-[10px] font-mono uppercase tracking-[0.14em] {getStatusColor(executionProgress.status)}">
+							<span
+								class="rounded-md border px-2 py-1 text-[10px] font-mono uppercase tracking-[0.14em] {getStatusColor(executionProgress.status)} {statusBadgeShellClass(executionProgress.status)}"
+							>
 								{executionProgress.status}
 							</span>
 						{/if}
