@@ -14,6 +14,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 COPY --from=build /app/build ./build
 COPY --from=build /app/static ./static
+COPY --from=build /app/scripts/health-spark.mjs ./scripts/health-spark.mjs
 RUN mkdir -p /data/spawner /data/workspaces
 EXPOSE 3000
 CMD ["npm", "start"]

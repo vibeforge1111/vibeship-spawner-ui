@@ -139,6 +139,11 @@ Mount a persistent volume at `/data` for Spawner state and workspaces. If the
 service needs an explicit self-call URL, set `SPAWNER_UI_SELF_URL`; otherwise
 hosted builds derive local self-calls from Railway's `PORT`.
 
+For hosted smoke checks, run `npm run health:spark` inside the Spawner service.
+Set `SPARK_HEALTH_DEEP=1` to start a tiny mission smoke. The deep smoke uses
+`SPARK_HEALTH_PROVIDER` when set, then the selected Mission provider, then
+`codex` as a fallback.
+
 ## Documentation Map
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) - current Spark execution-plane architecture.
