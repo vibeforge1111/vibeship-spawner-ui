@@ -809,58 +809,123 @@
 	{#if activeTab === 'board'}
 
 		{#if quickAddOpen}
-			<div class="mb-4 border border-surface-border rounded-lg bg-bg-secondary p-3">
-				<div class="flex items-start gap-2">
-					{#if quickAddImprovementSource}
-						<div class="flex-1 space-y-2">
-							<div class="flex flex-wrap items-center gap-2 font-mono text-[10px] text-text-tertiary">
-								<span class="text-accent-primary">Improve</span>
-								<span>{quickAddImprovementSource.name}</span>
+			{#if quickAddImprovementSource}
+				<div class="mb-4 rounded-lg border border-accent-primary/25 bg-bg-secondary p-3 shadow-[0_18px_60px_rgba(0,0,0,0.22)]">
+					<div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+						<div class="min-w-0">
+							<div class="flex flex-wrap items-center gap-2">
+								<span class="rounded-md border border-accent-primary/30 bg-accent-primary/10 px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-accent-primary">
+									Iteration ready
+								</span>
 								{#if quickAddImprovementDraft?.payload.iterationNumber}
-									<span>Iteration {quickAddImprovementDraft.payload.iterationNumber}</span>
+									<span class="rounded-md border border-surface-border bg-bg-primary px-2 py-1 font-mono text-[10px] text-text-secondary">
+										Iteration {quickAddImprovementDraft.payload.iterationNumber}
+									</span>
 								{/if}
+								<span class="rounded-md border border-surface-border bg-bg-primary px-2 py-1 font-mono text-[10px] text-text-secondary">
+									{quickAddImprovementSource.name}
+								</span>
 							</div>
-							<textarea
-								rows="3"
-								placeholder="What should change?"
-								bind:value={quickAddFeedback}
-								onkeydown={(e) => { if (e.key === 'Escape') resetQuickAdd(); }}
-								class="w-full resize-none px-3 py-2 bg-bg-primary border border-surface-border rounded-md text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary font-mono"
-							></textarea>
+
+							<div class="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(13rem,0.42fr)]">
+								<label class="block min-w-0">
+									<div class="mb-1 font-mono text-[10px] uppercase tracking-[0.12em] text-text-tertiary">
+										Iteration brief
+									</div>
+									<textarea
+										rows="4"
+										placeholder="What should the next pass improve?"
+										bind:value={quickAddFeedback}
+										onkeydown={(e) => {
+											if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleQuickAdd();
+											if (e.key === 'Escape') resetQuickAdd();
+										}}
+										class="w-full resize-none rounded-md border border-surface-border bg-bg-primary px-3 py-2 font-mono text-sm leading-6 text-text-primary placeholder:text-text-tertiary focus:border-accent-primary focus:outline-none"
+									></textarea>
+								</label>
+
+								<div class="min-w-0 rounded-md border border-surface-border bg-bg-primary px-3 py-2 font-mono text-xs text-text-secondary">
+									<div class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">Target project</div>
+									<div class="mt-1 truncate text-text-primary">
+										{quickAddImprovementSource.projectLineage?.projectPath ?? quickAddImprovementSource.name}
+									</div>
+									{#if quickAddImprovementSource.projectLineage?.previewUrl}
+										<a
+											href={quickAddImprovementSource.projectLineage.previewUrl}
+											target="_blank"
+											rel="noreferrer"
+											class="mt-2 inline-flex items-center rounded-md border border-accent-primary/30 px-2 py-1 text-[10px] uppercase tracking-[0.1em] text-accent-primary transition-colors hover:bg-accent-primary/10"
+										>
+											Preview
+										</a>
+									{/if}
+								</div>
+							</div>
+
+							{#if quickAddError}
+								<p class="mt-2 font-mono text-[11px] text-status-error">{quickAddError}</p>
+							{:else}
+								<p class="mt-2 font-mono text-[10px] text-text-tertiary">
+									Dispatches through <code class="text-accent-primary">/api/spark/run</code> into Mission Control.
+									Ctrl/Cmd + Enter dispatches; Esc cancels.
+								</p>
+							{/if}
 						</div>
-					{:else}
+
+						<div class="flex items-start justify-end gap-2">
+							<button
+								onclick={handleQuickAdd}
+								disabled={!quickAddFeedback.trim() || quickAddDispatching}
+								class="inline-flex min-w-[9.5rem] items-center justify-center gap-2 rounded-md bg-accent-primary px-3 py-2 font-mono text-xs font-semibold text-bg-primary transition-all hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+							>
+								<Icon name={quickAddDispatching ? 'loader' : 'play'} size={14} />
+								{quickAddDispatching ? 'Dispatching' : 'Run iteration'}
+							</button>
+							<button
+								onclick={resetQuickAdd}
+								class="inline-flex size-9 items-center justify-center rounded-md border border-surface-border text-xs text-text-tertiary transition-all hover:border-accent-primary/35 hover:bg-bg-primary hover:text-text-primary"
+								aria-label="Cancel"
+							>
+								<Icon name="x" size={14} />
+							</button>
+						</div>
+					</div>
+				</div>
+			{:else}
+				<div class="mb-4 rounded-lg border border-surface-border bg-bg-secondary p-3">
+					<div class="flex items-start gap-2">
 						<input
 							type="text"
 							placeholder="Describe what Spark should run..."
 							bind:value={quickAddGoal}
 							onkeydown={(e) => { if (e.key === 'Enter') handleQuickAdd(); if (e.key === 'Escape') resetQuickAdd(); }}
-							class="flex-1 px-3 py-2 bg-bg-primary border border-surface-border rounded-md text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary font-mono"
+							class="flex-1 rounded-md border border-surface-border bg-bg-primary px-3 py-2 font-mono text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent-primary focus:outline-none"
 						/>
+						<button
+							onclick={handleQuickAdd}
+							disabled={!quickAddGoal.trim() || quickAddDispatching}
+							class="rounded-md bg-accent-primary px-3 py-2 font-mono text-xs text-bg-primary transition-all hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+						>
+							{quickAddDispatching ? 'Dispatching...' : 'Run'}
+						</button>
+						<button
+							onclick={resetQuickAdd}
+							class="rounded-md px-2 py-2 text-xs text-text-tertiary transition-all hover:text-text-primary"
+							aria-label="Cancel"
+						>
+							<Icon name="x" size={14} />
+						</button>
+					</div>
+					{#if quickAddError}
+						<p class="mt-2 font-mono text-[11px] text-status-error">{quickAddError}</p>
+					{:else}
+						<p class="mt-2 font-mono text-[10px] text-text-tertiary">
+							Routes through <code class="text-accent-primary">/api/spark/run</code> into this board.
+							Press Enter to dispatch, Esc to cancel.
+						</p>
 					{/if}
-					<button
-						onclick={handleQuickAdd}
-						disabled={(quickAddImprovementSource ? !quickAddFeedback.trim() : !quickAddGoal.trim()) || quickAddDispatching}
-						class="px-3 py-2 text-xs font-mono bg-accent-primary text-bg-primary rounded-md hover:bg-accent-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-					>
-						{quickAddDispatching ? 'Dispatching…' : 'Run'}
-					</button>
-					<button
-						onclick={resetQuickAdd}
-						class="px-2 py-2 text-xs font-mono text-text-tertiary rounded-md hover:text-text-primary transition-all"
-						aria-label="Cancel"
-					>
-						<Icon name="x" size={14} />
-					</button>
 				</div>
-				{#if quickAddError}
-					<p class="mt-2 font-mono text-[11px] text-status-error">{quickAddError}</p>
-				{:else}
-					<p class="mt-2 font-mono text-[10px] text-text-tertiary">
-						Routes through <code class="text-accent-primary">/api/spark/run</code> → mission-control-relay → this board.
-						Press Enter to dispatch, Esc to cancel.
-					</p>
-				{/if}
-			</div>
+			{/if}
 		{/if}
 
 		{#if !mcpConnected && !loading && cards().length === 0}
