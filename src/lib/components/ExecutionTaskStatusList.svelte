@@ -22,6 +22,7 @@
 		error: string | null;
 		nodeCount: number;
 		executionDuration: string;
+		showTaskList?: boolean;
 		onResumePartial: () => void;
 		onDismissPartial: () => void;
 	}
@@ -35,6 +36,7 @@
 		error,
 		nodeCount,
 		executionDuration,
+		showTaskList = true,
 		onResumePartial,
 		onDismissPartial
 	}: Props = $props();
@@ -52,7 +54,7 @@
 	}
 </script>
 
-{#if taskRows.length > 0}
+{#if showTaskList && taskRows.length > 0}
 	<div class="mt-4 overflow-hidden rounded-lg border border-surface-border bg-bg-primary/70">
 		<div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-bg-secondary border-b border-surface-border">
 			<div>
@@ -144,7 +146,7 @@
 	</div>
 {/if}
 
-{#if status === 'completed'}
+{#if showTaskList && status === 'completed'}
 	<div class="mt-3 rounded-lg border border-surface-border bg-bg-secondary px-4 py-3">
 		<div class="flex flex-wrap items-center justify-between gap-3">
 			<div class="flex min-w-0 items-center gap-2">

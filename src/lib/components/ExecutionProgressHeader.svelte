@@ -6,6 +6,7 @@
 	} from '$lib/services/mission-executor';
 	import type { MCPRuntimeTool } from '$lib/services/mcp-runtime';
 	import Icon from './Icon.svelte';
+	import { summarizeTaskRows, type TaskStatusRow } from '$lib/services/execution-task-rows';
 
 	interface Props {
 		executionProgress: ExecutionProgress;
@@ -15,6 +16,7 @@
 		mcpTools: MCPRuntimeTool[];
 		runtimeAgents: AgentRuntimeStatus[];
 		currentTaskSkills: LoadedSkillInfo[];
+		taskRows?: TaskStatusRow[];
 		mcpDetailOpen: boolean;
 		copyPromptCollapsed: boolean;
 		copyToClipboard: (text: string, successMessage: string) => void;
@@ -28,6 +30,7 @@
 		mcpTools,
 		runtimeAgents,
 		currentTaskSkills,
+		taskRows = [],
 		mcpDetailOpen = $bindable(),
 		copyPromptCollapsed = $bindable(),
 		copyToClipboard
@@ -37,6 +40,41 @@
 	let missionCompletedTaskCount = $derived(
 		executionProgress.mission?.tasks?.filter((task) => task.status === 'completed').length || 0
 	);
+	let taskSummary = $derived.by(() => summarizeTaskRows(taskRows));
+	let taskBuckets = $derived.by(() => [
+		{
+			key: 'completed',
+			label: 'Done',
+			count: taskSummary.completed,
+			tasks: taskRows.filter((task) => task.status === 'completed'),
+			dot: 'bg-status-success',
+			tone: 'text-status-success'
+		},
+		{
+			key: 'running',
+			label: 'Active',
+			count: taskSummary.running,
+			tasks: taskRows.filter((task) => task.status === 'running'),
+			dot: 'bg-sky-400',
+			tone: 'text-sky-300'
+		},
+		{
+			key: 'pending',
+			label: 'Queued',
+			count: taskSummary.pending,
+			tasks: taskRows.filter((task) => task.status === 'pending' || task.status === 'blocked'),
+			dot: 'bg-amber-300',
+			tone: 'text-amber-300'
+		},
+		{
+			key: 'failed',
+			label: 'Failed',
+			count: taskSummary.failed,
+			tasks: taskRows.filter((task) => task.status === 'failed'),
+			dot: 'bg-status-error',
+			tone: 'text-status-error'
+		}
+	]);
 	let missionTitle = $derived(executionProgress.mission?.name || 'Canvas execution');
 	let activeTaskLabel = $derived(
 		executionProgress.currentTaskName ||
@@ -71,6 +109,14 @@
 		if (status === 'paused') return 'text-blue-300';
 		return 'text-text-tertiary';
 	}
+
+	function taskDotClass(status: TaskStatusRow['status']): string {
+		if (status === 'completed') return 'bg-status-success';
+		if (status === 'running') return 'bg-sky-400';
+		if (status === 'failed') return 'bg-status-error';
+		if (status === 'blocked') return 'bg-status-warning';
+		return 'bg-text-tertiary';
+	}
 </script>
 
 <div class="rounded-lg border border-surface-border bg-bg-primary/65 p-4">
@@ -79,6 +125,22 @@
 			<div class="font-mono text-[10px] uppercase tracking-[0.18em] text-text-tertiary">Mission Trace</div>
 			<div class="mt-1 truncate text-base font-semibold text-text-primary">{missionTitle}</div>
 			<div class="mt-1 truncate text-xs font-mono text-text-tertiary">{activeTaskLabel}</div>
+			<div class="mt-2 flex flex-wrap items-center gap-1.5">
+				<span class="rounded border border-surface-border bg-bg-secondary px-2 py-1 text-[10px] font-mono text-text-secondary">
+					<span class="text-text-tertiary">tasks</span>
+					<span class="ml-1 font-semibold tabular-nums text-text-primary">{missionCompletedTaskCount}/{missionTaskCount}</span>
+				</span>
+				<span class="rounded border border-surface-border bg-bg-secondary px-2 py-1 text-[10px] font-mono text-text-secondary">
+					<span class="text-text-tertiary">elapsed</span>
+					<span class="ml-1 font-semibold tabular-nums text-text-primary">{executionDuration}</span>
+				</span>
+				<span class="rounded border border-surface-border bg-bg-secondary px-2 py-1 text-[10px] font-mono text-text-secondary">
+					<span class="text-text-tertiary">mcp</span>
+					<span class="ml-1 font-semibold {mcpConnectedCount > 0 ? 'text-accent-primary' : 'text-text-primary'}">
+						{mcpConnectedCount > 0 ? mcpConnectedCount : 'local'}
+					</span>
+				</span>
+			</div>
 		</div>
 		<div class="justify-self-start rounded-md border border-surface-border bg-bg-secondary px-3 py-2 text-right sm:justify-self-end">
 			<div class="text-2xl font-semibold leading-none tabular-nums text-text-primary">
@@ -104,25 +166,83 @@
 		></div>
 	</div>
 
-	<div class="mt-3 grid grid-cols-3 gap-2">
-		<div class="rounded-md border border-surface-border bg-bg-secondary px-3 py-2">
-			<div class="text-[10px] font-mono uppercase tracking-[0.14em] text-text-tertiary">Tasks</div>
-			<div class="mt-1 text-sm font-semibold text-text-primary">
-				<span class="tabular-nums">{missionCompletedTaskCount}/{missionTaskCount}</span>
-				<span class="ml-1 font-medium text-text-tertiary">{missionTaskCount > 0 ? 'tasks done' : 'nodes'}</span>
+	{#if taskRows.length > 0}
+		<div class="mt-3 rounded-md border border-surface-border bg-bg-secondary/85 px-3 py-2">
+			<div class="flex flex-wrap items-center justify-between gap-3">
+				<div class="min-w-0">
+					<div class="flex min-w-0 items-center gap-2">
+						<span class="shrink-0 text-[10px] font-mono uppercase tracking-[0.14em] text-text-tertiary">Task flow</span>
+						<div class="flex max-w-full items-center gap-1.5 overflow-hidden">
+							{#each taskRows.slice(0, 16) as task}
+								<span
+									class="h-2 w-2 shrink-0 rounded-full {taskDotClass(task.status)}"
+									title={`#${task.index} ${task.title} - ${task.status}`}
+								></span>
+							{/each}
+							{#if taskRows.length > 16}
+								<span class="text-[10px] font-mono text-text-tertiary">+{taskRows.length - 16}</span>
+							{/if}
+						</div>
+						<span class="shrink-0 text-xs font-semibold tabular-nums text-text-primary">
+							{taskSummary.completed}/{taskRows.length}
+						</span>
+					</div>
+				</div>
+
+				<div class="grid grid-cols-2 gap-1.5 sm:grid-cols-4" aria-label="Task state summary">
+					{#each taskBuckets as bucket}
+						<div class="task-bucket relative">
+							<button
+								type="button"
+								class="task-bucket-trigger w-full rounded-md border border-surface-border bg-bg-primary px-2 py-1.5 text-right outline-none transition-colors hover:border-accent-primary/30 focus-visible:border-accent-primary"
+								aria-label={`${bucket.count} ${bucket.label} tasks`}
+							>
+								<div class="flex items-center justify-end gap-1.5">
+									<span class="h-1.5 w-1.5 rounded-full {bucket.dot}"></span>
+									<span class="text-sm font-semibold leading-none tabular-nums text-text-primary">{bucket.count}</span>
+								</div>
+								<div class="mt-1 text-[8.5px] font-semibold uppercase tracking-[0.08em] {bucket.tone}">
+									{bucket.label}
+								</div>
+							</button>
+							<div class="task-bucket-popover">
+								<div class="mb-1 flex items-center justify-between gap-3">
+									<span class="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] {bucket.tone}">
+										{bucket.label}
+									</span>
+									<span class="text-[10px] font-mono text-text-tertiary">{bucket.count}</span>
+								</div>
+								{#if bucket.tasks.length > 0}
+									<div class="space-y-1">
+										{#each bucket.tasks.slice(0, 6) as task}
+											<div class="min-w-0 rounded border border-surface-border bg-bg-secondary px-2 py-1.5">
+												<div class="truncate text-xs font-medium text-text-primary">#{task.index} {task.title}</div>
+												{#if task.message}
+													<div class="mt-0.5 truncate text-[10px] text-text-tertiary">{task.message}</div>
+												{/if}
+												{#if task.skills.length > 0}
+													<div class="mt-1 truncate text-[10px] font-mono text-text-tertiary">
+														{task.skills.slice(0, 3).join(' / ')}
+													</div>
+												{/if}
+											</div>
+										{/each}
+										{#if bucket.tasks.length > 6}
+											<div class="text-[10px] font-mono text-text-tertiary">+{bucket.tasks.length - 6} more</div>
+										{/if}
+									</div>
+								{:else}
+									<div class="rounded border border-surface-border bg-bg-secondary px-2 py-2 text-xs text-text-tertiary">
+										No tasks in this state.
+									</div>
+								{/if}
+							</div>
+						</div>
+					{/each}
+				</div>
 			</div>
 		</div>
-		<div class="rounded-md border border-surface-border bg-bg-secondary px-3 py-2">
-			<div class="text-[10px] font-mono uppercase tracking-[0.14em] text-text-tertiary">Elapsed</div>
-			<div class="mt-1 text-sm font-semibold tabular-nums text-text-primary">{executionDuration}</div>
-		</div>
-		<div class="rounded-md border border-surface-border bg-bg-secondary px-3 py-2">
-			<div class="text-[10px] font-mono uppercase tracking-[0.14em] text-text-tertiary">MCP</div>
-			<div class="mt-1 text-sm font-semibold {mcpConnectedCount > 0 ? 'text-accent-primary' : 'text-text-primary'}">
-				{mcpConnectedCount > 0 ? `${mcpConnectedCount} connected` : 'Local'}
-			</div>
-		</div>
-	</div>
+	{/if}
 
 	{#if executionProgress.multiLLMExecution?.enabled}
 		{@const multiPack = executionProgress.multiLLMExecution}
@@ -179,6 +299,28 @@
 			transparent 68% 100%
 		);
 		background-size: 20px 20px;
+	}
+
+	.task-bucket-popover {
+		position: absolute;
+		right: 0;
+		top: calc(100% + 8px);
+		z-index: 20;
+		display: none;
+		width: min(280px, 72vw);
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		background: rgb(var(--bg-rgb) / 0.98);
+		padding: 10px;
+		text-align: left;
+		box-shadow:
+			0 22px 60px rgb(0 0 0 / 0.45),
+			0 0 0 1px rgb(255 255 255 / 0.04);
+	}
+
+	.task-bucket:hover .task-bucket-popover,
+	.task-bucket:focus-within .task-bucket-popover {
+		display: block;
 	}
 </style>
 
