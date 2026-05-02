@@ -2,6 +2,7 @@
 	import Icon from './Icon.svelte';
 	import PipelineSelector from './PipelineSelector.svelte';
 	import BrandLogo from './BrandLogo.svelte';
+	import SkillSearchPalette from './SkillSearchPalette.svelte';
 	import { initPipelines } from '$lib/stores/pipelines.svelte';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
@@ -23,6 +24,8 @@
 		</div>
 
 		<div class="flex items-center gap-1 sm:gap-2">
+			<SkillSearchPalette />
+
 			<a
 				href="/canvas"
 				class="nav-pop group inline-flex items-center gap-2 px-2 py-2 font-sans text-[15px] font-medium text-text-secondary border border-transparent rounded-md sm:px-3.5"
