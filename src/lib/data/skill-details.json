@@ -1026,7 +1026,16 @@
         "meeting notes export",
         "notes export",
         "export meeting notes"
-      ]
+      ],
+      "negative_terms": [
+        "data table",
+        "filterable data table",
+        "searchable sortable",
+        "csv export",
+        "saved views",
+        "bulk actions"
+      ],
+      "penalty": 72
     }
   },
   "llm-architect": {
@@ -11850,13 +11859,14 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "penalty": 36,
+      "penalty": 72,
       "negative_terms": [
         "data table",
         "filterable data table",
         "searchable sortable",
         "csv export",
-        "saved views"
+        "saved views",
+        "bulk actions"
       ]
     }
   },
@@ -11964,7 +11974,7 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "penalty": 36,
+      "penalty": 72,
       "negative_terms": [
         "preview table",
         "data table",
@@ -12100,7 +12110,17 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "penalty": 72,
+      "negative_terms": [
+        "data table",
+        "filterable data table",
+        "searchable sortable",
+        "csv export",
+        "saved views",
+        "bulk actions"
+      ]
+    }
   },
   "drizzle-orm": {
     "id": "drizzle-orm",
@@ -12468,7 +12488,17 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "penalty": 72,
+      "negative_terms": [
+        "data table",
+        "filterable data table",
+        "searchable sortable",
+        "csv export",
+        "saved views",
+        "bulk actions"
+      ]
+    }
   },
   "redis-specialist": {
     "id": "redis-specialist",

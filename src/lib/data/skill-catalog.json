@@ -637,7 +637,16 @@
           "meeting notes export",
           "notes export",
           "export meeting notes"
-        ]
+        ],
+        "negative_terms": [
+          "data table",
+          "filterable data table",
+          "searchable sortable",
+          "csv export",
+          "saved views",
+          "bulk actions"
+        ],
+        "penalty": 72
       }
     },
     {
@@ -6655,13 +6664,14 @@
       "category": "data",
       "pairsWell": [],
       "selectionHints": {
-        "penalty": 36,
+        "penalty": 72,
         "negative_terms": [
           "data table",
           "filterable data table",
           "searchable sortable",
           "csv export",
-          "saved views"
+          "saved views",
+          "bulk actions"
         ]
       }
     },
@@ -6735,7 +6745,7 @@
       "category": "data",
       "pairsWell": [],
       "selectionHints": {
-        "penalty": 36,
+        "penalty": 72,
         "negative_terms": [
           "preview table",
           "data table",
@@ -6785,7 +6795,17 @@
       ],
       "category": "data",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "penalty": 72,
+        "negative_terms": [
+          "data table",
+          "filterable data table",
+          "searchable sortable",
+          "csv export",
+          "saved views",
+          "bulk actions"
+        ]
+      }
     },
     {
       "id": "drizzle-orm",
@@ -7006,7 +7026,17 @@
       ],
       "category": "data",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "penalty": 72,
+        "negative_terms": [
+          "data table",
+          "filterable data table",
+          "searchable sortable",
+          "csv export",
+          "saved views",
+          "bulk actions"
+        ]
+      }
     },
     {
       "id": "redis-specialist",
@@ -18792,7 +18822,16 @@
             "meeting notes export",
             "notes export",
             "export meeting notes"
-          ]
+          ],
+          "negative_terms": [
+            "data table",
+            "filterable data table",
+            "searchable sortable",
+            "csv export",
+            "saved views",
+            "bulk actions"
+          ],
+          "penalty": 72
         }
       },
       {
@@ -24830,13 +24869,14 @@
         "category": "data",
         "pairsWell": [],
         "selectionHints": {
-          "penalty": 36,
+          "penalty": 72,
           "negative_terms": [
             "data table",
             "filterable data table",
             "searchable sortable",
             "csv export",
-            "saved views"
+            "saved views",
+            "bulk actions"
           ]
         }
       },
@@ -24910,7 +24950,7 @@
         "category": "data",
         "pairsWell": [],
         "selectionHints": {
-          "penalty": 36,
+          "penalty": 72,
           "negative_terms": [
             "preview table",
             "data table",
@@ -24960,7 +25000,17 @@
         ],
         "category": "data",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "penalty": 72,
+          "negative_terms": [
+            "data table",
+            "filterable data table",
+            "searchable sortable",
+            "csv export",
+            "saved views",
+            "bulk actions"
+          ]
+        }
       },
       {
         "id": "drizzle-orm",
@@ -25181,7 +25231,17 @@
         ],
         "category": "data",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "penalty": 72,
+          "negative_terms": [
+            "data table",
+            "filterable data table",
+            "searchable sortable",
+            "csv export",
+            "saved views",
+            "bulk actions"
+          ]
+        }
       },
       {
         "id": "redis-specialist",
