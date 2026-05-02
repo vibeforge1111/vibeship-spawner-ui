@@ -23,7 +23,7 @@
 
 <svelte:head>
 	<title>Skills · spawner</title>
-	<meta name="description" content="Browse the 593-skill spark-skill-graphs catalog: H70-C+ format, 33 categories." />
+	<meta name="description" content="Browse the Spark skill graph catalog: 30 free starter skills plus the Pro catalog." />
 </svelte:head>
 
 <div class="min-h-screen bg-bg-primary flex flex-col">
@@ -36,6 +36,9 @@
 			<h1 class="text-2xl font-sans font-semibold text-text-primary tracking-tight">
 				{$skillCounts.total} skills across {Object.keys($categoryCounts ?? {}).length} categories
 			</h1>
+			<p class="mt-2 text-sm text-text-secondary">
+				{$skillCounts.free} free starter skills. Pro unlocks {$skillCounts.premium} more specialist skills for deeper missions.
+			</p>
 		</header>
 
 		<!-- Main Content Area -->

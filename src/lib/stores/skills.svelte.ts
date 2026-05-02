@@ -4,6 +4,7 @@ import { browser } from '$app/environment';
 import { mcpClient, type McpSkill } from '$lib/services/mcp-client';
 import { mcpState } from './mcp.svelte';
 import { StoredSkillArraySchema, safeJsonParse } from '$lib/types/schemas';
+import { applySkillEntitlements } from '$lib/skill-entitlements';
 
 const GENERATED_SKILLS_KEY = 'spawner-generated-skills';
 
@@ -59,6 +60,8 @@ interface RawSkillData {
 	description?: string;
 	category?: string;
 	tier?: string;
+	requiresAuth?: boolean;
+	fallbackAvailable?: boolean;
 	tags?: string[];
 	triggers?: string[];
 	handoffs?: { trigger: string; to: string }[];
@@ -235,17 +238,17 @@ export async function loadSkillsStatic() {
 		}
 		const data = await response.json();
 
-		const loadedSkills: Skill[] = (data as RawSkillData[]).map((s) => ({
-			id: s.id,
-			name: s.name,
-			description: s.description || '',
-			category: (s.category as SkillCategory) || 'development',
-			tier: (s.tier as SkillTier) || 'free',
-			tags: s.tags || [],
-			triggers: s.triggers || [],
-			handoffs: s.handoffs || [],
-			pairsWell: s.pairsWell || []
-		}));
+		const loadedSkills: Skill[] = applySkillEntitlements(data as RawSkillData[]).map((s) => ({
+				id: s.id,
+				name: s.name,
+				description: s.description || '',
+				category: (s.category as SkillCategory) || 'development',
+				tier: (s.tier as SkillTier) || 'free',
+				tags: s.tags || [],
+				triggers: s.triggers || [],
+				handoffs: s.handoffs || [],
+				pairsWell: s.pairsWell || []
+			}));
 
 		// Clear old generated skills from localStorage to prevent pollution
 		// Each PRD analysis should start fresh with only real H70 skills

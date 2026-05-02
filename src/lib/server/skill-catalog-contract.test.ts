@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'fs';
 import { basename, join, resolve } from 'path';
 import { parse as parseYaml } from 'yaml';
 import { describe, expect, it } from 'vitest';
+import { FREE_SKILL_IDS } from '$lib/skill-entitlements';
 
 const sourceDir = resolve(process.env.SPAWNER_H70_SKILLS_DIR || 'C:/Users/USER/Desktop/spark-skill-graphs');
 const staticSkillsPath = resolve('static/skills.json');
@@ -126,6 +127,29 @@ describe('synced skill catalog', () => {
 			for (const skillId of chain.chain || []) {
 				expect(staticIds.has(skillId)).toBe(true);
 			}
+		}
+	});
+
+	it('publishes exactly the public starter skills as free and gates the rest as Pro', () => {
+		const staticSkills: Array<{
+			id: string;
+			tier?: string;
+			requiresAuth?: boolean;
+			fallbackAvailable?: boolean;
+		}> = JSON.parse(readFileSync(staticSkillsPath, 'utf8'));
+		const freeIds = new Set<string>(FREE_SKILL_IDS);
+		const freeSkills = staticSkills.filter((skill) => skill.tier === 'free');
+		const proSkills = staticSkills.filter((skill) => skill.tier === 'premium');
+
+		expect(freeSkills.map((skill) => skill.id).sort()).toEqual([...freeIds].sort());
+		expect(freeSkills).toHaveLength(30);
+		expect(proSkills.length).toBeGreaterThan(500);
+
+		for (const skill of staticSkills) {
+			const isFree = freeIds.has(skill.id);
+			expect(skill.tier).toBe(isFree ? 'free' : 'premium');
+			expect(skill.requiresAuth).toBe(!isFree);
+			expect(skill.fallbackAvailable).toBe(true);
 		}
 	});
 });
