@@ -153,6 +153,197 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		prompt: 'Build a social community app with profiles, feed, likes, comments, moderation, and notifications',
 		mustInclude: ['social-features', 'push-notifications'],
 		anyOf: [['social-community', 'community-building', 'community-strategy']]
+	},
+	{
+		name: 'File upload storage',
+		prompt: 'Add file upload with S3-compatible storage, image optimization, signed URLs, and upload validation',
+		mustInclude: ['file-uploads'],
+		anyOf: [['image-optimization-cdn'], ['forms-validation', 'zod-validation']]
+	},
+	{
+		name: 'Webhook ingestion',
+		prompt: 'Implement webhook ingestion with signature verification, retries, idempotency, and event logging',
+		mustInclude: ['webhook-processing'],
+		anyOf: [['logging-strategies', 'audit-logging'], ['observability']]
+	},
+	{
+		name: 'Postgres migrations',
+		prompt: 'Design a Postgres schema with migrations, Drizzle ORM, tenant-aware data model, and indexes',
+		mustInclude: ['drizzle-orm', 'database-schema-design', 'database-migrations'],
+		anyOf: [['postgres-wizard', 'database-architect']]
+	},
+	{
+		name: 'Faceted search',
+		prompt: 'Build faceted search with Algolia, filters, sorting, typo tolerance, and semantic fallback',
+		mustInclude: ['algolia-search', 'search-implementation'],
+		anyOf: [['semantic-search']]
+	},
+	{
+		name: 'Queue workers',
+		prompt: 'Add queue workers for background jobs with retries, dead letters, and scheduled cron tasks',
+		mustInclude: ['queue-workers', 'cron-scheduled-jobs'],
+		anyOf: [['pg-boss', 'trigger-dev', 'upstash-qstash']]
+	},
+	{
+		name: 'Next.js frontend',
+		prompt: 'Build a Next.js app router frontend with server actions, middleware auth, and Tailwind UI',
+		mustInclude: ['nextjs-app-router', 'nextjs-server-actions', 'tailwind-ui'],
+		anyOf: [['auth-specialist', 'clerk-auth', 'authentication-oauth'], ['frontend']]
+	},
+	{
+		name: 'Form validation',
+		prompt: 'Add form validation with Zod schemas, accessible errors, and multi-step wizard state',
+		mustInclude: ['zod-validation', 'forms-validation'],
+		anyOf: [['state-management', 'accessibility']]
+	},
+	{
+		name: 'API abuse defense',
+		prompt: 'Implement rate limiting and API security for a public REST API with abuse monitoring',
+		mustInclude: ['api-security', 'rate-limiting'],
+		anyOf: [['api-design', 'api-designer'], ['observability', 'threat-modeling']]
+	},
+	{
+		name: 'Observability stack',
+		prompt: 'Add observability with structured logs, traces, metrics, alerts, and Sentry error tracking',
+		mustInclude: ['observability', 'sentry-error-tracking'],
+		anyOf: [['observability-sre', 'ai-observability', 'langfuse']]
+	},
+	{
+		name: 'API error handling',
+		prompt: 'Add robust API error handling with typed error responses, retry-safe failures, logging, and user-facing fallbacks',
+		mustInclude: ['error-handling', 'logging-strategies'],
+		anyOf: [['api-design', 'api-designer'], ['observability', 'sentry-error-tracking']]
+	},
+	{
+		name: 'Admin dashboard',
+		prompt: 'Build an admin dashboard with TanStack Table, charts, filters, RBAC, and audit logs',
+		mustInclude: ['tanstack-table', 'audit-logging', 'rbac-enterprise'],
+		anyOf: [['analytics-architecture', 'data-engineer']]
+	},
+	{
+		name: 'Telegram mini app',
+		prompt: 'Create a Telegram bot mini app with payments, notifications, and community onboarding',
+		mustInclude: ['telegram-bot-builder', 'telegram-mini-app'],
+		anyOf: [['stripe-integration'], ['push-notifications'], ['community-operations', 'community-building']]
+	},
+	{
+		name: 'Shopify storefront',
+		prompt: 'Build a Shopify storefront with Liquid theme edits, checkout extensions, product catalog, and Klaviyo email',
+		mustInclude: ['shopify-store-builder', 'klaviyo-ecommerce'],
+		anyOf: [['ecommerce-cart-checkout'], ['resend-email', 'email-deliverability', 'email-systems']]
+	},
+	{
+		name: 'Internationalization',
+		prompt: 'Add internationalization with locale routing, translation files, pluralization, and RTL layout',
+		mustInclude: ['i18n']
+	},
+	{
+		name: 'Desktop app',
+		prompt: 'Build a desktop app with Tauri, local storage, auto-updates, and native file access',
+		mustInclude: ['tauri-desktop'],
+		anyOf: [['local-first-sync'], ['file-uploads']]
+	},
+	{
+		name: 'Chrome extension task',
+		prompt: 'Create a Chrome extension with content scripts, background service worker, and Playwright tests',
+		mustInclude: ['browser-extension-builder', 'playwright-testing'],
+		anyOf: [['browser-automation']]
+	},
+	{
+		name: 'Passkeys auth',
+		prompt: 'Add passkeys and WebAuthn login with session security and OAuth fallback',
+		mustInclude: ['passkeys-webauthn', 'authentication-oauth', 'auth-specialist'],
+		anyOf: [['security', 'security-hardening']]
+	},
+	{
+		name: 'Supabase backend',
+		prompt: 'Build a Supabase backend with RLS policies, auth, edge functions, and storage buckets',
+		mustInclude: ['supabase-backend', 'supabase-security', 'supabase-auth-rls'],
+		anyOf: [['auth-specialist', 'nextjs-supabase-auth'], ['database-architect']]
+	},
+	{
+		name: 'Claude Code CI',
+		prompt: 'Set up CI/CD for Claude Code commands, hooks, testing automation, and release notes',
+		mustInclude: ['claude-code-commands', 'claude-code-cicd', 'claude-code-hooks', 'testing-automation'],
+		anyOf: [['automation', 'ai-workflow-automation']]
+	},
+	{
+		name: 'GraphQL API',
+		prompt: 'Build a GraphQL API with schema design, resolvers, subscriptions, and auth guards',
+		mustInclude: ['graphql', 'graphql-architect'],
+		anyOf: [['auth-specialist', 'authentication-oauth'], ['api-design', 'api-designer']]
+	},
+	{
+		name: 'Caching stack',
+		prompt: 'Add caching with Redis, CDN headers, TanStack Query, and invalidation rules',
+		mustInclude: ['tanstack-query', 'caching-patterns', 'redis-specialist'],
+		anyOf: [['image-optimization-cdn']]
+	},
+	{
+		name: 'Video streaming',
+		prompt: 'Create a video streaming feature with upload processing, transcoding, thumbnails, and playback analytics',
+		mustInclude: ['video-streaming-infrastructure', 'video-embedding-streaming'],
+		anyOf: [['analytics', 'analytics-architecture'], ['ai-video-generation']]
+	},
+	{
+		name: 'Slack bot',
+		prompt: 'Build a Slack bot with slash commands, OAuth install flow, webhooks, and alerts',
+		mustInclude: ['slack-bot-builder', 'authentication-oauth'],
+		anyOf: [['webhook-processing', 'discord-bot-architect', 'telegram-bot-builder']]
+	},
+	{
+		name: 'Onboarding analytics',
+		prompt: 'Design onboarding flows with activation analytics, lifecycle emails, and conversion experiments',
+		mustInclude: ['onboarding-flows', 'analytics', 'conversion-rate-optimization'],
+		anyOf: [['experimental-design', 'product-analytics-engineering']]
+	},
+	{
+		name: 'Enterprise SaaS',
+		prompt: 'Build a multi-tenant enterprise SaaS with RBAC, SSO SAML, SCIM provisioning, and audit logs',
+		mustInclude: ['saas-teams-organizations', 'rbac-enterprise', 'sso-saml', 'scim-provisioning', 'audit-logging'],
+		anyOf: [['multi-tenancy']]
+	},
+	{
+		name: 'Security platform hardening',
+		prompt: 'Implement secrets management, container security, supply chain scanning, and threat modeling',
+		mustInclude: ['secrets-management', 'container-security', 'threat-modeling'],
+		anyOf: [['security', 'security-engineer', 'cybersecurity'], ['supply-chain-security']]
+	},
+	{
+		name: 'Fintech integration',
+		prompt: 'Build a fintech integration with Plaid, Stripe payouts, ledger reconciliation, and risk checks',
+		mustInclude: ['fintech-integration', 'plaid-fintech', 'stripe-integration'],
+		anyOf: [['risk-modeling', 'risk-management-trading']]
+	},
+	{
+		name: 'Course platform',
+		prompt: 'Create a course platform with live education, student progress, content modules, and community support',
+		mustInclude: ['live-education', 'course-creation'],
+		anyOf: [['education-platforms', 'education-business'], ['customer-support', 'community-building']]
+	},
+	{
+		name: 'Monorepo devex',
+		prompt: 'Set up monorepo management with Turborepo, package publishing, TypeScript strictness, and developer experience',
+		mustInclude: ['monorepo-management', 'turborepo-monorepo', 'npm-publishing', 'developer-experience'],
+		anyOf: [['typescript-strict']]
+	},
+	{
+		name: 'Serverless edge API',
+		prompt: 'Build a serverless edge API with Hono, Cloudflare Workers, rate limits, and durable caching',
+		mustInclude: ['cloudflare-workers-deep', 'hono-edge', 'rate-limiting'],
+		anyOf: [['edge-first-architecture'], ['caching-patterns']]
+	},
+	{
+		name: 'AI evaluation harness',
+		prompt: 'Create an AI evaluation harness with Langfuse tracing, RAGAS metrics, prompt caching, and regression tests',
+		mustInclude: ['langfuse', 'prompt-caching', 'agent-evaluation'],
+		anyOf: [['observability', 'ai-observability']]
+	},
+	{
+		name: 'Computer-use browser agent',
+		prompt: 'Build computer-use agent browser automation with Playwright, screenshots, and tool-use safety',
+		mustInclude: ['computer-use-agents', 'browser-automation', 'playwright-testing'],
+		anyOf: [['agent-tool-builder'], ['ai-safety-alignment', 'testing-automation']]
 	}
 ];
 

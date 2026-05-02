@@ -10302,7 +10302,18 @@
       ],
       "category": "frameworks",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "boost": 52,
+        "aliases": [
+          "typescript strictness",
+          "ts strict"
+        ],
+        "boost_terms": [
+          "typescript strictness",
+          "typescript strict mode",
+          "type safety"
+        ]
+      }
     },
     {
       "id": "accessibility",
@@ -15948,7 +15959,18 @@
       ],
       "category": "security",
       "pairsWell": [],
-      "selectionHints": {}
+      "selectionHints": {
+        "boost": 54,
+        "aliases": [
+          "supply chain scanning",
+          "dependency scanning"
+        ],
+        "boost_terms": [
+          "supply chain scanning",
+          "supply chain hardening",
+          "dependency provenance"
+        ]
+      }
     },
     {
       "id": "threat-modeling",
@@ -28028,7 +28050,18 @@
         ],
         "category": "frameworks",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "boost": 52,
+          "aliases": [
+            "typescript strictness",
+            "ts strict"
+          ],
+          "boost_terms": [
+            "typescript strictness",
+            "typescript strict mode",
+            "type safety"
+          ]
+        }
       }
     ],
     "frontend": [
@@ -33694,7 +33727,18 @@
         ],
         "category": "security",
         "pairsWell": [],
-        "selectionHints": {}
+        "selectionHints": {
+          "boost": 54,
+          "aliases": [
+            "supply chain scanning",
+            "dependency scanning"
+          ],
+          "boost_terms": [
+            "supply chain scanning",
+            "supply chain hardening",
+            "dependency provenance"
+          ]
+        }
       },
       {
         "id": "threat-modeling",

@@ -6778,7 +6778,18 @@
       "typescript strict mode configuration"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "boost": 52,
+      "aliases": [
+        "typescript strictness",
+        "ts strict"
+      ],
+      "boost_terms": [
+        "typescript strictness",
+        "typescript strict mode",
+        "type safety"
+      ]
+    }
   },
   {
     "id": "accessibility",
@@ -10567,7 +10578,18 @@
       "sbom"
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "boost": 54,
+      "aliases": [
+        "supply chain scanning",
+        "dependency scanning"
+      ],
+      "boost_terms": [
+        "supply chain scanning",
+        "supply chain hardening",
+        "dependency provenance"
+      ]
+    }
   },
   {
     "id": "threat-modeling",

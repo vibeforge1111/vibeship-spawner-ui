@@ -1,10 +1,10 @@
 {
   "summary": {
-    "caseCount": 18,
-    "passCount": 18,
+    "caseCount": 50,
+    "passCount": 50,
     "passRate": 1,
-    "averageScore": 0.9467611111111108,
-    "averageLabeledPrecisionAtK": 0.46759259259259267,
+    "averageScore": 0.9551980000000004,
+    "averageLabeledPrecisionAtK": 0.5519761904761907,
     "averageRequiredRecall": 1,
     "averageAnyOfRecall": 1,
     "averageMustNotCleanRate": 1,
@@ -567,6 +567,975 @@
         "social-features",
         "push-notifications",
         "community-building"
+      ]
+    },
+    {
+      "name": "File upload storage",
+      "prompt": "Add file upload with S3-compatible storage, image optimization, signed URLs, and upload validation",
+      "ids": [
+        "file-uploads",
+        "image-optimization-cdn",
+        "conversion-rate-optimization",
+        "docker",
+        "ai-image-generation",
+        "cloud-cost-optimization",
+        "codebase-optimization",
+        "forms-validation",
+        "model-optimization",
+        "performance-optimization"
+      ],
+      "pass": true,
+      "score": 0.93,
+      "labeledPrecisionAtK": 0.3,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "file-uploads",
+        "image-optimization-cdn",
+        "forms-validation"
+      ]
+    },
+    {
+      "name": "Webhook ingestion",
+      "prompt": "Implement webhook ingestion with signature verification, retries, idempotency, and event logging",
+      "ids": [
+        "webhook-processing",
+        "discrete-event-simulation",
+        "logging-strategies",
+        "audit-logging",
+        "fintech-integration",
+        "observability"
+      ],
+      "pass": true,
+      "score": 0.9667,
+      "labeledPrecisionAtK": 0.6666666666666666,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "webhook-processing",
+        "logging-strategies",
+        "audit-logging",
+        "observability"
+      ]
+    },
+    {
+      "name": "Postgres migrations",
+      "prompt": "Design a Postgres schema with migrations, Drizzle ORM, tenant-aware data model, and indexes",
+      "ids": [
+        "drizzle-orm",
+        "database-schema-design",
+        "database-architect",
+        "graphql",
+        "redis-specialist",
+        "business-model-design",
+        "database-migrations",
+        "prisma",
+        "postgres-wizard",
+        "combat-design"
+      ],
+      "pass": true,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "drizzle-orm",
+        "database-schema-design",
+        "database-architect",
+        "database-migrations",
+        "postgres-wizard"
+      ]
+    },
+    {
+      "name": "Faceted search",
+      "prompt": "Build faceted search with Algolia, filters, sorting, typo tolerance, and semantic fallback",
+      "ids": [
+        "algolia-search",
+        "semantic-search",
+        "neural-architecture-search",
+        "search-implementation",
+        "rag-implementation"
+      ],
+      "pass": true,
+      "score": 0.96,
+      "labeledPrecisionAtK": 0.6,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "algolia-search",
+        "semantic-search",
+        "search-implementation"
+      ]
+    },
+    {
+      "name": "Queue workers",
+      "prompt": "Add queue workers for background jobs with retries, dead letters, and scheduled cron tasks",
+      "ids": [
+        "queue-workers",
+        "cron-scheduled-jobs",
+        "pg-boss",
+        "cloudflare-workers-deep",
+        "trigger-dev",
+        "upstash-qstash"
+      ],
+      "pass": true,
+      "score": 0.9833,
+      "labeledPrecisionAtK": 0.8333333333333334,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "queue-workers",
+        "cron-scheduled-jobs",
+        "pg-boss",
+        "trigger-dev",
+        "upstash-qstash"
+      ]
+    },
+    {
+      "name": "Next.js frontend",
+      "prompt": "Build a Next.js app router frontend with server actions, middleware auth, and Tailwind UI",
+      "ids": [
+        "frontend",
+        "tailwind-ui",
+        "auth-specialist",
+        "nextjs-server-actions",
+        "nextjs-app-router",
+        "clerk-auth",
+        "server-sent-events",
+        "framer-motion-react",
+        "state-management",
+        "sveltekit"
+      ],
+      "pass": true,
+      "score": 0.96,
+      "labeledPrecisionAtK": 0.6,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "frontend",
+        "tailwind-ui",
+        "auth-specialist",
+        "nextjs-server-actions",
+        "nextjs-app-router",
+        "clerk-auth"
+      ]
+    },
+    {
+      "name": "Form validation",
+      "prompt": "Add form validation with Zod schemas, accessible errors, and multi-step wizard state",
+      "ids": [
+        "zod-validation",
+        "forms-validation",
+        "postgres-wizard",
+        "state-management",
+        "mcp-server-development"
+      ],
+      "pass": true,
+      "score": 0.96,
+      "labeledPrecisionAtK": 0.6,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "zod-validation",
+        "forms-validation",
+        "state-management"
+      ]
+    },
+    {
+      "name": "API abuse defense",
+      "prompt": "Implement rate limiting and API security for a public REST API with abuse monitoring",
+      "ids": [
+        "api-security",
+        "rate-limiting",
+        "security",
+        "api-design",
+        "api-designer",
+        "observability",
+        "auth-specialist",
+        "threat-modeling",
+        "authentication-oauth",
+        "caching-patterns"
+      ],
+      "pass": true,
+      "score": 0.96,
+      "labeledPrecisionAtK": 0.6,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "api-security",
+        "rate-limiting",
+        "api-design",
+        "api-designer",
+        "observability",
+        "threat-modeling"
+      ]
+    },
+    {
+      "name": "Observability stack",
+      "prompt": "Add observability with structured logs, traces, metrics, alerts, and Sentry error tracking",
+      "ids": [
+        "observability",
+        "sentry-error-tracking",
+        "postgres-wizard",
+        "observability-sre",
+        "ai-observability",
+        "sustainability-metrics",
+        "langfuse",
+        "data-pipeline"
+      ],
+      "pass": true,
+      "score": 0.9625,
+      "labeledPrecisionAtK": 0.625,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "observability",
+        "sentry-error-tracking",
+        "observability-sre",
+        "ai-observability",
+        "langfuse"
+      ]
+    },
+    {
+      "name": "API error handling",
+      "prompt": "Add robust API error handling with typed error responses, retry-safe failures, logging, and user-facing fallbacks",
+      "ids": [
+        "error-handling",
+        "sentry-error-tracking",
+        "observability",
+        "api-design",
+        "microservices-patterns",
+        "logging-strategies",
+        "twilio-communications",
+        "automation",
+        "plaid-fintech",
+        "agent-tool-builder"
+      ],
+      "pass": true,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "error-handling",
+        "sentry-error-tracking",
+        "observability",
+        "api-design",
+        "logging-strategies"
+      ]
+    },
+    {
+      "name": "Admin dashboard",
+      "prompt": "Build an admin dashboard with TanStack Table, charts, filters, RBAC, and audit logs",
+      "ids": [
+        "tanstack-table",
+        "analytics-architecture",
+        "audit-logging",
+        "rbac-enterprise",
+        "data-engineer"
+      ],
+      "pass": true,
+      "score": 1,
+      "labeledPrecisionAtK": 1,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "tanstack-table",
+        "analytics-architecture",
+        "audit-logging",
+        "rbac-enterprise",
+        "data-engineer"
+      ]
+    },
+    {
+      "name": "Telegram mini app",
+      "prompt": "Create a Telegram bot mini app with payments, notifications, and community onboarding",
+      "ids": [
+        "telegram-bot-builder",
+        "telegram-mini-app",
+        "web3-community",
+        "push-notifications",
+        "stripe-integration",
+        "telegram-mastery",
+        "community-operations",
+        "community-analytics",
+        "community-building",
+        "community-led-growth"
+      ],
+      "pass": true,
+      "score": 0.96,
+      "labeledPrecisionAtK": 0.6,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "telegram-bot-builder",
+        "telegram-mini-app",
+        "push-notifications",
+        "stripe-integration",
+        "community-operations",
+        "community-building"
+      ]
+    },
+    {
+      "name": "Shopify storefront",
+      "prompt": "Build a Shopify storefront with Liquid theme edits, checkout extensions, product catalog, and Klaviyo email",
+      "ids": [
+        "ecommerce-cart-checkout",
+        "resend-email",
+        "shopify-store-builder",
+        "klaviyo-ecommerce",
+        "digital-product-delivery",
+        "ai-product",
+        "ai-wrapper-product",
+        "email-deliverability",
+        "email-systems",
+        "mcp-product"
+      ],
+      "pass": true,
+      "score": 0.96,
+      "labeledPrecisionAtK": 0.6,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "ecommerce-cart-checkout",
+        "resend-email",
+        "shopify-store-builder",
+        "klaviyo-ecommerce",
+        "email-deliverability",
+        "email-systems"
+      ]
+    },
+    {
+      "name": "Internationalization",
+      "prompt": "Add internationalization with locale routing, translation files, pluralization, and RTL layout",
+      "ids": [
+        "i18n"
+      ],
+      "pass": true,
+      "score": 1,
+      "labeledPrecisionAtK": 1,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "i18n"
+      ]
+    },
+    {
+      "name": "Desktop app",
+      "prompt": "Build a desktop app with Tauri, local storage, auto-updates, and native file access",
+      "ids": [
+        "tauri-desktop",
+        "file-uploads",
+        "local-first-sync",
+        "react-native-specialist",
+        "secrets-management"
+      ],
+      "pass": true,
+      "score": 0.96,
+      "labeledPrecisionAtK": 0.6,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "tauri-desktop",
+        "file-uploads",
+        "local-first-sync"
+      ]
+    },
+    {
+      "name": "Chrome extension task",
+      "prompt": "Create a Chrome extension with content scripts, background service worker, and Playwright tests",
+      "ids": [
+        "browser-extension-builder",
+        "ai-content-analytics",
+        "ai-content-qa",
+        "content-creation",
+        "content-strategy",
+        "microservices-patterns",
+        "playwright-testing",
+        "real-time-content",
+        "queue-workers",
+        "browser-automation"
+      ],
+      "pass": true,
+      "score": 0.93,
+      "labeledPrecisionAtK": 0.3,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "browser-extension-builder",
+        "playwright-testing",
+        "browser-automation"
+      ]
+    },
+    {
+      "name": "Passkeys auth",
+      "prompt": "Add passkeys and WebAuthn login with session security and OAuth fallback",
+      "ids": [
+        "security",
+        "authentication-oauth",
+        "auth-specialist",
+        "passkeys-webauthn",
+        "cybersecurity",
+        "security-engineer",
+        "security-hardening",
+        "security-owasp",
+        "mcp-security",
+        "session-recording-analytics"
+      ],
+      "pass": true,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "security",
+        "authentication-oauth",
+        "auth-specialist",
+        "passkeys-webauthn",
+        "security-hardening"
+      ]
+    },
+    {
+      "name": "Supabase backend",
+      "prompt": "Build a Supabase backend with RLS policies, auth, edge functions, and storage buckets",
+      "ids": [
+        "supabase-backend",
+        "backend",
+        "auth-specialist",
+        "supabase-security",
+        "nextjs-supabase-auth",
+        "supabase-auth-rls",
+        "api-design",
+        "database-architect",
+        "backend-engineer",
+        "clerk-auth"
+      ],
+      "pass": true,
+      "score": 0.96,
+      "labeledPrecisionAtK": 0.6,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "supabase-backend",
+        "auth-specialist",
+        "supabase-security",
+        "nextjs-supabase-auth",
+        "supabase-auth-rls",
+        "database-architect"
+      ]
+    },
+    {
+      "name": "Claude Code CI",
+      "prompt": "Set up CI/CD for Claude Code commands, hooks, testing automation, and release notes",
+      "ids": [
+        "testing-automation",
+        "claude-code-commands",
+        "automation",
+        "claude-code-cicd",
+        "claude-code-hooks",
+        "claude-code-prompting",
+        "a-b-testing",
+        "ai-code-generation",
+        "ai-workflow-automation",
+        "code-architecture-review"
+      ],
+      "pass": true,
+      "score": 0.96,
+      "labeledPrecisionAtK": 0.6,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "testing-automation",
+        "claude-code-commands",
+        "automation",
+        "claude-code-cicd",
+        "claude-code-hooks",
+        "ai-workflow-automation"
+      ]
+    },
+    {
+      "name": "GraphQL API",
+      "prompt": "Build a GraphQL API with schema design, resolvers, subscriptions, and auth guards",
+      "ids": [
+        "graphql",
+        "graphql-architect",
+        "auth-specialist",
+        "api-designer",
+        "authentication-oauth",
+        "stripe-subscriptions",
+        "api-design",
+        "database-architect",
+        "subscription-billing",
+        "backend-engineer"
+      ],
+      "pass": true,
+      "score": 0.96,
+      "labeledPrecisionAtK": 0.6,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "graphql",
+        "graphql-architect",
+        "auth-specialist",
+        "api-designer",
+        "authentication-oauth",
+        "api-design"
+      ]
+    },
+    {
+      "name": "Caching stack",
+      "prompt": "Add caching with Redis, CDN headers, TanStack Query, and invalidation rules",
+      "ids": [
+        "tanstack-query",
+        "caching-patterns",
+        "redis-specialist",
+        "image-optimization-cdn",
+        "cursor-ai"
+      ],
+      "pass": true,
+      "score": 0.98,
+      "labeledPrecisionAtK": 0.8,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "tanstack-query",
+        "caching-patterns",
+        "redis-specialist",
+        "image-optimization-cdn"
+      ]
+    },
+    {
+      "name": "Video streaming",
+      "prompt": "Create a video streaming feature with upload processing, transcoding, thumbnails, and playback analytics",
+      "ids": [
+        "analytics",
+        "video-streaming-infrastructure",
+        "video-embedding-streaming",
+        "data-engineer",
+        "analytics-architecture",
+        "ai-content-analytics",
+        "ai-video-generation",
+        "community-analytics",
+        "onchain-analytics",
+        "plausible-analytics"
+      ],
+      "pass": true,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "analytics",
+        "video-streaming-infrastructure",
+        "video-embedding-streaming",
+        "analytics-architecture",
+        "ai-video-generation"
+      ]
+    },
+    {
+      "name": "Slack bot",
+      "prompt": "Build a Slack bot with slash commands, OAuth install flow, webhooks, and alerts",
+      "ids": [
+        "slack-bot-builder",
+        "authentication-oauth",
+        "discord-bot-architect",
+        "claude-code-commands",
+        "telegram-bot-builder",
+        "cryptography",
+        "security-hardening",
+        "security-owasp"
+      ],
+      "pass": true,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "slack-bot-builder",
+        "authentication-oauth",
+        "discord-bot-architect",
+        "telegram-bot-builder"
+      ]
+    },
+    {
+      "name": "Onboarding analytics",
+      "prompt": "Design onboarding flows with activation analytics, lifecycle emails, and conversion experiments",
+      "ids": [
+        "onboarding-flows",
+        "analytics",
+        "data-engineer",
+        "analytics-architecture",
+        "community-analytics",
+        "player-onboarding",
+        "conversion-rate-optimization",
+        "experimental-design",
+        "product-analytics-engineering",
+        "firebase"
+      ],
+      "pass": true,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "onboarding-flows",
+        "analytics",
+        "conversion-rate-optimization",
+        "experimental-design",
+        "product-analytics-engineering"
+      ]
+    },
+    {
+      "name": "Enterprise SaaS",
+      "prompt": "Build a multi-tenant enterprise SaaS with RBAC, SSO SAML, SCIM provisioning, and audit logs",
+      "ids": [
+        "scim-provisioning",
+        "sso-saml",
+        "saas-teams-organizations",
+        "rbac-enterprise",
+        "multi-tenancy",
+        "micro-saas-launcher",
+        "audit-logging"
+      ],
+      "pass": true,
+      "score": 0.9857,
+      "labeledPrecisionAtK": 0.8571428571428571,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "scim-provisioning",
+        "sso-saml",
+        "saas-teams-organizations",
+        "rbac-enterprise",
+        "multi-tenancy",
+        "audit-logging"
+      ]
+    },
+    {
+      "name": "Security platform hardening",
+      "prompt": "Implement secrets management, container security, supply chain scanning, and threat modeling",
+      "ids": [
+        "secrets-management",
+        "threat-modeling",
+        "container-security",
+        "security",
+        "supply-chain-security",
+        "cybersecurity",
+        "ai-code-security",
+        "api-security",
+        "compliance-automation",
+        "identity-access-management"
+      ],
+      "pass": true,
+      "score": 0.96,
+      "labeledPrecisionAtK": 0.6,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "secrets-management",
+        "threat-modeling",
+        "container-security",
+        "security",
+        "supply-chain-security",
+        "cybersecurity"
+      ]
+    },
+    {
+      "name": "Fintech integration",
+      "prompt": "Build a fintech integration with Plaid, Stripe payouts, ledger reconciliation, and risk checks",
+      "ids": [
+        "fintech-integration",
+        "stripe-integration",
+        "plaid-fintech",
+        "risk-modeling",
+        "risk-management-trading",
+        "godot-llm-integration",
+        "headless-cms-integration",
+        "hubspot-integration",
+        "integration-patterns",
+        "unity-llm-integration"
+      ],
+      "pass": true,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "fintech-integration",
+        "stripe-integration",
+        "plaid-fintech",
+        "risk-modeling",
+        "risk-management-trading"
+      ]
+    },
+    {
+      "name": "Course platform",
+      "prompt": "Create a course platform with live education, student progress, content modules, and community support",
+      "ids": [
+        "live-education",
+        "web3-community",
+        "education-platforms",
+        "education-business",
+        "community-operations",
+        "course-creation",
+        "customer-support",
+        "community-building",
+        "community-led-growth",
+        "developer-community"
+      ],
+      "pass": true,
+      "score": 0.96,
+      "labeledPrecisionAtK": 0.6,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "live-education",
+        "education-platforms",
+        "education-business",
+        "course-creation",
+        "customer-support",
+        "community-building"
+      ]
+    },
+    {
+      "name": "Monorepo devex",
+      "prompt": "Set up monorepo management with Turborepo, package publishing, TypeScript strictness, and developer experience",
+      "ids": [
+        "developer-experience",
+        "monorepo-management",
+        "typescript-strict",
+        "turborepo-monorepo",
+        "developer-community",
+        "npm-publishing",
+        "3d-web-experience",
+        "burn-rate-management",
+        "context-window-management",
+        "learning-experience"
+      ],
+      "pass": true,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "developer-experience",
+        "monorepo-management",
+        "typescript-strict",
+        "turborepo-monorepo",
+        "npm-publishing"
+      ]
+    },
+    {
+      "name": "Serverless edge API",
+      "prompt": "Build a serverless edge API with Hono, Cloudflare Workers, rate limits, and durable caching",
+      "ids": [
+        "cloudflare-workers-deep",
+        "hono-edge",
+        "edge-first-architecture",
+        "rate-limiting",
+        "aws-serverless",
+        "caching-patterns",
+        "queue-workers",
+        "api-design",
+        "api-designer",
+        "burn-rate-management"
+      ],
+      "pass": true,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "cloudflare-workers-deep",
+        "hono-edge",
+        "edge-first-architecture",
+        "rate-limiting",
+        "caching-patterns"
+      ]
+    },
+    {
+      "name": "AI evaluation harness",
+      "prompt": "Create an AI evaluation harness with Langfuse tracing, RAGAS metrics, prompt caching, and regression tests",
+      "ids": [
+        "prompt-caching",
+        "langfuse",
+        "observability",
+        "ai-observability",
+        "caching-patterns",
+        "prompt-engineering-creative",
+        "prompt-injection-defense",
+        "prompt-to-game",
+        "sustainability-metrics",
+        "agent-evaluation"
+      ],
+      "pass": true,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "prompt-caching",
+        "langfuse",
+        "observability",
+        "ai-observability",
+        "agent-evaluation"
+      ]
+    },
+    {
+      "name": "Computer-use browser agent",
+      "prompt": "Build computer-use agent browser automation with Playwright, screenshots, and tool-use safety",
+      "ids": [
+        "browser-automation",
+        "automation",
+        "agent-tool-builder",
+        "computer-use-agents",
+        "playwright-testing",
+        "testing-automation",
+        "agent-memory-systems",
+        "ai-safety-alignment",
+        "multi-agent-orchestration",
+        "voice-agents"
+      ],
+      "pass": true,
+      "score": 0.96,
+      "labeledPrecisionAtK": 0.6,
+      "requiredRecall": 1,
+      "anyOfRecall": 1,
+      "mustNotCleanRate": 1,
+      "missingRequired": [],
+      "missingAnyOf": [],
+      "unwanted": [],
+      "relevantReturned": [
+        "browser-automation",
+        "agent-tool-builder",
+        "computer-use-agents",
+        "playwright-testing",
+        "testing-automation",
+        "ai-safety-alignment"
       ]
     }
   ]

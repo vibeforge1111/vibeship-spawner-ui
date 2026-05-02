@@ -18949,7 +18949,18 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "boost": 52,
+      "aliases": [
+        "typescript strictness",
+        "ts strict"
+      ],
+      "boost_terms": [
+        "typescript strictness",
+        "typescript strict mode",
+        "type safety"
+      ]
+    }
   },
   "accessibility": {
     "id": "accessibility",
@@ -29396,7 +29407,18 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "boost": 54,
+      "aliases": [
+        "supply chain scanning",
+        "dependency scanning"
+      ],
+      "boost_terms": [
+        "supply chain scanning",
+        "supply chain hardening",
+        "dependency provenance"
+      ]
+    }
   },
   "threat-modeling": {
     "id": "threat-modeling",
