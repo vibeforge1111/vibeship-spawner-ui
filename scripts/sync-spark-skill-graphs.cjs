@@ -21,6 +21,39 @@ const MANIFEST_PATH = process.env.SPAWNER_SPARK_MANIFEST
 	: path.join(SOURCE_DIR, 'spark-skill-manifest.json');
 const OUTPUT_PATH = path.resolve(__dirname, '..', 'static', 'skills.json');
 
+const FOUNDATION_FREE_SKILL_IDS = new Set([
+	'accessibility',
+	'analytics',
+	'api-design',
+	'auth-specialist',
+	'authentication-oauth',
+	'ci-cd-pipeline',
+	'cron-scheduled-jobs',
+	'database-architect',
+	'database-schema-design',
+	'docker',
+	'email-systems',
+	'error-handling',
+	'file-uploads',
+	'forms-validation',
+	'frontend',
+	'logging-strategies',
+	'observability',
+	'playwright-testing',
+	'postgres-wizard',
+	'queue-workers',
+	'react-patterns',
+	'redis-specialist',
+	'resend-email',
+	'responsive-mobile-first',
+	'sentry-error-tracking',
+	'state-management',
+	'stripe-integration',
+	'subscription-billing',
+	'tailwind-ui',
+	'tanstack-table'
+]);
+
 const NON_SKILL_DIRS = new Set([
 	'.git',
 	'.github',
@@ -48,6 +81,13 @@ function shouldReadCategory(entry) {
 
 function remapCategory(category) {
 	return category;
+}
+
+function normalizeSkillTier(id, explicitTier) {
+	const normalized = typeof explicitTier === 'string' ? explicitTier.trim().toLowerCase() : '';
+	if (normalized === 'pro' || normalized === 'premium') return 'premium';
+	if (normalized === 'free') return 'free';
+	return FOUNDATION_FREE_SKILL_IDS.has(id) ? 'free' : 'premium';
 }
 
 function collectSkillFiles() {
@@ -112,7 +152,7 @@ function toSummary({ id, category, parsed }, validIds) {
 		name: parsed.name || id,
 		description: parsed.description || '',
 		category: remapCategory(parsed.category || category),
-		tier: parsed.tier || 'free',
+		tier: normalizeSkillTier(id, parsed.tier),
 		layer: Number.isFinite(parsed.layer) ? parsed.layer : 1,
 		tags: Array.isArray(parsed.tags) && parsed.tags.length ? parsed.tags : termsFrom(owns),
 		triggers: triggersFor(parsed, id),
@@ -154,7 +194,7 @@ function summaryFromManifestSkill(skill, validIds) {
 		name: skill.name || skill.id,
 		description: skill.description || '',
 		category: remapCategory(skill.category || 'general'),
-		tier: 'free',
+		tier: normalizeSkillTier(skill.id, skill.tier),
 		layer: 1,
 		tags: Array.isArray(skill.tags) && skill.tags.length
 			? skill.tags.filter((tag) => typeof tag === 'string' && tag.trim())
@@ -211,6 +251,8 @@ if (require.main === module) {
 }
 
 module.exports = {
+	FOUNDATION_FREE_SKILL_IDS,
+	normalizeSkillTier,
 	summariesFromManifest,
 	summaryFromManifestSkill,
 	triggersFromManifestSkill

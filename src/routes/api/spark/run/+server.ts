@@ -228,8 +228,8 @@ export const POST: RequestHandler = async (event) => {
 
 		const tierNotice =
 			tier === 'base'
-				? '\n\n[Skill tier: BASE — load only skills from the curated bundle loadout (~41 skills). Do not request pro-only skills.]'
-				: '\n\n[Skill tier: PRO — full spark-skill-graphs catalog (~615 skills) is available for /api/h70-skills/<id> loading.]';
+				? '\n\n[Skill tier: BASE - load only the 30 free foundation skills. Do not request pro-only skills.]'
+				: '\n\n[Skill tier: PRO - full spark-skill-graphs catalog (613 skills) is available for /api/h70-skills/<id> loading.]';
 
 		if (body.promptMode === 'simple') {
 			const simpleProviderPrompts: Record<string, string> = {};

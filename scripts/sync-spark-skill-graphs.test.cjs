@@ -1,7 +1,15 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 
-const { summariesFromManifest } = require('./sync-spark-skill-graphs.cjs');
+const {
+	FOUNDATION_FREE_SKILL_IDS,
+	normalizeSkillTier,
+	summariesFromManifest
+} = require('./sync-spark-skill-graphs.cjs');
+
+const skillsPath = path.resolve(__dirname, '..', 'static', 'skills.json');
 
 test('maps a Spark portable manifest into Spawner skill summaries', () => {
 	const summaries = summariesFromManifest({
@@ -58,4 +66,22 @@ test('maps a Spark portable manifest into Spawner skill summaries', () => {
 	assert.equal(auth.triggers.includes('secure login'), true);
 	assert.deepEqual(auth.tags, ['auth']);
 	assert.equal(auth.selectionHints.boost_terms[0], 'authentication');
+});
+
+test('foundation free tier is exactly the 30 public Spark skills', () => {
+	const skills = JSON.parse(fs.readFileSync(skillsPath, 'utf8'));
+	const skillIds = new Set(skills.map((skill) => skill.id));
+
+	assert.equal(FOUNDATION_FREE_SKILL_IDS.size, 30);
+	for (const id of FOUNDATION_FREE_SKILL_IDS) {
+		assert.equal(skillIds.has(id), true, `${id} is missing from static/skills.json`);
+		assert.equal(normalizeSkillTier(id), 'free');
+	}
+});
+
+test('unspecified skills default to Pro while explicit tiers are preserved', () => {
+	assert.equal(normalizeSkillTier('webhook-provider-platform'), 'premium');
+	assert.equal(normalizeSkillTier('custom-free-skill', 'free'), 'free');
+	assert.equal(normalizeSkillTier('custom-pro-skill', 'pro'), 'premium');
+	assert.equal(normalizeSkillTier('custom-premium-skill', 'premium'), 'premium');
 });
