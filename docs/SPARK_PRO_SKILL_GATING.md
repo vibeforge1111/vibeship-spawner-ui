@@ -47,3 +47,26 @@ without forcing a paid membership loop on every contributor.
 Production should not rely on client-side labels alone. The catalog, Canvas UI,
 execution prompts, and `/api/h70-skills/:skillId` route all need to agree on the
 same free/Pro split.
+
+## Live Smoke
+
+Run this against a running Spawner instance before release:
+
+```text
+npm run smoke:spark-pro-gating
+```
+
+For a production gate with a real member session:
+
+```text
+SPAWNER_SMOKE_BASE_URL=https://agent.sparkswarm.ai \
+SPARK_PRO_API_BASE_URL=https://pro.sparkswarm.ai \
+SPAWNER_EXPECT_PRO_ENFORCEMENT=1 \
+SPAWNER_REQUIRE_PRO_AUTH_SMOKE=1 \
+SPARK_PRO_COOKIE="spark_pro_session=..." \
+npm run smoke:spark-pro-gating
+```
+
+The smoke verifies that a free starter skill loads, a Pro skill fails closed
+without member proof, the same Pro skill loads with member proof, and Spark Pro
+returns either `spark_pro` or `drop.skills` from `/api/member/entitlements`.
