@@ -8,7 +8,8 @@ COPY . .
 RUN npm run build
 
 FROM node:24-bookworm-slim AS runtime
-ENV NODE_ENV=production
+ENV NODE_ENV=production \
+	CODEX_HOME=/data/codex
 WORKDIR /app
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends ca-certificates bubblewrap \
@@ -21,4 +22,4 @@ COPY --from=build /app/static ./static
 COPY --from=build /app/scripts/health-spark.mjs ./scripts/health-spark.mjs
 RUN mkdir -p /data/codex /data/spawner /data/workspaces
 EXPOSE 3000
-CMD ["npm", "start"]
+CMD ["sh", "-c", "mkdir -p \"${CODEX_HOME:-/data/codex}\" /data/spawner /data/workspaces && npm start"]
