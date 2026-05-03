@@ -19,6 +19,6 @@ RUN npm install -g @openai/codex @anthropic-ai/claude-code && npm cache clean --
 COPY --from=build /app/build ./build
 COPY --from=build /app/static ./static
 COPY --from=build /app/scripts/health-spark.mjs ./scripts/health-spark.mjs
-RUN mkdir -p /data/spawner /data/workspaces
+RUN mkdir -p /data/codex /data/spawner /data/workspaces
 EXPOSE 3000
 CMD ["npm", "start"]
