@@ -27,6 +27,33 @@ function splitConfiguredRoots(value: string | undefined): string[] {
 		.filter(Boolean);
 }
 
+function normalizePublicBaseUrl(value: string | undefined): string | null {
+	const trimmed = value?.trim();
+	if (!trimmed) return null;
+	if (/^https?:\/\//i.test(trimmed)) return trimmed.replace(/\/+$/, '');
+	return `https://${trimmed.replace(/\/+$/, '')}`;
+}
+
+function configuredPreviewOrigins(env: NodeJS.ProcessEnv): string[] {
+	return [
+		env.SPAWNER_PROJECT_PREVIEW_BASE_URL,
+		env.SPARK_PROJECT_PREVIEW_BASE_URL,
+		env.SPAWNER_UI_PUBLIC_URL,
+		env.PUBLIC_SPAWNER_UI_URL,
+		env.RAILWAY_PUBLIC_DOMAIN,
+		env.RAILWAY_STATIC_URL
+	]
+		.map(normalizePublicBaseUrl)
+		.filter((value): value is string => Boolean(value))
+		.flatMap((value) => {
+			try {
+				return [new URL(value).origin];
+			} catch {
+				return [];
+			}
+		});
+}
+
 function pathIsInside(candidate: string, parent: string): boolean {
 	const resolvedCandidate = resolve(candidate).toLowerCase();
 	const resolvedParent = resolve(parent).toLowerCase();
@@ -59,6 +86,8 @@ export function getProjectPreviewAllowedRoots(env: NodeJS.ProcessEnv = process.e
 
 	const home = homedir();
 	return uniqueResolved([
+		env.SPAWNER_WORKSPACE_ROOT || '',
+		env.SPARK_WORKSPACE_ROOT || '',
 		join(home, 'Desktop'),
 		join(home, 'Documents'),
 		join(home, '.spark', 'workspaces'),
@@ -70,6 +99,7 @@ export function assertProjectPreviewHost(url: URL, env: NodeJS.ProcessEnv = proc
 	if (env.SPAWNER_PROJECT_PREVIEW_ALLOW_REMOTE === '1') return;
 	const hostname = url.hostname.toLowerCase();
 	if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '[::1]') return;
+	if (configuredPreviewOrigins(env).includes(url.origin)) return;
 	throw new ProjectPreviewError('Project previews are local-only by default', 403);
 }
 

@@ -4,7 +4,9 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
 	ProjectPreviewError,
+	assertProjectPreviewHost,
 	encodeProjectPreviewToken,
+	getProjectPreviewAllowedRoots,
 	projectPreviewUrl,
 	resolveProjectPreviewAsset
 } from './project-preview';
@@ -55,5 +57,21 @@ describe('project-preview', () => {
 				env: { SPARK_PROJECT_PREVIEW_ROOTS: allowedRoot }
 			})
 		).toThrow(ProjectPreviewError);
+	});
+
+	it('allows hosted Railway preview origins declared by the environment', () => {
+		expect(() =>
+			assertProjectPreviewHost(new URL('https://spawner-ui-production.up.railway.app/preview/token/index.html'), {
+				RAILWAY_PUBLIC_DOMAIN: 'spawner-ui-production.up.railway.app'
+			})
+		).not.toThrow();
+	});
+
+	it('includes hosted workspace roots in default preview allowlist', () => {
+		const roots = getProjectPreviewAllowedRoots({
+			SPARK_WORKSPACE_ROOT: '/data/workspaces'
+		});
+
+		expect(roots.some((root) => root.endsWith('data\\workspaces') || root.endsWith('/data/workspaces'))).toBe(true);
 	});
 });

@@ -46,6 +46,10 @@ function previewBaseUrl(): string {
 	return (
 		process.env.SPAWNER_PROJECT_PREVIEW_BASE_URL?.trim() ||
 		process.env.SPARK_PROJECT_PREVIEW_BASE_URL?.trim() ||
+		process.env.SPAWNER_UI_PUBLIC_URL?.trim() ||
+		process.env.PUBLIC_SPAWNER_UI_URL?.trim() ||
+		(process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN.trim().replace(/^https?:\/\//i, '')}` : '') ||
+		(process.env.RAILWAY_STATIC_URL ? `https://${process.env.RAILWAY_STATIC_URL.trim().replace(/^https?:\/\//i, '')}` : '') ||
 		DEFAULT_PREVIEW_BASE_URL
 	);
 }
