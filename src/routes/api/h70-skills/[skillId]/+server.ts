@@ -13,6 +13,7 @@ import * as path from 'path';
 import * as os from 'os';
 import * as yaml from 'yaml';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
+import { authorizeSkillAccess } from '$lib/server/spark-pro-entitlements';
 
 function uniquePaths(paths: string[]): string[] {
 	return [...new Set(paths.map((candidate) => path.resolve(candidate)))];
@@ -321,7 +322,7 @@ function findSkillPath(skillsLabPath: string, skillId: string): string | null {
 	return null;
 }
 
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, request }) => {
 	const { skillId } = params;
 
 	if (!skillId) {
@@ -335,6 +336,11 @@ export const GET: RequestHandler = async ({ params }) => {
 			throw error(e.status, e.message);
 		}
 		throw e;
+	}
+
+	const access = await authorizeSkillAccess(skillId, request);
+	if (!access.ok) {
+		throw error(access.status, access.message);
 	}
 
 	const skillsLabPath = resolveSkillsLabPath();
@@ -416,7 +422,7 @@ export const GET: RequestHandler = async ({ params }) => {
 	}
 };
 
-export const HEAD: RequestHandler = async ({ params }) => {
+export const HEAD: RequestHandler = async ({ params, request }) => {
 	const { skillId } = params;
 
 	if (!skillId) {
@@ -425,6 +431,11 @@ export const HEAD: RequestHandler = async ({ params }) => {
 
 	try {
 		assertSafeId(skillId, 'skillId');
+		const access = await authorizeSkillAccess(skillId, request);
+		if (!access.ok) {
+			throw error(access.status, access.message);
+		}
+
 		const skillsLabPath = resolveSkillsLabPath();
 		if (!skillsLabPath) {
 			if (findStaticSkillMetadata(skillId)) {
