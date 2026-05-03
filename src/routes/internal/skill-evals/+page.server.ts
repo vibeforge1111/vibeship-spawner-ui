@@ -94,6 +94,8 @@ export function load() {
 		const topK = testCase.maxResults || DEFAULT_TOP_K;
 		const ranks = rankSkillsForText(testCase.prompt, topK);
 		const result = evaluateSkillIds(testCase, ranks.map((rank) => rank.skillId));
+		const coverageGap = COVERAGE_GAPS_BY_CASE[testCase.name];
+		const activeCoverageGap = coverageGap && !catalog[coverageGap.skillId] ? coverageGap : undefined;
 
 		return {
 			...result,
@@ -104,7 +106,7 @@ export function load() {
 				mustNotInclude: testCase.mustNotInclude || [],
 				labels: expectedLabels(testCase)
 			},
-			coverageGap: COVERAGE_GAPS_BY_CASE[testCase.name],
+			coverageGap: activeCoverageGap,
 			skills: ranks.map((rank) => ({
 				id: rank.skillId,
 				name: catalog[rank.skillId]?.name || rank.skillId,

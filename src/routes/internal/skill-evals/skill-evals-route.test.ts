@@ -12,18 +12,10 @@ describe('/internal/skill-evals route', () => {
 		expect(data.project.evalCaseCount).toBe(
 			GOLDEN_RECOMMENDATION_CASES.length + CHALLENGE_RECOMMENDATION_CASES.length
 		);
-		expect(data.project.coverageGapCount).toBe(12);
-		expect(data.coverageGaps[0]).toEqual(
-			expect.objectContaining({
-				caseName: expect.any(String),
-				skillId: expect.any(String),
-				path: expect.stringMatching(/\.yaml$/),
-				why: expect.any(String)
-			})
-		);
-		expect(data.summary.golden.passRate).toBeGreaterThanOrEqual(0.9);
-		expect(data.summary.challenge.passRate).toBeGreaterThanOrEqual(0.7);
-		expect(data.summary.failures.length).toBeGreaterThan(0);
+		expect(data.project.coverageGapCount).toBe(0);
+		expect(data.summary.golden.passRate).toBe(1);
+		expect(data.summary.challenge.passRate).toBe(1);
+		expect(data.summary.failures.length).toBe(0);
 		expect(data.summary.lowPrecisionCases.length).toBeGreaterThan(0);
 		expect(data.project.returnedRecommendationCount).toBeGreaterThan(400);
 		expect(data.cases[0].skills[0]).toEqual(

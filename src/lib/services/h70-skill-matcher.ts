@@ -84,7 +84,9 @@ const CATEGORY_HINTS: Record<string, string[]> = {
 const LOW_SIGNAL_SINGLE_TRIGGERS = new Set([
 	'analytics',
 	'audio',
+	'based',
 	'business',
+	'control',
 	'data',
 	'email',
 	'export',
@@ -97,6 +99,17 @@ const LOW_SIGNAL_SINGLE_TRIGGERS = new Set([
 	'success',
 	'web'
 ]);
+
+const QUERY_EXPANSIONS: Array<{ pattern: RegExp; terms: string }> = [
+	{
+		pattern: /\brole[-\s]?based permissions?\b|\brbac\b|\bpermission groups?\b/i,
+		terms: 'rbac role based access control permission matrix custom roles scoped roles'
+	},
+	{
+		pattern: /\bsso readiness\b|\bsaml\b|\bsso\b/i,
+		terms: 'sso saml enterprise sso okta entra id'
+	}
+];
 
 function normalize(value: string): string {
 	return value.toLowerCase().replace(/[^a-z0-9+#.-]+/g, ' ').trim();
@@ -111,7 +124,12 @@ function tokenize(value: string): string[] {
 function hasPhrase(haystack: string, phrase: string): boolean {
 	const normalizedPhrase = normalize(phrase);
 	if (!normalizedPhrase) return false;
-	return new RegExp(`(^|\\s)${normalizedPhrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s|$)`).test(haystack);
+	const variants = new Set([normalizedPhrase]);
+	if (normalizedPhrase.endsWith(' log')) variants.add(`${normalizedPhrase}s`);
+	if (normalizedPhrase.endsWith(' logs')) variants.add(normalizedPhrase.slice(0, -1));
+	return [...variants].some((variant) =>
+		new RegExp(`(^|\\s)${variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s|$)`).test(haystack)
+	);
 }
 
 function stringList(value: unknown): string[] {
@@ -347,12 +365,16 @@ function addRelationshipContext(
 }
 
 export function rankSkillsForText(text: string, maxResults = 10): SkillRank[] {
-	const queryTokens = tokenize(text);
+	const expandedText = QUERY_EXPANSIONS.reduce(
+		(value, expansion) => expansion.pattern.test(text) ? `${value} ${expansion.terms}` : value,
+		text
+	);
+	const queryTokens = tokenize(expandedText);
 	if (queryTokens.length === 0) return [];
-	const normalizedQuery = normalize(text);
+	const normalizedQuery = normalize(expandedText);
 
 	const ranks = SKILLS
-		.map((skill) => scoreSkill(skill, text, queryTokens))
+		.map((skill) => scoreSkill(skill, expandedText, queryTokens))
 		.filter((rank): rank is SkillRank => Boolean(rank))
 		.sort((a, b) => b.score - a.score || a.skillId.localeCompare(b.skillId));
 

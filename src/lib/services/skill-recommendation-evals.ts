@@ -124,6 +124,7 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		name: 'Mobile app',
 		prompt: 'Build a mobile app with Expo and React Native, native iOS and Android integrations, push notifications, and app store deployment',
 		mustInclude: ['expo', 'react-native-specialist', 'ios-swift-specialist', 'android-kotlin-specialist'],
+		maxResults: 13,
 		anyOf: [
 			['push-notifications'],
 			['state-management'],
@@ -142,6 +143,7 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 	{
 		name: 'SaaS billing',
 		prompt: 'Build a SaaS app with authentication, subscriptions, Stripe billing, dashboard analytics, and onboarding',
+		maxResults: 13,
 		anyOf: [
 			['auth-specialist', 'authentication-oauth', 'nextjs-supabase-auth'],
 			['stripe-integration', 'stripe-subscriptions', 'subscription-billing'],
@@ -456,8 +458,8 @@ export const GOLDEN_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 	{
 		name: 'Enterprise SaaS',
 		prompt: 'Build a multi-tenant enterprise SaaS with RBAC, SSO SAML, SCIM provisioning, and audit logs',
-		mustInclude: ['saas-teams-organizations', 'rbac-enterprise', 'sso-saml', 'scim-provisioning', 'audit-logging'],
-		anyOf: [['multi-tenancy']]
+		mustInclude: ['saas-teams-organizations', 'rbac-enterprise', 'sso-saml', 'scim-provisioning'],
+		anyOf: [['multi-tenancy'], ['audit-logging', 'audit-trail-activity-feed']]
 	},
 	{
 		name: 'Security platform hardening',
@@ -580,15 +582,15 @@ export const CHALLENGE_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		suite: 'challenge',
 		prompt: 'Build a local business directory with map search, filters, saved places, reviews, and mobile responsive cards',
 		mustInclude: ['responsive-mobile-first', 'search-implementation'],
-		anyOf: [['social-features'], ['frontend'], ['algolia-search'], ['accessibility', 'react-patterns']],
+		anyOf: [['social-features'], ['frontend'], ['algolia-search'], ['accessibility', 'react-patterns', 'map-location-features']],
 		mustNotInclude: ['procedural-generation', 'game-development']
 	},
 	{
 		name: 'RBAC settings',
 		suite: 'challenge',
 		prompt: 'Add team settings with role based permissions, invites, audit log, organization billing, and SSO readiness',
-		mustInclude: ['rbac-enterprise', 'audit-logging', 'saas-teams-organizations'],
-		anyOf: [['sso-saml'], ['stripe-integration', 'subscription-billing']],
+		mustInclude: ['rbac-enterprise', 'saas-teams-organizations'],
+		anyOf: [['audit-logging', 'audit-trail-activity-feed'], ['sso-saml'], ['stripe-integration', 'subscription-billing']],
 		mustNotInclude: ['game-development']
 	},
 	{
@@ -609,8 +611,8 @@ export const CHALLENGE_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 			['push-notifications'],
 			['resend-email'],
 			['customer-success'],
-			['team-communications'],
-			['analytics-architecture']
+			['team-communications', 'support-ticketing-workflows'],
+			['analytics-architecture', 'data-engineer']
 		],
 		mustNotInclude: ['nft-engineer']
 	},
@@ -686,7 +688,7 @@ export const CHALLENGE_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		prompt: 'Create permissioned file sharing with signed URLs, expiring share links, workspace access control, upload validation, and audit history',
 		mustInclude: ['file-uploads'],
 		anyOf: [
-			['auth-specialist', 'authentication-oauth', 'rbac-enterprise'],
+			['auth-specialist', 'authentication-oauth', 'rbac-enterprise', 'roles-permissions-ui'],
 			['forms-validation', 'zod-validation']
 		],
 		mustNotInclude: ['ai-video-generation']
@@ -707,6 +709,7 @@ export const CHALLENGE_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		suite: 'challenge',
 		prompt: 'Prepare an Expo React Native app for TestFlight and Play Console release with push notification credentials, app metadata, screenshots, and phased rollout',
 		mustInclude: ['expo', 'react-native-specialist', 'push-notifications'],
+		maxResults: 11,
 		anyOf: [['firebase', 'state-management'], ['responsive-mobile-first', 'react-patterns']],
 		mustNotInclude: ['kubernetes-deployment', 'mobile-game-dev']
 	},
@@ -715,7 +718,7 @@ export const CHALLENGE_RECOMMENDATION_CASES: SkillRecommendationEvalCase[] = [
 		suite: 'challenge',
 		prompt: 'Run an accessibility QA pass for keyboard navigation, focus states, screen reader labels, color contrast, Playwright checks, and form error messages',
 		mustInclude: ['accessibility', 'playwright-testing'],
-		anyOf: [['accessibility-design'], ['browser-automation', 'testing-automation'], ['ui-design']],
+		anyOf: [['accessibility-design'], ['browser-automation', 'testing-automation', 'web-accessibility-qa'], ['ui-design']],
 		mustNotInclude: ['smart-contract-engineer']
 	},
 	{

@@ -241,9 +241,18 @@
 
 		<section class="panel overflow-hidden" aria-label="Coverage gaps">
 			<div class="border-b border-surface-border px-3 py-2">
-				<h2 class="text-sm font-semibold">Coverage gaps to build next</h2>
-				<p class="mt-0.5 text-xs text-text-tertiary">These are passing cases where the matcher is relying on nearby skills instead of a dedicated one.</p>
+				<h2 class="text-sm font-semibold">{data.coverageGaps.length > 0 ? 'Coverage gaps to build next' : 'Specialist coverage'}</h2>
+				<p class="mt-0.5 text-xs text-text-tertiary">
+					{data.coverageGaps.length > 0
+						? 'These are passing cases where the matcher is relying on nearby skills instead of a dedicated one.'
+						: 'The planned specialist gap skills are present in the synced Spark catalog.'}
+				</p>
 			</div>
+			{#if data.coverageGaps.length === 0}
+				<div class="px-3 py-4 text-sm text-text-secondary">
+					No missing specialist files in the current watchlist. Keep using the precision queue for calibration.
+				</div>
+			{:else}
 			<div class="grid divide-y divide-surface-border lg:grid-cols-2 lg:divide-x lg:divide-y-0">
 				{#each data.coverageGaps.slice(0, 8) as gap}
 					<div class="min-w-0 px-3 py-2 text-xs">
@@ -257,6 +266,7 @@
 					</div>
 				{/each}
 			</div>
+			{/if}
 		</section>
 
 		<section class="grid gap-4 xl:grid-cols-[1fr_420px]" aria-label="Precision audit">
