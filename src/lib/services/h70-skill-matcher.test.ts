@@ -8,6 +8,10 @@ function idsFor(text: string, maxResults = 8): string[] {
 	return rankSkillsForText(text, maxResults).map((rank) => rank.skillId);
 }
 
+function expectAny(ids: string[], expected: string[]) {
+	expect(ids.some((id) => expected.includes(id))).toBe(true);
+}
+
 describe('Spark catalog skill matcher', () => {
 	it('selects real RAG and LLM skills without unrelated finance, game, or NFT matches', () => {
 		const ids = idsFor(
@@ -97,5 +101,68 @@ describe('Spark catalog skill matcher', () => {
 		expect(ids).not.toContain('data-engineer');
 		expect(ids).not.toContain('data-pipeline');
 		expect(ids).not.toContain('sustainability-metrics');
+	});
+
+	it('handles messy Spawner-style product prompts and common false friends', () => {
+		const fixtures = [
+			{
+				text: 'need auth billing dashboard notification thing for b2b saas, go fast',
+				any: ['auth-specialist', 'authentication-oauth'],
+				notTop3: ['nft-engineer', 'smart-contract-engineer']
+			},
+			{
+				text: 'users upload PDFs and csvs, process them later, show failed rows and retry jobs',
+				any: ['file-processing-pipelines', 'import-export-workflows', 'queue-workers'],
+				notTop3: ['ai-video-generation', 'nft-engineer']
+			},
+			{
+				text: 'make the app pwa offline sync mobile first with background refresh',
+				any: ['pwa-progressive-web-app', 'mobile-offline-sync'],
+				notTop3: ['react-native-specialist']
+			},
+			{
+				text: 'stripe seats, proration, usage limits, quotas, plan upgrades and billing webhooks',
+				any: ['stripe-subscriptions', 'subscription-billing', 'usage-metering-entitlements'],
+				notTop3: ['wallet-integration', 'nft-engineer']
+			},
+			{
+				text: 'rag on private docs with chunks embeddings vector search retrieval and citations',
+				any: ['rag-engineer', 'semantic-search', 'vector-specialist'],
+				notTop3: ['portfolio-optimization', 'game-economy']
+			},
+			{
+				text: 'enterprise customer wants saml sso, roles, permission groups and admin access control',
+				any: ['sso-saml', 'rbac-enterprise', 'roles-permissions-ui'],
+				notTop3: ['social-login-flows']
+			},
+			{
+				text: 'react web dashboard first paint is slow, bundle is big and route transitions lag',
+				any: ['performance-optimization'],
+				notTop3: ['react-native-specialist']
+			},
+			{
+				text: 'redis cache expensive dashboard queries and invalidate when records change',
+				any: ['redis-specialist'],
+				notTop3: ['data-dashboard-design']
+			},
+			{
+				text: 'localize onboarding emails into french and spanish with brand-safe copy variants',
+				any: ['ai-localization', 'email-template-systems'],
+				notTop3: ['waitlist-launch-pages']
+			},
+			{
+				text: 'three js product configurator with camera controls materials lighting and object picking',
+				any: ['threejs-3d-graphics'],
+				notTop3: ['ai-wrapper-product']
+			}
+		];
+
+		for (const fixture of fixtures) {
+			const ids = idsFor(fixture.text, 10);
+			expectAny(ids, fixture.any);
+			for (const unwanted of fixture.notTop3) {
+				expect(ids.slice(0, 3)).not.toContain(unwanted);
+			}
+		}
 	});
 });

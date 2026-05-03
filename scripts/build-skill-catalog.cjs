@@ -20,6 +20,25 @@ const H70_PATH =
   'C:/Users/USER/Desktop/spark-skill-graphs';
 const OUTPUT_PATH = path.join(__dirname, '../src/lib/data/skill-catalog.json');
 
+function ownText(own) {
+  if (typeof own === 'string') return own.trim();
+  if (!own || typeof own !== 'object') return '';
+
+  return String(
+    own.title ||
+    own.name ||
+    own.area ||
+    own.capability ||
+    own.decision_authority ||
+    own.scope ||
+    ''
+  ).trim();
+}
+
+function ownTexts(owns) {
+  return Array.isArray(owns) ? owns.map(ownText).filter(Boolean) : [];
+}
+
 /**
  * Extract relevant context from a skill
  */
@@ -35,13 +54,7 @@ function extractSkillContext(skillPath, skillName, category) {
   }
 
   // Extract owns as a simple array
-  let owns = [];
-  if (skill.owns && Array.isArray(skill.owns)) {
-    owns = skill.owns.map(own => {
-      // Clean up the owns string
-      return own.replace(/['"]/g, '').trim();
-    }).filter(own => own.length > 0);
-  }
+  const owns = ownTexts(skill.owns).map(own => own.replace(/['"]/g, '').trim());
 
   // Get description (first sentence or full if short)
   let description = skill.description || '';

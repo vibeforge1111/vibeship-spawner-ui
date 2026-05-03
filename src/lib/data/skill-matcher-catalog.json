@@ -350,7 +350,15 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "Three.js product configurator",
+        "3D product configurator",
+        "smooth camera controls",
+        "WebGL"
+      ],
+      "penalty": 60
+    }
   },
   "art-consistency": {
     "id": "art-consistency",
@@ -822,7 +830,21 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "aliases": [
+        "model drift",
+        "recommender drift",
+        "drift monitoring",
+        "ML monitoring"
+      ],
+      "boost_terms": [
+        "detect model drift",
+        "model drift in our recommender",
+        "recommender model drift",
+        "production ML drift detection",
+        "training serving skew"
+      ]
+    }
   },
   "model-optimization": {
     "id": "model-optimization",
@@ -1455,6 +1477,60 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "ai-agent-permissions-sandboxing": {
+    "id": "ai-agent-permissions-sandboxing",
+    "name": "ai-agent-permissions-sandboxing",
+    "description": "Tool permissions, approval gates, and sandboxing for AI agents:\ndeclarative tool catalogs, per-action allowlists, side-e",
+    "owns": [
+      "Tool catalog (declarative, with side-effect classification)",
+      "Per-action allowlist + sandbox config",
+      "Approval-gate UX (sync, async, batched)",
+      "Human-in-the-loop policy per side-effect tier"
+    ],
+    "triggers": [
+      "agent permissions",
+      "tool allowlist",
+      "agent sandbox",
+      "approval gate",
+      "human in the loop"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "prompt-injection-defense"
+      },
+      {
+        "skill": "human-in-the-loop-review"
+      },
+      {
+        "skill": "container-security"
+      },
+      {
+        "skill": "llm-cost-governance"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "agent permissions",
+        "tool authorization",
+        "agent sandbox",
+        "human in the loop"
+      ],
+      "boost_terms": [
+        "tool allowlist",
+        "approval gate",
+        "capability control",
+        "agent safety",
+        "prompt injection",
+        "destructive tool"
+      ]
+    }
+  },
   "ai-chatbot-builder": {
     "id": "ai-chatbot-builder",
     "name": "ai-chatbot-builder",
@@ -1495,6 +1571,60 @@
     ],
     "pairsWell": [],
     "selectionHints": {}
+  },
+  "ai-evals-dataset-curation": {
+    "id": "ai-evals-dataset-curation",
+    "name": "ai-evals-dataset-curation",
+    "description": "Eval dataset curation for LLM applications: golden sets, drift cases,\nadversarial examples, label quality, eval taxonomy",
+    "owns": [
+      "Eval taxonomy (categories, sub-categories, tags)",
+      "Golden dataset (curated input/output pairs with labels)",
+      "Adversarial / drift / edge-case sub-sets",
+      "Multi-grader labeling pipeline + agreement"
+    ],
+    "triggers": [
+      "llm evals",
+      "eval dataset",
+      "golden set",
+      "regression eval",
+      "adversarial example"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "human-in-the-loop-review"
+      },
+      {
+        "skill": "prompt-versioning-release-management"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "experiment-feature-analysis"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "llm evals",
+        "eval dataset",
+        "golden set",
+        "prompt eval"
+      ],
+      "boost_terms": [
+        "regression eval",
+        "adversarial example",
+        "inter rater",
+        "llm benchmark",
+        "eval curation",
+        "prompt iteration"
+      ]
+    }
   },
   "autonomous-agents": {
     "id": "autonomous-agents",
@@ -1744,6 +1874,60 @@
     ],
     "selectionHints": {}
   },
+  "human-in-the-loop-review": {
+    "id": "human-in-the-loop-review",
+    "name": "human-in-the-loop-review",
+    "description": "Human-in-the-loop (HITL) review systems for AI agents and ML pipelines:\nreview queues, confidence thresholds, escalation",
+    "owns": [
+      "Review-queue data model (item, claim, decision, sla)",
+      "Confidence-based routing (auto-approve vs review vs escalate",
+      "Per-tier SLA + alerting",
+      "Reviewer assignment (round-robin, expertise, load)"
+    ],
+    "triggers": [
+      "human in the loop",
+      "hitl review",
+      "review queue",
+      "moderation queue",
+      "confidence threshold"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "ai-agent-permissions-sandboxing"
+      },
+      {
+        "skill": "ai-evals-dataset-curation"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "human in the loop",
+        "hitl",
+        "review queue",
+        "moderation queue"
+      ],
+      "boost_terms": [
+        "confidence threshold",
+        "reviewer ux",
+        "escalation policy",
+        "inter-rater agreement",
+        "active learning",
+        "ai oversight"
+      ]
+    }
+  },
   "langfuse": {
     "id": "langfuse",
     "name": "Langfuse LLM Observability",
@@ -1811,6 +1995,60 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "llm-cost-governance": {
+    "id": "llm-cost-governance",
+    "name": "llm-cost-governance",
+    "description": "LLM cost governance: budgets per user / tenant / feature, prompt caching,\nmodel routing (cheap vs expensive), per-call c",
+    "owns": [
+      "Per-call cost recording (input + output tokens, model, cost ",
+      "Cost attribution (feature, tenant, user, prompt version)",
+      "Per-tier budgets (per user / tenant / feature / global)",
+      "Pre-call budget check + 429-equivalent"
+    ],
+    "triggers": [
+      "llm cost",
+      "openai bill",
+      "anthropic bill",
+      "prompt caching",
+      "model routing"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "usage-metering-entitlements"
+      },
+      {
+        "skill": "ai-agent-permissions-sandboxing"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "data-dashboard-design"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "llm cost",
+        "openai bill",
+        "anthropic cost",
+        "prompt cache"
+      ],
+      "boost_terms": [
+        "model routing",
+        "cost budget",
+        "cost anomaly",
+        "per-tenant cost",
+        "llm spend",
+        "token budget"
+      ]
+    }
+  },
   "multi-agent-orchestration": {
     "id": "multi-agent-orchestration",
     "name": "multi-agent-orchestration",
@@ -1845,6 +2083,60 @@
     ],
     "pairsWell": [],
     "selectionHints": {}
+  },
+  "multi-modal-upload-intake": {
+    "id": "multi-modal-upload-intake",
+    "name": "multi-modal-upload-intake",
+    "description": "Multi-modal upload intake for AI workflows: images, audio, video, PDFs,\nspreadsheets normalized into a canonical represe",
+    "owns": [
+      "Format detection (magic bytes; not extension)",
+      "Format normalization (HEIC→JPEG, WebM→WAV, etc.)",
+      "Image resize / re-encode (vision-model cost optimization)",
+      "Audio chunking + per-chunk transcription"
+    ],
+    "triggers": [
+      "multi modal upload",
+      "image to ai",
+      "audio transcription",
+      "pdf to ai",
+      "heic conversion"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "file-uploads"
+      },
+      {
+        "skill": "file-processing-pipelines"
+      },
+      {
+        "skill": "media-transcoding-pipeline"
+      },
+      {
+        "skill": "llm-cost-governance"
+      },
+      {
+        "skill": "notifications-orchestration"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "multi modal upload",
+        "image to ai",
+        "audio transcription",
+        "pdf to ai"
+      ],
+      "boost_terms": [
+        "heic conversion",
+        "vision input",
+        "whisper transcription",
+        "document intake",
+        "upload normalization",
+        "decompression bomb"
+      ]
+    }
   },
   "prompt-caching": {
     "id": "prompt-caching",
@@ -1916,6 +2208,60 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "prompt-versioning-release-management": {
+    "id": "prompt-versioning-release-management",
+    "name": "prompt-versioning-release-management",
+    "description": "Prompt registry, versioning, A/B-able rollout, rollback, and changelog\nmanagement. Treats prompts as code: reviewed in P",
+    "owns": [
+      "Prompt registry data model (prompts, versions, environments)",
+      "Source-of-truth (git-backed YAML / DB-backed with audit)",
+      "Eval-gated promotion (per-version pass rates required for pr",
+      "Rollout strategies (canary %, by user cohort, by feature fla"
+    ],
+    "triggers": [
+      "prompt registry",
+      "prompt versioning",
+      "prompt rollout",
+      "prompt rollback",
+      "llm release"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "ai-evals-dataset-curation"
+      },
+      {
+        "skill": "experiment-feature-analysis"
+      },
+      {
+        "skill": "llm-cost-governance"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      },
+      {
+        "skill": "api-design"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "prompt registry",
+        "prompt versioning",
+        "prompt rollout",
+        "llm release"
+      ],
+      "boost_terms": [
+        "prompt rollback",
+        "prompt changelog",
+        "prompt as code",
+        "deploy gating",
+        "prompt observability",
+        "per-tenant prompt"
+      ]
+    }
+  },
   "rag-implementation": {
     "id": "rag-implementation",
     "name": "RAG Implementation",
@@ -1952,7 +2298,21 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "aliases": [
+        "private document RAG",
+        "document corpus RAG",
+        "retrieval augmented generation",
+        "vector retrieval"
+      ],
+      "boost_terms": [
+        "implement RAG over a private document corpus",
+        "private documents",
+        "document corpus",
+        "chunking embeddings vector store reranking",
+        "retrieval pipeline"
+      ]
+    }
   },
   "voice-agents": {
     "id": "voice-agents",
@@ -2237,6 +2597,57 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "audit-trail-activity-feed": {
+    "id": "audit-trail-activity-feed",
+    "name": "audit-trail-activity-feed",
+    "description": "Append-only audit trails and user-visible activity feeds: data model\nfor events, action catalog, actor/target/diff captu",
+    "owns": [
+      "Audit event schema (actor, action, target, diff, evidence, I",
+      "Action catalog (taxonomy of all auditable verbs)",
+      "Append-only enforcement (DB triggers, RLS, immutability proo",
+      "Tamper evidence (hash-chain, signed checkpoints)"
+    ],
+    "triggers": [
+      "audit log",
+      "activity feed",
+      "event log",
+      "audit trail",
+      "who did what"
+    ],
+    "category": "backend",
+    "delegates": [
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "gdpr-privacy"
+      },
+      {
+        "skill": "webhook-provider-platform"
+      },
+      {
+        "skill": "error-handling"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 24,
+      "aliases": [
+        "audit log",
+        "activity feed",
+        "event log",
+        "compliance log"
+      ],
+      "boost_terms": [
+        "audit trail",
+        "who did what",
+        "tamper evident",
+        "immutable log",
+        "soc 2 audit",
+        "hipaa audit"
+      ]
+    }
+  },
   "automation": {
     "id": "automation",
     "name": "automation",
@@ -2355,6 +2766,61 @@
         "cache strategies",
         "offline cache",
         "cache invalidation"
+      ]
+    }
+  },
+  "calendar-booking-systems": {
+    "id": "calendar-booking-systems",
+    "name": "calendar-booking-systems",
+    "description": "Production-grade booking, availability, and scheduling systems with timezone-safe\nmath, double-booking prevention, resch",
+    "owns": [
+      "Availability rule modeling (working hours, blackouts, buffer",
+      "Slot generation (recurring + ad-hoc) with timezone-safe math",
+      "Atomic booking creation with double-booking prevention",
+      "Rescheduling and cancellation with audit trail"
+    ],
+    "triggers": [
+      "calendar booking",
+      "scheduling system",
+      "availability windows",
+      "double booking",
+      "timezone scheduling"
+    ],
+    "category": "backend",
+    "delegates": [
+      {
+        "skill": "cron-scheduled-jobs"
+      },
+      {
+        "skill": "webhook-processing"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "database-architect"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 32,
+      "aliases": [
+        "calendly",
+        "cal.com",
+        "scheduling",
+        "booking",
+        "meeting scheduler"
+      ],
+      "boost_terms": [
+        "book a meeting",
+        "schedule appointment",
+        "availability windows",
+        "prevent double booking",
+        "timezone scheduling",
+        "send reminders"
       ]
     }
   },
@@ -2560,6 +3026,68 @@
     ],
     "selectionHints": {}
   },
+  "file-processing-pipelines": {
+    "id": "file-processing-pipelines",
+    "name": "file-processing-pipelines",
+    "description": "Async file-processing pipelines that run after upload: virus scanning,\nformat conversion, image thumbnails, EXIF strippi",
+    "owns": [
+      "Pipeline orchestration (DAG of steps with conditional branch",
+      "Idempotent step execution with deterministic output keys",
+      "Image processing (resize, format conversion, color profile, ",
+      "Video/audio probing and metadata extraction (delegate transc"
+    ],
+    "triggers": [
+      "file processing",
+      "post-upload pipeline",
+      "generate thumbnails",
+      "virus scan",
+      "exif strip"
+    ],
+    "category": "backend",
+    "delegates": [
+      {
+        "skill": "file-uploads"
+      },
+      {
+        "skill": "queue-workers"
+      },
+      {
+        "skill": "media-transcoding-pipeline"
+      },
+      {
+        "skill": "container-security"
+      },
+      {
+        "skill": "notifications-orchestration"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "file processing",
+        "upload pipeline",
+        "thumbnail generation",
+        "exif strip"
+      ],
+      "boost_terms": [
+        "process upload",
+        "generate thumbnails",
+        "strip metadata",
+        "virus scan files",
+        "ocr pipeline",
+        "file workflow"
+      ],
+      "negative_terms": [
+        "ETL pipeline",
+        "ELT pipeline",
+        "loads events into our warehouse",
+        "load events into warehouse",
+        "data warehouse ingestion"
+      ],
+      "penalty": 50
+    }
+  },
   "file-uploads": {
     "id": "file-uploads",
     "name": "file-uploads",
@@ -2593,7 +3121,16 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "ETL pipeline",
+        "ELT pipeline",
+        "loads events into our warehouse",
+        "load events into warehouse",
+        "data warehouse ingestion"
+      ],
+      "penalty": 50
+    }
   },
   "firebase": {
     "id": "firebase",
@@ -2761,6 +3298,60 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "import-export-workflows": {
+    "id": "import-export-workflows",
+    "name": "import-export-workflows",
+    "description": "CSV/JSON import and export workflows: file upload, schema mapping,\npreview, per-row validation, partial-success commits,",
+    "owns": [
+      "File upload handling (CSV, TSV, XLSX, JSONL)",
+      "Charset detection (BOM, declared, sniffed) + normalization",
+      "Schema mapping UX (header → field) with templates",
+      "Per-row validation pipeline with error report"
+    ],
+    "triggers": [
+      "csv import",
+      "bulk import",
+      "data export",
+      "import workflow",
+      "schema mapping"
+    ],
+    "category": "backend",
+    "delegates": [
+      {
+        "skill": "file-uploads"
+      },
+      {
+        "skill": "queue-workers"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "csv import",
+        "csv export",
+        "bulk import",
+        "data export"
+      ],
+      "boost_terms": [
+        "import workflow",
+        "bulk upload",
+        "schema mapping",
+        "dry run import",
+        "export to csv",
+        "large export"
+      ]
+    }
+  },
   "infrastructure-as-code": {
     "id": "infrastructure-as-code",
     "name": "Infrastructure as Code",
@@ -2845,6 +3436,61 @@
         "correlation ids",
         "structured logs",
         "activity history"
+      ]
+    }
+  },
+  "media-transcoding-pipeline": {
+    "id": "media-transcoding-pipeline",
+    "name": "media-transcoding-pipeline",
+    "description": "Video and audio transcoding pipelines: FFmpeg-driven format/bitrate\nconversion, HLS/DASH packaging, thumbnail extraction",
+    "owns": [
+      "FFmpeg pipeline orchestration (probe → analyze → ladder → en",
+      "Bitrate ladder selection (per-resolution, per-codec, source-",
+      "HLS / DASH packaging with consistent segment durations",
+      "Thumbnail extraction (sprite sheets, poster frames, scene-de"
+    ],
+    "triggers": [
+      "video transcoding",
+      "audio transcoding",
+      "hls packaging",
+      "dash streaming",
+      "ffmpeg pipeline"
+    ],
+    "category": "backend",
+    "delegates": [
+      {
+        "skill": "file-processing-pipelines"
+      },
+      {
+        "skill": "queue-workers"
+      },
+      {
+        "skill": "file-uploads"
+      },
+      {
+        "skill": "webhook-processing"
+      },
+      {
+        "skill": "notifications-orchestration"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "video transcoding",
+        "ffmpeg",
+        "hls",
+        "dash",
+        "mediaconvert"
+      ],
+      "boost_terms": [
+        "transcode video",
+        "hls packaging",
+        "bitrate ladder",
+        "audio normalization",
+        "video thumbnails",
+        "mux video"
       ]
     }
   },
@@ -2984,6 +3630,115 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "notification-preferences": {
+    "id": "notification-preferences",
+    "name": "notification-preferences",
+    "description": "User-facing notification preferences: per-channel opt-in, per-category granularity,\nunsubscribe links, digests, quiet ho",
+    "owns": [
+      "Per-user, per-channel, per-category preference data model",
+      "Notification policy engine (should-send decision)",
+      "One-click unsubscribe flow (no login, signed token, immediat",
+      "Quiet-hours enforcement in user's timezone"
+    ],
+    "triggers": [
+      "notification preferences",
+      "unsubscribe link",
+      "email preferences",
+      "quiet hours",
+      "digest emails"
+    ],
+    "category": "backend",
+    "delegates": [
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "email-template-systems"
+      },
+      {
+        "skill": "gdpr-privacy"
+      },
+      {
+        "skill": "rate-limiting"
+      },
+      {
+        "skill": "api-design"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 24,
+      "aliases": [
+        "unsubscribe",
+        "email preferences",
+        "notification settings",
+        "quiet hours"
+      ],
+      "boost_terms": [
+        "manage notifications",
+        "email opt out",
+        "one-click unsubscribe",
+        "notification frequency",
+        "digest emails",
+        "notification policy"
+      ]
+    }
+  },
+  "notifications-orchestration": {
+    "id": "notifications-orchestration",
+    "name": "notifications-orchestration",
+    "description": "Cross-channel notification orchestration: routing decisions across email,\nSMS, push, in-app, webhook; deduplication; ret",
+    "owns": [
+      "Channel adapters (email, SMS, push APNs/FCM, in-app, webhook",
+      "Routing rules (per-user channel preference, fallback order, ",
+      "Cross-channel deduplication via stable notification keys",
+      "Delivery-status webhooks from providers (delivered, bounced,"
+    ],
+    "triggers": [
+      "notification orchestration",
+      "multi-channel notifications",
+      "notification routing",
+      "delivery logs",
+      "notification dedupe"
+    ],
+    "category": "backend",
+    "delegates": [
+      {
+        "skill": "notification-preferences"
+      },
+      {
+        "skill": "email-template-systems"
+      },
+      {
+        "skill": "queue-workers"
+      },
+      {
+        "skill": "webhook-processing"
+      },
+      {
+        "skill": "error-handling"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 28,
+      "aliases": [
+        "notifications",
+        "notify",
+        "cross channel",
+        "knock",
+        "courier"
+      ],
+      "boost_terms": [
+        "send notification",
+        "multi channel",
+        "notification routing",
+        "delivery log",
+        "retry storm",
+        "notification dedupe"
+      ]
+    }
+  },
   "observability": {
     "id": "observability",
     "name": "observability",
@@ -3027,12 +3782,135 @@
       "boost": 42,
       "aliases": [
         "metrics",
-        "monitoring"
+        "monitoring",
+        "tracing",
+        "traces",
+        "slo",
+        "slos",
+        "sli",
+        "otel",
+        "opentelemetry"
       ],
       "boost_terms": [
         "data quality checks",
         "metrics monitoring",
-        "observability"
+        "observability",
+        "instrument backend",
+        "distributed traces",
+        "open telemetry",
+        "service level objectives",
+        "sli slo",
+        "slo tracking"
+      ]
+    }
+  },
+  "pdf-generation": {
+    "id": "pdf-generation",
+    "name": "pdf-generation",
+    "description": "Production PDF generation for invoices, contracts, receipts, and reports.\nCovers HTML-to-PDF (Chromium/Puppeteer), progr",
+    "owns": [
+      "HTML-to-PDF rendering with headless Chromium / Puppeteer / P",
+      "Programmatic PDF generation with PDFKit, pdf-lib, ReportLab",
+      "Template systems (Handlebars, MJML-derived, React-PDF) for d",
+      "Font embedding, subsetting, and fallback strategy"
+    ],
+    "triggers": [
+      "pdf generation",
+      "generate invoice",
+      "html to pdf",
+      "puppeteer pdf",
+      "chromium headless"
+    ],
+    "category": "backend",
+    "delegates": [
+      {
+        "skill": "queue-workers"
+      },
+      {
+        "skill": "file-uploads"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "prompt-injection-defense"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 28,
+      "aliases": [
+        "pdf",
+        "invoice",
+        "receipt",
+        "puppeteer",
+        "chromium",
+        "pdfkit"
+      ],
+      "boost_terms": [
+        "generate pdf",
+        "html to pdf",
+        "invoice template",
+        "pdf invoice",
+        "download receipt",
+        "print to pdf"
+      ]
+    }
+  },
+  "permissioned-file-sharing": {
+    "id": "permissioned-file-sharing",
+    "name": "permissioned-file-sharing",
+    "description": "File sharing with permissions: signed URLs with expiry, share-link\nACLs, password-protected links, view-only vs download",
+    "owns": [
+      "File metadata + ACL data model",
+      "Permission resolution (workspace role + per-file overrides +",
+      "Signed-URL generation with short TTLs",
+      "Share-link tokens (with password / expiry / view-only)"
+    ],
+    "triggers": [
+      "file sharing",
+      "share link",
+      "signed url",
+      "file permissions",
+      "access control file"
+    ],
+    "category": "backend",
+    "delegates": [
+      {
+        "skill": "file-uploads"
+      },
+      {
+        "skill": "roles-permissions-ui"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "pdf-generation"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "file sharing",
+        "share link",
+        "signed url",
+        "presigned url"
+      ],
+      "boost_terms": [
+        "access control file",
+        "revoke share",
+        "watermark file",
+        "download permission",
+        "workspace files",
+        "file acl"
       ]
     }
   },
@@ -3291,6 +4169,20 @@
     ],
     "pairsWell": [],
     "selectionHints": {
+      "aliases": [
+        "background jobs",
+        "background job processing",
+        "job retries",
+        "dead letter queue",
+        "DLQ"
+      ],
+      "boost_terms": [
+        "add background job processing",
+        "background job processing with retries",
+        "retries and DLQ",
+        "dead letter queue",
+        "idempotent background workers"
+      ],
       "negative_terms": [
         "chrome extension",
         "browser extension",
@@ -3380,6 +4272,60 @@
       ]
     }
   },
+  "realtime-collab-conflict-resolution": {
+    "id": "realtime-collab-conflict-resolution",
+    "name": "realtime-collab-conflict-resolution",
+    "description": "Real-time collaboration: CRDT vs OT choice, presence + awareness,\ncursor/selection broadcast, persistent document sync, ",
+    "owns": [
+      "CRDT library integration (Yjs, Automerge, Loro)",
+      "Document persistence + snapshot strategy",
+      "Presence + awareness protocol (per-user state, throttled)",
+      "Cursor / selection broadcast (debounced, scoped)"
+    ],
+    "triggers": [
+      "real time collaboration",
+      "crdt",
+      "operational transform",
+      "yjs",
+      "automerge"
+    ],
+    "category": "backend",
+    "delegates": [
+      {
+        "skill": "websocket-realtime"
+      },
+      {
+        "skill": "mobile-offline-sync"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      },
+      {
+        "skill": "permissioned-file-sharing"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "real time collab",
+        "crdt",
+        "yjs",
+        "automerge"
+      ],
+      "boost_terms": [
+        "operational transform",
+        "cursor sync",
+        "presence awareness",
+        "collaborative editing",
+        "multiplayer editing",
+        "hocuspocus"
+      ]
+    }
+  },
   "realtime-engineer": {
     "id": "realtime-engineer",
     "name": "Realtime Engineer",
@@ -3432,6 +4378,57 @@
         "realtime sync",
         "live updates",
         "presence sync"
+      ]
+    }
+  },
+  "reviews-ratings-systems": {
+    "id": "reviews-ratings-systems",
+    "name": "reviews-ratings-systems",
+    "description": "Customer reviews and ratings: data model, eligibility (verified buyer),\nmoderation, anti-fraud signals, response/edit wi",
+    "owns": [
+      "Review data model (review, rating, review_response, vote)",
+      "Eligibility rules (verified buyer, verified experience, comp",
+      "Aggregate scoring (Bayesian average, Wilson lower bound) for",
+      "Moderation pipeline (auto-classify + human review queue)"
+    ],
+    "triggers": [
+      "reviews",
+      "ratings",
+      "star ratings",
+      "product reviews",
+      "moderate reviews"
+    ],
+    "category": "backend",
+    "delegates": [
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      },
+      {
+        "skill": "rate-limiting"
+      },
+      {
+        "skill": "api-design"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "reviews",
+        "ratings",
+        "star ratings",
+        "review system"
+      ],
+      "boost_terms": [
+        "product reviews",
+        "rating aggregation",
+        "verified buyer",
+        "moderation queue",
+        "helpful votes",
+        "fake review detection"
       ]
     }
   },
@@ -3588,7 +4585,17 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "ETL pipeline",
+        "ELT pipeline",
+        "loads events into our warehouse",
+        "load events into warehouse",
+        "data warehouse ingestion",
+        "backfill warehouse"
+      ],
+      "penalty": 70
+    }
   },
   "social-features": {
     "id": "social-features",
@@ -3764,6 +4771,171 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "support-ticketing-workflows": {
+    "id": "support-ticketing-workflows",
+    "name": "support-ticketing-workflows",
+    "description": "Customer-support ticketing systems: ticket lifecycle, assignment routing,\nSLA tracking, internal notes vs public replies",
+    "owns": [
+      "Ticket data model (status, priority, source, assignee, reque",
+      "Lifecycle state machine (new → open → pending → resolved → c",
+      "Assignment rules (round-robin, skill-based, load-balancing, ",
+      "SLA tracking with pause states (first response, full resolut"
+    ],
+    "triggers": [
+      "support tickets",
+      "help desk",
+      "ticketing system",
+      "sla tracking",
+      "ticket assignment"
+    ],
+    "category": "backend",
+    "delegates": [
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "webhook-processing"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "rate-limiting"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "help desk",
+        "support tickets",
+        "zendesk clone",
+        "intercom"
+      ],
+      "boost_terms": [
+        "ticket workflow",
+        "assignment routing",
+        "sla policy",
+        "canned responses",
+        "escalation rules",
+        "email to ticket"
+      ]
+    }
+  },
+  "team-invites-membership": {
+    "id": "team-invites-membership",
+    "name": "team-invites-membership",
+    "description": "Team/org membership lifecycle: invite issuance, signed tokens, seat\nenforcement, pending vs accepted vs expired states, ",
+    "owns": [
+      "Invite issuance with signed token (org-scoped, single-use, e",
+      "Pending invite lifecycle (sent → accepted | expired | revoke",
+      "Seat counting and enforcement (free tier, paid plan, overage",
+      "Resend with token rotation"
+    ],
+    "triggers": [
+      "team invites",
+      "invite user",
+      "workspace member",
+      "org membership",
+      "seat enforcement"
+    ],
+    "category": "backend",
+    "delegates": [
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "subscription-billing"
+      },
+      {
+        "skill": "authentication-oauth"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      },
+      {
+        "skill": "rate-limiting"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "team invites",
+        "invite users",
+        "workspace members",
+        "seat management"
+      ],
+      "boost_terms": [
+        "invite teammate",
+        "org membership",
+        "resend invite",
+        "revoke invite",
+        "domain claim",
+        "sso auto join"
+      ]
+    }
+  },
+  "tenant-provisioning-lifecycle": {
+    "id": "tenant-provisioning-lifecycle",
+    "name": "tenant-provisioning-lifecycle",
+    "description": "Tenant (org/workspace) lifecycle: creation, seeding defaults, domain\nclaim, plan changes, suspension, deletion, sandbox-",
+    "owns": [
+      "Tenant data model (org/workspace/account row)",
+      "Lifecycle state machine (provisioning → active → suspended →",
+      "Default seeding (roles, permissions, settings)",
+      "Plan changes + entitlement reconciliation"
+    ],
+    "triggers": [
+      "tenant provisioning",
+      "org creation",
+      "workspace lifecycle",
+      "tenant lifecycle",
+      "sandbox tenant"
+    ],
+    "category": "backend",
+    "delegates": [
+      {
+        "skill": "data-retention-deletion"
+      },
+      {
+        "skill": "usage-metering-entitlements"
+      },
+      {
+        "skill": "subscription-billing"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "api-design"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "tenant lifecycle",
+        "org provisioning",
+        "workspace creation",
+        "tenant suspension"
+      ],
+      "boost_terms": [
+        "multi tenant",
+        "tenant isolation",
+        "sandbox tenant",
+        "tenant deletion",
+        "plan change",
+        "tenant state machine"
+      ]
+    }
+  },
   "trpc-fullstack": {
     "id": "trpc-fullstack",
     "name": "tRPC Full-Stack",
@@ -3795,6 +4967,67 @@
     ],
     "pairsWell": [],
     "selectionHints": {}
+  },
+  "usage-metering-entitlements": {
+    "id": "usage-metering-entitlements",
+    "name": "usage-metering-entitlements",
+    "description": "Usage metering and entitlement enforcement: counter aggregation, quota\npolicies, plan/feature gates, soft-cap vs hard-ca",
+    "owns": [
+      "Meter aggregation (counters, time-bucketed usage)",
+      "Entitlement model (per-plan caps + per-tenant overrides)",
+      "Pre-action quota check + atomic increment",
+      "Overage detection + billing event emission"
+    ],
+    "triggers": [
+      "usage metering",
+      "entitlements",
+      "quota",
+      "plan limits",
+      "feature gate"
+    ],
+    "category": "backend",
+    "delegates": [
+      {
+        "skill": "subscription-billing"
+      },
+      {
+        "skill": "tenant-provisioning-lifecycle"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "rate-limiting"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "quotas",
+        "usage limits",
+        "feature gates",
+        "entitlements"
+      ],
+      "boost_terms": [
+        "usage metering",
+        "plan limits",
+        "overage billing",
+        "quota check",
+        "meter aggregation",
+        "feature gate"
+      ],
+      "negative_terms": [
+        "RAG",
+        "retrieval augmented generation",
+        "private document corpus",
+        "vector store",
+        "embeddings"
+      ]
+    }
   },
   "video-streaming-infrastructure": {
     "id": "video-streaming-infrastructure",
@@ -3878,7 +5111,69 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "generic background jobs",
+        "background job processing",
+        "add background job processing",
+        "non-webhook DLQ"
+      ],
+      "penalty": 60
+    }
+  },
+  "webhook-provider-platform": {
+    "id": "webhook-provider-platform",
+    "name": "webhook-provider-platform",
+    "description": "Outbound webhook delivery for customer integrations: subscription model,\nsigning, retries with exponential backoff, orde",
+    "owns": [
+      "Webhook subscription data model (endpoint, secret, event fil",
+      "Outbound delivery engine (queue + worker + retry)",
+      "HMAC signing with timestamp + scheme versioning",
+      "Retry policy (exponential backoff, max attempts, dead-letter"
+    ],
+    "triggers": [
+      "outbound webhooks",
+      "webhook delivery",
+      "customer webhooks",
+      "webhook signing",
+      "webhook retry"
+    ],
+    "category": "backend",
+    "delegates": [
+      {
+        "skill": "queue-workers"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "rate-limiting"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "outbound webhooks",
+        "webhook platform",
+        "svix",
+        "customer webhooks"
+      ],
+      "boost_terms": [
+        "webhook signing",
+        "webhook retry",
+        "webhook subscription",
+        "webhook dashboard",
+        "hmac signing",
+        "webhook replay"
+      ]
+    }
   },
   "websocket-realtime": {
     "id": "websocket-realtime",
@@ -5018,6 +6313,63 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "billing-invoices-receipts": {
+    "id": "billing-invoices-receipts",
+    "name": "billing-invoices-receipts",
+    "description": "Invoice and receipt generation, numbering, immutability, credit notes,\nbasic tax handling, payment reconciliation, dunni",
+    "owns": [
+      "Invoice and receipt data models (line items, totals, tax bre",
+      "Sequential numbering with gap-free guarantee",
+      "Issued-state immutability + credit-note correction flow",
+      "Tax calculation snapshot at issue (jurisdiction, rate, type)"
+    ],
+    "triggers": [
+      "generate invoice",
+      "issue invoice",
+      "receipt",
+      "credit note",
+      "invoice numbering"
+    ],
+    "category": "business",
+    "delegates": [
+      {
+        "skill": "pdf-generation"
+      },
+      {
+        "skill": "tax-compliance-sales-tax-vat"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "webhook-processing"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      },
+      {
+        "skill": "subscription-billing"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 24,
+      "aliases": [
+        "invoice",
+        "billing",
+        "receipt",
+        "credit note"
+      ],
+      "boost_terms": [
+        "issue invoice",
+        "generate receipt",
+        "invoice numbering",
+        "tax invoice",
+        "reconcile payment",
+        "dunning email"
+      ]
+    }
+  },
   "demo-day-theater": {
     "id": "demo-day-theater",
     "name": "demo-day-theater",
@@ -5342,6 +6694,60 @@
         "webhook platform",
         "developer portal",
         "delivery logs"
+      ]
+    }
+  },
+  "web-payments-wallets": {
+    "id": "web-payments-wallets",
+    "name": "web-payments-wallets",
+    "description": "Web payment integrations: Apple Pay, Google Pay, Link, Payment Request\nAPI, browser-native wallet UX, fallback to card-f",
+    "owns": [
+      "Wallet detection (Apple Pay, Google Pay, Link, Payment Reque",
+      "Per-wallet button rendering + canMakePayment check",
+      "Express-checkout flow (wallet → server-confirm → success)",
+      "Card-form fallback with saved-cards picker"
+    ],
+    "triggers": [
+      "apple pay",
+      "google pay",
+      "payment request",
+      "stripe link",
+      "web wallet"
+    ],
+    "category": "business",
+    "delegates": [
+      {
+        "skill": "subscription-billing"
+      },
+      {
+        "skill": "billing-invoices-receipts"
+      },
+      {
+        "skill": "tax-compliance-sales-tax-vat"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "apple pay",
+        "google pay",
+        "payment request",
+        "stripe link"
+      ],
+      "boost_terms": [
+        "web wallet",
+        "3ds",
+        "express checkout",
+        "network token",
+        "wallet fallback",
+        "checkout ux"
       ]
     }
   },
@@ -7334,6 +8740,20 @@
     "pairsWell": [],
     "selectionHints": {
       "penalty": 140,
+      "aliases": [
+        "etl pipeline",
+        "elt pipeline",
+        "events warehouse",
+        "warehouse load",
+        "data ingestion pipeline"
+      ],
+      "boost_terms": [
+        "build an ETL pipeline",
+        "loads events into our warehouse",
+        "load events into warehouse",
+        "event ingestion to warehouse",
+        "data warehouse ingestion"
+      ],
       "negative_terms": [
         "data table",
         "filterable data table",
@@ -7345,6 +8765,66 @@
         "structured logs",
         "traces metrics alerts",
         "observability stack"
+      ]
+    }
+  },
+  "data-quality-monitoring": {
+    "id": "data-quality-monitoring",
+    "name": "data-quality-monitoring",
+    "description": "Data-quality monitoring: freshness checks, row-count assertions, schema\ndrift detection, anomaly alerts, dimensional rec",
+    "owns": [
+      "Freshness monitoring (lag from source to destination)",
+      "Row-count assertions with expected ranges",
+      "Schema-drift detection + consumer notification",
+      "Per-column null/uniqueness/distribution tests"
+    ],
+    "triggers": [
+      "data quality",
+      "data freshness",
+      "row count check",
+      "data assertion",
+      "anomaly detection"
+    ],
+    "category": "data",
+    "delegates": [
+      {
+        "skill": "data-pipeline"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "data-dashboard-design"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "data quality",
+        "data observability",
+        "dbt tests",
+        "data freshness"
+      ],
+      "boost_terms": [
+        "row count check",
+        "data assertion",
+        "schema drift",
+        "anomaly detection",
+        "reconciliation",
+        "data sla"
+      ],
+      "negative_terms": [
+        "model drift",
+        "recommender model drift",
+        "ML model drift",
+        "training serving skew"
       ]
     }
   },
@@ -7697,7 +9177,16 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "PostgreSQL",
+        "Postgres",
+        "scale our PostgreSQL",
+        "from 100GB to 1TB",
+        "postgres database"
+      ],
+      "penalty": 80
+    }
   },
   "postgres-wizard": {
     "id": "postgres-wizard",
@@ -7731,6 +9220,18 @@
     "pairsWell": [],
     "selectionHints": {
       "penalty": 140,
+      "aliases": [
+        "n+1 queries",
+        "query optimization",
+        "slow product listing"
+      ],
+      "boost_terms": [
+        "fix N+1 queries",
+        "EXPLAIN ANALYZE",
+        "missing index",
+        "database query tuning",
+        "slow product listing pages"
+      ],
       "negative_terms": [
         "data table",
         "filterable data table",
@@ -7784,7 +9285,21 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "aliases": [
+        "Redis caching",
+        "cache dashboard queries",
+        "expensive query caching",
+        "cache-aside"
+      ],
+      "boost_terms": [
+        "implement Redis caching",
+        "Redis caching for expensive dashboard queries",
+        "cache expensive dashboard queries",
+        "cache-aside pattern",
+        "dashboard query cache"
+      ]
+    }
   },
   "temporal-craftsman": {
     "id": "temporal-craftsman",
@@ -7925,7 +9440,19 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "aliases": [
+        "private document corpus",
+        "RAG vector retrieval",
+        "vector store retrieval"
+      ],
+      "boost_terms": [
+        "implement RAG over a private document corpus",
+        "chunk private documents",
+        "embeddings for document corpus",
+        "vector retrieval pipeline"
+      ]
+    }
   },
   "accessibility-design": {
     "id": "accessibility-design",
@@ -9187,7 +10714,19 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "aliases": [
+        "private document RAG",
+        "document corpus RAG",
+        "retrieval augmented generation"
+      ],
+      "boost_terms": [
+        "implement RAG over a private document corpus",
+        "private document corpus",
+        "embeddings vector store",
+        "hybrid search reranking"
+      ]
+    }
   },
   "sdk-builder": {
     "id": "sdk-builder",
@@ -9512,7 +11051,26 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "boost": 1.4,
+      "aliases": [
+        "ci/cd",
+        "cicd",
+        "deployment pipeline",
+        "release pipeline",
+        "deployment gates"
+      ],
+      "boost_terms": [
+        "deployment gates",
+        "deploy gates",
+        "rollback automation",
+        "automated rollback",
+        "release management",
+        "github actions",
+        "gitlab ci",
+        "production deployment"
+      ]
+    }
   },
   "cicd-pipelines": {
     "id": "cicd-pipelines",
@@ -9544,7 +11102,25 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "boost": 1.4,
+      "aliases": [
+        "ci/cd",
+        "cicd",
+        "deployment pipeline",
+        "release pipeline",
+        "deployment gates"
+      ],
+      "boost_terms": [
+        "deployment gates",
+        "deploy gates",
+        "rollback automation",
+        "automated rollback",
+        "github actions",
+        "gitlab ci",
+        "production deployment"
+      ]
+    }
   },
   "claude-code-cicd": {
     "id": "claude-code-cicd",
@@ -9842,6 +11418,44 @@
     ],
     "pairsWell": [],
     "selectionHints": {}
+  },
+  "disaster-readiness-drills": {
+    "id": "disaster-readiness-drills",
+    "name": "disaster-readiness-drills",
+    "description": "Game-day exercises, chaos drills, and DR rehearsals — failover testing, backup restore validation, runbook execution, bl",
+    "owns": [],
+    "triggers": [
+      "DR drill",
+      "game day",
+      "chaos engineering",
+      "failover test",
+      "backup restore"
+    ],
+    "category": "devops",
+    "delegates": [],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 1.4,
+      "aliases": [
+        "dr-drills",
+        "chaos-drills",
+        "game-day-exercises",
+        "backup-restore-test",
+        "failover-drill"
+      ],
+      "boost_terms": [
+        "rehearse failover",
+        "measured rto",
+        "restore from backup",
+        "planned outage",
+        "chaos monkey",
+        "region evacuation",
+        "dependency failure injection",
+        "tabletop incident",
+        "runbook execution",
+        "on-call training"
+      ]
+    }
   },
   "disaster-recovery": {
     "id": "disaster-recovery",
@@ -10234,7 +11848,21 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "aliases": [
+        "n+1 queries",
+        "slow query",
+        "slow product listing",
+        "first paint performance"
+      ],
+      "boost_terms": [
+        "fix N+1 queries",
+        "product listing pages slow",
+        "database calls per page",
+        "profile before optimizing",
+        "Core Web Vitals"
+      ]
+    }
   },
   "performance-optimization": {
     "id": "performance-optimization",
@@ -10272,7 +11900,21 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "aliases": [
+        "n+1 queries",
+        "slow product listing",
+        "query performance",
+        "first paint performance"
+      ],
+      "boost_terms": [
+        "fix N+1 queries",
+        "slow product listing pages",
+        "database query bottleneck",
+        "Core Web Vitals",
+        "first paint"
+      ]
+    }
   },
   "plausible-analytics": {
     "id": "plausible-analytics",
@@ -10437,6 +12079,45 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "sla-status-page-incident-comms": {
+    "id": "sla-status-page-incident-comms",
+    "name": "sla-status-page-incident-comms",
+    "description": "SLA definition, status page operation, and incident communications — uptime measurement, public/private status pages, cu",
+    "owns": [],
+    "triggers": [
+      "status page",
+      "SLA credit",
+      "uptime measurement",
+      "incident communication",
+      "post-mortem"
+    ],
+    "category": "devops",
+    "delegates": [],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 1.4,
+      "aliases": [
+        "status-page",
+        "sla",
+        "incident-comms",
+        "rca-publication",
+        "uptime-reporting"
+      ],
+      "boost_terms": [
+        "public status page",
+        "private status page",
+        "sla credit calculation",
+        "incident severity",
+        "measured uptime",
+        "synthetic monitoring",
+        "post-mortem template",
+        "five whys",
+        "blameless postmortem",
+        "subscriber notifications",
+        "component-level status"
+      ]
+    }
+  },
   "turborepo-monorepo": {
     "id": "turborepo-monorepo",
     "name": "Turborepo Monorepo",
@@ -10574,7 +12255,15 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "Three.js product configurator",
+        "3D product configurator",
+        "smooth camera controls",
+        "WebGL"
+      ],
+      "penalty": 50
+    }
   },
   "ecommerce-cart-checkout": {
     "id": "ecommerce-cart-checkout",
@@ -11320,6 +13009,47 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "tax-compliance-sales-tax-vat": {
+    "id": "tax-compliance-sales-tax-vat",
+    "name": "tax-compliance-sales-tax-vat",
+    "description": "Sales tax, VAT, GST collection and remittance for SaaS and ecommerce — nexus tracking, rate determination, invoice compl",
+    "owns": [],
+    "triggers": [
+      "charge sales tax",
+      "collect VAT",
+      "GST",
+      "tax nexus",
+      "OSS scheme"
+    ],
+    "category": "finance",
+    "delegates": [],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 1.4,
+      "aliases": [
+        "sales-tax",
+        "vat",
+        "gst",
+        "indirect-tax",
+        "tax-engine"
+      ],
+      "boost_terms": [
+        "nexus",
+        "rate determination",
+        "place of supply",
+        "reverse charge",
+        "tax id validation",
+        "VIES",
+        "tax invoice",
+        "exemption certificate",
+        "registration threshold",
+        "OSS",
+        "IOSS",
+        "economic nexus",
+        "destination tax"
+      ]
+    }
+  },
   "astro-framework": {
     "id": "astro-framework",
     "name": "Astro Framework",
@@ -11357,6 +13087,111 @@
     ],
     "pairsWell": [],
     "selectionHints": {}
+  },
+  "desktop-autoupdate-signing": {
+    "id": "desktop-autoupdate-signing",
+    "name": "desktop-autoupdate-signing",
+    "description": "Desktop application auto-update + code signing: code-signing certificates\n(Apple, Microsoft, Linux), notarization, Squir",
+    "owns": [
+      "Code-signing certificate management (Apple, Microsoft, Linux",
+      "Notarization pipeline (Apple notary service)",
+      "Hardened runtime + entitlements",
+      "Update server / manifest hosting"
+    ],
+    "triggers": [
+      "desktop signing",
+      "code signing",
+      "apple notarization",
+      "electron auto update",
+      "sparkle update"
+    ],
+    "category": "frameworks",
+    "delegates": [
+      {
+        "skill": "app-store-release-ops"
+      },
+      {
+        "skill": "electron-desktop-apps"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "desktop signing",
+        "code signing",
+        "apple notarization",
+        "electron auto update"
+      ],
+      "boost_terms": [
+        "sparkle update",
+        "signed manifest",
+        "desktop release",
+        "macos notarize",
+        "windows signing",
+        "electron updater"
+      ]
+    }
+  },
+  "electron-desktop-apps": {
+    "id": "electron-desktop-apps",
+    "name": "electron-desktop-apps",
+    "description": "Electron application architecture: main vs renderer process boundaries,\nIPC, contextIsolation + sandbox, native integrat",
+    "owns": [
+      "Main / renderer / preload process boundaries",
+      "Context isolation + sandbox + preload bridge",
+      "IPC handler design (typed, validated, authorized)",
+      "BrowserWindow security defaults"
+    ],
+    "triggers": [
+      "electron app",
+      "main process",
+      "renderer process",
+      "context isolation",
+      "ipc electron"
+    ],
+    "category": "frameworks",
+    "delegates": [
+      {
+        "skill": "desktop-autoupdate-signing"
+      },
+      {
+        "skill": "react-patterns"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "notifications-orchestration"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "electron",
+        "desktop app",
+        "main process",
+        "renderer process"
+      ],
+      "boost_terms": [
+        "context isolation",
+        "ipc electron",
+        "electron builder",
+        "electron forge",
+        "native menu",
+        "tray icon"
+      ]
+    }
   },
   "hono-edge": {
     "id": "hono-edge",
@@ -11780,6 +13615,60 @@
       ]
     }
   },
+  "admin-crud-workflows": {
+    "id": "admin-crud-workflows",
+    "name": "admin-crud-workflows",
+    "description": "Admin panels and internal tools: list/detail/edit views, filters, bulk actions,\nmoderation queues, impersonation, audit-",
+    "owns": [
+      "List/detail/edit screens with consistent affordances",
+      "Filter UI (faceted, saved views, query params)",
+      "Bulk actions with safe defaults and explicit count confirmat",
+      "Destructive-action confirmation patterns (typed-confirm, mag"
+    ],
+    "triggers": [
+      "admin panel",
+      "internal tool",
+      "crud interface",
+      "moderation queue",
+      "bulk actions"
+    ],
+    "category": "frontend",
+    "delegates": [
+      {
+        "skill": "roles-permissions-ui"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      },
+      {
+        "skill": "bulk-actions-safety"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "state-management"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 26,
+      "aliases": [
+        "admin panel",
+        "back office",
+        "internal tool",
+        "moderation queue"
+      ],
+      "boost_terms": [
+        "admin dashboard",
+        "bulk actions",
+        "moderation workflow",
+        "impersonate user",
+        "admin filters",
+        "destructive confirmation"
+      ]
+    }
+  },
   "ai-streaming-interfaces": {
     "id": "ai-streaming-interfaces",
     "name": "ai-streaming-interfaces",
@@ -11841,6 +13730,54 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "app-store-release-ops": {
+    "id": "app-store-release-ops",
+    "name": "app-store-release-ops",
+    "description": "iOS App Store + Google Play release operations: TestFlight / internal /\nclosed / open testing tracks, phased rollout, re",
+    "owns": [
+      "Release pipeline (CI build → TestFlight/Internal → external ",
+      "Phased rollout strategy with crash-free-rate gates",
+      "Version + build number policy (semver + monotonic build)",
+      "Signing certificate / provisioning profile management"
+    ],
+    "triggers": [
+      "app store release",
+      "testflight",
+      "play console",
+      "phased rollout",
+      "app review"
+    ],
+    "category": "frontend",
+    "delegates": [
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "experiment-feature-analysis"
+      },
+      {
+        "skill": "api-design"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "app store release",
+        "testflight",
+        "play console",
+        "mobile release"
+      ],
+      "boost_terms": [
+        "phased rollout",
+        "app review",
+        "privacy labels",
+        "app signing",
+        "fastlane",
+        "mobile ci"
+      ]
+    }
+  },
   "browser-extension-builder": {
     "id": "browser-extension-builder",
     "name": "browser-extension-builder",
@@ -11873,6 +13810,110 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "browser-extension-publishing": {
+    "id": "browser-extension-publishing",
+    "name": "browser-extension-publishing",
+    "description": "Browser-extension publishing operations: Chrome Web Store, Firefox Add-ons,\nEdge Add-ons, manifest v3 packaging, permiss",
+    "owns": [
+      "Manifest authoring (MV3 service worker, permissions, host_pe",
+      "Per-store packaging (Chrome zip vs Firefox xpi)",
+      "Permission justification + minimization",
+      "Publication pipeline (CWS API, AMO API, Edge partner)"
+    ],
+    "triggers": [
+      "chrome web store",
+      "firefox addons",
+      "edge addons",
+      "extension publish",
+      "manifest v3"
+    ],
+    "category": "frontend",
+    "delegates": [
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "app-store-release-ops"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "browser extension",
+        "chrome web store",
+        "firefox addon",
+        "extension publish"
+      ],
+      "boost_terms": [
+        "manifest v3",
+        "mv3 migration",
+        "extension permissions",
+        "extension review",
+        "staged rollout",
+        "cross-browser extension"
+      ]
+    }
+  },
+  "bulk-actions-safety": {
+    "id": "bulk-actions-safety",
+    "name": "bulk-actions-safety",
+    "description": "Safe bulk-action UX for tables and lists: selection model (visible vs\nmatching), typed-confirm patterns, partial-failure",
+    "owns": [
+      "Selection-model UX (none / page / matching / custom)",
+      "Bulk-action affordance (toolbar, dropdown, keyboard shortcut",
+      "Confirmation patterns (modal, typed-phrase, friction tiers)",
+      "Async execution with progress + cancellation"
+    ],
+    "triggers": [
+      "bulk action",
+      "select all",
+      "bulk delete",
+      "typed confirm",
+      "bulk operation"
+    ],
+    "category": "frontend",
+    "delegates": [
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "queue-workers"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "admin-crud-workflows"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "bulk actions",
+        "select all",
+        "mass update",
+        "bulk delete"
+      ],
+      "boost_terms": [
+        "typed confirm",
+        "bulk undo",
+        "partial failure",
+        "bulk progress",
+        "destructive confirmation"
+      ]
+    }
+  },
   "dark-mode-theming": {
     "id": "dark-mode-theming",
     "name": "Dark Mode & Theming",
@@ -11901,6 +13942,63 @@
     ],
     "pairsWell": [],
     "selectionHints": {}
+  },
+  "data-dashboard-design": {
+    "id": "data-dashboard-design",
+    "name": "data-dashboard-design",
+    "description": "Data dashboard UX: metric tile design, time-range pickers, drill-downs,\nempty states, loading states, comparison views, ",
+    "owns": [
+      "Metric tile design (number + delta + comparison + sparkline)",
+      "Time-range picker (presets + custom + comparison period)",
+      "Chart selection (when bar vs line vs sparkline vs table)",
+      "Drill-down patterns (tile → detailed view with filter preser"
+    ],
+    "triggers": [
+      "dashboard design",
+      "kpi dashboard",
+      "metric tiles",
+      "data visualization",
+      "drill down"
+    ],
+    "category": "frontend",
+    "delegates": [
+      {
+        "skill": "search-filters-saved-views"
+      },
+      {
+        "skill": "data-quality-monitoring"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "state-management"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "dashboard",
+        "kpi dashboard",
+        "metric tiles",
+        "analytics dashboard"
+      ],
+      "boost_terms": [
+        "drill down",
+        "time range picker",
+        "sparkline",
+        "dashboard ux",
+        "executive dashboard",
+        "data viz"
+      ],
+      "negative_terms": [
+        "Redis caching",
+        "cache expensive dashboard queries",
+        "expensive dashboard queries",
+        "cache-aside"
+      ]
+    }
   },
   "expo": {
     "id": "expo",
@@ -11960,6 +14058,60 @@
         "saved places"
       ],
       "penalty": 42
+    }
+  },
+  "form-wizard-workflows": {
+    "id": "form-wizard-workflows",
+    "name": "form-wizard-workflows",
+    "description": "Multi-step form wizards: step-by-step UX, draft persistence, server-side\nvalidation per step, branching paths, recovery ",
+    "owns": [
+      "Step state machine (forward, back, branch, skip-conditional)",
+      "Per-step validation (client mirror + server authority)",
+      "Draft persistence (server-side, schema-versioned)",
+      "Resume via signed link or login"
+    ],
+    "triggers": [
+      "form wizard",
+      "multi step form",
+      "onboarding flow",
+      "application form",
+      "kyc form"
+    ],
+    "category": "frontend",
+    "delegates": [
+      {
+        "skill": "forms-validation"
+      },
+      {
+        "skill": "state-management"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "wizard",
+        "multi step form",
+        "onboarding flow",
+        "application form"
+      ],
+      "boost_terms": [
+        "form wizard",
+        "draft save",
+        "resume application",
+        "step validation",
+        "branching form",
+        "kyc flow"
+      ]
     }
   },
   "forms-validation": {
@@ -12279,6 +14431,106 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "map-location-features": {
+    "id": "map-location-features",
+    "name": "map-location-features",
+    "description": "Map UX and location features: geocoding, places autocomplete, distance/radius\nfilters, clustering, marker layers, geoloc",
+    "owns": [
+      "Map provider integration (Mapbox GL, Google Maps, Leaflet/OS",
+      "Geocoding (forward + reverse) with caching and provider rout",
+      "Places autocomplete with session tokens",
+      "Geolocation permission UX (request after gesture, fallback t"
+    ],
+    "triggers": [
+      "map ui",
+      "geocoding",
+      "places autocomplete",
+      "mapbox",
+      "google maps"
+    ],
+    "category": "frontend",
+    "delegates": [
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "rate-limiting"
+      },
+      {
+        "skill": "gdpr-privacy"
+      },
+      {
+        "skill": "state-management"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "maps",
+        "geocoding",
+        "places autocomplete",
+        "find nearby"
+      ],
+      "boost_terms": [
+        "mapbox",
+        "google maps",
+        "leaflet",
+        "geolocation",
+        "distance filter",
+        "radius search",
+        "marker clustering"
+      ]
+    }
+  },
+  "mobile-offline-sync": {
+    "id": "mobile-offline-sync",
+    "name": "mobile-offline-sync",
+    "description": "Mobile offline-first sync: local DB (SQLite/Realm/WatermelonDB), outbox\npattern, conflict resolution (LWW, CRDT, manual)",
+    "owns": [
+      "Local database schema (SQLite, WatermelonDB, Realm, op-sqlit",
+      "Outbox pattern (write → local + queue → sync → confirm)",
+      "Sync engine (push outbox, pull deltas, reconcile)",
+      "Conflict resolution strategy (LWW with server clock, CRDT, m"
+    ],
+    "triggers": [
+      "offline mode",
+      "sync mobile",
+      "sqlite mobile",
+      "watermelondb",
+      "realm db"
+    ],
+    "category": "frontend",
+    "delegates": [
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "realtime-collab-conflict-resolution"
+      },
+      {
+        "skill": "notifications-orchestration"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "offline sync",
+        "mobile sync",
+        "sqlite mobile",
+        "watermelondb"
+      ],
+      "boost_terms": [
+        "outbox pattern",
+        "conflict resolution",
+        "background sync",
+        "optimistic ui",
+        "mobile data layer",
+        "offline first"
+      ]
+    }
+  },
   "pwa-progressive-web-app": {
     "id": "pwa-progressive-web-app",
     "name": "pwa-progressive-web-app",
@@ -12386,7 +14638,14 @@
         "map search",
         "mobile responsive cards",
         "responsive cards",
-        "saved places"
+        "saved places",
+        "React app first paint",
+        "React app's first paint",
+        "web React first paint",
+        "first paint",
+        "Core Web Vitals",
+        "Lighthouse",
+        "browser first paint"
       ],
       "penalty": 42
     }
@@ -12452,6 +14711,59 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "roles-permissions-ui": {
+    "id": "roles-permissions-ui",
+    "name": "roles-permissions-ui",
+    "description": "Permission-aware UX: role/permission matrix display, disable-vs-hide\ndecisions, contextual explanations for forbidden ac",
+    "owns": [
+      "Role/permission display (matrix, list, badge)",
+      "Disable vs hide decisions per action",
+      "Tooltip / inline explanation for forbidden actions",
+      "Role assignment flow (single user, bulk, team)"
+    ],
+    "triggers": [
+      "role permissions",
+      "permission matrix",
+      "access control ui",
+      "disable button permission",
+      "role assignment ui"
+    ],
+    "category": "frontend",
+    "delegates": [
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "state-management"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "team-invites-membership"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "rbac ui",
+        "permission matrix",
+        "role assignment",
+        "access control"
+      ],
+      "boost_terms": [
+        "permission tooltip",
+        "disable button",
+        "role permissions",
+        "permission catalog",
+        "effective permissions"
+      ]
+    }
+  },
   "scroll-experience": {
     "id": "scroll-experience",
     "name": "scroll-experience",
@@ -12489,6 +14801,54 @@
     ],
     "pairsWell": [],
     "selectionHints": {}
+  },
+  "search-filters-saved-views": {
+    "id": "search-filters-saved-views",
+    "name": "search-filters-saved-views",
+    "description": "Filter UX for tables and search results: faceted filters, query-param URL\nstate, saved views (per-user and shared), filt",
+    "owns": [
+      "Filter UI components (chip, dropdown, range, multi-select, d",
+      "Faceted-filter UX (counts per facet, dynamic vs static)",
+      "URL state synchronization (filter ↔ query params)",
+      "Saved-view data model + visibility (private, team, public)"
+    ],
+    "triggers": [
+      "filter ui",
+      "faceted search",
+      "saved views",
+      "search filters",
+      "url state filters"
+    ],
+    "category": "frontend",
+    "delegates": [
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "state-management"
+      },
+      {
+        "skill": "data-dashboard-design"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "search filters",
+        "saved views",
+        "faceted search",
+        "filter ui"
+      ],
+      "boost_terms": [
+        "filter chip",
+        "filter dropdown",
+        "shared view",
+        "url state filters",
+        "empty state",
+        "filter builder"
+      ]
+    }
   },
   "state-management": {
     "id": "state-management",
@@ -12734,7 +15094,21 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "aliases": [
+        "Three.js",
+        "threejs",
+        "WebGL product configurator",
+        "3D product configurator"
+      ],
+      "boost_terms": [
+        "Three.js product configurator",
+        "smooth camera controls",
+        "3D product configurator",
+        "interactive 3D web experience",
+        "React Three Fiber"
+      ]
+    }
   },
   "toast-notification-ui": {
     "id": "toast-notification-ui",
@@ -12778,6 +15152,63 @@
       ]
     }
   },
+  "user-settings-account-management": {
+    "id": "user-settings-account-management",
+    "name": "user-settings-account-management",
+    "description": "User-facing account management UX: profile editing, password change with\nre-auth, email change with verification, 2FA se",
+    "owns": [
+      "Profile fields (name, avatar, bio, locale, timezone) edit UX",
+      "Password change with current-password re-auth",
+      "Email change with double-verification (old email notifies, n",
+      "Phone change with SMS verification"
+    ],
+    "triggers": [
+      "account settings",
+      "user profile",
+      "change password",
+      "change email",
+      "delete account"
+    ],
+    "category": "frontend",
+    "delegates": [
+      {
+        "skill": "authentication-oauth"
+      },
+      {
+        "skill": "passkeys-webauthn"
+      },
+      {
+        "skill": "notification-preferences"
+      },
+      {
+        "skill": "gdpr-privacy"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      },
+      {
+        "skill": "api-design"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 24,
+      "aliases": [
+        "account settings",
+        "profile settings",
+        "delete my account",
+        "change email"
+      ],
+      "boost_terms": [
+        "manage account",
+        "account preferences",
+        "export my data",
+        "active sessions",
+        "2fa setup",
+        "account deletion"
+      ]
+    }
+  },
   "vue-nuxt": {
     "id": "vue-nuxt",
     "name": "vue-nuxt",
@@ -12815,6 +15246,59 @@
     ],
     "pairsWell": [],
     "selectionHints": {}
+  },
+  "web-notification-inbox": {
+    "id": "web-notification-inbox",
+    "name": "web-notification-inbox",
+    "description": "In-app notification center: bell icon with unread badge, dropdown panel,\nfull inbox page, real-time updates via WebSocke",
+    "owns": [
+      "Notification inbox data model (id, category, payload, read_a",
+      "Bell-icon UI with unread badge + grouped overflow (\"9+\", \"99",
+      "Dropdown panel with recent N + \"see all\" link",
+      "Full inbox page with filtering, search, archive"
+    ],
+    "triggers": [
+      "notification inbox",
+      "notification center",
+      "bell icon",
+      "unread badge",
+      "in-app notifications"
+    ],
+    "category": "frontend",
+    "delegates": [
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "state-management"
+      },
+      {
+        "skill": "websocket-realtime"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "notification-preferences"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "notification inbox",
+        "notification center",
+        "bell icon",
+        "in-app notifications"
+      ],
+      "boost_terms": [
+        "notification panel",
+        "unread badge",
+        "mark as read",
+        "realtime notifications",
+        "notification dropdown"
+      ]
+    }
   },
   "animation-systems": {
     "id": "animation-systems",
@@ -14401,7 +16885,21 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "aliases": [
+        "AWS Lambda",
+        "Node Lambda",
+        "serverless Node",
+        "Lambda monitoring"
+      ],
+      "boost_terms": [
+        "deploy our Node app to AWS Lambda",
+        "AWS Lambda with proper monitoring",
+        "Node app to AWS Lambda",
+        "CloudWatch monitoring",
+        "API Gateway Lambda"
+      ]
+    }
   },
   "azure-functions": {
     "id": "azure-functions",
@@ -14617,6 +17115,56 @@
         "transactional email",
         "support ticket email",
         "customer email"
+      ]
+    }
+  },
+  "email-template-systems": {
+    "id": "email-template-systems",
+    "name": "email-template-systems",
+    "description": "Transactional email template systems: MJML/React-Email/Handlebars\ntemplating, dark-mode variants, localization, preview ",
+    "owns": [
+      "Template authoring framework (MJML, React-Email, Handlebars,",
+      "HTML + plaintext rendering pipeline",
+      "i18n with locale fallback chain",
+      "Dark-mode variant + media-query support"
+    ],
+    "triggers": [
+      "email template",
+      "mjml",
+      "react email",
+      "email localization",
+      "dark mode email"
+    ],
+    "category": "integrations",
+    "delegates": [
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "notification-preferences"
+      },
+      {
+        "skill": "email-deliverability"
+      },
+      {
+        "skill": "pdf-generation"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "email templates",
+        "mjml",
+        "react email",
+        "email localization"
+      ],
+      "boost_terms": [
+        "dark mode email",
+        "outlook compatibility",
+        "email preview",
+        "email versioning",
+        "transactional template"
       ]
     }
   },
@@ -15774,7 +18322,22 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "aliases": [
+        "localization",
+        "localize",
+        "translation",
+        "French launch",
+        "localized UI copy"
+      ],
+      "boost_terms": [
+        "localize onboarding emails",
+        "localize UI copy",
+        "French launch localization",
+        "translate onboarding content",
+        "cultural adaptation"
+      ]
+    }
   },
   "ai-trend-alchemy": {
     "id": "ai-trend-alchemy",
@@ -17037,7 +19600,11 @@
         "app store deployment",
         "ios app store",
         "android app store",
-        "mobile app deployment"
+        "mobile app deployment",
+        "Node app to AWS Lambda",
+        "deploy our Node app to AWS Lambda",
+        "AWS Lambda with proper monitoring",
+        "API Gateway Lambda"
       ]
     }
   },
@@ -17210,7 +19777,22 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "aliases": [
+        "AB test",
+        "A/B test",
+        "experiment design",
+        "p-hacking",
+        "sample size"
+      ],
+      "boost_terms": [
+        "run an A/B test correctly",
+        "without p-hacking",
+        "sample-size calculation",
+        "statistical power",
+        "experiment guardrails"
+      ]
+    }
   },
   "analytics": {
     "id": "analytics",
@@ -17285,6 +19867,68 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "customer-onboarding-success": {
+    "id": "customer-onboarding-success",
+    "name": "customer-onboarding-success",
+    "description": "Customer-onboarding (CSM) and success ops: implementation tasks, kickoff\n→ handoff workflow, account health scoring, suc",
+    "owns": [
+      "Implementation task data model (per-customer playbook tracki",
+      "Kickoff → handoff workflow with explicit ownership transfer",
+      "Health score (multi-signal, weighted, with breakdown)",
+      "Churn-risk signals (usage decay, NPS dip, support spike)"
+    ],
+    "triggers": [
+      "customer onboarding",
+      "customer success",
+      "account health",
+      "churn risk",
+      "implementation tasks"
+    ],
+    "category": "product",
+    "delegates": [
+      {
+        "skill": "feature-onboarding-checklists"
+      },
+      {
+        "skill": "data-dashboard-design"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "product-feedback-roadmapping"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "customer success",
+        "csm",
+        "account health",
+        "churn risk"
+      ],
+      "boost_terms": [
+        "implementation tasks",
+        "kickoff handoff",
+        "success plan",
+        "qbr snapshot",
+        "expansion signal",
+        "renewal forecast"
+      ],
+      "negative_terms": [
+        "encrypt",
+        "encryption at rest",
+        "customer PII",
+        "PII at rest",
+        "rotate keys",
+        "key rotation"
+      ]
+    }
+  },
   "customer-success": {
     "id": "customer-success",
     "name": "customer-success",
@@ -17316,6 +19960,120 @@
     ],
     "pairsWell": [],
     "selectionHints": {}
+  },
+  "experiment-feature-analysis": {
+    "id": "experiment-feature-analysis",
+    "name": "experiment-feature-analysis",
+    "description": "A/B experimentation discipline: hypothesis design, sample-size + power,\nguardrail metrics, statistical significance vs p",
+    "owns": [
+      "Hypothesis design (primary metric, expected lift, MDE)",
+      "Sample-size + power calculation",
+      "Variant assignment + sticky bucketing",
+      "Guardrail metrics (counter-metrics that must not regress)"
+    ],
+    "triggers": [
+      "ab test",
+      "experiment analysis",
+      "feature flag",
+      "rollout decision",
+      "statistical significance"
+    ],
+    "category": "product",
+    "delegates": [
+      {
+        "skill": "feature-onboarding-checklists"
+      },
+      {
+        "skill": "state-management"
+      },
+      {
+        "skill": "data-quality-monitoring"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "notifications-orchestration"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "ab testing",
+        "experimentation",
+        "feature experiments",
+        "rollout"
+      ],
+      "boost_terms": [
+        "statistical significance",
+        "sample size",
+        "guardrail metric",
+        "peeking",
+        "segment analysis",
+        "sequential testing"
+      ]
+    }
+  },
+  "feature-onboarding-checklists": {
+    "id": "feature-onboarding-checklists",
+    "name": "feature-onboarding-checklists",
+    "description": "Activation checklists, first-run experiences, and progressive onboarding:\nstep definition, completion detection, gating ",
+    "owns": [
+      "Checklist step definition (action, completion-event, segment",
+      "Completion detection (action events, not view events)",
+      "Step ordering (default + per-segment overrides)",
+      "Progress display (step count + activation-weighted)"
+    ],
+    "triggers": [
+      "onboarding checklist",
+      "activation flow",
+      "first run experience",
+      "getting started",
+      "product tour"
+    ],
+    "category": "product",
+    "delegates": [
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "state-management"
+      },
+      {
+        "skill": "experiment-feature-analysis"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "product-feedback-roadmapping"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "onboarding",
+        "checklist",
+        "activation",
+        "first run"
+      ],
+      "boost_terms": [
+        "getting started",
+        "product tour",
+        "aha moment",
+        "feature onboarding",
+        "activation rate",
+        "re-engagement"
+      ],
+      "negative_terms": [
+        "instrument product funnels",
+        "activation cohorts",
+        "funnel instrumentation",
+        "retention cohort analysis"
+      ]
+    }
   },
   "feature-prioritization": {
     "id": "feature-prioritization",
@@ -17411,7 +20169,22 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "aliases": [
+        "product analytics",
+        "funnel instrumentation",
+        "activation cohorts",
+        "product funnels",
+        "cohort analysis"
+      ],
+      "boost_terms": [
+        "instrument product funnels",
+        "activation cohorts after onboarding",
+        "product funnel instrumentation",
+        "retention cohort analysis",
+        "funnel drop-off analytics"
+      ]
+    }
   },
   "product-discovery": {
     "id": "product-discovery",
@@ -17444,6 +20217,60 @@
     ],
     "pairsWell": [],
     "selectionHints": {}
+  },
+  "product-feedback-roadmapping": {
+    "id": "product-feedback-roadmapping",
+    "name": "product-feedback-roadmapping",
+    "description": "Customer-feedback capture, deduplication, voting, prioritization, and\nclosing-the-loop with submitters. The data model a",
+    "owns": [
+      "Feedback intake (in-app, email-to-feedback, portal submissio",
+      "Idea deduplication (semantic + manual merge)",
+      "Vote and follow data model (identity-tied, weighted)",
+      "Status workflow (submitted → triaged → planned → in-progress"
+    ],
+    "triggers": [
+      "product feedback",
+      "feature requests",
+      "feedback portal",
+      "feature voting",
+      "public roadmap"
+    ],
+    "category": "product",
+    "delegates": [
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "experiment-feature-analysis"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      },
+      {
+        "skill": "customer-onboarding-success"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "feature requests",
+        "product feedback",
+        "public roadmap",
+        "feedback portal"
+      ],
+      "boost_terms": [
+        "feature voting",
+        "canny clone",
+        "close the loop",
+        "feedback dedup",
+        "prioritization",
+        "rice scoring"
+      ]
+    }
   },
   "product-management": {
     "id": "product-management",
@@ -17793,10 +20620,19 @@
       "aliases": [
         "compliance",
         "compliant",
-        "hipaa"
+        "hipaa",
+        "soc 2",
+        "soc2",
+        "type ii"
       ],
       "boost_terms": [
         "hipaa compliance",
+        "soc 2 type ii",
+        "soc2 type ii",
+        "soc 2 readiness",
+        "audit readiness",
+        "trust services criteria",
+        "continuous evidence",
         "compliance automation",
         "audit evidence"
       ]
@@ -17864,7 +20700,21 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "aliases": [
+        "pii encryption",
+        "encryption at rest",
+        "key rotation",
+        "customer pii"
+      ],
+      "boost_terms": [
+        "encrypt customer PII at rest",
+        "rotate encryption keys",
+        "quarterly key rotation",
+        "envelope encryption",
+        "KMS key management"
+      ]
+    }
   },
   "cybersecurity": {
     "id": "cybersecurity",
@@ -17900,6 +20750,60 @@
     ],
     "pairsWell": [],
     "selectionHints": {}
+  },
+  "data-retention-deletion": {
+    "id": "data-retention-deletion",
+    "name": "data-retention-deletion",
+    "description": "Data retention and deletion: per-class retention policies, scheduled\ndeletion jobs, GDPR Article 17 erasure, CCPA delete",
+    "owns": [
+      "Data classification (categories per retention policy)",
+      "Retention policy registry (per category, per jurisdiction)",
+      "Deletion fan-out (registry of services holding user data)",
+      "Soft-delete + scheduled purge jobs"
+    ],
+    "triggers": [
+      "data retention",
+      "data deletion",
+      "right to be forgotten",
+      "gdpr deletion",
+      "ccpa delete"
+    ],
+    "category": "security",
+    "delegates": [
+      {
+        "skill": "gdpr-privacy"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      },
+      {
+        "skill": "queue-workers"
+      },
+      {
+        "skill": "webhook-provider-platform"
+      },
+      {
+        "skill": "notifications-orchestration"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "data deletion",
+        "data retention",
+        "right to be forgotten",
+        "gdpr deletion"
+      ],
+      "boost_terms": [
+        "retention policy",
+        "legal hold",
+        "tombstone",
+        "purge job",
+        "backup deletion",
+        "ccpa delete"
+      ]
+    }
   },
   "export-control": {
     "id": "export-control",
@@ -17967,12 +20871,19 @@
       "boost": 52,
       "aliases": [
         "gdpr",
-        "privacy"
+        "privacy",
+        "eu privacy",
+        "eu launch"
       ],
       "boost_terms": [
         "gdpr compliant",
+        "gdpr compliance",
+        "eu launch",
+        "before eu launch",
         "privacy controls",
-        "privacy compliance"
+        "privacy compliance",
+        "data protection",
+        "lawful basis"
       ]
     }
   },
@@ -18036,6 +20947,44 @@
     ],
     "pairsWell": [],
     "selectionHints": {}
+  },
+  "privacy-consent-management": {
+    "id": "privacy-consent-management",
+    "name": "privacy-consent-management",
+    "description": "GDPR/CCPA/CPRA-compliant consent capture, storage, propagation, and revocation across web, mobile, server, and third-par",
+    "owns": [],
+    "triggers": [
+      "cookie banner",
+      "consent management",
+      "GDPR consent",
+      "CCPA opt-out",
+      "do not sell"
+    ],
+    "category": "security",
+    "delegates": [],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 1.4,
+      "aliases": [
+        "consent",
+        "cookie-consent",
+        "privacy-banner",
+        "cmp",
+        "dsr-fulfillment"
+      ],
+      "boost_terms": [
+        "lawful basis",
+        "granular consent",
+        "tcf string",
+        "global privacy control",
+        "sensitive personal information",
+        "opt-out signal",
+        "data processing agreement",
+        "tag manager gating",
+        "consent expiry",
+        "regional banner"
+      ]
+    }
   },
   "prompt-injection-defense": {
     "id": "prompt-injection-defense",
@@ -18102,7 +21051,19 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "aliases": [
+        "key rotation",
+        "secrets rotation",
+        "rotate keys"
+      ],
+      "boost_terms": [
+        "rotate keys quarterly",
+        "encryption key lifecycle",
+        "secret rotation window",
+        "KMS key rotation"
+      ]
+    }
   },
   "security-engineer": {
     "id": "security-engineer",
@@ -18602,6 +21563,17 @@
         "waitlist capture",
         "waitlist launch",
         "launch page"
+      ],
+      "negative_terms": [
+        "N+1",
+        "N+1 queries",
+        "database query",
+        "slow product listing",
+        "EXPLAIN ANALYZE",
+        "localize onboarding emails",
+        "localized UI copy",
+        "French launch localization",
+        "translate onboarding"
       ]
     }
   },
@@ -19060,7 +22032,16 @@
     "category": "enterprise",
     "delegates": [],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "qualify an enterprise deal",
+        "enterprise sales deal",
+        "budget authority need timeline",
+        "budget, authority, need, and timeline",
+        "deal qualification"
+      ],
+      "penalty": 70
+    }
   },
   "founder-character": {
     "id": "founder-character",
@@ -19581,7 +22562,22 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "aliases": [
+        "deal qualification",
+        "enterprise deal qualification",
+        "BANT",
+        "MEDDPICC",
+        "sales qualification"
+      ],
+      "boost_terms": [
+        "qualify an enterprise deal",
+        "budget authority need timeline",
+        "budget, authority, need, and timeline",
+        "qualify enterprise sales deals",
+        "sales deal qualification"
+      ]
+    }
   },
   "scim-provisioning": {
     "id": "scim-provisioning",
@@ -20053,7 +23049,68 @@
       }
     ],
     "pairsWell": [],
-    "selectionHints": {}
+    "selectionHints": {
+      "negative_terms": [
+        "A/B test",
+        "AB test",
+        "p-hacking",
+        "sample-size calculation",
+        "statistical significance",
+        "experiment design"
+      ],
+      "penalty": 70
+    }
+  },
+  "web-accessibility-qa": {
+    "id": "web-accessibility-qa",
+    "name": "web-accessibility-qa",
+    "description": "Accessibility QA discipline: automated checks (axe-core, Lighthouse,\npa11y), manual testing (keyboard, screen reader, co",
+    "owns": [
+      "Automated a11y testing (axe-core, pa11y, Lighthouse) in CI",
+      "Manual testing protocols (keyboard, screen reader, contrast)",
+      "Component-level a11y (semantic HTML, ARIA, focus management)",
+      "Page-level a11y (heading hierarchy, landmarks, skip links)"
+    ],
+    "triggers": [
+      "accessibility testing",
+      "a11y qa",
+      "wcag compliance",
+      "axe core",
+      "keyboard navigation"
+    ],
+    "category": "testing",
+    "delegates": [
+      {
+        "skill": "accessibility"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "experiment-feature-analysis"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "boost": 22,
+      "aliases": [
+        "accessibility",
+        "a11y",
+        "wcag",
+        "ada compliance"
+      ],
+      "boost_terms": [
+        "axe core",
+        "lighthouse a11y",
+        "keyboard navigation",
+        "screen reader",
+        "color contrast",
+        "aria"
+      ]
+    }
   },
   "quantitative-research": {
     "id": "quantitative-research",

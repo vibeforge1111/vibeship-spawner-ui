@@ -22,6 +22,25 @@ const MANIFEST_PATH = process.env.SPAWNER_SPARK_MANIFEST
   : path.join(H70_PATH, 'spark-skill-manifest.json');
 const OUTPUT_DIR = path.join(__dirname, '../src/lib/data');
 
+function ownText(own) {
+  if (typeof own === 'string') return own.trim();
+  if (!own || typeof own !== 'object') return '';
+
+  return String(
+    own.title ||
+    own.name ||
+    own.area ||
+    own.capability ||
+    own.decision_authority ||
+    own.scope ||
+    ''
+  ).trim();
+}
+
+function ownTexts(owns) {
+  return Array.isArray(owns) ? owns.map(ownText).filter(Boolean) : [];
+}
+
 /**
  * Extract keywords from a skill for the minimal index
  */
@@ -45,7 +64,7 @@ function extractKeywords(skill, skillName) {
 
   // From owns (extract key terms)
   if (skill.owns && Array.isArray(skill.owns)) {
-    skill.owns.forEach(own => {
+    ownTexts(skill.owns).forEach(own => {
       const lower = own.toLowerCase();
       // Extract 1-2 word key terms
       const terms = lower.match(/\b[a-z]{3,}\b/g);
@@ -82,7 +101,7 @@ function processSkill(skillPath, skillName, category) {
     id: skillName,
     name: skill.name || skillName,
     description: skill.description || '',
-    owns: skill.owns || [],
+    owns: ownTexts(skill.owns),
     triggers: skill.triggers || [],
     category: skill.category || category || 'general',
     delegates: skill.delegates || [],
@@ -109,7 +128,7 @@ function processManifestSkill(skill) {
     id: skillName,
     name: skill.name || skillName,
     description: skill.description || '',
-    owns: Array.isArray(skill.owns) ? skill.owns : [],
+    owns: ownTexts(skill.owns),
     triggers: Array.isArray(skill.triggers) ? skill.triggers : [],
     category: skill.category || 'general',
     delegates,
@@ -192,9 +211,7 @@ function buildIndexes(records) {
       id: skill.id,
       name: skill.name,
       description: String(skill.description || '').slice(0, 120),
-      owns: Array.isArray(skill.owns)
-        ? skill.owns.slice(0, 4).map(own => String(own).slice(0, 60))
-        : [],
+      owns: ownTexts(skill.owns).slice(0, 4).map(own => own.slice(0, 60)),
       triggers: Array.isArray(skill.triggers)
         ? skill.triggers.slice(0, 5).map(trigger => String(trigger).slice(0, 50))
         : [],
