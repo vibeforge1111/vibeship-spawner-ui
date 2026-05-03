@@ -1,4 +1,6 @@
 import { env } from '$env/dynamic/private';
+import { mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
 import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import { eventBridge, type BridgeEvent } from '$lib/services/event-bridge';
 import type { Skill } from '$lib/stores/skills.svelte';
@@ -287,7 +289,24 @@ export async function buildAutoDispatchTaskSkillMap(
 	return taskSkillMap;
 }
 
-export function inferProjectPathFromPrdLoad(load: PrdCanvasLoadForAutoDispatch): string {
+function slugPart(value: string): string {
+	return (
+		value
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-+|-+$/g, '')
+			.slice(0, 64) || 'spark-project'
+	);
+}
+
+function hostedWorkspaceRoot(envRecord: Record<string, string | undefined>): string | null {
+	return envRecord.SPAWNER_WORKSPACE_ROOT?.trim() || envRecord.SPARK_WORKSPACE_ROOT?.trim() || null;
+}
+
+export function inferProjectPathFromPrdLoad(
+	load: PrdCanvasLoadForAutoDispatch,
+	envRecord: Record<string, string | undefined> = env as Record<string, string | undefined>
+): string {
 	const text = [
 		load.executionPrompt || '',
 		typeof load.relay?.goal === 'string' ? load.relay.goal : '',
@@ -296,13 +315,19 @@ export function inferProjectPathFromPrdLoad(load: PrdCanvasLoadForAutoDispatch):
 	const labeledPath =
 		text.match(/(?:target operating-system folder|project path|target folder|create it at|build this at)\s*:?\s*`?((?:[A-Z]:[\\/]|\/)[^\r\n`]+)/i)?.[1] ||
 		text.match(/\bat\s+`?((?:[A-Z]:[\\/]|\/)[^\r\n`]+)/i)?.[1];
-	return (
-		labeledPath
-			?.trim()
-			.replace(/:\s+.*$/i, '')
-			.replace(/\s+(?:as|inside|with|and)\b.*$/i, '')
-			.replace(/[).,;]+$/, '') || '.'
-	);
+	const explicitPath = labeledPath
+		?.trim()
+		.replace(/:\s+.*$/i, '')
+		.replace(/\s+(?:as|inside|with|and)\b.*$/i, '')
+		.replace(/[).,;]+$/, '');
+	if (explicitPath) return explicitPath;
+
+	const workspaceRoot = hostedWorkspaceRoot(envRecord);
+	if (workspaceRoot) {
+		return join(workspaceRoot, `${slugPart(load.missionId)}-${slugPart(load.pipelineName)}`);
+	}
+
+	return '.';
 }
 
 function plannedTasksFromMission(
@@ -347,6 +372,7 @@ export async function autoDispatchPrdCanvasLoad(
 
 		const graph = canvasLoadToMissionGraph(load);
 		const projectPath = inferProjectPathFromPrdLoad(load);
+		await mkdir(projectPath, { recursive: true });
 		const provider = resolveRelayMissionProvider(
 			DEFAULT_MULTI_LLM_PROVIDERS.map(configuredProvider),
 			getSparkDefaultProviderId()

@@ -80,6 +80,32 @@ describe('PRD auto-dispatch helpers', () => {
 		).toBe('C:\\Users\\USER\\Desktop\\spark-progress-pause-probe');
 	});
 
+	it('uses a hosted workspace folder when PRD text has no explicit path', () => {
+		const projectPath = inferProjectPathFromPrdLoad(
+			{
+				...load,
+				executionPrompt: 'Build a tiny static landing page for a cafe.',
+				nodes: [{ skill: { name: 'task-1: Build page', description: 'Create the page.' } }]
+			},
+			{ SPARK_WORKSPACE_ROOT: '/data/workspaces' }
+		);
+
+		expect(projectPath).toMatch(/[\\/]data[\\/]workspaces[\\/]mission-1-spark-test$/);
+	});
+
+	it('keeps local auto-dispatch fallback unchanged without a hosted workspace', () => {
+		expect(
+			inferProjectPathFromPrdLoad(
+				{
+					...load,
+					executionPrompt: 'Build a tiny static landing page for a cafe.',
+					nodes: [{ skill: { name: 'task-1: Build page', description: 'Create the page.' } }]
+				},
+				{}
+			)
+		).toBe('.');
+	});
+
 	it('allows auto-dispatch only when the PRD load is runnable', () => {
 		expect(shouldAutoDispatchPrdLoad(load).ok).toBe(true);
 		expect(shouldAutoDispatchPrdLoad({ ...load, autoRun: false, relay: {} }).reason).toBe('autoRun disabled');
