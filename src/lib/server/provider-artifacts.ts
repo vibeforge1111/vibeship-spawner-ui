@@ -33,12 +33,55 @@ function stripJsonFence(value: string): string {
 	const trimmed = value.trim();
 	const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
 	if (fenced) return fenced[1].trim();
+	const artifactJson = extractJsonObjectContainingFiles(trimmed);
+	if (artifactJson) return artifactJson;
 	const firstBrace = trimmed.indexOf('{');
 	const lastBrace = trimmed.lastIndexOf('}');
 	if (firstBrace >= 0 && lastBrace > firstBrace) {
 		return trimmed.slice(firstBrace, lastBrace + 1);
 	}
 	return trimmed;
+}
+
+function findMatchingBrace(value: string, start: number): number {
+	let depth = 0;
+	let inString = false;
+	let escaped = false;
+	for (let index = start; index < value.length; index += 1) {
+		const char = value[index];
+		if (inString) {
+			if (escaped) {
+				escaped = false;
+			} else if (char === '\\') {
+				escaped = true;
+			} else if (char === '"') {
+				inString = false;
+			}
+			continue;
+		}
+		if (char === '"') {
+			inString = true;
+			continue;
+		}
+		if (char === '{') depth += 1;
+		if (char === '}') {
+			depth -= 1;
+			if (depth === 0) return index;
+		}
+	}
+	return -1;
+}
+
+function extractJsonObjectContainingFiles(value: string): string | null {
+	let filesIndex = value.lastIndexOf('"files"');
+	while (filesIndex >= 0) {
+		const start = value.lastIndexOf('{', filesIndex);
+		if (start < 0) return null;
+		const end = findMatchingBrace(value, start);
+		if (end > start) return value.slice(start, end + 1);
+		filesIndex = value.lastIndexOf('"files"', filesIndex - 1);
+	}
+	return null;
 }
 
 function normalizeFiles(value: unknown): ProviderArtifactFile[] {

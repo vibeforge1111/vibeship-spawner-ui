@@ -37,6 +37,16 @@ describe('provider artifacts', () => {
 		expect(bundle.files).toEqual([{ path: 'index.html', content: '<h1>ok</h1>' }]);
 	});
 
+	it('extracts the final artifact JSON when providers add preamble text', () => {
+		const bundle = parseProviderArtifactBundle(
+			'First I would emit progress: {"type":"task_completed","data":{"filesChanged":["index.html"]}}\n\nNow here is the complete project artifact:\n{"summary":"done","files":[{"path":"index.html","content":"<script>const state = { ok: true };</script>"}]}'
+		);
+
+		expect(bundle.files).toEqual([
+			{ path: 'index.html', content: '<script>const state = { ok: true };</script>' }
+		]);
+	});
+
 	it('writes safe relative files into the working directory', async () => {
 		const result = await materializeProviderArtifacts({
 			workingDirectory: projectRoot,
