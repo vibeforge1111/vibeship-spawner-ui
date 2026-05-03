@@ -6,6 +6,10 @@ import { describe, expect, it } from 'vitest';
 const sourceDir = resolve(process.env.SPAWNER_H70_SKILLS_DIR || 'C:/Users/USER/Desktop/spark-skill-graphs');
 const staticSkillsPath = resolve('static/skills.json');
 const staticCollaborationPath = resolve('static/skill-collaboration.json');
+const generatedCatalogPath = resolve('src/lib/data/skill-catalog.json');
+const compactCatalogPath = resolve('src/lib/data/skill-catalog-compact.json');
+const matcherCatalogPath = resolve('src/lib/data/skill-matcher-catalog.json');
+const sparkTierPath = join(sourceDir, 'config', 'skill-tiers.json');
 const nonSkillDirs = new Set([
 	'.git',
 	'.github',
@@ -27,6 +31,7 @@ function sourceSkillIds(): string[] {
 }
 
 function sourceSkillRecords(): Array<{ id: string; parsed: Record<string, unknown> }> {
+	if (cachedSourceRecords) return cachedSourceRecords;
 	const records: Array<{ id: string; parsed: Record<string, unknown> }> = [];
 	for (const category of readdirSync(sourceDir, { withFileTypes: true })) {
 		if (
@@ -46,8 +51,11 @@ function sourceSkillRecords(): Array<{ id: string; parsed: Record<string, unknow
 			}
 		}
 	}
+	cachedSourceRecords = records;
 	return records;
 }
+
+let cachedSourceRecords: Array<{ id: string; parsed: Record<string, unknown> }> | null = null;
 
 describe('synced skill catalog', () => {
 	it.runIf(existsSync(sourceDir))('matches the local spark-skill-graphs skill ids', () => {
@@ -57,7 +65,7 @@ describe('synced skill catalog', () => {
 			.sort();
 
 		expect(staticIds).toEqual(sourceIds);
-	});
+	}, 15000);
 
 	it.runIf(existsSync(sourceDir))('preserves valid spark pairs_with relationships as pairsWell', () => {
 		const sourceRecords = sourceSkillRecords();
@@ -80,7 +88,7 @@ describe('synced skill catalog', () => {
 			const staticSkill = staticById.get(sourceSkill.id);
 			expect(staticSkill?.pairsWell?.slice().sort() || []).toEqual(expectedPairs);
 		}
-	});
+	}, 15000);
 
 	it('does not publish dangling handoffs or pairs', () => {
 		const staticSkills: Array<{
@@ -127,5 +135,37 @@ describe('synced skill catalog', () => {
 				expect(staticIds.has(skillId)).toBe(true);
 			}
 		}
+	});
+
+	it('keeps every generated Spawner skill catalog aligned to static/skills.json', () => {
+		const staticSkills: Array<{ id: string }> = JSON.parse(readFileSync(staticSkillsPath, 'utf8'));
+		const staticIds = staticSkills.map((skill) => skill.id).sort();
+
+		const generatedCatalog = JSON.parse(readFileSync(generatedCatalogPath, 'utf8')) as {
+			totalSkills?: number;
+			skills?: Array<{ id: string }>;
+		};
+		const compactCatalog = JSON.parse(readFileSync(compactCatalogPath, 'utf8')) as Array<{ id: string }>;
+		const matcherCatalog = JSON.parse(readFileSync(matcherCatalogPath, 'utf8')) as Record<string, unknown>;
+
+		expect(generatedCatalog.totalSkills).toBe(staticSkills.length);
+		expect((generatedCatalog.skills || []).map((skill) => skill.id).sort()).toEqual(staticIds);
+		expect(compactCatalog.map((skill) => skill.id).sort()).toEqual(staticIds);
+		expect(Object.keys(matcherCatalog).sort()).toEqual(staticIds);
+	});
+
+	it.runIf(existsSync(sparkTierPath))('uses Spark tier manifest for the 30 free Spawner skills', () => {
+		const staticSkills: Array<{ id: string; tier?: string }> = JSON.parse(readFileSync(staticSkillsPath, 'utf8'));
+		const tierConfig = JSON.parse(readFileSync(sparkTierPath, 'utf8')) as {
+			open_source?: { canonical_starter_skill_ids?: string[] };
+		};
+		const expectedFreeIds = [...(tierConfig.open_source?.canonical_starter_skill_ids || [])].sort();
+		const actualFreeIds = staticSkills
+			.filter((skill) => skill.tier === 'free')
+			.map((skill) => skill.id)
+			.sort();
+
+		expect(actualFreeIds).toEqual(expectedFreeIds);
+		expect(actualFreeIds).toHaveLength(30);
 	});
 });

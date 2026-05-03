@@ -9,21 +9,7 @@ const GENERATED_SKILLS_KEY = 'spawner-generated-skills';
 
 export type SkillTier = 'free' | 'premium';
 
-export type SkillCategory =
-	| 'development'
-	| 'frameworks'
-	| 'integrations'
-	| 'ai-ml'
-	| 'agents'
-	| 'data'
-	| 'design'
-	| 'marketing'
-	| 'strategy'
-	| 'enterprise'
-	| 'finance'
-	| 'legal'
-	| 'science'
-	| 'startup';
+export type SkillCategory = string;
 
 export interface Skill {
 	id: string;

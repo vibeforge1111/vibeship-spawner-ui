@@ -3,8 +3,8 @@
     "caseCount": 50,
     "passCount": 50,
     "passRate": 1,
-    "averageScore": 0.9709300000000005,
-    "averageLabeledPrecisionAtK": 0.7092857142857146,
+    "averageScore": 0.9642740000000005,
+    "averageLabeledPrecisionAtK": 0.6427637362637365,
     "averageRequiredRecall": 1,
     "averageAnyOfRecall": 1,
     "averageMustNotCleanRate": 1,
@@ -18,11 +18,11 @@
       "ids": [
         "semantic-search",
         "rag-implementation",
+        "rag-engineer",
         "ai-observability",
         "ai-personalization",
         "document-ai",
         "llm-architect",
-        "rag-engineer",
         "vector-specialist",
         "openai-api-patterns",
         "v0-dev"
@@ -39,9 +39,9 @@
       "relevantReturned": [
         "semantic-search",
         "rag-implementation",
+        "rag-engineer",
         "ai-observability",
         "llm-architect",
-        "rag-engineer",
         "vector-specialist",
         "openai-api-patterns"
       ]
@@ -93,14 +93,17 @@
         "ios-swift-specialist",
         "android-kotlin-specialist",
         "state-management",
+        "notifications-orchestration",
         "react-patterns",
+        "mobile-offline-sync",
+        "app-store-release-ops",
         "framer-motion-react",
         "responsive-mobile-first",
         "frontend"
       ],
       "pass": true,
-      "score": 0.99,
-      "labeledPrecisionAtK": 0.9,
+      "score": 0.9692,
+      "labeledPrecisionAtK": 0.6923076923076923,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -133,11 +136,14 @@
         "auth-specialist",
         "saas-teams-organizations",
         "data-engineer",
+        "billing-invoices-receipts",
+        "data-dashboard-design",
+        "feature-onboarding-checklists",
         "onboarding-flows"
       ],
       "pass": true,
-      "score": 0.99,
-      "labeledPrecisionAtK": 0.9,
+      "score": 0.9692,
+      "labeledPrecisionAtK": 0.6923076923076923,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -239,13 +245,13 @@
         "mcp-server-development",
         "voice-agents",
         "crewai",
+        "ai-agent-permissions-sandboxing",
         "agent-communication",
-        "computer-use-agents",
-        "mcp-developer"
+        "computer-use-agents"
       ],
       "pass": true,
-      "score": 0.98,
-      "labeledPrecisionAtK": 0.8,
+      "score": 0.97,
+      "labeledPrecisionAtK": 0.7,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -259,8 +265,7 @@
         "multi-agent-orchestration",
         "mcp-server-development",
         "agent-communication",
-        "computer-use-agents",
-        "mcp-developer"
+        "computer-use-agents"
       ]
     },
     {
@@ -274,13 +279,14 @@
         "websockets-realtime",
         "websocket-realtime",
         "realtime-engineer",
+        "notifications-orchestration",
         "ai-chatbot-builder",
         "vfx-realtime",
-        "conversation-memory"
+        "realtime-collab-conflict-resolution"
       ],
       "pass": true,
-      "score": 0.9667,
-      "labeledPrecisionAtK": 0.6666666666666666,
+      "score": 0.96,
+      "labeledPrecisionAtK": 0.6,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -343,12 +349,12 @@
         "privacy-guardian",
         "identity-access-management",
         "security-engineer",
-        "auth-specialist",
-        "security-owasp"
+        "privacy-consent-management",
+        "auth-specialist"
       ],
       "pass": true,
-      "score": 1,
-      "labeledPrecisionAtK": 1,
+      "score": 0.99,
+      "labeledPrecisionAtK": 0.9,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -364,8 +370,7 @@
         "privacy-guardian",
         "identity-access-management",
         "security-engineer",
-        "auth-specialist",
-        "security-owasp"
+        "auth-specialist"
       ]
     },
     {
@@ -448,17 +453,17 @@
         "data-pipeline",
         "analytics",
         "data-engineer",
+        "data-quality-monitoring",
         "event-architect",
         "infra-architect",
         "migration-specialist",
         "ml-memory",
         "observability-sre",
-        "postgres-wizard",
-        "analytics-architecture"
+        "postgres-wizard"
       ],
       "pass": true,
-      "score": 0.99,
-      "labeledPrecisionAtK": 0.9,
+      "score": 0.98,
+      "labeledPrecisionAtK": 0.8,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -473,8 +478,7 @@
         "infra-architect",
         "migration-specialist",
         "observability-sre",
-        "postgres-wizard",
-        "analytics-architecture"
+        "postgres-wizard"
       ]
     },
     {
@@ -483,13 +487,14 @@
       "suite": "golden",
       "ids": [
         "browser-extension-builder",
+        "browser-extension-publishing",
         "browser-automation",
         "playwright-testing",
         "documentation-that-slaps"
       ],
       "pass": true,
-      "score": 0.975,
-      "labeledPrecisionAtK": 0.75,
+      "score": 0.96,
+      "labeledPrecisionAtK": 0.6,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -513,14 +518,14 @@
         "ai-observability",
         "semantic-search",
         "ai-code-generation",
-        "api-designer",
-        "event-architect",
-        "performance-hunter",
-        "privacy-guardian"
+        "rag-implementation",
+        "pdf-generation",
+        "rag-engineer",
+        "api-designer"
       ],
       "pass": true,
-      "score": 0.95,
-      "labeledPrecisionAtK": 0.5,
+      "score": 0.97,
+      "labeledPrecisionAtK": 0.7,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -532,7 +537,9 @@
         "structured-output",
         "llm-architect",
         "ai-observability",
-        "semantic-search"
+        "semantic-search",
+        "rag-implementation",
+        "rag-engineer"
       ]
     },
     {
@@ -579,13 +586,13 @@
         "websockets-realtime",
         "websocket-realtime",
         "realtime-engineer",
+        "realtime-collab-conflict-resolution",
+        "mobile-offline-sync",
         "presence-indicators",
         "realtime-chat-systems",
         "local-first-sync",
         "vfx-realtime",
-        "observability",
-        "api-design",
-        "infrastructure-as-code"
+        "observability"
       ],
       "pass": true,
       "score": 0.97,
@@ -615,12 +622,12 @@
         "social-features",
         "push-notifications",
         "community-operations",
+        "notifications-orchestration",
         "community-analytics",
         "community-building",
         "community-led-growth",
         "developer-community",
-        "community-tooling",
-        "web3-community"
+        "community-tooling"
       ],
       "pass": true,
       "score": 0.99,
@@ -649,13 +656,17 @@
       "suite": "golden",
       "ids": [
         "file-uploads",
+        "multi-modal-upload-intake",
         "image-optimization-cdn",
+        "import-export-workflows",
         "forms-validation",
+        "file-processing-pipelines",
+        "permissioned-file-sharing",
         "docker"
       ],
       "pass": true,
-      "score": 0.975,
-      "labeledPrecisionAtK": 0.75,
+      "score": 0.9375,
+      "labeledPrecisionAtK": 0.375,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -676,13 +687,14 @@
         "webhook-processing",
         "logging-strategies",
         "discrete-event-simulation",
+        "webhook-provider-platform",
         "audit-logging",
         "fintech-integration",
         "observability"
       ],
       "pass": true,
-      "score": 0.9667,
-      "labeledPrecisionAtK": 0.6666666666666666,
+      "score": 0.9571,
+      "labeledPrecisionAtK": 0.5714285714285714,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -737,14 +749,15 @@
       "prompt": "Build faceted search with Algolia, filters, sorting, typo tolerance, and semantic fallback",
       "suite": "golden",
       "ids": [
+        "search-filters-saved-views",
         "algolia-search",
         "semantic-search",
         "search-implementation",
         "rag-implementation"
       ],
       "pass": true,
-      "score": 0.975,
-      "labeledPrecisionAtK": 0.75,
+      "score": 0.96,
+      "labeledPrecisionAtK": 0.6,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -825,6 +838,7 @@
       "prompt": "Add form validation with Zod schemas, accessible errors, and multi-step wizard state",
       "suite": "golden",
       "ids": [
+        "form-wizard-workflows",
         "zod-validation",
         "forms-validation",
         "accessibility",
@@ -833,8 +847,8 @@
         "mcp-server-development"
       ],
       "pass": true,
-      "score": 0.9667,
-      "labeledPrecisionAtK": 0.6666666666666666,
+      "score": 0.9571,
+      "labeledPrecisionAtK": 0.5714285714285714,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -889,10 +903,10 @@
       "ids": [
         "observability",
         "sentry-error-tracking",
+        "logging-strategies",
         "analytics",
         "observability-sre",
         "ai-observability",
-        "logging-strategies",
         "langfuse"
       ],
       "pass": true,
@@ -926,8 +940,8 @@
         "logging-strategies",
         "twilio-communications",
         "automation",
-        "plaid-fintech",
-        "agent-tool-builder"
+        "import-export-workflows",
+        "plaid-fintech"
       ],
       "pass": true,
       "score": 0.95,
@@ -952,14 +966,19 @@
       "suite": "golden",
       "ids": [
         "tanstack-table",
-        "analytics-architecture",
-        "audit-logging",
         "rbac-enterprise",
-        "data-engineer"
+        "roles-permissions-ui",
+        "audit-trail-activity-feed",
+        "identity-access-management",
+        "admin-crud-workflows",
+        "data-dashboard-design",
+        "analytics-architecture",
+        "permissioned-file-sharing",
+        "audit-logging"
       ],
       "pass": true,
-      "score": 1,
-      "labeledPrecisionAtK": 1,
+      "score": 0.94,
+      "labeledPrecisionAtK": 0.4,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -968,10 +987,9 @@
       "unwanted": [],
       "relevantReturned": [
         "tanstack-table",
-        "analytics-architecture",
-        "audit-logging",
         "rbac-enterprise",
-        "data-engineer"
+        "analytics-architecture",
+        "audit-logging"
       ]
     },
     {
@@ -984,15 +1002,15 @@
         "web3-community",
         "push-notifications",
         "stripe-integration",
+        "notifications-orchestration",
         "telegram-mastery",
         "community-operations",
-        "community-analytics",
-        "community-building",
-        "community-led-growth"
+        "feature-onboarding-checklists",
+        "community-analytics"
       ],
       "pass": true,
-      "score": 0.96,
-      "labeledPrecisionAtK": 0.6,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -1004,8 +1022,7 @@
         "telegram-mini-app",
         "push-notifications",
         "stripe-integration",
-        "community-operations",
-        "community-building"
+        "community-operations"
       ]
     },
     {
@@ -1041,11 +1058,12 @@
       "prompt": "Add internationalization with locale routing, translation files, pluralization, and RTL layout",
       "suite": "golden",
       "ids": [
-        "i18n"
+        "i18n",
+        "ai-localization"
       ],
       "pass": true,
-      "score": 1,
-      "labeledPrecisionAtK": 1,
+      "score": 0.95,
+      "labeledPrecisionAtK": 0.5,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -1062,14 +1080,16 @@
       "suite": "golden",
       "ids": [
         "tauri-desktop",
+        "electron-desktop-apps",
         "file-uploads",
         "local-first-sync",
         "react-native-specialist",
+        "permissioned-file-sharing",
         "secrets-management"
       ],
       "pass": true,
-      "score": 0.96,
-      "labeledPrecisionAtK": 0.6,
+      "score": 0.9429,
+      "labeledPrecisionAtK": 0.42857142857142855,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -1088,12 +1108,13 @@
       "suite": "golden",
       "ids": [
         "browser-extension-builder",
+        "browser-extension-publishing",
         "playwright-testing",
         "browser-automation"
       ],
       "pass": true,
-      "score": 1,
-      "labeledPrecisionAtK": 1,
+      "score": 0.975,
+      "labeledPrecisionAtK": 0.75,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -1184,13 +1205,13 @@
         "testing-automation",
         "claude-code-commands",
         "automation",
+        "ci-cd-pipeline",
         "claude-code-cicd",
         "claude-code-hooks",
         "claude-code-prompting",
         "a-b-testing",
         "ai-code-generation",
-        "ai-workflow-automation",
-        "code-architecture-review"
+        "ai-workflow-automation"
       ],
       "pass": true,
       "score": 0.96,
@@ -1280,12 +1301,12 @@
         "video-streaming-infrastructure",
         "video-embedding-streaming",
         "data-engineer",
+        "media-transcoding-pipeline",
+        "file-processing-pipelines",
         "ai-video-generation",
         "space-data-processing",
         "video-directing",
-        "video-production",
-        "video-scriptwriting",
-        "webhook-processing"
+        "video-production"
       ],
       "pass": true,
       "score": 0.95,
@@ -1342,13 +1363,13 @@
         "analytics",
         "onboarding-flows",
         "data-engineer",
+        "feature-onboarding-checklists",
         "player-onboarding",
         "conversion-rate-optimization",
         "experimental-design",
         "analytics-architecture",
         "firebase",
-        "board-game-design",
-        "business-model-design"
+        "board-game-design"
       ],
       "pass": true,
       "score": 0.95,
@@ -1372,17 +1393,20 @@
       "prompt": "Build a multi-tenant enterprise SaaS with RBAC, SSO SAML, SCIM provisioning, and audit logs",
       "suite": "golden",
       "ids": [
-        "scim-provisioning",
         "sso-saml",
-        "saas-teams-organizations",
         "rbac-enterprise",
+        "scim-provisioning",
+        "roles-permissions-ui",
+        "saas-teams-organizations",
+        "audit-trail-activity-feed",
+        "identity-access-management",
         "multi-tenancy",
-        "micro-saas-launcher",
-        "audit-logging"
+        "permissioned-file-sharing",
+        "enterprise-architecture"
       ],
       "pass": true,
-      "score": 0.9857,
-      "labeledPrecisionAtK": 0.8571428571428571,
+      "score": 0.96,
+      "labeledPrecisionAtK": 0.6,
       "requiredRecall": 1,
       "anyOfRecall": 1,
       "mustNotCleanRate": 1,
@@ -1390,12 +1414,12 @@
       "missingAnyOf": [],
       "unwanted": [],
       "relevantReturned": [
-        "scim-provisioning",
         "sso-saml",
-        "saas-teams-organizations",
         "rbac-enterprise",
-        "multi-tenancy",
-        "audit-logging"
+        "scim-provisioning",
+        "saas-teams-organizations",
+        "audit-trail-activity-feed",
+        "multi-tenancy"
       ]
     },
     {
@@ -1575,11 +1599,11 @@
         "agent-evaluation",
         "observability",
         "ai-observability",
+        "llm-cost-governance",
         "analytics",
         "agent-communication",
         "autonomous-agents",
-        "multi-agent-orchestration",
-        "caching-patterns"
+        "multi-agent-orchestration"
       ],
       "pass": true,
       "score": 0.95,

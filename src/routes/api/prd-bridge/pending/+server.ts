@@ -13,9 +13,10 @@ import type { RequestHandler } from './$types';
 import { readFile, writeFile, unlink } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { getSpawnerStateDir } from '$lib/server/spawner-state';
 
 function getPrdBridgePaths() {
-	const spawnerDir = process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
+	const spawnerDir = getSpawnerStateDir();
 	return {
 		pendingPrdFile: join(spawnerDir, 'pending-prd.md'),
 		pendingRequestFile: join(spawnerDir, 'pending-request.json')

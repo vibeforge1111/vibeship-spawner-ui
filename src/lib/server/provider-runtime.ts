@@ -28,6 +28,7 @@ import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { eventBridge } from '$lib/services/event-bridge';
 import { mcpClient } from '$lib/services/mcp-client';
 import { agentWorkTimeoutMs } from './timeout-config';
+import { getSpawnerStateDir } from './spawner-state';
 import { readFile } from 'node:fs/promises';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -68,10 +69,6 @@ const PROVIDER_TASK_ACTIVITY_MIN_ESTIMATE_MS = 90_000;
 const PROVIDER_TASK_ACTIVITY_MAX_ESTIMATE_MS = 8 * 60_000;
 const PROVIDER_TASK_ACTIVITY_BASE_MS = 55_000;
 const PROVIDER_TASK_ACTIVITY_PER_TASK_MS = 35_000;
-
-function getSpawnerStateDir(): string {
-	return process.env.SPAWNER_STATE_DIR || path.join(process.cwd(), '.spawner');
-}
 
 function getActiveMissionPath(): string {
 	return path.join(getSpawnerStateDir(), 'active-mission.json');

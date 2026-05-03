@@ -21,15 +21,8 @@ import { get } from 'svelte/store';
 import type { GeneratedWorkflow, GoalProcessingState, MatchedSkill } from '$lib/types/goal';
 import type { Skill, SkillCategory } from '$lib/stores/skills.svelte';
 
-// Valid skill categories for type validation
-const VALID_CATEGORIES: SkillCategory[] = [
-	'development', 'frameworks', 'integrations', 'ai-ml', 'agents',
-	'data', 'design', 'marketing', 'strategy', 'enterprise',
-	'finance', 'legal', 'science', 'startup'
-];
-
 function isValidCategory(cat: string): cat is SkillCategory {
-	return VALID_CATEGORIES.includes(cat as SkillCategory);
+	return Boolean(cat);
 }
 
 export interface ProcessingResult {

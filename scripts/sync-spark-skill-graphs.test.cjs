@@ -5,6 +5,7 @@ const test = require('node:test');
 
 const {
 	FOUNDATION_FREE_SKILL_IDS,
+	loadConfiguredFreeSkillIds,
 	normalizeSkillTier,
 	summariesFromManifest
 } = require('./sync-spark-skill-graphs.cjs');
@@ -71,8 +72,11 @@ test('maps a Spark portable manifest into Spawner skill summaries', () => {
 test('foundation free tier is exactly the 30 public Spark skills', () => {
 	const skills = JSON.parse(fs.readFileSync(skillsPath, 'utf8'));
 	const skillIds = new Set(skills.map((skill) => skill.id));
+	const sparkDir = path.resolve(process.env.SPAWNER_H70_SKILLS_DIR || process.env.H70_SKILLS_LAB_DIR || 'C:/Users/USER/Desktop/spark-skill-graphs');
+	const configuredFreeIds = loadConfiguredFreeSkillIds(sparkDir);
 
 	assert.equal(FOUNDATION_FREE_SKILL_IDS.size, 30);
+	assert.deepEqual([...FOUNDATION_FREE_SKILL_IDS].sort(), [...configuredFreeIds].sort());
 	for (const id of FOUNDATION_FREE_SKILL_IDS) {
 		assert.equal(skillIds.has(id), true, `${id} is missing from static/skills.json`);
 		assert.equal(normalizeSkillTier(id), 'free');

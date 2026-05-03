@@ -1,7 +1,7 @@
 import { existsSync } from 'fs';
 import { readFile } from 'fs/promises';
 import path from 'path';
-import { env } from '$env/dynamic/private';
+import { getSpawnerStateDir } from './spawner-state';
 import {
 	getMissionControlBoard,
 	getMissionControlRelaySnapshot,
@@ -60,10 +60,6 @@ export interface MissionControlTrace {
 	providerResults: MissionControlResultSummary['providerResults'];
 	providerSummary: string | null;
 	serverTime: string;
-}
-
-function getSpawnerDir(): string {
-	return process.env.SPAWNER_STATE_DIR || env.SPAWNER_STATE_DIR || path.resolve(process.cwd(), '.spawner');
 }
 
 function normalizeId(value: string | null | undefined): string | null {
@@ -194,7 +190,7 @@ export async function buildMissionControlTrace(input: {
 }): Promise<MissionControlTrace> {
 	const requestedRequestId = normalizeId(input.requestId);
 	const requestedMissionId = normalizeId(input.missionId);
-	const spawnerDir = getSpawnerDir();
+	const spawnerDir = getSpawnerStateDir();
 	const pendingRequestRaw = await readJsonIfExists(path.join(spawnerDir, 'pending-request.json'));
 	const lastCanvasLoadRaw = await readJsonIfExists(path.join(spawnerDir, 'last-canvas-load.json'));
 	const pendingRequest = artifactMatches(pendingRequestRaw, requestedMissionId, requestedRequestId)

@@ -21,38 +21,58 @@ const MANIFEST_PATH = process.env.SPAWNER_SPARK_MANIFEST
 	: path.join(SOURCE_DIR, 'spark-skill-manifest.json');
 const OUTPUT_PATH = path.resolve(__dirname, '..', 'static', 'skills.json');
 
-const FOUNDATION_FREE_SKILL_IDS = new Set([
+const DEFAULT_FOUNDATION_FREE_SKILL_IDS = [
 	'accessibility',
-	'analytics',
+	'ai-observability',
 	'api-design',
-	'auth-specialist',
 	'authentication-oauth',
-	'ci-cd-pipeline',
-	'cron-scheduled-jobs',
+	'data-pipeline',
 	'database-architect',
-	'database-schema-design',
-	'docker',
-	'email-systems',
+	'design-systems',
+	'devops',
 	'error-handling',
-	'file-uploads',
 	'forms-validation',
-	'frontend',
-	'logging-strategies',
+	'frontend-engineer',
+	'llm-architect',
 	'observability',
 	'playwright-testing',
-	'postgres-wizard',
+	'prompt-engineer',
 	'queue-workers',
+	'rag-engineer',
+	'rate-limiting',
 	'react-patterns',
 	'redis-specialist',
-	'resend-email',
 	'responsive-mobile-first',
-	'sentry-error-tracking',
-	'state-management',
+	'security-owasp',
 	'stripe-integration',
+	'structured-output',
 	'subscription-billing',
-	'tailwind-ui',
-	'tanstack-table'
-]);
+	'testing-strategies',
+	'ui-design',
+	'ux-design',
+	'vector-specialist',
+	'webhook-processing'
+];
+
+function readJsonIfExists(filePath) {
+	try {
+		if (!fs.existsSync(filePath)) return null;
+		return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+	} catch {
+		return null;
+	}
+}
+
+function loadConfiguredFreeSkillIds(sourceDir = SOURCE_DIR) {
+	const tiers = readJsonIfExists(path.join(sourceDir, 'config', 'skill-tiers.json'));
+	const configuredIds = tiers?.open_source?.canonical_starter_skill_ids;
+	if (Array.isArray(configuredIds) && configuredIds.length > 0) {
+		return new Set(configuredIds.filter((id) => typeof id === 'string' && id.trim()));
+	}
+	return new Set(DEFAULT_FOUNDATION_FREE_SKILL_IDS);
+}
+
+const FOUNDATION_FREE_SKILL_IDS = loadConfiguredFreeSkillIds();
 
 const NON_SKILL_DIRS = new Set([
 	'.git',
@@ -83,11 +103,11 @@ function remapCategory(category) {
 	return category;
 }
 
-function normalizeSkillTier(id, explicitTier) {
+function normalizeSkillTier(id, explicitTier, freeSkillIds = FOUNDATION_FREE_SKILL_IDS) {
 	const normalized = typeof explicitTier === 'string' ? explicitTier.trim().toLowerCase() : '';
 	if (normalized === 'pro' || normalized === 'premium') return 'premium';
 	if (normalized === 'free') return 'free';
-	return FOUNDATION_FREE_SKILL_IDS.has(id) ? 'free' : 'premium';
+	return freeSkillIds.has(id) ? 'free' : 'premium';
 }
 
 function collectSkillFiles() {
@@ -252,6 +272,7 @@ if (require.main === module) {
 
 module.exports = {
 	FOUNDATION_FREE_SKILL_IDS,
+	loadConfiguredFreeSkillIds,
 	normalizeSkillTier,
 	summariesFromManifest,
 	summaryFromManifestSkill,

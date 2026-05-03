@@ -1,4 +1,5 @@
 import { env } from '$env/dynamic/private';
+import { getSpawnerStateDir } from './spawner-state';
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
@@ -334,7 +335,7 @@ export function setCreatorValidationCommandRunnerForTests(runner: CreatorValidat
 }
 
 function spawnerStateDir(): string {
-	return process.env.SPAWNER_STATE_DIR || env.SPAWNER_STATE_DIR || path.join(process.cwd(), '.spawner');
+	return getSpawnerStateDir();
 }
 
 function creatorMissionDir(stateDir = spawnerStateDir()): string {

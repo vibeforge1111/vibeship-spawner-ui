@@ -39,11 +39,10 @@ function getStaticSkillsJsonFallbacks(): string[] {
 	]);
 }
 
-// Categories to search — sourced from spark-skill-graphs skills-registry.
-// Canonical 33 from skills-registry-summary.md + 4 historical aliases
-// (architecture, enterprise, performance, mcp-server) so pre-rename
-// skill files still resolve during transitions.
-const SKILL_CATEGORIES = [
+// Static fallback list for older packaged installs. When a local checkout is
+// present, categories are discovered directly so new spark-skill-graphs folders
+// do not require a Spawner UI code change.
+const STATIC_SKILL_CATEGORIES = [
 	'ai', 'ai-agents', 'architecture', 'backend',
 	'biotech', 'blockchain', 'business', 'climate', 'communications', 'community',
 	'creative', 'data', 'design', 'development', 'devops',
@@ -51,7 +50,7 @@ const SKILL_CATEGORIES = [
 	'frontend', 'game-dev', 'infrastructure',
 	'integrations', 'marketing', 'mcp', 'mcp-server',
 	'methodology', 'performance', 'product',
-	'security', 'space', 'startup', 'strategy',
+	'science', 'security', 'space', 'startup', 'strategy',
 	'testing', 'trading'
 ];
 
@@ -135,6 +134,26 @@ function resolveStaticSkillsJsonPath(): string | null {
 		}
 	}
 	return null;
+}
+
+function getSkillCategories(skillsLabPath: string): string[] {
+	try {
+		const discovered = fs
+			.readdirSync(skillsLabPath, { withFileTypes: true })
+			.filter(
+				(entry) =>
+					entry.isDirectory() &&
+					!entry.name.startsWith('.') &&
+					!entry.name.startsWith('_') &&
+					!['node_modules', 'tools', 'viz', 'benchmark', 'benchmarks', 'bundles', 'config', 'eval', 'mcp-server'].includes(entry.name)
+			)
+			.map((entry) => entry.name);
+		return uniquePaths([...discovered, ...STATIC_SKILL_CATEGORIES]).map((categoryPath) =>
+			path.basename(categoryPath)
+		);
+	} catch {
+		return STATIC_SKILL_CATEGORIES;
+	}
 }
 
 function findStaticSkillMetadata(skillId: string): { skill: SparkSkillGraphMetadata; path: string } | null {
@@ -292,8 +311,10 @@ function formatH70SkillContent(skill: H70Skill & { id: string }, rawYaml: string
  * New format: {skillsLabPath}/{category}/{skillId}.yaml
  */
 function findSkillPath(skillsLabPath: string, skillId: string): string | null {
+	const skillCategories = getSkillCategories(skillsLabPath);
+
 	// Try exact match first
-	for (const category of SKILL_CATEGORIES) {
+	for (const category of skillCategories) {
 		const skillPath = resolveWithinBaseDir(skillsLabPath, path.join(category, `${skillId}.yaml`));
 		if (fs.existsSync(skillPath)) {
 			return skillPath;
@@ -311,7 +332,7 @@ function findSkillPath(skillsLabPath: string, skillId: string): string | null {
 	];
 
 	for (const variant of variations) {
-		for (const category of SKILL_CATEGORIES) {
+		for (const category of skillCategories) {
 			const skillPath = resolveWithinBaseDir(skillsLabPath, path.join(category, `${variant}.yaml`));
 			if (fs.existsSync(skillPath)) {
 				return skillPath;

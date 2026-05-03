@@ -29,7 +29,8 @@ afterEach(() => {
 
 describe('spark-pro-entitlements', () => {
 	it('reads free and premium skill tiers from the synced catalog', () => {
-		expect(getSkillCatalogTier('frontend')).toBe('free');
+		expect(getSkillCatalogTier('frontend-engineer')).toBe('free');
+		expect(getSkillCatalogTier('frontend')).toBe('premium');
 		expect(getSkillCatalogTier('usage-metering-entitlements')).toBe('premium');
 		expect(getSkillCatalogTier('missing-skill')).toBe('unknown');
 	});
@@ -37,7 +38,7 @@ describe('spark-pro-entitlements', () => {
 	it('allows free skills without a Spark Pro call', async () => {
 		const fetchMock = vi.fn();
 
-		const result = await authorizeSkillAccess('frontend', request(), {
+		const result = await authorizeSkillAccess('frontend-engineer', request(), {
 			env: enforceEnv,
 			fetch: fetchMock
 		});

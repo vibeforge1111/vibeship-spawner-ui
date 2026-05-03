@@ -15,13 +15,14 @@ import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { resolveCliBinary } from '$lib/server/cli-resolver';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
+import { getSpawnerStateDir } from '$lib/server/spawner-state';
 import { formatSkillsByCategory, getTierSkills, normalizeTier, type SkillTier } from '$lib/server/skill-tiers';
 import { startClaudeAutoAnalysis } from '$lib/server/claude-auto-analysis';
 import { classifyBrief, formatBundleForPrompt } from '$lib/server/bundle-classifier';
 import { enrichBrief } from '$lib/server/brief-enricher';
 
 function getPrdBridgePaths() {
-	const spawnerDir = process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
+	const spawnerDir = getSpawnerStateDir();
 	return {
 		spawnerDir,
 		resultsDir: join(spawnerDir, 'results'),

@@ -38,9 +38,10 @@ describe('skill-tiers', () => {
 
 		expect(base.length).toBe(30);
 		expect(base.length).toBeLessThan(pro.length);
-		expect(baseIds.has('frontend')).toBe(true);
+		expect(baseIds.has('frontend-engineer')).toBe(true);
 		expect(baseIds.has('stripe-integration')).toBe(true);
-		expect(baseIds.has('auth-specialist')).toBe(true);
+		expect(baseIds.has('security-owasp')).toBe(true);
+		expect(baseIds.has('llm-architect')).toBe(true);
 		expect(baseIds.has('playwright-testing')).toBe(true);
 		for (const id of baseIds) {
 			expect(proIds.has(id)).toBe(true);

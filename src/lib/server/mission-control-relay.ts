@@ -2,6 +2,7 @@ import { env } from '$env/dynamic/private';
 import * as fs from 'fs';
 import * as path from 'path';
 import { sanitizeMissionControlDisplayText } from './mission-control-display';
+import { getSpawnerStateDir } from './spawner-state';
 import {
 	emptyMissionControlTaskStatusCounts,
 	isMissionControlTerminalStatus,
@@ -105,8 +106,7 @@ const STALE_NON_TERMINAL_MS = Number(env.MISSION_CONTROL_STALE_NONTERMINAL_MS) |
 // Persist relay state so HMR reloads + server restarts don't wipe the history.
 // Small file, synchronous writes; we're on the order of tens of events.
 export function getMissionControlPersistPath(): string {
-	const spawnerDir = process.env.SPAWNER_STATE_DIR || env.SPAWNER_STATE_DIR || path.resolve(process.cwd(), '.spawner');
-	return path.resolve(spawnerDir, 'mission-control.json');
+	return path.resolve(getSpawnerStateDir(), 'mission-control.json');
 }
 
 function getMissionControlPersistenceInfo(): MissionControlRelaySnapshot['persistence'] {

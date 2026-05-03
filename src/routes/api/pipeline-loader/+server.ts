@@ -14,25 +14,22 @@ import type { RequestHandler } from './$types';
 import { writeFile, readFile, unlink, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { getSpawnerStateDir } from '$lib/server/spawner-state';
 import { logger } from '$lib/utils/logger';
 
 const log = logger.scope('PipelineLoader');
 
-function getSpawnerDir(): string {
-	return process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
-}
-
 function getPendingLoadFile(): string {
-	return join(getSpawnerDir(), 'pending-load.json');
+	return join(getSpawnerStateDir(), 'pending-load.json');
 }
 
 function getLastLoadFile(): string {
-	return join(getSpawnerDir(), 'last-canvas-load.json');
+	return join(getSpawnerStateDir(), 'last-canvas-load.json');
 }
 
 // Ensure .spawner directory exists
 async function ensureDir(): Promise<void> {
-	const spawnerDir = getSpawnerDir();
+	const spawnerDir = getSpawnerStateDir();
 	if (!existsSync(spawnerDir)) {
 		await mkdir(spawnerDir, { recursive: true });
 	}

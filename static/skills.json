@@ -259,7 +259,7 @@
     "name": "AI Observability",
     "description": "Implement comprehensive observability for LLM applications including\ntracing (Langfuse/Helicone), cost tracking, token optimization, RAG\nevaluation metrics (RAGAS), hallucination detection, and production\nmonitoring. Essential for debugging, optimizing costs, and ensuring\nAI output quality.\n",
     "category": "ai",
-    "tier": "premium",
+    "tier": "free",
     "layer": 1,
     "tags": [
       "llm-monitoring",
@@ -1000,7 +1000,7 @@
     "name": "LLM Architect",
     "description": "LLM application architecture expert for RAG, prompting, agents, and production AI systems",
     "category": "ai",
-    "tier": "premium",
+    "tier": "free",
     "layer": 1,
     "tags": [
       "llm",
@@ -3136,7 +3136,7 @@
     "name": "Prompt Engineer",
     "description": "Expert in designing effective prompts for LLM-powered applications. Masters\nprompt structure, context management, output formatting, few-shot design,\nchain-of-thought reasoning, and systematic prompt evaluation. Used to build\nprompts at scale for customer-facing AI products serving millions of users.\n",
     "category": "ai-agents",
-    "tier": "premium",
+    "tier": "free",
     "layer": 2,
     "tags": [
       "prompts",
@@ -4211,7 +4211,7 @@
     "name": "cron-scheduled-jobs",
     "description": "Scheduled jobs with node-cron, Vercel Cron, Inngest, job locking, monitoring, and timezone handling",
     "category": "backend",
-    "tier": "free",
+    "tier": "premium",
     "layer": 1,
     "tags": [
       "cron",
@@ -4550,7 +4550,7 @@
     "name": "file-uploads",
     "description": "S3, R2, presigned URLs, multipart uploads, and secure file handling for production systems",
     "category": "backend",
-    "tier": "free",
+    "tier": "premium",
     "layer": 1,
     "tags": [
       "file-upload",
@@ -4998,7 +4998,7 @@
     "name": "logging-strategies",
     "description": "Production logging expertise - structured JSON, correlation IDs, log aggregation, and secrets redaction",
     "category": "backend",
-    "tier": "free",
+    "tier": "premium",
     "layer": 1,
     "tags": [
       "logging",
@@ -6112,7 +6112,7 @@
     "name": "Rate Limiting & Throttling",
     "description": "Distributed rate limiting and throttling with quota design, Redis-backed enforcement, abuse prevention, and tier-aware controls.",
     "category": "backend",
-    "tier": "premium",
+    "tier": "free",
     "layer": 1,
     "tags": [
       "rate",
@@ -6751,7 +6751,7 @@
     "name": "Structured Output",
     "description": "Expert in extracting reliable, typed outputs from LLMs. Covers JSON mode, function calling,\nInstructor library, Outlines for constrained generation, Pydantic validation, and retry\nstrategies. Essential for building production AI applications that integrate with typed systems.\n",
     "category": "backend",
-    "tier": "premium",
+    "tier": "free",
     "layer": 1,
     "tags": [
       "structured-output",
@@ -7351,7 +7351,7 @@
     "name": "webhook-processing",
     "description": "Webhook handling with signature verification, idempotency, retry logic, and dead letter queues",
     "category": "backend",
-    "tier": "premium",
+    "tier": "free",
     "layer": 1,
     "tags": [
       "webhooks",
@@ -12690,7 +12690,7 @@
     "name": "Data Pipeline",
     "description": "ETL/ELT pipeline design and operation covering ingestion, transformation, idempotent backfills, schema drift handling, and end-to-end observability for analytics and ML workloads.",
     "category": "data",
-    "tier": "premium",
+    "tier": "free",
     "layer": 1,
     "tags": [
       "pipeline",
@@ -12972,7 +12972,7 @@
     "name": "Database Schema Design",
     "description": "World-class database schema design - data modeling, migrations, relationships, and the battle scars from scaling databases that store billions of rows",
     "category": "data",
-    "tier": "free",
+    "tier": "premium",
     "layer": 1,
     "tags": [
       "database",
@@ -13354,7 +13354,7 @@
     "name": "PostgreSQL Wizard",
     "description": "PostgreSQL internals specialist for query optimization, indexing, partitioning,\nand advanced features. Knows when to add an index and when an index makes things\nworse. Understands VACUUM, autovacuum tuning, and why your database slows down\nat 3am on Sundays.\n",
     "category": "data",
-    "tier": "free",
+    "tier": "premium",
     "layer": 1,
     "tags": [
       "query",
@@ -13665,7 +13665,7 @@
     "name": "Vector Specialist",
     "description": "Embedding and vector retrieval expert for semantic search, hybrid retrieval, and\nproduction vector systems. Knows when dense vectors win, when sparse vectors win,\nand when you need both. Understands chunking strategies, reranking, and why your\nRAG system returns nonsense.\n",
     "category": "data",
-    "tier": "premium",
+    "tier": "free",
     "layer": 1,
     "tags": [
       "embedding",
@@ -13882,7 +13882,7 @@
     "name": "Design Systems",
     "description": "World-class design systems architecture - tokens, components, documentation,\nand governance. Design systems create the shared language between design and\nengineering that makes products feel cohesive at any scale.\n",
     "category": "design",
-    "tier": "premium",
+    "tier": "free",
     "layer": 1,
     "tags": [
       "design-system",
@@ -14356,7 +14356,7 @@
     "name": "UI Design",
     "description": "Expert in user interface design for web and mobile applications.\nCovers component design, visual hierarchy, spacing systems, responsive layouts,\nand design-to-code handoff. Production focus on scalable, consistent interfaces.\n",
     "category": "design",
-    "tier": "premium",
+    "tier": "free",
     "layer": 1,
     "tags": [
       "component",
@@ -14418,7 +14418,7 @@
     "name": "UX Design",
     "description": "User experience design specialist covering research, flows, journey mapping,\nand interaction design. Expert in understanding user needs, creating intuitive\nflows, and validating designs through testing.\n",
     "category": "design",
-    "tier": "premium",
+    "tier": "free",
     "layer": 1,
     "tags": [
       "ux",
@@ -15512,7 +15512,7 @@
     "name": "rag-engineer",
     "description": "Expert in building Retrieval-Augmented Generation systems - embeddings, vector stores, chunking strategies",
     "category": "development",
-    "tier": "premium",
+    "tier": "free",
     "layer": 1,
     "tags": [
       "vector-embeddings",
@@ -15979,7 +15979,7 @@
     "name": "ci-cd-pipeline",
     "description": "Expert CI/CD pipeline design, GitHub Actions, deployment strategies, and release management",
     "category": "devops",
-    "tier": "free",
+    "tier": "premium",
     "layer": 1,
     "tags": [
       "pipeline",
@@ -16449,7 +16449,7 @@
     "name": "devops",
     "description": "CI/CD pipelines, infrastructure as code, monitoring, disaster recovery - battle scars from keeping production running at 3am",
     "category": "devops",
-    "tier": "premium",
+    "tier": "free",
     "layer": 1,
     "tags": [
       "devops",
@@ -16660,7 +16660,7 @@
     "name": "docker",
     "description": "Multi-stage builds, layer caching, security hardening, compose patterns - battle scars from bloated images, leaked secrets, and container escapes",
     "category": "devops",
-    "tier": "free",
+    "tier": "premium",
     "layer": 1,
     "tags": [
       "docker",
@@ -17385,7 +17385,7 @@
     "name": "Sentry Error Tracking & Monitoring",
     "description": "Sentry setup and production monitoring for errors, traces, releases, session replay, alerting, and privacy-safe observability.",
     "category": "devops",
-    "tier": "free",
+    "tier": "premium",
     "layer": 1,
     "tags": [
       "sentry",
@@ -20705,7 +20705,7 @@
     "name": "frontend",
     "description": "Production frontend engineering - React/Vue/Svelte, performance, accessibility",
     "category": "frontend",
-    "tier": "free",
+    "tier": "premium",
     "layer": 1,
     "tags": [
       "frontend",
@@ -20786,7 +20786,7 @@
     "name": "frontend-engineer",
     "description": "World-class frontend engineering - React philosophy, performance, accessibility, and production-grade interfaces",
     "category": "frontend",
-    "tier": "premium",
+    "tier": "free",
     "layer": 1,
     "tags": [
       "frontend",
@@ -21643,7 +21643,7 @@
     "name": "state-management",
     "description": "Expert in frontend state management patterns - Redux, Zustand, Jotai, Context, and architectural decisions",
     "category": "frontend",
-    "tier": "free",
+    "tier": "premium",
     "layer": 1,
     "tags": [
       "redux",
@@ -21784,7 +21784,7 @@
     "name": "tailwind-ui",
     "description": "Tailwind CSS styling, responsive design, and component patterns",
     "category": "frontend",
-    "tier": "free",
+    "tier": "premium",
     "layer": 1,
     "tags": [
       "tailwindcss-utilities",
@@ -21873,7 +21873,7 @@
     "name": "TanStack Table",
     "description": "Expert at building complex data grids with TanStack Table (React Table v8).\nCovers column definitions, sorting, filtering (global + column), pagination\n(client + server), row selection, column visibility, pinning, virtual scrolling,\ncustom cell renderers, server-side operations, and export functionality.\n",
     "category": "frontend",
-    "tier": "free",
+    "tier": "premium",
     "layer": 1,
     "tags": [
       "tanstack-table",
@@ -24898,7 +24898,7 @@
     "name": "email-systems",
     "description": "Transactional email, marketing automation, deliverability, and React Email templates",
     "category": "integrations",
-    "tier": "free",
+    "tier": "premium",
     "layer": 1,
     "tags": [
       "transactional-email",
@@ -25507,7 +25507,7 @@
     "name": "Resend Transactional Email",
     "description": "Transactional email with Resend and React Email, domain authentication, deliverability, webhooks, and template-safe sending workflows.",
     "category": "integrations",
-    "tier": "free",
+    "tier": "premium",
     "layer": 1,
     "tags": [
       "resend",
@@ -28894,7 +28894,7 @@
     "name": "analytics",
     "description": "Event tracking, metrics design, dashboards, and data-driven decision making",
     "category": "product",
-    "tier": "free",
+    "tier": "premium",
     "layer": 1,
     "tags": [
       "event-tracking-design",
@@ -29811,7 +29811,7 @@
     "name": "auth-specialist",
     "description": "Authentication and authorization expert for OAuth, sessions, JWT, MFA, and identity security",
     "category": "security",
-    "tier": "free",
+    "tier": "premium",
     "layer": 1,
     "tags": [
       "oauth",
@@ -30771,7 +30771,7 @@
     "name": "security-owasp",
     "description": "Web application security - OWASP Top 10, injection, XSS, CSRF, access control",
     "category": "security",
-    "tier": "premium",
+    "tier": "free",
     "layer": 1,
     "tags": [
       "security",
@@ -33143,7 +33143,7 @@
     "name": "testing-strategies",
     "description": "Master test strategy - pyramid layers, mocking boundaries, factory patterns, and flaky test prevention",
     "category": "testing",
-    "tier": "premium",
+    "tier": "free",
     "layer": 1,
     "tags": [
       "testing",

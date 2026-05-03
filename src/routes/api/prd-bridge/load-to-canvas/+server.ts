@@ -5,14 +5,11 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { autoDispatchPrdCanvasLoad } from '$lib/server/prd-auto-dispatch';
-
-function getSpawnerDir(): string {
-	return process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
-}
+import { getSpawnerStateDir } from '$lib/server/spawner-state';
 
 function resultFilePath(requestId: string): string {
 	const safe = requestId.replace(/[^a-zA-Z0-9_-]/g, '_');
-	return join(getSpawnerDir(), 'results', `${safe}.json`);
+	return join(getSpawnerStateDir(), 'results', `${safe}.json`);
 }
 
 function normalizeTelegramRelay(value: unknown): Record<string, unknown> | undefined {
@@ -116,7 +113,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			: missionIdFromRequestId(requestId);
 
 		const path = resultFilePath(requestId);
-		const spawnerDir = getSpawnerDir();
+		const spawnerDir = getSpawnerStateDir();
 		const pendingLoadFile = join(spawnerDir, 'pending-load.json');
 		const lastLoadFile = join(spawnerDir, 'last-canvas-load.json');
 		const pendingRequestFile = join(spawnerDir, 'pending-request.json');

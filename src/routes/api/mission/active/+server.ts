@@ -14,21 +14,18 @@ import type { RequestHandler } from './$types';
 import { readFile, writeFile, mkdir, unlink } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
+import { getSpawnerStateDir } from '$lib/server/spawner-state';
 import type { MultiLLMExecutionPack } from '$lib/services/multi-llm-orchestrator';
 
 const ACTIVE_MISSION_FILE = 'active-mission.json';
 const TERMINAL_MISSION_EVENTS = new Set(['mission_completed', 'mission_failed', 'mission_paused']);
 
-function getSpawnerDir(): string {
-	return process.env.SPAWNER_STATE_DIR || path.join(process.cwd(), '.spawner');
-}
-
 function getActiveMissionPath(): string {
-	return path.join(getSpawnerDir(), ACTIVE_MISSION_FILE);
+	return path.join(getSpawnerStateDir(), ACTIVE_MISSION_FILE);
 }
 
 function getMissionControlPath(): string {
-	return path.join(getSpawnerDir(), 'mission-control.json');
+	return path.join(getSpawnerStateDir(), 'mission-control.json');
 }
 
 async function missionHasTerminalRelayEvent(missionId: string | undefined): Promise<boolean> {
@@ -165,7 +162,7 @@ export const GET: RequestHandler = async ({ url }) => {
 export const POST: RequestHandler = async ({ request }) => {
 	try {
 		const body = await request.json();
-		const spawnerDir = getSpawnerDir();
+		const spawnerDir = getSpawnerStateDir();
 		const missionPath = getActiveMissionPath();
 		const status = typeof body.status === 'string' ? body.status : 'running';
 

@@ -2,18 +2,18 @@ id: mobile-app-launch
 name: Mobile app launch
 task_pattern: build and ship a cross-platform mobile app with auth, push notifications, analytics, and crash reporting
 required_skills:
-  - mobile-development
   - react-native-specialist
+  - expo
   - authentication-oauth
   - push-notifications
   - analytics
 optional_skills:
-  - expo
   - ios-swift-specialist
+  - android-kotlin-specialist
   - observability
 load_order:
-  - mobile-development     # platform constraints, app store rules, lifecycle gotchas
   - react-native-specialist # framework-specific patterns (or swap for native)
+  - expo                   # cross-platform packaging, permissions, and app-store path
   - authentication-oauth   # secure token storage, biometric unlock, refresh
   - push-notifications     # APNs/FCM setup, token rotation, permission flows
   - analytics              # event taxonomy + crash reporting before launch

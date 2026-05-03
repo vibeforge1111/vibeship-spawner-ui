@@ -12,6 +12,7 @@ import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
+import { getSpawnerStateDir } from '$lib/server/spawner-state';
 import { logger } from '$lib/utils/logger';
 
 import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
@@ -21,16 +22,12 @@ import { existsSync } from 'fs';
 const EVENTS_AUTH_COOKIE = 'spawner_events_api_key';
 const log = logger.scope('EventBridge');
 
-function getSpawnerDir(): string {
-	return process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
-}
-
 function getResultsDir(): string {
-	return join(getSpawnerDir(), 'results');
+	return join(getSpawnerStateDir(), 'results');
 }
 
 function getPrdAutoTraceFile(): string {
-	return join(getSpawnerDir(), 'prd-auto-trace.jsonl');
+	return join(getSpawnerStateDir(), 'prd-auto-trace.jsonl');
 }
 
 function extractApiKeyFromRequest(request: Request): string | null {
@@ -107,7 +104,7 @@ async function storePRDResult(requestId: string, result: unknown): Promise<void>
 
 async function relayMetadataForMission(missionId: string): Promise<Record<string, unknown>> {
 	try {
-		const loadFile = join(getSpawnerDir(), 'last-canvas-load.json');
+		const loadFile = join(getSpawnerStateDir(), 'last-canvas-load.json');
 		if (!existsSync(loadFile)) return {};
 		const raw = await readFile(loadFile, 'utf-8');
 		const load = JSON.parse(raw) as { relay?: Record<string, unknown> };

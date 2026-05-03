@@ -14,13 +14,13 @@ import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
+import { getSpawnerStateDir } from '$lib/server/spawner-state';
 import { logger } from '$lib/utils/logger';
 
 const log = logger.scope('PRDBridge');
 
 function getResultsDir(): string {
-	const spawnerDir = process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
-	return join(spawnerDir, 'results');
+	return join(getSpawnerStateDir(), 'results');
 }
 
 /**

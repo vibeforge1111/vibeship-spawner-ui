@@ -65,15 +65,8 @@ const SKILL_SPECIFICITY: Record<string, { owns: string[]; specificity: number }>
 	'code-quality': { owns: ['code review', 'linting', 'best practices'], specificity: 0.5 },
 };
 
-// Valid skill categories for type validation
-const VALID_CATEGORIES: SkillCategory[] = [
-	'development', 'frameworks', 'integrations', 'ai-ml', 'agents',
-	'data', 'design', 'marketing', 'strategy', 'enterprise',
-	'finance', 'legal', 'science', 'startup'
-];
-
 function isValidCategory(cat: string): cat is SkillCategory {
-	return VALID_CATEGORIES.includes(cat as SkillCategory);
+	return Boolean(cat);
 }
 
 // Maximum tasks to generate (infrastructure + features + deployment)
