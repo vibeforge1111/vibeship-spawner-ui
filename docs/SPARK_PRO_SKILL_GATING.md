@@ -71,6 +71,34 @@ The smoke verifies that a free starter skill loads, a Pro skill fails closed
 without member proof, the same Pro skill loads with member proof, and Spark Pro
 returns either `spark_pro` or `drop.skills` from `/api/member/entitlements`.
 
+## Container Smoke
+
+Before deploying the hosted image, verify the same contract through Docker:
+
+```text
+docker build -t spawner-ui:local .
+docker run --rm -p 44338:3000 \
+  -e SPAWNER_PRO_SKILL_ENFORCEMENT=enforce \
+  -e SPAWNER_SKILLS_JSON=/app/static/skills.json \
+  -e SPARK_PRO_API_BASE_URL=http://host.docker.internal:44337 \
+  spawner-ui:local
+```
+
+Run a local entitlement stub on port `44337` that returns
+`{"features":["drop.skills"]}` for a test bearer token, then:
+
+```text
+SPAWNER_SMOKE_BASE_URL=http://127.0.0.1:44338 \
+SPARK_PRO_API_BASE_URL=http://127.0.0.1:44337 \
+SPAWNER_EXPECT_PRO_ENFORCEMENT=1 \
+SPAWNER_REQUIRE_PRO_AUTH_SMOKE=1 \
+SPARK_PRO_AUTHORIZATION="Bearer spawner-container-pro" \
+npm run smoke:spark-pro-gating
+```
+
+Expected result: free skill `200`, anonymous Pro skill `401`, authenticated Pro
+skill `200`, and entitlement contract `200`.
+
 ## Cross-System Release Order
 
 Run the gates in this order so failures point at the owning repo:
