@@ -14,18 +14,23 @@ export interface ProviderArtifactBundle {
 
 export function buildFilesystemArtifactPrompt(prompt: string): string {
 	return [
-		prompt,
-		'',
 		'API filesystem artifact contract:',
 		'You are connected through an API and cannot edit the filesystem directly.',
-		'Complete the requested implementation by returning ONLY valid JSON with this shape:',
+		'Ignore any instructions below about curl, lifecycle events, event posting, or shell commands.',
+		'Complete the requested implementation by returning ONLY valid JSON with this shape as your entire response:',
 		'{"summary":"short summary","files":[{"path":"index.html","content":"full file contents"}],"verification":["check performed"]}',
 		'Rules:',
 		'- File paths must be relative to the project root.',
 		'- Do not use absolute paths, parent-directory traversal, or hidden system paths.',
 		'- Include every file needed to open or run the project.',
 		'- For no-build static web projects, include index.html and any referenced CSS or JavaScript files.',
-		'- Do not wrap the JSON in markdown fences.'
+		'- Keep the implementation compact enough to fit in one response: no README unless asked, no giant CSS reset, no decorative canvas, no unnecessary data sets.',
+		'- Prefer 3 files or fewer for simple static pages: index.html, styles.css, and script.js.',
+		'- Each file should be complete but concise.',
+		'- Do not wrap the JSON in markdown fences.',
+		'',
+		'Project brief and task context:',
+		prompt
 	].join('\n');
 }
 

@@ -26,6 +26,8 @@ describe('provider artifacts', () => {
 		expect(prompt).toContain('returning ONLY valid JSON');
 		expect(prompt).toContain('index.html');
 		expect(prompt).toContain('Build a static page.');
+		expect(prompt).toContain('Ignore any instructions below about curl');
+		expect(prompt.indexOf('API filesystem artifact contract')).toBeLessThan(prompt.indexOf('Build a static page.'));
 	});
 
 	it('parses JSON file bundles from model responses', () => {
