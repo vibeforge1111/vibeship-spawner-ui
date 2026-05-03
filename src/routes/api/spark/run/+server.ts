@@ -267,7 +267,7 @@ export const POST: RequestHandler = async (event) => {
 		const dispatchResult = await providerRuntime.dispatch({
 			executionPack,
 			apiKeys,
-			workingDirectory: mission.context.projectPath,
+			workingDirectory: body.promptMode === 'simple' ? undefined : mission.context.projectPath,
 			onEvent: (bridgeEvent) => {
 				// Per-provider task events arrive with source = provider.id (e.g. 'zai',
 				// 'minimax'). Tag that as taskName so the relay labels "Task started: zai"
