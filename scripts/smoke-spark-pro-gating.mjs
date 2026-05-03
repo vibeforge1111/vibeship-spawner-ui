@@ -45,8 +45,19 @@ async function checkSkill(baseUrl, skillId, headers = {}) {
 	return {
 		status: response.status,
 		ok: response.ok,
+		contentType: response.headers.get('content-type') || '',
 		body: await readResponse(response)
 	};
+}
+
+function isSkillPayload(result) {
+	return Boolean(
+		result?.ok &&
+			result.body &&
+			typeof result.body === 'object' &&
+			!Array.isArray(result.body) &&
+			(result.body.formattedContent || result.body.rawYaml || result.body.skill)
+	);
 }
 
 function hasProFeature(body) {
@@ -97,11 +108,12 @@ async function main() {
 	try {
 		const free = await checkSkill(spawnerBaseUrl, freeSkill);
 		checks.push(
-			free.ok
+			isSkillPayload(free)
 				? pass('free_skill_public', { skillId: freeSkill, statusCode: free.status })
-				: fail('free_skill_public', 'free starter skill did not load', {
+				: fail('free_skill_public', 'free starter skill did not return a skill JSON payload', {
 						skillId: freeSkill,
 						statusCode: free.status,
+						contentType: free.contentType,
 						body: free.body
 					})
 		);
@@ -140,11 +152,12 @@ async function main() {
 		try {
 			const proWithAuth = await checkSkill(spawnerBaseUrl, proSkill, headers);
 			checks.push(
-				proWithAuth.ok
+				isSkillPayload(proWithAuth)
 					? pass('pro_skill_loads_with_member_auth', { skillId: proSkill, statusCode: proWithAuth.status })
-					: fail('pro_skill_loads_with_member_auth', 'authenticated member could not load Pro skill through Spawner', {
+					: fail('pro_skill_loads_with_member_auth', 'authenticated member did not receive a Pro skill JSON payload through Spawner', {
 							skillId: proSkill,
 							statusCode: proWithAuth.status,
+							contentType: proWithAuth.contentType,
 							body: proWithAuth.body
 						})
 			);
