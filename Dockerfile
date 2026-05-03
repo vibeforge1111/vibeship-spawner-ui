@@ -10,6 +10,9 @@ RUN npm run build
 FROM node:24-bookworm-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends ca-certificates bubblewrap \
+	&& rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 RUN npm install -g @openai/codex @anthropic-ai/claude-code && npm cache clean --force
