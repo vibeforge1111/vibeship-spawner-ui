@@ -85,3 +85,24 @@ Run the gates in this order so failures point at the owning repo:
 If step 1 fails, fix Spark Pro membership grants or sessions first. If step 2
 fails, fix hosted MCP token validation. If step 3 fails after the first two pass,
 fix Spawner's skill catalog sync or `/api/h70-skills/:skillId` gate.
+
+## Hosted Spawner Deploy
+
+This repo includes a Node Dockerfile and `railway.json`. Production environment
+should include:
+
+```text
+NODE_ENV=production
+SPAWNER_PRO_SKILL_ENFORCEMENT=enforce
+SPARK_PRO_API_BASE_URL=https://pro.sparkswarm.ai
+SPAWNER_SKILLS_JSON=/app/static/skills.json
+```
+
+The static catalog supports skill discovery and tier gating from the Spawner
+image. If hosted Spawner must serve full YAML skill bodies, copy or mount the
+`spark-skill-graphs` source into the container and set `SPAWNER_H70_SKILLS_DIR`
+to that mounted path.
+
+`agent.sparkswarm.ai` must point at this Spawner service, not the marketing site.
+The release smoke intentionally fails when `/api/h70-skills/:skillId` returns
+HTML instead of a skill JSON payload.
