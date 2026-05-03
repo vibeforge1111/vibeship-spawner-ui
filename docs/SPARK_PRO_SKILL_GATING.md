@@ -70,3 +70,18 @@ npm run smoke:spark-pro-gating
 The smoke verifies that a free starter skill loads, a Pro skill fails closed
 without member proof, the same Pro skill loads with member proof, and Spark Pro
 returns either `spark_pro` or `drop.skills` from `/api/member/entitlements`.
+
+## Cross-System Release Order
+
+Run the gates in this order so failures point at the owning repo:
+
+1. In `spark-pro-systems`, verify the member entitlement contract:
+   `npm run entitlements:contract -- --bearer-token <member-token>`.
+2. In `spark-skill-graphs`, verify hosted MCP auth behavior:
+   `npm run mcp:http-smoke`.
+3. In `spawner-ui`, verify free/Pro skill serving:
+   `npm run smoke:spark-pro-gating`.
+
+If step 1 fails, fix Spark Pro membership grants or sessions first. If step 2
+fails, fix hosted MCP token validation. If step 3 fails after the first two pass,
+fix Spawner's skill catalog sync or `/api/h70-skills/:skillId` gate.
