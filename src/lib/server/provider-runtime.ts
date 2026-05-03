@@ -23,6 +23,7 @@ import {
 	executeOpenAICompatRequest,
 	type OpenAICompatOptions
 } from './provider-clients/openai-compat-client';
+import { buildFilesystemArtifactPrompt, materializeProviderArtifacts } from './provider-artifacts';
 import { executeSparkHarnessRequest } from './provider-clients/spark-harness-client';
 import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { eventBridge } from '$lib/services/event-bridge';
@@ -688,9 +689,44 @@ class ProviderRuntimeManager {
 					signal: abortController.signal,
 					onEvent
 				};
-				return await executeOpenAICompatRequest(opts, [
-					{ role: 'user', content: prompt }
-				]);
+				if (provider.executesFilesystem && workingDirectory) {
+					const result = await executeOpenAICompatRequest(
+						opts,
+						[{ role: 'user', content: buildFilesystemArtifactPrompt(prompt) }],
+						false
+					);
+					if (!result.success) return result;
+					const materialized = await materializeProviderArtifacts({
+						response: result.response || '',
+						workingDirectory
+					});
+					if (!materialized.ok) {
+						return {
+							success: false,
+							error: materialized.error,
+							response: result.response,
+							tokenUsage: result.tokenUsage,
+							durationMs: result.durationMs
+						};
+					}
+					onEvent(
+						createBridgeEvent('task_completed', { provider, missionId, onEvent, signal: abortController.signal }, {
+							message: `${provider.label} wrote ${materialized.files.length} project file${materialized.files.length === 1 ? '' : 's'}`,
+							data: {
+								success: true,
+								filesChanged: materialized.files,
+								provider: provider.id,
+								providerLabel: provider.label
+							}
+						})
+					);
+					return {
+						...result,
+						response: materialized.summary || result.response
+					};
+				}
+
+				return await executeOpenAICompatRequest(opts, [{ role: 'user', content: prompt }]);
 			}
 
 			if (provider.kind === 'terminal_cli') {
