@@ -159,8 +159,8 @@
 	<title>Skill Recommendation Evals - Spawner</title>
 </svelte:head>
 
-<main class="min-h-screen bg-bg-primary text-text-primary">
-	<section class="mx-auto flex w-full max-w-[1320px] flex-col gap-4 px-5 py-5">
+<main class="min-h-screen overflow-x-hidden bg-bg-primary text-text-primary">
+	<section class="mx-auto flex w-[calc(100vw-2rem)] max-w-[1320px] min-w-0 flex-col gap-4 py-5 sm:w-[calc(100vw-2.5rem)]">
 		<header class="flex flex-wrap items-start justify-between gap-3 border-b border-surface-border pb-3">
 			<div>
 				<p class="font-mono text-xs uppercase text-accent-primary">Internal matcher audit</p>
@@ -179,8 +179,8 @@
 			</div>
 		</header>
 
-		<section class="grid gap-3 lg:grid-cols-[1.2fr_0.8fr]" aria-label="Focus summary">
-			<div class="panel p-4">
+		<section class="grid min-w-0 gap-3 lg:grid-cols-[1.2fr_0.8fr]" aria-label="Focus summary">
+			<div class="panel min-w-0 p-4">
 				<p class="font-mono text-xs uppercase text-text-tertiary">Verdict</p>
 				<h2 class="mt-1 text-xl font-semibold text-text-bright">
 					The golden suite is healthy. The new challenge suite shows the next improvement targets.
@@ -211,13 +211,13 @@
 				</div>
 			</div>
 
-			<div class="panel p-4">
+			<div class="panel min-w-0 p-4">
 				<p class="font-mono text-xs uppercase text-text-tertiary">Attention queue</p>
 				<p class="mt-1 text-3xl font-semibold text-text-bright">{attentionCases.length}</p>
 				<p class="mt-1 text-sm text-text-secondary">
 					{data.summary.failures.length} failing, {data.summary.lowPrecisionCases.length} low labeled precision.
 				</p>
-				<div class="mt-4 grid grid-cols-3 gap-2 text-xs">
+				<div class="mt-4 grid gap-2 text-xs sm:grid-cols-3">
 					<div class="border border-surface-border bg-bg-primary p-2">
 						<p class="font-mono uppercase text-text-tertiary">core</p>
 						<p class="mt-1 text-lg font-semibold">{data.summary.tierCounts.core}</p>
@@ -234,7 +234,7 @@
 				<div class="mt-3 border border-surface-border bg-bg-primary p-2 text-xs">
 					<p class="font-mono uppercase text-text-tertiary">planned gaps</p>
 					<p class="mt-1 text-lg font-semibold text-text-bright">{data.project.coverageGapCount}</p>
-					<p class="mt-0.5 text-text-secondary">Cases that pass today using proxy skills but should improve when new skills land.</p>
+					<p class="mt-0.5 text-text-secondary">Proxy matches that should improve when new skills land.</p>
 				</div>
 			</div>
 		</section>
@@ -246,12 +246,12 @@
 			</div>
 			<div class="grid divide-y divide-surface-border lg:grid-cols-2 lg:divide-x lg:divide-y-0">
 				{#each data.coverageGaps.slice(0, 8) as gap}
-					<div class="px-3 py-2 text-xs">
+					<div class="min-w-0 px-3 py-2 text-xs">
 						<div class="flex flex-wrap items-center justify-between gap-2">
-							<p class="font-semibold text-text-bright">{gap.skillId}</p>
+							<p class="min-w-0 break-words font-semibold text-text-bright">{gap.skillId}</p>
 							<span class="border border-surface-border bg-bg-secondary px-2 py-0.5 font-mono text-text-tertiary">{pct(gap.precision)}</span>
 						</div>
-						<p class="mt-1 font-mono text-text-tertiary">{gap.path}</p>
+						<p class="mt-1 break-words font-mono text-text-tertiary">{gap.path}</p>
 						<p class="mt-1 text-text-secondary">{gap.why}</p>
 						<p class="mt-1 text-text-tertiary">Triggered by: {gap.caseName}</p>
 					</div>

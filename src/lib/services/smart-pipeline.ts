@@ -11,7 +11,7 @@ import { get } from 'svelte/store';
 import { skills as skillsStore, loadSkillsStatic, type Skill } from '$lib/stores/skills.svelte';
 import { rankSkillsForText, type SkillRecommendationTier } from './h70-skill-matcher';
 
-const MAX_PIPELINE_SKILLS = 10;
+const MAX_PIPELINE_SKILLS = 13;
 
 // ============================================
 // Types

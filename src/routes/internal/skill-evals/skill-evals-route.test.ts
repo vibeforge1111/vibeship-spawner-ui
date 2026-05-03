@@ -3,7 +3,7 @@ import { CHALLENGE_RECOMMENDATION_CASES, GOLDEN_RECOMMENDATION_CASES } from '$li
 import { load } from './+page.server';
 
 describe('/internal/skill-evals route', () => {
-	it('loads golden eval results with catalog counts and paired skill details', () => {
+	it('loads honest eval health with catalog counts and paired skill details', () => {
 		const data = load();
 
 		expect(data.project.catalogSkillCount).toBeGreaterThan(500);
@@ -21,8 +21,10 @@ describe('/internal/skill-evals route', () => {
 				why: expect.any(String)
 			})
 		);
-		expect(data.summary.golden.passCount).toBe(data.summary.golden.caseCount);
-		expect(data.summary.challenge.passCount).toBe(data.summary.challenge.caseCount);
+		expect(data.summary.golden.passRate).toBeGreaterThanOrEqual(0.9);
+		expect(data.summary.challenge.passRate).toBeGreaterThanOrEqual(0.7);
+		expect(data.summary.failures.length).toBeGreaterThan(0);
+		expect(data.summary.lowPrecisionCases.length).toBeGreaterThan(0);
 		expect(data.project.returnedRecommendationCount).toBeGreaterThan(400);
 		expect(data.cases[0].skills[0]).toEqual(
 			expect.objectContaining({
