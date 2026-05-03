@@ -690,6 +690,18 @@ class ProviderRuntimeManager {
 					onEvent
 				};
 				if (provider.executesFilesystem && workingDirectory) {
+					onEvent(
+						createBridgeEvent('task_progress', { provider, missionId, onEvent, signal: abortController.signal }, {
+							progress: 18,
+							message: `${provider.label} is generating compact project files for the hosted preview.`,
+							data: {
+								kind: 'artifact_generation',
+								provider: provider.id,
+								providerLabel: provider.label,
+								previewState: 'preparing'
+							}
+						})
+					);
 					const result = await executeOpenAICompatRequest(
 						opts,
 						[{ role: 'user', content: buildFilesystemArtifactPrompt(prompt) }],
