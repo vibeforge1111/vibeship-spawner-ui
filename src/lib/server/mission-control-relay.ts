@@ -963,6 +963,9 @@ export function buildSparkMissionControlEvent(event: MissionControlBridgeEvent):
 	const ts = Number.isFinite(tsMs) ? Math.max(1, tsMs / 1000) : Date.now() / 1000;
 	const missionId = normalizeMissionId(event);
 	const missionControlAccess = resolveMissionControlAccess(missionControlPathForMission(missionId));
+	const safeEvent = redactMissionControlEventForExternal(event);
+	const safeData = redactMissionControlDataForExternal(event);
+	const summary = sanitizeExternalText(summarizeMissionControlEvent(event), 220);
 
 	return {
 		v: 1,
@@ -980,19 +983,16 @@ export function buildSparkMissionControlEvent(event: MissionControlBridgeEvent):
 			mission_id: typeof event.missionId === 'string' ? event.missionId : null,
 			task_id: typeof event.taskId === 'string' ? event.taskId : null,
 			task_name: typeof event.taskName === 'string' ? event.taskName : null,
-			message: typeof event.message === 'string' ? event.message : null,
-			summary: summarizeMissionControlEvent(event),
+			message: typeof event.message === 'string' ? sanitizeExternalText(event.message, 220) : null,
+			summary,
 			bridge_source: typeof event.source === 'string' ? event.source : 'unknown',
 			meta: {
 				origin: 'spawner-ui',
 				event_id: typeof event.id === 'string' ? event.id : null,
 				mission_control_access: missionControlAccess
 			},
-			data: {
-				...(typeof event.data === 'object' && event.data ? event.data : {}),
-				missionControlAccess
-			},
-			raw: event
+			data: safeData,
+			event: safeEvent
 		}
 	};
 }
@@ -1069,6 +1069,107 @@ function getTelegramRelayTarget(event: MissionControlBridgeEvent): MissionContro
 	return { port, profile, url };
 }
 
+const LOCAL_URL_PATTERN = /\bhttps?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::\d+)?[^\s'"<>)]*/gi;
+const SECRET_VALUE_PATTERN = /\b(?:sk-[A-Za-z0-9_-]{12,}|\d{5,}:[A-Za-z0-9_-]{20,})\b/g;
+const EXTERNAL_SAFE_DATA_KEYS = new Set([
+	'assignedTaskIds',
+	'buildMode',
+	'buildModeReason',
+	'iterationNumber',
+	'missionControlAccess',
+	'missionName',
+	'parentMissionId',
+	'percent',
+	'plannedTasks',
+	'progress',
+	'projectId',
+	'requestId',
+	'skills',
+	'status',
+	'taskId',
+	'taskName',
+	'telegramRelay',
+	'telegramRelayPort',
+	'telegramRelayProfile',
+	'title'
+]);
+const SENSITIVE_EXTERNAL_DATA_KEY = /(?:content|env|file|full|goal|key|log|output|password|path|prompt|raw|secret|source|token|workspace)/i;
+
+function sanitizeExternalText(value: string, maxLength = 220): string {
+	return (
+		compactMissionControlDisplayText(value, maxLength)
+			?.replace(LOCAL_URL_PATTERN, '[local url]')
+			.replace(SECRET_VALUE_PATTERN, '[secret]') ?? ''
+	);
+}
+
+function sanitizeExternalScalar(value: unknown): unknown {
+	if (typeof value === 'string') return sanitizeExternalText(value);
+	if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+	if (typeof value === 'boolean' || value === null) return value;
+	return null;
+}
+
+function sanitizeExternalArray(value: unknown[]): unknown[] {
+	return value
+		.slice(0, 24)
+		.map((item) => sanitizeExternalValue(item))
+		.filter((item) => item !== null && item !== undefined);
+}
+
+function sanitizeExternalObject(value: Record<string, unknown>): Record<string, unknown> {
+	const safe: Record<string, unknown> = {};
+	for (const [key, raw] of Object.entries(value)) {
+		if (!EXTERNAL_SAFE_DATA_KEYS.has(key) || SENSITIVE_EXTERNAL_DATA_KEY.test(key)) continue;
+		const sanitized = sanitizeExternalValue(raw);
+		if (sanitized !== null && sanitized !== undefined && sanitized !== '') {
+			safe[key] = sanitized;
+		}
+	}
+	return safe;
+}
+
+function sanitizeExternalValue(value: unknown): unknown {
+	if (Array.isArray(value)) return sanitizeExternalArray(value);
+	if (value && typeof value === 'object') return sanitizeExternalObject(value as Record<string, unknown>);
+	return sanitizeExternalScalar(value);
+}
+
+function redactTelegramRelayForExternal(target: MissionControlRelayTarget): MissionControlRelayTarget | null {
+	LOCAL_URL_PATTERN.lastIndex = 0;
+	const url = target.url && !LOCAL_URL_PATTERN.test(target.url) ? sanitizeExternalText(target.url, 180) : null;
+	LOCAL_URL_PATTERN.lastIndex = 0;
+	if (target.port === null && target.profile === null && url === null) return null;
+	return { port: target.port, profile: target.profile, url };
+}
+
+function redactMissionControlDataForExternal(event: MissionControlBridgeEvent): Record<string, unknown> {
+	const data = event.data && typeof event.data === 'object' ? sanitizeExternalObject(event.data) : {};
+	const telegramRelay = redactTelegramRelayForExternal(getTelegramRelayTarget(event));
+	if (telegramRelay) {
+		data.telegramRelay = telegramRelay;
+	}
+	data.missionControlAccess = resolveMissionControlAccess(missionControlPathForMission(normalizeMissionId(event)));
+	return data;
+}
+
+function redactMissionControlEventForExternal(event: MissionControlBridgeEvent): Record<string, unknown> {
+	const safeEvent: Record<string, unknown> = {
+		type: typeof event.type === 'string' ? event.type : 'unknown',
+		missionId: typeof event.missionId === 'string' ? event.missionId : null,
+		missionName: typeof event.missionName === 'string' ? sanitizeExternalText(event.missionName, 140) : null,
+		taskId: typeof event.taskId === 'string' ? sanitizeExternalText(event.taskId, 120) : null,
+		taskName: typeof event.taskName === 'string' ? sanitizeExternalText(event.taskName, 140) : null,
+		timestamp: typeof event.timestamp === 'string' ? event.timestamp : null,
+		source: typeof event.source === 'string' ? sanitizeExternalText(event.source, 80) : 'unknown',
+		data: redactMissionControlDataForExternal(event)
+	};
+	if (typeof event.id === 'string') {
+		safeEvent.id = sanitizeExternalText(event.id, 120);
+	}
+	return safeEvent;
+}
+
 export function selectWebhookUrlsForMissionEvent(event: MissionControlBridgeEvent, urls = DEFAULT_WEBHOOKS): string[] {
 	const target = getTelegramRelayTarget(event);
 	if (!target.url && target.port === null) {
@@ -1116,9 +1217,9 @@ export async function relayMissionControlEvent(event: MissionControlBridgeEvent)
 		const webhookPayload = {
 			type: 'mission_control_event',
 			timestamp: new Date().toISOString(),
-			summary: summarizeMissionControlEvent(event),
+			summary: sanitizeExternalText(summarizeMissionControlEvent(event), 220),
 			missionControl: resolveMissionControlAccess(missionControlPathForMission(normalizeMissionId(event))),
-			event
+			event: redactMissionControlEventForExternal(event)
 		};
 		const relayHeaders = DEFAULT_TELEGRAM_RELAY_SECRET
 			? { 'X-Spark-Telegram-Relay-Secret': DEFAULT_TELEGRAM_RELAY_SECRET }

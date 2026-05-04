@@ -469,10 +469,59 @@ describe('mission-control-relay', () => {
 		});
 		const body = payload.payload as Record<string, unknown>;
 		const data = body.data as Record<string, unknown>;
-		const raw = body.raw as Record<string, unknown>;
+		const event = body.event as Record<string, unknown>;
 
-		expect(data.telegramRelay).toEqual({ port: 8788, profile: 'primary' });
-		expect((raw.data as Record<string, unknown>).telegramRelay).toEqual({ port: 8788, profile: 'primary' });
+		expect(data.telegramRelay).toEqual({ port: 8788, profile: 'primary', url: null });
+		expect((event.data as Record<string, unknown>).telegramRelay).toEqual({
+			port: 8788,
+			profile: 'primary',
+			url: null
+		});
+		expect(body.raw).toBeUndefined();
+	});
+
+	it('redacts private local data from external Spark ingest payloads', () => {
+		const payload = buildSparkMissionControlEvent({
+			id: 'evt-redacted',
+			type: 'provider_feedback',
+			missionId: 'mission-redacted',
+			taskId: 'task-private',
+			taskName: 'Wire mobile view',
+			source: 'spark-run',
+			message:
+				'Using C:\\Users\\USER\\Desktop\\private-app with token 123456:abcdefghijklmnopqrstuvwxyz123456 and preview http://127.0.0.1:5555/preview/private.',
+			data: {
+				projectId: 'project-safe-id',
+				projectPath: 'C:\\Users\\USER\\Desktop\\private-app',
+				previewUrl: 'http://127.0.0.1:5555/preview/private',
+				prompt: 'Full Telegram prompt should stay local.',
+				output: 'Full model output should stay local.',
+				env: { BOT_TOKEN: '123456:abcdefghijklmnopqrstuvwxyz123456' },
+				plannedTasks: [{ title: 'Build C:\\Users\\USER\\Desktop\\private-app shell', skills: ['frontend'] }],
+				telegramRelay: {
+					port: 8788,
+					profile: 'primary',
+					url: 'http://127.0.0.1:8788/spawner-events'
+				}
+			}
+		});
+		const body = payload.payload as Record<string, unknown>;
+		const serialized = JSON.stringify(body);
+		const data = body.data as Record<string, unknown>;
+		const event = body.event as Record<string, unknown>;
+
+		expect(data.projectId).toBe('project-safe-id');
+		expect(data.projectPath).toBeUndefined();
+		expect(data.previewUrl).toBeUndefined();
+		expect(data.prompt).toBeUndefined();
+		expect(data.output).toBeUndefined();
+		expect(data.env).toBeUndefined();
+		expect(data.telegramRelay).toEqual({ port: 8788, profile: 'primary', url: null });
+		expect(event.data).toEqual(data);
+		expect(serialized).not.toContain('C:\\Users\\USER\\Desktop\\private-app');
+		expect(serialized).not.toContain('abcdefghijklmnopqrstuvwxyz123456');
+		expect(serialized).not.toContain('http://127.0.0.1:5555');
+		expect(serialized).not.toContain('Full Telegram prompt');
 	});
 
 	it('adds mobile-safe Mission Control access metadata to external payloads', () => {

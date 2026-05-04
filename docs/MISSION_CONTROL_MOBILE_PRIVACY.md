@@ -106,3 +106,5 @@ Mission-control relay payloads include `missionControl` / `missionControlAccess`
 - local-only: say Mission Control is local to the computer
 
 This keeps the Telegram bot from guessing and keeps localhost from leaking into mobile UX as a fake answer.
+
+External relay payloads are also redacted before they leave Spawner UI. The relay keeps status-safe fields such as mission ids, task names, progress, task skills, access mode, and Telegram relay profile/port. It drops or scrubs local paths, localhost preview URLs, prompt/output/log blobs, environment objects, and token-shaped secrets. Full local execution detail stays in the local worker unless the user explicitly opts into a broader debug share.
