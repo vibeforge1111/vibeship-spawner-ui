@@ -4,6 +4,11 @@ import { timingSafeEqual } from 'node:crypto';
 export interface HostedUiAuthEnv {
 	[key: string]: string | undefined;
 	SPARK_UI_API_KEY?: string;
+	SPARK_WORKSPACE_ID?: string;
+	SPARK_HOSTED_PRIVATE_PREVIEW?: string;
+	SPARK_LIVE_CONTAINER?: string;
+	SPARK_SPAWNER_HOST?: string;
+	SPARK_ALLOWED_HOSTS?: string;
 	SPARK_BRIDGE_API_KEY?: string;
 	EVENTS_API_KEY?: string;
 	MCP_API_KEY?: string;
@@ -30,6 +35,23 @@ function constantTimeEquals(left: string, right: string): boolean {
 
 export function hostedUiAuthEnabled(env: HostedUiAuthEnv): boolean {
 	return Boolean(env.SPARK_UI_API_KEY?.trim());
+}
+
+export function hostedUiLooksHosted(env: HostedUiAuthEnv): boolean {
+	return (
+		env.SPARK_LIVE_CONTAINER === '1' ||
+		env.SPARK_SPAWNER_HOST === '0.0.0.0' ||
+		Boolean(env.SPARK_ALLOWED_HOSTS?.trim())
+	);
+}
+
+export function hostedUiReleaseLocked(env: HostedUiAuthEnv): boolean {
+	return hostedUiLooksHosted(env) && env.SPARK_HOSTED_PRIVATE_PREVIEW !== '1';
+}
+
+export function hostedUiWorkspaceId(env: HostedUiAuthEnv): string | null {
+	const value = env.SPARK_WORKSPACE_ID?.trim();
+	return value || null;
 }
 
 export function hostedUiAuthClientKey(request: Request): string {
@@ -90,15 +112,41 @@ export function hostedUiRequestToken(request: Request, url: URL, cookies: Cookie
 	return cookies.get('spawner_ui_api_key') || null;
 }
 
+export function hostedUiRequestWorkspaceId(request: Request, url: URL, cookies: Cookies): string | null {
+	const headerWorkspace = request.headers.get('x-spawner-workspace-id');
+	if (headerWorkspace?.trim()) return headerWorkspace.trim();
+
+	const queryWorkspace = url.searchParams.get('workspaceId') || url.searchParams.get('workspace');
+	if (queryWorkspace?.trim()) return queryWorkspace.trim();
+
+	return cookies.get('spawner_workspace_id') || null;
+}
+
 export function hostedUiTokenIsValid(token: string | null, env: HostedUiAuthEnv): boolean {
 	const expected = env.SPARK_UI_API_KEY?.trim();
 	return Boolean(token && expected && constantTimeEquals(token, expected));
+}
+
+export function hostedUiCredentialsAreValid(
+	workspaceId: string | null,
+	token: string | null,
+	env: HostedUiAuthEnv
+): boolean {
+	const expectedWorkspaceId = hostedUiWorkspaceId(env);
+	if (expectedWorkspaceId && !workspaceId) return false;
+	if (expectedWorkspaceId && workspaceId && !constantTimeEquals(workspaceId, expectedWorkspaceId)) return false;
+	return hostedUiTokenIsValid(token, env);
 }
 
 export function persistHostedUiAuth(cookies: Cookies, env: HostedUiAuthEnv): void {
 	const uiKey = env.SPARK_UI_API_KEY?.trim();
 	if (uiKey) {
 		cookies.set('spawner_ui_api_key', uiKey, COOKIE_OPTIONS);
+	}
+
+	const workspaceId = hostedUiWorkspaceId(env);
+	if (workspaceId) {
+		cookies.set('spawner_workspace_id', workspaceId, COOKIE_OPTIONS);
 	}
 
 	const controlKey = env.SPARK_BRIDGE_API_KEY?.trim() || env.MCP_API_KEY?.trim();
@@ -116,5 +164,7 @@ export function redirectWithoutAuthQuery(url: URL): never {
 	const clean = new URL(url);
 	clean.searchParams.delete('uiKey');
 	clean.searchParams.delete('apiKey');
+	clean.searchParams.delete('workspaceId');
+	clean.searchParams.delete('workspace');
 	throw redirect(303, clean.pathname + clean.search + clean.hash);
 }

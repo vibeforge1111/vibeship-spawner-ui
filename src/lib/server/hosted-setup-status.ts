@@ -4,6 +4,8 @@ import { applyProviderEnvOverrides, resolveProviderRuntimeConfiguration } from '
 export interface HostedSetupEnv {
 	[key: string]: string | undefined;
 	SPARK_UI_API_KEY?: string;
+	SPARK_WORKSPACE_ID?: string;
+	SPARK_HOSTED_PRIVATE_PREVIEW?: string;
 	SPARK_BRIDGE_API_KEY?: string;
 	SPARK_ALLOWED_HOSTS?: string;
 	SPARK_LIVE_CONTAINER?: string;
@@ -85,6 +87,29 @@ export function buildHostedSetupStatus(env: HostedSetupEnv): HostedSetupStatus {
 	}).filter((providerId): providerId is string => Boolean(providerId));
 
 	const checks: HostedSetupCheck[] = [
+		{
+			id: 'private-preview',
+			label: 'Private preview lock',
+			ok: !hosted || env.SPARK_HOSTED_PRIVATE_PREVIEW === '1',
+			detail:
+				!hosted
+					? 'Local development is not public.'
+					: env.SPARK_HOSTED_PRIVATE_PREVIEW === '1'
+						? 'Hosted Spawner is intentionally enabled for private preview.'
+						: 'Hosted Spawner is locked for this release so public users cannot enter the control surface.',
+			fix: 'Only set SPARK_HOSTED_PRIVATE_PREVIEW=1 for a trusted private preview after workspace ID and access keys are configured.'
+		},
+		{
+			id: 'workspace-id',
+			label: 'Workspace ID',
+			ok: !hosted || configured(env.SPARK_WORKSPACE_ID),
+			detail: configured(env.SPARK_WORKSPACE_ID)
+				? 'Visitors must know the private workspace ID before they can enter.'
+				: hosted
+					? 'Hosted Spawner needs a private workspace ID before it can feel like a personal workspace.'
+					: 'Local development does not need a hosted workspace ID.',
+			fix: 'Set SPARK_WORKSPACE_ID to a non-guessable workspace slug and share it only with the workspace owner.'
+		},
 		{
 			id: 'ui-auth',
 			label: 'Browser access key',

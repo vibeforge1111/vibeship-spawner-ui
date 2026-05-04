@@ -2,10 +2,13 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Cookies } from '@sveltejs/kit';
 import {
 	hostedUiAuthEnabled,
+	hostedUiCredentialsAreValid,
 	hostedUiAuthClientKey,
 	hostedUiAuthPathIsExempt,
 	hostedUiAuthRateLimitStatus,
+	hostedUiReleaseLocked,
 	hostedUiRequestToken,
+	hostedUiRequestWorkspaceId,
 	hostedUiTokenIsValid,
 	persistHostedUiAuth,
 	recordHostedUiAuthFailure,
@@ -38,6 +41,14 @@ describe('hosted UI auth', () => {
 		expect(hostedUiAuthEnabled({ SPARK_UI_API_KEY: 'secret' })).toBe(true);
 	});
 
+	it('locks hosted deployments unless private preview is explicit', () => {
+		expect(hostedUiReleaseLocked({})).toBe(false);
+		expect(hostedUiReleaseLocked({ SPARK_LIVE_CONTAINER: '1' })).toBe(true);
+		expect(hostedUiReleaseLocked({ SPARK_SPAWNER_HOST: '0.0.0.0' })).toBe(true);
+		expect(hostedUiReleaseLocked({ SPARK_ALLOWED_HOSTS: 'spark.example.com' })).toBe(true);
+		expect(hostedUiReleaseLocked({ SPARK_LIVE_CONTAINER: '1', SPARK_HOSTED_PRIVATE_PREVIEW: '1' })).toBe(false);
+	});
+
 	it('exempts static assets', () => {
 		expect(hostedUiAuthPathIsExempt('/_app/immutable/app.js')).toBe(true);
 		expect(hostedUiAuthPathIsExempt('/favicon.png')).toBe(true);
@@ -56,14 +67,23 @@ describe('hosted UI auth', () => {
 		expect(hostedUiRequestToken(new Request('https://x.test/'), new URL('https://x.test/'), cookies)).toBe('cookie-key');
 	});
 
+	it('accepts workspace id from query, header, and cookie', () => {
+		const cookies = fakeCookies({ spawner_workspace_id: 'cookie-workspace' });
+		expect(hostedUiRequestWorkspaceId(new Request('https://x.test/?workspaceId=query-workspace'), new URL('https://x.test/?workspaceId=query-workspace'), cookies)).toBe('query-workspace');
+		expect(hostedUiRequestWorkspaceId(new Request('https://x.test/', { headers: { 'x-spawner-workspace-id': 'header-workspace' } }), new URL('https://x.test/'), cookies)).toBe('header-workspace');
+		expect(hostedUiRequestWorkspaceId(new Request('https://x.test/'), new URL('https://x.test/'), cookies)).toBe('cookie-workspace');
+	});
+
 	it('persists UI, control, and events cookies without exposing keys to JavaScript', () => {
 		const cookies = fakeCookies();
 		persistHostedUiAuth(cookies, {
+			SPARK_WORKSPACE_ID: 'private-workspace',
 			SPARK_UI_API_KEY: 'ui-key',
 			SPARK_BRIDGE_API_KEY: 'bridge-key',
 			EVENTS_API_KEY: 'events-key'
 		});
 
+		expect(cookies.set).toHaveBeenCalledWith('spawner_workspace_id', 'private-workspace', expect.objectContaining({ httpOnly: true, sameSite: 'strict' }));
 		expect(cookies.set).toHaveBeenCalledWith('spawner_ui_api_key', 'ui-key', expect.objectContaining({ httpOnly: true, sameSite: 'strict' }));
 		expect(cookies.set).toHaveBeenCalledWith('spawner_control_api_key', 'bridge-key', expect.objectContaining({ httpOnly: true, sameSite: 'strict' }));
 		expect(cookies.set).toHaveBeenCalledWith('spawner_events_api_key', 'events-key', expect.objectContaining({ httpOnly: true, sameSite: 'strict' }));
@@ -72,6 +92,14 @@ describe('hosted UI auth', () => {
 	it('compares tokens exactly', () => {
 		expect(hostedUiTokenIsValid('secret', { SPARK_UI_API_KEY: 'secret' })).toBe(true);
 		expect(hostedUiTokenIsValid('wrong', { SPARK_UI_API_KEY: 'secret' })).toBe(false);
+	});
+
+	it('requires matching workspace id when configured', () => {
+		const env = { SPARK_WORKSPACE_ID: 'my-private-spawner', SPARK_UI_API_KEY: 'secret' };
+		expect(hostedUiCredentialsAreValid('my-private-spawner', 'secret', env)).toBe(true);
+		expect(hostedUiCredentialsAreValid('other-workspace', 'secret', env)).toBe(false);
+		expect(hostedUiCredentialsAreValid(null, 'secret', env)).toBe(false);
+		expect(hostedUiCredentialsAreValid('my-private-spawner', 'wrong', env)).toBe(false);
 	});
 
 	it('uses forwarded IP as the hosted auth rate-limit key', () => {

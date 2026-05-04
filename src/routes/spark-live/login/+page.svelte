@@ -20,6 +20,19 @@
 			<input type="hidden" name="next" value={form?.next || data.next || '/'} />
 
 			<label class="block">
+				<span class="text-sm font-medium text-text-bright">Workspace ID</span>
+				<input
+					class="mt-2 w-full rounded-md border border-surface-border bg-bg-secondary px-3 py-3 font-mono text-sm text-text-primary outline-none transition focus:border-accent-primary focus:ring-2 focus:ring-accent-primary/30"
+					name="workspaceId"
+					type="text"
+					autocomplete="username"
+					placeholder="your-private-workspace"
+					value={form?.workspaceId || ''}
+					required
+				/>
+			</label>
+
+			<label class="block">
 				<span class="text-sm font-medium text-text-bright">Access key</span>
 				<input
 					class="mt-2 w-full rounded-md border border-surface-border bg-bg-secondary px-3 py-3 font-mono text-sm text-text-primary outline-none transition focus:border-accent-primary focus:ring-2 focus:ring-accent-primary/30"
@@ -41,7 +54,8 @@
 		</form>
 
 		<p class="mt-5 text-xs leading-5 text-text-tertiary">
-			Keep this key private. If it is shared accidentally, rotate <span class="font-mono">SPARK_UI_API_KEY</span> in your host settings.
+			This hosted preview is workspace-gated. Keep the ID and key private. If either is shared accidentally, rotate
+			<span class="font-mono">SPARK_WORKSPACE_ID</span> and <span class="font-mono">SPARK_UI_API_KEY</span> in your host settings.
 		</p>
 	</section>
 </main>

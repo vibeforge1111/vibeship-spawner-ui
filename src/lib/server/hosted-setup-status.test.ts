@@ -5,6 +5,8 @@ describe('hosted setup status', () => {
 	it('reports a ready hosted setup without exposing secret values', () => {
 		const status = buildHostedSetupStatus({
 			SPARK_LIVE_CONTAINER: '1',
+			SPARK_HOSTED_PRIVATE_PREVIEW: '1',
+			SPARK_WORKSPACE_ID: 'founder-private-spawner',
 			SPARK_UI_API_KEY: 'ui-secret-value-that-is-long',
 			SPARK_BRIDGE_API_KEY: 'bridge-secret-value-that-is-long',
 			SPARK_ALLOWED_HOSTS: 'spark.example.com',
@@ -36,6 +38,8 @@ describe('hosted setup status', () => {
 		expect(status.hosted).toBe(true);
 		expect(status.ready).toBe(false);
 		expect(status.checks.find((check) => check.id === 'ui-auth')?.ok).toBe(false);
+		expect(status.checks.find((check) => check.id === 'private-preview')?.ok).toBe(false);
+		expect(status.checks.find((check) => check.id === 'workspace-id')?.ok).toBe(false);
 		expect(status.checks.find((check) => check.id === 'bridge-auth')?.ok).toBe(false);
 		expect(status.checks.find((check) => check.id === 'allowed-hosts')?.ok).toBe(false);
 		expect(status.checks.find((check) => check.id === 'telegram')?.fix).toMatch(/spark setup/);
@@ -45,6 +49,8 @@ describe('hosted setup status', () => {
 	it('warns when hosted full access has been explicitly enabled', () => {
 		const status = buildHostedSetupStatus({
 			SPARK_LIVE_CONTAINER: '1',
+			SPARK_HOSTED_PRIVATE_PREVIEW: '1',
+			SPARK_WORKSPACE_ID: 'private-workspace',
 			SPARK_ALLOW_HOSTED_FULL_ACCESS: '1'
 		});
 

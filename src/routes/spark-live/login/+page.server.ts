@@ -3,9 +3,9 @@ import { fail, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import {
 	clearHostedUiAuthFailures,
+	hostedUiCredentialsAreValid,
 	hostedUiAuthClientKey,
 	hostedUiAuthRateLimitStatus,
-	hostedUiTokenIsValid,
 	persistHostedUiAuth,
 	recordHostedUiAuthFailure
 } from '$lib/server/hosted-ui-auth';
@@ -26,10 +26,11 @@ export const actions: Actions = {
 	default: async ({ cookies, request }) => {
 		const data = await request.formData();
 		const next = safeNext(data.get('next'));
+		const workspaceId = String(data.get('workspaceId') || '').trim();
 		const token = String(data.get('uiKey') || '').trim();
 		const clientKey = hostedUiAuthClientKey(request);
 
-		if (hostedUiTokenIsValid(token, env)) {
+		if (hostedUiCredentialsAreValid(workspaceId, token, env)) {
 			clearHostedUiAuthFailures(clientKey);
 			persistHostedUiAuth(cookies, env);
 			throw redirect(303, next);
@@ -39,6 +40,7 @@ export const actions: Actions = {
 		if (rateLimit.blocked) {
 			return fail(429, {
 				next,
+				workspaceId,
 				message: `Too many attempts. Wait ${rateLimit.retryAfterSeconds}s, then try again.`
 			});
 		}
@@ -46,7 +48,8 @@ export const actions: Actions = {
 		recordHostedUiAuthFailure(clientKey);
 		return fail(401, {
 			next,
-			message: 'That Spark Live access key did not work.'
+			workspaceId,
+			message: 'That workspace ID or access key did not work.'
 		});
 	}
 };
