@@ -130,6 +130,8 @@ the same project environment and communicate over Railway private DNS:
 
 - `MISSION_CONTROL_WEBHOOK_URLS=http://spark-telegram-bot.railway.internal:8788/spawner-events`
 - `TELEGRAM_RELAY_SECRET=<same value as the bot>`
+- `SPARK_HOSTED_PRIVATE_PREVIEW=1`
+- `SPARK_WORKSPACE_ID=<private non-guessable workspace slug>`
 - `SPARK_BRIDGE_API_KEY=<same long value as the bot>`
 - `SPARK_UI_API_KEY=<private browser/API access key>`
 - `SPAWNER_STATE_DIR=/data/spawner`

@@ -28,6 +28,8 @@ Set these on the `spawner-ui` service:
 HOST=0.0.0.0
 PORT=3000
 SPARK_LIVE_CONTAINER=1
+SPARK_HOSTED_PRIVATE_PREVIEW=1
+SPARK_WORKSPACE_ID=<private non-guessable workspace slug>
 SPAWNER_STATE_DIR=/data/spawner
 SPARK_WORKSPACE_ROOT=/data/workspaces
 SPARK_ALLOW_EXTERNAL_PROJECT_PATHS=0
@@ -37,6 +39,11 @@ SPARK_BRIDGE_API_KEY=<same long bridge key as the bot>
 SPARK_UI_API_KEY=<private browser/API access key>
 DEFAULT_MISSION_PROVIDER=zai
 ```
+
+`SPARK_HOSTED_PRIVATE_PREVIEW`, `SPARK_WORKSPACE_ID`, and `SPARK_UI_API_KEY`
+must all be present for a trusted hosted Spawner. Without them, the live health
+endpoint can still pass, but Canvas, Kanban, provider metadata, and preview
+checks remain locked by design.
 
 Add provider keys only for providers you want to run in hosted mode:
 
