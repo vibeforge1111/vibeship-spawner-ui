@@ -1,0 +1,56 @@
+{
+  "schema_version": "spark.skill.tiers.v1",
+  "policy": {
+    "open_source": "Thirty canonical starter skills stay account-free for the public standard, starter examples, local MCP smoke tests, docs, and community adapters.",
+    "pro": "Spark Pro can access the full production corpus. Pro-exclusive means the full corpus minus the open-source canonical starter set.",
+    "entitlements": [
+      "spark_pro",
+      "drop.skills"
+    ]
+  },
+  "thresholds": {
+    "open_source_exact": 30,
+    "minimum_full_corpus": 600,
+    "minimum_pro_exclusive": 580
+  },
+  "open_source": {
+    "tier": "open-source",
+    "canonical_starter_skill_ids": [
+      "api-design",
+      "authentication-oauth",
+      "database-architect",
+      "error-handling",
+      "observability",
+      "structured-output",
+      "webhook-processing",
+      "queue-workers",
+      "rate-limiting",
+      "redis-specialist",
+      "data-pipeline",
+      "vector-specialist",
+      "rag-engineer",
+      "llm-architect",
+      "prompt-engineer",
+      "ai-observability",
+      "frontend-engineer",
+      "react-patterns",
+      "responsive-mobile-first",
+      "forms-validation",
+      "accessibility",
+      "ui-design",
+      "ux-design",
+      "design-systems",
+      "stripe-integration",
+      "subscription-billing",
+      "testing-strategies",
+      "playwright-testing",
+      "security-owasp",
+      "devops"
+    ]
+  },
+  "pro": {
+    "tier": "spark-pro",
+    "include": "all-standard-skills",
+    "exclude_from_pro_exclusive": "open_source.canonical_starter_skill_ids"
+  }
+}

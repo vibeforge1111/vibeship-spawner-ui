@@ -733,9 +733,18 @@ class ProviderRuntimeManager {
 							}
 						})
 					);
+					const responseSummary = {
+						status: 'completed',
+						summary:
+							materialized.summary ||
+							`Materialized ${materialized.files.length} hosted project file${materialized.files.length === 1 ? '' : 's'} from ${provider.label}.`,
+						project_path: workingDirectory,
+						changed_files: materialized.files,
+						verification: ['Created files in the hosted Spark workspace for preview.']
+					};
 					return {
 						...result,
-						response: materialized.summary || result.response
+						response: JSON.stringify(responseSummary)
 					};
 				}
 

@@ -43,6 +43,8 @@ const SYNCED_PATHS = [
 	'src/routes/api/dispatch/+server.ts',
 	'src/routes/api/h70-skills/[skillId]/+server.ts',
 	'src/routes/api/spark/run/+server.ts',
+	'static/skills.json',
+	'static/skill-tiers.json',
 	'static/bundles'
 ];
 
