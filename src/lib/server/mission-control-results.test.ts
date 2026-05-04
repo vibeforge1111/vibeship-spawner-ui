@@ -67,6 +67,28 @@ describe('mission-control-results', () => {
 		expect(summary.providerResults[0].summary).toBe('Codex exited 1');
 	});
 
+	it('preserves project links from structured provider responses', () => {
+		const summary = summarizeProviderResults([
+			result({
+				providerId: 'zai',
+				response: JSON.stringify({
+					status: 'completed',
+					summary: 'Materialized hosted project files.',
+					project_path: '/data/workspaces/mission-1-demo',
+					preview_url: 'https://spawner.example/preview/demo/index.html'
+				})
+			})
+		]);
+
+		expect(summary.providerResults[0]).toMatchObject({
+			providerId: 'zai',
+			projectPath: '/data/workspaces/mission-1-demo',
+			project_path: '/data/workspaces/mission-1-demo',
+			previewUrl: 'https://spawner.example/preview/demo/index.html',
+			preview_url: 'https://spawner.example/preview/demo/index.html'
+		});
+	});
+
 	it('redacts local file paths from provider summaries before display', () => {
 		const summary = summarizeProviderResults([
 			result({

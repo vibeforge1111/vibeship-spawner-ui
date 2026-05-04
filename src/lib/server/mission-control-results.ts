@@ -2,6 +2,8 @@ import type { MissionControlBoardEntry } from './mission-control-relay';
 import type { ProviderMissionResultSnapshot } from './provider-runtime';
 import type { ProviderSessionStatus } from './provider-clients/types';
 import { compactMissionControlDisplayText } from './mission-control-display';
+import { projectPreviewUrl } from './project-preview';
+import { env } from '$env/dynamic/private';
 
 export interface MissionControlProviderResultSummary {
 	providerId: string;
@@ -9,6 +11,10 @@ export interface MissionControlProviderResultSummary {
 	summary: string;
 	durationMs: number | null;
 	completedAt: string | null;
+	projectPath?: string;
+	project_path?: string;
+	previewUrl?: string;
+	preview_url?: string;
 }
 
 export interface MissionControlResultSummary {
@@ -25,6 +31,42 @@ function providerLabel(providerId: string): string {
 	if (providerId === 'codex') return 'Codex';
 	if (providerId === 'claude') return 'Claude';
 	return providerId;
+}
+
+function stringField(record: Record<string, unknown>, key: string): string | null {
+	const value = record[key];
+	return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function parseProviderResponseMetadata(response: string | null): {
+	projectPath?: string;
+	project_path?: string;
+	previewUrl?: string;
+	preview_url?: string;
+} {
+	if (!response?.trim()) return {};
+	try {
+		const parsed = JSON.parse(response) as unknown;
+		if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+		const record = parsed as Record<string, unknown>;
+		const projectPath = stringField(record, 'project_path') || stringField(record, 'projectPath');
+		const explicitPreviewUrl =
+			stringField(record, 'preview_url') ||
+			stringField(record, 'previewUrl') ||
+			stringField(record, 'open_url') ||
+			stringField(record, 'openUrl');
+		const baseUrl =
+			env.SPARK_PROJECT_PREVIEW_URL?.trim() ||
+			env.SPAWNER_UI_PUBLIC_URL?.trim() ||
+			(env.RAILWAY_PUBLIC_DOMAIN?.trim() ? `https://${env.RAILWAY_PUBLIC_DOMAIN.trim()}` : '');
+		const previewUrl = explicitPreviewUrl || (projectPath && baseUrl ? projectPreviewUrl(baseUrl, projectPath) : null);
+		return {
+			...(projectPath ? { projectPath, project_path: projectPath } : {}),
+			...(previewUrl ? { previewUrl, preview_url: previewUrl } : {})
+		};
+	} catch {
+		return {};
+	}
 }
 
 export function summarizeProviderResults(
@@ -44,7 +86,8 @@ export function summarizeProviderResults(
 			status: result.status,
 			summary: responseSummary || errorSummary || fallback,
 			durationMs: result.durationMs,
-			completedAt: result.completedAt
+			completedAt: result.completedAt,
+			...parseProviderResponseMetadata(result.response)
 		};
 	});
 

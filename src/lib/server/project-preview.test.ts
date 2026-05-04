@@ -31,6 +31,18 @@ describe('project-preview', () => {
 		expect(resolveProjectPreviewAsset({ token, assetPath: 'styles.css', env }).filePath).toBe(join(projectRoot, 'styles.css'));
 	});
 
+	it('allows hosted Spark workspace roots for generated previews', () => {
+		const workspaceRoot = mkdtempSync(join(tmpdir(), 'spark-workspaces-'));
+		const projectRoot = join(workspaceRoot, 'mission-demo');
+		mkdirSync(projectRoot);
+		writeFileSync(join(projectRoot, 'index.html'), '<h1>ok</h1>');
+		const token = encodeProjectPreviewToken(projectRoot);
+
+		expect(resolveProjectPreviewAsset({ token, env: { SPARK_WORKSPACE_ROOT: workspaceRoot } }).filePath).toBe(
+			join(projectRoot, 'index.html')
+		);
+	});
+
 	it('rejects project folders outside configured preview roots', () => {
 		const allowedRoot = mkdtempSync(join(tmpdir(), 'spark-preview-allowed-'));
 		const outsideRoot = mkdtempSync(join(tmpdir(), 'spark-preview-outside-'));
