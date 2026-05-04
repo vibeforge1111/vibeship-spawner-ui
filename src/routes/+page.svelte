@@ -2,6 +2,8 @@
 	import Welcome from '$lib/components/Welcome.svelte';
 	import { setGoalInput, setPipelineOptions } from '$lib/stores/project-goal.svelte';
 
+	let { data }: { data: { publicPreviewLocked: boolean } } = $props();
+
 	function handleStart(goal: string, options?: { includeSkills?: boolean; includeMCPs?: boolean }) {
 		// Store the goal before navigating
 		setGoalInput(goal);
@@ -18,4 +20,4 @@
 	}
 </script>
 
-<Welcome onStart={handleStart} />
+<Welcome onStart={handleStart} publicPreviewLocked={data.publicPreviewLocked} />

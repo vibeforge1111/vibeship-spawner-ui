@@ -56,8 +56,16 @@ export function hostedUiLooksHosted(env: HostedUiAuthEnv): boolean {
 	);
 }
 
+export function hostedUiPrivatePreviewConfigured(env: HostedUiAuthEnv): boolean {
+	return (
+		env.SPARK_HOSTED_PRIVATE_PREVIEW === '1' &&
+		Boolean(env.SPARK_WORKSPACE_ID?.trim()) &&
+		Boolean(env.SPARK_UI_API_KEY?.trim())
+	);
+}
+
 export function hostedUiReleaseLocked(env: HostedUiAuthEnv): boolean {
-	return hostedUiLooksHosted(env) && env.SPARK_HOSTED_PRIVATE_PREVIEW !== '1';
+	return hostedUiLooksHosted(env) && !hostedUiPrivatePreviewConfigured(env);
 }
 
 export function hostedUiReleaseLockPathIsExempt(pathname: string): boolean {

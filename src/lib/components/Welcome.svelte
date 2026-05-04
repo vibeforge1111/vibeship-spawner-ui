@@ -6,6 +6,7 @@
 	import Footer from './Footer.svelte';
 	import Icon from './Icon.svelte';
 	import MissionLive from './MissionLive.svelte';
+	import PublicSpawnerPreview from './PublicSpawnerPreview.svelte';
 	import JourneyDemo from './JourneyDemo.svelte';
 	import SkillCloud from './SkillCloud.svelte';
 	import TelegramPhone from './TelegramPhone.svelte';
@@ -23,7 +24,13 @@
 	import { toasts } from '$lib/stores/toast.svelte';
 	import { get } from 'svelte/store';
 
-	let { onStart: _onStart }: { onStart?: (goal: string, options?: { includeSkills?: boolean; includeMCPs?: boolean }) => void } = $props();
+	let {
+		onStart: _onStart,
+		publicPreviewLocked = false
+	}: {
+		onStart?: (goal: string, options?: { includeSkills?: boolean; includeMCPs?: boolean }) => void;
+		publicPreviewLocked?: boolean;
+	} = $props();
 
 	// Smart Mode - uses new analyzer that generates smaller, completable missions
 	let useSmartMode = $state(true);  // Default ON
@@ -492,6 +499,7 @@
 	// prdResultToWorkflow is now imported from $lib/services/prd-bridge
 </script>
 
+{#if !publicPreviewLocked}
 <PRDProcessingModal
 	isOpen={showProcessingModal}
 	currentStage={processingStage}
@@ -676,3 +684,6 @@
 	<!-- Footer -->
 	<Footer />
 </div>
+{:else}
+<PublicSpawnerPreview />
+{/if}

@@ -6,6 +6,7 @@ import {
 	hostedUiAuthClientKey,
 	hostedUiAuthPathIsExempt,
 	hostedUiAuthRateLimitStatus,
+	hostedUiPrivatePreviewConfigured,
 	hostedUiReleaseLockPathIsExempt,
 	hostedUiReleaseLocked,
 	hostedUiRequestToken,
@@ -52,7 +53,27 @@ describe('hosted UI auth', () => {
 		expect(hostedUiReleaseLocked({ FLY_APP_NAME: 'spawner-ui' })).toBe(true);
 		expect(hostedUiReleaseLocked({ VERCEL_URL: 'spawner.example.com' })).toBe(true);
 		expect(hostedUiReleaseLocked({ NETLIFY: 'true' })).toBe(true);
-		expect(hostedUiReleaseLocked({ SPARK_LIVE_CONTAINER: '1', SPARK_HOSTED_PRIVATE_PREVIEW: '1' })).toBe(false);
+		expect(hostedUiReleaseLocked({ SPARK_LIVE_CONTAINER: '1', SPARK_HOSTED_PRIVATE_PREVIEW: '1' })).toBe(true);
+		expect(
+			hostedUiReleaseLocked({
+				SPARK_LIVE_CONTAINER: '1',
+				SPARK_HOSTED_PRIVATE_PREVIEW: '1',
+				SPARK_WORKSPACE_ID: 'private-workspace',
+				SPARK_UI_API_KEY: 'secret'
+			})
+		).toBe(false);
+	});
+
+	it('requires workspace identity and a UI key before private preview opens', () => {
+		expect(hostedUiPrivatePreviewConfigured({ SPARK_HOSTED_PRIVATE_PREVIEW: '1' })).toBe(false);
+		expect(hostedUiPrivatePreviewConfigured({ SPARK_HOSTED_PRIVATE_PREVIEW: '1', SPARK_UI_API_KEY: 'secret' })).toBe(false);
+		expect(
+			hostedUiPrivatePreviewConfigured({
+				SPARK_HOSTED_PRIVATE_PREVIEW: '1',
+				SPARK_WORKSPACE_ID: 'private-workspace',
+				SPARK_UI_API_KEY: 'secret'
+			})
+		).toBe(true);
 	});
 
 	it('lets only the public landing page through the release lock', () => {

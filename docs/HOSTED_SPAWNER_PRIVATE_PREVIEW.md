@@ -4,11 +4,11 @@ Hosted Spawner is not public by default.
 
 Spawner can pause, resume, cancel, and eventually dispatch work that may touch a user's computer through a local worker. Treat the hosted UI as a control surface, not a normal public dashboard.
 
-The public landing page may be reachable so people can understand the product. The app/control surfaces are not part of the public release yet.
+The public landing page may be reachable so people can understand the product. For this release it renders a locked account/waitlist shell, not the live app. The app/control surfaces are not part of the public release yet.
 
 ## Default Release Posture
 
-When Spawner looks hosted, the app returns a private-preview lock page unless this is explicitly configured:
+When Spawner looks hosted, the app returns a private-preview lock page unless this complete private preview is explicitly configured:
 
 ```text
 SPARK_HOSTED_PRIVATE_PREVIEW=1
@@ -29,7 +29,7 @@ Hosted mode is detected when any of these are true:
 
 Without the explicit preview flag, users cannot enter Kanban, Canvas, Mission Control, Commerce, setup/login, preview, or API surfaces. This is intentional for the current release.
 
-The only public path through the release lock is `/`, plus static assets needed to render it.
+The only public path through the release lock is `/`, plus static assets needed to render it. The root page must not open event streams, mission polling, local-worker bridges, or any other control-plane connection.
 
 ## Hosted Site vs Private Railway/VPS
 
@@ -37,7 +37,7 @@ Use this matrix before shipping a deployment:
 
 | Deployment | Landing page | Canvas/Kanban/API | Required env |
 | --- | --- | --- | --- |
-| Public Spark marketing site | Open | Locked | Do not set `SPARK_HOSTED_PRIVATE_PREVIEW` |
+| Public Spark marketing site | Locked account/waitlist shell | Locked | Do not set `SPARK_HOSTED_PRIVATE_PREVIEW` |
 | Trusted Railway/VPS owner preview | Open after login where applicable | Available after workspace ID + access key | Set `SPARK_HOSTED_PRIVATE_PREVIEW=1`, `SPARK_WORKSPACE_ID`, `SPARK_UI_API_KEY`, `SPARK_BRIDGE_API_KEY`, exact `SPARK_ALLOWED_HOSTS` |
 | Local developer machine | Open | Available locally | No hosted flag required |
 
@@ -59,12 +59,14 @@ The workspace ID is not a complete multi-tenant account model. It is a preview g
 For the public hosted deployment:
 
 ```text
-GET /                         -> 200 landing page
+GET /                         -> 200 locked public account/waitlist shell
 GET /canvas                   -> 503 private preview locked
 GET /kanban                   -> 503 private preview locked
 GET /missions                 -> 503 private preview locked
 GET /api/mission-control/board -> 503 private preview locked
 ```
+
+Also verify the root HTML does not contain direct links such as `href="/canvas"` or `href="/kanban"`.
 
 For a trusted Railway/VPS owner preview:
 

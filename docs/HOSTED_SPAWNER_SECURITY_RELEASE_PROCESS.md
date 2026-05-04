@@ -13,6 +13,8 @@ For the current release:
 
 This protects users from the scary version of the product: a public control surface that appears connected to a computer without proving whose workspace it is, what it can do, and where the data goes.
 
+The public hosted root now renders a locked account/waitlist shell. It may show the shape of future workspace access, but it must not accept a username, password, workspace ID, or access key until the account system is real.
+
 ## How The Lock Works
 
 The app treats a runtime as hosted when it sees any of these signals:
@@ -26,16 +28,24 @@ The app treats a runtime as hosted when it sees any of these signals:
 - `VERCEL_URL` is set
 - `NETLIFY=true`
 
-When hosted and `SPARK_HOSTED_PRIVATE_PREVIEW` is not exactly `1`:
+When hosted and a complete private preview is not configured:
 
-- `/` is allowed so the landing page can be public.
+- `/` is allowed so the locked public shell can be public.
 - static assets are allowed so the landing page can render.
 - the landing page must not open event streams, mission polling, local-worker bridges, or other app/control-plane connections on load.
 - every app, setup/login, preview, mission, canvas, kanban, and API route returns the private-preview lock response.
 
-When hosted and `SPARK_HOSTED_PRIVATE_PREVIEW=1`:
+Complete private preview means all of these are present:
 
-- the app requires `SPARK_WORKSPACE_ID` and `SPARK_UI_API_KEY`.
+```text
+SPARK_HOSTED_PRIVATE_PREVIEW=1
+SPARK_WORKSPACE_ID=<private non-guessable workspace slug>
+SPARK_UI_API_KEY=<long random browser key>
+```
+
+When hosted private preview is complete:
+
+- the app requires matching `SPARK_WORKSPACE_ID` and `SPARK_UI_API_KEY`.
 - browser login requires both workspace ID and access key.
 - trusted private Railway/VPS owners can still use their own instance.
 
@@ -55,7 +65,7 @@ SPARK_ALLOWED_HOSTS=<exact public host, if this app receives public traffic>
 Expected result:
 
 ```text
-/                         -> landing page
+/                         -> locked public account/waitlist shell
 /canvas                   -> locked
 /kanban                   -> locked
 /missions                 -> locked

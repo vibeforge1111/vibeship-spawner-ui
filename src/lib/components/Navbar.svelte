@@ -6,10 +6,11 @@
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 
+	let { publicPreviewLocked = false }: { publicPreviewLocked?: boolean } = $props();
 	let pipelinesReady = $state(false);
 
 	onMount(() => {
-		if (browser) {
+		if (browser && !publicPreviewLocked) {
 			initPipelines();
 			pipelinesReady = true;
 		}
@@ -23,52 +24,62 @@
 		</div>
 
 		<div class="flex items-center gap-1 sm:gap-2">
-			<a
-				href="/canvas"
-				class="nav-pop group inline-flex items-center gap-2 px-2 py-2 font-sans text-[15px] font-medium text-text-secondary border border-transparent rounded-md sm:px-3.5"
-			>
-				<Icon name="grid" size={14} class="nav-pop-icon" />
-				<span class="nav-pop-label hidden sm:inline">Canvas</span>
-			</a>
+			{#if publicPreviewLocked}
+				<a
+					href="https://sparkswarm.ai/waitlist"
+					class="nav-pop group inline-flex items-center gap-2 px-3.5 py-2 font-sans text-[15px] font-semibold text-text-primary border border-accent-primary/35 rounded-md bg-accent-primary/10"
+				>
+					<Icon name="sparkles" size={14} class="nav-pop-icon" />
+					<span class="nav-pop-label">Private preview</span>
+				</a>
+			{:else}
+				<a
+					href="/canvas"
+					class="nav-pop group inline-flex items-center gap-2 px-2 py-2 font-sans text-[15px] font-medium text-text-secondary border border-transparent rounded-md sm:px-3.5"
+				>
+					<Icon name="grid" size={14} class="nav-pop-icon" />
+					<span class="nav-pop-label hidden sm:inline">Canvas</span>
+				</a>
 
-			<a
-				href="/kanban"
-				class="nav-pop group inline-flex items-center gap-2 px-2 py-2 font-sans text-[15px] font-medium text-text-secondary border border-transparent rounded-md sm:px-3.5"
-			>
-				<Icon name="clipboard" size={14} class="nav-pop-icon" />
-				<span class="nav-pop-label hidden sm:inline">Kanban</span>
-			</a>
+				<a
+					href="/kanban"
+					class="nav-pop group inline-flex items-center gap-2 px-2 py-2 font-sans text-[15px] font-medium text-text-secondary border border-transparent rounded-md sm:px-3.5"
+				>
+					<Icon name="clipboard" size={14} class="nav-pop-icon" />
+					<span class="nav-pop-label hidden sm:inline">Kanban</span>
+				</a>
 
-			<a
-				href="/trace"
-				class="nav-pop group inline-flex items-center gap-2 px-2 py-2 font-sans text-[15px] font-medium text-text-secondary border border-transparent rounded-md sm:px-3.5"
-			>
-				<Icon name="scan" size={14} class="nav-pop-icon" />
-				<span class="nav-pop-label hidden sm:inline">Trace</span>
-			</a>
+				<a
+					href="/trace"
+					class="nav-pop group inline-flex items-center gap-2 px-2 py-2 font-sans text-[15px] font-medium text-text-secondary border border-transparent rounded-md sm:px-3.5"
+				>
+					<Icon name="scan" size={14} class="nav-pop-icon" />
+					<span class="nav-pop-label hidden sm:inline">Trace</span>
+				</a>
 
-			<a
-				href="/skills"
-				class="nav-pop group inline-flex items-center gap-2 px-2 py-2 font-sans text-[15px] font-medium text-text-secondary border border-transparent rounded-md sm:px-3.5"
-			>
-				<Icon name="layers" size={14} class="nav-pop-icon" />
-				<span class="nav-pop-label hidden sm:inline">Skills</span>
-			</a>
+				<a
+					href="/skills"
+					class="nav-pop group inline-flex items-center gap-2 px-2 py-2 font-sans text-[15px] font-medium text-text-secondary border border-transparent rounded-md sm:px-3.5"
+				>
+					<Icon name="layers" size={14} class="nav-pop-icon" />
+					<span class="nav-pop-label hidden sm:inline">Skills</span>
+				</a>
 
-			<a
-				href="/settings"
-				class="nav-pop group inline-flex items-center gap-2 px-2 py-2 font-sans text-[15px] font-medium text-text-secondary border border-transparent rounded-md sm:px-3.5"
-			>
-				<Icon name="settings" size={14} class="nav-pop-icon" />
-				<span class="nav-pop-label hidden sm:inline">Settings</span>
-			</a>
+				<a
+					href="/settings"
+					class="nav-pop group inline-flex items-center gap-2 px-2 py-2 font-sans text-[15px] font-medium text-text-secondary border border-transparent rounded-md sm:px-3.5"
+				>
+					<Icon name="settings" size={14} class="nav-pop-icon" />
+					<span class="nav-pop-label hidden sm:inline">Settings</span>
+				</a>
 
-			<div class="w-px h-5 bg-surface-border hidden md:block"></div>
+				<div class="w-px h-5 bg-surface-border hidden md:block"></div>
 
-			{#if pipelinesReady}
-				<div class="hidden md:block">
-					<PipelineSelector navigateOnSwitch={true} />
-				</div>
+				{#if pipelinesReady}
+					<div class="hidden md:block">
+						<PipelineSelector navigateOnSwitch={true} />
+					</div>
+				{/if}
 			{/if}
 		</div>
 	</div>
