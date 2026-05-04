@@ -5,11 +5,14 @@
  * Minimax, OpenAI, Kimi, OpenRouter, Ollama, etc.
  */
 
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname, join, normalize } from 'node:path';
 import type { ProviderResult, ProviderClientOptions, ChatMessage } from './types';
 import { createBridgeEvent } from './types';
 
 export interface OpenAICompatOptions extends ProviderClientOptions {
 	apiKey: string;
+	workspace?: string;
 }
 
 interface StreamChunkChoice {
@@ -26,6 +29,11 @@ interface StreamChunk {
 
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 1000;
+
+interface MaterializedFile {
+	path: string;
+	content: string;
+}
 
 export async function executeOpenAICompatRequest(
 	options: OpenAICompatOptions,
@@ -193,13 +201,15 @@ async function handleStreamingResponse(
 		throw err;
 	}
 
+	const finalized = await finalizeOpenAICompatContent(options, fullContent);
+
 	onEvent(
 		createBridgeEvent('task_completed', options, {
-			message: `${provider.label} completed (${fullContent.length} chars)`,
+			message: `${provider.label} completed (${finalized.response.length} chars)`,
 			data: {
 				success: true,
-				responseLength: fullContent.length,
-				response: fullContent,
+				responseLength: finalized.response.length,
+				response: finalized.response,
 				provider: provider.id,
 				providerLabel: provider.label
 			}
@@ -208,7 +218,7 @@ async function handleStreamingResponse(
 
 	return {
 		success: true,
-		response: fullContent,
+		response: finalized.response,
 		tokenUsage,
 		durationMs: Date.now() - startTime
 	};
@@ -232,13 +242,15 @@ async function handleNonStreamingResponse(
 			}
 		: undefined;
 
+	const finalized = await finalizeOpenAICompatContent(options, content);
+
 	onEvent(
 		createBridgeEvent('task_completed', options, {
-			message: `${provider.label} completed (${content.length} chars)`,
+			message: `${provider.label} completed (${finalized.response.length} chars)`,
 			data: {
 				success: true,
-				responseLength: content.length,
-				response: content,
+				responseLength: finalized.response.length,
+				response: finalized.response,
 				provider: provider.id,
 				providerLabel: provider.label
 			}
@@ -247,10 +259,115 @@ async function handleNonStreamingResponse(
 
 	return {
 		success: true,
-		response: content,
+		response: finalized.response,
 		tokenUsage,
 		durationMs: Date.now() - startTime
 	};
+}
+
+export function extractMaterializableFiles(text: string): MaterializedFile[] {
+	const fromJson = extractFilesFromJson(text);
+	if (fromJson.length > 0) return dedupeFiles(fromJson).filter((file) => safeRelativePath(file.path));
+
+	const files: MaterializedFile[] = [];
+	const fencePattern = /```([A-Za-z0-9_.-]*)\s*\n([\s\S]*?)```/g;
+	let match: RegExpExecArray | null;
+	while ((match = fencePattern.exec(text))) {
+		const language = (match[1] || '').trim().toLowerCase();
+		const content = match[2] || '';
+		const filename = filenameForFence(language, files.length);
+		if (filename && content.trim()) files.push({ path: filename, content: content.trimStart() });
+	}
+
+	if (files.length === 0 && /<!doctype html|<html[\s>]/i.test(text)) {
+		files.push({ path: 'index.html', content: text.trim() });
+	}
+
+	return dedupeFiles(files).filter((file) => safeRelativePath(file.path));
+}
+
+async function finalizeOpenAICompatContent(
+	options: OpenAICompatOptions,
+	content: string
+): Promise<{ response: string }> {
+	const workspace = options.workspace?.trim();
+	if (!workspace) return { response: content };
+
+	const files = extractMaterializableFiles(content);
+	if (files.length === 0) return { response: content };
+
+	for (const file of files) {
+		const target = join(workspace, file.path);
+		await mkdir(dirname(target), { recursive: true });
+		await writeFile(target, file.content, 'utf8');
+	}
+
+	return {
+		response: JSON.stringify({
+			status: 'completed',
+			summary: `Materialized ${files.length} hosted project file${files.length === 1 ? '' : 's'} from ${options.provider.label}.`,
+			project_path: workspace,
+			changed_files: files.map((file) => file.path),
+			verification: ['Created files in the hosted Spark workspace for preview.']
+		})
+	};
+}
+
+function extractFilesFromJson(text: string): MaterializedFile[] {
+	const parsed = parsePossibleJson(text);
+	if (!parsed || typeof parsed !== 'object') return [];
+	const record = parsed as Record<string, unknown>;
+	const files = record.files;
+	if (Array.isArray(files)) {
+		return files
+			.map((entry) => {
+				if (!entry || typeof entry !== 'object') return null;
+				const file = entry as Record<string, unknown>;
+				const path = typeof file.path === 'string' ? file.path : typeof file.name === 'string' ? file.name : '';
+				const content = typeof file.content === 'string' ? file.content : '';
+				return path && content ? { path, content } : null;
+			})
+			.filter((file): file is MaterializedFile => Boolean(file));
+	}
+	if (files && typeof files === 'object') {
+		return Object.entries(files as Record<string, unknown>)
+			.map(([path, content]) => (typeof content === 'string' ? { path, content } : null))
+			.filter((file): file is MaterializedFile => Boolean(file));
+	}
+	return [];
+}
+
+function parsePossibleJson(text: string): unknown | null {
+	const trimmed = text.trim();
+	const jsonText = trimmed.match(/^```(?:json)?\s*([\s\S]*?)```$/i)?.[1]?.trim() || trimmed;
+	try {
+		return JSON.parse(jsonText);
+	} catch {
+		return null;
+	}
+}
+
+function filenameForFence(language: string, index: number): string | null {
+	const normalized = language.replace(/^\./, '');
+	if (normalized === 'html' || normalized === 'htm') return 'index.html';
+	if (normalized === 'css') return 'styles.css';
+	if (normalized === 'js' || normalized === 'javascript') return 'app.js';
+	if (normalized === 'json') return index === 0 ? null : `data-${index + 1}.json`;
+	return index === 0 ? 'index.html' : null;
+}
+
+function safeRelativePath(path: string): boolean {
+	const normalized = normalize(path).replace(/\\/g, '/');
+	return Boolean(normalized) && !normalized.startsWith('../') && !normalized.startsWith('/') && !/^[A-Za-z]:\//.test(normalized);
+}
+
+function dedupeFiles(files: MaterializedFile[]): MaterializedFile[] {
+	const byPath = new Map<string, MaterializedFile>();
+	for (const file of files) {
+		if (!safeRelativePath(file.path)) continue;
+		byPath.set(normalize(file.path).replace(/\\/g, '/'), file);
+	}
+	return [...byPath.values()];
 }
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {

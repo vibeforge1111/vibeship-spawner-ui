@@ -643,7 +643,8 @@ class ProviderRuntimeManager {
 					apiKey,
 					missionId,
 					signal: abortController.signal,
-					onEvent
+					onEvent,
+					workspace: workingDirectory
 				};
 				return await executeOpenAICompatRequest(opts, [
 					{ role: 'user', content: prompt }
