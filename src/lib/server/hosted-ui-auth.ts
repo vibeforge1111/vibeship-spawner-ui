@@ -1,5 +1,5 @@
 import { redirect, type Cookies } from '@sveltejs/kit';
-import { timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
 export interface HostedUiAuthEnv {
 	[key: string]: string | undefined;
@@ -30,14 +30,45 @@ const COOKIE_OPTIONS = {
 	path: '/',
 	maxAge: 60 * 60 * 12
 };
+const SESSION_COOKIE_NAME = 'spawner_ui_session';
+const LEGACY_AUTH_COOKIE_NAMES = [
+	'spawner_ui_api_key',
+	'spawner_workspace_id',
+	'spawner_control_api_key',
+	'spawner_events_api_key'
+];
 const AUTH_WINDOW_MS = 60_000;
 const AUTH_MAX_FAILURES = 12;
+const SESSION_IDLE_TIMEOUT_MS = 1000 * 60 * 60 * 12;
+const SESSION_ABSOLUTE_TIMEOUT_MS = 1000 * 60 * 60 * 24;
 const authFailures = new Map<string, { count: number; resetAt: number }>();
+const hostedUiSessions = new Map<
+	string,
+	{
+		workspaceId: string;
+		createdAt: number;
+		lastSeenAt: number;
+		expiresAt: number;
+		absoluteExpiresAt: number;
+	}
+>();
 
 function constantTimeEquals(left: string, right: string): boolean {
 	const leftBuffer = Buffer.from(left);
 	const rightBuffer = Buffer.from(right);
 	return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function hashSessionId(sessionId: string): string {
+	return createHash('sha256').update(sessionId).digest('hex');
+}
+
+function pruneExpiredHostedUiSessions(now = Date.now()): void {
+	for (const [key, session] of hostedUiSessions.entries()) {
+		if (session.expiresAt <= now || session.absoluteExpiresAt <= now) {
+			hostedUiSessions.delete(key);
+		}
+	}
 }
 
 export function hostedUiAuthEnabled(env: HostedUiAuthEnv): boolean {
@@ -184,6 +215,10 @@ export function resetHostedUiAuthRateLimits(): void {
 	authFailures.clear();
 }
 
+export function resetHostedUiSessions(): void {
+	hostedUiSessions.clear();
+}
+
 export function hostedUiAuthPathIsExempt(pathname: string): boolean {
 	return EXEMPT_EXACT_PATHS.has(pathname) || EXEMPT_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
@@ -202,7 +237,7 @@ export function hostedUiRequestToken(request: Request, url: URL, cookies: Cookie
 	const queryToken = url.searchParams.get('uiKey') || url.searchParams.get('apiKey');
 	if (queryToken?.trim()) return queryToken.trim();
 
-	return cookies.get('spawner_ui_api_key') || null;
+	return null;
 }
 
 export function hostedUiRequestWorkspaceId(request: Request, url: URL, cookies: Cookies): string | null {
@@ -212,7 +247,7 @@ export function hostedUiRequestWorkspaceId(request: Request, url: URL, cookies: 
 	const queryWorkspace = url.searchParams.get('workspaceId') || url.searchParams.get('workspace');
 	if (queryWorkspace?.trim()) return queryWorkspace.trim();
 
-	return cookies.get('spawner_workspace_id') || null;
+	return null;
 }
 
 export function hostedUiTokenIsValid(token: string | null, env: HostedUiAuthEnv): boolean {
@@ -231,25 +266,42 @@ export function hostedUiCredentialsAreValid(
 	return hostedUiTokenIsValid(token, env);
 }
 
+export function hostedUiSessionIsValid(cookies: Cookies, env: HostedUiAuthEnv, now = Date.now()): boolean {
+	const sessionId = cookies.get(SESSION_COOKIE_NAME);
+	if (!sessionId) return false;
+
+	pruneExpiredHostedUiSessions(now);
+	const session = hostedUiSessions.get(hashSessionId(sessionId));
+	if (!session) return false;
+
+	const expectedWorkspaceId = hostedUiWorkspaceId(env);
+	if (expectedWorkspaceId && !constantTimeEquals(session.workspaceId, expectedWorkspaceId)) {
+		hostedUiSessions.delete(hashSessionId(sessionId));
+		return false;
+	}
+
+	session.lastSeenAt = now;
+	session.expiresAt = Math.min(now + SESSION_IDLE_TIMEOUT_MS, session.absoluteExpiresAt);
+	return session.expiresAt > now && session.absoluteExpiresAt > now;
+}
+
 export function persistHostedUiAuth(cookies: Cookies, env: HostedUiAuthEnv): void {
-	const uiKey = env.SPARK_UI_API_KEY?.trim();
-	if (uiKey) {
-		cookies.set('spawner_ui_api_key', uiKey, COOKIE_OPTIONS);
-	}
-
 	const workspaceId = hostedUiWorkspaceId(env);
-	if (workspaceId) {
-		cookies.set('spawner_workspace_id', workspaceId, COOKIE_OPTIONS);
-	}
+	if (!workspaceId) return;
 
-	const controlKey = env.SPARK_BRIDGE_API_KEY?.trim() || env.MCP_API_KEY?.trim();
-	if (controlKey) {
-		cookies.set('spawner_control_api_key', controlKey, COOKIE_OPTIONS);
-	}
-
-	const eventsKey = env.EVENTS_API_KEY?.trim() || env.MCP_API_KEY?.trim() || controlKey;
-	if (eventsKey) {
-		cookies.set('spawner_events_api_key', eventsKey, COOKIE_OPTIONS);
+	const now = Date.now();
+	pruneExpiredHostedUiSessions(now);
+	const sessionId = randomBytes(32).toString('base64url');
+	hostedUiSessions.set(hashSessionId(sessionId), {
+		workspaceId,
+		createdAt: now,
+		lastSeenAt: now,
+		expiresAt: now + SESSION_IDLE_TIMEOUT_MS,
+		absoluteExpiresAt: now + SESSION_ABSOLUTE_TIMEOUT_MS
+	});
+	cookies.set(SESSION_COOKIE_NAME, sessionId, COOKIE_OPTIONS);
+	for (const cookieName of LEGACY_AUTH_COOKIE_NAMES) {
+		cookies.delete(cookieName, { path: '/' });
 	}
 }
 

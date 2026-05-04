@@ -8,6 +8,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { env as privateEnv } from '$env/dynamic/private';
 import { resolveSparkRunProjectPath } from './spark-run-workspace';
+import { spawnerStateDir } from './spawner-state';
 
 const execFileAsync = promisify(execFile);
 
@@ -23,8 +24,11 @@ function errorMessage(error: unknown, fallback = 'unknown'): string {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
-const SCHEDULES_FILE = path.resolve(process.cwd(), '.spawner', 'schedules.json');
 const TICK_MS = 30_000;
+
+function schedulesFile(): string {
+  return path.resolve(spawnerStateDir(privateEnv), 'schedules.json');
+}
 
 export type ScheduleAction = 'mission' | 'loop';
 
@@ -57,7 +61,7 @@ function _id(): string {
 async function _load(): Promise<StoreShape> {
   if (_store) return _store;
   try {
-    const raw = await fs.readFile(SCHEDULES_FILE, 'utf-8');
+    const raw = await fs.readFile(schedulesFile(), 'utf-8');
     const parsed = JSON.parse(raw);
     if (parsed && Array.isArray(parsed.schedules)) {
       _store = { schedules: parsed.schedules };
@@ -72,10 +76,11 @@ async function _load(): Promise<StoreShape> {
 
 async function _save(): Promise<void> {
   if (!_store) return;
-  await fs.mkdir(path.dirname(SCHEDULES_FILE), { recursive: true });
-  const tmp = SCHEDULES_FILE + '.tmp';
+  const file = schedulesFile();
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  const tmp = file + '.tmp';
   await fs.writeFile(tmp, JSON.stringify(_store, null, 2), 'utf-8');
-  await fs.rename(tmp, SCHEDULES_FILE);
+  await fs.rename(tmp, file);
 }
 
 function _computeNext(cronExpr: string): string | null {

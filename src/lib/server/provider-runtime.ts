@@ -32,6 +32,7 @@ import { agentWorkTimeoutMs } from './timeout-config';
 import { readFile } from 'node:fs/promises';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { spawnerStateDir } from './spawner-state';
 
 export interface DispatchOptions {
 	executionPack: MultiLLMExecutionPack;
@@ -72,7 +73,7 @@ const PROVIDER_TASK_ACTIVITY_PER_TASK_MS = 35_000;
 const PROVIDER_STALE_RUNNING_GRACE_MS = 5 * 60_000;
 
 function getSpawnerStateDir(): string {
-	return process.env.SPAWNER_STATE_DIR || path.join(process.cwd(), '.spawner');
+	return spawnerStateDir();
 }
 
 function getActiveMissionPath(): string {

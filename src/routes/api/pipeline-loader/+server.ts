@@ -15,11 +15,12 @@ import { writeFile, readFile, unlink, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { logger } from '$lib/utils/logger';
+import { spawnerStateDir } from '$lib/server/spawner-state';
 
 const log = logger.scope('PipelineLoader');
 
 function getSpawnerDir(): string {
-	return process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
+	return spawnerStateDir();
 }
 
 function getPendingLoadFile(): string {

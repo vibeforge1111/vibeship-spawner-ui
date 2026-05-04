@@ -10,6 +10,7 @@ import { mcpClient } from '$lib/services/mcp-client';
 import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { spawnerStateDir } from './spawner-state';
 
 export type MissionControlAction = 'pause' | 'resume' | 'kill' | 'status';
 
@@ -18,7 +19,9 @@ const ACTION_TO_EVENT: Record<Exclude<MissionControlAction, 'status' | 'kill'>, 
 	resume: 'mission_resumed'
 };
 
-const ACTIVE_MISSION_PATH = path.join(process.cwd(), '.spawner', 'active-mission.json');
+function activeMissionPath(): string {
+	return path.join(spawnerStateDir(), 'active-mission.json');
+}
 
 export function isMissionControlAction(value: unknown): value is MissionControlAction {
 	return value === 'pause' || value === 'resume' || value === 'kill' || value === 'status';
@@ -57,9 +60,10 @@ async function syncActiveMissionFile(
 	status: 'running' | 'paused' | 'failed' | 'cancelled',
 	note?: string
 ): Promise<void> {
-	if (!existsSync(ACTIVE_MISSION_PATH)) return;
+	const activeMissionFile = activeMissionPath();
+	if (!existsSync(activeMissionFile)) return;
 	try {
-		const raw = await readFile(ACTIVE_MISSION_PATH, 'utf-8');
+		const raw = await readFile(activeMissionFile, 'utf-8');
 		const active = JSON.parse(raw) as Record<string, unknown>;
 		if ((active.missionId as string | undefined) !== missionId) {
 			return;
@@ -70,7 +74,7 @@ async function syncActiveMissionFile(
 		if (typeof note === 'string' && note.trim()) {
 			active.note = note.trim();
 		}
-		await writeFile(ACTIVE_MISSION_PATH, JSON.stringify(active, null, 2), 'utf-8');
+		await writeFile(activeMissionFile, JSON.stringify(active, null, 2), 'utf-8');
 	} catch (error) {
 		console.warn('[MissionControl] Failed to sync active mission file:', error);
 	}

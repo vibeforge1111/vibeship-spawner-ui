@@ -13,6 +13,7 @@ import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { validatePrdAnalysisResult } from '$lib/server/prd-analysis-result-schema';
+import { spawnerStateDir } from '$lib/server/spawner-state';
 import { logger } from '$lib/utils/logger';
 
 import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
@@ -34,7 +35,7 @@ function corsHeaders(request: Request): Record<string, string> {
 }
 
 function getSpawnerDir(): string {
-	return process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
+	return spawnerStateDir();
 }
 
 function getResultsDir(): string {

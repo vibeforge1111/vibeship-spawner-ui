@@ -49,6 +49,8 @@ When hosted private preview is complete:
 
 - the app requires matching `SPARK_WORKSPACE_ID` and `SPARK_UI_API_KEY`.
 - browser login requires both workspace ID and access key.
+- browser login creates an opaque server-side session cookie, not raw access-key cookies.
+- runtime state is scoped under `SPAWNER_STATE_DIR/workspaces/<workspace-id>` so hosted private previews do not share mission, board, PRD, pipeline, provider-result, or schedule files across workspaces.
 - trusted private Railway/VPS owners can still use their own instance.
 
 ## Environment Matrix
@@ -106,6 +108,7 @@ Expected result:
 /canvas with credentials    -> app loads
 API without key/session     -> 401
 API with key/session        -> allowed according to the route
+Runtime state                -> <SPAWNER_STATE_DIR>/workspaces/<workspace-id>/
 ```
 
 ### Local Developer Machine
@@ -130,7 +133,7 @@ Localhost is not the public risk. The risk is a hosted URL that looks like it co
 Do not remove the landing-only lock for public hosted traffic until these are done:
 
 - Real account identity: the UI must clearly say which account and workspace is active.
-- Per-workspace state isolation: no shared state files across users or workspaces.
+- Per-workspace state isolation: no shared state files across users or workspaces. The private-preview file namespace is in place for core runtime state, but a public product still needs a durable account/workspace store and migration plan.
 - Per-route authorization: every read and write route must check the active workspace.
 - Server-side sessions: do not persist raw long-lived access keys as the browser session.
 - CSRF protection for browser-mutating routes, beyond SameSite cookies.
@@ -144,7 +147,7 @@ Do not remove the landing-only lock for public hosted traffic until these are do
 
 The current implementation uses `HttpOnly`, `Secure`, `SameSite=Strict` cookies and exact-token comparison. That is a good private-preview baseline, but it is not a public account system.
 
-The current hosted hardening pass adds security headers, hosted-lock smoke coverage, and same-origin checks for mutating browser requests. The next hardening pass should replace raw key cookies with server-side session IDs and split read-only status access from elevated computer-control actions.
+The current hosted hardening pass adds security headers, hosted-lock smoke coverage, same-origin checks for mutating browser requests, opaque server-side private-preview sessions, and workspace-scoped runtime files. The next hardening pass should split read-only status access from elevated computer-control actions and move public accounts to durable identity-backed sessions.
 
 Security references used for this process:
 

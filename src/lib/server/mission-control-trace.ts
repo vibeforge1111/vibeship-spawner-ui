@@ -15,6 +15,7 @@ import {
 	missionControlPathForMission,
 	resolveMissionControlAccess
 } from './mission-control-access';
+import { spawnerStateDir } from './spawner-state';
 import type { ProviderMissionResultSnapshot } from './provider-runtime';
 import type {
 	MissionControlAccessInfo,
@@ -90,7 +91,7 @@ export interface MissionControlTrace {
 }
 
 function getSpawnerDir(): string {
-	return process.env.SPAWNER_STATE_DIR || env.SPAWNER_STATE_DIR || path.resolve(process.cwd(), '.spawner');
+	return spawnerStateDir(env);
 }
 
 function normalizeId(value: string | null | undefined): string | null {

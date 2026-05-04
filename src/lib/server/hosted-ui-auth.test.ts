@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Cookies } from '@sveltejs/kit';
 import {
 	hostedUiAuthEnabled,
@@ -14,15 +14,18 @@ import {
 	hostedUiReleaseLocked,
 	hostedUiRequestToken,
 	hostedUiRequestWorkspaceId,
+	hostedUiSessionIsValid,
 	hostedUiTokenIsValid,
 	persistHostedUiAuth,
 	recordHostedUiAuthFailure,
-	resetHostedUiAuthRateLimits
+	resetHostedUiAuthRateLimits,
+	resetHostedUiSessions
 } from './hosted-ui-auth';
 
 type FakeCookies = Cookies & {
 	get: ReturnType<typeof vi.fn>;
 	set: ReturnType<typeof vi.fn>;
+	delete: ReturnType<typeof vi.fn>;
 };
 
 function fakeCookies(initial: Record<string, string> = {}): FakeCookies {
@@ -41,6 +44,11 @@ function fakeCookies(initial: Record<string, string> = {}): FakeCookies {
 }
 
 describe('hosted UI auth', () => {
+	afterEach(() => {
+		resetHostedUiSessions();
+		vi.useRealTimers();
+	});
+
 	it('is enabled only when a UI key is configured', () => {
 		expect(hostedUiAuthEnabled({})).toBe(false);
 		expect(hostedUiAuthEnabled({ SPARK_UI_API_KEY: 'secret' })).toBe(true);
@@ -115,7 +123,7 @@ describe('hosted UI auth', () => {
 		expect(hostedUiRequestToken(new Request('https://x.test/?uiKey=query-key'), new URL('https://x.test/?uiKey=query-key'), cookies)).toBe('query-key');
 		expect(hostedUiRequestToken(new Request('https://x.test/', { headers: { 'x-spawner-ui-key': 'header-key' } }), new URL('https://x.test/'), cookies)).toBe('header-key');
 		expect(hostedUiRequestToken(new Request('https://x.test/', { headers: { authorization: 'Bearer bearer-key' } }), new URL('https://x.test/'), cookies)).toBe('bearer-key');
-		expect(hostedUiRequestToken(new Request('https://x.test/'), new URL('https://x.test/'), cookies)).toBe('cookie-key');
+		expect(hostedUiRequestToken(new Request('https://x.test/'), new URL('https://x.test/'), cookies)).toBeNull();
 	});
 
 	it('distinguishes explicit API tokens from cookie-only browser auth', () => {
@@ -161,11 +169,16 @@ describe('hosted UI auth', () => {
 		const cookies = fakeCookies({ spawner_workspace_id: 'cookie-workspace' });
 		expect(hostedUiRequestWorkspaceId(new Request('https://x.test/?workspaceId=query-workspace'), new URL('https://x.test/?workspaceId=query-workspace'), cookies)).toBe('query-workspace');
 		expect(hostedUiRequestWorkspaceId(new Request('https://x.test/', { headers: { 'x-spawner-workspace-id': 'header-workspace' } }), new URL('https://x.test/'), cookies)).toBe('header-workspace');
-		expect(hostedUiRequestWorkspaceId(new Request('https://x.test/'), new URL('https://x.test/'), cookies)).toBe('cookie-workspace');
+		expect(hostedUiRequestWorkspaceId(new Request('https://x.test/'), new URL('https://x.test/'), cookies)).toBeNull();
 	});
 
-	it('persists UI, control, and events cookies without exposing keys to JavaScript', () => {
-		const cookies = fakeCookies();
+	it('persists an opaque server-side session without exposing keys to JavaScript', () => {
+		const cookies = fakeCookies({
+			spawner_ui_api_key: 'old-ui-key',
+			spawner_workspace_id: 'old-workspace',
+			spawner_control_api_key: 'old-control',
+			spawner_events_api_key: 'old-events'
+		});
 		persistHostedUiAuth(cookies, {
 			SPARK_WORKSPACE_ID: 'private-workspace',
 			SPARK_UI_API_KEY: 'ui-key',
@@ -173,10 +186,22 @@ describe('hosted UI auth', () => {
 			EVENTS_API_KEY: 'events-key'
 		});
 
-		expect(cookies.set).toHaveBeenCalledWith('spawner_workspace_id', 'private-workspace', expect.objectContaining({ httpOnly: true, sameSite: 'strict' }));
-		expect(cookies.set).toHaveBeenCalledWith('spawner_ui_api_key', 'ui-key', expect.objectContaining({ httpOnly: true, sameSite: 'strict' }));
-		expect(cookies.set).toHaveBeenCalledWith('spawner_control_api_key', 'bridge-key', expect.objectContaining({ httpOnly: true, sameSite: 'strict' }));
-		expect(cookies.set).toHaveBeenCalledWith('spawner_events_api_key', 'events-key', expect.objectContaining({ httpOnly: true, sameSite: 'strict' }));
+		expect(cookies.set).toHaveBeenCalledWith('spawner_ui_session', expect.any(String), expect.objectContaining({ httpOnly: true, sameSite: 'strict' }));
+		expect(cookies.delete).toHaveBeenCalledWith('spawner_workspace_id', { path: '/' });
+		expect(cookies.delete).toHaveBeenCalledWith('spawner_ui_api_key', { path: '/' });
+		expect(cookies.delete).toHaveBeenCalledWith('spawner_control_api_key', { path: '/' });
+		expect(cookies.delete).toHaveBeenCalledWith('spawner_events_api_key', { path: '/' });
+		expect(hostedUiSessionIsValid(cookies, { SPARK_WORKSPACE_ID: 'private-workspace' })).toBe(true);
+		expect(hostedUiSessionIsValid(cookies, { SPARK_WORKSPACE_ID: 'other-workspace' })).toBe(false);
+	});
+
+	it('expires private preview sessions on idle and absolute timeouts', () => {
+		const cookies = fakeCookies();
+		vi.useFakeTimers();
+		vi.setSystemTime(1_000);
+		persistHostedUiAuth(cookies, { SPARK_WORKSPACE_ID: 'private-workspace', SPARK_UI_API_KEY: 'ui-key' });
+		expect(hostedUiSessionIsValid(cookies, { SPARK_WORKSPACE_ID: 'private-workspace' }, 1_000)).toBe(true);
+		expect(hostedUiSessionIsValid(cookies, { SPARK_WORKSPACE_ID: 'private-workspace' }, 1000 + 1000 * 60 * 60 * 13)).toBe(false);
 	});
 
 	it('compares tokens exactly', () => {
