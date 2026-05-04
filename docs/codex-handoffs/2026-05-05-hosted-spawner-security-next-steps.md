@@ -172,6 +172,22 @@ railway deployment list --service spawner-ui
   - Local `.spawner/mission-provider-results.json` had malformed JSON in local runtime state.
   - Some PRD bridge integration test relay warnings came from mocked webhook fetch behavior.
 - The repo root has many untracked screenshot artifacts. Leave them alone unless the user explicitly wants cleanup.
+- Post-handoff closeout found additional local uncommitted tracked changes that were not part of this handoff or the hosted lock deployment. Treat them as user/background work and inspect before editing or committing:
+  - `src/lib/server/claude-auto-analysis.ts`
+  - `src/lib/server/mission-control-relay.ts`
+  - `src/lib/server/mission-control-results.ts`
+  - `src/lib/server/provider-clients/codex-cli-client.ts`
+  - `src/lib/server/provider-runtime.ts`
+  - `src/lib/server/skill-tiers.ts`
+  - `src/lib/services/mission-board-cards.ts`
+  - `src/routes/api/h70-skills/[skillId]/+server.ts`
+  - `src/routes/api/prd-bridge/load-to-canvas/+server.ts`
+  - `src/routes/api/prd-bridge/write/+server.ts`
+  - `src/routes/api/spark/run/+server.ts`
+  - `static/bundles/mobile-app-launch.yaml`
+  - `static/skills.json`
+  - `src/lib/server/spark-pro-entitlements.ts`
+  - `static/skill-tiers.json`
 
 ## Open Decisions
 
