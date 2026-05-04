@@ -97,7 +97,7 @@ export async function getTierSkills(tier: SkillTier): Promise<SkillRecord[]> {
 export function normalizeTier(value: unknown): SkillTier {
 	if (value === 'pro' || value === 'premium') return 'pro';
 	if (value === 'base' || value === 'free' || value === 'basic') return 'base';
-	return 'pro';
+	return 'base';
 }
 
 export function formatSkillsByCategory(skills: SkillRecord[]): string {

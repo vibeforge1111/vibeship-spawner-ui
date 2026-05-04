@@ -33,6 +33,7 @@ const SYNCED_PATHS = [
 	'src/lib/server/provider-runtime.ts',
 	'src/lib/server/provider-clients/codex-cli-client.ts',
 	'src/lib/server/provider-clients/spark-harness-client.ts',
+	'src/lib/server/spark-pro-entitlements.ts',
 	'src/lib/server/timeout-config.ts',
 	'src/lib/services/spark-agent-bridge.ts',
 	'src/lib/services/prd-bridge.ts',
