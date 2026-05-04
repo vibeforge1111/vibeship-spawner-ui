@@ -72,6 +72,8 @@ export function assertProjectPreviewHost(url: URL, env: NodeJS.ProcessEnv = proc
 	if (env.SPAWNER_PROJECT_PREVIEW_ALLOW_REMOTE === '1') return;
 	const hostname = url.hostname.toLowerCase();
 	if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '[::1]') return;
+	const railwayPublicDomain = env.RAILWAY_PUBLIC_DOMAIN?.trim().toLowerCase();
+	if (railwayPublicDomain && hostname === railwayPublicDomain) return;
 	throw new ProjectPreviewError('Project previews are local-only by default', 403);
 }
 

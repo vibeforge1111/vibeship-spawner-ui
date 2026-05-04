@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
 	ProjectPreviewError,
+	assertProjectPreviewHost,
 	encodeProjectPreviewToken,
 	projectPreviewUrl,
 	resolveProjectPreviewAsset
@@ -15,6 +16,20 @@ describe('project-preview', () => {
 		const url = projectPreviewUrl('http://127.0.0.1:5173/', projectPath);
 
 		expect(url).toMatch(/^http:\/\/127\.0\.0\.1:5173\/preview\/[A-Za-z0-9_-]+\/index\.html$/);
+	});
+
+	it('allows the configured Railway public domain for hosted previews', () => {
+		expect(() =>
+			assertProjectPreviewHost(new URL('https://spawner-ui-production.up.railway.app/preview/demo/index.html'), {
+				RAILWAY_PUBLIC_DOMAIN: 'spawner-ui-production.up.railway.app'
+			})
+		).not.toThrow();
+
+		expect(() =>
+			assertProjectPreviewHost(new URL('https://other.example/preview/demo/index.html'), {
+				RAILWAY_PUBLIC_DOMAIN: 'spawner-ui-production.up.railway.app'
+			})
+		).toThrow(ProjectPreviewError);
 	});
 
 	it('resolves index and relative assets inside an allowed project root', () => {
