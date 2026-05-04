@@ -49,14 +49,14 @@ describe('execution panel formatting helpers', () => {
 		expect(getTransitionBadge('handoff')).toBe('bg-iris/20 text-iris');
 		expect(getTransitionBadge('info')).toBe('bg-surface text-text-secondary');
 
-		expect(getTaskRowClass('completed')).toBe('border-accent-primary/30 bg-accent-primary/5');
-		expect(getTaskRowClass('running')).toBe('border-vibe-teal/50 bg-vibe-teal/10');
+		expect(getTaskRowClass('completed')).toBe('border-surface-border bg-bg-primary/80');
+		expect(getTaskRowClass('running')).toBe('border-sky-400/40 bg-sky-400/10');
 		expect(getTaskRowClass('failed')).toBe('border-status-error/40 bg-status-error/10');
 		expect(getTaskRowClass('blocked')).toBe('border-status-warning/40 bg-status-warning/10');
 		expect(getTaskRowClass('pending')).toBe('border-surface-border bg-bg-primary');
 
-		expect(getTaskBadgeClass('completed')).toBe('bg-accent-primary/20 text-accent-primary border-accent-primary/30');
-		expect(getTaskBadgeClass('running')).toBe('bg-vibe-teal/20 text-vibe-teal border-vibe-teal/30');
+		expect(getTaskBadgeClass('completed')).toBe('bg-bg-secondary text-status-success border-status-success/30');
+		expect(getTaskBadgeClass('running')).toBe('bg-sky-400/15 text-sky-300 border-sky-400/30');
 		expect(getTaskBadgeClass('failed')).toBe('bg-status-error/20 text-status-error border-status-error/30');
 		expect(getTaskBadgeClass('blocked')).toBe('bg-status-warning/20 text-status-warning border-status-warning/30');
 		expect(getTaskBadgeClass('pending')).toBe('bg-surface text-text-tertiary border-surface-border');
