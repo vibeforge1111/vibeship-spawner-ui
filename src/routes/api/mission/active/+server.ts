@@ -15,12 +15,13 @@ import { readFile, writeFile, mkdir, unlink } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import type { MultiLLMExecutionPack } from '$lib/services/multi-llm-orchestrator';
+import { spawnerStateDir } from '$lib/server/spawner-state';
 
 const ACTIVE_MISSION_FILE = 'active-mission.json';
 const TERMINAL_MISSION_EVENTS = new Set(['mission_completed', 'mission_failed', 'mission_paused']);
 
 function getSpawnerDir(): string {
-	return process.env.SPAWNER_STATE_DIR || path.join(process.cwd(), '.spawner');
+	return spawnerStateDir();
 }
 
 function getActiveMissionPath(): string {

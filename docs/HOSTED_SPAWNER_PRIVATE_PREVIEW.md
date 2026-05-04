@@ -56,6 +56,16 @@ The server stores both as `HttpOnly`, `Secure`, `SameSite=Strict` cookies after 
 
 The workspace ID is not a complete multi-tenant account model. It is a preview gate that makes the hosted surface feel and behave less like a shared console while the real workspace/account model is built.
 
+After successful private-preview login, the browser receives only an opaque `HttpOnly`, `Secure`, `SameSite=Strict` session cookie. The UI key, bridge key, events key, and workspace ID are not persisted as browser-readable or browser-stored raw key cookies.
+
+When hosted with `SPARK_WORKSPACE_ID`, core runtime files are stored below:
+
+```text
+<SPAWNER_STATE_DIR>/workspaces/<workspace-id>/
+```
+
+That workspace namespace covers Mission Control relay state, PRD bridge files, Canvas pipeline loads, active mission state, provider results, creator mission traces, schedules, event-result fallback files, and provider prompt references. Local development without hosted env signals still uses the existing `SPAWNER_STATE_DIR` or `.spawner/` path unchanged.
+
 ## Verification
 
 For the public hosted deployment:

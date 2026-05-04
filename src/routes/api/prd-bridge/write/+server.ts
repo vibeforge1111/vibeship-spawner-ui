@@ -23,9 +23,10 @@ import { classifyMissionSize, formatMissionSizeGuidance } from '$lib/server/miss
 import { formatTaskQualityGuidance } from '$lib/server/task-quality-rubric';
 import { formatVerificationPlanGuidance, generateVerificationPlan } from '$lib/server/verification-plan-generator';
 import { enrichBrief, isSparseUnderstandingClarification } from '$lib/server/brief-enricher';
+import { spawnerStateDir } from '$lib/server/spawner-state';
 
 function getPrdBridgePaths() {
-	const spawnerDir = process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
+	const spawnerDir = spawnerStateDir();
 	return {
 		spawnerDir,
 		resultsDir: join(spawnerDir, 'results'),

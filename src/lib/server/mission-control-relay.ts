@@ -14,6 +14,7 @@ import {
 	missionControlPathForMission,
 	resolveMissionControlAccess
 } from './mission-control-access';
+import { spawnerStateDir } from './spawner-state';
 import {
 	emptyMissionControlTaskStatusCounts,
 	isMissionControlTerminalStatus,
@@ -123,7 +124,7 @@ const TASK_TERMINAL_EVENTS = new Set(['task_completed', 'task_failed', 'task_can
 // Persist relay state so HMR reloads + server restarts don't wipe the history.
 // Small file, synchronous writes; we're on the order of tens of events.
 export function getMissionControlPersistPath(): string {
-	const spawnerDir = process.env.SPAWNER_STATE_DIR || env.SPAWNER_STATE_DIR || path.resolve(process.cwd(), '.spawner');
+	const spawnerDir = spawnerStateDir(env);
 	return path.resolve(spawnerDir, 'mission-control.json');
 }
 

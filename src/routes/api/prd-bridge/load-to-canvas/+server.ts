@@ -9,9 +9,10 @@ import {
 	missionControlPathForMission,
 	resolveMissionControlAccess
 } from '$lib/server/mission-control-access';
+import { spawnerStateDir } from '$lib/server/spawner-state';
 
 function getSpawnerDir(): string {
-	return process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
+	return spawnerStateDir();
 }
 
 function resultFilePath(requestId: string): string {

@@ -11,6 +11,7 @@ import type { ProviderResult, ProviderClientOptions } from './types';
 import { createBridgeEvent } from './types';
 import { resolveCliBinary } from '../cli-resolver';
 import { spawnHidden } from '../hidden-process';
+import { spawnerStateDir } from '../spawner-state';
 import { prepareProviderWorkingDirectory } from '$lib/services/spark-agent-bridge';
 
 export interface CodexCliOptions extends ProviderClientOptions {
@@ -91,7 +92,7 @@ export async function executeCodexCliRequest(
 	}
 
 	// Write prompt to file for reference
-	const promptsDir = join(process.cwd(), '.spawner', 'prompts');
+	const promptsDir = join(spawnerStateDir(), 'prompts');
 	if (!existsSync(promptsDir)) {
 		mkdirSync(promptsDir, { recursive: true });
 	}

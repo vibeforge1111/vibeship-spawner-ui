@@ -5,6 +5,7 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { autoDispatchPrdCanvasLoad, type PrdAutoDispatchResult } from './prd-auto-dispatch';
+import { spawnerStateDir as resolveSpawnerStateDir } from './spawner-state';
 
 const execFileAsync = promisify(execFile);
 
@@ -280,7 +281,7 @@ export function setCreatorValidationCommandRunnerForTests(runner: CreatorValidat
 }
 
 function spawnerStateDir(): string {
-	return process.env.SPAWNER_STATE_DIR || env.SPAWNER_STATE_DIR || path.join(process.cwd(), '.spawner');
+	return resolveSpawnerStateDir(env);
 }
 
 function creatorMissionDir(stateDir = spawnerStateDir()): string {
