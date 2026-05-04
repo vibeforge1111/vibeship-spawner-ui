@@ -2010,6 +2010,38 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "machine-learning": {
+    "id": "machine-learning",
+    "name": "machine-learning",
+    "description": "General machine-learning system design covering dataset framing, feature validation, model training, evaluation, monitor",
+    "owns": [
+      "Problem framing and label definition",
+      "Feature and dataset validation",
+      "Model family selection",
+      "Offline evaluation and error analysis"
+    ],
+    "triggers": [
+      "machine learning",
+      "ml model",
+      "feature engineering",
+      "supervised learning",
+      "model training"
+    ],
+    "category": "ai",
+    "delegates": [
+      {
+        "skill": "ml-ops"
+      },
+      {
+        "skill": "model-optimization"
+      },
+      {
+        "skill": "statistical-analysis"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
   "ml-memory": {
     "id": "ml-memory",
     "name": "ML Memory Engineer",
@@ -5697,6 +5729,9 @@
       },
       {
         "skill": "compliance-automation"
+      },
+      {
+        "skill": "medical-writing"
       }
     ],
     "pairsWell": [],
@@ -5822,6 +5857,38 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "molecular-dynamics": {
+    "id": "molecular-dynamics",
+    "name": "molecular-dynamics",
+    "description": "Molecular dynamics simulation setup, force-field selection, equilibration, trajectory QA, and reproducible structural in",
+    "owns": [
+      "MD system preparation",
+      "Force-field and water-model choice",
+      "Equilibration and production protocols",
+      "Trajectory quality control"
+    ],
+    "triggers": [
+      "molecular dynamics",
+      "md simulation",
+      "gromacs",
+      "amber",
+      "trajectory analysis"
+    ],
+    "category": "biotech",
+    "delegates": [
+      {
+        "skill": "protein-structure"
+      },
+      {
+        "skill": "drug-discovery-informatics"
+      },
+      {
+        "skill": "performance-optimization"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
   "protein-structure": {
     "id": "protein-structure",
     "name": "protein-structure",
@@ -5846,6 +5913,9 @@
       },
       {
         "skill": "genomics-pipelines"
+      },
+      {
+        "skill": "molecular-dynamics"
       }
     ],
     "pairsWell": [],
@@ -7329,6 +7399,9 @@
       },
       {
         "skill": "monte-carlo"
+      },
+      {
+        "skill": "optimization-algorithms"
       }
     ],
     "pairsWell": [],
@@ -7361,6 +7434,12 @@
       },
       {
         "skill": "carbon-accounting"
+      },
+      {
+        "skill": "electrical-engineering"
+      },
+      {
+        "skill": "geotechnical-engineering"
       }
     ],
     "pairsWell": [],
@@ -8905,6 +8984,9 @@
     "category": "creative",
     "delegates": [
       {
+        "skill": "parsing-strategy"
+      },
+      {
         "skill": "nlp-advanced"
       },
       {
@@ -9049,6 +9131,9 @@
       },
       {
         "skill": "code-review-diplomacy"
+      },
+      {
+        "skill": "engineering-metrics"
       }
     ],
     "pairsWell": [],
@@ -11554,6 +11639,38 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "parsing-strategy": {
+    "id": "parsing-strategy",
+    "name": "parsing-strategy",
+    "description": "Parser selection, grammar boundaries, tokenizer design, ambiguity handling, and migration paths away from brittle regex-",
+    "owns": [
+      "Parser-vs-regex decisioning",
+      "Grammar and tokenizer boundaries",
+      "Ambiguity handling",
+      "Malformed input recovery"
+    ],
+    "triggers": [
+      "parsing strategy",
+      "parser design",
+      "grammar",
+      "tokenizer",
+      "regex extraction"
+    ],
+    "category": "development",
+    "delegates": [
+      {
+        "skill": "regex-whisperer"
+      },
+      {
+        "skill": "structured-output"
+      },
+      {
+        "skill": "nlp-advanced"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
   "privacy-guardian": {
     "id": "privacy-guardian",
     "name": "privacy-guardian",
@@ -12167,6 +12284,9 @@
         "skill": "testing-strategies"
       },
       {
+        "skill": "shell-scripting"
+      },
+      {
         "skill": "code-quality"
       }
     ],
@@ -12331,6 +12451,38 @@
       ],
       "penalty": 36
     }
+  },
+  "dependency-upgrade": {
+    "id": "dependency-upgrade",
+    "name": "dependency-upgrade",
+    "description": "Dependency upgrade planning, lockfile review, breaking-change triage, security patch rollout, and rollback-safe version ",
+    "owns": [
+      "Upgrade inventory and prioritization",
+      "Breaking-change review",
+      "Lockfile and transitive dependency audit",
+      "Compatibility test plan"
+    ],
+    "triggers": [
+      "dependency upgrade",
+      "package upgrade",
+      "electron upgrade",
+      "library update",
+      "security patch"
+    ],
+    "category": "devops",
+    "delegates": [
+      {
+        "skill": "supply-chain-security"
+      },
+      {
+        "skill": "migration-specialist"
+      },
+      {
+        "skill": "testing-automation"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
   },
   "devops-engineer": {
     "id": "devops-engineer",
@@ -13137,6 +13289,38 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "shell-scripting": {
+    "id": "shell-scripting",
+    "name": "shell-scripting",
+    "description": "Production shell scripting covering safe flags, quoting, idempotency, traps, portability, and scripts that fail loudly b",
+    "owns": [
+      "Safe shell script structure",
+      "Quoting and word-splitting control",
+      "Idempotent file/process operations",
+      "Trap and cleanup behavior"
+    ],
+    "triggers": [
+      "shell scripting",
+      "bash script",
+      "posix shell",
+      "shell automation",
+      "script safety"
+    ],
+    "category": "devops",
+    "delegates": [
+      {
+        "skill": "cli-tool-builder"
+      },
+      {
+        "skill": "devops"
+      },
+      {
+        "skill": "security-hardening"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
   "sla-status-page-incident-comms": {
     "id": "sla-status-page-incident-comms",
     "name": "sla-status-page-incident-comms",
@@ -13755,6 +13939,38 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "electrical-engineering": {
+    "id": "electrical-engineering",
+    "name": "electrical-engineering",
+    "description": "Electrical systems engineering for power, controls, embedded interfaces, sensor wiring, safety margins, and hardware/sof",
+    "owns": [
+      "Power budget and load analysis",
+      "Circuit and wiring interface review",
+      "Electrical safety margins",
+      "Sensor and actuator electrical integration"
+    ],
+    "triggers": [
+      "electrical engineering",
+      "power electronics",
+      "circuit design",
+      "wiring harness",
+      "load calculation"
+    ],
+    "category": "engineering",
+    "delegates": [
+      {
+        "skill": "embedded-systems"
+      },
+      {
+        "skill": "control-systems"
+      },
+      {
+        "skill": "sensor-fusion"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
   "embedded-systems": {
     "id": "embedded-systems",
     "name": "embedded-systems",
@@ -13785,6 +14001,38 @@
       },
       {
         "skill": "motor-control"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  "engineering-metrics": {
+    "id": "engineering-metrics",
+    "name": "engineering-metrics",
+    "description": "Engineering health metrics that measure delivery, quality, reliability, and maintainability without turning teams into d",
+    "owns": [
+      "Delivery and reliability metric design",
+      "Metric anti-gaming controls",
+      "Team-level health dashboards",
+      "Quality and maintainability signals"
+    ],
+    "triggers": [
+      "engineering metrics",
+      "dora metrics",
+      "cycle time",
+      "lead time",
+      "quality metrics"
+    ],
+    "category": "engineering",
+    "delegates": [
+      {
+        "skill": "product-analytics-engineering"
+      },
+      {
+        "skill": "observability"
+      },
+      {
+        "skill": "project-management"
       }
     ],
     "pairsWell": [],
@@ -13822,6 +14070,38 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "geotechnical-engineering": {
+    "id": "geotechnical-engineering",
+    "name": "geotechnical-engineering",
+    "description": "Ground, soil, slope, foundation, and subsurface risk analysis for physical infrastructure and renewable-energy site deci",
+    "owns": [
+      "Site investigation interpretation",
+      "Soil and rock risk classification",
+      "Foundation and slope stability assumptions",
+      "Groundwater and settlement risk"
+    ],
+    "triggers": [
+      "geotechnical engineering",
+      "soil mechanics",
+      "foundation design",
+      "slope stability",
+      "site investigation"
+    ],
+    "category": "engineering",
+    "delegates": [
+      {
+        "skill": "digital-twin"
+      },
+      {
+        "skill": "discrete-event-simulation"
+      },
+      {
+        "skill": "statistical-analysis"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
   "motor-control": {
     "id": "motor-control",
     "name": "motor-control",
@@ -13849,6 +14129,38 @@
       },
       {
         "skill": "fpga-design"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  "optimization-algorithms": {
+    "id": "optimization-algorithms",
+    "name": "optimization-algorithms",
+    "description": "Mathematical optimization for engineering and product systems covering objectives, constraints, solvers, sensitivity che",
+    "owns": [
+      "Objective and constraint formulation",
+      "Solver selection and tuning",
+      "Feasibility and sensitivity analysis",
+      "Local/global optimum risk review"
+    ],
+    "triggers": [
+      "optimization algorithms",
+      "linear programming",
+      "mixed integer",
+      "constraint optimization",
+      "objective function"
+    ],
+    "category": "engineering",
+    "delegates": [
+      {
+        "skill": "statistical-analysis"
+      },
+      {
+        "skill": "performance-optimization"
+      },
+      {
+        "skill": "model-optimization"
       }
     ],
     "pairsWell": [],
@@ -14056,6 +14368,38 @@
       },
       {
         "skill": "compliance-automation"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  "finance-ops": {
+    "id": "finance-ops",
+    "name": "finance-ops",
+    "description": "Finance operations for billing, invoicing, procurement, close process, reconciliation, approvals, and audit-ready operat",
+    "owns": [
+      "Close and reconciliation workflows",
+      "Invoice and payment operations",
+      "Procurement approval controls",
+      "Audit-ready finance evidence"
+    ],
+    "triggers": [
+      "finance ops",
+      "finance operations",
+      "month close",
+      "reconciliation",
+      "invoice ops"
+    ],
+    "category": "finance",
+    "delegates": [
+      {
+        "skill": "subscription-billing"
+      },
+      {
+        "skill": "billing-invoices-receipts"
+      },
+      {
+        "skill": "sox-compliance"
       }
     ],
     "pairsWell": [],
@@ -14316,6 +14660,9 @@
       },
       {
         "skill": "api-design"
+      },
+      {
+        "skill": "dependency-upgrade"
       },
       {
         "skill": "notifications-orchestration"
@@ -14918,6 +15265,9 @@
         "skill": "react-native-specialist"
       },
       {
+        "skill": "flutter-mobile"
+      },
+      {
         "skill": "notifications-orchestration"
       },
       {
@@ -14999,6 +15349,9 @@
     "delegates": [
       {
         "skill": "api-design"
+      },
+      {
+        "skill": "dependency-upgrade"
       },
       {
         "skill": "notifications-orchestration"
@@ -15236,6 +15589,38 @@
       "boost": 40,
       "penalty": 42
     }
+  },
+  "flutter-mobile": {
+    "id": "flutter-mobile",
+    "name": "flutter-mobile",
+    "description": "Flutter mobile app architecture, platform channels, state management, performance, offline storage, and release-ready iO",
+    "owns": [
+      "Flutter project architecture",
+      "Dart state management and routing",
+      "Platform channel boundaries",
+      "Flutter performance and jank review"
+    ],
+    "triggers": [
+      "flutter mobile",
+      "flutter app",
+      "dart mobile",
+      "platform channels",
+      "flutter performance"
+    ],
+    "category": "frontend",
+    "delegates": [
+      {
+        "skill": "app-store-release-ops"
+      },
+      {
+        "skill": "mobile-offline-sync"
+      },
+      {
+        "skill": "ui-design"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
   },
   "form-wizard-workflows": {
     "id": "form-wizard-workflows",
@@ -15702,6 +16087,9 @@
     "delegates": [
       {
         "skill": "react-native-specialist"
+      },
+      {
+        "skill": "flutter-mobile"
       },
       {
         "skill": "api-design"
@@ -18356,6 +18744,38 @@
       "boost": 1.25,
       "penalty": 0.15
     }
+  },
+  "medical-writing": {
+    "id": "medical-writing",
+    "name": "medical-writing",
+    "description": "Clinical, regulatory, and scientific medical writing with evidence traceability, claim discipline, and approval-ready ar",
+    "owns": [
+      "Clinical study reports and summaries",
+      "Regulatory-ready clinical narratives",
+      "Evidence-backed medical manuscripts",
+      "Claim substantiation tables"
+    ],
+    "triggers": [
+      "medical writing",
+      "clinical study report",
+      "regulatory writing",
+      "medical manuscript",
+      "clinical narrative"
+    ],
+    "category": "healthcare",
+    "delegates": [
+      {
+        "skill": "clinical-trial-analysis"
+      },
+      {
+        "skill": "compliance-automation"
+      },
+      {
+        "skill": "technical-writer"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
   },
   "patient-consent-records": {
     "id": "patient-consent-records",
@@ -22780,6 +23200,9 @@
       },
       {
         "skill": "contract-lifecycle-ops"
+      },
+      {
+        "skill": "finance-ops"
       }
     ],
     "pairsWell": [],
@@ -23876,6 +24299,38 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "gis-analysis": {
+    "id": "gis-analysis",
+    "name": "gis-analysis",
+    "description": "Geospatial analysis for spatial joins, projections, raster/vector workflows, Earth observation data, and map-backed deci",
+    "owns": [
+      "Coordinate reference system discipline",
+      "Raster/vector processing workflows",
+      "Spatial joins and overlays",
+      "Geospatial QA and topology checks"
+    ],
+    "triggers": [
+      "gis analysis",
+      "geospatial analysis",
+      "spatial join",
+      "raster analysis",
+      "vector data"
+    ],
+    "category": "space",
+    "delegates": [
+      {
+        "skill": "space-data-processing"
+      },
+      {
+        "skill": "map-location-features"
+      },
+      {
+        "skill": "statistical-analysis"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
   "ground-station-ops": {
     "id": "ground-station-ops",
     "name": "ground-station-ops",
@@ -24024,7 +24479,13 @@
     "category": "space",
     "delegates": [
       {
+        "skill": "machine-learning"
+      },
+      {
         "skill": "data-pipeline"
+      },
+      {
+        "skill": "gis-analysis"
       }
     ],
     "pairsWell": [],

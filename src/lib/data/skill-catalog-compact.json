@@ -454,6 +454,26 @@
     "selectionHints": {}
   },
   {
+    "id": "machine-learning",
+    "desc": "General machine-learning system design covering dataset framing, feature validation, model training,",
+    "owns": [
+      "Problem framing and label definition",
+      "Feature and dataset validation",
+      "Model family selection",
+      "Offline evaluation and error analysis",
+      "Production-readiness handoff"
+    ],
+    "triggers": [
+      "machine learning",
+      "ml model",
+      "feature engineering",
+      "supervised learning",
+      "model training"
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  {
     "id": "ml-memory",
     "desc": "Memory systems specialist for hierarchical memory, consolidation, and outcome-based learning",
     "owns": [
@@ -3438,6 +3458,26 @@
       "lab",
       "automation",
       "liquid handling robot programming"
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  {
+    "id": "molecular-dynamics",
+    "desc": "Molecular dynamics simulation setup, force-field selection, equilibration, trajectory QA, and reprod",
+    "owns": [
+      "MD system preparation",
+      "Force-field and water-model choice",
+      "Equilibration and production protocols",
+      "Trajectory quality control",
+      "Reproducible simulation reports"
+    ],
+    "triggers": [
+      "molecular dynamics",
+      "md simulation",
+      "gromacs",
+      "amber",
+      "trajectory analysis"
     ],
     "pairsWell": [],
     "selectionHints": {}
@@ -6757,6 +6797,26 @@
     "selectionHints": {}
   },
   {
+    "id": "parsing-strategy",
+    "desc": "Parser selection, grammar boundaries, tokenizer design, ambiguity handling, and migration paths away",
+    "owns": [
+      "Parser-vs-regex decisioning",
+      "Grammar and tokenizer boundaries",
+      "Ambiguity handling",
+      "Malformed input recovery",
+      "Parser migration strategy"
+    ],
+    "triggers": [
+      "parsing strategy",
+      "parser design",
+      "grammar",
+      "tokenizer",
+      "regex extraction"
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  {
     "id": "privacy-guardian",
     "desc": "Security and privacy specialist for differential privacy, encryption, and compliance",
     "owns": [
@@ -7229,6 +7289,26 @@
     }
   },
   {
+    "id": "dependency-upgrade",
+    "desc": "Dependency upgrade planning, lockfile review, breaking-change triage, security patch rollout, and ro",
+    "owns": [
+      "Upgrade inventory and prioritization",
+      "Breaking-change review",
+      "Lockfile and transitive dependency audit",
+      "Compatibility test plan",
+      "Rollback and pinning strategy"
+    ],
+    "triggers": [
+      "dependency upgrade",
+      "package upgrade",
+      "electron upgrade",
+      "library update",
+      "security patch"
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  {
     "id": "devops-engineer",
     "desc": "World-class DevOps engineering - cloud architecture, CI/CD pipelines, infrastructure as code, and th",
     "owns": [
@@ -7692,6 +7772,26 @@
     "selectionHints": {}
   },
   {
+    "id": "shell-scripting",
+    "desc": "Production shell scripting covering safe flags, quoting, idempotency, traps, portability, and script",
+    "owns": [
+      "Safe shell script structure",
+      "Quoting and word-splitting control",
+      "Idempotent file/process operations",
+      "Trap and cleanup behavior",
+      "Portable CLI automation"
+    ],
+    "triggers": [
+      "shell scripting",
+      "bash script",
+      "posix shell",
+      "shell automation",
+      "script safety"
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  {
     "id": "sla-status-page-incident-comms",
     "desc": "SLA definition, status page operation, and incident communications — uptime measurement, public/priv",
     "owns": [],
@@ -8064,6 +8164,26 @@
     "selectionHints": {}
   },
   {
+    "id": "electrical-engineering",
+    "desc": "Electrical systems engineering for power, controls, embedded interfaces, sensor wiring, safety margi",
+    "owns": [
+      "Power budget and load analysis",
+      "Circuit and wiring interface review",
+      "Electrical safety margins",
+      "Sensor and actuator electrical integration",
+      "Hardware/software signal boundaries"
+    ],
+    "triggers": [
+      "electrical engineering",
+      "power electronics",
+      "circuit design",
+      "wiring harness",
+      "load calculation"
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  {
     "id": "embedded-systems",
     "desc": "Microcontroller and embedded software development for resource-constrained real-time systems",
     "owns": [
@@ -8079,6 +8199,26 @@
       "embedded",
       "systems",
       "real-time operating systems"
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  {
+    "id": "engineering-metrics",
+    "desc": "Engineering health metrics that measure delivery, quality, reliability, and maintainability without ",
+    "owns": [
+      "Delivery and reliability metric design",
+      "Metric anti-gaming controls",
+      "Team-level health dashboards",
+      "Quality and maintainability signals",
+      "Metric review operating cadence"
+    ],
+    "triggers": [
+      "engineering metrics",
+      "dora metrics",
+      "cycle time",
+      "lead time",
+      "quality metrics"
     ],
     "pairsWell": [],
     "selectionHints": {}
@@ -8104,6 +8244,26 @@
     "selectionHints": {}
   },
   {
+    "id": "geotechnical-engineering",
+    "desc": "Ground, soil, slope, foundation, and subsurface risk analysis for physical infrastructure and renewa",
+    "owns": [
+      "Site investigation interpretation",
+      "Soil and rock risk classification",
+      "Foundation and slope stability assumptions",
+      "Groundwater and settlement risk",
+      "Geotechnical uncertainty registers"
+    ],
+    "triggers": [
+      "geotechnical engineering",
+      "soil mechanics",
+      "foundation design",
+      "slope stability",
+      "site investigation"
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  {
     "id": "motor-control",
     "desc": "Electric motor control including FOC, stepper control, and encoder interfaces",
     "owns": [
@@ -8119,6 +8279,26 @@
       "motor",
       "control",
       "field oriented control"
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  {
+    "id": "optimization-algorithms",
+    "desc": "Mathematical optimization for engineering and product systems covering objectives, constraints, solv",
+    "owns": [
+      "Objective and constraint formulation",
+      "Solver selection and tuning",
+      "Feasibility and sensitivity analysis",
+      "Local/global optimum risk review",
+      "Optimization result explainability"
+    ],
+    "triggers": [
+      "optimization algorithms",
+      "linear programming",
+      "mixed integer",
+      "constraint optimization",
+      "objective function"
     ],
     "pairsWell": [],
     "selectionHints": {}
@@ -8239,6 +8419,26 @@
       "tools",
       "ai-powered accounting platform selection and integration",
       "ai-powered"
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  {
+    "id": "finance-ops",
+    "desc": "Finance operations for billing, invoicing, procurement, close process, reconciliation, approvals, an",
+    "owns": [
+      "Close and reconciliation workflows",
+      "Invoice and payment operations",
+      "Procurement approval controls",
+      "Audit-ready finance evidence",
+      "Operational finance exception handling"
+    ],
+    "triggers": [
+      "finance ops",
+      "finance operations",
+      "month close",
+      "reconciliation",
+      "invoice ops"
     ],
     "pairsWell": [],
     "selectionHints": {}
@@ -8971,6 +9171,26 @@
       ],
       "penalty": 42
     }
+  },
+  {
+    "id": "flutter-mobile",
+    "desc": "Flutter mobile app architecture, platform channels, state management, performance, offline storage, ",
+    "owns": [
+      "Flutter project architecture",
+      "Dart state management and routing",
+      "Platform channel boundaries",
+      "Flutter performance and jank review",
+      "iOS/Android build behavior"
+    ],
+    "triggers": [
+      "flutter mobile",
+      "flutter app",
+      "dart mobile",
+      "platform channels",
+      "flutter performance"
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
   },
   {
     "id": "form-wizard-workflows",
@@ -10840,6 +11060,26 @@
       ],
       "penalty": 0.15
     }
+  },
+  {
+    "id": "medical-writing",
+    "desc": "Clinical, regulatory, and scientific medical writing with evidence traceability, claim discipline, a",
+    "owns": [
+      "Clinical study reports and summaries",
+      "Regulatory-ready clinical narratives",
+      "Evidence-backed medical manuscripts",
+      "Claim substantiation tables",
+      "Plain-language medical summaries"
+    ],
+    "triggers": [
+      "medical writing",
+      "clinical study report",
+      "regulatory writing",
+      "medical manuscript",
+      "clinical narrative"
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
   },
   {
     "id": "patient-consent-records",
@@ -14382,6 +14622,26 @@
       "stride",
       "attack tree",
       "abuse case"
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  {
+    "id": "gis-analysis",
+    "desc": "Geospatial analysis for spatial joins, projections, raster/vector workflows, Earth observation data,",
+    "owns": [
+      "Coordinate reference system discipline",
+      "Raster/vector processing workflows",
+      "Spatial joins and overlays",
+      "Geospatial QA and topology checks",
+      "Map-backed analysis outputs"
+    ],
+    "triggers": [
+      "gis analysis",
+      "geospatial analysis",
+      "spatial join",
+      "raster analysis",
+      "vector data"
     ],
     "pairsWell": [],
     "selectionHints": {}

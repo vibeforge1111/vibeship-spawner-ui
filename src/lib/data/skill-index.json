@@ -1,6 +1,6 @@
 {
   "version": "2.0.0",
-  "totalSkills": 643,
+  "totalSkills": 656,
   "domains": {
     "game": [
       {
@@ -3127,6 +3127,19 @@
     ],
     "mobile": [
       {
+        "id": "flutter-mobile",
+        "kw": [
+          "flutter",
+          "mobile",
+          "project",
+          "architecture",
+          "dart",
+          "state",
+          "management",
+          "platform"
+        ]
+      },
+      {
         "id": "mobile-offline-sync",
         "kw": [
           "mobile",
@@ -3364,6 +3377,19 @@
           "source",
           "map",
           "upload"
+        ]
+      },
+      {
+        "id": "engineering-metrics",
+        "kw": [
+          "engineering",
+          "metrics",
+          "dashboard",
+          "delivery",
+          "and",
+          "reliability",
+          "metric",
+          "anti"
         ]
       },
       {
@@ -3641,6 +3667,19 @@
           "object",
           "detection",
           "architecture"
+        ]
+      },
+      {
+        "id": "machine-learning",
+        "kw": [
+          "machine",
+          "learning",
+          "ml",
+          "problem",
+          "framing",
+          "and",
+          "feature",
+          "dataset"
         ]
       },
       {
@@ -4486,6 +4525,19 @@
           "lims",
           "integration",
           "and"
+        ]
+      },
+      {
+        "id": "molecular-dynamics",
+        "kw": [
+          "molecular",
+          "dynamics",
+          "system",
+          "preparation",
+          "force",
+          "field",
+          "and",
+          "equilibration"
         ]
       },
       {
@@ -5594,6 +5646,19 @@
         ]
       },
       {
+        "id": "parsing-strategy",
+        "kw": [
+          "parsing",
+          "strategy",
+          "parser",
+          "regex",
+          "decisioning",
+          "grammar",
+          "and",
+          "tokenizer"
+        ]
+      },
+      {
         "id": "privacy-guardian",
         "kw": [
           "privacy",
@@ -5750,6 +5815,19 @@
         ]
       },
       {
+        "id": "dependency-upgrade",
+        "kw": [
+          "dependency",
+          "upgrade",
+          "security",
+          "inventory",
+          "and",
+          "breaking",
+          "change",
+          "review"
+        ]
+      },
+      {
         "id": "disaster-recovery",
         "kw": [
           "disaster",
@@ -5877,6 +5955,19 @@
           "filtering",
           "and",
           "scoping"
+        ]
+      },
+      {
+        "id": "shell-scripting",
+        "kw": [
+          "shell",
+          "scripting",
+          "safe",
+          "script",
+          "quoting",
+          "and",
+          "word",
+          "idempotent"
         ]
       },
       {
@@ -6036,6 +6127,19 @@
         ]
       },
       {
+        "id": "electrical-engineering",
+        "kw": [
+          "electrical",
+          "engineering",
+          "power",
+          "budget",
+          "and",
+          "circuit",
+          "wiring",
+          "safety"
+        ]
+      },
+      {
         "id": "embedded-systems",
         "kw": [
           "embedded",
@@ -6049,6 +6153,19 @@
         ]
       },
       {
+        "id": "geotechnical-engineering",
+        "kw": [
+          "geotechnical",
+          "engineering",
+          "site",
+          "investigation",
+          "interpretation",
+          "soil",
+          "and",
+          "rock"
+        ]
+      },
+      {
         "id": "motor-control",
         "kw": [
           "motor",
@@ -6059,6 +6176,19 @@
           "quadrature",
           "encoder",
           "interfaces"
+        ]
+      },
+      {
+        "id": "optimization-algorithms",
+        "kw": [
+          "optimization",
+          "algorithms",
+          "objective",
+          "and",
+          "constraint",
+          "solver",
+          "selection",
+          "feasibility"
         ]
       },
       {
@@ -6111,6 +6241,19 @@
           "market",
           "impact",
           "modeling"
+        ]
+      },
+      {
+        "id": "finance-ops",
+        "kw": [
+          "finance",
+          "ops",
+          "close",
+          "and",
+          "reconciliation",
+          "invoice",
+          "payment",
+          "procurement"
         ]
       },
       {
@@ -6761,6 +6904,19 @@
           "mapping",
           "consent",
           "and"
+        ]
+      },
+      {
+        "id": "medical-writing",
+        "kw": [
+          "medical",
+          "writing",
+          "clinical",
+          "study",
+          "reports",
+          "regulatory",
+          "ready",
+          "evidence"
         ]
       },
       {
@@ -7801,6 +7957,19 @@
           "trust",
           "boundary",
           "identification"
+        ]
+      },
+      {
+        "id": "gis-analysis",
+        "kw": [
+          "gis",
+          "analysis",
+          "coordinate",
+          "reference",
+          "system",
+          "raster",
+          "vector",
+          "processing"
         ]
       },
       {
@@ -9016,6 +9185,19 @@
       ]
     },
     {
+      "id": "machine-learning",
+      "kw": [
+        "machine",
+        "learning",
+        "ml",
+        "problem",
+        "framing",
+        "and",
+        "feature",
+        "dataset"
+      ]
+    },
+    {
       "id": "ml-memory",
       "kw": [
         "memory",
@@ -10118,6 +10300,19 @@
         "lims",
         "integration",
         "and"
+      ]
+    },
+    {
+      "id": "molecular-dynamics",
+      "kw": [
+        "molecular",
+        "dynamics",
+        "system",
+        "preparation",
+        "force",
+        "field",
+        "and",
+        "equilibration"
       ]
     },
     {
@@ -11967,6 +12162,19 @@
       ]
     },
     {
+      "id": "parsing-strategy",
+      "kw": [
+        "parsing",
+        "strategy",
+        "parser",
+        "regex",
+        "decisioning",
+        "grammar",
+        "and",
+        "tokenizer"
+      ]
+    },
+    {
       "id": "privacy-guardian",
       "kw": [
         "privacy",
@@ -12211,6 +12419,19 @@
         "instance",
         "and",
         "spot"
+      ]
+    },
+    {
+      "id": "dependency-upgrade",
+      "kw": [
+        "dependency",
+        "upgrade",
+        "security",
+        "inventory",
+        "and",
+        "breaking",
+        "change",
+        "review"
       ]
     },
     {
@@ -12487,6 +12708,19 @@
       ]
     },
     {
+      "id": "shell-scripting",
+      "kw": [
+        "shell",
+        "scripting",
+        "safe",
+        "script",
+        "quoting",
+        "and",
+        "word",
+        "idempotent"
+      ]
+    },
+    {
       "id": "sla-status-page-incident-comms",
       "kw": [
         "sla",
@@ -12695,6 +12929,19 @@
       ]
     },
     {
+      "id": "electrical-engineering",
+      "kw": [
+        "electrical",
+        "engineering",
+        "power",
+        "budget",
+        "and",
+        "circuit",
+        "wiring",
+        "safety"
+      ]
+    },
+    {
       "id": "embedded-systems",
       "kw": [
         "embedded",
@@ -12705,6 +12952,19 @@
         "interrupt",
         "service",
         "routines"
+      ]
+    },
+    {
+      "id": "engineering-metrics",
+      "kw": [
+        "engineering",
+        "metrics",
+        "dashboard",
+        "delivery",
+        "and",
+        "reliability",
+        "metric",
+        "anti"
       ]
     },
     {
@@ -12721,6 +12981,19 @@
       ]
     },
     {
+      "id": "geotechnical-engineering",
+      "kw": [
+        "geotechnical",
+        "engineering",
+        "site",
+        "investigation",
+        "interpretation",
+        "soil",
+        "and",
+        "rock"
+      ]
+    },
+    {
       "id": "motor-control",
       "kw": [
         "motor",
@@ -12731,6 +13004,19 @@
         "quadrature",
         "encoder",
         "interfaces"
+      ]
+    },
+    {
+      "id": "optimization-algorithms",
+      "kw": [
+        "optimization",
+        "algorithms",
+        "objective",
+        "and",
+        "constraint",
+        "solver",
+        "selection",
+        "feasibility"
       ]
     },
     {
@@ -12809,6 +13095,19 @@
         "platform",
         "budgeting",
         "and"
+      ]
+    },
+    {
+      "id": "finance-ops",
+      "kw": [
+        "finance",
+        "ops",
+        "close",
+        "and",
+        "reconciliation",
+        "invoice",
+        "payment",
+        "procurement"
       ]
     },
     {
@@ -13160,6 +13459,19 @@
         "file",
         "eas",
         "build"
+      ]
+    },
+    {
+      "id": "flutter-mobile",
+      "kw": [
+        "flutter",
+        "mobile",
+        "project",
+        "architecture",
+        "dart",
+        "state",
+        "management",
+        "platform"
       ]
     },
     {
@@ -14161,6 +14473,19 @@
         "mapping",
         "consent",
         "and"
+      ]
+    },
+    {
+      "id": "medical-writing",
+      "kw": [
+        "medical",
+        "writing",
+        "clinical",
+        "study",
+        "reports",
+        "regulatory",
+        "ready",
+        "evidence"
       ]
     },
     {
@@ -15916,6 +16241,19 @@
         "trust",
         "boundary",
         "identification"
+      ]
+    },
+    {
+      "id": "gis-analysis",
+      "kw": [
+        "gis",
+        "analysis",
+        "coordinate",
+        "reference",
+        "system",
+        "raster",
+        "vector",
+        "processing"
       ]
     },
     {

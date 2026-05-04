@@ -3592,6 +3592,51 @@
     "tags": [],
     "selectionHints": {}
   },
+  "machine-learning": {
+    "id": "machine-learning",
+    "name": "machine-learning",
+    "description": "General machine-learning system design covering dataset framing, feature validation, model training, evaluation, monitoring, and handoff to ML ops.",
+    "owns": [
+      "Problem framing and label definition",
+      "Feature and dataset validation",
+      "Model family selection",
+      "Offline evaluation and error analysis",
+      "Production-readiness handoff"
+    ],
+    "triggers": [
+      "machine learning",
+      "ml model",
+      "feature engineering",
+      "supervised learning",
+      "model training",
+      "model evaluation",
+      "predictive model"
+    ],
+    "category": "ai",
+    "delegates": [
+      {
+        "skill": "ml-ops",
+        "when": "The work needs ml-ops's explicit owner instead of Machine Learning's boundary."
+      },
+      {
+        "skill": "model-optimization",
+        "when": "The work needs model-optimization's explicit owner instead of Machine Learning's boundary."
+      },
+      {
+        "skill": "statistical-analysis",
+        "when": "The work needs statistical-analysis's explicit owner instead of Machine Learning's boundary."
+      }
+    ],
+    "pairsWell": [],
+    "tags": [
+      "machine learning",
+      "ml model",
+      "feature engineering",
+      "supervised learning",
+      "model training"
+    ],
+    "selectionHints": {}
+  },
   "ml-memory": {
     "id": "ml-memory",
     "name": "ML Memory Engineer",
@@ -11006,6 +11051,10 @@
       {
         "skill": "compliance-automation",
         "when": "Need regulatory pathway strategy beyond statistical considerations"
+      },
+      {
+        "skill": "medical-writing",
+        "when": "Need CSR, protocol, or IB writing support"
       }
     ],
     "pairsWell": [],
@@ -11186,6 +11235,51 @@
     "tags": [],
     "selectionHints": {}
   },
+  "molecular-dynamics": {
+    "id": "molecular-dynamics",
+    "name": "molecular-dynamics",
+    "description": "Molecular dynamics simulation setup, force-field selection, equilibration, trajectory QA, and reproducible structural interpretation.",
+    "owns": [
+      "MD system preparation",
+      "Force-field and water-model choice",
+      "Equilibration and production protocols",
+      "Trajectory quality control",
+      "Reproducible simulation reports"
+    ],
+    "triggers": [
+      "molecular dynamics",
+      "md simulation",
+      "gromacs",
+      "amber",
+      "trajectory analysis",
+      "force field",
+      "protein dynamics"
+    ],
+    "category": "biotech",
+    "delegates": [
+      {
+        "skill": "protein-structure",
+        "when": "The work needs protein-structure's explicit owner instead of Molecular Dynamics's boundary."
+      },
+      {
+        "skill": "drug-discovery-informatics",
+        "when": "The work needs drug-discovery-informatics's explicit owner instead of Molecular Dynamics's boundary."
+      },
+      {
+        "skill": "performance-optimization",
+        "when": "The work needs performance-optimization's explicit owner instead of Molecular Dynamics's boundary."
+      }
+    ],
+    "pairsWell": [],
+    "tags": [
+      "molecular dynamics",
+      "md simulation",
+      "gromacs",
+      "amber",
+      "trajectory analysis"
+    ],
+    "selectionHints": {}
+  },
   "protein-structure": {
     "id": "protein-structure",
     "name": "protein-structure",
@@ -11221,6 +11315,10 @@
       {
         "skill": "genomics-pipelines",
         "when": "Processing sequence data for MSA generation"
+      },
+      {
+        "skill": "molecular-dynamics",
+        "when": "Running MD simulations on predicted structures"
       }
     ],
     "pairsWell": [],
@@ -13887,6 +13985,10 @@
       {
         "skill": "monte-carlo",
         "when": "Reliability analysis or uncertainty quantification"
+      },
+      {
+        "skill": "optimization-algorithms",
+        "when": "Custom solver development or algorithm tuning"
       }
     ],
     "pairsWell": [],
@@ -13935,6 +14037,14 @@
       {
         "skill": "carbon-accounting",
         "when": "Emissions calculations, carbon credits, or avoided emissions"
+      },
+      {
+        "skill": "electrical-engineering",
+        "when": "Detailed inverter design, transformer sizing, or grid code compliance"
+      },
+      {
+        "skill": "geotechnical-engineering",
+        "when": "Foundation design, soil analysis, or site grading"
       }
     ],
     "pairsWell": [],
@@ -16417,6 +16527,10 @@
     "category": "creative",
     "delegates": [
       {
+        "skill": "parsing-strategy",
+        "when": "Problem requires actual parsing, not pattern matching"
+      },
+      {
         "skill": "nlp-advanced",
         "when": "Text manipulation beyond regex scope"
       },
@@ -16619,6 +16733,10 @@
       {
         "skill": "code-review-diplomacy",
         "when": "Need to address debt during code review without conflict"
+      },
+      {
+        "skill": "engineering-metrics",
+        "when": "Need DORA metrics or cycle time data to support velocity arguments"
       }
     ],
     "pairsWell": [],
@@ -21262,6 +21380,51 @@
     "tags": [],
     "selectionHints": {}
   },
+  "parsing-strategy": {
+    "id": "parsing-strategy",
+    "name": "parsing-strategy",
+    "description": "Parser selection, grammar boundaries, tokenizer design, ambiguity handling, and migration paths away from brittle regex-only extraction.",
+    "owns": [
+      "Parser-vs-regex decisioning",
+      "Grammar and tokenizer boundaries",
+      "Ambiguity handling",
+      "Malformed input recovery",
+      "Parser migration strategy"
+    ],
+    "triggers": [
+      "parsing strategy",
+      "parser design",
+      "grammar",
+      "tokenizer",
+      "regex extraction",
+      "ambiguous input",
+      "language parsing"
+    ],
+    "category": "development",
+    "delegates": [
+      {
+        "skill": "regex-whisperer",
+        "when": "The work needs regex-whisperer's explicit owner instead of Parsing Strategy's boundary."
+      },
+      {
+        "skill": "structured-output",
+        "when": "The work needs structured-output's explicit owner instead of Parsing Strategy's boundary."
+      },
+      {
+        "skill": "nlp-advanced",
+        "when": "The work needs nlp-advanced's explicit owner instead of Parsing Strategy's boundary."
+      }
+    ],
+    "pairsWell": [],
+    "tags": [
+      "parsing strategy",
+      "parser design",
+      "grammar",
+      "tokenizer",
+      "regex extraction"
+    ],
+    "selectionHints": {}
+  },
   "privacy-guardian": {
     "id": "privacy-guardian",
     "name": "privacy-guardian",
@@ -22370,6 +22533,10 @@
         "when": "Need comprehensive testing strategy beyond hook-based enforcement"
       },
       {
+        "skill": "shell-scripting",
+        "when": "Complex shell logic that belongs in external scripts, not inline"
+      },
+      {
         "skill": "code-quality",
         "when": "Configuring ESLint, Prettier, or other formatters themselves"
       }
@@ -22639,6 +22806,51 @@
       ],
       "penalty": 36
     }
+  },
+  "dependency-upgrade": {
+    "id": "dependency-upgrade",
+    "name": "dependency-upgrade",
+    "description": "Dependency upgrade planning, lockfile review, breaking-change triage, security patch rollout, and rollback-safe version movement.",
+    "owns": [
+      "Upgrade inventory and prioritization",
+      "Breaking-change review",
+      "Lockfile and transitive dependency audit",
+      "Compatibility test plan",
+      "Rollback and pinning strategy"
+    ],
+    "triggers": [
+      "dependency upgrade",
+      "package upgrade",
+      "electron upgrade",
+      "library update",
+      "security patch",
+      "lockfile review",
+      "breaking change"
+    ],
+    "category": "devops",
+    "delegates": [
+      {
+        "skill": "supply-chain-security",
+        "when": "The work needs supply-chain-security's explicit owner instead of Dependency Upgrade's boundary."
+      },
+      {
+        "skill": "migration-specialist",
+        "when": "The work needs migration-specialist's explicit owner instead of Dependency Upgrade's boundary."
+      },
+      {
+        "skill": "testing-automation",
+        "when": "The work needs testing-automation's explicit owner instead of Dependency Upgrade's boundary."
+      }
+    ],
+    "pairsWell": [],
+    "tags": [
+      "dependency upgrade",
+      "package upgrade",
+      "electron upgrade",
+      "library update",
+      "security patch"
+    ],
+    "selectionHints": {}
   },
   "devops-engineer": {
     "id": "devops-engineer",
@@ -24222,6 +24434,51 @@
     "tags": [],
     "selectionHints": {}
   },
+  "shell-scripting": {
+    "id": "shell-scripting",
+    "name": "shell-scripting",
+    "description": "Production shell scripting covering safe flags, quoting, idempotency, traps, portability, and scripts that fail loudly before damaging systems.",
+    "owns": [
+      "Safe shell script structure",
+      "Quoting and word-splitting control",
+      "Idempotent file/process operations",
+      "Trap and cleanup behavior",
+      "Portable CLI automation"
+    ],
+    "triggers": [
+      "shell scripting",
+      "bash script",
+      "posix shell",
+      "shell automation",
+      "script safety",
+      "cli glue",
+      "deployment script"
+    ],
+    "category": "devops",
+    "delegates": [
+      {
+        "skill": "cli-tool-builder",
+        "when": "The work needs cli-tool-builder's explicit owner instead of Shell Scripting's boundary."
+      },
+      {
+        "skill": "devops",
+        "when": "The work needs devops's explicit owner instead of Shell Scripting's boundary."
+      },
+      {
+        "skill": "security-hardening",
+        "when": "The work needs security-hardening's explicit owner instead of Shell Scripting's boundary."
+      }
+    ],
+    "pairsWell": [],
+    "tags": [
+      "shell scripting",
+      "bash script",
+      "posix shell",
+      "shell automation",
+      "script safety"
+    ],
+    "selectionHints": {}
+  },
   "sla-status-page-incident-comms": {
     "id": "sla-status-page-incident-comms",
     "name": "sla-status-page-incident-comms",
@@ -25330,6 +25587,51 @@
     "tags": [],
     "selectionHints": {}
   },
+  "electrical-engineering": {
+    "id": "electrical-engineering",
+    "name": "electrical-engineering",
+    "description": "Electrical systems engineering for power, controls, embedded interfaces, sensor wiring, safety margins, and hardware/software boundary review.",
+    "owns": [
+      "Power budget and load analysis",
+      "Circuit and wiring interface review",
+      "Electrical safety margins",
+      "Sensor and actuator electrical integration",
+      "Hardware/software signal boundaries"
+    ],
+    "triggers": [
+      "electrical engineering",
+      "power electronics",
+      "circuit design",
+      "wiring harness",
+      "load calculation",
+      "embedded electrical",
+      "renewable electrical"
+    ],
+    "category": "engineering",
+    "delegates": [
+      {
+        "skill": "embedded-systems",
+        "when": "The work needs embedded-systems's explicit owner instead of Electrical Engineering's boundary."
+      },
+      {
+        "skill": "control-systems",
+        "when": "The work needs control-systems's explicit owner instead of Electrical Engineering's boundary."
+      },
+      {
+        "skill": "sensor-fusion",
+        "when": "The work needs sensor-fusion's explicit owner instead of Electrical Engineering's boundary."
+      }
+    ],
+    "pairsWell": [],
+    "tags": [
+      "electrical engineering",
+      "power electronics",
+      "circuit design",
+      "wiring harness",
+      "load calculation"
+    ],
+    "selectionHints": {}
+  },
   "embedded-systems": {
     "id": "embedded-systems",
     "name": "embedded-systems",
@@ -25389,6 +25691,51 @@
     ],
     "selectionHints": {}
   },
+  "engineering-metrics": {
+    "id": "engineering-metrics",
+    "name": "engineering-metrics",
+    "description": "Engineering health metrics that measure delivery, quality, reliability, and maintainability without turning teams into dashboard theater.",
+    "owns": [
+      "Delivery and reliability metric design",
+      "Metric anti-gaming controls",
+      "Team-level health dashboards",
+      "Quality and maintainability signals",
+      "Metric review operating cadence"
+    ],
+    "triggers": [
+      "engineering metrics",
+      "dora metrics",
+      "cycle time",
+      "lead time",
+      "quality metrics",
+      "engineering dashboard",
+      "tech debt metrics"
+    ],
+    "category": "engineering",
+    "delegates": [
+      {
+        "skill": "product-analytics-engineering",
+        "when": "The work needs product-analytics-engineering's explicit owner instead of Engineering Metrics's boundary."
+      },
+      {
+        "skill": "observability",
+        "when": "The work needs observability's explicit owner instead of Engineering Metrics's boundary."
+      },
+      {
+        "skill": "project-management",
+        "when": "The work needs project-management's explicit owner instead of Engineering Metrics's boundary."
+      }
+    ],
+    "pairsWell": [],
+    "tags": [
+      "engineering metrics",
+      "dora metrics",
+      "cycle time",
+      "lead time",
+      "quality metrics"
+    ],
+    "selectionHints": {}
+  },
   "fpga-design": {
     "id": "fpga-design",
     "name": "fpga-design",
@@ -25442,6 +25789,51 @@
     ],
     "selectionHints": {}
   },
+  "geotechnical-engineering": {
+    "id": "geotechnical-engineering",
+    "name": "geotechnical-engineering",
+    "description": "Ground, soil, slope, foundation, and subsurface risk analysis for physical infrastructure and renewable-energy site decisions.",
+    "owns": [
+      "Site investigation interpretation",
+      "Soil and rock risk classification",
+      "Foundation and slope stability assumptions",
+      "Groundwater and settlement risk",
+      "Geotechnical uncertainty registers"
+    ],
+    "triggers": [
+      "geotechnical engineering",
+      "soil mechanics",
+      "foundation design",
+      "slope stability",
+      "site investigation",
+      "subsurface risk",
+      "renewable site ground"
+    ],
+    "category": "engineering",
+    "delegates": [
+      {
+        "skill": "digital-twin",
+        "when": "The work needs digital-twin's explicit owner instead of Geotechnical Engineering's boundary."
+      },
+      {
+        "skill": "discrete-event-simulation",
+        "when": "The work needs discrete-event-simulation's explicit owner instead of Geotechnical Engineering's boundary."
+      },
+      {
+        "skill": "statistical-analysis",
+        "when": "The work needs statistical-analysis's explicit owner instead of Geotechnical Engineering's boundary."
+      }
+    ],
+    "pairsWell": [],
+    "tags": [
+      "geotechnical engineering",
+      "soil mechanics",
+      "foundation design",
+      "slope stability",
+      "site investigation"
+    ],
+    "selectionHints": {}
+  },
   "motor-control": {
     "id": "motor-control",
     "name": "motor-control",
@@ -25483,6 +25875,51 @@
     ],
     "pairsWell": [],
     "tags": [],
+    "selectionHints": {}
+  },
+  "optimization-algorithms": {
+    "id": "optimization-algorithms",
+    "name": "optimization-algorithms",
+    "description": "Mathematical optimization for engineering and product systems covering objectives, constraints, solvers, sensitivity checks, and failure-aware tuning.",
+    "owns": [
+      "Objective and constraint formulation",
+      "Solver selection and tuning",
+      "Feasibility and sensitivity analysis",
+      "Local/global optimum risk review",
+      "Optimization result explainability"
+    ],
+    "triggers": [
+      "optimization algorithms",
+      "linear programming",
+      "mixed integer",
+      "constraint optimization",
+      "objective function",
+      "solver tuning",
+      "energy optimization"
+    ],
+    "category": "engineering",
+    "delegates": [
+      {
+        "skill": "statistical-analysis",
+        "when": "The work needs statistical-analysis's explicit owner instead of Optimization Algorithms's boundary."
+      },
+      {
+        "skill": "performance-optimization",
+        "when": "The work needs performance-optimization's explicit owner instead of Optimization Algorithms's boundary."
+      },
+      {
+        "skill": "model-optimization",
+        "when": "The work needs model-optimization's explicit owner instead of Optimization Algorithms's boundary."
+      }
+    ],
+    "pairsWell": [],
+    "tags": [
+      "optimization algorithms",
+      "linear programming",
+      "mixed integer",
+      "constraint optimization",
+      "objective function"
+    ],
     "selectionHints": {}
   },
   "ros2-robotics": {
@@ -25788,6 +26225,51 @@
       "financial-operations",
       "ai-tools",
       "h70-cplus"
+    ],
+    "selectionHints": {}
+  },
+  "finance-ops": {
+    "id": "finance-ops",
+    "name": "finance-ops",
+    "description": "Finance operations for billing, invoicing, procurement, close process, reconciliation, approvals, and audit-ready operational controls.",
+    "owns": [
+      "Close and reconciliation workflows",
+      "Invoice and payment operations",
+      "Procurement approval controls",
+      "Audit-ready finance evidence",
+      "Operational finance exception handling"
+    ],
+    "triggers": [
+      "finance ops",
+      "finance operations",
+      "month close",
+      "reconciliation",
+      "invoice ops",
+      "procurement finance",
+      "billing operations"
+    ],
+    "category": "finance",
+    "delegates": [
+      {
+        "skill": "subscription-billing",
+        "when": "The work needs subscription-billing's explicit owner instead of Finance Ops's boundary."
+      },
+      {
+        "skill": "billing-invoices-receipts",
+        "when": "The work needs billing-invoices-receipts's explicit owner instead of Finance Ops's boundary."
+      },
+      {
+        "skill": "sox-compliance",
+        "when": "The work needs sox-compliance's explicit owner instead of Finance Ops's boundary."
+      }
+    ],
+    "pairsWell": [],
+    "tags": [
+      "finance ops",
+      "finance operations",
+      "month close",
+      "reconciliation",
+      "invoice ops"
     ],
     "selectionHints": {}
   },
@@ -26271,6 +26753,18 @@
         ],
         "expect_back": [
           "IPC schema design"
+        ],
+        "sla": "synchronous"
+      },
+      {
+        "skill": "dependency-upgrade",
+        "when": "Electron updates roll Chromium + Node versions",
+        "pass_context": [
+          "Current Electron version",
+          "Breaking changes in target version"
+        ],
+        "expect_back": [
+          "Upgrade plan"
         ],
         "sla": "synchronous"
       },
@@ -27473,6 +27967,18 @@
         "sla": "synchronous"
       },
       {
+        "skill": "flutter-mobile",
+        "when": "Flutter specifics for build pipeline",
+        "pass_context": [
+          "Channel choice (stable, beta)",
+          "Per-platform builds"
+        ],
+        "expect_back": [
+          "Per-platform best practices"
+        ],
+        "sla": "synchronous"
+      },
+      {
         "skill": "notifications-orchestration",
         "when": "Notify users of force-required updates",
         "pass_context": [
@@ -27633,6 +28139,18 @@
         ],
         "expect_back": [
           "Endpoint shapes for extension callers"
+        ],
+        "sla": "synchronous"
+      },
+      {
+        "skill": "dependency-upgrade",
+        "when": "Third-party libraries used in extension code",
+        "pass_context": [
+          "Library list + version pinning",
+          "CSP / remote-code constraints"
+        ],
+        "expect_back": [
+          "Update plan + security review"
         ],
         "sla": "synchronous"
       },
@@ -28101,6 +28619,51 @@
       "boost": 40,
       "penalty": 42
     }
+  },
+  "flutter-mobile": {
+    "id": "flutter-mobile",
+    "name": "flutter-mobile",
+    "description": "Flutter mobile app architecture, platform channels, state management, performance, offline storage, and release-ready iOS and Android behavior.",
+    "owns": [
+      "Flutter project architecture",
+      "Dart state management and routing",
+      "Platform channel boundaries",
+      "Flutter performance and jank review",
+      "iOS/Android build behavior"
+    ],
+    "triggers": [
+      "flutter mobile",
+      "flutter app",
+      "dart mobile",
+      "platform channels",
+      "flutter performance",
+      "flutter ios android",
+      "flutter offline"
+    ],
+    "category": "frontend",
+    "delegates": [
+      {
+        "skill": "app-store-release-ops",
+        "when": "The work needs app-store-release-ops's explicit owner instead of Flutter Mobile's boundary."
+      },
+      {
+        "skill": "mobile-offline-sync",
+        "when": "The work needs mobile-offline-sync's explicit owner instead of Flutter Mobile's boundary."
+      },
+      {
+        "skill": "ui-design",
+        "when": "The work needs ui-design's explicit owner instead of Flutter Mobile's boundary."
+      }
+    ],
+    "pairsWell": [],
+    "tags": [
+      "flutter mobile",
+      "flutter app",
+      "dart mobile",
+      "platform channels",
+      "flutter performance"
+    ],
+    "selectionHints": {}
   },
   "form-wizard-workflows": {
     "id": "form-wizard-workflows",
@@ -29037,6 +29600,17 @@
         "pass_context": [
           "Library choice (WatermelonDB, Realm, op-sqlite)",
           "Background sync platform (iOS/Android)"
+        ],
+        "expect_back": [
+          "Per-platform best practices"
+        ],
+        "sla": "synchronous"
+      },
+      {
+        "skill": "flutter-mobile",
+        "when": "Flutter app implementation specifics",
+        "pass_context": [
+          "Local DB choice (sqflite, drift, isar)"
         ],
         "expect_back": [
           "Per-platform best practices"
@@ -33608,6 +34182,51 @@
       "boost": 1.25,
       "penalty": 0.15
     }
+  },
+  "medical-writing": {
+    "id": "medical-writing",
+    "name": "medical-writing",
+    "description": "Clinical, regulatory, and scientific medical writing with evidence traceability, claim discipline, and approval-ready artifacts.",
+    "owns": [
+      "Clinical study reports and summaries",
+      "Regulatory-ready clinical narratives",
+      "Evidence-backed medical manuscripts",
+      "Claim substantiation tables",
+      "Plain-language medical summaries"
+    ],
+    "triggers": [
+      "medical writing",
+      "clinical study report",
+      "regulatory writing",
+      "medical manuscript",
+      "clinical narrative",
+      "evidence table",
+      "scientific abstract"
+    ],
+    "category": "healthcare",
+    "delegates": [
+      {
+        "skill": "clinical-trial-analysis",
+        "when": "The work needs clinical-trial-analysis's explicit owner instead of Medical Writing's boundary."
+      },
+      {
+        "skill": "compliance-automation",
+        "when": "The work needs compliance-automation's explicit owner instead of Medical Writing's boundary."
+      },
+      {
+        "skill": "technical-writer",
+        "when": "The work needs technical-writer's explicit owner instead of Medical Writing's boundary."
+      }
+    ],
+    "pairsWell": [],
+    "tags": [
+      "medical writing",
+      "clinical study report",
+      "regulatory writing",
+      "medical manuscript",
+      "clinical narrative"
+    ],
+    "selectionHints": {}
   },
   "patient-consent-records": {
     "id": "patient-consent-records",
@@ -41637,6 +42256,22 @@
           "test or verification suggestion"
         ],
         "sla": "synchronous for planning, async for deeper implementation"
+      },
+      {
+        "skill": "finance-ops",
+        "when": "Need independent verification of procurement vendor management",
+        "pass_context": [
+          "goal",
+          "constraints",
+          "current evidence",
+          "known risks"
+        ],
+        "expect_back": [
+          "recommended next step",
+          "risk notes",
+          "test or verification suggestion"
+        ],
+        "sla": "synchronous for planning, async for deeper implementation"
       }
     ],
     "pairsWell": [],
@@ -43649,6 +44284,51 @@
     "tags": [],
     "selectionHints": {}
   },
+  "gis-analysis": {
+    "id": "gis-analysis",
+    "name": "gis-analysis",
+    "description": "Geospatial analysis for spatial joins, projections, raster/vector workflows, Earth observation data, and map-backed decision systems.",
+    "owns": [
+      "Coordinate reference system discipline",
+      "Raster/vector processing workflows",
+      "Spatial joins and overlays",
+      "Geospatial QA and topology checks",
+      "Map-backed analysis outputs"
+    ],
+    "triggers": [
+      "gis analysis",
+      "geospatial analysis",
+      "spatial join",
+      "raster analysis",
+      "vector data",
+      "coordinate reference system",
+      "earth observation"
+    ],
+    "category": "space",
+    "delegates": [
+      {
+        "skill": "space-data-processing",
+        "when": "The work needs space-data-processing's explicit owner instead of GIS Analysis's boundary."
+      },
+      {
+        "skill": "map-location-features",
+        "when": "The work needs map-location-features's explicit owner instead of GIS Analysis's boundary."
+      },
+      {
+        "skill": "statistical-analysis",
+        "when": "The work needs statistical-analysis's explicit owner instead of GIS Analysis's boundary."
+      }
+    ],
+    "pairsWell": [],
+    "tags": [
+      "gis analysis",
+      "geospatial analysis",
+      "spatial join",
+      "raster analysis",
+      "vector data"
+    ],
+    "selectionHints": {}
+  },
   "ground-station-ops": {
     "id": "ground-station-ops",
     "name": "ground-station-ops",
@@ -43848,8 +44528,16 @@
     "category": "space",
     "delegates": [
       {
+        "skill": "machine-learning",
+        "when": "Need advanced ML model architectures"
+      },
+      {
         "skill": "data-pipeline",
         "when": "Need large-scale data processing infrastructure"
+      },
+      {
+        "skill": "gis-analysis",
+        "when": "Need GIS integration and spatial analysis"
       }
     ],
     "pairsWell": [],
