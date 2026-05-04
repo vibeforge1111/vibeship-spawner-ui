@@ -43,6 +43,7 @@ describe('hosted UI auth', () => {
 		expect(hostedUiAuthPathIsExempt('/favicon.png')).toBe(true);
 		expect(hostedUiAuthPathIsExempt('/robots.txt')).toBe(true);
 		expect(hostedUiAuthPathIsExempt('/spark-live/login')).toBe(true);
+		expect(hostedUiAuthPathIsExempt('/api/health/live')).toBe(true);
 		expect(hostedUiAuthPathIsExempt('/spark-live/login-extra')).toBe(false);
 		expect(hostedUiAuthPathIsExempt('/spark-live/setup')).toBe(false);
 		expect(hostedUiAuthPathIsExempt('/api/providers')).toBe(false);

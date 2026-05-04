@@ -9,7 +9,7 @@ export interface HostedUiAuthEnv {
 	MCP_API_KEY?: string;
 }
 
-const EXEMPT_EXACT_PATHS = new Set(['/robots.txt', '/spark-live/login']);
+const EXEMPT_EXACT_PATHS = new Set(['/robots.txt', '/spark-live/login', '/api/health/live']);
 const EXEMPT_PATH_PREFIXES = ['/_app/', '/favicon'];
 const COOKIE_OPTIONS = {
 	httpOnly: true,
