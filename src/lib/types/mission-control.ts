@@ -52,6 +52,17 @@ export interface MissionControlRelayTarget {
 	url: string | null;
 }
 
+export interface MissionControlAccessInfo {
+	mode: 'hosted' | 'lan' | 'local-only';
+	url: string | null;
+	mobileReachable: boolean;
+	message: string;
+	privacy: {
+		defaultPayload: 'status-metadata';
+		privatePayloadsStayLocal: boolean;
+	};
+}
+
 export interface MissionControlProjectLineage {
 	projectId: string | null;
 	projectPath: string | null;
@@ -92,6 +103,7 @@ export interface MissionControlBoardEntry {
 	taskStatusCounts: MissionControlTaskStatusCounts;
 	tasks: MissionControlBoardTask[];
 	telegramRelay?: MissionControlRelayTarget | null;
+	missionControlAccess?: MissionControlAccessInfo | null;
 	projectLineage?: MissionControlProjectLineage | null;
 	providerSummary?: string | null;
 	providerResults?: MissionControlProviderResultSummary[];

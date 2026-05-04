@@ -475,6 +475,36 @@ describe('mission-control-relay', () => {
 		expect((raw.data as Record<string, unknown>).telegramRelay).toEqual({ port: 8788, profile: 'primary' });
 	});
 
+	it('adds mobile-safe Mission Control access metadata to external payloads', () => {
+		const previous = process.env.SPAWNER_MISSION_CONTROL_PUBLIC_URL;
+		process.env.SPAWNER_MISSION_CONTROL_PUBLIC_URL = 'https://mission.sparkswarm.ai';
+		try {
+			const payload = buildSparkMissionControlEvent({
+				id: 'evt-mobile-access',
+				type: 'mission_started',
+				missionId: 'mission-mobile-access',
+				source: 'spark-run'
+			});
+			const body = payload.payload as Record<string, unknown>;
+			const data = body.data as Record<string, unknown>;
+			const meta = body.meta as Record<string, unknown>;
+			const access = data.missionControlAccess as Record<string, unknown>;
+
+			expect(access).toMatchObject({
+				mode: 'hosted',
+				url: 'https://mission.sparkswarm.ai/missions/mission-mobile-access',
+				mobileReachable: true
+			});
+			expect(meta.mission_control_access).toEqual(access);
+		} finally {
+			if (previous === undefined) {
+				delete process.env.SPAWNER_MISSION_CONTROL_PUBLIC_URL;
+			} else {
+				process.env.SPAWNER_MISSION_CONTROL_PUBLIC_URL = previous;
+			}
+		}
+	});
+
 	it('keeps Telegram relay target metadata in relay snapshots and board entries', async () => {
 		const missionId = `mission-relay-target-board-${Date.now()}`;
 
@@ -493,6 +523,11 @@ describe('mission-control-relay', () => {
 			profile: 'primary',
 			url: 'http://127.0.0.1:8789/spawner-events'
 		});
+		expect(snapshot.recent[0].missionControlAccess).toMatchObject({
+			mode: 'local-only',
+			url: null,
+			mobileReachable: false
+		});
 
 		const board = getMissionControlBoard();
 		const entry = board.running.find((candidate) => candidate.missionId === missionId);
@@ -500,6 +535,11 @@ describe('mission-control-relay', () => {
 			port: 8789,
 			profile: 'primary',
 			url: 'http://127.0.0.1:8789/spawner-events'
+		});
+		expect(entry?.missionControlAccess).toMatchObject({
+			mode: 'local-only',
+			url: null,
+			mobileReachable: false
 		});
 	});
 

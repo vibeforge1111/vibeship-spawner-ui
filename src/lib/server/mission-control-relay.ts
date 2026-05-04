@@ -11,9 +11,14 @@ import {
 	mergeMissionControlProjectLineage
 } from './mission-control-lineage';
 import {
+	missionControlPathForMission,
+	resolveMissionControlAccess
+} from './mission-control-access';
+import {
 	emptyMissionControlTaskStatusCounts,
 	isMissionControlTerminalStatus,
 	type MissionControlBoardEntry,
+	type MissionControlAccessInfo,
 	type MissionControlBoardStatus,
 	type MissionControlProjectLineage,
 	type MissionControlRelayTarget,
@@ -57,6 +62,7 @@ export interface MissionControlRelayStatusEntry {
 	timestamp: string;
 	source: string;
 	telegramRelay?: MissionControlRelayTarget | null;
+	missionControlAccess?: MissionControlAccessInfo | null;
 	projectLineage?: MissionControlProjectLineage | null;
 }
 
@@ -265,6 +271,7 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 	const telegramRelay = getTelegramRelayTarget(event);
 	const hasTelegramRelay =
 		telegramRelay.port !== null || telegramRelay.profile !== null || telegramRelay.url !== null;
+	const missionControlAccess = resolveMissionControlAccess(missionControlPathForMission(missionId));
 	const projectLineage = extractMissionControlProjectLineage({
 		data: event.data ?? null,
 		missionName: typeof event.missionName === 'string' ? event.missionName : dataMissionName || missionObjectName,
@@ -285,6 +292,7 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		timestamp,
 		source: typeof event.source === 'string' ? event.source : 'unknown',
 		telegramRelay: hasTelegramRelay ? telegramRelay : null,
+		missionControlAccess,
 		projectLineage
 	};
 }
@@ -818,6 +826,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 				taskStatusCounts: emptyTaskStatusCounts(),
 				tasks: [],
 				telegramRelay: entry.telegramRelay ?? null,
+				missionControlAccess: entry.missionControlAccess ?? null,
 				projectLineage: entry.projectLineage ?? null
 			});
 		} else {
@@ -827,6 +836,9 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 			}
 			if (!existing.telegramRelay && entry.telegramRelay) {
 				existing.telegramRelay = entry.telegramRelay;
+			}
+			if (!existing.missionControlAccess && entry.missionControlAccess) {
+				existing.missionControlAccess = entry.missionControlAccess;
 			}
 			if (isExecutionStartEvent(entry.eventType)) {
 				existing.executionStarted = true;
@@ -950,6 +962,7 @@ export function buildSparkMissionControlEvent(event: MissionControlBridgeEvent):
 	const tsMs = event.timestamp ? Date.parse(event.timestamp) : Date.now();
 	const ts = Number.isFinite(tsMs) ? Math.max(1, tsMs / 1000) : Date.now() / 1000;
 	const missionId = normalizeMissionId(event);
+	const missionControlAccess = resolveMissionControlAccess(missionControlPathForMission(missionId));
 
 	return {
 		v: 1,
@@ -972,9 +985,13 @@ export function buildSparkMissionControlEvent(event: MissionControlBridgeEvent):
 			bridge_source: typeof event.source === 'string' ? event.source : 'unknown',
 			meta: {
 				origin: 'spawner-ui',
-				event_id: typeof event.id === 'string' ? event.id : null
+				event_id: typeof event.id === 'string' ? event.id : null,
+				mission_control_access: missionControlAccess
 			},
-			data: typeof event.data === 'object' && event.data ? event.data : {},
+			data: {
+				...(typeof event.data === 'object' && event.data ? event.data : {}),
+				missionControlAccess
+			},
 			raw: event
 		}
 	};
@@ -1100,6 +1117,7 @@ export async function relayMissionControlEvent(event: MissionControlBridgeEvent)
 			type: 'mission_control_event',
 			timestamp: new Date().toISOString(),
 			summary: summarizeMissionControlEvent(event),
+			missionControl: resolveMissionControlAccess(missionControlPathForMission(normalizeMissionId(event))),
 			event
 		};
 		const relayHeaders = DEFAULT_TELEGRAM_RELAY_SECRET
