@@ -144,6 +144,10 @@ Set `SPARK_HEALTH_DEEP=1` to start a tiny mission smoke. The deep smoke uses
 `SPARK_HEALTH_PROVIDER` when set, then the selected Mission provider, then
 `codex` as a fallback.
 
+For the full two-service Railway setup, provider guidance, preview-link checks,
+and Telegram end-to-end smoke tests, see
+[docs/RAILWAY_HOSTED_RUNBOOK.md](docs/RAILWAY_HOSTED_RUNBOOK.md).
+
 ## Documentation Map
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) - current Spark execution-plane architecture.
@@ -153,6 +157,7 @@ Set `SPARK_HEALTH_DEEP=1` to start a tiny mission smoke. The deep smoke uses
 - [docs/SPARK_MISSION_CONTROL_TRACE.md](docs/SPARK_MISSION_CONTROL_TRACE.md) - Telegram to PRD to Canvas to Dispatch to Kanban to Trace map.
 - [docs/SPARK_AGENT_BRIDGE_API.md](docs/SPARK_AGENT_BRIDGE_API.md) - Spark agent bridge API contract.
 - [docs/SPARK_AGENT_CANVAS_LOCALHOST_RUNBOOK.md](docs/SPARK_AGENT_CANVAS_LOCALHOST_RUNBOOK.md) - local Spark agent canvas smoke.
+- [docs/RAILWAY_HOSTED_RUNBOOK.md](docs/RAILWAY_HOSTED_RUNBOOK.md) - hosted Railway deploy, provider, and preview smoke runbook.
 - [docs/archive/retired-external-bridge/README.md](docs/archive/retired-external-bridge/README.md) - retired bridge archive notes.
 
 ## Spark CLI Install Note
