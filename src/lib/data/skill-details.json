@@ -2372,6 +2372,14 @@
         "when": "User needs animated content from edited images"
       },
       {
+        "skill": "3d-modeling",
+        "when": "User needs 3D model generation from images"
+      },
+      {
+        "skill": "ai-image-editing",
+        "when": "User needs face-specific editing, enhancement, or restoration"
+      },
+      {
         "skill": "workflow-automation",
         "when": "User needs batch processing or pipeline automation"
       }
@@ -4115,6 +4123,10 @@
       {
         "skill": "queue-workers",
         "when": "Advanced offline caching strategies"
+      },
+      {
+        "skill": "shader-programming",
+        "when": "Custom WebGPU shader programming"
       }
     ],
     "pairsWell": [],
@@ -10869,6 +10881,10 @@
         "when": "Using Zod with tRPC"
       },
       {
+        "skill": "forms-validation",
+        "when": "Form validation integration"
+      },
+      {
         "skill": "env-config-patterns",
         "when": "Environment variable validation"
       },
@@ -10935,6 +10951,10 @@
       {
         "skill": "data-reproducibility",
         "when": "Need data versioning, provenance tracking, or audit compliance"
+      },
+      {
+        "skill": "performance-optimization",
+        "when": "Need advanced SLURM/PBS tuning or job scheduler optimization"
       }
     ],
     "pairsWell": [],
@@ -11035,6 +11055,10 @@
         "when": "Need rigorous SAR analysis, QSAR modeling, or activity cliff detection"
       },
       {
+        "skill": "bioinformatics-workflows",
+        "when": "Target identification from genomics/transcriptomics data"
+      },
+      {
         "skill": "lab-automation",
         "when": "Translating computational hits to HTS validation assays"
       }
@@ -11093,6 +11117,10 @@
       {
         "skill": "protein-structure",
         "when": "Analyzing protein structure implications of variants"
+      },
+      {
+        "skill": "genomics-pipelines",
+        "when": "Processing scRNA-seq or single-cell ATAC-seq data"
       }
     ],
     "pairsWell": [],
@@ -13853,6 +13881,10 @@
         "when": "Calculating grid emissions or carbon intensity"
       },
       {
+        "skill": "finance-ai-tools",
+        "when": "PPA valuation, project finance, or capacity market analysis"
+      },
+      {
         "skill": "monte-carlo",
         "when": "Reliability analysis or uncertainty quantification"
       }
@@ -14271,6 +14303,10 @@
       {
         "skill": "algolia-search",
         "when": "Building custom search infrastructure beyond platform defaults"
+      },
+      {
+        "skill": "ai-chatbot-builder",
+        "when": "Building conversational AI that goes beyond KB article retrieval"
       }
     ],
     "pairsWell": [],
@@ -15119,6 +15155,10 @@
       {
         "skill": "product-analytics-engineering",
         "when": "Deep funnel analysis and cohort attribution"
+      },
+      {
+        "skill": "abuse-fraud-prevention",
+        "when": "Complex ML-based fraud scoring beyond rule-based checks"
       }
     ],
     "pairsWell": [],
@@ -16000,6 +16040,10 @@
     "category": "creative",
     "delegates": [
       {
+        "skill": "brand-positioning",
+        "when": "Need to define brand guidelines, voice, or visual identity before content creation"
+      },
+      {
         "skill": "marketing",
         "when": "Need campaign strategy, target audience definition, or messaging frameworks"
       },
@@ -16008,12 +16052,20 @@
         "when": "Need keyword research, search optimization, or content discoverability"
       },
       {
+        "skill": "video-production",
+        "when": "Need advanced post-production beyond AI generation capabilities"
+      },
+      {
         "skill": "compliance-automation",
         "when": "Need trademark clearance, licensing agreements, or copyright legal opinions"
       },
       {
         "skill": "analytics",
         "when": "Need content performance analysis, A/B test interpretation, or ROI measurement"
+      },
+      {
+        "skill": "social-community",
+        "when": "Need platform-specific strategy, community management, or scheduling"
       }
     ],
     "pairsWell": [],
@@ -16126,12 +16178,28 @@
     "category": "creative",
     "delegates": [
       {
+        "skill": "incident-responder",
+        "when": "During active incident before postmortem phase"
+      },
+      {
         "skill": "team-communications",
         "when": "Communicating postmortem findings to broader organization"
       },
       {
+        "skill": "documentation-that-slaps",
+        "when": "Creating runbooks and playbooks from postmortem learnings"
+      },
+      {
+        "skill": "data-dashboard-design",
+        "when": "Building incident tracking and trend analysis"
+      },
+      {
         "skill": "crisis-communications",
         "when": "External communication about incidents"
+      },
+      {
+        "skill": "team-communications",
+        "when": "Team dynamics and trust issues affecting postmortems"
       }
     ],
     "pairsWell": [],
@@ -16172,6 +16240,14 @@
       {
         "skill": "testing-strategies",
         "when": "Adding test coverage to legacy code"
+      },
+      {
+        "skill": "refactoring-guide",
+        "when": "Systematic refactoring after understanding is achieved"
+      },
+      {
+        "skill": "technical-writer",
+        "when": "Creating documentation from archaeological findings"
       },
       {
         "skill": "incident-postmortem",
@@ -16341,12 +16417,20 @@
     "category": "creative",
     "delegates": [
       {
+        "skill": "nlp-advanced",
+        "when": "Text manipulation beyond regex scope"
+      },
+      {
         "skill": "performance-optimization",
         "when": "General string processing performance issues"
       },
       {
         "skill": "security",
         "when": "User input being processed by regex (ReDoS risk)"
+      },
+      {
+        "skill": "i18n",
+        "when": "Complex internationalization requirements"
       },
       {
         "skill": "legacy-archaeology",
@@ -16390,6 +16474,10 @@
         "when": "Roast needs surreal/absurdist comedy elements"
       },
       {
+        "skill": "brand-storytelling",
+        "when": "Roast is for corporate/brand event with voice guidelines"
+      },
+      {
         "skill": "content-strategy",
         "when": "Roast is part of larger content campaign"
       }
@@ -16429,6 +16517,10 @@
       {
         "skill": "project-management",
         "when": "Overall project planning and resource allocation"
+      },
+      {
+        "skill": "stakeholder-management",
+        "when": "Difficult stakeholder relationship management"
       },
       {
         "skill": "product-strategy",
@@ -17054,6 +17146,10 @@
       {
         "skill": "monte-carlo",
         "when": "Input uncertainty quantification needed"
+      },
+      {
+        "skill": "neural-architecture-search",
+        "when": "Agent behaviors learned via reinforcement learning"
       },
       {
         "skill": "data-pipeline",
@@ -17765,6 +17861,14 @@
       {
         "skill": "observability",
         "when": "Monitoring migration impact, alerting on slow queries, dashboards"
+      },
+      {
+        "skill": "disaster-recovery",
+        "when": "Pre-migration backups, point-in-time recovery setup"
+      },
+      {
+        "skill": "feature-flag-engineering",
+        "when": "Schema feature flags, gradual rollout of new columns"
       }
     ],
     "pairsWell": [],
@@ -17959,6 +18063,10 @@
     ],
     "category": "data",
     "delegates": [
+      {
+        "skill": "hono-edge",
+        "when": "User needs HTTP API routes to expose database operations"
+      },
       {
         "skill": "auth-specialist",
         "when": "User needs authentication integrated with user tables"
@@ -18786,6 +18894,10 @@
       {
         "skill": "data-pipeline",
         "when": "ETL pipelines for loading documents into vector databases"
+      },
+      {
+        "skill": "search-implementation",
+        "when": "Full-text search with Elasticsearch or similar"
       }
     ],
     "pairsWell": [],
@@ -19305,6 +19417,10 @@
       {
         "skill": "godot-development",
         "when": "Implementing UI in Godot with Control nodes"
+      },
+      {
+        "skill": "unreal-engine",
+        "when": "Implementing UI in Unreal with UMG widgets"
       },
       {
         "skill": "motion-design",
@@ -20097,6 +20213,10 @@
       {
         "skill": "product-strategy",
         "when": "Broader product strategy beyond AI features"
+      },
+      {
+        "skill": "ux-design",
+        "when": "Detailed UI/UX design work"
       }
     ],
     "pairsWell": [],
@@ -20336,6 +20456,10 @@
         "when": "Advanced Stripe scenarios: metered billing, complex subscriptions, Connect platforms"
       },
       {
+        "skill": "database-architect",
+        "when": "User needs relational database features Bubble can't provide (joins, complex queries)"
+      },
+      {
         "skill": "react-patterns",
         "when": "User has outgrown Bubble and needs to migrate to a coded solution"
       },
@@ -20561,6 +20685,10 @@
       {
         "skill": "incident-postmortem",
         "when": "Review is related to post-incident analysis"
+      },
+      {
+        "skill": "project-management",
+        "when": "Review culture issues require management intervention"
       }
     ],
     "pairsWell": [],
@@ -21027,6 +21155,10 @@
       {
         "skill": "security-engineer",
         "when": "Security audit of MCP server"
+      },
+      {
+        "skill": "typescript-strict",
+        "when": "Advanced TypeScript patterns for complex tools"
       }
     ],
     "pairsWell": [],
@@ -22099,6 +22231,14 @@
     "category": "devops",
     "delegates": [
       {
+        "skill": "ci-cd-pipeline",
+        "when": "Complex GitHub Actions syntax, reusable workflows, or action development"
+      },
+      {
+        "skill": "ci-cd-pipeline",
+        "when": "Advanced GitLab CI features, pipeline optimization, or GitLab-specific patterns"
+      },
+      {
         "skill": "claude-code-hooks",
         "when": "Local git hooks, pre-commit configuration, or hook/CI parity"
       },
@@ -22170,6 +22310,10 @@
       {
         "skill": "testing-strategies",
         "when": "Need testing strategy for the code produced by commands"
+      },
+      {
+        "skill": "git-workflow",
+        "when": "Need complex git operations or branching strategies in commands"
       }
     ],
     "pairsWell": [],
@@ -22224,6 +22368,10 @@
       {
         "skill": "testing-strategies",
         "when": "Need comprehensive testing strategy beyond hook-based enforcement"
+      },
+      {
+        "skill": "code-quality",
+        "when": "Configuring ESLint, Prettier, or other formatters themselves"
       }
     ],
     "pairsWell": [],
@@ -22453,6 +22601,14 @@
       {
         "skill": "aws-serverless",
         "when": "Need AWS-specific architecture decisions beyond cost"
+      },
+      {
+        "skill": "gcp-cloud-run",
+        "when": "Need GCP-specific architecture patterns"
+      },
+      {
+        "skill": "azure-functions",
+        "when": "Need Azure-specific implementation details"
       },
       {
         "skill": "kubernetes",
@@ -23026,6 +23182,10 @@
         "when": "CI/CD secrets management"
       },
       {
+        "skill": "security-hardening",
+        "when": "Secrets security patterns"
+      },
+      {
         "skill": "typescript-strict",
         "when": "Type-safe config patterns"
       }
@@ -23254,6 +23414,10 @@
     ],
     "category": "devops",
     "delegates": [
+      {
+        "skill": "ci-cd-pipeline",
+        "when": "User needs CI/CD pipeline configuration or GitHub Actions"
+      },
       {
         "skill": "code-review",
         "when": "User needs code review best practices or PR templates"
@@ -23814,6 +23978,10 @@
       {
         "skill": "docker-specialist",
         "when": "Need to self-host Plausible/Umami with Docker Compose"
+      },
+      {
+        "skill": "growth-strategy",
+        "when": "Need marketing strategy and campaign planning beyond tracking setup"
       }
     ],
     "pairsWell": [],
@@ -23853,6 +24021,10 @@
       {
         "skill": "npm-publishing",
         "when": "Publishing packages to registry"
+      },
+      {
+        "skill": "typescript-strict",
+        "when": "TypeScript project references"
       },
       {
         "skill": "cicd-pipelines",
@@ -23911,8 +24083,16 @@
         "when": "User needs middleware patterns for A/B testing beyond PostHog experiments"
       },
       {
+        "skill": "gdpr-privacy",
+        "when": "User needs comprehensive GDPR/CCPA compliance beyond analytics-specific patterns"
+      },
+      {
         "skill": "api-design",
         "when": "User needs server-side API design for custom analytics pipelines"
+      },
+      {
+        "skill": "observability",
+        "when": "User needs APM/performance monitoring beyond PostHog's analytics scope"
       }
     ],
     "pairsWell": [],
@@ -24549,6 +24729,10 @@
     "category": "ecommerce",
     "delegates": [
       {
+        "skill": "analytics",
+        "when": "Deep analytics beyond Shopify's built-in reports"
+      },
+      {
         "skill": "stripe-integration",
         "when": "Complex payment routing, fraud prevention beyond Shopify Payments"
       },
@@ -24853,6 +25037,14 @@
       {
         "skill": "performance-optimization",
         "when": "After identifying bottleneck, need optimization implementation"
+      },
+      {
+        "skill": "devops",
+        "when": "Issue is infrastructure, networking, or deployment config"
+      },
+      {
+        "skill": "postgres-wizard",
+        "when": "Need query optimization after identifying slow queries"
       }
     ],
     "pairsWell": [],
@@ -24980,6 +25172,10 @@
       {
         "skill": "ml-ops",
         "when": "ML model deployment and monitoring"
+      },
+      {
+        "skill": "statistical-analysis",
+        "when": "Time series forecasting or anomaly detection"
       },
       {
         "skill": "data-pipeline",
@@ -27197,6 +27393,10 @@
         "when": "Design system setup, Tailwind configuration, CSS architecture"
       },
       {
+        "skill": "angular",
+        "when": "Complex global state with time-travel debugging, large cross-feature state"
+      },
+      {
         "skill": "testing-strategies",
         "when": "E2E testing with Playwright/Cypress, comprehensive test strategies"
       },
@@ -28085,6 +28285,10 @@
       {
         "skill": "error-handling",
         "when": "Implementing error boundary patterns around forms"
+      },
+      {
+        "skill": "playwright-testing",
+        "when": "Writing form integration tests with Testing Library"
       }
     ],
     "pairsWell": [],
@@ -29035,6 +29239,10 @@
         "when": "Pure native Android development, Kotlin/Java modules, deep Android SDK integration"
       },
       {
+        "skill": "expo",
+        "when": "Expo-specific features, EAS Build, Expo Application Services, managed workflow edge cases"
+      },
+      {
         "skill": "ui-design",
         "when": "Mobile UI/UX design patterns, accessibility, platform design guidelines"
       },
@@ -29571,6 +29779,10 @@
     "category": "frontend",
     "delegates": [
       {
+        "skill": "tanstack-query",
+        "when": "Server cache management (React Query, SWR, RTK Query data layer)"
+      },
+      {
         "skill": "performance-optimization",
         "when": "Bundle splitting, code splitting, general React performance"
       },
@@ -29581,6 +29793,10 @@
       {
         "skill": "typescript-strict",
         "when": "Complex generic types for stores and selectors"
+      },
+      {
+        "skill": "react-patterns",
+        "when": "Overall component architecture beyond state"
       }
     ],
     "pairsWell": [],
@@ -29740,6 +29956,21 @@
           "Route tree matching the architecture",
           "Cache keys and revalidation plan",
           "Streaming boundaries where they help perceived latency"
+        ],
+        "sla": "synchronous"
+      },
+      {
+        "skill": "accessibility",
+        "when": "ARIA patterns, screen reader testing, keyboard navigation",
+        "pass_context": [
+          "Interaction model and focus flow",
+          "Screen-reader-target verbosity",
+          "Assistive-tech matrix supported"
+        ],
+        "expect_back": [
+          "ARIA roles and state mapping for each interaction",
+          "Keyboard-navigation spec covering all paths",
+          "Screen-reader script verifying the flow"
         ],
         "sla": "synchronous"
       }
@@ -30447,6 +30678,10 @@
         "when": "Need impact sounds and combat audio"
       },
       {
+        "skill": "vfx-realtime",
+        "when": "Need hit effects and combat particles"
+      },
+      {
         "skill": "game-design",
         "when": "Combat needs to integrate with broader game systems"
       }
@@ -30614,6 +30849,10 @@
       {
         "skill": "compliance-automation",
         "when": "References to other IP require clearance"
+      },
+      {
+        "skill": "progression-systems",
+        "when": "Integration with platform achievement systems"
       }
     ],
     "pairsWell": [],
@@ -30737,6 +30976,10 @@
       {
         "skill": "game-ai-behavior",
         "when": "User asks about GOAP, utility AI, or other non-tree AI systems"
+      },
+      {
+        "skill": "game-ai-behavior",
+        "when": "User asks about A*, NavMesh, or navigation algorithms"
       },
       {
         "skill": "game-networking",
@@ -30906,6 +31149,10 @@
     ],
     "category": "game-dev",
     "delegates": [
+      {
+        "skill": "ai-music-audio",
+        "when": "Need original music composed before implementation"
+      },
       {
         "skill": "voiceover",
         "when": "Need voice performance direction or casting"
@@ -31280,6 +31527,10 @@
         "when": "Adding hidden delights and secret discoveries"
       },
       {
+        "skill": "gamification-loops",
+        "when": "Optimizing reward psychology and satisfaction"
+      },
+      {
         "skill": "community-led-growth",
         "when": "Building social features around gamification"
       },
@@ -31327,6 +31578,10 @@
       {
         "skill": "threejs-3d-graphics",
         "when": "Need 3D generative visuals"
+      },
+      {
+        "skill": "smart-contract-engineer",
+        "when": "Need NFT smart contract integration"
       },
       {
         "skill": "demoscene-coding",
@@ -31421,6 +31676,10 @@
       {
         "skill": "prompt-engineering-creative",
         "when": "Need advanced prompt design for complex NPC behaviors"
+      },
+      {
+        "skill": "godot-development",
+        "when": "Need broader game architecture patterns beyond AI integration"
       },
       {
         "skill": "api-design",
@@ -31773,6 +32032,21 @@
           "Casting recommendation with audition direction",
           "Session plan minimizing pickup costs",
           "Quality bar per line class (hero vs barks)"
+        ],
+        "sla": "synchronous"
+      },
+      {
+        "skill": "ai-localization",
+        "when": "Text needs translation preparation",
+        "pass_context": [
+          "Source strings and where they live (tables, embedded)",
+          "Language set and market priorities",
+          "Culturalization sensitivities per region"
+        ],
+        "expect_back": [
+          "String-extraction and key-stability plan",
+          "Glossary for brand and world terms",
+          "QA plan including text-length fit in UI"
         ],
         "sla": "synchronous"
       }
@@ -32232,6 +32506,10 @@
       {
         "skill": "3d-modeling",
         "when": "Need custom 3D meshes for Roblox"
+      },
+      {
+        "skill": "marketing",
+        "when": "Need to grow Roblox game audience"
       }
     ],
     "pairsWell": [],
@@ -32362,6 +32640,14 @@
       {
         "skill": "game-design-core",
         "when": "Need fundamental game loop design beyond streaming features"
+      },
+      {
+        "skill": "game-networking",
+        "when": "Need actual voice chat or multiplayer implementation"
+      },
+      {
+        "skill": "game-audio",
+        "when": "Need DMCA-safe music production"
       },
       {
         "skill": "marketing",
@@ -32605,6 +32891,14 @@
       {
         "skill": "prompt-engineering-creative",
         "when": "Need advanced prompt design for complex NPC behaviors"
+      },
+      {
+        "skill": "unity-development",
+        "when": "Need broader game architecture patterns"
+      },
+      {
+        "skill": "unity-development",
+        "when": "Deep async/await patterns beyond Unity-specific"
       }
     ],
     "pairsWell": [],
@@ -32707,6 +33001,14 @@
       {
         "skill": "prompt-engineering-creative",
         "when": "Need advanced prompt design for complex NPC behaviors"
+      },
+      {
+        "skill": "unreal-engine",
+        "when": "Need broader game architecture patterns"
+      },
+      {
+        "skill": "game-networking",
+        "when": "Networked AI synchronization"
       }
     ],
     "pairsWell": [],
@@ -33131,6 +33433,22 @@
       {
         "skill": "api-design",
         "when": "Need specialist review while designing healthcare interoperability fhir",
+        "pass_context": [
+          "goal",
+          "constraints",
+          "current evidence",
+          "known risks"
+        ],
+        "expect_back": [
+          "recommended next step",
+          "risk notes",
+          "test or verification suggestion"
+        ],
+        "sla": "synchronous for planning, async for deeper implementation"
+      },
+      {
+        "skill": "database-schema-design",
+        "when": "Need downstream implementation detail for healthcare interoperability fhir",
         "pass_context": [
           "goal",
           "constraints",
@@ -33602,6 +33920,36 @@
           "Continuous verification plan post-deploy"
         ],
         "sla": "synchronous"
+      },
+      {
+        "skill": "infrastructure-as-code",
+        "when": "Registry infrastructure setup (ECR, GCR, ACR permissions)",
+        "pass_context": [
+          "Registry platform and multi-account posture",
+          "Image-retention and lifecycle rules",
+          "Pull-access model for runtimes"
+        ],
+        "expect_back": [
+          "Registry config with IAM per scope",
+          "Lifecycle rules preventing cost sprawl",
+          "Cross-account pull design if needed"
+        ],
+        "sla": "synchronous"
+      },
+      {
+        "skill": "docker-containerization",
+        "when": "Complex container networking beyond bridge/host basics",
+        "pass_context": [
+          "Network topology required (overlay, CNI choice)",
+          "Service-discovery and east-west expectations",
+          "Policy enforcement requirements"
+        ],
+        "expect_back": [
+          "Network design fit for the runtime",
+          "Policy set (NetworkPolicy or CNI native)",
+          "Observability on network flows"
+        ],
+        "sla": "synchronous"
       }
     ],
     "pairsWell": [],
@@ -33913,6 +34261,19 @@
         "sla": "synchronous"
       },
       {
+        "skill": "i18n",
+        "when": "Multi-language template variants needed",
+        "pass_context": [
+          "Source-of-truth strings + locales supported",
+          "RTL-language requirements"
+        ],
+        "expect_back": [
+          "Translation keys with fallback chain",
+          "RTL CSS treatments"
+        ],
+        "sla": "synchronous"
+      },
+      {
         "skill": "email-deliverability",
         "when": "Templates need to pass spam-filter / authentication checks",
         "pass_context": [
@@ -34063,6 +34424,10 @@
       {
         "skill": "i18n",
         "when": "Need comprehensive internationalization beyond CMS content localization"
+      },
+      {
+        "skill": "seo",
+        "when": "Need SEO strategy beyond structured content metadata"
       },
       {
         "skill": "vercel-deployment",
@@ -34288,6 +34653,14 @@
       {
         "skill": "email-deliverability",
         "when": "Need deep deliverability troubleshooting - IP warming, blacklist removal"
+      },
+      {
+        "skill": "ad-copywriting",
+        "when": "Need high-converting email copy beyond template structures"
+      },
+      {
+        "skill": "shopify-apps",
+        "when": "Need custom Shopify integration, metafields, or theme modifications"
       }
     ],
     "pairsWell": [],
@@ -35096,6 +35469,10 @@
       {
         "skill": "cloud-cost-optimization",
         "when": "Need video storage and bandwidth cost optimization"
+      },
+      {
+        "skill": "video-streaming-infrastructure",
+        "when": "Need DRM encryption for premium video content"
       }
     ],
     "pairsWell": [],
@@ -35133,6 +35510,10 @@
       {
         "skill": "intercom-implementation",
         "when": "Need conversational support, product tours, or in-app messaging"
+      },
+      {
+        "skill": "salesforce-development",
+        "when": "CRM sync, opportunity tracking, or sales-support handoffs needed"
       },
       {
         "skill": "data-pipeline",
@@ -35183,6 +35564,38 @@
     ],
     "category": "legal",
     "delegates": [
+      {
+        "skill": "ai-safety-alignment",
+        "when": "Need specialist review while designing ai governance policy",
+        "pass_context": [
+          "goal",
+          "constraints",
+          "current evidence",
+          "known risks"
+        ],
+        "expect_back": [
+          "recommended next step",
+          "risk notes",
+          "test or verification suggestion"
+        ],
+        "sla": "synchronous for planning, async for deeper implementation"
+      },
+      {
+        "skill": "mcp-developer",
+        "when": "Need downstream implementation detail for ai governance policy",
+        "pass_context": [
+          "goal",
+          "constraints",
+          "current evidence",
+          "known risks"
+        ],
+        "expect_back": [
+          "recommended next step",
+          "risk notes",
+          "test or verification suggestion"
+        ],
+        "sla": "synchronous for planning, async for deeper implementation"
+      },
       {
         "skill": "audit-logging",
         "when": "Need independent verification of ai governance policy",
@@ -35592,6 +36005,22 @@
       {
         "skill": "privacy-consent-management",
         "when": "Need downstream implementation detail for terms product policy ops (canonical replacement for privacy-engineering)",
+        "pass_context": [
+          "goal",
+          "constraints",
+          "current evidence",
+          "known risks"
+        ],
+        "expect_back": [
+          "recommended next step",
+          "risk notes",
+          "test or verification suggestion"
+        ],
+        "sla": "synchronous for planning, async for deeper implementation"
+      },
+      {
+        "skill": "product-management",
+        "when": "Need independent verification of terms product policy ops",
         "pass_context": [
           "goal",
           "constraints",
@@ -38143,6 +38572,10 @@
       {
         "skill": "performance-optimization",
         "when": "Deep JavaScript profiling or bundle optimization needed"
+      },
+      {
+        "skill": "playwright-testing",
+        "when": "Setting up automated visual regression or E2E tests"
       }
     ],
     "pairsWell": [],
@@ -38481,6 +38914,10 @@
       {
         "skill": "frontend",
         "when": "Need React/Vue implementation details"
+      },
+      {
+        "skill": "ai-image-generation",
+        "when": "Need dynamic OG images for social sharing"
       }
     ],
     "pairsWell": [],
@@ -39025,6 +39462,10 @@
       {
         "skill": "mcp-security",
         "when": "OAuth implementation, token handling, or security hardening"
+      },
+      {
+        "skill": "kubernetes",
+        "when": "Complex Kubernetes configurations beyond basic deployment"
       }
     ],
     "pairsWell": [],
@@ -39240,6 +39681,10 @@
       {
         "skill": "project-management",
         "when": "Action items need to flow into Asana/Linear/Jira"
+      },
+      {
+        "skill": "crm-lifecycle-ops",
+        "when": "Meeting notes need to sync to Salesforce/HubSpot"
       },
       {
         "skill": "compliance-automation",
@@ -43534,6 +43979,10 @@
         "when": "Need high-converting landing page design"
       },
       {
+        "skill": "stripe-integration",
+        "when": "Implementing payments, subscriptions, billing"
+      },
+      {
         "skill": "seo",
         "when": "Building organic growth and content strategy"
       },
@@ -43958,8 +44407,16 @@
         "when": "Need SEO strategy or content distribution beyond community"
       },
       {
+        "skill": "developer-community",
+        "when": "Building developer-specific community with API/SDK focus"
+      },
+      {
         "skill": "analytics",
         "when": "Need deep attribution modeling or data infrastructure"
+      },
+      {
+        "skill": "go-to-market",
+        "when": "Large-scale conference or event production"
       }
     ],
     "pairsWell": [],
@@ -44130,12 +44587,20 @@
         "when": "Need persuasive copy, value propositions, or headline variations for tests"
       },
       {
+        "skill": "product-discovery",
+        "when": "Need qualitative user research, interviews, or usability testing beyond analytics"
+      },
+      {
         "skill": "data-engineer",
         "when": "Need data pipeline setup for experimentation platform or data warehouse integration"
       },
       {
         "skill": "compliance-automation",
         "when": "Questions about GDPR consent flows, accessibility requirements, or FTC guidelines"
+      },
+      {
+        "skill": "branding",
+        "when": "Visual design changes that need brand consistency review"
       },
       {
         "skill": "pricing-strategy",
@@ -44458,6 +44923,36 @@
     "category": "enterprise",
     "delegates": [
       {
+        "skill": "system-designer",
+        "when": "Need detailed solution design for specific initiative",
+        "pass_context": [
+          "Initiative objective and business sponsor",
+          "Enterprise patterns that constrain the solution",
+          "Non-negotiables from compliance or security"
+        ],
+        "expect_back": [
+          "Solution design consistent with EA patterns",
+          "Dependency and integration map",
+          "Risk log with mitigations"
+        ],
+        "sla": "synchronous"
+      },
+      {
+        "skill": "infra-architect",
+        "when": "Cloud platform strategy or migration architecture needed",
+        "pass_context": [
+          "Current estate and migration drivers",
+          "Multi-cloud or single-cloud posture",
+          "Cost and sovereignty constraints"
+        ],
+        "expect_back": [
+          "Target architecture aligned with strategy",
+          "Migration waves with sequencing rationale",
+          "Landing-zone and guardrails plan"
+        ],
+        "sla": "synchronous"
+      },
+      {
         "skill": "database-architect",
         "when": "Enterprise data strategy or master data management required",
         "pass_context": [
@@ -44484,6 +44979,51 @@
           "Reference architecture aligned to EA patterns",
           "Control catalog mapped to regime obligations",
           "Measurement and evidence plan"
+        ],
+        "sla": "synchronous"
+      },
+      {
+        "skill": "integration-patterns",
+        "when": "API strategy or enterprise integration patterns required",
+        "pass_context": [
+          "Existing integration surfaces and sprawl",
+          "API style standards (REST, GraphQL, events)",
+          "Partner and internal consumer mix"
+        ],
+        "expect_back": [
+          "API and event architecture with gateway strategy",
+          "Pattern library for common integrations",
+          "Versioning and deprecation guardrails"
+        ],
+        "sla": "synchronous"
+      },
+      {
+        "skill": "devops-engineer",
+        "when": "Platform engineering or CI/CD standardization needed",
+        "pass_context": [
+          "Existing pipeline heterogeneity and pain points",
+          "Platform capabilities we intend to centralize",
+          "Org model around platform teams"
+        ],
+        "expect_back": [
+          "Platform blueprint with paved roads",
+          "Standardization scope vs team autonomy",
+          "Metrics proving platform adoption value"
+        ],
+        "sla": "synchronous"
+      },
+      {
+        "skill": "stakeholder-management",
+        "when": "Organizational change strategy for transformation",
+        "pass_context": [
+          "Scope of transformation and business drivers",
+          "Stakeholder map with influence and sentiment",
+          "Timeline and commitments already made"
+        ],
+        "expect_back": [
+          "Change plan tied to capability maturity",
+          "Communication cadence per stakeholder group",
+          "Leading indicators of adoption"
         ],
         "sla": "synchronous"
       }
@@ -44598,6 +45138,10 @@
       {
         "skill": "burn-rate-management",
         "when": "Making tough calls on financial cuts or headcount"
+      },
+      {
+        "skill": "hiring-strategy",
+        "when": "Need to actually build the team after deciding founder-mode fit"
       },
       {
         "skill": "product-strategy",
@@ -45061,6 +45605,14 @@
       {
         "skill": "security",
         "when": "Tenant isolation security audit or compliance requirements"
+      },
+      {
+        "skill": "stripe-integration",
+        "when": "Stripe/billing provider integration for metering"
+      },
+      {
+        "skill": "kubernetes",
+        "when": "Container-level tenant isolation or namespace strategy"
       },
       {
         "skill": "api-design",
@@ -46181,8 +46733,16 @@
     "category": "testing",
     "delegates": [
       {
+        "skill": "vitest-testing",
+        "when": "Testing pure functions, business logic in isolation"
+      },
+      {
         "skill": "performance-optimization",
         "when": "Load testing, stress testing, k6/JMeter"
+      },
+      {
+        "skill": "security-owasp",
+        "when": "Penetration testing, OWASP ZAP, security scanning"
       },
       {
         "skill": "ci-cd-pipeline",
@@ -46408,6 +46968,20 @@
     ],
     "category": "testing",
     "delegates": [
+      {
+        "skill": "test-architect",
+        "when": "A11y assertions integrated into E2E test suite",
+        "pass_context": [
+          "Test framework (Playwright, Cypress)",
+          "Routes to cover",
+          "Threshold for failure"
+        ],
+        "expect_back": [
+          "Test plan integration",
+          "CI gating rules"
+        ],
+        "sla": "synchronous"
+      },
       {
         "skill": "accessibility",
         "when": "Component-level implementation of a11y patterns",
@@ -46743,6 +47317,22 @@
       {
         "skill": "rate-limiting",
         "when": "Need specialist review while designing abuse fraud prevention",
+        "pass_context": [
+          "goal",
+          "constraints",
+          "current evidence",
+          "known risks"
+        ],
+        "expect_back": [
+          "recommended next step",
+          "risk notes",
+          "test or verification suggestion"
+        ],
+        "sla": "synchronous for planning, async for deeper implementation"
+      },
+      {
+        "skill": "security-engineer",
+        "when": "Need downstream implementation detail for abuse fraud prevention",
         "pass_context": [
           "goal",
           "constraints",

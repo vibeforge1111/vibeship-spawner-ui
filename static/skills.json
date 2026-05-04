@@ -191,6 +191,14 @@
         "to": "text-to-video"
       },
       {
+        "trigger": "User needs 3D model generation from images",
+        "to": "3d-modeling"
+      },
+      {
+        "trigger": "User needs face-specific editing, enhancement, or restoration",
+        "to": "ai-image-editing"
+      },
+      {
         "trigger": "User needs batch processing or pipeline automation",
         "to": "workflow-automation"
       }
@@ -1572,6 +1580,10 @@
       {
         "trigger": "Advanced offline caching strategies",
         "to": "queue-workers"
+      },
+      {
+        "trigger": "Custom WebGPU shader programming",
+        "to": "shader-programming"
       }
     ],
     "pairsWell": [],
@@ -8112,6 +8124,10 @@
         "to": "trpc-fullstack"
       },
       {
+        "trigger": "Form validation integration",
+        "to": "forms-validation"
+      },
+      {
         "trigger": "Environment variable validation",
         "to": "env-config-patterns"
       },
@@ -8172,6 +8188,10 @@
       {
         "trigger": "Need data versioning, provenance tracking, or audit compliance",
         "to": "data-reproducibility"
+      },
+      {
+        "trigger": "Need advanced SLURM/PBS tuning or job scheduler optimization",
+        "to": "performance-optimization"
       }
     ],
     "pairsWell": [],
@@ -8277,6 +8297,10 @@
         "to": "statistical-analysis"
       },
       {
+        "trigger": "Target identification from genomics/transcriptomics data",
+        "to": "bioinformatics-workflows"
+      },
+      {
         "trigger": "Translating computational hits to HTS validation assays",
         "to": "lab-automation"
       }
@@ -8339,6 +8363,10 @@
       {
         "trigger": "Analyzing protein structure implications of variants",
         "to": "protein-structure"
+      },
+      {
+        "trigger": "Processing scRNA-seq or single-cell ATAC-seq data",
+        "to": "genomics-pipelines"
       }
     ],
     "pairsWell": [],
@@ -10629,6 +10657,10 @@
         "to": "carbon-accounting"
       },
       {
+        "trigger": "PPA valuation, project finance, or capacity market analysis",
+        "to": "finance-ai-tools"
+      },
+      {
         "trigger": "Reliability analysis or uncertainty quantification",
         "to": "monte-carlo"
       }
@@ -11036,6 +11068,10 @@
       {
         "trigger": "Building custom search infrastructure beyond platform defaults",
         "to": "algolia-search"
+      },
+      {
+        "trigger": "Building conversational AI that goes beyond KB article retrieval",
+        "to": "ai-chatbot-builder"
       }
     ],
     "pairsWell": [],
@@ -11787,6 +11823,10 @@
       {
         "trigger": "Deep funnel analysis and cohort attribution",
         "to": "product-analytics-engineering"
+      },
+      {
+        "trigger": "Complex ML-based fraud scoring beyond rule-based checks",
+        "to": "abuse-fraud-prevention"
       }
     ],
     "pairsWell": [],
@@ -12563,6 +12603,10 @@
     ],
     "handoffs": [
       {
+        "trigger": "Need to define brand guidelines, voice, or visual identity before content creation",
+        "to": "brand-positioning"
+      },
+      {
         "trigger": "Need campaign strategy, target audience definition, or messaging frameworks",
         "to": "marketing"
       },
@@ -12571,12 +12615,20 @@
         "to": "seo"
       },
       {
+        "trigger": "Need advanced post-production beyond AI generation capabilities",
+        "to": "video-production"
+      },
+      {
         "trigger": "Need trademark clearance, licensing agreements, or copyright legal opinions",
         "to": "compliance-automation"
       },
       {
         "trigger": "Need content performance analysis, A/B test interpretation, or ROI measurement",
         "to": "analytics"
+      },
+      {
+        "trigger": "Need platform-specific strategy, community management, or scheduling",
+        "to": "social-community"
       }
     ],
     "pairsWell": [],
@@ -12674,12 +12726,28 @@
     ],
     "handoffs": [
       {
+        "trigger": "During active incident before postmortem phase",
+        "to": "incident-responder"
+      },
+      {
         "trigger": "Communicating postmortem findings to broader organization",
         "to": "team-communications"
       },
       {
+        "trigger": "Creating runbooks and playbooks from postmortem learnings",
+        "to": "documentation-that-slaps"
+      },
+      {
+        "trigger": "Building incident tracking and trend analysis",
+        "to": "data-dashboard-design"
+      },
+      {
         "trigger": "External communication about incidents",
         "to": "crisis-communications"
+      },
+      {
+        "trigger": "Team dynamics and trust issues affecting postmortems",
+        "to": "team-communications"
       }
     ],
     "pairsWell": [],
@@ -12722,6 +12790,14 @@
       {
         "trigger": "Adding test coverage to legacy code",
         "to": "testing-strategies"
+      },
+      {
+        "trigger": "Systematic refactoring after understanding is achieved",
+        "to": "refactoring-guide"
+      },
+      {
+        "trigger": "Creating documentation from archaeological findings",
+        "to": "technical-writer"
       },
       {
         "trigger": "When archaeological changes cause incidents",
@@ -12897,12 +12973,20 @@
     ],
     "handoffs": [
       {
+        "trigger": "Text manipulation beyond regex scope",
+        "to": "nlp-advanced"
+      },
+      {
         "trigger": "General string processing performance issues",
         "to": "performance-optimization"
       },
       {
         "trigger": "User input being processed by regex (ReDoS risk)",
         "to": "security"
+      },
+      {
+        "trigger": "Complex internationalization requirements",
+        "to": "i18n"
       },
       {
         "trigger": "Understanding inherited regex patterns",
@@ -12949,6 +13033,10 @@
         "to": "absurdist-voice"
       },
       {
+        "trigger": "Roast is for corporate/brand event with voice guidelines",
+        "to": "brand-storytelling"
+      },
+      {
         "trigger": "Roast is part of larger content campaign",
         "to": "content-strategy"
       }
@@ -12991,6 +13079,10 @@
       {
         "trigger": "Overall project planning and resource allocation",
         "to": "project-management"
+      },
+      {
+        "trigger": "Difficult stakeholder relationship management",
+        "to": "stakeholder-management"
       },
       {
         "trigger": "Determining product vision and roadmap priorities",
@@ -13486,6 +13578,10 @@
       {
         "trigger": "Input uncertainty quantification needed",
         "to": "monte-carlo"
+      },
+      {
+        "trigger": "Agent behaviors learned via reinforcement learning",
+        "to": "neural-architecture-search"
       },
       {
         "trigger": "Large-scale simulation data analysis",
@@ -14016,6 +14112,14 @@
       {
         "trigger": "Monitoring migration impact, alerting on slow queries, dashboards",
         "to": "observability"
+      },
+      {
+        "trigger": "Pre-migration backups, point-in-time recovery setup",
+        "to": "disaster-recovery"
+      },
+      {
+        "trigger": "Schema feature flags, gradual rollout of new columns",
+        "to": "feature-flag-engineering"
       }
     ],
     "pairsWell": [],
@@ -14129,6 +14233,10 @@
       "d1 database"
     ],
     "handoffs": [
+      {
+        "trigger": "User needs HTTP API routes to expose database operations",
+        "to": "hono-edge"
+      },
       {
         "trigger": "User needs authentication integrated with user tables",
         "to": "auth-specialist"
@@ -14744,6 +14852,10 @@
       {
         "trigger": "ETL pipelines for loading documents into vector databases",
         "to": "data-pipeline"
+      },
+      {
+        "trigger": "Full-text search with Elasticsearch or similar",
+        "to": "search-implementation"
       }
     ],
     "pairsWell": [],
@@ -15129,6 +15241,10 @@
       {
         "trigger": "Implementing UI in Godot with Control nodes",
         "to": "godot-development"
+      },
+      {
+        "trigger": "Implementing UI in Unreal with UMG widgets",
+        "to": "unreal-engine"
       },
       {
         "trigger": "Complex UI animations, transitions, or motion graphics beyond game engine capabilities",
@@ -15707,6 +15823,10 @@
       {
         "trigger": "Broader product strategy beyond AI features",
         "to": "product-strategy"
+      },
+      {
+        "trigger": "Detailed UI/UX design work",
+        "to": "ux-design"
       }
     ],
     "pairsWell": [],
@@ -15870,6 +15990,10 @@
       {
         "trigger": "Advanced Stripe scenarios: metered billing, complex subscriptions, Connect platforms",
         "to": "stripe-integration"
+      },
+      {
+        "trigger": "User needs relational database features Bubble can't provide (joins, complex queries)",
+        "to": "database-architect"
       },
       {
         "trigger": "User has outgrown Bubble and needs to migrate to a coded solution",
@@ -16143,6 +16267,10 @@
       {
         "trigger": "Review is related to post-incident analysis",
         "to": "incident-postmortem"
+      },
+      {
+        "trigger": "Review culture issues require management intervention",
+        "to": "project-management"
       }
     ],
     "pairsWell": [],
@@ -16540,6 +16668,10 @@
       {
         "trigger": "Security audit of MCP server",
         "to": "security-engineer"
+      },
+      {
+        "trigger": "Advanced TypeScript patterns for complex tools",
+        "to": "typescript-strict"
       }
     ],
     "pairsWell": [],
@@ -17416,6 +17548,14 @@
     ],
     "handoffs": [
       {
+        "trigger": "Complex GitHub Actions syntax, reusable workflows, or action development",
+        "to": "ci-cd-pipeline"
+      },
+      {
+        "trigger": "Advanced GitLab CI features, pipeline optimization, or GitLab-specific patterns",
+        "to": "ci-cd-pipeline"
+      },
+      {
         "trigger": "Local git hooks, pre-commit configuration, or hook/CI parity",
         "to": "claude-code-hooks"
       },
@@ -17477,6 +17617,10 @@
       {
         "trigger": "Need testing strategy for the code produced by commands",
         "to": "testing-strategies"
+      },
+      {
+        "trigger": "Need complex git operations or branching strategies in commands",
+        "to": "git-workflow"
       }
     ],
     "pairsWell": [],
@@ -17526,6 +17670,10 @@
       {
         "trigger": "Need comprehensive testing strategy beyond hook-based enforcement",
         "to": "testing-strategies"
+      },
+      {
+        "trigger": "Configuring ESLint, Prettier, or other formatters themselves",
+        "to": "code-quality"
       }
     ],
     "pairsWell": [],
@@ -17726,6 +17874,14 @@
       {
         "trigger": "Need AWS-specific architecture decisions beyond cost",
         "to": "aws-serverless"
+      },
+      {
+        "trigger": "Need GCP-specific architecture patterns",
+        "to": "gcp-cloud-run"
+      },
+      {
+        "trigger": "Need Azure-specific implementation details",
+        "to": "azure-functions"
       },
       {
         "trigger": "Need K8s-specific optimization (cluster autoscaler, node pools)",
@@ -18125,6 +18281,10 @@
         "to": "cicd-pipelines"
       },
       {
+        "trigger": "Secrets security patterns",
+        "to": "security-hardening"
+      },
+      {
         "trigger": "Type-safe config patterns",
         "to": "typescript-strict"
       }
@@ -18317,6 +18477,10 @@
       "message"
     ],
     "handoffs": [
+      {
+        "trigger": "User needs CI/CD pipeline configuration or GitHub Actions",
+        "to": "ci-cd-pipeline"
+      },
       {
         "trigger": "User needs code review best practices or PR templates",
         "to": "code-review"
@@ -18610,6 +18774,10 @@
       {
         "trigger": "Need to self-host Plausible/Umami with Docker Compose",
         "to": "docker-specialist"
+      },
+      {
+        "trigger": "Need marketing strategy and campaign planning beyond tracking setup",
+        "to": "growth-strategy"
       }
     ],
     "pairsWell": [],
@@ -18649,6 +18817,10 @@
       {
         "trigger": "Publishing packages to registry",
         "to": "npm-publishing"
+      },
+      {
+        "trigger": "TypeScript project references",
+        "to": "typescript-strict"
       },
       {
         "trigger": "CI/CD configuration for monorepos",
@@ -18697,8 +18869,16 @@
         "to": "nextjs-middleware"
       },
       {
+        "trigger": "User needs comprehensive GDPR/CCPA compliance beyond analytics-specific patterns",
+        "to": "gdpr-privacy"
+      },
+      {
         "trigger": "User needs server-side API design for custom analytics pipelines",
         "to": "api-design"
+      },
+      {
+        "trigger": "User needs APM/performance monitoring beyond PostHog's analytics scope",
+        "to": "observability"
       }
     ],
     "pairsWell": [],
@@ -19223,6 +19403,10 @@
     ],
     "handoffs": [
       {
+        "trigger": "Deep analytics beyond Shopify's built-in reports",
+        "to": "analytics"
+      },
+      {
         "trigger": "Complex payment routing, fraud prevention beyond Shopify Payments",
         "to": "stripe-integration"
       },
@@ -19483,6 +19667,14 @@
       {
         "trigger": "After identifying bottleneck, need optimization implementation",
         "to": "performance-optimization"
+      },
+      {
+        "trigger": "Issue is infrastructure, networking, or deployment config",
+        "to": "devops"
+      },
+      {
+        "trigger": "Need query optimization after identifying slow queries",
+        "to": "postgres-wizard"
       }
     ],
     "pairsWell": [],
@@ -19574,6 +19766,10 @@
       {
         "trigger": "ML model deployment and monitoring",
         "to": "ml-ops"
+      },
+      {
+        "trigger": "Time series forecasting or anomaly detection",
+        "to": "statistical-analysis"
       },
       {
         "trigger": "Large-scale sensor data ingestion",
@@ -19965,12 +20161,32 @@
     ],
     "handoffs": [
       {
+        "trigger": "Need detailed solution design for specific initiative",
+        "to": "system-designer"
+      },
+      {
+        "trigger": "Cloud platform strategy or migration architecture needed",
+        "to": "infra-architect"
+      },
+      {
         "trigger": "Enterprise data strategy or master data management required",
         "to": "database-architect"
       },
       {
         "trigger": "Security reference architecture or compliance framework needed",
         "to": "security"
+      },
+      {
+        "trigger": "API strategy or enterprise integration patterns required",
+        "to": "integration-patterns"
+      },
+      {
+        "trigger": "Platform engineering or CI/CD standardization needed",
+        "to": "devops-engineer"
+      },
+      {
+        "trigger": "Organizational change strategy for transformation",
+        "to": "stakeholder-management"
       }
     ],
     "pairsWell": [],
@@ -20027,6 +20243,14 @@
       {
         "trigger": "Tenant isolation security audit or compliance requirements",
         "to": "security"
+      },
+      {
+        "trigger": "Stripe/billing provider integration for metering",
+        "to": "stripe-integration"
+      },
+      {
+        "trigger": "Container-level tenant isolation or namespace strategy",
+        "to": "kubernetes"
       },
       {
         "trigger": "API design for tenant context propagation",
@@ -21562,6 +21786,10 @@
         "to": "tailwind-ui"
       },
       {
+        "trigger": "Complex global state with time-travel debugging, large cross-feature state",
+        "to": "angular"
+      },
+      {
         "trigger": "E2E testing with Playwright/Cypress, comprehensive test strategies",
         "to": "testing-strategies"
       },
@@ -22180,6 +22408,10 @@
       {
         "trigger": "Implementing error boundary patterns around forms",
         "to": "error-handling"
+      },
+      {
+        "trigger": "Writing form integration tests with Testing Library",
+        "to": "playwright-testing"
       }
     ],
     "pairsWell": [],
@@ -22874,6 +23106,10 @@
         "to": "android-kotlin-specialist"
       },
       {
+        "trigger": "Expo-specific features, EAS Build, Expo Application Services, managed workflow edge cases",
+        "to": "expo"
+      },
+      {
         "trigger": "Mobile UI/UX design patterns, accessibility, platform design guidelines",
         "to": "ui-design"
       },
@@ -23260,6 +23496,10 @@
     ],
     "handoffs": [
       {
+        "trigger": "Server cache management (React Query, SWR, RTK Query data layer)",
+        "to": "tanstack-query"
+      },
+      {
         "trigger": "Bundle splitting, code splitting, general React performance",
         "to": "performance-optimization"
       },
@@ -23270,6 +23510,10 @@
       {
         "trigger": "Complex generic types for stores and selectors",
         "to": "typescript-strict"
+      },
+      {
+        "trigger": "Overall component architecture beyond state",
+        "to": "react-patterns"
       }
     ],
     "pairsWell": [],
@@ -23418,6 +23662,10 @@
       {
         "trigger": "Next.js routing, server components, layouts",
         "to": "nextjs-app-router"
+      },
+      {
+        "trigger": "ARIA patterns, screen reader testing, keyboard navigation",
+        "to": "accessibility"
       }
     ],
     "pairsWell": [],
@@ -23980,6 +24228,10 @@
         "to": "game-audio"
       },
       {
+        "trigger": "Need hit effects and combat particles",
+        "to": "vfx-realtime"
+      },
+      {
         "trigger": "Combat needs to integrate with broader game systems",
         "to": "game-design"
       }
@@ -24134,6 +24386,10 @@
       {
         "trigger": "References to other IP require clearance",
         "to": "compliance-automation"
+      },
+      {
+        "trigger": "Integration with platform achievement systems",
+        "to": "progression-systems"
       }
     ],
     "pairsWell": [],
@@ -24300,6 +24556,10 @@
         "to": "game-ai-behavior"
       },
       {
+        "trigger": "User asks about A*, NavMesh, or navigation algorithms",
+        "to": "game-ai-behavior"
+      },
+      {
         "trigger": "User asks about syncing AI state in multiplayer",
         "to": "game-networking"
       }
@@ -24338,6 +24598,10 @@
       "music system design"
     ],
     "handoffs": [
+      {
+        "trigger": "Need original music composed before implementation",
+        "to": "ai-music-audio"
+      },
       {
         "trigger": "Need voice performance direction or casting",
         "to": "voiceover"
@@ -24652,6 +24916,10 @@
         "to": "easter-egg-design"
       },
       {
+        "trigger": "Optimizing reward psychology and satisfaction",
+        "to": "gamification-loops"
+      },
+      {
         "trigger": "Building social features around gamification",
         "to": "community-led-growth"
       },
@@ -24702,6 +24970,10 @@
       {
         "trigger": "Need 3D generative visuals",
         "to": "threejs-3d-graphics"
+      },
+      {
+        "trigger": "Need NFT smart contract integration",
+        "to": "smart-contract-engineer"
       },
       {
         "trigger": "Need real-time animation and demo effects",
@@ -24801,6 +25073,10 @@
       {
         "trigger": "Need advanced prompt design for complex NPC behaviors",
         "to": "prompt-engineering-creative"
+      },
+      {
+        "trigger": "Need broader game architecture patterns beyond AI integration",
+        "to": "godot-development"
       },
       {
         "trigger": "Building backend proxy for LLM calls",
@@ -25130,6 +25406,10 @@
       {
         "trigger": "Dialog ready for voice performance",
         "to": "voiceover"
+      },
+      {
+        "trigger": "Text needs translation preparation",
+        "to": "ai-localization"
       }
     ],
     "pairsWell": [],
@@ -25617,6 +25897,10 @@
       {
         "trigger": "Need custom 3D meshes for Roblox",
         "to": "3d-modeling"
+      },
+      {
+        "trigger": "Need to grow Roblox game audience",
+        "to": "marketing"
       }
     ],
     "pairsWell": [],
@@ -25712,6 +25996,14 @@
       {
         "trigger": "Need fundamental game loop design beyond streaming features",
         "to": "game-design-core"
+      },
+      {
+        "trigger": "Need actual voice chat or multiplayer implementation",
+        "to": "game-networking"
+      },
+      {
+        "trigger": "Need DMCA-safe music production",
+        "to": "game-audio"
       },
       {
         "trigger": "Need influencer outreach or key distribution strategy",
@@ -25911,6 +26203,14 @@
       {
         "trigger": "Need advanced prompt design for complex NPC behaviors",
         "to": "prompt-engineering-creative"
+      },
+      {
+        "trigger": "Need broader game architecture patterns",
+        "to": "unity-development"
+      },
+      {
+        "trigger": "Deep async/await patterns beyond Unity-specific",
+        "to": "unity-development"
       }
     ],
     "pairsWell": [],
@@ -26009,6 +26309,14 @@
       {
         "trigger": "Need advanced prompt design for complex NPC behaviors",
         "to": "prompt-engineering-creative"
+      },
+      {
+        "trigger": "Need broader game architecture patterns",
+        "to": "unreal-engine"
+      },
+      {
+        "trigger": "Networked AI synchronization",
+        "to": "game-networking"
       }
     ],
     "pairsWell": [],
@@ -26379,6 +26687,10 @@
         "to": "api-design"
       },
       {
+        "trigger": "Need downstream implementation detail for healthcare interoperability fhir",
+        "to": "database-schema-design"
+      },
+      {
         "trigger": "Need independent verification of healthcare interoperability fhir (canonical replacement for integration-testing)",
         "to": "integration-patterns"
       }
@@ -26709,6 +27021,14 @@
       {
         "trigger": "Deep security review, CVE analysis, or compliance requirements",
         "to": "cybersecurity"
+      },
+      {
+        "trigger": "Registry infrastructure setup (ECR, GCR, ACR permissions)",
+        "to": "infrastructure-as-code"
+      },
+      {
+        "trigger": "Complex container networking beyond bridge/host basics",
+        "to": "docker-containerization"
       }
     ],
     "pairsWell": [],
@@ -26984,6 +27304,10 @@
         "to": "notification-preferences"
       },
       {
+        "trigger": "Multi-language template variants needed",
+        "to": "i18n"
+      },
+      {
         "trigger": "Templates need to pass spam-filter / authentication checks",
         "to": "email-deliverability"
       },
@@ -27100,6 +27424,10 @@
       {
         "trigger": "Need comprehensive internationalization beyond CMS content localization",
         "to": "i18n"
+      },
+      {
+        "trigger": "Need SEO strategy beyond structured content metadata",
+        "to": "seo"
       },
       {
         "trigger": "Need Vercel-specific ISR and deployment hook configuration",
@@ -27348,6 +27676,14 @@
       {
         "trigger": "Need deep deliverability troubleshooting - IP warming, blacklist removal",
         "to": "email-deliverability"
+      },
+      {
+        "trigger": "Need high-converting email copy beyond template structures",
+        "to": "ad-copywriting"
+      },
+      {
+        "trigger": "Need custom Shopify integration, metafields, or theme modifications",
+        "to": "shopify-apps"
       }
     ],
     "pairsWell": [],
@@ -28174,6 +28510,10 @@
       {
         "trigger": "Need video storage and bandwidth cost optimization",
         "to": "cloud-cost-optimization"
+      },
+      {
+        "trigger": "Need DRM encryption for premium video content",
+        "to": "video-streaming-infrastructure"
       }
     ],
     "pairsWell": [],
@@ -28215,6 +28555,10 @@
       {
         "trigger": "Need conversational support, product tours, or in-app messaging",
         "to": "intercom-implementation"
+      },
+      {
+        "trigger": "CRM sync, opportunity tracking, or sales-support handoffs needed",
+        "to": "salesforce-development"
       },
       {
         "trigger": "Need ETL from Zendesk to data warehouse for advanced analytics",
@@ -28267,6 +28611,14 @@
       "controls"
     ],
     "handoffs": [
+      {
+        "trigger": "Need specialist review while designing ai governance policy",
+        "to": "ai-safety-alignment"
+      },
+      {
+        "trigger": "Need downstream implementation detail for ai governance policy",
+        "to": "mcp-developer"
+      },
       {
         "trigger": "Need independent verification of ai governance policy",
         "to": "audit-logging"
@@ -28554,6 +28906,10 @@
       {
         "trigger": "Need downstream implementation detail for terms product policy ops (canonical replacement for privacy-engineering)",
         "to": "privacy-consent-management"
+      },
+      {
+        "trigger": "Need independent verification of terms product policy ops",
+        "to": "product-management"
       }
     ],
     "pairsWell": [],
@@ -30545,6 +30901,10 @@
       {
         "trigger": "Deep JavaScript profiling or bundle optimization needed",
         "to": "performance-optimization"
+      },
+      {
+        "trigger": "Setting up automated visual regression or E2E tests",
+        "to": "playwright-testing"
       }
     ],
     "pairsWell": [],
@@ -30818,6 +31178,10 @@
       {
         "trigger": "Need React/Vue implementation details",
         "to": "frontend"
+      },
+      {
+        "trigger": "Need dynamic OG images for social sharing",
+        "to": "ai-image-generation"
       }
     ],
     "pairsWell": [],
@@ -31203,6 +31567,10 @@
       {
         "trigger": "OAuth implementation, token handling, or security hardening",
         "to": "mcp-security"
+      },
+      {
+        "trigger": "Complex Kubernetes configurations beyond basic deployment",
+        "to": "kubernetes"
       }
     ],
     "pairsWell": [],
@@ -31397,6 +31765,10 @@
       {
         "trigger": "Action items need to flow into Asana/Linear/Jira",
         "to": "project-management"
+      },
+      {
+        "trigger": "Meeting notes need to sync to Salesforce/HubSpot",
+        "to": "crm-lifecycle-ops"
       },
       {
         "trigger": "GDPR/HIPAA concerns around recording or data storage",
@@ -34741,6 +35113,10 @@
         "to": "landing-page-design"
       },
       {
+        "trigger": "Implementing payments, subscriptions, billing",
+        "to": "stripe-integration"
+      },
+      {
         "trigger": "Building organic growth and content strategy",
         "to": "seo"
       },
@@ -35082,8 +35458,16 @@
         "to": "marketing"
       },
       {
+        "trigger": "Building developer-specific community with API/SDK focus",
+        "to": "developer-community"
+      },
+      {
         "trigger": "Need deep attribution modeling or data infrastructure",
         "to": "analytics"
+      },
+      {
+        "trigger": "Large-scale conference or event production",
+        "to": "go-to-market"
       }
     ],
     "pairsWell": [],
@@ -35224,12 +35608,20 @@
         "to": "copywriting"
       },
       {
+        "trigger": "Need qualitative user research, interviews, or usability testing beyond analytics",
+        "to": "product-discovery"
+      },
+      {
         "trigger": "Need data pipeline setup for experimentation platform or data warehouse integration",
         "to": "data-engineer"
       },
       {
         "trigger": "Questions about GDPR consent flows, accessibility requirements, or FTC guidelines",
         "to": "compliance-automation"
+      },
+      {
+        "trigger": "Visual design changes that need brand consistency review",
+        "to": "branding"
       },
       {
         "trigger": "Business-level pricing decisions beyond page optimization",
@@ -35532,6 +35924,10 @@
       {
         "trigger": "Making tough calls on financial cuts or headcount",
         "to": "burn-rate-management"
+      },
+      {
+        "trigger": "Need to actually build the team after deciding founder-mode fit",
+        "to": "hiring-strategy"
       },
       {
         "trigger": "Defining what to build and why at strategic level",
@@ -36604,8 +37000,16 @@
     ],
     "handoffs": [
       {
+        "trigger": "Testing pure functions, business logic in isolation",
+        "to": "vitest-testing"
+      },
+      {
         "trigger": "Load testing, stress testing, k6/JMeter",
         "to": "performance-optimization"
+      },
+      {
+        "trigger": "Penetration testing, OWASP ZAP, security scanning",
+        "to": "security-owasp"
       },
       {
         "trigger": "Pipeline orchestration beyond test execution",
@@ -36767,6 +37171,10 @@
       "web accessibility qa"
     ],
     "handoffs": [
+      {
+        "trigger": "A11y assertions integrated into E2E test suite",
+        "to": "test-architect"
+      },
       {
         "trigger": "Component-level implementation of a11y patterns",
         "to": "accessibility"
@@ -37084,6 +37492,10 @@
       {
         "trigger": "Need specialist review while designing abuse fraud prevention",
         "to": "rate-limiting"
+      },
+      {
+        "trigger": "Need downstream implementation detail for abuse fraud prevention",
+        "to": "security-engineer"
       },
       {
         "trigger": "Need independent verification of abuse fraud prevention (canonical replacement for payments)",

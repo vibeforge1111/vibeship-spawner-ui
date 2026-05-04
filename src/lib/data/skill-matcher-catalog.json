@@ -1346,6 +1346,12 @@
         "skill": "text-to-video"
       },
       {
+        "skill": "3d-modeling"
+      },
+      {
+        "skill": "ai-image-editing"
+      },
+      {
         "skill": "workflow-automation"
       }
     ],
@@ -2297,6 +2303,9 @@
       },
       {
         "skill": "queue-workers"
+      },
+      {
+        "skill": "shader-programming"
       }
     ],
     "pairsWell": [],
@@ -5608,6 +5617,9 @@
         "skill": "trpc-fullstack"
       },
       {
+        "skill": "forms-validation"
+      },
+      {
         "skill": "env-config-patterns"
       },
       {
@@ -5647,6 +5659,9 @@
       },
       {
         "skill": "data-reproducibility"
+      },
+      {
+        "skill": "performance-optimization"
       }
     ],
     "pairsWell": [],
@@ -5716,6 +5731,9 @@
         "skill": "statistical-analysis"
       },
       {
+        "skill": "bioinformatics-workflows"
+      },
+      {
         "skill": "lab-automation"
       }
     ],
@@ -5755,6 +5773,9 @@
       },
       {
         "skill": "protein-structure"
+      },
+      {
+        "skill": "genomics-pipelines"
       }
     ],
     "pairsWell": [],
@@ -7304,6 +7325,9 @@
         "skill": "carbon-accounting"
       },
       {
+        "skill": "finance-ai-tools"
+      },
+      {
         "skill": "monte-carlo"
       }
     ],
@@ -7581,6 +7605,9 @@
       },
       {
         "skill": "algolia-search"
+      },
+      {
+        "skill": "ai-chatbot-builder"
       }
     ],
     "pairsWell": [],
@@ -8081,6 +8108,9 @@
       },
       {
         "skill": "product-analytics-engineering"
+      },
+      {
+        "skill": "abuse-fraud-prevention"
       }
     ],
     "pairsWell": [],
@@ -8623,16 +8653,25 @@
     "category": "creative",
     "delegates": [
       {
+        "skill": "brand-positioning"
+      },
+      {
         "skill": "marketing"
       },
       {
         "skill": "seo"
       },
       {
+        "skill": "video-production"
+      },
+      {
         "skill": "compliance-automation"
       },
       {
         "skill": "analytics"
+      },
+      {
+        "skill": "social-community"
       }
     ],
     "pairsWell": [],
@@ -8700,10 +8739,22 @@
     "category": "creative",
     "delegates": [
       {
+        "skill": "incident-responder"
+      },
+      {
         "skill": "team-communications"
       },
       {
+        "skill": "documentation-that-slaps"
+      },
+      {
+        "skill": "data-dashboard-design"
+      },
+      {
         "skill": "crisis-communications"
+      },
+      {
+        "skill": "team-communications"
       }
     ],
     "pairsWell": [],
@@ -8730,6 +8781,12 @@
     "delegates": [
       {
         "skill": "testing-strategies"
+      },
+      {
+        "skill": "refactoring-guide"
+      },
+      {
+        "skill": "technical-writer"
       },
       {
         "skill": "incident-postmortem"
@@ -8848,10 +8905,16 @@
     "category": "creative",
     "delegates": [
       {
+        "skill": "nlp-advanced"
+      },
+      {
         "skill": "performance-optimization"
       },
       {
         "skill": "security"
+      },
+      {
+        "skill": "i18n"
       },
       {
         "skill": "legacy-archaeology"
@@ -8883,6 +8946,9 @@
         "skill": "absurdist-voice"
       },
       {
+        "skill": "brand-storytelling"
+      },
+      {
         "skill": "content-strategy"
       }
     ],
@@ -8910,6 +8976,9 @@
     "delegates": [
       {
         "skill": "project-management"
+      },
+      {
+        "skill": "stakeholder-management"
       },
       {
         "skill": "product-strategy"
@@ -9266,6 +9335,9 @@
       },
       {
         "skill": "monte-carlo"
+      },
+      {
+        "skill": "neural-architecture-search"
       },
       {
         "skill": "data-pipeline"
@@ -9654,6 +9726,12 @@
       },
       {
         "skill": "observability"
+      },
+      {
+        "skill": "disaster-recovery"
+      },
+      {
+        "skill": "feature-flag-engineering"
       }
     ],
     "pairsWell": [],
@@ -9735,6 +9813,9 @@
     ],
     "category": "data",
     "delegates": [
+      {
+        "skill": "hono-edge"
+      },
       {
         "skill": "auth-specialist"
       },
@@ -10173,6 +10254,9 @@
       },
       {
         "skill": "data-pipeline"
+      },
+      {
+        "skill": "search-implementation"
       }
     ],
     "pairsWell": [],
@@ -10434,6 +10518,9 @@
       },
       {
         "skill": "godot-development"
+      },
+      {
+        "skill": "unreal-engine"
       },
       {
         "skill": "motion-design"
@@ -10821,6 +10908,9 @@
       },
       {
         "skill": "product-strategy"
+      },
+      {
+        "skill": "ux-design"
       }
     ],
     "pairsWell": [],
@@ -10931,6 +11021,9 @@
       },
       {
         "skill": "stripe-integration"
+      },
+      {
+        "skill": "database-architect"
       },
       {
         "skill": "react-patterns"
@@ -11080,6 +11173,9 @@
       },
       {
         "skill": "incident-postmortem"
+      },
+      {
+        "skill": "project-management"
       }
     ],
     "pairsWell": [],
@@ -11380,6 +11476,9 @@
       },
       {
         "skill": "security-engineer"
+      },
+      {
+        "skill": "typescript-strict"
       }
     ],
     "pairsWell": [],
@@ -11983,6 +12082,12 @@
     "category": "devops",
     "delegates": [
       {
+        "skill": "ci-cd-pipeline"
+      },
+      {
+        "skill": "ci-cd-pipeline"
+      },
+      {
         "skill": "claude-code-hooks"
       },
       {
@@ -12025,6 +12130,9 @@
       },
       {
         "skill": "testing-strategies"
+      },
+      {
+        "skill": "git-workflow"
       }
     ],
     "pairsWell": [],
@@ -12057,6 +12165,9 @@
       },
       {
         "skill": "testing-strategies"
+      },
+      {
+        "skill": "code-quality"
       }
     ],
     "pairsWell": [],
@@ -12197,6 +12308,12 @@
     "delegates": [
       {
         "skill": "aws-serverless"
+      },
+      {
+        "skill": "gcp-cloud-run"
+      },
+      {
+        "skill": "azure-functions"
       },
       {
         "skill": "kubernetes"
@@ -12475,6 +12592,9 @@
         "skill": "cicd-pipelines"
       },
       {
+        "skill": "security-hardening"
+      },
+      {
         "skill": "typescript-strict"
       }
     ],
@@ -12608,6 +12728,9 @@
     ],
     "category": "devops",
     "delegates": [
+      {
+        "skill": "ci-cd-pipeline"
+      },
       {
         "skill": "code-review"
       },
@@ -12860,6 +12983,9 @@
       },
       {
         "skill": "docker-specialist"
+      },
+      {
+        "skill": "growth-strategy"
       }
     ],
     "pairsWell": [],
@@ -12889,6 +13015,9 @@
       },
       {
         "skill": "npm-publishing"
+      },
+      {
+        "skill": "typescript-strict"
       },
       {
         "skill": "cicd-pipelines"
@@ -12923,7 +13052,13 @@
         "skill": "nextjs-middleware"
       },
       {
+        "skill": "gdpr-privacy"
+      },
+      {
         "skill": "api-design"
+      },
+      {
+        "skill": "observability"
       }
     ],
     "pairsWell": [],
@@ -13294,6 +13429,9 @@
     "category": "ecommerce",
     "delegates": [
       {
+        "skill": "analytics"
+      },
+      {
         "skill": "stripe-integration"
       },
       {
@@ -13475,6 +13613,12 @@
       },
       {
         "skill": "performance-optimization"
+      },
+      {
+        "skill": "devops"
+      },
+      {
+        "skill": "postgres-wizard"
       }
     ],
     "pairsWell": [],
@@ -13536,6 +13680,9 @@
       },
       {
         "skill": "ml-ops"
+      },
+      {
+        "skill": "statistical-analysis"
       },
       {
         "skill": "data-pipeline"
@@ -14730,6 +14877,9 @@
         "skill": "tailwind-ui"
       },
       {
+        "skill": "angular"
+      },
+      {
         "skill": "testing-strategies"
       },
       {
@@ -15177,6 +15327,9 @@
       },
       {
         "skill": "error-handling"
+      },
+      {
+        "skill": "playwright-testing"
       }
     ],
     "pairsWell": [],
@@ -15664,6 +15817,9 @@
         "skill": "android-kotlin-specialist"
       },
       {
+        "skill": "expo"
+      },
+      {
         "skill": "ui-design"
       },
       {
@@ -15942,6 +16098,9 @@
     "category": "frontend",
     "delegates": [
       {
+        "skill": "tanstack-query"
+      },
+      {
         "skill": "performance-optimization"
       },
       {
@@ -15949,6 +16108,9 @@
       },
       {
         "skill": "typescript-strict"
+      },
+      {
+        "skill": "react-patterns"
       }
     ],
     "pairsWell": [],
@@ -16048,6 +16210,9 @@
       },
       {
         "skill": "nextjs-app-router"
+      },
+      {
+        "skill": "accessibility"
       }
     ],
     "pairsWell": [],
@@ -16451,6 +16616,9 @@
         "skill": "game-audio"
       },
       {
+        "skill": "vfx-realtime"
+      },
+      {
         "skill": "game-design"
       }
     ],
@@ -16557,6 +16725,9 @@
       },
       {
         "skill": "compliance-automation"
+      },
+      {
+        "skill": "progression-systems"
       }
     ],
     "pairsWell": [],
@@ -16632,6 +16803,9 @@
         "skill": "game-ai-behavior"
       },
       {
+        "skill": "game-ai-behavior"
+      },
+      {
         "skill": "game-networking"
       }
     ],
@@ -16695,6 +16869,9 @@
     ],
     "category": "game-dev",
     "delegates": [
+      {
+        "skill": "ai-music-audio"
+      },
       {
         "skill": "voiceover"
       },
@@ -16918,6 +17095,9 @@
         "skill": "easter-egg-design"
       },
       {
+        "skill": "gamification-loops"
+      },
+      {
         "skill": "community-led-growth"
       },
       {
@@ -16951,6 +17131,9 @@
       },
       {
         "skill": "threejs-3d-graphics"
+      },
+      {
+        "skill": "smart-contract-engineer"
       },
       {
         "skill": "demoscene-coding"
@@ -17018,6 +17201,9 @@
     "delegates": [
       {
         "skill": "prompt-engineering-creative"
+      },
+      {
+        "skill": "godot-development"
       },
       {
         "skill": "api-design"
@@ -17238,6 +17424,9 @@
       },
       {
         "skill": "voiceover"
+      },
+      {
+        "skill": "ai-localization"
       }
     ],
     "pairsWell": [],
@@ -17562,6 +17751,9 @@
       },
       {
         "skill": "3d-modeling"
+      },
+      {
+        "skill": "marketing"
       }
     ],
     "pairsWell": [],
@@ -17623,6 +17815,12 @@
     "delegates": [
       {
         "skill": "game-design-core"
+      },
+      {
+        "skill": "game-networking"
+      },
+      {
+        "skill": "game-audio"
       },
       {
         "skill": "marketing"
@@ -17757,6 +17955,12 @@
     "delegates": [
       {
         "skill": "prompt-engineering-creative"
+      },
+      {
+        "skill": "unity-development"
+      },
+      {
+        "skill": "unity-development"
       }
     ],
     "pairsWell": [],
@@ -17821,6 +18025,12 @@
     "delegates": [
       {
         "skill": "prompt-engineering-creative"
+      },
+      {
+        "skill": "unreal-engine"
+      },
+      {
+        "skill": "game-networking"
       }
     ],
     "pairsWell": [],
@@ -18065,6 +18275,9 @@
         "skill": "api-design"
       },
       {
+        "skill": "database-schema-design"
+      },
+      {
         "skill": "integration-patterns"
       }
     ],
@@ -18302,6 +18515,12 @@
       },
       {
         "skill": "cybersecurity"
+      },
+      {
+        "skill": "infrastructure-as-code"
+      },
+      {
+        "skill": "docker-containerization"
       }
     ],
     "pairsWell": [],
@@ -18492,6 +18711,9 @@
         "skill": "notification-preferences"
       },
       {
+        "skill": "i18n"
+      },
+      {
         "skill": "email-deliverability"
       },
       {
@@ -18575,6 +18797,9 @@
       },
       {
         "skill": "i18n"
+      },
+      {
+        "skill": "seo"
       },
       {
         "skill": "vercel-deployment"
@@ -18738,6 +18963,12 @@
     "delegates": [
       {
         "skill": "email-deliverability"
+      },
+      {
+        "skill": "ad-copywriting"
+      },
+      {
+        "skill": "shopify-apps"
       }
     ],
     "pairsWell": [],
@@ -19300,6 +19531,9 @@
       },
       {
         "skill": "cloud-cost-optimization"
+      },
+      {
+        "skill": "video-streaming-infrastructure"
       }
     ],
     "pairsWell": [],
@@ -19326,6 +19560,9 @@
     "delegates": [
       {
         "skill": "intercom-implementation"
+      },
+      {
+        "skill": "salesforce-development"
       },
       {
         "skill": "data-pipeline"
@@ -19359,6 +19596,12 @@
     ],
     "category": "legal",
     "delegates": [
+      {
+        "skill": "ai-safety-alignment"
+      },
+      {
+        "skill": "mcp-developer"
+      },
       {
         "skill": "audit-logging"
       }
@@ -19570,6 +19813,9 @@
       },
       {
         "skill": "privacy-consent-management"
+      },
+      {
+        "skill": "product-management"
       }
     ],
     "pairsWell": [],
@@ -20924,6 +21170,9 @@
       },
       {
         "skill": "performance-optimization"
+      },
+      {
+        "skill": "playwright-testing"
       }
     ],
     "pairsWell": [],
@@ -21111,6 +21360,9 @@
       },
       {
         "skill": "frontend"
+      },
+      {
+        "skill": "ai-image-generation"
       }
     ],
     "pairsWell": [],
@@ -21390,6 +21642,9 @@
       },
       {
         "skill": "mcp-security"
+      },
+      {
+        "skill": "kubernetes"
       }
     ],
     "pairsWell": [],
@@ -21524,6 +21779,9 @@
     "delegates": [
       {
         "skill": "project-management"
+      },
+      {
+        "skill": "crm-lifecycle-ops"
       },
       {
         "skill": "compliance-automation"
@@ -23859,6 +24117,9 @@
         "skill": "landing-page-design"
       },
       {
+        "skill": "stripe-integration"
+      },
+      {
         "skill": "seo"
       },
       {
@@ -24099,7 +24360,13 @@
         "skill": "marketing"
       },
       {
+        "skill": "developer-community"
+      },
+      {
         "skill": "analytics"
+      },
+      {
+        "skill": "go-to-market"
       }
     ],
     "pairsWell": [],
@@ -24201,10 +24468,16 @@
         "skill": "copywriting"
       },
       {
+        "skill": "product-discovery"
+      },
+      {
         "skill": "data-engineer"
       },
       {
         "skill": "compliance-automation"
+      },
+      {
+        "skill": "branding"
       },
       {
         "skill": "pricing-strategy"
@@ -24409,10 +24682,25 @@
     "category": "enterprise",
     "delegates": [
       {
+        "skill": "system-designer"
+      },
+      {
+        "skill": "infra-architect"
+      },
+      {
         "skill": "database-architect"
       },
       {
         "skill": "security"
+      },
+      {
+        "skill": "integration-patterns"
+      },
+      {
+        "skill": "devops-engineer"
+      },
+      {
+        "skill": "stakeholder-management"
       }
     ],
     "pairsWell": [],
@@ -24489,6 +24777,9 @@
       },
       {
         "skill": "burn-rate-management"
+      },
+      {
+        "skill": "hiring-strategy"
       },
       {
         "skill": "product-strategy"
@@ -24728,6 +25019,12 @@
       },
       {
         "skill": "security"
+      },
+      {
+        "skill": "stripe-integration"
+      },
+      {
+        "skill": "kubernetes"
       },
       {
         "skill": "api-design"
@@ -25380,7 +25677,13 @@
     "category": "testing",
     "delegates": [
       {
+        "skill": "vitest-testing"
+      },
+      {
         "skill": "performance-optimization"
+      },
+      {
+        "skill": "security-owasp"
       },
       {
         "skill": "ci-cd-pipeline"
@@ -25494,6 +25797,9 @@
     ],
     "category": "testing",
     "delegates": [
+      {
+        "skill": "test-architect"
+      },
       {
         "skill": "accessibility"
       },
@@ -25707,6 +26013,9 @@
     "delegates": [
       {
         "skill": "rate-limiting"
+      },
+      {
+        "skill": "security-engineer"
       },
       {
         "skill": "stripe-integration"
