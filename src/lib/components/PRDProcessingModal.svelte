@@ -10,6 +10,7 @@
 		projectName = 'Your Project',
 		featuresFound = 0,
 		tasksGenerated = 0,
+		clarificationMode = false,
 		waitingForClaude = false,
 		prdRequestId = '',
 		onComplete,
@@ -20,6 +21,7 @@
 		projectName?: string;
 		featuresFound?: number;
 		tasksGenerated?: number;
+		clarificationMode?: boolean;
 		waitingForClaude?: boolean;
 		prdRequestId?: string;
 		onComplete?: () => void;
@@ -100,6 +102,11 @@
 					PRD → PIPELINE
 				</p>
 				<h2 class="font-serif text-xl text-text-primary">Generating Workflow</h2>
+				{#if clarificationMode}
+					<p class="mt-2 text-sm text-text-secondary">
+						Spark understood that you are asking whether the previous message was understood. Share the missing audience, core workflow, saved memory, and vibe details to continue.
+					</p>
+				{/if}
 			</div>
 
 			<!-- Progress stages -->

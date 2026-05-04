@@ -12,6 +12,7 @@ import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
+import { validatePrdAnalysisResult } from '$lib/server/prd-analysis-result-schema';
 import { logger } from '$lib/utils/logger';
 
 import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
@@ -97,23 +98,16 @@ async function appendPrdTrace(requestId: string, event: string, details: Record<
 }
 
 async function storePRDResult(requestId: string, result: unknown): Promise<void> {
-	try {
-		assertSafeId(requestId, 'requestId');
-		const resultsDir = getResultsDir();
+	assertSafeId(requestId, 'requestId');
+	const validatedResult = validatePrdAnalysisResult(requestId, result);
+	const resultsDir = getResultsDir();
 
-		if (!existsSync(resultsDir)) {
-			await mkdir(resultsDir, { recursive: true });
-		}
-		const resultFile = resolveWithinBaseDir(resultsDir, `${requestId}.json`);
-		await writeFile(resultFile, JSON.stringify(result, null, 2), 'utf-8');
-		log.info(`Stored PRD result for polling: ${requestId}`);
-	} catch (err) {
-		if (err instanceof PathSafetyError) {
-			console.warn(`[EventBridge] Skipping unsafe requestId "${requestId}": ${err.message}`);
-			return;
-		}
-		console.error('[EventBridge] Failed to store PRD result:', err);
+	if (!existsSync(resultsDir)) {
+		await mkdir(resultsDir, { recursive: true });
 	}
+	const resultFile = resolveWithinBaseDir(resultsDir, `${requestId}.json`);
+	await writeFile(resultFile, JSON.stringify(validatedResult, null, 2), 'utf-8');
+	log.info(`Stored PRD result for polling: ${requestId}`);
 }
 
 async function relayMetadataForMission(missionId: string): Promise<Record<string, unknown>> {
@@ -242,7 +236,16 @@ export const POST: RequestHandler = async (event) => {
 			await appendPrdTrace(fullEvent.data.requestId, 'events_received_complete', {
 				source: fullEvent.source || 'unknown'
 			});
-			await storePRDResult(fullEvent.data.requestId, fullEvent.data.result);
+			try {
+				await storePRDResult(fullEvent.data.requestId, fullEvent.data.result);
+			} catch (err) {
+				const message = err instanceof Error ? err.message : 'Invalid PRD analysis result';
+				await appendPrdTrace(fullEvent.data.requestId, 'events_rejected_complete', {
+					source: fullEvent.source || 'unknown',
+					error: message
+				});
+				return json({ error: message }, { status: err instanceof PathSafetyError ? err.status : 400 });
+			}
 		}
 
 		if (fullEvent.type === 'prd_analysis_error' && fullEvent.data?.requestId) {

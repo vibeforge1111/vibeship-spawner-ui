@@ -22,7 +22,7 @@ import { classifyBrief, formatBundleForPrompt } from '$lib/server/bundle-classif
 import { classifyMissionSize, formatMissionSizeGuidance } from '$lib/server/mission-size-classifier';
 import { formatTaskQualityGuidance } from '$lib/server/task-quality-rubric';
 import { formatVerificationPlanGuidance, generateVerificationPlan } from '$lib/server/verification-plan-generator';
-import { enrichBrief } from '$lib/server/brief-enricher';
+import { enrichBrief, isSparseUnderstandingClarification } from '$lib/server/brief-enricher';
 
 function getPrdBridgePaths() {
 	const spawnerDir = process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
@@ -160,6 +160,68 @@ export async function _buildFallbackAnalysisResult(
 	paths: ReturnType<typeof getPrdBridgePaths>
 ): Promise<Record<string, unknown>> {
 	const content = existsSync(paths.pendingPrdFile) ? await readFile(paths.pendingPrdFile, 'utf-8') : '';
+	if (isSparseUnderstandingClarification(content)) {
+		const validSkills = new Set((await getTierSkills(tier)).map((skill) => skill.id));
+		const selectSkills = (skills: string[]) => skills.filter((skill) => validSkills.has(skill)).slice(0, 5);
+		const tasks = [
+			{
+				id: 'task-1-acknowledge-understanding',
+				title: 'Acknowledge the understanding check',
+				summary: 'Confirm Spark understood the user is asking whether the previous message was understood.',
+				description: 'Render a concise acknowledgement without inventing product scope or pretending missing build details were supplied.',
+				skills: selectSkills(['conversation-memory', 'ux-design', 'product-discovery', 'prompt-engineer']),
+				dependencies: [] as string[],
+				workspaceTargets: [],
+				acceptanceCriteria: [
+					'The original request text is preserved exactly.',
+					'The response states that Spark understood the user is asking whether the previous message was understood.',
+					'No MVP, auth, payment, database, or unrelated product features are added.'
+				],
+				verificationCommands: ['npm run check']
+			},
+			{
+				id: 'task-2-ask-for-actionable-details',
+				title: 'Ask for the missing build details',
+				summary: 'Prompt for the concrete audience, workflow, saved memory, and vibe details needed before building.',
+				description: 'Keep the follow-up small and actionable so the user can continue the PRD flow.',
+				skills: selectSkills(['product-discovery', 'structured-output', 'conversation-memory', 'workflow-automation']),
+				dependencies: [] as string[],
+				workspaceTargets: [],
+				acceptanceCriteria: [
+					'The user can continue by supplying audience, core workflow, saved memory, and vibe.',
+					'The task remains a clarification workflow rather than a manufactured build plan.'
+				],
+				verificationCommands: ['npm run smoke:routes']
+			}
+		];
+		const skills = [...new Set(tasks.flatMap((task) => task.skills))];
+		return {
+			requestId,
+			success: true,
+			projectName,
+			projectType: 'clarification-understanding',
+			complexity: 'simple',
+			infrastructure: {
+				needsAuth: false,
+				authReason: 'No authentication is needed to acknowledge an understanding check.',
+				needsDatabase: false,
+				databaseReason: 'No new database scope was supplied.',
+				needsAPI: false,
+				apiReason: 'No backend API was requested.'
+			},
+			techStack: {
+				framework: 'Existing Spawner UI',
+				language: 'TypeScript',
+				styling: 'Existing UI styles',
+				deployment: 'Existing application'
+			},
+			tasks,
+			skills,
+			executionPrompt:
+				'Original user request: did you understand what i said\n\nAcknowledge that Spark understood the user is asking whether the previous message was understood, then ask for the missing concrete build details: audience, core workflow, saved memory, and vibe. Do not invent product scope.'
+		};
+	}
+
 	const targetFolder = extractTargetFolder(content);
 	const requestedFiles = extractRequestedFiles(content);
 	const techStack = inferTechStack(content);
@@ -426,7 +488,8 @@ async function buildPromptParts(
 			: [
 					'Direct build contract:',
 					'- Preserve the user request as-is and create only the tasks needed to execute it.',
-					'- Do not inflate small explicit builds into a broad product plan.'
+					'- Do not inflate small explicit builds into a broad product plan.',
+					'- If the request is exactly "did you understand what i said", classify it as a clarification-understanding workflow, preserve that request text exactly, acknowledge understanding, and ask for missing audience, workflow, saved memory, and vibe details. Do not create MVP/auth/payment/database tasks.'
 				].join('\n');
 
 	const tierSkills = await getTierSkills(tier);
@@ -513,7 +576,8 @@ async function buildCodexPrompt(
 			: [
 					'Direct build contract:',
 					'- Preserve the user request as-is and create only the tasks needed to execute it.',
-					'- Do not inflate small explicit builds into a broad product plan.'
+					'- Do not inflate small explicit builds into a broad product plan.',
+					'- If the request is exactly "did you understand what i said", classify it as a clarification-understanding workflow, preserve that request text exactly, acknowledge understanding, and ask for missing audience, workflow, saved memory, and vibe details. Do not create MVP/auth/payment/database tasks.'
 				].join('\n');
 
 	const tierSkills = await getTierSkills(tier);

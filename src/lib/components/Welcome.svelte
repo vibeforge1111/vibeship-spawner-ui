@@ -53,6 +53,7 @@
 	let processingProjectName = $state('');
 	let processingFeaturesFound = $state(0);
 	let processingTasksGenerated = $state(0);
+	let processingClarificationMode = $state(false);
 	let waitingForClaude = $state(false);
 	let currentPrdRequestId = $state('');
 	// Workflow type matches tasksToWorkflow return type
@@ -85,6 +86,7 @@
 			// Show processing modal
 			showProcessingModal = true;
 			processingStage = 0;
+			processingClarificationMode = false;
 
 			try {
 				// Stage 0: Reading PRD
@@ -149,6 +151,7 @@
 
 							try {
 								waitingForClaude = false;
+								processingClarificationMode = result.projectType === 'clarification-understanding';
 								processingProjectName = result.projectName || processingProjectName;
 								processingFeaturesFound = result.tasks?.length || 0;
 								processingStage = 4;
@@ -495,6 +498,7 @@
 	projectName={processingProjectName}
 	featuresFound={processingFeaturesFound}
 	tasksGenerated={processingTasksGenerated}
+	clarificationMode={processingClarificationMode}
 	waitingForClaude={waitingForClaude}
 	prdRequestId={currentPrdRequestId}
 	onComplete={handleProcessingComplete}

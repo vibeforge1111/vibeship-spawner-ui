@@ -150,7 +150,13 @@ describe('/api/events auth', () => {
 						result: {
 							success: true,
 							projectName: 'Events State Dir Test',
-							tasks: [{ id: 'TAS-1', title: 'Store result consistently' }]
+							projectType: 'clarification-understanding',
+							complexity: 'simple',
+							infrastructure: { needsAuth: false, needsDatabase: false, needsAPI: false },
+							techStack: { framework: 'Existing Spawner UI', language: 'TypeScript' },
+							tasks: [{ id: 'TAS-1', title: 'Store result consistently', skills: [], dependencies: [] }],
+							skills: [],
+							executionPrompt: 'Store result consistently.'
 						}
 					}
 				})

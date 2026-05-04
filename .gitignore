@@ -28,3 +28,4 @@ nul
 # Local orchestrator/runtime payloads
 .spawner/
 svelte-check-output.txt
+.gstack/

@@ -170,6 +170,64 @@ describe('PRD auto-dispatch helpers', () => {
 		expect(skillMap.get('task-1')).toContain('threejs-3d-graphics');
 	});
 
+	it('keeps the sparse clarification fixture as a small DAG with allowlisted skills', async () => {
+		const requestId = 'tg-build-8319079055-2607-1777608553410-clarified-1777608630635';
+		const clarificationLoad: PrdCanvasLoadForAutoDispatch = {
+			requestId,
+			missionId: 'mission-clarification-fixture-test',
+			pipelineId: `prd-${requestId}`,
+			pipelineName: 'did you understand what i said',
+			tier: 'pro',
+			autoRun: true,
+			buildMode: 'direct',
+			executionPrompt:
+				'Original user request: did you understand what i said\n\nAcknowledge understanding and ask for missing audience, core workflow, saved memory, and vibe details.',
+			nodes: [
+				{
+					skill: {
+						id: 'task-1-acknowledge-understanding',
+						name: 'Acknowledge the understanding check',
+						description: 'Confirm Spark understood the user is asking whether the previous message was understood.',
+						tags: ['conversation-memory', 'ux-design']
+					}
+				},
+				{
+					skill: {
+						id: 'task-2-ask-for-actionable-details',
+						name: 'Ask for the missing build details',
+						description: 'Prompt for audience, core workflow, saved memory, and vibe details.',
+						tags: ['product-discovery', 'structured-output']
+					}
+				}
+			],
+			connections: []
+		};
+		const proIds = new Set((await getTierSkills('pro')).map((skill) => skill.id));
+		const graph = canvasLoadToMissionGraph(clarificationLoad);
+		const skillMap = await buildAutoDispatchTaskSkillMap(clarificationLoad, [
+			{
+				id: 'task-1',
+				title: 'Acknowledge the understanding check',
+				description: 'Confirm Spark understood the user is asking whether the previous message was understood.'
+			},
+			{
+				id: 'task-2',
+				title: 'Ask for the missing build details',
+				description: 'Prompt for audience, core workflow, saved memory, and vibe details.'
+			}
+		]);
+
+		expect(graph.nodes).toHaveLength(2);
+		expect(graph.connections).toEqual([]);
+		expect(shouldAutoDispatchPrdLoad(clarificationLoad).ok).toBe(true);
+		for (const skills of skillMap.values()) {
+			expect(skills.length).toBeGreaterThan(0);
+			for (const skillId of skills) {
+				expect(proIds.has(skillId)).toBe(true);
+			}
+		}
+	});
+
 	it('limits free-tier PRD auto-dispatch skills to the base allowlist', async () => {
 		const baseIds = new Set((await getTierSkills('base')).map((skill) => skill.id));
 		const skillMap = await buildAutoDispatchTaskSkillMap(

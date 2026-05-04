@@ -30,7 +30,13 @@ describe('/api/prd-bridge/result integration', () => {
 		const result = {
 			success: true,
 			projectName: 'State Dir Test',
-			tasks: [{ id: 'TAS-1', title: 'Keep state aligned' }]
+			projectType: 'clarification-understanding',
+			complexity: 'simple',
+			infrastructure: { needsAuth: false, needsDatabase: false, needsAPI: false },
+			techStack: { framework: 'Existing Spawner UI', language: 'TypeScript' },
+			tasks: [{ id: 'TAS-1', title: 'Keep state aligned', skills: [], dependencies: [] }],
+			skills: [],
+			executionPrompt: 'Acknowledge understanding and ask for missing details.'
 		};
 
 		const postResponse = await POST({
@@ -52,5 +58,21 @@ describe('/api/prd-bridge/result integration', () => {
 		expect(getResponse.status).toBe(200);
 		expect(body.found).toBe(true);
 		expect(body.result).toMatchObject(result);
+	});
+
+	it('rejects malformed result JSON with a useful error', async () => {
+		const requestId = 'tg-build-malformed-result-test';
+		const postResponse = await POST({
+			request: new Request('http://localhost/api/prd-bridge/result', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ requestId, result: { success: true, projectName: 'Broken' } })
+			})
+		} as never);
+		const body = await postResponse.json();
+
+		expect(postResponse.status).toBe(400);
+		expect(body.error).toContain('Invalid PRD analysis result');
+		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(false);
 	});
 });

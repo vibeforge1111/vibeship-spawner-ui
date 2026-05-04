@@ -69,11 +69,16 @@ export interface PRDAnalysisResult {
 	tasks: Array<{
 		id: string;
 		title: string;
-		description: string;
+		description?: string;
+		summary?: string;
 		skills: string[];
-		phase: number;
-		dependsOn: string[];
-		verification: {
+		phase?: number;
+		dependsOn?: string[];
+		dependencies?: string[];
+		workspaceTargets?: string[];
+		acceptanceCriteria?: string[];
+		verificationCommands?: string[];
+		verification?: {
 			criteria: string[];
 			files?: string[];
 			commands?: string[];
@@ -411,6 +416,21 @@ export function prdResultToWorkflow(result: PRDAnalysisResult, skillsList: Skill
 	const taskById = new Map<string, typeof result.tasks[number]>();
 	for (const t of result.tasks) taskById.set(t.id, t);
 
+	function dependenciesOf(task: typeof result.tasks[number]): string[] {
+		return task.dependsOn || task.dependencies || [];
+	}
+
+	function descriptionOf(task: typeof result.tasks[number]): string {
+		const lines = [task.description || task.summary || task.title];
+		if (task.acceptanceCriteria?.length) {
+			lines.push('', 'Acceptance criteria:', ...task.acceptanceCriteria.map((criterion) => `- ${criterion}`));
+		}
+		if (task.verificationCommands?.length) {
+			lines.push('', 'Verification commands:', ...task.verificationCommands.map((command) => `- ${command}`));
+		}
+		return lines.join('\n');
+	}
+
 	const depthCache = new Map<string, number>();
 	function depthOf(taskId: string, stack: Set<string> = new Set()): number {
 		if (depthCache.has(taskId)) return depthCache.get(taskId)!;
@@ -419,11 +439,11 @@ export function prdResultToWorkflow(result: PRDAnalysisResult, skillsList: Skill
 		if (!task) return 0;
 		stack.add(taskId);
 		let d = 0;
-		for (const dep of task.dependsOn || []) {
+		for (const dep of dependenciesOf(task)) {
 			if (taskById.has(dep)) d = Math.max(d, depthOf(dep, stack) + 1);
 		}
 		// If a task has no deps but a non-1 phase, respect the phase as a hint
-		if ((task.dependsOn?.length ?? 0) === 0 && task.phase && task.phase > 1) {
+		if (dependenciesOf(task).length === 0 && task.phase && task.phase > 1) {
 			d = Math.max(d, task.phase - 1);
 		}
 		stack.delete(taskId);
@@ -457,7 +477,7 @@ export function prdResultToWorkflow(result: PRDAnalysisResult, skillsList: Skill
 			const taskNode: Skill = {
 				id: task.id,
 				name: task.title,
-				description: task.description,
+				description: descriptionOf(task),
 				category: inferCategory(task.skills),
 				tier: 'free',
 				tags: task.skills,
@@ -480,7 +500,7 @@ export function prdResultToWorkflow(result: PRDAnalysisResult, skillsList: Skill
 	for (const task of result.tasks) {
 		const targetIndex = taskIndexMap.get(task.id);
 		if (targetIndex === undefined) continue;
-		for (const depId of task.dependsOn || []) {
+		for (const depId of dependenciesOf(task)) {
 			const sourceIndex = taskIndexMap.get(depId);
 			if (sourceIndex !== undefined) {
 				connections.push({ sourceIndex, targetIndex });
@@ -489,13 +509,5 @@ export function prdResultToWorkflow(result: PRDAnalysisResult, skillsList: Skill
 	}
 
 	// Fallback — if no explicit dependencies were declared, chain tasks
-	// sequentially in the order they were emitted. This produces a clean
-	// left-to-right line instead of one source feeding every other node.
-	if (connections.length === 0 && nodes.length > 1) {
-		for (let i = 0; i < nodes.length - 1; i++) {
-			connections.push({ sourceIndex: i, targetIndex: i + 1 });
-		}
-	}
-
 	return { nodes, connections, projectName: result.projectName || 'PRD Pipeline' };
 }

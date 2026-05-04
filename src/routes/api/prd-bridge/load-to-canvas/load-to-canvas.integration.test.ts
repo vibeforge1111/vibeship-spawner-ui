@@ -320,4 +320,66 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		});
 		expect(pending.relay.goal).toContain('/root/spark-mission-arcade');
 	});
+
+	it('loads sparse clarification tasks without artificial serial dependencies or duplication', async () => {
+		const requestId = 'tg-build-8319079055-2607-1777608553410-clarified-1777608630635';
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify({
+				requestId,
+				success: true,
+				projectName: 'did you understand what i said',
+				projectType: 'clarification-understanding',
+				complexity: 'simple',
+				infrastructure: { needsAuth: false, needsDatabase: false, needsAPI: false },
+				techStack: { framework: 'Existing Spawner UI', language: 'TypeScript' },
+				tasks: [
+					{
+						id: 'task-1-acknowledge-understanding',
+						title: 'Acknowledge the understanding check',
+						summary: 'Confirm Spark understood the user is asking whether the previous message was understood.',
+						skills: ['conversation-memory', 'ux-design'],
+						dependencies: [],
+						acceptanceCriteria: ['Original request text is preserved exactly.'],
+						verificationCommands: ['npm run check']
+					},
+					{
+						id: 'task-2-ask-for-actionable-details',
+						title: 'Ask for the missing build details',
+						summary: 'Prompt for audience, core workflow, saved memory, and vibe details.',
+						skills: ['product-discovery', 'structured-output'],
+						dependencies: [],
+						acceptanceCriteria: ['The user can continue with concrete details.'],
+						verificationCommands: ['npm run smoke:routes']
+					}
+				],
+				skills: ['conversation-memory', 'ux-design', 'product-discovery', 'structured-output'],
+				executionPrompt: 'Original user request: did you understand what i said'
+			}),
+			'utf-8'
+		);
+
+		for (let attempt = 0; attempt < 2; attempt++) {
+			const response = await POST({
+				request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ requestId, autoRun: false })
+				})
+			} as never);
+			expect(response.status).toBe(200);
+		}
+
+		const pendingRaw = await readFile(path.join(testSpawnerDir, 'pending-load.json'), 'utf-8');
+		const pending = JSON.parse(pendingRaw);
+		expect(pending.pipelineName).toBe('did you understand what i said');
+		expect(pending.nodes).toHaveLength(2);
+		expect(pending.connections).toEqual([]);
+		expect(pending.nodes.map((node: any) => node.skill.id)).toEqual([
+			'task-1-acknowledge-understanding',
+			'task-2-ask-for-actionable-details'
+		]);
+		expect(pending.nodes[0].skill.description).toContain('Acceptance criteria:');
+		expect(pending.nodes[1].skill.description).toContain('Verification commands:');
+	});
 });

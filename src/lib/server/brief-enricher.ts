@@ -43,6 +43,17 @@ export interface EnrichmentResult {
 	wasEnriched: boolean;
 }
 
+export function isSparseUnderstandingClarification(content: string): boolean {
+	const normalized = content
+		.trim()
+		.toLowerCase()
+		.replace(/[“”]/g, '"')
+		.replace(/[‘’]/g, "'")
+		.replace(/[?.!]+$/g, '')
+		.replace(/\s+/g, ' ');
+	return normalized === 'did you understand what i said';
+}
+
 const KEYWORD_HINTS = [
 	'auth', 'oauth', 'login', 'database', 'postgres', 'stripe', 'payment',
 	'subscription', 'email', 'admin', 'dashboard', 'rate limit', 'queue',
@@ -116,6 +127,20 @@ function extractJson(text: string): string | null {
 
 export function buildDeterministicEnrichment(content: string): EnrichmentResult {
 	const brief = content.trim();
+	if (isSparseUnderstandingClarification(brief)) {
+		return {
+			enrichedContent: brief,
+			addedAssumptions: [],
+			openQuestions: [
+				'Who is this for?',
+				'What concrete workflow should Spark build or change?',
+				'What should be saved or remembered between sessions?',
+				'What vibe should the finished experience have?'
+			],
+			wasEnriched: false
+		};
+	}
+
 	const productName = brief.length <= 80 ? brief : `${brief.slice(0, 77)}...`;
 	const lower = brief.toLowerCase();
 	const isGame = /\b(game|maze|puzzle|arcade|runner|platformer|rpg|quest|level|player|score|enemy|boss)\b/.test(lower);

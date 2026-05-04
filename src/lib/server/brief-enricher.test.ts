@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildClaudePrintSpawnCommand, buildDeterministicEnrichment } from './brief-enricher';
+import { buildClaudePrintSpawnCommand, buildDeterministicEnrichment, isSparseUnderstandingClarification } from './brief-enricher';
 
 describe('brief-enricher', () => {
 	it('builds a deterministic enrichment for vague project briefs', () => {
@@ -22,6 +22,16 @@ describe('brief-enricher', () => {
 			'What should make this game feel surprising: shifting walls, power-ups, enemies, time pressure, or something stranger?'
 		);
 		expect(result.openQuestions.join('\n')).not.toContain('Does it need accounts/login in v1?');
+	});
+
+	it('preserves sparse understanding checks instead of inventing product scope', () => {
+		const result = buildDeterministicEnrichment('did you understand what i said');
+
+		expect(isSparseUnderstandingClarification('did you understand what i said?')).toBe(true);
+		expect(result.wasEnriched).toBe(false);
+		expect(result.enrichedContent).toBe('did you understand what i said');
+		expect(result.addedAssumptions).toEqual([]);
+		expect(result.openQuestions).toContain('What concrete workflow should Spark build or change?');
 	});
 
 	it('uses a direct Claude executable on Windows when one exists beside the cmd shim', () => {

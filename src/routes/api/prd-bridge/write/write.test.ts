@@ -68,6 +68,39 @@ describe('PRD bridge fallback analysis', () => {
 		expect(tasks.flatMap((task) => task.verificationCommands).join('\n')).toContain('node --check');
 	});
 
+	it('keeps a sparse understanding clarification small and exact', async () => {
+		const pendingPrdFile = path.join(testSpawnerDir, 'pending-prd.md');
+		await writeFile(pendingPrdFile, 'did you understand what i said', 'utf-8');
+
+		const result = await _buildFallbackAnalysisResult(
+			'tg-build-8319079055-2607-1777608553410-clarified-1777608630635',
+			'did you understand what i said',
+			'direct',
+			'pro',
+			{
+				spawnerDir: testSpawnerDir,
+				resultsDir: path.join(testSpawnerDir, 'results'),
+				pendingPrdFile,
+				pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
+				prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
+			}
+		);
+
+		expect(result.success).toBe(true);
+		expect(result.requestId).toBe('tg-build-8319079055-2607-1777608553410-clarified-1777608630635');
+		expect(result.projectName).toBe('did you understand what i said');
+		expect(result.projectType).toBe('clarification-understanding');
+		expect(result.executionPrompt).toContain('Original user request: did you understand what i said');
+		expect(result.infrastructure).toMatchObject({ needsAuth: false, needsDatabase: false, needsAPI: false });
+
+		const tasks = result.tasks as Array<{ title: string; dependencies: string[]; skills: string[] }>;
+		expect(tasks).toHaveLength(2);
+		expect(tasks.every((task) => task.dependencies.length === 0)).toBe(true);
+		expect(tasks.map((task) => task.title).join('\n')).toContain('Acknowledge the understanding check');
+		expect(tasks.map((task) => task.title).join('\n')).not.toMatch(/auth|payment|database|mvp/i);
+		expect((result.skills as string[]).length).toBeGreaterThan(0);
+	});
+
 	it('extracts complete improvement lineage before mission-created relay', () => {
 		const lineage = _extractPrdBridgeProjectLineage(
 			[

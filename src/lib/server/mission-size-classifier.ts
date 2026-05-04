@@ -1,6 +1,7 @@
 export type MissionBuildSize = 'tiny' | 'small' | 'standard' | 'large' | 'system';
 
 export type MissionProjectKind =
+	| 'clarification'
 	| 'static-app'
 	| 'threejs-app'
 	| 'dashboard'
@@ -86,6 +87,21 @@ function countMultiSystemSignals(text: string): number {
 
 export function classifyMissionSize(brief: string): MissionSizeClassification {
 	const normalized = brief.trim();
+	if (
+		normalized
+			.toLowerCase()
+			.replace(/[?.!]+$/g, '')
+			.replace(/\s+/g, ' ') === 'did you understand what i said'
+	) {
+		return {
+			size: 'small',
+			projectKind: 'clarification',
+			suggestedTaskRange: [2, 3],
+			verificationDepth: 'light',
+			reasons: ['sparse understanding clarification']
+		};
+	}
+
 	const words = normalized.split(/\s+/).filter(Boolean);
 	const matches = RULES.filter((rule): rule is Rule & { matched: true } => rule.pattern.test(normalized));
 	const score = matches.reduce((total, rule) => total + rule.score, 0);

@@ -11,6 +11,16 @@ describe('mission-size-classifier', () => {
 		expect(result.verificationDepth).toBe('light');
 	});
 
+	it('classifies sparse understanding checks as small clarification workflows', () => {
+		const result = classifyMissionSize('did you understand what i said');
+
+		expect(result.size).toBe('small');
+		expect(result.projectKind).toBe('clarification');
+		expect(result.suggestedTaskRange).toEqual([2, 3]);
+		expect(result.verificationDepth).toBe('light');
+		expect(result.reasons).toContain('sparse understanding clarification');
+	});
+
 	it('recognizes explicit no-build static apps as small builds', () => {
 		const result = classifyMissionSize(
 			'Build this at C:\\Users\\USER\\Desktop\\spark-clock: a vanilla-JS static app. Files: index.html, styles.css, app.js, README.md. No build step. Use localStorage and include a smoke test.'
