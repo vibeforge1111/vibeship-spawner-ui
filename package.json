@@ -18,6 +18,7 @@
 		"test:run": "vitest run",
 		"test:e2e": "node scripts/smoke-memory-dashboard.mjs",
 		"smoke:hosted-lock": "node scripts/smoke-hosted-lock.mjs",
+		"smoke:spark-skill-tiers": "node scripts/smoke-spark-skill-tiers.mjs",
 		"smoke:routes": "node scripts/smoke-routes.mjs",
 		"smoke:mission-surfaces": "node scripts/smoke-mission-surfaces.mjs",
 		"sync:runtime": "node scripts/sync-runtime.cjs",

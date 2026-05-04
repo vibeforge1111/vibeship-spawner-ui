@@ -43,7 +43,7 @@ function extractKeywords(skill, skillName) {
   // From owns (extract key terms)
   if (skill.owns && Array.isArray(skill.owns)) {
     skill.owns.forEach(own => {
-      const lower = own.toLowerCase();
+      const lower = String(own).toLowerCase();
       // Extract 1-2 word key terms
       const terms = lower.match(/\b[a-z]{3,}\b/g);
       if (terms) {
@@ -79,7 +79,7 @@ function processSkill(skillPath, skillName, category) {
     id: skillName,
     name: skill.name || skillName,
     description: skill.description || '',
-    owns: skill.owns || [],
+    owns: Array.isArray(skill.owns) ? skill.owns.map(String) : [],
     triggers: skill.triggers || [],
     category: remapCategory(skill.category || category || 'general', skillName),
     delegates: skill.delegates || []
@@ -191,7 +191,7 @@ function createCategorizedIndex(skills) {
 function main() {
   console.log('=== Building Skill Index ===\n');
 
-  const NON_SKILL_DIRS = new Set(['mcp-server', 'tools', 'viz', 'benchmark', 'benchmarks', 'h70-to-clawdbot', '.github', 'config', 'bundles', 'release-artifacts', 'eval', 'methodology']);
+  const NON_SKILL_DIRS = new Set(['mcp-server', 'tools', 'viz', 'benchmark', 'benchmarks', 'h70-to-clawdbot', '.github', 'config', 'bundles', 'release-artifacts', 'eval']);
   const categories = fs.readdirSync(H70_PATH, { withFileTypes: true })
     .filter(d => d.isDirectory() && !d.name.startsWith('_') && !d.name.startsWith('.') && !NON_SKILL_DIRS.has(d.name))
     .map(d => d.name);

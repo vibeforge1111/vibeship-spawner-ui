@@ -1,6 +1,6 @@
 {
   "version": "2.0.0",
-  "totalSkills": 608,
+  "totalSkills": 656,
   "domains": {
     "game": [
       {
@@ -105,6 +105,15 @@
           "day",
           "planning",
           "resilience"
+        ]
+      },
+      {
+        "id": "disaster-readiness-drills",
+        "kw": [
+          "disaster",
+          "readiness",
+          "drills",
+          "game"
         ]
       },
       {
@@ -472,45 +481,6 @@
         ]
       },
       {
-        "id": "astrophysics-fundamentals",
-        "kw": [
-          "astrophysics",
-          "fundamentals",
-          "stellar",
-          "physics",
-          "and",
-          "planetary",
-          "science",
-          "orbital"
-        ]
-      },
-      {
-        "id": "game-design-fundamentals",
-        "kw": [
-          "game",
-          "design",
-          "fundamentals",
-          "core",
-          "loop",
-          "reward",
-          "psychology",
-          "and"
-        ]
-      },
-      {
-        "id": "physics-fundamentals",
-        "kw": [
-          "physics",
-          "fundamentals",
-          "classical",
-          "mechanics",
-          "intuition",
-          "thermodynamics",
-          "heat",
-          "electromagnetism"
-        ]
-      },
-      {
         "id": "yc-playbook",
         "kw": [
           "playbook",
@@ -838,6 +808,19 @@
         ]
       },
       {
+        "id": "ai-agent-permissions-sandboxing",
+        "kw": [
+          "agent",
+          "permissions",
+          "sandboxing",
+          "ai",
+          "tool",
+          "catalog",
+          "declarative",
+          "per"
+        ]
+      },
+      {
         "id": "ai-chatbot-builder",
         "kw": [
           "chatbot",
@@ -848,6 +831,19 @@
           "context",
           "window",
           "management"
+        ]
+      },
+      {
+        "id": "ai-evals-dataset-curation",
+        "kw": [
+          "evals",
+          "dataset",
+          "curation",
+          "llm",
+          "eval",
+          "taxonomy",
+          "categories",
+          "golden"
         ]
       },
       {
@@ -968,6 +964,19 @@
         ]
       },
       {
+        "id": "llm-cost-governance",
+        "kw": [
+          "llm",
+          "cost",
+          "governance",
+          "user",
+          "per",
+          "call",
+          "attribution",
+          "feature"
+        ]
+      },
+      {
         "id": "multi-agent-orchestration",
         "kw": [
           "multi",
@@ -1030,6 +1039,19 @@
           "openai",
           "vapi",
           "agents"
+        ]
+      },
+      {
+        "id": "audit-trail-activity-feed",
+        "kw": [
+          "audit",
+          "trail",
+          "activity",
+          "feed",
+          "user",
+          "api",
+          "admin",
+          "event"
         ]
       },
       {
@@ -1358,6 +1380,19 @@
         ]
       },
       {
+        "id": "email-template-systems",
+        "kw": [
+          "email",
+          "template",
+          "systems",
+          "react",
+          "authoring",
+          "framework",
+          "html",
+          "plaintext"
+        ]
+      },
+      {
         "id": "plaid-fintech",
         "kw": [
           "plaid",
@@ -1381,6 +1416,19 @@
           "template",
           "domain",
           "verification"
+        ]
+      },
+      {
+        "id": "ai-governance-policy",
+        "kw": [
+          "governance",
+          "policy",
+          "ai",
+          "workflow",
+          "intake",
+          "triage",
+          "and",
+          "risk"
         ]
       },
       {
@@ -1566,6 +1614,19 @@
         ]
       },
       {
+        "id": "productivity-ai-tools",
+        "kw": [
+          "productivity",
+          "tools",
+          "ai",
+          "email",
+          "meeting",
+          "otter",
+          "superhuman",
+          "calendar"
+        ]
+      },
+      {
         "id": "ai-code-security",
         "kw": [
           "code",
@@ -1602,19 +1663,6 @@
           "dependency",
           "trust",
           "and"
-        ]
-      },
-      {
-        "id": "blockchain-web3",
-        "kw": [
-          "blockchain",
-          "web3",
-          "security",
-          "smart",
-          "contract",
-          "defi",
-          "protocol",
-          "design"
         ]
       },
       {
@@ -1919,6 +1967,19 @@
         ]
       },
       {
+        "id": "data-dashboard-design",
+        "kw": [
+          "data",
+          "dashboard",
+          "design",
+          "metric",
+          "tile",
+          "time",
+          "range",
+          "picker"
+        ]
+      },
+      {
         "id": "framer-motion-react",
         "kw": [
           "framer",
@@ -1981,6 +2042,19 @@
           "state",
           "local",
           "context"
+        ]
+      },
+      {
+        "id": "roles-permissions-ui",
+        "kw": [
+          "roles",
+          "permissions",
+          "role",
+          "permission",
+          "display",
+          "disable",
+          "hide",
+          "decisions"
         ]
       },
       {
@@ -2140,42 +2214,16 @@
         ]
       },
       {
-        "id": "api-design-fundamentals",
+        "id": "marketplace-liquidity",
         "kw": [
-          "api",
-          "design",
-          "fundamentals",
-          "graphql",
-          "restful",
-          "schema",
-          "versioning",
-          "strategies"
-        ]
-      },
-      {
-        "id": "frontend-development",
-        "kw": [
-          "frontend",
-          "development",
-          "component",
-          "architecture",
+          "marketplace",
+          "liquidity",
+          "supply",
+          "demand",
+          "health",
+          "matching",
           "and",
-          "state",
-          "management",
-          "local"
-        ]
-      },
-      {
-        "id": "visual-design",
-        "kw": [
-          "visual",
-          "design",
-          "color",
-          "theory",
-          "and",
-          "typography",
-          "pairing",
-          "layout"
+          "ranking"
         ]
       },
       {
@@ -2690,6 +2738,16 @@
         ]
       },
       {
+        "id": "sla-status-page-incident-comms",
+        "kw": [
+          "sla",
+          "status",
+          "page",
+          "incident",
+          "comms"
+        ]
+      },
+      {
         "id": "vercel-deployment",
         "kw": [
           "vercel",
@@ -2768,58 +2826,6 @@
         ]
       },
       {
-        "id": "devops-automation",
-        "kw": [
-          "devops",
-          "automation",
-          "ci",
-          "cd",
-          "pipeline",
-          "design",
-          "and",
-          "infrastructure"
-        ]
-      },
-      {
-        "id": "earth-climate-science",
-        "kw": [
-          "earth",
-          "climate",
-          "science",
-          "carbon",
-          "footprint",
-          "analysis",
-          "modeling",
-          "fundamentals"
-        ]
-      },
-      {
-        "id": "neuroscience-fundamentals",
-        "kw": [
-          "neuroscience",
-          "fundamentals",
-          "neuroplasticity",
-          "and",
-          "learning",
-          "attention",
-          "focus",
-          "memory"
-        ]
-      },
-      {
-        "id": "sociology-fundamentals",
-        "kw": [
-          "sociology",
-          "fundamentals",
-          "social",
-          "structure",
-          "and",
-          "group",
-          "dynamics",
-          "socialization"
-        ]
-      },
-      {
         "id": "decision-frameworks",
         "kw": [
           "decision",
@@ -2874,6 +2880,19 @@
         ]
       },
       {
+        "id": "billing-invoices-receipts",
+        "kw": [
+          "billing",
+          "invoices",
+          "receipts",
+          "payment",
+          "invoice",
+          "and",
+          "receipt",
+          "sequential"
+        ]
+      },
+      {
         "id": "subscription-billing",
         "kw": [
           "subscription",
@@ -2884,6 +2903,19 @@
           "payment",
           "processing",
           "integration"
+        ]
+      },
+      {
+        "id": "web-payments-wallets",
+        "kw": [
+          "web",
+          "payments",
+          "wallets",
+          "payment",
+          "api",
+          "browser",
+          "wallet",
+          "detection"
         ]
       },
       {
@@ -3088,6 +3120,32 @@
     ],
     "mobile": [
       {
+        "id": "flutter-mobile",
+        "kw": [
+          "flutter",
+          "mobile",
+          "project",
+          "architecture",
+          "dart",
+          "state",
+          "management",
+          "platform"
+        ]
+      },
+      {
+        "id": "mobile-offline-sync",
+        "kw": [
+          "mobile",
+          "offline",
+          "sync",
+          "local",
+          "database",
+          "schema",
+          "outbox",
+          "pattern"
+        ]
+      },
+      {
         "id": "responsive-mobile-first",
         "kw": [
           "responsive",
@@ -3098,19 +3156,6 @@
           "breakpoint",
           "container",
           "queries"
-        ]
-      },
-      {
-        "id": "mobile-development",
-        "kw": [
-          "mobile",
-          "development",
-          "react",
-          "cross",
-          "platform",
-          "native",
-          "ios",
-          "android"
         ]
       }
     ],
@@ -3246,6 +3291,19 @@
           "keyword",
           "research"
         ]
+      },
+      {
+        "id": "content-moderation-systems",
+        "kw": [
+          "content",
+          "moderation",
+          "systems",
+          "policy",
+          "labels",
+          "and",
+          "review",
+          "queue"
+        ]
       }
     ],
     "analytics": [
@@ -3315,6 +3373,19 @@
         ]
       },
       {
+        "id": "engineering-metrics",
+        "kw": [
+          "engineering",
+          "metrics",
+          "dashboard",
+          "delivery",
+          "and",
+          "reliability",
+          "metric",
+          "anti"
+        ]
+      },
+      {
         "id": "session-recording-analytics",
         "kw": [
           "session",
@@ -3355,6 +3426,19 @@
       }
     ],
     "testing": [
+      {
+        "id": "support-quality-qa",
+        "kw": [
+          "support",
+          "quality",
+          "health",
+          "signal",
+          "design",
+          "retention",
+          "intervention",
+          "playbooks"
+        ]
+      },
       {
         "id": "mcp-testing",
         "kw": [
@@ -3471,6 +3555,19 @@
           "test",
           "organization"
         ]
+      },
+      {
+        "id": "web-accessibility-qa",
+        "kw": [
+          "web",
+          "accessibility",
+          "ci",
+          "automated",
+          "testing",
+          "axe",
+          "manual",
+          "protocols"
+        ]
       }
     ],
     "other": [
@@ -3498,6 +3595,19 @@
           "object",
           "detection",
           "architecture"
+        ]
+      },
+      {
+        "id": "machine-learning",
+        "kw": [
+          "machine",
+          "learning",
+          "ml",
+          "problem",
+          "framing",
+          "and",
+          "feature",
+          "dataset"
         ]
       },
       {
@@ -3644,6 +3754,45 @@
         ]
       },
       {
+        "id": "human-in-the-loop-review",
+        "kw": [
+          "human",
+          "the",
+          "loop",
+          "review",
+          "ai",
+          "ml",
+          "queue",
+          "data"
+        ]
+      },
+      {
+        "id": "multi-modal-upload-intake",
+        "kw": [
+          "multi",
+          "modal",
+          "upload",
+          "intake",
+          "ai",
+          "audio",
+          "video",
+          "format"
+        ]
+      },
+      {
+        "id": "prompt-versioning-release-management",
+        "kw": [
+          "prompt",
+          "versioning",
+          "release",
+          "management",
+          "registry",
+          "data",
+          "source",
+          "truth"
+        ]
+      },
+      {
         "id": "rag-implementation",
         "kw": [
           "rag",
@@ -3709,6 +3858,19 @@
         ]
       },
       {
+        "id": "calendar-booking-systems",
+        "kw": [
+          "calendar",
+          "booking",
+          "systems",
+          "availability",
+          "rule",
+          "modeling",
+          "slot",
+          "generation"
+        ]
+      },
+      {
         "id": "cloudflare-workers-deep",
         "kw": [
           "cloudflare",
@@ -3758,6 +3920,19 @@
           "command",
           "query",
           "nats"
+        ]
+      },
+      {
+        "id": "file-processing-pipelines",
+        "kw": [
+          "file",
+          "processing",
+          "pipelines",
+          "upload",
+          "image",
+          "pipeline",
+          "orchestration",
+          "dag"
         ]
       },
       {
@@ -3813,6 +3988,19 @@
         ]
       },
       {
+        "id": "import-export-workflows",
+        "kw": [
+          "import",
+          "export",
+          "workflows",
+          "file",
+          "upload",
+          "handling",
+          "charset",
+          "detection"
+        ]
+      },
+      {
         "id": "infrastructure-as-code",
         "kw": [
           "infrastructure",
@@ -3836,6 +4024,19 @@
           "implementation",
           "and",
           "log"
+        ]
+      },
+      {
+        "id": "media-transcoding-pipeline",
+        "kw": [
+          "media",
+          "transcoding",
+          "pipeline",
+          "video",
+          "audio",
+          "ffmpeg",
+          "orchestration",
+          "bitrate"
         ]
       },
       {
@@ -3865,6 +4066,32 @@
         ]
       },
       {
+        "id": "notification-preferences",
+        "kw": [
+          "notification",
+          "preferences",
+          "user",
+          "per",
+          "policy",
+          "engine",
+          "one",
+          "click"
+        ]
+      },
+      {
+        "id": "notifications-orchestration",
+        "kw": [
+          "notifications",
+          "orchestration",
+          "notification",
+          "email",
+          "user",
+          "channel",
+          "adapters",
+          "routing"
+        ]
+      },
+      {
         "id": "observability",
         "kw": [
           "observability",
@@ -3875,6 +4102,32 @@
           "collection",
           "and",
           "distributed"
+        ]
+      },
+      {
+        "id": "pdf-generation",
+        "kw": [
+          "pdf",
+          "generation",
+          "html",
+          "rendering",
+          "programmatic",
+          "template",
+          "systems",
+          "handlebars"
+        ]
+      },
+      {
+        "id": "permissioned-file-sharing",
+        "kw": [
+          "permissioned",
+          "file",
+          "sharing",
+          "metadata",
+          "acl",
+          "permission",
+          "resolution",
+          "workspace"
         ]
       },
       {
@@ -3956,6 +4209,19 @@
         ]
       },
       {
+        "id": "realtime-collab-conflict-resolution",
+        "kw": [
+          "realtime",
+          "collab",
+          "conflict",
+          "resolution",
+          "crdt",
+          "library",
+          "integration",
+          "document"
+        ]
+      },
+      {
         "id": "realtime-engineer",
         "kw": [
           "realtime",
@@ -3966,6 +4232,19 @@
           "sent",
           "events",
           "presence"
+        ]
+      },
+      {
+        "id": "reviews-ratings-systems",
+        "kw": [
+          "reviews",
+          "ratings",
+          "systems",
+          "review",
+          "data",
+          "model",
+          "eligibility",
+          "rules"
         ]
       },
       {
@@ -4021,6 +4300,45 @@
         ]
       },
       {
+        "id": "support-ticketing-workflows",
+        "kw": [
+          "support",
+          "ticketing",
+          "workflows",
+          "email",
+          "chat",
+          "ticket",
+          "data",
+          "model"
+        ]
+      },
+      {
+        "id": "team-invites-membership",
+        "kw": [
+          "team",
+          "invites",
+          "membership",
+          "invite",
+          "issuance",
+          "with",
+          "pending",
+          "lifecycle"
+        ]
+      },
+      {
+        "id": "tenant-provisioning-lifecycle",
+        "kw": [
+          "tenant",
+          "provisioning",
+          "lifecycle",
+          "data",
+          "model",
+          "state",
+          "machine",
+          "default"
+        ]
+      },
+      {
         "id": "trpc-fullstack",
         "kw": [
           "trpc",
@@ -4031,6 +4349,19 @@
           "architecture",
           "and",
           "procedure"
+        ]
+      },
+      {
+        "id": "usage-metering-entitlements",
+        "kw": [
+          "usage",
+          "metering",
+          "entitlements",
+          "meter",
+          "aggregation",
+          "counters",
+          "entitlement",
+          "model"
         ]
       },
       {
@@ -4070,6 +4401,19 @@
           "key",
           "tracking",
           "retry"
+        ]
+      },
+      {
+        "id": "webhook-provider-platform",
+        "kw": [
+          "webhook",
+          "provider",
+          "platform",
+          "dashboard",
+          "subscription",
+          "data",
+          "outbound",
+          "delivery"
         ]
       },
       {
@@ -4174,6 +4518,19 @@
           "lims",
           "integration",
           "and"
+        ]
+      },
+      {
+        "id": "molecular-dynamics",
+        "kw": [
+          "molecular",
+          "dynamics",
+          "system",
+          "preparation",
+          "force",
+          "field",
+          "and",
+          "equilibration"
         ]
       },
       {
@@ -4892,6 +5249,45 @@
         ]
       },
       {
+        "id": "account-health-scoring",
+        "kw": [
+          "account",
+          "health",
+          "scoring",
+          "signal",
+          "design",
+          "retention",
+          "intervention",
+          "playbooks"
+        ]
+      },
+      {
+        "id": "churn-risk-retention",
+        "kw": [
+          "churn",
+          "risk",
+          "retention",
+          "health",
+          "signal",
+          "design",
+          "intervention",
+          "playbooks"
+        ]
+      },
+      {
+        "id": "customer-education-ops",
+        "kw": [
+          "customer",
+          "education",
+          "ops",
+          "health",
+          "signal",
+          "design",
+          "retention",
+          "intervention"
+        ]
+      },
+      {
         "id": "data-engineer",
         "kw": [
           "data",
@@ -4928,6 +5324,19 @@
           "batch",
           "idempotent",
           "transforms"
+        ]
+      },
+      {
+        "id": "data-quality-monitoring",
+        "kw": [
+          "data",
+          "quality",
+          "monitoring",
+          "freshness",
+          "lag",
+          "row",
+          "count",
+          "assertions"
         ]
       },
       {
@@ -5230,6 +5639,19 @@
         ]
       },
       {
+        "id": "parsing-strategy",
+        "kw": [
+          "parsing",
+          "strategy",
+          "parser",
+          "regex",
+          "decisioning",
+          "grammar",
+          "and",
+          "tokenizer"
+        ]
+      },
+      {
         "id": "privacy-guardian",
         "kw": [
           "privacy",
@@ -5386,6 +5808,19 @@
         ]
       },
       {
+        "id": "dependency-upgrade",
+        "kw": [
+          "dependency",
+          "upgrade",
+          "security",
+          "inventory",
+          "and",
+          "breaking",
+          "change",
+          "review"
+        ]
+      },
+      {
         "id": "disaster-recovery",
         "kw": [
           "disaster",
@@ -5516,6 +5951,19 @@
         ]
       },
       {
+        "id": "shell-scripting",
+        "kw": [
+          "shell",
+          "scripting",
+          "safe",
+          "script",
+          "quoting",
+          "and",
+          "word",
+          "idempotent"
+        ]
+      },
+      {
         "id": "turborepo-monorepo",
         "kw": [
           "turborepo",
@@ -5633,6 +6081,19 @@
         ]
       },
       {
+        "id": "developer-experience",
+        "kw": [
+          "developer",
+          "experience",
+          "message",
+          "local",
+          "development",
+          "environment",
+          "build",
+          "test"
+        ]
+      },
+      {
         "id": "discrete-event-simulation",
         "kw": [
           "discrete",
@@ -5643,6 +6104,32 @@
           "scheduling",
           "and",
           "queue"
+        ]
+      },
+      {
+        "id": "distributed-systems",
+        "kw": [
+          "distributed",
+          "systems",
+          "consistency",
+          "models",
+          "linearizable",
+          "consensus",
+          "protocols",
+          "raft"
+        ]
+      },
+      {
+        "id": "electrical-engineering",
+        "kw": [
+          "electrical",
+          "engineering",
+          "power",
+          "budget",
+          "and",
+          "circuit",
+          "wiring",
+          "safety"
         ]
       },
       {
@@ -5659,6 +6146,19 @@
         ]
       },
       {
+        "id": "geotechnical-engineering",
+        "kw": [
+          "geotechnical",
+          "engineering",
+          "site",
+          "investigation",
+          "interpretation",
+          "soil",
+          "and",
+          "rock"
+        ]
+      },
+      {
         "id": "motor-control",
         "kw": [
           "motor",
@@ -5669,6 +6169,19 @@
           "quadrature",
           "encoder",
           "interfaces"
+        ]
+      },
+      {
+        "id": "optimization-algorithms",
+        "kw": [
+          "optimization",
+          "algorithms",
+          "objective",
+          "and",
+          "constraint",
+          "solver",
+          "selection",
+          "feasibility"
         ]
       },
       {
@@ -5724,6 +6237,19 @@
         ]
       },
       {
+        "id": "finance-ops",
+        "kw": [
+          "finance",
+          "ops",
+          "close",
+          "and",
+          "reconciliation",
+          "invoice",
+          "payment",
+          "procurement"
+        ]
+      },
+      {
         "id": "portfolio-optimization",
         "kw": [
           "portfolio",
@@ -5750,6 +6276,15 @@
         ]
       },
       {
+        "id": "tax-compliance-sales-tax-vat",
+        "kw": [
+          "tax",
+          "compliance",
+          "sales",
+          "vat"
+        ]
+      },
+      {
         "id": "astro-framework",
         "kw": [
           "astro",
@@ -5760,6 +6295,32 @@
           "content",
           "collections",
           "with"
+        ]
+      },
+      {
+        "id": "desktop-autoupdate-signing",
+        "kw": [
+          "desktop",
+          "autoupdate",
+          "signing",
+          "user",
+          "code",
+          "certificate",
+          "notarization",
+          "pipeline"
+        ]
+      },
+      {
+        "id": "electron-desktop-apps",
+        "kw": [
+          "electron",
+          "desktop",
+          "apps",
+          "security",
+          "user",
+          "main",
+          "renderer",
+          "preload"
         ]
       },
       {
@@ -5815,6 +6376,19 @@
         ]
       },
       {
+        "id": "npm-publishing",
+        "kw": [
+          "npm",
+          "publishing",
+          "typescript",
+          "security",
+          "semantic",
+          "versioning",
+          "discipline",
+          "dual"
+        ]
+      },
+      {
         "id": "remix-framework",
         "kw": [
           "remix",
@@ -5867,6 +6441,19 @@
         ]
       },
       {
+        "id": "admin-crud-workflows",
+        "kw": [
+          "admin",
+          "crud",
+          "workflows",
+          "list",
+          "detail",
+          "edit",
+          "filter",
+          "faceted"
+        ]
+      },
+      {
         "id": "angular",
         "kw": [
           "angular",
@@ -5877,6 +6464,45 @@
           "reactive",
           "new",
           "control"
+        ]
+      },
+      {
+        "id": "app-store-release-ops",
+        "kw": [
+          "app",
+          "store",
+          "release",
+          "ops",
+          "pipeline",
+          "build",
+          "phased",
+          "rollout"
+        ]
+      },
+      {
+        "id": "browser-extension-publishing",
+        "kw": [
+          "browser",
+          "extension",
+          "publishing",
+          "web",
+          "manifest",
+          "authoring",
+          "service",
+          "per"
+        ]
+      },
+      {
+        "id": "bulk-actions-safety",
+        "kw": [
+          "bulk",
+          "actions",
+          "safety",
+          "selection",
+          "model",
+          "none",
+          "action",
+          "affordance"
         ]
       },
       {
@@ -5903,6 +6529,19 @@
           "file",
           "eas",
           "build"
+        ]
+      },
+      {
+        "id": "form-wizard-workflows",
+        "kw": [
+          "form",
+          "wizard",
+          "workflows",
+          "step",
+          "state",
+          "machine",
+          "per",
+          "validation"
         ]
       },
       {
@@ -5971,6 +6610,19 @@
         ]
       },
       {
+        "id": "map-location-features",
+        "kw": [
+          "map",
+          "location",
+          "features",
+          "provider",
+          "integration",
+          "geocoding",
+          "forward",
+          "reverse"
+        ]
+      },
+      {
         "id": "pwa-progressive-web-app",
         "kw": [
           "pwa",
@@ -5994,6 +6646,19 @@
           "storytelling",
           "and",
           "sticky"
+        ]
+      },
+      {
+        "id": "search-filters-saved-views",
+        "kw": [
+          "search",
+          "filters",
+          "saved",
+          "views",
+          "user",
+          "filter",
+          "components",
+          "chip"
         ]
       },
       {
@@ -6049,6 +6714,19 @@
         ]
       },
       {
+        "id": "user-settings-account-management",
+        "kw": [
+          "user",
+          "settings",
+          "account",
+          "management",
+          "auth",
+          "email",
+          "profile",
+          "fields"
+        ]
+      },
+      {
         "id": "vue-nuxt",
         "kw": [
           "vue",
@@ -6059,6 +6737,19 @@
           "routes",
           "pinia",
           "state"
+        ]
+      },
+      {
+        "id": "web-notification-inbox",
+        "kw": [
+          "web",
+          "notification",
+          "inbox",
+          "websocket",
+          "data",
+          "bell",
+          "icon",
+          "with"
         ]
       },
       {
@@ -6150,6 +6841,84 @@
           "lifecycle",
           "and",
           "prefab"
+        ]
+      },
+      {
+        "id": "vr-ar-development",
+        "kw": [
+          "development",
+          "user",
+          "rendering",
+          "budgets",
+          "minimum",
+          "comfort",
+          "settings",
+          "locomotion"
+        ]
+      },
+      {
+        "id": "clinical-workflow-safety",
+        "kw": [
+          "clinical",
+          "workflow",
+          "safety",
+          "phi",
+          "boundary",
+          "mapping",
+          "consent",
+          "and"
+        ]
+      },
+      {
+        "id": "healthcare-interoperability-fhir",
+        "kw": [
+          "healthcare",
+          "interoperability",
+          "fhir",
+          "phi",
+          "boundary",
+          "mapping",
+          "consent",
+          "and"
+        ]
+      },
+      {
+        "id": "hipaa-product-architecture",
+        "kw": [
+          "hipaa",
+          "product",
+          "architecture",
+          "phi",
+          "boundary",
+          "mapping",
+          "consent",
+          "and"
+        ]
+      },
+      {
+        "id": "medical-writing",
+        "kw": [
+          "medical",
+          "writing",
+          "clinical",
+          "study",
+          "reports",
+          "regulatory",
+          "ready",
+          "evidence"
+        ]
+      },
+      {
+        "id": "patient-consent-records",
+        "kw": [
+          "patient",
+          "consent",
+          "records",
+          "phi",
+          "boundary",
+          "mapping",
+          "and",
+          "authorization"
         ]
       },
       {
@@ -6358,6 +7127,58 @@
           "and",
           "custom",
           "fields"
+        ]
+      },
+      {
+        "id": "contract-lifecycle-ops",
+        "kw": [
+          "contract",
+          "lifecycle",
+          "ops",
+          "intake",
+          "triage",
+          "and",
+          "risk",
+          "classification"
+        ]
+      },
+      {
+        "id": "data-processing-agreements",
+        "kw": [
+          "data",
+          "processing",
+          "agreements",
+          "ai",
+          "intake",
+          "triage",
+          "and",
+          "risk"
+        ]
+      },
+      {
+        "id": "subprocessor-risk-review",
+        "kw": [
+          "subprocessor",
+          "risk",
+          "review",
+          "intake",
+          "triage",
+          "and",
+          "classification",
+          "evidence"
+        ]
+      },
+      {
+        "id": "terms-product-policy-ops",
+        "kw": [
+          "terms",
+          "product",
+          "policy",
+          "ops",
+          "intake",
+          "triage",
+          "and",
+          "risk"
         ]
       },
       {
@@ -6647,6 +7468,32 @@
         ]
       },
       {
+        "id": "creator-monetization-systems",
+        "kw": [
+          "creator",
+          "monetization",
+          "systems",
+          "supply",
+          "demand",
+          "health",
+          "matching",
+          "and"
+        ]
+      },
+      {
+        "id": "dispute-resolution-systems",
+        "kw": [
+          "dispute",
+          "resolution",
+          "systems",
+          "supply",
+          "demand",
+          "health",
+          "matching",
+          "and"
+        ]
+      },
+      {
         "id": "mcp-security",
         "kw": [
           "mcp",
@@ -6657,6 +7504,58 @@
           "user",
           "and",
           "input"
+        ]
+      },
+      {
+        "id": "compensation-leveling",
+        "kw": [
+          "compensation",
+          "leveling",
+          "role",
+          "lifecycle",
+          "workflows",
+          "fairness",
+          "and",
+          "calibration"
+        ]
+      },
+      {
+        "id": "employee-onboarding-systems",
+        "kw": [
+          "employee",
+          "onboarding",
+          "systems",
+          "role",
+          "lifecycle",
+          "workflows",
+          "fairness",
+          "and"
+        ]
+      },
+      {
+        "id": "performance-review-systems",
+        "kw": [
+          "performance",
+          "review",
+          "systems",
+          "role",
+          "lifecycle",
+          "workflows",
+          "fairness",
+          "and"
+        ]
+      },
+      {
+        "id": "workforce-scheduling",
+        "kw": [
+          "workforce",
+          "scheduling",
+          "role",
+          "lifecycle",
+          "workflows",
+          "fairness",
+          "and",
+          "calibration"
         ]
       },
       {
@@ -6673,6 +7572,19 @@
         ]
       },
       {
+        "id": "customer-onboarding-success",
+        "kw": [
+          "customer",
+          "onboarding",
+          "success",
+          "workflow",
+          "implementation",
+          "task",
+          "data",
+          "kickoff"
+        ]
+      },
+      {
         "id": "customer-success",
         "kw": [
           "customer",
@@ -6683,6 +7595,32 @@
           "health",
           "score",
           "design"
+        ]
+      },
+      {
+        "id": "experiment-feature-analysis",
+        "kw": [
+          "experiment",
+          "feature",
+          "analysis",
+          "hypothesis",
+          "design",
+          "primary",
+          "sample",
+          "size"
+        ]
+      },
+      {
+        "id": "feature-onboarding-checklists",
+        "kw": [
+          "feature",
+          "onboarding",
+          "checklists",
+          "user",
+          "analytics",
+          "checklist",
+          "step",
+          "definition"
         ]
       },
       {
@@ -6725,6 +7663,19 @@
         ]
       },
       {
+        "id": "product-feedback-roadmapping",
+        "kw": [
+          "product",
+          "feedback",
+          "roadmapping",
+          "intake",
+          "app",
+          "idea",
+          "deduplication",
+          "semantic"
+        ]
+      },
+      {
         "id": "product-management",
         "kw": [
           "product",
@@ -6735,6 +7686,71 @@
           "prioritization",
           "rice",
           "requirements"
+        ]
+      },
+      {
+        "id": "crm-lifecycle-ops",
+        "kw": [
+          "crm",
+          "lifecycle",
+          "ops",
+          "stage",
+          "definitions",
+          "source",
+          "truth",
+          "revenue"
+        ]
+      },
+      {
+        "id": "enterprise-sales-engineering",
+        "kw": [
+          "enterprise",
+          "sales",
+          "engineering",
+          "security",
+          "lifecycle",
+          "stage",
+          "definitions",
+          "crm"
+        ]
+      },
+      {
+        "id": "partner-channel-operations",
+        "kw": [
+          "partner",
+          "channel",
+          "operations",
+          "lifecycle",
+          "stage",
+          "definitions",
+          "crm",
+          "source"
+        ]
+      },
+      {
+        "id": "procurement-vendor-management",
+        "kw": [
+          "procurement",
+          "vendor",
+          "management",
+          "lifecycle",
+          "stage",
+          "definitions",
+          "crm",
+          "source"
+        ]
+      },
+      {
+        "id": "revenue-forecasting-pipeline",
+        "kw": [
+          "revenue",
+          "forecasting",
+          "pipeline",
+          "lifecycle",
+          "stage",
+          "definitions",
+          "crm",
+          "source"
         ]
       },
       {
@@ -6777,6 +7793,19 @@
         ]
       },
       {
+        "id": "cryptography",
+        "kw": [
+          "cryptography",
+          "rest",
+          "symmetric",
+          "encryption",
+          "choice",
+          "asymmetric",
+          "rsa",
+          "digital"
+        ]
+      },
+      {
         "id": "cybersecurity",
         "kw": [
           "cybersecurity",
@@ -6787,6 +7816,19 @@
           "authorization",
           "encryption",
           "cryptography"
+        ]
+      },
+      {
+        "id": "data-retention-deletion",
+        "kw": [
+          "data",
+          "retention",
+          "deletion",
+          "classification",
+          "categories",
+          "policy",
+          "registry",
+          "fan"
         ]
       },
       {
@@ -6826,6 +7868,16 @@
           "for",
           "authentication",
           "versus"
+        ]
+      },
+      {
+        "id": "privacy-consent-management",
+        "kw": [
+          "privacy",
+          "consent",
+          "management",
+          "web",
+          "mobile"
         ]
       },
       {
@@ -6891,6 +7943,19 @@
           "trust",
           "boundary",
           "identification"
+        ]
+      },
+      {
+        "id": "gis-analysis",
+        "kw": [
+          "gis",
+          "analysis",
+          "coordinate",
+          "reference",
+          "system",
+          "raster",
+          "vector",
+          "processing"
         ]
       },
       {
@@ -6969,526 +8034,6 @@
           "electrical",
           "power",
           "system"
-        ]
-      },
-      {
-        "id": "animation-motion",
-        "kw": [
-          "animation",
-          "motion",
-          "principles",
-          "disney",
-          "easing",
-          "curves",
-          "and",
-          "micro"
-        ]
-      },
-      {
-        "id": "architecture-spaces",
-        "kw": [
-          "architecture",
-          "spaces",
-          "structural",
-          "principles",
-          "load",
-          "spatial",
-          "planning",
-          "and"
-        ]
-      },
-      {
-        "id": "biology-fundamentals",
-        "kw": [
-          "biology",
-          "fundamentals",
-          "genetics",
-          "and",
-          "genomics",
-          "cell",
-          "ecology",
-          "ecosystems"
-        ]
-      },
-      {
-        "id": "chemistry-fundamentals",
-        "kw": [
-          "chemistry",
-          "fundamentals",
-          "molecular",
-          "structure",
-          "and",
-          "stoichiometry",
-          "reaction",
-          "acid"
-        ]
-      },
-      {
-        "id": "cognitive-behavioral",
-        "kw": [
-          "cognitive",
-          "behavioral",
-          "distortion",
-          "identification",
-          "thought",
-          "challenging",
-          "and",
-          "activation"
-        ]
-      },
-      {
-        "id": "communication-fundamentals",
-        "kw": [
-          "communication",
-          "fundamentals",
-          "technical",
-          "writing",
-          "documentation",
-          "presentation",
-          "design",
-          "and"
-        ]
-      },
-      {
-        "id": "conflict-resolution",
-        "kw": [
-          "conflict",
-          "resolution",
-          "identification",
-          "and",
-          "escalation",
-          "techniques",
-          "nonviolent",
-          "communication"
-        ]
-      },
-      {
-        "id": "craft-making",
-        "kw": [
-          "craft",
-          "making",
-          "material",
-          "selection",
-          "and",
-          "prototyping",
-          "methods",
-          "printing"
-        ]
-      },
-      {
-        "id": "cross-cultural-wisdom",
-        "kw": [
-          "cross",
-          "cultural",
-          "wisdom",
-          "dimensions",
-          "analysis",
-          "communication",
-          "due",
-          "diligence"
-        ]
-      },
-      {
-        "id": "cybersecurity-fundamentals",
-        "kw": [
-          "cybersecurity",
-          "fundamentals",
-          "security",
-          "owasp",
-          "top",
-          "vulnerability",
-          "threat",
-          "modeling"
-        ]
-      },
-      {
-        "id": "data-engineering-fundamentals",
-        "kw": [
-          "data",
-          "engineering",
-          "fundamentals",
-          "etl",
-          "elt",
-          "pipeline",
-          "quality",
-          "validation"
-        ]
-      },
-      {
-        "id": "entrepreneurship-fundamentals",
-        "kw": [
-          "entrepreneurship",
-          "fundamentals",
-          "customer",
-          "discovery",
-          "and",
-          "mvp",
-          "design",
-          "product"
-        ]
-      },
-      {
-        "id": "evolutionary-biology",
-        "kw": [
-          "evolutionary",
-          "biology",
-          "natural",
-          "selection",
-          "mechanisms",
-          "genetic",
-          "variation",
-          "and"
-        ]
-      },
-      {
-        "id": "existential-philosophy",
-        "kw": [
-          "existential",
-          "philosophy",
-          "frameworks",
-          "logotherapy",
-          "and",
-          "meaning",
-          "purpose",
-          "discovery"
-        ]
-      },
-      {
-        "id": "focus-techniques",
-        "kw": [
-          "focus",
-          "techniques",
-          "deep",
-          "work",
-          "methodology",
-          "attention",
-          "management",
-          "systems"
-        ]
-      },
-      {
-        "id": "futures-thinking",
-        "kw": [
-          "futures",
-          "thinking",
-          "scenario",
-          "planning",
-          "methodology",
-          "trend",
-          "analysis",
-          "and"
-        ]
-      },
-      {
-        "id": "growth-marketing",
-        "kw": [
-          "growth",
-          "marketing",
-          "loops",
-          "and",
-          "acquisition",
-          "channel",
-          "analysis",
-          "conversion"
-        ]
-      },
-      {
-        "id": "health-fundamentals",
-        "kw": [
-          "health",
-          "fundamentals",
-          "sleep",
-          "hygiene",
-          "and",
-          "movement",
-          "exercise",
-          "basic"
-        ]
-      },
-      {
-        "id": "investment-basics",
-        "kw": [
-          "investment",
-          "basics",
-          "asset",
-          "allocation",
-          "fundamentals",
-          "index",
-          "investing",
-          "principles"
-        ]
-      },
-      {
-        "id": "leadership-fundamentals",
-        "kw": [
-          "leadership",
-          "fundamentals",
-          "psychological",
-          "safety",
-          "and",
-          "delegation",
-          "empowerment",
-          "feedback"
-        ]
-      },
-      {
-        "id": "logical-reasoning",
-        "kw": [
-          "logical",
-          "reasoning",
-          "argument",
-          "structure",
-          "and",
-          "fallacy",
-          "identification",
-          "deductive"
-        ]
-      },
-      {
-        "id": "machine-learning-fundamentals",
-        "kw": [
-          "machine",
-          "learning",
-          "fundamentals",
-          "ml",
-          "feature",
-          "engineering",
-          "and",
-          "model"
-        ]
-      },
-      {
-        "id": "mathematics-fundamentals",
-        "kw": [
-          "mathematics",
-          "fundamentals",
-          "numerical",
-          "reasoning",
-          "and",
-          "basic",
-          "probability",
-          "percentages"
-        ]
-      },
-      {
-        "id": "mental-health",
-        "kw": [
-          "mental",
-          "health",
-          "literacy",
-          "recognizing",
-          "signs",
-          "that",
-          "supportive",
-          "listening"
-        ]
-      },
-      {
-        "id": "meta-learning",
-        "kw": [
-          "meta",
-          "learning",
-          "spaced",
-          "repetition",
-          "system",
-          "deliberate",
-          "practice",
-          "frameworks"
-        ]
-      },
-      {
-        "id": "music-audio",
-        "kw": [
-          "music",
-          "audio",
-          "theory",
-          "fundamentals",
-          "signal",
-          "processing",
-          "mixing",
-          "and"
-        ]
-      },
-      {
-        "id": "operations-systems",
-        "kw": [
-          "operations",
-          "systems",
-          "process",
-          "mapping",
-          "and",
-          "supply",
-          "chain",
-          "design"
-        ]
-      },
-      {
-        "id": "parenting-education",
-        "kw": [
-          "parenting",
-          "education",
-          "child",
-          "development",
-          "stages",
-          "learning",
-          "theories",
-          "montessori"
-        ]
-      },
-      {
-        "id": "personal-finance-fundamentals",
-        "kw": [
-          "personal",
-          "finance",
-          "fundamentals",
-          "security",
-          "budgeting",
-          "and",
-          "cash",
-          "emergency"
-        ]
-      },
-      {
-        "id": "philosophy-fundamentals",
-        "kw": [
-          "philosophy",
-          "fundamentals",
-          "logical",
-          "reasoning",
-          "and",
-          "fallacy",
-          "identification",
-          "ethical"
-        ]
-      },
-      {
-        "id": "productivity-systems",
-        "kw": [
-          "productivity",
-          "systems",
-          "deep",
-          "work",
-          "and",
-          "task",
-          "prioritization",
-          "frameworks"
-        ]
-      },
-      {
-        "id": "psychology-fundamentals",
-        "kw": [
-          "psychology",
-          "fundamentals",
-          "cognitive",
-          "biases",
-          "and",
-          "motivation",
-          "theory",
-          "intrinsic"
-        ]
-      },
-      {
-        "id": "quantum-mechanics",
-        "kw": [
-          "quantum",
-          "mechanics",
-          "superposition",
-          "and",
-          "entanglement",
-          "non",
-          "measurement",
-          "wavefunction"
-        ]
-      },
-      {
-        "id": "relationship-fundamentals",
-        "kw": [
-          "relationship",
-          "fundamentals",
-          "attachment",
-          "theory",
-          "application",
-          "emotional",
-          "intelligence",
-          "frameworks"
-        ]
-      },
-      {
-        "id": "sales-fundamentals",
-        "kw": [
-          "sales",
-          "fundamentals",
-          "consultative",
-          "selling",
-          "frameworks",
-          "pipeline",
-          "management",
-          "and"
-        ]
-      },
-      {
-        "id": "software-architecture",
-        "kw": [
-          "software",
-          "architecture",
-          "system",
-          "decomposition",
-          "and",
-          "coupling",
-          "analysis",
-          "solid"
-        ]
-      },
-      {
-        "id": "storytelling-writing",
-        "kw": [
-          "storytelling",
-          "writing",
-          "narrative",
-          "structure",
-          "hero",
-          "technical",
-          "documentation",
-          "api"
-        ]
-      },
-      {
-        "id": "team-dynamics-fundamentals",
-        "kw": [
-          "team",
-          "dynamics",
-          "fundamentals",
-          "formation",
-          "and",
-          "psychological",
-          "safety",
-          "measurement"
-        ]
-      },
-      {
-        "id": "tech-ethics",
-        "kw": [
-          "tech",
-          "ethics",
-          "ai",
-          "algorithmic",
-          "bias",
-          "detection",
-          "disparate",
-          "impact"
-        ]
-      },
-      {
-        "id": "typography-fundamentals",
-        "kw": [
-          "typography",
-          "fundamentals",
-          "type",
-          "classification",
-          "and",
-          "font",
-          "pairing",
-          "strategy"
         ]
       },
       {
@@ -7791,6 +8336,19 @@
         ]
       },
       {
+        "id": "project-management",
+        "kw": [
+          "project",
+          "management",
+          "scope",
+          "decomposition",
+          "into",
+          "dependency",
+          "mapping",
+          "and"
+        ]
+      },
+      {
         "id": "rbac-enterprise",
         "kw": [
           "rbac",
@@ -7931,6 +8489,58 @@
           "cognitive",
           "bias",
           "identification"
+        ]
+      },
+      {
+        "id": "abuse-fraud-prevention",
+        "kw": [
+          "abuse",
+          "fraud",
+          "prevention",
+          "scraping",
+          "policy",
+          "labels",
+          "and",
+          "review"
+        ]
+      },
+      {
+        "id": "appeals-policy-operations",
+        "kw": [
+          "appeals",
+          "policy",
+          "operations",
+          "labels",
+          "and",
+          "review",
+          "queue",
+          "design"
+        ]
+      },
+      {
+        "id": "marketplace-risk-controls",
+        "kw": [
+          "marketplace",
+          "risk",
+          "controls",
+          "policy",
+          "labels",
+          "and",
+          "review",
+          "queue"
+        ]
+      },
+      {
+        "id": "reputation-systems",
+        "kw": [
+          "reputation",
+          "systems",
+          "user",
+          "policy",
+          "labels",
+          "and",
+          "review",
+          "queue"
         ]
       }
     ]
@@ -8197,6 +8807,19 @@
       ]
     },
     {
+      "id": "machine-learning",
+      "kw": [
+        "machine",
+        "learning",
+        "ml",
+        "problem",
+        "framing",
+        "and",
+        "feature",
+        "dataset"
+      ]
+    },
+    {
       "id": "ml-memory",
       "kw": [
         "memory",
@@ -8444,6 +9067,19 @@
       ]
     },
     {
+      "id": "ai-agent-permissions-sandboxing",
+      "kw": [
+        "agent",
+        "permissions",
+        "sandboxing",
+        "ai",
+        "tool",
+        "catalog",
+        "declarative",
+        "per"
+      ]
+    },
+    {
       "id": "ai-chatbot-builder",
       "kw": [
         "chatbot",
@@ -8454,6 +9090,19 @@
         "context",
         "window",
         "management"
+      ]
+    },
+    {
+      "id": "ai-evals-dataset-curation",
+      "kw": [
+        "evals",
+        "dataset",
+        "curation",
+        "llm",
+        "eval",
+        "taxonomy",
+        "categories",
+        "golden"
       ]
     },
     {
@@ -8548,6 +9197,19 @@
       ]
     },
     {
+      "id": "human-in-the-loop-review",
+      "kw": [
+        "human",
+        "the",
+        "loop",
+        "review",
+        "ai",
+        "ml",
+        "queue",
+        "data"
+      ]
+    },
+    {
       "id": "langfuse",
       "kw": [
         "langfuse",
@@ -8574,6 +9236,19 @@
       ]
     },
     {
+      "id": "llm-cost-governance",
+      "kw": [
+        "llm",
+        "cost",
+        "governance",
+        "user",
+        "per",
+        "call",
+        "attribution",
+        "feature"
+      ]
+    },
+    {
       "id": "multi-agent-orchestration",
       "kw": [
         "multi",
@@ -8584,6 +9259,19 @@
         "patterns",
         "state",
         "workflow"
+      ]
+    },
+    {
+      "id": "multi-modal-upload-intake",
+      "kw": [
+        "multi",
+        "modal",
+        "upload",
+        "intake",
+        "ai",
+        "audio",
+        "video",
+        "format"
       ]
     },
     {
@@ -8610,6 +9298,19 @@
         "structure",
         "system",
         "architecture"
+      ]
+    },
+    {
+      "id": "prompt-versioning-release-management",
+      "kw": [
+        "prompt",
+        "versioning",
+        "release",
+        "management",
+        "registry",
+        "data",
+        "source",
+        "truth"
       ]
     },
     {
@@ -8717,6 +9418,19 @@
       ]
     },
     {
+      "id": "audit-trail-activity-feed",
+      "kw": [
+        "audit",
+        "trail",
+        "activity",
+        "feed",
+        "user",
+        "api",
+        "admin",
+        "event"
+      ]
+    },
+    {
       "id": "automation",
       "kw": [
         "automation",
@@ -8753,6 +9467,19 @@
         "aside",
         "pattern",
         "write"
+      ]
+    },
+    {
+      "id": "calendar-booking-systems",
+      "kw": [
+        "calendar",
+        "booking",
+        "systems",
+        "availability",
+        "rule",
+        "modeling",
+        "slot",
+        "generation"
       ]
     },
     {
@@ -8834,6 +9561,19 @@
       ]
     },
     {
+      "id": "file-processing-pipelines",
+      "kw": [
+        "file",
+        "processing",
+        "pipelines",
+        "upload",
+        "image",
+        "pipeline",
+        "orchestration",
+        "dag"
+      ]
+    },
+    {
       "id": "file-uploads",
       "kw": [
         "file",
@@ -8912,6 +9652,19 @@
       ]
     },
     {
+      "id": "import-export-workflows",
+      "kw": [
+        "import",
+        "export",
+        "workflows",
+        "file",
+        "upload",
+        "handling",
+        "charset",
+        "detection"
+      ]
+    },
+    {
       "id": "infrastructure-as-code",
       "kw": [
         "infrastructure",
@@ -8935,6 +9688,19 @@
         "implementation",
         "and",
         "log"
+      ]
+    },
+    {
+      "id": "media-transcoding-pipeline",
+      "kw": [
+        "media",
+        "transcoding",
+        "pipeline",
+        "video",
+        "audio",
+        "ffmpeg",
+        "orchestration",
+        "bitrate"
       ]
     },
     {
@@ -8990,6 +9756,32 @@
       ]
     },
     {
+      "id": "notification-preferences",
+      "kw": [
+        "notification",
+        "preferences",
+        "user",
+        "per",
+        "policy",
+        "engine",
+        "one",
+        "click"
+      ]
+    },
+    {
+      "id": "notifications-orchestration",
+      "kw": [
+        "notifications",
+        "orchestration",
+        "notification",
+        "email",
+        "user",
+        "channel",
+        "adapters",
+        "routing"
+      ]
+    },
+    {
       "id": "observability",
       "kw": [
         "observability",
@@ -9000,6 +9792,32 @@
         "collection",
         "and",
         "distributed"
+      ]
+    },
+    {
+      "id": "pdf-generation",
+      "kw": [
+        "pdf",
+        "generation",
+        "html",
+        "rendering",
+        "programmatic",
+        "template",
+        "systems",
+        "handlebars"
+      ]
+    },
+    {
+      "id": "permissioned-file-sharing",
+      "kw": [
+        "permissioned",
+        "file",
+        "sharing",
+        "metadata",
+        "acl",
+        "permission",
+        "resolution",
+        "workspace"
       ]
     },
     {
@@ -9107,6 +9925,19 @@
       ]
     },
     {
+      "id": "realtime-collab-conflict-resolution",
+      "kw": [
+        "realtime",
+        "collab",
+        "conflict",
+        "resolution",
+        "crdt",
+        "library",
+        "integration",
+        "document"
+      ]
+    },
+    {
       "id": "realtime-engineer",
       "kw": [
         "realtime",
@@ -9117,6 +9948,19 @@
         "sent",
         "events",
         "presence"
+      ]
+    },
+    {
+      "id": "reviews-ratings-systems",
+      "kw": [
+        "reviews",
+        "ratings",
+        "systems",
+        "review",
+        "data",
+        "model",
+        "eligibility",
+        "rules"
       ]
     },
     {
@@ -9224,6 +10068,45 @@
       ]
     },
     {
+      "id": "support-ticketing-workflows",
+      "kw": [
+        "support",
+        "ticketing",
+        "workflows",
+        "email",
+        "chat",
+        "ticket",
+        "data",
+        "model"
+      ]
+    },
+    {
+      "id": "team-invites-membership",
+      "kw": [
+        "team",
+        "invites",
+        "membership",
+        "invite",
+        "issuance",
+        "with",
+        "pending",
+        "lifecycle"
+      ]
+    },
+    {
+      "id": "tenant-provisioning-lifecycle",
+      "kw": [
+        "tenant",
+        "provisioning",
+        "lifecycle",
+        "data",
+        "model",
+        "state",
+        "machine",
+        "default"
+      ]
+    },
+    {
       "id": "trpc-fullstack",
       "kw": [
         "trpc",
@@ -9234,6 +10117,19 @@
         "architecture",
         "and",
         "procedure"
+      ]
+    },
+    {
+      "id": "usage-metering-entitlements",
+      "kw": [
+        "usage",
+        "metering",
+        "entitlements",
+        "meter",
+        "aggregation",
+        "counters",
+        "entitlement",
+        "model"
       ]
     },
     {
@@ -9273,6 +10169,19 @@
         "key",
         "tracking",
         "retry"
+      ]
+    },
+    {
+      "id": "webhook-provider-platform",
+      "kw": [
+        "webhook",
+        "provider",
+        "platform",
+        "dashboard",
+        "subscription",
+        "data",
+        "outbound",
+        "delivery"
       ]
     },
     {
@@ -9377,6 +10286,19 @@
         "lims",
         "integration",
         "and"
+      ]
+    },
+    {
+      "id": "molecular-dynamics",
+      "kw": [
+        "molecular",
+        "dynamics",
+        "system",
+        "preparation",
+        "force",
+        "field",
+        "and",
+        "equilibration"
       ]
     },
     {
@@ -9679,6 +10601,19 @@
       ]
     },
     {
+      "id": "billing-invoices-receipts",
+      "kw": [
+        "billing",
+        "invoices",
+        "receipts",
+        "payment",
+        "invoice",
+        "and",
+        "receipt",
+        "sequential"
+      ]
+    },
+    {
       "id": "demo-day-theater",
       "kw": [
         "demo",
@@ -9806,6 +10741,19 @@
         "payment",
         "processing",
         "integration"
+      ]
+    },
+    {
+      "id": "web-payments-wallets",
+      "kw": [
+        "web",
+        "payments",
+        "wallets",
+        "payment",
+        "api",
+        "browser",
+        "wallet",
+        "detection"
       ]
     },
     {
@@ -10433,6 +11381,58 @@
       ]
     },
     {
+      "id": "account-health-scoring",
+      "kw": [
+        "account",
+        "health",
+        "scoring",
+        "signal",
+        "design",
+        "retention",
+        "intervention",
+        "playbooks"
+      ]
+    },
+    {
+      "id": "churn-risk-retention",
+      "kw": [
+        "churn",
+        "risk",
+        "retention",
+        "health",
+        "signal",
+        "design",
+        "intervention",
+        "playbooks"
+      ]
+    },
+    {
+      "id": "customer-education-ops",
+      "kw": [
+        "customer",
+        "education",
+        "ops",
+        "health",
+        "signal",
+        "design",
+        "retention",
+        "intervention"
+      ]
+    },
+    {
+      "id": "support-quality-qa",
+      "kw": [
+        "support",
+        "quality",
+        "health",
+        "signal",
+        "design",
+        "retention",
+        "intervention",
+        "playbooks"
+      ]
+    },
+    {
       "id": "agent-based-modeling",
       "kw": [
         "agent",
@@ -10508,6 +11508,19 @@
         "batch",
         "idempotent",
         "transforms"
+      ]
+    },
+    {
+      "id": "data-quality-monitoring",
+      "kw": [
+        "data",
+        "quality",
+        "monitoring",
+        "freshness",
+        "lag",
+        "row",
+        "count",
+        "assertions"
       ]
     },
     {
@@ -11135,6 +12148,19 @@
       ]
     },
     {
+      "id": "parsing-strategy",
+      "kw": [
+        "parsing",
+        "strategy",
+        "parser",
+        "regex",
+        "decisioning",
+        "grammar",
+        "and",
+        "tokenizer"
+      ]
+    },
+    {
       "id": "privacy-guardian",
       "kw": [
         "privacy",
@@ -11382,6 +12408,19 @@
       ]
     },
     {
+      "id": "dependency-upgrade",
+      "kw": [
+        "dependency",
+        "upgrade",
+        "security",
+        "inventory",
+        "and",
+        "breaking",
+        "change",
+        "review"
+      ]
+    },
+    {
       "id": "devops-engineer",
       "kw": [
         "devops",
@@ -11405,6 +12444,15 @@
         "actions",
         "deployment",
         "strategies"
+      ]
+    },
+    {
+      "id": "disaster-readiness-drills",
+      "kw": [
+        "disaster",
+        "readiness",
+        "drills",
+        "game"
       ]
     },
     {
@@ -11642,6 +12690,29 @@
       ]
     },
     {
+      "id": "shell-scripting",
+      "kw": [
+        "shell",
+        "scripting",
+        "safe",
+        "script",
+        "quoting",
+        "and",
+        "word",
+        "idempotent"
+      ]
+    },
+    {
+      "id": "sla-status-page-incident-comms",
+      "kw": [
+        "sla",
+        "status",
+        "page",
+        "incident",
+        "comms"
+      ]
+    },
+    {
       "id": "turborepo-monorepo",
       "kw": [
         "turborepo",
@@ -11785,6 +12856,19 @@
       ]
     },
     {
+      "id": "developer-experience",
+      "kw": [
+        "developer",
+        "experience",
+        "message",
+        "local",
+        "development",
+        "environment",
+        "build",
+        "test"
+      ]
+    },
+    {
       "id": "digital-twin",
       "kw": [
         "digital",
@@ -11811,6 +12895,32 @@
       ]
     },
     {
+      "id": "distributed-systems",
+      "kw": [
+        "distributed",
+        "systems",
+        "consistency",
+        "models",
+        "linearizable",
+        "consensus",
+        "protocols",
+        "raft"
+      ]
+    },
+    {
+      "id": "electrical-engineering",
+      "kw": [
+        "electrical",
+        "engineering",
+        "power",
+        "budget",
+        "and",
+        "circuit",
+        "wiring",
+        "safety"
+      ]
+    },
+    {
       "id": "embedded-systems",
       "kw": [
         "embedded",
@@ -11821,6 +12931,19 @@
         "interrupt",
         "service",
         "routines"
+      ]
+    },
+    {
+      "id": "engineering-metrics",
+      "kw": [
+        "engineering",
+        "metrics",
+        "dashboard",
+        "delivery",
+        "and",
+        "reliability",
+        "metric",
+        "anti"
       ]
     },
     {
@@ -11837,6 +12960,19 @@
       ]
     },
     {
+      "id": "geotechnical-engineering",
+      "kw": [
+        "geotechnical",
+        "engineering",
+        "site",
+        "investigation",
+        "interpretation",
+        "soil",
+        "and",
+        "rock"
+      ]
+    },
+    {
       "id": "motor-control",
       "kw": [
         "motor",
@@ -11847,6 +12983,19 @@
         "quadrature",
         "encoder",
         "interfaces"
+      ]
+    },
+    {
+      "id": "optimization-algorithms",
+      "kw": [
+        "optimization",
+        "algorithms",
+        "objective",
+        "and",
+        "constraint",
+        "solver",
+        "selection",
+        "feasibility"
       ]
     },
     {
@@ -11928,6 +13077,19 @@
       ]
     },
     {
+      "id": "finance-ops",
+      "kw": [
+        "finance",
+        "ops",
+        "close",
+        "and",
+        "reconciliation",
+        "invoice",
+        "payment",
+        "procurement"
+      ]
+    },
+    {
       "id": "portfolio-optimization",
       "kw": [
         "portfolio",
@@ -11954,6 +13116,15 @@
       ]
     },
     {
+      "id": "tax-compliance-sales-tax-vat",
+      "kw": [
+        "tax",
+        "compliance",
+        "sales",
+        "vat"
+      ]
+    },
+    {
       "id": "astro-framework",
       "kw": [
         "astro",
@@ -11964,6 +13135,32 @@
         "content",
         "collections",
         "with"
+      ]
+    },
+    {
+      "id": "desktop-autoupdate-signing",
+      "kw": [
+        "desktop",
+        "autoupdate",
+        "signing",
+        "user",
+        "code",
+        "certificate",
+        "notarization",
+        "pipeline"
+      ]
+    },
+    {
+      "id": "electron-desktop-apps",
+      "kw": [
+        "electron",
+        "desktop",
+        "apps",
+        "security",
+        "user",
+        "main",
+        "renderer",
+        "preload"
       ]
     },
     {
@@ -12032,6 +13229,19 @@
       ]
     },
     {
+      "id": "npm-publishing",
+      "kw": [
+        "npm",
+        "publishing",
+        "typescript",
+        "security",
+        "semantic",
+        "versioning",
+        "discipline",
+        "dual"
+      ]
+    },
+    {
       "id": "remix-framework",
       "kw": [
         "remix",
@@ -12097,6 +13307,19 @@
       ]
     },
     {
+      "id": "admin-crud-workflows",
+      "kw": [
+        "admin",
+        "crud",
+        "workflows",
+        "list",
+        "detail",
+        "edit",
+        "filter",
+        "faceted"
+      ]
+    },
+    {
       "id": "ai-streaming-interfaces",
       "kw": [
         "streaming",
@@ -12123,6 +13346,19 @@
       ]
     },
     {
+      "id": "app-store-release-ops",
+      "kw": [
+        "app",
+        "store",
+        "release",
+        "ops",
+        "pipeline",
+        "build",
+        "phased",
+        "rollout"
+      ]
+    },
+    {
       "id": "browser-extension-builder",
       "kw": [
         "browser",
@@ -12133,6 +13369,32 @@
         "architecture",
         "and",
         "content"
+      ]
+    },
+    {
+      "id": "browser-extension-publishing",
+      "kw": [
+        "browser",
+        "extension",
+        "publishing",
+        "web",
+        "manifest",
+        "authoring",
+        "service",
+        "per"
+      ]
+    },
+    {
+      "id": "bulk-actions-safety",
+      "kw": [
+        "bulk",
+        "actions",
+        "safety",
+        "selection",
+        "model",
+        "none",
+        "action",
+        "affordance"
       ]
     },
     {
@@ -12149,6 +13411,19 @@
       ]
     },
     {
+      "id": "data-dashboard-design",
+      "kw": [
+        "data",
+        "dashboard",
+        "design",
+        "metric",
+        "tile",
+        "time",
+        "range",
+        "picker"
+      ]
+    },
+    {
       "id": "expo",
       "kw": [
         "expo",
@@ -12159,6 +13434,32 @@
         "file",
         "eas",
         "build"
+      ]
+    },
+    {
+      "id": "flutter-mobile",
+      "kw": [
+        "flutter",
+        "mobile",
+        "project",
+        "architecture",
+        "dart",
+        "state",
+        "management",
+        "platform"
+      ]
+    },
+    {
+      "id": "form-wizard-workflows",
+      "kw": [
+        "form",
+        "wizard",
+        "workflows",
+        "step",
+        "state",
+        "machine",
+        "per",
+        "validation"
       ]
     },
     {
@@ -12266,6 +13567,32 @@
       ]
     },
     {
+      "id": "map-location-features",
+      "kw": [
+        "map",
+        "location",
+        "features",
+        "provider",
+        "integration",
+        "geocoding",
+        "forward",
+        "reverse"
+      ]
+    },
+    {
+      "id": "mobile-offline-sync",
+      "kw": [
+        "mobile",
+        "offline",
+        "sync",
+        "local",
+        "database",
+        "schema",
+        "outbox",
+        "pattern"
+      ]
+    },
+    {
       "id": "pwa-progressive-web-app",
       "kw": [
         "pwa",
@@ -12318,6 +13645,19 @@
       ]
     },
     {
+      "id": "roles-permissions-ui",
+      "kw": [
+        "roles",
+        "permissions",
+        "role",
+        "permission",
+        "display",
+        "disable",
+        "hide",
+        "decisions"
+      ]
+    },
+    {
       "id": "scroll-experience",
       "kw": [
         "scroll",
@@ -12328,6 +13668,19 @@
         "storytelling",
         "and",
         "sticky"
+      ]
+    },
+    {
+      "id": "search-filters-saved-views",
+      "kw": [
+        "search",
+        "filters",
+        "saved",
+        "views",
+        "user",
+        "filter",
+        "components",
+        "chip"
       ]
     },
     {
@@ -12435,6 +13788,19 @@
       ]
     },
     {
+      "id": "user-settings-account-management",
+      "kw": [
+        "user",
+        "settings",
+        "account",
+        "management",
+        "auth",
+        "email",
+        "profile",
+        "fields"
+      ]
+    },
+    {
       "id": "vue-nuxt",
       "kw": [
         "vue",
@@ -12445,6 +13811,19 @@
         "routes",
         "pinia",
         "state"
+      ]
+    },
+    {
+      "id": "web-notification-inbox",
+      "kw": [
+        "web",
+        "notification",
+        "inbox",
+        "websocket",
+        "data",
+        "bell",
+        "icon",
+        "with"
       ]
     },
     {
@@ -12994,6 +14373,19 @@
       ]
     },
     {
+      "id": "vr-ar-development",
+      "kw": [
+        "development",
+        "user",
+        "rendering",
+        "budgets",
+        "minimum",
+        "comfort",
+        "settings",
+        "locomotion"
+      ]
+    },
+    {
       "id": "weapon-design",
       "kw": [
         "weapon",
@@ -13017,6 +14409,71 @@
         "societal",
         "historical",
         "timeline"
+      ]
+    },
+    {
+      "id": "clinical-workflow-safety",
+      "kw": [
+        "clinical",
+        "workflow",
+        "safety",
+        "phi",
+        "boundary",
+        "mapping",
+        "consent",
+        "and"
+      ]
+    },
+    {
+      "id": "healthcare-interoperability-fhir",
+      "kw": [
+        "healthcare",
+        "interoperability",
+        "fhir",
+        "phi",
+        "boundary",
+        "mapping",
+        "consent",
+        "and"
+      ]
+    },
+    {
+      "id": "hipaa-product-architecture",
+      "kw": [
+        "hipaa",
+        "product",
+        "architecture",
+        "phi",
+        "boundary",
+        "mapping",
+        "consent",
+        "and"
+      ]
+    },
+    {
+      "id": "medical-writing",
+      "kw": [
+        "medical",
+        "writing",
+        "clinical",
+        "study",
+        "reports",
+        "regulatory",
+        "ready",
+        "evidence"
+      ]
+    },
+    {
+      "id": "patient-consent-records",
+      "kw": [
+        "patient",
+        "consent",
+        "records",
+        "phi",
+        "boundary",
+        "mapping",
+        "and",
+        "authorization"
       ]
     },
     {
@@ -13108,6 +14565,19 @@
         "marketing",
         "deliverability",
         "templates"
+      ]
+    },
+    {
+      "id": "email-template-systems",
+      "kw": [
+        "email",
+        "template",
+        "systems",
+        "react",
+        "authoring",
+        "framework",
+        "html",
+        "plaintext"
       ]
     },
     {
@@ -13407,6 +14877,71 @@
         "and",
         "custom",
         "fields"
+      ]
+    },
+    {
+      "id": "ai-governance-policy",
+      "kw": [
+        "governance",
+        "policy",
+        "ai",
+        "workflow",
+        "intake",
+        "triage",
+        "and",
+        "risk"
+      ]
+    },
+    {
+      "id": "contract-lifecycle-ops",
+      "kw": [
+        "contract",
+        "lifecycle",
+        "ops",
+        "intake",
+        "triage",
+        "and",
+        "risk",
+        "classification"
+      ]
+    },
+    {
+      "id": "data-processing-agreements",
+      "kw": [
+        "data",
+        "processing",
+        "agreements",
+        "ai",
+        "intake",
+        "triage",
+        "and",
+        "risk"
+      ]
+    },
+    {
+      "id": "subprocessor-risk-review",
+      "kw": [
+        "subprocessor",
+        "risk",
+        "review",
+        "intake",
+        "triage",
+        "and",
+        "classification",
+        "evidence"
+      ]
+    },
+    {
+      "id": "terms-product-policy-ops",
+      "kw": [
+        "terms",
+        "product",
+        "policy",
+        "ops",
+        "intake",
+        "triage",
+        "and",
+        "risk"
       ]
     },
     {
@@ -13969,6 +15504,45 @@
       ]
     },
     {
+      "id": "creator-monetization-systems",
+      "kw": [
+        "creator",
+        "monetization",
+        "systems",
+        "supply",
+        "demand",
+        "health",
+        "matching",
+        "and"
+      ]
+    },
+    {
+      "id": "dispute-resolution-systems",
+      "kw": [
+        "dispute",
+        "resolution",
+        "systems",
+        "supply",
+        "demand",
+        "health",
+        "matching",
+        "and"
+      ]
+    },
+    {
+      "id": "marketplace-liquidity",
+      "kw": [
+        "marketplace",
+        "liquidity",
+        "supply",
+        "demand",
+        "health",
+        "matching",
+        "and",
+        "ranking"
+      ]
+    },
+    {
       "id": "mcp-deployment",
       "kw": [
         "mcp",
@@ -14021,6 +15595,71 @@
       ]
     },
     {
+      "id": "productivity-ai-tools",
+      "kw": [
+        "productivity",
+        "tools",
+        "ai",
+        "email",
+        "meeting",
+        "otter",
+        "superhuman",
+        "calendar"
+      ]
+    },
+    {
+      "id": "compensation-leveling",
+      "kw": [
+        "compensation",
+        "leveling",
+        "role",
+        "lifecycle",
+        "workflows",
+        "fairness",
+        "and",
+        "calibration"
+      ]
+    },
+    {
+      "id": "employee-onboarding-systems",
+      "kw": [
+        "employee",
+        "onboarding",
+        "systems",
+        "role",
+        "lifecycle",
+        "workflows",
+        "fairness",
+        "and"
+      ]
+    },
+    {
+      "id": "performance-review-systems",
+      "kw": [
+        "performance",
+        "review",
+        "systems",
+        "role",
+        "lifecycle",
+        "workflows",
+        "fairness",
+        "and"
+      ]
+    },
+    {
+      "id": "workforce-scheduling",
+      "kw": [
+        "workforce",
+        "scheduling",
+        "role",
+        "lifecycle",
+        "workflows",
+        "fairness",
+        "and",
+        "calibration"
+      ]
+    },
+    {
       "id": "a-b-testing",
       "kw": [
         "testing",
@@ -14060,6 +15699,19 @@
       ]
     },
     {
+      "id": "customer-onboarding-success",
+      "kw": [
+        "customer",
+        "onboarding",
+        "success",
+        "workflow",
+        "implementation",
+        "task",
+        "data",
+        "kickoff"
+      ]
+    },
+    {
       "id": "customer-success",
       "kw": [
         "customer",
@@ -14070,6 +15722,32 @@
         "health",
         "score",
         "design"
+      ]
+    },
+    {
+      "id": "experiment-feature-analysis",
+      "kw": [
+        "experiment",
+        "feature",
+        "analysis",
+        "hypothesis",
+        "design",
+        "primary",
+        "sample",
+        "size"
+      ]
+    },
+    {
+      "id": "feature-onboarding-checklists",
+      "kw": [
+        "feature",
+        "onboarding",
+        "checklists",
+        "user",
+        "analytics",
+        "checklist",
+        "step",
+        "definition"
       ]
     },
     {
@@ -14125,6 +15803,19 @@
       ]
     },
     {
+      "id": "product-feedback-roadmapping",
+      "kw": [
+        "product",
+        "feedback",
+        "roadmapping",
+        "intake",
+        "app",
+        "idea",
+        "deduplication",
+        "semantic"
+      ]
+    },
+    {
       "id": "product-management",
       "kw": [
         "product",
@@ -14135,6 +15826,71 @@
         "prioritization",
         "rice",
         "requirements"
+      ]
+    },
+    {
+      "id": "crm-lifecycle-ops",
+      "kw": [
+        "crm",
+        "lifecycle",
+        "ops",
+        "stage",
+        "definitions",
+        "source",
+        "truth",
+        "revenue"
+      ]
+    },
+    {
+      "id": "enterprise-sales-engineering",
+      "kw": [
+        "enterprise",
+        "sales",
+        "engineering",
+        "security",
+        "lifecycle",
+        "stage",
+        "definitions",
+        "crm"
+      ]
+    },
+    {
+      "id": "partner-channel-operations",
+      "kw": [
+        "partner",
+        "channel",
+        "operations",
+        "lifecycle",
+        "stage",
+        "definitions",
+        "crm",
+        "source"
+      ]
+    },
+    {
+      "id": "procurement-vendor-management",
+      "kw": [
+        "procurement",
+        "vendor",
+        "management",
+        "lifecycle",
+        "stage",
+        "definitions",
+        "crm",
+        "source"
+      ]
+    },
+    {
+      "id": "revenue-forecasting-pipeline",
+      "kw": [
+        "revenue",
+        "forecasting",
+        "pipeline",
+        "lifecycle",
+        "stage",
+        "definitions",
+        "crm",
+        "source"
       ]
     },
     {
@@ -14255,6 +16011,19 @@
       ]
     },
     {
+      "id": "cryptography",
+      "kw": [
+        "cryptography",
+        "rest",
+        "symmetric",
+        "encryption",
+        "choice",
+        "asymmetric",
+        "rsa",
+        "digital"
+      ]
+    },
+    {
       "id": "cybersecurity",
       "kw": [
         "cybersecurity",
@@ -14265,6 +16034,19 @@
         "authorization",
         "encryption",
         "cryptography"
+      ]
+    },
+    {
+      "id": "data-retention-deletion",
+      "kw": [
+        "data",
+        "retention",
+        "deletion",
+        "classification",
+        "categories",
+        "policy",
+        "registry",
+        "fan"
       ]
     },
     {
@@ -14317,6 +16099,16 @@
         "passkey",
         "discoverable",
         "credential"
+      ]
+    },
+    {
+      "id": "privacy-consent-management",
+      "kw": [
+        "privacy",
+        "consent",
+        "management",
+        "web",
+        "mobile"
       ]
     },
     {
@@ -14424,6 +16216,19 @@
       ]
     },
     {
+      "id": "gis-analysis",
+      "kw": [
+        "gis",
+        "analysis",
+        "coordinate",
+        "reference",
+        "system",
+        "raster",
+        "vector",
+        "processing"
+      ]
+    },
+    {
       "id": "ground-station-ops",
       "kw": [
         "ground",
@@ -14499,682 +16304,6 @@
         "electrical",
         "power",
         "system"
-      ]
-    },
-    {
-      "id": "animation-motion",
-      "kw": [
-        "animation",
-        "motion",
-        "principles",
-        "disney",
-        "easing",
-        "curves",
-        "and",
-        "micro"
-      ]
-    },
-    {
-      "id": "api-design-fundamentals",
-      "kw": [
-        "api",
-        "design",
-        "fundamentals",
-        "graphql",
-        "restful",
-        "schema",
-        "versioning",
-        "strategies"
-      ]
-    },
-    {
-      "id": "architecture-spaces",
-      "kw": [
-        "architecture",
-        "spaces",
-        "structural",
-        "principles",
-        "load",
-        "spatial",
-        "planning",
-        "and"
-      ]
-    },
-    {
-      "id": "astrophysics-fundamentals",
-      "kw": [
-        "astrophysics",
-        "fundamentals",
-        "stellar",
-        "physics",
-        "and",
-        "planetary",
-        "science",
-        "orbital"
-      ]
-    },
-    {
-      "id": "biology-fundamentals",
-      "kw": [
-        "biology",
-        "fundamentals",
-        "genetics",
-        "and",
-        "genomics",
-        "cell",
-        "ecology",
-        "ecosystems"
-      ]
-    },
-    {
-      "id": "blockchain-web3",
-      "kw": [
-        "blockchain",
-        "web3",
-        "security",
-        "smart",
-        "contract",
-        "defi",
-        "protocol",
-        "design"
-      ]
-    },
-    {
-      "id": "chemistry-fundamentals",
-      "kw": [
-        "chemistry",
-        "fundamentals",
-        "molecular",
-        "structure",
-        "and",
-        "stoichiometry",
-        "reaction",
-        "acid"
-      ]
-    },
-    {
-      "id": "cognitive-behavioral",
-      "kw": [
-        "cognitive",
-        "behavioral",
-        "distortion",
-        "identification",
-        "thought",
-        "challenging",
-        "and",
-        "activation"
-      ]
-    },
-    {
-      "id": "communication-fundamentals",
-      "kw": [
-        "communication",
-        "fundamentals",
-        "technical",
-        "writing",
-        "documentation",
-        "presentation",
-        "design",
-        "and"
-      ]
-    },
-    {
-      "id": "conflict-resolution",
-      "kw": [
-        "conflict",
-        "resolution",
-        "identification",
-        "and",
-        "escalation",
-        "techniques",
-        "nonviolent",
-        "communication"
-      ]
-    },
-    {
-      "id": "craft-making",
-      "kw": [
-        "craft",
-        "making",
-        "material",
-        "selection",
-        "and",
-        "prototyping",
-        "methods",
-        "printing"
-      ]
-    },
-    {
-      "id": "cross-cultural-wisdom",
-      "kw": [
-        "cross",
-        "cultural",
-        "wisdom",
-        "dimensions",
-        "analysis",
-        "communication",
-        "due",
-        "diligence"
-      ]
-    },
-    {
-      "id": "cybersecurity-fundamentals",
-      "kw": [
-        "cybersecurity",
-        "fundamentals",
-        "security",
-        "owasp",
-        "top",
-        "vulnerability",
-        "threat",
-        "modeling"
-      ]
-    },
-    {
-      "id": "data-engineering-fundamentals",
-      "kw": [
-        "data",
-        "engineering",
-        "fundamentals",
-        "etl",
-        "elt",
-        "pipeline",
-        "quality",
-        "validation"
-      ]
-    },
-    {
-      "id": "devops-automation",
-      "kw": [
-        "devops",
-        "automation",
-        "ci",
-        "cd",
-        "pipeline",
-        "design",
-        "and",
-        "infrastructure"
-      ]
-    },
-    {
-      "id": "earth-climate-science",
-      "kw": [
-        "earth",
-        "climate",
-        "science",
-        "carbon",
-        "footprint",
-        "analysis",
-        "modeling",
-        "fundamentals"
-      ]
-    },
-    {
-      "id": "entrepreneurship-fundamentals",
-      "kw": [
-        "entrepreneurship",
-        "fundamentals",
-        "customer",
-        "discovery",
-        "and",
-        "mvp",
-        "design",
-        "product"
-      ]
-    },
-    {
-      "id": "evolutionary-biology",
-      "kw": [
-        "evolutionary",
-        "biology",
-        "natural",
-        "selection",
-        "mechanisms",
-        "genetic",
-        "variation",
-        "and"
-      ]
-    },
-    {
-      "id": "existential-philosophy",
-      "kw": [
-        "existential",
-        "philosophy",
-        "frameworks",
-        "logotherapy",
-        "and",
-        "meaning",
-        "purpose",
-        "discovery"
-      ]
-    },
-    {
-      "id": "focus-techniques",
-      "kw": [
-        "focus",
-        "techniques",
-        "deep",
-        "work",
-        "methodology",
-        "attention",
-        "management",
-        "systems"
-      ]
-    },
-    {
-      "id": "frontend-development",
-      "kw": [
-        "frontend",
-        "development",
-        "component",
-        "architecture",
-        "and",
-        "state",
-        "management",
-        "local"
-      ]
-    },
-    {
-      "id": "futures-thinking",
-      "kw": [
-        "futures",
-        "thinking",
-        "scenario",
-        "planning",
-        "methodology",
-        "trend",
-        "analysis",
-        "and"
-      ]
-    },
-    {
-      "id": "game-design-fundamentals",
-      "kw": [
-        "game",
-        "design",
-        "fundamentals",
-        "core",
-        "loop",
-        "reward",
-        "psychology",
-        "and"
-      ]
-    },
-    {
-      "id": "growth-marketing",
-      "kw": [
-        "growth",
-        "marketing",
-        "loops",
-        "and",
-        "acquisition",
-        "channel",
-        "analysis",
-        "conversion"
-      ]
-    },
-    {
-      "id": "health-fundamentals",
-      "kw": [
-        "health",
-        "fundamentals",
-        "sleep",
-        "hygiene",
-        "and",
-        "movement",
-        "exercise",
-        "basic"
-      ]
-    },
-    {
-      "id": "investment-basics",
-      "kw": [
-        "investment",
-        "basics",
-        "asset",
-        "allocation",
-        "fundamentals",
-        "index",
-        "investing",
-        "principles"
-      ]
-    },
-    {
-      "id": "leadership-fundamentals",
-      "kw": [
-        "leadership",
-        "fundamentals",
-        "psychological",
-        "safety",
-        "and",
-        "delegation",
-        "empowerment",
-        "feedback"
-      ]
-    },
-    {
-      "id": "logical-reasoning",
-      "kw": [
-        "logical",
-        "reasoning",
-        "argument",
-        "structure",
-        "and",
-        "fallacy",
-        "identification",
-        "deductive"
-      ]
-    },
-    {
-      "id": "machine-learning-fundamentals",
-      "kw": [
-        "machine",
-        "learning",
-        "fundamentals",
-        "ml",
-        "feature",
-        "engineering",
-        "and",
-        "model"
-      ]
-    },
-    {
-      "id": "mathematics-fundamentals",
-      "kw": [
-        "mathematics",
-        "fundamentals",
-        "numerical",
-        "reasoning",
-        "and",
-        "basic",
-        "probability",
-        "percentages"
-      ]
-    },
-    {
-      "id": "mental-health",
-      "kw": [
-        "mental",
-        "health",
-        "literacy",
-        "recognizing",
-        "signs",
-        "that",
-        "supportive",
-        "listening"
-      ]
-    },
-    {
-      "id": "meta-learning",
-      "kw": [
-        "meta",
-        "learning",
-        "spaced",
-        "repetition",
-        "system",
-        "deliberate",
-        "practice",
-        "frameworks"
-      ]
-    },
-    {
-      "id": "mobile-development",
-      "kw": [
-        "mobile",
-        "development",
-        "react",
-        "cross",
-        "platform",
-        "native",
-        "ios",
-        "android"
-      ]
-    },
-    {
-      "id": "music-audio",
-      "kw": [
-        "music",
-        "audio",
-        "theory",
-        "fundamentals",
-        "signal",
-        "processing",
-        "mixing",
-        "and"
-      ]
-    },
-    {
-      "id": "neuroscience-fundamentals",
-      "kw": [
-        "neuroscience",
-        "fundamentals",
-        "neuroplasticity",
-        "and",
-        "learning",
-        "attention",
-        "focus",
-        "memory"
-      ]
-    },
-    {
-      "id": "operations-systems",
-      "kw": [
-        "operations",
-        "systems",
-        "process",
-        "mapping",
-        "and",
-        "supply",
-        "chain",
-        "design"
-      ]
-    },
-    {
-      "id": "parenting-education",
-      "kw": [
-        "parenting",
-        "education",
-        "child",
-        "development",
-        "stages",
-        "learning",
-        "theories",
-        "montessori"
-      ]
-    },
-    {
-      "id": "personal-finance-fundamentals",
-      "kw": [
-        "personal",
-        "finance",
-        "fundamentals",
-        "security",
-        "budgeting",
-        "and",
-        "cash",
-        "emergency"
-      ]
-    },
-    {
-      "id": "philosophy-fundamentals",
-      "kw": [
-        "philosophy",
-        "fundamentals",
-        "logical",
-        "reasoning",
-        "and",
-        "fallacy",
-        "identification",
-        "ethical"
-      ]
-    },
-    {
-      "id": "physics-fundamentals",
-      "kw": [
-        "physics",
-        "fundamentals",
-        "classical",
-        "mechanics",
-        "intuition",
-        "thermodynamics",
-        "heat",
-        "electromagnetism"
-      ]
-    },
-    {
-      "id": "productivity-systems",
-      "kw": [
-        "productivity",
-        "systems",
-        "deep",
-        "work",
-        "and",
-        "task",
-        "prioritization",
-        "frameworks"
-      ]
-    },
-    {
-      "id": "psychology-fundamentals",
-      "kw": [
-        "psychology",
-        "fundamentals",
-        "cognitive",
-        "biases",
-        "and",
-        "motivation",
-        "theory",
-        "intrinsic"
-      ]
-    },
-    {
-      "id": "quantum-mechanics",
-      "kw": [
-        "quantum",
-        "mechanics",
-        "superposition",
-        "and",
-        "entanglement",
-        "non",
-        "measurement",
-        "wavefunction"
-      ]
-    },
-    {
-      "id": "relationship-fundamentals",
-      "kw": [
-        "relationship",
-        "fundamentals",
-        "attachment",
-        "theory",
-        "application",
-        "emotional",
-        "intelligence",
-        "frameworks"
-      ]
-    },
-    {
-      "id": "sales-fundamentals",
-      "kw": [
-        "sales",
-        "fundamentals",
-        "consultative",
-        "selling",
-        "frameworks",
-        "pipeline",
-        "management",
-        "and"
-      ]
-    },
-    {
-      "id": "sociology-fundamentals",
-      "kw": [
-        "sociology",
-        "fundamentals",
-        "social",
-        "structure",
-        "and",
-        "group",
-        "dynamics",
-        "socialization"
-      ]
-    },
-    {
-      "id": "software-architecture",
-      "kw": [
-        "software",
-        "architecture",
-        "system",
-        "decomposition",
-        "and",
-        "coupling",
-        "analysis",
-        "solid"
-      ]
-    },
-    {
-      "id": "storytelling-writing",
-      "kw": [
-        "storytelling",
-        "writing",
-        "narrative",
-        "structure",
-        "hero",
-        "technical",
-        "documentation",
-        "api"
-      ]
-    },
-    {
-      "id": "team-dynamics-fundamentals",
-      "kw": [
-        "team",
-        "dynamics",
-        "fundamentals",
-        "formation",
-        "and",
-        "psychological",
-        "safety",
-        "measurement"
-      ]
-    },
-    {
-      "id": "tech-ethics",
-      "kw": [
-        "tech",
-        "ethics",
-        "ai",
-        "algorithmic",
-        "bias",
-        "detection",
-        "disparate",
-        "impact"
-      ]
-    },
-    {
-      "id": "typography-fundamentals",
-      "kw": [
-        "typography",
-        "fundamentals",
-        "type",
-        "classification",
-        "and",
-        "font",
-        "pairing",
-        "strategy"
-      ]
-    },
-    {
-      "id": "visual-design",
-      "kw": [
-        "visual",
-        "design",
-        "color",
-        "theory",
-        "and",
-        "typography",
-        "pairing",
-        "layout"
       ]
     },
     {
@@ -15568,6 +16697,19 @@
       ]
     },
     {
+      "id": "project-management",
+      "kw": [
+        "project",
+        "management",
+        "scope",
+        "decomposition",
+        "into",
+        "dependency",
+        "mapping",
+        "and"
+      ]
+    },
+    {
       "id": "rbac-enterprise",
       "kw": [
         "rbac",
@@ -15776,6 +16918,19 @@
       ]
     },
     {
+      "id": "web-accessibility-qa",
+      "kw": [
+        "web",
+        "accessibility",
+        "ci",
+        "automated",
+        "testing",
+        "axe",
+        "manual",
+        "protocols"
+      ]
+    },
+    {
       "id": "quantitative-research",
       "kw": [
         "quantitative",
@@ -15838,6 +16993,71 @@
         "cognitive",
         "bias",
         "identification"
+      ]
+    },
+    {
+      "id": "abuse-fraud-prevention",
+      "kw": [
+        "abuse",
+        "fraud",
+        "prevention",
+        "scraping",
+        "policy",
+        "labels",
+        "and",
+        "review"
+      ]
+    },
+    {
+      "id": "appeals-policy-operations",
+      "kw": [
+        "appeals",
+        "policy",
+        "operations",
+        "labels",
+        "and",
+        "review",
+        "queue",
+        "design"
+      ]
+    },
+    {
+      "id": "content-moderation-systems",
+      "kw": [
+        "content",
+        "moderation",
+        "systems",
+        "policy",
+        "labels",
+        "and",
+        "review",
+        "queue"
+      ]
+    },
+    {
+      "id": "marketplace-risk-controls",
+      "kw": [
+        "marketplace",
+        "risk",
+        "controls",
+        "policy",
+        "labels",
+        "and",
+        "review",
+        "queue"
+      ]
+    },
+    {
+      "id": "reputation-systems",
+      "kw": [
+        "reputation",
+        "systems",
+        "user",
+        "policy",
+        "labels",
+        "and",
+        "review",
+        "queue"
       ]
     }
   ]
