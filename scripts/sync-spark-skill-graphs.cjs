@@ -208,6 +208,9 @@ function summaryFromManifestSkill(skill, validIds) {
 			to: delegate.target_id || delegate.skill
 		}))
 		.filter((delegate) => validIds.has(delegate.to));
+	const pairsWell = Array.isArray(skill.pairs_with)
+		? skill.pairs_with.filter((skillId) => typeof skillId === 'string' && validIds.has(skillId))
+		: [];
 
 	return {
 		id: skill.id,
@@ -218,10 +221,10 @@ function summaryFromManifestSkill(skill, validIds) {
 		layer: 1,
 		tags: Array.isArray(skill.tags) && skill.tags.length
 			? skill.tags.filter((tag) => typeof tag === 'string' && tag.trim())
-			: termsFrom([...(Array.isArray(skill.owns) ? skill.owns : []), skill.description || '']),
+		: termsFrom([...(Array.isArray(skill.owns) ? skill.owns : []), skill.description || '']),
 		triggers: triggersFromManifestSkill(skill),
 		handoffs,
-		pairsWell: [],
+		pairsWell,
 		selectionHints: skill.selection_hints || {}
 	};
 }

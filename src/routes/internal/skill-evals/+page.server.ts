@@ -17,6 +17,14 @@ type CatalogSkill = {
 	name?: string;
 	category?: string;
 };
+type OperationalCategoryCoverage = {
+	category: string;
+	label: string;
+	skillCount: number;
+	expectedSkillCount: number;
+	status: 'ready' | 'short';
+	sampleSkills: Array<{ id: string; name: string }>;
+};
 type DashboardSkill = {
 	id: string;
 	name: string;
@@ -40,6 +48,15 @@ type DashboardCase = ReturnType<typeof evaluateSkillIds> & {
 };
 
 const catalog = skillCatalog as Record<string, CatalogSkill>;
+const OPERATIONAL_CATEGORIES = [
+	{ category: 'legal', label: 'Legal', expectedSkillCount: 5 },
+	{ category: 'healthcare', label: 'Healthcare', expectedSkillCount: 4 },
+	{ category: 'trust-safety', label: 'Trust & Safety', expectedSkillCount: 5 },
+	{ category: 'revenue-ops', label: 'Revenue Ops', expectedSkillCount: 5 },
+	{ category: 'customer-success', label: 'Customer Success', expectedSkillCount: 4 },
+	{ category: 'people-ops', label: 'People Ops', expectedSkillCount: 4 },
+	{ category: 'marketplaces', label: 'Marketplaces', expectedSkillCount: 3 }
+];
 
 function expectedLabels(testCase: SkillRecommendationEvalCase): string[] {
 	return [
@@ -87,6 +104,24 @@ function buildPrecisionAudit(cases: DashboardCase[]) {
 		.slice(0, 18);
 
 	return { lowPrecisionCases, noisySkills };
+}
+
+function buildOperationalCategoryCoverage(): OperationalCategoryCoverage[] {
+	return OPERATIONAL_CATEGORIES.map(({ category, label, expectedSkillCount }) => {
+		const skills = Object.entries(catalog)
+			.filter(([, skill]) => skill.category === category)
+			.map(([id, skill]) => ({ id, name: skill.name || id }))
+			.sort((a, b) => a.id.localeCompare(b.id));
+
+		return {
+			category,
+			label,
+			skillCount: skills.length,
+			expectedSkillCount,
+			status: skills.length >= expectedSkillCount ? 'ready' : 'short',
+			sampleSkills: skills.slice(0, 4)
+		};
+	});
 }
 
 export function load() {
@@ -138,6 +173,7 @@ export function load() {
 			...testCase.coverageGap!
 		}))
 		.sort((a, b) => a.precision - b.precision || a.caseName.localeCompare(b.caseName));
+	const operationalCategoryCoverage = buildOperationalCategoryCoverage();
 	const tierCounts = cases
 		.flatMap((testCase) => testCase.skills)
 		.reduce(
@@ -157,6 +193,8 @@ export function load() {
 			goldenCaseCount: GOLDEN_RECOMMENDATION_CASES.length,
 			challengeCaseCount: CHALLENGE_RECOMMENDATION_CASES.length,
 			coverageGapCount: coverageGaps.length,
+			operationalCategoryCount: operationalCategoryCoverage.length,
+			operationalSkillCount: operationalCategoryCoverage.reduce((sum, item) => sum + item.skillCount, 0),
 			topKLimitSlots,
 			returnedRecommendationCount
 		},
@@ -169,6 +207,7 @@ export function load() {
 				.filter((testCase) => testCase.labeledPrecisionAtK < 0.5)
 				.map((testCase) => testCase.name)
 		},
+		operationalCategoryCoverage,
 		coverageGaps,
 		scoring: {
 			passRule: 'All required skills present, every any-of group represented, and no must-not skills returned.',

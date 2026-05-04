@@ -132,7 +132,7 @@ function processManifestSkill(skill) {
     triggers: Array.isArray(skill.triggers) ? skill.triggers : [],
     category: skill.category || 'general',
     delegates,
-    pairsWell: [],
+    pairsWell: Array.isArray(skill.pairs_with) ? skill.pairs_with : [],
     tags: Array.isArray(skill.tags) ? skill.tags : [],
     selectionHints: skill.selection_hints || {}
   };

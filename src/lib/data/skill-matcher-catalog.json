@@ -1,4 +1,1220 @@
 {
+  "agent-communication": {
+    "id": "agent-communication",
+    "name": "Agent Communication",
+    "description": "Inter-agent communication patterns including message passing, shared memory, blackboard systems, and event-driven archit",
+    "owns": [
+      "message-passing-patterns",
+      "shared-memory-blackboard-systems",
+      "event-driven-agent-architectures",
+      "protocol-design-and-validation"
+    ],
+    "triggers": [
+      "agent communication",
+      "message passing",
+      "inter-agent",
+      "blackboard",
+      "agent events"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "multi-agent-orchestration"
+      },
+      {
+        "skill": "agent-evaluation"
+      },
+      {
+        "skill": "autonomous-agents"
+      },
+      {
+        "skill": "distributed-systems"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  "agent-evaluation": {
+    "id": "agent-evaluation",
+    "name": "Agent Evaluation",
+    "description": "Testing and benchmarking LLM agents including behavioral testing, capability assessment, reliability metrics, and produc",
+    "owns": [
+      "Agent behavioral testing and capability assessment",
+      "Benchmark design and statistical evaluation frameworks",
+      "Adversarial testing and security evaluation",
+      "Regression testing pipelines for agent updates"
+    ],
+    "triggers": [
+      "agent testing",
+      "agent evaluation",
+      "benchmark agents",
+      "agent reliability",
+      "test agent"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "multi-agent-orchestration"
+      },
+      {
+        "skill": "agent-communication"
+      },
+      {
+        "skill": "autonomous-agents"
+      },
+      {
+        "skill": "security"
+      }
+    ],
+    "pairsWell": [
+      "multi-agent-orchestration",
+      "agent-communication",
+      "autonomous-agents"
+    ],
+    "selectionHints": {
+      "aliases": [
+        "evaluation harness",
+        "agent evals",
+        "regression tests"
+      ],
+      "boost_terms": [
+        "ai evaluation harness",
+        "agent evaluation",
+        "ragas metrics",
+        "regression tests",
+        "prompt caching",
+        "langfuse tracing"
+      ],
+      "boost": 52
+    }
+  },
+  "agent-memory-systems": {
+    "id": "agent-memory-systems",
+    "name": "Agent Memory Systems",
+    "description": "Persistent memory architectures for AI agents across short-term, semantic, episodic, and long-term recall without retrie",
+    "owns": [
+      "Agent memory architecture (short-term, long-term, working me",
+      "Memory type selection (semantic, episodic, procedural per Co",
+      "Chunking strategies and retrieval optimization",
+      "Memory decay policies and consolidation"
+    ],
+    "triggers": [
+      "agent memory systems",
+      "agent",
+      "memory",
+      "systems",
+      "agent memory architecture"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "data-engineer"
+      },
+      {
+        "skill": "llm-architect"
+      },
+      {
+        "skill": "data-engineer"
+      },
+      {
+        "skill": "knowledge-base-engineering"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  "agent-tool-builder": {
+    "id": "agent-tool-builder",
+    "name": "agent-tool-builder",
+    "description": "Build AI agent tools that work - not tools that hallucinate, loop, or fail silently",
+    "owns": [
+      "Agent tool schema design (JSON Schema, OpenAPI, MCP)",
+      "Tool description writing that prevents LLM confusion",
+      "Tool error handling and recovery patterns",
+      "Function calling implementations (Anthropic, OpenAI, Vercel "
+    ],
+    "triggers": [
+      "agent tool builder",
+      "agent-tool-builder",
+      "agent",
+      "tool",
+      "builder"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "multi-agent-orchestration"
+      },
+      {
+        "skill": "agent-memory-systems"
+      },
+      {
+        "skill": "api-designer"
+      },
+      {
+        "skill": "prompt-engineering-creative"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  "ai-agent-permissions-sandboxing": {
+    "id": "ai-agent-permissions-sandboxing",
+    "name": "ai-agent-permissions-sandboxing",
+    "description": "Tool permissions, approval gates, and sandboxing for AI agents:\ndeclarative tool catalogs, per-action allowlists, side-e",
+    "owns": [
+      "Tool catalog (declarative, with side-effect classification)",
+      "Per-action allowlist + sandbox config",
+      "Approval-gate UX (sync, async, batched)",
+      "Human-in-the-loop policy per side-effect tier"
+    ],
+    "triggers": [
+      "agent permissions",
+      "tool allowlist",
+      "agent sandbox",
+      "approval gate",
+      "human in the loop"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "prompt-injection-defense"
+      },
+      {
+        "skill": "human-in-the-loop-review"
+      },
+      {
+        "skill": "container-security"
+      },
+      {
+        "skill": "llm-cost-governance"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "agent permissions",
+        "tool authorization",
+        "agent sandbox",
+        "human in the loop"
+      ],
+      "boost_terms": [
+        "tool allowlist",
+        "approval gate",
+        "capability control",
+        "agent safety",
+        "prompt injection",
+        "destructive tool"
+      ],
+      "boost": 22
+    }
+  },
+  "ai-chatbot-builder": {
+    "id": "ai-chatbot-builder",
+    "name": "ai-chatbot-builder",
+    "description": "Building production chatbots with LLMs including conversation memory, guardrails, streaming UI, RAG integration, and mul",
+    "owns": [
+      "Conversation memory and history management",
+      "Context window management and message windowing",
+      "System prompt design and guardrails",
+      "Streaming chat UI and response rendering"
+    ],
+    "triggers": [
+      "build chatbot",
+      "ai chatbot",
+      "conversation memory",
+      "chatbot guardrails",
+      "context window management"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "ai-sdk-vercel"
+      },
+      {
+        "skill": "claude-api-integration"
+      },
+      {
+        "skill": "openai-api-patterns"
+      },
+      {
+        "skill": "vector-database-pinecone"
+      },
+      {
+        "skill": "ai-streaming-interfaces"
+      },
+      {
+        "skill": "ai-function-calling"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  "ai-evals-dataset-curation": {
+    "id": "ai-evals-dataset-curation",
+    "name": "ai-evals-dataset-curation",
+    "description": "Eval dataset curation for LLM applications: golden sets, drift cases,\nadversarial examples, label quality, eval taxonomy",
+    "owns": [
+      "Eval taxonomy (categories, sub-categories, tags)",
+      "Golden dataset (curated input/output pairs with labels)",
+      "Adversarial / drift / edge-case sub-sets",
+      "Multi-grader labeling pipeline + agreement"
+    ],
+    "triggers": [
+      "llm evals",
+      "eval dataset",
+      "golden set",
+      "regression eval",
+      "adversarial example"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "human-in-the-loop-review"
+      },
+      {
+        "skill": "prompt-versioning-release-management"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "experiment-feature-analysis"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "llm evals",
+        "eval dataset",
+        "golden set",
+        "prompt eval"
+      ],
+      "boost_terms": [
+        "regression eval",
+        "adversarial example",
+        "inter rater",
+        "llm benchmark",
+        "eval curation",
+        "prompt iteration"
+      ],
+      "boost": 22
+    }
+  },
+  "autonomous-agents": {
+    "id": "autonomous-agents",
+    "name": "Autonomous Agents",
+    "description": "Autonomous agent loops with planning, reflection, guardrails, checkpoints, and human interrupt controls for production u",
+    "owns": [
+      "Autonomous agent architecture and loops (ReAct, Plan-Execute",
+      "Goal decomposition and task planning",
+      "Self-correction and reflection patterns",
+      "Agent guardrails and safety boundaries"
+    ],
+    "triggers": [
+      "autonomous agent",
+      "autogpt",
+      "babyagi",
+      "self-prompting",
+      "goal decomposition"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "multi-agent-orchestration"
+      },
+      {
+        "skill": "agent-tool-builder"
+      },
+      {
+        "skill": "agent-memory-systems"
+      },
+      {
+        "skill": "agent-evaluation"
+      },
+      {
+        "skill": "workflow-automation"
+      }
+    ],
+    "pairsWell": [
+      "agent-tool-builder",
+      "agent-memory-systems",
+      "multi-agent-orchestration",
+      "agent-evaluation"
+    ],
+    "selectionHints": {}
+  },
+  "browser-automation": {
+    "id": "browser-automation",
+    "name": "Browser Automation",
+    "description": "Expert in browser automation for testing, scraping, and AI agent interactions.\nCovers Playwright (recommended) and Puppe",
+    "owns": [
+      "Browser automation with Playwright and Puppeteer",
+      "E2E testing with proper selectors and assertions",
+      "Web scraping with anti-detection and rate limiting",
+      "Test isolation and authentication state management"
+    ],
+    "triggers": [
+      "playwright",
+      "puppeteer",
+      "browser automation",
+      "e2e test",
+      "end-to-end"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "testing-strategies"
+      },
+      {
+        "skill": "performance-optimization"
+      },
+      {
+        "skill": "accessibility"
+      },
+      {
+        "skill": "testing-strategies"
+      },
+      {
+        "skill": "computer-use-agents"
+      },
+      {
+        "skill": "agent-tool-builder"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  "computer-use-agents": {
+    "id": "computer-use-agents",
+    "name": "Computer Use Agents",
+    "description": "Build AI agents that interact with computers like humans do - viewing screens,\nmoving cursors, clicking buttons, and typ",
+    "owns": [
+      "Perception-reasoning-action loop architecture",
+      "Sandboxed container environments for computer use",
+      "Anthropic Computer Use API integration",
+      "Browser-Use and Playwright-based automation"
+    ],
+    "triggers": [
+      "computer use",
+      "desktop automation agent",
+      "screen control AI",
+      "vision-based agent",
+      "GUI automation"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "security-engineer"
+      },
+      {
+        "skill": "devops"
+      },
+      {
+        "skill": "browser-automation"
+      },
+      {
+        "skill": "autonomous-agents"
+      },
+      {
+        "skill": "security"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  "context-window-management": {
+    "id": "context-window-management",
+    "name": "Context Window Management",
+    "description": "Production strategies for managing LLM context windows including summarization, trimming, routing, and avoiding the $3.2",
+    "owns": [
+      "context-engineering",
+      "context-summarization",
+      "context-trimming",
+      "context-routing"
+    ],
+    "triggers": [
+      "context window management",
+      "context",
+      "window",
+      "management",
+      "context-engineering"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "rag-implementation"
+      },
+      {
+        "skill": "conversation-memory"
+      },
+      {
+        "skill": "prompt-caching"
+      },
+      {
+        "skill": "llm-npc-dialogue"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  "conversation-memory": {
+    "id": "conversation-memory",
+    "name": "Conversation Memory",
+    "description": "Persistent memory systems for LLM conversations including short-term, long-term, and entity-based memory with production",
+    "owns": [
+      "short-term-memory",
+      "long-term-memory",
+      "entity-memory",
+      "memory-persistence"
+    ],
+    "triggers": [
+      "conversation memory",
+      "remember",
+      "memory persistence",
+      "long-term memory",
+      "chat history"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "context-window-management"
+      },
+      {
+        "skill": "rag-implementation"
+      },
+      {
+        "skill": "prompt-caching"
+      },
+      {
+        "skill": "database-schema-design"
+      }
+    ],
+    "pairsWell": [
+      "context-window-management",
+      "rag-implementation",
+      "prompt-caching",
+      "llm-npc-dialogue"
+    ],
+    "selectionHints": {}
+  },
+  "conversational-intent-design": {
+    "id": "conversational-intent-design",
+    "name": "Conversational Intent Design",
+    "description": "Expert at designing conversational intent systems that feel like a human,\nnot a help-desk form. Covers hybrid rule+LLM r",
+    "owns": [
+      "Intent taxonomy design (disjoint coverage, out-of-scope fall",
+      "Hybrid routing (tier-1 deterministic rules, tier-2 LLM class",
+      "Confidence thresholds and escalation paths",
+      "Natural-language phrasing coverage per intent (10-20 variant"
+    ],
+    "triggers": [
+      "intent classification",
+      "natural language intent",
+      "NL routing",
+      "chatbot intent design",
+      "conversational AI"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "prompt-engineering-creative"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "security-owasp"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  "crewai": {
+    "id": "crewai",
+    "name": "CrewAI",
+    "description": "Expert in CrewAI - the leading role-based multi-agent framework used by 60% of Fortune 500\ncompanies. Covers agent desig",
+    "owns": [
+      "Agent definitions with role, goal, and backstory design",
+      "Task design with descriptions, expected outputs, and depende",
+      "Crew orchestration with sequential, hierarchical, and parall",
+      "Memory configuration (short-term, long-term, entity memory)"
+    ],
+    "triggers": [
+      "crewai",
+      "multi-agent team",
+      "agent roles",
+      "crew of agents",
+      "role-based agents"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "langgraph"
+      },
+      {
+        "skill": "autonomous-agents"
+      },
+      {
+        "skill": "langfuse"
+      },
+      {
+        "skill": "structured-output"
+      },
+      {
+        "skill": "prompt-engineering-creative"
+      },
+      {
+        "skill": "llm-fine-tuning"
+      }
+    ],
+    "pairsWell": [
+      "langgraph",
+      "autonomous-agents",
+      "langfuse",
+      "structured-output"
+    ],
+    "selectionHints": {}
+  },
+  "human-in-the-loop-review": {
+    "id": "human-in-the-loop-review",
+    "name": "human-in-the-loop-review",
+    "description": "Human-in-the-loop (HITL) review systems for AI agents and ML pipelines:\nreview queues, confidence thresholds, escalation",
+    "owns": [
+      "Review-queue data model (item, claim, decision, sla)",
+      "Confidence-based routing (auto-approve vs review vs escalate",
+      "Per-tier SLA + alerting",
+      "Reviewer assignment (round-robin, expertise, load)"
+    ],
+    "triggers": [
+      "human in the loop",
+      "hitl review",
+      "review queue",
+      "moderation queue",
+      "confidence threshold"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "ai-agent-permissions-sandboxing"
+      },
+      {
+        "skill": "ai-evals-dataset-curation"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "human in the loop",
+        "hitl",
+        "review queue",
+        "moderation queue"
+      ],
+      "boost_terms": [
+        "confidence threshold",
+        "reviewer ux",
+        "escalation policy",
+        "inter-rater agreement",
+        "active learning",
+        "ai oversight"
+      ],
+      "boost": 22
+    }
+  },
+  "langfuse": {
+    "id": "langfuse",
+    "name": "Langfuse LLM Observability",
+    "description": "Expert in Langfuse - the open-source LLM observability platform. Covers tracing,\nprompt management, evaluation, datasets",
+    "owns": [
+      "LLM tracing and observability architecture",
+      "Prompt management, versioning, and deployment pipelines",
+      "Evaluation strategies: LLM-as-judge, human-in-loop, automate",
+      "Cost tracking, optimization, and anomaly detection"
+    ],
+    "triggers": [
+      "langfuse",
+      "llm observability",
+      "llm tracing",
+      "prompt management",
+      "llm evaluation"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "langgraph"
+      },
+      {
+        "skill": "crewai"
+      },
+      {
+        "skill": "structured-output"
+      },
+      {
+        "skill": "vector-specialist"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  "langgraph": {
+    "id": "langgraph",
+    "name": "LangGraph",
+    "description": "Expert in LangGraph - the production-grade framework for building stateful, multi-actor\nAI applications. Covers graph co",
+    "owns": [
+      "Graph topology design and StateGraph construction",
+      "State management with TypedDict and Annotated reducers",
+      "Conditional routing, branching, and cycle management",
+      "Checkpointer setup (SQLite dev, PostgreSQL/Redis prod)"
+    ],
+    "triggers": [
+      "langgraph",
+      "langchain agent",
+      "stateful agent",
+      "agent graph",
+      "react agent"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "crewai"
+      },
+      {
+        "skill": "langfuse"
+      },
+      {
+        "skill": "structured-output"
+      },
+      {
+        "skill": "agent-evaluation"
+      },
+      {
+        "skill": "redis-specialist"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  "llm-cost-governance": {
+    "id": "llm-cost-governance",
+    "name": "llm-cost-governance",
+    "description": "LLM cost governance: budgets per user / tenant / feature, prompt caching,\nmodel routing (cheap vs expensive), per-call c",
+    "owns": [
+      "Per-call cost recording (input + output tokens, model, cost ",
+      "Cost attribution (feature, tenant, user, prompt version)",
+      "Per-tier budgets (per user / tenant / feature / global)",
+      "Pre-call budget check + 429-equivalent"
+    ],
+    "triggers": [
+      "llm cost",
+      "openai bill",
+      "anthropic bill",
+      "prompt caching",
+      "model routing"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "usage-metering-entitlements"
+      },
+      {
+        "skill": "ai-agent-permissions-sandboxing"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "data-dashboard-design"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "llm cost",
+        "openai bill",
+        "anthropic cost",
+        "prompt cache"
+      ],
+      "boost_terms": [
+        "model routing",
+        "cost budget",
+        "cost anomaly",
+        "per-tenant cost",
+        "llm spend",
+        "token budget"
+      ],
+      "boost": 22
+    }
+  },
+  "multi-agent-orchestration": {
+    "id": "multi-agent-orchestration",
+    "name": "multi-agent-orchestration",
+    "description": "Production patterns for coordinating multiple LLM agents - sequential, parallel, router, and hierarchical architectures",
+    "owns": [
+      "agent-coordination-patterns",
+      "multi-agent-state-management",
+      "workflow-orchestration-design",
+      "agent-routing-decisions"
+    ],
+    "triggers": [
+      "multi agent orchestration",
+      "multi-agent-orchestration",
+      "multi",
+      "agent",
+      "orchestration"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "agent-communication"
+      },
+      {
+        "skill": "agent-evaluation"
+      },
+      {
+        "skill": "autonomous-agents"
+      },
+      {
+        "skill": "context-window-management"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  "multi-modal-upload-intake": {
+    "id": "multi-modal-upload-intake",
+    "name": "multi-modal-upload-intake",
+    "description": "Multi-modal upload intake for AI workflows: images, audio, video, PDFs,\nspreadsheets normalized into a canonical represe",
+    "owns": [
+      "Format detection (magic bytes; not extension)",
+      "Format normalization (HEIC→JPEG, WebM→WAV, etc.)",
+      "Image resize / re-encode (vision-model cost optimization)",
+      "Audio chunking + per-chunk transcription"
+    ],
+    "triggers": [
+      "multi modal upload",
+      "image to ai",
+      "audio transcription",
+      "pdf to ai",
+      "heic conversion"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "file-uploads"
+      },
+      {
+        "skill": "file-processing-pipelines"
+      },
+      {
+        "skill": "media-transcoding-pipeline"
+      },
+      {
+        "skill": "llm-cost-governance"
+      },
+      {
+        "skill": "notifications-orchestration"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "multi modal upload",
+        "image to ai",
+        "audio transcription",
+        "pdf to ai"
+      ],
+      "boost_terms": [
+        "heic conversion",
+        "vision input",
+        "whisper transcription",
+        "document intake",
+        "upload normalization",
+        "decompression bomb"
+      ],
+      "boost": 22
+    }
+  },
+  "prompt-caching": {
+    "id": "prompt-caching",
+    "name": "Prompt Caching",
+    "description": "Caching strategies for LLM prompts including Anthropic prompt caching, response caching, and CAG (Cache Augmented Genera",
+    "owns": [
+      "prompt-caching (provider-level KV cache reuse)",
+      "response-caching (full LLM output caching)",
+      "semantic-caching (embedding-based similarity matching)",
+      "cache-augmented-generation (CAG patterns)"
+    ],
+    "triggers": [
+      "prompt caching",
+      "cache prompt",
+      "response cache",
+      "cag",
+      "cache augmented"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "context-window-management"
+      },
+      {
+        "skill": "rag-implementation"
+      },
+      {
+        "skill": "conversation-memory"
+      },
+      {
+        "skill": "vector-specialist"
+      },
+      {
+        "skill": "redis-specialist"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  "prompt-engineer": {
+    "id": "prompt-engineer",
+    "name": "Prompt Engineer",
+    "description": "Expert in designing effective prompts for LLM-powered applications. Masters\nprompt structure, context management, output",
+    "owns": [
+      "Prompt design, structure, and optimization",
+      "System prompt architecture and versioning",
+      "Few-shot example curation and selection",
+      "Output format specification and validation"
+    ],
+    "triggers": [
+      "prompt engineering",
+      "system prompt",
+      "few-shot",
+      "chain of thought",
+      "prompt design"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "ai-agents-architect"
+      },
+      {
+        "skill": "rag-engineer"
+      },
+      {
+        "skill": "structured-output"
+      },
+      {
+        "skill": "langfuse"
+      },
+      {
+        "skill": "llm-fine-tuning"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  "prompt-versioning-release-management": {
+    "id": "prompt-versioning-release-management",
+    "name": "prompt-versioning-release-management",
+    "description": "Prompt registry, versioning, A/B-able rollout, rollback, and changelog\nmanagement. Treats prompts as code: reviewed in P",
+    "owns": [
+      "Prompt registry data model (prompts, versions, environments)",
+      "Source-of-truth (git-backed YAML / DB-backed with audit)",
+      "Eval-gated promotion (per-version pass rates required for pr",
+      "Rollout strategies (canary %, by user cohort, by feature fla"
+    ],
+    "triggers": [
+      "prompt registry",
+      "prompt versioning",
+      "prompt rollout",
+      "prompt rollback",
+      "llm release"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "ai-evals-dataset-curation"
+      },
+      {
+        "skill": "experiment-feature-analysis"
+      },
+      {
+        "skill": "llm-cost-governance"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      },
+      {
+        "skill": "api-design"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "prompt registry",
+        "prompt versioning",
+        "prompt rollout",
+        "llm release"
+      ],
+      "boost_terms": [
+        "prompt rollback",
+        "prompt changelog",
+        "prompt as code",
+        "deploy gating",
+        "prompt observability",
+        "per-tenant prompt"
+      ],
+      "boost": 22
+    }
+  },
+  "rag-implementation": {
+    "id": "rag-implementation",
+    "name": "RAG Implementation",
+    "description": "Retrieval-Augmented Generation patterns including chunking, embeddings, vector stores, reranking, and production-grade r",
+    "owns": [
+      "document-chunking-strategies",
+      "embedding-model-selection",
+      "vector-store-optimization",
+      "retrieval-quality-metrics"
+    ],
+    "triggers": [
+      "rag implementation",
+      "retrieval augmented generation",
+      "vector search",
+      "embeddings",
+      "semantic search"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "context-window-management"
+      },
+      {
+        "skill": "conversation-memory"
+      },
+      {
+        "skill": "prompt-caching"
+      },
+      {
+        "skill": "data-pipeline"
+      },
+      {
+        "skill": "llm-fine-tuning"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "private document RAG",
+        "document corpus RAG",
+        "retrieval augmented generation",
+        "vector retrieval"
+      ],
+      "boost_terms": [
+        "implement RAG over a private document corpus",
+        "private documents",
+        "document corpus",
+        "chunking embeddings vector store reranking",
+        "retrieval pipeline"
+      ]
+    }
+  },
+  "voice-agents": {
+    "id": "voice-agents",
+    "name": "Voice Agents",
+    "description": "Production voice agent systems with STT, TTS, turn-taking, interruption handling, realtime APIs, and low-latency voice U",
+    "owns": [
+      "Voice agent architecture (S2S vs pipeline decisions)",
+      "Speech-to-text integration (Whisper, Deepgram, AssemblyAI)",
+      "Text-to-speech integration (ElevenLabs, OpenAI TTS, Deepgram",
+      "Voice Activity Detection and turn-taking"
+    ],
+    "triggers": [
+      "voice agents",
+      "voice",
+      "agents",
+      "voice agent architecture",
+      "agent"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "backend"
+      },
+      {
+        "skill": "voice-agents"
+      },
+      {
+        "skill": "llm-architect"
+      },
+      {
+        "skill": "agent-tool-builder"
+      },
+      {
+        "skill": "accessibility"
+      },
+      {
+        "skill": "multi-agent-orchestration"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "voice agent",
+        "voice"
+      ],
+      "boost_terms": [
+        "voice support bot",
+        "voice agent",
+        "speech agent"
+      ],
+      "boost": 42
+    }
+  },
+  "voice-ai-development": {
+    "id": "voice-ai-development",
+    "name": "voice-ai-development",
+    "description": "Expert in building voice AI applications - from real-time voice agents to voice-enabled apps.\nCovers OpenAI Realtime API",
+    "owns": [
+      "OpenAI Realtime API - voice-to-voice with GPT-4o",
+      "Vapi voice agents - phone-based deployments",
+      "Deepgram STT/TTS - transcription and synthesis",
+      "ElevenLabs voice synthesis - natural-sounding voices"
+    ],
+    "triggers": [
+      "voice ai",
+      "voice agent",
+      "speech to text",
+      "text to speech",
+      "realtime voice"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "langgraph"
+      },
+      {
+        "skill": "structured-output"
+      },
+      {
+        "skill": "langfuse"
+      },
+      {
+        "skill": "error-handling"
+      },
+      {
+        "skill": "websocket-realtime"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "voice",
+        "speech"
+      ],
+      "boost_terms": [
+        "voice ai",
+        "speech to text",
+        "text to speech",
+        "audio recordings",
+        "transcription",
+        "meeting notes",
+        "speaker summaries"
+      ],
+      "boost": 42
+    }
+  },
+  "workflow-automation": {
+    "id": "workflow-automation",
+    "name": "workflow-automation",
+    "description": "Durable execution and event-driven workflow orchestration for production AI systems",
+    "owns": [
+      "workflow-automation",
+      "durable-execution",
+      "event-driven-workflows",
+      "step-functions"
+    ],
+    "triggers": [
+      "workflow automation",
+      "workflow-automation",
+      "workflow",
+      "automation",
+      "durable-execution"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "multi-agent-orchestration"
+      },
+      {
+        "skill": "devops"
+      },
+      {
+        "skill": "data-engineer"
+      },
+      {
+        "skill": "api-designer"
+      },
+      {
+        "skill": "backend"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
+  "zapier-make-patterns": {
+    "id": "zapier-make-patterns",
+    "name": "Zapier & Make Patterns",
+    "description": "Expert in no-code automation platforms - Zapier (7000+ integrations, simplicity-first)\nand Make/Integromat (visual branc",
+    "owns": [
+      "Zapier workflow design (Zaps, Paths, Loops, Formatter)",
+      "Make/Integromat scenario architecture (Routers, Iterators, A",
+      "No-code trigger-action patterns and multi-step workflows",
+      "Platform comparison and selection (Zapier vs Make vs n8n)"
+    ],
+    "triggers": [
+      "zapier make patterns",
+      "zapier & make patterns",
+      "zapier",
+      "make",
+      "patterns"
+    ],
+    "category": "ai-agents",
+    "delegates": [
+      {
+        "skill": "workflow-automation"
+      },
+      {
+        "skill": "backend"
+      },
+      {
+        "skill": "agent-tool-builder"
+      },
+      {
+        "skill": "api-designer"
+      },
+      {
+        "skill": "browser-automation"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {}
+  },
   "ai-code-generation": {
     "id": "ai-code-generation",
     "name": "AI Code Generation",
@@ -165,6 +1381,9 @@
         "skill": "ai-safety-alignment"
       },
       {
+        "skill": "queue-workers"
+      },
+      {
         "skill": "rate-limiting"
       }
     ],
@@ -229,6 +1448,9 @@
     "category": "ai",
     "delegates": [
       {
+        "skill": "llm-architect"
+      },
+      {
         "skill": "semantic-search"
       },
       {
@@ -239,6 +1461,9 @@
       },
       {
         "skill": "data-pipeline"
+      },
+      {
+        "skill": "caching-patterns"
       }
     ],
     "pairsWell": [],
@@ -267,10 +1492,16 @@
         "skill": "ai-observability"
       },
       {
+        "skill": "backend-engineer"
+      },
+      {
         "skill": "document-ai"
       },
       {
         "skill": "authentication-oauth"
+      },
+      {
+        "skill": "gdpr-privacy"
       }
     ],
     "pairsWell": [],
@@ -508,6 +1739,9 @@
       },
       {
         "skill": "nlp-advanced"
+      },
+      {
+        "skill": "ml-ops"
       }
     ],
     "pairsWell": [],
@@ -543,6 +1777,9 @@
       },
       {
         "skill": "mcp-server-development"
+      },
+      {
+        "skill": "prompt-engineering-creative"
       }
     ],
     "pairsWell": [],
@@ -567,6 +1804,9 @@
     ],
     "category": "ai",
     "delegates": [
+      {
+        "skill": "security"
+      },
       {
         "skill": "authentication-oauth"
       },
@@ -613,6 +1853,9 @@
       },
       {
         "skill": "kubernetes"
+      },
+      {
+        "skill": "aws-serverless"
       }
     ],
     "pairsWell": [],
@@ -655,7 +1898,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 48,
       "aliases": [
         "pdf",
         "invoice",
@@ -681,6 +1923,7 @@
         "saved views",
         "bulk actions"
       ],
+      "boost": 48,
       "penalty": 72
     }
   },
@@ -753,6 +1996,9 @@
       },
       {
         "skill": "reinforcement-learning"
+      },
+      {
+        "skill": "ml-ops"
       }
     ],
     "pairsWell": [],
@@ -918,6 +2164,9 @@
         "skill": "ai-observability"
       },
       {
+        "skill": "llm-architect"
+      },
+      {
         "skill": "computer-vision-deep"
       },
       {
@@ -954,6 +2203,9 @@
       },
       {
         "skill": "distributed-training"
+      },
+      {
+        "skill": "ml-ops"
       }
     ],
     "pairsWell": [],
@@ -1042,6 +2294,9 @@
       },
       {
         "skill": "performance-optimization"
+      },
+      {
+        "skill": "queue-workers"
       }
     ],
     "pairsWell": [],
@@ -1181,6 +2436,9 @@
     "category": "ai",
     "delegates": [
       {
+        "skill": "ml-memory"
+      },
+      {
         "skill": "agent-communication"
       },
       {
@@ -1219,6 +2477,9 @@
         "skill": "llm-fine-tuning"
       },
       {
+        "skill": "data-engineer"
+      },
+      {
         "skill": "ai-safety-alignment"
       }
     ],
@@ -1251,7 +2512,13 @@
         "skill": "ai-image-editing"
       },
       {
+        "skill": "voice-agents"
+      },
+      {
         "skill": "workflow-automation"
+      },
+      {
+        "skill": "aws-serverless"
       }
     ],
     "pairsWell": [],
@@ -1321,1169 +2588,13 @@
         "skill": "tailwind-css"
       },
       {
+        "skill": "accessibility"
+      },
+      {
         "skill": "react-patterns"
       },
       {
         "skill": "typescript-strict"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {}
-  },
-  "agent-communication": {
-    "id": "agent-communication",
-    "name": "Agent Communication",
-    "description": "Inter-agent communication patterns including message passing, shared memory, blackboard systems, and event-driven archit",
-    "owns": [
-      "message-passing-patterns",
-      "shared-memory-blackboard-systems",
-      "event-driven-agent-architectures",
-      "protocol-design-and-validation"
-    ],
-    "triggers": [
-      "agent communication",
-      "message passing",
-      "inter-agent",
-      "blackboard",
-      "agent events"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "multi-agent-orchestration"
-      },
-      {
-        "skill": "agent-evaluation"
-      },
-      {
-        "skill": "autonomous-agents"
-      },
-      {
-        "skill": "distributed-systems"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {}
-  },
-  "agent-evaluation": {
-    "id": "agent-evaluation",
-    "name": "Agent Evaluation",
-    "description": "Testing and benchmarking LLM agents including behavioral testing, capability assessment, reliability metrics, and produc",
-    "owns": [
-      "Agent behavioral testing and capability assessment",
-      "Benchmark design and statistical evaluation frameworks",
-      "Adversarial testing and security evaluation",
-      "Regression testing pipelines for agent updates"
-    ],
-    "triggers": [
-      "agent testing",
-      "agent evaluation",
-      "benchmark agents",
-      "agent reliability",
-      "test agent"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "multi-agent-orchestration"
-      },
-      {
-        "skill": "agent-communication"
-      },
-      {
-        "skill": "autonomous-agents"
-      }
-    ],
-    "pairsWell": [
-      "multi-agent-orchestration",
-      "agent-communication",
-      "autonomous-agents"
-    ],
-    "selectionHints": {
-      "boost": 52,
-      "aliases": [
-        "evaluation harness",
-        "agent evals",
-        "regression tests"
-      ],
-      "boost_terms": [
-        "ai evaluation harness",
-        "agent evaluation",
-        "ragas metrics",
-        "regression tests",
-        "prompt caching",
-        "langfuse tracing"
-      ]
-    }
-  },
-  "agent-memory-systems": {
-    "id": "agent-memory-systems",
-    "name": "Agent Memory Systems",
-    "description": "Persistent memory architectures for AI agents across short-term, semantic, episodic, and long-term recall without retrie",
-    "owns": [
-      "Agent memory architecture (short-term, long-term, working me",
-      "Memory type selection (semantic, episodic, procedural per Co",
-      "Chunking strategies and retrieval optimization",
-      "Memory decay policies and consolidation"
-    ],
-    "triggers": [
-      "agent memory systems",
-      "agent",
-      "memory",
-      "systems",
-      "agent memory architecture"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "data-engineer"
-      },
-      {
-        "skill": "llm-architect"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {}
-  },
-  "agent-tool-builder": {
-    "id": "agent-tool-builder",
-    "name": "agent-tool-builder",
-    "description": "Build AI agent tools that work - not tools that hallucinate, loop, or fail silently",
-    "owns": [
-      "Agent tool schema design (JSON Schema, OpenAPI, MCP)",
-      "Tool description writing that prevents LLM confusion",
-      "Tool error handling and recovery patterns",
-      "Function calling implementations (Anthropic, OpenAI, Vercel "
-    ],
-    "triggers": [
-      "agent tool builder",
-      "agent-tool-builder",
-      "agent",
-      "tool",
-      "builder"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "multi-agent-orchestration"
-      },
-      {
-        "skill": "agent-memory-systems"
-      },
-      {
-        "skill": "api-designer"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {}
-  },
-  "ai-agent-permissions-sandboxing": {
-    "id": "ai-agent-permissions-sandboxing",
-    "name": "ai-agent-permissions-sandboxing",
-    "description": "Tool permissions, approval gates, and sandboxing for AI agents:\ndeclarative tool catalogs, per-action allowlists, side-e",
-    "owns": [
-      "Tool catalog (declarative, with side-effect classification)",
-      "Per-action allowlist + sandbox config",
-      "Approval-gate UX (sync, async, batched)",
-      "Human-in-the-loop policy per side-effect tier"
-    ],
-    "triggers": [
-      "agent permissions",
-      "tool allowlist",
-      "agent sandbox",
-      "approval gate",
-      "human in the loop"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "prompt-injection-defense"
-      },
-      {
-        "skill": "human-in-the-loop-review"
-      },
-      {
-        "skill": "container-security"
-      },
-      {
-        "skill": "llm-cost-governance"
-      },
-      {
-        "skill": "audit-trail-activity-feed"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {
-      "boost": 22,
-      "aliases": [
-        "agent permissions",
-        "tool authorization",
-        "agent sandbox",
-        "human in the loop"
-      ],
-      "boost_terms": [
-        "tool allowlist",
-        "approval gate",
-        "capability control",
-        "agent safety",
-        "prompt injection",
-        "destructive tool"
-      ]
-    }
-  },
-  "ai-chatbot-builder": {
-    "id": "ai-chatbot-builder",
-    "name": "ai-chatbot-builder",
-    "description": "Building production chatbots with LLMs including conversation memory, guardrails, streaming UI, RAG integration, and mul",
-    "owns": [
-      "Conversation memory and history management",
-      "Context window management and message windowing",
-      "System prompt design and guardrails",
-      "Streaming chat UI and response rendering"
-    ],
-    "triggers": [
-      "build chatbot",
-      "ai chatbot",
-      "conversation memory",
-      "chatbot guardrails",
-      "context window management"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "ai-sdk-vercel"
-      },
-      {
-        "skill": "claude-api-integration"
-      },
-      {
-        "skill": "openai-api-patterns"
-      },
-      {
-        "skill": "vector-database-pinecone"
-      },
-      {
-        "skill": "ai-streaming-interfaces"
-      },
-      {
-        "skill": "ai-function-calling"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {}
-  },
-  "ai-evals-dataset-curation": {
-    "id": "ai-evals-dataset-curation",
-    "name": "ai-evals-dataset-curation",
-    "description": "Eval dataset curation for LLM applications: golden sets, drift cases,\nadversarial examples, label quality, eval taxonomy",
-    "owns": [
-      "Eval taxonomy (categories, sub-categories, tags)",
-      "Golden dataset (curated input/output pairs with labels)",
-      "Adversarial / drift / edge-case sub-sets",
-      "Multi-grader labeling pipeline + agreement"
-    ],
-    "triggers": [
-      "llm evals",
-      "eval dataset",
-      "golden set",
-      "regression eval",
-      "adversarial example"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "human-in-the-loop-review"
-      },
-      {
-        "skill": "prompt-versioning-release-management"
-      },
-      {
-        "skill": "api-design"
-      },
-      {
-        "skill": "experiment-feature-analysis"
-      },
-      {
-        "skill": "audit-trail-activity-feed"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {
-      "boost": 22,
-      "aliases": [
-        "llm evals",
-        "eval dataset",
-        "golden set",
-        "prompt eval"
-      ],
-      "boost_terms": [
-        "regression eval",
-        "adversarial example",
-        "inter rater",
-        "llm benchmark",
-        "eval curation",
-        "prompt iteration"
-      ]
-    }
-  },
-  "autonomous-agents": {
-    "id": "autonomous-agents",
-    "name": "Autonomous Agents",
-    "description": "Autonomous agent loops with planning, reflection, guardrails, checkpoints, and human interrupt controls for production u",
-    "owns": [
-      "Autonomous agent architecture and loops (ReAct, Plan-Execute",
-      "Goal decomposition and task planning",
-      "Self-correction and reflection patterns",
-      "Agent guardrails and safety boundaries"
-    ],
-    "triggers": [
-      "autonomous agent",
-      "autogpt",
-      "babyagi",
-      "self-prompting",
-      "goal decomposition"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "multi-agent-orchestration"
-      },
-      {
-        "skill": "agent-tool-builder"
-      },
-      {
-        "skill": "agent-memory-systems"
-      },
-      {
-        "skill": "agent-evaluation"
-      },
-      {
-        "skill": "workflow-automation"
-      }
-    ],
-    "pairsWell": [
-      "agent-tool-builder",
-      "agent-memory-systems",
-      "multi-agent-orchestration",
-      "agent-evaluation"
-    ],
-    "selectionHints": {}
-  },
-  "browser-automation": {
-    "id": "browser-automation",
-    "name": "Browser Automation",
-    "description": "Expert in browser automation for testing, scraping, and AI agent interactions.\nCovers Playwright (recommended) and Puppe",
-    "owns": [
-      "Browser automation with Playwright and Puppeteer",
-      "E2E testing with proper selectors and assertions",
-      "Web scraping with anti-detection and rate limiting",
-      "Test isolation and authentication state management"
-    ],
-    "triggers": [
-      "playwright",
-      "puppeteer",
-      "browser automation",
-      "e2e test",
-      "end-to-end"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "computer-use-agents"
-      },
-      {
-        "skill": "agent-tool-builder"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {}
-  },
-  "computer-use-agents": {
-    "id": "computer-use-agents",
-    "name": "Computer Use Agents",
-    "description": "Build AI agents that interact with computers like humans do - viewing screens,\nmoving cursors, clicking buttons, and typ",
-    "owns": [
-      "Perception-reasoning-action loop architecture",
-      "Sandboxed container environments for computer use",
-      "Anthropic Computer Use API integration",
-      "Browser-Use and Playwright-based automation"
-    ],
-    "triggers": [
-      "computer use",
-      "desktop automation agent",
-      "screen control AI",
-      "vision-based agent",
-      "GUI automation"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "devops"
-      },
-      {
-        "skill": "browser-automation"
-      },
-      {
-        "skill": "autonomous-agents"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {}
-  },
-  "context-window-management": {
-    "id": "context-window-management",
-    "name": "Context Window Management",
-    "description": "Production strategies for managing LLM context windows including summarization, trimming, routing, and avoiding the $3.2",
-    "owns": [
-      "context-engineering",
-      "context-summarization",
-      "context-trimming",
-      "context-routing"
-    ],
-    "triggers": [
-      "context window management",
-      "context",
-      "window",
-      "management",
-      "context-engineering"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "rag-implementation"
-      },
-      {
-        "skill": "conversation-memory"
-      },
-      {
-        "skill": "prompt-caching"
-      },
-      {
-        "skill": "llm-npc-dialogue"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {}
-  },
-  "conversation-memory": {
-    "id": "conversation-memory",
-    "name": "Conversation Memory",
-    "description": "Persistent memory systems for LLM conversations including short-term, long-term, and entity-based memory with production",
-    "owns": [
-      "short-term-memory",
-      "long-term-memory",
-      "entity-memory",
-      "memory-persistence"
-    ],
-    "triggers": [
-      "conversation memory",
-      "remember",
-      "memory persistence",
-      "long-term memory",
-      "chat history"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "context-window-management"
-      },
-      {
-        "skill": "rag-implementation"
-      },
-      {
-        "skill": "prompt-caching"
-      }
-    ],
-    "pairsWell": [
-      "context-window-management",
-      "rag-implementation",
-      "prompt-caching",
-      "llm-npc-dialogue"
-    ],
-    "selectionHints": {}
-  },
-  "conversational-intent-design": {
-    "id": "conversational-intent-design",
-    "name": "Conversational Intent Design",
-    "description": "Expert at designing conversational intent systems that feel like a human,\nnot a help-desk form. Covers hybrid rule+LLM r",
-    "owns": [
-      "Intent taxonomy design (disjoint coverage, out-of-scope fall",
-      "Hybrid routing (tier-1 deterministic rules, tier-2 LLM class",
-      "Confidence thresholds and escalation paths",
-      "Natural-language phrasing coverage per intent (10-20 variant"
-    ],
-    "triggers": [
-      "intent classification",
-      "natural language intent",
-      "NL routing",
-      "chatbot intent design",
-      "conversational AI"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "api-design"
-      },
-      {
-        "skill": "security-owasp"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {}
-  },
-  "crewai": {
-    "id": "crewai",
-    "name": "CrewAI",
-    "description": "Expert in CrewAI - the leading role-based multi-agent framework used by 60% of Fortune 500\ncompanies. Covers agent desig",
-    "owns": [
-      "Agent definitions with role, goal, and backstory design",
-      "Task design with descriptions, expected outputs, and depende",
-      "Crew orchestration with sequential, hierarchical, and parall",
-      "Memory configuration (short-term, long-term, entity memory)"
-    ],
-    "triggers": [
-      "crewai",
-      "multi-agent team",
-      "agent roles",
-      "crew of agents",
-      "role-based agents"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "langgraph"
-      },
-      {
-        "skill": "autonomous-agents"
-      },
-      {
-        "skill": "langfuse"
-      },
-      {
-        "skill": "structured-output"
-      },
-      {
-        "skill": "llm-fine-tuning"
-      }
-    ],
-    "pairsWell": [
-      "langgraph",
-      "autonomous-agents",
-      "langfuse",
-      "structured-output"
-    ],
-    "selectionHints": {}
-  },
-  "human-in-the-loop-review": {
-    "id": "human-in-the-loop-review",
-    "name": "human-in-the-loop-review",
-    "description": "Human-in-the-loop (HITL) review systems for AI agents and ML pipelines:\nreview queues, confidence thresholds, escalation",
-    "owns": [
-      "Review-queue data model (item, claim, decision, sla)",
-      "Confidence-based routing (auto-approve vs review vs escalate",
-      "Per-tier SLA + alerting",
-      "Reviewer assignment (round-robin, expertise, load)"
-    ],
-    "triggers": [
-      "human in the loop",
-      "hitl review",
-      "review queue",
-      "moderation queue",
-      "confidence threshold"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "ai-agent-permissions-sandboxing"
-      },
-      {
-        "skill": "ai-evals-dataset-curation"
-      },
-      {
-        "skill": "notifications-orchestration"
-      },
-      {
-        "skill": "api-design"
-      },
-      {
-        "skill": "audit-trail-activity-feed"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {
-      "boost": 22,
-      "aliases": [
-        "human in the loop",
-        "hitl",
-        "review queue",
-        "moderation queue"
-      ],
-      "boost_terms": [
-        "confidence threshold",
-        "reviewer ux",
-        "escalation policy",
-        "inter-rater agreement",
-        "active learning",
-        "ai oversight"
-      ]
-    }
-  },
-  "langfuse": {
-    "id": "langfuse",
-    "name": "Langfuse LLM Observability",
-    "description": "Expert in Langfuse - the open-source LLM observability platform. Covers tracing,\nprompt management, evaluation, datasets",
-    "owns": [
-      "LLM tracing and observability architecture",
-      "Prompt management, versioning, and deployment pipelines",
-      "Evaluation strategies: LLM-as-judge, human-in-loop, automate",
-      "Cost tracking, optimization, and anomaly detection"
-    ],
-    "triggers": [
-      "langfuse",
-      "llm observability",
-      "llm tracing",
-      "prompt management",
-      "llm evaluation"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "langgraph"
-      },
-      {
-        "skill": "crewai"
-      },
-      {
-        "skill": "structured-output"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {}
-  },
-  "langgraph": {
-    "id": "langgraph",
-    "name": "LangGraph",
-    "description": "Expert in LangGraph - the production-grade framework for building stateful, multi-actor\nAI applications. Covers graph co",
-    "owns": [
-      "Graph topology design and StateGraph construction",
-      "State management with TypedDict and Annotated reducers",
-      "Conditional routing, branching, and cycle management",
-      "Checkpointer setup (SQLite dev, PostgreSQL/Redis prod)"
-    ],
-    "triggers": [
-      "langgraph",
-      "langchain agent",
-      "stateful agent",
-      "agent graph",
-      "react agent"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "crewai"
-      },
-      {
-        "skill": "langfuse"
-      },
-      {
-        "skill": "structured-output"
-      },
-      {
-        "skill": "agent-evaluation"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {}
-  },
-  "llm-cost-governance": {
-    "id": "llm-cost-governance",
-    "name": "llm-cost-governance",
-    "description": "LLM cost governance: budgets per user / tenant / feature, prompt caching,\nmodel routing (cheap vs expensive), per-call c",
-    "owns": [
-      "Per-call cost recording (input + output tokens, model, cost ",
-      "Cost attribution (feature, tenant, user, prompt version)",
-      "Per-tier budgets (per user / tenant / feature / global)",
-      "Pre-call budget check + 429-equivalent"
-    ],
-    "triggers": [
-      "llm cost",
-      "openai bill",
-      "anthropic bill",
-      "prompt caching",
-      "model routing"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "usage-metering-entitlements"
-      },
-      {
-        "skill": "ai-agent-permissions-sandboxing"
-      },
-      {
-        "skill": "notifications-orchestration"
-      },
-      {
-        "skill": "data-dashboard-design"
-      },
-      {
-        "skill": "audit-trail-activity-feed"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {
-      "boost": 22,
-      "aliases": [
-        "llm cost",
-        "openai bill",
-        "anthropic cost",
-        "prompt cache"
-      ],
-      "boost_terms": [
-        "model routing",
-        "cost budget",
-        "cost anomaly",
-        "per-tenant cost",
-        "llm spend",
-        "token budget"
-      ]
-    }
-  },
-  "multi-agent-orchestration": {
-    "id": "multi-agent-orchestration",
-    "name": "multi-agent-orchestration",
-    "description": "Production patterns for coordinating multiple LLM agents - sequential, parallel, router, and hierarchical architectures",
-    "owns": [
-      "agent-coordination-patterns",
-      "multi-agent-state-management",
-      "workflow-orchestration-design",
-      "agent-routing-decisions"
-    ],
-    "triggers": [
-      "multi agent orchestration",
-      "multi-agent-orchestration",
-      "multi",
-      "agent",
-      "orchestration"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "agent-communication"
-      },
-      {
-        "skill": "agent-evaluation"
-      },
-      {
-        "skill": "autonomous-agents"
-      },
-      {
-        "skill": "context-window-management"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {}
-  },
-  "multi-modal-upload-intake": {
-    "id": "multi-modal-upload-intake",
-    "name": "multi-modal-upload-intake",
-    "description": "Multi-modal upload intake for AI workflows: images, audio, video, PDFs,\nspreadsheets normalized into a canonical represe",
-    "owns": [
-      "Format detection (magic bytes; not extension)",
-      "Format normalization (HEIC→JPEG, WebM→WAV, etc.)",
-      "Image resize / re-encode (vision-model cost optimization)",
-      "Audio chunking + per-chunk transcription"
-    ],
-    "triggers": [
-      "multi modal upload",
-      "image to ai",
-      "audio transcription",
-      "pdf to ai",
-      "heic conversion"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "file-uploads"
-      },
-      {
-        "skill": "file-processing-pipelines"
-      },
-      {
-        "skill": "media-transcoding-pipeline"
-      },
-      {
-        "skill": "llm-cost-governance"
-      },
-      {
-        "skill": "notifications-orchestration"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {
-      "boost": 22,
-      "aliases": [
-        "multi modal upload",
-        "image to ai",
-        "audio transcription",
-        "pdf to ai"
-      ],
-      "boost_terms": [
-        "heic conversion",
-        "vision input",
-        "whisper transcription",
-        "document intake",
-        "upload normalization",
-        "decompression bomb"
-      ]
-    }
-  },
-  "prompt-caching": {
-    "id": "prompt-caching",
-    "name": "Prompt Caching",
-    "description": "Caching strategies for LLM prompts including Anthropic prompt caching, response caching, and CAG (Cache Augmented Genera",
-    "owns": [
-      "prompt-caching (provider-level KV cache reuse)",
-      "response-caching (full LLM output caching)",
-      "semantic-caching (embedding-based similarity matching)",
-      "cache-augmented-generation (CAG patterns)"
-    ],
-    "triggers": [
-      "prompt caching",
-      "cache prompt",
-      "response cache",
-      "cag",
-      "cache augmented"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "context-window-management"
-      },
-      {
-        "skill": "rag-implementation"
-      },
-      {
-        "skill": "conversation-memory"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {}
-  },
-  "prompt-engineer": {
-    "id": "prompt-engineer",
-    "name": "Prompt Engineer",
-    "description": "Expert in designing effective prompts for LLM-powered applications. Masters\nprompt structure, context management, output",
-    "owns": [
-      "Prompt design, structure, and optimization",
-      "System prompt architecture and versioning",
-      "Few-shot example curation and selection",
-      "Output format specification and validation"
-    ],
-    "triggers": [
-      "prompt engineering",
-      "system prompt",
-      "few-shot",
-      "chain of thought",
-      "prompt design"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "ai-agents-architect"
-      },
-      {
-        "skill": "rag-engineer"
-      },
-      {
-        "skill": "structured-output"
-      },
-      {
-        "skill": "langfuse"
-      },
-      {
-        "skill": "llm-fine-tuning"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {}
-  },
-  "prompt-versioning-release-management": {
-    "id": "prompt-versioning-release-management",
-    "name": "prompt-versioning-release-management",
-    "description": "Prompt registry, versioning, A/B-able rollout, rollback, and changelog\nmanagement. Treats prompts as code: reviewed in P",
-    "owns": [
-      "Prompt registry data model (prompts, versions, environments)",
-      "Source-of-truth (git-backed YAML / DB-backed with audit)",
-      "Eval-gated promotion (per-version pass rates required for pr",
-      "Rollout strategies (canary %, by user cohort, by feature fla"
-    ],
-    "triggers": [
-      "prompt registry",
-      "prompt versioning",
-      "prompt rollout",
-      "prompt rollback",
-      "llm release"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "ai-evals-dataset-curation"
-      },
-      {
-        "skill": "experiment-feature-analysis"
-      },
-      {
-        "skill": "llm-cost-governance"
-      },
-      {
-        "skill": "audit-trail-activity-feed"
-      },
-      {
-        "skill": "api-design"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {
-      "boost": 22,
-      "aliases": [
-        "prompt registry",
-        "prompt versioning",
-        "prompt rollout",
-        "llm release"
-      ],
-      "boost_terms": [
-        "prompt rollback",
-        "prompt changelog",
-        "prompt as code",
-        "deploy gating",
-        "prompt observability",
-        "per-tenant prompt"
-      ]
-    }
-  },
-  "rag-implementation": {
-    "id": "rag-implementation",
-    "name": "RAG Implementation",
-    "description": "Retrieval-Augmented Generation patterns including chunking, embeddings, vector stores, reranking, and production-grade r",
-    "owns": [
-      "document-chunking-strategies",
-      "embedding-model-selection",
-      "vector-store-optimization",
-      "retrieval-quality-metrics"
-    ],
-    "triggers": [
-      "rag implementation",
-      "retrieval augmented generation",
-      "vector search",
-      "embeddings",
-      "semantic search"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "context-window-management"
-      },
-      {
-        "skill": "conversation-memory"
-      },
-      {
-        "skill": "prompt-caching"
-      },
-      {
-        "skill": "data-pipeline"
-      },
-      {
-        "skill": "llm-fine-tuning"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {
-      "aliases": [
-        "private document RAG",
-        "document corpus RAG",
-        "retrieval augmented generation",
-        "vector retrieval"
-      ],
-      "boost_terms": [
-        "implement RAG over a private document corpus",
-        "private documents",
-        "document corpus",
-        "chunking embeddings vector store reranking",
-        "retrieval pipeline"
-      ]
-    }
-  },
-  "voice-agents": {
-    "id": "voice-agents",
-    "name": "Voice Agents",
-    "description": "Production voice agent systems with STT, TTS, turn-taking, interruption handling, realtime APIs, and low-latency voice U",
-    "owns": [
-      "Voice agent architecture (S2S vs pipeline decisions)",
-      "Speech-to-text integration (Whisper, Deepgram, AssemblyAI)",
-      "Text-to-speech integration (ElevenLabs, OpenAI TTS, Deepgram",
-      "Voice Activity Detection and turn-taking"
-    ],
-    "triggers": [
-      "voice agents",
-      "voice",
-      "agents",
-      "voice agent architecture",
-      "agent"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "backend"
-      },
-      {
-        "skill": "llm-architect"
-      },
-      {
-        "skill": "agent-tool-builder"
-      },
-      {
-        "skill": "accessibility"
-      },
-      {
-        "skill": "multi-agent-orchestration"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {
-      "boost": 42,
-      "aliases": [
-        "voice agent",
-        "voice"
-      ],
-      "boost_terms": [
-        "voice support bot",
-        "voice agent",
-        "speech agent"
-      ]
-    }
-  },
-  "voice-ai-development": {
-    "id": "voice-ai-development",
-    "name": "voice-ai-development",
-    "description": "Expert in building voice AI applications - from real-time voice agents to voice-enabled apps.\nCovers OpenAI Realtime API",
-    "owns": [
-      "OpenAI Realtime API - voice-to-voice with GPT-4o",
-      "Vapi voice agents - phone-based deployments",
-      "Deepgram STT/TTS - transcription and synthesis",
-      "ElevenLabs voice synthesis - natural-sounding voices"
-    ],
-    "triggers": [
-      "voice ai",
-      "voice agent",
-      "speech to text",
-      "text to speech",
-      "realtime voice"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "langgraph"
-      },
-      {
-        "skill": "structured-output"
-      },
-      {
-        "skill": "langfuse"
-      },
-      {
-        "skill": "error-handling"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {
-      "boost": 42,
-      "aliases": [
-        "voice",
-        "speech"
-      ],
-      "boost_terms": [
-        "voice ai",
-        "speech to text",
-        "text to speech",
-        "audio recordings",
-        "transcription",
-        "meeting notes",
-        "speaker summaries"
-      ]
-    }
-  },
-  "workflow-automation": {
-    "id": "workflow-automation",
-    "name": "workflow-automation",
-    "description": "Durable execution and event-driven workflow orchestration for production AI systems",
-    "owns": [
-      "workflow-automation",
-      "durable-execution",
-      "event-driven-workflows",
-      "step-functions"
-    ],
-    "triggers": [
-      "workflow automation",
-      "workflow-automation",
-      "workflow",
-      "automation",
-      "durable-execution"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "multi-agent-orchestration"
-      },
-      {
-        "skill": "devops"
-      },
-      {
-        "skill": "data-engineer"
-      },
-      {
-        "skill": "api-designer"
-      },
-      {
-        "skill": "backend"
-      }
-    ],
-    "pairsWell": [],
-    "selectionHints": {}
-  },
-  "zapier-make-patterns": {
-    "id": "zapier-make-patterns",
-    "name": "Zapier & Make Patterns",
-    "description": "Expert in no-code automation platforms - Zapier (7000+ integrations, simplicity-first)\nand Make/Integromat (visual branc",
-    "owns": [
-      "Zapier workflow design (Zaps, Paths, Loops, Formatter)",
-      "Make/Integromat scenario architecture (Routers, Iterators, A",
-      "No-code trigger-action patterns and multi-step workflows",
-      "Platform comparison and selection (Zapier vs Make vs n8n)"
-    ],
-    "triggers": [
-      "zapier make patterns",
-      "zapier & make patterns",
-      "zapier",
-      "make",
-      "patterns"
-    ],
-    "category": "ai-agents",
-    "delegates": [
-      {
-        "skill": "workflow-automation"
-      },
-      {
-        "skill": "backend"
-      },
-      {
-        "skill": "agent-tool-builder"
-      },
-      {
-        "skill": "api-designer"
-      },
-      {
-        "skill": "browser-automation"
       }
     ],
     "pairsWell": [],
@@ -2591,7 +2702,16 @@
         "skill": "websockets-realtime"
       },
       {
+        "skill": "caching-patterns"
+      },
+      {
         "skill": "microservices-patterns"
+      },
+      {
+        "skill": "postgres-wizard"
+      },
+      {
+        "skill": "security"
       }
     ],
     "pairsWell": [],
@@ -2626,12 +2746,14 @@
         "skill": "webhook-provider-platform"
       },
       {
+        "skill": "caching-patterns"
+      },
+      {
         "skill": "error-handling"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 24,
       "aliases": [
         "audit log",
         "activity feed",
@@ -2645,7 +2767,8 @@
         "immutable log",
         "soc 2 audit",
         "hipaa audit"
-      ]
+      ],
+      "boost": 24
     }
   },
   "automation": {
@@ -2750,12 +2873,17 @@
         "skill": "database-schema-design"
       },
       {
+        "skill": "edge-first-architecture"
+      },
+      {
+        "skill": "observability"
+      },
+      {
         "skill": "distributed-systems"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 40,
       "aliases": [
         "cache",
         "caches assets",
@@ -2766,7 +2894,8 @@
         "cache strategies",
         "offline cache",
         "cache invalidation"
-      ]
+      ],
+      "boost": 40
     }
   },
   "calendar-booking-systems": {
@@ -2806,7 +2935,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 32,
       "aliases": [
         "calendly",
         "cal.com",
@@ -2821,7 +2949,8 @@
         "prevent double booking",
         "timezone scheduling",
         "send reminders"
-      ]
+      ],
+      "boost": 32
     }
   },
   "cloudflare-workers-deep": {
@@ -2844,10 +2973,16 @@
     "category": "backend",
     "delegates": [
       {
+        "skill": "database-schema-design"
+      },
+      {
         "skill": "authentication-oauth"
       },
       {
         "skill": "api-design"
+      },
+      {
+        "skill": "typescript-strict"
       },
       {
         "skill": "security-hardening"
@@ -2877,6 +3012,18 @@
     "delegates": [
       {
         "skill": "webhook-processing"
+      },
+      {
+        "skill": "database-schema-design"
+      },
+      {
+        "skill": "email-systems"
+      },
+      {
+        "skill": "observability"
+      },
+      {
+        "skill": "devops"
       }
     ],
     "pairsWell": [],
@@ -2940,7 +3087,22 @@
     "category": "backend",
     "delegates": [
       {
+        "skill": "email-systems"
+      },
+      {
+        "skill": "infrastructure-as-code"
+      },
+      {
+        "skill": "marketing-fundamentals"
+      },
+      {
         "skill": "api-design"
+      },
+      {
+        "skill": "compliance-automation"
+      },
+      {
+        "skill": "observability"
       }
     ],
     "pairsWell": [],
@@ -2973,6 +3135,9 @@
       },
       {
         "skill": "microservices-patterns"
+      },
+      {
+        "skill": "testing-strategies"
       }
     ],
     "pairsWell": [],
@@ -3058,12 +3223,14 @@
         "skill": "container-security"
       },
       {
+        "skill": "content-moderation-systems"
+      },
+      {
         "skill": "notifications-orchestration"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "file processing",
         "upload pipeline",
@@ -3085,6 +3252,7 @@
         "load events into warehouse",
         "data warehouse ingestion"
       ],
+      "boost": 22,
       "penalty": 50
     }
   },
@@ -3188,6 +3356,9 @@
       },
       {
         "skill": "aws-serverless"
+      },
+      {
+        "skill": "infrastructure-as-code"
       }
     ],
     "pairsWell": [],
@@ -3222,7 +3393,13 @@
         "skill": "devops"
       },
       {
+        "skill": "security-engineer"
+      },
+      {
         "skill": "observability"
+      },
+      {
+        "skill": "queue-workers"
       }
     ],
     "pairsWell": [],
@@ -3251,10 +3428,16 @@
         "skill": "api-designer"
       },
       {
+        "skill": "database-schema-design"
+      },
+      {
         "skill": "frontend"
       },
       {
         "skill": "performance-hunter"
+      },
+      {
+        "skill": "security-engineer"
       },
       {
         "skill": "devops"
@@ -3335,7 +3518,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "csv import",
         "csv export",
@@ -3349,7 +3531,8 @@
         "dry run import",
         "export to csv",
         "large export"
-      ]
+      ],
+      "boost": 22
     }
   },
   "infrastructure-as-code": {
@@ -3413,6 +3596,9 @@
     "category": "backend",
     "delegates": [
       {
+        "skill": "observability"
+      },
+      {
         "skill": "security-hardening"
       },
       {
@@ -3420,11 +3606,13 @@
       },
       {
         "skill": "error-handling"
+      },
+      {
+        "skill": "observability"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 36,
       "aliases": [
         "delivery logs",
         "event logs",
@@ -3436,7 +3624,8 @@
         "correlation ids",
         "structured logs",
         "activity history"
-      ]
+      ],
+      "boost": 36
     }
   },
   "media-transcoding-pipeline": {
@@ -3476,7 +3665,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "video transcoding",
         "ffmpeg",
@@ -3491,7 +3679,8 @@
         "audio normalization",
         "video thumbnails",
         "mux video"
-      ]
+      ],
+      "boost": 22
     }
   },
   "microservices-patterns": {
@@ -3527,6 +3716,9 @@
       },
       {
         "skill": "authentication-oauth"
+      },
+      {
+        "skill": "postgres-wizard"
       }
     ],
     "pairsWell": [],
@@ -3560,7 +3752,16 @@
     "category": "backend",
     "delegates": [
       {
+        "skill": "cicd-pipelines"
+      },
+      {
         "skill": "npm-publishing"
+      },
+      {
+        "skill": "typescript-strict"
+      },
+      {
+        "skill": "docker"
       },
       {
         "skill": "testing-strategies"
@@ -3590,6 +3791,15 @@
     "delegates": [
       {
         "skill": "cloud-cost-optimization"
+      },
+      {
+        "skill": "kubernetes"
+      },
+      {
+        "skill": "postgres-wizard"
+      },
+      {
+        "skill": "edge-first-architecture"
       },
       {
         "skill": "compliance-automation"
@@ -3667,7 +3877,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 24,
       "aliases": [
         "unsubscribe",
         "email preferences",
@@ -3681,7 +3890,8 @@
         "notification frequency",
         "digest emails",
         "notification policy"
-      ]
+      ],
+      "boost": 24
     }
   },
   "notifications-orchestration": {
@@ -3721,7 +3931,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 28,
       "aliases": [
         "notifications",
         "notify",
@@ -3736,7 +3945,8 @@
         "delivery log",
         "retry storm",
         "notification dedupe"
-      ]
+      ],
+      "boost": 28
     }
   },
   "observability": {
@@ -3779,7 +3989,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 42,
       "aliases": [
         "metrics",
         "monitoring",
@@ -3801,7 +4010,8 @@
         "service level objectives",
         "sli slo",
         "slo tracking"
-      ]
+      ],
+      "boost": 42
     }
   },
   "pdf-generation": {
@@ -3841,7 +4051,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 28,
       "aliases": [
         "pdf",
         "invoice",
@@ -3857,7 +4066,8 @@
         "pdf invoice",
         "download receipt",
         "print to pdf"
-      ]
+      ],
+      "boost": 28
     }
   },
   "permissioned-file-sharing": {
@@ -3897,7 +4107,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "file sharing",
         "share link",
@@ -3911,7 +4120,8 @@
         "download permission",
         "workspace files",
         "file acl"
-      ]
+      ],
+      "boost": 22
     }
   },
   "presence-indicators": {
@@ -3978,7 +4188,13 @@
         "skill": "nextjs-app-router"
       },
       {
+        "skill": "graphql"
+      },
+      {
         "skill": "authentication-oauth"
+      },
+      {
+        "skill": "postgres-wizard"
       }
     ],
     "pairsWell": [],
@@ -4021,7 +4237,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 36,
       "aliases": [
         "notifications",
         "notification",
@@ -4035,7 +4250,8 @@
         "support alerts",
         "notification toggles",
         "reminders"
-      ]
+      ],
+      "boost": 36
     }
   },
   "python-backend": {
@@ -4071,6 +4287,12 @@
       },
       {
         "skill": "ml-ops"
+      },
+      {
+        "skill": "aws-serverless"
+      },
+      {
+        "skill": "testing-strategies"
       }
     ],
     "pairsWell": [
@@ -4222,6 +4444,12 @@
       },
       {
         "skill": "security-hardening"
+      },
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "infrastructure-as-code"
       }
     ],
     "pairsWell": [],
@@ -4257,11 +4485,13 @@
       },
       {
         "skill": "database-architect"
+      },
+      {
+        "skill": "content-moderation-systems"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 34,
       "aliases": [
         "chat"
       ],
@@ -4269,7 +4499,8 @@
         "realtime chat",
         "chat app",
         "message history"
-      ]
+      ],
+      "boost": 34
     }
   },
   "realtime-collab-conflict-resolution": {
@@ -4309,7 +4540,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "real time collab",
         "crdt",
@@ -4323,7 +4553,8 @@
         "collaborative editing",
         "multiplayer editing",
         "hocuspocus"
-      ]
+      ],
+      "boost": 22
     }
   },
   "realtime-engineer": {
@@ -4369,7 +4600,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 32,
       "aliases": [
         "realtime",
         "real-time"
@@ -4378,7 +4608,8 @@
         "realtime sync",
         "live updates",
         "presence sync"
-      ]
+      ],
+      "boost": 32
     }
   },
   "reviews-ratings-systems": {
@@ -4401,6 +4632,9 @@
     "category": "backend",
     "delegates": [
       {
+        "skill": "content-moderation-systems"
+      },
+      {
         "skill": "notifications-orchestration"
       },
       {
@@ -4415,7 +4649,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "reviews",
         "ratings",
@@ -4429,7 +4662,8 @@
         "moderation queue",
         "helpful votes",
         "fake review detection"
-      ]
+      ],
+      "boost": 22
     }
   },
   "rust-craftsman": {
@@ -4462,6 +4696,12 @@
       },
       {
         "skill": "devops"
+      },
+      {
+        "skill": "security-engineer"
+      },
+      {
+        "skill": "database-architect"
       }
     ],
     "pairsWell": [],
@@ -4493,12 +4733,17 @@
         "skill": "api-design"
       },
       {
+        "skill": "database-schema-design"
+      },
+      {
         "skill": "stripe-integration"
+      },
+      {
+        "skill": "email-systems"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 28,
       "aliases": [
         "saas",
         "teams",
@@ -4508,7 +4753,8 @@
         "saas teams",
         "team workspaces",
         "organization accounts"
-      ]
+      ],
+      "boost": 28
     }
   },
   "search-implementation": {
@@ -4531,6 +4777,9 @@
     "category": "backend",
     "delegates": [
       {
+        "skill": "database-schema-design"
+      },
+      {
         "skill": "api-design"
       },
       {
@@ -4538,11 +4787,13 @@
       },
       {
         "skill": "react-patterns"
+      },
+      {
+        "skill": "devops"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 48,
       "aliases": [
         "searchable",
         "filterable",
@@ -4555,7 +4806,8 @@
         "map search",
         "saved places",
         "directory search"
-      ]
+      ],
+      "boost": 48
     }
   },
   "server-sent-events": {
@@ -4578,10 +4830,19 @@
     "category": "backend",
     "delegates": [
       {
+        "skill": "websocket-realtime"
+      },
+      {
         "skill": "api-design"
       },
       {
         "skill": "caching-patterns"
+      },
+      {
+        "skill": "devops"
+      },
+      {
+        "skill": "redis-specialist"
       }
     ],
     "pairsWell": [],
@@ -4634,7 +4895,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 42,
       "aliases": [
         "social",
         "feed",
@@ -4649,7 +4909,8 @@
         "saved places",
         "captions",
         "moderation"
-      ]
+      ],
+      "boost": 42
     }
   },
   "structured-output": {
@@ -4681,12 +4942,14 @@
         "skill": "langfuse"
       },
       {
+        "skill": "prompt-engineering-creative"
+      },
+      {
         "skill": "rag-implementation"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 44,
       "aliases": [
         "action items",
         "speaker summaries",
@@ -4698,7 +4961,8 @@
         "meeting notes",
         "extract structured notes",
         "typed summary"
-      ]
+      ],
+      "boost": 44
     }
   },
   "supabase-backend": {
@@ -4808,7 +5072,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "help desk",
         "support tickets",
@@ -4822,7 +5085,8 @@
         "canned responses",
         "escalation rules",
         "email to ticket"
-      ]
+      ],
+      "boost": 22
     }
   },
   "team-invites-membership": {
@@ -4862,7 +5126,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "team invites",
         "invite users",
@@ -4876,7 +5139,8 @@
         "revoke invite",
         "domain claim",
         "sso auto join"
-      ]
+      ],
+      "boost": 22
     }
   },
   "tenant-provisioning-lifecycle": {
@@ -4919,7 +5183,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "tenant lifecycle",
         "org provisioning",
@@ -4933,7 +5196,8 @@
         "tenant deletion",
         "plan change",
         "tenant state machine"
-      ]
+      ],
+      "boost": 22
     }
   },
   "trpc-fullstack": {
@@ -4962,7 +5226,13 @@
         "skill": "tanstack-query"
       },
       {
+        "skill": "database-architect"
+      },
+      {
         "skill": "nextjs-app-router"
+      },
+      {
+        "skill": "websocket-realtime"
       }
     ],
     "pairsWell": [],
@@ -4997,6 +5267,9 @@
         "skill": "notifications-orchestration"
       },
       {
+        "skill": "caching-patterns"
+      },
+      {
         "skill": "rate-limiting"
       },
       {
@@ -5005,7 +5278,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "quotas",
         "usage limits",
@@ -5026,7 +5298,8 @@
         "private document corpus",
         "vector store",
         "embeddings"
-      ]
+      ],
+      "boost": 22
     }
   },
   "video-streaming-infrastructure": {
@@ -5050,6 +5323,15 @@
     "delegates": [
       {
         "skill": "cloud-cost-optimization"
+      },
+      {
+        "skill": "kubernetes"
+      },
+      {
+        "skill": "observability"
+      },
+      {
+        "skill": "security"
       }
     ],
     "pairsWell": [],
@@ -5074,6 +5356,15 @@
     ],
     "category": "backend",
     "delegates": [
+      {
+        "skill": "frontend-engineer"
+      },
+      {
+        "skill": "backend-engineer"
+      },
+      {
+        "skill": "seo"
+      },
       {
         "skill": "copywriting"
       }
@@ -5105,6 +5396,12 @@
       },
       {
         "skill": "cron-scheduled-jobs"
+      },
+      {
+        "skill": "database-schema-design"
+      },
+      {
+        "skill": "observability"
       },
       {
         "skill": "stripe-integration"
@@ -5158,7 +5455,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "outbound webhooks",
         "webhook platform",
@@ -5172,7 +5468,8 @@
         "webhook dashboard",
         "hmac signing",
         "webhook replay"
-      ]
+      ],
+      "boost": 22
     }
   },
   "websocket-realtime": {
@@ -5218,7 +5515,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 32,
       "aliases": [
         "websocket",
         "websockets"
@@ -5227,7 +5523,8 @@
         "websocket sync",
         "realtime websocket",
         "bidirectional realtime"
-      ]
+      ],
+      "boost": 32
     }
   },
   "websockets-realtime": {
@@ -5262,12 +5559,17 @@
         "skill": "react-patterns"
       },
       {
+        "skill": "authentication-oauth"
+      },
+      {
         "skill": "observability"
+      },
+      {
+        "skill": "queue-workers"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 32,
       "aliases": [
         "websocket",
         "websockets"
@@ -5276,7 +5578,8 @@
         "websocket sync",
         "realtime websocket",
         "bidirectional realtime"
-      ]
+      ],
+      "boost": 32
     }
   },
   "zod-validation": {
@@ -5298,6 +5601,9 @@
     ],
     "category": "backend",
     "delegates": [
+      {
+        "skill": "typescript-strict"
+      },
       {
         "skill": "trpc-fullstack"
       },
@@ -5337,6 +5643,9 @@
         "skill": "docker-containerization"
       },
       {
+        "skill": "aws-serverless"
+      },
+      {
         "skill": "data-reproducibility"
       }
     ],
@@ -5370,6 +5679,9 @@
       },
       {
         "skill": "experimental-design"
+      },
+      {
+        "skill": "compliance-automation"
       }
     ],
     "pairsWell": [],
@@ -5439,6 +5751,9 @@
         "skill": "data-pipeline"
       },
       {
+        "skill": "kubernetes"
+      },
+      {
         "skill": "protein-structure"
       }
     ],
@@ -5465,10 +5780,16 @@
     "category": "biotech",
     "delegates": [
       {
+        "skill": "data-engineer"
+      },
+      {
         "skill": "database-architect"
       },
       {
         "skill": "devops"
+      },
+      {
+        "skill": "compliance-automation"
       },
       {
         "skill": "ml-ops"
@@ -5529,7 +5850,19 @@
     "category": "blockchain",
     "delegates": [
       {
+        "skill": "smart-contract-auditor"
+      },
+      {
+        "skill": "smart-contract-engineer"
+      },
+      {
         "skill": "cryptography"
+      },
+      {
+        "skill": "smart-contract-engineer"
+      },
+      {
+        "skill": "blockchain-defi"
       }
     ],
     "pairsWell": [],
@@ -5600,6 +5933,9 @@
       },
       {
         "skill": "gdpr-privacy"
+      },
+      {
+        "skill": "cryptography"
       }
     ],
     "pairsWell": [],
@@ -5623,7 +5959,26 @@
       "Axelar"
     ],
     "category": "blockchain",
-    "delegates": [],
+    "delegates": [
+      {
+        "skill": "smart-contract-engineer"
+      },
+      {
+        "skill": "blockchain-defi"
+      },
+      {
+        "skill": "smart-contract-auditor"
+      },
+      {
+        "skill": "smart-contract-auditor"
+      },
+      {
+        "skill": "smart-contract-engineer"
+      },
+      {
+        "skill": "blockchain-defi"
+      }
+    ],
     "pairsWell": [],
     "selectionHints": {}
   },
@@ -5679,7 +6034,19 @@
     "category": "blockchain",
     "delegates": [
       {
+        "skill": "smart-contract-engineer"
+      },
+      {
         "skill": "crypto-trading-bots"
+      },
+      {
+        "skill": "compliance-automation"
+      },
+      {
+        "skill": "frontend-engineer"
+      },
+      {
+        "skill": "data-engineer"
       },
       {
         "skill": "api-design"
@@ -5714,6 +6081,12 @@
         "skill": "wallet-integration"
       },
       {
+        "skill": "security-engineer"
+      },
+      {
+        "skill": "data-engineer"
+      },
+      {
         "skill": "backend"
       }
     ],
@@ -5746,7 +6119,13 @@
         "skill": "layer2-scaling"
       },
       {
+        "skill": "smart-contract-auditor"
+      },
+      {
         "skill": "token-launch"
+      },
+      {
+        "skill": "blockchain-defi"
       }
     ],
     "pairsWell": [],
@@ -5785,6 +6164,9 @@
       },
       {
         "skill": "frontend"
+      },
+      {
+        "skill": "smart-contract-engineer"
       }
     ],
     "pairsWell": [],
@@ -5836,7 +6218,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 42,
       "aliases": [
         "nft",
         "minting",
@@ -5846,7 +6227,8 @@
         "nft marketplace",
         "nft minting",
         "erc721"
-      ]
+      ],
+      "boost": 42
     }
   },
   "nft-systems": {
@@ -5881,12 +6263,17 @@
         "skill": "blockchain-defi"
       },
       {
+        "skill": "frontend-engineer"
+      },
+      {
         "skill": "ai-image-generation"
+      },
+      {
+        "skill": "smart-contract-auditor"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 42,
       "aliases": [
         "nft",
         "minting"
@@ -5895,7 +6282,8 @@
         "nft systems",
         "nft marketplace",
         "token gated"
-      ]
+      ],
+      "boost": 42
     }
   },
   "onchain-analytics": {
@@ -5918,7 +6306,16 @@
     "category": "blockchain",
     "delegates": [
       {
+        "skill": "data-engineer"
+      },
+      {
         "skill": "database-architect"
+      },
+      {
+        "skill": "smart-contract-engineer"
+      },
+      {
+        "skill": "frontend-engineer"
       },
       {
         "skill": "ml-ops"
@@ -5953,7 +6350,13 @@
         "skill": "crypto-trading-bots"
       },
       {
+        "skill": "smart-contract-engineer"
+      },
+      {
         "skill": "onchain-analytics"
+      },
+      {
+        "skill": "data-engineer"
       },
       {
         "skill": "ml-ops"
@@ -5985,13 +6388,22 @@
     "category": "blockchain",
     "delegates": [
       {
+        "skill": "smart-contract-engineer"
+      },
+      {
         "skill": "dao-governance"
       },
       {
         "skill": "onchain-analytics"
       },
       {
+        "skill": "frontend-engineer"
+      },
+      {
         "skill": "ml-ops"
+      },
+      {
+        "skill": "compliance-automation"
       }
     ],
     "pairsWell": [],
@@ -6024,18 +6436,24 @@
       },
       {
         "skill": "blockchain-defi"
+      },
+      {
+        "skill": "compliance-automation"
+      },
+      {
+        "skill": "compliance-automation"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "penalty": 48,
       "negative_terms": [
         "token expiry",
         "reset password",
         "forgot password",
         "password reset",
         "session security"
-      ]
+      ],
+      "penalty": 48
     }
   },
   "smart-contract-auditor": {
@@ -6120,6 +6538,9 @@
         "skill": "tokenomics-design"
       },
       {
+        "skill": "smart-contract-auditor"
+      },
+      {
         "skill": "cross-chain"
       },
       {
@@ -6149,6 +6570,9 @@
     "category": "blockchain",
     "delegates": [
       {
+        "skill": "smart-contract-auditor"
+      },
+      {
         "skill": "dao-governance"
       },
       {
@@ -6156,6 +6580,9 @@
       },
       {
         "skill": "onchain-analytics"
+      },
+      {
+        "skill": "compliance-automation"
       }
     ],
     "pairsWell": [],
@@ -6194,18 +6621,21 @@
       },
       {
         "skill": "compliance-automation"
+      },
+      {
+        "skill": "smart-contract-auditor"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "penalty": 48,
       "negative_terms": [
         "token expiry",
         "reset password",
         "forgot password",
         "password reset",
         "session security"
-      ]
+      ],
+      "penalty": 48
     }
   },
   "web3-gaming": {
@@ -6227,6 +6657,9 @@
     ],
     "category": "blockchain",
     "delegates": [
+      {
+        "skill": "smart-contract-auditor"
+      },
       {
         "skill": "token-launch"
       },
@@ -6264,6 +6697,9 @@
     "delegates": [
       {
         "skill": "api-design"
+      },
+      {
+        "skill": "smart-contract-auditor"
       },
       {
         "skill": "crypto-trading-bots"
@@ -6308,6 +6744,9 @@
       },
       {
         "skill": "rate-limiting"
+      },
+      {
+        "skill": "database-schema-design"
       }
     ],
     "pairsWell": [],
@@ -6353,7 +6792,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 24,
       "aliases": [
         "invoice",
         "billing",
@@ -6367,7 +6805,8 @@
         "tax invoice",
         "reconcile payment",
         "dunning email"
-      ]
+      ],
+      "boost": 24
     }
   },
   "demo-day-theater": {
@@ -6391,6 +6830,9 @@
     "delegates": [
       {
         "skill": "pitch-narrative"
+      },
+      {
+        "skill": "analytics"
       }
     ],
     "pairsWell": [],
@@ -6522,6 +6964,9 @@
     "delegates": [
       {
         "skill": "hiring-strategy"
+      },
+      {
+        "skill": "compliance-automation"
       }
     ],
     "pairsWell": [],
@@ -6554,6 +6999,9 @@
       },
       {
         "skill": "seo"
+      },
+      {
+        "skill": "marketing"
       }
     ],
     "pairsWell": [],
@@ -6579,7 +7027,13 @@
     "category": "business",
     "delegates": [
       {
+        "skill": "marketing-fundamentals"
+      },
+      {
         "skill": "salesforce-development"
+      },
+      {
+        "skill": "data-engineer"
       }
     ],
     "pairsWell": [],
@@ -6673,11 +7127,13 @@
       },
       {
         "skill": "api-design"
+      },
+      {
+        "skill": "security"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 42,
       "aliases": [
         "subscription",
         "subscriptions",
@@ -6694,7 +7150,8 @@
         "webhook platform",
         "developer portal",
         "delivery logs"
-      ]
+      ],
+      "boost": 42
     }
   },
   "web-payments-wallets": {
@@ -6734,7 +7191,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "apple pay",
         "google pay",
@@ -6748,7 +7204,8 @@
         "network token",
         "wallet fallback",
         "checkout ux"
-      ]
+      ],
+      "boost": 22
     }
   },
   "carbon-accounting": {
@@ -6954,10 +7411,16 @@
         "skill": "crisis-communications"
       },
       {
+        "skill": "team-communications"
+      },
+      {
         "skill": "product-strategy"
       },
       {
         "skill": "dev-communications"
+      },
+      {
+        "skill": "marketing"
       }
     ],
     "pairsWell": [],
@@ -6984,6 +7447,15 @@
     "delegates": [
       {
         "skill": "incident-responder"
+      },
+      {
+        "skill": "compliance-automation"
+      },
+      {
+        "skill": "team-communications"
+      },
+      {
+        "skill": "team-communications"
       },
       {
         "skill": "marketing"
@@ -7106,6 +7578,9 @@
       },
       {
         "skill": "technical-writer"
+      },
+      {
+        "skill": "algolia-search"
       }
     ],
     "pairsWell": [],
@@ -7135,6 +7610,12 @@
       },
       {
         "skill": "crisis-communications"
+      },
+      {
+        "skill": "team-communications"
+      },
+      {
+        "skill": "team-communications"
       },
       {
         "skill": "team-communications"
@@ -7246,6 +7727,9 @@
         "skill": "web3-community"
       },
       {
+        "skill": "marketing"
+      },
+      {
         "skill": "community-growth"
       }
     ],
@@ -7354,6 +7838,9 @@
         "skill": "team-communications"
       },
       {
+        "skill": "compliance-automation"
+      },
+      {
         "skill": "data-pipeline"
       }
     ],
@@ -7384,6 +7871,9 @@
       },
       {
         "skill": "product-strategy"
+      },
+      {
+        "skill": "marketing"
       },
       {
         "skill": "data-pipeline"
@@ -7464,7 +7954,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 44,
       "aliases": [
         "support inbox",
         "ticket inbox",
@@ -7476,7 +7965,8 @@
         "assignment",
         "internal notes",
         "sla alerts"
-      ]
+      ],
+      "boost": 44
     }
   },
   "developer-community": {
@@ -7512,6 +8002,9 @@
       },
       {
         "skill": "api-design"
+      },
+      {
+        "skill": "technical-writer"
       },
       {
         "skill": "developer-experience"
@@ -7579,6 +8072,15 @@
     "delegates": [
       {
         "skill": "feature-flag-engineering"
+      },
+      {
+        "skill": "stripe-integration"
+      },
+      {
+        "skill": "email-systems"
+      },
+      {
+        "skill": "product-analytics-engineering"
       }
     ],
     "pairsWell": [],
@@ -7733,6 +8235,9 @@
         "skill": "dao-governance"
       },
       {
+        "skill": "smart-contract-auditor"
+      },
+      {
         "skill": "tokenomics-design"
       },
       {
@@ -7741,7 +8246,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 38,
       "aliases": [
         "web3",
         "community"
@@ -7760,6 +8264,7 @@
         "social community",
         "social feed"
       ],
+      "boost": 38,
       "penalty": 48
     }
   },
@@ -7859,7 +8364,16 @@
         "skill": "content-strategy"
       },
       {
+        "skill": "compliance-automation"
+      },
+      {
+        "skill": "brand-positioning"
+      },
+      {
         "skill": "crisis-communications"
+      },
+      {
+        "skill": "marketing"
       }
     ],
     "pairsWell": [],
@@ -7905,13 +8419,13 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "penalty": 36,
       "negative_terms": [
         "file upload",
         "image gallery upload",
         "signed urls",
         "upload validation"
-      ]
+      ],
+      "penalty": 36
     }
   },
   "board-game-design": {
@@ -8109,7 +8623,16 @@
     "category": "creative",
     "delegates": [
       {
+        "skill": "marketing"
+      },
+      {
         "skill": "seo"
+      },
+      {
+        "skill": "compliance-automation"
+      },
+      {
+        "skill": "analytics"
       }
     ],
     "pairsWell": [],
@@ -8206,7 +8729,16 @@
     "category": "creative",
     "delegates": [
       {
+        "skill": "testing-strategies"
+      },
+      {
         "skill": "incident-postmortem"
+      },
+      {
+        "skill": "database-migrations"
+      },
+      {
+        "skill": "code-architecture-review"
       }
     ],
     "pairsWell": [],
@@ -8239,6 +8771,9 @@
       },
       {
         "skill": "game-design"
+      },
+      {
+        "skill": "technical-writer"
       },
       {
         "skill": "narrative-design"
@@ -8314,6 +8849,9 @@
     "delegates": [
       {
         "skill": "performance-optimization"
+      },
+      {
+        "skill": "security"
       },
       {
         "skill": "legacy-archaeology"
@@ -8488,6 +9026,222 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "account-health-scoring": {
+    "id": "account-health-scoring",
+    "name": "account-health-scoring",
+    "description": "Account health scoring with usage, support, billing, sentiment, and relationship signals that explain their confidence",
+    "owns": [
+      "Health signal design for account health scoring",
+      "Retention intervention playbooks for account health scoring",
+      "Support quality calibration for account health scoring",
+      "Education and adoption telemetry for account health scoring"
+    ],
+    "triggers": [
+      "account health",
+      "customer health score",
+      "health scoring",
+      "account-health-scoring",
+      "account health scoring"
+    ],
+    "category": "customer-success",
+    "delegates": [
+      {
+        "skill": "product-analytics-engineering"
+      },
+      {
+        "skill": "data-quality-monitoring"
+      },
+      {
+        "skill": "churn-risk-retention"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "account health",
+        "customer health score",
+        "health scoring"
+      ],
+      "boost_terms": [
+        "health score",
+        "usage",
+        "support",
+        "sentiment",
+        "billing",
+        "confidence"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "churn-risk-retention": {
+    "id": "churn-risk-retention",
+    "name": "churn-risk-retention",
+    "description": "Churn-risk and retention systems for health signals, intervention playbooks, renewal risk, and win-back loops",
+    "owns": [
+      "Health signal design for churn risk retention",
+      "Retention intervention playbooks for churn risk retention",
+      "Support quality calibration for churn risk retention",
+      "Education and adoption telemetry for churn risk retention"
+    ],
+    "triggers": [
+      "churn risk",
+      "retention ops",
+      "renewal risk",
+      "save plays",
+      "churn-risk-retention"
+    ],
+    "category": "customer-success",
+    "delegates": [
+      {
+        "skill": "account-health-scoring"
+      },
+      {
+        "skill": "product-analytics-engineering"
+      },
+      {
+        "skill": "customer-support"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "churn risk",
+        "retention ops",
+        "renewal risk",
+        "save plays"
+      ],
+      "boost_terms": [
+        "churn",
+        "retention",
+        "renewals",
+        "health signals",
+        "interventions"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "customer-education-ops": {
+    "id": "customer-education-ops",
+    "name": "customer-education-ops",
+    "description": "Customer education operations for help academies, onboarding paths, certification, adoption telemetry, and content maint",
+    "owns": [
+      "Health signal design for customer education ops",
+      "Retention intervention playbooks for customer education ops",
+      "Support quality calibration for customer education ops",
+      "Education and adoption telemetry for customer education ops"
+    ],
+    "triggers": [
+      "customer education",
+      "academy ops",
+      "training ops",
+      "enablement academy",
+      "customer-education-ops"
+    ],
+    "category": "customer-success",
+    "delegates": [
+      {
+        "skill": "course-creation"
+      },
+      {
+        "skill": "learning-experience"
+      },
+      {
+        "skill": "knowledge-base-engineering"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "customer education",
+        "academy ops",
+        "training ops",
+        "enablement academy"
+      ],
+      "boost_terms": [
+        "education",
+        "academy",
+        "certification",
+        "onboarding",
+        "adoption"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "support-quality-qa": {
+    "id": "support-quality-qa",
+    "name": "support-quality-qa",
+    "description": "Support quality QA systems for rubric design, calibration, escalation, coaching, and knowledge-loop closure",
+    "owns": [
+      "Health signal design for support quality qa",
+      "Retention intervention playbooks for support quality qa",
+      "Support quality calibration for support quality qa",
+      "Education and adoption telemetry for support quality qa"
+    ],
+    "triggers": [
+      "support qa",
+      "support quality",
+      "ticket qa",
+      "agent calibration",
+      "support-quality-qa"
+    ],
+    "category": "customer-success",
+    "delegates": [
+      {
+        "skill": "customer-support"
+      },
+      {
+        "skill": "knowledge-base-engineering"
+      },
+      {
+        "skill": "appeals-policy-operations"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "support qa",
+        "support quality",
+        "ticket qa",
+        "agent calibration"
+      ],
+      "boost_terms": [
+        "support",
+        "qa",
+        "rubrics",
+        "calibration",
+        "escalation"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming",
+        "admin dashboard",
+        "backoffice dashboard",
+        "admin backoffice",
+        "dashboard"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
   "agent-based-modeling": {
     "id": "agent-based-modeling",
     "name": "agent-based-modeling",
@@ -8554,7 +9308,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 36,
       "aliases": [
         "warehouse",
         "dashboard",
@@ -8564,7 +9317,8 @@
         "analytics architecture",
         "warehouse analytics",
         "dashboard metrics"
-      ]
+      ],
+      "boost": 36
     }
   },
   "convex-backend": {
@@ -8649,7 +9403,6 @@
       "migration-specialist"
     ],
     "selectionHints": {
-      "penalty": 140,
       "negative_terms": [
         "data table",
         "filterable data table",
@@ -8661,7 +9414,8 @@
         "structured logs",
         "traces metrics alerts",
         "observability stack"
-      ]
+      ],
+      "penalty": 140
     }
   },
   "data-governance": {
@@ -8695,14 +9449,14 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "penalty": 36,
       "negative_terms": [
         "data table",
         "filterable data table",
         "searchable sortable",
         "csv export",
         "saved views"
-      ]
+      ],
+      "penalty": 36
     }
   },
   "data-pipeline": {
@@ -8739,7 +9493,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "penalty": 140,
       "aliases": [
         "etl pipeline",
         "elt pipeline",
@@ -8765,7 +9518,8 @@
         "structured logs",
         "traces metrics alerts",
         "observability stack"
-      ]
+      ],
+      "penalty": 140
     }
   },
   "data-quality-monitoring": {
@@ -8805,7 +9559,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "data quality",
         "data observability",
@@ -8825,7 +9578,8 @@
         "recommender model drift",
         "ML model drift",
         "training serving skew"
-      ]
+      ],
+      "boost": 22
     }
   },
   "data-reproducibility": {
@@ -8859,7 +9613,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "penalty": 36,
       "negative_terms": [
         "data table",
         "filterable data table",
@@ -8867,7 +9620,8 @@
         "csv export",
         "saved views",
         "bulk actions"
-      ]
+      ],
+      "penalty": 36
     }
   },
   "database-migrations": {
@@ -8904,14 +9658,14 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "penalty": 72,
       "negative_terms": [
         "preview table",
         "data table",
         "searchable sortable",
         "saved views",
         "bulk actions"
-      ]
+      ],
+      "penalty": 72
     }
   },
   "database-schema-design": {
@@ -8951,7 +9705,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "penalty": 72,
       "negative_terms": [
         "data table",
         "filterable data table",
@@ -8959,7 +9712,8 @@
         "csv export",
         "saved views",
         "bulk actions"
-      ]
+      ],
+      "penalty": 72
     }
   },
   "drizzle-orm": {
@@ -8988,7 +9742,16 @@
         "skill": "redis-specialist"
       },
       {
+        "skill": "cloudflare-workers-deep"
+      },
+      {
         "skill": "graphql"
+      },
+      {
+        "skill": "testing-strategies"
+      },
+      {
+        "skill": "docker"
       }
     ],
     "pairsWell": [],
@@ -9173,6 +9936,9 @@
         "skill": "api-design"
       },
       {
+        "skill": "devops"
+      },
+      {
         "skill": "error-handling"
       }
     ],
@@ -9219,7 +9985,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "penalty": 140,
       "aliases": [
         "n+1 queries",
         "query optimization",
@@ -9243,7 +10008,8 @@
         "structured logs",
         "traces metrics alerts",
         "observability stack"
-      ]
+      ],
+      "penalty": 140
     }
   },
   "redis-specialist": {
@@ -9282,6 +10048,9 @@
       },
       {
         "skill": "performance-hunter"
+      },
+      {
+        "skill": "algolia-search"
       }
     ],
     "pairsWell": [],
@@ -9359,7 +10128,13 @@
     "category": "data",
     "delegates": [
       {
+        "skill": "database-schema-design"
+      },
+      {
         "skill": "api-design"
+      },
+      {
+        "skill": "devops"
       },
       {
         "skill": "data-pipeline"
@@ -9394,12 +10169,14 @@
         "skill": "ai-chatbot-builder"
       },
       {
+        "skill": "database-schema-design"
+      },
+      {
         "skill": "data-pipeline"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "penalty": 36,
       "negative_terms": [
         "data table",
         "filterable data table",
@@ -9407,7 +10184,8 @@
         "csv export",
         "saved views",
         "bulk actions"
-      ]
+      ],
+      "penalty": 36
     }
   },
   "vector-specialist": {
@@ -9484,6 +10262,9 @@
       },
       {
         "skill": "ux-design"
+      },
+      {
+        "skill": "playwright-testing"
       }
     ],
     "pairsWell": [],
@@ -9662,6 +10443,9 @@
       },
       {
         "skill": "game-design"
+      },
+      {
+        "skill": "accessibility"
       }
     ],
     "pairsWell": [],
@@ -9742,7 +10526,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 44,
       "aliases": [
         "landing"
       ],
@@ -9750,7 +10533,8 @@
         "landing page",
         "marketing landing page",
         "conversion page"
-      ]
+      ],
+      "boost": 44
     }
   },
   "motion-design": {
@@ -9777,6 +10561,9 @@
       },
       {
         "skill": "accessibility"
+      },
+      {
+        "skill": "performance-optimization"
       }
     ],
     "pairsWell": [],
@@ -9837,10 +10624,16 @@
         "skill": "react-patterns"
       },
       {
+        "skill": "frontend-engineer"
+      },
+      {
         "skill": "accessibility"
       },
       {
         "skill": "ui-design"
+      },
+      {
+        "skill": "performance-optimization"
       }
     ],
     "pairsWell": [],
@@ -9870,6 +10663,15 @@
       },
       {
         "skill": "ux-design"
+      },
+      {
+        "skill": "accessibility"
+      },
+      {
+        "skill": "performance-optimization"
+      },
+      {
+        "skill": "brand-positioning"
       }
     ],
     "pairsWell": [],
@@ -9942,7 +10744,16 @@
         "skill": "typography"
       },
       {
+        "skill": "accessibility"
+      },
+      {
         "skill": "product-management"
+      },
+      {
+        "skill": "analytics"
+      },
+      {
+        "skill": "react-patterns"
       }
     ],
     "pairsWell": [],
@@ -10046,7 +10857,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 44,
       "aliases": [
         "android",
         "kotlin"
@@ -10055,7 +10865,8 @@
         "android integration",
         "native android",
         "android app"
-      ]
+      ],
+      "boost": 44
     }
   },
   "backend": {
@@ -10120,6 +10931,15 @@
       },
       {
         "skill": "stripe-integration"
+      },
+      {
+        "skill": "react-patterns"
+      },
+      {
+        "skill": "aws-serverless"
+      },
+      {
+        "skill": "seo"
       }
     ],
     "pairsWell": [],
@@ -10439,7 +11259,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 42,
       "aliases": [
         "game",
         "gamedev"
@@ -10449,7 +11268,8 @@
         "multiplayer game",
         "roguelike game",
         "game architecture"
-      ]
+      ],
+      "boost": 42
     }
   },
   "infra-architect": {
@@ -10521,7 +11341,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 44,
       "aliases": [
         "ios",
         "swift"
@@ -10530,7 +11349,8 @@
         "ios integration",
         "native ios",
         "ios app"
-      ]
+      ],
+      "boost": 44
     }
   },
   "mcp-developer": {
@@ -10669,7 +11489,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 52,
       "aliases": [
         "privacy",
         "pii"
@@ -10678,7 +11497,8 @@
         "privacy controls",
         "data minimization",
         "regulated data"
-      ]
+      ],
+      "boost": 52
     }
   },
   "rag-engineer": {
@@ -10821,12 +11641,14 @@
         "skill": "wallet-integration"
       },
       {
+        "skill": "security-engineer"
+      },
+      {
         "skill": "test-architect"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 54,
       "aliases": [
         "smart contract",
         "smart contracts",
@@ -10838,7 +11660,8 @@
         "smart contract engineer",
         "contract minting",
         "nft contracts"
-      ]
+      ],
+      "boost": 54
     }
   },
   "tech-debt-manager": {
@@ -10935,11 +11758,13 @@
       },
       {
         "skill": "frontend"
+      },
+      {
+        "skill": "security-engineer"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 38,
       "aliases": [
         "wallet",
         "web3"
@@ -10948,7 +11773,8 @@
         "wallet login",
         "wallet integration",
         "connect wallet"
-      ]
+      ],
+      "boost": 38
     }
   },
   "bun-runtime": {
@@ -10971,7 +11797,16 @@
     "category": "devops",
     "delegates": [
       {
+        "skill": "typescript-strict"
+      },
+      {
+        "skill": "backend-engineer"
+      },
+      {
         "skill": "testing-strategies"
+      },
+      {
+        "skill": "docker"
       },
       {
         "skill": "performance-optimization"
@@ -11052,7 +11887,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 1.4,
       "aliases": [
         "ci/cd",
         "cicd",
@@ -11069,7 +11903,8 @@
         "github actions",
         "gitlab ci",
         "production deployment"
-      ]
+      ],
+      "boost": 1.4
     }
   },
   "cicd-pipelines": {
@@ -11098,12 +11933,17 @@
         "skill": "docker"
       },
       {
+        "skill": "aws-serverless"
+      },
+      {
+        "skill": "testing-strategies"
+      },
+      {
         "skill": "security"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 1.4,
       "aliases": [
         "ci/cd",
         "cicd",
@@ -11119,7 +11959,8 @@
         "github actions",
         "gitlab ci",
         "production deployment"
-      ]
+      ],
+      "boost": 1.4
     }
   },
   "claude-code-cicd": {
@@ -11146,6 +11987,9 @@
       },
       {
         "skill": "claude-code-commands"
+      },
+      {
+        "skill": "secrets-management"
       }
     ],
     "pairsWell": [],
@@ -11178,6 +12022,9 @@
       },
       {
         "skill": "debugging-master"
+      },
+      {
+        "skill": "testing-strategies"
       }
     ],
     "pairsWell": [],
@@ -11207,6 +12054,9 @@
       },
       {
         "skill": "claude-code-cicd"
+      },
+      {
+        "skill": "testing-strategies"
       }
     ],
     "pairsWell": [],
@@ -11308,6 +12158,12 @@
     "category": "devops",
     "delegates": [
       {
+        "skill": "backend-engineer"
+      },
+      {
+        "skill": "typescript-strict"
+      },
+      {
         "skill": "testing-strategies"
       },
       {
@@ -11338,7 +12194,17 @@
       "cloud cost analysis and optimization strategy acro"
     ],
     "category": "devops",
-    "delegates": [],
+    "delegates": [
+      {
+        "skill": "aws-serverless"
+      },
+      {
+        "skill": "kubernetes"
+      },
+      {
+        "skill": "observability"
+      }
+    ],
     "pairsWell": [],
     "selectionHints": {
       "negative_terms": [
@@ -11423,7 +12289,12 @@
     "id": "disaster-readiness-drills",
     "name": "disaster-readiness-drills",
     "description": "Game-day exercises, chaos drills, and DR rehearsals — failover testing, backup restore validation, runbook execution, bl",
-    "owns": [],
+    "owns": [
+      "Drill cadence and scope — quarterly tabletops, monthly chaos",
+      "Blast radius scoping — how to drill destructive scenarios wi",
+      "Backup restore validation methodology — sample size, environ",
+      "Runbook freshness policy — runbooks not exercised in 90 days"
+    ],
     "triggers": [
       "DR drill",
       "game day",
@@ -11432,10 +12303,22 @@
       "backup restore"
     ],
     "category": "devops",
-    "delegates": [],
+    "delegates": [
+      {
+        "skill": "audit-trail-activity-feed"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "data-quality-monitoring"
+      },
+      {
+        "skill": "notification-preferences"
+      }
+    ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 1.4,
       "aliases": [
         "dr-drills",
         "chaos-drills",
@@ -11454,7 +12337,8 @@
         "tabletop incident",
         "runbook execution",
         "on-call training"
-      ]
+      ],
+      "boost": 1.4
     }
   },
   "disaster-recovery": {
@@ -11583,6 +12467,15 @@
     "delegates": [
       {
         "skill": "zod-validation"
+      },
+      {
+        "skill": "docker"
+      },
+      {
+        "skill": "cicd-pipelines"
+      },
+      {
+        "skill": "typescript-strict"
       }
     ],
     "pairsWell": [],
@@ -11608,10 +12501,19 @@
     "category": "devops",
     "delegates": [
       {
+        "skill": "a-b-testing"
+      },
+      {
         "skill": "authentication-oauth"
       },
       {
+        "skill": "observability"
+      },
+      {
         "skill": "api-design"
+      },
+      {
+        "skill": "caching-patterns"
       },
       {
         "skill": "data-pipeline"
@@ -11647,6 +12549,12 @@
       },
       {
         "skill": "docker-containerization"
+      },
+      {
+        "skill": "edge-first-architecture"
+      },
+      {
+        "skill": "infrastructure-as-code"
       }
     ],
     "pairsWell": [],
@@ -11705,6 +12613,9 @@
       },
       {
         "skill": "monorepo-management"
+      },
+      {
+        "skill": "security-engineer"
       }
     ],
     "pairsWell": [],
@@ -11731,6 +12642,9 @@
     "delegates": [
       {
         "skill": "debugging-master"
+      },
+      {
+        "skill": "performance-hunter"
       },
       {
         "skill": "system-designer"
@@ -11977,6 +12891,9 @@
         "skill": "npm-publishing"
       },
       {
+        "skill": "cicd-pipelines"
+      },
+      {
         "skill": "bun-runtime"
       }
     ],
@@ -12036,6 +12953,12 @@
       },
       {
         "skill": "docker-containerization"
+      },
+      {
+        "skill": "cicd-pipelines"
+      },
+      {
+        "skill": "infrastructure-as-code"
       }
     ],
     "pairsWell": [],
@@ -12083,7 +13006,12 @@
     "id": "sla-status-page-incident-comms",
     "name": "sla-status-page-incident-comms",
     "description": "SLA definition, status page operation, and incident communications — uptime measurement, public/private status pages, cu",
-    "owns": [],
+    "owns": [
+      "Status page provider (Statuspage, Better Stack, Instatus, St",
+      "Component model on the status page — granular per service vs",
+      "Incident severity levels (sev1/2/3/4) and the criteria that ",
+      "Public vs private status pages — what gets shown to all vs o"
+    ],
     "triggers": [
       "status page",
       "SLA credit",
@@ -12092,10 +13020,28 @@
       "post-mortem"
     ],
     "category": "devops",
-    "delegates": [],
+    "delegates": [
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      },
+      {
+        "skill": "billing-invoices-receipts"
+      },
+      {
+        "skill": "notification-preferences"
+      },
+      {
+        "skill": "email-template-systems"
+      },
+      {
+        "skill": "disaster-readiness-drills"
+      }
+    ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 1.4,
       "aliases": [
         "status-page",
         "sla",
@@ -12115,7 +13061,8 @@
         "blameless postmortem",
         "subscriber notifications",
         "component-level status"
-      ]
+      ],
+      "boost": 1.4
     }
   },
   "turborepo-monorepo": {
@@ -12141,7 +13088,13 @@
         "skill": "docker-containerization"
       },
       {
+        "skill": "cicd-pipelines"
+      },
+      {
         "skill": "nextjs-app-router"
+      },
+      {
+        "skill": "typescript-strict"
       }
     ],
     "pairsWell": [],
@@ -12178,13 +13131,13 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "penalty": 120,
       "negative_terms": [
         "app store deployment",
         "ios app store",
         "android app store",
         "mobile app deployment"
-      ]
+      ],
+      "penalty": 120
     }
   },
   "vscode-extension-dev": {
@@ -12206,6 +13159,12 @@
     ],
     "category": "devops",
     "delegates": [
+      {
+        "skill": "typescript-strict"
+      },
+      {
+        "skill": "backend-engineer"
+      },
       {
         "skill": "react-patterns"
       },
@@ -12302,7 +13261,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 48,
       "aliases": [
         "ecommerce",
         "cart",
@@ -12312,7 +13270,8 @@
         "shopping cart",
         "ecommerce checkout",
         "checkout flow"
-      ]
+      ],
+      "boost": 48
     }
   },
   "shopify-store-builder": {
@@ -12333,16 +13292,26 @@
       "builder"
     ],
     "category": "ecommerce",
-    "delegates": [],
+    "delegates": [
+      {
+        "skill": "stripe-integration"
+      },
+      {
+        "skill": "marketing"
+      },
+      {
+        "skill": "conversion-rate-optimization"
+      }
+    ],
     "pairsWell": [],
     "selectionHints": {
-      "penalty": 120,
       "negative_terms": [
         "app store deployment",
         "ios app store",
         "android app store",
         "native mobile app"
-      ]
+      ],
+      "penalty": 120
     }
   },
   "course-creation": {
@@ -12500,7 +13469,14 @@
       "systematic debugging methodology"
     ],
     "category": "engineering",
-    "delegates": [],
+    "delegates": [
+      {
+        "skill": "security-engineer"
+      },
+      {
+        "skill": "performance-optimization"
+      }
+    ],
     "pairsWell": [],
     "selectionHints": {}
   },
@@ -12825,6 +13801,9 @@
       },
       {
         "skill": "derivatives-pricing"
+      },
+      {
+        "skill": "data-engineer"
       }
     ],
     "pairsWell": [],
@@ -13013,7 +13992,12 @@
     "id": "tax-compliance-sales-tax-vat",
     "name": "tax-compliance-sales-tax-vat",
     "description": "Sales tax, VAT, GST collection and remittance for SaaS and ecommerce — nexus tracking, rate determination, invoice compl",
-    "owns": [],
+    "owns": [
+      "Which tax engine (Stripe Tax, Avalara, TaxJar, Sovos, Vertex",
+      "Where the company has nexus and when to register in a new ju",
+      "Tax rate determination logic: source vs destination, exempti",
+      "Invoice content and format per jurisdiction (required fields"
+    ],
     "triggers": [
       "charge sales tax",
       "collect VAT",
@@ -13022,10 +14006,25 @@
       "OSS scheme"
     ],
     "category": "finance",
-    "delegates": [],
+    "delegates": [
+      {
+        "skill": "billing-invoices-receipts"
+      },
+      {
+        "skill": "subscription-billing"
+      },
+      {
+        "skill": "web-payments-wallets"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      },
+      {
+        "skill": "notifications-orchestration"
+      }
+    ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 1.4,
       "aliases": [
         "sales-tax",
         "vat",
@@ -13047,7 +14046,8 @@
         "IOSS",
         "economic nexus",
         "destination tax"
-      ]
+      ],
+      "boost": 1.4
     }
   },
   "astro-framework": {
@@ -13125,7 +14125,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "desktop signing",
         "code signing",
@@ -13139,7 +14138,8 @@
         "macos notarize",
         "windows signing",
         "electron updater"
-      ]
+      ],
+      "boost": 22
     }
   },
   "electron-desktop-apps": {
@@ -13176,7 +14176,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "electron",
         "desktop app",
@@ -13190,7 +14189,8 @@
         "electron forge",
         "native menu",
         "tray icon"
-      ]
+      ],
+      "boost": 22
     }
   },
   "hono-edge": {
@@ -13334,6 +14334,9 @@
       },
       {
         "skill": "nextjs-app-router"
+      },
+      {
+        "skill": "edge-first-architecture"
       },
       {
         "skill": "rate-limiting"
@@ -13557,7 +14560,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 52,
       "aliases": [
         "typescript strictness",
         "ts strict"
@@ -13566,7 +14568,8 @@
         "typescript strictness",
         "typescript strict mode",
         "type safety"
-      ]
+      ],
+      "boost": 52
     }
   },
   "accessibility": {
@@ -13600,7 +14603,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 42,
       "aliases": [
         "accessible",
         "keyboard controls",
@@ -13612,7 +14614,8 @@
         "keyboard controls",
         "screen reader",
         "aria-live"
-      ]
+      ],
+      "boost": 42
     }
   },
   "admin-crud-workflows": {
@@ -13652,7 +14655,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 26,
       "aliases": [
         "admin panel",
         "back office",
@@ -13666,7 +14668,8 @@
         "impersonate user",
         "admin filters",
         "destructive confirmation"
-      ]
+      ],
+      "boost": 26
     }
   },
   "ai-streaming-interfaces": {
@@ -13693,6 +14696,9 @@
       },
       {
         "skill": "ai-chatbot-builder"
+      },
+      {
+        "skill": "performance-optimization"
       },
       {
         "skill": "accessibility"
@@ -13724,7 +14730,16 @@
         "skill": "tailwind-ui"
       },
       {
+        "skill": "testing-strategies"
+      },
+      {
+        "skill": "graphql"
+      },
+      {
         "skill": "devops"
+      },
+      {
+        "skill": "typescript-strict"
       }
     ],
     "pairsWell": [],
@@ -13750,6 +14765,9 @@
     "category": "frontend",
     "delegates": [
       {
+        "skill": "react-native-specialist"
+      },
+      {
         "skill": "notifications-orchestration"
       },
       {
@@ -13761,7 +14779,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "app store release",
         "testflight",
@@ -13775,7 +14792,8 @@
         "app signing",
         "fastlane",
         "mobile ci"
-      ]
+      ],
+      "boost": 22
     }
   },
   "browser-extension-builder": {
@@ -13844,7 +14862,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "browser extension",
         "chrome web store",
@@ -13858,7 +14875,8 @@
         "extension review",
         "staged rollout",
         "cross-browser extension"
-      ]
+      ],
+      "boost": 22
     }
   },
   "bulk-actions-safety": {
@@ -13898,7 +14916,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "bulk actions",
         "select all",
@@ -13911,7 +14928,8 @@
         "partial failure",
         "bulk progress",
         "destructive confirmation"
-      ]
+      ],
+      "boost": 22
     }
   },
   "dark-mode-theming": {
@@ -13937,7 +14955,13 @@
         "skill": "accessibility"
       },
       {
+        "skill": "performance-optimization"
+      },
+      {
         "skill": "nextjs-app-router"
+      },
+      {
+        "skill": "design-systems"
       }
     ],
     "pairsWell": [],
@@ -13972,12 +14996,14 @@
         "skill": "api-design"
       },
       {
+        "skill": "caching-patterns"
+      },
+      {
         "skill": "state-management"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "dashboard",
         "kpi dashboard",
@@ -13997,7 +15023,8 @@
         "cache expensive dashboard queries",
         "expensive dashboard queries",
         "cache-aside"
-      ]
+      ],
+      "boost": 22
     }
   },
   "expo": {
@@ -14040,7 +15067,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 40,
       "aliases": [
         "expo",
         "mobile"
@@ -14057,6 +15083,7 @@
         "responsive cards",
         "saved places"
       ],
+      "boost": 40,
       "penalty": 42
     }
   },
@@ -14097,7 +15124,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "wizard",
         "multi step form",
@@ -14111,7 +15137,8 @@
         "step validation",
         "branching form",
         "kyc flow"
-      ]
+      ],
+      "boost": 22
     }
   },
   "forms-validation": {
@@ -14138,6 +15165,9 @@
       },
       {
         "skill": "authentication-oauth"
+      },
+      {
+        "skill": "accessibility"
       },
       {
         "skill": "nextjs-app-router"
@@ -14172,7 +15202,16 @@
     "category": "frontend",
     "delegates": [
       {
+        "skill": "performance-optimization"
+      },
+      {
+        "skill": "performance-optimization"
+      },
+      {
         "skill": "accessibility"
+      },
+      {
+        "skill": "threejs-3d-graphics"
       }
     ],
     "pairsWell": [],
@@ -14256,7 +15295,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 40,
       "aliases": [
         "frontend",
         "ui",
@@ -14268,7 +15306,8 @@
         "responsive cards",
         "filterable data table",
         "saved views"
-      ]
+      ],
+      "boost": 40
     }
   },
   "i18n": {
@@ -14343,7 +15382,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 44,
       "aliases": [
         "image compression",
         "image gallery",
@@ -14355,7 +15393,8 @@
         "image compression",
         "cdn optimization",
         "captions"
-      ]
+      ],
+      "boost": 44
     }
   },
   "infinite-scroll-pagination": {
@@ -14379,6 +15418,9 @@
     "delegates": [
       {
         "skill": "api-design"
+      },
+      {
+        "skill": "database-schema-design"
       },
       {
         "skill": "react-patterns"
@@ -14454,6 +15496,9 @@
         "skill": "api-design"
       },
       {
+        "skill": "caching-patterns"
+      },
+      {
         "skill": "rate-limiting"
       },
       {
@@ -14465,7 +15510,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "maps",
         "geocoding",
@@ -14480,7 +15524,8 @@
         "distance filter",
         "radius search",
         "marker clustering"
-      ]
+      ],
+      "boost": 22
     }
   },
   "mobile-offline-sync": {
@@ -14503,6 +15548,9 @@
     "category": "frontend",
     "delegates": [
       {
+        "skill": "react-native-specialist"
+      },
+      {
         "skill": "api-design"
       },
       {
@@ -14514,7 +15562,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "offline sync",
         "mobile sync",
@@ -14528,7 +15575,8 @@
         "optimistic ui",
         "mobile data layer",
         "offline first"
-      ]
+      ],
+      "boost": 22
     }
   },
   "pwa-progressive-web-app": {
@@ -14558,11 +15606,16 @@
       },
       {
         "skill": "server-sent-events"
+      },
+      {
+        "skill": "frontend-engineer"
+      },
+      {
+        "skill": "devops"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 46,
       "aliases": [
         "progressive web app",
         "offline app",
@@ -14581,6 +15634,7 @@
         "content scripts",
         "background service worker"
       ],
+      "boost": 46,
       "penalty": 72
     }
   },
@@ -14620,11 +15674,13 @@
       },
       {
         "skill": "testing-automation"
+      },
+      {
+        "skill": "backend-engineer"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 40,
       "aliases": [
         "react native",
         "mobile"
@@ -14647,6 +15703,7 @@
         "Lighthouse",
         "browser first paint"
       ],
+      "boost": 40,
       "penalty": 42
     }
   },
@@ -14706,6 +15763,15 @@
     "delegates": [
       {
         "skill": "accessibility"
+      },
+      {
+        "skill": "performance-optimization"
+      },
+      {
+        "skill": "framer-motion-react"
+      },
+      {
+        "skill": "design-systems"
       }
     ],
     "pairsWell": [],
@@ -14748,7 +15814,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "rbac ui",
         "permission matrix",
@@ -14761,7 +15826,8 @@
         "role permissions",
         "permission catalog",
         "effective permissions"
-      ]
+      ],
+      "boost": 22
     }
   },
   "scroll-experience": {
@@ -14828,12 +15894,17 @@
         "skill": "state-management"
       },
       {
+        "skill": "algolia-search"
+      },
+      {
+        "skill": "caching-patterns"
+      },
+      {
         "skill": "data-dashboard-design"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "search filters",
         "saved views",
@@ -14847,7 +15918,8 @@
         "url state filters",
         "empty state",
         "filter builder"
-      ]
+      ],
+      "boost": 22
     }
   },
   "state-management": {
@@ -14874,6 +15946,9 @@
       },
       {
         "skill": "testing-strategies"
+      },
+      {
+        "skill": "typescript-strict"
       }
     ],
     "pairsWell": [],
@@ -14903,6 +15978,9 @@
       },
       {
         "skill": "backend"
+      },
+      {
+        "skill": "testing-strategies"
       },
       {
         "skill": "devops"
@@ -15033,6 +16111,9 @@
     "category": "frontend",
     "delegates": [
       {
+        "skill": "performance-optimization"
+      },
+      {
         "skill": "accessibility"
       },
       {
@@ -15044,7 +16125,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 48,
       "aliases": [
         "table",
         "data table",
@@ -15058,7 +16138,8 @@
         "bulk actions",
         "status filters",
         "support ticket inbox"
-      ]
+      ],
+      "boost": 48
     }
   },
   "threejs-3d-graphics": {
@@ -15133,12 +16214,17 @@
         "skill": "accessibility"
       },
       {
+        "skill": "framer-motion-react"
+      },
+      {
+        "skill": "design-systems"
+      },
+      {
         "skill": "error-handling"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 44,
       "aliases": [
         "toast",
         "success toast",
@@ -15149,7 +16235,8 @@
         "toast after save",
         "feedback message",
         "notification toggles"
-      ]
+      ],
+      "boost": 44
     }
   },
   "user-settings-account-management": {
@@ -15192,7 +16279,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 24,
       "aliases": [
         "account settings",
         "profile settings",
@@ -15206,7 +16292,8 @@
         "active sessions",
         "2fa setup",
         "account deletion"
-      ]
+      ],
+      "boost": 24
     }
   },
   "vue-nuxt": {
@@ -15233,6 +16320,9 @@
       },
       {
         "skill": "typescript-strict"
+      },
+      {
+        "skill": "testing-strategies"
       },
       {
         "skill": "api-design"
@@ -15284,7 +16374,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "notification inbox",
         "notification center",
@@ -15297,7 +16386,8 @@
         "mark as read",
         "realtime notifications",
         "notification dropdown"
-      ]
+      ],
+      "boost": 22
     }
   },
   "animation-systems": {
@@ -15461,6 +16551,12 @@
     "delegates": [
       {
         "skill": "narrative-design"
+      },
+      {
+        "skill": "game-design"
+      },
+      {
+        "skill": "compliance-automation"
       }
     ],
     "pairsWell": [],
@@ -15600,6 +16696,9 @@
     "category": "game-dev",
     "delegates": [
       {
+        "skill": "voiceover"
+      },
+      {
         "skill": "combat-design"
       },
       {
@@ -15611,7 +16710,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "penalty": 36,
       "negative_terms": [
         "meeting notes",
         "transcription",
@@ -15620,7 +16718,8 @@
         "procedural dungeons",
         "inventory",
         "online sync"
-      ]
+      ],
+      "penalty": 36
     }
   },
   "game-design-core": {
@@ -15660,7 +16759,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 42,
       "aliases": [
         "game",
         "roguelike",
@@ -15670,7 +16768,8 @@
         "game design",
         "game loop",
         "core gameplay"
-      ]
+      ],
+      "boost": 42
     }
   },
   "game-design": {
@@ -15740,19 +16839,25 @@
         "skill": "ux-design"
       },
       {
+        "skill": "analytics"
+      },
+      {
+        "skill": "compliance-automation"
+      },
+      {
         "skill": "player-onboarding"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "penalty": 36,
       "negative_terms": [
         "procedural dungeons",
         "combat",
         "inventory",
         "online sync",
         "roguelike"
-      ]
+      ],
+      "penalty": 36
     }
   },
   "game-networking": {
@@ -15911,6 +17016,9 @@
     ],
     "category": "game-dev",
     "delegates": [
+      {
+        "skill": "prompt-engineering-creative"
+      },
       {
         "skill": "api-design"
       }
@@ -16092,12 +17200,12 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "penalty": 120,
       "negative_terms": [
         "react native app",
         "native ios and android integrations",
         "non-game mobile app"
-      ]
+      ],
+      "penalty": 120
     }
   },
   "narrative-design": {
@@ -16127,6 +17235,9 @@
       },
       {
         "skill": "game-design"
+      },
+      {
+        "skill": "voiceover"
       }
     ],
     "pairsWell": [],
@@ -16232,6 +17343,9 @@
       },
       {
         "skill": "game-design"
+      },
+      {
+        "skill": "analytics"
       }
     ],
     "pairsWell": [],
@@ -16302,6 +17416,9 @@
       },
       {
         "skill": "narrative-design"
+      },
+      {
+        "skill": "game-design"
       }
     ],
     "pairsWell": [],
@@ -16339,7 +17456,13 @@
         "skill": "backend"
       },
       {
+        "skill": "security"
+      },
+      {
         "skill": "mobile-game-dev"
+      },
+      {
+        "skill": "testing-strategies"
       }
     ],
     "pairsWell": [],
@@ -16535,6 +17658,9 @@
       },
       {
         "skill": "ui-design"
+      },
+      {
+        "skill": "game-design"
       }
     ],
     "pairsWell": [],
@@ -16628,7 +17754,11 @@
       "integration"
     ],
     "category": "game-dev",
-    "delegates": [],
+    "delegates": [
+      {
+        "skill": "prompt-engineering-creative"
+      }
+    ],
     "pairsWell": [],
     "selectionHints": {}
   },
@@ -16688,7 +17818,11 @@
       "integration"
     ],
     "category": "game-dev",
-    "delegates": [],
+    "delegates": [
+      {
+        "skill": "prompt-engineering-creative"
+      }
+    ],
     "pairsWell": [],
     "selectionHints": {}
   },
@@ -16855,6 +17989,214 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "clinical-workflow-safety": {
+    "id": "clinical-workflow-safety",
+    "name": "clinical-workflow-safety",
+    "description": "Clinical workflow safety checks for escalation, handoff, triage, decision support, and human review boundaries",
+    "owns": [
+      "PHI boundary mapping for clinical workflow safety",
+      "Consent and authorization state machines for clinical workfl",
+      "Clinical handoff safety for clinical workflow safety",
+      "Audit trail completeness for clinical workflow safety"
+    ],
+    "triggers": [
+      "clinical safety",
+      "clinical workflows",
+      "healthcare safety",
+      "clinical triage",
+      "clinical-workflow-safety"
+    ],
+    "category": "healthcare",
+    "delegates": [
+      {
+        "skill": "human-in-the-loop-review"
+      },
+      {
+        "skill": "threat-modeling"
+      },
+      {
+        "skill": "qa-engineering"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "clinical safety",
+        "clinical workflows",
+        "healthcare safety",
+        "clinical triage"
+      ],
+      "boost_terms": [
+        "clinical",
+        "handoff",
+        "triage",
+        "escalation",
+        "decision support"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "healthcare-interoperability-fhir": {
+    "id": "healthcare-interoperability-fhir",
+    "name": "healthcare-interoperability-fhir",
+    "description": "FHIR and healthcare interoperability design for records, consent, identity, and clinical system integrations",
+    "owns": [
+      "PHI boundary mapping for healthcare interoperability fhir",
+      "Consent and authorization state machines for healthcare inte",
+      "Clinical handoff safety for healthcare interoperability fhir",
+      "Audit trail completeness for healthcare interoperability fhi"
+    ],
+    "triggers": [
+      "fhir",
+      "health interoperability",
+      "hl7 fhir",
+      "clinical integrations",
+      "healthcare-interoperability-fhir"
+    ],
+    "category": "healthcare",
+    "delegates": [
+      {
+        "skill": "api-design"
+      },
+      {
+        "skill": "integration-patterns"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "fhir",
+        "health interoperability",
+        "hl7 fhir",
+        "clinical integrations"
+      ],
+      "boost_terms": [
+        "fhir",
+        "hl7",
+        "ehr",
+        "patient records",
+        "interoperability"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "hipaa-product-architecture": {
+    "id": "hipaa-product-architecture",
+    "name": "hipaa-product-architecture",
+    "description": "HIPAA-aware product architecture for PHI boundaries, access controls, audit trails, and business associate workflows",
+    "owns": [
+      "PHI boundary mapping for hipaa product architecture",
+      "Consent and authorization state machines for hipaa product a",
+      "Clinical handoff safety for hipaa product architecture",
+      "Audit trail completeness for hipaa product architecture"
+    ],
+    "triggers": [
+      "hipaa architecture",
+      "phi product",
+      "health compliance architecture",
+      "hipaa-product-architecture",
+      "hipaa product architecture"
+    ],
+    "category": "healthcare",
+    "delegates": [
+      {
+        "skill": "compliance-automation"
+      },
+      {
+        "skill": "audit-logging"
+      },
+      {
+        "skill": "privacy-consent-management"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "hipaa architecture",
+        "phi product",
+        "health compliance architecture"
+      ],
+      "boost_terms": [
+        "hipaa",
+        "phi",
+        "baa",
+        "audit trails",
+        "minimum necessary"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "patient-consent-records": {
+    "id": "patient-consent-records",
+    "name": "patient-consent-records",
+    "description": "Patient consent, revocation, authorization, and record-release workflows with auditable state transitions",
+    "owns": [
+      "PHI boundary mapping for patient consent records",
+      "Consent and authorization state machines for patient consent",
+      "Clinical handoff safety for patient consent records",
+      "Audit trail completeness for patient consent records"
+    ],
+    "triggers": [
+      "patient consent",
+      "consent records",
+      "authorization release",
+      "health consent",
+      "patient-consent-records"
+    ],
+    "category": "healthcare",
+    "delegates": [
+      {
+        "skill": "hipaa-product-architecture"
+      },
+      {
+        "skill": "audit-logging"
+      },
+      {
+        "skill": "data-governance"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "patient consent",
+        "consent records",
+        "authorization release",
+        "health consent"
+      ],
+      "boost_terms": [
+        "consent",
+        "revocation",
+        "authorization",
+        "records release",
+        "audit"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
   "aws-serverless": {
     "id": "aws-serverless",
     "name": "aws-serverless",
@@ -16925,6 +18267,9 @@
       },
       {
         "skill": "aws-serverless"
+      },
+      {
+        "skill": "infrastructure-as-code"
       }
     ],
     "pairsWell": [],
@@ -16999,13 +18344,13 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "penalty": 120,
       "negative_terms": [
         "app store deployment",
         "ios app store",
         "android app store",
         "mobile app deployment"
-      ]
+      ],
+      "penalty": 120
     }
   },
   "bullmq-specialist": {
@@ -17066,6 +18411,9 @@
         "skill": "backend"
       },
       {
+        "skill": "database-architect"
+      },
+      {
         "skill": "devops"
       }
     ],
@@ -17103,7 +18451,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 42,
       "aliases": [
         "email replies",
         "email confirmations",
@@ -17115,7 +18462,8 @@
         "transactional email",
         "support ticket email",
         "customer email"
-      ]
+      ],
+      "boost": 42
     }
   },
   "email-template-systems": {
@@ -17152,7 +18500,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "email templates",
         "mjml",
@@ -17165,7 +18512,8 @@
         "email preview",
         "email versioning",
         "transactional template"
-      ]
+      ],
+      "boost": 22
     }
   },
   "fintech-integration": {
@@ -17422,6 +18770,9 @@
       },
       {
         "skill": "api-monetization"
+      },
+      {
+        "skill": "database-schema-design"
       }
     ],
     "pairsWell": [],
@@ -17521,11 +18872,13 @@
       },
       {
         "skill": "react-patterns"
+      },
+      {
+        "skill": "infrastructure-as-code"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 38,
       "aliases": [
         "email",
         "receipt",
@@ -17535,7 +18888,8 @@
         "transactional email",
         "email receipts",
         "resend email"
-      ]
+      ],
+      "boost": 38
     }
   },
   "segment-cdp": {
@@ -17557,6 +18911,9 @@
     ],
     "category": "integrations",
     "delegates": [
+      {
+        "skill": "analytics-architecture"
+      },
       {
         "skill": "data-pipeline"
       },
@@ -17591,6 +18948,9 @@
       },
       {
         "skill": "postgres-wizard"
+      },
+      {
+        "skill": "react-patterns"
       }
     ],
     "pairsWell": [],
@@ -17617,6 +18977,9 @@
     "delegates": [
       {
         "skill": "backend"
+      },
+      {
+        "skill": "database-architect"
       },
       {
         "skill": "devops"
@@ -17656,7 +19019,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 42,
       "aliases": [
         "stripe",
         "payment",
@@ -17670,7 +19032,8 @@
         "checkout receipts",
         "after checkout",
         "organization billing"
-      ]
+      ],
+      "boost": 42
     }
   },
   "stripe-subscriptions": {
@@ -17696,6 +19059,9 @@
         "skill": "authentication-oauth"
       },
       {
+        "skill": "database-schema-design"
+      },
+      {
         "skill": "api-monetization"
       },
       {
@@ -17707,7 +19073,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 42,
       "aliases": [
         "subscriptions",
         "billing"
@@ -17723,7 +19088,8 @@
         "webhook platform",
         "developer portal",
         "delivery logs"
-      ]
+      ],
+      "boost": 42
     }
   },
   "telegram-bot-builder": {
@@ -17859,7 +19225,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 54,
       "aliases": [
         "twilio",
         "calls",
@@ -17869,7 +19234,8 @@
         "twilio calls",
         "phone calls",
         "voice calls"
-      ]
+      ],
+      "boost": 54
     }
   },
   "upstash-qstash": {
@@ -17973,6 +19339,262 @@
     ],
     "pairsWell": [],
     "selectionHints": {}
+  },
+  "ai-governance-policy": {
+    "id": "ai-governance-policy",
+    "name": "ai-governance-policy",
+    "description": "AI governance policy, model-use controls, evaluation evidence, and high-risk AI workflow review",
+    "owns": [
+      "Intake triage and review routing for ai governance policy",
+      "Risk classification and approval thresholds for ai governanc",
+      "Evidence packets for counsel and business owners for ai gove",
+      "Renewal and obligation tracking for ai governance policy"
+    ],
+    "triggers": [
+      "ai governance",
+      "model policy",
+      "responsible ai policy",
+      "ai risk review",
+      "ai-governance-policy"
+    ],
+    "category": "legal",
+    "delegates": [
+      {
+        "skill": "audit-logging"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "ai governance",
+        "model policy",
+        "responsible ai policy",
+        "ai risk review"
+      ],
+      "boost_terms": [
+        "ai governance",
+        "model risk",
+        "evaluation evidence",
+        "human oversight",
+        "policy"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "contract-lifecycle-ops": {
+    "id": "contract-lifecycle-ops",
+    "name": "contract-lifecycle-ops",
+    "description": "Contract intake, review routing, obligation tracking, and renewal controls for product and enterprise teams",
+    "owns": [
+      "Intake triage and review routing for contract lifecycle ops",
+      "Risk classification and approval thresholds for contract lif",
+      "Evidence packets for counsel and business owners for contrac",
+      "Renewal and obligation tracking for contract lifecycle ops"
+    ],
+    "triggers": [
+      "contract operations",
+      "contract lifecycle",
+      "clm",
+      "legal ops",
+      "contract-lifecycle-ops"
+    ],
+    "category": "legal",
+    "delegates": [
+      {
+        "skill": "enterprise-sales-engineering"
+      },
+      {
+        "skill": "procurement-vendor-management"
+      },
+      {
+        "skill": "terms-product-policy-ops"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "contract operations",
+        "contract lifecycle",
+        "clm",
+        "legal ops"
+      ],
+      "boost_terms": [
+        "contracts",
+        "renewals",
+        "obligations",
+        "approvals",
+        "redlines"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "data-processing-agreements": {
+    "id": "data-processing-agreements",
+    "name": "data-processing-agreements",
+    "description": "DPA, subprocessor, data transfer, and privacy annex review for SaaS and AI products",
+    "owns": [
+      "Intake triage and review routing for data processing agreeme",
+      "Risk classification and approval thresholds for data process",
+      "Evidence packets for counsel and business owners for data pr",
+      "Renewal and obligation tracking for data processing agreemen"
+    ],
+    "triggers": [
+      "dpa review",
+      "privacy annex",
+      "data processing agreement",
+      "data transfer",
+      "data-processing-agreements"
+    ],
+    "category": "legal",
+    "delegates": [
+      {
+        "skill": "subprocessor-risk-review"
+      },
+      {
+        "skill": "data-governance"
+      },
+      {
+        "skill": "privacy-consent-management"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "dpa review",
+        "privacy annex",
+        "data processing agreement",
+        "data transfer"
+      ],
+      "boost_terms": [
+        "dpa",
+        "subprocessors",
+        "privacy",
+        "data transfer",
+        "processors"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "subprocessor-risk-review": {
+    "id": "subprocessor-risk-review",
+    "name": "subprocessor-risk-review",
+    "description": "Third-party subprocessor review, vendor evidence tracking, data access boundaries, and customer disclosure workflows",
+    "owns": [
+      "Intake triage and review routing for subprocessor risk revie",
+      "Risk classification and approval thresholds for subprocessor",
+      "Evidence packets for counsel and business owners for subproc",
+      "Renewal and obligation tracking for subprocessor risk review"
+    ],
+    "triggers": [
+      "subprocessor review",
+      "vendor privacy review",
+      "processor risk",
+      "third party risk",
+      "subprocessor-risk-review"
+    ],
+    "category": "legal",
+    "delegates": [
+      {
+        "skill": "procurement-vendor-management"
+      },
+      {
+        "skill": "compliance-automation"
+      },
+      {
+        "skill": "data-processing-agreements"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "subprocessor review",
+        "vendor privacy review",
+        "processor risk",
+        "third party risk"
+      ],
+      "boost_terms": [
+        "subprocessors",
+        "vendors",
+        "dpas",
+        "soc2",
+        "risk review"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "terms-product-policy-ops": {
+    "id": "terms-product-policy-ops",
+    "name": "terms-product-policy-ops",
+    "description": "Terms of service, acceptable-use, product policy, and launch review systems that stay aligned with real product behavior",
+    "owns": [
+      "Intake triage and review routing for terms product policy op",
+      "Risk classification and approval thresholds for terms produc",
+      "Evidence packets for counsel and business owners for terms p",
+      "Renewal and obligation tracking for terms product policy ops"
+    ],
+    "triggers": [
+      "terms ops",
+      "product policy",
+      "acceptable use policy",
+      "tos review",
+      "terms-product-policy-ops"
+    ],
+    "category": "legal",
+    "delegates": [
+      {
+        "skill": "content-moderation-systems"
+      },
+      {
+        "skill": "privacy-consent-management"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "terms ops",
+        "product policy",
+        "acceptable use policy",
+        "tos review"
+      ],
+      "boost_terms": [
+        "terms",
+        "policy",
+        "acceptable use",
+        "launch review",
+        "user rights"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
   },
   "ad-copywriting": {
     "id": "ad-copywriting",
@@ -19299,6 +20921,9 @@
       },
       {
         "skill": "gdpr-privacy"
+      },
+      {
+        "skill": "performance-optimization"
       }
     ],
     "pairsWell": [],
@@ -19567,6 +21192,180 @@
     "pairsWell": [],
     "selectionHints": {}
   },
+  "creator-monetization-systems": {
+    "id": "creator-monetization-systems",
+    "name": "creator-monetization-systems",
+    "description": "Creator monetization systems for subscriptions, tips, revenue share, payouts, entitlement, and trust controls",
+    "owns": [
+      "Supply-demand health metrics for creator monetization system",
+      "Matching and ranking safeguards for creator monetization sys",
+      "Payment and payout risk handoffs for creator monetization sy",
+      "Dispute evidence workflows for creator monetization systems"
+    ],
+    "triggers": [
+      "creator monetization",
+      "creator payouts",
+      "subscription creators",
+      "revenue share",
+      "creator-monetization-systems"
+    ],
+    "category": "marketplaces",
+    "delegates": [
+      {
+        "skill": "stripe-integration"
+      },
+      {
+        "skill": "web-payments-wallets"
+      },
+      {
+        "skill": "marketplace-risk-controls"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "creator monetization",
+        "creator payouts",
+        "subscription creators",
+        "revenue share"
+      ],
+      "boost_terms": [
+        "creators",
+        "monetization",
+        "payouts",
+        "subscriptions",
+        "revenue share"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming",
+        "solana",
+        "nft",
+        "nft mint",
+        "smart contract",
+        "blockchain",
+        "wallet",
+        "token",
+        "mint",
+        "solana nft",
+        "solana nft mint",
+        "rev share to creators",
+        "backfill",
+        "doubled",
+        "revenue numbers",
+        "data backfill"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "dispute-resolution-systems": {
+    "id": "dispute-resolution-systems",
+    "name": "dispute-resolution-systems",
+    "description": "Dispute resolution systems for evidence intake, mediation, refunds, chargebacks, and outcome consistency",
+    "owns": [
+      "Supply-demand health metrics for dispute resolution systems",
+      "Matching and ranking safeguards for dispute resolution syste",
+      "Payment and payout risk handoffs for dispute resolution syst",
+      "Dispute evidence workflows for dispute resolution systems"
+    ],
+    "triggers": [
+      "dispute resolution",
+      "marketplace disputes",
+      "refund mediation",
+      "chargeback ops",
+      "dispute-resolution-systems"
+    ],
+    "category": "marketplaces",
+    "delegates": [
+      {
+        "skill": "marketplace-risk-controls"
+      },
+      {
+        "skill": "customer-support"
+      },
+      {
+        "skill": "audit-logging"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "dispute resolution",
+        "marketplace disputes",
+        "refund mediation",
+        "chargeback ops"
+      ],
+      "boost_terms": [
+        "disputes",
+        "evidence",
+        "refunds",
+        "chargebacks",
+        "mediation"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "marketplace-liquidity": {
+    "id": "marketplace-liquidity",
+    "name": "marketplace-liquidity",
+    "description": "Marketplace liquidity systems for supply-demand balance, matching, activation, geographic density, and cold-start loops",
+    "owns": [
+      "Supply-demand health metrics for marketplace liquidity",
+      "Matching and ranking safeguards for marketplace liquidity",
+      "Payment and payout risk handoffs for marketplace liquidity",
+      "Dispute evidence workflows for marketplace liquidity"
+    ],
+    "triggers": [
+      "marketplace liquidity",
+      "supply demand",
+      "marketplace cold start",
+      "matching",
+      "marketplace-liquidity"
+    ],
+    "category": "marketplaces",
+    "delegates": [
+      {
+        "skill": "growth-loops"
+      },
+      {
+        "skill": "reputation-systems"
+      },
+      {
+        "skill": "analytics-architecture"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "marketplace liquidity",
+        "supply demand",
+        "marketplace cold start",
+        "matching"
+      ],
+      "boost_terms": [
+        "liquidity",
+        "supply",
+        "demand",
+        "matching",
+        "cold start"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
   "mcp-deployment": {
     "id": "mcp-deployment",
     "name": "mcp-deployment",
@@ -19595,7 +21394,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "penalty": 120,
       "negative_terms": [
         "app store deployment",
         "ios app store",
@@ -19605,7 +21403,8 @@
         "deploy our Node app to AWS Lambda",
         "AWS Lambda with proper monitoring",
         "API Gateway Lambda"
-      ]
+      ],
+      "penalty": 120
     }
   },
   "mcp-security": {
@@ -19725,11 +21524,13 @@
     "delegates": [
       {
         "skill": "project-management"
+      },
+      {
+        "skill": "compliance-automation"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 44,
       "aliases": [
         "calendar",
         "scheduling",
@@ -19741,7 +21542,220 @@
         "timezone handling",
         "email confirmations",
         "meeting notes"
-      ]
+      ],
+      "boost": 44
+    }
+  },
+  "compensation-leveling": {
+    "id": "compensation-leveling",
+    "name": "compensation-leveling",
+    "description": "Compensation and leveling systems for bands, offers, equity, calibration, approvals, and defensible exception handling",
+    "owns": [
+      "Role lifecycle workflows for compensation leveling",
+      "Fairness and calibration controls for compensation leveling",
+      "Access and compliance handoffs for compensation leveling",
+      "Manager operating cadence for compensation leveling"
+    ],
+    "triggers": [
+      "compensation",
+      "leveling",
+      "pay bands",
+      "equity bands",
+      "compensation-leveling"
+    ],
+    "category": "people-ops",
+    "delegates": [
+      {
+        "skill": "finance-ai-tools"
+      },
+      {
+        "skill": "hr-recruiting"
+      },
+      {
+        "skill": "audit-logging"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "compensation",
+        "leveling",
+        "pay bands",
+        "equity bands"
+      ],
+      "boost_terms": [
+        "compensation",
+        "leveling",
+        "bands",
+        "offers",
+        "equity"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "employee-onboarding-systems": {
+    "id": "employee-onboarding-systems",
+    "name": "employee-onboarding-systems",
+    "description": "Employee onboarding systems for role plans, access provisioning, compliance tasks, manager rituals, and ramp telemetry",
+    "owns": [
+      "Role lifecycle workflows for employee onboarding systems",
+      "Fairness and calibration controls for employee onboarding sy",
+      "Access and compliance handoffs for employee onboarding syste",
+      "Manager operating cadence for employee onboarding systems"
+    ],
+    "triggers": [
+      "employee onboarding",
+      "people onboarding",
+      "new hire ramp",
+      "access provisioning",
+      "employee-onboarding-systems"
+    ],
+    "category": "people-ops",
+    "delegates": [
+      {
+        "skill": "identity-access-management"
+      },
+      {
+        "skill": "knowledge-base-engineering"
+      },
+      {
+        "skill": "admin-crud-workflows"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "employee onboarding",
+        "people onboarding",
+        "new hire ramp",
+        "access provisioning"
+      ],
+      "boost_terms": [
+        "onboarding",
+        "new hires",
+        "ramp",
+        "access",
+        "compliance tasks"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "performance-review-systems": {
+    "id": "performance-review-systems",
+    "name": "performance-review-systems",
+    "description": "Performance review systems for goals, feedback, calibration, promotion packets, and bias-aware decision records",
+    "owns": [
+      "Role lifecycle workflows for performance review systems",
+      "Fairness and calibration controls for performance review sys",
+      "Access and compliance handoffs for performance review system",
+      "Manager operating cadence for performance review systems"
+    ],
+    "triggers": [
+      "performance reviews",
+      "review cycles",
+      "promotion packets",
+      "calibration",
+      "performance-review-systems"
+    ],
+    "category": "people-ops",
+    "delegates": [
+      {
+        "skill": "hr-recruiting"
+      },
+      {
+        "skill": "analytics-architecture"
+      },
+      {
+        "skill": "audit-logging"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "performance reviews",
+        "review cycles",
+        "promotion packets",
+        "calibration"
+      ],
+      "boost_terms": [
+        "performance",
+        "feedback",
+        "calibration",
+        "promotions",
+        "goals"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "workforce-scheduling": {
+    "id": "workforce-scheduling",
+    "name": "workforce-scheduling",
+    "description": "Workforce scheduling for shifts, coverage, labor constraints, fairness, availability, and operational continuity",
+    "owns": [
+      "Role lifecycle workflows for workforce scheduling",
+      "Fairness and calibration controls for workforce scheduling",
+      "Access and compliance handoffs for workforce scheduling",
+      "Manager operating cadence for workforce scheduling"
+    ],
+    "triggers": [
+      "workforce scheduling",
+      "shift planning",
+      "coverage planning",
+      "rostering",
+      "workforce-scheduling"
+    ],
+    "category": "people-ops",
+    "delegates": [
+      {
+        "skill": "analytics-architecture"
+      },
+      {
+        "skill": "calendar-booking-systems"
+      },
+      {
+        "skill": "disaster-recovery"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "workforce scheduling",
+        "shift planning",
+        "coverage planning",
+        "rostering"
+      ],
+      "boost_terms": [
+        "scheduling",
+        "shifts",
+        "coverage",
+        "availability",
+        "fairness"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
     }
   },
   "a-b-testing": {
@@ -19825,7 +21839,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 40,
       "aliases": [
         "analytics",
         "metrics"
@@ -19835,7 +21848,8 @@
         "ticket analytics",
         "dashboard analytics",
         "event tracking"
-      ]
+      ],
+      "boost": 40
     }
   },
   "changelog-roadmap": {
@@ -19859,6 +21873,15 @@
     "delegates": [
       {
         "skill": "api-design"
+      },
+      {
+        "skill": "email-systems"
+      },
+      {
+        "skill": "frontend-engineer"
+      },
+      {
+        "skill": "seo"
       },
       {
         "skill": "content-strategy"
@@ -19904,7 +21927,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "customer success",
         "csm",
@@ -19926,7 +21948,8 @@
         "PII at rest",
         "rotate keys",
         "key rotation"
-      ]
+      ],
+      "boost": 22
     }
   },
   "customer-success": {
@@ -19998,7 +22021,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "ab testing",
         "experimentation",
@@ -20012,7 +22034,8 @@
         "peeking",
         "segment analysis",
         "sequential testing"
-      ]
+      ],
+      "boost": 22
     }
   },
   "feature-onboarding-checklists": {
@@ -20052,7 +22075,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "onboarding",
         "checklist",
@@ -20072,7 +22094,8 @@
         "activation cohorts",
         "funnel instrumentation",
         "retention cohort analysis"
-      ]
+      ],
+      "boost": 22
     }
   },
   "feature-prioritization": {
@@ -20130,10 +22153,19 @@
     "category": "product",
     "delegates": [
       {
+        "skill": "email-systems"
+      },
+      {
+        "skill": "analytics"
+      },
+      {
         "skill": "react-patterns"
       },
       {
         "skill": "api-design"
+      },
+      {
+        "skill": "a-b-testing"
       }
     ],
     "pairsWell": [],
@@ -20255,7 +22287,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "feature requests",
         "product feedback",
@@ -20269,7 +22300,8 @@
         "feedback dedup",
         "prioritization",
         "rice scoring"
-      ]
+      ],
+      "boost": 22
     }
   },
   "product-management": {
@@ -20306,6 +22338,273 @@
     ],
     "pairsWell": [],
     "selectionHints": {}
+  },
+  "crm-lifecycle-ops": {
+    "id": "crm-lifecycle-ops",
+    "name": "crm-lifecycle-ops",
+    "description": "CRM lifecycle operations for lead routing, stage hygiene, account ownership, and revenue handoffs",
+    "owns": [
+      "Lifecycle stage definitions for crm lifecycle ops",
+      "CRM source-of-truth hygiene for crm lifecycle ops",
+      "Revenue handoff contracts for crm lifecycle ops",
+      "Forecast assumptions and confidence for crm lifecycle ops"
+    ],
+    "triggers": [
+      "crm ops",
+      "sales ops",
+      "lead routing",
+      "pipeline hygiene",
+      "crm-lifecycle-ops"
+    ],
+    "category": "revenue-ops",
+    "delegates": [
+      {
+        "skill": "enterprise-sales-engineering"
+      },
+      {
+        "skill": "customer-onboarding-success"
+      },
+      {
+        "skill": "revenue-forecasting-pipeline"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "crm ops",
+        "sales ops",
+        "lead routing",
+        "pipeline hygiene"
+      ],
+      "boost_terms": [
+        "crm",
+        "leads",
+        "opportunities",
+        "pipeline",
+        "handoffs"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "enterprise-sales-engineering": {
+    "id": "enterprise-sales-engineering",
+    "name": "enterprise-sales-engineering",
+    "description": "Enterprise sales engineering workflows for demos, technical discovery, security reviews, and implementation promises",
+    "owns": [
+      "Lifecycle stage definitions for enterprise sales engineering",
+      "CRM source-of-truth hygiene for enterprise sales engineering",
+      "Revenue handoff contracts for enterprise sales engineering",
+      "Forecast assumptions and confidence for enterprise sales eng"
+    ],
+    "triggers": [
+      "sales engineering",
+      "solutions engineering",
+      "enterprise se",
+      "technical sales",
+      "enterprise-sales-engineering"
+    ],
+    "category": "revenue-ops",
+    "delegates": [
+      {
+        "skill": "compliance-automation"
+      },
+      {
+        "skill": "enterprise-architecture"
+      },
+      {
+        "skill": "contract-lifecycle-ops"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "sales engineering",
+        "solutions engineering",
+        "enterprise se",
+        "technical sales"
+      ],
+      "boost_terms": [
+        "demos",
+        "technical discovery",
+        "security reviews",
+        "proof of concept",
+        "implementation"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "partner-channel-operations": {
+    "id": "partner-channel-operations",
+    "name": "partner-channel-operations",
+    "description": "Partner and channel operations for referrals, marketplaces, co-selling, attribution, and partner quality",
+    "owns": [
+      "Lifecycle stage definitions for partner channel operations",
+      "CRM source-of-truth hygiene for partner channel operations",
+      "Revenue handoff contracts for partner channel operations",
+      "Forecast assumptions and confidence for partner channel oper"
+    ],
+    "triggers": [
+      "partner ops",
+      "channel sales",
+      "referral partners",
+      "co-selling",
+      "partner-channel-operations"
+    ],
+    "category": "revenue-ops",
+    "delegates": [
+      {
+        "skill": "channel-partnerships"
+      },
+      {
+        "skill": "crm-lifecycle-ops"
+      },
+      {
+        "skill": "marketplace-liquidity"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "partner ops",
+        "channel sales",
+        "referral partners",
+        "co-selling"
+      ],
+      "boost_terms": [
+        "partners",
+        "channel",
+        "referrals",
+        "co-selling",
+        "attribution"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "procurement-vendor-management": {
+    "id": "procurement-vendor-management",
+    "name": "procurement-vendor-management",
+    "description": "Procurement and vendor management systems for intake, evaluation, renewal, risk evidence, and spend control",
+    "owns": [
+      "Lifecycle stage definitions for procurement vendor managemen",
+      "CRM source-of-truth hygiene for procurement vendor managemen",
+      "Revenue handoff contracts for procurement vendor management",
+      "Forecast assumptions and confidence for procurement vendor m"
+    ],
+    "triggers": [
+      "vendor management",
+      "procurement",
+      "vendor ops",
+      "third party management",
+      "procurement-vendor-management"
+    ],
+    "category": "revenue-ops",
+    "delegates": [
+      {
+        "skill": "subprocessor-risk-review"
+      },
+      {
+        "skill": "contract-lifecycle-ops"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "vendor management",
+        "procurement",
+        "vendor ops",
+        "third party management"
+      ],
+      "boost_terms": [
+        "vendors",
+        "procurement",
+        "renewals",
+        "spend",
+        "risk evidence"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "revenue-forecasting-pipeline": {
+    "id": "revenue-forecasting-pipeline",
+    "name": "revenue-forecasting-pipeline",
+    "description": "Revenue forecasting data pipelines that combine CRM, billing, usage, churn, and sales judgment without hiding assumption",
+    "owns": [
+      "Lifecycle stage definitions for revenue forecasting pipeline",
+      "CRM source-of-truth hygiene for revenue forecasting pipeline",
+      "Revenue handoff contracts for revenue forecasting pipeline",
+      "Forecast assumptions and confidence for revenue forecasting "
+    ],
+    "triggers": [
+      "revenue forecasting",
+      "forecast pipeline",
+      "sales forecast",
+      "revops forecasting",
+      "revenue-forecasting-pipeline"
+    ],
+    "category": "revenue-ops",
+    "delegates": [
+      {
+        "skill": "analytics-architecture"
+      },
+      {
+        "skill": "data-quality-monitoring"
+      },
+      {
+        "skill": "finance-ai-tools"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "revenue forecasting",
+        "forecast pipeline",
+        "sales forecast",
+        "revops forecasting"
+      ],
+      "boost_terms": [
+        "forecast",
+        "arr",
+        "pipeline",
+        "churn",
+        "bookings"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming",
+        "backfill",
+        "doubled",
+        "fix",
+        "bug",
+        "data backfill"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
   },
   "statistical-analysis": {
     "id": "statistical-analysis",
@@ -20359,6 +22658,9 @@
     "category": "security",
     "delegates": [
       {
+        "skill": "security"
+      },
+      {
         "skill": "mcp-security"
       },
       {
@@ -20402,7 +22704,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 38,
       "aliases": [
         "api security",
         "request signing",
@@ -20414,7 +22715,8 @@
         "webhook signing",
         "replay protection",
         "developer portal"
-      ]
+      ],
+      "boost": 38
     }
   },
   "audit-logging": {
@@ -20483,7 +22785,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 58,
       "aliases": [
         "auth",
         "login",
@@ -20501,7 +22802,8 @@
         "password change",
         "account settings",
         "session security"
-      ]
+      ],
+      "boost": 58
     }
   },
   "authentication-oauth": {
@@ -20533,12 +22835,17 @@
         "skill": "api-design"
       },
       {
+        "skill": "database-schema-design"
+      },
+      {
+        "skill": "security"
+      },
+      {
         "skill": "cryptography"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 58,
       "aliases": [
         "oauth",
         "oidc",
@@ -20550,7 +22857,8 @@
         "oauth login",
         "social login",
         "user sessions"
-      ]
+      ],
+      "boost": 58
     }
   },
   "clerk-auth": {
@@ -20616,7 +22924,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 36,
       "aliases": [
         "compliance",
         "compliant",
@@ -20635,7 +22942,8 @@
         "continuous evidence",
         "compliance automation",
         "audit evidence"
-      ]
+      ],
+      "boost": 36
     }
   },
   "container-security": {
@@ -20788,7 +23096,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "data deletion",
         "data retention",
@@ -20802,7 +23109,8 @@
         "purge job",
         "backup deletion",
         "ccpa delete"
-      ]
+      ],
+      "boost": 22
     }
   },
   "export-control": {
@@ -20868,7 +23176,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 52,
       "aliases": [
         "gdpr",
         "privacy",
@@ -20884,7 +23191,8 @@
         "privacy compliance",
         "data protection",
         "lawful basis"
-      ]
+      ],
+      "boost": 52
     }
   },
   "identity-access-management": {
@@ -20943,6 +23251,12 @@
       },
       {
         "skill": "supabase-auth-rls"
+      },
+      {
+        "skill": "database-schema-design"
+      },
+      {
+        "skill": "security"
       }
     ],
     "pairsWell": [],
@@ -20952,7 +23266,12 @@
     "id": "privacy-consent-management",
     "name": "privacy-consent-management",
     "description": "GDPR/CCPA/CPRA-compliant consent capture, storage, propagation, and revocation across web, mobile, server, and third-par",
-    "owns": [],
+    "owns": [
+      "Build vs buy the CMP (vendor: OneTrust, Cookiebot, TrustArc,",
+      "Consent scope taxonomy and the mapping from scope to tag/SDK",
+      "Regional regulation matrix: GDPR/UK GDPR/CCPA/CPRA/LGPD/PIPE",
+      "Consent storage: client (cookie/localStorage), server-side r"
+    ],
     "triggers": [
       "cookie banner",
       "consent management",
@@ -20961,10 +23280,25 @@
       "do not sell"
     ],
     "category": "security",
-    "delegates": [],
+    "delegates": [
+      {
+        "skill": "data-retention-deletion"
+      },
+      {
+        "skill": "audit-trail-activity-feed"
+      },
+      {
+        "skill": "notifications-orchestration"
+      },
+      {
+        "skill": "notification-preferences"
+      },
+      {
+        "skill": "email-template-systems"
+      }
+    ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 1.4,
       "aliases": [
         "consent",
         "cookie-consent",
@@ -20983,7 +23317,8 @@
         "tag manager gating",
         "consent expiry",
         "regional banner"
-      ]
+      ],
+      "boost": 1.4
     }
   },
   "prompt-injection-defense": {
@@ -21007,6 +23342,9 @@
     "delegates": [
       {
         "skill": "ai-code-security"
+      },
+      {
+        "skill": "security"
       },
       {
         "skill": "mcp-security"
@@ -21193,6 +23531,9 @@
         "skill": "authentication-oauth"
       },
       {
+        "skill": "database-schema-design"
+      },
+      {
         "skill": "passkeys-webauthn"
       },
       {
@@ -21233,7 +23574,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 54,
       "aliases": [
         "supply chain scanning",
         "dependency scanning"
@@ -21242,7 +23582,8 @@
         "supply chain scanning",
         "supply chain hardening",
         "dependency provenance"
-      ]
+      ],
+      "boost": 54
     }
   },
   "threat-modeling": {
@@ -21550,12 +23891,23 @@
     "category": "startup",
     "delegates": [
       {
+        "skill": "email-systems"
+      },
+      {
+        "skill": "analytics"
+      },
+      {
+        "skill": "seo"
+      },
+      {
+        "skill": "frontend-engineer"
+      },
+      {
         "skill": "stripe-integration"
       }
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 44,
       "aliases": [
         "waitlist"
       ],
@@ -21574,7 +23926,8 @@
         "localized UI copy",
         "French launch localization",
         "translate onboarding"
-      ]
+      ],
+      "boost": 44
     }
   },
   "yc-playbook": {
@@ -21743,6 +24096,9 @@
         "skill": "growth-strategy"
       },
       {
+        "skill": "marketing"
+      },
+      {
         "skill": "analytics"
       }
     ],
@@ -21836,7 +24192,19 @@
     "category": "strategy",
     "delegates": [
       {
+        "skill": "analytics"
+      },
+      {
+        "skill": "performance-optimization"
+      },
+      {
         "skill": "copywriting"
+      },
+      {
+        "skill": "data-engineer"
+      },
+      {
+        "skill": "compliance-automation"
       },
       {
         "skill": "pricing-strategy"
@@ -21942,6 +24310,9 @@
         "skill": "tech-debt-manager"
       },
       {
+        "skill": "performance-hunter"
+      },
+      {
         "skill": "code-quality"
       }
     ],
@@ -22003,10 +24374,16 @@
         "skill": "nextjs-app-router"
       },
       {
+        "skill": "database-schema-design"
+      },
+      {
         "skill": "caching-patterns"
       },
       {
         "skill": "authentication-oauth"
+      },
+      {
+        "skill": "devops"
       }
     ],
     "pairsWell": [],
@@ -22030,7 +24407,14 @@
       "domain model"
     ],
     "category": "enterprise",
-    "delegates": [],
+    "delegates": [
+      {
+        "skill": "database-architect"
+      },
+      {
+        "skill": "security"
+      }
+    ],
     "pairsWell": [],
     "selectionHints": {
       "negative_terms": [
@@ -22067,6 +24451,12 @@
       },
       {
         "skill": "founder-mode"
+      },
+      {
+        "skill": "hiring-strategy"
+      },
+      {
+        "skill": "fundraising-strategy"
       },
       {
         "skill": "product-strategy"
@@ -22134,6 +24524,9 @@
       },
       {
         "skill": "product-management"
+      },
+      {
+        "skill": "hiring-strategy"
       }
     ],
     "pairsWell": [],
@@ -22261,6 +24654,9 @@
     "category": "architecture",
     "delegates": [
       {
+        "skill": "database-schema-design"
+      },
+      {
         "skill": "server-sent-events"
       },
       {
@@ -22268,6 +24664,9 @@
       },
       {
         "skill": "react-patterns"
+      },
+      {
+        "skill": "websocket-realtime"
       }
     ],
     "pairsWell": [],
@@ -22326,6 +24725,9 @@
     "delegates": [
       {
         "skill": "database-architect"
+      },
+      {
+        "skill": "security"
       },
       {
         "skill": "api-design"
@@ -22673,6 +25075,9 @@
       },
       {
         "skill": "business-model-design"
+      },
+      {
+        "skill": "compliance-automation"
       }
     ],
     "pairsWell": [],
@@ -22699,6 +25104,9 @@
     "delegates": [
       {
         "skill": "decision-maker"
+      },
+      {
+        "skill": "performance-hunter"
       },
       {
         "skill": "tech-debt-manager"
@@ -22943,6 +25351,9 @@
         "skill": "refactoring-guide"
       },
       {
+        "skill": "performance-hunter"
+      },
+      {
         "skill": "system-designer"
       }
     ],
@@ -22968,6 +25379,9 @@
     ],
     "category": "testing",
     "delegates": [
+      {
+        "skill": "performance-optimization"
+      },
       {
         "skill": "ci-cd-pipeline"
       },
@@ -23095,7 +25509,6 @@
     ],
     "pairsWell": [],
     "selectionHints": {
-      "boost": 22,
       "aliases": [
         "accessibility",
         "a11y",
@@ -23109,7 +25522,8 @@
         "screen reader",
         "color contrast",
         "aria"
-      ]
+      ],
+      "boost": 22
     }
   },
   "quantitative-research": {
@@ -23271,5 +25685,267 @@
     ],
     "pairsWell": [],
     "selectionHints": {}
+  },
+  "abuse-fraud-prevention": {
+    "id": "abuse-fraud-prevention",
+    "name": "abuse-fraud-prevention",
+    "description": "Abuse and fraud prevention systems for signup, payments, referrals, scraping, spam, and coordinated attacks",
+    "owns": [
+      "Policy labels and enforcement states for abuse fraud prevent",
+      "Review queue design for abuse fraud prevention",
+      "Appeal and escalation flows for abuse fraud prevention",
+      "Abuse signal instrumentation for abuse fraud prevention"
+    ],
+    "triggers": [
+      "fraud prevention",
+      "abuse prevention",
+      "anti spam",
+      "risk controls",
+      "abuse-fraud-prevention"
+    ],
+    "category": "trust-safety",
+    "delegates": [
+      {
+        "skill": "rate-limiting"
+      },
+      {
+        "skill": "stripe-integration"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "fraud prevention",
+        "abuse prevention",
+        "anti spam",
+        "risk controls"
+      ],
+      "boost_terms": [
+        "fraud",
+        "abuse",
+        "spam",
+        "risk scoring",
+        "velocity limits"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "appeals-policy-operations": {
+    "id": "appeals-policy-operations",
+    "name": "appeals-policy-operations",
+    "description": "Appeals workflows for enforcement decisions with evidence packets, review independence, and policy consistency",
+    "owns": [
+      "Policy labels and enforcement states for appeals policy oper",
+      "Review queue design for appeals policy operations",
+      "Appeal and escalation flows for appeals policy operations",
+      "Abuse signal instrumentation for appeals policy operations"
+    ],
+    "triggers": [
+      "appeals",
+      "policy appeals",
+      "enforcement appeals",
+      "moderation appeals",
+      "appeals-policy-operations"
+    ],
+    "category": "trust-safety",
+    "delegates": [
+      {
+        "skill": "content-moderation-systems"
+      },
+      {
+        "skill": "audit-logging"
+      },
+      {
+        "skill": "customer-support"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "appeals",
+        "policy appeals",
+        "enforcement appeals",
+        "moderation appeals"
+      ],
+      "boost_terms": [
+        "appeals",
+        "enforcement",
+        "evidence",
+        "review independence",
+        "policy consistency"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "content-moderation-systems": {
+    "id": "content-moderation-systems",
+    "name": "content-moderation-systems",
+    "description": "Content moderation queues, policy labels, review tooling, escalation rules, and quality control loops",
+    "owns": [
+      "Policy labels and enforcement states for content moderation ",
+      "Review queue design for content moderation systems",
+      "Appeal and escalation flows for content moderation systems",
+      "Abuse signal instrumentation for content moderation systems"
+    ],
+    "triggers": [
+      "content moderation",
+      "moderation queues",
+      "policy enforcement",
+      "trust and safety",
+      "content-moderation-systems"
+    ],
+    "category": "trust-safety",
+    "delegates": [
+      {
+        "skill": "human-in-the-loop-review"
+      },
+      {
+        "skill": "support-quality-qa"
+      },
+      {
+        "skill": "file-processing-pipelines"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "content moderation",
+        "moderation queues",
+        "policy enforcement",
+        "trust and safety"
+      ],
+      "boost_terms": [
+        "moderation",
+        "policy labels",
+        "review queues",
+        "escalation",
+        "quality sampling"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "marketplace-risk-controls": {
+    "id": "marketplace-risk-controls",
+    "name": "marketplace-risk-controls",
+    "description": "Marketplace risk controls for scams, chargebacks, off-platform abuse, seller quality, and buyer protection",
+    "owns": [
+      "Policy labels and enforcement states for marketplace risk co",
+      "Review queue design for marketplace risk controls",
+      "Appeal and escalation flows for marketplace risk controls",
+      "Abuse signal instrumentation for marketplace risk controls"
+    ],
+    "triggers": [
+      "marketplace risk",
+      "buyer protection",
+      "seller risk",
+      "platform risk",
+      "marketplace-risk-controls"
+    ],
+    "category": "trust-safety",
+    "delegates": [
+      {
+        "skill": "abuse-fraud-prevention"
+      },
+      {
+        "skill": "dispute-resolution-systems"
+      },
+      {
+        "skill": "stripe-integration"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "marketplace risk",
+        "buyer protection",
+        "seller risk",
+        "platform risk"
+      ],
+      "boost_terms": [
+        "marketplace",
+        "chargebacks",
+        "seller risk",
+        "buyer protection",
+        "scams"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
+  },
+  "reputation-systems": {
+    "id": "reputation-systems",
+    "name": "reputation-systems",
+    "description": "Reputation scoring, trust signals, user history, ranking safeguards, and feedback-loop controls",
+    "owns": [
+      "Policy labels and enforcement states for reputation systems",
+      "Review queue design for reputation systems",
+      "Appeal and escalation flows for reputation systems",
+      "Abuse signal instrumentation for reputation systems"
+    ],
+    "triggers": [
+      "reputation",
+      "trust score",
+      "seller rating",
+      "user score",
+      "reputation-systems"
+    ],
+    "category": "trust-safety",
+    "delegates": [
+      {
+        "skill": "marketplace-liquidity"
+      },
+      {
+        "skill": "data-quality-monitoring"
+      },
+      {
+        "skill": "analytics-architecture"
+      }
+    ],
+    "pairsWell": [],
+    "selectionHints": {
+      "aliases": [
+        "reputation",
+        "trust score",
+        "seller rating",
+        "user score"
+      ],
+      "boost_terms": [
+        "reputation",
+        "trust score",
+        "ratings",
+        "ranking",
+        "feedback loops"
+      ],
+      "negative_terms": [
+        "toy demo",
+        "unrelated frontend styling",
+        "generic brainstorming"
+      ],
+      "boost": 1.25,
+      "penalty": 0.15
+    }
   }
 }

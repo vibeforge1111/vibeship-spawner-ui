@@ -1,6 +1,6 @@
 {
   "version": "2.0.0",
-  "totalSkills": 613,
+  "totalSkills": 643,
   "domains": {
     "game": [
       {
@@ -113,7 +113,11 @@
           "disaster",
           "readiness",
           "drills",
-          "game"
+          "game",
+          "drill",
+          "cadence",
+          "and",
+          "blast"
         ]
       },
       {
@@ -496,266 +500,6 @@
     ],
     "ai": [
       {
-        "id": "ai-code-generation",
-        "kw": [
-          "code",
-          "generation",
-          "ai",
-          "structured",
-          "output",
-          "function",
-          "calling",
-          "and"
-        ]
-      },
-      {
-        "id": "ai-for-learning",
-        "kw": [
-          "for",
-          "learning",
-          "ai",
-          "tutoring",
-          "systems",
-          "design",
-          "personalized",
-          "path"
-        ]
-      },
-      {
-        "id": "ai-function-calling",
-        "kw": [
-          "function",
-          "calling",
-          "llm",
-          "tool",
-          "schema",
-          "parallel",
-          "call",
-          "sequential"
-        ]
-      },
-      {
-        "id": "ai-image-editing",
-        "kw": [
-          "image",
-          "editing",
-          "ai",
-          "api",
-          "inpainting",
-          "with",
-          "masks",
-          "outpainting"
-        ]
-      },
-      {
-        "id": "ai-music-audio",
-        "kw": [
-          "music",
-          "audio",
-          "ai",
-          "text",
-          "generation",
-          "speech",
-          "synthesis",
-          "voice"
-        ]
-      },
-      {
-        "id": "ai-observability",
-        "kw": [
-          "observability",
-          "llm",
-          "ai",
-          "tracing",
-          "and",
-          "token",
-          "cost",
-          "tracking"
-        ]
-      },
-      {
-        "id": "ai-personalization",
-        "kw": [
-          "personalization",
-          "ai",
-          "user",
-          "llm",
-          "collaborative",
-          "filtering",
-          "pipelines",
-          "content"
-        ]
-      },
-      {
-        "id": "ai-safety-alignment",
-        "kw": [
-          "safety",
-          "alignment",
-          "llm",
-          "api",
-          "ai",
-          "user",
-          "content",
-          "moderation"
-        ]
-      },
-      {
-        "id": "ai-sdk-vercel",
-        "kw": [
-          "sdk",
-          "vercel",
-          "ai",
-          "core",
-          "usechat",
-          "and",
-          "usecompletion",
-          "server"
-        ]
-      },
-      {
-        "id": "ai-wrapper-product",
-        "kw": [
-          "wrapper",
-          "product",
-          "ai",
-          "llm",
-          "architecture",
-          "and",
-          "prompt",
-          "engineering"
-        ]
-      },
-      {
-        "id": "cursor-ai",
-        "kw": [
-          "cursor",
-          "ai",
-          "rules",
-          "configuration",
-          "plan",
-          "mode",
-          "workflows",
-          "background"
-        ]
-      },
-      {
-        "id": "development-ai-tools",
-        "kw": [
-          "development",
-          "tools",
-          "ai",
-          "automation",
-          "code",
-          "assistant",
-          "integration",
-          "powered"
-        ]
-      },
-      {
-        "id": "distributed-training",
-        "kw": [
-          "distributed",
-          "training",
-          "multi",
-          "gpu",
-          "and",
-          "fsdp",
-          "deepspeed",
-          "zero"
-        ]
-      },
-      {
-        "id": "document-ai",
-        "kw": [
-          "document",
-          "ai",
-          "pdf",
-          "parsing",
-          "with",
-          "invoice",
-          "and",
-          "receipt"
-        ]
-      },
-      {
-        "id": "llm-architect",
-        "kw": [
-          "llm",
-          "architect",
-          "ai",
-          "rag",
-          "architecture",
-          "prompt",
-          "engineering",
-          "structured"
-        ]
-      },
-      {
-        "id": "llm-fine-tuning",
-        "kw": [
-          "llm",
-          "fine",
-          "tuning",
-          "lora",
-          "and",
-          "qlora",
-          "training",
-          "data"
-        ]
-      },
-      {
-        "id": "multimodal-ai",
-        "kw": [
-          "multimodal",
-          "image",
-          "audio",
-          "vision",
-          "api",
-          "integration",
-          "transcription",
-          "pipelines"
-        ]
-      },
-      {
-        "id": "on-device-ai",
-        "kw": [
-          "device",
-          "browser",
-          "ai",
-          "based",
-          "inference",
-          "transformers",
-          "webllm",
-          "onnx"
-        ]
-      },
-      {
-        "id": "openai-api-patterns",
-        "kw": [
-          "openai",
-          "api",
-          "patterns",
-          "chat",
-          "completions",
-          "function",
-          "calling",
-          "and"
-        ]
-      },
-      {
-        "id": "synthetic-data",
-        "kw": [
-          "synthetic",
-          "data",
-          "ml",
-          "analytics",
-          "llm",
-          "generation",
-          "privacy",
-          "validation"
-        ]
-      },
-      {
         "id": "agent-communication",
         "kw": [
           "agent",
@@ -1039,6 +783,266 @@
           "openai",
           "vapi",
           "agents"
+        ]
+      },
+      {
+        "id": "ai-code-generation",
+        "kw": [
+          "code",
+          "generation",
+          "ai",
+          "structured",
+          "output",
+          "function",
+          "calling",
+          "and"
+        ]
+      },
+      {
+        "id": "ai-for-learning",
+        "kw": [
+          "for",
+          "learning",
+          "ai",
+          "tutoring",
+          "systems",
+          "design",
+          "personalized",
+          "path"
+        ]
+      },
+      {
+        "id": "ai-function-calling",
+        "kw": [
+          "function",
+          "calling",
+          "llm",
+          "tool",
+          "schema",
+          "parallel",
+          "call",
+          "sequential"
+        ]
+      },
+      {
+        "id": "ai-image-editing",
+        "kw": [
+          "image",
+          "editing",
+          "ai",
+          "api",
+          "inpainting",
+          "with",
+          "masks",
+          "outpainting"
+        ]
+      },
+      {
+        "id": "ai-music-audio",
+        "kw": [
+          "music",
+          "audio",
+          "ai",
+          "text",
+          "generation",
+          "speech",
+          "synthesis",
+          "voice"
+        ]
+      },
+      {
+        "id": "ai-observability",
+        "kw": [
+          "observability",
+          "llm",
+          "ai",
+          "tracing",
+          "and",
+          "token",
+          "cost",
+          "tracking"
+        ]
+      },
+      {
+        "id": "ai-personalization",
+        "kw": [
+          "personalization",
+          "ai",
+          "user",
+          "llm",
+          "collaborative",
+          "filtering",
+          "pipelines",
+          "content"
+        ]
+      },
+      {
+        "id": "ai-safety-alignment",
+        "kw": [
+          "safety",
+          "alignment",
+          "llm",
+          "api",
+          "ai",
+          "user",
+          "content",
+          "moderation"
+        ]
+      },
+      {
+        "id": "ai-sdk-vercel",
+        "kw": [
+          "sdk",
+          "vercel",
+          "ai",
+          "core",
+          "usechat",
+          "and",
+          "usecompletion",
+          "server"
+        ]
+      },
+      {
+        "id": "ai-wrapper-product",
+        "kw": [
+          "wrapper",
+          "product",
+          "ai",
+          "llm",
+          "architecture",
+          "and",
+          "prompt",
+          "engineering"
+        ]
+      },
+      {
+        "id": "cursor-ai",
+        "kw": [
+          "cursor",
+          "ai",
+          "rules",
+          "configuration",
+          "plan",
+          "mode",
+          "workflows",
+          "background"
+        ]
+      },
+      {
+        "id": "development-ai-tools",
+        "kw": [
+          "development",
+          "tools",
+          "ai",
+          "automation",
+          "code",
+          "assistant",
+          "integration",
+          "powered"
+        ]
+      },
+      {
+        "id": "distributed-training",
+        "kw": [
+          "distributed",
+          "training",
+          "multi",
+          "gpu",
+          "and",
+          "fsdp",
+          "deepspeed",
+          "zero"
+        ]
+      },
+      {
+        "id": "document-ai",
+        "kw": [
+          "document",
+          "ai",
+          "pdf",
+          "parsing",
+          "with",
+          "invoice",
+          "and",
+          "receipt"
+        ]
+      },
+      {
+        "id": "llm-architect",
+        "kw": [
+          "llm",
+          "architect",
+          "ai",
+          "rag",
+          "architecture",
+          "prompt",
+          "engineering",
+          "structured"
+        ]
+      },
+      {
+        "id": "llm-fine-tuning",
+        "kw": [
+          "llm",
+          "fine",
+          "tuning",
+          "lora",
+          "and",
+          "qlora",
+          "training",
+          "data"
+        ]
+      },
+      {
+        "id": "multimodal-ai",
+        "kw": [
+          "multimodal",
+          "image",
+          "audio",
+          "vision",
+          "api",
+          "integration",
+          "transcription",
+          "pipelines"
+        ]
+      },
+      {
+        "id": "on-device-ai",
+        "kw": [
+          "device",
+          "browser",
+          "ai",
+          "based",
+          "inference",
+          "transformers",
+          "webllm",
+          "onnx"
+        ]
+      },
+      {
+        "id": "openai-api-patterns",
+        "kw": [
+          "openai",
+          "api",
+          "patterns",
+          "chat",
+          "completions",
+          "function",
+          "calling",
+          "and"
+        ]
+      },
+      {
+        "id": "synthetic-data",
+        "kw": [
+          "synthetic",
+          "data",
+          "ml",
+          "analytics",
+          "llm",
+          "generation",
+          "privacy",
+          "validation"
         ]
       },
       {
@@ -1416,6 +1420,19 @@
           "template",
           "domain",
           "verification"
+        ]
+      },
+      {
+        "id": "ai-governance-policy",
+        "kw": [
+          "governance",
+          "policy",
+          "ai",
+          "workflow",
+          "intake",
+          "triage",
+          "and",
+          "risk"
         ]
       },
       {
@@ -2201,6 +2218,19 @@
         ]
       },
       {
+        "id": "marketplace-liquidity",
+        "kw": [
+          "marketplace",
+          "liquidity",
+          "supply",
+          "demand",
+          "health",
+          "matching",
+          "and",
+          "ranking"
+        ]
+      },
+      {
         "id": "business-model-design",
         "kw": [
           "business",
@@ -2255,19 +2285,6 @@
     ],
     "backend": [
       {
-        "id": "claude-api-integration",
-        "kw": [
-          "claude",
-          "api",
-          "integration",
-          "anthropic",
-          "messages",
-          "streaming",
-          "responses",
-          "tool"
-        ]
-      },
-      {
         "id": "zapier-make-patterns",
         "kw": [
           "zapier",
@@ -2278,6 +2295,19 @@
           "design",
           "integromat",
           "scenario"
+        ]
+      },
+      {
+        "id": "claude-api-integration",
+        "kw": [
+          "claude",
+          "api",
+          "integration",
+          "anthropic",
+          "messages",
+          "streaming",
+          "responses",
+          "tool"
         ]
       },
       {
@@ -2718,7 +2748,10 @@
           "status",
           "page",
           "incident",
-          "comms"
+          "comms",
+          "provider",
+          "component",
+          "model"
         ]
       },
       {
@@ -3252,6 +3285,19 @@
           "keyword",
           "research"
         ]
+      },
+      {
+        "id": "content-moderation-systems",
+        "kw": [
+          "content",
+          "moderation",
+          "systems",
+          "policy",
+          "labels",
+          "and",
+          "review",
+          "queue"
+        ]
       }
     ],
     "analytics": [
@@ -3361,6 +3407,19 @@
       }
     ],
     "testing": [
+      {
+        "id": "support-quality-qa",
+        "kw": [
+          "support",
+          "quality",
+          "health",
+          "signal",
+          "design",
+          "retention",
+          "intervention",
+          "playbooks"
+        ]
+      },
       {
         "id": "mcp-testing",
         "kw": [
@@ -3493,6 +3552,71 @@
       }
     ],
     "other": [
+      {
+        "id": "human-in-the-loop-review",
+        "kw": [
+          "human",
+          "the",
+          "loop",
+          "review",
+          "ai",
+          "ml",
+          "queue",
+          "data"
+        ]
+      },
+      {
+        "id": "multi-modal-upload-intake",
+        "kw": [
+          "multi",
+          "modal",
+          "upload",
+          "intake",
+          "ai",
+          "audio",
+          "video",
+          "format"
+        ]
+      },
+      {
+        "id": "prompt-versioning-release-management",
+        "kw": [
+          "prompt",
+          "versioning",
+          "release",
+          "management",
+          "registry",
+          "data",
+          "source",
+          "truth"
+        ]
+      },
+      {
+        "id": "rag-implementation",
+        "kw": [
+          "rag",
+          "implementation",
+          "document",
+          "chunking",
+          "strategies",
+          "embedding",
+          "model",
+          "selection"
+        ]
+      },
+      {
+        "id": "workflow-automation",
+        "kw": [
+          "workflow",
+          "automation",
+          "ai",
+          "durable",
+          "execution",
+          "event",
+          "driven",
+          "workflows"
+        ]
+      },
       {
         "id": "art-consistency",
         "kw": [
@@ -3660,71 +3784,6 @@
           "shadcn",
           "composition",
           "output"
-        ]
-      },
-      {
-        "id": "human-in-the-loop-review",
-        "kw": [
-          "human",
-          "the",
-          "loop",
-          "review",
-          "ai",
-          "ml",
-          "queue",
-          "data"
-        ]
-      },
-      {
-        "id": "multi-modal-upload-intake",
-        "kw": [
-          "multi",
-          "modal",
-          "upload",
-          "intake",
-          "ai",
-          "audio",
-          "video",
-          "format"
-        ]
-      },
-      {
-        "id": "prompt-versioning-release-management",
-        "kw": [
-          "prompt",
-          "versioning",
-          "release",
-          "management",
-          "registry",
-          "data",
-          "source",
-          "truth"
-        ]
-      },
-      {
-        "id": "rag-implementation",
-        "kw": [
-          "rag",
-          "implementation",
-          "document",
-          "chunking",
-          "strategies",
-          "embedding",
-          "model",
-          "selection"
-        ]
-      },
-      {
-        "id": "workflow-automation",
-        "kw": [
-          "workflow",
-          "automation",
-          "ai",
-          "durable",
-          "execution",
-          "event",
-          "driven",
-          "workflows"
         ]
       },
       {
@@ -5145,6 +5204,45 @@
         ]
       },
       {
+        "id": "account-health-scoring",
+        "kw": [
+          "account",
+          "health",
+          "scoring",
+          "signal",
+          "design",
+          "retention",
+          "intervention",
+          "playbooks"
+        ]
+      },
+      {
+        "id": "churn-risk-retention",
+        "kw": [
+          "churn",
+          "risk",
+          "retention",
+          "health",
+          "signal",
+          "design",
+          "intervention",
+          "playbooks"
+        ]
+      },
+      {
+        "id": "customer-education-ops",
+        "kw": [
+          "customer",
+          "education",
+          "ops",
+          "health",
+          "signal",
+          "design",
+          "retention",
+          "intervention"
+        ]
+      },
+      {
         "id": "data-engineer",
         "kw": [
           "data",
@@ -6047,7 +6145,11 @@
           "tax",
           "compliance",
           "sales",
-          "vat"
+          "vat",
+          "which",
+          "engine",
+          "where",
+          "the"
         ]
       },
       {
@@ -6623,6 +6725,58 @@
         ]
       },
       {
+        "id": "clinical-workflow-safety",
+        "kw": [
+          "clinical",
+          "workflow",
+          "safety",
+          "phi",
+          "boundary",
+          "mapping",
+          "consent",
+          "and"
+        ]
+      },
+      {
+        "id": "healthcare-interoperability-fhir",
+        "kw": [
+          "healthcare",
+          "interoperability",
+          "fhir",
+          "phi",
+          "boundary",
+          "mapping",
+          "consent",
+          "and"
+        ]
+      },
+      {
+        "id": "hipaa-product-architecture",
+        "kw": [
+          "hipaa",
+          "product",
+          "architecture",
+          "phi",
+          "boundary",
+          "mapping",
+          "consent",
+          "and"
+        ]
+      },
+      {
+        "id": "patient-consent-records",
+        "kw": [
+          "patient",
+          "consent",
+          "records",
+          "phi",
+          "boundary",
+          "mapping",
+          "and",
+          "authorization"
+        ]
+      },
+      {
         "id": "azure-functions",
         "kw": [
           "azure",
@@ -6828,6 +6982,58 @@
           "and",
           "custom",
           "fields"
+        ]
+      },
+      {
+        "id": "contract-lifecycle-ops",
+        "kw": [
+          "contract",
+          "lifecycle",
+          "ops",
+          "intake",
+          "triage",
+          "and",
+          "risk",
+          "classification"
+        ]
+      },
+      {
+        "id": "data-processing-agreements",
+        "kw": [
+          "data",
+          "processing",
+          "agreements",
+          "ai",
+          "intake",
+          "triage",
+          "and",
+          "risk"
+        ]
+      },
+      {
+        "id": "subprocessor-risk-review",
+        "kw": [
+          "subprocessor",
+          "risk",
+          "review",
+          "intake",
+          "triage",
+          "and",
+          "classification",
+          "evidence"
+        ]
+      },
+      {
+        "id": "terms-product-policy-ops",
+        "kw": [
+          "terms",
+          "product",
+          "policy",
+          "ops",
+          "intake",
+          "triage",
+          "and",
+          "risk"
         ]
       },
       {
@@ -7117,6 +7323,32 @@
         ]
       },
       {
+        "id": "creator-monetization-systems",
+        "kw": [
+          "creator",
+          "monetization",
+          "systems",
+          "supply",
+          "demand",
+          "health",
+          "matching",
+          "and"
+        ]
+      },
+      {
+        "id": "dispute-resolution-systems",
+        "kw": [
+          "dispute",
+          "resolution",
+          "systems",
+          "supply",
+          "demand",
+          "health",
+          "matching",
+          "and"
+        ]
+      },
+      {
         "id": "mcp-security",
         "kw": [
           "mcp",
@@ -7127,6 +7359,58 @@
           "user",
           "and",
           "input"
+        ]
+      },
+      {
+        "id": "compensation-leveling",
+        "kw": [
+          "compensation",
+          "leveling",
+          "role",
+          "lifecycle",
+          "workflows",
+          "fairness",
+          "and",
+          "calibration"
+        ]
+      },
+      {
+        "id": "employee-onboarding-systems",
+        "kw": [
+          "employee",
+          "onboarding",
+          "systems",
+          "role",
+          "lifecycle",
+          "workflows",
+          "fairness",
+          "and"
+        ]
+      },
+      {
+        "id": "performance-review-systems",
+        "kw": [
+          "performance",
+          "review",
+          "systems",
+          "role",
+          "lifecycle",
+          "workflows",
+          "fairness",
+          "and"
+        ]
+      },
+      {
+        "id": "workforce-scheduling",
+        "kw": [
+          "workforce",
+          "scheduling",
+          "role",
+          "lifecycle",
+          "workflows",
+          "fairness",
+          "and",
+          "calibration"
         ]
       },
       {
@@ -7260,6 +7544,71 @@
         ]
       },
       {
+        "id": "crm-lifecycle-ops",
+        "kw": [
+          "crm",
+          "lifecycle",
+          "ops",
+          "stage",
+          "definitions",
+          "source",
+          "truth",
+          "revenue"
+        ]
+      },
+      {
+        "id": "enterprise-sales-engineering",
+        "kw": [
+          "enterprise",
+          "sales",
+          "engineering",
+          "security",
+          "lifecycle",
+          "stage",
+          "definitions",
+          "crm"
+        ]
+      },
+      {
+        "id": "partner-channel-operations",
+        "kw": [
+          "partner",
+          "channel",
+          "operations",
+          "lifecycle",
+          "stage",
+          "definitions",
+          "crm",
+          "source"
+        ]
+      },
+      {
+        "id": "procurement-vendor-management",
+        "kw": [
+          "procurement",
+          "vendor",
+          "management",
+          "lifecycle",
+          "stage",
+          "definitions",
+          "crm",
+          "source"
+        ]
+      },
+      {
+        "id": "revenue-forecasting-pipeline",
+        "kw": [
+          "revenue",
+          "forecasting",
+          "pipeline",
+          "lifecycle",
+          "stage",
+          "definitions",
+          "crm",
+          "source"
+        ]
+      },
+      {
         "id": "statistical-analysis",
         "kw": [
           "statistical",
@@ -7383,7 +7732,10 @@
           "consent",
           "management",
           "web",
-          "mobile"
+          "mobile",
+          "build",
+          "buy",
+          "the"
         ]
       },
       {
@@ -7983,10 +8335,426 @@
           "bias",
           "identification"
         ]
+      },
+      {
+        "id": "abuse-fraud-prevention",
+        "kw": [
+          "abuse",
+          "fraud",
+          "prevention",
+          "scraping",
+          "policy",
+          "labels",
+          "and",
+          "review"
+        ]
+      },
+      {
+        "id": "appeals-policy-operations",
+        "kw": [
+          "appeals",
+          "policy",
+          "operations",
+          "labels",
+          "and",
+          "review",
+          "queue",
+          "design"
+        ]
+      },
+      {
+        "id": "marketplace-risk-controls",
+        "kw": [
+          "marketplace",
+          "risk",
+          "controls",
+          "policy",
+          "labels",
+          "and",
+          "review",
+          "queue"
+        ]
+      },
+      {
+        "id": "reputation-systems",
+        "kw": [
+          "reputation",
+          "systems",
+          "user",
+          "policy",
+          "labels",
+          "and",
+          "review",
+          "queue"
+        ]
       }
     ]
   },
   "flat": [
+    {
+      "id": "agent-communication",
+      "kw": [
+        "agent",
+        "communication",
+        "message",
+        "llm",
+        "passing",
+        "patterns",
+        "shared",
+        "memory"
+      ]
+    },
+    {
+      "id": "agent-evaluation",
+      "kw": [
+        "agent",
+        "evaluation",
+        "llm",
+        "behavioral",
+        "testing",
+        "benchmark",
+        "design",
+        "and"
+      ]
+    },
+    {
+      "id": "agent-memory-systems",
+      "kw": [
+        "agent",
+        "memory",
+        "systems",
+        "ai",
+        "architecture",
+        "type",
+        "selection",
+        "chunking"
+      ]
+    },
+    {
+      "id": "agent-tool-builder",
+      "kw": [
+        "agent",
+        "tool",
+        "builder",
+        "ai",
+        "schema",
+        "description",
+        "writing",
+        "error"
+      ]
+    },
+    {
+      "id": "ai-agent-permissions-sandboxing",
+      "kw": [
+        "agent",
+        "permissions",
+        "sandboxing",
+        "ai",
+        "tool",
+        "catalog",
+        "declarative",
+        "per"
+      ]
+    },
+    {
+      "id": "ai-chatbot-builder",
+      "kw": [
+        "chatbot",
+        "builder",
+        "conversation",
+        "memory",
+        "and",
+        "context",
+        "window",
+        "management"
+      ]
+    },
+    {
+      "id": "ai-evals-dataset-curation",
+      "kw": [
+        "evals",
+        "dataset",
+        "curation",
+        "llm",
+        "eval",
+        "taxonomy",
+        "categories",
+        "golden"
+      ]
+    },
+    {
+      "id": "autonomous-agents",
+      "kw": [
+        "autonomous",
+        "agents",
+        "agent",
+        "architecture",
+        "goal",
+        "decomposition",
+        "and",
+        "self"
+      ]
+    },
+    {
+      "id": "browser-automation",
+      "kw": [
+        "browser",
+        "automation",
+        "scraping",
+        "ai",
+        "agent",
+        "with",
+        "testing",
+        "proper"
+      ]
+    },
+    {
+      "id": "computer-use-agents",
+      "kw": [
+        "computer",
+        "use",
+        "agents",
+        "ai",
+        "security",
+        "perception",
+        "reasoning",
+        "action"
+      ]
+    },
+    {
+      "id": "context-window-management",
+      "kw": [
+        "context",
+        "window",
+        "management",
+        "llm",
+        "engineering",
+        "summarization",
+        "trimming",
+        "routing"
+      ]
+    },
+    {
+      "id": "conversation-memory",
+      "kw": [
+        "conversation",
+        "memory",
+        "llm",
+        "short",
+        "term",
+        "long",
+        "entity",
+        "persistence"
+      ]
+    },
+    {
+      "id": "conversational-intent-design",
+      "kw": [
+        "conversational",
+        "intent",
+        "design",
+        "llm",
+        "chat",
+        "user",
+        "taxonomy",
+        "hybrid"
+      ]
+    },
+    {
+      "id": "crewai",
+      "kw": [
+        "crewai",
+        "agent",
+        "ai",
+        "definitions",
+        "with",
+        "task",
+        "design",
+        "crew"
+      ]
+    },
+    {
+      "id": "human-in-the-loop-review",
+      "kw": [
+        "human",
+        "the",
+        "loop",
+        "review",
+        "ai",
+        "ml",
+        "queue",
+        "data"
+      ]
+    },
+    {
+      "id": "langfuse",
+      "kw": [
+        "langfuse",
+        "llm",
+        "tracing",
+        "and",
+        "prompt",
+        "management",
+        "versioning",
+        "evaluation"
+      ]
+    },
+    {
+      "id": "langgraph",
+      "kw": [
+        "langgraph",
+        "ai",
+        "react",
+        "agent",
+        "graph",
+        "topology",
+        "design",
+        "state"
+      ]
+    },
+    {
+      "id": "llm-cost-governance",
+      "kw": [
+        "llm",
+        "cost",
+        "governance",
+        "user",
+        "per",
+        "call",
+        "attribution",
+        "feature"
+      ]
+    },
+    {
+      "id": "multi-agent-orchestration",
+      "kw": [
+        "multi",
+        "agent",
+        "orchestration",
+        "llm",
+        "coordination",
+        "patterns",
+        "state",
+        "workflow"
+      ]
+    },
+    {
+      "id": "multi-modal-upload-intake",
+      "kw": [
+        "multi",
+        "modal",
+        "upload",
+        "intake",
+        "ai",
+        "audio",
+        "video",
+        "format"
+      ]
+    },
+    {
+      "id": "prompt-caching",
+      "kw": [
+        "prompt",
+        "caching",
+        "llm",
+        "cache",
+        "provider",
+        "response",
+        "full",
+        "semantic"
+      ]
+    },
+    {
+      "id": "prompt-engineer",
+      "kw": [
+        "prompt",
+        "engineer",
+        "llm",
+        "ai",
+        "design",
+        "structure",
+        "system",
+        "architecture"
+      ]
+    },
+    {
+      "id": "prompt-versioning-release-management",
+      "kw": [
+        "prompt",
+        "versioning",
+        "release",
+        "management",
+        "registry",
+        "data",
+        "source",
+        "truth"
+      ]
+    },
+    {
+      "id": "rag-implementation",
+      "kw": [
+        "rag",
+        "implementation",
+        "document",
+        "chunking",
+        "strategies",
+        "embedding",
+        "model",
+        "selection"
+      ]
+    },
+    {
+      "id": "voice-agents",
+      "kw": [
+        "voice",
+        "agents",
+        "agent",
+        "realtime",
+        "architecture",
+        "speech",
+        "text",
+        "integration"
+      ]
+    },
+    {
+      "id": "voice-ai-development",
+      "kw": [
+        "voice",
+        "development",
+        "ai",
+        "realtime",
+        "api",
+        "openai",
+        "vapi",
+        "agents"
+      ]
+    },
+    {
+      "id": "workflow-automation",
+      "kw": [
+        "workflow",
+        "automation",
+        "ai",
+        "durable",
+        "execution",
+        "event",
+        "driven",
+        "workflows"
+      ]
+    },
+    {
+      "id": "zapier-make-patterns",
+      "kw": [
+        "zapier",
+        "make",
+        "patterns",
+        "automation",
+        "workflow",
+        "design",
+        "integromat",
+        "scenario"
+      ]
+    },
     {
       "id": "ai-code-generation",
       "kw": [
@@ -8440,370 +9208,6 @@
         "shadcn",
         "composition",
         "output"
-      ]
-    },
-    {
-      "id": "agent-communication",
-      "kw": [
-        "agent",
-        "communication",
-        "message",
-        "llm",
-        "passing",
-        "patterns",
-        "shared",
-        "memory"
-      ]
-    },
-    {
-      "id": "agent-evaluation",
-      "kw": [
-        "agent",
-        "evaluation",
-        "llm",
-        "behavioral",
-        "testing",
-        "benchmark",
-        "design",
-        "and"
-      ]
-    },
-    {
-      "id": "agent-memory-systems",
-      "kw": [
-        "agent",
-        "memory",
-        "systems",
-        "ai",
-        "architecture",
-        "type",
-        "selection",
-        "chunking"
-      ]
-    },
-    {
-      "id": "agent-tool-builder",
-      "kw": [
-        "agent",
-        "tool",
-        "builder",
-        "ai",
-        "schema",
-        "description",
-        "writing",
-        "error"
-      ]
-    },
-    {
-      "id": "ai-agent-permissions-sandboxing",
-      "kw": [
-        "agent",
-        "permissions",
-        "sandboxing",
-        "ai",
-        "tool",
-        "catalog",
-        "declarative",
-        "per"
-      ]
-    },
-    {
-      "id": "ai-chatbot-builder",
-      "kw": [
-        "chatbot",
-        "builder",
-        "conversation",
-        "memory",
-        "and",
-        "context",
-        "window",
-        "management"
-      ]
-    },
-    {
-      "id": "ai-evals-dataset-curation",
-      "kw": [
-        "evals",
-        "dataset",
-        "curation",
-        "llm",
-        "eval",
-        "taxonomy",
-        "categories",
-        "golden"
-      ]
-    },
-    {
-      "id": "autonomous-agents",
-      "kw": [
-        "autonomous",
-        "agents",
-        "agent",
-        "architecture",
-        "goal",
-        "decomposition",
-        "and",
-        "self"
-      ]
-    },
-    {
-      "id": "browser-automation",
-      "kw": [
-        "browser",
-        "automation",
-        "scraping",
-        "ai",
-        "agent",
-        "with",
-        "testing",
-        "proper"
-      ]
-    },
-    {
-      "id": "computer-use-agents",
-      "kw": [
-        "computer",
-        "use",
-        "agents",
-        "ai",
-        "security",
-        "perception",
-        "reasoning",
-        "action"
-      ]
-    },
-    {
-      "id": "context-window-management",
-      "kw": [
-        "context",
-        "window",
-        "management",
-        "llm",
-        "engineering",
-        "summarization",
-        "trimming",
-        "routing"
-      ]
-    },
-    {
-      "id": "conversation-memory",
-      "kw": [
-        "conversation",
-        "memory",
-        "llm",
-        "short",
-        "term",
-        "long",
-        "entity",
-        "persistence"
-      ]
-    },
-    {
-      "id": "conversational-intent-design",
-      "kw": [
-        "conversational",
-        "intent",
-        "design",
-        "llm",
-        "chat",
-        "user",
-        "taxonomy",
-        "hybrid"
-      ]
-    },
-    {
-      "id": "crewai",
-      "kw": [
-        "crewai",
-        "agent",
-        "ai",
-        "definitions",
-        "with",
-        "task",
-        "design",
-        "crew"
-      ]
-    },
-    {
-      "id": "human-in-the-loop-review",
-      "kw": [
-        "human",
-        "the",
-        "loop",
-        "review",
-        "ai",
-        "ml",
-        "queue",
-        "data"
-      ]
-    },
-    {
-      "id": "langfuse",
-      "kw": [
-        "langfuse",
-        "llm",
-        "tracing",
-        "and",
-        "prompt",
-        "management",
-        "versioning",
-        "evaluation"
-      ]
-    },
-    {
-      "id": "langgraph",
-      "kw": [
-        "langgraph",
-        "ai",
-        "react",
-        "agent",
-        "graph",
-        "topology",
-        "design",
-        "state"
-      ]
-    },
-    {
-      "id": "llm-cost-governance",
-      "kw": [
-        "llm",
-        "cost",
-        "governance",
-        "user",
-        "per",
-        "call",
-        "attribution",
-        "feature"
-      ]
-    },
-    {
-      "id": "multi-agent-orchestration",
-      "kw": [
-        "multi",
-        "agent",
-        "orchestration",
-        "llm",
-        "coordination",
-        "patterns",
-        "state",
-        "workflow"
-      ]
-    },
-    {
-      "id": "multi-modal-upload-intake",
-      "kw": [
-        "multi",
-        "modal",
-        "upload",
-        "intake",
-        "ai",
-        "audio",
-        "video",
-        "format"
-      ]
-    },
-    {
-      "id": "prompt-caching",
-      "kw": [
-        "prompt",
-        "caching",
-        "llm",
-        "cache",
-        "provider",
-        "response",
-        "full",
-        "semantic"
-      ]
-    },
-    {
-      "id": "prompt-engineer",
-      "kw": [
-        "prompt",
-        "engineer",
-        "llm",
-        "ai",
-        "design",
-        "structure",
-        "system",
-        "architecture"
-      ]
-    },
-    {
-      "id": "prompt-versioning-release-management",
-      "kw": [
-        "prompt",
-        "versioning",
-        "release",
-        "management",
-        "registry",
-        "data",
-        "source",
-        "truth"
-      ]
-    },
-    {
-      "id": "rag-implementation",
-      "kw": [
-        "rag",
-        "implementation",
-        "document",
-        "chunking",
-        "strategies",
-        "embedding",
-        "model",
-        "selection"
-      ]
-    },
-    {
-      "id": "voice-agents",
-      "kw": [
-        "voice",
-        "agents",
-        "agent",
-        "realtime",
-        "architecture",
-        "speech",
-        "text",
-        "integration"
-      ]
-    },
-    {
-      "id": "voice-ai-development",
-      "kw": [
-        "voice",
-        "development",
-        "ai",
-        "realtime",
-        "api",
-        "openai",
-        "vapi",
-        "agents"
-      ]
-    },
-    {
-      "id": "workflow-automation",
-      "kw": [
-        "workflow",
-        "automation",
-        "ai",
-        "durable",
-        "execution",
-        "event",
-        "driven",
-        "workflows"
-      ]
-    },
-    {
-      "id": "zapier-make-patterns",
-      "kw": [
-        "zapier",
-        "make",
-        "patterns",
-        "automation",
-        "workflow",
-        "design",
-        "integromat",
-        "scenario"
       ]
     },
     {
@@ -10796,6 +11200,58 @@
       ]
     },
     {
+      "id": "account-health-scoring",
+      "kw": [
+        "account",
+        "health",
+        "scoring",
+        "signal",
+        "design",
+        "retention",
+        "intervention",
+        "playbooks"
+      ]
+    },
+    {
+      "id": "churn-risk-retention",
+      "kw": [
+        "churn",
+        "risk",
+        "retention",
+        "health",
+        "signal",
+        "design",
+        "intervention",
+        "playbooks"
+      ]
+    },
+    {
+      "id": "customer-education-ops",
+      "kw": [
+        "customer",
+        "education",
+        "ops",
+        "health",
+        "signal",
+        "design",
+        "retention",
+        "intervention"
+      ]
+    },
+    {
+      "id": "support-quality-qa",
+      "kw": [
+        "support",
+        "quality",
+        "health",
+        "signal",
+        "design",
+        "retention",
+        "intervention",
+        "playbooks"
+      ]
+    },
+    {
       "id": "agent-based-modeling",
       "kw": [
         "agent",
@@ -11789,7 +12245,11 @@
         "disaster",
         "readiness",
         "drills",
-        "game"
+        "game",
+        "drill",
+        "cadence",
+        "and",
+        "blast"
       ]
     },
     {
@@ -12033,7 +12493,10 @@
         "status",
         "page",
         "incident",
-        "comms"
+        "comms",
+        "provider",
+        "component",
+        "model"
       ]
     },
     {
@@ -12380,7 +12843,11 @@
         "tax",
         "compliance",
         "sales",
-        "vat"
+        "vat",
+        "which",
+        "engine",
+        "where",
+        "the"
       ]
     },
     {
@@ -13658,6 +14125,58 @@
       ]
     },
     {
+      "id": "clinical-workflow-safety",
+      "kw": [
+        "clinical",
+        "workflow",
+        "safety",
+        "phi",
+        "boundary",
+        "mapping",
+        "consent",
+        "and"
+      ]
+    },
+    {
+      "id": "healthcare-interoperability-fhir",
+      "kw": [
+        "healthcare",
+        "interoperability",
+        "fhir",
+        "phi",
+        "boundary",
+        "mapping",
+        "consent",
+        "and"
+      ]
+    },
+    {
+      "id": "hipaa-product-architecture",
+      "kw": [
+        "hipaa",
+        "product",
+        "architecture",
+        "phi",
+        "boundary",
+        "mapping",
+        "consent",
+        "and"
+      ]
+    },
+    {
+      "id": "patient-consent-records",
+      "kw": [
+        "patient",
+        "consent",
+        "records",
+        "phi",
+        "boundary",
+        "mapping",
+        "and",
+        "authorization"
+      ]
+    },
+    {
       "id": "aws-serverless",
       "kw": [
         "aws",
@@ -14058,6 +14577,71 @@
         "and",
         "custom",
         "fields"
+      ]
+    },
+    {
+      "id": "ai-governance-policy",
+      "kw": [
+        "governance",
+        "policy",
+        "ai",
+        "workflow",
+        "intake",
+        "triage",
+        "and",
+        "risk"
+      ]
+    },
+    {
+      "id": "contract-lifecycle-ops",
+      "kw": [
+        "contract",
+        "lifecycle",
+        "ops",
+        "intake",
+        "triage",
+        "and",
+        "risk",
+        "classification"
+      ]
+    },
+    {
+      "id": "data-processing-agreements",
+      "kw": [
+        "data",
+        "processing",
+        "agreements",
+        "ai",
+        "intake",
+        "triage",
+        "and",
+        "risk"
+      ]
+    },
+    {
+      "id": "subprocessor-risk-review",
+      "kw": [
+        "subprocessor",
+        "risk",
+        "review",
+        "intake",
+        "triage",
+        "and",
+        "classification",
+        "evidence"
+      ]
+    },
+    {
+      "id": "terms-product-policy-ops",
+      "kw": [
+        "terms",
+        "product",
+        "policy",
+        "ops",
+        "intake",
+        "triage",
+        "and",
+        "risk"
       ]
     },
     {
@@ -14620,6 +15204,45 @@
       ]
     },
     {
+      "id": "creator-monetization-systems",
+      "kw": [
+        "creator",
+        "monetization",
+        "systems",
+        "supply",
+        "demand",
+        "health",
+        "matching",
+        "and"
+      ]
+    },
+    {
+      "id": "dispute-resolution-systems",
+      "kw": [
+        "dispute",
+        "resolution",
+        "systems",
+        "supply",
+        "demand",
+        "health",
+        "matching",
+        "and"
+      ]
+    },
+    {
+      "id": "marketplace-liquidity",
+      "kw": [
+        "marketplace",
+        "liquidity",
+        "supply",
+        "demand",
+        "health",
+        "matching",
+        "and",
+        "ranking"
+      ]
+    },
+    {
       "id": "mcp-deployment",
       "kw": [
         "mcp",
@@ -14682,6 +15305,58 @@
         "otter",
         "superhuman",
         "calendar"
+      ]
+    },
+    {
+      "id": "compensation-leveling",
+      "kw": [
+        "compensation",
+        "leveling",
+        "role",
+        "lifecycle",
+        "workflows",
+        "fairness",
+        "and",
+        "calibration"
+      ]
+    },
+    {
+      "id": "employee-onboarding-systems",
+      "kw": [
+        "employee",
+        "onboarding",
+        "systems",
+        "role",
+        "lifecycle",
+        "workflows",
+        "fairness",
+        "and"
+      ]
+    },
+    {
+      "id": "performance-review-systems",
+      "kw": [
+        "performance",
+        "review",
+        "systems",
+        "role",
+        "lifecycle",
+        "workflows",
+        "fairness",
+        "and"
+      ]
+    },
+    {
+      "id": "workforce-scheduling",
+      "kw": [
+        "workforce",
+        "scheduling",
+        "role",
+        "lifecycle",
+        "workflows",
+        "fairness",
+        "and",
+        "calibration"
       ]
     },
     {
@@ -14851,6 +15526,71 @@
         "prioritization",
         "rice",
         "requirements"
+      ]
+    },
+    {
+      "id": "crm-lifecycle-ops",
+      "kw": [
+        "crm",
+        "lifecycle",
+        "ops",
+        "stage",
+        "definitions",
+        "source",
+        "truth",
+        "revenue"
+      ]
+    },
+    {
+      "id": "enterprise-sales-engineering",
+      "kw": [
+        "enterprise",
+        "sales",
+        "engineering",
+        "security",
+        "lifecycle",
+        "stage",
+        "definitions",
+        "crm"
+      ]
+    },
+    {
+      "id": "partner-channel-operations",
+      "kw": [
+        "partner",
+        "channel",
+        "operations",
+        "lifecycle",
+        "stage",
+        "definitions",
+        "crm",
+        "source"
+      ]
+    },
+    {
+      "id": "procurement-vendor-management",
+      "kw": [
+        "procurement",
+        "vendor",
+        "management",
+        "lifecycle",
+        "stage",
+        "definitions",
+        "crm",
+        "source"
+      ]
+    },
+    {
+      "id": "revenue-forecasting-pipeline",
+      "kw": [
+        "revenue",
+        "forecasting",
+        "pipeline",
+        "lifecycle",
+        "stage",
+        "definitions",
+        "crm",
+        "source"
       ]
     },
     {
@@ -15068,7 +15808,10 @@
         "consent",
         "management",
         "web",
-        "mobile"
+        "mobile",
+        "build",
+        "buy",
+        "the"
       ]
     },
     {
@@ -15940,6 +16683,71 @@
         "cognitive",
         "bias",
         "identification"
+      ]
+    },
+    {
+      "id": "abuse-fraud-prevention",
+      "kw": [
+        "abuse",
+        "fraud",
+        "prevention",
+        "scraping",
+        "policy",
+        "labels",
+        "and",
+        "review"
+      ]
+    },
+    {
+      "id": "appeals-policy-operations",
+      "kw": [
+        "appeals",
+        "policy",
+        "operations",
+        "labels",
+        "and",
+        "review",
+        "queue",
+        "design"
+      ]
+    },
+    {
+      "id": "content-moderation-systems",
+      "kw": [
+        "content",
+        "moderation",
+        "systems",
+        "policy",
+        "labels",
+        "and",
+        "review",
+        "queue"
+      ]
+    },
+    {
+      "id": "marketplace-risk-controls",
+      "kw": [
+        "marketplace",
+        "risk",
+        "controls",
+        "policy",
+        "labels",
+        "and",
+        "review",
+        "queue"
+      ]
+    },
+    {
+      "id": "reputation-systems",
+      "kw": [
+        "reputation",
+        "systems",
+        "user",
+        "policy",
+        "labels",
+        "and",
+        "review",
+        "queue"
       ]
     }
   ]

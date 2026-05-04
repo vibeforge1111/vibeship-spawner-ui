@@ -58,6 +58,8 @@
 			goldenCaseCount: number;
 			challengeCaseCount: number;
 			coverageGapCount: number;
+			operationalCategoryCount: number;
+			operationalSkillCount: number;
 			topKLimitSlots: number;
 			returnedRecommendationCount: number;
 		};
@@ -106,6 +108,14 @@
 			path: string;
 			why: string;
 		}>;
+		operationalCategoryCoverage: Array<{
+			category: string;
+			label: string;
+			skillCount: number;
+			expectedSkillCount: number;
+			status: 'ready' | 'short';
+			sampleSkills: Array<{ id: string; name: string }>;
+		}>;
 		cases: EvalCase[];
 	};
 
@@ -152,6 +162,10 @@
 		}
 		if (testCase.labeledPrecisionAtK < 0.5) return 'review low labeled precision';
 		return 'looks healthy';
+	}
+
+	function sampleSkillIds(category: PageData['operationalCategoryCoverage'][number]) {
+		return category.sampleSkills.map((skill: { id: string }) => skill.id).join(', ');
 	}
 </script>
 
@@ -236,6 +250,30 @@
 					<p class="mt-1 text-lg font-semibold text-text-bright">{data.project.coverageGapCount}</p>
 					<p class="mt-0.5 text-text-secondary">Proxy matches that should improve when new skills land.</p>
 				</div>
+			</div>
+		</section>
+
+		<section class="panel overflow-hidden" aria-label="New operational category coverage">
+			<div class="border-b border-surface-border px-3 py-2">
+				<h2 class="text-sm font-semibold">New operational categories</h2>
+				<p class="mt-0.5 text-xs text-text-tertiary">
+					{data.project.operationalSkillCount} skills across {data.project.operationalCategoryCount} categories synced from Spark.
+				</p>
+			</div>
+			<div class="grid divide-y divide-surface-border md:grid-cols-2 md:divide-x md:divide-y-0 xl:grid-cols-4">
+				{#each data.operationalCategoryCoverage as category}
+					<div class="min-w-0 px-3 py-3 text-xs">
+						<div class="flex items-center justify-between gap-2">
+							<p class="font-semibold text-text-bright">{category.label}</p>
+							<span class={category.status === 'ready' ? 'badge-success' : 'badge-warning'}>
+								{category.skillCount}/{category.expectedSkillCount}
+							</span>
+						</div>
+						<p class="mt-2 line-clamp-2 text-text-secondary">
+							{sampleSkillIds(category)}
+						</p>
+					</div>
+				{/each}
 			</div>
 		</section>
 

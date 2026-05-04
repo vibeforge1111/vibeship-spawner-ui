@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "generatedAt": "deterministic",
-  "totalSkills": 613,
+  "totalSkills": 643,
   "categories": [
     "ai",
     "ai-agents",
@@ -13,6 +13,7 @@
     "communications",
     "community",
     "creative",
+    "customer-success",
     "data",
     "design",
     "development",
@@ -25,12 +26,17 @@
     "frameworks",
     "frontend",
     "game-dev",
+    "healthcare",
     "infrastructure",
     "integrations",
+    "legal",
     "marketing",
+    "marketplaces",
     "mcp",
     "methodology",
+    "people-ops",
     "product",
+    "revenue-ops",
     "science",
     "security",
     "space",
@@ -39,7 +45,8 @@
     "architecture",
     "enterprise",
     "testing",
-    "trading"
+    "trading",
+    "trust-safety"
   ],
   "skills": [
     {
@@ -7752,6 +7759,229 @@
       "selectionHints": {}
     },
     {
+      "id": "account-health-scoring",
+      "name": "account-health-scoring",
+      "description": "Account health scoring with usage, support, billing, sentiment, and relationship signals that explain their confidence",
+      "owns": [
+        "Health signal design for account health scoring",
+        "Retention intervention playbooks for account health scoring",
+        "Support quality calibration for account health scoring",
+        "Education and adoption telemetry for account health scoring",
+        "Escalation ownership for account health scoring",
+        "Voice-of-customer feedback loops for account health scoring"
+      ],
+      "triggers": [
+        "account health",
+        "customer health score",
+        "health scoring",
+        "account-health-scoring",
+        "account health scoring",
+        "health score",
+        "usage",
+        "support",
+        "sentiment",
+        "billing",
+        "confidence",
+        "account",
+        "health",
+        "scoring",
+        "relationship",
+        "signals"
+      ],
+      "category": "customer-success",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "account health",
+          "customer health score",
+          "health scoring"
+        ],
+        "boost_terms": [
+          "health score",
+          "usage",
+          "support",
+          "sentiment",
+          "billing",
+          "confidence"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "churn-risk-retention",
+      "name": "churn-risk-retention",
+      "description": "Churn-risk and retention systems for health signals, intervention playbooks, renewal risk, and win-back loops",
+      "owns": [
+        "Health signal design for churn risk retention",
+        "Retention intervention playbooks for churn risk retention",
+        "Support quality calibration for churn risk retention",
+        "Education and adoption telemetry for churn risk retention",
+        "Escalation ownership for churn risk retention",
+        "Voice-of-customer feedback loops for churn risk retention"
+      ],
+      "triggers": [
+        "churn risk",
+        "retention ops",
+        "renewal risk",
+        "save plays",
+        "churn-risk-retention",
+        "churn risk retention",
+        "churn",
+        "retention",
+        "renewals",
+        "health signals",
+        "interventions",
+        "systems",
+        "health",
+        "signals",
+        "intervention",
+        "playbooks"
+      ],
+      "category": "customer-success",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "churn risk",
+          "retention ops",
+          "renewal risk",
+          "save plays"
+        ],
+        "boost_terms": [
+          "churn",
+          "retention",
+          "renewals",
+          "health signals",
+          "interventions"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "customer-education-ops",
+      "name": "customer-education-ops",
+      "description": "Customer education operations for help academies, onboarding paths, certification, adoption telemetry, and content maintenance",
+      "owns": [
+        "Health signal design for customer education ops",
+        "Retention intervention playbooks for customer education ops",
+        "Support quality calibration for customer education ops",
+        "Education and adoption telemetry for customer education ops",
+        "Escalation ownership for customer education ops",
+        "Voice-of-customer feedback loops for customer education ops"
+      ],
+      "triggers": [
+        "customer education",
+        "academy ops",
+        "training ops",
+        "enablement academy",
+        "customer-education-ops",
+        "customer education ops",
+        "education",
+        "academy",
+        "certification",
+        "onboarding",
+        "adoption",
+        "customer",
+        "operations",
+        "academies",
+        "telemetry"
+      ],
+      "category": "customer-success",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "customer education",
+          "academy ops",
+          "training ops",
+          "enablement academy"
+        ],
+        "boost_terms": [
+          "education",
+          "academy",
+          "certification",
+          "onboarding",
+          "adoption"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "support-quality-qa",
+      "name": "support-quality-qa",
+      "description": "Support quality QA systems for rubric design, calibration, escalation, coaching, and knowledge-loop closure",
+      "owns": [
+        "Health signal design for support quality qa",
+        "Retention intervention playbooks for support quality qa",
+        "Support quality calibration for support quality qa",
+        "Education and adoption telemetry for support quality qa",
+        "Escalation ownership for support quality qa",
+        "Voice-of-customer feedback loops for support quality qa"
+      ],
+      "triggers": [
+        "support qa",
+        "support quality",
+        "ticket qa",
+        "agent calibration",
+        "support-quality-qa",
+        "support quality qa",
+        "support",
+        "qa",
+        "rubrics",
+        "calibration",
+        "escalation",
+        "quality",
+        "systems",
+        "rubric",
+        "design",
+        "coaching"
+      ],
+      "category": "customer-success",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "support qa",
+          "support quality",
+          "ticket qa",
+          "agent calibration"
+        ],
+        "boost_terms": [
+          "support",
+          "qa",
+          "rubrics",
+          "calibration",
+          "escalation"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming",
+          "admin dashboard",
+          "backoffice dashboard",
+          "admin backoffice",
+          "dashboard"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
       "id": "agent-based-modeling",
       "name": "agent-based-modeling",
       "description": "Design and implement ABM for complex systems with emergent behavior from individual agent interactions",
@@ -15329,6 +15559,224 @@
       "selectionHints": {}
     },
     {
+      "id": "clinical-workflow-safety",
+      "name": "clinical-workflow-safety",
+      "description": "Clinical workflow safety checks for escalation, handoff, triage, decision support, and human review boundaries",
+      "owns": [
+        "PHI boundary mapping for clinical workflow safety",
+        "Consent and authorization state machines for clinical workflow safety",
+        "Clinical handoff safety for clinical workflow safety",
+        "Audit trail completeness for clinical workflow safety",
+        "Integration contract review for clinical workflow safety",
+        "Minimum-necessary access controls for clinical workflow safety"
+      ],
+      "triggers": [
+        "clinical safety",
+        "clinical workflows",
+        "healthcare safety",
+        "clinical triage",
+        "clinical-workflow-safety",
+        "clinical workflow safety",
+        "clinical",
+        "handoff",
+        "triage",
+        "escalation",
+        "decision support",
+        "workflow",
+        "safety",
+        "checks",
+        "decision"
+      ],
+      "category": "healthcare",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "clinical safety",
+          "clinical workflows",
+          "healthcare safety",
+          "clinical triage"
+        ],
+        "boost_terms": [
+          "clinical",
+          "handoff",
+          "triage",
+          "escalation",
+          "decision support"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "healthcare-interoperability-fhir",
+      "name": "healthcare-interoperability-fhir",
+      "description": "FHIR and healthcare interoperability design for records, consent, identity, and clinical system integrations",
+      "owns": [
+        "PHI boundary mapping for healthcare interoperability fhir",
+        "Consent and authorization state machines for healthcare interoperability fhir",
+        "Clinical handoff safety for healthcare interoperability fhir",
+        "Audit trail completeness for healthcare interoperability fhir",
+        "Integration contract review for healthcare interoperability fhir",
+        "Minimum-necessary access controls for healthcare interoperability fhir"
+      ],
+      "triggers": [
+        "fhir",
+        "health interoperability",
+        "hl7 fhir",
+        "clinical integrations",
+        "healthcare-interoperability-fhir",
+        "healthcare interoperability fhir",
+        "hl7",
+        "ehr",
+        "patient records",
+        "interoperability",
+        "healthcare",
+        "design",
+        "records",
+        "consent",
+        "identity",
+        "clinical"
+      ],
+      "category": "healthcare",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "fhir",
+          "health interoperability",
+          "hl7 fhir",
+          "clinical integrations"
+        ],
+        "boost_terms": [
+          "fhir",
+          "hl7",
+          "ehr",
+          "patient records",
+          "interoperability"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "hipaa-product-architecture",
+      "name": "hipaa-product-architecture",
+      "description": "HIPAA-aware product architecture for PHI boundaries, access controls, audit trails, and business associate workflows",
+      "owns": [
+        "PHI boundary mapping for hipaa product architecture",
+        "Consent and authorization state machines for hipaa product architecture",
+        "Clinical handoff safety for hipaa product architecture",
+        "Audit trail completeness for hipaa product architecture",
+        "Integration contract review for hipaa product architecture",
+        "Minimum-necessary access controls for hipaa product architecture"
+      ],
+      "triggers": [
+        "hipaa architecture",
+        "phi product",
+        "health compliance architecture",
+        "hipaa-product-architecture",
+        "hipaa product architecture",
+        "hipaa",
+        "phi",
+        "baa",
+        "audit trails",
+        "minimum necessary",
+        "product",
+        "architecture",
+        "boundaries",
+        "access",
+        "controls",
+        "trails"
+      ],
+      "category": "healthcare",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "hipaa architecture",
+          "phi product",
+          "health compliance architecture"
+        ],
+        "boost_terms": [
+          "hipaa",
+          "phi",
+          "baa",
+          "audit trails",
+          "minimum necessary"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "patient-consent-records",
+      "name": "patient-consent-records",
+      "description": "Patient consent, revocation, authorization, and record-release workflows with auditable state transitions",
+      "owns": [
+        "PHI boundary mapping for patient consent records",
+        "Consent and authorization state machines for patient consent records",
+        "Clinical handoff safety for patient consent records",
+        "Audit trail completeness for patient consent records",
+        "Integration contract review for patient consent records",
+        "Minimum-necessary access controls for patient consent records"
+      ],
+      "triggers": [
+        "patient consent",
+        "consent records",
+        "authorization release",
+        "health consent",
+        "patient-consent-records",
+        "patient consent records",
+        "consent",
+        "revocation",
+        "authorization",
+        "records release",
+        "audit",
+        "patient",
+        "record",
+        "release",
+        "workflows",
+        "auditable"
+      ],
+      "category": "healthcare",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "patient consent",
+          "consent records",
+          "authorization release",
+          "health consent"
+        ],
+        "boost_terms": [
+          "consent",
+          "revocation",
+          "authorization",
+          "records release",
+          "audit"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
       "id": "aws-serverless",
       "name": "aws-serverless",
       "description": "Production AWS serverless - Lambda, API Gateway, DynamoDB, and event-driven architectures",
@@ -16343,6 +16791,279 @@
       "category": "integrations",
       "pairsWell": [],
       "selectionHints": {}
+    },
+    {
+      "id": "ai-governance-policy",
+      "name": "ai-governance-policy",
+      "description": "AI governance policy, model-use controls, evaluation evidence, and high-risk AI workflow review",
+      "owns": [
+        "Intake triage and review routing for ai governance policy",
+        "Risk classification and approval thresholds for ai governance policy",
+        "Evidence packets for counsel and business owners for ai governance policy",
+        "Renewal and obligation tracking for ai governance policy",
+        "Policy-to-product consistency checks for ai governance policy",
+        "Audit-ready decision history for ai governance policy"
+      ],
+      "triggers": [
+        "ai governance",
+        "model policy",
+        "responsible ai policy",
+        "ai risk review",
+        "ai-governance-policy",
+        "ai governance policy",
+        "model risk",
+        "evaluation evidence",
+        "human oversight",
+        "policy",
+        "governance",
+        "controls",
+        "evaluation",
+        "evidence",
+        "workflow",
+        "review"
+      ],
+      "category": "legal",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "ai governance",
+          "model policy",
+          "responsible ai policy",
+          "ai risk review"
+        ],
+        "boost_terms": [
+          "ai governance",
+          "model risk",
+          "evaluation evidence",
+          "human oversight",
+          "policy"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "contract-lifecycle-ops",
+      "name": "contract-lifecycle-ops",
+      "description": "Contract intake, review routing, obligation tracking, and renewal controls for product and enterprise teams",
+      "owns": [
+        "Intake triage and review routing for contract lifecycle ops",
+        "Risk classification and approval thresholds for contract lifecycle ops",
+        "Evidence packets for counsel and business owners for contract lifecycle ops",
+        "Renewal and obligation tracking for contract lifecycle ops",
+        "Policy-to-product consistency checks for contract lifecycle ops",
+        "Audit-ready decision history for contract lifecycle ops"
+      ],
+      "triggers": [
+        "contract operations",
+        "contract lifecycle",
+        "clm",
+        "legal ops",
+        "contract-lifecycle-ops",
+        "contract lifecycle ops",
+        "contracts",
+        "renewals",
+        "obligations",
+        "approvals",
+        "redlines",
+        "contract",
+        "intake",
+        "review",
+        "routing",
+        "obligation"
+      ],
+      "category": "legal",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "contract operations",
+          "contract lifecycle",
+          "clm",
+          "legal ops"
+        ],
+        "boost_terms": [
+          "contracts",
+          "renewals",
+          "obligations",
+          "approvals",
+          "redlines"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "data-processing-agreements",
+      "name": "data-processing-agreements",
+      "description": "DPA, subprocessor, data transfer, and privacy annex review for SaaS and AI products",
+      "owns": [
+        "Intake triage and review routing for data processing agreements",
+        "Risk classification and approval thresholds for data processing agreements",
+        "Evidence packets for counsel and business owners for data processing agreements",
+        "Renewal and obligation tracking for data processing agreements",
+        "Policy-to-product consistency checks for data processing agreements",
+        "Audit-ready decision history for data processing agreements"
+      ],
+      "triggers": [
+        "dpa review",
+        "privacy annex",
+        "data processing agreement",
+        "data transfer",
+        "data-processing-agreements",
+        "data processing agreements",
+        "dpa",
+        "subprocessors",
+        "privacy",
+        "processors",
+        "subprocessor",
+        "transfer",
+        "review",
+        "products"
+      ],
+      "category": "legal",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "dpa review",
+          "privacy annex",
+          "data processing agreement",
+          "data transfer"
+        ],
+        "boost_terms": [
+          "dpa",
+          "subprocessors",
+          "privacy",
+          "data transfer",
+          "processors"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "subprocessor-risk-review",
+      "name": "subprocessor-risk-review",
+      "description": "Third-party subprocessor review, vendor evidence tracking, data access boundaries, and customer disclosure workflows",
+      "owns": [
+        "Intake triage and review routing for subprocessor risk review",
+        "Risk classification and approval thresholds for subprocessor risk review",
+        "Evidence packets for counsel and business owners for subprocessor risk review",
+        "Renewal and obligation tracking for subprocessor risk review",
+        "Policy-to-product consistency checks for subprocessor risk review",
+        "Audit-ready decision history for subprocessor risk review"
+      ],
+      "triggers": [
+        "subprocessor review",
+        "vendor privacy review",
+        "processor risk",
+        "third party risk",
+        "subprocessor-risk-review",
+        "subprocessor risk review",
+        "subprocessors",
+        "vendors",
+        "dpas",
+        "soc2",
+        "risk review",
+        "subprocessor",
+        "review",
+        "vendor",
+        "evidence",
+        "tracking"
+      ],
+      "category": "legal",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "subprocessor review",
+          "vendor privacy review",
+          "processor risk",
+          "third party risk"
+        ],
+        "boost_terms": [
+          "subprocessors",
+          "vendors",
+          "dpas",
+          "soc2",
+          "risk review"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "terms-product-policy-ops",
+      "name": "terms-product-policy-ops",
+      "description": "Terms of service, acceptable-use, product policy, and launch review systems that stay aligned with real product behavior",
+      "owns": [
+        "Intake triage and review routing for terms product policy ops",
+        "Risk classification and approval thresholds for terms product policy ops",
+        "Evidence packets for counsel and business owners for terms product policy ops",
+        "Renewal and obligation tracking for terms product policy ops",
+        "Policy-to-product consistency checks for terms product policy ops",
+        "Audit-ready decision history for terms product policy ops"
+      ],
+      "triggers": [
+        "terms ops",
+        "product policy",
+        "acceptable use policy",
+        "tos review",
+        "terms-product-policy-ops",
+        "terms product policy ops",
+        "terms",
+        "policy",
+        "acceptable use",
+        "launch review",
+        "user rights",
+        "service",
+        "acceptable",
+        "product",
+        "launch",
+        "review"
+      ],
+      "category": "legal",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "terms ops",
+          "product policy",
+          "acceptable use policy",
+          "tos review"
+        ],
+        "boost_terms": [
+          "terms",
+          "policy",
+          "acceptable use",
+          "launch review",
+          "user rights"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
     },
     {
       "id": "ad-copywriting",
@@ -17720,6 +18441,181 @@
       "selectionHints": {}
     },
     {
+      "id": "creator-monetization-systems",
+      "name": "creator-monetization-systems",
+      "description": "Creator monetization systems for subscriptions, tips, revenue share, payouts, entitlement, and trust controls",
+      "owns": [
+        "Supply-demand health metrics for creator monetization systems",
+        "Matching and ranking safeguards for creator monetization systems",
+        "Payment and payout risk handoffs for creator monetization systems",
+        "Dispute evidence workflows for creator monetization systems",
+        "Creator or seller quality controls for creator monetization systems",
+        "Cold-start growth loops for creator monetization systems"
+      ],
+      "triggers": [
+        "creator monetization",
+        "creator payouts",
+        "subscription creators",
+        "revenue share",
+        "creator-monetization-systems",
+        "creator monetization systems",
+        "creators",
+        "monetization",
+        "payouts",
+        "subscriptions",
+        "creator",
+        "systems",
+        "revenue",
+        "entitlement",
+        "controls"
+      ],
+      "category": "marketplaces",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "creator monetization",
+          "creator payouts",
+          "subscription creators",
+          "revenue share"
+        ],
+        "boost_terms": [
+          "creators",
+          "monetization",
+          "payouts",
+          "subscriptions",
+          "revenue share"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming",
+          "solana",
+          "nft",
+          "nft mint",
+          "smart contract",
+          "blockchain",
+          "wallet",
+          "token",
+          "mint",
+          "solana nft",
+          "solana nft mint",
+          "rev share to creators",
+          "backfill",
+          "doubled",
+          "revenue numbers",
+          "data backfill"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "dispute-resolution-systems",
+      "name": "dispute-resolution-systems",
+      "description": "Dispute resolution systems for evidence intake, mediation, refunds, chargebacks, and outcome consistency",
+      "owns": [
+        "Supply-demand health metrics for dispute resolution systems",
+        "Matching and ranking safeguards for dispute resolution systems",
+        "Payment and payout risk handoffs for dispute resolution systems",
+        "Dispute evidence workflows for dispute resolution systems",
+        "Creator or seller quality controls for dispute resolution systems",
+        "Cold-start growth loops for dispute resolution systems"
+      ],
+      "triggers": [
+        "dispute resolution",
+        "marketplace disputes",
+        "refund mediation",
+        "chargeback ops",
+        "dispute-resolution-systems",
+        "dispute resolution systems",
+        "disputes",
+        "evidence",
+        "refunds",
+        "chargebacks",
+        "mediation",
+        "dispute",
+        "resolution",
+        "systems",
+        "intake"
+      ],
+      "category": "marketplaces",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "dispute resolution",
+          "marketplace disputes",
+          "refund mediation",
+          "chargeback ops"
+        ],
+        "boost_terms": [
+          "disputes",
+          "evidence",
+          "refunds",
+          "chargebacks",
+          "mediation"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "marketplace-liquidity",
+      "name": "marketplace-liquidity",
+      "description": "Marketplace liquidity systems for supply-demand balance, matching, activation, geographic density, and cold-start loops",
+      "owns": [
+        "Supply-demand health metrics for marketplace liquidity",
+        "Matching and ranking safeguards for marketplace liquidity",
+        "Payment and payout risk handoffs for marketplace liquidity",
+        "Dispute evidence workflows for marketplace liquidity",
+        "Creator or seller quality controls for marketplace liquidity",
+        "Cold-start growth loops for marketplace liquidity"
+      ],
+      "triggers": [
+        "marketplace liquidity",
+        "supply demand",
+        "marketplace cold start",
+        "matching",
+        "marketplace-liquidity",
+        "liquidity",
+        "supply",
+        "demand",
+        "cold start",
+        "marketplace",
+        "systems",
+        "balance",
+        "activation"
+      ],
+      "category": "marketplaces",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "marketplace liquidity",
+          "supply demand",
+          "marketplace cold start",
+          "matching"
+        ],
+        "boost_terms": [
+          "liquidity",
+          "supply",
+          "demand",
+          "matching",
+          "cold start"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
       "id": "mcp-deployment",
       "name": "mcp-deployment",
       "description": "Production deployment patterns for MCP servers - Docker, cloud, monitoring, scaling",
@@ -17878,6 +18774,219 @@
           "email confirmations",
           "meeting notes"
         ]
+      }
+    },
+    {
+      "id": "compensation-leveling",
+      "name": "compensation-leveling",
+      "description": "Compensation and leveling systems for bands, offers, equity, calibration, approvals, and defensible exception handling",
+      "owns": [
+        "Role lifecycle workflows for compensation leveling",
+        "Fairness and calibration controls for compensation leveling",
+        "Access and compliance handoffs for compensation leveling",
+        "Manager operating cadence for compensation leveling",
+        "Employee record evidence for compensation leveling",
+        "Exception review trails for compensation leveling"
+      ],
+      "triggers": [
+        "compensation",
+        "leveling",
+        "pay bands",
+        "equity bands",
+        "compensation-leveling",
+        "compensation leveling",
+        "bands",
+        "offers",
+        "equity",
+        "systems",
+        "calibration",
+        "approvals",
+        "defensible"
+      ],
+      "category": "people-ops",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "compensation",
+          "leveling",
+          "pay bands",
+          "equity bands"
+        ],
+        "boost_terms": [
+          "compensation",
+          "leveling",
+          "bands",
+          "offers",
+          "equity"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "employee-onboarding-systems",
+      "name": "employee-onboarding-systems",
+      "description": "Employee onboarding systems for role plans, access provisioning, compliance tasks, manager rituals, and ramp telemetry",
+      "owns": [
+        "Role lifecycle workflows for employee onboarding systems",
+        "Fairness and calibration controls for employee onboarding systems",
+        "Access and compliance handoffs for employee onboarding systems",
+        "Manager operating cadence for employee onboarding systems",
+        "Employee record evidence for employee onboarding systems",
+        "Exception review trails for employee onboarding systems"
+      ],
+      "triggers": [
+        "employee onboarding",
+        "people onboarding",
+        "new hire ramp",
+        "access provisioning",
+        "employee-onboarding-systems",
+        "employee onboarding systems",
+        "onboarding",
+        "new hires",
+        "ramp",
+        "access",
+        "compliance tasks",
+        "employee",
+        "systems",
+        "provisioning",
+        "compliance",
+        "manager"
+      ],
+      "category": "people-ops",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "employee onboarding",
+          "people onboarding",
+          "new hire ramp",
+          "access provisioning"
+        ],
+        "boost_terms": [
+          "onboarding",
+          "new hires",
+          "ramp",
+          "access",
+          "compliance tasks"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "performance-review-systems",
+      "name": "performance-review-systems",
+      "description": "Performance review systems for goals, feedback, calibration, promotion packets, and bias-aware decision records",
+      "owns": [
+        "Role lifecycle workflows for performance review systems",
+        "Fairness and calibration controls for performance review systems",
+        "Access and compliance handoffs for performance review systems",
+        "Manager operating cadence for performance review systems",
+        "Employee record evidence for performance review systems",
+        "Exception review trails for performance review systems"
+      ],
+      "triggers": [
+        "performance reviews",
+        "review cycles",
+        "promotion packets",
+        "calibration",
+        "performance-review-systems",
+        "performance review systems",
+        "performance",
+        "feedback",
+        "promotions",
+        "goals",
+        "review",
+        "systems",
+        "promotion",
+        "packets",
+        "decision"
+      ],
+      "category": "people-ops",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "performance reviews",
+          "review cycles",
+          "promotion packets",
+          "calibration"
+        ],
+        "boost_terms": [
+          "performance",
+          "feedback",
+          "calibration",
+          "promotions",
+          "goals"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "workforce-scheduling",
+      "name": "workforce-scheduling",
+      "description": "Workforce scheduling for shifts, coverage, labor constraints, fairness, availability, and operational continuity",
+      "owns": [
+        "Role lifecycle workflows for workforce scheduling",
+        "Fairness and calibration controls for workforce scheduling",
+        "Access and compliance handoffs for workforce scheduling",
+        "Manager operating cadence for workforce scheduling",
+        "Employee record evidence for workforce scheduling",
+        "Exception review trails for workforce scheduling"
+      ],
+      "triggers": [
+        "workforce scheduling",
+        "shift planning",
+        "coverage planning",
+        "rostering",
+        "workforce-scheduling",
+        "scheduling",
+        "shifts",
+        "coverage",
+        "availability",
+        "fairness",
+        "workforce",
+        "constraints",
+        "operational"
+      ],
+      "category": "people-ops",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "workforce scheduling",
+          "shift planning",
+          "coverage planning",
+          "rostering"
+        ],
+        "boost_terms": [
+          "scheduling",
+          "shifts",
+          "coverage",
+          "availability",
+          "fairness"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
       }
     },
     {
@@ -18404,6 +19513,284 @@
       "category": "product",
       "pairsWell": [],
       "selectionHints": {}
+    },
+    {
+      "id": "crm-lifecycle-ops",
+      "name": "crm-lifecycle-ops",
+      "description": "CRM lifecycle operations for lead routing, stage hygiene, account ownership, and revenue handoffs",
+      "owns": [
+        "Lifecycle stage definitions for crm lifecycle ops",
+        "CRM source-of-truth hygiene for crm lifecycle ops",
+        "Revenue handoff contracts for crm lifecycle ops",
+        "Forecast assumptions and confidence for crm lifecycle ops",
+        "Renewal and procurement dependencies for crm lifecycle ops",
+        "Partner attribution evidence for crm lifecycle ops"
+      ],
+      "triggers": [
+        "crm ops",
+        "sales ops",
+        "lead routing",
+        "pipeline hygiene",
+        "crm-lifecycle-ops",
+        "crm lifecycle ops",
+        "crm",
+        "leads",
+        "opportunities",
+        "pipeline",
+        "handoffs",
+        "lifecycle",
+        "operations",
+        "routing",
+        "hygiene",
+        "account"
+      ],
+      "category": "revenue-ops",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "crm ops",
+          "sales ops",
+          "lead routing",
+          "pipeline hygiene"
+        ],
+        "boost_terms": [
+          "crm",
+          "leads",
+          "opportunities",
+          "pipeline",
+          "handoffs"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "enterprise-sales-engineering",
+      "name": "enterprise-sales-engineering",
+      "description": "Enterprise sales engineering workflows for demos, technical discovery, security reviews, and implementation promises",
+      "owns": [
+        "Lifecycle stage definitions for enterprise sales engineering",
+        "CRM source-of-truth hygiene for enterprise sales engineering",
+        "Revenue handoff contracts for enterprise sales engineering",
+        "Forecast assumptions and confidence for enterprise sales engineering",
+        "Renewal and procurement dependencies for enterprise sales engineering",
+        "Partner attribution evidence for enterprise sales engineering"
+      ],
+      "triggers": [
+        "sales engineering",
+        "solutions engineering",
+        "enterprise se",
+        "technical sales",
+        "enterprise-sales-engineering",
+        "enterprise sales engineering",
+        "demos",
+        "technical discovery",
+        "security reviews",
+        "proof of concept",
+        "implementation",
+        "enterprise",
+        "engineering",
+        "workflows",
+        "technical",
+        "discovery"
+      ],
+      "category": "revenue-ops",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "sales engineering",
+          "solutions engineering",
+          "enterprise se",
+          "technical sales"
+        ],
+        "boost_terms": [
+          "demos",
+          "technical discovery",
+          "security reviews",
+          "proof of concept",
+          "implementation"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "partner-channel-operations",
+      "name": "partner-channel-operations",
+      "description": "Partner and channel operations for referrals, marketplaces, co-selling, attribution, and partner quality",
+      "owns": [
+        "Lifecycle stage definitions for partner channel operations",
+        "CRM source-of-truth hygiene for partner channel operations",
+        "Revenue handoff contracts for partner channel operations",
+        "Forecast assumptions and confidence for partner channel operations",
+        "Renewal and procurement dependencies for partner channel operations",
+        "Partner attribution evidence for partner channel operations"
+      ],
+      "triggers": [
+        "partner ops",
+        "channel sales",
+        "referral partners",
+        "co-selling",
+        "partner-channel-operations",
+        "partner channel operations",
+        "partners",
+        "channel",
+        "referrals",
+        "attribution",
+        "partner",
+        "operations",
+        "marketplaces",
+        "selling"
+      ],
+      "category": "revenue-ops",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "partner ops",
+          "channel sales",
+          "referral partners",
+          "co-selling"
+        ],
+        "boost_terms": [
+          "partners",
+          "channel",
+          "referrals",
+          "co-selling",
+          "attribution"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "procurement-vendor-management",
+      "name": "procurement-vendor-management",
+      "description": "Procurement and vendor management systems for intake, evaluation, renewal, risk evidence, and spend control",
+      "owns": [
+        "Lifecycle stage definitions for procurement vendor management",
+        "CRM source-of-truth hygiene for procurement vendor management",
+        "Revenue handoff contracts for procurement vendor management",
+        "Forecast assumptions and confidence for procurement vendor management",
+        "Renewal and procurement dependencies for procurement vendor management",
+        "Partner attribution evidence for procurement vendor management"
+      ],
+      "triggers": [
+        "vendor management",
+        "procurement",
+        "vendor ops",
+        "third party management",
+        "procurement-vendor-management",
+        "procurement vendor management",
+        "vendors",
+        "renewals",
+        "spend",
+        "risk evidence",
+        "vendor",
+        "management",
+        "systems",
+        "intake",
+        "evaluation",
+        "renewal"
+      ],
+      "category": "revenue-ops",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "vendor management",
+          "procurement",
+          "vendor ops",
+          "third party management"
+        ],
+        "boost_terms": [
+          "vendors",
+          "procurement",
+          "renewals",
+          "spend",
+          "risk evidence"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "revenue-forecasting-pipeline",
+      "name": "revenue-forecasting-pipeline",
+      "description": "Revenue forecasting data pipelines that combine CRM, billing, usage, churn, and sales judgment without hiding assumptions",
+      "owns": [
+        "Lifecycle stage definitions for revenue forecasting pipeline",
+        "CRM source-of-truth hygiene for revenue forecasting pipeline",
+        "Revenue handoff contracts for revenue forecasting pipeline",
+        "Forecast assumptions and confidence for revenue forecasting pipeline",
+        "Renewal and procurement dependencies for revenue forecasting pipeline",
+        "Partner attribution evidence for revenue forecasting pipeline"
+      ],
+      "triggers": [
+        "revenue forecasting",
+        "forecast pipeline",
+        "sales forecast",
+        "revops forecasting",
+        "revenue-forecasting-pipeline",
+        "revenue forecasting pipeline",
+        "forecast",
+        "arr",
+        "pipeline",
+        "churn",
+        "bookings",
+        "revenue",
+        "forecasting",
+        "pipelines",
+        "combine",
+        "billing"
+      ],
+      "category": "revenue-ops",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "revenue forecasting",
+          "forecast pipeline",
+          "sales forecast",
+          "revops forecasting"
+        ],
+        "boost_terms": [
+          "forecast",
+          "arr",
+          "pipeline",
+          "churn",
+          "bookings"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming",
+          "backfill",
+          "doubled",
+          "fix",
+          "bug",
+          "data backfill"
+        ],
+        "penalty": 0.15
+      }
     },
     {
       "id": "statistical-analysis",
@@ -21162,6 +22549,277 @@
       "category": "trading",
       "pairsWell": [],
       "selectionHints": {}
+    },
+    {
+      "id": "abuse-fraud-prevention",
+      "name": "abuse-fraud-prevention",
+      "description": "Abuse and fraud prevention systems for signup, payments, referrals, scraping, spam, and coordinated attacks",
+      "owns": [
+        "Policy labels and enforcement states for abuse fraud prevention",
+        "Review queue design for abuse fraud prevention",
+        "Appeal and escalation flows for abuse fraud prevention",
+        "Abuse signal instrumentation for abuse fraud prevention",
+        "Reviewer quality calibration for abuse fraud prevention",
+        "User-facing enforcement evidence for abuse fraud prevention"
+      ],
+      "triggers": [
+        "fraud prevention",
+        "abuse prevention",
+        "anti spam",
+        "risk controls",
+        "abuse-fraud-prevention",
+        "abuse fraud prevention",
+        "fraud",
+        "abuse",
+        "spam",
+        "risk scoring",
+        "velocity limits",
+        "prevention",
+        "systems",
+        "signup",
+        "payments",
+        "referrals"
+      ],
+      "category": "trust-safety",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "fraud prevention",
+          "abuse prevention",
+          "anti spam",
+          "risk controls"
+        ],
+        "boost_terms": [
+          "fraud",
+          "abuse",
+          "spam",
+          "risk scoring",
+          "velocity limits"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "appeals-policy-operations",
+      "name": "appeals-policy-operations",
+      "description": "Appeals workflows for enforcement decisions with evidence packets, review independence, and policy consistency",
+      "owns": [
+        "Policy labels and enforcement states for appeals policy operations",
+        "Review queue design for appeals policy operations",
+        "Appeal and escalation flows for appeals policy operations",
+        "Abuse signal instrumentation for appeals policy operations",
+        "Reviewer quality calibration for appeals policy operations",
+        "User-facing enforcement evidence for appeals policy operations"
+      ],
+      "triggers": [
+        "appeals",
+        "policy appeals",
+        "enforcement appeals",
+        "moderation appeals",
+        "appeals-policy-operations",
+        "appeals policy operations",
+        "enforcement",
+        "evidence",
+        "review independence",
+        "policy consistency",
+        "workflows",
+        "decisions",
+        "packets",
+        "review",
+        "independence"
+      ],
+      "category": "trust-safety",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "appeals",
+          "policy appeals",
+          "enforcement appeals",
+          "moderation appeals"
+        ],
+        "boost_terms": [
+          "appeals",
+          "enforcement",
+          "evidence",
+          "review independence",
+          "policy consistency"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "content-moderation-systems",
+      "name": "content-moderation-systems",
+      "description": "Content moderation queues, policy labels, review tooling, escalation rules, and quality control loops",
+      "owns": [
+        "Policy labels and enforcement states for content moderation systems",
+        "Review queue design for content moderation systems",
+        "Appeal and escalation flows for content moderation systems",
+        "Abuse signal instrumentation for content moderation systems",
+        "Reviewer quality calibration for content moderation systems",
+        "User-facing enforcement evidence for content moderation systems"
+      ],
+      "triggers": [
+        "content moderation",
+        "moderation queues",
+        "policy enforcement",
+        "trust and safety",
+        "content-moderation-systems",
+        "content moderation systems",
+        "moderation",
+        "policy labels",
+        "review queues",
+        "escalation",
+        "quality sampling",
+        "content",
+        "queues",
+        "policy",
+        "labels",
+        "review"
+      ],
+      "category": "trust-safety",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "content moderation",
+          "moderation queues",
+          "policy enforcement",
+          "trust and safety"
+        ],
+        "boost_terms": [
+          "moderation",
+          "policy labels",
+          "review queues",
+          "escalation",
+          "quality sampling"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "marketplace-risk-controls",
+      "name": "marketplace-risk-controls",
+      "description": "Marketplace risk controls for scams, chargebacks, off-platform abuse, seller quality, and buyer protection",
+      "owns": [
+        "Policy labels and enforcement states for marketplace risk controls",
+        "Review queue design for marketplace risk controls",
+        "Appeal and escalation flows for marketplace risk controls",
+        "Abuse signal instrumentation for marketplace risk controls",
+        "Reviewer quality calibration for marketplace risk controls",
+        "User-facing enforcement evidence for marketplace risk controls"
+      ],
+      "triggers": [
+        "marketplace risk",
+        "buyer protection",
+        "seller risk",
+        "platform risk",
+        "marketplace-risk-controls",
+        "marketplace risk controls",
+        "marketplace",
+        "chargebacks",
+        "scams",
+        "controls",
+        "platform",
+        "seller",
+        "quality",
+        "protection"
+      ],
+      "category": "trust-safety",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "marketplace risk",
+          "buyer protection",
+          "seller risk",
+          "platform risk"
+        ],
+        "boost_terms": [
+          "marketplace",
+          "chargebacks",
+          "seller risk",
+          "buyer protection",
+          "scams"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
+    },
+    {
+      "id": "reputation-systems",
+      "name": "reputation-systems",
+      "description": "Reputation scoring, trust signals, user history, ranking safeguards, and feedback-loop controls",
+      "owns": [
+        "Policy labels and enforcement states for reputation systems",
+        "Review queue design for reputation systems",
+        "Appeal and escalation flows for reputation systems",
+        "Abuse signal instrumentation for reputation systems",
+        "Reviewer quality calibration for reputation systems",
+        "User-facing enforcement evidence for reputation systems"
+      ],
+      "triggers": [
+        "reputation",
+        "trust score",
+        "seller rating",
+        "user score",
+        "reputation-systems",
+        "reputation systems",
+        "ratings",
+        "ranking",
+        "feedback loops",
+        "scoring",
+        "signals",
+        "history",
+        "safeguards",
+        "feedback",
+        "controls"
+      ],
+      "category": "trust-safety",
+      "pairsWell": [],
+      "selectionHints": {
+        "aliases": [
+          "reputation",
+          "trust score",
+          "seller rating",
+          "user score"
+        ],
+        "boost_terms": [
+          "reputation",
+          "trust score",
+          "ratings",
+          "ranking",
+          "feedback loops"
+        ],
+        "boost": 1.25,
+        "negative_terms": [
+          "toy demo",
+          "unrelated frontend styling",
+          "generic brainstorming"
+        ],
+        "penalty": 0.15
+      }
     }
   ],
   "grouped": {
@@ -28894,6 +30552,231 @@
         "selectionHints": {}
       }
     ],
+    "customer-success": [
+      {
+        "id": "account-health-scoring",
+        "name": "account-health-scoring",
+        "description": "Account health scoring with usage, support, billing, sentiment, and relationship signals that explain their confidence",
+        "owns": [
+          "Health signal design for account health scoring",
+          "Retention intervention playbooks for account health scoring",
+          "Support quality calibration for account health scoring",
+          "Education and adoption telemetry for account health scoring",
+          "Escalation ownership for account health scoring",
+          "Voice-of-customer feedback loops for account health scoring"
+        ],
+        "triggers": [
+          "account health",
+          "customer health score",
+          "health scoring",
+          "account-health-scoring",
+          "account health scoring",
+          "health score",
+          "usage",
+          "support",
+          "sentiment",
+          "billing",
+          "confidence",
+          "account",
+          "health",
+          "scoring",
+          "relationship",
+          "signals"
+        ],
+        "category": "customer-success",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "account health",
+            "customer health score",
+            "health scoring"
+          ],
+          "boost_terms": [
+            "health score",
+            "usage",
+            "support",
+            "sentiment",
+            "billing",
+            "confidence"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "churn-risk-retention",
+        "name": "churn-risk-retention",
+        "description": "Churn-risk and retention systems for health signals, intervention playbooks, renewal risk, and win-back loops",
+        "owns": [
+          "Health signal design for churn risk retention",
+          "Retention intervention playbooks for churn risk retention",
+          "Support quality calibration for churn risk retention",
+          "Education and adoption telemetry for churn risk retention",
+          "Escalation ownership for churn risk retention",
+          "Voice-of-customer feedback loops for churn risk retention"
+        ],
+        "triggers": [
+          "churn risk",
+          "retention ops",
+          "renewal risk",
+          "save plays",
+          "churn-risk-retention",
+          "churn risk retention",
+          "churn",
+          "retention",
+          "renewals",
+          "health signals",
+          "interventions",
+          "systems",
+          "health",
+          "signals",
+          "intervention",
+          "playbooks"
+        ],
+        "category": "customer-success",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "churn risk",
+            "retention ops",
+            "renewal risk",
+            "save plays"
+          ],
+          "boost_terms": [
+            "churn",
+            "retention",
+            "renewals",
+            "health signals",
+            "interventions"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "customer-education-ops",
+        "name": "customer-education-ops",
+        "description": "Customer education operations for help academies, onboarding paths, certification, adoption telemetry, and content maintenance",
+        "owns": [
+          "Health signal design for customer education ops",
+          "Retention intervention playbooks for customer education ops",
+          "Support quality calibration for customer education ops",
+          "Education and adoption telemetry for customer education ops",
+          "Escalation ownership for customer education ops",
+          "Voice-of-customer feedback loops for customer education ops"
+        ],
+        "triggers": [
+          "customer education",
+          "academy ops",
+          "training ops",
+          "enablement academy",
+          "customer-education-ops",
+          "customer education ops",
+          "education",
+          "academy",
+          "certification",
+          "onboarding",
+          "adoption",
+          "customer",
+          "operations",
+          "academies",
+          "telemetry"
+        ],
+        "category": "customer-success",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "customer education",
+            "academy ops",
+            "training ops",
+            "enablement academy"
+          ],
+          "boost_terms": [
+            "education",
+            "academy",
+            "certification",
+            "onboarding",
+            "adoption"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "support-quality-qa",
+        "name": "support-quality-qa",
+        "description": "Support quality QA systems for rubric design, calibration, escalation, coaching, and knowledge-loop closure",
+        "owns": [
+          "Health signal design for support quality qa",
+          "Retention intervention playbooks for support quality qa",
+          "Support quality calibration for support quality qa",
+          "Education and adoption telemetry for support quality qa",
+          "Escalation ownership for support quality qa",
+          "Voice-of-customer feedback loops for support quality qa"
+        ],
+        "triggers": [
+          "support qa",
+          "support quality",
+          "ticket qa",
+          "agent calibration",
+          "support-quality-qa",
+          "support quality qa",
+          "support",
+          "qa",
+          "rubrics",
+          "calibration",
+          "escalation",
+          "quality",
+          "systems",
+          "rubric",
+          "design",
+          "coaching"
+        ],
+        "category": "customer-success",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "support qa",
+            "support quality",
+            "ticket qa",
+            "agent calibration"
+          ],
+          "boost_terms": [
+            "support",
+            "qa",
+            "rubrics",
+            "calibration",
+            "escalation"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming",
+            "admin dashboard",
+            "backoffice dashboard",
+            "admin backoffice",
+            "dashboard"
+          ],
+          "penalty": 0.15
+        }
+      }
+    ],
     "data": [
       {
         "id": "agent-based-modeling",
@@ -36495,6 +38378,226 @@
         "selectionHints": {}
       }
     ],
+    "healthcare": [
+      {
+        "id": "clinical-workflow-safety",
+        "name": "clinical-workflow-safety",
+        "description": "Clinical workflow safety checks for escalation, handoff, triage, decision support, and human review boundaries",
+        "owns": [
+          "PHI boundary mapping for clinical workflow safety",
+          "Consent and authorization state machines for clinical workflow safety",
+          "Clinical handoff safety for clinical workflow safety",
+          "Audit trail completeness for clinical workflow safety",
+          "Integration contract review for clinical workflow safety",
+          "Minimum-necessary access controls for clinical workflow safety"
+        ],
+        "triggers": [
+          "clinical safety",
+          "clinical workflows",
+          "healthcare safety",
+          "clinical triage",
+          "clinical-workflow-safety",
+          "clinical workflow safety",
+          "clinical",
+          "handoff",
+          "triage",
+          "escalation",
+          "decision support",
+          "workflow",
+          "safety",
+          "checks",
+          "decision"
+        ],
+        "category": "healthcare",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "clinical safety",
+            "clinical workflows",
+            "healthcare safety",
+            "clinical triage"
+          ],
+          "boost_terms": [
+            "clinical",
+            "handoff",
+            "triage",
+            "escalation",
+            "decision support"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "healthcare-interoperability-fhir",
+        "name": "healthcare-interoperability-fhir",
+        "description": "FHIR and healthcare interoperability design for records, consent, identity, and clinical system integrations",
+        "owns": [
+          "PHI boundary mapping for healthcare interoperability fhir",
+          "Consent and authorization state machines for healthcare interoperability fhir",
+          "Clinical handoff safety for healthcare interoperability fhir",
+          "Audit trail completeness for healthcare interoperability fhir",
+          "Integration contract review for healthcare interoperability fhir",
+          "Minimum-necessary access controls for healthcare interoperability fhir"
+        ],
+        "triggers": [
+          "fhir",
+          "health interoperability",
+          "hl7 fhir",
+          "clinical integrations",
+          "healthcare-interoperability-fhir",
+          "healthcare interoperability fhir",
+          "hl7",
+          "ehr",
+          "patient records",
+          "interoperability",
+          "healthcare",
+          "design",
+          "records",
+          "consent",
+          "identity",
+          "clinical"
+        ],
+        "category": "healthcare",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "fhir",
+            "health interoperability",
+            "hl7 fhir",
+            "clinical integrations"
+          ],
+          "boost_terms": [
+            "fhir",
+            "hl7",
+            "ehr",
+            "patient records",
+            "interoperability"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "hipaa-product-architecture",
+        "name": "hipaa-product-architecture",
+        "description": "HIPAA-aware product architecture for PHI boundaries, access controls, audit trails, and business associate workflows",
+        "owns": [
+          "PHI boundary mapping for hipaa product architecture",
+          "Consent and authorization state machines for hipaa product architecture",
+          "Clinical handoff safety for hipaa product architecture",
+          "Audit trail completeness for hipaa product architecture",
+          "Integration contract review for hipaa product architecture",
+          "Minimum-necessary access controls for hipaa product architecture"
+        ],
+        "triggers": [
+          "hipaa architecture",
+          "phi product",
+          "health compliance architecture",
+          "hipaa-product-architecture",
+          "hipaa product architecture",
+          "hipaa",
+          "phi",
+          "baa",
+          "audit trails",
+          "minimum necessary",
+          "product",
+          "architecture",
+          "boundaries",
+          "access",
+          "controls",
+          "trails"
+        ],
+        "category": "healthcare",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "hipaa architecture",
+            "phi product",
+            "health compliance architecture"
+          ],
+          "boost_terms": [
+            "hipaa",
+            "phi",
+            "baa",
+            "audit trails",
+            "minimum necessary"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "patient-consent-records",
+        "name": "patient-consent-records",
+        "description": "Patient consent, revocation, authorization, and record-release workflows with auditable state transitions",
+        "owns": [
+          "PHI boundary mapping for patient consent records",
+          "Consent and authorization state machines for patient consent records",
+          "Clinical handoff safety for patient consent records",
+          "Audit trail completeness for patient consent records",
+          "Integration contract review for patient consent records",
+          "Minimum-necessary access controls for patient consent records"
+        ],
+        "triggers": [
+          "patient consent",
+          "consent records",
+          "authorization release",
+          "health consent",
+          "patient-consent-records",
+          "patient consent records",
+          "consent",
+          "revocation",
+          "authorization",
+          "records release",
+          "audit",
+          "patient",
+          "record",
+          "release",
+          "workflows",
+          "auditable"
+        ],
+        "category": "healthcare",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "patient consent",
+            "consent records",
+            "authorization release",
+            "health consent"
+          ],
+          "boost_terms": [
+            "consent",
+            "revocation",
+            "authorization",
+            "records release",
+            "audit"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      }
+    ],
     "infrastructure": [
       {
         "id": "aws-serverless",
@@ -37513,6 +39616,281 @@
         "category": "integrations",
         "pairsWell": [],
         "selectionHints": {}
+      }
+    ],
+    "legal": [
+      {
+        "id": "ai-governance-policy",
+        "name": "ai-governance-policy",
+        "description": "AI governance policy, model-use controls, evaluation evidence, and high-risk AI workflow review",
+        "owns": [
+          "Intake triage and review routing for ai governance policy",
+          "Risk classification and approval thresholds for ai governance policy",
+          "Evidence packets for counsel and business owners for ai governance policy",
+          "Renewal and obligation tracking for ai governance policy",
+          "Policy-to-product consistency checks for ai governance policy",
+          "Audit-ready decision history for ai governance policy"
+        ],
+        "triggers": [
+          "ai governance",
+          "model policy",
+          "responsible ai policy",
+          "ai risk review",
+          "ai-governance-policy",
+          "ai governance policy",
+          "model risk",
+          "evaluation evidence",
+          "human oversight",
+          "policy",
+          "governance",
+          "controls",
+          "evaluation",
+          "evidence",
+          "workflow",
+          "review"
+        ],
+        "category": "legal",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "ai governance",
+            "model policy",
+            "responsible ai policy",
+            "ai risk review"
+          ],
+          "boost_terms": [
+            "ai governance",
+            "model risk",
+            "evaluation evidence",
+            "human oversight",
+            "policy"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "contract-lifecycle-ops",
+        "name": "contract-lifecycle-ops",
+        "description": "Contract intake, review routing, obligation tracking, and renewal controls for product and enterprise teams",
+        "owns": [
+          "Intake triage and review routing for contract lifecycle ops",
+          "Risk classification and approval thresholds for contract lifecycle ops",
+          "Evidence packets for counsel and business owners for contract lifecycle ops",
+          "Renewal and obligation tracking for contract lifecycle ops",
+          "Policy-to-product consistency checks for contract lifecycle ops",
+          "Audit-ready decision history for contract lifecycle ops"
+        ],
+        "triggers": [
+          "contract operations",
+          "contract lifecycle",
+          "clm",
+          "legal ops",
+          "contract-lifecycle-ops",
+          "contract lifecycle ops",
+          "contracts",
+          "renewals",
+          "obligations",
+          "approvals",
+          "redlines",
+          "contract",
+          "intake",
+          "review",
+          "routing",
+          "obligation"
+        ],
+        "category": "legal",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "contract operations",
+            "contract lifecycle",
+            "clm",
+            "legal ops"
+          ],
+          "boost_terms": [
+            "contracts",
+            "renewals",
+            "obligations",
+            "approvals",
+            "redlines"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "data-processing-agreements",
+        "name": "data-processing-agreements",
+        "description": "DPA, subprocessor, data transfer, and privacy annex review for SaaS and AI products",
+        "owns": [
+          "Intake triage and review routing for data processing agreements",
+          "Risk classification and approval thresholds for data processing agreements",
+          "Evidence packets for counsel and business owners for data processing agreements",
+          "Renewal and obligation tracking for data processing agreements",
+          "Policy-to-product consistency checks for data processing agreements",
+          "Audit-ready decision history for data processing agreements"
+        ],
+        "triggers": [
+          "dpa review",
+          "privacy annex",
+          "data processing agreement",
+          "data transfer",
+          "data-processing-agreements",
+          "data processing agreements",
+          "dpa",
+          "subprocessors",
+          "privacy",
+          "processors",
+          "subprocessor",
+          "transfer",
+          "review",
+          "products"
+        ],
+        "category": "legal",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "dpa review",
+            "privacy annex",
+            "data processing agreement",
+            "data transfer"
+          ],
+          "boost_terms": [
+            "dpa",
+            "subprocessors",
+            "privacy",
+            "data transfer",
+            "processors"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "subprocessor-risk-review",
+        "name": "subprocessor-risk-review",
+        "description": "Third-party subprocessor review, vendor evidence tracking, data access boundaries, and customer disclosure workflows",
+        "owns": [
+          "Intake triage and review routing for subprocessor risk review",
+          "Risk classification and approval thresholds for subprocessor risk review",
+          "Evidence packets for counsel and business owners for subprocessor risk review",
+          "Renewal and obligation tracking for subprocessor risk review",
+          "Policy-to-product consistency checks for subprocessor risk review",
+          "Audit-ready decision history for subprocessor risk review"
+        ],
+        "triggers": [
+          "subprocessor review",
+          "vendor privacy review",
+          "processor risk",
+          "third party risk",
+          "subprocessor-risk-review",
+          "subprocessor risk review",
+          "subprocessors",
+          "vendors",
+          "dpas",
+          "soc2",
+          "risk review",
+          "subprocessor",
+          "review",
+          "vendor",
+          "evidence",
+          "tracking"
+        ],
+        "category": "legal",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "subprocessor review",
+            "vendor privacy review",
+            "processor risk",
+            "third party risk"
+          ],
+          "boost_terms": [
+            "subprocessors",
+            "vendors",
+            "dpas",
+            "soc2",
+            "risk review"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "terms-product-policy-ops",
+        "name": "terms-product-policy-ops",
+        "description": "Terms of service, acceptable-use, product policy, and launch review systems that stay aligned with real product behavior",
+        "owns": [
+          "Intake triage and review routing for terms product policy ops",
+          "Risk classification and approval thresholds for terms product policy ops",
+          "Evidence packets for counsel and business owners for terms product policy ops",
+          "Renewal and obligation tracking for terms product policy ops",
+          "Policy-to-product consistency checks for terms product policy ops",
+          "Audit-ready decision history for terms product policy ops"
+        ],
+        "triggers": [
+          "terms ops",
+          "product policy",
+          "acceptable use policy",
+          "tos review",
+          "terms-product-policy-ops",
+          "terms product policy ops",
+          "terms",
+          "policy",
+          "acceptable use",
+          "launch review",
+          "user rights",
+          "service",
+          "acceptable",
+          "product",
+          "launch",
+          "review"
+        ],
+        "category": "legal",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "terms ops",
+            "product policy",
+            "acceptable use policy",
+            "tos review"
+          ],
+          "boost_terms": [
+            "terms",
+            "policy",
+            "acceptable use",
+            "launch review",
+            "user rights"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
       }
     ],
     "marketing": [
@@ -38892,6 +41270,183 @@
         "selectionHints": {}
       }
     ],
+    "marketplaces": [
+      {
+        "id": "creator-monetization-systems",
+        "name": "creator-monetization-systems",
+        "description": "Creator monetization systems for subscriptions, tips, revenue share, payouts, entitlement, and trust controls",
+        "owns": [
+          "Supply-demand health metrics for creator monetization systems",
+          "Matching and ranking safeguards for creator monetization systems",
+          "Payment and payout risk handoffs for creator monetization systems",
+          "Dispute evidence workflows for creator monetization systems",
+          "Creator or seller quality controls for creator monetization systems",
+          "Cold-start growth loops for creator monetization systems"
+        ],
+        "triggers": [
+          "creator monetization",
+          "creator payouts",
+          "subscription creators",
+          "revenue share",
+          "creator-monetization-systems",
+          "creator monetization systems",
+          "creators",
+          "monetization",
+          "payouts",
+          "subscriptions",
+          "creator",
+          "systems",
+          "revenue",
+          "entitlement",
+          "controls"
+        ],
+        "category": "marketplaces",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "creator monetization",
+            "creator payouts",
+            "subscription creators",
+            "revenue share"
+          ],
+          "boost_terms": [
+            "creators",
+            "monetization",
+            "payouts",
+            "subscriptions",
+            "revenue share"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming",
+            "solana",
+            "nft",
+            "nft mint",
+            "smart contract",
+            "blockchain",
+            "wallet",
+            "token",
+            "mint",
+            "solana nft",
+            "solana nft mint",
+            "rev share to creators",
+            "backfill",
+            "doubled",
+            "revenue numbers",
+            "data backfill"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "dispute-resolution-systems",
+        "name": "dispute-resolution-systems",
+        "description": "Dispute resolution systems for evidence intake, mediation, refunds, chargebacks, and outcome consistency",
+        "owns": [
+          "Supply-demand health metrics for dispute resolution systems",
+          "Matching and ranking safeguards for dispute resolution systems",
+          "Payment and payout risk handoffs for dispute resolution systems",
+          "Dispute evidence workflows for dispute resolution systems",
+          "Creator or seller quality controls for dispute resolution systems",
+          "Cold-start growth loops for dispute resolution systems"
+        ],
+        "triggers": [
+          "dispute resolution",
+          "marketplace disputes",
+          "refund mediation",
+          "chargeback ops",
+          "dispute-resolution-systems",
+          "dispute resolution systems",
+          "disputes",
+          "evidence",
+          "refunds",
+          "chargebacks",
+          "mediation",
+          "dispute",
+          "resolution",
+          "systems",
+          "intake"
+        ],
+        "category": "marketplaces",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "dispute resolution",
+            "marketplace disputes",
+            "refund mediation",
+            "chargeback ops"
+          ],
+          "boost_terms": [
+            "disputes",
+            "evidence",
+            "refunds",
+            "chargebacks",
+            "mediation"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "marketplace-liquidity",
+        "name": "marketplace-liquidity",
+        "description": "Marketplace liquidity systems for supply-demand balance, matching, activation, geographic density, and cold-start loops",
+        "owns": [
+          "Supply-demand health metrics for marketplace liquidity",
+          "Matching and ranking safeguards for marketplace liquidity",
+          "Payment and payout risk handoffs for marketplace liquidity",
+          "Dispute evidence workflows for marketplace liquidity",
+          "Creator or seller quality controls for marketplace liquidity",
+          "Cold-start growth loops for marketplace liquidity"
+        ],
+        "triggers": [
+          "marketplace liquidity",
+          "supply demand",
+          "marketplace cold start",
+          "matching",
+          "marketplace-liquidity",
+          "liquidity",
+          "supply",
+          "demand",
+          "cold start",
+          "marketplace",
+          "systems",
+          "balance",
+          "activation"
+        ],
+        "category": "marketplaces",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "marketplace liquidity",
+            "supply demand",
+            "marketplace cold start",
+            "matching"
+          ],
+          "boost_terms": [
+            "liquidity",
+            "supply",
+            "demand",
+            "matching",
+            "cold start"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      }
+    ],
     "mcp": [
       {
         "id": "mcp-deployment",
@@ -39054,6 +41609,221 @@
             "email confirmations",
             "meeting notes"
           ]
+        }
+      }
+    ],
+    "people-ops": [
+      {
+        "id": "compensation-leveling",
+        "name": "compensation-leveling",
+        "description": "Compensation and leveling systems for bands, offers, equity, calibration, approvals, and defensible exception handling",
+        "owns": [
+          "Role lifecycle workflows for compensation leveling",
+          "Fairness and calibration controls for compensation leveling",
+          "Access and compliance handoffs for compensation leveling",
+          "Manager operating cadence for compensation leveling",
+          "Employee record evidence for compensation leveling",
+          "Exception review trails for compensation leveling"
+        ],
+        "triggers": [
+          "compensation",
+          "leveling",
+          "pay bands",
+          "equity bands",
+          "compensation-leveling",
+          "compensation leveling",
+          "bands",
+          "offers",
+          "equity",
+          "systems",
+          "calibration",
+          "approvals",
+          "defensible"
+        ],
+        "category": "people-ops",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "compensation",
+            "leveling",
+            "pay bands",
+            "equity bands"
+          ],
+          "boost_terms": [
+            "compensation",
+            "leveling",
+            "bands",
+            "offers",
+            "equity"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "employee-onboarding-systems",
+        "name": "employee-onboarding-systems",
+        "description": "Employee onboarding systems for role plans, access provisioning, compliance tasks, manager rituals, and ramp telemetry",
+        "owns": [
+          "Role lifecycle workflows for employee onboarding systems",
+          "Fairness and calibration controls for employee onboarding systems",
+          "Access and compliance handoffs for employee onboarding systems",
+          "Manager operating cadence for employee onboarding systems",
+          "Employee record evidence for employee onboarding systems",
+          "Exception review trails for employee onboarding systems"
+        ],
+        "triggers": [
+          "employee onboarding",
+          "people onboarding",
+          "new hire ramp",
+          "access provisioning",
+          "employee-onboarding-systems",
+          "employee onboarding systems",
+          "onboarding",
+          "new hires",
+          "ramp",
+          "access",
+          "compliance tasks",
+          "employee",
+          "systems",
+          "provisioning",
+          "compliance",
+          "manager"
+        ],
+        "category": "people-ops",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "employee onboarding",
+            "people onboarding",
+            "new hire ramp",
+            "access provisioning"
+          ],
+          "boost_terms": [
+            "onboarding",
+            "new hires",
+            "ramp",
+            "access",
+            "compliance tasks"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "performance-review-systems",
+        "name": "performance-review-systems",
+        "description": "Performance review systems for goals, feedback, calibration, promotion packets, and bias-aware decision records",
+        "owns": [
+          "Role lifecycle workflows for performance review systems",
+          "Fairness and calibration controls for performance review systems",
+          "Access and compliance handoffs for performance review systems",
+          "Manager operating cadence for performance review systems",
+          "Employee record evidence for performance review systems",
+          "Exception review trails for performance review systems"
+        ],
+        "triggers": [
+          "performance reviews",
+          "review cycles",
+          "promotion packets",
+          "calibration",
+          "performance-review-systems",
+          "performance review systems",
+          "performance",
+          "feedback",
+          "promotions",
+          "goals",
+          "review",
+          "systems",
+          "promotion",
+          "packets",
+          "decision"
+        ],
+        "category": "people-ops",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "performance reviews",
+            "review cycles",
+            "promotion packets",
+            "calibration"
+          ],
+          "boost_terms": [
+            "performance",
+            "feedback",
+            "calibration",
+            "promotions",
+            "goals"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "workforce-scheduling",
+        "name": "workforce-scheduling",
+        "description": "Workforce scheduling for shifts, coverage, labor constraints, fairness, availability, and operational continuity",
+        "owns": [
+          "Role lifecycle workflows for workforce scheduling",
+          "Fairness and calibration controls for workforce scheduling",
+          "Access and compliance handoffs for workforce scheduling",
+          "Manager operating cadence for workforce scheduling",
+          "Employee record evidence for workforce scheduling",
+          "Exception review trails for workforce scheduling"
+        ],
+        "triggers": [
+          "workforce scheduling",
+          "shift planning",
+          "coverage planning",
+          "rostering",
+          "workforce-scheduling",
+          "scheduling",
+          "shifts",
+          "coverage",
+          "availability",
+          "fairness",
+          "workforce",
+          "constraints",
+          "operational"
+        ],
+        "category": "people-ops",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "workforce scheduling",
+            "shift planning",
+            "coverage planning",
+            "rostering"
+          ],
+          "boost_terms": [
+            "scheduling",
+            "shifts",
+            "coverage",
+            "availability",
+            "fairness"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
         }
       }
     ],
@@ -39582,6 +42352,286 @@
         "category": "product",
         "pairsWell": [],
         "selectionHints": {}
+      }
+    ],
+    "revenue-ops": [
+      {
+        "id": "crm-lifecycle-ops",
+        "name": "crm-lifecycle-ops",
+        "description": "CRM lifecycle operations for lead routing, stage hygiene, account ownership, and revenue handoffs",
+        "owns": [
+          "Lifecycle stage definitions for crm lifecycle ops",
+          "CRM source-of-truth hygiene for crm lifecycle ops",
+          "Revenue handoff contracts for crm lifecycle ops",
+          "Forecast assumptions and confidence for crm lifecycle ops",
+          "Renewal and procurement dependencies for crm lifecycle ops",
+          "Partner attribution evidence for crm lifecycle ops"
+        ],
+        "triggers": [
+          "crm ops",
+          "sales ops",
+          "lead routing",
+          "pipeline hygiene",
+          "crm-lifecycle-ops",
+          "crm lifecycle ops",
+          "crm",
+          "leads",
+          "opportunities",
+          "pipeline",
+          "handoffs",
+          "lifecycle",
+          "operations",
+          "routing",
+          "hygiene",
+          "account"
+        ],
+        "category": "revenue-ops",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "crm ops",
+            "sales ops",
+            "lead routing",
+            "pipeline hygiene"
+          ],
+          "boost_terms": [
+            "crm",
+            "leads",
+            "opportunities",
+            "pipeline",
+            "handoffs"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "enterprise-sales-engineering",
+        "name": "enterprise-sales-engineering",
+        "description": "Enterprise sales engineering workflows for demos, technical discovery, security reviews, and implementation promises",
+        "owns": [
+          "Lifecycle stage definitions for enterprise sales engineering",
+          "CRM source-of-truth hygiene for enterprise sales engineering",
+          "Revenue handoff contracts for enterprise sales engineering",
+          "Forecast assumptions and confidence for enterprise sales engineering",
+          "Renewal and procurement dependencies for enterprise sales engineering",
+          "Partner attribution evidence for enterprise sales engineering"
+        ],
+        "triggers": [
+          "sales engineering",
+          "solutions engineering",
+          "enterprise se",
+          "technical sales",
+          "enterprise-sales-engineering",
+          "enterprise sales engineering",
+          "demos",
+          "technical discovery",
+          "security reviews",
+          "proof of concept",
+          "implementation",
+          "enterprise",
+          "engineering",
+          "workflows",
+          "technical",
+          "discovery"
+        ],
+        "category": "revenue-ops",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "sales engineering",
+            "solutions engineering",
+            "enterprise se",
+            "technical sales"
+          ],
+          "boost_terms": [
+            "demos",
+            "technical discovery",
+            "security reviews",
+            "proof of concept",
+            "implementation"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "partner-channel-operations",
+        "name": "partner-channel-operations",
+        "description": "Partner and channel operations for referrals, marketplaces, co-selling, attribution, and partner quality",
+        "owns": [
+          "Lifecycle stage definitions for partner channel operations",
+          "CRM source-of-truth hygiene for partner channel operations",
+          "Revenue handoff contracts for partner channel operations",
+          "Forecast assumptions and confidence for partner channel operations",
+          "Renewal and procurement dependencies for partner channel operations",
+          "Partner attribution evidence for partner channel operations"
+        ],
+        "triggers": [
+          "partner ops",
+          "channel sales",
+          "referral partners",
+          "co-selling",
+          "partner-channel-operations",
+          "partner channel operations",
+          "partners",
+          "channel",
+          "referrals",
+          "attribution",
+          "partner",
+          "operations",
+          "marketplaces",
+          "selling"
+        ],
+        "category": "revenue-ops",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "partner ops",
+            "channel sales",
+            "referral partners",
+            "co-selling"
+          ],
+          "boost_terms": [
+            "partners",
+            "channel",
+            "referrals",
+            "co-selling",
+            "attribution"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "procurement-vendor-management",
+        "name": "procurement-vendor-management",
+        "description": "Procurement and vendor management systems for intake, evaluation, renewal, risk evidence, and spend control",
+        "owns": [
+          "Lifecycle stage definitions for procurement vendor management",
+          "CRM source-of-truth hygiene for procurement vendor management",
+          "Revenue handoff contracts for procurement vendor management",
+          "Forecast assumptions and confidence for procurement vendor management",
+          "Renewal and procurement dependencies for procurement vendor management",
+          "Partner attribution evidence for procurement vendor management"
+        ],
+        "triggers": [
+          "vendor management",
+          "procurement",
+          "vendor ops",
+          "third party management",
+          "procurement-vendor-management",
+          "procurement vendor management",
+          "vendors",
+          "renewals",
+          "spend",
+          "risk evidence",
+          "vendor",
+          "management",
+          "systems",
+          "intake",
+          "evaluation",
+          "renewal"
+        ],
+        "category": "revenue-ops",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "vendor management",
+            "procurement",
+            "vendor ops",
+            "third party management"
+          ],
+          "boost_terms": [
+            "vendors",
+            "procurement",
+            "renewals",
+            "spend",
+            "risk evidence"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "revenue-forecasting-pipeline",
+        "name": "revenue-forecasting-pipeline",
+        "description": "Revenue forecasting data pipelines that combine CRM, billing, usage, churn, and sales judgment without hiding assumptions",
+        "owns": [
+          "Lifecycle stage definitions for revenue forecasting pipeline",
+          "CRM source-of-truth hygiene for revenue forecasting pipeline",
+          "Revenue handoff contracts for revenue forecasting pipeline",
+          "Forecast assumptions and confidence for revenue forecasting pipeline",
+          "Renewal and procurement dependencies for revenue forecasting pipeline",
+          "Partner attribution evidence for revenue forecasting pipeline"
+        ],
+        "triggers": [
+          "revenue forecasting",
+          "forecast pipeline",
+          "sales forecast",
+          "revops forecasting",
+          "revenue-forecasting-pipeline",
+          "revenue forecasting pipeline",
+          "forecast",
+          "arr",
+          "pipeline",
+          "churn",
+          "bookings",
+          "revenue",
+          "forecasting",
+          "pipelines",
+          "combine",
+          "billing"
+        ],
+        "category": "revenue-ops",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "revenue forecasting",
+            "forecast pipeline",
+            "sales forecast",
+            "revops forecasting"
+          ],
+          "boost_terms": [
+            "forecast",
+            "arr",
+            "pipeline",
+            "churn",
+            "bookings"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming",
+            "backfill",
+            "doubled",
+            "fix",
+            "bug",
+            "data backfill"
+          ],
+          "penalty": 0.15
+        }
       }
     ],
     "science": [
@@ -42358,6 +45408,279 @@
         "category": "trading",
         "pairsWell": [],
         "selectionHints": {}
+      }
+    ],
+    "trust-safety": [
+      {
+        "id": "abuse-fraud-prevention",
+        "name": "abuse-fraud-prevention",
+        "description": "Abuse and fraud prevention systems for signup, payments, referrals, scraping, spam, and coordinated attacks",
+        "owns": [
+          "Policy labels and enforcement states for abuse fraud prevention",
+          "Review queue design for abuse fraud prevention",
+          "Appeal and escalation flows for abuse fraud prevention",
+          "Abuse signal instrumentation for abuse fraud prevention",
+          "Reviewer quality calibration for abuse fraud prevention",
+          "User-facing enforcement evidence for abuse fraud prevention"
+        ],
+        "triggers": [
+          "fraud prevention",
+          "abuse prevention",
+          "anti spam",
+          "risk controls",
+          "abuse-fraud-prevention",
+          "abuse fraud prevention",
+          "fraud",
+          "abuse",
+          "spam",
+          "risk scoring",
+          "velocity limits",
+          "prevention",
+          "systems",
+          "signup",
+          "payments",
+          "referrals"
+        ],
+        "category": "trust-safety",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "fraud prevention",
+            "abuse prevention",
+            "anti spam",
+            "risk controls"
+          ],
+          "boost_terms": [
+            "fraud",
+            "abuse",
+            "spam",
+            "risk scoring",
+            "velocity limits"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "appeals-policy-operations",
+        "name": "appeals-policy-operations",
+        "description": "Appeals workflows for enforcement decisions with evidence packets, review independence, and policy consistency",
+        "owns": [
+          "Policy labels and enforcement states for appeals policy operations",
+          "Review queue design for appeals policy operations",
+          "Appeal and escalation flows for appeals policy operations",
+          "Abuse signal instrumentation for appeals policy operations",
+          "Reviewer quality calibration for appeals policy operations",
+          "User-facing enforcement evidence for appeals policy operations"
+        ],
+        "triggers": [
+          "appeals",
+          "policy appeals",
+          "enforcement appeals",
+          "moderation appeals",
+          "appeals-policy-operations",
+          "appeals policy operations",
+          "enforcement",
+          "evidence",
+          "review independence",
+          "policy consistency",
+          "workflows",
+          "decisions",
+          "packets",
+          "review",
+          "independence"
+        ],
+        "category": "trust-safety",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "appeals",
+            "policy appeals",
+            "enforcement appeals",
+            "moderation appeals"
+          ],
+          "boost_terms": [
+            "appeals",
+            "enforcement",
+            "evidence",
+            "review independence",
+            "policy consistency"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "content-moderation-systems",
+        "name": "content-moderation-systems",
+        "description": "Content moderation queues, policy labels, review tooling, escalation rules, and quality control loops",
+        "owns": [
+          "Policy labels and enforcement states for content moderation systems",
+          "Review queue design for content moderation systems",
+          "Appeal and escalation flows for content moderation systems",
+          "Abuse signal instrumentation for content moderation systems",
+          "Reviewer quality calibration for content moderation systems",
+          "User-facing enforcement evidence for content moderation systems"
+        ],
+        "triggers": [
+          "content moderation",
+          "moderation queues",
+          "policy enforcement",
+          "trust and safety",
+          "content-moderation-systems",
+          "content moderation systems",
+          "moderation",
+          "policy labels",
+          "review queues",
+          "escalation",
+          "quality sampling",
+          "content",
+          "queues",
+          "policy",
+          "labels",
+          "review"
+        ],
+        "category": "trust-safety",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "content moderation",
+            "moderation queues",
+            "policy enforcement",
+            "trust and safety"
+          ],
+          "boost_terms": [
+            "moderation",
+            "policy labels",
+            "review queues",
+            "escalation",
+            "quality sampling"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "marketplace-risk-controls",
+        "name": "marketplace-risk-controls",
+        "description": "Marketplace risk controls for scams, chargebacks, off-platform abuse, seller quality, and buyer protection",
+        "owns": [
+          "Policy labels and enforcement states for marketplace risk controls",
+          "Review queue design for marketplace risk controls",
+          "Appeal and escalation flows for marketplace risk controls",
+          "Abuse signal instrumentation for marketplace risk controls",
+          "Reviewer quality calibration for marketplace risk controls",
+          "User-facing enforcement evidence for marketplace risk controls"
+        ],
+        "triggers": [
+          "marketplace risk",
+          "buyer protection",
+          "seller risk",
+          "platform risk",
+          "marketplace-risk-controls",
+          "marketplace risk controls",
+          "marketplace",
+          "chargebacks",
+          "scams",
+          "controls",
+          "platform",
+          "seller",
+          "quality",
+          "protection"
+        ],
+        "category": "trust-safety",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "marketplace risk",
+            "buyer protection",
+            "seller risk",
+            "platform risk"
+          ],
+          "boost_terms": [
+            "marketplace",
+            "chargebacks",
+            "seller risk",
+            "buyer protection",
+            "scams"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
+      },
+      {
+        "id": "reputation-systems",
+        "name": "reputation-systems",
+        "description": "Reputation scoring, trust signals, user history, ranking safeguards, and feedback-loop controls",
+        "owns": [
+          "Policy labels and enforcement states for reputation systems",
+          "Review queue design for reputation systems",
+          "Appeal and escalation flows for reputation systems",
+          "Abuse signal instrumentation for reputation systems",
+          "Reviewer quality calibration for reputation systems",
+          "User-facing enforcement evidence for reputation systems"
+        ],
+        "triggers": [
+          "reputation",
+          "trust score",
+          "seller rating",
+          "user score",
+          "reputation-systems",
+          "reputation systems",
+          "ratings",
+          "ranking",
+          "feedback loops",
+          "scoring",
+          "signals",
+          "history",
+          "safeguards",
+          "feedback",
+          "controls"
+        ],
+        "category": "trust-safety",
+        "pairsWell": [],
+        "selectionHints": {
+          "aliases": [
+            "reputation",
+            "trust score",
+            "seller rating",
+            "user score"
+          ],
+          "boost_terms": [
+            "reputation",
+            "trust score",
+            "ratings",
+            "ranking",
+            "feedback loops"
+          ],
+          "boost": 1.25,
+          "negative_terms": [
+            "toy demo",
+            "unrelated frontend styling",
+            "generic brainstorming"
+          ],
+          "penalty": 0.15
+        }
       }
     ]
   }

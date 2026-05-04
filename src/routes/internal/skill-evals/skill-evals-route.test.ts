@@ -13,6 +13,9 @@ describe('/internal/skill-evals route', () => {
 			GOLDEN_RECOMMENDATION_CASES.length + CHALLENGE_RECOMMENDATION_CASES.length
 		);
 		expect(data.project.coverageGapCount).toBe(0);
+		expect(data.project.operationalCategoryCount).toBe(7);
+		expect(data.project.operationalSkillCount).toBe(30);
+		expect(data.operationalCategoryCoverage.every((category) => category.status === 'ready')).toBe(true);
 		expect(data.summary.golden.passRate).toBe(1);
 		expect(data.summary.challenge.passRate).toBe(1);
 		expect(data.summary.failures.length).toBe(0);
