@@ -31,6 +31,8 @@ Without the explicit preview flag, users cannot enter Kanban, Canvas, Mission Co
 
 The only public path through the release lock is `/`, plus static assets needed to render it. The root page must not open event streams, mission polling, local-worker bridges, or any other control-plane connection.
 
+Hosted responses also carry baseline security headers, including frame blocking, MIME sniff protection, a no-referrer policy, and a hosted Content Security Policy. Mutating hosted browser requests must come from the same origin unless they use an explicit API key header or bearer token.
+
 ## Hosted Site vs Private Railway/VPS
 
 Use this matrix before shipping a deployment:
@@ -67,6 +69,13 @@ GET /api/mission-control/board -> 503 private preview locked
 ```
 
 Also verify the root HTML does not contain direct links such as `href="/canvas"` or `href="/kanban"`.
+
+The automated version of this check is:
+
+```text
+npm run build
+npm run smoke:hosted-lock
+```
 
 For a trusted Railway/VPS owner preview:
 

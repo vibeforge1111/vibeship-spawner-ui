@@ -34,6 +34,8 @@ When hosted and a complete private preview is not configured:
 - static assets are allowed so the landing page can render.
 - the landing page must not open event streams, mission polling, local-worker bridges, or other app/control-plane connections on load.
 - every app, setup/login, preview, mission, canvas, kanban, and API route returns the private-preview lock response.
+- hosted responses include security headers that block framing, MIME sniffing, permissive referrers, and broad browser device permissions.
+- hosted mutating browser requests must prove same-origin through `Origin` or Fetch Metadata headers, unless they use an explicit API key header/bearer token.
 
 Complete private preview means all of these are present:
 
@@ -74,6 +76,15 @@ Expected result:
 /api/spark/run            -> locked
 /api/prd-bridge/*         -> locked
 ```
+
+Before deploying a public hosted build, run:
+
+```text
+npm run build
+npm run smoke:hosted-lock
+```
+
+The smoke test starts the production adapter with hosted env signals, confirms the public root is the locked shell, checks there are no direct app navigation links, verifies protected app/API routes return `503`, and probes a cross-site login POST for `403`.
 
 ### Private Railway Or VPS Owner Install
 
@@ -133,7 +144,7 @@ Do not remove the landing-only lock for public hosted traffic until these are do
 
 The current implementation uses `HttpOnly`, `Secure`, `SameSite=Strict` cookies and exact-token comparison. That is a good private-preview baseline, but it is not a public account system.
 
-The next hardening pass should replace raw key cookies with server-side session IDs, add CSRF tokens or origin checks for browser-mutating routes, and split read-only status access from elevated computer-control actions.
+The current hosted hardening pass adds security headers, hosted-lock smoke coverage, and same-origin checks for mutating browser requests. The next hardening pass should replace raw key cookies with server-side session IDs and split read-only status access from elevated computer-control actions.
 
 Security references used for this process:
 

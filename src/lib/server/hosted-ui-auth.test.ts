@@ -6,7 +6,10 @@ import {
 	hostedUiAuthClientKey,
 	hostedUiAuthPathIsExempt,
 	hostedUiAuthRateLimitStatus,
+	hostedUiCrossSiteMutationRejection,
 	hostedUiPrivatePreviewConfigured,
+	hostedUiSecurityHeaders,
+	hostedUiRequestHasExplicitToken,
 	hostedUiReleaseLockPathIsExempt,
 	hostedUiReleaseLocked,
 	hostedUiRequestToken,
@@ -76,6 +79,17 @@ describe('hosted UI auth', () => {
 		).toBe(true);
 	});
 
+	it('adds a hosted CSP and baseline security headers', () => {
+		const localHeaders = hostedUiSecurityHeaders({});
+		expect(localHeaders['X-Frame-Options']).toBe('DENY');
+		expect(localHeaders['X-Content-Type-Options']).toBe('nosniff');
+		expect(localHeaders['Content-Security-Policy']).toBeUndefined();
+
+		const hostedHeaders = hostedUiSecurityHeaders({ SPARK_LIVE_CONTAINER: '1' });
+		expect(hostedHeaders['Content-Security-Policy']).toContain("frame-ancestors 'none'");
+		expect(hostedHeaders['Permissions-Policy']).toContain('camera=()');
+	});
+
 	it('lets only the public landing page through the release lock', () => {
 		expect(hostedUiReleaseLockPathIsExempt('/')).toBe(true);
 		expect(hostedUiReleaseLockPathIsExempt('/canvas')).toBe(false);
@@ -100,6 +114,45 @@ describe('hosted UI auth', () => {
 		expect(hostedUiRequestToken(new Request('https://x.test/', { headers: { 'x-spawner-ui-key': 'header-key' } }), new URL('https://x.test/'), cookies)).toBe('header-key');
 		expect(hostedUiRequestToken(new Request('https://x.test/', { headers: { authorization: 'Bearer bearer-key' } }), new URL('https://x.test/'), cookies)).toBe('bearer-key');
 		expect(hostedUiRequestToken(new Request('https://x.test/'), new URL('https://x.test/'), cookies)).toBe('cookie-key');
+	});
+
+	it('distinguishes explicit API tokens from cookie-only browser auth', () => {
+		expect(
+			hostedUiRequestHasExplicitToken(
+				new Request('https://x.test/', { headers: { 'x-spawner-ui-key': 'header-key' } }),
+				new URL('https://x.test/')
+			)
+		).toBe(true);
+		expect(hostedUiRequestHasExplicitToken(new Request('https://x.test/?apiKey=query-key'), new URL('https://x.test/?apiKey=query-key'))).toBe(true);
+		expect(hostedUiRequestHasExplicitToken(new Request('https://x.test/', { headers: { cookie: 'spawner_ui_api_key=cookie-key' } }), new URL('https://x.test/'))).toBe(false);
+	});
+
+	it('blocks cross-site mutating browser requests unless an explicit API token is used', () => {
+		const url = new URL('https://spawner.example.com/api/mission-control/command');
+		expect(
+			hostedUiCrossSiteMutationRejection(
+				new Request(url, { method: 'POST', headers: { origin: 'https://evil.example', 'sec-fetch-site': 'cross-site' } }),
+				url
+			)
+		).toMatch(/Cross-site/);
+		expect(
+			hostedUiCrossSiteMutationRejection(
+				new Request(url, { method: 'POST', headers: { origin: 'https://evil.example' } }),
+				url
+			)
+		).toMatch(/origin/);
+		expect(
+			hostedUiCrossSiteMutationRejection(
+				new Request(url, { method: 'POST', headers: { origin: 'https://spawner.example.com', 'sec-fetch-site': 'same-origin' } }),
+				url
+			)
+		).toBeNull();
+		expect(
+			hostedUiCrossSiteMutationRejection(
+				new Request(url, { method: 'POST', headers: { 'x-spawner-ui-key': 'api-key' } }),
+				url
+			)
+		).toBeNull();
 	});
 
 	it('accepts workspace id from query, header, and cookie', () => {

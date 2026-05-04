@@ -22,6 +22,7 @@ export interface HostedUiAuthEnv {
 const EXEMPT_EXACT_PATHS = new Set(['/robots.txt', '/spark-live/login']);
 const EXEMPT_PATH_PREFIXES = ['/_app/', '/favicon'];
 const RELEASE_LOCK_PUBLIC_EXACT_PATHS = new Set(['/']);
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const COOKIE_OPTIONS = {
 	httpOnly: true,
 	sameSite: 'strict' as const,
@@ -56,6 +57,33 @@ export function hostedUiLooksHosted(env: HostedUiAuthEnv): boolean {
 	);
 }
 
+export function hostedUiSecurityHeaders(env: HostedUiAuthEnv): Record<string, string> {
+	const headers: Record<string, string> = {
+		'X-Content-Type-Options': 'nosniff',
+		'X-Frame-Options': 'DENY',
+		'Referrer-Policy': 'no-referrer',
+		'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=()',
+		'Cross-Origin-Opener-Policy': 'same-origin'
+	};
+
+	if (hostedUiLooksHosted(env)) {
+		headers['Content-Security-Policy'] = [
+			"default-src 'self'",
+			"base-uri 'self'",
+			"object-src 'none'",
+			"frame-ancestors 'none'",
+			"form-action 'self'",
+			"img-src 'self' data: blob: https:",
+			"font-src 'self' data:",
+			"script-src 'self' 'unsafe-inline'",
+			"style-src 'self' 'unsafe-inline'",
+			"connect-src 'self' wss:"
+		].join('; ');
+	}
+
+	return headers;
+}
+
 export function hostedUiPrivatePreviewConfigured(env: HostedUiAuthEnv): boolean {
 	return (
 		env.SPARK_HOSTED_PRIVATE_PREVIEW === '1' &&
@@ -70,6 +98,48 @@ export function hostedUiReleaseLocked(env: HostedUiAuthEnv): boolean {
 
 export function hostedUiReleaseLockPathIsExempt(pathname: string): boolean {
 	return RELEASE_LOCK_PUBLIC_EXACT_PATHS.has(pathname);
+}
+
+export function hostedUiRequestHasExplicitToken(request: Request, url: URL): boolean {
+	const headerToken =
+		request.headers.get('x-spawner-ui-key') ||
+		request.headers.get('x-api-key') ||
+		request.headers.get('x-mcp-api-key');
+	if (headerToken?.trim()) return true;
+
+	const authorization = request.headers.get('authorization');
+	if (authorization?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim()) return true;
+
+	const queryToken = url.searchParams.get('uiKey') || url.searchParams.get('apiKey');
+	return Boolean(queryToken?.trim());
+}
+
+export function hostedUiCrossSiteMutationRejection(request: Request, url: URL): string | null {
+	if (!MUTATING_METHODS.has(request.method.toUpperCase())) return null;
+	if (hostedUiRequestHasExplicitToken(request, url)) return null;
+
+	const fetchSite = request.headers.get('sec-fetch-site')?.toLowerCase();
+	if (fetchSite && !['same-origin', 'same-site', 'none'].includes(fetchSite)) {
+		return 'Cross-site mutating browser request blocked.';
+	}
+
+	const origin = request.headers.get('origin');
+	if (origin) {
+		try {
+			if (new URL(origin).origin !== url.origin) {
+				return 'Mutating browser request origin is not allowed.';
+			}
+			return null;
+		} catch {
+			return 'Mutating browser request origin is malformed.';
+		}
+	}
+
+	if (!fetchSite) {
+		return 'Mutating browser request is missing same-origin proof.';
+	}
+
+	return null;
 }
 
 export function hostedUiWorkspaceId(env: HostedUiAuthEnv): string | null {
