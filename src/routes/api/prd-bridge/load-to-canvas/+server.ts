@@ -5,6 +5,10 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { autoDispatchPrdCanvasLoad } from '$lib/server/prd-auto-dispatch';
+import {
+	missionControlPathForMission,
+	resolveMissionControlAccess
+} from '$lib/server/mission-control-access';
 
 function getSpawnerDir(): string {
 	return process.env.SPAWNER_STATE_DIR || join(process.cwd(), '.spawner');
@@ -228,6 +232,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			relay,
 			timestamp: new Date().toISOString()
 		};
+		const missionControlAccess = resolveMissionControlAccess(missionControlPathForMission(resolvedMissionId));
 
 		await writeFile(pendingLoadFile, JSON.stringify(load, null, 2), 'utf-8');
 		await writeFile(lastLoadFile, JSON.stringify(load, null, 2), 'utf-8');
@@ -240,7 +245,8 @@ export const POST: RequestHandler = async ({ request }) => {
 						status: 'canvas_loaded',
 						canvasLoadedAt: new Date().toISOString(),
 						pipelineId: load.pipelineId,
-						canvasUrl: `/canvas?pipeline=${encodeURIComponent(load.pipelineId)}&mission=${encodeURIComponent(resolvedMissionId)}`
+						canvasUrl: `/canvas?pipeline=${encodeURIComponent(load.pipelineId)}&mission=${encodeURIComponent(resolvedMissionId)}`,
+						missionControlAccess
 					},
 					null,
 					2
@@ -297,7 +303,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			taskCount: nodes.length,
 			connectionCount: connections.length,
 			autoDispatch: autoDispatchResult,
-			canvasUrl: `/canvas?pipeline=${encodeURIComponent(load.pipelineId)}&mission=${encodeURIComponent(resolvedMissionId)}`
+			canvasUrl: `/canvas?pipeline=${encodeURIComponent(load.pipelineId)}&mission=${encodeURIComponent(resolvedMissionId)}`,
+			missionControlAccess
 		});
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);

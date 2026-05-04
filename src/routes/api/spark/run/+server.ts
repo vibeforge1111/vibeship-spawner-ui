@@ -10,6 +10,10 @@ import { providerRuntime } from '$lib/server/provider-runtime';
 import { applyProviderEnvOverrides } from '$lib/server/provider-config';
 import { resolveSparkRunProjectPath, SparkRunWorkspaceError } from '$lib/server/spark-run-workspace';
 import { normalizeTier, type SkillTier } from '$lib/server/skill-tiers';
+import {
+	missionControlPathForMission,
+	resolveMissionControlAccess
+} from '$lib/server/mission-control-access';
 
 interface SparkRunBody {
 	goal?: string;
@@ -303,7 +307,8 @@ export const POST: RequestHandler = async (event) => {
 			missionId: dispatchResult.missionId,
 			requestId: body.requestId?.trim() || mission.id,
 			providers: selectedProviderIds,
-			startedAt: dispatchResult.startedAt
+			startedAt: dispatchResult.startedAt,
+			missionControlAccess: resolveMissionControlAccess(missionControlPathForMission(dispatchResult.missionId))
 		});
 	} catch (error) {
 		if (error instanceof SparkRunWorkspaceError) {

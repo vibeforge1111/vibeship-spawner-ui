@@ -81,6 +81,11 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		expect(response.status).toBe(200);
 		const body = await response.json();
 		expect(body.canvasUrl).toBe('/canvas?pipeline=prd-tg-contract-test&mission=mission-tg-contract-test');
+		expect(body.missionControlAccess).toMatchObject({
+			mode: 'local-only',
+			url: null,
+			mobileReachable: false
+		});
 		const pendingRaw = await readFile(path.join(testSpawnerDir, 'pending-load.json'), 'utf-8');
 		const pending = JSON.parse(pendingRaw);
 		expect(pending.requestId).toBe(requestId);
@@ -164,8 +169,54 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 			requestId,
 			status: 'canvas_loaded',
 			pipelineId: `prd-${requestId}`,
-			canvasUrl: `/canvas?pipeline=prd-${requestId}&mission=mission-tg-relay-target-test`
+			canvasUrl: `/canvas?pipeline=prd-${requestId}&mission=mission-tg-relay-target-test`,
+			missionControlAccess: {
+				mode: 'local-only',
+				url: null,
+				mobileReachable: false
+			}
 		});
+	});
+
+	it('returns hosted Mission Control access when a mobile URL is configured', async () => {
+		const previous = process.env.SPAWNER_MISSION_CONTROL_PUBLIC_URL;
+		process.env.SPAWNER_MISSION_CONTROL_PUBLIC_URL = 'https://mission.sparkswarm.ai/app';
+		try {
+			const requestId = 'tg-mobile-access-test';
+			await writeFile(
+				path.join(testSpawnerDir, 'results', `${requestId}.json`),
+				JSON.stringify({
+					requestId,
+					success: true,
+					projectName: 'Spark Mobile Access Test',
+					tasks: [{ id: 'task-1', title: 'Expose mobile access', summary: 'Return access metadata.', skills: [] }],
+					executionPrompt: 'Build the mobile access test.'
+				}),
+				'utf-8'
+			);
+
+			const response = await POST({
+				request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ requestId, autoRun: false })
+				})
+			} as never);
+
+			expect(response.status).toBe(200);
+			const body = await response.json();
+			expect(body.missionControlAccess).toMatchObject({
+				mode: 'hosted',
+				url: 'https://mission.sparkswarm.ai/app/missions/mission-tg-mobile-access-test',
+				mobileReachable: true
+			});
+		} finally {
+			if (previous === undefined) {
+				delete process.env.SPAWNER_MISSION_CONTROL_PUBLIC_URL;
+			} else {
+				process.env.SPAWNER_MISSION_CONTROL_PUBLIC_URL = previous;
+			}
+		}
 	});
 
 	it('builds relay metadata from request body when pending request metadata is stale', async () => {
