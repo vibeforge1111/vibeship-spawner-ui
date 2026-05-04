@@ -123,7 +123,7 @@ describe('PRD auto-dispatch helpers', () => {
 	});
 
 	it('enriches PRD auto-dispatch tasks with tier-allowed H70 skills', async () => {
-		const skillMap = await buildAutoDispatchTaskSkillMap(load, [
+		const skillMap = await buildAutoDispatchTaskSkillMap({ ...load, tier: 'pro' }, [
 			{
 				id: 'task-1',
 				title: 'Create shell',

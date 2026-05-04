@@ -13,6 +13,8 @@ import * as path from 'path';
 import * as os from 'os';
 import * as yaml from 'yaml';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
+import { getTierSkills } from '$lib/server/skill-tiers';
+import { verifySparkProSkillAccess, type SparkProEntitlementVerdict } from '$lib/server/spark-pro-entitlements';
 
 function uniquePaths(paths: string[]): string[] {
 	return [...new Set(paths.map((candidate) => path.resolve(candidate)))];
@@ -176,6 +178,48 @@ function formatStaticSkillContent(skill: SparkSkillGraphMetadata): string {
 	return lines.join('\n');
 }
 
+async function isOpenSourceSkill(skillId: string): Promise<boolean> {
+	const baseSkills = await getTierSkills('base');
+	return baseSkills.some((skill) => skill.id === skillId);
+}
+
+function lockedSkillResponse(verdict: SparkProEntitlementVerdict, head = false): Response | null {
+	if (verdict === 'ok') return null;
+
+	const status = verdict === 'missing' || verdict === 'unauthorized' ? 401 : verdict === 'forbidden' ? 403 : 503;
+	const code =
+		verdict === 'missing'
+			? 'spark_pro_proof_required'
+			: verdict === 'unauthorized'
+				? 'spark_pro_proof_invalid'
+				: verdict === 'forbidden'
+					? 'spark_pro_skill_not_entitled'
+					: 'spark_pro_entitlements_unavailable';
+	const message =
+		verdict === 'missing'
+			? 'This Pro skill requires Spark Pro member proof.'
+			: verdict === 'unauthorized'
+				? 'Spark Pro member proof is invalid or expired.'
+				: verdict === 'forbidden'
+					? 'Spark Pro membership must include spark_pro or drop.skills.'
+					: 'Spark Pro entitlements could not be verified.';
+	const headers: Record<string, string> = {};
+	if (status === 401 || status === 403) {
+		headers['WWW-Authenticate'] =
+			status === 403
+				? 'Bearer realm="spawner-h70-skills", scope="drop.skills", error="insufficient_scope"'
+				: 'Bearer realm="spawner-h70-skills", scope="drop.skills"';
+	}
+
+	if (head) return new Response(null, { status, headers });
+	return json({ error: { code, message } }, { status, headers });
+}
+
+async function requireSkillAccess(skillId: string, request: Request, head = false): Promise<Response | null> {
+	if (await isOpenSourceSkill(skillId)) return null;
+	return lockedSkillResponse(await verifySparkProSkillAccess(request), head);
+}
+
 function formatH70SkillContent(skill: H70Skill & { id: string }, rawYaml: string): string {
 	const lines: string[] = [];
 
@@ -321,7 +365,7 @@ function findSkillPath(skillsLabPath: string, skillId: string): string | null {
 	return null;
 }
 
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, request }) => {
 	const { skillId } = params;
 
 	if (!skillId) {
@@ -336,6 +380,9 @@ export const GET: RequestHandler = async ({ params }) => {
 		}
 		throw e;
 	}
+
+	const accessResponse = await requireSkillAccess(skillId, request);
+	if (accessResponse) return accessResponse;
 
 	const skillsLabPath = resolveSkillsLabPath();
 	if (!skillsLabPath) {
@@ -416,7 +463,7 @@ export const GET: RequestHandler = async ({ params }) => {
 	}
 };
 
-export const HEAD: RequestHandler = async ({ params }) => {
+export const HEAD: RequestHandler = async ({ params, request }) => {
 	const { skillId } = params;
 
 	if (!skillId) {
@@ -425,6 +472,8 @@ export const HEAD: RequestHandler = async ({ params }) => {
 
 	try {
 		assertSafeId(skillId, 'skillId');
+		const accessResponse = await requireSkillAccess(skillId, request, true);
+		if (accessResponse) return accessResponse;
 		const skillsLabPath = resolveSkillsLabPath();
 		if (!skillsLabPath) {
 			if (findStaticSkillMetadata(skillId)) {
