@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { FREE_SKILL_IDS } from '$lib/skill-entitlements';
 import { formatSkillsByCategory, getTierSkills, normalizeTier } from './skill-tiers';
 
 describe('skill-tiers', () => {
@@ -37,12 +38,14 @@ describe('skill-tiers', () => {
 		const proIds = new Set(pro.map((skill) => skill.id));
 
 		expect(base.length).toBe(30);
+		expect(base.map((skill) => skill.id).sort()).toEqual([...FREE_SKILL_IDS].sort());
 		expect(base.length).toBeLessThan(pro.length);
 		expect(baseIds.has('frontend-engineer')).toBe(true);
 		expect(baseIds.has('stripe-integration')).toBe(true);
 		expect(baseIds.has('security-owasp')).toBe(true);
 		expect(baseIds.has('llm-architect')).toBe(true);
 		expect(baseIds.has('playwright-testing')).toBe(true);
+		expect(baseIds.has('stripe-subscriptions')).toBe(false);
 		for (const id of baseIds) {
 			expect(proIds.has(id)).toBe(true);
 		}

@@ -110,6 +110,14 @@ function normalizeSkillTier(id, explicitTier, freeSkillIds = FOUNDATION_FREE_SKI
 	return freeSkillIds.has(id) ? 'free' : 'premium';
 }
 
+function entitlementFields(tier) {
+	return {
+		tier,
+		requiresAuth: tier === 'premium',
+		fallbackAvailable: true
+	};
+}
+
 function collectSkillFiles() {
 	if (!fs.existsSync(SOURCE_DIR) || !fs.statSync(SOURCE_DIR).isDirectory()) {
 		throw new Error(`spark-skill-graphs source directory not found: ${SOURCE_DIR}`);
@@ -167,12 +175,13 @@ function toSummary({ id, category, parsed }, validIds) {
 		? parsed.pairs_with.filter((skillId) => typeof skillId === 'string' && validIds.has(skillId))
 		: [];
 
+	const tier = normalizeSkillTier(id, parsed.tier);
 	return {
 		id,
 		name: parsed.name || id,
 		description: parsed.description || '',
 		category: remapCategory(parsed.category || category),
-		tier: normalizeSkillTier(id, parsed.tier),
+		...entitlementFields(tier),
 		layer: Number.isFinite(parsed.layer) ? parsed.layer : 1,
 		tags: Array.isArray(parsed.tags) && parsed.tags.length ? parsed.tags : termsFrom(owns),
 		triggers: triggersFor(parsed, id),
@@ -212,12 +221,13 @@ function summaryFromManifestSkill(skill, validIds) {
 		? skill.pairs_with.filter((skillId) => typeof skillId === 'string' && validIds.has(skillId))
 		: [];
 
+	const tier = normalizeSkillTier(skill.id, skill.tier);
 	return {
 		id: skill.id,
 		name: skill.name || skill.id,
 		description: skill.description || '',
 		category: remapCategory(skill.category || 'general'),
-		tier: normalizeSkillTier(skill.id, skill.tier),
+		...entitlementFields(tier),
 		layer: 1,
 		tags: Array.isArray(skill.tags) && skill.tags.length
 			? skill.tags.filter((tag) => typeof tag === 'string' && tag.trim())

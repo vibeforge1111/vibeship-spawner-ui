@@ -17,6 +17,8 @@ jobs:
           path: spawner-ui
 
       - name: Checkout spark-skill-graphs
+        id: checkout-skills
+        continue-on-error: true
         uses: actions/checkout@v4
         with:
           repository: vibeforge1111/spark-skill-graphs
@@ -27,20 +29,30 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: |
-            spawner-ui/package-lock.json
-            spark-skill-graphs/package-lock.json
+          cache-dependency-path: spawner-ui/package-lock.json
 
       - name: Install Spawner dependencies
         working-directory: spawner-ui
         run: npm ci
 
       - name: Install Spark dependencies
+        if: steps.checkout-skills.outcome == 'success'
         working-directory: spark-skill-graphs
         run: npm ci
 
       - name: Run skill integration guard
+        if: steps.checkout-skills.outcome == 'success'
         working-directory: spawner-ui
         env:
           SPAWNER_H70_SKILLS_DIR: ${{ github.workspace }}/spark-skill-graphs
         run: node scripts/guard-skill-integration.cjs --check-clean
+
+      - name: Run bundled skill guard
+        if: steps.checkout-skills.outcome != 'success'
+        working-directory: spawner-ui
+        run: |
+          echo "::warning::spark-skill-graphs was not accessible to this workflow token; running bundled Spawner skill checks instead."
+          npm run test:run -- \
+            src/lib/services/skill-recommendation-evals.test.ts \
+            src/lib/services/h70-skill-matcher.test.ts \
+            src/lib/server/skill-catalog-contract.test.ts

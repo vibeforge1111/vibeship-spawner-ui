@@ -14,6 +14,7 @@ import * as os from 'os';
 import * as yaml from 'yaml';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
 import { authorizeSkillAccess } from '$lib/server/spark-pro-entitlements';
+import { canLoadFullSkillBody, entitlementForSkill } from '$lib/server/skill-entitlements';
 
 function uniquePaths(paths: string[]): string[] {
 	return [...new Set(paths.map((candidate) => path.resolve(candidate)))];
@@ -81,6 +82,8 @@ interface SparkSkillGraphMetadata {
 	description?: string;
 	category?: string;
 	tier?: string;
+	requiresAuth?: boolean;
+	fallbackAvailable?: boolean;
 	tags?: string[];
 	triggers?: string[];
 	handoffs?: string[];
@@ -194,6 +197,44 @@ function formatStaticSkillContent(skill: SparkSkillGraphMetadata): string {
 	);
 
 	return lines.join('\n');
+}
+
+function formatLockedSkillContent(skill: SparkSkillGraphMetadata): string {
+	const lines = [
+		`# ${skill.name || skill.id}`,
+		'',
+		`> ${skill.description || 'Spark skill graph metadata skill.'}`,
+		'',
+		`**Skill ID:** ${skill.id}`,
+		'**Tier:** Pro',
+		'**Source:** spark-skill-graphs metadata',
+		'',
+		'## Pro Skill Body Locked',
+		'',
+		'This skill is part of the full Spark skill graph catalog. The free catalog can still see the skill metadata so agents know it exists, but full YAML instructions require a Pro skill graph source.',
+		'',
+		'Set `SPARK_SKILL_CATALOG_TIER=pro` with a valid Pro skill graph source to load the full skill body.'
+	];
+
+	if (skill.category) lines.push('', `**Category:** ${skill.category}`);
+	if (skill.tags?.length) lines.push(`**Tags:** ${skill.tags.join(', ')}`);
+	if (skill.triggers?.length) lines.push(`**Triggers:** ${skill.triggers.join(', ')}`);
+
+	return lines.join('\n');
+}
+
+function staticSkillPayload(metadata: { skill: SparkSkillGraphMetadata; path: string }) {
+	const entitlement = entitlementForSkill(metadata.skill.id);
+	const skill = { ...metadata.skill, ...entitlement };
+	return {
+		skill,
+		rawYaml: JSON.stringify(skill, null, 2),
+		formattedContent: entitlement.locked ? formatLockedSkillContent(skill) : formatStaticSkillContent(skill),
+		source: entitlement.locked ? 'spark-skill-graphs-pro-locked' : 'spark-skill-graphs-static',
+		path: metadata.path,
+		category: skill.category || null,
+		entitlement
+	};
 }
 
 function formatH70SkillContent(skill: H70Skill & { id: string }, rawYaml: string): string {
@@ -373,14 +414,12 @@ export const GET: RequestHandler = async ({ params, request }) => {
 				'Spark skill graph source not found. Set SPAWNER_H70_SKILLS_DIR, H70_SKILLS_LAB_DIR, or SPAWNER_SKILLS_JSON.'
 			);
 		}
-		return json({
-			skill: metadata.skill,
-			rawYaml: JSON.stringify(metadata.skill, null, 2),
-			formattedContent: formatStaticSkillContent(metadata.skill),
-			source: 'spark-skill-graphs-static',
-			path: metadata.path,
-			category: metadata.skill.category || null
-		});
+		return json(staticSkillPayload(metadata));
+	}
+
+	const metadata = findStaticSkillMetadata(skillId);
+	if (metadata && access.tier === 'premium' && access.source !== 'spark-pro' && !canLoadFullSkillBody(skillId)) {
+		return json(staticSkillPayload(metadata));
 	}
 
 	// Find skill across categories
@@ -396,16 +435,8 @@ export const GET: RequestHandler = async ({ params, request }) => {
 
 	// Check if skill exists
 	if (!skillPath) {
-		const metadata = findStaticSkillMetadata(skillId);
 		if (metadata) {
-			return json({
-				skill: metadata.skill,
-				rawYaml: JSON.stringify(metadata.skill, null, 2),
-				formattedContent: formatStaticSkillContent(metadata.skill),
-				source: 'spark-skill-graphs-static',
-				path: metadata.path,
-				category: metadata.skill.category || null
-			});
+			return json(staticSkillPayload(metadata));
 		}
 		throw error(404, `Skill not found: ${skillId}`);
 	}
@@ -423,7 +454,8 @@ export const GET: RequestHandler = async ({ params, request }) => {
 		const skillWithId = {
 			...skill,
 			id: skillId,
-			category
+			category,
+			...entitlementForSkill(skillId)
 		};
 
 		// Format the content for Claude Code
@@ -435,7 +467,8 @@ export const GET: RequestHandler = async ({ params, request }) => {
 			formattedContent,
 			source: getSkillsSourceName(skillsLabPath),
 			path: skillPath,
-			category
+			category,
+			entitlement: entitlementForSkill(skillId)
 		});
 	} catch (e) {
 		console.error(`[Skills API] Error reading skill ${skillId}:`, e);
