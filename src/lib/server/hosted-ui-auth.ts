@@ -9,6 +9,11 @@ export interface HostedUiAuthEnv {
 	SPARK_LIVE_CONTAINER?: string;
 	SPARK_SPAWNER_HOST?: string;
 	SPARK_ALLOWED_HOSTS?: string;
+	RAILWAY_PUBLIC_DOMAIN?: string;
+	RENDER_EXTERNAL_URL?: string;
+	FLY_APP_NAME?: string;
+	VERCEL_URL?: string;
+	NETLIFY?: string;
 	SPARK_BRIDGE_API_KEY?: string;
 	EVENTS_API_KEY?: string;
 	MCP_API_KEY?: string;
@@ -16,6 +21,7 @@ export interface HostedUiAuthEnv {
 
 const EXEMPT_EXACT_PATHS = new Set(['/robots.txt', '/spark-live/login']);
 const EXEMPT_PATH_PREFIXES = ['/_app/', '/favicon'];
+const RELEASE_LOCK_PUBLIC_EXACT_PATHS = new Set(['/']);
 const COOKIE_OPTIONS = {
 	httpOnly: true,
 	sameSite: 'strict' as const,
@@ -41,12 +47,21 @@ export function hostedUiLooksHosted(env: HostedUiAuthEnv): boolean {
 	return (
 		env.SPARK_LIVE_CONTAINER === '1' ||
 		env.SPARK_SPAWNER_HOST === '0.0.0.0' ||
-		Boolean(env.SPARK_ALLOWED_HOSTS?.trim())
+		Boolean(env.SPARK_ALLOWED_HOSTS?.trim()) ||
+		Boolean(env.RAILWAY_PUBLIC_DOMAIN?.trim()) ||
+		Boolean(env.RENDER_EXTERNAL_URL?.trim()) ||
+		Boolean(env.FLY_APP_NAME?.trim()) ||
+		Boolean(env.VERCEL_URL?.trim()) ||
+		env.NETLIFY === 'true'
 	);
 }
 
 export function hostedUiReleaseLocked(env: HostedUiAuthEnv): boolean {
 	return hostedUiLooksHosted(env) && env.SPARK_HOSTED_PRIVATE_PREVIEW !== '1';
+}
+
+export function hostedUiReleaseLockPathIsExempt(pathname: string): boolean {
+	return RELEASE_LOCK_PUBLIC_EXACT_PATHS.has(pathname);
 }
 
 export function hostedUiWorkspaceId(env: HostedUiAuthEnv): string | null {

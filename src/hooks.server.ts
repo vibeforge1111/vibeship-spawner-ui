@@ -8,6 +8,7 @@ import {
 	hostedUiAuthRateLimitStatus,
 	hostedUiRequestToken,
 	hostedUiRequestWorkspaceId,
+	hostedUiReleaseLockPathIsExempt,
 	hostedUiReleaseLocked,
 	recordHostedUiAuthFailure,
 	clearHostedUiAuthFailures,
@@ -25,6 +26,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	if (hostedUiReleaseLocked(env)) {
+		if (hostedUiReleaseLockPathIsExempt(event.url.pathname)) {
+			return resolve(event);
+		}
+
 		if (event.request.headers.get('accept')?.includes('text/html')) {
 			return new Response(
 				`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Spawner private preview locked</title></head><body style="margin:0;background:#121414;color:#eff5f2;font-family:Inter,system-ui,sans-serif"><main style="min-height:100vh;display:grid;place-items:center;padding:24px"><section style="max-width:640px;border:1px solid rgba(148,163,184,.22);background:rgba(20,24,24,.92);border-radius:12px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.34)"><p style="margin:0 0 12px;color:#2ee6b8;text-transform:uppercase;letter-spacing:.16em;font-size:12px;font-weight:700">Private preview locked</p><h1 style="margin:0 0 14px;font-size:32px;line-height:1.1">Hosted Spawner is not public yet.</h1><p style="margin:0;color:#a8b3ad;line-height:1.65">This deployment is intentionally blocked until workspace isolation, password access, and command safety have been explicitly enabled. Set <code>SPARK_HOSTED_PRIVATE_PREVIEW=1</code>, <code>SPARK_WORKSPACE_ID</code>, and <code>SPARK_UI_API_KEY</code> only for a trusted private preview.</p></section></main></body></html>`,

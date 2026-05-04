@@ -6,6 +6,7 @@ import {
 	hostedUiAuthClientKey,
 	hostedUiAuthPathIsExempt,
 	hostedUiAuthRateLimitStatus,
+	hostedUiReleaseLockPathIsExempt,
 	hostedUiReleaseLocked,
 	hostedUiRequestToken,
 	hostedUiRequestWorkspaceId,
@@ -46,7 +47,20 @@ describe('hosted UI auth', () => {
 		expect(hostedUiReleaseLocked({ SPARK_LIVE_CONTAINER: '1' })).toBe(true);
 		expect(hostedUiReleaseLocked({ SPARK_SPAWNER_HOST: '0.0.0.0' })).toBe(true);
 		expect(hostedUiReleaseLocked({ SPARK_ALLOWED_HOSTS: 'spark.example.com' })).toBe(true);
+		expect(hostedUiReleaseLocked({ RAILWAY_PUBLIC_DOMAIN: 'spawner.example.up.railway.app' })).toBe(true);
+		expect(hostedUiReleaseLocked({ RENDER_EXTERNAL_URL: 'https://spawner.example.com' })).toBe(true);
+		expect(hostedUiReleaseLocked({ FLY_APP_NAME: 'spawner-ui' })).toBe(true);
+		expect(hostedUiReleaseLocked({ VERCEL_URL: 'spawner.example.com' })).toBe(true);
+		expect(hostedUiReleaseLocked({ NETLIFY: 'true' })).toBe(true);
 		expect(hostedUiReleaseLocked({ SPARK_LIVE_CONTAINER: '1', SPARK_HOSTED_PRIVATE_PREVIEW: '1' })).toBe(false);
+	});
+
+	it('lets only the public landing page through the release lock', () => {
+		expect(hostedUiReleaseLockPathIsExempt('/')).toBe(true);
+		expect(hostedUiReleaseLockPathIsExempt('/canvas')).toBe(false);
+		expect(hostedUiReleaseLockPathIsExempt('/kanban')).toBe(false);
+		expect(hostedUiReleaseLockPathIsExempt('/api/mission-control/board')).toBe(false);
+		expect(hostedUiReleaseLockPathIsExempt('/spark-live/login')).toBe(false);
 	});
 
 	it('exempts static assets', () => {

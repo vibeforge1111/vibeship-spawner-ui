@@ -10,6 +10,11 @@ export interface HostedSetupEnv {
 	SPARK_ALLOWED_HOSTS?: string;
 	SPARK_LIVE_CONTAINER?: string;
 	SPARK_SPAWNER_HOST?: string;
+	RAILWAY_PUBLIC_DOMAIN?: string;
+	RENDER_EXTERNAL_URL?: string;
+	FLY_APP_NAME?: string;
+	VERCEL_URL?: string;
+	NETLIFY?: string;
 	BOT_TOKEN?: string;
 	TELEGRAM_BOT_TOKEN?: string;
 	ADMIN_TELEGRAM_IDS?: string;
@@ -69,7 +74,15 @@ function normalizeProviderId(value: string): string | null {
 
 export function buildHostedSetupStatus(env: HostedSetupEnv): HostedSetupStatus {
 	const allowedHosts = parseAllowedHosts(env.SPARK_ALLOWED_HOSTS);
-	const hosted = env.SPARK_LIVE_CONTAINER === '1' || env.SPARK_SPAWNER_HOST === '0.0.0.0' || allowedHosts.length > 0;
+	const hosted =
+		env.SPARK_LIVE_CONTAINER === '1' ||
+		env.SPARK_SPAWNER_HOST === '0.0.0.0' ||
+		allowedHosts.length > 0 ||
+		Boolean(env.RAILWAY_PUBLIC_DOMAIN?.trim()) ||
+		Boolean(env.RENDER_EXTERNAL_URL?.trim()) ||
+		Boolean(env.FLY_APP_NAME?.trim()) ||
+		Boolean(env.VERCEL_URL?.trim()) ||
+		env.NETLIFY === 'true';
 	const agentProvider = firstConfigured(
 		env.SPARK_CHAT_LLM_PROVIDER,
 		env.SPARK_BUILDER_LLM_PROVIDER,

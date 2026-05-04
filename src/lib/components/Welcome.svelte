@@ -39,7 +39,6 @@
 
 	// Initialize PRD bridge on mount
 	onMount(() => {
-		initPRDBridge();
 		// Subscribe to analysis status updates
 		const unsubscribe = analysisStatus.subscribe(status => {
 			aiAnalysisStatus = status;
@@ -104,6 +103,7 @@
 					// === AI MODE ===
 					// Uses REAL Claude AI intelligence via bridge (PREFERRED)
 					logger.info('[PRD-AI] Setting up for Claude analysis...');
+					await initPRDBridge();
 
 					// Stage 1: Writing PRD for Claude
 					processingStage = 1;

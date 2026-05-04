@@ -30,7 +30,7 @@ describe('hosted setup status', () => {
 
 	it('points users at missing hosted setup steps', () => {
 		const status = buildHostedSetupStatus({
-			SPARK_SPAWNER_HOST: '0.0.0.0',
+			RAILWAY_PUBLIC_DOMAIN: 'spawner-ui-production.up.railway.app',
 			SPARK_ALLOWED_HOSTS: '*',
 			SPARK_LLM_PROVIDER: 'zai'
 		});
