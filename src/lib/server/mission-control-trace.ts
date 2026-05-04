@@ -11,8 +11,16 @@ import {
 	enrichMissionControlBoardWithProviderResults,
 	type MissionControlResultSummary
 } from './mission-control-results';
+import {
+	missionControlPathForMission,
+	resolveMissionControlAccess
+} from './mission-control-access';
 import type { ProviderMissionResultSnapshot } from './provider-runtime';
-import type { MissionControlProjectLineage, MissionControlTracePhase } from '$lib/types/mission-control';
+import type {
+	MissionControlAccessInfo,
+	MissionControlProjectLineage,
+	MissionControlTracePhase
+} from '$lib/types/mission-control';
 
 type BoardBuckets = Record<string, Array<MissionControlBoardEntry & MissionControlResultSummary>>;
 type SkillPairingSource = 'kanban' | 'analysis' | 'canvas' | 'none';
@@ -43,6 +51,7 @@ export interface MissionControlTrace {
 		taskCounts: MissionControlBoardEntry['taskStatusCounts'] | null;
 		currentTask: string | null;
 	};
+	missionControlAccess: MissionControlAccessInfo;
 	surfaces: {
 		telegram: {
 			relay: MissionControlBoardEntry['telegramRelay'] | null;
@@ -312,6 +321,7 @@ export async function buildMissionControlTrace(input: {
 	const dispatchStatus = missionId && input.getDispatchStatus ? input.getDispatchStatus(missionId) : null;
 	const relay = entry?.telegramRelay ?? null;
 	const traceSnapshot = getMissionControlRelaySnapshot(missionId || undefined);
+	const missionControlAccess = resolveMissionControlAccess(missionControlPathForMission(missionId));
 	const phase = phaseFor({
 		boardBucket: bucket,
 		dispatchStatus,
@@ -332,6 +342,7 @@ export async function buildMissionControlTrace(input: {
 			taskCounts: entry?.taskStatusCounts ?? null,
 			currentTask: entry?.taskName ?? null
 		},
+		missionControlAccess,
 		surfaces: {
 			telegram: {
 				relay,

@@ -5,6 +5,10 @@ import { getMissionControlBoard, getMissionControlRelaySnapshot } from '$lib/ser
 import { summarizeProviderResults } from '$lib/server/mission-control-results';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import type { MissionControlProjectLineage } from '$lib/types/mission-control';
+import {
+	missionControlPathForMission,
+	resolveMissionControlAccess
+} from '$lib/server/mission-control-access';
 
 function findProjectLineage(missionId: string | undefined): MissionControlProjectLineage | null {
 	if (!missionId) return null;
@@ -41,10 +45,12 @@ export const GET: RequestHandler = async (event) => {
 		? summarizeProviderResults(providerRuntime.getMissionResults(missionId))
 		: { providerResults: [], providerSummary: null };
 	const projectLineage = findProjectLineage(missionId);
+	const missionControlAccess = resolveMissionControlAccess(missionControlPathForMission(missionId));
 
 	return json({
 		ok: true,
 		missionId: missionId || null,
+		missionControlAccess,
 		snapshot: {
 			...snapshot,
 			...providerResultSummary,

@@ -132,6 +132,11 @@ describe('/api/mission-control/trace integration', () => {
 				taskCounts: { queued: 0, running: 1, completed: 0, failed: 0, cancelled: 0, total: 1 },
 				currentTask: 'Create the traceable app'
 			},
+			missionControlAccess: {
+				mode: 'local-only',
+				url: null,
+				mobileReachable: false
+			},
 			surfaces: {
 				telegram: {
 					relay: { port: 8789, profile: 'spark-agi', url: null },
@@ -161,5 +166,28 @@ describe('/api/mission-control/trace integration', () => {
 			eventType: 'task_started',
 			taskName: 'Create the traceable app'
 		});
+	});
+
+	it('returns hosted Mission Control access at the top level for mobile clients', async () => {
+		const previous = process.env.SPAWNER_MISSION_CONTROL_PUBLIC_URL;
+		process.env.SPAWNER_MISSION_CONTROL_PUBLIC_URL = 'https://mission.sparkswarm.ai';
+		try {
+			const response = await GET(
+				event('http://127.0.0.1/api/mission-control/trace?missionId=mission-mobile-trace') as never
+			);
+			expect(response.status).toBe(200);
+			const payload = await response.json();
+			expect(payload.missionControlAccess).toMatchObject({
+				mode: 'hosted',
+				url: 'https://mission.sparkswarm.ai/missions/mission-mobile-trace',
+				mobileReachable: true
+			});
+		} finally {
+			if (previous === undefined) {
+				delete process.env.SPAWNER_MISSION_CONTROL_PUBLIC_URL;
+			} else {
+				process.env.SPAWNER_MISSION_CONTROL_PUBLIC_URL = previous;
+			}
+		}
 	});
 });
