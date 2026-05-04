@@ -73,7 +73,7 @@ async function appendPrdTrace(requestId: string, event: string, details: Record<
 
 async function updatePendingRequestStatus(
 	requestId: string,
-	status: 'pending' | 'processed' | 'timeout' | 'error',
+	status: 'pending' | 'processed' | 'timeout' | 'fallback' | 'error',
 	extra: Record<string, unknown> = {}
 ): Promise<void> {
 	try {
