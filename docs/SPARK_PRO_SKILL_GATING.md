@@ -59,7 +59,7 @@ npm run smoke:spark-pro-gating
 For a production gate with a real member session:
 
 ```text
-SPAWNER_SMOKE_BASE_URL=https://agent.sparkswarm.ai \
+SPAWNER_SMOKE_BASE_URL=https://spawner.sparkswarm.ai \
 SPARK_PRO_API_BASE_URL=https://pro.sparkswarm.ai \
 SPAWNER_EXPECT_PRO_ENFORCEMENT=1 \
 SPAWNER_REQUIRE_PRO_AUTH_SMOKE=1 \
@@ -131,6 +131,7 @@ image. If hosted Spawner must serve full YAML skill bodies, copy or mount the
 `spark-skill-graphs` source into the container and set `SPAWNER_H70_SKILLS_DIR`
 to that mounted path.
 
-`agent.sparkswarm.ai` must point at this Spawner service, not the marketing site.
-The release smoke intentionally fails when `/api/h70-skills/:skillId` returns
-HTML instead of a skill JSON payload.
+Current verified production URL is `https://spawner.sparkswarm.ai`.
+`agent.sparkswarm.ai` is still a separate routing/product decision. The release
+smoke intentionally fails when `/api/h70-skills/:skillId` returns HTML instead
+of a skill JSON payload.
