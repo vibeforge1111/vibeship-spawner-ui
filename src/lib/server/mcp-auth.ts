@@ -1,6 +1,7 @@
 import { env } from '$env/dynamic/private';
 import { json, type RequestEvent } from '@sveltejs/kit';
 import { timingSafeEqual } from 'node:crypto';
+import { hostedUiSessionIsValid } from '$lib/server/hosted-ui-auth';
 
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
 const rateLimitBuckets = new Map<string, number[]>();
@@ -156,6 +157,10 @@ export function requireControlAuth(event: RequestEvent, options: ControlAuthOpti
 	}
 
 	if (allowLoopback && isLoopbackRequest(event)) {
+		return null;
+	}
+
+	if (event.cookies && hostedUiSessionIsValid(event.cookies, env)) {
 		return null;
 	}
 

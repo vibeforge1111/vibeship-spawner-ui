@@ -13,6 +13,7 @@ import {
 	hostedUiReleaseLockPathIsExempt,
 	hostedUiReleaseLocked,
 	hostedUiSecurityHeaders,
+	hostedUiSessionIsValid,
 	recordHostedUiAuthFailure,
 	clearHostedUiAuthFailures,
 	persistHostedUiAuth,
@@ -73,7 +74,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const clientKey = hostedUiAuthClientKey(event.request);
 	const token = hostedUiRequestToken(event.request, event.url, event.cookies);
 	const workspaceId = hostedUiRequestWorkspaceId(event.request, event.url, event.cookies);
-	if (!hostedUiCredentialsAreValid(workspaceId, token, env)) {
+	const sessionValid = hostedUiSessionIsValid(event.cookies, env);
+	const explicitCredentialsValid = hostedUiCredentialsAreValid(workspaceId, token, env);
+	if (!sessionValid && !explicitCredentialsValid) {
 		const rateLimit = hostedUiAuthRateLimitStatus(clientKey);
 		if (rateLimit.blocked) {
 			return secureResponse(new Response('Too many Spark Live access attempts. Wait a moment, then try again.', {
@@ -96,7 +99,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	clearHostedUiAuthFailures(clientKey);
-	persistHostedUiAuth(event.cookies, env);
+	if (explicitCredentialsValid) {
+		persistHostedUiAuth(event.cookies, env);
+	}
 	if (
 		event.url.searchParams.has('uiKey') ||
 		event.url.searchParams.has('apiKey') ||
