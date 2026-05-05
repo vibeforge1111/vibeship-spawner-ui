@@ -40,6 +40,9 @@ describe('skill-tiers', () => {
 
 		expect(base).toHaveLength(30);
 		expect(base.length).toBeLessThan(pro.length);
+		expect(baseIds.has('frontend-engineer')).toBe(true);
+		expect(baseIds.has('stripe-integration')).toBe(true);
+		expect(baseIds.has('ai-agent-permissions-sandboxing')).toBe(false);
 		expect(baseIds.has('authentication-oauth')).toBe(true);
 		expect(baseIds.has('subscription-billing')).toBe(true);
 		expect(baseIds.has('threejs-3d-graphics')).toBe(false);
