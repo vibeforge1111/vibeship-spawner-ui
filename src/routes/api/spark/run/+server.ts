@@ -17,6 +17,7 @@ import {
 
 interface SparkRunBody {
 	goal?: string;
+	missionName?: string;
 	projectPath?: string;
 	providers?: string[];
 	chatId?: string;
@@ -66,6 +67,13 @@ function normalizeTelegramRelay(value: SparkRunBody['telegramRelay']): Record<st
 	return Object.keys(relay).length > 0 ? relay : null;
 }
 
+function normalizeMissionName(value: unknown): string | null {
+	if (typeof value !== 'string') return null;
+	const cleaned = value.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+	if (!cleaned) return null;
+	return cleaned.length > 140 ? `${cleaned.slice(0, 137).trim()}...` : cleaned;
+}
+
 function createSparkMission(
 	body: SparkRunBody,
 	goal: string,
@@ -79,11 +87,13 @@ function createSparkMission(
 	const userId = body.userId?.trim() || 'spark-telegram';
 	const telegramRelay = normalizeTelegramRelay(body.telegramRelay);
 	const projectPath = resolveSparkRunProjectPath(body.projectPath);
+	const fallbackMissionName = `Spark Run: ${goal.length > 140 ? `${goal.slice(0, 137).trim()}...` : goal}`;
+	const missionName = normalizeMissionName(body.missionName) || fallbackMissionName;
 
 	return {
 		id: missionId,
 		user_id: userId,
-		name: `Spark Run: ${goal.length > 140 ? goal.slice(0, 137) + '…' : goal}`,
+		name: missionName,
 		description: goal,
 		mode: 'multi-llm-orchestrator',
 		status: 'ready',
@@ -305,6 +315,7 @@ export const POST: RequestHandler = async (event) => {
 		return json({
 			success: true,
 			missionId: dispatchResult.missionId,
+			missionName: mission.name,
 			requestId: body.requestId?.trim() || mission.id,
 			providers: selectedProviderIds,
 			startedAt: dispatchResult.startedAt,
