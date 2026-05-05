@@ -8,65 +8,66 @@ import {
 describe('spark-pro-entitlements', () => {
 	it('uses bearer proof headers before cookies', () => {
 		const headers = sparkProProofHeaders(
-			new Request('https://spawner.local/api/h70-skills/langgraph', {
+			new Request('https://spawner.sparkswarm.ai/api/h70-skills/frontend-engineer', {
 				headers: {
-					authorization: 'Bearer proof-token',
-					cookie: 'spark_pro_session=cookie-token'
+					authorization: 'Bearer member-token',
+					cookie: 'spark_pro_session=session-token'
 				}
 			})
 		);
 
-		expect(headers?.get('authorization')).toBe('Bearer proof-token');
+		expect(headers?.get('authorization')).toBe('Bearer member-token');
 		expect(headers?.has('cookie')).toBe(false);
 	});
 
 	it('extracts the Spark Pro session cookie as proof when no bearer token exists', () => {
 		const headers = sparkProProofHeaders(
-			new Request('https://spawner.local/api/h70-skills/langgraph', {
+			new Request('https://spawner.sparkswarm.ai/api/h70-skills/frontend-engineer', {
 				headers: {
-					cookie: 'theme=dark; spark_pro_session=cookie-token; other=value'
+					cookie: 'theme=dark; spark_pro_session=session-token; other=value'
 				}
 			})
 		);
 
-		expect(headers?.get('cookie')).toBe('spark_pro_session=cookie-token');
+		expect(headers?.get('cookie')).toBe('spark_pro_session=session-token');
 	});
 
-	it('verifies accepted Pro entitlement features', async () => {
-		const fetchImpl = vi.fn(async () =>
-			new Response(JSON.stringify({ features: ['drop.skills'] }), { status: 200 })
-		) as unknown as typeof fetch;
+	it('accepts Spark Pro or skill-drop entitlements', async () => {
+		const fetchImpl = vi.fn(async (url, init) => {
+			expect(String(url)).toBe('https://pro.example/api/member/entitlements');
+			expect((init?.headers as Headers).get('authorization')).toBe('Bearer member-token');
+			return Response.json({ features: ['drop.skills'] });
+		}) as unknown as typeof fetch;
+
 		const verdict = await verifySparkProSkillAccess(
-			new Request('https://spawner.local/api/h70-skills/langgraph', {
-				headers: { authorization: 'Bearer proof-token' }
+			new Request('https://spawner.sparkswarm.ai/api/h70-skills/frontend-engineer', {
+				headers: { authorization: 'Bearer member-token' }
 			}),
-			{ envRecord: { SPARK_PRO_BASE_URL: 'https://pro.example.test/' }, fetchImpl }
+			{ envRecord: { SPARK_PRO_API_BASE_URL: 'https://pro.example/' }, fetchImpl }
 		);
 
 		expect(verdict).toBe('ok');
-		expect(fetchImpl).toHaveBeenCalledWith(new URL('https://pro.example.test/api/member/entitlements'), {
-			method: 'GET',
-			headers: expect.any(Headers)
-		});
+		expect(fetchImpl).toHaveBeenCalledOnce();
 	});
 
-	it('fails closed when proof or entitlement is absent', async () => {
-		expect(
-			await verifySparkProSkillAccess(new Request('https://spawner.local/api/h70-skills/langgraph'))
-		).toBe('missing');
+	it('rejects sessions without the Spark Skill Graphs feature', async () => {
+		const verdict = await verifySparkProSkillAccess(
+			new Request('https://spawner.sparkswarm.ai/api/h70-skills/frontend-engineer', {
+				headers: { authorization: 'Bearer member-token' }
+			}),
+			{
+				envRecord: { SPARK_PRO_API_BASE_URL: 'https://pro.example' },
+				fetchImpl: async () => Response.json({ features: ['tool.xcontent'] })
+			}
+		);
 
-		const fetchImpl = vi.fn(async () =>
-			new Response(JSON.stringify({ features: ['other'] }), { status: 200 })
-		) as unknown as typeof fetch;
+		expect(verdict).toBe('forbidden');
+	});
 
-		expect(
-			await verifySparkProSkillAccess(
-				new Request('https://spawner.local/api/h70-skills/langgraph', {
-					headers: { authorization: 'Bearer proof-token' }
-				}),
-				{ fetchImpl }
-			)
-		).toBe('forbidden');
+	it('fails closed when proof is absent', async () => {
+		await expect(
+			verifySparkProSkillAccess(new Request('https://spawner.sparkswarm.ai/api/h70-skills/frontend-engineer'))
+		).resolves.toBe('missing');
 	});
 
 	it('normalizes configured Spark Pro base URLs', () => {

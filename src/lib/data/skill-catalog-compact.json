@@ -220,6 +220,17 @@
     ]
   },
   {
+    "id": "machine-learning",
+    "desc": "General machine-learning system design covering dataset framing, feature validation, model training,",
+    "owns": [
+      "Problem framing and label definition",
+      "Feature and dataset validation",
+      "Model family selection",
+      "Offline evaluation and error analysis",
+      "Production-readiness handoff"
+    ]
+  },
+  {
     "id": "ml-memory",
     "desc": "Memory systems specialist for hierarchical memory, consolidation, and outcome-based learning",
     "owns": [
@@ -429,6 +440,17 @@
     ]
   },
   {
+    "id": "ai-agent-permissions-sandboxing",
+    "desc": "Tool permissions, approval gates, and sandboxing for AI agents:\ndeclarative tool catalogs, per-actio",
+    "owns": [
+      "Tool catalog (declarative, with side-effect classification)",
+      "Per-action allowlist + sandbox config",
+      "Approval-gate UX (sync, async, batched)",
+      "Human-in-the-loop policy per side-effect tier",
+      "Loop budgets (max_steps, max_tokens, max_cost_usd, max_duration)"
+    ]
+  },
+  {
     "id": "ai-chatbot-builder",
     "desc": "Building production chatbots with LLMs including conversation memory, guardrails, streaming UI, RAG ",
     "owns": [
@@ -437,6 +459,17 @@
       "System prompt design and guardrails",
       "Streaming chat UI and response rendering",
       "Fallback handling when LLM fails"
+    ]
+  },
+  {
+    "id": "ai-evals-dataset-curation",
+    "desc": "Eval dataset curation for LLM applications: golden sets, drift cases,\nadversarial examples, label qu",
+    "owns": [
+      "Eval taxonomy (categories, sub-categories, tags)",
+      "Golden dataset (curated input/output pairs with labels)",
+      "Adversarial / drift / edge-case sub-sets",
+      "Multi-grader labeling pipeline + agreement",
+      "Production-sample harvesting (for refresh)"
     ]
   },
   {
@@ -517,6 +550,17 @@
     ]
   },
   {
+    "id": "human-in-the-loop-review",
+    "desc": "Human-in-the-loop (HITL) review systems for AI agents and ML pipelines:\nreview queues, confidence th",
+    "owns": [
+      "Review-queue data model (item, claim, decision, sla)",
+      "Confidence-based routing (auto-approve vs review vs escalate)",
+      "Per-tier SLA + alerting",
+      "Reviewer assignment (round-robin, expertise, load)",
+      "Reviewer UX (context, keyboard nav, shortcut decisions, batch with friction)"
+    ]
+  },
+  {
     "id": "langfuse",
     "desc": "Expert in Langfuse - the open-source LLM observability platform",
     "owns": [
@@ -539,6 +583,17 @@
     ]
   },
   {
+    "id": "llm-cost-governance",
+    "desc": "LLM cost governance: budgets per user / tenant / feature, prompt caching,\nmodel routing (cheap vs ex",
+    "owns": [
+      "Per-call cost recording (input + output tokens, model, cost USD)",
+      "Cost attribution (feature, tenant, user, prompt version)",
+      "Per-tier budgets (per user / tenant / feature / global)",
+      "Pre-call budget check + 429-equivalent",
+      "Prompt-caching strategy (provider-supported caches)"
+    ]
+  },
+  {
     "id": "multi-agent-orchestration",
     "desc": "Production patterns for coordinating multiple LLM agents - sequential, parallel, router, and hierarc",
     "owns": [
@@ -547,6 +602,17 @@
       "workflow-orchestration-design",
       "agent-routing-decisions",
       "orchestration-failure-handling"
+    ]
+  },
+  {
+    "id": "multi-modal-upload-intake",
+    "desc": "Multi-modal upload intake for AI workflows: images, audio, video, PDFs,\nspreadsheets normalized into",
+    "owns": [
+      "Format detection (magic bytes; not extension)",
+      "Format normalization (HEIC→JPEG, WebM→WAV, etc.)",
+      "Image resize / re-encode (vision-model cost optimization)",
+      "Audio chunking + per-chunk transcription",
+      "PDF text extraction with OCR fallback"
     ]
   },
   {
@@ -569,6 +635,17 @@
       "Few-shot example curation and selection",
       "Output format specification and validation",
       "Prompt testing, evaluation, and A/B testing"
+    ]
+  },
+  {
+    "id": "prompt-versioning-release-management",
+    "desc": "Prompt registry, versioning, A/B-able rollout, rollback, and changelog\nmanagement",
+    "owns": [
+      "Prompt registry data model (prompts, versions, environments)",
+      "Source-of-truth (git-backed YAML / DB-backed with audit)",
+      "Eval-gated promotion (per-version pass rates required for prod)",
+      "Rollout strategies (canary %, by user cohort, by feature flag)",
+      "Per-version observability (latency, cost, quality per version)"
     ]
   },
   {
@@ -660,6 +737,17 @@
     ]
   },
   {
+    "id": "audit-trail-activity-feed",
+    "desc": "Append-only audit trails and user-visible activity feeds: data model\nfor events, action catalog, act",
+    "owns": [
+      "Audit event schema (actor, action, target, diff, evidence, IP, UA)",
+      "Action catalog (taxonomy of all auditable verbs)",
+      "Append-only enforcement (DB triggers, RLS, immutability proofs)",
+      "Tamper evidence (hash-chain, signed checkpoints)",
+      "Retention policy + tiered archive (hot → warm → cold → S3 Glacier)"
+    ]
+  },
+  {
     "id": "automation",
     "desc": "Mass-production workflow automation engineer with battle scars from broken Zaps, infinite loops, and",
     "owns": [
@@ -690,6 +778,17 @@
       "write-through-cache",
       "write-behind-cache",
       "read-through-cache"
+    ]
+  },
+  {
+    "id": "calendar-booking-systems",
+    "desc": "Production-grade booking, availability, and scheduling systems with timezone-safe\nmath, double-booki",
+    "owns": [
+      "Availability rule modeling (working hours, blackouts, buffers, lead time, max per day)",
+      "Slot generation (recurring + ad-hoc) with timezone-safe math",
+      "Atomic booking creation with double-booking prevention",
+      "Rescheduling and cancellation with audit trail",
+      "Reminder scheduling (email/SMS) anchored to event time, not enqueue time"
     ]
   },
   {
@@ -759,6 +858,17 @@
     ]
   },
   {
+    "id": "file-processing-pipelines",
+    "desc": "Async file-processing pipelines that run after upload: virus scanning,\nformat conversion, image thum",
+    "owns": [
+      "Pipeline orchestration (DAG of steps with conditional branches)",
+      "Idempotent step execution with deterministic output keys",
+      "Image processing (resize, format conversion, color profile, EXIF strip)",
+      "Video/audio probing and metadata extraction (delegate transcoding)",
+      "Document processing (PDF page extraction, OCR, text extraction)"
+    ]
+  },
+  {
     "id": "file-uploads",
     "desc": "S3, R2, presigned URLs, multipart uploads, and secure file handling for production systems",
     "owns": [
@@ -825,6 +935,17 @@
     ]
   },
   {
+    "id": "import-export-workflows",
+    "desc": "CSV/JSON import and export workflows: file upload, schema mapping,\npreview, per-row validation, part",
+    "owns": [
+      "File upload handling (CSV, TSV, XLSX, JSONL)",
+      "Charset detection (BOM, declared, sniffed) + normalization",
+      "Schema mapping UX (header → field) with templates",
+      "Per-row validation pipeline with error report",
+      "Dry-run preview (validate without commit)"
+    ]
+  },
+  {
     "id": "infrastructure-as-code",
     "desc": "Mass-production infrastructure architect with terminal paranoia",
     "owns": [
@@ -844,6 +965,17 @@
       "Log level strategy and appropriate level selection",
       "Sensitive data redaction (PII, credentials, secrets)",
       "Log aggregation architecture (ELK, Loki, CloudWatch, Datadog, Splunk)"
+    ]
+  },
+  {
+    "id": "media-transcoding-pipeline",
+    "desc": "Video and audio transcoding pipelines: FFmpeg-driven format/bitrate\nconversion, HLS/DASH packaging, ",
+    "owns": [
+      "FFmpeg pipeline orchestration (probe → analyze → ladder → encode → package)",
+      "Bitrate ladder selection (per-resolution, per-codec, source-aware)",
+      "HLS / DASH packaging with consistent segment durations",
+      "Thumbnail extraction (sprite sheets, poster frames, scene-detect)",
+      "Audio normalization (EBU R128, ReplayGain) and language tagging"
     ]
   },
   {
@@ -891,6 +1023,28 @@
     ]
   },
   {
+    "id": "notification-preferences",
+    "desc": "User-facing notification preferences: per-channel opt-in, per-category granularity,\nunsubscribe link",
+    "owns": [
+      "Per-user, per-channel, per-category preference data model",
+      "Notification policy engine (should-send decision)",
+      "One-click unsubscribe flow (no login, signed token, immediate effect)",
+      "Quiet-hours enforcement in users timezone",
+      "Daily/weekly digest aggregation"
+    ]
+  },
+  {
+    "id": "notifications-orchestration",
+    "desc": "Cross-channel notification orchestration: routing decisions across email,\nSMS, push, in-app, webhook",
+    "owns": [
+      "Channel adapters (email, SMS, push APNs/FCM, in-app, webhook, Slack)",
+      "Routing rules (per-user channel preference, fallback order, urgency override)",
+      "Cross-channel deduplication via stable notification keys",
+      "Delivery-status webhooks from providers (delivered, bounced, complained)",
+      "Retry policies (provider-aware, exponential, max attempts)"
+    ]
+  },
+  {
     "id": "observability",
     "desc": "Expert at making systems observable and debuggable through logging, metrics, tracing, and alerting",
     "owns": [
@@ -899,6 +1053,28 @@
       "Distributed tracing (OpenTelemetry, Jaeger, Zipkin)",
       "Error tracking integration (Sentry, Datadog APM)",
       "Request ID generation and correlation"
+    ]
+  },
+  {
+    "id": "pdf-generation",
+    "desc": "Production PDF generation for invoices, contracts, receipts, and reports",
+    "owns": [
+      "HTML-to-PDF rendering with headless Chromium / Puppeteer / Playwright",
+      "Programmatic PDF generation with PDFKit, pdf-lib, ReportLab",
+      "Template systems (Handlebars, MJML-derived, React-PDF) for documents",
+      "Font embedding, subsetting, and fallback strategy",
+      "Page-break, header/footer, and pagination control"
+    ]
+  },
+  {
+    "id": "permissioned-file-sharing",
+    "desc": "File sharing with permissions: signed URLs with expiry, share-link\nACLs, password-protected links, v",
+    "owns": [
+      "File metadata + ACL data model",
+      "Permission resolution (workspace role + per-file overrides + share links)",
+      "Signed-URL generation with short TTLs",
+      "Share-link tokens (with password / expiry / view-only)",
+      "Watermarking pipeline (render-time vs pre-render)"
     ]
   },
   {
@@ -990,6 +1166,17 @@
     ]
   },
   {
+    "id": "realtime-collab-conflict-resolution",
+    "desc": "Real-time collaboration: CRDT vs OT choice, presence + awareness,\ncursor/selection broadcast, persis",
+    "owns": [
+      "CRDT library integration (Yjs, Automerge, Loro)",
+      "Document persistence + snapshot strategy",
+      "Presence + awareness protocol (per-user state, throttled)",
+      "Cursor / selection broadcast (debounced, scoped)",
+      "Offline edit queue + merge on reconnect"
+    ]
+  },
+  {
     "id": "realtime-engineer",
     "desc": "Real-time systems expert for WebSockets, SSE, presence, and live synchronization",
     "owns": [
@@ -998,6 +1185,17 @@
       "presence-systems",
       "live-cursors",
       "collaborative-editing"
+    ]
+  },
+  {
+    "id": "reviews-ratings-systems",
+    "desc": "Customer reviews and ratings: data model, eligibility (verified buyer),\nmoderation, anti-fraud signa",
+    "owns": [
+      "Review data model (review, rating, review_response, vote)",
+      "Eligibility rules (verified buyer, verified experience, completed booking)",
+      "Aggregate scoring (Bayesian average, Wilson lower bound) for ranking",
+      "Moderation pipeline (auto-classify + human review queue)",
+      "Anti-fraud signals (velocity, network, device, content)"
     ]
   },
   {
@@ -1089,6 +1287,39 @@
     ]
   },
   {
+    "id": "support-ticketing-workflows",
+    "desc": "Customer-support ticketing systems: ticket lifecycle, assignment routing,\nSLA tracking, internal not",
+    "owns": [
+      "Ticket data model (status, priority, source, assignee, requester, channel)",
+      "Lifecycle state machine (new → open → pending → resolved → closed → reopened)",
+      "Assignment rules (round-robin, skill-based, load-balancing, presence-aware)",
+      "SLA tracking with pause states (first response, full resolution)",
+      "Internal notes vs public replies (distinct UX, distinct API, audit)"
+    ]
+  },
+  {
+    "id": "team-invites-membership",
+    "desc": "Team/org membership lifecycle: invite issuance, signed tokens, seat\nenforcement, pending vs accepted",
+    "owns": [
+      "Invite issuance with signed token (org-scoped, single-use, expiring)",
+      "Pending invite lifecycle (sent → accepted | expired | revoked)",
+      "Seat counting and enforcement (free tier, paid plan, overage)",
+      "Resend with token rotation",
+      "Domain-claim and DNS verification"
+    ]
+  },
+  {
+    "id": "tenant-provisioning-lifecycle",
+    "desc": "Tenant (org/workspace) lifecycle: creation, seeding defaults, domain\nclaim, plan changes, suspension",
+    "owns": [
+      "Tenant data model (org/workspace/account row)",
+      "Lifecycle state machine (provisioning → active → suspended → archived → deleted)",
+      "Default seeding (roles, permissions, settings)",
+      "Plan changes + entitlement reconciliation",
+      "Suspension semantics (read-only, login-blocked, full-block)"
+    ]
+  },
+  {
     "id": "trpc-fullstack",
     "desc": "Expert in building type-safe APIs with tRPC",
     "owns": [
@@ -1097,6 +1328,17 @@
       "Context creation and authentication",
       "Middleware chains and authorization",
       "Error handling and formatting"
+    ]
+  },
+  {
+    "id": "usage-metering-entitlements",
+    "desc": "Usage metering and entitlement enforcement: counter aggregation, quota\npolicies, plan/feature gates,",
+    "owns": [
+      "Meter aggregation (counters, time-bucketed usage)",
+      "Entitlement model (per-plan caps + per-tenant overrides)",
+      "Pre-action quota check + atomic increment",
+      "Overage detection + billing event emission",
+      "Feature-flag style entitlement evaluation"
     ]
   },
   {
@@ -1130,6 +1372,17 @@
       "Retry handling and exponential backoff",
       "Dead letter queue design and monitoring",
       "Webhook event ordering and sequence handling"
+    ]
+  },
+  {
+    "id": "webhook-provider-platform",
+    "desc": "Outbound webhook delivery for customer integrations: subscription model,\nsigning, retries with expon",
+    "owns": [
+      "Webhook subscription data model (endpoint, secret, event filters)",
+      "Outbound delivery engine (queue + worker + retry)",
+      "HMAC signing with timestamp + scheme versioning",
+      "Retry policy (exponential backoff, max attempts, dead-letter)",
+      "Delivery log + replay UI for customers"
     ]
   },
   {
@@ -1218,6 +1471,17 @@
       "Automated protocol development and validation",
       "Instrument API integration (plate readers, mass specs, sequencers)",
       "Sample tracking, chain of custody, and barcode management"
+    ]
+  },
+  {
+    "id": "molecular-dynamics",
+    "desc": "Molecular dynamics simulation setup, force-field selection, equilibration, trajectory QA, and reprod",
+    "owns": [
+      "MD system preparation",
+      "Force-field and water-model choice",
+      "Equilibration and production protocols",
+      "Trajectory quality control",
+      "Reproducible simulation reports"
     ]
   },
   {
@@ -1474,6 +1738,17 @@
     ]
   },
   {
+    "id": "billing-invoices-receipts",
+    "desc": "Invoice and receipt generation, numbering, immutability, credit notes,\nbasic tax handling, payment r",
+    "owns": [
+      "Invoice and receipt data models (line items, totals, tax breakdown)",
+      "Sequential numbering with gap-free guarantee",
+      "Issued-state immutability + credit-note correction flow",
+      "Tax calculation snapshot at issue (jurisdiction, rate, type)",
+      "Currency handling (integer cents, multi-currency, FX rates at point-in-time)"
+    ]
+  },
+  {
     "id": "demo-day-theater",
     "desc": "Making your work look as good as it actually is - technical presentation mastery",
     "owns": [
@@ -1581,6 +1856,17 @@
       "Usage-based billing and metering systems",
       "Proration calculations for plan changes",
       "Failed payment recovery (dunning) workflows"
+    ]
+  },
+  {
+    "id": "web-payments-wallets",
+    "desc": "Web payment integrations: Apple Pay, Google Pay, Link, Payment Request\nAPI, browser-native wallet UX",
+    "owns": [
+      "Wallet detection (Apple Pay, Google Pay, Link, Payment Request API)",
+      "Per-wallet button rendering + canMakePayment check",
+      "Express-checkout flow (wallet → server-confirm → success)",
+      "Card-form fallback with saved-cards picker",
+      "3DS challenge handling (popup vs redirect)"
     ]
   },
   {
@@ -2112,6 +2398,50 @@
     ]
   },
   {
+    "id": "account-health-scoring",
+    "desc": "Account health scoring with usage, support, billing, sentiment, and relationship signals that explai",
+    "owns": [
+      "Health signal design for account health scoring",
+      "Retention intervention playbooks for account health scoring",
+      "Support quality calibration for account health scoring",
+      "Education and adoption telemetry for account health scoring",
+      "Escalation ownership for account health scoring"
+    ]
+  },
+  {
+    "id": "churn-risk-retention",
+    "desc": "Churn-risk and retention systems for health signals, intervention playbooks, renewal risk, and win-b",
+    "owns": [
+      "Health signal design for churn risk retention",
+      "Retention intervention playbooks for churn risk retention",
+      "Support quality calibration for churn risk retention",
+      "Education and adoption telemetry for churn risk retention",
+      "Escalation ownership for churn risk retention"
+    ]
+  },
+  {
+    "id": "customer-education-ops",
+    "desc": "Customer education operations for help academies, onboarding paths, certification, adoption telemetr",
+    "owns": [
+      "Health signal design for customer education ops",
+      "Retention intervention playbooks for customer education ops",
+      "Support quality calibration for customer education ops",
+      "Education and adoption telemetry for customer education ops",
+      "Escalation ownership for customer education ops"
+    ]
+  },
+  {
+    "id": "support-quality-qa",
+    "desc": "Support quality QA systems for rubric design, calibration, escalation, coaching, and knowledge-loop ",
+    "owns": [
+      "Health signal design for support quality qa",
+      "Retention intervention playbooks for support quality qa",
+      "Support quality calibration for support quality qa",
+      "Education and adoption telemetry for support quality qa",
+      "Escalation ownership for support quality qa"
+    ]
+  },
+  {
     "id": "agent-based-modeling",
     "desc": "Design and implement ABM for complex systems with emergent behavior from individual agent interactio",
     "owns": [
@@ -2175,6 +2505,17 @@
       "Schema contract enforcement at ingest with quarantine routing",
       "Backfill design and watermark-aware re-merging",
       "Lag and freshness observability with explicit SLOs"
+    ]
+  },
+  {
+    "id": "data-quality-monitoring",
+    "desc": "Data-quality monitoring: freshness checks, row-count assertions, schema\ndrift detection, anomaly ale",
+    "owns": [
+      "Freshness monitoring (lag from source to destination)",
+      "Row-count assertions with expected ranges",
+      "Schema-drift detection + consumer notification",
+      "Per-column null/uniqueness/distribution tests",
+      "Reconciliation against source-of-truth (Stripe, CRM, etc.)"
     ]
   },
   {
@@ -2706,6 +3047,17 @@
     ]
   },
   {
+    "id": "parsing-strategy",
+    "desc": "Parser selection, grammar boundaries, tokenizer design, ambiguity handling, and migration paths away",
+    "owns": [
+      "Parser-vs-regex decisioning",
+      "Grammar and tokenizer boundaries",
+      "Ambiguity handling",
+      "Malformed input recovery",
+      "Parser migration strategy"
+    ]
+  },
+  {
     "id": "privacy-guardian",
     "desc": "Security and privacy specialist for differential privacy, encryption, and compliance",
     "owns": [
@@ -2915,6 +3267,17 @@
     ]
   },
   {
+    "id": "dependency-upgrade",
+    "desc": "Dependency upgrade planning, lockfile review, breaking-change triage, security patch rollout, and ro",
+    "owns": [
+      "Upgrade inventory and prioritization",
+      "Breaking-change review",
+      "Lockfile and transitive dependency audit",
+      "Compatibility test plan",
+      "Rollback and pinning strategy"
+    ]
+  },
+  {
     "id": "devops-engineer",
     "desc": "World-class DevOps engineering - cloud architecture, CI/CD pipelines, infrastructure as code, and th",
     "owns": [
@@ -2935,6 +3298,11 @@
       "Cloud platforms (AWS, GCP, Azure architecture)",
       "Secrets management (Vault, AWS Secrets Manager)"
     ]
+  },
+  {
+    "id": "disaster-readiness-drills",
+    "desc": "Game-day exercises, chaos drills, and DR rehearsals - failover testing, backup restore validation, r",
+    "owns": []
   },
   {
     "id": "disaster-recovery",
@@ -3135,6 +3503,22 @@
     ]
   },
   {
+    "id": "shell-scripting",
+    "desc": "Production shell scripting covering safe flags, quoting, idempotency, traps, portability, and script",
+    "owns": [
+      "Safe shell script structure",
+      "Quoting and word-splitting control",
+      "Idempotent file/process operations",
+      "Trap and cleanup behavior",
+      "Portable CLI automation"
+    ]
+  },
+  {
+    "id": "sla-status-page-incident-comms",
+    "desc": "SLA definition, status page operation, and incident communications - uptime measurement, public/priv",
+    "owns": []
+  },
+  {
     "id": "turborepo-monorepo",
     "desc": "Expert at building monorepo systems with Turborepo",
     "owns": [
@@ -3256,6 +3640,17 @@
     ]
   },
   {
+    "id": "developer-experience",
+    "desc": "Internal-tools and developer-experience engineering covering local environments, build speed, error ",
+    "owns": [
+      "Local development environment reproducibility (containers, devcontainers, nix)",
+      "Build, test, and lint loop latency optimization",
+      "Error message quality and actionable diagnostics",
+      "New-hire onboarding (first-day-to-first-commit time)",
+      "Internal CLI tooling and ergonomics"
+    ]
+  },
+  {
     "id": "digital-twin",
     "desc": "Virtual representations of physical systems with real-time synchronization, sensor integration, and ",
     "owns": [
@@ -3278,6 +3673,28 @@
     ]
   },
   {
+    "id": "distributed-systems",
+    "desc": "Distributed systems engineering covering consistency models, consensus, partition tolerance, time an",
+    "owns": [
+      "Consistency models (linearizable, sequential, causal, eventual) and what each costs",
+      "Consensus protocols (Raft, Paxos) and when to reach for them",
+      "Partition tolerance and the CAP triangle (CP vs AP, why all three is a lie)",
+      "Time and ordering (logical clocks, vector clocks, hybrid logical clocks)",
+      "Idempotency keys, at-least-once vs exactly-once delivery"
+    ]
+  },
+  {
+    "id": "electrical-engineering",
+    "desc": "Electrical systems engineering for power, controls, embedded interfaces, sensor wiring, safety margi",
+    "owns": [
+      "Power budget and load analysis",
+      "Circuit and wiring interface review",
+      "Electrical safety margins",
+      "Sensor and actuator electrical integration",
+      "Hardware/software signal boundaries"
+    ]
+  },
+  {
     "id": "embedded-systems",
     "desc": "Microcontroller and embedded software development for resource-constrained real-time systems",
     "owns": [
@@ -3286,6 +3703,17 @@
       "Memory management for constrained systems (static allocation, pools)",
       "Hardware abstraction layers (HAL) for portability",
       "Watchdog, brownout, and power management"
+    ]
+  },
+  {
+    "id": "engineering-metrics",
+    "desc": "Engineering health metrics that measure delivery, quality, reliability, and maintainability without ",
+    "owns": [
+      "Delivery and reliability metric design",
+      "Metric anti-gaming controls",
+      "Team-level health dashboards",
+      "Quality and maintainability signals",
+      "Metric review operating cadence"
     ]
   },
   {
@@ -3300,6 +3728,17 @@
     ]
   },
   {
+    "id": "geotechnical-engineering",
+    "desc": "Ground, soil, slope, foundation, and subsurface risk analysis for physical infrastructure and renewa",
+    "owns": [
+      "Site investigation interpretation",
+      "Soil and rock risk classification",
+      "Foundation and slope stability assumptions",
+      "Groundwater and settlement risk",
+      "Geotechnical uncertainty registers"
+    ]
+  },
+  {
     "id": "motor-control",
     "desc": "Electric motor control including FOC, stepper control, and encoder interfaces",
     "owns": [
@@ -3308,6 +3747,17 @@
       "Quadrature encoder interfaces",
       "Current sensing and reconstruction",
       "Space Vector PWM and modulation"
+    ]
+  },
+  {
+    "id": "optimization-algorithms",
+    "desc": "Mathematical optimization for engineering and product systems covering objectives, constraints, solv",
+    "owns": [
+      "Objective and constraint formulation",
+      "Solver selection and tuning",
+      "Feasibility and sensitivity analysis",
+      "Local/global optimum risk review",
+      "Optimization result explainability"
     ]
   },
   {
@@ -3377,6 +3827,17 @@
     ]
   },
   {
+    "id": "finance-ops",
+    "desc": "Finance operations for billing, invoicing, procurement, close process, reconciliation, approvals, an",
+    "owns": [
+      "Close and reconciliation workflows",
+      "Invoice and payment operations",
+      "Procurement approval controls",
+      "Audit-ready finance evidence",
+      "Operational finance exception handling"
+    ]
+  },
+  {
     "id": "portfolio-optimization",
     "desc": "Construct portfolios using mean-variance optimization, risk parity, Black-Litterman, and hierarchica",
     "owns": [
@@ -3399,6 +3860,11 @@
     ]
   },
   {
+    "id": "tax-compliance-sales-tax-vat",
+    "desc": "Sales tax, VAT, GST collection and remittance for SaaS and ecommerce - nexus tracking, rate determin",
+    "owns": []
+  },
+  {
     "id": "astro-framework",
     "desc": "Expert in Astro - the web framework for content-driven websites",
     "owns": [
@@ -3407,6 +3873,28 @@
       "Islands architecture and partial hydration",
       "Client directives (client:load, client:visible, client:idle)",
       "Astro components (.astro files) and templating"
+    ]
+  },
+  {
+    "id": "desktop-autoupdate-signing",
+    "desc": "Desktop application auto-update + code signing: code-signing certificates\n(Apple, Microsoft, Linux),",
+    "owns": [
+      "Code-signing certificate management (Apple, Microsoft, Linux GPG)",
+      "Notarization pipeline (Apple notary service)",
+      "Hardened runtime + entitlements",
+      "Update server / manifest hosting",
+      "Signed-manifest pipeline (electron-updater, Sparkle, Squirrel)"
+    ]
+  },
+  {
+    "id": "electron-desktop-apps",
+    "desc": "Electron application architecture: main vs renderer process boundaries,\nIPC, contextIsolation + sand",
+    "owns": [
+      "Main / renderer / preload process boundaries",
+      "Context isolation + sandbox + preload bridge",
+      "IPC handler design (typed, validated, authorized)",
+      "BrowserWindow security defaults",
+      "webview / iframe handling (locked down)"
     ]
   },
   {
@@ -3465,6 +3953,17 @@
     ]
   },
   {
+    "id": "npm-publishing",
+    "desc": "Publishing JavaScript and TypeScript packages to npm covering versioning, ESM/CJS dual-publish, type",
+    "owns": [
+      "Semantic versioning discipline (major/minor/patch with clear breaking-change rules)",
+      "Dual ESM/CJS publishing with proper `exports` field and conditional types",
+      "TypeScript declaration generation, `types` field, declaration maps",
+      "Prerelease and dist-tag strategy (next, beta, canary, deprecating without removal)",
+      "Build pipeline (tsup, unbuild, tsc) and the trade-offs each makes"
+    ]
+  },
+  {
     "id": "remix-framework",
     "desc": "Expert in Remix - the full-stack web framework focused on web standards and\nmodern UX",
     "owns": [
@@ -3520,6 +4019,17 @@
     ]
   },
   {
+    "id": "admin-crud-workflows",
+    "desc": "Admin panels and internal tools: list/detail/edit views, filters, bulk actions,\nmoderation queues, i",
+    "owns": [
+      "List/detail/edit screens with consistent affordances",
+      "Filter UI (faceted, saved views, query params)",
+      "Bulk actions with safe defaults and explicit count confirmation",
+      "Destructive-action confirmation patterns (typed-confirm, magic-word, delay)",
+      "Moderation queues (image, text, account, transaction review)"
+    ]
+  },
+  {
     "id": "ai-streaming-interfaces",
     "desc": "Building streaming text UIs for AI applications including SSE consumption, typewriter effects, markd",
     "owns": [
@@ -3542,6 +4052,17 @@
     ]
   },
   {
+    "id": "app-store-release-ops",
+    "desc": "iOS App Store + Google Play release operations: TestFlight / internal /\nclosed / open testing tracks",
+    "owns": [
+      "Release pipeline (CI build → TestFlight/Internal → external testing → production)",
+      "Phased rollout strategy with crash-free-rate gates",
+      "Version + build number policy (semver + monotonic build)",
+      "Signing certificate / provisioning profile management",
+      "App Store / Play Console metadata + screenshots automation"
+    ]
+  },
+  {
     "id": "browser-extension-builder",
     "desc": "Expert in building browser extensions that solve real problems - Chrome, Firefox, and cross-browser ",
     "owns": [
@@ -3550,6 +4071,28 @@
       "Service workers (background scripts in MV3)",
       "Extension messaging (popup <-> background <-> content)",
       "Chrome Storage API (local and sync)"
+    ]
+  },
+  {
+    "id": "browser-extension-publishing",
+    "desc": "Browser-extension publishing operations: Chrome Web Store, Firefox Add-ons,\nEdge Add-ons, manifest v",
+    "owns": [
+      "Manifest authoring (MV3 service worker, permissions, host_permissions)",
+      "Per-store packaging (Chrome zip vs Firefox xpi)",
+      "Permission justification + minimization",
+      "Publication pipeline (CWS API, AMO API, Edge partner)",
+      "Versioning + staged rollout (where supported)"
+    ]
+  },
+  {
+    "id": "bulk-actions-safety",
+    "desc": "Safe bulk-action UX for tables and lists: selection model (visible vs\nmatching), typed-confirm patte",
+    "owns": [
+      "Selection-model UX (none / page / matching / custom)",
+      "Bulk-action affordance (toolbar, dropdown, keyboard shortcuts)",
+      "Confirmation patterns (modal, typed-phrase, friction tiers)",
+      "Async execution with progress + cancellation",
+      "Partial-failure surface (per-item status)"
     ]
   },
   {
@@ -3564,6 +4107,17 @@
     ]
   },
   {
+    "id": "data-dashboard-design",
+    "desc": "Data dashboard UX: metric tile design, time-range pickers, drill-downs,\nempty states, loading states",
+    "owns": [
+      "Metric tile design (number + delta + comparison + sparkline)",
+      "Time-range picker (presets + custom + comparison period)",
+      "Chart selection (when bar vs line vs sparkline vs table)",
+      "Drill-down patterns (tile → detailed view with filter preserved)",
+      "Empty / loading / error states per tile"
+    ]
+  },
+  {
     "id": "expo",
     "desc": "Expert in Expo for React Native development - Expo Router, EAS Build/Submit, OTA updates, and native",
     "owns": [
@@ -3572,6 +4126,28 @@
       "EAS Build, Submit, and Update",
       "Development builds and config plugins",
       "OTA updates with expo-updates"
+    ]
+  },
+  {
+    "id": "flutter-mobile",
+    "desc": "Flutter mobile app architecture, platform channels, state management, performance, offline storage, ",
+    "owns": [
+      "Flutter project architecture",
+      "Dart state management and routing",
+      "Platform channel boundaries",
+      "Flutter performance and jank review",
+      "iOS/Android build behavior"
+    ]
+  },
+  {
+    "id": "form-wizard-workflows",
+    "desc": "Multi-step form wizards: step-by-step UX, draft persistence, server-side\nvalidation per step, branch",
+    "owns": [
+      "Step state machine (forward, back, branch, skip-conditional)",
+      "Per-step validation (client mirror + server authority)",
+      "Draft persistence (server-side, schema-versioned)",
+      "Resume via signed link or login",
+      "Progress indicator semantics (server-confirmed completion)"
     ]
   },
   {
@@ -3663,6 +4239,28 @@
     ]
   },
   {
+    "id": "map-location-features",
+    "desc": "Map UX and location features: geocoding, places autocomplete, distance/radius\nfilters, clustering, m",
+    "owns": [
+      "Map provider integration (Mapbox GL, Google Maps, Leaflet/OSM, MapLibre)",
+      "Geocoding (forward + reverse) with caching and provider routing",
+      "Places autocomplete with session tokens",
+      "Geolocation permission UX (request after gesture, fallback to IP)",
+      "Marker layers with clustering for large datasets"
+    ]
+  },
+  {
+    "id": "mobile-offline-sync",
+    "desc": "Mobile offline-first sync: local DB (SQLite/Realm/WatermelonDB), outbox\npattern, conflict resolution",
+    "owns": [
+      "Local database schema (SQLite, WatermelonDB, Realm, op-sqlite)",
+      "Outbox pattern (write → local + queue → sync → confirm)",
+      "Sync engine (push outbox, pull deltas, reconcile)",
+      "Conflict resolution strategy (LWW with server clock, CRDT, manual)",
+      "Optimistic UI with rollback on server reject"
+    ]
+  },
+  {
     "id": "pwa-progressive-web-app",
     "desc": "Progressive Web Apps with service workers, Workbox, cache strategies, push notifications, and offlin",
     "owns": [
@@ -3707,6 +4305,17 @@
     ]
   },
   {
+    "id": "roles-permissions-ui",
+    "desc": "Permission-aware UX: role/permission matrix display, disable-vs-hide\ndecisions, contextual explanati",
+    "owns": [
+      "Role/permission display (matrix, list, badge)",
+      "Disable vs hide decisions per action",
+      "Tooltip / inline explanation for forbidden actions",
+      "Role assignment flow (single user, bulk, team)",
+      "Custom-role builder UX"
+    ]
+  },
+  {
     "id": "scroll-experience",
     "desc": "Expert in building immersive scroll-driven experiences and parallax storytelling",
     "owns": [
@@ -3715,6 +4324,17 @@
       "Sticky sections and pinning",
       "Horizontal scroll sections",
       "Scroll progress indicators"
+    ]
+  },
+  {
+    "id": "search-filters-saved-views",
+    "desc": "Filter UX for tables and search results: faceted filters, query-param URL\nstate, saved views (per-us",
+    "owns": [
+      "Filter UI components (chip, dropdown, range, multi-select, date)",
+      "Faceted-filter UX (counts per facet, dynamic vs static)",
+      "URL state synchronization (filter ↔ query params)",
+      "Saved-view data model + visibility (private, team, public)",
+      "Filter combinator semantics (default-AND, explicit OR/NOT)"
     ]
   },
   {
@@ -3806,6 +4426,17 @@
     ]
   },
   {
+    "id": "user-settings-account-management",
+    "desc": "User-facing account management UX: profile editing, password change with\nre-auth, email change with ",
+    "owns": [
+      "Profile fields (name, avatar, bio, locale, timezone) edit UX",
+      "Password change with current-password re-auth",
+      "Email change with double-verification (old email notifies, new email confirms)",
+      "Phone change with SMS verification",
+      "Two-factor enrollment (TOTP, WebAuthn, recovery codes)"
+    ]
+  },
+  {
     "id": "vue-nuxt",
     "desc": "Vue 3 Composition API and Nuxt 3 full-stack framework expert",
     "owns": [
@@ -3814,6 +4445,17 @@
       "Pinia state management with composition stores",
       "VueUse composables integration",
       "SSR/SSG hydration and data fetching"
+    ]
+  },
+  {
+    "id": "web-notification-inbox",
+    "desc": "In-app notification center: bell icon with unread badge, dropdown panel,\nfull inbox page, real-time ",
+    "owns": [
+      "Notification inbox data model (id, category, payload, read_at, archived_at)",
+      "Bell-icon UI with unread badge + grouped overflow (9+, 99+)",
+      "Dropdown panel with recent N + see all link",
+      "Full inbox page with filtering, search, archive",
+      "Real-time delivery via WebSocket / SSE / polling fallback"
     ]
   },
   {
@@ -4279,6 +4921,17 @@
     ]
   },
   {
+    "id": "vr-ar-development",
+    "desc": "VR and AR application development covering Unity XR, Unreal XR, WebXR, and visionOS",
+    "owns": [
+      "VR rendering budgets (90fps minimum, motion-to-photon latency, foveated rendering)",
+      "Comfort settings (locomotion options, vignettes, snap turn defaults)",
+      "Spatial input (hand tracking, controllers, eye tracking, voice)",
+      "AR scene understanding (plane detection, occlusion, lighting estimation)",
+      "Cross-headset compatibility (Quest, Vision Pro, PSVR2, PCVR)"
+    ]
+  },
+  {
     "id": "weapon-design",
     "desc": "Expert game weapon design - silhouettes, material language, rarity systems, and the art of making pl",
     "owns": [
@@ -4298,6 +4951,61 @@
       "Historical timeline creation (cause and effect chains)",
       "Geography, climate, and biome logic",
       "Religion and mythology design"
+    ]
+  },
+  {
+    "id": "clinical-workflow-safety",
+    "desc": "Clinical workflow safety checks for escalation, handoff, triage, decision support, and human review ",
+    "owns": [
+      "PHI boundary mapping for clinical workflow safety",
+      "Consent and authorization state machines for clinical workflow safety",
+      "Clinical handoff safety for clinical workflow safety",
+      "Audit trail completeness for clinical workflow safety",
+      "Integration contract review for clinical workflow safety"
+    ]
+  },
+  {
+    "id": "healthcare-interoperability-fhir",
+    "desc": "FHIR and healthcare interoperability design for records, consent, identity, and clinical system inte",
+    "owns": [
+      "PHI boundary mapping for healthcare interoperability fhir",
+      "Consent and authorization state machines for healthcare interoperability fhir",
+      "Clinical handoff safety for healthcare interoperability fhir",
+      "Audit trail completeness for healthcare interoperability fhir",
+      "Integration contract review for healthcare interoperability fhir"
+    ]
+  },
+  {
+    "id": "hipaa-product-architecture",
+    "desc": "HIPAA-aware product architecture for PHI boundaries, access controls, audit trails, and business ass",
+    "owns": [
+      "PHI boundary mapping for hipaa product architecture",
+      "Consent and authorization state machines for hipaa product architecture",
+      "Clinical handoff safety for hipaa product architecture",
+      "Audit trail completeness for hipaa product architecture",
+      "Integration contract review for hipaa product architecture"
+    ]
+  },
+  {
+    "id": "medical-writing",
+    "desc": "Clinical, regulatory, and scientific medical writing with evidence traceability, claim discipline, a",
+    "owns": [
+      "Clinical study reports and summaries",
+      "Regulatory-ready clinical narratives",
+      "Evidence-backed medical manuscripts",
+      "Claim substantiation tables",
+      "Plain-language medical summaries"
+    ]
+  },
+  {
+    "id": "patient-consent-records",
+    "desc": "Patient consent, revocation, authorization, and record-release workflows with auditable state transi",
+    "owns": [
+      "PHI boundary mapping for patient consent records",
+      "Consent and authorization state machines for patient consent records",
+      "Clinical handoff safety for patient consent records",
+      "Audit trail completeness for patient consent records",
+      "Integration contract review for patient consent records"
     ]
   },
   {
@@ -4375,6 +5083,17 @@
       "email-deliverability",
       "email-templates",
       "bounce-handling"
+    ]
+  },
+  {
+    "id": "email-template-systems",
+    "desc": "Transactional email template systems: MJML/React-Email/Handlebars\ntemplating, dark-mode variants, lo",
+    "owns": [
+      "Template authoring framework (MJML, React-Email, Handlebars, Mailjet)",
+      "HTML + plaintext rendering pipeline",
+      "i18n with locale fallback chain",
+      "Dark-mode variant + media-query support",
+      "Outlook / Gmail / Apple Mail compatibility patterns"
     ]
   },
   {
@@ -4628,6 +5347,61 @@
       "Custom fields, ticket forms, and conditional logic",
       "SLA policies, business rules, and escalation workflows",
       "Explore reporting, dashboards, and analytics"
+    ]
+  },
+  {
+    "id": "ai-governance-policy",
+    "desc": "AI governance policy, model-use controls, evaluation evidence, and high-risk AI workflow review",
+    "owns": [
+      "Intake triage and review routing for ai governance policy",
+      "Risk classification and approval thresholds for ai governance policy",
+      "Evidence packets for counsel and business owners for ai governance policy",
+      "Renewal and obligation tracking for ai governance policy",
+      "Policy-to-product consistency checks for ai governance policy"
+    ]
+  },
+  {
+    "id": "contract-lifecycle-ops",
+    "desc": "Contract intake, review routing, obligation tracking, and renewal controls for product and enterpris",
+    "owns": [
+      "Intake triage and review routing for contract lifecycle ops",
+      "Risk classification and approval thresholds for contract lifecycle ops",
+      "Evidence packets for counsel and business owners for contract lifecycle ops",
+      "Renewal and obligation tracking for contract lifecycle ops",
+      "Policy-to-product consistency checks for contract lifecycle ops"
+    ]
+  },
+  {
+    "id": "data-processing-agreements",
+    "desc": "DPA, subprocessor, data transfer, and privacy annex review for SaaS and AI products",
+    "owns": [
+      "Intake triage and review routing for data processing agreements",
+      "Risk classification and approval thresholds for data processing agreements",
+      "Evidence packets for counsel and business owners for data processing agreements",
+      "Renewal and obligation tracking for data processing agreements",
+      "Policy-to-product consistency checks for data processing agreements"
+    ]
+  },
+  {
+    "id": "subprocessor-risk-review",
+    "desc": "Third-party subprocessor review, vendor evidence tracking, data access boundaries, and customer disc",
+    "owns": [
+      "Intake triage and review routing for subprocessor risk review",
+      "Risk classification and approval thresholds for subprocessor risk review",
+      "Evidence packets for counsel and business owners for subprocessor risk review",
+      "Renewal and obligation tracking for subprocessor risk review",
+      "Policy-to-product consistency checks for subprocessor risk review"
+    ]
+  },
+  {
+    "id": "terms-product-policy-ops",
+    "desc": "Terms of service, acceptable-use, product policy, and launch review systems that stay aligned with r",
+    "owns": [
+      "Intake triage and review routing for terms product policy ops",
+      "Risk classification and approval thresholds for terms product policy ops",
+      "Evidence packets for counsel and business owners for terms product policy ops",
+      "Renewal and obligation tracking for terms product policy ops",
+      "Policy-to-product consistency checks for terms product policy ops"
     ]
   },
   {
@@ -5104,6 +5878,39 @@
     ]
   },
   {
+    "id": "creator-monetization-systems",
+    "desc": "Creator monetization systems for subscriptions, tips, revenue share, payouts, entitlement, and trust",
+    "owns": [
+      "Supply-demand health metrics for creator monetization systems",
+      "Matching and ranking safeguards for creator monetization systems",
+      "Payment and payout risk handoffs for creator monetization systems",
+      "Dispute evidence workflows for creator monetization systems",
+      "Creator or seller quality controls for creator monetization systems"
+    ]
+  },
+  {
+    "id": "dispute-resolution-systems",
+    "desc": "Dispute resolution systems for evidence intake, mediation, refunds, chargebacks, and outcome consist",
+    "owns": [
+      "Supply-demand health metrics for dispute resolution systems",
+      "Matching and ranking safeguards for dispute resolution systems",
+      "Payment and payout risk handoffs for dispute resolution systems",
+      "Dispute evidence workflows for dispute resolution systems",
+      "Creator or seller quality controls for dispute resolution systems"
+    ]
+  },
+  {
+    "id": "marketplace-liquidity",
+    "desc": "Marketplace liquidity systems for supply-demand balance, matching, activation, geographic density, a",
+    "owns": [
+      "Supply-demand health metrics for marketplace liquidity",
+      "Matching and ranking safeguards for marketplace liquidity",
+      "Payment and payout risk handoffs for marketplace liquidity",
+      "Dispute evidence workflows for marketplace liquidity",
+      "Creator or seller quality controls for marketplace liquidity"
+    ]
+  },
+  {
     "id": "mcp-deployment",
     "desc": "Production deployment patterns for MCP servers - Docker, cloud, monitoring, scaling",
     "owns": [
@@ -5148,6 +5955,61 @@
     ]
   },
   {
+    "id": "productivity-ai-tools",
+    "desc": "Master AI tools for meetings, email, scheduling, and personal productivity to eliminate administrati",
+    "owns": [
+      "Meeting AI tools (Otter.ai, Fireflies.ai, Krisp) - transcription, notes, summaries",
+      "Email AI tools (Superhuman, Shortwave, SaneBox) - triage, drafting, automation",
+      "Calendar AI tools (Reclaim, Clockwise, Motion) - scheduling, focus time, optimization",
+      "Note-taking AI (Notion AI, Reflect) - knowledge management, writing assistance",
+      "Privacy and consent workflows for AI recording tools"
+    ]
+  },
+  {
+    "id": "compensation-leveling",
+    "desc": "Compensation and leveling systems for bands, offers, equity, calibration, approvals, and defensible ",
+    "owns": [
+      "Role lifecycle workflows for compensation leveling",
+      "Fairness and calibration controls for compensation leveling",
+      "Access and compliance handoffs for compensation leveling",
+      "Manager operating cadence for compensation leveling",
+      "Employee record evidence for compensation leveling"
+    ]
+  },
+  {
+    "id": "employee-onboarding-systems",
+    "desc": "Employee onboarding systems for role plans, access provisioning, compliance tasks, manager rituals, ",
+    "owns": [
+      "Role lifecycle workflows for employee onboarding systems",
+      "Fairness and calibration controls for employee onboarding systems",
+      "Access and compliance handoffs for employee onboarding systems",
+      "Manager operating cadence for employee onboarding systems",
+      "Employee record evidence for employee onboarding systems"
+    ]
+  },
+  {
+    "id": "performance-review-systems",
+    "desc": "Performance review systems for goals, feedback, calibration, promotion packets, and bias-aware decis",
+    "owns": [
+      "Role lifecycle workflows for performance review systems",
+      "Fairness and calibration controls for performance review systems",
+      "Access and compliance handoffs for performance review systems",
+      "Manager operating cadence for performance review systems",
+      "Employee record evidence for performance review systems"
+    ]
+  },
+  {
+    "id": "workforce-scheduling",
+    "desc": "Workforce scheduling for shifts, coverage, labor constraints, fairness, availability, and operationa",
+    "owns": [
+      "Role lifecycle workflows for workforce scheduling",
+      "Fairness and calibration controls for workforce scheduling",
+      "Access and compliance handoffs for workforce scheduling",
+      "Manager operating cadence for workforce scheduling",
+      "Employee record evidence for workforce scheduling"
+    ]
+  },
+  {
     "id": "a-b-testing",
     "desc": "The science of learning through controlled experimentation. A/B testing isn't about\npicking winners ",
     "owns": [
@@ -5181,6 +6043,17 @@
     ]
   },
   {
+    "id": "customer-onboarding-success",
+    "desc": "Customer-onboarding (CSM) and success ops: implementation tasks, kickoff\n→ handoff workflow, account",
+    "owns": [
+      "Implementation task data model (per-customer playbook tracking)",
+      "Kickoff → handoff workflow with explicit ownership transfer",
+      "Health score (multi-signal, weighted, with breakdown)",
+      "Churn-risk signals (usage decay, NPS dip, support spike)",
+      "Expansion signals (usage growth, role expansion, integration adoption)"
+    ]
+  },
+  {
     "id": "customer-success",
     "desc": "Onboarding that activates, health scores that predict, retention plays that save",
     "owns": [
@@ -5189,6 +6062,28 @@
       "health-score-design",
       "retention-playbooks",
       "expansion-strategies"
+    ]
+  },
+  {
+    "id": "experiment-feature-analysis",
+    "desc": "A/B experimentation discipline: hypothesis design, sample-size + power,\nguardrail metrics, statistic",
+    "owns": [
+      "Hypothesis design (primary metric, expected lift, MDE)",
+      "Sample-size + power calculation",
+      "Variant assignment + sticky bucketing",
+      "Guardrail metrics (counter-metrics that must not regress)",
+      "Statistical analysis (frequentist + sequential + Bayesian variants)"
+    ]
+  },
+  {
+    "id": "feature-onboarding-checklists",
+    "desc": "Activation checklists, first-run experiences, and progressive onboarding:\nstep definition, completio",
+    "owns": [
+      "Checklist step definition (action, completion-event, segmentation)",
+      "Completion detection (action events, not view events)",
+      "Step ordering (default + per-segment overrides)",
+      "Progress display (step count + activation-weighted)",
+      "Dismissal / snooze with re-surfacing rules"
     ]
   },
   {
@@ -5236,6 +6131,17 @@
     ]
   },
   {
+    "id": "product-feedback-roadmapping",
+    "desc": "Customer-feedback capture, deduplication, voting, prioritization, and\nclosing-the-loop with submitte",
+    "owns": [
+      "Feedback intake (in-app, email-to-feedback, portal submission)",
+      "Idea deduplication (semantic + manual merge)",
+      "Vote and follow data model (identity-tied, weighted)",
+      "Status workflow (submitted → triaged → planned → in-progress → shipped | declined)",
+      "Prioritization scoring (RICE, weighted by tier/revenue)"
+    ]
+  },
+  {
     "id": "product-management",
     "desc": "World-class product management expertise combining Marty Cagan's empowered teams,\nShreyas Doshi's st",
     "owns": [
@@ -5244,6 +6150,61 @@
       "Requirements definition and PRDs",
       "User stories and acceptance criteria",
       "Stakeholder alignment and communication"
+    ]
+  },
+  {
+    "id": "crm-lifecycle-ops",
+    "desc": "CRM lifecycle operations for lead routing, stage hygiene, account ownership, and revenue handoffs",
+    "owns": [
+      "Lifecycle stage definitions for crm lifecycle ops",
+      "CRM source-of-truth hygiene for crm lifecycle ops",
+      "Revenue handoff contracts for crm lifecycle ops",
+      "Forecast assumptions and confidence for crm lifecycle ops",
+      "Renewal and procurement dependencies for crm lifecycle ops"
+    ]
+  },
+  {
+    "id": "enterprise-sales-engineering",
+    "desc": "Enterprise sales engineering workflows for demos, technical discovery, security reviews, and impleme",
+    "owns": [
+      "Lifecycle stage definitions for enterprise sales engineering",
+      "CRM source-of-truth hygiene for enterprise sales engineering",
+      "Revenue handoff contracts for enterprise sales engineering",
+      "Forecast assumptions and confidence for enterprise sales engineering",
+      "Renewal and procurement dependencies for enterprise sales engineering"
+    ]
+  },
+  {
+    "id": "partner-channel-operations",
+    "desc": "Partner and channel operations for referrals, marketplaces, co-selling, attribution, and partner qua",
+    "owns": [
+      "Lifecycle stage definitions for partner channel operations",
+      "CRM source-of-truth hygiene for partner channel operations",
+      "Revenue handoff contracts for partner channel operations",
+      "Forecast assumptions and confidence for partner channel operations",
+      "Renewal and procurement dependencies for partner channel operations"
+    ]
+  },
+  {
+    "id": "procurement-vendor-management",
+    "desc": "Procurement and vendor management systems for intake, evaluation, renewal, risk evidence, and spend ",
+    "owns": [
+      "Lifecycle stage definitions for procurement vendor management",
+      "CRM source-of-truth hygiene for procurement vendor management",
+      "Revenue handoff contracts for procurement vendor management",
+      "Forecast assumptions and confidence for procurement vendor management",
+      "Renewal and procurement dependencies for procurement vendor management"
+    ]
+  },
+  {
+    "id": "revenue-forecasting-pipeline",
+    "desc": "Revenue forecasting data pipelines that combine CRM, billing, usage, churn, and sales judgment witho",
+    "owns": [
+      "Lifecycle stage definitions for revenue forecasting pipeline",
+      "CRM source-of-truth hygiene for revenue forecasting pipeline",
+      "Revenue handoff contracts for revenue forecasting pipeline",
+      "Forecast assumptions and confidence for revenue forecasting pipeline",
+      "Renewal and procurement dependencies for revenue forecasting pipeline"
     ]
   },
   {
@@ -5346,6 +6307,17 @@
     ]
   },
   {
+    "id": "cryptography",
+    "desc": "Applied cryptography for production systems covering key management, encryption-at-rest and in-trans",
+    "owns": [
+      "Symmetric encryption choice (AES-GCM, ChaCha20-Poly1305) and modes never to use (ECB)",
+      "Asymmetric encryption (RSA, X25519, hybrid schemes)",
+      "Digital signatures (Ed25519, ECDSA, RSA-PSS) and signature verification gotchas",
+      "Password hashing (Argon2id, bcrypt, scrypt) and what NOT to use (MD5, SHA-256, plain SHA)",
+      "Key derivation (HKDF, PBKDF2) for context separation"
+    ]
+  },
+  {
     "id": "cybersecurity",
     "desc": "Security engineer who has responded to breaches, conducted penetration tests, and built security pro",
     "owns": [
@@ -5354,6 +6326,17 @@
       "Encryption and cryptography",
       "Secrets management",
       "Vulnerability management"
+    ]
+  },
+  {
+    "id": "data-retention-deletion",
+    "desc": "Data retention and deletion: per-class retention policies, scheduled\ndeletion jobs, GDPR Article 17 ",
+    "owns": [
+      "Data classification (categories per retention policy)",
+      "Retention policy registry (per category, per jurisdiction)",
+      "Deletion fan-out (registry of services holding user data)",
+      "Soft-delete + scheduled purge jobs",
+      "Legal-hold overrides with owner + expiry"
     ]
   },
   {
@@ -5399,6 +6382,11 @@
       "Cross-device authentication flows",
       "Fallback authentication strategies"
     ]
+  },
+  {
+    "id": "privacy-consent-management",
+    "desc": "GDPR/CCPA/CPRA-compliant consent capture, storage, propagation, and revocation across web, mobile, s",
+    "owns": []
   },
   {
     "id": "prompt-injection-defense",
@@ -5489,6 +6477,17 @@
     ]
   },
   {
+    "id": "gis-analysis",
+    "desc": "Geospatial analysis for spatial joins, projections, raster/vector workflows, Earth observation data,",
+    "owns": [
+      "Coordinate reference system discipline",
+      "Raster/vector processing workflows",
+      "Spatial joins and overlays",
+      "Geospatial QA and topology checks",
+      "Map-backed analysis outputs"
+    ]
+  },
+  {
     "id": "ground-station-ops",
     "desc": "Ground station network design, satellite contact scheduling, telemetry processing, and spacecraft co",
     "owns": [
@@ -5552,578 +6551,6 @@
       "Thermal Control System (TCS) design",
       "Propulsion system selection and sizing",
       "Communications system and link budget analysis"
-    ]
-  },
-  {
-    "id": "animation-motion",
-    "desc": "Animation principles, motion design, UI animation, procedural animation, and performance-aware motio",
-    "owns": [
-      "12 principles of animation (Disney/Pixar foundations applied to UI and games)",
-      "Easing curves and timing functions (cubic-bezier, spring physics, custom curves)",
-      "UI micro-interactions (button feedback, toggle states, hover effects, loading)",
-      "Motion choreography (entrance/exit sequences, staggered animations, spatial flow)",
-      "Procedural animation (inverse kinematics, physics-based motion, parametric curves)"
-    ]
-  },
-  {
-    "id": "api-design-fundamentals",
-    "desc": "RESTful and GraphQL API design, versioning strategies, rate limiting, pagination, error handling, an",
-    "owns": [
-      "RESTful API design and resource modeling",
-      "GraphQL schema design and resolver architecture",
-      "API versioning strategies (URL, header, content negotiation)",
-      "Rate limiting and throttling design",
-      "Pagination strategies (cursor, offset, keyset)"
-    ]
-  },
-  {
-    "id": "architecture-spaces",
-    "desc": "Architecture, spatial design, urban planning, building systems, sustainable design, and structural p",
-    "owns": [
-      "Structural principles (load paths, redundancy, progressive collapse prevention)",
-      "Spatial planning and programming (adjacency, circulation, efficiency ratios)",
-      "Building codes and compliance (IBC, local amendments, zoning, permitting)",
-      "Sustainable design frameworks (LEED, BREEAM, Passive House, Living Building Challenge)",
-      "HVAC/MEP fundamentals (thermal comfort, ventilation rates, energy modeling)"
-    ]
-  },
-  {
-    "id": "astrophysics-fundamentals",
-    "desc": "Understanding the cosmos from planetary science to cosmology",
-    "owns": [
-      "Stellar physics and evolution",
-      "Planetary science and habitability",
-      "Orbital mechanics intuition",
-      "Cosmological scales and distances",
-      "Black holes and extreme physics"
-    ]
-  },
-  {
-    "id": "biology-fundamentals",
-    "desc": "Core biology, genetics, ecology, cell biology, biotech applications, and bioinformatics for engineer",
-    "owns": [
-      "Genetics and genomics basics (DNA, RNA, protein, central dogma, gene regulation)",
-      "Cell biology fundamentals (organelles, signaling, cell cycle, apoptosis)",
-      "Ecology and ecosystems (food webs, nutrient cycling, population dynamics, biodiversity)",
-      "Evolution mechanisms (natural selection, genetic drift, speciation, phylogenetics)",
-      "Biotech applications overview (CRISPR, PCR, cloning, fermentation, synthetic biology)"
-    ]
-  },
-  {
-    "id": "blockchain-web3",
-    "desc": "Blockchain development, smart contract security, DeFi protocol design, tokenomics modeling, and Web3",
-    "owns": [
-      "Smart contract security auditing (Solidity, Vyper, Rust/Anchor)",
-      "DeFi protocol design and risk assessment",
-      "Tokenomics modeling and economic attack analysis",
-      "Consensus mechanism design and analysis",
-      "L2 scaling solutions (rollups, sidechains, state channels)"
-    ]
-  },
-  {
-    "id": "chemistry-fundamentals",
-    "desc": "Core chemistry concepts for molecular understanding and practical applications",
-    "owns": [
-      "Molecular structure and bonding intuition",
-      "Stoichiometry and reaction balancing",
-      "Acid-base chemistry and pH",
-      "Reaction kinetics basics",
-      "Solution chemistry and concentrations"
-    ]
-  },
-  {
-    "id": "cognitive-behavioral",
-    "desc": "Evidence-based cognitive behavioral techniques for thought pattern restructuring",
-    "owns": [
-      "Cognitive distortion identification",
-      "Thought challenging and restructuring",
-      "Behavioral activation strategies",
-      "Exposure hierarchy design",
-      "Automatic thought records"
-    ]
-  },
-  {
-    "id": "communication-fundamentals",
-    "desc": "Professional communication, technical writing, presentations, persuasion, and conflict resolution",
-    "owns": [
-      "Technical writing (documentation, specs, RFCs, architecture decision records)",
-      "Presentation design and delivery (structure, storytelling, slide design)",
-      "Stakeholder communication (status updates, escalations, executive summaries)",
-      "Active listening and question framing (interviews, discovery, debugging conversations)",
-      "Feedback delivery and reception (SBI model, radical candor, retrospectives)"
-    ]
-  },
-  {
-    "id": "conflict-resolution",
-    "desc": "Evidence-based frameworks for navigating and resolving interpersonal conflicts",
-    "owns": [
-      "Conflict identification and assessment",
-      "De-escalation techniques",
-      "Nonviolent communication frameworks",
-      "Mediation and facilitation",
-      "Interest-based negotiation"
-    ]
-  },
-  {
-    "id": "craft-making",
-    "desc": "Craftsmanship, maker culture, materials science, prototyping, fabrication, and design for manufactur",
-    "owns": [
-      "Material selection and characterization (metals, polymers, ceramics, composites)",
-      "Prototyping methods (3D printing/FDM/SLA/SLS, CNC machining, laser cutting, casting)",
-      "Tolerance analysis and GD&T (geometric dimensioning and tolerancing)",
-      "Fabrication processes (injection molding, sheet metal, extrusion, die casting, welding)",
-      "Quality control and inspection (SPC, CMM, go/no-go gauges, first article inspection)"
-    ]
-  },
-  {
-    "id": "cross-cultural-wisdom",
-    "desc": "Cross-cultural intelligence and global wisdom traditions for navigating multicultural contexts",
-    "owns": [
-      "Cultural dimensions analysis (Hofstede, Trompenaars, GLOBE, Hall)",
-      "Cross-cultural communication and negotiation",
-      "Cultural due diligence for international expansion",
-      "Localization strategy beyond translation",
-      "Global team facilitation and cultural mediation"
-    ]
-  },
-  {
-    "id": "cybersecurity-fundamentals",
-    "desc": "Application security, threat modeling, vulnerability assessment, and secure coding practices for pro",
-    "owns": [
-      "OWASP Top 10 vulnerability prevention and detection",
-      "Threat modeling using STRIDE and DREAD frameworks",
-      "Secure coding practices and code review for security",
-      "Dependency auditing and supply chain security",
-      "Secrets management and rotation policies"
-    ]
-  },
-  {
-    "id": "data-engineering-fundamentals",
-    "desc": "Data pipelines, ETL/ELT, data quality, data modeling, and data governance",
-    "owns": [
-      "ETL/ELT pipeline design and implementation (batch and streaming)",
-      "Data quality validation and monitoring (profiling, assertions, anomaly detection)",
-      "Schema evolution and migration (backward/forward compatibility)",
-      "Data modeling (star schema, snowflake, Data Vault, OBT)",
-      "Data governance (lineage, cataloging, access control, PII handling)"
-    ]
-  },
-  {
-    "id": "devops-automation",
-    "desc": "CI/CD pipeline design, infrastructure as code, container orchestration, deployment strategies, and i",
-    "owns": [
-      "CI/CD pipeline design and optimization (GitHub Actions, GitLab CI, Jenkins, CircleCI)",
-      "Infrastructure as Code (Terraform, Pulumi, CloudFormation, CDK)",
-      "Container orchestration (Docker, Kubernetes, ECS, Nomad)",
-      "Deployment strategies (blue-green, canary, rolling, feature flags)",
-      "Monitoring, alerting, and observability (Prometheus, Grafana, Datadog, PagerDuty)"
-    ]
-  },
-  {
-    "id": "earth-climate-science",
-    "desc": "Climate science, sustainability metrics, environmental impact assessment, and carbon accounting",
-    "owns": [
-      "Carbon footprint analysis (Scope 1, 2, and 3 emissions accounting)",
-      "Climate modeling fundamentals (radiative forcing, feedback loops, scenarios)",
-      "Sustainability metrics and ESG reporting (GRI, SASB, TCFD frameworks)",
-      "Environmental impact assessment (EIA methodology and review)",
-      "Renewable energy fundamentals (solar, wind, hydro, geothermal capacity analysis)"
-    ]
-  },
-  {
-    "id": "entrepreneurship-fundamentals",
-    "desc": "Startup building from zero to product-market fit - customer discovery, MVP design, fundraising, and ",
-    "owns": [
-      "Customer discovery and problem validation",
-      "MVP design and scope management",
-      "Product-market fit measurement and iteration",
-      "Fundraising strategy and pitch structure",
-      "Burn rate management and runway planning"
-    ]
-  },
-  {
-    "id": "evolutionary-biology",
-    "desc": "Core evolutionary principles for understanding life's diversity and adaptation",
-    "owns": [
-      "Natural selection mechanisms",
-      "Genetic variation and inheritance",
-      "Speciation and phylogenetics",
-      "Adaptation and constraint",
-      "Common evolutionary misconceptions"
-    ]
-  },
-  {
-    "id": "existential-philosophy",
-    "desc": "Existential philosophy and meaning-making frameworks for purpose discovery and philosophical counsel",
-    "owns": [
-      "Existential philosophy frameworks (Frankl, Camus, Kierkegaard, Sartre, Heidegger)",
-      "Logotherapy and meaning-making processes",
-      "Purpose discovery and values clarification",
-      "Existential psychology (Yalom, May, van Deurzen)",
-      "Philosophical counseling and Socratic dialogue"
-    ]
-  },
-  {
-    "id": "focus-techniques",
-    "desc": "Deep work strategies and attention management for sustained cognitive performance",
-    "owns": [
-      "Deep work methodology and practice",
-      "Attention management systems",
-      "Distraction elimination strategies",
-      "Flow state optimization",
-      "Context switching cost analysis"
-    ]
-  },
-  {
-    "id": "frontend-development",
-    "desc": "UI/UX development, component architecture, accessibility, performance, and responsive design",
-    "owns": [
-      "Component architecture and design systems (atomic design, composition patterns)",
-      "State management (local, shared, server state, cache synchronization)",
-      "Performance optimization (Core Web Vitals, bundle size, render performance)",
-      "Accessibility compliance (WCAG 2.1 AA, ARIA, keyboard navigation, screen readers)",
-      "Responsive and adaptive design (mobile-first, progressive enhancement)"
-    ]
-  },
-  {
-    "id": "futures-thinking",
-    "desc": "Strategic foresight and scenario planning for navigating uncertainty and emerging futures",
-    "owns": [
-      "Scenario planning methodology (2x2 matrix, morphological analysis)",
-      "Trend analysis and megatrend identification",
-      "Weak signal detection and amplification",
-      "Technology forecasting and S-curve analysis",
-      "Strategic foresight facilitation"
-    ]
-  },
-  {
-    "id": "game-design-fundamentals",
-    "desc": "Game design, mechanics, player psychology, balance, monetization ethics, and level design",
-    "owns": [
-      "Core loop design (engage-challenge-reward-invest cycle)",
-      "Reward psychology and reinforcement schedules (ethical application)",
-      "Game balance and economy design (currency sinks, faucets, equilibrium)",
-      "Level design principles (pacing, gating, skill progression, flow)",
-      "Monetization ethics (fair F2P, cosmetic-only, battle passes, pricing)"
-    ]
-  },
-  {
-    "id": "growth-marketing",
-    "desc": "Growth strategy, acquisition channels, conversion optimization, retention mechanics, and experiment-",
-    "owns": [
-      "Growth loops and flywheel design",
-      "Acquisition channel analysis and optimization",
-      "Conversion rate optimization (CRO)",
-      "Retention metrics and cohort analysis",
-      "Viral coefficient calculation and mechanics"
-    ]
-  },
-  {
-    "id": "health-fundamentals",
-    "desc": "Evidence-based physical health foundations for sustainable wellbeing",
-    "owns": [
-      "Sleep hygiene and recovery",
-      "Movement and exercise fundamentals",
-      "Basic nutrition principles",
-      "Stress and recovery balance",
-      "Preventive health basics"
-    ]
-  },
-  {
-    "id": "investment-basics",
-    "desc": "Foundational investment principles for long-term wealth building",
-    "owns": [
-      "Asset allocation fundamentals",
-      "Index investing principles",
-      "Risk assessment and management",
-      "Tax-advantaged account strategies",
-      "Investment cost analysis"
-    ]
-  },
-  {
-    "id": "leadership-fundamentals",
-    "desc": "Core leadership principles for building and guiding high-performing teams",
-    "owns": [
-      "Psychological safety and trust building",
-      "Delegation and empowerment frameworks",
-      "Feedback delivery and receiving",
-      "One-on-one meeting structure",
-      "Team health diagnostics"
-    ]
-  },
-  {
-    "id": "logical-reasoning",
-    "desc": "Core principles of valid reasoning and argument analysis",
-    "owns": [
-      "Argument structure and validity",
-      "Logical fallacy identification",
-      "Deductive and inductive reasoning",
-      "Evidence evaluation",
-      "Critical thinking frameworks"
-    ]
-  },
-  {
-    "id": "machine-learning-fundamentals",
-    "desc": "Core ML model training, evaluation, feature engineering, and model selection for production systems",
-    "owns": [
-      "Feature engineering and feature selection (mutual information, RFE, domain features)",
-      "Model selection and algorithm comparison (tree-based, linear, kernel, ensemble)",
-      "Cross-validation design and implementation (stratified, grouped, time-series)",
-      "Bias-variance tradeoff diagnosis and correction",
-      "Regularization strategies (L1, L2, dropout, early stopping)"
-    ]
-  },
-  {
-    "id": "mathematics-fundamentals",
-    "desc": "Core mathematical concepts for practical reasoning and problem-solving",
-    "owns": [
-      "Numerical reasoning and estimation",
-      "Basic probability and statistics",
-      "Percentages, ratios, and rates",
-      "Basic algebra and equations",
-      "Logical reasoning and proof"
-    ]
-  },
-  {
-    "id": "mental-health",
-    "desc": "Mental health awareness, support patterns, and wellness fundamentals",
-    "owns": [
-      "Mental health literacy and destigmatization",
-      "Recognizing signs that someone needs professional help",
-      "Supportive listening without diagnosing",
-      "Self-care fundamentals (evidence-based)",
-      "Workplace mental health best practices"
-    ]
-  },
-  {
-    "id": "meta-learning",
-    "desc": "Learning how to learn - knowledge transfer, skill acquisition, cognitive strategies, and spaced repe",
-    "owns": [
-      "Spaced repetition system design and scheduling algorithms",
-      "Deliberate practice frameworks and feedback loop design",
-      "Knowledge transfer strategies (near transfer, far transfer)",
-      "Cognitive load management (intrinsic, extraneous, germane)",
-      "Expertise development pathways (novice to expert progression)"
-    ]
-  },
-  {
-    "id": "mobile-development",
-    "desc": "Cross-platform mobile app development, React Native and Flutter, offline-first architecture, app sto",
-    "owns": [
-      "Cross-platform development (React Native, Flutter, Kotlin Multiplatform)",
-      "Native iOS development (Swift, SwiftUI, UIKit)",
-      "Native Android development (Kotlin, Jetpack Compose)",
-      "Offline-first architecture and data synchronization",
-      "Mobile performance optimization (memory, CPU, battery, network)"
-    ]
-  },
-  {
-    "id": "music-audio",
-    "desc": "Music theory, audio engineering, sound design, spatial audio, and audio production for games, film, ",
-    "owns": [
-      "Music theory fundamentals (harmony, melody, rhythm, form, counterpoint)",
-      "Audio signal processing (EQ, compression, reverb, delay, modulation)",
-      "Mixing and mastering workflows (gain staging, bus routing, stem exports)",
-      "Sound design (synthesis, sampling, foley, procedural audio)",
-      "Spatial audio and 3D sound (binaural, ambisonics, HRTF, Dolby Atmos)"
-    ]
-  },
-  {
-    "id": "neuroscience-fundamentals",
-    "desc": "Brain science fundamentals for understanding cognition, learning, and behavior",
-    "owns": [
-      "Neuroplasticity and learning mechanisms",
-      "Attention and focus neuroscience",
-      "Memory formation and retrieval",
-      "Emotion-cognition interaction",
-      "Sleep and cognitive performance"
-    ]
-  },
-  {
-    "id": "operations-systems",
-    "desc": "Business operations optimization, process mapping, supply chain design, systems thinking, Theory of ",
-    "owns": [
-      "Process mapping and optimization (value stream mapping, swimlane diagrams)",
-      "Supply chain design, risk assessment, and resilience planning",
-      "Systems thinking and feedback loop analysis",
-      "Capacity planning and demand forecasting",
-      "Bottleneck analysis using Theory of Constraints (TOC)"
-    ]
-  },
-  {
-    "id": "parenting-education",
-    "desc": "Child development, learning theory, and parenting frameworks for raising capable humans",
-    "owns": [
-      "Child development stages (Piaget, Erikson, Kohlberg)",
-      "Learning theories (Montessori, Reggio Emilia, Waldorf, constructivism)",
-      "Zone of Proximal Development and scaffolding (Vygotsky)",
-      "Positive parenting strategies and discipline without punishment",
-      "Growth mindset implementation (Dweck, properly applied)"
-    ]
-  },
-  {
-    "id": "personal-finance-fundamentals",
-    "desc": "Core personal finance principles for financial independence and security",
-    "owns": [
-      "Budgeting and cash flow fundamentals",
-      "Emergency fund and debt management",
-      "Compound interest intuition",
-      "Tax-advantaged account basics (401k, IRA, HSA)",
-      "Index investing principles"
-    ]
-  },
-  {
-    "id": "philosophy-fundamentals",
-    "desc": "Core philosophical reasoning for clear thinking and ethical decision-making",
-    "owns": [
-      "Logical reasoning and argument structure",
-      "Fallacy identification and avoidance",
-      "Ethical frameworks (consequentialism, deontology, virtue ethics)",
-      "Critical thinking methodology",
-      "Assumption identification and questioning"
-    ]
-  },
-  {
-    "id": "physics-fundamentals",
-    "desc": "Core physics concepts for intuitive understanding and practical application",
-    "owns": [
-      "Classical mechanics intuition (forces, motion, energy, momentum)",
-      "Thermodynamics fundamentals (heat, entropy, efficiency, phase changes)",
-      "Electromagnetism basics (fields, circuits, waves, Maxwell)",
-      "Order-of-magnitude estimation (Fermi problems)",
-      "Dimensional analysis and unit verification"
-    ]
-  },
-  {
-    "id": "productivity-systems",
-    "desc": "Evidence-based productivity frameworks for sustainable high performance",
-    "owns": [
-      "Deep work and focus management",
-      "Task prioritization frameworks",
-      "Energy management (not just time)",
-      "Context switching minimization",
-      "Sustainable pace practices"
-    ]
-  },
-  {
-    "id": "psychology-fundamentals",
-    "desc": "Core psychology concepts for understanding human behavior and cognition",
-    "owns": [
-      "Cognitive biases and heuristics (Kahneman, Tversky foundations)",
-      "Motivation theory (intrinsic vs extrinsic, self-determination)",
-      "Learning and memory fundamentals",
-      "Emotion and decision-making interaction",
-      "Social psychology basics (influence, conformity, persuasion)"
-    ]
-  },
-  {
-    "id": "quantum-mechanics",
-    "desc": "Quantum mechanics concepts for computing, cryptography, and understanding modern physics",
-    "owns": [
-      "Superposition and quantum states",
-      "Entanglement and non-locality",
-      "Measurement and wavefunction collapse",
-      "Quantum gates and circuits basics",
-      "Quantum vs classical computation boundaries"
-    ]
-  },
-  {
-    "id": "relationship-fundamentals",
-    "desc": "Interpersonal relationship intelligence for building trust, resolving conflict, and emotional master",
-    "owns": [
-      "Attachment theory application (Bowlby, Ainsworth, Hazan & Shaver)",
-      "Emotional intelligence frameworks (Goleman model, Mayer-Salovey model)",
-      "Active listening and empathic communication",
-      "Healthy boundary setting and enforcement",
-      "Conflict de-escalation and resolution"
-    ]
-  },
-  {
-    "id": "sales-fundamentals",
-    "desc": "Sales methodology, consultative selling, pipeline management, negotiation, account strategy, and dea",
-    "owns": [
-      "Consultative selling frameworks (MEDDIC, MEDDPICC, SPIN, Challenger, Sandler)",
-      "Pipeline management and inspection (coverage ratios, stage velocity, health scoring)",
-      "Negotiation strategy (BATNA, ZOPA, anchoring, concession planning)",
-      "Account planning and strategy (whitespace analysis, expansion, retention)",
-      "Objection handling and reframing (price, competition, status quo, timing)"
-    ]
-  },
-  {
-    "id": "sociology-fundamentals",
-    "desc": "Core sociological concepts for understanding social structures and group behavior",
-    "owns": [
-      "Social structure and institutions",
-      "Group dynamics and conformity",
-      "Socialization and identity formation",
-      "Social stratification and inequality",
-      "Organizational sociology"
-    ]
-  },
-  {
-    "id": "software-architecture",
-    "desc": "System design, design patterns, technical debt quantification, and architecture decision-making for ",
-    "owns": [
-      "System decomposition and bounded context identification",
-      "Coupling analysis and dependency management",
-      "SOLID principles application and enforcement",
-      "Domain-Driven Design boundaries and aggregate design",
-      "Architecture Decision Records (ADRs) and design documentation"
-    ]
-  },
-  {
-    "id": "storytelling-writing",
-    "desc": "Storytelling, technical writing, content strategy, narrative design, and copywriting",
-    "owns": [
-      "Narrative structure (heros journey, three-act, inverted pyramid, Freytags pyramid)",
-      "Technical documentation (API docs, tutorials, how-to guides, reference)",
-      "Content strategy (audit, taxonomy, governance, content lifecycle)",
-      "Copywriting (headlines, CTAs, product copy, email sequences)",
-      "Brand voice and tone (voice charts, tone matrices, style guides)"
-    ]
-  },
-  {
-    "id": "team-dynamics-fundamentals",
-    "desc": "Core principles of high-performing team formation and maintenance",
-    "owns": [
-      "Team formation and development stages",
-      "Psychological safety measurement and building",
-      "Team composition and role balance",
-      "Communication pattern optimization",
-      "Trust building and repair"
-    ]
-  },
-  {
-    "id": "tech-ethics",
-    "desc": "AI ethics, algorithmic bias detection, privacy by design, and responsible technology development",
-    "owns": [
-      "Algorithmic bias detection and fairness metric selection",
-      "Disparate impact testing across protected categories",
-      "Privacy impact assessments and data minimization",
-      "Dark pattern identification and consent design review",
-      "AI transparency and explainability requirements"
-    ]
-  },
-  {
-    "id": "typography-fundamentals",
-    "desc": "Typography, type selection, readability, font pairing, typographic hierarchy, responsive type, and f",
-    "owns": [
-      "Type classification and selection (serif, sans-serif, slab, mono, display, variable)",
-      "Font pairing strategy (contrast, concordance, conflict avoidance)",
-      "Typographic scale systems (modular scale, responsive type ramps)",
-      "Readability and legibility optimization (x-height, contrast, line-height, measure)",
-      "Responsive typography (fluid type, viewport-relative units, breakpoint strategies)"
-    ]
-  },
-  {
-    "id": "visual-design",
-    "desc": "Visual design, color theory, layout systems, branding, and design system architecture",
-    "owns": [
-      "Color theory and palette design (HSL relationships, harmony rules, contrast ratios)",
-      "Typography pairing and typographic scale (modular scale, vertical rhythm)",
-      "Layout and grid systems (8-point grid, responsive breakpoints, spatial relationships)",
-      "Design tokens architecture (color, spacing, typography, shadow, motion tokens)",
-      "Brand identity systems (logo usage, voice, visual language, brand architecture)"
     ]
   },
   {
@@ -6457,6 +6884,17 @@
     ]
   },
   {
+    "id": "project-management",
+    "desc": "Operational project management for software teams covering scope decomposition, dependency mapping, ",
+    "owns": [
+      "Scope decomposition into deliverable units with acceptance criteria",
+      "Dependency mapping and critical-path identification",
+      "Schedule construction with explicit buffer for known risks",
+      "Status reporting (RAG, slip detection, escalation triggers)",
+      "Risk register with owners and mitigation plans"
+    ]
+  },
+  {
     "id": "rbac-enterprise",
     "desc": "Enterprise-grade role-based access control with permission matrices, scoped roles, inheritance, admi",
     "owns": [
@@ -6633,6 +7071,17 @@
     ]
   },
   {
+    "id": "web-accessibility-qa",
+    "desc": "Accessibility QA discipline: automated checks (axe-core, Lighthouse,\npa11y), manual testing (keyboar",
+    "owns": [
+      "Automated a11y testing (axe-core, pa11y, Lighthouse) in CI",
+      "Manual testing protocols (keyboard, screen reader, contrast)",
+      "Component-level a11y (semantic HTML, ARIA, focus management)",
+      "Page-level a11y (heading hierarchy, landmarks, skip links)",
+      "Color contrast verification + design-token enforcement"
+    ]
+  },
+  {
     "id": "quantitative-research",
     "desc": "Systematic trading research, backtesting, alpha generation, and factor models",
     "owns": [
@@ -6685,6 +7134,61 @@
       "Trading discipline frameworks",
       "Trade journaling systems",
       "Tilt detection and recovery"
+    ]
+  },
+  {
+    "id": "abuse-fraud-prevention",
+    "desc": "Abuse and fraud prevention systems for signup, payments, referrals, scraping, spam, and coordinated ",
+    "owns": [
+      "Policy labels and enforcement states for abuse fraud prevention",
+      "Review queue design for abuse fraud prevention",
+      "Appeal and escalation flows for abuse fraud prevention",
+      "Abuse signal instrumentation for abuse fraud prevention",
+      "Reviewer quality calibration for abuse fraud prevention"
+    ]
+  },
+  {
+    "id": "appeals-policy-operations",
+    "desc": "Appeals workflows for enforcement decisions with evidence packets, review independence, and policy c",
+    "owns": [
+      "Policy labels and enforcement states for appeals policy operations",
+      "Review queue design for appeals policy operations",
+      "Appeal and escalation flows for appeals policy operations",
+      "Abuse signal instrumentation for appeals policy operations",
+      "Reviewer quality calibration for appeals policy operations"
+    ]
+  },
+  {
+    "id": "content-moderation-systems",
+    "desc": "Content moderation queues, policy labels, review tooling, escalation rules, and quality control loop",
+    "owns": [
+      "Policy labels and enforcement states for content moderation systems",
+      "Review queue design for content moderation systems",
+      "Appeal and escalation flows for content moderation systems",
+      "Abuse signal instrumentation for content moderation systems",
+      "Reviewer quality calibration for content moderation systems"
+    ]
+  },
+  {
+    "id": "marketplace-risk-controls",
+    "desc": "Marketplace risk controls for scams, chargebacks, off-platform abuse, seller quality, and buyer prot",
+    "owns": [
+      "Policy labels and enforcement states for marketplace risk controls",
+      "Review queue design for marketplace risk controls",
+      "Appeal and escalation flows for marketplace risk controls",
+      "Abuse signal instrumentation for marketplace risk controls",
+      "Reviewer quality calibration for marketplace risk controls"
+    ]
+  },
+  {
+    "id": "reputation-systems",
+    "desc": "Reputation scoring, trust signals, user history, ranking safeguards, and feedback-loop controls",
+    "owns": [
+      "Policy labels and enforcement states for reputation systems",
+      "Review queue design for reputation systems",
+      "Appeal and escalation flows for reputation systems",
+      "Abuse signal instrumentation for reputation systems",
+      "Reviewer quality calibration for reputation systems"
     ]
   }
 ]

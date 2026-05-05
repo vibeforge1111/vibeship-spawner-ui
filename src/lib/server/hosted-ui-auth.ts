@@ -19,9 +19,9 @@ export interface HostedUiAuthEnv {
 	MCP_API_KEY?: string;
 }
 
-const EXEMPT_EXACT_PATHS = new Set(['/robots.txt', '/spark-live/login']);
+const EXEMPT_EXACT_PATHS = new Set(['/robots.txt', '/spark-live/login', '/api/health/live']);
 const EXEMPT_PATH_PREFIXES = ['/_app/', '/favicon'];
-const RELEASE_LOCK_PUBLIC_EXACT_PATHS = new Set(['/']);
+const RELEASE_LOCK_PUBLIC_EXACT_PATHS = new Set(['/', '/api/health/live']);
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const COOKIE_OPTIONS = {
 	httpOnly: true,

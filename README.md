@@ -120,6 +120,37 @@ npm run smoke:routes
 npm run smoke:mission-surfaces
 ```
 
+## Railway / Docker
+
+This repo includes a Dockerfile for a hosted Spawner UI service. The production
+container uses SvelteKit's Node adapter and starts with `npm start`.
+
+For a two-service Railway deploy, keep `spark-telegram-bot` and `spawner-ui` in
+the same project environment and communicate over Railway private DNS:
+
+- `MISSION_CONTROL_WEBHOOK_URLS=http://spark-telegram-bot.railway.internal:8788/spawner-events`
+- `TELEGRAM_RELAY_SECRET=<same value as the bot>`
+- `SPARK_HOSTED_PRIVATE_PREVIEW=1`
+- `SPARK_WORKSPACE_ID=<private non-guessable workspace slug>`
+- `SPARK_BRIDGE_API_KEY=<same long value as the bot>`
+- `SPARK_UI_API_KEY=<private browser/API access key>`
+- `SPAWNER_STATE_DIR=/data/spawner`
+- `SPARK_WORKSPACE_ROOT=/data/workspaces`
+- `SPARK_ALLOW_EXTERNAL_PROJECT_PATHS=0`
+
+Mount a persistent volume at `/data` for Spawner state and workspaces. Hosted
+preview links are served from the Spawner public domain and backed by files in
+`SPARK_WORKSPACE_ROOT`.
+
+For hosted smoke checks, run `npm run health:spark` inside the Spawner service.
+Set `SPARK_HEALTH_DEEP=1` to start a tiny mission smoke. The deep smoke uses
+`SPARK_HEALTH_PROVIDER` when set, then the selected Mission provider, then
+`codex` as a fallback.
+
+For the full two-service Railway setup, provider guidance, preview-link checks,
+and Telegram end-to-end smoke tests, see
+[docs/RAILWAY_HOSTED_RUNBOOK.md](docs/RAILWAY_HOSTED_RUNBOOK.md).
+
 ## Documentation Map
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) - current Spark execution-plane architecture.
@@ -129,6 +160,7 @@ npm run smoke:mission-surfaces
 - [docs/SPARK_MISSION_CONTROL_TRACE.md](docs/SPARK_MISSION_CONTROL_TRACE.md) - Telegram to PRD to Canvas to Dispatch to Kanban to Trace map.
 - [docs/SPARK_AGENT_BRIDGE_API.md](docs/SPARK_AGENT_BRIDGE_API.md) - Spark agent bridge API contract.
 - [docs/SPARK_AGENT_CANVAS_LOCALHOST_RUNBOOK.md](docs/SPARK_AGENT_CANVAS_LOCALHOST_RUNBOOK.md) - local Spark agent canvas smoke.
+- [docs/RAILWAY_HOSTED_RUNBOOK.md](docs/RAILWAY_HOSTED_RUNBOOK.md) - hosted Railway deploy, provider, and preview smoke runbook.
 - [docs/archive/retired-external-bridge/README.md](docs/archive/retired-external-bridge/README.md) - retired bridge archive notes.
 
 ## Spark CLI Install Note

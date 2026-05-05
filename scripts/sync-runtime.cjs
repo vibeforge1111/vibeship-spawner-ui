@@ -33,6 +33,7 @@ const SYNCED_PATHS = [
 	'src/lib/server/provider-runtime.ts',
 	'src/lib/server/provider-clients/codex-cli-client.ts',
 	'src/lib/server/provider-clients/spark-harness-client.ts',
+	'src/lib/server/spark-pro-entitlements.ts',
 	'src/lib/server/timeout-config.ts',
 	'src/lib/services/spark-agent-bridge.ts',
 	'src/lib/services/prd-bridge.ts',
@@ -43,6 +44,8 @@ const SYNCED_PATHS = [
 	'src/routes/api/dispatch/+server.ts',
 	'src/routes/api/h70-skills/[skillId]/+server.ts',
 	'src/routes/api/spark/run/+server.ts',
+	'static/skills.json',
+	'static/skill-tiers.json',
 	'static/bundles'
 ];
 
