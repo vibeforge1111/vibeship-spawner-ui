@@ -13,6 +13,7 @@ vi.mock('$lib/server/provider-runtime', () => ({
 }));
 
 import { POST } from './+server';
+import { providerRuntime } from '$lib/server/provider-runtime';
 
 function routeEvent(body: unknown) {
 	return {
@@ -73,5 +74,22 @@ describe('/api/spark/run integration', () => {
 			mobileReachable: true
 		});
 		expect(body.missionControlAccess.url).toBe(`https://mission.sparkswarm.ai/missions/${body.missionId}`);
+	});
+
+	it('uses a provided missionName instead of deriving the board title from the goal', async () => {
+		const dispatch = vi.mocked(providerRuntime.dispatch);
+		dispatch.mockClear();
+
+		const response = await POST(routeEvent({
+			goal: 'Deeply analyze the local Spark stack before creating the chip.',
+			missionName: 'Spark Bug Recognition Domain Chip',
+			providers: ['codex'],
+			requestId: 'tg-context-title'
+		}) as never);
+
+		expect(response.status).toBe(200);
+		const body = await response.json();
+		expect(body.missionName).toBe('Spark Bug Recognition Domain Chip');
+		expect(dispatch).toHaveBeenCalledTimes(1);
 	});
 });
