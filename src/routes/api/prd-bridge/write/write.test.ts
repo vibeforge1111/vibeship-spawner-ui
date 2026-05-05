@@ -140,4 +140,41 @@ describe('PRD bridge fallback analysis', () => {
 			'make the Loop Lantern preview feel more Spark colored, but do not rebuild from scratch'
 		);
 	});
+
+	it('keeps one-file static HTML smoke prompts constrained', async () => {
+		const pendingPrdFile = path.join(testSpawnerDir, 'pending-prd.md');
+		await writeFile(
+			pendingPrdFile,
+			[
+				'Build mode: direct',
+				'build one file only: index.html with a big heading "Spark relay is alive" and text "telegram progress updates reached me".',
+				'Do not make a full app, do not add package files, and keep it as static HTML only.'
+			].join('\n'),
+			'utf-8'
+		);
+
+		const result = await _buildFallbackAnalysisResult(
+			'tg-static-one-file-test',
+			'Spark Relay Static Smoke',
+			'direct',
+			'pro',
+			{
+				spawnerDir: testSpawnerDir,
+				resultsDir: path.join(testSpawnerDir, 'results'),
+				pendingPrdFile,
+				pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
+				prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
+			}
+		);
+
+		expect(result.projectType).toBe('static-single-file-html');
+		expect(result.complexity).toBe('simple');
+		expect(String(result.executionPrompt)).toContain('Create or update only index.html');
+		expect(String(result.executionPrompt)).toContain('Do not create a full app');
+
+		const tasks = result.tasks as Array<{ title: string; acceptanceCriteria: string[] }>;
+		expect(tasks).toHaveLength(2);
+		expect(tasks.map((task) => task.title).join('\n')).not.toMatch(/app shell|core interaction|localStorage|checklist/i);
+		expect(tasks.flatMap((task) => task.acceptanceCriteria).join('\n')).toMatch(/No package\.json|Only index\.html/i);
+	});
 });

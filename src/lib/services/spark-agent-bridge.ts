@@ -296,6 +296,24 @@ function parseProviderCommand(providerId: SparkAgentProviderId, commandTemplate:
 	throw new Error('Codex provider command must be: codex exec --model <model> or codex exec --yolo');
 }
 
+function blockedProviderResponse(response: string | undefined): string | null {
+	const text = (response || '').trim();
+	if (!text) return null;
+	const lower = text.toLowerCase();
+	const blockedSignals = [
+		'blocked by environment',
+		'blocked before implementation',
+		'filesystem writes are blocked',
+		'read-only sandbox',
+		'apply_patch write was rejected',
+		'files changed: none',
+		'no files were created',
+		'index.html: missing'
+	];
+	if (!blockedSignals.some((signal) => lower.includes(signal))) return null;
+	return text.split(/\r?\n/).find((line) => line.trim().length > 0)?.trim() || 'Provider reported blocked execution';
+}
+
 function sanitizeMcpConfig(value: unknown): MCPClientConfig | null {
 	if (!isRecord(value)) return null;
 	const command = toStringOrUndefined(value.command);
@@ -490,6 +508,27 @@ class SparkAgentBridgeService {
 					success: false,
 					sparkAgentSessionId,
 					error: CANCELLED_ERROR,
+					durationMs: Date.now() - startedAtMs
+				};
+			}
+
+			const blockedReason = result.success ? blockedProviderResponse(result.response) : null;
+			if (blockedReason) {
+				workerState.status = 'failed';
+				workerState.error = blockedReason;
+				workerState.completedAt = nowIso();
+				this.emitProviderEvent(workerState, 'task_failed', {
+					progress: workerState.progress,
+					message: `${providerId} worker failed: ${blockedReason}`,
+					error: blockedReason,
+					response: result.response || ''
+				});
+				this.endSession(sparkAgentSessionId, 'failed');
+				return {
+					success: false,
+					sparkAgentSessionId,
+					error: blockedReason,
+					response: result.response,
 					durationMs: Date.now() - startedAtMs
 				};
 			}
