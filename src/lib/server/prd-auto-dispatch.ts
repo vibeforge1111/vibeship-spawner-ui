@@ -99,11 +99,20 @@ function getSparkDefaultProviderId(): string {
 
 function configuredProvider(provider: MultiLLMProviderConfig): MultiLLMProviderConfig {
 	const envRecord = env as Record<string, string | undefined>;
+	const isMissionDefault = provider.id === getSparkDefaultProviderId();
 	const upperId = provider.id.toUpperCase().replace(/[^A-Z0-9]/g, '_');
-	const model = envRecord[`SPARK_${upperId}_MODEL`] || envRecord[`${upperId}_MODEL`] || provider.model;
+	const model =
+		(isMissionDefault ? envRecord.SPARK_MISSION_LLM_MODEL : undefined) ||
+		envRecord[`SPARK_${upperId}_MODEL`] ||
+		envRecord[`${upperId}_MODEL`] ||
+		provider.model;
 	const baseUrl =
-		envRecord[`SPARK_${upperId}_BASE_URL`] || envRecord[`${upperId}_BASE_URL`] || provider.baseUrl;
+		(isMissionDefault ? envRecord.SPARK_MISSION_LLM_BASE_URL : undefined) ||
+		envRecord[`SPARK_${upperId}_BASE_URL`] ||
+		envRecord[`${upperId}_BASE_URL`] ||
+		provider.baseUrl;
 	const commandTemplate =
+		(isMissionDefault ? envRecord.SPARK_MISSION_LLM_COMMAND_TEMPLATE : undefined) ||
 		envRecord[`SPARK_${upperId}_COMMAND_TEMPLATE`] ||
 		envRecord[`${upperId}_COMMAND_TEMPLATE`] ||
 		provider.commandTemplate;
