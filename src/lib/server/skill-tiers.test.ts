@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { formatSkillsByCategory, getTierSkills, normalizeTier } from './skill-tiers';
 
 describe('skill-tiers', () => {
-	it('defaults unknown tier values to pro while preserving explicit base/pro', () => {
+	it('defaults unknown tier values to base while preserving explicit base/pro', () => {
 		expect(normalizeTier('base')).toBe('base');
 		expect(normalizeTier('pro')).toBe('pro');
 		expect(normalizeTier('free')).toBe('base');
 		expect(normalizeTier('basic')).toBe('base');
 		expect(normalizeTier('premium')).toBe('pro');
-		expect(normalizeTier(undefined)).toBe('pro');
+		expect(normalizeTier(undefined)).toBe('base');
 	});
 
 	it('formats skills by category with sorted categories and sorted ids', () => {
@@ -33,15 +33,16 @@ describe('skill-tiers', () => {
 		expect(ids.has('test-architect')).toBe(true);
 	});
 
-	it('loads base skills from curated bundles as a smaller allowlist', async () => {
+	it('loads base skills from the canonical starter manifest as a smaller allowlist', async () => {
 		const [base, pro] = await Promise.all([getTierSkills('base'), getTierSkills('pro')]);
 		const baseIds = new Set(base.map((skill) => skill.id));
 		const proIds = new Set(pro.map((skill) => skill.id));
 
-		expect(base.length).toBeGreaterThan(0);
+		expect(base).toHaveLength(30);
 		expect(base.length).toBeLessThan(pro.length);
 		expect(baseIds.has('frontend-engineer')).toBe(true);
-		expect(baseIds.has('stripe-subscriptions')).toBe(true);
+		expect(baseIds.has('stripe-integration')).toBe(true);
+		expect(baseIds.has('ai-agent-permissions-sandboxing')).toBe(false);
 		for (const id of baseIds) {
 			expect(proIds.has(id)).toBe(true);
 		}

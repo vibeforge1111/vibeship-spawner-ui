@@ -1,11 +1,9 @@
 /**
  * Tier-aware skill registry for prompt allowlists.
  *
- * Source of truth is spark-skill-graphs (https://github.com/vibeforge1111/spark-skill-graphs):
- *  - pro:  every skill in static/skills.json (synced from spark-skill-graphs).
- *  - base: union of required + optional + load_order across the curated bundles
- *          in static/bundles/*.yaml. ~41 skills covering the highest-leverage
- *          paths (mvp-launch, saas-with-auth-and-billing, payments-platform, ...).
+ * Source of truth is spark-skill-graphs:
+ *  - pro:  every skill in static/skills.json.
+ *  - base: the canonical open-source starter IDs in static/skill-tiers.json.
  *
  * Used by buildCodexPrompt to constrain emitted skill IDs to a tier the user
  * actually has access to. Without this, the model hallucinates IDs like
@@ -32,6 +30,12 @@ interface BundleYaml {
 	load_order?: string[];
 }
 
+interface SkillTierManifest {
+	open_source?: {
+		canonical_starter_skill_ids?: string[];
+	};
+}
+
 let cached: { base: SkillRecord[]; pro: SkillRecord[] } | null = null;
 
 function staticDir(): string {
@@ -47,10 +51,18 @@ async function loadProSkills(): Promise<SkillRecord[]> {
 }
 
 async function loadBaseSkills(pro: SkillRecord[]): Promise<SkillRecord[]> {
+	const tiersPath = join(staticDir(), 'skill-tiers.json');
+	const proById = new Map(pro.map((s) => [s.id, s]));
+	if (existsSync(tiersPath)) {
+		const raw = await readFile(tiersPath, 'utf-8');
+		const tiers = JSON.parse(raw) as SkillTierManifest;
+		const ids = tiers.open_source?.canonical_starter_skill_ids ?? [];
+		return ids.map((id) => proById.get(id) ?? { id });
+	}
+
 	const dir = join(staticDir(), 'bundles');
 	if (!existsSync(dir)) return [];
 	const files = (await readdir(dir)).filter((f) => f.endsWith('.yaml') || f.endsWith('.yml'));
-	const proById = new Map(pro.map((s) => [s.id, s]));
 	const out = new Map<string, SkillRecord>();
 	for (const f of files) {
 		const raw = await readFile(join(dir, f), 'utf-8');
@@ -85,7 +97,7 @@ export async function getTierSkills(tier: SkillTier): Promise<SkillRecord[]> {
 export function normalizeTier(value: unknown): SkillTier {
 	if (value === 'pro' || value === 'premium') return 'pro';
 	if (value === 'base' || value === 'free' || value === 'basic') return 'base';
-	return 'pro';
+	return 'base';
 }
 
 export function formatSkillsByCategory(skills: SkillRecord[]): string {

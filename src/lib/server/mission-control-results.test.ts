@@ -81,6 +81,28 @@ describe('mission-control-results', () => {
 		expect(summary.providerSummary).not.toContain('/Users/leventcem');
 	});
 
+	it('keeps hosted project metadata from structured provider responses', () => {
+		process.env.SPARK_PROJECT_PREVIEW_BASE_URL = 'https://preview.sparkswarm.ai';
+		const summary = summarizeProviderResults([
+			result({
+				providerId: 'codex',
+				response: JSON.stringify({
+					status: 'completed',
+					summary: 'Materialized hosted project files.',
+					project_path: 'C:/Users/USER/.spark/workspaces/mission-1'
+				})
+			})
+		]);
+		delete process.env.SPARK_PROJECT_PREVIEW_BASE_URL;
+
+		expect(summary.providerResults[0]).toMatchObject({
+			summary: 'Materialized hosted project files.',
+			projectPath: 'C:/Users/USER/.spark/workspaces/mission-1',
+			project_path: 'C:/Users/USER/.spark/workspaces/mission-1'
+		});
+		expect(summary.providerResults[0].previewUrl).toContain('https://preview.sparkswarm.ai/');
+	});
+
 	it('enriches each board entry through the supplied result lookup', () => {
 		const enriched = enrichMissionControlBoardWithProviderResults(
 			{ completed: [entry('mission-1')], failed: [] },
