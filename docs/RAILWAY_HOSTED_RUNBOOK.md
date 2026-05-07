@@ -7,6 +7,11 @@ This runbook covers the self-hosted Railway shape for the Spark starter stack:
 - Both services live in the same Railway project and talk over Railway private DNS.
 - Users keep their own bot, providers, workspaces, and generated files in their own Railway account.
 
+For copy-paste service variables, use
+[RAILWAY_ENV_TEMPLATES.md](RAILWAY_ENV_TEMPLATES.md) first. It includes the
+pair checker command that verifies shared secrets and callback URLs before you
+paste values into Railway.
+
 ## Recommended Topology
 
 ```mermaid
