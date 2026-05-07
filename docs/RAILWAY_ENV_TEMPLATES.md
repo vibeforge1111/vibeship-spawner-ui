@@ -10,7 +10,8 @@ in production.
 
 ## Shared Values
 
-Generate once and paste the same value into both services:
+Generate once per secret. Paste each secret into both services where that row
+appears, but keep the three secret values different from each other:
 
 ```bash
 openssl rand -base64 32
@@ -28,6 +29,9 @@ TELEGRAM_RELAY_SECRET=<same-32-byte-secret-in-both-services>
 `SPARK_BRIDGE_API_KEY` protects bot-to-Spawner control calls.
 `SPARK_UI_API_KEY` protects Spawner browser/API reads.
 `TELEGRAM_RELAY_SECRET` protects Spawner-to-bot mission callbacks.
+
+Do not reuse one generated secret for all three rows. A leaked browser key
+should not also authorize bridge control calls or mission callbacks.
 
 ## Spawner UI Service
 

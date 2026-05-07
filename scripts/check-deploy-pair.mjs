@@ -16,6 +16,9 @@ if (!spawnerEnvPath || !botEnvPath) {
   sameValue(spawner, bot, "SPARK_BRIDGE_API_KEY");
   sameValue(spawner, bot, "SPARK_UI_API_KEY");
   sameValue(spawner, bot, "TELEGRAM_RELAY_SECRET");
+  differentValues(spawner, "SPARK_UI_API_KEY", "SPARK_BRIDGE_API_KEY");
+  differentValues(spawner, "SPARK_UI_API_KEY", "TELEGRAM_RELAY_SECRET");
+  differentValues(spawner, "SPARK_BRIDGE_API_KEY", "TELEGRAM_RELAY_SECRET");
 
   includesCsv(spawner, "MISSION_CONTROL_WEBHOOK_URLS", bot.TELEGRAM_RELAY_URL);
   requirePublicUrl(bot, "SPAWNER_UI_PUBLIC_URL");
@@ -82,6 +85,16 @@ function sameValue(left, right, key) {
     return;
   }
   ok(key, "matches");
+}
+
+function differentValues(values, first, second) {
+  if (!values[first] || !values[second]) return;
+  if (looksPlaceholder(values[first]) || looksPlaceholder(values[second])) return;
+  if (values[first] === values[second]) {
+    fail(`${first}/${second}`, "must be different secrets");
+    return;
+  }
+  ok(`${first}/${second}`, "different secrets");
 }
 
 function includesCsv(values, key, expected) {
