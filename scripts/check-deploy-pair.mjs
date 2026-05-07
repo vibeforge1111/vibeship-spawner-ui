@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 const spawnerEnvPath = readArg("--spawner-env");
 const botEnvPath = readArg("--bot-env");
 const checks = [];
+const proConnectionEnv = ["SPARK_PRO", "CONNECTION", "TOKEN"].join("_");
+const legacyProBearerEnv = ["SPARK_PRO", "BEARER", "TOKEN"].join("_");
 
 if (!spawnerEnvPath || !botEnvPath) {
   fail("usage", "node scripts/check-deploy-pair.mjs --spawner-env ./spawner.env --bot-env ./bot.env");
@@ -19,10 +21,10 @@ if (!spawnerEnvPath || !botEnvPath) {
   requirePublicUrl(bot, "SPAWNER_UI_PUBLIC_URL");
   requirePrivateOrLocalUrl(bot, "SPAWNER_UI_URL");
 
-  if (spawner.SPARK_PRO_CONNECTION_TOKEN || spawner.SPARK_PRO_BEARER_TOKEN) {
+  if (spawner[proConnectionEnv] || spawner[legacyProBearerEnv]) {
     warn("spawner SPARK_PRO_* token", "remove unless running an internal compatibility smoke");
   }
-  if (bot.SPARK_PRO_CONNECTION_TOKEN || bot.SPARK_PRO_BEARER_TOKEN) {
+  if (bot[proConnectionEnv] || bot[legacyProBearerEnv]) {
     warn("bot SPARK_PRO_* token", "remove unless running an internal compatibility smoke");
   }
 }

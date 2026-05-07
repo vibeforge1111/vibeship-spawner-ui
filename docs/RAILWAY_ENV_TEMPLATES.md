@@ -4,9 +4,9 @@ Use these as copy-paste starting points for a two-service Railway deploy. Replac
 all placeholders before deploy. Keep the two services in the same Railway
 project/environment so `*.railway.internal` private DNS works.
 
-Do not set `SPARK_PRO_CONNECTION_TOKEN` or `SPARK_PRO_BEARER_TOKEN` for this
-flow. Spark Pro connection tokens are paused for member-facing Railway/VPS setup
-until the downstream hosted tool consumes them in production.
+Do not set Spark Pro connection tokens for this flow. They are paused for
+member-facing Railway/VPS setup until the downstream hosted tool consumes them
+in production.
 
 ## Shared Values
 

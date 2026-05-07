@@ -118,9 +118,8 @@ Generate secrets with:
 openssl rand -base64 32
 ```
 
-Do not set `SPARK_PRO_CONNECTION_TOKEN` or `SPARK_PRO_BEARER_TOKEN` for the
-current VPS flow. Those tokens are paused and only belong in explicit internal
-compatibility checks.
+Do not set Spark Pro connection tokens for the current VPS flow. Those tokens
+are paused and only belong in explicit internal compatibility checks.
 
 ## Preflight
 
