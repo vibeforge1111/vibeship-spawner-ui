@@ -19,6 +19,7 @@ RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 RUN npm install -g @openai/codex @anthropic-ai/claude-code && npm cache clean --force
 COPY --from=build /app/build ./build
 COPY --from=build /app/static ./static
+COPY --from=build /app/scripts/check-deploy-pair.mjs ./scripts/check-deploy-pair.mjs
 COPY --from=build /app/scripts/deploy-doctor.mjs ./scripts/deploy-doctor.mjs
 COPY --from=build /app/scripts/health-spark.mjs ./scripts/health-spark.mjs
 RUN mkdir -p /data/codex /data/spawner /data/workspaces
