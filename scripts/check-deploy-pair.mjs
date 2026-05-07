@@ -22,7 +22,11 @@ if (!spawnerEnvPath || !botEnvPath) {
 
   includesCsv(spawner, "MISSION_CONTROL_WEBHOOK_URLS", bot.TELEGRAM_RELAY_URL);
   requirePublicUrl(bot, "SPAWNER_UI_PUBLIC_URL");
-  requirePrivateOrLocalUrl(bot, "SPAWNER_UI_URL");
+  const spawnerUrlKey = bot.SPAWNER_UI_URL ? "SPAWNER_UI_URL" : "SPARK_SPAWNER_URL";
+  requirePrivateOrLocalUrl(bot, spawnerUrlKey);
+  if (!bot.SPAWNER_UI_URL && bot.SPARK_SPAWNER_URL) {
+    warn("SPARK_SPAWNER_URL", "compatibility alias accepted; prefer SPAWNER_UI_URL in new docs");
+  }
 
   if (spawner[proConnectionEnv] || spawner[legacyProBearerEnv]) {
     warn("spawner SPARK_PRO_* token", "remove unless running an internal compatibility smoke");

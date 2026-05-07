@@ -122,6 +122,9 @@ Generate one value per secret row. Keep `SPARK_UI_API_KEY`,
 `SPARK_BRIDGE_API_KEY`, and `TELEGRAM_RELAY_SECRET` different from each other,
 then paste the matching value into both services where required.
 
+Use `SPAWNER_UI_URL` for bot-to-Spawner traffic. `SPARK_SPAWNER_URL` is accepted
+as a legacy alias, but new setup should stay on `SPAWNER_UI_URL`.
+
 Do not set Spark Pro connection tokens for the current VPS flow. Those tokens
 are paused and only belong in explicit internal compatibility checks.
 

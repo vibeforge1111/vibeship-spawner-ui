@@ -112,6 +112,8 @@ Spawner callback URL that does not match the bot's `TELEGRAM_RELAY_URL`.
 
 - `SPAWNER_UI_URL` is private service-to-service traffic. Use
   `http://spawner-ui.railway.internal:3000`.
+- `SPARK_SPAWNER_URL` is accepted as a legacy compatibility alias for
+  `SPAWNER_UI_URL`, but new setup should use `SPAWNER_UI_URL`.
 - `SPAWNER_UI_PUBLIC_URL` is what Telegram users open. Use the public protected
   Spawner domain.
 - `MISSION_CONTROL_WEBHOOK_URLS` points to the bot, not the Spawner.

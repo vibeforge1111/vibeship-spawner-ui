@@ -91,6 +91,8 @@ SPARK_UI_API_KEY=<same UI key Spawner expects for protected UI/API reads>
 ```
 
 Use `SPAWNER_UI_PUBLIC_URL` for links sent to Telegram. Use the private `SPAWNER_UI_URL` for service-to-service calls.
+`SPARK_SPAWNER_URL` is accepted as a legacy compatibility alias, but new setup
+should use `SPAWNER_UI_URL`.
 
 Run the deployment doctor inside the bot service before declaring the deploy
 ready:
