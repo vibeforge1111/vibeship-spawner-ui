@@ -113,6 +113,10 @@ function requirePublicUrl(values, key) {
     fail(key, "must be a valid URL");
     return;
   }
+  if (new URL(value).protocol !== "https:") {
+    fail(key, "public URL must use https");
+    return;
+  }
   if (isPrivateRailwayUrl(value) || isDockerPrivateHost(value)) {
     fail(key, "must be a public browser URL");
     return;
