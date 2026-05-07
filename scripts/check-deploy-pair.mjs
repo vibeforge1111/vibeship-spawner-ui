@@ -71,6 +71,10 @@ function sameValue(left, right, key) {
     fail(key, "missing from one or both env files");
     return;
   }
+  if (looksPlaceholder(left[key]) || looksPlaceholder(right[key])) {
+    fail(key, "replace placeholder value");
+    return;
+  }
   if (left[key] !== right[key]) {
     fail(key, "must match between Spawner and bot");
     return;
@@ -81,6 +85,10 @@ function sameValue(left, right, key) {
 function includesCsv(values, key, expected) {
   if (!values[key] || !expected) {
     fail(key, "missing callback or expected bot relay URL");
+    return;
+  }
+  if (looksPlaceholder(values[key]) || looksPlaceholder(expected)) {
+    fail(key, "replace placeholder value");
     return;
   }
   const urls = values[key].split(",").map((value) => value.trim()).filter(Boolean);
@@ -97,6 +105,14 @@ function requirePublicUrl(values, key) {
     fail(key, "missing");
     return;
   }
+  if (looksPlaceholder(value)) {
+    fail(key, "replace placeholder value");
+    return;
+  }
+  if (!validUrl(value)) {
+    fail(key, "must be a valid URL");
+    return;
+  }
   if (isPrivateRailwayUrl(value) || isDockerPrivateHost(value)) {
     fail(key, "must be a public browser URL");
     return;
@@ -110,6 +126,14 @@ function requirePrivateOrLocalUrl(values, key) {
     fail(key, "missing");
     return;
   }
+  if (looksPlaceholder(value)) {
+    fail(key, "replace placeholder value");
+    return;
+  }
+  if (!validUrl(value)) {
+    fail(key, "must be a valid URL");
+    return;
+  }
   if (isPrivateRailwayUrl(value) && !hasExplicitPort(value)) {
     fail(key, "Railway private DNS needs an explicit port");
     return;
@@ -119,6 +143,19 @@ function requirePrivateOrLocalUrl(values, key) {
 
 function isPrivateRailwayUrl(value) {
   return /\.railway\.internal(?::\d+)?(?:\/|$)/.test(value);
+}
+
+function looksPlaceholder(value) {
+  return /<[^>]+>|your[_-]|changeme|replace[_-]?me|example\.com|private-non-guessable/i.test(value);
+}
+
+function validUrl(value) {
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function isDockerPrivateHost(value) {
