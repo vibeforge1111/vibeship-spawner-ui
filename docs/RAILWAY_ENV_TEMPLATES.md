@@ -93,6 +93,17 @@ node scripts/deploy-doctor.mjs --role bot --env-file ./bot.railway.env
 node scripts/run-health-runtime.cjs
 ```
 
+## Pair Check
+
+Before pasting variables into Railway, compare the two local env files:
+
+```bash
+node scripts/check-deploy-pair.mjs --spawner-env ./spawner.railway.env --bot-env ./bot.railway.env
+```
+
+This catches mismatched shared secrets, mismatched `SPARK_WORKSPACE_ID`, and a
+Spawner callback URL that does not match the bot's `TELEGRAM_RELAY_URL`.
+
 ## URL Rules
 
 - `SPAWNER_UI_URL` is private service-to-service traffic. Use
