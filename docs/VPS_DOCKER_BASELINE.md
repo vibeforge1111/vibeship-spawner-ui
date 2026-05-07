@@ -127,6 +127,7 @@ compatibility checks.
 After containers start, run:
 
 ```bash
+node scripts/check-deploy-pair.mjs --spawner-env ./spawner.vps.env --bot-env ./bot.vps.env
 docker compose exec spawner-ui node scripts/deploy-doctor.mjs --role spawner
 docker compose exec spark-telegram-bot node scripts/deploy-doctor.mjs --role bot
 docker compose exec spawner-ui node scripts/health-spark.mjs
