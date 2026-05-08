@@ -301,6 +301,16 @@ export function resetHostedUiPairingCodes(): void {
 	consumedHostedUiPairingCodeHashes.clear();
 }
 
+export function hostedUiPathWithoutAuthQuery(url: URL): string {
+	const clean = new URL(url);
+	clean.searchParams.delete('uiKey');
+	clean.searchParams.delete('apiKey');
+	clean.searchParams.delete('pairCode');
+	clean.searchParams.delete('workspaceId');
+	clean.searchParams.delete('workspace');
+	return clean.pathname + clean.search + clean.hash;
+}
+
 export function hostedUiSessionIsValid(cookies: Cookies, env: HostedUiAuthEnv, now = Date.now()): boolean {
 	const sessionId = cookies.get(SESSION_COOKIE_NAME);
 	if (!sessionId) return false;
@@ -341,11 +351,5 @@ export function persistHostedUiAuth(cookies: Cookies, env: HostedUiAuthEnv): voi
 }
 
 export function redirectWithoutAuthQuery(url: URL): never {
-	const clean = new URL(url);
-	clean.searchParams.delete('uiKey');
-	clean.searchParams.delete('apiKey');
-	clean.searchParams.delete('pairCode');
-	clean.searchParams.delete('workspaceId');
-	clean.searchParams.delete('workspace');
-	throw redirect(303, clean.pathname + clean.search + clean.hash);
+	throw redirect(303, hostedUiPathWithoutAuthQuery(url));
 }
