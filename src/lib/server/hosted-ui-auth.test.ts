@@ -16,6 +16,7 @@ import {
 	hostedUiRequestWorkspaceId,
 	hostedUiSessionIsValid,
 	hostedUiTokenIsValid,
+	hostedUiPathWithoutAuthQuery,
 	consumeHostedUiPairingCode,
 	persistHostedUiAuth,
 	recordHostedUiAuthFailure,
@@ -152,6 +153,11 @@ describe('hosted UI auth', () => {
 		expect(consumeHostedUiPairingCode('private-workspace', 'wrong-code', env)).toBe(false);
 		expect(consumeHostedUiPairingCode('private-workspace', 'one-time-code', env)).toBe(true);
 		expect(consumeHostedUiPairingCode('private-workspace', 'one-time-code', env)).toBe(false);
+	});
+
+	it('strips auth query values from hosted UI redirect targets', () => {
+		const url = new URL('https://x.test/canvas?uiKey=secret&apiKey=api-secret&pairCode=pair&workspaceId=workspace&keep=1#section');
+		expect(hostedUiPathWithoutAuthQuery(url)).toBe('/canvas?keep=1#section');
 	});
 
 	it('blocks cross-site mutating browser requests unless an explicit API token is used', () => {

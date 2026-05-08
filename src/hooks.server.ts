@@ -19,7 +19,8 @@ import {
 	consumeHostedUiPairingCode,
 	persistHostedUiAuth,
 	redirectWithoutAuthQuery,
-	hostedUiRequestPairingCode
+	hostedUiRequestPairingCode,
+	hostedUiPathWithoutAuthQuery
 } from '$lib/server/hosted-ui-auth';
 
 function secureResponse(response: Response): Response {
@@ -93,7 +94,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 		recordHostedUiAuthFailure(clientKey);
 		if (event.request.method === 'GET' && event.request.headers.get('accept')?.includes('text/html')) {
-			const next = `${event.url.pathname}${event.url.search}${event.url.hash}`;
+			const next = hostedUiPathWithoutAuthQuery(event.url);
 			throw redirect(303, `/spark-live/login?next=${encodeURIComponent(next)}`);
 		}
 		return secureResponse(new Response('Spawner is private. Open /spark-live/login in a browser, or pass x-spawner-ui-key for API access.', {
