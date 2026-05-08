@@ -147,8 +147,8 @@ describe('PRD bridge fallback analysis', () => {
 			pendingPrdFile,
 			[
 				'Build mode: direct',
-				'build one file only: index.html with a big heading "Spark relay is alive" and text "telegram progress updates reached me".',
-				'Do not make a full app, do not add package files, and keep it as static HTML only.'
+				'Build a tiny static HTML page called Spark Production Smoke. It should have one file, index.html, with a dark Mission Control panel, a green "Spark Live OK" status, and the text "Telegram to Spawner relay worked on May 8, 2026".',
+				'Do not add package files, do not install dependencies, and keep it simple enough to finish fast.'
 			].join('\n'),
 			'utf-8'
 		);
