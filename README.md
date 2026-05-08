@@ -134,6 +134,7 @@ the same project environment and communicate over Railway private DNS:
 - `SPARK_WORKSPACE_ID=<private non-guessable workspace slug>`
 - `SPARK_BRIDGE_API_KEY=<same long value as the bot>`
 - `SPARK_UI_API_KEY=<private browser/API access key>`
+- `SPARK_UI_PAIRING_CODE=<optional one-time browser pairing code>`
 - `SPAWNER_STATE_DIR=/data/spawner`
 - `SPARK_WORKSPACE_ROOT=/data/workspaces`
 - `SPARK_ALLOW_EXTERNAL_PROJECT_PATHS=0`
@@ -141,6 +142,11 @@ the same project environment and communicate over Railway private DNS:
 Mount a persistent volume at `/data` for Spawner state and workspaces. Hosted
 preview links are served from the Spawner public domain and backed by files in
 `SPARK_WORKSPACE_ROOT`.
+
+Do not put `SPARK_UI_API_KEY` in browser URLs. Browser bootstrap links may use
+`?workspaceId=...&pairCode=...` only when `SPARK_UI_PAIRING_CODE` is configured;
+the server consumes that code once, sets an opaque session cookie, and redirects
+to a clean URL.
 
 For hosted smoke checks, run `npm run health:spark` inside the Spawner service.
 Set `SPARK_HEALTH_DEEP=1` to start a tiny mission smoke. The deep smoke uses

@@ -42,6 +42,7 @@ MISSION_CONTROL_WEBHOOK_URLS=http://spark-telegram-bot.railway.internal:8788/spa
 TELEGRAM_RELAY_SECRET=<same long secret as the bot>
 SPARK_BRIDGE_API_KEY=<same long bridge key as the bot>
 SPARK_UI_API_KEY=<private browser/API access key>
+SPARK_UI_PAIRING_CODE=<optional one-time browser pairing code>
 DEFAULT_MISSION_PROVIDER=zai
 ```
 
@@ -49,6 +50,11 @@ DEFAULT_MISSION_PROVIDER=zai
 must all be present for a trusted hosted Spawner. Without them, the live health
 endpoint can still pass, but Canvas, Kanban, provider metadata, and preview
 checks remain locked by design.
+
+Do not put `SPARK_UI_API_KEY` in browser URLs. For a temporary browser bootstrap
+link, set `SPARK_UI_PAIRING_CODE` and open
+`/canvas?workspaceId=<workspace>&pairCode=<code>`. Spawner consumes that code
+once, writes an opaque session cookie, and redirects to a clean URL.
 
 Add provider keys only for providers you want to run in hosted mode:
 
@@ -183,6 +189,7 @@ https://<spawner-public-domain>/preview/<token>/index.html
 
 - Do not put the Telegram bot token in Spawner.
 - Keep `SPARK_BRIDGE_API_KEY`, `SPARK_UI_API_KEY`, provider keys, and `TELEGRAM_RELAY_SECRET` in Railway variables only.
+- Use `SPARK_UI_PAIRING_CODE` instead of `?uiKey=` when a browser bootstrap URL is needed, and rotate or unset it after use.
 - Keep `SPARK_ALLOW_EXTERNAL_PROJECT_PATHS=0` for hosted services.
 - Use private Railway domains for bot-to-Spawner calls.
 - Public preview links expose generated static output. Do not include secrets, private logs, private repos, memory exports, or tokens in generated projects.

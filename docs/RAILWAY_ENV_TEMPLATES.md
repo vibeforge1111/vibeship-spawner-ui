@@ -23,14 +23,17 @@ Shared variables:
 SPARK_WORKSPACE_ID=<private-prod-spawner-slug>
 SPARK_BRIDGE_API_KEY=<same-32-byte-secret-in-both-services>
 SPARK_UI_API_KEY=<same-32-byte-secret-in-both-services>
+SPARK_UI_PAIRING_CODE=<optional-one-time-browser-pairing-code>
 TELEGRAM_RELAY_SECRET=<same-32-byte-secret-in-both-services>
 ```
 
 `SPARK_BRIDGE_API_KEY` protects bot-to-Spawner control calls.
 `SPARK_UI_API_KEY` protects Spawner browser/API reads.
+`SPARK_UI_PAIRING_CODE` protects one temporary browser bootstrap URL and is
+consumed once by Spawner.
 `TELEGRAM_RELAY_SECRET` protects Spawner-to-bot mission callbacks.
 
-Do not reuse one generated secret for all three rows. A leaked browser key
+Do not reuse one generated secret for every row. A leaked browser key
 should not also authorize bridge control calls or mission callbacks.
 
 ## Spawner UI Service
@@ -45,6 +48,7 @@ SPARK_HOSTED_PRIVATE_PREVIEW=1
 SPARK_WORKSPACE_ID=<same-private-prod-spawner-slug>
 SPARK_BRIDGE_API_KEY=<same-bridge-secret-as-bot>
 SPARK_UI_API_KEY=<same-ui-secret-as-bot>
+SPARK_UI_PAIRING_CODE=<optional-one-time-browser-pairing-code>
 TELEGRAM_RELAY_SECRET=<same-relay-secret-as-bot>
 MISSION_CONTROL_WEBHOOK_URLS=http://spark-telegram-bot.railway.internal:8788/spawner-events
 SPAWNER_STATE_DIR=/data/spawner
@@ -107,6 +111,10 @@ node scripts/check-deploy-pair.mjs --spawner-env ./spawner.railway.env --bot-env
 
 This catches mismatched shared secrets, mismatched `SPARK_WORKSPACE_ID`, and a
 Spawner callback URL that does not match the bot's `TELEGRAM_RELAY_URL`.
+
+Do not put `SPARK_UI_API_KEY` in a browser URL. If you need a quick first login,
+use `?workspaceId=...&pairCode=...` with `SPARK_UI_PAIRING_CODE`, then unset or
+rotate the pairing code after it is consumed.
 
 ## URL Rules
 
