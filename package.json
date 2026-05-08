@@ -3,7 +3,7 @@
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
-	"license": "AGPL-3.0-only",
+	"license": "MIT",
 	"scripts": {
 		"dev": "vite dev --host 127.0.0.1 --port 3333",
 		"build": "vite build",
