@@ -67,6 +67,11 @@ browser bootstrap URL is needed, configure `SPARK_UI_PAIRING_CODE` and open:
 The server consumes that pairing code once, creates the opaque session, and
 redirects to the same path without `pairCode` or `workspaceId`.
 
+Hosted control APIs also reject `?apiKey=` query-string credentials. API clients
+must use `x-api-key`, the route-specific header such as `x-spawner-ui-key`, or a
+bearer token so secrets do not appear in URLs, logs, browser history, or
+referrers.
+
 The workspace ID is not a complete multi-tenant account model. It is a preview gate that makes the hosted surface feel and behave less like a shared console while the real workspace/account model is built.
 
 After successful private-preview login, the browser receives only an opaque `HttpOnly`, `Secure`, `SameSite=Strict` session cookie. The UI key, bridge key, events key, and workspace ID are not persisted as browser-readable or browser-stored raw key cookies.

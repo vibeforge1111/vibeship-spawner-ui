@@ -51,6 +51,10 @@ link, set `SPARK_UI_PAIRING_CODE` and open
 `/canvas?workspaceId=<workspace>&pairCode=<code>`. Spawner consumes that code
 once, writes an opaque session cookie, and redirects to a clean URL.
 
+Do not put any control API key in `?apiKey=` query strings on hosted
+deployments. Use `x-api-key`, `x-spawner-ui-key`, or `Authorization: Bearer ...`
+headers for service-to-service calls and smoke checks.
+
 Add provider keys only for providers you want to run in hosted mode:
 
 ```text
@@ -145,6 +149,7 @@ https://<spawner-public-domain>/preview/<token>/index.html
 - Do not put the Telegram bot token in Spawner.
 - Keep `SPARK_BRIDGE_API_KEY`, `SPARK_UI_API_KEY`, provider keys, and `TELEGRAM_RELAY_SECRET` in Railway variables only.
 - Use `SPARK_UI_PAIRING_CODE` instead of `?uiKey=` when a browser bootstrap URL is needed, and rotate or unset it after use.
+- Hosted Spawner rejects `?apiKey=` query credentials; keep keys in headers or server-managed cookies.
 - Keep `SPARK_ALLOW_EXTERNAL_PROJECT_PATHS=0` for hosted services.
 - Use private Railway domains for bot-to-Spawner calls.
 - Public preview links expose generated static output. Do not include secrets, private logs, private repos, memory exports, or tokens in generated projects.

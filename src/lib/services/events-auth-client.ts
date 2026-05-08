@@ -14,12 +14,7 @@ export function getEventsApiKey(): string | null {
 }
 
 export function withEventsAuth(path: string): string {
-	const apiKey = getEventsApiKey();
-	if (!apiKey) {
-		return path;
-	}
-	const separator = path.includes('?') ? '&' : '?';
-	return `${path}${separator}apiKey=${encodeURIComponent(apiKey)}`;
+	return path;
 }
 
 export function getEventsAuthHeaders(): Record<string, string> {

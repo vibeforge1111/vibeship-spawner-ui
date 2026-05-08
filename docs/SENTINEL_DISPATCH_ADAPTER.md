@@ -4,7 +4,7 @@ Spawner UI now exposes a receiver endpoint for Spark PR Sentinel action payloads
 
 ## Endpoint
 - `POST /api/sentinel/dispatch`
-- Auth: `EVENTS_API_KEY` (or fallback `MCP_API_KEY`) via header/query/cookie based on control auth rules.
+- Auth: `EVENTS_API_KEY` (or fallback `MCP_API_KEY`) via `x-api-key`, bearer token, or the control auth cookie. Hosted deployments do not accept API keys in query strings.
 
 ## Accepted payload
 The payload should follow Sentinel contract fields:

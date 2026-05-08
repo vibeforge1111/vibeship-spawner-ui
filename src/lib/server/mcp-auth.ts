@@ -1,7 +1,7 @@
 import { env } from '$env/dynamic/private';
 import { json, type RequestEvent } from '@sveltejs/kit';
 import { timingSafeEqual } from 'node:crypto';
-import { hostedUiSessionIsValid } from '$lib/server/hosted-ui-auth';
+import { hostedUiLooksHosted, hostedUiSessionIsValid } from '$lib/server/hosted-ui-auth';
 
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
 const rateLimitBuckets = new Map<string, number[]>();
@@ -54,7 +54,7 @@ function extractApiKey(event: RequestEvent, options: ApiKeyExtractionOptions = {
 		}
 	}
 
-	if (options.queryParam) {
+	if (options.queryParam && controlQueryApiKeysAllowed()) {
 		try {
 			const value = new URL(event.request.url).searchParams.get(options.queryParam);
 			if (value && value.trim().length > 0) {
@@ -78,6 +78,10 @@ function extractApiKey(event: RequestEvent, options: ApiKeyExtractionOptions = {
 	}
 
 	return null;
+}
+
+export function controlQueryApiKeysAllowed(): boolean {
+	return !hostedUiLooksHosted(env);
 }
 
 function getClientIdentity(event: RequestEvent): string {
