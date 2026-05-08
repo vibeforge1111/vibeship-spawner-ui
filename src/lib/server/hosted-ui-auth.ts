@@ -147,8 +147,7 @@ export function hostedUiRequestHasExplicitToken(request: Request, url: URL): boo
 	const authorization = request.headers.get('authorization');
 	if (authorization?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim()) return true;
 
-	const queryToken = url.searchParams.get('apiKey');
-	return Boolean(queryToken?.trim());
+	return false;
 }
 
 export function hostedUiCrossSiteMutationRejection(request: Request, url: URL): string | null {
@@ -239,9 +238,6 @@ export function hostedUiRequestToken(request: Request, url: URL, cookies: Cookie
 	const authorization = request.headers.get('authorization');
 	const bearer = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
 	if (bearer) return bearer;
-
-	const queryToken = url.searchParams.get('apiKey');
-	if (queryToken?.trim()) return queryToken.trim();
 
 	return null;
 }

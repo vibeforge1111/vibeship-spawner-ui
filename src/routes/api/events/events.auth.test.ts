@@ -4,12 +4,15 @@ import { mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
 
+const privateEnv = vi.hoisted(() => ({
+	EVENTS_API_KEY: 'events-secret',
+	MCP_API_KEY: '',
+	EVENTS_ALLOWED_ORIGINS: '',
+	SPARK_LIVE_CONTAINER: undefined as string | undefined
+}));
+
 vi.mock('$env/dynamic/private', () => ({
-	env: {
-		EVENTS_API_KEY: 'events-secret',
-		MCP_API_KEY: '',
-		EVENTS_ALLOWED_ORIGINS: ''
-	}
+	env: privateEnv
 }));
 
 vi.mock('$lib/server/mission-control-relay', () => ({
@@ -29,6 +32,7 @@ let testSpawnerDir: string | null = null;
 
 afterEach(async () => {
 	delete process.env.SPAWNER_STATE_DIR;
+	privateEnv.SPARK_LIVE_CONTAINER = undefined;
 	vi.mocked(relayMissionControlEvent).mockClear();
 	if (testSpawnerDir && existsSync(testSpawnerDir)) {
 		await rm(testSpawnerDir, { recursive: true, force: true });
@@ -47,6 +51,31 @@ describe('/api/events auth', () => {
 	it('accepts configured API key through query param for SSE clients', async () => {
 		const response = await GET(
 			createEvent('https://example.com/api/events?apiKey=events-secret', { method: 'GET' })
+		);
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get('set-cookie')).toContain('spawner_events_api_key=');
+	});
+
+	it('rejects query API keys in hosted deployments', async () => {
+		privateEnv.SPARK_LIVE_CONTAINER = '1';
+
+		const response = await GET(
+			createEvent('https://example.com/api/events?apiKey=events-secret', { method: 'GET' })
+		);
+
+		expect(response.status).toBe(401);
+		expect(response.headers.get('set-cookie')).toBeNull();
+	});
+
+	it('accepts header API keys in hosted deployments', async () => {
+		privateEnv.SPARK_LIVE_CONTAINER = '1';
+
+		const response = await GET(
+			createEvent('https://example.com/api/events', {
+				method: 'GET',
+				headers: { 'x-api-key': 'events-secret' }
+			})
 		);
 
 		expect(response.status).toBe(200);

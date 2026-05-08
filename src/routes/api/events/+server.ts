@@ -9,7 +9,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { eventBridge } from '$lib/services/event-bridge';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
-import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
+import { controlQueryApiKeysAllowed, enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { validatePrdAnalysisResult } from '$lib/server/prd-analysis-result-schema';
@@ -61,13 +61,15 @@ function extractApiKeyFromRequest(request: Request): string | null {
 		}
 	}
 
-	try {
-		const queryKey = new URL(request.url).searchParams.get('apiKey');
-		if (queryKey && queryKey.trim().length > 0) {
-			return queryKey.trim();
+	if (controlQueryApiKeysAllowed()) {
+		try {
+			const queryKey = new URL(request.url).searchParams.get('apiKey');
+			if (queryKey && queryKey.trim().length > 0) {
+				return queryKey.trim();
+			}
+		} catch {
+			// Ignore malformed URLs.
 		}
-	} catch {
-		// Ignore malformed URLs.
 	}
 
 	return null;
