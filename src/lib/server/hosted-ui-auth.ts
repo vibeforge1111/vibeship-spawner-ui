@@ -4,6 +4,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 export interface HostedUiAuthEnv {
 	[key: string]: string | undefined;
 	SPARK_UI_API_KEY?: string;
+	SPARK_UI_PAIRING_CODE?: string;
 	SPARK_WORKSPACE_ID?: string;
 	SPARK_HOSTED_PRIVATE_PREVIEW?: string;
 	SPARK_LIVE_CONTAINER?: string;
@@ -42,6 +43,7 @@ const AUTH_MAX_FAILURES = 12;
 const SESSION_IDLE_TIMEOUT_MS = 1000 * 60 * 60 * 12;
 const SESSION_ABSOLUTE_TIMEOUT_MS = 1000 * 60 * 60 * 24;
 const authFailures = new Map<string, { count: number; resetAt: number }>();
+const consumedHostedUiPairingCodeHashes = new Set<string>();
 const hostedUiSessions = new Map<
 	string,
 	{
@@ -61,6 +63,10 @@ function constantTimeEquals(left: string, right: string): boolean {
 
 function hashSessionId(sessionId: string): string {
 	return createHash('sha256').update(sessionId).digest('hex');
+}
+
+function hashPairingCode(pairingCode: string): string {
+	return createHash('sha256').update(pairingCode).digest('hex');
 }
 
 function pruneExpiredHostedUiSessions(now = Date.now()): void {
@@ -141,7 +147,7 @@ export function hostedUiRequestHasExplicitToken(request: Request, url: URL): boo
 	const authorization = request.headers.get('authorization');
 	if (authorization?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim()) return true;
 
-	const queryToken = url.searchParams.get('uiKey') || url.searchParams.get('apiKey');
+	const queryToken = url.searchParams.get('apiKey');
 	return Boolean(queryToken?.trim());
 }
 
@@ -234,10 +240,15 @@ export function hostedUiRequestToken(request: Request, url: URL, cookies: Cookie
 	const bearer = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
 	if (bearer) return bearer;
 
-	const queryToken = url.searchParams.get('uiKey') || url.searchParams.get('apiKey');
+	const queryToken = url.searchParams.get('apiKey');
 	if (queryToken?.trim()) return queryToken.trim();
 
 	return null;
+}
+
+export function hostedUiRequestPairingCode(url: URL): string | null {
+	const pairingCode = url.searchParams.get('pairCode');
+	return pairingCode?.trim() || null;
 }
 
 export function hostedUiRequestWorkspaceId(request: Request, url: URL, cookies: Cookies): string | null {
@@ -264,6 +275,30 @@ export function hostedUiCredentialsAreValid(
 	if (expectedWorkspaceId && !workspaceId) return false;
 	if (expectedWorkspaceId && workspaceId && !constantTimeEquals(workspaceId, expectedWorkspaceId)) return false;
 	return hostedUiTokenIsValid(token, env);
+}
+
+export function consumeHostedUiPairingCode(
+	workspaceId: string | null,
+	pairingCode: string | null,
+	env: HostedUiAuthEnv
+): boolean {
+	const expectedWorkspaceId = hostedUiWorkspaceId(env);
+	if (expectedWorkspaceId && !workspaceId) return false;
+	if (expectedWorkspaceId && workspaceId && !constantTimeEquals(workspaceId, expectedWorkspaceId)) return false;
+
+	const expectedPairingCode = env.SPARK_UI_PAIRING_CODE?.trim();
+	if (!pairingCode || !expectedPairingCode) return false;
+
+	const pairingCodeHash = hashPairingCode(expectedPairingCode);
+	if (consumedHostedUiPairingCodeHashes.has(pairingCodeHash)) return false;
+	if (!constantTimeEquals(pairingCode, expectedPairingCode)) return false;
+
+	consumedHostedUiPairingCodeHashes.add(pairingCodeHash);
+	return true;
+}
+
+export function resetHostedUiPairingCodes(): void {
+	consumedHostedUiPairingCodeHashes.clear();
 }
 
 export function hostedUiSessionIsValid(cookies: Cookies, env: HostedUiAuthEnv, now = Date.now()): boolean {
@@ -309,6 +344,7 @@ export function redirectWithoutAuthQuery(url: URL): never {
 	const clean = new URL(url);
 	clean.searchParams.delete('uiKey');
 	clean.searchParams.delete('apiKey');
+	clean.searchParams.delete('pairCode');
 	clean.searchParams.delete('workspaceId');
 	clean.searchParams.delete('workspace');
 	throw redirect(303, clean.pathname + clean.search + clean.hash);

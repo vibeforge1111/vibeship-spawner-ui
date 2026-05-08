@@ -14,6 +14,7 @@ When Spawner looks hosted, the app returns a private-preview lock page unless th
 SPARK_HOSTED_PRIVATE_PREVIEW=1
 SPARK_WORKSPACE_ID=<private workspace slug>
 SPARK_UI_API_KEY=<long random access key>
+SPARK_UI_PAIRING_CODE=<optional one-time browser pairing code>
 ```
 
 Hosted mode is detected when any of these are true:
@@ -40,7 +41,7 @@ Use this matrix before shipping a deployment:
 | Deployment | Landing page | Canvas/Kanban/API | Required env |
 | --- | --- | --- | --- |
 | Public Spark marketing site | Locked account/waitlist shell | Locked | Do not set `SPARK_HOSTED_PRIVATE_PREVIEW` |
-| Trusted Railway/VPS owner preview | Open after login where applicable | Available after workspace ID + access key | Set `SPARK_HOSTED_PRIVATE_PREVIEW=1`, `SPARK_WORKSPACE_ID`, `SPARK_UI_API_KEY`, `SPARK_BRIDGE_API_KEY`, exact `SPARK_ALLOWED_HOSTS` |
+| Trusted Railway/VPS owner preview | Open after login where applicable | Available after workspace ID + access key or one-time pairing code | Set `SPARK_HOSTED_PRIVATE_PREVIEW=1`, `SPARK_WORKSPACE_ID`, `SPARK_UI_API_KEY`, `SPARK_BRIDGE_API_KEY`, exact `SPARK_ALLOWED_HOSTS`; optionally set `SPARK_UI_PAIRING_CODE` for a one-time browser bootstrap link |
 | Local developer machine | Open | Available locally | No hosted flag required |
 
 If a public hosted site still shows Canvas or Kanban, check the environment first. It is either not being detected as hosted or `SPARK_HOSTED_PRIVATE_PREVIEW=1` is set on a public deployment.
@@ -52,7 +53,19 @@ Private preview login requires both:
 - Workspace ID
 - Access key
 
-The server stores both as `HttpOnly`, `Secure`, `SameSite=Strict` cookies after successful login. JavaScript cannot read them.
+The manual login form accepts the workspace ID and access key. The server stores
+only an opaque `HttpOnly`, `Secure`, `SameSite=Strict` session cookie after
+successful login. JavaScript cannot read the raw keys.
+
+Static URL auth with `?uiKey=<SPARK_UI_API_KEY>` is not supported. If a temporary
+browser bootstrap URL is needed, configure `SPARK_UI_PAIRING_CODE` and open:
+
+```text
+/canvas?workspaceId=<private workspace slug>&pairCode=<one-time pairing code>
+```
+
+The server consumes that pairing code once, creates the opaque session, and
+redirects to the same path without `pairCode` or `workspaceId`.
 
 The workspace ID is not a complete multi-tenant account model. It is a preview gate that makes the hosted surface feel and behave less like a shared console while the real workspace/account model is built.
 
@@ -93,6 +106,7 @@ For a trusted Railway/VPS owner preview:
 SPARK_HOSTED_PRIVATE_PREVIEW=1
 SPARK_WORKSPACE_ID=<private workspace slug>
 SPARK_UI_API_KEY=<long random access key>
+SPARK_UI_PAIRING_CODE=<optional one-time browser pairing code>
 SPARK_BRIDGE_API_KEY=<different long random access key>
 SPARK_ALLOWED_HOSTS=<exact public host>
 ```
