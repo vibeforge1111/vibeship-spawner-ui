@@ -16,9 +16,11 @@ import {
 	hostedUiRequestWorkspaceId,
 	hostedUiSessionIsValid,
 	hostedUiTokenIsValid,
+	consumeHostedUiPairingCode,
 	persistHostedUiAuth,
 	recordHostedUiAuthFailure,
 	resetHostedUiAuthRateLimits,
+	resetHostedUiPairingCodes,
 	resetHostedUiSessions
 } from './hosted-ui-auth';
 
@@ -46,6 +48,7 @@ function fakeCookies(initial: Record<string, string> = {}): FakeCookies {
 describe('hosted UI auth', () => {
 	afterEach(() => {
 		resetHostedUiSessions();
+		resetHostedUiPairingCodes();
 		vi.useRealTimers();
 	});
 
@@ -118,9 +121,10 @@ describe('hosted UI auth', () => {
 		expect(hostedUiAuthPathIsExempt('/api/providers')).toBe(false);
 	});
 
-	it('accepts query, header, bearer, and cookie tokens', () => {
+	it('accepts header, bearer, and API query tokens but not static UI query tokens', () => {
 		const cookies = fakeCookies({ spawner_ui_api_key: 'cookie-key' });
-		expect(hostedUiRequestToken(new Request('https://x.test/?uiKey=query-key'), new URL('https://x.test/?uiKey=query-key'), cookies)).toBe('query-key');
+		expect(hostedUiRequestToken(new Request('https://x.test/?uiKey=query-key'), new URL('https://x.test/?uiKey=query-key'), cookies)).toBeNull();
+		expect(hostedUiRequestToken(new Request('https://x.test/?apiKey=query-key'), new URL('https://x.test/?apiKey=query-key'), cookies)).toBe('query-key');
 		expect(hostedUiRequestToken(new Request('https://x.test/', { headers: { 'x-spawner-ui-key': 'header-key' } }), new URL('https://x.test/'), cookies)).toBe('header-key');
 		expect(hostedUiRequestToken(new Request('https://x.test/', { headers: { authorization: 'Bearer bearer-key' } }), new URL('https://x.test/'), cookies)).toBe('bearer-key');
 		expect(hostedUiRequestToken(new Request('https://x.test/'), new URL('https://x.test/'), cookies)).toBeNull();
@@ -133,8 +137,21 @@ describe('hosted UI auth', () => {
 				new URL('https://x.test/')
 			)
 		).toBe(true);
+		expect(hostedUiRequestHasExplicitToken(new Request('https://x.test/?uiKey=query-key'), new URL('https://x.test/?uiKey=query-key'))).toBe(false);
 		expect(hostedUiRequestHasExplicitToken(new Request('https://x.test/?apiKey=query-key'), new URL('https://x.test/?apiKey=query-key'))).toBe(true);
 		expect(hostedUiRequestHasExplicitToken(new Request('https://x.test/', { headers: { cookie: 'spawner_ui_api_key=cookie-key' } }), new URL('https://x.test/'))).toBe(false);
+	});
+
+	it('allows a configured hosted UI pairing code once', () => {
+		const env = {
+			SPARK_WORKSPACE_ID: 'private-workspace',
+			SPARK_UI_API_KEY: 'ui-key',
+			SPARK_UI_PAIRING_CODE: 'one-time-code'
+		};
+		expect(consumeHostedUiPairingCode('wrong-workspace', 'one-time-code', env)).toBe(false);
+		expect(consumeHostedUiPairingCode('private-workspace', 'wrong-code', env)).toBe(false);
+		expect(consumeHostedUiPairingCode('private-workspace', 'one-time-code', env)).toBe(true);
+		expect(consumeHostedUiPairingCode('private-workspace', 'one-time-code', env)).toBe(false);
 	});
 
 	it('blocks cross-site mutating browser requests unless an explicit API token is used', () => {

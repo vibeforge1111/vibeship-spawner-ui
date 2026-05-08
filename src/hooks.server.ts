@@ -16,8 +16,10 @@ import {
 	hostedUiSessionIsValid,
 	recordHostedUiAuthFailure,
 	clearHostedUiAuthFailures,
+	consumeHostedUiPairingCode,
 	persistHostedUiAuth,
-	redirectWithoutAuthQuery
+	redirectWithoutAuthQuery,
+	hostedUiRequestPairingCode
 } from '$lib/server/hosted-ui-auth';
 
 function secureResponse(response: Response): Response {
@@ -74,9 +76,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const clientKey = hostedUiAuthClientKey(event.request);
 	const token = hostedUiRequestToken(event.request, event.url, event.cookies);
 	const workspaceId = hostedUiRequestWorkspaceId(event.request, event.url, event.cookies);
+	const pairingCode = hostedUiRequestPairingCode(event.url);
 	const sessionValid = hostedUiSessionIsValid(event.cookies, env);
 	const explicitCredentialsValid = hostedUiCredentialsAreValid(workspaceId, token, env);
-	if (!sessionValid && !explicitCredentialsValid) {
+	const pairingCredentialsValid = !sessionValid && consumeHostedUiPairingCode(workspaceId, pairingCode, env);
+	if (!sessionValid && !explicitCredentialsValid && !pairingCredentialsValid) {
 		const rateLimit = hostedUiAuthRateLimitStatus(clientKey);
 		if (rateLimit.blocked) {
 			return secureResponse(new Response('Too many Spark Live access attempts. Wait a moment, then try again.', {
@@ -99,12 +103,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	clearHostedUiAuthFailures(clientKey);
-	if (explicitCredentialsValid) {
+	if (explicitCredentialsValid || pairingCredentialsValid) {
 		persistHostedUiAuth(event.cookies, env);
 	}
 	if (
 		event.url.searchParams.has('uiKey') ||
 		event.url.searchParams.has('apiKey') ||
+		event.url.searchParams.has('pairCode') ||
 		event.url.searchParams.has('workspaceId') ||
 		event.url.searchParams.has('workspace')
 	) {
