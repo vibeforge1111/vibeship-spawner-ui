@@ -4,8 +4,8 @@ version = "0.0.1"
 kind = "app"
 plane = "execution"
 description = "Spark execution plane and local dashboard"
-homepage = "https://github.com/vibeforge1111/spawner-ui"
-license = "UNLICENSED"
+homepage = "https://github.com/vibeforge1111/vibeship-spawner-ui"
+license = "AGPL-3.0-only"
 
 [runtime]
 kind = "node"
