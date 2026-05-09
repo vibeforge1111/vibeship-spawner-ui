@@ -14,6 +14,11 @@ import {
 	missionControlPathForMission,
 	resolveMissionControlAccess
 } from './mission-control-access';
+import {
+	appendAgentEvent,
+	buildMissionControlAgentEvent,
+	missionStateForEvent
+} from './agent-event-ledger';
 import { spawnerStateDir } from './spawner-state';
 import {
 	emptyMissionControlTaskStatusCounts,
@@ -58,6 +63,7 @@ export interface MissionControlRelayStatusEntry {
 	taskSkills: string[];
 	plannedTasks: Array<{ title: string; skills: string[] }>;
 	assignedTaskIds: string[];
+	requestId: string | null;
 	progress: number | null;
 	summary: string;
 	timestamp: string;
@@ -251,6 +257,10 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 	const assignedTaskIds = Array.isArray(assignedTaskIdsRaw)
 		? assignedTaskIdsRaw.filter((taskId): taskId is string => typeof taskId === 'string' && taskId.trim().length > 0)
 		: [];
+	const requestId =
+		event.data && typeof (event.data as Record<string, unknown>).requestId === 'string'
+			? ((event.data as Record<string, unknown>).requestId as string).trim() || null
+			: null;
 	const dataTaskId = event.data && typeof (event.data as Record<string, unknown>).taskId === 'string'
 		? ((event.data as Record<string, unknown>).taskId as string)
 		: null;
@@ -288,6 +298,7 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		taskSkills,
 		plannedTasks,
 		assignedTaskIds,
+		requestId,
 		progress,
 		summary: summarizeMissionControlEvent(event),
 		timestamp,
@@ -323,6 +334,42 @@ function recordRelayEvent(event: MissionControlBridgeEvent): void {
 		relayState.recent.length = MAX_RECENT_EVENTS;
 	}
 	persistState();
+	recordAgentLedgerEvent(entry);
+}
+
+function recordAgentLedgerEvent(entry: MissionControlRelayStatusEntry): void {
+	try {
+		appendAgentEvent(
+			buildMissionControlAgentEvent({
+				eventType: entry.eventType,
+				missionId: entry.missionId,
+				missionName: entry.missionName,
+				taskId: entry.taskId,
+				taskName: entry.taskName,
+				progress: entry.progress,
+				summary: readableMissionControlSummary(entry.summary) || entry.summary,
+				timestamp: entry.timestamp,
+				source: entry.source,
+				requestId: requestIdFromStatusEntry(entry),
+				toState: missionStateForEvent(entry.eventType)
+			}),
+			{
+				requestId: requestIdFromStatusEntry(entry),
+				sessionId: `mission-control:${entry.missionId}`,
+				actorId: entry.source
+			}
+		);
+	} catch {
+		/* agent event ledger is best-effort */
+	}
+}
+
+function requestIdFromStatusEntry(entry: MissionControlRelayStatusEntry): string | null {
+	const requestId = entry.requestId;
+	if (typeof requestId === 'string' && requestId.trim()) {
+		return requestId.trim();
+	}
+	return null;
 }
 
 export function getMissionControlRelaySnapshot(missionId?: string): MissionControlRelaySnapshot {
