@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { chownSync, mkdirSync, statSync, writeFileSync } from "node:fs";
+import { chownSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,10 +10,27 @@ const healthUrl = `${baseUrl}/api/providers`;
 const boardUrl = `${baseUrl}/api/mission-control/board`;
 
 function parseCsv(value) {
-  return String(value || "")
-    .split(",")
+	return String(value || "")
+		.split(",")
     .map((item) => item.trim())
-    .filter(Boolean);
+		.filter(Boolean);
+}
+
+function localEnvValue(key, cwd = process.cwd()) {
+	const envPath = join(cwd, ".env");
+	if (!existsSync(envPath)) return "";
+	const lines = readFileSync(envPath, "utf-8").split(/\r?\n/);
+	for (const line of [...lines].reverse()) {
+		const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)\s*$/);
+		if (!match || match[1] !== key) continue;
+		return match[2].trim().replace(/^(['"])(.*)\1$/, "$2");
+	}
+	return "";
+}
+
+export function healthEnvValue(key, env = process.env, cwd = process.cwd()) {
+	if (Object.prototype.hasOwnProperty.call(env, key)) return env[key]?.trim() || "";
+	return localEnvValue(key, cwd);
 }
 
 function resolveCli(binaryName) {
@@ -127,10 +144,10 @@ export function healthRequiresCodex(providers, env = process.env) {
 }
 
 async function main() {
-  const relayWebhooks = parseCsv(process.env.MISSION_CONTROL_WEBHOOK_URLS);
-  if (relayWebhooks.length > 0 && !process.env.TELEGRAM_RELAY_SECRET?.trim()) {
-    throw new Error("MISSION_CONTROL_WEBHOOK_URLS is configured but TELEGRAM_RELAY_SECRET is missing");
-  }
+	const relayWebhooks = parseCsv(healthEnvValue("MISSION_CONTROL_WEBHOOK_URLS"));
+	if (relayWebhooks.length > 0 && !healthEnvValue("TELEGRAM_RELAY_SECRET")) {
+		throw new Error("MISSION_CONTROL_WEBHOOK_URLS is configured but TELEGRAM_RELAY_SECRET is missing");
+	}
 
   const payload = await getJson(healthUrl);
   if (!payload || !Array.isArray(payload.providers)) {
