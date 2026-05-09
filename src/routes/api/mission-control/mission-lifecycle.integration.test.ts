@@ -311,6 +311,17 @@ describe('Mission Control lifecycle integration', () => {
 			},
 			providerSummary: 'Codex: Built Spark System Lifecycle and verified files.'
 		});
+		expect(trace.agentBlackBox).toMatchObject({
+			schema_version: 'spark.agent_event.v1',
+			request_id: requestId,
+			session_id: `mission-control:${missionId}`,
+			counts: { entries: expect.any(Number) }
+		});
+		expect(trace.agentBlackBox.entries[0]).toMatchObject({
+			event_type: 'mission_changed_state',
+			route_chosen: 'mission_control',
+			sources_used: [{ source: 'mission_trace', freshness: 'fresh' }]
+		});
 	});
 
 	it('routes failed provider missions to failed Kanban and Trace states without losing Telegram or Canvas context', async () => {

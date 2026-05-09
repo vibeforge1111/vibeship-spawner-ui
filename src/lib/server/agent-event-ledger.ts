@@ -54,6 +54,33 @@ export interface AgentEventLedgerEntry extends AgentEventRecord {
 	actor_id: string | null;
 }
 
+export interface AgentBlackBoxEntry {
+	event_id: string;
+	event_type: AgentEventType;
+	created_at: string;
+	perceived_intent: string | null;
+	route_chosen: string | null;
+	sources_used: AgentSourceRef[];
+	assumptions: string[];
+	blockers: string[];
+	changed: string[];
+	memory_candidate: Record<string, unknown> | null;
+	summary: string;
+}
+
+export interface AgentBlackBoxReport {
+	schema_version: typeof AGENT_EVENT_SCHEMA_VERSION;
+	checked_at: string;
+	request_id: string | null;
+	session_id: string | null;
+	counts: {
+		entries: number;
+		blocker_events: number;
+		memory_candidates: number;
+	};
+	entries: AgentBlackBoxEntry[];
+}
+
 export interface MissionControlAgentEventInput {
 	eventType: string;
 	missionId: string;
@@ -132,11 +159,14 @@ export function appendAgentEvent(
 	return entry;
 }
 
-export function readRecentAgentEvents(options: { requestId?: string | null; limit?: number } = {}): AgentEventLedgerEntry[] {
+export function readRecentAgentEvents(
+	options: { requestId?: string | null; sessionId?: string | null; limit?: number } = {}
+): AgentEventLedgerEntry[] {
 	const ledgerPath = getAgentEventLedgerPath();
 	if (!fs.existsSync(ledgerPath)) return [];
 	const limit = Math.max(1, options.limit || 20);
 	const requestId = normalizeNullable(options.requestId);
+	const sessionId = normalizeNullable(options.sessionId);
 	return fs
 		.readFileSync(ledgerPath, 'utf-8')
 		.split(/\r?\n/)
@@ -150,8 +180,39 @@ export function readRecentAgentEvents(options: { requestId?: string | null; limi
 		})
 		.filter((entry): entry is AgentEventLedgerEntry => Boolean(entry))
 		.filter((entry) => !requestId || entry.request_id === requestId)
+		.filter((entry) => !sessionId || entry.session_id === sessionId)
 		.slice(-limit)
 		.reverse();
+}
+
+export function buildAgentBlackBoxReport(
+	options: { requestId?: string | null; sessionId?: string | null; limit?: number } = {}
+): AgentBlackBoxReport {
+	const entries = readRecentAgentEvents(options).map((entry) => ({
+		event_id: entry.event_id,
+		event_type: entry.event_type,
+		created_at: entry.created_at,
+		perceived_intent: entry.user_intent,
+		route_chosen: entry.selected_route,
+		sources_used: entry.sources,
+		assumptions: entry.assumptions,
+		blockers: entry.blockers,
+		changed: entry.changed,
+		memory_candidate: entry.memory_candidate,
+		summary: entry.summary
+	}));
+	return {
+		schema_version: AGENT_EVENT_SCHEMA_VERSION,
+		checked_at: new Date().toISOString(),
+		request_id: normalizeNullable(options.requestId),
+		session_id: normalizeNullable(options.sessionId),
+		counts: {
+			entries: entries.length,
+			blocker_events: entries.filter((entry) => entry.blockers.length > 0).length,
+			memory_candidates: entries.filter((entry) => entry.memory_candidate !== null).length
+		},
+		entries
+	};
 }
 
 export function missionStateForEvent(eventType: string): string | null {
