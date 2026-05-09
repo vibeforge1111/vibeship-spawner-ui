@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir } from 'fs/promises';
+import { DatabaseSync } from 'node:sqlite';
 import os from 'os';
 import path from 'path';
 import { describe, expect, it } from 'vitest';
@@ -84,6 +85,98 @@ describe('/voice-system route', () => {
 				delete process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT;
 			} else {
 				process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT = previous;
+			}
+		}
+	});
+
+	it('overlays live Builder voice delivery proof without requiring a dashboard refresh', async () => {
+		const tempDir = await fsTempDir();
+		const snapshotPath = path.join(tempDir, 'dashboard.json');
+		const builderHome = path.join(tempDir, 'builder-home');
+		await mkdir(builderHome, { recursive: true });
+		await writeFile(
+			snapshotPath,
+			JSON.stringify({
+				generatedAt: '2026-05-09T10:02:35.000Z',
+				isSampleData: false,
+				sourceLabel: 'Builder voice snapshot',
+				warnings: ['sendVoice delivery has not been proven yet.', 'Speech synthesis still needs proof.'],
+				metrics: [
+					{ id: 'conversation-ready', label: 'Conversation ready', value: 'Needs proof', help: 'full path', status: 'partial' },
+					{ id: 'delivery-ready', label: 'Delivery ready', value: 'Needs proof', help: 'sendVoice', status: 'partial' },
+					{ id: 'tts-ready', label: 'TTS ready', value: 'Configured', help: 'synthesis', status: 'configured' },
+					{ id: 'stt-ready', label: 'STT ready', value: 'Configured', help: 'transcription', status: 'configured' }
+				],
+				runtimePath: [
+					{ id: 'voice-chip', label: 'Speech I/O', owner: 'spark-voice-comms', status: 'configured', detail: 'Synthesis configured.' },
+					{ id: 'telegram-out', label: 'Voice delivery', owner: 'Telegram delivery', status: 'partial', detail: 'Needs proof.' }
+				],
+				providers: [],
+				boundaries: [],
+				checks: [],
+				telegramCommands: [],
+				lastDelivery: { status: 'not recorded', method: 'sendVoice', when: 'waiting', detail: 'No proof yet.' }
+			}),
+			'utf-8'
+		);
+		const db = new DatabaseSync(path.join(builderHome, 'state.db'));
+		try {
+			db.exec('CREATE TABLE runtime_state (state_key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)');
+			db.prepare('INSERT INTO runtime_state (state_key, value, updated_at) VALUES (?, ?, ?)').run(
+				'telegram:voice:last_runtime_state',
+				JSON.stringify({
+					stt: { provider_id: 'openai', ready: true },
+					tts: { provider_id: 'elevenlabs', ready: true },
+					claim_levels: { synthesis_ready: true, delivery_ready: true, conversation_ready: true },
+					telegram_delivery: {
+						ready: true,
+						last_send_voice_at: '2026-05-09T10:07:08.247Z',
+						last_send_voice_status: 'success',
+						last_failure_reason: '',
+						telegram_message_id_present: true,
+						send_method: 'sendVoice'
+					},
+					source_ledger: ['voice.speak', 'telegram-runner-sendVoice-trace']
+				}),
+				'2026-05-09T10:07:08.247Z'
+			);
+		} finally {
+			db.close();
+		}
+
+		const previousSnapshot = process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT;
+		const previousBuilderHome = process.env.SPARK_BUILDER_HOME;
+		const previousBuilderDb = process.env.SPARK_BUILDER_STATE_DB;
+		process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT = snapshotPath;
+		process.env.SPARK_BUILDER_HOME = builderHome;
+		delete process.env.SPARK_BUILDER_STATE_DB;
+		try {
+			const dashboard = await loadVoiceSystemDashboard();
+
+			expect(dashboard.lastDelivery.status).toBe('success');
+			expect(dashboard.lastDelivery.method).toBe('sendVoice');
+			expect(dashboard.lastDelivery.detail).toContain('message id');
+			expect(dashboard.sourceLabel).toContain('runtime delivery proof');
+			expect(dashboard.metrics.find((metric) => metric.id === 'delivery-ready')?.status).toBe('ready');
+			expect(dashboard.metrics.find((metric) => metric.id === 'conversation-ready')?.status).toBe('ready');
+			expect(dashboard.runtimePath.find((step) => step.id === 'telegram-out')?.status).toBe('ready');
+			expect(dashboard.warnings).toEqual([]);
+			expect(JSON.stringify(dashboard)).not.toContain('invalid_api_key');
+		} finally {
+			if (previousSnapshot === undefined) {
+				delete process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT;
+			} else {
+				process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT = previousSnapshot;
+			}
+			if (previousBuilderHome === undefined) {
+				delete process.env.SPARK_BUILDER_HOME;
+			} else {
+				process.env.SPARK_BUILDER_HOME = previousBuilderHome;
+			}
+			if (previousBuilderDb === undefined) {
+				delete process.env.SPARK_BUILDER_STATE_DB;
+			} else {
+				process.env.SPARK_BUILDER_STATE_DB = previousBuilderDb;
 			}
 		}
 	});

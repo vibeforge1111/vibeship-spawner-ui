@@ -1,4 +1,5 @@
 import { readFile } from 'fs/promises';
+import { DatabaseSync } from 'node:sqlite';
 import { homedir } from 'os';
 import path from 'path';
 
@@ -66,12 +67,14 @@ const SNAPSHOT_RELATIVE_PATH = path.join('.spark', 'state', 'voice-system', 'das
 
 export async function loadVoiceSystemDashboard(): Promise<VoiceSystemDashboard> {
 	const snapshotPath = process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT || path.join(homedir(), SNAPSHOT_RELATIVE_PATH);
+	let dashboard: VoiceSystemDashboard;
 	try {
 		const raw = await readFile(snapshotPath, 'utf-8');
-		return normalizeVoiceSystemDashboard(JSON.parse(raw), snapshotPath);
+		dashboard = normalizeVoiceSystemDashboard(JSON.parse(raw), snapshotPath);
 	} catch {
-		return sampleVoiceSystemDashboard(snapshotPath);
+		dashboard = sampleVoiceSystemDashboard(snapshotPath);
 	}
+	return applyBuilderRuntimeDeliveryProof(dashboard);
 }
 
 export function normalizeVoiceSystemDashboard(raw: unknown, sourcePath = 'voice dashboard snapshot'): VoiceSystemDashboard {
@@ -255,6 +258,79 @@ function readinessStatus(value: unknown): VoiceReadinessStatus {
 		return normalized as VoiceReadinessStatus;
 	}
 	return 'unknown';
+}
+
+function applyBuilderRuntimeDeliveryProof(dashboard: VoiceSystemDashboard): VoiceSystemDashboard {
+	const runtimeState = readBuilderVoiceRuntimeState();
+	const delivery = isRecord(runtimeState?.telegram_delivery) ? runtimeState.telegram_delivery : {};
+	const status = stringValue(delivery.last_send_voice_status);
+	if (!status || status === 'not recorded') {
+		return dashboard;
+	}
+	const method = stringValue(delivery.send_method) || 'not recorded';
+	const when = stringValue(delivery.last_send_voice_at) || 'not recorded';
+	const messageIdPresent = Boolean(delivery.telegram_message_id_present);
+	const failure = stringValue(delivery.last_failure_reason);
+	const deliveryReady = status === 'success' && method === 'sendVoice';
+	const synthesisReady = Boolean(isRecord(runtimeState?.claim_levels) && runtimeState.claim_levels.synthesis_ready);
+	const sttReady = Boolean(isRecord(runtimeState?.stt) && runtimeState.stt.ready);
+	const next = structuredClone(dashboard);
+	next.lastDelivery = {
+		status,
+		method,
+		when,
+		detail: messageIdPresent ? 'Telegram message id was present.' : failure || 'Telegram delivery proof was recorded without a message id.'
+	};
+	next.metrics = next.metrics.map((metric) => {
+		if (metric.id === 'delivery-ready') {
+			return { ...metric, value: deliveryReady ? 'Ready' : 'Needs proof', status: deliveryReady ? 'ready' : metric.status };
+		}
+		if (metric.id === 'tts-ready' && synthesisReady) {
+			return { ...metric, value: 'Ready', status: 'ready' };
+		}
+		if (metric.id === 'stt-ready' && sttReady) {
+			return { ...metric, value: 'Ready', status: 'ready' };
+		}
+		if (metric.id === 'conversation-ready' && deliveryReady && synthesisReady && sttReady) {
+			return { ...metric, value: 'Ready', status: 'ready' };
+		}
+		return metric;
+	});
+	next.runtimePath = next.runtimePath.map((step) => {
+		if (step.id === 'telegram-out' && deliveryReady) return { ...step, status: 'ready' };
+		if (step.id === 'voice-chip' && synthesisReady) return { ...step, status: 'ready' };
+		return step;
+	});
+	next.warnings = next.warnings.filter((warning) => {
+		if (deliveryReady && /sendVoice delivery/i.test(warning)) return false;
+		if (synthesisReady && /Speech synthesis/i.test(warning)) return false;
+		return true;
+	});
+	if (!next.sourceLabel.includes('runtime delivery proof')) {
+		next.sourceLabel = `${next.sourceLabel} + Builder runtime delivery proof`;
+	}
+	return next;
+}
+
+function readBuilderVoiceRuntimeState(): Record<string, unknown> | null {
+	const configured = process.env.SPARK_BUILDER_STATE_DB || '';
+	const builderHome = process.env.SPARK_BUILDER_HOME || path.join(homedir(), '.spark', 'state', 'spark-intelligence');
+	const stateDbPath = configured || path.join(builderHome, 'state.db');
+	try {
+		const db = new DatabaseSync(stateDbPath, { readOnly: true });
+		try {
+			const row = db
+				.prepare("SELECT value FROM runtime_state WHERE state_key = 'telegram:voice:last_runtime_state' LIMIT 1")
+				.get() as { value?: string } | undefined;
+			if (!row?.value) return null;
+			const parsed = JSON.parse(row.value);
+			return isRecord(parsed) ? parsed : null;
+		} finally {
+			db.close();
+		}
+	} catch {
+		return null;
+	}
 }
 
 function stringValue(value: unknown): string {
