@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  healthEnvValue,
   healthRequiresCodex,
   resolveSparkWorkspaceRoot,
   shouldRepairHostedWorkspaceOwnership,
@@ -67,6 +70,22 @@ describe("sparkHealthAuthHeaders", () => {
       "x-spawner-ui-key": "bridge",
       "x-api-key": "bridge",
     });
+  });
+});
+
+describe("healthEnvValue", () => {
+  it("falls back to local .env values when process env omits a key", () => {
+    const cwd = mkdtempSync(join(tmpdir(), "spawner-health-env-"));
+    writeFileSync(join(cwd, ".env"), "MISSION_CONTROL_WEBHOOK_URLS=http://127.0.0.1:8788/spawner-events\n");
+
+    expect(healthEnvValue("MISSION_CONTROL_WEBHOOK_URLS", {}, cwd)).toBe("http://127.0.0.1:8788/spawner-events");
+  });
+
+  it("honors an explicit empty process env value", () => {
+    const cwd = mkdtempSync(join(tmpdir(), "spawner-health-env-"));
+    writeFileSync(join(cwd, ".env"), "TELEGRAM_RELAY_SECRET=local-secret-that-should-not-win\n");
+
+    expect(healthEnvValue("TELEGRAM_RELAY_SECRET", { TELEGRAM_RELAY_SECRET: "" }, cwd)).toBe("");
   });
 });
 
