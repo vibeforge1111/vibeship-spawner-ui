@@ -95,6 +95,7 @@ Key local API surfaces:
 - `/api/mission-control/trace` - stitched mission state across Telegram, PRD, Canvas, Dispatch, Kanban, and providers.
 - `/memory-quality` - Spark memory recall quality dashboard; see
   [docs/memory-quality-dashboard.md](docs/memory-quality-dashboard.md).
+- `/voice-system` - redacted Spark voice runtime dashboard. Telegram can refresh it through `/voice dashboard`; Spawner UI only reads the snapshot and does not own voice credentials, Telegram tokens, or provider selection.
 - `/api/prd-bridge/write` - write a PRD into the workspace.
 - `/api/prd-bridge/load-to-canvas` - load a PRD/project into the visual canvas.
 - `/api/spark-agent/*` - Spark agent session bridge for canvas, mission, MCP, and event stream control.
