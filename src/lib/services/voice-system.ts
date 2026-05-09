@@ -74,7 +74,7 @@ export async function loadVoiceSystemDashboard(): Promise<VoiceSystemDashboard> 
 	} catch {
 		dashboard = sampleVoiceSystemDashboard(snapshotPath);
 	}
-	return applyBuilderRuntimeDeliveryProof(dashboard);
+	return applyBuilderRuntimeVoiceState(dashboard);
 }
 
 export function normalizeVoiceSystemDashboard(raw: unknown, sourcePath = 'voice dashboard snapshot'): VoiceSystemDashboard {
@@ -260,12 +260,14 @@ function readinessStatus(value: unknown): VoiceReadinessStatus {
 	return 'unknown';
 }
 
-function applyBuilderRuntimeDeliveryProof(dashboard: VoiceSystemDashboard): VoiceSystemDashboard {
+function applyBuilderRuntimeVoiceState(dashboard: VoiceSystemDashboard): VoiceSystemDashboard {
 	const runtimeState = readBuilderVoiceRuntimeState();
+	const profileState = readBuilderVoiceProfileState();
+	let next = applyBuilderProfileProof(dashboard, profileState);
 	const delivery = isRecord(runtimeState?.telegram_delivery) ? runtimeState.telegram_delivery : {};
 	const status = stringValue(delivery.last_send_voice_status);
 	if (!status || status === 'not recorded') {
-		return dashboard;
+		return next;
 	}
 	const method = stringValue(delivery.send_method) || 'not recorded';
 	const when = stringValue(delivery.last_send_voice_at) || 'not recorded';
@@ -274,7 +276,7 @@ function applyBuilderRuntimeDeliveryProof(dashboard: VoiceSystemDashboard): Voic
 	const deliveryReady = status === 'success' && method === 'sendVoice';
 	const synthesisReady = Boolean(isRecord(runtimeState?.claim_levels) && runtimeState.claim_levels.synthesis_ready);
 	const sttReady = Boolean(isRecord(runtimeState?.stt) && runtimeState.stt.ready);
-	const next = structuredClone(dashboard);
+	next = structuredClone(next);
 	next.lastDelivery = {
 		status,
 		method,
@@ -312,16 +314,46 @@ function applyBuilderRuntimeDeliveryProof(dashboard: VoiceSystemDashboard): Voic
 	return next;
 }
 
+function applyBuilderProfileProof(dashboard: VoiceSystemDashboard, profileState: Record<string, unknown> | null): VoiceSystemDashboard {
+	if (!profileState) return dashboard;
+	const providerId = stringValue(profileState.provider_id);
+	const voiceName = stringValue(profileState.voice_name);
+	const voiceId = stringValue(profileState.voice_id);
+	const modelId = stringValue(profileState.model_id);
+	const audioEffect = stringValue(profileState.audio_effect);
+	if (!providerId && !voiceName && !voiceId && !modelId && !audioEffect) return dashboard;
+	const next = structuredClone(dashboard);
+	next.profile = {
+		...next.profile,
+		providerLabel: providerId ? voiceProviderLabel(providerId) : next.profile.providerLabel,
+		voiceName: voiceName || next.profile.voiceName,
+		voiceIdMasked: voiceId ? maskVoiceId(voiceId) : next.profile.voiceIdMasked,
+		audioEffect: audioEffect || next.profile.audioEffect
+	};
+	if (!next.sourceLabel.includes('runtime voice profile')) {
+		next.sourceLabel = `${next.sourceLabel} + Builder runtime voice profile`;
+	}
+	return next;
+}
+
 function readBuilderVoiceRuntimeState(): Record<string, unknown> | null {
+	return readBuilderRuntimeStateValue("SELECT value FROM runtime_state WHERE state_key = 'telegram:voice:last_runtime_state' LIMIT 1");
+}
+
+function readBuilderVoiceProfileState(): Record<string, unknown> | null {
+	return readBuilderRuntimeStateValue(
+		"SELECT value FROM runtime_state WHERE state_key LIKE 'telegram:voice_tts_profile:%' ORDER BY updated_at DESC LIMIT 1"
+	);
+}
+
+function readBuilderRuntimeStateValue(query: string): Record<string, unknown> | null {
 	const configured = process.env.SPARK_BUILDER_STATE_DB || '';
 	const builderHome = process.env.SPARK_BUILDER_HOME || path.join(homedir(), '.spark', 'state', 'spark-intelligence');
 	const stateDbPath = configured || path.join(builderHome, 'state.db');
 	try {
 		const db = new DatabaseSync(stateDbPath, { readOnly: true });
 		try {
-			const row = db
-				.prepare("SELECT value FROM runtime_state WHERE state_key = 'telegram:voice:last_runtime_state' LIMIT 1")
-				.get() as { value?: string } | undefined;
+			const row = db.prepare(query).get() as { value?: string } | undefined;
 			if (!row?.value) return null;
 			const parsed = JSON.parse(row.value);
 			return isRecord(parsed) ? parsed : null;
@@ -331,6 +363,22 @@ function readBuilderVoiceRuntimeState(): Record<string, unknown> | null {
 	} catch {
 		return null;
 	}
+}
+
+function voiceProviderLabel(providerId: string): string {
+	const normalized = providerId.toLowerCase();
+	if (normalized === 'elevenlabs') return 'ElevenLabs';
+	if (normalized === 'kokoro') return 'Kokoro';
+	if (normalized === 'openai-realtime') return 'GPT Realtime 2';
+	if (normalized === 'openai') return 'OpenAI';
+	if (normalized === 'minimax') return 'MiniMax';
+	if (normalized === 'zai' || normalized === 'glm') return 'Z.ai / GLM';
+	return providerId;
+}
+
+function maskVoiceId(voiceId: string): string {
+	if (voiceId.length <= 8) return 'masked';
+	return `${voiceId.slice(0, 4)}...${voiceId.slice(-4)}`;
 }
 
 function stringValue(value: unknown): string {

@@ -22,7 +22,9 @@ describe('/voice-system route', () => {
 
 	it('loads a clearly marked sample dashboard when no snapshot exists', async () => {
 		const previous = process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT;
+		const previousBuilderDb = process.env.SPARK_BUILDER_STATE_DB;
 		process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT = path.join(os.tmpdir(), `missing-voice-dashboard-${Date.now()}.json`);
+		process.env.SPARK_BUILDER_STATE_DB = path.join(os.tmpdir(), `missing-builder-state-${Date.now()}.db`);
 		try {
 			const dashboard = await loadVoiceSystemDashboard();
 
@@ -36,6 +38,11 @@ describe('/voice-system route', () => {
 				delete process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT;
 			} else {
 				process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT = previous;
+			}
+			if (previousBuilderDb === undefined) {
+				delete process.env.SPARK_BUILDER_STATE_DB;
+			} else {
+				process.env.SPARK_BUILDER_STATE_DB = previousBuilderDb;
 			}
 		}
 	});
@@ -71,7 +78,9 @@ describe('/voice-system route', () => {
 		);
 
 		const previous = process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT;
+		const previousBuilderDb = process.env.SPARK_BUILDER_STATE_DB;
 		process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT = snapshotPath;
+		process.env.SPARK_BUILDER_STATE_DB = path.join(tempDir, 'missing-builder-state.db');
 		try {
 			const dashboard = await loadVoiceSystemDashboard();
 			const normalized = normalizeVoiceSystemDashboard({ secretValue: 'hidden' });
@@ -85,6 +94,11 @@ describe('/voice-system route', () => {
 				delete process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT;
 			} else {
 				process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT = previous;
+			}
+			if (previousBuilderDb === undefined) {
+				delete process.env.SPARK_BUILDER_STATE_DB;
+			} else {
+				process.env.SPARK_BUILDER_STATE_DB = previousBuilderDb;
 			}
 		}
 	});
@@ -140,6 +154,17 @@ describe('/voice-system route', () => {
 				}),
 				'2026-05-09T10:07:08.247Z'
 			);
+			db.prepare('INSERT INTO runtime_state (state_key, value, updated_at) VALUES (?, ?, ?)').run(
+				'telegram:voice_tts_profile:operator',
+				JSON.stringify({
+					provider_id: 'elevenlabs',
+					secret_env_ref: 'ELEVENLABS_API_KEY',
+					voice_id: 'fixtureVoiceId123456789',
+					voice_name: 'Elise - Warm, Natural and Engaging',
+					model_id: 'eleven_turbo_v2_5'
+				}),
+				'2026-05-09T10:08:08.247Z'
+			);
 		} finally {
 			db.close();
 		}
@@ -157,11 +182,17 @@ describe('/voice-system route', () => {
 			expect(dashboard.lastDelivery.method).toBe('sendVoice');
 			expect(dashboard.lastDelivery.detail).toContain('message id');
 			expect(dashboard.sourceLabel).toContain('runtime delivery proof');
+			expect(dashboard.sourceLabel).toContain('runtime voice profile');
+			expect(dashboard.profile.providerLabel).toBe('ElevenLabs');
+			expect(dashboard.profile.voiceName).toBe('Elise - Warm, Natural and Engaging');
+			expect(dashboard.profile.voiceIdMasked).toBe('fixt...6789');
 			expect(dashboard.metrics.find((metric) => metric.id === 'delivery-ready')?.status).toBe('ready');
 			expect(dashboard.metrics.find((metric) => metric.id === 'conversation-ready')?.status).toBe('ready');
 			expect(dashboard.runtimePath.find((step) => step.id === 'telegram-out')?.status).toBe('ready');
 			expect(dashboard.warnings).toEqual([]);
 			expect(JSON.stringify(dashboard)).not.toContain('invalid_api_key');
+			expect(JSON.stringify(dashboard)).not.toContain('ELEVENLABS_API_KEY');
+			expect(JSON.stringify(dashboard)).not.toContain('fixtureVoiceId123456789');
 		} finally {
 			if (previousSnapshot === undefined) {
 				delete process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT;
