@@ -7,6 +7,11 @@ This runbook covers the self-hosted Railway shape for the Spark starter stack:
 - Both services live in the same Railway project and talk over Railway private DNS.
 - Users keep their own bot, providers, workspaces, and generated files in their own Railway account.
 
+For copy-paste service variables, use
+[RAILWAY_ENV_TEMPLATES.md](RAILWAY_ENV_TEMPLATES.md) first. It includes the
+pair checker command that verifies shared secrets and callback URLs before you
+paste values into Railway.
+
 ## Recommended Topology
 
 ```mermaid
@@ -68,6 +73,19 @@ MINIMAX_MODEL=MiniMax-M2.7
 
 Mount a Railway volume at `/data`. The service stores Mission Control state under `/data/spawner` and generated preview workspaces under `/data/workspaces`.
 
+Run the deployment doctor inside the Spawner service before declaring the deploy
+ready:
+
+```bash
+node scripts/deploy-doctor.mjs --role spawner
+```
+
+It fails on missing hosted preview unlock variables, missing persistence paths,
+short shared secrets, malformed relay callbacks, and accidental `SPARK_PRO_*`
+connection tokens. Those Pro connection tokens are paused for the current
+Railway/VPS self-hosted flow and should not be set unless you are running a
+specific compatibility smoke.
+
 ## Bot Variables
 
 Set these on the `spark-telegram-bot` service:
@@ -83,6 +101,33 @@ SPARK_UI_API_KEY=<same UI key Spawner expects for protected UI/API reads>
 ```
 
 Use `SPAWNER_UI_PUBLIC_URL` for links sent to Telegram. Use the private `SPAWNER_UI_URL` for service-to-service calls.
+`SPARK_SPAWNER_URL` is accepted as a legacy compatibility alias, but new setup
+should use `SPAWNER_UI_URL`.
+
+Run the deployment doctor inside the bot service before declaring the deploy
+ready:
+
+```bash
+node scripts/deploy-doctor.mjs --role bot
+```
+
+It fails on loopback relay hosts, missing public Spawner links when private DNS
+is used, missing state paths, short shared secrets, private/public URL mixups,
+and `SPARK_MISSION_LLM_PROVIDER=anthropic`.
+
+## VPS Baseline
+
+Use the same two-service contract on VPS:
+
+- Put the bot and Spawner on a private Docker network.
+- Expose only the Telegram relay webhook if your Telegram mode needs it and the
+  protected Spawner public URL for browser links/previews.
+- Mount persistent storage under `/data` for both services.
+- Put Caddy, Nginx, or the platform proxy in front of the public Spawner URL.
+- Run `node scripts/deploy-doctor.mjs --role spawner` and
+  `node scripts/deploy-doctor.mjs --role bot` after injecting production env.
+- Back up `/data/spawner`, `/data/workspaces`, and `/data/spark-gateway` before
+  upgrades, then test at least one restore.
 
 ## Provider Guidance
 

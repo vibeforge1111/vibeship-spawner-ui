@@ -15,6 +15,10 @@ import {
 	shouldRelayMissionControlEvent,
 	summarizeMissionControlEvent
 } from './mission-control-relay';
+import {
+	AGENT_EVENT_SCHEMA_VERSION,
+	readRecentAgentEvents
+} from './agent-event-ledger';
 
 function freshIso(offsetMs = 0): string {
 	return new Date(Date.now() + offsetMs).toISOString();
@@ -765,6 +769,51 @@ describe('mission-control-relay', () => {
 		expect(filtered.stats.perMission['spark-relay-xyz']).toBeGreaterThanOrEqual(1);
 		expect(filtered.recent.length).toBeGreaterThanOrEqual(1);
 		expect(filtered.recent[0].summary).toContain('Mission started');
+	});
+
+	it('records mission lifecycle events in the Agent Event Model ledger', async () => {
+		const missionId = `mission-agent-ledger-${Date.now()}`;
+		const requestId = `request-agent-ledger-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			missionName: 'Agent Ledger Mission',
+			source: 'spark-run',
+			timestamp: freshIso(),
+			data: { requestId, telegramRelay: { port: 1 } }
+		});
+		await relayMissionControlEvent({
+			type: 'mission_completed',
+			missionId,
+			missionName: 'Agent Ledger Mission',
+			source: 'codex',
+			timestamp: freshIso(10_000),
+			data: { requestId, telegramRelay: { port: 1 } }
+		});
+
+		const events = readRecentAgentEvents({ requestId, limit: 5 });
+
+		expect(events.map((event) => event.facts.mission_event_type)).toEqual([
+			'mission_completed',
+			'mission_created'
+		]);
+		expect(events[0]).toMatchObject({
+			schema_version: AGENT_EVENT_SCHEMA_VERSION,
+			component: 'agent_event_model',
+			event_type: 'mission_changed_state',
+			request_id: requestId,
+			session_id: `mission-control:${missionId}`,
+			selected_route: 'mission_control',
+			route_confidence: 'high'
+		});
+		expect(events[0].sources[0]).toMatchObject({
+			source: 'mission_trace',
+			role: 'work_state_evidence',
+			freshness: 'fresh',
+			source_ref: missionId
+		});
+		expect(events[0].changed).toContain(`${missionId}:state=completed`);
 	});
 
 	it('does not keep malformed mission ids on the board', async () => {

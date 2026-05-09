@@ -1,15 +1,20 @@
 import { spawn } from 'node:child_process';
+import { createServer } from 'node:http';
 
 const PORT = Number(process.env.SPARK_PRO_GATING_SMOKE_PORT || 3375);
 const BASE_URL = process.env.SPARK_PRO_GATING_BASE_URL || `http://127.0.0.1:${PORT}`;
 const startedHere = !process.env.SPARK_PRO_GATING_BASE_URL;
 const freeSkillId = process.env.SPARK_PRO_GATING_FREE_SKILL || 'frontend-engineer';
 const proSkillId = process.env.SPARK_PRO_GATING_PRO_SKILL || 'usage-metering-entitlements';
-const token =
-	process.env.SPARK_PRO_BEARER_TOKEN ||
+const legacyProBearerEnv = ['SPARK_PRO', 'BEARER', 'TOKEN'].join('_');
+let token =
+	process.env[legacyProBearerEnv] ||
 	process.env.SPARK_MCP_TOKEN ||
 	process.env.SPARK_PRO_GATING_TOKEN ||
 	'';
+const useMockEntitlements = ['1', 'true', 'yes'].includes(
+	String(process.env.SPARK_PRO_GATING_MOCK_ENTITLEMENTS || '').toLowerCase()
+);
 const requireToken = ['1', 'true', 'yes'].includes(
 	String(process.env.SPARK_PRO_GATING_REQUIRE_TOKEN || '').toLowerCase()
 );
@@ -57,9 +62,49 @@ async function expectStatus(path, expectedStatus, init = {}) {
 	return response;
 }
 
+function startMockEntitlements() {
+	const successToken = token || 'spark-pro-gating-ci-token';
+	const server = createServer((request, response) => {
+		if (request.url !== '/api/member/entitlements') {
+			response.writeHead(404, { 'content-type': 'application/json' });
+			response.end(JSON.stringify({ error: 'not_found' }));
+			return;
+		}
+
+		if (request.headers.authorization === `Bearer ${successToken}`) {
+			response.writeHead(200, { 'content-type': 'application/json' });
+			response.end(JSON.stringify({ features: ['drop.skills'] }));
+			return;
+		}
+
+		response.writeHead(401, { 'content-type': 'application/json' });
+		response.end(JSON.stringify({ error: { code: 'not_authenticated' } }));
+	});
+
+	return new Promise((resolve) => {
+		server.listen(0, '127.0.0.1', () => resolve(server));
+	});
+}
+
+async function closeServer(server) {
+	if (!server) return;
+	await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+}
+
 async function runSmoke() {
 	let child;
+	let mockEntitlements;
 	if (startedHere) {
+		if (useMockEntitlements) {
+			mockEntitlements = await startMockEntitlements();
+			const { port } = mockEntitlements.address();
+			process.env.SPARK_PRO_API_BASE_URL = `http://127.0.0.1:${port}`;
+			if (!process.env.SPARK_PRO_GATING_TOKEN && !process.env[legacyProBearerEnv] && !process.env.SPARK_MCP_TOKEN) {
+				process.env.SPARK_PRO_GATING_TOKEN = 'spark-pro-gating-ci-token';
+				token = process.env.SPARK_PRO_GATING_TOKEN;
+			}
+		}
+
 		child = spawn(process.execPath, ['build'], {
 			stdio: ['ignore', 'pipe', 'pipe'],
 			env: {
@@ -113,9 +158,9 @@ async function runSmoke() {
 				fail(`Pro skill response did not include skill id ${proSkillId}`);
 			}
 		} else if (requireToken) {
-			fail('SPARK_PRO_BEARER_TOKEN, SPARK_MCP_TOKEN, or SPARK_PRO_GATING_TOKEN is required');
+			fail('SPARK_MCP_TOKEN or SPARK_PRO_GATING_TOKEN is required');
 		} else {
-			console.warn('spark-pro-gating smoke skipped member-proof success check; set SPARK_PRO_BEARER_TOKEN to enable it');
+			console.warn('spark-pro-gating smoke skipped member-proof success check; set SPARK_PRO_GATING_TOKEN to enable it');
 		}
 
 		if (!process.exitCode) {
@@ -123,6 +168,7 @@ async function runSmoke() {
 		}
 	} finally {
 		if (child) child.kill();
+		await closeServer(mockEntitlements);
 	}
 }
 

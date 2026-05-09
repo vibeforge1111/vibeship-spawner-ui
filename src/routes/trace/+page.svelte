@@ -22,6 +22,18 @@
 		source: string;
 	};
 
+	type AgentBlackBoxEntry = {
+		event_id: string;
+		event_type: string;
+		created_at: string;
+		perceived_intent: string | null;
+		route_chosen: string | null;
+		sources_used: Array<{ source: string; freshness: string; summary: string }>;
+		blockers: string[];
+		changed: string[];
+		summary: string;
+	};
+
 	type TracePayload = {
 		ok: true;
 		missionId: string | null;
@@ -79,6 +91,14 @@
 			source: string;
 			unpairedTasks: string[];
 		};
+		agentBlackBox: {
+			counts: {
+				entries: number;
+				blocker_events: number;
+				memory_candidates: number;
+			};
+			entries: AgentBlackBoxEntry[];
+		};
 		serverTime: string;
 	};
 
@@ -126,6 +146,12 @@
 	function providerList(): Array<{ id: string; status: string }> {
 		const providers = trace?.surfaces.dispatch?.providers || {};
 		return Object.entries(providers).map(([id, status]) => ({ id, status }));
+	}
+
+	function firstSource(entry: AgentBlackBoxEntry): string {
+		const source = entry.sources_used[0];
+		if (!source) return 'unknown';
+		return `${source.source} / ${source.freshness}`;
 	}
 
 	function traceUrl(): string {
@@ -390,6 +416,41 @@
 						<div class="flex justify-between gap-3"><span class="text-text-tertiary">{provider.id}</span><span class="text-text-primary">{provider.status}</span></div>
 					{/each}
 				</div>
+			</div>
+		</section>
+
+		<section class="rounded-md border border-surface-border bg-bg-secondary">
+			<div class="flex flex-wrap items-center justify-between gap-3 border-b border-surface-border px-4 py-3">
+				<div class="flex items-center gap-2 font-mono text-sm uppercase tracking-[0.16em] text-text-tertiary">
+					<Icon name="brain" size={15} />
+					<span>Agent Black Box</span>
+				</div>
+				<div class="flex flex-wrap gap-2 font-mono text-xs text-text-tertiary">
+					<span class="rounded border border-surface-border bg-bg-primary px-2 py-1">{trace?.agentBlackBox.counts.entries ?? 0} events</span>
+					<span class="rounded border border-surface-border bg-bg-primary px-2 py-1">{trace?.agentBlackBox.counts.blocker_events ?? 0} blockers</span>
+					<span class="rounded border border-surface-border bg-bg-primary px-2 py-1">{trace?.agentBlackBox.counts.memory_candidates ?? 0} memory</span>
+				</div>
+			</div>
+			<div class="divide-y divide-surface-border">
+				{#each (trace?.agentBlackBox.entries || []).slice(0, 6) as item}
+					<div class="grid gap-3 px-4 py-3 md:grid-cols-[112px_168px_minmax(0,1fr)]">
+						<div class="font-mono text-xs text-text-tertiary">{shortDate(item.created_at)}</div>
+						<div class="min-w-0">
+							<div class="truncate font-mono text-xs uppercase text-accent-primary">{item.event_type}</div>
+							<div class="mt-1 truncate font-mono text-xs text-text-tertiary">{item.route_chosen || 'unknown route'}</div>
+						</div>
+						<div class="min-w-0">
+							<div class="truncate text-sm text-text-secondary">{item.summary}</div>
+							<div class="mt-1 flex flex-wrap gap-2 font-mono text-xs text-text-tertiary">
+								<span>{firstSource(item)}</span>
+								{#if item.changed.length > 0}<span>{item.changed[0]}</span>{/if}
+								{#if item.blockers.length > 0}<span class="text-red-300">{item.blockers[0]}</span>{/if}
+							</div>
+						</div>
+					</div>
+				{:else}
+					<div class="px-4 py-8 text-center text-text-tertiary">No agent events recorded</div>
+				{/each}
 			</div>
 		</section>
 

@@ -15,6 +15,10 @@ import {
 	missionControlPathForMission,
 	resolveMissionControlAccess
 } from './mission-control-access';
+import {
+	buildAgentBlackBoxReport,
+	type AgentBlackBoxReport
+} from './agent-event-ledger';
 import { spawnerStateDir } from './spawner-state';
 import type { ProviderMissionResultSnapshot } from './provider-runtime';
 import type {
@@ -87,6 +91,7 @@ export interface MissionControlTrace {
 	providerSummary: string | null;
 	projectLineage: MissionControlProjectLineage | null;
 	skillPairing: TraceSkillPairing;
+	agentBlackBox: AgentBlackBoxReport;
 	serverTime: string;
 }
 
@@ -323,6 +328,11 @@ export async function buildMissionControlTrace(input: {
 	const relay = entry?.telegramRelay ?? null;
 	const traceSnapshot = getMissionControlRelaySnapshot(missionId || undefined);
 	const missionControlAccess = resolveMissionControlAccess(missionControlPathForMission(missionId));
+	const agentBlackBox = buildAgentBlackBoxReport({
+		requestId,
+		sessionId: missionId ? `mission-control:${missionId}` : null,
+		limit: 12
+	});
 	const phase = phaseFor({
 		boardBucket: bucket,
 		dispatchStatus,
@@ -378,6 +388,7 @@ export async function buildMissionControlTrace(input: {
 		providerSummary: entry?.providerSummary ?? null,
 		projectLineage: entry?.projectLineage ?? null,
 		skillPairing,
+		agentBlackBox,
 		serverTime: new Date().toISOString()
 	};
 }
