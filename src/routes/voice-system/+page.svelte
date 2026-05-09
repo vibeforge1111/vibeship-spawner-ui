@@ -68,16 +68,35 @@
 					<span data-testid="live-data-indicator" class="border border-status-success/40 bg-status-success-bg px-2 py-1 text-status-success">Live snapshot</span>
 				{/if}
 				<span class="border border-surface-border bg-bg-secondary px-2 py-1 text-text-secondary">{formatTime(dashboard.generatedAt)}</span>
-				<span class="border border-accent-primary/30 bg-accent-primary/10 px-2 py-1 text-accent-primary">{readyMetrics}/{totalMetrics} ready</span>
+				<span class="border border-accent-primary/30 bg-accent-primary/10 px-2 py-1 text-accent-primary">{readyMetrics}/{totalMetrics} proven</span>
 			</div>
 		</header>
 
 		{#if dashboard.warnings.length > 0}
 			<section class="grid gap-2 border border-status-warning/30 bg-status-warning-bg p-3 text-sm text-status-warning sm:grid-cols-[auto_1fr]" aria-label="Voice dashboard notice">
-				<span class="font-mono uppercase">Needs refresh</span>
+				<span class="font-mono uppercase">Needs proof</span>
 				<p>{dashboard.warnings[0]}</p>
 			</section>
 		{/if}
+
+		<section class="border border-surface-border bg-bg-tertiary p-3" aria-label="Voice proof ladder">
+			<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+				<h2 class="text-sm font-semibold text-text-bright">Proof ladder</h2>
+				<p class="font-mono text-xs text-text-tertiary">configured is not the same as delivered</p>
+			</div>
+			<div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+				{#each dashboard.metrics as metric, index}
+					<div class="grid grid-cols-[auto_1fr_auto] items-center gap-2 border border-surface-border bg-bg-primary px-3 py-2 text-sm">
+						<span class={`h-2.5 w-2.5 ${dotClass(metric.status)}`}></span>
+						<div class="min-w-0">
+							<p class="truncate font-semibold text-text-bright">{metric.label}</p>
+							<p class="truncate font-mono text-xs text-text-tertiary">{String(index + 1).padStart(2, '0')} / {metric.value}</p>
+						</div>
+						<span class={`border px-2 py-0.5 font-mono text-[10px] ${statusClass(metric.status)}`}>{metric.status}</span>
+					</div>
+				{/each}
+			</div>
+		</section>
 
 		<section class="grid gap-3 lg:grid-cols-[1.2fr_0.8fr]" aria-label="Voice profile and runtime path">
 			<article class="border border-surface-border bg-bg-tertiary p-4">

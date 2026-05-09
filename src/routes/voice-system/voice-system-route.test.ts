@@ -9,6 +9,7 @@ describe('/voice-system route', () => {
 		const routeSource = await readFile(path.join(process.cwd(), 'src/routes/voice-system/+page.svelte'), 'utf-8');
 
 		expect(routeSource).toContain('Telegram voice runtime');
+		expect(routeSource).toContain('Voice proof ladder');
 		expect(routeSource).toContain('Voice profile and runtime path');
 		expect(routeSource).toContain('Voice readiness metrics');
 		expect(routeSource).toContain('Provider readiness');
