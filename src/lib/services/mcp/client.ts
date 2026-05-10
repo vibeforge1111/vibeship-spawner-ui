@@ -35,6 +35,22 @@ export interface ConnectedMCP {
 const connections = new Map<string, ConnectedMCP>();
 const COMMAND_EXT_SUFFIX = /\.(exe|cmd|bat)$/i;
 const DEFAULT_ALLOWED_COMMANDS = ['npx', 'node'];
+const BASE_PROCESS_ENV_KEYS = [
+	'PATH',
+	'Path',
+	'PATHEXT',
+	'HOME',
+	'USERPROFILE',
+	'TEMP',
+	'TMP',
+	'TMPDIR',
+	'SystemRoot',
+	'WINDIR',
+	'ComSpec',
+	'APPDATA',
+	'LOCALAPPDATA',
+	'NPM_CONFIG_CACHE'
+];
 const log = logger.scope('MCP');
 
 function parseCsv(value: string | undefined): string[] {
@@ -107,6 +123,31 @@ function sanitizeEnv(envVars?: Record<string, string>): Record<string, string> |
 	return Object.keys(sanitized).length > 0 ? sanitized : undefined;
 }
 
+function baseProcessEnv(source: NodeJS.ProcessEnv = process.env): Record<string, string> {
+	const base: Record<string, string> = {};
+	for (const key of BASE_PROCESS_ENV_KEYS) {
+		const value = source[key];
+		if (typeof value === 'string' && value.length > 0) {
+			base[key] = value;
+		}
+	}
+	return base;
+}
+
+export function buildMcpProcessEnv(
+	requestedEnv?: Record<string, string>,
+	sourceEnv: NodeJS.ProcessEnv = process.env
+): Record<string, string> {
+	return {
+		...baseProcessEnv(sourceEnv),
+		...sanitizeEnv(requestedEnv)
+	};
+}
+
+export function mcpCustomConfigAllowed(): boolean {
+	return env.MCP_ALLOW_CUSTOM_CONFIG?.trim() === '1';
+}
+
 /**
  * Connect to an MCP server via stdio
  */
@@ -129,10 +170,7 @@ export async function connectMCP(
 	const transport = new StdioClientTransport({
 		command: config.command,
 		args: config.args || [],
-		env: {
-			...process.env,
-			...safeEnv,
-		} as Record<string, string>,
+		env: buildMcpProcessEnv(safeEnv),
 	});
 
 	// Create client

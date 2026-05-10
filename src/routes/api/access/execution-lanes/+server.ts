@@ -96,7 +96,8 @@ export const POST: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
 		surface: 'AccessExecution',
 		apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
-		fallbackApiKeyEnvVar: 'MCP_API_KEY'
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		allowLoopbackWithoutKey: false
 	});
 	if (unauthorized) return unauthorized;
 
