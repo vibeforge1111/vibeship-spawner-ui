@@ -5,7 +5,13 @@ import {
 	recommendAccessExecutionLane,
 	type AccessExecutionLane
 } from '$lib/server/access-execution-lanes';
+import {
+	AccessExecutionPolicyError,
+	listAccessExecutionActions,
+	runAccessExecutionAction
+} from '$lib/server/access-execution-actions';
 import { hostedUiSessionIsValid } from '$lib/server/hosted-ui-auth';
+import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 
 function accessLevelFromUrl(url: URL): 4 | 5 {
 	return url.searchParams.get('accessLevel') === '5' ? 5 : 4;
@@ -81,6 +87,66 @@ export const GET: RequestHandler = async (event) => {
 
 	return json({
 		success: true,
-		access: responseAccess
+		access: responseAccess,
+		actions: listAccessExecutionActions()
 	});
+};
+
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'AccessExecution',
+		apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY'
+	});
+	if (unauthorized) return unauthorized;
+
+	const rateLimited = enforceRateLimit(event, {
+		scope: 'access_execution',
+		limit: 20,
+		windowMs: 60_000
+	});
+	if (rateLimited) return rateLimited;
+
+	const body = (await event.request.json().catch(() => ({}))) as {
+		actionId?: string;
+		confirmed?: boolean;
+		explicitOptIn?: string;
+	};
+	const actionId = body.actionId?.trim();
+	if (!actionId) {
+		return json({ success: false, error: 'actionId is required' }, { status: 400 });
+	}
+
+	try {
+		const result = await runAccessExecutionAction(actionId, {
+			confirmed: body.confirmed === true,
+			explicitOptIn: body.explicitOptIn?.trim()
+		});
+
+		return json({
+			success: result.success,
+			action: result.action,
+			result: result.result
+		});
+	} catch (error) {
+		if (error instanceof AccessExecutionPolicyError) {
+			return json(
+				{
+					success: false,
+					error: error.message,
+					action: error.action,
+					confirmationRequired: true
+				},
+				{ status: error.status }
+			);
+		}
+
+		return json(
+			{
+				success: false,
+				error: error instanceof Error ? error.message : 'Access execution action failed'
+			},
+			{ status: 400 }
+		);
+	}
 };
