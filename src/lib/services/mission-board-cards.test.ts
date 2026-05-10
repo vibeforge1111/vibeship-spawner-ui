@@ -98,7 +98,19 @@ describe('mergeMissionBoardCards', () => {
 				{ title: 'Wire controls', skills: [], status: 'completed' },
 				{ title: 'Write README', skills: [], status: 'completed' }
 			],
-			providerSummary: 'Codex: shipped and verified'
+			providerSummary: 'Codex: shipped and verified',
+			completionEvidence: {
+				state: 'complete',
+				summary: 'Completion evidence present.',
+				missing: [],
+				providerResultCount: 1,
+				providerTerminal: true,
+				hasTerminalEvent: true,
+				hasProviderCompletionTime: true,
+				hasProviderSummary: true,
+				hasArtifactReference: false,
+				tasksTerminal: true
+			}
 		});
 		const staleStatic = card({
 			id: 'mission-3',
@@ -128,6 +140,7 @@ describe('mergeMissionBoardCards', () => {
 		});
 		expect(merged.tasks?.map((task) => task.status)).toEqual(['completed', 'completed', 'completed']);
 		expect(merged.providerSummary).toBe('Codex: shipped and verified');
+		expect(merged.completionEvidence).toMatchObject({ state: 'complete', missing: [] });
 	});
 
 	it('preserves execution state from live relay cards', () => {

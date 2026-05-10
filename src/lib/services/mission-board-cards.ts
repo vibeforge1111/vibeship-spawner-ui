@@ -1,4 +1,5 @@
 import type {
+	MissionControlCompletionEvidence,
 	MissionControlProjectLineage,
 	MissionControlTaskStatus,
 	MissionControlTaskStatusCounts
@@ -40,6 +41,7 @@ export interface MissionBoardCard {
 	summary?: string | null;
 	providerSummary?: string | null;
 	providerResults?: MissionBoardProviderResult[];
+	completionEvidence?: MissionControlCompletionEvidence;
 	projectLineage?: MissionControlProjectLineage | null;
 	canvasHref?: string | null;
 	detailHref?: string | null;
@@ -103,6 +105,7 @@ function mergeLiveWithStaticCard(live: MissionBoardCard, staticCard: MissionBoar
 		summary: live.summary ?? staticCard.summary,
 		providerSummary: live.providerSummary ?? staticCard.providerSummary,
 		providerResults: live.providerResults?.length ? live.providerResults : staticCard.providerResults,
+		completionEvidence: live.completionEvidence ?? staticCard.completionEvidence,
 		projectLineage: live.projectLineage ?? staticCard.projectLineage,
 		canvasHref: live.canvasHref ?? staticCard.canvasHref,
 		detailHref: live.detailHref ?? staticCard.detailHref

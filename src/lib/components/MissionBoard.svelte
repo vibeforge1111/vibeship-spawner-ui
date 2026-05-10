@@ -59,6 +59,7 @@
 		tasks?: Array<{ title: string; skills: string[]; status?: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' }>;
 		providerSummary?: string | null;
 		providerResults?: Array<{ providerId: string; status: string; summary: string }>;
+		completionEvidence?: BoardCard['completionEvidence'];
 		projectLineage?: BoardCard['projectLineage'];
 	};
 	let relay = $state<RelayEntry[]>([]);
@@ -350,6 +351,7 @@
 			summary: showSummary ? e.lastSummary : undefined,
 			providerSummary: e.providerSummary,
 			providerResults: e.providerResults,
+			completionEvidence: e.completionEvidence,
 			projectLineage: e.projectLineage ?? null,
 			canvasHref: canvasHrefForMission(e.missionId, name),
 			detailHref: `/missions/${encodeURIComponent(e.missionId)}`
@@ -508,6 +510,21 @@
 		if (lineage.iterationNumber) parts.push(`Iteration ${lineage.iterationNumber}`);
 		if (lineage.projectPath) parts.push(lineage.projectPath.split(/[\\/]/).filter(Boolean).pop() || lineage.projectPath);
 		return parts.length ? parts.join(' / ') : null;
+	}
+
+	function completionEvidenceLabel(card: BoardCard): string | null {
+		const evidence = card.completionEvidence;
+		if (!evidence || evidence.state === 'not_terminal') return null;
+		if (evidence.state === 'complete') return 'Evidence complete';
+		if (evidence.missing.length === 0) return 'Evidence incomplete';
+		return `Missing ${evidence.missing.slice(0, 3).join(', ')}`;
+	}
+
+	function completionEvidenceClass(card: BoardCard): string {
+		const state = card.completionEvidence?.state;
+		if (state === 'complete') return 'border-status-success/35 bg-status-success/10 text-status-success';
+		if (state === 'incomplete') return 'border-status-amber/35 bg-status-amber/10 text-status-amber';
+		return 'border-surface-border bg-bg-primary text-text-tertiary';
 	}
 
 	function hasCardActions(card: BoardCard): boolean {
@@ -959,6 +976,7 @@
 								{@const actionLinks = getMissionBoardCardActionLinks(c)}
 								{@const summary = focusLine(c)}
 								{@const lineage = lineageSummary(c)}
+								{@const evidence = completionEvidenceLabel(c)}
 								{@const hasProgress = hasTaskProgress(c)}
 								{@const hasActions = hasCardActions(c)}
 								<article class="group relative overflow-hidden rounded-md border border-surface-border bg-bg-secondary transition-all hover:border-iris/60 hover:bg-bg-tertiary/40">
@@ -989,6 +1007,13 @@
 
 										{#if lineage}
 											<p class="mb-2.5 truncate font-mono text-[10px] text-text-tertiary">{lineage}</p>
+										{/if}
+
+										{#if evidence}
+											<p class="mb-2.5 inline-flex max-w-full items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[10px] {completionEvidenceClass(c)}" title={c.completionEvidence?.summary}>
+												<Icon name={c.completionEvidence?.state === 'complete' ? 'check-circle' : 'alert-triangle'} size={11} />
+												<span class="truncate">{evidence}</span>
+											</p>
 										{/if}
 
 										{#if hasProgress}
