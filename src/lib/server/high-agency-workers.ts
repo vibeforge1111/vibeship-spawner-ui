@@ -23,6 +23,19 @@ export function highAgencyWorkersAllowed(envRecord: Record<string, string | unde
 	return value === '1' || value === 'true' || value === 'yes';
 }
 
+function flagEnabled(value: string | undefined): boolean {
+	const normalized = String(value || '').trim().toLowerCase();
+	return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+}
+
+export function level5RuntimeGuardrailsActive(envRecord: Record<string, string | undefined> = process.env): boolean {
+	return (
+		flagEnabled(envRecord.SPARK_ALLOW_HIGH_AGENCY_WORKERS) &&
+		flagEnabled(envRecord.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS) &&
+		String(envRecord.SPARK_CODEX_SANDBOX || '').trim() === 'danger-full-access'
+	);
+}
+
 export function assertHighAgencyWorkerAllowed(workingDirectory?: string): HighAgencyWorkerApproval {
 	if (!highAgencyWorkersAllowed()) {
 		throw new Error(

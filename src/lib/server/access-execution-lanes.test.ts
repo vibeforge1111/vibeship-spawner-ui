@@ -34,12 +34,14 @@ describe('recommendAccessExecutionLane', () => {
 			setupMode: 'automatic',
 			available: true,
 			recommended: true,
-			sparkCliAction: 'spark access setup sandbox'
+			sparkCliAction: 'spark access setup',
+			runPolicy: 'auto_safe'
 		});
 		expect(result.recommended.osHint).toContain('macOS default');
 		expect(result.lanes.find((lane) => lane.id === 'docker')).toMatchObject({
 			setupMode: 'guided',
-			sparkCliAction: 'spark install docker'
+			sparkCliAction: 'spark sandbox docker doctor --json',
+			runPolicy: 'auto_read_only'
 		});
 	});
 
@@ -67,7 +69,8 @@ describe('recommendAccessExecutionLane', () => {
 		expect(available.recommended).toMatchObject({
 			id: 'docker',
 			setupMode: 'automatic',
-			sparkCliAction: 'spark access setup docker-sandbox'
+			sparkCliAction: 'spark access setup --with docker',
+			runPolicy: 'auto_safe'
 		});
 	});
 
@@ -137,7 +140,8 @@ describe('recommendAccessExecutionLane', () => {
 		expect(result.recommended).toMatchObject({
 			id: 'ssh',
 			setupMode: 'automatic',
-			sparkCliAction: 'spark access setup ssh-sandbox'
+			sparkCliAction: 'spark sandbox ssh list --json',
+			runPolicy: 'auto_read_only'
 		});
 	});
 
@@ -153,7 +157,8 @@ describe('recommendAccessExecutionLane', () => {
 		expect(result.recommended).toMatchObject({
 			id: 'modal',
 			setupMode: 'automatic',
-			sparkCliAction: 'spark access setup modal-sandbox'
+			sparkCliAction: 'spark sandbox modal doctor --json',
+			runPolicy: 'auto_read_only'
 		});
 	});
 
@@ -169,11 +174,13 @@ describe('recommendAccessExecutionLane', () => {
 		expect(result.lanes[0]).toMatchObject({
 			id: 'level5_operator',
 			setupMode: 'blocked',
-			available: false
+			available: false,
+			sparkCliAction: 'spark access setup --level 5 --enable-high-agency',
+			runPolicy: 'explicit_opt_in'
 		});
 	});
 
-	it('allows Level 5 whole-computer mode only after explicit opt-in', () => {
+	it('keeps Level 5 blocked when only one guardrail flag is present', () => {
 		const result = recommendAccessExecutionLane({
 			accessLevel: 5,
 			env: { SPARK_ALLOW_HIGH_AGENCY_WORKERS: '1' },
@@ -181,10 +188,33 @@ describe('recommendAccessExecutionLane', () => {
 			workspaceRoot: '/home/user/.spark/workspaces'
 		});
 
+		expect(result.recommended.id).toBe('spark_workspace');
+		expect(result.lanes[0]).toMatchObject({
+			id: 'level5_operator',
+			setupMode: 'blocked',
+			available: false
+		});
+	});
+
+	it('allows Level 5 whole-computer mode only after all runtime guardrails are active', () => {
+		const result = recommendAccessExecutionLane({
+			accessLevel: 5,
+			env: {
+				SPARK_ALLOW_HIGH_AGENCY_WORKERS: '1',
+				SPARK_ALLOW_EXTERNAL_PROJECT_PATHS: '1',
+				SPARK_CODEX_SANDBOX: 'danger-full-access'
+			},
+			platform: 'linux',
+			workspaceRoot: '/home/user/.spark/workspaces'
+		});
+
 		expect(result.recommended).toMatchObject({
 			id: 'level5_operator',
-			setupMode: 'guided',
-			available: true
+			setupMode: 'automatic',
+			available: true,
+			sparkCliAction: 'spark access status --level 5',
+			runPolicy: 'auto_read_only',
+			rollback: 'spark access disable-level5'
 		});
 	});
 });

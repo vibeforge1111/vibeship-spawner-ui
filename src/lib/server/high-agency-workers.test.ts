@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
 	assertHighAgencyWorkerAllowed,
 	highAgencyWorkersAllowed,
+	level5RuntimeGuardrailsActive,
 	resolveCodexSandbox
 } from './high-agency-workers';
 
@@ -111,5 +112,24 @@ describe('high-agency worker policy', () => {
 				SPARK_ALLOW_HIGH_AGENCY_WORKERS: '1'
 			})
 		).toBe('danger-full-access');
+	});
+
+	it('requires the full Level 5 guardrail bundle for whole-computer operator mode', () => {
+		expect(level5RuntimeGuardrailsActive({})).toBe(false);
+		expect(level5RuntimeGuardrailsActive({ SPARK_ALLOW_HIGH_AGENCY_WORKERS: '1' })).toBe(false);
+		expect(
+			level5RuntimeGuardrailsActive({
+				SPARK_ALLOW_HIGH_AGENCY_WORKERS: '1',
+				SPARK_ALLOW_EXTERNAL_PROJECT_PATHS: '1',
+				SPARK_CODEX_SANDBOX: 'workspace-write'
+			})
+		).toBe(false);
+		expect(
+			level5RuntimeGuardrailsActive({
+				SPARK_ALLOW_HIGH_AGENCY_WORKERS: '1',
+				SPARK_ALLOW_EXTERNAL_PROJECT_PATHS: '1',
+				SPARK_CODEX_SANDBOX: 'danger-full-access'
+			})
+		).toBe(true);
 	});
 });

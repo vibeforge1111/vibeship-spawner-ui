@@ -41,7 +41,8 @@ describe('/api/access/execution-lanes', () => {
 				recommended: {
 					id: 'spark_workspace',
 					setupMode: 'automatic',
-					sparkCliAction: 'spark access setup sandbox'
+					sparkCliAction: 'spark access setup',
+					runPolicy: 'auto_safe'
 				}
 			}
 		});
@@ -77,7 +78,9 @@ describe('/api/access/execution-lanes', () => {
 		expect(body.access.lanes[0]).toMatchObject({
 			id: 'level5_operator',
 			available: false,
-			setupMode: 'blocked'
+			setupMode: 'blocked',
+			sparkCliAction: 'spark access setup --level 5 --enable-high-agency',
+			runPolicy: 'explicit_opt_in'
 		});
 	});
 });

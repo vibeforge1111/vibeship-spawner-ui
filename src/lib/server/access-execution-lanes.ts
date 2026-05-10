@@ -1,11 +1,12 @@
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import { platform as osPlatform } from 'node:os';
 import { sparkWorkspaceRoot } from './spark-run-workspace';
-import { highAgencyWorkersAllowed } from './high-agency-workers';
+import { level5RuntimeGuardrailsActive } from './high-agency-workers';
 
 export type AccessExecutionLaneId = 'spark_workspace' | 'docker' | 'ssh' | 'modal' | 'level5_operator';
 export type AccessSetupMode = 'automatic' | 'guided' | 'blocked';
 export type AccessOperatingSystemFamily = 'macos' | 'windows' | 'linux' | 'unknown';
+export type AccessRunPolicy = 'auto_safe' | 'auto_read_only' | 'confirm_once' | 'explicit_opt_in';
 
 export interface AccessExecutionLane {
 	id: AccessExecutionLaneId;
@@ -16,6 +17,9 @@ export interface AccessExecutionLane {
 	why: string;
 	userMessage: string;
 	sparkCliAction: string;
+	runPolicy: AccessRunPolicy;
+	confirmation?: string;
+	rollback?: string;
 	workspaceRoot?: string;
 	osHint?: string;
 }
@@ -130,7 +134,8 @@ function localWorkspaceLane(workspaceRoot: string, family: AccessOperatingSystem
 		workspaceRoot,
 		why: 'Safest default for Level 4: Spark can create and work inside an approved workspace without asking the user to learn Docker, SSH, or Modal.',
 		userMessage: `I can set up a safe Spark workspace and work only inside it: ${workspaceRoot}`,
-		sparkCliAction: 'spark access setup sandbox',
+		sparkCliAction: 'spark access setup',
+		runPolicy: 'auto_safe',
 		osHint: osSandboxHint(family)
 	};
 }
@@ -148,7 +153,8 @@ function dockerLane(available: boolean, family: AccessOperatingSystemFamily): Ac
 		userMessage: available
 			? 'Docker is ready. I can use a container sandbox when this task needs stronger isolation.'
 			: 'Docker is not ready yet. I can guide a one-click Spark setup path when container isolation is useful.',
-		sparkCliAction: available ? 'spark access setup docker-sandbox' : 'spark install docker',
+		sparkCliAction: available ? 'spark access setup --with docker' : 'spark sandbox docker doctor --json',
+		runPolicy: available ? 'auto_safe' : 'auto_read_only',
 		osHint: dockerSetupHint(family)
 	};
 }
@@ -166,7 +172,9 @@ function sshLane(available: boolean): AccessExecutionLane {
 		userMessage: available
 			? 'Your remote machine is configured. I can use it when the task belongs there.'
 			: 'Remote access is not configured yet. I can help connect a trusted machine when you need one.',
-		sparkCliAction: available ? 'spark access setup ssh-sandbox' : 'spark connect ssh'
+		sparkCliAction: available ? 'spark sandbox ssh list --json' : 'spark sandbox ssh add <name> --host <host> --user <user> --identity-file <path> --json',
+		runPolicy: available ? 'auto_read_only' : 'explicit_opt_in',
+		confirmation: available ? undefined : 'Connect trusted SSH sandbox'
 	};
 }
 
@@ -183,7 +191,9 @@ function modalLane(available: boolean): AccessExecutionLane {
 		userMessage: available
 			? 'Modal is connected. I can use a cloud sandbox for compute-heavy work.'
 			: 'Modal is not connected yet. I can guide a Spark setup path when cloud compute is useful.',
-		sparkCliAction: available ? 'spark access setup modal-sandbox' : 'spark connect modal'
+		sparkCliAction: 'spark sandbox modal doctor --json',
+		runPolicy: available ? 'auto_read_only' : 'explicit_opt_in',
+		confirmation: available ? undefined : 'Connect Modal cloud sandbox'
 	};
 }
 
@@ -191,7 +201,7 @@ function operatorLane(allowed: boolean): AccessExecutionLane {
 	return {
 		id: 'level5_operator',
 		label: 'Whole-Computer Operator Mode',
-		setupMode: allowed ? 'guided' : 'blocked',
+		setupMode: allowed ? 'automatic' : 'blocked',
 		recommended: allowed,
 		available: allowed,
 		why: allowed
@@ -200,7 +210,10 @@ function operatorLane(allowed: boolean): AccessExecutionLane {
 		userMessage: allowed
 			? 'Whole-computer operator mode is available, but I will still prefer a sandbox unless the task truly needs broader access.'
 			: 'Whole-computer access is not enabled. I can use the safer Level 4 sandbox path instead.',
-		sparkCliAction: allowed ? 'spark access setup operator' : 'spark access setup sandbox'
+		sparkCliAction: allowed ? 'spark access status --level 5' : 'spark access setup --level 5 --enable-high-agency',
+		runPolicy: allowed ? 'auto_read_only' : 'explicit_opt_in',
+		confirmation: allowed ? undefined : 'Enable whole-computer operator mode',
+		rollback: allowed ? 'spark access disable-level5' : undefined
 	};
 }
 
@@ -227,7 +240,7 @@ export function recommendAccessExecutionLane(input: AccessExecutionLaneInput): {
 	];
 
 	if (input.accessLevel === 5) {
-		const lane = operatorLane(highAgencyWorkersAllowed(env));
+		const lane = operatorLane(level5RuntimeGuardrailsActive(env));
 		return {
 			recommended: lane.available ? lane : { ...lanes[0], recommended: true },
 			lanes: [lane, ...lanes],
