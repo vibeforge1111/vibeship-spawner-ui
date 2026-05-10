@@ -69,7 +69,7 @@ export const ACCESS_EXECUTION_ACTIONS: Record<AccessExecutionActionId, AccessExe
 	},
 	docker_doctor: {
 		id: 'docker_doctor',
-		label: 'Check Docker',
+		label: 'Check runner',
 		laneId: 'docker',
 		command: ['sandbox', 'docker', 'doctor', '--json'],
 		displayCommand: 'spark sandbox docker doctor --json',
@@ -78,7 +78,7 @@ export const ACCESS_EXECUTION_ACTIONS: Record<AccessExecutionActionId, AccessExe
 	},
 	docker_smoke: {
 		id: 'docker_smoke',
-		label: 'Test Docker sandbox',
+		label: 'Test sandbox',
 		laneId: 'docker',
 		command: ['sandbox', 'docker', 'smoke', '--json'],
 		displayCommand: 'spark sandbox docker smoke --json',
@@ -89,7 +89,7 @@ export const ACCESS_EXECUTION_ACTIONS: Record<AccessExecutionActionId, AccessExe
 	},
 	level5_enable: {
 		id: 'level5_enable',
-		label: 'Prepare Level 5',
+		label: 'Confirm Access Level 5',
 		laneId: 'level5_operator',
 		command: ['access', 'setup', '--level', '5', '--enable-high-agency', '--json'],
 		displayCommand: 'spark access setup --level 5 --enable-high-agency',
@@ -100,7 +100,7 @@ export const ACCESS_EXECUTION_ACTIONS: Record<AccessExecutionActionId, AccessExe
 	},
 	level5_disable: {
 		id: 'level5_disable',
-		label: 'Disable Level 5',
+		label: 'Return to Level 4',
 		laneId: 'level5_operator',
 		command: ['access', 'disable-level5', '--json'],
 		displayCommand: 'spark access disable-level5',
