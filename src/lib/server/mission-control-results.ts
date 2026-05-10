@@ -144,15 +144,13 @@ function alignProviderResultsWithBoardStatus(
 
 	return results.map((result) => {
 		if (!NON_TERMINAL_PROVIDER_STATUSES.includes(result.status)) return result;
+		if (entry.status === 'completed') return result;
 		const terminalStatus: ProviderSessionStatus =
-			entry.status === 'completed' ? 'completed' : entry.status === 'cancelled' ? 'cancelled' : 'failed';
+			entry.status === 'cancelled' ? 'cancelled' : 'failed';
 		return {
 			...result,
 			status: terminalStatus,
-			response:
-				entry.status === 'completed'
-					? 'completed from Mission Control lifecycle events'
-					: result.response,
+			response: result.response,
 			error:
 				entry.status === 'failed'
 					? result.error || 'failed from Mission Control lifecycle events'
@@ -197,6 +195,26 @@ function reconcileEntryWithProviderResults(
 	const providerStatus = statusFromProviderResults(results);
 	if (!providerStatus) return entry;
 	if (entry.status === 'paused' && providerStatus !== 'running') return entry;
+	if (entry.status === 'completed' && providerStatus === 'running') {
+		const tasks = entry.tasks.map((task) => ({
+			...task,
+			status:
+				task.status === 'failed' || task.status === 'cancelled'
+					? task.status
+					: ('running' as const)
+		}));
+		const reconciled = {
+			...entry,
+			status: providerStatus,
+			lastEventType: 'provider_running',
+			lastSummary: 'Completion evidence missing: provider is still running.',
+			tasks
+		};
+		return {
+			...reconciled,
+			taskStatusCounts: taskStatusCounts(reconciled)
+		};
+	}
 	if (entry.status === 'completed' || entry.status === 'failed' || entry.status === 'cancelled' || entry.status === providerStatus) return entry;
 
 	const tasks =

@@ -135,21 +135,23 @@ describe('mission-control-results', () => {
 		expect(enriched.completed[0].providerResults).toHaveLength(1);
 	});
 
-	it('does not show stale running provider summaries on completed board cards', () => {
+	it('downgrades completed board cards when provider evidence is still running', () => {
 		const enriched = enrichMissionControlBoardWithProviderResults(
 			{ completed: [entry('mission-stale-provider')], failed: [] },
 			() => [result({ status: 'running', response: null, completedAt: null })]
 		);
 
-		expect(enriched.completed[0].providerResults[0]).toEqual(
-			expect.objectContaining({
-				status: 'completed',
-				summary: 'completed from Mission Control lifecycle events',
-				completedAt: '2026-04-25T00:00:01.000Z'
-			})
-		);
-		expect(enriched.completed[0].providerSummary).toBe(
-			'Codex: completed from Mission Control lifecycle events'
+		expect(enriched.completed).toEqual([]);
+		expect(enriched.running[0]).toMatchObject({
+			missionId: 'mission-stale-provider',
+			status: 'running',
+			lastEventType: 'provider_running',
+			lastSummary: 'Completion evidence missing: provider is still running.',
+			taskStatusCounts: { running: 0, total: 0 },
+			providerSummary: 'Codex: running'
+		});
+		expect(enriched.running[0].providerResults[0]).toEqual(
+			expect.objectContaining({ status: 'running', summary: 'running', completedAt: null })
 		);
 	});
 
