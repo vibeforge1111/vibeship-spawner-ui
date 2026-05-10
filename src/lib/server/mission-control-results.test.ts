@@ -221,6 +221,46 @@ describe('mission-control-results', () => {
 		});
 	});
 
+	it('marks non-terminal cards stalled when no progress arrives within the timeout', () => {
+		const staleTimestamp = new Date(Date.now() - 31 * 60 * 1000).toISOString();
+		const enriched = enrichMissionControlBoardWithProviderResults(
+			{
+				running: [
+					entry('mission-stalled-running', {
+						status: 'running',
+						lastEventType: 'mission_started',
+						lastUpdated: staleTimestamp,
+						tasks: [{ title: 'Run analysis', skills: [], status: 'running' }],
+						taskStatusCounts: {
+							queued: 0,
+							running: 1,
+							completed: 0,
+							failed: 0,
+							cancelled: 0,
+							total: 1
+						}
+					})
+				],
+				failed: [],
+				completed: []
+			},
+			() => []
+		);
+
+		expect(enriched.running).toEqual([]);
+		expect(enriched.failed[0]).toMatchObject({
+			missionId: 'mission-stalled-running',
+			status: 'failed',
+			lastEventType: 'provider_stalled',
+			taskStatusCounts: { failed: 1, total: 1 },
+			completionEvidence: {
+				state: 'incomplete',
+				missing: ['terminal_event', 'provider_result', 'provider_summary']
+			}
+		});
+		expect(enriched.failed[0].lastSummary).toContain('Mission stalled: no progress for');
+	});
+
 	it('keeps paused board cards paused even when the underlying provider process was cancelled', () => {
 		const enriched = enrichMissionControlBoardWithProviderResults(
 			{

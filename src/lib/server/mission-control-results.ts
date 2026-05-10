@@ -28,11 +28,25 @@ type BoardBuckets = Record<string, MissionControlBoardEntry[]>;
 type ResultLookup = (missionId: string) => ProviderMissionResultSnapshot[];
 const NON_TERMINAL_PROVIDER_STATUSES: ProviderSessionStatus[] = ['idle', 'running'];
 const TERMINAL_PROVIDER_STATUSES: ProviderSessionStatus[] = ['completed', 'failed', 'cancelled'];
+const DEFAULT_STALLED_RUNNING_MS = 30 * 60 * 1000;
 
 function providerLabel(providerId: string): string {
 	if (providerId === 'codex') return 'Codex';
 	if (providerId === 'claude') return 'Claude';
 	return providerId;
+}
+
+function stalledRunningMs(): number {
+	const raw = Number((env as Record<string, string | undefined>).MISSION_CONTROL_STALLED_RUNNING_MS);
+	return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_STALLED_RUNNING_MS;
+}
+
+function compactDuration(ms: number): string {
+	const minutes = Math.max(1, Math.round(ms / 60_000));
+	if (minutes < 60) return `${minutes}m`;
+	const hours = Math.floor(minutes / 60);
+	const remainder = minutes % 60;
+	return remainder ? `${hours}h ${remainder}m` : `${hours}h`;
 }
 
 function stringField(record: Record<string, unknown>, key: string): string | null {
@@ -261,6 +275,38 @@ function reconcileEntryWithProviderResults(
 	entry: MissionControlBoardEntry,
 	results: ProviderMissionResultSnapshot[]
 ): MissionControlBoardEntry {
+	const lastUpdatedMs = Date.parse(entry.lastUpdated);
+	const stalledMs = stalledRunningMs();
+	const hasTerminalProvider = results.some((result) => TERMINAL_PROVIDER_STATUSES.includes(result.status));
+	if (
+		entry.status !== 'completed' &&
+		entry.status !== 'failed' &&
+		entry.status !== 'cancelled' &&
+		entry.status !== 'paused' &&
+		!hasTerminalProvider &&
+		Number.isFinite(lastUpdatedMs) &&
+		Date.now() - lastUpdatedMs > stalledMs
+	) {
+		const tasks = entry.tasks.map((task) => ({
+			...task,
+			status:
+				task.status === 'completed' || task.status === 'cancelled'
+					? task.status
+					: ('failed' as const)
+		}));
+		const reconciled = {
+			...entry,
+			status: 'failed' as const,
+			lastEventType: 'provider_stalled',
+			lastSummary: `Mission stalled: no progress for ${compactDuration(Date.now() - lastUpdatedMs)}.`,
+			tasks
+		};
+		return {
+			...reconciled,
+			taskStatusCounts: taskStatusCounts(reconciled)
+		};
+	}
+
 	const providerStatus = statusFromProviderResults(results);
 	if (!providerStatus) return entry;
 	if (entry.status === 'paused' && providerStatus !== 'running') return entry;
