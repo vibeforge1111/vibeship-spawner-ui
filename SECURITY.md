@@ -43,3 +43,9 @@ The Spark agent bridge (`/api/spark-agent/*`) is local-first. If it is exposed o
 - `SPARK_AGENT_ALLOWED_ORIGINS`
 
 Session commands also support `x-spark-agent-session-id` scoping. Keep this aligned with `docs/SPARK_AGENT_BRIDGE_API.md`.
+
+## Execution Lanes
+
+`/api/access/execution-lanes` is a read-only capability endpoint. It redacts local filesystem paths for unauthenticated browser callers; configured UI, bridge, or MCP API credentials can receive full local workspace details.
+
+Leave `SPARK_DOCKER_AVAILABLE` unset for normal installs so Spawner can probe `docker info` with a short timeout and cache. Set it to `1` or `0` only when an install needs an explicit Docker availability override. Keep `SPARK_CODEX_SANDBOX=workspace-write` and `SPARK_ALLOW_HIGH_AGENCY_WORKERS=0` unless this is a trusted local operator install.

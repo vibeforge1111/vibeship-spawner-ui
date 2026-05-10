@@ -1,3 +1,4 @@
+import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import { platform as osPlatform } from 'node:os';
 import { sparkWorkspaceRoot } from './spark-run-workspace';
 import { highAgencyWorkersAllowed } from './high-agency-workers';
@@ -25,11 +26,39 @@ export interface AccessExecutionLaneInput {
 	env?: Record<string, string | undefined>;
 	platform?: NodeJS.Platform;
 	dockerAvailable?: boolean;
+	dockerProbe?: () => boolean;
 	workspaceRoot?: string;
 }
 
-function enabled(value: string | undefined): boolean {
-	return ['1', 'true', 'yes', 'on'].includes(String(value || '').trim().toLowerCase());
+const DOCKER_PROBE_TIMEOUT_MS = 1_500;
+const DOCKER_PROBE_CACHE_MS = 10_000;
+let dockerAvailabilityCache: { checkedAt: number; available: boolean } | null = null;
+
+function enabled(value: string | undefined): boolean | undefined {
+	const normalized = String(value || '').trim().toLowerCase();
+	if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+	if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+	return undefined;
+}
+
+function dockerCliDaemonAvailable(): boolean {
+	const now = Date.now();
+	if (dockerAvailabilityCache && now - dockerAvailabilityCache.checkedAt < DOCKER_PROBE_CACHE_MS) {
+		return dockerAvailabilityCache.available;
+	}
+
+	const result = spawnSync('docker', ['info', '--format', '{{json .ServerVersion}}'], {
+		stdio: 'ignore',
+		timeout: DOCKER_PROBE_TIMEOUT_MS,
+		windowsHide: true
+	}) as SpawnSyncReturns<Buffer>;
+	const available = result.status === 0 && !result.error;
+	dockerAvailabilityCache = { checkedAt: now, available };
+	return available;
+}
+
+export function resetDockerAvailabilityCacheForTests(): void {
+	dockerAvailabilityCache = null;
 }
 
 function hasModalCredentials(env: Record<string, string | undefined>): boolean {
@@ -186,7 +215,10 @@ export function recommendAccessExecutionLane(input: AccessExecutionLaneInput): {
 	const family = osFamily(currentPlatform);
 	const goal = input.userGoal || '';
 	const workspaceRoot = input.workspaceRoot || sparkWorkspaceRoot();
-	const dockerAvailable = input.dockerAvailable ?? enabled(env.SPARK_DOCKER_AVAILABLE);
+	const dockerAvailable =
+		input.dockerAvailable ??
+		enabled(env.SPARK_DOCKER_AVAILABLE) ??
+		(input.dockerProbe || dockerCliDaemonAvailable)();
 	const lanes = [
 		localWorkspaceLane(workspaceRoot, family),
 		dockerLane(dockerAvailable, family),

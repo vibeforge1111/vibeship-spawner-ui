@@ -1,7 +1,24 @@
-import { describe, expect, it } from 'vitest';
-import { recommendAccessExecutionLane } from './access-execution-lanes';
+import { spawnSync } from 'node:child_process';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { recommendAccessExecutionLane, resetDockerAvailabilityCacheForTests } from './access-execution-lanes';
+
+vi.mock('node:child_process', () => {
+	const childProcess = { spawnSync: vi.fn() };
+	return {
+		default: childProcess,
+		...childProcess
+	};
+});
+
+const mockSpawnSync = vi.mocked(spawnSync);
 
 describe('recommendAccessExecutionLane', () => {
+	beforeEach(() => {
+		resetDockerAvailabilityCacheForTests();
+		mockSpawnSync.mockReset();
+		mockSpawnSync.mockReturnValue({ status: 1 } as never);
+	});
+
 	it('defaults Level 4 to an automatic Spark workspace sandbox', () => {
 		const result = recommendAccessExecutionLane({
 			accessLevel: 4,
@@ -52,6 +69,59 @@ describe('recommendAccessExecutionLane', () => {
 			setupMode: 'automatic',
 			sparkCliAction: 'spark access setup docker-sandbox'
 		});
+	});
+
+	it('uses SPARK_DOCKER_AVAILABLE as an explicit Docker availability override', () => {
+		const forcedAvailable = recommendAccessExecutionLane({
+			accessLevel: 4,
+			env: { SPARK_DOCKER_AVAILABLE: '1' },
+			platform: 'linux',
+			userGoal: 'I need a container',
+			workspaceRoot: '/home/user/.spark/workspaces'
+		});
+		const forcedUnavailable = recommendAccessExecutionLane({
+			accessLevel: 4,
+			env: { SPARK_DOCKER_AVAILABLE: '0' },
+			platform: 'linux',
+			userGoal: 'I need a container',
+			workspaceRoot: '/home/user/.spark/workspaces'
+		});
+
+		expect(forcedAvailable.recommended.id).toBe('docker');
+		expect(forcedUnavailable.recommended.id).toBe('spark_workspace');
+		expect(mockSpawnSync).not.toHaveBeenCalled();
+	});
+
+	it('probes the Docker CLI and daemon once when no env override is set', () => {
+		mockSpawnSync.mockReturnValue({ status: 0 } as never);
+
+		const first = recommendAccessExecutionLane({
+			accessLevel: 4,
+			env: {},
+			platform: 'linux',
+			userGoal: 'I need a container',
+			workspaceRoot: '/home/user/.spark/workspaces'
+		});
+		const second = recommendAccessExecutionLane({
+			accessLevel: 4,
+			env: {},
+			platform: 'linux',
+			userGoal: 'I need a container',
+			workspaceRoot: '/home/user/.spark/workspaces'
+		});
+
+		expect(first.recommended.id).toBe('docker');
+		expect(second.recommended.id).toBe('docker');
+		expect(mockSpawnSync).toHaveBeenCalledTimes(1);
+		expect(mockSpawnSync).toHaveBeenCalledWith(
+			'docker',
+			['info', '--format', '{{json .ServerVersion}}'],
+			expect.objectContaining({
+				stdio: 'ignore',
+				timeout: 1_500,
+				windowsHide: true
+			})
+		);
 	});
 
 	it('uses SSH when a trusted remote target is configured and the task asks for it', () => {
