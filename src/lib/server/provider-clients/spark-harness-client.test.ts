@@ -168,6 +168,49 @@ describe('spark-harness-client', () => {
 		expect(submittedSandbox).toBe('workspace-write');
 	});
 
+	it('passes danger-full-access to the Spark harness only when Level 5 guardrails are active', async () => {
+		process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS = '1';
+		process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS = '1';
+		process.env.SPARK_CODEX_SANDBOX = 'danger-full-access';
+		let submittedSandbox = '';
+		const events: BridgeEvent[] = [];
+		const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
+			const value = String(url);
+			if (value.endsWith('/v1/tasks')) {
+				const submittedBody = JSON.parse(String(init?.body || '{}')) as {
+					context?: { _codex_sandbox?: string };
+				};
+				submittedSandbox = submittedBody.context?._codex_sandbox || '';
+				return new Response(JSON.stringify({ task_id: 'spark-task-level5' }), { status: 200 });
+			}
+			if (value.endsWith('/v1/tasks/spark-task-level5')) {
+				return new Response(
+					JSON.stringify({
+						status: 'completed',
+						result: {
+							output: JSON.stringify({ status: 'completed', changed_files: ['operator-check.txt'] }),
+							metadata: { changed_files: ['operator-check.txt'] }
+						}
+					}),
+					{ status: 200 }
+				);
+			}
+			return new Response('not found', { status: 404 });
+		});
+		vi.stubGlobal('fetch', fetchMock);
+
+		const result = await executeSparkHarnessRequest({
+			provider,
+			missionId: 'mission-spark-level5',
+			prompt: 'Build a tiny local operator check.',
+			onEvent: (event) => events.push(event)
+		});
+
+		expect(result.success).toBe(true);
+		expect(submittedSandbox).toBe('danger-full-access');
+		expect(events.some((event) => event.type === 'worker_high_agency_approved')).toBe(true);
+	});
+
 	it('rejects prompt-extracted workspaces outside the Spark workspace root by default', async () => {
 		const workspaceRoot = mkdtempSync(join(tmpdir(), 'spark-harness-root-'));
 		const external = mkdtempSync(join(tmpdir(), 'spark-harness-external-'));
