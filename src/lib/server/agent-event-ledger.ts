@@ -1,5 +1,6 @@
 import { env } from '$env/dynamic/private';
 import * as fs from 'fs';
+import os from 'os';
 import * as path from 'path';
 import { spawnerStateDir } from './spawner-state';
 
@@ -99,6 +100,14 @@ export function getAgentEventLedgerPath(): string {
 	return path.resolve(spawnerStateDir(env), 'agent-events.jsonl');
 }
 
+export function getFinalAnswerGateAuditPath(): string {
+	return (
+		process.env.SPARK_FINAL_ANSWER_GATE_AUDIT_PATH ||
+		env.SPARK_FINAL_ANSWER_GATE_AUDIT_PATH ||
+		path.join(os.homedir(), '.spark', 'state', 'spark-telegram-bot', 'final-answer-gate-audit.jsonl')
+	);
+}
+
 export function buildMissionControlAgentEvent(input: MissionControlAgentEventInput): AgentEventRecord {
 	const missionRef = input.missionId || 'unknown-mission';
 	const toState = input.toState || missionStateForEvent(input.eventType);
@@ -163,26 +172,95 @@ export function readRecentAgentEvents(
 	options: { requestId?: string | null; sessionId?: string | null; limit?: number } = {}
 ): AgentEventLedgerEntry[] {
 	const ledgerPath = getAgentEventLedgerPath();
-	if (!fs.existsSync(ledgerPath)) return [];
 	const limit = Math.max(1, options.limit || 20);
 	const requestId = normalizeNullable(options.requestId);
 	const sessionId = normalizeNullable(options.sessionId);
+	const ledgerEntries = fs.existsSync(ledgerPath)
+		? fs
+				.readFileSync(ledgerPath, 'utf-8')
+				.split(/\r?\n/)
+				.filter(Boolean)
+				.map((line) => {
+					try {
+						return JSON.parse(line) as AgentEventLedgerEntry;
+					} catch {
+						return null;
+					}
+				})
+				.filter((entry): entry is AgentEventLedgerEntry => Boolean(entry))
+		: [];
+	const finalAnswerEntries = readFinalAnswerGateAuditEvents();
+	return [...ledgerEntries, ...finalAnswerEntries]
+		.filter((entry) => !requestId || entry.request_id === requestId)
+		.filter((entry) => !sessionId || entry.session_id === sessionId)
+		.sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
+		.slice(-limit)
+		.reverse();
+}
+
+function readFinalAnswerGateAuditEvents(): AgentEventLedgerEntry[] {
+	const auditPath = getFinalAnswerGateAuditPath();
+	if (!fs.existsSync(auditPath)) return [];
 	return fs
-		.readFileSync(ledgerPath, 'utf-8')
+		.readFileSync(auditPath, 'utf-8')
 		.split(/\r?\n/)
 		.filter(Boolean)
-		.map((line) => {
+		.map((line, index) => {
 			try {
-				return JSON.parse(line) as AgentEventLedgerEntry;
+				const record = JSON.parse(line) as Record<string, unknown>;
+				return finalAnswerAuditToAgentEvent(record, index);
 			} catch {
 				return null;
 			}
 		})
-		.filter((entry): entry is AgentEventLedgerEntry => Boolean(entry))
-		.filter((entry) => !requestId || entry.request_id === requestId)
-		.filter((entry) => !sessionId || entry.session_id === sessionId)
-		.slice(-limit)
-		.reverse();
+		.filter((entry): entry is AgentEventLedgerEntry => Boolean(entry));
+}
+
+function finalAnswerAuditToAgentEvent(record: Record<string, unknown>, index: number): AgentEventLedgerEntry {
+	const createdAt = typeof record.ts === 'string' && record.ts.trim() ? record.ts : new Date(0).toISOString();
+	const chatId = stringValue(record.chat_id);
+	const userId = stringValue(record.user_id);
+	const reason = stringValue(record.suppression_reason) || 'unknown';
+	const fallbackRoute = stringValue(record.fallback_route) || 'unknown';
+	const builderRoute = stringValue(record.builder_routing_decision);
+	const builderMode = stringValue(record.builder_bridge_mode);
+	const outcome = stringValue(record.outcome) || 'suppressed_builder_reply';
+	return {
+		schema_version: AGENT_EVENT_SCHEMA_VERSION,
+		event_type: 'final_answer_checked',
+		summary: `Final answer gate ${outcome}: ${reason}; fallback=${fallbackRoute}.`,
+		user_intent: null,
+		selected_route: fallbackRoute,
+		route_confidence: 'high',
+		facts: {
+			audit_source: 'telegram_final_answer_gate',
+			outcome,
+			suppression_reason: reason,
+			builder_routing_decision: builderRoute,
+			builder_bridge_mode: builderMode,
+			builder_reply_length: record.builder_reply_length,
+			latest_intent_preserved: record.latest_intent_preserved === true
+		},
+		sources: [
+			{
+				source: 'telegram_final_answer_gate',
+				role: 'final_answer_evidence',
+				freshness: 'fresh',
+				source_ref: chatId ? `telegram:${chatId}` : null,
+				summary: reason
+			}
+		],
+		assumptions: [],
+		blockers: reason === 'low_information' ? [] : [reason],
+		changed: [`telegram:${chatId || 'unknown'}:final_answer_gate=${outcome}`],
+		memory_candidate: null,
+		event_id: `final-answer-${Date.parse(createdAt) || 0}-${index}`,
+		component: AGENT_EVENT_COMPONENT,
+		created_at: createdAt,
+		request_id: null,
+		session_id: chatId ? `telegram:${chatId}` : null,
+		actor_id: userId ? `telegram:${userId}` : null
+	};
 }
 
 export function buildAgentBlackBoxReport(
@@ -249,4 +327,8 @@ export function missionStateForEvent(eventType: string): string | null {
 function normalizeNullable(value: string | null | undefined): string | null {
 	const text = value?.trim();
 	return text || null;
+}
+
+function stringValue(value: unknown): string | null {
+	return typeof value === 'string' && value.trim() ? value.trim() : null;
 }

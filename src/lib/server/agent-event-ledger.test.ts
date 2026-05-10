@@ -1,0 +1,70 @@
+import { mkdtemp, writeFile } from 'fs/promises';
+import path from 'path';
+import { tmpdir } from 'os';
+import { afterEach, describe, expect, it } from 'vitest';
+import {
+	buildAgentBlackBoxReport,
+	getFinalAnswerGateAuditPath,
+	readRecentAgentEvents
+} from './agent-event-ledger';
+
+const originalAuditPath = process.env.SPARK_FINAL_ANSWER_GATE_AUDIT_PATH;
+const originalStateDir = process.env.SPAWNER_STATE_DIR;
+
+afterEach(() => {
+	if (originalAuditPath === undefined) delete process.env.SPARK_FINAL_ANSWER_GATE_AUDIT_PATH;
+	else process.env.SPARK_FINAL_ANSWER_GATE_AUDIT_PATH = originalAuditPath;
+	if (originalStateDir === undefined) delete process.env.SPAWNER_STATE_DIR;
+	else process.env.SPAWNER_STATE_DIR = originalStateDir;
+});
+
+describe('agent event ledger', () => {
+	it('ingests Telegram final-answer gate audits into black-box events', async () => {
+		const stateDir = await mkdtemp(path.join(tmpdir(), 'spawner-agent-events-'));
+		const auditPath = path.join(stateDir, 'final-answer-gate-audit.jsonl');
+		process.env.SPAWNER_STATE_DIR = stateDir;
+		process.env.SPARK_FINAL_ANSWER_GATE_AUDIT_PATH = auditPath;
+		await writeFile(
+			auditPath,
+			`${JSON.stringify({
+				ts: '2026-05-10T08:00:00.000Z',
+				event: 'final_answer_checked',
+				outcome: 'suppressed_builder_reply',
+				chat_id: '8319079055',
+				user_id: '42',
+				suppression_reason: 'diagnostic_wall',
+				builder_routing_decision: 'plain_chat',
+				builder_bridge_mode: 'builder',
+				builder_reply_length: 240,
+				fallback_route: 'local_chat',
+				latest_intent_preserved: true
+			})}\n`,
+			'utf-8'
+		);
+
+		expect(getFinalAnswerGateAuditPath()).toBe(auditPath);
+		const events = readRecentAgentEvents({ sessionId: 'telegram:8319079055', limit: 5 });
+		expect(events).toHaveLength(1);
+		expect(events[0]).toMatchObject({
+			event_type: 'final_answer_checked',
+			selected_route: 'local_chat',
+			session_id: 'telegram:8319079055',
+			actor_id: 'telegram:42',
+			summary: 'Final answer gate suppressed_builder_reply: diagnostic_wall; fallback=local_chat.',
+			facts: {
+				audit_source: 'telegram_final_answer_gate',
+				suppression_reason: 'diagnostic_wall',
+				latest_intent_preserved: true
+			},
+			sources: [{ source: 'telegram_final_answer_gate', role: 'final_answer_evidence' }]
+		});
+
+		const report = buildAgentBlackBoxReport({ sessionId: 'telegram:8319079055', limit: 5 });
+		expect(report.counts.entries).toBe(1);
+		expect(report.entries[0]).toMatchObject({
+			event_type: 'final_answer_checked',
+			route_chosen: 'local_chat',
+			blockers: ['diagnostic_wall']
+		});
+	});
+});
