@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { executeSparkHarnessRequest } from './spark-harness-client';
 import type { BridgeEvent } from '$lib/services/event-bridge';
 import type { MultiLLMProviderConfig } from '$lib/services/multi-llm-orchestrator';
@@ -19,6 +22,9 @@ const provider: MultiLLMProviderConfig = {
 
 const originalCodexSandbox = process.env.SPARK_CODEX_SANDBOX;
 const originalAllowHighAgencyWorkers = process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS;
+const originalSparkWorkspaceRoot = process.env.SPARK_WORKSPACE_ROOT;
+const originalAllowExternalProjectPaths = process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
+const cleanupPaths: string[] = [];
 
 function restoreEnv(name: string, value: string | undefined): void {
 	if (value === undefined) {
@@ -31,12 +37,18 @@ function restoreEnv(name: string, value: string | undefined): void {
 beforeEach(() => {
 	delete process.env.SPARK_CODEX_SANDBOX;
 	delete process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS;
+	delete process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
 });
 
 afterEach(() => {
 	vi.restoreAllMocks();
 	restoreEnv('SPARK_CODEX_SANDBOX', originalCodexSandbox);
 	restoreEnv('SPARK_ALLOW_HIGH_AGENCY_WORKERS', originalAllowHighAgencyWorkers);
+	restoreEnv('SPARK_WORKSPACE_ROOT', originalSparkWorkspaceRoot);
+	restoreEnv('SPARK_ALLOW_EXTERNAL_PROJECT_PATHS', originalAllowExternalProjectPaths);
+	for (const path of cleanupPaths.splice(0)) {
+		rmSync(path, { recursive: true, force: true });
+	}
 });
 
 describe('spark-harness-client', () => {
@@ -91,6 +103,10 @@ describe('spark-harness-client', () => {
 	});
 
 	it('sends no-build verification instructions to the Spark harness for vanilla projects', async () => {
+		const workspaceRoot = mkdtempSync(join(tmpdir(), 'spark-harness-workspace-'));
+		const workspace = join(workspaceRoot, 'spark-contract-test');
+		cleanupPaths.push(workspaceRoot);
+		process.env.SPARK_WORKSPACE_ROOT = workspaceRoot;
 		let submittedInstruction = '';
 		let submittedSandbox = '';
 		const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
@@ -128,7 +144,7 @@ describe('spark-harness-client', () => {
 		const result = await executeSparkHarnessRequest({
 			provider,
 			missionId: 'mission-spark-vanilla',
-			workingDirectory: 'C:\\Users\\USER\\Desktop\\spark-contract-test',
+			workingDirectory: workspace,
 			prompt: [
 				'Mission ID: mission-spark-vanilla',
 				'Project contract:',
@@ -150,5 +166,25 @@ describe('spark-harness-client', () => {
 		expect(instruction).toContain('Do not run npm install, npm run build, npx tsc');
 		expect(instruction).not.toContain('Run the project build command (npm run build or equivalent)');
 		expect(submittedSandbox).toBe('workspace-write');
+	});
+
+	it('rejects prompt-extracted workspaces outside the Spark workspace root by default', async () => {
+		const workspaceRoot = mkdtempSync(join(tmpdir(), 'spark-harness-root-'));
+		const external = mkdtempSync(join(tmpdir(), 'spark-harness-external-'));
+		cleanupPaths.push(workspaceRoot, external);
+		process.env.SPARK_WORKSPACE_ROOT = workspaceRoot;
+		const fetchMock = vi.fn();
+		vi.stubGlobal('fetch', fetchMock);
+
+		const result = await executeSparkHarnessRequest({
+			provider,
+			missionId: 'mission-external-workspace',
+			prompt: `Target workspace: ${join(external, 'project')}\nBuild a tiny app.`,
+			onEvent: () => {}
+		});
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain('Project path must stay inside Spark workspace root');
+		expect(fetchMock).not.toHaveBeenCalled();
 	});
 });

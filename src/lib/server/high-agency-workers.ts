@@ -1,6 +1,6 @@
 import { realpathSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
-import { externalProjectPathsAllowed, isWithinDirectory, sparkWorkspaceRoot } from './spark-run-workspace';
+import { externalProjectPathsAllowed, resolveWorkspaceContainedPath, sparkWorkspaceRoot } from './spark-run-workspace';
 
 export const HIGH_AGENCY_WORKERS_ENV = 'SPARK_ALLOW_HIGH_AGENCY_WORKERS';
 
@@ -33,16 +33,21 @@ export function assertHighAgencyWorkerAllowed(workingDirectory?: string): HighAg
 	const workspaceRoot = resolveExistingPath(sparkWorkspaceRoot());
 	const cwd = resolve(workingDirectory?.trim() || process.cwd());
 	const externalAllowed = externalProjectPathsAllowed();
-	if (!externalAllowed && !isWithinDirectory(workspaceRoot, cwd)) {
-		throw new Error(
-			`High-agency workers must run inside Spark workspace root (${workspaceRoot}). ` +
-				`Use a workspace path like "${basename(cwd) || 'project'}", ` +
-				'or set SPARK_ALLOW_EXTERNAL_PROJECT_PATHS=1 for trusted local development.'
-		);
+	let workingDirectoryResolved = cwd;
+	if (!externalAllowed) {
+		try {
+			workingDirectoryResolved = resolveWorkspaceContainedPath(cwd, 'High-agency worker path');
+		} catch {
+			throw new Error(
+				`High-agency workers must run inside Spark workspace root (${workspaceRoot}). ` +
+					`Use a workspace path like "${basename(cwd) || 'project'}", ` +
+					'or set SPARK_ALLOW_EXTERNAL_PROJECT_PATHS=1 for trusted local development.'
+			);
+		}
 	}
 
 	return {
-		workingDirectory: cwd,
+		workingDirectory: workingDirectoryResolved,
 		workspaceRoot,
 		externalProjectPathsAllowed: externalAllowed
 	};
@@ -50,6 +55,9 @@ export function assertHighAgencyWorkerAllowed(workingDirectory?: string): HighAg
 
 export function resolveCodexSandbox(envRecord: Record<string, string | undefined> = process.env): string {
 	const sandbox = envRecord.SPARK_CODEX_SANDBOX?.trim() || 'workspace-write';
+	if (!['read-only', 'workspace-write', 'danger-full-access'].includes(sandbox)) {
+		throw new Error(`Unsupported SPARK_CODEX_SANDBOX value: ${sandbox}`);
+	}
 	if (sandbox === 'danger-full-access' && !highAgencyWorkersAllowed(envRecord)) {
 		throw new Error(`SPARK_CODEX_SANDBOX=danger-full-access requires ${HIGH_AGENCY_WORKERS_ENV}=1`);
 	}

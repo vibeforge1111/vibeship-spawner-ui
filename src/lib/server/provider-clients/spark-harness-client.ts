@@ -1,6 +1,7 @@
 import type { BridgeEvent } from '$lib/services/event-bridge';
 import type { MultiLLMProviderConfig } from '$lib/services/multi-llm-orchestrator';
 import { assertHighAgencyWorkerAllowed, resolveCodexSandbox } from '$lib/server/high-agency-workers';
+import { resolveSparkRunProjectPath } from '$lib/server/spark-run-workspace';
 import { sparkHarnessTimeoutMs } from '$lib/server/timeout-config';
 import type { ProviderResult } from './types';
 import { createBridgeEvent } from './types';
@@ -39,7 +40,7 @@ export async function executeSparkHarnessRequest(options: SparkHarnessOptions): 
 	const startedAt = Date.now();
 	const sparkHarnessUrl = resolveSparkHarnessUrl();
 	const bridgeBackend = provider.sparkExecutionBridge || 'codex';
-	const resolvedWorkspace = extractTargetWorkspace(prompt) || workingDirectory;
+	const requestedWorkspace = extractTargetWorkspace(prompt) || workingDirectory;
 	const assignedTasks = extractAssignedCanvasTasks(prompt);
 
 	onEvent(
@@ -65,6 +66,7 @@ export async function executeSparkHarnessRequest(options: SparkHarnessOptions): 
 	try {
 		const executorModel = resolveCodexExecutorModel();
 		const codexSandbox = resolveCodexSandbox();
+		const resolvedWorkspace = requestedWorkspace ? resolveSparkRunProjectPath(requestedWorkspace) : undefined;
 		if (codexSandbox === 'danger-full-access') {
 			const approval = assertHighAgencyWorkerAllowed(resolvedWorkspace);
 			onEvent(

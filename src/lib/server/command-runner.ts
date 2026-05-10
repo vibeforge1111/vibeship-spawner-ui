@@ -8,9 +8,9 @@
 import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { basename, dirname, join, isAbsolute, resolve } from 'node:path';
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { commandTimeoutMs } from './timeout-config';
-import { externalProjectPathsAllowed, isWithinDirectory, sparkWorkspaceRoot } from './spark-run-workspace';
+import { externalProjectPathsAllowed, resolveContainedPath, sparkWorkspaceRoot } from './spark-run-workspace';
 
 export const MAX_OUTPUT_LENGTH = 5000;
 export const COMMAND_TIMEOUT_MS = commandTimeoutMs();
@@ -27,14 +27,6 @@ export function truncateOutput(output: string): string {
 	return output.slice(-MAX_OUTPUT_LENGTH) + '\n...(truncated)';
 }
 
-function resolveExistingPath(path: string): string {
-	try {
-		return realpathSync(path);
-	} catch {
-		return resolve(path);
-	}
-}
-
 /**
  * Validate project path: must be absolute, must exist, and must stay inside the Spark workspace root by default.
  */
@@ -49,16 +41,11 @@ export function validateProjectPath(projectPath: string): { valid: boolean; erro
 		return { valid: false, error: `Project directory does not exist: ${projectPath}` };
 	}
 	if (!externalProjectPathsAllowed()) {
-		const workspaceRoot = resolveExistingPath(sparkWorkspaceRoot());
-		const projectRealPath = resolveExistingPath(projectPath);
-		if (!isWithinDirectory(workspaceRoot, projectRealPath)) {
-			return {
-				valid: false,
-				error:
-					`Project path must stay inside Spark workspace root (${workspaceRoot}). ` +
-					`Use a relative workspace name like "${basename(projectRealPath) || 'project'}", ` +
-					'or set SPARK_ALLOW_EXTERNAL_PROJECT_PATHS=1 for trusted local development.'
-			};
+		try {
+			resolveContainedPath(sparkWorkspaceRoot(), projectPath, 'Project path');
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			return { valid: false, error: message };
 		}
 	}
 	return { valid: true };
@@ -250,7 +237,10 @@ export function parseErrorCount(output: string): number {
  * Ensure a resolved path is within the project directory (path traversal safety)
  */
 export function isPathWithinProject(filePath: string, projectPath: string): boolean {
-	const resolved = resolve(filePath);
-	const projectResolved = resolve(projectPath);
-	return isWithinDirectory(projectResolved, resolved);
+	try {
+		resolveContainedPath(projectPath, filePath, 'File path');
+		return true;
+	} catch {
+		return false;
+	}
 }

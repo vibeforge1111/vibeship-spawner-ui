@@ -1,6 +1,6 @@
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, isAbsolute, join, resolve, sep } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
 export class SparkRunWorkspaceError extends Error {
 	status = 400;
@@ -11,7 +11,7 @@ export class SparkRunWorkspaceError extends Error {
 	}
 }
 
-function sparkWorkspaceRoot(): string {
+export function sparkWorkspaceRoot(): string {
 	return resolve(
 		process.env.SPARK_WORKSPACE_ROOT?.trim() ||
 			process.env.SPAWNER_WORKSPACE_ROOT?.trim() ||
@@ -21,17 +21,55 @@ function sparkWorkspaceRoot(): string {
 	);
 }
 
-function externalProjectPathsAllowed(): boolean {
+export function externalProjectPathsAllowed(): boolean {
 	const value = process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS?.trim().toLowerCase();
 	return value === '1' || value === 'true' || value === 'yes';
 }
 
-function isWithinDirectory(baseDir: string, targetPath: string): boolean {
+export function isWithinDirectory(baseDir: string, targetPath: string): boolean {
 	const normalizedBase = resolve(baseDir);
 	const normalizedTarget = resolve(targetPath);
-	const baseLower = normalizedBase.toLowerCase();
-	const targetLower = normalizedTarget.toLowerCase();
+	const baseLower = process.platform === 'win32' ? normalizedBase.toLowerCase() : normalizedBase;
+	const targetLower = process.platform === 'win32' ? normalizedTarget.toLowerCase() : normalizedTarget;
 	return targetLower === baseLower || targetLower.startsWith(`${baseLower}${sep}`);
+}
+
+function resolveExistingPath(path: string): string {
+	try {
+		return realpathSync(path);
+	} catch {
+		return resolve(path);
+	}
+}
+
+function resolveThroughExistingParent(path: string): string {
+	const absolutePath = resolve(path);
+	const missingSegments: string[] = [];
+	let cursor = absolutePath;
+	while (!existsSync(cursor)) {
+		const parent = dirname(cursor);
+		if (parent === cursor) return absolutePath;
+		missingSegments.unshift(basename(cursor));
+		cursor = parent;
+	}
+	return resolve(resolveExistingPath(cursor), ...missingSegments);
+}
+
+export function resolveContainedPath(baseDir: string, targetPath: string, label = 'Path'): string {
+	const baseResolved = resolveExistingPath(baseDir);
+	const targetResolved = resolveThroughExistingParent(targetPath);
+	if (!isWithinDirectory(baseResolved, targetResolved)) {
+		throw new SparkRunWorkspaceError(
+			`${label} must stay inside Spark workspace root (${baseResolved}). ` +
+				`Use a relative workspace name like "${basename(targetResolved) || 'project'}", ` +
+				'or set SPARK_ALLOW_EXTERNAL_PROJECT_PATHS=1 for trusted local development.'
+		);
+	}
+	return targetResolved;
+}
+
+export function resolveWorkspaceContainedPath(targetPath: string, label = 'Project path'): string {
+	return resolveContainedPath(sparkWorkspaceRoot(), targetPath, label);
 }
 
 export function resolveSparkRunProjectPath(projectPath?: string): string {
@@ -40,14 +78,10 @@ export function resolveSparkRunProjectPath(projectPath?: string): string {
 	const rawPath = requested || join(defaultRoot, 'default');
 	const absolutePath = isAbsolute(rawPath) ? resolve(rawPath) : resolve(defaultRoot, rawPath);
 
-	if (!externalProjectPathsAllowed() && !isWithinDirectory(defaultRoot, absolutePath)) {
-		throw new SparkRunWorkspaceError(
-			`Project path must stay inside Spark workspace root (${defaultRoot}). ` +
-				`Use a relative workspace name like "${basename(absolutePath) || 'project'}", ` +
-				'or set SPARK_ALLOW_EXTERNAL_PROJECT_PATHS=1 for trusted local development.'
-		);
-	}
+	const containedPath = externalProjectPathsAllowed()
+		? absolutePath
+		: resolveContainedPath(defaultRoot, absolutePath, 'Project path');
 
-	mkdirSync(absolutePath, { recursive: true });
-	return absolutePath;
+	mkdirSync(containedPath, { recursive: true });
+	return containedPath;
 }

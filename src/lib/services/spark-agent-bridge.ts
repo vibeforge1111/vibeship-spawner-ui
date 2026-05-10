@@ -5,7 +5,13 @@ import type { Mission } from '$lib/services/mcp-client';
 import { TOP_100_MCPS } from '$lib/types/mcp';
 import { eventBridge } from '$lib/services/event-bridge';
 import { resolveCliBinary } from '$lib/server/cli-resolver';
+import {
+	assertHighAgencyWorkerAllowed,
+	highAgencyWorkersAllowed,
+	HIGH_AGENCY_WORKERS_ENV
+} from '$lib/server/high-agency-workers';
 import { spawnHidden, terminateProcessTree } from '$lib/server/hidden-process';
+import { resolveSparkRunProjectPath } from '$lib/server/spark-run-workspace';
 import {
 	PRECONFIGURED_MCPS,
 	callTool,
@@ -14,6 +20,7 @@ import {
 	getConnections,
 	getTools,
 	isConnected,
+	mcpCustomConfigAllowed,
 	type MCPClientConfig
 } from '$lib/services/mcp/client';
 
@@ -243,11 +250,12 @@ function isBinaryAvailable(binaryName: ProviderCommand['binary']): boolean {
 }
 
 export function prepareProviderWorkingDirectory(workingDirectory?: string): string {
-	const cwd = workingDirectory && workingDirectory.trim() ? workingDirectory : process.cwd();
 	if (workingDirectory && workingDirectory.trim()) {
+		const cwd = resolveSparkRunProjectPath(workingDirectory);
 		mkdirSync(cwd, { recursive: true });
+		return cwd;
 	}
-	return cwd;
+	return process.cwd();
 }
 
 function resolveProviderCommandTemplate(providerId: SparkAgentProviderId, model?: string, template?: string): string {
@@ -280,6 +288,9 @@ function parseProviderCommand(providerId: SparkAgentProviderId, commandTemplate:
 		throw new Error('Codex provider command must start with: codex exec');
 	}
 	if (tokens.length === 3 && tokens[2] === '--yolo') {
+		if (!highAgencyWorkersAllowed()) {
+			throw new Error(`Codex provider high-agency mode requires ${HIGH_AGENCY_WORKERS_ENV}=1`);
+		}
 		return {
 			binary: 'codex',
 			resolvedBinary: resolveCliBinary('codex') || 'codex',
@@ -293,7 +304,11 @@ function parseProviderCommand(providerId: SparkAgentProviderId, commandTemplate:
 			args: ['exec', '--skip-git-repo-check', '--model', tokens[3]]
 		};
 	}
-	throw new Error('Codex provider command must be: codex exec --model <model> or codex exec --yolo');
+	throw new Error('Codex provider command must be: codex exec --model <model>');
+}
+
+function commandUsesHighAgencyMode(command: ProviderCommand): boolean {
+	return command.binary === 'codex' && command.args.includes('--yolo');
 }
 
 function blockedProviderResponse(response: string | undefined): string | null {
@@ -1037,11 +1052,14 @@ class SparkAgentBridgeService {
 		let config: MCPClientConfig | null = null;
 		if (mcpId && PRECONFIGURED_MCPS[mcpId]) {
 			config = PRECONFIGURED_MCPS[mcpId];
-		} else {
+		} else if (params.config) {
+			if (!mcpCustomConfigAllowed()) {
+				throw new Error('Custom MCP configs are disabled. Use a preconfigured mcpId or set MCP_ALLOW_CUSTOM_CONFIG=1 for trusted local development.');
+			}
 			config = sanitizeMcpConfig(params.config);
 		}
 		if (!config) {
-			throw new Error('Provide a valid preconfigured mcpId or config');
+			throw new Error('Provide a valid preconfigured mcpId');
 		}
 
 		const connection = await connectMCP(instanceId, config);
@@ -1215,6 +1233,22 @@ class SparkAgentBridgeService {
 
 		if (!isBinaryAvailable(command.binary)) {
 			return { success: false, error: `${context.providerId} CLI "${command.binary}" not found in PATH` };
+		}
+		if (commandUsesHighAgencyMode(command)) {
+			let approval;
+			try {
+				approval = assertHighAgencyWorkerAllowed(context.workingDirectory);
+			} catch (error) {
+				return { success: false, error: error instanceof Error ? error.message : String(error) };
+			}
+			this.emitEvent(context.sessionId, 'spark_agent.worker.high_agency_approved', {
+				providerId: context.providerId,
+				missionId: context.missionId,
+				taskId: context.taskId || null,
+				workingDirectory: approval.workingDirectory,
+				workspaceRoot: approval.workspaceRoot,
+				externalProjectPathsAllowed: approval.externalProjectPathsAllowed
+			});
 		}
 
 		return await new Promise((resolve) => {

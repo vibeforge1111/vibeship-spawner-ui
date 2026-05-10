@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -79,6 +79,22 @@ describe('resolveSparkRunProjectPath', () => {
 		delete process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
 
 		expect(() => resolveSparkRunProjectPath(join(external, 'project'))).toThrow(SparkRunWorkspaceError);
+	});
+
+	it('rejects project paths that escape through a workspace symlink', () => {
+		const root = mkdtempSync(join(tmpdir(), 'spark-root-'));
+		const external = mkdtempSync(join(tmpdir(), 'spark-external-'));
+		const link = join(root, 'linked-out');
+		cleanupPaths.push(root, external);
+		process.env.SPARK_WORKSPACE_ROOT = root;
+		delete process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
+		try {
+			symlinkSync(external, link, process.platform === 'win32' ? 'junction' : 'dir');
+		} catch {
+			return;
+		}
+
+		expect(() => resolveSparkRunProjectPath(join(link, 'project'))).toThrow(SparkRunWorkspaceError);
 	});
 
 	it('allows external project paths only when explicitly enabled', () => {

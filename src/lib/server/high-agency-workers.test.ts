@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -79,8 +79,29 @@ describe('high-agency worker policy', () => {
 		expect(assertHighAgencyWorkerAllowed(external).workingDirectory).toBe(external);
 	});
 
+	it('rejects opted-in workers that escape through a workspace symlink', () => {
+		const root = tempDir('spark-high-agency-root-');
+		const external = tempDir('spark-high-agency-external-');
+		const link = join(root, 'linked-out');
+		process.env.SPARK_WORKSPACE_ROOT = root;
+		process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS = '1';
+		delete process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
+		try {
+			symlinkSync(external, link, process.platform === 'win32' ? 'junction' : 'dir');
+		} catch {
+			return;
+		}
+
+		expect(() => assertHighAgencyWorkerAllowed(join(link, 'project'))).toThrow(
+			'High-agency workers must run inside Spark workspace root'
+		);
+	});
+
 	it('defaults Codex sandboxing away from full access and gates explicit full access', () => {
 		expect(resolveCodexSandbox({})).toBe('workspace-write');
+		expect(() => resolveCodexSandbox({ SPARK_CODEX_SANDBOX: 'root' })).toThrow(
+			'Unsupported SPARK_CODEX_SANDBOX value'
+		);
 		expect(() => resolveCodexSandbox({ SPARK_CODEX_SANDBOX: 'danger-full-access' })).toThrow(
 			'SPARK_CODEX_SANDBOX=danger-full-access requires SPARK_ALLOW_HIGH_AGENCY_WORKERS=1'
 		);
