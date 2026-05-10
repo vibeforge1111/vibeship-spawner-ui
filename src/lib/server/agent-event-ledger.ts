@@ -93,6 +93,7 @@ export interface MissionControlAgentEventInput {
 	timestamp: string;
 	source: string;
 	requestId?: string | null;
+	traceRef?: string | null;
 	toState?: string | null;
 }
 
@@ -131,6 +132,7 @@ export function buildMissionControlAgentEvent(input: MissionControlAgentEventInp
 			task_name: input.taskName,
 			progress: input.progress,
 			to_state: toState,
+			trace_ref: normalizeNullable(input.traceRef),
 			bridge_source: input.source
 		},
 		sources: [

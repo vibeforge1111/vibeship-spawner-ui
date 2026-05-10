@@ -14,6 +14,7 @@ import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { validatePrdAnalysisResult } from '$lib/server/prd-analysis-result-schema';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { extractTraceRef } from '$lib/server/trace-ref';
 import { logger } from '$lib/utils/logger';
 
 import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
@@ -121,10 +122,12 @@ async function relayMetadataForMission(missionId: string): Promise<Record<string
 		const load = JSON.parse(raw) as { relay?: Record<string, unknown> };
 		const relay = load.relay && typeof load.relay === 'object' ? load.relay : null;
 		if (!relay || relay.missionId !== missionId) return {};
+		const traceRef = extractTraceRef(load, relay);
 		return {
 			chatId: typeof relay.chatId === 'string' ? relay.chatId : undefined,
 			userId: typeof relay.userId === 'string' ? relay.userId : undefined,
 			requestId: typeof relay.requestId === 'string' ? relay.requestId : undefined,
+			traceRef: traceRef || undefined,
 			goal: typeof relay.goal === 'string' ? relay.goal : undefined,
 			telegramRelay:
 				relay.telegramRelay && typeof relay.telegramRelay === 'object'
@@ -154,7 +157,6 @@ export const POST: RequestHandler = async (event) => {
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
 		apiKeyQueryParam: 'apiKey',
 		apiKeyCookieName: EVENTS_AUTH_COOKIE,
-		allowLoopbackWithoutKey: true,
 		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
 	});
 	if (unauthorized) return unauthorized;

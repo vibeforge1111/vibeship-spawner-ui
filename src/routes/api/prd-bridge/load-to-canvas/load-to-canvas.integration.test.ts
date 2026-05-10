@@ -107,6 +107,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 
 	it('preserves Telegram relay target metadata for canvas auto-run dispatch', async () => {
 		const requestId = 'tg-relay-target-test';
+		const traceRef = 'trace:spawner-prd:mission-tg-relay-target-test';
 		await writeFile(
 			path.join(testSpawnerDir, 'results', `${requestId}.json`),
 			JSON.stringify({
@@ -129,12 +130,14 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 			path.join(testSpawnerDir, 'pending-request.json'),
 			JSON.stringify({
 				requestId,
+				traceRef,
 				buildMode: 'advanced_prd',
 				buildModeReason: 'Multi-agent Telegram relay test.',
 				relay: {
 					chatId: '8319079055',
 					userId: '8319079055',
 					requestId,
+					traceRef,
 					goal: 'Build through the primary Telegram relay.',
 					telegramRelay: { port: 8789, profile: 'primary' }
 				}
@@ -153,11 +156,13 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		expect(response.status).toBe(200);
 		const pendingRaw = await readFile(path.join(testSpawnerDir, 'pending-load.json'), 'utf-8');
 		const pending = JSON.parse(pendingRaw);
+		expect(pending.traceRef).toBe(traceRef);
 		expect(pending.relay).toMatchObject({
 			missionId: 'mission-tg-relay-target-test',
 			chatId: '8319079055',
 			userId: '8319079055',
 			requestId,
+			traceRef,
 			autoRun: true,
 			buildMode: 'advanced_prd',
 			buildModeReason: 'Multi-agent Telegram relay test.',
@@ -167,6 +172,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const requestMeta = JSON.parse(requestRaw);
 		expect(requestMeta).toMatchObject({
 			requestId,
+			traceRef,
 			status: 'canvas_loaded',
 			pipelineId: `prd-${requestId}`,
 			canvasUrl: `/canvas?pipeline=prd-${requestId}&mission=mission-tg-relay-target-test`,
@@ -176,6 +182,71 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 				mobileReachable: false
 			}
 		});
+	});
+
+	it('carries capability proposal packets into canvas and mission metadata without changing normal task loading', async () => {
+		const requestId = 'tg-capability-packet-test';
+		const capabilityProposalPacket = {
+			schema_version: 'spark.capability_proposal.v1',
+			status: 'proposal_plan_only',
+			implementation_route: 'domain_chip',
+			owner_system: 'Spark domain chip runtime',
+			capability_ledger_key: 'domain_chip:email-summary-chip',
+			claim_boundary: 'This packet is a proposal plan, not proof that Spark has gained the capability.'
+		};
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify({
+				requestId,
+				success: true,
+				projectName: 'Spark Capability Packet Test',
+				tasks: [
+					{
+						id: 'task-1',
+						title: 'Plan capability chip',
+						summary: 'Keep capability packet attached while preserving the PRD task.',
+						skills: ['domain-chip']
+					}
+				],
+				executionPrompt: 'Build the capability packet test.'
+			}),
+			'utf-8'
+		);
+		await writeFile(
+			path.join(testSpawnerDir, 'pending-request.json'),
+			JSON.stringify({
+				requestId,
+				buildMode: 'advanced_prd',
+				buildModeReason: 'Capability proposal build.',
+				capabilityProposalPacket
+			}),
+			'utf-8'
+		);
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ requestId, autoRun: true })
+			})
+		} as never);
+
+		expect(response.status).toBe(200);
+		const pendingRaw = await readFile(path.join(testSpawnerDir, 'pending-load.json'), 'utf-8');
+		const pending = JSON.parse(pendingRaw);
+		expect(pending.nodes).toHaveLength(1);
+		expect(pending.capabilityProposalPacket).toMatchObject(capabilityProposalPacket);
+		expect(pending.metadata.capabilityProposalPacket).toMatchObject(capabilityProposalPacket);
+		expect(pending.capabilityProposalSummary).toMatchObject({
+			schemaVersion: 'spark.capability_proposal.v1',
+			status: 'proposal_plan_only',
+			implementationRoute: 'domain_chip',
+			ledgerKey: 'domain_chip:email-summary-chip',
+			ownerSystem: 'Spark domain chip runtime'
+		});
+		const requestRaw = await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8');
+		const requestMeta = JSON.parse(requestRaw);
+		expect(requestMeta.capabilityProposalSummary.ledgerKey).toBe('domain_chip:email-summary-chip');
 	});
 
 	it('returns hosted Mission Control access when a mobile URL is configured', async () => {

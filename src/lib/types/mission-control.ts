@@ -102,6 +102,7 @@ export interface MissionControlCompletionEvidence {
 
 export interface MissionControlBoardEntry {
 	missionId: string;
+	traceRef?: string | null;
 	missionName: string | null;
 	status: MissionControlBoardStatus;
 	lastEventType: string;

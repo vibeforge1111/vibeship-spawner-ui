@@ -24,6 +24,11 @@ import { formatTaskQualityGuidance } from '$lib/server/task-quality-rubric';
 import { formatVerificationPlanGuidance, generateVerificationPlan } from '$lib/server/verification-plan-generator';
 import { enrichBrief, isSparseUnderstandingClarification } from '$lib/server/brief-enricher';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import {
+	capabilityProposalSummary,
+	normalizeCapabilityProposalPacket
+} from '$lib/server/capability-proposal-packet';
+import { normalizeTraceRef, traceRefFromMissionId } from '$lib/server/trace-ref';
 
 function getPrdBridgePaths() {
 	const spawnerDir = spawnerStateDir();
@@ -70,6 +75,33 @@ async function appendPrdTrace(requestId: string, event: string, details: Record<
 	} catch {
 		// Never fail request flow on trace write.
 	}
+}
+
+type RunnerWritableState = 'yes' | 'no' | 'unknown';
+
+type RunnerCapability = {
+	runnerWritable: RunnerWritableState;
+	runnerLabel?: string;
+	failureReason?: string;
+	checkedAt?: string;
+};
+
+function normalizeRunnerCapability(input: unknown): RunnerCapability | null {
+	if (!input || typeof input !== 'object') return null;
+	const record = input as Record<string, unknown>;
+	const rawWritable = String(record.runnerWritable ?? 'unknown').trim().toLowerCase();
+	const runnerWritable: RunnerWritableState =
+		rawWritable === 'yes' || rawWritable === 'no' || rawWritable === 'unknown'
+			? rawWritable
+			: 'unknown';
+	const normalized: RunnerCapability = { runnerWritable };
+	for (const key of ['runnerLabel', 'failureReason', 'checkedAt'] as const) {
+		const value = record[key];
+		if (typeof value === 'string' && value.trim()) {
+			normalized[key] = value.trim();
+		}
+	}
+	return normalized;
 }
 
 async function updatePendingRequestStatus(
@@ -832,7 +864,7 @@ async function startAutoAnalysis(
 				missionId,
 				prompt,
 				model: 'gpt-5.5',
-				commandTemplate: 'codex exec --yolo',
+				commandTemplate: 'codex exec --model gpt-5.5',
 				workingDirectory: process.cwd(),
 				signal: controller.signal
 			})
@@ -872,7 +904,6 @@ export const POST: RequestHandler = async (event) => {
 			fallbackApiKeyEnvVar: 'MCP_API_KEY',
 			apiKeyQueryParam: 'apiKey',
 			apiKeyCookieName: 'spawner_events_api_key',
-			allowLoopbackWithoutKey: true,
 			allowedOriginsEnvVar: 'SPAWNER_ALLOWED_ORIGINS'
 		});
 		if (unauthorized) return unauthorized;
@@ -884,17 +915,24 @@ export const POST: RequestHandler = async (event) => {
 		});
 		if (rateLimited) return rateLimited;
 
-		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, telegramRelay, tier, forceDispatch } =
+		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, telegramRelay, tier, forceDispatch, runnerCapability, runner_capability, capabilityProposalPacket, capability_proposal_packet, traceRef, trace_ref } =
 			await event.request.json();
 		const normalizedBuildMode = normalizeBuildMode(buildMode);
 		const normalizedTier = normalizeTier(tier);
 		const normalizedTelegramRelay = normalizeTelegramRelay(telegramRelay);
+		const normalizedRunnerCapability = normalizeRunnerCapability(runnerCapability ?? runner_capability);
+		const normalizedCapabilityProposalPacket = normalizeCapabilityProposalPacket(
+			capabilityProposalPacket ?? capability_proposal_packet
+		);
+		const normalizedCapabilityProposalSummary = capabilityProposalSummary(normalizedCapabilityProposalPacket);
 		const skipClarification = forceDispatch === true;
 		const paths = getPrdBridgePaths();
 
 		if (!content || !requestId) {
 			return json({ error: 'Content and requestId are required' }, { status: 400 });
 		}
+		const missionId = missionIdFromRequestId(requestId);
+		const normalizedTraceRef = normalizeTraceRef(traceRef ?? trace_ref) || traceRefFromMissionId(missionId);
 
 		// Ensure .spawner directory exists
 		if (!existsSync(paths.spawnerDir)) {
@@ -921,6 +959,7 @@ export const POST: RequestHandler = async (event) => {
 		const finalContent = enrichment.enrichedContent;
 		if (enrichment.wasEnriched) {
 			await appendPrdTrace(requestId, 'brief_enriched', {
+				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 				originalLength: content.length,
 				enrichedLength: finalContent.length,
 				addedAssumptions: enrichment.addedAssumptions,
@@ -940,6 +979,7 @@ export const POST: RequestHandler = async (event) => {
 			forceDispatch: skipClarification
 		})) {
 			await appendPrdTrace(requestId, 'clarification_requested', {
+				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 				questionCount: enrichment.openQuestions.length,
 				briefLength: content.length
 			});
@@ -958,6 +998,10 @@ export const POST: RequestHandler = async (event) => {
 					openQuestions: enrichment.openQuestions,
 					tier: normalizedTier,
 					buildMode: normalizedBuildMode,
+					...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+					...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
+					...(normalizedCapabilityProposalPacket ? { capabilityProposalPacket: normalizedCapabilityProposalPacket } : {}),
+					...(normalizedCapabilityProposalSummary ? { capabilityProposalSummary: normalizedCapabilityProposalSummary } : {}),
 					timestamp: new Date().toISOString()
 				}, null, 2),
 				'utf-8'
@@ -974,7 +1018,6 @@ export const POST: RequestHandler = async (event) => {
 
 		// Write the (possibly enriched) PRD content to file
 		await writeFile(paths.pendingPrdFile, finalContent, 'utf-8');
-		const missionId = missionIdFromRequestId(requestId);
 		const projectLineage = _extractPrdBridgeProjectLineage(finalContent, projectName);
 
 		// Write request metadata
@@ -992,11 +1035,15 @@ export const POST: RequestHandler = async (event) => {
 			timestamp: new Date().toISOString(),
 			prdPath: paths.pendingPrdFile,
 			status: 'pending',
+			...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 			options: {
 				includeSkills: options?.includeSkills !== false,
 				includeMCPs: options?.includeMCPs !== false
 			},
 			projectLineage,
+			...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
+			...(normalizedCapabilityProposalPacket ? { capabilityProposalPacket: normalizedCapabilityProposalPacket } : {}),
+			...(normalizedCapabilityProposalSummary ? { capabilityProposalSummary: normalizedCapabilityProposalSummary } : {}),
 			relay:
 				typeof chatId === 'string' && chatId.trim()
 					? {
@@ -1004,16 +1051,23 @@ export const POST: RequestHandler = async (event) => {
 							userId: typeof userId === 'string' && userId.trim() ? userId.trim() : 'telegram',
 							missionId,
 							requestId,
+							...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 							goal: content.slice(0, 500),
 							...(projectLineage ? { projectLineage } : {}),
+							...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
 							...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {})
 						}
 					: undefined
 		};
 		await writeFile(paths.pendingRequestFile, JSON.stringify(requestMeta, null, 2), 'utf-8');
 		await appendPrdTrace(requestId, 'request_written', {
+			...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 			projectName: requestMeta.projectName,
-			buildMode: requestMeta.buildMode
+			buildMode: requestMeta.buildMode,
+			...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
+			...(normalizedCapabilityProposalSummary
+				? { capabilityProposal: normalizedCapabilityProposalSummary }
+				: {})
 		});
 		void relayMissionControlEvent({
 			type: 'mission_created',
@@ -1024,9 +1078,12 @@ export const POST: RequestHandler = async (event) => {
 			source: 'prd-bridge',
 			data: {
 				requestId,
+				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 				buildMode: requestMeta.buildMode,
 				buildModeReason: requestMeta.buildModeReason,
 				...(projectLineage ? { projectLineage } : {}),
+				...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
+				...(normalizedCapabilityProposalSummary ? { capabilityProposal: normalizedCapabilityProposalSummary } : {}),
 				...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {})
 			}
 		});
@@ -1080,6 +1137,7 @@ export const POST: RequestHandler = async (event) => {
 			success: true,
 			path: paths.pendingPrdFile,
 			requestId,
+			...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 			autoAnalysis: {
 				provider: auto.provider,
 				started: auto.started

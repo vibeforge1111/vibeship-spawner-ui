@@ -448,7 +448,8 @@ describe('mission-control-relay', () => {
 			taskId: 'task-8',
 			taskName: 'Build connector',
 			source: 'claude-code',
-			message: 'done'
+			message: 'done',
+			data: { traceRef: 'trace:spawner-prd:mission-1' }
 		});
 
 		expect(payload.v).toBe(1);
@@ -457,6 +458,8 @@ describe('mission-control-relay', () => {
 		expect(payload.session_id).toBe('mission-control:mission-1');
 		expect(payload.trace_id).toBe('evt-123');
 		expect((payload.payload as Record<string, unknown>).mission_event_type).toBe('task_completed');
+		expect((payload.payload as Record<string, unknown>).trace_ref).toBe('trace:spawner-prd:mission-1');
+		expect(((payload.payload as Record<string, unknown>).meta as Record<string, unknown>).trace_ref).toBe('trace:spawner-prd:mission-1');
 		expect((payload.payload as Record<string, unknown>).summary).toContain('Build connector is done.');
 	});
 
@@ -774,6 +777,7 @@ describe('mission-control-relay', () => {
 	it('records mission lifecycle events in the Agent Event Model ledger', async () => {
 		const missionId = `mission-agent-ledger-${Date.now()}`;
 		const requestId = `request-agent-ledger-${Date.now()}`;
+		const traceRef = `trace:spawner-prd:${missionId}`;
 
 		await relayMissionControlEvent({
 			type: 'mission_created',
@@ -781,7 +785,7 @@ describe('mission-control-relay', () => {
 			missionName: 'Agent Ledger Mission',
 			source: 'spark-run',
 			timestamp: freshIso(),
-			data: { requestId, telegramRelay: { port: 1 } }
+			data: { requestId, traceRef, telegramRelay: { port: 1 } }
 		});
 		await relayMissionControlEvent({
 			type: 'mission_completed',
@@ -789,8 +793,13 @@ describe('mission-control-relay', () => {
 			missionName: 'Agent Ledger Mission',
 			source: 'codex',
 			timestamp: freshIso(10_000),
-			data: { requestId, telegramRelay: { port: 1 } }
+			data: { requestId, traceRef, telegramRelay: { port: 1 } }
 		});
+
+		const snapshot = getMissionControlRelaySnapshot(missionId);
+		expect(snapshot.recent[0].traceRef).toBe(traceRef);
+		const board = getMissionControlBoard();
+		expect(board.completed.find((entry) => entry.missionId === missionId)?.traceRef).toBe(traceRef);
 
 		const events = readRecentAgentEvents({ requestId, limit: 5 });
 
@@ -807,6 +816,7 @@ describe('mission-control-relay', () => {
 			selected_route: 'mission_control',
 			route_confidence: 'high'
 		});
+		expect(events[0].facts.trace_ref).toBe(traceRef);
 		expect(events[0].sources[0]).toMatchObject({
 			source: 'mission_trace',
 			role: 'work_state_evidence',
@@ -1341,6 +1351,40 @@ describe('mission-control-relay', () => {
 			['Implement checklist state and progress', 'queued', 0],
 			['Polish the dark Mission Control UI', 'queued', 0],
 			['Write README and run smoke checks', 'queued', 0]
+		]);
+	});
+
+	it('uses the human task name for single assigned task provider activity', async () => {
+		const missionId = `mission-single-assigned-task-name-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			source: 'spark-run',
+			timestamp: freshIso(),
+			data: { telegramRelay: { port: 1 } }
+		});
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			taskId: 'task-1',
+			taskName: 'Execute goal',
+			source: 'spark-run',
+			progress: 8,
+			timestamp: freshIso(1_000),
+			data: {
+				assignedTaskIds: ['task-1'],
+				assignedTaskCount: 1,
+				telegramRelay: { port: 1 }
+			}
+		});
+
+		const board = getMissionControlBoard();
+		const running = board.running.find((candidate) => candidate.missionId === missionId);
+
+		expect(running?.taskNames).toEqual(['Execute goal']);
+		expect(running?.tasks).toEqual([
+			{ title: 'Execute goal', skills: [], status: 'running' }
 		]);
 	});
 

@@ -20,6 +20,7 @@ import {
 	missionStateForEvent
 } from './agent-event-ledger';
 import { spawnerStateDir } from './spawner-state';
+import { extractTraceRef } from './trace-ref';
 import {
 	emptyMissionControlTaskStatusCounts,
 	isMissionControlTerminalStatus,
@@ -64,6 +65,7 @@ export interface MissionControlRelayStatusEntry {
 	plannedTasks: Array<{ title: string; skills: string[] }>;
 	assignedTaskIds: string[];
 	requestId: string | null;
+	traceRef: string | null;
 	progress: number | null;
 	summary: string;
 	timestamp: string;
@@ -119,11 +121,24 @@ const DEFAULT_STALE_NON_TERMINAL_MS = 24 * 60 * 60 * 1000;
 
 const DEFAULT_SPARK_INGEST_URL = env.SPARK_MISSION_CONTROL_INGEST_URL || '';
 const DEFAULT_SPARK_TOKEN = env.SPARKD_TOKEN || '';
-const DEFAULT_WEBHOOKS = (env.MISSION_CONTROL_WEBHOOK_URLS || '')
+
+function localEnvValue(key: string): string | null {
+	const envPath = path.resolve(process.cwd(), '.env');
+	if (!fs.existsSync(envPath)) return null;
+	const lines = fs.readFileSync(envPath, 'utf-8').split(/\r?\n/);
+	for (const line of [...lines].reverse()) {
+		const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)\s*$/);
+		if (!match || match[1] !== key) continue;
+		return match[2].trim().replace(/^(['"])(.*)\1$/, '$2');
+	}
+	return null;
+}
+
+const DEFAULT_WEBHOOKS = (localEnvValue('MISSION_CONTROL_WEBHOOK_URLS') || env.MISSION_CONTROL_WEBHOOK_URLS || '')
 	.split(',')
 	.map((value) => value.trim())
 	.filter(Boolean);
-const DEFAULT_TELEGRAM_RELAY_SECRET = env.TELEGRAM_RELAY_SECRET || '';
+const DEFAULT_TELEGRAM_RELAY_SECRET = localEnvValue('TELEGRAM_RELAY_SECRET') || env.TELEGRAM_RELAY_SECRET?.trim() || '';
 const STALE_NON_TERMINAL_MS = Number(env.MISSION_CONTROL_STALE_NONTERMINAL_MS) || DEFAULT_STALE_NON_TERMINAL_MS;
 const TASK_TERMINAL_EVENTS = new Set(['task_completed', 'task_failed', 'task_cancelled']);
 
@@ -261,6 +276,7 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		event.data && typeof (event.data as Record<string, unknown>).requestId === 'string'
 			? ((event.data as Record<string, unknown>).requestId as string).trim() || null
 			: null;
+	const traceRef = extractTraceRef(event.data, event);
 	const dataTaskId = event.data && typeof (event.data as Record<string, unknown>).taskId === 'string'
 		? ((event.data as Record<string, unknown>).taskId as string)
 		: null;
@@ -299,6 +315,7 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		plannedTasks,
 		assignedTaskIds,
 		requestId,
+		traceRef,
 		progress,
 		summary: summarizeMissionControlEvent(event),
 		timestamp,
@@ -351,6 +368,7 @@ function recordAgentLedgerEvent(entry: MissionControlRelayStatusEntry): void {
 				timestamp: entry.timestamp,
 				source: entry.source,
 				requestId: requestIdFromStatusEntry(entry),
+				traceRef: entry.traceRef,
 				toState: missionStateForEvent(entry.eventType)
 			}),
 			{
@@ -680,8 +698,11 @@ function maybeRecordAssignedTaskPackProgress(
 		const isActiveTask = taskId === activeTaskId;
 		let task = findTaskForAssignedTaskId(entry, taskId, index);
 		if (!task) {
+			const title = isActiveTask && event.taskName
+				? sanitizeMissionControlDisplayText(event.taskName)
+				: sanitizeMissionControlDisplayText(taskId);
 			task = {
-				title: sanitizeMissionControlDisplayText(taskId),
+				title,
 				skills: [],
 				status: isActiveTask ? 'running' : 'queued'
 			};
@@ -860,6 +881,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 		if (!existing) {
 			byMission.set(entry.missionId, {
 				missionId: entry.missionId,
+				traceRef: entry.traceRef,
 				missionName: entry.missionName ? sanitizeMissionControlDisplayText(entry.missionName) : null,
 				status,
 				lastEventType: entry.eventType,
@@ -878,6 +900,9 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 				projectLineage: entry.projectLineage ?? null
 			});
 		} else {
+			if (!existing.traceRef && entry.traceRef) {
+				existing.traceRef = entry.traceRef;
+			}
 			if (!existing.taskName && entry.taskName) existing.taskName = sanitizeMissionControlDisplayText(entry.taskName);
 			if (!existing.missionName && entry.missionName) {
 				existing.missionName = sanitizeMissionControlDisplayText(entry.missionName);
@@ -1011,6 +1036,7 @@ export function buildSparkMissionControlEvent(event: MissionControlBridgeEvent):
 	const ts = Number.isFinite(tsMs) ? Math.max(1, tsMs / 1000) : Date.now() / 1000;
 	const missionId = normalizeMissionId(event);
 	const missionControlAccess = resolveMissionControlAccess(missionControlPathForMission(missionId));
+	const traceRef = extractTraceRef(event.data, event);
 	const safeEvent = redactMissionControlEventForExternal(event);
 	const safeData = redactMissionControlDataForExternal(event);
 	const summary = sanitizeExternalText(summarizeMissionControlEvent(event), 220);
@@ -1031,12 +1057,14 @@ export function buildSparkMissionControlEvent(event: MissionControlBridgeEvent):
 			mission_id: typeof event.missionId === 'string' ? event.missionId : null,
 			task_id: typeof event.taskId === 'string' ? event.taskId : null,
 			task_name: typeof event.taskName === 'string' ? event.taskName : null,
+			trace_ref: traceRef,
 			message: typeof event.message === 'string' ? sanitizeExternalText(event.message, 220) : null,
 			summary,
 			bridge_source: typeof event.source === 'string' ? event.source : 'unknown',
 			meta: {
 				origin: 'spawner-ui',
 				event_id: typeof event.id === 'string' ? event.id : null,
+				trace_ref: traceRef,
 				mission_control_access: missionControlAccess
 			},
 			data: safeData,
@@ -1139,7 +1167,8 @@ const EXTERNAL_SAFE_DATA_KEYS = new Set([
 	'telegramRelay',
 	'telegramRelayPort',
 	'telegramRelayProfile',
-	'title'
+	'title',
+	'traceRef'
 ]);
 const SENSITIVE_EXTERNAL_DATA_KEY = /(?:content|env|file|full|goal|key|log|output|password|path|prompt|raw|secret|source|token|workspace)/i;
 

@@ -33,6 +33,7 @@ interface PrdAutoSkill {
 
 export interface PrdCanvasLoadForAutoDispatch {
 	requestId: string;
+	traceRef?: string;
 	missionId: string;
 	pipelineId: string;
 	pipelineName: string;
@@ -47,6 +48,9 @@ export interface PrdCanvasLoadForAutoDispatch {
 	relay?: Record<string, unknown>;
 	buildMode?: 'direct' | 'advanced_prd';
 	buildModeReason?: string;
+	capabilityProposalSummary?: unknown;
+	capabilityProposalPacket?: unknown;
+	metadata?: Record<string, unknown>;
 }
 
 export interface PrdAutoDispatchResult {
@@ -444,9 +448,11 @@ export async function autoDispatchPrdCanvasLoad(
 
 		const relayData = {
 			...load.relay,
+			...(load.traceRef ? { traceRef: load.traceRef } : {}),
 			missionName: load.pipelineName,
 			projectPath,
 			tier: normalizeLoadTier(load),
+			...(load.capabilityProposalSummary ? { capabilityProposal: load.capabilityProposalSummary } : {}),
 			plannedTasks: plannedTasksFromMission(buildResult.mission.tasks, taskSkillMap),
 			providers: [provider.id]
 		};

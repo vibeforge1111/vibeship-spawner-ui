@@ -10,6 +10,11 @@ import {
 	resolveMissionControlAccess
 } from '$lib/server/mission-control-access';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import {
+	capabilityProposalSummary,
+	normalizeCapabilityProposalPacket
+} from '$lib/server/capability-proposal-packet';
+import { extractTraceRef, normalizeTraceRef, traceRefFromMissionId } from '$lib/server/trace-ref';
 
 function getSpawnerDir(): string {
 	return spawnerStateDir();
@@ -129,7 +134,7 @@ function buildConnections(tasks: TaskRecord[]): Array<{ sourceIndex: number; tar
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
-		const { requestId, autoRun, telegramRelay, missionId, chatId, userId, goal, buildMode: bodyBuildMode, buildModeReason: bodyBuildModeReason } = await request.json();
+		const { requestId, autoRun, telegramRelay, missionId, chatId, userId, goal, buildMode: bodyBuildMode, buildModeReason: bodyBuildModeReason, traceRef, trace_ref } = await request.json();
 		const normalizedTelegramRelay = normalizeTelegramRelay(telegramRelay);
 		if (!requestId || typeof requestId !== 'string') {
 			return json({ error: 'requestId (string) required' }, { status: 400 });
@@ -137,6 +142,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const resolvedMissionId = typeof missionId === 'string' && missionId.trim()
 			? missionId.trim()
 			: missionIdFromRequestId(requestId);
+		let resolvedTraceRef = normalizeTraceRef(traceRef ?? trace_ref);
 
 		const path = resultFilePath(requestId);
 		const spawnerDir = getSpawnerDir();
@@ -153,6 +159,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			projectName?: string;
 			executionPrompt?: string;
 			tasks?: TaskRecord[];
+			capabilityProposalPacket?: unknown;
+			capability_proposal_packet?: unknown;
 		};
 
 		if (!parsed.success || !Array.isArray(parsed.tasks) || parsed.tasks.length === 0) {
@@ -170,6 +178,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		let buildMode: 'direct' | 'advanced_prd' = bodyBuildMode === 'advanced_prd' ? 'advanced_prd' : 'direct';
 		let buildModeReason = typeof bodyBuildModeReason === 'string' ? bodyBuildModeReason : '';
 		let pendingRequestMeta: Record<string, unknown> | null = null;
+		let capabilityProposalPacket = normalizeCapabilityProposalPacket(
+			parsed.capabilityProposalPacket ?? parsed.capability_proposal_packet
+		);
 		if (existsSync(pendingRequestFile)) {
 			try {
 				const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
@@ -181,6 +192,13 @@ export const POST: RequestHandler = async ({ request }) => {
 				};
 				if (pending.requestId === requestId) {
 					pendingRequestMeta = pending as Record<string, unknown>;
+					resolvedTraceRef =
+						resolvedTraceRef ||
+						extractTraceRef(pendingRequestMeta, parsed) ||
+						traceRefFromMissionId(resolvedMissionId);
+					capabilityProposalPacket =
+						normalizeCapabilityProposalPacket(pendingRequestMeta.capabilityProposalPacket) ||
+						capabilityProposalPacket;
 				}
 				if (pending.requestId === requestId) {
 					buildMode = pending.buildMode === 'advanced_prd' ? 'advanced_prd' : 'direct';
@@ -192,6 +210,7 @@ export const POST: RequestHandler = async ({ request }) => {
 						missionId: resolvedMissionId,
 						...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {}),
 						requestId,
+						...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
 						autoRun: autoRun !== false,
 						buildMode,
 						buildModeReason
@@ -201,12 +220,15 @@ export const POST: RequestHandler = async ({ request }) => {
 				// Relay metadata is best-effort; canvas loading should still work.
 			}
 		}
+		resolvedTraceRef = resolvedTraceRef || extractTraceRef(parsed) || traceRefFromMissionId(resolvedMissionId);
+		const capabilitySummary = capabilityProposalSummary(capabilityProposalPacket);
 		if (!relay && (typeof chatId === 'string' || typeof userId === 'string' || typeof goal === 'string' || normalizedTelegramRelay)) {
 			relay = {
 				missionId: resolvedMissionId,
 				...(typeof chatId === 'string' && chatId.trim() ? { chatId: chatId.trim() } : {}),
 				...(typeof userId === 'string' && userId.trim() ? { userId: userId.trim() } : {}),
 				requestId,
+				...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
 				...(typeof goal === 'string' && goal.trim() ? { goal } : {}),
 				...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {}),
 				autoRun: autoRun !== false,
@@ -217,10 +239,14 @@ export const POST: RequestHandler = async ({ request }) => {
 		if (relay && !relay.missionId) {
 			relay.missionId = resolvedMissionId;
 		}
+		if (relay && resolvedTraceRef && !relay.traceRef) {
+			relay.traceRef = resolvedTraceRef;
+		}
 
 		const load = {
 			requestId,
 			missionId: resolvedMissionId,
+			...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
 			pipelineId: `prd-${requestId}`,
 			pipelineName: parsed.projectName || `PRD ${requestId}`,
 			nodes,
@@ -230,6 +256,13 @@ export const POST: RequestHandler = async ({ request }) => {
 			buildMode,
 			buildModeReason,
 			executionPrompt: parsed.executionPrompt,
+			...(capabilityProposalPacket ? { capabilityProposalPacket } : {}),
+			...(capabilitySummary ? { capabilityProposalSummary: capabilitySummary } : {}),
+			metadata: {
+				...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
+				...(capabilityProposalPacket ? { capabilityProposalPacket } : {}),
+				...(capabilitySummary ? { capabilityProposalSummary: capabilitySummary } : {})
+			},
 			relay,
 			timestamp: new Date().toISOString()
 		};
@@ -245,9 +278,12 @@ export const POST: RequestHandler = async ({ request }) => {
 						...pendingRequestMeta,
 						status: 'canvas_loaded',
 						canvasLoadedAt: new Date().toISOString(),
+						...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
 						pipelineId: load.pipelineId,
 						canvasUrl: `/canvas?pipeline=${encodeURIComponent(load.pipelineId)}&mission=${encodeURIComponent(resolvedMissionId)}`,
-						missionControlAccess
+						missionControlAccess,
+						...(capabilityProposalPacket ? { capabilityProposalPacket } : {}),
+						...(capabilitySummary ? { capabilityProposalSummary: capabilitySummary } : {})
 					},
 					null,
 					2
@@ -264,8 +300,10 @@ export const POST: RequestHandler = async ({ request }) => {
 			source: 'prd-bridge',
 			data: {
 				requestId,
+				...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
 				buildMode,
 				buildModeReason,
+				...(capabilitySummary ? { capabilityProposal: capabilitySummary } : {}),
 				plannedTasks: parsed.tasks.map((task) => ({
 					title: task.title,
 					skills: task.skills || []
@@ -288,6 +326,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				source: 'prd-auto-dispatch',
 				data: {
 					requestId,
+					...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
 					buildMode,
 					buildModeReason,
 					error: autoDispatchResult.error,
@@ -301,6 +340,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			success: true,
 			pipelineId: load.pipelineId,
 			pipelineName: load.pipelineName,
+			...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
 			taskCount: nodes.length,
 			connectionCount: connections.length,
 			autoDispatch: autoDispatchResult,

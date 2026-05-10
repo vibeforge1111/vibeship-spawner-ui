@@ -20,6 +20,7 @@ import {
 	type AgentBlackBoxReport
 } from './agent-event-ledger';
 import { spawnerStateDir } from './spawner-state';
+import { extractTraceRef } from './trace-ref';
 import type { ProviderMissionResultSnapshot } from './provider-runtime';
 import type {
 	MissionControlAccessInfo,
@@ -50,6 +51,7 @@ export interface MissionControlTrace {
 	ok: true;
 	missionId: string | null;
 	requestId: string | null;
+	traceRef: string | null;
 	phase: MissionControlTracePhase;
 	summary: string;
 	progress: {
@@ -326,6 +328,7 @@ export async function buildMissionControlTrace(input: {
 		input.getProviderResults
 	) as BoardBuckets;
 	const { bucket, entry } = findBoardEntry(board, missionId);
+	const traceRef = extractTraceRef(pendingRequest, lastCanvasLoad, entry) || null;
 	const dispatchStatus = missionId && input.getDispatchStatus ? input.getDispatchStatus(missionId) : null;
 	const relay = entry?.telegramRelay ?? null;
 	const traceSnapshot = getMissionControlRelaySnapshot(missionId || undefined);
@@ -348,6 +351,7 @@ export async function buildMissionControlTrace(input: {
 		ok: true,
 		missionId,
 		requestId,
+		traceRef,
 		phase,
 		summary: summaryFor(phase, entry),
 		progress: {

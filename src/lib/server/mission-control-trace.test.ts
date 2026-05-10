@@ -39,13 +39,16 @@ describe('mission-control-trace', () => {
 		const stateDir = await makeStateDir();
 		const requestId = 'tg-unit-planning-1777371000000';
 		const missionId = 'mission-1777371000000';
+		const traceRef = 'trace:spawner-prd:mission-1777371000000';
 
 		await writeJson(path.join(stateDir, 'pending-request.json'), {
 			requestId,
+			traceRef,
 			status: 'processed',
 			relay: {
 				missionId,
 				requestId,
+				traceRef,
 				chatId: 'chat-1',
 				userId: 'user-1',
 				telegramRelay: { port: 8789, profile: 'spark-agi' }
@@ -60,6 +63,7 @@ describe('mission-control-trace', () => {
 		expect(trace).toMatchObject({
 			requestId,
 			missionId,
+			traceRef,
 			phase: 'planning',
 			summary: 'Spark is shaping the PRD and preparing the canvas.',
 			surfaces: {
@@ -82,6 +86,7 @@ describe('mission-control-trace', () => {
 		const stateDir = await makeStateDir();
 		const requestId = 'tg-unit-canvas-1777371000001';
 		const missionId = 'mission-1777371000001';
+		const traceRef = 'trace:spawner-prd:mission-1777371000001';
 
 		await writeJson(path.join(stateDir, 'results', `${requestId}.json`), {
 			requestId,
@@ -89,11 +94,12 @@ describe('mission-control-trace', () => {
 			projectName: 'Trace Unit Canvas'
 		});
 		await writeJson(path.join(stateDir, 'last-canvas-load.json'), {
+			traceRef,
 			pipelineId: `prd-${requestId}`,
 			pipelineName: 'Trace Unit Canvas',
 			autoRun: true,
 			nodes: [{ id: 'task-1' }, { id: 'task-2' }],
-			relay: { missionId, requestId }
+			relay: { missionId, requestId, traceRef }
 		});
 
 		const trace = await buildMissionControlTrace({
@@ -104,6 +110,7 @@ describe('mission-control-trace', () => {
 		expect(trace).toMatchObject({
 			requestId,
 			missionId,
+			traceRef,
 			phase: 'canvas_ready',
 			surfaces: {
 				canvas: {

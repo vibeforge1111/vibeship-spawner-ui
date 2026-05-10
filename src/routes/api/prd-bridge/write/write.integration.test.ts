@@ -1,13 +1,24 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { existsSync } from 'fs';
-import { mkdtemp, rm } from 'fs/promises';
+import { mkdtemp, readFile, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
 import { POST } from './+server';
 
+const { PRIVATE_ENV } = vi.hoisted(() => ({
+	PRIVATE_ENV: {
+		SPARK_BRIDGE_API_KEY: 'bridge-test-key',
+		MCP_API_KEY: ''
+	} as Record<string, string>
+}));
+
+vi.mock('$env/dynamic/private', () => ({ env: PRIVATE_ENV }));
+
 let testSpawnerDir: string;
 const originalProvider = process.env.SPARK_MISSION_LLM_PROVIDER;
 const originalStateDir = process.env.SPAWNER_STATE_DIR;
+const BRIDGE_TEST_KEY = 'bridge-test-key';
+const originalBridgeKey = process.env.SPARK_BRIDGE_API_KEY;
 
 async function resetTestSpawnerDir() {
 	if (testSpawnerDir && existsSync(testSpawnerDir)) {
@@ -17,6 +28,8 @@ async function resetTestSpawnerDir() {
 	else process.env.SPAWNER_STATE_DIR = originalStateDir;
 	if (originalProvider === undefined) delete process.env.SPARK_MISSION_LLM_PROVIDER;
 	else process.env.SPARK_MISSION_LLM_PROVIDER = originalProvider;
+	if (originalBridgeKey === undefined) delete process.env.SPARK_BRIDGE_API_KEY;
+	else process.env.SPARK_BRIDGE_API_KEY = originalBridgeKey;
 }
 
 describe('/api/prd-bridge/write integration', () => {
@@ -24,6 +37,7 @@ describe('/api/prd-bridge/write integration', () => {
 		await resetTestSpawnerDir();
 		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-prd-write-'));
 		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
+		process.env.SPARK_BRIDGE_API_KEY = BRIDGE_TEST_KEY;
 	});
 
 	afterEach(async () => {
@@ -33,17 +47,36 @@ describe('/api/prd-bridge/write integration', () => {
 	it('writes deterministic fallback analysis when hosted provider cannot start an auto worker', async () => {
 		process.env.SPARK_MISSION_LLM_PROVIDER = 'zai';
 		const requestId = 'tg-build-smoke-fallback-test';
+		const traceRef = 'trace:spawner-prd:mission-tg-build-smoke-fallback-test';
+		const capabilityProposalPacket = {
+			schema_version: 'spark.capability_proposal.v1',
+			status: 'proposal_plan_only',
+			implementation_route: 'domain_chip',
+			owner_system: 'Spark domain chip runtime',
+			capability_ledger_key: 'domain_chip:cafe-memory-reporter'
+		};
+		const runnerCapability = {
+			runnerWritable: 'no',
+			runnerLabel: 'telegram-chat-runner',
+			failureReason: 'read-only preflight failed',
+			checkedAt: '2026-05-10T00:00:00.000Z'
+		};
 
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/write', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-api-key': BRIDGE_TEST_KEY },
 				body: JSON.stringify({
 					content: '# Cafe Landing Page\n\nBuild mode: direct\n\nBuild a tiny static landing page for a cafe with a menu section.',
 					requestId,
 					projectName: 'Cafe Landing Page',
 					buildMode: 'direct',
-					tier: 'pro'
+					tier: 'pro',
+					chatId: 'telegram-chat-1',
+					userId: 'telegram-user-1',
+					traceRef,
+					runnerCapability,
+					capabilityProposalPacket
 				})
 			}),
 			getClientAddress: () => '127.0.0.1'
@@ -53,5 +86,18 @@ describe('/api/prd-bridge/write integration', () => {
 		expect(response.status).toBe(200);
 		expect(body.autoAnalysis).toMatchObject({ provider: 'zai', started: false });
 		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(true);
+		const pendingMeta = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
+		expect(pendingMeta.traceRef).toBe(traceRef);
+		expect(pendingMeta.relay.traceRef).toBe(traceRef);
+		expect(pendingMeta.runnerCapability).toMatchObject(runnerCapability);
+		expect(pendingMeta.relay.runnerCapability).toMatchObject(runnerCapability);
+		expect(pendingMeta.capabilityProposalPacket).toMatchObject(capabilityProposalPacket);
+		expect(pendingMeta.capabilityProposalSummary).toMatchObject({
+			schemaVersion: 'spark.capability_proposal.v1',
+			status: 'proposal_plan_only',
+			implementationRoute: 'domain_chip',
+			ledgerKey: 'domain_chip:cafe-memory-reporter',
+			ownerSystem: 'Spark domain chip runtime'
+		});
 	});
 });
