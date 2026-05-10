@@ -8,6 +8,34 @@
 	let pipelineCount = $state(0);
 	let generatedSkillsCount = $state(0);
 	let localStorageSize = $state('0 KB');
+	let accessPanel = $state<{
+		loading: boolean;
+		error: string;
+		runningActionId: string;
+		result: string;
+		actions: Array<{
+			id: string;
+			label: string;
+			displayCommand: string;
+			runPolicy: string;
+			confirmation?: string;
+		}>;
+		access: {
+			recommended?: {
+				id?: string;
+				label?: string;
+				userMessage?: string;
+				runPolicy?: string;
+			};
+		};
+	}>({
+		loading: true,
+		error: '',
+		runningActionId: '',
+		result: '',
+		actions: [],
+		access: {}
+	});
 
 	function calculateLocalStorageSize(): string {
 		if (!browser) return '0 KB';
@@ -47,11 +75,72 @@
 		window.location.reload();
 	}
 
+	async function refreshAccessPanel() {
+		if (!browser) return;
+		accessPanel.loading = true;
+		accessPanel.error = '';
+		try {
+			const response = await fetch('/api/access/execution-lanes');
+			const body = await response.json();
+			if (!response.ok || body.success === false) {
+				throw new Error(body.error || 'Access lane check failed');
+			}
+			accessPanel.access = body.access || {};
+			accessPanel.actions = Array.isArray(body.actions) ? body.actions : [];
+		} catch (error) {
+			accessPanel.error = error instanceof Error ? error.message : 'Access lane check failed';
+		} finally {
+			accessPanel.loading = false;
+		}
+	}
+
+	function accessActionVisible(action: { id: string }) {
+		return ['workspace_setup', 'docker_doctor', 'docker_smoke', 'level5_enable', 'level5_disable'].includes(action.id);
+	}
+
+	async function runAccessAction(action: { id: string; label: string; runPolicy: string; confirmation?: string }) {
+		const body: { actionId: string; confirmed?: boolean; explicitOptIn?: string } = { actionId: action.id };
+		if (action.runPolicy === 'confirm_once') {
+			if (!confirm(`${action.label}\n\n${action.confirmation || 'Confirm this access action.'}`)) return;
+			body.confirmed = true;
+		}
+		if (action.runPolicy === 'explicit_opt_in') {
+			const required = action.confirmation || 'Enable whole-computer operator mode';
+			const typed = prompt(`Type this exact phrase to continue:\n\n${required}`);
+			if (typed !== required) return;
+			body.explicitOptIn = typed;
+		}
+
+		accessPanel.runningActionId = action.id;
+		accessPanel.result = '';
+		accessPanel.error = '';
+		try {
+			const response = await fetch('/api/access/execution-lanes', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(body)
+			});
+			const result = await response.json();
+			if (!response.ok || result.success === false) {
+				throw new Error(result.error || 'Access action failed');
+			}
+			const payload = result.result?.payload || {};
+			const next = payload.next || result.result?.stderr || '';
+			accessPanel.result = `${action.label} finished.${next ? ` Next: ${next}` : ''}`;
+			await refreshAccessPanel();
+		} catch (error) {
+			accessPanel.error = error instanceof Error ? error.message : 'Access action failed';
+		} finally {
+			accessPanel.runningActionId = '';
+		}
+	}
+
 	$effect(() => {
 		const unsubscribe = pipelines.subscribe((items) => {
 			pipelineCount = items.length;
 		});
 		refreshStorageStats();
+		refreshAccessPanel();
 		return () => unsubscribe();
 	});
 </script>
@@ -64,6 +153,75 @@
 			<h1 class="text-3xl font-serif text-text-primary mb-2">Settings</h1>
 			<p class="text-text-secondary">Spawner keeps runtime data local. Provider setup and mission options live in the execution flow.</p>
 		</div>
+
+		<section class="mb-12">
+			<div class="mb-6 flex items-center justify-between">
+				<div>
+					<h2 class="flex items-center gap-2 text-xl font-medium text-text-primary">
+						Safe Access
+						<span class="text-sm font-mono text-accent-secondary">Spark CLI</span>
+					</h2>
+					<p class="mt-1 text-sm text-text-secondary">
+						Set up the workspace sandbox, check Docker, and manage Level 5 guardrails without using a terminal.
+					</p>
+				</div>
+				<button
+					onclick={refreshAccessPanel}
+					class="px-3 py-1.5 text-sm font-mono text-text-secondary border border-surface-border hover:border-text-tertiary transition-all"
+				>
+					Refresh
+				</button>
+			</div>
+
+			<div class="border border-surface-border bg-bg-secondary">
+				<div class="border-b border-surface-border p-4">
+					<div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+						<div>
+							<p class="text-sm font-medium text-text-primary">
+								{accessPanel.access.recommended?.label || 'Spark Workspace Sandbox'}
+							</p>
+							<p class="mt-1 text-sm text-text-secondary">
+								{accessPanel.access.recommended?.userMessage || 'Spark will prefer a safe workspace before broader access.'}
+							</p>
+						</div>
+						<span class="w-fit border border-accent-primary/30 bg-accent-primary/10 px-2 py-1 text-xs font-mono text-accent-primary">
+							{accessPanel.access.recommended?.runPolicy || 'auto_safe'}
+						</span>
+					</div>
+				</div>
+
+				<div class="grid gap-3 p-4 md:grid-cols-2">
+					{#if accessPanel.loading}
+						<p class="text-sm text-text-secondary">Checking access lanes...</p>
+					{:else}
+						{#each accessPanel.actions.filter(accessActionVisible) as action}
+							<button
+								onclick={() => runAccessAction(action)}
+								disabled={Boolean(accessPanel.runningActionId)}
+								class="border border-surface-border bg-bg-primary p-4 text-left transition-all hover:border-accent-primary/50 disabled:cursor-wait disabled:opacity-60"
+							>
+								<div class="flex items-center justify-between gap-3">
+									<span class="font-medium text-text-primary">{action.label}</span>
+									<span class="text-xs font-mono text-text-tertiary">{action.runPolicy}</span>
+								</div>
+								<p class="mt-2 text-xs font-mono text-text-secondary">{action.displayCommand}</p>
+								{#if action.confirmation}
+									<p class="mt-2 text-xs text-status-yellow">{action.confirmation}</p>
+								{/if}
+							</button>
+						{/each}
+					{/if}
+				</div>
+
+				{#if accessPanel.error || accessPanel.result}
+					<div class="border-t border-surface-border p-4">
+						<p class={accessPanel.error ? 'text-sm text-red-400' : 'text-sm text-status-green'}>
+							{accessPanel.error || accessPanel.result}
+						</p>
+					</div>
+				{/if}
+			</div>
+		</section>
 
 		<section class="mb-12">
 			<div class="flex items-center justify-between mb-6">
