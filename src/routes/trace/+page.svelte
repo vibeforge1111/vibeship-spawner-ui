@@ -3,6 +3,7 @@
 	import Navbar from '$lib/components/Navbar.svelte';
 	import Footer from '$lib/components/Footer.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import type { MissionControlCompletionEvidence } from '$lib/types/mission-control';
 
 	type TaskCounts = {
 		queued: number;
@@ -74,6 +75,7 @@
 		};
 		timeline: TimelineEntry[];
 		providerSummary: string | null;
+		completionEvidence: MissionControlCompletionEvidence | null;
 		projectLineage: {
 			projectId: string | null;
 			projectPath: string | null;
@@ -146,6 +148,19 @@
 	function providerList(): Array<{ id: string; status: string }> {
 		const providers = trace?.surfaces.dispatch?.providers || {};
 		return Object.entries(providers).map(([id, status]) => ({ id, status }));
+	}
+
+	function evidenceLabel(evidence: MissionControlCompletionEvidence | null | undefined): string | null {
+		if (!evidence || evidence.state === 'not_terminal') return null;
+		if (evidence.state === 'complete') return 'Completion evidence present';
+		if (evidence.missing.length === 0) return 'Completion evidence incomplete';
+		return `Missing ${evidence.missing.slice(0, 4).join(', ')}`;
+	}
+
+	function evidenceClass(evidence: MissionControlCompletionEvidence | null | undefined): string {
+		if (evidence?.state === 'complete') return 'border-green-500/30 bg-green-500/10 text-green-300';
+		if (evidence?.state === 'incomplete') return 'border-yellow-500/30 bg-yellow-500/10 text-yellow-300';
+		return 'border-surface-border bg-surface text-text-secondary';
 	}
 
 	function firstSource(entry: AgentBlackBoxEntry): string {
@@ -318,6 +333,12 @@
 					<div class="mt-3 rounded-md border border-surface-border bg-bg-primary p-3 text-sm text-text-secondary">
 						<span class="font-mono text-accent-primary">Provider</span>
 						<span class="ml-2">{trace.providerSummary}</span>
+					</div>
+				{/if}
+				{#if evidenceLabel(trace?.completionEvidence)}
+					<div class={`mt-3 rounded-md border p-3 text-sm ${evidenceClass(trace?.completionEvidence)}`} title={trace?.completionEvidence?.summary}>
+						<span class="font-mono">Evidence</span>
+						<span class="ml-2">{evidenceLabel(trace?.completionEvidence)}</span>
 					</div>
 				{/if}
 				{#if trace?.projectLineage}

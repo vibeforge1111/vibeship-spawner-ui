@@ -23,6 +23,7 @@ import { spawnerStateDir } from './spawner-state';
 import type { ProviderMissionResultSnapshot } from './provider-runtime';
 import type {
 	MissionControlAccessInfo,
+	MissionControlCompletionEvidence,
 	MissionControlProjectLineage,
 	MissionControlTracePhase
 } from '$lib/types/mission-control';
@@ -89,6 +90,7 @@ export interface MissionControlTrace {
 	timeline: ReturnType<typeof getMissionControlRelaySnapshot>['recent'];
 	providerResults: MissionControlResultSummary['providerResults'];
 	providerSummary: string | null;
+	completionEvidence: MissionControlCompletionEvidence | null;
 	projectLineage: MissionControlProjectLineage | null;
 	skillPairing: TraceSkillPairing;
 	agentBlackBox: AgentBlackBoxReport;
@@ -386,6 +388,7 @@ export async function buildMissionControlTrace(input: {
 		timeline: traceSnapshot.recent,
 		providerResults: entry?.providerResults ?? [],
 		providerSummary: entry?.providerSummary ?? null,
+		completionEvidence: entry?.completionEvidence ?? null,
 		projectLineage: entry?.projectLineage ?? null,
 		skillPairing,
 		agentBlackBox,

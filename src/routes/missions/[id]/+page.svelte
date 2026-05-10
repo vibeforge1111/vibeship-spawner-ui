@@ -17,6 +17,7 @@
 	} from '$lib/stores/missions.svelte';
 	import { mcpState } from '$lib/stores/mcp.svelte';
 	import type { Mission, MissionLog, MissionTask, MissionAgent } from '$lib/services/mcp-client';
+	import type { MissionControlCompletionEvidence } from '$lib/types/mission-control';
 	import {
 		buildSparkMissionDetail,
 		type MissionControlEntry
@@ -48,6 +49,7 @@
 			durationMs: number | null;
 			completedAt: string | null;
 		}>;
+		completionEvidence?: MissionControlCompletionEvidence | null;
 		projectLineage?: {
 			projectId: string | null;
 			projectPath: string | null;
@@ -354,6 +356,19 @@
 		return `/canvas?mission=${encodeURIComponent(missionId)}`;
 	}
 
+	function evidenceLabel(evidence: MissionControlCompletionEvidence | null | undefined): string | null {
+		if (!evidence || evidence.state === 'not_terminal') return null;
+		if (evidence.state === 'complete') return 'Completion evidence present';
+		if (evidence.missing.length === 0) return 'Completion evidence incomplete';
+		return `Missing ${evidence.missing.slice(0, 4).join(', ')}`;
+	}
+
+	function evidenceClass(evidence: MissionControlCompletionEvidence | null | undefined): string {
+		if (evidence?.state === 'complete') return 'border-status-success/30 bg-status-success/10 text-status-success';
+		if (evidence?.state === 'incomplete') return 'border-status-amber/30 bg-status-amber/10 text-status-amber';
+		return 'border-surface-border bg-bg-secondary text-text-secondary';
+	}
+
 	function taskProgressLabel(): string {
 		const counts = sparkTaskCounts();
 		return `${counts.completed}/${counts.total} task${counts.total === 1 ? '' : 's'} completed`;
@@ -538,6 +553,12 @@
 								<p class="mt-1 font-sans text-sm leading-relaxed text-text-secondary">{sparkProjectLineage.improvementFeedback}</p>
 							</div>
 						{/if}
+					</div>
+				{/if}
+				{#if evidenceLabel(missionControl.completionEvidence)}
+					<div class="mb-3 rounded-lg border px-4 py-3 text-sm {evidenceClass(missionControl.completionEvidence)}" title={missionControl.completionEvidence?.summary}>
+						<span class="font-mono uppercase tracking-[0.12em] text-[10px]">Evidence</span>
+						<span class="ml-2 font-sans">{evidenceLabel(missionControl.completionEvidence)}</span>
 					</div>
 				{/if}
 				{#if missionControl.providerResults && missionControl.providerResults.length > 0}

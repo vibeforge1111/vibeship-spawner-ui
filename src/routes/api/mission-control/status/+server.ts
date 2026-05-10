@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { getMissionControlBoard, getMissionControlRelaySnapshot } from '$lib/server/mission-control-relay';
-import { summarizeProviderResults } from '$lib/server/mission-control-results';
+import { enrichMissionControlBoardWithProviderResults, summarizeProviderResults } from '$lib/server/mission-control-results';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import type { MissionControlProjectLineage } from '$lib/types/mission-control';
 import {
@@ -16,6 +16,19 @@ function findProjectLineage(missionId: string | undefined): MissionControlProjec
 	for (const entries of Object.values(board)) {
 		const entry = entries.find((candidate) => candidate.missionId === missionId);
 		if (entry?.projectLineage) return entry.projectLineage;
+	}
+	return null;
+}
+
+function findCompletionEvidence(missionId: string | undefined) {
+	if (!missionId) return null;
+	const enriched = enrichMissionControlBoardWithProviderResults(
+		getMissionControlBoard(),
+		(id) => providerRuntime.getMissionResults(id)
+	);
+	for (const entries of Object.values(enriched)) {
+		const entry = entries.find((candidate) => candidate.missionId === missionId);
+		if (entry?.completionEvidence) return entry.completionEvidence;
 	}
 	return null;
 }
@@ -45,6 +58,7 @@ export const GET: RequestHandler = async (event) => {
 		? summarizeProviderResults(providerRuntime.getMissionResults(missionId))
 		: { providerResults: [], providerSummary: null };
 	const projectLineage = findProjectLineage(missionId);
+	const completionEvidence = findCompletionEvidence(missionId);
 	const missionControlAccess = resolveMissionControlAccess(missionControlPathForMission(missionId));
 
 	return json({
@@ -54,7 +68,8 @@ export const GET: RequestHandler = async (event) => {
 		snapshot: {
 			...snapshot,
 			...providerResultSummary,
-			projectLineage
+			projectLineage,
+			completionEvidence
 		},
 		serverTime: new Date().toISOString()
 	});
