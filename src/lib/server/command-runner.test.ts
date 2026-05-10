@@ -1,0 +1,98 @@
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+import { isPathWithinProject, runCommand, validateProjectPath } from './command-runner';
+
+const originalSparkWorkspaceRoot = process.env.SPARK_WORKSPACE_ROOT;
+const originalSpawnerWorkspaceRoot = process.env.SPAWNER_WORKSPACE_ROOT;
+const originalSparkHome = process.env.SPARK_HOME;
+const originalAllowExternalProjectPaths = process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
+const cleanupPaths: string[] = [];
+
+function tempDir(prefix: string): string {
+	const path = mkdtempSync(join(tmpdir(), prefix));
+	cleanupPaths.push(path);
+	return path;
+}
+
+function restoreEnv(name: string, value: string | undefined): void {
+	if (value === undefined) {
+		delete process.env[name];
+		return;
+	}
+	process.env[name] = value;
+}
+
+afterEach(() => {
+	restoreEnv('SPARK_WORKSPACE_ROOT', originalSparkWorkspaceRoot);
+	restoreEnv('SPAWNER_WORKSPACE_ROOT', originalSpawnerWorkspaceRoot);
+	restoreEnv('SPARK_HOME', originalSparkHome);
+	restoreEnv('SPARK_ALLOW_EXTERNAL_PROJECT_PATHS', originalAllowExternalProjectPaths);
+	for (const path of cleanupPaths.splice(0)) {
+		rmSync(path, { recursive: true, force: true });
+	}
+});
+
+describe('command-runner path validation', () => {
+	it('accepts existing project paths inside the Spark workspace root', () => {
+		const root = tempDir('spark-runner-root-');
+		const project = join(root, 'project & spaces ; $(literal)');
+		mkdirSync(project, { recursive: true });
+		process.env.SPARK_WORKSPACE_ROOT = root;
+		delete process.env.SPAWNER_WORKSPACE_ROOT;
+		delete process.env.SPARK_HOME;
+		delete process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
+
+		expect(validateProjectPath(project)).toEqual({ valid: true });
+		expect(isPathWithinProject(join(project, 'src', 'button & test.ts'), project)).toBe(true);
+	});
+
+	it('rejects external project paths by default', () => {
+		const root = tempDir('spark-runner-root-');
+		const external = tempDir('spark-runner-external-');
+		process.env.SPARK_WORKSPACE_ROOT = root;
+		delete process.env.SPAWNER_WORKSPACE_ROOT;
+		delete process.env.SPARK_HOME;
+		delete process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
+
+		const result = validateProjectPath(external);
+
+		expect(result.valid).toBe(false);
+		expect(result.error).toContain('Project path must stay inside Spark workspace root');
+	});
+
+	it('does not confuse sibling directories that share a workspace prefix', () => {
+		const root = tempDir('spark-runner-prefix-');
+		const sibling = `${root}-external`;
+		mkdirSync(sibling, { recursive: true });
+		cleanupPaths.push(sibling);
+		process.env.SPARK_WORKSPACE_ROOT = root;
+		delete process.env.SPAWNER_WORKSPACE_ROOT;
+		delete process.env.SPARK_HOME;
+		delete process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
+
+		expect(validateProjectPath(sibling).valid).toBe(false);
+		expect(isPathWithinProject(join(sibling, 'package.json'), root)).toBe(false);
+	});
+
+	it('allows external project paths only when explicitly enabled', () => {
+		const root = tempDir('spark-runner-root-');
+		const external = tempDir('spark-runner-external-');
+		process.env.SPARK_WORKSPACE_ROOT = root;
+		process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS = '1';
+
+		expect(validateProjectPath(external)).toEqual({ valid: true });
+	});
+});
+
+describe('runCommand', () => {
+	it('does not pass command strings through a shell', async () => {
+		const shellLine = `"${process.execPath}" -e "console.log('shell-ran')"`;
+
+		const result = await runCommand(shellLine, [], process.cwd(), 5000);
+
+		expect(result.exitCode).not.toBe(0);
+		expect(result.stdout).not.toContain('shell-ran');
+	});
+});

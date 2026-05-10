@@ -1,5 +1,6 @@
 import type { BridgeEvent } from '$lib/services/event-bridge';
 import type { MultiLLMProviderConfig } from '$lib/services/multi-llm-orchestrator';
+import { assertHighAgencyWorkerAllowed, resolveCodexSandbox } from '$lib/server/high-agency-workers';
 import { sparkHarnessTimeoutMs } from '$lib/server/timeout-config';
 import type { ProviderResult } from './types';
 import { createBridgeEvent } from './types';
@@ -63,6 +64,22 @@ export async function executeSparkHarnessRequest(options: SparkHarnessOptions): 
 
 	try {
 		const executorModel = resolveCodexExecutorModel();
+		const codexSandbox = resolveCodexSandbox();
+		if (codexSandbox === 'danger-full-access') {
+			const approval = assertHighAgencyWorkerAllowed(resolvedWorkspace);
+			onEvent(
+				createBridgeEvent('worker_high_agency_approved', options, {
+					message: `${provider.label} high-agency Spark bridge approved`,
+					data: {
+						provider: provider.id,
+						workingDirectory: approval.workingDirectory,
+						workspaceRoot: approval.workspaceRoot,
+						externalProjectPathsAllowed: approval.externalProjectPathsAllowed,
+						codexSandbox
+					}
+				})
+			);
+		}
 		const sparkInstruction = buildSparkBuilderInstruction(prompt, resolvedWorkspace);
 		const taskId = await submitSparkTask({
 			baseUrl: sparkHarnessUrl,
@@ -70,6 +87,7 @@ export async function executeSparkHarnessRequest(options: SparkHarnessOptions): 
 			requestedModel: provider.model,
 			executorModel,
 			workspace: resolvedWorkspace,
+			codexSandbox,
 			provider,
 			missionId,
 			signal
@@ -212,6 +230,7 @@ async function submitSparkTask(input: {
 	requestedModel?: string;
 	executorModel?: string;
 	workspace?: string;
+	codexSandbox: string;
 	provider: MultiLLMProviderConfig;
 	missionId: string;
 	signal?: AbortSignal;
@@ -225,7 +244,7 @@ async function submitSparkTask(input: {
 			context: {
 				_requested_model: input.executorModel || null,
 				_requested_workspace: input.workspace || null,
-				_codex_sandbox: process.env.SPARK_CODEX_SANDBOX || 'danger-full-access',
+				_codex_sandbox: input.codexSandbox,
 				_codex_isolate_builder_home: false,
 				_spark_mode: 'builder_task',
 				spawner_mission_id: input.missionId,

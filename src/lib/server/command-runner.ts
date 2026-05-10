@@ -1,15 +1,16 @@
 /**
- * Shared Command Runner — Server-side utilities for executing shell commands
+ * Shared Command Runner - Server-side utilities for executing commands
  *
  * Used by /api/verify and /api/scan routes.
- * Handles Windows shell execution, timeouts, and output truncation.
+ * Handles direct process execution, timeouts, and output truncation.
  */
 
 import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
-import { join, isAbsolute, resolve } from 'node:path';
-import { existsSync } from 'node:fs';
+import { basename, dirname, join, isAbsolute, resolve } from 'node:path';
+import { existsSync, realpathSync } from 'node:fs';
 import { commandTimeoutMs } from './timeout-config';
+import { externalProjectPathsAllowed, isWithinDirectory, sparkWorkspaceRoot } from './spark-run-workspace';
 
 export const MAX_OUTPUT_LENGTH = 5000;
 export const COMMAND_TIMEOUT_MS = commandTimeoutMs();
@@ -26,8 +27,16 @@ export function truncateOutput(output: string): string {
 	return output.slice(-MAX_OUTPUT_LENGTH) + '\n...(truncated)';
 }
 
+function resolveExistingPath(path: string): string {
+	try {
+		return realpathSync(path);
+	} catch {
+		return resolve(path);
+	}
+}
+
 /**
- * Validate project path: must be absolute, must exist
+ * Validate project path: must be absolute, must exist, and must stay inside the Spark workspace root by default.
  */
 export function validateProjectPath(projectPath: string): { valid: boolean; error?: string } {
 	if (!projectPath || typeof projectPath !== 'string') {
@@ -39,11 +48,61 @@ export function validateProjectPath(projectPath: string): { valid: boolean; erro
 	if (!existsSync(projectPath)) {
 		return { valid: false, error: `Project directory does not exist: ${projectPath}` };
 	}
+	if (!externalProjectPathsAllowed()) {
+		const workspaceRoot = resolveExistingPath(sparkWorkspaceRoot());
+		const projectRealPath = resolveExistingPath(projectPath);
+		if (!isWithinDirectory(workspaceRoot, projectRealPath)) {
+			return {
+				valid: false,
+				error:
+					`Project path must stay inside Spark workspace root (${workspaceRoot}). ` +
+					`Use a relative workspace name like "${basename(projectRealPath) || 'project'}", ` +
+					'or set SPARK_ALLOW_EXTERNAL_PROJECT_PATHS=1 for trusted local development.'
+			};
+		}
+	}
 	return { valid: true };
 }
 
+interface SpawnCommand {
+	command: string;
+	args: string[];
+}
+
+function packageManagerCliPath(executable: string): string | null {
+	const npmExecPath = process.env.npm_execpath;
+	if (npmExecPath && existsSync(npmExecPath)) {
+		const execName = basename(npmExecPath).toLowerCase();
+		const execDir = dirname(npmExecPath);
+		if (executable === 'npm' && execName === 'npm-cli.js') return npmExecPath;
+		if (executable === 'npx') {
+			const npxCliPath = join(execDir, 'npx-cli.js');
+			return existsSync(npxCliPath) ? npxCliPath : null;
+		}
+		if (executable === 'pnpm' && execName.includes('pnpm')) return npmExecPath;
+	}
+
+	const nodeDir = dirname(process.execPath);
+	const npmBinDir = join(nodeDir, 'node_modules', 'npm', 'bin');
+	const candidate = executable === 'npx' ? join(npmBinDir, 'npx-cli.js') : join(npmBinDir, 'npm-cli.js');
+	if ((executable === 'npm' || executable === 'npx') && existsSync(candidate)) return candidate;
+	return null;
+}
+
+export function resolveSpawnCommand(command: string, args: string[]): SpawnCommand {
+	if (process.platform !== 'win32') return { command, args };
+
+	const normalizedCommand = command.toLowerCase().replace(/\.(cmd|bat)$/i, '');
+	if (normalizedCommand === 'where') return { command: 'where.exe', args };
+	if (['npm', 'npx', 'pnpm'].includes(normalizedCommand)) {
+		const cliPath = packageManagerCliPath(normalizedCommand);
+		if (cliPath) return { command: process.execPath, args: [cliPath, ...args] };
+	}
+	return { command, args };
+}
+
 /**
- * Run a shell command in the given directory with timeout
+ * Run a command in the given directory with timeout
  */
 export function runCommand(
 	command: string,
@@ -56,10 +115,11 @@ export function runCommand(
 		let stdout = '';
 		let stderr = '';
 		let resolved = false;
+		const spawnCommand = resolveSpawnCommand(command, args);
 
-		const child = spawn(command, args, {
+		const child = spawn(spawnCommand.command, spawnCommand.args, {
 			cwd,
-			shell: true,
+			shell: false,
 			timeout: timeoutMs,
 			env: { ...process.env, FORCE_COLOR: '0', CI: 'true' },
 			windowsHide: true
@@ -105,7 +165,7 @@ export function runCommand(
  */
 export async function isToolAvailable(toolName: string): Promise<boolean> {
 	const isWindows = process.platform === 'win32';
-	const checkCmd = isWindows ? 'where' : 'which';
+	const checkCmd = isWindows ? 'where.exe' : 'which';
 	const result = await runCommand(checkCmd, [toolName], process.cwd(), 10_000);
 	return result.exitCode === 0;
 }
@@ -192,5 +252,5 @@ export function parseErrorCount(output: string): number {
 export function isPathWithinProject(filePath: string, projectPath: string): boolean {
 	const resolved = resolve(filePath);
 	const projectResolved = resolve(projectPath);
-	return resolved.toLowerCase().startsWith(projectResolved.toLowerCase());
+	return isWithinDirectory(projectResolved, resolved);
 }

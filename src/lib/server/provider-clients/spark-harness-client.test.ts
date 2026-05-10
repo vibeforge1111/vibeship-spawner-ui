@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { executeSparkHarnessRequest } from './spark-harness-client';
 import type { BridgeEvent } from '$lib/services/event-bridge';
 import type { MultiLLMProviderConfig } from '$lib/services/multi-llm-orchestrator';
@@ -17,8 +17,26 @@ const provider: MultiLLMProviderConfig = {
 	apiKeyEnv: 'ZAI_API_KEY'
 };
 
+const originalCodexSandbox = process.env.SPARK_CODEX_SANDBOX;
+const originalAllowHighAgencyWorkers = process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS;
+
+function restoreEnv(name: string, value: string | undefined): void {
+	if (value === undefined) {
+		delete process.env[name];
+		return;
+	}
+	process.env[name] = value;
+}
+
+beforeEach(() => {
+	delete process.env.SPARK_CODEX_SANDBOX;
+	delete process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS;
+});
+
 afterEach(() => {
 	vi.restoreAllMocks();
+	restoreEnv('SPARK_CODEX_SANDBOX', originalCodexSandbox);
+	restoreEnv('SPARK_ALLOW_HIGH_AGENCY_WORKERS', originalAllowHighAgencyWorkers);
 });
 
 describe('spark-harness-client', () => {
@@ -74,11 +92,16 @@ describe('spark-harness-client', () => {
 
 	it('sends no-build verification instructions to the Spark harness for vanilla projects', async () => {
 		let submittedInstruction = '';
+		let submittedSandbox = '';
 		const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
 			const value = String(url);
 			if (value.endsWith('/v1/tasks')) {
-				const submittedBody = JSON.parse(String(init?.body || '{}')) as { instruction?: string };
+				const submittedBody = JSON.parse(String(init?.body || '{}')) as {
+					instruction?: string;
+					context?: { _codex_sandbox?: string };
+				};
 				submittedInstruction = submittedBody.instruction || '';
+				submittedSandbox = submittedBody.context?._codex_sandbox || '';
 				return new Response(JSON.stringify({ task_id: 'spark-task-vanilla' }), { status: 200 });
 			}
 			if (value.endsWith('/v1/tasks/spark-task-vanilla')) {
@@ -126,5 +149,6 @@ describe('spark-harness-client', () => {
 		expect(instruction).toContain('No-build static project verification');
 		expect(instruction).toContain('Do not run npm install, npm run build, npx tsc');
 		expect(instruction).not.toContain('Run the project build command (npm run build or equivalent)');
+		expect(submittedSandbox).toBe('workspace-write');
 	});
 });
