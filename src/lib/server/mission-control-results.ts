@@ -1,6 +1,7 @@
 import type { MissionControlBoardEntry } from './mission-control-relay';
 import type { ProviderMissionResultSnapshot } from './provider-runtime';
 import type { ProviderSessionStatus } from './provider-clients/types';
+import type { MissionControlCompletionEvidence } from '$lib/types/mission-control';
 import { compactMissionControlDisplayText, compactProviderHandoffText } from './mission-control-display';
 import { projectPreviewUrl } from './project-preview';
 import { env } from '$env/dynamic/private';
@@ -20,6 +21,7 @@ export interface MissionControlProviderResultSummary {
 export interface MissionControlResultSummary {
 	providerResults: MissionControlProviderResultSummary[];
 	providerSummary: string | null;
+	completionEvidence?: MissionControlCompletionEvidence;
 }
 
 type BoardBuckets = Record<string, MissionControlBoardEntry[]>;
@@ -188,6 +190,73 @@ function taskStatusCounts(entry: MissionControlBoardEntry): MissionControlBoardE
 	return counts;
 }
 
+function isTerminalEvent(eventType: string): boolean {
+	return (
+		eventType === 'mission_completed' ||
+		eventType === 'mission_failed' ||
+		eventType === 'mission_cancelled' ||
+		eventType === 'provider_completed' ||
+		eventType === 'provider_failed' ||
+		eventType === 'provider_cancelled'
+	);
+}
+
+function terminalEvidenceSummary(missing: string[]): string {
+	if (missing.length === 0) return 'Completion evidence present.';
+	return `Completion evidence incomplete: missing ${missing.join(', ')}.`;
+}
+
+function buildCompletionEvidence(
+	entry: MissionControlBoardEntry,
+	results: ProviderMissionResultSnapshot[],
+	summary: MissionControlResultSummary
+): MissionControlCompletionEvidence {
+	if (entry.status !== 'completed' && entry.status !== 'failed' && entry.status !== 'cancelled') {
+		return {
+			state: 'not_terminal',
+			summary: 'Mission is not terminal yet.',
+			missing: [],
+			providerResultCount: results.length,
+			providerTerminal: false,
+			hasTerminalEvent: false,
+			hasProviderCompletionTime: false,
+			hasProviderSummary: Boolean(summary.providerSummary),
+			hasArtifactReference: summary.providerResults.some((result) => Boolean(result.projectPath || result.previewUrl)),
+			tasksTerminal: entry.taskStatusCounts.running === 0 && entry.taskStatusCounts.queued === 0
+		};
+	}
+
+	const hasTerminalEvent = isTerminalEvent(entry.lastEventType);
+	const providerTerminal =
+		results.length > 0 &&
+		results.every((result) => TERMINAL_PROVIDER_STATUSES.includes(result.status));
+	const hasProviderCompletionTime = results.some((result) => Boolean(result.completedAt));
+	const hasProviderSummary = Boolean(summary.providerSummary);
+	const hasArtifactReference = summary.providerResults.some((result) => Boolean(result.projectPath || result.previewUrl));
+	const tasksTerminal = entry.taskStatusCounts.running === 0 && entry.taskStatusCounts.queued === 0;
+	const missing: string[] = [];
+
+	if (!hasTerminalEvent) missing.push('terminal_event');
+	if (results.length === 0) missing.push('provider_result');
+	if (results.length > 0 && !providerTerminal) missing.push('provider_terminal_status');
+	if (results.length > 0 && providerTerminal && !hasProviderCompletionTime) missing.push('provider_completion_time');
+	if (!hasProviderSummary) missing.push('provider_summary');
+	if (!tasksTerminal) missing.push('terminal_task_state');
+
+	return {
+		state: missing.length === 0 ? 'complete' : 'incomplete',
+		summary: terminalEvidenceSummary(missing),
+		missing,
+		providerResultCount: results.length,
+		providerTerminal,
+		hasTerminalEvent,
+		hasProviderCompletionTime,
+		hasProviderSummary,
+		hasArtifactReference,
+		tasksTerminal
+	};
+}
+
 function reconcileEntryWithProviderResults(
 	entry: MissionControlBoardEntry,
 	results: ProviderMissionResultSnapshot[]
@@ -256,9 +325,11 @@ export function enrichMissionControlBoardWithProviderResults(
 			const results = alignProviderResultsWithBoardStatus(reconciled, providerResults);
 			const bucket = reconciled.status;
 			if (!enriched[bucket]) enriched[bucket] = [];
+			const summary = summarizeProviderResults(results);
 			enriched[bucket].push({
 				...reconciled,
-				...summarizeProviderResults(results)
+				...summary,
+				completionEvidence: buildCompletionEvidence(reconciled, results, summary)
 			});
 		}
 	}

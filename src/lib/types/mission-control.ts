@@ -87,6 +87,19 @@ export interface MissionControlProviderResultSummary {
 	completedAt?: string | null;
 }
 
+export interface MissionControlCompletionEvidence {
+	state: 'complete' | 'incomplete' | 'not_terminal';
+	summary: string;
+	missing: string[];
+	providerResultCount: number;
+	providerTerminal: boolean;
+	hasTerminalEvent: boolean;
+	hasProviderCompletionTime: boolean;
+	hasProviderSummary: boolean;
+	hasArtifactReference: boolean;
+	tasksTerminal: boolean;
+}
+
 export interface MissionControlBoardEntry {
 	missionId: string;
 	missionName: string | null;
@@ -107,6 +120,7 @@ export interface MissionControlBoardEntry {
 	projectLineage?: MissionControlProjectLineage | null;
 	providerSummary?: string | null;
 	providerResults?: MissionControlProviderResultSummary[];
+	completionEvidence?: MissionControlCompletionEvidence;
 }
 
 export function emptyMissionControlTaskStatusCounts(): MissionControlTaskStatusCounts {

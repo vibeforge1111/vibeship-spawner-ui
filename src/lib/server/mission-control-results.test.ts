@@ -187,7 +187,37 @@ describe('mission-control-results', () => {
 			status: 'completed',
 			lastEventType: 'provider_completed',
 			taskStatusCounts: { completed: 1, total: 1 },
-			providerSummary: 'Codex: done'
+			providerSummary: 'Codex: done',
+			completionEvidence: {
+				state: 'complete',
+				missing: [],
+				providerResultCount: 1,
+				providerTerminal: true,
+				hasTerminalEvent: true,
+				hasProviderCompletionTime: true,
+				hasProviderSummary: true,
+				tasksTerminal: true
+			}
+		});
+	});
+
+	it('marks terminal cards with incomplete evidence when provider results are absent', () => {
+		const enriched = enrichMissionControlBoardWithProviderResults(
+			{ completed: [entry('mission-no-provider-result')], failed: [], running: [] },
+			() => []
+		);
+
+		expect(enriched.completed[0]).toMatchObject({
+			missionId: 'mission-no-provider-result',
+			status: 'completed',
+			providerSummary: null,
+			completionEvidence: {
+				state: 'incomplete',
+				missing: ['provider_result', 'provider_summary'],
+				providerResultCount: 0,
+				hasTerminalEvent: true,
+				hasProviderSummary: false
+			}
 		});
 	});
 
