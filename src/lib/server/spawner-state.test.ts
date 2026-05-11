@@ -4,9 +4,11 @@ import { spawnerBaseStateDir, spawnerStateDir, spawnerStateRootAudit, workspaceS
 
 describe('spawner state directory', () => {
 	const originalStateDir = process.env.SPAWNER_STATE_DIR;
+	const originalSparkHome = process.env.SPARK_HOME;
 
 	beforeEach(() => {
 		delete process.env.SPAWNER_STATE_DIR;
+		delete process.env.SPARK_HOME;
 	});
 
 	afterEach(() => {
@@ -14,6 +16,11 @@ describe('spawner state directory', () => {
 			delete process.env.SPAWNER_STATE_DIR;
 		} else {
 			process.env.SPAWNER_STATE_DIR = originalStateDir;
+		}
+		if (originalSparkHome === undefined) {
+			delete process.env.SPARK_HOME;
+		} else {
+			process.env.SPARK_HOME = originalSparkHome;
 		}
 	});
 
@@ -35,7 +42,13 @@ describe('spawner state directory', () => {
 		expect(workspaceStateSegment('../Founder Workspace!!')).toBe('founder-workspace');
 	});
 
-	it('uses the working directory fallback when no state dir is configured', () => {
+	it('uses Spark home state when no explicit Spawner state dir is configured', () => {
+		expect(spawnerBaseStateDir({ SPARK_HOME: 'C:\\spark-home' })).toBe(
+			path.win32.join('C:\\spark-home', 'state', 'spawner-ui')
+		);
+	});
+
+	it('uses the working directory fallback only when no state root is configured', () => {
 		expect(spawnerBaseStateDir({})).toBe(path.resolve(process.cwd(), '.spawner'));
 	});
 
@@ -51,8 +64,11 @@ describe('spawner state directory', () => {
 			base_state_dir: 'C:\\spark-state\\spawner-ui',
 			state_dir: 'C:\\spark-state\\spawner-ui',
 			configured_state_dir_present: true,
+			spark_home_state_dir_present: false,
 			fallback_state_dir: path.resolve('C:\\repo\\spawner-ui', '.spawner'),
 			fallback_used: false,
+			spark_home_state_fallback_used: false,
+			cwd_fallback_used: false,
 			hosted_workspace_scoped: false,
 			legacy_local_state_exists: false,
 			classification: 'canonical_configured',
@@ -72,11 +88,26 @@ describe('spawner state directory', () => {
 		expect(audit.warnings.join(' ')).toContain('Module-local .spawner exists');
 	});
 
+	it('classifies Spark home state as canonical when explicit state dir is missing', () => {
+		const audit = spawnerStateRootAudit({ SPARK_HOME: 'C:\\spark-home' }, 'C:\\repo\\spawner-ui', () => false);
+
+		expect(audit.classification).toBe('canonical_spark_home');
+		expect(audit.base_state_dir).toBe(path.win32.join('C:\\spark-home', 'state', 'spawner-ui'));
+		expect(audit.configured_state_dir_present).toBe(false);
+		expect(audit.spark_home_state_dir_present).toBe(true);
+		expect(audit.fallback_used).toBe(true);
+		expect(audit.spark_home_state_fallback_used).toBe(true);
+		expect(audit.cwd_fallback_used).toBe(false);
+		expect(audit.warnings).toEqual([]);
+	});
+
 	it('classifies missing configured state as canonical fallback', () => {
 		const audit = spawnerStateRootAudit({}, 'C:\\repo\\spawner-ui', () => true);
 
 		expect(audit.classification).toBe('canonical_fallback');
 		expect(audit.fallback_used).toBe(true);
+		expect(audit.spark_home_state_fallback_used).toBe(false);
+		expect(audit.cwd_fallback_used).toBe(true);
 		expect(audit.warnings.join(' ')).toContain('SPAWNER_STATE_DIR is not configured');
 	});
 });

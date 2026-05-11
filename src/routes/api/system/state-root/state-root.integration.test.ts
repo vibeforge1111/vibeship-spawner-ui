@@ -14,6 +14,7 @@ import { GET } from './+server';
 
 const originalBridgeKey = process.env.SPARK_BRIDGE_API_KEY;
 const originalStateDir = process.env.SPAWNER_STATE_DIR;
+const originalSparkHome = process.env.SPARK_HOME;
 
 function restoreEnv(name: string, value: string | undefined) {
 	if (value === undefined) delete process.env[name];
@@ -38,11 +39,13 @@ describe('/api/system/state-root', () => {
 		PRIVATE_ENV.MCP_ALLOWED_ORIGINS = '';
 		delete process.env.SPARK_BRIDGE_API_KEY;
 		delete process.env.SPAWNER_STATE_DIR;
+		delete process.env.SPARK_HOME;
 	});
 
 	afterEach(() => {
 		restoreEnv('SPARK_BRIDGE_API_KEY', originalBridgeKey);
 		restoreEnv('SPAWNER_STATE_DIR', originalStateDir);
+		restoreEnv('SPARK_HOME', originalSparkHome);
 	});
 
 	it('returns metadata-only state-root audit evidence on loopback', async () => {
@@ -59,6 +62,7 @@ describe('/api/system/state-root', () => {
 				base_state_dir: 'C:\\spark-state\\spawner-ui',
 				state_dir: 'C:\\spark-state\\spawner-ui',
 				configured_state_dir_present: true,
+				spark_home_state_dir_present: false,
 				fallback_used: false
 			}
 		});
