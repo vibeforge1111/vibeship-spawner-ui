@@ -23,6 +23,7 @@ interface SparkRunBody {
 	chatId?: string;
 	userId?: string;
 	requestId?: string;
+	traceRef?: string;
 	tier?: 'base' | 'pro';
 	promptMode?: 'simple' | 'orchestrator';
 	suppressRelay?: boolean;
@@ -83,6 +84,7 @@ function createSparkMission(
 	const now = new Date().toISOString();
 	const missionId = `spark-${Date.now()}`;
 	const requestId = body.requestId?.trim() || missionId;
+	const traceRef = body.traceRef?.trim() || null;
 	const chatId = body.chatId?.trim() || null;
 	const userId = body.userId?.trim() || 'spark-telegram';
 	const telegramRelay = normalizeTelegramRelay(body.telegramRelay);
@@ -125,6 +127,7 @@ function createSparkMission(
 			spark: {
 				source: 'telegram',
 				requestId,
+				...(traceRef ? { traceRef } : {}),
 				chatId,
 				userId,
 				projectPath,
@@ -317,6 +320,7 @@ export const POST: RequestHandler = async (event) => {
 			missionId: dispatchResult.missionId,
 			missionName: mission.name,
 			requestId: body.requestId?.trim() || mission.id,
+			...(typeof missionMetadata.traceRef === 'string' ? { traceRef: missionMetadata.traceRef } : {}),
 			providers: selectedProviderIds,
 			startedAt: dispatchResult.startedAt,
 			missionControlAccess: resolveMissionControlAccess(missionControlPathForMission(dispatchResult.missionId))

@@ -41,7 +41,8 @@ describe('/api/spark/run integration', () => {
 		const response = await POST(routeEvent({
 			goal: 'Build a tiny Telegram smoke app.',
 			providers: ['codex'],
-			requestId: 'tg-spark-run-local'
+			requestId: 'tg-spark-run-local',
+			traceRef: 'trace:telegram-run:tg-spark-run-local'
 		}) as never);
 
 		expect(response.status).toBe(200);
@@ -49,6 +50,7 @@ describe('/api/spark/run integration', () => {
 		expect(body).toMatchObject({
 			success: true,
 			requestId: 'tg-spark-run-local',
+			traceRef: 'trace:telegram-run:tg-spark-run-local',
 			providers: ['codex'],
 			missionControlAccess: {
 				mode: 'local-only',
