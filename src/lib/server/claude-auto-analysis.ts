@@ -9,7 +9,8 @@
  * Unlike codex (which runs as an agent and posts back to /api/events),
  * claude runs in --print mode: receive the full prompt + PRD content on
  * stdin, emit a single JSON block to stdout. We capture that, parse it,
- * and write directly to .spawner/results/<requestId>.json. The watchdog
+ * and write directly to results/<requestId>.json under the configured
+ * Spawner state root. The watchdog
  * already polls that path, so the rest of the pipeline (load-to-canvas,
  * mission-control-relay, eval suite) is unchanged.
  *
