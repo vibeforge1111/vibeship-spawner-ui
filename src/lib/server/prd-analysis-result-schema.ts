@@ -53,6 +53,10 @@ export const prdAnalysisResultSchema = z
 	.passthrough();
 
 export type ValidPrdAnalysisResult = z.infer<typeof prdAnalysisResultSchema>;
+export type StoredPrdAnalysisResult = Omit<ValidPrdAnalysisResult, 'executionPrompt'> & {
+	instructionTextRedacted: true;
+	metadata?: Record<string, unknown>;
+};
 
 export function validatePrdAnalysisResult(requestId: string, result: unknown): ValidPrdAnalysisResult {
 	const parsed = prdAnalysisResultSchema.safeParse(result);
@@ -64,4 +68,28 @@ export function validatePrdAnalysisResult(requestId: string, result: unknown): V
 		throw new Error(`Invalid PRD analysis result: requestId mismatch (${parsed.data.requestId} !== ${requestId})`);
 	}
 	return { ...parsed.data, requestId };
+}
+
+export function projectStoredPrdAnalysisResult(requestId: string, result: unknown): StoredPrdAnalysisResult {
+	const validated = validatePrdAnalysisResult(requestId, result) as ValidPrdAnalysisResult & {
+		metadata?: unknown;
+	};
+	const { executionPrompt: _executionPrompt, metadata, ...rest } = validated;
+	const metadataRecord = metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+		? (metadata as Record<string, unknown>)
+		: {};
+	const {
+		executionPrompt: _metadataExecutionPrompt,
+		execution_prompt: _metadataExecutionPromptSnake,
+		...safeMetadata
+	} = metadataRecord;
+	return {
+		...rest,
+		metadata: {
+			...safeMetadata,
+			instructionTextRedacted: true,
+			instructionTextStorage: 'omitted_from_result_artifact'
+		},
+		instructionTextRedacted: true
+	};
 }

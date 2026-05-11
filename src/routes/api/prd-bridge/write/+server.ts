@@ -24,11 +24,12 @@ import { formatTaskQualityGuidance } from '$lib/server/task-quality-rubric';
 import { formatVerificationPlanGuidance, generateVerificationPlan } from '$lib/server/verification-plan-generator';
 import { enrichBrief, isSparseUnderstandingClarification } from '$lib/server/brief-enricher';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { projectStoredPrdAnalysisResult } from '$lib/server/prd-analysis-result-schema';
 import {
 	capabilityProposalSummary,
 	normalizeCapabilityProposalPacket
 } from '$lib/server/capability-proposal-packet';
-import { normalizeTraceRef, traceRefFromMissionId } from '$lib/server/trace-ref';
+import { extractTraceRef, normalizeTraceRef, traceRefFromMissionId } from '$lib/server/trace-ref';
 
 function getPrdBridgePaths() {
 	const spawnerDir = spawnerStateDir();
@@ -65,15 +66,32 @@ function missionIdFromRequestId(requestId: string): string {
 async function appendPrdTrace(requestId: string, event: string, details: Record<string, unknown> = {}): Promise<void> {
 	try {
 		const { prdAutoTraceFile } = getPrdBridgePaths();
+		const traceRef = await traceRefForRequest(requestId, details);
 		const row = {
 			ts: new Date().toISOString(),
 			requestId,
 			event,
-			...details
+			...details,
+			...(traceRef ? { traceRef, trace_ref: traceRef } : {})
 		};
 		await appendFile(prdAutoTraceFile, `${JSON.stringify(row)}\n`, 'utf-8');
 	} catch {
 		// Never fail request flow on trace write.
+	}
+}
+
+async function traceRefForRequest(requestId: string, details: Record<string, unknown>): Promise<string | null> {
+	const explicit = extractTraceRef(details);
+	if (explicit) return explicit;
+	try {
+		const { pendingRequestFile } = getPrdBridgePaths();
+		if (!existsSync(pendingRequestFile)) return null;
+		const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
+		const pending = JSON.parse(pendingRaw) as Record<string, unknown>;
+		if (pending.requestId !== requestId) return null;
+		return extractTraceRef(pending);
+	} catch {
+		return null;
 	}
 }
 
@@ -490,7 +508,7 @@ async function writeFallbackAnalysisResult(
 	}
 
 	const result = await _buildFallbackAnalysisResult(requestId, projectName, buildMode, tier, paths);
-	await writeFile(resultFile, JSON.stringify(result, null, 2), 'utf-8');
+	await writeFile(resultFile, JSON.stringify(projectStoredPrdAnalysisResult(requestId, result), null, 2), 'utf-8');
 	await appendPrdTrace(requestId, 'fallback_analysis_written', {
 		reason,
 		resultFile,

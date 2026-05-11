@@ -90,6 +90,8 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const pending = JSON.parse(pendingRaw);
 		expect(pending.requestId).toBe(requestId);
 		expect(pending.missionId).toBe('mission-tg-contract-test');
+		expect(pending.executionPrompt).toBeUndefined();
+		expect(pending.instructionTextRedacted).toBe(true);
 		expect(pending.nodes[0].skill).toMatchObject({
 			id: 'task-1-static-shell',
 			name: 'Create static shell',
@@ -417,8 +419,10 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 			autoRun: true,
 			buildMode: 'advanced_prd',
 			buildModeReason: 'Request looks like a new project or systematic feature that benefits from PRD-to-task planning.',
-			executionPrompt: 'Advanced PRD: build Spark Mission Arcade with TAS-style verification.'
+			instructionTextRedacted: true
 		});
+		expect(pending.executionPrompt).toBeUndefined();
+		expect(pendingRaw).not.toContain('Advanced PRD: build Spark Mission Arcade');
 		expect(pending.nodes).toHaveLength(3);
 		expect(pending.nodes.map((node: any) => node.skill.name)).toEqual([
 			'Create project shell',

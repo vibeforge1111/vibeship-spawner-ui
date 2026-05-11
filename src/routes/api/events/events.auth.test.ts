@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { existsSync } from 'fs';
-import { mkdtemp, rm } from 'fs/promises';
+import { mkdtemp, readFile, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
 
@@ -194,6 +194,9 @@ describe('/api/events auth', () => {
 
 		expect(response.status).toBe(200);
 		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(true);
+		const stored = await readFile(path.join(testSpawnerDir, 'results', `${requestId}.json`), 'utf-8');
+		expect(stored).not.toContain('executionPrompt');
+		expect(stored).not.toContain('Store result consistently.');
 	});
 
 	it('adds Telegram relay metadata to provider lifecycle events from the current canvas load', async () => {
