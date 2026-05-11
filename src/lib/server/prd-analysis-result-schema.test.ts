@@ -31,4 +31,37 @@ describe('PRD analysis result storage projection', () => {
 		expect(JSON.stringify(stored)).not.toContain('Raw execution instructions');
 		expect(JSON.stringify(stored)).not.toContain('Nested raw instructions');
 	});
+
+	it('accepts privacy-redacted provider results without storing instruction text', () => {
+		const stored = projectStoredPrdAnalysisResult('request-2', {
+			requestId: 'request-2',
+			success: true,
+			projectName: 'Runtime Proof',
+			complexity: 'medium',
+			tasks: [
+				{
+					id: 'task-1',
+					title: 'Build proof files',
+					targets: ['index.html', 'README.md']
+				}
+			],
+			skills: []
+		});
+
+		expect(stored).toMatchObject({
+			requestId: 'request-2',
+			success: true,
+			projectName: 'Runtime Proof',
+			complexity: 'moderate',
+			tasks: [
+				expect.objectContaining({
+					id: 'task-1',
+					title: 'Build proof files',
+					targets: ['index.html', 'README.md']
+				})
+			],
+			instructionTextRedacted: true
+		});
+		expect(JSON.stringify(stored)).not.toContain('executionPrompt');
+	});
 });

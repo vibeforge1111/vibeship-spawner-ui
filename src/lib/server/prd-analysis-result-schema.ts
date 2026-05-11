@@ -2,6 +2,16 @@ import { z } from 'zod';
 
 const stringList = z.array(z.string());
 
+function normalizeComplexity(value: unknown): unknown {
+	if (typeof value !== 'string') return value;
+	const normalized = value.trim().toLowerCase();
+	if (['simple', 'moderate', 'complex'].includes(normalized)) return normalized;
+	if (['low', 'small', 'easy', 'basic', 'tiny'].includes(normalized)) return 'simple';
+	if (['medium', 'normal', 'standard', 'intermediate'].includes(normalized)) return 'moderate';
+	if (['high', 'large', 'advanced', 'hard', 'difficult'].includes(normalized)) return 'complex';
+	return value;
+}
+
 const taskSchema = z.object({
 	id: z.string().min(1),
 	title: z.string().min(1),
@@ -11,6 +21,7 @@ const taskSchema = z.object({
 	phase: z.number().int().positive().optional(),
 	dependsOn: stringList.optional(),
 	dependencies: stringList.optional(),
+	targets: stringList.optional(),
 	workspaceTargets: stringList.optional(),
 	acceptanceCriteria: stringList.optional(),
 	verificationCommands: stringList.optional(),
@@ -29,7 +40,7 @@ export const prdAnalysisResultSchema = z
 		success: z.literal(true),
 		projectName: z.string().min(1),
 		projectType: z.string().min(1).default('direct-build'),
-		complexity: z.enum(['simple', 'moderate', 'complex']).default('simple'),
+		complexity: z.preprocess(normalizeComplexity, z.enum(['simple', 'moderate', 'complex']).default('simple')),
 		infrastructure: z.object({
 			needsAuth: z.boolean().default(false),
 			authReason: z.string().optional(),
@@ -48,7 +59,7 @@ export const prdAnalysisResultSchema = z
 		}).default({ framework: 'Existing project', language: 'TypeScript or JavaScript' }),
 		tasks: z.array(taskSchema).min(1),
 		skills: stringList.default([]),
-		executionPrompt: z.string().min(1)
+		executionPrompt: z.string().min(1).optional()
 	})
 	.passthrough();
 
