@@ -28,7 +28,7 @@ describe('spawner state directory', () => {
 				SPARK_LIVE_CONTAINER: '1',
 				SPARK_WORKSPACE_ID: 'Founder Private Workspace'
 			})
-		).toBe(path.join('C:\\spark-state\\spawner-ui', 'workspaces', 'founder-private-workspace'));
+		).toBe(path.win32.join('C:\\spark-state\\spawner-ui', 'workspaces', 'founder-private-workspace'));
 	});
 
 	it('sanitizes workspace ids before using them as path segments', () => {

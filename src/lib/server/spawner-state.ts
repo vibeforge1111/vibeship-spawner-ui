@@ -3,6 +3,17 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { hostedUiLooksHosted, type HostedUiAuthEnv } from './hosted-ui-auth';
 
+export function isWindowsAbsolutePath(value: string): boolean {
+	return /^[A-Za-z]:[\\/]/.test(value) || /^\\\\[^\\]+\\[^\\]+/.test(value);
+}
+
+export function joinMaybeWindowsPath(base: string, ...segments: string[]): string {
+	if (isWindowsAbsolutePath(base)) {
+		return path.win32.join(base, ...segments);
+	}
+	return path.join(base, ...segments);
+}
+
 export function workspaceStateSegment(workspaceId: string): string {
 	const normalized = workspaceId
 		.trim()
@@ -38,7 +49,7 @@ export function spawnerStateDir(runtimeEnv: HostedUiAuthEnv = env, fallbackCwd =
 	if (!workspaceId || !hostedUiLooksHosted(runtimeEnv)) {
 		return baseDir;
 	}
-	return path.join(baseDir, 'workspaces', workspaceStateSegment(workspaceId));
+	return joinMaybeWindowsPath(baseDir, 'workspaces', workspaceStateSegment(workspaceId));
 }
 
 export function spawnerStateRootAudit(
