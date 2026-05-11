@@ -5,6 +5,7 @@ import path from 'path';
 import {
 	MEMORY_FAILURE_MODES,
 	MEMORY_SOURCES,
+	getMemoryQualityPaths,
 	loadMemoryQualityDataset,
 	type MemoryQualityPaths
 } from './memory-quality';
@@ -13,8 +14,13 @@ let testDir: string;
 let paths: MemoryQualityPaths;
 
 describe('memory quality loader', () => {
+	const originalMemoryQualityDir = process.env.SPARK_MEMORY_QUALITY_DIR;
+	const originalSpawnerStateDir = process.env.SPAWNER_STATE_DIR;
+
 	beforeEach(async () => {
 		testDir = await mkdtemp(path.join(tmpdir(), 'memory-quality-'));
+		delete process.env.SPARK_MEMORY_QUALITY_DIR;
+		delete process.env.SPAWNER_STATE_DIR;
 		paths = {
 			baseDir: testDir,
 			recallEventsFile: path.join(testDir, 'recall-events.json'),
@@ -24,7 +30,28 @@ describe('memory quality loader', () => {
 	});
 
 	afterEach(async () => {
+		if (originalMemoryQualityDir === undefined) {
+			delete process.env.SPARK_MEMORY_QUALITY_DIR;
+		} else {
+			process.env.SPARK_MEMORY_QUALITY_DIR = originalMemoryQualityDir;
+		}
+		if (originalSpawnerStateDir === undefined) {
+			delete process.env.SPAWNER_STATE_DIR;
+		} else {
+			process.env.SPAWNER_STATE_DIR = originalSpawnerStateDir;
+		}
 		await rm(testDir, { recursive: true, force: true });
+	});
+
+	it('uses Spawner state as the default memory-quality root', () => {
+		process.env.SPAWNER_STATE_DIR = testDir;
+
+		expect(getMemoryQualityPaths()).toMatchObject({
+			baseDir: path.join(testDir, 'memory-quality'),
+			recallEventsFile: path.join(testDir, 'memory-quality', 'recall-events.json'),
+			sourceHealthFile: path.join(testDir, 'memory-quality', 'source-health.json'),
+			evaluationsFile: path.join(testDir, 'memory-quality', 'evaluations.json')
+		});
 	});
 
 	it('returns marked sample data with warnings when live files are missing', async () => {

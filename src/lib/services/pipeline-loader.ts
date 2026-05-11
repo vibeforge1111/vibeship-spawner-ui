@@ -6,7 +6,7 @@
  *
  * HOW IT WORKS:
  * 1. When PRD/goal/anything wants to load a pipeline, it calls queuePipelineLoad()
- * 2. This writes to .spawner/pending-load.json with ALL the data needed
+ * 2. This writes to pending-load.json in the configured Spawner state root
  * 3. Canvas onMount calls getPendingLoad() which reads and DELETES the file
  * 4. If no pending load, canvas falls back to active pipeline from localStorage
  *

@@ -785,7 +785,7 @@ This returns:
 
 ### 3. If No Active Mission Found
 If \`active: false\`, the mission was either completed or needs to be restarted.
-Check \`.spawner/active-mission.json\` manually for state.
+Check \`active-mission.json\` in the configured Spawner state root manually for state.
 
 ### AUTONOMOUS EXECUTION RULES
 - **Do NOT stop to ask questions** during task execution

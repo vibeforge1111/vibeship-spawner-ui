@@ -31,7 +31,7 @@ function getLastLoadFile(): string {
 	return join(getSpawnerDir(), 'last-canvas-load.json');
 }
 
-// Ensure .spawner directory exists
+// Ensure the configured Spawner state directory exists.
 async function ensureDir(): Promise<void> {
 	const spawnerDir = getSpawnerDir();
 	if (!existsSync(spawnerDir)) {

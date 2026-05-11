@@ -1070,7 +1070,7 @@ function indentForPrompt(text: string, prefix: string): string {
 }
 
 function buildLaunchCommand(provider: MultiLLMProviderConfig, missionId: string): string {
-	const promptFile = `.spawner/prompts/${missionId}-${provider.id}.md`;
+	const promptFile = `configured Spawner state root/prompts/${missionId}-${provider.id}.md`;
 
 	if (provider.kind === 'terminal_cli') {
 		const command = (provider.commandTemplate || '').replace('{model}', provider.model).trim();

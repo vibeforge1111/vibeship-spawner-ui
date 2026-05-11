@@ -193,7 +193,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			});
 		}
 
-		// Ensure .spawner directory exists
+		// Ensure the configured Spawner state directory exists.
 		if (!existsSync(spawnerDir)) {
 			await mkdir(spawnerDir, { recursive: true });
 		}

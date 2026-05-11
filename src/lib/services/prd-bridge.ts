@@ -6,7 +6,7 @@ import { logger } from '$lib/utils/logger';
  *
  * Flow:
  * 1. User uploads PRD in Spawner UI
- * 2. UI writes PRD to .spawner/pending-prd.md
+ * 2. UI writes PRD to pending-prd.md in the configured Spawner state root
  * 3. UI sends event {type: "prd_analysis_requested"}
  * 4. Claude Code reads the PRD and analyzes with real AI
  * 5. Claude Code sends event {type: "prd_analysis_complete", data: {...}}
