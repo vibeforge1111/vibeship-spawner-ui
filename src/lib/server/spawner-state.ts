@@ -30,17 +30,33 @@ export interface SpawnerStateRootAudit {
 	base_state_dir: string;
 	state_dir: string;
 	configured_state_dir_present: boolean;
+	spark_home_state_dir_present: boolean;
 	fallback_state_dir: string;
 	fallback_used: boolean;
+	spark_home_state_fallback_used: boolean;
+	cwd_fallback_used: boolean;
 	hosted_workspace_scoped: boolean;
 	legacy_local_state_exists: boolean;
-	classification: 'canonical_configured' | 'canonical_fallback' | 'active_legacy_present';
+	classification:
+		| 'canonical_configured'
+		| 'canonical_spark_home'
+		| 'canonical_fallback'
+		| 'active_legacy_present';
 	warnings: string[];
 	redaction: string;
 }
 
+function configuredSpawnerStateDir(runtimeEnv: HostedUiAuthEnv = env): string {
+	return process.env.SPAWNER_STATE_DIR || runtimeEnv.SPAWNER_STATE_DIR || '';
+}
+
+function sparkHomeStateDir(runtimeEnv: HostedUiAuthEnv = env): string {
+	const sparkHome = process.env.SPARK_HOME || runtimeEnv.SPARK_HOME || '';
+	return sparkHome.trim() ? joinMaybeWindowsPath(sparkHome.trim(), 'state', 'spawner-ui') : '';
+}
+
 export function spawnerBaseStateDir(runtimeEnv: HostedUiAuthEnv = env, fallbackCwd = process.cwd()): string {
-	return process.env.SPAWNER_STATE_DIR || runtimeEnv.SPAWNER_STATE_DIR || path.resolve(fallbackCwd, '.spawner');
+	return configuredSpawnerStateDir(runtimeEnv) || sparkHomeStateDir(runtimeEnv) || path.resolve(fallbackCwd, '.spawner');
 }
 
 export function spawnerStateDir(runtimeEnv: HostedUiAuthEnv = env, fallbackCwd = process.cwd()): string {
@@ -57,26 +73,31 @@ export function spawnerStateRootAudit(
 	fallbackCwd = process.cwd(),
 	exists = existsSync
 ): SpawnerStateRootAudit {
-	const configuredStateDir = process.env.SPAWNER_STATE_DIR || runtimeEnv.SPAWNER_STATE_DIR || '';
+	const configuredStateDir = configuredSpawnerStateDir(runtimeEnv);
+	const sparkHomeState = sparkHomeStateDir(runtimeEnv);
 	const fallbackStateDir = path.resolve(fallbackCwd, '.spawner');
 	const baseStateDir = spawnerBaseStateDir(runtimeEnv, fallbackCwd);
 	const stateDir = spawnerStateDir(runtimeEnv, fallbackCwd);
 	const fallbackUsed = !configuredStateDir;
+	const sparkHomeStateFallbackUsed = !configuredStateDir && Boolean(sparkHomeState);
+	const cwdFallbackUsed = !configuredStateDir && !sparkHomeState;
 	const legacyLocalStateExists = exists(fallbackStateDir);
 	const hostedWorkspaceScoped = path.resolve(stateDir) !== path.resolve(baseStateDir);
 	const warnings: string[] = [];
 
-	if (fallbackUsed) {
+	if (cwdFallbackUsed) {
 		warnings.push('SPAWNER_STATE_DIR is not configured; runtime falls back to process working directory .spawner.');
 	}
 	if (!fallbackUsed && legacyLocalStateExists && path.resolve(fallbackStateDir) !== path.resolve(stateDir)) {
 		warnings.push('Module-local .spawner exists beside configured state root; treat it as legacy until read/write audit completes.');
 	}
 
-	const classification = fallbackUsed
+	const classification = cwdFallbackUsed
 		? 'canonical_fallback'
 		: warnings.length
 			? 'active_legacy_present'
+			: sparkHomeStateFallbackUsed
+				? 'canonical_spark_home'
 			: 'canonical_configured';
 
 	return {
@@ -85,8 +106,11 @@ export function spawnerStateRootAudit(
 		base_state_dir: baseStateDir,
 		state_dir: stateDir,
 		configured_state_dir_present: Boolean(configuredStateDir),
+		spark_home_state_dir_present: Boolean(sparkHomeState),
 		fallback_state_dir: fallbackStateDir,
 		fallback_used: fallbackUsed,
+		spark_home_state_fallback_used: sparkHomeStateFallbackUsed,
+		cwd_fallback_used: cwdFallbackUsed,
 		hosted_workspace_scoped: hostedWorkspaceScoped,
 		legacy_local_state_exists: legacyLocalStateExists,
 		classification,
