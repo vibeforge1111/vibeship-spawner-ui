@@ -696,7 +696,7 @@ async function buildCodexPrompt(
 		buildMode === 'advanced_prd'
 			? [
 					'Advanced build contract:',
-					'- Treat .spawner/pending-prd.md as the source request and turn it into a compact PRD before tasking.',
+					'- Treat the configured pending PRD file as the source request and turn it into a compact PRD before tasking.',
 					'- Use the Founder UI pattern: summary, objective, scope, non-goals, target UX, technical constraints, phased task plan, exit criteria.',
 					'- Convert the PRD into TAS-style tasks: each task needs acceptance criteria, dependencies, file/workspace targets, and verification commands.',
 					'- Choose task count from the actual work. Tiny builds may use 3-4 tasks, normal apps usually need 5-8, and substantial projects may need 8-14.',
@@ -934,7 +934,7 @@ export const POST: RequestHandler = async (event) => {
 		const missionId = missionIdFromRequestId(requestId);
 		const normalizedTraceRef = normalizeTraceRef(traceRef ?? trace_ref) || traceRefFromMissionId(missionId);
 
-		// Ensure .spawner directory exists
+		// Ensure the configured Spawner state directory exists.
 		if (!existsSync(paths.spawnerDir)) {
 			await mkdir(paths.spawnerDir, { recursive: true });
 		}
