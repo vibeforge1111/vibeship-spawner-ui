@@ -1,6 +1,7 @@
 import { existsSync } from 'fs';
 import { mkdir, readFile } from 'fs/promises';
 import path from 'path';
+import { spawnerStateDir } from '$lib/server/spawner-state';
 import {
 	MEMORY_FAILURE_MODES,
 	MEMORY_OUTCOMES,
@@ -41,7 +42,7 @@ export interface MemoryQualityPaths {
 const SAMPLE_NOW = '2026-04-28T08:00:00.000Z';
 
 export function getMemoryQualityPaths(): MemoryQualityPaths {
-	const baseDir = process.env.SPARK_MEMORY_QUALITY_DIR || path.join(process.cwd(), '.spawner', 'memory-quality');
+	const baseDir = process.env.SPARK_MEMORY_QUALITY_DIR || path.join(spawnerStateDir(), 'memory-quality');
 	return {
 		baseDir,
 		recallEventsFile: process.env.MEMORY_QUALITY_RECALL_EVENTS_FILE || path.join(baseDir, 'recall-events.json'),
