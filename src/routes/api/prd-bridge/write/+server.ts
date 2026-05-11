@@ -508,7 +508,11 @@ async function writeFallbackAnalysisResult(
 	}
 
 	const result = await _buildFallbackAnalysisResult(requestId, projectName, buildMode, tier, paths);
-	await writeFile(resultFile, JSON.stringify(projectStoredPrdAnalysisResult(requestId, result), null, 2), 'utf-8');
+	const traceRef = await traceRefForRequest(requestId, {});
+	const resultWithTrace = traceRef
+		? { ...result, traceRef, metadata: { ...((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined), traceRef } }
+		: result;
+	await writeFile(resultFile, JSON.stringify(projectStoredPrdAnalysisResult(requestId, resultWithTrace), null, 2), 'utf-8');
 	await appendPrdTrace(requestId, 'fallback_analysis_written', {
 		reason,
 		resultFile,

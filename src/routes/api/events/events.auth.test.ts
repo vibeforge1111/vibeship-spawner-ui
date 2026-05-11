@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { existsSync } from 'fs';
-import { mkdtemp, readFile, rm } from 'fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
 
@@ -163,6 +163,8 @@ describe('/api/events auth', () => {
 		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-events-state-'));
 		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
 		const requestId = 'events-state-dir-test';
+		const traceRef = 'trace:spawner-prd:events-state-dir-test';
+		await writeFile(path.join(testSpawnerDir, 'pending-request.json'), JSON.stringify({ requestId, traceRef }), 'utf-8');
 
 		const response = await POST(
 			createEvent('https://example.com/api/events', {
@@ -195,6 +197,9 @@ describe('/api/events auth', () => {
 		expect(response.status).toBe(200);
 		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(true);
 		const stored = await readFile(path.join(testSpawnerDir, 'results', `${requestId}.json`), 'utf-8');
+		const storedJson = JSON.parse(stored);
+		expect(storedJson.traceRef).toBe(traceRef);
+		expect(storedJson.metadata.traceRef).toBe(traceRef);
 		expect(stored).not.toContain('executionPrompt');
 		expect(stored).not.toContain('Store result consistently.');
 	});

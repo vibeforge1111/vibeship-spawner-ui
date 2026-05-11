@@ -51,6 +51,7 @@ export interface AgentEventLedgerEntry extends AgentEventRecord {
 	component: typeof AGENT_EVENT_COMPONENT;
 	created_at: string;
 	request_id: string | null;
+	trace_ref: string | null;
 	session_id: string | null;
 	actor_id: string | null;
 }
@@ -161,6 +162,7 @@ export function appendAgentEvent(
 		component: AGENT_EVENT_COMPONENT,
 		created_at: new Date().toISOString(),
 		request_id: normalizeNullable(options.requestId),
+		trace_ref: traceRefFromEvent(event),
 		session_id: normalizeNullable(options.sessionId),
 		actor_id: normalizeNullable(options.actorId)
 	};
@@ -260,6 +262,7 @@ function finalAnswerAuditToAgentEvent(record: Record<string, unknown>, index: nu
 		component: AGENT_EVENT_COMPONENT,
 		created_at: createdAt,
 		request_id: null,
+		trace_ref: stringValue(record.trace_ref) || stringValue(record.traceRef),
 		session_id: chatId ? `telegram:${chatId}` : null,
 		actor_id: userId ? `telegram:${userId}` : null
 	};
@@ -329,6 +332,11 @@ export function missionStateForEvent(eventType: string): string | null {
 function normalizeNullable(value: string | null | undefined): string | null {
 	const text = value?.trim();
 	return text || null;
+}
+
+function traceRefFromEvent(event: AgentEventRecord): string | null {
+	const raw = event.facts?.trace_ref ?? event.facts?.traceRef;
+	return typeof raw === 'string' ? normalizeNullable(raw) : null;
 }
 
 function stringValue(value: unknown): string | null {

@@ -86,6 +86,11 @@ describe('/api/prd-bridge/write integration', () => {
 		expect(response.status).toBe(200);
 		expect(body.autoAnalysis).toMatchObject({ provider: 'zai', started: false });
 		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(true);
+		const storedResult = JSON.parse(await readFile(path.join(testSpawnerDir, 'results', `${requestId}.json`), 'utf-8'));
+		expect(storedResult.traceRef).toBe(traceRef);
+		expect(storedResult.metadata.traceRef).toBe(traceRef);
+		expect(storedResult.instructionTextRedacted).toBe(true);
+		expect(storedResult.executionPrompt).toBeUndefined();
 		const pendingMeta = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
 		expect(pendingMeta.traceRef).toBe(traceRef);
 		expect(pendingMeta.relay.traceRef).toBe(traceRef);
