@@ -125,7 +125,17 @@ async function traceRefForRequest(requestId: string, details: Record<string, unk
 
 async function storePRDResult(requestId: string, result: unknown): Promise<void> {
 	assertSafeId(requestId, 'requestId');
-	const storedResult = projectStoredPrdAnalysisResult(requestId, result);
+	const traceRef = await traceRefForRequest(requestId, {});
+	const resultRecord = result && typeof result === 'object' && !Array.isArray(result)
+		? (result as Record<string, unknown>)
+		: {};
+	const metadataRecord = resultRecord.metadata && typeof resultRecord.metadata === 'object' && !Array.isArray(resultRecord.metadata)
+		? (resultRecord.metadata as Record<string, unknown>)
+		: {};
+	const storedResult = projectStoredPrdAnalysisResult(
+		requestId,
+		traceRef ? { ...resultRecord, traceRef, metadata: { ...metadataRecord, traceRef } } : result
+	);
 	const resultsDir = getResultsDir();
 
 	if (!existsSync(resultsDir)) {
