@@ -30,6 +30,7 @@ const SYNCED_PATHS = [
 	'src/lib/server/command-runner.ts',
 	'src/lib/server/mission-control-relay.ts',
 	'src/lib/server/mission-control-results.ts',
+	'src/lib/server/spawner-state.ts',
 	'src/lib/server/provider-runtime.ts',
 	'src/lib/server/access-execution-lanes.ts',
 	'src/lib/server/access-execution-actions.ts',
@@ -50,6 +51,7 @@ const SYNCED_PATHS = [
 	'src/routes/api/dispatch/+server.ts',
 	'src/routes/api/h70-skills/[skillId]/+server.ts',
 	'src/routes/api/spark/run/+server.ts',
+	'src/routes/api/system/state-root/+server.ts',
 	'static/skills.json',
 	'static/skill-tiers.json',
 	'static/bundles'

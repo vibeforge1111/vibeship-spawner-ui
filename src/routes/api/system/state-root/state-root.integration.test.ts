@@ -71,6 +71,16 @@ describe('/api/system/state-root', () => {
 		expect(body.stateRoot).not.toHaveProperty('chatId');
 		expect(body.stateRoot).not.toHaveProperty('userId');
 		expect(body.stateRoot.redaction).toContain('mission bodies');
+		expect(body.stateRoot.archive_readiness.schema_version).toBe('spark.spawner_state_archive_readiness.v1');
+		expect(body.stateRoot.archive_readiness.archive_candidate).toBe(false);
+		expect(body.stateRoot.archive_readiness.blockers).toContain(
+			'cwd_spawner_fallback_still_supported_by_state_helper'
+		);
+		expect(body.stateRoot.source_reference_audit.schema_version).toBe(
+			'spark.spawner_state_source_reference_audit.v1'
+		);
+		expect(body.stateRoot.source_reference_audit).not.toHaveProperty('files');
+		expect(body.stateRoot.source_reference_audit.redaction).toContain('file contents');
 	});
 
 	it('requires control auth outside loopback when a bridge key is configured', async () => {
