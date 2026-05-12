@@ -105,4 +105,46 @@ describe('/api/prd-bridge/write integration', () => {
 			ownerSystem: 'Spark domain chip runtime'
 		});
 	});
+
+	it('keeps exact two-file static proofs deterministic and scoped to the requested folder', async () => {
+		const requestId = 'tg-build-static-proof-s';
+		const traceRef = 'trace:spawner-prd:mission-static-proof-s';
+		const targetFolder = 'C:\\Users\\USER\\Desktop\\spark-os-proof-s';
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/write', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'x-api-key': BRIDGE_TEST_KEY },
+				body: JSON.stringify({
+					content: [
+						`Create a local-only static proof in ${targetFolder}.`,
+						'You must create exactly two files and no others: index.html and README.md.',
+						'Do not create app.js, styles.css, package.json, assets, folders, or any extra file.',
+						'Put all styling inline inside index.html.'
+					].join(' '),
+					requestId,
+					projectName: 'Spark OS Proof S',
+					buildMode: 'direct',
+					tier: 'pro',
+					chatId: 'telegram-chat-1',
+					userId: 'telegram-user-1',
+					traceRef
+				})
+			}),
+			getClientAddress: () => '127.0.0.1'
+		} as never);
+
+		const body = await response.json();
+		expect(response.status).toBe(200);
+		expect(body.autoAnalysis).toMatchObject({ provider: 'deterministic-static', started: false });
+		const storedText = await readFile(path.join(testSpawnerDir, 'results', `${requestId}.json`), 'utf-8');
+		const storedResult = JSON.parse(storedText);
+		expect(storedResult.projectType).toBe('static-exact-file-proof');
+		expect(storedResult.executionPrompt).toBeUndefined();
+		expect(storedResult.tasks[0].workspaceTargets).toEqual([targetFolder]);
+		expect(storedResult.tasks[0].acceptanceCriteria[0]).toContain('index.html, README.md');
+		expect(storedText).not.toContain(`${targetFolder}. You must`);
+		const pendingMeta = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
+		expect(pendingMeta.projectLineage.projectPath).toBe(targetFolder);
+	});
 });

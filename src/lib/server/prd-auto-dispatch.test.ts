@@ -80,6 +80,16 @@ describe('PRD auto-dispatch helpers', () => {
 		).toBe('C:\\Users\\USER\\Desktop\\spark-progress-pause-probe');
 	});
 
+	it('stops Windows target folders before sentence prose after the folder name', () => {
+		expect(
+			inferProjectPathFromPrdLoad({
+				...load,
+				executionPrompt:
+					'Create a local-only static proof in C:\\Users\\USER\\Desktop\\spark-os-proof-s. You must create exactly two files and no others.'
+			})
+		).toBe('C:\\Users\\USER\\Desktop\\spark-os-proof-s');
+	});
+
 	it('uses a hosted workspace folder when PRD text has no explicit path', () => {
 		const projectPath = inferProjectPathFromPrdLoad(
 			{

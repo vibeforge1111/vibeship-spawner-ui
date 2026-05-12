@@ -25,6 +25,7 @@ import { formatVerificationPlanGuidance, generateVerificationPlan } from '$lib/s
 import { enrichBrief, isSparseUnderstandingClarification } from '$lib/server/brief-enricher';
 import { spawnerStateDir } from '$lib/server/spawner-state';
 import { projectStoredPrdAnalysisResult } from '$lib/server/prd-analysis-result-schema';
+import { extractExplicitProjectPath } from '$lib/server/project-path-extraction';
 import {
 	capabilityProposalSummary,
 	normalizeCapabilityProposalPacket
@@ -156,8 +157,7 @@ function slugifyTaskId(value: string, fallback: string): string {
 }
 
 function extractTargetFolder(content: string): string | null {
-	const match = content.match(/\bat\s+([A-Za-z]:\\[^\n\r]+?)(?::\s|\s+Files\b|$|\r|\n)/i);
-	return match?.[1]?.trim().replace(/[.:]+$/, '') || null;
+	return extractExplicitProjectPath(content);
 }
 
 function extractRequestedFiles(content: string): string[] {
@@ -172,12 +172,29 @@ function extractRequestedFiles(content: string): string[] {
 function isConstrainedSingleFileStaticHtml(content: string): boolean {
 	const lower = content.toLowerCase();
 	const namesIndex = /\bindex\.html\b/.test(lower);
+	const namesReadme = /\breadme\.md\b/.test(lower);
 	const oneFileOnly = /\b(?:one|single)[-\s]?file\s+only\b|\bonly\s+(?:one|a\s+single)\s+file\b/.test(lower);
 	const oneFileNamedIndex = /\b(?:one|single)[-\s]?file\s*(?:,|:|called|named|as)?\s*index\.html\b/.test(lower);
+	const exactlyTwoFiles = /\bexactly\s+two\s+files\b|\btwo\s+files\s+and\s+no\s+others\b/.test(lower);
 	const staticHtmlOnly = /\bstatic\s+html\s+only\b|\bkeep\s+it\s+as\s+static\s+html\b|\bstatic\s+file\s+only\b/.test(lower);
 	const noPackage = /\bdo\s+not\s+add\s+package\b|\bno\s+package(?:\.json| files?)?\b/.test(lower);
 	const forbidsFullApp = /\bdo\s+not\s+(?:make|build|create)\s+(?:a\s+)?full\s+app\b|\bdon't\s+(?:make|build|create)\s+(?:a\s+)?full\s+app\b/.test(lower);
-	return namesIndex && (oneFileOnly || oneFileNamedIndex || forbidsFullApp || (staticHtmlOnly && noPackage));
+	const forbidsExtraFiles = /\bno\s+others\b|\bno\s+extra\s+files?\b|\bdo\s+not\s+create\s+app\.js\b|\bdo\s+not\s+create\s+styles\.css\b/.test(lower);
+	return namesIndex && (
+		oneFileOnly ||
+		oneFileNamedIndex ||
+		forbidsFullApp ||
+		(staticHtmlOnly && noPackage) ||
+		(namesReadme && exactlyTwoFiles && forbidsExtraFiles)
+	);
+}
+
+function constrainedStaticDeliverableFiles(content: string): string[] {
+	const lower = content.toLowerCase();
+	if (/\bindex\.html\b/.test(lower) && /\breadme\.md\b/.test(lower) && /\bexactly\s+two\s+files\b/.test(lower)) {
+		return ['index.html', 'README.md'];
+	}
+	return ['index.html'];
 }
 
 function inferTechStack(content: string): { framework: string; language: string; styling: string; deployment: string } {
@@ -292,47 +309,52 @@ export async function _buildFallbackAnalysisResult(
 		const validSkills = new Set((await getTierSkills(tier)).map((skill) => skill.id));
 		const selectSkills = (skills: string[]) => skills.filter((skill) => validSkills.has(skill)).slice(0, 5);
 		const workspaceTargets = targetFolder ? [targetFolder] : [];
+		const deliverableFiles = constrainedStaticDeliverableFiles(content);
+		const deliverableList = deliverableFiles.join(', ');
 		const tasks = [
 			{
-				id: 'task-1-create-index-html',
-				title: 'Create Exact Static Index HTML',
-				summary: 'Create or update only index.html with the exact requested visible copy and minimal embedded CSS.',
+				id: 'task-1-create-static-files',
+				title: 'Create Exact Static Files',
+				summary: `Create exactly ${deliverableList} with the requested visible copy and minimal embedded styling.`,
 				description:
-					'Keep the deliverable to one static HTML file. Do not add package files, app shell behavior, persistence, scripts, navigation, extra controls, or generated assets unless the brief explicitly asks for them.',
+					'Keep the deliverable to the explicitly requested static files. Do not add package files, app shell behavior, persistence, scripts, navigation, extra controls, or generated assets unless the brief explicitly asks for them.',
 				skills: selectSkills(['frontend-engineer', 'html-css', 'accessibility']),
 				dependencies: [] as string[],
 				workspaceTargets,
 				acceptanceCriteria: [
-					'Only index.html is required for the deliverable.',
+					`Only ${deliverableList} are required for the deliverable.`,
 					'The requested heading and body text are preserved exactly.',
 					'The page opens directly as static HTML without npm, a dev server, or a build step.',
 					'No package.json, node_modules, JavaScript app shell, localStorage workflow, checklist UI, dashboard, navigation, or extra product features are added.'
 				],
 				verificationCommands: [
-					'test -f index.html',
+					...deliverableFiles.map((file) => `test -f ${file}`),
 					'test ! -f package.json',
-					'test ! -d node_modules',
-					'grep -F "index.html" . >/dev/null 2>&1 || true'
+					'test ! -f app.js',
+					'test ! -f styles.css',
+					'test ! -d node_modules'
 				]
 			},
 			{
 				id: 'task-2-verify-static-contract',
-				title: 'Verify One-File Static Contract',
-				summary: 'Confirm the final workspace contains the single static HTML deliverable and no app expansion.',
+				title: 'Verify Exact Static Contract',
+				summary: `Confirm the final workspace contains exactly ${deliverableList} and no app expansion.`,
 				description:
-					'Run lightweight checks that prove the prompt stayed constrained: one required file, exact visible copy, no package files, no runtime dependency, and no extra app functionality.',
+					'Run lightweight checks that prove the prompt stayed constrained: exact required files, exact visible copy, no package files, no runtime dependency, and no extra app functionality.',
 				skills: selectSkills(['qa-engineering', 'testing-strategies', 'accessibility']),
-				dependencies: ['task-1-create-index-html'],
+				dependencies: ['task-1-create-static-files'],
 				workspaceTargets,
 				acceptanceCriteria: [
-					'index.html exists at the workspace root.',
+					`${deliverableList} exist at the workspace root.`,
 					'The requested strings appear in the rendered document.',
 					'No build tooling or extra project files are needed.',
 					'The result is a static confirmation page rather than a full app.'
 				],
 				verificationCommands: [
-					'test -f index.html',
+					...deliverableFiles.map((file) => `test -f ${file}`),
 					'test ! -f package.json',
+					'test ! -f app.js',
+					'test ! -f styles.css',
 					'test ! -d node_modules',
 					'grep -i "<h1" index.html',
 					'grep -i "<script" index.html && exit 1 || true'
@@ -344,7 +366,7 @@ export async function _buildFallbackAnalysisResult(
 			requestId,
 			success: true,
 			projectName,
-			projectType: 'static-single-file-html',
+			projectType: deliverableFiles.length === 1 ? 'static-single-file-html' : 'static-exact-file-proof',
 			complexity: 'simple',
 			infrastructure: {
 				needsAuth: false,
@@ -364,10 +386,10 @@ export async function _buildFallbackAnalysisResult(
 			skills,
 			executionPrompt: [
 				'Implement the user request as a constrained static-file build.',
-				'Create or update only index.html in the workspace root.',
+				`Create exactly these files in the workspace root: ${deliverableList}.`,
 				'Preserve the requested visible copy exactly.',
 				'Use minimal embedded CSS only.',
-				'Do not create a full app, package files, JavaScript workflow, localStorage persistence, checklist UI, dashboard, navigation, or extra product features.',
+				'Do not create any other files, package files, JavaScript workflow, localStorage persistence, checklist UI, dashboard, navigation, or extra product features.',
 				'Original brief:',
 				content
 			].join('\n')
@@ -1121,14 +1143,14 @@ export const POST: RequestHandler = async (event) => {
 				);
 		if (constrainedStaticSingleFile) {
 			await updatePendingRequestStatus(requestId, 'fallback', {
-				reason: 'Constrained static single-file request; deterministic analysis queued to avoid app-scope expansion.'
+				reason: 'Constrained static file request; deterministic analysis queued to avoid app-scope expansion.'
 			});
 			await writeFallbackAnalysisResult(
 				requestId,
 				requestMeta.projectName,
 				requestMeta.buildMode,
 				normalizedTier,
-				'constrained static single-file request'
+				'constrained static file request'
 			);
 		} else if (auto.started) {
 			scheduleAutoAnalysisWatchdog(
