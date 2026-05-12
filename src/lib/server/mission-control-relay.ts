@@ -66,6 +66,8 @@ export interface MissionControlRelayStatusEntry {
 	assignedTaskIds: string[];
 	requestId: string | null;
 	traceRef: string | null;
+	providerId: string | null;
+	model: string | null;
 	progress: number | null;
 	summary: string;
 	timestamp: string;
@@ -277,6 +279,16 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 			? ((event.data as Record<string, unknown>).requestId as string).trim() || null
 			: null;
 	const traceRef = extractTraceRef(event.data, event);
+	const providerId =
+		event.data && typeof (event.data as Record<string, unknown>).providerId === 'string'
+			? ((event.data as Record<string, unknown>).providerId as string).trim() || null
+			: event.data && typeof (event.data as Record<string, unknown>).provider === 'string'
+				? ((event.data as Record<string, unknown>).provider as string).trim() || null
+				: null;
+	const model =
+		event.data && typeof (event.data as Record<string, unknown>).model === 'string'
+			? ((event.data as Record<string, unknown>).model as string).trim() || null
+			: null;
 	const dataTaskId = event.data && typeof (event.data as Record<string, unknown>).taskId === 'string'
 		? ((event.data as Record<string, unknown>).taskId as string)
 		: null;
@@ -316,6 +328,8 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		assignedTaskIds,
 		requestId,
 		traceRef,
+		providerId,
+		model,
 		progress,
 		summary: summarizeMissionControlEvent(event),
 		timestamp,
@@ -369,6 +383,8 @@ function recordAgentLedgerEvent(entry: MissionControlRelayStatusEntry): void {
 				source: entry.source,
 				requestId: requestIdFromStatusEntry(entry),
 				traceRef: entry.traceRef,
+				providerId: entry.providerId,
+				model: entry.model,
 				toState: missionStateForEvent(entry.eventType)
 			}),
 			{

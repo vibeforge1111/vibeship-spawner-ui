@@ -95,6 +95,8 @@ export interface MissionControlAgentEventInput {
 	source: string;
 	requestId?: string | null;
 	traceRef?: string | null;
+	providerId?: string | null;
+	model?: string | null;
 	toState?: string | null;
 }
 
@@ -134,6 +136,13 @@ export function buildMissionControlAgentEvent(input: MissionControlAgentEventInp
 			progress: input.progress,
 			to_state: toState,
 			trace_ref: normalizeNullable(input.traceRef),
+			...(normalizeNullable(input.providerId)
+				? {
+						provider: normalizeNullable(input.providerId),
+						providerId: normalizeNullable(input.providerId)
+					}
+				: {}),
+			...(normalizeNullable(input.model) ? { model: normalizeNullable(input.model) } : {}),
 			bridge_source: input.source
 		},
 		sources: [

@@ -131,6 +131,8 @@ export interface SparkAgentProviderTaskInput {
 	missionId: string;
 	prompt: string;
 	model?: string;
+	requestId?: string;
+	traceRef?: string;
 	workingDirectory?: string;
 	commandTemplate?: string;
 	taskId?: string;
@@ -150,6 +152,9 @@ interface SparkAgentWorkerState {
 	sessionId: string;
 	providerId: SparkAgentProviderId;
 	missionId: string;
+	model?: string;
+	requestId?: string;
+	traceRef?: string;
 	taskId?: string;
 	status: 'running' | 'completed' | 'failed' | 'cancelled';
 	startedAt: string;
@@ -472,6 +477,9 @@ class SparkAgentBridgeService {
 				kind: 'provider_worker',
 				providerId,
 				missionId,
+				model: input.model || null,
+				requestId: input.requestId || null,
+				traceRef: input.traceRef || null,
 				taskId: taskId || null
 			}
 		});
@@ -482,6 +490,9 @@ class SparkAgentBridgeService {
 			sessionId: sparkAgentSessionId,
 			providerId,
 			missionId,
+			model: input.model,
+			requestId: input.requestId,
+			traceRef: input.traceRef,
 			taskId,
 			status: 'running',
 			startedAt: nowIso(),
@@ -1202,6 +1213,10 @@ class SparkAgentBridgeService {
 		const data = {
 			missionId: worker.missionId,
 			providerId: worker.providerId,
+			provider: worker.providerId,
+			...(worker.model ? { model: worker.model } : {}),
+			...(worker.requestId ? { requestId: worker.requestId } : {}),
+			...(worker.traceRef ? { traceRef: worker.traceRef, trace_ref: worker.traceRef } : {}),
 			sparkAgentSessionId: worker.sessionId,
 			...(worker.taskId ? { taskId: worker.taskId } : {}),
 			...payload

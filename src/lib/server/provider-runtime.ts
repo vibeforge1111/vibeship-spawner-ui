@@ -33,6 +33,7 @@ import { readFile } from 'node:fs/promises';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { spawnerStateDir } from './spawner-state';
+import { traceRefFromMissionId } from './trace-ref';
 
 export interface DispatchOptions {
 	executionPack: MultiLLMExecutionPack;
@@ -56,6 +57,7 @@ interface MissionDispatchSnapshot {
 
 export interface ProviderMissionResultSnapshot {
 	providerId: string;
+	model?: string | null;
 	status: ProviderSessionStatus;
 	response: string | null;
 	error: string | null;
@@ -171,6 +173,7 @@ export function providerShouldUseSparkExecutionBridge(
 function sessionToResultSnapshot(session: ProviderSession): ProviderMissionResultSnapshot {
 	return {
 		providerId: session.providerId,
+		model: session.model ?? null,
 		status: session.status,
 		response: session.result?.response ?? null,
 		error: session.error ?? session.result?.error ?? null,
@@ -372,6 +375,7 @@ class ProviderRuntimeManager {
 			const session: ProviderSession = {
 				providerId: provider.id,
 				missionId,
+				model: provider.model,
 				status: 'idle',
 				abortController,
 				startedAt: new Date(),
@@ -768,6 +772,7 @@ class ProviderRuntimeManager {
 					missionId,
 					prompt,
 					model: provider.model,
+					traceRef: traceRefFromMissionId(missionId) || undefined,
 					workingDirectory,
 					commandTemplate: provider.commandTemplate,
 					sparkAgentSessionId: requestedSparkAgentSessionId,

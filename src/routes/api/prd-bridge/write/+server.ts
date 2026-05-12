@@ -1007,9 +1007,12 @@ async function startAutoAnalysis(
 			parts.missionSizeBlock
 		);
 		const missionId = `prd-auto-${normalizeRequestId(requestId)}`;
+		const traceRef = await traceRefForRequest(requestId, { missionId });
+		const model = 'gpt-5.5';
 
 		await appendPrdTrace(requestId, 'auto_worker_dispatch', {
 			provider: 'codex',
+			model,
 			missionId,
 			workingDirectory: process.cwd(),
 			stateDirectory: paths.spawnerDir
@@ -1021,13 +1024,18 @@ async function startAutoAnalysis(
 				providerId: 'codex',
 				missionId,
 				prompt,
-				model: 'gpt-5.5',
-				commandTemplate: 'codex exec --model gpt-5.5',
+				model,
+				requestId,
+				...(traceRef ? { traceRef } : {}),
+				commandTemplate: `codex exec --model ${model}`,
 				workingDirectory: process.cwd(),
 				signal: controller.signal
 			})
 			.then((result) => {
 				void appendPrdTrace(requestId, 'auto_worker_finished', {
+					provider: 'codex',
+					model,
+					missionId,
 					success: result.success,
 					error: result.error || null,
 					durationMs: result.durationMs || null,

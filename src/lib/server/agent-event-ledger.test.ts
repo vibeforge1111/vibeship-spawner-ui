@@ -94,4 +94,36 @@ describe('agent event ledger', () => {
 		expect(entry.trace_ref).toBe('trace:spawner-prd:mission-1');
 		expect(entry.facts.trace_ref).toBe('trace:spawner-prd:mission-1');
 	});
+
+	it('keeps provider execution proof as metadata-only facts', async () => {
+		const stateDir = await mkdtemp(path.join(tmpdir(), 'spawner-agent-events-'));
+		process.env.SPAWNER_STATE_DIR = stateDir;
+
+		const event = buildMissionControlAgentEvent({
+			eventType: 'task_completed',
+			missionId: 'mission-provider-proof',
+			missionName: 'Provider proof',
+			taskId: null,
+			taskName: null,
+			progress: 100,
+			summary: 'Codex worker completed.',
+			timestamp: '2026-05-12T00:00:00.000Z',
+			source: 'codex',
+			requestId: 'request-provider-proof',
+			traceRef: 'trace:spawner-prd:mission-provider-proof',
+			providerId: 'codex',
+			model: 'gpt-5.5'
+		});
+
+		const entry = appendAgentEvent(event, { requestId: 'request-provider-proof' });
+
+		expect(entry.facts).toMatchObject({
+			provider: 'codex',
+			providerId: 'codex',
+			model: 'gpt-5.5',
+			trace_ref: 'trace:spawner-prd:mission-provider-proof'
+		});
+		expect(JSON.stringify(entry.facts)).not.toContain('response');
+		expect(JSON.stringify(entry.facts)).not.toContain('provider output');
+	});
 });
