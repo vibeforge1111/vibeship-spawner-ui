@@ -107,6 +107,59 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		expect(description).toContain('Select-String');
 	});
 
+	it('does not auto-dispatch deterministic static proof results over existing artifacts', async () => {
+		const requestId = 'tg-static-proof-load-test';
+		const targetFolder = path.join(testSpawnerDir, 'spark-static-proof-load-test');
+		const marker = 'SPARK_OS_STATIC_LOAD_TEST';
+		const sentence = 'Static load proof stays deterministic';
+		await mkdir(targetFolder, { recursive: true });
+		await writeFile(path.join(targetFolder, 'index.html'), `<p>${marker}</p><p>${sentence}</p>`, 'utf-8');
+		await writeFile(path.join(targetFolder, 'README.md'), `${marker}\n\n${sentence}\n`, 'utf-8');
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify({
+				requestId,
+				success: true,
+				projectName: 'Spark Static Proof Load Test',
+				projectType: 'static-exact-file-proof',
+				instructionTextRedacted: true,
+				tasks: [
+					{
+						id: 'task-1-static-proof',
+						title: 'Create deterministic static proof',
+						summary: 'Create exactly index.html and README.md.',
+						workspaceTargets: [targetFolder],
+						acceptanceCriteria: [
+							'index.html and README.md exist.',
+							'The requested visible marker and sentence are present.'
+						]
+					}
+				]
+			}),
+			'utf-8'
+		);
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ requestId, autoRun: true })
+			})
+		} as never);
+
+		const body = await response.json();
+		expect(response.status).toBe(200);
+		expect(body.autoDispatch).toMatchObject({
+			started: false,
+			skipped: true,
+			reason: 'deterministic static artifacts already written'
+		});
+		const pending = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-load.json'), 'utf-8'));
+		expect(pending.autoRun).toBe(false);
+		expect(await readFile(path.join(targetFolder, 'index.html'), 'utf-8')).toContain(marker);
+		expect(await readFile(path.join(targetFolder, 'README.md'), 'utf-8')).toContain(sentence);
+	});
+
 	it('preserves Telegram relay target metadata for canvas auto-run dispatch', async () => {
 		const requestId = 'tg-relay-target-test';
 		const traceRef = 'trace:spawner-prd:mission-tg-relay-target-test';

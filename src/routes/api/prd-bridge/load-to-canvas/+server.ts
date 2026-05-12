@@ -194,6 +194,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const parsed = JSON.parse(raw) as {
 			success?: boolean;
 			projectName?: string;
+			projectType?: string;
 			executionPrompt?: string;
 			tasks?: TaskRecord[];
 			capabilityProposalPacket?: unknown;
@@ -206,6 +207,9 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		const nodes = parsed.tasks.map(taskToNode);
 		const connections = buildConnections(parsed.tasks);
+		const deterministicStaticResult =
+			parsed.projectType === 'static-exact-file-proof' || parsed.projectType === 'static-single-file-html';
+		const effectiveAutoRun = autoRun !== false && !deterministicStaticResult;
 
 		if (!existsSync(spawnerDir)) {
 			await mkdir(spawnerDir, { recursive: true });
@@ -248,7 +252,7 @@ export const POST: RequestHandler = async ({ request }) => {
 						...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {}),
 						requestId,
 						...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
-						autoRun: autoRun !== false,
+						autoRun: effectiveAutoRun,
 						buildMode,
 						buildModeReason
 					};
@@ -268,7 +272,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
 				...(typeof goal === 'string' && goal.trim() ? { goal } : {}),
 				...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {}),
-				autoRun: autoRun !== false,
+				autoRun: effectiveAutoRun,
 				buildMode,
 				buildModeReason
 			};
@@ -290,7 +294,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			nodes,
 			connections,
 			source: 'prd-bridge',
-			autoRun: autoRun !== false,
+			autoRun: effectiveAutoRun,
 			buildMode,
 			buildModeReason,
 			executionPrompt: executionText,
@@ -352,9 +356,16 @@ export const POST: RequestHandler = async ({ request }) => {
 			}
 		});
 
-		const autoDispatchResult = autoRun !== false
+		const autoDispatchResult = effectiveAutoRun
 			? await autoDispatchPrdCanvasLoad(load)
-			: { started: false, skipped: true, reason: 'autoRun disabled', missionId: resolvedMissionId };
+			: {
+					started: false,
+					skipped: true,
+					reason: deterministicStaticResult
+						? 'deterministic static artifacts already written'
+						: 'autoRun disabled',
+					missionId: resolvedMissionId
+				};
 		if (!autoDispatchResult.started && !autoDispatchResult.skipped) {
 			void relayMissionControlEvent({
 				type: 'log',
