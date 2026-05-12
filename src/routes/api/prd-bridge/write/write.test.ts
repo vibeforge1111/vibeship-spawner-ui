@@ -3,7 +3,7 @@ import { existsSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { _buildFallbackAnalysisResult, _extractPrdBridgeProjectLineage } from './+server';
+import { _buildAuthorityVerdict, _buildFallbackAnalysisResult, _extractPrdBridgeProjectLineage } from './+server';
 
 let testSpawnerDir = '';
 
@@ -17,6 +17,28 @@ describe('PRD bridge fallback analysis', () => {
 		if (testSpawnerDir && existsSync(testSpawnerDir)) {
 			await rm(testSpawnerDir, { recursive: true, force: true });
 		}
+	});
+
+	it('builds mission execution authority verdict metadata without storing prompt content', () => {
+		const verdict = _buildAuthorityVerdict({
+			traceRef: 'trace:spawner-prd:mission-test',
+			autoStarted: false,
+			autoProvider: 'deterministic-static'
+		});
+
+		expect(verdict).toMatchObject({
+			schema_version: 'spark.authority_verdict.v1',
+			traceRef: 'trace:spawner-prd:mission-test',
+			actionFamily: 'mission_execution',
+			sourcePolicy: 'spawner_prd_bridge_control_auth_rate_limit_auto_provider',
+			verdict: 'blocked',
+			confirmationRequired: false,
+			scope: 'local_spawner_prd_auto_analysis',
+			sourceRepo: 'spawner-ui',
+			reasonCode: 'auto_provider_deterministic-static_not_started'
+		});
+		expect(verdict).not.toHaveProperty('prompt');
+		expect(verdict).not.toHaveProperty('content');
 	});
 
 	it('creates a canvas-ready fallback plan for direct static builds', async () => {
@@ -169,8 +191,8 @@ describe('PRD bridge fallback analysis', () => {
 
 		expect(result.projectType).toBe('static-single-file-html');
 		expect(result.complexity).toBe('simple');
-		expect(String(result.executionPrompt)).toContain('Create or update only index.html');
-		expect(String(result.executionPrompt)).toContain('Do not create a full app');
+		expect(String(result.executionPrompt)).toContain('Create exactly these files in the workspace root: index.html.');
+		expect(String(result.executionPrompt)).toContain('Do not create any other files');
 
 		const tasks = result.tasks as Array<{ title: string; acceptanceCriteria: string[] }>;
 		expect(tasks).toHaveLength(2);

@@ -154,5 +154,20 @@ describe('/api/prd-bridge/write integration', () => {
 		expect(await readFile(path.join(targetFolder, 'README.md'), 'utf-8')).toContain(proofSentence);
 		const pendingMeta = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
 		expect(pendingMeta.projectLineage.projectPath).toBe(targetFolder);
+		const traceRows = (await readFile(path.join(testSpawnerDir, 'prd-auto-trace.jsonl'), 'utf-8'))
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line));
+		expect(traceRows.find((row) => row.event === 'authority_verdict_evaluated')).toMatchObject({
+			traceRef,
+			authorityVerdict: {
+				schema_version: 'spark.authority_verdict.v1',
+				traceRef,
+				actionFamily: 'mission_execution',
+				verdict: 'blocked',
+				sourceRepo: 'spawner-ui',
+				reasonCode: 'auto_provider_deterministic-static_not_started'
+			}
+		});
 	});
 });

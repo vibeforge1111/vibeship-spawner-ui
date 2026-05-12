@@ -105,6 +105,41 @@ type RunnerCapability = {
 	checkedAt?: string;
 };
 
+type AuthorityVerdictV1 = {
+	schema_version: 'spark.authority_verdict.v1';
+	traceRef?: string;
+	actionFamily: 'mission_execution';
+	sourcePolicy: string;
+	verdict: 'allowed' | 'blocked' | 'confirmation_required';
+	confirmationRequired: boolean;
+	scope: string;
+	expiresAt: string | null;
+	sourceRepo: 'spawner-ui';
+	reasonCode: string;
+};
+
+export function _buildAuthorityVerdict(input: {
+	traceRef?: string | null;
+	autoStarted: boolean;
+	autoProvider: string;
+}): AuthorityVerdictV1 {
+	const provider = input.autoProvider || 'unknown';
+	return {
+		schema_version: 'spark.authority_verdict.v1',
+		...(input.traceRef ? { traceRef: input.traceRef } : {}),
+		actionFamily: 'mission_execution',
+		sourcePolicy: 'spawner_prd_bridge_control_auth_rate_limit_auto_provider',
+		verdict: input.autoStarted ? 'allowed' : 'blocked',
+		confirmationRequired: false,
+		scope: 'local_spawner_prd_auto_analysis',
+		expiresAt: null,
+		sourceRepo: 'spawner-ui',
+		reasonCode: input.autoStarted
+			? `auto_provider_${provider}_started`
+			: `auto_provider_${provider}_not_started`
+	};
+}
+
 function normalizeRunnerCapability(input: unknown): RunnerCapability | null {
 	if (!input || typeof input !== 'object') return null;
 	const record = input as Record<string, unknown>;
@@ -1220,6 +1255,14 @@ export const POST: RequestHandler = async (event) => {
 					requestMeta.buildMode,
 					normalizedTier
 				);
+		await appendPrdTrace(requestId, 'authority_verdict_evaluated', {
+			...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+			authorityVerdict: _buildAuthorityVerdict({
+				traceRef: normalizedTraceRef,
+				autoStarted: auto.started,
+				autoProvider: auto.provider
+			})
+		});
 		if (constrainedStaticSingleFile) {
 			await updatePendingRequestStatus(requestId, 'fallback', {
 				reason: 'Constrained static file request; deterministic analysis queued to avoid app-scope expansion.'
