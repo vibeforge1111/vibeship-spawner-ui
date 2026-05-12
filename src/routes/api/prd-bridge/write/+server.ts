@@ -197,6 +197,60 @@ function constrainedStaticDeliverableFiles(content: string): string[] {
 	return ['index.html'];
 }
 
+function extractStaticProofVisibleRequirements(content: string): { marker: string | null; sentence: string | null } {
+	const marker = content.match(/\bSPARK_OS_[A-Z0-9_]+\b/)?.[0] ?? null;
+	const sentence =
+		content.match(/\bexact\s+sentence\s+"([^"\r\n]{1,200})"/i)?.[1] ??
+		content.match(/\bsentence\s+"([^"\r\n]{1,200})"/i)?.[1] ??
+		null;
+	return { marker, sentence };
+}
+
+function escapeHtml(value: string): string {
+	return value
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
+}
+
+async function writeConstrainedStaticProofArtifacts(content: string): Promise<number> {
+	if (!isConstrainedSingleFileStaticHtml(content)) return 0;
+	const targetFolder = extractTargetFolder(content);
+	const deliverableFiles = constrainedStaticDeliverableFiles(content);
+	if (!targetFolder || deliverableFiles.join(',') !== 'index.html,README.md') return 0;
+
+	const { marker, sentence } = extractStaticProofVisibleRequirements(content);
+	if (!marker && !sentence) return 0;
+
+	await mkdir(targetFolder, { recursive: true });
+	const markerHtml = marker ? `<p class="marker">${escapeHtml(marker)}</p>` : '';
+	const sentenceHtml = sentence ? `<p class="sentence">${escapeHtml(sentence)}</p>` : '';
+	const indexHtml = [
+		'<!doctype html>',
+		'<html lang="en">',
+		'<head>',
+		'<meta charset="utf-8">',
+		'<meta name="viewport" content="width=device-width, initial-scale=1">',
+		'<title>Spawner Trace Parity Proof</title>',
+		'<style>body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:Arial,sans-serif;background:#101318;color:#f6f7fb}.proof{max-width:720px;padding:32px;border:1px solid #3b4252}.marker{font-family:monospace;color:#7dd3fc}.sentence{font-size:1.25rem}</style>',
+		'</head>',
+		'<body>',
+		'<main class="proof">',
+		'<h1>Spawner Trace Parity Proof</h1>',
+		markerHtml,
+		sentenceHtml,
+		'</main>',
+		'</body>',
+		'</html>'
+	].join('\n');
+	const readme = [marker, sentence].filter(Boolean).join('\n\n') + '\n';
+	await writeFile(join(targetFolder, 'index.html'), indexHtml, 'utf-8');
+	await writeFile(join(targetFolder, 'README.md'), readme, 'utf-8');
+	return 2;
+}
+
 function hasExactTwoFileProofIntent(lower: string): boolean {
 	const saysExactly = /\bexactly\b/.test(lower);
 	const saysTwo = /\b(?:two|2)\b/.test(lower);
@@ -554,6 +608,12 @@ async function writeFallbackAnalysisResult(
 		? { ...result, traceRef, metadata: { ...((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined), traceRef } }
 		: result;
 	await writeFile(resultFile, JSON.stringify(projectStoredPrdAnalysisResult(requestId, resultWithTrace), null, 2), 'utf-8');
+	const staticArtifactCount = await writeConstrainedStaticProofArtifacts(await readFile(paths.pendingPrdFile, 'utf-8').catch(() => ''));
+	if (staticArtifactCount > 0) {
+		await appendPrdTrace(requestId, 'deterministic_static_artifacts_written', {
+			fileCount: staticArtifactCount
+		});
+	}
 	await appendPrdTrace(requestId, 'fallback_analysis_written', {
 		reason,
 		resultFile,

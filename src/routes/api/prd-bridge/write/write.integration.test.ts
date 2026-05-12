@@ -109,7 +109,9 @@ describe('/api/prd-bridge/write integration', () => {
 	it('keeps exact two-file static proofs deterministic and scoped to the requested folder', async () => {
 		const requestId = 'tg-build-static-proof-s';
 		const traceRef = 'trace:spawner-prd:mission-static-proof-s';
-		const targetFolder = 'C:\\Users\\USER\\Desktop\\spark-os-proof-s';
+		const targetFolder = path.join(testSpawnerDir, 'spark-os-proof-s');
+		const proofMarker = 'SPARK_OS_TEST_STATIC_PROOF_S';
+		const proofSentence = 'Spawner trace parity runtime proof';
 
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/write', {
@@ -120,7 +122,9 @@ describe('/api/prd-bridge/write integration', () => {
 						`Create a local-only static proof in ${targetFolder}.`,
 						'You must create exactly 2 local proof files and no others: index.html and README.md.',
 						'Do not create app.js, styles.css, package.json, assets, folders, or any extra file.',
-						'Put all styling inline inside index.html.'
+						'Put all styling inline inside index.html.',
+						`Include the visible marker ${proofMarker} in both files.`,
+						`Include the exact sentence "${proofSentence}" in both files.`
 					].join(' '),
 					requestId,
 					projectName: 'Spark OS Proof S',
@@ -144,6 +148,10 @@ describe('/api/prd-bridge/write integration', () => {
 		expect(storedResult.tasks[0].workspaceTargets).toEqual([targetFolder]);
 		expect(storedResult.tasks[0].acceptanceCriteria[0]).toContain('index.html, README.md');
 		expect(storedText).not.toContain(`${targetFolder}. You must`);
+		expect(await readFile(path.join(targetFolder, 'index.html'), 'utf-8')).toContain(proofMarker);
+		expect(await readFile(path.join(targetFolder, 'index.html'), 'utf-8')).toContain(proofSentence);
+		expect(await readFile(path.join(targetFolder, 'README.md'), 'utf-8')).toContain(proofMarker);
+		expect(await readFile(path.join(targetFolder, 'README.md'), 'utf-8')).toContain(proofSentence);
 		const pendingMeta = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
 		expect(pendingMeta.projectLineage.projectPath).toBe(targetFolder);
 	});
