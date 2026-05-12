@@ -175,13 +175,11 @@ function isConstrainedSingleFileStaticHtml(content: string): boolean {
 	const namesReadme = /\breadme\.md\b/.test(lower);
 	const oneFileOnly = /\b(?:one|single)[-\s]?file\s+only\b|\bonly\s+(?:one|a\s+single)\s+file\b/.test(lower);
 	const oneFileNamedIndex = /\b(?:one|single)[-\s]?file\s*(?:,|:|called|named|as)?\s*index\.html\b/.test(lower);
-	const exactlyTwoFiles =
-		/\bexactly\b[\s\S]{0,40}\b(?:two|2)\b[\s\S]{0,40}\bfiles?\b/.test(lower) ||
-		/\b(?:two|2)\b[\s\S]{0,40}\bfiles?\b[\s\S]{0,40}\bno\s+others\b/.test(lower);
+	const exactlyTwoFiles = hasExactTwoFileProofIntent(lower);
 	const staticHtmlOnly = /\bstatic\s+html\s+only\b|\bkeep\s+it\s+as\s+static\s+html\b|\bstatic\s+file\s+only\b/.test(lower);
 	const noPackage = /\bdo\s+not\s+(?:add|create)\s+package(?:\.json)?\b|\bno\s+package(?:\.json| files?)?\b/.test(lower);
 	const forbidsFullApp = /\bdo\s+not\s+(?:make|build|create)\s+(?:a\s+)?full\s+app\b|\bdon't\s+(?:make|build|create)\s+(?:a\s+)?full\s+app\b/.test(lower);
-	const forbidsExtraFiles = /\bno\s+others\b|\bno\s+extra\s+files?\b|\bdo\s+not\s+create\s+app\.js\b|\bdo\s+not\s+create\s+styles\.css\b/.test(lower);
+	const forbidsExtraFiles = hasExtraFileDenial(lower);
 	return namesIndex && (
 		oneFileOnly ||
 		oneFileNamedIndex ||
@@ -193,10 +191,29 @@ function isConstrainedSingleFileStaticHtml(content: string): boolean {
 
 function constrainedStaticDeliverableFiles(content: string): string[] {
 	const lower = content.toLowerCase();
-	if (/\bindex\.html\b/.test(lower) && /\breadme\.md\b/.test(lower) && /\bexactly\b[\s\S]{0,40}\b(?:two|2)\b[\s\S]{0,40}\bfiles?\b/.test(lower)) {
+	if (/\bindex\.html\b/.test(lower) && /\breadme\.md\b/.test(lower) && hasExactTwoFileProofIntent(lower)) {
 		return ['index.html', 'README.md'];
 	}
 	return ['index.html'];
+}
+
+function hasExactTwoFileProofIntent(lower: string): boolean {
+	const saysExactly = /\bexactly\b/.test(lower);
+	const saysTwo = /\b(?:two|2)\b/.test(lower);
+	const saysFiles = /\bfiles?\b/.test(lower);
+	return (
+		/\bexactly\b[\s\S]{0,120}\b(?:two|2)\b[\s\S]{0,120}\bfiles?\b/.test(lower) ||
+		/\b(?:two|2)\b[\s\S]{0,120}\bfiles?\b[\s\S]{0,120}\bno\s+(?:others|other\s+files)\b/.test(lower) ||
+		(saysExactly && saysTwo && saysFiles && /\bindex\.html\b/.test(lower) && /\breadme\.md\b/.test(lower))
+	);
+}
+
+function hasExtraFileDenial(lower: string): boolean {
+	return (
+		/\bno\s+others\b|\bno\s+other\s+files?\b|\bno\s+extra\s+files?\b/.test(lower) ||
+		/\bdo\s+not\s+create\b[\s\S]{0,160}\b(?:app\.js|styles\.css|package\.json|assets|folders?|extra\s+files?)\b/.test(lower) ||
+		/\bdo\s+not\s+(?:publish|deploy|install\s+packages|make\s+network\s+calls)\b/.test(lower)
+	);
 }
 
 function inferTechStack(content: string): { framework: string; language: string; styling: string; deployment: string } {
