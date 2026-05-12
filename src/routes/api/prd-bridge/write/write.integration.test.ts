@@ -118,7 +118,7 @@ describe('/api/prd-bridge/write integration', () => {
 				body: JSON.stringify({
 					content: [
 						`Create a local-only static proof in ${targetFolder}.`,
-						'You must create exactly 2 files and no others: index.html and README.md.',
+						'You must create exactly 2 local proof files and no others: index.html and README.md.',
 						'Do not create app.js, styles.css, package.json, assets, folders, or any extra file.',
 						'Put all styling inline inside index.html.'
 					].join(' '),
