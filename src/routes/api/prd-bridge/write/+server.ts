@@ -175,9 +175,9 @@ function isConstrainedSingleFileStaticHtml(content: string): boolean {
 	const namesReadme = /\breadme\.md\b/.test(lower);
 	const oneFileOnly = /\b(?:one|single)[-\s]?file\s+only\b|\bonly\s+(?:one|a\s+single)\s+file\b/.test(lower);
 	const oneFileNamedIndex = /\b(?:one|single)[-\s]?file\s*(?:,|:|called|named|as)?\s*index\.html\b/.test(lower);
-	const exactlyTwoFiles = /\bexactly\s+two\s+files\b|\btwo\s+files\s+and\s+no\s+others\b/.test(lower);
+	const exactlyTwoFiles = /\bexactly\s+(?:two|2)\s+files\b|\b(?:two|2)\s+files\s+and\s+no\s+others\b/.test(lower);
 	const staticHtmlOnly = /\bstatic\s+html\s+only\b|\bkeep\s+it\s+as\s+static\s+html\b|\bstatic\s+file\s+only\b/.test(lower);
-	const noPackage = /\bdo\s+not\s+add\s+package\b|\bno\s+package(?:\.json| files?)?\b/.test(lower);
+	const noPackage = /\bdo\s+not\s+(?:add|create)\s+package(?:\.json)?\b|\bno\s+package(?:\.json| files?)?\b/.test(lower);
 	const forbidsFullApp = /\bdo\s+not\s+(?:make|build|create)\s+(?:a\s+)?full\s+app\b|\bdon't\s+(?:make|build|create)\s+(?:a\s+)?full\s+app\b/.test(lower);
 	const forbidsExtraFiles = /\bno\s+others\b|\bno\s+extra\s+files?\b|\bdo\s+not\s+create\s+app\.js\b|\bdo\s+not\s+create\s+styles\.css\b/.test(lower);
 	return namesIndex && (
@@ -191,7 +191,7 @@ function isConstrainedSingleFileStaticHtml(content: string): boolean {
 
 function constrainedStaticDeliverableFiles(content: string): string[] {
 	const lower = content.toLowerCase();
-	if (/\bindex\.html\b/.test(lower) && /\breadme\.md\b/.test(lower) && /\bexactly\s+two\s+files\b/.test(lower)) {
+	if (/\bindex\.html\b/.test(lower) && /\breadme\.md\b/.test(lower) && /\bexactly\s+(?:two|2)\s+files\b/.test(lower)) {
 		return ['index.html', 'README.md'];
 	}
 	return ['index.html'];
