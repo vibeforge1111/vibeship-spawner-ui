@@ -1,4 +1,5 @@
-const ABSOLUTE_PATH_PATTERN = /(?:[A-Z]:[\\/]|\/)[^\r\n`"<>|?*]+/i;
+const PATH_SOURCE = String.raw`(?<![A-Za-z])(?:[A-Z]:[\\/]|\/(?:Users|home|tmp|var|mnt|data|workspaces?|workspace|srv|opt|repo|app|projects?)(?:\/|$))[^\r\n\`"<>|?*]*`;
+const ABSOLUTE_PATH_PATTERN = new RegExp(PATH_SOURCE, 'i');
 
 function trimCandidateAtSentenceBoundary(candidate: string): string {
 	const boundaries = [
@@ -26,9 +27,9 @@ export function cleanProjectPathCandidate(value: string | null | undefined): str
 
 export function extractExplicitProjectPath(text: string): string | null {
 	const match =
-		text.match(/Improve the existing shipped project\s+"[^"]+"\s+at\s+(`?((?:[A-Z]:[\\/]|\/)[^\r\n`"]+))/i) ||
+		text.match(new RegExp(`Improve the existing shipped project\\s+"[^"]+"\\s+at\\s+(\\\`?(${PATH_SOURCE}))`, 'i')) ||
 		text.match(
-			/(?:target operating-system folder|project path|target folder|create it at|create it in|create this at|create this in|build it at|build it in|build this at|build this in|inside|at|in)\s*:?\s*`?((?:[A-Z]:[\\/]|\/)[^\r\n`"]+)/i
+			new RegExp(`\\b(?:target operating-system folder|project path|target folder|create it at|create it in|create this at|create this in|build it at|build it in|build this at|build this in|inside|at|in)\\b\\s*:?\\s*\\\`?(${PATH_SOURCE})`, 'i')
 		) ||
 		text.match(ABSOLUTE_PATH_PATTERN);
 	const candidate = match ? match[2] || match[1] || match[0] : null;
