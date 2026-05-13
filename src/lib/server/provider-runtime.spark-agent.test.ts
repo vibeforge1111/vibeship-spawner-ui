@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { providerRuntime, reconcileStaleProviderResults } from './provider-runtime';
 import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { eventBridge, type BridgeEvent } from '$lib/services/event-bridge';
@@ -60,6 +63,7 @@ afterEach(() => {
 	providerRuntime.cleanup('mission-step2-persist');
 	providerRuntime.cleanup('mission-step2-lifecycle');
 	providerRuntime.cleanup('mission-step2-activity');
+	delete process.env.SPAWNER_STATE_DIR;
 });
 
 describe('provider-runtime Spark agent bridge', () => {
@@ -395,39 +399,57 @@ describe('provider-runtime Spark agent bridge', () => {
 		expect(Object.keys(after.providers).length).toBeGreaterThan(0);
 	});
 
-	it('keeps provider result details after in-memory sessions are cleared', async () => {
+	it('keeps redacted provider result metadata after in-memory sessions are cleared', async () => {
+		const stateDir = mkdtempSync(path.join(tmpdir(), 'spawner-provider-results-'));
+		process.env.SPAWNER_STATE_DIR = stateDir;
 		sparkAgentBridge.setWorkerExecutorForTests(async (context) => {
 			return { success: true, response: `${context.providerId}-durable`, durationMs: 12 };
 		});
 
-		const pack = buildPack('mission-step2-persist', [provider('codex', 'gpt-5.5')]);
-		await providerRuntime.dispatch({
-			executionPack: pack,
-			apiKeys: { codex: 'test-codex' },
-			onEvent: () => {},
-			workingDirectory: process.cwd()
-		});
+		try {
+			const pack = buildPack('mission-step2-persist', [provider('codex', 'gpt-5.5')]);
+			await providerRuntime.dispatch({
+				executionPack: pack,
+				apiKeys: { codex: 'test-codex' },
+				onEvent: () => {},
+				workingDirectory: process.cwd()
+			});
 
-		await waitFor(() => providerRuntime.getMissionStatus('mission-step2-persist').allComplete);
-		expect(providerRuntime.getMissionResults('mission-step2-persist')[0]).toMatchObject({
-			providerId: 'codex',
-			status: 'completed',
-			response: 'codex-durable'
-		});
-		expect(providerRuntime.getMissionResults('mission-step2-persist')[0].durationMs).toEqual(expect.any(Number));
+			await waitFor(() => providerRuntime.getMissionStatus('mission-step2-persist').allComplete);
+			expect(providerRuntime.getMissionResults('mission-step2-persist')[0]).toMatchObject({
+				providerId: 'codex',
+				status: 'completed',
+				response: null,
+				responsePresent: true,
+				responseLength: 'codex-durable'.length,
+				responseRedacted: true,
+				responseSummary: 'completed with provider output redacted'
+			});
+			expect(providerRuntime.getMissionResults('mission-step2-persist')[0].durationMs).toEqual(expect.any(Number));
 
-		providerRuntime.clearInMemoryForTests('mission-step2-persist');
-		expect(providerRuntime.getMissionStatus('mission-step2-persist')).toMatchObject({
-			allComplete: true,
-			providers: { codex: 'completed' }
-		});
-		expect(providerRuntime.getSessionsForMission('mission-step2-persist')).toEqual([]);
-		expect(providerRuntime.getMissionResults('mission-step2-persist')[0]).toMatchObject({
-			providerId: 'codex',
-			status: 'completed',
-			response: 'codex-durable'
-		});
-		expect(providerRuntime.getMissionResults('mission-step2-persist')[0].durationMs).toEqual(expect.any(Number));
+			const persisted = readFileSync(path.join(stateDir, 'mission-provider-results.json'), 'utf-8');
+			expect(persisted).not.toContain('codex-durable');
+			expect(persisted).toContain('responseRedacted');
+
+			providerRuntime.clearInMemoryForTests('mission-step2-persist');
+			expect(providerRuntime.getMissionStatus('mission-step2-persist')).toMatchObject({
+				allComplete: true,
+				providers: { codex: 'completed' }
+			});
+			expect(providerRuntime.getSessionsForMission('mission-step2-persist')).toEqual([]);
+			expect(providerRuntime.getMissionResults('mission-step2-persist')[0]).toMatchObject({
+				providerId: 'codex',
+				status: 'completed',
+				response: null,
+				responsePresent: true,
+				responseRedacted: true
+			});
+			expect(providerRuntime.getMissionResults('mission-step2-persist')[0].durationMs).toEqual(expect.any(Number));
+		} finally {
+			providerRuntime.cleanup('mission-step2-persist');
+			delete process.env.SPAWNER_STATE_DIR;
+			rmSync(stateDir, { recursive: true, force: true });
+		}
 	});
 
 	it('reconciles running provider sessions from external mission lifecycle completion', async () => {
@@ -463,7 +485,10 @@ describe('provider-runtime Spark agent bridge', () => {
 		expect(providerRuntime.getMissionResults('mission-step2-lifecycle')[0]).toMatchObject({
 			providerId: 'codex',
 			status: 'completed',
-			response: 'completed from event stream',
+			response: null,
+			responsePresent: true,
+			responseLength: 'completed from event stream'.length,
+			responseRedacted: true,
 			completedAt: '2026-04-28T00:00:00.000Z'
 		});
 	});

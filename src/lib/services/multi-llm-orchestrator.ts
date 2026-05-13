@@ -1070,14 +1070,15 @@ function indentForPrompt(text: string, prefix: string): string {
 }
 
 function buildLaunchCommand(provider: MultiLLMProviderConfig, missionId: string): string {
-	const promptFile = `configured Spawner state root/prompts/${missionId}-${provider.id}.md`;
+	const promptMetadataFile = `configured Spawner state root/prompt-metadata/${missionId}-${provider.id}.json`;
 
 	if (provider.kind === 'terminal_cli') {
 		const command = (provider.commandTemplate || '').replace('{model}', provider.model).trim();
 		return [
 			`# ${provider.label} terminal launch`,
-			`# 1) Save this provider prompt to ${promptFile}`,
+			`# 1) Spawner records redacted prompt metadata at ${promptMetadataFile}`,
 			`# 2) Run command and paste prompt if your CLI does not accept stdin`,
+			`# 3) Raw prompt files are not retained by default`,
 			command || `# No command template configured for ${provider.id}`
 		].join('\n');
 	}
@@ -1090,7 +1091,7 @@ function buildLaunchCommand(provider: MultiLLMProviderConfig, missionId: string)
 			: '  # No API key required for this local OpenAI-compatible provider \\';
 		return [
 			`# ${provider.label} OpenAI-compatible launch`,
-			`# 1) Save this provider prompt to ${promptFile}`,
+			`# 1) Spawner records redacted prompt metadata at ${promptMetadataFile}`,
 			`# 2) Build a request JSON using model "${provider.model}" and prompt content`,
 			`curl -sS ${baseUrl}/chat/completions \\`,
 			authHeader,
@@ -1103,7 +1104,7 @@ function buildLaunchCommand(provider: MultiLLMProviderConfig, missionId: string)
 		const customCommand = (provider.commandTemplate || '').replace('{model}', provider.model).trim();
 		return [
 			`# ${provider.label} custom launch`,
-			`# 1) Save this provider prompt to ${promptFile}`,
+			`# 1) Spawner records redacted prompt metadata at ${promptMetadataFile}`,
 			`# 2) Use your provider SDK/API with model "${provider.model}"`,
 			customCommand || `# No custom command template configured for ${provider.id}`
 		].join('\n');

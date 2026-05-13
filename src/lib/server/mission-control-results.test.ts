@@ -45,15 +45,24 @@ function entry(
 describe('mission-control-results', () => {
 	it('summarizes completed provider responses for mission cards', () => {
 		const summary = summarizeProviderResults([
-			result({ providerId: 'codex', response: 'SPARK_SPAWNER_CODEX_OK\n\nextra detail' })
+			result({
+				providerId: 'codex',
+				response: null,
+				responsePresent: true,
+				responseLength: 36,
+				responseRedacted: true,
+				responseSummary: 'completed with provider output redacted'
+			})
 		]);
 
-		expect(summary.providerSummary).toBe('Codex: SPARK_SPAWNER_CODEX_OK extra detail');
+		expect(summary.providerSummary).toBe('Codex: completed with provider output redacted');
 		expect(summary.providerResults).toEqual([
 			expect.objectContaining({
 				providerId: 'codex',
 				status: 'completed',
-				summary: 'SPARK_SPAWNER_CODEX_OK extra detail'
+				summary: 'completed with provider output redacted',
+				responsePresent: true,
+				responseRedacted: true
 			})
 		]);
 	});
@@ -71,12 +80,13 @@ describe('mission-control-results', () => {
 		const summary = summarizeProviderResults([
 			result({
 				providerId: 'zai',
-				response: JSON.stringify({
-					status: 'completed',
-					summary: 'Materialized hosted project files.',
-					project_path: '/data/workspaces/mission-1-demo',
-					preview_url: 'https://spawner.example/preview/demo/index.html'
-				})
+				response: null,
+				responsePresent: true,
+				responseLength: 151,
+				responseRedacted: true,
+				responseSummary: 'Materialized hosted project files.',
+				project_path: '/data/workspaces/mission-1-demo',
+				preview_url: 'https://spawner.example/preview/demo/index.html'
 			})
 		]);
 
@@ -93,7 +103,11 @@ describe('mission-control-results', () => {
 		const summary = summarizeProviderResults([
 			result({
 				providerId: 'codex',
-				response:
+				response: null,
+				responsePresent: true,
+				responseLength: 139,
+				responseRedacted: true,
+				responseSummary:
 					'Wrote [agent.py](C:/Users/USER/.spark/modules/spark-intelligence-builder/source/src/agent.py) and `/Users/leventcem/.spark/logs/spawner-ui.log`.'
 			})
 		]);
@@ -108,11 +122,12 @@ describe('mission-control-results', () => {
 		const summary = summarizeProviderResults([
 			result({
 				providerId: 'codex',
-				response: JSON.stringify({
-					status: 'completed',
-					summary: 'Materialized hosted project files.',
-					project_path: 'C:/Users/USER/.spark/workspaces/mission-1'
-				})
+				response: null,
+				responsePresent: true,
+				responseLength: 121,
+				responseRedacted: true,
+				responseSummary: 'Materialized hosted project files.',
+				project_path: 'C:/Users/USER/.spark/workspaces/mission-1'
 			})
 		]);
 		delete process.env.SPARK_PROJECT_PREVIEW_BASE_URL;
@@ -128,10 +143,21 @@ describe('mission-control-results', () => {
 	it('enriches each board entry through the supplied result lookup', () => {
 		const enriched = enrichMissionControlBoardWithProviderResults(
 			{ completed: [entry('mission-1')], failed: [] },
-			(missionId) => (missionId === 'mission-1' ? [result({ response: 'done' })] : [])
+			(missionId) =>
+				missionId === 'mission-1'
+					? [
+							result({
+								response: null,
+								responsePresent: true,
+								responseLength: 4,
+								responseRedacted: true,
+								responseSummary: 'completed with provider output redacted'
+							})
+						]
+					: []
 		);
 
-		expect(enriched.completed[0].providerSummary).toBe('Codex: done');
+		expect(enriched.completed[0].providerSummary).toBe('Codex: completed with provider output redacted');
 		expect(enriched.completed[0].providerResults).toHaveLength(1);
 	});
 
@@ -178,7 +204,16 @@ describe('mission-control-results', () => {
 				running: [],
 				paused: []
 			},
-			() => [result({ status: 'completed', response: 'done' })]
+			() => [
+				result({
+					status: 'completed',
+					response: null,
+					responsePresent: true,
+					responseLength: 4,
+					responseRedacted: true,
+					responseSummary: 'completed with provider output redacted'
+				})
+			]
 		);
 
 		expect(enriched.created).toEqual([]);
@@ -187,7 +222,7 @@ describe('mission-control-results', () => {
 			status: 'completed',
 			lastEventType: 'provider_completed',
 			taskStatusCounts: { completed: 1, total: 1 },
-			providerSummary: 'Codex: done',
+			providerSummary: 'Codex: completed with provider output redacted',
 			completionEvidence: {
 				state: 'complete',
 				missing: [],

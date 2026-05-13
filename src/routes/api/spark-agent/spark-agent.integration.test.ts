@@ -326,6 +326,10 @@ describe('/api/spark-agent integration', () => {
 		const runBody = await runResponse.json();
 		expect(runBody.data.success).toBe(true);
 		expect(runBody.data.sparkAgentSessionId).toBe(sessionId);
+		expect(runBody.data.response).toBeNull();
+		expect(runBody.data.responsePresent).toBe(true);
+		expect(runBody.data.responseLength).toBe('done'.length);
+		expect(runBody.data.responseRedacted).toBe(true);
 
 		const abortController = new AbortController();
 		const eventsResponse = await events({
@@ -346,6 +350,8 @@ describe('/api/spark-agent integration', () => {
 		expect(sessionEvents.some((event) => event.type === 'task_progress')).toBe(true);
 		expect(sessionEvents.some((event) => event.type === 'task_completed')).toBe(true);
 		expect(sessionEvents.some((event) => event.data.sparkAgentSessionId === sessionId)).toBe(true);
+		expect(JSON.stringify(sessionEvents)).not.toContain('"response":"done"');
+		expect(JSON.stringify(sessionEvents)).not.toContain('Do the work');
 		abortController.abort();
 	});
 

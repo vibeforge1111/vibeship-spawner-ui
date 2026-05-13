@@ -7,7 +7,11 @@ function providerResult(overrides: Partial<ProviderMissionResultSnapshot> = {}):
 	return {
 		providerId: 'codex',
 		status: 'completed',
-		response: 'Built the Telegram canvas mission and updated Kanban.',
+		response: null,
+		responsePresent: true,
+		responseLength: 'Built the Telegram canvas mission and updated Kanban.'.length,
+		responseRedacted: true,
+		responseSummary: 'completed with provider output redacted',
 		error: null,
 		durationMs: 1200,
 		tokenUsage: null,
@@ -95,7 +99,7 @@ describe('/api/mission-control/board integration', () => {
 			taskStatusCounts: { queued: 0, running: 0, completed: 2, failed: 0, cancelled: 0, total: 2 },
 			taskNames: ['Build canvas flow', 'Shape build plan'],
 			telegramRelay: { port: 8789, profile: 'primary', url: null },
-			providerSummary: 'Codex: Built the Telegram canvas mission and updated Kanban.'
+			providerSummary: 'Codex: completed with provider output redacted'
 		});
 		expect(entry.tasks).toEqual([
 			{ title: 'Build canvas flow', skills: ['canvas', 'kanban'], status: 'completed' },
@@ -105,7 +109,9 @@ describe('/api/mission-control/board integration', () => {
 			expect.objectContaining({
 				providerId: 'codex',
 				status: 'completed',
-				summary: 'Built the Telegram canvas mission and updated Kanban.'
+				summary: 'completed with provider output redacted',
+				responsePresent: true,
+				responseRedacted: true
 			})
 		]);
 	});

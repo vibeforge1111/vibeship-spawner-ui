@@ -23,6 +23,7 @@ import { normalizeTraceRef } from '$lib/server/trace-ref';
 
 interface SparkRunBody {
 	goal?: string;
+	missionName?: string;
 	projectPath?: string;
 	providers?: string[];
 	chatId?: string;
@@ -102,6 +103,12 @@ function normalizeTelegramRelay(value: SparkRunBody['telegramRelay']): Record<st
 	return Object.keys(relay).length > 0 ? relay : null;
 }
 
+function sparkMissionName(body: SparkRunBody, goal: string): string {
+	const explicitName = body.missionName?.trim();
+	if (explicitName) return explicitName;
+	return `Spark Run: ${goal.length > 140 ? `${goal.slice(0, 137)}...` : goal}`;
+}
+
 function createSparkMission(
 	body: SparkRunBody,
 	goal: string,
@@ -117,11 +124,12 @@ function createSparkMission(
 	const projectPath = resolveSparkRunProjectPath(body.projectPath);
 	const sparkProjectPath = body.promptMode === 'simple' && !body.projectPath?.trim() ? null : projectPath;
 	const traceRef = normalizeTraceRef(body.traceRef ?? body.trace_ref) || `trace:spawner-run:${missionId}`;
+	const missionName = sparkMissionName(body, goal);
 
 	return {
 		id: missionId,
 		user_id: userId,
-		name: `Spark Run: ${goal.length > 140 ? goal.slice(0, 137) + '…' : goal}`,
+		name: missionName,
 		description: goal,
 		mode: 'multi-llm-orchestrator',
 		status: 'ready',
@@ -348,6 +356,7 @@ export const POST: RequestHandler = async (event) => {
 		return json({
 			success: true,
 			missionId: dispatchResult.missionId,
+			missionName: mission.name,
 			requestId: body.requestId?.trim() || mission.id,
 			...(traceRef ? { traceRef } : {}),
 			providers: selectedProviderIds,

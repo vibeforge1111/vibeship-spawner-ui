@@ -143,7 +143,9 @@ export interface SparkAgentProviderTaskInput {
 export interface SparkAgentProviderTaskResult {
 	success: boolean;
 	sparkAgentSessionId: string;
-	response?: string;
+	responsePresent?: boolean;
+	responseLength?: number | null;
+	responseRedacted?: boolean;
 	error?: string;
 	durationMs?: number;
 }
@@ -160,7 +162,8 @@ interface SparkAgentWorkerState {
 	startedAt: string;
 	completedAt?: string;
 	error?: string;
-	response?: string;
+	responseLength?: number;
+	responseRedacted?: boolean;
 	process?: ChildProcess;
 	progress: number;
 }
@@ -238,6 +241,23 @@ function createId(prefix: string): string {
 
 function isProviderId(value: unknown): value is SparkAgentProviderId {
 	return value === 'claude' || value === 'codex';
+}
+
+function sanitizeCommandParamsForEvents(
+	command: SparkAgentCommandName,
+	params: Record<string, unknown> | undefined
+): Record<string, unknown> {
+	if (!params) return {};
+	if (command !== 'worker.run') return params;
+	const sanitized = { ...params };
+	const prompt = typeof sanitized.prompt === 'string' ? sanitized.prompt : '';
+	delete sanitized.prompt;
+	return {
+		...sanitized,
+		promptPresent: prompt.trim().length > 0,
+		promptLength: prompt.length,
+		promptRedacted: prompt.length > 0
+	};
 }
 
 interface ProviderCommand {
@@ -523,18 +543,23 @@ class SparkAgentBridgeService {
 
 			if (result.success) {
 				workerState.status = 'completed';
-				workerState.response = result.response;
+				workerState.responseLength = result.response?.length ?? 0;
+				workerState.responseRedacted = Boolean(result.response);
 				workerState.completedAt = nowIso();
 				this.emitProviderEvent(workerState, 'task_completed', {
 					progress: 100,
 					message: `${providerId} worker completed`,
-					response: result.response || ''
+					responsePresent: Boolean(result.response),
+					responseLength: result.response?.length ?? 0,
+					responseRedacted: Boolean(result.response)
 				});
 				this.endSession(sparkAgentSessionId, 'completed');
 				return {
 					success: true,
 					sparkAgentSessionId,
-					response: result.response,
+					responsePresent: Boolean(result.response),
+					responseLength: result.response?.length ?? null,
+					responseRedacted: Boolean(result.response),
 					durationMs: Date.now() - startedAtMs
 				};
 			}
@@ -617,7 +642,7 @@ class SparkAgentBridgeService {
 			command: input.command,
 			actor,
 			requestId: input.requestId || null,
-			params: input.params || {}
+			params: sanitizeCommandParamsForEvents(input.command, input.params)
 		});
 
 		try {
@@ -1132,7 +1157,10 @@ class SparkAgentBridgeService {
 			sparkAgentSessionId: result.sparkAgentSessionId,
 			success: result.success,
 			error: result.error || null,
-			response: result.response || null,
+			response: null,
+			responsePresent: result.responsePresent ?? false,
+			responseLength: result.responseLength ?? null,
+			responseRedacted: result.responseRedacted ?? false,
 			durationMs: result.durationMs || 0
 		};
 	}
@@ -1162,6 +1190,8 @@ class SparkAgentBridgeService {
 			taskId: worker.taskId || null,
 			status: worker.status,
 			progress: worker.progress,
+			responseLength: worker.responseLength ?? null,
+			responseRedacted: worker.responseRedacted ?? false,
 			error: worker.error || null
 		};
 	}

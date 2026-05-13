@@ -61,6 +61,16 @@ export interface ProviderMissionResultSnapshot {
 	requestId?: string | null;
 	traceRef?: string | null;
 	response: string | null;
+	responsePresent?: boolean;
+	responseLength?: number | null;
+	responseRedacted?: boolean;
+	responseRedaction?: string | null;
+	responseSummary?: string | null;
+	projectPath?: string;
+	project_path?: string;
+	previewUrl?: string;
+	preview_url?: string;
+	changedFileCount?: number | null;
 	error: string | null;
 	durationMs: number | null;
 	tokenUsage: ProviderResult['tokenUsage'] | null;
@@ -173,11 +183,123 @@ export function providerShouldUseSparkExecutionBridge(
 	);
 }
 
+function stringField(record: Record<string, unknown> | null, key: string): string | null {
+	const value = record?.[key];
+	return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function arrayLengthField(record: Record<string, unknown> | null, key: string): number | null {
+	const value = record?.[key];
+	return Array.isArray(value) ? value.length : null;
+}
+
+function parseProviderResponseRecord(response: string | null | undefined): Record<string, unknown> | null {
+	if (!response?.trim()) return null;
+	try {
+		const parsed = JSON.parse(response) as unknown;
+		if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+		return parsed as Record<string, unknown>;
+	} catch {
+		return null;
+	}
+}
+
+function redactedProviderResponseSummary(input: {
+	responsePresent: boolean;
+	projectPath: string | null;
+	previewUrl: string | null;
+	changedFileCount: number | null;
+}): string | null {
+	if (input.changedFileCount !== null) {
+		const fileLabel = input.changedFileCount === 1 ? 'project file' : 'project files';
+		return `Materialized ${input.changedFileCount} ${fileLabel}.`;
+	}
+	if (input.projectPath || input.previewUrl) return 'Materialized hosted project files.';
+	if (input.responsePresent) return 'completed with provider output redacted';
+	return null;
+}
+
+function providerResponseSnapshotFields(
+	response: string | null | undefined,
+	existing: Partial<ProviderMissionResultSnapshot> = {}
+): Pick<
+	ProviderMissionResultSnapshot,
+	| 'response'
+	| 'responsePresent'
+	| 'responseLength'
+	| 'responseRedacted'
+	| 'responseRedaction'
+	| 'responseSummary'
+	| 'projectPath'
+	| 'project_path'
+	| 'previewUrl'
+	| 'preview_url'
+	| 'changedFileCount'
+> {
+	const responseText = typeof response === 'string' ? response : '';
+	const responsePresent = existing.responsePresent ?? responseText.trim().length > 0;
+	const responseLength = existing.responseLength ?? (responsePresent ? responseText.length : null);
+	const record = parseProviderResponseRecord(responseText);
+	const projectPath =
+		existing.projectPath ||
+		existing.project_path ||
+		stringField(record, 'project_path') ||
+		stringField(record, 'projectPath');
+	const previewUrl =
+		existing.previewUrl ||
+		existing.preview_url ||
+		stringField(record, 'preview_url') ||
+		stringField(record, 'previewUrl') ||
+		stringField(record, 'open_url') ||
+		stringField(record, 'openUrl');
+	const changedFileCount =
+		existing.changedFileCount ??
+		arrayLengthField(record, 'changed_files') ??
+		arrayLengthField(record, 'changedFiles');
+	const responseSummary =
+		existing.responseSummary ||
+		redactedProviderResponseSummary({
+			responsePresent,
+			projectPath,
+			previewUrl,
+			changedFileCount
+		});
+
+	return {
+		response: null,
+		responsePresent,
+		responseLength,
+		responseRedacted: existing.responseRedacted ?? responsePresent,
+		responseRedaction: responsePresent
+			? 'metadata-only; raw provider output redacted from persisted/live mission result snapshots'
+			: null,
+		responseSummary,
+		...(projectPath ? { projectPath, project_path: projectPath } : {}),
+		...(previewUrl ? { previewUrl, preview_url: previewUrl } : {}),
+		changedFileCount
+	};
+}
+
+function sanitizeProviderMissionResultSnapshot(
+	missionId: string,
+	result: ProviderMissionResultSnapshot
+): ProviderMissionResultSnapshot {
+	return withMissionTraceMetadata(missionId, {
+		...result,
+		...providerResponseSnapshotFields(result.response, result)
+	});
+}
+
 function sessionToResultSnapshot(session: ProviderSession): ProviderMissionResultSnapshot {
 	return withMissionTraceMetadata(session.missionId, {
 		providerId: session.providerId,
 		status: session.status,
-		response: session.result?.response ?? null,
+		...providerResponseSnapshotFields(session.result?.response ?? null, {
+			responsePresent: session.result?.responsePresent,
+			responseLength: session.result?.responseLength,
+			responseRedacted: session.result?.responseRedacted,
+			responseSummary: session.result?.responseSummary
+		}),
 		error: session.error ?? session.result?.error ?? null,
 		durationMs: session.result?.durationMs ?? null,
 		tokenUsage: session.result?.tokenUsage ?? null,
@@ -256,7 +378,9 @@ class ProviderRuntimeManager {
 			return new Map(
 				Object.entries(parsed.missions ?? {}).map(([missionId, results]) => [
 					missionId,
-					Array.isArray(results) ? results.map((result) => withMissionTraceMetadata(missionId, result)) : []
+					Array.isArray(results)
+						? results.map((result) => sanitizeProviderMissionResultSnapshot(missionId, result))
+						: []
 				])
 			);
 		} catch (error) {
@@ -305,7 +429,9 @@ class ProviderRuntimeManager {
 		const persisted = this.persistedResults.get(missionId) ?? [];
 		const orphaned = !this.dispatchSnapshots.has(missionId);
 		const reconciled = reconcileStaleProviderResults(persisted, { orphaned });
-		const withMetadata = reconciled.results.map((result) => withMissionTraceMetadata(missionId, result));
+		const withMetadata = reconciled.results.map((result) =>
+			sanitizeProviderMissionResultSnapshot(missionId, result)
+		);
 		const metadataChanged = withMetadata.some(
 			(result, index) => result.requestId !== reconciled.results[index]?.requestId || result.traceRef !== reconciled.results[index]?.traceRef
 		);
@@ -773,7 +899,6 @@ class ProviderRuntimeManager {
 						return {
 							success: false,
 							error: materialized.error,
-							response: result.response,
 							tokenUsage: result.tokenUsage,
 							durationMs: result.durationMs
 						};
@@ -830,14 +955,15 @@ class ProviderRuntimeManager {
 					signal: abortController.signal
 				});
 				this.sparkAgentSessionIds.set(sessionKey, workerResult.sparkAgentSessionId);
-				if (workerResult.success && workerResult.response) {
+				if (workerResult.success && workerResult.responsePresent) {
+					const responseLength = workerResult.responseLength ?? 0;
 					onEvent(
 						createBridgeEvent('task_completed', { provider, missionId, onEvent, signal: abortController.signal }, {
-							message: `${provider.label} completed (${workerResult.response.length} chars)`,
+							message: `${provider.label} completed (${responseLength} chars)`,
 							data: {
 								success: true,
-								responseLength: workerResult.response.length,
-								response: workerResult.response,
+								responseLength,
+								responseRedacted: true,
 								provider: provider.id,
 								providerLabel: provider.label
 							}
@@ -858,7 +984,12 @@ class ProviderRuntimeManager {
 				}
 				return {
 					success: workerResult.success,
-					response: workerResult.response,
+					responsePresent: workerResult.responsePresent ?? false,
+					responseLength: workerResult.responseLength ?? null,
+					responseRedacted: workerResult.responseRedacted ?? false,
+					responseSummary: workerResult.responsePresent
+						? 'completed with provider output redacted'
+						: null,
 					error: workerResult.error,
 					durationMs: workerResult.durationMs
 				};
@@ -1056,10 +1187,11 @@ class ProviderRuntimeManager {
 				if (result.status === 'completed' || result.status === 'failed' || result.status === 'cancelled') {
 					return result;
 				}
+				const responseFields = providerResponseSnapshotFields(input.response || result.response, result);
 				return {
 					...result,
 					status: terminalStatus,
-					response: input.response || result.response,
+					...responseFields,
 					error: terminalStatus === 'failed' ? input.error || result.error || 'Mission failed' : result.error,
 					durationMs:
 						result.durationMs ??

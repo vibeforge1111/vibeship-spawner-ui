@@ -4,6 +4,10 @@ import type { MultiLLMProviderConfig } from '$lib/services/multi-llm-orchestrato
 export interface ProviderResult {
 	success: boolean;
 	response?: string;
+	responsePresent?: boolean;
+	responseLength?: number | null;
+	responseRedacted?: boolean;
+	responseSummary?: string | null;
 	error?: string;
 	tokenUsage?: { prompt: number; completion: number; total: number };
 	durationMs?: number;

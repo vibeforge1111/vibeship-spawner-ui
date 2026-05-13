@@ -12,6 +12,11 @@ export interface MissionControlProviderResultSummary {
 	requestId?: string | null;
 	traceRef?: string | null;
 	summary: string;
+	responsePresent?: boolean;
+	responseLength?: number | null;
+	responseRedacted?: boolean;
+	responseRedaction?: string | null;
+	changedFileCount?: number | null;
 	durationMs: number | null;
 	completedAt: string | null;
 	projectPath?: string;
@@ -112,10 +117,33 @@ function parseProviderResponseMetadata(response: string | null): {
 	};
 }
 
-function parseProviderResponseSummary(response: string | null): string | null {
-	const record = parseProviderResponseRecord(response);
-	if (!record) return null;
-	return stringField(record, 'summary') || stringField(record, 'message') || null;
+function providerResultMetadata(result: ProviderMissionResultSnapshot): {
+	projectPath?: string;
+	project_path?: string;
+	previewUrl?: string;
+	preview_url?: string;
+} {
+	const explicitProjectPath = result.projectPath || result.project_path;
+	const baseUrl = previewBaseUrl();
+	const explicitPreviewUrl =
+		result.previewUrl ||
+		result.preview_url ||
+		(explicitProjectPath && baseUrl ? projectPreviewUrl(baseUrl, explicitProjectPath) : null);
+	if (explicitProjectPath || explicitPreviewUrl) {
+		return {
+			...(explicitProjectPath
+				? { projectPath: explicitProjectPath, project_path: explicitProjectPath }
+				: {}),
+			...(explicitPreviewUrl ? { previewUrl: explicitPreviewUrl, preview_url: explicitPreviewUrl } : {})
+		};
+	}
+	return parseProviderResponseMetadata(result.response);
+}
+
+function providerResultSummary(result: ProviderMissionResultSnapshot): string | null {
+	if (result.responseSummary) return result.responseSummary;
+	if (result.responsePresent || result.response) return 'completed with provider output redacted';
+	return null;
 }
 
 export function summarizeProviderResults(
@@ -123,7 +151,7 @@ export function summarizeProviderResults(
 ): MissionControlResultSummary {
 	const providerResults = results.map((result) => {
 		const responseSummary = compactProviderHandoffText(
-			parseProviderResponseSummary(result.response) || result.response
+			providerResultSummary(result)
 		);
 		const errorSummary = compactMissionControlDisplayText(result.error);
 		const fallback =
@@ -138,9 +166,14 @@ export function summarizeProviderResults(
 			...(result.requestId ? { requestId: result.requestId } : {}),
 			...(result.traceRef ? { traceRef: result.traceRef } : {}),
 			summary: responseSummary || errorSummary || fallback,
+			...(result.responsePresent !== undefined ? { responsePresent: result.responsePresent } : {}),
+			...(result.responseLength !== undefined ? { responseLength: result.responseLength } : {}),
+			...(result.responseRedacted !== undefined ? { responseRedacted: result.responseRedacted } : {}),
+			...(result.responseRedaction ? { responseRedaction: result.responseRedaction } : {}),
+			...(result.changedFileCount !== undefined ? { changedFileCount: result.changedFileCount } : {}),
 			durationMs: result.durationMs,
 			completedAt: result.completedAt,
-			...parseProviderResponseMetadata(result.response)
+			...providerResultMetadata(result)
 		};
 	});
 

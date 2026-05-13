@@ -33,7 +33,11 @@ function providerResult(overrides: Partial<ProviderMissionResultSnapshot>): Prov
 	return {
 		providerId: 'codex',
 		status: 'completed',
-		response: 'Mission complete.',
+		response: null,
+		responsePresent: true,
+		responseLength: 'Mission complete.'.length,
+		responseRedacted: true,
+		responseSummary: 'completed with provider output redacted',
 		error: null,
 		durationMs: 1200,
 		tokenUsage: null,
@@ -189,7 +193,11 @@ describe('Mission Control lifecycle integration', () => {
 				? [
 						providerResult({
 							status: 'completed',
-							response: 'Built Spark System Lifecycle and verified files.'
+							response: null,
+							responsePresent: true,
+							responseLength: 'Built Spark System Lifecycle and verified files.'.length,
+							responseRedacted: true,
+							responseSummary: 'completed with provider output redacted'
 						})
 					]
 				: []
@@ -272,7 +280,7 @@ describe('Mission Control lifecycle integration', () => {
 			taskCount: 3,
 			taskStatusCounts: { queued: 0, running: 0, completed: 3, failed: 0, total: 3 },
 			telegramRelay: { port: 8789, profile: 'spark-agi', url: null },
-			providerSummary: 'Codex: Built Spark System Lifecycle and verified files.'
+			providerSummary: 'Codex: completed with provider output redacted'
 		});
 		expect(entry.taskNames).toEqual([
 			'Create static shell',
@@ -292,8 +300,9 @@ describe('Mission Control lifecycle integration', () => {
 			},
 			surfaces: {
 				telegram: {
-					chatId: 'telegram-chat',
-					userId: 'telegram-user',
+					chatId: null,
+					userId: null,
+					privateIdsRedacted: true,
 					relay: { port: 8789, profile: 'spark-agi', url: null }
 				},
 				canvas: {
@@ -309,7 +318,7 @@ describe('Mission Control lifecycle integration', () => {
 					providers: { codex: 'completed' }
 				}
 			},
-			providerSummary: 'Codex: Built Spark System Lifecycle and verified files.'
+			providerSummary: 'Codex: completed with provider output redacted'
 		});
 		expect(trace.agentBlackBox).toMatchObject({
 			schema_version: 'spark.agent_event.v1',
@@ -350,6 +359,10 @@ describe('Mission Control lifecycle integration', () => {
 						providerResult({
 							status: 'failed',
 							response: null,
+							responsePresent: false,
+							responseLength: null,
+							responseRedacted: false,
+							responseSummary: null,
 							error: 'Codex exited 1'
 						})
 					]

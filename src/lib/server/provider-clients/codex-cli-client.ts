@@ -28,12 +28,82 @@ export interface CodexCliCommand {
 	args: string[];
 }
 
+export interface ProviderPromptReferenceMetadata {
+	schema_version: 'spark.spawner_provider_prompt_reference.v1';
+	missionId: string;
+	providerId: string;
+	promptPresent: boolean;
+	promptLength: number;
+	rawPromptStored: boolean;
+	rawPromptPath: string | null;
+	redaction: string;
+	createdAt: string;
+}
+
 export interface ParseCodexCliCommandOptions {
 	allowHighAgency?: boolean;
 }
 
+const RAW_PROVIDER_PROMPT_RETENTION_ENV = 'SPARK_SPAWNER_RETAIN_RAW_PROVIDER_PROMPTS';
+
 function isSafeCommandToken(value: string): boolean {
 	return /^[A-Za-z0-9._:/@+=-]+$/.test(value);
+}
+
+function safeFileSegment(value: string): string {
+	return value
+		.trim()
+		.replace(/[^A-Za-z0-9._-]+/g, '-')
+		.replace(/^-+|-+$/g, '')
+		.slice(0, 120) || 'unknown';
+}
+
+export function retainRawProviderPrompts(env: Record<string, string | undefined> = process.env): boolean {
+	return env[RAW_PROVIDER_PROMPT_RETENTION_ENV] === '1';
+}
+
+export function writeProviderPromptReference(
+	input: {
+		missionId: string;
+		providerId: string;
+		prompt: string;
+	},
+	env: Record<string, string | undefined> = process.env
+): ProviderPromptReferenceMetadata {
+	const fileStem = `${safeFileSegment(input.missionId)}-${safeFileSegment(input.providerId)}`;
+	const stateDir = spawnerStateDir();
+	const metadataDir = join(stateDir, 'prompt-metadata');
+	if (!existsSync(metadataDir)) {
+		mkdirSync(metadataDir, { recursive: true });
+	}
+
+	let rawPromptStored = false;
+	let rawPromptPath: string | null = null;
+	if (retainRawProviderPrompts(env)) {
+		const rawPromptsDir = join(stateDir, 'prompts-private');
+		if (!existsSync(rawPromptsDir)) {
+			mkdirSync(rawPromptsDir, { recursive: true });
+		}
+		rawPromptPath = join(rawPromptsDir, `${fileStem}.md`);
+		writeFileSync(rawPromptPath, input.prompt, 'utf-8');
+		rawPromptStored = true;
+	}
+
+	const metadata: ProviderPromptReferenceMetadata = {
+		schema_version: 'spark.spawner_provider_prompt_reference.v1',
+		missionId: input.missionId,
+		providerId: input.providerId,
+		promptPresent: input.prompt.trim().length > 0,
+		promptLength: input.prompt.length,
+		rawPromptStored,
+		rawPromptPath,
+		redaction: rawPromptStored
+			? `local-private opt-in raw prompt retention enabled by ${RAW_PROVIDER_PROMPT_RETENTION_ENV}`
+			: 'metadata-only; raw provider prompts are not persisted by default',
+		createdAt: new Date().toISOString()
+	};
+	writeFileSync(join(metadataDir, `${fileStem}.json`), JSON.stringify(metadata, null, 2), 'utf-8');
+	return metadata;
 }
 
 export function parseCodexCliCommand(
@@ -133,13 +203,7 @@ export async function executeCodexCliRequest(
 		return { success: false, error, durationMs: Date.now() - startTime };
 	}
 
-	// Write prompt to file for reference
-	const promptsDir = join(spawnerStateDir(), 'prompts');
-	if (!existsSync(promptsDir)) {
-		mkdirSync(promptsDir, { recursive: true });
-	}
-	const promptFile = join(promptsDir, `${missionId}-${provider.id}.md`);
-	writeFileSync(promptFile, prompt, 'utf-8');
+	writeProviderPromptReference({ missionId, providerId: provider.id, prompt });
 
 	return new Promise<ProviderResult>((resolve) => {
 		let cwd: string;
