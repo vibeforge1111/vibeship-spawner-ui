@@ -162,8 +162,25 @@ function isConstrainedSingleFileStaticHtml(content: string): boolean {
 	return namesIndex && (oneFileOnly || oneFileNamedIndex || forbidsFullApp || (staticHtmlOnly && noPackage));
 }
 
+function isSingleFileStaticHtmlApp(content: string): boolean {
+	const lower = content.toLowerCase();
+	return (
+		/\b(?:one|single)[-\s]?(?:static\s+)?html\s+file\b/.test(lower) ||
+		/\bplayable\s+in\s+(?:one|a\s+single)\s+static\s+html\s+file\b/.test(lower) ||
+		/\b(?:one|single)[-\s]?file\s+(?:static\s+)?(?:html|web)\s+(?:app|game|tool|page)\b/.test(lower)
+	);
+}
+
 function inferTechStack(content: string): { framework: string; language: string; styling: string; deployment: string } {
 	const lower = content.toLowerCase();
+	if (isSingleFileStaticHtmlApp(content)) {
+		return {
+			framework: 'Single-file static HTML',
+			language: 'HTML with embedded CSS and JavaScript',
+			styling: 'Embedded CSS in index.html',
+			deployment: 'Direct browser-open static file'
+		};
+	}
 	if (lower.includes('three.js') || lower.includes('threejs')) {
 		return {
 			framework: 'Vanilla JavaScript + Three.js',
@@ -355,7 +372,12 @@ export async function _buildFallbackAnalysisResult(
 			].join('\n')
 		};
 	}
-	const isStaticApp = lower.includes('no build step') || lower.includes('vanilla-js') || lower.includes('vanilla js');
+	const singleFileStaticApp = isSingleFileStaticHtmlApp(content);
+	const isStaticApp =
+		singleFileStaticApp ||
+		lower.includes('no build step') ||
+		lower.includes('vanilla-js') ||
+		lower.includes('vanilla js');
 	const isThree = lower.includes('three.js') || lower.includes('threejs');
 	const skillByTheme = isThree
 		? ['frontend-engineer', 'threejs-3d-graphics', 'ui-design', 'responsive-mobile-first']
@@ -363,22 +385,39 @@ export async function _buildFallbackAnalysisResult(
 	const validSkills = new Set((await getTierSkills(tier)).map((skill) => skill.id));
 	const selectSkills = (skills: string[]) => skills.filter((skill) => validSkills.has(skill)).slice(0, 5);
 	const workspaceTargets = targetFolder ? [targetFolder] : [];
-	const fileList = requestedFiles.length > 0 ? requestedFiles.join(', ') : 'the requested project files';
+	const effectiveRequestedFiles =
+		singleFileStaticApp && requestedFiles.length === 0 ? ['index.html'] : requestedFiles;
+	const fileList = effectiveRequestedFiles.length > 0 ? effectiveRequestedFiles.join(', ') : 'the requested project files';
 
 	const taskSpecs = [
 		{
-			title: isStaticApp ? 'Create the static app shell' : 'Create the app shell and project structure',
-			summary: `Set up ${fileList} and make the first screen match the requested product direction.`,
+			title: singleFileStaticApp
+				? 'Create the single-file static app'
+				: isStaticApp
+					? 'Create the static app shell'
+					: 'Create the app shell and project structure',
+			summary: singleFileStaticApp
+				? `Create only ${fileList} with embedded CSS and JavaScript, preserving the requested product, domain, and interaction constraints.`
+				: `Set up ${fileList} and make the first screen match the requested product direction.`,
 			skills: selectSkills(['frontend-engineer', 'html-css', 'ui-design', 'responsive-mobile-first']),
 			dependencies: [] as string[],
 			acceptanceCriteria: [
 				'The project opens to a usable first screen.',
 				'Requested files and local project structure are present.',
-				'No unrelated framework or build tooling is added when the brief says no build step.'
+				'No unrelated framework or build tooling is added when the brief says no build step.',
+				...(singleFileStaticApp
+					? [
+							'Only index.html is required for the deliverable.',
+							'CSS and JavaScript are embedded in index.html instead of split into styles.css or app.js.',
+							'The explicit product/game/tool concept in the original brief is preserved.'
+						]
+					: [])
 			],
 			verificationCommands: targetFolder
 				? [`Test-Path '${targetFolder}'`, `Get-ChildItem '${targetFolder}' | Select-Object -ExpandProperty Name`]
-				: ['Inspect the created project files.']
+				: singleFileStaticApp
+					? ['test -f index.html', 'test ! -f styles.css', 'test ! -f app.js', 'test ! -f package.json']
+					: ['Inspect the created project files.']
 		},
 		{
 			title: isThree ? 'Implement the interactive 3D scene and controls' : 'Implement the core interaction and state',
@@ -390,11 +429,14 @@ export async function _buildFallbackAnalysisResult(
 			acceptanceCriteria: [
 				'The core workflow can be completed from the first screen.',
 				'Interactive state updates immediately and persists where requested.',
-				'Controls remain usable on desktop and mobile widths.'
+				'Controls remain usable on desktop and mobile widths.',
+				...(singleFileStaticApp ? ['The requested interaction is implemented inside index.html.'] : [])
 			],
 			verificationCommands: targetFolder
 				? [`Select-String -Path '${targetFolder}\\app.js' -Pattern 'localStorage'`]
-				: ['Run the project interaction smoke test.']
+				: singleFileStaticApp
+					? ['grep -i "<script" index.html', 'grep -i "<style" index.html']
+					: ['Run the project interaction smoke test.']
 		},
 		{
 			title: 'Polish the visual system and documentation',
@@ -404,7 +446,8 @@ export async function _buildFallbackAnalysisResult(
 			acceptanceCriteria: [
 				'The UI is readable, responsive, and visually consistent.',
 				'README explains direct launch and a manual smoke test.',
-				'The implementation documents any fallback or browser requirement.'
+				'The implementation documents any fallback or browser requirement.',
+				...(singleFileStaticApp ? ['Any README is optional; the runnable app remains self-contained in index.html.'] : [])
 			],
 			verificationCommands: targetFolder
 				? [`Test-Path '${targetFolder}\\README.md'`, `Get-Content '${targetFolder}\\README.md'`]
@@ -418,14 +461,17 @@ export async function _buildFallbackAnalysisResult(
 			acceptanceCriteria: [
 				'Static syntax checks pass where applicable.',
 				'The requested completion state or primary success path works.',
-				'The final project can be opened locally.'
+				'The final project can be opened locally.',
+				...(singleFileStaticApp ? ['The final workspace does not require styles.css, app.js, package.json, or a build step.'] : [])
 			],
 			verificationCommands: targetFolder
 				? [
-						...(requestedFiles.includes('app.js') ? [`node --check '${targetFolder}\\app.js'`] : []),
+						...(effectiveRequestedFiles.includes('app.js') ? [`node --check '${targetFolder}\\app.js'`] : []),
 						`Get-ChildItem '${targetFolder}' | Select-Object -ExpandProperty Name`
 					]
-				: ['Run the repo-local verification commands.']
+				: singleFileStaticApp
+					? ['test -f index.html', 'test ! -f styles.css', 'test ! -f app.js', 'test ! -f package.json']
+					: ['Run the repo-local verification commands.']
 		}
 	];
 
@@ -456,7 +502,7 @@ export async function _buildFallbackAnalysisResult(
 		requestId,
 		success: true,
 		projectName,
-		projectType: isStaticApp ? 'static-web-app' : 'web-app',
+		projectType: singleFileStaticApp ? 'single-file-static-web-app' : isStaticApp ? 'static-web-app' : 'web-app',
 		complexity: buildMode === 'advanced_prd' ? 'moderate' : 'simple',
 		infrastructure: {
 			needsAuth: false,
@@ -469,7 +515,17 @@ export async function _buildFallbackAnalysisResult(
 		techStack,
 		tasks,
 		skills,
-		executionPrompt: `Build ${projectName} from the user brief. Preserve explicit file, no-build, persistence, and smoke-test requirements.`
+		executionPrompt: [
+			`Build ${projectName} from the original user brief.`,
+			'Preserve explicit product/domain requirements, named title, file constraints, gameplay or workflow details, no-build requirements, persistence requirements, and smoke-test requirements.',
+			singleFileStaticApp
+				? 'Hard file constraint: create only index.html as the runnable deliverable; embed CSS and JavaScript in that file and do not split into styles.css or app.js unless the original brief explicitly asks for separate files.'
+				: '',
+			'Original brief:',
+			content
+		]
+			.filter(Boolean)
+			.join('\n')
 	};
 }
 
