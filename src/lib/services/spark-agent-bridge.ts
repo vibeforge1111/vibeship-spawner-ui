@@ -8,7 +8,8 @@ import { resolveCliBinary } from '$lib/server/cli-resolver';
 import {
 	assertHighAgencyWorkerAllowed,
 	highAgencyWorkersAllowed,
-	HIGH_AGENCY_WORKERS_ENV
+	HIGH_AGENCY_WORKERS_ENV,
+	resolveCodexSandbox
 } from '$lib/server/high-agency-workers';
 import { spawnHidden, terminateProcessTree } from '$lib/server/hidden-process';
 import { resolveSparkRunProjectPath } from '$lib/server/spark-run-workspace';
@@ -262,7 +263,11 @@ function resolveProviderCommandTemplate(providerId: SparkAgentProviderId, model?
 	const fallbackTemplate = providerId === 'claude' ? 'claude -p --model {model}' : 'codex exec --model {model}';
 	const commandTemplate = template && template.trim() ? template : fallbackTemplate;
 	const fallbackModel = providerId === 'claude' ? 'opus' : 'gpt-5.5';
-	return commandTemplate.replace('{model}', (model && model.trim()) || fallbackModel);
+	const resolved = commandTemplate.replace('{model}', (model && model.trim()) || fallbackModel);
+	if (providerId !== 'codex' || /\s--(?:sandbox|dangerously-bypass-approvals-and-sandbox|yolo)\b/.test(resolved)) {
+		return resolved;
+	}
+	return `${resolved} --sandbox ${resolveCodexSandbox()}`;
 }
 
 function parseProviderCommand(providerId: SparkAgentProviderId, commandTemplate: string): ProviderCommand {
@@ -297,18 +302,30 @@ function parseProviderCommand(providerId: SparkAgentProviderId, commandTemplate:
 			args: ['exec', '--skip-git-repo-check', '--yolo']
 		};
 	}
-	if (tokens.length === 4 && tokens[2] === '--model') {
-		return {
-			binary: 'codex',
-			resolvedBinary: resolveCliBinary('codex') || 'codex',
-			args: ['exec', '--skip-git-repo-check', '--model', tokens[3]]
-		};
+	if (tokens[2] === '--model' && tokens[3]) {
+		const args = ['exec', '--skip-git-repo-check', '--model', tokens[3]];
+		if (tokens.length === 4) {
+			args.push('--sandbox', resolveCodexSandbox());
+			return {
+				binary: 'codex',
+				resolvedBinary: resolveCliBinary('codex') || 'codex',
+				args
+			};
+		}
+		if (tokens.length === 6 && tokens[4] === '--sandbox') {
+			args.push('--sandbox', resolveCodexSandbox({ ...process.env, SPARK_CODEX_SANDBOX: tokens[5] }));
+			return {
+				binary: 'codex',
+				resolvedBinary: resolveCliBinary('codex') || 'codex',
+				args
+			};
+		}
 	}
-	throw new Error('Codex provider command must be: codex exec --model <model>');
+	throw new Error('Codex provider command must be: codex exec --model <model> [--sandbox read-only|workspace-write|danger-full-access]');
 }
 
 function commandUsesHighAgencyMode(command: ProviderCommand): boolean {
-	return command.binary === 'codex' && command.args.includes('--yolo');
+	return command.binary === 'codex' && (command.args.includes('--yolo') || command.args.includes('danger-full-access'));
 }
 
 function blockedProviderResponse(response: string | undefined): string | null {

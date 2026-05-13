@@ -858,16 +858,16 @@ async function startAutoAnalysis(
 		});
 
 		const controller = new AbortController();
-		void sparkAgentBridge
-			.executeProviderTask({
-				providerId: 'codex',
-				missionId,
-				prompt,
-				model: 'gpt-5.5',
-				commandTemplate: 'codex exec --model gpt-5.5',
-				workingDirectory: process.cwd(),
-				signal: controller.signal
-			})
+			void sparkAgentBridge
+				.executeProviderTask({
+					providerId: 'codex',
+					missionId,
+					prompt,
+					model: 'gpt-5.5',
+					commandTemplate: 'codex exec --model gpt-5.5 --sandbox workspace-write',
+					workingDirectory: process.cwd(),
+					signal: controller.signal
+				})
 			.then((result) => {
 				void appendPrdTrace(requestId, 'auto_worker_finished', {
 					success: result.success,

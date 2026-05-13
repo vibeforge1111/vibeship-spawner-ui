@@ -61,6 +61,7 @@ afterEach(() => {
 	providerRuntime.cleanup('mission-step2-lifecycle');
 	providerRuntime.cleanup('mission-step2-activity');
 	providerRuntime.cleanup('mission-step2-response-failure');
+	providerRuntime.cleanup('mission-step2-sandbox');
 });
 
 describe('provider-runtime Spark agent bridge', () => {
@@ -152,6 +153,24 @@ describe('provider-runtime Spark agent bridge', () => {
 			expect(typeof event.data?.providerId).toBe('string');
 			expect(typeof event.data?.sparkAgentSessionId).toBe('string');
 		}
+	});
+
+	it('passes explicit workspace-write sandboxing to Codex workers', async () => {
+		let observedCommandTemplate = '';
+		sparkAgentBridge.setWorkerExecutorForTests(async (context) => {
+			observedCommandTemplate = context.commandTemplate;
+			return { success: true, response: 'codex-ok' };
+		});
+
+		await providerRuntime.dispatch({
+			executionPack: buildPack('mission-step2-sandbox', [provider('codex', 'gpt-5.5')]),
+			apiKeys: { codex: 'test-codex' },
+			onEvent: () => {},
+			workingDirectory: process.cwd()
+		});
+
+		await waitFor(() => providerRuntime.getMissionStatus('mission-step2-sandbox').allComplete);
+		expect(observedCommandTemplate).toBe('codex exec --model gpt-5.5 --sandbox workspace-write');
 	});
 
 	it('emits assigned task activity immediately for server-side auto-dispatch', async () => {
