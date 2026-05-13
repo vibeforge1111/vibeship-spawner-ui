@@ -58,17 +58,36 @@ function stringField(record: Record<string, unknown>, key: string): string | nul
 
 function previewBaseUrl(): string {
 	const envRecord = env as Record<string, string | undefined>;
+	const processEnv = typeof process !== 'undefined' ? process.env : {};
 	const raw =
 		envRecord.SPARK_PROJECT_PREVIEW_URL?.trim() ||
+		processEnv.SPARK_PROJECT_PREVIEW_URL?.trim() ||
 		envRecord.SPAWNER_PROJECT_PREVIEW_BASE_URL?.trim() ||
+		processEnv.SPAWNER_PROJECT_PREVIEW_BASE_URL?.trim() ||
 		envRecord.SPARK_PROJECT_PREVIEW_BASE_URL?.trim() ||
+		processEnv.SPARK_PROJECT_PREVIEW_BASE_URL?.trim() ||
 		envRecord.SPAWNER_UI_PUBLIC_URL?.trim() ||
+		processEnv.SPAWNER_UI_PUBLIC_URL?.trim() ||
 		envRecord.PUBLIC_SPAWNER_UI_URL?.trim() ||
+		processEnv.PUBLIC_SPAWNER_UI_URL?.trim() ||
 		envRecord.RAILWAY_PUBLIC_DOMAIN?.trim() ||
+		processEnv.RAILWAY_PUBLIC_DOMAIN?.trim() ||
 		envRecord.RAILWAY_STATIC_URL?.trim() ||
+		processEnv.RAILWAY_STATIC_URL?.trim() ||
 		'';
 	if (!raw) return '';
 	return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+}
+
+function parseProviderResponseRecord(response: string | null): Record<string, unknown> | null {
+	if (!response?.trim()) return null;
+	try {
+		const parsed = JSON.parse(response) as unknown;
+		if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+		return parsed as Record<string, unknown>;
+	} catch {
+		return null;
+	}
 }
 
 function parseProviderResponseMetadata(response: string | null): {
@@ -77,33 +96,35 @@ function parseProviderResponseMetadata(response: string | null): {
 	previewUrl?: string;
 	preview_url?: string;
 } {
-	if (!response?.trim()) return {};
-	try {
-		const parsed = JSON.parse(response) as unknown;
-		if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-		const record = parsed as Record<string, unknown>;
-		const projectPath = stringField(record, 'project_path') || stringField(record, 'projectPath');
-		const explicitPreviewUrl =
-			stringField(record, 'preview_url') ||
-			stringField(record, 'previewUrl') ||
-			stringField(record, 'open_url') ||
-			stringField(record, 'openUrl');
-		const baseUrl = previewBaseUrl();
-		const previewUrl = explicitPreviewUrl || (projectPath && baseUrl ? projectPreviewUrl(baseUrl, projectPath) : null);
-		return {
-			...(projectPath ? { projectPath, project_path: projectPath } : {}),
-			...(previewUrl ? { previewUrl, preview_url: previewUrl } : {})
-		};
-	} catch {
-		return {};
-	}
+	const record = parseProviderResponseRecord(response);
+	if (!record) return {};
+	const projectPath = stringField(record, 'project_path') || stringField(record, 'projectPath');
+	const explicitPreviewUrl =
+		stringField(record, 'preview_url') ||
+		stringField(record, 'previewUrl') ||
+		stringField(record, 'open_url') ||
+		stringField(record, 'openUrl');
+	const baseUrl = previewBaseUrl();
+	const previewUrl = explicitPreviewUrl || (projectPath && baseUrl ? projectPreviewUrl(baseUrl, projectPath) : null);
+	return {
+		...(projectPath ? { projectPath, project_path: projectPath } : {}),
+		...(previewUrl ? { previewUrl, preview_url: previewUrl } : {})
+	};
+}
+
+function parseProviderResponseSummary(response: string | null): string | null {
+	const record = parseProviderResponseRecord(response);
+	if (!record) return null;
+	return stringField(record, 'summary') || stringField(record, 'message') || null;
 }
 
 export function summarizeProviderResults(
 	results: ProviderMissionResultSnapshot[]
 ): MissionControlResultSummary {
 	const providerResults = results.map((result) => {
-		const responseSummary = compactProviderHandoffText(result.response);
+		const responseSummary = compactProviderHandoffText(
+			parseProviderResponseSummary(result.response) || result.response
+		);
 		const errorSummary = compactMissionControlDisplayText(result.error);
 		const fallback =
 			result.status === 'completed'
