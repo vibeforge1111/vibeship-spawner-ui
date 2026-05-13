@@ -30,6 +30,7 @@ import { eventBridge } from '$lib/services/event-bridge';
 import { mcpClient } from '$lib/services/mcp-client';
 import { agentWorkTimeoutMs } from './timeout-config';
 import { extractTraceRef } from './trace-ref';
+import { writeProviderOutputPrivateArchive } from './provider-private-archives';
 import { readFile } from 'node:fs/promises';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -677,6 +678,11 @@ class ProviderRuntimeManager {
 						durationMs: providerTimeoutMs
 					};
 				}
+				writeProviderOutputPrivateArchive({
+					missionId,
+					providerId: provider.id,
+					response: result.response
+				});
 				session.result = result;
 				if (session.status === 'cancelled' || result.error === 'Cancelled') {
 					session.status = 'cancelled';

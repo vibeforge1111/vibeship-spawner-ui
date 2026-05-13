@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { providerRuntime, reconcileStaleProviderResults } from './provider-runtime';
+import { RAW_PROVIDER_OUTPUT_RETENTION_ENV } from './provider-private-archives';
 import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { eventBridge, type BridgeEvent } from '$lib/services/event-bridge';
 import type { MultiLLMExecutionPack, MultiLLMProviderConfig } from '$lib/services/multi-llm-orchestrator';
@@ -61,9 +62,11 @@ afterEach(() => {
 	providerRuntime.cleanup('mission-step2-pause');
 	providerRuntime.cleanup('mission-step2-rebuild');
 	providerRuntime.cleanup('mission-step2-persist');
+	providerRuntime.cleanup('mission-step2-private-output');
 	providerRuntime.cleanup('mission-step2-lifecycle');
 	providerRuntime.cleanup('mission-step2-activity');
 	delete process.env.SPAWNER_STATE_DIR;
+	delete process.env[RAW_PROVIDER_OUTPUT_RETENTION_ENV];
 });
 
 describe('provider-runtime Spark agent bridge', () => {
@@ -448,6 +451,57 @@ describe('provider-runtime Spark agent bridge', () => {
 		} finally {
 			providerRuntime.cleanup('mission-step2-persist');
 			delete process.env.SPAWNER_STATE_DIR;
+			rmSync(stateDir, { recursive: true, force: true });
+		}
+	});
+
+	it('keeps terminal worker output redacted while allowing opt-in private archive fallback', async () => {
+		const stateDir = mkdtempSync(path.join(tmpdir(), 'spawner-provider-output-private-'));
+		process.env.SPAWNER_STATE_DIR = stateDir;
+		process.env[RAW_PROVIDER_OUTPUT_RETENTION_ENV] = '1';
+		sparkAgentBridge.setWorkerExecutorForTests(async () => {
+			return { success: true, response: 'codex-private-fallback-output', durationMs: 12 };
+		});
+
+		try {
+			const pack = buildPack('mission-step2-private-output', [provider('codex', 'gpt-5.5')]);
+			await providerRuntime.dispatch({
+				executionPack: pack,
+				apiKeys: { codex: 'test-codex' },
+				onEvent: () => {},
+				workingDirectory: process.cwd()
+			});
+
+			await waitFor(() => providerRuntime.getMissionStatus('mission-step2-private-output').allComplete);
+			expect(providerRuntime.getMissionResults('mission-step2-private-output')[0]).toMatchObject({
+				providerId: 'codex',
+				status: 'completed',
+				response: null,
+				responsePresent: true,
+				responseRedacted: true
+			});
+
+			const persisted = readFileSync(path.join(stateDir, 'mission-provider-results.json'), 'utf-8');
+			expect(persisted).not.toContain('codex-private-fallback-output');
+
+			const privateOutputPath = path.join(
+				stateDir,
+				'provider-output-private',
+				'mission-step2-private-output-codex.txt'
+			);
+			expect(existsSync(privateOutputPath)).toBe(true);
+			expect(readFileSync(privateOutputPath, 'utf-8')).toBe('codex-private-fallback-output');
+
+			const metadata = readFileSync(
+				path.join(stateDir, 'provider-output-metadata', 'mission-step2-private-output-codex.json'),
+				'utf-8'
+			);
+			expect(metadata).not.toContain('codex-private-fallback-output');
+			expect(metadata).toContain(RAW_PROVIDER_OUTPUT_RETENTION_ENV);
+		} finally {
+			providerRuntime.cleanup('mission-step2-private-output');
+			delete process.env.SPAWNER_STATE_DIR;
+			delete process.env[RAW_PROVIDER_OUTPUT_RETENTION_ENV];
 			rmSync(stateDir, { recursive: true, force: true });
 		}
 	});

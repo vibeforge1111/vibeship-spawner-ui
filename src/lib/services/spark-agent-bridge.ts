@@ -11,6 +11,7 @@ import {
 	HIGH_AGENCY_WORKERS_ENV
 } from '$lib/server/high-agency-workers';
 import { spawnHidden, terminateProcessTree } from '$lib/server/hidden-process';
+import { writeProviderOutputPrivateArchive } from '$lib/server/provider-private-archives';
 import { resolveSparkRunProjectPath } from '$lib/server/spark-run-workspace';
 import {
 	PRECONFIGURED_MCPS,
@@ -542,6 +543,11 @@ class SparkAgentBridgeService {
 			}
 
 			if (result.success) {
+				writeProviderOutputPrivateArchive({
+					missionId,
+					providerId,
+					response: result.response
+				});
 				workerState.status = 'completed';
 				workerState.responseLength = result.response?.length ?? 0;
 				workerState.responseRedacted = Boolean(result.response);
