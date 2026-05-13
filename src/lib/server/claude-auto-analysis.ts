@@ -24,6 +24,7 @@ import type { SkillTier } from './skill-tiers';
 import { resolveCliBinary } from './cli-resolver';
 import { spawnHidden } from './hidden-process';
 import { claudeAutoAnalysisTimeoutMs } from './timeout-config';
+import { formatMissionNamingGuidance } from './mission-naming';
 
 const CLAUDE_TIMEOUT_MS = claudeAutoAnalysisTimeoutMs();
 
@@ -55,6 +56,8 @@ function buildClaudePrompt(
 		`Request ID: ${requestId}`,
 		`Project Name Hint: ${projectName}`,
 		`Build Mode: ${buildMode}`,
+		'',
+		formatMissionNamingGuidance(),
 		'',
 		planningContract,
 		'',

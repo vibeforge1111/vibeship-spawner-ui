@@ -26,6 +26,7 @@ import { enrichBrief, isSparseUnderstandingClarification } from '$lib/server/bri
 import { spawnerStateDir } from '$lib/server/spawner-state';
 import { projectStoredPrdAnalysisResult } from '$lib/server/prd-analysis-result-schema';
 import { extractExplicitProjectPath } from '$lib/server/project-path-extraction';
+import { formatMissionNamingGuidance, resolveMissionName } from '$lib/server/mission-naming';
 import {
 	capabilityProposalSummary,
 	normalizeCapabilityProposalPacket
@@ -362,6 +363,7 @@ export async function _buildFallbackAnalysisResult(
 	paths: ReturnType<typeof getPrdBridgePaths>
 ): Promise<Record<string, unknown>> {
 	const content = existsSync(paths.pendingPrdFile) ? await readFile(paths.pendingPrdFile, 'utf-8') : '';
+	const resolvedProjectName = resolveMissionName({ content, suggestedName: projectName });
 	if (isSparseUnderstandingClarification(content)) {
 		const validSkills = new Set((await getTierSkills(tier)).map((skill) => skill.id));
 		const selectSkills = (skills: string[]) => skills.filter((skill) => validSkills.has(skill)).slice(0, 5);
@@ -400,7 +402,7 @@ export async function _buildFallbackAnalysisResult(
 		return {
 			requestId,
 			success: true,
-			projectName,
+			projectName: resolvedProjectName,
 			projectType: 'clarification-understanding',
 			complexity: 'simple',
 			infrastructure: {
@@ -488,7 +490,7 @@ export async function _buildFallbackAnalysisResult(
 		return {
 			requestId,
 			success: true,
-			projectName,
+			projectName: resolvedProjectName,
 			projectType: deliverableFiles.length === 1 ? 'static-single-file-html' : 'static-exact-file-proof',
 			complexity: 'simple',
 			infrastructure: {
@@ -618,7 +620,7 @@ export async function _buildFallbackAnalysisResult(
 	return {
 		requestId,
 		success: true,
-		projectName,
+		projectName: resolvedProjectName,
 		projectType: isStaticApp ? 'static-web-app' : 'web-app',
 		complexity: buildMode === 'advanced_prd' ? 'moderate' : 'simple',
 		infrastructure: {
@@ -632,7 +634,7 @@ export async function _buildFallbackAnalysisResult(
 		techStack,
 		tasks,
 		skills,
-		executionPrompt: `Build ${projectName} from the user brief. Preserve explicit file, no-build, persistence, and smoke-test requirements.`
+		executionPrompt: `Build ${resolvedProjectName} from the user brief. Preserve explicit file, no-build, persistence, and smoke-test requirements.`
 	};
 }
 
@@ -933,6 +935,8 @@ async function buildCodexPrompt(
 		`Project Name Hint: ${projectName}`,
 		`Build Mode: ${buildMode}`,
 		'',
+		formatMissionNamingGuidance(),
+		'',
 		planningContract,
 		'',
 		tierBlock,
@@ -1146,6 +1150,10 @@ export const POST: RequestHandler = async (event) => {
 				}
 			: await enrichBrief(content);
 		const finalContent = enrichment.enrichedContent;
+		const resolvedProjectName = resolveMissionName({
+			content: finalContent,
+			suggestedName: typeof projectName === 'string' ? projectName : null
+		});
 		if (enrichment.wasEnriched) {
 			await appendPrdTrace(requestId, 'brief_enriched', {
 				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
@@ -1180,7 +1188,7 @@ export const POST: RequestHandler = async (event) => {
 				pendingClarFile,
 				JSON.stringify({
 					requestId,
-					projectName: projectName || 'Untitled Project',
+					projectName: resolvedProjectName,
 					originalContent: content,
 					enrichedContent: finalContent,
 					addedAssumptions: enrichment.addedAssumptions,
@@ -1207,13 +1215,13 @@ export const POST: RequestHandler = async (event) => {
 
 		// Write the (possibly enriched) PRD content to file
 		await writeFile(paths.pendingPrdFile, finalContent, 'utf-8');
-		const projectLineage = _extractPrdBridgeProjectLineage(finalContent, projectName);
+		const projectLineage = _extractPrdBridgeProjectLineage(finalContent, resolvedProjectName);
 
 		// Write request metadata
 		const requestMeta = {
 			requestId,
 			missionId,
-			projectName: projectName || 'Untitled Project',
+			projectName: resolvedProjectName,
 			buildMode: normalizedBuildMode,
 			buildModeReason:
 				typeof buildModeReason === 'string' && buildModeReason.trim()

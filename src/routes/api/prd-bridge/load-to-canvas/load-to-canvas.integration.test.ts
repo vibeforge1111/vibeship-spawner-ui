@@ -239,6 +239,72 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		});
 	});
 
+	it('normalizes weak project names before persisting the canvas execution record', async () => {
+		const requestId = 'tg-weak-name-canvas-test';
+		await writeFile(
+			path.join(testSpawnerDir, 'pending-prd.md'),
+			'Build a browser-playable game with voxel esthetics for Spark. Use a turn-based mission loop.',
+			'utf-8'
+		);
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify({
+				requestId,
+				success: true,
+				projectName: 'game that has the voxel esthetics,',
+				tasks: [
+					{
+						id: 'task-1-shell',
+						title: 'Create voxel game shell',
+						summary: 'Create the static game workspace and first playable screen.',
+						skills: ['frontend-engineer', 'game-dev']
+					},
+					{
+						id: 'task-2-loop',
+						title: 'Implement turn loop',
+						summary: 'Wire the agent mission loop, upgrades, and drift events.',
+						skills: ['javascript-state']
+					}
+				],
+				executionPrompt: 'Build a game that has the voxel esthetics, for Spark.'
+			}),
+			'utf-8'
+		);
+		await writeFile(
+			path.join(testSpawnerDir, 'pending-request.json'),
+			JSON.stringify({
+				requestId,
+				projectName: 'game that has the voxel esthetics,',
+				buildMode: 'advanced_prd',
+				buildModeReason: 'Advanced game build.'
+			}),
+			'utf-8'
+		);
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ requestId, autoRun: false })
+			})
+		} as never);
+
+		expect(response.status).toBe(200);
+		const payload = await response.json();
+		expect(payload.pipelineName).toBe('Spark Voxel Aesthetic Game');
+
+		const pending = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-load.json'), 'utf-8'));
+		expect(pending.pipelineName).toBe('Spark Voxel Aesthetic Game');
+		expect(pending.nodes.map((node: any) => node.skill.name)).toEqual([
+			'Create voxel game shell',
+			'Implement turn loop'
+		]);
+
+		const requestMeta = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
+		expect(requestMeta.projectName).toBe('Spark Voxel Aesthetic Game');
+		expect(requestMeta.pipelineId).toBe(`prd-${requestId}`);
+	});
+
 	it('carries capability proposal packets into canvas and mission metadata without changing normal task loading', async () => {
 		const requestId = 'tg-capability-packet-test';
 		const capabilityProposalPacket = {

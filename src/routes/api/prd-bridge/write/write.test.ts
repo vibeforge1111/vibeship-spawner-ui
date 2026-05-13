@@ -90,6 +90,35 @@ describe('PRD bridge fallback analysis', () => {
 		expect(tasks.flatMap((task) => task.verificationCommands).join('\n')).toContain('node --check');
 	});
 
+	it('normalizes weak Telegram project names before fallback task planning', async () => {
+		const pendingPrdFile = path.join(testSpawnerDir, 'pending-prd.md');
+		await writeFile(
+			pendingPrdFile,
+			[
+				'Build a browser-playable game with voxel esthetics for Spark.',
+				'Use keyboard controls, local score, restart, win/lose state, and no build step.'
+			].join('\n'),
+			'utf-8'
+		);
+
+		const result = await _buildFallbackAnalysisResult(
+			'tg-build-voxel-name-test',
+			'game that has the voxel esthetics,',
+			'direct',
+			'pro',
+			{
+				spawnerDir: testSpawnerDir,
+				resultsDir: path.join(testSpawnerDir, 'results'),
+				pendingPrdFile,
+				pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
+				prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
+			}
+		);
+
+		expect(result.projectName).toBe('Spark Voxel Aesthetic Game');
+		expect(String(result.executionPrompt)).toContain('Build Spark Voxel Aesthetic Game');
+	});
+
 	it('keeps a sparse understanding clarification small and exact', async () => {
 		const pendingPrdFile = path.join(testSpawnerDir, 'pending-prd.md');
 		await writeFile(pendingPrdFile, 'did you understand what i said', 'utf-8');

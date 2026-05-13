@@ -15,6 +15,7 @@ import {
 	normalizeCapabilityProposalPacket
 } from '$lib/server/capability-proposal-packet';
 import { extractTraceRef, normalizeTraceRef, traceRefFromMissionId } from '$lib/server/trace-ref';
+import { resolveMissionName } from '$lib/server/mission-naming';
 
 function getSpawnerDir(): string {
 	return spawnerStateDir();
@@ -186,6 +187,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const pendingLoadFile = join(spawnerDir, 'pending-load.json');
 		const lastLoadFile = join(spawnerDir, 'last-canvas-load.json');
 		const pendingRequestFile = join(spawnerDir, 'pending-request.json');
+		const pendingPrdFile = join(spawnerDir, 'pending-prd.md');
 		if (!existsSync(path)) {
 			return json({ error: `No analysis result for ${requestId} yet` }, { status: 404 });
 		}
@@ -263,6 +265,18 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 		resolvedTraceRef = resolvedTraceRef || extractTraceRef(parsed) || traceRefFromMissionId(resolvedMissionId);
 		const capabilitySummary = capabilityProposalSummary(capabilityProposalPacket);
+		const pendingPrdContent = existsSync(pendingPrdFile)
+			? await readFile(pendingPrdFile, 'utf-8').catch(() => '')
+			: '';
+		const pendingProjectName =
+			typeof pendingRequestMeta?.projectName === 'string' ? pendingRequestMeta.projectName : null;
+		const resolvedProjectName = resolveMissionName({
+			content: [pendingPrdContent, parsed.executionPrompt || '', parsed.tasks.map((task) => task.title).join('\n')]
+				.filter(Boolean)
+				.join('\n\n'),
+			suggestedName: parsed.projectName || pendingProjectName || null,
+			fallback: parsed.projectName || pendingProjectName || `PRD ${requestId}`
+		});
 		if (!relay && (typeof chatId === 'string' || typeof userId === 'string' || typeof goal === 'string' || normalizedTelegramRelay)) {
 			relay = {
 				missionId: resolvedMissionId,
@@ -290,7 +304,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			missionId: resolvedMissionId,
 			...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
 			pipelineId: `prd-${requestId}`,
-			pipelineName: parsed.projectName || `PRD ${requestId}`,
+			pipelineName: resolvedProjectName,
 			nodes,
 			connections,
 			source: 'prd-bridge',
@@ -319,6 +333,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				JSON.stringify(
 					{
 						...pendingRequestMeta,
+						projectName: resolvedProjectName,
 						status: 'canvas_loaded',
 						canvasLoadedAt: new Date().toISOString(),
 						...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
