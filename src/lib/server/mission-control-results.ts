@@ -108,10 +108,42 @@ function parseProviderResponseMetadata(response: string | null): {
 	}
 }
 
+function providerCompletionLooksBlocked(text: string | null | undefined): boolean {
+	const normalized = text?.replace(/\s+/g, ' ').trim().toLowerCase() || '';
+	if (!normalized) return false;
+	return (
+		/\bblocked before task start\b/.test(normalized) ||
+		/\bblocked by (?:the |this |current )?(?:execution )?environment\b/.test(normalized) ||
+		/\bcould not load (?:the )?mandatory h70 skills\b/.test(normalized) ||
+		/\bfailed to load (?:the )?mandatory h70 skills\b/.test(normalized) ||
+		/\bi did not create (?:any )?files\b/.test(normalized) ||
+		/\bdid not create (?:any )?files\b/.test(normalized) ||
+		/\bworkspace (?:is|was) read-only\b/.test(normalized) ||
+		/\bread-only (?:sandbox|workspace|filesystem)\b/.test(normalized) ||
+		/\bpatch (?:was )?rejected\b/.test(normalized) ||
+		/\boperation not permitted\b/.test(normalized) ||
+		/\bfailed to connect to 127\.0\.0\.1\b/.test(normalized)
+	);
+}
+
+function normalizeProviderResultStatus(result: ProviderMissionResultSnapshot): ProviderMissionResultSnapshot {
+	if (result.status !== 'completed') return result;
+	if (!providerCompletionLooksBlocked([result.response, result.error].filter(Boolean).join('\n'))) return result;
+	return {
+		...result,
+		status: 'failed',
+		error: result.error || 'provider reported a blocked handoff'
+	};
+}
+
+function normalizeProviderResults(results: ProviderMissionResultSnapshot[]): ProviderMissionResultSnapshot[] {
+	return results.map((result) => normalizeProviderResultStatus(result));
+}
+
 export function summarizeProviderResults(
 	results: ProviderMissionResultSnapshot[]
 ): MissionControlResultSummary {
-	const providerResults = results.map((result) => {
+	const providerResults = normalizeProviderResults(results).map((result) => {
 		const metadata = parseProviderResponseMetadata(result.response);
 		const responseSummary = compactProviderHandoffText(result.response);
 		const errorSummary = compactMissionControlDisplayText(result.error);
@@ -330,6 +362,26 @@ function reconcileEntryWithProviderResults(
 			taskStatusCounts: taskStatusCounts(reconciled)
 		};
 	}
+	if (entry.status === 'completed' && providerStatus === 'failed') {
+		const tasks = entry.tasks.map((task) => ({
+			...task,
+			status:
+				task.status === 'cancelled'
+					? task.status
+					: ('failed' as const)
+		}));
+		const reconciled = {
+			...entry,
+			status: providerStatus,
+			lastEventType: 'provider_failed',
+			lastSummary: 'Provider completion was reclassified as failed.',
+			tasks
+		};
+		return {
+			...reconciled,
+			taskStatusCounts: taskStatusCounts(reconciled)
+		};
+	}
 	if (entry.status === 'completed' || entry.status === 'failed' || entry.status === 'cancelled' || entry.status === providerStatus) return entry;
 
 	const tasks =
@@ -366,7 +418,7 @@ export function enrichMissionControlBoardWithProviderResults(
 
 	for (const entries of Object.values(board)) {
 		for (const entry of entries) {
-			const providerResults = getResults(entry.missionId);
+			const providerResults = normalizeProviderResults(getResults(entry.missionId));
 			const reconciled = reconcileEntryWithProviderResults(entry, providerResults);
 			const results = alignProviderResultsWithBoardStatus(reconciled, providerResults);
 			const bucket = reconciled.status;
