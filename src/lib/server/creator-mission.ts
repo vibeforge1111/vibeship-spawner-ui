@@ -34,6 +34,12 @@ export type CreatorArtifactType =
 	| 'swarm_publish_packet'
 	| 'creator_report';
 
+export interface CreatorTelegramRelayTarget {
+	port?: number | null;
+	profile?: string | null;
+	url?: string | null;
+}
+
 export type CreatorValidationGateId =
 	| 'schema_gate'
 	| 'lineage_gate'
@@ -181,6 +187,9 @@ export interface CreatorMissionTrace {
 		api_ready: boolean;
 		publish_mode: CreatorPrivacyMode | 'none';
 	};
+	telegram_relay?: CreatorTelegramRelayTarget | null;
+	telegram_chat_id?: string | null;
+	telegram_user_id?: string | null;
 	blockers: string[];
 	links: {
 		canvas: string;
@@ -196,6 +205,9 @@ export interface CreateCreatorMissionInput {
 	brief: string;
 	requestId?: string;
 	missionId?: string;
+	chatId?: string;
+	userId?: string;
+	telegramRelay?: CreatorTelegramRelayTarget | null;
 	privacyMode?: CreatorPrivacyMode;
 	riskLevel?: CreatorRiskLevel;
 	baseUrl?: string;
@@ -256,7 +268,7 @@ type CreatorDispatchRunner = (load: CreatorMissionCanvasLoad) => Promise<PrdAuto
 type CreatorValidationCommandRunner = (
 	executable: string,
 	args: string[],
-	options: { cwd: string; timeoutMs: number; shell?: boolean }
+	options: { cwd: string; timeoutMs: number }
 ) => Promise<{ exitCode: number; stdout?: string; stderr?: string }>;
 
 let activeCreatorPlanRunner: CreatorPlanRunner | null = null;
@@ -559,8 +571,24 @@ export function validationGatesForCreatorIntent(packet: CreatorIntentPacket): Cr
 	return gates;
 }
 
+export function creatorDomainDisplayLabel(domain: string | undefined): string {
+	const raw = domain?.trim() || '';
+	if (!raw) return 'Target Domain';
+	return raw
+		.replace(/[_/]+/g, '-')
+		.split(/-|\s+/)
+		.map((word) => word.trim())
+		.filter(Boolean)
+		.map((word) => {
+			const lower = word.toLowerCase();
+			if (['ai', 'api', 'llm', 'qa', 'ui', 'ux', 'yc'].includes(lower)) return lower.toUpperCase();
+			return lower.charAt(0).toUpperCase() + lower.slice(1);
+		})
+		.join(' ');
+}
+
 function compactDomainLabel(packet: CreatorIntentPacket): string {
-	return packet.target_domain.trim() || 'target domain';
+	return creatorDomainDisplayLabel(packet.target_domain);
 }
 
 function task(
@@ -795,8 +823,9 @@ function creatorCanvasPath(trace: Pick<CreatorMissionTrace, 'request_id' | 'miss
 }
 
 function creatorExecutionPrompt(trace: CreatorMissionTrace): string {
+	const domainLabel = creatorDomainDisplayLabel(trace.intent_packet.target_domain);
 	return [
-		`Creator mission for ${trace.intent_packet.target_domain}.`,
+		`Creator mission for ${domainLabel}.`,
 		'Build the requested Spark creator artifacts as a gated, benchmarkable system.',
 		`User goal: ${trace.user_goal}`,
 		`Target operating-system folder: ${creatorWorkspaceRoot()}`,
@@ -838,6 +867,153 @@ function fallbackManifestArtifactTypes(packet: CreatorIntentPacket): CreatorArti
 	return artifactTypes;
 }
 
+function isSparkQaOperatorCreatorBrief(brief: string): boolean {
+	const lower = brief.toLowerCase();
+	return (
+		/\b(?:spark\s+qa\s+operator|qa\s+operator|qa\s+tester|quality\s+tester|tester\s+for\s+spark|spark\s+tester)\b/.test(lower) ||
+		lower.includes('canonical target domain: spark-qa-operator')
+	);
+}
+
+function isSparkQaOperatorBenchmarkOnlyBrief(brief: string, packet: CreatorIntentPacket): boolean {
+	const lower = brief.toLowerCase();
+	if (lower.includes('artifact focus: benchmark pack')) return true;
+	if (packet.artifact_targets?.length === 1 && packet.artifact_targets[0] === 'benchmark_pack') return true;
+
+	const benchmarkAsk = /\b(?:benchmark pack|benchmark cases?|held-?out|trap cases?|adversarial|no-?op regression|route drift|creator mission evidence)\b/.test(lower);
+	const broaderCreatorAsk = /\b(?:full creator system|full path|specialization path|specialisation path|gated autoloop|domain chip contract)\b/.test(lower);
+	return benchmarkAsk && !broaderCreatorAsk;
+}
+
+function sparkQaOperatorRepoForArtifact(artifactType: CreatorArtifactType): string {
+	if (artifactType === 'domain_chip') return 'domain-chip-spark-qa-operator';
+	if (artifactType === 'benchmark_pack') return 'spark-qa-operator-bench';
+	if (artifactType === 'tool_integration') return 'spark-telegram-bot';
+	if (artifactType === 'swarm_publish_packet') return 'spark-swarm';
+	return 'specialization-path-spark-qa-operator';
+}
+
+function normalizeSparkQaOperatorManifest(
+	manifest: CreatorArtifactManifest,
+	benchmarkOnly: boolean
+): CreatorArtifactManifest {
+	const artifactType = manifest.artifact_type;
+	const normalized: CreatorArtifactManifest = {
+		...manifest,
+		artifact_id: `spark-qa-operator-${artifactType.replace(/_/g, '-')}-v1`,
+		repo: sparkQaOperatorRepoForArtifact(artifactType),
+		inputs: Array.from(new Set(['creator-intent-spark-qa-operator', ...manifest.inputs]))
+	};
+
+	if (benchmarkOnly && artifactType === 'benchmark_pack') {
+		return {
+			...normalized,
+			outputs: [
+				'benchmarks/spark-qa-operator.cases.json',
+				'benchmarks/spark-qa-operator.scoring.json',
+				'docs/BENCHMARK_CALIBRATION.md'
+			],
+			validation_commands: [
+				'python -m pytest tests',
+				'python scripts/run_spark_qa_operator_benchmark.py --suite smoke'
+			]
+		};
+	}
+
+	return normalized;
+}
+
+function normalizeSparkQaOperatorBundle(input: CreateCreatorMissionInput, bundle: CreatorArtifactBundle): CreatorArtifactBundle {
+	if (!isSparkQaOperatorCreatorBrief(input.brief)) return bundle;
+
+	const benchmarkOnly = isSparkQaOperatorBenchmarkOnlyBrief(input.brief, bundle.intent_packet);
+	const artifactTargets = benchmarkOnly
+		? ['benchmark_pack']
+		: ['domain_chip', 'benchmark_pack', 'specialization_path', 'autoloop_policy', 'tool_integration', 'swarm_publish_packet'];
+	const packet: CreatorIntentPacket = {
+		...bundle.intent_packet,
+		user_goal: input.brief,
+		target_domain: 'spark-qa-operator',
+		target_operator_surface: 'telegram+workspace+spawner-ui+canvas+kanban+auth-pairing+recursive-reports',
+		expected_agent_capability: benchmarkOnly
+			? 'Measure Spark QA Operator with held-out, trap, no-op, route-drift, and evidence-backed benchmark cases.'
+			: 'Improve Spark QA Operator through private benchmarked practice on Spark-built products before general user-app transfer.',
+		tools_in_scope: [
+			'spark-telegram-bot',
+			'spark-swarm-workspace',
+			'spawner-ui',
+			'canvas-kanban-panels',
+			'mission-control-trace',
+			'auth-pairing',
+			'spark-intelligence-builder'
+		],
+		data_sources_allowed: ['local_repo', 'local_spawner_state', 'operator_supplied_telegram_context'],
+		risk_level: input.riskLevel || bundle.intent_packet.risk_level || 'medium',
+		privacy_mode: input.privacyMode || bundle.intent_packet.privacy_mode || 'local_only',
+		desired_outputs: {
+			...bundle.intent_packet.desired_outputs,
+			domain_chip: !benchmarkOnly,
+			specialization_path: !benchmarkOnly,
+			benchmark_pack: true,
+			autoloop_policy: !benchmarkOnly,
+			telegram_flow: !benchmarkOnly,
+			spawner_mission: !benchmarkOnly,
+			swarm_publish_packet: !benchmarkOnly
+		},
+		intent_id: 'creator-intent-spark-qa-operator',
+		artifact_targets: artifactTargets,
+		usage_surfaces: ['telegram', 'spark-swarm-workspace', 'spawner-ui', 'canvas', 'kanban', 'auth-pairing', 'recursive-reports'],
+		success_claim: benchmarkOnly
+			? 'Spark QA Operator benchmark cases separate real evidence-backed QA gains from formatting-only improvements.'
+			: 'Spark QA Operator measurably catches more Spark-product regressions before its rules transfer to user apps.',
+		capabilities_to_prove: benchmarkOnly
+			? [
+				'route drift detection',
+				'creator mission evidence verification',
+				'pretty Telegram message but wrong evidence rejection',
+				'no-op regression handling',
+				'held-out Workspace evidence checks'
+			]
+			: [
+				'telegram natural-language creator QA',
+				'spark workspace sync and report truthfulness',
+				'recursive keep/revert report verification',
+				'spawner canvas and kanban execution QA',
+				'auth pairing abuse and recovery QA',
+				'autoloop mutation review'
+			],
+		benchmark_requirements: {
+			visible_cases: 24,
+			fixed_suite: true,
+			held_out_cases: true,
+			trap_cases: true,
+			simulator_transfer: true,
+			fresh_agent_absorption: true,
+			human_calibration: false
+		},
+		network_contribution_policy: 'workspace_only'
+	};
+
+	const manifestsByType = new Map<CreatorArtifactType, CreatorArtifactManifest>();
+	const allowedManifestTypes = new Set<CreatorArtifactType>(fallbackManifestArtifactTypes(packet));
+	for (const manifest of bundle.artifact_manifests) {
+		const artifactType = manifest.artifact_type;
+		if (!isCreatorArtifactType(artifactType)) continue;
+		if (!allowedManifestTypes.has(artifactType)) continue;
+		manifestsByType.set(artifactType, normalizeSparkQaOperatorManifest(manifest, benchmarkOnly));
+	}
+	for (const fallback of fallbackArtifactManifestsFromIntent(packet)) {
+		if (manifestsByType.has(fallback.artifact_type)) continue;
+		manifestsByType.set(fallback.artifact_type, normalizeSparkQaOperatorManifest(fallback, benchmarkOnly));
+	}
+
+	return {
+		intent_packet: packet,
+		artifact_manifests: Array.from(manifestsByType.values()),
+		validation_issues: bundle.validation_issues
+	};
+}
+
 function isCreatorArtifactType(value: string): value is CreatorArtifactType {
 	return [
 		'domain_chip',
@@ -872,11 +1048,12 @@ async function resolveCreatorArtifactBundle(
 
 export function creatorMissionCanvasLoad(trace: CreatorMissionTrace, now = new Date()) {
 	const pipelineId = creatorPipelineId(trace.request_id);
+	const domainLabel = creatorDomainDisplayLabel(trace.intent_packet.target_domain);
 	return {
 		requestId: trace.request_id,
 		missionId: trace.mission_id,
 		pipelineId,
-		pipelineName: `Creator Mission: ${trace.intent_packet.target_domain}`,
+		pipelineName: `Creator Mission: ${domainLabel}`,
 		nodes: trace.tasks.map(taskToCanvasNode),
 		connections: taskConnections(trace.tasks),
 		source: 'creator-mission' as const,
@@ -888,6 +1065,9 @@ export function creatorMissionCanvasLoad(trace: CreatorMissionTrace, now = new D
 			missionId: trace.mission_id,
 			requestId: trace.request_id,
 			goal: trace.user_goal,
+			...(trace.telegram_relay ? { telegramRelay: trace.telegram_relay } : {}),
+			...(trace.telegram_chat_id ? { chatId: trace.telegram_chat_id } : {}),
+			...(trace.telegram_user_id ? { userId: trace.telegram_user_id } : {}),
 			autoRun: false,
 			buildMode: 'advanced_prd' as const,
 			buildModeReason: 'Creator missions require explicit validation gates before execution or Swarm publication.'
@@ -920,7 +1100,10 @@ export async function createCreatorMission(
 	const createdAt = now.toISOString();
 	const missionId = input.missionId?.trim() || `mission-creator-${Date.now()}`;
 	const requestId = input.requestId?.trim() || missionId;
-	const bundle = await resolveCreatorArtifactBundle({ ...input, brief }, options);
+	const bundle = normalizeSparkQaOperatorBundle(
+		{ ...input, brief },
+		await resolveCreatorArtifactBundle({ ...input, brief }, options)
+	);
 	const intentPacket = bundle.intent_packet;
 	const baseUrl = input.baseUrl?.replace(/\/+$/, '') || '';
 	const canvasPath = creatorCanvasPath({ request_id: requestId, mission_id: missionId });
@@ -956,6 +1139,9 @@ export async function createCreatorMission(
 			api_ready: false,
 			publish_mode: intentPacket.privacy_mode === 'swarm_shared' ? 'swarm_shared' : intentPacket.privacy_mode
 		},
+		telegram_relay: input.telegramRelay ?? null,
+		telegram_chat_id: input.chatId?.trim() || null,
+		telegram_user_id: input.userId?.trim() || null,
 		blockers: [],
 		links: {
 			canvas: baseUrl ? `${baseUrl}${canvasPath}` : canvasPath,
@@ -1090,7 +1276,6 @@ function tailText(value: unknown, maxLength = 6000): string {
 interface ResolvedValidationCommand {
 	executable: string;
 	args: string[];
-	shell?: boolean;
 }
 
 function packageManagerCliPath(executable: string): string | null {
@@ -1114,7 +1299,6 @@ function resolveValidationCommand(executable: string, args: string[]): ResolvedV
 		if (cliPath) {
 			return { executable: process.execPath, args: [cliPath, ...args] };
 		}
-		return { executable: `${executable}.cmd`, args, shell: true };
 	}
 	return { executable, args };
 }
@@ -1126,14 +1310,13 @@ function resolveCreatorRepoRoot(repo: string): string {
 async function defaultCreatorValidationCommandRunner(
 	executable: string,
 	args: string[],
-	options: { cwd: string; timeoutMs: number; shell?: boolean }
+	options: { cwd: string; timeoutMs: number }
 ): Promise<{ exitCode: number; stdout?: string; stderr?: string }> {
 	try {
 		const { stdout, stderr } = await execFileAsync(executable, args, {
 			cwd: options.cwd,
 			timeout: options.timeoutMs,
 			windowsHide: true,
-			shell: options.shell === true,
 			maxBuffer: 1024 * 1024
 		});
 		return { exitCode: 0, stdout: String(stdout || ''), stderr: String(stderr || '') };
@@ -1203,7 +1386,7 @@ async function runCreatorValidationCommand(
 	}
 	const runner = options.commandRunner || activeCreatorValidationCommandRunner || defaultCreatorValidationCommandRunner;
 	const resolved = options.commandRunner ? { executable, args } : resolveValidationCommand(executable, args);
-	const result = await runner(resolved.executable, resolved.args, { cwd, timeoutMs: options.timeoutMs, shell: resolved.shell });
+	const result = await runner(resolved.executable, resolved.args, { cwd, timeoutMs: options.timeoutMs });
 	return {
 		artifact_id: manifest.artifact_id,
 		artifact_type: manifest.artifact_type,

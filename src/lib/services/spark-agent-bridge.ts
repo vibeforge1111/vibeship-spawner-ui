@@ -152,10 +152,10 @@ interface SparkAgentWorkerState {
 	sessionId: string;
 	providerId: SparkAgentProviderId;
 	missionId: string;
-	model?: string;
+	taskId?: string;
 	requestId?: string;
 	traceRef?: string;
-	taskId?: string;
+	model?: string;
 	status: 'running' | 'completed' | 'failed' | 'cancelled';
 	startedAt: string;
 	completedAt?: string;
@@ -316,24 +316,6 @@ function commandUsesHighAgencyMode(command: ProviderCommand): boolean {
 	return command.binary === 'codex' && command.args.includes('--yolo');
 }
 
-function blockedProviderResponse(response: string | undefined): string | null {
-	const text = (response || '').trim();
-	if (!text) return null;
-	const lower = text.toLowerCase();
-	const blockedSignals = [
-		'blocked by environment',
-		'blocked before implementation',
-		'filesystem writes are blocked',
-		'read-only sandbox',
-		'apply_patch write was rejected',
-		'files changed: none',
-		'no files were created',
-		'index.html: missing'
-	];
-	if (!blockedSignals.some((signal) => lower.includes(signal))) return null;
-	return text.split(/\r?\n/).find((line) => line.trim().length > 0)?.trim() || 'Provider reported blocked execution';
-}
-
 function sanitizeMcpConfig(value: unknown): MCPClientConfig | null {
 	if (!isRecord(value)) return null;
 	const command = toStringOrUndefined(value.command);
@@ -470,6 +452,7 @@ class SparkAgentBridgeService {
 		const startedAtMs = Date.now();
 		const { providerId, missionId, prompt } = input;
 		const taskId = input.taskId;
+		const model = input.model || (providerId === 'claude' ? 'opus' : 'gpt-5.5');
 		const session = this.startSession({
 			sessionId: input.sparkAgentSessionId,
 			actor: 'provider-runtime',
@@ -477,23 +460,23 @@ class SparkAgentBridgeService {
 				kind: 'provider_worker',
 				providerId,
 				missionId,
-				model: input.model || null,
+				taskId: taskId || null,
 				requestId: input.requestId || null,
 				traceRef: input.traceRef || null,
-				taskId: taskId || null
+				model
 			}
 		});
 		const sparkAgentSessionId = session.id;
-		const command = resolveProviderCommandTemplate(providerId, input.model, input.commandTemplate);
+		const command = resolveProviderCommandTemplate(providerId, model, input.commandTemplate);
 
 		const workerState: SparkAgentWorkerState = {
 			sessionId: sparkAgentSessionId,
 			providerId,
 			missionId,
-			model: input.model,
+			taskId,
 			requestId: input.requestId,
 			traceRef: input.traceRef,
-			taskId,
+			model,
 			status: 'running',
 			startedAt: nowIso(),
 			progress: 0
@@ -522,7 +505,7 @@ class SparkAgentBridgeService {
 				missionId,
 				taskId,
 				prompt,
-				model: input.model || '',
+				model,
 				commandTemplate: command,
 				workingDirectory: input.workingDirectory,
 				signal: input.signal,
@@ -534,27 +517,6 @@ class SparkAgentBridgeService {
 					success: false,
 					sparkAgentSessionId,
 					error: CANCELLED_ERROR,
-					durationMs: Date.now() - startedAtMs
-				};
-			}
-
-			const blockedReason = result.success ? blockedProviderResponse(result.response) : null;
-			if (blockedReason) {
-				workerState.status = 'failed';
-				workerState.error = blockedReason;
-				workerState.completedAt = nowIso();
-				this.emitProviderEvent(workerState, 'task_failed', {
-					progress: workerState.progress,
-					message: `${providerId} worker failed: ${blockedReason}`,
-					error: blockedReason,
-					response: result.response || ''
-				});
-				this.endSession(sparkAgentSessionId, 'failed');
-				return {
-					success: false,
-					sparkAgentSessionId,
-					error: blockedReason,
-					response: result.response,
 					durationMs: Date.now() - startedAtMs
 				};
 			}
@@ -1212,11 +1174,11 @@ class SparkAgentBridgeService {
 		const timestamp = nowIso();
 		const data = {
 			missionId: worker.missionId,
-			providerId: worker.providerId,
 			provider: worker.providerId,
-			...(worker.model ? { model: worker.model } : {}),
+			providerId: worker.providerId,
+			model: worker.model,
 			...(worker.requestId ? { requestId: worker.requestId } : {}),
-			...(worker.traceRef ? { traceRef: worker.traceRef, trace_ref: worker.traceRef } : {}),
+			...(worker.traceRef ? { traceRef: worker.traceRef } : {}),
 			sparkAgentSessionId: worker.sessionId,
 			...(worker.taskId ? { taskId: worker.taskId } : {}),
 			...payload

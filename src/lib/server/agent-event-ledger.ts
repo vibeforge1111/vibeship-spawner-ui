@@ -60,6 +60,7 @@ export interface AgentBlackBoxEntry {
 	event_id: string;
 	event_type: AgentEventType;
 	created_at: string;
+	trace_ref: string | null;
 	perceived_intent: string | null;
 	route_chosen: string | null;
 	sources_used: AgentSourceRef[];
@@ -95,9 +96,9 @@ export interface MissionControlAgentEventInput {
 	source: string;
 	requestId?: string | null;
 	traceRef?: string | null;
+	toState?: string | null;
 	providerId?: string | null;
 	model?: string | null;
-	toState?: string | null;
 }
 
 export function getAgentEventLedgerPath(): string {
@@ -136,14 +137,12 @@ export function buildMissionControlAgentEvent(input: MissionControlAgentEventInp
 			progress: input.progress,
 			to_state: toState,
 			trace_ref: normalizeNullable(input.traceRef),
-			...(normalizeNullable(input.providerId)
-				? {
-						provider: normalizeNullable(input.providerId),
-						providerId: normalizeNullable(input.providerId)
-					}
-				: {}),
-			...(normalizeNullable(input.model) ? { model: normalizeNullable(input.model) } : {}),
-			bridge_source: input.source
+			bridge_source: input.source,
+			...(normalizeNullable(input.providerId) ? {
+				provider: normalizeNullable(input.providerId),
+				providerId: normalizeNullable(input.providerId)
+			} : {}),
+			...(normalizeNullable(input.model) ? { model: normalizeNullable(input.model) } : {})
 		},
 		sources: [
 			{
@@ -163,7 +162,7 @@ export function buildMissionControlAgentEvent(input: MissionControlAgentEventInp
 
 export function appendAgentEvent(
 	event: AgentEventRecord,
-	options: { requestId?: string | null; sessionId?: string | null; actorId?: string | null } = {}
+	options: { requestId?: string | null; traceRef?: string | null; sessionId?: string | null; actorId?: string | null } = {}
 ): AgentEventLedgerEntry {
 	const entry: AgentEventLedgerEntry = {
 		...event,
@@ -171,7 +170,7 @@ export function appendAgentEvent(
 		component: AGENT_EVENT_COMPONENT,
 		created_at: new Date().toISOString(),
 		request_id: normalizeNullable(options.requestId),
-		trace_ref: traceRefFromEvent(event),
+		trace_ref: normalizeNullable(options.traceRef) || traceRefFromFacts(event.facts),
 		session_id: normalizeNullable(options.sessionId),
 		actor_id: normalizeNullable(options.actorId)
 	};
@@ -238,6 +237,8 @@ function finalAnswerAuditToAgentEvent(record: Record<string, unknown>, index: nu
 	const builderRoute = stringValue(record.builder_routing_decision);
 	const builderMode = stringValue(record.builder_bridge_mode);
 	const outcome = stringValue(record.outcome) || 'suppressed_builder_reply';
+	const requestId = stringValue(record.request_id);
+	const traceRef = stringValue(record.trace_ref);
 	return {
 		schema_version: AGENT_EVENT_SCHEMA_VERSION,
 		event_type: 'final_answer_checked',
@@ -252,6 +253,7 @@ function finalAnswerAuditToAgentEvent(record: Record<string, unknown>, index: nu
 			builder_routing_decision: builderRoute,
 			builder_bridge_mode: builderMode,
 			builder_reply_length: record.builder_reply_length,
+			trace_ref: traceRef,
 			latest_intent_preserved: record.latest_intent_preserved === true
 		},
 		sources: [
@@ -270,8 +272,8 @@ function finalAnswerAuditToAgentEvent(record: Record<string, unknown>, index: nu
 		event_id: `final-answer-${Date.parse(createdAt) || 0}-${index}`,
 		component: AGENT_EVENT_COMPONENT,
 		created_at: createdAt,
-		request_id: null,
-		trace_ref: stringValue(record.trace_ref) || stringValue(record.traceRef),
+		request_id: requestId,
+		trace_ref: traceRef,
 		session_id: chatId ? `telegram:${chatId}` : null,
 		actor_id: userId ? `telegram:${userId}` : null
 	};
@@ -284,6 +286,7 @@ export function buildAgentBlackBoxReport(
 		event_id: entry.event_id,
 		event_type: entry.event_type,
 		created_at: entry.created_at,
+		trace_ref: entry.trace_ref,
 		perceived_intent: entry.user_intent,
 		route_chosen: entry.selected_route,
 		sources_used: entry.sources,
@@ -343,9 +346,8 @@ function normalizeNullable(value: string | null | undefined): string | null {
 	return text || null;
 }
 
-function traceRefFromEvent(event: AgentEventRecord): string | null {
-	const raw = event.facts?.trace_ref ?? event.facts?.traceRef;
-	return typeof raw === 'string' ? normalizeNullable(raw) : null;
+function traceRefFromFacts(facts: Record<string, unknown>): string | null {
+	return stringValue(facts.trace_ref) || stringValue(facts['traceRef']);
 }
 
 function stringValue(value: unknown): string | null {

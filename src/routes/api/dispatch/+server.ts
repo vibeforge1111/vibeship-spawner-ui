@@ -15,6 +15,12 @@ import { providerRuntime } from '$lib/server/provider-runtime';
 import { DEFAULT_MULTI_LLM_PROVIDERS } from '$lib/services/multi-llm-orchestrator';
 import { getMissionControlBoard, relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import type { MissionControlBoardStatus } from '$lib/types/mission-control';
+import {
+	CapabilityPolicyError,
+	assertCapability,
+	createCapabilityEnvelope,
+	type CapabilityEnvelope
+} from '$lib/server/capability-policy';
 
 const ALLOWED_PROVIDER_IDS = new Set(DEFAULT_MULTI_LLM_PROVIDERS.map((provider) => provider.id));
 const ALLOWED_PROVIDER_LABEL = [...ALLOWED_PROVIDER_IDS].join(', ');
@@ -49,12 +55,10 @@ function isConfiguredApiKey(value: string | undefined): value is string {
 }
 
 export const POST: RequestHandler = async (event) => {
-	// Auth: allow localhost without key
 	const unauthorized = requireControlAuth(event, {
 		surface: 'Dispatch',
 		apiKeyEnvVar: 'MCP_API_KEY',
 		fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
-		allowLoopbackWithoutKey: true
 	});
 	if (unauthorized) return unauthorized;
 
@@ -80,6 +84,14 @@ export const POST: RequestHandler = async (event) => {
 				{ status: 400 }
 			);
 		}
+		const capability = assertCapability(createCapabilityEnvelope(event, {
+			actorId: typeof relay?.userId === 'string' ? relay.userId : undefined,
+			surface: 'spawner',
+			capability: 'provider.execute',
+			target: typeof executionPack.missionId === 'string' ? executionPack.missionId : 'dispatch',
+			reason: 'Dispatch provider execution pack',
+			requestId: typeof relay?.requestId === 'string' ? relay.requestId : undefined
+		}));
 
 		const requestedProviderIds: string[] = executionPack.providers.map((provider: { id: string }) => provider.id);
 		const unsupportedProviderIds = requestedProviderIds.filter((id) => !ALLOWED_PROVIDER_IDS.has(id));
@@ -211,8 +223,11 @@ export const POST: RequestHandler = async (event) => {
 			}
 		});
 
-		return json(result);
+		return json({ ...result, audit: capability });
 	} catch (err) {
+		if (err instanceof CapabilityPolicyError) {
+			return json({ success: false, error: err.message, code: err.code }, { status: err.status });
+		}
 		const error = err instanceof Error ? err.message : 'Unknown error';
 		console.error('[Dispatch API] POST error:', error);
 		return json({ success: false, error }, { status: 500 });
@@ -223,7 +238,6 @@ export const GET: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
 		surface: 'Dispatch',
 		apiKeyEnvVar: 'MCP_API_KEY',
-		allowLoopbackWithoutKey: true
 	});
 	if (unauthorized) return unauthorized;
 
@@ -231,16 +245,29 @@ export const GET: RequestHandler = async (event) => {
 	if (!missionId) {
 		return json({ error: 'missionId query parameter required' }, { status: 400 });
 	}
+	let capability: CapabilityEnvelope;
+	try {
+		capability = assertCapability(createCapabilityEnvelope(event, {
+			surface: 'spawner',
+			capability: 'mission.status',
+			target: missionId,
+			reason: 'Read provider dispatch status'
+		}));
+	} catch (err) {
+		if (err instanceof CapabilityPolicyError) {
+			return json({ error: err.message, code: err.code }, { status: err.status });
+		}
+		throw err;
+	}
 
 	const status = providerRuntime.getMissionStatus(missionId);
-	return json({ missionId, ...status });
+	return json({ missionId, ...status, audit: capability });
 };
 
 export const DELETE: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
 		surface: 'Dispatch',
-		apiKeyEnvVar: 'MCP_API_KEY',
-		allowLoopbackWithoutKey: true
+		apiKeyEnvVar: 'MCP_API_KEY'
 	});
 	if (unauthorized) return unauthorized;
 
@@ -248,7 +275,21 @@ export const DELETE: RequestHandler = async (event) => {
 	if (!missionId) {
 		return json({ error: 'missionId query parameter required' }, { status: 400 });
 	}
+	let capability: CapabilityEnvelope;
+	try {
+		capability = assertCapability(createCapabilityEnvelope(event, {
+			surface: 'spawner',
+			capability: 'mission.command',
+			target: missionId,
+			reason: 'Cancel provider dispatch'
+		}));
+	} catch (err) {
+		if (err instanceof CapabilityPolicyError) {
+			return json({ error: err.message, code: err.code }, { status: err.status });
+		}
+		throw err;
+	}
 
 	await providerRuntime.cancelMission(missionId);
-	return json({ success: true, missionId });
+	return json({ success: true, missionId, audit: capability });
 };

@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createCreatorMission, creatorMissionPath, readCreatorMissionTrace, type CreatorPrivacyMode, type CreatorRiskLevel } from '$lib/server/creator-mission';
+import { createCreatorMission, creatorDomainDisplayLabel, creatorMissionPath, readCreatorMissionTrace, type CreatorPrivacyMode, type CreatorRiskLevel, type CreatorTelegramRelayTarget } from '$lib/server/creator-mission';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 
@@ -8,6 +8,9 @@ interface CreatorMissionBody {
 	brief?: string;
 	requestId?: string;
 	missionId?: string;
+	chatId?: string;
+	userId?: string;
+	telegramRelay?: CreatorTelegramRelayTarget | null;
 	privacyMode?: CreatorPrivacyMode;
 	riskLevel?: CreatorRiskLevel;
 }
@@ -22,10 +25,11 @@ function isRiskLevel(value: unknown): value is CreatorRiskLevel {
 
 function emitCreatorEvent(type: string, trace: Awaited<ReturnType<typeof createCreatorMission>>, message: string, data: Record<string, unknown> = {}) {
 	const intentTask = trace.tasks.find((task) => task.id === 'creator-intent-plan') || trace.tasks[0];
+	const domainLabel = creatorDomainDisplayLabel(trace.intent_packet.target_domain);
 	void relayMissionControlEvent({
 		type,
 		missionId: trace.mission_id,
-		missionName: `Creator Mission: ${trace.intent_packet.target_domain}`,
+		missionName: `Creator Mission: ${domainLabel}`,
 		source: 'creator-mission',
 		timestamp: new Date().toISOString(),
 		message,
@@ -53,7 +57,6 @@ export const POST: RequestHandler = async (event) => {
 		surface: 'CreatorMission',
 		apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
-		allowLoopbackWithoutKey: true
 	});
 	if (unauthorized) return unauthorized;
 
@@ -81,12 +84,15 @@ export const POST: RequestHandler = async (event) => {
 			brief,
 			requestId: body.requestId,
 			missionId: body.missionId,
+			chatId: body.chatId,
+			userId: body.userId,
+			telegramRelay: body.telegramRelay,
 			privacyMode: body.privacyMode,
 			riskLevel: body.riskLevel,
 			baseUrl: new URL(event.request.url).origin
 		});
 
-		emitCreatorEvent('mission_created', trace, `Creator mission queued ${trace.tasks.length} task(s) for ${trace.intent_packet.target_domain}.`);
+		emitCreatorEvent('mission_created', trace, `Creator mission queued ${trace.tasks.length} task(s) for ${creatorDomainDisplayLabel(trace.intent_packet.target_domain)}.`);
 		emitCreatorEvent('task_started', trace, 'Creating creator intent packet and task graph.');
 		emitCreatorEvent('task_completed', trace, 'Creator intent packet and task graph created.', {
 			intentPacket: trace.intent_packet,

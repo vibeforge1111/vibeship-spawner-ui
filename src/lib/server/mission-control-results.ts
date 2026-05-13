@@ -9,6 +9,8 @@ import { env } from '$env/dynamic/private';
 export interface MissionControlProviderResultSummary {
 	providerId: string;
 	status: ProviderSessionStatus;
+	requestId?: string | null;
+	traceRef?: string | null;
 	summary: string;
 	durationMs: number | null;
 	completedAt: string | null;
@@ -57,28 +59,19 @@ function stringField(record: Record<string, unknown>, key: string): string | nul
 function previewBaseUrl(): string {
 	const envRecord = env as Record<string, string | undefined>;
 	const raw =
-		process.env.SPARK_PROJECT_PREVIEW_URL?.trim() ||
-		process.env.SPAWNER_PROJECT_PREVIEW_BASE_URL?.trim() ||
-		process.env.SPARK_PROJECT_PREVIEW_BASE_URL?.trim() ||
-		process.env.SPAWNER_UI_PUBLIC_URL?.trim() ||
-		process.env.PUBLIC_SPAWNER_UI_URL?.trim() ||
-		process.env.RAILWAY_PUBLIC_DOMAIN?.trim() ||
-		process.env.RAILWAY_STATIC_URL?.trim() ||
 		envRecord.SPARK_PROJECT_PREVIEW_URL?.trim() ||
 		envRecord.SPAWNER_PROJECT_PREVIEW_BASE_URL?.trim() ||
-			envRecord.SPARK_PROJECT_PREVIEW_BASE_URL?.trim() ||
-			envRecord.SPAWNER_UI_PUBLIC_URL?.trim() ||
-			envRecord.PUBLIC_SPAWNER_UI_URL?.trim() ||
-			envRecord.SPAWNER_UI_URL?.trim() ||
-			envRecord.RAILWAY_PUBLIC_DOMAIN?.trim() ||
-			envRecord.RAILWAY_STATIC_URL?.trim() ||
-			'http://127.0.0.1:3333';
+		envRecord.SPARK_PROJECT_PREVIEW_BASE_URL?.trim() ||
+		envRecord.SPAWNER_UI_PUBLIC_URL?.trim() ||
+		envRecord.PUBLIC_SPAWNER_UI_URL?.trim() ||
+		envRecord.RAILWAY_PUBLIC_DOMAIN?.trim() ||
+		envRecord.RAILWAY_STATIC_URL?.trim() ||
+		'';
 	if (!raw) return '';
 	return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
 }
 
 function parseProviderResponseMetadata(response: string | null): {
-	summary?: string;
 	projectPath?: string;
 	project_path?: string;
 	previewUrl?: string;
@@ -89,7 +82,6 @@ function parseProviderResponseMetadata(response: string | null): {
 		const parsed = JSON.parse(response) as unknown;
 		if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
 		const record = parsed as Record<string, unknown>;
-		const summary = compactProviderHandoffText(stringField(record, 'summary'));
 		const projectPath = stringField(record, 'project_path') || stringField(record, 'projectPath');
 		const explicitPreviewUrl =
 			stringField(record, 'preview_url') ||
@@ -99,7 +91,6 @@ function parseProviderResponseMetadata(response: string | null): {
 		const baseUrl = previewBaseUrl();
 		const previewUrl = explicitPreviewUrl || (projectPath && baseUrl ? projectPreviewUrl(baseUrl, projectPath) : null);
 		return {
-			...(summary ? { summary } : {}),
 			...(projectPath ? { projectPath, project_path: projectPath } : {}),
 			...(previewUrl ? { previewUrl, preview_url: previewUrl } : {})
 		};
@@ -112,7 +103,6 @@ export function summarizeProviderResults(
 	results: ProviderMissionResultSnapshot[]
 ): MissionControlResultSummary {
 	const providerResults = results.map((result) => {
-		const metadata = parseProviderResponseMetadata(result.response);
 		const responseSummary = compactProviderHandoffText(result.response);
 		const errorSummary = compactMissionControlDisplayText(result.error);
 		const fallback =
@@ -124,10 +114,12 @@ export function summarizeProviderResults(
 		return {
 			providerId: result.providerId,
 			status: result.status,
-			summary: metadata.summary || responseSummary || errorSummary || fallback,
+			...(result.requestId ? { requestId: result.requestId } : {}),
+			...(result.traceRef ? { traceRef: result.traceRef } : {}),
+			summary: responseSummary || errorSummary || fallback,
 			durationMs: result.durationMs,
 			completedAt: result.completedAt,
-			...metadata
+			...parseProviderResponseMetadata(result.response)
 		};
 	});
 

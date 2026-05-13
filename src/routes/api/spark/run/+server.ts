@@ -14,19 +14,25 @@ import {
 	missionControlPathForMission,
 	resolveMissionControlAccess
 } from '$lib/server/mission-control-access';
+import {
+	CapabilityPolicyError,
+	assertCapability,
+	createCapabilityEnvelope
+} from '$lib/server/capability-policy';
+import { normalizeTraceRef } from '$lib/server/trace-ref';
 
 interface SparkRunBody {
 	goal?: string;
-	missionName?: string;
 	projectPath?: string;
 	providers?: string[];
 	chatId?: string;
 	userId?: string;
 	requestId?: string;
-	traceRef?: string;
 	tier?: 'base' | 'pro';
 	promptMode?: 'simple' | 'orchestrator';
 	suppressRelay?: boolean;
+	traceRef?: string;
+	trace_ref?: string;
 	projectId?: string;
 	previewUrl?: string;
 	parentMissionId?: string;
@@ -36,6 +42,34 @@ interface SparkRunBody {
 		port?: string | number;
 		profile?: string;
 		url?: string;
+	};
+}
+
+type AuthorityVerdictV1 = {
+	schema_version: 'spark.authority_verdict.v1';
+	traceRef?: string;
+	actionFamily: 'mission_execution';
+	sourcePolicy: string;
+	verdict: 'allowed' | 'blocked' | 'confirmation_required';
+	confirmationRequired: boolean;
+	scope: string;
+	expiresAt: string | null;
+	sourceRepo: 'spawner-ui';
+	reasonCode: string;
+};
+
+function buildSparkRunAuthorityVerdict(traceRef: string | null): AuthorityVerdictV1 {
+	return {
+		schema_version: 'spark.authority_verdict.v1',
+		...(traceRef ? { traceRef } : {}),
+		actionFamily: 'mission_execution',
+		sourcePolicy: 'spark_run_control_auth_capability_policy',
+		verdict: 'allowed',
+		confirmationRequired: false,
+		scope: 'spark_run_provider_execution',
+		expiresAt: null,
+		sourceRepo: 'spawner-ui',
+		reasonCode: 'provider_execute_capability_allowed'
 	};
 }
 
@@ -68,13 +102,6 @@ function normalizeTelegramRelay(value: SparkRunBody['telegramRelay']): Record<st
 	return Object.keys(relay).length > 0 ? relay : null;
 }
 
-function normalizeMissionName(value: unknown): string | null {
-	if (typeof value !== 'string') return null;
-	const cleaned = value.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
-	if (!cleaned) return null;
-	return cleaned.length > 140 ? `${cleaned.slice(0, 137).trim()}...` : cleaned;
-}
-
 function createSparkMission(
 	body: SparkRunBody,
 	goal: string,
@@ -84,18 +111,17 @@ function createSparkMission(
 	const now = new Date().toISOString();
 	const missionId = `spark-${Date.now()}`;
 	const requestId = body.requestId?.trim() || missionId;
-	const traceRef = body.traceRef?.trim() || null;
 	const chatId = body.chatId?.trim() || null;
 	const userId = body.userId?.trim() || 'spark-telegram';
 	const telegramRelay = normalizeTelegramRelay(body.telegramRelay);
 	const projectPath = resolveSparkRunProjectPath(body.projectPath);
-	const fallbackMissionName = `Spark Run: ${goal.length > 140 ? `${goal.slice(0, 137).trim()}...` : goal}`;
-	const missionName = normalizeMissionName(body.missionName) || fallbackMissionName;
+	const sparkProjectPath = body.promptMode === 'simple' && !body.projectPath?.trim() ? null : projectPath;
+	const traceRef = normalizeTraceRef(body.traceRef ?? body.trace_ref) || `trace:spawner-run:${missionId}`;
 
 	return {
 		id: missionId,
 		user_id: userId,
-		name: missionName,
+		name: `Spark Run: ${goal.length > 140 ? goal.slice(0, 137) + '…' : goal}`,
 		description: goal,
 		mode: 'multi-llm-orchestrator',
 		status: 'ready',
@@ -130,10 +156,10 @@ function createSparkMission(
 				...(traceRef ? { traceRef } : {}),
 				chatId,
 				userId,
-				projectPath,
+				...(sparkProjectPath ? { projectPath: sparkProjectPath } : {}),
 				providers: selectedProviderIds,
 				tier,
-				suppressRelay: body.suppressRelay === true,
+				suppressExternalRelay: body.suppressRelay === true,
 				...(body.projectId?.trim() ? { projectId: body.projectId.trim() } : {}),
 				...(body.previewUrl?.trim() ? { previewUrl: body.previewUrl.trim() } : {}),
 				...(body.parentMissionId?.trim() ? { parentMissionId: body.parentMissionId.trim() } : {}),
@@ -157,7 +183,6 @@ export const POST: RequestHandler = async (event) => {
 		surface: 'SparkRun',
 		apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
-		allowLoopbackWithoutKey: true
 	});
 	if (unauthorized) return unauthorized;
 
@@ -174,6 +199,14 @@ export const POST: RequestHandler = async (event) => {
 		if (!goal) {
 			return json({ success: false, error: 'goal is required' }, { status: 400 });
 		}
+		const capability = assertCapability(createCapabilityEnvelope(event, {
+			actorId: body.userId?.trim() || body.chatId?.trim() || undefined,
+			surface: 'spawner',
+			capability: 'provider.execute',
+			target: body.projectPath?.trim() || 'default-spark-workspace',
+			reason: 'Dispatch Spark provider run',
+			requestId: body.requestId
+		}));
 
 		const defaults = createDefaultMultiLLMOptions();
 		const envRecord = env as Record<string, string | undefined>;
@@ -216,6 +249,8 @@ export const POST: RequestHandler = async (event) => {
 		const tier = normalizeTier(body.tier);
 		const mission = createSparkMission(body, goal, selectedProviderIds, tier);
 		const missionMetadata = mission.outputs.spark as Record<string, unknown>;
+		const traceRef = typeof missionMetadata.traceRef === 'string' ? missionMetadata.traceRef : null;
+		const authorityVerdict = buildSparkRunAuthorityVerdict(traceRef);
 		const emitMissionEvent = (type: string, message: string, data?: Record<string, unknown>) => {
 			const bridgeEvent = {
 				type,
@@ -286,16 +321,10 @@ export const POST: RequestHandler = async (event) => {
 			apiKeys,
 			workingDirectory: body.promptMode === 'simple' ? undefined : mission.context.projectPath,
 			onEvent: (bridgeEvent) => {
-				// Per-provider task events arrive with source = provider.id (e.g. 'zai',
-				// 'minimax'). Tag that as taskName so the relay labels "Task started: zai"
-				// instead of the generic "task" that's the same for every provider.
 				const providerId = typeof bridgeEvent.source === 'string' ? bridgeEvent.source : null;
-				const isTaskEvent = typeof bridgeEvent.type === 'string' && bridgeEvent.type.startsWith('task_');
-				const taskName = isTaskEvent && providerId ? providerId : bridgeEvent.taskName;
 				const relayEvent = {
 					...bridgeEvent,
 					missionName: mission.name,
-					taskName,
 					source: 'spark-run',
 					data: {
 						...missionMetadata,
@@ -312,20 +341,28 @@ export const POST: RequestHandler = async (event) => {
 		});
 
 		emitMissionEvent('mission_started', `Mission started (${dispatchResult.missionId}).`, {
-			startedAt: dispatchResult.startedAt
+			startedAt: dispatchResult.startedAt,
+			authorityVerdict
 		});
 
 		return json({
 			success: true,
 			missionId: dispatchResult.missionId,
-			missionName: mission.name,
 			requestId: body.requestId?.trim() || mission.id,
-			...(typeof missionMetadata.traceRef === 'string' ? { traceRef: missionMetadata.traceRef } : {}),
+			...(traceRef ? { traceRef } : {}),
 			providers: selectedProviderIds,
 			startedAt: dispatchResult.startedAt,
-			missionControlAccess: resolveMissionControlAccess(missionControlPathForMission(dispatchResult.missionId))
+			missionControlAccess: resolveMissionControlAccess(missionControlPathForMission(dispatchResult.missionId)),
+			authorityVerdict,
+			audit: capability
 		});
 	} catch (error) {
+		if (error instanceof CapabilityPolicyError) {
+			return json(
+				{ success: false, error: error.message, code: error.code },
+				{ status: error.status }
+			);
+		}
 		if (error instanceof SparkRunWorkspaceError) {
 			return json({ success: false, error: error.message }, { status: error.status });
 		}

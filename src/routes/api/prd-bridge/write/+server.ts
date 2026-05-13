@@ -67,18 +67,20 @@ function missionIdFromRequestId(requestId: string): string {
 async function appendPrdTrace(requestId: string, event: string, details: Record<string, unknown> = {}): Promise<void> {
 	try {
 		const { prdAutoTraceFile } = getPrdBridgePaths();
-		const traceRef = await traceRefForRequest(requestId, details);
 		const row = {
 			ts: new Date().toISOString(),
 			requestId,
 			event,
-			...details,
-			...(traceRef ? { traceRef, trace_ref: traceRef } : {})
+			...details
 		};
 		await appendFile(prdAutoTraceFile, `${JSON.stringify(row)}\n`, 'utf-8');
 	} catch {
 		// Never fail request flow on trace write.
 	}
+}
+
+function traceRefDetails(traceRef: string | null | undefined): Record<string, string> {
+	return traceRef ? { traceRef } : {};
 }
 
 async function traceRefForRequest(requestId: string, details: Record<string, unknown>): Promise<string | null> {
@@ -94,6 +96,19 @@ async function traceRefForRequest(requestId: string, details: Record<string, unk
 	} catch {
 		return null;
 	}
+}
+
+export function _buildPrdResultArtifactVerification(
+	requestId: string,
+	paths: Pick<ReturnType<typeof getPrdBridgePaths>, 'resultsDir'> = getPrdBridgePaths()
+): { kind: 'prd_analysis_result'; present: boolean; fileName: string } {
+	const safeRequestId = normalizeRequestId(requestId);
+	const fileName = `${safeRequestId}.json`;
+	return {
+		kind: 'prd_analysis_result',
+		present: existsSync(join(paths.resultsDir, fileName)),
+		fileName
+	};
 }
 
 type RunnerWritableState = 'yes' | 'no' | 'unknown';
@@ -626,7 +641,8 @@ async function writeFallbackAnalysisResult(
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier,
-	reason: string
+	reason: string,
+	traceRef?: string | null
 ): Promise<void> {
 	const paths = getPrdBridgePaths();
 	const safeRequestId = normalizeRequestId(requestId);
@@ -638,18 +654,20 @@ async function writeFallbackAnalysisResult(
 	}
 
 	const result = await _buildFallbackAnalysisResult(requestId, projectName, buildMode, tier, paths);
-	const traceRef = await traceRefForRequest(requestId, {});
-	const resultWithTrace = traceRef
-		? { ...result, traceRef, metadata: { ...((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined), traceRef } }
+	const resolvedTraceRef = traceRef || await traceRefForRequest(requestId, {});
+	const resultWithTrace = resolvedTraceRef
+		? { ...result, traceRef: resolvedTraceRef, metadata: { ...((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined), traceRef: resolvedTraceRef } }
 		: result;
 	await writeFile(resultFile, JSON.stringify(projectStoredPrdAnalysisResult(requestId, resultWithTrace), null, 2), 'utf-8');
 	const staticArtifactCount = await writeConstrainedStaticProofArtifacts(await readFile(paths.pendingPrdFile, 'utf-8').catch(() => ''));
 	if (staticArtifactCount > 0) {
 		await appendPrdTrace(requestId, 'deterministic_static_artifacts_written', {
+			...traceRefDetails(resolvedTraceRef),
 			fileCount: staticArtifactCount
 		});
 	}
 	await appendPrdTrace(requestId, 'fallback_analysis_written', {
+		...traceRefDetails(resolvedTraceRef),
 		reason,
 		resultFile,
 		taskCount: Array.isArray(result.tasks) ? result.tasks.length : 0
@@ -661,7 +679,8 @@ function scheduleAutoAnalysisWatchdog(
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier,
-	cancelAutoAnalysis?: () => void
+	cancelAutoAnalysis?: () => void,
+	traceRef?: string | null
 ): void {
 	if (AUTO_ANALYSIS_TIMEOUT_MS <= 0) return;
 	const timer = setTimeout(async () => {
@@ -670,7 +689,9 @@ function scheduleAutoAnalysisWatchdog(
 		const resultFile = join(resultsDir, `${safeRequestId}.json`);
 		const hasResult = existsSync(resultFile);
 		if (hasResult) {
-			await appendPrdTrace(requestId, 'watchdog_result_found');
+			await appendPrdTrace(requestId, 'watchdog_result_found', {
+				...traceRefDetails(traceRef)
+			});
 			return;
 		}
 
@@ -680,6 +701,7 @@ function scheduleAutoAnalysisWatchdog(
 			reason: 'No runtime analysis result written before timeout; deterministic fallback queued'
 		});
 		await appendPrdTrace(requestId, 'watchdog_timeout', {
+			...traceRefDetails(traceRef),
 			timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
 			expectedResultFile: resultFile
 		});
@@ -688,7 +710,8 @@ function scheduleAutoAnalysisWatchdog(
 			projectName,
 			buildMode,
 			tier,
-			`auto-analysis timeout after ${AUTO_ANALYSIS_TIMEOUT_MS}ms`
+			`auto-analysis timeout after ${AUTO_ANALYSIS_TIMEOUT_MS}ms`,
+			traceRef
 		);
 	}, AUTO_ANALYSIS_TIMEOUT_MS);
 
@@ -843,6 +866,7 @@ async function buildPromptParts(
 
 async function buildCodexPrompt(
 	requestId: string,
+	traceRef: string | null,
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier,
@@ -905,6 +929,7 @@ async function buildCodexPrompt(
 	return [
 		'You are running inside spawner-ui and must complete PRD analysis autonomously.',
 		`Request ID: ${requestId}`,
+		...(traceRef ? [`Trace Ref: ${traceRef}`] : []),
 		`Project Name Hint: ${projectName}`,
 		`Build Mode: ${buildMode}`,
 		'',
@@ -926,7 +951,7 @@ async function buildCodexPrompt(
 		'1) Read the pending request metadata path above and confirm requestId matches.',
 		'2) Read the pending PRD path above completely.',
 		'3) Produce a valid PRD analysis result JSON with:',
-		'   requestId, success, projectName, projectType, complexity, infrastructure, techStack, tasks, skills, executionPrompt.',
+		'   requestId, traceRef, success, projectName, projectType, complexity, infrastructure, techStack, tasks, skills, executionPrompt.',
 		'4) Include actionable tasks with skills, dependencies, and verification criteria. For advanced_prd, make these TAS-style tasks with acceptance criteria.',
 		'5) Validate every skill ID before emitting — if it is not in the allowlist above, replace it with the closest valid ID or omit the task.',
 		'6) POST result event to Spawner API via PowerShell Invoke-RestMethod using this shape:',
@@ -949,7 +974,8 @@ async function startAutoAnalysis(
 	requestId: string,
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
-	tier: SkillTier
+	tier: SkillTier,
+	traceRef: string | null
 ): Promise<{ started: boolean; provider: string; cancel?: () => void }> {
 	const provider = (
 		process.env.SPAWNER_PRD_AUTO_PROVIDER ||
@@ -958,7 +984,7 @@ async function startAutoAnalysis(
 		'codex'
 	).trim().toLowerCase();
 	if (provider === 'none') {
-		await appendPrdTrace(requestId, 'auto_disabled', { provider });
+		await appendPrdTrace(requestId, 'auto_disabled', { provider, ...traceRefDetails(traceRef) });
 		return { started: false, provider };
 	}
 
@@ -975,20 +1001,20 @@ async function startAutoAnalysis(
 			tier,
 			paths,
 			...parts,
-			appendTrace: (event, details) => appendPrdTrace(requestId, event, details)
+			appendTrace: (event, details) => appendPrdTrace(requestId, event, { ...details, ...traceRefDetails(traceRef) })
 		});
 		return { started, provider: 'claude' };
 	}
 
 	if (provider !== 'codex') {
-		await appendPrdTrace(requestId, 'auto_unsupported_provider', { provider });
+		await appendPrdTrace(requestId, 'auto_unsupported_provider', { provider, ...traceRefDetails(traceRef) });
 		return { started: false, provider };
 	}
 
 	try {
 		const codexBinary = resolveCodexBinary();
 		if (!codexBinary) {
-			await appendPrdTrace(requestId, 'auto_binary_missing', { provider: 'codex' });
+			await appendPrdTrace(requestId, 'auto_binary_missing', { provider: 'codex', ...traceRefDetails(traceRef) });
 			return { started: false, provider: 'codex' };
 		}
 
@@ -999,6 +1025,7 @@ async function startAutoAnalysis(
 		const parts = await buildPromptParts(buildMode, tier, briefBody);
 		const prompt = await buildCodexPrompt(
 			requestId,
+			traceRef,
 			projectName,
 			buildMode,
 			tier,
@@ -1007,12 +1034,10 @@ async function startAutoAnalysis(
 			parts.missionSizeBlock
 		);
 		const missionId = `prd-auto-${normalizeRequestId(requestId)}`;
-		const traceRef = await traceRefForRequest(requestId, { missionId });
-		const model = 'gpt-5.5';
 
 		await appendPrdTrace(requestId, 'auto_worker_dispatch', {
+			...traceRefDetails(traceRef),
 			provider: 'codex',
-			model,
 			missionId,
 			workingDirectory: process.cwd(),
 			stateDirectory: paths.spawnerDir
@@ -1024,26 +1049,24 @@ async function startAutoAnalysis(
 				providerId: 'codex',
 				missionId,
 				prompt,
-				model,
-				requestId,
-				...(traceRef ? { traceRef } : {}),
-				commandTemplate: `codex exec --model ${model}`,
+				model: 'gpt-5.5',
+				commandTemplate: 'codex exec --model gpt-5.5',
 				workingDirectory: process.cwd(),
 				signal: controller.signal
 			})
 			.then((result) => {
 				void appendPrdTrace(requestId, 'auto_worker_finished', {
-					provider: 'codex',
-					model,
-					missionId,
+					...traceRefDetails(traceRef),
 					success: result.success,
 					error: result.error || null,
 					durationMs: result.durationMs || null,
-					sessionId: result.sparkAgentSessionId
+					sessionId: result.sparkAgentSessionId,
+					resultArtifact: _buildPrdResultArtifactVerification(requestId, paths)
 				});
 			})
 			.catch((error: unknown) => {
 				void appendPrdTrace(requestId, 'auto_worker_error', {
+					...traceRefDetails(traceRef),
 					error: error instanceof Error ? error.message : String(error)
 				});
 			});
@@ -1055,6 +1078,7 @@ async function startAutoAnalysis(
 		};
 	} catch (error) {
 		await appendPrdTrace(requestId, 'auto_start_failed', {
+			...traceRefDetails(traceRef),
 			provider: 'codex',
 			error: error instanceof Error ? error.message : String(error)
 		});
@@ -1108,12 +1132,11 @@ export const POST: RequestHandler = async (event) => {
 			await mkdir(paths.resultsDir, { recursive: true });
 		}
 
-		const constrainedStaticSingleFileInput = isConstrainedSingleFileStaticHtml(content);
-
 		// Brief enrichment: lift a vague brief into something the canvas
 		// generator can actually plan against. Skipped when the input is
 		// already specific enough (length / keyword density / has section
 		// headers). Always returns a safe enrichedContent — never blocks.
+		const constrainedStaticSingleFileInput = isConstrainedSingleFileStaticHtml(content);
 		const enrichment = constrainedStaticSingleFileInput
 			? {
 					wasEnriched: false,
@@ -1261,7 +1284,8 @@ export const POST: RequestHandler = async (event) => {
 					requestId,
 					requestMeta.projectName,
 					requestMeta.buildMode,
-					normalizedTier
+					normalizedTier,
+					normalizedTraceRef
 				);
 		await appendPrdTrace(requestId, 'authority_verdict_evaluated', {
 			...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
@@ -1280,7 +1304,8 @@ export const POST: RequestHandler = async (event) => {
 				requestMeta.projectName,
 				requestMeta.buildMode,
 				normalizedTier,
-				'constrained static file request'
+				'constrained static file request',
+				normalizedTraceRef
 			);
 		} else if (auto.started) {
 			scheduleAutoAnalysisWatchdog(
@@ -1288,7 +1313,8 @@ export const POST: RequestHandler = async (event) => {
 				requestMeta.projectName,
 				requestMeta.buildMode,
 				normalizedTier,
-				auto.cancel
+				auto.cancel,
+				normalizedTraceRef
 			);
 		} else if (auto.provider !== 'none') {
 			await updatePendingRequestStatus(requestId, 'fallback', {
@@ -1299,7 +1325,8 @@ export const POST: RequestHandler = async (event) => {
 				requestMeta.projectName,
 				requestMeta.buildMode,
 				normalizedTier,
-				`auto-analysis not started for provider ${auto.provider}`
+				`auto-analysis not started for provider ${auto.provider}`,
+				normalizedTraceRef
 			);
 		}
 
