@@ -215,6 +215,30 @@ describe('multi-llm-orchestrator', () => {
 		expect(pack.providerPrompts.codex).toContain('Do not pre-start future tasks after loading their skills');
 	});
 
+	it('does not make H70 skill loading a hard gate for normal provider execution', () => {
+		const options = createDefaultMultiLLMOptions();
+		options.enabled = true;
+		options.strategy = 'single';
+		options.primaryProviderId = 'codex';
+		options.providers = options.providers.map((provider) => ({
+			...provider,
+			enabled: provider.id === 'codex'
+		}));
+
+		const pack = buildMultiLLMExecutionPack({
+			mission: createMission(1),
+			options
+		});
+		const prompt = pack.providerPrompts.codex;
+
+		expect(prompt).toContain('H70 skill loading (recommended, not a hard gate)');
+		expect(prompt).toContain('If H70 skills are unreachable, continue with the task using your base expertise instead of blocking the mission.');
+		expect(prompt).toContain('Do not report task_completed unless implementation and verification actually ran.');
+		expect(prompt).not.toContain('H70 skill loading (mandatory)');
+		expect(prompt).not.toContain('Do not start task execution until required task skills are loaded');
+		expect(prompt).not.toContain('Required H70 skills (load BEFORE task_started)');
+	});
+
 	it('auto-enables providers when matching API keys are present', () => {
 		const options = createDefaultMultiLLMOptions();
 		options.enabled = true;

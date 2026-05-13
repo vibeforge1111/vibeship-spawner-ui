@@ -317,10 +317,13 @@ function blockedProviderResponse(response: string | undefined): string | null {
 	const lower = text.toLowerCase();
 	const blockedSignals = [
 		'blocked by environment',
+		'blocked by session permissions',
 		'blocked before implementation',
 		'filesystem writes are blocked',
+		'workspace is mounted read-only',
 		'read-only sandbox',
 		'apply_patch write was rejected',
+		'writing is blocked by read-only sandbox',
 		'files changed: none',
 		'no files were created',
 		'index.html: missing'
@@ -566,21 +569,25 @@ class SparkAgentBridgeService {
 				};
 			}
 
+			const responseFailure = blockedProviderResponse(result.response);
+			const failureMessage = result.error || responseFailure || result.response?.trim() || 'Worker execution failed';
 			workerState.status = 'failed';
-			workerState.error = result.error || 'Worker execution failed';
+			workerState.error = failureMessage;
 			workerState.completedAt = nowIso();
 			this.emitProviderEvent(workerState, 'task_failed', {
 				message: workerState.error,
 				error: {
 					message: workerState.error,
 					providerId
-				}
+				},
+				response: result.response || ''
 			});
 			this.endSession(sparkAgentSessionId, 'failed');
 			return {
 				success: false,
 				sparkAgentSessionId,
 				error: workerState.error,
+				response: result.response,
 				durationMs: Date.now() - startedAtMs
 			};
 		} catch (error) {
