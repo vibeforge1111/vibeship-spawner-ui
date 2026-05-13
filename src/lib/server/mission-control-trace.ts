@@ -1,5 +1,6 @@
 import { existsSync } from 'fs';
 import { readFile } from 'fs/promises';
+import { createHash } from 'crypto';
 import path from 'path';
 import { env } from '$env/dynamic/private';
 import {
@@ -47,6 +48,21 @@ export interface TraceSkillPairing {
 	unpairedTasks: string[];
 }
 
+interface TraceArtifactSummary {
+	present: boolean;
+	kind: 'pendingRequest' | 'analysisResult' | 'lastCanvasLoad';
+	requestId: string | null;
+	missionId: string | null;
+	traceRef: string | null;
+	status: string | null;
+	projectName: string | null;
+	taskCount: number | null;
+	nodeCount: number | null;
+	hasRelay: boolean;
+	hasPrivatePayload: boolean;
+	redaction: string;
+}
+
 export interface MissionControlTrace {
 	ok: true;
 	missionId: string | null;
@@ -63,8 +79,11 @@ export interface MissionControlTrace {
 	surfaces: {
 		telegram: {
 			relay: MissionControlBoardEntry['telegramRelay'] | null;
-			chatId: string | null;
-			userId: string | null;
+			chatId: null;
+			userId: null;
+			chatRef: string | null;
+			userRef: string | null;
+			privateIdsRedacted: boolean;
 		};
 		canvas: {
 			pipelineId: string | null;
@@ -85,9 +104,9 @@ export interface MissionControlTrace {
 		} | null;
 	};
 	artifacts: {
-		pendingRequest: Record<string, unknown> | null;
-		analysisResult: Record<string, unknown> | null;
-		lastCanvasLoad: Record<string, unknown> | null;
+		pendingRequest: TraceArtifactSummary | null;
+		analysisResult: TraceArtifactSummary | null;
+		lastCanvasLoad: TraceArtifactSummary | null;
 	};
 	timeline: ReturnType<typeof getMissionControlRelaySnapshot>['recent'];
 	providerResults: MissionControlResultSummary['providerResults'];
@@ -114,6 +133,27 @@ function relayFromArtifact(artifact: Record<string, unknown> | null): Record<str
 		: null;
 }
 
+function stablePrivateRef(kind: 'chat' | 'user', value: unknown): string | null {
+	if (typeof value !== 'string' || !value.trim()) return null;
+	const digest = createHash('sha256').update(`${kind}:${value.trim()}`).digest('hex').slice(0, 12);
+	return `${kind}:sha256:${digest}`;
+}
+
+function relayPrivateIdentity(artifact: Record<string, unknown> | null): {
+	chatRef: string | null;
+	userRef: string | null;
+	privateIdsRedacted: boolean;
+} {
+	const relay = relayFromArtifact(artifact);
+	const chatRef = stablePrivateRef('chat', relay?.chatId);
+	const userRef = stablePrivateRef('user', relay?.userId);
+	return {
+		chatRef,
+		userRef,
+		privateIdsRedacted: Boolean(chatRef || userRef)
+	};
+}
+
 function artifactRequestId(artifact: Record<string, unknown> | null): string | null {
 	const relay = relayFromArtifact(artifact);
 	return (
@@ -121,6 +161,54 @@ function artifactRequestId(artifact: Record<string, unknown> | null): string | n
 		(typeof relay?.requestId === 'string' && relay.requestId) ||
 		null
 	);
+}
+
+function artifactString(artifact: Record<string, unknown> | null, key: string): string | null {
+	const value = artifact?.[key];
+	return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function artifactArrayCount(artifact: Record<string, unknown> | null, key: string): number | null {
+	const value = artifact?.[key];
+	return Array.isArray(value) ? value.length : null;
+}
+
+function hasPrivateArtifactPayload(artifact: Record<string, unknown> | null): boolean {
+	if (!artifact) return false;
+	const relay = relayFromArtifact(artifact);
+	return Boolean(
+		artifact.content ||
+		artifact.prdContent ||
+		artifact.executionPrompt ||
+		artifact.originalContent ||
+		artifact.enrichedContent ||
+		artifact.goal ||
+		artifact.prdPath ||
+		relay?.chatId ||
+		relay?.userId ||
+		relay?.goal
+	);
+}
+
+function summarizeArtifact(
+	kind: TraceArtifactSummary['kind'],
+	artifact: Record<string, unknown> | null
+): TraceArtifactSummary | null {
+	if (!artifact) return null;
+	return {
+		present: true,
+		kind,
+		requestId: artifactRequestId(artifact),
+		missionId: artifactMissionId(artifact),
+		traceRef: extractTraceRef(artifact) || null,
+		status: artifactString(artifact, 'status'),
+		projectName: artifactString(artifact, 'projectName') || artifactString(artifact, 'pipelineName'),
+		taskCount: artifactArrayCount(artifact, 'tasks'),
+		nodeCount: artifactArrayCount(artifact, 'nodes'),
+		hasRelay: Boolean(relayFromArtifact(artifact)),
+		hasPrivatePayload: hasPrivateArtifactPayload(artifact),
+		redaction: 'metadata-only; raw prompts, goals, paths, provider output, memory, chat ids, and artifact bodies omitted'
+	};
 }
 
 function artifactMissionId(artifact: Record<string, unknown> | null): string | null {
@@ -329,6 +417,7 @@ export async function buildMissionControlTrace(input: {
 	) as BoardBuckets;
 	const { bucket, entry } = findBoardEntry(board, missionId);
 	const traceRef = extractTraceRef(pendingRequest, lastCanvasLoad, entry) || null;
+	const telegramIdentity = relayPrivateIdentity(pendingRequest);
 	const dispatchStatus = missionId && input.getDispatchStatus ? input.getDispatchStatus(missionId) : null;
 	const relay = entry?.telegramRelay ?? null;
 	const traceSnapshot = getMissionControlRelaySnapshot(missionId || undefined);
@@ -363,14 +452,11 @@ export async function buildMissionControlTrace(input: {
 		surfaces: {
 			telegram: {
 				relay,
-				chatId:
-					typeof pendingRequest?.relay === 'object' && pendingRequest.relay
-						? ((pendingRequest.relay as Record<string, unknown>).chatId as string) || null
-						: null,
-				userId:
-					typeof pendingRequest?.relay === 'object' && pendingRequest.relay
-						? ((pendingRequest.relay as Record<string, unknown>).userId as string) || null
-						: null
+				chatId: null,
+				userId: null,
+				chatRef: telegramIdentity.chatRef,
+				userRef: telegramIdentity.userRef,
+				privateIdsRedacted: telegramIdentity.privateIdsRedacted
 			},
 			canvas: {
 				pipelineId: typeof lastCanvasLoad?.pipelineId === 'string' ? lastCanvasLoad.pipelineId : null,
@@ -385,9 +471,9 @@ export async function buildMissionControlTrace(input: {
 			dispatch: dispatchStatus
 		},
 		artifacts: {
-			pendingRequest,
-			analysisResult,
-			lastCanvasLoad
+			pendingRequest: summarizeArtifact('pendingRequest', pendingRequest),
+			analysisResult: summarizeArtifact('analysisResult', analysisResult),
+			lastCanvasLoad: summarizeArtifact('lastCanvasLoad', lastCanvasLoad)
 		},
 		timeline: traceSnapshot.recent,
 		providerResults: entry?.providerResults ?? [],

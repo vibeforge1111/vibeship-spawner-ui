@@ -68,8 +68,9 @@ describe('mission-control-trace', () => {
 			summary: 'Spark is shaping the PRD and preparing the canvas.',
 			surfaces: {
 				telegram: {
-					chatId: 'chat-1',
-					userId: 'user-1'
+					chatId: null,
+					userId: null,
+					privateIdsRedacted: true
 				},
 				canvas: {
 					pipelineId: null,
@@ -80,6 +81,10 @@ describe('mission-control-trace', () => {
 				}
 			}
 		});
+		expect(trace.surfaces.telegram.chatRef).toMatch(/^chat:sha256:[a-f0-9]{12}$/);
+		expect(trace.surfaces.telegram.userRef).toMatch(/^user:sha256:[a-f0-9]{12}$/);
+		expect(JSON.stringify(trace)).not.toContain('chat-1');
+		expect(JSON.stringify(trace)).not.toContain('user-1');
 	});
 
 	it('reports canvas_ready when analysis and canvas artifacts match the request', async () => {
@@ -274,7 +279,10 @@ describe('mission-control-trace', () => {
 			phase: 'planning',
 			artifacts: {
 				analysisResult: {
-					projectName: 'Analysis Only'
+					present: true,
+					kind: 'analysisResult',
+					projectName: 'Analysis Only',
+					redaction: expect.stringContaining('metadata-only')
 				},
 				lastCanvasLoad: null
 			},

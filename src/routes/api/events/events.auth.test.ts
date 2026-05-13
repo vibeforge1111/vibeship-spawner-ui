@@ -16,6 +16,13 @@ vi.mock('$env/dynamic/private', () => ({
 }));
 
 vi.mock('$lib/server/mission-control-relay', () => ({
+	redactMissionControlEventForExternal: vi.fn((event: Record<string, unknown>) => {
+		const data = event.data && typeof event.data === 'object' ? { ...(event.data as Record<string, unknown>) } : {};
+		delete data.chatId;
+		delete data.userId;
+		delete data.goal;
+		return { ...event, data };
+	}),
 	relayMissionControlEvent: vi.fn()
 }));
 
@@ -27,6 +34,7 @@ vi.mock('$lib/server/provider-runtime', () => ({
 
 import { GET, OPTIONS, POST } from './+server';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
+import { eventBridge } from '$lib/services/event-bridge';
 
 let testSpawnerDir: string | null = null;
 
@@ -224,6 +232,7 @@ describe('/api/events auth', () => {
 			)
 		);
 
+		const emitSpy = vi.spyOn(eventBridge, 'emit');
 		const response = await POST(
 			createEvent('https://example.com/api/events', {
 				method: 'POST',
@@ -242,6 +251,9 @@ describe('/api/events auth', () => {
 		);
 
 		expect(response.status).toBe(200);
+		const emitted = JSON.stringify(emitSpy.mock.calls[0]?.[0] ?? {});
+		expect(emitted).not.toContain('8319079055');
+		expect(emitted).not.toContain('Build a tiny app');
 		expect(relayMissionControlEvent).toHaveBeenCalledWith(
 			expect.objectContaining({
 				missionId: 'mission-relay-test',

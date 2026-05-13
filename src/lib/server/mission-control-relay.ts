@@ -1319,7 +1319,7 @@ function redactMissionControlDataForExternal(event: MissionControlBridgeEvent): 
 	return data;
 }
 
-function redactMissionControlEventForExternal(event: MissionControlBridgeEvent): Record<string, unknown> {
+export function redactMissionControlEventForExternal(event: MissionControlBridgeEvent): Record<string, unknown> {
 	const safeEvent: Record<string, unknown> = {
 		type: typeof event.type === 'string' ? event.type : 'unknown',
 		missionId: typeof event.missionId === 'string' ? event.missionId : null,

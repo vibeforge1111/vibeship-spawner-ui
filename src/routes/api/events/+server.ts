@@ -10,7 +10,7 @@ import type { RequestHandler } from './$types';
 import { eventBridge } from '$lib/services/event-bridge';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
 import { controlQueryApiKeysAllowed, enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
-import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
+import { redactMissionControlEventForExternal, relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { projectStoredPrdAnalysisResult } from '$lib/server/prd-analysis-result-schema';
 import { spawnerStateDir } from '$lib/server/spawner-state';
@@ -229,8 +229,8 @@ export const POST: RequestHandler = async (event) => {
 			}
 		}
 
-		// Broadcast to all connected clients
-		eventBridge.emit(fullEvent);
+		// Broadcast only a metadata-safe projection to connected clients.
+		eventBridge.emit(redactMissionControlEventForExternal(fullEvent) as unknown as Parameters<typeof eventBridge.emit>[0]);
 
 		if (
 			(fullEvent.type === 'mission_completed' || fullEvent.type === 'mission_failed' || fullEvent.type === 'mission_cancelled') &&

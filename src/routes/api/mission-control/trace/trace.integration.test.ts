@@ -140,8 +140,9 @@ describe('/api/mission-control/trace integration', () => {
 			surfaces: {
 				telegram: {
 					relay: { port: 8789, profile: 'spark-agi', url: null },
-					chatId: 'telegram-chat',
-					userId: 'telegram-user'
+					chatId: null,
+					userId: null,
+					privateIdsRedacted: true
 				},
 				canvas: {
 					pipelineId: `prd-${requestId}`,
@@ -161,6 +162,10 @@ describe('/api/mission-control/trace integration', () => {
 			},
 			providerSummary: 'Codex: running'
 		});
+		expect(payload.surfaces.telegram.chatRef).toMatch(/^chat:sha256:[a-f0-9]{12}$/);
+		expect(payload.surfaces.telegram.userRef).toMatch(/^user:sha256:[a-f0-9]{12}$/);
+		expect(JSON.stringify(payload)).not.toContain('telegram-chat');
+		expect(JSON.stringify(payload)).not.toContain('telegram-user');
 		expect(payload.timeline[0]).toMatchObject({
 			missionId,
 			eventType: 'task_started',

@@ -49,8 +49,11 @@
 		surfaces: {
 			telegram: {
 				relay: { port: number | null; profile: string | null; url: string | null } | null;
-				chatId: string | null;
-				userId: string | null;
+				chatId: null;
+				userId: null;
+				chatRef: string | null;
+				userRef: string | null;
+				privateIdsRedacted: boolean;
 			};
 			canvas: {
 				pipelineId: string | null;
@@ -382,7 +385,7 @@
 					<span>Telegram</span>
 				</div>
 				<div class="mt-4 space-y-2 font-mono text-sm">
-					<div class="flex justify-between gap-3"><span class="text-text-tertiary">chat</span><span class="truncate text-text-primary">{trace?.surfaces.telegram.chatId || 'n/a'}</span></div>
+					<div class="flex justify-between gap-3"><span class="text-text-tertiary">chat</span><span class="truncate text-text-primary">{trace?.surfaces.telegram.chatRef || 'redacted'}</span></div>
 					<div class="flex justify-between gap-3"><span class="text-text-tertiary">profile</span><span class="truncate text-text-primary">{trace?.surfaces.telegram.relay?.profile || 'n/a'}</span></div>
 					<div class="flex justify-between gap-3"><span class="text-text-tertiary">port</span><span class="text-text-primary">{trace?.surfaces.telegram.relay?.port || 'n/a'}</span></div>
 				</div>
