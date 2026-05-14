@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	projectStoredPrdAnalysisResult,
+	projectStoredPrdAnalysisResultForTier,
 	sanitizePrdAnalysisResultForTier
 } from './prd-analysis-result-schema';
 
@@ -26,6 +27,14 @@ describe('PRD analysis result storage projection', () => {
 			instructionTextRedacted: true,
 			metadata: {
 				kept: true,
+				taskQuality: {
+					passed: false,
+					taskCount: 1,
+					findings: expect.arrayContaining([
+						expect.objectContaining({ code: 'missing_acceptance_criteria' }),
+						expect.objectContaining({ code: 'missing_verification' })
+					])
+				},
 				instructionTextRedacted: true,
 				instructionTextStorage: 'omitted_from_result_artifact'
 			}
@@ -64,6 +73,10 @@ describe('PRD analysis result storage projection', () => {
 				})
 			],
 			instructionTextRedacted: true
+		});
+		expect(stored.metadata?.taskQuality).toMatchObject({
+			passed: false,
+			taskCount: 1
 		});
 		expect(JSON.stringify(stored)).not.toContain('executionPrompt');
 	});
@@ -113,5 +126,42 @@ describe('PRD analysis result storage projection', () => {
 		expect(sanitized.result.tasks[0].skills).toEqual(['frontend-engineer', 'threejs-3d-graphics']);
 		expect(sanitized.result.skills).toEqual(['frontend-engineer', 'threejs-3d-graphics']);
 		expect(sanitized.summary.strippedSkillCount).toBe(0);
+	});
+
+	it('stores task quality metadata after tier skill filtering', async () => {
+		const stored = await projectStoredPrdAnalysisResultForTier('request-quality', {
+			requestId: 'request-quality',
+			success: true,
+			projectName: 'Quality Gate',
+			tasks: [
+				{
+					id: 'task-1',
+					title: 'Create the app shell and project structure',
+					summary: 'Create the starter app shell.',
+					skills: ['frontend-engineer', 'threejs-3d-graphics'],
+					workspaceTargets: ['src/routes/quality-gate'],
+					acceptanceCriteria: ['The first screen renders.'],
+					verificationCommands: ['npm run build']
+				}
+			],
+			skills: ['frontend-engineer', 'threejs-3d-graphics']
+		}, 'base');
+
+		expect(stored.tasks[0].skills).toEqual(['frontend-engineer']);
+		expect(stored.metadata).toMatchObject({
+			skillTier: 'base',
+			skillGate: {
+				applied: true,
+				tier: 'base',
+				strippedSkillCount: expect.any(Number)
+			},
+			taskQuality: {
+				passed: true,
+				taskCount: 1,
+				findings: expect.arrayContaining([
+					expect.objectContaining({ code: 'vague_title', taskId: 'task-1' })
+				])
+			}
+		});
 	});
 });

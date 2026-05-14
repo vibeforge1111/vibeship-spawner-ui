@@ -28,6 +28,7 @@ describe('sync-runtime coverage', () => {
 	it('syncs Mission Control lineage helpers used by the relay board', () => {
 		expect(syncedPaths()).toContain('src/lib/server/mission-control-relay.ts');
 		expect(syncedPaths()).toContain('src/lib/server/mission-control-lineage.ts');
+		expect(syncedPaths()).toContain('src/lib/server/creator-mission-trace-sync.ts');
 		expect(syncedPaths()).toContain('src/lib/server/project-path-extraction.ts');
 	});
 

@@ -39,6 +39,8 @@ export interface TaskQualityReport {
 
 const VAGUE_TITLE_PATTERN =
 	/^(build|create|implement|add|wire|polish|test|verify|finish|do|make)(?:\s+(it|this|app|feature|core|stuff|things|everything))?$/i;
+const GENERIC_BUCKET_TITLE_PATTERN =
+	/^(?:create\s+(?:the\s+)?(?:app|project)\s+shell(?:\s+and\s+project\s+structure)?|implement\s+(?:the\s+)?core\s+interaction(?:\s+and\s+state)?|polish\s+(?:the\s+)?visual\s+system(?:\s+and\s+documentation)?|verify\s+(?:the\s+)?completed\s+build)$/i;
 
 function taskId(task: TaskQualityRubricTask, index: number): string {
 	return task.id?.trim() || `task-${index + 1}`;
@@ -138,7 +140,7 @@ export function assessTaskQuality(
 				taskId: id,
 				message: 'Task needs a clear title.'
 			});
-		} else if (VAGUE_TITLE_PATTERN.test(title)) {
+		} else if (VAGUE_TITLE_PATTERN.test(title) || GENERIC_BUCKET_TITLE_PATTERN.test(title)) {
 			addFinding({
 				level: 'warning',
 				code: 'vague_title',
@@ -247,6 +249,7 @@ export function formatTaskQualityGuidance(): string {
 		'- Each task needs 1-5 valid skills, a file or workspace target, acceptance criteria, and verification commands.',
 		'- Split tasks by real skill set, dependency, and verification boundary.',
 		'- Avoid generic titles like "Build app", "Implement core", or "Polish everything".',
+		'- Avoid template bucket titles like "Create the app shell and project structure", "Implement the core interaction and state", "Polish the visual system and documentation", or "Verify the completed build"; name the actual product/workflow being changed.',
 		'- If a task cannot be verified independently, merge it into a task that can be verified.'
 	].join('\n');
 }

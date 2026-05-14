@@ -84,10 +84,40 @@ describe('task-quality-rubric', () => {
 		expect(report.findings.map((finding) => finding.code)).toContain('task_count_low');
 	});
 
+	it('warns on template bucket titles that make builds feel generic', () => {
+		const report = assessTaskQuality([
+			{
+				id: 'task-shell',
+				title: 'Create the app shell and project structure',
+				summary: 'Create the starter app files.',
+				skills: ['frontend-engineer'],
+				workspaceTargets: ['src/routes/example'],
+				acceptanceCriteria: ['The first screen renders.'],
+				verificationCommands: ['npm run build']
+			},
+			{
+				id: 'task-core',
+				title: 'Implement the core interaction and state',
+				summary: 'Wire the main interaction.',
+				skills: ['frontend-engineer'],
+				workspaceTargets: ['src/routes/example'],
+				acceptanceCriteria: ['The interaction changes state.'],
+				verificationCommands: ['npm run build']
+			}
+		]);
+
+		expect(report.passed).toBe(true);
+		expect(report.findings.filter((finding) => finding.code === 'vague_title')).toHaveLength(2);
+		expect(report.findings.map((finding) => finding.taskId)).toEqual(
+			expect.arrayContaining(['task-shell', 'task-core'])
+		);
+	});
+
 	it('exports compact guidance for PRD analyzer prompts', () => {
 		const guidance = formatTaskQualityGuidance();
 
 		expect(guidance).toContain('Task quality requirements:');
 		expect(guidance).toContain('1-5 valid skills');
+		expect(guidance).toContain('Create the app shell and project structure');
 	});
 });

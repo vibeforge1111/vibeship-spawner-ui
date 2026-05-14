@@ -198,6 +198,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			executionPrompt?: string;
 			tier?: string;
 			tasks?: TaskRecord[];
+			metadata?: Record<string, unknown>;
 			capabilityProposalPacket?: unknown;
 			capability_proposal_packet?: unknown;
 		};
@@ -309,6 +310,9 @@ export const POST: RequestHandler = async ({ request }) => {
 			...(capabilityProposalPacket ? { capabilityProposalPacket } : {}),
 			...(capabilitySummary ? { capabilityProposalSummary: capabilitySummary } : {}),
 			metadata: {
+				...(parsed.metadata && typeof parsed.metadata === 'object' && !Array.isArray(parsed.metadata)
+					? parsed.metadata
+					: {}),
 				...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
 				...(capabilityProposalPacket ? { capabilityProposalPacket } : {}),
 				...(capabilitySummary ? { capabilityProposalSummary: capabilitySummary } : {})
@@ -355,6 +359,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				buildMode,
 				buildModeReason,
 				...(capabilitySummary ? { capabilityProposal: capabilitySummary } : {}),
+				...(parsed.metadata?.taskQuality ? { taskQuality: parsed.metadata.taskQuality } : {}),
 				plannedTasks: parsed.tasks.map((task) => ({
 					title: task.title,
 					skills: task.skills || []
