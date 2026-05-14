@@ -37,6 +37,26 @@ function createMission(taskCount = 3): Mission {
 	};
 }
 
+function createFastDirectMission(): Mission {
+	return {
+		...createMission(1),
+		name: 'One Step Fast Smoke',
+		description:
+			'Build a tiny one-file static page. It should show ONE_STEP_FAST_OK and have one button that changes the label. Keep it fast and simple.',
+		tasks: [
+			{
+				id: 'task-fast-static',
+				title: 'Build and check the single-file static page',
+				description:
+					'Create only index.html with embedded CSS/JS, then verify the marker text and button script are present.',
+				assignedTo: 'agent-1',
+				status: 'pending',
+				handoffType: 'sequential' as const
+			}
+		]
+	};
+}
+
 describe('multi-llm-orchestrator', () => {
 	it('creates default options with local CLI providers plus disabled API providers', () => {
 		const options = createDefaultMultiLLMOptions();
@@ -196,6 +216,46 @@ describe('multi-llm-orchestrator', () => {
 		expect(pack.providerPrompts.codex).toContain('stop it before your final response');
 	});
 
+	it('keeps no-build static verification bounded for fast smoke tasks', () => {
+		const options = createDefaultMultiLLMOptions();
+		options.enabled = true;
+		options.strategy = 'single';
+		options.primaryProviderId = 'codex';
+		options.providers = options.providers.map((provider) => ({
+			...provider,
+			enabled: provider.id === 'codex'
+		}));
+
+		const mission = createMission(2);
+		mission.name = 'Fast Lane Size Smoke';
+		mission.description =
+			'Build lane: fast_direct\nBuild a tiny one-file static page. Keep it fast and simple.';
+		mission.context = {
+			projectPath: '.',
+			projectType: 'single-file-static-web-app',
+			techStack: ['Single-file static HTML', 'No build step'],
+			goals: [
+				'Only index.html is required for the runnable deliverable.',
+				'Open index.html directly in a browser.'
+			]
+		};
+		mission.tasks[0].title = 'Build the single-file static page';
+		mission.tasks[0].description = 'Create only index.html with embedded CSS and JavaScript.';
+		mission.tasks[1].title = 'Check the quick smoke path';
+		mission.tasks[1].description =
+			'Confirm the marker is present, the interaction is wired, and the file scope stayed tiny.';
+
+		const pack = buildMultiLLMExecutionPack({
+			mission,
+			options
+		});
+
+		expect(pack.providerPrompts.codex).toContain('No-build static project verification');
+		expect(pack.providerPrompts.codex).toContain('do not spend more than 30 seconds discovering browser tooling');
+		expect(pack.providerPrompts.codex).toContain('complete with file/content evidence');
+		expect(pack.providerPrompts.codex).toContain('Do not launch a long-lived browser');
+	});
+
 	it('tells single providers not to pre-start every task in a task pack', () => {
 		const options = createDefaultMultiLLMOptions();
 		options.enabled = true;
@@ -237,6 +297,31 @@ describe('multi-llm-orchestrator', () => {
 		expect(prompt).not.toContain('H70 skill loading (mandatory)');
 		expect(prompt).not.toContain('Do not start task execution until required task skills are loaded');
 		expect(prompt).not.toContain('Required H70 skills (load BEFORE task_started)');
+	});
+
+	it('skips H70 loading entirely for tiny fast direct missions', () => {
+		const options = createDefaultMultiLLMOptions();
+		options.enabled = true;
+		options.strategy = 'single';
+		options.primaryProviderId = 'codex';
+		options.providers = options.providers.map((provider) => ({
+			...provider,
+			enabled: provider.id === 'codex'
+		}));
+
+		const pack = buildMultiLLMExecutionPack({
+			mission: createFastDirectMission(),
+			options,
+			taskSkillMap: new Map([['task-fast-static', ['frontend-engineer', 'accessibility']]])
+		});
+		const prompt = pack.providerPrompts.codex;
+
+		expect(prompt).toContain('Fast direct skill handling');
+		expect(prompt).toContain('Do not fetch /api/h70-skills');
+		expect(prompt).toContain('Do not fetch /api/h70-skills, read local SKILL.md files, or emit SKILL_SOURCE progress.');
+		expect(prompt).not.toContain('Recommended H70 skills');
+		expect(prompt).not.toContain('H70 skill loading (recommended, not a hard gate)');
+		expect(prompt).not.toContain('SKILL_SOURCE:<taskId>');
 	});
 
 	it('auto-enables providers when matching API keys are present', () => {

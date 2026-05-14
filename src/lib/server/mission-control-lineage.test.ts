@@ -41,4 +41,19 @@ describe('mission-control-lineage', () => {
 
 		expect(lineage?.projectPath).toBe('C:\\Users\\USER\\Desktop\\spark-os-proof-s');
 	});
+
+	it('does not treat prose slashes like win/lose as project paths', () => {
+		const lineage = extractMissionControlProjectLineage({
+			missionName: 'Recursive Sage Reasoning Game',
+			data: {
+				goal: [
+					'# Recursive Sage Reasoning Game',
+					'',
+					'Build a tiny browser game with keyboard controls, restart, win/lose state, score or progress feedback, and responsive layout.'
+				].join('\n')
+			}
+		});
+
+		expect(lineage).toBeNull();
+	});
 });

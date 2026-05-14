@@ -21,6 +21,8 @@ export function cleanProjectPathCandidate(value: string | null | undefined): str
 		.replace(/^`|`$/g, '')
 		.replace(/\s+(?:as|inside|with|and)\b.*$/i, '')
 		.replace(/[).,;:\s]+$/, '');
+	if (/^\//.test(cleaned) && !cleaned.slice(1).includes('/')) return null;
+	if (/^\//.test(cleaned) && /\s/.test(cleaned) && !/^\/(?:Users|data|tmp|var|opt|home|srv)\//i.test(cleaned)) return null;
 	return cleaned || null;
 }
 

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { basename, resolve } from 'node:path';
+import { basename, resolve, win32 } from 'node:path';
 import { extractExplicitProjectPath } from './project-path-extraction';
 import { projectPreviewUrl } from './project-preview';
 import type { MissionControlProjectLineage } from '$lib/types/mission-control';
@@ -83,8 +83,9 @@ function previewBaseUrl(): string {
 
 function projectIdFromPath(projectPath: string | null): string | null {
 	if (!projectPath) return null;
-	const resolved = resolve(projectPath);
-	const folder = basename(resolved)
+	const isWindowsPath = /^[A-Za-z]:[\\/]/.test(projectPath) || /^\\\\[^\\]+\\[^\\]+/.test(projectPath);
+	const resolved = isWindowsPath ? win32.normalize(projectPath) : resolve(projectPath);
+	const folder = (isWindowsPath ? win32.basename(resolved) : basename(resolved))
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, '-')
 		.replace(/^-|-$/g, '')

@@ -910,13 +910,14 @@ function buildProviderPrompt(input: BuildProviderPromptInput): string {
 
 	const eventSource = provider.eventSource || provider.id;
 	const assignedTasks = mission.tasks.filter((task) => assignment.taskIds.includes(task.id));
+	const fastDirectMission = isFastDirectMission(mission);
 
 	const taskList = assignedTasks
 		.map((task, index) => {
 			const deps = task.dependsOn?.length ? ` after: ${task.dependsOn.join(', ')}` : '';
 			const recommendedSkills = taskSkillMap?.get(task.id) || [];
 				const skillsLine =
-					recommendedSkills.length > 0
+					recommendedSkills.length > 0 && !fastDirectMission
 						? `\n   Recommended H70 skills (use when reachable): ${recommendedSkills.map((skill) => `\`${skill}\``).join(', ')}`
 						: '';
 				const mcpPlanLine = formatTaskMcpPlan(mcpTaskPlans[task.id]);
@@ -940,6 +941,17 @@ curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -d '{"typ
 	const mcpCapsLine = mcpCapabilities.length > 0 ? mcpCapabilities.join(', ') : 'none';
 	const projectContract = buildProjectContractBlock(mission);
 	const verificationBlock = buildVerificationBlock(mission);
+	const skillLoadingBlock = fastDirectMission
+		? `Fast direct skill handling:
+- Treat skill labels as planning metadata only for this tiny task.
+- Do not fetch /api/h70-skills, read local SKILL.md files, or emit SKILL_SOURCE progress.
+- Start by creating the requested file, then run the file/content checks.`
+		: `H70 skill loading (recommended, not a hard gate):
+- For each assigned task with listed skills, try to fetch the recommended skills via /api/h70-skills/<skill-id> before implementation.
+- If H70 skills are reachable, apply their anti-pattern and disaster guidance before implementation.
+- If H70 skills are unreachable, continue with the task using your base expertise instead of blocking the mission.
+- When H70 loading succeeds or fails, emit one progress event documenting the source state before task_started (message format: "SKILL_SOURCE:<taskId>:loaded:<skillId,...>" or "SKILL_SOURCE:<taskId>:unavailable:<reason>").
+- Do not report task_completed unless implementation and verification actually ran.`;
 
 	return `# Provider Prompt: ${provider.label}
 
@@ -957,12 +969,7 @@ ${projectContract}
 Assigned tasks:
 ${taskList || '- none'}
 
-H70 skill loading (recommended, not a hard gate):
-- For each assigned task with listed skills, try to fetch the recommended skills via /api/h70-skills/<skill-id> before implementation.
-- If H70 skills are reachable, apply their anti-pattern and disaster guidance before implementation.
-- If H70 skills are unreachable, continue with the task using your base expertise instead of blocking the mission.
-- When H70 loading succeeds or fails, emit one progress event documenting the source state before task_started (message format: "SKILL_SOURCE:<taskId>:loaded:<skillId,...>" or "SKILL_SOURCE:<taskId>:unavailable:<reason>").
-- Do not report task_completed unless implementation and verification actually ran.
+${skillLoadingBlock}
 
 Execution expectations:
 - Work only on your assigned tasks.
@@ -1044,6 +1051,17 @@ function isNoBuildVanillaMission(mission: Mission): boolean {
 	);
 }
 
+function isFastDirectMission(mission: Mission): boolean {
+	const text = missionContractText(mission).toLowerCase();
+	const hasTinyScope =
+		mission.tasks.length <= 1 &&
+		(/\bone[-\s]?file\b/.test(text) ||
+			/\bsingle[-\s]?file\b/.test(text) ||
+			/\bstatic page\b/.test(text));
+	const asksForSpeed = /\bfast\b/.test(text) || /\bsimple\b/.test(text) || /\bsmoke\b/.test(text);
+	return hasTinyScope && asksForSpeed;
+}
+
 function buildVerificationBlock(mission: Mission): string {
 	if (isNoBuildVanillaMission(mission)) {
 		return [
@@ -1051,6 +1069,8 @@ function buildVerificationBlock(mission: Mission): string {
 			'- Do not add npm, package.json, lockfiles, TypeScript config, framework scaffold, bundler config, or dependency installation unless explicitly requested.',
 			'- Confirm the requested root files exist in the project path and use direct relative browser links.',
 			'- Run syntax/content checks appropriate for static files, such as node --check app.js and Select-String/Test-Path checks from the task acceptance criteria.',
+			'- For fast-lane or single-file smoke tasks, do not spend more than 30 seconds discovering browser tooling. If no browser harness is immediately available, mark browser smoke as not applicable and complete with file/content evidence.',
+			'- Do not launch a long-lived browser, dev server, package install, or tooling search just to verify a direct-open index.html smoke page.',
 			'- List all files you created or modified for this task.'
 		].join('\n');
 	}
