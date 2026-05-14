@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { getTierSkills, normalizeTier, type SkillTier } from './skill-tiers';
 
 const stringList = z.array(z.string());
 
@@ -69,6 +70,12 @@ export type StoredPrdAnalysisResult = Omit<ValidPrdAnalysisResult, 'executionPro
 	metadata?: Record<string, unknown>;
 };
 
+export interface PrdSkillGateSummary {
+	tier: SkillTier;
+	allowedSkillCount: number;
+	strippedSkillCount: number;
+}
+
 export function validatePrdAnalysisResult(requestId: string, result: unknown): ValidPrdAnalysisResult {
 	const parsed = prdAnalysisResultSchema.safeParse(result);
 	if (!parsed.success) {
@@ -79,6 +86,96 @@ export function validatePrdAnalysisResult(requestId: string, result: unknown): V
 		throw new Error(`Invalid PRD analysis result: requestId mismatch (${parsed.data.requestId} !== ${requestId})`);
 	}
 	return { ...parsed.data, requestId };
+}
+
+function normalizeSkillId(value: string): string {
+	return value.trim();
+}
+
+function uniqueSkillIds(values: string[]): string[] {
+	const seen = new Set<string>();
+	const out: string[] = [];
+	for (const value of values) {
+		const skillId = normalizeSkillId(value);
+		if (!skillId || seen.has(skillId)) continue;
+		seen.add(skillId);
+		out.push(skillId);
+	}
+	return out;
+}
+
+function filterSkillIds(values: string[], allowedSkillIds: Set<string>): { skills: string[]; stripped: number } {
+	let stripped = 0;
+	const skills: string[] = [];
+	for (const skillId of uniqueSkillIds(values)) {
+		if (allowedSkillIds.has(skillId)) {
+			skills.push(skillId);
+		} else {
+			stripped += 1;
+		}
+	}
+	return { skills, stripped };
+}
+
+export async function sanitizePrdAnalysisResultForTier(
+	requestId: string,
+	result: unknown,
+	tier: unknown
+): Promise<{ result: ValidPrdAnalysisResult; summary: PrdSkillGateSummary }> {
+	const normalizedTier = normalizeTier(tier);
+	const allowedSkills = await getTierSkills(normalizedTier);
+	const allowedSkillIds = new Set(allowedSkills.map((skill) => skill.id));
+	const validated = validatePrdAnalysisResult(requestId, result) as ValidPrdAnalysisResult & {
+		metadata?: unknown;
+	};
+
+	let strippedSkillCount = 0;
+	const tasks = validated.tasks.map((task) => {
+		const filtered = filterSkillIds(task.skills || [], allowedSkillIds);
+		strippedSkillCount += filtered.stripped;
+		return {
+			...task,
+			skills: filtered.skills
+		};
+	});
+	const topLevel = filterSkillIds(validated.skills || [], allowedSkillIds);
+	strippedSkillCount += topLevel.stripped;
+	const skills = uniqueSkillIds([...topLevel.skills, ...tasks.flatMap((task) => task.skills)]);
+	const metadataRecord = validated.metadata && typeof validated.metadata === 'object' && !Array.isArray(validated.metadata)
+		? (validated.metadata as Record<string, unknown>)
+		: {};
+
+	return {
+		result: {
+			...validated,
+			tasks,
+			skills,
+			metadata: {
+				...metadataRecord,
+				skillTier: normalizedTier,
+				skillGate: {
+					applied: true,
+					tier: normalizedTier,
+					allowedSkillCount: allowedSkills.length,
+					strippedSkillCount
+				}
+			}
+		},
+		summary: {
+			tier: normalizedTier,
+			allowedSkillCount: allowedSkills.length,
+			strippedSkillCount
+		}
+	};
+}
+
+export async function projectStoredPrdAnalysisResultForTier(
+	requestId: string,
+	result: unknown,
+	tier: unknown
+): Promise<StoredPrdAnalysisResult> {
+	const sanitized = await sanitizePrdAnalysisResultForTier(requestId, result, tier);
+	return projectStoredPrdAnalysisResult(requestId, sanitized.result);
 }
 
 export function projectStoredPrdAnalysisResult(requestId: string, result: unknown): StoredPrdAnalysisResult {

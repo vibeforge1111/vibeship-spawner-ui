@@ -24,7 +24,7 @@ import { formatTaskQualityGuidance } from '$lib/server/task-quality-rubric';
 import { formatVerificationPlanGuidance, generateVerificationPlan } from '$lib/server/verification-plan-generator';
 import { enrichBrief, isSparseUnderstandingClarification } from '$lib/server/brief-enricher';
 import { spawnerStateDir } from '$lib/server/spawner-state';
-import { projectStoredPrdAnalysisResult } from '$lib/server/prd-analysis-result-schema';
+import { projectStoredPrdAnalysisResultForTier } from '$lib/server/prd-analysis-result-schema';
 import { extractExplicitProjectPath } from '$lib/server/project-path-extraction';
 import {
 	capabilityProposalSummary,
@@ -885,7 +885,11 @@ async function writeFallbackAnalysisResult(
 	const resultWithTrace = resolvedTraceRef
 		? { ...result, traceRef: resolvedTraceRef, metadata: { ...((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined), traceRef: resolvedTraceRef } }
 		: result;
-	await writeFile(resultFile, JSON.stringify(projectStoredPrdAnalysisResult(requestId, resultWithTrace), null, 2), 'utf-8');
+	await writeFile(
+		resultFile,
+		JSON.stringify(await projectStoredPrdAnalysisResultForTier(requestId, resultWithTrace, tier), null, 2),
+		'utf-8'
+	);
 	const staticArtifactCount = await writeConstrainedStaticProofArtifacts(await readFile(paths.pendingPrdFile, 'utf-8').catch(() => ''));
 	if (staticArtifactCount > 0) {
 		await appendPrdTrace(requestId, 'deterministic_static_artifacts_written', {
@@ -1470,6 +1474,7 @@ export const POST: RequestHandler = async (event) => {
 			projectName: projectName || 'Untitled Project',
 			buildMode: normalizedBuildMode,
 			buildLane: normalizedBuildLane,
+			tier: normalizedTier,
 			buildLaneReason: normalizedBuildLaneReason,
 			buildModeReason:
 				typeof buildModeReason === 'string' && buildModeReason.trim()
@@ -1496,6 +1501,7 @@ export const POST: RequestHandler = async (event) => {
 							userId: typeof userId === 'string' && userId.trim() ? userId.trim() : 'telegram',
 							missionId,
 							requestId,
+							tier: normalizedTier,
 							...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 							goal: content.slice(0, 500),
 							...(projectLineage ? { projectLineage } : {}),

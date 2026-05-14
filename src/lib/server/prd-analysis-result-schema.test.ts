@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { projectStoredPrdAnalysisResult } from './prd-analysis-result-schema';
+import {
+	projectStoredPrdAnalysisResult,
+	sanitizePrdAnalysisResultForTier
+} from './prd-analysis-result-schema';
 
 describe('PRD analysis result storage projection', () => {
 	it('omits raw execution prompt text from stored result artifacts', () => {
@@ -63,5 +66,52 @@ describe('PRD analysis result storage projection', () => {
 			instructionTextRedacted: true
 		});
 		expect(JSON.stringify(stored)).not.toContain('executionPrompt');
+	});
+
+	it('strips pro-only skill ids from base-tier PRD analysis results', async () => {
+		const sanitized = await sanitizePrdAnalysisResultForTier('request-base', {
+			requestId: 'request-base',
+			success: true,
+			projectName: 'Base Skill Gate',
+			tasks: [
+				{
+					id: 'task-1',
+					title: 'Build the surface',
+					skills: ['frontend-engineer', 'threejs-3d-graphics', 'frontend-engineer']
+				}
+			],
+			skills: ['frontend-engineer', 'qa-engineering', 'threejs-3d-graphics']
+		}, 'base');
+
+		expect(sanitized.result.tasks[0].skills).toEqual(['frontend-engineer']);
+		expect(sanitized.result.skills).toEqual(['frontend-engineer']);
+		expect(sanitized.summary.strippedSkillCount).toBeGreaterThanOrEqual(2);
+		expect(sanitized.result.metadata).toMatchObject({
+			skillTier: 'base',
+			skillGate: {
+				applied: true,
+				tier: 'base'
+			}
+		});
+	});
+
+	it('preserves pro skills for pro-tier PRD analysis results', async () => {
+		const sanitized = await sanitizePrdAnalysisResultForTier('request-pro', {
+			requestId: 'request-pro',
+			success: true,
+			projectName: 'Pro Skill Gate',
+			tasks: [
+				{
+					id: 'task-1',
+					title: 'Build the 3D surface',
+					skills: ['frontend-engineer', 'threejs-3d-graphics']
+				}
+			],
+			skills: ['frontend-engineer', 'threejs-3d-graphics']
+		}, 'pro');
+
+		expect(sanitized.result.tasks[0].skills).toEqual(['frontend-engineer', 'threejs-3d-graphics']);
+		expect(sanitized.result.skills).toEqual(['frontend-engineer', 'threejs-3d-graphics']);
+		expect(sanitized.summary.strippedSkillCount).toBe(0);
 	});
 });
