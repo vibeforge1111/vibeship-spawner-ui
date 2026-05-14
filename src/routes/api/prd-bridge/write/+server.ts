@@ -342,7 +342,7 @@ function inferTechStack(content: string): { framework: string; language: string;
 			deployment: 'Direct browser-open static file'
 		};
 	}
-	if (lower.includes('three.js') || lower.includes('threejs')) {
+	if (lower.includes('three.js') || lower.includes('threejs') || /\b(?:3d|webgl|three-dimensional)\b/.test(lower)) {
 		return {
 			framework: 'Vanilla JavaScript + Three.js',
 			language: 'JavaScript',
@@ -545,7 +545,7 @@ export async function _buildFallbackAnalysisResult(
 		lower.includes('no build step') ||
 		lower.includes('vanilla-js') ||
 		lower.includes('vanilla js');
-	const isThree = lower.includes('three.js') || lower.includes('threejs');
+	const isThree = lower.includes('three.js') || lower.includes('threejs') || /\b(?:3d|webgl|three-dimensional)\b/.test(lower);
 	const isGame = /\b(game|maze|puzzle|arcade|runner|platformer|rpg|quest|level|player|score|enemy|boss)\b/.test(lower);
 	const isDashboard = /\b(dashboard|metrics?|analytics|monitor|tracker|report|board)\b/.test(lower);
 	const isTokenOrNftLaunch = /\b(token|nft|mint|treasury|liquidity|holders?|launch|sale)\b/.test(lower);
@@ -622,7 +622,11 @@ export async function _buildFallbackAnalysisResult(
 					summary: singleFileStaticApp
 						? `Create only ${fileList} with embedded CSS and JavaScript, preserving the requested game premise and controls.`
 						: `Set up ${fileList} so the player lands directly in the requested game loop.`,
-					skills: selectSkills(['frontend-engineer', 'game-development', 'game-ui-design', 'responsive-mobile-first']),
+					skills: selectSkills(
+						isThree
+							? ['frontend-engineer', 'threejs-3d-graphics', 'game-development', 'game-ui-design', 'responsive-mobile-first']
+							: ['frontend-engineer', 'game-development', 'game-ui-design', 'responsive-mobile-first']
+					),
 					dependencies: [] as string[],
 					acceptanceCriteria: [
 						'The first screen is playable, not a landing page or project explainer.',

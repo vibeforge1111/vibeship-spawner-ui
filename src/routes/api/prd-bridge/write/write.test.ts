@@ -256,6 +256,47 @@ describe('PRD bridge fallback analysis', () => {
 		expect(skills).toEqual(expect.arrayContaining(['game-design', 'puzzle-design']));
 	});
 
+	it('pairs pro 3D game briefs with the Three.js specialist while keeping base briefs on starter skills', async () => {
+		const pendingPrdFile = path.join(testSpawnerDir, 'pending-prd.md');
+		await writeFile(
+			pendingPrdFile,
+			[
+				'Build a tiny interactive 3D game smoke page with WebGL style particles.',
+				'Keep it fast, playable, and simple.'
+			].join('\n'),
+			'utf-8'
+		);
+
+		const paths = {
+			spawnerDir: testSpawnerDir,
+			resultsDir: path.join(testSpawnerDir, 'results'),
+			pendingPrdFile,
+			pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
+			prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
+		};
+		const proResult = await _buildFallbackAnalysisResult(
+			'tg-build-pro-3d-game',
+			'Pro 3D Game',
+			'direct',
+			'pro',
+			paths,
+			'fast_direct'
+		);
+		const baseResult = await _buildFallbackAnalysisResult(
+			'tg-build-base-3d-game',
+			'Base 3D Game',
+			'direct',
+			'base',
+			paths,
+			'fast_direct'
+		);
+
+		expect((proResult.techStack as { framework?: string }).framework).toContain('Three.js');
+		expect((proResult.skills as string[])).toContain('threejs-3d-graphics');
+		expect((baseResult.skills as string[])).not.toContain('threejs-3d-graphics');
+		expect((baseResult.skills as string[])).toContain('frontend-engineer');
+	});
+
 	it('uses token/NFT launch dashboard tasks with decision and risk proof', async () => {
 		const pendingPrdFile = path.join(testSpawnerDir, 'pending-prd.md');
 		await writeFile(
