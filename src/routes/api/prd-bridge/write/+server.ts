@@ -728,6 +728,11 @@ function normalizeBuildMode(value: unknown): 'direct' | 'advanced_prd' {
 	return value === 'advanced_prd' ? 'advanced_prd' : 'direct';
 }
 
+function normalizeBuildLane(value: unknown, buildMode: 'direct' | 'advanced_prd'): 'fast_direct' | 'direct' | 'advanced_prd' {
+	if (buildMode === 'advanced_prd') return 'advanced_prd';
+	return value === 'fast_direct' ? 'fast_direct' : 'direct';
+}
+
 function isConcreteDirectStaticBuild(content: string): boolean {
 	const lower = content.toLowerCase();
 	const hasStaticSurface = /\b(?:static|vanilla|single[- ]page|landing\s+page|html|css|javascript|no build step)\b/.test(lower);
@@ -1105,9 +1110,10 @@ export const POST: RequestHandler = async (event) => {
 		});
 		if (rateLimited) return rateLimited;
 
-		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, telegramRelay, tier, forceDispatch, runnerCapability, runner_capability, capabilityProposalPacket, capability_proposal_packet, traceRef, trace_ref } =
+		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, buildLane, buildLaneReason, telegramRelay, tier, forceDispatch, runnerCapability, runner_capability, capabilityProposalPacket, capability_proposal_packet, traceRef, trace_ref } =
 			await event.request.json();
 		const normalizedBuildMode = normalizeBuildMode(buildMode);
+		const normalizedBuildLane = normalizeBuildLane(buildLane, normalizedBuildMode);
 		const normalizedTier = normalizeTier(tier);
 		const normalizedTelegramRelay = normalizeTelegramRelay(telegramRelay);
 		const normalizedRunnerCapability = normalizeRunnerCapability(runnerCapability ?? runner_capability);
@@ -1137,7 +1143,9 @@ export const POST: RequestHandler = async (event) => {
 		// already specific enough (length / keyword density / has section
 		// headers). Always returns a safe enrichedContent — never blocks.
 		const constrainedStaticSingleFileInput = isConstrainedSingleFileStaticHtml(content);
-		const enrichment = constrainedStaticSingleFileInput
+		const fastLaneRequested = normalizedBuildLane === 'fast_direct' || options?.fastLane === true;
+		const deterministicFastLane = normalizedBuildMode === 'direct' && fastLaneRequested && !constrainedStaticSingleFileInput;
+		const enrichment = constrainedStaticSingleFileInput || deterministicFastLane
 			? {
 					wasEnriched: false,
 					enrichedContent: content,
@@ -1215,6 +1223,13 @@ export const POST: RequestHandler = async (event) => {
 			missionId,
 			projectName: projectName || 'Untitled Project',
 			buildMode: normalizedBuildMode,
+			buildLane: normalizedBuildLane,
+			buildLaneReason:
+				typeof buildLaneReason === 'string' && buildLaneReason.trim()
+					? buildLaneReason.trim()
+					: normalizedBuildLane === 'fast_direct'
+						? 'Fast direct lane requested; use lightweight deterministic planning.'
+						: 'Build lane inferred by caller.',
 			buildModeReason:
 				typeof buildModeReason === 'string' && buildModeReason.trim()
 					? buildModeReason.trim()
@@ -1227,7 +1242,8 @@ export const POST: RequestHandler = async (event) => {
 			...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 			options: {
 				includeSkills: options?.includeSkills !== false,
-				includeMCPs: options?.includeMCPs !== false
+				includeMCPs: options?.includeMCPs !== false,
+				fastLane: deterministicFastLane
 			},
 			projectLineage,
 			...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
@@ -1253,6 +1269,7 @@ export const POST: RequestHandler = async (event) => {
 			...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 			projectName: requestMeta.projectName,
 			buildMode: requestMeta.buildMode,
+			buildLane: requestMeta.buildLane,
 			...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
 			...(normalizedCapabilityProposalSummary
 				? { capabilityProposal: normalizedCapabilityProposalSummary }
@@ -1270,6 +1287,8 @@ export const POST: RequestHandler = async (event) => {
 				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 				buildMode: requestMeta.buildMode,
 				buildModeReason: requestMeta.buildModeReason,
+				buildLane: requestMeta.buildLane,
+				buildLaneReason: requestMeta.buildLaneReason,
 				...(projectLineage ? { projectLineage } : {}),
 				...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
 				...(normalizedCapabilityProposalSummary ? { capabilityProposal: normalizedCapabilityProposalSummary } : {}),
@@ -1278,8 +1297,8 @@ export const POST: RequestHandler = async (event) => {
 		});
 
 		const constrainedStaticSingleFile = constrainedStaticSingleFileInput || isConstrainedSingleFileStaticHtml(finalContent);
-		const auto = constrainedStaticSingleFile
-			? { started: false, provider: 'deterministic-static' }
+		const auto = constrainedStaticSingleFile || deterministicFastLane
+			? { started: false, provider: deterministicFastLane ? 'deterministic-fast-lane' : 'deterministic-static' }
 			: await startAutoAnalysis(
 					requestId,
 					requestMeta.projectName,
@@ -1305,6 +1324,18 @@ export const POST: RequestHandler = async (event) => {
 				requestMeta.buildMode,
 				normalizedTier,
 				'constrained static file request',
+				normalizedTraceRef
+			);
+		} else if (deterministicFastLane) {
+			await updatePendingRequestStatus(requestId, 'fallback', {
+				reason: 'Fast direct lane requested; lightweight deterministic analysis queued immediately.'
+			});
+			await writeFallbackAnalysisResult(
+				requestId,
+				requestMeta.projectName,
+				requestMeta.buildMode,
+				normalizedTier,
+				'fast direct lane request',
 				normalizedTraceRef
 			);
 		} else if (auto.started) {

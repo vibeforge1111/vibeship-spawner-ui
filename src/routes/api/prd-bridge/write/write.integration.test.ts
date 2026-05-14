@@ -106,6 +106,49 @@ describe('/api/prd-bridge/write integration', () => {
 		});
 	});
 
+	it('uses deterministic fallback immediately for explicit fast-lane builds', async () => {
+		process.env.SPARK_MISSION_LLM_PROVIDER = 'codex';
+		const requestId = 'tg-build-fast-lane-test';
+		const traceRef = 'trace:spawner-prd:mission-fast-lane-test';
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/write', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'x-api-key': BRIDGE_TEST_KEY },
+				body: JSON.stringify({
+					content: '# One Screen Spacing Smoke Page\n\nBuild mode: direct\nBuild lane: fast_direct\n\nBuild a one-screen paragraph spacing smoke page with a save button and responsive checks.',
+					requestId,
+					projectName: 'One Screen Spacing Smoke Page',
+					buildMode: 'direct',
+					buildLane: 'fast_direct',
+					buildLaneReason: 'Tiny smoke-test build; skip deep PRD planning.',
+					options: { fastLane: true, includeSkills: false, includeMCPs: false },
+					tier: 'pro',
+					chatId: 'telegram-chat-1',
+					userId: 'telegram-user-1',
+					traceRef
+				})
+			}),
+			getClientAddress: () => '127.0.0.1'
+		} as never);
+
+		const body = await response.json();
+		expect(response.status).toBe(200);
+		expect(body.autoAnalysis).toMatchObject({ provider: 'deterministic-fast-lane', started: false });
+		expect(body.enrichment.wasEnriched).toBe(false);
+		const resultPath = path.join(testSpawnerDir, 'results', `${requestId}.json`);
+		expect(existsSync(resultPath)).toBe(true);
+
+		const pendingMeta = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
+		expect(pendingMeta.buildLane).toBe('fast_direct');
+		expect(pendingMeta.options).toMatchObject({ fastLane: true, includeSkills: false, includeMCPs: false });
+		const traceRows = (await readFile(path.join(testSpawnerDir, 'prd-auto-trace.jsonl'), 'utf-8'))
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line));
+		expect(traceRows.some((row) => row.event === 'fallback_analysis_written' && row.reason === 'fast direct lane request')).toBe(true);
+	});
+
 	it('keeps exact two-file static proofs deterministic and scoped to the requested folder', async () => {
 		const requestId = 'tg-build-static-proof-s';
 		const traceRef = 'trace:spawner-prd:mission-static-proof-s';
