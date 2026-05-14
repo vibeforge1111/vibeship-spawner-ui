@@ -9,6 +9,8 @@ import { env } from '$env/dynamic/private';
 export interface MissionControlProviderResultSummary {
 	providerId: string;
 	status: ProviderSessionStatus;
+	requestId?: string | null;
+	traceRef?: string | null;
 	summary: string;
 	durationMs: number | null;
 	completedAt: string | null;
@@ -66,13 +68,12 @@ function previewBaseUrl(): string {
 		process.env.RAILWAY_STATIC_URL?.trim() ||
 		envRecord.SPARK_PROJECT_PREVIEW_URL?.trim() ||
 		envRecord.SPAWNER_PROJECT_PREVIEW_BASE_URL?.trim() ||
-			envRecord.SPARK_PROJECT_PREVIEW_BASE_URL?.trim() ||
-			envRecord.SPAWNER_UI_PUBLIC_URL?.trim() ||
-			envRecord.PUBLIC_SPAWNER_UI_URL?.trim() ||
-			envRecord.SPAWNER_UI_URL?.trim() ||
-			envRecord.RAILWAY_PUBLIC_DOMAIN?.trim() ||
-			envRecord.RAILWAY_STATIC_URL?.trim() ||
-			'http://127.0.0.1:3333';
+		envRecord.SPARK_PROJECT_PREVIEW_BASE_URL?.trim() ||
+		envRecord.SPAWNER_UI_PUBLIC_URL?.trim() ||
+		envRecord.PUBLIC_SPAWNER_UI_URL?.trim() ||
+		envRecord.RAILWAY_PUBLIC_DOMAIN?.trim() ||
+		envRecord.RAILWAY_STATIC_URL?.trim() ||
+		'';
 	if (!raw) return '';
 	return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
 }
@@ -156,6 +157,8 @@ export function summarizeProviderResults(
 		return {
 			providerId: result.providerId,
 			status: result.status,
+			...(result.requestId ? { requestId: result.requestId } : {}),
+			...(result.traceRef ? { traceRef: result.traceRef } : {}),
 			summary: metadata.summary || responseSummary || errorSummary || fallback,
 			durationMs: result.durationMs,
 			completedAt: result.completedAt,

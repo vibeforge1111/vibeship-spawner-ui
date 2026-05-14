@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import { eventBridge, type BridgeEvent } from '$lib/services/event-bridge';
 import type { Skill } from '$lib/stores/skills.svelte';
+import { extractExplicitProjectPath } from '$lib/server/project-path-extraction';
 import { buildMissionFromCanvas } from '$lib/services/mission-builder';
 import { matchTaskToSkills } from '$lib/services/h70-skill-matcher';
 import {
@@ -325,14 +326,7 @@ export function inferProjectPathFromPrdLoad(
 		typeof load.relay?.goal === 'string' ? load.relay.goal : '',
 		...load.nodes.map((node) => node.skill?.description || '')
 	].join('\n');
-	const labeledPath =
-		text.match(/(?:target operating-system folder|project path|target folder|create it at|build this at)\s*:?\s*`?((?:[A-Z]:[\\/]|\/)[^\r\n`]+)/i)?.[1] ||
-		text.match(/\bat\s+`?((?:[A-Z]:[\\/]|\/)[^\r\n`]+)/i)?.[1];
-	const explicitPath = labeledPath
-		?.trim()
-		.replace(/:\s+.*$/i, '')
-		.replace(/\s+(?:as|inside|with|and)\b.*$/i, '')
-		.replace(/[).,;]+$/, '');
+	const explicitPath = extractExplicitProjectPath(text);
 	if (explicitPath) return explicitPath;
 
 	const workspaceRoot = hostedWorkspaceRoot(envRecord);

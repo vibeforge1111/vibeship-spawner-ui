@@ -132,6 +132,8 @@ export interface SparkAgentProviderTaskInput {
 	missionId: string;
 	prompt: string;
 	model?: string;
+	requestId?: string;
+	traceRef?: string;
 	workingDirectory?: string;
 	commandTemplate?: string;
 	taskId?: string;
@@ -152,6 +154,9 @@ interface SparkAgentWorkerState {
 	providerId: SparkAgentProviderId;
 	missionId: string;
 	taskId?: string;
+	requestId?: string;
+	traceRef?: string;
+	model?: string;
 	status: 'running' | 'completed' | 'failed' | 'cancelled';
 	startedAt: string;
 	completedAt?: string;
@@ -485,6 +490,7 @@ class SparkAgentBridgeService {
 		const startedAtMs = Date.now();
 		const { providerId, missionId, prompt } = input;
 		const taskId = input.taskId;
+		const model = input.model || (providerId === 'claude' ? 'opus' : 'gpt-5.5');
 		const session = this.startSession({
 			sessionId: input.sparkAgentSessionId,
 			actor: 'provider-runtime',
@@ -492,17 +498,23 @@ class SparkAgentBridgeService {
 				kind: 'provider_worker',
 				providerId,
 				missionId,
-				taskId: taskId || null
+				taskId: taskId || null,
+				requestId: input.requestId || null,
+				traceRef: input.traceRef || null,
+				model
 			}
 		});
 		const sparkAgentSessionId = session.id;
-		const command = resolveProviderCommandTemplate(providerId, input.model, input.commandTemplate);
+		const command = resolveProviderCommandTemplate(providerId, model, input.commandTemplate);
 
 		const workerState: SparkAgentWorkerState = {
 			sessionId: sparkAgentSessionId,
 			providerId,
 			missionId,
 			taskId,
+			requestId: input.requestId,
+			traceRef: input.traceRef,
+			model,
 			status: 'running',
 			startedAt: nowIso(),
 			progress: 0
@@ -531,7 +543,7 @@ class SparkAgentBridgeService {
 				missionId,
 				taskId,
 				prompt,
-				model: input.model || '',
+				model,
 				commandTemplate: command,
 				workingDirectory: input.workingDirectory,
 				signal: input.signal,
@@ -555,7 +567,7 @@ class SparkAgentBridgeService {
 				this.emitProviderEvent(workerState, 'task_failed', {
 					progress: workerState.progress,
 					message: `${providerId} worker failed: ${blockedReason}`,
-					error: blockedReason,
+					error: { message: blockedReason, providerId },
 					response: result.response || ''
 				});
 				this.endSession(sparkAgentSessionId, 'failed');
@@ -1225,7 +1237,11 @@ class SparkAgentBridgeService {
 		const timestamp = nowIso();
 		const data = {
 			missionId: worker.missionId,
+			provider: worker.providerId,
 			providerId: worker.providerId,
+			model: worker.model,
+			...(worker.requestId ? { requestId: worker.requestId } : {}),
+			...(worker.traceRef ? { traceRef: worker.traceRef } : {}),
 			sparkAgentSessionId: worker.sessionId,
 			...(worker.taskId ? { taskId: worker.taskId } : {}),
 			...payload

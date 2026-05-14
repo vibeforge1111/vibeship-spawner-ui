@@ -11,6 +11,11 @@ import type { ProviderResult, ProviderClientOptions } from './types';
 import { createBridgeEvent } from './types';
 import { resolveCliBinary } from '../cli-resolver';
 import { spawnHidden } from '../hidden-process';
+import {
+	assertHighAgencyWorkerAllowed,
+	highAgencyWorkersAllowed,
+	HIGH_AGENCY_WORKERS_ENV
+} from '../high-agency-workers';
 import { spawnerStateDir } from '../spawner-state';
 import { prepareProviderWorkingDirectory } from '$lib/services/spark-agent-bridge';
 
@@ -23,11 +28,18 @@ export interface CodexCliCommand {
 	args: string[];
 }
 
+export interface ParseCodexCliCommandOptions {
+	allowHighAgency?: boolean;
+}
+
 function isSafeCommandToken(value: string): boolean {
 	return /^[A-Za-z0-9._:/@+=-]+$/.test(value);
 }
 
-export function parseCodexCliCommand(commandTemplate: string): CodexCliCommand {
+export function parseCodexCliCommand(
+	commandTemplate: string,
+	options: ParseCodexCliCommandOptions = {}
+): CodexCliCommand {
 	const tokens = commandTemplate.split(/\s+/).filter(Boolean);
 	if (tokens.some((token) => !isSafeCommandToken(token))) {
 		throw new Error('Codex command template contains unsafe shell characters');
@@ -36,12 +48,16 @@ export function parseCodexCliCommand(commandTemplate: string): CodexCliCommand {
 		throw new Error('Codex command template must start with: codex exec');
 	}
 	if (tokens.length === 3 && tokens[2] === '--yolo') {
+		const allowHighAgency = options.allowHighAgency ?? highAgencyWorkersAllowed();
+		if (!allowHighAgency) {
+			throw new Error(`codex exec high-agency mode requires ${HIGH_AGENCY_WORKERS_ENV}=1`);
+		}
 		return { binary: 'codex', args: ['exec', '--skip-git-repo-check', '--yolo'] };
 	}
 	if (tokens.length === 4 && tokens[2] === '--model') {
 		return { binary: 'codex', args: ['exec', '--skip-git-repo-check', '--model', tokens[3]] };
 	}
-	throw new Error('Codex command template must be: codex exec --model <model> or codex exec --yolo');
+	throw new Error('Codex command template must be: codex exec --model <model>');
 }
 
 export async function isCliBinaryAvailable(binaryName: 'codex'): Promise<boolean> {
@@ -77,6 +93,32 @@ export async function executeCodexCliRequest(
 			})
 		);
 		return { success: false, error: message, durationMs: Date.now() - startTime };
+	}
+	if (command.args.includes('--yolo')) {
+		let approval;
+		try {
+			approval = assertHighAgencyWorkerAllowed(workingDirectory);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			onEvent(
+				createBridgeEvent('error', options, {
+					message,
+					data: { error: message }
+				})
+			);
+			return { success: false, error: message, durationMs: Date.now() - startTime };
+		}
+		onEvent(
+			createBridgeEvent('worker_high_agency_approved', options, {
+				message: `${provider.label} high-agency worker approved`,
+				data: {
+					provider: provider.id,
+					workingDirectory: approval.workingDirectory,
+					workspaceRoot: approval.workspaceRoot,
+					externalProjectPathsAllowed: approval.externalProjectPathsAllowed
+				}
+			})
+		);
 	}
 
 	const resolvedBinary = resolveCliBinary('codex');

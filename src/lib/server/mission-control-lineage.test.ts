@@ -30,4 +30,15 @@ describe('mission-control-lineage', () => {
 			/^https:\/\/spawner-ui-production\.up\.railway\.app\/preview\/[A-Za-z0-9_-]+\/index\.html$/
 		);
 	});
+
+	it('extracts only the explicit folder before follow-up instructions', () => {
+		const lineage = extractMissionControlProjectLineage({
+			data: {
+				goal:
+					'Create a local-only static proof in C:\\Users\\USER\\Desktop\\spark-os-proof-s. You must create exactly two files and no others.'
+			}
+		});
+
+		expect(lineage?.projectPath).toBe('C:\\Users\\USER\\Desktop\\spark-os-proof-s');
+	});
 });

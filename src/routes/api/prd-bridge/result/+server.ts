@@ -14,7 +14,7 @@ import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
-import { validatePrdAnalysisResult } from '$lib/server/prd-analysis-result-schema';
+import { projectStoredPrdAnalysisResult } from '$lib/server/prd-analysis-result-schema';
 import { spawnerStateDir } from '$lib/server/spawner-state';
 import { logger } from '$lib/utils/logger';
 
@@ -36,7 +36,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			return json({ error: 'requestId and result are required' }, { status: 400 });
 		}
 		assertSafeId(requestId, 'requestId');
-		const validatedResult = validatePrdAnalysisResult(requestId, result);
+		const storedResult = projectStoredPrdAnalysisResult(requestId, result);
 
 		// Ensure results directory exists
 		const resultsDir = getResultsDir();
@@ -47,7 +47,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Write result to file
 		const resultFile = resolveWithinBaseDir(resultsDir, `${requestId}.json`);
-		await writeFile(resultFile, JSON.stringify(validatedResult, null, 2), 'utf-8');
+		await writeFile(resultFile, JSON.stringify(storedResult, null, 2), 'utf-8');
 
 		log.info(`Stored result for: ${requestId}`);
 		return json({ success: true, requestId });

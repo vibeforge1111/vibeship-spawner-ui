@@ -19,6 +19,7 @@ import {
 	buildMissionControlAgentEvent,
 	missionStateForEvent
 } from './agent-event-ledger';
+import { syncCreatorMissionTraceFromLifecycleEvent } from './creator-mission-trace-sync';
 import { spawnerStateDir } from './spawner-state';
 import { extractTraceRef } from './trace-ref';
 import {
@@ -66,6 +67,8 @@ export interface MissionControlRelayStatusEntry {
 	assignedTaskIds: string[];
 	requestId: string | null;
 	traceRef: string | null;
+	providerId?: string | null;
+	model?: string | null;
 	progress: number | null;
 	summary: string;
 	timestamp: string;
@@ -232,6 +235,47 @@ function normalizeMissionId(event: MissionControlBridgeEvent): string {
 	return typeof event.missionId === 'string' && event.missionId.trim().length > 0 ? event.missionId : 'unknown-mission';
 }
 
+function requestIdFromEventData(data: Record<string, unknown> | null | undefined): string | null {
+	const value = data?.requestId;
+	return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function knownMissionMetadata(missionId: string): { requestId: string | null; traceRef: string | null } {
+	for (const entry of relayState.recent) {
+		if (entry.missionId !== missionId) continue;
+		if (entry.requestId || entry.traceRef) {
+			return {
+				requestId: entry.requestId,
+				traceRef: entry.traceRef
+			};
+		}
+	}
+	return { requestId: null, traceRef: null };
+}
+
+function enrichMissionEventWithKnownMetadata(event: MissionControlBridgeEvent): MissionControlBridgeEvent {
+	const missionId = normalizeMissionId(event);
+	const data = event.data && typeof event.data === 'object' ? event.data : null;
+	const known = knownMissionMetadata(missionId);
+	const currentRequestId = requestIdFromEventData(data);
+	const currentTraceRef = extractTraceRef(data, event);
+	const requestId = currentRequestId || known.requestId;
+	const traceRef = currentTraceRef || known.traceRef;
+
+	if ((!requestId || currentRequestId) && (!traceRef || currentTraceRef)) {
+		return event;
+	}
+
+	return {
+		...event,
+		data: {
+			...(data ?? {}),
+			...(requestId && !currentRequestId ? { requestId } : {}),
+			...(traceRef && !currentTraceRef ? { traceRef } : {})
+		}
+	};
+}
+
 function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelayStatusEntry {
 	const missionId = normalizeMissionId(event);
 	const timestamp =
@@ -272,11 +316,18 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 	const assignedTaskIds = Array.isArray(assignedTaskIdsRaw)
 		? assignedTaskIdsRaw.filter((taskId): taskId is string => typeof taskId === 'string' && taskId.trim().length > 0)
 		: [];
-	const requestId =
-		event.data && typeof (event.data as Record<string, unknown>).requestId === 'string'
-			? ((event.data as Record<string, unknown>).requestId as string).trim() || null
-			: null;
+	const requestId = requestIdFromEventData(event.data);
 	const traceRef = extractTraceRef(event.data, event);
+	const providerId =
+		event.data && typeof (event.data as Record<string, unknown>).providerId === 'string'
+			? ((event.data as Record<string, unknown>).providerId as string)
+			: event.data && typeof (event.data as Record<string, unknown>).provider === 'string'
+				? ((event.data as Record<string, unknown>).provider as string)
+				: null;
+	const model =
+		event.data && typeof (event.data as Record<string, unknown>).model === 'string'
+			? ((event.data as Record<string, unknown>).model as string)
+			: null;
 	const dataTaskId = event.data && typeof (event.data as Record<string, unknown>).taskId === 'string'
 		? ((event.data as Record<string, unknown>).taskId as string)
 		: null;
@@ -316,6 +367,8 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		assignedTaskIds,
 		requestId,
 		traceRef,
+		providerId,
+		model,
 		progress,
 		summary: summarizeMissionControlEvent(event),
 		timestamp,
@@ -352,6 +405,7 @@ function recordRelayEvent(event: MissionControlBridgeEvent): void {
 	}
 	persistState();
 	recordAgentLedgerEvent(entry);
+	syncCreatorMissionTraceFromLifecycleEvent(event);
 }
 
 function recordAgentLedgerEvent(entry: MissionControlRelayStatusEntry): void {
@@ -369,7 +423,9 @@ function recordAgentLedgerEvent(entry: MissionControlRelayStatusEntry): void {
 				source: entry.source,
 				requestId: requestIdFromStatusEntry(entry),
 				traceRef: entry.traceRef,
-				toState: missionStateForEvent(entry.eventType)
+				toState: missionStateForEvent(entry.eventType),
+				providerId: entry.providerId,
+				model: entry.model
 			}),
 			{
 				requestId: requestIdFromStatusEntry(entry),
@@ -629,6 +685,7 @@ function canonicalTaskTitle(title: string): string {
 	return title
 		.replace(/^T\d+\s*:\s*/i, '')
 		.replace(/^task-[a-z0-9_-]+\s*:\s*/i, '')
+		.replace(/^creator-[a-z0-9_-]+\s*:\s*/i, '')
 		.trim()
 		.toLowerCase();
 }
@@ -643,6 +700,23 @@ function taskOrdinalFromLabel(title: string): number | null {
 function taskKeyFromLabel(title: string): string | null {
 	const match = title.match(/^([a-z0-9]+(?:[-_][a-z0-9]+)+)(?:\s*:|\b)/i);
 	return match ? match[1].toLowerCase() : null;
+}
+
+function creatorTaskKeyFromLabel(title: string): string | null {
+	const lower = title.toLowerCase();
+	const explicit = lower.match(
+		/\b(creator-intent-plan|domain-chip-contract|benchmark-pack|specialization-path|autoloop-policy|telegram-spawner-flow|creator-validation|swarm-publish-packet)\b/
+	);
+	if (explicit) return explicit[1];
+	if (/\block\b.*\bcreator intent\b|\bcreator intent\b.*\btask graph\b/.test(lower)) return 'creator-intent-plan';
+	if (/\bdomain chip\b/.test(lower)) return 'domain-chip-contract';
+	if (/\bbenchmark pack\b/.test(lower)) return 'benchmark-pack';
+	if (/\bspeciali[sz]ation path\b/.test(lower)) return 'specialization-path';
+	if (/\bautoloop\b/.test(lower)) return 'autoloop-policy';
+	if (/\btelegram\b.*\bspawner\b|\bspawner\b.*\btelegram\b/.test(lower)) return 'telegram-spawner-flow';
+	if (/\bcreator validation\b|\bvalidate\b.*\bcreator artifacts\b|\bvalidation gates\b/.test(lower)) return 'creator-validation';
+	if (/\bswarm\b.*\bpublish packet\b|\bpublish packet\b/.test(lower)) return 'swarm-publish-packet';
+	return null;
 }
 
 function mergeTaskStatus(
@@ -662,12 +736,14 @@ function findTaskForAssignedTaskId(
 	const label = sanitizeMissionControlDisplayText(assignedTaskId);
 	const canonicalLabel = canonicalTaskTitle(label);
 	const labelKey = taskKeyFromLabel(label);
+	const creatorKey = creatorTaskKeyFromLabel(label);
 	const labelOrdinal = taskOrdinalFromLabel(label);
 	const indexedTask = entry.tasks[index];
 	const indexedOrdinal = indexedTask ? taskOrdinalFromLabel(indexedTask.title) : null;
 	return (
 		entry.tasks.find((candidate) => canonicalTaskTitle(candidate.title) === canonicalLabel) ||
 		(labelKey ? entry.tasks.find((candidate) => taskKeyFromLabel(candidate.title) === labelKey) : undefined) ||
+		(creatorKey ? entry.tasks.find((candidate) => creatorTaskKeyFromLabel(candidate.title) === creatorKey) : undefined) ||
 		(labelOrdinal !== null
 			? entry.tasks.find((candidate) => taskOrdinalFromLabel(candidate.title) === labelOrdinal)
 			: undefined) ||
@@ -730,6 +806,12 @@ function maybeRecordTask(entry: MissionControlBoardEntry, event: MissionControlR
 		}
 	}
 	if (!task) {
+		const creatorKey = creatorTaskKeyFromLabel(label);
+		if (creatorKey) {
+			task = entry.tasks.find((candidate) => creatorTaskKeyFromLabel(candidate.title) === creatorKey);
+		}
+	}
+	if (!task) {
 		const ordinal = taskOrdinalFromLabel(label);
 		if (ordinal !== null) {
 			task = entry.tasks.find((candidate) => taskOrdinalFromLabel(candidate.title) === ordinal);
@@ -765,11 +847,16 @@ function seedPlannedTasks(entry: MissionControlBoardEntry, event: MissionControl
 	for (const [index, planned] of plannedTasks.entries()) {
 		const canonicalLabel = canonicalTaskTitle(planned.title);
 		const plannedKey = taskKeyFromLabel(planned.title);
+		const plannedCreatorKey = creatorTaskKeyFromLabel(planned.title);
 		const plannedOrdinal = index + 1;
 		let existing = entry.tasks.find((candidate) => {
 			if (canonicalTaskTitle(candidate.title) === canonicalLabel) return true;
 			return Boolean(plannedKey && taskKeyFromLabel(candidate.title) === plannedKey);
-		}) || entry.tasks.find((candidate) => taskOrdinalFromLabel(candidate.title) === plannedOrdinal);
+		})
+			|| (plannedCreatorKey
+				? entry.tasks.find((candidate) => creatorTaskKeyFromLabel(candidate.title) === plannedCreatorKey)
+				: undefined)
+			|| entry.tasks.find((candidate) => taskOrdinalFromLabel(candidate.title) === plannedOrdinal);
 		if (existing) {
 			existing.title = planned.title;
 			if ((!existing.skills || existing.skills.length === 0) && planned.skills.length > 0) {
@@ -793,6 +880,8 @@ function taskMatchesRelayEntry(task: MissionControlBoardEntry['tasks'][number], 
 	if (canonicalTaskTitle(task.title) === canonicalTaskTitle(label)) return true;
 	const labelKey = taskKeyFromLabel(label);
 	if (labelKey && taskKeyFromLabel(task.title) === labelKey) return true;
+	const creatorKey = creatorTaskKeyFromLabel(label);
+	if (creatorKey && creatorTaskKeyFromLabel(task.title) === creatorKey) return true;
 	const labelOrdinal = taskOrdinalFromLabel(label);
 	return labelOrdinal !== null && taskOrdinalFromLabel(task.title) === labelOrdinal;
 }
@@ -1268,20 +1357,22 @@ export async function relayMissionControlEvent(event: MissionControlBridgeEvent)
 		return;
 	}
 
-	if (!shouldRecordLifecycleTransition(event)) {
+	const enrichedEvent = enrichMissionEventWithKnownMetadata(event);
+
+	if (!shouldRecordLifecycleTransition(enrichedEvent)) {
 		return;
 	}
 
-	recordRelayEvent(event);
+	recordRelayEvent(enrichedEvent);
 
-	if (!shouldRelayMissionControlEvent(event)) {
+	if (!shouldRelayMissionControlEvent(enrichedEvent)) {
 		return;
 	}
 
 	const tasks: Promise<void>[] = [];
 	const sparkIngestUrl = DEFAULT_SPARK_INGEST_URL;
 	if (sparkIngestUrl) {
-		const sparkPayload = buildSparkMissionControlEvent(event);
+		const sparkPayload = buildSparkMissionControlEvent(enrichedEvent);
 		tasks.push(
 			postJson(sparkIngestUrl, sparkPayload, DEFAULT_SPARK_TOKEN).catch((error) => {
 				console.warn('[MissionControlRelay] Spark ingest relay failed:', error);
@@ -1289,14 +1380,14 @@ export async function relayMissionControlEvent(event: MissionControlBridgeEvent)
 		);
 	}
 
-	const webhookUrls = selectWebhookUrlsForMissionEvent(event);
+	const webhookUrls = selectWebhookUrlsForMissionEvent(enrichedEvent);
 	if (webhookUrls.length > 0) {
 		const webhookPayload = {
 			type: 'mission_control_event',
 			timestamp: new Date().toISOString(),
-			summary: sanitizeExternalText(summarizeMissionControlEvent(event), 220),
-			missionControl: resolveMissionControlAccess(missionControlPathForMission(normalizeMissionId(event))),
-			event: redactMissionControlEventForExternal(event)
+			summary: sanitizeExternalText(summarizeMissionControlEvent(enrichedEvent), 220),
+			missionControl: resolveMissionControlAccess(missionControlPathForMission(normalizeMissionId(enrichedEvent))),
+			event: redactMissionControlEventForExternal(enrichedEvent)
 		};
 		const relayHeaders = DEFAULT_TELEGRAM_RELAY_SECRET
 			? { 'X-Spark-Telegram-Relay-Secret': DEFAULT_TELEGRAM_RELAY_SECRET }

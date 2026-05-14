@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { basename, resolve } from 'node:path';
+import { extractExplicitProjectPath } from './project-path-extraction';
 import { projectPreviewUrl } from './project-preview';
 import type { MissionControlProjectLineage } from '$lib/types/mission-control';
 
@@ -103,16 +104,7 @@ function firstTextBlock(data: RecordLike | null, missionName?: string | null, me
 }
 
 function extractProjectPath(text: string): string | null {
-	const match =
-		text.match(/Improve the existing shipped project\s+"[^"]+"\s+at\s+((?:[A-Z]:[\\/]|\/)[^\r\n]+)/i) ||
-		text.match(/(?:target operating-system folder|project path|target folder|create it at|build it at|build this at)\s*:?\s*`?((?:[A-Z]:[\\/]|\/)[^\r\n`]+)/i) ||
-		text.match(/\bat\s+`?((?:[A-Z]:[\\/]|\/)[^\r\n`]+)/i);
-	const value = match?.[1]
-		?.trim()
-		.replace(/:\s+.*$/i, '')
-		.replace(/\s+(?:as|inside|with|and)\b.*$/i, '')
-		.replace(/[).,;]+$/, '');
-	return value || null;
+	return extractExplicitProjectPath(text);
 }
 
 function extractPreviewUrl(text: string): string | null {

@@ -24,11 +24,13 @@ import { formatTaskQualityGuidance } from '$lib/server/task-quality-rubric';
 import { formatVerificationPlanGuidance, generateVerificationPlan } from '$lib/server/verification-plan-generator';
 import { enrichBrief, isSparseUnderstandingClarification } from '$lib/server/brief-enricher';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { projectStoredPrdAnalysisResult } from '$lib/server/prd-analysis-result-schema';
+import { extractExplicitProjectPath } from '$lib/server/project-path-extraction';
 import {
 	capabilityProposalSummary,
 	normalizeCapabilityProposalPacket
 } from '$lib/server/capability-proposal-packet';
-import { normalizeTraceRef, traceRefFromMissionId } from '$lib/server/trace-ref';
+import { extractTraceRef, normalizeTraceRef, traceRefFromMissionId } from '$lib/server/trace-ref';
 
 function getPrdBridgePaths() {
 	const spawnerDir = spawnerStateDir();
@@ -77,6 +79,38 @@ async function appendPrdTrace(requestId: string, event: string, details: Record<
 	}
 }
 
+function traceRefDetails(traceRef: string | null | undefined): Record<string, string> {
+	return traceRef ? { traceRef } : {};
+}
+
+async function traceRefForRequest(requestId: string, details: Record<string, unknown>): Promise<string | null> {
+	const explicit = extractTraceRef(details);
+	if (explicit) return explicit;
+	try {
+		const { pendingRequestFile } = getPrdBridgePaths();
+		if (!existsSync(pendingRequestFile)) return null;
+		const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
+		const pending = JSON.parse(pendingRaw) as Record<string, unknown>;
+		if (pending.requestId !== requestId) return null;
+		return extractTraceRef(pending);
+	} catch {
+		return null;
+	}
+}
+
+export function _buildPrdResultArtifactVerification(
+	requestId: string,
+	paths: Pick<ReturnType<typeof getPrdBridgePaths>, 'resultsDir'> = getPrdBridgePaths()
+): { kind: 'prd_analysis_result'; present: boolean; fileName: string } {
+	const safeRequestId = normalizeRequestId(requestId);
+	const fileName = `${safeRequestId}.json`;
+	return {
+		kind: 'prd_analysis_result',
+		present: existsSync(join(paths.resultsDir, fileName)),
+		fileName
+	};
+}
+
 type RunnerWritableState = 'yes' | 'no' | 'unknown';
 
 type RunnerCapability = {
@@ -85,6 +119,41 @@ type RunnerCapability = {
 	failureReason?: string;
 	checkedAt?: string;
 };
+
+type AuthorityVerdictV1 = {
+	schema_version: 'spark.authority_verdict.v1';
+	traceRef?: string;
+	actionFamily: 'mission_execution';
+	sourcePolicy: string;
+	verdict: 'allowed' | 'blocked' | 'confirmation_required';
+	confirmationRequired: boolean;
+	scope: string;
+	expiresAt: string | null;
+	sourceRepo: 'spawner-ui';
+	reasonCode: string;
+};
+
+export function _buildAuthorityVerdict(input: {
+	traceRef?: string | null;
+	autoStarted: boolean;
+	autoProvider: string;
+}): AuthorityVerdictV1 {
+	const provider = input.autoProvider || 'unknown';
+	return {
+		schema_version: 'spark.authority_verdict.v1',
+		...(input.traceRef ? { traceRef: input.traceRef } : {}),
+		actionFamily: 'mission_execution',
+		sourcePolicy: 'spawner_prd_bridge_control_auth_rate_limit_auto_provider',
+		verdict: input.autoStarted ? 'allowed' : 'blocked',
+		confirmationRequired: false,
+		scope: 'local_spawner_prd_auto_analysis',
+		expiresAt: null,
+		sourceRepo: 'spawner-ui',
+		reasonCode: input.autoStarted
+			? `auto_provider_${provider}_started`
+			: `auto_provider_${provider}_not_started`
+	};
+}
 
 function normalizeRunnerCapability(input: unknown): RunnerCapability | null {
 	if (!input || typeof input !== 'object') return null;
@@ -138,8 +207,7 @@ function slugifyTaskId(value: string, fallback: string): string {
 }
 
 function extractTargetFolder(content: string): string | null {
-	const match = content.match(/\bat\s+([A-Za-z]:\\[^\n\r]+?)(?::\s|\s+Files\b|$|\r|\n)/i);
-	return match?.[1]?.trim().replace(/[.:]+$/, '') || null;
+	return extractExplicitProjectPath(content);
 }
 
 function extractRequestedFiles(content: string): string[] {
@@ -154,12 +222,102 @@ function extractRequestedFiles(content: string): string[] {
 function isConstrainedSingleFileStaticHtml(content: string): boolean {
 	const lower = content.toLowerCase();
 	const namesIndex = /\bindex\.html\b/.test(lower);
+	const namesReadme = /\breadme\.md\b/.test(lower);
 	const oneFileOnly = /\b(?:one|single)[-\s]?file\s+only\b|\bonly\s+(?:one|a\s+single)\s+file\b/.test(lower);
 	const oneFileNamedIndex = /\b(?:one|single)[-\s]?file\s*(?:,|:|called|named|as)?\s*index\.html\b/.test(lower);
+	const exactlyTwoFiles = hasExactTwoFileProofIntent(lower);
 	const staticHtmlOnly = /\bstatic\s+html\s+only\b|\bkeep\s+it\s+as\s+static\s+html\b|\bstatic\s+file\s+only\b/.test(lower);
-	const noPackage = /\bdo\s+not\s+add\s+package\b|\bno\s+package(?:\.json| files?)?\b/.test(lower);
+	const noPackage = /\bdo\s+not\s+(?:add|create)\s+package(?:\.json)?\b|\bno\s+package(?:\.json| files?)?\b/.test(lower);
 	const forbidsFullApp = /\bdo\s+not\s+(?:make|build|create)\s+(?:a\s+)?full\s+app\b|\bdon't\s+(?:make|build|create)\s+(?:a\s+)?full\s+app\b/.test(lower);
-	return namesIndex && (oneFileOnly || oneFileNamedIndex || forbidsFullApp || (staticHtmlOnly && noPackage));
+	const forbidsExtraFiles = hasExtraFileDenial(lower);
+	return namesIndex && (
+		oneFileOnly ||
+		oneFileNamedIndex ||
+		forbidsFullApp ||
+		(staticHtmlOnly && noPackage) ||
+		(namesReadme && exactlyTwoFiles && forbidsExtraFiles)
+	);
+}
+
+function constrainedStaticDeliverableFiles(content: string): string[] {
+	const lower = content.toLowerCase();
+	if (/\bindex\.html\b/.test(lower) && /\breadme\.md\b/.test(lower) && hasExactTwoFileProofIntent(lower)) {
+		return ['index.html', 'README.md'];
+	}
+	return ['index.html'];
+}
+
+function extractStaticProofVisibleRequirements(content: string): { marker: string | null; sentence: string | null } {
+	const marker = content.match(/\bSPARK_OS_[A-Z0-9_]+\b/)?.[0] ?? null;
+	const sentence =
+		content.match(/\bexact\s+sentence\s+"([^"\r\n]{1,200})"/i)?.[1] ??
+		content.match(/\bsentence\s+"([^"\r\n]{1,200})"/i)?.[1] ??
+		null;
+	return { marker, sentence };
+}
+
+function escapeHtml(value: string): string {
+	return value
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
+}
+
+async function writeConstrainedStaticProofArtifacts(content: string): Promise<number> {
+	if (!isConstrainedSingleFileStaticHtml(content)) return 0;
+	const targetFolder = extractTargetFolder(content);
+	const deliverableFiles = constrainedStaticDeliverableFiles(content);
+	if (!targetFolder || deliverableFiles.join(',') !== 'index.html,README.md') return 0;
+
+	const { marker, sentence } = extractStaticProofVisibleRequirements(content);
+	if (!marker && !sentence) return 0;
+
+	await mkdir(targetFolder, { recursive: true });
+	const markerHtml = marker ? `<p class="marker">${escapeHtml(marker)}</p>` : '';
+	const sentenceHtml = sentence ? `<p class="sentence">${escapeHtml(sentence)}</p>` : '';
+	const indexHtml = [
+		'<!doctype html>',
+		'<html lang="en">',
+		'<head>',
+		'<meta charset="utf-8">',
+		'<meta name="viewport" content="width=device-width, initial-scale=1">',
+		'<title>Spawner Trace Parity Proof</title>',
+		'<style>body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:Arial,sans-serif;background:#101318;color:#f6f7fb}.proof{max-width:720px;padding:32px;border:1px solid #3b4252}.marker{font-family:monospace;color:#7dd3fc}.sentence{font-size:1.25rem}</style>',
+		'</head>',
+		'<body>',
+		'<main class="proof">',
+		'<h1>Spawner Trace Parity Proof</h1>',
+		markerHtml,
+		sentenceHtml,
+		'</main>',
+		'</body>',
+		'</html>'
+	].join('\n');
+	const readme = [marker, sentence].filter(Boolean).join('\n\n') + '\n';
+	await writeFile(join(targetFolder, 'index.html'), indexHtml, 'utf-8');
+	await writeFile(join(targetFolder, 'README.md'), readme, 'utf-8');
+	return 2;
+}
+
+function hasExactTwoFileProofIntent(lower: string): boolean {
+	const saysExactly = /\bexactly\b/.test(lower);
+	const saysTwo = /\b(?:two|2)\b/.test(lower);
+	const saysFiles = /\bfiles?\b/.test(lower);
+	return (
+		/\bexactly\b[\s\S]{0,120}\b(?:two|2)\b[\s\S]{0,120}\bfiles?\b/.test(lower) ||
+		/\b(?:two|2)\b[\s\S]{0,120}\bfiles?\b[\s\S]{0,120}\bno\s+(?:others|other\s+files)\b/.test(lower) ||
+		(saysExactly && saysTwo && saysFiles && /\bindex\.html\b/.test(lower) && /\breadme\.md\b/.test(lower))
+	);
+}
+
+function hasExtraFileDenial(lower: string): boolean {
+	return (
+		/\bno\s+others\b|\bno\s+other\s+files?\b|\bno\s+extra\s+files?\b/.test(lower) ||
+		/\bdo\s+not\s+create\b[\s\S]{0,160}\b(?:app\.js|styles\.css|package\.json|assets|folders?|extra\s+files?)\b/.test(lower) ||
+		/\bdo\s+not\s+(?:publish|deploy|install\s+packages|make\s+network\s+calls)\b/.test(lower)
+	);
 }
 
 function isSingleFileStaticHtmlApp(content: string): boolean {
@@ -291,47 +449,52 @@ export async function _buildFallbackAnalysisResult(
 		const validSkills = new Set((await getTierSkills(tier)).map((skill) => skill.id));
 		const selectSkills = (skills: string[]) => skills.filter((skill) => validSkills.has(skill)).slice(0, 5);
 		const workspaceTargets = targetFolder ? [targetFolder] : [];
+		const deliverableFiles = constrainedStaticDeliverableFiles(content);
+		const deliverableList = deliverableFiles.join(', ');
 		const tasks = [
 			{
-				id: 'task-1-create-index-html',
-				title: 'Create Exact Static Index HTML',
-				summary: 'Create or update only index.html with the exact requested visible copy and minimal embedded CSS.',
+				id: 'task-1-create-static-files',
+				title: 'Create Exact Static Files',
+				summary: `Create exactly ${deliverableList} with the requested visible copy and minimal embedded styling.`,
 				description:
-					'Keep the deliverable to one static HTML file. Do not add package files, app shell behavior, persistence, scripts, navigation, extra controls, or generated assets unless the brief explicitly asks for them.',
+					'Keep the deliverable to the explicitly requested static files. Do not add package files, app shell behavior, persistence, scripts, navigation, extra controls, or generated assets unless the brief explicitly asks for them.',
 				skills: selectSkills(['frontend-engineer', 'html-css', 'accessibility']),
 				dependencies: [] as string[],
 				workspaceTargets,
 				acceptanceCriteria: [
-					'Only index.html is required for the deliverable.',
+					`Only ${deliverableList} are required for the deliverable.`,
 					'The requested heading and body text are preserved exactly.',
 					'The page opens directly as static HTML without npm, a dev server, or a build step.',
 					'No package.json, node_modules, JavaScript app shell, localStorage workflow, checklist UI, dashboard, navigation, or extra product features are added.'
 				],
 				verificationCommands: [
-					'test -f index.html',
+					...deliverableFiles.map((file) => `test -f ${file}`),
 					'test ! -f package.json',
-					'test ! -d node_modules',
-					'grep -F "index.html" . >/dev/null 2>&1 || true'
+					'test ! -f app.js',
+					'test ! -f styles.css',
+					'test ! -d node_modules'
 				]
 			},
 			{
 				id: 'task-2-verify-static-contract',
-				title: 'Verify One-File Static Contract',
-				summary: 'Confirm the final workspace contains the single static HTML deliverable and no app expansion.',
+				title: 'Verify Exact Static Contract',
+				summary: `Confirm the final workspace contains exactly ${deliverableList} and no app expansion.`,
 				description:
-					'Run lightweight checks that prove the prompt stayed constrained: one required file, exact visible copy, no package files, no runtime dependency, and no extra app functionality.',
+					'Run lightweight checks that prove the prompt stayed constrained: exact required files, exact visible copy, no package files, no runtime dependency, and no extra app functionality.',
 				skills: selectSkills(['qa-engineering', 'testing-strategies', 'accessibility']),
-				dependencies: ['task-1-create-index-html'],
+				dependencies: ['task-1-create-static-files'],
 				workspaceTargets,
 				acceptanceCriteria: [
-					'index.html exists at the workspace root.',
+					`${deliverableList} exist at the workspace root.`,
 					'The requested strings appear in the rendered document.',
 					'No build tooling or extra project files are needed.',
 					'The result is a static confirmation page rather than a full app.'
 				],
 				verificationCommands: [
-					'test -f index.html',
+					...deliverableFiles.map((file) => `test -f ${file}`),
 					'test ! -f package.json',
+					'test ! -f app.js',
+					'test ! -f styles.css',
 					'test ! -d node_modules',
 					'grep -i "<h1" index.html',
 					'grep -i "<script" index.html && exit 1 || true'
@@ -343,7 +506,7 @@ export async function _buildFallbackAnalysisResult(
 			requestId,
 			success: true,
 			projectName,
-			projectType: 'static-single-file-html',
+			projectType: deliverableFiles.length === 1 ? 'static-single-file-html' : 'static-exact-file-proof',
 			complexity: 'simple',
 			infrastructure: {
 				needsAuth: false,
@@ -363,10 +526,10 @@ export async function _buildFallbackAnalysisResult(
 			skills,
 			executionPrompt: [
 				'Implement the user request as a constrained static-file build.',
-				'Create or update only index.html in the workspace root.',
+				`Create exactly these files in the workspace root: ${deliverableList}.`,
 				'Preserve the requested visible copy exactly.',
 				'Use minimal embedded CSS only.',
-				'Do not create a full app, package files, JavaScript workflow, localStorage persistence, checklist UI, dashboard, navigation, or extra product features.',
+				'Do not create any other files, package files, JavaScript workflow, localStorage persistence, checklist UI, dashboard, navigation, or extra product features.',
 				'Original brief:',
 				content
 			].join('\n')
@@ -534,7 +697,8 @@ async function writeFallbackAnalysisResult(
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier,
-	reason: string
+	reason: string,
+	traceRef?: string | null
 ): Promise<void> {
 	const paths = getPrdBridgePaths();
 	const safeRequestId = normalizeRequestId(requestId);
@@ -546,8 +710,20 @@ async function writeFallbackAnalysisResult(
 	}
 
 	const result = await _buildFallbackAnalysisResult(requestId, projectName, buildMode, tier, paths);
-	await writeFile(resultFile, JSON.stringify(result, null, 2), 'utf-8');
+	const resolvedTraceRef = traceRef || await traceRefForRequest(requestId, {});
+	const resultWithTrace = resolvedTraceRef
+		? { ...result, traceRef: resolvedTraceRef, metadata: { ...((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined), traceRef: resolvedTraceRef } }
+		: result;
+	await writeFile(resultFile, JSON.stringify(projectStoredPrdAnalysisResult(requestId, resultWithTrace), null, 2), 'utf-8');
+	const staticArtifactCount = await writeConstrainedStaticProofArtifacts(await readFile(paths.pendingPrdFile, 'utf-8').catch(() => ''));
+	if (staticArtifactCount > 0) {
+		await appendPrdTrace(requestId, 'deterministic_static_artifacts_written', {
+			...traceRefDetails(resolvedTraceRef),
+			fileCount: staticArtifactCount
+		});
+	}
 	await appendPrdTrace(requestId, 'fallback_analysis_written', {
+		...traceRefDetails(resolvedTraceRef),
 		reason,
 		resultFile,
 		taskCount: Array.isArray(result.tasks) ? result.tasks.length : 0
@@ -559,7 +735,8 @@ function scheduleAutoAnalysisWatchdog(
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier,
-	cancelAutoAnalysis?: () => void
+	cancelAutoAnalysis?: () => void,
+	traceRef?: string | null
 ): void {
 	if (AUTO_ANALYSIS_TIMEOUT_MS <= 0) return;
 	const timer = setTimeout(async () => {
@@ -568,7 +745,9 @@ function scheduleAutoAnalysisWatchdog(
 		const resultFile = join(resultsDir, `${safeRequestId}.json`);
 		const hasResult = existsSync(resultFile);
 		if (hasResult) {
-			await appendPrdTrace(requestId, 'watchdog_result_found');
+			await appendPrdTrace(requestId, 'watchdog_result_found', {
+				...traceRefDetails(traceRef)
+			});
 			return;
 		}
 
@@ -578,6 +757,7 @@ function scheduleAutoAnalysisWatchdog(
 			reason: 'No runtime analysis result written before timeout; deterministic fallback queued'
 		});
 		await appendPrdTrace(requestId, 'watchdog_timeout', {
+			...traceRefDetails(traceRef),
 			timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
 			expectedResultFile: resultFile
 		});
@@ -586,7 +766,8 @@ function scheduleAutoAnalysisWatchdog(
 			projectName,
 			buildMode,
 			tier,
-			`auto-analysis timeout after ${AUTO_ANALYSIS_TIMEOUT_MS}ms`
+			`auto-analysis timeout after ${AUTO_ANALYSIS_TIMEOUT_MS}ms`,
+			traceRef
 		);
 	}, AUTO_ANALYSIS_TIMEOUT_MS);
 
@@ -741,6 +922,7 @@ async function buildPromptParts(
 
 async function buildCodexPrompt(
 	requestId: string,
+	traceRef: string | null,
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier,
@@ -803,6 +985,7 @@ async function buildCodexPrompt(
 	return [
 		'You are running inside spawner-ui and must complete PRD analysis autonomously.',
 		`Request ID: ${requestId}`,
+		...(traceRef ? [`Trace Ref: ${traceRef}`] : []),
 		`Project Name Hint: ${projectName}`,
 		`Build Mode: ${buildMode}`,
 		'',
@@ -824,7 +1007,7 @@ async function buildCodexPrompt(
 		'1) Read the pending request metadata path above and confirm requestId matches.',
 		'2) Read the pending PRD path above completely.',
 		'3) Produce a valid PRD analysis result JSON with:',
-		'   requestId, success, projectName, projectType, complexity, infrastructure, techStack, tasks, skills, executionPrompt.',
+		'   requestId, traceRef, success, projectName, projectType, complexity, infrastructure, techStack, tasks, skills, executionPrompt.',
 		'4) Include actionable tasks with skills, dependencies, and verification criteria. For advanced_prd, make these TAS-style tasks with acceptance criteria.',
 		'5) Validate every skill ID before emitting — if it is not in the allowlist above, replace it with the closest valid ID or omit the task.',
 		'6) POST result event to Spawner API via PowerShell Invoke-RestMethod using this shape:',
@@ -847,7 +1030,8 @@ async function startAutoAnalysis(
 	requestId: string,
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
-	tier: SkillTier
+	tier: SkillTier,
+	traceRef: string | null
 ): Promise<{ started: boolean; provider: string; cancel?: () => void }> {
 	const provider = (
 		process.env.SPAWNER_PRD_AUTO_PROVIDER ||
@@ -856,7 +1040,7 @@ async function startAutoAnalysis(
 		'codex'
 	).trim().toLowerCase();
 	if (provider === 'none') {
-		await appendPrdTrace(requestId, 'auto_disabled', { provider });
+		await appendPrdTrace(requestId, 'auto_disabled', { provider, ...traceRefDetails(traceRef) });
 		return { started: false, provider };
 	}
 
@@ -873,20 +1057,20 @@ async function startAutoAnalysis(
 			tier,
 			paths,
 			...parts,
-			appendTrace: (event, details) => appendPrdTrace(requestId, event, details)
+			appendTrace: (event, details) => appendPrdTrace(requestId, event, { ...details, ...traceRefDetails(traceRef) })
 		});
 		return { started, provider: 'claude' };
 	}
 
 	if (provider !== 'codex') {
-		await appendPrdTrace(requestId, 'auto_unsupported_provider', { provider });
+		await appendPrdTrace(requestId, 'auto_unsupported_provider', { provider, ...traceRefDetails(traceRef) });
 		return { started: false, provider };
 	}
 
 	try {
 		const codexBinary = resolveCodexBinary();
 		if (!codexBinary) {
-			await appendPrdTrace(requestId, 'auto_binary_missing', { provider: 'codex' });
+			await appendPrdTrace(requestId, 'auto_binary_missing', { provider: 'codex', ...traceRefDetails(traceRef) });
 			return { started: false, provider: 'codex' };
 		}
 
@@ -897,6 +1081,7 @@ async function startAutoAnalysis(
 		const parts = await buildPromptParts(buildMode, tier, briefBody);
 		const prompt = await buildCodexPrompt(
 			requestId,
+			traceRef,
 			projectName,
 			buildMode,
 			tier,
@@ -907,6 +1092,7 @@ async function startAutoAnalysis(
 		const missionId = `prd-auto-${normalizeRequestId(requestId)}`;
 
 		await appendPrdTrace(requestId, 'auto_worker_dispatch', {
+			...traceRefDetails(traceRef),
 			provider: 'codex',
 			missionId,
 			workingDirectory: process.cwd(),
@@ -926,14 +1112,17 @@ async function startAutoAnalysis(
 				})
 			.then((result) => {
 				void appendPrdTrace(requestId, 'auto_worker_finished', {
+					...traceRefDetails(traceRef),
 					success: result.success,
 					error: result.error || null,
 					durationMs: result.durationMs || null,
-					sessionId: result.sparkAgentSessionId
+					sessionId: result.sparkAgentSessionId,
+					resultArtifact: _buildPrdResultArtifactVerification(requestId, paths)
 				});
 			})
 			.catch((error: unknown) => {
 				void appendPrdTrace(requestId, 'auto_worker_error', {
+					...traceRefDetails(traceRef),
 					error: error instanceof Error ? error.message : String(error)
 				});
 			});
@@ -945,6 +1134,7 @@ async function startAutoAnalysis(
 		};
 	} catch (error) {
 		await appendPrdTrace(requestId, 'auto_start_failed', {
+			...traceRefDetails(traceRef),
 			provider: 'codex',
 			error: error instanceof Error ? error.message : String(error)
 		});
@@ -998,12 +1188,11 @@ export const POST: RequestHandler = async (event) => {
 			await mkdir(paths.resultsDir, { recursive: true });
 		}
 
-		const constrainedStaticSingleFileInput = isConstrainedSingleFileStaticHtml(content);
-
 		// Brief enrichment: lift a vague brief into something the canvas
 		// generator can actually plan against. Skipped when the input is
 		// already specific enough (length / keyword density / has section
 		// headers). Always returns a safe enrichedContent — never blocks.
+		const constrainedStaticSingleFileInput = isConstrainedSingleFileStaticHtml(content);
 		const enrichment = constrainedStaticSingleFileInput
 			? {
 					wasEnriched: false,
@@ -1151,18 +1340,28 @@ export const POST: RequestHandler = async (event) => {
 					requestId,
 					requestMeta.projectName,
 					requestMeta.buildMode,
-					normalizedTier
+					normalizedTier,
+					normalizedTraceRef
 				);
+		await appendPrdTrace(requestId, 'authority_verdict_evaluated', {
+			...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+			authorityVerdict: _buildAuthorityVerdict({
+				traceRef: normalizedTraceRef,
+				autoStarted: auto.started,
+				autoProvider: auto.provider
+			})
+		});
 		if (constrainedStaticSingleFile) {
 			await updatePendingRequestStatus(requestId, 'fallback', {
-				reason: 'Constrained static single-file request; deterministic analysis queued to avoid app-scope expansion.'
+				reason: 'Constrained static file request; deterministic analysis queued to avoid app-scope expansion.'
 			});
 			await writeFallbackAnalysisResult(
 				requestId,
 				requestMeta.projectName,
 				requestMeta.buildMode,
 				normalizedTier,
-				'constrained static single-file request'
+				'constrained static file request',
+				normalizedTraceRef
 			);
 		} else if (auto.started) {
 			scheduleAutoAnalysisWatchdog(
@@ -1170,7 +1369,8 @@ export const POST: RequestHandler = async (event) => {
 				requestMeta.projectName,
 				requestMeta.buildMode,
 				normalizedTier,
-				auto.cancel
+				auto.cancel,
+				normalizedTraceRef
 			);
 		} else if (auto.provider !== 'none') {
 			await updatePendingRequestStatus(requestId, 'fallback', {
@@ -1181,7 +1381,8 @@ export const POST: RequestHandler = async (event) => {
 				requestMeta.projectName,
 				requestMeta.buildMode,
 				normalizedTier,
-				`auto-analysis not started for provider ${auto.provider}`
+				`auto-analysis not started for provider ${auto.provider}`,
+				normalizedTraceRef
 			);
 		}
 

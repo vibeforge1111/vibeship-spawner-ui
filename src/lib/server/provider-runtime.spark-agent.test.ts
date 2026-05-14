@@ -305,6 +305,32 @@ describe('provider-runtime Spark agent bridge', () => {
 		).toBe(true);
 	});
 
+	it('reclassifies successful worker responses that report blocked execution', async () => {
+		sparkAgentBridge.setWorkerExecutorForTests(async () => ({
+			success: true,
+			response: 'Blocked by session permissions. No files were created because the workspace is mounted read-only.'
+		}));
+
+		const emitted: BridgeEvent[] = [];
+		const unsubscribe = eventBridge.subscribe((event) => emitted.push(event));
+
+		await providerRuntime.dispatch({
+			executionPack: buildPack('mission-step2-blocked-success', [provider('codex', 'gpt-5.5')]),
+			apiKeys: { codex: 'test-codex' },
+			onEvent: () => {},
+			workingDirectory: process.cwd()
+		});
+
+		await waitFor(() => providerRuntime.getMissionStatus('mission-step2-blocked-success').allComplete);
+		unsubscribe();
+
+		const status = providerRuntime.getMissionStatus('mission-step2-blocked-success');
+		expect(status.anyFailed).toBe(true);
+		expect(status.providers.codex).toBe('failed');
+		const failures = emitted.filter((event) => event.type === 'task_failed');
+		expect(failures.some((event) => event.message?.includes('Blocked by session permissions'))).toBe(true);
+	});
+
 	it('cancels an active worker session and emits task_cancelled', async () => {
 		sparkAgentBridge.setWorkerExecutorForTests(
 			(context) =>

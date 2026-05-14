@@ -90,6 +90,8 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const pending = JSON.parse(pendingRaw);
 		expect(pending.requestId).toBe(requestId);
 		expect(pending.missionId).toBe('mission-tg-contract-test');
+		expect(pending.executionPrompt).toBeUndefined();
+		expect(pending.instructionTextRedacted).toBe(true);
 		expect(pending.nodes[0].skill).toMatchObject({
 			id: 'task-1-static-shell',
 			name: 'Create static shell',
@@ -103,6 +105,59 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		expect(description).toContain('No package.json or build step is introduced.');
 		expect(description).toContain('Verification commands:');
 		expect(description).toContain('Select-String');
+	});
+
+	it('does not auto-dispatch deterministic static proof results over existing artifacts', async () => {
+		const requestId = 'tg-static-proof-load-test';
+		const targetFolder = path.join(testSpawnerDir, 'spark-static-proof-load-test');
+		const marker = 'SPARK_OS_STATIC_LOAD_TEST';
+		const sentence = 'Static load proof stays deterministic';
+		await mkdir(targetFolder, { recursive: true });
+		await writeFile(path.join(targetFolder, 'index.html'), `<p>${marker}</p><p>${sentence}</p>`, 'utf-8');
+		await writeFile(path.join(targetFolder, 'README.md'), `${marker}\n\n${sentence}\n`, 'utf-8');
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify({
+				requestId,
+				success: true,
+				projectName: 'Spark Static Proof Load Test',
+				projectType: 'static-exact-file-proof',
+				instructionTextRedacted: true,
+				tasks: [
+					{
+						id: 'task-1-static-proof',
+						title: 'Create deterministic static proof',
+						summary: 'Create exactly index.html and README.md.',
+						workspaceTargets: [targetFolder],
+						acceptanceCriteria: [
+							'index.html and README.md exist.',
+							'The requested visible marker and sentence are present.'
+						]
+					}
+				]
+			}),
+			'utf-8'
+		);
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ requestId, autoRun: true })
+			})
+		} as never);
+
+		const body = await response.json();
+		expect(response.status).toBe(200);
+		expect(body.autoDispatch).toMatchObject({
+			started: false,
+			skipped: true,
+			reason: 'deterministic static artifacts already written'
+		});
+		const pending = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-load.json'), 'utf-8'));
+		expect(pending.autoRun).toBe(false);
+		expect(await readFile(path.join(targetFolder, 'index.html'), 'utf-8')).toContain(marker);
+		expect(await readFile(path.join(targetFolder, 'README.md'), 'utf-8')).toContain(sentence);
 	});
 
 	it('preserves Telegram relay target metadata for canvas auto-run dispatch', async () => {
@@ -417,8 +472,10 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 			autoRun: true,
 			buildMode: 'advanced_prd',
 			buildModeReason: 'Request looks like a new project or systematic feature that benefits from PRD-to-task planning.',
-			executionPrompt: 'Advanced PRD: build Spark Mission Arcade with TAS-style verification.'
+			instructionTextRedacted: true
 		});
+		expect(pending.executionPrompt).toBeUndefined();
+		expect(pendingRaw).not.toContain('Advanced PRD: build Spark Mission Arcade');
 		expect(pending.nodes).toHaveLength(3);
 		expect(pending.nodes.map((node: any) => node.skill.name)).toEqual([
 			'Create project shell',

@@ -86,6 +86,11 @@ describe('/api/prd-bridge/write integration', () => {
 		expect(response.status).toBe(200);
 		expect(body.autoAnalysis).toMatchObject({ provider: 'zai', started: false });
 		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(true);
+		const storedResult = JSON.parse(await readFile(path.join(testSpawnerDir, 'results', `${requestId}.json`), 'utf-8'));
+		expect(storedResult.traceRef).toBe(traceRef);
+		expect(storedResult.metadata.traceRef).toBe(traceRef);
+		expect(storedResult.instructionTextRedacted).toBe(true);
+		expect(storedResult.executionPrompt).toBeUndefined();
 		const pendingMeta = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
 		expect(pendingMeta.traceRef).toBe(traceRef);
 		expect(pendingMeta.relay.traceRef).toBe(traceRef);
@@ -98,6 +103,71 @@ describe('/api/prd-bridge/write integration', () => {
 			implementationRoute: 'domain_chip',
 			ledgerKey: 'domain_chip:cafe-memory-reporter',
 			ownerSystem: 'Spark domain chip runtime'
+		});
+	});
+
+	it('keeps exact two-file static proofs deterministic and scoped to the requested folder', async () => {
+		const requestId = 'tg-build-static-proof-s';
+		const traceRef = 'trace:spawner-prd:mission-static-proof-s';
+		const targetFolder = path.join(testSpawnerDir, 'spark-os-proof-s');
+		const proofMarker = 'SPARK_OS_TEST_STATIC_PROOF_S';
+		const proofSentence = 'Spawner trace parity runtime proof';
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/write', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'x-api-key': BRIDGE_TEST_KEY },
+				body: JSON.stringify({
+					content: [
+						`Create a local-only static proof in ${targetFolder}.`,
+						'You must create exactly 2 local proof files and no others: index.html and README.md.',
+						'Do not create app.js, styles.css, package.json, assets, folders, or any extra file.',
+						'Put all styling inline inside index.html.',
+						`Include the visible marker ${proofMarker} in both files.`,
+						`Include the exact sentence "${proofSentence}" in both files.`
+					].join(' '),
+					requestId,
+					projectName: 'Spark OS Proof S',
+					buildMode: 'direct',
+					tier: 'pro',
+					chatId: 'telegram-chat-1',
+					userId: 'telegram-user-1',
+					traceRef
+				})
+			}),
+			getClientAddress: () => '127.0.0.1'
+		} as never);
+
+		const body = await response.json();
+		expect(response.status).toBe(200);
+		expect(body.autoAnalysis).toMatchObject({ provider: 'deterministic-static', started: false });
+		const storedText = await readFile(path.join(testSpawnerDir, 'results', `${requestId}.json`), 'utf-8');
+		const storedResult = JSON.parse(storedText);
+		expect(storedResult.projectType).toBe('static-exact-file-proof');
+		expect(storedResult.executionPrompt).toBeUndefined();
+		expect(storedResult.tasks[0].workspaceTargets).toEqual([targetFolder]);
+		expect(storedResult.tasks[0].acceptanceCriteria[0]).toContain('index.html, README.md');
+		expect(storedText).not.toContain(`${targetFolder}. You must`);
+		expect(await readFile(path.join(targetFolder, 'index.html'), 'utf-8')).toContain(proofMarker);
+		expect(await readFile(path.join(targetFolder, 'index.html'), 'utf-8')).toContain(proofSentence);
+		expect(await readFile(path.join(targetFolder, 'README.md'), 'utf-8')).toContain(proofMarker);
+		expect(await readFile(path.join(targetFolder, 'README.md'), 'utf-8')).toContain(proofSentence);
+		const pendingMeta = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
+		expect(pendingMeta.projectLineage.projectPath).toBe(targetFolder);
+		const traceRows = (await readFile(path.join(testSpawnerDir, 'prd-auto-trace.jsonl'), 'utf-8'))
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line));
+		expect(traceRows.find((row) => row.event === 'authority_verdict_evaluated')).toMatchObject({
+			traceRef,
+			authorityVerdict: {
+				schema_version: 'spark.authority_verdict.v1',
+				traceRef,
+				actionFamily: 'mission_execution',
+				verdict: 'blocked',
+				sourceRepo: 'spawner-ui',
+				reasonCode: 'auto_provider_deterministic-static_not_started'
+			}
 		});
 	});
 });
