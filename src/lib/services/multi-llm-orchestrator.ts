@@ -97,6 +97,7 @@ export interface MultiLLMBuildInput {
 	options: MultiLLMOrchestratorOptions;
 	taskSkillMap?: Map<string, string[]>;
 	baseUrl?: string;
+	h70AccessToken?: string | null;
 }
 
 export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
@@ -289,6 +290,7 @@ export function buildMultiLLMExecutionPack(input: MultiLLMBuildInput): MultiLLME
 			primaryProviderId,
 			baseUrl,
 			taskSkillMap: input.taskSkillMap,
+			h70AccessToken: input.h70AccessToken,
 			mcpCapabilities,
 			mcpTaskPlans
 		});
@@ -884,6 +886,7 @@ interface BuildProviderPromptInput {
 	primaryProviderId: string;
 	baseUrl: string;
 	taskSkillMap?: Map<string, string[]>;
+	h70AccessToken?: string | null;
 	mcpCapabilities: MultiLLMCapability[];
 	mcpTaskPlans: Record<string, MultiLLMMCPTaskPlan>;
 }
@@ -897,6 +900,7 @@ function buildProviderPrompt(input: BuildProviderPromptInput): string {
 		primaryProviderId,
 		baseUrl,
 		taskSkillMap,
+		h70AccessToken,
 		mcpCapabilities,
 		mcpTaskPlans
 	} = input;
@@ -916,14 +920,14 @@ function buildProviderPrompt(input: BuildProviderPromptInput): string {
 		.map((task, index) => {
 			const deps = task.dependsOn?.length ? ` after: ${task.dependsOn.join(', ')}` : '';
 			const recommendedSkills = taskSkillMap?.get(task.id) || [];
-				const skillsLine =
-					recommendedSkills.length > 0 && !fastDirectMission
-						? `\n   Recommended H70 skills (use when reachable): ${recommendedSkills.map((skill) => `\`${skill}\``).join(', ')}`
-						: '';
-				const mcpPlanLine = formatTaskMcpPlan(mcpTaskPlans[task.id]);
-				return `${index + 1}. ${task.title} (id: ${task.id}${deps})\n   ${task.description}${skillsLine}${mcpPlanLine}`;
-			})
-			.join('\n\n');
+			const skillsLine =
+				recommendedSkills.length > 0 && !fastDirectMission
+					? `\n   Recommended H70 skills (use when reachable): ${recommendedSkills.map((skill) => `\`${skill}\``).join(', ')}`
+					: '';
+			const mcpPlanLine = formatTaskMcpPlan(mcpTaskPlans[task.id]);
+			return `${index + 1}. ${task.title} (id: ${task.id}${deps})\n   ${task.description}${skillsLine}${mcpPlanLine}`;
+		})
+		.join('\n\n');
 
 	const reportingBlock = canReportTaskLifecycle
 		? `Report lifecycle events:
@@ -941,13 +945,18 @@ curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -d '{"typ
 	const mcpCapsLine = mcpCapabilities.length > 0 ? mcpCapabilities.join(', ') : 'none';
 	const projectContract = buildProjectContractBlock(mission);
 	const verificationBlock = buildVerificationBlock(mission);
+	const h70AuthLine = h70AccessToken
+		? `- Use this scoped mission H70 proof only when fetching listed skills: Authorization: Bearer ${h70AccessToken}
+- This proof is limited to the assigned mission skills and expires automatically. Do not echo it in progress events, task results, final answers, files, logs, or screenshots.`
+		: '- If a skill endpoint asks for Spark Pro proof and no scoped proof is provided here, treat that skill as unreachable and continue.';
 	const skillLoadingBlock = fastDirectMission
 		? `Fast direct skill handling:
 - Treat skill labels as planning metadata only for this tiny task.
 - Do not fetch /api/h70-skills, read local SKILL.md files, or emit SKILL_SOURCE progress.
 - Start by creating the requested file, then run the file/content checks.`
 		: `H70 skill loading (recommended, not a hard gate):
-- For each assigned task with listed skills, try to fetch the recommended skills via /api/h70-skills/<skill-id> before implementation.
+- For each assigned task with listed skills, try to fetch the recommended skills via ${baseUrl}/api/h70-skills/<skill-id> before implementation.
+${h70AuthLine}
 - If H70 skills are reachable, apply their anti-pattern and disaster guidance before implementation.
 - If H70 skills are unreachable, continue with the task using your base expertise instead of blocking the mission.
 - When H70 loading succeeds or fails, emit one progress event documenting the source state before task_started (message format: "SKILL_SOURCE:<taskId>:loaded:<skillId,...>" or "SKILL_SOURCE:<taskId>:unavailable:<reason>").

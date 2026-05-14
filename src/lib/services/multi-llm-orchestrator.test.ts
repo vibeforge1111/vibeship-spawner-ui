@@ -293,10 +293,37 @@ describe('multi-llm-orchestrator', () => {
 
 		expect(prompt).toContain('H70 skill loading (recommended, not a hard gate)');
 		expect(prompt).toContain('If H70 skills are unreachable, continue with the task using your base expertise instead of blocking the mission.');
+		expect(prompt).toContain('no scoped proof is provided here');
 		expect(prompt).toContain('Do not report task_completed unless implementation and verification actually ran.');
+		expect(prompt).not.toContain('Authorization: Bearer spark-h70-');
 		expect(prompt).not.toContain('H70 skill loading (mandatory)');
 		expect(prompt).not.toContain('Do not start task execution until required task skills are loaded');
 		expect(prompt).not.toContain('Required H70 skills (load BEFORE task_started)');
+	});
+
+	it('passes scoped H70 proof to providers for pro mission skills without making it a completion gate', () => {
+		const options = createDefaultMultiLLMOptions();
+		options.enabled = true;
+		options.strategy = 'single';
+		options.primaryProviderId = 'codex';
+		options.providers = options.providers.map((provider) => ({
+			...provider,
+			enabled: provider.id === 'codex'
+		}));
+
+		const pack = buildMultiLLMExecutionPack({
+			mission: createMission(1),
+			options,
+			baseUrl: 'http://127.0.0.1:3333',
+			h70AccessToken: 'spark-h70-test-token',
+			taskSkillMap: new Map([['task-1', ['threejs-3d-graphics']]])
+		});
+		const prompt = pack.providerPrompts.codex;
+
+		expect(prompt).toContain('Recommended H70 skills (use when reachable): `threejs-3d-graphics`');
+		expect(prompt).toContain('Authorization: Bearer spark-h70-test-token');
+		expect(prompt).toContain('Do not echo it in progress events');
+		expect(prompt).toContain('If H70 skills are unreachable, continue with the task using your base expertise instead of blocking the mission.');
 	});
 
 	it('skips H70 loading entirely for tiny fast direct missions', () => {

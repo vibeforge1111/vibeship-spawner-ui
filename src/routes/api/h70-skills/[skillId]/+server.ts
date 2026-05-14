@@ -14,6 +14,7 @@ import * as os from 'os';
 import * as yaml from 'yaml';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
 import { getTierSkills } from '$lib/server/skill-tiers';
+import { verifyH70SkillAccessToken } from '$lib/server/h70-skill-access-token';
 import { verifySparkProSkillAccess, type SparkProEntitlementVerdict } from '$lib/server/spark-pro-entitlements';
 
 function uniquePaths(paths: string[]): string[] {
@@ -217,6 +218,7 @@ function lockedSkillResponse(verdict: SparkProEntitlementVerdict, head = false):
 
 async function requireSkillAccess(skillId: string, request: Request, head = false): Promise<Response | null> {
 	if (await isOpenSourceSkill(skillId)) return null;
+	if (await verifyH70SkillAccessToken(request, skillId)) return null;
 	return lockedSkillResponse(await verifySparkProSkillAccess(request), head);
 }
 

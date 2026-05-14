@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { existsSync } from 'fs';
+import { mkdtemp, rm } from 'fs/promises';
+import { tmpdir } from 'os';
+import path from 'path';
 import {
+	_createScopedH70AccessForLoad,
 	buildAutoDispatchTaskSkillMap,
 	canvasLoadToMissionGraph,
 	_providerApiKeysFromEnv,
@@ -7,6 +12,7 @@ import {
 	shouldAutoDispatchPrdLoad,
 	type PrdCanvasLoadForAutoDispatch
 } from './prd-auto-dispatch';
+import { verifyH70SkillAccessToken } from './h70-skill-access-token';
 import { getTierSkills } from './skill-tiers';
 
 const load: PrdCanvasLoadForAutoDispatch = {
@@ -45,7 +51,22 @@ const load: PrdCanvasLoadForAutoDispatch = {
 	connections: [{ sourceIndex: 0, targetIndex: 1 }]
 };
 
+let testSpawnerDir: string | null = null;
+
 describe('PRD auto-dispatch helpers', () => {
+	beforeEach(async () => {
+		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-prd-auto-dispatch-'));
+		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
+	});
+
+	afterEach(async () => {
+		delete process.env.SPAWNER_STATE_DIR;
+		if (testSpawnerDir && existsSync(testSpawnerDir)) {
+			await rm(testSpawnerDir, { recursive: true, force: true });
+		}
+		testSpawnerDir = null;
+	});
+
 	it('converts PRD bridge node indexes into executable canvas node and connection ids', () => {
 		const graph = canvasLoadToMissionGraph(load);
 
@@ -271,6 +292,25 @@ describe('PRD auto-dispatch helpers', () => {
 		for (const skillId of skills) {
 			expect(baseIds.has(skillId)).toBe(true);
 		}
+	});
+
+	it('creates scoped H70 access only for pro-exclusive auto-dispatch skills', async () => {
+		const baseToken = await _createScopedH70AccessForLoad(
+			{ ...load, tier: 'base' },
+			new Map([['task-1', ['frontend-engineer', 'threejs-3d-graphics']]])
+		);
+		expect(baseToken).toBeNull();
+
+		const proToken = await _createScopedH70AccessForLoad(
+			{ ...load, tier: 'pro' },
+			new Map([['task-1', ['frontend-engineer', 'threejs-3d-graphics']]])
+		);
+		expect(proToken).toMatch(/^spark-h70-/);
+		const request = new Request('http://127.0.0.1:3333/api/h70-skills/threejs-3d-graphics', {
+			headers: { authorization: `Bearer ${proToken}` }
+		});
+		await expect(verifyH70SkillAccessToken(request, 'threejs-3d-graphics')).resolves.toBe(true);
+		await expect(verifyH70SkillAccessToken(request, 'frontend-engineer')).resolves.toBe(false);
 	});
 
 	it('can allow creator execution for missions that already exist on the board', () => {
