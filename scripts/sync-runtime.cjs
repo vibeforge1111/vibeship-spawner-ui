@@ -55,6 +55,7 @@ const SYNCED_PATHS = [
 	'src/routes/api/h70-skills/[skillId]/+server.ts',
 	'src/routes/api/spark/run/+server.ts',
 	'src/routes/api/system/state-root/+server.ts',
+	'scripts/health-spark.mjs',
 	'static/skills.json',
 	'static/skill-tiers.json',
 	'static/bundles'

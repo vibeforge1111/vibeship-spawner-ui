@@ -8,6 +8,7 @@ const spawnerPort = process.env.SPARK_SPAWNER_PORT || process.env.PORT || "3333"
 const baseUrl = (process.env.SPAWNER_UI_URL || `http://127.0.0.1:${spawnerPort}`).replace(/\/$/, "");
 const healthUrl = `${baseUrl}/api/providers`;
 const boardUrl = `${baseUrl}/api/mission-control/board`;
+const sparkRunHealthUrl = `${baseUrl}/api/spark/run?health=1`;
 
 function parseCsv(value) {
 	return String(value || "")
@@ -175,6 +176,11 @@ async function main() {
     throw new Error("mission board payload is not JSON");
   }
 
+  const sparkRunHealth = await getJson(sparkRunHealthUrl);
+  if (!sparkRunHealth || sparkRunHealth.ok !== true || sparkRunHealth.dispatchesMission !== false) {
+    throw new Error("spark run route health payload is not a non-dispatching OK probe");
+  }
+
   const workspaceRoot = resolveSparkWorkspaceRoot();
   const smokeWorkspace = join(workspaceRoot, ".health-smoke");
   mkdirSync(smokeWorkspace, { recursive: true });
@@ -209,6 +215,7 @@ async function main() {
       `${configuredCount} configured`,
       wantsCodex ? `codex=${codexPath}` : "codex=not-required",
       relayWebhooks.length > 0 ? `relay_webhooks=${relayWebhooks.length}` : "relay_webhooks=none",
+      "spark_run=ready",
       `workspace=${smokeWorkspace}`,
     ].join(" | "),
   );

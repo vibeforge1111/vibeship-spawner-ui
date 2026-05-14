@@ -46,6 +46,22 @@ interface SparkRunBody {
 	};
 }
 
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'SparkRunHealth',
+		apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY'
+	});
+	if (unauthorized) return unauthorized;
+
+	return json({
+		ok: true,
+		route: '/api/spark/run',
+		check: 'route-loaded',
+		dispatchesMission: false
+	});
+};
+
 type AuthorityVerdictV1 = {
 	schema_version: 'spark.authority_verdict.v1';
 	traceRef?: string;
