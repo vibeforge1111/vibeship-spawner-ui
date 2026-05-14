@@ -147,7 +147,8 @@ describe('PRD analysis result storage projection', () => {
 			skills: ['frontend-engineer', 'threejs-3d-graphics']
 		}, 'base');
 
-		expect(stored.tasks[0].skills).toEqual(['frontend-engineer']);
+		const storedTasks = stored.tasks as Array<{ skills: string[] }>;
+		expect(storedTasks[0].skills).toEqual(['frontend-engineer']);
 		expect(stored.metadata).toMatchObject({
 			skillTier: 'base',
 			skillGate: {
