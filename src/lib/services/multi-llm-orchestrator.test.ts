@@ -315,14 +315,17 @@ describe('multi-llm-orchestrator', () => {
 			mission: createMission(1),
 			options,
 			baseUrl: 'http://127.0.0.1:3333',
-			h70AccessToken: 'spark-h70-test-token',
+			h70AccessTokenFile: '/tmp/spark-h70-proof.token',
 			taskSkillMap: new Map([['task-1', ['threejs-3d-graphics']]])
 		});
 		const prompt = pack.providerPrompts.codex;
 
 		expect(prompt).toContain('Recommended H70 skills (use when reachable): `threejs-3d-graphics`');
-		expect(prompt).toContain('Authorization: Bearer spark-h70-test-token');
-		expect(prompt).toContain('Do not echo it in progress events');
+		expect(prompt).toContain('Use the scoped mission H70 proof file only');
+		expect(prompt).toContain('/tmp/spark-h70-proof.token');
+		expect(prompt).toContain('Authorization: Bearer $(cat');
+		expect(prompt).not.toContain('spark-h70-test-token');
+		expect(prompt).toContain('Do not print, echo, copy, persist, screenshot, or include the token contents');
 		expect(prompt).toContain('If H70 skills are unreachable, continue with the task using your base expertise instead of blocking the mission.');
 	});
 

@@ -97,7 +97,7 @@ export interface MultiLLMBuildInput {
 	options: MultiLLMOrchestratorOptions;
 	taskSkillMap?: Map<string, string[]>;
 	baseUrl?: string;
-	h70AccessToken?: string | null;
+	h70AccessTokenFile?: string | null;
 }
 
 export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
@@ -290,7 +290,7 @@ export function buildMultiLLMExecutionPack(input: MultiLLMBuildInput): MultiLLME
 			primaryProviderId,
 			baseUrl,
 			taskSkillMap: input.taskSkillMap,
-			h70AccessToken: input.h70AccessToken,
+			h70AccessTokenFile: input.h70AccessTokenFile,
 			mcpCapabilities,
 			mcpTaskPlans
 		});
@@ -886,9 +886,13 @@ interface BuildProviderPromptInput {
 	primaryProviderId: string;
 	baseUrl: string;
 	taskSkillMap?: Map<string, string[]>;
-	h70AccessToken?: string | null;
+	h70AccessTokenFile?: string | null;
 	mcpCapabilities: MultiLLMCapability[];
 	mcpTaskPlans: Record<string, MultiLLMMCPTaskPlan>;
+}
+
+function shellSingleQuote(value: string): string {
+	return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
 function buildProviderPrompt(input: BuildProviderPromptInput): string {
@@ -900,7 +904,7 @@ function buildProviderPrompt(input: BuildProviderPromptInput): string {
 		primaryProviderId,
 		baseUrl,
 		taskSkillMap,
-		h70AccessToken,
+		h70AccessTokenFile,
 		mcpCapabilities,
 		mcpTaskPlans
 	} = input;
@@ -945,9 +949,11 @@ curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -d '{"typ
 	const mcpCapsLine = mcpCapabilities.length > 0 ? mcpCapabilities.join(', ') : 'none';
 	const projectContract = buildProjectContractBlock(mission);
 	const verificationBlock = buildVerificationBlock(mission);
-	const h70AuthLine = h70AccessToken
-		? `- Use this scoped mission H70 proof only when fetching listed skills: Authorization: Bearer ${h70AccessToken}
-- This proof is limited to the assigned mission skills and expires automatically. Do not echo it in progress events, task results, final answers, files, logs, or screenshots.`
+	const h70AccessTokenFileArg = h70AccessTokenFile ? shellSingleQuote(h70AccessTokenFile) : '';
+	const h70AuthLine = h70AccessTokenFile
+		? `- Use the scoped mission H70 proof file only when fetching listed skills: ${h70AccessTokenFile}
+- Fetch with: curl -H "Authorization: Bearer $(cat ${h70AccessTokenFileArg})" ${baseUrl}/api/h70-skills/<skill-id>
+- This proof is limited to the assigned mission skills and expires automatically. Do not print, echo, copy, persist, screenshot, or include the token contents in progress events, task results, files, logs, or final answers.`
 		: '- If a skill endpoint asks for Spark Pro proof and no scoped proof is provided here, treat that skill as unreachable and continue.';
 	const skillLoadingBlock = fastDirectMission
 		? `Fast direct skill handling:

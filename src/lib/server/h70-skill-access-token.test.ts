@@ -1,9 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { existsSync } from 'fs';
-import { mkdtemp, rm } from 'fs/promises';
+import { mkdtemp, readFile, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
-import { createH70SkillAccessToken, verifyH70SkillAccessToken } from './h70-skill-access-token';
+import {
+	createH70SkillAccessProof,
+	createH70SkillAccessToken,
+	verifyH70SkillAccessToken
+} from './h70-skill-access-token';
 
 let testSpawnerDir: string | null = null;
 
@@ -60,5 +64,26 @@ describe('h70-skill-access-token', () => {
 				now: new Date('2026-05-14T10:00:02Z')
 			})
 		).resolves.toBe(false);
+	});
+
+	it('writes raw scoped proof only to a local token file', async () => {
+		const proof = await createH70SkillAccessProof({
+			missionId: 'mission-proof-file-test',
+			skillIds: ['threejs-3d-graphics'],
+			now: new Date('2026-05-14T10:00:00Z')
+		});
+		expect(proof?.tokenFile).toContain('mission-proof-file-test.token');
+
+		const token = (await readFile(proof!.tokenFile, 'utf-8')).trim();
+		expect(token).toMatch(/^spark-h70-/);
+
+		const request = new Request('http://127.0.0.1:3333/api/h70-skills/threejs-3d-graphics', {
+			headers: { authorization: `Bearer ${token}` }
+		});
+		await expect(
+			verifyH70SkillAccessToken(request, 'threejs-3d-graphics', {
+				now: new Date('2026-05-14T10:01:00Z')
+			})
+		).resolves.toBe(true);
 	});
 });

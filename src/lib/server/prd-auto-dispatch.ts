@@ -20,7 +20,7 @@ import {
 	type MissionControlBoardEntry
 } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
-import { createH70SkillAccessToken } from '$lib/server/h70-skill-access-token';
+import { createH70SkillAccessProof, type H70SkillAccessProof } from '$lib/server/h70-skill-access-token';
 import { getTierSkills, normalizeTier, type SkillTier } from '$lib/server/skill-tiers';
 
 interface PrdAutoSkill {
@@ -357,7 +357,7 @@ function plannedTasksFromMission(
 export async function _createScopedH70AccessForLoad(
 	load: PrdCanvasLoadForAutoDispatch,
 	taskSkillMap: Map<string, string[]>
-): Promise<string | null> {
+): Promise<H70SkillAccessProof | null> {
 	const tier = normalizeLoadTier(load);
 	if (tier !== 'pro') return null;
 	const baseSkillIds = new Set((await getTierSkills('base')).map((skill) => skill.id));
@@ -365,7 +365,7 @@ export async function _createScopedH70AccessForLoad(
 		.filter((skillId) => !baseSkillIds.has(skillId))
 		.sort();
 	if (proSkillIds.length === 0) return null;
-	return createH70SkillAccessToken({
+	return createH70SkillAccessProof({
 		missionId: load.missionId,
 		skillIds: proSkillIds
 	});
@@ -432,13 +432,13 @@ export async function autoDispatchPrdCanvasLoad(
 		}
 
 		const taskSkillMap = await buildAutoDispatchTaskSkillMap(load, buildResult.mission.tasks, buildResult.taskSkillMap);
-		const h70AccessToken = await _createScopedH70AccessForLoad(load, taskSkillMap);
+		const h70AccessProof = await _createScopedH70AccessForLoad(load, taskSkillMap);
 
 		const executionPack = buildMultiLLMExecutionPack({
 			mission: buildResult.mission,
 			taskSkillMap,
 			baseUrl: 'http://127.0.0.1:3333',
-			h70AccessToken,
+			h70AccessTokenFile: h70AccessProof?.tokenFile,
 			options: {
 				enabled: true,
 				strategy: 'single',

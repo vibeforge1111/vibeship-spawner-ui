@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { existsSync } from 'fs';
-import { mkdtemp, rm } from 'fs/promises';
+import { mkdtemp, readFile, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
 import {
@@ -295,16 +295,18 @@ describe('PRD auto-dispatch helpers', () => {
 	});
 
 	it('creates scoped H70 access only for pro-exclusive auto-dispatch skills', async () => {
-		const baseToken = await _createScopedH70AccessForLoad(
+		const baseProof = await _createScopedH70AccessForLoad(
 			{ ...load, tier: 'base' },
 			new Map([['task-1', ['frontend-engineer', 'threejs-3d-graphics']]])
 		);
-		expect(baseToken).toBeNull();
+		expect(baseProof).toBeNull();
 
-		const proToken = await _createScopedH70AccessForLoad(
+		const proProof = await _createScopedH70AccessForLoad(
 			{ ...load, tier: 'pro' },
 			new Map([['task-1', ['frontend-engineer', 'threejs-3d-graphics']]])
 		);
+		expect(proProof?.tokenFile).toContain(`${load.missionId}.token`);
+		const proToken = (await readFile(proProof!.tokenFile, 'utf-8')).trim();
 		expect(proToken).toMatch(/^spark-h70-/);
 		const request = new Request('http://127.0.0.1:3333/api/h70-skills/threejs-3d-graphics', {
 			headers: { authorization: `Bearer ${proToken}` }
