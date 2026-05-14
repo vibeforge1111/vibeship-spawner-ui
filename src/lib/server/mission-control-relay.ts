@@ -21,6 +21,7 @@ import {
 } from './agent-event-ledger';
 import { syncCreatorMissionTraceFromLifecycleEvent } from './creator-mission-trace-sync';
 import { spawnerStateDir } from './spawner-state';
+import { joinMaybeWindowsPath } from './spawner-state';
 import { extractTraceRef } from './trace-ref';
 import {
 	emptyMissionControlTaskStatusCounts,
@@ -149,7 +150,7 @@ const TASK_TERMINAL_EVENTS = new Set(['task_completed', 'task_failed', 'task_can
 // Small file, synchronous writes; we're on the order of tens of events.
 export function getMissionControlPersistPath(): string {
 	const spawnerDir = spawnerStateDir(env);
-	return path.resolve(spawnerDir, 'mission-control.json');
+	return joinMaybeWindowsPath(spawnerDir, 'mission-control.json');
 }
 
 function getMissionControlPersistenceInfo(): MissionControlRelaySnapshot['persistence'] {

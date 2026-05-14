@@ -46,6 +46,22 @@ interface SparkRunBody {
 	};
 }
 
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'SparkRunHealth',
+		apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY'
+	});
+	if (unauthorized) return unauthorized;
+
+	return json({
+		ok: true,
+		route: '/api/spark/run',
+		check: 'route-loaded',
+		dispatchesMission: false
+	});
+};
+
 type AuthorityVerdictV1 = {
 	schema_version: 'spark.authority_verdict.v1';
 	traceRef?: string;
@@ -296,8 +312,8 @@ export const POST: RequestHandler = async (event) => {
 
 		const tierNotice =
 			tier === 'base'
-				? '\n\n[Skill tier: BASE — load only skills from the curated bundle loadout (~41 skills). Do not request pro-only skills.]'
-				: '\n\n[Skill tier: PRO — full spark-skill-graphs catalog (~615 skills) is available for /api/h70-skills/<id> loading.]';
+				? '\n\n[Skill tier: BASE — load only skills from the 30-skill curated starter loadout. Do not request pro-only skills.]'
+				: '\n\n[Skill tier: PRO — the full spark-skill-graphs catalog is available for /api/h70-skills/<id> loading when Spark Pro proof is present.]';
 
 		if (body.promptMode === 'simple') {
 			const simpleProviderPrompts: Record<string, string> = {};

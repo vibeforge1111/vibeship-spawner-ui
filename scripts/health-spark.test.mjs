@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -10,6 +11,23 @@ import {
   shouldRepairHostedWorkspaceOwnership,
   sparkHealthAuthHeaders,
 } from "./health-spark.mjs";
+
+function runNodeScript(args, options) {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, args, options);
+    let stdout = "";
+    let stderr = "";
+    child.stdout?.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr?.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    child.on("close", (status) => {
+      resolve({ status, stdout, stderr });
+    });
+  });
+}
 
 describe("resolveSparkWorkspaceRoot", () => {
   it("prefers explicit Spark workspace roots", () => {
@@ -121,6 +139,69 @@ describe("shouldRepairHostedWorkspaceOwnership", () => {
 });
 
 describe("health-spark command", () => {
+  it("checks the Spark run route without dispatching a mission", async () => {
+    const requests = [];
+    const server = createServer((req, res) => {
+      requests.push(req.url);
+      res.setHeader("content-type", "application/json");
+      res.setHeader("connection", "close");
+      if (req.url === "/api/providers") {
+        res.end(
+          JSON.stringify({
+            providers: [
+              { id: "codex", configured: false, cliConfigured: false },
+              { id: "zai", configured: true, cliConfigured: false },
+            ],
+          }),
+        );
+        return;
+      }
+      if (req.url === "/api/mission-control/board") {
+        res.end(JSON.stringify({ board: { running: [], completed: [], failed: [] } }));
+        return;
+      }
+      if (req.url === "/api/spark/run?health=1") {
+        res.end(
+          JSON.stringify({
+            ok: true,
+            route: "/api/spark/run",
+            check: "route-loaded",
+            dispatchesMission: false,
+          }),
+        );
+        return;
+      }
+      res.statusCode = 404;
+      res.end(JSON.stringify({ error: "not found" }));
+    });
+
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    const port = typeof address === "object" && address ? address.port : 0;
+    const workspaceRoot = mkdtempSync(join(tmpdir(), "spawner-health-workspace-"));
+    try {
+      const result = await runNodeScript(["scripts/health-spark.mjs"], {
+        cwd: join(import.meta.dirname, ".."),
+        env: {
+          ...process.env,
+          DEFAULT_MISSION_PROVIDER: "zai",
+          SPAWNER_UI_URL: `http://127.0.0.1:${port}`,
+          SPARK_WORKSPACE_ROOT: workspaceRoot,
+          MISSION_CONTROL_WEBHOOK_URLS: "",
+          TELEGRAM_RELAY_SECRET: "",
+        },
+        encoding: "utf-8",
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("spark_run=ready");
+      expect(requests).toContain("/api/spark/run?health=1");
+    } finally {
+      server.closeAllConnections?.();
+      await new Promise((resolve) => server.close(resolve));
+    }
+  });
+
   it("fails when mission webhook lacks relay secret", () => {
     const result = spawnSync(process.execPath, ["scripts/health-spark.mjs"], {
       cwd: join(import.meta.dirname, ".."),

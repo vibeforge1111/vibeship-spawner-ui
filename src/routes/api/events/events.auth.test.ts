@@ -204,6 +204,56 @@ describe('/api/events auth', () => {
 		expect(stored).not.toContain('Store result consistently.');
 	});
 
+	it('applies base tier skill gating when PRD results arrive through events', async () => {
+		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-events-skill-gate-'));
+		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
+		const requestId = 'events-base-skill-gate-test';
+		await writeFile(path.join(testSpawnerDir, 'pending-request.json'), JSON.stringify({ requestId, tier: 'base' }), 'utf-8');
+
+		const response = await POST(
+			createEvent('https://example.com/api/events', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-api-key': 'events-secret'
+				},
+				body: JSON.stringify({
+					type: 'prd_analysis_complete',
+					source: 'codex-auto',
+					data: {
+						requestId,
+						result: {
+							success: true,
+							projectName: 'Events Skill Gate',
+							projectType: 'direct-build',
+							complexity: 'simple',
+							infrastructure: { needsAuth: false, needsDatabase: false, needsAPI: false },
+							techStack: { framework: 'Existing Spawner UI', language: 'TypeScript' },
+							tasks: [
+								{
+									id: 'TAS-1',
+									title: 'Build base task',
+									skills: ['frontend-engineer', 'threejs-3d-graphics'],
+									dependencies: []
+								}
+							],
+							skills: ['frontend-engineer', 'threejs-3d-graphics']
+						}
+					}
+				})
+			})
+		);
+
+		expect(response.status).toBe(200);
+		const stored = JSON.parse(await readFile(path.join(testSpawnerDir, 'results', `${requestId}.json`), 'utf-8'));
+		expect(stored.tasks[0].skills).toEqual(['frontend-engineer']);
+		expect(stored.skills).toEqual(['frontend-engineer']);
+		expect(stored.metadata.skillGate).toMatchObject({
+			applied: true,
+			tier: 'base'
+		});
+	});
+
 	it('adds Telegram relay metadata to provider lifecycle events from the current canvas load', async () => {
 		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-events-relay-'));
 		process.env.SPAWNER_STATE_DIR = testSpawnerDir;

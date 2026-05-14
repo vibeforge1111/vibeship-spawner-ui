@@ -83,6 +83,7 @@ export async function executeSparkHarnessRequest(options: SparkHarnessOptions): 
 			);
 		}
 		const sparkInstruction = buildSparkBuilderInstruction(prompt, resolvedWorkspace);
+		const isolateBuilderHome = shouldIsolateCodexBuilderHomeForInstruction(sparkInstruction);
 		const taskId = await submitSparkTask({
 			baseUrl: sparkHarnessUrl,
 			instruction: sparkInstruction,
@@ -90,6 +91,7 @@ export async function executeSparkHarnessRequest(options: SparkHarnessOptions): 
 			executorModel,
 			workspace: resolvedWorkspace,
 			codexSandbox,
+			isolateBuilderHome,
 			provider,
 			missionId,
 			signal
@@ -170,13 +172,27 @@ function buildSparkBuilderInstruction(prompt: string, workspace?: string): strin
 	const taskText = tasksSection?.trim() || prompt.trim();
 	const isAdvancedBuild = /Build mode:\s*advanced_prd/i.test(prompt);
 	const saysNoBuildStep = /\bno build step\b/i.test(prompt);
+	const isFastStaticSmoke =
+		/\bBuild lane:\s*fast_direct\b/i.test(prompt) ||
+		/\bsingle-file-static-web-app\b/i.test(prompt) ||
+		/\bquick smoke path\b/i.test(prompt) ||
+		/\b(?:one|single)[-\s]?file\b/i.test(prompt) ||
+		/\bkeep it fast and simple\b/i.test(prompt);
 	const verificationText = saysNoBuildStep
 		? [
 				'No-build static project verification:',
 				'- Do not run npm install, npm run build, npx tsc, or create package/build/typecheck files unless the user explicitly requested them.',
 				'- Verify requested files with file existence and content checks.',
 				'- For JavaScript, run node --check app.js when app.js exists.',
-				'- Confirm direct index.html launch remains possible with relative styles.css and app.js references.'
+				'- Confirm direct index.html launch remains possible with relative styles.css and app.js references.',
+				...(isFastStaticSmoke
+					? [
+							'- Fast-lane budget: do not spend more than 15 seconds discovering browser tooling.',
+							'- Prefer exact file/content checks for the requested marker, embedded style/script, and file-scope constraints.',
+							'- Browser smoke is optional when no standard harness is immediately available; do not install browser tooling, start a dev server, or keep a browser session open just to verify direct-open index.html.',
+							'- Treat build and typecheck as not applicable for direct-open static pages unless the user explicitly requested a build system.'
+						]
+					: [])
 			].join('\n')
 		: verificationSection?.trim();
 	const filePolicy = isAdvancedBuild
@@ -190,6 +206,9 @@ function buildSparkBuilderInstruction(prompt: string, workspace?: string): strin
 		'An empty or freshly initialized repository is expected for new projects and is not a blocker.',
 		'Create or modify the requested files directly in the target workspace.',
 		filePolicy,
+		isFastStaticSmoke
+			? 'Fast direct lane: do not load Codex skills, do not read local SKILL.md files, and do not call H70 skill endpoints. Treat the listed skills as routing labels only and start by creating the requested file.'
+			: undefined,
 		targetWorkspace,
 		'Do not treat "Provider Prompt" headings as the user request; the actionable work is the task list below.',
 		'',
@@ -201,6 +220,15 @@ function buildSparkBuilderInstruction(prompt: string, workspace?: string): strin
 	]
 		.filter((part): part is string => typeof part === 'string' && part.length > 0)
 		.join('\n');
+}
+
+function shouldIsolateCodexBuilderHomeForInstruction(instruction: string): boolean {
+	return (
+		/\bFast direct lane:\s*do not load Codex skills\b/i.test(instruction) ||
+		/\bBuild lane:\s*fast_direct\b/i.test(instruction) ||
+		/\bsingle-file-static-web-app\b/i.test(instruction) ||
+		/\bkeep it fast and simple\b/i.test(instruction)
+	);
 }
 
 function extractBetween(text: string, start: string, end: string): string | undefined {
@@ -233,6 +261,7 @@ async function submitSparkTask(input: {
 	executorModel?: string;
 	workspace?: string;
 	codexSandbox: string;
+	isolateBuilderHome?: boolean;
 	provider: MultiLLMProviderConfig;
 	missionId: string;
 	signal?: AbortSignal;
@@ -247,7 +276,7 @@ async function submitSparkTask(input: {
 				_requested_model: input.executorModel || null,
 				_requested_workspace: input.workspace || null,
 				_codex_sandbox: input.codexSandbox,
-				_codex_isolate_builder_home: false,
+				_codex_isolate_builder_home: Boolean(input.isolateBuilderHome),
 				_spark_mode: 'builder_task',
 				spawner_mission_id: input.missionId,
 				spawner_provider_id: input.provider.id,

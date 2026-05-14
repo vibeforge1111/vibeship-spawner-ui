@@ -168,6 +168,80 @@ describe('spark-harness-client', () => {
 		expect(submittedSandbox).toBe('workspace-write');
 	});
 
+	it('keeps fast-lane single-file verification bounded in the Spark harness instruction', async () => {
+		const workspaceRoot = mkdtempSync(join(tmpdir(), 'spark-harness-fast-root-'));
+		const workspace = join(workspaceRoot, 'fast-static-smoke');
+		cleanupPaths.push(workspaceRoot);
+		process.env.SPARK_WORKSPACE_ROOT = workspaceRoot;
+		let submittedInstruction = '';
+		let submittedIsolatedBuilderHome: boolean | undefined;
+		const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
+			const value = String(url);
+			if (value.endsWith('/v1/tasks')) {
+				const submittedBody = JSON.parse(String(init?.body || '{}')) as {
+					instruction?: string;
+					context?: { _codex_isolate_builder_home?: boolean };
+				};
+				submittedInstruction = submittedBody.instruction || '';
+				submittedIsolatedBuilderHome = submittedBody.context?._codex_isolate_builder_home;
+				return new Response(JSON.stringify({ task_id: 'spark-task-fast-static' }), { status: 200 });
+			}
+			if (value.endsWith('/v1/tasks/spark-task-fast-static')) {
+				return new Response(
+					JSON.stringify({
+						status: 'completed',
+						result: {
+							output: JSON.stringify({
+								status: 'completed',
+								changed_files: ['index.html'],
+								verification: {
+									file_exists: true,
+									marker_present: true,
+									browser_smoke: 'not_applicable'
+								}
+							}),
+							metadata: { changed_files: ['index.html'] }
+						}
+					}),
+					{ status: 200 }
+				);
+			}
+			return new Response('not found', { status: 404 });
+		});
+		vi.stubGlobal('fetch', fetchMock);
+
+		const result = await executeSparkHarnessRequest({
+			provider,
+			missionId: 'mission-fast-static',
+			workingDirectory: workspace,
+			prompt: [
+				'Mission ID: mission-fast-static',
+				'Project contract:',
+				'- Project type: single-file-static-web-app',
+				'- Source request:',
+				'  Build lane: fast_direct',
+				'  Build a tiny one-file static page. No build step. Keep it fast and simple.',
+				'Assigned tasks:',
+				'1. Build the single-file static page (id: node-1)',
+				'2. Check the quick smoke path (id: node-2 after: node-1)',
+				'H70 skill loading',
+				'Verify Before Reporting Complete (REQUIRED per task):',
+				'1. Run the project build command (npm run build or equivalent)',
+				'Mission Completion Gate'
+			].join('\n'),
+			onEvent: () => {}
+		});
+
+		expect(result.success).toBe(true);
+		expect(submittedInstruction).toContain('Fast-lane budget: do not spend more than 15 seconds discovering browser tooling.');
+		expect(submittedInstruction).toContain('Prefer exact file/content checks');
+		expect(submittedInstruction).toContain('Browser smoke is optional when no standard harness is immediately available');
+		expect(submittedInstruction).toContain('Treat build and typecheck as not applicable');
+		expect(submittedInstruction).toContain('Fast direct lane: do not load Codex skills');
+		expect(submittedInstruction).not.toContain('Run the project build command (npm run build or equivalent)');
+		expect(submittedIsolatedBuilderHome).toBe(true);
+	});
+
 	it('passes danger-full-access to the Spark harness only when Level 5 guardrails are active', async () => {
 		process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS = '1';
 		process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS = '1';

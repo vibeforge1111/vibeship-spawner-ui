@@ -24,7 +24,7 @@ import { formatTaskQualityGuidance } from '$lib/server/task-quality-rubric';
 import { formatVerificationPlanGuidance, generateVerificationPlan } from '$lib/server/verification-plan-generator';
 import { enrichBrief, isSparseUnderstandingClarification } from '$lib/server/brief-enricher';
 import { spawnerStateDir } from '$lib/server/spawner-state';
-import { projectStoredPrdAnalysisResult } from '$lib/server/prd-analysis-result-schema';
+import { projectStoredPrdAnalysisResultForTier } from '$lib/server/prd-analysis-result-schema';
 import { extractExplicitProjectPath } from '$lib/server/project-path-extraction';
 import {
 	capabilityProposalSummary,
@@ -248,7 +248,10 @@ function constrainedStaticDeliverableFiles(content: string): string[] {
 }
 
 function extractStaticProofVisibleRequirements(content: string): { marker: string | null; sentence: string | null } {
-	const marker = content.match(/\bSPARK_OS_[A-Z0-9_]+\b/)?.[0] ?? null;
+	const marker =
+		content.match(/\bSPARK_OS_[A-Z0-9_]+\b/)?.[0] ??
+		content.match(/\b[A-Z][A-Z0-9_]{2,}_OK\b/)?.[0] ??
+		null;
 	const sentence =
 		content.match(/\bexact\s+sentence\s+"([^"\r\n]{1,200})"/i)?.[1] ??
 		content.match(/\bsentence\s+"([^"\r\n]{1,200})"/i)?.[1] ??
@@ -325,7 +328,7 @@ function isSingleFileStaticHtmlApp(content: string): boolean {
 	return (
 		/\b(?:one|single)[-\s]?(?:static\s+)?html\s+file\b/.test(lower) ||
 		/\bplayable\s+in\s+(?:one|a\s+single)\s+static\s+html\s+file\b/.test(lower) ||
-		/\b(?:one|single)[-\s]?file\s+(?:static\s+)?(?:html|web)\s+(?:app|game|tool|page)\b/.test(lower)
+		/\b(?:one|single)[-\s]?file\s+(?:static\s+)?(?:(?:html|web)\s+)?(?:app|game|tool|page)\b/.test(lower)
 	);
 }
 
@@ -339,7 +342,7 @@ function inferTechStack(content: string): { framework: string; language: string;
 			deployment: 'Direct browser-open static file'
 		};
 	}
-	if (lower.includes('three.js') || lower.includes('threejs')) {
+	if (lower.includes('three.js') || lower.includes('threejs') || /\b(?:3d|webgl|three-dimensional)\b/.test(lower)) {
 		return {
 			framework: 'Vanilla JavaScript + Three.js',
 			language: 'JavaScript',
@@ -376,7 +379,8 @@ export async function _buildFallbackAnalysisResult(
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier,
-	paths: ReturnType<typeof getPrdBridgePaths>
+	paths: ReturnType<typeof getPrdBridgePaths>,
+	buildLane: BuildLane = buildMode === 'advanced_prd' ? 'advanced_prd' : 'direct'
 ): Promise<Record<string, unknown>> {
 	const content = existsSync(paths.pendingPrdFile) ? await readFile(paths.pendingPrdFile, 'utf-8') : '';
 	if (isSparseUnderstandingClarification(content)) {
@@ -541,102 +545,272 @@ export async function _buildFallbackAnalysisResult(
 		lower.includes('no build step') ||
 		lower.includes('vanilla-js') ||
 		lower.includes('vanilla js');
-	const isThree = lower.includes('three.js') || lower.includes('threejs');
-	const skillByTheme = isThree
-		? ['frontend-engineer', 'threejs-3d-graphics', 'ui-design', 'responsive-mobile-first']
-		: ['frontend-engineer', 'ui-design', 'responsive-mobile-first', 'state-management'];
+	const isThree = lower.includes('three.js') || lower.includes('threejs') || /\b(?:3d|webgl|three-dimensional)\b/.test(lower);
+	const isGame = /\b(game|maze|puzzle|arcade|runner|platformer|rpg|quest|level|player|score|enemy|boss)\b/.test(lower);
+	const isDashboard = /\b(dashboard|metrics?|analytics|monitor|tracker|report|board)\b/.test(lower);
+	const isTokenOrNftLaunch = /\b(token|nft|mint|treasury|liquidity|holders?|launch|sale)\b/.test(lower);
+	const isFastDirectLane = buildLane === 'fast_direct';
+	const isFastStaticOrSmoke =
+		isFastDirectLane &&
+		!isGame &&
+		!isDashboard &&
+		(isStaticApp || /\b(?:tiny|small|simple|fast|smoke|one[-\s]?screen|one[-\s]?file|static\s+page)\b/.test(lower));
 	const validSkills = new Set((await getTierSkills(tier)).map((skill) => skill.id));
 	const selectSkills = (skills: string[]) => skills.filter((skill) => validSkills.has(skill)).slice(0, 5);
 	const workspaceTargets = targetFolder ? [targetFolder] : [];
 	const effectiveRequestedFiles =
 		singleFileStaticApp && requestedFiles.length === 0 ? ['index.html'] : requestedFiles;
 	const fileList = effectiveRequestedFiles.length > 0 ? effectiveRequestedFiles.join(', ') : 'the requested project files';
+	const visibleRequirements = extractStaticProofVisibleRequirements(content);
+	const visibleMarkerCriterion = visibleRequirements.marker
+		? `The first screen visibly includes the exact marker "${visibleRequirements.marker}".`
+		: 'The first screen opens directly and shows the requested marker or core copy.';
+	const visibleMarkerSummary = visibleRequirements.marker
+		? `Create only ${fileList} with embedded CSS and JavaScript, visibly render the exact marker "${visibleRequirements.marker}", wire one simple interaction, then verify the tiny file-scope checks.`
+		: `Create only ${fileList} with embedded CSS and JavaScript, preserve the requested visible marker and one simple interaction, then verify the tiny file-scope checks.`;
 
-	const taskSpecs = [
-		{
-			title: singleFileStaticApp
-				? 'Create the single-file static app'
-				: isStaticApp
-					? 'Create the static app shell'
-					: 'Create the app shell and project structure',
-			summary: singleFileStaticApp
-				? `Create only ${fileList} with embedded CSS and JavaScript, preserving the requested product, domain, and interaction constraints.`
-				: `Set up ${fileList} and make the first screen match the requested product direction.`,
-			skills: selectSkills(['frontend-engineer', 'html-css', 'ui-design', 'responsive-mobile-first']),
-			dependencies: [] as string[],
-			acceptanceCriteria: [
-				'The project opens to a usable first screen.',
-				'Requested files and local project structure are present.',
-				'No unrelated framework or build tooling is added when the brief says no build step.',
-				...(singleFileStaticApp
-					? [
-							'Only index.html is required for the deliverable.',
-							'CSS and JavaScript are embedded in index.html instead of split into styles.css or app.js.',
-							'The explicit product/game/tool concept in the original brief is preserved.'
-						]
-					: [])
-			],
-			verificationCommands: targetFolder
-				? [`Test-Path '${targetFolder}'`, `Get-ChildItem '${targetFolder}' | Select-Object -ExpandProperty Name`]
-				: singleFileStaticApp
-					? ['test -f index.html', 'test ! -f styles.css', 'test ! -f app.js', 'test ! -f package.json']
-					: ['Inspect the created project files.']
-		},
-		{
-			title: isThree ? 'Implement the interactive 3D scene and controls' : 'Implement the core interaction and state',
-			summary: isThree
-				? 'Build the animated Three.js experience, primary controls, and responsive fallback behavior.'
-				: 'Build the main user flow, controls, live status/progress, persistence, and reset or completion behavior.',
-			skills: selectSkills(skillByTheme),
-			dependencies: ['task-1'],
-			acceptanceCriteria: [
-				'The core workflow can be completed from the first screen.',
-				'Interactive state updates immediately and persists where requested.',
-				'Controls remain usable on desktop and mobile widths.',
-				...(singleFileStaticApp ? ['The requested interaction is implemented inside index.html.'] : [])
-			],
-			verificationCommands: targetFolder
-				? [`Select-String -Path '${targetFolder}\\app.js' -Pattern 'localStorage'`]
-				: singleFileStaticApp
-					? ['grep -i "<script" index.html', 'grep -i "<style" index.html']
-					: ['Run the project interaction smoke test.']
-		},
-		{
-			title: 'Polish the visual system and documentation',
-			summary: 'Finish the dark operational UI, responsive details, accessibility basics, and README smoke test.',
-			skills: selectSkills(['ui-design', 'accessibility', 'technical-writer', 'documentation-that-slaps']),
-			dependencies: ['task-1'],
-			acceptanceCriteria: [
-				'The UI is readable, responsive, and visually consistent.',
-				'README explains direct launch and a manual smoke test.',
-				'The implementation documents any fallback or browser requirement.',
-				...(singleFileStaticApp ? ['Any README is optional; the runnable app remains self-contained in index.html.'] : [])
-			],
-			verificationCommands: targetFolder
-				? [`Test-Path '${targetFolder}\\README.md'`, `Get-Content '${targetFolder}\\README.md'`]
-				: ['Read the README and perform the documented smoke test.']
-		},
-		{
-			title: 'Verify the completed build',
-			summary: 'Run the requested lightweight checks and confirm the finished project matches the brief.',
-			skills: selectSkills(['qa-engineering', 'testing-strategies', 'test-architect']),
-			dependencies: ['task-2', 'task-3'],
-			acceptanceCriteria: [
-				'Static syntax checks pass where applicable.',
-				'The requested completion state or primary success path works.',
-				'The final project can be opened locally.',
-				...(singleFileStaticApp ? ['The final workspace does not require styles.css, app.js, package.json, or a build step.'] : [])
-			],
-			verificationCommands: targetFolder
-				? [
-						...(effectiveRequestedFiles.includes('app.js') ? [`node --check '${targetFolder}\\app.js'`] : []),
-						`Get-ChildItem '${targetFolder}' | Select-Object -ExpandProperty Name`
+	const shellVerification = targetFolder
+		? [`Test-Path '${targetFolder}'`, `Get-ChildItem '${targetFolder}' | Select-Object -ExpandProperty Name`]
+		: singleFileStaticApp
+			? ['test -f index.html', 'test ! -f styles.css', 'test ! -f app.js', 'test ! -f package.json']
+			: ['Inspect the created project files.'];
+	const scriptVerification = targetFolder
+		? [`Select-String -Path '${targetFolder}\\app.js' -Pattern 'localStorage'`]
+		: singleFileStaticApp
+			? ['grep -i "<script" index.html', 'grep -i "<style" index.html']
+			: ['Run the project interaction smoke test.'];
+	const finalVerification = targetFolder
+		? [
+				...(effectiveRequestedFiles.includes('app.js') ? [`node --check '${targetFolder}\\app.js'`] : []),
+				`Get-ChildItem '${targetFolder}' | Select-Object -ExpandProperty Name`
+			]
+		: singleFileStaticApp
+			? ['test -f index.html', 'test ! -f styles.css', 'test ! -f app.js', 'test ! -f package.json']
+			: ['Run the repo-local verification commands.'];
+
+	const taskSpecs = isFastStaticOrSmoke
+		? [
+				{
+					title: singleFileStaticApp ? 'Build and check the single-file static page' : 'Build and check the focused static page',
+					summary: singleFileStaticApp
+						? visibleMarkerSummary
+						: 'Create the requested fast static page with the smallest useful file set and one clear interaction, then verify the quick smoke checks.',
+					skills: selectSkills(['frontend-engineer', 'html-css', 'qa-engineering', 'accessibility']),
+					dependencies: [] as string[],
+					acceptanceCriteria: [
+						visibleMarkerCriterion,
+						'The requested button or tiny interaction works without a framework or heavy setup.',
+						'No extra product scope, dashboard sections, persistence layer, or generated feature set is added.',
+						...(singleFileStaticApp
+							? [
+									'Only index.html is required for the runnable deliverable.',
+									'CSS and JavaScript are embedded in index.html instead of split into styles.css or app.js.',
+									'No package.json, styles.css, app.js, or build step is required.'
+								]
+							: [])
+					],
+					verificationCommands: [
+						...finalVerification,
+						...(visibleRequirements.marker ? [`grep -F "${visibleRequirements.marker}" index.html`] : [])
 					]
-				: singleFileStaticApp
-					? ['test -f index.html', 'test ! -f styles.css', 'test ! -f app.js', 'test ! -f package.json']
-					: ['Run the repo-local verification commands.']
-		}
-	];
+				}
+			]
+		: isGame
+		? [
+				{
+					title: singleFileStaticApp ? 'Create the playable game file' : 'Create the playable game shell',
+					summary: singleFileStaticApp
+						? `Create only ${fileList} with embedded CSS and JavaScript, preserving the requested game premise and controls.`
+						: `Set up ${fileList} so the player lands directly in the requested game loop.`,
+					skills: selectSkills(
+						isThree
+							? ['frontend-engineer', 'threejs-3d-graphics', 'game-development', 'game-ui-design', 'responsive-mobile-first']
+							: ['frontend-engineer', 'game-development', 'game-ui-design', 'responsive-mobile-first']
+					),
+					dependencies: [] as string[],
+					acceptanceCriteria: [
+						'The first screen is playable, not a landing page or project explainer.',
+						'The requested game premise, player goal, controls, and win/fail states are visible in the build.',
+						'Keyboard controls and mobile-friendly controls are present when requested.',
+						...(singleFileStaticApp
+							? [
+									'Only index.html is required for the deliverable.',
+									'CSS and JavaScript are embedded in index.html instead of split into styles.css or app.js.'
+								]
+							: [])
+					],
+					verificationCommands: shellVerification
+				},
+				{
+					title: 'Design the core play and reasoning loop',
+					summary:
+						'Implement the main rule system, puzzle or challenge logic, feedback loop, and the reason the game is interesting to replay.',
+					skills: selectSkills(['game-design', 'game-design-core', 'puzzle-design', 'procedural-generation', 'level-design']),
+					dependencies: ['task-1'],
+					acceptanceCriteria: [
+						'The game has a clear decision loop instead of only movement or clicking.',
+						'The challenge changes or escalates enough to test player reasoning.',
+						'The player can understand why they won, lost, or improved.'
+					],
+					verificationCommands: scriptVerification
+				},
+				{
+					title: 'Add scoring, restart, and player feedback',
+					summary:
+						'Wire score/progress, timer or move count, restart, completion feedback, and any local best-score persistence requested by the brief.',
+					skills: selectSkills(['state-management', 'game-ui-design', 'player-onboarding', 'accessibility']),
+					dependencies: ['task-1', 'task-2'],
+					acceptanceCriteria: [
+						'Score, progress, or reasoning feedback updates during play.',
+						'Restart works without refreshing the whole page.',
+						'The player can recover from failure and replay quickly.'
+					],
+					verificationCommands: scriptVerification
+				},
+				{
+					title: 'Verify the playable loop',
+					summary:
+						'Prove movement, challenge logic, win/fail, restart, responsive controls, and static-file constraints where applicable.',
+					skills: selectSkills(['qa-engineering', 'testing-strategies', 'accessibility']),
+					dependencies: ['task-2', 'task-3'],
+					acceptanceCriteria: [
+						'The full game can be completed manually from a fresh load.',
+						'The failure or retry path works.',
+						'Desktop and mobile input paths are both usable.',
+						...(singleFileStaticApp ? ['The final workspace does not require styles.css, app.js, package.json, or a build step.'] : [])
+					],
+					verificationCommands: finalVerification
+				}
+			]
+		: isDashboard && isTokenOrNftLaunch
+			? [
+					{
+						title: 'Model the token and NFT launch signals',
+						summary:
+							'Define seeded launch data for token-only mint ideas, treasury split notes, utility perks, timing, and health states.',
+						skills: selectSkills(['tokenomics-design', 'nft-systems', 'analytics', 'product-strategy', 'data-dashboard-design']),
+						dependencies: [] as string[],
+						acceptanceCriteria: [
+							'The dashboard data model includes token demand, NFT mint, treasury, utility, and timing signals.',
+							'Sample data is clearly marked when live data is not supplied.',
+							'The first-screen metrics answer a real launch decision, not generic dashboard filler.'
+						],
+						verificationCommands: shellVerification
+					},
+					{
+						title: 'Build the launch decision dashboard',
+						summary:
+							'Create the main scan surface with metric cards, scenario sections, filters, and clear status for launch readiness.',
+						skills: selectSkills(['frontend-engineer', 'data-dashboard-design', 'ui-design', 'responsive-mobile-first']),
+						dependencies: ['task-1'],
+						acceptanceCriteria: [
+							'The top summary makes the fastest launch decision obvious.',
+							'Token-only mint, treasury split, utility perks, and post-launch timing each have a readable section.',
+							'The layout stays dense but calm on desktop and mobile.'
+						],
+						verificationCommands: scriptVerification
+					},
+					{
+						title: 'Add scenario controls and warning states',
+						summary:
+							'Implement filters, scenario notes, verification states, and warnings for risky claims such as guaranteed price impact.',
+						skills: selectSkills(['state-management', 'product-analytics-engineering', 'risk-management-trading', 'copywriting']),
+						dependencies: ['task-1', 'task-2'],
+						acceptanceCriteria: [
+							'Users can compare at least two launch scenarios or timing states.',
+							'Risky financial/price-impact framing is softened into decision support.',
+							'Empty or unknown data states are visible instead of pretending certainty.'
+						],
+						verificationCommands: scriptVerification
+					},
+					{
+						title: 'Verify launch dashboard quality',
+						summary:
+							'Check data labels, responsive layout, scenario controls, warning states, and the documented manual smoke path.',
+						skills: selectSkills(['qa-engineering', 'testing-strategies', 'accessibility', 'technical-writer']),
+						dependencies: ['task-2', 'task-3'],
+						acceptanceCriteria: [
+							'Every visible metric maps back to seeded or live data.',
+							'The dashboard never presents sample data as live financial proof.',
+							'Manual smoke steps cover filters, scenario changes, responsive layout, and warning states.'
+						],
+						verificationCommands: finalVerification
+					}
+				]
+			: [
+					{
+						title: singleFileStaticApp
+							? 'Create the single-file static app'
+							: isStaticApp
+								? 'Create the static app shell'
+								: 'Create the app shell and project structure',
+						summary: singleFileStaticApp
+							? `Create only ${fileList} with embedded CSS and JavaScript, preserving the requested product, domain, and interaction constraints.`
+							: `Set up ${fileList} and make the first screen match the requested product direction.`,
+						skills: selectSkills(['frontend-engineer', 'html-css', 'ui-design', 'responsive-mobile-first']),
+						dependencies: [] as string[],
+						acceptanceCriteria: [
+							'The project opens to a usable first screen.',
+							'Requested files and local project structure are present.',
+							'No unrelated framework or build tooling is added when the brief says no build step.',
+							...(singleFileStaticApp
+								? [
+										'Only index.html is required for the deliverable.',
+										'CSS and JavaScript are embedded in index.html instead of split into styles.css or app.js.',
+										'The explicit product/game/tool concept in the original brief is preserved.'
+									]
+								: [])
+						],
+						verificationCommands: shellVerification
+					},
+					{
+						title: isThree ? 'Implement the interactive 3D scene and controls' : 'Implement the core interaction and state',
+						summary: isThree
+							? 'Build the animated Three.js experience, primary controls, and responsive fallback behavior.'
+							: 'Build the main user flow, controls, live status/progress, persistence, and reset or completion behavior.',
+						skills: selectSkills(
+							isThree
+								? ['frontend-engineer', 'threejs-3d-graphics', 'ui-design', 'responsive-mobile-first']
+								: ['frontend-engineer', 'ui-design', 'responsive-mobile-first', 'state-management']
+						),
+						dependencies: ['task-1'],
+						acceptanceCriteria: [
+							'The core workflow can be completed from the first screen.',
+							'Interactive state updates immediately and persists where requested.',
+							'Controls remain usable on desktop and mobile widths.',
+							...(singleFileStaticApp ? ['The requested interaction is implemented inside index.html.'] : [])
+						],
+						verificationCommands: scriptVerification
+					},
+					{
+						title: 'Polish the visual system and documentation',
+						summary: 'Finish the dark operational UI, responsive details, accessibility basics, and README smoke test.',
+						skills: selectSkills(['ui-design', 'accessibility', 'technical-writer', 'documentation-that-slaps']),
+						dependencies: ['task-1'],
+						acceptanceCriteria: [
+							'The UI is readable, responsive, and visually consistent.',
+							'README explains direct launch and a manual smoke test.',
+							'The implementation documents any fallback or browser requirement.',
+							...(singleFileStaticApp ? ['Any README is optional; the runnable app remains self-contained in index.html.'] : [])
+						],
+						verificationCommands: targetFolder
+							? [`Test-Path '${targetFolder}\\README.md'`, `Get-Content '${targetFolder}\\README.md'`]
+							: ['Read the README and perform the documented smoke test.']
+					},
+					{
+						title: 'Verify the completed build',
+						summary: 'Run the requested lightweight checks and confirm the finished project matches the brief.',
+						skills: selectSkills(['qa-engineering', 'testing-strategies', 'test-architect']),
+						dependencies: ['task-2', 'task-3'],
+						acceptanceCriteria: [
+							'Static syntax checks pass where applicable.',
+							'The requested completion state or primary success path works.',
+							'The final project can be opened locally.',
+							...(singleFileStaticApp ? ['The final workspace does not require styles.css, app.js, package.json, or a build step.'] : [])
+						],
+						verificationCommands: finalVerification
+					}
+				];
 
 	const tasks = taskSpecs.map((task, index) => {
 		const id = slugifyTaskId(task.title, `task-${index + 1}`);
@@ -698,7 +872,8 @@ async function writeFallbackAnalysisResult(
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier,
 	reason: string,
-	traceRef?: string | null
+	traceRef?: string | null,
+	buildLane?: BuildLane
 ): Promise<void> {
 	const paths = getPrdBridgePaths();
 	const safeRequestId = normalizeRequestId(requestId);
@@ -709,12 +884,16 @@ async function writeFallbackAnalysisResult(
 		await mkdir(paths.resultsDir, { recursive: true });
 	}
 
-	const result = await _buildFallbackAnalysisResult(requestId, projectName, buildMode, tier, paths);
+	const result = await _buildFallbackAnalysisResult(requestId, projectName, buildMode, tier, paths, buildLane);
 	const resolvedTraceRef = traceRef || await traceRefForRequest(requestId, {});
 	const resultWithTrace = resolvedTraceRef
 		? { ...result, traceRef: resolvedTraceRef, metadata: { ...((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined), traceRef: resolvedTraceRef } }
 		: result;
-	await writeFile(resultFile, JSON.stringify(projectStoredPrdAnalysisResult(requestId, resultWithTrace), null, 2), 'utf-8');
+	await writeFile(
+		resultFile,
+		JSON.stringify(await projectStoredPrdAnalysisResultForTier(requestId, resultWithTrace, tier), null, 2),
+		'utf-8'
+	);
 	const staticArtifactCount = await writeConstrainedStaticProofArtifacts(await readFile(paths.pendingPrdFile, 'utf-8').catch(() => ''));
 	if (staticArtifactCount > 0) {
 		await appendPrdTrace(requestId, 'deterministic_static_artifacts_written', {
@@ -736,7 +915,8 @@ function scheduleAutoAnalysisWatchdog(
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier,
 	cancelAutoAnalysis?: () => void,
-	traceRef?: string | null
+	traceRef?: string | null,
+	buildLane?: BuildLane
 ): void {
 	if (AUTO_ANALYSIS_TIMEOUT_MS <= 0) return;
 	const timer = setTimeout(async () => {
@@ -767,7 +947,8 @@ function scheduleAutoAnalysisWatchdog(
 			buildMode,
 			tier,
 			`auto-analysis timeout after ${AUTO_ANALYSIS_TIMEOUT_MS}ms`,
-			traceRef
+			traceRef,
+			buildLane
 		);
 	}, AUTO_ANALYSIS_TIMEOUT_MS);
 
@@ -782,6 +963,22 @@ function resolveCodexBinary(): string | null {
 
 function normalizeBuildMode(value: unknown): 'direct' | 'advanced_prd' {
 	return value === 'advanced_prd' ? 'advanced_prd' : 'direct';
+}
+
+type BuildLane = 'fast_direct' | 'direct' | 'advanced_prd';
+
+function normalizeBuildLane(value: unknown, buildMode: 'direct' | 'advanced_prd', options: unknown): BuildLane {
+	const optionRecord = options && typeof options === 'object' ? (options as Record<string, unknown>) : null;
+	if (optionRecord?.fastLane === true) return 'fast_direct';
+	if (value === 'fast_direct' || value === 'direct' || value === 'advanced_prd') return value;
+	return buildMode === 'advanced_prd' ? 'advanced_prd' : 'direct';
+}
+
+export function _shouldUseDeterministicPrdFallback(input: {
+	buildLane: BuildLane;
+	constrainedStaticSingleFile: boolean;
+}): boolean {
+	return input.constrainedStaticSingleFile || input.buildLane === 'fast_direct';
 }
 
 function isConcreteDirectStaticBuild(content: string): boolean {
@@ -1161,9 +1358,10 @@ export const POST: RequestHandler = async (event) => {
 		});
 		if (rateLimited) return rateLimited;
 
-		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, telegramRelay, tier, forceDispatch, runnerCapability, runner_capability, capabilityProposalPacket, capability_proposal_packet, traceRef, trace_ref } =
+		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, buildLane, build_lane, buildLaneReason, build_lane_reason, telegramRelay, tier, forceDispatch, runnerCapability, runner_capability, capabilityProposalPacket, capability_proposal_packet, traceRef, trace_ref } =
 			await event.request.json();
 		const normalizedBuildMode = normalizeBuildMode(buildMode);
+		const normalizedBuildLane = normalizeBuildLane(buildLane ?? build_lane, normalizedBuildMode, options);
 		const normalizedTier = normalizeTier(tier);
 		const normalizedTelegramRelay = normalizeTelegramRelay(telegramRelay);
 		const normalizedRunnerCapability = normalizeRunnerCapability(runnerCapability ?? runner_capability);
@@ -1221,7 +1419,7 @@ export const POST: RequestHandler = async (event) => {
 			content,
 			buildMode: normalizedBuildMode,
 			openQuestions: enrichment.openQuestions || [],
-			forceDispatch: skipClarification
+			forceDispatch: skipClarification || normalizedBuildLane === 'fast_direct'
 		})) {
 			await appendPrdTrace(requestId, 'clarification_requested', {
 				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
@@ -1243,6 +1441,7 @@ export const POST: RequestHandler = async (event) => {
 					openQuestions: enrichment.openQuestions,
 					tier: normalizedTier,
 					buildMode: normalizedBuildMode,
+					buildLane: normalizedBuildLane,
 					...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 					...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
 					...(normalizedCapabilityProposalPacket ? { capabilityProposalPacket: normalizedCapabilityProposalPacket } : {}),
@@ -1264,6 +1463,13 @@ export const POST: RequestHandler = async (event) => {
 		// Write the (possibly enriched) PRD content to file
 		await writeFile(paths.pendingPrdFile, finalContent, 'utf-8');
 		const projectLineage = _extractPrdBridgeProjectLineage(finalContent, projectName);
+		const rawBuildLaneReason = buildLaneReason ?? build_lane_reason;
+		const normalizedBuildLaneReason =
+			typeof rawBuildLaneReason === 'string' && rawBuildLaneReason.trim()
+				? rawBuildLaneReason.trim()
+				: normalizedBuildLane === 'fast_direct'
+					? 'Fast direct lane requested; use deterministic lightweight planning.'
+					: 'Build lane inferred from build mode.';
 
 		// Write request metadata
 		const requestMeta = {
@@ -1271,6 +1477,9 @@ export const POST: RequestHandler = async (event) => {
 			missionId,
 			projectName: projectName || 'Untitled Project',
 			buildMode: normalizedBuildMode,
+			buildLane: normalizedBuildLane,
+			tier: normalizedTier,
+			buildLaneReason: normalizedBuildLaneReason,
 			buildModeReason:
 				typeof buildModeReason === 'string' && buildModeReason.trim()
 					? buildModeReason.trim()
@@ -1296,6 +1505,7 @@ export const POST: RequestHandler = async (event) => {
 							userId: typeof userId === 'string' && userId.trim() ? userId.trim() : 'telegram',
 							missionId,
 							requestId,
+							tier: normalizedTier,
 							...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 							goal: content.slice(0, 500),
 							...(projectLineage ? { projectLineage } : {}),
@@ -1309,6 +1519,7 @@ export const POST: RequestHandler = async (event) => {
 			...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 			projectName: requestMeta.projectName,
 			buildMode: requestMeta.buildMode,
+			buildLane: requestMeta.buildLane,
 			...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
 			...(normalizedCapabilityProposalSummary
 				? { capabilityProposal: normalizedCapabilityProposalSummary }
@@ -1325,6 +1536,8 @@ export const POST: RequestHandler = async (event) => {
 				requestId,
 				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 				buildMode: requestMeta.buildMode,
+				buildLane: requestMeta.buildLane,
+				buildLaneReason: requestMeta.buildLaneReason,
 				buildModeReason: requestMeta.buildModeReason,
 				...(projectLineage ? { projectLineage } : {}),
 				...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
@@ -1334,8 +1547,12 @@ export const POST: RequestHandler = async (event) => {
 		});
 
 		const constrainedStaticSingleFile = constrainedStaticSingleFileInput || isConstrainedSingleFileStaticHtml(finalContent);
-		const auto = constrainedStaticSingleFile
-			? { started: false, provider: 'deterministic-static' }
+		const deterministicFallback = _shouldUseDeterministicPrdFallback({
+			buildLane: normalizedBuildLane,
+			constrainedStaticSingleFile
+		});
+		const auto = deterministicFallback
+			? { started: false, provider: normalizedBuildLane === 'fast_direct' ? 'deterministic-fast-lane' : 'deterministic-static' }
 			: await startAutoAnalysis(
 					requestId,
 					requestMeta.projectName,
@@ -1351,17 +1568,21 @@ export const POST: RequestHandler = async (event) => {
 				autoProvider: auto.provider
 			})
 		});
-		if (constrainedStaticSingleFile) {
+		if (deterministicFallback) {
 			await updatePendingRequestStatus(requestId, 'fallback', {
-				reason: 'Constrained static file request; deterministic analysis queued to avoid app-scope expansion.'
+				reason:
+					normalizedBuildLane === 'fast_direct'
+						? 'Fast direct lane request; deterministic lightweight analysis queued.'
+						: 'Constrained static file request; deterministic analysis queued to avoid app-scope expansion.'
 			});
 			await writeFallbackAnalysisResult(
 				requestId,
 				requestMeta.projectName,
 				requestMeta.buildMode,
 				normalizedTier,
-				'constrained static file request',
-				normalizedTraceRef
+				normalizedBuildLane === 'fast_direct' ? 'fast direct lane request' : 'constrained static file request',
+				normalizedTraceRef,
+				normalizedBuildLane
 			);
 		} else if (auto.started) {
 			scheduleAutoAnalysisWatchdog(
@@ -1370,7 +1591,8 @@ export const POST: RequestHandler = async (event) => {
 				requestMeta.buildMode,
 				normalizedTier,
 				auto.cancel,
-				normalizedTraceRef
+				normalizedTraceRef,
+				normalizedBuildLane
 			);
 		} else if (auto.provider !== 'none') {
 			await updatePendingRequestStatus(requestId, 'fallback', {

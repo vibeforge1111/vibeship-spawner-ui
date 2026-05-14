@@ -196,6 +196,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			projectName?: string;
 			projectType?: string;
 			executionPrompt?: string;
+			tier?: string;
 			tasks?: TaskRecord[];
 			capabilityProposalPacket?: unknown;
 			capability_proposal_packet?: unknown;
@@ -230,6 +231,7 @@ export const POST: RequestHandler = async ({ request }) => {
 					relay?: Record<string, unknown>;
 					buildMode?: 'direct' | 'advanced_prd';
 					buildModeReason?: string;
+					tier?: string;
 				};
 				if (pending.requestId === requestId) {
 					pendingRequestMeta = pending as Record<string, unknown>;
@@ -249,6 +251,7 @@ export const POST: RequestHandler = async ({ request }) => {
 					relay = {
 						...pending.relay,
 						missionId: resolvedMissionId,
+						...(typeof pending.tier === 'string' ? { tier: pending.tier } : {}),
 						...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {}),
 						requestId,
 						...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
@@ -297,6 +300,11 @@ export const POST: RequestHandler = async ({ request }) => {
 			autoRun: effectiveAutoRun,
 			buildMode,
 			buildModeReason,
+			tier: typeof pendingRequestMeta?.tier === 'string'
+				? pendingRequestMeta.tier
+				: typeof parsed.tier === 'string'
+					? parsed.tier
+					: 'base',
 			executionPrompt: executionText,
 			...(capabilityProposalPacket ? { capabilityProposalPacket } : {}),
 			...(capabilitySummary ? { capabilityProposalSummary: capabilitySummary } : {}),

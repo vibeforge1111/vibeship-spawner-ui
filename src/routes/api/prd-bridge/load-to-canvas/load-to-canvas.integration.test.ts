@@ -561,4 +561,58 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		expect(pending.nodes[0].skill.description).toContain('Acceptance criteria:');
 		expect(pending.nodes[1].skill.description).toContain('Verification commands:');
 	});
+
+	it('carries pending request tier into canvas load and relay metadata', async () => {
+		const requestId = 'tg-pro-tier-canvas-test';
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify({
+				requestId,
+				success: true,
+				projectName: 'Pro Tier Canvas',
+				projectType: 'direct-build',
+				complexity: 'simple',
+				infrastructure: { needsAuth: false, needsDatabase: false, needsAPI: false },
+				techStack: { framework: 'Existing Spawner UI', language: 'TypeScript' },
+				tasks: [
+					{
+						id: 'task-1',
+						title: 'Build pro canvas',
+						summary: 'Use the stored tier for dispatch.',
+						skills: ['frontend-engineer', 'threejs-3d-graphics'],
+						dependencies: []
+					}
+				],
+				skills: ['frontend-engineer', 'threejs-3d-graphics']
+			}),
+			'utf-8'
+		);
+		await writeFile(
+			path.join(testSpawnerDir, 'pending-request.json'),
+			JSON.stringify({
+				requestId,
+				tier: 'pro',
+				relay: {
+					chatId: '8319079055',
+					userId: '8319079055',
+					requestId
+				}
+			}),
+			'utf-8'
+		);
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ requestId, autoRun: false })
+			})
+		} as never);
+
+		expect(response.status).toBe(200);
+		const pending = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-load.json'), 'utf-8'));
+		expect(pending.tier).toBe('pro');
+		expect(pending.relay.tier).toBe('pro');
+		expect(pending.nodes[0].skill.skillChain).toEqual(['frontend-engineer', 'threejs-3d-graphics']);
+	});
 });
