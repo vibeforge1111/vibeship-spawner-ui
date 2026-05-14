@@ -384,7 +384,7 @@ describe('/api/spark-agent integration', () => {
 		} as never);
 
 		expect(runResponse.status).toBe(200);
-		expect(observedCommandTemplate).toBe('codex exec --model gpt-5.5');
+		expect(observedCommandTemplate).toBe('codex exec --model gpt-5.5 --sandbox workspace-write');
 	});
 
 	it('rejects unsafe internal provider command templates before process execution', async () => {

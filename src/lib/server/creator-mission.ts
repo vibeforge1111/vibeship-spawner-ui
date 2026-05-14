@@ -1,7 +1,7 @@
 import { env } from '$env/dynamic/private';
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { autoDispatchPrdCanvasLoad, type PrdAutoDispatchResult } from './prd-auto-dispatch';
@@ -1162,7 +1162,10 @@ export async function createCreatorMission(
 export async function saveCreatorMissionTrace(trace: CreatorMissionTrace, stateDir = spawnerStateDir()): Promise<void> {
 	const dir = creatorMissionDir(stateDir);
 	await mkdir(dir, { recursive: true });
-	await writeFile(creatorMissionPath(trace.mission_id, stateDir), JSON.stringify(trace, null, 2), 'utf-8');
+	const filePath = creatorMissionPath(trace.mission_id, stateDir);
+	const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+	await writeFile(tempPath, JSON.stringify(trace, null, 2), 'utf-8');
+	await rename(tempPath, filePath);
 }
 
 export async function readCreatorMissionTrace(
@@ -1413,6 +1416,7 @@ export async function validateCreatorMission(
 	const startedAt = now.toISOString();
 	const maxCommands = Math.max(1, input.maxCommands ?? options.maxCommands ?? 20);
 	const timeoutMs = options.timeoutMs ?? 120_000;
+	const commandRunner = options.commandRunner || activeCreatorValidationCommandRunner || undefined;
 	const pendingCommands: Array<{ manifest: CreatorArtifactManifest; command: string }> = [];
 	const results: CreatorValidationCommandResult[] = [];
 
@@ -1433,7 +1437,7 @@ export async function validateCreatorMission(
 			manifest: item.manifest,
 			command: item.command
 		});
-		const result = await runCreatorValidationCommand(item.manifest, item.command, { timeoutMs, commandRunner: options.commandRunner });
+		const result = await runCreatorValidationCommand(item.manifest, item.command, { timeoutMs, commandRunner });
 		results.push(result);
 		await options.onCommandProgress?.({
 			phase: 'completed',

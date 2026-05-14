@@ -60,6 +60,8 @@ afterEach(() => {
 	providerRuntime.cleanup('mission-step2-persist');
 	providerRuntime.cleanup('mission-step2-lifecycle');
 	providerRuntime.cleanup('mission-step2-activity');
+	providerRuntime.cleanup('mission-step2-response-failure');
+	providerRuntime.cleanup('mission-step2-sandbox');
 });
 
 describe('provider-runtime Spark agent bridge', () => {
@@ -151,6 +153,24 @@ describe('provider-runtime Spark agent bridge', () => {
 			expect(typeof event.data?.providerId).toBe('string');
 			expect(typeof event.data?.sparkAgentSessionId).toBe('string');
 		}
+	});
+
+	it('passes explicit workspace-write sandboxing to Codex workers', async () => {
+		let observedCommandTemplate = '';
+		sparkAgentBridge.setWorkerExecutorForTests(async (context) => {
+			observedCommandTemplate = context.commandTemplate;
+			return { success: true, response: 'codex-ok' };
+		});
+
+		await providerRuntime.dispatch({
+			executionPack: buildPack('mission-step2-sandbox', [provider('codex', 'gpt-5.5')]),
+			apiKeys: { codex: 'test-codex' },
+			onEvent: () => {},
+			workingDirectory: process.cwd()
+		});
+
+		await waitFor(() => providerRuntime.getMissionStatus('mission-step2-sandbox').allComplete);
+		expect(observedCommandTemplate).toBe('codex exec --model gpt-5.5 --sandbox workspace-write');
 	});
 
 	it('emits assigned task activity immediately for server-side auto-dispatch', async () => {
@@ -252,6 +272,63 @@ describe('provider-runtime Spark agent bridge', () => {
 		expect(status.anyFailed).toBe(true);
 		expect(status.providers.claude).toBe('failed');
 		expect(emitted.some((event) => event.type === 'task_failed')).toBe(true);
+	});
+
+	it('uses failed worker response text when no explicit error is returned', async () => {
+		sparkAgentBridge.setWorkerExecutorForTests(async () => ({
+			success: false,
+			response: 'Blocked by session permissions. The workspace is mounted read-only.'
+		}));
+
+		const emitted: BridgeEvent[] = [];
+		const unsubscribe = eventBridge.subscribe((event) => emitted.push(event));
+
+		await providerRuntime.dispatch({
+			executionPack: buildPack('mission-step2-response-failure', [provider('codex', 'gpt-5.5')]),
+			apiKeys: { codex: 'test-codex' },
+			onEvent: () => {},
+			workingDirectory: process.cwd()
+		});
+
+		await waitFor(() => providerRuntime.getMissionStatus('mission-step2-response-failure').allComplete);
+		unsubscribe();
+
+		const failures = emitted.filter((event) => event.type === 'task_failed');
+		expect(failures.some((event) => event.message?.includes('Blocked by session permissions'))).toBe(true);
+		expect(
+			failures.some((event) => {
+				const data = event.data as Record<string, unknown>;
+				const error = data.error as { message?: string } | undefined;
+				return error?.message === 'Blocked by session permissions. The workspace is mounted read-only.' &&
+					data.response === 'Blocked by session permissions. The workspace is mounted read-only.';
+			})
+		).toBe(true);
+	});
+
+	it('reclassifies successful worker responses that report blocked execution', async () => {
+		sparkAgentBridge.setWorkerExecutorForTests(async () => ({
+			success: true,
+			response: 'Blocked by session permissions. No files were created because the workspace is mounted read-only.'
+		}));
+
+		const emitted: BridgeEvent[] = [];
+		const unsubscribe = eventBridge.subscribe((event) => emitted.push(event));
+
+		await providerRuntime.dispatch({
+			executionPack: buildPack('mission-step2-blocked-success', [provider('codex', 'gpt-5.5')]),
+			apiKeys: { codex: 'test-codex' },
+			onEvent: () => {},
+			workingDirectory: process.cwd()
+		});
+
+		await waitFor(() => providerRuntime.getMissionStatus('mission-step2-blocked-success').allComplete);
+		unsubscribe();
+
+		const status = providerRuntime.getMissionStatus('mission-step2-blocked-success');
+		expect(status.anyFailed).toBe(true);
+		expect(status.providers.codex).toBe('failed');
+		const failures = emitted.filter((event) => event.type === 'task_failed');
+		expect(failures.some((event) => event.message?.includes('Blocked by session permissions'))).toBe(true);
 	});
 
 	it('cancels an active worker session and emits task_cancelled', async () => {

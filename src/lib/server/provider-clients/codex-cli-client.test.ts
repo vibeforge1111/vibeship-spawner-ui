@@ -10,7 +10,7 @@ describe('parseCodexCliCommand', () => {
 	});
 
 	it('adds skip-git-repo-check for yolo Codex exec commands', () => {
-		expect(parseCodexCliCommand('codex exec --yolo')).toEqual({
+		expect(parseCodexCliCommand('codex exec --yolo', { allowHighAgency: true })).toEqual({
 			binary: 'codex',
 			args: ['exec', '--skip-git-repo-check', '--yolo']
 		});

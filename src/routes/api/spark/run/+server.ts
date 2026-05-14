@@ -28,6 +28,7 @@ interface SparkRunBody {
 	chatId?: string;
 	userId?: string;
 	requestId?: string;
+	missionName?: string;
 	tier?: 'base' | 'pro';
 	promptMode?: 'simple' | 'orchestrator';
 	suppressRelay?: boolean;
@@ -117,11 +118,12 @@ function createSparkMission(
 	const projectPath = resolveSparkRunProjectPath(body.projectPath);
 	const sparkProjectPath = body.promptMode === 'simple' && !body.projectPath?.trim() ? null : projectPath;
 	const traceRef = normalizeTraceRef(body.traceRef ?? body.trace_ref) || `trace:spawner-run:${missionId}`;
+	const missionName = body.missionName?.trim();
 
 	return {
 		id: missionId,
 		user_id: userId,
-		name: `Spark Run: ${goal.length > 140 ? goal.slice(0, 137) + '…' : goal}`,
+		name: missionName || `Spark Run: ${goal.length > 140 ? goal.slice(0, 137) + '…' : goal}`,
 		description: goal,
 		mode: 'multi-llm-orchestrator',
 		status: 'ready',
@@ -348,6 +350,7 @@ export const POST: RequestHandler = async (event) => {
 		return json({
 			success: true,
 			missionId: dispatchResult.missionId,
+			missionName: mission.name,
 			requestId: body.requestId?.trim() || mission.id,
 			...(traceRef ? { traceRef } : {}),
 			providers: selectedProviderIds,

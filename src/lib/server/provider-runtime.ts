@@ -844,12 +844,14 @@ class ProviderRuntimeManager {
 						})
 					);
 				} else if (!workerResult.success && !(workerResult.error === 'Cancelled' && this.pausedMissions.has(missionId))) {
+					const failureText = workerResult.error || workerResult.response || 'unknown error';
 					onEvent(
 						createBridgeEvent('task_failed', { provider, missionId, onEvent, signal: abortController.signal }, {
-							message: `${provider.label} failed: ${workerResult.error || 'unknown error'}`,
+							message: `${provider.label} failed: ${failureText}`,
 							data: {
 								success: false,
-								error: workerResult.error || 'unknown error',
+								error: failureText,
+								response: workerResult.response,
 								provider: provider.id,
 								providerLabel: provider.label
 							}

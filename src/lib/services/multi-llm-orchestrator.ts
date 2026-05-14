@@ -917,7 +917,7 @@ function buildProviderPrompt(input: BuildProviderPromptInput): string {
 			const recommendedSkills = taskSkillMap?.get(task.id) || [];
 				const skillsLine =
 					recommendedSkills.length > 0
-						? `\n   Required H70 skills (load BEFORE task_started): ${recommendedSkills.map((skill) => `\`${skill}\``).join(', ')}`
+						? `\n   Recommended H70 skills (use when reachable): ${recommendedSkills.map((skill) => `\`${skill}\``).join(', ')}`
 						: '';
 				const mcpPlanLine = formatTaskMcpPlan(mcpTaskPlans[task.id]);
 				return `${index + 1}. ${task.title} (id: ${task.id}${deps})\n   ${task.description}${skillsLine}${mcpPlanLine}`;
@@ -957,11 +957,12 @@ ${projectContract}
 Assigned tasks:
 ${taskList || '- none'}
 
-H70 skill loading (mandatory):
-- For each assigned task with listed skills, fetch every required skill via /api/h70-skills/<skill-id> BEFORE starting the task.
-- Do not start task execution until required task skills are loaded.
-- Emit one progress event documenting loaded skills before task_started (message format: "SKILL_LOADED:<taskId>:<skillId,...>").
-- Apply anti-pattern and disaster guidance from loaded skills before implementation.
+H70 skill loading (recommended, not a hard gate):
+- For each assigned task with listed skills, try to fetch the recommended skills via /api/h70-skills/<skill-id> before implementation.
+- If H70 skills are reachable, apply their anti-pattern and disaster guidance before implementation.
+- If H70 skills are unreachable, continue with the task using your base expertise instead of blocking the mission.
+- When H70 loading succeeds or fails, emit one progress event documenting the source state before task_started (message format: "SKILL_SOURCE:<taskId>:loaded:<skillId,...>" or "SKILL_SOURCE:<taskId>:unavailable:<reason>").
+- Do not report task_completed unless implementation and verification actually ran.
 
 Execution expectations:
 - Work only on your assigned tasks.

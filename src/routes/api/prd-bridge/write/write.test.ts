@@ -90,6 +90,57 @@ describe('PRD bridge fallback analysis', () => {
 		expect(tasks.flatMap((task) => task.verificationCommands).join('\n')).toContain('node --check');
 	});
 
+	it('preserves one-file static HTML app and game constraints in fallback plans', async () => {
+		const pendingPrdFile = path.join(testSpawnerDir, 'pending-prd.md');
+		await writeFile(
+			pendingPrdFile,
+			[
+				'Build a small browser game called Recursive Sage: Signal Maze.',
+				'Make it playable in one static HTML file.',
+				'The player moves through a shifting grid, collects signal orbs, avoids corrupted tiles, and wins by reaching the bright exit.',
+				'Include keyboard controls, mobile buttons, score, timer, restart, and a polished visual style.'
+			].join('\n'),
+			'utf-8'
+		);
+
+		const result = await _buildFallbackAnalysisResult(
+			'tg-build-signal-maze',
+			'Recursive Sage: Signal Maze',
+			'direct',
+			'pro',
+			{
+				spawnerDir: testSpawnerDir,
+				resultsDir: path.join(testSpawnerDir, 'results'),
+				pendingPrdFile,
+				pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
+				prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
+			}
+		);
+
+		expect(result.projectName).toBe('Recursive Sage: Signal Maze');
+		expect(result.projectType).toBe('single-file-static-web-app');
+		expect(result.techStack).toMatchObject({
+			framework: 'Single-file static HTML',
+			styling: 'Embedded CSS in index.html'
+		});
+		expect(result.executionPrompt).toContain('Original brief:');
+		expect(result.executionPrompt).toContain('shifting grid');
+		expect(result.executionPrompt).toContain('Hard file constraint: create only index.html');
+
+		const tasks = result.tasks as Array<{
+			title: string;
+			summary: string;
+			acceptanceCriteria: string[];
+			verificationCommands: string[];
+		}>;
+		expect(tasks[0].title).toBe('Create the single-file static app');
+		expect(tasks[0].summary).toContain('Create only index.html');
+		expect(tasks.flatMap((task) => task.acceptanceCriteria).join('\n')).toContain(
+			'CSS and JavaScript are embedded in index.html'
+		);
+		expect(tasks.flatMap((task) => task.verificationCommands).join('\n')).toContain('test ! -f app.js');
+	});
+
 	it('keeps a sparse understanding clarification small and exact', async () => {
 		const pendingPrdFile = path.join(testSpawnerDir, 'pending-prd.md');
 		await writeFile(pendingPrdFile, 'did you understand what i said', 'utf-8');

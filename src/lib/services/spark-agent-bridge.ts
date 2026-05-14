@@ -8,7 +8,8 @@ import { resolveCliBinary } from '$lib/server/cli-resolver';
 import {
 	assertHighAgencyWorkerAllowed,
 	highAgencyWorkersAllowed,
-	HIGH_AGENCY_WORKERS_ENV
+	HIGH_AGENCY_WORKERS_ENV,
+	resolveCodexSandbox
 } from '$lib/server/high-agency-workers';
 import { spawnHidden, terminateProcessTree } from '$lib/server/hidden-process';
 import { resolveSparkRunProjectPath } from '$lib/server/spark-run-workspace';
@@ -267,7 +268,11 @@ function resolveProviderCommandTemplate(providerId: SparkAgentProviderId, model?
 	const fallbackTemplate = providerId === 'claude' ? 'claude -p --model {model}' : 'codex exec --model {model}';
 	const commandTemplate = template && template.trim() ? template : fallbackTemplate;
 	const fallbackModel = providerId === 'claude' ? 'opus' : 'gpt-5.5';
-	return commandTemplate.replace('{model}', (model && model.trim()) || fallbackModel);
+	const resolved = commandTemplate.replace('{model}', (model && model.trim()) || fallbackModel);
+	if (providerId !== 'codex' || /\s--(?:sandbox|dangerously-bypass-approvals-and-sandbox|yolo)\b/.test(resolved)) {
+		return resolved;
+	}
+	return `${resolved} --sandbox ${resolveCodexSandbox()}`;
 }
 
 function parseProviderCommand(providerId: SparkAgentProviderId, commandTemplate: string): ProviderCommand {
@@ -302,18 +307,51 @@ function parseProviderCommand(providerId: SparkAgentProviderId, commandTemplate:
 			args: ['exec', '--skip-git-repo-check', '--yolo']
 		};
 	}
-	if (tokens.length === 4 && tokens[2] === '--model') {
-		return {
-			binary: 'codex',
-			resolvedBinary: resolveCliBinary('codex') || 'codex',
-			args: ['exec', '--skip-git-repo-check', '--model', tokens[3]]
-		};
+	if (tokens[2] === '--model' && tokens[3]) {
+		const args = ['exec', '--skip-git-repo-check', '--model', tokens[3]];
+		if (tokens.length === 4) {
+			args.push('--sandbox', resolveCodexSandbox());
+			return {
+				binary: 'codex',
+				resolvedBinary: resolveCliBinary('codex') || 'codex',
+				args
+			};
+		}
+		if (tokens.length === 6 && tokens[4] === '--sandbox') {
+			args.push('--sandbox', resolveCodexSandbox({ ...process.env, SPARK_CODEX_SANDBOX: tokens[5] }));
+			return {
+				binary: 'codex',
+				resolvedBinary: resolveCliBinary('codex') || 'codex',
+				args
+			};
+		}
 	}
-	throw new Error('Codex provider command must be: codex exec --model <model>');
+	throw new Error('Codex provider command must be: codex exec --model <model> [--sandbox read-only|workspace-write|danger-full-access]');
 }
 
 function commandUsesHighAgencyMode(command: ProviderCommand): boolean {
-	return command.binary === 'codex' && command.args.includes('--yolo');
+	return command.binary === 'codex' && (command.args.includes('--yolo') || command.args.includes('danger-full-access'));
+}
+
+function blockedProviderResponse(response: string | undefined): string | null {
+	const text = (response || '').trim();
+	if (!text) return null;
+	const lower = text.toLowerCase();
+	const blockedSignals = [
+		'blocked by environment',
+		'blocked by session permissions',
+		'blocked before implementation',
+		'filesystem writes are blocked',
+		'workspace is mounted read-only',
+		'read-only sandbox',
+		'apply_patch write was rejected',
+		'writing is blocked by read-only sandbox',
+		'files changed: none',
+		'no files were created',
+		'index.html: missing'
+	];
+	if (!blockedSignals.some((signal) => lower.includes(signal))) return null;
+	return text.split(/\r?\n/).find((line) => line.trim().length > 0)?.trim() || 'Provider reported blocked execution';
 }
 
 function sanitizeMcpConfig(value: unknown): MCPClientConfig | null {
@@ -521,6 +559,27 @@ class SparkAgentBridgeService {
 				};
 			}
 
+			const blockedReason = result.success ? blockedProviderResponse(result.response) : null;
+			if (blockedReason) {
+				workerState.status = 'failed';
+				workerState.error = blockedReason;
+				workerState.completedAt = nowIso();
+				this.emitProviderEvent(workerState, 'task_failed', {
+					progress: workerState.progress,
+					message: `${providerId} worker failed: ${blockedReason}`,
+					error: { message: blockedReason, providerId },
+					response: result.response || ''
+				});
+				this.endSession(sparkAgentSessionId, 'failed');
+				return {
+					success: false,
+					sparkAgentSessionId,
+					error: blockedReason,
+					response: result.response,
+					durationMs: Date.now() - startedAtMs
+				};
+			}
+
 			if (result.success) {
 				workerState.status = 'completed';
 				workerState.response = result.response;
@@ -539,21 +598,25 @@ class SparkAgentBridgeService {
 				};
 			}
 
+			const responseFailure = blockedProviderResponse(result.response);
+			const failureMessage = result.error || responseFailure || result.response?.trim() || 'Worker execution failed';
 			workerState.status = 'failed';
-			workerState.error = result.error || 'Worker execution failed';
+			workerState.error = failureMessage;
 			workerState.completedAt = nowIso();
 			this.emitProviderEvent(workerState, 'task_failed', {
 				message: workerState.error,
 				error: {
 					message: workerState.error,
 					providerId
-				}
+				},
+				response: result.response || ''
 			});
 			this.endSession(sparkAgentSessionId, 'failed');
 			return {
 				success: false,
 				sparkAgentSessionId,
 				error: workerState.error,
+				response: result.response,
 				durationMs: Date.now() - startedAtMs
 			};
 		} catch (error) {

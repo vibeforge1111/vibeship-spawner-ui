@@ -59,6 +59,13 @@ function stringField(record: Record<string, unknown>, key: string): string | nul
 function previewBaseUrl(): string {
 	const envRecord = env as Record<string, string | undefined>;
 	const raw =
+		process.env.SPARK_PROJECT_PREVIEW_URL?.trim() ||
+		process.env.SPAWNER_PROJECT_PREVIEW_BASE_URL?.trim() ||
+		process.env.SPARK_PROJECT_PREVIEW_BASE_URL?.trim() ||
+		process.env.SPAWNER_UI_PUBLIC_URL?.trim() ||
+		process.env.PUBLIC_SPAWNER_UI_URL?.trim() ||
+		process.env.RAILWAY_PUBLIC_DOMAIN?.trim() ||
+		process.env.RAILWAY_STATIC_URL?.trim() ||
 		envRecord.SPARK_PROJECT_PREVIEW_URL?.trim() ||
 		envRecord.SPAWNER_PROJECT_PREVIEW_BASE_URL?.trim() ||
 		envRecord.SPARK_PROJECT_PREVIEW_BASE_URL?.trim() ||
@@ -72,6 +79,7 @@ function previewBaseUrl(): string {
 }
 
 function parseProviderResponseMetadata(response: string | null): {
+	summary?: string;
 	projectPath?: string;
 	project_path?: string;
 	previewUrl?: string;
@@ -82,6 +90,7 @@ function parseProviderResponseMetadata(response: string | null): {
 		const parsed = JSON.parse(response) as unknown;
 		if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
 		const record = parsed as Record<string, unknown>;
+		const summary = compactProviderHandoffText(stringField(record, 'summary'));
 		const projectPath = stringField(record, 'project_path') || stringField(record, 'projectPath');
 		const explicitPreviewUrl =
 			stringField(record, 'preview_url') ||
@@ -91,6 +100,7 @@ function parseProviderResponseMetadata(response: string | null): {
 		const baseUrl = previewBaseUrl();
 		const previewUrl = explicitPreviewUrl || (projectPath && baseUrl ? projectPreviewUrl(baseUrl, projectPath) : null);
 		return {
+			...(summary ? { summary } : {}),
 			...(projectPath ? { projectPath, project_path: projectPath } : {}),
 			...(previewUrl ? { previewUrl, preview_url: previewUrl } : {})
 		};
@@ -99,10 +109,43 @@ function parseProviderResponseMetadata(response: string | null): {
 	}
 }
 
+function providerCompletionLooksBlocked(text: string | null | undefined): boolean {
+	const normalized = text?.replace(/\s+/g, ' ').trim().toLowerCase() || '';
+	if (!normalized) return false;
+	return (
+		/\bblocked before task start\b/.test(normalized) ||
+		/\bblocked by (?:the |this |current )?(?:execution )?environment\b/.test(normalized) ||
+		/\bcould not load (?:the )?mandatory h70 skills\b/.test(normalized) ||
+		/\bfailed to load (?:the )?mandatory h70 skills\b/.test(normalized) ||
+		/\bi did not create (?:any )?files\b/.test(normalized) ||
+		/\bdid not create (?:any )?files\b/.test(normalized) ||
+		/\bworkspace (?:is|was) read-only\b/.test(normalized) ||
+		/\bread-only (?:sandbox|workspace|filesystem)\b/.test(normalized) ||
+		/\bpatch (?:was )?rejected\b/.test(normalized) ||
+		/\boperation not permitted\b/.test(normalized) ||
+		/\bfailed to connect to 127\.0\.0\.1\b/.test(normalized)
+	);
+}
+
+function normalizeProviderResultStatus(result: ProviderMissionResultSnapshot): ProviderMissionResultSnapshot {
+	if (result.status !== 'completed') return result;
+	if (!providerCompletionLooksBlocked([result.response, result.error].filter(Boolean).join('\n'))) return result;
+	return {
+		...result,
+		status: 'failed',
+		error: result.error || 'provider reported a blocked handoff'
+	};
+}
+
+function normalizeProviderResults(results: ProviderMissionResultSnapshot[]): ProviderMissionResultSnapshot[] {
+	return results.map((result) => normalizeProviderResultStatus(result));
+}
+
 export function summarizeProviderResults(
 	results: ProviderMissionResultSnapshot[]
 ): MissionControlResultSummary {
-	const providerResults = results.map((result) => {
+	const providerResults = normalizeProviderResults(results).map((result) => {
+		const metadata = parseProviderResponseMetadata(result.response);
 		const responseSummary = compactProviderHandoffText(result.response);
 		const errorSummary = compactMissionControlDisplayText(result.error);
 		const fallback =
@@ -116,10 +159,10 @@ export function summarizeProviderResults(
 			status: result.status,
 			...(result.requestId ? { requestId: result.requestId } : {}),
 			...(result.traceRef ? { traceRef: result.traceRef } : {}),
-			summary: responseSummary || errorSummary || fallback,
+			summary: metadata.summary || responseSummary || errorSummary || fallback,
 			durationMs: result.durationMs,
 			completedAt: result.completedAt,
-			...parseProviderResponseMetadata(result.response)
+			...metadata
 		};
 	});
 
@@ -322,6 +365,26 @@ function reconcileEntryWithProviderResults(
 			taskStatusCounts: taskStatusCounts(reconciled)
 		};
 	}
+	if (entry.status === 'completed' && providerStatus === 'failed') {
+		const tasks = entry.tasks.map((task) => ({
+			...task,
+			status:
+				task.status === 'cancelled'
+					? task.status
+					: ('failed' as const)
+		}));
+		const reconciled = {
+			...entry,
+			status: providerStatus,
+			lastEventType: 'provider_failed',
+			lastSummary: 'Provider completion was reclassified as failed.',
+			tasks
+		};
+		return {
+			...reconciled,
+			taskStatusCounts: taskStatusCounts(reconciled)
+		};
+	}
 	if (entry.status === 'completed' || entry.status === 'failed' || entry.status === 'cancelled' || entry.status === providerStatus) return entry;
 
 	const tasks =
@@ -358,7 +421,7 @@ export function enrichMissionControlBoardWithProviderResults(
 
 	for (const entries of Object.values(board)) {
 		for (const entry of entries) {
-			const providerResults = getResults(entry.missionId);
+			const providerResults = normalizeProviderResults(getResults(entry.missionId));
 			const reconciled = reconcileEntryWithProviderResults(entry, providerResults);
 			const results = alignProviderResultsWithBoardStatus(reconciled, providerResults);
 			const bucket = reconciled.status;
