@@ -129,6 +129,8 @@ describe('spawner state directory', () => {
 		expect(audit.schema_version).toBe('spark.spawner_state_source_reference_audit.v1');
 		expect(audit.scanned_roots).toEqual(['src', 'scripts', 'tests']);
 		expect(audit.reference_file_count).toBeGreaterThan(0);
+		expect(audit.runtime_reference_file_count).toBeGreaterThan(0);
+		expect(audit.reference_owner_counts.runtime).toBeGreaterThan(0);
 		expect(audit.cwd_spawner_fallback_helper_present).toBe(true);
 		expect(audit.redaction).toContain('mission bodies');
 	});
@@ -149,6 +151,9 @@ describe('spawner state directory', () => {
 				scanned_roots: ['src', 'scripts', 'docs', 'tests'],
 				reference_file_count: 0,
 				reference_family_counts: {},
+				runtime_reference_file_count: 0,
+				non_runtime_reference_file_count: 0,
+				reference_owner_counts: {},
 				cwd_spawner_fallback_helper_present: false,
 				spark_home_state_fallback_helper_present: true,
 				redaction: 'metadata only'
