@@ -72,6 +72,11 @@ describe('mission-control-display', () => {
 				'[MissionControl] Progress: SKILL_LOADED:node-1-task-create-the-static-app-shell:frontend-engineer,ui-design (mission-1777644961054).'
 			)
 		).toBe('Loaded skills for Create the static app shell.');
+		expect(
+			readableMissionControlSummary(
+				'[MissionControl] Progress: SKILL_SOURCE:node-1-task-create-the-playable-game-shell:unavailable:frontend-engineer game-development(curl: (3) URL rejected: Malformed input to a URL function) (mission-1777644961054).'
+			)
+		).toBe('Create the playable game shell: using built-in task context.');
 	});
 
 	it('compacts provider handoffs without local links or noisy file bullets', () => {

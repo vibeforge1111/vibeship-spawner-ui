@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
-import { basename, resolve } from 'node:path';
-import { projectPreviewUrl } from './project-preview';
+import { basename, resolve, win32 } from 'node:path';
+import { extractExplicitProjectPath } from './project-path-extraction';
+import { decodeProjectPreviewToken, projectPreviewUrl, resolveProjectPreviewRoot } from './project-preview';
 import type { MissionControlProjectLineage } from '$lib/types/mission-control';
 
 type RecordLike = Record<string, unknown>;
@@ -82,8 +83,9 @@ function previewBaseUrl(): string {
 
 function projectIdFromPath(projectPath: string | null): string | null {
 	if (!projectPath) return null;
-	const resolved = resolve(projectPath);
-	const folder = basename(resolved)
+	const isWindowsPath = /^[A-Za-z]:[\\/]/.test(projectPath) || /^\\\\[^\\]+\\[^\\]+/.test(projectPath);
+	const resolved = isWindowsPath ? win32.normalize(projectPath) : resolve(projectPath);
+	const folder = (isWindowsPath ? win32.basename(resolved) : basename(resolved))
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, '-')
 		.replace(/^-|-$/g, '')
@@ -103,21 +105,34 @@ function firstTextBlock(data: RecordLike | null, missionName?: string | null, me
 }
 
 function extractProjectPath(text: string): string | null {
-	const match =
-		text.match(/Improve the existing shipped project\s+"[^"]+"\s+at\s+((?:[A-Z]:[\\/]|\/)[^\r\n]+)/i) ||
-		text.match(/(?:target operating-system folder|project path|target folder|create it at|build it at|build this at)\s*:?\s*`?((?:[A-Z]:[\\/]|\/)[^\r\n`]+)/i) ||
-		text.match(/\bat\s+`?((?:[A-Z]:[\\/]|\/)[^\r\n`]+)/i);
-	const value = match?.[1]
-		?.trim()
-		.replace(/:\s+.*$/i, '')
-		.replace(/\s+(?:as|inside|with|and)\b.*$/i, '')
-		.replace(/[).,;]+$/, '');
-	return value || null;
+	return extractExplicitProjectPath(text);
 }
 
 function extractPreviewUrl(text: string): string | null {
 	const match = text.match(/https?:\/\/[^\s)]+\/preview\/[A-Za-z0-9_-]+\/index\.html/i);
 	return match?.[0] || null;
+}
+
+function refreshPreviewUrlForProjectPath(previewUrl: string | null | undefined, projectPath: string | null): string | null {
+	if (!projectPath) return previewUrl ?? null;
+	if (!previewUrl) return projectPreviewUrl(previewBaseUrl(), projectPath);
+
+	const token = previewUrl.match(/\/preview\/([^/]+)\/index\.html(?:$|[?#])/i)?.[1] ||
+		previewUrl.match(/\/preview\/([^/]+)\/index\.html$/i)?.[1];
+	if (!token) return previewUrl;
+
+	try {
+		const decodedPreviewRoot = decodeProjectPreviewToken(token);
+		const resolvedProjectPath = resolve(projectPath);
+		const currentPreviewRoot = resolveProjectPreviewRoot(projectPath);
+		if (decodedPreviewRoot === resolvedProjectPath && currentPreviewRoot !== resolvedProjectPath) {
+			return projectPreviewUrl(previewBaseUrl(), projectPath);
+		}
+	} catch {
+		return previewUrl;
+	}
+
+	return previewUrl;
 }
 
 function extractParentMissionId(text: string): string | null {
@@ -152,9 +167,7 @@ export function mergeMissionControlProjectLineage(
 		improvementFeedback: preferFeedbackText(current?.improvementFeedback, incoming?.improvementFeedback)
 	};
 	if (!merged.projectId) merged.projectId = projectIdFromPath(merged.projectPath);
-	if (!merged.previewUrl && merged.projectPath) {
-		merged.previewUrl = projectPreviewUrl(previewBaseUrl(), merged.projectPath);
-	}
+	merged.previewUrl = refreshPreviewUrlForProjectPath(merged.previewUrl, merged.projectPath);
 	return Object.values(merged).some((value) => value !== null) ? merged : null;
 }
 
@@ -179,7 +192,7 @@ export function extractMissionControlProjectLineage(input: {
 			records.map((record) => stringField(record, 'projectId', 'project_id')).find(Boolean) ||
 			projectIdFromPath(projectPath),
 		projectPath,
-		previewUrl: explicitPreviewUrl || (projectPath ? projectPreviewUrl(previewBaseUrl(), projectPath) : null),
+		previewUrl: refreshPreviewUrlForProjectPath(explicitPreviewUrl, projectPath),
 		parentMissionId:
 			records.map((record) => stringField(record, 'parentMissionId', 'parent_mission_id')).find(Boolean) ||
 			extractParentMissionId(text),

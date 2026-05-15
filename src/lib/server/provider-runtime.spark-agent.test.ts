@@ -113,6 +113,55 @@ describe('provider-runtime Spark agent bridge', () => {
 		expect(result.results[0].status).toBe('running');
 	});
 
+	it('leaves fresh orphaned running provider results alone after a runtime reload', () => {
+		const startedAt = Date.parse('2026-04-29T10:00:00.000Z');
+		const result = reconcileStaleProviderResults(
+			[
+				{
+					providerId: 'codex',
+					status: 'running',
+					response: null,
+					error: null,
+					durationMs: null,
+					tokenUsage: null,
+					startedAt: new Date(startedAt).toISOString(),
+					completedAt: null
+				}
+			],
+			{ now: startedAt + 10_000, staleMs: 30_000, orphaned: true }
+		);
+
+		expect(result.changed).toBe(false);
+		expect(result.results[0].status).toBe('running');
+	});
+
+	it('reconciles orphaned running provider results after the stale window', () => {
+		const startedAt = Date.parse('2026-04-29T10:00:00.000Z');
+		const result = reconcileStaleProviderResults(
+			[
+				{
+					providerId: 'codex',
+					status: 'running',
+					response: null,
+					error: null,
+					durationMs: null,
+					tokenUsage: null,
+					startedAt: new Date(startedAt).toISOString(),
+					completedAt: null
+				}
+			],
+			{ now: startedAt + 60_000, staleMs: 30_000, orphaned: true }
+		);
+
+		expect(result.changed).toBe(true);
+		expect(result.results[0]).toMatchObject({
+			providerId: 'codex',
+			status: 'failed',
+			durationMs: 60_000
+		});
+		expect(result.results[0].error).toContain('still orphaned after 1m');
+	});
+
 	it('dispatches codex + claude through Spark agent worker sessions and emits normalized events', async () => {
 		sparkAgentBridge.setWorkerExecutorForTests(async (context) => {
 			context.emitProgress(35, `${context.providerId} booting`);
@@ -198,7 +247,7 @@ describe('provider-runtime Spark agent bridge', () => {
 					progress: expect.any(Number),
 					data: expect.objectContaining({
 						kind: 'provider_heartbeat',
-						suppressRelay: true,
+						suppressExternalRelay: true,
 						assignedTaskIds: ['task-1', 'task-2'],
 						assignedTaskCount: 2,
 						elapsedMs: expect.any(Number)

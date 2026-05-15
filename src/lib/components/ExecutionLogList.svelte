@@ -1,6 +1,10 @@
 <script lang="ts">
 	import type { MissionLog } from '$lib/services/mcp-client';
 	import type { ExecutionStatus, TaskTransitionEvent } from '$lib/services/mission-executor';
+	import {
+		formatExecutionLogForDisplay,
+		type DisplayLog
+	} from '$lib/services/execution-log-display';
 	import { toasts } from '$lib/stores/toast.svelte';
 	import Icon from './Icon.svelte';
 
@@ -22,37 +26,43 @@
 	}
 
 	function copyAllLogs(): void {
-		const logText = logs.map((log) => `${formatTime(log.created_at)}  ${formatLogMessage(log.message)}`).join('\n');
+		const logText = logs.map((log) => `${formatTime(log.created_at)}  ${formatExecutionLogForDisplay(log).message}`).join('\n');
 		navigator.clipboard.writeText(logText);
 		toasts.success('Logs copied to clipboard');
 	}
 
-	function copyLogMessage(message: string): void {
-		navigator.clipboard.writeText(formatLogMessage(message));
+	function copyLogMessage(log: MissionLog): void {
+		navigator.clipboard.writeText(formatExecutionLogForDisplay(log).message);
 		toasts.success('Copied');
 	}
 
-	function formatLogMessage(message: string): string {
-		return message
-			.replace(/\[MissionControl\]\s*/g, '')
-			.replace(/\s*\((mission-[^)]+)\)\.?$/g, '')
-			.replace(/^Progress:\s*/i, '')
-			.trim();
-	}
-
-	function getLogDotClass(type: MissionLog['type']): string {
-		switch (type) {
-			case 'complete':
+	function getLogDotClass(display: DisplayLog): string {
+		switch (display.tone) {
+			case 'success':
 				return 'bg-accent-primary';
 			case 'error':
 				return 'bg-status-error';
 			case 'start':
 				return 'bg-vibe-teal';
-			case 'handoff':
+			case 'warning':
 				return 'bg-status-warning';
 			default:
 				return 'bg-text-tertiary';
 		}
+	}
+
+	function getLogRowClass(display: DisplayLog): string {
+		if (display.tone === 'error') return 'border-status-error/25 bg-status-error/5';
+		if (display.tone === 'warning') return 'border-status-warning/25 bg-status-warning/5';
+		if (display.tone === 'success') return 'border-accent-primary/20 bg-accent-primary/[0.04]';
+		return 'border-transparent hover:border-surface-border hover:bg-bg-secondary/70';
+	}
+
+	function getLogLabelClass(display: DisplayLog): string {
+		if (display.tone === 'error') return 'border-status-error/30 bg-status-error/10 text-status-error';
+		if (display.tone === 'warning') return 'border-status-warning/30 bg-status-warning/10 text-status-warning';
+		if (display.tone === 'success') return 'border-accent-primary/25 bg-accent-primary/10 text-accent-primary';
+		return 'border-vibe-teal/25 bg-vibe-teal/10 text-vibe-teal';
 	}
 
 	$effect(() => {
@@ -101,18 +111,24 @@
 				{/if}
 			</div>
 		{:else}
-			<div class="space-y-1">
+			<div class="space-y-1.5">
 				{#each logs as log}
-					<div class="group grid cursor-text grid-cols-[74px_8px_minmax(0,1fr)_28px] items-start gap-3 rounded-md border border-transparent px-2.5 py-2 text-text-secondary transition-colors hover:border-surface-border hover:bg-bg-secondary/70">
+					{@const display = formatExecutionLogForDisplay(log)}
+					<div class="group grid cursor-text grid-cols-[74px_8px_minmax(0,1fr)_28px] items-start gap-3 rounded-md border px-2.5 py-2.5 text-text-secondary transition-colors {getLogRowClass(display)}">
 						<span class="select-text pt-0.5 font-mono text-[11px] tabular-nums leading-5 text-text-tertiary">
 							{formatTime(log.created_at)}
 						</span>
-						<span class="mt-2 h-1.5 w-1.5 rounded-full {getLogDotClass(log.type)}"></span>
-						<span class="select-text break-words font-sans text-sm leading-5 text-text-secondary">
-							{formatLogMessage(log.message)}
-						</span>
+						<span class="mt-2 h-1.5 w-1.5 rounded-full {getLogDotClass(display)}"></span>
+						<div class="min-w-0 select-text">
+							{#if display.label}
+								<span class="mb-1 inline-flex rounded-sm border px-1.5 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-[0.12em] {getLogLabelClass(display)}">
+									{display.label}
+								</span>
+							{/if}
+							<p class="break-words font-sans text-sm leading-5 text-text-secondary">{display.message}</p>
+						</div>
 						<button
-							onclick={() => copyLogMessage(log.message)}
+							onclick={() => copyLogMessage(log)}
 							class="rounded-md p-1.5 text-xs text-text-tertiary opacity-0 transition-all hover:bg-bg-primary hover:text-vibe-teal group-hover:opacity-100"
 							title="Copy this log"
 							aria-label="Copy this log"

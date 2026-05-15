@@ -29,6 +29,7 @@ import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { eventBridge } from '$lib/services/event-bridge';
 import { mcpClient } from '$lib/services/mcp-client';
 import { agentWorkTimeoutMs } from './timeout-config';
+import { extractTraceRef } from './trace-ref';
 import { readFile } from 'node:fs/promises';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -57,6 +58,8 @@ interface MissionDispatchSnapshot {
 export interface ProviderMissionResultSnapshot {
 	providerId: string;
 	status: ProviderSessionStatus;
+	requestId?: string | null;
+	traceRef?: string | null;
 	response: string | null;
 	error: string | null;
 	durationMs: number | null;
@@ -114,7 +117,7 @@ function formatDurationCompact(ms: number): string {
 
 export function reconcileStaleProviderResults(
 	results: ProviderMissionResultSnapshot[],
-	options: { now?: number; staleMs?: number } = {}
+	options: { now?: number; staleMs?: number; orphaned?: boolean } = {}
 ): { results: ProviderMissionResultSnapshot[]; changed: boolean } {
 	const now = options.now ?? Date.now();
 	const staleMs = options.staleMs ?? staleRunningProviderMs();
@@ -123,15 +126,17 @@ export function reconcileStaleProviderResults(
 	const reconciled = results.map((result) => {
 		if (result.status !== 'running') return result;
 		const startedAtMs = Date.parse(result.startedAt);
-		if (!Number.isFinite(startedAtMs) || now - startedAtMs < staleMs) return result;
+		const durationMs = Number.isFinite(startedAtMs) ? Math.max(0, now - startedAtMs) : 0;
+		if (!Number.isFinite(startedAtMs) || durationMs < staleMs) return result;
 		changed = true;
-		const durationMs = Math.max(0, now - startedAtMs);
 		return {
 			...result,
 			status: 'failed' as ProviderSessionStatus,
 			error:
 				result.error ||
-				`Provider runtime went quiet after ${formatDurationCompact(durationMs)}; marked stale so the mission stops reporting as active.`,
+				(options.orphaned
+					? `Provider runtime was still orphaned after ${formatDurationCompact(durationMs)}; marked stale so the mission can be run again.`
+					: `Provider runtime went quiet after ${formatDurationCompact(durationMs)}; marked stale so the mission stops reporting as active.`),
 			durationMs: result.durationMs ?? durationMs,
 			completedAt: result.completedAt || completedAt
 		};
@@ -169,7 +174,7 @@ export function providerShouldUseSparkExecutionBridge(
 }
 
 function sessionToResultSnapshot(session: ProviderSession): ProviderMissionResultSnapshot {
-	return {
+	return withMissionTraceMetadata(session.missionId, {
 		providerId: session.providerId,
 		status: session.status,
 		response: session.result?.response ?? null,
@@ -178,6 +183,47 @@ function sessionToResultSnapshot(session: ProviderSession): ProviderMissionResul
 		tokenUsage: session.result?.tokenUsage ?? null,
 		startedAt: session.startedAt.toISOString(),
 		completedAt: session.completedAt ? session.completedAt.toISOString() : null
+	});
+}
+
+function missionTraceMetadata(missionId: string): { requestId: string | null; traceRef: string | null } {
+	for (const fileName of ['last-canvas-load.json', 'pending-request.json']) {
+		try {
+			const raw = readFileSync(path.join(getSpawnerStateDir(), fileName), 'utf-8');
+			const parsed = JSON.parse(raw) as Record<string, unknown>;
+			const relay = parsed.relay && typeof parsed.relay === 'object'
+				? (parsed.relay as Record<string, unknown>)
+				: null;
+			const missionIds = [
+				typeof parsed.missionId === 'string' ? parsed.missionId : null,
+				typeof relay?.missionId === 'string' ? relay.missionId : null
+			];
+			if (!missionIds.includes(missionId)) continue;
+			return {
+				requestId:
+					(typeof parsed.requestId === 'string' && parsed.requestId) ||
+					(typeof relay?.requestId === 'string' && relay.requestId) ||
+					null,
+				traceRef: extractTraceRef(parsed, relay) || null
+			};
+		} catch {
+			// Mission metadata is best-effort; provider execution should not depend on it.
+		}
+	}
+	return { requestId: null, traceRef: null };
+}
+
+function withMissionTraceMetadata(
+	missionId: string,
+	result: ProviderMissionResultSnapshot
+): ProviderMissionResultSnapshot {
+	const metadata = missionTraceMetadata(missionId);
+	const requestId = result.requestId || metadata.requestId;
+	const traceRef = result.traceRef || metadata.traceRef;
+	return {
+		...result,
+		...(requestId ? { requestId } : {}),
+		...(traceRef ? { traceRef } : {})
 	};
 }
 
@@ -210,7 +256,7 @@ class ProviderRuntimeManager {
 			return new Map(
 				Object.entries(parsed.missions ?? {}).map(([missionId, results]) => [
 					missionId,
-					Array.isArray(results) ? results : []
+					Array.isArray(results) ? results.map((result) => withMissionTraceMetadata(missionId, result)) : []
 				])
 			);
 		} catch (error) {
@@ -257,13 +303,23 @@ class ProviderRuntimeManager {
 
 	private getReconciledPersistedResults(missionId: string): ProviderMissionResultSnapshot[] {
 		const persisted = this.persistedResults.get(missionId) ?? [];
-		const reconciled = reconcileStaleProviderResults(persisted);
-		if (reconciled.changed) {
-			this.persistedResults.set(missionId, reconciled.results);
+		const orphaned = !this.dispatchSnapshots.has(missionId);
+		const reconciled = reconcileStaleProviderResults(persisted, { orphaned });
+		const withMetadata = reconciled.results.map((result) => withMissionTraceMetadata(missionId, result));
+		const metadataChanged = withMetadata.some(
+			(result, index) => result.requestId !== reconciled.results[index]?.requestId || result.traceRef !== reconciled.results[index]?.traceRef
+		);
+		if (reconciled.changed || metadataChanged) {
+			this.persistedResults.set(missionId, withMetadata);
 			this.persistResults();
-			this.rememberStatusReason(missionId, 'Provider runtime went quiet; stale running session was closed.');
+			this.rememberStatusReason(
+				missionId,
+				orphaned
+					? 'Provider runtime restart left no active session after the stale window; running session was closed.'
+					: 'Provider runtime went quiet; stale running session was closed.'
+			);
 		}
-		return reconciled.results;
+		return withMetadata;
 	}
 
 	private async recoverDispatchSnapshot(missionId: string): Promise<MissionDispatchSnapshot | null> {
@@ -616,7 +672,7 @@ class ProviderRuntimeManager {
 						taskName,
 						progress: nextProgress,
 						kind: 'provider_heartbeat',
-						suppressRelay: true,
+						suppressExternalRelay: true,
 						provider: provider.id,
 						providerLabel: provider.label,
 						assignedTaskIds: taskIds,
@@ -788,12 +844,14 @@ class ProviderRuntimeManager {
 						})
 					);
 				} else if (!workerResult.success && !(workerResult.error === 'Cancelled' && this.pausedMissions.has(missionId))) {
+					const failureText = workerResult.error || workerResult.response || 'unknown error';
 					onEvent(
 						createBridgeEvent('task_failed', { provider, missionId, onEvent, signal: abortController.signal }, {
-							message: `${provider.label} failed: ${workerResult.error || 'unknown error'}`,
+							message: `${provider.label} failed: ${failureText}`,
 							data: {
 								success: false,
-								error: workerResult.error || 'unknown error',
+								error: failureText,
+								response: workerResult.response,
 								provider: provider.id,
 								providerLabel: provider.label
 							}

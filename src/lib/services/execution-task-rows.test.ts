@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import type { CanvasNode } from '$lib/stores/canvas.svelte';
 import type { ExecutionProgress } from './mission-executor';
 import type { Mission, MissionTask } from './mcp-client';
-import { buildExecutionTaskRows, getNextTaskRow, summarizeTaskRows } from './execution-task-rows';
+import {
+	buildExecutionTaskRows,
+	buildTaskRowBreakdown,
+	getNextTaskRow,
+	summarizeTaskRows
+} from './execution-task-rows';
 
 function node(id: string, name: string, status?: CanvasNode['status']): CanvasNode {
 	return {
@@ -185,6 +190,31 @@ describe('execution task row helpers', () => {
 		]);
 	});
 
+	it('separates PRD preparation from canvas build work', () => {
+		const rows = buildExecutionTaskRows(
+			progress({
+				mission: mission([
+					task('task-prd', 'PRD analysis', 'completed'),
+					task('task-1', 'Create playable shell', 'completed'),
+					task('task-2', 'Add scoring loop', 'in_progress'),
+					task('task-3', 'Verify the game', 'pending')
+				])
+			}),
+			[]
+		);
+
+		const breakdown = buildTaskRowBreakdown(rows);
+
+		expect(breakdown.preparationRows.map((row) => row.title)).toEqual(['PRD analysis']);
+		expect(breakdown.buildRows.map((row) => row.title)).toEqual([
+			'Create playable shell',
+			'Add scoring loop',
+			'Verify the game'
+		]);
+		expect(breakdown.preparationSummary).toMatchObject({ completed: 1, running: 0 });
+		expect(breakdown.buildSummary).toMatchObject({ completed: 1, running: 1, pending: 1 });
+	});
+
 	it('summarizes rows using blocked tasks as pending work', () => {
 		const rows = buildExecutionTaskRows(
 			progress({
@@ -213,5 +243,20 @@ describe('execution task row helpers', () => {
 
 		const running = buildExecutionTaskRows(null, [node('node-1', 'Plan'), node('node-2', 'Build', 'running')]);
 		expect(getNextTaskRow(running)?.title).toBe('Build');
+	});
+
+	it('uses the latest running task when a live surface briefly has more than one active row', () => {
+		const rows = buildExecutionTaskRows(
+			progress({
+				mission: mission([
+					task('task-1', 'First task', 'in_progress'),
+					task('task-2', 'Current task', 'in_progress'),
+					task('task-3', 'Queued task', 'pending')
+				])
+			}),
+			[]
+		);
+
+		expect(getNextTaskRow(rows)?.title).toBe('Current task');
 	});
 });

@@ -6,7 +6,11 @@
 	} from '$lib/services/mission-executor';
 	import type { MCPRuntimeTool } from '$lib/services/mcp-runtime';
 	import Icon from './Icon.svelte';
-	import { summarizeTaskRows, type TaskStatusRow } from '$lib/services/execution-task-rows';
+	import {
+		buildTaskRowBreakdown,
+		summarizeTaskRows,
+		type TaskStatusRow
+	} from '$lib/services/execution-task-rows';
 
 	interface Props {
 		executionProgress: ExecutionProgress;
@@ -41,41 +45,67 @@
 		executionProgress.mission?.tasks?.filter((task) => task.status === 'completed').length || 0
 	);
 	let taskSummary = $derived.by(() => summarizeTaskRows(taskRows));
+	let taskBreakdown = $derived.by(() => buildTaskRowBreakdown(taskRows));
+	let buildRows = $derived(taskBreakdown.buildRows);
+	let preparationRows = $derived(taskBreakdown.preparationRows);
+	let buildSummary = $derived(taskBreakdown.buildSummary);
+	let preparationSummary = $derived(taskBreakdown.preparationSummary);
+	let visibleTaskRows = $derived(buildRows.length > 0 ? buildRows : taskRows);
+	let hasPreparationRows = $derived(preparationRows.length > 0);
+	let buildTaskCount = $derived(buildRows.length || missionTaskCount);
+	let buildCompletedTaskCount = $derived(buildRows.length > 0 ? buildSummary.completed : missionCompletedTaskCount);
+	let activeTaskRow = $derived.by(() => {
+		const runningTasks = taskRows.filter((task) => task.status === 'running');
+		return runningTasks[runningTasks.length - 1] || null;
+	});
 	let taskBuckets = $derived.by(() => [
 		{
 			key: 'completed',
 			label: 'Done',
-			count: taskSummary.completed,
-			tasks: taskRows.filter((task) => task.status === 'completed'),
+			count: buildRows.length > 0 ? buildSummary.completed : taskSummary.completed,
+			tasks: visibleTaskRows.filter((task) => task.status === 'completed'),
 			tone: 'text-status-success'
 		},
 		{
 			key: 'running',
 			label: 'Active',
-			count: taskSummary.running,
-			tasks: taskRows.filter((task) => task.status === 'running'),
+			count: buildRows.length > 0 ? buildSummary.running : taskSummary.running,
+			tasks: visibleTaskRows.filter((task) => task.status === 'running'),
 			tone: 'text-sky-300'
 		},
 		{
 			key: 'pending',
 			label: 'Queued',
-			count: taskSummary.pending,
-			tasks: taskRows.filter((task) => task.status === 'pending' || task.status === 'blocked'),
+			count: buildRows.length > 0 ? buildSummary.pending : taskSummary.pending,
+			tasks: visibleTaskRows.filter((task) => task.status === 'pending' || task.status === 'blocked'),
 			tone: 'text-amber-300'
 		},
 		{
 			key: 'failed',
 			label: 'Failed',
-			count: taskSummary.failed,
-			tasks: taskRows.filter((task) => task.status === 'failed'),
+			count: buildRows.length > 0 ? buildSummary.failed : taskSummary.failed,
+			tasks: visibleTaskRows.filter((task) => task.status === 'failed'),
 			tone: 'text-status-error'
 		}
 	]);
 	let missionTitle = $derived(executionProgress.mission?.name || 'Canvas execution');
+
+	function conciseTaskLabel(progress: ExecutionProgress): string {
+		if (progress.currentTaskName) return progress.currentTaskName;
+		if (progress.status === 'completed') return 'Mission completed.';
+		if (progress.status === 'failed') return progress.error || 'Mission needs attention.';
+		if (progress.status === 'cancelled') return 'Mission cancelled.';
+		if (progress.status === 'paused') return 'Mission paused.';
+		if (progress.status === 'running' || progress.status === 'creating') return 'Preparing next task...';
+		const message = progress.currentTaskMessage?.trim();
+		if (!message) return 'Waiting for next task';
+		if (/^Codex:\s*/i.test(message) && message.length > 90) return 'Provider summary is available in the execution log.';
+		return message;
+	}
+
 	let activeTaskLabel = $derived(
-		executionProgress.currentTaskName ||
-		executionProgress.currentTaskMessage ||
-			(executionProgress.status === 'completed' ? 'Execution complete' : 'Waiting for next task')
+		activeTaskRow?.title ||
+			conciseTaskLabel(executionProgress)
 	);
 	let providerRuntimeStatus = $derived.by(() => {
 		const multiPack = executionProgress.multiLLMExecution;
@@ -105,9 +135,15 @@
 			<div class="mt-1 truncate text-xs font-mono text-text-tertiary">{activeTaskLabel}</div>
 			<div class="mt-2 flex flex-wrap items-center gap-1.5">
 				<span class="rounded border border-surface-border bg-bg-secondary px-2 py-1 text-[10px] font-mono text-text-secondary">
-					<span class="text-text-tertiary">tasks</span>
-					<span class="ml-1 font-semibold tabular-nums text-text-primary">{missionCompletedTaskCount}/{missionTaskCount}</span>
+					<span class="text-text-tertiary">build</span>
+					<span class="ml-1 font-semibold tabular-nums text-text-primary">{buildCompletedTaskCount}/{buildTaskCount}</span>
 				</span>
+				{#if hasPreparationRows}
+				<span class="rounded border border-surface-border bg-bg-secondary px-2 py-1 text-[10px] font-mono text-text-secondary">
+					<span class="text-text-tertiary">prep</span>
+					<span class="ml-1 font-semibold tabular-nums text-text-primary">{preparationSummary.completed}/{preparationRows.length}</span>
+				</span>
+				{/if}
 				<span class="rounded border border-surface-border bg-bg-secondary px-2 py-1 text-[10px] font-mono text-text-secondary">
 					<span class="text-text-tertiary">elapsed</span>
 					<span class="ml-1 font-semibold tabular-nums text-text-primary">{executionDuration}</span>
@@ -147,20 +183,32 @@
 					<div class="flex min-w-0 items-center gap-2">
 						<span class="shrink-0 text-[10px] font-mono uppercase tracking-[0.14em] text-text-tertiary">Task flow</span>
 						<div class="flex max-w-full items-center gap-1.5 overflow-hidden">
-							{#each taskRows.slice(0, 16) as task}
+							{#if hasPreparationRows}
+								<span
+									class="h-2 w-2 shrink-0 rounded-full border border-text-tertiary/50 {preparationSummary.failed > 0 ? 'bg-status-error' : preparationSummary.running > 0 ? 'bg-sky-400' : preparationSummary.completed === preparationRows.length ? 'bg-status-success' : 'bg-text-tertiary'}"
+									title={`Preparation ${preparationSummary.completed}/${preparationRows.length}`}
+								></span>
+								<span class="h-px w-3 shrink-0 bg-surface-border"></span>
+							{/if}
+							{#each visibleTaskRows.slice(0, 16) as task}
 								<span
 									class="h-2 w-2 shrink-0 rounded-full {taskDotClass(task.status)}"
 									title={`#${task.index} ${task.title} - ${task.status}`}
 								></span>
 							{/each}
-							{#if taskRows.length > 16}
-								<span class="text-[10px] font-mono text-text-tertiary">+{taskRows.length - 16}</span>
+							{#if visibleTaskRows.length > 16}
+								<span class="text-[10px] font-mono text-text-tertiary">+{visibleTaskRows.length - 16}</span>
 							{/if}
 						</div>
 						<span class="shrink-0 text-xs font-semibold tabular-nums text-text-primary">
-							{taskSummary.completed}/{taskRows.length}
+							{buildCompletedTaskCount}/{buildTaskCount}
 						</span>
 					</div>
+					{#if hasPreparationRows}
+						<div class="mt-1 text-[10px] font-mono text-text-tertiary">
+							Preparation {preparationSummary.completed}/{preparationRows.length} · Build tasks {buildCompletedTaskCount}/{buildTaskCount}
+						</div>
+					{/if}
 				</div>
 
 				<div class="grid grid-cols-2 gap-1.5 sm:grid-cols-4" aria-label="Task state summary">

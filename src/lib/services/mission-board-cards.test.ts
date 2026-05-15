@@ -3,6 +3,7 @@ import {
 	canRunCreatorMissionBoardCard,
 	canValidateCreatorMissionBoardCard,
 	getMissionBoardCardActionLinks,
+	getMissionBoardWorkBreakdown,
 	isCreatorMissionBoardCard,
 	mergeMissionBoardCards,
 	type MissionBoardCard
@@ -246,6 +247,37 @@ describe('mergeMissionBoardCards', () => {
 	});
 });
 
+describe('mission board work breakdown', () => {
+	it('keeps PRD preparation separate from build task progress', () => {
+		const breakdown = getMissionBoardWorkBreakdown(card({
+			taskCount: 5,
+			taskStatusCounts: { queued: 0, running: 0, completed: 5, failed: 0, cancelled: 0, total: 5 },
+			tasks: [
+				{ title: 'PRD analysis', skills: [], status: 'completed' },
+				{ title: 'Create playable shell', skills: [], status: 'completed' },
+				{ title: 'Design core loop', skills: [], status: 'completed' },
+				{ title: 'Add scoring and restart', skills: [], status: 'completed' },
+				{ title: 'Verify playable loop', skills: [], status: 'completed' }
+			]
+		}));
+
+		expect(breakdown.hasPreparation).toBe(true);
+		expect(breakdown.preparation).toMatchObject({ completed: 1, total: 1 });
+		expect(breakdown.build).toMatchObject({ completed: 4, total: 4 });
+	});
+
+	it('falls back to relay task counts when detailed tasks are not present yet', () => {
+		const breakdown = getMissionBoardWorkBreakdown(card({
+			taskCount: 3,
+			taskStatusCounts: { queued: 2, running: 1, completed: 0, failed: 0, cancelled: 0, total: 3 }
+		}));
+
+		expect(breakdown.hasPreparation).toBe(false);
+		expect(breakdown.build).toMatchObject({ queued: 2, running: 1, total: 3 });
+		expect(breakdown.preparation.total).toBe(0);
+	});
+});
+
 describe('creator mission run eligibility', () => {
 	it('allows creator missions that only completed planning task events', () => {
 		const plannedCreator = card({
@@ -274,6 +306,20 @@ describe('creator mission run eligibility', () => {
 		});
 
 		expect(canRunCreatorMissionBoardCard(executingCreator)).toBe(false);
+	});
+
+	it('blocks creator run actions for read-only evidence missions', () => {
+		const readOnlyCreator = card({
+			id: 'mission-creator-startup-yc-evidence',
+			name: 'Creator Mission: Startup YC',
+			mode: 'creator-mission',
+			source: 'spark',
+			status: 'running',
+			executionStarted: false,
+			executionPolicy: 'read_only'
+		});
+
+		expect(canRunCreatorMissionBoardCard(readOnlyCreator)).toBe(false);
 	});
 
 	it('does not show run actions for normal Spark missions', () => {

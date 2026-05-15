@@ -15,6 +15,7 @@
 		canRunCreatorMissionBoardCard,
 		canValidateCreatorMissionBoardCard,
 		getMissionBoardCardActionLinks,
+		getMissionBoardWorkBreakdown,
 		mergeMissionBoardCards,
 		type MissionBoardCard as BoardCard
 	} from '$lib/services/mission-board-cards';
@@ -42,6 +43,7 @@
 		lastEventType: string;
 		lastUpdated: string;
 		executionStarted?: boolean;
+		executionPolicy?: string | null;
 		queuedAt?: string | null;
 		startedAt?: string | null;
 		lastSummary: string;
@@ -341,6 +343,7 @@
 			createdAt: e.lastUpdated ?? null,
 			lastEventType: e.lastEventType,
 			executionStarted: e.executionStarted,
+			executionPolicy: e.executionPolicy ?? null,
 			queuedAt: e.queuedAt ?? null,
 			startedAt: e.startedAt ?? null,
 			taskCount,
@@ -400,6 +403,8 @@
 
 	const toDo = $derived(filteredCards().filter((c) => c.status === 'draft' || c.status === 'ready'));
 	const inProgress = $derived(filteredCards().filter((c) => c.status === 'running' || c.status === 'paused'));
+	const runningCount = $derived(filteredCards().filter((c) => c.status === 'running').length);
+	const pausedCount = $derived(filteredCards().filter((c) => c.status === 'paused').length);
 	const done = $derived(
 		filteredCards()
 			.filter((c) => c.status === 'completed' || c.status === 'failed' || c.status === 'cancelled')
@@ -446,7 +451,7 @@
 	}
 
 	function taskProgressPercent(card: BoardCard): number {
-		const counts = card.taskStatusCounts;
+		const counts = getMissionBoardWorkBreakdown(card).build;
 		if (!counts || counts.total <= 0) {
 			if (card.status === 'completed') return 100;
 			if (card.status === 'running') return 48;
@@ -456,21 +461,44 @@
 	}
 
 	function hasTaskProgress(card: BoardCard): boolean {
-		const counts = card.taskStatusCounts;
+		const counts = getMissionBoardWorkBreakdown(card).build;
 		return Boolean(counts && counts.total > 0);
 	}
 
 	function taskProgressRatio(card: BoardCard): string {
-		const counts = card.taskStatusCounts;
+		const counts = getMissionBoardWorkBreakdown(card).build;
 		if (!counts || counts.total <= 0) return '';
 		const settled = counts.completed + counts.failed + counts.cancelled;
 		return `${settled}/${counts.total}`;
 	}
 
-	function taskProgressLabel(card: BoardCard): string {
-		const counts = card.taskStatusCounts;
-		if (!counts || counts.total <= 0) return '';
-		return `${taskProgressRatio(card)} task${counts.total === 1 ? '' : 's'} completed`;
+	function hasPreparationProgress(card: BoardCard): boolean {
+		return getMissionBoardWorkBreakdown(card).hasPreparation;
+	}
+
+	function preparationProgressRatio(card: BoardCard): string {
+		const counts = getMissionBoardWorkBreakdown(card).preparation;
+		if (!counts.total) return '';
+		const settled = counts.completed + counts.failed + counts.cancelled;
+		return `${settled}/${counts.total}`;
+	}
+
+	function cardStatusLabel(card: BoardCard): string {
+		if (card.status === 'ready' || card.status === 'draft') return 'To do';
+		if (card.status === 'running') return 'Running';
+		if (card.status === 'paused') return 'Paused';
+		if (card.status === 'completed') return 'Complete';
+		if (card.status === 'failed') return 'Needs review';
+		if (card.status === 'cancelled') return 'Cancelled';
+		return card.status;
+	}
+
+	function cardStatusClass(card: BoardCard): string {
+		if (card.status === 'running') return 'border-accent-primary/25 bg-accent-primary/10 text-accent-primary';
+		if (card.status === 'paused') return 'border-status-warning/25 bg-status-warning/10 text-status-warning';
+		if (card.status === 'completed') return 'border-status-success/25 bg-status-success/10 text-status-success';
+		if (card.status === 'failed') return 'border-status-error/25 bg-status-error/10 text-status-error';
+		return 'border-surface-border bg-bg-primary text-text-tertiary';
 	}
 
 	function focusLine(card: BoardCard): string | null {
@@ -501,15 +529,6 @@
 
 	function typeBadgeClass(card: BoardCard): string {
 		return 'border-surface-border bg-bg-primary/70 text-text-tertiary group-hover:border-iris/60 group-hover:text-iris';
-	}
-
-	function lineageSummary(card: BoardCard): string | null {
-		const lineage = card.projectLineage;
-		if (!lineage) return null;
-		const parts = [];
-		if (lineage.iterationNumber) parts.push(`Iteration ${lineage.iterationNumber}`);
-		if (lineage.projectPath) parts.push(lineage.projectPath.split(/[\\/]/).filter(Boolean).pop() || lineage.projectPath);
-		return parts.length ? parts.join(' / ') : null;
 	}
 
 	function completionEvidenceLabel(card: BoardCard): string | null {
@@ -761,7 +780,7 @@
 				></span>
 			</p>
 			<h1 class="text-2xl font-sans font-semibold text-text-primary tracking-tight">
-				{cards().length} missions · {inProgress.length} running
+				{cards().length} missions · {runningCount} running{pausedCount ? ` · ${pausedCount} paused` : ''}
 			</h1>
 		</div>
 
@@ -975,23 +994,23 @@
 							{#each col.items as c (c.id)}
 								{@const actionLinks = getMissionBoardCardActionLinks(c)}
 								{@const summary = focusLine(c)}
-								{@const lineage = lineageSummary(c)}
 								{@const evidence = completionEvidenceLabel(c)}
 								{@const hasProgress = hasTaskProgress(c)}
+								{@const hasPreparation = hasPreparationProgress(c)}
 								{@const hasActions = hasCardActions(c)}
-								<article class="group relative overflow-hidden rounded-md border border-surface-border bg-bg-secondary transition-all hover:border-iris/60 hover:bg-bg-tertiary/40">
+								<article class="group relative overflow-hidden rounded-lg border border-surface-border/80 bg-bg-secondary/80 transition-all hover:border-iris/55 hover:bg-bg-tertiary/30">
 									<a
 										href={actionLinks.detailHref}
-										class="block px-4 py-3.5 text-inherit focus:outline-none focus-visible:ring-1 focus-visible:ring-iris/70 rounded-md"
+										class="block px-4 py-3.5 text-inherit focus:outline-none focus-visible:ring-1 focus-visible:ring-iris/70 rounded-lg"
 										title="Open this mission"
 									>
-										<div class="mb-3 flex items-start justify-between gap-3 pr-24">
+										<div class="mb-2.5 flex items-start justify-between gap-3 pr-24">
 											<div class="min-w-0 flex-1">
-												<h3 class="flex items-start gap-2 font-sans text-base font-semibold leading-snug text-text-primary transition-colors group-hover:text-accent-primary">
-													<span class="mt-1.5 h-2 w-2 rounded-full shrink-0 {statusDot(c.status)}"></span>
+												<h3 class="flex items-start gap-2 font-sans text-[15px] font-semibold leading-snug text-text-primary transition-colors group-hover:text-accent-primary">
+													<span class="mt-1.5 h-2 w-2 shrink-0 rounded-full {statusDot(c.status)}"></span>
 													<span class="line-clamp-2">{c.name}</span>
 												</h3>
-												<p class="mt-1.5 flex items-center gap-1.5 font-mono text-[11px] leading-tight text-text-secondary">
+												<p class="mt-1.5 flex items-center gap-1.5 font-mono text-[10px] leading-tight text-text-tertiary">
 													<Icon name="clock" size={11} class="text-text-tertiary" />
 													<span>{cardTimestamp(c)}</span>
 												</p>
@@ -1001,30 +1020,39 @@
 											</div>
 										</div>
 
+										<div class="mb-2.5 flex min-w-0 items-center gap-2">
+											<span class="inline-flex shrink-0 rounded-sm border px-2 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-[0.12em] {cardStatusClass(c)}">
+												{cardStatusLabel(c)}
+											</span>
+											<span class="min-w-0 truncate font-mono text-[10px] text-text-faint">Open for details</span>
+										</div>
+
 										{#if summary}
-											<p class="mb-2.5 text-sm leading-relaxed text-text-secondary line-clamp-2">{summary}</p>
+											<p class="mb-2.5 text-xs leading-relaxed text-text-secondary line-clamp-1">{summary}</p>
 										{/if}
 
-										{#if lineage}
-											<p class="mb-2.5 truncate font-mono text-[10px] text-text-tertiary">{lineage}</p>
-										{/if}
-
-										{#if evidence}
+										{#if evidence && c.completionEvidence?.state !== 'complete'}
 											<p class="mb-2.5 inline-flex max-w-full items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[10px] {completionEvidenceClass(c)}" title={c.completionEvidence?.summary}>
-												<Icon name={c.completionEvidence?.state === 'complete' ? 'check-circle' : 'alert-triangle'} size={11} />
+												<Icon name="alert-triangle" size={11} />
 												<span class="truncate">{evidence}</span>
 											</p>
 										{/if}
 
 										{#if hasProgress}
 										<div>
-											<div class="mb-2 flex items-center justify-between gap-3 font-mono text-xs font-semibold text-text-secondary">
-												<span>{taskProgressLabel(c)}</span>
+											<div class="mb-2 flex items-center justify-between gap-3 font-mono text-[11px] font-semibold text-text-secondary">
+												<span>{taskProgressRatio(c)} build tasks</span>
 												<span>{taskProgressPercent(c)}%</span>
 											</div>
-											<div class="h-1.5 overflow-hidden rounded-full bg-bg-primary">
+											<div class="h-1 overflow-hidden rounded-full bg-bg-primary">
 												<div class="h-full rounded-full bg-accent-primary transition-all" style="width: {taskProgressPercent(c)}%"></div>
 											</div>
+											{#if hasPreparation}
+												<div class="mt-2 flex items-center justify-between gap-3 font-mono text-[10px] text-text-tertiary">
+													<span>Preparation</span>
+													<span class="tabular-nums">{preparationProgressRatio(c)}</span>
+												</div>
+											{/if}
 										</div>
 										{/if}
 
@@ -1050,23 +1078,25 @@
 										</span>
 									{/if}
 
-									<div class:hidden={!hasActions} class="flex flex-wrap items-center gap-2 border-t border-surface-border/60 px-4 py-2.5">
+									<div class:hidden={!hasActions} class="flex flex-wrap items-center gap-2 border-t border-surface-border/40 bg-bg-primary/25 px-4 py-2">
 										{#if c.projectLineage?.previewUrl}
 											<a
 												href={c.projectLineage.previewUrl}
 												onclick={(event) => event.stopPropagation()}
-												class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-text-secondary border border-surface-border rounded-sm hover:border-accent-primary/50 hover:text-accent-primary transition-all"
+												class="inline-flex items-center justify-center gap-1.5 rounded-sm border border-surface-border px-2.5 py-1 font-mono text-[10px] text-text-secondary transition-all hover:border-accent-primary/50 hover:text-accent-primary"
 												title="Open the shipped project preview"
 											>
+												<Icon name="external-link" size={10} />
 												Preview
 											</a>
 										{/if}
 										{#if c.projectLineage?.projectPath}
 											<button
 												onclick={() => handleImprove(c)}
-												class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-text-secondary border border-surface-border rounded-sm hover:border-accent-primary/50 hover:text-accent-primary transition-all"
+												class="inline-flex items-center justify-center gap-1.5 rounded-sm border border-surface-border px-2.5 py-1 font-mono text-[10px] text-text-secondary transition-all hover:border-accent-primary/50 hover:text-accent-primary"
 												title="Start another polish pass on this shipped project"
 											>
+												<Icon name="sparkles" size={10} />
 												Improve
 											</button>
 										{/if}

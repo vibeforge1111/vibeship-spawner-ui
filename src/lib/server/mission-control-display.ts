@@ -67,15 +67,28 @@ function taskSentence(taskName: string, verb: string, fallback: string): string 
 	}
 }
 
-function readableSkillLoadedMessage(value: string): string | null {
-	const match = value.match(/SKILL_LOADED:([^:]+):(.+)$/i);
-	if (!match) return null;
-	const taskSlug = match[1]
+function readableTaskNameFromSlug(taskSlug: string): string {
+	const cleanSlug = taskSlug
 		.replace(/^node-\d+-task-/, '')
 		.replace(/-/g, ' ')
 		.trim();
-	const taskName = taskSlug ? `${taskSlug.charAt(0).toUpperCase()}${taskSlug.slice(1)}` : 'task';
-	return `Loaded skills for ${taskName}.`;
+	return cleanSlug ? `${cleanSlug.charAt(0).toUpperCase()}${cleanSlug.slice(1)}` : 'task';
+}
+
+function readableSkillSignalMessage(value: string): string | null {
+	const skillLoadedMatch = value.match(/SKILL_LOADED:([^:]+):(.+)$/i);
+	if (skillLoadedMatch) {
+		return `Loaded skills for ${readableTaskNameFromSlug(skillLoadedMatch[1])}.`;
+	}
+
+	const skillSourceMatch = value.match(/SKILL_SOURCE:([^:]+):(loaded|unavailable):/i);
+	if (!skillSourceMatch) return null;
+	const [, taskSlug, state] = skillSourceMatch;
+	const taskName = readableTaskNameFromSlug(taskSlug);
+	if (state.toLowerCase() === 'loaded') {
+		return `Loaded skills for ${taskName}.`;
+	}
+	return `${taskName}: using built-in task context.`;
 }
 
 export function readableMissionControlSummary(
@@ -88,8 +101,8 @@ export function readableMissionControlSummary(
 		.replace(/\[MissionControl\]\s*/gi, '')
 		.replace(/\s*\(mission-[^)]+\)\.?$/i, '')
 		.trim();
-	const skillLoaded = readableSkillLoadedMessage(withoutSurface.replace(/^Progress:\s*/i, '').trim());
-	if (skillLoaded) return skillLoaded;
+	const skillSignal = readableSkillSignalMessage(withoutSurface.replace(/^Progress:\s*/i, '').trim());
+	if (skillSignal) return skillSignal;
 
 	const taskMatch = withoutSurface.match(/^Task\s+(started|completed|failed|cancelled):\s*(.+)$/i);
 	if (taskMatch) {

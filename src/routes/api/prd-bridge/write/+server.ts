@@ -24,11 +24,13 @@ import { formatTaskQualityGuidance } from '$lib/server/task-quality-rubric';
 import { formatVerificationPlanGuidance, generateVerificationPlan } from '$lib/server/verification-plan-generator';
 import { enrichBrief, isSparseUnderstandingClarification } from '$lib/server/brief-enricher';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { projectStoredPrdAnalysisResultForTier } from '$lib/server/prd-analysis-result-schema';
+import { extractExplicitProjectPath } from '$lib/server/project-path-extraction';
 import {
 	capabilityProposalSummary,
 	normalizeCapabilityProposalPacket
 } from '$lib/server/capability-proposal-packet';
-import { normalizeTraceRef, traceRefFromMissionId } from '$lib/server/trace-ref';
+import { extractTraceRef, normalizeTraceRef, traceRefFromMissionId } from '$lib/server/trace-ref';
 
 function getPrdBridgePaths() {
 	const spawnerDir = spawnerStateDir();
@@ -51,6 +53,8 @@ const AUTO_ANALYSIS_TIMEOUT_MS =
 	Number.isFinite(configuredAnalysisTimeoutMs) && configuredAnalysisTimeoutMs > 0
 		? configuredAnalysisTimeoutMs
 		: DEFAULT_AUTO_ANALYSIS_TIMEOUT_MS;
+const DEFAULT_PROVISIONAL_DIRECT_ANALYSIS_MS = 10_000;
+const DEFAULT_PROVISIONAL_ADVANCED_ANALYSIS_MS = 45_000;
 
 function normalizeRequestId(requestId: string): string {
 	return requestId.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -77,6 +81,38 @@ async function appendPrdTrace(requestId: string, event: string, details: Record<
 	}
 }
 
+function traceRefDetails(traceRef: string | null | undefined): Record<string, string> {
+	return traceRef ? { traceRef } : {};
+}
+
+async function traceRefForRequest(requestId: string, details: Record<string, unknown>): Promise<string | null> {
+	const explicit = extractTraceRef(details);
+	if (explicit) return explicit;
+	try {
+		const { pendingRequestFile } = getPrdBridgePaths();
+		if (!existsSync(pendingRequestFile)) return null;
+		const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
+		const pending = JSON.parse(pendingRaw) as Record<string, unknown>;
+		if (pending.requestId !== requestId) return null;
+		return extractTraceRef(pending);
+	} catch {
+		return null;
+	}
+}
+
+export function _buildPrdResultArtifactVerification(
+	requestId: string,
+	paths: Pick<ReturnType<typeof getPrdBridgePaths>, 'resultsDir'> = getPrdBridgePaths()
+): { kind: 'prd_analysis_result'; present: boolean; fileName: string } {
+	const safeRequestId = normalizeRequestId(requestId);
+	const fileName = `${safeRequestId}.json`;
+	return {
+		kind: 'prd_analysis_result',
+		present: existsSync(join(paths.resultsDir, fileName)),
+		fileName
+	};
+}
+
 type RunnerWritableState = 'yes' | 'no' | 'unknown';
 
 type RunnerCapability = {
@@ -85,6 +121,41 @@ type RunnerCapability = {
 	failureReason?: string;
 	checkedAt?: string;
 };
+
+type AuthorityVerdictV1 = {
+	schema_version: 'spark.authority_verdict.v1';
+	traceRef?: string;
+	actionFamily: 'mission_execution';
+	sourcePolicy: string;
+	verdict: 'allowed' | 'blocked' | 'confirmation_required';
+	confirmationRequired: boolean;
+	scope: string;
+	expiresAt: string | null;
+	sourceRepo: 'spawner-ui';
+	reasonCode: string;
+};
+
+export function _buildAuthorityVerdict(input: {
+	traceRef?: string | null;
+	autoStarted: boolean;
+	autoProvider: string;
+}): AuthorityVerdictV1 {
+	const provider = input.autoProvider || 'unknown';
+	return {
+		schema_version: 'spark.authority_verdict.v1',
+		...(input.traceRef ? { traceRef: input.traceRef } : {}),
+		actionFamily: 'mission_execution',
+		sourcePolicy: 'spawner_prd_bridge_control_auth_rate_limit_auto_provider',
+		verdict: input.autoStarted ? 'allowed' : 'blocked',
+		confirmationRequired: false,
+		scope: 'local_spawner_prd_auto_analysis',
+		expiresAt: null,
+		sourceRepo: 'spawner-ui',
+		reasonCode: input.autoStarted
+			? `auto_provider_${provider}_started`
+			: `auto_provider_${provider}_not_started`
+	};
+}
 
 function normalizeRunnerCapability(input: unknown): RunnerCapability | null {
 	if (!input || typeof input !== 'object') return null;
@@ -106,7 +177,7 @@ function normalizeRunnerCapability(input: unknown): RunnerCapability | null {
 
 async function updatePendingRequestStatus(
 	requestId: string,
-	status: 'pending' | 'processed' | 'timeout' | 'fallback' | 'error',
+	status: 'pending' | 'processed' | 'timeout' | 'fallback' | 'provisional' | 'error',
 	extra: Record<string, unknown> = {}
 ): Promise<void> {
 	try {
@@ -138,8 +209,7 @@ function slugifyTaskId(value: string, fallback: string): string {
 }
 
 function extractTargetFolder(content: string): string | null {
-	const match = content.match(/\bat\s+([A-Za-z]:\\[^\n\r]+?)(?::\s|\s+Files\b|$|\r|\n)/i);
-	return match?.[1]?.trim().replace(/[.:]+$/, '') || null;
+	return extractExplicitProjectPath(content);
 }
 
 function extractRequestedFiles(content: string): string[] {
@@ -154,17 +224,127 @@ function extractRequestedFiles(content: string): string[] {
 function isConstrainedSingleFileStaticHtml(content: string): boolean {
 	const lower = content.toLowerCase();
 	const namesIndex = /\bindex\.html\b/.test(lower);
+	const namesReadme = /\breadme\.md\b/.test(lower);
 	const oneFileOnly = /\b(?:one|single)[-\s]?file\s+only\b|\bonly\s+(?:one|a\s+single)\s+file\b/.test(lower);
 	const oneFileNamedIndex = /\b(?:one|single)[-\s]?file\s*(?:,|:|called|named|as)?\s*index\.html\b/.test(lower);
+	const exactlyTwoFiles = hasExactTwoFileProofIntent(lower);
 	const staticHtmlOnly = /\bstatic\s+html\s+only\b|\bkeep\s+it\s+as\s+static\s+html\b|\bstatic\s+file\s+only\b/.test(lower);
-	const noPackage = /\bdo\s+not\s+add\s+package\b|\bno\s+package(?:\.json| files?)?\b/.test(lower);
+	const noPackage = /\bdo\s+not\s+(?:add|create)\s+package(?:\.json)?\b|\bno\s+package(?:\.json| files?)?\b/.test(lower);
 	const forbidsFullApp = /\bdo\s+not\s+(?:make|build|create)\s+(?:a\s+)?full\s+app\b|\bdon't\s+(?:make|build|create)\s+(?:a\s+)?full\s+app\b/.test(lower);
-	return namesIndex && (oneFileOnly || oneFileNamedIndex || forbidsFullApp || (staticHtmlOnly && noPackage));
+	const forbidsExtraFiles = hasExtraFileDenial(lower);
+	return namesIndex && (
+		oneFileOnly ||
+		oneFileNamedIndex ||
+		forbidsFullApp ||
+		(staticHtmlOnly && noPackage) ||
+		(namesReadme && exactlyTwoFiles && forbidsExtraFiles)
+	);
+}
+
+function constrainedStaticDeliverableFiles(content: string): string[] {
+	const lower = content.toLowerCase();
+	if (/\bindex\.html\b/.test(lower) && /\breadme\.md\b/.test(lower) && hasExactTwoFileProofIntent(lower)) {
+		return ['index.html', 'README.md'];
+	}
+	return ['index.html'];
+}
+
+function extractStaticProofVisibleRequirements(content: string): { marker: string | null; sentence: string | null } {
+	const marker =
+		content.match(/\bSPARK_OS_[A-Z0-9_]+\b/)?.[0] ??
+		content.match(/\b[A-Z][A-Z0-9_]{2,}_OK\b/)?.[0] ??
+		null;
+	const sentence =
+		content.match(/\bexact\s+sentence\s+"([^"\r\n]{1,200})"/i)?.[1] ??
+		content.match(/\bsentence\s+"([^"\r\n]{1,200})"/i)?.[1] ??
+		null;
+	return { marker, sentence };
+}
+
+function escapeHtml(value: string): string {
+	return value
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
+}
+
+async function writeConstrainedStaticProofArtifacts(content: string): Promise<number> {
+	if (!isConstrainedSingleFileStaticHtml(content)) return 0;
+	const targetFolder = extractTargetFolder(content);
+	const deliverableFiles = constrainedStaticDeliverableFiles(content);
+	if (!targetFolder || deliverableFiles.join(',') !== 'index.html,README.md') return 0;
+
+	const { marker, sentence } = extractStaticProofVisibleRequirements(content);
+	if (!marker && !sentence) return 0;
+
+	await mkdir(targetFolder, { recursive: true });
+	const markerHtml = marker ? `<p class="marker">${escapeHtml(marker)}</p>` : '';
+	const sentenceHtml = sentence ? `<p class="sentence">${escapeHtml(sentence)}</p>` : '';
+	const indexHtml = [
+		'<!doctype html>',
+		'<html lang="en">',
+		'<head>',
+		'<meta charset="utf-8">',
+		'<meta name="viewport" content="width=device-width, initial-scale=1">',
+		'<title>Spawner Trace Parity Proof</title>',
+		'<style>body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:Arial,sans-serif;background:#101318;color:#f6f7fb}.proof{max-width:720px;padding:32px;border:1px solid #3b4252}.marker{font-family:monospace;color:#7dd3fc}.sentence{font-size:1.25rem}</style>',
+		'</head>',
+		'<body>',
+		'<main class="proof">',
+		'<h1>Spawner Trace Parity Proof</h1>',
+		markerHtml,
+		sentenceHtml,
+		'</main>',
+		'</body>',
+		'</html>'
+	].join('\n');
+	const readme = [marker, sentence].filter(Boolean).join('\n\n') + '\n';
+	await writeFile(join(targetFolder, 'index.html'), indexHtml, 'utf-8');
+	await writeFile(join(targetFolder, 'README.md'), readme, 'utf-8');
+	return 2;
+}
+
+function hasExactTwoFileProofIntent(lower: string): boolean {
+	const saysExactly = /\bexactly\b/.test(lower);
+	const saysTwo = /\b(?:two|2)\b/.test(lower);
+	const saysFiles = /\bfiles?\b/.test(lower);
+	return (
+		/\bexactly\b[\s\S]{0,120}\b(?:two|2)\b[\s\S]{0,120}\bfiles?\b/.test(lower) ||
+		/\b(?:two|2)\b[\s\S]{0,120}\bfiles?\b[\s\S]{0,120}\bno\s+(?:others|other\s+files)\b/.test(lower) ||
+		(saysExactly && saysTwo && saysFiles && /\bindex\.html\b/.test(lower) && /\breadme\.md\b/.test(lower))
+	);
+}
+
+function hasExtraFileDenial(lower: string): boolean {
+	return (
+		/\bno\s+others\b|\bno\s+other\s+files?\b|\bno\s+extra\s+files?\b/.test(lower) ||
+		/\bdo\s+not\s+create\b[\s\S]{0,160}\b(?:app\.js|styles\.css|package\.json|assets|folders?|extra\s+files?)\b/.test(lower) ||
+		/\bdo\s+not\s+(?:publish|deploy|install\s+packages|make\s+network\s+calls)\b/.test(lower)
+	);
+}
+
+function isSingleFileStaticHtmlApp(content: string): boolean {
+	const lower = content.toLowerCase();
+	return (
+		/\b(?:one|single)[-\s]?(?:static\s+)?html\s+file\b/.test(lower) ||
+		/\bplayable\s+in\s+(?:one|a\s+single)\s+static\s+html\s+file\b/.test(lower) ||
+		/\b(?:one|single)[-\s]?file\s+(?:static\s+)?(?:(?:html|web)\s+)?(?:app|game|tool|page)\b/.test(lower)
+	);
 }
 
 function inferTechStack(content: string): { framework: string; language: string; styling: string; deployment: string } {
 	const lower = content.toLowerCase();
-	if (lower.includes('three.js') || lower.includes('threejs')) {
+	if (isSingleFileStaticHtmlApp(content)) {
+		return {
+			framework: 'Single-file static HTML',
+			language: 'HTML with embedded CSS and JavaScript',
+			styling: 'Embedded CSS in index.html',
+			deployment: 'Direct browser-open static file'
+		};
+	}
+	if (lower.includes('three.js') || lower.includes('threejs') || /\b(?:3d|webgl|three-dimensional)\b/.test(lower)) {
 		return {
 			framework: 'Vanilla JavaScript + Three.js',
 			language: 'JavaScript',
@@ -201,7 +381,8 @@ export async function _buildFallbackAnalysisResult(
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier,
-	paths: ReturnType<typeof getPrdBridgePaths>
+	paths: ReturnType<typeof getPrdBridgePaths>,
+	buildLane: BuildLane = buildMode === 'advanced_prd' ? 'advanced_prd' : 'direct'
 ): Promise<Record<string, unknown>> {
 	const content = existsSync(paths.pendingPrdFile) ? await readFile(paths.pendingPrdFile, 'utf-8') : '';
 	if (isSparseUnderstandingClarification(content)) {
@@ -274,47 +455,52 @@ export async function _buildFallbackAnalysisResult(
 		const validSkills = new Set((await getTierSkills(tier)).map((skill) => skill.id));
 		const selectSkills = (skills: string[]) => skills.filter((skill) => validSkills.has(skill)).slice(0, 5);
 		const workspaceTargets = targetFolder ? [targetFolder] : [];
+		const deliverableFiles = constrainedStaticDeliverableFiles(content);
+		const deliverableList = deliverableFiles.join(', ');
 		const tasks = [
 			{
-				id: 'task-1-create-index-html',
-				title: 'Create Exact Static Index HTML',
-				summary: 'Create or update only index.html with the exact requested visible copy and minimal embedded CSS.',
+				id: 'task-1-create-static-files',
+				title: 'Create Exact Static Files',
+				summary: `Create exactly ${deliverableList} with the requested visible copy and minimal embedded styling.`,
 				description:
-					'Keep the deliverable to one static HTML file. Do not add package files, app shell behavior, persistence, scripts, navigation, extra controls, or generated assets unless the brief explicitly asks for them.',
+					'Keep the deliverable to the explicitly requested static files. Do not add package files, app shell behavior, persistence, scripts, navigation, extra controls, or generated assets unless the brief explicitly asks for them.',
 				skills: selectSkills(['frontend-engineer', 'html-css', 'accessibility']),
 				dependencies: [] as string[],
 				workspaceTargets,
 				acceptanceCriteria: [
-					'Only index.html is required for the deliverable.',
+					`Only ${deliverableList} are required for the deliverable.`,
 					'The requested heading and body text are preserved exactly.',
 					'The page opens directly as static HTML without npm, a dev server, or a build step.',
 					'No package.json, node_modules, JavaScript app shell, localStorage workflow, checklist UI, dashboard, navigation, or extra product features are added.'
 				],
 				verificationCommands: [
-					'test -f index.html',
+					...deliverableFiles.map((file) => `test -f ${file}`),
 					'test ! -f package.json',
-					'test ! -d node_modules',
-					'grep -F "index.html" . >/dev/null 2>&1 || true'
+					'test ! -f app.js',
+					'test ! -f styles.css',
+					'test ! -d node_modules'
 				]
 			},
 			{
 				id: 'task-2-verify-static-contract',
-				title: 'Verify One-File Static Contract',
-				summary: 'Confirm the final workspace contains the single static HTML deliverable and no app expansion.',
+				title: 'Verify Exact Static Contract',
+				summary: `Confirm the final workspace contains exactly ${deliverableList} and no app expansion.`,
 				description:
-					'Run lightweight checks that prove the prompt stayed constrained: one required file, exact visible copy, no package files, no runtime dependency, and no extra app functionality.',
+					'Run lightweight checks that prove the prompt stayed constrained: exact required files, exact visible copy, no package files, no runtime dependency, and no extra app functionality.',
 				skills: selectSkills(['qa-engineering', 'testing-strategies', 'accessibility']),
-				dependencies: ['task-1-create-index-html'],
+				dependencies: ['task-1-create-static-files'],
 				workspaceTargets,
 				acceptanceCriteria: [
-					'index.html exists at the workspace root.',
+					`${deliverableList} exist at the workspace root.`,
 					'The requested strings appear in the rendered document.',
 					'No build tooling or extra project files are needed.',
 					'The result is a static confirmation page rather than a full app.'
 				],
 				verificationCommands: [
-					'test -f index.html',
+					...deliverableFiles.map((file) => `test -f ${file}`),
 					'test ! -f package.json',
+					'test ! -f app.js',
+					'test ! -f styles.css',
 					'test ! -d node_modules',
 					'grep -i "<h1" index.html',
 					'grep -i "<script" index.html && exit 1 || true'
@@ -326,7 +512,7 @@ export async function _buildFallbackAnalysisResult(
 			requestId,
 			success: true,
 			projectName,
-			projectType: 'static-single-file-html',
+			projectType: deliverableFiles.length === 1 ? 'static-single-file-html' : 'static-exact-file-proof',
 			complexity: 'simple',
 			infrastructure: {
 				needsAuth: false,
@@ -346,88 +532,287 @@ export async function _buildFallbackAnalysisResult(
 			skills,
 			executionPrompt: [
 				'Implement the user request as a constrained static-file build.',
-				'Create or update only index.html in the workspace root.',
+				`Create exactly these files in the workspace root: ${deliverableList}.`,
 				'Preserve the requested visible copy exactly.',
 				'Use minimal embedded CSS only.',
-				'Do not create a full app, package files, JavaScript workflow, localStorage persistence, checklist UI, dashboard, navigation, or extra product features.',
+				'Do not create any other files, package files, JavaScript workflow, localStorage persistence, checklist UI, dashboard, navigation, or extra product features.',
 				'Original brief:',
 				content
 			].join('\n')
 		};
 	}
-	const isStaticApp = lower.includes('no build step') || lower.includes('vanilla-js') || lower.includes('vanilla js');
-	const isThree = lower.includes('three.js') || lower.includes('threejs');
-	const skillByTheme = isThree
-		? ['frontend-engineer', 'threejs-3d-graphics', 'ui-design', 'responsive-mobile-first']
-		: ['frontend-engineer', 'ui-design', 'responsive-mobile-first', 'state-management'];
+	const singleFileStaticApp = isSingleFileStaticHtmlApp(content);
+	const isStaticApp =
+		singleFileStaticApp ||
+		lower.includes('no build step') ||
+		lower.includes('vanilla-js') ||
+		lower.includes('vanilla js');
+	const isThree = lower.includes('three.js') || lower.includes('threejs') || /\b(?:3d|webgl|three-dimensional)\b/.test(lower);
+	const isGame = /\b(game|maze|puzzle|arcade|runner|platformer|rpg|quest|level|player|score|enemy|boss)\b/.test(lower);
+	const isDashboard = /\b(dashboard|metrics?|analytics|monitor|tracker|report|board)\b/.test(lower);
+	const isTokenOrNftLaunch = /\b(token|nft|mint|treasury|liquidity|holders?|launch|sale)\b/.test(lower);
+	const isFastDirectLane = buildLane === 'fast_direct';
+	const isFastStaticOrSmoke =
+		isFastDirectLane &&
+		!isGame &&
+		!isDashboard &&
+		(isStaticApp || /\b(?:tiny|small|simple|fast|smoke|one[-\s]?screen|one[-\s]?file|static\s+page)\b/.test(lower));
 	const validSkills = new Set((await getTierSkills(tier)).map((skill) => skill.id));
 	const selectSkills = (skills: string[]) => skills.filter((skill) => validSkills.has(skill)).slice(0, 5);
 	const workspaceTargets = targetFolder ? [targetFolder] : [];
-	const fileList = requestedFiles.length > 0 ? requestedFiles.join(', ') : 'the requested project files';
+	const effectiveRequestedFiles =
+		singleFileStaticApp && requestedFiles.length === 0 ? ['index.html'] : requestedFiles;
+	const fileList = effectiveRequestedFiles.length > 0 ? effectiveRequestedFiles.join(', ') : 'the requested project files';
+	const visibleRequirements = extractStaticProofVisibleRequirements(content);
+	const visibleMarkerCriterion = visibleRequirements.marker
+		? `The first screen visibly includes the exact marker "${visibleRequirements.marker}".`
+		: 'The first screen opens directly and shows the requested marker or core copy.';
+	const visibleMarkerSummary = visibleRequirements.marker
+		? `Create only ${fileList} with embedded CSS and JavaScript, visibly render the exact marker "${visibleRequirements.marker}", wire one simple interaction, then verify the tiny file-scope checks.`
+		: `Create only ${fileList} with embedded CSS and JavaScript, preserve the requested visible marker and one simple interaction, then verify the tiny file-scope checks.`;
 
-	const taskSpecs = [
-		{
-			title: isStaticApp ? 'Create the static app shell' : 'Create the app shell and project structure',
-			summary: `Set up ${fileList} and make the first screen match the requested product direction.`,
-			skills: selectSkills(['frontend-engineer', 'html-css', 'ui-design', 'responsive-mobile-first']),
-			dependencies: [] as string[],
-			acceptanceCriteria: [
-				'The project opens to a usable first screen.',
-				'Requested files and local project structure are present.',
-				'No unrelated framework or build tooling is added when the brief says no build step.'
-			],
-			verificationCommands: targetFolder
-				? [`Test-Path '${targetFolder}'`, `Get-ChildItem '${targetFolder}' | Select-Object -ExpandProperty Name`]
-				: ['Inspect the created project files.']
-		},
-		{
-			title: isThree ? 'Implement the interactive 3D scene and controls' : 'Implement the core interaction and state',
-			summary: isThree
-				? 'Build the animated Three.js experience, primary controls, and responsive fallback behavior.'
-				: 'Build the main user flow, controls, live status/progress, persistence, and reset or completion behavior.',
-			skills: selectSkills(skillByTheme),
-			dependencies: ['task-1'],
-			acceptanceCriteria: [
-				'The core workflow can be completed from the first screen.',
-				'Interactive state updates immediately and persists where requested.',
-				'Controls remain usable on desktop and mobile widths.'
-			],
-			verificationCommands: targetFolder
-				? [`Select-String -Path '${targetFolder}\\app.js' -Pattern 'localStorage'`]
-				: ['Run the project interaction smoke test.']
-		},
-		{
-			title: 'Polish the visual system and documentation',
-			summary: 'Finish the dark operational UI, responsive details, accessibility basics, and README smoke test.',
-			skills: selectSkills(['ui-design', 'accessibility', 'technical-writer', 'documentation-that-slaps']),
-			dependencies: ['task-1'],
-			acceptanceCriteria: [
-				'The UI is readable, responsive, and visually consistent.',
-				'README explains direct launch and a manual smoke test.',
-				'The implementation documents any fallback or browser requirement.'
-			],
-			verificationCommands: targetFolder
-				? [`Test-Path '${targetFolder}\\README.md'`, `Get-Content '${targetFolder}\\README.md'`]
-				: ['Read the README and perform the documented smoke test.']
-		},
-		{
-			title: 'Verify the completed build',
-			summary: 'Run the requested lightweight checks and confirm the finished project matches the brief.',
-			skills: selectSkills(['qa-engineering', 'testing-strategies', 'test-architect']),
-			dependencies: ['task-2', 'task-3'],
-			acceptanceCriteria: [
-				'Static syntax checks pass where applicable.',
-				'The requested completion state or primary success path works.',
-				'The final project can be opened locally.'
-			],
-			verificationCommands: targetFolder
-				? [
-						...(requestedFiles.includes('app.js') ? [`node --check '${targetFolder}\\app.js'`] : []),
-						`Get-ChildItem '${targetFolder}' | Select-Object -ExpandProperty Name`
+	const shellVerification = targetFolder
+		? [`Test-Path '${targetFolder}'`, `Get-ChildItem '${targetFolder}' | Select-Object -ExpandProperty Name`]
+		: singleFileStaticApp
+			? ['test -f index.html', 'test ! -f styles.css', 'test ! -f app.js', 'test ! -f package.json']
+			: ['Inspect the created project files.'];
+	const scriptVerification = targetFolder
+		? [`Select-String -Path '${targetFolder}\\app.js' -Pattern 'localStorage'`]
+		: singleFileStaticApp
+			? ['grep -i "<script" index.html', 'grep -i "<style" index.html']
+			: ['Run the project interaction smoke test.'];
+	const finalVerification = targetFolder
+		? [
+				...(effectiveRequestedFiles.includes('app.js') ? [`node --check '${targetFolder}\\app.js'`] : []),
+				`Get-ChildItem '${targetFolder}' | Select-Object -ExpandProperty Name`
+			]
+		: singleFileStaticApp
+			? ['test -f index.html', 'test ! -f styles.css', 'test ! -f app.js', 'test ! -f package.json']
+			: ['Run the repo-local verification commands.'];
+
+	const taskSpecs = isFastStaticOrSmoke
+		? [
+				{
+					title: singleFileStaticApp ? 'Build and check the single-file static page' : 'Build and check the focused static page',
+					summary: singleFileStaticApp
+						? visibleMarkerSummary
+						: 'Create the requested fast static page with the smallest useful file set and one clear interaction, then verify the quick smoke checks.',
+					skills: selectSkills(['frontend-engineer', 'html-css', 'qa-engineering', 'accessibility']),
+					dependencies: [] as string[],
+					acceptanceCriteria: [
+						visibleMarkerCriterion,
+						'The requested button or tiny interaction works without a framework or heavy setup.',
+						'No extra product scope, dashboard sections, persistence layer, or generated feature set is added.',
+						...(singleFileStaticApp
+							? [
+									'Only index.html is required for the runnable deliverable.',
+									'CSS and JavaScript are embedded in index.html instead of split into styles.css or app.js.',
+									'No package.json, styles.css, app.js, or build step is required.'
+								]
+							: [])
+					],
+					verificationCommands: [
+						...finalVerification,
+						...(visibleRequirements.marker ? [`grep -F "${visibleRequirements.marker}" index.html`] : [])
 					]
-				: ['Run the repo-local verification commands.']
-		}
-	];
+				}
+			]
+		: isGame
+		? [
+				{
+					title: singleFileStaticApp ? 'Create the playable game file' : 'Create the playable game shell',
+					summary: singleFileStaticApp
+						? `Create only ${fileList} with embedded CSS and JavaScript, preserving the requested game premise and controls.`
+						: `Set up ${fileList} so the player lands directly in the requested game loop.`,
+					skills: selectSkills(
+						isThree
+							? ['frontend-engineer', 'threejs-3d-graphics', 'game-development', 'game-ui-design', 'responsive-mobile-first']
+							: ['frontend-engineer', 'game-development', 'game-ui-design', 'responsive-mobile-first']
+					),
+					dependencies: [] as string[],
+					acceptanceCriteria: [
+						'The first screen is playable, not a landing page or project explainer.',
+						'The requested game premise, player goal, controls, and win/fail states are visible in the build.',
+						'Keyboard controls and mobile-friendly controls are present when requested.',
+						...(singleFileStaticApp
+							? [
+									'Only index.html is required for the deliverable.',
+									'CSS and JavaScript are embedded in index.html instead of split into styles.css or app.js.'
+								]
+							: [])
+					],
+					verificationCommands: shellVerification
+				},
+				{
+					title: 'Design the core play and reasoning loop',
+					summary:
+						'Implement the main rule system, puzzle or challenge logic, feedback loop, and the reason the game is interesting to replay.',
+					skills: selectSkills(['game-design', 'game-design-core', 'puzzle-design', 'procedural-generation', 'level-design']),
+					dependencies: ['task-1'],
+					acceptanceCriteria: [
+						'The game has a clear decision loop instead of only movement or clicking.',
+						'The challenge changes or escalates enough to test player reasoning.',
+						'The player can understand why they won, lost, or improved.'
+					],
+					verificationCommands: scriptVerification
+				},
+				{
+					title: 'Add scoring, restart, and player feedback',
+					summary:
+						'Wire score/progress, timer or move count, restart, completion feedback, and any local best-score persistence requested by the brief.',
+					skills: selectSkills(['state-management', 'game-ui-design', 'player-onboarding', 'accessibility']),
+					dependencies: ['task-1', 'task-2'],
+					acceptanceCriteria: [
+						'Score, progress, or reasoning feedback updates during play.',
+						'Restart works without refreshing the whole page.',
+						'The player can recover from failure and replay quickly.'
+					],
+					verificationCommands: scriptVerification
+				},
+				{
+					title: 'Verify the playable loop',
+					summary:
+						'Prove movement, challenge logic, win/fail, restart, responsive controls, and static-file constraints where applicable.',
+					skills: selectSkills(['qa-engineering', 'testing-strategies', 'accessibility']),
+					dependencies: ['task-2', 'task-3'],
+					acceptanceCriteria: [
+						'The full game can be completed manually from a fresh load.',
+						'The failure or retry path works.',
+						'Desktop and mobile input paths are both usable.',
+						...(singleFileStaticApp ? ['The final workspace does not require styles.css, app.js, package.json, or a build step.'] : [])
+					],
+					verificationCommands: finalVerification
+				}
+			]
+		: isDashboard && isTokenOrNftLaunch
+			? [
+					{
+						title: 'Model the token and NFT launch signals',
+						summary:
+							'Define seeded launch data for token-only mint ideas, treasury split notes, utility perks, timing, and health states.',
+						skills: selectSkills(['tokenomics-design', 'nft-systems', 'analytics', 'product-strategy', 'data-dashboard-design']),
+						dependencies: [] as string[],
+						acceptanceCriteria: [
+							'The dashboard data model includes token demand, NFT mint, treasury, utility, and timing signals.',
+							'Sample data is clearly marked when live data is not supplied.',
+							'The first-screen metrics answer a real launch decision, not generic dashboard filler.'
+						],
+						verificationCommands: shellVerification
+					},
+					{
+						title: 'Build the launch decision dashboard',
+						summary:
+							'Create the main scan surface with metric cards, scenario sections, filters, and clear status for launch readiness.',
+						skills: selectSkills(['frontend-engineer', 'data-dashboard-design', 'ui-design', 'responsive-mobile-first']),
+						dependencies: ['task-1'],
+						acceptanceCriteria: [
+							'The top summary makes the fastest launch decision obvious.',
+							'Token-only mint, treasury split, utility perks, and post-launch timing each have a readable section.',
+							'The layout stays dense but calm on desktop and mobile.'
+						],
+						verificationCommands: scriptVerification
+					},
+					{
+						title: 'Add scenario controls and warning states',
+						summary:
+							'Implement filters, scenario notes, verification states, and warnings for risky claims such as guaranteed price impact.',
+						skills: selectSkills(['state-management', 'product-analytics-engineering', 'risk-management-trading', 'copywriting']),
+						dependencies: ['task-1', 'task-2'],
+						acceptanceCriteria: [
+							'Users can compare at least two launch scenarios or timing states.',
+							'Risky financial/price-impact framing is softened into decision support.',
+							'Empty or unknown data states are visible instead of pretending certainty.'
+						],
+						verificationCommands: scriptVerification
+					},
+					{
+						title: 'Verify launch dashboard quality',
+						summary:
+							'Check data labels, responsive layout, scenario controls, warning states, and the documented manual smoke path.',
+						skills: selectSkills(['qa-engineering', 'testing-strategies', 'accessibility', 'technical-writer']),
+						dependencies: ['task-2', 'task-3'],
+						acceptanceCriteria: [
+							'Every visible metric maps back to seeded or live data.',
+							'The dashboard never presents sample data as live financial proof.',
+							'Manual smoke steps cover filters, scenario changes, responsive layout, and warning states.'
+						],
+						verificationCommands: finalVerification
+					}
+				]
+			: [
+					{
+						title: singleFileStaticApp
+							? 'Create the single-file static app'
+							: isStaticApp
+								? 'Create the static app shell'
+								: 'Create the app shell and project structure',
+						summary: singleFileStaticApp
+							? `Create only ${fileList} with embedded CSS and JavaScript, preserving the requested product, domain, and interaction constraints.`
+							: `Set up ${fileList} and make the first screen match the requested product direction.`,
+						skills: selectSkills(['frontend-engineer', 'html-css', 'ui-design', 'responsive-mobile-first']),
+						dependencies: [] as string[],
+						acceptanceCriteria: [
+							'The project opens to a usable first screen.',
+							'Requested files and local project structure are present.',
+							'No unrelated framework or build tooling is added when the brief says no build step.',
+							...(singleFileStaticApp
+								? [
+										'Only index.html is required for the deliverable.',
+										'CSS and JavaScript are embedded in index.html instead of split into styles.css or app.js.',
+										'The explicit product/game/tool concept in the original brief is preserved.'
+									]
+								: [])
+						],
+						verificationCommands: shellVerification
+					},
+					{
+						title: isThree ? 'Implement the interactive 3D scene and controls' : 'Implement the core interaction and state',
+						summary: isThree
+							? 'Build the animated Three.js experience, primary controls, and responsive fallback behavior.'
+							: 'Build the main user flow, controls, live status/progress, persistence, and reset or completion behavior.',
+						skills: selectSkills(
+							isThree
+								? ['frontend-engineer', 'threejs-3d-graphics', 'ui-design', 'responsive-mobile-first']
+								: ['frontend-engineer', 'ui-design', 'responsive-mobile-first', 'state-management']
+						),
+						dependencies: ['task-1'],
+						acceptanceCriteria: [
+							'The core workflow can be completed from the first screen.',
+							'Interactive state updates immediately and persists where requested.',
+							'Controls remain usable on desktop and mobile widths.',
+							...(singleFileStaticApp ? ['The requested interaction is implemented inside index.html.'] : [])
+						],
+						verificationCommands: scriptVerification
+					},
+					{
+						title: 'Polish the visual system and documentation',
+						summary: 'Finish the dark operational UI, responsive details, accessibility basics, and README smoke test.',
+						skills: selectSkills(['ui-design', 'accessibility', 'technical-writer', 'documentation-that-slaps']),
+						dependencies: ['task-1'],
+						acceptanceCriteria: [
+							'The UI is readable, responsive, and visually consistent.',
+							'README explains direct launch and a manual smoke test.',
+							'The implementation documents any fallback or browser requirement.',
+							...(singleFileStaticApp ? ['Any README is optional; the runnable app remains self-contained in index.html.'] : [])
+						],
+						verificationCommands: targetFolder
+							? [`Test-Path '${targetFolder}\\README.md'`, `Get-Content '${targetFolder}\\README.md'`]
+							: ['Read the README and perform the documented smoke test.']
+					},
+					{
+						title: 'Verify the completed build',
+						summary: 'Run the requested lightweight checks and confirm the finished project matches the brief.',
+						skills: selectSkills(['qa-engineering', 'testing-strategies', 'test-architect']),
+						dependencies: ['task-2', 'task-3'],
+						acceptanceCriteria: [
+							'Static syntax checks pass where applicable.',
+							'The requested completion state or primary success path works.',
+							'The final project can be opened locally.',
+							...(singleFileStaticApp ? ['The final workspace does not require styles.css, app.js, package.json, or a build step.'] : [])
+						],
+						verificationCommands: finalVerification
+					}
+				];
 
 	const tasks = taskSpecs.map((task, index) => {
 		const id = slugifyTaskId(task.title, `task-${index + 1}`);
@@ -456,7 +841,7 @@ export async function _buildFallbackAnalysisResult(
 		requestId,
 		success: true,
 		projectName,
-		projectType: isStaticApp ? 'static-web-app' : 'web-app',
+		projectType: singleFileStaticApp ? 'single-file-static-web-app' : isStaticApp ? 'static-web-app' : 'web-app',
 		complexity: buildMode === 'advanced_prd' ? 'moderate' : 'simple',
 		infrastructure: {
 			needsAuth: false,
@@ -469,7 +854,17 @@ export async function _buildFallbackAnalysisResult(
 		techStack,
 		tasks,
 		skills,
-		executionPrompt: `Build ${projectName} from the user brief. Preserve explicit file, no-build, persistence, and smoke-test requirements.`
+		executionPrompt: [
+			`Build ${projectName} from the original user brief.`,
+			'Preserve explicit product/domain requirements, named title, file constraints, gameplay or workflow details, no-build requirements, persistence requirements, and smoke-test requirements.',
+			singleFileStaticApp
+				? 'Hard file constraint: create only index.html as the runnable deliverable; embed CSS and JavaScript in that file and do not split into styles.css or app.js unless the original brief explicitly asks for separate files.'
+				: '',
+			'Original brief:',
+			content
+		]
+			.filter(Boolean)
+			.join('\n')
 	};
 }
 
@@ -478,7 +873,9 @@ async function writeFallbackAnalysisResult(
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier,
-	reason: string
+	reason: string,
+	traceRef?: string | null,
+	buildLane?: BuildLane
 ): Promise<void> {
 	const paths = getPrdBridgePaths();
 	const safeRequestId = normalizeRequestId(requestId);
@@ -489,13 +886,99 @@ async function writeFallbackAnalysisResult(
 		await mkdir(paths.resultsDir, { recursive: true });
 	}
 
-	const result = await _buildFallbackAnalysisResult(requestId, projectName, buildMode, tier, paths);
-	await writeFile(resultFile, JSON.stringify(result, null, 2), 'utf-8');
+	const result = await _buildFallbackAnalysisResult(requestId, projectName, buildMode, tier, paths, buildLane);
+	const resolvedTraceRef = traceRef || await traceRefForRequest(requestId, {});
+	const resultWithTrace = resolvedTraceRef
+		? { ...result, traceRef: resolvedTraceRef, metadata: { ...((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined), traceRef: resolvedTraceRef } }
+		: result;
+	await writeFile(
+		resultFile,
+		JSON.stringify(await projectStoredPrdAnalysisResultForTier(requestId, resultWithTrace, tier), null, 2),
+		'utf-8'
+	);
+	const staticArtifactCount = await writeConstrainedStaticProofArtifacts(await readFile(paths.pendingPrdFile, 'utf-8').catch(() => ''));
+	if (staticArtifactCount > 0) {
+		await appendPrdTrace(requestId, 'deterministic_static_artifacts_written', {
+			...traceRefDetails(resolvedTraceRef),
+			fileCount: staticArtifactCount
+		});
+	}
 	await appendPrdTrace(requestId, 'fallback_analysis_written', {
+		...traceRefDetails(resolvedTraceRef),
 		reason,
 		resultFile,
 		taskCount: Array.isArray(result.tasks) ? result.tasks.length : 0
 	});
+}
+
+function scheduleProvisionalPrdDraft(input: {
+	requestId: string;
+	missionId: string;
+	projectName: string;
+	buildMode: 'direct' | 'advanced_prd';
+	buildLane: BuildLane;
+	tier: SkillTier;
+	traceRef?: string | null;
+}): void {
+	const delayMs = _provisionalPrdDraftDelayMs({
+		buildMode: input.buildMode,
+		buildLane: input.buildLane
+	});
+	if (delayMs === null) return;
+
+	const timer = setTimeout(async () => {
+		const paths = getPrdBridgePaths();
+		const safeRequestId = normalizeRequestId(input.requestId);
+		const resultFile = join(paths.resultsDir, `${safeRequestId}.json`);
+		if (existsSync(resultFile)) {
+			await appendPrdTrace(input.requestId, 'provisional_canvas_skipped', {
+				...traceRefDetails(input.traceRef),
+				reason: 'analysis result already exists',
+				delayMs
+			});
+			return;
+		}
+
+		await updatePendingRequestStatus(input.requestId, 'provisional', {
+			reason: 'Full PRD analysis is still running; provisional canvas draft queued so execution can start.',
+			provisionalCanvasAt: new Date().toISOString(),
+			provisionalDelayMs: delayMs
+		});
+		await appendPrdTrace(input.requestId, 'provisional_canvas_due', {
+			...traceRefDetails(input.traceRef),
+			delayMs,
+			buildMode: input.buildMode,
+			buildLane: input.buildLane
+		});
+		await writeFallbackAnalysisResult(
+			input.requestId,
+			input.projectName,
+			input.buildMode,
+			input.tier,
+			`provisional canvas draft after ${delayMs}ms while full PRD analysis continues`,
+			input.traceRef,
+			input.buildLane
+		);
+		void relayMissionControlEvent({
+			type: 'task_completed',
+			missionId: input.missionId,
+			missionName: input.projectName,
+			taskName: 'PRD analysis',
+			message: 'PRD draft ready; full analysis can continue in the background.',
+			source: 'prd-bridge',
+			data: {
+				requestId: input.requestId,
+				...traceRefDetails(input.traceRef),
+				buildMode: input.buildMode,
+				buildLane: input.buildLane,
+				provisional: true
+			}
+		});
+	}, delayMs);
+
+	if (typeof timer.unref === 'function') {
+		timer.unref();
+	}
 }
 
 function scheduleAutoAnalysisWatchdog(
@@ -503,7 +986,9 @@ function scheduleAutoAnalysisWatchdog(
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier,
-	cancelAutoAnalysis?: () => void
+	cancelAutoAnalysis?: () => void,
+	traceRef?: string | null,
+	buildLane?: BuildLane
 ): void {
 	if (AUTO_ANALYSIS_TIMEOUT_MS <= 0) return;
 	const timer = setTimeout(async () => {
@@ -512,7 +997,9 @@ function scheduleAutoAnalysisWatchdog(
 		const resultFile = join(resultsDir, `${safeRequestId}.json`);
 		const hasResult = existsSync(resultFile);
 		if (hasResult) {
-			await appendPrdTrace(requestId, 'watchdog_result_found');
+			await appendPrdTrace(requestId, 'watchdog_result_found', {
+				...traceRefDetails(traceRef)
+			});
 			return;
 		}
 
@@ -522,6 +1009,7 @@ function scheduleAutoAnalysisWatchdog(
 			reason: 'No runtime analysis result written before timeout; deterministic fallback queued'
 		});
 		await appendPrdTrace(requestId, 'watchdog_timeout', {
+			...traceRefDetails(traceRef),
 			timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
 			expectedResultFile: resultFile
 		});
@@ -530,7 +1018,9 @@ function scheduleAutoAnalysisWatchdog(
 			projectName,
 			buildMode,
 			tier,
-			`auto-analysis timeout after ${AUTO_ANALYSIS_TIMEOUT_MS}ms`
+			`auto-analysis timeout after ${AUTO_ANALYSIS_TIMEOUT_MS}ms`,
+			traceRef,
+			buildLane
 		);
 	}, AUTO_ANALYSIS_TIMEOUT_MS);
 
@@ -545,6 +1035,37 @@ function resolveCodexBinary(): string | null {
 
 function normalizeBuildMode(value: unknown): 'direct' | 'advanced_prd' {
 	return value === 'advanced_prd' ? 'advanced_prd' : 'direct';
+}
+
+type BuildLane = 'fast_direct' | 'direct' | 'advanced_prd';
+
+function normalizeBuildLane(value: unknown, buildMode: 'direct' | 'advanced_prd', _options: unknown): BuildLane {
+	if (value === 'advanced_prd') return 'advanced_prd';
+	if (value === 'direct' || value === 'fast_direct') return 'direct';
+	return buildMode === 'advanced_prd' ? 'advanced_prd' : 'direct';
+}
+
+export function _shouldUseDeterministicPrdFallback(input: {
+	buildLane: BuildLane;
+	constrainedStaticSingleFile: boolean;
+}): boolean {
+	return input.constrainedStaticSingleFile;
+}
+
+function positiveEnvMs(env: NodeJS.ProcessEnv, key: string, fallbackMs: number): number {
+	const parsed = Number.parseInt(env[key] || '', 10);
+	return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallbackMs;
+}
+
+export function _provisionalPrdDraftDelayMs(
+	input: { buildMode: 'direct' | 'advanced_prd'; buildLane: BuildLane },
+	env: NodeJS.ProcessEnv = process.env
+): number | null {
+	if (env.SPAWNER_PRD_PROVISIONAL_DRAFTS === '0') return null;
+	const isAdvanced = input.buildMode === 'advanced_prd' || input.buildLane === 'advanced_prd';
+	const key = isAdvanced ? 'SPAWNER_PRD_PROVISIONAL_ADVANCED_MS' : 'SPAWNER_PRD_PROVISIONAL_DIRECT_MS';
+	const fallback = isAdvanced ? DEFAULT_PROVISIONAL_ADVANCED_ANALYSIS_MS : DEFAULT_PROVISIONAL_DIRECT_ANALYSIS_MS;
+	return positiveEnvMs(env, key, fallback);
 }
 
 function isConcreteDirectStaticBuild(content: string): boolean {
@@ -685,6 +1206,7 @@ async function buildPromptParts(
 
 async function buildCodexPrompt(
 	requestId: string,
+	traceRef: string | null,
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier,
@@ -747,6 +1269,7 @@ async function buildCodexPrompt(
 	return [
 		'You are running inside spawner-ui and must complete PRD analysis autonomously.',
 		`Request ID: ${requestId}`,
+		...(traceRef ? [`Trace Ref: ${traceRef}`] : []),
 		`Project Name Hint: ${projectName}`,
 		`Build Mode: ${buildMode}`,
 		'',
@@ -768,7 +1291,7 @@ async function buildCodexPrompt(
 		'1) Read the pending request metadata path above and confirm requestId matches.',
 		'2) Read the pending PRD path above completely.',
 		'3) Produce a valid PRD analysis result JSON with:',
-		'   requestId, success, projectName, projectType, complexity, infrastructure, techStack, tasks, skills, executionPrompt.',
+		'   requestId, traceRef, success, projectName, projectType, complexity, infrastructure, techStack, tasks, skills, executionPrompt.',
 		'4) Include actionable tasks with skills, dependencies, and verification criteria. For advanced_prd, make these TAS-style tasks with acceptance criteria.',
 		'5) Validate every skill ID before emitting — if it is not in the allowlist above, replace it with the closest valid ID or omit the task.',
 		'6) POST result event to Spawner API via PowerShell Invoke-RestMethod using this shape:',
@@ -791,7 +1314,8 @@ async function startAutoAnalysis(
 	requestId: string,
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
-	tier: SkillTier
+	tier: SkillTier,
+	traceRef: string | null
 ): Promise<{ started: boolean; provider: string; cancel?: () => void }> {
 	const provider = (
 		process.env.SPAWNER_PRD_AUTO_PROVIDER ||
@@ -800,7 +1324,7 @@ async function startAutoAnalysis(
 		'codex'
 	).trim().toLowerCase();
 	if (provider === 'none') {
-		await appendPrdTrace(requestId, 'auto_disabled', { provider });
+		await appendPrdTrace(requestId, 'auto_disabled', { provider, ...traceRefDetails(traceRef) });
 		return { started: false, provider };
 	}
 
@@ -817,20 +1341,20 @@ async function startAutoAnalysis(
 			tier,
 			paths,
 			...parts,
-			appendTrace: (event, details) => appendPrdTrace(requestId, event, details)
+			appendTrace: (event, details) => appendPrdTrace(requestId, event, { ...details, ...traceRefDetails(traceRef) })
 		});
 		return { started, provider: 'claude' };
 	}
 
 	if (provider !== 'codex') {
-		await appendPrdTrace(requestId, 'auto_unsupported_provider', { provider });
+		await appendPrdTrace(requestId, 'auto_unsupported_provider', { provider, ...traceRefDetails(traceRef) });
 		return { started: false, provider };
 	}
 
 	try {
 		const codexBinary = resolveCodexBinary();
 		if (!codexBinary) {
-			await appendPrdTrace(requestId, 'auto_binary_missing', { provider: 'codex' });
+			await appendPrdTrace(requestId, 'auto_binary_missing', { provider: 'codex', ...traceRefDetails(traceRef) });
 			return { started: false, provider: 'codex' };
 		}
 
@@ -841,6 +1365,7 @@ async function startAutoAnalysis(
 		const parts = await buildPromptParts(buildMode, tier, briefBody);
 		const prompt = await buildCodexPrompt(
 			requestId,
+			traceRef,
 			projectName,
 			buildMode,
 			tier,
@@ -851,6 +1376,7 @@ async function startAutoAnalysis(
 		const missionId = `prd-auto-${normalizeRequestId(requestId)}`;
 
 		await appendPrdTrace(requestId, 'auto_worker_dispatch', {
+			...traceRefDetails(traceRef),
 			provider: 'codex',
 			missionId,
 			workingDirectory: process.cwd(),
@@ -858,26 +1384,29 @@ async function startAutoAnalysis(
 		});
 
 		const controller = new AbortController();
-		void sparkAgentBridge
-			.executeProviderTask({
-				providerId: 'codex',
-				missionId,
-				prompt,
-				model: 'gpt-5.5',
-				commandTemplate: 'codex exec --model gpt-5.5',
-				workingDirectory: process.cwd(),
-				signal: controller.signal
-			})
+			void sparkAgentBridge
+				.executeProviderTask({
+					providerId: 'codex',
+					missionId,
+					prompt,
+					model: 'gpt-5.5',
+					commandTemplate: 'codex exec --model gpt-5.5 --sandbox workspace-write',
+					workingDirectory: process.cwd(),
+					signal: controller.signal
+				})
 			.then((result) => {
 				void appendPrdTrace(requestId, 'auto_worker_finished', {
+					...traceRefDetails(traceRef),
 					success: result.success,
 					error: result.error || null,
 					durationMs: result.durationMs || null,
-					sessionId: result.sparkAgentSessionId
+					sessionId: result.sparkAgentSessionId,
+					resultArtifact: _buildPrdResultArtifactVerification(requestId, paths)
 				});
 			})
 			.catch((error: unknown) => {
 				void appendPrdTrace(requestId, 'auto_worker_error', {
+					...traceRefDetails(traceRef),
 					error: error instanceof Error ? error.message : String(error)
 				});
 			});
@@ -889,6 +1418,7 @@ async function startAutoAnalysis(
 		};
 	} catch (error) {
 		await appendPrdTrace(requestId, 'auto_start_failed', {
+			...traceRefDetails(traceRef),
 			provider: 'codex',
 			error: error instanceof Error ? error.message : String(error)
 		});
@@ -915,9 +1445,10 @@ export const POST: RequestHandler = async (event) => {
 		});
 		if (rateLimited) return rateLimited;
 
-		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, telegramRelay, tier, forceDispatch, runnerCapability, runner_capability, capabilityProposalPacket, capability_proposal_packet, traceRef, trace_ref } =
+		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, buildLane, build_lane, buildLaneReason, build_lane_reason, telegramRelay, tier, forceDispatch, runnerCapability, runner_capability, capabilityProposalPacket, capability_proposal_packet, traceRef, trace_ref } =
 			await event.request.json();
 		const normalizedBuildMode = normalizeBuildMode(buildMode);
+		const normalizedBuildLane = normalizeBuildLane(buildLane ?? build_lane, normalizedBuildMode, options);
 		const normalizedTier = normalizeTier(tier);
 		const normalizedTelegramRelay = normalizeTelegramRelay(telegramRelay);
 		const normalizedRunnerCapability = normalizeRunnerCapability(runnerCapability ?? runner_capability);
@@ -942,12 +1473,11 @@ export const POST: RequestHandler = async (event) => {
 			await mkdir(paths.resultsDir, { recursive: true });
 		}
 
-		const constrainedStaticSingleFileInput = isConstrainedSingleFileStaticHtml(content);
-
 		// Brief enrichment: lift a vague brief into something the canvas
 		// generator can actually plan against. Skipped when the input is
 		// already specific enough (length / keyword density / has section
 		// headers). Always returns a safe enrichedContent — never blocks.
+		const constrainedStaticSingleFileInput = isConstrainedSingleFileStaticHtml(content);
 		const enrichment = constrainedStaticSingleFileInput
 			? {
 					wasEnriched: false,
@@ -976,7 +1506,7 @@ export const POST: RequestHandler = async (event) => {
 			content,
 			buildMode: normalizedBuildMode,
 			openQuestions: enrichment.openQuestions || [],
-			forceDispatch: skipClarification
+			forceDispatch: skipClarification || normalizedBuildLane === 'fast_direct'
 		})) {
 			await appendPrdTrace(requestId, 'clarification_requested', {
 				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
@@ -998,6 +1528,7 @@ export const POST: RequestHandler = async (event) => {
 					openQuestions: enrichment.openQuestions,
 					tier: normalizedTier,
 					buildMode: normalizedBuildMode,
+					buildLane: normalizedBuildLane,
 					...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 					...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
 					...(normalizedCapabilityProposalPacket ? { capabilityProposalPacket: normalizedCapabilityProposalPacket } : {}),
@@ -1019,6 +1550,13 @@ export const POST: RequestHandler = async (event) => {
 		// Write the (possibly enriched) PRD content to file
 		await writeFile(paths.pendingPrdFile, finalContent, 'utf-8');
 		const projectLineage = _extractPrdBridgeProjectLineage(finalContent, projectName);
+		const rawBuildLaneReason = buildLaneReason ?? build_lane_reason;
+		const normalizedBuildLaneReason =
+			typeof rawBuildLaneReason === 'string' && rawBuildLaneReason.trim()
+				? rawBuildLaneReason.trim()
+				: normalizedBuildLane === 'fast_direct'
+					? 'Fast direct lane requested; use deterministic lightweight planning.'
+					: 'Build lane inferred from build mode.';
 
 		// Write request metadata
 		const requestMeta = {
@@ -1026,6 +1564,9 @@ export const POST: RequestHandler = async (event) => {
 			missionId,
 			projectName: projectName || 'Untitled Project',
 			buildMode: normalizedBuildMode,
+			buildLane: normalizedBuildLane,
+			tier: normalizedTier,
+			buildLaneReason: normalizedBuildLaneReason,
 			buildModeReason:
 				typeof buildModeReason === 'string' && buildModeReason.trim()
 					? buildModeReason.trim()
@@ -1051,6 +1592,7 @@ export const POST: RequestHandler = async (event) => {
 							userId: typeof userId === 'string' && userId.trim() ? userId.trim() : 'telegram',
 							missionId,
 							requestId,
+							tier: normalizedTier,
 							...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 							goal: content.slice(0, 500),
 							...(projectLineage ? { projectLineage } : {}),
@@ -1064,6 +1606,7 @@ export const POST: RequestHandler = async (event) => {
 			...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 			projectName: requestMeta.projectName,
 			buildMode: requestMeta.buildMode,
+			buildLane: requestMeta.buildLane,
 			...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
 			...(normalizedCapabilityProposalSummary
 				? { capabilityProposal: normalizedCapabilityProposalSummary }
@@ -1080,6 +1623,8 @@ export const POST: RequestHandler = async (event) => {
 				requestId,
 				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 				buildMode: requestMeta.buildMode,
+				buildLane: requestMeta.buildLane,
+				buildLaneReason: requestMeta.buildLaneReason,
 				buildModeReason: requestMeta.buildModeReason,
 				...(projectLineage ? { projectLineage } : {}),
 				...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
@@ -1087,34 +1632,96 @@ export const POST: RequestHandler = async (event) => {
 				...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {})
 			}
 		});
-
 		const constrainedStaticSingleFile = constrainedStaticSingleFileInput || isConstrainedSingleFileStaticHtml(finalContent);
-		const auto = constrainedStaticSingleFile
-			? { started: false, provider: 'deterministic-static' }
+		const deterministicFallback = _shouldUseDeterministicPrdFallback({
+			buildLane: normalizedBuildLane,
+			constrainedStaticSingleFile
+		});
+		const prdTaskName = deterministicFallback ? 'PRD draft' : 'PRD analysis';
+		void relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			missionName: requestMeta.projectName,
+			taskName: prdTaskName,
+			message: deterministicFallback
+				? 'PRD draft is preparing the canvas.'
+				: 'PRD analysis is preparing the canvas.',
+			source: 'prd-bridge',
+			data: {
+				requestId,
+				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+				buildMode: requestMeta.buildMode,
+				buildLane: requestMeta.buildLane,
+				buildLaneReason: requestMeta.buildLaneReason,
+				...(projectLineage ? { projectLineage } : {}),
+				...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {})
+			}
+		});
+		const auto = deterministicFallback
+			? { started: false, provider: normalizedBuildLane === 'fast_direct' ? 'deterministic-fast-lane' : 'deterministic-static' }
 			: await startAutoAnalysis(
 					requestId,
 					requestMeta.projectName,
 					requestMeta.buildMode,
-					normalizedTier
+					normalizedTier,
+					normalizedTraceRef
 				);
-		if (constrainedStaticSingleFile) {
+		await appendPrdTrace(requestId, 'authority_verdict_evaluated', {
+			...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+			authorityVerdict: _buildAuthorityVerdict({
+				traceRef: normalizedTraceRef,
+				autoStarted: auto.started,
+				autoProvider: auto.provider
+			})
+		});
+		if (deterministicFallback) {
 			await updatePendingRequestStatus(requestId, 'fallback', {
-				reason: 'Constrained static single-file request; deterministic analysis queued to avoid app-scope expansion.'
+				reason:
+					normalizedBuildLane === 'fast_direct'
+						? 'Fast direct lane request; deterministic lightweight analysis queued.'
+						: 'Constrained static file request; deterministic analysis queued to avoid app-scope expansion.'
 			});
 			await writeFallbackAnalysisResult(
 				requestId,
 				requestMeta.projectName,
 				requestMeta.buildMode,
 				normalizedTier,
-				'constrained static single-file request'
+				normalizedBuildLane === 'fast_direct' ? 'fast direct lane request' : 'constrained static file request',
+				normalizedTraceRef,
+				normalizedBuildLane
 			);
+			void relayMissionControlEvent({
+				type: 'task_completed',
+				missionId,
+				missionName: requestMeta.projectName,
+				taskName: prdTaskName,
+				message: 'PRD draft ready.',
+				source: 'prd-bridge',
+				data: {
+					requestId,
+					...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+					buildMode: requestMeta.buildMode,
+					buildLane: requestMeta.buildLane
+				}
+			});
 		} else if (auto.started) {
+			scheduleProvisionalPrdDraft({
+				requestId,
+				missionId,
+				projectName: requestMeta.projectName,
+				buildMode: requestMeta.buildMode,
+				buildLane: requestMeta.buildLane,
+				tier: normalizedTier,
+				traceRef: normalizedTraceRef
+			});
 			scheduleAutoAnalysisWatchdog(
 				requestId,
 				requestMeta.projectName,
 				requestMeta.buildMode,
 				normalizedTier,
-				auto.cancel
+				auto.cancel,
+				normalizedTraceRef,
+				normalizedBuildLane
 			);
 		} else if (auto.provider !== 'none') {
 			await updatePendingRequestStatus(requestId, 'fallback', {
@@ -1125,8 +1732,24 @@ export const POST: RequestHandler = async (event) => {
 				requestMeta.projectName,
 				requestMeta.buildMode,
 				normalizedTier,
-				`auto-analysis not started for provider ${auto.provider}`
+				`auto-analysis not started for provider ${auto.provider}`,
+				normalizedTraceRef
 			);
+			void relayMissionControlEvent({
+				type: 'task_completed',
+				missionId,
+				missionName: requestMeta.projectName,
+				taskName: prdTaskName,
+				message: 'PRD draft ready after analysis worker did not start.',
+				source: 'prd-bridge',
+				data: {
+					requestId,
+					...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+					buildMode: requestMeta.buildMode,
+					buildLane: requestMeta.buildLane,
+					provider: auto.provider
+				}
+			});
 		}
 
 		logger.info(`[PRDBridge] PRD written to ${paths.pendingPrdFile}`);
