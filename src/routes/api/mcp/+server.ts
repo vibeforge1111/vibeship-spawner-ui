@@ -21,8 +21,8 @@ import {
 	isConnected,
 	getTools,
 	getConnectionInfo,
-	PRECONFIGURED_MCPS,
 	buildConfigFromRegistry,
+	mcpCustomConfigAllowed,
 	type MCPClientConfig,
 } from '$lib/services/mcp/client';
 import { requireMcpAuth } from '$lib/server/mcp-auth';
@@ -52,6 +52,16 @@ export const POST: RequestHandler = async (event) => {
 
 		if (!instanceId) {
 			return json({ error: 'instanceId is required' }, { status: 400 });
+		}
+
+		const customConfigRequested = Boolean(config || command || npmPackage || defaultArgs?.length);
+		if (customConfigRequested && !mcpCustomConfigAllowed()) {
+			return json(
+				{
+					error: 'Custom MCP commands and npm packages are disabled. Set MCP_ALLOW_CUSTOM_CONFIG=1 for trusted local development.'
+				},
+				{ status: 403 }
+			);
 		}
 
 		// Build config: preconfigured > registry npmPackage > explicit config

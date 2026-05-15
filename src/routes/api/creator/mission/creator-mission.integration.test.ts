@@ -89,6 +89,7 @@ describe('/api/creator/mission', () => {
 		expect(postBody.tracePath).toContain('mission-creator-api.json');
 		expect(postBody.trace.artifact_manifests[0].artifact_type).toBe('domain_chip');
 		expect(postBody.trace.intent_packet.target_domain).toBe('startup-yc');
+		expect(postBody.trace.execution_policy).toBe('manual_run');
 		expect(postBody.taskCount).toBeGreaterThan(1);
 		expect(postBody.canvasUrl).toBe('http://127.0.0.1/canvas?pipeline=creator-creator-api-req&mission=mission-creator-api');
 		expect(postBody.trace.tasks.map((task: { id: string }) => task.id)).toContain('benchmark-pack');
@@ -104,6 +105,7 @@ describe('/api/creator/mission', () => {
 			data?: { taskGraph?: Array<{ id: string }> };
 		};
 		expect(missionCreatedCall.type).toBe('mission_created');
+		expect((missionCreatedCall.data as { executionPolicy?: string })?.executionPolicy).toBe('manual_run');
 		expect(missionCreatedCall.data?.plannedTasks?.length).toBe(postBody.taskCount);
 		expect(taskCompletedCall.type).toBe('task_completed');
 		expect(taskCompletedCall.data?.taskGraph?.map((task) => task.id)).toContain('creator-validation');
@@ -113,6 +115,23 @@ describe('/api/creator/mission', () => {
 		const getBody = await getResponse.json();
 		expect(getBody.trace.mission_id).toBe('mission-creator-api');
 		expect(getBody.tracePath).toContain('mission-creator-api.json');
+	});
+
+	it('marks no-run creator mission requests as read-only', async () => {
+		const response = await POST(event('http://127.0.0.1/api/creator/mission', {
+			brief: 'Create Startup YC specialization path, but stage only. Do not run.',
+			missionId: 'mission-creator-stage-only-route',
+			requestId: 'creator-stage-only-route'
+		}) as never);
+
+		expect(response.status).toBe(200);
+		const body = await response.json();
+		expect(body.trace.execution_policy).toBe('read_only');
+		const { relayMissionControlEvent } = await import('$lib/server/mission-control-relay');
+		const missionCreatedCall = vi.mocked(relayMissionControlEvent).mock.calls[0]?.[0] as {
+			data?: { executionPolicy?: string };
+		};
+		expect(missionCreatedCall.data?.executionPolicy).toBe('read_only');
 	});
 
 	it('rejects missing briefs', async () => {

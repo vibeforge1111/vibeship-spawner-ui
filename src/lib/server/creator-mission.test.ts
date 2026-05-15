@@ -429,6 +429,27 @@ describe('creator mission trace', () => {
 		expect(queuedCanvas.relay.autoRun).toBe(true);
 	});
 
+	it('blocks execution for stage-only creator missions', async () => {
+		const stateDir = await tempStateDir();
+		await createCreatorMission(
+			{
+				brief: 'Create Startup YC specialization path, but stage only. Do not run.',
+				missionId: 'mission-creator-stage-only',
+				requestId: 'req-stage-only'
+			},
+			{
+				stateDir,
+				runManifestPlanner: async () => bundle({ target_domain: 'startup-yc' })
+			}
+		);
+
+		const trace = await readCreatorMissionTrace({ missionId: 'mission-creator-stage-only' }, stateDir);
+		expect(trace?.execution_policy).toBe('read_only');
+		await expect(executeCreatorMission({ missionId: 'mission-creator-stage-only' }, { stateDir })).rejects.toThrow(
+			/read-only\/stage-only/
+		);
+	});
+
 	it('can use Builder creator manifests as the planning source', async () => {
 		const stateDir = await tempStateDir();
 		setCreatorManifestRunnerForTests(async () => ({

@@ -108,7 +108,7 @@ export interface MissionControlBoardEntry {
 	lastEventType: string;
 	lastUpdated: string;
 	executionStarted?: boolean;
-	executionPolicy?: string | null;
+	executionPolicy?: 'manual_run' | 'read_only' | string | null;
 	queuedAt: string | null;
 	startedAt: string | null;
 	lastSummary: string;

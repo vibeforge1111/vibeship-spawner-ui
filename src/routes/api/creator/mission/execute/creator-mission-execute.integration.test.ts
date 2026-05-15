@@ -107,6 +107,26 @@ describe('/api/creator/mission/execute', () => {
 		expect(capturedAutoRun).toBe(true);
 	});
 
+	it('rejects stage-only creator mission execution', async () => {
+		await createCreatorMission(
+			{
+				brief: 'Create Startup YC specialization path, but stage only. Do not run.',
+				missionId: 'mission-creator-stage-only-api',
+				requestId: 'req-stage-only-api'
+			},
+			{ stateDir: tempDir, runPlanner: async () => packet() }
+		);
+
+		const response = await POST(event('http://127.0.0.1/api/creator/mission/execute', {
+			missionId: 'mission-creator-stage-only-api'
+		}) as never);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.ok).toBe(false);
+		expect(body.error).toMatch(/read-only\/stage-only/);
+	});
+
 	it('rejects execution requests without a mission or request id', async () => {
 		const response = await POST(event('http://127.0.0.1/api/creator/mission/execute', {}) as never);
 		expect(response.status).toBe(400);

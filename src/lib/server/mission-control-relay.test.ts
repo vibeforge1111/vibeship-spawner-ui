@@ -80,6 +80,26 @@ describe('mission-control-relay', () => {
 		expect(entry?.taskStatusCounts).toMatchObject({ running: 1, completed: 0, failed: 0, total: 1 });
 	});
 
+	it('carries creator execution policy into board entries', async () => {
+		const missionId = `mission-creator-read-only-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			missionName: 'Creator Mission: Startup YC',
+			source: 'creator-mission',
+			data: {
+				requestId: 'req-read-only',
+				executionPolicy: 'read_only',
+				plannedTasks: [{ title: 'Create creator intent packet', skills: ['creator'] }]
+			}
+		});
+
+		const board = getMissionControlBoard();
+		const entry = Object.values(board).flat().find((candidate) => candidate.missionId === missionId);
+		expect(entry?.executionPolicy).toBe('read_only');
+	});
+
 	it('deduplicates repeated lifecycle status events while preserving actual transitions', async () => {
 		const missionId = `mission-lifecycle-dedupe-${Date.now()}`;
 
