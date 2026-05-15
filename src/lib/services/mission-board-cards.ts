@@ -154,8 +154,9 @@ export function getMissionBoardWorkBreakdown(card: MissionBoardCard): MissionBoa
 	const build = emptyCounts();
 	const preparation = emptyCounts();
 	const tasks = card.tasks || [];
+	const hasTaskStatuses = tasks.some((task) => Boolean(task.status));
 
-	if (tasks.length === 0) {
+	if (tasks.length === 0 || (!hasTaskStatuses && card.taskStatusCounts)) {
 		return {
 			build: card.taskStatusCounts ?? {
 				...emptyCounts(),

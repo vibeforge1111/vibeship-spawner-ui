@@ -1102,6 +1102,52 @@ describe('mission-control-relay', () => {
 		]);
 	});
 
+	it('keeps the latest sequential running task when an earlier task never emitted completion', async () => {
+		const missionId = `mission-current-task-latest-start-${Date.now()}`;
+		const plannedTasks = [
+			{ title: 'Create the playable game shell', skills: ['frontend'] },
+			{ title: 'Design the core play and reasoning loop', skills: ['game-design'] },
+			{ title: 'Add scoring and restart', skills: ['state-management'] }
+		];
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			source: 'prd-bridge',
+			timestamp: freshIso(),
+			data: { plannedTasks, telegramRelay: { port: 1 } }
+		});
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			taskId: 'node-1-task-create-the-playable-game-shell',
+			taskName: 'Create the playable game shell',
+			source: 'codex',
+			timestamp: freshIso(1_000),
+			data: { telegramRelay: { port: 1 } }
+		});
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			taskId: 'node-2-task-design-the-core-play-and-reasoning-loop',
+			taskName: 'Design the core play and reasoning loop',
+			source: 'codex',
+			timestamp: freshIso(2_000),
+			data: { telegramRelay: { port: 1 } }
+		});
+
+		const board = getMissionControlBoard();
+		const running = board.running.find((candidate) => candidate.missionId === missionId);
+
+		expect(running?.taskName).toBe('Design the core play and reasoning loop');
+		expect(running?.taskStatusCounts).toMatchObject({ queued: 2, running: 1, total: 3 });
+		expect(running?.tasks).toEqual([
+			{ title: 'Create the playable game shell', skills: ['frontend'], status: 'queued' },
+			{ title: 'Design the core play and reasoning loop', skills: ['game-design'], status: 'running' },
+			{ title: 'Add scoring and restart', skills: ['state-management'], status: 'queued' }
+		]);
+	});
+
 	it('allows multiple running tasks when different providers start different steps', async () => {
 		const missionId = `mission-parallel-provider-starts-${Date.now()}`;
 		const plannedTasks = [

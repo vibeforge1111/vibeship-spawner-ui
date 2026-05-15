@@ -123,6 +123,7 @@ const RELAY_EVENT_TYPES = new Set([
 const MAX_RECENT_EVENTS = Number(env.MISSION_CONTROL_RECENT_EVENT_LIMIT) || 1000;
 const MAX_RECENT_EVENTS_PER_MISSION = Number(env.MISSION_CONTROL_RECENT_EVENT_LIMIT_PER_MISSION) || 120;
 const DEFAULT_STALE_NON_TERMINAL_MS = 24 * 60 * 60 * 1000;
+const SAME_SOURCE_TASK_START_BURST_MS = 500;
 
 const DEFAULT_SPARK_INGEST_URL = env.SPARK_MISSION_CONTROL_INGEST_URL || '';
 const DEFAULT_SPARK_TOKEN = env.SPARKD_TOKEN || '';
@@ -921,6 +922,26 @@ function latestTaskStartSource(
 	return match?.source || null;
 }
 
+function latestTaskStartTime(
+	task: MissionControlBoardEntry['tasks'][number],
+	events: MissionControlRelayStatusEntry[]
+): number {
+	const match = events.find((event) => event.eventType === 'task_started' && taskMatchesRelayEntry(task, event));
+	const parsed = Date.parse(match?.timestamp || '');
+	return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function isSameSourceTaskStartBurst(
+	tasks: MissionControlBoardEntry['tasks'][number][],
+	events: MissionControlRelayStatusEntry[]
+): boolean {
+	const times = tasks
+		.map((task) => latestTaskStartTime(task, events))
+		.filter((time) => time > 0);
+	if (times.length <= 1) return false;
+	return Math.max(...times) - Math.min(...times) <= SAME_SOURCE_TASK_START_BURST_MS;
+}
+
 function normalizeSingleSourceRunningTaskBurst(
 	entry: MissionControlBoardEntry,
 	events: MissionControlRelayStatusEntry[]
@@ -935,9 +956,14 @@ function normalizeSingleSourceRunningTaskBurst(
 	);
 	if (runningSources.size > 1) return;
 
+	const preferEarliestOrdinal = isSameSourceTaskStartBurst(runningTasks, events);
 	const activeTask = runningTasks.reduce((best, task) => {
 		const bestOrdinal = taskOrdinalFromLabel(best.title) ?? Number.MAX_SAFE_INTEGER;
 		const taskOrdinal = taskOrdinalFromLabel(task.title) ?? Number.MAX_SAFE_INTEGER;
+		if (preferEarliestOrdinal) return taskOrdinal < bestOrdinal ? task : best;
+		const bestStarted = latestTaskStartTime(best, events);
+		const taskStarted = latestTaskStartTime(task, events);
+		if (taskStarted !== bestStarted) return taskStarted > bestStarted ? task : best;
 		return taskOrdinal < bestOrdinal ? task : best;
 	}, runningTasks[0]);
 

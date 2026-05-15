@@ -276,6 +276,21 @@ describe('mission board work breakdown', () => {
 		expect(breakdown.build).toMatchObject({ queued: 2, running: 1, total: 3 });
 		expect(breakdown.preparation.total).toBe(0);
 	});
+
+	it('uses live counts when task rows are static labels without statuses', () => {
+		const breakdown = getMissionBoardWorkBreakdown(card({
+			taskCount: 3,
+			taskStatusCounts: { queued: 0, running: 0, completed: 3, failed: 0, cancelled: 0, total: 3 },
+			tasks: [
+				{ title: 'Create shell', skills: [] },
+				{ title: 'Wire controls', skills: [] },
+				{ title: 'Run smoke test', skills: [] }
+			]
+		}));
+
+		expect(breakdown.hasPreparation).toBe(false);
+		expect(breakdown.build).toMatchObject({ completed: 3, total: 3 });
+	});
 });
 
 describe('creator mission run eligibility', () => {
