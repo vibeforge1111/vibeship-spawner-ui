@@ -7,6 +7,7 @@ import {
 	_buildAuthorityVerdict,
 	_buildFallbackAnalysisResult,
 	_extractPrdBridgeProjectLineage,
+	_provisionalPrdDraftDelayMs,
 	_shouldUseDeterministicPrdFallback
 } from './+server';
 
@@ -437,12 +438,30 @@ describe('PRD bridge fallback analysis', () => {
 
 		expect(result.projectType).toBe('static-single-file-html');
 		expect(result.complexity).toBe('simple');
-		expect(String(result.executionPrompt)).toContain('Create exactly these files in the workspace root: index.html.');
+		expect(String(result.executionPrompt)).toContain('Create exactly these files in the workspace root: index.html');
 		expect(String(result.executionPrompt)).toContain('Do not create any other files');
 
 		const tasks = result.tasks as Array<{ title: string; acceptanceCriteria: string[] }>;
 		expect(tasks).toHaveLength(2);
 		expect(tasks.map((task) => task.title).join('\n')).not.toMatch(/app shell|core interaction|localStorage|checklist/i);
 		expect(tasks.flatMap((task) => task.acceptanceCriteria).join('\n')).toMatch(/No package\.json|Only index\.html/i);
+	});
+
+	it('schedules a provisional PRD draft for slow direct and advanced analysis without disabling PRDs', () => {
+		expect(_provisionalPrdDraftDelayMs({ buildMode: 'direct', buildLane: 'direct' }, {} as NodeJS.ProcessEnv)).toBe(10_000);
+		expect(_provisionalPrdDraftDelayMs({ buildMode: 'advanced_prd', buildLane: 'advanced_prd' }, {} as NodeJS.ProcessEnv)).toBe(45_000);
+		expect(_provisionalPrdDraftDelayMs({ buildMode: 'direct', buildLane: 'fast_direct' }, {} as NodeJS.ProcessEnv)).toBe(10_000);
+		expect(
+			_provisionalPrdDraftDelayMs(
+				{ buildMode: 'direct', buildLane: 'direct' },
+				{ SPAWNER_PRD_PROVISIONAL_DIRECT_MS: '2500' } as NodeJS.ProcessEnv
+			)
+		).toBe(2500);
+		expect(
+			_provisionalPrdDraftDelayMs(
+				{ buildMode: 'direct', buildLane: 'direct' },
+				{ SPAWNER_PRD_PROVISIONAL_DRAFTS: '0' } as NodeJS.ProcessEnv
+			)
+		).toBeNull();
 	});
 });

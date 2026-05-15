@@ -127,7 +127,7 @@ export function reconcileStaleProviderResults(
 		if (result.status !== 'running') return result;
 		const startedAtMs = Date.parse(result.startedAt);
 		const durationMs = Number.isFinite(startedAtMs) ? Math.max(0, now - startedAtMs) : 0;
-		if (!options.orphaned && (!Number.isFinite(startedAtMs) || durationMs < staleMs)) return result;
+		if (!Number.isFinite(startedAtMs) || durationMs < staleMs) return result;
 		changed = true;
 		return {
 			...result,
@@ -135,7 +135,7 @@ export function reconcileStaleProviderResults(
 			error:
 				result.error ||
 				(options.orphaned
-					? 'Provider runtime has no active session after Spawner restart; marked stale so the mission can be run again.'
+					? `Provider runtime was still orphaned after ${formatDurationCompact(durationMs)}; marked stale so the mission can be run again.`
 					: `Provider runtime went quiet after ${formatDurationCompact(durationMs)}; marked stale so the mission stops reporting as active.`),
 			durationMs: result.durationMs ?? durationMs,
 			completedAt: result.completedAt || completedAt
@@ -315,7 +315,7 @@ class ProviderRuntimeManager {
 			this.rememberStatusReason(
 				missionId,
 				orphaned
-					? 'Provider runtime restart left no active session; stale running session was closed.'
+					? 'Provider runtime restart left no active session after the stale window; running session was closed.'
 					: 'Provider runtime went quiet; stale running session was closed.'
 			);
 		}
@@ -672,7 +672,7 @@ class ProviderRuntimeManager {
 						taskName,
 						progress: nextProgress,
 						kind: 'provider_heartbeat',
-						suppressRelay: true,
+						suppressExternalRelay: true,
 						provider: provider.id,
 						providerLabel: provider.label,
 						assignedTaskIds: taskIds,

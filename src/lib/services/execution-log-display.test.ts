@@ -18,6 +18,11 @@ describe('execution-log-display', () => {
 				'SKILL_SOURCE:node-1-task-create-the-playable-game-shell:loaded:frontend-engineer,game-development,game-ui-design,responsive-mobile-first'
 			)
 		).toBe('Create the Playable Game Shell: Skills loaded: frontend-engineer, game-development, game-ui-design +1 more.');
+		expect(
+			normalizeExecutionLogMessage(
+				'SKILL_SOURCE:node-1-task-create-the-playable-game-shell:unavailable:frontend-engineer game-development(curl: (3) URL rejected: Malformed input to a URL function)'
+			)
+		).toBe('Create the Playable Game Shell: using built-in task context.');
 	});
 
 	it('normalizes read-only workspace fallback messages', () => {

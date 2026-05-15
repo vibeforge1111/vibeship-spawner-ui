@@ -177,7 +177,7 @@
 	function concisePanelSubtitle(progress: ExecutionProgress | null): string | null {
 		if (!progress) return null;
 		if (progress.currentTaskName) return progress.currentTaskName;
-		if (progress.status === 'completed') return 'Mission completed.';
+		if (progress.status === 'completed') return 'Run finished.';
 		if (progress.status === 'failed') return progress.error || 'Mission needs attention.';
 		if (progress.status === 'cancelled') return 'Mission cancelled.';
 		if (progress.status === 'paused') return 'Mission paused.';

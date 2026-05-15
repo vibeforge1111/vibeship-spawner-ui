@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, delimiter, dirname, join, resolve, sep } from 'node:path';
 
@@ -80,6 +80,19 @@ export function projectPreviewUrl(baseUrl: string, projectPath: string): string 
 	return `${trimmedBase}/preview/${encodeProjectPreviewToken(resolveProjectPreviewRoot(projectPath))}/index.html`;
 }
 
+function shouldPreferBuiltDistIndex(projectRoot: string): boolean {
+	if (!existsSync(join(projectRoot, 'package.json'))) return false;
+	if (!existsSync(join(projectRoot, 'dist', 'index.html'))) return false;
+	const rootIndexPath = join(projectRoot, 'index.html');
+	if (!existsSync(rootIndexPath)) return true;
+	try {
+		const rootIndex = readFileSync(rootIndexPath, 'utf-8');
+		return /<script[^>]+type=["']module["'][^>]+src=["']\/src\//i.test(rootIndex);
+	} catch {
+		return true;
+	}
+}
+
 export function resolveProjectPreviewRoot(projectPath: string): string {
 	const resolvedProjectPath = resolve(projectPath);
 	if (!existsSync(resolvedProjectPath)) return resolvedProjectPath;
@@ -88,6 +101,7 @@ export function resolveProjectPreviewRoot(projectPath: string): string {
 	if (stat.isFile()) return dirname(resolvedProjectPath);
 	if (!stat.isDirectory()) return resolvedProjectPath;
 
+	if (shouldPreferBuiltDistIndex(resolvedProjectPath)) return join(resolvedProjectPath, 'dist');
 	if (existsSync(join(resolvedProjectPath, 'index.html'))) return resolvedProjectPath;
 	const nestedIndex = findNestedIndexFolder(resolvedProjectPath);
 	return nestedIndex ?? resolvedProjectPath;
@@ -194,9 +208,10 @@ export function resolveProjectPreviewAsset(input: {
 	assetPath?: string | null;
 	env?: NodeJS.ProcessEnv;
 }): { projectRoot: string; filePath: string; displayName: string } {
-	const projectRoot = decodeProjectPreviewToken(input.token);
+	const decodedRoot = decodeProjectPreviewToken(input.token);
+	const projectRoot = resolveProjectPreviewRoot(decodedRoot);
 	const allowedRoots = getProjectPreviewAllowedRoots(input.env);
-	if (!allowedRoots.some((root) => pathIsInside(projectRoot, root))) {
+	if (!allowedRoots.some((root) => pathIsInside(decodedRoot, root) && pathIsInside(projectRoot, root))) {
 		throw new ProjectPreviewError('Project preview path is outside allowed roots', 403);
 	}
 
@@ -223,4 +238,13 @@ export function resolveProjectPreviewAsset(input: {
 		filePath,
 		displayName: basename(filePath)
 	};
+}
+
+export function rewriteProjectPreviewHtml(html: string, token: string): string {
+	const previewBase = `/preview/${token}`;
+	return html.replace(
+		/\b(src|href)=("|')\/(?!\/|preview\/|#)([^"']+)\2/g,
+		(_match, attr: string, quote: string, assetPath: string) =>
+			`${attr}=${quote}${previewBase}/${assetPath}${quote}`
+	);
 }

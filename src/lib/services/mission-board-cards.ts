@@ -4,6 +4,7 @@ import type {
 	MissionControlTaskStatus,
 	MissionControlTaskStatusCounts
 } from '$lib/types/mission-control';
+import { isPreparationTaskTitle } from './execution-task-rows';
 
 export type MissionBoardCardStatus = 'draft' | 'ready' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
 
@@ -53,6 +54,12 @@ export interface MissionBoardCardActionLinks {
 	canvasHref: string | null;
 	traceHref: string;
 	resultHref: string | null;
+}
+
+export interface MissionBoardWorkBreakdown {
+	build: MissionControlTaskStatusCounts;
+	preparation: MissionControlTaskStatusCounts;
+	hasPreparation: boolean;
 }
 
 function missionDetailHref(missionId: string): string {
@@ -128,6 +135,48 @@ export function mergeMissionBoardCards(
 	}
 
 	return [...byId.values()];
+}
+
+function emptyCounts(): MissionControlTaskStatusCounts {
+	return { queued: 0, running: 0, completed: 0, failed: 0, cancelled: 0, total: 0 };
+}
+
+function addTaskToCounts(
+	counts: MissionControlTaskStatusCounts,
+	status: MissionControlTaskStatus | undefined
+): void {
+	const normalized = status || 'queued';
+	counts[normalized] += 1;
+	counts.total += 1;
+}
+
+export function getMissionBoardWorkBreakdown(card: MissionBoardCard): MissionBoardWorkBreakdown {
+	const build = emptyCounts();
+	const preparation = emptyCounts();
+	const tasks = card.tasks || [];
+	const hasTaskStatuses = tasks.some((task) => Boolean(task.status));
+
+	if (tasks.length === 0 || (!hasTaskStatuses && card.taskStatusCounts)) {
+		return {
+			build: card.taskStatusCounts ?? {
+				...emptyCounts(),
+				queued: Math.max(0, card.taskCount || 0),
+				total: Math.max(0, card.taskCount || 0)
+			},
+			preparation,
+			hasPreparation: false
+		};
+	}
+
+	for (const task of tasks) {
+		addTaskToCounts(isPreparationTaskTitle(task.title) ? preparation : build, task.status);
+	}
+
+	return {
+		build,
+		preparation,
+		hasPreparation: preparation.total > 0
+	};
 }
 
 export function isCreatorMissionBoardCard(

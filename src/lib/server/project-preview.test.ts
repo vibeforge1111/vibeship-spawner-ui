@@ -8,7 +8,9 @@ import {
 	encodeProjectPreviewToken,
 	getProjectPreviewAllowedRoots,
 	projectPreviewUrl,
-	resolveProjectPreviewAsset
+	resolveProjectPreviewAsset,
+	resolveProjectPreviewRoot,
+	rewriteProjectPreviewHtml
 } from './project-preview';
 
 describe('project-preview', () => {
@@ -49,6 +51,34 @@ describe('project-preview', () => {
 			token: token!,
 			env: { SPARK_PROJECT_PREVIEW_ROOTS: projectRoot }
 		}).filePath).toBe(join(projectRoot, 'index.html'));
+	});
+
+	it('prefers built Vite dist output over a source index', () => {
+		const projectRoot = mkdtempSync(join(tmpdir(), 'spark-preview-vite-dist-'));
+		mkdirSync(join(projectRoot, 'dist', 'assets'), { recursive: true });
+		writeFileSync(join(projectRoot, 'package.json'), '{"scripts":{"build":"vite build"}}');
+		writeFileSync(join(projectRoot, 'index.html'), '<script type="module" src="/src/main.ts"></script>');
+		writeFileSync(join(projectRoot, 'dist', 'index.html'), '<script type="module" src="/assets/index.js"></script>');
+		writeFileSync(join(projectRoot, 'dist', 'assets', 'index.js'), 'console.log("ok");');
+
+		expect(resolveProjectPreviewRoot(projectRoot)).toBe(join(projectRoot, 'dist'));
+
+		const token = encodeProjectPreviewToken(projectRoot);
+		expect(resolveProjectPreviewAsset({
+			token,
+			env: { SPARK_PROJECT_PREVIEW_ROOTS: projectRoot }
+		}).filePath).toBe(join(projectRoot, 'dist', 'index.html'));
+		expect(resolveProjectPreviewAsset({
+			token,
+			assetPath: 'assets/index.js',
+			env: { SPARK_PROJECT_PREVIEW_ROOTS: projectRoot }
+		}).filePath).toBe(join(projectRoot, 'dist', 'assets', 'index.js'));
+	});
+
+	it('rewrites absolute preview asset links through the preview route', () => {
+		expect(rewriteProjectPreviewHtml('<script src="/assets/app.js"></script><a href="/preview/keep">x</a>', 'abc12345')).toBe(
+			'<script src="/preview/abc12345/assets/app.js"></script><a href="/preview/keep">x</a>'
+		);
 	});
 
 	it('resolves index and relative assets inside an allowed project root', () => {

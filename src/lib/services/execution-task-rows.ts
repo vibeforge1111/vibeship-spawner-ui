@@ -2,11 +2,13 @@ import type { CanvasNode } from '$lib/stores/canvas.svelte';
 import type { ExecutionProgress } from './mission-executor';
 
 export type TaskRowStatus = 'completed' | 'running' | 'pending' | 'failed' | 'blocked';
+export type TaskRowKind = 'preparation' | 'build';
 
 export interface TaskStatusRow {
 	id: string;
 	index: number;
 	title: string;
+	kind: TaskRowKind;
 	status: TaskRowStatus;
 	progress: number;
 	message?: string;
@@ -18,6 +20,18 @@ export interface TaskSummary {
 	running: number;
 	pending: number;
 	failed: number;
+}
+
+export interface TaskRowBreakdown {
+	preparationRows: TaskStatusRow[];
+	buildRows: TaskStatusRow[];
+	preparationSummary: TaskSummary;
+	buildSummary: TaskSummary;
+}
+
+export function isPreparationTaskTitle(title: string | null | undefined): boolean {
+	const normalized = (title || '').toLowerCase().replace(/\s+/g, ' ').trim();
+	return normalized === 'prd analysis' || normalized === 'prd draft' || normalized === 'preparing canvas';
 }
 
 function rowStatusFromCanvasNode(node: CanvasNode): TaskRowStatus {
@@ -52,6 +66,7 @@ export function buildExecutionTaskRows(
 				id: node.id,
 				index: index + 1,
 				title: node.skill.name,
+				kind: 'build',
 				status,
 				progress: rowProgressFromStatus(status),
 				skills: node.skill.tags || []
@@ -67,6 +82,7 @@ export function buildExecutionTaskRows(
 			id: task.id,
 			index: index + 1,
 			title: task.title,
+			kind: isPreparationTaskTitle(task.title) ? 'preparation' : 'build',
 			status,
 			progress: inferredProgress,
 			message: tracked?.message,
@@ -81,6 +97,17 @@ export function summarizeTaskRows(rows: TaskStatusRow[]): TaskSummary {
 		running: rows.filter((task) => task.status === 'running').length,
 		pending: rows.filter((task) => task.status === 'pending' || task.status === 'blocked').length,
 		failed: rows.filter((task) => task.status === 'failed').length
+	};
+}
+
+export function buildTaskRowBreakdown(rows: TaskStatusRow[]): TaskRowBreakdown {
+	const preparationRows = rows.filter((task) => task.kind === 'preparation');
+	const buildRows = rows.filter((task) => task.kind !== 'preparation');
+	return {
+		preparationRows,
+		buildRows,
+		preparationSummary: summarizeTaskRows(preparationRows),
+		buildSummary: summarizeTaskRows(buildRows)
 	};
 }
 

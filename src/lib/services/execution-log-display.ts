@@ -28,6 +28,10 @@ function summarizeSkillList(rawSkills: string): string {
 	return `Skills loaded: ${skills.slice(0, 3).join(', ')} +${skills.length - 3} more.`;
 }
 
+function skillContextFallbackMessage(taskName: string): string {
+	return `${taskName}: using built-in task context.`;
+}
+
 export function normalizeExecutionLogMessage(message: string): string {
 	const clean = message
 		.replace(/\[MissionControl\]\s*/g, '')
@@ -42,7 +46,7 @@ export function normalizeExecutionLogMessage(message: string): string {
 		if (state.toLowerCase() === 'loaded') {
 			return `${taskName}: ${summarizeSkillList(detail)}`;
 		}
-		return `${taskName}: skill context unavailable (${detail.replace(/[_-]/g, ' ')}).`;
+		return skillContextFallbackMessage(taskName);
 	}
 
 	if (/^Absolute\s+\/[^ ]+\s+is unavailable.*read-only.*workspace/i.test(clean)) {

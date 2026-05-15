@@ -53,6 +53,8 @@ const AUTO_ANALYSIS_TIMEOUT_MS =
 	Number.isFinite(configuredAnalysisTimeoutMs) && configuredAnalysisTimeoutMs > 0
 		? configuredAnalysisTimeoutMs
 		: DEFAULT_AUTO_ANALYSIS_TIMEOUT_MS;
+const DEFAULT_PROVISIONAL_DIRECT_ANALYSIS_MS = 10_000;
+const DEFAULT_PROVISIONAL_ADVANCED_ANALYSIS_MS = 45_000;
 
 function normalizeRequestId(requestId: string): string {
 	return requestId.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -175,7 +177,7 @@ function normalizeRunnerCapability(input: unknown): RunnerCapability | null {
 
 async function updatePendingRequestStatus(
 	requestId: string,
-	status: 'pending' | 'processed' | 'timeout' | 'fallback' | 'error',
+	status: 'pending' | 'processed' | 'timeout' | 'fallback' | 'provisional' | 'error',
 	extra: Record<string, unknown> = {}
 ): Promise<void> {
 	try {
@@ -909,6 +911,76 @@ async function writeFallbackAnalysisResult(
 	});
 }
 
+function scheduleProvisionalPrdDraft(input: {
+	requestId: string;
+	missionId: string;
+	projectName: string;
+	buildMode: 'direct' | 'advanced_prd';
+	buildLane: BuildLane;
+	tier: SkillTier;
+	traceRef?: string | null;
+}): void {
+	const delayMs = _provisionalPrdDraftDelayMs({
+		buildMode: input.buildMode,
+		buildLane: input.buildLane
+	});
+	if (delayMs === null) return;
+
+	const timer = setTimeout(async () => {
+		const paths = getPrdBridgePaths();
+		const safeRequestId = normalizeRequestId(input.requestId);
+		const resultFile = join(paths.resultsDir, `${safeRequestId}.json`);
+		if (existsSync(resultFile)) {
+			await appendPrdTrace(input.requestId, 'provisional_canvas_skipped', {
+				...traceRefDetails(input.traceRef),
+				reason: 'analysis result already exists',
+				delayMs
+			});
+			return;
+		}
+
+		await updatePendingRequestStatus(input.requestId, 'provisional', {
+			reason: 'Full PRD analysis is still running; provisional canvas draft queued so execution can start.',
+			provisionalCanvasAt: new Date().toISOString(),
+			provisionalDelayMs: delayMs
+		});
+		await appendPrdTrace(input.requestId, 'provisional_canvas_due', {
+			...traceRefDetails(input.traceRef),
+			delayMs,
+			buildMode: input.buildMode,
+			buildLane: input.buildLane
+		});
+		await writeFallbackAnalysisResult(
+			input.requestId,
+			input.projectName,
+			input.buildMode,
+			input.tier,
+			`provisional canvas draft after ${delayMs}ms while full PRD analysis continues`,
+			input.traceRef,
+			input.buildLane
+		);
+		void relayMissionControlEvent({
+			type: 'task_completed',
+			missionId: input.missionId,
+			missionName: input.projectName,
+			taskName: 'PRD analysis',
+			message: 'PRD draft ready; full analysis can continue in the background.',
+			source: 'prd-bridge',
+			data: {
+				requestId: input.requestId,
+				...traceRefDetails(input.traceRef),
+				buildMode: input.buildMode,
+				buildLane: input.buildLane,
+				provisional: true
+			}
+		});
+	}, delayMs);
+
+	if (typeof timer.unref === 'function') {
+		timer.unref();
+	}
+}
+
 function scheduleAutoAnalysisWatchdog(
 	requestId: string,
 	projectName: string,
@@ -979,6 +1051,22 @@ export function _shouldUseDeterministicPrdFallback(input: {
 	constrainedStaticSingleFile: boolean;
 }): boolean {
 	return input.constrainedStaticSingleFile || input.buildLane === 'fast_direct';
+}
+
+function positiveEnvMs(env: NodeJS.ProcessEnv, key: string, fallbackMs: number): number {
+	const parsed = Number.parseInt(env[key] || '', 10);
+	return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallbackMs;
+}
+
+export function _provisionalPrdDraftDelayMs(
+	input: { buildMode: 'direct' | 'advanced_prd'; buildLane: BuildLane },
+	env: NodeJS.ProcessEnv = process.env
+): number | null {
+	if (env.SPAWNER_PRD_PROVISIONAL_DRAFTS === '0') return null;
+	const isAdvanced = input.buildMode === 'advanced_prd' || input.buildLane === 'advanced_prd';
+	const key = isAdvanced ? 'SPAWNER_PRD_PROVISIONAL_ADVANCED_MS' : 'SPAWNER_PRD_PROVISIONAL_DIRECT_MS';
+	const fallback = isAdvanced ? DEFAULT_PROVISIONAL_ADVANCED_ANALYSIS_MS : DEFAULT_PROVISIONAL_DIRECT_ANALYSIS_MS;
+	return positiveEnvMs(env, key, fallback);
 }
 
 function isConcreteDirectStaticBuild(content: string): boolean {
@@ -1545,11 +1633,30 @@ export const POST: RequestHandler = async (event) => {
 				...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {})
 			}
 		});
-
 		const constrainedStaticSingleFile = constrainedStaticSingleFileInput || isConstrainedSingleFileStaticHtml(finalContent);
 		const deterministicFallback = _shouldUseDeterministicPrdFallback({
 			buildLane: normalizedBuildLane,
 			constrainedStaticSingleFile
+		});
+		const prdTaskName = deterministicFallback ? 'PRD draft' : 'PRD analysis';
+		void relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			missionName: requestMeta.projectName,
+			taskName: prdTaskName,
+			message: deterministicFallback
+				? 'PRD draft is preparing the canvas.'
+				: 'PRD analysis is preparing the canvas.',
+			source: 'prd-bridge',
+			data: {
+				requestId,
+				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+				buildMode: requestMeta.buildMode,
+				buildLane: requestMeta.buildLane,
+				buildLaneReason: requestMeta.buildLaneReason,
+				...(projectLineage ? { projectLineage } : {}),
+				...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {})
+			}
 		});
 		const auto = deterministicFallback
 			? { started: false, provider: normalizedBuildLane === 'fast_direct' ? 'deterministic-fast-lane' : 'deterministic-static' }
@@ -1584,7 +1691,30 @@ export const POST: RequestHandler = async (event) => {
 				normalizedTraceRef,
 				normalizedBuildLane
 			);
+			void relayMissionControlEvent({
+				type: 'task_completed',
+				missionId,
+				missionName: requestMeta.projectName,
+				taskName: prdTaskName,
+				message: 'PRD draft ready.',
+				source: 'prd-bridge',
+				data: {
+					requestId,
+					...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+					buildMode: requestMeta.buildMode,
+					buildLane: requestMeta.buildLane
+				}
+			});
 		} else if (auto.started) {
+			scheduleProvisionalPrdDraft({
+				requestId,
+				missionId,
+				projectName: requestMeta.projectName,
+				buildMode: requestMeta.buildMode,
+				buildLane: requestMeta.buildLane,
+				tier: normalizedTier,
+				traceRef: normalizedTraceRef
+			});
 			scheduleAutoAnalysisWatchdog(
 				requestId,
 				requestMeta.projectName,
@@ -1606,6 +1736,21 @@ export const POST: RequestHandler = async (event) => {
 				`auto-analysis not started for provider ${auto.provider}`,
 				normalizedTraceRef
 			);
+			void relayMissionControlEvent({
+				type: 'task_completed',
+				missionId,
+				missionName: requestMeta.projectName,
+				taskName: prdTaskName,
+				message: 'PRD draft ready after analysis worker did not start.',
+				source: 'prd-bridge',
+				data: {
+					requestId,
+					...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+					buildMode: requestMeta.buildMode,
+					buildLane: requestMeta.buildLane,
+					provider: auto.provider
+				}
+			});
 		}
 
 		logger.info(`[PRDBridge] PRD written to ${paths.pendingPrdFile}`);

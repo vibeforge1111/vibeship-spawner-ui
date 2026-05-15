@@ -15,6 +15,7 @@
 		canRunCreatorMissionBoardCard,
 		canValidateCreatorMissionBoardCard,
 		getMissionBoardCardActionLinks,
+		getMissionBoardWorkBreakdown,
 		mergeMissionBoardCards,
 		type MissionBoardCard as BoardCard
 	} from '$lib/services/mission-board-cards';
@@ -450,7 +451,7 @@
 	}
 
 	function taskProgressPercent(card: BoardCard): number {
-		const counts = card.taskStatusCounts;
+		const counts = getMissionBoardWorkBreakdown(card).build;
 		if (!counts || counts.total <= 0) {
 			if (card.status === 'completed') return 100;
 			if (card.status === 'running') return 48;
@@ -460,13 +461,24 @@
 	}
 
 	function hasTaskProgress(card: BoardCard): boolean {
-		const counts = card.taskStatusCounts;
+		const counts = getMissionBoardWorkBreakdown(card).build;
 		return Boolean(counts && counts.total > 0);
 	}
 
 	function taskProgressRatio(card: BoardCard): string {
-		const counts = card.taskStatusCounts;
+		const counts = getMissionBoardWorkBreakdown(card).build;
 		if (!counts || counts.total <= 0) return '';
+		const settled = counts.completed + counts.failed + counts.cancelled;
+		return `${settled}/${counts.total}`;
+	}
+
+	function hasPreparationProgress(card: BoardCard): boolean {
+		return getMissionBoardWorkBreakdown(card).hasPreparation;
+	}
+
+	function preparationProgressRatio(card: BoardCard): string {
+		const counts = getMissionBoardWorkBreakdown(card).preparation;
+		if (!counts.total) return '';
 		const settled = counts.completed + counts.failed + counts.cancelled;
 		return `${settled}/${counts.total}`;
 	}
@@ -984,6 +996,7 @@
 								{@const summary = focusLine(c)}
 								{@const evidence = completionEvidenceLabel(c)}
 								{@const hasProgress = hasTaskProgress(c)}
+								{@const hasPreparation = hasPreparationProgress(c)}
 								{@const hasActions = hasCardActions(c)}
 								<article class="group relative overflow-hidden rounded-lg border border-surface-border/80 bg-bg-secondary/80 transition-all hover:border-iris/55 hover:bg-bg-tertiary/30">
 									<a
@@ -1028,12 +1041,18 @@
 										{#if hasProgress}
 										<div>
 											<div class="mb-2 flex items-center justify-between gap-3 font-mono text-[11px] font-semibold text-text-secondary">
-												<span>{taskProgressRatio(c)} tasks</span>
+												<span>{taskProgressRatio(c)} build tasks</span>
 												<span>{taskProgressPercent(c)}%</span>
 											</div>
 											<div class="h-1 overflow-hidden rounded-full bg-bg-primary">
 												<div class="h-full rounded-full bg-accent-primary transition-all" style="width: {taskProgressPercent(c)}%"></div>
 											</div>
+											{#if hasPreparation}
+												<div class="mt-2 flex items-center justify-between gap-3 font-mono text-[10px] text-text-tertiary">
+													<span>Preparation</span>
+													<span class="tabular-nums">{preparationProgressRatio(c)}</span>
+												</div>
+											{/if}
 										</div>
 										{/if}
 

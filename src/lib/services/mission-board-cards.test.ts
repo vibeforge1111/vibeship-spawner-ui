@@ -3,6 +3,7 @@ import {
 	canRunCreatorMissionBoardCard,
 	canValidateCreatorMissionBoardCard,
 	getMissionBoardCardActionLinks,
+	getMissionBoardWorkBreakdown,
 	isCreatorMissionBoardCard,
 	mergeMissionBoardCards,
 	type MissionBoardCard
@@ -243,6 +244,52 @@ describe('mergeMissionBoardCards', () => {
 		const [merged] = mergeMissionBoardCards([live], [staticCard]);
 
 		expect(merged.projectLineage).toEqual(live.projectLineage);
+	});
+});
+
+describe('mission board work breakdown', () => {
+	it('keeps PRD preparation separate from build task progress', () => {
+		const breakdown = getMissionBoardWorkBreakdown(card({
+			taskCount: 5,
+			taskStatusCounts: { queued: 0, running: 0, completed: 5, failed: 0, cancelled: 0, total: 5 },
+			tasks: [
+				{ title: 'PRD analysis', skills: [], status: 'completed' },
+				{ title: 'Create playable shell', skills: [], status: 'completed' },
+				{ title: 'Design core loop', skills: [], status: 'completed' },
+				{ title: 'Add scoring and restart', skills: [], status: 'completed' },
+				{ title: 'Verify playable loop', skills: [], status: 'completed' }
+			]
+		}));
+
+		expect(breakdown.hasPreparation).toBe(true);
+		expect(breakdown.preparation).toMatchObject({ completed: 1, total: 1 });
+		expect(breakdown.build).toMatchObject({ completed: 4, total: 4 });
+	});
+
+	it('falls back to relay task counts when detailed tasks are not present yet', () => {
+		const breakdown = getMissionBoardWorkBreakdown(card({
+			taskCount: 3,
+			taskStatusCounts: { queued: 2, running: 1, completed: 0, failed: 0, cancelled: 0, total: 3 }
+		}));
+
+		expect(breakdown.hasPreparation).toBe(false);
+		expect(breakdown.build).toMatchObject({ queued: 2, running: 1, total: 3 });
+		expect(breakdown.preparation.total).toBe(0);
+	});
+
+	it('uses live counts when task rows are static labels without statuses', () => {
+		const breakdown = getMissionBoardWorkBreakdown(card({
+			taskCount: 3,
+			taskStatusCounts: { queued: 0, running: 0, completed: 3, failed: 0, cancelled: 0, total: 3 },
+			tasks: [
+				{ title: 'Create shell', skills: [] },
+				{ title: 'Wire controls', skills: [] },
+				{ title: 'Run smoke test', skills: [] }
+			]
+		}));
+
+		expect(breakdown.hasPreparation).toBe(false);
+		expect(breakdown.build).toMatchObject({ completed: 3, total: 3 });
 	});
 });
 
