@@ -360,6 +360,41 @@ describe('mission-control-relay', () => {
 		expect(entry?.taskStatusCounts).toMatchObject({ queued: 1, completed: 1, total: 2 });
 	});
 
+	it('keeps read-only creator planning events out of the running bucket', async () => {
+		const missionId = `mission-creator-read-only-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			missionName: 'Creator Mission: Startup YC',
+			taskName: 'Lock Startup YC creator intent and task graph',
+			source: 'creator-mission',
+			timestamp: freshIso(),
+			data: {
+				executionPolicy: 'read_only',
+				plannedTasks: [
+					{ title: 'Lock Startup YC creator intent and task graph', skills: ['creator-system'] },
+					{ title: 'Build Startup YC benchmark pack', skills: ['benchmark-designer'] }
+				]
+			}
+		});
+		await relayMissionControlEvent({
+			type: 'task_completed',
+			missionId,
+			taskName: 'Lock Startup YC creator intent and task graph',
+			source: 'creator-mission',
+			timestamp: freshIso(1_000),
+			data: { executionPolicy: 'read_only' }
+		});
+
+		const board = getMissionControlBoard();
+		expect(board.running.find((candidate) => candidate.missionId === missionId)).toBeUndefined();
+		const entry = board.created.find((candidate) => candidate.missionId === missionId);
+		expect(entry?.executionPolicy).toBe('read_only');
+		expect(entry?.executionStarted).toBe(false);
+		expect(entry?.taskStatusCounts).toMatchObject({ queued: 1, completed: 1, total: 2 });
+	});
+
 	it('merges slug task events with planned task titles instead of duplicating board rows', async () => {
 		const missionId = `mission-slug-task-merge-${Date.now()}`;
 
