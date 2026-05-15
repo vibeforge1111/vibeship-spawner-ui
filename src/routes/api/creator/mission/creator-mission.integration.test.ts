@@ -128,9 +128,14 @@ describe('/api/creator/mission', () => {
 		const body = await response.json();
 		expect(body.trace.execution_policy).toBe('read_only');
 		const { relayMissionControlEvent } = await import('$lib/server/mission-control-relay');
+		expect(vi.mocked(relayMissionControlEvent)).toHaveBeenCalledTimes(1);
 		const missionCreatedCall = vi.mocked(relayMissionControlEvent).mock.calls[0]?.[0] as {
+			type?: string;
+			message?: string;
 			data?: { executionPolicy?: string };
 		};
+		expect(missionCreatedCall.type).toBe('mission_created');
+		expect(missionCreatedCall.message).toMatch(/staged/i);
 		expect(missionCreatedCall.data?.executionPolicy).toBe('read_only');
 	});
 

@@ -102,12 +102,21 @@ export const POST: RequestHandler = async (event) => {
 			baseUrl: new URL(event.request.url).origin
 		});
 
-		emitCreatorEvent('mission_created', trace, `Creator mission queued ${trace.tasks.length} task(s) for ${creatorDomainDisplayLabel(trace.intent_packet.target_domain)}.`);
-		emitCreatorEvent('task_started', trace, 'Creating creator intent packet and task graph.');
-		emitCreatorEvent('task_completed', trace, 'Creator intent packet and task graph created.', {
-			intentPacket: trace.intent_packet,
-			taskGraph: trace.tasks
-		});
+		const readOnly = trace.execution_policy === 'read_only';
+		emitCreatorEvent(
+			'mission_created',
+			trace,
+			readOnly
+				? `Creator mission staged ${trace.tasks.length} task(s) for ${creatorDomainDisplayLabel(trace.intent_packet.target_domain)}.`
+				: `Creator mission queued ${trace.tasks.length} task(s) for ${creatorDomainDisplayLabel(trace.intent_packet.target_domain)}.`
+		);
+		if (!readOnly) {
+			emitCreatorEvent('task_started', trace, 'Creating creator intent packet and task graph.');
+			emitCreatorEvent('task_completed', trace, 'Creator intent packet and task graph created.', {
+				intentPacket: trace.intent_packet,
+				taskGraph: trace.tasks
+			});
+		}
 
 		return json({
 			ok: true,

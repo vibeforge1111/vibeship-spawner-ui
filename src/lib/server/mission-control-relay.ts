@@ -947,6 +947,13 @@ function closeOpenTasksForTerminalMission(entry: MissionControlBoardEntry): void
 	}
 }
 
+function boardStatusForEntry(entry: MissionControlBoardEntry): MissionControlBoardStatus {
+	if (entry.executionPolicy === 'read_only' && !entry.executionStarted && entry.status === 'running') {
+		return 'created';
+	}
+	return entry.status;
+}
+
 function recordLifecycleTimestamps(
 	entry: MissionControlBoardEntry,
 	event: MissionControlRelayStatusEntry
@@ -1051,7 +1058,9 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 		normalizeSingleSourceRunningTaskBurst(entry, missionEvents);
 		closeOpenTasksForTerminalMission(entry);
 		recalculateTaskStatusCounts(entry);
-		board[entry.status].push(entry);
+		const boardStatus = boardStatusForEntry(entry);
+		entry.status = boardStatus;
+		board[boardStatus].push(entry);
 	}
 
 	for (const entries of Object.values(board)) {
