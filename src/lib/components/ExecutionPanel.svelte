@@ -42,6 +42,10 @@
 		shouldLiveSyncMissionControl,
 		shouldSkipMissionControlHydration
 	} from '$lib/services/mission-control-live-sync';
+	import {
+		buildCanvasMissionStatusUpdates,
+		taskMatchesCanvasNode
+	} from '$lib/services/canvas-mission-status';
 	import { buildExecutionTaskRows, summarizeTaskRows } from '$lib/services/execution-task-rows';
 	import {
 		formatExecutionDuration,
@@ -169,6 +173,21 @@
 	let canCancel = $derived(isRunning || isPaused);
 	// Note: MCP not required anymore - we build missions locally and run directly by default (copy prompt is fallback)
 	let canRun = $derived(!isRunning && !isPaused && !isTerminal && currentNodes.length > 0);
+
+	function concisePanelSubtitle(progress: ExecutionProgress | null): string | null {
+		if (!progress) return null;
+		if (progress.currentTaskName) return progress.currentTaskName;
+		if (progress.status === 'completed') return 'Mission completed.';
+		if (progress.status === 'failed') return progress.error || 'Mission needs attention.';
+		if (progress.status === 'cancelled') return 'Mission cancelled.';
+		if (progress.status === 'paused') return 'Mission paused.';
+		if (progress.status === 'running' || progress.status === 'creating') return 'Preparing next task...';
+		const message = progress.currentTaskMessage?.trim();
+		if (!message) return null;
+		if (/^Codex:\s*/i.test(message) && message.length > 90) return 'Provider summary is available in the execution log.';
+		return message;
+	}
+
 	let panelTitle = $derived(
 		executionProgress?.mission?.name ||
 			missionName ||
@@ -176,8 +195,7 @@
 			(currentNodes.length > 0 ? 'Canvas workflow' : 'Execution panel')
 	);
 	let panelSubtitle = $derived(
-		executionProgress?.currentTaskName ||
-			executionProgress?.currentTaskMessage ||
+		concisePanelSubtitle(executionProgress) ||
 			(currentNodes.length > 0
 				? `${currentNodes.length} node${currentNodes.length === 1 ? '' : 's'} ready`
 				: 'Build a canvas to run')
@@ -194,6 +212,10 @@
 		return executionProgress.taskTransitions.slice(-12).reverse();
 	});
 	let taskRows = $derived.by(() => buildExecutionTaskRows(executionProgress, currentNodes));
+	let currentExecutionTaskLabel = $derived.by(() => {
+		const runningTasks = taskRows.filter((task) => task.status === 'running');
+		return runningTasks[runningTasks.length - 1]?.title || executionProgress?.currentTaskName || null;
+	});
 	let minimizedTaskSummary = $derived.by(() => {
 		const summary = summarizeTaskRows(taskRows);
 		const total = taskRows.length || executionProgress?.mission?.tasks?.length || currentNodes.length || 0;
@@ -221,20 +243,7 @@
 	});
 
 	function taskMatchesNode(node: CanvasNode, taskId: string, taskName?: string): boolean {
-		const nodeName = node.skill.name || '';
-		const skillId = node.skill.id || '';
-		const normalizedTaskName = (taskName || '').trim().toLowerCase();
-		const normalizedNodeName = nodeName.trim().toLowerCase();
-		return (
-			node.id === taskId ||
-			skillId === taskId ||
-			skillId === `task-${taskId}` ||
-			nodeName === taskName ||
-			nodeName === taskId ||
-			nodeName.startsWith(`${taskId}:`) ||
-			(Boolean(taskName) && nodeName.startsWith(`${taskName}:`)) ||
-			(Boolean(normalizedTaskName) && normalizedNodeName.includes(normalizedTaskName))
-		);
+		return taskMatchesCanvasNode(node, taskId, taskName);
 	}
 
 	function findNodeForTask(taskId: string, taskName?: string): CanvasNode | undefined {
@@ -304,21 +313,9 @@
 		multiLLMProviders = mergedProviders;
 	}
 
-	type MissionControlTask = MissionControlBoardEntry['tasks'][number];
-
-	function applyBoardTaskStatuses(tasks: MissionControlTask[]) {
-		for (const task of tasks) {
-			const node = findNodeForTask(task.title, task.title);
-			if (!node) continue;
-			if (task.status === 'completed') {
-				updateNodeStatus(node.id, 'success');
-			} else if (task.status === 'failed' || task.status === 'cancelled') {
-				updateNodeStatus(node.id, 'error');
-			} else if (task.status === 'running') {
-				updateNodeStatus(node.id, 'running');
-			} else {
-				updateNodeStatus(node.id, 'queued');
-			}
+	function applyBoardTaskStatuses(tasks: MissionControlBoardEntry['tasks']) {
+		for (const update of buildCanvasMissionStatusUpdates(currentNodes, tasks)) {
+			updateNodeStatus(update.nodeId, update.status);
 		}
 		persistCanvasStatusSnapshot();
 	}
@@ -998,13 +995,6 @@
 		executeWorkflow();
 	}
 
-	// Cleanup on unmount
-	$effect(() => {
-		return () => {
-			missionExecutor.stop();
-		};
-	});
-
 	/**
 	 * Entry point for running workflow - validates first
 	 */
@@ -1297,7 +1287,7 @@
 					</span>
 				</div>
 				<p class="mt-1 truncate text-sm font-medium text-text-primary">
-					{executionProgress?.currentTaskName || 'Running workflow'}
+					{currentExecutionTaskLabel || 'Running workflow'}
 				</p>
 				<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-bg-primary">
 					<div
@@ -1536,4 +1526,3 @@
 		</div>
 	</div>
 {/if}
-

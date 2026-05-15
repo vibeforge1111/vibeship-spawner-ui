@@ -214,4 +214,19 @@ describe('execution task row helpers', () => {
 		const running = buildExecutionTaskRows(null, [node('node-1', 'Plan'), node('node-2', 'Build', 'running')]);
 		expect(getNextTaskRow(running)?.title).toBe('Build');
 	});
+
+	it('uses the latest running task when a live surface briefly has more than one active row', () => {
+		const rows = buildExecutionTaskRows(
+			progress({
+				mission: mission([
+					task('task-1', 'First task', 'in_progress'),
+					task('task-2', 'Current task', 'in_progress'),
+					task('task-3', 'Queued task', 'pending')
+				])
+			}),
+			[]
+		);
+
+		expect(getNextTaskRow(rows)?.title).toBe('Current task');
+	});
 });

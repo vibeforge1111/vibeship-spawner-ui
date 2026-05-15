@@ -8,7 +8,7 @@
 	import ContextMenu from '$lib/components/ContextMenu.svelte';
 	import Minimap from '$lib/components/Minimap.svelte';
 	import NodeConfigPanel from '$lib/components/NodeConfigPanel.svelte';
-	import { canvasState, nodes, connections, selectedNodeId, selectedNodeIds, selectedConnectionId, selectedNode, draggingConnection, cuttingLine, selectionBox, snapToGrid, gridSize, addNode, addConnection, addNodesWithConnections, selectNode, selectConnection, selectAllNodes, clearSelection, deleteSelected, duplicateSelected, copySelected, pasteFromClipboard, removeConnection, removeNode, setZoom, setPan, zoomToFit, frameSelected, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory, startConnectionCut, updateConnectionCut, endConnectionCut, cancelConnectionCut, startSelectionBox, updateSelectionBox, endSelectionBox, cancelSelectionBox, toggleSnapToGrid, snapPosition, autoLayout, endConnectionDrag, resetTransientState } from '$lib/stores/canvas.svelte';
+	import { canvasState, nodes, connections, selectedNodeId, selectedNodeIds, selectedConnectionId, selectedNode, draggingConnection, cuttingLine, selectionBox, snapToGrid, gridSize, addNode, addConnection, addNodesWithConnections, selectNode, selectConnection, selectAllNodes, clearSelection, deleteSelected, duplicateSelected, copySelected, pasteFromClipboard, removeConnection, removeNode, setZoom, setPan, zoomToFit, frameSelected, clearCanvas, loadCanvas, enableAutoSave, deleteSavedCanvas, getSavedCanvasInfo, undo, redo, canUndo, canRedo, clearHistory, startConnectionCut, updateConnectionCut, endConnectionCut, cancelConnectionCut, startSelectionBox, updateSelectionBox, endSelectionBox, cancelSelectionBox, toggleSnapToGrid, snapPosition, autoLayout, endConnectionDrag, resetTransientState, updateNodeStatus } from '$lib/stores/canvas.svelte';
 import { get } from 'svelte/store';
 	import type { CuttingLine, CanvasNode, Connection, DraggingConnection, SelectionBox } from '$lib/stores/canvas.svelte';
 	import { onMount, tick } from 'svelte';
@@ -22,11 +22,15 @@ import { get } from 'svelte/store';
 	import { initCanvasSync } from '$lib/services/canvas-sync';
 	import PipelineSelector from '$lib/components/PipelineSelector.svelte';
 	import SessionStateBar from '$lib/components/SessionStateBar.svelte';
-	import { initPipelines, saveCurrentPipeline, getActivePipelineData, ensurePipeline, switchPipeline, activePipelineId as activePipelineIdStore, type PipelineData } from '$lib/stores/pipelines.svelte';
+	import { initPipelines, saveCurrentPipeline, getActivePipelineData, ensurePipeline, switchPipeline, activePipelineId as activePipelineIdStore, activePipeline as activePipelineStore, type PipelineData } from '$lib/stores/pipelines.svelte';
 	import { hasResumableMission } from '$lib/services/persistence';
 	import { DroppedSkillSchema, safeJsonParse } from '$lib/types/schemas';
 	import { getLatestPipelineLoad, getPendingLoad, type PendingPipelineLoad } from '$lib/services/pipeline-loader';
 	import { getCanvasExecutionAction } from '$lib/services/canvas-execution-action';
+	import {
+		buildCanvasMissionStatusUpdates,
+		findMissionControlBoardEntryForCanvas
+	} from '$lib/services/canvas-mission-status';
 	import {
 		getPipelineLoadKey,
 		readablePipelineNameFromId,
@@ -35,6 +39,7 @@ import { get } from 'svelte/store';
 	import { loadSkills, skills as skillsStore } from '$lib/stores/skills.svelte';
 	import { workflowTemplates } from '$lib/data/templates';
 	import type { SparkAgentCanvasSnapshot } from '$lib/services/spark-agent-bridge';
+	import type { MissionControlBoardEntry } from '$lib/types/mission-control';
 
 	let showExecution = $state(false);
 	let executionMinimized = $state(false);
@@ -61,6 +66,7 @@ import { get } from 'svelte/store';
 	let missionDescription = $state('');
 	let missionExporting = $state(false);
 	let missionExportError = $state<string | null>(null);
+	let lastCanvasMissionStatusSyncKey = $state<string | null>(null);
 	let isMcpConnected = $state(false);
 	let mcpConnectedCount = $state(0);
 	let canvasEl = $state<HTMLDivElement>();
@@ -363,6 +369,47 @@ import { get } from 'svelte/store';
 		await applySparkAgentSnapshot(payload.snapshot);
 	}
 
+	async function syncCanvasMissionStatusesFromBoard(missionId?: string | null): Promise<void> {
+		const nodeSnapshot = get(nodes);
+		if (nodeSnapshot.length === 0) return;
+
+		const response = await fetch('/api/mission-control/board');
+		if (!response.ok) return;
+
+		const data = await response.json();
+		const board = data?.board as Record<string, MissionControlBoardEntry[]> | undefined;
+		const activePipeline = get(activePipelineStore);
+		const boardEntry = findMissionControlBoardEntryForCanvas(board, {
+			missionId: missionId || executionRelay?.missionId || null,
+			pipelineId: get(activePipelineIdStore),
+			pipelineName: activePipeline?.name || null
+		});
+
+		if (!boardEntry?.tasks?.length) return;
+		if (!executionRelay?.missionId && boardEntry.missionId) {
+			executionRelay = {
+				...(executionRelay || {}),
+				missionId: boardEntry.missionId,
+				autoRun: false
+			};
+		}
+
+		const updates = buildCanvasMissionStatusUpdates(nodeSnapshot, boardEntry.tasks);
+		if (updates.length === 0) return;
+
+		const syncKey = `${boardEntry.missionId}:${boardEntry.lastUpdated}:${updates
+			.map((update) => `${update.nodeId}:${update.status}`)
+			.join('|')}`;
+		if (syncKey === lastCanvasMissionStatusSyncKey) return;
+
+		for (const update of updates) {
+			updateNodeStatus(update.nodeId, update.status);
+		}
+		lastCanvasMissionStatusSyncKey = syncKey;
+		forceStoreSync();
+		saveCurrentPipelineData();
+	}
+
 	onMount(() => {
 		// Reset all transient store state first (handles client-side navigation)
 		resetTransientState();
@@ -381,6 +428,7 @@ import { get } from 'svelte/store';
 		let stuckStateInterval: ReturnType<typeof setInterval> | null = null;
 		let sparkAgentSyncInterval: ReturnType<typeof setInterval> | null = null;
 		let pendingLoadPollInterval: ReturnType<typeof setInterval> | null = null;
+		let canvasMissionStatusPollInterval: ReturnType<typeof setInterval> | null = null;
 		let resizeObserver: ResizeObserver | null = null;
 
 		// Global mouseup handler to reset stuck states (catches mouseup outside canvas)
@@ -469,6 +517,9 @@ import { get } from 'svelte/store';
 				'connections'
 			);
 			forceStoreSync();
+			void syncCanvasMissionStatusesFromBoard(load.relay?.missionId || null).catch((error) => {
+				console.warn('[Canvas] Mission status sync failed after pipeline load:', error);
+			});
 			if ((load.autoRun || load.relay?.autoRun) && new URL(window.location.href).searchParams.get('noexec') !== '1') {
 				executionPanelKey = `${load.pipelineId}:${load.timestamp || Date.now()}`;
 				showExecution = true;
@@ -610,6 +661,10 @@ import { get } from 'svelte/store';
 		// Initialize history with current state
 		clearHistory();
 
+		await syncCanvasMissionStatusesFromBoard(url.searchParams.get('mission')?.trim() || null).catch((error) => {
+			console.warn('[Canvas] Initial mission status sync failed:', error);
+		});
+
 		// Enable auto-save with pipeline support
 		disableAutoSave = enableAutoSave(1000);
 
@@ -617,6 +672,11 @@ import { get } from 'svelte/store';
 		pipelineAutoSaveInterval = setInterval(() => {
 			saveCurrentPipelineData();
 		}, 2000);
+		canvasMissionStatusPollInterval = setInterval(() => {
+			void syncCanvasMissionStatusesFromBoard(url.searchParams.get('mission')?.trim() || null).catch((error) => {
+				console.warn('[Canvas] Mission status sync poll failed:', error);
+			});
+		}, 3000);
 
 		// Initialize canvas sync for Claude Code integration
 		cleanupCanvasSync = initCanvasSync();
@@ -714,6 +774,7 @@ import { get } from 'svelte/store';
 			if (stuckStateInterval) clearInterval(stuckStateInterval); // FIX 15: Clean up stuck state detector
 			if (sparkAgentSyncInterval) clearInterval(sparkAgentSyncInterval);
 			if (pendingLoadPollInterval) clearInterval(pendingLoadPollInterval);
+			if (canvasMissionStatusPollInterval) clearInterval(canvasMissionStatusPollInterval);
 			cleanupCanvasSync?.();
 			resizeObserver?.disconnect();
 			window.removeEventListener('mouseup', handleGlobalMouseUp);

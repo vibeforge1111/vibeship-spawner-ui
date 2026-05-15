@@ -1,4 +1,8 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { encodeProjectPreviewToken } from './project-preview';
 import { extractMissionControlProjectLineage } from './mission-control-lineage';
 
 const originalRailwayPublicDomain = process.env.RAILWAY_PUBLIC_DOMAIN;
@@ -55,5 +59,21 @@ describe('mission-control-lineage', () => {
 		});
 
 		expect(lineage).toBeNull();
+	});
+
+	it('refreshes stale root preview URLs when the playable app is nested', () => {
+		process.env.SPAWNER_PROJECT_PREVIEW_BASE_URL = 'http://127.0.0.1:3333';
+		const projectRoot = mkdtempSync(join(tmpdir(), 'spark-lineage-preview-'));
+		const nestedRoot = join(projectRoot, 'fail', 'restart');
+		mkdirSync(nestedRoot, { recursive: true });
+		writeFileSync(join(nestedRoot, 'index.html'), '<h1>nested app</h1>');
+
+		const stalePreviewUrl = `http://127.0.0.1:3333/preview/${encodeProjectPreviewToken(projectRoot)}/index.html`;
+		const lineage = extractMissionControlProjectLineage({
+			data: { projectPath: projectRoot, previewUrl: stalePreviewUrl }
+		});
+
+		expect(lineage?.previewUrl).not.toBe(stalePreviewUrl);
+		expect(lineage?.previewUrl).toContain(encodeProjectPreviewToken(nestedRoot));
 	});
 });

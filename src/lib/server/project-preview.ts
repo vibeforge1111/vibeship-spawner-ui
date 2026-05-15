@@ -1,6 +1,6 @@
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, delimiter, join, resolve, sep } from 'node:path';
+import { basename, delimiter, dirname, join, resolve, sep } from 'node:path';
 
 export class ProjectPreviewError extends Error {
 	status: 400 | 403 | 404;
@@ -77,7 +77,58 @@ export function decodeProjectPreviewToken(token: string): string {
 
 export function projectPreviewUrl(baseUrl: string, projectPath: string): string {
 	const trimmedBase = baseUrl.replace(/\/+$/, '');
-	return `${trimmedBase}/preview/${encodeProjectPreviewToken(projectPath)}/index.html`;
+	return `${trimmedBase}/preview/${encodeProjectPreviewToken(resolveProjectPreviewRoot(projectPath))}/index.html`;
+}
+
+export function resolveProjectPreviewRoot(projectPath: string): string {
+	const resolvedProjectPath = resolve(projectPath);
+	if (!existsSync(resolvedProjectPath)) return resolvedProjectPath;
+
+	const stat = statSync(resolvedProjectPath);
+	if (stat.isFile()) return dirname(resolvedProjectPath);
+	if (!stat.isDirectory()) return resolvedProjectPath;
+
+	if (existsSync(join(resolvedProjectPath, 'index.html'))) return resolvedProjectPath;
+	const nestedIndex = findNestedIndexFolder(resolvedProjectPath);
+	return nestedIndex ?? resolvedProjectPath;
+}
+
+function findNestedIndexFolder(projectRoot: string): string | null {
+	const queue: Array<{ folder: string; depth: number }> = [{ folder: projectRoot, depth: 0 }];
+	const matches: string[] = [];
+
+	while (queue.length > 0) {
+		const current = queue.shift();
+		if (!current || current.depth >= 4) continue;
+
+		let children: string[];
+		try {
+			children = readdirSync(current.folder);
+		} catch {
+			continue;
+		}
+
+		for (const child of children) {
+			if (child === 'node_modules' || child === '.git' || child === '.svelte-kit') continue;
+			const childPath = join(current.folder, child);
+			let childStat;
+			try {
+				childStat = statSync(childPath);
+			} catch {
+				continue;
+			}
+			if (!childStat.isDirectory()) continue;
+			if (existsSync(join(childPath, 'index.html'))) {
+				matches.push(childPath);
+				continue;
+			}
+			queue.push({ folder: childPath, depth: current.depth + 1 });
+		}
+	}
+
+	if (matches.length === 0) return null;
+	matches.sort((a, b) => a.split(sep).length - b.split(sep).length || a.localeCompare(b));
+	return matches[0];
 }
 
 export function getProjectPreviewAllowedRoots(env: NodeJS.ProcessEnv = process.env): string[] {
