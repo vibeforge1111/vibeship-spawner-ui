@@ -16,6 +16,7 @@ export const ARTIFACT_MANIFEST_SCHEMA_VERSION = 'spark-artifact-manifest.v1';
 export type CreatorPrivacyMode = 'local_only' | 'github_pr' | 'swarm_shared';
 export type CreatorRiskLevel = 'low' | 'medium' | 'high';
 export type CreatorStageStatus = 'queued' | 'running' | 'blocked' | 'validated' | 'failed' | 'published';
+export type CreatorExecutionPolicy = 'manual_run' | 'read_only';
 export type CreatorMode = 'domain_chip' | 'specialization_path' | 'benchmark' | 'autoloop' | 'full_path';
 export type CreatorPublishReadiness =
 	| 'private_draft'
@@ -230,6 +231,7 @@ export interface CreatorMissionTrace {
 	validation_gates: CreatorValidationGate[];
 	current_stage: string;
 	stage_status: CreatorStageStatus;
+	execution_policy: CreatorExecutionPolicy;
 	intent_packet: CreatorIntentPacket;
 	specialization_entry: CreatorSpecializationEntry;
 	benchmark_summary: {
@@ -270,6 +272,7 @@ export interface CreateCreatorMissionInput {
 	telegramRelay?: CreatorTelegramRelayTarget | null;
 	privacyMode?: CreatorPrivacyMode;
 	riskLevel?: CreatorRiskLevel;
+	executionPolicy?: CreatorExecutionPolicy;
 	baseUrl?: string;
 }
 
@@ -1257,6 +1260,7 @@ function applyCreatorMissionStatusPacket(trace: CreatorMissionTrace, packet: Rec
 		if (!trace.blockers.includes(blocker)) trace.blockers.push(blocker);
 		return;
 	}
+	trace.execution_policy = 'read_only';
 
 	const canonical = recordOrNull(packet.canonical);
 	const publication = recordOrNull(packet.publication);
@@ -1309,6 +1313,22 @@ function applyCreatorMissionStatusPacket(trace: CreatorMissionTrace, packet: Rec
 			if (blocker && !trace.blockers.includes(blocker)) trace.blockers.push(blocker);
 		}
 	}
+}
+
+function briefRequestsReadOnlyExecution(brief: string): boolean {
+	return /\b(?:stage\s+only|stage-only|do\s+not\s+run|don't\s+run|no\s+run|do\s+not\s+execute|don't\s+execute|no\s+execution|without\s+running)\b/i.test(brief);
+}
+
+function resolveCreatorExecutionPolicy(input: CreateCreatorMissionInput, brief: string): CreatorExecutionPolicy {
+	if (input.executionPolicy === 'read_only' || input.executionPolicy === 'manual_run') return input.executionPolicy;
+	return briefRequestsReadOnlyExecution(brief) ? 'read_only' : 'manual_run';
+}
+
+function creatorMissionExecutionBlockedReason(trace: CreatorMissionTrace): string | null {
+	if (trace.execution_policy === 'read_only') return 'creator mission is read-only/stage-only and cannot be executed';
+	const statusPacket = recordOrNull(trace.creator_mission_status);
+	if (statusPacket?.read_only === true) return 'creator mission status packet is read-only and cannot be executed';
+	return null;
 }
 
 function applyImprovementEvidenceFromLedger(
@@ -1425,6 +1445,7 @@ export async function createCreatorMission(
 	const createdAt = now.toISOString();
 	const missionId = input.missionId?.trim() || `mission-creator-${Date.now()}`;
 	const requestId = input.requestId?.trim() || missionId;
+	const executionPolicy = resolveCreatorExecutionPolicy(input, brief);
 	const bundle = normalizeSparkQaOperatorBundle(
 		{ ...input, brief },
 		await resolveCreatorArtifactBundle({ ...input, brief }, options)
@@ -1452,6 +1473,7 @@ export async function createCreatorMission(
 		validation_gates: validationGatesForCreatorIntent(intentPacket),
 		current_stage: 'task_graph_created',
 		stage_status: 'queued',
+		execution_policy: executionPolicy,
 		intent_packet: intentPacket,
 		specialization_entry: buildSpecializationEntry(intentPacket),
 		benchmark_summary: {
@@ -1539,6 +1561,10 @@ export async function executeCreatorMission(
 	}
 	if (trace.stage_status === 'published') {
 		throw new Error('creator mission is already published');
+	}
+	const blockedReason = creatorMissionExecutionBlockedReason(trace);
+	if (blockedReason) {
+		throw new Error(blockedReason);
 	}
 
 	const now = options.now?.() ?? new Date();

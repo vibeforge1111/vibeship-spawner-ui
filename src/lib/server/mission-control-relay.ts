@@ -70,6 +70,7 @@ export interface MissionControlRelayStatusEntry {
 	traceRef: string | null;
 	providerId?: string | null;
 	model?: string | null;
+	executionPolicy?: string | null;
 	progress: number | null;
 	summary: string;
 	timestamp: string;
@@ -241,6 +242,17 @@ function requestIdFromEventData(data: Record<string, unknown> | null | undefined
 	return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
+function executionPolicyFromEventData(data: Record<string, unknown> | null | undefined): string | null {
+	const value = typeof data?.executionPolicy === 'string'
+		? data.executionPolicy
+		: typeof data?.execution_policy === 'string'
+			? data.execution_policy
+			: null;
+	if (!value) return null;
+	const normalized = value.trim().toLowerCase();
+	return normalized === 'read_only' || normalized === 'manual_run' ? normalized : null;
+}
+
 function knownMissionMetadata(missionId: string): { requestId: string | null; traceRef: string | null } {
 	for (const entry of relayState.recent) {
 		if (entry.missionId !== missionId) continue;
@@ -319,6 +331,7 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		: [];
 	const requestId = requestIdFromEventData(event.data);
 	const traceRef = extractTraceRef(event.data, event);
+	const executionPolicy = executionPolicyFromEventData(event.data);
 	const providerId =
 		event.data && typeof (event.data as Record<string, unknown>).providerId === 'string'
 			? ((event.data as Record<string, unknown>).providerId as string)
@@ -370,6 +383,7 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		traceRef,
 		providerId,
 		model,
+		executionPolicy,
 		progress,
 		summary: summarizeMissionControlEvent(event),
 		timestamp,
@@ -977,6 +991,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 				lastEventType: entry.eventType,
 				lastUpdated: entry.timestamp,
 				executionStarted: isExecutionStartEvent(entry.eventType),
+				executionPolicy: entry.executionPolicy ?? null,
 				queuedAt: entry.eventType === 'mission_created' ? entry.timestamp : null,
 				startedAt: isMissionStartEvent(entry.eventType) ? entry.timestamp : null,
 				lastSummary: sanitizeMissionControlDisplayText(readableMissionControlSummary(entry.summary) || entry.summary),
@@ -1005,6 +1020,9 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 			}
 			if (isExecutionStartEvent(entry.eventType)) {
 				existing.executionStarted = true;
+			}
+			if (!existing.executionPolicy && entry.executionPolicy) {
+				existing.executionPolicy = entry.executionPolicy;
 			}
 			existing.projectLineage = mergeMissionControlProjectLineage(
 				existing.projectLineage,

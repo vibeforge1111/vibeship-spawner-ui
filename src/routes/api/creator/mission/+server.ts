@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createCreatorMission, creatorDomainDisplayLabel, creatorMissionPath, readCreatorMissionTrace, type CreatorPrivacyMode, type CreatorRiskLevel, type CreatorTelegramRelayTarget } from '$lib/server/creator-mission';
+import { createCreatorMission, creatorDomainDisplayLabel, creatorMissionPath, readCreatorMissionTrace, type CreatorExecutionPolicy, type CreatorPrivacyMode, type CreatorRiskLevel, type CreatorTelegramRelayTarget } from '$lib/server/creator-mission';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 
@@ -13,6 +13,7 @@ interface CreatorMissionBody {
 	telegramRelay?: CreatorTelegramRelayTarget | null;
 	privacyMode?: CreatorPrivacyMode;
 	riskLevel?: CreatorRiskLevel;
+	executionPolicy?: CreatorExecutionPolicy;
 }
 
 function isPrivacyMode(value: unknown): value is CreatorPrivacyMode {
@@ -21,6 +22,10 @@ function isPrivacyMode(value: unknown): value is CreatorPrivacyMode {
 
 function isRiskLevel(value: unknown): value is CreatorRiskLevel {
 	return value === 'low' || value === 'medium' || value === 'high';
+}
+
+function isExecutionPolicy(value: unknown): value is CreatorExecutionPolicy {
+	return value === 'manual_run' || value === 'read_only';
 }
 
 function emitCreatorEvent(type: string, trace: Awaited<ReturnType<typeof createCreatorMission>>, message: string, data: Record<string, unknown> = {}) {
@@ -38,6 +43,7 @@ function emitCreatorEvent(type: string, trace: Awaited<ReturnType<typeof createC
 		data: {
 			requestId: trace.request_id,
 			creatorMode: trace.creator_mode,
+			executionPolicy: trace.execution_policy,
 			targetDomain: trace.intent_packet.target_domain,
 			artifacts: trace.artifacts,
 			creatorTaskCount: trace.tasks.length,
@@ -79,6 +85,9 @@ export const POST: RequestHandler = async (event) => {
 		if (body.riskLevel !== undefined && !isRiskLevel(body.riskLevel)) {
 			return json({ ok: false, error: 'riskLevel must be low, medium, or high' }, { status: 400 });
 		}
+		if (body.executionPolicy !== undefined && !isExecutionPolicy(body.executionPolicy)) {
+			return json({ ok: false, error: 'executionPolicy must be manual_run or read_only' }, { status: 400 });
+		}
 
 		const trace = await createCreatorMission({
 			brief,
@@ -89,6 +98,7 @@ export const POST: RequestHandler = async (event) => {
 			telegramRelay: body.telegramRelay,
 			privacyMode: body.privacyMode,
 			riskLevel: body.riskLevel,
+			executionPolicy: body.executionPolicy,
 			baseUrl: new URL(event.request.url).origin
 		});
 
