@@ -65,6 +65,16 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 						]
 					}
 				],
+				metadata: {
+					taskQuality: {
+						passed: true,
+						score: 100,
+						taskCount: 1,
+						weakTaskIds: [],
+						findings: [],
+						summary: 'Task plan quality 100/100. No rubric findings.'
+					}
+				},
 				executionPrompt: 'Build a vanilla JS app. No build step.'
 			}),
 			'utf-8'
@@ -92,6 +102,11 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		expect(pending.missionId).toBe('mission-tg-contract-test');
 		expect(pending.executionPrompt).toBeUndefined();
 		expect(pending.instructionTextRedacted).toBe(true);
+		expect(pending.metadata.taskQuality).toMatchObject({
+			passed: true,
+			score: 100,
+			taskCount: 1
+		});
 		expect(pending.nodes[0].skill).toMatchObject({
 			id: 'task-1-static-shell',
 			name: 'Create static shell',

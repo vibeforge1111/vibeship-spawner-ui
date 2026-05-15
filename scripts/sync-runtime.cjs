@@ -34,6 +34,7 @@ const SYNCED_PATHS = [
 	'src/lib/server/mission-control-lineage.ts',
 	'src/lib/server/mission-control-relay.ts',
 	'src/lib/server/mission-control-results.ts',
+	'src/lib/server/creator-mission-trace-sync.ts',
 	'src/lib/server/project-path-extraction.ts',
 	'src/lib/server/prd-analysis-result-schema.ts',
 	'src/lib/server/spawner-state.ts',

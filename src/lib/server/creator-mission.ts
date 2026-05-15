@@ -44,6 +44,7 @@ export type CreatorValidationGateId =
 	| 'schema_gate'
 	| 'lineage_gate'
 	| 'benchmark_gate'
+	| 'benchmark_proof_gate'
 	| 'complexity_gate'
 	| 'transfer_gate'
 	| 'memory_hygiene_gate'
@@ -146,6 +147,60 @@ export interface CreatorValidationRun {
 	results: CreatorValidationCommandResult[];
 }
 
+export interface CreatorSpecializationEntry {
+	agent_entrypoint: string;
+	telegram_command: string;
+	required_artifacts: CreatorArtifactType[];
+	evaluation_loop: {
+		preflight: string;
+		baseline: string;
+		candidate: string;
+		held_out: string;
+		autoloop: string;
+		keep_rule: string;
+		reject_rule: string;
+	};
+	telemetry_surfaces: string[];
+}
+
+export interface CreatorImprovementEvidence {
+	status: 'missing' | 'recorded';
+	baseline_score: number | null;
+	candidate_score: number | null;
+	delta: number | null;
+	held_out_required: boolean;
+	held_out_pass: boolean;
+	validation_run_id: string | null;
+	benchmark_refs: string[];
+	notes: string[];
+}
+
+export interface CreatorMissionCanonicalStatus {
+	verdict?: string;
+	stage_status?: string;
+	evidence_tier?: string;
+	evidence_mode?: string;
+	automation_blocked?: boolean;
+	blocking_checks?: string[];
+	warning_checks?: string[];
+	missing_paths?: string[];
+	recommended_next_command?: string | null;
+}
+
+export interface CreatorMissionPublicationStatus {
+	publish_mode?: CreatorPrivacyMode;
+	local_display_allowed?: boolean;
+	github_pr_allowed?: boolean;
+	swarm_shared_allowed?: boolean;
+	network_absorbable: false;
+	requested_network_absorption?: boolean;
+	blocked_reason?: string | null;
+	required_gates?: string[];
+	missing_gates?: string[];
+	gate_status?: Record<string, boolean>;
+	unsafe_claim_blocked?: boolean;
+}
+
 export interface CreatorValidationCommandProgress {
 	phase: 'started' | 'completed';
 	index: number;
@@ -176,12 +231,17 @@ export interface CreatorMissionTrace {
 	current_stage: string;
 	stage_status: CreatorStageStatus;
 	intent_packet: CreatorIntentPacket;
+	specialization_entry: CreatorSpecializationEntry;
 	benchmark_summary: {
 		baseline_score: number | null;
 		candidate_score: number | null;
 		delta: number | null;
 		held_out_pass: boolean;
 	};
+	improvement_evidence: CreatorImprovementEvidence;
+	creator_mission_status?: Record<string, unknown> | null;
+	canonical?: CreatorMissionCanonicalStatus;
+	publication?: CreatorMissionPublicationStatus;
 	swarm: {
 		payload_ready: boolean;
 		api_ready: boolean;
@@ -533,6 +593,13 @@ export function validationGatesForCreatorIntent(packet: CreatorIntentPacket): Cr
 			description: 'Baseline and held-out cases must exist before a skill, path, or autoloop policy can be called improved.'
 		},
 		{
+			id: 'benchmark_proof_gate',
+			title: 'Before/after proof',
+			status: 'pending',
+			blocks_promotion: true,
+			description: 'A specialized agent must beat the baseline on visible, held-out, and trap-style checks before Spark claims the path made the agent better.'
+		},
+		{
 			id: 'complexity_gate',
 			title: 'Complexity budget',
 			status: 'pending',
@@ -657,7 +724,7 @@ export function buildCreatorMissionTasks(packet: CreatorIntentPacket): CreatorMi
 				'Held-out cases are not used as mutation prompts.'
 			],
 			verification_commands: ['Run benchmark baseline and record score artifact'],
-			validation_gates: ['benchmark_gate', 'schema_gate']
+			validation_gates: ['benchmark_gate', 'benchmark_proof_gate', 'schema_gate']
 		}));
 	}
 
@@ -699,7 +766,7 @@ export function buildCreatorMissionTasks(packet: CreatorIntentPacket): CreatorMi
 				'Rollback condition and round-history clearing policy are explicit.'
 			],
 			verification_commands: ['Run a short dry-run autoloop against fixture cases'],
-			validation_gates: ['lineage_gate', 'benchmark_gate', 'complexity_gate']
+			validation_gates: ['lineage_gate', 'benchmark_gate', 'benchmark_proof_gate', 'complexity_gate']
 		}));
 	}
 
@@ -1026,6 +1093,264 @@ function isCreatorArtifactType(value: string): value is CreatorArtifactType {
 	].includes(value);
 }
 
+function creatorTelemetrySurfaces(packet: CreatorIntentPacket): string[] {
+	const explicit = Array.isArray(packet.usage_surfaces) ? packet.usage_surfaces : [];
+	const inferred = packet.target_operator_surface
+		.split(/[+,/|\s]+/)
+		.map((surface) => surface.trim())
+		.filter(Boolean);
+	return Array.from(new Set([...explicit, ...inferred, 'telegram', 'canvas', 'kanban', 'trace']));
+}
+
+function buildSpecializationEntry(packet: CreatorIntentPacket): CreatorSpecializationEntry {
+	const domain = packet.target_domain || 'custom-domain';
+	const domainLabel = creatorDomainDisplayLabel(domain);
+	const requiredArtifacts = fallbackManifestArtifactTypes(packet);
+	return {
+		agent_entrypoint:
+			`Enter the ${domainLabel} specialization only after loading the domain chip, benchmark pack, specialization path, and autoloop policy; use the benchmark to prove better tool use, reasoning, and decisions before keeping changes.`,
+		telegram_command: `/creator plan --domain ${domain} --surface telegram --benchmark held-out`,
+		required_artifacts: requiredArtifacts,
+		evaluation_loop: {
+			preflight: 'Confirm domain chip hooks, specialization instructions, benchmark fixtures, and rollback rules are present before practice starts.',
+			baseline: 'Run the benchmark pack before specialization practice and record the baseline score.',
+			candidate: 'Run the same visible benchmark after applying the domain chip and specialization path, then compare tool-use and reasoning deltas.',
+			held_out: 'Run held-out cases that were not used as mutation prompts before any keep or publish decision.',
+			autoloop: 'suggest -> evaluate -> keep/reject -> record evidence -> repeat only when capability improves.',
+			keep_rule: 'Keep a mutation only when candidate score beats baseline, held-out passes, and the lesson improves agent-facing behavior rather than wording alone.',
+			reject_rule: 'Reject or roll back score-only, formatting-only, non-transferable, or unverified mutations.'
+		},
+		telemetry_surfaces: creatorTelemetrySurfaces(packet)
+	};
+}
+
+function boolFromHeldOut(value: unknown): boolean {
+	if (typeof value === 'boolean') return value;
+	if (typeof value === 'string') return value.trim().toLowerCase() === 'pass';
+	return false;
+}
+
+function numberOrNull(value: unknown): number | null {
+	const parsed = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
+	return Number.isFinite(parsed) ? parsed : null;
+}
+
+function stringArray(value: unknown): string[] {
+	return Array.isArray(value)
+		? value.map((item) => String(item || '').trim()).filter(Boolean)
+		: [];
+}
+
+function initialImprovementEvidence(packet: CreatorIntentPacket): CreatorImprovementEvidence {
+	const requirements = packet.benchmark_requirements || {};
+	const heldOutRequired = requirements.held_out_cases !== false && packet.desired_outputs.benchmark_pack;
+	return {
+		status: 'missing',
+		baseline_score: null,
+		candidate_score: null,
+		delta: null,
+		held_out_required: heldOutRequired,
+		held_out_pass: false,
+		validation_run_id: null,
+		benchmark_refs: [],
+		notes: ['Awaiting validation ledger with baseline, candidate, delta, and held-out evidence.']
+	};
+}
+
+interface CreatorValidationLedger {
+	benchmark_evidence?: {
+		baseline_score?: unknown;
+		candidate_score?: unknown;
+		delta?: unknown;
+		held_out_verdict?: unknown;
+		held_out_pass?: unknown;
+		benchmark_refs?: unknown;
+		notes?: unknown;
+		reasoning_delta?: unknown;
+		tool_usage_delta?: unknown;
+		ability_delta?: unknown;
+	};
+}
+
+const CREATOR_MISSION_STATUS_SCHEMA_VERSION = 'adaptive_creator_loop.creator_mission_status.v1';
+
+async function readJsonIfPresent(filePath: string): Promise<Record<string, unknown> | null> {
+	try {
+		if (!existsSync(filePath)) return null;
+		return JSON.parse(await readFile(filePath, 'utf-8')) as Record<string, unknown>;
+	} catch {
+		return null;
+	}
+}
+
+async function findCreatorValidationLedger(trace: CreatorMissionTrace): Promise<CreatorValidationLedger | null> {
+	for (const manifest of trace.artifact_manifests || []) {
+		if (!manifest.repo) continue;
+		const ledger = await readJsonIfPresent(path.join(resolveCreatorRepoRoot(manifest.repo), 'validation-ledger.json'));
+		if (ledger) return ledger as CreatorValidationLedger;
+	}
+	return null;
+}
+
+async function findCreatorMissionStatusPacket(trace: CreatorMissionTrace): Promise<Record<string, unknown> | null> {
+	const seen = new Set<string>();
+	for (const manifest of trace.artifact_manifests || []) {
+		if (!manifest.repo) continue;
+		const repoRoot = resolveCreatorRepoRoot(manifest.repo);
+		if (seen.has(repoRoot)) continue;
+		seen.add(repoRoot);
+		for (const candidate of [
+			path.join(repoRoot, 'reports', 'creator-mission-status.json'),
+			path.join(repoRoot, 'creator-mission-status.json')
+		]) {
+			const packet = await readJsonIfPresent(candidate);
+			if (packet) return packet;
+		}
+	}
+	return null;
+}
+
+function recordOrNull(value: unknown): Record<string, unknown> | null {
+	return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function boolOrUndefined(value: unknown): boolean | undefined {
+	return typeof value === 'boolean' ? value : undefined;
+}
+
+function stringOrUndefined(value: unknown): string | undefined {
+	return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function nullableString(value: unknown): string | null | undefined {
+	if (value === null) return null;
+	return stringOrUndefined(value);
+}
+
+function publicationMode(value: unknown): CreatorPrivacyMode | undefined {
+	return value === 'local_only' || value === 'github_pr' || value === 'swarm_shared' ? value : undefined;
+}
+
+function booleanRecord(value: unknown): Record<string, boolean> | undefined {
+	const record = recordOrNull(value);
+	if (!record) return undefined;
+	const output: Record<string, boolean> = {};
+	for (const [key, raw] of Object.entries(record)) {
+		if (typeof raw === 'boolean') output[key] = raw;
+	}
+	return output;
+}
+
+function blockerLabelFromPacket(value: unknown): string | null {
+	const record = recordOrNull(value);
+	const source = stringOrUndefined(record?.source);
+	const message = stringOrUndefined(record?.message);
+	if (source && message) return `${source}: ${message}`;
+	return source || message || null;
+}
+
+function applyCreatorMissionStatusPacket(trace: CreatorMissionTrace, packet: Record<string, unknown> | null): void {
+	if (!packet) return;
+	if (packet.schema_version !== CREATOR_MISSION_STATUS_SCHEMA_VERSION) return;
+	if (packet.read_only !== true) {
+		const blocker = 'Creator mission status packet was ignored because it was not read-only.';
+		if (!trace.blockers.includes(blocker)) trace.blockers.push(blocker);
+		return;
+	}
+
+	const canonical = recordOrNull(packet.canonical);
+	const publication = recordOrNull(packet.publication);
+	if (!canonical || !publication) return;
+
+	const canonicalStatus: CreatorMissionCanonicalStatus = {
+		verdict: stringOrUndefined(canonical.verdict),
+		stage_status: stringOrUndefined(canonical.stage_status),
+		evidence_tier: stringOrUndefined(canonical.evidence_tier),
+		evidence_mode: stringOrUndefined(canonical.evidence_mode),
+		automation_blocked: boolOrUndefined(canonical.automation_blocked),
+		blocking_checks: stringArray(canonical.blocking_checks),
+		warning_checks: stringArray(canonical.warning_checks),
+		missing_paths: stringArray(canonical.missing_paths),
+		recommended_next_command: nullableString(canonical.recommended_next_command)
+	};
+	const publicationStatus: CreatorMissionPublicationStatus = {
+		publish_mode: publicationMode(publication.publish_mode),
+		local_display_allowed: boolOrUndefined(publication.local_display_allowed),
+		github_pr_allowed: boolOrUndefined(publication.github_pr_allowed),
+		swarm_shared_allowed: boolOrUndefined(publication.swarm_shared_allowed),
+		network_absorbable: false,
+		requested_network_absorption: boolOrUndefined(publication.requested_network_absorption),
+		blocked_reason: nullableString(publication.blocked_reason),
+		required_gates: stringArray(publication.required_gates),
+		missing_gates: stringArray(publication.missing_gates),
+		gate_status: booleanRecord(publication.gate_status),
+		unsafe_claim_blocked: boolOrUndefined(publication.unsafe_claim_blocked)
+	};
+
+	trace.creator_mission_status = packet;
+	trace.canonical = canonicalStatus;
+	trace.publication = publicationStatus;
+	if (publicationStatus.publish_mode) {
+		trace.swarm.publish_mode = publicationStatus.publish_mode;
+	}
+	trace.swarm.payload_ready = false;
+	trace.swarm.api_ready = false;
+
+	if (publication.network_absorbable !== false || publication.swarm_shared_allowed !== false) {
+		const blocker = 'Creator mission status kept network absorption blocked for product surfaces.';
+		if (!trace.blockers.includes(blocker)) trace.blockers.push(blocker);
+	}
+	for (const blocker of stringArray(canonicalStatus.blocking_checks)) {
+		if (!trace.blockers.includes(blocker)) trace.blockers.push(blocker);
+	}
+	if (Array.isArray(packet.blockers)) {
+		for (const rawBlocker of packet.blockers) {
+			const blocker = blockerLabelFromPacket(rawBlocker);
+			if (blocker && !trace.blockers.includes(blocker)) trace.blockers.push(blocker);
+		}
+	}
+}
+
+function applyImprovementEvidenceFromLedger(
+	trace: CreatorMissionTrace,
+	ledger: CreatorValidationLedger | null,
+	run: CreatorValidationRun
+): void {
+	const evidence = ledger?.benchmark_evidence;
+	if (!evidence || typeof evidence !== 'object') return;
+
+	const baselineScore = numberOrNull(evidence.baseline_score);
+	const candidateScore = numberOrNull(evidence.candidate_score);
+	const delta = numberOrNull(evidence.delta);
+	const heldOutPass = boolFromHeldOut(evidence.held_out_verdict ?? evidence.held_out_pass);
+	const benchmarkRefs = stringArray(evidence.benchmark_refs);
+	const notes = [
+		...stringArray(evidence.notes),
+		...stringArray([evidence.reasoning_delta, evidence.tool_usage_delta, evidence.ability_delta])
+	];
+
+	trace.benchmark_summary = {
+		baseline_score: baselineScore,
+		candidate_score: candidateScore,
+		delta,
+		held_out_pass: heldOutPass
+	};
+	trace.improvement_evidence = {
+		...trace.improvement_evidence,
+		status: baselineScore !== null && candidateScore !== null && delta !== null ? 'recorded' : 'missing',
+		baseline_score: baselineScore,
+		candidate_score: candidateScore,
+		delta,
+		held_out_pass: heldOutPass,
+		validation_run_id: run.run_id,
+		benchmark_refs: benchmarkRefs,
+		notes
+	};
+	for (const ref of benchmarkRefs) {
+		if (!trace.benchmarks.includes(ref)) trace.benchmarks.push(ref);
+	}
+}
+
 async function resolveCreatorArtifactBundle(
 	input: CreateCreatorMissionInput,
 	options: CreateCreatorMissionOptions
@@ -1128,12 +1453,14 @@ export async function createCreatorMission(
 		current_stage: 'task_graph_created',
 		stage_status: 'queued',
 		intent_packet: intentPacket,
+		specialization_entry: buildSpecializationEntry(intentPacket),
 		benchmark_summary: {
 			baseline_score: null,
 			candidate_score: null,
 			delta: null,
 			held_out_pass: false
 		},
+		improvement_evidence: initialImprovementEvidence(intentPacket),
 		swarm: {
 			payload_ready: false,
 			api_ready: false,
@@ -1467,6 +1794,8 @@ export async function validateCreatorMission(
 	trace.current_stage = runStatus === 'passed' ? 'validation_completed' : runStatus === 'blocked' ? 'validation_blocked' : 'validation_failed';
 	trace.stage_status = runStatus === 'passed' ? 'validated' : runStatus === 'blocked' ? 'blocked' : 'failed';
 	trace.publish_readiness = runStatus === 'passed' ? 'workspace_validated' : trace.publish_readiness;
+	applyImprovementEvidenceFromLedger(trace, await findCreatorValidationLedger(trace), run);
+	applyCreatorMissionStatusPacket(trace, await findCreatorMissionStatusPacket(trace));
 	trace.updated_at = completedAt;
 	if (runStatus !== 'passed') {
 		const blocker = runStatus === 'blocked' ? 'One or more validation commands were skipped.' : 'One or more validation commands failed.';

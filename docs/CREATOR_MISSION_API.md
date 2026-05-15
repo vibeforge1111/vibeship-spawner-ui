@@ -50,6 +50,20 @@ Response:
     "intent_packet": {
       "schema_version": "spark-creator-intent.v1"
     },
+    "specialization_entry": {
+      "telegram_command": "/creator plan --domain startup-yc --surface telegram --benchmark held-out",
+      "required_artifacts": ["domain_chip", "benchmark_pack", "specialization_path", "autoloop_policy"],
+      "evaluation_loop": {
+        "baseline": "Run the benchmark pack before specialization practice and record the baseline score.",
+        "held_out": "Run held-out cases that were not used as mutation prompts before any keep or publish decision.",
+        "keep_rule": "Keep a mutation only when candidate score beats baseline, held-out passes, and the lesson improves agent-facing behavior rather than wording alone."
+      }
+    },
+    "improvement_evidence": {
+      "status": "missing",
+      "held_out_required": true,
+      "validation_run_id": null
+    },
     "tasks": [
       {
         "id": "benchmark-pack",
@@ -122,6 +136,12 @@ Content-Type: application/json
 You can also validate by `requestId`.
 
 The validation runner executes manifest `validation_commands` without a shell, from the declared repo root, and only for allowlisted executables: `python`, `python3`, `py`, `npm`, `npx`, and `spark-intelligence`. Results are appended to `trace.validation_runs`; a fully passing run moves the trace to `stage_status: "validated"` and `publish_readiness: "workspace_validated"`.
+
+If a validation command writes `validation-ledger.json` in a manifest repo with `benchmark_evidence`, Spawner records it into `trace.benchmark_summary` and `trace.improvement_evidence`. A valid ledger should include baseline score, candidate score, delta, held-out pass/fail, benchmark references, and short notes for reasoning/tool-use/ability gains.
+
+Spawner also reads the Labs product adapter packet at `reports/creator-mission-status.json` or `creator-mission-status.json` when present. That packet becomes the canonical source for `trace.canonical`, `trace.publication`, and `trace.creator_mission_status` so Telegram, Canvas, Kanban, and Mission Control can say the same thing. Product surfaces keep `network_absorbable=false` and `swarm.payload_ready=false`; a local Swarm contribution packet can be review-ready without being network-absorbed.
+
+Validation does not mark the mission `published` or set `swarm.payload_ready`; Swarm contribution still requires review/publish gates.
 
 ## Kanban Operation
 

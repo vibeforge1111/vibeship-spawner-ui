@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -84,6 +84,21 @@ function bundle(overrides: Partial<CreatorIntentPacket> = {}): CreatorArtifactBu
 	};
 }
 
+function fullPathBundle(repo: string): CreatorArtifactBundle {
+	return {
+		intent_packet: packet(),
+		artifact_manifests: [
+			manifest('domain_chip', repo),
+			manifest('benchmark_pack', repo),
+			manifest('specialization_path', repo),
+			manifest('autoloop_policy', repo),
+			manifest('tool_integration', repo),
+			manifest('swarm_publish_packet', repo)
+		],
+		validation_issues: []
+	};
+}
+
 async function tempStateDir(): Promise<string> {
 	const dir = await mkdtemp(path.join(os.tmpdir(), 'spawner-creator-mission-'));
 	tempDirs.push(dir);
@@ -157,6 +172,21 @@ describe('creator mission trace', () => {
 			'swarm-publish-packet'
 		]);
 		expect(trace.validation_gates.map((gate) => gate.id)).toContain('publish_review_gate');
+		expect(trace.specialization_entry.required_artifacts).toEqual([
+			'domain_chip',
+			'benchmark_pack',
+			'specialization_path',
+			'autoloop_policy',
+			'tool_integration',
+			'swarm_publish_packet'
+		]);
+		expect(trace.specialization_entry.agent_entrypoint).toContain('benchmark to prove better tool use, reasoning, and decisions');
+		expect(trace.specialization_entry.evaluation_loop.held_out).toContain('not used as mutation prompts');
+		expect(trace.improvement_evidence).toMatchObject({
+			status: 'missing',
+			held_out_required: true,
+			held_out_pass: false
+		});
 		expect(trace.links.canvas).toBe('http://127.0.0.1:4174/canvas?pipeline=creator-creator-request-test&mission=mission-creator-test');
 		expect(trace.links.kanban).toBe('http://127.0.0.1:4174/kanban?mission=mission-creator-test');
 
@@ -164,6 +194,8 @@ describe('creator mission trace', () => {
 		expect(saved.intent_packet.target_domain).toBe('startup-yc');
 		expect(saved.artifact_manifests.map((manifest: { artifact_id: string }) => manifest.artifact_id)).toContain('startup-yc-domain-chip-v1');
 		expect(saved.tasks).toHaveLength(8);
+		expect(saved.specialization_entry.telegram_command).toContain('--surface telegram');
+		expect(saved.improvement_evidence.status).toBe('missing');
 
 		const queuedCanvas = JSON.parse(await readFile(path.join(stateDir, 'pending-load.json'), 'utf-8'));
 		expect(queuedCanvas).toMatchObject({
@@ -176,6 +208,164 @@ describe('creator mission trace', () => {
 		});
 		expect(queuedCanvas.nodes).toHaveLength(8);
 		expect(queuedCanvas.connections.length).toBeGreaterThan(0);
+	});
+
+	it('records full-path specialization improvement evidence without publishing to Swarm', async () => {
+		const stateDir = await tempStateDir();
+		await createCreatorMission(
+			{
+				brief: 'Create a Startup YC specialization path with benchmarked autoloop from Telegram and Spark Swarm',
+				missionId: 'mission-creator-golden-path',
+				requestId: 'req-golden-path',
+				privacyMode: 'swarm_shared'
+			},
+			{
+				stateDir,
+				runManifestPlanner: async () => fullPathBundle(stateDir)
+			}
+		);
+
+		setCreatorValidationCommandRunnerForTests(async (_executable, _args, options) => {
+			await mkdir(path.join(options.cwd, 'reports'), { recursive: true });
+			await writeFile(
+				path.join(options.cwd, 'validation-ledger.json'),
+				JSON.stringify({
+					benchmark_evidence: {
+						baseline_score: 0.42,
+						candidate_score: 0.73,
+						delta: 0.31,
+						held_out_verdict: 'pass',
+						benchmark_refs: ['benchmarks/startup-yc.visible.json', 'benchmarks/startup-yc.held-out.json'],
+						reasoning_delta: 'Candidate correctly rejects formatting-only gains.',
+						tool_usage_delta: 'Candidate uses the benchmark runner before autoloop keep decisions.',
+						ability_delta: 'Agent chooses stronger Startup YC triage actions on held-out cases.'
+					}
+				}),
+				'utf-8'
+			);
+			await writeFile(
+				path.join(options.cwd, 'reports', 'creator-mission-status.json'),
+				JSON.stringify({
+					schema_version: 'adaptive_creator_loop.creator_mission_status.v1',
+					mission_id: 'mission-creator-golden-path',
+					read_only: true,
+					claim_boundary: 'read-only product adapter over canonical creator-system outputs',
+					canonical: {
+						verdict: 'ready_for_swarm_packet',
+						stage_status: 'review_required',
+						evidence_tier: 'transfer_supported',
+						evidence_mode: 'recomputed',
+						automation_blocked: false,
+						blocking_checks: [],
+						warning_checks: [],
+						missing_paths: [],
+						recommended_next_command: 'review the local contribution packet'
+					},
+					publication: {
+						publish_mode: 'swarm_shared',
+						local_display_allowed: true,
+						github_pr_allowed: false,
+						swarm_shared_allowed: false,
+						network_absorbable: false,
+						requested_network_absorption: true,
+						blocked_reason: 'Network absorption still needs review.',
+						required_gates: ['human_operator_review', 'publication_approval'],
+						missing_gates: ['publication_approval'],
+						gate_status: { human_operator_review: true, publication_approval: false },
+						unsafe_claim_blocked: true
+					},
+					source_packets: [],
+					blockers: [{ source: 'publication_gate', message: 'Network absorption is not approved.' }],
+					warnings: [],
+					next_actions: ['Keep this local until the publication gate is approved.'],
+					surface_adapters: {
+						telegram: { text: 'Startup YC creator path is review-ready locally.', may_request_secret_paste: false },
+						builder: {},
+						spawner: {},
+						canvas: {},
+						kanban: {}
+					}
+				}),
+				'utf-8'
+			);
+			return { exitCode: 0, stdout: 'ok', stderr: '' };
+		});
+
+		const result = await validateCreatorMission(
+			{ missionId: 'mission-creator-golden-path' },
+			{ stateDir, now: () => new Date('2026-04-30T13:00:00.000Z') }
+		);
+
+		expect(result.run.status).toBe('passed');
+		expect(result.trace.stage_status).toBe('validated');
+		expect(result.trace.validation_runs).toHaveLength(1);
+		expect(result.trace.tasks.map((task) => task.id)).toEqual([
+			'creator-intent-plan',
+			'domain-chip-contract',
+			'benchmark-pack',
+			'specialization-path',
+			'autoloop-policy',
+			'telegram-spawner-flow',
+			'creator-validation',
+			'swarm-publish-packet'
+		]);
+		expect(result.trace.validation_gates.map((gate) => gate.id)).toEqual([
+			'schema_gate',
+			'lineage_gate',
+			'benchmark_gate',
+			'benchmark_proof_gate',
+			'complexity_gate',
+			'memory_hygiene_gate',
+			'transfer_gate',
+			'publish_review_gate'
+		]);
+		expect(result.trace.specialization_entry).toMatchObject({
+			telegram_command: '/creator plan --domain startup-yc --surface telegram --benchmark held-out',
+			required_artifacts: ['domain_chip', 'benchmark_pack', 'specialization_path', 'autoloop_policy', 'tool_integration', 'swarm_publish_packet']
+		});
+		expect(result.trace.specialization_entry.evaluation_loop.keep_rule).toContain('held-out passes');
+		expect(result.trace.benchmark_summary).toEqual({
+			baseline_score: 0.42,
+			candidate_score: 0.73,
+			delta: 0.31,
+			held_out_pass: true
+		});
+		expect(result.trace.improvement_evidence).toMatchObject({
+			status: 'recorded',
+			baseline_score: 0.42,
+			candidate_score: 0.73,
+			delta: 0.31,
+			held_out_required: true,
+			held_out_pass: true,
+			validation_run_id: result.run.run_id,
+			benchmark_refs: ['benchmarks/startup-yc.visible.json', 'benchmarks/startup-yc.held-out.json']
+		});
+		expect(result.trace.improvement_evidence.notes.join('\n')).toContain('benchmark runner before autoloop keep decisions');
+		expect(result.trace.benchmarks).toEqual(['benchmarks/startup-yc.visible.json', 'benchmarks/startup-yc.held-out.json']);
+		expect(result.trace.canonical).toMatchObject({
+			verdict: 'ready_for_swarm_packet',
+			stage_status: 'review_required',
+			evidence_tier: 'transfer_supported',
+			evidence_mode: 'recomputed'
+		});
+		expect(result.trace.publication).toMatchObject({
+			publish_mode: 'swarm_shared',
+			swarm_shared_allowed: false,
+			network_absorbable: false,
+			missing_gates: ['publication_approval']
+		});
+		expect(result.trace.creator_mission_status?.schema_version).toBe('adaptive_creator_loop.creator_mission_status.v1');
+		expect(result.trace.blockers.join('\n')).toContain('publication_gate: Network absorption is not approved.');
+		expect(result.trace.publish_readiness).toBe('workspace_validated');
+		expect(result.trace.stage_status).not.toBe('published');
+		expect(result.trace.swarm).toMatchObject({
+			payload_ready: false,
+			api_ready: false,
+			publish_mode: 'swarm_shared'
+		});
+		const saved = JSON.parse(await readFile(creatorMissionPath('mission-creator-golden-path', stateDir), 'utf-8'));
+		expect(saved.improvement_evidence.status).toBe('recorded');
+		expect(saved.swarm.payload_ready).toBe(false);
 	});
 
 	it('can look up a trace by request id', async () => {

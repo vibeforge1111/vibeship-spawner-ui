@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { getTierSkills, normalizeTier, type SkillTier } from './skill-tiers';
+import { assessTaskQuality } from './task-quality-rubric';
 
 const stringList = z.array(z.string());
 
@@ -195,6 +196,7 @@ export function projectStoredPrdAnalysisResult(requestId: string, result: unknow
 		...rest,
 		metadata: {
 			...safeMetadata,
+			taskQuality: assessTaskQuality(validated.tasks),
 			instructionTextRedacted: true,
 			instructionTextStorage: 'omitted_from_result_artifact'
 		},
