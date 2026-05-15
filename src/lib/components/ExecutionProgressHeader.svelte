@@ -41,6 +41,10 @@
 		executionProgress.mission?.tasks?.filter((task) => task.status === 'completed').length || 0
 	);
 	let taskSummary = $derived.by(() => summarizeTaskRows(taskRows));
+	let activeTaskRow = $derived.by(() => {
+		const runningTasks = taskRows.filter((task) => task.status === 'running');
+		return runningTasks[runningTasks.length - 1] || null;
+	});
 	let taskBuckets = $derived.by(() => [
 		{
 			key: 'completed',
@@ -72,10 +76,23 @@
 		}
 	]);
 	let missionTitle = $derived(executionProgress.mission?.name || 'Canvas execution');
+
+	function conciseTaskLabel(progress: ExecutionProgress): string {
+		if (progress.currentTaskName) return progress.currentTaskName;
+		if (progress.status === 'completed') return 'Mission completed.';
+		if (progress.status === 'failed') return progress.error || 'Mission needs attention.';
+		if (progress.status === 'cancelled') return 'Mission cancelled.';
+		if (progress.status === 'paused') return 'Mission paused.';
+		if (progress.status === 'running' || progress.status === 'creating') return 'Preparing next task...';
+		const message = progress.currentTaskMessage?.trim();
+		if (!message) return 'Waiting for next task';
+		if (/^Codex:\s*/i.test(message) && message.length > 90) return 'Provider summary is available in the execution log.';
+		return message;
+	}
+
 	let activeTaskLabel = $derived(
-		executionProgress.currentTaskName ||
-		executionProgress.currentTaskMessage ||
-			(executionProgress.status === 'completed' ? 'Execution complete' : 'Waiting for next task')
+		activeTaskRow?.title ||
+			conciseTaskLabel(executionProgress)
 	);
 	let providerRuntimeStatus = $derived.by(() => {
 		const multiPack = executionProgress.multiLLMExecution;

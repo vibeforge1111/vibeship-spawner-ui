@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { basename, resolve, win32 } from 'node:path';
 import { extractExplicitProjectPath } from './project-path-extraction';
-import { projectPreviewUrl } from './project-preview';
+import { decodeProjectPreviewToken, projectPreviewUrl, resolveProjectPreviewRoot } from './project-preview';
 import type { MissionControlProjectLineage } from '$lib/types/mission-control';
 
 type RecordLike = Record<string, unknown>;
@@ -113,6 +113,28 @@ function extractPreviewUrl(text: string): string | null {
 	return match?.[0] || null;
 }
 
+function refreshPreviewUrlForProjectPath(previewUrl: string | null | undefined, projectPath: string | null): string | null {
+	if (!projectPath) return previewUrl ?? null;
+	if (!previewUrl) return projectPreviewUrl(previewBaseUrl(), projectPath);
+
+	const token = previewUrl.match(/\/preview\/([^/]+)\/index\.html(?:$|[?#])/i)?.[1] ||
+		previewUrl.match(/\/preview\/([^/]+)\/index\.html$/i)?.[1];
+	if (!token) return previewUrl;
+
+	try {
+		const decodedPreviewRoot = decodeProjectPreviewToken(token);
+		const resolvedProjectPath = resolve(projectPath);
+		const currentPreviewRoot = resolveProjectPreviewRoot(projectPath);
+		if (decodedPreviewRoot === resolvedProjectPath && currentPreviewRoot !== resolvedProjectPath) {
+			return projectPreviewUrl(previewBaseUrl(), projectPath);
+		}
+	} catch {
+		return previewUrl;
+	}
+
+	return previewUrl;
+}
+
 function extractParentMissionId(text: string): string | null {
 	return text.match(/Parent mission:\s*([A-Za-z0-9_-]+)/i)?.[1] || null;
 }
@@ -145,9 +167,7 @@ export function mergeMissionControlProjectLineage(
 		improvementFeedback: preferFeedbackText(current?.improvementFeedback, incoming?.improvementFeedback)
 	};
 	if (!merged.projectId) merged.projectId = projectIdFromPath(merged.projectPath);
-	if (!merged.previewUrl && merged.projectPath) {
-		merged.previewUrl = projectPreviewUrl(previewBaseUrl(), merged.projectPath);
-	}
+	merged.previewUrl = refreshPreviewUrlForProjectPath(merged.previewUrl, merged.projectPath);
 	return Object.values(merged).some((value) => value !== null) ? merged : null;
 }
 
@@ -172,7 +192,7 @@ export function extractMissionControlProjectLineage(input: {
 			records.map((record) => stringField(record, 'projectId', 'project_id')).find(Boolean) ||
 			projectIdFromPath(projectPath),
 		projectPath,
-		previewUrl: explicitPreviewUrl || (projectPath ? projectPreviewUrl(previewBaseUrl(), projectPath) : null),
+		previewUrl: refreshPreviewUrlForProjectPath(explicitPreviewUrl, projectPath),
 		parentMissionId:
 			records.map((record) => stringField(record, 'parentMissionId', 'parent_mission_id')).find(Boolean) ||
 			extractParentMissionId(text),

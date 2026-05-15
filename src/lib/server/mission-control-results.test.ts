@@ -88,6 +88,13 @@ describe('mission-control-results', () => {
 		expect(summary.providerSummary).toContain('Blocked before task start');
 	});
 
+	it('uses a clean completion fallback when no provider response exists', () => {
+		const summary = summarizeProviderResults([result({ providerId: 'codex', response: null })]);
+
+		expect(summary.providerSummary).toBe('Codex: completed successfully');
+		expect(summary.providerResults[0].summary).toBe('completed successfully');
+	});
+
 	it('preserves project links from structured provider responses', () => {
 		const summary = summarizeProviderResults([
 			result({

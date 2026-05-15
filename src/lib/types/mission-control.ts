@@ -108,6 +108,7 @@ export interface MissionControlBoardEntry {
 	lastEventType: string;
 	lastUpdated: string;
 	executionStarted?: boolean;
+	executionPolicy?: string | null;
 	queuedAt: string | null;
 	startedAt: string | null;
 	lastSummary: string;

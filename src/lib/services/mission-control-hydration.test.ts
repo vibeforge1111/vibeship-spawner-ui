@@ -187,6 +187,20 @@ describe('mission-control hydration', () => {
 		expect(snapshot.executionProgress.agentRuntime.get('codex')?.status).toBe('completed');
 	});
 
+	it('uses the latest running task when hydrating a board that briefly has multiple active tasks', () => {
+		const snapshot = hydrate({
+			...boardEntry,
+			tasks: [
+				{ title: 'task-1: Scaffold', skills: ['frontend'], status: 'running' },
+				{ title: 'task-2: Build UI', skills: ['ui'], status: 'running' },
+				{ title: 'task-3: Verify', skills: ['testing'], status: 'queued' }
+			]
+		});
+
+		expect(snapshot.executionProgress.currentTaskId).toBe('task-2');
+		expect(snapshot.executionProgress.currentTaskName).toBe('task-2: Build UI');
+	});
+
 	it('keeps cancelled missions visible as cancelled execution while MCP mission status remains failed-compatible', () => {
 		const snapshot = hydrate({
 			...boardEntry,

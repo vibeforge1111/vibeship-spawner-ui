@@ -276,6 +276,20 @@ describe('creator mission run eligibility', () => {
 		expect(canRunCreatorMissionBoardCard(executingCreator)).toBe(false);
 	});
 
+	it('blocks creator run actions for read-only evidence missions', () => {
+		const readOnlyCreator = card({
+			id: 'mission-creator-startup-yc-evidence',
+			name: 'Creator Mission: Startup YC',
+			mode: 'creator-mission',
+			source: 'spark',
+			status: 'running',
+			executionStarted: false,
+			executionPolicy: 'read_only'
+		});
+
+		expect(canRunCreatorMissionBoardCard(readOnlyCreator)).toBe(false);
+	});
+
 	it('does not show run actions for normal Spark missions', () => {
 		expect(canRunCreatorMissionBoardCard(card({ id: 'mission-plain', name: 'Regular mission', status: 'ready' }))).toBe(false);
 	});

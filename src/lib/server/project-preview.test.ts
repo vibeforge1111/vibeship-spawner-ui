@@ -19,6 +19,38 @@ describe('project-preview', () => {
 		expect(url).toMatch(/^http:\/\/127\.0\.0\.1:5555\/preview\/[A-Za-z0-9_-]+\/index\.html$/);
 	});
 
+	it('points preview URLs at a nested playable folder when the project root has no index', () => {
+		const projectRoot = mkdtempSync(join(tmpdir(), 'spark-preview-nested-'));
+		const nestedRoot = join(projectRoot, 'fail', 'restart');
+		mkdirSync(nestedRoot, { recursive: true });
+		writeFileSync(join(nestedRoot, 'index.html'), '<h1>nested app</h1>');
+
+		const url = projectPreviewUrl('http://127.0.0.1:5555/', projectRoot);
+		const token = url.match(/\/preview\/([^/]+)\/index\.html$/)?.[1];
+
+		expect(token).toBeTruthy();
+		expect(resolveProjectPreviewAsset({
+			token: token!,
+			env: { SPARK_PROJECT_PREVIEW_ROOTS: projectRoot }
+		}).filePath).toBe(join(nestedRoot, 'index.html'));
+	});
+
+	it('keeps the root preview when the project root already has an index', () => {
+		const projectRoot = mkdtempSync(join(tmpdir(), 'spark-preview-root-index-'));
+		const nestedRoot = join(projectRoot, 'fail', 'restart');
+		mkdirSync(nestedRoot, { recursive: true });
+		writeFileSync(join(projectRoot, 'index.html'), '<h1>root app</h1>');
+		writeFileSync(join(nestedRoot, 'index.html'), '<h1>nested app</h1>');
+
+		const url = projectPreviewUrl('http://127.0.0.1:5555/', projectRoot);
+		const token = url.match(/\/preview\/([^/]+)\/index\.html$/)?.[1];
+
+		expect(resolveProjectPreviewAsset({
+			token: token!,
+			env: { SPARK_PROJECT_PREVIEW_ROOTS: projectRoot }
+		}).filePath).toBe(join(projectRoot, 'index.html'));
+	});
+
 	it('resolves index and relative assets inside an allowed project root', () => {
 		const allowedRoot = mkdtempSync(join(tmpdir(), 'spark-preview-root-'));
 		const projectRoot = join(allowedRoot, 'spark-demo');

@@ -31,6 +31,7 @@ export interface MissionBoardCard {
 	createdAt: string | null;
 	lastEventType?: string | null;
 	executionStarted?: boolean;
+	executionPolicy?: string | null;
 	queuedAt?: string | null;
 	startedAt?: string | null;
 	taskCount: number;
@@ -140,10 +141,11 @@ export function isCreatorMissionBoardCard(
 }
 
 export function canRunCreatorMissionBoardCard(
-	card: Pick<MissionBoardCard, 'id' | 'mode' | 'name' | 'status' | 'executionStarted'>
+	card: Pick<MissionBoardCard, 'id' | 'mode' | 'name' | 'status' | 'executionStarted' | 'executionPolicy'>
 ): boolean {
 	if (!isCreatorMissionBoardCard(card)) return false;
 	if (card.executionStarted) return false;
+	if (card.executionPolicy === 'read_only') return false;
 	return card.status !== 'completed' && card.status !== 'failed' && card.status !== 'cancelled' && card.status !== 'paused';
 }
 

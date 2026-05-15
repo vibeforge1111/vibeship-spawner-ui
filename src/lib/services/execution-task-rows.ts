@@ -85,5 +85,6 @@ export function summarizeTaskRows(rows: TaskStatusRow[]): TaskSummary {
 }
 
 export function getNextTaskRow(rows: TaskStatusRow[]): TaskStatusRow | undefined {
-	return rows.find((task) => task.status === 'running') || rows.find((task) => task.status === 'pending');
+	const runningTasks = rows.filter((task) => task.status === 'running');
+	return runningTasks[runningTasks.length - 1] || rows.find((task) => task.status === 'pending');
 }

@@ -262,7 +262,7 @@ export function buildMissionControlHydrationSnapshot(
 			projectType: input.projectType,
 			goals: input.goals
 		},
-		current_task_id: missionTasks.find((task) => task.status === 'in_progress')?.id || null,
+		current_task_id: [...missionTasks].reverse().find((task) => task.status === 'in_progress')?.id || null,
 		outputs: {},
 		error: boardEntry.status === 'failed' || boardEntry.status === 'cancelled' ? boardEntry.providerSummary || null : null,
 		created_at: boardEntry.queuedAt || boardEntry.startedAt || boardEntry.lastUpdated,
@@ -283,7 +283,7 @@ export function buildMissionControlHydrationSnapshot(
 		currentTaskName: missionTasks.find((task) => task.id === mission.current_task_id)?.title || null,
 		currentTaskProgress:
 			taskProgressPercent(
-				boardEntry.tasks.find((task) => missionTaskStatusFromBoard(task.status) === 'in_progress') || {
+				[...boardEntry.tasks].reverse().find((task) => missionTaskStatusFromBoard(task.status) === 'in_progress') || {
 					title: '',
 					skills: [],
 					status: status === 'completed' ? 'completed' : 'queued'
