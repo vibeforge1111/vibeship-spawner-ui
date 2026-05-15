@@ -97,6 +97,7 @@ export interface MultiLLMBuildInput {
 	options: MultiLLMOrchestratorOptions;
 	taskSkillMap?: Map<string, string[]>;
 	baseUrl?: string;
+	h70AccessTokenFile?: string | null;
 }
 
 export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
@@ -289,6 +290,7 @@ export function buildMultiLLMExecutionPack(input: MultiLLMBuildInput): MultiLLME
 			primaryProviderId,
 			baseUrl,
 			taskSkillMap: input.taskSkillMap,
+			h70AccessTokenFile: input.h70AccessTokenFile,
 			mcpCapabilities,
 			mcpTaskPlans
 		});
@@ -884,8 +886,13 @@ interface BuildProviderPromptInput {
 	primaryProviderId: string;
 	baseUrl: string;
 	taskSkillMap?: Map<string, string[]>;
+	h70AccessTokenFile?: string | null;
 	mcpCapabilities: MultiLLMCapability[];
 	mcpTaskPlans: Record<string, MultiLLMMCPTaskPlan>;
+}
+
+function shellSingleQuote(value: string): string {
+	return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
 function buildProviderPrompt(input: BuildProviderPromptInput): string {
@@ -897,6 +904,7 @@ function buildProviderPrompt(input: BuildProviderPromptInput): string {
 		primaryProviderId,
 		baseUrl,
 		taskSkillMap,
+		h70AccessTokenFile,
 		mcpCapabilities,
 		mcpTaskPlans
 	} = input;
@@ -910,19 +918,20 @@ function buildProviderPrompt(input: BuildProviderPromptInput): string {
 
 	const eventSource = provider.eventSource || provider.id;
 	const assignedTasks = mission.tasks.filter((task) => assignment.taskIds.includes(task.id));
+	const fastDirectMission = isFastDirectMission(mission);
 
 	const taskList = assignedTasks
 		.map((task, index) => {
 			const deps = task.dependsOn?.length ? ` after: ${task.dependsOn.join(', ')}` : '';
 			const recommendedSkills = taskSkillMap?.get(task.id) || [];
-				const skillsLine =
-					recommendedSkills.length > 0
-						? `\n   Required H70 skills (load BEFORE task_started): ${recommendedSkills.map((skill) => `\`${skill}\``).join(', ')}`
-						: '';
-				const mcpPlanLine = formatTaskMcpPlan(mcpTaskPlans[task.id]);
-				return `${index + 1}. ${task.title} (id: ${task.id}${deps})\n   ${task.description}${skillsLine}${mcpPlanLine}`;
-			})
-			.join('\n\n');
+			const skillsLine =
+				recommendedSkills.length > 0 && !fastDirectMission
+					? `\n   Recommended H70 skills (use when reachable): ${recommendedSkills.map((skill) => `\`${skill}\``).join(', ')}`
+					: '';
+			const mcpPlanLine = formatTaskMcpPlan(mcpTaskPlans[task.id]);
+			return `${index + 1}. ${task.title} (id: ${task.id}${deps})\n   ${task.description}${skillsLine}${mcpPlanLine}`;
+		})
+		.join('\n\n');
 
 	const reportingBlock = canReportTaskLifecycle
 		? `Report lifecycle events:
@@ -940,6 +949,24 @@ curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -d '{"typ
 	const mcpCapsLine = mcpCapabilities.length > 0 ? mcpCapabilities.join(', ') : 'none';
 	const projectContract = buildProjectContractBlock(mission);
 	const verificationBlock = buildVerificationBlock(mission);
+	const h70AccessTokenFileArg = h70AccessTokenFile ? shellSingleQuote(h70AccessTokenFile) : '';
+	const h70AuthLine = h70AccessTokenFile
+		? `- Use the scoped mission H70 proof file only when fetching listed skills: ${h70AccessTokenFile}
+- Fetch with: curl -H "Authorization: Bearer $(cat ${h70AccessTokenFileArg})" ${baseUrl}/api/h70-skills/<skill-id>
+- This proof is limited to the assigned mission skills and expires automatically. Do not print, echo, copy, persist, screenshot, or include the token contents in progress events, task results, files, logs, or final answers.`
+		: '- If a skill endpoint asks for Spark Pro proof and no scoped proof is provided here, treat that skill as unreachable and continue.';
+	const skillLoadingBlock = fastDirectMission
+		? `Fast direct skill handling:
+- Treat skill labels as planning metadata only for this tiny task.
+- Do not fetch /api/h70-skills, read local SKILL.md files, or emit SKILL_SOURCE progress.
+- Start by creating the requested file, then run the file/content checks.`
+		: `H70 skill loading (recommended, not a hard gate):
+- For each assigned task with listed skills, try to fetch the recommended skills via ${baseUrl}/api/h70-skills/<skill-id> before implementation.
+${h70AuthLine}
+- If H70 skills are reachable, apply their anti-pattern and disaster guidance before implementation.
+- If H70 skills are unreachable, continue with the task using your base expertise instead of blocking the mission.
+- When H70 loading succeeds or fails, emit one progress event documenting the source state before task_started (message format: "SKILL_SOURCE:<taskId>:loaded:<skillId,...>" or "SKILL_SOURCE:<taskId>:unavailable:<reason>").
+- Do not report task_completed unless implementation and verification actually ran.`;
 
 	return `# Provider Prompt: ${provider.label}
 
@@ -957,11 +984,7 @@ ${projectContract}
 Assigned tasks:
 ${taskList || '- none'}
 
-H70 skill loading (mandatory):
-- For each assigned task with listed skills, fetch every required skill via /api/h70-skills/<skill-id> BEFORE starting the task.
-- Do not start task execution until required task skills are loaded.
-- Emit one progress event documenting loaded skills before task_started (message format: "SKILL_LOADED:<taskId>:<skillId,...>").
-- Apply anti-pattern and disaster guidance from loaded skills before implementation.
+${skillLoadingBlock}
 
 Execution expectations:
 - Work only on your assigned tasks.
@@ -1043,6 +1066,17 @@ function isNoBuildVanillaMission(mission: Mission): boolean {
 	);
 }
 
+function isFastDirectMission(mission: Mission): boolean {
+	const text = missionContractText(mission).toLowerCase();
+	const hasTinyScope =
+		mission.tasks.length <= 1 &&
+		(/\bone[-\s]?file\b/.test(text) ||
+			/\bsingle[-\s]?file\b/.test(text) ||
+			/\bstatic page\b/.test(text));
+	const asksForSpeed = /\bfast\b/.test(text) || /\bsimple\b/.test(text) || /\bsmoke\b/.test(text);
+	return hasTinyScope && asksForSpeed;
+}
+
 function buildVerificationBlock(mission: Mission): string {
 	if (isNoBuildVanillaMission(mission)) {
 		return [
@@ -1050,6 +1084,8 @@ function buildVerificationBlock(mission: Mission): string {
 			'- Do not add npm, package.json, lockfiles, TypeScript config, framework scaffold, bundler config, or dependency installation unless explicitly requested.',
 			'- Confirm the requested root files exist in the project path and use direct relative browser links.',
 			'- Run syntax/content checks appropriate for static files, such as node --check app.js and Select-String/Test-Path checks from the task acceptance criteria.',
+			'- For fast-lane or single-file smoke tasks, do not spend more than 30 seconds discovering browser tooling. If no browser harness is immediately available, mark browser smoke as not applicable and complete with file/content evidence.',
+			'- Do not launch a long-lived browser, dev server, package install, or tooling search just to verify a direct-open index.html smoke page.',
 			'- List all files you created or modified for this task.'
 		].join('\n');
 	}

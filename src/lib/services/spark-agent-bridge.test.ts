@@ -2,7 +2,8 @@ import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { prepareProviderWorkingDirectory } from './spark-agent-bridge';
+import { eventBridge, type BridgeEvent } from './event-bridge';
+import { prepareProviderWorkingDirectory, sparkAgentBridge } from './spark-agent-bridge';
 
 const createdDirs: string[] = [];
 const originalSparkWorkspaceRoot = process.env.SPARK_WORKSPACE_ROOT;
@@ -20,6 +21,7 @@ describe('prepareProviderWorkingDirectory', () => {
 	afterEach(() => {
 		restoreEnv('SPARK_WORKSPACE_ROOT', originalSparkWorkspaceRoot);
 		restoreEnv('SPARK_ALLOW_EXTERNAL_PROJECT_PATHS', originalAllowExternalProjectPaths);
+		sparkAgentBridge.resetForTests();
 		for (const dir of createdDirs.splice(0)) {
 			rmSync(dir, { recursive: true, force: true });
 		}
@@ -51,5 +53,31 @@ describe('prepareProviderWorkingDirectory', () => {
 
 	it('uses the process cwd when no workspace is provided', () => {
 		expect(prepareProviderWorkingDirectory()).toBe(process.cwd());
+	});
+
+	it('carries request, trace, provider, and model metadata on worker events', async () => {
+		sparkAgentBridge.setWorkerExecutorForTests(async () => ({ success: true, response: 'done' }));
+		const emitted: BridgeEvent[] = [];
+		const unsubscribe = eventBridge.subscribe((event) => emitted.push(event));
+
+		await sparkAgentBridge.executeProviderTask({
+			providerId: 'codex',
+			missionId: 'mission-worker-proof',
+			prompt: 'metadata proof only',
+			model: 'gpt-5.5',
+			requestId: 'request-worker-proof',
+			traceRef: 'trace:spawner-prd:mission-worker-proof',
+			commandTemplate: 'codex exec --model gpt-5.5'
+		});
+		unsubscribe();
+
+		const completed = emitted.find((event) => event.type === 'task_completed');
+		expect(completed?.data).toMatchObject({
+			provider: 'codex',
+			providerId: 'codex',
+			model: 'gpt-5.5',
+			requestId: 'request-worker-proof',
+			traceRef: 'trace:spawner-prd:mission-worker-proof'
+		});
 	});
 });

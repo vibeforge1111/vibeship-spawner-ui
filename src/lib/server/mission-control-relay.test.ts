@@ -80,6 +80,26 @@ describe('mission-control-relay', () => {
 		expect(entry?.taskStatusCounts).toMatchObject({ running: 1, completed: 0, failed: 0, total: 1 });
 	});
 
+	it('carries creator execution policy into board entries', async () => {
+		const missionId = `mission-creator-read-only-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			missionName: 'Creator Mission: Startup YC',
+			source: 'creator-mission',
+			data: {
+				requestId: 'req-read-only',
+				executionPolicy: 'read_only',
+				plannedTasks: [{ title: 'Create creator intent packet', skills: ['creator'] }]
+			}
+		});
+
+		const board = getMissionControlBoard();
+		const entry = Object.values(board).flat().find((candidate) => candidate.missionId === missionId);
+		expect(entry?.executionPolicy).toBe('read_only');
+	});
+
 	it('deduplicates repeated lifecycle status events while preserving actual transitions', async () => {
 		const missionId = `mission-lifecycle-dedupe-${Date.now()}`;
 
@@ -200,6 +220,38 @@ describe('mission-control-relay', () => {
 		expect(entry?.taskStatusCounts).toMatchObject({ completed: 0, total: 0 });
 	});
 
+	it('projects provider/model proof into the agent ledger without response bodies', async () => {
+		const missionId = `mission-provider-proof-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'task_completed',
+			missionId,
+			source: 'codex',
+			message: 'Codex completed with final response',
+			data: {
+				providerId: 'codex',
+				model: 'gpt-5.5',
+				requestId: 'request-provider-proof',
+				traceRef: `trace:spawner-prd:${missionId}`,
+				response: 'raw provider output must not enter agent facts'
+			}
+		});
+
+		const events = readRecentAgentEvents({ sessionId: `mission-control:${missionId}`, limit: 5 });
+		expect(events[0]).toMatchObject({
+			schema_version: AGENT_EVENT_SCHEMA_VERSION,
+			event_type: 'mission_changed_state',
+			request_id: 'request-provider-proof',
+			trace_ref: `trace:spawner-prd:${missionId}`,
+			facts: {
+				provider: 'codex',
+				providerId: 'codex',
+				model: 'gpt-5.5'
+			}
+		});
+		expect(JSON.stringify(events[0].facts)).not.toContain('raw provider output');
+	});
+
 	it('deduplicates task labels that differ only by generated T-prefixes', async () => {
 		const missionId = `mission-task-prefix-${Date.now()}`;
 
@@ -304,6 +356,41 @@ describe('mission-control-relay', () => {
 
 		const board = getMissionControlBoard();
 		const entry = board.running.find((candidate) => candidate.missionId === missionId);
+		expect(entry?.executionStarted).toBe(false);
+		expect(entry?.taskStatusCounts).toMatchObject({ queued: 1, completed: 1, total: 2 });
+	});
+
+	it('keeps read-only creator planning events out of the running bucket', async () => {
+		const missionId = `mission-creator-read-only-${Date.now()}`;
+
+		await relayMissionControlEvent({
+			type: 'task_started',
+			missionId,
+			missionName: 'Creator Mission: Startup YC',
+			taskName: 'Lock Startup YC creator intent and task graph',
+			source: 'creator-mission',
+			timestamp: freshIso(),
+			data: {
+				executionPolicy: 'read_only',
+				plannedTasks: [
+					{ title: 'Lock Startup YC creator intent and task graph', skills: ['creator-system'] },
+					{ title: 'Build Startup YC benchmark pack', skills: ['benchmark-designer'] }
+				]
+			}
+		});
+		await relayMissionControlEvent({
+			type: 'task_completed',
+			missionId,
+			taskName: 'Lock Startup YC creator intent and task graph',
+			source: 'creator-mission',
+			timestamp: freshIso(1_000),
+			data: { executionPolicy: 'read_only' }
+		});
+
+		const board = getMissionControlBoard();
+		expect(board.running.find((candidate) => candidate.missionId === missionId)).toBeUndefined();
+		const entry = board.created.find((candidate) => candidate.missionId === missionId);
+		expect(entry?.executionPolicy).toBe('read_only');
 		expect(entry?.executionStarted).toBe(false);
 		expect(entry?.taskStatusCounts).toMatchObject({ queued: 1, completed: 1, total: 2 });
 	});

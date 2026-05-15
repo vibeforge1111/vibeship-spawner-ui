@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import { eventBridge, type BridgeEvent } from '$lib/services/event-bridge';
 import type { Skill } from '$lib/stores/skills.svelte';
+import { extractExplicitProjectPath } from '$lib/server/project-path-extraction';
 import { buildMissionFromCanvas } from '$lib/services/mission-builder';
 import { matchTaskToSkills } from '$lib/services/h70-skill-matcher';
 import {
@@ -19,6 +20,7 @@ import {
 	type MissionControlBoardEntry
 } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
+import { createH70SkillAccessProof, type H70SkillAccessProof } from '$lib/server/h70-skill-access-token';
 import { getTierSkills, normalizeTier, type SkillTier } from '$lib/server/skill-tiers';
 
 interface PrdAutoSkill {
@@ -325,14 +327,7 @@ export function inferProjectPathFromPrdLoad(
 		typeof load.relay?.goal === 'string' ? load.relay.goal : '',
 		...load.nodes.map((node) => node.skill?.description || '')
 	].join('\n');
-	const labeledPath =
-		text.match(/(?:target operating-system folder|project path|target folder|create it at|build this at)\s*:?\s*`?((?:[A-Z]:[\\/]|\/)[^\r\n`]+)/i)?.[1] ||
-		text.match(/\bat\s+`?((?:[A-Z]:[\\/]|\/)[^\r\n`]+)/i)?.[1];
-	const explicitPath = labeledPath
-		?.trim()
-		.replace(/:\s+.*$/i, '')
-		.replace(/\s+(?:as|inside|with|and)\b.*$/i, '')
-		.replace(/[).,;]+$/, '');
+	const explicitPath = extractExplicitProjectPath(text);
 	if (explicitPath) return explicitPath;
 
 	const workspaceRoot = hostedWorkspaceRoot(envRecord);
@@ -357,6 +352,23 @@ function plannedTasksFromMission(
 			};
 		})
 		.filter((task): task is { title: string; skills: string[] } => Boolean(task));
+}
+
+export async function _createScopedH70AccessForLoad(
+	load: PrdCanvasLoadForAutoDispatch,
+	taskSkillMap: Map<string, string[]>
+): Promise<H70SkillAccessProof | null> {
+	const tier = normalizeLoadTier(load);
+	if (tier !== 'pro') return null;
+	const baseSkillIds = new Set((await getTierSkills('base')).map((skill) => skill.id));
+	const proSkillIds = [...new Set([...taskSkillMap.values()].flat())]
+		.filter((skillId) => !baseSkillIds.has(skillId))
+		.sort();
+	if (proSkillIds.length === 0) return null;
+	return createH70SkillAccessProof({
+		missionId: load.missionId,
+		skillIds: proSkillIds
+	});
 }
 
 export async function autoDispatchPrdCanvasLoad(
@@ -420,11 +432,13 @@ export async function autoDispatchPrdCanvasLoad(
 		}
 
 		const taskSkillMap = await buildAutoDispatchTaskSkillMap(load, buildResult.mission.tasks, buildResult.taskSkillMap);
+		const h70AccessProof = await _createScopedH70AccessForLoad(load, taskSkillMap);
 
 		const executionPack = buildMultiLLMExecutionPack({
 			mission: buildResult.mission,
 			taskSkillMap,
 			baseUrl: 'http://127.0.0.1:3333',
+			h70AccessTokenFile: h70AccessProof?.tokenFile,
 			options: {
 				enabled: true,
 				strategy: 'single',

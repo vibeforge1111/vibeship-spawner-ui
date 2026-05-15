@@ -3,7 +3,9 @@ import path from 'path';
 import { tmpdir } from 'os';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+	appendAgentEvent,
 	buildAgentBlackBoxReport,
+	buildMissionControlAgentEvent,
 	getFinalAnswerGateAuditPath,
 	readRecentAgentEvents
 } from './agent-event-ledger';
@@ -66,5 +68,62 @@ describe('agent event ledger', () => {
 			route_chosen: 'local_chat',
 			blockers: ['diagnostic_wall']
 		});
+	});
+
+	it('promotes mission trace refs to top-level ledger metadata', async () => {
+		const stateDir = await mkdtemp(path.join(tmpdir(), 'spawner-agent-events-'));
+		process.env.SPAWNER_STATE_DIR = stateDir;
+
+		const event = buildMissionControlAgentEvent({
+			eventType: 'mission_started',
+			missionId: 'mission-1',
+			missionName: 'Trace proof',
+			taskId: null,
+			taskName: null,
+			progress: 0,
+			summary: 'Started.',
+			timestamp: '2026-05-12T00:00:00.000Z',
+			source: 'test',
+			requestId: 'request-1',
+			traceRef: 'trace:spawner-prd:mission-1'
+		});
+
+		const entry = appendAgentEvent(event, { requestId: 'request-1' });
+
+		expect(entry.request_id).toBe('request-1');
+		expect(entry.trace_ref).toBe('trace:spawner-prd:mission-1');
+		expect(entry.facts.trace_ref).toBe('trace:spawner-prd:mission-1');
+	});
+
+	it('keeps provider execution proof as metadata-only facts', async () => {
+		const stateDir = await mkdtemp(path.join(tmpdir(), 'spawner-agent-events-'));
+		process.env.SPAWNER_STATE_DIR = stateDir;
+
+		const event = buildMissionControlAgentEvent({
+			eventType: 'task_completed',
+			missionId: 'mission-provider-proof',
+			missionName: 'Provider proof',
+			taskId: null,
+			taskName: null,
+			progress: 100,
+			summary: 'Codex worker completed.',
+			timestamp: '2026-05-12T00:00:00.000Z',
+			source: 'codex',
+			requestId: 'request-provider-proof',
+			traceRef: 'trace:spawner-prd:mission-provider-proof',
+			providerId: 'codex',
+			model: 'gpt-5.5'
+		});
+
+		const entry = appendAgentEvent(event, { requestId: 'request-provider-proof' });
+
+		expect(entry.facts).toMatchObject({
+			provider: 'codex',
+			providerId: 'codex',
+			model: 'gpt-5.5',
+			trace_ref: 'trace:spawner-prd:mission-provider-proof'
+		});
+		expect(JSON.stringify(entry.facts)).not.toContain('response');
+		expect(JSON.stringify(entry.facts)).not.toContain('provider output');
 	});
 });

@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createCreatorMission, creatorMissionPath, readCreatorMissionTrace, type CreatorPrivacyMode, type CreatorRiskLevel } from '$lib/server/creator-mission';
+import { createCreatorMission, creatorDomainDisplayLabel, creatorMissionPath, readCreatorMissionTrace, type CreatorExecutionPolicy, type CreatorPrivacyMode, type CreatorRiskLevel, type CreatorTelegramRelayTarget } from '$lib/server/creator-mission';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 
@@ -8,8 +8,12 @@ interface CreatorMissionBody {
 	brief?: string;
 	requestId?: string;
 	missionId?: string;
+	chatId?: string;
+	userId?: string;
+	telegramRelay?: CreatorTelegramRelayTarget | null;
 	privacyMode?: CreatorPrivacyMode;
 	riskLevel?: CreatorRiskLevel;
+	executionPolicy?: CreatorExecutionPolicy;
 }
 
 function isPrivacyMode(value: unknown): value is CreatorPrivacyMode {
@@ -20,12 +24,17 @@ function isRiskLevel(value: unknown): value is CreatorRiskLevel {
 	return value === 'low' || value === 'medium' || value === 'high';
 }
 
+function isExecutionPolicy(value: unknown): value is CreatorExecutionPolicy {
+	return value === 'manual_run' || value === 'read_only';
+}
+
 function emitCreatorEvent(type: string, trace: Awaited<ReturnType<typeof createCreatorMission>>, message: string, data: Record<string, unknown> = {}) {
 	const intentTask = trace.tasks.find((task) => task.id === 'creator-intent-plan') || trace.tasks[0];
+	const domainLabel = creatorDomainDisplayLabel(trace.intent_packet.target_domain);
 	void relayMissionControlEvent({
 		type,
 		missionId: trace.mission_id,
-		missionName: `Creator Mission: ${trace.intent_packet.target_domain}`,
+		missionName: `Creator Mission: ${domainLabel}`,
 		source: 'creator-mission',
 		timestamp: new Date().toISOString(),
 		message,
@@ -34,6 +43,7 @@ function emitCreatorEvent(type: string, trace: Awaited<ReturnType<typeof createC
 		data: {
 			requestId: trace.request_id,
 			creatorMode: trace.creator_mode,
+			executionPolicy: trace.execution_policy,
 			targetDomain: trace.intent_packet.target_domain,
 			artifacts: trace.artifacts,
 			creatorTaskCount: trace.tasks.length,
@@ -53,7 +63,6 @@ export const POST: RequestHandler = async (event) => {
 		surface: 'CreatorMission',
 		apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
-		allowLoopbackWithoutKey: true
 	});
 	if (unauthorized) return unauthorized;
 
@@ -76,22 +85,38 @@ export const POST: RequestHandler = async (event) => {
 		if (body.riskLevel !== undefined && !isRiskLevel(body.riskLevel)) {
 			return json({ ok: false, error: 'riskLevel must be low, medium, or high' }, { status: 400 });
 		}
+		if (body.executionPolicy !== undefined && !isExecutionPolicy(body.executionPolicy)) {
+			return json({ ok: false, error: 'executionPolicy must be manual_run or read_only' }, { status: 400 });
+		}
 
 		const trace = await createCreatorMission({
 			brief,
 			requestId: body.requestId,
 			missionId: body.missionId,
+			chatId: body.chatId,
+			userId: body.userId,
+			telegramRelay: body.telegramRelay,
 			privacyMode: body.privacyMode,
 			riskLevel: body.riskLevel,
+			executionPolicy: body.executionPolicy,
 			baseUrl: new URL(event.request.url).origin
 		});
 
-		emitCreatorEvent('mission_created', trace, `Creator mission queued ${trace.tasks.length} task(s) for ${trace.intent_packet.target_domain}.`);
-		emitCreatorEvent('task_started', trace, 'Creating creator intent packet and task graph.');
-		emitCreatorEvent('task_completed', trace, 'Creator intent packet and task graph created.', {
-			intentPacket: trace.intent_packet,
-			taskGraph: trace.tasks
-		});
+		const readOnly = trace.execution_policy === 'read_only';
+		emitCreatorEvent(
+			'mission_created',
+			trace,
+			readOnly
+				? `Creator mission staged ${trace.tasks.length} task(s) for ${creatorDomainDisplayLabel(trace.intent_packet.target_domain)}.`
+				: `Creator mission queued ${trace.tasks.length} task(s) for ${creatorDomainDisplayLabel(trace.intent_packet.target_domain)}.`
+		);
+		if (!readOnly) {
+			emitCreatorEvent('task_started', trace, 'Creating creator intent packet and task graph.');
+			emitCreatorEvent('task_completed', trace, 'Creator intent packet and task graph created.', {
+				intentPacket: trace.intent_packet,
+				taskGraph: trace.tasks
+			});
+		}
 
 		return json({
 			ok: true,

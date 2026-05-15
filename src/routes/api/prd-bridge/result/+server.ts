@@ -14,7 +14,7 @@ import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
-import { validatePrdAnalysisResult } from '$lib/server/prd-analysis-result-schema';
+import { projectStoredPrdAnalysisResultForTier } from '$lib/server/prd-analysis-result-schema';
 import { spawnerStateDir } from '$lib/server/spawner-state';
 import { logger } from '$lib/utils/logger';
 
@@ -23,6 +23,19 @@ const log = logger.scope('PRDBridge');
 function getResultsDir(): string {
 	const spawnerDir = spawnerStateDir();
 	return join(spawnerDir, 'results');
+}
+
+async function tierForRequest(requestId: string): Promise<string> {
+	try {
+		const pendingRequestFile = join(spawnerStateDir(), 'pending-request.json');
+		if (!existsSync(pendingRequestFile)) return 'base';
+		const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
+		const pending = JSON.parse(pendingRaw) as Record<string, unknown>;
+		if (pending.requestId !== requestId) return 'base';
+		return typeof pending.tier === 'string' ? pending.tier : 'base';
+	} catch {
+		return 'base';
+	}
 }
 
 /**
@@ -36,7 +49,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			return json({ error: 'requestId and result are required' }, { status: 400 });
 		}
 		assertSafeId(requestId, 'requestId');
-		const validatedResult = validatePrdAnalysisResult(requestId, result);
+		const storedResult = await projectStoredPrdAnalysisResultForTier(requestId, result, await tierForRequest(requestId));
 
 		// Ensure results directory exists
 		const resultsDir = getResultsDir();
@@ -47,7 +60,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Write result to file
 		const resultFile = resolveWithinBaseDir(resultsDir, `${requestId}.json`);
-		await writeFile(resultFile, JSON.stringify(validatedResult, null, 2), 'utf-8');
+		await writeFile(resultFile, JSON.stringify(storedResult, null, 2), 'utf-8');
 
 		log.info(`Stored result for: ${requestId}`);
 		return json({ success: true, requestId });

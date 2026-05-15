@@ -1,7 +1,7 @@
 import { env } from '$env/dynamic/private';
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { autoDispatchPrdCanvasLoad, type PrdAutoDispatchResult } from './prd-auto-dispatch';
@@ -16,6 +16,7 @@ export const ARTIFACT_MANIFEST_SCHEMA_VERSION = 'spark-artifact-manifest.v1';
 export type CreatorPrivacyMode = 'local_only' | 'github_pr' | 'swarm_shared';
 export type CreatorRiskLevel = 'low' | 'medium' | 'high';
 export type CreatorStageStatus = 'queued' | 'running' | 'blocked' | 'validated' | 'failed' | 'published';
+export type CreatorExecutionPolicy = 'manual_run' | 'read_only';
 export type CreatorMode = 'domain_chip' | 'specialization_path' | 'benchmark' | 'autoloop' | 'full_path';
 export type CreatorPublishReadiness =
 	| 'private_draft'
@@ -34,10 +35,17 @@ export type CreatorArtifactType =
 	| 'swarm_publish_packet'
 	| 'creator_report';
 
+export interface CreatorTelegramRelayTarget {
+	port?: number | null;
+	profile?: string | null;
+	url?: string | null;
+}
+
 export type CreatorValidationGateId =
 	| 'schema_gate'
 	| 'lineage_gate'
 	| 'benchmark_gate'
+	| 'benchmark_proof_gate'
 	| 'complexity_gate'
 	| 'transfer_gate'
 	| 'memory_hygiene_gate'
@@ -140,6 +148,60 @@ export interface CreatorValidationRun {
 	results: CreatorValidationCommandResult[];
 }
 
+export interface CreatorSpecializationEntry {
+	agent_entrypoint: string;
+	telegram_command: string;
+	required_artifacts: CreatorArtifactType[];
+	evaluation_loop: {
+		preflight: string;
+		baseline: string;
+		candidate: string;
+		held_out: string;
+		autoloop: string;
+		keep_rule: string;
+		reject_rule: string;
+	};
+	telemetry_surfaces: string[];
+}
+
+export interface CreatorImprovementEvidence {
+	status: 'missing' | 'recorded';
+	baseline_score: number | null;
+	candidate_score: number | null;
+	delta: number | null;
+	held_out_required: boolean;
+	held_out_pass: boolean;
+	validation_run_id: string | null;
+	benchmark_refs: string[];
+	notes: string[];
+}
+
+export interface CreatorMissionCanonicalStatus {
+	verdict?: string;
+	stage_status?: string;
+	evidence_tier?: string;
+	evidence_mode?: string;
+	automation_blocked?: boolean;
+	blocking_checks?: string[];
+	warning_checks?: string[];
+	missing_paths?: string[];
+	recommended_next_command?: string | null;
+}
+
+export interface CreatorMissionPublicationStatus {
+	publish_mode?: CreatorPrivacyMode;
+	local_display_allowed?: boolean;
+	github_pr_allowed?: boolean;
+	swarm_shared_allowed?: boolean;
+	network_absorbable: false;
+	requested_network_absorption?: boolean;
+	blocked_reason?: string | null;
+	required_gates?: string[];
+	missing_gates?: string[];
+	gate_status?: Record<string, boolean>;
+	unsafe_claim_blocked?: boolean;
+}
+
 export interface CreatorValidationCommandProgress {
 	phase: 'started' | 'completed';
 	index: number;
@@ -169,18 +231,27 @@ export interface CreatorMissionTrace {
 	validation_gates: CreatorValidationGate[];
 	current_stage: string;
 	stage_status: CreatorStageStatus;
+	execution_policy: CreatorExecutionPolicy;
 	intent_packet: CreatorIntentPacket;
+	specialization_entry: CreatorSpecializationEntry;
 	benchmark_summary: {
 		baseline_score: number | null;
 		candidate_score: number | null;
 		delta: number | null;
 		held_out_pass: boolean;
 	};
+	improvement_evidence: CreatorImprovementEvidence;
+	creator_mission_status?: Record<string, unknown> | null;
+	canonical?: CreatorMissionCanonicalStatus;
+	publication?: CreatorMissionPublicationStatus;
 	swarm: {
 		payload_ready: boolean;
 		api_ready: boolean;
 		publish_mode: CreatorPrivacyMode | 'none';
 	};
+	telegram_relay?: CreatorTelegramRelayTarget | null;
+	telegram_chat_id?: string | null;
+	telegram_user_id?: string | null;
 	blockers: string[];
 	links: {
 		canvas: string;
@@ -196,8 +267,12 @@ export interface CreateCreatorMissionInput {
 	brief: string;
 	requestId?: string;
 	missionId?: string;
+	chatId?: string;
+	userId?: string;
+	telegramRelay?: CreatorTelegramRelayTarget | null;
 	privacyMode?: CreatorPrivacyMode;
 	riskLevel?: CreatorRiskLevel;
+	executionPolicy?: CreatorExecutionPolicy;
 	baseUrl?: string;
 }
 
@@ -256,7 +331,7 @@ type CreatorDispatchRunner = (load: CreatorMissionCanvasLoad) => Promise<PrdAuto
 type CreatorValidationCommandRunner = (
 	executable: string,
 	args: string[],
-	options: { cwd: string; timeoutMs: number; shell?: boolean }
+	options: { cwd: string; timeoutMs: number }
 ) => Promise<{ exitCode: number; stdout?: string; stderr?: string }>;
 
 let activeCreatorPlanRunner: CreatorPlanRunner | null = null;
@@ -521,6 +596,13 @@ export function validationGatesForCreatorIntent(packet: CreatorIntentPacket): Cr
 			description: 'Baseline and held-out cases must exist before a skill, path, or autoloop policy can be called improved.'
 		},
 		{
+			id: 'benchmark_proof_gate',
+			title: 'Before/after proof',
+			status: 'pending',
+			blocks_promotion: true,
+			description: 'A specialized agent must beat the baseline on visible, held-out, and trap-style checks before Spark claims the path made the agent better.'
+		},
+		{
 			id: 'complexity_gate',
 			title: 'Complexity budget',
 			status: 'pending',
@@ -559,8 +641,24 @@ export function validationGatesForCreatorIntent(packet: CreatorIntentPacket): Cr
 	return gates;
 }
 
+export function creatorDomainDisplayLabel(domain: string | undefined): string {
+	const raw = domain?.trim() || '';
+	if (!raw) return 'Target Domain';
+	return raw
+		.replace(/[_/]+/g, '-')
+		.split(/-|\s+/)
+		.map((word) => word.trim())
+		.filter(Boolean)
+		.map((word) => {
+			const lower = word.toLowerCase();
+			if (['ai', 'api', 'llm', 'qa', 'ui', 'ux', 'yc'].includes(lower)) return lower.toUpperCase();
+			return lower.charAt(0).toUpperCase() + lower.slice(1);
+		})
+		.join(' ');
+}
+
 function compactDomainLabel(packet: CreatorIntentPacket): string {
-	return packet.target_domain.trim() || 'target domain';
+	return creatorDomainDisplayLabel(packet.target_domain);
 }
 
 function task(
@@ -629,7 +727,7 @@ export function buildCreatorMissionTasks(packet: CreatorIntentPacket): CreatorMi
 				'Held-out cases are not used as mutation prompts.'
 			],
 			verification_commands: ['Run benchmark baseline and record score artifact'],
-			validation_gates: ['benchmark_gate', 'schema_gate']
+			validation_gates: ['benchmark_gate', 'benchmark_proof_gate', 'schema_gate']
 		}));
 	}
 
@@ -671,7 +769,7 @@ export function buildCreatorMissionTasks(packet: CreatorIntentPacket): CreatorMi
 				'Rollback condition and round-history clearing policy are explicit.'
 			],
 			verification_commands: ['Run a short dry-run autoloop against fixture cases'],
-			validation_gates: ['lineage_gate', 'benchmark_gate', 'complexity_gate']
+			validation_gates: ['lineage_gate', 'benchmark_gate', 'benchmark_proof_gate', 'complexity_gate']
 		}));
 	}
 
@@ -795,8 +893,9 @@ function creatorCanvasPath(trace: Pick<CreatorMissionTrace, 'request_id' | 'miss
 }
 
 function creatorExecutionPrompt(trace: CreatorMissionTrace): string {
+	const domainLabel = creatorDomainDisplayLabel(trace.intent_packet.target_domain);
 	return [
-		`Creator mission for ${trace.intent_packet.target_domain}.`,
+		`Creator mission for ${domainLabel}.`,
 		'Build the requested Spark creator artifacts as a gated, benchmarkable system.',
 		`User goal: ${trace.user_goal}`,
 		`Target operating-system folder: ${creatorWorkspaceRoot()}`,
@@ -838,6 +937,153 @@ function fallbackManifestArtifactTypes(packet: CreatorIntentPacket): CreatorArti
 	return artifactTypes;
 }
 
+function isSparkQaOperatorCreatorBrief(brief: string): boolean {
+	const lower = brief.toLowerCase();
+	return (
+		/\b(?:spark\s+qa\s+operator|qa\s+operator|qa\s+tester|quality\s+tester|tester\s+for\s+spark|spark\s+tester)\b/.test(lower) ||
+		lower.includes('canonical target domain: spark-qa-operator')
+	);
+}
+
+function isSparkQaOperatorBenchmarkOnlyBrief(brief: string, packet: CreatorIntentPacket): boolean {
+	const lower = brief.toLowerCase();
+	if (lower.includes('artifact focus: benchmark pack')) return true;
+	if (packet.artifact_targets?.length === 1 && packet.artifact_targets[0] === 'benchmark_pack') return true;
+
+	const benchmarkAsk = /\b(?:benchmark pack|benchmark cases?|held-?out|trap cases?|adversarial|no-?op regression|route drift|creator mission evidence)\b/.test(lower);
+	const broaderCreatorAsk = /\b(?:full creator system|full path|specialization path|specialisation path|gated autoloop|domain chip contract)\b/.test(lower);
+	return benchmarkAsk && !broaderCreatorAsk;
+}
+
+function sparkQaOperatorRepoForArtifact(artifactType: CreatorArtifactType): string {
+	if (artifactType === 'domain_chip') return 'domain-chip-spark-qa-operator';
+	if (artifactType === 'benchmark_pack') return 'spark-qa-operator-bench';
+	if (artifactType === 'tool_integration') return 'spark-telegram-bot';
+	if (artifactType === 'swarm_publish_packet') return 'spark-swarm';
+	return 'specialization-path-spark-qa-operator';
+}
+
+function normalizeSparkQaOperatorManifest(
+	manifest: CreatorArtifactManifest,
+	benchmarkOnly: boolean
+): CreatorArtifactManifest {
+	const artifactType = manifest.artifact_type;
+	const normalized: CreatorArtifactManifest = {
+		...manifest,
+		artifact_id: `spark-qa-operator-${artifactType.replace(/_/g, '-')}-v1`,
+		repo: sparkQaOperatorRepoForArtifact(artifactType),
+		inputs: Array.from(new Set(['creator-intent-spark-qa-operator', ...manifest.inputs]))
+	};
+
+	if (benchmarkOnly && artifactType === 'benchmark_pack') {
+		return {
+			...normalized,
+			outputs: [
+				'benchmarks/spark-qa-operator.cases.json',
+				'benchmarks/spark-qa-operator.scoring.json',
+				'docs/BENCHMARK_CALIBRATION.md'
+			],
+			validation_commands: [
+				'python -m pytest tests',
+				'python scripts/run_spark_qa_operator_benchmark.py --suite smoke'
+			]
+		};
+	}
+
+	return normalized;
+}
+
+function normalizeSparkQaOperatorBundle(input: CreateCreatorMissionInput, bundle: CreatorArtifactBundle): CreatorArtifactBundle {
+	if (!isSparkQaOperatorCreatorBrief(input.brief)) return bundle;
+
+	const benchmarkOnly = isSparkQaOperatorBenchmarkOnlyBrief(input.brief, bundle.intent_packet);
+	const artifactTargets = benchmarkOnly
+		? ['benchmark_pack']
+		: ['domain_chip', 'benchmark_pack', 'specialization_path', 'autoloop_policy', 'tool_integration', 'swarm_publish_packet'];
+	const packet: CreatorIntentPacket = {
+		...bundle.intent_packet,
+		user_goal: input.brief,
+		target_domain: 'spark-qa-operator',
+		target_operator_surface: 'telegram+workspace+spawner-ui+canvas+kanban+auth-pairing+recursive-reports',
+		expected_agent_capability: benchmarkOnly
+			? 'Measure Spark QA Operator with held-out, trap, no-op, route-drift, and evidence-backed benchmark cases.'
+			: 'Improve Spark QA Operator through private benchmarked practice on Spark-built products before general user-app transfer.',
+		tools_in_scope: [
+			'spark-telegram-bot',
+			'spark-swarm-workspace',
+			'spawner-ui',
+			'canvas-kanban-panels',
+			'mission-control-trace',
+			'auth-pairing',
+			'spark-intelligence-builder'
+		],
+		data_sources_allowed: ['local_repo', 'local_spawner_state', 'operator_supplied_telegram_context'],
+		risk_level: input.riskLevel || bundle.intent_packet.risk_level || 'medium',
+		privacy_mode: input.privacyMode || bundle.intent_packet.privacy_mode || 'local_only',
+		desired_outputs: {
+			...bundle.intent_packet.desired_outputs,
+			domain_chip: !benchmarkOnly,
+			specialization_path: !benchmarkOnly,
+			benchmark_pack: true,
+			autoloop_policy: !benchmarkOnly,
+			telegram_flow: !benchmarkOnly,
+			spawner_mission: !benchmarkOnly,
+			swarm_publish_packet: !benchmarkOnly
+		},
+		intent_id: 'creator-intent-spark-qa-operator',
+		artifact_targets: artifactTargets,
+		usage_surfaces: ['telegram', 'spark-swarm-workspace', 'spawner-ui', 'canvas', 'kanban', 'auth-pairing', 'recursive-reports'],
+		success_claim: benchmarkOnly
+			? 'Spark QA Operator benchmark cases separate real evidence-backed QA gains from formatting-only improvements.'
+			: 'Spark QA Operator measurably catches more Spark-product regressions before its rules transfer to user apps.',
+		capabilities_to_prove: benchmarkOnly
+			? [
+				'route drift detection',
+				'creator mission evidence verification',
+				'pretty Telegram message but wrong evidence rejection',
+				'no-op regression handling',
+				'held-out Workspace evidence checks'
+			]
+			: [
+				'telegram natural-language creator QA',
+				'spark workspace sync and report truthfulness',
+				'recursive keep/revert report verification',
+				'spawner canvas and kanban execution QA',
+				'auth pairing abuse and recovery QA',
+				'autoloop mutation review'
+			],
+		benchmark_requirements: {
+			visible_cases: 24,
+			fixed_suite: true,
+			held_out_cases: true,
+			trap_cases: true,
+			simulator_transfer: true,
+			fresh_agent_absorption: true,
+			human_calibration: false
+		},
+		network_contribution_policy: 'workspace_only'
+	};
+
+	const manifestsByType = new Map<CreatorArtifactType, CreatorArtifactManifest>();
+	const allowedManifestTypes = new Set<CreatorArtifactType>(fallbackManifestArtifactTypes(packet));
+	for (const manifest of bundle.artifact_manifests) {
+		const artifactType = manifest.artifact_type;
+		if (!isCreatorArtifactType(artifactType)) continue;
+		if (!allowedManifestTypes.has(artifactType)) continue;
+		manifestsByType.set(artifactType, normalizeSparkQaOperatorManifest(manifest, benchmarkOnly));
+	}
+	for (const fallback of fallbackArtifactManifestsFromIntent(packet)) {
+		if (manifestsByType.has(fallback.artifact_type)) continue;
+		manifestsByType.set(fallback.artifact_type, normalizeSparkQaOperatorManifest(fallback, benchmarkOnly));
+	}
+
+	return {
+		intent_packet: packet,
+		artifact_manifests: Array.from(manifestsByType.values()),
+		validation_issues: bundle.validation_issues
+	};
+}
+
 function isCreatorArtifactType(value: string): value is CreatorArtifactType {
 	return [
 		'domain_chip',
@@ -848,6 +1094,281 @@ function isCreatorArtifactType(value: string): value is CreatorArtifactType {
 		'swarm_publish_packet',
 		'creator_report'
 	].includes(value);
+}
+
+function creatorTelemetrySurfaces(packet: CreatorIntentPacket): string[] {
+	const explicit = Array.isArray(packet.usage_surfaces) ? packet.usage_surfaces : [];
+	const inferred = packet.target_operator_surface
+		.split(/[+,/|\s]+/)
+		.map((surface) => surface.trim())
+		.filter(Boolean);
+	return Array.from(new Set([...explicit, ...inferred, 'telegram', 'canvas', 'kanban', 'trace']));
+}
+
+function buildSpecializationEntry(packet: CreatorIntentPacket): CreatorSpecializationEntry {
+	const domain = packet.target_domain || 'custom-domain';
+	const domainLabel = creatorDomainDisplayLabel(domain);
+	const requiredArtifacts = fallbackManifestArtifactTypes(packet);
+	return {
+		agent_entrypoint:
+			`Enter the ${domainLabel} specialization only after loading the domain chip, benchmark pack, specialization path, and autoloop policy; use the benchmark to prove better tool use, reasoning, and decisions before keeping changes.`,
+		telegram_command: `/creator plan --domain ${domain} --surface telegram --benchmark held-out`,
+		required_artifacts: requiredArtifacts,
+		evaluation_loop: {
+			preflight: 'Confirm domain chip hooks, specialization instructions, benchmark fixtures, and rollback rules are present before practice starts.',
+			baseline: 'Run the benchmark pack before specialization practice and record the baseline score.',
+			candidate: 'Run the same visible benchmark after applying the domain chip and specialization path, then compare tool-use and reasoning deltas.',
+			held_out: 'Run held-out cases that were not used as mutation prompts before any keep or publish decision.',
+			autoloop: 'suggest -> evaluate -> keep/reject -> record evidence -> repeat only when capability improves.',
+			keep_rule: 'Keep a mutation only when candidate score beats baseline, held-out passes, and the lesson improves agent-facing behavior rather than wording alone.',
+			reject_rule: 'Reject or roll back score-only, formatting-only, non-transferable, or unverified mutations.'
+		},
+		telemetry_surfaces: creatorTelemetrySurfaces(packet)
+	};
+}
+
+function boolFromHeldOut(value: unknown): boolean {
+	if (typeof value === 'boolean') return value;
+	if (typeof value === 'string') return value.trim().toLowerCase() === 'pass';
+	return false;
+}
+
+function numberOrNull(value: unknown): number | null {
+	const parsed = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
+	return Number.isFinite(parsed) ? parsed : null;
+}
+
+function stringArray(value: unknown): string[] {
+	return Array.isArray(value)
+		? value.map((item) => String(item || '').trim()).filter(Boolean)
+		: [];
+}
+
+function initialImprovementEvidence(packet: CreatorIntentPacket): CreatorImprovementEvidence {
+	const requirements = packet.benchmark_requirements || {};
+	const heldOutRequired = requirements.held_out_cases !== false && packet.desired_outputs.benchmark_pack;
+	return {
+		status: 'missing',
+		baseline_score: null,
+		candidate_score: null,
+		delta: null,
+		held_out_required: heldOutRequired,
+		held_out_pass: false,
+		validation_run_id: null,
+		benchmark_refs: [],
+		notes: ['Awaiting validation ledger with baseline, candidate, delta, and held-out evidence.']
+	};
+}
+
+interface CreatorValidationLedger {
+	benchmark_evidence?: {
+		baseline_score?: unknown;
+		candidate_score?: unknown;
+		delta?: unknown;
+		held_out_verdict?: unknown;
+		held_out_pass?: unknown;
+		benchmark_refs?: unknown;
+		notes?: unknown;
+		reasoning_delta?: unknown;
+		tool_usage_delta?: unknown;
+		ability_delta?: unknown;
+	};
+}
+
+const CREATOR_MISSION_STATUS_SCHEMA_VERSION = 'adaptive_creator_loop.creator_mission_status.v1';
+
+async function readJsonIfPresent(filePath: string): Promise<Record<string, unknown> | null> {
+	try {
+		if (!existsSync(filePath)) return null;
+		return JSON.parse(await readFile(filePath, 'utf-8')) as Record<string, unknown>;
+	} catch {
+		return null;
+	}
+}
+
+async function findCreatorValidationLedger(trace: CreatorMissionTrace): Promise<CreatorValidationLedger | null> {
+	for (const manifest of trace.artifact_manifests || []) {
+		if (!manifest.repo) continue;
+		const ledger = await readJsonIfPresent(path.join(resolveCreatorRepoRoot(manifest.repo), 'validation-ledger.json'));
+		if (ledger) return ledger as CreatorValidationLedger;
+	}
+	return null;
+}
+
+async function findCreatorMissionStatusPacket(trace: CreatorMissionTrace): Promise<Record<string, unknown> | null> {
+	const seen = new Set<string>();
+	for (const manifest of trace.artifact_manifests || []) {
+		if (!manifest.repo) continue;
+		const repoRoot = resolveCreatorRepoRoot(manifest.repo);
+		if (seen.has(repoRoot)) continue;
+		seen.add(repoRoot);
+		for (const candidate of [
+			path.join(repoRoot, 'reports', 'creator-mission-status.json'),
+			path.join(repoRoot, 'creator-mission-status.json')
+		]) {
+			const packet = await readJsonIfPresent(candidate);
+			if (packet) return packet;
+		}
+	}
+	return null;
+}
+
+function recordOrNull(value: unknown): Record<string, unknown> | null {
+	return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function boolOrUndefined(value: unknown): boolean | undefined {
+	return typeof value === 'boolean' ? value : undefined;
+}
+
+function stringOrUndefined(value: unknown): string | undefined {
+	return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function nullableString(value: unknown): string | null | undefined {
+	if (value === null) return null;
+	return stringOrUndefined(value);
+}
+
+function publicationMode(value: unknown): CreatorPrivacyMode | undefined {
+	return value === 'local_only' || value === 'github_pr' || value === 'swarm_shared' ? value : undefined;
+}
+
+function booleanRecord(value: unknown): Record<string, boolean> | undefined {
+	const record = recordOrNull(value);
+	if (!record) return undefined;
+	const output: Record<string, boolean> = {};
+	for (const [key, raw] of Object.entries(record)) {
+		if (typeof raw === 'boolean') output[key] = raw;
+	}
+	return output;
+}
+
+function blockerLabelFromPacket(value: unknown): string | null {
+	const record = recordOrNull(value);
+	const source = stringOrUndefined(record?.source);
+	const message = stringOrUndefined(record?.message);
+	if (source && message) return `${source}: ${message}`;
+	return source || message || null;
+}
+
+function applyCreatorMissionStatusPacket(trace: CreatorMissionTrace, packet: Record<string, unknown> | null): void {
+	if (!packet) return;
+	if (packet.schema_version !== CREATOR_MISSION_STATUS_SCHEMA_VERSION) return;
+	if (packet.read_only !== true) {
+		const blocker = 'Creator mission status packet was ignored because it was not read-only.';
+		if (!trace.blockers.includes(blocker)) trace.blockers.push(blocker);
+		return;
+	}
+	trace.execution_policy = 'read_only';
+
+	const canonical = recordOrNull(packet.canonical);
+	const publication = recordOrNull(packet.publication);
+	if (!canonical || !publication) return;
+
+	const canonicalStatus: CreatorMissionCanonicalStatus = {
+		verdict: stringOrUndefined(canonical.verdict),
+		stage_status: stringOrUndefined(canonical.stage_status),
+		evidence_tier: stringOrUndefined(canonical.evidence_tier),
+		evidence_mode: stringOrUndefined(canonical.evidence_mode),
+		automation_blocked: boolOrUndefined(canonical.automation_blocked),
+		blocking_checks: stringArray(canonical.blocking_checks),
+		warning_checks: stringArray(canonical.warning_checks),
+		missing_paths: stringArray(canonical.missing_paths),
+		recommended_next_command: nullableString(canonical.recommended_next_command)
+	};
+	const publicationStatus: CreatorMissionPublicationStatus = {
+		publish_mode: publicationMode(publication.publish_mode),
+		local_display_allowed: boolOrUndefined(publication.local_display_allowed),
+		github_pr_allowed: boolOrUndefined(publication.github_pr_allowed),
+		swarm_shared_allowed: boolOrUndefined(publication.swarm_shared_allowed),
+		network_absorbable: false,
+		requested_network_absorption: boolOrUndefined(publication.requested_network_absorption),
+		blocked_reason: nullableString(publication.blocked_reason),
+		required_gates: stringArray(publication.required_gates),
+		missing_gates: stringArray(publication.missing_gates),
+		gate_status: booleanRecord(publication.gate_status),
+		unsafe_claim_blocked: boolOrUndefined(publication.unsafe_claim_blocked)
+	};
+
+	trace.creator_mission_status = packet;
+	trace.canonical = canonicalStatus;
+	trace.publication = publicationStatus;
+	if (publicationStatus.publish_mode) {
+		trace.swarm.publish_mode = publicationStatus.publish_mode;
+	}
+	trace.swarm.payload_ready = false;
+	trace.swarm.api_ready = false;
+
+	if (publication.network_absorbable !== false || publication.swarm_shared_allowed !== false) {
+		const blocker = 'Creator mission status kept network absorption blocked for product surfaces.';
+		if (!trace.blockers.includes(blocker)) trace.blockers.push(blocker);
+	}
+	for (const blocker of stringArray(canonicalStatus.blocking_checks)) {
+		if (!trace.blockers.includes(blocker)) trace.blockers.push(blocker);
+	}
+	if (Array.isArray(packet.blockers)) {
+		for (const rawBlocker of packet.blockers) {
+			const blocker = blockerLabelFromPacket(rawBlocker);
+			if (blocker && !trace.blockers.includes(blocker)) trace.blockers.push(blocker);
+		}
+	}
+}
+
+function briefRequestsReadOnlyExecution(brief: string): boolean {
+	return /\b(?:stage\s+only|stage-only|do\s+not\s+run|don't\s+run|no\s+run|do\s+not\s+execute|don't\s+execute|no\s+execution|without\s+running)\b/i.test(brief);
+}
+
+function resolveCreatorExecutionPolicy(input: CreateCreatorMissionInput, brief: string): CreatorExecutionPolicy {
+	if (input.executionPolicy === 'read_only' || input.executionPolicy === 'manual_run') return input.executionPolicy;
+	return briefRequestsReadOnlyExecution(brief) ? 'read_only' : 'manual_run';
+}
+
+function creatorMissionExecutionBlockedReason(trace: CreatorMissionTrace): string | null {
+	if (trace.execution_policy === 'read_only') return 'creator mission is read-only/stage-only and cannot be executed';
+	const statusPacket = recordOrNull(trace.creator_mission_status);
+	if (statusPacket?.read_only === true) return 'creator mission status packet is read-only and cannot be executed';
+	return null;
+}
+
+function applyImprovementEvidenceFromLedger(
+	trace: CreatorMissionTrace,
+	ledger: CreatorValidationLedger | null,
+	run: CreatorValidationRun
+): void {
+	const evidence = ledger?.benchmark_evidence;
+	if (!evidence || typeof evidence !== 'object') return;
+
+	const baselineScore = numberOrNull(evidence.baseline_score);
+	const candidateScore = numberOrNull(evidence.candidate_score);
+	const delta = numberOrNull(evidence.delta);
+	const heldOutPass = boolFromHeldOut(evidence.held_out_verdict ?? evidence.held_out_pass);
+	const benchmarkRefs = stringArray(evidence.benchmark_refs);
+	const notes = [
+		...stringArray(evidence.notes),
+		...stringArray([evidence.reasoning_delta, evidence.tool_usage_delta, evidence.ability_delta])
+	];
+
+	trace.benchmark_summary = {
+		baseline_score: baselineScore,
+		candidate_score: candidateScore,
+		delta,
+		held_out_pass: heldOutPass
+	};
+	trace.improvement_evidence = {
+		...trace.improvement_evidence,
+		status: baselineScore !== null && candidateScore !== null && delta !== null ? 'recorded' : 'missing',
+		baseline_score: baselineScore,
+		candidate_score: candidateScore,
+		delta,
+		held_out_pass: heldOutPass,
+		validation_run_id: run.run_id,
+		benchmark_refs: benchmarkRefs,
+		notes
+	};
+	for (const ref of benchmarkRefs) {
+		if (!trace.benchmarks.includes(ref)) trace.benchmarks.push(ref);
+	}
 }
 
 async function resolveCreatorArtifactBundle(
@@ -872,11 +1393,12 @@ async function resolveCreatorArtifactBundle(
 
 export function creatorMissionCanvasLoad(trace: CreatorMissionTrace, now = new Date()) {
 	const pipelineId = creatorPipelineId(trace.request_id);
+	const domainLabel = creatorDomainDisplayLabel(trace.intent_packet.target_domain);
 	return {
 		requestId: trace.request_id,
 		missionId: trace.mission_id,
 		pipelineId,
-		pipelineName: `Creator Mission: ${trace.intent_packet.target_domain}`,
+		pipelineName: `Creator Mission: ${domainLabel}`,
 		nodes: trace.tasks.map(taskToCanvasNode),
 		connections: taskConnections(trace.tasks),
 		source: 'creator-mission' as const,
@@ -888,6 +1410,9 @@ export function creatorMissionCanvasLoad(trace: CreatorMissionTrace, now = new D
 			missionId: trace.mission_id,
 			requestId: trace.request_id,
 			goal: trace.user_goal,
+			...(trace.telegram_relay ? { telegramRelay: trace.telegram_relay } : {}),
+			...(trace.telegram_chat_id ? { chatId: trace.telegram_chat_id } : {}),
+			...(trace.telegram_user_id ? { userId: trace.telegram_user_id } : {}),
 			autoRun: false,
 			buildMode: 'advanced_prd' as const,
 			buildModeReason: 'Creator missions require explicit validation gates before execution or Swarm publication.'
@@ -920,7 +1445,11 @@ export async function createCreatorMission(
 	const createdAt = now.toISOString();
 	const missionId = input.missionId?.trim() || `mission-creator-${Date.now()}`;
 	const requestId = input.requestId?.trim() || missionId;
-	const bundle = await resolveCreatorArtifactBundle({ ...input, brief }, options);
+	const executionPolicy = resolveCreatorExecutionPolicy(input, brief);
+	const bundle = normalizeSparkQaOperatorBundle(
+		{ ...input, brief },
+		await resolveCreatorArtifactBundle({ ...input, brief }, options)
+	);
 	const intentPacket = bundle.intent_packet;
 	const baseUrl = input.baseUrl?.replace(/\/+$/, '') || '';
 	const canvasPath = creatorCanvasPath({ request_id: requestId, mission_id: missionId });
@@ -944,18 +1473,24 @@ export async function createCreatorMission(
 		validation_gates: validationGatesForCreatorIntent(intentPacket),
 		current_stage: 'task_graph_created',
 		stage_status: 'queued',
+		execution_policy: executionPolicy,
 		intent_packet: intentPacket,
+		specialization_entry: buildSpecializationEntry(intentPacket),
 		benchmark_summary: {
 			baseline_score: null,
 			candidate_score: null,
 			delta: null,
 			held_out_pass: false
 		},
+		improvement_evidence: initialImprovementEvidence(intentPacket),
 		swarm: {
 			payload_ready: false,
 			api_ready: false,
 			publish_mode: intentPacket.privacy_mode === 'swarm_shared' ? 'swarm_shared' : intentPacket.privacy_mode
 		},
+		telegram_relay: input.telegramRelay ?? null,
+		telegram_chat_id: input.chatId?.trim() || null,
+		telegram_user_id: input.userId?.trim() || null,
 		blockers: [],
 		links: {
 			canvas: baseUrl ? `${baseUrl}${canvasPath}` : canvasPath,
@@ -976,7 +1511,10 @@ export async function createCreatorMission(
 export async function saveCreatorMissionTrace(trace: CreatorMissionTrace, stateDir = spawnerStateDir()): Promise<void> {
 	const dir = creatorMissionDir(stateDir);
 	await mkdir(dir, { recursive: true });
-	await writeFile(creatorMissionPath(trace.mission_id, stateDir), JSON.stringify(trace, null, 2), 'utf-8');
+	const filePath = creatorMissionPath(trace.mission_id, stateDir);
+	const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+	await writeFile(tempPath, JSON.stringify(trace, null, 2), 'utf-8');
+	await rename(tempPath, filePath);
 }
 
 export async function readCreatorMissionTrace(
@@ -1023,6 +1561,10 @@ export async function executeCreatorMission(
 	}
 	if (trace.stage_status === 'published') {
 		throw new Error('creator mission is already published');
+	}
+	const blockedReason = creatorMissionExecutionBlockedReason(trace);
+	if (blockedReason) {
+		throw new Error(blockedReason);
 	}
 
 	const now = options.now?.() ?? new Date();
@@ -1090,7 +1632,6 @@ function tailText(value: unknown, maxLength = 6000): string {
 interface ResolvedValidationCommand {
 	executable: string;
 	args: string[];
-	shell?: boolean;
 }
 
 function packageManagerCliPath(executable: string): string | null {
@@ -1114,7 +1655,6 @@ function resolveValidationCommand(executable: string, args: string[]): ResolvedV
 		if (cliPath) {
 			return { executable: process.execPath, args: [cliPath, ...args] };
 		}
-		return { executable: `${executable}.cmd`, args, shell: true };
 	}
 	return { executable, args };
 }
@@ -1126,14 +1666,13 @@ function resolveCreatorRepoRoot(repo: string): string {
 async function defaultCreatorValidationCommandRunner(
 	executable: string,
 	args: string[],
-	options: { cwd: string; timeoutMs: number; shell?: boolean }
+	options: { cwd: string; timeoutMs: number }
 ): Promise<{ exitCode: number; stdout?: string; stderr?: string }> {
 	try {
 		const { stdout, stderr } = await execFileAsync(executable, args, {
 			cwd: options.cwd,
 			timeout: options.timeoutMs,
 			windowsHide: true,
-			shell: options.shell === true,
 			maxBuffer: 1024 * 1024
 		});
 		return { exitCode: 0, stdout: String(stdout || ''), stderr: String(stderr || '') };
@@ -1203,7 +1742,7 @@ async function runCreatorValidationCommand(
 	}
 	const runner = options.commandRunner || activeCreatorValidationCommandRunner || defaultCreatorValidationCommandRunner;
 	const resolved = options.commandRunner ? { executable, args } : resolveValidationCommand(executable, args);
-	const result = await runner(resolved.executable, resolved.args, { cwd, timeoutMs: options.timeoutMs, shell: resolved.shell });
+	const result = await runner(resolved.executable, resolved.args, { cwd, timeoutMs: options.timeoutMs });
 	return {
 		artifact_id: manifest.artifact_id,
 		artifact_type: manifest.artifact_type,
@@ -1230,6 +1769,7 @@ export async function validateCreatorMission(
 	const startedAt = now.toISOString();
 	const maxCommands = Math.max(1, input.maxCommands ?? options.maxCommands ?? 20);
 	const timeoutMs = options.timeoutMs ?? 120_000;
+	const commandRunner = options.commandRunner || activeCreatorValidationCommandRunner || undefined;
 	const pendingCommands: Array<{ manifest: CreatorArtifactManifest; command: string }> = [];
 	const results: CreatorValidationCommandResult[] = [];
 
@@ -1250,7 +1790,7 @@ export async function validateCreatorMission(
 			manifest: item.manifest,
 			command: item.command
 		});
-		const result = await runCreatorValidationCommand(item.manifest, item.command, { timeoutMs, commandRunner: options.commandRunner });
+		const result = await runCreatorValidationCommand(item.manifest, item.command, { timeoutMs, commandRunner });
 		results.push(result);
 		await options.onCommandProgress?.({
 			phase: 'completed',
@@ -1280,6 +1820,8 @@ export async function validateCreatorMission(
 	trace.current_stage = runStatus === 'passed' ? 'validation_completed' : runStatus === 'blocked' ? 'validation_blocked' : 'validation_failed';
 	trace.stage_status = runStatus === 'passed' ? 'validated' : runStatus === 'blocked' ? 'blocked' : 'failed';
 	trace.publish_readiness = runStatus === 'passed' ? 'workspace_validated' : trace.publish_readiness;
+	applyImprovementEvidenceFromLedger(trace, await findCreatorValidationLedger(trace), run);
+	applyCreatorMissionStatusPacket(trace, await findCreatorMissionStatusPacket(trace));
 	trace.updated_at = completedAt;
 	if (runStatus !== 'passed') {
 		const blocker = runStatus === 'blocked' ? 'One or more validation commands were skipped.' : 'One or more validation commands failed.';

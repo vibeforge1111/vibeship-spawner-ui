@@ -35,6 +35,32 @@ describe('mission-control-lineage', () => {
 		);
 	});
 
+	it('extracts only the explicit folder before follow-up instructions', () => {
+		const lineage = extractMissionControlProjectLineage({
+			data: {
+				goal:
+					'Create a local-only static proof in C:\\Users\\USER\\Desktop\\spark-os-proof-s. You must create exactly two files and no others.'
+			}
+		});
+
+		expect(lineage?.projectPath).toBe('C:\\Users\\USER\\Desktop\\spark-os-proof-s');
+	});
+
+	it('does not treat prose slashes like win/lose as project paths', () => {
+		const lineage = extractMissionControlProjectLineage({
+			missionName: 'Recursive Sage Reasoning Game',
+			data: {
+				goal: [
+					'# Recursive Sage Reasoning Game',
+					'',
+					'Build a tiny browser game with keyboard controls, restart, win/lose state, score or progress feedback, and responsive layout.'
+				].join('\n')
+			}
+		});
+
+		expect(lineage).toBeNull();
+	});
+
 	it('refreshes stale root preview URLs when the playable app is nested', () => {
 		process.env.SPAWNER_PROJECT_PREVIEW_BASE_URL = 'http://127.0.0.1:3333';
 		const projectRoot = mkdtempSync(join(tmpdir(), 'spark-lineage-preview-'));

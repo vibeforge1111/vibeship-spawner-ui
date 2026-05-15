@@ -12,7 +12,7 @@ import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server
 import { controlQueryApiKeysAllowed, enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
-import { validatePrdAnalysisResult } from '$lib/server/prd-analysis-result-schema';
+import { projectStoredPrdAnalysisResultForTier } from '$lib/server/prd-analysis-result-schema';
 import { spawnerStateDir } from '$lib/server/spawner-state';
 import { extractTraceRef } from '$lib/server/trace-ref';
 import { logger } from '$lib/utils/logger';
@@ -91,9 +91,16 @@ function createAuthCookieHeader(request: Request): string | null {
  */
 async function appendPrdTrace(requestId: string, event: string, details: Record<string, unknown> = {}): Promise<void> {
 	try {
+		const traceRef = await traceRefForRequest(requestId, details);
 		await appendFile(
 			getPrdAutoTraceFile(),
-			`${JSON.stringify({ ts: new Date().toISOString(), requestId, event, ...details })}\n`,
+			`${JSON.stringify({
+				ts: new Date().toISOString(),
+				requestId,
+				event,
+				...details,
+				...(traceRef ? { traceRef, trace_ref: traceRef } : {})
+			})}\n`,
 			'utf-8'
 		);
 	} catch {
@@ -101,16 +108,59 @@ async function appendPrdTrace(requestId: string, event: string, details: Record<
 	}
 }
 
+async function traceRefForRequest(requestId: string, details: Record<string, unknown>): Promise<string | null> {
+	const explicit = extractTraceRef(details);
+	if (explicit) return explicit;
+	try {
+		const pendingRequestFile = join(getSpawnerDir(), 'pending-request.json');
+		if (!existsSync(pendingRequestFile)) return null;
+		const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
+		const pending = JSON.parse(pendingRaw) as Record<string, unknown>;
+		if (pending.requestId !== requestId) return null;
+		return extractTraceRef(pending);
+	} catch {
+		return null;
+	}
+}
+
+async function pendingRequestForRequest(requestId: string): Promise<Record<string, unknown> | null> {
+	try {
+		const pendingRequestFile = join(getSpawnerDir(), 'pending-request.json');
+		if (!existsSync(pendingRequestFile)) return null;
+		const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
+		const pending = JSON.parse(pendingRaw) as Record<string, unknown>;
+		return pending.requestId === requestId ? pending : null;
+	} catch {
+		return null;
+	}
+}
+
+async function tierForRequest(requestId: string): Promise<string> {
+	const pending = await pendingRequestForRequest(requestId);
+	return typeof pending?.tier === 'string' ? pending.tier : 'base';
+}
+
 async function storePRDResult(requestId: string, result: unknown): Promise<void> {
 	assertSafeId(requestId, 'requestId');
-	const validatedResult = validatePrdAnalysisResult(requestId, result);
+	const traceRef = await traceRefForRequest(requestId, {});
+	const resultRecord = result && typeof result === 'object' && !Array.isArray(result)
+		? (result as Record<string, unknown>)
+		: {};
+	const metadataRecord = resultRecord.metadata && typeof resultRecord.metadata === 'object' && !Array.isArray(resultRecord.metadata)
+		? (resultRecord.metadata as Record<string, unknown>)
+		: {};
+	const storedResult = await projectStoredPrdAnalysisResultForTier(
+		requestId,
+		traceRef ? { ...resultRecord, traceRef, metadata: { ...metadataRecord, traceRef } } : result,
+		await tierForRequest(requestId)
+	);
 	const resultsDir = getResultsDir();
 
 	if (!existsSync(resultsDir)) {
 		await mkdir(resultsDir, { recursive: true });
 	}
 	const resultFile = resolveWithinBaseDir(resultsDir, `${requestId}.json`);
-	await writeFile(resultFile, JSON.stringify(validatedResult, null, 2), 'utf-8');
+	await writeFile(resultFile, JSON.stringify(storedResult, null, 2), 'utf-8');
 	log.info(`Stored PRD result for polling: ${requestId}`);
 }
 

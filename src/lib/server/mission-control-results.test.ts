@@ -67,6 +67,27 @@ describe('mission-control-results', () => {
 		expect(summary.providerResults[0].summary).toBe('Codex exited 1');
 	});
 
+	it('reclassifies blocked completed provider output as failed', () => {
+		const summary = summarizeProviderResults([
+			result({
+				providerId: 'codex',
+				status: 'completed',
+				response: [
+					'Blocked before task start.',
+					'I could not load the mandatory H70 skills because http://127.0.0.1:3333 is unreachable.',
+					'Per the mission instructions, I did not create files.',
+					'The filesystem sandbox is read-only.'
+				].join(' ')
+			})
+		]);
+
+		expect(summary.providerResults[0]).toMatchObject({
+			providerId: 'codex',
+			status: 'failed'
+		});
+		expect(summary.providerSummary).toContain('Blocked before task start');
+	});
+
 	it('uses a clean completion fallback when no provider response exists', () => {
 		const summary = summarizeProviderResults([result({ providerId: 'codex', response: null })]);
 
@@ -160,6 +181,55 @@ describe('mission-control-results', () => {
 		expect(enriched.running[0].providerResults[0]).toEqual(
 			expect.objectContaining({ status: 'running', summary: 'running', completedAt: null })
 		);
+	});
+
+	it('moves completed board cards to failed when completed provider text says no files were created', () => {
+		const enriched = enrichMissionControlBoardWithProviderResults(
+			{
+				completed: [
+					entry('mission-provider-blocked', {
+						tasks: [
+							{ title: 'Create the app shell', skills: [], status: 'completed' },
+							{ title: 'Implement the game', skills: [], status: 'completed' }
+						],
+						taskStatusCounts: {
+							queued: 0,
+							running: 0,
+							completed: 2,
+							failed: 0,
+							cancelled: 0,
+							total: 2
+						}
+					})
+				],
+				failed: [],
+				running: []
+			},
+			() => [
+				result({
+					status: 'completed',
+					response:
+						'Blocked before task start. I could not load the mandatory H70 skills. I did not create files because the workspace is read-only.'
+				})
+			]
+		);
+
+		expect(enriched.completed).toEqual([]);
+		expect(enriched.failed[0]).toMatchObject({
+			missionId: 'mission-provider-blocked',
+			status: 'failed',
+			lastEventType: 'provider_failed',
+			taskStatusCounts: { failed: 2, total: 2 },
+			providerResults: [expect.objectContaining({ status: 'failed' })],
+			providerSummary: expect.stringContaining('Blocked before task start'),
+			completionEvidence: {
+				state: 'complete',
+				missing: [],
+				providerTerminal: true,
+				hasProviderSummary: true,
+				tasksTerminal: true
+			}
+		});
 	});
 
 	it('moves non-terminal board cards to completed when provider results are completed', () => {

@@ -26,6 +26,7 @@ export type ProviderSessionStatus = 'idle' | 'running' | 'completed' | 'failed' 
 export interface ProviderSession {
 	providerId: string;
 	missionId: string;
+	model?: string | null;
 	status: ProviderSessionStatus;
 	abortController: AbortController;
 	startedAt: Date;

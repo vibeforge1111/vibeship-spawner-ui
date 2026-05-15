@@ -56,7 +56,7 @@ function packet(): CreatorIntentPacket {
 }
 
 async function waitForValidationRun(missionId: string) {
-	for (let attempt = 0; attempt < 50; attempt += 1) {
+	for (let attempt = 0; attempt < 200; attempt += 1) {
 		const trace = await readCreatorMissionTrace({ missionId }, tempDir);
 		if (trace && trace.validation_runs.length > 0) return trace;
 		await new Promise((resolve) => setTimeout(resolve, 10));

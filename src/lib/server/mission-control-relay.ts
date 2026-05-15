@@ -243,6 +243,17 @@ function requestIdFromEventData(data: Record<string, unknown> | null | undefined
 	return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
+function executionPolicyFromEventData(data: Record<string, unknown> | null | undefined): string | null {
+	const value = typeof data?.executionPolicy === 'string'
+		? data.executionPolicy
+		: typeof data?.execution_policy === 'string'
+			? data.execution_policy
+			: null;
+	if (!value) return null;
+	const normalized = value.trim().toLowerCase();
+	return normalized === 'read_only' || normalized === 'manual_run' ? normalized : null;
+}
+
 function knownMissionMetadata(missionId: string): { requestId: string | null; traceRef: string | null } {
 	for (const entry of relayState.recent) {
 		if (entry.missionId !== missionId) continue;
@@ -321,6 +332,7 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		: [];
 	const requestId = requestIdFromEventData(event.data);
 	const traceRef = extractTraceRef(event.data, event);
+	const executionPolicy = executionPolicyFromEventData(event.data);
 	const providerId =
 		event.data && typeof (event.data as Record<string, unknown>).providerId === 'string'
 			? ((event.data as Record<string, unknown>).providerId as string)
@@ -331,12 +343,6 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		event.data && typeof (event.data as Record<string, unknown>).model === 'string'
 			? ((event.data as Record<string, unknown>).model as string)
 			: null;
-	const executionPolicy =
-		event.data && typeof (event.data as Record<string, unknown>).executionPolicy === 'string'
-			? ((event.data as Record<string, unknown>).executionPolicy as string)
-			: event.data && typeof (event.data as Record<string, unknown>).execution_policy === 'string'
-				? ((event.data as Record<string, unknown>).execution_policy as string)
-				: null;
 	const dataTaskId = event.data && typeof (event.data as Record<string, unknown>).taskId === 'string'
 		? ((event.data as Record<string, unknown>).taskId as string)
 		: null;
@@ -986,6 +992,13 @@ function closeOpenTasksForTerminalMission(entry: MissionControlBoardEntry): void
 	entry.taskName = null;
 }
 
+function boardStatusForEntry(entry: MissionControlBoardEntry): MissionControlBoardStatus {
+	if (entry.executionPolicy === 'read_only' && !entry.executionStarted && entry.status === 'running') {
+		return 'created';
+	}
+	return entry.status;
+}
+
 function recordLifecycleTimestamps(
 	entry: MissionControlBoardEntry,
 	event: MissionControlRelayStatusEntry
@@ -1073,6 +1086,9 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 			if (isExecutionStartEvent(entry.eventType)) {
 				existing.executionStarted = true;
 			}
+			if (!existing.executionPolicy && entry.executionPolicy) {
+				existing.executionPolicy = entry.executionPolicy;
+			}
 			existing.projectLineage = mergeMissionControlProjectLineage(
 				existing.projectLineage,
 				entry.projectLineage
@@ -1101,7 +1117,9 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 		closeOpenTasksForTerminalMission(entry);
 		recalculateTaskStatusCounts(entry);
 		syncCurrentTaskNameWithRunningTasks(entry);
-		board[entry.status].push(entry);
+		const boardStatus = boardStatusForEntry(entry);
+		entry.status = boardStatus;
+		board[boardStatus].push(entry);
 	}
 
 	for (const entries of Object.values(board)) {

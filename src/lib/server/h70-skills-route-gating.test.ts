@@ -1,13 +1,21 @@
 // @vitest-environment node
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { existsSync } from 'fs';
+import { mkdtemp, rm } from 'fs/promises';
+import { tmpdir } from 'os';
+import path from 'path';
+import { createH70SkillAccessToken } from './h70-skill-access-token';
 import { sparkProBaseUrl, verifySparkProSkillAccess } from './spark-pro-entitlements';
 import { GET, HEAD } from '../../routes/api/h70-skills/[skillId]/+server';
 
 let previousSparkProBaseUrl: string | undefined;
+let previousSpawnerStateDir: string | undefined;
+let testSpawnerDir: string | null = null;
 
 beforeEach(() => {
 	previousSparkProBaseUrl = process.env.SPARK_PRO_API_BASE_URL;
+	previousSpawnerStateDir = process.env.SPAWNER_STATE_DIR;
 });
 
 afterEach(async () => {
@@ -16,6 +24,15 @@ afterEach(async () => {
 	} else {
 		process.env.SPARK_PRO_API_BASE_URL = previousSparkProBaseUrl;
 	}
+	if (previousSpawnerStateDir === undefined) {
+		delete process.env.SPAWNER_STATE_DIR;
+	} else {
+		process.env.SPAWNER_STATE_DIR = previousSpawnerStateDir;
+	}
+	if (testSpawnerDir && existsSync(testSpawnerDir)) {
+		await rm(testSpawnerDir, { recursive: true, force: true });
+	}
+	testSpawnerDir = null;
 	vi.clearAllMocks();
 });
 
@@ -70,6 +87,24 @@ describe('/api/h70-skills/[skillId]', () => {
 		const response = await GET({
 			params: { skillId: 'usage-metering-entitlements' },
 			request
+		} as never);
+
+		expect(response.status).toBe(200);
+	});
+
+	it('serves scoped premium mission skill content with an H70 access token', async () => {
+		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-h70-route-'));
+		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
+		const token = await createH70SkillAccessToken({
+			missionId: 'mission-h70-route-test',
+			skillIds: ['usage-metering-entitlements']
+		});
+
+		const response = await GET({
+			params: { skillId: 'usage-metering-entitlements' },
+			request: new Request('https://spawner.sparkswarm.ai/api/h70-skills/usage-metering-entitlements', {
+				headers: { authorization: `Bearer ${token}` }
+			})
 		} as never);
 
 		expect(response.status).toBe(200);

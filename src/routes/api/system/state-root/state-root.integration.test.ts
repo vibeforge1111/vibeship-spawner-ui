@@ -14,6 +14,7 @@ import { GET } from './+server';
 
 const originalBridgeKey = process.env.SPARK_BRIDGE_API_KEY;
 const originalStateDir = process.env.SPAWNER_STATE_DIR;
+const originalSparkHome = process.env.SPARK_HOME;
 
 function restoreEnv(name: string, value: string | undefined) {
 	if (value === undefined) delete process.env[name];
@@ -38,11 +39,13 @@ describe('/api/system/state-root', () => {
 		PRIVATE_ENV.MCP_ALLOWED_ORIGINS = '';
 		delete process.env.SPARK_BRIDGE_API_KEY;
 		delete process.env.SPAWNER_STATE_DIR;
+		delete process.env.SPARK_HOME;
 	});
 
 	afterEach(() => {
 		restoreEnv('SPARK_BRIDGE_API_KEY', originalBridgeKey);
 		restoreEnv('SPAWNER_STATE_DIR', originalStateDir);
+		restoreEnv('SPARK_HOME', originalSparkHome);
 	});
 
 	it('returns metadata-only state-root audit evidence on loopback', async () => {
@@ -59,6 +62,7 @@ describe('/api/system/state-root', () => {
 				base_state_dir: 'C:\\spark-state\\spawner-ui',
 				state_dir: 'C:\\spark-state\\spawner-ui',
 				configured_state_dir_present: true,
+				spark_home_state_dir_present: false,
 				fallback_used: false
 			}
 		});
@@ -67,6 +71,16 @@ describe('/api/system/state-root', () => {
 		expect(body.stateRoot).not.toHaveProperty('chatId');
 		expect(body.stateRoot).not.toHaveProperty('userId');
 		expect(body.stateRoot.redaction).toContain('mission bodies');
+		expect(body.stateRoot.archive_readiness.schema_version).toBe('spark.spawner_state_archive_readiness.v1');
+		expect(body.stateRoot.archive_readiness.archive_candidate).toBe(false);
+		expect(body.stateRoot.archive_readiness.blockers).toContain(
+			'cwd_spawner_fallback_still_supported_by_state_helper'
+		);
+		expect(body.stateRoot.source_reference_audit.schema_version).toBe(
+			'spark.spawner_state_source_reference_audit.v1'
+		);
+		expect(body.stateRoot.source_reference_audit).not.toHaveProperty('files');
+		expect(body.stateRoot.source_reference_audit.redaction).toContain('file contents');
 	});
 
 	it('requires control auth outside loopback when a bridge key is configured', async () => {

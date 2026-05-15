@@ -1039,9 +1039,10 @@ function normalizeBuildMode(value: unknown): 'direct' | 'advanced_prd' {
 
 type BuildLane = 'fast_direct' | 'direct' | 'advanced_prd';
 
-function normalizeBuildLane(value: unknown, buildMode: 'direct' | 'advanced_prd', _options: unknown): BuildLane {
-	if (value === 'advanced_prd') return 'advanced_prd';
-	if (value === 'direct' || value === 'fast_direct') return 'direct';
+function normalizeBuildLane(value: unknown, buildMode: 'direct' | 'advanced_prd', options: unknown): BuildLane {
+	const optionRecord = options && typeof options === 'object' ? (options as Record<string, unknown>) : null;
+	if (optionRecord?.fastLane === true) return 'fast_direct';
+	if (value === 'fast_direct' || value === 'direct' || value === 'advanced_prd') return value;
 	return buildMode === 'advanced_prd' ? 'advanced_prd' : 'direct';
 }
 
@@ -1049,7 +1050,7 @@ export function _shouldUseDeterministicPrdFallback(input: {
 	buildLane: BuildLane;
 	constrainedStaticSingleFile: boolean;
 }): boolean {
-	return input.constrainedStaticSingleFile;
+	return input.constrainedStaticSingleFile || input.buildLane === 'fast_direct';
 }
 
 function positiveEnvMs(env: NodeJS.ProcessEnv, key: string, fallbackMs: number): number {

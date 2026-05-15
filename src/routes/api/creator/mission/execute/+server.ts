@@ -48,9 +48,11 @@ export const POST: RequestHandler = async (event) => {
 			trace: result.trace
 		});
 	} catch (error) {
+		const message = error instanceof Error ? error.message : 'creator mission execution failed';
+		const status = /read-only|stage-only|already published/i.test(message) ? 409 : 500;
 		return json(
-			{ ok: false, error: error instanceof Error ? error.message : 'creator mission execution failed' },
-			{ status: 500 }
+			{ ok: false, error: message },
+			{ status }
 		);
 	}
 };

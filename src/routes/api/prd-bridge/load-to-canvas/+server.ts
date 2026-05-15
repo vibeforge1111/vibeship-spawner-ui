@@ -64,6 +64,43 @@ interface TaskRecord {
 	verificationCommands?: string[];
 }
 
+function executionTextFromResult(parsed: {
+	projectName?: string;
+	executionPrompt?: string;
+	tasks?: TaskRecord[];
+}): string {
+	if (typeof parsed.executionPrompt === 'string' && parsed.executionPrompt.trim()) {
+		return parsed.executionPrompt;
+	}
+	const lines = [
+		`Build ${parsed.projectName || 'the requested project'} from the structured PRD canvas.`,
+		...(parsed.tasks || []).flatMap((task) => [
+			`Task ${task.id}: ${task.title}`,
+			...(task.summary ? [`Summary: ${task.summary}`] : []),
+			...(task.description ? [`Description: ${task.description}`] : []),
+			...((task.acceptanceCriteria || []).map((criterion) => `Acceptance: ${criterion}`)),
+			...((task.verificationCommands || []).map((command) => `Verify: ${command}`))
+		])
+	];
+	return lines.join('\n');
+}
+
+function storedCanvasLoad(load: Record<string, unknown>): Record<string, unknown> {
+	const { executionPrompt: _executionPrompt, metadata, ...rest } = load;
+	const metadataRecord = metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+		? (metadata as Record<string, unknown>)
+		: {};
+	return {
+		...rest,
+		metadata: {
+			...metadataRecord,
+			instructionTextRedacted: true,
+			instructionTextStorage: 'ephemeral_dispatch_only'
+		},
+		instructionTextRedacted: true
+	};
+}
+
 function taskSkillId(taskId: string): string {
 	const normalized = taskId.trim() || 'task';
 	return normalized.startsWith('task-') ? normalized : `task-${normalized}`;
@@ -157,8 +194,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		const parsed = JSON.parse(raw) as {
 			success?: boolean;
 			projectName?: string;
+			projectType?: string;
 			executionPrompt?: string;
+			tier?: string;
 			tasks?: TaskRecord[];
+			metadata?: Record<string, unknown>;
 			capabilityProposalPacket?: unknown;
 			capability_proposal_packet?: unknown;
 		};
@@ -169,6 +209,9 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		const nodes = parsed.tasks.map(taskToNode);
 		const connections = buildConnections(parsed.tasks);
+		const deterministicStaticResult =
+			parsed.projectType === 'static-exact-file-proof' || parsed.projectType === 'static-single-file-html';
+		const effectiveAutoRun = autoRun !== false && !deterministicStaticResult;
 
 		if (!existsSync(spawnerDir)) {
 			await mkdir(spawnerDir, { recursive: true });
@@ -189,6 +232,7 @@ export const POST: RequestHandler = async ({ request }) => {
 					relay?: Record<string, unknown>;
 					buildMode?: 'direct' | 'advanced_prd';
 					buildModeReason?: string;
+					tier?: string;
 				};
 				if (pending.requestId === requestId) {
 					pendingRequestMeta = pending as Record<string, unknown>;
@@ -208,10 +252,11 @@ export const POST: RequestHandler = async ({ request }) => {
 					relay = {
 						...pending.relay,
 						missionId: resolvedMissionId,
+						...(typeof pending.tier === 'string' ? { tier: pending.tier } : {}),
 						...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {}),
 						requestId,
 						...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
-						autoRun: autoRun !== false,
+						autoRun: effectiveAutoRun,
 						buildMode,
 						buildModeReason
 					};
@@ -231,7 +276,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
 				...(typeof goal === 'string' && goal.trim() ? { goal } : {}),
 				...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {}),
-				autoRun: autoRun !== false,
+				autoRun: effectiveAutoRun,
 				buildMode,
 				buildModeReason
 			};
@@ -243,6 +288,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			relay.traceRef = resolvedTraceRef;
 		}
 
+		const executionText = executionTextFromResult(parsed);
 		const load = {
 			requestId,
 			missionId: resolvedMissionId,
@@ -252,13 +298,21 @@ export const POST: RequestHandler = async ({ request }) => {
 			nodes,
 			connections,
 			source: 'prd-bridge',
-			autoRun: autoRun !== false,
+			autoRun: effectiveAutoRun,
 			buildMode,
 			buildModeReason,
-			executionPrompt: parsed.executionPrompt,
+			tier: typeof pendingRequestMeta?.tier === 'string'
+				? pendingRequestMeta.tier
+				: typeof parsed.tier === 'string'
+					? parsed.tier
+					: 'base',
+			executionPrompt: executionText,
 			...(capabilityProposalPacket ? { capabilityProposalPacket } : {}),
 			...(capabilitySummary ? { capabilityProposalSummary: capabilitySummary } : {}),
 			metadata: {
+				...(parsed.metadata && typeof parsed.metadata === 'object' && !Array.isArray(parsed.metadata)
+					? parsed.metadata
+					: {}),
 				...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
 				...(capabilityProposalPacket ? { capabilityProposalPacket } : {}),
 				...(capabilitySummary ? { capabilityProposalSummary: capabilitySummary } : {})
@@ -268,8 +322,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		};
 		const missionControlAccess = resolveMissionControlAccess(missionControlPathForMission(resolvedMissionId));
 
-		await writeFile(pendingLoadFile, JSON.stringify(load, null, 2), 'utf-8');
-		await writeFile(lastLoadFile, JSON.stringify(load, null, 2), 'utf-8');
+		const persistedLoad = storedCanvasLoad(load);
+		await writeFile(pendingLoadFile, JSON.stringify(persistedLoad, null, 2), 'utf-8');
+		await writeFile(lastLoadFile, JSON.stringify(persistedLoad, null, 2), 'utf-8');
 		if (pendingRequestMeta) {
 			await writeFile(
 				pendingRequestFile,
@@ -304,6 +359,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				buildMode,
 				buildModeReason,
 				...(capabilitySummary ? { capabilityProposal: capabilitySummary } : {}),
+				...(parsed.metadata?.taskQuality ? { taskQuality: parsed.metadata.taskQuality } : {}),
 				plannedTasks: parsed.tasks.map((task) => ({
 					title: task.title,
 					skills: task.skills || []
@@ -313,9 +369,16 @@ export const POST: RequestHandler = async ({ request }) => {
 			}
 		});
 
-		const autoDispatchResult = autoRun !== false
+		const autoDispatchResult = effectiveAutoRun
 			? await autoDispatchPrdCanvasLoad(load)
-			: { started: false, skipped: true, reason: 'autoRun disabled', missionId: resolvedMissionId };
+			: {
+					started: false,
+					skipped: true,
+					reason: deterministicStaticResult
+						? 'deterministic static artifacts already written'
+						: 'autoRun disabled',
+					missionId: resolvedMissionId
+				};
 		if (!autoDispatchResult.started && !autoDispatchResult.skipped) {
 			void relayMissionControlEvent({
 				type: 'log',

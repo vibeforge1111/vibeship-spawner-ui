@@ -12,15 +12,15 @@ vi.mock('$lib/server/provider-runtime', () => ({
 	}
 }));
 
-import { POST } from './+server';
+import { GET, POST } from './+server';
 import { providerRuntime } from '$lib/server/provider-runtime';
 
-function routeEvent(body: unknown) {
+function routeEvent(body: unknown, method = 'POST') {
 	return {
 		request: new Request('http://127.0.0.1/api/spark/run', {
-			method: 'POST',
+			method,
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(body)
+			...(method === 'POST' ? { body: JSON.stringify(body) } : {})
 		}),
 		url: new URL('http://127.0.0.1/api/spark/run'),
 		getClientAddress: () => '127.0.0.1'
@@ -41,7 +41,8 @@ describe('/api/spark/run integration', () => {
 		const response = await POST(routeEvent({
 			goal: 'Build a tiny Telegram smoke app.',
 			providers: ['codex'],
-			requestId: 'tg-spark-run-local'
+			requestId: 'tg-spark-run-local',
+			traceRef: 'trace:telegram-run:tg-spark-run-local'
 		}) as never);
 
 		expect(response.status).toBe(200);
@@ -49,6 +50,7 @@ describe('/api/spark/run integration', () => {
 		expect(body).toMatchObject({
 			success: true,
 			requestId: 'tg-spark-run-local',
+			traceRef: 'trace:telegram-run:tg-spark-run-local',
 			providers: ['codex'],
 			missionControlAccess: {
 				mode: 'local-only',
@@ -56,6 +58,22 @@ describe('/api/spark/run integration', () => {
 				mobileReachable: false
 			}
 		});
+	});
+
+	it('exposes a non-dispatching route health probe', async () => {
+		const dispatch = vi.mocked(providerRuntime.dispatch);
+		dispatch.mockClear();
+
+		const response = await GET(routeEvent(null, 'GET') as never);
+
+		expect(response.status).toBe(200);
+		await expect(response.json()).resolves.toMatchObject({
+			ok: true,
+			route: '/api/spark/run',
+			check: 'route-loaded',
+			dispatchesMission: false
+		});
+		expect(dispatch).not.toHaveBeenCalled();
 	});
 
 	it('returns hosted Mission Control access when a mobile URL is configured', async () => {

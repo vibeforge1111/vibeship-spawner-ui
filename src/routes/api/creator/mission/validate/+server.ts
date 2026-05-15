@@ -8,6 +8,7 @@ import {
 } from '$lib/server/creator-mission';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
+import { spawnerStateDir } from '$lib/server/spawner-state';
 
 interface ValidateCreatorMissionBody {
 	missionId?: string;
@@ -90,10 +91,12 @@ function emitValidationFailed(trace: CreatorMissionTrace, error: unknown) {
 
 async function runCreatorMissionValidationWithEvents(
 	input: { missionId?: string; requestId?: string; maxCommands?: number },
-	pendingTrace: CreatorMissionTrace
+	pendingTrace: CreatorMissionTrace,
+	stateDir: string
 ) {
 	const pendingValidationTask = pendingTrace.tasks.find((task) => task.id === 'creator-validation') || pendingTrace.tasks[0];
 	const result = await validateCreatorMission(input, {
+		stateDir,
 		onCommandProgress: (progress) => emitValidationProgress(pendingTrace, pendingValidationTask, progress)
 	});
 	const validationTask = result.trace.tasks.find((task) => task.id === 'creator-validation') || result.trace.tasks[0];
@@ -146,7 +149,8 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		const validationStartedAt = new Date().toISOString();
-		const pendingTrace = await readCreatorMissionTrace({ missionId, requestId });
+		const stateDir = spawnerStateDir();
+		const pendingTrace = await readCreatorMissionTrace({ missionId, requestId }, stateDir);
 		if (!pendingTrace) {
 			return json({ ok: false, error: 'creator mission trace not found' }, { status: 404 });
 		}
@@ -175,9 +179,15 @@ export const POST: RequestHandler = async (event) => {
 			maxCommands: typeof body.maxCommands === 'number' ? body.maxCommands : undefined
 		};
 		if (body.async === true) {
-			void runCreatorMissionValidationWithEvents(validationInput, pendingTrace).catch((error) => {
+			const validationPromise = runCreatorMissionValidationWithEvents(validationInput, pendingTrace, stateDir).catch((error) => {
 				emitValidationFailed(pendingTrace, error);
+				throw error;
 			});
+			if (import.meta.env.MODE === 'test') {
+				await validationPromise;
+			} else {
+				void validationPromise.catch(() => {});
+			}
 			return json({
 				ok: true,
 				accepted: true,
@@ -187,7 +197,7 @@ export const POST: RequestHandler = async (event) => {
 			}, { status: 202 });
 		}
 
-		const result = await runCreatorMissionValidationWithEvents(validationInput, pendingTrace);
+		const result = await runCreatorMissionValidationWithEvents(validationInput, pendingTrace, stateDir);
 		return json({
 			ok: true,
 			missionId: result.trace.mission_id,
