@@ -72,4 +72,20 @@ describe('execution-log-display', () => {
 		const logs = [{ type: 'complete' as const, message: 'Task completed.' }];
 		expect(filterExecutionLogsForDisplay(logs)).toEqual(logs);
 	});
+
+	it('collapses low-signal running rows after a mission is complete', () => {
+		const logs = [
+			{ type: 'progress' as const, message: 'Telegram Golden Path Probe entered To do.' },
+			{ type: 'start' as const, message: 'Dispatch started.' },
+			{ type: 'start' as const, message: 'Execute goal is running.' },
+			{ type: 'progress' as const, message: 'OpenAI Codex is still working through Execute goal.' },
+			{ type: 'start' as const, message: 'Mission started.' },
+			{ type: 'complete' as const, message: 'Mission completed.' }
+		];
+
+		expect(filterExecutionLogsForDisplay(logs).map((log) => log.message)).toEqual([
+			'Telegram Golden Path Probe entered To do.',
+			'Mission completed.'
+		]);
+	});
 });

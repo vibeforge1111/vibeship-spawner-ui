@@ -71,9 +71,18 @@ function isGenericTaskCompletedLog(log: Pick<MissionLog, 'message' | 'type'>): b
 	return log.type === 'complete' && /^Task completed\.?$/i.test(normalizeExecutionLogMessage(log.message));
 }
 
+function isLowSignalTerminalProgressLog(log: Pick<MissionLog, 'message' | 'type'>): boolean {
+	const message = normalizeExecutionLogMessage(log.message);
+	return (
+		/^(Dispatch started|Mission started)\.?$/i.test(message) ||
+		/^.+\bis running\.?$/i.test(message) ||
+		/^OpenAI\s+\w+\s+is still working through\b/i.test(message)
+	);
+}
+
 export function filterExecutionLogsForDisplay<T extends Pick<MissionLog, 'message' | 'type'>>(logs: T[]): T[] {
 	if (!logs.some(isMissionCompletedLog)) return logs;
-	return logs.filter((log) => !isGenericTaskCompletedLog(log));
+	return logs.filter((log) => !isGenericTaskCompletedLog(log) && !isLowSignalTerminalProgressLog(log));
 }
 
 export function formatExecutionLogForDisplay(log: Pick<MissionLog, 'message' | 'type'>): DisplayLog {
