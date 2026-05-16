@@ -56,7 +56,6 @@
 	import { polishMissionTitleForDisplay } from '$lib/services/mission-title';
 	import { browser } from '$app/environment';
 	import { get } from 'svelte/store';
-	import { polishMissionTitleForDisplay } from '$lib/services/mission-title';
 
 	interface Props {
 		onClose: () => void;
