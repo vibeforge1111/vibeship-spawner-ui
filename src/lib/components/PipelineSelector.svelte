@@ -15,6 +15,7 @@
 		type PipelineMetadata,
 		type PipelineData
 	} from '$lib/stores/pipelines.svelte';
+	import { polishMissionTitleForDisplay } from '$lib/services/mission-title';
 	import { get } from 'svelte/store';
 
 	// Events
@@ -212,12 +213,12 @@
 	<button
 		class="flex items-center gap-2 px-2.5 py-1.5 text-sm font-mono bg-bg-tertiary border border-surface-border rounded-md hover:border-text-tertiary transition-all max-w-[200px]"
 		onclick={handleToggle}
-		title={currentActive?.name || 'Select pipeline'}
+		title={currentActive ? polishMissionTitleForDisplay(currentActive.name) : 'Select pipeline'}
 	>
 		<svg class="w-4 h-4 text-accent-primary shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
 		</svg>
-		<span class="truncate text-text-primary">{currentActive?.name || 'No pipeline'}</span>
+		<span class="truncate text-text-primary">{currentActive ? polishMissionTitleForDisplay(currentActive.name) : 'No pipeline'}</span>
 		<svg class="w-3 h-3 text-text-tertiary shrink-0 transition-transform" class:rotate-180={isOpen} fill="none" stroke="currentColor" viewBox="0 0 24 24">
 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
 		</svg>
@@ -264,7 +265,7 @@
 										<svg class="w-4 h-4 shrink-0 {pipeline.id === currentActive?.id ? 'text-accent-primary' : 'text-text-tertiary'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
 										</svg>
-										<span class="text-sm font-mono text-text-primary truncate font-medium">{pipeline.name}</span>
+										<span class="text-sm font-mono text-text-primary truncate font-medium">{polishMissionTitleForDisplay(pipeline.name)}</span>
 										{#if pipeline.id === currentActive?.id}
 											<span class="text-[10px] font-mono px-1.5 py-0.5 bg-accent-primary/20 text-accent-primary rounded">ACTIVE</span>
 										{/if}

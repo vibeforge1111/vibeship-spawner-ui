@@ -53,6 +53,7 @@
 		getStatusColor,
 		getTransitionBadge
 	} from '$lib/services/execution-panel-formatting';
+	import { polishMissionTitleForDisplay } from '$lib/services/mission-title';
 	import { browser } from '$app/environment';
 	import { get } from 'svelte/store';
 
@@ -189,10 +190,10 @@
 	}
 
 	let panelTitle = $derived(
-		executionProgress?.mission?.name ||
+		polishMissionTitleForDisplay(executionProgress?.mission?.name ||
 			missionName ||
 			relay?.goal ||
-			(currentNodes.length > 0 ? 'Canvas workflow' : 'Execution panel')
+			(currentNodes.length > 0 ? 'Canvas workflow' : 'Execution panel'))
 	);
 	let panelSubtitle = $derived(
 		concisePanelSubtitle(executionProgress) ||
