@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -59,8 +59,8 @@ describe('high-agency worker policy', () => {
 		delete process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
 
 		expect(assertHighAgencyWorkerAllowed(project)).toMatchObject({
-			workingDirectory: project,
-			workspaceRoot: root,
+			workingDirectory: join(realpathSync(root), 'project'),
+			workspaceRoot: realpathSync(root),
 			externalProjectPathsAllowed: false
 		});
 	});

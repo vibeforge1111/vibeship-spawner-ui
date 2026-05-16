@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { DatabaseSync } from 'node:sqlite';
 import os from 'os';
