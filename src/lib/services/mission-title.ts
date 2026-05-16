@@ -1,7 +1,19 @@
 const SMALL_WORDS = new Set(['a', 'an', 'and', 'as', 'at', 'by', 'for', 'in', 'of', 'on', 'or', 'the', 'to', 'with']);
+const KNOWN_ACRONYMS = new Map([
+	['api', 'API'],
+	['cli', 'CLI'],
+	['h70', 'H70'],
+	['mcp', 'MCP'],
+	['prd', 'PRD'],
+	['qa', 'QA'],
+	['tg', 'TG'],
+	['ui', 'UI']
+]);
 
 function titleCaseWord(word: string, index: number): string {
 	const lower = word.toLowerCase();
+	const acronym = KNOWN_ACRONYMS.get(lower);
+	if (acronym) return acronym;
 	if (index > 0 && SMALL_WORDS.has(lower)) return lower;
 	if (/[A-Z]/.test(word.slice(1)) || /^[A-Z0-9]{2,}$/.test(word)) return word;
 	return lower.charAt(0).toUpperCase() + lower.slice(1);

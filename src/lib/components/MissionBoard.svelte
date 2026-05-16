@@ -394,6 +394,8 @@
 
 	let searchQuery = $state('');
 	let searchFocused = $state(false);
+	let showAllCompleted = $state(false);
+	const completedPreviewLimit = 12;
 
 	const filteredCards = $derived(() => {
 		const q = searchQuery.trim().toLowerCase();
@@ -412,6 +414,12 @@
 			.filter((c) => c.status === 'completed' || c.status === 'failed' || c.status === 'cancelled')
 			.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
 	);
+	const visibleDone = $derived(
+		searchQuery.trim() || showAllCompleted
+			? done
+			: done.slice(0, completedPreviewLimit)
+	);
+	const hiddenDoneCount = $derived(Math.max(0, done.length - visibleDone.length));
 
 	onMount(() => {
 		initPipelines();
@@ -981,7 +989,7 @@
 				{#each [
 					{ title: 'To do', items: toDo, empty: 'No pending missions' },
 					{ title: 'In progress', items: inProgress, empty: 'Nothing running' },
-					{ title: 'Completed', items: done, empty: 'No history yet' }
+					{ title: 'Completed', items: visibleDone, count: done.length, empty: 'No history yet' }
 				] as col}
 					<section class="flex flex-col min-h-[320px]">
 						<div class="sticky top-0 z-10 flex items-center justify-between gap-2 px-1 py-4 mb-1 bg-bg-primary/90 backdrop-blur-sm border-b border-surface-border">
@@ -989,7 +997,7 @@
 								<span class="w-2 h-2 rounded-full {columnDot(col.title)}"></span>
 								<span class="font-mono text-xs font-semibold text-text-bright tracking-widest uppercase">{col.title}</span>
 							</div>
-							<span class="font-mono text-sm text-text-tertiary tabular-nums">{col.items.length}</span>
+							<span class="font-mono text-sm text-text-tertiary tabular-nums">{col.count ?? col.items.length}</span>
 						</div>
 
 						<div class="flex-1 space-y-3">
@@ -1158,6 +1166,27 @@
 									<p class="font-mono text-[11px] text-text-faint">{col.empty}</p>
 								</div>
 							{/each}
+							{#if col.title === 'Completed' && hiddenDoneCount > 0}
+								<div class="rounded-lg border border-dashed border-surface-border/80 bg-bg-secondary/35 px-4 py-3 text-center">
+									<p class="font-mono text-[11px] leading-relaxed text-text-tertiary">
+										Showing latest {visibleDone.length} of {done.length}. Use search or open a mission for older details.
+									</p>
+									<button
+										class="mt-2 inline-flex items-center justify-center rounded-sm border border-surface-border px-2.5 py-1 font-mono text-[10px] text-text-secondary transition-all hover:border-accent-primary/50 hover:text-accent-primary"
+										onclick={() => showAllCompleted = true}
+									>
+										Show all completed
+									</button>
+								</div>
+							{/if}
+							{#if col.title === 'Completed' && showAllCompleted && !searchQuery.trim() && done.length > completedPreviewLimit}
+								<button
+									class="w-full rounded-lg border border-surface-border/70 bg-bg-secondary/35 px-4 py-2 font-mono text-[10px] text-text-secondary transition-all hover:border-accent-primary/50 hover:text-accent-primary"
+									onclick={() => showAllCompleted = false}
+								>
+									Show recent only
+								</button>
+							{/if}
 						</div>
 					</section>
 				{/each}

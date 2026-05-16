@@ -19,5 +19,6 @@ describe('polishMissionTitleForDisplay', () => {
 	it('preserves acronyms and useful existing capitalization', () => {
 		expect(polishMissionTitleForDisplay('Spark Thread QA')).toBe('Spark Thread QA');
 		expect(polishMissionTitleForDisplay('PRD link routing UI')).toBe('PRD Link Routing UI');
+		expect(polishMissionTitleForDisplay('spawner ui tg prd bridge')).toBe('Spawner UI TG PRD Bridge');
 	});
 });
