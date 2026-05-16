@@ -12,13 +12,15 @@
 	interface Props {
 		logs: MissionLog[];
 		isRunning: boolean;
+		historyMode?: boolean;
+		historyLoading?: boolean;
 		status?: ExecutionStatus;
 		transitions?: TaskTransitionEvent[];
 		formatTime?: (timestamp: string | Date) => string;
 		getTransitionBadge?: (state: TaskTransitionEvent['state']) => string;
 	}
 
-	let { logs, isRunning, status }: Props = $props();
+	let { logs, isRunning, historyMode = false, historyLoading = false, status }: Props = $props();
 	let logsContainer = $state<HTMLDivElement | undefined>(undefined);
 	let displayLogs = $derived(filterExecutionLogsForDisplay(logs));
 
@@ -104,6 +106,12 @@
 						<div class="w-2 h-2 bg-vibe-teal animate-pulse"></div>
 						<span>{status === 'creating' ? 'Creating mission...' : 'Starting execution...'}</span>
 					</div>
+				{:else if historyMode}
+					<svg class="w-8 h-8 mb-2 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16m-7 6h7" />
+					</svg>
+					<p class="text-sm">{historyLoading ? 'Loading mission history...' : 'No execution history found yet'}</p>
+					<p class="text-xs text-text-muted mt-1">Mission logs will appear here</p>
 				{:else}
 					<svg class="w-8 h-8 mb-2 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16m-7 6h7" />

@@ -10,6 +10,7 @@
 		canPause: boolean;
 		canResume: boolean;
 		canRun: boolean;
+		historyMode?: boolean;
 		currentNodeCount: number;
 		formatTime: (timestamp: string | Date) => string;
 		onCancel: () => void;
@@ -28,6 +29,7 @@
 		canPause,
 		canResume,
 		canRun,
+		historyMode = false,
 		currentNodeCount,
 		formatTime,
 		onCancel,
@@ -84,7 +86,7 @@
 			</button>
 		{/if}
 
-		{#if !isTerminal}
+		{#if !isTerminal && !historyMode}
 			<button
 				onclick={onRun}
 				disabled={!canRun}

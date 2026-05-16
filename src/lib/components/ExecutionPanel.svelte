@@ -56,6 +56,7 @@
 	import { polishMissionTitleForDisplay } from '$lib/services/mission-title';
 	import { browser } from '$app/environment';
 	import { get } from 'svelte/store';
+	import { polishMissionTitleForDisplay } from '$lib/services/mission-title';
 
 	interface Props {
 		onClose: () => void;
@@ -158,6 +159,7 @@
 	let lastHydratedMissionId = $state<string | null>(null);
 	let hydrationInFlightMissionId = $state<string | null>(null);
 	let projectLineage = $state<MissionControlBoardEntry['projectLineage'] | null>(null);
+	let missionHistoryLoading = $state(false);
 	let autoRunRetryTimer: ReturnType<typeof setTimeout> | null = null;
 	let durationTick = $state(Date.now());
 
@@ -172,8 +174,9 @@
 	let canPause = $derived(executionProgress?.status === 'running');
 	let canResume = $derived(executionProgress?.status === 'paused');
 	let canCancel = $derived(isRunning || isPaused);
+	let isMissionHistoryMode = $derived(Boolean(relay?.missionId));
 	// Note: MCP not required anymore - we build missions locally and run directly by default (copy prompt is fallback)
-	let canRun = $derived(!isRunning && !isPaused && !isTerminal && currentNodes.length > 0);
+	let canRun = $derived(!isMissionHistoryMode && !isRunning && !isPaused && !isTerminal && currentNodes.length > 0);
 
 	function concisePanelSubtitle(progress: ExecutionProgress | null): string | null {
 		if (!progress) return null;
@@ -347,6 +350,7 @@
 		) return;
 
 		hydrationInFlightMissionId = missionId;
+		missionHistoryLoading = true;
 		try {
 			const [statusResponse, boardEntry] = await Promise.all([
 				fetch(`/api/mission-control/status?missionId=${encodeURIComponent(missionId)}`),
@@ -384,6 +388,7 @@
 			if (hydrationInFlightMissionId === missionId) {
 				hydrationInFlightMissionId = null;
 			}
+			missionHistoryLoading = false;
 		}
 	}
 
@@ -1417,6 +1422,8 @@
 		<ExecutionLogList
 			{logs}
 			{isRunning}
+			historyMode={isMissionHistoryMode}
+			historyLoading={missionHistoryLoading && !executionProgress}
 			status={executionProgress?.status}
 			transitions={recentTaskTransitions}
 			{formatTime}
@@ -1475,6 +1482,7 @@
 			{canPause}
 			{canResume}
 			{canRun}
+			historyMode={isMissionHistoryMode}
 			currentNodeCount={currentNodes.length}
 			{formatTime}
 			onCancel={handleCancel}
