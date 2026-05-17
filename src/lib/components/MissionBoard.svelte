@@ -19,6 +19,7 @@
 		getMissionBoardCardActionLinks,
 		getMissionBoardWorkBreakdown,
 		mergeMissionBoardCards,
+		summarizeCompletionEvidenceForBoard,
 		type MissionBoardCard as BoardCard
 	} from '$lib/services/mission-board-cards';
 	import {
@@ -519,11 +520,7 @@
 	}
 
 	function completionEvidenceLabel(card: BoardCard): string | null {
-		const evidence = card.completionEvidence;
-		if (!evidence || evidence.state === 'not_terminal') return null;
-		if (evidence.state === 'complete') return 'Evidence complete';
-		if (evidence.missing.length === 0) return 'Evidence incomplete';
-		return `Missing ${evidence.missing.slice(0, 3).join(', ')}`;
+		return summarizeCompletionEvidenceForBoard(card.completionEvidence);
 	}
 
 	function completionEvidenceClass(card: BoardCard): string {
