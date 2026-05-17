@@ -1,4 +1,4 @@
-import type { CanvasNode } from '$lib/stores/canvas.svelte';
+import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import type { MissionControlBoardEntry, MissionControlTaskStatus } from '$lib/types/mission-control';
 
 type CanvasNodeStatus = CanvasNode['status'];
@@ -14,6 +14,13 @@ export interface CanvasMissionBoardLookup {
 	missionId?: string | null;
 	pipelineId?: string | null;
 	pipelineName?: string | null;
+}
+
+export interface CanvasMissionHistoryCanvas {
+	nodes: CanvasNode[];
+	connections: Connection[];
+	zoom: number;
+	pan: { x: number; y: number };
 }
 
 function normalizeLabel(value: string | null | undefined): string {
@@ -116,4 +123,92 @@ export function buildCanvasMissionStatusUpdates(
 	}
 
 	return updates;
+}
+
+function compactNodeId(value: string): string {
+	return (
+		value
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-+|-+$/g, '')
+			.slice(0, 48) || 'task'
+	);
+}
+
+function missionHistoryNode(
+	missionId: string,
+	title: string,
+	index: number,
+	status?: MissionControlTaskStatus,
+	description = 'Mission Control task'
+): CanvasNode {
+	return {
+		id: `mission-history-${compactNodeId(missionId)}-${index + 1}`,
+		skillId: `mission-task-${index + 1}`,
+		skill: {
+			id: `mission-task-${index + 1}`,
+			name: title,
+			description,
+			category: 'development',
+			tier: 'free',
+			tags: [],
+			triggers: []
+		},
+		position: {
+			x: 120 + index * 280,
+			y: 160 + (index % 2) * 72
+		},
+		status: canvasStatusForMissionControlTask(status)
+	};
+}
+
+export function buildCanvasMissionHistoryCanvas(entry: MissionControlBoardEntry): CanvasMissionHistoryCanvas {
+	const fallbackStatus: MissionControlTaskStatus = entry.status === 'completed' ? 'completed' : 'queued';
+	const taskRows: { title: string; skills: string[]; status?: MissionControlTaskStatus }[] = entry.tasks?.length
+		? entry.tasks
+		: (entry.taskNames?.length ? entry.taskNames : [entry.taskName || entry.missionName || 'Mission'])
+				.filter((title): title is string => Boolean(title))
+				.map((title) => ({ title, skills: [], status: fallbackStatus }));
+
+	const nodes = taskRows.map((task, index) =>
+		missionHistoryNode(
+			entry.missionId,
+			task.title || `Task ${index + 1}`,
+			index,
+			task.status,
+			entry.missionName ? `${entry.missionName} mission task` : 'Mission Control task'
+		)
+	);
+
+	const connections = nodes.slice(1).map((node, index) => ({
+		id: `mission-history-conn-${compactNodeId(entry.missionId)}-${index + 1}`,
+		sourceNodeId: nodes[index].id,
+		sourcePortId: 'output',
+		targetNodeId: node.id,
+		targetPortId: 'input'
+	}));
+
+	return {
+		nodes,
+		connections,
+		zoom: 1,
+		pan: { x: 0, y: 0 }
+	};
+}
+
+export function buildCanvasMissionHistoryPlaceholder(missionId: string): CanvasMissionHistoryCanvas {
+	return {
+		nodes: [
+			missionHistoryNode(
+				missionId,
+				'Loading Mission Control history',
+				0,
+				'queued',
+				`Waiting for Mission Control data for ${missionId}`
+			)
+		],
+		connections: [],
+		zoom: 1,
+		pan: { x: 0, y: 0 }
+	};
 }

@@ -28,6 +28,8 @@ import { get } from 'svelte/store';
 	import { getLatestPipelineLoad, getPendingLoad, type PendingPipelineLoad } from '$lib/services/pipeline-loader';
 	import { getCanvasExecutionAction } from '$lib/services/canvas-execution-action';
 	import {
+		buildCanvasMissionHistoryCanvas,
+		buildCanvasMissionHistoryPlaceholder,
 		buildCanvasMissionStatusUpdates,
 		findMissionControlBoardEntryForCanvas
 	} from '$lib/services/canvas-mission-status';
@@ -573,6 +575,24 @@ import { get } from 'svelte/store';
 			return true;
 		}
 
+		function holdRequestedMissionWhileWaiting(missionId: string, suppressExec: boolean): boolean {
+			const pipelineId = `mission-history-${missionId}`;
+			ensurePipeline(pipelineId, `Mission ${missionId}`);
+			const missionCanvas = buildCanvasMissionHistoryPlaceholder(missionId);
+			loadPipelineToCanvas(missionCanvas);
+			saveCurrentPipeline(missionCanvas);
+			lastSaved = new Date();
+			sparkPipelineActive = false;
+			executionRelay = { missionId, autoRun: false };
+			if (!suppressExec) {
+				executionPanelKey = `${pipelineId}:${missionId}:history`;
+				showExecution = true;
+				executionMinimized = false;
+			}
+			logger.info('[Canvas] Holding mission-scoped canvas while waiting for Mission Control:', missionId);
+			return true;
+		}
+
 		async function consumePendingLoadFromQueue(requestedPipelineId: string | null = null): Promise<boolean> {
 			const pendingLoad = await getPendingLoad(requestedPipelineId);
 			if (disposed || !pendingLoad) return false;
@@ -584,6 +604,33 @@ import { get } from 'svelte/store';
 			if (disposed || !latestLoad || !shouldAutoApplyLatestLoad(latestLoad, requestedPipelineId)) return false;
 			logger.info('[Canvas] Syncing latest Spark pipeline load:', latestLoad.pipelineName);
 			return applyPipelineLoad(latestLoad, 'latest-sync');
+		}
+
+		async function loadMissionOnlyCanvasFromBoard(missionId: string | null, suppressExec: boolean): Promise<boolean> {
+			if (!missionId) return false;
+			const response = await fetch('/api/mission-control/board');
+			if (!response.ok) return false;
+
+			const data = await response.json();
+			const board = data?.board as Record<string, MissionControlBoardEntry[]> | undefined;
+			const boardEntry = findMissionControlBoardEntryForCanvas(board, { missionId });
+			if (!boardEntry) return false;
+
+			const pipelineId = `mission-history-${missionId}`;
+			ensurePipeline(pipelineId, boardEntry.missionName || missionId);
+			const missionCanvas = buildCanvasMissionHistoryCanvas(boardEntry);
+			loadPipelineToCanvas(missionCanvas);
+			saveCurrentPipeline(missionCanvas);
+			lastSaved = new Date();
+			sparkPipelineActive = false;
+			executionRelay = { missionId, autoRun: false };
+			if (!suppressExec) {
+				executionPanelKey = `${pipelineId}:${missionId}:history`;
+				showExecution = true;
+				executionMinimized = false;
+			}
+			logger.info('[Canvas] Loaded mission-only canvas from Mission Control:', missionId);
+			return true;
 		}
 
 		void (async () => {
@@ -599,7 +646,12 @@ import { get } from 'svelte/store';
 		const url = new URL(window.location.href);
 		const suppressExec = url.searchParams.get('noexec') === '1';
 		const requestedPipelineId = url.searchParams.get('pipeline')?.trim() || null;
+		const requestedMissionId = url.searchParams.get('mission')?.trim() || null;
 		const loadedExplicitPipeline = loadExplicitPipelineFromUrl(url);
+		const loadedMissionOnlyCanvas =
+			!loadedExplicitPipeline && !requestedPipelineId
+				? await loadMissionOnlyCanvasFromBoard(requestedMissionId, suppressExec)
+				: false;
 		const hasResumable = hasResumableMission();
 		logger.info('[Canvas] hasResumableMission:', hasResumable);
 		if (hasResumable && !suppressExec) {
@@ -613,10 +665,13 @@ import { get } from 'svelte/store';
 		// Priority: 1. Pending load (from PRD/goal) → 2. Active pipeline
 		// =====================================================================
 
-		const consumedPendingLoad = loadedExplicitPipeline ? false : await consumePendingLoadFromQueue(requestedPipelineId);
+		const consumedPendingLoad =
+			loadedExplicitPipeline || loadedMissionOnlyCanvas
+				? false
+				: await consumePendingLoadFromQueue(requestedPipelineId);
 		if (disposed) return;
 
-		if (!loadedExplicitPipeline && !consumedPendingLoad) {
+		if (!loadedExplicitPipeline && !loadedMissionOnlyCanvas && !consumedPendingLoad) {
 			// NO PENDING LOAD: Load active pipeline from localStorage
 			const latestSynced = await syncLatestSparkLoad(requestedPipelineId);
 			if (disposed) return;
@@ -629,6 +684,10 @@ import { get } from 'svelte/store';
 				// pending. Hold the requested pipeline id and keep polling for its
 				// matching load instead.
 				holdRequestedPipelineWhileWaiting(requestedPipelineId);
+			} else if (requestedMissionId) {
+				// A mission-scoped history link must never fall back to the
+				// locally active canvas. Hold a mission placeholder instead.
+				holdRequestedMissionWhileWaiting(requestedMissionId, suppressExec);
 			} else {
 				const pipelineData = getActivePipelineData();
 				if (pipelineData && pipelineData.nodes?.length > 0) {
