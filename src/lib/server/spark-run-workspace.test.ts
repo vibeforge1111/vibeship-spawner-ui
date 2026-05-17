@@ -1,6 +1,6 @@
-import { existsSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { existsSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { isAbsolute, join } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { resolveSparkRunProjectPath, SparkRunWorkspaceError } from './spark-run-workspace';
 
@@ -9,6 +9,10 @@ const originalSpawnerWorkspaceRoot = process.env.SPAWNER_WORKSPACE_ROOT;
 const originalSparkHome = process.env.SPARK_HOME;
 const originalAllowExternalProjectPaths = process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
 const cleanupPaths: string[] = [];
+
+function expectedContainedPath(root: string, ...segments: string[]): string {
+	return join(realpathSync(root), ...segments);
+}
 
 afterEach(() => {
 	process.env.SPARK_WORKSPACE_ROOT = originalSparkWorkspaceRoot;
@@ -29,7 +33,7 @@ describe('resolveSparkRunProjectPath', () => {
 
 		const resolved = resolveSparkRunProjectPath();
 
-		expect(resolved).toBe(join(root, 'default'));
+		expect(resolved).toBe(expectedContainedPath(root, 'default'));
 		expect(existsSync(resolved)).toBe(true);
 		expect(resolved).not.toContain('C:/Users/USER/Desktop');
 	});
@@ -43,7 +47,7 @@ describe('resolveSparkRunProjectPath', () => {
 
 		const resolved = resolveSparkRunProjectPath();
 
-		expect(resolved).toBe(join(sparkHome, 'workspaces', 'default'));
+		expect(resolved).toBe(expectedContainedPath(sparkHome, 'workspaces', 'default'));
 		expect(existsSync(resolved)).toBe(true);
 	});
 
@@ -55,7 +59,7 @@ describe('resolveSparkRunProjectPath', () => {
 
 		const resolved = resolveSparkRunProjectPath(target);
 
-		expect(resolved).toBe(target);
+		expect(resolved).toBe(expectedContainedPath(root, 'project'));
 		expect(isAbsolute(resolved)).toBe(true);
 		expect(existsSync(resolved)).toBe(true);
 	});
@@ -67,7 +71,7 @@ describe('resolveSparkRunProjectPath', () => {
 
 		const resolved = resolveSparkRunProjectPath('telegram-project');
 
-		expect(resolved).toBe(join(root, 'telegram-project'));
+		expect(resolved).toBe(expectedContainedPath(root, 'telegram-project'));
 		expect(existsSync(resolved)).toBe(true);
 	});
 
@@ -107,7 +111,7 @@ describe('resolveSparkRunProjectPath', () => {
 
 		const resolved = resolveSparkRunProjectPath(target);
 
-		expect(resolved).toBe(target);
+		expect(resolved).toBe(resolve(target));
 		expect(existsSync(resolved)).toBe(true);
 	});
 });

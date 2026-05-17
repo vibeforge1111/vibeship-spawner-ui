@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -29,13 +29,14 @@ describe('prepareProviderWorkingDirectory', () => {
 
 	it('creates a missing new-project workspace before provider spawn', () => {
 		const root = mkdtempSync(join(tmpdir(), 'spark-provider-workspace-'));
-		const dir = join(root, `new-project-${Date.now()}`);
+		const projectName = `new-project-${Date.now()}`;
+		const dir = join(root, projectName);
 		createdDirs.push(root);
 		process.env.SPARK_WORKSPACE_ROOT = root;
 		delete process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
 
 		expect(existsSync(dir)).toBe(false);
-		expect(prepareProviderWorkingDirectory(dir)).toBe(dir);
+		expect(prepareProviderWorkingDirectory(dir)).toBe(join(realpathSync(root), projectName));
 		expect(existsSync(dir)).toBe(true);
 	});
 

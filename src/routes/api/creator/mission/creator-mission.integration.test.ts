@@ -118,6 +118,30 @@ describe('/api/creator/mission', () => {
 	});
 
 	it('marks no-run creator mission requests as read-only', async () => {
+		const { setCreatorPlanRunnerForTests } = await import('$lib/server/creator-mission');
+		setCreatorPlanRunnerForTests(async () => ({
+			schema_version: 'spark-creator-intent.v1',
+			user_goal: 'Create Startup YC specialization path',
+			target_domain: 'startup-yc',
+			target_operator_surface: 'telegram+builder+swarm',
+			expected_agent_capability: 'Improve Spark startup-yc capability.',
+			success_examples: ['Held-out score improves.'],
+			failure_examples: ['Formatting-only score movement.'],
+			tools_in_scope: ['spark_telegram_bot', 'spark_swarm'],
+			data_sources_allowed: ['local_repo', 'spark_swarm'],
+			risk_level: 'medium',
+			privacy_mode: 'swarm_shared',
+			desired_outputs: {
+				domain_chip: true,
+				specialization_path: true,
+				benchmark_pack: true,
+				autoloop_policy: true,
+				telegram_flow: true,
+				spawner_mission: false,
+				swarm_publish_packet: true
+			}
+		}));
+
 		const response = await POST(event('http://127.0.0.1/api/creator/mission', {
 			brief: 'Create Startup YC specialization path, but stage only. Do not run.',
 			missionId: 'mission-creator-stage-only-route',
