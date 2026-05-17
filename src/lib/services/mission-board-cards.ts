@@ -4,6 +4,7 @@ import type {
 	MissionControlTaskStatus,
 	MissionControlTaskStatusCounts
 } from '$lib/types/mission-control';
+import { summarizeCompletionEvidenceForDisplay } from './completion-evidence-display';
 import { isPreparationTaskTitle } from './execution-task-rows';
 
 export type MissionBoardCardStatus = 'draft' | 'ready' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
@@ -199,15 +200,7 @@ export function collapseRepeatedTerminalMissionCards(cards: MissionBoardCard[]):
 	return collapsed;
 }
 
-export function summarizeCompletionEvidenceForBoard(
-	evidence: MissionControlCompletionEvidence | undefined
-): string | null {
-	if (!evidence || evidence.state === 'not_terminal') return null;
-	if (evidence.state === 'complete') return 'Evidence complete';
-	if (evidence.missing.length === 0) return 'Evidence incomplete';
-	const count = evidence.missing.length;
-	return `Missing ${count} completion ${count === 1 ? 'signal' : 'signals'}`;
-}
+export const summarizeCompletionEvidenceForBoard = summarizeCompletionEvidenceForDisplay;
 
 function emptyCounts(): MissionControlTaskStatusCounts {
 	return { queued: 0, running: 0, completed: 0, failed: 0, cancelled: 0, total: 0 };

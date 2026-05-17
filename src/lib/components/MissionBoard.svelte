@@ -11,6 +11,7 @@
 	import { initPipelines, pipelines } from '$lib/stores/pipelines.svelte';
 	import type { Mission } from '$lib/services/mcp-client';
 	import type { PipelineMetadata } from '$lib/stores/pipelines.svelte';
+	import { completionEvidenceTooltipForDisplay } from '$lib/services/completion-evidence-display';
 	import {
 		canRunCreatorMissionBoardCard,
 		canValidateCreatorMissionBoardCard,
@@ -523,6 +524,10 @@
 		return summarizeCompletionEvidenceForBoard(card.completionEvidence);
 	}
 
+	function completionEvidenceTitle(card: BoardCard): string | null {
+		return completionEvidenceTooltipForDisplay(card.completionEvidence);
+	}
+
 	function completionEvidenceClass(card: BoardCard): string {
 		const state = card.completionEvidence?.state;
 		if (state === 'complete') return 'border-status-success/35 bg-status-success/10 text-status-success';
@@ -1021,7 +1026,7 @@
 										{/if}
 
 										{#if evidence && c.completionEvidence?.state !== 'complete'}
-											<p class="mb-2.5 inline-flex max-w-full items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[10px] {completionEvidenceClass(c)}" title={c.completionEvidence?.summary}>
+											<p class="mb-2.5 inline-flex max-w-full items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[10px] {completionEvidenceClass(c)}" title={completionEvidenceTitle(c)}>
 												<Icon name="alert-triangle" size={11} />
 												<span class="truncate">{evidence}</span>
 											</p>
