@@ -2,6 +2,7 @@
 	import type { MissionLog } from '$lib/services/mcp-client';
 	import type { ExecutionStatus, TaskTransitionEvent } from '$lib/services/mission-executor';
 	import {
+		filterExecutionLogsForDisplay,
 		formatExecutionLogForDisplay,
 		type DisplayLog
 	} from '$lib/services/execution-log-display';
@@ -19,6 +20,7 @@
 
 	let { logs, isRunning, status }: Props = $props();
 	let logsContainer = $state<HTMLDivElement | undefined>(undefined);
+	let displayLogs = $derived(filterExecutionLogsForDisplay(logs));
 
 	function formatTime(dateStr: string | Date): string {
 		const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
@@ -26,7 +28,7 @@
 	}
 
 	function copyAllLogs(): void {
-		const logText = logs.map((log) => `${formatTime(log.created_at)}  ${formatExecutionLogForDisplay(log).message}`).join('\n');
+		const logText = displayLogs.map((log) => `${formatTime(log.created_at)}  ${formatExecutionLogForDisplay(log).message}`).join('\n');
 		navigator.clipboard.writeText(logText);
 		toasts.success('Logs copied to clipboard');
 	}
@@ -66,7 +68,7 @@
 	}
 
 	$effect(() => {
-		if (logs.length > 0 && logsContainer) {
+		if (displayLogs.length > 0 && logsContainer) {
 			logsContainer.scrollTop = logsContainer.scrollHeight;
 		}
 	});
@@ -79,11 +81,11 @@
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
 			</svg>
 			<span class="text-xs font-mono text-text-secondary uppercase tracking-[0.14em]">Execution Log</span>
-			{#if logs.length > 0}
-				<span class="rounded-md border border-surface-border bg-bg-primary px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-text-tertiary">{logs.length}</span>
+			{#if displayLogs.length > 0}
+				<span class="rounded-md border border-surface-border bg-bg-primary px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-text-tertiary">{displayLogs.length}</span>
 			{/if}
 		</div>
-		{#if logs.length > 0}
+		{#if displayLogs.length > 0}
 			<button
 				onclick={copyAllLogs}
 				class="inline-flex items-center gap-1.5 rounded-md border border-surface-border bg-bg-primary px-2.5 py-1.5 text-xs font-medium text-text-tertiary transition-all hover:border-vibe-teal/50 hover:text-text-secondary"
@@ -95,7 +97,7 @@
 	</div>
 
 	<div bind:this={logsContainer} class="max-h-72 min-h-36 overflow-y-auto bg-bg-primary px-3 py-3 text-sm select-text">
-		{#if logs.length === 0}
+		{#if displayLogs.length === 0}
 			<div class="flex flex-col items-center justify-center h-full py-8 text-text-tertiary">
 				{#if isRunning}
 					<div class="flex items-center gap-2">
@@ -112,7 +114,7 @@
 			</div>
 		{:else}
 			<div class="space-y-1.5">
-				{#each logs as log}
+				{#each displayLogs as log}
 					{@const display = formatExecutionLogForDisplay(log)}
 					<div class="group grid cursor-text grid-cols-[74px_8px_minmax(0,1fr)_28px] items-start gap-3 rounded-md border px-2.5 py-2.5 text-text-secondary transition-colors {getLogRowClass(display)}">
 						<span class="select-text pt-0.5 font-mono text-[11px] tabular-nums leading-5 text-text-tertiary">

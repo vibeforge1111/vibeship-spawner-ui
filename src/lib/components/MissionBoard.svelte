@@ -24,6 +24,7 @@
 		type MissionImprovementDraft,
 		type MissionImprovementSource
 	} from '$lib/services/mission-improvement';
+	import { polishMissionTitleForDisplay } from '$lib/services/mission-title';
 
 	type Tab = 'board' | 'scheduled';
 	let activeTab = $state<Tab>('board');
@@ -306,7 +307,7 @@
 		});
 		return {
 			id: m.id,
-			name: m.name || 'Untitled mission',
+			name: polishMissionTitleForDisplay(m.name || 'Untitled mission'),
 			status: m.status,
 			mode: m.mode,
 			source: 'mcp',
@@ -328,7 +329,8 @@
 	}
 
 	function relayToCard(e: RelayEntry): BoardCard {
-		const name = e.missionName ?? e.taskName ?? e.missionId;
+		const rawName = e.missionName ?? e.taskName ?? e.missionId;
+		const name = polishMissionTitleForDisplay(rawName);
 		const status = relayStatusToCard(e.status);
 		const showSummary = status === 'completed' || status === 'failed' || status === 'cancelled';
 		const taskCount = e.taskCount ?? 0;
@@ -356,7 +358,7 @@
 			providerResults: e.providerResults,
 			completionEvidence: e.completionEvidence,
 			projectLineage: e.projectLineage ?? null,
-			canvasHref: canvasHrefForMission(e.missionId, name),
+			canvasHref: canvasHrefForMission(e.missionId, rawName),
 			detailHref: `/missions/${encodeURIComponent(e.missionId)}`
 		};
 	}
@@ -1008,7 +1010,7 @@
 											<div class="min-w-0 flex-1">
 												<h3 class="flex items-start gap-2 font-sans text-[15px] font-semibold leading-snug text-text-primary transition-colors group-hover:text-accent-primary">
 													<span class="mt-1.5 h-2 w-2 shrink-0 rounded-full {statusDot(c.status)}"></span>
-													<span class="line-clamp-2">{c.name}</span>
+													<span class="line-clamp-2">{polishMissionTitleForDisplay(c.name)}</span>
 												</h3>
 												<p class="mt-1.5 flex items-center gap-1.5 font-mono text-[10px] leading-tight text-text-tertiary">
 													<Icon name="clock" size={11} class="text-text-tertiary" />

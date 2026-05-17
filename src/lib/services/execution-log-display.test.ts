@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	filterExecutionLogsForDisplay,
 	formatExecutionLogForDisplay,
 	humanizeTaskId,
 	normalizeExecutionLogMessage
@@ -52,5 +53,23 @@ describe('execution-log-display', () => {
 			tone: 'error',
 			label: 'Needs attention'
 		});
+	});
+
+	it('hides generic task completion when mission completion is already present', () => {
+		const logs = [
+			{ type: 'complete' as const, message: 'Verify the playable loop is done.' },
+			{ type: 'complete' as const, message: 'Mission completed.' },
+			{ type: 'complete' as const, message: 'Task completed.' }
+		];
+
+		expect(filterExecutionLogsForDisplay(logs).map((log) => log.message)).toEqual([
+			'Verify the playable loop is done.',
+			'Mission completed.'
+		]);
+	});
+
+	it('keeps generic task completion before the mission is terminal', () => {
+		const logs = [{ type: 'complete' as const, message: 'Task completed.' }];
+		expect(filterExecutionLogsForDisplay(logs)).toEqual(logs);
 	});
 });

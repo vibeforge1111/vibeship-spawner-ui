@@ -1,4 +1,5 @@
 import type { MissionControlProjectLineage } from '$lib/types/mission-control';
+import { polishMissionTitleForDisplay } from './mission-title';
 
 export type MissionControlEntry = {
 	eventType: string;
@@ -83,6 +84,13 @@ export function sparkStatusFromMissionControlEvent(eventType: string): string {
 	return eventType.startsWith('mission_') ? eventType.replace('mission_', '') : 'in progress';
 }
 
+function terminalSparkStatusFromEvents(eventsDesc: MissionControlEntry[]): string | null {
+	const terminal = eventsDesc.find((event) =>
+		['mission_completed', 'mission_failed', 'mission_cancelled'].includes(event.eventType)
+	);
+	return terminal ? sparkStatusFromMissionControlEvent(terminal.eventType) : null;
+}
+
 export function buildSparkMissionDetail(
 	missionId: string,
 	recentDesc: MissionControlEntry[]
@@ -96,10 +104,10 @@ export function buildSparkMissionDetail(
 		chronological,
 		latest,
 		earliest,
-		sparkName: chronological.find((event) => event.missionName)?.missionName ?? missionId,
+		sparkName: polishMissionTitleForDisplay(chronological.find((event) => event.missionName)?.missionName ?? missionId),
 		taskRollups: buildMissionDetailTaskRollups(chronological),
 		missionEvents: chronological.filter((event) => event.eventType.startsWith('mission_')),
 		projectLineage: recentDesc.find((event) => event.projectLineage)?.projectLineage ?? null,
-		sparkStatus: sparkStatusFromMissionControlEvent(latest.eventType)
+		sparkStatus: terminalSparkStatusFromEvents(recentDesc) ?? sparkStatusFromMissionControlEvent(latest.eventType)
 	};
 }

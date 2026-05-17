@@ -11,6 +11,7 @@
 		summarizeTaskRows,
 		type TaskStatusRow
 	} from '$lib/services/execution-task-rows';
+	import { polishMissionTitleForDisplay } from '$lib/services/mission-title';
 
 	interface Props {
 		executionProgress: ExecutionProgress;
@@ -88,7 +89,7 @@
 			tone: 'text-status-error'
 		}
 	]);
-	let missionTitle = $derived(executionProgress.mission?.name || 'Canvas execution');
+	let missionTitle = $derived(polishMissionTitleForDisplay(executionProgress.mission?.name || 'Canvas execution'));
 
 	function conciseTaskLabel(progress: ExecutionProgress): string {
 		if (progress.currentTaskName) return progress.currentTaskName;

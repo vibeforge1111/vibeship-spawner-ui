@@ -128,6 +128,32 @@ describe('mission detail view model', () => {
 		expect(detail?.taskRollups).toHaveLength(1);
 	});
 
+	it('keeps terminal mission status when later non-terminal relay events arrive', () => {
+		const detail = buildSparkMissionDetail('mission-1', [
+			event({
+				eventType: 'provider_feedback',
+				taskId: null,
+				taskName: null,
+				summary: 'Completion evidence present',
+				timestamp: '2026-04-29T10:06:00.000Z'
+			}),
+			event({
+				eventType: 'mission_completed',
+				summary: 'Mission completed',
+				timestamp: '2026-04-29T10:05:00.000Z'
+			}),
+			event({
+				eventType: 'task_completed',
+				taskId: 'task-1',
+				taskName: 'Create shell',
+				summary: 'Done',
+				timestamp: '2026-04-29T10:04:00.000Z'
+			})
+		]);
+
+		expect(detail?.sparkStatus).toBe('completed');
+	});
+
 	it('returns null for empty relay history', () => {
 		expect(buildSparkMissionDetail('mission-empty', [])).toBeNull();
 	});

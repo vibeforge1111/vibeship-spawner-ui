@@ -63,6 +63,19 @@ export function normalizeExecutionLogMessage(message: string): string {
 	return clean;
 }
 
+function isMissionCompletedLog(log: Pick<MissionLog, 'message' | 'type'>): boolean {
+	return log.type === 'complete' && /^Mission completed\.?$/i.test(normalizeExecutionLogMessage(log.message));
+}
+
+function isGenericTaskCompletedLog(log: Pick<MissionLog, 'message' | 'type'>): boolean {
+	return log.type === 'complete' && /^Task completed\.?$/i.test(normalizeExecutionLogMessage(log.message));
+}
+
+export function filterExecutionLogsForDisplay<T extends Pick<MissionLog, 'message' | 'type'>>(logs: T[]): T[] {
+	if (!logs.some(isMissionCompletedLog)) return logs;
+	return logs.filter((log) => !isGenericTaskCompletedLog(log));
+}
+
 export function formatExecutionLogForDisplay(log: Pick<MissionLog, 'message' | 'type'>): DisplayLog {
 	const message = normalizeExecutionLogMessage(log.message);
 	if (log.type === 'error') return { message, tone: 'error', label: 'Needs attention' };
