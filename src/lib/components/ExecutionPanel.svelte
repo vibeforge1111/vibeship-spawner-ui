@@ -191,11 +191,15 @@
 		return message;
 	}
 
+	let relayMissionTitle = $derived(relay?.goal?.trim() || null);
 	let panelTitle = $derived(
-		polishMissionTitleForDisplay(executionProgress?.mission?.name ||
-			missionName ||
-			relay?.goal ||
-			(currentNodes.length > 0 ? 'Canvas workflow' : 'Execution panel'))
+		polishMissionTitleForDisplay(
+			executionProgress?.mission?.name ||
+				(isMissionHistoryMode ? relayMissionTitle : null) ||
+				missionName ||
+				relayMissionTitle ||
+				(currentNodes.length > 0 ? 'Canvas workflow' : 'Execution panel')
+		)
 	);
 	let panelSubtitle = $derived(
 		concisePanelSubtitle(executionProgress) ||

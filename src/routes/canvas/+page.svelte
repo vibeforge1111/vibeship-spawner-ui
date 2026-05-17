@@ -74,6 +74,15 @@ import { get } from 'svelte/store';
 	let canvasEl = $state<HTMLDivElement>();
 	let lastSaved = $state<Date | null>(null);
 
+	function missionHistoryRelay(missionId: string, goal?: string | null) {
+		const cleanGoal = goal?.trim();
+		return {
+			missionId,
+			...(cleanGoal ? { goal: cleanGoal } : {}),
+			autoRun: false
+		};
+	}
+
 	// Context menu state
 	let contextMenu = $state<{ x: number; y: number; type: 'node' | 'connection' | 'canvas'; targetId?: string } | null>(null);
 
@@ -388,10 +397,14 @@ import { get } from 'svelte/store';
 		});
 
 		if (!boardEntry?.tasks?.length) return;
-		if (!executionRelay?.missionId && boardEntry.missionId) {
+		if (
+			boardEntry.missionId &&
+			(executionRelay?.missionId !== boardEntry.missionId || (!executionRelay?.goal && boardEntry.missionName))
+		) {
 			executionRelay = {
 				...(executionRelay || {}),
 				missionId: boardEntry.missionId,
+				...(boardEntry.missionName ? { goal: boardEntry.missionName } : {}),
 				autoRun: false
 			};
 		}
@@ -543,12 +556,19 @@ import { get } from 'svelte/store';
 				console.warn('[Canvas] Requested pipeline not found:', pipelineId);
 				return false;
 			}
+			if (
+				missionId &&
+				pipelineId.startsWith('mission-history-') &&
+				(!Array.isArray(data.nodes) || data.nodes.length === 0)
+			) {
+				return false;
+			}
 
 			loadPipelineToCanvas(data);
 			lastSaved = new Date();
 			sparkPipelineActive = pipelineId.startsWith('prd-');
 			if (missionId) {
-				executionRelay = { missionId, autoRun: false };
+				executionRelay = missionHistoryRelay(missionId, readablePipelineNameFromId(pipelineId));
 				if (url.searchParams.get('noexec') !== '1') {
 					executionPanelKey = `${pipelineId}:${missionId}:history`;
 					showExecution = true;
@@ -583,7 +603,7 @@ import { get } from 'svelte/store';
 			saveCurrentPipeline(missionCanvas);
 			lastSaved = new Date();
 			sparkPipelineActive = false;
-			executionRelay = { missionId, autoRun: false };
+			executionRelay = missionHistoryRelay(missionId, `Mission ${missionId}`);
 			if (!suppressExec) {
 				executionPanelKey = `${pipelineId}:${missionId}:history`;
 				showExecution = true;
@@ -623,7 +643,7 @@ import { get } from 'svelte/store';
 			saveCurrentPipeline(missionCanvas);
 			lastSaved = new Date();
 			sparkPipelineActive = false;
-			executionRelay = { missionId, autoRun: false };
+			executionRelay = missionHistoryRelay(missionId, boardEntry.missionName || missionId);
 			if (!suppressExec) {
 				executionPanelKey = `${pipelineId}:${missionId}:history`;
 				showExecution = true;
@@ -649,7 +669,7 @@ import { get } from 'svelte/store';
 		const requestedMissionId = url.searchParams.get('mission')?.trim() || null;
 		const loadedExplicitPipeline = loadExplicitPipelineFromUrl(url);
 		const loadedMissionOnlyCanvas =
-			!loadedExplicitPipeline && !requestedPipelineId
+			!loadedExplicitPipeline && requestedMissionId && (!requestedPipelineId || requestedPipelineId.startsWith('mission-history-'))
 				? await loadMissionOnlyCanvasFromBoard(requestedMissionId, suppressExec)
 				: false;
 		const hasResumable = hasResumableMission();
