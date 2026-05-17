@@ -11,7 +11,6 @@
 		summarizeTaskRows,
 		type TaskStatusRow
 	} from '$lib/services/execution-task-rows';
-	import { polishMissionTitleForDisplay } from '$lib/services/mission-title';
 
 	interface Props {
 		executionProgress: ExecutionProgress;
@@ -89,7 +88,6 @@
 			tone: 'text-status-error'
 		}
 	]);
-	let missionTitle = $derived(polishMissionTitleForDisplay(executionProgress.mission?.name || 'Canvas execution'));
 
 	function conciseTaskLabel(progress: ExecutionProgress): string {
 		if (progress.currentTaskName) return progress.currentTaskName;
@@ -107,6 +105,12 @@
 	let activeTaskLabel = $derived(
 		activeTaskRow?.title ||
 			conciseTaskLabel(executionProgress)
+	);
+	let shouldShowActiveTaskLabel = $derived(
+		executionProgress.status === 'running' ||
+			executionProgress.status === 'creating' ||
+			executionProgress.status === 'paused' ||
+			executionProgress.status === 'partial'
 	);
 	let providerRuntimeStatus = $derived.by(() => {
 		const multiPack = executionProgress.multiLLMExecution;
@@ -129,11 +133,12 @@
 </script>
 
 <div class="rounded-lg border border-surface-border bg-bg-primary/65 p-4">
-	<div class="grid items-start gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+	<div class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
 		<div class="min-w-0">
-			<div class="font-mono text-[10px] uppercase tracking-[0.18em] text-text-tertiary">Mission Trace</div>
-			<div class="mt-1 truncate text-base font-semibold text-text-primary">{missionTitle}</div>
-			<div class="mt-1 truncate text-xs font-mono text-text-tertiary">{activeTaskLabel}</div>
+			<div class="font-mono text-[10px] uppercase tracking-[0.18em] text-text-tertiary">Execution Summary</div>
+			{#if shouldShowActiveTaskLabel}
+				<div class="mt-1 truncate text-xs font-mono text-text-tertiary">{activeTaskLabel}</div>
+			{/if}
 			<div class="mt-2 flex flex-wrap items-center gap-1.5">
 				<span class="rounded border border-surface-border bg-bg-secondary px-2 py-1 text-[10px] font-mono text-text-secondary">
 					<span class="text-text-tertiary">build</span>
@@ -157,9 +162,9 @@
 				</span>
 			</div>
 		</div>
-		<div class="flex min-h-24 min-w-28 items-center justify-center justify-self-start rounded-md border border-surface-border bg-bg-secondary px-5 py-4 text-center sm:justify-self-end">
-			<div class="text-2xl font-semibold leading-none tabular-nums text-text-primary">
-				{executionProgress.progress}<span class="ml-0.5 text-sm font-medium text-text-tertiary">%</span>
+		<div class="flex min-h-12 min-w-20 items-center justify-center justify-self-end rounded-md border border-surface-border bg-bg-secondary px-3 py-2 text-center">
+			<div class="text-xl font-semibold leading-none tabular-nums text-text-primary">
+				{executionProgress.progress}<span class="ml-0.5 text-xs font-medium text-text-tertiary">%</span>
 			</div>
 		</div>
 	</div>

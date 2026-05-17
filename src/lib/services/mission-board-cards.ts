@@ -4,6 +4,7 @@ import type {
 	MissionControlTaskStatus,
 	MissionControlTaskStatusCounts
 } from '$lib/types/mission-control';
+import { summarizeCompletionEvidenceForDisplay } from './completion-evidence-display';
 import { isPreparationTaskTitle } from './execution-task-rows';
 
 export type MissionBoardCardStatus = 'draft' | 'ready' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
@@ -47,6 +48,7 @@ export interface MissionBoardCard {
 	projectLineage?: MissionControlProjectLineage | null;
 	canvasHref?: string | null;
 	detailHref?: string | null;
+	repeatCount?: number;
 }
 
 export interface MissionBoardCardActionLinks {
@@ -62,12 +64,32 @@ export interface MissionBoardWorkBreakdown {
 	hasPreparation: boolean;
 }
 
+export interface MissionCanvasPipelineCandidate {
+	id: string;
+	name?: string | null;
+}
+
 function missionDetailHref(missionId: string): string {
 	return `/missions/${encodeURIComponent(missionId)}`;
 }
 
 function withoutHash(href: string): string {
 	return href.split('#')[0] || href;
+}
+
+function missionNumericSuffix(id: string): string {
+	return id.replace(/^(spark|mission)-/, '');
+}
+
+export function canvasHrefForMissionControlEntry(
+	missionId: string,
+	pipelines: MissionCanvasPipelineCandidate[] = []
+): string {
+	const suffix = missionNumericSuffix(missionId);
+	const pipeline = pipelines.find((candidate) => suffix && candidate.id.includes(suffix));
+	return pipeline
+		? `/canvas?pipeline=${encodeURIComponent(pipeline.id)}&mission=${encodeURIComponent(missionId)}`
+		: `/canvas?mission=${encodeURIComponent(missionId)}`;
 }
 
 export function getMissionBoardCardActionLinks(
@@ -136,6 +158,49 @@ export function mergeMissionBoardCards(
 
 	return [...byId.values()];
 }
+
+function repeatedTerminalCardKey(card: MissionBoardCard): string | null {
+	if (!['completed', 'failed', 'cancelled'].includes(card.status)) return null;
+	if (card.projectLineage?.projectPath || card.projectLineage?.previewUrl) return null;
+	if ((card.taskCount || 0) <= 1) {
+		return [card.status, card.name.trim().toLowerCase(), card.taskCount || 0].join('|');
+	}
+	const evidence = (card.providerSummary || card.summary || '').trim().toLowerCase();
+	if (!evidence) return null;
+	return [
+		card.status,
+		card.name.trim().toLowerCase(),
+		card.taskCount || 0,
+		evidence
+	].join('|');
+}
+
+export function collapseRepeatedTerminalMissionCards(cards: MissionBoardCard[]): MissionBoardCard[] {
+	const byKey = new Map<string, MissionBoardCard>();
+	const collapsed: MissionBoardCard[] = [];
+
+	for (const card of cards) {
+		const key = repeatedTerminalCardKey(card);
+		if (!key) {
+			collapsed.push(card);
+			continue;
+		}
+
+		const existing = byKey.get(key);
+		if (!existing) {
+			const copy = { ...card, repeatCount: 0 };
+			byKey.set(key, copy);
+			collapsed.push(copy);
+			continue;
+		}
+
+		existing.repeatCount = (existing.repeatCount || 0) + 1;
+	}
+
+	return collapsed;
+}
+
+export const summarizeCompletionEvidenceForBoard = summarizeCompletionEvidenceForDisplay;
 
 function emptyCounts(): MissionControlTaskStatusCounts {
 	return { queued: 0, running: 0, completed: 0, failed: 0, cancelled: 0, total: 0 };

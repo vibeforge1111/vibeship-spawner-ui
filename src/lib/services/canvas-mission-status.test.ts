@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+	buildCanvasMissionHistoryCanvas,
+	buildCanvasMissionHistoryPlaceholder,
 	buildCanvasMissionStatusUpdates,
 	canvasStatusForMissionControlTask,
 	findMissionControlBoardEntryForCanvas,
@@ -125,5 +127,25 @@ describe('canvas mission status mapping', () => {
 		);
 
 		expect(match).toBe(latest);
+	});
+
+	it('builds a mission-history canvas from board tasks', () => {
+		const canvas = buildCanvasMissionHistoryCanvas(
+			boardEntry('spark-1778997905515', 'Telegram Golden Path Probe', '2026-05-17T06:05:10.000Z')
+		);
+
+		expect(canvas.nodes).toHaveLength(1);
+		expect(canvas.nodes[0].skill.name).toBe('Create the playable game shell');
+		expect(canvas.nodes[0].status).toBe('success');
+		expect(canvas.nodes[0].id).toContain('spark-1778997905515');
+	});
+
+	it('builds a mission-scoped placeholder instead of allowing stale active-canvas fallback', () => {
+		const canvas = buildCanvasMissionHistoryPlaceholder('spark-1778997905515');
+
+		expect(canvas.nodes).toHaveLength(1);
+		expect(canvas.nodes[0].skill.name).toBe('Loading Mission Control history');
+		expect(canvas.nodes[0].skill.description).toContain('spark-1778997905515');
+		expect(canvas.nodes[0].id).toContain('spark-1778997905515');
 	});
 });

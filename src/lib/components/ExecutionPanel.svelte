@@ -158,6 +158,7 @@
 	let lastHydratedMissionId = $state<string | null>(null);
 	let hydrationInFlightMissionId = $state<string | null>(null);
 	let projectLineage = $state<MissionControlBoardEntry['projectLineage'] | null>(null);
+	let missionHistoryLoading = $state(false);
 	let autoRunRetryTimer: ReturnType<typeof setTimeout> | null = null;
 	let durationTick = $state(Date.now());
 
@@ -172,8 +173,9 @@
 	let canPause = $derived(executionProgress?.status === 'running');
 	let canResume = $derived(executionProgress?.status === 'paused');
 	let canCancel = $derived(isRunning || isPaused);
+	let isMissionHistoryMode = $derived(Boolean(relay?.missionId));
 	// Note: MCP not required anymore - we build missions locally and run directly by default (copy prompt is fallback)
-	let canRun = $derived(!isRunning && !isPaused && !isTerminal && currentNodes.length > 0);
+	let canRun = $derived(!isMissionHistoryMode && !isRunning && !isPaused && !isTerminal && currentNodes.length > 0);
 
 	function concisePanelSubtitle(progress: ExecutionProgress | null): string | null {
 		if (!progress) return null;
@@ -189,11 +191,15 @@
 		return message;
 	}
 
+	let relayMissionTitle = $derived(relay?.goal?.trim() || null);
 	let panelTitle = $derived(
-		polishMissionTitleForDisplay(executionProgress?.mission?.name ||
-			missionName ||
-			relay?.goal ||
-			(currentNodes.length > 0 ? 'Canvas workflow' : 'Execution panel'))
+		polishMissionTitleForDisplay(
+			executionProgress?.mission?.name ||
+				(isMissionHistoryMode ? relayMissionTitle : null) ||
+				missionName ||
+				relayMissionTitle ||
+				(currentNodes.length > 0 ? 'Canvas workflow' : 'Execution panel')
+		)
 	);
 	let panelSubtitle = $derived(
 		concisePanelSubtitle(executionProgress) ||
@@ -347,6 +353,7 @@
 		) return;
 
 		hydrationInFlightMissionId = missionId;
+		missionHistoryLoading = true;
 		try {
 			const [statusResponse, boardEntry] = await Promise.all([
 				fetch(`/api/mission-control/status?missionId=${encodeURIComponent(missionId)}`),
@@ -384,6 +391,7 @@
 			if (hydrationInFlightMissionId === missionId) {
 				hydrationInFlightMissionId = null;
 			}
+			missionHistoryLoading = false;
 		}
 	}
 
@@ -1348,7 +1356,23 @@
 							</span>
 						{/if}
 					</div>
-					<p class="mt-1 truncate text-xs font-mono text-text-tertiary">{panelSubtitle}</p>
+					<div class="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-mono text-text-tertiary">
+						<span class="min-w-0 truncate">{panelSubtitle}</span>
+						{#if executionProgress?.endTime}
+							<span class="hidden text-text-faint sm:inline">·</span>
+							<span class="shrink-0">Finished at {formatTime(executionProgress.endTime)}</span>
+						{:else if executionProgress?.startTime}
+							<span class="hidden text-text-faint sm:inline">·</span>
+							<span class="shrink-0">Started at {formatTime(executionProgress.startTime)}</span>
+						{/if}
+						{#if activeMissionId}
+							<span class="hidden text-text-faint sm:inline">·</span>
+							<span class="inline-flex min-w-0 items-center gap-1 rounded border border-surface-border bg-bg-primary/70 px-1.5 py-0.5">
+								<span class="shrink-0 text-text-faint">ID</span>
+								<code class="min-w-0 truncate font-mono text-accent-primary select-all">{activeMissionId}</code>
+							</span>
+						{/if}
+					</div>
 				</div>
 			</div>
 			<div class="flex items-center gap-1">
@@ -1417,23 +1441,17 @@
 		<ExecutionLogList
 			{logs}
 			{isRunning}
+			historyMode={isMissionHistoryMode}
+			historyLoading={missionHistoryLoading && !executionProgress}
 			status={executionProgress?.status}
 			transitions={recentTaskTransitions}
 			{formatTime}
 			{getTransitionBadge}
 		/>
 
-		{#if activeMissionId || projectLineage}
+		{#if projectLineage}
 			<div class="border-t border-surface-border bg-bg-tertiary px-4 py-3">
 				<div class="space-y-2">
-					{#if activeMissionId}
-						<div class="flex justify-end">
-							<div class="inline-flex max-w-full items-center gap-2 rounded-md border border-surface-border bg-bg-secondary/80 px-3 py-2 font-mono text-xs text-text-secondary">
-								<span class="shrink-0 text-text-tertiary">ID</span>
-								<code class="min-w-0 truncate font-mono text-accent-primary select-all">{activeMissionId}</code>
-							</div>
-						</div>
-					{/if}
 					{#if projectLineage}
 						<div class="rounded-md border border-accent-primary/25 bg-bg-secondary/80 px-3 py-2 font-mono text-xs text-text-secondary">
 							<div class="grid gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
@@ -1475,6 +1493,7 @@
 			{canPause}
 			{canResume}
 			{canRun}
+			historyMode={isMissionHistoryMode}
 			currentNodeCount={currentNodes.length}
 			{formatTime}
 			onCancel={handleCancel}

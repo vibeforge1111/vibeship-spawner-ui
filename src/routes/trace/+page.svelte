@@ -4,6 +4,10 @@
 	import Footer from '$lib/components/Footer.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import type { MissionControlCompletionEvidence } from '$lib/types/mission-control';
+	import {
+		completionEvidenceTooltipForDisplay,
+		summarizeCompletionEvidenceForDisplay
+	} from '$lib/services/completion-evidence-display';
 
 	type TaskCounts = {
 		queued: number;
@@ -151,10 +155,11 @@
 	}
 
 	function evidenceLabel(evidence: MissionControlCompletionEvidence | null | undefined): string | null {
-		if (!evidence || evidence.state === 'not_terminal') return null;
-		if (evidence.state === 'complete') return 'Completion evidence present';
-		if (evidence.missing.length === 0) return 'Completion evidence incomplete';
-		return `Missing ${evidence.missing.slice(0, 4).join(', ')}`;
+		return summarizeCompletionEvidenceForDisplay(evidence);
+	}
+
+	function evidenceTitle(evidence: MissionControlCompletionEvidence | null | undefined): string | null {
+		return completionEvidenceTooltipForDisplay(evidence);
 	}
 
 	function evidenceClass(evidence: MissionControlCompletionEvidence | null | undefined): string {
@@ -336,7 +341,7 @@
 					</div>
 				{/if}
 				{#if evidenceLabel(trace?.completionEvidence)}
-					<div class={`mt-3 rounded-md border p-3 text-sm ${evidenceClass(trace?.completionEvidence)}`} title={trace?.completionEvidence?.summary}>
+					<div class={`mt-3 rounded-md border p-3 text-sm ${evidenceClass(trace?.completionEvidence)}`} title={evidenceTitle(trace?.completionEvidence)}>
 						<span class="font-mono">Evidence</span>
 						<span class="ml-2">{evidenceLabel(trace?.completionEvidence)}</span>
 					</div>

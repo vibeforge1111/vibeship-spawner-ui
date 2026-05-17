@@ -11,12 +11,16 @@
 	import { initPipelines, pipelines } from '$lib/stores/pipelines.svelte';
 	import type { Mission } from '$lib/services/mcp-client';
 	import type { PipelineMetadata } from '$lib/stores/pipelines.svelte';
+	import { completionEvidenceTooltipForDisplay } from '$lib/services/completion-evidence-display';
 	import {
 		canRunCreatorMissionBoardCard,
 		canValidateCreatorMissionBoardCard,
+		canvasHrefForMissionControlEntry,
+		collapseRepeatedTerminalMissionCards,
 		getMissionBoardCardActionLinks,
 		getMissionBoardWorkBreakdown,
 		mergeMissionBoardCards,
+		summarizeCompletionEvidenceForBoard,
 		type MissionBoardCard as BoardCard
 	} from '$lib/services/mission-board-cards';
 	import {
@@ -358,34 +362,9 @@
 			providerResults: e.providerResults,
 			completionEvidence: e.completionEvidence,
 			projectLineage: e.projectLineage ?? null,
-			canvasHref: canvasHrefForMission(e.missionId, rawName),
+			canvasHref: canvasHrefForMissionControlEntry(e.missionId, currentPipelines),
 			detailHref: `/missions/${encodeURIComponent(e.missionId)}`
 		};
-	}
-
-	function missionNumericSuffix(id: string): string {
-		return id.replace(/^(spark|mission)-/, '');
-	}
-
-	function normalizeTitle(value: string | null | undefined): string {
-		return (value || '')
-			.toLowerCase()
-			.replace(/^spark run:\s*/, '')
-			.replace(/[^\p{L}\p{N}]+/gu, ' ')
-			.trim();
-	}
-
-	function canvasHrefForMission(missionId: string, missionName?: string | null): string | null {
-		const suffix = missionNumericSuffix(missionId);
-		const normalizedMission = normalizeTitle(missionName);
-		const pipeline = currentPipelines.find((candidate) => {
-			if (suffix && candidate.id.includes(suffix)) return true;
-			if (normalizedMission && normalizeTitle(candidate.name) === normalizedMission) return true;
-			return false;
-		});
-		return pipeline
-			? `/canvas?pipeline=${encodeURIComponent(pipeline.id)}&mission=${encodeURIComponent(missionId)}`
-			: `/canvas?mission=${encodeURIComponent(missionId)}`;
 	}
 
 	const cards = $derived(() => {
@@ -394,6 +373,8 @@
 
 	let searchQuery = $state('');
 	let searchFocused = $state(false);
+	let showAllCompleted = $state(false);
+	const completedPreviewLimit = 12;
 
 	const filteredCards = $derived(() => {
 		const q = searchQuery.trim().toLowerCase();
@@ -412,6 +393,12 @@
 			.filter((c) => c.status === 'completed' || c.status === 'failed' || c.status === 'cancelled')
 			.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
 	);
+	const visibleDone = $derived(
+		searchQuery.trim() || showAllCompleted
+			? done
+			: collapseRepeatedTerminalMissionCards(done).slice(0, completedPreviewLimit)
+	);
+	const hiddenDoneCount = $derived(Math.max(0, done.length - visibleDone.length));
 
 	onMount(() => {
 		initPipelines();
@@ -534,11 +521,11 @@
 	}
 
 	function completionEvidenceLabel(card: BoardCard): string | null {
-		const evidence = card.completionEvidence;
-		if (!evidence || evidence.state === 'not_terminal') return null;
-		if (evidence.state === 'complete') return 'Evidence complete';
-		if (evidence.missing.length === 0) return 'Evidence incomplete';
-		return `Missing ${evidence.missing.slice(0, 3).join(', ')}`;
+		return summarizeCompletionEvidenceForBoard(card.completionEvidence);
+	}
+
+	function completionEvidenceTitle(card: BoardCard): string | null {
+		return completionEvidenceTooltipForDisplay(card.completionEvidence);
 	}
 
 	function completionEvidenceClass(card: BoardCard): string {
@@ -981,7 +968,7 @@
 				{#each [
 					{ title: 'To do', items: toDo, empty: 'No pending missions' },
 					{ title: 'In progress', items: inProgress, empty: 'Nothing running' },
-					{ title: 'Completed', items: done, empty: 'No history yet' }
+					{ title: 'Completed', items: visibleDone, count: done.length, empty: 'No history yet' }
 				] as col}
 					<section class="flex flex-col min-h-[320px]">
 						<div class="sticky top-0 z-10 flex items-center justify-between gap-2 px-1 py-4 mb-1 bg-bg-primary/90 backdrop-blur-sm border-b border-surface-border">
@@ -989,7 +976,7 @@
 								<span class="w-2 h-2 rounded-full {columnDot(col.title)}"></span>
 								<span class="font-mono text-xs font-semibold text-text-bright tracking-widest uppercase">{col.title}</span>
 							</div>
-							<span class="font-mono text-sm text-text-tertiary tabular-nums">{col.items.length}</span>
+							<span class="font-mono text-sm text-text-tertiary tabular-nums">{col.count ?? col.items.length}</span>
 						</div>
 
 						<div class="flex-1 space-y-3">
@@ -1027,6 +1014,11 @@
 												{cardStatusLabel(c)}
 											</span>
 											<span class="min-w-0 truncate font-mono text-[10px] text-text-faint">Open for details</span>
+											{#if c.repeatCount}
+												<span class="shrink-0 rounded-sm border border-surface-border bg-bg-primary px-1.5 py-0.5 font-mono text-[9px] text-text-tertiary">
+													+{c.repeatCount} earlier
+												</span>
+											{/if}
 										</div>
 
 										{#if summary}
@@ -1034,7 +1026,7 @@
 										{/if}
 
 										{#if evidence && c.completionEvidence?.state !== 'complete'}
-											<p class="mb-2.5 inline-flex max-w-full items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[10px] {completionEvidenceClass(c)}" title={c.completionEvidence?.summary}>
+											<p class="mb-2.5 inline-flex max-w-full items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[10px] {completionEvidenceClass(c)}" title={completionEvidenceTitle(c)}>
 												<Icon name="alert-triangle" size={11} />
 												<span class="truncate">{evidence}</span>
 											</p>
@@ -1158,6 +1150,27 @@
 									<p class="font-mono text-[11px] text-text-faint">{col.empty}</p>
 								</div>
 							{/each}
+							{#if col.title === 'Completed' && hiddenDoneCount > 0}
+								<div class="rounded-lg border border-dashed border-surface-border/80 bg-bg-secondary/35 px-4 py-3 text-center">
+									<p class="font-mono text-[11px] leading-relaxed text-text-tertiary">
+										Showing latest {visibleDone.length} of {done.length}. Use search or open a mission for older details.
+									</p>
+									<button
+										class="mt-2 inline-flex items-center justify-center rounded-sm border border-surface-border px-2.5 py-1 font-mono text-[10px] text-text-secondary transition-all hover:border-accent-primary/50 hover:text-accent-primary"
+										onclick={() => showAllCompleted = true}
+									>
+										Show all completed
+									</button>
+								</div>
+							{/if}
+							{#if col.title === 'Completed' && showAllCompleted && !searchQuery.trim() && done.length > completedPreviewLimit}
+								<button
+									class="w-full rounded-lg border border-surface-border/70 bg-bg-secondary/35 px-4 py-2 font-mono text-[10px] text-text-secondary transition-all hover:border-accent-primary/50 hover:text-accent-primary"
+									onclick={() => showAllCompleted = false}
+								>
+									Show recent only
+								</button>
+							{/if}
 						</div>
 					</section>
 				{/each}

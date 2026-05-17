@@ -19,6 +19,10 @@
 	import type { Mission, MissionLog, MissionTask, MissionAgent } from '$lib/services/mcp-client';
 	import type { MissionControlCompletionEvidence } from '$lib/types/mission-control';
 	import {
+		completionEvidenceTooltipForDisplay,
+		summarizeCompletionEvidenceForDisplay
+	} from '$lib/services/completion-evidence-display';
+	import {
 		buildSparkMissionDetail,
 		type MissionControlEntry
 	} from '$lib/services/mission-detail-view-model';
@@ -357,10 +361,11 @@
 	}
 
 	function evidenceLabel(evidence: MissionControlCompletionEvidence | null | undefined): string | null {
-		if (!evidence || evidence.state === 'not_terminal') return null;
-		if (evidence.state === 'complete') return 'Completion evidence present';
-		if (evidence.missing.length === 0) return 'Completion evidence incomplete';
-		return `Missing ${evidence.missing.slice(0, 4).join(', ')}`;
+		return summarizeCompletionEvidenceForDisplay(evidence);
+	}
+
+	function evidenceTitle(evidence: MissionControlCompletionEvidence | null | undefined): string | null {
+		return completionEvidenceTooltipForDisplay(evidence);
 	}
 
 	function evidenceClass(evidence: MissionControlCompletionEvidence | null | undefined): string {
@@ -556,7 +561,7 @@
 					</div>
 				{/if}
 				{#if evidenceLabel(missionControl.completionEvidence)}
-					<div class="mb-3 rounded-lg border px-4 py-3 text-sm {evidenceClass(missionControl.completionEvidence)}" title={missionControl.completionEvidence?.summary}>
+					<div class="mb-3 rounded-lg border px-4 py-3 text-sm {evidenceClass(missionControl.completionEvidence)}" title={evidenceTitle(missionControl.completionEvidence)}>
 						<span class="font-mono uppercase tracking-[0.12em] text-[10px]">Evidence</span>
 						<span class="ml-2 font-sans">{evidenceLabel(missionControl.completionEvidence)}</span>
 					</div>

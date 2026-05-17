@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
 	canRunCreatorMissionBoardCard,
 	canValidateCreatorMissionBoardCard,
+	canvasHrefForMissionControlEntry,
+	collapseRepeatedTerminalMissionCards,
 	getMissionBoardCardActionLinks,
 	getMissionBoardWorkBreakdown,
 	isCreatorMissionBoardCard,
@@ -247,6 +249,67 @@ describe('mergeMissionBoardCards', () => {
 	});
 });
 
+describe('collapseRepeatedTerminalMissionCards', () => {
+	it('collapses repeated completed diagnostics while keeping the latest card', () => {
+		const cards = [
+			card({
+				id: 'spark-latest',
+				name: 'Telegram Golden Path Probe',
+				status: 'completed',
+				taskCount: 1,
+				summary: 'Mission completed.',
+				providerSummary: 'Codex: SPARK_E2E_NO_EDIT_OK'
+			}),
+			card({
+				id: 'spark-older',
+				name: 'Telegram Golden Path Probe',
+				status: 'completed',
+				taskCount: 1,
+				summary: 'Mission completed.',
+				providerSummary: 'Codex: SPARK_E2E_NO_EDIT_OK'
+			}),
+			card({
+				id: 'spark-other',
+				name: 'Tiny Maze Game',
+				status: 'completed',
+				taskCount: 4,
+				summary: 'Mission completed.',
+				providerSummary: 'Codex: built prototype'
+			})
+		];
+
+		const collapsed = collapseRepeatedTerminalMissionCards(cards);
+
+		expect(collapsed.map((item) => item.id)).toEqual(['spark-latest', 'spark-other']);
+		expect(collapsed[0].repeatCount).toBe(1);
+	});
+
+	it('does not collapse shipped project lineage cards with the same title', () => {
+		const cards = [
+			card({
+				id: 'ship-latest',
+				name: 'Tiny Maze Game',
+				status: 'completed',
+				taskCount: 4,
+				summary: 'Mission completed.',
+				providerSummary: 'Codex: built prototype',
+				projectLineage: { projectId: null, projectPath: '/tmp/maze-a', previewUrl: null, parentMissionId: null, iterationNumber: null, improvementFeedback: null }
+			}),
+			card({
+				id: 'ship-older',
+				name: 'Tiny Maze Game',
+				status: 'completed',
+				taskCount: 4,
+				summary: 'Mission completed.',
+				providerSummary: 'Codex: built prototype',
+				projectLineage: { projectId: null, projectPath: '/tmp/maze-b', previewUrl: null, parentMissionId: null, iterationNumber: null, improvementFeedback: null }
+			})
+		];
+
+		expect(collapseRepeatedTerminalMissionCards(cards)).toHaveLength(2);
+	});
+});
+
 describe('mission board work breakdown', () => {
 	it('keeps PRD preparation separate from build task progress', () => {
 		const breakdown = getMissionBoardWorkBreakdown(card({
@@ -366,6 +429,24 @@ describe('creator mission validation eligibility', () => {
 			status: 'cancelled'
 		}))).toBe(false);
 		expect(canValidateCreatorMissionBoardCard(card({ id: 'mission-plain', name: 'Regular mission', status: 'ready' }))).toBe(false);
+	});
+});
+
+describe('canvasHrefForMissionControlEntry', () => {
+	it('uses mission-only canvas links when only a same-title stale history pipeline exists', () => {
+		const href = canvasHrefForMissionControlEntry('spark-1778997905515', [
+			{ id: 'mission-history-spark-1778851415178', name: 'Telegram Golden Path Probe' }
+		]);
+
+		expect(href).toBe('/canvas?mission=spark-1778997905515');
+	});
+
+	it('keeps explicit pipeline links when the pipeline id matches the mission suffix', () => {
+		const href = canvasHrefForMissionControlEntry('mission-1778917838772', [
+			{ id: 'prd-tg-build-maze-1778917838772', name: 'Tiny Maze Game' }
+		]);
+
+		expect(href).toBe('/canvas?pipeline=prd-tg-build-maze-1778917838772&mission=mission-1778917838772');
 	});
 });
 
