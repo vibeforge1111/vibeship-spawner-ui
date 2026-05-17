@@ -40,16 +40,16 @@
 	}: Props = $props();
 </script>
 
-<div class="px-6 py-5 border-t border-surface-border bg-bg-secondary flex justify-between items-center gap-4 flex-wrap">
-	<div class="flex items-center gap-2 text-sm text-text-tertiary font-mono">
-		{#if executionProgress?.endTime}
-			Finished at {formatTime(executionProgress.endTime)}
-		{:else if executionProgress?.startTime}
-			Started at {formatTime(executionProgress.startTime)}
-		{:else}
-			Ready to run
-		{/if}
-	</div>
+<div class="px-6 py-4 border-t border-surface-border bg-bg-secondary flex items-center gap-4 flex-wrap {isTerminal ? 'justify-end' : 'justify-between'}">
+	{#if !isTerminal}
+		<div class="flex items-center gap-2 text-sm text-text-tertiary font-mono">
+			{#if executionProgress?.startTime}
+				Started at {formatTime(executionProgress.startTime)}
+			{:else}
+				Ready to run
+			{/if}
+		</div>
+	{/if}
 	<div class="flex gap-2 items-center">
 		{#if canCancel}
 			<button

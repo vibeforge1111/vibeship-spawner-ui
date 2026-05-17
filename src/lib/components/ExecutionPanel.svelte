@@ -1352,7 +1352,23 @@
 							</span>
 						{/if}
 					</div>
-					<p class="mt-1 truncate text-xs font-mono text-text-tertiary">{panelSubtitle}</p>
+					<div class="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-mono text-text-tertiary">
+						<span class="min-w-0 truncate">{panelSubtitle}</span>
+						{#if executionProgress?.endTime}
+							<span class="hidden text-text-faint sm:inline">·</span>
+							<span class="shrink-0">Finished at {formatTime(executionProgress.endTime)}</span>
+						{:else if executionProgress?.startTime}
+							<span class="hidden text-text-faint sm:inline">·</span>
+							<span class="shrink-0">Started at {formatTime(executionProgress.startTime)}</span>
+						{/if}
+						{#if activeMissionId}
+							<span class="hidden text-text-faint sm:inline">·</span>
+							<span class="inline-flex min-w-0 items-center gap-1 rounded border border-surface-border bg-bg-primary/70 px-1.5 py-0.5">
+								<span class="shrink-0 text-text-faint">ID</span>
+								<code class="min-w-0 truncate font-mono text-accent-primary select-all">{activeMissionId}</code>
+							</span>
+						{/if}
+					</div>
 				</div>
 			</div>
 			<div class="flex items-center gap-1">
@@ -1429,17 +1445,9 @@
 			{getTransitionBadge}
 		/>
 
-		{#if activeMissionId || projectLineage}
+		{#if projectLineage}
 			<div class="border-t border-surface-border bg-bg-tertiary px-4 py-3">
 				<div class="space-y-2">
-					{#if activeMissionId}
-						<div class="flex justify-end">
-							<div class="inline-flex max-w-full items-center gap-2 rounded-md border border-surface-border bg-bg-secondary/80 px-3 py-2 font-mono text-xs text-text-secondary">
-								<span class="shrink-0 text-text-tertiary">ID</span>
-								<code class="min-w-0 truncate font-mono text-accent-primary select-all">{activeMissionId}</code>
-							</div>
-						</div>
-					{/if}
 					{#if projectLineage}
 						<div class="rounded-md border border-accent-primary/25 bg-bg-secondary/80 px-3 py-2 font-mono text-xs text-text-secondary">
 							<div class="grid gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
