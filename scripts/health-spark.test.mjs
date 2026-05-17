@@ -10,6 +10,7 @@ import {
   resolveSparkWorkspaceRoot,
   shouldRepairHostedWorkspaceOwnership,
   sparkHealthAuthHeaders,
+  workspacePermissionFailureMessage,
 } from "./health-spark.mjs";
 
 function runNodeScript(args, options) {
@@ -135,6 +136,20 @@ describe("shouldRepairHostedWorkspaceOwnership", () => {
       ),
     ).toBe(true);
     expect(shouldRepairHostedWorkspaceOwnership({}, 0)).toBe(false);
+  });
+});
+
+describe("workspacePermissionFailureMessage", () => {
+  it("explains sandboxed health checks separately from real workspace permission fixes", () => {
+    const error = Object.assign(new Error("EPERM: operation not permitted, open 'write-check.txt'"), {
+      code: "EPERM",
+    });
+    const message = workspacePermissionFailureMessage(error, "/spark/workspaces/.health-smoke/write-check.txt");
+
+    expect(message).toContain("workspace write smoke could not write from this health process");
+    expect(message).toContain("restricted terminal or sandbox");
+    expect(message).toContain("real Spark workspace permission issue");
+    expect(message).toContain("SPARK_WORKSPACE_ROOT");
   });
 });
 
