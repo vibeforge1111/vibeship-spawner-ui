@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	canRunCreatorMissionBoardCard,
 	canValidateCreatorMissionBoardCard,
+	canvasHrefForMissionControlEntry,
 	getMissionBoardCardActionLinks,
 	getMissionBoardWorkBreakdown,
 	isCreatorMissionBoardCard,
@@ -366,6 +367,24 @@ describe('creator mission validation eligibility', () => {
 			status: 'cancelled'
 		}))).toBe(false);
 		expect(canValidateCreatorMissionBoardCard(card({ id: 'mission-plain', name: 'Regular mission', status: 'ready' }))).toBe(false);
+	});
+});
+
+describe('canvasHrefForMissionControlEntry', () => {
+	it('uses mission-only canvas links when only a same-title stale history pipeline exists', () => {
+		const href = canvasHrefForMissionControlEntry('spark-1778997905515', [
+			{ id: 'mission-history-spark-1778851415178', name: 'Telegram Golden Path Probe' }
+		]);
+
+		expect(href).toBe('/canvas?mission=spark-1778997905515');
+	});
+
+	it('keeps explicit pipeline links when the pipeline id matches the mission suffix', () => {
+		const href = canvasHrefForMissionControlEntry('mission-1778917838772', [
+			{ id: 'prd-tg-build-maze-1778917838772', name: 'Tiny Maze Game' }
+		]);
+
+		expect(href).toBe('/canvas?pipeline=prd-tg-build-maze-1778917838772&mission=mission-1778917838772');
 	});
 });
 

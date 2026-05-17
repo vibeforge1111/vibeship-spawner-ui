@@ -14,6 +14,7 @@
 	import {
 		canRunCreatorMissionBoardCard,
 		canValidateCreatorMissionBoardCard,
+		canvasHrefForMissionControlEntry,
 		getMissionBoardCardActionLinks,
 		getMissionBoardWorkBreakdown,
 		mergeMissionBoardCards,
@@ -358,34 +359,9 @@
 			providerResults: e.providerResults,
 			completionEvidence: e.completionEvidence,
 			projectLineage: e.projectLineage ?? null,
-			canvasHref: canvasHrefForMission(e.missionId, rawName),
+			canvasHref: canvasHrefForMissionControlEntry(e.missionId, currentPipelines),
 			detailHref: `/missions/${encodeURIComponent(e.missionId)}`
 		};
-	}
-
-	function missionNumericSuffix(id: string): string {
-		return id.replace(/^(spark|mission)-/, '');
-	}
-
-	function normalizeTitle(value: string | null | undefined): string {
-		return (value || '')
-			.toLowerCase()
-			.replace(/^spark run:\s*/, '')
-			.replace(/[^\p{L}\p{N}]+/gu, ' ')
-			.trim();
-	}
-
-	function canvasHrefForMission(missionId: string, missionName?: string | null): string | null {
-		const suffix = missionNumericSuffix(missionId);
-		const normalizedMission = normalizeTitle(missionName);
-		const pipeline = currentPipelines.find((candidate) => {
-			if (suffix && candidate.id.includes(suffix)) return true;
-			if (normalizedMission && normalizeTitle(candidate.name) === normalizedMission) return true;
-			return false;
-		});
-		return pipeline
-			? `/canvas?pipeline=${encodeURIComponent(pipeline.id)}&mission=${encodeURIComponent(missionId)}`
-			: `/canvas?mission=${encodeURIComponent(missionId)}`;
 	}
 
 	const cards = $derived(() => {

@@ -62,12 +62,32 @@ export interface MissionBoardWorkBreakdown {
 	hasPreparation: boolean;
 }
 
+export interface MissionCanvasPipelineCandidate {
+	id: string;
+	name?: string | null;
+}
+
 function missionDetailHref(missionId: string): string {
 	return `/missions/${encodeURIComponent(missionId)}`;
 }
 
 function withoutHash(href: string): string {
 	return href.split('#')[0] || href;
+}
+
+function missionNumericSuffix(id: string): string {
+	return id.replace(/^(spark|mission)-/, '');
+}
+
+export function canvasHrefForMissionControlEntry(
+	missionId: string,
+	pipelines: MissionCanvasPipelineCandidate[] = []
+): string {
+	const suffix = missionNumericSuffix(missionId);
+	const pipeline = pipelines.find((candidate) => suffix && candidate.id.includes(suffix));
+	return pipeline
+		? `/canvas?pipeline=${encodeURIComponent(pipeline.id)}&mission=${encodeURIComponent(missionId)}`
+		: `/canvas?mission=${encodeURIComponent(missionId)}`;
 }
 
 export function getMissionBoardCardActionLinks(
