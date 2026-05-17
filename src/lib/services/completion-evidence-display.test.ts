@@ -20,8 +20,8 @@ describe('completion evidence display', () => {
 			tasksTerminal: true
 		};
 
-		expect(summarizeCompletionEvidenceForDisplay(evidence)).toBe('Missing 3 completion signals');
-		expect(completionEvidenceTooltipForDisplay(evidence)).toBe('Completion evidence is missing 3 signals.');
+		expect(summarizeCompletionEvidenceForDisplay(evidence)).toBe('Needs completion proof');
+		expect(completionEvidenceTooltipForDisplay(evidence)).toBe('Completion proof is incomplete.');
 	});
 
 	it('keeps complete and non-terminal evidence concise', () => {
@@ -36,7 +36,7 @@ describe('completion evidence display', () => {
 			hasProviderSummary: true,
 			hasArtifactReference: false,
 			tasksTerminal: true
-		})).toBe('Completion evidence present');
+		})).toBe('Proof complete');
 
 		expect(summarizeCompletionEvidenceForDisplay({
 			state: 'not_terminal',
