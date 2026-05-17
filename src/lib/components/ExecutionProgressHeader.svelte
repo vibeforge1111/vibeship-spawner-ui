@@ -133,7 +133,7 @@
 </script>
 
 <div class="rounded-lg border border-surface-border bg-bg-primary/65 p-4">
-	<div class="grid items-start gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+	<div class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
 		<div class="min-w-0">
 			<div class="font-mono text-[10px] uppercase tracking-[0.18em] text-text-tertiary">Execution Summary</div>
 			{#if shouldShowActiveTaskLabel}
@@ -162,9 +162,9 @@
 				</span>
 			</div>
 		</div>
-		<div class="flex min-h-24 min-w-28 items-center justify-center justify-self-start rounded-md border border-surface-border bg-bg-secondary px-5 py-4 text-center sm:justify-self-end">
-			<div class="text-2xl font-semibold leading-none tabular-nums text-text-primary">
-				{executionProgress.progress}<span class="ml-0.5 text-sm font-medium text-text-tertiary">%</span>
+		<div class="flex min-h-12 min-w-20 items-center justify-center justify-self-end rounded-md border border-surface-border bg-bg-secondary px-3 py-2 text-center">
+			<div class="text-xl font-semibold leading-none tabular-nums text-text-primary">
+				{executionProgress.progress}<span class="ml-0.5 text-xs font-medium text-text-tertiary">%</span>
 			</div>
 		</div>
 	</div>
