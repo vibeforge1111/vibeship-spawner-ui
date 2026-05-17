@@ -47,6 +47,7 @@ export interface MissionBoardCard {
 	projectLineage?: MissionControlProjectLineage | null;
 	canvasHref?: string | null;
 	detailHref?: string | null;
+	repeatCount?: number;
 }
 
 export interface MissionBoardCardActionLinks {
@@ -155,6 +156,47 @@ export function mergeMissionBoardCards(
 	}
 
 	return [...byId.values()];
+}
+
+function repeatedTerminalCardKey(card: MissionBoardCard): string | null {
+	if (!['completed', 'failed', 'cancelled'].includes(card.status)) return null;
+	if (card.projectLineage?.projectPath || card.projectLineage?.previewUrl) return null;
+	if ((card.taskCount || 0) <= 1) {
+		return [card.status, card.name.trim().toLowerCase(), card.taskCount || 0].join('|');
+	}
+	const evidence = (card.providerSummary || card.summary || '').trim().toLowerCase();
+	if (!evidence) return null;
+	return [
+		card.status,
+		card.name.trim().toLowerCase(),
+		card.taskCount || 0,
+		evidence
+	].join('|');
+}
+
+export function collapseRepeatedTerminalMissionCards(cards: MissionBoardCard[]): MissionBoardCard[] {
+	const byKey = new Map<string, MissionBoardCard>();
+	const collapsed: MissionBoardCard[] = [];
+
+	for (const card of cards) {
+		const key = repeatedTerminalCardKey(card);
+		if (!key) {
+			collapsed.push(card);
+			continue;
+		}
+
+		const existing = byKey.get(key);
+		if (!existing) {
+			const copy = { ...card, repeatCount: 0 };
+			byKey.set(key, copy);
+			collapsed.push(copy);
+			continue;
+		}
+
+		existing.repeatCount = (existing.repeatCount || 0) + 1;
+	}
+
+	return collapsed;
 }
 
 function emptyCounts(): MissionControlTaskStatusCounts {

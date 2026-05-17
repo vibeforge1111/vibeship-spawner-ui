@@ -15,6 +15,7 @@
 		canRunCreatorMissionBoardCard,
 		canValidateCreatorMissionBoardCard,
 		canvasHrefForMissionControlEntry,
+		collapseRepeatedTerminalMissionCards,
 		getMissionBoardCardActionLinks,
 		getMissionBoardWorkBreakdown,
 		mergeMissionBoardCards,
@@ -393,7 +394,7 @@
 	const visibleDone = $derived(
 		searchQuery.trim() || showAllCompleted
 			? done
-			: done.slice(0, completedPreviewLimit)
+			: collapseRepeatedTerminalMissionCards(done).slice(0, completedPreviewLimit)
 	);
 	const hiddenDoneCount = $derived(Math.max(0, done.length - visibleDone.length));
 
@@ -1011,6 +1012,11 @@
 												{cardStatusLabel(c)}
 											</span>
 											<span class="min-w-0 truncate font-mono text-[10px] text-text-faint">Open for details</span>
+											{#if c.repeatCount}
+												<span class="shrink-0 rounded-sm border border-surface-border bg-bg-primary px-1.5 py-0.5 font-mono text-[9px] text-text-tertiary">
+													+{c.repeatCount} earlier
+												</span>
+											{/if}
 										</div>
 
 										{#if summary}
