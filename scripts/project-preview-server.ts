@@ -10,7 +10,7 @@ function configuredPreviewPort(): number {
 	const explicitPort = Number(process.env.SPARK_PROJECT_PREVIEW_PORT || '');
 	if (Number.isFinite(explicitPort) && explicitPort > 0) return Math.trunc(explicitPort);
 
-	const rawUrl = process.env.SPARK_PROJECT_PREVIEW_URL || 'http://127.0.0.1:5555';
+	const rawUrl = process.env.SPARK_PROJECT_PREVIEW_URL || 'http://localhost:5555';
 	try {
 		const parsed = new URL(rawUrl);
 		const parsedPort = Number(parsed.port);
@@ -79,7 +79,7 @@ const server = createServer(async (req, res) => {
 			res.end('Method not allowed.');
 			return;
 		}
-		const response = await handleRequest(new Request(`http://127.0.0.1:${port}${req.url || '/'}`, {
+		const response = await handleRequest(new Request(`http://localhost:${port}${req.url || '/'}`, {
 			method: req.method
 		}));
 		res.writeHead(response.status, Object.fromEntries(response.headers.entries()));
@@ -95,6 +95,6 @@ const server = createServer(async (req, res) => {
 	}
 });
 
-server.listen(port, '127.0.0.1', () => {
-	console.log(`Spark project previews running at http://127.0.0.1:${port}`);
+server.listen(port, '0.0.0.0', () => {
+	console.log(`Spark project previews running at http://localhost:${port}`);
 });
