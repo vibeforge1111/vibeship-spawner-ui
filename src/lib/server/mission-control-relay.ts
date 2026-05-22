@@ -173,7 +173,7 @@ function getMissionControlPersistenceInfo(): MissionControlRelaySnapshot['persis
 	}
 }
 
-function isMissionControlMissionId(value: unknown): value is string {
+export function isMissionControlMissionId(value: unknown): value is string {
 	return typeof value === 'string' && /^(spark|mission)-[A-Za-z0-9_-]+$/.test(value.trim());
 }
 
@@ -411,6 +411,18 @@ function shouldRecordMissionControlEvent(event: MissionControlBridgeEvent): bool
 function recordRelayEvent(event: MissionControlBridgeEvent): void {
 	const entry = toStatusEntry(event);
 	if (!isMissionControlMissionId(entry.missionId)) {
+		// Surface the drop so non-conformant emitters notice their events never reach
+		// /kanban, /trace, or any board view. The event was accepted by /api/events
+		// (and is still broadcast via SSE) — only the board persistence is filtered.
+		// Suppress the warning for events with no missionId at all (those are never
+		// intended to be mission-scoped).
+		if (entry.missionId) {
+			console.warn(
+				`[mission-control-relay] mission event "${entry.eventType}" for missionId ` +
+				`"${entry.missionId}" was accepted but will not appear on the board: ` +
+				`missionId must match /^(spark|mission)-[A-Za-z0-9_-]+$/.`
+			);
+		}
 		return;
 	}
 	relayState.totalRelayed += 1;
