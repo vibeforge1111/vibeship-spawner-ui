@@ -1291,6 +1291,8 @@ class SparkAgentBridgeService {
 			});
 		}
 
+		const PROVIDER_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+
 		return await new Promise((resolve) => {
 			let stdout = '';
 			let stderr = '';
@@ -1317,14 +1319,29 @@ class SparkAgentBridgeService {
 				workerState.process = child;
 			}
 
+			let timeout: ReturnType<typeof setTimeout> | undefined;
 			const finalize = (result: { success: boolean; response?: string; error?: string }) => {
 				if (finished) return;
 				finished = true;
+				if (timeout) clearTimeout(timeout);
 				resolve(result);
 			};
 
+			timeout = setTimeout(() => {
+				terminateProcessTree(child, 'SIGTERM');
+				// Give SIGTERM a moment, then SIGKILL
+				setTimeout(() => {
+					try { child.kill('SIGKILL'); } catch { /* already dead */ }
+				}, 5000);
+				finalize({
+					success: false,
+					error: `Provider ${context.providerId} timed out after ${PROVIDER_TIMEOUT_MS / 60000} minutes`
+				});
+			}, PROVIDER_TIMEOUT_MS);
+
 			if (context.signal) {
 				const onAbort = () => {
+					if (timeout) clearTimeout(timeout);
 					terminateProcessTree(child, 'SIGTERM');
 					finalize({ success: false, error: CANCELLED_ERROR });
 				};
