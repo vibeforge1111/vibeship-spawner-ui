@@ -1,3 +1,4 @@
+import { requireControlAuth } from '$lib/server/mcp-auth';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { readFile, writeFile, mkdir } from 'fs/promises';
@@ -169,7 +170,19 @@ function buildConnections(tasks: TaskRecord[]): Array<{ sourceIndex: number; tar
 	return conns;
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+
+    const unauthorized = requireControlAuth(event, {
+        apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
+        fallbackApiKeyEnvVar: 'MCP_API_KEY',
+	allowLoopbackWithoutKey: false
+    });
+
+    if (unauthorized) {
+        return unauthorized;
+    }
+
+    const { request } = event;
 	try {
 		const { requestId, autoRun, telegramRelay, missionId, chatId, userId, goal, buildMode: bodyBuildMode, buildModeReason: bodyBuildModeReason, traceRef, trace_ref } = await request.json();
 		const normalizedTelegramRelay = normalizeTelegramRelay(telegramRelay);

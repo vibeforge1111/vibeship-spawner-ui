@@ -17,6 +17,7 @@ import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server
 import { projectStoredPrdAnalysisResultForTier } from '$lib/server/prd-analysis-result-schema';
 import { spawnerStateDir } from '$lib/server/spawner-state';
 import { logger } from '$lib/utils/logger';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 
 const log = logger.scope('PRDBridge');
 
@@ -41,7 +42,17 @@ async function tierForRequest(requestId: string): Promise<string> {
 /**
  * POST - Store an analysis result
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'PRD Bridge Result',
+		apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		allowLoopbackWithoutKey: false
+	});
+	if (unauthorized) return unauthorized;
+
+	const { request } = event;
+
 	try {
 		const { requestId, result } = await request.json();
 
