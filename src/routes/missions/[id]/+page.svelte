@@ -26,6 +26,7 @@
 		buildSparkMissionDetail,
 		type MissionControlEntry
 	} from '$lib/services/mission-detail-view-model';
+	import { canShowMissionBoardProjectActions } from '$lib/services/mission-board-cards';
 
 	let missionId = $state('');
 	let currentState = $state<MissionsState>({
@@ -285,6 +286,12 @@
 		missionControl ? buildSparkMissionDetail(missionId, missionControl.recent) : null
 	);
 	const sparkProjectLineage = $derived(missionControl?.projectLineage ?? sparkMissionDetail?.projectLineage ?? null);
+	const canShowSparkProjectActions = $derived(
+		canShowMissionBoardProjectActions({
+			status: sparkMissionDetail?.sparkStatus,
+			projectLineage: sparkProjectLineage
+		})
+	);
 	const traceTasks = $derived(missionTrace?.surfaces.kanban.entry?.tasks ?? []);
 	const sparkTaskCounts = $derived(() => {
 		const traceCounts = missionTrace?.progress.taskCounts;
@@ -461,7 +468,7 @@
 							<Icon name="box" size={12} />
 							Canvas
 						</a>
-						{#if sparkProjectLineage?.previewUrl}
+						{#if canShowSparkProjectActions && sparkProjectLineage?.previewUrl}
 							<a
 								href={sparkProjectLineage.previewUrl}
 								class="inline-flex items-center justify-center gap-1.5 rounded-sm border border-surface-border bg-bg-primary px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary transition-colors hover:border-accent-primary/50 hover:text-accent-primary"
@@ -470,7 +477,7 @@
 								Preview
 							</a>
 						{/if}
-						{#if sparkProjectLineage?.projectPath}
+						{#if canShowSparkProjectActions && sparkProjectLineage?.projectPath}
 							<a
 								href={improveHref()}
 								class="inline-flex items-center justify-center gap-1.5 rounded-sm border border-surface-border bg-bg-primary px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary transition-colors hover:border-accent-primary/50 hover:text-accent-primary"
@@ -529,20 +536,20 @@
 
 			<div id="result" class="mb-6 scroll-mt-24">
 				<div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-					<h2 class="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-text-bright">Project output</h2>
+					<h2 class="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-text-bright">{canShowSparkProjectActions ? 'Project output' : 'Project target'}</h2>
 				</div>
 				{#if sparkProjectLineage}
 					<div class="mb-3 rounded-md border border-surface-border bg-bg-secondary px-5 py-4">
 						<div class="flex flex-wrap items-start justify-between gap-3">
 							<div>
 								<div class="font-mono text-xs font-semibold uppercase tracking-wider text-accent-primary">
-									Project iteration{sparkProjectLineage.iterationNumber ? ` ${sparkProjectLineage.iterationNumber}` : ''}
+									{canShowSparkProjectActions ? `Project iteration${sparkProjectLineage.iterationNumber ? ` ${sparkProjectLineage.iterationNumber}` : ''}` : 'Target project'}
 								</div>
 								{#if sparkProjectLineage.projectPath}
 									<div class="mt-1 max-w-3xl break-all font-mono text-xs text-text-tertiary">{sparkProjectLineage.projectPath}</div>
 								{/if}
 							</div>
-							{#if sparkProjectLineage.previewUrl}
+							{#if canShowSparkProjectActions && sparkProjectLineage.previewUrl}
 								<a
 									class="inline-flex items-center gap-1.5 rounded-md border border-accent-primary/40 bg-accent-primary/10 px-3 py-2 font-sans text-sm font-semibold text-accent-primary transition-colors hover:border-accent-primary/70 hover:bg-accent-primary/15"
 									href={sparkProjectLineage.previewUrl}

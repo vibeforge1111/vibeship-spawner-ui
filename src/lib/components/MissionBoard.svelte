@@ -14,6 +14,7 @@
 	import { completionEvidenceTooltipForDisplay } from '$lib/services/completion-evidence-display';
 	import {
 		canRunCreatorMissionBoardCard,
+		canShowMissionBoardProjectActions,
 		canValidateCreatorMissionBoardCard,
 		canvasHrefForMissionControlEntry,
 		collapseRepeatedTerminalMissionCards,
@@ -538,8 +539,7 @@
 
 	function hasCardActions(card: BoardCard): boolean {
 		return Boolean(
-			card.projectLineage?.previewUrl ||
-			card.projectLineage?.projectPath ||
+			canShowMissionBoardProjectActions(card) ||
 			canRunCreatorMissionBoardCard(card) ||
 			canValidateCreatorMissionBoardCard(card) ||
 			card.source === 'mcp'
@@ -1074,7 +1074,7 @@
 									{/if}
 
 									<div class:hidden={!hasActions} class="flex flex-wrap items-center gap-2 border-t border-surface-border/40 bg-bg-primary/25 px-4 py-2">
-										{#if c.projectLineage?.previewUrl}
+										{#if canShowMissionBoardProjectActions(c) && c.projectLineage?.previewUrl}
 											<a
 												href={c.projectLineage.previewUrl}
 												onclick={(event) => event.stopPropagation()}
@@ -1085,7 +1085,7 @@
 												Preview
 											</a>
 										{/if}
-										{#if c.projectLineage?.projectPath}
+										{#if canShowMissionBoardProjectActions(c) && c.projectLineage?.projectPath}
 											<button
 												onclick={() => handleImprove(c)}
 												class="inline-flex items-center justify-center gap-1.5 rounded-sm border border-surface-border px-2.5 py-1 font-mono text-[10px] text-text-secondary transition-all hover:border-accent-primary/50 hover:text-accent-primary"
