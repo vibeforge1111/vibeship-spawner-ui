@@ -1356,7 +1356,10 @@ class SparkAgentBridgeService {
 					finalize({ success: true, response: trimmed });
 					return;
 				}
-				const message = stderr.trim() || `Exited with code ${code}`;
+				const stderrMessage = stderr.trim();
+				const message = stderrMessage
+					|| trimmed.slice(-500)
+					|| `Exited with code ${code}`;
 				finalize({ success: false, error: message });
 			});
 
