@@ -9,6 +9,7 @@ import {
 	isCreatorMissionBoardCard,
 	mergeMissionBoardCards,
 	terminalMissionBoardColumnLabel,
+	canShowMissionBoardProjectActions,
 	type MissionBoardCard
 } from './mission-board-cards';
 
@@ -253,6 +254,31 @@ describe('mergeMissionBoardCards', () => {
 describe('terminalMissionBoardColumnLabel', () => {
 	it('labels the mixed completed, failed, and cancelled board bucket as history', () => {
 		expect(terminalMissionBoardColumnLabel()).toBe('History');
+	});
+});
+
+describe('canShowMissionBoardProjectActions', () => {
+	it('hides shipped-project actions while a mission is still active', () => {
+		const active = card({
+			id: 'spark-running',
+			status: 'running',
+			projectLineage: {
+				projectId: 'project-running',
+				projectPath: '/Users/example/.spark/workspaces/default',
+				previewUrl: 'http://127.0.0.1:3333/preview/default/index.html',
+				parentMissionId: null,
+				iterationNumber: null,
+				improvementFeedback: null
+			}
+		});
+		const shipped = card({
+			id: 'spark-complete',
+			status: 'completed',
+			projectLineage: active.projectLineage
+		});
+
+		expect(canShowMissionBoardProjectActions(active)).toBe(false);
+		expect(canShowMissionBoardProjectActions(shipped)).toBe(true);
 	});
 });
 

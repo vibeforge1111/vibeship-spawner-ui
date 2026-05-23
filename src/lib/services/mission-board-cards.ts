@@ -68,6 +68,12 @@ export function terminalMissionBoardColumnLabel(): string {
 	return 'History';
 }
 
+export function canShowMissionBoardProjectActions(
+	card: Pick<MissionBoardCard, 'projectLineage'> & { status?: string | null }
+): boolean {
+	return card.status === 'completed' && Boolean(card.projectLineage?.previewUrl || card.projectLineage?.projectPath);
+}
+
 export interface MissionCanvasPipelineCandidate {
 	id: string;
 	name?: string | null;
