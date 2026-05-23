@@ -27,6 +27,7 @@ function boardEvent() {
 
 afterEach(() => {
 	vi.restoreAllMocks();
+	vi.useRealTimers();
 });
 
 describe('/api/mission-control/board integration', () => {
@@ -108,5 +109,33 @@ describe('/api/mission-control/board integration', () => {
 				summary: 'Built the Telegram canvas mission and updated Kanban.'
 			})
 		]);
+	});
+
+	it('moves started-only missions out of running when no task or provider evidence appears', async () => {
+		const missionId = `spark-board-orphan-start-${Date.now()}`;
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-05-23T13:20:00.000Z'));
+		vi.spyOn(providerRuntime, 'getMissionResults').mockImplementation(() => []);
+
+		await relayMissionControlEvent({
+			type: 'mission_started',
+			missionId,
+			missionName: 'Build a Tiny Telegram Smoke App',
+			source: 'spark-run',
+			timestamp: '2026-05-23T13:13:45.000Z'
+		});
+
+		const response = await GET(boardEvent() as never);
+		expect(response.status).toBe(200);
+		const payload = await response.json();
+
+		expect(payload.board.running.find((candidate: { missionId: string }) => candidate.missionId === missionId)).toBeUndefined();
+		expect(payload.board.failed.find((candidate: { missionId: string }) => candidate.missionId === missionId)).toMatchObject({
+			missionId,
+			status: 'failed',
+			lastEventType: 'provider_stalled',
+			taskStatusCounts: { queued: 0, running: 0, completed: 0, failed: 0, cancelled: 0, total: 0 },
+			providerSummary: null
+		});
 	});
 });
