@@ -487,12 +487,14 @@ class MissionExecutor {
 					this.handleRemoteUpdate(event.data as Partial<Mission>);
 					break;
 
-				case 'mission_started':
-					if (this.progress.status !== 'running') {
+				case 'mission_started': {
+					const TERMINAL_STATES: ExecutionStatus[] = ['completed', 'failed', 'cancelled'];
+					if (!TERMINAL_STATES.includes(this.progress.status) && this.progress.status !== 'running') {
 						this.progress.status = 'running';
 						this.callbacks.onStatusChange?.('running');
 					}
 					break;
+				}
 
 				case 'mission_completed': {
 					this.progress.endTime = new Date();
