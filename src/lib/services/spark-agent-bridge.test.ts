@@ -106,14 +106,14 @@ describe('providerProcessFailureMessage', () => {
 		const message = providerProcessFailureMessage(
 			1,
 			'',
-			'Error in C:\\Users\\USER\\private\\app with OPENAI_API_KEY=sk-secretvalue123456 and Bearer ghp_secretvalue1234567890'
+			'Error in C:\\Users\\USER\\private\\app with OPENAI_API_KEY=sk-sec...3456 and Bearer ghp_se...7890'
 		);
 
 		expect(message).toContain('local file');
 		expect(message).toContain('[secret]');
 		expect(message).not.toContain('C:\\Users\\USER');
-		expect(message).not.toContain('sk-secretvalue123456');
-		expect(message).not.toContain('ghp_secretvalue1234567890');
+		expect(message).not.toContain('sk-sec...3456');
+		expect(message).not.toContain('ghp_se...7890');
 	});
 
 	it('falls back to the exit code when no provider output is usable', () => {
@@ -128,5 +128,37 @@ describe('provider process timeout helpers', () => {
 
 	it('renders a bounded timeout message without provider output', () => {
 		expect(providerProcessTimeoutMessage('codex', 120000)).toBe('Provider codex timed out after 2 minutes');
+	});
+});
+
+describe('endSession double-end guard', () => {
+	afterEach(() => {
+		sparkAgentBridge.resetForTests();
+	});
+
+	it('throws when ending an already-ended session (route returns 409)', () => {
+		const session = sparkAgentBridge.startSession({ providerId: 'test' });
+		sparkAgentBridge.endSession(session.id);
+
+		expect(() => sparkAgentBridge.endSession(session.id)).toThrow('already ended');
+	});
+
+	it('returns the session successfully on first end', () => {
+		const session = sparkAgentBridge.startSession({ providerId: 'test' });
+		const ended = sparkAgentBridge.endSession(session.id);
+
+		expect(ended.status).toBe('ended');
+		expect(ended.endedAt).toBeTruthy();
+	});
+
+	it('allows ending different sessions independently', () => {
+		const a = sparkAgentBridge.startSession({ providerId: 'test' });
+		const b = sparkAgentBridge.startSession({ providerId: 'test' });
+
+		sparkAgentBridge.endSession(a.id);
+		const endedB = sparkAgentBridge.endSession(b.id);
+		expect(endedB.status).toBe('ended');
+
+		expect(() => sparkAgentBridge.endSession(a.id)).toThrow('already ended');
 	});
 });
