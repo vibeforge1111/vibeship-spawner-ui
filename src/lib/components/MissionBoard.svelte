@@ -21,6 +21,7 @@
 		getMissionBoardWorkBreakdown,
 		mergeMissionBoardCards,
 		summarizeCompletionEvidenceForBoard,
+		terminalMissionBoardColumnLabel,
 		type MissionBoardCard as BoardCard
 	} from '$lib/services/mission-board-cards';
 	import {
@@ -968,7 +969,7 @@
 				{#each [
 					{ title: 'To do', items: toDo, empty: 'No pending missions' },
 					{ title: 'In progress', items: inProgress, empty: 'Nothing running' },
-					{ title: 'Completed', items: visibleDone, count: done.length, empty: 'No history yet' }
+					{ title: terminalMissionBoardColumnLabel(), items: visibleDone, count: done.length, empty: 'No history yet' }
 				] as col}
 					<section class="flex flex-col min-h-[320px]">
 						<div class="sticky top-0 z-10 flex items-center justify-between gap-2 px-1 py-4 mb-1 bg-bg-primary/90 backdrop-blur-sm border-b border-surface-border">
@@ -1150,20 +1151,20 @@
 									<p class="font-mono text-[11px] text-text-faint">{col.empty}</p>
 								</div>
 							{/each}
-							{#if col.title === 'Completed' && hiddenDoneCount > 0}
+							{#if col.title === terminalMissionBoardColumnLabel() && hiddenDoneCount > 0}
 								<div class="rounded-lg border border-dashed border-surface-border/80 bg-bg-secondary/35 px-4 py-3 text-center">
 									<p class="font-mono text-[11px] leading-relaxed text-text-tertiary">
-										Showing latest {visibleDone.length} of {done.length}. Use search or open a mission for older details.
+										Showing latest {visibleDone.length} of {done.length} history entries. Use search or open a mission for older details.
 									</p>
 									<button
 										class="mt-2 inline-flex items-center justify-center rounded-sm border border-surface-border px-2.5 py-1 font-mono text-[10px] text-text-secondary transition-all hover:border-accent-primary/50 hover:text-accent-primary"
 										onclick={() => showAllCompleted = true}
 									>
-										Show all completed
+										Show all history
 									</button>
 								</div>
 							{/if}
-							{#if col.title === 'Completed' && showAllCompleted && !searchQuery.trim() && done.length > completedPreviewLimit}
+							{#if col.title === terminalMissionBoardColumnLabel() && showAllCompleted && !searchQuery.trim() && done.length > completedPreviewLimit}
 								<button
 									class="w-full rounded-lg border border-surface-border/70 bg-bg-secondary/35 px-4 py-2 font-mono text-[10px] text-text-secondary transition-all hover:border-accent-primary/50 hover:text-accent-primary"
 									onclick={() => showAllCompleted = false}

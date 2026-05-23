@@ -8,6 +8,7 @@ import {
 	getMissionBoardWorkBreakdown,
 	isCreatorMissionBoardCard,
 	mergeMissionBoardCards,
+	terminalMissionBoardColumnLabel,
 	type MissionBoardCard
 } from './mission-board-cards';
 
@@ -246,6 +247,12 @@ describe('mergeMissionBoardCards', () => {
 		const [merged] = mergeMissionBoardCards([live], [staticCard]);
 
 		expect(merged.projectLineage).toEqual(live.projectLineage);
+	});
+});
+
+describe('terminalMissionBoardColumnLabel', () => {
+	it('labels the mixed completed, failed, and cancelled board bucket as history', () => {
+		expect(terminalMissionBoardColumnLabel()).toBe('History');
 	});
 });
 

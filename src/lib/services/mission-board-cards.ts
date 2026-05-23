@@ -64,6 +64,10 @@ export interface MissionBoardWorkBreakdown {
 	hasPreparation: boolean;
 }
 
+export function terminalMissionBoardColumnLabel(): string {
+	return 'History';
+}
+
 export interface MissionCanvasPipelineCandidate {
 	id: string;
 	name?: string | null;
