@@ -31,6 +31,7 @@ type ResultLookup = (missionId: string) => ProviderMissionResultSnapshot[];
 const NON_TERMINAL_PROVIDER_STATUSES: ProviderSessionStatus[] = ['idle', 'running'];
 const TERMINAL_PROVIDER_STATUSES: ProviderSessionStatus[] = ['completed', 'failed', 'cancelled'];
 const DEFAULT_STALLED_RUNNING_MS = 30 * 60 * 1000;
+const DEFAULT_ORPHAN_STARTED_MS = 5 * 60 * 1000;
 
 function providerLabel(providerId: string): string {
 	if (providerId === 'codex') return 'Codex';
@@ -41,6 +42,11 @@ function providerLabel(providerId: string): string {
 function stalledRunningMs(): number {
 	const raw = Number((env as Record<string, string | undefined>).MISSION_CONTROL_STALLED_RUNNING_MS);
 	return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_STALLED_RUNNING_MS;
+}
+
+function orphanStartedMs(): number {
+	const raw = Number((env as Record<string, string | undefined>).MISSION_CONTROL_ORPHAN_STARTED_MS);
+	return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_ORPHAN_STARTED_MS;
 }
 
 function compactDuration(ms: number): string {
@@ -312,7 +318,14 @@ function reconcileEntryWithProviderResults(
 ): MissionControlBoardEntry {
 	const lastUpdatedMs = Date.parse(entry.lastUpdated);
 	const stalledMs = stalledRunningMs();
+	const orphanMs = orphanStartedMs();
 	const hasTerminalProvider = results.some((result) => TERMINAL_PROVIDER_STATUSES.includes(result.status));
+	const hasNoExecutionEvidence =
+		results.length === 0 &&
+		entry.taskStatusCounts.total === 0 &&
+		entry.tasks.length === 0 &&
+		!entry.taskName &&
+		(entry.lastEventType === 'mission_started' || entry.lastEventType === 'dispatch_started');
 	if (
 		entry.status !== 'completed' &&
 		entry.status !== 'failed' &&
@@ -320,7 +333,7 @@ function reconcileEntryWithProviderResults(
 		entry.status !== 'paused' &&
 		!hasTerminalProvider &&
 		Number.isFinite(lastUpdatedMs) &&
-		Date.now() - lastUpdatedMs > stalledMs
+		Date.now() - lastUpdatedMs > (hasNoExecutionEvidence ? orphanMs : stalledMs)
 	) {
 		const tasks = entry.tasks.map((task) => ({
 			...task,
@@ -333,7 +346,9 @@ function reconcileEntryWithProviderResults(
 			...entry,
 			status: 'failed' as const,
 			lastEventType: 'provider_stalled',
-			lastSummary: `Mission stalled: no progress for ${compactDuration(Date.now() - lastUpdatedMs)}.`,
+			lastSummary: hasNoExecutionEvidence
+				? `Mission stalled: no task or provider activity for ${compactDuration(Date.now() - lastUpdatedMs)}.`
+				: `Mission stalled: no progress for ${compactDuration(Date.now() - lastUpdatedMs)}.`,
 			tasks
 		};
 		return {

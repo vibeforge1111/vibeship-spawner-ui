@@ -13,7 +13,9 @@
 	import type { PipelineMetadata } from '$lib/stores/pipelines.svelte';
 	import { completionEvidenceTooltipForDisplay } from '$lib/services/completion-evidence-display';
 	import {
+		activeMissionBoardColumnLabel,
 		canRunCreatorMissionBoardCard,
+		canShowMissionBoardProjectActions,
 		canValidateCreatorMissionBoardCard,
 		canvasHrefForMissionControlEntry,
 		collapseRepeatedTerminalMissionCards,
@@ -21,6 +23,7 @@
 		getMissionBoardWorkBreakdown,
 		mergeMissionBoardCards,
 		summarizeCompletionEvidenceForBoard,
+		terminalMissionBoardColumnLabel,
 		type MissionBoardCard as BoardCard
 	} from '$lib/services/mission-board-cards';
 	import {
@@ -537,8 +540,7 @@
 
 	function hasCardActions(card: BoardCard): boolean {
 		return Boolean(
-			card.projectLineage?.previewUrl ||
-			card.projectLineage?.projectPath ||
+			canShowMissionBoardProjectActions(card) ||
 			canRunCreatorMissionBoardCard(card) ||
 			canValidateCreatorMissionBoardCard(card) ||
 			card.source === 'mcp'
@@ -967,8 +969,8 @@
 			<div class="grid md:grid-cols-3 gap-5">
 				{#each [
 					{ title: 'To do', items: toDo, empty: 'No pending missions' },
-					{ title: 'In progress', items: inProgress, empty: 'Nothing running' },
-					{ title: 'Completed', items: visibleDone, count: done.length, empty: 'No history yet' }
+					{ title: activeMissionBoardColumnLabel(), items: inProgress, empty: 'No active missions' },
+					{ title: terminalMissionBoardColumnLabel(), items: visibleDone, count: done.length, empty: 'No history yet' }
 				] as col}
 					<section class="flex flex-col min-h-[320px]">
 						<div class="sticky top-0 z-10 flex items-center justify-between gap-2 px-1 py-4 mb-1 bg-bg-primary/90 backdrop-blur-sm border-b border-surface-border">
@@ -1073,7 +1075,7 @@
 									{/if}
 
 									<div class:hidden={!hasActions} class="flex flex-wrap items-center gap-2 border-t border-surface-border/40 bg-bg-primary/25 px-4 py-2">
-										{#if c.projectLineage?.previewUrl}
+										{#if canShowMissionBoardProjectActions(c) && c.projectLineage?.previewUrl}
 											<a
 												href={c.projectLineage.previewUrl}
 												onclick={(event) => event.stopPropagation()}
@@ -1084,7 +1086,7 @@
 												Preview
 											</a>
 										{/if}
-										{#if c.projectLineage?.projectPath}
+										{#if canShowMissionBoardProjectActions(c) && c.projectLineage?.projectPath}
 											<button
 												onclick={() => handleImprove(c)}
 												class="inline-flex items-center justify-center gap-1.5 rounded-sm border border-surface-border px-2.5 py-1 font-mono text-[10px] text-text-secondary transition-all hover:border-accent-primary/50 hover:text-accent-primary"
@@ -1150,20 +1152,20 @@
 									<p class="font-mono text-[11px] text-text-faint">{col.empty}</p>
 								</div>
 							{/each}
-							{#if col.title === 'Completed' && hiddenDoneCount > 0}
+							{#if col.title === terminalMissionBoardColumnLabel() && hiddenDoneCount > 0}
 								<div class="rounded-lg border border-dashed border-surface-border/80 bg-bg-secondary/35 px-4 py-3 text-center">
 									<p class="font-mono text-[11px] leading-relaxed text-text-tertiary">
-										Showing latest {visibleDone.length} of {done.length}. Use search or open a mission for older details.
+										Showing latest {visibleDone.length} of {done.length} history entries. Use search or open a mission for older details.
 									</p>
 									<button
 										class="mt-2 inline-flex items-center justify-center rounded-sm border border-surface-border px-2.5 py-1 font-mono text-[10px] text-text-secondary transition-all hover:border-accent-primary/50 hover:text-accent-primary"
 										onclick={() => showAllCompleted = true}
 									>
-										Show all completed
+										Show all history
 									</button>
 								</div>
 							{/if}
-							{#if col.title === 'Completed' && showAllCompleted && !searchQuery.trim() && done.length > completedPreviewLimit}
+							{#if col.title === terminalMissionBoardColumnLabel() && showAllCompleted && !searchQuery.trim() && done.length > completedPreviewLimit}
 								<button
 									class="w-full rounded-lg border border-surface-border/70 bg-bg-secondary/35 px-4 py-2 font-mono text-[10px] text-text-secondary transition-all hover:border-accent-primary/50 hover:text-accent-primary"
 									onclick={() => showAllCompleted = false}

@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 vi.mock('$lib/server/provider-runtime', () => ({
 	providerRuntime: {
@@ -14,6 +17,10 @@ vi.mock('$lib/server/provider-runtime', () => ({
 
 import { GET, POST } from './+server';
 import { providerRuntime } from '$lib/server/provider-runtime';
+import { getMissionControlPersistPath } from '$lib/server/mission-control-relay';
+
+const originalSpawnerStateDir = process.env.SPAWNER_STATE_DIR;
+let testSpawnerStateDir: string | null = null;
 
 function routeEvent(body: unknown, method = 'POST') {
 	return {
@@ -28,16 +35,29 @@ function routeEvent(body: unknown, method = 'POST') {
 }
 
 describe('/api/spark/run integration', () => {
-	beforeEach(() => {
+	beforeEach(async () => {
+		testSpawnerStateDir = await mkdtemp(path.join(tmpdir(), 'spawner-spark-run-test-'));
+		process.env.SPAWNER_STATE_DIR = testSpawnerStateDir;
 		vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
 	});
 
-	afterEach(() => {
+	afterEach(async () => {
 		vi.unstubAllGlobals();
+		if (originalSpawnerStateDir === undefined) {
+			delete process.env.SPAWNER_STATE_DIR;
+		} else {
+			process.env.SPAWNER_STATE_DIR = originalSpawnerStateDir;
+		}
 		delete process.env.SPAWNER_MISSION_CONTROL_PUBLIC_URL;
+		if (testSpawnerStateDir) {
+			await rm(testSpawnerStateDir, { recursive: true, force: true });
+			testSpawnerStateDir = null;
+		}
 	});
 
 	it('returns local-only Mission Control access for Telegram callers by default', async () => {
+		expect(getMissionControlPersistPath()).toContain('spawner-spark-run-test-');
+
 		const response = await POST(routeEvent({
 			goal: 'Build a tiny Telegram smoke app.',
 			providers: ['codex'],

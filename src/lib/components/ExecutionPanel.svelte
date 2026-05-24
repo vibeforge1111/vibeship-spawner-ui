@@ -53,6 +53,7 @@
 		getStatusColor,
 		getTransitionBadge
 	} from '$lib/services/execution-panel-formatting';
+	import { canShowMissionBoardProjectActions } from '$lib/services/mission-board-cards';
 	import { polishMissionTitleForDisplay } from '$lib/services/mission-title';
 	import { browser } from '$app/environment';
 	import { get } from 'svelte/store';
@@ -173,6 +174,12 @@
 	let canPause = $derived(executionProgress?.status === 'running');
 	let canResume = $derived(executionProgress?.status === 'paused');
 	let canCancel = $derived(isRunning || isPaused);
+	let canImproveProject = $derived(
+		canShowMissionBoardProjectActions({
+			status: executionProgress?.status,
+			projectLineage
+		})
+	);
 	let isMissionHistoryMode = $derived(Boolean(relay?.missionId));
 	// Note: MCP not required anymore - we build missions locally and run directly by default (copy prompt is fallback)
 	let canRun = $derived(!isMissionHistoryMode && !isRunning && !isPaused && !isTerminal && currentNodes.length > 0);
@@ -1457,7 +1464,7 @@
 							<div class="grid gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
 								<div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
 									<span class="font-semibold text-accent-primary">
-										Iteration{projectLineage.iterationNumber ? ` ${projectLineage.iterationNumber}` : ''}
+										{canImproveProject ? `Iteration${projectLineage.iterationNumber ? ` ${projectLineage.iterationNumber}` : ''}` : 'Target project'}
 									</span>
 									{#if projectLineage.projectPath}
 										<span class="min-w-0 max-w-full truncate text-text-secondary">Project: {projectLineage.projectPath}</span>
@@ -1466,7 +1473,7 @@
 										<span class="truncate text-text-tertiary">Parent: {projectLineage.parentMissionId}</span>
 									{/if}
 								</div>
-								{#if projectLineage.projectPath}
+								{#if canImproveProject && projectLineage.projectPath}
 									<a
 										href={canvasImproveHref()}
 										class="inline-flex justify-self-start items-center justify-center rounded px-2 py-1 text-[10px] text-accent-primary border border-accent-primary/30 hover:bg-accent-primary hover:text-bg-primary transition-all sm:justify-self-end"
