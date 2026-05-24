@@ -78,13 +78,31 @@ export const POST: RequestHandler = async (event) => {
 			return json({ success: false, error: 'Invalid execution pack' }, { status: 400 });
 		}
 
-		if (executionPack.providers.length === 0) {
+	if (executionPack.providers.length === 0) {
+		return json(
+			{ success: false, error: 'No providers in execution pack' },
+			{ status: 400 }
+		);
+	}
+
+	// Validate each provider has a valid id field
+	for (let i = 0; i < executionPack.providers.length; i++) {
+		const provider = executionPack.providers[i];
+		if (!provider || typeof provider !== 'object') {
 			return json(
-				{ success: false, error: 'No providers in execution pack' },
+				{ success: false, error: `Invalid provider object at index ${i}: expected object` },
 				{ status: 400 }
 			);
 		}
-		const capability = assertCapability(createCapabilityEnvelope(event, {
+		if (!provider.id || typeof provider.id !== 'string' || !provider.id.trim()) {
+			return json(
+				{ success: false, error: `Invalid provider object at index ${i}: missing required 'id' field` },
+				{ status: 400 }
+			);
+		}
+	}
+
+	const capability = assertCapability(createCapabilityEnvelope(event, {
 			actorId: typeof relay?.userId === 'string' ? relay.userId : undefined,
 			surface: 'spawner',
 			capability: 'provider.execute',
