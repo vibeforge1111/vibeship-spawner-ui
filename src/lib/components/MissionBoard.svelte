@@ -13,6 +13,7 @@
 	import type { PipelineMetadata } from '$lib/stores/pipelines.svelte';
 	import { completionEvidenceTooltipForDisplay } from '$lib/services/completion-evidence-display';
 	import {
+		activeMissionBoardColumnLabel,
 		canRunCreatorMissionBoardCard,
 		canValidateCreatorMissionBoardCard,
 		canvasHrefForMissionControlEntry,
@@ -968,7 +969,7 @@
 			<div class="grid md:grid-cols-3 gap-5">
 				{#each [
 					{ title: 'To do', items: toDo, empty: 'No pending missions' },
-					{ title: 'In progress', items: inProgress, empty: 'Nothing running' },
+					{ title: activeMissionBoardColumnLabel(), items: inProgress, empty: 'No active missions' },
 					{ title: terminalMissionBoardColumnLabel(), items: visibleDone, count: done.length, empty: 'No history yet' }
 				] as col}
 					<section class="flex flex-col min-h-[320px]">

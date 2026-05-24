@@ -68,6 +68,10 @@ export function terminalMissionBoardColumnLabel(): string {
 	return 'History';
 }
 
+export function activeMissionBoardColumnLabel(): string {
+	return 'Active';
+}
+
 export interface MissionCanvasPipelineCandidate {
 	id: string;
 	name?: string | null;
