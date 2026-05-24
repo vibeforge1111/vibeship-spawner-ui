@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	activeMissionBoardColumnLabel,
 	canRunCreatorMissionBoardCard,
 	canValidateCreatorMissionBoardCard,
 	canvasHrefForMissionControlEntry,
@@ -8,6 +9,8 @@ import {
 	getMissionBoardWorkBreakdown,
 	isCreatorMissionBoardCard,
 	mergeMissionBoardCards,
+	terminalMissionBoardColumnLabel,
+	canShowMissionBoardProjectActions,
 	type MissionBoardCard
 } from './mission-board-cards';
 
@@ -246,6 +249,43 @@ describe('mergeMissionBoardCards', () => {
 		const [merged] = mergeMissionBoardCards([live], [staticCard]);
 
 		expect(merged.projectLineage).toEqual(live.projectLineage);
+	});
+});
+
+describe('terminalMissionBoardColumnLabel', () => {
+	it('labels the mixed completed, failed, and cancelled board bucket as history', () => {
+		expect(terminalMissionBoardColumnLabel()).toBe('History');
+	});
+});
+
+describe('activeMissionBoardColumnLabel', () => {
+	it('labels the mixed running and paused board bucket as active', () => {
+		expect(activeMissionBoardColumnLabel()).toBe('Active');
+	});
+});
+
+describe('canShowMissionBoardProjectActions', () => {
+	it('hides shipped-project actions while a mission is still active', () => {
+		const active = card({
+			id: 'spark-running',
+			status: 'running',
+			projectLineage: {
+				projectId: 'project-running',
+				projectPath: '/Users/example/.spark/workspaces/default',
+				previewUrl: 'http://127.0.0.1:3333/preview/default/index.html',
+				parentMissionId: null,
+				iterationNumber: null,
+				improvementFeedback: null
+			}
+		});
+		const shipped = card({
+			id: 'spark-complete',
+			status: 'completed',
+			projectLineage: active.projectLineage
+		});
+
+		expect(canShowMissionBoardProjectActions(active)).toBe(false);
+		expect(canShowMissionBoardProjectActions(shipped)).toBe(true);
 	});
 });
 
