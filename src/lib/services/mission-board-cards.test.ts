@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	activeMissionBoardColumnLabel,
 	canRunCreatorMissionBoardCard,
 	canValidateCreatorMissionBoardCard,
 	canvasHrefForMissionControlEntry,
@@ -253,6 +254,12 @@ describe('mergeMissionBoardCards', () => {
 describe('terminalMissionBoardColumnLabel', () => {
 	it('labels the mixed completed, failed, and cancelled board bucket as history', () => {
 		expect(terminalMissionBoardColumnLabel()).toBe('History');
+	});
+});
+
+describe('activeMissionBoardColumnLabel', () => {
+	it('labels the mixed running and paused board bucket as active', () => {
+		expect(activeMissionBoardColumnLabel()).toBe('Active');
 	});
 });
 
