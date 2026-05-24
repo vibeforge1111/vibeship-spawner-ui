@@ -1,8 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { rmSync } from 'node:fs';
 
-vi.hoisted(() => {
-	const tempRoot = process.env.TEMP || process.env.TMP || process.cwd();
-	process.env.SPAWNER_STATE_DIR = `${tempRoot}/spawner-ui-mission-control-relay-test-${process.pid}-${Date.now()}`;
+const testState = vi.hoisted(() => {
+	const originalSpawnerStateDir = process.env.SPAWNER_STATE_DIR;
+	const tempRoot = process.env.TMPDIR || process.env.TEMP || process.env.TMP || process.cwd();
+	const spawnerStateDir = `${tempRoot}/spawner-ui-mission-control-relay-test-${process.pid}-${Date.now()}`;
+	process.env.SPAWNER_STATE_DIR = spawnerStateDir;
+	return { originalSpawnerStateDir, spawnerStateDir };
 });
 
 import {
@@ -27,6 +31,15 @@ function freshIso(offsetMs = 0): string {
 describe('mission-control-relay', () => {
 	beforeEach(() => {
 		vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
+	});
+
+	afterAll(() => {
+		if (testState.originalSpawnerStateDir === undefined) {
+			delete process.env.SPAWNER_STATE_DIR;
+		} else {
+			process.env.SPAWNER_STATE_DIR = testState.originalSpawnerStateDir;
+		}
+		rmSync(testState.spawnerStateDir, { recursive: true, force: true });
 	});
 
 	afterEach(() => {
