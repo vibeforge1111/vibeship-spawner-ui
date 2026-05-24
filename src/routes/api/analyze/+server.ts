@@ -8,6 +8,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 import skillIndex from '$lib/data/skill-index-ultra.json';
 import { ClaudeApiAnalysisSchema, safeJsonParse } from '$lib/types/schemas';
 import { logger } from '$lib/utils/logger';
@@ -96,9 +97,16 @@ function formatSkillsForPrompt(): string {
 	return lines.join('\n');
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'Analyze',
+		apiKeyEnvVar: 'MCP_API_KEY',
+		fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
+	});
+	if (unauthorized) return unauthorized;
+
 	try {
-		const body: AnalysisRequest = await request.json();
+		const body: AnalysisRequest = await event.request.json();
 
 		if (!body.goal || typeof body.goal !== 'string') {
 			return json({ error: 'Goal is required' }, { status: 400 });

@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { building } from '$app/environment';
 import type { RequestHandler } from './$types';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 import {
   createSchedule,
   deleteSchedule,
@@ -23,15 +24,29 @@ if (!building) {
   startScheduler();
 }
 
-export const GET: RequestHandler = async () => {
-  const schedules = await listSchedules();
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'Scheduled',
+		apiKeyEnvVar: 'MCP_API_KEY',
+		fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
+	});
+	if (unauthorized) return unauthorized;
+
+	const schedules = await listSchedules();
   return json({ ok: true, schedules });
 };
 
-export const POST: RequestHandler = async ({ request }) => {
-  let body: Record<string, unknown>;
-  try {
-    body = asRecord(await request.json());
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'Scheduled',
+		apiKeyEnvVar: 'MCP_API_KEY',
+		fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
+	});
+	if (unauthorized) return unauthorized;
+
+	let body: Record<string, unknown>;
+	try {
+		body = asRecord(await event.request.json());
   } catch {
     return json({ ok: false, error: 'invalid json' }, { status: 400 });
   }
@@ -51,11 +66,18 @@ export const POST: RequestHandler = async ({ request }) => {
   }
 };
 
-export const DELETE: RequestHandler = async ({ request, url }) => {
-  const id = url.searchParams.get('id') || '';
-  if (!id) {
-    let body: Record<string, unknown> = {};
-    try { body = asRecord(await request.json()); } catch {}
+export const DELETE: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'Scheduled',
+		apiKeyEnvVar: 'MCP_API_KEY',
+		fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
+	});
+	if (unauthorized) return unauthorized;
+
+	const id = event.url.searchParams.get('id') || '';
+	if (!id) {
+		let body: Record<string, unknown> = {};
+		try { body = asRecord(await event.request.json()); } catch {}
     const bodyId = body?.id ? String(body.id) : '';
     if (!bodyId) return json({ ok: false, error: 'id required' }, { status: 400 });
     const ok = await deleteSchedule(bodyId);
