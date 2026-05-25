@@ -37,6 +37,7 @@
 	let activeTab = $state<Tab>('board');
 
 	type CardStatus = BoardCard['status'];
+	type MissionStatusFilter = 'all' | 'needs_attention' | 'paused' | 'completed';
 
 	let missions = $state<Mission[]>([]);
 	let loading = $state(false);
@@ -376,14 +377,25 @@
 
 	let searchQuery = $state('');
 	let searchFocused = $state(false);
+	let statusFilter = $state<MissionStatusFilter>('all');
 	let showAllCompleted = $state(false);
 	const completedPreviewLimit = 12;
+	const statusFilters: Array<{ id: MissionStatusFilter; label: string }> = [
+		{ id: 'all', label: 'All' },
+		{ id: 'needs_attention', label: 'Needs review' },
+		{ id: 'paused', label: 'Paused' },
+		{ id: 'completed', label: 'Complete' }
+	];
 
 	const filteredCards = $derived(() => {
 		const q = searchQuery.trim().toLowerCase();
 		return cards().filter((c) => {
-			if (!q) return true;
-			return c.name.toLowerCase().includes(q) || (c.summary ?? '').toLowerCase().includes(q);
+			const matchesSearch = !q || c.name.toLowerCase().includes(q) || (c.summary ?? '').toLowerCase().includes(q);
+			if (!matchesSearch) return false;
+			if (statusFilter === 'needs_attention') return c.status === 'failed' || c.completionEvidence?.state === 'incomplete';
+			if (statusFilter === 'paused') return c.status === 'paused';
+			if (statusFilter === 'completed') return c.status === 'completed';
+			return true;
 		});
 	});
 
@@ -543,8 +555,20 @@
 			canShowMissionBoardProjectActions(card) ||
 			canRunCreatorMissionBoardCard(card) ||
 			canValidateCreatorMissionBoardCard(card) ||
-			card.source === 'mcp'
+			card.source === 'mcp' ||
+			card.status === 'paused' ||
+			card.status === 'failed'
 		);
+	}
+
+	function hasRecoveryActions(card: BoardCard): boolean {
+		return card.status === 'paused' || card.status === 'failed';
+	}
+
+	function statusFilterClass(filter: MissionStatusFilter): string {
+		return statusFilter === filter
+			? 'border-accent-primary/55 bg-accent-primary/15 text-accent-primary'
+			: 'border-surface-border bg-bg-secondary text-text-tertiary hover:border-accent-primary/40 hover:text-text-primary';
 	}
 
 	function columnDot(title: string): string {
@@ -797,6 +821,19 @@
 					<span class="font-mono text-xs text-text-tertiary">{filteredCards().length}/{cards().length}</span>
 				{/if}
 
+				<div class="hidden items-center gap-1 xl:flex">
+					{#each statusFilters as filter}
+						<button
+							type="button"
+							onclick={() => (statusFilter = filter.id)}
+							class="rounded-md border px-2.5 py-1.5 font-mono text-[10px] transition-all {statusFilterClass(filter.id)}"
+							aria-pressed={statusFilter === filter.id}
+						>
+							{filter.label}
+						</button>
+					{/each}
+				</div>
+
 				<button
 					onclick={() => {
 						if (quickAddOpen) resetQuickAdd();
@@ -966,7 +1003,7 @@
 				<p class="font-mono text-xs text-text-tertiary">{error}</p>
 			</div>
 		{:else}
-			<div class="grid md:grid-cols-3 gap-5">
+			<div class="grid gap-5 md:grid-cols-3 xl:grid-cols-[minmax(16rem,0.78fr)_minmax(18rem,1fr)_minmax(24rem,1.35fr)]">
 				{#each [
 					{ title: 'To do', items: toDo, empty: 'No pending missions' },
 					{ title: activeMissionBoardColumnLabel(), items: inProgress, empty: 'No active missions' },
@@ -1117,6 +1154,37 @@
 												<Icon name={creatorValidateMissionId === c.id ? 'loader' : 'check-circle'} size={10} />
 												{creatorValidateMissionId === c.id ? 'Validating' : 'Validate'}
 											</button>
+										{/if}
+										{#if hasRecoveryActions(c)}
+											{#if actionLinks.canvasHref}
+												<a
+													href={actionLinks.canvasHref}
+													data-sveltekit-reload
+													class="inline-flex items-center justify-center gap-1.5 rounded-sm border border-surface-border px-2.5 py-1 font-mono text-[10px] text-text-secondary transition-all hover:border-iris/70 hover:text-iris"
+													title="Open this mission on the Canvas"
+												>
+													<Icon name="box" size={10} />
+													Open canvas
+												</a>
+											{/if}
+											<a
+												href={actionLinks.traceHref}
+												class="inline-flex items-center justify-center gap-1.5 rounded-sm border border-surface-border px-2.5 py-1 font-mono text-[10px] text-text-secondary transition-all hover:border-accent-primary/50 hover:text-accent-primary"
+												title="Open trace evidence for this mission"
+											>
+												<Icon name="scan" size={10} />
+												Trace
+											</a>
+											{#if actionLinks.resultHref}
+												<a
+													href={actionLinks.resultHref}
+													class="inline-flex items-center justify-center gap-1.5 rounded-sm border border-status-error/30 px-2.5 py-1 font-mono text-[10px] text-status-error transition-all hover:bg-status-error hover:text-bg-primary"
+												title="Inspect the latest failure result"
+											>
+												<Icon name="alert-circle" size={10} />
+												Failure
+											</a>
+											{/if}
 										{/if}
 										{#if c.source === 'mcp' && (c.status === 'ready' || c.status === 'draft')}
 											<button

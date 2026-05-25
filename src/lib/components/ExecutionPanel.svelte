@@ -1263,6 +1263,25 @@
 		if (projectLineage?.improvementFeedback) params.set('improvementFeedback', projectLineage.improvementFeedback);
 		return `/kanban?${params.toString()}`;
 	}
+
+	function failureEvidenceText(): string {
+		const failedTaskList = failedTasks.length ? `Failed tasks: ${failedTasks.join(', ')}` : '';
+		const transition = recentTaskTransitions.find((event) => event.state === 'failed');
+		const transitionText = transition
+			? `Latest failure: ${transition.taskName || transition.taskId || 'task'}`
+			: '';
+		return [
+			`Mission: ${panelTitle}`,
+			executionProgress?.error ? `Error: ${executionProgress.error}` : '',
+			failedTaskList,
+			transitionText,
+			activeMissionId ? `Mission ID: ${activeMissionId}` : ''
+		].filter(Boolean).join('\n');
+	}
+
+	function copyFailureEvidence() {
+		copyToClipboard(failureEvidenceText(), 'Copied failure evidence');
+	}
 </script>
 
 <!-- Minimized floating widget -->
@@ -1319,29 +1338,18 @@
 	</button>
 {:else}
 <div
-	class="fixed z-50 transition-all duration-300 ease-out"
-	class:inset-0={!minimized}
-	class:right-0={minimized}
-	class:top-0={minimized}
-	class:bottom-0={minimized}
-	class:w-96={minimized}
+	class={`fixed right-0 bottom-0 z-50 transition-all duration-300 ease-out ${minimized ? 'top-0 w-96' : 'top-14 w-[min(38rem,calc(100vw-1rem))]'}`}
 	role="dialog"
 	aria-modal={!minimized ? 'true' : undefined}
 >
-	{#if !minimized}
-		<button class="absolute inset-0 bg-black/50" onclick={handleClose} aria-label="Close execution panel"></button>
-	{/if}
 	<div
-		class="relative bg-bg-secondary border-l border-surface-border flex flex-col overscroll-contain"
+		class="relative bg-bg-secondary border-l border-surface-border flex flex-col overscroll-contain shadow-[0_24px_90px_rgba(0,0,0,0.45)]"
 		class:h-full={minimized}
-		class:max-w-4xl={!minimized}
-		class:mx-auto={!minimized}
-		class:mt-10={!minimized}
-		class:mb-6={!minimized}
-		class:max-h-[calc(100vh-4rem)]={!minimized}
+		class:h-[calc(100vh-3.5rem)]={!minimized}
+		class:max-w-full={!minimized}
 		class:overflow-y-auto={!minimized}
 		class:overflow-x-hidden={!minimized}
-		class:border={!minimized}
+		class:border-y={!minimized}
 	>
 		<!-- Header -->
 		<div class="flex items-center justify-between gap-4 px-6 py-5 border-b border-surface-border bg-bg-secondary">
@@ -1442,6 +1450,43 @@
 					onResumePartial={handleResumePartial}
 					onDismissPartial={handleDismissPartial}
 				/>
+
+				{#if executionProgress.status === 'failed'}
+					<div class="mt-4 rounded-lg border border-status-error/35 bg-status-error/10 p-3">
+						<div class="flex flex-wrap items-start justify-between gap-3">
+							<div class="min-w-0">
+								<p class="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-status-error">
+									Failure recovery
+								</p>
+								<p class="mt-1 text-xs leading-relaxed text-text-secondary">
+									Open the trace, inspect logs, or retry only the failed work from here.
+								</p>
+							</div>
+							<div class="flex flex-wrap items-center gap-2">
+								<button
+									type="button"
+									onclick={handleResumePartial}
+									class="inline-flex items-center rounded-md border border-status-error/40 px-2.5 py-1.5 font-mono text-[10px] font-semibold text-status-error transition-all hover:bg-status-error hover:text-bg-primary"
+								>
+									Rerun failed
+								</button>
+								<a
+									href={activeMissionId ? `/trace?missionId=${encodeURIComponent(activeMissionId)}` : '/trace'}
+									class="inline-flex items-center rounded-md border border-surface-border px-2.5 py-1.5 font-mono text-[10px] text-text-secondary transition-all hover:border-accent-primary/50 hover:text-accent-primary"
+								>
+									Open trace
+								</a>
+								<button
+									type="button"
+									onclick={copyFailureEvidence}
+									class="inline-flex items-center rounded-md border border-surface-border px-2.5 py-1.5 font-mono text-[10px] text-text-secondary transition-all hover:border-accent-primary/50 hover:text-accent-primary"
+								>
+									Copy error
+								</button>
+							</div>
+						</div>
+					</div>
+				{/if}
 			</div>
 		{/if}
 
