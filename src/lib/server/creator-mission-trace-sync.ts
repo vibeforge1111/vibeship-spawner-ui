@@ -44,7 +44,7 @@ function creatorWorkspaceRoots(): string[] {
 		process.env.SPARK_CREATOR_WORKSPACE_ROOT,
 		process.env.SPAWNER_WORKSPACE_ROOT,
 		process.env.SPARK_WORKSPACE_ROOT,
-		path.join(homedir(), 'Desktop'),
+		path.join(homedir(), '.spark', 'workspaces'),
 		path.resolve(process.cwd(), '..'),
 		process.cwd()
 	]
