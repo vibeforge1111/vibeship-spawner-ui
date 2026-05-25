@@ -14,10 +14,17 @@ export interface MissionControlProviderResultSummary {
 	summary: string;
 	durationMs: number | null;
 	completedAt: string | null;
+	artifacts?: MissionControlProviderArtifact[];
 	projectPath?: string;
 	project_path?: string;
 	previewUrl?: string;
 	preview_url?: string;
+}
+
+export interface MissionControlProviderArtifact {
+	label: string;
+	path: string;
+	type: 'changed_file' | 'screenshot' | 'receipt' | 'history' | 'artifact';
 }
 
 export interface MissionControlResultSummary {
@@ -62,6 +69,13 @@ function stringField(record: Record<string, unknown>, key: string): string | nul
 	return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
+function stringArrayField(record: Record<string, unknown>, key: string): string[] {
+	const value = record[key];
+	return Array.isArray(value)
+		? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0).map((item) => item.trim())
+		: [];
+}
+
 function previewBaseUrl(): string {
 	const envRecord = env as Record<string, string | undefined>;
 	const raw =
@@ -90,6 +104,7 @@ function parseProviderResponseMetadata(response: string | null): {
 	project_path?: string;
 	previewUrl?: string;
 	preview_url?: string;
+	artifacts?: MissionControlProviderArtifact[];
 } {
 	if (!response?.trim()) return {};
 	try {
@@ -105,14 +120,46 @@ function parseProviderResponseMetadata(response: string | null): {
 			stringField(record, 'openUrl');
 		const baseUrl = previewBaseUrl();
 		const previewUrl = explicitPreviewUrl || (projectPath && baseUrl ? projectPreviewUrl(baseUrl, projectPath) : null);
+		const artifacts = providerArtifactsFromStructuredResponse(record);
 		return {
 			...(summary ? { summary } : {}),
 			...(projectPath ? { projectPath, project_path: projectPath } : {}),
-			...(previewUrl ? { previewUrl, preview_url: previewUrl } : {})
+			...(previewUrl ? { previewUrl, preview_url: previewUrl } : {}),
+			...(artifacts.length > 0 ? { artifacts } : {})
 		};
 	} catch {
 		return {};
 	}
+}
+
+function providerArtifactsFromStructuredResponse(record: Record<string, unknown>): MissionControlProviderArtifact[] {
+	const artifacts: MissionControlProviderArtifact[] = [];
+	const add = (type: MissionControlProviderArtifact['type'], value: string) => {
+		const trimmed = value.trim();
+		if (!trimmed || artifacts.some((artifact) => artifact.path === trimmed)) return;
+		artifacts.push({
+			type,
+			path: trimmed,
+			label: trimmed.split(/[\\/]/).filter(Boolean).at(-1) || trimmed
+		});
+	};
+	for (const file of stringArrayField(record, 'changed_files')) add('changed_file', file);
+	for (const file of stringArrayField(record, 'files')) add('changed_file', file);
+	for (const file of stringArrayField(record, 'screenshot_paths')) add('screenshot', file);
+	for (const key of ['screenshot_path', 'receipt_path', 'history_path', 'artifact_path']) {
+		const value = stringField(record, key);
+		if (!value) continue;
+		const type =
+			key === 'screenshot_path'
+				? 'screenshot'
+				: key === 'receipt_path'
+					? 'receipt'
+					: key === 'history_path'
+						? 'history'
+						: 'artifact';
+		add(type, value);
+	}
+	return artifacts.slice(0, 8);
 }
 
 function providerCompletionLooksBlocked(text: string | null | undefined): boolean {
