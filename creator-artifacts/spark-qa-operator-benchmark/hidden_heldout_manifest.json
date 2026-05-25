@@ -1,0 +1,50 @@
+{
+  "answerKeysIncluded": false,
+  "candidateVisible": false,
+  "forbiddenFields": [
+    "answer",
+    "expectedAnswer",
+    "expectedOutput",
+    "solution",
+    "rubricSolution"
+  ],
+  "generatedAt": "2026-05-25T13:15:25.125535Z",
+  "heldoutSetId": "spark-qa-operator-level-10-sealed-heldout",
+  "rawAnswersIncluded": false,
+  "revealPolicy": "reviewer-only after candidate run is locked",
+  "schemaVersion": "spark-hidden-heldout-manifest.v1",
+  "sealedCaseRefs": [
+    {
+      "caseRef": "sealed-heldout-01",
+      "sealedHash": "sha256:sealed-01"
+    },
+    {
+      "caseRef": "sealed-heldout-02",
+      "sealedHash": "sha256:sealed-02"
+    },
+    {
+      "caseRef": "sealed-heldout-03",
+      "sealedHash": "sha256:sealed-03"
+    },
+    {
+      "caseRef": "sealed-heldout-04",
+      "sealedHash": "sha256:sealed-04"
+    },
+    {
+      "caseRef": "sealed-heldout-05",
+      "sealedHash": "sha256:sealed-05"
+    },
+    {
+      "caseRef": "sealed-heldout-06",
+      "sealedHash": "sha256:sealed-06"
+    },
+    {
+      "caseRef": "sealed-heldout-07",
+      "sealedHash": "sha256:sealed-07"
+    },
+    {
+      "caseRef": "sealed-heldout-08",
+      "sealedHash": "sha256:sealed-08"
+    }
+  ]
+}

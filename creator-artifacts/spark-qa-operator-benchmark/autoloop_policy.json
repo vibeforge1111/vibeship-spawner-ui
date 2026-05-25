@@ -1,0 +1,34 @@
+{
+  "schema_version": "spark-autoloop-policy.v1",
+  "policy_id": "specialization-path-spark-qa-operator",
+  "target_domain": "Spark QA Operator",
+  "mode": "benchmark_gated",
+  "bounded_rounds": true,
+  "max_rounds_per_cycle": 3,
+  "pause_resume_required": true,
+  "mutation_surface": [
+    "case rubric clarity",
+    "operator playbook instruction",
+    "domain chip routing keywords",
+    "tool-use preflight checklist",
+    "Telegram handoff copy",
+    "validation ledger requirements"
+  ],
+  "protected_surface": [
+    "heldout expected answers",
+    "hidden_heldout expected answers",
+    "trap expected answers",
+    "hard_zero definitions",
+    "publication boundary"
+  ],
+  "keep_rule": "Keep only when candidate beats baseline, held-out passes, traps pass, and evidence proves a real capability gain.",
+  "revert_rule": "Reject score-only, wording-only, stale-evidence, or unverified mutations.",
+  "rollback_rule": "Rollback the mutation and clear any durable doctrine proposal when raw runner output contradicts the wrapper, held-out fails, traps fail, or evidence is missing.",
+  "round_history_policy": "Record every round in the validation ledger. Clear active round state after rejection; preserve accepted round summaries only after sidecar review.",
+  "durable_doctrine_rule": "A pattern may become durable doctrine only after it improves a measured decision dimension and creates an agent-facing lesson that transfers beyond the exact case.",
+  "dry_run_contract": {
+    "command": "node scripts/validate-spark-qa-benchmark-creator.mjs creator-artifacts/spark-qa-operator-benchmark",
+    "expected_result": "packet_validated_without_score",
+    "score_claim_allowed": false
+  }
+}

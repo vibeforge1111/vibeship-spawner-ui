@@ -1,0 +1,16 @@
+{
+  "bridgeStatus": "future_bridge_draft",
+  "compatiblePacketSchemas": [
+    "spark-swarm-contribution-packet.v1",
+    "spark-domain-chip-labs-standardization.v1"
+  ],
+  "generatedAt": "2026-05-25T13:15:25.125535Z",
+  "networkAbsorbable": false,
+  "normalizedEvidenceLanes": [
+    "benchmark_grounded",
+    "swarm_audit",
+    "promotion_bridge"
+  ],
+  "publicReady": false,
+  "schemaVersion": "spark-swarm-future-bridge.v1"
+}

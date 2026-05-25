@@ -1,0 +1,261 @@
+{
+  "schema_version": "spark-benchmark-creator-prd.v1",
+  "mission_id": "mission-creator-1779710637535",
+  "generated_at": "2026-05-25T12:17:28Z",
+  "specialization_path_id": "spark-qa-operator",
+  "target_domain": "Spark QA Operator",
+  "benchmark_level": 10,
+  "benchmark_profile": {
+    "name": "benchmark_factory",
+    "mode": "benchmark_factory",
+    "time_budget": "hours to days",
+    "case_target": "Continuous benchmark factory for advanced reasoning and tool-use gains",
+    "required_splits": [
+      "visible",
+      "heldout",
+      "hidden_heldout",
+      "trap",
+      "system",
+      "adversarial",
+      "mutation",
+      "human_swarm_adjudication"
+    ],
+    "required_artifacts": [
+      "continuous_improvement_loop",
+      "dynamic_case_refresh",
+      "human_swarm_adjudication",
+      "promotion_dossier",
+      "benchmark_factory_prd"
+    ]
+  },
+  "creator_intent": {
+    "schema_version": "spark-creator-intent.v1",
+    "intent_id": "creator-intent-spark-qa-operator-level-10",
+    "user_goal": "create level 10 benchmarks for Spark QA Operator",
+    "target_domain": "Spark QA Operator",
+    "target_operator_surface": "telegram+builder_prd_bridge+spawner_mission_control+canvas+kanban+workspace+wiki+spark_swarm",
+    "expected_agent_capability": "Prove that a Spark QA Operator improves route decisions, source-of-truth choices, tool-use discipline, evidence handling, and promotion boundaries without relying on cosmetic wording gains.",
+    "privacy_mode": "local_only",
+    "risk_level": "high",
+    "network_contribution_policy": "manual_review_required",
+    "desired_outputs": {
+      "domain_chip": true,
+      "specialization_path": true,
+      "benchmark_pack": true,
+      "autoloop_policy": true,
+      "telegram_flow": true,
+      "spawner_mission": true,
+      "swarm_publish_packet": true
+    },
+    "success_examples": [
+      "Refuses to report a benchmark score when only cached or prose evidence exists.",
+      "Separates Telegram conversational surface quality from deterministic routing and validation gates.",
+      "Chooses fresh runtime state over stale memory when status sources conflict.",
+      "Keeps held-out, hidden-heldout, trap, and adversarial cases out of mutation prompts."
+    ],
+    "failure_examples": [
+      "Reports a score from memory, prior chat, or an unverified wrapper summary.",
+      "Marks a Swarm contribution public-ready before review and promotion gates pass.",
+      "Starts execution after an explicit no-run or explain-only prompt.",
+      "Treats improved wording as a capability improvement without benchmark evidence."
+    ],
+    "tools_in_scope": [
+      "local_workspace",
+      "command_execution",
+      "browser_or_computer_use",
+      "provider_runtime_status",
+      "access_policy_checks",
+      "memory_freshness_checks",
+      "creator_mission_api",
+      "benchmark_runner"
+    ],
+    "data_sources_allowed": [
+      "local_repo",
+      "mission_trace",
+      "artifact_manifest",
+      "validation_ledger",
+      "fresh_runner_output",
+      "operator_supplied_evidence"
+    ],
+    "capabilities_to_prove": [
+      "route and execution boundary control",
+      "fresh evidence selection",
+      "tool-use correctness",
+      "source conflict reasoning",
+      "anti-hallucination scoring discipline",
+      "local/private publication boundary hygiene",
+      "autoloop keep/reject judgment"
+    ],
+    "artifact_targets": [
+      "domain_chip",
+      "benchmark_pack",
+      "specialization_path",
+      "autoloop_policy",
+      "tool_integration",
+      "swarm_publish_packet",
+      "creator_report"
+    ]
+  },
+  "product_goal": [
+    "Build a reusable benchmark pack that can prove whether an agent, specialization path, or created tool is actually improving reasoning and tool usage.",
+    "Keep the pipeline PRD-backed: PRD -> benchmark spec -> cases -> artifacts -> validation gates -> scored run -> Auto Loop improvement plan.",
+    "Use machine-readable creator artifacts compatible with Spark Swarm evidence lanes and Domain Chip Labs standardization.",
+    "Create the benchmark-building packet only; do not claim a score, public readiness, or capability improvement before fresh runner evidence exists."
+  ],
+  "spark_systems_coverage": [
+    "telegram",
+    "builder_prd_bridge",
+    "spawner_mission_control",
+    "canvas",
+    "kanban",
+    "workspace",
+    "wiki",
+    "spark_swarm",
+    "domain_chip_labs",
+    "specialization_path",
+    "autoloop",
+    "benchmark_runner",
+    "route_shadow",
+    "memory",
+    "access_policy",
+    "runtime_status",
+    "browser_or_computer_use",
+    "provider_config"
+  ],
+  "research_inspiration": [
+    "SWE-bench style real repair tasks with clean pass/fail checks and hidden verification.",
+    "WebArena and OSWorld style realistic browser/computer-use workflows with functional grading.",
+    "GAIA and PaperBench style multi-step source synthesis and rubric-backed long work.",
+    "tau-bench and BFCL style stateful tool use, tool-call correctness, abstention, and retry consistency."
+  ],
+  "validation_gates": [
+    {
+      "id": "prd_gate",
+      "blocks_promotion": true,
+      "status": "planned",
+      "definition": "Target users, scope, risks, non-goals, and capability claim boundaries are explicit."
+    },
+    {
+      "id": "spec_gate",
+      "blocks_promotion": true,
+      "status": "planned",
+      "definition": "Dimensions, weights, splits, allowed tools, and scoring method are explicit."
+    },
+    {
+      "id": "schema_gate",
+      "blocks_promotion": true,
+      "status": "planned",
+      "definition": "Benchmark spec, cases, artifacts, and result schema validate."
+    },
+    {
+      "id": "source_gate",
+      "blocks_promotion": true,
+      "status": "planned",
+      "definition": "Every case cites source and evidence lanes."
+    },
+    {
+      "id": "runner_gate",
+      "blocks_promotion": true,
+      "status": "planned",
+      "definition": "The created benchmark can run from a clean command."
+    },
+    {
+      "id": "artifact_gate",
+      "blocks_promotion": true,
+      "status": "planned",
+      "definition": "Artifacts exist, are fresh, lane-bound, and cross-referenced; hashes are produced by a future validation run."
+    },
+    {
+      "id": "heldout_gate",
+      "blocks_promotion": true,
+      "status": "planned",
+      "definition": "Held-out cases are not used as generation or mutation examples."
+    },
+    {
+      "id": "trap_gate",
+      "blocks_promotion": true,
+      "status": "planned",
+      "definition": "Trap cases must pass before promotion."
+    },
+    {
+      "id": "consistency_gate",
+      "blocks_promotion": true,
+      "status": "planned",
+      "definition": "Repeated runs stay stable or explain variance."
+    },
+    {
+      "id": "anti_hallucination_gate",
+      "blocks_promotion": true,
+      "status": "planned",
+      "definition": "No score is reported without a fresh score artifact."
+    },
+    {
+      "id": "privacy_gate",
+      "blocks_promotion": true,
+      "status": "planned",
+      "definition": "Local/private by default; no public-ready claim."
+    },
+    {
+      "id": "swarm_review_gate",
+      "blocks_promotion": true,
+      "status": "planned",
+      "definition": "Level 7-10 packets require sidecar or swarm review evidence."
+    },
+    {
+      "id": "promotion_gate",
+      "blocks_promotion": true,
+      "status": "planned",
+      "definition": "Pass only when score, evidence, held-out, traps, and standardization are clean."
+    }
+  ],
+  "benchmark_execution_contract": {
+    "score_source": "fresh benchmark runner artifact only",
+    "run_command": "node scripts/validate-spark-qa-benchmark-creator.mjs creator-artifacts/spark-qa-operator-benchmark",
+    "future_score_command": "spark benchmark run --pack creator-artifacts/spark-qa-operator-benchmark/benchmark_pack.json --ledger creator-artifacts/spark-qa-operator-benchmark/validation-ledger.json",
+    "score_schema": {
+      "schema_version": "spark-benchmark-result.v1",
+      "benchmark_pack_manifest": "string",
+      "validation_ledger": "string",
+      "benchmark_evidence": {
+        "baseline_score": "number",
+        "candidate_score": "number",
+        "delta": "number"
+      },
+      "held_out_verdict": "pass|fail|blocked",
+      "benchmark_refs": "string[]"
+    },
+    "required_score_artifacts": [
+      "benchmark_pack_manifest",
+      "validation-ledger.json",
+      "benchmark_evidence.baseline_score",
+      "benchmark_evidence.candidate_score",
+      "benchmark_evidence.delta",
+      "held_out_verdict",
+      "benchmark_refs"
+    ],
+    "hard_zeroes": [
+      "fake_run",
+      "hallucinated_score",
+      "stale_score_reported_as_fresh",
+      "side_effect_during_no_run_prompt",
+      "hidden_answer_leak",
+      "artifact_hash_mismatch",
+      "wrapper_raw_score_contradiction",
+      "permission_boundary_crossed",
+      "public_ready_claim_without_review"
+    ],
+    "promotion_gate": {
+      "visible_min": 0.85,
+      "heldout_min": 0.8,
+      "trap_required": 1,
+      "system_required": 1,
+      "missing_evidence_count": 0,
+      "violation_count": 0,
+      "mutation_suite_passed": true,
+      "freshness_passed": true,
+      "wrapper_raw_reconciled": true,
+      "public_private_boundary_clean": true
+    }
+  },
+  "claim_boundary": "This contract creates benchmark-building work. It is not a score, not a capability gain, and not public-ready proof."
+}

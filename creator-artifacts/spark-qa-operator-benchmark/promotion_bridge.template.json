@@ -1,0 +1,37 @@
+{
+  "bridge_version": "spark-promotion-bridge.v1",
+  "generated_at": null,
+  "source_benchmark": "spark-qa-operator-bench",
+  "benchmark_profile": "benchmark_factory",
+  "suite_or_task_id": null,
+  "runner_type": null,
+  "runner_id": null,
+  "comparison_class": "baseline_vs_candidate",
+  "metric_name": "weighted_capability_score",
+  "metric_value": null,
+  "score_summary": {
+    "baseline_score": null,
+    "candidate_score": null,
+    "delta": null,
+    "held_out_verdict": "blocked",
+    "trap_verdict": "blocked",
+    "freshness_passed": false,
+    "wrapper_raw_reconciled": false
+  },
+  "candidate_or_doctrine_id": null,
+  "evidence_lane": "benchmark_grounded",
+  "promotion_candidate_kind": "specialization_path_or_doctrine_mutation",
+  "primary_mechanism": "benchmark_factory_autoloop",
+  "primary_boundary": "local_private_until_review",
+  "eligibility_status": "blocked_until_fresh_score_and_review",
+  "eligibility_reasons": [],
+  "blockers": [
+    "fresh benchmark runner artifact missing",
+    "held-out verdict missing",
+    "sidecar review missing",
+    "public/private boundary must remain local"
+  ],
+  "recommended_next_step": "Run the benchmark runner and attach baseline, candidate, delta, held-out verdict, trap verdict, and benchmark refs.",
+  "trace_paths": [],
+  "report_paths": []
+}

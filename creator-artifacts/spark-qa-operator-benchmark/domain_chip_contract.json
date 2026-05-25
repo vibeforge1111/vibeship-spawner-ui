@@ -1,0 +1,69 @@
+{
+  "schema_version": "spark-domain-chip-contract.v1",
+  "chip_id": "domain-chip-spark-qa-operator",
+  "target_domain": "Spark QA Operator",
+  "routing": {
+    "positive_keywords": [
+      "Spark QA Operator",
+      "creator validation",
+      "benchmark evidence",
+      "held-out verdict",
+      "promotion dossier",
+      "Spawner mission QA",
+      "Telegram route boundary",
+      "validation ledger",
+      "no fresh score",
+      "public-ready claim"
+    ],
+    "fallthrough_keywords": [
+      "generic landing page",
+      "unrelated app build",
+      "marketing website",
+      "simple CSS polish",
+      "non-Spark product copy"
+    ],
+    "anti_hijack_rule": "Only route when Spark QA, creator mission, benchmark, validation, evidence, Telegram/Spawner, or promotion-boundary intent is explicit."
+  },
+  "hook_contracts": {
+    "inputs": [
+      "user_goal",
+      "mission_trace",
+      "artifact_manifest",
+      "validation_ledger",
+      "runtime_status",
+      "memory_snapshot"
+    ],
+    "outputs": [
+      "route_decision",
+      "execution_boundary",
+      "required_evidence",
+      "next_gate",
+      "telegram_handoff"
+    ],
+    "runtime_invocation": "Spark runtime may call this chip during creator mission planning, validation, status handoff, or promotion review."
+  },
+  "doctrine_packet_shape": {
+    "decision": "string",
+    "source_of_truth": "fresh_runtime|validation_ledger|artifact_manifest|operator_input|memory",
+    "evidence_required": "string[]",
+    "blocked_claims": "string[]",
+    "safe_user_surface": "string"
+  },
+  "focused_tests": [
+    {
+      "id": "chip-route-positive-benchmark-score-refusal",
+      "input": "What score did the Spark QA benchmark get without a fresh runner report?",
+      "expected": "route_to_spark_qa_operator_and_block_score_claim"
+    },
+    {
+      "id": "chip-route-positive-no-run",
+      "input": "Do not start anything; explain whether this Creator benchmark request should run as generic app build.",
+      "expected": "route_to_spark_qa_operator_and_preserve_no_run_boundary"
+    },
+    {
+      "id": "chip-fallthrough-unrelated",
+      "input": "Build a coffee shop landing page hero.",
+      "expected": "fallthrough_unrelated_app_build"
+    }
+  ]
+}

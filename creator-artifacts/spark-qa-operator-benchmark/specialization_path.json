@@ -1,0 +1,50 @@
+{
+  "schema_version": "spark-specialization-path.v1",
+  "path_id": "specialization-path-spark-qa-operator",
+  "target_domain": "Spark QA Operator",
+  "entrypoint": "Load the domain chip, benchmark pack, PRD, artifact manifest, autoloop policy, and validation ledger before claiming Spark QA Operator specialization.",
+  "stages": [
+    {
+      "id": "novice",
+      "goal": "Recognize creator mission ownership, local/private boundaries, and no-score claim rules.",
+      "evidence_required": ["passes visible anti-hallucination case", "passes no-run route boundary case"]
+    },
+    {
+      "id": "operator",
+      "goal": "Use fresh source-of-truth selection across memory, runtime status, artifact manifests, and validation ledgers.",
+      "evidence_required": ["passes heldout source conflict case", "records validation gate status"]
+    },
+    {
+      "id": "reviewer",
+      "goal": "Identify unsupported promotion claims, wrapper/raw contradictions, and privacy boundary failures.",
+      "evidence_required": ["passes trap case", "passes hidden-heldout wrapper/raw consistency case"]
+    },
+    {
+      "id": "autoloop_steward",
+      "goal": "Keep only evidence-backed mutations that improve measured decision capability.",
+      "evidence_required": ["passes mutation case", "produces keep/reject lesson with held-out evidence"]
+    },
+    {
+      "id": "mastery",
+      "goal": "Prepare promotion dossiers and local Swarm review packets without publishing or leaking internals.",
+      "evidence_required": ["sidecar review complete", "promotion bridge populated from fresh runner artifacts"]
+    }
+  ],
+  "agent_instructions": {
+    "learn": [
+      "Creator Mission artifacts and validation gates",
+      "benchmark runner evidence requirements",
+      "Telegram conversational surface rules",
+      "local/private publication boundaries",
+      "source conflict resolution"
+    ],
+    "avoid": [
+      "generic app build routing for benchmark creator work",
+      "score claims without fresh artifacts",
+      "public-ready or network-absorbable claims before review",
+      "using hidden/held-out cases as mutation prompts",
+      "turning raw internals into user-facing Telegram copy"
+    ],
+    "prove_improvement": "Run baseline and candidate benchmark artifacts, pass held-out and trap cases, reconcile wrapper/raw evidence, and attach a promotion dossier."
+  }
+}

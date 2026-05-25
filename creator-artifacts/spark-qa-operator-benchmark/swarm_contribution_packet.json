@@ -1,0 +1,21 @@
+{
+  "artifactBindings": [
+    "benchmark_pack.json",
+    "domain_chip_contract.json",
+    "hidden_heldout_manifest.json",
+    "wrapper_raw_reconciliation.template.json",
+    "sidecar_review.template.json"
+  ],
+  "benchmarkPackId": "spark-qa-operator-level-10",
+  "contributionType": "benchmark_standardization",
+  "exportStatus": "draft_private",
+  "generatedAt": "2026-05-25T13:15:25.125535Z",
+  "networkAbsorbable": false,
+  "publicReady": false,
+  "requiresSidecarReview": true,
+  "schemaVersion": "spark-swarm-contribution-packet.v1",
+  "specializationPath": {
+    "label": "Spark QA Operator",
+    "pathKey": "spark-qa-operator"
+  }
+}

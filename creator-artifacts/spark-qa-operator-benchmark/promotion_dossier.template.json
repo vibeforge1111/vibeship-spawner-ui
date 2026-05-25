@@ -1,0 +1,21 @@
+{
+  "baseline": null,
+  "blockers": [
+    "baseline_candidate_delta_missing",
+    "hidden_heldout_not_revealed_to_candidate",
+    "wrapper_raw_not_reconciled",
+    "sidecar_review_pending",
+    "swarm_adjudication_pending",
+    "score_reconciliation_missing",
+    "publication_review_pending"
+  ],
+  "candidate": null,
+  "delta": null,
+  "eligibility_status": "not_eligible",
+  "generatedAt": "2026-05-25T13:15:25.125535Z",
+  "heldout": null,
+  "schemaVersion": "spark-promotion-dossier.v1",
+  "scoreClaimAllowed": false,
+  "sidecarReview": "pending",
+  "trap": null
+}

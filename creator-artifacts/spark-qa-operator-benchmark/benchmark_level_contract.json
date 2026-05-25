@@ -1,0 +1,38 @@
+{
+  "generatedAt": "2026-05-25T13:15:25.125535Z",
+  "level10Required": true,
+  "minimumCases": 50,
+  "requiredSplits": [
+    "visible",
+    "heldout",
+    "trap",
+    "system",
+    "audit",
+    "longrun",
+    "fresh"
+  ],
+  "schemaVersion": "spark-benchmark-level-contract.v1",
+  "selectedLevel": 10,
+  "selectedProfile": {
+    "adversarial": true,
+    "autoLoop": true,
+    "canvasKanban": true,
+    "expectedDepth": "maximum-depth research-backed lab benchmark with swarm audits, traps, heldouts, Canvas/Kanban, and Auto Loop improvement",
+    "level": 10,
+    "longRunning": true,
+    "minCaseCount": 50,
+    "name": "lab_swarm_research",
+    "researchBacked": true,
+    "splits": [
+      "visible",
+      "heldout",
+      "trap",
+      "system",
+      "audit",
+      "longrun",
+      "fresh"
+    ],
+    "swarmAudited": true,
+    "timeBudget": "hours to days"
+  }
+}

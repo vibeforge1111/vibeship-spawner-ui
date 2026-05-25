@@ -1,0 +1,34 @@
+{
+  "schema_version": "spark-swarm-contribution-packet.v1",
+  "packet_id": "spark-qa-operator-local-review-packet-v1",
+  "target_domain": "Spark QA Operator",
+  "publish_mode": "local_only",
+  "network_absorbable": false,
+  "payload_ready": false,
+  "public_ready": false,
+  "requires_review_gate": true,
+  "provenance": {
+    "mission_id": "mission-creator-1779710637535",
+    "creator_intent_id": "creator-intent-spark-qa-operator-level-10",
+    "benchmark_id": "spark-qa-operator-bench"
+  },
+  "intended_consumers": [
+    "Spark QA operators",
+    "Creator Mission reviewers",
+    "Domain Chip Labs maintainers"
+  ],
+  "benchmark_evidence": {
+    "status": "missing_fresh_score",
+    "baseline_score": null,
+    "candidate_score": null,
+    "delta": null,
+    "held_out_verdict": "blocked",
+    "trap_verdict": "blocked"
+  },
+  "rollback_note": "If any validation or review gate fails, keep this packet local and remove it from promotion consideration. Do not publish or mark network_absorbable without explicit future approval.",
+  "blockers": [
+    "fresh benchmark runner artifact missing",
+    "sidecar review missing",
+    "promotion bridge not populated with scored evidence"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "freshScoreRequired": true,
+  "generatedAt": "2026-05-25T13:15:25.125535Z",
+  "outputs": [
+    "score_report",
+    "trace",
+    "run_manifest",
+    "validation_ledger"
+  ],
+  "preparedEvidenceValidationIsNotCapabilityScore": true,
+  "runnerModes": [
+    "capture_replay",
+    "score_existing_evidence",
+    "baseline_candidate_delta"
+  ],
+  "schemaVersion": "spark-benchmark-runner-contract.v1"
+}

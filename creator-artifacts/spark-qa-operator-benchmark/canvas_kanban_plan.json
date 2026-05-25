@@ -1,0 +1,65 @@
+{
+  "schema_version": "spark-canvas-kanban-plan.v1",
+  "mission_id": "mission-creator-1779710637535",
+  "required": true,
+  "resumable": true,
+  "no_instant_completion_claim": true,
+  "tasks": [
+    {
+      "id": "node-1-creator-creator-intent-plan",
+      "title": "Lock Spark QA Operator creator intent and task graph",
+      "status": "staged",
+      "dependencies": [],
+      "validation_gates": ["schema_gate", "memory_hygiene_gate"]
+    },
+    {
+      "id": "node-2-creator-domain-chip-contract",
+      "title": "Create Spark QA Operator domain chip contract",
+      "status": "staged",
+      "dependencies": ["node-1-creator-creator-intent-plan"],
+      "validation_gates": ["schema_gate", "memory_hygiene_gate"]
+    },
+    {
+      "id": "node-3-creator-benchmark-pack",
+      "title": "Build Spark QA Operator benchmark pack",
+      "status": "staged",
+      "dependencies": ["node-1-creator-creator-intent-plan"],
+      "validation_gates": ["benchmark_gate", "benchmark_proof_gate", "schema_gate"]
+    },
+    {
+      "id": "node-4-creator-specialization-path",
+      "title": "Assemble Spark QA Operator specialization path",
+      "status": "staged",
+      "dependencies": ["node-1-creator-creator-intent-plan", "node-2-creator-domain-chip-contract", "node-3-creator-benchmark-pack"],
+      "validation_gates": ["schema_gate", "transfer_gate", "memory_hygiene_gate"]
+    },
+    {
+      "id": "node-5-creator-autoloop-policy",
+      "title": "Define Spark QA Operator benchmark-gated autoloop",
+      "status": "staged",
+      "dependencies": ["node-1-creator-creator-intent-plan", "node-3-creator-benchmark-pack", "node-4-creator-specialization-path"],
+      "validation_gates": ["lineage_gate", "benchmark_gate", "benchmark_proof_gate", "complexity_gate"]
+    },
+    {
+      "id": "node-6-creator-telegram-spawner-flow",
+      "title": "Wire Spark QA Operator Telegram, Builder, and Spawner flow",
+      "status": "staged",
+      "dependencies": ["node-1-creator-creator-intent-plan", "node-4-creator-specialization-path"],
+      "validation_gates": ["schema_gate"]
+    },
+    {
+      "id": "node-7-creator-creator-validation",
+      "title": "Validate Spark QA Operator creator artifacts",
+      "status": "staged",
+      "dependencies": ["node-2-creator-domain-chip-contract", "node-3-creator-benchmark-pack", "node-4-creator-specialization-path", "node-5-creator-autoloop-policy", "node-6-creator-telegram-spawner-flow"],
+      "validation_gates": ["schema_gate", "lineage_gate", "benchmark_gate", "benchmark_proof_gate", "complexity_gate", "memory_hygiene_gate", "transfer_gate", "publish_review_gate"]
+    },
+    {
+      "id": "node-8-creator-swarm-publish-packet",
+      "title": "Prepare Spark QA Operator Swarm publish packet",
+      "status": "blocked_until_validation_and_review",
+      "dependencies": ["node-7-creator-creator-validation"],
+      "validation_gates": ["publish_review_gate", "memory_hygiene_gate"]
+    }
+  ]
+}

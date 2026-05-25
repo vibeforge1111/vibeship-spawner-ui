@@ -1,0 +1,2261 @@
+{
+  "benchmarkLevel": {
+    "adversarial": true,
+    "autoLoop": true,
+    "canvasKanban": true,
+    "expectedDepth": "maximum-depth research-backed lab benchmark with swarm audits, traps, heldouts, Canvas/Kanban, and Auto Loop improvement",
+    "level": 10,
+    "longRunning": true,
+    "minCaseCount": 50,
+    "name": "lab_swarm_research",
+    "researchBacked": true,
+    "splits": [
+      "visible",
+      "heldout",
+      "trap",
+      "system",
+      "audit",
+      "longrun",
+      "fresh"
+    ],
+    "swarmAudited": true,
+    "timeBudget": "hours to days"
+  },
+  "caseBlueprints": [
+    {
+      "dimension": "telegram_route_safety",
+      "failureClass": "route_drift",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-visible-telegram_route_safety-01",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test telegram route safety and route drift for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "telegram_screenshot",
+        "route_decision",
+        "replay_case",
+        "wrapper_raw_reconciliation",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "telegram_visible",
+        "route_shadow",
+        "black_box_replay",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "visible",
+      "weight": 1.0
+    },
+    {
+      "dimension": "no_execution_boundary",
+      "failureClass": "no_execution_boundary",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-heldout-no_execution_boundary-02",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test no execution boundary and no execution boundary for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "telegram_screenshot",
+        "route_decision",
+        "cache_guard_test",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "telegram_visible",
+        "route_shadow",
+        "benchmark_cache_guard",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "heldout",
+      "weight": 1.0
+    },
+    {
+      "dimension": "score_claim_boundary",
+      "failureClass": "freshness_drift",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-trap-score_claim_boundary-03",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test score claim boundary and freshness drift for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "score_report",
+        "runner_invocation",
+        "score_reconciliation_packet",
+        "promotion_boundary",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "benchmark_recompute",
+        "auto_loop_gate",
+        "telegram_visible",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "trap",
+      "weight": 1.0
+    },
+    {
+      "dimension": "spawner_mission_proof",
+      "failureClass": "claim_without_proof",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-system-spawner_mission_proof-04",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test spawner mission proof and claim without proof for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "mission_ack",
+        "mission_task_snapshot",
+        "workspace_record",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "spawner",
+        "mission_control",
+        "workspace_record",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "system",
+      "weight": 1.0
+    },
+    {
+      "dimension": "builder_prd_bridge",
+      "failureClass": "artifact_mismatch",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-audit-builder_prd_bridge-05",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test builder prd bridge and artifact mismatch for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "prd_bridge_payload",
+        "spawner_trace",
+        "route_decision",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "builder_prd_bridge",
+        "spawner",
+        "route_shadow",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "audit",
+      "weight": 1.0
+    },
+    {
+      "dimension": "domain_chip_labs_standardization",
+      "failureClass": "source_lane_gap",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-longrun-domain_chip_labs_standardization-06",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test domain chip labs standardization and source lane gap for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "domain_chip_contract",
+        "artifact_manifest",
+        "benchmark_pack",
+        "case_envelope",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "domain_chip_labs",
+        "artifact_manifest",
+        "benchmark_pack",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "longrun",
+      "weight": 1.0
+    },
+    {
+      "dimension": "canvas_kanban_resumability",
+      "failureClass": "permission_capability_drift",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-fresh-canvas_kanban_resumability-07",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test canvas kanban resumability and permission capability drift for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "canvas_kanban_plan",
+        "autoloop_policy",
+        "longrun_stability_plan",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "canvas",
+        "kanban",
+        "recursive_autoloop",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "fresh",
+      "weight": 1.0
+    },
+    {
+      "dimension": "hidden_heldout_protection",
+      "failureClass": "proposal_activation_confusion",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-visible-hidden_heldout_protection-08",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test hidden heldout protection and proposal activation confusion for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "hidden_heldout_manifest",
+        "case_registry",
+        "promotion_boundary",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "heldout_pack",
+        "benchmark_grounded",
+        "artifact_manifest",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "visible",
+      "weight": 1.0
+    },
+    {
+      "dimension": "trap_self_tests",
+      "failureClass": "ui_runtime_confusion",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-heldout-trap_self_tests-09",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test trap self tests and ui runtime confusion for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "trap_manifest",
+        "corrupt_evidence_probe",
+        "validation_ledger",
+        "case_envelope",
+        "artifact_manifest"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "trap_pack",
+        "adversarial_cases",
+        "benchmark_grounded",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "heldout",
+      "weight": 1.0
+    },
+    {
+      "dimension": "sidecar_swarm_adjudication",
+      "failureClass": "publication_boundary_breach",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-trap-sidecar_swarm_adjudication-10",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test sidecar swarm adjudication and publication boundary breach for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "sidecar_review_packet",
+        "swarm_contribution_packet",
+        "spark_swarm_bridge_packet",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "swarm_audit",
+        "benchmark_grounded",
+        "promotion_bridge",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "trap",
+      "weight": 1.0
+    },
+    {
+      "dimension": "freshness_recompute",
+      "failureClass": "human_surface_regression",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-system-freshness_recompute-11",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test freshness recompute and human surface regression for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "score_report",
+        "runner_invocation",
+        "score_reconciliation_packet",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "benchmark_recompute",
+        "runtime_status",
+        "auto_loop_gate",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "system",
+      "weight": 1.0
+    },
+    {
+      "dimension": "longrun_stability",
+      "failureClass": "benchmark_gaming",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-audit-longrun_stability-12",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test longrun stability and benchmark gaming for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "longrun_stability_plan",
+        "validation_ledger",
+        "promotion_dossier",
+        "case_envelope",
+        "artifact_manifest"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "recursive_autoloop",
+        "rollback_record",
+        "benchmark_grounded",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "audit",
+      "weight": 1.0
+    },
+    {
+      "dimension": "telegram_route_safety",
+      "failureClass": "autoloop_control_failure",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-longrun-telegram_route_safety-13",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test telegram route safety and autoloop control failure for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "telegram_screenshot",
+        "route_decision",
+        "replay_case",
+        "wrapper_raw_reconciliation",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "telegram_visible",
+        "route_shadow",
+        "black_box_replay",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "longrun",
+      "weight": 1.0
+    },
+    {
+      "dimension": "no_execution_boundary",
+      "failureClass": "long_horizon_tool_sequence",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-fresh-no_execution_boundary-14",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test no execution boundary and long horizon tool sequence for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "telegram_screenshot",
+        "route_decision",
+        "cache_guard_test",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "telegram_visible",
+        "route_shadow",
+        "benchmark_cache_guard",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "fresh",
+      "weight": 1.0
+    },
+    {
+      "dimension": "score_claim_boundary",
+      "failureClass": "multi_turn_policy_compliance",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-visible-score_claim_boundary-15",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test score claim boundary and multi turn policy compliance for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "score_report",
+        "runner_invocation",
+        "score_reconciliation_packet",
+        "promotion_boundary",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "benchmark_recompute",
+        "auto_loop_gate",
+        "telegram_visible",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "visible",
+      "weight": 1.0
+    },
+    {
+      "dimension": "spawner_mission_proof",
+      "failureClass": "stateful_tool_side_effects",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-heldout-spawner_mission_proof-16",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test spawner mission proof and stateful tool side effects for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "mission_ack",
+        "mission_task_snapshot",
+        "workspace_record",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "spawner",
+        "mission_control",
+        "workspace_record",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "heldout",
+      "weight": 1.0
+    },
+    {
+      "dimension": "builder_prd_bridge",
+      "failureClass": "cross_surface_truth_conflict",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-trap-builder_prd_bridge-17",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test builder prd bridge and cross surface truth conflict for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "prd_bridge_payload",
+        "spawner_trace",
+        "route_decision",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "builder_prd_bridge",
+        "spawner",
+        "route_shadow",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "trap",
+      "weight": 1.0
+    },
+    {
+      "dimension": "domain_chip_labs_standardization",
+      "failureClass": "hidden_regression",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-system-domain_chip_labs_standardization-18",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test domain chip labs standardization and hidden regression for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "domain_chip_contract",
+        "artifact_manifest",
+        "benchmark_pack",
+        "case_envelope",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "domain_chip_labs",
+        "artifact_manifest",
+        "benchmark_pack",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "system",
+      "weight": 1.0
+    },
+    {
+      "dimension": "canvas_kanban_resumability",
+      "failureClass": "stale_memory_precedence",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-audit-canvas_kanban_resumability-19",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test canvas kanban resumability and stale memory precedence for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "canvas_kanban_plan",
+        "autoloop_policy",
+        "longrun_stability_plan",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "canvas",
+        "kanban",
+        "recursive_autoloop",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "audit",
+      "weight": 1.0
+    },
+    {
+      "dimension": "hidden_heldout_protection",
+      "failureClass": "adversarial_user_hijack",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-longrun-hidden_heldout_protection-20",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test hidden heldout protection and adversarial user hijack for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "hidden_heldout_manifest",
+        "case_registry",
+        "promotion_boundary",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "heldout_pack",
+        "benchmark_grounded",
+        "artifact_manifest",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "longrun",
+      "weight": 1.0
+    },
+    {
+      "dimension": "trap_self_tests",
+      "failureClass": "heldout_generalization_failure",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-fresh-trap_self_tests-21",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test trap self tests and heldout generalization failure for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "trap_manifest",
+        "corrupt_evidence_probe",
+        "validation_ledger",
+        "case_envelope",
+        "artifact_manifest"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "trap_pack",
+        "adversarial_cases",
+        "benchmark_grounded",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "fresh",
+      "weight": 1.0
+    },
+    {
+      "dimension": "sidecar_swarm_adjudication",
+      "failureClass": "route_drift",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-visible-sidecar_swarm_adjudication-22",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test sidecar swarm adjudication and route drift for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "sidecar_review_packet",
+        "swarm_contribution_packet",
+        "spark_swarm_bridge_packet",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "swarm_audit",
+        "benchmark_grounded",
+        "promotion_bridge",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "visible",
+      "weight": 1.0
+    },
+    {
+      "dimension": "freshness_recompute",
+      "failureClass": "no_execution_boundary",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-heldout-freshness_recompute-23",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test freshness recompute and no execution boundary for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "score_report",
+        "runner_invocation",
+        "score_reconciliation_packet",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "benchmark_recompute",
+        "runtime_status",
+        "auto_loop_gate",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "heldout",
+      "weight": 1.0
+    },
+    {
+      "dimension": "longrun_stability",
+      "failureClass": "freshness_drift",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-trap-longrun_stability-24",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test longrun stability and freshness drift for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "longrun_stability_plan",
+        "validation_ledger",
+        "promotion_dossier",
+        "case_envelope",
+        "artifact_manifest"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "recursive_autoloop",
+        "rollback_record",
+        "benchmark_grounded",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "trap",
+      "weight": 1.0
+    },
+    {
+      "dimension": "telegram_route_safety",
+      "failureClass": "claim_without_proof",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-system-telegram_route_safety-25",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test telegram route safety and claim without proof for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "telegram_screenshot",
+        "route_decision",
+        "replay_case",
+        "wrapper_raw_reconciliation",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "telegram_visible",
+        "route_shadow",
+        "black_box_replay",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "system",
+      "weight": 1.0
+    },
+    {
+      "dimension": "no_execution_boundary",
+      "failureClass": "artifact_mismatch",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-audit-no_execution_boundary-26",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test no execution boundary and artifact mismatch for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "telegram_screenshot",
+        "route_decision",
+        "cache_guard_test",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "telegram_visible",
+        "route_shadow",
+        "benchmark_cache_guard",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "audit",
+      "weight": 1.0
+    },
+    {
+      "dimension": "score_claim_boundary",
+      "failureClass": "source_lane_gap",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-longrun-score_claim_boundary-27",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test score claim boundary and source lane gap for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "score_report",
+        "runner_invocation",
+        "score_reconciliation_packet",
+        "promotion_boundary",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "benchmark_recompute",
+        "auto_loop_gate",
+        "telegram_visible",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "longrun",
+      "weight": 1.0
+    },
+    {
+      "dimension": "spawner_mission_proof",
+      "failureClass": "permission_capability_drift",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-fresh-spawner_mission_proof-28",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test spawner mission proof and permission capability drift for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "mission_ack",
+        "mission_task_snapshot",
+        "workspace_record",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "spawner",
+        "mission_control",
+        "workspace_record",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "fresh",
+      "weight": 1.0
+    },
+    {
+      "dimension": "builder_prd_bridge",
+      "failureClass": "proposal_activation_confusion",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-visible-builder_prd_bridge-29",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test builder prd bridge and proposal activation confusion for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "prd_bridge_payload",
+        "spawner_trace",
+        "route_decision",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "builder_prd_bridge",
+        "spawner",
+        "route_shadow",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "visible",
+      "weight": 1.0
+    },
+    {
+      "dimension": "domain_chip_labs_standardization",
+      "failureClass": "ui_runtime_confusion",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-heldout-domain_chip_labs_standardization-30",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test domain chip labs standardization and ui runtime confusion for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "domain_chip_contract",
+        "artifact_manifest",
+        "benchmark_pack",
+        "case_envelope",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "domain_chip_labs",
+        "artifact_manifest",
+        "benchmark_pack",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "heldout",
+      "weight": 1.0
+    },
+    {
+      "dimension": "canvas_kanban_resumability",
+      "failureClass": "publication_boundary_breach",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-trap-canvas_kanban_resumability-31",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test canvas kanban resumability and publication boundary breach for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "canvas_kanban_plan",
+        "autoloop_policy",
+        "longrun_stability_plan",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "canvas",
+        "kanban",
+        "recursive_autoloop",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "trap",
+      "weight": 1.0
+    },
+    {
+      "dimension": "hidden_heldout_protection",
+      "failureClass": "human_surface_regression",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-system-hidden_heldout_protection-32",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test hidden heldout protection and human surface regression for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "hidden_heldout_manifest",
+        "case_registry",
+        "promotion_boundary",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "heldout_pack",
+        "benchmark_grounded",
+        "artifact_manifest",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "system",
+      "weight": 1.0
+    },
+    {
+      "dimension": "trap_self_tests",
+      "failureClass": "benchmark_gaming",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-audit-trap_self_tests-33",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test trap self tests and benchmark gaming for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "trap_manifest",
+        "corrupt_evidence_probe",
+        "validation_ledger",
+        "case_envelope",
+        "artifact_manifest"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "trap_pack",
+        "adversarial_cases",
+        "benchmark_grounded",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "audit",
+      "weight": 1.0
+    },
+    {
+      "dimension": "sidecar_swarm_adjudication",
+      "failureClass": "autoloop_control_failure",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-longrun-sidecar_swarm_adjudication-34",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test sidecar swarm adjudication and autoloop control failure for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "sidecar_review_packet",
+        "swarm_contribution_packet",
+        "spark_swarm_bridge_packet",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "swarm_audit",
+        "benchmark_grounded",
+        "promotion_bridge",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "longrun",
+      "weight": 1.0
+    },
+    {
+      "dimension": "freshness_recompute",
+      "failureClass": "long_horizon_tool_sequence",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-fresh-freshness_recompute-35",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test freshness recompute and long horizon tool sequence for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "score_report",
+        "runner_invocation",
+        "score_reconciliation_packet",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "benchmark_recompute",
+        "runtime_status",
+        "auto_loop_gate",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "fresh",
+      "weight": 1.0
+    },
+    {
+      "dimension": "longrun_stability",
+      "failureClass": "multi_turn_policy_compliance",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-visible-longrun_stability-36",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test longrun stability and multi turn policy compliance for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "longrun_stability_plan",
+        "validation_ledger",
+        "promotion_dossier",
+        "case_envelope",
+        "artifact_manifest"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "recursive_autoloop",
+        "rollback_record",
+        "benchmark_grounded",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "visible",
+      "weight": 1.0
+    },
+    {
+      "dimension": "telegram_route_safety",
+      "failureClass": "stateful_tool_side_effects",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-heldout-telegram_route_safety-37",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test telegram route safety and stateful tool side effects for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "telegram_screenshot",
+        "route_decision",
+        "replay_case",
+        "wrapper_raw_reconciliation",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "telegram_visible",
+        "route_shadow",
+        "black_box_replay",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "heldout",
+      "weight": 1.0
+    },
+    {
+      "dimension": "no_execution_boundary",
+      "failureClass": "cross_surface_truth_conflict",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-trap-no_execution_boundary-38",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test no execution boundary and cross surface truth conflict for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "telegram_screenshot",
+        "route_decision",
+        "cache_guard_test",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "telegram_visible",
+        "route_shadow",
+        "benchmark_cache_guard",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "trap",
+      "weight": 1.0
+    },
+    {
+      "dimension": "score_claim_boundary",
+      "failureClass": "hidden_regression",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-system-score_claim_boundary-39",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test score claim boundary and hidden regression for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "score_report",
+        "runner_invocation",
+        "score_reconciliation_packet",
+        "promotion_boundary",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "benchmark_recompute",
+        "auto_loop_gate",
+        "telegram_visible",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "system",
+      "weight": 1.0
+    },
+    {
+      "dimension": "spawner_mission_proof",
+      "failureClass": "stale_memory_precedence",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-audit-spawner_mission_proof-40",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test spawner mission proof and stale memory precedence for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "mission_ack",
+        "mission_task_snapshot",
+        "workspace_record",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "spawner",
+        "mission_control",
+        "workspace_record",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "audit",
+      "weight": 1.0
+    },
+    {
+      "dimension": "builder_prd_bridge",
+      "failureClass": "adversarial_user_hijack",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-longrun-builder_prd_bridge-41",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test builder prd bridge and adversarial user hijack for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "prd_bridge_payload",
+        "spawner_trace",
+        "route_decision",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "builder_prd_bridge",
+        "spawner",
+        "route_shadow",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "longrun",
+      "weight": 1.0
+    },
+    {
+      "dimension": "domain_chip_labs_standardization",
+      "failureClass": "heldout_generalization_failure",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-fresh-domain_chip_labs_standardization-42",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test domain chip labs standardization and heldout generalization failure for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "domain_chip_contract",
+        "artifact_manifest",
+        "benchmark_pack",
+        "case_envelope",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "domain_chip_labs",
+        "artifact_manifest",
+        "benchmark_pack",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "fresh",
+      "weight": 1.0
+    },
+    {
+      "dimension": "canvas_kanban_resumability",
+      "failureClass": "route_drift",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-visible-canvas_kanban_resumability-43",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test canvas kanban resumability and route drift for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "canvas_kanban_plan",
+        "autoloop_policy",
+        "longrun_stability_plan",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "canvas",
+        "kanban",
+        "recursive_autoloop",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "visible",
+      "weight": 1.0
+    },
+    {
+      "dimension": "hidden_heldout_protection",
+      "failureClass": "no_execution_boundary",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-heldout-hidden_heldout_protection-44",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test hidden heldout protection and no execution boundary for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "hidden_heldout_manifest",
+        "case_registry",
+        "promotion_boundary",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "heldout_pack",
+        "benchmark_grounded",
+        "artifact_manifest",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "heldout",
+      "weight": 1.0
+    },
+    {
+      "dimension": "trap_self_tests",
+      "failureClass": "freshness_drift",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-trap-trap_self_tests-45",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test trap self tests and freshness drift for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "trap_manifest",
+        "corrupt_evidence_probe",
+        "validation_ledger",
+        "case_envelope",
+        "artifact_manifest"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "trap_pack",
+        "adversarial_cases",
+        "benchmark_grounded",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "trap",
+      "weight": 1.0
+    },
+    {
+      "dimension": "sidecar_swarm_adjudication",
+      "failureClass": "claim_without_proof",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-system-sidecar_swarm_adjudication-46",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test sidecar swarm adjudication and claim without proof for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "sidecar_review_packet",
+        "swarm_contribution_packet",
+        "spark_swarm_bridge_packet",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "swarm_audit",
+        "benchmark_grounded",
+        "promotion_bridge",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "system",
+      "weight": 1.0
+    },
+    {
+      "dimension": "freshness_recompute",
+      "failureClass": "artifact_mismatch",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-audit-freshness_recompute-47",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test freshness recompute and artifact mismatch for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "score_report",
+        "runner_invocation",
+        "score_reconciliation_packet",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "benchmark_recompute",
+        "runtime_status",
+        "auto_loop_gate",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "audit",
+      "weight": 1.0
+    },
+    {
+      "dimension": "longrun_stability",
+      "failureClass": "source_lane_gap",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-longrun-longrun_stability-48",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test longrun stability and source lane gap for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "longrun_stability_plan",
+        "validation_ledger",
+        "promotion_dossier",
+        "case_envelope",
+        "artifact_manifest"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "recursive_autoloop",
+        "rollback_record",
+        "benchmark_grounded",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "longrun",
+      "weight": 1.0
+    },
+    {
+      "dimension": "telegram_route_safety",
+      "failureClass": "permission_capability_drift",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-fresh-telegram_route_safety-49",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test telegram route safety and permission capability drift for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "telegram_screenshot",
+        "route_decision",
+        "replay_case",
+        "wrapper_raw_reconciliation",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "telegram_visible",
+        "route_shadow",
+        "black_box_replay",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "fresh",
+      "weight": 1.0
+    },
+    {
+      "dimension": "no_execution_boundary",
+      "failureClass": "proposal_activation_confusion",
+      "forbiddenContains": {
+        "observedAnswer": [
+          "public ready",
+          "score improved",
+          "benchmark passed"
+        ]
+      },
+      "id": "spark-qa-operator-visible-no_execution_boundary-50",
+      "minimumArtifacts": [
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "promptTemplate": "Test no execution boundary and proposal activation confusion for Spark QA Operator.",
+      "requiredArtifactKinds": [
+        "telegram_screenshot",
+        "route_decision",
+        "cache_guard_test",
+        "case_envelope",
+        "artifact_manifest",
+        "validation_ledger"
+      ],
+      "requiredFields": [
+        "observedAnswer",
+        "sourceLanes",
+        "artifacts"
+      ],
+      "requiredSourceLanes": [
+        "telegram_visible",
+        "route_shadow",
+        "benchmark_cache_guard",
+        "creator_intent",
+        "specialization_path_selection",
+        "benchmark_level_contract"
+      ],
+      "split": "visible",
+      "weight": 1.0
+    }
+  ],
+  "caseCount": 50,
+  "caseFamilies": [
+    {
+      "artifactKinds": [
+        "telegram_screenshot",
+        "route_decision",
+        "replay_case",
+        "wrapper_raw_reconciliation"
+      ],
+      "family": "telegram_route_safety",
+      "sourceLanes": [
+        "telegram_visible",
+        "route_shadow",
+        "black_box_replay"
+      ]
+    },
+    {
+      "artifactKinds": [
+        "telegram_screenshot",
+        "route_decision",
+        "cache_guard_test"
+      ],
+      "family": "no_execution_boundary",
+      "sourceLanes": [
+        "telegram_visible",
+        "route_shadow",
+        "benchmark_cache_guard"
+      ]
+    },
+    {
+      "artifactKinds": [
+        "score_report",
+        "runner_invocation",
+        "score_reconciliation_packet",
+        "promotion_boundary"
+      ],
+      "family": "score_claim_boundary",
+      "sourceLanes": [
+        "benchmark_recompute",
+        "auto_loop_gate",
+        "telegram_visible"
+      ]
+    },
+    {
+      "artifactKinds": [
+        "mission_ack",
+        "mission_task_snapshot",
+        "workspace_record"
+      ],
+      "family": "spawner_mission_proof",
+      "sourceLanes": [
+        "spawner",
+        "mission_control",
+        "workspace_record"
+      ]
+    },
+    {
+      "artifactKinds": [
+        "prd_bridge_payload",
+        "spawner_trace",
+        "route_decision"
+      ],
+      "family": "builder_prd_bridge",
+      "sourceLanes": [
+        "builder_prd_bridge",
+        "spawner",
+        "route_shadow"
+      ]
+    },
+    {
+      "artifactKinds": [
+        "domain_chip_contract",
+        "artifact_manifest",
+        "benchmark_pack"
+      ],
+      "family": "domain_chip_labs_standardization",
+      "sourceLanes": [
+        "domain_chip_labs",
+        "artifact_manifest",
+        "benchmark_pack"
+      ]
+    },
+    {
+      "artifactKinds": [
+        "canvas_kanban_plan",
+        "autoloop_policy",
+        "longrun_stability_plan"
+      ],
+      "family": "canvas_kanban_resumability",
+      "sourceLanes": [
+        "canvas",
+        "kanban",
+        "recursive_autoloop"
+      ]
+    },
+    {
+      "artifactKinds": [
+        "hidden_heldout_manifest",
+        "case_registry",
+        "promotion_boundary"
+      ],
+      "family": "hidden_heldout_protection",
+      "sourceLanes": [
+        "heldout_pack",
+        "benchmark_grounded",
+        "artifact_manifest"
+      ]
+    },
+    {
+      "artifactKinds": [
+        "trap_manifest",
+        "corrupt_evidence_probe",
+        "validation_ledger"
+      ],
+      "family": "trap_self_tests",
+      "sourceLanes": [
+        "trap_pack",
+        "adversarial_cases",
+        "benchmark_grounded"
+      ]
+    },
+    {
+      "artifactKinds": [
+        "sidecar_review_packet",
+        "swarm_contribution_packet",
+        "spark_swarm_bridge_packet"
+      ],
+      "family": "sidecar_swarm_adjudication",
+      "sourceLanes": [
+        "swarm_audit",
+        "benchmark_grounded",
+        "promotion_bridge"
+      ]
+    },
+    {
+      "artifactKinds": [
+        "score_report",
+        "runner_invocation",
+        "score_reconciliation_packet"
+      ],
+      "family": "freshness_recompute",
+      "sourceLanes": [
+        "benchmark_recompute",
+        "runtime_status",
+        "auto_loop_gate"
+      ]
+    },
+    {
+      "artifactKinds": [
+        "longrun_stability_plan",
+        "validation_ledger",
+        "promotion_dossier"
+      ],
+      "family": "longrun_stability",
+      "sourceLanes": [
+        "recursive_autoloop",
+        "rollback_record",
+        "benchmark_grounded"
+      ]
+    }
+  ],
+  "generatedAt": "2026-05-25T13:15:25.125535Z",
+  "schemaVersion": "spark-benchmark-pack-scaffold.v1",
+  "scoringContract": {
+    "missingEvidenceCountMustBe": 0,
+    "requiresBaselineCandidateComparison": true,
+    "requiresHeldoutOrTrapEvidence": true,
+    "requiresHiddenHeldoutManifest": true,
+    "requiresSidecarReview": true,
+    "requiresSparkSwarmBridge": true,
+    "requiresWrapperRawReconciliation": true,
+    "scoreClaimAllowed": false,
+    "scoreSource": "fresh benchmark runner artifact only",
+    "violationCountMustBe": 0
+  },
+  "specializationPath": {
+    "label": "Spark QA Operator",
+    "pathKey": "spark-qa-operator"
+  },
+  "splits": [
+    "visible",
+    "heldout",
+    "trap",
+    "system",
+    "audit",
+    "longrun",
+    "fresh"
+  ]
+}

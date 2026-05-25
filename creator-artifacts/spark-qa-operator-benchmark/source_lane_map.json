@@ -1,0 +1,34 @@
+{
+  "generatedAt": "2026-05-25T13:15:25.125535Z",
+  "laneBindingRequired": true,
+  "requiredSplits": [
+    "visible",
+    "heldout",
+    "trap",
+    "system",
+    "audit",
+    "longrun",
+    "fresh"
+  ],
+  "schemaVersion": "spark-source-lane-map.v1",
+  "sourceLanes": [
+    "creator_intent",
+    "specialization_path_selection",
+    "benchmark_level_contract",
+    "benchmark_pack",
+    "artifact_manifest",
+    "validation_ledger",
+    "local_private_boundary",
+    "research_grounded",
+    "benchmark_grounded",
+    "adversarial_cases",
+    "heldout_pack",
+    "trap_pack",
+    "promotion_bridge",
+    "canvas",
+    "kanban",
+    "swarm_audit",
+    "recursive_autoloop",
+    "rollback_record"
+  ]
+}

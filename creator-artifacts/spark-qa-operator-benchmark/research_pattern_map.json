@@ -1,0 +1,49 @@
+{
+  "appliedPatterns": [
+    "hidden tests",
+    "execution proof",
+    "stateful multi-turn tool tasks",
+    "wrapper/raw reconciliation",
+    "sidecar adjudication"
+  ],
+  "generatedAt": "2026-05-25T13:15:25.125535Z",
+  "inspirations": [
+    {
+      "lesson": "Use real repository/task environments with hidden tests and execution-based scoring.",
+      "name": "SWE-bench",
+      "source": "https://arxiv.org/abs/2310.06770"
+    },
+    {
+      "lesson": "Guard against flawed tests, underspecified tasks, and contamination before trusting score movement.",
+      "name": "SWE-bench Verified audit",
+      "source": "https://openai.com/index/introducing-swe-bench-verified/"
+    },
+    {
+      "lesson": "Mix reasoning, multimodality, browsing, and tool use while keeping questions human-solvable.",
+      "name": "GAIA",
+      "source": "https://arxiv.org/abs/2311.12983"
+    },
+    {
+      "lesson": "Evaluate multi-turn user-agent-tool interaction against final state and reliability across trials.",
+      "name": "tau-bench",
+      "source": "https://arxiv.org/abs/2406.12045"
+    },
+    {
+      "lesson": "Use realistic, reproducible web environments and long-horizon functional correctness.",
+      "name": "WebArena",
+      "source": "https://arxiv.org/abs/2307.13854"
+    },
+    {
+      "lesson": "Require execution-based validation for real computer-use tasks, not screenshot-only claims.",
+      "name": "OSWorld",
+      "source": "https://arxiv.org/abs/2404.07972"
+    },
+    {
+      "lesson": "Slice long-term reasoning, decision-making, and instruction following across multiple environments.",
+      "name": "AgentBench",
+      "source": "https://arxiv.org/abs/2308.03688"
+    }
+  ],
+  "required": true,
+  "schemaVersion": "spark-research-pattern-map.v1"
+}

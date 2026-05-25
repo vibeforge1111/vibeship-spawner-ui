@@ -1,0 +1,8 @@
+{
+  "flakePolicy": "quarantine any case with inconsistent pass/fail until root-caused",
+  "generatedAt": "2026-05-25T13:15:25.125535Z",
+  "noCapabilityClaim": true,
+  "requiredRepeatedRuns": 3,
+  "schemaVersion": "spark-longrun-stability-plan.v1",
+  "status": "planned"
+}

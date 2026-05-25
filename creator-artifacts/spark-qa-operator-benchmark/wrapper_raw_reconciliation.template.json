@@ -1,0 +1,14 @@
+{
+  "caseCountMatches": null,
+  "generatedAt": "2026-05-25T13:15:25.125535Z",
+  "rawReportPath": "pending_raw_report.json",
+  "required": true,
+  "runManifestPath": "pending_run_manifest.json",
+  "schemaVersion": "spark-wrapper-raw-reconciliation.v1",
+  "scoreClaimAllowed": false,
+  "splitScoresMatch": null,
+  "status": "not_reconciled",
+  "tracePath": "pending_trace.json",
+  "validationLedgerPath": "pending_validation_ledger.json",
+  "wrapperReportPath": "pending_wrapper_report.json"
+}

@@ -1,0 +1,40 @@
+{
+  "benchmarkLevel": {
+    "adversarial": true,
+    "autoLoop": true,
+    "canvasKanban": true,
+    "expectedDepth": "maximum-depth research-backed lab benchmark with swarm audits, traps, heldouts, Canvas/Kanban, and Auto Loop improvement",
+    "level": 10,
+    "longRunning": true,
+    "minCaseCount": 50,
+    "name": "lab_swarm_research",
+    "researchBacked": true,
+    "splits": [
+      "visible",
+      "heldout",
+      "trap",
+      "system",
+      "audit",
+      "longrun",
+      "fresh"
+    ],
+    "swarmAudited": true,
+    "timeBudget": "hours to days"
+  },
+  "boundary": {
+    "claimBoundary": "Level-10 scaffold artifacts are standardization proof only; they are not capability-improvement scores.",
+    "improvement_claim_allowed": false,
+    "network_absorbable": false,
+    "public_ready": false,
+    "requires_review_gate": true,
+    "score_claim_allowed": false
+  },
+  "generatedAt": "2026-05-25T13:15:25.125535Z",
+  "schemaVersion": "spark-creator-intent.v1",
+  "scoreStatus": "not_scored",
+  "specializationPath": {
+    "label": "Spark QA Operator",
+    "pathKey": "spark-qa-operator"
+  },
+  "userPrompt": "Level 10 Spark QA Operator benchmark standardization for Domain Chip Labs and future Spark Swarm handoff."
+}

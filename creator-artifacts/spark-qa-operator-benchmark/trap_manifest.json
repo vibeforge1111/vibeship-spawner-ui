@@ -1,0 +1,19 @@
+{
+  "antiGamingBoundary": "Trap answers and corruption probes must not be used as candidate training context.",
+  "expectedFailureCodes": [
+    "artifactHash",
+    "artifactPayloadStale",
+    "artifactImageHeader",
+    "publicationState:public_ready",
+    "suiteConsistency"
+  ],
+  "generatedAt": "2026-05-25T13:15:25.125535Z",
+  "schemaVersion": "spark-trap-manifest.v1",
+  "trapFamilies": [
+    "fake_score_claim",
+    "stale_timestamp",
+    "bad_hash",
+    "bad_image_header",
+    "public_ready_leak"
+  ]
+}

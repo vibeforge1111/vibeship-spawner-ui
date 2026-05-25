@@ -1,0 +1,15 @@
+{
+  "generatedAt": "2026-05-25T13:15:25.125535Z",
+  "noSelfApproval": true,
+  "quorumRequired": true,
+  "reviewRequired": true,
+  "reviewStatus": "pending",
+  "reviewerCountRequired": 2,
+  "rubric": [
+    "evidence integrity",
+    "score boundary",
+    "hidden heldout protection",
+    "Spark Swarm readiness"
+  ],
+  "schemaVersion": "spark-swarm-sidecar-review.v1"
+}

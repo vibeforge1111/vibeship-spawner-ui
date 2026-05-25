@@ -1,0 +1,32 @@
+{
+  "schema_version": "spark-creator-mission-status.v1",
+  "mission_id": "mission-creator-1779710637535",
+  "verdict": "staged_not_scored",
+  "stage_status": "staged",
+  "evidence_tier": "tier_1_packet_shape",
+  "evidence_mode": "local_only",
+  "automation_blocked": true,
+  "blocking_checks": [
+    "fresh_benchmark_runner_artifact_missing",
+    "held_out_verdict_missing",
+    "sidecar_review_missing"
+  ],
+  "warning_checks": [
+    "no_network_publish_allowed",
+    "no_public_ready_claim_allowed"
+  ],
+  "recommended_next_command": "node scripts/validate-spark-qa-benchmark-creator.mjs creator-artifacts/spark-qa-operator-benchmark",
+  "publication": {
+    "publish_mode": "local_only",
+    "local_display_allowed": true,
+    "github_pr_allowed": false,
+    "swarm_shared_allowed": false,
+    "network_absorbable": false,
+    "requires_review_gate": true,
+    "unsafe_claim_blocked": true
+  },
+  "swarm": {
+    "payload_ready": false,
+    "api_ready": false
+  }
+}

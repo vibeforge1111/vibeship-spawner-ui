@@ -1,0 +1,358 @@
+{
+  "schema_version": "spark-artifact-manifest.v1",
+  "mission_id": "mission-creator-1779710637535",
+  "artifact_set_id": "spark-qa-operator-benchmark-factory-v1",
+  "generated_at": "2026-05-25T13:17:34Z",
+  "privacy_mode": "local_only",
+  "risk_level": "high",
+  "network_absorbable": false,
+  "public_ready": false,
+  "requires_review_gate": true,
+  "artifacts": [
+    {
+      "artifact_id": "spark-qa-operator-benchmark-creator-prd-v1",
+      "artifact_type": "creator_report",
+      "lane": "creator_intent",
+      "path": "benchmark_creator_prd.json",
+      "required": true,
+      "validation_gates": [
+        "prd_gate",
+        "schema_gate",
+        "privacy_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-benchmark-pack-v1",
+      "artifact_type": "benchmark_pack",
+      "lane": "benchmark_pack",
+      "path": "benchmark_pack.json",
+      "required": true,
+      "validation_gates": [
+        "spec_gate",
+        "source_gate",
+        "heldout_gate",
+        "trap_gate",
+        "anti_hallucination_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-domain-chip-v1",
+      "artifact_type": "domain_chip",
+      "lane": "artifact_manifest",
+      "path": "domain_chip_contract.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "memory_hygiene_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-specialization-path-v1",
+      "artifact_type": "specialization_path",
+      "lane": "specialization_path_selection",
+      "path": "specialization_path.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "source_gate",
+        "swarm_review_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-autoloop-policy-v1",
+      "artifact_type": "autoloop_policy",
+      "lane": "promotion_bridge",
+      "path": "autoloop_policy.json",
+      "required": true,
+      "validation_gates": [
+        "consistency_gate",
+        "promotion_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-promotion-bridge-template-v1",
+      "artifact_type": "creator_report",
+      "lane": "benchmark_grounded",
+      "path": "promotion_bridge.template.json",
+      "required": true,
+      "validation_gates": [
+        "promotion_gate",
+        "privacy_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-validation-ledger-v1",
+      "artifact_type": "creator_report",
+      "lane": "validation_ledger",
+      "path": "validation-ledger.json",
+      "required": true,
+      "validation_gates": [
+        "artifact_gate",
+        "anti_hallucination_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-swarm-review-packet-v1",
+      "artifact_type": "swarm_publish_packet",
+      "lane": "local_private_boundary",
+      "path": "swarm_publish_packet.json",
+      "required": true,
+      "validation_gates": [
+        "swarm_review_gate",
+        "privacy_gate",
+        "promotion_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-creator-intent-canonical-v1",
+      "artifact_type": "creator_intent",
+      "lane": "creator_intent",
+      "path": "creator_intent.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "privacy_gate",
+        "promotion_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-benchmark-level-contract-v1",
+      "artifact_type": "benchmark_level_contract",
+      "lane": "benchmark_level_contract",
+      "path": "benchmark_level_contract.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "privacy_gate",
+        "promotion_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-adapter-map-v1",
+      "artifact_type": "adapter_map",
+      "lane": "adapter_map",
+      "path": "adapter_map.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "privacy_gate",
+        "promotion_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-source-lane-map-v1",
+      "artifact_type": "source_lane_map",
+      "lane": "source_lane_map",
+      "path": "source_lane_map.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "privacy_gate",
+        "promotion_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-local-private-boundary-v1",
+      "artifact_type": "local_private_boundary",
+      "lane": "local_private_boundary",
+      "path": "local_private_boundary.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "privacy_gate",
+        "promotion_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-hidden-heldout-manifest-v1",
+      "artifact_type": "hidden_heldout_manifest",
+      "lane": "hidden_heldout",
+      "path": "hidden_heldout_manifest.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "privacy_gate",
+        "promotion_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-trap-manifest-v1",
+      "artifact_type": "trap_case_manifest",
+      "lane": "trap_pack",
+      "path": "trap_manifest.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "privacy_gate",
+        "promotion_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-research-pattern-map-v1",
+      "artifact_type": "research_pattern_map",
+      "lane": "research_grounded",
+      "path": "research_pattern_map.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "privacy_gate",
+        "promotion_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-runner-contract-v1",
+      "artifact_type": "runner_contract",
+      "lane": "benchmark_runner",
+      "path": "runner_contract.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "privacy_gate",
+        "promotion_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-wrapper-raw-reconciliation-template-v1",
+      "artifact_type": "wrapper_raw_reconciliation",
+      "lane": "wrapper_raw_reconciliation",
+      "path": "wrapper_raw_reconciliation.template.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "privacy_gate",
+        "promotion_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-sidecar-review-template-v1",
+      "artifact_type": "sidecar_review_packet",
+      "lane": "swarm_audit",
+      "path": "sidecar_review.template.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "privacy_gate",
+        "promotion_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-score-reconciliation-template-v1",
+      "artifact_type": "score_reconciliation_packet",
+      "lane": "score_reconciliation",
+      "path": "score_reconciliation.template.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "privacy_gate",
+        "promotion_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-promotion-dossier-template-v1",
+      "artifact_type": "promotion_dossier",
+      "lane": "promotion_bridge",
+      "path": "promotion_dossier.template.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "privacy_gate",
+        "promotion_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-promotion-boundary-v1",
+      "artifact_type": "promotion_boundary",
+      "lane": "promotion_bridge",
+      "path": "promotion_boundary.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "privacy_gate",
+        "promotion_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-swarm-contribution-packet-v1",
+      "artifact_type": "swarm_contribution_packet",
+      "lane": "swarm_audit",
+      "path": "swarm_contribution_packet.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "privacy_gate",
+        "promotion_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-spark-swarm-future-bridge-v1",
+      "artifact_type": "spark_swarm_bridge_packet",
+      "lane": "spark_swarm_bridge",
+      "path": "spark_swarm_future_bridge.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "privacy_gate",
+        "promotion_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-longrun-stability-plan-v1",
+      "artifact_type": "longrun_stability_plan",
+      "lane": "longrun_stability",
+      "path": "longrun_stability_plan.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "privacy_gate",
+        "promotion_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-qa-operator-benchmark-pack-scaffold-v1",
+      "artifact_type": "benchmark_pack_scaffold",
+      "lane": "benchmark_pack",
+      "path": "benchmark_pack_scaffold.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "privacy_gate",
+        "promotion_gate"
+      ]
+    }
+  ],
+  "validation_commands": [
+    "node scripts/validate-spark-qa-benchmark-creator.mjs creator-artifacts/spark-qa-operator-benchmark",
+    "npm run build",
+    "npm run check"
+  ],
+  "promotion_gates": [
+    "prd_gate",
+    "spec_gate",
+    "schema_gate",
+    "source_gate",
+    "runner_gate",
+    "artifact_gate",
+    "heldout_gate",
+    "trap_gate",
+    "consistency_gate",
+    "anti_hallucination_gate",
+    "privacy_gate",
+    "swarm_review_gate",
+    "promotion_gate"
+  ],
+  "rollback_plan": "Remove this local artifact directory and keep mission trace blockers intact. Do not publish or absorb into Spark Swarm from this packet unless a future review gate explicitly approves it.",
+  "level10_standardization": {
+    "required_splits": [
+      "visible",
+      "heldout",
+      "trap",
+      "system",
+      "audit",
+      "longrun",
+      "fresh"
+    ],
+    "score_status": "not_scored",
+    "promotion_status": "blocked",
+    "spark_swarm_bridge_status": "future_bridge_draft"
+  }
+}

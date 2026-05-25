@@ -1,0 +1,44 @@
+{
+  "schema_version": "spark-creator-validation-ledger.v1",
+  "mission_id": "mission-creator-1779710637535",
+  "generated_at": "2026-05-25T12:17:28Z",
+  "status": "staged_not_scored",
+  "benchmark_pack_manifest": "artifact_manifest.json",
+  "validation_ledger": "validation-ledger.json",
+  "benchmark_evidence": {
+    "baseline_score": null,
+    "candidate_score": null,
+    "delta": null,
+    "status": "missing_fresh_score_artifact"
+  },
+  "held_out_verdict": "blocked",
+  "benchmark_refs": [
+    "benchmark_creator_prd.json",
+    "benchmark_pack.json",
+    "artifact_manifest.json",
+    "promotion_bridge.template.json",
+    "autoloop_policy.json"
+  ],
+  "gate_results": {
+    "prd_gate": "staged",
+    "spec_gate": "staged",
+    "schema_gate": "pending_validation_command",
+    "source_gate": "staged",
+    "runner_gate": "pending_validation_command",
+    "artifact_gate": "staged",
+    "heldout_gate": "blocked_until_fresh_run",
+    "trap_gate": "blocked_until_fresh_run",
+    "consistency_gate": "blocked_until_repeated_run",
+    "anti_hallucination_gate": "staged",
+    "privacy_gate": "staged",
+    "swarm_review_gate": "blocked_until_sidecar_review",
+    "promotion_gate": "blocked_until_scored_evidence"
+  },
+  "missing_evidence_count": 4,
+  "violation_count": 0,
+  "notes": [
+    "Packet exists as benchmark-building work only.",
+    "No benchmark score has been produced or claimed.",
+    "Promotion requires fresh runner artifacts, held-out verdict, trap verdict, and sidecar review."
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "claimBoundary": "Level-10 scaffold artifacts are standardization proof only; they are not capability-improvement scores.",
+  "generatedAt": "2026-05-25T13:15:25.125535Z",
+  "improvement_claim_allowed": false,
+  "network_absorbable": false,
+  "public_ready": false,
+  "requires_review_gate": true,
+  "schemaVersion": "spark-promotion-boundary.v1",
+  "score_claim_allowed": false,
+  "stages": {
+    "benchmark_created": {
+      "improvementClaimAllowed": false,
+      "scoreClaimAllowed": false
+    },
+    "benchmark_run": {
+      "improvementClaimAllowed": false,
+      "scoreClaimAllowed": true
+    },
+    "chip_promotion_eligible": {
+      "requiresReviewGate": true
+    },
+    "improvement_proven": {
+      "improvementClaimAllowed": true,
+      "scoreClaimAllowed": true
+    },
+    "realworld_validation_eligible": {
+      "requiresReviewGate": true
+    },
+    "scaffolded": {
+      "improvementClaimAllowed": false,
+      "scoreClaimAllowed": false
+    }
+  }
+}
