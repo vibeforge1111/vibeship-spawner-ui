@@ -27,8 +27,8 @@ function getSkillsLabPathFallbacks(): string[] {
 		path.resolve(process.cwd(), '..', 'spark-skill-graphs'),
 		path.resolve(process.cwd(), '..', '..', 'spark-skill-graphs'),
 		path.resolve(process.cwd(), '..', '..', 'spark-skill-graphs', 'source'),
-		path.resolve(os.homedir(), 'Desktop', 'spark-skill-graphs'),
 		path.resolve(os.homedir(), '.spark', 'modules', 'spark-skill-graphs', 'source'),
+		path.resolve(os.homedir(), '.spark', 'spark-skill-graphs'),
 		path.resolve(process.cwd(), '..', 'vibeship-skills-lab')
 	]);
 }
@@ -37,7 +37,7 @@ function getStaticSkillsJsonFallbacks(): string[] {
 	return uniquePaths([
 		path.resolve(process.cwd(), 'static', 'skills.json'),
 		path.resolve(os.homedir(), '.spark', 'modules', 'spawner-ui', 'source', 'static', 'skills.json'),
-		path.resolve(os.homedir(), 'Desktop', 'spawner-ui', 'static', 'skills.json')
+		path.resolve(os.homedir(), '.spark', 'spawner-ui', 'static', 'skills.json')
 	]);
 }
 
