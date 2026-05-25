@@ -153,7 +153,6 @@ export function getProjectPreviewAllowedRoots(env: NodeJS.ProcessEnv = process.e
 	return uniqueResolved([
 		env.SPAWNER_WORKSPACE_ROOT || '',
 		env.SPARK_WORKSPACE_ROOT || '',
-		join(home, 'Desktop'),
 		join(home, 'Documents'),
 		join(home, '.spark', 'workspaces'),
 		env.SPARK_HOME ? join(env.SPARK_HOME, 'workspaces') : ''
