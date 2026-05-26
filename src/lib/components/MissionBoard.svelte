@@ -458,7 +458,7 @@
 		const counts = getMissionBoardWorkBreakdown(card).build;
 		if (!counts || counts.total <= 0) {
 			if (card.status === 'completed') return 100;
-			if (card.status === 'running') return 48;
+			if (card.status === 'running') return 0;
 			return 0;
 		}
 		return Math.round(((counts.completed + counts.failed + counts.cancelled) / counts.total) * 100);
