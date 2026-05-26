@@ -27,6 +27,16 @@ export const POST: RequestHandler = async (event) => {
 		if (!sessionId) {
 			return json({ success: false, error: 'sessionId is required' }, { status: 400 });
 		}
+		const controlToken = event.request.headers.get('x-spark-agent-control-token');
+		if (!sparkAgentBridge.verifySessionControlToken(sessionId, controlToken)) {
+			return json(
+				{
+					success: false,
+					error: 'Valid Spark Agent session control token is required'
+				},
+				{ status: 403 }
+			);
+		}
 
 		const session = sparkAgentBridge.endSession(sessionId, reason);
 		return json({

@@ -26,7 +26,9 @@ Optional origin allowlists:
 
 Session scoping:
 
-- `POST /api/spark-agent/command` supports `x-spark-agent-session-id` and enforces header/body match.
+- `POST /api/spark-agent/session/start` returns a `controlToken` for the new session. Public callers cannot claim an existing session by supplying a `sessionId`.
+- `POST /api/spark-agent/command` requires `x-spark-agent-control-token` for route-created sessions. It also supports `x-spark-agent-session-id` and enforces header/body match.
+- `POST /api/spark-agent/session/end` requires `x-spark-agent-control-token` for route-created sessions.
 - `GET /api/spark-agent/events` supports `x-spark-agent-session-id` and enforces header/query match.
 
 ## Command Set
@@ -69,6 +71,7 @@ curl -sS -X POST http://localhost:3333/api/spark-agent/session/start \
 ```bash
 curl -sS -X POST http://localhost:3333/api/spark-agent/command \
   -H "Content-Type: application/json" \
+  -H "x-spark-agent-control-token: <CONTROL_TOKEN>" \
   -d '{"sessionId":"<SESSION_ID>","command":"canvas.create_pipeline","params":{"name":"Launch Pipeline"}}'
 ```
 
