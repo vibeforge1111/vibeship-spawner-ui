@@ -259,7 +259,7 @@
 		<!-- Filters & Actions -->
 		<div class="flex items-center justify-between mb-6">
 			<div class="flex items-center gap-2">
-				{#each ['all', 'spark', 'draft', 'ready', 'running', 'completed', 'failed'] as status}
+				{#each ['all', 'spark', 'draft', 'ready', 'running', 'paused', 'completed', 'failed'] as status}
 					{@const count = statusCounts()[status] || 0}
 					<button
 						onclick={() => filterStatus = status}
