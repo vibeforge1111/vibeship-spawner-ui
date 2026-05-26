@@ -24,9 +24,17 @@ import { existsSync } from 'fs';
 const EVENTS_AUTH_COOKIE = 'spawner_events_api_key';
 const log = logger.scope('EventBridge');
 
+const ALLOWED_CORS_ORIGINS = new Set([
+	'http://localhost:3333',
+	'http://127.0.0.1:3333',
+	'http://localhost:5173',
+	'http://127.0.0.1:5173',
+	...(process.env.EVENTS_ALLOWED_ORIGINS?.split(',').map(s => s.trim()).filter(Boolean) ?? [])
+]);
+
 function corsHeaders(request: Request): Record<string, string> {
 	const origin = request.headers.get('origin');
-	if (!origin) return {};
+	if (!origin || !ALLOWED_CORS_ORIGINS.has(origin)) return {};
 	return {
 		'Access-Control-Allow-Origin': origin,
 		'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
