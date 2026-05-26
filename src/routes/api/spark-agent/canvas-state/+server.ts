@@ -21,7 +21,13 @@ export const GET: RequestHandler = async (event) => {
 	if (rateLimited) return rateLimited;
 
 	const since = event.url.searchParams.get('since') || undefined;
-	const snapshot = sparkAgentBridge.getLatestCanvasSnapshot(since);
+	const sessionId = event.url.searchParams.get('sessionId') || undefined;
+	const scopedSessionHeader = event.request.headers.get('x-spark-agent-session-id');
+	if (scopedSessionHeader && sessionId && scopedSessionHeader !== sessionId) {
+		return json({ error: 'Session scope mismatch between header and query' }, { status: 403 });
+	}
+
+	const snapshot = sparkAgentBridge.getLatestCanvasSnapshot(since, sessionId || scopedSessionHeader || undefined);
 
 	return json({
 		success: true,

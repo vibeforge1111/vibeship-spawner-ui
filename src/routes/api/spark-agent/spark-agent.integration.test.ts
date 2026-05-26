@@ -290,6 +290,89 @@ describe('/api/spark-agent integration', () => {
 		expect(sinceBody.snapshot).toBeNull();
 	});
 
+	it('keeps canvas snapshots scoped when multiple Spark Agent sessions are active', async () => {
+		const startA = await startSession({
+			request: new Request('http://localhost/api/spark-agent/session/start', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ actor: 'canvas-session-a' })
+			})
+		} as never);
+		const sessionA = (await startA.json()).session.id as string;
+
+		const startB = await startSession({
+			request: new Request('http://localhost/api/spark-agent/session/start', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ actor: 'canvas-session-b' })
+			})
+		} as never);
+		const sessionB = (await startB.json()).session.id as string;
+
+		await command({
+			request: new Request('http://localhost/api/spark-agent/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					sessionId: sessionA,
+					command: 'canvas.create_pipeline',
+					params: {
+						pipelineId: 'pipe-session-a',
+						name: 'Session A Pipeline'
+					}
+				})
+			})
+		} as never);
+
+		await command({
+			request: new Request('http://localhost/api/spark-agent/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					sessionId: sessionB,
+					command: 'canvas.create_pipeline',
+					params: {
+						pipelineId: 'pipe-session-b',
+						name: 'Session B Pipeline'
+					}
+				})
+			})
+		} as never);
+
+		const scopedResponse = await canvasState({
+			request: new Request(`http://localhost/api/spark-agent/canvas-state?sessionId=${sessionA}`, {
+				method: 'GET',
+				headers: { 'x-spark-agent-session-id': sessionA }
+			}),
+			url: new URL(`http://localhost/api/spark-agent/canvas-state?sessionId=${sessionA}`)
+		} as never);
+		expect(scopedResponse.status).toBe(200);
+		const scopedBody = await scopedResponse.json();
+		expect(scopedBody.hasUpdate).toBe(true);
+		expect(scopedBody.snapshot.sessionId).toBe(sessionA);
+		expect(scopedBody.snapshot.pipelineId).toBe('pipe-session-a');
+
+		const mismatchResponse = await canvasState({
+			request: new Request(`http://localhost/api/spark-agent/canvas-state?sessionId=${sessionA}`, {
+				method: 'GET',
+				headers: { 'x-spark-agent-session-id': sessionB }
+			}),
+			url: new URL(`http://localhost/api/spark-agent/canvas-state?sessionId=${sessionA}`)
+		} as never);
+		expect(mismatchResponse.status).toBe(403);
+
+		const unscopedResponse = await canvasState({
+			request: new Request('http://localhost/api/spark-agent/canvas-state', {
+				method: 'GET'
+			}),
+			url: new URL('http://localhost/api/spark-agent/canvas-state')
+		} as never);
+		expect(unscopedResponse.status).toBe(200);
+		const unscopedBody = await unscopedResponse.json();
+		expect(unscopedBody.hasUpdate).toBe(false);
+		expect(unscopedBody.snapshot).toBeNull();
+	});
+
 	it('streams normalized worker lifecycle events (started/progress/completed)', async () => {
 		sparkAgentBridge.setWorkerExecutorForTests(async (context) => {
 			context.emitProgress(40, `${context.providerId} boot`);
