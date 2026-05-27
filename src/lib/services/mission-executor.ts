@@ -50,6 +50,7 @@ import {
 
 export type ExecutionMode = 'preview' | 'live';
 export type ExecutionStatus = 'idle' | 'creating' | 'running' | 'paused' | 'completed' | 'partial' | 'failed' | 'cancelled';
+const TERMINAL_EXECUTION_STATUSES: ReadonlySet<ExecutionStatus> = new Set(['completed', 'failed', 'cancelled']);
 
 export interface TaskProgress {
 	taskId: string;
@@ -488,7 +489,7 @@ class MissionExecutor {
 					break;
 
 				case 'mission_started':
-					if (this.progress.status !== 'running') {
+					if (this.progress.status !== 'running' && !TERMINAL_EXECUTION_STATUSES.has(this.progress.status)) {
 						this.progress.status = 'running';
 						this.callbacks.onStatusChange?.('running');
 					}
