@@ -67,8 +67,18 @@ async function _load(): Promise<StoreShape> {
       _store = { schedules: parsed.schedules };
       return _store;
     }
-  } catch {
-    // file missing or invalid - start fresh
+    // File exists but has unexpected shape. Preserve it as a .corrupt backup so the operator can recover.
+    const backup = schedulesFile() + '.corrupt-' + Date.now();
+    await fs.rename(schedulesFile(), backup).catch(() => undefined);
+    console.error(`[scheduler] schedules.json has unexpected shape; backed up to ${backup} and starting fresh`);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException)?.code;
+    if (code && code !== 'ENOENT') {
+      const backup = schedulesFile() + '.corrupt-' + Date.now();
+      await fs.rename(schedulesFile(), backup).catch(() => undefined);
+      console.error(`[scheduler] failed to load schedules.json (${code}); backed up to ${backup} and starting fresh`);
+    }
+    // ENOENT: file genuinely does not exist yet, normal first-run. Start fresh silently.
   }
   _store = { schedules: [] };
   return _store;
