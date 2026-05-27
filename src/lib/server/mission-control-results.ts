@@ -110,7 +110,8 @@ function parseProviderResponseMetadata(response: string | null): {
 			...(projectPath ? { projectPath, project_path: projectPath } : {}),
 			...(previewUrl ? { previewUrl, preview_url: previewUrl } : {})
 		};
-	} catch {
+    } catch (err) {
+        console.warn('[mission-control-results] result extraction failed:', err);
 		return {};
 	}
 }

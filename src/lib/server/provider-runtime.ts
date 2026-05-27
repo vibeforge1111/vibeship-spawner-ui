@@ -206,7 +206,8 @@ function missionTraceMetadata(missionId: string): { requestId: string | null; tr
 					null,
 				traceRef: extractTraceRef(parsed, relay) || null
 			};
-		} catch {
+        } catch (err) {
+            console.warn('[provider-runtime] mission metadata extraction failed:', err);
 			// Mission metadata is best-effort; provider execution should not depend on it.
 		}
 	}
