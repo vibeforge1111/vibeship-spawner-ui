@@ -166,8 +166,18 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
     const chipKey = String(record.payload.chipKey ?? '');
     const rounds = Math.max(1, Number(record.payload.rounds ?? 2));
     if (!chipKey) return { ok: false, summary: 'loop has no chipKey' };
-    const builderRepo =
-      process.env.SPARK_BUILDER_REPO || path.resolve(process.cwd(), '..', 'spark-intelligence-builder');
+    const builderRepoFallback = path.resolve(process.cwd(), '..', 'spark-intelligence-builder');
+    const builderRepo = process.env.SPARK_BUILDER_REPO || builderRepoFallback;
+    try {
+      await fs.access(builderRepo);
+    } catch {
+      return {
+        ok: false,
+        summary: process.env.SPARK_BUILDER_REPO
+          ? `SPARK_BUILDER_REPO points at ${builderRepo} which does not exist`
+          : `SPARK_BUILDER_REPO is unset and fallback ${builderRepoFallback} does not exist; set SPARK_BUILDER_REPO`,
+      };
+    }
     const home =
       process.env.SPARK_BUILDER_HOME || path.join(homedir(), '.spark', 'state', 'spark-intelligence');
     const python = process.env.SPARK_BUILDER_PYTHON || 'python';
