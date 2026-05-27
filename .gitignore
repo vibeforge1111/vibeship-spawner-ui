@@ -29,3 +29,5 @@ nul
 .spawner/
 svelte-check-output.txt
 .gstack/
+# Office lockfiles (Word/Excel/PowerPoint create these when files are open)
+~$*
