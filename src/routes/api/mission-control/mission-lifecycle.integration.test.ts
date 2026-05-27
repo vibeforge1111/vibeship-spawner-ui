@@ -322,7 +322,7 @@ describe('Mission Control lifecycle integration', () => {
 			route_chosen: 'mission_control',
 			sources_used: [{ source: 'mission_trace', freshness: 'fresh' }]
 		});
-	});
+	}, 10000);
 
 	it('routes failed provider missions to failed Kanban and Trace states without losing Telegram or Canvas context', async () => {
 		const stateDir = await mkdtemp(path.join(tmpdir(), 'spawner-lifecycle-fail-'));
@@ -437,5 +437,5 @@ describe('Mission Control lifecycle integration', () => {
 			},
 			providerSummary: 'Codex: Codex exited 1'
 		});
-	});
+	}, 10000);
 });

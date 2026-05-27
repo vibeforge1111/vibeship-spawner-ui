@@ -6,6 +6,8 @@ import { eventBridge, type BridgeEvent } from './event-bridge';
 import {
 	prepareProviderWorkingDirectory,
 	providerProcessFailureMessage,
+	providerProcessTimeoutMessage,
+	providerProcessTimeoutMs,
 	sparkAgentBridge
 } from './spark-agent-bridge';
 
@@ -116,5 +118,15 @@ describe('providerProcessFailureMessage', () => {
 
 	it('falls back to the exit code when no provider output is usable', () => {
 		expect(providerProcessFailureMessage(2, '', '')).toBe('Exited with code 2');
+	});
+});
+
+describe('provider process timeout helpers', () => {
+	it('uses the shared agent timeout configuration', () => {
+		expect(providerProcessTimeoutMs({ SPAWNER_AGENT_WORK_TIMEOUT_MS: '120000' })).toBe(120000);
+	});
+
+	it('renders a bounded timeout message without provider output', () => {
+		expect(providerProcessTimeoutMessage('codex', 120000)).toBe('Provider codex timed out after 2 minutes');
 	});
 });
