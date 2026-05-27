@@ -3,7 +3,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { eventBridge, type BridgeEvent } from './event-bridge';
-import { prepareProviderWorkingDirectory, sparkAgentBridge } from './spark-agent-bridge';
+import {
+	prepareProviderWorkingDirectory,
+	providerProcessFailureMessage,
+	sparkAgentBridge
+} from './spark-agent-bridge';
 
 const createdDirs: string[] = [];
 const originalSparkWorkspaceRoot = process.env.SPARK_WORKSPACE_ROOT;
@@ -80,5 +84,37 @@ describe('prepareProviderWorkingDirectory', () => {
 			requestId: 'request-worker-proof',
 			traceRef: 'trace:spawner-prd:mission-worker-proof'
 		});
+	});
+});
+
+describe('providerProcessFailureMessage', () => {
+	it('uses stderr first for actionable provider failures', () => {
+		expect(providerProcessFailureMessage(1, 'stdout fallback', 'Provider rejected the request')).toBe(
+			'Provider rejected the request'
+		);
+	});
+
+	it('falls back to bounded stdout when stderr is empty', () => {
+		expect(providerProcessFailureMessage(1, 'Model unavailable for this provider', '')).toBe(
+			'Model unavailable for this provider'
+		);
+	});
+
+	it('redacts secrets and local paths before surfacing provider output', () => {
+		const message = providerProcessFailureMessage(
+			1,
+			'',
+			'Error in C:\\Users\\USER\\private\\app with OPENAI_API_KEY=sk-secretvalue123456 and Bearer ghp_secretvalue1234567890'
+		);
+
+		expect(message).toContain('local file');
+		expect(message).toContain('[secret]');
+		expect(message).not.toContain('C:\\Users\\USER');
+		expect(message).not.toContain('sk-secretvalue123456');
+		expect(message).not.toContain('ghp_secretvalue1234567890');
+	});
+
+	it('falls back to the exit code when no provider output is usable', () => {
+		expect(providerProcessFailureMessage(2, '', '')).toBe('Exited with code 2');
 	});
 });
