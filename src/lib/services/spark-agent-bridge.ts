@@ -12,6 +12,7 @@ import {
 	resolveCodexSandbox
 } from '$lib/server/high-agency-workers';
 import { spawnHidden, terminateProcessTree } from '$lib/server/hidden-process';
+import { compactProviderHandoffText } from '$lib/server/mission-control-display';
 import { resolveSparkRunProjectPath } from '$lib/server/spark-run-workspace';
 import {
 	PRECONFIGURED_MCPS,
@@ -203,6 +204,11 @@ type SparkAgentSubscriber = (event: SparkAgentBridgeEvent) => void;
 
 const MAX_SESSION_EVENTS = 500;
 const CANCELLED_ERROR = 'Cancelled';
+const PROVIDER_FAILURE_SUMMARY_MAX_LENGTH = 500;
+const SECRET_ENV_ASSIGNMENT_PATTERN = /\b[A-Z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*\s*=\s*[^\s"'`]+/gi;
+const BEARER_SECRET_PATTERN = /\bBearer\s+[A-Za-z0-9._~+/\-]+=*/gi;
+const COMMON_SECRET_VALUE_PATTERN =
+	/\b(?:sk-[A-Za-z0-9_-]{12,}|gh[oprsu]_[A-Za-z0-9_]{12,}|xox[baprs]-[A-Za-z0-9-]{12,}|spark-h70-[A-Za-z0-9_-]{12,}|\d{6,}:[A-Za-z0-9_-]{20,})\b/g;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -352,6 +358,26 @@ function blockedProviderResponse(response: string | undefined): string | null {
 	];
 	if (!blockedSignals.some((signal) => lower.includes(signal))) return null;
 	return text.split(/\r?\n/).find((line) => line.trim().length > 0)?.trim() || 'Provider reported blocked execution';
+}
+
+function redactProviderFailureSecrets(value: string): string {
+	return value
+		.replace(SECRET_ENV_ASSIGNMENT_PATTERN, '[secret]')
+		.replace(BEARER_SECRET_PATTERN, 'Bearer [secret]')
+		.replace(COMMON_SECRET_VALUE_PATTERN, '[secret]');
+}
+
+function safeProviderFailureExcerpt(value: string): string | null {
+	const redacted = redactProviderFailureSecrets(value);
+	return compactProviderHandoffText(redacted, PROVIDER_FAILURE_SUMMARY_MAX_LENGTH);
+}
+
+export function providerProcessFailureMessage(code: number | null, stdout: string, stderr: string): string {
+	const stderrMessage = safeProviderFailureExcerpt(stderr);
+	if (stderrMessage) return stderrMessage;
+	const stdoutMessage = safeProviderFailureExcerpt(stdout);
+	if (stdoutMessage) return stdoutMessage;
+	return `Exited with code ${code}`;
 }
 
 function sanitizeMcpConfig(value: unknown): MCPClientConfig | null {
@@ -1356,8 +1382,7 @@ class SparkAgentBridgeService {
 					finalize({ success: true, response: trimmed });
 					return;
 				}
-				const message = stderr.trim() || `Exited with code ${code}`;
-				finalize({ success: false, error: message });
+				finalize({ success: false, error: providerProcessFailureMessage(code, stdout, stderr) });
 			});
 
 			if (child.stdin) {
