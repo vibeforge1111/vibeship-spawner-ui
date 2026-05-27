@@ -175,7 +175,8 @@ export async function detectTypecheckCommand(projectPath: string): Promise<{ com
 			if (deps['typescript']) {
 				return { command: 'npx', args: ['tsc', '--noEmit'] };
 			}
-		} catch {
+        } catch (err) {
+            console.warn('[command-runner] dependency check failed:', err);
 			// fall through
 		}
 	}
@@ -191,7 +192,8 @@ export async function hasTestScript(projectPath: string): Promise<boolean> {
 	try {
 		const pkg = JSON.parse(await readFile(pkgPath, 'utf-8'));
 		return !!(pkg.scripts?.test && pkg.scripts.test !== 'echo "Error: no test specified" && exit 1');
-	} catch {
+        } catch (err) {
+            console.warn('[command-runner] package.json parse failed:', err);
 		return false;
 	}
 }
