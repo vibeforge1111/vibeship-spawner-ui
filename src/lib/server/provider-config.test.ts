@@ -132,4 +132,26 @@ describe('resolveProviderRuntimeConfiguration', () => {
 		expect(unselected.model).toBe('local-model');
 		expect(unselected.baseUrl).toBe('http://localhost:1234/v1');
 	});
+
+	it('normalizes Ollama base URL overrides to include /v1', () => {
+		const provider = {
+			id: 'ollama',
+			label: 'Ollama',
+			model: 'llama3.2:1b',
+			enabled: true,
+			kind: 'openai_compat' as const,
+			eventSource: 'ollama',
+			baseUrl: 'http://localhost:11434/v1'
+		};
+
+		const normalized = applyProviderEnvOverrides(provider, {
+			SPARK_OLLAMA_BASE_URL: 'http://localhost:11434'
+		});
+		const alreadyNormalized = applyProviderEnvOverrides(provider, {
+			SPARK_OLLAMA_BASE_URL: 'http://localhost:11434/v1'
+		});
+
+		expect(normalized.baseUrl).toBe('http://localhost:11434/v1');
+		expect(alreadyNormalized.baseUrl).toBe('http://localhost:11434/v1');
+	});
 });

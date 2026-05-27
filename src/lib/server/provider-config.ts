@@ -69,6 +69,12 @@ function firstConfigured(...values: Array<string | undefined>): string | undefin
 	return undefined;
 }
 
+function normalizeOpenAiCompatBaseUrl(providerId: string, baseUrl: string | undefined): string | undefined {
+	if (!baseUrl) return baseUrl;
+	if (providerId !== 'ollama') return baseUrl;
+	return /\/v1\/?$/.test(baseUrl) ? baseUrl.replace(/\/$/, '') : `${baseUrl.replace(/\/$/, '')}/v1`;
+}
+
 export function applyProviderEnvOverrides<T extends MultiLLMProviderConfig>(
 	provider: T,
 	envRecord: Record<string, string | undefined>,
@@ -86,6 +92,7 @@ export function applyProviderEnvOverrides<T extends MultiLLMProviderConfig>(
 		envRecord[`SPARK_${upperId}_BASE_URL`],
 		envRecord[`${upperId}_BASE_URL`]
 	);
+	const normalizedBaseUrl = normalizeOpenAiCompatBaseUrl(provider.id, baseUrl);
 	const commandTemplate = firstConfigured(
 		isMissionDefault ? envRecord.SPARK_MISSION_LLM_COMMAND_TEMPLATE : undefined,
 		envRecord[`SPARK_${upperId}_COMMAND_TEMPLATE`],
@@ -95,7 +102,7 @@ export function applyProviderEnvOverrides<T extends MultiLLMProviderConfig>(
 	return {
 		...provider,
 		...(model ? { model } : {}),
-		...(baseUrl ? { baseUrl } : {}),
+		...(normalizedBaseUrl ? { baseUrl: normalizedBaseUrl } : {}),
 		...(commandTemplate ? { commandTemplate } : {})
 	};
 }
