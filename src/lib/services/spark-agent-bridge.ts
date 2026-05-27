@@ -14,6 +14,7 @@ import {
 import { spawnHidden, terminateProcessTree } from '$lib/server/hidden-process';
 import { compactProviderHandoffText } from '$lib/server/mission-control-display';
 import { resolveSparkRunProjectPath } from '$lib/server/spark-run-workspace';
+import { agentWorkTimeoutMs } from '$lib/server/timeout-config';
 import {
 	PRECONFIGURED_MCPS,
 	callTool,
@@ -204,6 +205,7 @@ type SparkAgentSubscriber = (event: SparkAgentBridgeEvent) => void;
 
 const MAX_SESSION_EVENTS = 500;
 const CANCELLED_ERROR = 'Cancelled';
+const PROVIDER_TERMINATION_GRACE_MS = 5000;
 const PROVIDER_FAILURE_SUMMARY_MAX_LENGTH = 500;
 const SECRET_ENV_ASSIGNMENT_PATTERN = /\b[A-Z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*\s*=\s*[^\s"'`]+/gi;
 const BEARER_SECRET_PATTERN = /\bBearer\s+[A-Za-z0-9._~+/\-]+=*/gi;
@@ -378,6 +380,15 @@ export function providerProcessFailureMessage(code: number | null, stdout: strin
 	const stdoutMessage = safeProviderFailureExcerpt(stdout);
 	if (stdoutMessage) return stdoutMessage;
 	return `Exited with code ${code}`;
+}
+
+export function providerProcessTimeoutMs(env: Record<string, string | undefined> = process.env): number {
+	return agentWorkTimeoutMs(env);
+}
+
+export function providerProcessTimeoutMessage(providerId: SparkAgentProviderId, timeoutMs: number): string {
+	const minutes = Math.max(1, Math.round(timeoutMs / 60000));
+	return `Provider ${providerId} timed out after ${minutes} minute${minutes === 1 ? '' : 's'}`;
 }
 
 function sanitizeMcpConfig(value: unknown): MCPClientConfig | null {
@@ -1322,6 +1333,8 @@ class SparkAgentBridgeService {
 			let stderr = '';
 			let finished = false;
 			let progressMarks = 0;
+			let timeout: ReturnType<typeof setTimeout> | null = null;
+			let killTimeout: ReturnType<typeof setTimeout> | null = null;
 			let cwd: string;
 			try {
 				cwd = prepareProviderWorkingDirectory(context.workingDirectory);
@@ -1346,11 +1359,33 @@ class SparkAgentBridgeService {
 			const finalize = (result: { success: boolean; response?: string; error?: string }) => {
 				if (finished) return;
 				finished = true;
+				if (timeout) clearTimeout(timeout);
 				resolve(result);
 			};
 
+			const clearKillTimeout = () => {
+				if (!killTimeout) return;
+				clearTimeout(killTimeout);
+				killTimeout = null;
+			};
+
+			const providerTimeoutMs = providerProcessTimeoutMs();
+			timeout = setTimeout(() => {
+				terminateProcessTree(child, 'SIGTERM');
+				killTimeout = setTimeout(() => {
+					try {
+						child.kill('SIGKILL');
+					} catch {
+						// The child may have already exited after SIGTERM.
+					}
+				}, PROVIDER_TERMINATION_GRACE_MS);
+				finalize({ success: false, error: providerProcessTimeoutMessage(context.providerId, providerTimeoutMs) });
+			}, providerTimeoutMs);
+
 			if (context.signal) {
 				const onAbort = () => {
+					if (timeout) clearTimeout(timeout);
+					clearKillTimeout();
 					terminateProcessTree(child, 'SIGTERM');
 					finalize({ success: false, error: CANCELLED_ERROR });
 				};
@@ -1377,6 +1412,7 @@ class SparkAgentBridgeService {
 			});
 
 			child.on('close', (code) => {
+				clearKillTimeout();
 				const trimmed = stdout.trim();
 				if (code === 0) {
 					finalize({ success: true, response: trimmed });
