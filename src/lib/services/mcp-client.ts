@@ -488,7 +488,7 @@ export interface Mission {
 	name: string;
 	description: string | null;
 	mode: 'claude-code' | 'api' | 'sdk' | 'multi-llm-orchestrator';
-	status: 'draft' | 'ready' | 'running' | 'paused' | 'completed' | 'failed';
+	status: 'draft' | 'ready' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
 	agents: MissionAgent[];
 	tasks: MissionTask[];
 	context: MissionContext;
