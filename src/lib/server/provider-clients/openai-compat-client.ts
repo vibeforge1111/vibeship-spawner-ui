@@ -168,7 +168,8 @@ async function handleStreamingResponse(
 							total: chunk.usage.total_tokens || 0
 						};
 					}
-				} catch {
+				} catch (err: unknown) {
+			console.warn('[spark-compete] caught error:', err);
 					// Skip malformed chunks
 				}
 			}
