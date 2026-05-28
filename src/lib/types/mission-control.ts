@@ -4,7 +4,8 @@ export const MISSION_CONTROL_BOARD_STATUSES = [
 	'paused',
 	'completed',
 	'failed',
-	'cancelled'
+	'cancelled',
+	'stale'
 ] as const;
 
 export type MissionControlBoardStatus = (typeof MISSION_CONTROL_BOARD_STATUSES)[number];
