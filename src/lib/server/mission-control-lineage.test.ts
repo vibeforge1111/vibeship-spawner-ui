@@ -76,4 +76,14 @@ describe('mission-control-lineage', () => {
 		expect(lineage?.previewUrl).not.toBe(stalePreviewUrl);
 		expect(lineage?.previewUrl).toContain(encodeProjectPreviewToken(nestedRoot));
 	});
+
+	it('normalizes preview base URLs by stripping trailing slashes', () => {
+		process.env.SPAWNER_PROJECT_PREVIEW_BASE_URL = 'http://localhost:3333/';
+
+		const lineage = extractMissionControlProjectLineage({
+			data: { projectPath: '/data/workspaces/mission-1-cafe' }
+		});
+
+		expect(lineage?.previewUrl).toMatch(/^http:\/\/localhost:3333\/preview\/[A-Za-z0-9_-]+\/index\.html$/);
+	});
 });

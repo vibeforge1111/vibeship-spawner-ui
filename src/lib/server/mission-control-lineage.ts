@@ -6,7 +6,7 @@ import type { MissionControlProjectLineage } from '$lib/types/mission-control';
 
 type RecordLike = Record<string, unknown>;
 
-const DEFAULT_PREVIEW_BASE_URL = 'http://127.0.0.1:3333';
+const DEFAULT_PREVIEW_BASE_URL = 'http://localhost:3333';
 
 function asRecord(value: unknown): RecordLike | null {
 	return value && typeof value === 'object' ? (value as RecordLike) : null;
@@ -69,7 +69,7 @@ function preferFeedbackText(current: string | null | undefined, incoming: string
 }
 
 function previewBaseUrl(): string {
-	return (
+	const resolved = (
 		process.env.SPAWNER_PROJECT_PREVIEW_BASE_URL?.trim() ||
 		process.env.SPARK_PROJECT_PREVIEW_BASE_URL?.trim() ||
 			process.env.SPAWNER_UI_PUBLIC_URL?.trim() ||
@@ -79,6 +79,7 @@ function previewBaseUrl(): string {
 		(process.env.RAILWAY_STATIC_URL ? `https://${process.env.RAILWAY_STATIC_URL.trim().replace(/^https?:\/\//i, '')}` : '') ||
 		DEFAULT_PREVIEW_BASE_URL
 	);
+	return resolved.replace(/\/+$/, '');
 }
 
 function projectIdFromPath(projectPath: string | null): string | null {
