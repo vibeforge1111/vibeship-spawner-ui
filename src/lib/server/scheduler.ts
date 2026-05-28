@@ -260,10 +260,14 @@ export function startScheduler(): void {
   if (_tickTimer || _starting) return;
   _starting = true;
   _tick()
-    .catch(() => {})
+    .catch((err) => {
+      console.error('[Scheduler] initial tick failed:', err);
+    })
     .finally(() => {
       _tickTimer = setInterval(() => {
-        _tick().catch(() => {});
+        _tick().catch((err) => {
+          console.error('[Scheduler] recurring tick failed:', err);
+        });
       }, TICK_MS);
       _starting = false;
     });
