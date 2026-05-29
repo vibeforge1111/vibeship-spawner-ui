@@ -16,6 +16,7 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import { logger } from '$lib/utils/logger';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 
 const log = logger.scope('PipelineLoader');
 
@@ -42,10 +43,25 @@ async function ensureDir(): Promise<void> {
 /**
  * POST - Queue a pipeline to load
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'PipelineLoader',
+		apiKeyEnvVar: 'PIPELINE_LOADER_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+	});
+	if (unauthorized) return unauthorized;
+
+	const rateLimited = enforceRateLimit(event, {
+		scope: 'pipeline_loader_post',
+		limit: 30,
+		windowMs: 60_000,
+	});
+	if (rateLimited) return rateLimited;
+
 	try {
 		await ensureDir();
-		const payload = await request.json();
+		const payload = await event.request.json();
 
 		// Validate required fields
 		if (!payload.pipelineId || !payload.pipelineName) {
@@ -82,11 +98,26 @@ export const POST: RequestHandler = async ({ request }) => {
 /**
  * GET - Get the pending load (optionally peek without consuming)
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'PipelineLoader',
+		apiKeyEnvVar: 'PIPELINE_LOADER_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+	});
+	if (unauthorized) return unauthorized;
+
+	const rateLimited = enforceRateLimit(event, {
+		scope: 'pipeline_loader_get',
+		limit: 60,
+		windowMs: 60_000,
+	});
+	if (rateLimited) return rateLimited;
+
 	try {
-		const peek = url.searchParams.get('peek') === 'true';
-		const latest = url.searchParams.get('latest') === 'true';
-		const requestedPipelineId = url.searchParams.get('pipeline')?.trim() || null;
+		const peek = event.url.searchParams.get('peek') === 'true';
+		const latest = event.url.searchParams.get('latest') === 'true';
+		const requestedPipelineId = event.url.searchParams.get('pipeline')?.trim() || null;
 		const loadFile = latest ? getLastLoadFile() : getPendingLoadFile();
 
 		if (!existsSync(loadFile)) {
@@ -128,7 +159,22 @@ export const GET: RequestHandler = async ({ url }) => {
 /**
  * DELETE - Clear the pending load
  */
-export const DELETE: RequestHandler = async () => {
+export const DELETE: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'PipelineLoader',
+		apiKeyEnvVar: 'PIPELINE_LOADER_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+	});
+	if (unauthorized) return unauthorized;
+
+	const rateLimited = enforceRateLimit(event, {
+		scope: 'pipeline_loader_delete',
+		limit: 30,
+		windowMs: 60_000,
+	});
+	if (rateLimited) return rateLimited;
+
 	try {
 		const pendingLoadFile = getPendingLoadFile();
 		if (existsSync(pendingLoadFile)) {
