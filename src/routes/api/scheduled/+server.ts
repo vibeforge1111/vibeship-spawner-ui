@@ -8,6 +8,7 @@ import {
   startScheduler,
   type ScheduleAction,
 } from '$lib/server/scheduler';
+import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -23,12 +24,43 @@ if (!building) {
   startScheduler();
 }
 
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async (event) => {
+  const unauthorized = requireControlAuth(event, {
+    surface: 'Scheduled',
+    apiKeyEnvVar: 'SCHEDULED_API_KEY',
+    fallbackApiKeyEnvVar: 'MCP_API_KEY',
+    apiKeyQueryParam: 'apiKey',
+  });
+  if (unauthorized) return unauthorized;
+
+  const rateLimited = enforceRateLimit(event, {
+    scope: 'scheduled_get',
+    limit: 60,
+    windowMs: 60_000,
+  });
+  if (rateLimited) return rateLimited;
+
   const schedules = await listSchedules();
   return json({ ok: true, schedules });
 };
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+  const unauthorized = requireControlAuth(event, {
+    surface: 'Scheduled',
+    apiKeyEnvVar: 'SCHEDULED_API_KEY',
+    fallbackApiKeyEnvVar: 'MCP_API_KEY',
+    apiKeyQueryParam: 'apiKey',
+  });
+  if (unauthorized) return unauthorized;
+
+  const rateLimited = enforceRateLimit(event, {
+    scope: 'scheduled_post',
+    limit: 30,
+    windowMs: 60_000,
+  });
+  if (rateLimited) return rateLimited;
+
+  const { request } = event;
   let body: Record<string, unknown>;
   try {
     body = asRecord(await request.json());
@@ -51,7 +83,23 @@ export const POST: RequestHandler = async ({ request }) => {
   }
 };
 
-export const DELETE: RequestHandler = async ({ request, url }) => {
+export const DELETE: RequestHandler = async (event) => {
+  const unauthorized = requireControlAuth(event, {
+    surface: 'Scheduled',
+    apiKeyEnvVar: 'SCHEDULED_API_KEY',
+    fallbackApiKeyEnvVar: 'MCP_API_KEY',
+    apiKeyQueryParam: 'apiKey',
+  });
+  if (unauthorized) return unauthorized;
+
+  const rateLimited = enforceRateLimit(event, {
+    scope: 'scheduled_delete',
+    limit: 30,
+    windowMs: 60_000,
+  });
+  if (rateLimited) return rateLimited;
+
+  const { request, url } = event;
   const id = url.searchParams.get('id') || '';
   if (!id) {
     let body: Record<string, unknown> = {};
