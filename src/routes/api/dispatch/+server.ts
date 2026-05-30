@@ -245,23 +245,23 @@ export const GET: RequestHandler = async (event) => {
 	if (!missionId) {
 		return json({ error: 'missionId query parameter required' }, { status: 400 });
 	}
-	let capability: CapabilityEnvelope;
 	try {
-		capability = assertCapability(createCapabilityEnvelope(event, {
+		const capability = assertCapability(createCapabilityEnvelope(event, {
 			surface: 'spawner',
 			capability: 'mission.status',
 			target: missionId,
 			reason: 'Read provider dispatch status'
 		}));
+		const status = providerRuntime.getMissionStatus(missionId);
+		return json({ missionId, ...status, audit: capability });
 	} catch (err) {
 		if (err instanceof CapabilityPolicyError) {
 			return json({ error: err.message, code: err.code }, { status: err.status });
 		}
-		throw err;
+		const error = err instanceof Error ? err.message : 'Unknown error';
+		console.error('[Dispatch API] GET error:', error);
+		return json({ error }, { status: 500 });
 	}
-
-	const status = providerRuntime.getMissionStatus(missionId);
-	return json({ missionId, ...status, audit: capability });
 };
 
 export const DELETE: RequestHandler = async (event) => {
@@ -275,21 +275,21 @@ export const DELETE: RequestHandler = async (event) => {
 	if (!missionId) {
 		return json({ error: 'missionId query parameter required' }, { status: 400 });
 	}
-	let capability: CapabilityEnvelope;
 	try {
-		capability = assertCapability(createCapabilityEnvelope(event, {
+		const capability = assertCapability(createCapabilityEnvelope(event, {
 			surface: 'spawner',
 			capability: 'mission.command',
 			target: missionId,
 			reason: 'Cancel provider dispatch'
 		}));
+		await providerRuntime.cancelMission(missionId);
+		return json({ success: true, missionId, audit: capability });
 	} catch (err) {
 		if (err instanceof CapabilityPolicyError) {
-			return json({ error: err.message, code: err.code }, { status: err.status });
+			return json({ success: false, error: err.message, code: err.code }, { status: err.status });
 		}
-		throw err;
+		const error = err instanceof Error ? err.message : 'Unknown error';
+		console.error('[Dispatch API] DELETE error:', error);
+		return json({ success: false, error }, { status: 500 });
 	}
-
-	await providerRuntime.cancelMission(missionId);
-	return json({ success: true, missionId, audit: capability });
 };
