@@ -94,6 +94,32 @@ const CONVERSATIONAL_DENIALS = [
 	'stay in chat'
 ];
 
+function hasExplicitExecutionIntent(normalized: string): boolean {
+	return (
+		/^(?:run|start|execute|launch|queue)\b/.test(normalized) ||
+		/\b(?:run|start|execute|launch|queue)\b.{0,80}\b(?:mission|spawner|provider)\b/.test(normalized) ||
+		/\b(?:mission|spawner|provider)\b.{0,80}\b(?:run|start|execute|launch|queue)\b/.test(normalized) ||
+		/\bthrough\s+spawner\b/.test(normalized) ||
+		/\bno[-\s]*edit\s+spawner\s+golden[-\s]*path\s+health\s+probe\b/.test(normalized)
+	);
+}
+
+function isFileSafetyCreateConstraint(normalized: string): boolean {
+	return /\b(?:do not|don't|dont|no need to)\s+create\s+files?\b/.test(normalized);
+}
+
+function denialApplies(signal: string, normalized: string): boolean {
+	if (!normalized.includes(signal)) return false;
+	if (
+		hasExplicitExecutionIntent(normalized) &&
+		isFileSafetyCreateConstraint(normalized) &&
+		(signal === 'do not create' || signal === "don't create" || signal === 'no need to create')
+	) {
+		return false;
+	}
+	return true;
+}
+
 export function evaluateExecutionIntentBoundary(goal: string): ExecutionIntentVerdict {
 	const normalized = String(goal || '').trim().toLowerCase();
 	if (!normalized) {
@@ -108,7 +134,7 @@ export function evaluateExecutionIntentBoundary(goal: string): ExecutionIntentVe
 	if (META_LANGUAGE_SIGNALS.some((signal) => normalized.includes(signal))) {
 		reasons.push('meta_language_boundary');
 	}
-	if (CONVERSATIONAL_DENIALS.some((signal) => normalized.includes(signal))) {
+	if (CONVERSATIONAL_DENIALS.some((signal) => denialApplies(signal, normalized))) {
 		reasons.push('execution_denial_boundary');
 	}
 

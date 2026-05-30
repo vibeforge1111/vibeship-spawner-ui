@@ -38,4 +38,16 @@ describe('execution intent boundary', () => {
 			reasons: []
 		});
 	});
+
+	it('allows explicit no-edit Spawner probes with file safety constraints', () => {
+		const verdict = evaluateExecutionIntentBoundary(
+			'Reply with exactly: SPARK_INTENT_BOUNDARY_POSITIVE_OK. Do not edit files. Do not create files. This is a no-edit Spawner golden-path health probe.'
+		);
+
+		expect(verdict).toEqual({
+			allowed: true,
+			reasonCode: 'execution_intent_present',
+			reasons: []
+		});
+	});
 });
