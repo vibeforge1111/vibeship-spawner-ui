@@ -21,6 +21,19 @@ describe('mission-size-classifier', () => {
 		expect(result.reasons).toContain('sparse understanding clarification');
 	});
 
+	it('does not inflate keyword-only conversation into build scope', () => {
+		const result = classifyMissionSize(
+			'I am mentioning Telegram, mission control, dashboard, and build, but do not start anything. Just explain the bug.'
+		);
+
+		expect(result).toMatchObject({
+			size: 'tiny',
+			projectKind: 'clarification',
+			verificationDepth: 'light'
+		});
+		expect(result.reasons.join(' ')).toContain('conversation-only boundary');
+	});
+
 	it('recognizes explicit no-build static apps as small builds', () => {
 		const result = classifyMissionSize(
 			'Build this at C:\\Users\\USER\\Desktop\\spark-clock: a vanilla-JS static app. Files: index.html, styles.css, app.js, README.md. No build step. Use localStorage and include a smoke test.'
