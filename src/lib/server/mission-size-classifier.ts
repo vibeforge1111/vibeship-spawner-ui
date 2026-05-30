@@ -89,8 +89,8 @@ export function classifyMissionSize(brief: string): MissionSizeClassification {
 	const normalized = brief.trim();
 	const lower = normalized.toLowerCase();
 	if (
-		/mentioning\b|just mentioning|only mentioning|keywords?|words? here|words? alone|phrases?|quoted text|does(?: not|n't) mean/i.test(normalized)
-		|| /\b(do not|don't|dont|no need to|not asking you to)\s+(start|run|execute|dispatch|launch|build|open)\b/i.test(normalized)
+		/mentioning\b|just mentioning|only mentioning|keywords?|words? here|words? alone|phrases?|terms?|quoted text|not a request|not a command|not an instruction|not asking for|does(?: not|n't) mean/i.test(normalized)
+		|| /\b(do not|don't|dont|no need to|not asking you to)\s+(start|run|execute|dispatch|launch|build|create|scaffold|generate|save|open)\b/i.test(normalized)
 		|| /\b(just explain|explain only|only explain|we can talk here|talk here|stay in chat)\b/i.test(normalized)
 	) {
 		return {

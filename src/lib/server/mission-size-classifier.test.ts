@@ -34,6 +34,19 @@ describe('mission-size-classifier', () => {
 		expect(result.reasons.join(' ')).toContain('conversation-only boundary');
 	});
 
+	it('does not inflate quoted creation phrases into build scope', () => {
+		const result = classifyMissionSize(
+			'Build a chip, create a mission, and publish are terms here, not a command; do not scaffold anything.'
+		);
+
+		expect(result).toMatchObject({
+			size: 'tiny',
+			projectKind: 'clarification',
+			verificationDepth: 'light'
+		});
+		expect(result.reasons.join(' ')).toContain('conversation-only boundary');
+	});
+
 	it('recognizes explicit no-build static apps as small builds', () => {
 		const result = classifyMissionSize(
 			'Build this at C:\\Users\\USER\\Desktop\\spark-clock: a vanilla-JS static app. Files: index.html, styles.css, app.js, README.md. No build step. Use localStorage and include a smoke test.'
