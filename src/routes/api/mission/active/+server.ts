@@ -16,6 +16,7 @@ import { existsSync } from 'fs';
 import path from 'path';
 import type { MultiLLMExecutionPack } from '$lib/services/multi-llm-orchestrator';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 
 const ACTIVE_MISSION_FILE = 'active-mission.json';
 const TERMINAL_MISSION_EVENTS = new Set(['mission_completed', 'mission_failed', 'mission_paused']);
@@ -78,7 +79,25 @@ interface ActiveMissionState {
  * GET /api/mission/active
  * Returns the active mission state if one exists
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'ActiveMission',
+		apiKeyEnvVar: 'SPAWNER_ACTIVE_MISSION_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'SPAWNER_ALLOWED_ORIGINS'
+	});
+	if (unauthorized) return unauthorized;
+
+	const rateLimited = enforceRateLimit(event, {
+		scope: 'active_mission_get',
+		limit: 60,
+		windowMs: 60_000
+	});
+	if (rateLimited) return rateLimited;
+
 	try {
 		const missionPath = getActiveMissionPath();
 
@@ -106,8 +125,8 @@ export const GET: RequestHandler = async ({ url }) => {
 		const minutesSinceUpdate = (Date.now() - lastUpdated.getTime()) / 60000;
 		const isStale = minutesSinceUpdate > 30;
 		const includeStale =
-			url.searchParams.get('includeStale') === '1' ||
-			url.searchParams.get('includeStale') === 'true';
+			event.url.searchParams.get('includeStale') === '1' ||
+			event.url.searchParams.get('includeStale') === 'true';
 
 		if (isStale && !includeStale) {
 			return json({
@@ -163,9 +182,27 @@ export const GET: RequestHandler = async ({ url }) => {
  * POST /api/mission/active
  * Update the active mission state (called by UI when state changes)
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'ActiveMission',
+		apiKeyEnvVar: 'SPAWNER_ACTIVE_MISSION_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'SPAWNER_ALLOWED_ORIGINS'
+	});
+	if (unauthorized) return unauthorized;
+
+	const rateLimited = enforceRateLimit(event, {
+		scope: 'active_mission_post',
+		limit: 30,
+		windowMs: 60_000
+	});
+	if (rateLimited) return rateLimited;
+
 	try {
-		const body = await request.json();
+		const body = await event.request.json();
 		const spawnerDir = getSpawnerDir();
 		const missionPath = getActiveMissionPath();
 		const status = typeof body.status === 'string' ? body.status : 'running';
@@ -219,8 +256,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		return json({
 			success: true,
-			message: 'Mission state saved',
-			path: missionPath
+			message: 'Mission state saved'
 		});
 	} catch (error) {
 		console.error('Failed to save active mission:', error);
@@ -235,7 +271,25 @@ export const POST: RequestHandler = async ({ request }) => {
  * DELETE /api/mission/active
  * Clear the active mission (when completed, cancelled, or user clears)
  */
-export const DELETE: RequestHandler = async () => {
+export const DELETE: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'ActiveMission',
+		apiKeyEnvVar: 'SPAWNER_ACTIVE_MISSION_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'SPAWNER_ALLOWED_ORIGINS'
+	});
+	if (unauthorized) return unauthorized;
+
+	const rateLimited = enforceRateLimit(event, {
+		scope: 'active_mission_delete',
+		limit: 10,
+		windowMs: 60_000
+	});
+	if (rateLimited) return rateLimited;
+
 	try {
 		const missionPath = getActiveMissionPath();
 
