@@ -854,7 +854,7 @@
 							</button>
 							<button
 								onclick={() => executeMissionControlAction('kill')}
-								disabled={missionControlActionLoading || mission.status === 'completed' || mission.status === 'failed'}
+								disabled={missionControlActionLoading || !(mission.status === 'running' || mission.status === 'paused')}
 								class="px-2 py-1 text-xs font-mono border border-red-500/40 text-red-400 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
 							>
 								Kill
