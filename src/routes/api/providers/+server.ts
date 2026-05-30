@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { DEFAULT_MULTI_LLM_PROVIDERS } from '$lib/services/multi-llm-orchestrator';
 import { applyProviderEnvOverrides, resolveProviderRuntimeConfiguration } from '$lib/server/provider-config';
+import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 
 function normalizeProviderId(value: string | undefined): string | null {
 	if (!value) return null;
@@ -13,7 +14,25 @@ function normalizeProviderId(value: string | undefined): string | null {
 		: null;
 }
 
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'Providers',
+		apiKeyEnvVar: 'SPAWNER_PROVIDERS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'SPAWNER_ALLOWED_ORIGINS'
+	});
+	if (unauthorized) return unauthorized;
+
+	const rateLimited = enforceRateLimit(event, {
+		scope: 'providers_list',
+		limit: 30,
+		windowMs: 60_000
+	});
+	if (rateLimited) return rateLimited;
+
 	const envRecord = env as Record<string, string | undefined>;
 	const sparkDefaultProvider =
 		normalizeProviderId(envRecord.DEFAULT_MISSION_PROVIDER) ||
@@ -40,11 +59,9 @@ export const GET: RequestHandler = async () => {
 				commandTemplate: provider.commandTemplate || null,
 				sparkExecutionBridge: provider.sparkExecutionBridge || null,
 				executesFilesystem: provider.executesFilesystem === true,
-				apiKeyEnv: provider.apiKeyEnv || null,
 				requiresApiKey: provider.requiresApiKey === true,
 				envKeyConfigured: runtimeConfig.envKeyConfigured,
 				cliConfigured: runtimeConfig.cliConfigured,
-				cliPath: runtimeConfig.cliPath,
 				configured: runtimeConfig.configured,
 				configurationMode: runtimeConfig.configurationMode,
 				sparkSelected: sparkDefaultProvider === provider.id
