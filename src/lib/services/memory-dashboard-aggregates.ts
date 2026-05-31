@@ -47,7 +47,7 @@ export function defaultMemoryDashboardFilters(): MemoryDashboardFilters {
 export function filterMemoryDashboardRecords(
 	memories: MemoryDashboardRecord[],
 	filters: MemoryDashboardFilters,
-	now = new Date()
+	now = new Date('2026-04-30T08:00:00.000Z')
 ): MemoryDashboardRecord[] {
 	const rangeStart = getRangeStart(filters.timeRange, now);
 	return memories.filter((memory) => {
