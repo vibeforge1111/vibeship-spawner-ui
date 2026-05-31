@@ -10,7 +10,7 @@ import type { RequestHandler } from './$types';
 import { eventBridge } from '$lib/services/event-bridge';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
 import { controlQueryApiKeysAllowed, enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
-import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
+import { isMissionControlMissionId, relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { projectStoredPrdAnalysisResultForTier } from '$lib/server/prd-analysis-result-schema';
 import { spawnerStateDir } from '$lib/server/spawner-state';
@@ -318,7 +318,11 @@ export const POST: RequestHandler = async (event) => {
 		for (const [key, value] of Object.entries(corsHeaders(event.request))) {
 			headers.set(key, value);
 		}
-		return json({ success: true, eventId: fullEvent.id }, { headers });
+		const responseBody: Record<string, unknown> = { success: true, eventId: fullEvent.id };
+		if (typeof fullEvent.missionId === 'string') {
+			responseBody.boardEligible = isMissionControlMissionId(fullEvent.missionId);
+		}
+		return json(responseBody, { headers });
 	} catch (error) {
 		console.error('[EventBridge] Error processing event:', error);
 		return json({ error: 'Invalid event data' }, { status: 400, headers: corsHeaders(event.request) });
