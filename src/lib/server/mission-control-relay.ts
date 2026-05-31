@@ -1432,14 +1432,16 @@ export function selectWebhookUrlsForMissionEvent(event: MissionControlBridgeEven
 		return urls;
 	}
 	if (target.url) {
-		return urls.filter((url) => url === target.url);
+		const matched = urls.filter((url) => url === target.url);
+		return matched.length > 0 ? matched : urls;
 	}
-	return urls.filter((url) => {
+	const portMatched = urls.filter((url) => {
 		if (target.port !== null && webhookPort(url) === target.port) {
 			return true;
 		}
 		return false;
 	});
+	return portMatched.length > 0 ? portMatched : urls;
 }
 
 export async function relayMissionControlEvent(event: MissionControlBridgeEvent): Promise<void> {
