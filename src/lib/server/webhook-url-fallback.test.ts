@@ -1,40 +1,43 @@
 import { describe, it, expect } from 'vitest';
+import {
+	selectWebhookUrlsForMissionEvent,
+	type MissionControlBridgeEvent
+} from './mission-control-relay';
 
-const selectWebhookUrls = (all: string[], matched: string[]): string[] =>
-  matched.length > 0 ? matched : all;
+const ALL_URLS = ['http://localhost:3001', 'http://localhost:3002'];
 
 describe('selectWebhookUrlsForMissionEvent - fallback logic', () => {
-  it('falls back to all webhooks when no match found', () => {
-    const all = ['http://localhost:3001', 'http://localhost:3002'];
-    expect(selectWebhookUrls(all, [])).toEqual(all);
-  });
+	it('falls back to all webhooks when no match found', () => {
+		const event: MissionControlBridgeEvent = {};
+		expect(selectWebhookUrlsForMissionEvent(event, ALL_URLS)).toEqual(ALL_URLS);
+	});
 
-  it('returns matched subset when match found', () => {
-    const all = ['http://localhost:3001', 'http://localhost:3002'];
-    expect(selectWebhookUrls(all, ['http://localhost:3001'])).toEqual(['http://localhost:3001']);
-  });
+	it('returns matched subset when telegramRelay url matches exactly', () => {
+		const event: MissionControlBridgeEvent = {
+			data: { telegramRelay: { url: 'http://localhost:3001' } }
+		};
+		expect(selectWebhookUrlsForMissionEvent(event, ALL_URLS)).toEqual(['http://localhost:3001']);
+	});
 
-  it('handles empty all-webhooks list without throw', () => {
-    expect(() => selectWebhookUrls([], [])).not.toThrow();
-  });
+	it('handles empty all-webhooks list without throw', () => {
+		const event: MissionControlBridgeEvent = {};
+		expect(() => selectWebhookUrlsForMissionEvent(event, [])).not.toThrow();
+	});
 
-  it('handles malformed relay data without throw', () => {
-    expect(() => {
-      const data: unknown = null;
-      const webhooks = Array.isArray(data) ? (data as string[]) : [];
-      return selectWebhookUrls(webhooks, []);
-    }).not.toThrow();
-  });
+	it('handles malformed relay data without throw', () => {
+		const event: MissionControlBridgeEvent = { data: null as unknown as Record<string, unknown> };
+		expect(() => selectWebhookUrlsForMissionEvent(event, [])).not.toThrow();
+	});
 
-  it('fallback result length bounded by all-webhooks', () => {
-    const all = ['http://localhost:3001', 'http://localhost:3002'];
-    const result = selectWebhookUrls(all, []);
-    expect(result.length).toBeLessThanOrEqual(all.length);
-  });
+	it('fallback result length bounded by all-webhooks', () => {
+		const event: MissionControlBridgeEvent = {};
+		const result = selectWebhookUrlsForMissionEvent(event, ALL_URLS);
+		expect(result.length).toBeLessThanOrEqual(ALL_URLS.length);
+	});
 
-  it('does not introduce urls beyond the provided set', () => {
-    const all = ['http://localhost:3001'];
-    const result = selectWebhookUrls(all, []);
-    expect(result.every(u => all.includes(u))).toBe(true);
-  });
+	it('does not introduce urls beyond the provided set', () => {
+		const event: MissionControlBridgeEvent = {};
+		const result = selectWebhookUrlsForMissionEvent(event, ALL_URLS);
+		expect(result.every((u) => ALL_URLS.includes(u))).toBe(true);
+	});
 });
