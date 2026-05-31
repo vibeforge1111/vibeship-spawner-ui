@@ -44,7 +44,11 @@ async function waitForServer(child) {
 
 async function readJson(response) {
 	const text = await response.text();
-	return text ? JSON.parse(text) : {};
+	try {
+		return text ? JSON.parse(text) : {};
+	} catch (error) {
+		return {};
+	}
 }
 
 async function expectStatus(path, expectedStatus, init = {}) {
