@@ -92,14 +92,26 @@ export const GET: RequestHandler = async () => {
 };
 
 export const POST: RequestHandler = async ({ request }) => {
-	const body = await request.json();
-	const { action, team_id, agent_id } = body;
+	let body: unknown;
+	try {
+		body = await request.json();
+	} catch {
+		return json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
+	}
+	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+		return json({ success: false, error: 'Invalid request body' }, { status: 400 });
+	}
+	const { action, team_id, agent_id } = body as Record<string, unknown>;
+	if (typeof action !== 'string' || !action.trim()) {
+		return json({ success: false, error: 'Missing action' }, { status: 400 });
+	}
 
 	const { teams, active_team_id } = await getTeamRegistry();
 
 	// Find the requested team
 	const defaultId = active_team_id || defaultActiveTeamId;
-	const team = team_id ? teams.find((t) => t.id === team_id) : teams.find((t) => t.id === defaultId);
+	const requestedTeamId = typeof team_id === 'string' && team_id.trim() ? team_id.trim() : null;
+	const team = requestedTeamId ? teams.find((t) => t.id === requestedTeamId) : teams.find((t) => t.id === defaultId);
 
 	if (!team) {
 		return json({ success: false, error: 'Team not found' }, { status: 404 });
@@ -109,7 +121,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		case 'get_agent':
 			// Find agent across all divisions
 			for (const division of Object.values(team.divisions)) {
-				const agent = division.agents.find(a => a.id === agent_id);
+				const agentId = typeof agent_id === 'string' ? agent_id : '';
+				const agent = division.agents.find((a) => a.id === agentId);
 				if (agent) {
 					return json({ success: true, agent });
 				}
@@ -117,7 +130,11 @@ export const POST: RequestHandler = async ({ request }) => {
 			return json({ success: false, error: 'Agent not found' }, { status: 404 });
 
 		case 'get_division':
-			const division = team.divisions[body.division_id];
+			const divisionId = (body as Record<string, unknown>).division_id;
+			if (typeof divisionId !== 'string' || !divisionId.trim()) {
+				return json({ success: false, error: 'Missing division_id' }, { status: 400 });
+			}
+			const division = team.divisions[divisionId];
 			if (division) {
 				return json({ success: true, division });
 			}
