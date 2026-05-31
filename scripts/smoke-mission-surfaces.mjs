@@ -37,7 +37,12 @@ async function postJson(path, body) {
 		body: JSON.stringify(body)
 	});
 	const text = await response.text();
-	const parsed = text ? JSON.parse(text) : null;
+	let parsed = null;
+	try {
+		parsed = text ? JSON.parse(text) : null;
+	} catch (e) {
+		parsed = null;
+	}
 	if (!response.ok) {
 		throw new Error(`${path} returned ${response.status}: ${text.slice(0, 300)}`);
 	}
@@ -47,7 +52,12 @@ async function postJson(path, body) {
 async function getJson(path) {
 	const response = await fetch(url(path));
 	const text = await response.text();
-	const parsed = text ? JSON.parse(text) : null;
+	let parsed = null;
+	try {
+		parsed = text ? JSON.parse(text) : null;
+	} catch (e) {
+		parsed = null;
+	}
 	if (!response.ok) {
 		throw new Error(`${path} returned ${response.status}: ${text.slice(0, 300)}`);
 	}
