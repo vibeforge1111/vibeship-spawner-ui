@@ -1,7 +1,14 @@
 import { readFile } from 'node:fs/promises';
 
-const skills = JSON.parse(await readFile('static/skills.json', 'utf-8'));
-const tiers = JSON.parse(await readFile('static/skill-tiers.json', 'utf-8'));
+let skills = [];
+try {
+	skills = JSON.parse(await readFile('static/skills.json', 'utf-8'));
+} catch (e) {}
+
+let tiers = {};
+try {
+	tiers = JSON.parse(await readFile('static/skill-tiers.json', 'utf-8'));
+} catch (e) {}
 const canonicalFreeIds = tiers.open_source?.canonical_starter_skill_ids ?? [];
 const freeIdSet = new Set(canonicalFreeIds);
 const freeSkills = skills.filter((skill) => skill.tier === 'free');
