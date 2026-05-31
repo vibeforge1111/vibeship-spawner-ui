@@ -504,7 +504,9 @@ export async function runCreatorPlan(
 	const envRecord = options.envRecord || env;
 	const builderRepo = path.resolve(options.builderRepo || defaultBuilderRepo(envRecord));
 	if (!existsSync(builderRepo)) {
-		throw new Error(`Builder repo not found: ${builderRepo}`);
+		throw new Error(
+			`Builder repo not found: ${builderRepo}. Set SPARK_BUILDER_REPO to the absolute path of your spark-intelligence-builder checkout, or place that checkout one directory up from the spawner-ui working directory.`
+		);
 	}
 	const pythonCommand = options.pythonCommand || defaultPythonCommand(envRecord);
 	const { stdout } = await execFileAsync(pythonCommand, buildPlannerArgs(input), {
@@ -524,7 +526,9 @@ export async function runCreatorArtifactBundle(
 	const envRecord = options.envRecord || env;
 	const builderRepo = path.resolve(options.builderRepo || defaultBuilderRepo(envRecord));
 	if (!existsSync(builderRepo)) {
-		throw new Error(`Builder repo not found: ${builderRepo}`);
+		throw new Error(
+			`Builder repo not found: ${builderRepo}. Set SPARK_BUILDER_REPO to the absolute path of your spark-intelligence-builder checkout, or place that checkout one directory up from the spawner-ui working directory.`
+		);
 	}
 	const pythonCommand = options.pythonCommand || defaultPythonCommand(envRecord);
 	const { stdout } = await execFileAsync(pythonCommand, buildManifestPlannerArgs(input), {
