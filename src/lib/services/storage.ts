@@ -43,7 +43,11 @@ export function storageSet<T>(key: string, value: T): void {
  */
 export function storageRemove(key: string): void {
 	if (!browser) return;
-	localStorage.removeItem(key);
+	try {
+		localStorage.removeItem(key);
+	} catch {
+		// Storage unavailable or blocked - match other helpers and fail silently
+	}
 }
 
 /**
@@ -51,7 +55,11 @@ export function storageRemove(key: string): void {
  */
 export function storageGetRaw(key: string): string | null {
 	if (!browser) return null;
-	return localStorage.getItem(key);
+	try {
+		return localStorage.getItem(key);
+	} catch {
+		return null;
+	}
 }
 
 /**
@@ -71,5 +79,9 @@ export function storageSetRaw(key: string, value: string): void {
  */
 export function storageHas(key: string): boolean {
 	if (!browser) return false;
-	return localStorage.getItem(key) !== null;
+	try {
+		return localStorage.getItem(key) !== null;
+	} catch {
+		return false;
+	}
 }
