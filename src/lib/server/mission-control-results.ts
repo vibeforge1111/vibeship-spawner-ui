@@ -156,7 +156,7 @@ export function summarizeProviderResults(
 		const errorSummary = compactMissionControlDisplayText(result.error);
 		const fallback =
 			result.status === 'completed'
-				? 'completed successfully'
+				? 'completed without a text response'
 				: result.status === 'failed'
 					? 'failed without an error message'
 					: result.status;

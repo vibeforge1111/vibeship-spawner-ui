@@ -22,6 +22,12 @@ import {
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { createH70SkillAccessProof, type H70SkillAccessProof } from '$lib/server/h70-skill-access-token';
 import { getTierSkills, normalizeTier, type SkillTier } from '$lib/server/skill-tiers';
+import {
+	HarnessAuthorityError,
+	assertHarnessAuthority,
+	resolveExecutionAuthority,
+	type HarnessAuthorityVerdict
+} from '$lib/server/harness-authority';
 
 interface PrdAutoSkill {
 	id?: string;
@@ -45,6 +51,7 @@ export interface PrdCanvasLoadForAutoDispatch {
 		position?: CanvasNode['position'];
 	}>;
 	connections: Array<{ sourceIndex?: number; targetIndex?: number }>;
+	source?: string;
 	autoRun?: boolean;
 	executionPrompt?: string;
 	relay?: Record<string, unknown>;
@@ -53,6 +60,7 @@ export interface PrdCanvasLoadForAutoDispatch {
 	capabilityProposalSummary?: unknown;
 	capabilityProposalPacket?: unknown;
 	metadata?: Record<string, unknown>;
+	executionAuthority?: unknown;
 }
 
 export interface PrdAutoDispatchResult {
@@ -62,6 +70,7 @@ export interface PrdAutoDispatchResult {
 	missionId: string;
 	projectPath?: string;
 	providerId?: string;
+	authority?: HarnessAuthorityVerdict;
 	error?: string;
 }
 
@@ -375,12 +384,22 @@ export async function autoDispatchPrdCanvasLoad(
 	load: PrdCanvasLoadForAutoDispatch,
 	options: PrdAutoDispatchOptions = {}
 ): Promise<PrdAutoDispatchResult> {
-	const allowed = shouldAutoDispatchPrdLoad(load, options);
-	if (!allowed.ok) {
-		return { started: false, skipped: true, reason: allowed.reason, missionId: load.missionId };
-	}
-
 	try {
+		const allowed = shouldAutoDispatchPrdLoad(load, options);
+		if (!allowed.ok) {
+			return { started: false, skipped: true, reason: allowed.reason, missionId: load.missionId };
+		}
+		const authority = assertHarnessAuthority({
+			authority: resolveExecutionAuthority(
+				load.executionAuthority,
+				load.relay?.executionAuthority,
+				load.metadata?.executionAuthority
+			),
+			toolName: 'spawner.dispatch',
+			ownerSystem: 'spawner-ui',
+			mutationClass: 'launches_mission'
+		});
+
 		const runtimeStatus = providerRuntime.getMissionStatus(load.missionId);
 		const providerStatuses = Object.values(runtimeStatus.providers || {});
 		if (
@@ -511,13 +530,16 @@ export async function autoDispatchPrdCanvasLoad(
 			started: true,
 			missionId: load.missionId,
 			projectPath,
-			providerId: provider.id
+			providerId: provider.id,
+			authority
 		};
 	} catch (error) {
 		return {
 			started: false,
 			missionId: load.missionId,
-			error: error instanceof Error ? error.message : String(error)
+			error: error instanceof HarnessAuthorityError
+				? `${error.message}: ${error.verdict.reasonCodes.join(', ')}`
+				: error instanceof Error ? error.message : String(error)
 		};
 	}
 }

@@ -1633,30 +1633,11 @@ export const POST: RequestHandler = async (event) => {
 				...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {})
 			}
 		});
+
 		const constrainedStaticSingleFile = constrainedStaticSingleFileInput || isConstrainedSingleFileStaticHtml(finalContent);
 		const deterministicFallback = _shouldUseDeterministicPrdFallback({
 			buildLane: normalizedBuildLane,
 			constrainedStaticSingleFile
-		});
-		const prdTaskName = deterministicFallback ? 'PRD draft' : 'PRD analysis';
-		void relayMissionControlEvent({
-			type: 'task_started',
-			missionId,
-			missionName: requestMeta.projectName,
-			taskName: prdTaskName,
-			message: deterministicFallback
-				? 'PRD draft is preparing the canvas.'
-				: 'PRD analysis is preparing the canvas.',
-			source: 'prd-bridge',
-			data: {
-				requestId,
-				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
-				buildMode: requestMeta.buildMode,
-				buildLane: requestMeta.buildLane,
-				buildLaneReason: requestMeta.buildLaneReason,
-				...(projectLineage ? { projectLineage } : {}),
-				...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {})
-			}
 		});
 		const auto = deterministicFallback
 			? { started: false, provider: normalizedBuildLane === 'fast_direct' ? 'deterministic-fast-lane' : 'deterministic-static' }
@@ -1691,20 +1672,6 @@ export const POST: RequestHandler = async (event) => {
 				normalizedTraceRef,
 				normalizedBuildLane
 			);
-			void relayMissionControlEvent({
-				type: 'task_completed',
-				missionId,
-				missionName: requestMeta.projectName,
-				taskName: prdTaskName,
-				message: 'PRD draft ready.',
-				source: 'prd-bridge',
-				data: {
-					requestId,
-					...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
-					buildMode: requestMeta.buildMode,
-					buildLane: requestMeta.buildLane
-				}
-			});
 		} else if (auto.started) {
 			scheduleProvisionalPrdDraft({
 				requestId,
@@ -1736,21 +1703,6 @@ export const POST: RequestHandler = async (event) => {
 				`auto-analysis not started for provider ${auto.provider}`,
 				normalizedTraceRef
 			);
-			void relayMissionControlEvent({
-				type: 'task_completed',
-				missionId,
-				missionName: requestMeta.projectName,
-				taskName: prdTaskName,
-				message: 'PRD draft ready after analysis worker did not start.',
-				source: 'prd-bridge',
-				data: {
-					requestId,
-					...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
-					buildMode: requestMeta.buildMode,
-					buildLane: requestMeta.buildLane,
-					provider: auto.provider
-				}
-			});
 		}
 
 		logger.info(`[PRDBridge] PRD written to ${paths.pendingPrdFile}`);

@@ -529,8 +529,9 @@ describe('creator mission trace', () => {
 			command: 'python --version',
 			stdout_tail: 'Python 3.13.5'
 		});
-		expect(result.trace.stage_status).toBe('validated');
-		expect(result.trace.publish_readiness).toBe('workspace_validated');
+		expect(result.trace.stage_status).toBe('blocked');
+		expect(result.trace.publish_readiness).toBe('private_draft');
+		expect(result.trace.blockers.join('\n')).toContain('Fresh benchmark runner evidence is required');
 		const saved = JSON.parse(await readFile(creatorMissionPath('mission-creator-validate', stateDir), 'utf-8'));
 		expect(saved.validation_runs).toHaveLength(1);
 	});
@@ -633,5 +634,134 @@ describe('creator mission trace', () => {
 			command: 'npm --version'
 		});
 		expect(result.run.results[0].stdout_tail.trim()).toMatch(/^\d+\.\d+\.\d+/);
+	});
+
+	it('prefers attached local creator artifact validation commands over planned repos', async () => {
+		const stateDir = await tempStateDir();
+		const missionId = 'mission-creator-local-artifact-bundle';
+		const artifactRoot = path.join(stateDir, 'creator-artifacts', 'spark-qa-operator-benchmark');
+		await mkdir(artifactRoot, { recursive: true });
+		await writeFile(
+			path.join(artifactRoot, 'artifact_manifest.json'),
+			JSON.stringify({
+				schema_version: 'spark-artifact-manifest.v1',
+				mission_id: missionId,
+				artifact_set_id: 'spark-qa-operator-benchmark-factory-v1',
+				artifacts: [
+					{ artifact_id: 'spark-qa-operator-benchmark-pack-v1', path: 'benchmark_pack.json' }
+				],
+				validation_commands: [
+					'node scripts/validate-spark-qa-benchmark-creator.mjs creator-artifacts/spark-qa-operator-benchmark',
+					'npm run check'
+				],
+				promotion_gates: ['schema_gate', 'privacy_gate'],
+				rollback_plan: 'Remove local artifact bundle.'
+			}),
+			'utf-8'
+		);
+		await writeFile(
+			path.join(artifactRoot, 'validation-ledger.json'),
+			JSON.stringify({
+				status: 'staged_not_scored',
+				benchmark_evidence: { baseline_score: null, candidate_score: null, delta: null },
+				held_out_verdict: 'blocked',
+				benchmark_refs: ['benchmark_creator_prd.json', 'benchmark_pack.json'],
+				gate_results: {
+					heldout_gate: 'blocked_until_fresh_run',
+					promotion_gate: 'blocked_until_scored_evidence'
+				},
+				missing_evidence_count: 4,
+				notes: ['No benchmark score has been produced or claimed.']
+			}),
+			'utf-8'
+		);
+		await writeFile(
+			path.join(artifactRoot, 'creator-mission-status.json'),
+			JSON.stringify({
+				schema_version: 'spark-creator-mission-status.v1',
+				mission_id: missionId,
+				verdict: 'staged_not_scored',
+				stage_status: 'staged',
+				evidence_tier: 'tier_1_packet_shape',
+				evidence_mode: 'local_only',
+				automation_blocked: true,
+				blocking_checks: ['fresh_benchmark_runner_artifact_missing'],
+				publication: {
+					publish_mode: 'local_only',
+					local_display_allowed: true,
+					github_pr_allowed: false,
+					swarm_shared_allowed: false,
+					network_absorbable: false,
+					unsafe_claim_blocked: true
+				}
+			}),
+			'utf-8'
+		);
+		await createCreatorMission(
+			{
+				brief: 'Create level 10 benchmarks for Spark QA Operator',
+				missionId,
+				requestId: 'req-local-artifact-bundle'
+			},
+			{
+				stateDir,
+				runManifestPlanner: async () => ({
+					intent_packet: packet({ target_domain: 'spark-qa-operator' }),
+					artifact_manifests: [
+						{
+							schema_version: 'spark-artifact-manifest.v1',
+							artifact_id: 'spark-qa-operator-domain-chip-v1',
+							artifact_type: 'domain_chip',
+							repo: 'missing-spark-qa-operator-domain-chip',
+							inputs: ['creator-intent-spark-qa-operator'],
+							outputs: ['spark-chip.json'],
+							validation_commands: ['python -m pytest tests'],
+							promotion_gates: ['schema_gate'],
+							rollback_plan: 'No files should be touched.'
+						}
+					],
+					validation_issues: []
+				})
+			}
+		);
+
+		const commands: string[] = [];
+		const result = await validateCreatorMission(
+			{ missionId },
+			{
+				stateDir,
+				commandRunner: async (executable, args, options) => {
+					commands.push([executable, ...args].join(' '));
+					expect(options.cwd).toBe(process.cwd());
+					return { exitCode: 0, stdout: 'ok', stderr: '' };
+				}
+			}
+		);
+
+		expect(result.run.status).toBe('passed');
+		expect(result.run.results).toHaveLength(2);
+		expect(commands).toEqual([
+			'node scripts/validate-spark-qa-benchmark-creator.mjs creator-artifacts/spark-qa-operator-benchmark',
+			'npm run check'
+		]);
+		expect(result.run.results.map((item) => item.error || '')).not.toContain('Repository path not found');
+		expect(result.trace.stage_status).toBe('blocked');
+		expect(result.trace.publish_readiness).toBe('private_draft');
+		expect(result.trace.improvement_evidence).toMatchObject({
+			status: 'missing',
+			baseline_score: null,
+			candidate_score: null,
+			delta: null,
+			held_out_pass: false,
+			benchmark_refs: ['benchmark_creator_prd.json', 'benchmark_pack.json']
+		});
+		expect(result.trace.creator_mission_status?.schema_version).toBe('spark-creator-mission-status.v1');
+		expect(result.trace.canonical).toMatchObject({
+			verdict: 'staged_not_scored',
+			automation_blocked: true,
+			blocking_checks: ['fresh_benchmark_runner_artifact_missing']
+		});
+		expect(result.trace.blockers.join('\n')).toContain('promotion_gate: blocked_until_scored_evidence');
+		expect(result.trace.blockers.join('\n')).toContain('Fresh benchmark runner evidence is required');
 	});
 });

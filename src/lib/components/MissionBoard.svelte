@@ -11,19 +11,12 @@
 	import { initPipelines, pipelines } from '$lib/stores/pipelines.svelte';
 	import type { Mission } from '$lib/services/mcp-client';
 	import type { PipelineMetadata } from '$lib/stores/pipelines.svelte';
-	import { completionEvidenceTooltipForDisplay } from '$lib/services/completion-evidence-display';
 	import {
-		activeMissionBoardColumnLabel,
 		canRunCreatorMissionBoardCard,
 		canShowMissionBoardProjectActions,
 		canValidateCreatorMissionBoardCard,
-		canvasHrefForMissionControlEntry,
-		collapseRepeatedTerminalMissionCards,
 		getMissionBoardCardActionLinks,
-		getMissionBoardWorkBreakdown,
 		mergeMissionBoardCards,
-		summarizeCompletionEvidenceForBoard,
-		terminalMissionBoardColumnLabel,
 		type MissionBoardCard as BoardCard
 	} from '$lib/services/mission-board-cards';
 	import {
@@ -31,7 +24,6 @@
 		type MissionImprovementDraft,
 		type MissionImprovementSource
 	} from '$lib/services/mission-improvement';
-	import { polishMissionTitleForDisplay } from '$lib/services/mission-title';
 
 	type Tab = 'board' | 'scheduled';
 	let activeTab = $state<Tab>('board');
@@ -52,7 +44,6 @@
 		lastEventType: string;
 		lastUpdated: string;
 		executionStarted?: boolean;
-		executionPolicy?: string | null;
 		queuedAt?: string | null;
 		startedAt?: string | null;
 		lastSummary: string;
@@ -315,7 +306,7 @@
 		});
 		return {
 			id: m.id,
-			name: polishMissionTitleForDisplay(m.name || 'Untitled mission'),
+			name: m.name || 'Untitled mission',
 			status: m.status,
 			mode: m.mode,
 			source: 'mcp',
@@ -337,8 +328,7 @@
 	}
 
 	function relayToCard(e: RelayEntry): BoardCard {
-		const rawName = e.missionName ?? e.taskName ?? e.missionId;
-		const name = polishMissionTitleForDisplay(rawName);
+		const name = e.missionName ?? e.taskName ?? e.missionId;
 		const status = relayStatusToCard(e.status);
 		const showSummary = status === 'completed' || status === 'failed' || status === 'cancelled';
 		const taskCount = e.taskCount ?? 0;
@@ -353,7 +343,6 @@
 			createdAt: e.lastUpdated ?? null,
 			lastEventType: e.lastEventType,
 			executionStarted: e.executionStarted,
-			executionPolicy: e.executionPolicy ?? null,
 			queuedAt: e.queuedAt ?? null,
 			startedAt: e.startedAt ?? null,
 			taskCount,
@@ -366,9 +355,34 @@
 			providerResults: e.providerResults,
 			completionEvidence: e.completionEvidence,
 			projectLineage: e.projectLineage ?? null,
-			canvasHref: canvasHrefForMissionControlEntry(e.missionId, currentPipelines),
+			canvasHref: canvasHrefForMission(e.missionId, name),
 			detailHref: `/missions/${encodeURIComponent(e.missionId)}`
 		};
+	}
+
+	function missionNumericSuffix(id: string): string {
+		return id.replace(/^(spark|mission)-/, '');
+	}
+
+	function normalizeTitle(value: string | null | undefined): string {
+		return (value || '')
+			.toLowerCase()
+			.replace(/^spark run:\s*/, '')
+			.replace(/[^\p{L}\p{N}]+/gu, ' ')
+			.trim();
+	}
+
+	function canvasHrefForMission(missionId: string, missionName?: string | null): string | null {
+		const suffix = missionNumericSuffix(missionId);
+		const normalizedMission = normalizeTitle(missionName);
+		const pipeline = currentPipelines.find((candidate) => {
+			if (suffix && candidate.id.includes(suffix)) return true;
+			if (normalizedMission && normalizeTitle(candidate.name) === normalizedMission) return true;
+			return false;
+		});
+		return pipeline
+			? `/canvas?pipeline=${encodeURIComponent(pipeline.id)}&mission=${encodeURIComponent(missionId)}`
+			: `/canvas?mission=${encodeURIComponent(missionId)}`;
 	}
 
 	const cards = $derived(() => {
@@ -401,19 +415,11 @@
 
 	const toDo = $derived(filteredCards().filter((c) => c.status === 'draft' || c.status === 'ready'));
 	const inProgress = $derived(filteredCards().filter((c) => c.status === 'running' || c.status === 'paused'));
-	const runningCount = $derived(filteredCards().filter((c) => c.status === 'running').length);
-	const pausedCount = $derived(filteredCards().filter((c) => c.status === 'paused').length);
 	const done = $derived(
 		filteredCards()
 			.filter((c) => c.status === 'completed' || c.status === 'failed' || c.status === 'cancelled')
 			.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
 	);
-	const visibleDone = $derived(
-		searchQuery.trim() || showAllCompleted
-			? done
-			: collapseRepeatedTerminalMissionCards(done).slice(0, completedPreviewLimit)
-	);
-	const hiddenDoneCount = $derived(Math.max(0, done.length - visibleDone.length));
 
 	onMount(() => {
 		initPipelines();
@@ -455,7 +461,7 @@
 	}
 
 	function taskProgressPercent(card: BoardCard): number {
-		const counts = getMissionBoardWorkBreakdown(card).build;
+		const counts = card.taskStatusCounts;
 		if (!counts || counts.total <= 0) {
 			if (card.status === 'completed') return 100;
 			if (card.status === 'running') return 0;
@@ -465,44 +471,21 @@
 	}
 
 	function hasTaskProgress(card: BoardCard): boolean {
-		const counts = getMissionBoardWorkBreakdown(card).build;
+		const counts = card.taskStatusCounts;
 		return Boolean(counts && counts.total > 0);
 	}
 
 	function taskProgressRatio(card: BoardCard): string {
-		const counts = getMissionBoardWorkBreakdown(card).build;
+		const counts = card.taskStatusCounts;
 		if (!counts || counts.total <= 0) return '';
 		const settled = counts.completed + counts.failed + counts.cancelled;
 		return `${settled}/${counts.total}`;
 	}
 
-	function hasPreparationProgress(card: BoardCard): boolean {
-		return getMissionBoardWorkBreakdown(card).hasPreparation;
-	}
-
-	function preparationProgressRatio(card: BoardCard): string {
-		const counts = getMissionBoardWorkBreakdown(card).preparation;
-		if (!counts.total) return '';
-		const settled = counts.completed + counts.failed + counts.cancelled;
-		return `${settled}/${counts.total}`;
-	}
-
-	function cardStatusLabel(card: BoardCard): string {
-		if (card.status === 'ready' || card.status === 'draft') return 'To do';
-		if (card.status === 'running') return 'Running';
-		if (card.status === 'paused') return 'Paused';
-		if (card.status === 'completed') return 'Complete';
-		if (card.status === 'failed') return 'Needs review';
-		if (card.status === 'cancelled') return 'Cancelled';
-		return card.status;
-	}
-
-	function cardStatusClass(card: BoardCard): string {
-		if (card.status === 'running') return 'border-accent-primary/25 bg-accent-primary/10 text-accent-primary';
-		if (card.status === 'paused') return 'border-status-warning/25 bg-status-warning/10 text-status-warning';
-		if (card.status === 'completed') return 'border-status-success/25 bg-status-success/10 text-status-success';
-		if (card.status === 'failed') return 'border-status-error/25 bg-status-error/10 text-status-error';
-		return 'border-surface-border bg-bg-primary text-text-tertiary';
+	function taskProgressLabel(card: BoardCard): string {
+		const counts = card.taskStatusCounts;
+		if (!counts || counts.total <= 0) return '';
+		return `${taskProgressRatio(card)} task${counts.total === 1 ? '' : 's'} completed`;
 	}
 
 	function focusLine(card: BoardCard): string | null {
@@ -535,12 +518,21 @@
 		return 'border-surface-border bg-bg-primary/70 text-text-tertiary group-hover:border-iris/60 group-hover:text-iris';
 	}
 
-	function completionEvidenceLabel(card: BoardCard): string | null {
-		return summarizeCompletionEvidenceForBoard(card.completionEvidence);
+	function lineageSummary(card: BoardCard): string | null {
+		const lineage = card.projectLineage;
+		if (!lineage) return null;
+		const parts = [];
+		if (lineage.iterationNumber) parts.push(`Iteration ${lineage.iterationNumber}`);
+		if (lineage.projectPath) parts.push(lineage.projectPath.split(/[\\/]/).filter(Boolean).pop() || lineage.projectPath);
+		return parts.length ? parts.join(' / ') : null;
 	}
 
-	function completionEvidenceTitle(card: BoardCard): string | null {
-		return completionEvidenceTooltipForDisplay(card.completionEvidence);
+	function completionEvidenceLabel(card: BoardCard): string | null {
+		const evidence = card.completionEvidence;
+		if (!evidence || evidence.state === 'not_terminal') return null;
+		if (evidence.state === 'complete') return 'Evidence complete';
+		if (evidence.missing.length === 0) return 'Evidence incomplete';
+		return `Missing ${evidence.missing.slice(0, 3).join(', ')}`;
 	}
 
 	function completionEvidenceClass(card: BoardCard): string {
@@ -795,7 +787,7 @@
 				></span>
 			</p>
 			<h1 class="text-2xl font-sans font-semibold text-text-primary tracking-tight">
-				{cards().length} missions · {runningCount} running{pausedCount ? ` · ${pausedCount} paused` : ''}
+				{cards().length} missions · {inProgress.length} running
 			</h1>
 		</div>
 
@@ -1006,8 +998,8 @@
 			<div class="grid gap-5 md:grid-cols-3 xl:grid-cols-[minmax(16rem,0.78fr)_minmax(18rem,1fr)_minmax(24rem,1.35fr)]">
 				{#each [
 					{ title: 'To do', items: toDo, empty: 'No pending missions' },
-					{ title: activeMissionBoardColumnLabel(), items: inProgress, empty: 'No active missions' },
-					{ title: terminalMissionBoardColumnLabel(), items: visibleDone, count: done.length, empty: 'No history yet' }
+					{ title: 'In progress', items: inProgress, empty: 'Nothing running' },
+					{ title: 'Completed', items: done, empty: 'No history yet' }
 				] as col}
 					<section class="flex flex-col min-h-[320px]">
 						<div class="sticky top-0 z-10 flex items-center justify-between gap-2 px-1 py-4 mb-1 bg-bg-primary/90 backdrop-blur-sm border-b border-surface-border">
@@ -1015,30 +1007,30 @@
 								<span class="w-2 h-2 rounded-full {columnDot(col.title)}"></span>
 								<span class="font-mono text-xs font-semibold text-text-bright tracking-widest uppercase">{col.title}</span>
 							</div>
-							<span class="font-mono text-sm text-text-tertiary tabular-nums">{col.count ?? col.items.length}</span>
+							<span class="font-mono text-sm text-text-tertiary tabular-nums">{col.items.length}</span>
 						</div>
 
 						<div class="flex-1 space-y-3">
 							{#each col.items as c (c.id)}
 								{@const actionLinks = getMissionBoardCardActionLinks(c)}
 								{@const summary = focusLine(c)}
+								{@const lineage = lineageSummary(c)}
 								{@const evidence = completionEvidenceLabel(c)}
 								{@const hasProgress = hasTaskProgress(c)}
-								{@const hasPreparation = hasPreparationProgress(c)}
 								{@const hasActions = hasCardActions(c)}
-								<article class="group relative overflow-hidden rounded-lg border border-surface-border/80 bg-bg-secondary/80 transition-all hover:border-iris/55 hover:bg-bg-tertiary/30">
+								<article class="group relative overflow-hidden rounded-md border border-surface-border bg-bg-secondary transition-all hover:border-iris/60 hover:bg-bg-tertiary/40">
 									<a
 										href={actionLinks.detailHref}
-										class="block px-4 py-3.5 text-inherit focus:outline-none focus-visible:ring-1 focus-visible:ring-iris/70 rounded-lg"
+										class="block px-4 py-3.5 text-inherit focus:outline-none focus-visible:ring-1 focus-visible:ring-iris/70 rounded-md"
 										title="Open this mission"
 									>
-										<div class="mb-2.5 flex items-start justify-between gap-3 pr-24">
+										<div class="mb-3 flex items-start justify-between gap-3 pr-24">
 											<div class="min-w-0 flex-1">
-												<h3 class="flex items-start gap-2 font-sans text-[15px] font-semibold leading-snug text-text-primary transition-colors group-hover:text-accent-primary">
-													<span class="mt-1.5 h-2 w-2 shrink-0 rounded-full {statusDot(c.status)}"></span>
-													<span class="line-clamp-2">{polishMissionTitleForDisplay(c.name)}</span>
+												<h3 class="flex items-start gap-2 font-sans text-base font-semibold leading-snug text-text-primary transition-colors group-hover:text-accent-primary">
+													<span class="mt-1.5 h-2 w-2 rounded-full shrink-0 {statusDot(c.status)}"></span>
+													<span class="line-clamp-2">{c.name}</span>
 												</h3>
-												<p class="mt-1.5 flex items-center gap-1.5 font-mono text-[10px] leading-tight text-text-tertiary">
+												<p class="mt-1.5 flex items-center gap-1.5 font-mono text-[11px] leading-tight text-text-secondary">
 													<Icon name="clock" size={11} class="text-text-tertiary" />
 													<span>{cardTimestamp(c)}</span>
 												</p>
@@ -1048,44 +1040,30 @@
 											</div>
 										</div>
 
-										<div class="mb-2.5 flex min-w-0 items-center gap-2">
-											<span class="inline-flex shrink-0 rounded-sm border px-2 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-[0.12em] {cardStatusClass(c)}">
-												{cardStatusLabel(c)}
-											</span>
-											<span class="min-w-0 truncate font-mono text-[10px] text-text-faint">Open for details</span>
-											{#if c.repeatCount}
-												<span class="shrink-0 rounded-sm border border-surface-border bg-bg-primary px-1.5 py-0.5 font-mono text-[9px] text-text-tertiary">
-													+{c.repeatCount} earlier
-												</span>
-											{/if}
-										</div>
-
 										{#if summary}
-											<p class="mb-2.5 text-xs leading-relaxed text-text-secondary line-clamp-1">{summary}</p>
+											<p class="mb-2.5 text-sm leading-relaxed text-text-secondary line-clamp-2">{summary}</p>
 										{/if}
 
-										{#if evidence && c.completionEvidence?.state !== 'complete'}
-											<p class="mb-2.5 inline-flex max-w-full items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[10px] {completionEvidenceClass(c)}" title={completionEvidenceTitle(c)}>
-												<Icon name="alert-triangle" size={11} />
+										{#if lineage}
+											<p class="mb-2.5 truncate font-mono text-[10px] text-text-tertiary">{lineage}</p>
+										{/if}
+
+										{#if evidence}
+											<p class="mb-2.5 inline-flex max-w-full items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[10px] {completionEvidenceClass(c)}" title={c.completionEvidence?.summary}>
+												<Icon name={c.completionEvidence?.state === 'complete' ? 'check-circle' : 'alert-triangle'} size={11} />
 												<span class="truncate">{evidence}</span>
 											</p>
 										{/if}
 
 										{#if hasProgress}
 										<div>
-											<div class="mb-2 flex items-center justify-between gap-3 font-mono text-[11px] font-semibold text-text-secondary">
-												<span>{taskProgressRatio(c)} build tasks</span>
+											<div class="mb-2 flex items-center justify-between gap-3 font-mono text-xs font-semibold text-text-secondary">
+												<span>{taskProgressLabel(c)}</span>
 												<span>{taskProgressPercent(c)}%</span>
 											</div>
-											<div class="h-1 overflow-hidden rounded-full bg-bg-primary">
+											<div class="h-1.5 overflow-hidden rounded-full bg-bg-primary">
 												<div class="h-full rounded-full bg-accent-primary transition-all" style="width: {taskProgressPercent(c)}%"></div>
 											</div>
-											{#if hasPreparation}
-												<div class="mt-2 flex items-center justify-between gap-3 font-mono text-[10px] text-text-tertiary">
-													<span>Preparation</span>
-													<span class="tabular-nums">{preparationProgressRatio(c)}</span>
-												</div>
-											{/if}
 										</div>
 										{/if}
 
@@ -1116,20 +1094,18 @@
 											<a
 												href={c.projectLineage.previewUrl}
 												onclick={(event) => event.stopPropagation()}
-												class="inline-flex items-center justify-center gap-1.5 rounded-sm border border-surface-border px-2.5 py-1 font-mono text-[10px] text-text-secondary transition-all hover:border-accent-primary/50 hover:text-accent-primary"
+												class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-text-secondary border border-surface-border rounded-sm hover:border-accent-primary/50 hover:text-accent-primary transition-all"
 												title="Open the shipped project preview"
 											>
-												<Icon name="external-link" size={10} />
 												Preview
 											</a>
 										{/if}
 										{#if canShowMissionBoardProjectActions(c) && c.projectLineage?.projectPath}
 											<button
 												onclick={() => handleImprove(c)}
-												class="inline-flex items-center justify-center gap-1.5 rounded-sm border border-surface-border px-2.5 py-1 font-mono text-[10px] text-text-secondary transition-all hover:border-accent-primary/50 hover:text-accent-primary"
+												class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-text-secondary border border-surface-border rounded-sm hover:border-accent-primary/50 hover:text-accent-primary transition-all"
 												title="Start another polish pass on this shipped project"
 											>
-												<Icon name="sparkles" size={10} />
 												Improve
 											</button>
 										{/if}
@@ -1220,27 +1196,6 @@
 									<p class="font-mono text-[11px] text-text-faint">{col.empty}</p>
 								</div>
 							{/each}
-							{#if col.title === terminalMissionBoardColumnLabel() && hiddenDoneCount > 0}
-								<div class="rounded-lg border border-dashed border-surface-border/80 bg-bg-secondary/35 px-4 py-3 text-center">
-									<p class="font-mono text-[11px] leading-relaxed text-text-tertiary">
-										Showing latest {visibleDone.length} of {done.length} history entries. Use search or open a mission for older details.
-									</p>
-									<button
-										class="mt-2 inline-flex items-center justify-center rounded-sm border border-surface-border px-2.5 py-1 font-mono text-[10px] text-text-secondary transition-all hover:border-accent-primary/50 hover:text-accent-primary"
-										onclick={() => showAllCompleted = true}
-									>
-										Show all history
-									</button>
-								</div>
-							{/if}
-							{#if col.title === terminalMissionBoardColumnLabel() && showAllCompleted && !searchQuery.trim() && done.length > completedPreviewLimit}
-								<button
-									class="w-full rounded-lg border border-surface-border/70 bg-bg-secondary/35 px-4 py-2 font-mono text-[10px] text-text-secondary transition-all hover:border-accent-primary/50 hover:text-accent-primary"
-									onclick={() => showAllCompleted = false}
-								>
-									Show recent only
-								</button>
-							{/if}
 						</div>
 					</section>
 				{/each}

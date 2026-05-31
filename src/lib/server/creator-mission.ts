@@ -6,6 +6,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { autoDispatchPrdCanvasLoad, type PrdAutoDispatchResult } from './prd-auto-dispatch';
 import { spawnerStateDir as resolveSpawnerStateDir } from './spawner-state';
+import { buildMachineOriginPolicy } from './harness-authority';
 
 const execFileAsync = promisify(execFile);
 
@@ -1173,9 +1174,17 @@ interface CreatorValidationLedger {
 		tool_usage_delta?: unknown;
 		ability_delta?: unknown;
 	};
+	held_out_verdict?: unknown;
+	held_out_pass?: unknown;
+	benchmark_refs?: unknown;
+	notes?: unknown;
+	gate_results?: unknown;
+	gate_ledger?: unknown;
+	missing_evidence_count?: unknown;
 }
 
 const CREATOR_MISSION_STATUS_SCHEMA_VERSION = 'adaptive_creator_loop.creator_mission_status.v1';
+const SPARK_CREATOR_MISSION_STATUS_SCHEMA_VERSION = 'spark-creator-mission-status.v1';
 
 async function readJsonIfPresent(filePath: string): Promise<Record<string, unknown> | null> {
 	try {
@@ -1186,7 +1195,12 @@ async function readJsonIfPresent(filePath: string): Promise<Record<string, unkno
 	}
 }
 
-async function findCreatorValidationLedger(trace: CreatorMissionTrace): Promise<CreatorValidationLedger | null> {
+async function findCreatorValidationLedger(trace: CreatorMissionTrace, stateDir?: string): Promise<CreatorValidationLedger | null> {
+	const local = await findCreatorLocalArtifactManifest(trace, stateDir);
+	if (local) {
+		const ledger = await readJsonIfPresent(path.join(local.root, 'validation-ledger.json'));
+		if (ledger) return ledger as CreatorValidationLedger;
+	}
 	for (const manifest of trace.artifact_manifests || []) {
 		if (!manifest.repo) continue;
 		const ledger = await readJsonIfPresent(path.join(resolveCreatorRepoRoot(manifest.repo), 'validation-ledger.json'));
@@ -1195,7 +1209,12 @@ async function findCreatorValidationLedger(trace: CreatorMissionTrace): Promise<
 	return null;
 }
 
-async function findCreatorMissionStatusPacket(trace: CreatorMissionTrace): Promise<Record<string, unknown> | null> {
+async function findCreatorMissionStatusPacket(trace: CreatorMissionTrace, stateDir?: string): Promise<Record<string, unknown> | null> {
+	const local = await findCreatorLocalArtifactManifest(trace, stateDir);
+	if (local) {
+		const packet = await readJsonIfPresent(path.join(local.root, 'creator-mission-status.json'));
+		if (packet) return packet;
+	}
 	const seen = new Set<string>();
 	for (const manifest of trace.artifact_manifests || []) {
 		if (!manifest.repo) continue;
@@ -1245,6 +1264,7 @@ function booleanRecord(value: unknown): Record<string, boolean> | undefined {
 }
 
 function blockerLabelFromPacket(value: unknown): string | null {
+	if (typeof value === 'string' && value.trim()) return value.trim();
 	const record = recordOrNull(value);
 	const source = stringOrUndefined(record?.source);
 	const message = stringOrUndefined(record?.message);
@@ -1252,19 +1272,33 @@ function blockerLabelFromPacket(value: unknown): string | null {
 	return source || message || null;
 }
 
+function addCreatorBlocker(trace: CreatorMissionTrace, blocker: string): void {
+	if (blocker && !trace.blockers.includes(blocker)) trace.blockers.push(blocker);
+}
+
+function clearValidationCommandFailureBlockers(trace: CreatorMissionTrace): void {
+	trace.blockers = trace.blockers.filter((blocker) =>
+		!/^(?:One or more validation commands failed\.|Creator validation failed:)/i.test(blocker)
+	);
+}
+
 function applyCreatorMissionStatusPacket(trace: CreatorMissionTrace, packet: Record<string, unknown> | null): void {
 	if (!packet) return;
-	if (packet.schema_version !== CREATOR_MISSION_STATUS_SCHEMA_VERSION) return;
-	if (packet.read_only !== true) {
+	if (
+		packet.schema_version !== CREATOR_MISSION_STATUS_SCHEMA_VERSION &&
+		packet.schema_version !== SPARK_CREATOR_MISSION_STATUS_SCHEMA_VERSION
+	) return;
+	if (packet.read_only !== undefined && packet.read_only !== true) {
 		const blocker = 'Creator mission status packet was ignored because it was not read-only.';
-		if (!trace.blockers.includes(blocker)) trace.blockers.push(blocker);
+		addCreatorBlocker(trace, blocker);
 		return;
 	}
-	trace.execution_policy = 'read_only';
+	if (packet.read_only === true || boolOrUndefined(packet.automation_blocked) === true) {
+		trace.execution_policy = 'read_only';
+	}
 
-	const canonical = recordOrNull(packet.canonical);
-	const publication = recordOrNull(packet.publication);
-	if (!canonical || !publication) return;
+	const canonical = recordOrNull(packet.canonical) || packet;
+	const publication = recordOrNull(packet.publication) || {};
 
 	const canonicalStatus: CreatorMissionCanonicalStatus = {
 		verdict: stringOrUndefined(canonical.verdict),
@@ -1302,15 +1336,15 @@ function applyCreatorMissionStatusPacket(trace: CreatorMissionTrace, packet: Rec
 
 	if (publication.network_absorbable !== false || publication.swarm_shared_allowed !== false) {
 		const blocker = 'Creator mission status kept network absorption blocked for product surfaces.';
-		if (!trace.blockers.includes(blocker)) trace.blockers.push(blocker);
+		addCreatorBlocker(trace, blocker);
 	}
 	for (const blocker of stringArray(canonicalStatus.blocking_checks)) {
-		if (!trace.blockers.includes(blocker)) trace.blockers.push(blocker);
+		addCreatorBlocker(trace, blocker);
 	}
 	if (Array.isArray(packet.blockers)) {
 		for (const rawBlocker of packet.blockers) {
 			const blocker = blockerLabelFromPacket(rawBlocker);
-			if (blocker && !trace.blockers.includes(blocker)) trace.blockers.push(blocker);
+			if (blocker) addCreatorBlocker(trace, blocker);
 		}
 	}
 }
@@ -1336,17 +1370,21 @@ function applyImprovementEvidenceFromLedger(
 	ledger: CreatorValidationLedger | null,
 	run: CreatorValidationRun
 ): void {
-	const evidence = ledger?.benchmark_evidence;
-	if (!evidence || typeof evidence !== 'object') return;
+	const evidence = recordOrNull(ledger?.benchmark_evidence);
+	if (!ledger && !evidence) return;
 
-	const baselineScore = numberOrNull(evidence.baseline_score);
-	const candidateScore = numberOrNull(evidence.candidate_score);
-	const delta = numberOrNull(evidence.delta);
-	const heldOutPass = boolFromHeldOut(evidence.held_out_verdict ?? evidence.held_out_pass);
-	const benchmarkRefs = stringArray(evidence.benchmark_refs);
+	const baselineScore = numberOrNull(evidence?.baseline_score);
+	const candidateScore = numberOrNull(evidence?.candidate_score);
+	const delta = numberOrNull(evidence?.delta);
+	const heldOutPass = boolFromHeldOut(evidence?.held_out_verdict ?? evidence?.held_out_pass ?? ledger?.held_out_verdict ?? ledger?.held_out_pass);
+	const benchmarkRefs = Array.from(new Set([
+		...stringArray(evidence?.benchmark_refs),
+		...stringArray(ledger?.benchmark_refs)
+	]));
 	const notes = [
-		...stringArray(evidence.notes),
-		...stringArray([evidence.reasoning_delta, evidence.tool_usage_delta, evidence.ability_delta])
+		...stringArray(evidence?.notes),
+		...stringArray(ledger?.notes),
+		...stringArray([evidence?.reasoning_delta, evidence?.tool_usage_delta, evidence?.ability_delta])
 	];
 
 	trace.benchmark_summary = {
@@ -1369,6 +1407,67 @@ function applyImprovementEvidenceFromLedger(
 	for (const ref of benchmarkRefs) {
 		if (!trace.benchmarks.includes(ref)) trace.benchmarks.push(ref);
 	}
+
+	const gateResults = recordOrNull(ledger?.gate_results) || recordOrNull(ledger?.gate_ledger);
+	if (gateResults) {
+		for (const [gate, rawStatus] of Object.entries(gateResults)) {
+			const status = typeof rawStatus === 'string'
+				? rawStatus
+				: stringOrUndefined(recordOrNull(rawStatus)?.status) || '';
+			if (/\b(?:blocked|failed|fail)\b|blocked_until|missing/i.test(status)) {
+				addCreatorBlocker(trace, `${gate}: ${status}`);
+			}
+		}
+	}
+	const missingEvidenceCount = numberOrNull(ledger?.missing_evidence_count);
+	if (missingEvidenceCount && missingEvidenceCount > 0) {
+		addCreatorBlocker(trace, `Benchmark promotion evidence is incomplete (${missingEvidenceCount} missing item${missingEvidenceCount === 1 ? '' : 's'}).`);
+	}
+}
+
+function creatorMissionRequiresBenchmarkProof(trace: CreatorMissionTrace): boolean {
+	return Boolean(
+		trace.intent_packet.desired_outputs.benchmark_pack ||
+		trace.validation_gates.some((gate) => gate.id === 'benchmark_gate' || gate.id === 'benchmark_proof_gate') ||
+		trace.artifact_manifests.some((manifest) => manifest.artifact_type === 'benchmark_pack')
+	);
+}
+
+function creatorMissionHasPromotionEvidence(trace: CreatorMissionTrace): boolean {
+	if (!creatorMissionRequiresBenchmarkProof(trace)) return true;
+	const evidence = trace.improvement_evidence;
+	const hasScores = evidence.baseline_score !== null && evidence.candidate_score !== null && evidence.delta !== null;
+	const hasBenchmarkRefs = evidence.benchmark_refs.length > 0;
+	const heldOutOk = !evidence.held_out_required || evidence.held_out_pass;
+	return hasScores && hasBenchmarkRefs && heldOutOk;
+}
+
+function applyCreatorValidationReadiness(trace: CreatorMissionTrace, runStatus: CreatorValidationRun['status']): void {
+	if (runStatus === 'failed') {
+		trace.current_stage = 'validation_failed';
+		trace.stage_status = 'failed';
+		return;
+	}
+	if (runStatus === 'blocked') {
+		trace.current_stage = 'validation_blocked';
+		trace.stage_status = 'blocked';
+		return;
+	}
+
+	if (creatorMissionHasPromotionEvidence(trace)) {
+		trace.current_stage = 'validation_completed';
+		trace.stage_status = 'validated';
+		trace.publish_readiness = 'workspace_validated';
+		return;
+	}
+
+	trace.current_stage = 'validation_completed_promotion_blocked';
+	trace.stage_status = 'blocked';
+	if (trace.publish_readiness === 'workspace_validated') trace.publish_readiness = 'private_draft';
+	addCreatorBlocker(
+		trace,
+		'Fresh benchmark runner evidence is required before this Creator Mission can be considered scored or promotion-ready.'
+	);
 }
 
 async function resolveCreatorArtifactBundle(
@@ -1541,14 +1640,24 @@ export async function readCreatorMissionTrace(
 
 function executableCreatorMissionCanvasLoad(trace: CreatorMissionTrace): CreatorMissionCanvasLoad {
 	const load = creatorMissionCanvasLoad(trace);
+	const executionAuthority = buildMachineOriginPolicy({
+		origin: 'creator-mission.execute',
+		source: 'authenticated_creator_mission_execute',
+		reason: 'Authenticated creator mission execution converted a staged creator canvas into a runnable mission.',
+		allowedTools: ['spawner.dispatch'],
+		mutationClassesAllowed: ['launches_mission'],
+		networkPolicy: 'local_only'
+	});
 	return {
 		...load,
 		autoRun: true,
+		executionAuthority,
 		relay: {
-			...load.relay,
-			autoRun: true
+			...(load.relay as Record<string, unknown>),
+			autoRun: true,
+			executionAuthority
 		}
-	};
+	} as unknown as CreatorMissionCanvasLoad;
 }
 
 export async function executeCreatorMission(
@@ -1588,7 +1697,7 @@ export async function executeCreatorMission(
 	return { trace, load, dispatch };
 }
 
-const VALIDATION_EXECUTABLE_ALLOWLIST = new Set(['python', 'python3', 'py', 'npm', 'npx', 'pnpm', 'spark-intelligence']);
+const VALIDATION_EXECUTABLE_ALLOWLIST = new Set(['node', 'python', 'python3', 'py', 'npm', 'npx', 'pnpm', 'spark-intelligence']);
 
 function splitCommandLine(command: string): string[] {
 	const parts: string[] = [];
@@ -1661,6 +1770,92 @@ function resolveValidationCommand(executable: string, args: string[]): ResolvedV
 
 function resolveCreatorRepoRoot(repo: string): string {
 	return path.isAbsolute(repo) ? repo : path.join(creatorWorkspaceRoot(), repo);
+}
+
+function creatorArtifactSlug(value: string | undefined): string {
+	return (value || 'target-domain')
+		.trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '') || 'target-domain';
+}
+
+async function candidateCreatorArtifactRoots(
+	trace: CreatorMissionTrace,
+	stateDir?: string
+): Promise<string[]> {
+	const slug = creatorArtifactSlug(trace.intent_packet?.target_domain || trace.intent_id || trace.mission_id);
+	const candidateBases = [
+		trace.repo_root ? path.join(trace.repo_root, 'creator-artifacts') : null,
+		stateDir ? path.join(stateDir, 'creator-artifacts') : null,
+		path.join(process.cwd(), 'creator-artifacts'),
+		path.join(creatorWorkspaceRoot(), 'source', 'creator-artifacts'),
+		path.join(creatorWorkspaceRoot(), 'creator-artifacts')
+	].filter((entry): entry is string => Boolean(entry));
+	const roots: string[] = [];
+	const seen = new Set<string>();
+	const addRoot = (root: string) => {
+		const resolved = path.resolve(root);
+		if (seen.has(resolved)) return;
+		seen.add(resolved);
+		roots.push(resolved);
+	};
+
+	for (const base of candidateBases) {
+		addRoot(path.join(base, `${slug}-benchmark`));
+		addRoot(path.join(base, slug));
+		try {
+			for (const entry of await readdir(base, { withFileTypes: true })) {
+				if (entry.isDirectory()) addRoot(path.join(base, entry.name));
+			}
+		} catch {
+			// Candidate roots are opportunistic; absence just means no local artifact bundle is attached.
+		}
+	}
+	return roots;
+}
+
+async function findCreatorLocalArtifactManifest(
+	trace: CreatorMissionTrace,
+	stateDir?: string
+): Promise<{ root: string; manifest: Record<string, unknown> } | null> {
+	for (const root of await candidateCreatorArtifactRoots(trace, stateDir)) {
+		const manifest = await readJsonIfPresent(path.join(root, 'artifact_manifest.json'));
+		if (!manifest) continue;
+		const missionId = stringOrUndefined(manifest.mission_id);
+		if (missionId && missionId !== trace.mission_id) continue;
+		return { root, manifest };
+	}
+	return null;
+}
+
+async function localArtifactValidationManifests(
+	trace: CreatorMissionTrace,
+	stateDir?: string
+): Promise<CreatorArtifactManifest[]> {
+	const local = await findCreatorLocalArtifactManifest(trace, stateDir);
+	if (!local) return [];
+	const commands = stringArray(local.manifest.validation_commands);
+	if (commands.length === 0) return [];
+	const artifacts = Array.isArray(local.manifest.artifacts)
+		? local.manifest.artifacts
+			.map((artifact) => recordOrNull(artifact))
+			.filter((artifact): artifact is Record<string, unknown> => Boolean(artifact))
+		: [];
+	const outputs = artifacts
+		.map((artifact) => stringOrUndefined(artifact.path))
+		.filter((item): item is string => Boolean(item));
+	return [{
+		schema_version: ARTIFACT_MANIFEST_SCHEMA_VERSION,
+		artifact_id: stringOrUndefined(local.manifest.artifact_set_id) || `${trace.mission_id}-creator-artifact-bundle`,
+		artifact_type: 'creator_report',
+		repo: process.cwd(),
+		inputs: [trace.intent_id],
+		outputs: outputs.length > 0 ? outputs : ['artifact_manifest.json'],
+		validation_commands: commands,
+		promotion_gates: stringArray(local.manifest.promotion_gates),
+		rollback_plan: stringOrUndefined(local.manifest.rollback_plan) || 'Remove the local creator artifact bundle.'
+	}];
 }
 
 async function defaultCreatorValidationCommandRunner(
@@ -1772,8 +1967,10 @@ export async function validateCreatorMission(
 	const commandRunner = options.commandRunner || activeCreatorValidationCommandRunner || undefined;
 	const pendingCommands: Array<{ manifest: CreatorArtifactManifest; command: string }> = [];
 	const results: CreatorValidationCommandResult[] = [];
+	const localValidationManifests = await localArtifactValidationManifests(trace, options.stateDir);
+	const validationManifests = localValidationManifests.length > 0 ? localValidationManifests : trace.artifact_manifests || [];
 
-	for (const manifest of trace.artifact_manifests || []) {
+	for (const manifest of validationManifests) {
 		for (const command of manifest.validation_commands || []) {
 			if (pendingCommands.length >= maxCommands) break;
 			pendingCommands.push({ manifest, command });
@@ -1817,15 +2014,17 @@ export async function validateCreatorMission(
 	};
 
 	trace.validation_runs = [...(trace.validation_runs || []), run];
-	trace.current_stage = runStatus === 'passed' ? 'validation_completed' : runStatus === 'blocked' ? 'validation_blocked' : 'validation_failed';
-	trace.stage_status = runStatus === 'passed' ? 'validated' : runStatus === 'blocked' ? 'blocked' : 'failed';
-	trace.publish_readiness = runStatus === 'passed' ? 'workspace_validated' : trace.publish_readiness;
-	applyImprovementEvidenceFromLedger(trace, await findCreatorValidationLedger(trace), run);
-	applyCreatorMissionStatusPacket(trace, await findCreatorMissionStatusPacket(trace));
+	if (runStatus === 'passed') {
+		applyImprovementEvidenceFromLedger(trace, await findCreatorValidationLedger(trace, options.stateDir), run);
+	}
+	applyCreatorMissionStatusPacket(trace, await findCreatorMissionStatusPacket(trace, options.stateDir));
+	applyCreatorValidationReadiness(trace, runStatus);
 	trace.updated_at = completedAt;
-	if (runStatus !== 'passed') {
+	if (runStatus === 'passed') {
+		clearValidationCommandFailureBlockers(trace);
+	} else {
 		const blocker = runStatus === 'blocked' ? 'One or more validation commands were skipped.' : 'One or more validation commands failed.';
-		if (!trace.blockers.includes(blocker)) trace.blockers.push(blocker);
+		addCreatorBlocker(trace, blocker);
 	}
 	await saveCreatorMissionTrace(trace, options.stateDir);
 	return { trace, run };

@@ -15,6 +15,7 @@ import {
 	normalizeCapabilityProposalPacket
 } from '$lib/server/capability-proposal-packet';
 import { extractTraceRef, normalizeTraceRef, traceRefFromMissionId } from '$lib/server/trace-ref';
+import { buildMachineOriginPolicy } from '$lib/server/harness-authority';
 
 function getSpawnerDir(): string {
 	return spawnerStateDir();
@@ -267,6 +268,16 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 		resolvedTraceRef = resolvedTraceRef || extractTraceRef(parsed) || traceRefFromMissionId(resolvedMissionId);
 		const capabilitySummary = capabilityProposalSummary(capabilityProposalPacket);
+		const executionAuthority = effectiveAutoRun
+			? buildMachineOriginPolicy({
+					origin: 'prd-bridge.load-to-canvas',
+					source: 'authenticated_prd_bridge_load',
+					reason: 'Authenticated PRD bridge loaded a runnable canvas with autoRun enabled.',
+					allowedTools: ['spawner.dispatch'],
+					mutationClassesAllowed: ['launches_mission'],
+					networkPolicy: 'local_only'
+				})
+			: undefined;
 		if (!relay && (typeof chatId === 'string' || typeof userId === 'string' || typeof goal === 'string' || normalizedTelegramRelay)) {
 			relay = {
 				missionId: resolvedMissionId,
@@ -278,7 +289,8 @@ export const POST: RequestHandler = async ({ request }) => {
 				...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {}),
 				autoRun: effectiveAutoRun,
 				buildMode,
-				buildModeReason
+				buildModeReason,
+				...(executionAuthority ? { executionAuthority } : {})
 			};
 		}
 		if (relay && !relay.missionId) {
@@ -286,6 +298,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 		if (relay && resolvedTraceRef && !relay.traceRef) {
 			relay.traceRef = resolvedTraceRef;
+		}
+		if (relay && executionAuthority && !relay.executionAuthority) {
+			relay.executionAuthority = executionAuthority;
 		}
 
 		const executionText = executionTextFromResult(parsed);
@@ -309,13 +324,15 @@ export const POST: RequestHandler = async ({ request }) => {
 			executionPrompt: executionText,
 			...(capabilityProposalPacket ? { capabilityProposalPacket } : {}),
 			...(capabilitySummary ? { capabilityProposalSummary: capabilitySummary } : {}),
+			...(executionAuthority ? { executionAuthority } : {}),
 			metadata: {
 				...(parsed.metadata && typeof parsed.metadata === 'object' && !Array.isArray(parsed.metadata)
 					? parsed.metadata
 					: {}),
 				...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
 				...(capabilityProposalPacket ? { capabilityProposalPacket } : {}),
-				...(capabilitySummary ? { capabilityProposalSummary: capabilitySummary } : {})
+				...(capabilitySummary ? { capabilityProposalSummary: capabilitySummary } : {}),
+				...(executionAuthority ? { executionAuthority } : {})
 			},
 			relay,
 			timestamp: new Date().toISOString()

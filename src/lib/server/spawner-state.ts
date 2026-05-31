@@ -101,6 +101,8 @@ export function spawnerStateSourceReferenceAudit(sourceRoot = process.cwd()): Sp
 	const referenceFamilyCounts: Record<string, number> = {};
 	const referenceOwnerCounts: Record<string, number> = {};
 	let referenceFileCount = 0;
+	let runtimeReferenceFileCount = 0;
+	let nonRuntimeReferenceFileCount = 0;
 
 	const scanDirectory = (family: string, dir: string) => {
 		let entries;
@@ -127,8 +129,10 @@ export function spawnerStateSourceReferenceAudit(sourceRoot = process.cwd()): Sp
 				if (referenceNeedles.some((needle) => text.includes(needle))) {
 					referenceFileCount += 1;
 					referenceFamilyCounts[family] = (referenceFamilyCounts[family] ?? 0) + 1;
-					const owner = family === 'src' ? 'runtime' : family;
+					const owner = family === 'src' || family === 'scripts' ? 'runtime' : 'non_runtime';
 					referenceOwnerCounts[owner] = (referenceOwnerCounts[owner] ?? 0) + 1;
+					if (owner === 'runtime') runtimeReferenceFileCount += 1;
+					else nonRuntimeReferenceFileCount += 1;
 				}
 			} catch {
 				continue;
@@ -153,8 +157,8 @@ export function spawnerStateSourceReferenceAudit(sourceRoot = process.cwd()): Sp
 		scanned_roots: scannedRoots,
 		reference_file_count: referenceFileCount,
 		reference_family_counts: referenceFamilyCounts,
-		runtime_reference_file_count: referenceOwnerCounts.runtime ?? 0,
-		non_runtime_reference_file_count: referenceFileCount - (referenceOwnerCounts.runtime ?? 0),
+		runtime_reference_file_count: runtimeReferenceFileCount,
+		non_runtime_reference_file_count: nonRuntimeReferenceFileCount,
 		reference_owner_counts: referenceOwnerCounts,
 		cwd_spawner_fallback_helper_present: helperText.includes("'.spawner'") || helperText.includes('".spawner"'),
 		spark_home_state_fallback_helper_present:
@@ -180,9 +184,7 @@ export function spawnerStateArchiveReadiness(
 	if (audit.cwd_fallback_used) blockers.push('current_runtime_uses_cwd_spawner_fallback');
 	if (audit.legacy_local_state_exists) blockers.push('module_local_state_exists_without_archive_proof');
 	if (sourceAudit.cwd_spawner_fallback_helper_present) blockers.push('cwd_spawner_fallback_still_supported_by_state_helper');
-	if ((sourceAudit.runtime_reference_file_count ?? sourceAudit.reference_file_count) > 0) {
-		blockers.push('runtime_spawner_state_references_require_owner_classification');
-	}
+	if (sourceAudit.reference_file_count > 0) blockers.push('spawner_state_references_require_owner_classification');
 	if (!audit.configured_state_dir_present && !audit.spark_home_state_dir_present) {
 		blockers.push('no_configured_or_spark_home_state_root_for_current_runtime');
 	}

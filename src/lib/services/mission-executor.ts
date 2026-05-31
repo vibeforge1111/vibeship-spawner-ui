@@ -142,6 +142,7 @@ export interface ExecutionRunOptions extends MissionBuildOptions {
 		autoRun?: boolean;
 		buildMode?: 'direct' | 'advanced_prd';
 		buildModeReason?: string;
+		executionAuthority?: Record<string, unknown>;
 	};
 }
 
@@ -1727,7 +1728,16 @@ class MissionExecutor {
 				executionPack,
 				apiKeys: options.apiKeys || {},
 				workingDirectory: this.progress.mission?.context?.projectPath,
-				relay
+				relay,
+				executionAuthority: relay?.executionAuthority || {
+					schema: 'spark.machine_origin_policy.v1',
+					origin: 'spawner-ui.execution-panel',
+					source: 'human_ui_run_action',
+					reason: 'User started execution from the Spawner execution panel.',
+					allowedTools: ['spawner.dispatch'],
+					mutationClassesAllowed: ['launches_mission'],
+					networkPolicy: 'local_only'
+				}
 			})
 		});
 		return response.json();

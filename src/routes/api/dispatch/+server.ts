@@ -21,6 +21,11 @@ import {
 	createCapabilityEnvelope,
 	type CapabilityEnvelope
 } from '$lib/server/capability-policy';
+import {
+	HarnessAuthorityError,
+	assertHarnessAuthority,
+	resolveExecutionAuthority
+} from '$lib/server/harness-authority';
 
 const ALLOWED_PROVIDER_IDS = new Set(DEFAULT_MULTI_LLM_PROVIDERS.map((provider) => provider.id));
 const ALLOWED_PROVIDER_LABEL = [...ALLOWED_PROVIDER_IDS].join(', ');
@@ -84,6 +89,12 @@ export const POST: RequestHandler = async (event) => {
 				{ status: 400 }
 			);
 		}
+		const authority = assertHarnessAuthority({
+			authority: resolveExecutionAuthority(body.executionAuthority, relay?.executionAuthority, executionPack.executionAuthority),
+			toolName: 'spawner.dispatch',
+			ownerSystem: 'spawner-ui',
+			mutationClass: 'launches_mission'
+		});
 		const capability = assertCapability(createCapabilityEnvelope(event, {
 			actorId: typeof relay?.userId === 'string' ? relay.userId : undefined,
 			surface: 'spawner',
@@ -223,8 +234,11 @@ export const POST: RequestHandler = async (event) => {
 			}
 		});
 
-		return json({ ...result, audit: capability });
+		return json({ ...result, audit: capability, authority });
 	} catch (err) {
+		if (err instanceof HarnessAuthorityError) {
+			return json({ success: false, error: err.message, code: err.code, authority: err.verdict }, { status: err.status });
+		}
 		if (err instanceof CapabilityPolicyError) {
 			return json({ success: false, error: err.message, code: err.code }, { status: err.status });
 		}

@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { createCreatorMission, creatorDomainDisplayLabel, creatorMissionPath, readCreatorMissionTrace, type CreatorExecutionPolicy, type CreatorPrivacyMode, type CreatorRiskLevel, type CreatorTelegramRelayTarget } from '$lib/server/creator-mission';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
+import { HarnessAuthorityError, assertHarnessAuthority, resolveExecutionAuthority } from '$lib/server/harness-authority';
 
 interface CreatorMissionBody {
 	brief?: string;
@@ -14,6 +15,7 @@ interface CreatorMissionBody {
 	privacyMode?: CreatorPrivacyMode;
 	riskLevel?: CreatorRiskLevel;
 	executionPolicy?: CreatorExecutionPolicy;
+	executionAuthority?: unknown;
 }
 
 function isPrivacyMode(value: unknown): value is CreatorPrivacyMode {
@@ -26,6 +28,10 @@ function isRiskLevel(value: unknown): value is CreatorRiskLevel {
 
 function isExecutionPolicy(value: unknown): value is CreatorExecutionPolicy {
 	return value === 'manual_run' || value === 'read_only';
+}
+
+function briefRequestsReadOnlyExecution(brief: string): boolean {
+	return /\b(?:stage\s+only|stage-only|do\s+not\s+run|don't\s+run|no\s+run|do\s+not\s+execute|don't\s+execute|no\s+execution|without\s+running)\b/i.test(brief);
 }
 
 function emitCreatorEvent(type: string, trace: Awaited<ReturnType<typeof createCreatorMission>>, message: string, data: Record<string, unknown> = {}) {
@@ -88,6 +94,15 @@ export const POST: RequestHandler = async (event) => {
 		if (body.executionPolicy !== undefined && !isExecutionPolicy(body.executionPolicy)) {
 			return json({ ok: false, error: 'executionPolicy must be manual_run or read_only' }, { status: 400 });
 		}
+		const requestedReadOnly = body.executionPolicy === 'read_only' || (body.executionPolicy !== 'manual_run' && briefRequestsReadOnlyExecution(brief));
+		const authority = requestedReadOnly
+			? null
+			: assertHarnessAuthority({
+					authority: resolveExecutionAuthority(body.executionAuthority),
+					toolName: 'creator.mission.create',
+					ownerSystem: 'spawner-ui',
+					mutationClass: 'creates_chip'
+				});
 
 		const trace = await createCreatorMission({
 			brief,
@@ -120,6 +135,7 @@ export const POST: RequestHandler = async (event) => {
 
 		return json({
 			ok: true,
+			...(authority ? { authority } : {}),
 			missionId: trace.mission_id,
 			requestId: trace.request_id,
 			taskCount: trace.tasks.length,
@@ -128,6 +144,12 @@ export const POST: RequestHandler = async (event) => {
 			trace
 		});
 	} catch (error) {
+		if (error instanceof HarnessAuthorityError) {
+			return json(
+				{ ok: false, error: error.message, code: error.code, authority: error.verdict },
+				{ status: error.status }
+			);
+		}
 		return json(
 			{ ok: false, error: error instanceof Error ? error.message : 'creator mission failed' },
 			{ status: 500 }

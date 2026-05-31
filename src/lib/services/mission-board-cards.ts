@@ -72,12 +72,6 @@ export function activeMissionBoardColumnLabel(): string {
 	return 'Active';
 }
 
-export function canShowMissionBoardProjectActions(
-	card: Pick<MissionBoardCard, 'projectLineage'> & { status?: string | null }
-): boolean {
-	return card.status === 'completed' && Boolean(card.projectLineage?.previewUrl || card.projectLineage?.projectPath);
-}
-
 export interface MissionCanvasPipelineCandidate {
 	id: string;
 	name?: string | null;
@@ -181,12 +175,7 @@ function repeatedTerminalCardKey(card: MissionBoardCard): string | null {
 	}
 	const evidence = (card.providerSummary || card.summary || '').trim().toLowerCase();
 	if (!evidence) return null;
-	return [
-		card.status,
-		card.name.trim().toLowerCase(),
-		card.taskCount || 0,
-		evidence
-	].join('|');
+	return [card.status, card.name.trim().toLowerCase(), card.taskCount || 0, evidence].join('|');
 }
 
 export function collapseRepeatedTerminalMissionCards(cards: MissionBoardCard[]): MissionBoardCard[] {
@@ -202,9 +191,9 @@ export function collapseRepeatedTerminalMissionCards(cards: MissionBoardCard[]):
 
 		const existing = byKey.get(key);
 		if (!existing) {
-			const copy = { ...card, repeatCount: 0 };
-			byKey.set(key, copy);
-			collapsed.push(copy);
+			const firstEntry = { ...card, repeatCount: 0 };
+			byKey.set(key, firstEntry);
+			collapsed.push(firstEntry);
 			continue;
 		}
 
@@ -282,4 +271,11 @@ export function canValidateCreatorMissionBoardCard(
 ): boolean {
 	if (!isCreatorMissionBoardCard(card)) return false;
 	return card.status !== 'cancelled';
+}
+
+export function canShowMissionBoardProjectActions(
+	card: Pick<MissionBoardCard, 'projectLineage'> & { status?: string | null }
+): boolean {
+	if (!card.projectLineage?.projectPath) return false;
+	return card.status === 'completed' || card.status === 'failed' || card.status === 'cancelled';
 }

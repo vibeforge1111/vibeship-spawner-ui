@@ -5,6 +5,7 @@ import { tmpdir } from 'os';
 import path from 'path';
 import {
 	_createScopedH70AccessForLoad,
+	autoDispatchPrdCanvasLoad,
 	buildAutoDispatchTaskSkillMap,
 	canvasLoadToMissionGraph,
 	_providerApiKeysFromEnv,
@@ -141,6 +142,13 @@ describe('PRD auto-dispatch helpers', () => {
 		expect(shouldAutoDispatchPrdLoad(load).ok).toBe(true);
 		expect(shouldAutoDispatchPrdLoad({ ...load, autoRun: false, relay: {} }).reason).toBe('autoRun disabled');
 		expect(shouldAutoDispatchPrdLoad({ ...load, nodes: [] }).reason).toBe('no canvas nodes');
+	});
+
+	it('does not let autoRun alone become execution authority', async () => {
+		const result = await autoDispatchPrdCanvasLoad(load);
+
+		expect(result.started).toBe(false);
+		expect(result.error).toContain('missing_harness_authority');
 	});
 
 	it('passes configured provider API keys into auto-dispatch runtime', () => {

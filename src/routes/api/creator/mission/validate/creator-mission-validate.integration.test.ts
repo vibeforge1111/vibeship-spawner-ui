@@ -116,7 +116,9 @@ describe('/api/creator/mission/validate', () => {
 		const body = await response.json();
 		expect(body.ok).toBe(true);
 		expect(body.status).toBe('passed');
-		expect(body.trace.stage_status).toBe('validated');
+		expect(body.trace.stage_status).toBe('blocked');
+		expect(body.trace.publish_readiness).toBe('private_draft');
+		expect(body.trace.blockers.join('\n')).toContain('Fresh benchmark runner evidence is required');
 		expect(body.trace.validation_runs).toHaveLength(1);
 		const snapshot = getMissionControlRelaySnapshot('mission-creator-validate-api');
 		expect(snapshot.recent.some((entry) =>
@@ -166,7 +168,9 @@ describe('/api/creator/mission/validate', () => {
 			requestId: 'req-validate-async'
 		});
 		const trace = await waitForValidationRun('mission-creator-validate-async');
-		expect(trace.stage_status).toBe('validated');
+		expect(trace.stage_status).toBe('blocked');
+		expect(trace.publish_readiness).toBe('private_draft');
+		expect(trace.blockers.join('\n')).toContain('Fresh benchmark runner evidence is required');
 		expect(trace.validation_runs[0].status).toBe('passed');
 	});
 

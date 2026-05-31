@@ -2,10 +2,12 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { creatorMissionPath, executeCreatorMission } from '$lib/server/creator-mission';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
+import { HarnessAuthorityError, assertHarnessAuthority, resolveExecutionAuthority } from '$lib/server/harness-authority';
 
 interface ExecuteCreatorMissionBody {
 	missionId?: string;
 	requestId?: string;
+	executionAuthority?: unknown;
 }
 
 export const POST: RequestHandler = async (event) => {
@@ -31,10 +33,17 @@ export const POST: RequestHandler = async (event) => {
 		if (!missionId && !requestId) {
 			return json({ ok: false, error: 'missionId or requestId is required' }, { status: 400 });
 		}
+		const authority = assertHarnessAuthority({
+			authority: resolveExecutionAuthority(body.executionAuthority),
+			toolName: 'spawner.dispatch',
+			ownerSystem: 'spawner-ui',
+			mutationClass: 'launches_mission'
+		});
 
 		const result = await executeCreatorMission({ missionId, requestId });
 		return json({
 			ok: true,
+			authority,
 			missionId: result.trace.mission_id,
 			requestId: result.trace.request_id,
 			canvasUrl: result.trace.links.canvas,
@@ -48,6 +57,12 @@ export const POST: RequestHandler = async (event) => {
 			trace: result.trace
 		});
 	} catch (error) {
+		if (error instanceof HarnessAuthorityError) {
+			return json(
+				{ ok: false, error: error.message, code: error.code, authority: error.verdict },
+				{ status: error.status }
+			);
+		}
 		const message = error instanceof Error ? error.message : 'creator mission execution failed';
 		const status = /read-only|stage-only|already published/i.test(message) ? 409 : 500;
 		return json(

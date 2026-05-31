@@ -20,6 +20,18 @@ function event(url: string, body?: unknown) {
 	};
 }
 
+function machineAuthority() {
+	return {
+		schema: 'spark.machine_origin_policy.v1',
+		origin: 'creator-mission-test',
+		source: 'creator_mission_route_test',
+		reason: 'Focused creator mission creation authority regression.',
+		allowedTools: ['creator.mission.create'],
+		mutationClassesAllowed: ['creates_chip'],
+		networkPolicy: 'local_only'
+	};
+}
+
 let tempDir = '';
 
 beforeEach(async () => {
@@ -79,7 +91,8 @@ describe('/api/creator/mission', () => {
 		const postResponse = await POST(event('http://127.0.0.1/api/creator/mission', {
 			brief: 'Create Startup YC path',
 			missionId: 'mission-creator-api',
-			requestId: 'creator-api-req'
+			requestId: 'creator-api-req',
+			executionAuthority: machineAuthority()
 		}) as never);
 		expect(postResponse.status).toBe(200);
 		const postBody = await postResponse.json();
@@ -168,5 +181,18 @@ describe('/api/creator/mission', () => {
 		expect(response.status).toBe(400);
 		const body = await response.json();
 		expect(body.error).toBe('brief is required');
+	});
+
+	it('rejects executable creator mission creation without execution authority', async () => {
+		const response = await POST(event('http://127.0.0.1/api/creator/mission', {
+			brief: 'Create Startup YC path',
+			missionId: 'mission-creator-missing-authority',
+			requestId: 'creator-missing-authority'
+		}) as never);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
 	});
 });

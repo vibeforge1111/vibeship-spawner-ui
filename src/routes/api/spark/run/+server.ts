@@ -14,6 +14,7 @@ import {
 	missionControlPathForMission,
 	resolveMissionControlAccess
 } from '$lib/server/mission-control-access';
+import { evaluateExecutionIntentBoundary } from '$lib/server/intent-boundary';
 import {
 	CapabilityPolicyError,
 	assertCapability,
@@ -216,6 +217,18 @@ export const POST: RequestHandler = async (event) => {
 		const goal = body.goal?.trim();
 		if (!goal) {
 			return json({ success: false, error: 'goal is required' }, { status: 400 });
+		}
+		const intentVerdict = evaluateExecutionIntentBoundary(goal);
+		if (!intentVerdict.allowed) {
+			return json(
+				{
+					success: false,
+					error: 'Spark run blocked because the goal reads like conversation, not execution.',
+					code: intentVerdict.reasonCode,
+					intentVerdict
+				},
+				{ status: 409 }
+			);
 		}
 		const capability = assertCapability(createCapabilityEnvelope(event, {
 			actorId: body.userId?.trim() || body.chatId?.trim() || undefined,
