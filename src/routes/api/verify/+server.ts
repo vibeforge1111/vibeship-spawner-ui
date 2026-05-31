@@ -104,7 +104,7 @@ export const POST: RequestHandler = async (event) => {
 		});
 		if (rateLimited) return rateLimited;
 
-		const body = await event.request.json() as VerifyRequest;
+		const body = (await event.request.json().catch(() => ({}))) as VerifyRequest;
 		const { action, projectPath, files } = body;
 
 		if (!action || !['build', 'typecheck', 'test', 'files', 'scan'].includes(action)) {

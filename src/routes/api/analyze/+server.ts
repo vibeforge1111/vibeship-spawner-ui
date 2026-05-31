@@ -98,7 +98,7 @@ function formatSkillsForPrompt(): string {
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
-		const body: AnalysisRequest = await request.json();
+		const body: AnalysisRequest = (await request.json().catch(() => ({}))) as AnalysisRequest;
 
 		if (!body.goal || typeof body.goal !== 'string') {
 			return json({ error: 'Goal is required' }, { status: 400 });

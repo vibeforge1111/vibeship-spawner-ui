@@ -67,7 +67,7 @@ export const POST: RequestHandler = async (event) => {
 		});
 		if (rateLimited) return rateLimited;
 
-		const body = await event.request.json();
+		const body = (await event.request.json().catch(() => ({}))) as Record<string, unknown>;
 		const { projectPath, scanners } = body as {
 			projectPath: string;
 			scanners?: ScannerName[];

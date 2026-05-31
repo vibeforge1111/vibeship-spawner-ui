@@ -1447,7 +1447,7 @@ export const POST: RequestHandler = async (event) => {
 		if (rateLimited) return rateLimited;
 
 		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, buildLane, build_lane, buildLaneReason, build_lane_reason, telegramRelay, tier, forceDispatch, runnerCapability, runner_capability, capabilityProposalPacket, capability_proposal_packet, traceRef, trace_ref } =
-			await event.request.json();
+			await event.request.json().catch(() => ({} as any));
 		const normalizedBuildMode = normalizeBuildMode(buildMode);
 		const normalizedBuildLane = normalizeBuildLane(buildLane ?? build_lane, normalizedBuildMode, options);
 		const normalizedTier = normalizeTier(tier);
