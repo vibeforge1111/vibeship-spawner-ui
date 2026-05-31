@@ -2,7 +2,11 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { applyProviderEnvOverrides, resolveProviderRuntimeConfiguration } from './provider-config';
+import {
+	applyProviderEnvOverrides,
+	resolveProviderDisplayLabel,
+	resolveProviderRuntimeConfiguration
+} from './provider-config';
 
 const originalCodexPath = process.env.CODEX_PATH;
 const originalSparkCodexPath = process.env.SPARK_CODEX_PATH;
@@ -131,5 +135,29 @@ describe('resolveProviderRuntimeConfiguration', () => {
 		expect(selected.baseUrl).toBe('http://127.0.0.1:1234/v1');
 		expect(unselected.model).toBe('local-model');
 		expect(unselected.baseUrl).toBe('http://localhost:1234/v1');
+	});
+});
+
+describe('resolveProviderDisplayLabel', () => {
+	it('labels DeepSeek OpenAI-compatible routes distinctly', () => {
+		expect(
+			resolveProviderDisplayLabel(
+				{ id: 'openai', label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
+				{ OPENAI_BASE_URL: 'https://api.deepseek.com/v1' }
+			)
+		).toBe('DeepSeek (OpenAI-compatible)');
+	});
+
+	it('keeps the default OpenAI label for the official endpoint', () => {
+		expect(
+			resolveProviderDisplayLabel(
+				{ id: 'openai', label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
+				{ OPENAI_BASE_URL: 'https://api.openai.com/v1' }
+			)
+		).toBe('OpenAI');
+	});
+
+	it('does not relabel non-openai providers', () => {
+		expect(resolveProviderDisplayLabel({ id: 'zai', label: 'Z.AI GLM', baseUrl: '' }, {})).toBe('Z.AI GLM');
 	});
 });

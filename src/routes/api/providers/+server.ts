@@ -2,7 +2,11 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { DEFAULT_MULTI_LLM_PROVIDERS } from '$lib/services/multi-llm-orchestrator';
-import { applyProviderEnvOverrides, resolveProviderRuntimeConfiguration } from '$lib/server/provider-config';
+import {
+	applyProviderEnvOverrides,
+	resolveProviderDisplayLabel,
+	resolveProviderRuntimeConfiguration
+} from '$lib/server/provider-config';
 
 function normalizeProviderId(value: string | undefined): string | null {
 	if (!value) return null;
@@ -34,6 +38,7 @@ export const GET: RequestHandler = async () => {
 			return {
 				id: provider.id,
 				label: provider.label,
+				displayLabel: resolveProviderDisplayLabel(provider, envRecord),
 				kind: provider.kind,
 				model: provider.model,
 				baseUrl: provider.baseUrl || null,
