@@ -557,6 +557,32 @@ function isStaleNonTerminalStatus(status: MissionControlBoardStatus, timestamp: 
 	return Date.now() - updatedAt > STALE_NON_TERMINAL_MS;
 }
 
+/**
+ * Compare two mission-control board entries by `lastUpdated` for a most-recent-first
+ * sort. `Date.parse('')` and `Date.parse('not-a-date')` both return NaN, and the
+ * naive subtraction comparator `Date.parse(b) - Date.parse(a)` then yields NaN,
+ * which makes Array.prototype.sort ordering undefined (ECMA-262 Sec. 23.1.3.30
+ * — comparator must return a consistent finite number). Treat NaN/missing
+ * timestamps as oldest so they are pushed to the tail of the bucket
+ * deterministically, keeping the Kanban board ordering stable when an upstream
+ * event arrives with a missing or malformed `timestamp`.
+ */
+export function compareMissionControlEntriesByLastUpdatedDescending(
+	a: { lastUpdated?: string | null },
+	b: { lastUpdated?: string | null }
+): number {
+	const aRaw = a?.lastUpdated;
+	const bRaw = b?.lastUpdated;
+	const aMs = typeof aRaw === 'string' && aRaw ? Date.parse(aRaw) : Number.NaN;
+	const bMs = typeof bRaw === 'string' && bRaw ? Date.parse(bRaw) : Number.NaN;
+	const aFinite = Number.isFinite(aMs);
+	const bFinite = Number.isFinite(bMs);
+	if (aFinite && bFinite) return bMs - aMs;
+	if (aFinite) return -1;
+	if (bFinite) return 1;
+	return 0;
+}
+
 function emptyTaskStatusCounts(): MissionControlTaskStatusCounts {
 	return emptyMissionControlTaskStatusCounts();
 }
@@ -1123,7 +1149,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 	}
 
 	for (const entries of Object.values(board)) {
-		entries.sort((a, b) => Date.parse(b.lastUpdated) - Date.parse(a.lastUpdated));
+		entries.sort(compareMissionControlEntriesByLastUpdatedDescending);
 	}
 
 	return board;

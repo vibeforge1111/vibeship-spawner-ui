@@ -1,4 +1,5 @@
 import type { MissionControlBoardEntry } from './mission-control-relay';
+import { compareMissionControlEntriesByLastUpdatedDescending } from './mission-control-relay';
 import type { ProviderMissionResultSnapshot } from './provider-runtime';
 import type { ProviderSessionStatus } from './provider-clients/types';
 import type { MissionControlCompletionEvidence } from '$lib/types/mission-control';
@@ -451,7 +452,7 @@ export function enrichMissionControlBoardWithProviderResults(
 	}
 
 	for (const entries of Object.values(enriched)) {
-		entries.sort((a, b) => Date.parse(b.lastUpdated) - Date.parse(a.lastUpdated));
+		entries.sort(compareMissionControlEntriesByLastUpdatedDescending);
 	}
 
 	return enriched;
