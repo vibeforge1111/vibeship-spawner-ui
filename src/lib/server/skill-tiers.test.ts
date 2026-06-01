@@ -1,5 +1,15 @@
-import { describe, expect, it } from 'vitest';
-import { formatSkillsByCategory, getTierSkills, normalizeTier } from './skill-tiers';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+import { formatSkillsByCategory, getTierSkills, normalizeTier, resetSkillTierCacheForTests } from './skill-tiers';
+
+const originalCwd = process.cwd();
+
+afterEach(async () => {
+	process.chdir(originalCwd);
+	resetSkillTierCacheForTests();
+});
 
 describe('skill-tiers', () => {
 	it('defaults unknown tier values to base while preserving explicit base/pro', () => {
@@ -48,6 +58,32 @@ describe('skill-tiers', () => {
 		expect(baseIds.has('threejs-3d-graphics')).toBe(false);
 		for (const id of baseIds) {
 			expect(proIds.has(id)).toBe(true);
+		}
+	});
+
+	it('treats malformed static JSON catalogs as missing instead of crashing', async () => {
+		const root = await mkdtemp(path.join(tmpdir(), 'spawner-skill-tiers-'));
+		try {
+			await mkdir(path.join(root, 'static', 'bundles'), { recursive: true });
+			await writeFile(path.join(root, 'static', 'skills.json'), '{not valid json', 'utf-8');
+			await writeFile(path.join(root, 'static', 'skill-tiers.json'), '{not valid json', 'utf-8');
+			await writeFile(
+				path.join(root, 'static', 'bundles', 'starter.yaml'),
+				['id: starter', 'required_skills:', '  - frontend-engineer'].join('\n'),
+				'utf-8'
+			);
+
+			process.chdir(root);
+			resetSkillTierCacheForTests();
+
+			const [base, pro] = await Promise.all([getTierSkills('base'), getTierSkills('pro')]);
+
+			expect(pro).toEqual([]);
+			expect(base.map((skill) => skill.id)).toEqual(['frontend-engineer']);
+		} finally {
+			process.chdir(originalCwd);
+			resetSkillTierCacheForTests();
+			await rm(root, { recursive: true, force: true });
 		}
 	});
 });
