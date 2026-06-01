@@ -1,7 +1,17 @@
 import { readFile } from 'node:fs/promises';
 
-const skills = JSON.parse(await readFile('static/skills.json', 'utf-8'));
-const tiers = JSON.parse(await readFile('static/skill-tiers.json', 'utf-8'));
+async function readJsonFile(path) {
+	const text = await readFile(path, 'utf-8');
+	try {
+		return JSON.parse(text);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		throw new Error(`${path} contains malformed JSON: ${message}`);
+	}
+}
+
+const skills = await readJsonFile('static/skills.json');
+const tiers = await readJsonFile('static/skill-tiers.json');
 const canonicalFreeIds = tiers.open_source?.canonical_starter_skill_ids ?? [];
 const freeIdSet = new Set(canonicalFreeIds);
 const freeSkills = skills.filter((skill) => skill.tier === 'free');

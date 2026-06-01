@@ -30,6 +30,16 @@ function url(path) {
 	return `${baseUrl}${path}`;
 }
 
+function parseJson(text, path) {
+	if (!text) return null;
+	try {
+		return JSON.parse(text);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		throw new Error(`${path} returned malformed JSON: ${message}; body=${text.slice(0, 300)}`);
+	}
+}
+
 async function postJson(path, body) {
 	const response = await fetch(url(path), {
 		method: 'POST',
@@ -37,21 +47,19 @@ async function postJson(path, body) {
 		body: JSON.stringify(body)
 	});
 	const text = await response.text();
-	const parsed = text ? JSON.parse(text) : null;
 	if (!response.ok) {
 		throw new Error(`${path} returned ${response.status}: ${text.slice(0, 300)}`);
 	}
-	return parsed;
+	return parseJson(text, path);
 }
 
 async function getJson(path) {
 	const response = await fetch(url(path));
 	const text = await response.text();
-	const parsed = text ? JSON.parse(text) : null;
 	if (!response.ok) {
 		throw new Error(`${path} returned ${response.status}: ${text.slice(0, 300)}`);
 	}
-	return parsed;
+	return parseJson(text, path);
 }
 
 async function getHtml(path, expectedPathname) {
