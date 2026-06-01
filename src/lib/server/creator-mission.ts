@@ -514,7 +514,15 @@ export async function runCreatorPlan(
 		windowsHide: true,
 		maxBuffer: 1024 * 1024
 	});
-	return validateCreatorIntentPacket(JSON.parse(stdout));
+	let plannerJson: unknown;
+	try {
+		plannerJson = JSON.parse(stdout);
+	} catch (err) {
+		throw new Error(
+			`Creator planner returned non-JSON output (length=${stdout.length}). ${(err as Error).message}`
+		);
+	}
+	return validateCreatorIntentPacket(plannerJson);
 }
 
 export async function runCreatorArtifactBundle(
@@ -534,7 +542,15 @@ export async function runCreatorArtifactBundle(
 		windowsHide: true,
 		maxBuffer: 1024 * 1024
 	});
-	return validateCreatorArtifactBundle(JSON.parse(stdout));
+	let plannerJson: unknown;
+	try {
+		plannerJson = JSON.parse(stdout);
+	} catch (err) {
+		throw new Error(
+			`Creator artifact planner returned non-JSON output (length=${stdout.length}). ${(err as Error).message}`
+		);
+	}
+	return validateCreatorArtifactBundle(plannerJson);
 }
 
 export function creatorModeFromIntent(packet: CreatorIntentPacket): CreatorMode {
@@ -1517,6 +1533,14 @@ export async function saveCreatorMissionTrace(trace: CreatorMissionTrace, stateD
 	await rename(tempPath, filePath);
 }
 
+function parseCreatorMissionTraceFile(raw: string): CreatorMissionTrace | null {
+	try {
+		return JSON.parse(raw) as CreatorMissionTrace;
+	} catch {
+		return null;
+	}
+}
+
 export async function readCreatorMissionTrace(
 	input: { missionId?: string | null; requestId?: string | null },
 	stateDir = spawnerStateDir()
@@ -1525,7 +1549,7 @@ export async function readCreatorMissionTrace(
 	if (missionId) {
 		const filePath = creatorMissionPath(missionId, stateDir);
 		if (!existsSync(filePath)) return null;
-		return JSON.parse(await readFile(filePath, 'utf-8')) as CreatorMissionTrace;
+		return parseCreatorMissionTraceFile(await readFile(filePath, 'utf-8'));
 	}
 	const requestId = input.requestId?.trim();
 	if (!requestId) return null;
@@ -1533,8 +1557,8 @@ export async function readCreatorMissionTrace(
 	if (!existsSync(dir)) return null;
 	for (const file of await readdir(dir)) {
 		if (!file.endsWith('.json')) continue;
-		const trace = JSON.parse(await readFile(path.join(dir, file), 'utf-8')) as CreatorMissionTrace;
-		if (trace.request_id === requestId) return trace;
+		const trace = parseCreatorMissionTraceFile(await readFile(path.join(dir, file), 'utf-8'));
+		if (trace && trace.request_id === requestId) return trace;
 	}
 	return null;
 }
