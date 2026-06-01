@@ -94,9 +94,18 @@ class ClaudeClient {
 
 			clearTimeout(timeoutId);
 
+			if (!response.ok) {
+				return {
+					success: false,
+					error: `API request failed (HTTP ${response.status})`,
+					source: 'local',
+					fallback: true
+				};
+			}
+
 			const data = await response.json();
 
-			if (!response.ok || data.fallback) {
+			if (data.fallback) {
 				return {
 					success: false,
 					error: data.error || 'API request failed',
