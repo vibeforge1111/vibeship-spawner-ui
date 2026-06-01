@@ -13,7 +13,7 @@
 import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import type { Mission, MissionLog, MissionTask } from '$lib/services/mcp-client';
 import { mcpClient } from '$lib/services/mcp-client';
-import { buildClientMachineOriginPolicy } from '$lib/services/harness-authority-client';
+import { buildClientTurnIntentVNextAuthority } from '$lib/services/harness-authority-client';
 import { logger } from '$lib/utils/logger';
 
 const log = logger.scope('MissionExecutor');
@@ -1730,15 +1730,13 @@ class MissionExecutor {
 				apiKeys: options.apiKeys || {},
 				workingDirectory: this.progress.mission?.context?.projectPath,
 				relay,
-				executionAuthority: relay?.executionAuthority || {
-					schema: 'spark.machine_origin_policy.v1',
-					origin: 'spawner-ui.execution-panel',
+				executionAuthority: relay?.executionAuthority || buildClientTurnIntentVNextAuthority({
 					source: 'human_ui_run_action',
 					reason: 'User started execution from the Spawner execution panel.',
-					allowedTools: ['spawner.dispatch'],
-					mutationClassesAllowed: ['launches_mission'],
-					networkPolicy: 'local_only'
-				}
+					toolName: 'spawner.dispatch',
+					mutationClass: 'launches_mission',
+					target: executionPack.missionId
+				})
 			})
 		});
 		return response.json();
@@ -1835,12 +1833,12 @@ class MissionExecutor {
 						missionId,
 						action: 'kill',
 						source: 'execution-panel',
-						executionAuthority: buildClientMachineOriginPolicy({
-							origin: 'spawner-ui.execution-panel',
+						executionAuthority: buildClientTurnIntentVNextAuthority({
 							source: 'execution-panel.cancel',
 							reason: 'User cancelled the running mission from the execution panel.',
-							allowedTools: ['spawner.mission_control.command'],
-							mutationClassesAllowed: ['controls_mission']
+							toolName: 'spawner.mission_control.command',
+							mutationClass: 'controls_mission',
+							target: missionId
 						})
 					})
 				});

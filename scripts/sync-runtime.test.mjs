@@ -36,6 +36,13 @@ describe('sync-runtime coverage', () => {
 		expect(syncedPaths()).toContain('src/lib/services/multi-llm-orchestrator.ts');
 	});
 
+	it('syncs client Harness authority helpers used by Spawner UI actions', () => {
+		expect(syncedPaths()).toContain('src/lib/services/harness-authority-client.ts');
+		expect(syncedPaths()).toContain('src/lib/services/mission-executor.ts');
+		expect(syncedPaths()).toContain('src/lib/components/MissionBoard.svelte');
+		expect(syncedPaths()).toContain('src/routes/missions/[id]/+page.svelte');
+	});
+
 	it('keeps the Spark run route and its direct runtime dependencies together', () => {
 		const paths = syncedPaths();
 		expect(paths).toContain('src/routes/api/spark/run/+server.ts');

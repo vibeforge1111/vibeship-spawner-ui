@@ -18,6 +18,7 @@ vi.mock('$lib/server/provider-runtime', () => ({
 
 import { POST } from './+server';
 import { providerRuntime } from '$lib/server/provider-runtime';
+import { buildClientTurnIntentVNextAuthority } from '$lib/services/harness-authority-client';
 
 const executionPack = {
 	enabled: true,
@@ -98,6 +99,31 @@ describe('/api/dispatch authority contract', () => {
 			allowed: true,
 			source: 'machine_origin_policy',
 			origin: 'spawner-ui.test'
+		});
+		expect(dispatch).toHaveBeenCalledTimes(1);
+	});
+
+	it('allows provider dispatch with native TurnIntentEnvelopeVNext authority', async () => {
+		const dispatch = vi.mocked(providerRuntime.dispatch);
+		dispatch.mockClear();
+
+		const response = await POST(event({
+			executionPack,
+			executionAuthority: buildClientTurnIntentVNextAuthority({
+				source: 'dispatch-authority-test',
+				reason: 'User started provider dispatch from Spawner.',
+				toolName: 'spawner.dispatch',
+				mutationClass: 'launches_mission',
+				target: executionPack.missionId
+			})
+		}) as never);
+
+		expect(response.status).toBe(200);
+		const body = await response.json();
+		expect(body.success).toBe(true);
+		expect(body.authority).toMatchObject({
+			allowed: true,
+			source: 'turn_intent_vnext'
 		});
 		expect(dispatch).toHaveBeenCalledTimes(1);
 	});

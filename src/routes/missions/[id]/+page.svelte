@@ -27,7 +27,7 @@
 		type MissionControlEntry
 	} from '$lib/services/mission-detail-view-model';
 	import { canShowMissionBoardProjectActions } from '$lib/services/mission-board-cards';
-	import { buildClientMachineOriginPolicy } from '$lib/services/harness-authority-client';
+	import { buildClientTurnIntentVNextAuthority } from '$lib/services/harness-authority-client';
 
 	let missionId = $state('');
 	let currentState = $state<MissionsState>({
@@ -143,12 +143,12 @@
 					missionId,
 					action,
 					source: 'spawner-ui',
-					executionAuthority: buildClientMachineOriginPolicy({
-						origin: 'spawner-ui.mission-detail',
+					executionAuthority: buildClientTurnIntentVNextAuthority({
 						source: `mission-detail.${action}`,
 						reason: 'User clicked a mission-control action in Spawner.',
-						allowedTools: ['spawner.mission_control.command'],
-						mutationClassesAllowed: ['controls_mission']
+						toolName: 'spawner.mission_control.command',
+						mutationClass: 'controls_mission',
+						target: missionId
 					})
 				})
 			});

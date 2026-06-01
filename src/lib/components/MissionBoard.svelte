@@ -11,7 +11,7 @@
 	import { initPipelines, pipelines } from '$lib/stores/pipelines.svelte';
 	import type { Mission } from '$lib/services/mcp-client';
 	import type { PipelineMetadata } from '$lib/stores/pipelines.svelte';
-	import { buildClientMachineOriginPolicy } from '$lib/services/harness-authority-client';
+	import { buildClientTurnIntentVNextAuthority } from '$lib/services/harness-authority-client';
 	import {
 		canRunCreatorMissionBoardCard,
 		canShowMissionBoardProjectActions,
@@ -125,12 +125,12 @@
 					action: newAction,
 					payload,
 					chatId: newChatId || null,
-					executionAuthority: buildClientMachineOriginPolicy({
-						origin: 'spawner-ui.mission-board',
+					executionAuthority: buildClientTurnIntentVNextAuthority({
 						source: 'mission-board.schedule.create',
 						reason: 'User submitted a scheduled Spark action from Spawner.',
-						allowedTools: ['spawner.schedule.create'],
-						mutationClassesAllowed: ['creates_schedule']
+						toolName: 'spawner.schedule.create',
+						mutationClass: 'creates_schedule',
+						target: newAction
 					})
 				})
 			});
@@ -158,12 +158,12 @@
 				method: 'DELETE',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					executionAuthority: buildClientMachineOriginPolicy({
-						origin: 'spawner-ui.mission-board',
+					executionAuthority: buildClientTurnIntentVNextAuthority({
 						source: 'mission-board.schedule.delete',
 						reason: 'User deleted a scheduled Spark action from Spawner.',
-						allowedTools: ['spawner.schedule.delete'],
-						mutationClassesAllowed: ['deletes_schedule']
+						toolName: 'spawner.schedule.delete',
+						mutationClass: 'deletes_schedule',
+						target: id
 					})
 				})
 			});
