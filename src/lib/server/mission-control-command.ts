@@ -12,8 +12,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { spawnerStateDir } from './spawner-state';
 import {
-	assertHarnessAuthority,
-	HarnessAuthorityError,
+	assertNativeVNextHarnessAuthority,
 	resolveExecutionAuthority,
 	type HarnessAuthorityVerdict
 } from './harness-authority';
@@ -146,21 +145,12 @@ export async function executeMissionControlAction(input: {
 		};
 	}
 
-	authority = assertHarnessAuthority({
+	authority = assertNativeVNextHarnessAuthority({
 		authority: resolveExecutionAuthority(input.executionAuthority),
 		toolName: 'spawner.mission_control.command',
 		ownerSystem: 'spawner-ui',
 		mutationClass: 'controls_mission'
 	});
-	if (authority.source !== 'turn_intent_vnext') {
-		throw new HarnessAuthorityError('Mission-control mutation requires native TurnIntentEnvelopeVNext authority.', {
-			allowed: false,
-			source: authority.source,
-			reasonCodes: ['native_vnext_required'],
-			traceId: authority.traceId,
-			origin: authority.origin
-		});
-	}
 
 	const currentStatus = providerRuntime.getMissionStatus(missionId);
 	const boardEntry = findMissionBoardEntry(missionId);

@@ -284,6 +284,20 @@ export function assertHarnessAuthority(input: HarnessAuthorityInput): HarnessAut
 	return verdict;
 }
 
+export function assertNativeVNextHarnessAuthority(input: HarnessAuthorityInput): HarnessAuthorityVerdict {
+	const verdict = assertHarnessAuthority(input);
+	if (verdict.source !== 'turn_intent_vnext') {
+		throw new HarnessAuthorityError(`${input.toolName} requires native TurnIntentEnvelopeVNext authority.`, {
+			allowed: false,
+			source: verdict.source,
+			reasonCodes: ['native_vnext_required'],
+			traceId: verdict.traceId,
+			origin: verdict.origin
+		});
+	}
+	return verdict;
+}
+
 export function resolveExecutionAuthority(...candidates: unknown[]): unknown {
 	for (const candidate of candidates) {
 		if (isRecord(candidate) && (candidate.schema || candidate.schema_version)) return candidate;

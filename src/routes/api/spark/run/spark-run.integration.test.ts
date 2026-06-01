@@ -121,7 +121,7 @@ describe('/api/spark/run integration', () => {
 			providers: ['codex'],
 			requestId: 'tg-spark-run-local',
 			traceRef: 'trace:telegram-run:tg-spark-run-local',
-			executionAuthority: machineAuthority()
+			executionAuthority: vnextAuthority()
 		}) as never);
 
 		expect(response.status).toBe(200);
@@ -162,7 +162,7 @@ describe('/api/spark/run integration', () => {
 			goal: 'Build a tiny Telegram hosted smoke app.',
 			providers: ['codex'],
 			requestId: 'tg-spark-run-hosted',
-			executionAuthority: machineAuthority()
+			executionAuthority: vnextAuthority()
 		}) as never);
 
 		expect(response.status).toBe(200);
@@ -183,7 +183,7 @@ describe('/api/spark/run integration', () => {
 			missionName: 'Spark Bug Recognition Domain Chip',
 			providers: ['codex'],
 			requestId: 'tg-context-title',
-			executionAuthority: machineAuthority()
+			executionAuthority: vnextAuthority()
 		}) as never);
 
 		expect(response.status).toBe(200);
@@ -206,6 +206,24 @@ describe('/api/spark/run integration', () => {
 		const body = await response.json();
 		expect(body.code).toBe('harness_authority_blocked');
 		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
+		expect(dispatch).not.toHaveBeenCalled();
+	});
+
+	it('blocks legacy machine-origin policy for Spark run dispatch', async () => {
+		const dispatch = vi.mocked(providerRuntime.dispatch);
+		dispatch.mockClear();
+
+		const response = await POST(routeEvent({
+			goal: 'Build a tiny Telegram smoke app.',
+			providers: ['codex'],
+			requestId: 'tg-spark-run-legacy-authority',
+			executionAuthority: machineAuthority()
+		}) as never);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.reasonCodes).toContain('native_vnext_required');
 		expect(dispatch).not.toHaveBeenCalled();
 	});
 

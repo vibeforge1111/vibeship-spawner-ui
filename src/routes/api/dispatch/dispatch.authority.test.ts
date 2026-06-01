@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('$lib/server/provider-runtime', () => ({
 	providerRuntime: {
@@ -70,6 +70,17 @@ function machineAuthority() {
 }
 
 describe('/api/dispatch authority contract', () => {
+	beforeEach(() => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }))
+		);
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
 	it('blocks provider dispatch when no TurnIntent or machine-origin policy is present', async () => {
 		const dispatch = vi.mocked(providerRuntime.dispatch);
 		dispatch.mockClear();
@@ -83,7 +94,7 @@ describe('/api/dispatch authority contract', () => {
 		expect(dispatch).not.toHaveBeenCalled();
 	});
 
-	it('allows provider dispatch with an explicit machine-origin policy', async () => {
+	it('blocks legacy machine-origin policy for provider dispatch', async () => {
 		const dispatch = vi.mocked(providerRuntime.dispatch);
 		dispatch.mockClear();
 
@@ -92,15 +103,11 @@ describe('/api/dispatch authority contract', () => {
 			executionAuthority: machineAuthority()
 		}) as never);
 
-		expect(response.status).toBe(200);
+		expect(response.status).toBe(409);
 		const body = await response.json();
-		expect(body.success).toBe(true);
-		expect(body.authority).toMatchObject({
-			allowed: true,
-			source: 'machine_origin_policy',
-			origin: 'spawner-ui.test'
-		});
-		expect(dispatch).toHaveBeenCalledTimes(1);
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.reasonCodes).toContain('native_vnext_required');
+		expect(dispatch).not.toHaveBeenCalled();
 	});
 
 	it('allows provider dispatch with native TurnIntentEnvelopeVNext authority', async () => {
