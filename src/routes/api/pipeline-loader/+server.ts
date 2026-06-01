@@ -11,6 +11,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 import { writeFile, readFile, unlink, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
@@ -42,10 +43,17 @@ async function ensureDir(): Promise<void> {
 /**
  * POST - Queue a pipeline to load
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'PipelineLoader',
+		apiKeyEnvVar: 'MCP_API_KEY',
+		fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
+	});
+	if (unauthorized) return unauthorized;
+
 	try {
 		await ensureDir();
-		const payload = await request.json();
+		const payload = await event.request.json();
 
 		// Validate required fields
 		if (!payload.pipelineId || !payload.pipelineName) {
@@ -82,11 +90,18 @@ export const POST: RequestHandler = async ({ request }) => {
 /**
  * GET - Get the pending load (optionally peek without consuming)
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'PipelineLoader',
+		apiKeyEnvVar: 'MCP_API_KEY',
+		fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
+	});
+	if (unauthorized) return unauthorized;
+
 	try {
-		const peek = url.searchParams.get('peek') === 'true';
-		const latest = url.searchParams.get('latest') === 'true';
-		const requestedPipelineId = url.searchParams.get('pipeline')?.trim() || null;
+		const peek = event.url.searchParams.get('peek') === 'true';
+		const latest = event.url.searchParams.get('latest') === 'true';
+		const requestedPipelineId = event.url.searchParams.get('pipeline')?.trim() || null;
 		const loadFile = latest ? getLastLoadFile() : getPendingLoadFile();
 
 		if (!existsSync(loadFile)) {
@@ -128,7 +143,14 @@ export const GET: RequestHandler = async ({ url }) => {
 /**
  * DELETE - Clear the pending load
  */
-export const DELETE: RequestHandler = async () => {
+export const DELETE: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'PipelineLoader',
+		apiKeyEnvVar: 'MCP_API_KEY',
+		fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
+	});
+	if (unauthorized) return unauthorized;
+
 	try {
 		const pendingLoadFile = getPendingLoadFile();
 		if (existsSync(pendingLoadFile)) {

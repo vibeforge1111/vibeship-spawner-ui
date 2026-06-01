@@ -11,6 +11,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 import { readFile, writeFile, mkdir, unlink } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
@@ -78,7 +79,14 @@ interface ActiveMissionState {
  * GET /api/mission/active
  * Returns the active mission state if one exists
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'MissionActive',
+		apiKeyEnvVar: 'MCP_API_KEY',
+		fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
+	});
+	if (unauthorized) return unauthorized;
+
 	try {
 		const missionPath = getActiveMissionPath();
 
@@ -106,8 +114,8 @@ export const GET: RequestHandler = async ({ url }) => {
 		const minutesSinceUpdate = (Date.now() - lastUpdated.getTime()) / 60000;
 		const isStale = minutesSinceUpdate > 30;
 		const includeStale =
-			url.searchParams.get('includeStale') === '1' ||
-			url.searchParams.get('includeStale') === 'true';
+			event.url.searchParams.get('includeStale') === '1' ||
+			event.url.searchParams.get('includeStale') === 'true';
 
 		if (isStale && !includeStale) {
 			return json({
@@ -163,9 +171,16 @@ export const GET: RequestHandler = async ({ url }) => {
  * POST /api/mission/active
  * Update the active mission state (called by UI when state changes)
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'MissionActive',
+		apiKeyEnvVar: 'MCP_API_KEY',
+		fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
+	});
+	if (unauthorized) return unauthorized;
+
 	try {
-		const body = await request.json();
+		const body = await event.request.json();
 		const spawnerDir = getSpawnerDir();
 		const missionPath = getActiveMissionPath();
 		const status = typeof body.status === 'string' ? body.status : 'running';
@@ -235,7 +250,14 @@ export const POST: RequestHandler = async ({ request }) => {
  * DELETE /api/mission/active
  * Clear the active mission (when completed, cancelled, or user clears)
  */
-export const DELETE: RequestHandler = async () => {
+export const DELETE: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'MissionActive',
+		apiKeyEnvVar: 'MCP_API_KEY',
+		fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
+	});
+	if (unauthorized) return unauthorized;
+
 	try {
 		const missionPath = getActiveMissionPath();
 

@@ -10,6 +10,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
@@ -41,9 +42,16 @@ async function tierForRequest(requestId: string): Promise<string> {
 /**
  * POST - Store an analysis result
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'PRDBridgeResult',
+		apiKeyEnvVar: 'MCP_API_KEY',
+		fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
+	});
+	if (unauthorized) return unauthorized;
+
 	try {
-		const { requestId, result } = await request.json();
+		const { requestId, result } = await event.request.json();
 
 		if (!requestId || !result || typeof requestId !== 'string') {
 			return json({ error: 'requestId and result are required' }, { status: 400 });
@@ -83,9 +91,16 @@ export const POST: RequestHandler = async ({ request }) => {
 /**
  * GET - Retrieve an analysis result by requestId
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'PRDBridgeResult',
+		apiKeyEnvVar: 'MCP_API_KEY',
+		fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
+	});
+	if (unauthorized) return unauthorized;
+
 	try {
-		const requestId = url.searchParams.get('requestId');
+		const requestId = event.url.searchParams.get('requestId');
 
 		if (!requestId) {
 			return json({ error: 'requestId is required' }, { status: 400 });
