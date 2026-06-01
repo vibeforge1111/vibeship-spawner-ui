@@ -23,7 +23,7 @@ import {
 } from '$lib/server/capability-policy';
 import {
 	HarnessAuthorityError,
-	assertNativeVNextHarnessAuthority,
+	assertNativeGovernorHarnessAuthority,
 	resolveExecutionAuthority
 } from '$lib/server/harness-authority';
 
@@ -89,7 +89,7 @@ export const POST: RequestHandler = async (event) => {
 				{ status: 400 }
 			);
 		}
-		const authority = assertNativeVNextHarnessAuthority({
+		const authority = assertNativeGovernorHarnessAuthority({
 			authority: resolveExecutionAuthority(body.executionAuthority, relay?.executionAuthority, executionPack.executionAuthority),
 			toolName: 'spawner.dispatch',
 			ownerSystem: 'spawner-ui',

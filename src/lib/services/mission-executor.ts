@@ -13,7 +13,10 @@
 import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import type { Mission, MissionLog, MissionTask } from '$lib/services/mcp-client';
 import { mcpClient } from '$lib/services/mcp-client';
-import { buildClientTurnIntentVNextAuthority } from '$lib/services/harness-authority-client';
+import {
+	buildClientGovernorDecisionAuthority,
+	buildClientTurnIntentVNextAuthority
+} from '$lib/services/harness-authority-client';
 import { logger } from '$lib/utils/logger';
 
 const log = logger.scope('MissionExecutor');
@@ -1722,6 +1725,16 @@ class MissionExecutor {
 		options: import('$lib/services/multi-llm-orchestrator').MultiLLMOrchestratorOptions,
 		relay?: ExecutionRunOptions['relay']
 	): Promise<{ success: boolean; sessions?: Record<string, unknown>; error?: string }> {
+		const relayAuthority = relay?.executionAuthority as { schema_version?: string } | undefined;
+		const executionAuthority = relayAuthority?.schema_version === 'governor-decision-v1'
+			? relayAuthority
+			: buildClientGovernorDecisionAuthority({
+					source: 'human_ui_run_action',
+					reason: 'User started execution from the Spawner execution panel.',
+					toolName: 'spawner.dispatch',
+					mutationClass: 'launches_mission',
+					target: executionPack.missionId
+				});
 		const response = await fetch('/api/dispatch', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -1730,13 +1743,7 @@ class MissionExecutor {
 				apiKeys: options.apiKeys || {},
 				workingDirectory: this.progress.mission?.context?.projectPath,
 				relay,
-				executionAuthority: relay?.executionAuthority || buildClientTurnIntentVNextAuthority({
-					source: 'human_ui_run_action',
-					reason: 'User started execution from the Spawner execution panel.',
-					toolName: 'spawner.dispatch',
-					mutationClass: 'launches_mission',
-					target: executionPack.missionId
-				})
+				executionAuthority
 			})
 		});
 		return response.json();

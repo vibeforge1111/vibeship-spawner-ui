@@ -18,7 +18,10 @@ vi.mock('$lib/server/provider-runtime', () => ({
 
 import { POST } from './+server';
 import { providerRuntime } from '$lib/server/provider-runtime';
-import { buildClientTurnIntentVNextAuthority } from '$lib/services/harness-authority-client';
+import {
+	buildClientGovernorDecisionAuthority,
+	buildClientTurnIntentVNextAuthority
+} from '$lib/services/harness-authority-client';
 
 const executionPack = {
 	enabled: true,
@@ -106,11 +109,11 @@ describe('/api/dispatch authority contract', () => {
 		expect(response.status).toBe(409);
 		const body = await response.json();
 		expect(body.code).toBe('harness_authority_blocked');
-		expect(body.authority.reasonCodes).toContain('native_vnext_required');
+		expect(body.authority.reasonCodes).toContain('native_governor_required');
 		expect(dispatch).not.toHaveBeenCalled();
 	});
 
-	it('allows provider dispatch with native TurnIntentEnvelopeVNext authority', async () => {
+	it('blocks bare TurnIntentEnvelopeVNext authority for provider dispatch', async () => {
 		const dispatch = vi.mocked(providerRuntime.dispatch);
 		dispatch.mockClear();
 
@@ -125,12 +128,38 @@ describe('/api/dispatch authority contract', () => {
 			})
 		}) as never);
 
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority).toMatchObject({
+			source: 'turn_intent_vnext',
+			reasonCodes: expect.arrayContaining(['native_governor_required'])
+		});
+		expect(dispatch).not.toHaveBeenCalled();
+	});
+
+	it('allows provider dispatch with native GovernorDecisionV1 authority', async () => {
+		const dispatch = vi.mocked(providerRuntime.dispatch);
+		dispatch.mockClear();
+
+		const response = await POST(event({
+			executionPack,
+			executionAuthority: buildClientGovernorDecisionAuthority({
+				source: 'dispatch-authority-test',
+				reason: 'User started provider dispatch from Spawner.',
+				toolName: 'spawner.dispatch',
+				mutationClass: 'launches_mission',
+				target: executionPack.missionId
+			})
+		}) as never);
+
 		expect(response.status).toBe(200);
 		const body = await response.json();
 		expect(body.success).toBe(true);
 		expect(body.authority).toMatchObject({
 			allowed: true,
-			source: 'turn_intent_vnext'
+			source: 'governor_decision',
+			governorOutcome: 'execute'
 		});
 		expect(dispatch).toHaveBeenCalledTimes(1);
 	});

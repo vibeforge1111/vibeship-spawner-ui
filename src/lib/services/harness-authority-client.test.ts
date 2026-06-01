@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { buildClientTurnIntentVNextAuthority } from './harness-authority-client';
+import {
+	buildClientGovernorDecisionAuthority,
+	buildClientTurnIntentVNextAuthority
+} from './harness-authority-client';
 
 describe('harness authority client', () => {
 	it('builds native TurnIntentEnvelopeVNext authority for Spawner UI actions', () => {
@@ -29,5 +32,45 @@ describe('harness authority client', () => {
 			action_type: 'schedule',
 			requires_confirmation: false
 		});
+	});
+
+	it('builds native GovernorDecisionV1 authority for Spawner UI actions', () => {
+		const authority = buildClientGovernorDecisionAuthority({
+			source: 'execution-panel.dispatch',
+			reason: 'User started provider dispatch from Spawner.',
+			toolName: 'spawner.dispatch',
+			mutationClass: 'launches_mission',
+			target: 'mission-dispatch-governor'
+		});
+
+		expect(authority.schema_version).toBe('governor-decision-v1');
+		expect(authority.outcome).toBe('execute');
+		expect(authority.execution_boundary).toMatchObject({
+			action_authorized: true,
+			legacy_authority_demoted: true,
+			authorized_action_count: 1
+		});
+		expect(authority.envelope).toMatchObject({
+			schema_version: 'turn-intent-envelope-vnext',
+			selected_move: 'execute_action',
+			surface: 'spawner'
+		});
+		expect(authority.authorizations).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					schema_version: 'authorization-decision-v1',
+					capability_id: 'capability:spawner-ui:spawner.dispatch',
+					verdict: 'allow'
+				})
+			])
+		);
+		expect(authority.tool_ledgers).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					schema_version: 'tool-call-ledger-v1',
+					tool_name: 'spawner.dispatch'
+				})
+			])
+		);
 	});
 });
