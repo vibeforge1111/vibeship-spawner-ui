@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatSkillsByCategory, getTierSkills, normalizeTier } from './skill-tiers';
 
 describe('skill-tiers', () => {
@@ -49,5 +52,46 @@ describe('skill-tiers', () => {
 		for (const id of baseIds) {
 			expect(proIds.has(id)).toBe(true);
 		}
+	});
+
+	describe('malformed static catalogs', () => {
+		let workdir: string;
+		let originalCwd: string;
+
+		beforeEach(() => {
+			originalCwd = process.cwd();
+			workdir = mkdtempSync(join(tmpdir(), 'skill-tiers-malformed-'));
+			mkdirSync(join(workdir, 'static'));
+			vi.resetModules();
+		});
+
+		afterEach(() => {
+			process.chdir(originalCwd);
+			rmSync(workdir, { recursive: true, force: true });
+			vi.resetModules();
+		});
+
+		it('returns an empty pro list when static/skills.json is malformed instead of throwing', async () => {
+			writeFileSync(join(workdir, 'static', 'skills.json'), '[{"id":"frontend"},]', 'utf-8');
+			process.chdir(workdir);
+			const mod = await import('./skill-tiers');
+			const skills = await mod.getTierSkills('pro');
+			expect(skills).toEqual([]);
+		});
+
+		it('falls through to the bundles directory when static/skill-tiers.json is malformed', async () => {
+			// Provide a valid skills.json plus a malformed tiers file.
+			writeFileSync(
+				join(workdir, 'static', 'skills.json'),
+				'[{"id":"frontend-engineer"}]',
+				'utf-8'
+			);
+			writeFileSync(join(workdir, 'static', 'skill-tiers.json'), '{"open_source":', 'utf-8');
+			// No bundles directory either, so base should resolve to [] without throwing.
+			process.chdir(workdir);
+			const mod = await import('./skill-tiers');
+			const base = await mod.getTierSkills('base');
+			expect(base).toEqual([]);
+		});
 	});
 });
