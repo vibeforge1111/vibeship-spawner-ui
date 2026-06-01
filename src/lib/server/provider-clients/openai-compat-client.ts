@@ -68,9 +68,8 @@ export async function executeOpenAICompatRequest(
 
 			if (response.status === 429 || (response.status >= 500 && response.status < 600)) {
 				const retryAfter = response.headers.get('retry-after');
-				const delay = retryAfter
-					? parseInt(retryAfter, 10) * 1000
-					: RETRY_BASE_MS * Math.pow(2, attempt);
+				const exponentialMs = RETRY_BASE_MS * Math.pow(2, attempt);
+				const delay = parseRetryAfterMs(retryAfter, exponentialMs);
 				lastError = `HTTP ${response.status} from ${provider.label}`;
 				onEvent(
 					createBridgeEvent('task_progress', options, {
@@ -251,6 +250,26 @@ async function handleNonStreamingResponse(
 		tokenUsage,
 		durationMs: Date.now() - startTime
 	};
+}
+
+/**
+ * Parse a `Retry-After` HTTP header into a millisecond delay. RFC 7231
+ * permits two forms: a `delta-seconds` non-negative integer, or an
+ * `HTTP-date`. The previous `parseInt(value, 10) * 1000` form silently
+ * yields NaN on an HTTP-date (parseInt('Fri, 31 Dec...') = NaN, NaN *
+ * 1000 = NaN), which `setTimeout(resolve, NaN)` coerces to 1 ms -- the
+ * retry then fires immediately and storms the upstream provider with no
+ * effective backoff. Honour a clean non-negative delta-seconds value;
+ * otherwise (HTTP-date, suffixed strings, missing header) fall back to
+ * the caller-supplied exponential backoff.
+ */
+export function parseRetryAfterMs(headerValue: string | null, fallbackMs: number): number {
+	if (!headerValue) return fallbackMs;
+	const trimmed = headerValue.trim();
+	if (!/^\d+$/.test(trimmed)) return fallbackMs;
+	const seconds = Number.parseInt(trimmed, 10);
+	if (!Number.isFinite(seconds) || seconds < 0) return fallbackMs;
+	return seconds * 1000;
 }
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
