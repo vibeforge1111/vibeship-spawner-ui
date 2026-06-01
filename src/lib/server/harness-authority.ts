@@ -1,8 +1,13 @@
 import {
 	actionTypeForHarnessMutation,
+	createHarnessCoreArtifactRef,
 	createHarnessCoreActionEnvelopeVNext,
+	createHarnessCoreGovernorDecision,
+	createHarnessCoreTraceRef,
+	type AuthorizationDecisionV1,
 	type GovernorDecisionV1,
 	type HarnessCoreActionMutationClass,
+	type ToolCallLedgerV1,
 	type TurnIntentEnvelopeVNext
 } from '@spark/harness-core';
 
@@ -317,6 +322,102 @@ export function buildServerTurnIntentVNextAuthority(input: {
 		externalNetwork: input.externalNetwork,
 		requiresHumanConfirmation: input.requiresHumanConfirmation,
 		confidence: input.confidence ?? 0.9
+	});
+}
+
+export function buildServerGovernorDecisionAuthority(input: {
+	source: string;
+	reason: string;
+	toolName: string;
+	mutationClass: SparkMutationClass;
+	requestId?: string | null;
+	actorKind?: 'human' | 'agent' | 'system';
+	actorIdRef?: string | null;
+	target?: string | null;
+	publishes?: boolean;
+	externalNetwork?: boolean;
+	requiresHumanConfirmation?: boolean;
+	confidence?: number;
+	replyInstruction?: string;
+}): SparkServerGovernorDecisionV1 {
+	const envelope = buildServerTurnIntentVNextAuthority(input);
+	const action = envelope.proposed_actions[0];
+	if (!action) {
+		return createHarnessCoreGovernorDecision({
+			envelope,
+			reply_instruction: input.replyInstruction
+		});
+	}
+
+	const now = new Date().toISOString();
+	const trace = createHarnessCoreTraceRef({
+		id: `${envelope.turn_id}:${input.toolName}:authorization`,
+		summary: `Spawner Governor authorization for ${input.toolName}.`,
+		redaction_class: 'metadata_only'
+	});
+	const authorization: AuthorizationDecisionV1 = {
+		schema_version: 'authorization-decision-v1',
+		decision_id: `decision:${envelope.turn_id}:${input.toolName}`,
+		created_at: now,
+		turn_id: envelope.turn_id,
+		action_id: action.action_id,
+		capability_id: action.capability_id,
+		verdict: action.requires_confirmation ? 'interrupt' : 'allow',
+		risk_tier: action.risk_tier,
+		reasons: action.requires_confirmation
+			? ['harness_core_authorized', 'explicit_human_confirmation_required']
+			: ['harness_core_authorized'],
+		evidence: envelope.evidence,
+		approval: {
+			required: action.requires_confirmation,
+			status: action.requires_confirmation ? 'requested' : 'not_required'
+		},
+		restrictions: {
+			network_allowed: input.externalNetwork === true,
+			write_allowed: ['writes_files', 'creates_schedule', 'deletes_schedule', 'creates_chip', 'launches_mission'].includes(input.mutationClass),
+			publish_allowed: input.publishes === true
+		},
+		trace
+	};
+	const ledger: ToolCallLedgerV1 = {
+		schema_version: 'tool-call-ledger-v1',
+		ledger_id: `ledger:${envelope.turn_id}:${input.toolName}`,
+		created_at: now,
+		turn_id: envelope.turn_id,
+		action_id: action.action_id,
+		capability_id: action.capability_id,
+		tool_name: input.toolName,
+		lifecycle: [
+			{ stage: 'propose', at: envelope.created_at, verdict: 'passed', summary: 'Harness Core proposed the Spawner action.' },
+			{ stage: 'validate', at: now, verdict: 'passed', summary: 'Spawner validated the Governor authority shape.' },
+			{ stage: 'authorize', at: now, verdict: action.requires_confirmation ? 'pending' : 'passed', summary: 'Spawner authorization recorded before execution.' },
+			{ stage: 'execute', at: now, verdict: 'pending', summary: 'Execution has not started yet.' }
+		],
+		authorization,
+		arguments: {
+			schema_valid: true,
+			raw_ref: action.args_ref,
+			sanitized_ref: action.args_ref
+		},
+		result: {
+			status: 'not_started',
+			summary: 'Spawner action has not executed yet.',
+			sanitized_output_ref: createHarnessCoreArtifactRef({
+				id: `${envelope.turn_id}:${input.toolName}:pending-output`,
+				kind: 'tool_output',
+				path_or_uri: `spawner://actions/${encodeURIComponent(input.toolName)}/${encodeURIComponent(envelope.turn_id)}/pending`,
+				summary: 'Pending Spawner action output reference.',
+				redaction_class: 'metadata_only'
+			})
+		},
+		trace
+	};
+
+	return createHarnessCoreGovernorDecision({
+		envelope,
+		authorizations: [authorization],
+		tool_ledgers: [ledger],
+		reply_instruction: input.replyInstruction
 	});
 }
 

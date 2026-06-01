@@ -11,6 +11,7 @@ import { resolveSparkRunProjectPath } from './spark-run-workspace';
 import { spawnerStateDir } from './spawner-state';
 import {
   assertHarnessAuthority,
+  buildServerGovernorDecisionAuthority,
   buildServerTurnIntentVNextAuthority,
   resolveExecutionAuthority,
   type HarnessAuthorityVerdict
@@ -177,7 +178,7 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
     const baseUrl = (_envVar('SPAWNER_UI_URL') || 'http://127.0.0.1:3333').replace(/\/$/, '');
     const requestedProjectPath =
       typeof record.payload.projectPath === 'string' ? record.payload.projectPath : undefined;
-    const executionAuthority = buildServerTurnIntentVNextAuthority({
+    const executionAuthority = buildServerGovernorDecisionAuthority({
       source: `schedule:${record.id}`,
       reason: 'Authorized scheduled mission fire from a persisted Spawner schedule.',
       toolName: 'spawner.run',
@@ -216,7 +217,7 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
     const python = process.env.SPARK_BUILDER_PYTHON || 'python';
     try {
       assertHarnessAuthority({
-        authority: buildServerTurnIntentVNextAuthority({
+        authority: buildServerGovernorDecisionAuthority({
           source: `schedule:${record.id}`,
           reason: 'Authorized scheduled loop fire from a persisted Spawner schedule.',
           toolName: 'spawner.scheduler.loop',
