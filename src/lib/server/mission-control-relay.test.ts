@@ -11,6 +11,7 @@ const testState = vi.hoisted(() => {
 
 import {
 	buildSparkMissionControlEvent,
+	compareMissionControlEntriesByLastUpdatedDesc,
 	getMissionControlPersistPath,
 	getMissionControlBoard,
 	getMissionControlRelaySnapshot,
@@ -1352,6 +1353,22 @@ describe('mission-control-relay', () => {
 			{ title: 'Write README smoke test', skills: ['docs'], status: 'failed' },
 			{ title: 'Implement animated UI', skills: ['ui'], status: 'running' },
 			{ title: 'Create static app shell', skills: ['frontend'], status: 'completed' }
+		]);
+	});
+
+	it('sorts malformed board timestamps as oldest instead of falling through', () => {
+		const entries = [
+			{ missionId: 'mission-bad-time', lastUpdated: 'not-a-date' },
+			{ missionId: 'mission-newer', lastUpdated: '2026-04-28T11:00:00.000Z' },
+			{ missionId: 'mission-older', lastUpdated: '2026-04-28T10:00:00.000Z' }
+		];
+
+		entries.sort(compareMissionControlEntriesByLastUpdatedDesc);
+
+		expect(entries.map((entry) => entry.missionId)).toEqual([
+			'mission-newer',
+			'mission-older',
+			'mission-bad-time'
 		]);
 	});
 
