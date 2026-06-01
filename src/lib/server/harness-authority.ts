@@ -1,15 +1,9 @@
-export type SparkMutationClass =
-	| 'none'
-	| 'read_only'
-	| 'writes_memory'
-	| 'writes_files'
-	| 'launches_mission'
-	| 'controls_mission'
-	| 'creates_schedule'
-	| 'deletes_schedule'
-	| 'creates_chip'
-	| 'publishes'
-	| 'external_network';
+import {
+	actionTypeForHarnessMutation,
+	type HarnessCoreActionMutationClass
+} from '@spark/harness-core';
+
+export type SparkMutationClass = HarnessCoreActionMutationClass;
 
 export interface SparkMachineOriginPolicyV1 {
 	schema: 'spark.machine_origin_policy.v1';
@@ -76,30 +70,6 @@ function expectedCapabilityId(input: HarnessAuthorityInput): string {
 	return `capability:${normalizeCapabilityPart(input.ownerSystem)}:${normalizeCapabilityPart(input.toolName)}`;
 }
 
-function actionTypeForMutation(input: HarnessAuthorityInput): string {
-	if (input.publishes || input.mutationClass === 'publishes') return 'publish';
-	switch (input.mutationClass) {
-		case 'none':
-		case 'read_only':
-			return 'read';
-		case 'writes_memory':
-			return 'write_memory';
-		case 'writes_files':
-			return 'edit_file';
-		case 'launches_mission':
-			return 'launch_mission';
-		case 'creates_schedule':
-		case 'deletes_schedule':
-			return 'schedule';
-		case 'creates_chip':
-			return 'create_domain_chip';
-		case 'external_network':
-			return 'external_api_call';
-		default:
-			return 'run_command';
-	}
-}
-
 function turnIntentVerdict(authority: Record<string, unknown>, input: HarnessAuthorityInput): HarnessAuthorityVerdict {
 	const directive = isRecord(authority.directive) ? authority.directive : {};
 	const selectedIntent = isRecord(authority.selectedIntent) ? authority.selectedIntent : {};
@@ -155,7 +125,7 @@ function turnIntentVNextVerdict(authority: Record<string, unknown>, input: Harne
 	const reasonCodes: string[] = [];
 	const selectedMove = stringField(authority.selected_move);
 	const authorityState = stringField(actionAuthority.state);
-	const expectedActionType = actionTypeForMutation(input);
+	const expectedActionType = actionTypeForHarnessMutation(input.mutationClass, input.publishes);
 	const expectedCapability = expectedCapabilityId(input);
 	const matchingAction = proposedActions.find((action) => {
 		const capabilityId = stringField(action.capability_id);

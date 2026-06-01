@@ -53,6 +53,7 @@
 		"yaml": "^2.8.2"
 	},
 	"dependencies": {
+		"@spark/harness-core": "file:../../spark-harness-core/source",
 		"@modelcontextprotocol/sdk": "^1.25.2",
 		"@types/three": "^0.182.0",
 		"croner": "^10.0.1",
