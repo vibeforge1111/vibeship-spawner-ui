@@ -3,6 +3,7 @@ import {
 	executeMissionControlAction,
 	parseDiscordMissionControlCommand
 } from './mission-control-command';
+import { buildMachineOriginPolicy } from './harness-authority';
 import { relayMissionControlEvent } from './mission-control-relay';
 import { providerRuntime } from './provider-runtime';
 import { mcpClient, type Mission } from '$lib/services/mcp-client';
@@ -33,6 +34,16 @@ function missionRecord(id: string): Mission {
 		started_at: new Date().toISOString(),
 		completed_at: null
 	};
+}
+
+function missionControlAuthority() {
+	return buildMachineOriginPolicy({
+		origin: 'spawner-ui.test',
+		source: 'mission-control-command-test',
+		reason: 'Focused mission-control authority regression.',
+		allowedTools: ['spawner.mission_control.command'],
+		mutationClassesAllowed: ['controls_mission']
+	});
 }
 
 afterEach(() => {
@@ -82,11 +93,27 @@ describe('mission-control-command parser', () => {
 		const result = await executeMissionControlAction({
 			action: 'pause',
 			missionId: 'spark-definitely-not-real-pause',
-			source: 'test'
+			source: 'test',
+			executionAuthority: missionControlAuthority()
 		});
 
 		expect(result.ok).toBe(false);
 		expect(result.error).toContain('not found');
+	});
+
+	it('blocks mutating mission-control actions without Harness authority', async () => {
+		await expect(
+			executeMissionControlAction({
+				action: 'pause',
+				missionId: 'mission-command-no-authority',
+				source: 'test'
+			})
+		).rejects.toMatchObject({
+			code: 'harness_authority_blocked',
+			verdict: expect.objectContaining({
+				reasonCodes: expect.arrayContaining(['missing_harness_authority'])
+			})
+		});
 	});
 
 	it('pauses a board-visible orphan mission by confirming the stored mission record', async () => {
@@ -111,7 +138,8 @@ describe('mission-control-command parser', () => {
 		const result = await executeMissionControlAction({
 			action: 'pause',
 			missionId,
-			source: 'spawner-ui'
+			source: 'spawner-ui',
+			executionAuthority: missionControlAuthority()
 		});
 
 		expect(result.ok).toBe(true);
@@ -145,7 +173,8 @@ describe('mission-control-command parser', () => {
 		const result = await executeMissionControlAction({
 			action: 'kill',
 			missionId,
-			source: 'spawner-ui'
+			source: 'spawner-ui',
+			executionAuthority: missionControlAuthority()
 		});
 
 		expect(result.ok).toBe(true);

@@ -27,6 +27,7 @@
 		type MissionControlEntry
 	} from '$lib/services/mission-detail-view-model';
 	import { canShowMissionBoardProjectActions } from '$lib/services/mission-board-cards';
+	import { buildClientMachineOriginPolicy } from '$lib/services/harness-authority-client';
 
 	let missionId = $state('');
 	let currentState = $state<MissionsState>({
@@ -138,7 +139,18 @@
 			const response = await fetch('/api/mission-control/command', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ missionId, action, source: 'spawner-ui' })
+				body: JSON.stringify({
+					missionId,
+					action,
+					source: 'spawner-ui',
+					executionAuthority: buildClientMachineOriginPolicy({
+						origin: 'spawner-ui.mission-detail',
+						source: `mission-detail.${action}`,
+						reason: 'User clicked a mission-control action in Spawner.',
+						allowedTools: ['spawner.mission_control.command'],
+						mutationClassesAllowed: ['controls_mission']
+					})
+				})
 			});
 			const body = await response.json().catch(() => ({}));
 			if (!response.ok || !body?.ok) {

@@ -11,6 +11,11 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { spawnerStateDir } from './spawner-state';
+import {
+	assertHarnessAuthority,
+	resolveExecutionAuthority,
+	type HarnessAuthorityVerdict
+} from './harness-authority';
 
 export type MissionControlAction = 'pause' | 'resume' | 'kill' | 'status';
 
@@ -109,10 +114,12 @@ export async function executeMissionControlAction(input: {
 	missionId: string;
 	action: MissionControlAction;
 	source?: string;
+	executionAuthority?: unknown;
 }): Promise<Record<string, unknown>> {
 	const missionId = input.missionId.trim();
 	const source = input.source?.trim() || 'mission-control';
 	const action = input.action;
+	let authority: HarnessAuthorityVerdict | null = null;
 
 	if (action === 'status') {
 		const status = providerRuntime.getMissionStatus(missionId);
@@ -137,6 +144,13 @@ export async function executeMissionControlAction(input: {
 			}
 		};
 	}
+
+	authority = assertHarnessAuthority({
+		authority: resolveExecutionAuthority(input.executionAuthority),
+		toolName: 'spawner.mission_control.command',
+		ownerSystem: 'spawner-ui',
+		mutationClass: 'controls_mission'
+	});
 
 	const currentStatus = providerRuntime.getMissionStatus(missionId);
 	const boardEntry = findMissionBoardEntry(missionId);
@@ -172,6 +186,7 @@ export async function executeMissionControlAction(input: {
 			ok: true,
 			missionId,
 			action,
+			authority,
 			message: `Mission ${missionId} cancelled.`
 		};
 	}
@@ -219,6 +234,7 @@ export async function executeMissionControlAction(input: {
 		ok: true,
 		missionId,
 		action,
+		authority,
 		eventType,
 		message: `Mission ${missionId} ${action} command executed.`
 	};

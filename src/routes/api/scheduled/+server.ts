@@ -8,6 +8,7 @@ import {
   startScheduler,
   type ScheduleAction,
 } from '$lib/server/scheduler';
+import { HarnessAuthorityError } from '$lib/server/harness-authority';
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -19,7 +20,7 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
-if (!building) {
+if (!building && process.env.NODE_ENV !== 'test') {
   startScheduler();
 }
 
@@ -44,23 +45,28 @@ export const POST: RequestHandler = async ({ request }) => {
     return json({ ok: false, error: "action must be 'mission' or 'loop'" }, { status: 400 });
   }
   try {
-    const record = await createSchedule({ cron, action, payload, chatId });
+    const record = await createSchedule({ cron, action, payload, chatId, executionAuthority: body.executionAuthority });
     return json({ ok: true, schedule: record });
   } catch (err: unknown) {
+    if (err instanceof HarnessAuthorityError) {
+      return json({ ok: false, error: err.message, code: err.code, authority: err.verdict }, { status: err.status });
+    }
     return json({ ok: false, error: errorMessage(err, 'create failed') }, { status: 400 });
   }
 };
 
 export const DELETE: RequestHandler = async ({ request, url }) => {
-  const id = url.searchParams.get('id') || '';
-  if (!id) {
-    let body: Record<string, unknown> = {};
-    try { body = asRecord(await request.json()); } catch {}
-    const bodyId = body?.id ? String(body.id) : '';
-    if (!bodyId) return json({ ok: false, error: 'id required' }, { status: 400 });
-    const ok = await deleteSchedule(bodyId);
+  let body: Record<string, unknown> = {};
+  try { body = asRecord(await request.json()); } catch {}
+  const id = url.searchParams.get('id') || (body?.id ? String(body.id) : '');
+  if (!id) return json({ ok: false, error: 'id required' }, { status: 400 });
+  try {
+    const ok = await deleteSchedule({ id, executionAuthority: body.executionAuthority });
     return json({ ok, error: ok ? undefined : 'not found' });
+  } catch (err: unknown) {
+    if (err instanceof HarnessAuthorityError) {
+      return json({ ok: false, error: err.message, code: err.code, authority: err.verdict }, { status: err.status });
+    }
+    return json({ ok: false, error: errorMessage(err, 'delete failed') }, { status: 400 });
   }
-  const ok = await deleteSchedule(id);
-  return json({ ok, error: ok ? undefined : 'not found' });
 };

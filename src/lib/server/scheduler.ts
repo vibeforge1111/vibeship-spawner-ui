@@ -9,6 +9,12 @@ import { promisify } from 'node:util';
 import { env as privateEnv } from '$env/dynamic/private';
 import { resolveSparkRunProjectPath } from './spark-run-workspace';
 import { spawnerStateDir } from './spawner-state';
+import {
+  assertHarnessAuthority,
+  buildMachineOriginPolicy,
+  resolveExecutionAuthority,
+  type HarnessAuthorityVerdict
+} from './harness-authority';
 
 const execFileAsync = promisify(execFile);
 
@@ -38,6 +44,12 @@ export interface ScheduleRecord {
   action: ScheduleAction;
   payload: Record<string, unknown>;
   chatId?: string | null;
+  authority?: {
+    source: HarnessAuthorityVerdict['source'];
+    reasonCodes: string[];
+    traceId?: string;
+    origin?: string;
+  };
   createdAt: string;
   lastFiredAt: string | null;
   nextFireAt: string | null;
@@ -104,18 +116,31 @@ export async function createSchedule(input: {
   action: ScheduleAction;
   payload: Record<string, unknown>;
   chatId?: string | null;
+  executionAuthority?: unknown;
 }): Promise<ScheduleRecord> {
   const store = await _load();
   const nextFireAt = _computeNext(input.cron);
   if (!nextFireAt) {
     throw new Error(`Invalid cron expression: ${input.cron}`);
   }
+  const authority = assertHarnessAuthority({
+    authority: resolveExecutionAuthority(input.executionAuthority),
+    toolName: 'spawner.schedule.create',
+    ownerSystem: 'spawner-ui',
+    mutationClass: 'creates_schedule'
+  });
   const record: ScheduleRecord = {
     id: _id(),
     cron: input.cron,
     action: input.action,
     payload: input.payload,
     chatId: input.chatId ?? null,
+    authority: {
+      source: authority.source,
+      reasonCodes: authority.reasonCodes,
+      traceId: authority.traceId,
+      origin: authority.origin
+    },
     createdAt: new Date().toISOString(),
     lastFiredAt: null,
     nextFireAt,
@@ -128,7 +153,14 @@ export async function createSchedule(input: {
   return { ...record };
 }
 
-export async function deleteSchedule(id: string): Promise<boolean> {
+export async function deleteSchedule(input: string | { id: string; executionAuthority?: unknown }): Promise<boolean> {
+  const id = typeof input === 'string' ? input : input.id;
+  assertHarnessAuthority({
+    authority: resolveExecutionAuthority(typeof input === 'string' ? undefined : input.executionAuthority),
+    toolName: 'spawner.schedule.delete',
+    ownerSystem: 'spawner-ui',
+    mutationClass: 'deletes_schedule'
+  });
   const store = await _load();
   const before = store.schedules.length;
   store.schedules = store.schedules.filter((s) => s.id !== id);
@@ -145,6 +177,14 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
     const baseUrl = (_envVar('SPAWNER_UI_URL') || 'http://127.0.0.1:3333').replace(/\/$/, '');
     const requestedProjectPath =
       typeof record.payload.projectPath === 'string' ? record.payload.projectPath : undefined;
+    const executionAuthority = buildMachineOriginPolicy({
+      origin: 'spawner-ui.scheduler',
+      source: `schedule:${record.id}`,
+      reason: 'Authorized scheduled mission fire from a persisted Spawner schedule.',
+      allowedTools: ['spawner.run'],
+      mutationClassesAllowed: ['launches_mission'],
+      networkPolicy: 'local_only'
+    });
     const res = await fetch(`${baseUrl}/api/spark/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -154,6 +194,7 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
         userId: 'scheduler',
         requestId,
         projectPath: resolveSparkRunProjectPath(requestedProjectPath),
+        executionAuthority,
       }),
     });
     const body = (await res.json()) as { success?: boolean; missionId?: string; error?: string };
@@ -172,6 +213,19 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
       process.env.SPARK_BUILDER_HOME || path.join(homedir(), '.spark', 'state', 'spark-intelligence');
     const python = process.env.SPARK_BUILDER_PYTHON || 'python';
     try {
+      assertHarnessAuthority({
+        authority: buildMachineOriginPolicy({
+          origin: 'spawner-ui.scheduler',
+          source: `schedule:${record.id}`,
+          reason: 'Authorized scheduled loop fire from a persisted Spawner schedule.',
+          allowedTools: ['spawner.scheduler.loop'],
+          mutationClassesAllowed: ['launches_mission'],
+          networkPolicy: 'local_only'
+        }),
+        toolName: 'spawner.scheduler.loop',
+        ownerSystem: 'spawner-ui',
+        mutationClass: 'launches_mission'
+      });
       const { stdout } = await execFileAsync(python, [
         '-m',
         'spark_intelligence.cli',
@@ -274,4 +328,10 @@ export function stopScheduler(): void {
     clearInterval(_tickTimer);
     _tickTimer = null;
   }
+}
+
+export function resetSchedulerForTests(): void {
+  stopScheduler();
+  _store = null;
+  _starting = false;
 }

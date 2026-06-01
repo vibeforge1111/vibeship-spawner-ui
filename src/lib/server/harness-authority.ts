@@ -4,6 +4,7 @@ export type SparkMutationClass =
 	| 'writes_memory'
 	| 'writes_files'
 	| 'launches_mission'
+	| 'controls_mission'
 	| 'creates_schedule'
 	| 'deletes_schedule'
 	| 'creates_chip'

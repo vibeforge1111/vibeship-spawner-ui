@@ -5,6 +5,7 @@ import {
 	isMissionControlAction
 } from '$lib/server/mission-control-command';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
+import { HarnessAuthorityError } from '$lib/server/harness-authority';
 
 export const POST: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
@@ -38,9 +39,12 @@ export const POST: RequestHandler = async (event) => {
 			return json({ ok: false, error: 'action must be pause|resume|kill|status' }, { status: 400 });
 		}
 
-		const result = await executeMissionControlAction({ missionId, action, source });
+		const result = await executeMissionControlAction({ missionId, action, source, executionAuthority: body.executionAuthority });
 		return json(result);
 	} catch (error) {
+		if (error instanceof HarnessAuthorityError) {
+			return json({ ok: false, error: error.message, code: error.code, authority: error.verdict }, { status: error.status });
+		}
 		return json(
 			{
 				ok: false,

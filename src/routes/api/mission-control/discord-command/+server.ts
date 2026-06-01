@@ -5,6 +5,7 @@ import {
 	parseDiscordMissionControlCommand
 } from '$lib/server/mission-control-command';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
+import { HarnessAuthorityError } from '$lib/server/harness-authority';
 
 export const POST: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
@@ -42,7 +43,8 @@ export const POST: RequestHandler = async (event) => {
 		const result = await executeMissionControlAction({
 			missionId: parsed.missionId,
 			action: parsed.action,
-			source
+			source,
+			executionAuthority: body.executionAuthority
 		});
 
 		return json({
@@ -52,6 +54,9 @@ export const POST: RequestHandler = async (event) => {
 			reply: `✅ ${parsed.action.toUpperCase()} ${parsed.missionId} executed.`
 		});
 	} catch (error) {
+		if (error instanceof HarnessAuthorityError) {
+			return json({ ok: false, error: error.message, code: error.code, authority: error.verdict }, { status: error.status });
+		}
 		return json(
 			{
 				ok: false,

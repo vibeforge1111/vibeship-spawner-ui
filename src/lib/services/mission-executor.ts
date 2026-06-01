@@ -13,6 +13,7 @@
 import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import type { Mission, MissionLog, MissionTask } from '$lib/services/mcp-client';
 import { mcpClient } from '$lib/services/mcp-client';
+import { buildClientMachineOriginPolicy } from '$lib/services/harness-authority-client';
 import { logger } from '$lib/utils/logger';
 
 const log = logger.scope('MissionExecutor');
@@ -1833,7 +1834,14 @@ class MissionExecutor {
 					body: JSON.stringify({
 						missionId,
 						action: 'kill',
-						source: 'execution-panel'
+						source: 'execution-panel',
+						executionAuthority: buildClientMachineOriginPolicy({
+							origin: 'spawner-ui.execution-panel',
+							source: 'execution-panel.cancel',
+							reason: 'User cancelled the running mission from the execution panel.',
+							allowedTools: ['spawner.mission_control.command'],
+							mutationClassesAllowed: ['controls_mission']
+						})
 					})
 				});
 				const data = await response.json().catch(() => ({}));
