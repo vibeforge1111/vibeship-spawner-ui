@@ -8,6 +8,7 @@ import {
 	setCreatorDispatchRunnerForTests,
 	type CreatorIntentPacket
 } from '$lib/server/creator-mission';
+import { buildClientTurnIntentVNextAuthority } from '$lib/services/harness-authority-client';
 
 function event(url: string, body?: unknown) {
 	return {
@@ -162,5 +163,39 @@ describe('/api/creator/mission/execute', () => {
 		const body = await response.json();
 		expect(body.code).toBe('harness_authority_blocked');
 		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
+	});
+
+	it('accepts native TurnIntentEnvelopeVNext authority for creator mission execution', async () => {
+		await createCreatorMission(
+			{ brief: 'Create Startup YC path', missionId: 'mission-creator-execute-vnext', requestId: 'req-execute-vnext' },
+			{ stateDir: tempDir, runPlanner: async () => packet() }
+		);
+
+		setCreatorDispatchRunnerForTests(async (load) => ({
+			started: true,
+			missionId: load.missionId,
+			projectPath: 'C:\\Users\\USER\\Desktop',
+			providerId: 'codex'
+		}));
+
+		const response = await POST(event('http://127.0.0.1/api/creator/mission/execute', {
+			missionId: 'mission-creator-execute-vnext',
+			executionAuthority: buildClientTurnIntentVNextAuthority({
+				source: 'creator-execute-route-test',
+				reason: 'User started creator mission execution from Spark.',
+				toolName: 'spawner.dispatch',
+				mutationClass: 'launches_mission',
+				target: 'mission-creator-execute-vnext'
+			})
+		}) as never);
+
+		expect(response.status).toBe(200);
+		const body = await response.json();
+		expect(body.ok).toBe(true);
+		expect(body.authority).toMatchObject({
+			allowed: true,
+			source: 'turn_intent_vnext'
+		});
+		expect(body.started).toBe(true);
 	});
 });
