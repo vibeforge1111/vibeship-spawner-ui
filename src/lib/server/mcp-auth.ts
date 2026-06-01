@@ -32,7 +32,8 @@ function getCookieValue(cookieHeader: string | null, cookieName: string | undefi
 		const [rawName, ...rawValue] = pair.trim().split('=');
 		if (rawName === cookieName) {
 			const value = rawValue.join('=').trim();
-			return value.length > 0 ? decodeURIComponent(value) : null;
+			if (value.length === 0) return null;
+			try { return decodeURIComponent(value); } catch { return value; }
 		}
 	}
 
