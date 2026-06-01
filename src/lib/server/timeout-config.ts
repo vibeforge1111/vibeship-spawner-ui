@@ -6,7 +6,9 @@ export function positiveIntegerEnv(
 	key: string,
 	fallbackMs: number
 ): number {
-	const parsed = Number.parseInt(env[key] || '', 10);
+	const raw = (env[key] || '').trim();
+	if (!/^\d+$/.test(raw)) return fallbackMs;
+	const parsed = Number.parseInt(raw, 10);
 	return Number.isFinite(parsed) && parsed > 0 ? parsed : fallbackMs;
 }
 
