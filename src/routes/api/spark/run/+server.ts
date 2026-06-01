@@ -20,6 +20,11 @@ import {
 	assertCapability,
 	createCapabilityEnvelope
 } from '$lib/server/capability-policy';
+import {
+	HarnessAuthorityError,
+	assertHarnessAuthority,
+	resolveExecutionAuthority
+} from '$lib/server/harness-authority';
 import { normalizeTraceRef } from '$lib/server/trace-ref';
 
 interface SparkRunBody {
@@ -35,6 +40,7 @@ interface SparkRunBody {
 	suppressRelay?: boolean;
 	traceRef?: string;
 	trace_ref?: string;
+	executionAuthority?: unknown;
 	projectId?: string;
 	previewUrl?: string;
 	parentMissionId?: string;
@@ -230,6 +236,12 @@ export const POST: RequestHandler = async (event) => {
 				{ status: 409 }
 			);
 		}
+		const authority = assertHarnessAuthority({
+			authority: resolveExecutionAuthority(body.executionAuthority),
+			toolName: 'spawner.run',
+			ownerSystem: 'spawner-ui',
+			mutationClass: 'launches_mission'
+		});
 		const capability = assertCapability(createCapabilityEnvelope(event, {
 			actorId: body.userId?.trim() || body.chatId?.trim() || undefined,
 			surface: 'spawner',
@@ -386,9 +398,13 @@ export const POST: RequestHandler = async (event) => {
 			startedAt: dispatchResult.startedAt,
 			missionControlAccess: resolveMissionControlAccess(missionControlPathForMission(dispatchResult.missionId)),
 			authorityVerdict,
+			authority,
 			audit: capability
 		});
 	} catch (error) {
+		if (error instanceof HarnessAuthorityError) {
+			return json({ success: false, error: error.message, code: error.code, authority: error.verdict }, { status: error.status });
+		}
 		if (error instanceof CapabilityPolicyError) {
 			return json(
 				{ success: false, error: error.message, code: error.code },

@@ -34,6 +34,18 @@ function routeEvent(body: unknown, method = 'POST') {
 	};
 }
 
+function machineAuthority() {
+	return {
+		schema: 'spark.machine_origin_policy.v1',
+		origin: 'spark-run-test',
+		source: 'spark_run_route_test',
+		reason: 'Focused Spark run authority regression.',
+		allowedTools: ['spawner.run'],
+		mutationClassesAllowed: ['launches_mission'],
+		networkPolicy: 'local_only'
+	};
+}
+
 describe('/api/spark/run integration', () => {
 	beforeEach(async () => {
 		testSpawnerStateDir = await mkdtemp(path.join(tmpdir(), 'spawner-spark-run-test-'));
@@ -62,7 +74,8 @@ describe('/api/spark/run integration', () => {
 			goal: 'Build a tiny Telegram smoke app.',
 			providers: ['codex'],
 			requestId: 'tg-spark-run-local',
-			traceRef: 'trace:telegram-run:tg-spark-run-local'
+			traceRef: 'trace:telegram-run:tg-spark-run-local',
+			executionAuthority: machineAuthority()
 		}) as never);
 
 		expect(response.status).toBe(200);
@@ -102,7 +115,8 @@ describe('/api/spark/run integration', () => {
 		const response = await POST(routeEvent({
 			goal: 'Build a tiny Telegram hosted smoke app.',
 			providers: ['codex'],
-			requestId: 'tg-spark-run-hosted'
+			requestId: 'tg-spark-run-hosted',
+			executionAuthority: machineAuthority()
 		}) as never);
 
 		expect(response.status).toBe(200);
@@ -122,12 +136,30 @@ describe('/api/spark/run integration', () => {
 			goal: 'Deeply analyze the local Spark stack before creating the chip.',
 			missionName: 'Spark Bug Recognition Domain Chip',
 			providers: ['codex'],
-			requestId: 'tg-context-title'
+			requestId: 'tg-context-title',
+			executionAuthority: machineAuthority()
 		}) as never);
 
 		expect(response.status).toBe(200);
 		const body = await response.json();
 		expect(body.missionName).toBe('Spark Bug Recognition Domain Chip');
 		expect(dispatch).toHaveBeenCalledTimes(1);
+	});
+
+	it('blocks Spark run dispatch without Harness authority', async () => {
+		const dispatch = vi.mocked(providerRuntime.dispatch);
+		dispatch.mockClear();
+
+		const response = await POST(routeEvent({
+			goal: 'Build a tiny Telegram smoke app.',
+			providers: ['codex'],
+			requestId: 'tg-spark-run-no-authority'
+		}) as never);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
+		expect(dispatch).not.toHaveBeenCalled();
 	});
 });
