@@ -44,6 +44,8 @@ const SYNCED_PATHS = [
 	'src/lib/server/access-execution-lanes.ts',
 	'src/lib/server/access-execution-actions.ts',
 	'src/lib/server/high-agency-workers.ts',
+	'src/lib/server/intent-boundary.ts',
+	'src/lib/server/harness-authority.ts',
 	'src/lib/server/spark-run-workspace.ts',
 	'src/lib/server/trace-ref.ts',
 	'src/lib/server/provider-clients/codex-cli-client.ts',

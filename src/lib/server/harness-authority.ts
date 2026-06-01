@@ -34,7 +34,7 @@ export interface HarnessAuthorityInput {
 
 export interface HarnessAuthorityVerdict {
 	allowed: boolean;
-	source: 'turn_intent' | 'machine_origin_policy';
+	source: 'turn_intent' | 'turn_intent_vnext' | 'machine_origin_policy';
 	reasonCodes: string[];
 	traceId?: string;
 	origin?: string;
@@ -66,6 +66,38 @@ function stringList(value: unknown): string[] {
 
 function hasTool(tools: string[], toolName: string): boolean {
 	return tools.includes(toolName) || tools.includes('*') || tools.includes('spawner.*');
+}
+
+function normalizeCapabilityPart(value: string): string {
+	return value.replace(/[^a-zA-Z0-9_.:-]+/g, '-').toLowerCase();
+}
+
+function expectedCapabilityId(input: HarnessAuthorityInput): string {
+	return `capability:${normalizeCapabilityPart(input.ownerSystem)}:${normalizeCapabilityPart(input.toolName)}`;
+}
+
+function actionTypeForMutation(input: HarnessAuthorityInput): string {
+	if (input.publishes || input.mutationClass === 'publishes') return 'publish';
+	switch (input.mutationClass) {
+		case 'none':
+		case 'read_only':
+			return 'read';
+		case 'writes_memory':
+			return 'write_memory';
+		case 'writes_files':
+			return 'edit_file';
+		case 'launches_mission':
+			return 'launch_mission';
+		case 'creates_schedule':
+		case 'deletes_schedule':
+			return 'schedule';
+		case 'creates_chip':
+			return 'create_domain_chip';
+		case 'external_network':
+			return 'external_api_call';
+		default:
+			return 'run_command';
+	}
 }
 
 function turnIntentVerdict(authority: Record<string, unknown>, input: HarnessAuthorityInput): HarnessAuthorityVerdict {
@@ -111,6 +143,58 @@ function turnIntentVerdict(authority: Record<string, unknown>, input: HarnessAut
 		source: 'turn_intent',
 		reasonCodes,
 		traceId: stringField(authority.traceId) || undefined
+	};
+}
+
+function turnIntentVNextVerdict(authority: Record<string, unknown>, input: HarnessAuthorityInput): HarnessAuthorityVerdict {
+	const actionAuthority = isRecord(authority.action_authority) ? authority.action_authority : {};
+	const freshness = isRecord(authority.freshness) ? authority.freshness : {};
+	const proposedActions = Array.isArray(authority.proposed_actions)
+		? authority.proposed_actions.filter(isRecord)
+		: [];
+	const reasonCodes: string[] = [];
+	const selectedMove = stringField(authority.selected_move);
+	const authorityState = stringField(actionAuthority.state);
+	const expectedActionType = actionTypeForMutation(input);
+	const expectedCapability = expectedCapabilityId(input);
+	const matchingAction = proposedActions.find((action) => {
+		const capabilityId = stringField(action.capability_id);
+		return capabilityId === expectedCapability;
+	});
+
+	if (authority.schema_version !== 'turn-intent-envelope-vnext') {
+		reasonCodes.push('unsupported_turn_intent_vnext_schema');
+	}
+	if (!matchingAction) {
+		reasonCodes.push('tool_not_allowed_by_policy');
+	} else if (stringField(matchingAction.action_type) !== expectedActionType) {
+		reasonCodes.push('mutation_class_not_authorized');
+	}
+	if (input.mutationClass === 'none' || input.mutationClass === 'read_only') {
+		if (authorityState !== 'read_only' && authorityState !== 'executable') {
+			reasonCodes.push('read_authority_not_granted');
+		}
+	} else {
+		if (selectedMove !== 'execute_action' || authorityState !== 'executable') {
+			reasonCodes.push(authorityState === 'confirmation_required' ? 'confirmation_required' : 'action_not_executable');
+		}
+	}
+	if (freshness.stale_state_used_as_authority === true) {
+		reasonCodes.push('stale_state_used_as_authority');
+	}
+	if (freshness.memory_used_as_instruction === true) {
+		reasonCodes.push('memory_used_as_instruction');
+	}
+	if (freshness.pending_state_used_as_authority === true) {
+		reasonCodes.push('pending_state_used_as_authority');
+	}
+
+	const rawTurnRef = isRecord(authority.raw_turn_ref) ? authority.raw_turn_ref : {};
+	return {
+		allowed: reasonCodes.length === 0,
+		source: 'turn_intent_vnext',
+		reasonCodes,
+		traceId: stringField(rawTurnRef.id) || stringField(authority.turn_id) || undefined
 	};
 }
 
@@ -185,6 +269,8 @@ export function assertHarnessAuthority(input: HarnessAuthorityInput): HarnessAut
 	const verdict =
 		input.authority.schema === 'spark.turn_intent.v1'
 			? turnIntentVerdict(input.authority, input)
+			: input.authority.schema_version === 'turn-intent-envelope-vnext'
+				? turnIntentVNextVerdict(input.authority, input)
 			: machineOriginVerdict(input.authority, input);
 
 	if (!verdict.allowed) {
@@ -195,7 +281,7 @@ export function assertHarnessAuthority(input: HarnessAuthorityInput): HarnessAut
 
 export function resolveExecutionAuthority(...candidates: unknown[]): unknown {
 	for (const candidate of candidates) {
-		if (isRecord(candidate) && candidate.schema) return candidate;
+		if (isRecord(candidate) && (candidate.schema || candidate.schema_version)) return candidate;
 	}
 	return null;
 }

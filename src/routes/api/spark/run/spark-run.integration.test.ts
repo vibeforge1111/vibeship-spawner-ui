@@ -46,6 +46,52 @@ function machineAuthority() {
 	};
 }
 
+function vnextAuthority(options: { executable?: boolean; capabilityId?: string; actionType?: string } = {}) {
+	const executable = options.executable !== false;
+	return {
+		schema_version: 'turn-intent-envelope-vnext',
+		turn_id: 'turn:spawner-run-vnext-test',
+		raw_turn_ref: {
+			id: 'trace:spawner-run-vnext-test',
+			redaction_class: 'metadata_only',
+			summary: 'Test Telegram run authority.'
+		},
+		selected_move: executable ? 'execute_action' : 'chat_explain',
+		freshness: {
+			fresh_user_intent_present: true,
+			stale_state_used_as_authority: false,
+			memory_used_as_instruction: false,
+			pending_state_used_as_authority: false
+		},
+		action_authority: {
+			state: executable ? 'executable' : 'chat_only',
+			risk_tier: executable ? 'medium' : 'none',
+			confidence: executable ? 0.95 : 0.2,
+			requires_human_confirmation: false,
+			reason: executable ? 'Fresh Telegram intent authorized Spawner mission execution.' : 'Chat-only turn.'
+		},
+		proposed_actions: executable
+			? [
+					{
+						action_id: 'action:spawner-run-vnext-test',
+						capability_id: options.capabilityId || 'capability:spawner-ui:spawner.run',
+						action_type: options.actionType || 'launch_mission',
+						risk_tier: 'medium',
+						summary: 'Run Spawner mission.',
+						args_ref: {
+							id: 'artifact:spawner-run-vnext-test',
+							kind: 'tool_args',
+							path_or_uri: 'telegram://turns/spawner-run-vnext-test/actions/spawner.run',
+							redaction_class: 'metadata_only',
+							summary: 'Test args.'
+						},
+						requires_confirmation: false
+					}
+				]
+			: []
+	};
+}
+
 describe('/api/spark/run integration', () => {
 	beforeEach(async () => {
 		testSpawnerStateDir = await mkdtemp(path.join(tmpdir(), 'spawner-spark-run-test-'));
@@ -160,6 +206,52 @@ describe('/api/spark/run integration', () => {
 		const body = await response.json();
 		expect(body.code).toBe('harness_authority_blocked');
 		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
+		expect(dispatch).not.toHaveBeenCalled();
+	});
+
+	it('accepts native TurnIntentEnvelopeVNext authority for Spark run dispatch', async () => {
+		const dispatch = vi.mocked(providerRuntime.dispatch);
+		dispatch.mockClear();
+
+		const response = await POST(routeEvent({
+			goal: 'Run a no-edit Spawner proof mission that only replies SPARK_QA_NO_EDIT_OK.',
+			providers: ['codex'],
+			requestId: 'tg-spark-run-vnext',
+			traceRef: 'trace:telegram-run:tg-spark-run-vnext',
+			executionAuthority: vnextAuthority()
+		}) as never);
+
+		expect(response.status).toBe(200);
+		const body = await response.json();
+		expect(body.success).toBe(true);
+		expect(body.authority).toMatchObject({
+			allowed: true,
+			source: 'turn_intent_vnext',
+			traceId: 'trace:spawner-run-vnext-test'
+		});
+		expect(dispatch).toHaveBeenCalledTimes(1);
+	});
+
+	it('blocks chat-only TurnIntentEnvelopeVNext authority for Spark run dispatch', async () => {
+		const dispatch = vi.mocked(providerRuntime.dispatch);
+		dispatch.mockClear();
+
+		const response = await POST(routeEvent({
+			goal: 'Run a no-edit Spawner proof mission that only replies SPARK_QA_NO_EDIT_OK.',
+			providers: ['codex'],
+			requestId: 'tg-spark-run-vnext-chat-only',
+			executionAuthority: vnextAuthority({ executable: false })
+		}) as never);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority).toMatchObject({
+			allowed: false,
+			source: 'turn_intent_vnext'
+		});
+		expect(body.authority.reasonCodes).toContain('tool_not_allowed_by_policy');
+		expect(body.authority.reasonCodes).toContain('action_not_executable');
 		expect(dispatch).not.toHaveBeenCalled();
 	});
 });
