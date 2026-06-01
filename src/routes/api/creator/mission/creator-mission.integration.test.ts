@@ -34,6 +34,16 @@ function machineAuthority() {
 	};
 }
 
+function creatorVNextAuthority() {
+	return buildClientTurnIntentVNextAuthority({
+		source: 'creator-mission-route-test',
+		reason: 'User started creator mission creation from Spark.',
+		toolName: 'creator.mission.create',
+		mutationClass: 'creates_chip',
+		target: 'startup-yc'
+	});
+}
+
 function creatorPacket(): CreatorIntentPacket {
 	return {
 		schema_version: 'spark-creator-intent.v1',
@@ -119,7 +129,7 @@ describe('/api/creator/mission', () => {
 			brief: 'Create Startup YC path',
 			missionId: 'mission-creator-api',
 			requestId: 'creator-api-req',
-			executionAuthority: machineAuthority()
+			executionAuthority: creatorVNextAuthority()
 		}) as never);
 		expect(postResponse.status).toBe(200);
 		const postBody = await postResponse.json();
@@ -223,6 +233,20 @@ describe('/api/creator/mission', () => {
 		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
 	});
 
+	it('rejects legacy machine-origin policy for executable creator mission creation', async () => {
+		const response = await POST(event('http://127.0.0.1/api/creator/mission', {
+			brief: 'Create Startup YC path',
+			missionId: 'mission-creator-legacy-authority',
+			requestId: 'creator-legacy-authority',
+			executionAuthority: machineAuthority()
+		}) as never);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.reasonCodes).toContain('native_vnext_required');
+	});
+
 	it('accepts native TurnIntentEnvelopeVNext authority for executable creator mission creation', async () => {
 		const { setCreatorPlanRunnerForTests } = await import('$lib/server/creator-mission');
 		setCreatorPlanRunnerForTests(async () => creatorPacket());
@@ -231,13 +255,7 @@ describe('/api/creator/mission', () => {
 			brief: 'Create Startup YC path',
 			missionId: 'mission-creator-vnext-authority',
 			requestId: 'creator-vnext-authority',
-			executionAuthority: buildClientTurnIntentVNextAuthority({
-				source: 'creator-mission-route-test',
-				reason: 'User started creator mission creation from Spark.',
-				toolName: 'creator.mission.create',
-				mutationClass: 'creates_chip',
-				target: 'startup-yc'
-			})
+			executionAuthority: creatorVNextAuthority()
 		}) as never);
 
 		expect(response.status).toBe(200);

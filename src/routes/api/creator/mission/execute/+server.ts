@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { creatorMissionPath, executeCreatorMission } from '$lib/server/creator-mission';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
-import { HarnessAuthorityError, assertHarnessAuthority, resolveExecutionAuthority } from '$lib/server/harness-authority';
+import { HarnessAuthorityError, assertNativeVNextHarnessAuthority, resolveExecutionAuthority } from '$lib/server/harness-authority';
 
 interface ExecuteCreatorMissionBody {
 	missionId?: string;
@@ -33,7 +33,7 @@ export const POST: RequestHandler = async (event) => {
 		if (!missionId && !requestId) {
 			return json({ ok: false, error: 'missionId or requestId is required' }, { status: 400 });
 		}
-		const authority = assertHarnessAuthority({
+		const authority = assertNativeVNextHarnessAuthority({
 			authority: resolveExecutionAuthority(body.executionAuthority),
 			toolName: 'spawner.dispatch',
 			ownerSystem: 'spawner-ui',

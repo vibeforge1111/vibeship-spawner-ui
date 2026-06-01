@@ -24,7 +24,7 @@ import { createH70SkillAccessProof, type H70SkillAccessProof } from '$lib/server
 import { getTierSkills, normalizeTier, type SkillTier } from '$lib/server/skill-tiers';
 import {
 	HarnessAuthorityError,
-	assertHarnessAuthority,
+	assertNativeVNextHarnessAuthority,
 	resolveExecutionAuthority,
 	type HarnessAuthorityVerdict
 } from '$lib/server/harness-authority';
@@ -389,7 +389,7 @@ export async function autoDispatchPrdCanvasLoad(
 		if (!allowed.ok) {
 			return { started: false, skipped: true, reason: allowed.reason, missionId: load.missionId };
 		}
-		const authority = assertHarnessAuthority({
+		const authority = assertNativeVNextHarnessAuthority({
 			authority: resolveExecutionAuthority(
 				load.executionAuthority,
 				load.relay?.executionAuthority,

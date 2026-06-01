@@ -34,6 +34,16 @@ function machineAuthority() {
 	};
 }
 
+function dispatchVNextAuthority(target: string) {
+	return buildClientTurnIntentVNextAuthority({
+		source: 'creator-execute-route-test',
+		reason: 'User started creator mission execution from Spark.',
+		toolName: 'spawner.dispatch',
+		mutationClass: 'launches_mission',
+		target
+	});
+}
+
 function packet(): CreatorIntentPacket {
 	return {
 		schema_version: 'spark-creator-intent.v1',
@@ -107,7 +117,7 @@ describe('/api/creator/mission/execute', () => {
 
 		const response = await POST(event('http://127.0.0.1/api/creator/mission/execute', {
 			missionId: 'mission-creator-execute-api',
-			executionAuthority: machineAuthority()
+			executionAuthority: dispatchVNextAuthority('mission-creator-execute-api')
 		}) as never);
 
 		expect(response.status).toBe(200);
@@ -133,7 +143,7 @@ describe('/api/creator/mission/execute', () => {
 
 		const response = await POST(event('http://127.0.0.1/api/creator/mission/execute', {
 			missionId: 'mission-creator-stage-only-api',
-			executionAuthority: machineAuthority()
+			executionAuthority: dispatchVNextAuthority('mission-creator-stage-only-api')
 		}) as never);
 
 		expect(response.status).toBe(409);
@@ -165,6 +175,23 @@ describe('/api/creator/mission/execute', () => {
 		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
 	});
 
+	it('rejects legacy machine-origin policy for creator mission execution', async () => {
+		await createCreatorMission(
+			{ brief: 'Create Startup YC path', missionId: 'mission-creator-legacy-authority', requestId: 'req-legacy-authority' },
+			{ stateDir: tempDir, runPlanner: async () => packet() }
+		);
+
+		const response = await POST(event('http://127.0.0.1/api/creator/mission/execute', {
+			missionId: 'mission-creator-legacy-authority',
+			executionAuthority: machineAuthority()
+		}) as never);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.reasonCodes).toContain('native_vnext_required');
+	});
+
 	it('accepts native TurnIntentEnvelopeVNext authority for creator mission execution', async () => {
 		await createCreatorMission(
 			{ brief: 'Create Startup YC path', missionId: 'mission-creator-execute-vnext', requestId: 'req-execute-vnext' },
@@ -180,13 +207,7 @@ describe('/api/creator/mission/execute', () => {
 
 		const response = await POST(event('http://127.0.0.1/api/creator/mission/execute', {
 			missionId: 'mission-creator-execute-vnext',
-			executionAuthority: buildClientTurnIntentVNextAuthority({
-				source: 'creator-execute-route-test',
-				reason: 'User started creator mission execution from Spark.',
-				toolName: 'spawner.dispatch',
-				mutationClass: 'launches_mission',
-				target: 'mission-creator-execute-vnext'
-			})
+			executionAuthority: dispatchVNextAuthority('mission-creator-execute-vnext')
 		}) as never);
 
 		expect(response.status).toBe(200);

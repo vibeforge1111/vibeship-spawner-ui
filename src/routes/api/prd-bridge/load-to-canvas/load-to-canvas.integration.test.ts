@@ -238,6 +238,14 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 			buildModeReason: 'Multi-agent Telegram relay test.',
 			telegramRelay: { port: 8789, profile: 'primary' }
 		});
+		expect(pending.executionAuthority).toMatchObject({
+			schema_version: 'turn-intent-envelope-vnext',
+			selected_move: 'execute_action'
+		});
+		expect(pending.relay.executionAuthority).toMatchObject({
+			schema_version: 'turn-intent-envelope-vnext',
+			selected_move: 'execute_action'
+		});
 		const requestRaw = await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8');
 		const requestMeta = JSON.parse(requestRaw);
 		expect(requestMeta).toMatchObject({

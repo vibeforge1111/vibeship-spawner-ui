@@ -13,6 +13,7 @@ import {
 	shouldAutoDispatchPrdLoad,
 	type PrdCanvasLoadForAutoDispatch
 } from './prd-auto-dispatch';
+import { buildMachineOriginPolicy } from './harness-authority';
 import { verifyH70SkillAccessToken } from './h70-skill-access-token';
 import { getTierSkills } from './skill-tiers';
 
@@ -149,6 +150,22 @@ describe('PRD auto-dispatch helpers', () => {
 
 		expect(result.started).toBe(false);
 		expect(result.error).toContain('missing_harness_authority');
+	});
+
+	it('rejects legacy machine-origin policy for PRD auto-dispatch', async () => {
+		const result = await autoDispatchPrdCanvasLoad({
+			...load,
+			executionAuthority: buildMachineOriginPolicy({
+				origin: 'prd-auto-dispatch-test',
+				source: 'prd_auto_dispatch_test',
+				reason: 'Legacy PRD auto-dispatch authority fixture.',
+				allowedTools: ['spawner.dispatch'],
+				mutationClassesAllowed: ['launches_mission']
+			})
+		});
+
+		expect(result.started).toBe(false);
+		expect(result.error).toContain('native_vnext_required');
 	});
 
 	it('passes configured provider API keys into auto-dispatch runtime', () => {

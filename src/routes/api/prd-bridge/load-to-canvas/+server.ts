@@ -15,7 +15,7 @@ import {
 	normalizeCapabilityProposalPacket
 } from '$lib/server/capability-proposal-packet';
 import { extractTraceRef, normalizeTraceRef, traceRefFromMissionId } from '$lib/server/trace-ref';
-import { buildMachineOriginPolicy } from '$lib/server/harness-authority';
+import { buildServerTurnIntentVNextAuthority } from '$lib/server/harness-authority';
 
 function getSpawnerDir(): string {
 	return spawnerStateDir();
@@ -269,13 +269,15 @@ export const POST: RequestHandler = async ({ request }) => {
 		resolvedTraceRef = resolvedTraceRef || extractTraceRef(parsed) || traceRefFromMissionId(resolvedMissionId);
 		const capabilitySummary = capabilityProposalSummary(capabilityProposalPacket);
 		const executionAuthority = effectiveAutoRun
-			? buildMachineOriginPolicy({
-					origin: 'prd-bridge.load-to-canvas',
+			? buildServerTurnIntentVNextAuthority({
 					source: 'authenticated_prd_bridge_load',
 					reason: 'Authenticated PRD bridge loaded a runnable canvas with autoRun enabled.',
-					allowedTools: ['spawner.dispatch'],
-					mutationClassesAllowed: ['launches_mission'],
-					networkPolicy: 'local_only'
+					toolName: 'spawner.dispatch',
+					mutationClass: 'launches_mission',
+					requestId,
+					actorKind: 'system',
+					actorIdRef: 'prd-bridge.load-to-canvas',
+					target: resolvedMissionId
 				})
 			: undefined;
 		if (!relay && (typeof chatId === 'string' || typeof userId === 'string' || typeof goal === 'string' || normalizedTelegramRelay)) {
