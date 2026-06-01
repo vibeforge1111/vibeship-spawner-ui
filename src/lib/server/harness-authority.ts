@@ -1,12 +1,14 @@
 import {
 	actionTypeForHarnessMutation,
 	createHarnessCoreActionEnvelopeVNext,
+	type GovernorDecisionV1,
 	type HarnessCoreActionMutationClass,
 	type TurnIntentEnvelopeVNext
 } from '@spark/harness-core';
 
 export type SparkMutationClass = HarnessCoreActionMutationClass;
 export type SparkServerTurnIntentEnvelopeVNext = TurnIntentEnvelopeVNext;
+export type SparkServerGovernorDecisionV1 = GovernorDecisionV1;
 
 export interface SparkMachineOriginPolicyV1 {
 	schema: 'spark.machine_origin_policy.v1';
@@ -31,10 +33,11 @@ export interface HarnessAuthorityInput {
 
 export interface HarnessAuthorityVerdict {
 	allowed: boolean;
-	source: 'turn_intent' | 'turn_intent_vnext' | 'machine_origin_policy';
+	source: 'turn_intent' | 'turn_intent_vnext' | 'governor_decision' | 'machine_origin_policy';
 	reasonCodes: string[];
 	traceId?: string;
 	origin?: string;
+	governorOutcome?: string;
 }
 
 export class HarnessAuthorityError extends Error {
@@ -171,6 +174,62 @@ function turnIntentVNextVerdict(authority: Record<string, unknown>, input: Harne
 	};
 }
 
+function governorDecisionVerdict(authority: Record<string, unknown>, input: HarnessAuthorityInput): HarnessAuthorityVerdict {
+	const envelope = isRecord(authority.envelope) ? authority.envelope : {};
+	const boundary = isRecord(authority.execution_boundary) ? authority.execution_boundary : {};
+	const authorizations = Array.isArray(authority.authorizations)
+		? authority.authorizations.filter(isRecord)
+		: [];
+	const toolLedgers = Array.isArray(authority.tool_ledgers)
+		? authority.tool_ledgers.filter(isRecord)
+		: [];
+	const reasonCodes: string[] = [];
+	const outcome = stringField(authority.outcome);
+	const envelopeVerdict = turnIntentVNextVerdict(envelope, input);
+	const matchingAuthorization = authorizations.find((authorization) => {
+		const verdict = stringField(authorization.verdict);
+		const capabilityId = stringField(authorization.capability_id);
+		return verdict === 'allow' && capabilityId === expectedCapabilityId(input);
+	});
+	const matchingLedger = toolLedgers.find((ledger) => {
+		const toolName = stringField(ledger.tool_name);
+		const authorization = isRecord(ledger.authorization) ? ledger.authorization : {};
+		return toolName === input.toolName && stringField(authorization.verdict) === 'allow';
+	});
+
+	if (authority.schema_version !== 'governor-decision-v1') {
+		reasonCodes.push('unsupported_governor_decision_schema');
+	}
+	if (!envelopeVerdict.allowed) {
+		reasonCodes.push(...envelopeVerdict.reasonCodes);
+	}
+	if (boundary.legacy_authority_demoted !== true) {
+		reasonCodes.push('legacy_authority_not_demoted');
+	}
+	if (outcome !== 'execute') {
+		reasonCodes.push(outcome ? `governor_outcome_${outcome}_not_executable` : 'missing_governor_outcome');
+	}
+	if (boundary.action_authorized !== true) {
+		reasonCodes.push('governor_action_not_authorized');
+	}
+	if (!matchingAuthorization) {
+		reasonCodes.push('authorization_not_allowed');
+	}
+	if (!matchingLedger) {
+		reasonCodes.push('missing_tool_ledger');
+	}
+
+	const rawTurnRef = isRecord(envelope.raw_turn_ref) ? envelope.raw_turn_ref : {};
+	const trace = isRecord(authority.trace) ? authority.trace : {};
+	return {
+		allowed: reasonCodes.length === 0,
+		source: 'governor_decision',
+		reasonCodes,
+		traceId: stringField(rawTurnRef.id) || stringField(trace.id) || stringField(authority.turn_id) || undefined,
+		governorOutcome: outcome || undefined
+	};
+}
+
 function machineOriginVerdict(authority: Record<string, unknown>, input: HarnessAuthorityInput): HarnessAuthorityVerdict {
 	const allowedTools = stringList(authority.allowedTools);
 	const mutationClassesAllowed = stringList(authority.mutationClassesAllowed);
@@ -274,12 +333,29 @@ export function assertHarnessAuthority(input: HarnessAuthorityInput): HarnessAut
 	const verdict =
 		input.authority.schema === 'spark.turn_intent.v1'
 			? turnIntentVerdict(input.authority, input)
+			: input.authority.schema_version === 'governor-decision-v1'
+				? governorDecisionVerdict(input.authority, input)
 			: input.authority.schema_version === 'turn-intent-envelope-vnext'
 				? turnIntentVNextVerdict(input.authority, input)
 			: machineOriginVerdict(input.authority, input);
 
 	if (!verdict.allowed) {
 		throw new HarnessAuthorityError('Execution authority blocked this request.', verdict);
+	}
+	return verdict;
+}
+
+export function assertNativeGovernorOrVNextHarnessAuthority(input: HarnessAuthorityInput): HarnessAuthorityVerdict {
+	const verdict = assertHarnessAuthority(input);
+	if (verdict.source !== 'governor_decision' && verdict.source !== 'turn_intent_vnext') {
+		throw new HarnessAuthorityError(`${input.toolName} requires native GovernorDecisionV1 or TurnIntentEnvelopeVNext authority.`, {
+			allowed: false,
+			source: verdict.source,
+			reasonCodes: ['native_governor_or_vnext_required'],
+			traceId: verdict.traceId,
+			origin: verdict.origin,
+			governorOutcome: verdict.governorOutcome
+		});
 	}
 	return verdict;
 }

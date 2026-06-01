@@ -92,6 +92,113 @@ function vnextAuthority(options: { executable?: boolean; capabilityId?: string; 
 	};
 }
 
+function governorAuthority(options: { executable?: boolean; withLedger?: boolean } = {}) {
+	const executable = options.executable !== false;
+	const envelope = vnextAuthority({ executable });
+	const action = envelope.proposed_actions[0];
+	const authorization = executable && action
+		? {
+				schema_version: 'authorization-decision-v1',
+				decision_id: 'decision:spawner-run-governor-test',
+				created_at: '2026-06-02T00:00:00.000Z',
+				turn_id: envelope.turn_id,
+				action_id: action.action_id,
+				capability_id: action.capability_id,
+				verdict: 'allow',
+				risk_tier: action.risk_tier,
+				reasons: ['harness_core_authorized'],
+				evidence: [],
+				approval: { required: false, status: 'not_required' },
+				restrictions: {
+					network_allowed: false,
+					write_allowed: false,
+					publish_allowed: false
+				},
+				trace: {
+					id: 'trace:spawner-run-governor-test',
+					redaction_class: 'metadata_only',
+					summary: 'Governor authorization trace.'
+				}
+			}
+		: null;
+	const ledger = authorization && options.withLedger !== false
+		? {
+				schema_version: 'tool-call-ledger-v1',
+				ledger_id: 'ledger:spawner-run-governor-test',
+				created_at: '2026-06-02T00:00:01.000Z',
+				turn_id: envelope.turn_id,
+				action_id: action.action_id,
+				capability_id: action.capability_id,
+				tool_name: 'spawner.run',
+				lifecycle: [
+					{ stage: 'propose', at: '2026-06-02T00:00:00.000Z', verdict: 'passed' },
+					{ stage: 'authorize', at: '2026-06-02T00:00:00.000Z', verdict: 'passed' },
+					{ stage: 'execute', at: '2026-06-02T00:00:01.000Z', verdict: 'skipped' }
+				],
+				authorization,
+				arguments: {
+					schema_valid: true,
+					raw_ref: action.args_ref,
+					sanitized_ref: action.args_ref
+				},
+				result: {
+					status: 'not_started',
+					summary: 'Spawner dispatch has not executed yet.',
+					sanitized_output_ref: {
+						id: 'artifact:spawner-run-governor-output',
+						kind: 'tool_output',
+						path_or_uri: 'spawner://governor-test/output',
+						redaction_class: 'metadata_only',
+						summary: 'Pre-dispatch ledger output reference.'
+					}
+				},
+				trace: {
+					id: 'trace:spawner-run-governor-ledger',
+					redaction_class: 'metadata_only',
+					summary: 'Governor ledger trace.'
+				}
+			}
+		: null;
+	return {
+		schema_version: 'governor-decision-v1',
+		decision_id: 'governor-decision:spawner-run-test',
+		created_at: '2026-06-02T00:00:02.000Z',
+		surface: 'telegram',
+		turn_id: envelope.turn_id,
+		selected_move: envelope.selected_move,
+		authority_state: envelope.action_authority.state,
+		risk_tier: envelope.action_authority.risk_tier,
+		outcome: executable ? 'execute' : 'chat_only',
+		envelope,
+		authorizations: authorization ? [authorization] : [],
+		tool_ledgers: ledger ? [ledger] : [],
+		execution_boundary: {
+			action_authorized: executable,
+			action_count: envelope.proposed_actions.length,
+			authorized_action_count: authorization ? 1 : 0,
+			requires_human_confirmation: false,
+			legacy_authority_demoted: true,
+			reasons: executable
+				? ['fresh_user_intent_is_authority', 'governor_authorized_execution']
+				: ['fresh_user_intent_is_authority', 'governor_keeps_turn_conversational']
+		},
+		reply_contract: {
+			style: 'human_conversational',
+			instruction: executable
+				? 'Proceed only with the authorized action and record the result ledger.'
+				: 'Answer conversationally; do not launch, write, schedule, publish, or run tools.',
+			inspect_link_allowed: executable,
+			should_interrupt: false
+		},
+		evidence: [],
+		trace: {
+			id: 'trace:spawner-run-governor-decision',
+			redaction_class: 'metadata_only',
+			summary: 'Governor decision trace.'
+		}
+	};
+}
+
 describe('/api/spark/run integration', () => {
 	beforeEach(async () => {
 		testSpawnerStateDir = await mkdtemp(path.join(tmpdir(), 'spawner-spark-run-test-'));
@@ -223,8 +330,32 @@ describe('/api/spark/run integration', () => {
 		expect(response.status).toBe(409);
 		const body = await response.json();
 		expect(body.code).toBe('harness_authority_blocked');
-		expect(body.authority.reasonCodes).toContain('native_vnext_required');
+		expect(body.authority.reasonCodes).toContain('native_governor_or_vnext_required');
 		expect(dispatch).not.toHaveBeenCalled();
+	});
+
+	it('accepts native GovernorDecisionV1 authority for Spark run dispatch', async () => {
+		const dispatch = vi.mocked(providerRuntime.dispatch);
+		dispatch.mockClear();
+
+		const response = await POST(routeEvent({
+			goal: 'Run a no-edit Spawner proof mission that only replies SPARK_QA_NO_EDIT_OK.',
+			providers: ['codex'],
+			requestId: 'tg-spark-run-governor',
+			traceRef: 'trace:telegram-run:tg-spark-run-governor',
+			executionAuthority: governorAuthority()
+		}) as never);
+
+		expect(response.status).toBe(200);
+		const body = await response.json();
+		expect(body.success).toBe(true);
+		expect(body.authority).toMatchObject({
+			allowed: true,
+			source: 'governor_decision',
+			governorOutcome: 'execute',
+			traceId: 'trace:spawner-run-vnext-test'
+		});
+		expect(dispatch).toHaveBeenCalledTimes(1);
 	});
 
 	it('accepts native TurnIntentEnvelopeVNext authority for Spark run dispatch', async () => {
@@ -248,6 +379,30 @@ describe('/api/spark/run integration', () => {
 			traceId: 'trace:spawner-run-vnext-test'
 		});
 		expect(dispatch).toHaveBeenCalledTimes(1);
+	});
+
+	it('blocks chat-only GovernorDecisionV1 authority for Spark run dispatch', async () => {
+		const dispatch = vi.mocked(providerRuntime.dispatch);
+		dispatch.mockClear();
+
+		const response = await POST(routeEvent({
+			goal: 'Run a no-edit Spawner proof mission that only replies SPARK_QA_NO_EDIT_OK.',
+			providers: ['codex'],
+			requestId: 'tg-spark-run-governor-chat-only',
+			executionAuthority: governorAuthority({ executable: false })
+		}) as never);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority).toMatchObject({
+			allowed: false,
+			source: 'governor_decision',
+			governorOutcome: 'chat_only'
+		});
+		expect(body.authority.reasonCodes).toContain('governor_outcome_chat_only_not_executable');
+		expect(body.authority.reasonCodes).toContain('governor_action_not_authorized');
+		expect(dispatch).not.toHaveBeenCalled();
 	});
 
 	it('blocks chat-only TurnIntentEnvelopeVNext authority for Spark run dispatch', async () => {
