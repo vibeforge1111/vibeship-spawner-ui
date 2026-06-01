@@ -999,6 +999,21 @@ function boardStatusForEntry(entry: MissionControlBoardEntry): MissionControlBoa
 	return entry.status;
 }
 
+function lastUpdatedSortTime(value: string): number {
+	const parsed = Date.parse(value);
+	return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY;
+}
+
+export function compareMissionControlEntriesByLastUpdatedDesc<T extends { lastUpdated: string }>(
+	a: T,
+	b: T
+): number {
+	const aTime = lastUpdatedSortTime(a.lastUpdated);
+	const bTime = lastUpdatedSortTime(b.lastUpdated);
+	if (aTime === bTime) return 0;
+	return bTime - aTime;
+}
+
 function recordLifecycleTimestamps(
 	entry: MissionControlBoardEntry,
 	event: MissionControlRelayStatusEntry
@@ -1123,7 +1138,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 	}
 
 	for (const entries of Object.values(board)) {
-		entries.sort((a, b) => Date.parse(b.lastUpdated) - Date.parse(a.lastUpdated));
+		entries.sort(compareMissionControlEntriesByLastUpdatedDesc);
 	}
 
 	return board;
