@@ -12,7 +12,6 @@ import { spawnerStateDir } from './spawner-state';
 import {
   assertHarnessAuthority,
   buildServerGovernorDecisionAuthority,
-  buildServerTurnIntentVNextAuthority,
   resolveExecutionAuthority,
   type HarnessAuthorityVerdict
 } from './harness-authority';
