@@ -439,6 +439,11 @@
 
 		// Read the pending PRD content
 		const prdResponse = await fetch('/api/prd-bridge/pending');
+		if (!prdResponse.ok) {
+			toasts.error(`Could not read pending PRD (HTTP ${prdResponse.status})`);
+			showProcessingModal = false;
+			return;
+		}
 		const prdData = await prdResponse.json();
 
 		if (!prdData.pending || !prdData.prdContent) {
