@@ -1,7 +1,7 @@
-import { mkdtemp, writeFile } from 'fs/promises';
+import { appendFile, mkdtemp, writeFile } from 'fs/promises';
 import path from 'path';
 import { tmpdir } from 'os';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
 	appendAgentEvent,
 	buildAgentBlackBoxReport,
@@ -125,5 +125,35 @@ describe('agent event ledger', () => {
 		});
 		expect(JSON.stringify(entry.facts)).not.toContain('response');
 		expect(JSON.stringify(entry.facts)).not.toContain('provider output');
+	});
+
+	it('reports malformed ledger JSONL lines without exposing raw content', async () => {
+		const stateDir = await mkdtemp(path.join(tmpdir(), 'spawner-agent-events-'));
+		process.env.SPAWNER_STATE_DIR = stateDir;
+		process.env.SPARK_FINAL_ANSWER_GATE_AUDIT_PATH = path.join(stateDir, 'missing-final-answer-audit.jsonl');
+		const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+		try {
+			appendAgentEvent(buildMissionControlAgentEvent({
+				eventType: 'mission_started',
+				missionId: 'mission-jsonl-warning',
+				missionName: 'JSONL warning',
+				taskId: null,
+				taskName: null,
+				progress: 0,
+				summary: 'Started.',
+				timestamp: '2026-05-12T00:00:00.000Z',
+				source: 'test'
+			}));
+			await appendFile(path.join(stateDir, 'agent-events.jsonl'), '{not valid json with private-ish raw text}\n', 'utf-8');
+
+			const events = readRecentAgentEvents({ limit: 5 });
+
+			expect(events).toHaveLength(1);
+			expect(warning).toHaveBeenCalledWith(expect.stringContaining('skipped malformed agent-events JSONL line'));
+			expect(warning.mock.calls.flat().join('\n')).not.toContain('private-ish raw text');
+		} finally {
+			warning.mockRestore();
+		}
 	});
 });
