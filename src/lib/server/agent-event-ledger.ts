@@ -195,7 +195,8 @@ export function readRecentAgentEvents(
 				.map((line) => {
 					try {
 						return JSON.parse(line) as AgentEventLedgerEntry;
-					} catch {
+					} catch (error) {
+						console.warn('[AgentEventLedger] Failed to parse ledger line:', error);
 						return null;
 					}
 				})
@@ -221,7 +222,8 @@ function readFinalAnswerGateAuditEvents(): AgentEventLedgerEntry[] {
 			try {
 				const record = JSON.parse(line) as Record<string, unknown>;
 				return finalAnswerAuditToAgentEvent(record, index);
-			} catch {
+			} catch (error) {
+				console.warn('[AgentEventLedger] Failed to parse audit line:', error);
 				return null;
 			}
 		})
