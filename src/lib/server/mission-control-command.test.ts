@@ -3,7 +3,7 @@ import {
 	executeMissionControlAction,
 	parseDiscordMissionControlCommand
 } from './mission-control-command';
-import { buildMachineOriginPolicy } from './harness-authority';
+import { buildMachineOriginPolicy, buildServerTurnIntentVNextAuthority } from './harness-authority';
 import { relayMissionControlEvent } from './mission-control-relay';
 import { providerRuntime } from './provider-runtime';
 import { mcpClient, type Mission } from '$lib/services/mcp-client';
@@ -37,10 +37,22 @@ function missionRecord(id: string): Mission {
 }
 
 function missionControlAuthority() {
+	return buildServerTurnIntentVNextAuthority({
+		source: 'mission-control-command-test',
+		reason: 'Focused mission-control authority regression.',
+		toolName: 'spawner.mission_control.command',
+		mutationClass: 'controls_mission',
+		requestId: 'mission-control-command-test',
+		actorKind: 'human',
+		actorIdRef: 'spawner-ui.test'
+	});
+}
+
+function legacyMissionControlAuthority() {
 	return buildMachineOriginPolicy({
 		origin: 'spawner-ui.test',
 		source: 'mission-control-command-test',
-		reason: 'Focused mission-control authority regression.',
+		reason: 'Legacy mission-control compatibility fixture.',
 		allowedTools: ['spawner.mission_control.command'],
 		mutationClassesAllowed: ['controls_mission']
 	});
@@ -116,6 +128,22 @@ describe('mission-control-command parser', () => {
 		});
 	});
 
+	it('blocks legacy machine-origin policy for mutating mission-control actions', async () => {
+		await expect(
+			executeMissionControlAction({
+				action: 'pause',
+				missionId: 'mission-command-legacy-authority',
+				source: 'test',
+				executionAuthority: legacyMissionControlAuthority()
+			})
+		).rejects.toMatchObject({
+			code: 'harness_authority_blocked',
+			verdict: expect.objectContaining({
+				reasonCodes: expect.arrayContaining(['native_vnext_required'])
+			})
+		});
+	});
+
 	it('pauses a board-visible orphan mission by confirming the stored mission record', async () => {
 		const missionId = 'mission-command-orphan-pause';
 		const getMission = vi.spyOn(mcpClient, 'getMission').mockResolvedValue({
@@ -144,6 +172,7 @@ describe('mission-control-command parser', () => {
 
 		expect(result.ok).toBe(true);
 		expect(result.eventType).toBe('mission_paused');
+		expect(result.authority).toMatchObject({ source: 'turn_intent_vnext' });
 		expect(getMission).toHaveBeenCalledWith(missionId);
 		expect(updateMission).toHaveBeenCalledWith(missionId, expect.objectContaining({ status: 'paused' }));
 
@@ -179,6 +208,7 @@ describe('mission-control-command parser', () => {
 
 		expect(result.ok).toBe(true);
 		expect(result.message).toContain('cancelled');
+		expect(result.authority).toMatchObject({ source: 'turn_intent_vnext' });
 		expect(failMission).toHaveBeenCalledWith(missionId, 'Mission cancelled from mission control');
 	});
 });
