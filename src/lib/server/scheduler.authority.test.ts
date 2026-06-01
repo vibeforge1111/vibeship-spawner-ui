@@ -1,25 +1,28 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { existsSync } from 'fs';
-import { mkdtemp, rm } from 'fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
 import {
 	createSchedule,
 	deleteSchedule,
 	listSchedules,
-	resetSchedulerForTests
+	resetSchedulerForTests,
+	runSchedulerTickForTests
 } from './scheduler';
-import { buildMachineOriginPolicy, type SparkMutationClass } from './harness-authority';
+import { buildServerTurnIntentVNextAuthority, type SparkMutationClass } from './harness-authority';
 
 let testSpawnerDir: string | null = null;
 
 function scheduleAuthority(toolName: string, mutationClass: SparkMutationClass) {
-	return buildMachineOriginPolicy({
-		origin: 'spawner-ui.test',
+	return buildServerTurnIntentVNextAuthority({
 		source: 'scheduler-authority-test',
 		reason: 'Focused scheduler authority regression.',
-		allowedTools: [toolName],
-		mutationClassesAllowed: [mutationClass]
+		toolName,
+		mutationClass,
+		requestId: `scheduler-authority-test-${toolName}`,
+		actorKind: 'human',
+		actorIdRef: 'spawner-ui.test'
 	});
 }
 
@@ -31,8 +34,10 @@ describe('scheduler Harness authority', () => {
 	});
 
 	afterEach(async () => {
+		vi.unstubAllGlobals();
 		resetSchedulerForTests();
 		delete process.env.SPAWNER_STATE_DIR;
+		delete process.env.SPARK_WORKSPACE_ROOT;
 		if (testSpawnerDir && existsSync(testSpawnerDir)) {
 			await rm(testSpawnerDir, { recursive: true, force: true });
 		}
@@ -63,8 +68,8 @@ describe('scheduler Harness authority', () => {
 		});
 
 		expect(record.authority).toMatchObject({
-			source: 'machine_origin_policy',
-			origin: 'spawner-ui.test'
+			source: 'turn_intent_vnext',
+			reasonCodes: []
 		});
 		expect(await listSchedules()).toHaveLength(1);
 
@@ -79,5 +84,67 @@ describe('scheduler Harness authority', () => {
 		});
 		expect(ok).toBe(true);
 		expect(await listSchedules()).toHaveLength(0);
+	});
+
+	it('fires persisted scheduled missions with native VNext authority', async () => {
+		if (!testSpawnerDir) throw new Error('test state dir missing');
+		process.env.SPARK_WORKSPACE_ROOT = testSpawnerDir;
+		await mkdir(testSpawnerDir, { recursive: true });
+		await writeFile(
+			path.join(testSpawnerDir, 'schedules.json'),
+			JSON.stringify({
+				schedules: [
+					{
+						id: 'sched-vnext-fire',
+						cron: '0 3 * * *',
+						action: 'mission',
+						payload: { goal: 'Run a no-edit startup benchmark.', projectPath: 'scheduled-vnext-test' },
+						chatId: null,
+						authority: {
+							source: 'turn_intent_vnext',
+							reasonCodes: [],
+							traceId: 'turn-schedule-create'
+						},
+						createdAt: '2026-06-01T00:00:00.000Z',
+						lastFiredAt: null,
+						nextFireAt: '2000-01-01T00:00:00.000Z',
+						fireCount: 0,
+						lastStatus: null,
+						enabled: true
+					}
+				]
+			}),
+			'utf-8'
+		);
+
+		const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) => ({
+			json: async () => ({ success: true, missionId: 'mission-vnext-fire' })
+		}));
+		vi.stubGlobal('fetch', fetchMock);
+
+		await runSchedulerTickForTests();
+
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		const firstCall = fetchMock.mock.calls[0] as [string | URL, RequestInit | undefined];
+		const body = JSON.parse(String(firstCall[1]?.body));
+		expect(body.executionAuthority).toMatchObject({
+			schema_version: 'turn-intent-envelope-vnext',
+			selected_move: 'execute_action',
+			action_authority: {
+				state: 'executable'
+			}
+		});
+		expect(body.executionAuthority.proposed_actions).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					capability_id: 'capability:spawner-ui:spawner.run',
+					action_type: 'launch_mission'
+				})
+			])
+		);
+
+		const [record] = await listSchedules();
+		expect(record.fireCount).toBe(1);
+		expect(record.lastStatus).toContain('ok: mission mission-vnext-fire');
 	});
 });

@@ -11,7 +11,7 @@ import { resolveSparkRunProjectPath } from './spark-run-workspace';
 import { spawnerStateDir } from './spawner-state';
 import {
   assertHarnessAuthority,
-  buildMachineOriginPolicy,
+  buildServerTurnIntentVNextAuthority,
   resolveExecutionAuthority,
   type HarnessAuthorityVerdict
 } from './harness-authority';
@@ -177,13 +177,15 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
     const baseUrl = (_envVar('SPAWNER_UI_URL') || 'http://127.0.0.1:3333').replace(/\/$/, '');
     const requestedProjectPath =
       typeof record.payload.projectPath === 'string' ? record.payload.projectPath : undefined;
-    const executionAuthority = buildMachineOriginPolicy({
-      origin: 'spawner-ui.scheduler',
+    const executionAuthority = buildServerTurnIntentVNextAuthority({
       source: `schedule:${record.id}`,
       reason: 'Authorized scheduled mission fire from a persisted Spawner schedule.',
-      allowedTools: ['spawner.run'],
-      mutationClassesAllowed: ['launches_mission'],
-      networkPolicy: 'local_only'
+      toolName: 'spawner.run',
+      mutationClass: 'launches_mission',
+      requestId,
+      actorKind: 'system',
+      actorIdRef: 'spawner-ui.scheduler',
+      target: String(record.payload.goal ?? 'scheduled mission')
     });
     const res = await fetch(`${baseUrl}/api/spark/run`, {
       method: 'POST',
@@ -214,13 +216,15 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
     const python = process.env.SPARK_BUILDER_PYTHON || 'python';
     try {
       assertHarnessAuthority({
-        authority: buildMachineOriginPolicy({
-          origin: 'spawner-ui.scheduler',
+        authority: buildServerTurnIntentVNextAuthority({
           source: `schedule:${record.id}`,
           reason: 'Authorized scheduled loop fire from a persisted Spawner schedule.',
-          allowedTools: ['spawner.scheduler.loop'],
-          mutationClassesAllowed: ['launches_mission'],
-          networkPolicy: 'local_only'
+          toolName: 'spawner.scheduler.loop',
+          mutationClass: 'launches_mission',
+          requestId: `sched-loop-${record.id}-${Date.now()}`,
+          actorKind: 'system',
+          actorIdRef: 'spawner-ui.scheduler',
+          target: chipKey
         }),
         toolName: 'spawner.scheduler.loop',
         ownerSystem: 'spawner-ui',
@@ -334,4 +338,8 @@ export function resetSchedulerForTests(): void {
   stopScheduler();
   _store = null;
   _starting = false;
+}
+
+export async function runSchedulerTickForTests(): Promise<void> {
+  await _tick();
 }

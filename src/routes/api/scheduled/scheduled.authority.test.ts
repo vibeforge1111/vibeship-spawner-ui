@@ -5,7 +5,7 @@ import { tmpdir } from 'os';
 import path from 'path';
 import { DELETE, POST } from './+server';
 import { resetSchedulerForTests } from '$lib/server/scheduler';
-import { buildMachineOriginPolicy, type SparkMutationClass } from '$lib/server/harness-authority';
+import { buildServerTurnIntentVNextAuthority, type SparkMutationClass } from '$lib/server/harness-authority';
 
 let testSpawnerDir: string | null = null;
 
@@ -22,12 +22,14 @@ function event(url: string, body?: unknown, method = 'POST') {
 }
 
 function authority(toolName: string, mutationClass: SparkMutationClass) {
-	return buildMachineOriginPolicy({
-		origin: 'spawner-ui.test',
+	return buildServerTurnIntentVNextAuthority({
 		source: 'scheduled-route-authority-test',
 		reason: 'Focused scheduled route authority regression.',
-		allowedTools: [toolName],
-		mutationClassesAllowed: [mutationClass]
+		toolName,
+		mutationClass,
+		requestId: `scheduled-route-authority-test-${toolName}`,
+		actorKind: 'human',
+		actorIdRef: 'spawner-ui.test'
 	});
 }
 

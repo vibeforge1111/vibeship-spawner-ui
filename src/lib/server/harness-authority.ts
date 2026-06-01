@@ -1,9 +1,12 @@
 import {
 	actionTypeForHarnessMutation,
-	type HarnessCoreActionMutationClass
+	createHarnessCoreActionEnvelopeVNext,
+	type HarnessCoreActionMutationClass,
+	type TurnIntentEnvelopeVNext
 } from '@spark/harness-core';
 
 export type SparkMutationClass = HarnessCoreActionMutationClass;
+export type SparkServerTurnIntentEnvelopeVNext = TurnIntentEnvelopeVNext;
 
 export interface SparkMachineOriginPolicyV1 {
 	schema: 'spark.machine_origin_policy.v1';
@@ -224,6 +227,38 @@ export function buildMachineOriginPolicy(input: {
 		mutationClassesAllowed: input.mutationClassesAllowed || ['launches_mission'],
 		networkPolicy: input.networkPolicy || 'local_only'
 	};
+}
+
+export function buildServerTurnIntentVNextAuthority(input: {
+	source: string;
+	reason: string;
+	toolName: string;
+	mutationClass: SparkMutationClass;
+	requestId?: string | null;
+	actorKind?: 'human' | 'agent' | 'system';
+	actorIdRef?: string | null;
+	target?: string | null;
+	publishes?: boolean;
+	externalNetwork?: boolean;
+	requiresHumanConfirmation?: boolean;
+	confidence?: number;
+}): SparkServerTurnIntentEnvelopeVNext {
+	return createHarnessCoreActionEnvelopeVNext({
+		surface: 'spawner',
+		ownerSystem: 'spawner-ui',
+		source: input.source,
+		reason: input.reason,
+		toolName: input.toolName,
+		mutationClass: input.mutationClass,
+		requestId: input.requestId,
+		actorKind: input.actorKind ?? 'system',
+		actorIdRef: input.actorIdRef ?? 'spawner-ui',
+		target: input.target,
+		publishes: input.publishes,
+		externalNetwork: input.externalNetwork,
+		requiresHumanConfirmation: input.requiresHumanConfirmation,
+		confidence: input.confidence ?? 0.9
+	});
 }
 
 export function assertHarnessAuthority(input: HarnessAuthorityInput): HarnessAuthorityVerdict {
