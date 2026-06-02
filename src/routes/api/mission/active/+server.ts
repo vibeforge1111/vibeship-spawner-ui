@@ -10,6 +10,7 @@
  */
 
 import { json } from '@sveltejs/kit';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 import type { RequestHandler } from './$types';
 import { readFile, writeFile, mkdir, unlink } from 'fs/promises';
 import { existsSync } from 'fs';
@@ -172,7 +173,10 @@ export const GET: RequestHandler = async ({ url }) => {
  * POST /api/mission/active
  * Update the active mission state (called by UI when state changes)
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+  const { request } = event;
+  const authErr = requireControlAuth(event, {});
+  if (authErr) return authErr;
 	try {
 		const body = await request.json();
 		const spawnerDir = getSpawnerDir();
@@ -244,7 +248,9 @@ export const POST: RequestHandler = async ({ request }) => {
  * DELETE /api/mission/active
  * Clear the active mission (when completed, cancelled, or user clears)
  */
-export const DELETE: RequestHandler = async () => {
+export const DELETE: RequestHandler = async (event) => {
+  const authErr = requireControlAuth(event, {});
+  if (authErr) return authErr;
 	try {
 		const missionPath = getActiveMissionPath();
 
