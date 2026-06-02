@@ -50,7 +50,11 @@ describe('/memory-dashboard route', () => {
 			category: 'product direction' as const,
 			status: 'healthy' as const
 		};
-		const filtered = filterMemoryDashboardRecords(dataset.memories, filters);
+		const filtered = filterMemoryDashboardRecords(
+			dataset.memories,
+			filters,
+			new Date('2026-04-30T08:00:00.000Z')
+		);
 		const summary = summarizeMemoryDashboard(filtered);
 
 		expect(filtered).toHaveLength(2);

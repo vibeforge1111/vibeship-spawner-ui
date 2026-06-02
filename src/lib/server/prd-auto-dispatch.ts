@@ -173,7 +173,7 @@ export function shouldAutoDispatchPrdLoad(
 	}
 
 	const board = getMissionControlBoard();
-	for (const status of ['running', 'completed', 'failed', 'cancelled', 'paused'] as const) {
+	for (const status of ['created', 'running', 'completed', 'failed', 'cancelled', 'paused'] as const) {
 		if ((board[status] || []).some((entry) => entry.missionId === load.missionId)) {
 			const terminal = !isKnownNonTerminalMissionStatus(status);
 			if (options.allowExistingNonTerminalMission && !terminal) {

@@ -26,6 +26,7 @@ function boardEvent() {
 }
 
 afterEach(() => {
+	vi.unstubAllGlobals();
 	vi.restoreAllMocks();
 	vi.useRealTimers();
 });
@@ -116,6 +117,7 @@ describe('/api/mission-control/board integration', () => {
 		vi.useFakeTimers();
 		vi.setSystemTime(new Date('2026-05-23T13:20:00.000Z'));
 		vi.spyOn(providerRuntime, 'getMissionResults').mockImplementation(() => []);
+		vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
 
 		await relayMissionControlEvent({
 			type: 'mission_started',

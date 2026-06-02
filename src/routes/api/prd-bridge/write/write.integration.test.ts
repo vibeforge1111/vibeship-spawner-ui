@@ -38,9 +38,11 @@ describe('/api/prd-bridge/write integration', () => {
 		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-prd-write-'));
 		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
 		process.env.SPARK_BRIDGE_API_KEY = BRIDGE_TEST_KEY;
+		vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
 	});
 
 	afterEach(async () => {
+		vi.unstubAllGlobals();
 		await resetTestSpawnerDir();
 	});
 

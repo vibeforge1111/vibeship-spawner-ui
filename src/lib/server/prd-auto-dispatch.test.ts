@@ -13,6 +13,7 @@ import {
 	shouldAutoDispatchPrdLoad,
 	type PrdCanvasLoadForAutoDispatch
 } from './prd-auto-dispatch';
+import { relayMissionControlEvent } from './mission-control-relay';
 import {
 	buildServerGovernorDecisionAuthority,
 	buildServerTurnIntentVNextAuthority
@@ -398,9 +399,19 @@ describe('PRD auto-dispatch helpers', () => {
 		await expect(verifyH70SkillAccessToken(request, 'frontend-engineer')).resolves.toBe(false);
 	});
 
-	it('can allow creator execution for missions that already exist on the board', () => {
+	it('can allow creator execution for non-terminal missions that already exist on the board', async () => {
+		vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
+		const missionId = `mission-existing-creator-${Date.now()}`;
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			missionName: 'Creator Mission: Existing board plan',
+			source: 'creator-mission',
+			data: { executionPolicy: 'read_only' }
+		});
+
 		expect(
-			shouldAutoDispatchPrdLoad(load, { allowExistingNonTerminalMission: true }).ok
+			shouldAutoDispatchPrdLoad({ ...load, missionId }, { allowExistingNonTerminalMission: true }).ok
 		).toBe(true);
 	});
 });

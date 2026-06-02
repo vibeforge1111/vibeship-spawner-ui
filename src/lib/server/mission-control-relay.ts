@@ -61,6 +61,7 @@ export interface MissionControlRelayStatusEntry {
 	eventType: string;
 	missionId: string;
 	missionName: string | null;
+	executionPolicy?: 'manual_run' | 'read_only' | string | null;
 	taskId: string | null;
 	taskName: string | null;
 	taskSkills: string[];
@@ -241,6 +242,11 @@ function requestIdFromEventData(data: Record<string, unknown> | null | undefined
 	return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
+function executionPolicyFromEventData(data: Record<string, unknown> | null | undefined): string | null {
+	const value = data?.executionPolicy ?? data?.execution_policy;
+	return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
 function knownMissionMetadata(missionId: string): { requestId: string | null; traceRef: string | null } {
 	for (const entry of relayState.recent) {
 		if (entry.missionId !== missionId) continue;
@@ -318,6 +324,7 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		? assignedTaskIdsRaw.filter((taskId): taskId is string => typeof taskId === 'string' && taskId.trim().length > 0)
 		: [];
 	const requestId = requestIdFromEventData(event.data);
+	const executionPolicy = executionPolicyFromEventData(event.data);
 	const traceRef = extractTraceRef(event.data, event);
 	const providerId =
 		event.data && typeof (event.data as Record<string, unknown>).providerId === 'string'
@@ -361,6 +368,7 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		eventType: typeof event.type === 'string' ? event.type : 'unknown',
 		missionId,
 		missionName: typeof event.missionName === 'string' ? event.missionName : dataMissionName || missionObjectName,
+		executionPolicy,
 		taskId: typeof event.taskId === 'string' ? event.taskId : dataTaskId,
 		taskName: typeof event.taskName === 'string' ? event.taskName : dataTaskName,
 		taskSkills,
@@ -522,6 +530,14 @@ function isExecutionStartEvent(eventType: string): boolean {
 	return eventType === 'mission_started' || eventType === 'dispatch_started';
 }
 
+function entryStartsExecution(entry: MissionControlRelayStatusEntry): boolean {
+	return entry.executionPolicy !== 'read_only' && isExecutionStartEvent(entry.eventType);
+}
+
+function entryStartsLifecycle(entry: MissionControlRelayStatusEntry): boolean {
+	return entry.executionPolicy !== 'read_only' && isMissionStartEvent(entry.eventType);
+}
+
 function earlierTimestamp(current: string | null, candidate: string): string {
 	if (!current) return candidate;
 	const currentMs = Date.parse(current);
@@ -561,6 +577,14 @@ function taskStatusForEvent(eventType: string): MissionControlTaskStatus | null 
 		default:
 			return null;
 	}
+}
+
+function boardStatusForEntry(entry: MissionControlRelayStatusEntry): MissionControlBoardStatus | null {
+	const status = mapEventTypeToBoardStatus(entry.eventType);
+	if (entry.executionPolicy === 'read_only' && status === 'running') {
+		return 'created';
+	}
+	return status;
 }
 
 function lifecycleTaskStatusForEvent(eventType: string): MissionControlTaskStatus | null {
@@ -796,6 +820,7 @@ function maybeRecordTask(entry: MissionControlBoardEntry, event: MissionControlR
 	const status = taskStatusForEvent(event.eventType);
 	if (!status) return;
 	if (!event.taskName && !event.taskId) return;
+	if (event.executionPolicy === 'read_only' && status === 'running') return;
 
 	const label = sanitizeMissionControlDisplayText(event.taskName || event.taskId || 'task');
 	const canonicalLabel = canonicalTaskTitle(label);
@@ -895,12 +920,26 @@ function latestTaskStartSource(
 	return match?.source || null;
 }
 
+function latestTaskStartTimestampMs(
+	task: MissionControlBoardEntry['tasks'][number],
+	events: MissionControlRelayStatusEntry[]
+): number | null {
+	const match = events.find((event) => event.eventType === 'task_started' && taskMatchesRelayEntry(task, event));
+	if (!match) return null;
+	const timestampMs = Date.parse(match.timestamp);
+	return Number.isFinite(timestampMs) ? timestampMs : null;
+}
+
 function normalizeSingleSourceRunningTaskBurst(
 	entry: MissionControlBoardEntry,
 	events: MissionControlRelayStatusEntry[]
 ): void {
 	const runningTasks = entry.tasks.filter((task) => task.status === 'running');
-	if (runningTasks.length <= 1) return;
+	if (runningTasks.length === 1) {
+		entry.taskName = runningTasks[0].title;
+		return;
+	}
+	if (runningTasks.length === 0) return;
 
 	const runningSources = new Set(
 		runningTasks
@@ -909,10 +948,23 @@ function normalizeSingleSourceRunningTaskBurst(
 	);
 	if (runningSources.size > 1) return;
 
+	const startTimes = runningTasks
+		.map((task) => latestTaskStartTimestampMs(task, events))
+		.filter((value): value is number => value !== null);
+	const rapidBurst =
+		startTimes.length > 1 &&
+		Math.max(...startTimes) - Math.min(...startTimes) <= 500;
 	const activeTask = runningTasks.reduce((best, task) => {
+		const bestStartedAt = latestTaskStartTimestampMs(best, events);
+		const taskStartedAt = latestTaskStartTimestampMs(task, events);
+		if (bestStartedAt !== null && taskStartedAt !== null && bestStartedAt !== taskStartedAt) {
+			if (rapidBurst) return taskStartedAt < bestStartedAt ? task : best;
+			return taskStartedAt > bestStartedAt ? task : best;
+		}
 		const bestOrdinal = taskOrdinalFromLabel(best.title) ?? Number.MAX_SAFE_INTEGER;
 		const taskOrdinal = taskOrdinalFromLabel(task.title) ?? Number.MAX_SAFE_INTEGER;
-		return taskOrdinal < bestOrdinal ? task : best;
+		if (rapidBurst) return taskOrdinal < bestOrdinal ? task : best;
+		return taskOrdinal > bestOrdinal ? task : best;
 	}, runningTasks[0]);
 
 	for (const task of runningTasks) {
@@ -920,10 +972,12 @@ function normalizeSingleSourceRunningTaskBurst(
 		task.status = 'queued';
 		delete task.progress;
 	}
+	entry.taskName = activeTask.title;
 }
 
 function closeOpenTasksForTerminalMission(entry: MissionControlBoardEntry): void {
 	if (!isMissionControlTerminalStatus(entry.status)) return;
+	entry.taskName = null;
 	const terminalTaskStatus =
 		entry.status === 'completed' ? 'completed' : entry.status === 'cancelled' ? 'cancelled' : 'failed';
 	for (const task of entry.tasks) {
@@ -940,7 +994,7 @@ function recordLifecycleTimestamps(
 	if (event.eventType === 'mission_created') {
 		entry.queuedAt = earlierTimestamp(entry.queuedAt, event.timestamp);
 	}
-	if (isMissionStartEvent(event.eventType)) {
+	if (entryStartsLifecycle(event)) {
 		entry.startedAt = earlierTimestamp(entry.startedAt, event.timestamp);
 	}
 }
@@ -955,7 +1009,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 
 	for (const entry of relayState.recent) {
 		if (!isMissionControlMissionId(entry.missionId)) continue;
-		const status = mapEventTypeToBoardStatus(entry.eventType);
+		const status = boardStatusForEntry(entry);
 		if (!status) continue;
 		if (isStaleNonTerminalStatus(status, entry.timestamp) && !terminalMissionIds.has(entry.missionId)) continue;
 		if (
@@ -976,9 +1030,10 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 				status,
 				lastEventType: entry.eventType,
 				lastUpdated: entry.timestamp,
-				executionStarted: isExecutionStartEvent(entry.eventType),
+				executionStarted: entryStartsExecution(entry),
+				executionPolicy: entry.executionPolicy ?? null,
 				queuedAt: entry.eventType === 'mission_created' ? entry.timestamp : null,
-				startedAt: isMissionStartEvent(entry.eventType) ? entry.timestamp : null,
+				startedAt: entryStartsLifecycle(entry) ? entry.timestamp : null,
 				lastSummary: sanitizeMissionControlDisplayText(readableMissionControlSummary(entry.summary) || entry.summary),
 				taskName: entry.taskName ? sanitizeMissionControlDisplayText(entry.taskName) : null,
 				taskCount: 0,
@@ -993,9 +1048,14 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 			if (!existing.traceRef && entry.traceRef) {
 				existing.traceRef = entry.traceRef;
 			}
-			if (!existing.taskName && entry.taskName) existing.taskName = sanitizeMissionControlDisplayText(entry.taskName);
+			if (!isMissionControlTerminalStatus(existing.status) && !existing.taskName && entry.taskName) {
+				existing.taskName = sanitizeMissionControlDisplayText(entry.taskName);
+			}
 			if (!existing.missionName && entry.missionName) {
 				existing.missionName = sanitizeMissionControlDisplayText(entry.missionName);
+			}
+			if (!existing.executionPolicy && entry.executionPolicy) {
+				existing.executionPolicy = entry.executionPolicy;
 			}
 			if (!existing.telegramRelay && entry.telegramRelay) {
 				existing.telegramRelay = entry.telegramRelay;
@@ -1003,7 +1063,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 			if (!existing.missionControlAccess && entry.missionControlAccess) {
 				existing.missionControlAccess = entry.missionControlAccess;
 			}
-			if (isExecutionStartEvent(entry.eventType)) {
+			if (entryStartsExecution(entry)) {
 				existing.executionStarted = true;
 			}
 			existing.projectLineage = mergeMissionControlProjectLineage(

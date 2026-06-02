@@ -1,12 +1,14 @@
 import { createHash } from 'node:crypto';
+import { existsSync, readdirSync, statSync, type Dirent } from 'node:fs';
 import { basename, resolve, win32 } from 'node:path';
 import { extractExplicitProjectPath } from './project-path-extraction';
-import { projectPreviewUrl } from './project-preview';
+import { encodeProjectPreviewToken, projectPreviewUrl } from './project-preview';
 import type { MissionControlProjectLineage } from '$lib/types/mission-control';
 
 type RecordLike = Record<string, unknown>;
 
 const DEFAULT_PREVIEW_BASE_URL = 'http://127.0.0.1:3333';
+const MAX_NESTED_PREVIEW_DEPTH = 3;
 
 function asRecord(value: unknown): RecordLike | null {
 	return value && typeof value === 'object' ? (value as RecordLike) : null;
@@ -113,6 +115,58 @@ function extractPreviewUrl(text: string): string | null {
 	return match?.[0] || null;
 }
 
+function hasPreviewEntryPoint(projectPath: string): boolean {
+	try {
+		return existsSync(resolve(projectPath, 'index.html'));
+	} catch {
+		return false;
+	}
+}
+
+function findNestedPreviewProjectPath(projectPath: string | null): string | null {
+	if (!projectPath) return null;
+	const root = resolve(projectPath);
+	try {
+		if (!statSync(root).isDirectory()) return null;
+	} catch {
+		return null;
+	}
+	if (hasPreviewEntryPoint(root)) return root;
+
+	const queue: Array<{ dir: string; depth: number }> = [{ dir: root, depth: 0 }];
+	while (queue.length > 0) {
+		const current = queue.shift()!;
+		if (current.depth >= MAX_NESTED_PREVIEW_DEPTH) continue;
+		let entries: Dirent[];
+		try {
+			entries = readdirSync(current.dir, { withFileTypes: true })
+				.filter((entry) => entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules')
+				.sort((a, b) => a.name.localeCompare(b.name));
+		} catch {
+			continue;
+		}
+		for (const entry of entries) {
+			const child = resolve(current.dir, entry.name);
+			if (hasPreviewEntryPoint(child)) return child;
+			queue.push({ dir: child, depth: current.depth + 1 });
+		}
+	}
+	return null;
+}
+
+function lineagePreviewUrl(projectPath: string | null, explicitPreviewUrl: string | null): string | null {
+	if (!projectPath) return explicitPreviewUrl;
+	const baseUrl = previewBaseUrl();
+	const nestedProjectPath = findNestedPreviewProjectPath(projectPath);
+	const trimmedBaseUrl = baseUrl.replace(/\/+$/, '');
+	const staleRootPreviewUrl = `${trimmedBaseUrl}/preview/${encodeProjectPreviewToken(projectPath)}/index.html`;
+	if (nestedProjectPath && resolve(nestedProjectPath) !== resolve(projectPath)) {
+		const nestedPreviewUrl = projectPreviewUrl(baseUrl, nestedProjectPath);
+		if (!explicitPreviewUrl || explicitPreviewUrl === staleRootPreviewUrl) return nestedPreviewUrl;
+	}
+	return explicitPreviewUrl || projectPreviewUrl(baseUrl, projectPath);
+}
+
 function extractParentMissionId(text: string): string | null {
 	return text.match(/Parent mission:\s*([A-Za-z0-9_-]+)/i)?.[1] || null;
 }
@@ -172,7 +226,7 @@ export function extractMissionControlProjectLineage(input: {
 			records.map((record) => stringField(record, 'projectId', 'project_id')).find(Boolean) ||
 			projectIdFromPath(projectPath),
 		projectPath,
-		previewUrl: explicitPreviewUrl || (projectPath ? projectPreviewUrl(previewBaseUrl(), projectPath) : null),
+		previewUrl: lineagePreviewUrl(projectPath, explicitPreviewUrl),
 		parentMissionId:
 			records.map((record) => stringField(record, 'parentMissionId', 'parent_mission_id')).find(Boolean) ||
 			extractParentMissionId(text),

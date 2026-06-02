@@ -56,7 +56,7 @@ function resolveThroughExistingParent(path: string): string {
 }
 
 export function resolveContainedPath(baseDir: string, targetPath: string, label = 'Path'): string {
-	const baseResolved = resolveExistingPath(baseDir);
+	const baseResolved = resolveThroughExistingParent(baseDir);
 	const targetResolved = resolveThroughExistingParent(targetPath);
 	if (!isWithinDirectory(baseResolved, targetResolved)) {
 		throw new SparkRunWorkspaceError(

@@ -115,7 +115,7 @@ describe('provider-runtime Spark agent bridge', () => {
 		expect(result.results[0].status).toBe('running');
 	});
 
-	it('leaves fresh orphaned running provider results alone after a runtime reload', () => {
+	it('marks fresh orphaned running provider results stale after a runtime reload', () => {
 		const startedAt = Date.parse('2026-04-29T10:00:00.000Z');
 		const result = reconcileStaleProviderResults(
 			[
@@ -133,8 +133,13 @@ describe('provider-runtime Spark agent bridge', () => {
 			{ now: startedAt + 10_000, staleMs: 30_000, orphaned: true }
 		);
 
-		expect(result.changed).toBe(false);
-		expect(result.results[0].status).toBe('running');
+		expect(result.changed).toBe(true);
+		expect(result.results[0]).toMatchObject({
+			status: 'failed',
+			durationMs: 10_000,
+			completedAt: '2026-04-29T10:00:10.000Z'
+		});
+		expect(result.results[0].error).toContain('no active session after Spawner restart');
 	});
 
 	it('reconciles orphaned running provider results after the stale window', () => {
@@ -161,7 +166,7 @@ describe('provider-runtime Spark agent bridge', () => {
 			status: 'failed',
 			durationMs: 60_000
 		});
-		expect(result.results[0].error).toContain('still orphaned after 1m');
+		expect(result.results[0].error).toContain('no active session after Spawner restart');
 	});
 
 	it('dispatches codex + claude through Spark agent worker sessions and emits normalized events', async () => {
@@ -267,7 +272,7 @@ describe('provider-runtime Spark agent bridge', () => {
 					progress: expect.any(Number),
 					data: expect.objectContaining({
 						kind: 'provider_heartbeat',
-						suppressExternalRelay: true,
+						suppressRelay: true,
 						assignedTaskIds: ['task-1', 'task-2'],
 						assignedTaskCount: 2,
 						elapsedMs: expect.any(Number)
