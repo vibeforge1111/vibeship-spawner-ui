@@ -239,12 +239,12 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 			telegramRelay: { port: 8789, profile: 'primary' }
 		});
 		expect(pending.executionAuthority).toMatchObject({
-			schema_version: 'turn-intent-envelope-vnext',
-			selected_move: 'execute_action'
+			schema_version: 'governor-decision-v1',
+			outcome: 'execute'
 		});
 		expect(pending.relay.executionAuthority).toMatchObject({
-			schema_version: 'turn-intent-envelope-vnext',
-			selected_move: 'execute_action'
+			schema_version: 'governor-decision-v1',
+			outcome: 'execute'
 		});
 		const requestRaw = await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8');
 		const requestMeta = JSON.parse(requestRaw);

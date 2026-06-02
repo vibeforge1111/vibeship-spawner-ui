@@ -617,7 +617,16 @@
 			const r = await fetch('/api/creator/mission/execute', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ missionId: card.id })
+				body: JSON.stringify({
+					missionId: card.id,
+					executionAuthority: buildClientGovernorDecisionAuthority({
+						source: 'mission-board.creator.execute',
+						reason: 'User started a creator mission from the Spawner mission board.',
+						toolName: 'spawner.dispatch',
+						mutationClass: 'launches_mission',
+						target: card.id
+					})
+				})
 			});
 			const data = await r.json().catch(() => ({}));
 			if (!r.ok || data?.ok === false) {

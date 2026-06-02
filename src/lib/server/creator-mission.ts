@@ -6,7 +6,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { autoDispatchPrdCanvasLoad, type PrdAutoDispatchResult } from './prd-auto-dispatch';
 import { spawnerStateDir as resolveSpawnerStateDir } from './spawner-state';
-import { buildServerTurnIntentVNextAuthority } from './harness-authority';
+import { buildServerGovernorDecisionAuthority } from './harness-authority';
 
 const execFileAsync = promisify(execFile);
 
@@ -1640,7 +1640,7 @@ export async function readCreatorMissionTrace(
 
 function executableCreatorMissionCanvasLoad(trace: CreatorMissionTrace): CreatorMissionCanvasLoad {
 	const load = creatorMissionCanvasLoad(trace);
-	const executionAuthority = buildServerTurnIntentVNextAuthority({
+	const executionAuthority = buildServerGovernorDecisionAuthority({
 		source: 'authenticated_creator_mission_execute',
 		reason: 'Authenticated creator mission execution converted a staged creator canvas into a runnable mission.',
 		toolName: 'spawner.dispatch',

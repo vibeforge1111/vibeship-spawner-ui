@@ -15,7 +15,7 @@ import {
 	normalizeCapabilityProposalPacket
 } from '$lib/server/capability-proposal-packet';
 import { extractTraceRef, normalizeTraceRef, traceRefFromMissionId } from '$lib/server/trace-ref';
-import { buildServerTurnIntentVNextAuthority } from '$lib/server/harness-authority';
+import { buildServerGovernorDecisionAuthority } from '$lib/server/harness-authority';
 
 function getSpawnerDir(): string {
 	return spawnerStateDir();
@@ -269,7 +269,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		resolvedTraceRef = resolvedTraceRef || extractTraceRef(parsed) || traceRefFromMissionId(resolvedMissionId);
 		const capabilitySummary = capabilityProposalSummary(capabilityProposalPacket);
 		const executionAuthority = effectiveAutoRun
-			? buildServerTurnIntentVNextAuthority({
+			? buildServerGovernorDecisionAuthority({
 					source: 'authenticated_prd_bridge_load',
 					reason: 'Authenticated PRD bridge loaded a runnable canvas with autoRun enabled.',
 					toolName: 'spawner.dispatch',

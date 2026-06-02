@@ -8,7 +8,10 @@ import {
 	setCreatorDispatchRunnerForTests,
 	type CreatorIntentPacket
 } from '$lib/server/creator-mission';
-import { buildClientTurnIntentVNextAuthority } from '$lib/services/harness-authority-client';
+import {
+	buildClientGovernorDecisionAuthority,
+	buildClientTurnIntentVNextAuthority
+} from '$lib/services/harness-authority-client';
 
 function event(url: string, body?: unknown) {
 	return {
@@ -36,6 +39,16 @@ function machineAuthority() {
 
 function dispatchVNextAuthority(target: string) {
 	return buildClientTurnIntentVNextAuthority({
+		source: 'creator-execute-route-test',
+		reason: 'User started creator mission execution from Spark.',
+		toolName: 'spawner.dispatch',
+		mutationClass: 'launches_mission',
+		target
+	});
+}
+
+function dispatchGovernorAuthority(target: string) {
+	return buildClientGovernorDecisionAuthority({
 		source: 'creator-execute-route-test',
 		reason: 'User started creator mission execution from Spark.',
 		toolName: 'spawner.dispatch',
@@ -117,7 +130,7 @@ describe('/api/creator/mission/execute', () => {
 
 		const response = await POST(event('http://127.0.0.1/api/creator/mission/execute', {
 			missionId: 'mission-creator-execute-api',
-			executionAuthority: dispatchVNextAuthority('mission-creator-execute-api')
+			executionAuthority: dispatchGovernorAuthority('mission-creator-execute-api')
 		}) as never);
 
 		expect(response.status).toBe(200);
@@ -143,7 +156,7 @@ describe('/api/creator/mission/execute', () => {
 
 		const response = await POST(event('http://127.0.0.1/api/creator/mission/execute', {
 			missionId: 'mission-creator-stage-only-api',
-			executionAuthority: dispatchVNextAuthority('mission-creator-stage-only-api')
+			executionAuthority: dispatchGovernorAuthority('mission-creator-stage-only-api')
 		}) as never);
 
 		expect(response.status).toBe(409);
@@ -189,10 +202,10 @@ describe('/api/creator/mission/execute', () => {
 		expect(response.status).toBe(409);
 		const body = await response.json();
 		expect(body.code).toBe('harness_authority_blocked');
-		expect(body.authority.reasonCodes).toContain('native_vnext_required');
+		expect(body.authority.reasonCodes).toContain('native_governor_required');
 	});
 
-	it('accepts native TurnIntentEnvelopeVNext authority for creator mission execution', async () => {
+	it('rejects bare VNext authority for creator mission execution', async () => {
 		await createCreatorMission(
 			{ brief: 'Create Startup YC path', missionId: 'mission-creator-execute-vnext', requestId: 'req-execute-vnext' },
 			{ stateDir: tempDir, runPlanner: async () => packet() }
@@ -210,12 +223,37 @@ describe('/api/creator/mission/execute', () => {
 			executionAuthority: dispatchVNextAuthority('mission-creator-execute-vnext')
 		}) as never);
 
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.source).toBe('turn_intent_vnext');
+		expect(body.authority.reasonCodes).toContain('native_governor_required');
+	});
+
+	it('accepts native GovernorDecisionV1 authority for creator mission execution', async () => {
+		await createCreatorMission(
+			{ brief: 'Create Startup YC path', missionId: 'mission-creator-execute-governor', requestId: 'req-execute-governor' },
+			{ stateDir: tempDir, runPlanner: async () => packet() }
+		);
+
+		setCreatorDispatchRunnerForTests(async (load) => ({
+			started: true,
+			missionId: load.missionId,
+			projectPath: 'C:\\Users\\USER\\Desktop',
+			providerId: 'codex'
+		}));
+
+		const response = await POST(event('http://127.0.0.1/api/creator/mission/execute', {
+			missionId: 'mission-creator-execute-governor',
+			executionAuthority: dispatchGovernorAuthority('mission-creator-execute-governor')
+		}) as never);
+
 		expect(response.status).toBe(200);
 		const body = await response.json();
 		expect(body.ok).toBe(true);
 		expect(body.authority).toMatchObject({
 			allowed: true,
-			source: 'turn_intent_vnext'
+			source: 'governor_decision'
 		});
 		expect(body.started).toBe(true);
 	});

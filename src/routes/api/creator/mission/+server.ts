@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { createCreatorMission, creatorDomainDisplayLabel, creatorMissionPath, readCreatorMissionTrace, type CreatorExecutionPolicy, type CreatorPrivacyMode, type CreatorRiskLevel, type CreatorTelegramRelayTarget } from '$lib/server/creator-mission';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
-import { HarnessAuthorityError, assertNativeVNextHarnessAuthority, resolveExecutionAuthority } from '$lib/server/harness-authority';
+import { HarnessAuthorityError, assertNativeGovernorHarnessAuthority, resolveExecutionAuthority } from '$lib/server/harness-authority';
 
 interface CreatorMissionBody {
 	brief?: string;
@@ -97,7 +97,7 @@ export const POST: RequestHandler = async (event) => {
 		const requestedReadOnly = body.executionPolicy === 'read_only' || (body.executionPolicy !== 'manual_run' && briefRequestsReadOnlyExecution(brief));
 		const authority = requestedReadOnly
 			? null
-			: assertNativeVNextHarnessAuthority({
+			: assertNativeGovernorHarnessAuthority({
 					authority: resolveExecutionAuthority(body.executionAuthority),
 					toolName: 'creator.mission.create',
 					ownerSystem: 'spawner-ui',

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { existsSync } from 'fs';
 import { mkdtemp, readFile, rm } from 'fs/promises';
 import { tmpdir } from 'os';
@@ -13,7 +13,11 @@ import {
 	shouldAutoDispatchPrdLoad,
 	type PrdCanvasLoadForAutoDispatch
 } from './prd-auto-dispatch';
-import { buildMachineOriginPolicy } from './harness-authority';
+import {
+	buildMachineOriginPolicy,
+	buildServerGovernorDecisionAuthority,
+	buildServerTurnIntentVNextAuthority
+} from './harness-authority';
 import { verifyH70SkillAccessToken } from './h70-skill-access-token';
 import { getTierSkills } from './skill-tiers';
 
@@ -55,6 +59,32 @@ const load: PrdCanvasLoadForAutoDispatch = {
 
 let testSpawnerDir: string | null = null;
 
+function governorAuthority() {
+	return buildServerGovernorDecisionAuthority({
+		source: 'prd-auto-dispatch-test',
+		reason: 'Focused PRD auto-dispatch authority regression.',
+		toolName: 'spawner.dispatch',
+		mutationClass: 'launches_mission',
+		requestId: 'prd-auto-dispatch-test',
+		actorKind: 'system',
+		actorIdRef: 'spawner-ui.test',
+		target: load.missionId
+	});
+}
+
+function bareVNextAuthority() {
+	return buildServerTurnIntentVNextAuthority({
+		source: 'prd-auto-dispatch-test',
+		reason: 'Focused PRD auto-dispatch authority regression.',
+		toolName: 'spawner.dispatch',
+		mutationClass: 'launches_mission',
+		requestId: 'prd-auto-dispatch-test',
+		actorKind: 'system',
+		actorIdRef: 'spawner-ui.test',
+		target: load.missionId
+	});
+}
+
 describe('PRD auto-dispatch helpers', () => {
 	beforeEach(async () => {
 		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-prd-auto-dispatch-'));
@@ -62,6 +92,7 @@ describe('PRD auto-dispatch helpers', () => {
 	});
 
 	afterEach(async () => {
+		vi.unstubAllGlobals();
 		delete process.env.SPAWNER_STATE_DIR;
 		if (testSpawnerDir && existsSync(testSpawnerDir)) {
 			await rm(testSpawnerDir, { recursive: true, force: true });
@@ -165,7 +196,33 @@ describe('PRD auto-dispatch helpers', () => {
 		});
 
 		expect(result.started).toBe(false);
-		expect(result.error).toContain('native_vnext_required');
+		expect(result.error).toContain('native_governor_required');
+	});
+
+	it('rejects bare VNext authority for PRD auto-dispatch', async () => {
+		const result = await autoDispatchPrdCanvasLoad({
+			...load,
+			executionAuthority: bareVNextAuthority()
+		});
+
+		expect(result.started).toBe(false);
+		expect(result.error).toContain('native_governor_required');
+	});
+
+	it('accepts native Governor authority for PRD auto-dispatch', async () => {
+		vi.stubGlobal('fetch', vi.fn(async () => ({
+			ok: true,
+			status: 200,
+			text: async () => 'ok',
+			json: async () => ({ ok: true })
+		})));
+		const result = await autoDispatchPrdCanvasLoad({
+			...load,
+			executionAuthority: governorAuthority()
+		});
+
+		expect(result.started).toBe(true);
+		expect(result.authority?.source).toBe('governor_decision');
 	});
 
 	it('passes configured provider API keys into auto-dispatch runtime', () => {
