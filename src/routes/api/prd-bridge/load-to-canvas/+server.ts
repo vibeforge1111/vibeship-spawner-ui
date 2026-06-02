@@ -5,6 +5,7 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { autoDispatchPrdCanvasLoad } from '$lib/server/prd-auto-dispatch';
+import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import {
 	missionControlPathForMission,
 	resolveMissionControlAccess
@@ -169,7 +170,24 @@ function buildConnections(tasks: TaskRecord[]): Array<{ sourceIndex: number; tar
 	return conns;
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'PRDBridgeLoadToCanvas',
+		apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'MCP_ALLOWED_ORIGINS'
+	});
+	if (unauthorized) return unauthorized;
+
+	const rateLimited = enforceRateLimit(event, {
+		scope: 'prd_bridge_load_to_canvas',
+		limit: 30,
+		windowMs: 60_000
+	});
+	if (rateLimited) return rateLimited;
+
+	const { request } = event;
 	try {
 		const { requestId, autoRun, telegramRelay, missionId, chatId, userId, goal, buildMode: bodyBuildMode, buildModeReason: bodyBuildModeReason, traceRef, trace_ref } = await request.json();
 		const normalizedTelegramRelay = normalizeTelegramRelay(telegramRelay);
