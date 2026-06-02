@@ -45,26 +45,37 @@ async function ensureDir(): Promise<void> {
 export const POST: RequestHandler = async ({ request }) => {
 	try {
 		await ensureDir();
-		const payload = await request.json();
+		let payload: unknown;
+		try {
+			payload = await request.json();
+		} catch {
+			return json({ error: 'invalid json' }, { status: 400 });
+		}
+		if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+			return json({ error: 'invalid request body' }, { status: 400 });
+		}
+		const record = payload as Record<string, unknown>;
 
 		// Validate required fields
-		if (!payload.pipelineId || !payload.pipelineName) {
+		const pipelineId = typeof record.pipelineId === 'string' ? record.pipelineId.trim() : '';
+		const pipelineName = typeof record.pipelineName === 'string' ? record.pipelineName.trim() : '';
+		if (!pipelineId || !pipelineName) {
 			return json({ error: 'pipelineId and pipelineName are required' }, { status: 400 });
 		}
 
 		// Ensure nodes and connections are arrays
 		const load = {
-			pipelineId: payload.pipelineId,
-			pipelineName: payload.pipelineName,
-			nodes: Array.isArray(payload.nodes) ? payload.nodes : [],
-			connections: Array.isArray(payload.connections) ? payload.connections : [],
-			source: payload.source || 'new',
-			buildMode: payload.buildMode,
-			buildModeReason: payload.buildModeReason,
-			executionPrompt: payload.executionPrompt,
-			autoRun: payload.autoRun === true,
-			relay: payload.relay,
-			timestamp: payload.timestamp || new Date().toISOString()
+			pipelineId,
+			pipelineName,
+			nodes: Array.isArray(record.nodes) ? record.nodes : [],
+			connections: Array.isArray(record.connections) ? record.connections : [],
+			source: (typeof record.source === 'string' && record.source.trim()) || 'new',
+			buildMode: record.buildMode,
+			buildModeReason: record.buildModeReason,
+			executionPrompt: record.executionPrompt,
+			autoRun: record.autoRun === true,
+			relay: record.relay,
+			timestamp: (typeof record.timestamp === 'string' && record.timestamp.trim()) || new Date().toISOString()
 		};
 
 		await writeFile(getPendingLoadFile(), JSON.stringify(load, null, 2), 'utf-8');
