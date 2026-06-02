@@ -11,6 +11,7 @@
  */
 
 import { readFile, readdir } from 'fs/promises';
+import { safeJsonParse } from '$lib/server/safe-json';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { parse as parseYaml } from 'yaml';
@@ -44,7 +45,7 @@ function staticDir(): string {
 
 async function readJsonFile(path: string): Promise<unknown | null> {
 	try {
-		return JSON.parse(await readFile(path, 'utf-8')) as unknown;
+		return safeJsonParse(await readFile(path, 'utf-8'), null, 'skill-tier-json') as unknown;
 	} catch {
 		return null;
 	}
