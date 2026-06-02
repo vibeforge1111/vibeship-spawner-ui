@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -208,6 +208,7 @@ describe('creator mission trace', () => {
 		});
 		expect(queuedCanvas.nodes).toHaveLength(8);
 		expect(queuedCanvas.connections.length).toBeGreaterThan(0);
+		expect((await readdir(stateDir)).filter((file) => file.includes('.tmp'))).toEqual([]);
 	});
 
 	it('records full-path specialization improvement evidence without publishing to Swarm', async () => {

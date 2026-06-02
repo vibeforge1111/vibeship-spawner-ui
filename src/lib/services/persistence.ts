@@ -11,6 +11,7 @@
 import { browser } from '$app/environment';
 import type { Mission, MissionLog } from '$lib/services/mcp-client';
 import { BackupDataSchema, MissionStateSchema, safeJsonParse } from '$lib/types/schemas';
+import { parseJsonOrFallback } from '$lib/utils/safe-json';
 import type {
 	MultiLLMExecutionPack,
 	MultiLLMOrchestratorOptions
@@ -57,8 +58,7 @@ export function getItem<T>(key: string, defaultValue: T): T {
 		const item = localStorage.getItem(key);
 		if (item === null) return defaultValue;
 
-		const parsed = JSON.parse(item);
-		return parsed as T;
+		return parseJsonOrFallback<T>(item, defaultValue, `local-storage:${key}`);
 	} catch (e) {
 		log.error(`Failed to parse ${key}:`, e);
 		// Return default but don't delete - let user decide

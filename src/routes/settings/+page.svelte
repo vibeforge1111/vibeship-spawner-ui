@@ -4,6 +4,23 @@
 	import Footer from '$lib/components/Footer.svelte';
 	import { pipelines } from '$lib/stores/pipelines.svelte';
 	import { getGeneratedSkillsCount, clearGeneratedSkills } from '$lib/stores/skills.svelte';
+	import { parseJsonResponse, responseStatusMessage } from '$lib/services/http-response';
+
+	type AccessAction = {
+		id: string;
+		label: string;
+		displayCommand: string;
+		runPolicy: string;
+		confirmation?: string;
+	};
+	type AccessPanelAccess = {
+		recommended?: {
+			id?: string;
+			label?: string;
+			userMessage?: string;
+			runPolicy?: string;
+		};
+	};
 
 	let pipelineCount = $state(0);
 	let generatedSkillsCount = $state(0);
@@ -13,21 +30,8 @@
 		error: string;
 		runningActionId: string;
 		result: string;
-		actions: Array<{
-			id: string;
-			label: string;
-			displayCommand: string;
-			runPolicy: string;
-			confirmation?: string;
-		}>;
-		access: {
-			recommended?: {
-				id?: string;
-				label?: string;
-				userMessage?: string;
-				runPolicy?: string;
-			};
-		};
+		actions: AccessAction[];
+		access: AccessPanelAccess;
 	}>({
 		loading: true,
 		error: '',
@@ -81,8 +85,14 @@
 		accessPanel.error = '';
 		try {
 			const response = await fetch('/api/access/execution-lanes');
-			const body = await response.json();
-			if (!response.ok || body.success === false) {
+			if (!response.ok) {
+				throw new Error(await responseStatusMessage(response, 'Access lane check failed'));
+			}
+			const body = await parseJsonResponse<{ success?: boolean; error?: string; access?: AccessPanelAccess; actions?: AccessAction[] } | null>(response, null);
+			if (!body) {
+				throw new Error('Access lane check returned a non-JSON response');
+			}
+			if (body.success === false) {
 				throw new Error(body.error || 'Access lane check failed');
 			}
 			accessPanel.access = body.access || {};
@@ -120,8 +130,14 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(body)
 			});
-			const result = await response.json();
-			if (!response.ok || result.success === false) {
+			if (!response.ok) {
+				throw new Error(await responseStatusMessage(response, 'Access action failed'));
+			}
+			const result = await parseJsonResponse<{ success?: boolean; error?: string; result?: { payload?: { next?: string }; stderr?: string } } | null>(response, null);
+			if (!result) {
+				throw new Error('Access action returned a non-JSON response');
+			}
+			if (result.success === false) {
 				throw new Error(result.error || 'Access action failed');
 			}
 			const payload = result.result?.payload || {};

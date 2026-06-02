@@ -17,6 +17,7 @@
 		type RecentRecallEvent,
 		type SourceHealthRollup
 	} from '$lib/services/memory-quality-aggregates';
+	import { parseJsonResponse } from '$lib/services/http-response';
 
 	type MemoryQualityAggregates = {
 		accuracyBuckets: AccuracyBucket[];
@@ -74,10 +75,17 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(form)
 			});
-			const body = await response.json();
-			if (!response.ok) {
-				errors = body.errors || { form: 'Evaluation could not be saved.' };
-				if (body.dataset) recompute(body.dataset);
+			const body = await parseJsonResponse<{
+				errors?: Record<string, string>;
+				dataset?: MemoryQualityDataset;
+			} | null>(response, null);
+			if (!response.ok || !body) {
+				errors = body?.errors || { form: `Evaluation could not be saved (HTTP ${response.status}).` };
+				if (body?.dataset) recompute(body.dataset);
+				return;
+			}
+			if (!body.dataset) {
+				errors = { form: 'Evaluation response missing dataset.' };
 				return;
 			}
 			recompute(body.dataset);

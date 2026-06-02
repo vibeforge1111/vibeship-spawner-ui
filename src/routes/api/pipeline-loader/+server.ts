@@ -16,6 +16,7 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import { logger } from '$lib/utils/logger';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { parseJsonOrFallback } from '$lib/utils/safe-json';
 
 const log = logger.scope('PipelineLoader');
 
@@ -94,7 +95,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		}
 
 		const content = await readFile(loadFile, 'utf-8');
-		const load = JSON.parse(content);
+		const load = parseJsonOrFallback<Record<string, unknown>>(content, {}, 'pipeline-loader');
 		if (!latest && requestedPipelineId && load?.pipelineId !== requestedPipelineId) {
 			return json({ pending: false });
 		}

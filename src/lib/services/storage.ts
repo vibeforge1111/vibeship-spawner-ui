@@ -12,6 +12,7 @@
  */
 
 import { browser } from '$app/environment';
+import { parseJsonOrFallback } from '$lib/utils/safe-json';
 
 /**
  * Get a JSON value from localStorage with type safety
@@ -20,7 +21,7 @@ export function storageGet<T>(key: string, defaultValue: T): T {
 	if (!browser) return defaultValue;
 	try {
 		const item = localStorage.getItem(key);
-		return item ? JSON.parse(item) : defaultValue;
+		return item ? parseJsonOrFallback<T>(item, defaultValue, `storage:${key}`) : defaultValue;
 	} catch {
 		return defaultValue;
 	}

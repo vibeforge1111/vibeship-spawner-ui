@@ -14,6 +14,7 @@ import { readFile, readdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { parse as parseYaml } from 'yaml';
+import { parseJsonOrFallback } from '$lib/utils/safe-json';
 
 export type SkillTier = 'base' | 'pro';
 
@@ -44,7 +45,7 @@ function staticDir(): string {
 
 async function readJsonFile(path: string): Promise<unknown | null> {
 	try {
-		return JSON.parse(await readFile(path, 'utf-8')) as unknown;
+		return parseJsonOrFallback<unknown | null>(await readFile(path, 'utf-8'), null, 'skill-tier-json');
 	} catch {
 		return null;
 	}

@@ -9,6 +9,7 @@
 
 import { z } from 'zod';
 import { logger } from '$lib/utils/logger';
+import { tryParseJson } from '$lib/utils/safe-json';
 
 const log = logger.scope('Schema');
 
@@ -625,18 +626,17 @@ export function safeJsonParse<T>(
 	schema: z.ZodType<T>,
 	context?: string
 ): T | undefined {
-	try {
-		const parsed = JSON.parse(json);
-		const result = schema.safeParse(parsed);
-		if (result.success) {
-			return result.data;
-		}
-		log.warn(`Validation failed${context ? ` for ${context}` : ''}:`, result.error.issues);
-		return undefined;
-	} catch (e) {
-		log.warn(`JSON parse failed${context ? ` for ${context}` : ''}:`, e);
+	const parsed = tryParseJson<unknown | undefined>(json, undefined, context || 'schema-json');
+	if (!parsed.ok) {
+		log.warn(`JSON parse failed${context ? ` for ${context}` : ''}:`, parsed.error);
 		return undefined;
 	}
+	const result = schema.safeParse(parsed.value);
+	if (result.success) {
+		return result.data;
+	}
+	log.warn(`Validation failed${context ? ` for ${context}` : ''}:`, result.error.issues);
+	return undefined;
 }
 
 /**
