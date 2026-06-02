@@ -181,6 +181,19 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
         projectPath: resolveSparkRunProjectPath(requestedProjectPath),
       }),
     });
+    if (!res.ok) {
+      let detail = '';
+      try {
+        const text = await res.text();
+        detail = text.slice(0, 500);
+      } catch {
+        /* ignore body read errors */
+      }
+      return {
+        ok: false,
+        summary: `HTTP ${res.status} ${res.statusText}${detail ? `: ${detail}` : ''}`,
+      };
+    }
     const body = (await res.json()) as { success?: boolean; missionId?: string; error?: string };
     return {
       ok: Boolean(body.success),
