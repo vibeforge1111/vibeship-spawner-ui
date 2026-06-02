@@ -4,7 +4,6 @@ import {
 	parseDiscordMissionControlCommand
 } from './mission-control-command';
 import {
-	buildMachineOriginPolicy,
 	buildServerGovernorDecisionAuthority,
 	buildServerTurnIntentVNextAuthority
 } from './harness-authority';
@@ -65,13 +64,15 @@ function bareVNextMissionControlAuthority() {
 }
 
 function legacyMissionControlAuthority() {
-	return buildMachineOriginPolicy({
+	return {
+		schema: 'spark.machine_origin_policy.v1',
 		origin: 'spawner-ui.test',
 		source: 'mission-control-command-test',
 		reason: 'Legacy mission-control compatibility fixture.',
 		allowedTools: ['spawner.mission_control.command'],
-		mutationClassesAllowed: ['controls_mission']
-	});
+		mutationClassesAllowed: ['controls_mission'],
+		networkPolicy: 'local_only'
+	};
 }
 
 afterEach(() => {
@@ -171,7 +172,7 @@ describe('mission-control-command parser', () => {
 		).rejects.toMatchObject({
 			code: 'harness_authority_blocked',
 			verdict: expect.objectContaining({
-				reasonCodes: expect.arrayContaining(['native_governor_required'])
+				reasonCodes: expect.arrayContaining(['legacy_machine_origin_demoted'])
 			})
 		});
 	});

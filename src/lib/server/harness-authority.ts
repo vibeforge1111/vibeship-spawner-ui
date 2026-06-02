@@ -11,18 +11,6 @@ export type SparkMutationClass = HarnessCoreActionMutationClass;
 export type SparkServerTurnIntentEnvelopeVNext = TurnIntentEnvelopeVNext;
 export type SparkServerGovernorDecisionV1 = GovernorDecisionV1;
 
-export interface SparkMachineOriginPolicyV1 {
-	schema: 'spark.machine_origin_policy.v1';
-	origin: string;
-	source: string;
-	reason: string;
-	allowedTools: string[];
-	mutationClassesAllowed: SparkMutationClass[];
-	networkPolicy?: 'none' | 'local_only' | 'external_allowed';
-	noExecution?: boolean;
-	noPublish?: boolean;
-}
-
 export interface HarnessAuthorityInput {
 	authority?: unknown;
 	toolName: string;
@@ -34,7 +22,7 @@ export interface HarnessAuthorityInput {
 
 export interface HarnessAuthorityVerdict {
 	allowed: boolean;
-	source: 'turn_intent' | 'turn_intent_vnext' | 'governor_decision' | 'machine_origin_policy';
+	source: 'turn_intent' | 'turn_intent_vnext' | 'governor_decision' | 'machine_origin_policy' | 'missing_authority' | 'unsupported_authority';
 	reasonCodes: string[];
 	traceId?: string;
 	origin?: string;
@@ -232,13 +220,10 @@ function governorDecisionVerdict(authority: Record<string, unknown>, input: Harn
 }
 
 function machineOriginVerdict(authority: Record<string, unknown>, input: HarnessAuthorityInput): HarnessAuthorityVerdict {
-	const allowedTools = stringList(authority.allowedTools);
-	const mutationClassesAllowed = stringList(authority.mutationClassesAllowed);
 	const origin = stringField(authority.origin);
 	const source = stringField(authority.source);
 	const reason = stringField(authority.reason);
-	const networkPolicy = stringField(authority.networkPolicy) || 'local_only';
-	const reasonCodes: string[] = [];
+	const reasonCodes: string[] = ['legacy_machine_origin_demoted'];
 
 	if (authority.schema !== 'spark.machine_origin_policy.v1') {
 		reasonCodes.push('unsupported_machine_origin_schema');
@@ -252,40 +237,21 @@ function machineOriginVerdict(authority: Record<string, unknown>, input: Harness
 	if (authority.noPublish === true && input.publishes) {
 		reasonCodes.push('no_publish_boundary');
 	}
-	if (input.externalNetwork && networkPolicy !== 'external_allowed') {
-		reasonCodes.push('external_network_not_authorized');
-	}
-	if (!hasTool(allowedTools, input.toolName)) {
-		reasonCodes.push('tool_not_allowed_by_policy');
-	}
-	if (!mutationClassesAllowed.includes(input.mutationClass)) {
-		reasonCodes.push('mutation_class_not_authorized');
-	}
 
 	return {
-		allowed: reasonCodes.length === 0,
+		allowed: false,
 		source: 'machine_origin_policy',
 		reasonCodes,
 		origin: origin || undefined
 	};
 }
 
-export function buildMachineOriginPolicy(input: {
-	origin: string;
-	source: string;
-	reason: string;
-	allowedTools?: string[];
-	mutationClassesAllowed?: SparkMutationClass[];
-	networkPolicy?: SparkMachineOriginPolicyV1['networkPolicy'];
-}): SparkMachineOriginPolicyV1 {
+function unsupportedAuthorityVerdict(authority: Record<string, unknown>): HarnessAuthorityVerdict {
 	return {
-		schema: 'spark.machine_origin_policy.v1',
-		origin: input.origin,
-		source: input.source,
-		reason: input.reason,
-		allowedTools: input.allowedTools || ['spawner.dispatch'],
-		mutationClassesAllowed: input.mutationClassesAllowed || ['launches_mission'],
-		networkPolicy: input.networkPolicy || 'local_only'
+		allowed: false,
+		source: 'unsupported_authority',
+		reasonCodes: ['unsupported_harness_authority_schema'],
+		origin: stringField(authority.origin) || undefined
 	};
 }
 
@@ -353,20 +319,25 @@ export function assertHarnessAuthority(input: HarnessAuthorityInput): HarnessAut
 	if (!isRecord(input.authority)) {
 		const verdict: HarnessAuthorityVerdict = {
 			allowed: false,
-			source: 'machine_origin_policy',
+			source: 'missing_authority',
 			reasonCodes: ['missing_harness_authority']
 		};
-		throw new HarnessAuthorityError('Execution requires TurnIntent authority or an explicit machine-origin policy.', verdict);
+		throw new HarnessAuthorityError('Execution requires Harness Core authority.', verdict);
 	}
 
-	const verdict =
-		input.authority.schema === 'spark.turn_intent.v1'
-			? turnIntentVerdict(input.authority, input)
-			: input.authority.schema_version === 'governor-decision-v1'
-				? governorDecisionVerdict(input.authority, input)
-			: input.authority.schema_version === 'turn-intent-envelope-vnext'
-				? turnIntentVNextVerdict(input.authority, input)
-			: machineOriginVerdict(input.authority, input);
+	const authority = input.authority;
+	let verdict: HarnessAuthorityVerdict;
+	if (authority.schema === 'spark.turn_intent.v1') {
+		verdict = turnIntentVerdict(authority, input);
+	} else if (authority.schema_version === 'governor-decision-v1') {
+		verdict = governorDecisionVerdict(authority, input);
+	} else if (authority.schema_version === 'turn-intent-envelope-vnext') {
+		verdict = turnIntentVNextVerdict(authority, input);
+	} else if (authority.schema === 'spark.machine_origin_policy.v1') {
+		verdict = machineOriginVerdict(authority, input);
+	} else {
+		verdict = unsupportedAuthorityVerdict(authority);
+	}
 
 	if (!verdict.allowed) {
 		throw new HarnessAuthorityError('Execution authority blocked this request.', verdict);

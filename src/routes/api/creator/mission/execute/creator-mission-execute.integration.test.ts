@@ -202,7 +202,7 @@ describe('/api/creator/mission/execute', () => {
 		expect(response.status).toBe(409);
 		const body = await response.json();
 		expect(body.code).toBe('harness_authority_blocked');
-		expect(body.authority.reasonCodes).toContain('native_governor_required');
+		expect(body.authority.reasonCodes).toContain('legacy_machine_origin_demoted');
 	});
 
 	it('rejects bare VNext authority for creator mission execution', async () => {

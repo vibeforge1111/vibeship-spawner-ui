@@ -8,18 +8,6 @@ import {
 
 export type SparkClientMutationClass = HarnessCoreActionMutationClass;
 
-export type SparkClientMachineOriginPolicyV1 = {
-	schema: 'spark.machine_origin_policy.v1';
-	origin: string;
-	source: string;
-	reason: string;
-	allowedTools: string[];
-	mutationClassesAllowed: SparkClientMutationClass[];
-	networkPolicy: 'none' | 'local_only' | 'external_allowed';
-	noExecution?: boolean;
-	noPublish?: boolean;
-};
-
 export type SparkClientTurnIntentEnvelopeVNext = TurnIntentEnvelopeVNext;
 export type SparkClientGovernorDecisionV1 = GovernorDecisionV1;
 
@@ -65,23 +53,4 @@ export function buildClientGovernorDecisionAuthority(input: {
 			publish_allowed: input.mutationClass === 'publishes'
 		}
 	});
-}
-
-export function buildClientMachineOriginPolicy(input: {
-	origin: string;
-	source: string;
-	reason: string;
-	allowedTools: string[];
-	mutationClassesAllowed: SparkClientMutationClass[];
-	networkPolicy?: SparkClientMachineOriginPolicyV1['networkPolicy'];
-}): SparkClientMachineOriginPolicyV1 {
-	return {
-		schema: 'spark.machine_origin_policy.v1',
-		origin: input.origin,
-		source: input.source,
-		reason: input.reason,
-		allowedTools: input.allowedTools,
-		mutationClassesAllowed: input.mutationClassesAllowed,
-		networkPolicy: input.networkPolicy || 'local_only'
-	};
 }

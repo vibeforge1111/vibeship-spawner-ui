@@ -14,7 +14,6 @@ import {
 	type PrdCanvasLoadForAutoDispatch
 } from './prd-auto-dispatch';
 import {
-	buildMachineOriginPolicy,
 	buildServerGovernorDecisionAuthority,
 	buildServerTurnIntentVNextAuthority
 } from './harness-authority';
@@ -186,17 +185,19 @@ describe('PRD auto-dispatch helpers', () => {
 	it('rejects legacy machine-origin policy for PRD auto-dispatch', async () => {
 		const result = await autoDispatchPrdCanvasLoad({
 			...load,
-			executionAuthority: buildMachineOriginPolicy({
+			executionAuthority: {
+				schema: 'spark.machine_origin_policy.v1',
 				origin: 'prd-auto-dispatch-test',
 				source: 'prd_auto_dispatch_test',
 				reason: 'Legacy PRD auto-dispatch authority fixture.',
 				allowedTools: ['spawner.dispatch'],
-				mutationClassesAllowed: ['launches_mission']
-			})
+				mutationClassesAllowed: ['launches_mission'],
+				networkPolicy: 'local_only'
+			}
 		});
 
 		expect(result.started).toBe(false);
-		expect(result.error).toContain('native_governor_required');
+		expect(result.error).toContain('legacy_machine_origin_demoted');
 	});
 
 	it('rejects bare VNext authority for PRD auto-dispatch', async () => {
