@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 import { building } from '$app/environment';
 import type { RequestHandler } from './$types';
 import {
@@ -28,7 +29,10 @@ export const GET: RequestHandler = async () => {
   return json({ ok: true, schedules });
 };
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+  const { request } = event;
+  const authErr = requireControlAuth(event, {});
+  if (authErr) return authErr;
   let body: Record<string, unknown>;
   try {
     body = asRecord(await request.json());
@@ -51,7 +55,10 @@ export const POST: RequestHandler = async ({ request }) => {
   }
 };
 
-export const DELETE: RequestHandler = async ({ request, url }) => {
+export const DELETE: RequestHandler = async (event) => {
+  const { request, url } = event;
+  const authErr = requireControlAuth(event, {});
+  if (authErr) return authErr;
   const id = url.searchParams.get('id') || '';
   if (!id) {
     let body: Record<string, unknown> = {};
