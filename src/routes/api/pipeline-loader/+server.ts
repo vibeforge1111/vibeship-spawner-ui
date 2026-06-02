@@ -16,6 +16,7 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import { logger } from '$lib/utils/logger';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 
 const log = logger.scope('PipelineLoader');
 
@@ -42,10 +43,17 @@ async function ensureDir(): Promise<void> {
 /**
  * POST - Queue a pipeline to load
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'PipelineLoader',
+		apiKeyEnvVar: 'MCP_API_KEY',
+		fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
+	});
+	if (unauthorized) return unauthorized;
+
 	try {
 		await ensureDir();
-		const payload = await request.json();
+		const payload = await event.request.json();
 
 		// Validate required fields
 		if (!payload.pipelineId || !payload.pipelineName) {
@@ -128,7 +136,14 @@ export const GET: RequestHandler = async ({ url }) => {
 /**
  * DELETE - Clear the pending load
  */
-export const DELETE: RequestHandler = async () => {
+export const DELETE: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'PipelineLoader',
+		apiKeyEnvVar: 'MCP_API_KEY',
+		fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
+	});
+	if (unauthorized) return unauthorized;
+
 	try {
 		const pendingLoadFile = getPendingLoadFile();
 		if (existsSync(pendingLoadFile)) {
