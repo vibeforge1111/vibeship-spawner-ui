@@ -1,4 +1,5 @@
 import { logger } from '$lib/utils/logger';
+import { safeJsonParse } from '$lib/server/safe-json';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { homedir } from 'node:os';
@@ -64,7 +65,7 @@ async function _load(): Promise<StoreShape> {
   if (_store) return _store;
   try {
     const raw = await fs.readFile(schedulesFile(), 'utf-8');
-    const parsed = JSON.parse(raw);
+    const parsed = safeJsonParse(raw, [], 'scheduler-state');
     if (parsed && Array.isArray(parsed.schedules)) {
       _store = { schedules: parsed.schedules };
       return _store;
