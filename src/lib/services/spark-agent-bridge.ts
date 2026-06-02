@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { ChildProcess } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import type { Mission } from '$lib/services/mcp-client';
@@ -93,6 +93,7 @@ export interface SparkAgentSession {
 	endedAt?: string;
 	actor?: string;
 	metadata: Record<string, unknown>;
+	controlTokenHash?: string;
 	commandCount: number;
 	canvas: {
 		pipelineId: string;
@@ -108,6 +109,7 @@ export interface SparkAgentSessionStartInput {
 	sessionId?: string;
 	actor?: string;
 	metadata?: Record<string, unknown>;
+	controlTokenHash?: string;
 }
 
 export interface SparkAgentCommandInput {
@@ -243,6 +245,20 @@ function nowIso(): string {
 
 function createId(prefix: string): string {
 	return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function createSparkAgentControlToken(): string {
+	return randomBytes(32).toString('base64url');
+}
+
+export function hashSparkAgentControlToken(token: string): string {
+	return createHash('sha256').update(token).digest('hex');
+}
+
+function safeHashEquals(expected: string, actual: string): boolean {
+	const expectedBuffer = Buffer.from(expected, 'hex');
+	const actualBuffer = Buffer.from(actual, 'hex');
+	return expectedBuffer.length === actualBuffer.length && timingSafeEqual(expectedBuffer, actualBuffer);
 }
 
 function isProviderId(value: unknown): value is SparkAgentProviderId {
@@ -432,6 +448,7 @@ class SparkAgentBridgeService {
 			updatedAt: createdAt,
 			actor: input.actor,
 			metadata: input.metadata || {},
+			controlTokenHash: input.controlTokenHash,
 			commandCount: 0,
 			canvas: {
 				pipelineId: createId('pipe'),
@@ -475,6 +492,13 @@ class SparkAgentBridgeService {
 
 	getSession(sessionId: string): SparkAgentSession | null {
 		return this.sessions.get(sessionId) || null;
+	}
+
+	verifySessionControlToken(sessionId: string, token: string | null): boolean {
+		const expected = this.sessions.get(sessionId)?.controlTokenHash;
+		if (!expected) return true;
+		if (!token || !token.trim()) return false;
+		return safeHashEquals(expected, hashSparkAgentControlToken(token.trim()));
 	}
 
 	getSessionEvents(sessionId: string): SparkAgentBridgeEvent[] {

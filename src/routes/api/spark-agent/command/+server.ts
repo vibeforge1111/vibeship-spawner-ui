@@ -43,6 +43,16 @@ export const POST: RequestHandler = async (event) => {
 		if (!sessionId || !command) {
 			return json({ success: false, error: 'sessionId and command are required' }, { status: 400 });
 		}
+		const controlToken = event.request.headers.get('x-spark-agent-control-token');
+		if (!sparkAgentBridge.verifySessionControlToken(sessionId, controlToken)) {
+			return json(
+				{
+					success: false,
+					error: 'Valid Spark Agent session control token is required'
+				},
+				{ status: 403 }
+			);
+		}
 		const scopedSessionHeader = event.request.headers.get('x-spark-agent-session-id');
 		if (scopedSessionHeader && scopedSessionHeader !== sessionId) {
 			return json(
