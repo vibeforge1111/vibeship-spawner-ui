@@ -1,4 +1,5 @@
 /**
+import { safeJsonParse } from '$lib/server/safe-json';
  * Active Mission API Endpoint
  *
  * Provides mission state for Claude Code to:
@@ -90,7 +91,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		}
 
 		const content = await readFile(missionPath, 'utf-8');
-		const state: ActiveMissionState = JSON.parse(content);
+		const state: ActiveMissionState = safeJsonParse<ActiveMissionState>(content, {} as ActiveMissionState, 'mission-active-post');
 
 		if (await missionHasTerminalRelayEvent(state.missionId)) {
 			await unlink(missionPath).catch(() => undefined);
