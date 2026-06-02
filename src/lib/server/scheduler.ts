@@ -289,10 +289,14 @@ export function startScheduler(): void {
   if (_tickTimer || _starting) return;
   _starting = true;
   _tick()
-    .catch(() => {})
+    .catch((err) => {
+      console.error('[Scheduler] Tick failed:', err);
+    })
     .finally(() => {
       _tickTimer = setInterval(() => {
-        _tick().catch(() => {});
+        _tick().catch((err) => {
+          console.error('[Scheduler] Interval tick failed:', err);
+        });
       }, TICK_MS);
       _starting = false;
     });
