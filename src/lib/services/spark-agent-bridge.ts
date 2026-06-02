@@ -461,9 +461,9 @@ class SparkAgentBridgeService {
 		if (workerState?.status === 'running') {
 			try {
 				workerState.process?.kill('SIGTERM');
-			} catch {
-				// noop
-			}
+			} catch (_e) { // NOOP-CATCH-PATCH
+    console.error('[spark-agent-bridge] Suppressed error:', _e);
+  }
 		}
 
 		session.status = 'ended';
