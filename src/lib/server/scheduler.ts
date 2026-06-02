@@ -275,7 +275,11 @@ async function _tick(): Promise<void> {
   const store = await _load();
   const now = new Date();
   let dirty = false;
-  for (const rec of store.schedules) {
+
+  // Collect schedules that need firing this tick.
+  const dueSchedules: { rec: ScheduleRecord; index: number }[] = [];
+  for (let i = 0; i < store.schedules.length; i++) {
+    const rec = store.schedules[i];
     if (!rec.enabled) continue;
     if (!rec.nextFireAt) {
       rec.nextFireAt = _computeNext(rec.cron, rec.timezone);
@@ -283,19 +287,42 @@ async function _tick(): Promise<void> {
       continue;
     }
     if (new Date(rec.nextFireAt) > now) continue;
-    if (_firingIds.has(rec.id)) {
-      // Previous fire for this schedule is still in flight (e.g. long subprocess).
-      // Skip so we do not relaunch the mission or emit a duplicate relay message.
-      continue;
-    }
-    const nextFireAt = _computeNext(rec.cron, rec.timezone);
-    _firingIds.add(rec.id);
+    dueSchedules.push({ rec, index: i });
+  }
+
+  if (dueSchedules.length === 0) {
+    if (dirty) await _save();
+    return;
+  }
+
+  // Fire all due schedules in parallel to avoid starvation when individual
+  // fires are slow (e.g. long-running missions or loops).
+  const FIRE_TIMEOUT_MS = 120_000;
+  const results = await Promise.allSettled(
+    dueSchedules.map(({ rec }) =>
+      Promise.race([
+        _fire(rec),
+        new Promise<{ ok: boolean; summary: string }>((_, reject) =>
+          setTimeout(() => reject(new Error('fire timeout')), FIRE_TIMEOUT_MS),
+        ),
+      ]),
+    ),
+  );
+
+  for (let i = 0; i < dueSchedules.length; i++) {
+    const { rec } = dueSchedules[i];
+    const settled = results[i];
     try {
-      const result = await _fire(rec);
-      rec.lastFiredAt = new Date().toISOString();
-      rec.fireCount += 1;
-      rec.lastStatus = (result.ok ? 'ok: ' : 'fail: ') + result.summary.slice(0, 200);
-      await _relayToTelegram(rec, result);
+      if (settled.status === 'fulfilled') {
+        const result = settled.value;
+        rec.lastFiredAt = new Date().toISOString();
+        rec.fireCount += 1;
+        rec.lastStatus = (result.ok ? 'ok: ' : 'fail: ') + result.summary.slice(0, 200);
+        await _relayToTelegram(rec, result);
+      } else {
+        rec.lastFiredAt = new Date().toISOString();
+        rec.lastStatus = 'crash: ' + errorMessage(settled.reason);
+      }
     } catch (err: unknown) {
       rec.lastFiredAt = new Date().toISOString();
       rec.fireCount += 1;
@@ -306,6 +333,7 @@ async function _tick(): Promise<void> {
     rec.nextFireAt = nextFireAt;
     dirty = true;
   }
+
   if (dirty) await _save();
 }
 
