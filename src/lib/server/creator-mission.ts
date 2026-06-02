@@ -1443,8 +1443,18 @@ export function creatorMissionCanvasLoad(trace: CreatorMissionTrace, now = new D
 
 async function writeCreatorMissionCanvasLoad(load: CreatorMissionCanvasLoad, stateDir = spawnerStateDir()): Promise<CreatorMissionCanvasLoad> {
 	await mkdir(stateDir, { recursive: true });
-	await writeFile(pendingLoadPath(stateDir), JSON.stringify(load, null, 2), 'utf-8');
-	await writeFile(lastCanvasLoadPath(stateDir), JSON.stringify(load, null, 2), 'utf-8');
+	// Atomic write: temp + rename so a crash mid-write cannot truncate the
+	// pending-load or last-canvas-load JSON files consumed by /api/pipeline-loader
+	// and the canvas mission-load surface. Mirrors saveCreatorMissionTrace below.
+	const payload = JSON.stringify(load, null, 2);
+	const pendingTarget = pendingLoadPath(stateDir);
+	const lastTarget = lastCanvasLoadPath(stateDir);
+	const pendingTmp = `${pendingTarget}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+	const lastTmp = `${lastTarget}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+	await writeFile(pendingTmp, payload, 'utf-8');
+	await rename(pendingTmp, pendingTarget);
+	await writeFile(lastTmp, payload, 'utf-8');
+	await rename(lastTmp, lastTarget);
 	return load;
 }
 
