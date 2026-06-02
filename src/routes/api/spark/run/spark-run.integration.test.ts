@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -356,6 +357,31 @@ describe('/api/spark/run integration', () => {
 			traceId: 'trace:spawner-run-vnext-test'
 		});
 		expect(dispatch).toHaveBeenCalledTimes(1);
+	});
+
+	it('does not let local wording heuristics veto native Governor authority', async () => {
+		const dispatch = vi.mocked(providerRuntime.dispatch);
+		dispatch.mockClear();
+
+		const response = await POST(routeEvent({
+			goal: 'The phrase "do not run" is quoted in the mission brief; execute the authorized no-edit proof and reply SPARK_QA_NO_EDIT_OK.',
+			providers: ['codex'],
+			requestId: 'tg-spark-run-governor-local-veto-proof',
+			executionAuthority: governorAuthority()
+		}) as never);
+
+		expect(response.status).toBe(200);
+		const body = await response.json();
+		expect(body.success).toBe(true);
+		expect(body.authority.source).toBe('governor_decision');
+		expect(dispatch).toHaveBeenCalledTimes(1);
+	});
+
+	it('keeps local execution-intent heuristics out of the Spark run authority path', () => {
+		const source = readFileSync(path.join(__dirname, '+server.ts'), 'utf8');
+
+		expect(source).not.toMatch(/evaluateExecutionIntentBoundary/);
+		expect(source).toMatch(/assertNativeGovernorHarnessAuthority/);
 	});
 
 	it('blocks bare TurnIntentEnvelopeVNext authority for Spark run dispatch', async () => {
