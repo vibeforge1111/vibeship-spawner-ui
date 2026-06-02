@@ -6,7 +6,7 @@ Spawner exposes a session-based bridge for Spark-controlled canvas, mission, and
 - `POST /api/spark-agent/command`
 - `GET /api/spark-agent/events?sessionId=...`
 - `POST /api/spark-agent/session/end`
-- `GET /api/spark-agent/canvas-state`
+- `GET /api/spark-agent/canvas-state?sessionId=...`
 
 The bridge normalizes commands, keeps them session-scoped, and emits events that the canvas, mission board, and trace views can inspect.
 
@@ -28,6 +28,7 @@ Session scoping:
 
 - `POST /api/spark-agent/command` supports `x-spark-agent-session-id` and enforces header/body match.
 - `GET /api/spark-agent/events` supports `x-spark-agent-session-id` and enforces header/query match.
+- `GET /api/spark-agent/canvas-state` supports `x-spark-agent-session-id` and enforces header/query match when `sessionId` is present. When multiple sessions have canvas updates, callers must provide a session scope instead of reading a global latest snapshot.
 
 ## Command Set
 
