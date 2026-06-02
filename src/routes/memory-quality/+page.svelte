@@ -74,13 +74,26 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(form)
 			});
-			const body = await response.json();
-			if (!response.ok) {
-				errors = body.errors || { form: 'Evaluation could not be saved.' };
-				if (body.dataset) recompute(body.dataset);
+			let parsedBody: { errors?: Record<string, string>; dataset?: unknown } | null = null;
+			try {
+				parsedBody = await response.json();
+			} catch {
+				parsedBody = null;
+			}
+			if (!response.ok || !parsedBody) {
+				if (parsedBody) {
+					errors = parsedBody.errors || { form: `Evaluation could not be saved (HTTP ${response.status}).` };
+					if (parsedBody.dataset) recompute(parsedBody.dataset);
+				} else {
+					errors = { form: `Evaluation could not be saved (HTTP ${response.status}).` };
+				}
 				return;
 			}
-			recompute(body.dataset);
+			if (!parsedBody.dataset) {
+				errors = { form: 'Evaluation response missing dataset.' };
+				return;
+			}
+			recompute(parsedBody.dataset);
 			form.query = '';
 			form.notes = '';
 			form.latencyMs = 0;
