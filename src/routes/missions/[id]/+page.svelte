@@ -27,7 +27,7 @@
 		type MissionControlEntry
 	} from '$lib/services/mission-detail-view-model';
 	import { canShowMissionBoardProjectActions } from '$lib/services/mission-board-cards';
-	import { buildClientTurnIntentVNextAuthority } from '$lib/services/harness-authority-client';
+	import { buildClientGovernorDecisionAuthority } from '$lib/services/harness-authority-client';
 
 	let missionId = $state('');
 	let currentState = $state<MissionsState>({
@@ -143,7 +143,7 @@
 					missionId,
 					action,
 					source: 'spawner-ui',
-					executionAuthority: buildClientTurnIntentVNextAuthority({
+					executionAuthority: buildClientGovernorDecisionAuthority({
 						source: `mission-detail.${action}`,
 						reason: 'User clicked a mission-control action in Spawner.',
 						toolName: 'spawner.mission_control.command',

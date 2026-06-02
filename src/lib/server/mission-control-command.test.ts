@@ -3,7 +3,11 @@ import {
 	executeMissionControlAction,
 	parseDiscordMissionControlCommand
 } from './mission-control-command';
-import { buildMachineOriginPolicy, buildServerTurnIntentVNextAuthority } from './harness-authority';
+import {
+	buildMachineOriginPolicy,
+	buildServerGovernorDecisionAuthority,
+	buildServerTurnIntentVNextAuthority
+} from './harness-authority';
 import { relayMissionControlEvent } from './mission-control-relay';
 import { providerRuntime } from './provider-runtime';
 import { mcpClient, type Mission } from '$lib/services/mcp-client';
@@ -37,6 +41,18 @@ function missionRecord(id: string): Mission {
 }
 
 function missionControlAuthority() {
+	return buildServerGovernorDecisionAuthority({
+		source: 'mission-control-command-test',
+		reason: 'Focused mission-control authority regression.',
+		toolName: 'spawner.mission_control.command',
+		mutationClass: 'controls_mission',
+		requestId: 'mission-control-command-test',
+		actorKind: 'human',
+		actorIdRef: 'spawner-ui.test'
+	});
+}
+
+function bareVNextMissionControlAuthority() {
 	return buildServerTurnIntentVNextAuthority({
 		source: 'mission-control-command-test',
 		reason: 'Focused mission-control authority regression.',
@@ -128,6 +144,22 @@ describe('mission-control-command parser', () => {
 		});
 	});
 
+	it('blocks bare VNext authority for mutating mission-control actions', async () => {
+		await expect(
+			executeMissionControlAction({
+				action: 'pause',
+				missionId: 'mission-command-vnext-authority',
+				source: 'test',
+				executionAuthority: bareVNextMissionControlAuthority()
+			})
+		).rejects.toMatchObject({
+			code: 'harness_authority_blocked',
+			verdict: expect.objectContaining({
+				reasonCodes: expect.arrayContaining(['native_governor_required'])
+			})
+		});
+	});
+
 	it('blocks legacy machine-origin policy for mutating mission-control actions', async () => {
 		await expect(
 			executeMissionControlAction({
@@ -139,7 +171,7 @@ describe('mission-control-command parser', () => {
 		).rejects.toMatchObject({
 			code: 'harness_authority_blocked',
 			verdict: expect.objectContaining({
-				reasonCodes: expect.arrayContaining(['native_vnext_required'])
+				reasonCodes: expect.arrayContaining(['native_governor_required'])
 			})
 		});
 	});
@@ -172,7 +204,7 @@ describe('mission-control-command parser', () => {
 
 		expect(result.ok).toBe(true);
 		expect(result.eventType).toBe('mission_paused');
-		expect(result.authority).toMatchObject({ source: 'turn_intent_vnext' });
+		expect(result.authority).toMatchObject({ source: 'governor_decision' });
 		expect(getMission).toHaveBeenCalledWith(missionId);
 		expect(updateMission).toHaveBeenCalledWith(missionId, expect.objectContaining({ status: 'paused' }));
 
@@ -208,7 +240,7 @@ describe('mission-control-command parser', () => {
 
 		expect(result.ok).toBe(true);
 		expect(result.message).toContain('cancelled');
-		expect(result.authority).toMatchObject({ source: 'turn_intent_vnext' });
+		expect(result.authority).toMatchObject({ source: 'governor_decision' });
 		expect(failMission).toHaveBeenCalledWith(missionId, 'Mission cancelled from mission control');
 	});
 });

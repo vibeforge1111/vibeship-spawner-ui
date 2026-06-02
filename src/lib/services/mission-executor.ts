@@ -1840,7 +1840,7 @@ class MissionExecutor {
 						missionId,
 						action: 'kill',
 						source: 'execution-panel',
-						executionAuthority: buildClientTurnIntentVNextAuthority({
+						executionAuthority: buildClientGovernorDecisionAuthority({
 							source: 'execution-panel.cancel',
 							reason: 'User cancelled the running mission from the execution panel.',
 							toolName: 'spawner.mission_control.command',

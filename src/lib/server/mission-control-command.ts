@@ -12,7 +12,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { spawnerStateDir } from './spawner-state';
 import {
-	assertNativeVNextHarnessAuthority,
+	assertNativeGovernorHarnessAuthority,
 	resolveExecutionAuthority,
 	type HarnessAuthorityVerdict
 } from './harness-authority';
@@ -145,7 +145,7 @@ export async function executeMissionControlAction(input: {
 		};
 	}
 
-	authority = assertNativeVNextHarnessAuthority({
+	authority = assertNativeGovernorHarnessAuthority({
 		authority: resolveExecutionAuthority(input.executionAuthority),
 		toolName: 'spawner.mission_control.command',
 		ownerSystem: 'spawner-ui',

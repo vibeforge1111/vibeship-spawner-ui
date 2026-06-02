@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { POST } from './+server';
+import { buildClientTurnIntentVNextAuthority } from '$lib/services/harness-authority-client';
 
 function event(body: unknown) {
 	return {
@@ -27,5 +28,28 @@ describe('/api/mission-control/command authority contract', () => {
 		const body = await response.json();
 		expect(body.code).toBe('harness_authority_blocked');
 		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
+	});
+
+	it('blocks mutating mission-control commands with bare VNext authority', async () => {
+		const response = await POST(
+			event({
+				missionId: 'mission-command-route-vnext-authority',
+				action: 'kill',
+				source: 'route-test',
+				executionAuthority: buildClientTurnIntentVNextAuthority({
+					source: 'route-test',
+					reason: 'Route regression for strict Governor mission-control authority.',
+					toolName: 'spawner.mission_control.command',
+					mutationClass: 'controls_mission',
+					target: 'mission-command-route-vnext-authority'
+				})
+			}) as never
+		);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.source).toBe('turn_intent_vnext');
+		expect(body.authority.reasonCodes).toContain('native_governor_required');
 	});
 });
