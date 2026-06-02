@@ -741,7 +741,6 @@ class ProviderRuntimeManager {
 			}).catch((error) => {
 				stopTaskActivity();
 				clearTimeout(providerTimeout);
-				this.providerTaskTimeouts.delete(key);
 				throw error;
 			});
 
