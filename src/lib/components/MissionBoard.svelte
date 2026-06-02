@@ -747,7 +747,7 @@
 					...(improvementDraft?.payload ?? {})
 				})
 			});
-			const data = await r.json();
+			const data = await r.json().catch(() => ({}));
 			if (!r.ok || !data?.success) {
 				quickAddError = data?.error ?? `HTTP ${r.status}`;
 			} else {
