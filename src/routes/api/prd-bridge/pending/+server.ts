@@ -9,6 +9,7 @@
  */
 
 import { json } from '@sveltejs/kit';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 import type { RequestHandler } from './$types';
 import { readFile, writeFile, unlink } from 'fs/promises';
 import { join } from 'path';
@@ -68,7 +69,9 @@ export const GET: RequestHandler = async () => {
 /**
  * DELETE - Clear the pending request (mark as processed)
  */
-export const DELETE: RequestHandler = async () => {
+export const DELETE: RequestHandler = async (event) => {
+  const _a = requireControlAuth(event, {}); if (_a) return _a;
+  return ((_e: never) => {
 	try {
 		const { pendingRequestFile } = getPrdBridgePaths();
 
