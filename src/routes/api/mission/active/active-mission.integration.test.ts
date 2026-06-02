@@ -15,6 +15,15 @@ async function resetTestSpawnerDir() {
 	}
 }
 
+function reqEvent(method: string, url: string, body?: unknown) {
+	const request = new Request(url, {
+		method,
+		headers: body ? { 'Content-Type': 'application/json' } : {},
+		body: body ? JSON.stringify(body) : undefined
+	});
+	return { request, url: new URL(url) };
+}
+
 describe('/api/mission/active integration', () => {
 	beforeEach(async () => {
 		await resetTestSpawnerDir();
@@ -91,18 +100,10 @@ describe('/api/mission/active integration', () => {
 			failedTasks: []
 		};
 
-		const postResponse = await POST({
-			request: new Request('http://localhost/api/mission/active', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			})
-		} as never);
+		const postResponse = await POST(reqEvent('POST', 'http://localhost/api/mission/active', payload) as never);
 		expect(postResponse.status).toBe(200);
 
-		const getResponse = await GET({
-			url: new URL('http://localhost/api/mission/active')
-		} as never);
+		const getResponse = await GET(reqEvent('GET', 'http://localhost/api/mission/active') as never);
 		expect(getResponse.status).toBe(200);
 		const body = await getResponse.json();
 
@@ -115,26 +116,20 @@ describe('/api/mission/active integration', () => {
 	});
 
 	it('clears mission state via DELETE', async () => {
-		const postResponse = await POST({
-			request: new Request('http://localhost/api/mission/active', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					missionId: 'mission-delete-test',
-					missionName: 'Delete test',
-					status: 'running',
-					progress: 10,
-					executionPrompt: 'prompt',
-					tasks: [],
-					completedTasks: [],
-					failedTasks: []
-				})
-			})
-		} as never);
+		const postResponse = await POST(reqEvent('POST', 'http://localhost/api/mission/active', {
+			missionId: 'mission-delete-test',
+			missionName: 'Delete test',
+			status: 'running',
+			progress: 10,
+			executionPrompt: 'prompt',
+			tasks: [],
+			completedTasks: [],
+			failedTasks: []
+		}) as never);
 		expect(postResponse.status).toBe(200);
 		expect(existsSync(missionFile)).toBe(true);
 
-		const deleteResponse = await DELETE({} as never);
+		const deleteResponse = await DELETE(reqEvent('DELETE', 'http://localhost/api/mission/active') as never);
 		expect(deleteResponse.status).toBe(200);
 		expect(existsSync(missionFile)).toBe(false);
 	});
@@ -152,21 +147,15 @@ describe('/api/mission/active integration', () => {
 			resumeInstructions: 'old'
 		}, null, 2));
 
-		const postResponse = await POST({
-			request: new Request('http://localhost/api/mission/active', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					missionId: 'mission-old-running',
-					missionName: 'Old running mission',
-					status: 'completed',
-					progress: 100,
-					tasks: [],
-					completedTasks: [],
-					failedTasks: []
-				})
-			})
-		} as never);
+		const postResponse = await POST(reqEvent('POST', 'http://localhost/api/mission/active', {
+			missionId: 'mission-old-running',
+			missionName: 'Old running mission',
+			status: 'completed',
+			progress: 100,
+			tasks: [],
+			completedTasks: [],
+			failedTasks: []
+		}) as never);
 		expect(postResponse.status).toBe(200);
 		const body = await postResponse.json();
 
@@ -201,9 +190,7 @@ describe('/api/mission/active integration', () => {
 			resumeInstructions: 'old resume instructions'
 		}, null, 2));
 
-		const getResponse = await GET({
-			url: new URL('http://localhost/api/mission/active')
-		} as never);
+		const getResponse = await GET(reqEvent('GET', 'http://localhost/api/mission/active') as never);
 		expect(getResponse.status).toBe(200);
 		const body = await getResponse.json();
 
@@ -225,21 +212,15 @@ describe('/api/mission/active integration', () => {
 			]
 		}, null, 2));
 
-		const postResponse = await POST({
-			request: new Request('http://localhost/api/mission/active', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					missionId: 'mission-terminal-post',
-					missionName: 'Already done',
-					status: 'running',
-					progress: 0,
-					tasks: [],
-					completedTasks: [],
-					failedTasks: []
-				})
-			})
-		} as never);
+		const postResponse = await POST(reqEvent('POST', 'http://localhost/api/mission/active', {
+			missionId: 'mission-terminal-post',
+			missionName: 'Already done',
+			status: 'running',
+			progress: 0,
+			tasks: [],
+			completedTasks: [],
+			failedTasks: []
+		}) as never);
 		expect(postResponse.status).toBe(200);
 		const body = await postResponse.json();
 
@@ -264,9 +245,7 @@ describe('/api/mission/active integration', () => {
 			resumeInstructions: 'old resume instructions'
 		}, null, 2));
 
-		const getResponse = await GET({
-			url: new URL('http://localhost/api/mission/active')
-		} as never);
+		const getResponse = await GET(reqEvent('GET', 'http://localhost/api/mission/active') as never);
 		expect(getResponse.status).toBe(200);
 		const body = await getResponse.json();
 
@@ -274,5 +253,31 @@ describe('/api/mission/active integration', () => {
 		expect(body.stale).toBe(true);
 		expect(body.staleMission?.id).toBe('mission-stale-test');
 		expect(body.mission).toBeUndefined();
+	});
+
+	describe('auth', () => {
+		it('rejects non-loopback GET without auth', async () => {
+			const response = await GET(reqEvent('GET', 'http://example.com/api/mission/active') as never);
+			expect(response.status).toBe(401);
+		});
+
+		it('rejects non-loopback POST without auth', async () => {
+			const response = await POST(reqEvent('POST', 'http://example.com/api/mission/active', {
+				missionId: 'auth-test',
+				missionName: 'Auth test',
+				status: 'running'
+			}) as never);
+			expect(response.status).toBe(401);
+		});
+
+		it('rejects non-loopback DELETE without auth', async () => {
+			const response = await DELETE(reqEvent('DELETE', 'http://example.com/api/mission/active') as never);
+			expect(response.status).toBe(401);
+		});
+
+		it('allows loopback GET (bypass)', async () => {
+			const response = await GET(reqEvent('GET', 'http://localhost/api/mission/active') as never);
+			expect(response.status).toBe(200);
+		});
 	});
 });
