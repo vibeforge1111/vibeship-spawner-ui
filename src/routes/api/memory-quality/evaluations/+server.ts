@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 import type { RequestHandler } from './$types';
 import {
 	buildAccuracyBuckets,
@@ -9,7 +10,10 @@ import {
 } from '$lib/services/memory-quality-aggregates';
 import { appendManualEvaluation } from '$lib/services/memory-quality-evaluations';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+  const { request } = event;
+  const authErr = requireControlAuth(event, {});
+  if (authErr) return authErr;
 	const payload = await request.json().catch(() => ({}));
 	const result = await appendManualEvaluation(payload);
 	const status = result.errors ? 400 : 200;
