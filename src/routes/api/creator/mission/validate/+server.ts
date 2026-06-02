@@ -186,7 +186,9 @@ export const POST: RequestHandler = async (event) => {
 			if (import.meta.env.MODE === 'test') {
 				await validationPromise;
 			} else {
-				void validationPromise.catch(() => {});
+				validationPromise.catch((e) => {
+					console.error('[CreatorMissionValidate] Async validation failed:', e);
+				});
 			}
 			return json({
 				ok: true,
