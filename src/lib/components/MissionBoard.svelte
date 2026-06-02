@@ -136,7 +136,8 @@
 					cron: newCron,
 					action: newAction,
 					payload,
-					chatId: newChatId || null
+					chatId: newChatId || null,
+					timezone: LOCAL_TZ
 				})
 			});
 			if (!r.ok) {
