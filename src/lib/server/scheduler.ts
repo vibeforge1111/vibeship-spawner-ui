@@ -82,7 +82,17 @@ async function _save(): Promise<void> {
   await fs.mkdir(path.dirname(file), { recursive: true });
   const tmp = file + '.tmp';
   await fs.writeFile(tmp, JSON.stringify(_store, null, 2), 'utf-8');
-  await fs.rename(tmp, file);
+  try {
+    await fs.rename(tmp, file);
+  } catch (renameError) {
+    // On cross-device or Windows EBUSY, fall back to copy+delete.
+    try {
+      await fs.copyFile(tmp, file);
+      await fs.unlink(tmp);
+    } catch {
+      // Best-effort: leave tmp if both rename and copy fail.
+    }
+  }
 }
 
 /** Returns the trimmed IANA timezone if it is valid, otherwise null. */
@@ -277,6 +287,7 @@ async function _tick(): Promise<void> {
       await _relayToTelegram(rec, result);
     } catch (err: unknown) {
       rec.lastFiredAt = new Date().toISOString();
+      rec.fireCount += 1;
       rec.lastStatus = 'crash: ' + errorMessage(err);
     }
     rec.nextFireAt = _computeNext(rec.cron, rec.timezone);
