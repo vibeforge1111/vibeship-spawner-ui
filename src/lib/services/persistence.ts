@@ -1,4 +1,5 @@
 /**
+import { safeJsonParse } from '$lib/server/safe-json';
  * Persistence Service
  *
  * Centralized localStorage management with:
@@ -57,7 +58,7 @@ export function getItem<T>(key: string, defaultValue: T): T {
 		const item = localStorage.getItem(key);
 		if (item === null) return defaultValue;
 
-		const parsed = JSON.parse(item);
+		const parsed = safeJsonParse(item, null, 'persistence-item');
 		return parsed as T;
 	} catch (e) {
 		log.error(`Failed to parse ${key}:`, e);
