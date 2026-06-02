@@ -74,7 +74,12 @@ export const POST: RequestHandler = async (event) => {
 	if (rateLimited) return rateLimited;
 
 	try {
-		const body = (await event.request.json().catch(() => ({}))) as CreatorMissionBody;
+		let body: CreatorMissionBody;
+		try {
+			body = (await event.request.json()) as CreatorMissionBody;
+		} catch {
+			return json({ ok: false, error: 'Malformed JSON body' }, { status: 400 });
+		}
 		const brief = body.brief?.trim();
 		if (!brief) {
 			return json({ ok: false, error: 'brief is required' }, { status: 400 });
