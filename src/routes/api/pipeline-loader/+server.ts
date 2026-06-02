@@ -1,4 +1,5 @@
 /**
+import { safeJsonParse } from '$lib/server/safe-json';
  * Pipeline Loader API
  *
  * Single endpoint for the file-based pipeline loading queue.
@@ -94,7 +95,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		}
 
 		const content = await readFile(loadFile, 'utf-8');
-		const load = JSON.parse(content);
+		const load = safeJsonParse(content, {}, 'pipeline-loader');
 		if (!latest && requestedPipelineId && load?.pipelineId !== requestedPipelineId) {
 			return json({ pending: false });
 		}
