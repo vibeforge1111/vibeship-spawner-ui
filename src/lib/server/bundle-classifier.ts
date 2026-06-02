@@ -141,7 +141,7 @@ export function formatBundleForPrompt(bundle: BundleSpec): string {
 	lines.push(`Task pattern: ${bundle.task_pattern}`);
 	lines.push('');
 	lines.push('Suggested load order (use as a phasing baseline; deviate when the brief calls for it):');
-	for (const s of bundle.load_order) lines.push(`  ${bundle.load_order.indexOf(s) + 1}. ${s}`);
+	bundle.load_order.forEach((s, i) => lines.push(`  ${i + 1}. ${s}`));
 	lines.push('');
 	lines.push(`Required skills: ${bundle.required_skills.join(', ')}`);
 	if (bundle.optional_skills.length > 0) {
