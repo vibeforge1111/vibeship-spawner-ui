@@ -131,11 +131,26 @@ function missionTerminalSummary(boardEntry: MissionControlBoardEntry, missionId:
 	return `${boardEntry.missionName || missionId} was cancelled.`;
 }
 
+function parseTimestamp(value: string): number | null {
+	const parsed = Date.parse(value);
+	return Number.isFinite(parsed) ? parsed : null;
+}
+
+function monotonicTimestamp(previous: string, candidate: string, stepMs = 1): string {
+	const previousMs = parseTimestamp(previous);
+	const candidateMs = parseTimestamp(candidate);
+	if (previousMs === null || candidateMs === null) {
+		return candidate;
+	}
+	return new Date(Math.max(candidateMs, previousMs + stepMs)).toISOString();
+}
+
 function buildFallbackHistoryEvents(input: MissionControlHydrationInput): MissionControlHistoryEvent[] {
 	const { boardEntry, missionId } = input;
 	const startedAt =
 		boardEntry.startedAt || boardEntry.queuedAt || boardEntry.lastUpdated || input.now || new Date().toISOString();
 	const updatedAt = boardEntry.lastUpdated || startedAt;
+	let eventTimestamp = startedAt;
 	const events: MissionControlHistoryEvent[] = [
 		{
 			eventType: boardEntry.startedAt ? 'mission_started' : 'mission_created',
@@ -150,6 +165,7 @@ function buildFallbackHistoryEvents(input: MissionControlHydrationInput): Missio
 	];
 
 	boardEntry.tasks.forEach((task, index) => {
+		eventTimestamp = monotonicTimestamp(eventTimestamp, updatedAt);
 		events.push({
 			eventType: taskEventTypeForBoardStatus(task.status),
 			missionId,
@@ -157,13 +173,14 @@ function buildFallbackHistoryEvents(input: MissionControlHydrationInput): Missio
 			taskId: taskIdForTitle(task.title, index),
 			taskName: task.title,
 			summary: taskSummaryForBoardStatus(task),
-			timestamp: updatedAt,
+			timestamp: eventTimestamp,
 			source: 'mission-control'
 		});
 	});
 
 	const terminalEventType = missionTerminalEventType(boardEntry.status);
 	if (terminalEventType) {
+		eventTimestamp = monotonicTimestamp(eventTimestamp, updatedAt);
 		events.push({
 			eventType: terminalEventType,
 			missionId,
@@ -171,7 +188,7 @@ function buildFallbackHistoryEvents(input: MissionControlHydrationInput): Missio
 			taskId: null,
 			taskName: null,
 			summary: missionTerminalSummary(boardEntry, missionId),
-			timestamp: updatedAt,
+			timestamp: eventTimestamp,
 			source: 'mission-control'
 		});
 	}
