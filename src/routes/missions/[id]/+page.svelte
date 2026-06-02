@@ -53,6 +53,11 @@
 			summary: string;
 			durationMs: number | null;
 			completedAt: string | null;
+			artifacts?: Array<{
+				label: string;
+				path: string;
+				type: 'changed_file' | 'screenshot' | 'receipt' | 'history' | 'artifact';
+			}>;
 		}>;
 		completionEvidence?: MissionControlCompletionEvidence | null;
 		projectLineage?: {
@@ -375,6 +380,12 @@
 		return completionEvidenceTooltipForDisplay(evidence);
 	}
 
+	function artifactTypeLabel(type: string): string {
+		if (type === 'changed_file') return 'file';
+		if (type === 'screenshot') return 'shot';
+		return type;
+	}
+
 	function evidenceClass(evidence: MissionControlCompletionEvidence | null | undefined): string {
 		if (evidence?.state === 'complete') return 'border-status-success/30 bg-status-success/10 text-status-success';
 		if (evidence?.state === 'incomplete') return 'border-status-amber/30 bg-status-amber/10 text-status-amber';
@@ -583,6 +594,19 @@
 									<span class="font-mono text-[10px] text-text-tertiary uppercase tracking-wider">{result.status}</span>
 								</div>
 								<p class="font-mono text-xs text-text-secondary leading-relaxed pl-3.5">{result.summary}</p>
+								{#if result.artifacts && result.artifacts.length > 0}
+									<div class="mt-3 ml-3.5 rounded-md border border-surface-border/80 bg-bg-primary/50 px-3 py-2">
+										<div class="mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-text-tertiary">Artifacts</div>
+										<div class="grid gap-1.5">
+											{#each result.artifacts as artifact (`${artifact.type}-${artifact.path}`)}
+												<div class="flex min-w-0 items-center gap-2 font-mono text-[11px] text-text-secondary">
+													<span class="shrink-0 rounded-sm border border-surface-border px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-text-tertiary">{artifactTypeLabel(artifact.type)}</span>
+													<span class="min-w-0 flex-1 break-all" title={artifact.path}>{artifact.label}</span>
+												</div>
+											{/each}
+										</div>
+									</div>
+								{/if}
 								{#if result.durationMs}
 									<p class="font-mono text-[10px] text-text-faint pl-3.5 mt-2">{Math.round(result.durationMs / 1000)}s</p>
 								{/if}

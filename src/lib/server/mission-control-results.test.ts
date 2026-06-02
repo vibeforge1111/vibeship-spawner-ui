@@ -117,6 +117,27 @@ describe('mission-control-results', () => {
 		});
 	});
 
+	it('extracts inspectable artifacts from structured provider responses', () => {
+		const summary = summarizeProviderResults([
+			result({
+				providerId: 'codex',
+				response: JSON.stringify({
+					status: 'completed',
+					summary: 'Updated the browser-use surface.',
+					changed_files: ['src/routes/canvas/+page.svelte'],
+					screenshot_paths: ['C:/Users/USER/.spark/state/browser-use/actions/shot.png'],
+					receipt_path: 'C:/Users/USER/.spark/state/browser-use/actions/receipt.json'
+				})
+			})
+		]);
+
+		expect(summary.providerResults[0].artifacts).toEqual([
+			expect.objectContaining({ type: 'changed_file', label: '+page.svelte' }),
+			expect.objectContaining({ type: 'screenshot', label: 'shot.png' }),
+			expect.objectContaining({ type: 'receipt', label: 'receipt.json' })
+		]);
+	});
+
 	it('redacts local file paths from provider summaries before display', () => {
 		const summary = summarizeProviderResults([
 			result({
