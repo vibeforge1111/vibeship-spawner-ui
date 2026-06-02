@@ -69,8 +69,25 @@ async function _load(): Promise<StoreShape> {
       _store = { schedules: parsed.schedules };
       return _store;
     }
-  } catch {
-    // file missing or invalid - start fresh
+  } catch (err: unknown) {
+    // File exists but is corrupted — back up before resetting so missions can
+    // potentially be recovered from the .bak file.
+    const file = schedulesFile();
+    try {
+      const stat = await fs.stat(file);
+      if (stat.isFile()) {
+        const backupPath = `${file}.corrupt-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+        await fs.copyFile(file, backupPath);
+        logger.warn(
+          '[scheduler] schedules.json was corrupted — backed up to',
+          backupPath,
+          'resetting schedule store',
+          errorMessage(err),
+        );
+      }
+    } catch {
+      // stat or copy failed (file probably doesn't exist) — safe to proceed
+    }
   }
   _store = { schedules: [] };
   return _store;
