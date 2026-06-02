@@ -11,7 +11,7 @@
 	import { initPipelines, pipelines } from '$lib/stores/pipelines.svelte';
 	import type { Mission } from '$lib/services/mcp-client';
 	import type { PipelineMetadata } from '$lib/stores/pipelines.svelte';
-	import { buildClientTurnIntentVNextAuthority } from '$lib/services/harness-authority-client';
+	import { buildClientGovernorDecisionAuthority } from '$lib/services/harness-authority-client';
 	import {
 		canRunCreatorMissionBoardCard,
 		canShowMissionBoardProjectActions,
@@ -125,7 +125,7 @@
 					action: newAction,
 					payload,
 					chatId: newChatId || null,
-					executionAuthority: buildClientTurnIntentVNextAuthority({
+					executionAuthority: buildClientGovernorDecisionAuthority({
 						source: 'mission-board.schedule.create',
 						reason: 'User submitted a scheduled Spark action from Spawner.',
 						toolName: 'spawner.schedule.create',
@@ -158,7 +158,7 @@
 				method: 'DELETE',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					executionAuthority: buildClientTurnIntentVNextAuthority({
+					executionAuthority: buildClientGovernorDecisionAuthority({
 						source: 'mission-board.schedule.delete',
 						reason: 'User deleted a scheduled Spark action from Spawner.',
 						toolName: 'spawner.schedule.delete',

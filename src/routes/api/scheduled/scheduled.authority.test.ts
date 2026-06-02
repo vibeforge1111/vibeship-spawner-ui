@@ -5,7 +5,11 @@ import { tmpdir } from 'os';
 import path from 'path';
 import { DELETE, POST } from './+server';
 import { resetSchedulerForTests } from '$lib/server/scheduler';
-import { buildServerTurnIntentVNextAuthority, type SparkMutationClass } from '$lib/server/harness-authority';
+import {
+	buildServerGovernorDecisionAuthority,
+	buildServerTurnIntentVNextAuthority,
+	type SparkMutationClass
+} from '$lib/server/harness-authority';
 
 let testSpawnerDir: string | null = null;
 
@@ -22,6 +26,18 @@ function event(url: string, body?: unknown, method = 'POST') {
 }
 
 function authority(toolName: string, mutationClass: SparkMutationClass) {
+	return buildServerGovernorDecisionAuthority({
+		source: 'scheduled-route-authority-test',
+		reason: 'Focused scheduled route authority regression.',
+		toolName,
+		mutationClass,
+		requestId: `scheduled-route-authority-test-${toolName}`,
+		actorKind: 'human',
+		actorIdRef: 'spawner-ui.test'
+	});
+}
+
+function bareVNextAuthority(toolName: string, mutationClass: SparkMutationClass) {
 	return buildServerTurnIntentVNextAuthority({
 		source: 'scheduled-route-authority-test',
 		reason: 'Focused scheduled route authority regression.',
@@ -64,7 +80,24 @@ describe('/api/scheduled authority contract', () => {
 		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
 	});
 
-	it('allows schedule creation and deletion with matching Harness authority', async () => {
+	it('blocks schedule creation with bare VNext authority', async () => {
+		const response = await POST(
+			event('http://127.0.0.1:3333/api/scheduled', {
+				cron: '0 3 * * *',
+				action: 'mission',
+				payload: { goal: 'Run a startup benchmark.' },
+				executionAuthority: bareVNextAuthority('spawner.schedule.create', 'creates_schedule')
+			}) as never
+		);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.source).toBe('turn_intent_vnext');
+		expect(body.authority.reasonCodes).toContain('native_governor_required');
+	});
+
+	it('allows schedule creation and deletion with matching Governor authority', async () => {
 		const createResponse = await POST(
 			event('http://127.0.0.1:3333/api/scheduled', {
 				cron: '0 3 * * *',

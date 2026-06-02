@@ -11,6 +11,7 @@ import { resolveSparkRunProjectPath } from './spark-run-workspace';
 import { spawnerStateDir } from './spawner-state';
 import {
   assertHarnessAuthority,
+  assertNativeGovernorHarnessAuthority,
   buildServerGovernorDecisionAuthority,
   resolveExecutionAuthority,
   type HarnessAuthorityVerdict
@@ -123,7 +124,7 @@ export async function createSchedule(input: {
   if (!nextFireAt) {
     throw new Error(`Invalid cron expression: ${input.cron}`);
   }
-  const authority = assertHarnessAuthority({
+  const authority = assertNativeGovernorHarnessAuthority({
     authority: resolveExecutionAuthority(input.executionAuthority),
     toolName: 'spawner.schedule.create',
     ownerSystem: 'spawner-ui',
@@ -155,7 +156,7 @@ export async function createSchedule(input: {
 
 export async function deleteSchedule(input: string | { id: string; executionAuthority?: unknown }): Promise<boolean> {
   const id = typeof input === 'string' ? input : input.id;
-  assertHarnessAuthority({
+  assertNativeGovernorHarnessAuthority({
     authority: resolveExecutionAuthority(typeof input === 'string' ? undefined : input.executionAuthority),
     toolName: 'spawner.schedule.delete',
     ownerSystem: 'spawner-ui',

@@ -10,11 +10,27 @@ import {
 	resetSchedulerForTests,
 	runSchedulerTickForTests
 } from './scheduler';
-import { buildServerTurnIntentVNextAuthority, type SparkMutationClass } from './harness-authority';
+import {
+	buildServerGovernorDecisionAuthority,
+	buildServerTurnIntentVNextAuthority,
+	type SparkMutationClass
+} from './harness-authority';
 
 let testSpawnerDir: string | null = null;
 
 function scheduleAuthority(toolName: string, mutationClass: SparkMutationClass) {
+	return buildServerGovernorDecisionAuthority({
+		source: 'scheduler-authority-test',
+		reason: 'Focused scheduler authority regression.',
+		toolName,
+		mutationClass,
+		requestId: `scheduler-authority-test-${toolName}`,
+		actorKind: 'human',
+		actorIdRef: 'spawner-ui.test'
+	});
+}
+
+function bareVNextScheduleAuthority(toolName: string, mutationClass: SparkMutationClass) {
 	return buildServerTurnIntentVNextAuthority({
 		source: 'scheduler-authority-test',
 		reason: 'Focused scheduler authority regression.',
@@ -59,7 +75,24 @@ describe('scheduler Harness authority', () => {
 		});
 	});
 
-	it('creates and deletes schedules only with matching Harness authority', async () => {
+	it('blocks schedule creation with bare VNext authority', async () => {
+		await expect(
+			createSchedule({
+				cron: '0 3 * * *',
+				action: 'mission',
+				payload: { goal: 'Run a startup benchmark.' },
+				executionAuthority: bareVNextScheduleAuthority('spawner.schedule.create', 'creates_schedule')
+			})
+		).rejects.toMatchObject({
+			code: 'harness_authority_blocked',
+			verdict: expect.objectContaining({
+				source: 'turn_intent_vnext',
+				reasonCodes: expect.arrayContaining(['native_governor_required'])
+			})
+		});
+	});
+
+	it('creates and deletes schedules only with matching Governor authority', async () => {
 		const record = await createSchedule({
 			cron: '0 3 * * *',
 			action: 'mission',
@@ -68,7 +101,7 @@ describe('scheduler Harness authority', () => {
 		});
 
 		expect(record.authority).toMatchObject({
-			source: 'turn_intent_vnext',
+			source: 'governor_decision',
 			reasonCodes: []
 		});
 		expect(await listSchedules()).toHaveLength(1);
