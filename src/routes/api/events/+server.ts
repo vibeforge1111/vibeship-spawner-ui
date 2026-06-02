@@ -1,4 +1,5 @@
 /**
+import { safeJsonParse } from '$lib/server/safe-json';
  * Event Bridge API - Receives events from Claude Code and broadcasts to spawner-ui
  *
  * POST /api/events - Receive an event from Claude Code
@@ -169,7 +170,7 @@ async function relayMetadataForMission(missionId: string): Promise<Record<string
 		const loadFile = join(getSpawnerDir(), 'last-canvas-load.json');
 		if (!existsSync(loadFile)) return {};
 		const raw = await readFile(loadFile, 'utf-8');
-		const load = JSON.parse(raw) as { relay?: Record<string, unknown> };
+		const load = safeJsonParse<{ relay?: Record<string, unknown> }>(raw, {}, 'events-relay');
 		const relay = load.relay && typeof load.relay === 'object' ? load.relay : null;
 		if (!relay || relay.missionId !== missionId) return {};
 		const traceRef = extractTraceRef(load, relay);
