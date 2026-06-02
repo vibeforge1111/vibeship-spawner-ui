@@ -9,6 +9,7 @@
  */
 
 import { json } from '@sveltejs/kit';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 import type { RequestHandler } from './$types';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
@@ -41,7 +42,10 @@ async function tierForRequest(requestId: string): Promise<string> {
 /**
  * POST - Store an analysis result
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+  const { request } = event;
+  const _a = requireControlAuth(event, {}); if (_a) return _a;
+  return ((event: never) => {
 	try {
 		const { requestId, result } = await request.json();
 

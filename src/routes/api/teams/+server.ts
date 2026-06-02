@@ -2,6 +2,7 @@
 // Serves agentic team configurations
 // Configure your teams in: src/lib/data/teams/index.ts
 
+import { requireControlAuth } from '$lib/server/mcp-auth';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import type { AgenticTeam } from '$lib/types/teams';
@@ -91,7 +92,10 @@ export const GET: RequestHandler = async () => {
 	return json(registry);
 };
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+  const { request } = event;
+  const _a = requireControlAuth(event, {}); if (_a) return _a;
+  return ((event: never) => {
 	const body = await request.json();
 	const { action, team_id, agent_id } = body;
 

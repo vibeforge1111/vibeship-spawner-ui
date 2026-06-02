@@ -10,6 +10,7 @@
  */
 
 import { json } from '@sveltejs/kit';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 import type { RequestHandler } from './$types';
 import { writeFile, readFile, unlink, mkdir } from 'fs/promises';
 import { join } from 'path';
@@ -42,7 +43,7 @@ async function ensureDir(): Promise<void> {
 /**
  * POST - Queue a pipeline to load
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const __POST_inner: RequestHandler = async ({ request }) => {
 	try {
 		await ensureDir();
 		const payload = await request.json();
@@ -128,7 +129,7 @@ export const GET: RequestHandler = async ({ url }) => {
 /**
  * DELETE - Clear the pending load
  */
-export const DELETE: RequestHandler = async () => {
+export const __DELETE_inner: RequestHandler = async () => {
 	try {
 		const pendingLoadFile = getPendingLoadFile();
 		if (existsSync(pendingLoadFile)) {
@@ -141,3 +142,6 @@ export const DELETE: RequestHandler = async () => {
 		return json({ error: 'Failed to clear pending load' }, { status: 500 });
 	}
 };
+
+export const POST: RequestHandler = async (e) => { const a = requireControlAuth(e,{}); if(a) return a; return __POST_inner(e); };
+export const DELETE: RequestHandler = async (e) => { const a = requireControlAuth(e,{}); if(a) return a; return __DELETE_inner(e); };
