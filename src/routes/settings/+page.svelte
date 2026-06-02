@@ -81,8 +81,16 @@
 		accessPanel.error = '';
 		try {
 			const response = await fetch('/api/access/execution-lanes');
+			if (!response.ok) {
+				const detail = await response
+					.text()
+					.then((text) => text.slice(0, 200))
+					.catch(() => '');
+				const suffix = detail ? `: ${detail}` : '';
+				throw new Error(`Access lane check failed (HTTP ${response.status})${suffix}`);
+			}
 			const body = await response.json();
-			if (!response.ok || body.success === false) {
+			if (body.success === false) {
 				throw new Error(body.error || 'Access lane check failed');
 			}
 			accessPanel.access = body.access || {};
@@ -120,8 +128,16 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(body)
 			});
+			if (!response.ok) {
+				const detail = await response
+					.text()
+					.then((text) => text.slice(0, 200))
+					.catch(() => '');
+				const suffix = detail ? `: ${detail}` : '';
+				throw new Error(`Access action failed (HTTP ${response.status})${suffix}`);
+			}
 			const result = await response.json();
-			if (!response.ok || result.success === false) {
+			if (result.success === false) {
 				throw new Error(result.error || 'Access action failed');
 			}
 			const payload = result.result?.payload || {};
