@@ -1,0 +1,63 @@
+{
+  "schema_version": "spark-creator-intent.v1",
+  "intent_id": "creator-intent-spark-grants-contracts-v1",
+  "user_goal": "Create a Spawner mission from Telegram planning context for Spark Grants contracts, launch account choice, WL wording, and voice QA proof.",
+  "target_domain": "spark-grants-contracts",
+  "target_operator_surface": "telegram+spawner-ui+canvas+kanban+trace",
+  "expected_agent_capability": "Turn informal Telegram planning notes into a staged, reviewable Spark Grants mission with contract gates and launch-copy decisions.",
+  "success_examples": [
+    "The mission recommends Spark_coded for v1 launch while keeping BookofAgents as a later reserved identity.",
+    "The mission blocks free WL language until the grants contract confirms no consideration is required.",
+    "The mission includes the four referenced voice QA proof commands without claiming live proof was already completed.",
+    "The mission creates a contract-pack task with legal review as a required gate."
+  ],
+  "failure_examples": [
+    "The mission publishes or dispatches work automatically.",
+    "The mission tells the operator to say free WLs without a contract gate.",
+    "The mission creates or assumes ownership of BookofAgents.",
+    "The mission treats generated contract notes as final legal advice."
+  ],
+  "tools_in_scope": [
+    "spawner-ui",
+    "mission-control",
+    "telegram-planning-context",
+    "voice-system-proof-commands"
+  ],
+  "data_sources_allowed": [
+    "local_repo",
+    "operator_supplied_telegram_context"
+  ],
+  "risk_level": "medium",
+  "privacy_mode": "local_only",
+  "desired_outputs": {
+    "domain_chip": false,
+    "specialization_path": false,
+    "benchmark_pack": false,
+    "autoloop_policy": false,
+    "telegram_flow": true,
+    "spawner_mission": true,
+    "swarm_publish_packet": false
+  },
+  "artifact_targets": [
+    "spawner_mission",
+    "contract_outline",
+    "verification_plan",
+    "validation_ledger"
+  ],
+  "usage_surfaces": [
+    "telegram",
+    "spawner-ui",
+    "canvas",
+    "kanban",
+    "trace"
+  ],
+  "success_claim": "Spark Grants launch planning can move forward with account, WL wording, contract, and voice proof gates captured before public execution.",
+  "capabilities_to_prove": [
+    "planning context normalization",
+    "launch copy risk separation",
+    "contract gate creation",
+    "voice QA proof gating",
+    "read-only Spawner mission staging"
+  ],
+  "network_contribution_policy": "workspace_only"
+}

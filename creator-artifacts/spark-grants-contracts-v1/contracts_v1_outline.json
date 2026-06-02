@@ -1,0 +1,88 @@
+{
+  "schema_version": "spark-grants-contract-outline.v1",
+  "contract_pack_id": "spark-grants-contracts-v1",
+  "status": "draft_outline_only",
+  "legal_review_required": true,
+  "public_use_allowed": false,
+  "default_public_phrase": "WL spots",
+  "free_wl_phrase_allowed": false,
+  "free_wl_unlock_condition": "Legal/compliance review confirms the WL has no payment, purchase, staking, service obligation, or other consideration requirement, and public copy states eligibility limits plainly.",
+  "recommended_contracts": [
+    {
+      "id": "spark-grants-program-terms",
+      "title": "Spark Grants Program Terms",
+      "purpose": "Define eligibility, application flow, selection discretion, grant scope, recipient responsibilities, revocation rights, and no-guarantee language.",
+      "must_include": [
+        "Eligibility requirements",
+        "Selection and rejection discretion",
+        "Grant value, if any, and non-transferability",
+        "No guarantee of token, WL, payment, or future benefit",
+        "Recipient conduct and fraud prevention",
+        "Revocation and suspension rights",
+        "Privacy and data handling summary",
+        "Jurisdiction, dispute process, and update rights"
+      ]
+    },
+    {
+      "id": "wl-allocation-terms",
+      "title": "WL Allocation Terms",
+      "purpose": "Define what a WL spot means, whether it is free, how it is allocated, and what can cause removal.",
+      "must_include": [
+        "Definition of WL spot",
+        "Whether any consideration is required",
+        "Eligibility and anti-sybil checks",
+        "Non-transferability unless explicitly allowed",
+        "No investment or profit promise",
+        "Removal and correction rights",
+        "Copy rule for saying free WLs"
+      ]
+    },
+    {
+      "id": "contributor-grant-agreement",
+      "title": "Contributor Grant Agreement",
+      "purpose": "Cover deliverables, contribution ownership or license, confidentiality, acceptance, payment/grant mechanics, and termination.",
+      "must_include": [
+        "Contributor identity and grant scope",
+        "Deliverables and acceptance criteria",
+        "IP ownership or license language",
+        "Open-source or public contribution terms",
+        "Confidentiality boundary",
+        "Payment, token, credit, or non-monetary grant handling",
+        "Tax responsibility disclaimer",
+        "Termination and clawback conditions"
+      ]
+    },
+    {
+      "id": "announcement-copy-approval",
+      "title": "Announcement Copy Approval Sheet",
+      "purpose": "Keep public Telegram/X copy aligned with contract terms before posting.",
+      "must_include": [
+        "Posting account",
+        "Approved CTA",
+        "Approved WL phrase",
+        "Disallowed phrases",
+        "Link to current terms",
+        "Reviewer name and timestamp",
+        "Rollback/correction copy"
+      ]
+    }
+  ],
+  "copy_rules": [
+    {
+      "rule": "Use Spark_coded as the initial public account unless the operator confirms BookofAgents exists, is controlled, and is ready.",
+      "blocks_publication": true
+    },
+    {
+      "rule": "Use WL spots until the WL Allocation Terms approve free WLs.",
+      "blocks_publication": true
+    },
+    {
+      "rule": "Do not mention guaranteed grants, token upside, investment returns, or automatic acceptance.",
+      "blocks_publication": true
+    },
+    {
+      "rule": "Keep contract links and CTA copy paired; if terms change, copy must be re-reviewed.",
+      "blocks_publication": true
+    }
+  ]
+}

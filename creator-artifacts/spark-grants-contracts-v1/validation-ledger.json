@@ -1,0 +1,45 @@
+{
+  "schema_version": "spark-grants-validation-ledger.v1",
+  "mission_id": "mission-spark-grants-contracts-v1",
+  "status": "staged",
+  "updated_at": "2026-06-02T00:00:00.000Z",
+  "automation_blocked": true,
+  "network_absorbable": false,
+  "checks": [
+    {
+      "id": "schema_gate",
+      "status": "pending",
+      "evidence": "Run node scripts/validate-spark-grants-mission.mjs."
+    },
+    {
+      "id": "account_gate",
+      "status": "pending",
+      "evidence": "Operator must verify Spark_coded ownership and whether BookofAgents should be reserved later."
+    },
+    {
+      "id": "wl_wording_gate",
+      "status": "pending",
+      "evidence": "Legal/compliance review must approve any free WL wording."
+    },
+    {
+      "id": "contract_scope_gate",
+      "status": "pending",
+      "evidence": "Contract pack must be reviewed by the appropriate legal/compliance owner."
+    },
+    {
+      "id": "voice_proof_gate",
+      "status": "pending",
+      "evidence": "Run or confirm the four /voice speak proof commands from Telegram."
+    },
+    {
+      "id": "launch_safety_gate",
+      "status": "pending",
+      "evidence": "No public CTA until account, contract, WL wording, and voice proof gates pass."
+    }
+  ],
+  "blockers": [
+    "External account ownership is not verified in this repo.",
+    "Spark Grants contracts are outline-only and not legal-approved.",
+    "Voice QA proof commands are listed but not freshly confirmed in this run."
+  ]
+}

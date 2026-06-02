@@ -1,0 +1,81 @@
+{
+  "schema_version": "spark-artifact-manifest.v1",
+  "mission_id": "mission-spark-grants-contracts-v1",
+  "artifact_set_id": "spark-grants-contracts-v1",
+  "generated_at": "2026-06-02T00:00:00.000Z",
+  "privacy_mode": "local_only",
+  "risk_level": "medium",
+  "network_absorbable": false,
+  "public_ready": false,
+  "requires_review_gate": true,
+  "artifacts": [
+    {
+      "artifact_id": "spark-grants-artifact-manifest-v1",
+      "artifact_type": "artifact_manifest",
+      "lane": "artifact_manifest",
+      "path": "artifact_manifest.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "privacy_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-grants-spawner-mission-v1",
+      "artifact_type": "spawner_mission",
+      "lane": "mission_packet",
+      "path": "mission_packet.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "privacy_gate",
+        "launch_safety_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-grants-creator-intent-v1",
+      "artifact_type": "creator_intent",
+      "lane": "creator_intent",
+      "path": "creator_intent.json",
+      "required": true,
+      "validation_gates": [
+        "schema_gate",
+        "privacy_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-grants-contract-outline-v1",
+      "artifact_type": "contract_outline",
+      "lane": "contract_pack",
+      "path": "contracts_v1_outline.json",
+      "required": true,
+      "validation_gates": [
+        "contract_scope_gate",
+        "legal_review_gate",
+        "wl_wording_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-grants-verification-plan-v1",
+      "artifact_type": "verification_plan",
+      "lane": "verification",
+      "path": "verification_plan.md",
+      "required": true,
+      "validation_gates": [
+        "qa_gate",
+        "voice_proof_gate"
+      ]
+    },
+    {
+      "artifact_id": "spark-grants-validation-ledger-v1",
+      "artifact_type": "validation_ledger",
+      "lane": "evidence",
+      "path": "validation-ledger.json",
+      "required": true,
+      "validation_gates": [
+        "evidence_gate",
+        "manual_review_gate"
+      ]
+    }
+  ]
+}

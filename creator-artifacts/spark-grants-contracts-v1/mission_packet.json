@@ -1,0 +1,160 @@
+{
+  "schema_version": "spark-spawner-staged-mission.v1",
+  "mission_id": "mission-spark-grants-contracts-v1",
+  "request_id": "telegram-plan-spark-grants-contracts-v1",
+  "title": "Spark Grants contracts and launch account v1",
+  "created_at": "2026-06-02T00:00:00.000Z",
+  "source": {
+    "surface": "telegram",
+    "summary": "Recent Telegram planning notes asked whether to create BookofAgents or use Spark_coded, when to introduce that account choice, whether to say WLs or free WLs, and how to plan Spark Grants contracts. Voice QA delivery checks were also referenced after restart, envelope, owner, and state fixes.",
+    "raw_context_redacted": true
+  },
+  "execution_policy": "read_only",
+  "privacy_mode": "local_only",
+  "risk_level": "medium",
+  "network_absorbable": false,
+  "public_ready": false,
+  "smallest_useful_v1": {
+    "deliverable": "A staged Spawner mission that converts the Telegram planning context into decisions, contract artifacts, and verification gates before public launch or provider execution.",
+    "non_goals": [
+      "Do not create or claim control of external social accounts.",
+      "Do not publish Spark Grants terms or WL promises.",
+      "Do not treat this packet as legal advice or final legal approval.",
+      "Do not run a provider mission automatically."
+    ]
+  },
+  "recommended_v1_decisions": {
+    "account": {
+      "choice": "Use Spark_coded for the beginning of v1.",
+      "reason": "Spark_coded is already the Spark-owned identity in the planning context; BookofAgents can be reserved or created later once the Grants/agents brand needs a separate channel.",
+      "gate": "Before public copy ships, verify account ownership, naming, and recovery access outside this repo."
+    },
+    "account_timing": {
+      "choice": "Introduce the account choice near the beginning of the launch plan, before CTA copy and contract references.",
+      "reason": "The account identity affects attribution, replies, WL collection, and contract signer/issuer wording."
+    },
+    "wl_wording": {
+      "choice": "Default to WLs or WL spots. Use free WLs only after the contract confirms there is no payment, purchase, staking, or consideration required.",
+      "reason": "Free is a legal/compliance-sensitive claim; v1 copy should not overpromise before the grants terms and eligibility rules exist."
+    },
+    "contracts_timing": {
+      "choice": "Create the contracts before final CTA copy and before any public WL/grant allocation promise.",
+      "reason": "The contracts define eligibility, allocation, revocation, contribution rights, privacy, and dispute boundaries."
+    }
+  },
+  "tasks": [
+    {
+      "id": "planning-context-lock",
+      "title": "Lock Telegram planning context",
+      "description": "Normalize the recent Telegram notes into account, copy, voice QA, and Spark Grants contract requirements.",
+      "dependencies": [],
+      "skills": [
+        "spark-conversational-telegram-style",
+        "spawner-ui"
+      ],
+      "acceptance_criteria": [
+        "Mission packet captures the BookofAgents versus Spark_coded account question.",
+        "Mission packet captures WLs versus free WLs wording risk.",
+        "Mission packet captures the four referenced voice QA delivery proof keys.",
+        "Mission packet captures Spark Grants contract creation as the main build work."
+      ],
+      "verification_commands": [
+        "node scripts/validate-spark-grants-mission.mjs"
+      ]
+    },
+    {
+      "id": "account-and-copy-decision",
+      "title": "Decide launch account and WL wording",
+      "description": "Produce v1 decision rules for using Spark_coded initially, reserving BookofAgents later, and avoiding free WL claims until eligibility terms are locked.",
+      "dependencies": [
+        "planning-context-lock"
+      ],
+      "skills": [
+        "community-strategy",
+        "legal-ops"
+      ],
+      "acceptance_criteria": [
+        "Decision rule names Spark_coded as the v1 launch account.",
+        "BookofAgents is treated as a later brand/account reservation, not a launch blocker.",
+        "WL copy rule distinguishes WLs from free WLs.",
+        "Copy rule requires contract confirmation before saying free."
+      ],
+      "verification_commands": [
+        "node scripts/validate-spark-grants-mission.mjs"
+      ]
+    },
+    {
+      "id": "spark-grants-contract-pack",
+      "title": "Draft Spark Grants v1 contract pack",
+      "description": "Create the contract outline and review gates for Spark Grants terms, grant recipient obligations, WL allocation, IP/contribution rights, privacy, and revocation boundaries.",
+      "dependencies": [
+        "account-and-copy-decision"
+      ],
+      "skills": [
+        "contract-drafting",
+        "token-launch",
+        "compliance-review"
+      ],
+      "acceptance_criteria": [
+        "Contract outline includes eligibility, selection, allocation, payment/consideration, revocation, IP, privacy, and dispute terms.",
+        "Contract outline marks legal review as required before public use.",
+        "Contract outline blocks free WL language unless the no-consideration clause is approved.",
+        "Contract outline separates public announcement copy from private recipient terms."
+      ],
+      "verification_commands": [
+        "node scripts/validate-spark-grants-mission.mjs",
+        "Manual legal/compliance review before publication"
+      ]
+    },
+    {
+      "id": "voice-qa-proof-gate",
+      "title": "Attach voice QA delivery proof gate",
+      "description": "Require proof that voice delivery checks remain OK after restart, envelope, owner, and state fixes before the launch plan references voice readiness.",
+      "dependencies": [
+        "planning-context-lock"
+      ],
+      "skills": [
+        "spark-qa-release-gate",
+        "voice-system"
+      ],
+      "acceptance_criteria": [
+        "The four referenced voice proof keys are listed.",
+        "The mission does not claim live voice readiness without fresh proof.",
+        "Verification requires either live Telegram confirmation or an explicit skipped reason."
+      ],
+      "verification_commands": [
+        "/voice speak SPARK_VOICE_QA_DELIVERY_OK_AFTER_RESTART",
+        "/voice speak SPARK_VOICE_QA_DELIVERY_OK_ENVELOPE_FIX",
+        "/voice speak SPARK_VOICE_QA_DELIVERY_OK_OWNER_FIX",
+        "/voice speak SPARK_VOICE_QA_DELIVERY_OK_STATE_FIX"
+      ]
+    },
+    {
+      "id": "launch-readiness-review",
+      "title": "Review launch readiness before execution",
+      "description": "Confirm contracts, account ownership, WL wording, and voice proof before any provider execution, account creation, or public CTA.",
+      "dependencies": [
+        "spark-grants-contract-pack",
+        "voice-qa-proof-gate"
+      ],
+      "skills": [
+        "spark-qa-release-gate",
+        "test-architect"
+      ],
+      "acceptance_criteria": [
+        "Validation ledger is updated with pass, fail, or blocked status for every gate.",
+        "No external account action is taken from this staged mission.",
+        "Public copy is blocked until contract review and account verification pass."
+      ],
+      "verification_commands": [
+        "node scripts/validate-spark-grants-mission.mjs",
+        "Manual review of creator-artifacts/spark-grants-contracts-v1/validation-ledger.json"
+      ]
+    }
+  ],
+  "links": {
+    "kanban": "/kanban",
+    "canvas": "/canvas?pipeline=spark-grants-contracts-v1&mission=mission-spark-grants-contracts-v1",
+    "trace": "/trace?mission=mission-spark-grants-contracts-v1"
+  }
+}
