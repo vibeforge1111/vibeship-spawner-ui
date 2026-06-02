@@ -7,7 +7,7 @@ import {
 } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { mcpClient } from '$lib/services/mcp-client';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, rename, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { spawnerStateDir } from './spawner-state';
@@ -74,7 +74,13 @@ async function syncActiveMissionFile(
 		if (typeof note === 'string' && note.trim()) {
 			active.note = note.trim();
 		}
-		await writeFile(activeMissionFile, JSON.stringify(active, null, 2), 'utf-8');
+		// Atomic write: temp + rename so a crash mid-write cannot truncate the
+		// canonical active-mission pointer consumed by /kanban, /trace, and the
+		// mission-control relay. Mirrors saveCreatorMissionTrace (creator-mission.ts)
+		// and scheduler _save (scheduler.ts), the existing atomic-write callsites here.
+		const tempPath = `${activeMissionFile}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+		await writeFile(tempPath, JSON.stringify(active, null, 2), 'utf-8');
+		await rename(tempPath, activeMissionFile);
 	} catch (error) {
 		console.warn('[MissionControl] Failed to sync active mission file:', error);
 	}
