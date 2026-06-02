@@ -31,6 +31,7 @@ import { mcpClient } from '$lib/services/mcp-client';
 import { agentWorkTimeoutMs } from './timeout-config';
 import { extractTraceRef } from './trace-ref';
 import { readFile } from 'node:fs/promises';
+import { safeJsonParse } from '$lib/server/safe-json';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { spawnerStateDir } from './spawner-state';
@@ -190,7 +191,7 @@ function missionTraceMetadata(missionId: string): { requestId: string | null; tr
 	for (const fileName of ['last-canvas-load.json', 'pending-request.json']) {
 		try {
 			const raw = readFileSync(path.join(getSpawnerStateDir(), fileName), 'utf-8');
-			const parsed = JSON.parse(raw) as Record<string, unknown>;
+			const parsed = safeJsonParse<Record<string, unknown>>(raw, {}, 'mission-trace-metadata');
 			const relay = parsed.relay && typeof parsed.relay === 'object'
 				? (parsed.relay as Record<string, unknown>)
 				: null;
