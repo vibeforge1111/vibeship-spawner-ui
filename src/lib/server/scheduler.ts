@@ -215,7 +215,16 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
         maxBuffer: 10 * 1024 * 1024,
         timeout: 900_000,
       });
-      const parsed = JSON.parse(stdout);
+      let parsed: { ok?: boolean; rounds_completed?: number; error?: string };
+      try {
+        parsed = JSON.parse(stdout);
+      } catch (parseErr) {
+        const length = typeof stdout === 'string' ? stdout.length : 0;
+        const message = parseErr instanceof Error ? parseErr.message : String(parseErr);
+        throw new Error(
+          `subprocess returned non-JSON output (length=${length}): ${message}`
+        );
+      }
       return {
         ok: Boolean(parsed.ok),
         summary: parsed.ok
