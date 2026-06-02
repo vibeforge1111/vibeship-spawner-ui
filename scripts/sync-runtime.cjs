@@ -29,6 +29,7 @@ const SYNCED_PATHS = [
 	'src/lib/server/brief-enricher.ts',
 	'src/lib/server/command-runner.ts',
 	'src/lib/server/capability-policy.ts',
+	'src/lib/server/intent-boundary.ts',
 	'src/lib/server/mcp-auth.ts',
 	'src/lib/server/mission-control-access.ts',
 	'src/lib/server/mission-control-lineage.ts',

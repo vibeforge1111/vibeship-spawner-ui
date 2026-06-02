@@ -87,9 +87,22 @@ function countMultiSystemSignals(text: string): number {
 
 export function classifyMissionSize(brief: string): MissionSizeClassification {
 	const normalized = brief.trim();
+	const lower = normalized.toLowerCase();
 	if (
-		normalized
-			.toLowerCase()
+		/mentioning\b|just mentioning|only mentioning|keywords?|words? here|words? alone|phrases?|terms?|quoted text|not a request|not a command|not an instruction|not asking for|does(?: not|n't) mean/i.test(normalized)
+		|| /\b(do not|don't|dont|no need to|not asking you to)\s+(start|run|execute|dispatch|launch|build|create|scaffold|generate|save|open)\b/i.test(normalized)
+		|| /\b(just explain|explain only|only explain|we can talk here|talk here|stay in chat)\b/i.test(normalized)
+	) {
+		return {
+			size: 'tiny',
+			projectKind: 'clarification',
+			suggestedTaskRange: [2, 3],
+			verificationDepth: 'light',
+			reasons: ['conversation-only boundary; do not infer build scope from keywords']
+		};
+	}
+	if (
+		lower
 			.replace(/[?.!]+$/g, '')
 			.replace(/\s+/g, ' ') === 'did you understand what i said'
 	) {

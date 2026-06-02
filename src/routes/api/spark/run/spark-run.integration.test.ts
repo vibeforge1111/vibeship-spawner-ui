@@ -130,4 +130,27 @@ describe('/api/spark/run integration', () => {
 		expect(body.missionName).toBe('Spark Bug Recognition Domain Chip');
 		expect(dispatch).toHaveBeenCalledTimes(1);
 	});
+
+	it('blocks conversation-only word hijacks before dispatching a provider mission', async () => {
+		const dispatch = vi.mocked(providerRuntime.dispatch);
+		dispatch.mockClear();
+
+		const response = await POST(routeEvent({
+			goal: 'I am mentioning build, mission, and Codex, but do not start anything. Just explain the routing bug.',
+			providers: ['codex'],
+			requestId: 'tg-no-execution-word-hijack'
+		}) as never);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body).toMatchObject({
+			success: false,
+			code: 'conversation_only_boundary',
+			intentVerdict: {
+				allowed: false,
+				reasonCode: 'conversation_only_boundary'
+			}
+		});
+		expect(dispatch).not.toHaveBeenCalled();
+	});
 });
