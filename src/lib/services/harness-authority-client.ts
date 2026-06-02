@@ -19,6 +19,8 @@ export function buildClientTurnIntentVNextAuthority(input: {
 	requestId?: string | null;
 	actorId?: string | null;
 	target?: string | null;
+	externalNetwork?: boolean;
+	publishes?: boolean;
 }): SparkClientTurnIntentEnvelopeVNext {
 	return createHarnessCoreActionEnvelopeVNext({
 		surface: 'spawner',
@@ -30,6 +32,8 @@ export function buildClientTurnIntentVNextAuthority(input: {
 		requestId: input.requestId,
 		actorIdRef: input.actorId,
 		target: input.target,
+		externalNetwork: input.externalNetwork,
+		publishes: input.publishes,
 		confidence: 0.95
 	});
 }
@@ -42,15 +46,17 @@ export function buildClientGovernorDecisionAuthority(input: {
 	requestId?: string | null;
 	actorId?: string | null;
 	target?: string | null;
+	externalNetwork?: boolean;
+	publishes?: boolean;
 }): SparkClientGovernorDecisionV1 {
 	const envelope = buildClientTurnIntentVNextAuthority(input);
 	return createHarnessCoreAuthorizedGovernorDecision({
 		envelope,
 		tool_name: input.toolName,
 		restrictions: {
-			network_allowed: false,
+			network_allowed: input.externalNetwork === true,
 			write_allowed: ['writes_files', 'creates_schedule', 'deletes_schedule', 'creates_chip', 'launches_mission'].includes(input.mutationClass),
-			publish_allowed: input.mutationClass === 'publishes'
+			publish_allowed: input.publishes === true || input.mutationClass === 'publishes'
 		}
 	});
 }

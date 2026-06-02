@@ -9,6 +9,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import skillIndex from '$lib/data/skill-index-ultra.json';
+import { HarnessAuthorityError, assertNativeGovernorHarnessAuthority, resolveExecutionAuthority } from '$lib/server/harness-authority';
 import { ClaudeApiAnalysisSchema, safeJsonParse } from '$lib/types/schemas';
 import { logger } from '$lib/utils/logger';
 
@@ -17,6 +18,7 @@ interface AnalysisRequest {
 	context?: {
 		availableSkills?: string[];
 	};
+	executionAuthority?: unknown;
 }
 
 interface SkillSelection {
@@ -116,6 +118,14 @@ export const POST: RequestHandler = async ({ request }) => {
 				localMatchingAvailable: true
 			}, { status: 200 }); // 200 because local matching will work
 		}
+
+		assertNativeGovernorHarnessAuthority({
+			authority: resolveExecutionAuthority(body.executionAuthority),
+			toolName: 'spawner.analyze',
+			ownerSystem: 'spawner-ui',
+			mutationClass: 'external_network',
+			externalNetwork: true
+		});
 
 		// Build the prompt with full skill index
 		const skillsFormatted = formatSkillsForPrompt();
@@ -258,6 +268,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 	} catch (error) {
+		if (error instanceof HarnessAuthorityError) {
+			return json({ error: error.message, code: error.code, authority: error.verdict }, { status: error.status });
+		}
 		log.error('Analysis API error:', error);
 		return json({
 			error: error instanceof Error ? error.message : 'Internal server error',
