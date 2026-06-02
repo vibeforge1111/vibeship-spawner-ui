@@ -1,4 +1,5 @@
 /**
+import { safeJsonParse } from '$lib/server/safe-json';
  * H70 Skills API Route
  *
  * Serves skill content directly from the local vibeship-h70 skill-lab.
@@ -143,7 +144,7 @@ function findStaticSkillMetadata(skillId: string): { skill: SparkSkillGraphMetad
 	const skillsPath = resolveStaticSkillsJsonPath();
 	if (!skillsPath) return null;
 	try {
-		const parsed = JSON.parse(fs.readFileSync(skillsPath, 'utf-8')) as SparkSkillGraphMetadata[];
+		const parsed = safeJsonParse<SparkSkillGraphMetadata[]>(fs.readFileSync(skillsPath, 'utf-8'), [], 'h70-skills');
 		const skill = parsed.find((candidate) => candidate.id === skillId);
 		return skill ? { skill, path: skillsPath } : null;
 	} catch (e) {
