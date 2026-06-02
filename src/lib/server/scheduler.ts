@@ -181,7 +181,11 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
         projectPath: resolveSparkRunProjectPath(requestedProjectPath),
       }),
     });
-    const body = (await res.json()) as { success?: boolean; missionId?: string; error?: string };
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      return { ok: false, summary: `spark/run HTTP ${res.status}${errBody ? ': ' + errBody.slice(0, 120) : ''}` };
+    }
+    const body = (await res.json().catch(() => ({}))) as { success?: boolean; missionId?: string; error?: string };
     return {
       ok: Boolean(body.success),
       summary: body.success ? `mission ${body.missionId}` : `error: ${body.error || 'unknown'}`,
