@@ -31,6 +31,7 @@ import { mcpClient } from '$lib/services/mcp-client';
 import { agentWorkTimeoutMs } from './timeout-config';
 import { extractTraceRef } from './trace-ref';
 import { readFile } from 'node:fs/promises';
+import { safeJsonParse } from '$lib/server/safe-json';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { spawnerStateDir } from './spawner-state';
@@ -330,7 +331,7 @@ class ProviderRuntimeManager {
 		if (existsSync(activeMissionPath)) {
 			try {
 				const raw = await readFile(activeMissionPath, 'utf-8');
-				const state = JSON.parse(raw) as {
+				const state = safeJsonParse(raw, {} as {
 					missionId?: string;
 					multiLLMExecution?: MultiLLMExecutionPack | null;
 				};
