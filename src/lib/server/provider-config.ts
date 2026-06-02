@@ -69,6 +69,33 @@ function firstConfigured(...values: Array<string | undefined>): string | undefin
 	return undefined;
 }
 
+export function resolveProviderDisplayLabel(
+	provider: Pick<MultiLLMProviderConfig, 'id' | 'label' | 'baseUrl'>,
+	envRecord: Record<string, string | undefined>
+): string {
+	if (provider.id !== 'openai') {
+		return provider.label;
+	}
+	const baseUrl = firstConfigured(
+		envRecord.SPARK_OPENAI_BASE_URL,
+		envRecord.OPENAI_BASE_URL,
+		provider.baseUrl
+	);
+	if (!baseUrl) {
+		return provider.label;
+	}
+	try {
+		const host = new URL(baseUrl).hostname.toLowerCase();
+		if (host === 'api.openai.com' || host.endsWith('.openai.com')) return provider.label;
+		if (host.includes('deepseek')) return 'DeepSeek (OpenAI-compatible)';
+		if (host.includes('openrouter')) return 'OpenRouter (OpenAI-compatible)';
+		if (host.includes('localhost') || host === '127.0.0.1') return 'Local OpenAI-compatible';
+		return `OpenAI-compatible (${host})`;
+	} catch {
+		return provider.label;
+	}
+}
+
 export function applyProviderEnvOverrides<T extends MultiLLMProviderConfig>(
 	provider: T,
 	envRecord: Record<string, string | undefined>,
