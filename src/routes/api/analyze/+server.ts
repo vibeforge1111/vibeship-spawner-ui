@@ -6,6 +6,7 @@
  */
 
 import { json } from '@sveltejs/kit';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import skillIndex from '$lib/data/skill-index-ultra.json';
@@ -96,7 +97,10 @@ function formatSkillsForPrompt(): string {
 	return lines.join('\n');
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+  const { request } = event;
+  const _a = requireControlAuth(event, {}); if (_a) return _a;
+  return ((event: never) => {
 	try {
 		const body: AnalysisRequest = await request.json();
 
