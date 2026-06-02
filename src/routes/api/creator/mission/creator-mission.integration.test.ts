@@ -20,6 +20,18 @@ function event(url: string, body?: unknown) {
 	};
 }
 
+function rawPostEvent(url: string, body: string) {
+	return {
+		request: new Request(url, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body
+		}),
+		url: new URL(url),
+		getClientAddress: () => '127.0.0.1'
+	};
+}
+
 let tempDir = '';
 
 beforeEach(async () => {
@@ -168,5 +180,12 @@ describe('/api/creator/mission', () => {
 		expect(response.status).toBe(400);
 		const body = await response.json();
 		expect(body.error).toBe('brief is required');
+	});
+
+	it('rejects malformed JSON before creator mission validation', async () => {
+		const response = await POST(rawPostEvent('http://127.0.0.1/api/creator/mission', '{not valid json') as never);
+		expect(response.status).toBe(400);
+		const body = await response.json();
+		expect(body).toEqual({ ok: false, error: 'Malformed JSON body' });
 	});
 });
