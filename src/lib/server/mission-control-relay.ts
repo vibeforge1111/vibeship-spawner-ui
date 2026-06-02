@@ -1040,7 +1040,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 		if (!isMissionControlMissionId(entry.missionId)) continue;
 		const status = mapEventTypeToBoardStatus(entry.eventType);
 		if (!status) continue;
-		if (isStaleNonTerminalStatus(status, entry.timestamp) && !terminalMissionIds.has(entry.missionId)) continue;
+		// stale non-terminal missions are routed to the 'stale' bucket below, not dropped
 		if (
 			terminalMissionIds.has(entry.missionId) &&
 			status !== 'completed' &&
@@ -1125,7 +1125,8 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 		completed: [],
 		failed: [],
 		cancelled: [],
-		created: []
+		created: [],
+		stale: []
 	};
 
 	for (const entry of byMission.values()) {
@@ -1135,8 +1136,10 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 		recalculateTaskStatusCounts(entry);
 		syncCurrentTaskNameWithRunningTasks(entry);
 		const boardStatus = boardStatusForEntry(entry);
-		entry.status = boardStatus;
-		board[boardStatus].push(entry);
+		const isStale = isStaleNonTerminalStatus(boardStatus, entry.lastUpdated);
+		const finalStatus: MissionControlBoardStatus = isStale ? 'stale' : boardStatus;
+		entry.status = finalStatus;
+		board[finalStatus].push(entry);
 	}
 
 	for (const entries of Object.values(board)) {
