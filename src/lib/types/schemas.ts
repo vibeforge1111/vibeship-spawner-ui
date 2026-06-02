@@ -1,4 +1,5 @@
 /**
+import { safeJsonParse } from '$lib/server/safe-json';
  * Zod Schemas for Runtime Validation
  *
  * These schemas provide runtime validation for JSON.parse results
@@ -626,7 +627,7 @@ export function safeJsonParse<T>(
 	context?: string
 ): T | undefined {
 	try {
-		const parsed = JSON.parse(json);
+		const parsed = safeJsonParse(json, null, 'schema-fallback');
 		const result = schema.safeParse(parsed);
 		if (result.success) {
 			return result.data;
