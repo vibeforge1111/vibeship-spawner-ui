@@ -162,9 +162,11 @@ async function handleAnthropicStream(
 
 					if (event.type === 'message_delta' && event.usage) {
 						tokenUsage = {
-							prompt: event.usage.input_tokens || 0,
-							completion: event.usage.output_tokens || 0,
-							total: (event.usage.input_tokens || 0) + (event.usage.output_tokens || 0)
+							prompt: event.usage.input_tokens ?? tokenUsage?.prompt ?? 0,
+							completion: event.usage.output_tokens ?? tokenUsage?.completion ?? 0,
+							total:
+								(event.usage.input_tokens ?? tokenUsage?.prompt ?? 0) +
+								(event.usage.output_tokens ?? tokenUsage?.completion ?? 0)
 						};
 					}
 

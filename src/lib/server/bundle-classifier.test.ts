@@ -39,4 +39,23 @@ describe('bundle-classifier', () => {
 		expect(prompt).toContain('Keep density high.');
 		expect(prompt).toContain('starting template, NOT a strict requirement');
 	});
+
+	it('numbers repeated load-order phases by iteration position', () => {
+		const bundle: BundleSpec = {
+			id: 'test-duplicate-load-order',
+			name: 'Duplicate phase bundle',
+			task_pattern: 'Build a staged app',
+			required_skills: ['schema'],
+			optional_skills: [],
+			load_order: ['schema', 'auth', 'schema', 'payments'],
+			notes: ''
+		};
+
+		const prompt = formatBundleForPrompt(bundle);
+
+		expect(prompt).toContain('  1. schema');
+		expect(prompt).toContain('  2. auth');
+		expect(prompt).toContain('  3. schema');
+		expect(prompt).toContain('  4. payments');
+	});
 });
