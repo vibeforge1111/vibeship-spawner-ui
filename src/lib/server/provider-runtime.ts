@@ -31,6 +31,7 @@ import { mcpClient } from '$lib/services/mcp-client';
 import { agentWorkTimeoutMs } from './timeout-config';
 import { extractTraceRef } from './trace-ref';
 import { readFile } from 'node:fs/promises';
+import { safeJsonParse } from '$lib/server/safe-json';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { spawnerStateDir } from './spawner-state';
@@ -252,7 +253,7 @@ class ProviderRuntimeManager {
 			if (!existsSync(persistPath)) return new Map();
 			const raw = readFileSync(persistPath, 'utf-8');
 			if (!raw.trim()) return new Map();
-			const parsed = JSON.parse(raw) as { missions?: Record<string, ProviderMissionResultSnapshot[]> };
+			const parsed = safeJsonParse<{ missions?: Record<string, ProviderMissionResultSnapshot[]> }>(raw, {}, 'provider-results');
 			return new Map(
 				Object.entries(parsed.missions ?? {}).map(([missionId, results]) => [
 					missionId,
