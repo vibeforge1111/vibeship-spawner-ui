@@ -228,7 +228,7 @@ describe('/api/spark/run integration', () => {
 			providers: ['codex'],
 			requestId: 'tg-spark-run-local',
 			traceRef: 'trace:telegram-run:tg-spark-run-local',
-			executionAuthority: vnextAuthority()
+			executionAuthority: governorAuthority()
 		}) as never);
 
 		expect(response.status).toBe(200);
@@ -269,7 +269,7 @@ describe('/api/spark/run integration', () => {
 			goal: 'Build a tiny Telegram hosted smoke app.',
 			providers: ['codex'],
 			requestId: 'tg-spark-run-hosted',
-			executionAuthority: vnextAuthority()
+			executionAuthority: governorAuthority()
 		}) as never);
 
 		expect(response.status).toBe(200);
@@ -290,7 +290,7 @@ describe('/api/spark/run integration', () => {
 			missionName: 'Spark Bug Recognition Domain Chip',
 			providers: ['codex'],
 			requestId: 'tg-context-title',
-			executionAuthority: vnextAuthority()
+			executionAuthority: governorAuthority()
 		}) as never);
 
 		expect(response.status).toBe(200);
@@ -330,7 +330,7 @@ describe('/api/spark/run integration', () => {
 		expect(response.status).toBe(409);
 		const body = await response.json();
 		expect(body.code).toBe('harness_authority_blocked');
-		expect(body.authority.reasonCodes).toContain('native_governor_or_vnext_required');
+		expect(body.authority.reasonCodes).toContain('native_governor_required');
 		expect(dispatch).not.toHaveBeenCalled();
 	});
 
@@ -358,7 +358,7 @@ describe('/api/spark/run integration', () => {
 		expect(dispatch).toHaveBeenCalledTimes(1);
 	});
 
-	it('accepts native TurnIntentEnvelopeVNext authority for Spark run dispatch', async () => {
+	it('blocks bare TurnIntentEnvelopeVNext authority for Spark run dispatch', async () => {
 		const dispatch = vi.mocked(providerRuntime.dispatch);
 		dispatch.mockClear();
 
@@ -370,15 +370,18 @@ describe('/api/spark/run integration', () => {
 			executionAuthority: vnextAuthority()
 		}) as never);
 
-		expect(response.status).toBe(200);
+		expect(response.status).toBe(409);
 		const body = await response.json();
-		expect(body.success).toBe(true);
+		expect(body.code).toBe('harness_authority_blocked');
 		expect(body.authority).toMatchObject({
-			allowed: true,
-			source: 'turn_intent_vnext',
+			allowed: false,
+			source: 'turn_intent_vnext'
+		});
+		expect(body.authority.reasonCodes).toContain('native_governor_required');
+		expect(body.authority).toMatchObject({
 			traceId: 'trace:spawner-run-vnext-test'
 		});
-		expect(dispatch).toHaveBeenCalledTimes(1);
+		expect(dispatch).not.toHaveBeenCalled();
 	});
 
 	it('blocks chat-only GovernorDecisionV1 authority for Spark run dispatch', async () => {

@@ -374,21 +374,6 @@ export function assertHarnessAuthority(input: HarnessAuthorityInput): HarnessAut
 	return verdict;
 }
 
-export function assertNativeGovernorOrVNextHarnessAuthority(input: HarnessAuthorityInput): HarnessAuthorityVerdict {
-	const verdict = assertHarnessAuthority(input);
-	if (verdict.source !== 'governor_decision' && verdict.source !== 'turn_intent_vnext') {
-		throw new HarnessAuthorityError(`${input.toolName} requires native GovernorDecisionV1 or TurnIntentEnvelopeVNext authority.`, {
-			allowed: false,
-			source: verdict.source,
-			reasonCodes: ['native_governor_or_vnext_required'],
-			traceId: verdict.traceId,
-			origin: verdict.origin,
-			governorOutcome: verdict.governorOutcome
-		});
-	}
-	return verdict;
-}
-
 export function assertNativeGovernorHarnessAuthority(input: HarnessAuthorityInput): HarnessAuthorityVerdict {
 	const verdict = assertHarnessAuthority(input);
 	if (verdict.source !== 'governor_decision') {
