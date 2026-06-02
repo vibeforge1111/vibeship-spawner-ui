@@ -1,4 +1,5 @@
 /**
+import { safeJsonParse } from '$lib/server/safe-json';
  * Active Mission API Endpoint
  *
  * Provides mission state for Claude Code to:
@@ -39,7 +40,7 @@ async function missionHasTerminalRelayEvent(missionId: string | undefined): Prom
 
 	try {
 		const raw = await readFile(missionControlPath, 'utf-8');
-		const parsed = JSON.parse(raw) as {
+		const parsed = safeJsonParse(raw, {} as {
 			recent?: Array<{ eventType?: unknown; missionId?: unknown }>;
 		};
 		return (parsed.recent || []).some(
