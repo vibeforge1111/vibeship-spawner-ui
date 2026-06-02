@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 
-const baseUrl = (process.env.SPAWNER_SMOKE_BASE_URL || 'http://127.0.0.1:3333').replace(/\/$/, '');
+import { execFileSync, spawn } from 'node:child_process';
+
+const smokePort = Number(process.env.SPAWNER_MISSION_SURFACES_SMOKE_PORT || process.env.PORT || '3333');
+if (!Number.isInteger(smokePort) || smokePort <= 0) {
+	throw new Error(`Invalid mission surfaces smoke port: ${smokePort}`);
+}
+const baseUrl = (process.env.SPAWNER_SMOKE_BASE_URL || `http://127.0.0.1:${smokePort}`).replace(/\/$/, '');
+const shouldStartServer = !process.env.SPAWNER_SMOKE_BASE_URL;
 const stamp = Date.now();
 const requestId = `smoke-surfaces-${stamp}`;
 const missionId = `mission-${stamp}`;
@@ -109,7 +116,7 @@ async function relay(type, data = {}) {
 		data: {
 			requestId,
 			plannedTasks: tasks.map((task) => ({ title: task.title, skills: task.skills })),
-			telegramRelay: { profile: 'smoke', port: 3333 },
+			telegramRelay: { profile: 'smoke', port: smokePort },
 			...data.data
 		}
 	});
@@ -125,111 +132,165 @@ async function check(name, fn) {
 	}
 }
 
-await check('store PRD result', async () => {
-	const result = await postJson('/api/prd-bridge/result', {
-		requestId,
-		result: {
-			success: true,
-			projectName,
-			executionPrompt: 'Synthetic smoke mission. Do not dispatch a real provider.',
-			tasks
-		}
-	});
-	if (result?.success !== true) throw new Error('PRD result was not stored');
-	return requestId;
-});
-
-await check('load mission canvas without auto-run', async () => {
-	const result = await postJson('/api/prd-bridge/load-to-canvas', {
-		requestId,
-		missionId,
-		autoRun: false,
-		buildMode: 'direct',
-		telegramRelay: { profile: 'smoke', port: 3333 },
-		chatId: 'smoke-chat',
-		userId: 'smoke-user',
-		goal: 'Run Mission Control surface smoke.'
-	});
-	if (result?.success !== true) throw new Error('Canvas load failed');
-	if (result?.canvasUrl !== `/canvas?pipeline=prd-${requestId}&mission=${missionId}`) {
-		throw new Error(`Unexpected canvasUrl: ${result?.canvasUrl}`);
-	}
-	return result.canvasUrl;
-});
-
-await check('relay mission lifecycle to completion', async () => {
-	await relay('dispatch_started', {
-		message: 'Surface smoke dispatch started.',
-		data: { providers: ['codex'] }
-	});
-	for (const task of tasks) {
-		await relay('task_started', { taskId: task.id, taskName: task.title });
-		await relay('task_completed', { taskId: task.id, taskName: task.title });
-	}
-	await relay('mission_completed', {
-		source: 'codex',
-		message: 'Mission surface smoke completed.',
-		data: { provider: 'codex', response: 'Mission surface smoke completed.' }
-	});
-	return 'completed';
-});
-
-await check('Kanban board shows completed task rollup', async () => {
-	const entry = await waitFor('completed board entry', async () => {
-		const body = await getJson('/api/mission-control/board');
-		if (body?.ok !== true) throw new Error('Board response was not ok');
-		return findMission(body.board, 'completed');
-	});
-	if (entry.taskStatusCounts?.completed !== tasks.length || entry.taskStatusCounts?.total !== tasks.length) {
-		throw new Error(`Unexpected task counts: ${JSON.stringify(entry.taskStatusCounts)}`);
-	}
-	return `${entry.taskStatusCounts.completed}/${entry.taskStatusCounts.total} complete`;
-});
-
-await check('Mission detail route stays inspectable', async () => {
-	await getHtml(`/missions/${missionId}`, `/missions/${missionId}`);
-	return `/missions/${missionId}`;
-});
-
-await check('Canvas route stays mission-scoped', async () => {
-	await getHtml(`/canvas?pipeline=prd-${requestId}&mission=${missionId}`, '/canvas');
-	return `/canvas?pipeline=prd-${requestId}&mission=${missionId}`;
-});
-
-await check('Trace stitches mission, canvas, kanban, and dispatch', async () => {
-	const trace = await waitFor('completed trace', async () => {
-		const body = await getJson(`/api/mission-control/trace?missionId=${missionId}&requestId=${requestId}`);
-		if (body?.ok !== true) throw new Error('Trace response was not ok');
-		return body.phase === 'completed' ? body : null;
-	});
-	if (trace.progress?.percent !== 100) throw new Error(`Trace progress was ${trace.progress?.percent}`);
-	if (trace.surfaces?.canvas?.pipelineId !== `prd-${requestId}`) {
-		throw new Error(`Trace canvas pipeline mismatch: ${trace.surfaces?.canvas?.pipelineId}`);
-	}
-	if (trace.surfaces?.kanban?.bucket !== 'completed') {
-		throw new Error(`Trace Kanban bucket mismatch: ${trace.surfaces?.kanban?.bucket}`);
-	}
-	if (trace.surfaces?.dispatch?.lastReason !== 'Mission completed from lifecycle event') {
-		throw new Error(`Trace dispatch reason mismatch: ${trace.surfaces?.dispatch?.lastReason}`);
-	}
-	if (trace.timeline?.[0]?.eventType !== 'mission_completed') {
-		throw new Error(`Trace timeline did not end with mission_completed: ${trace.timeline?.[0]?.eventType}`);
-	}
-	return `${trace.phase} ${trace.progress.percent}%`;
-});
-
-await check('Spark agent canvas-state API remains reachable', async () => {
-	const body = await getJson('/api/spark-agent/canvas-state');
-	if (body?.success !== true) throw new Error('Spark agent canvas-state was not successful');
-	return body.hasUpdate ? 'snapshot available' : 'no snapshot yet';
-});
-
-for (const result of checks) {
-	const line = result.ok ? `PASS ${result.name}` : `FAIL ${result.name}`;
-	const detail = result.detail ? ` - ${result.detail}` : '';
-	(result.ok ? console.log : console.error)(`${line}${detail}`);
+function startServer() {
+	if (!shouldStartServer) return null;
+	const childEnv = Object.fromEntries(
+		Object.entries(process.env).filter((entry) => typeof entry[1] === 'string')
+	);
+	const child = spawn(
+		process.platform === 'win32' ? 'cmd.exe' : 'npm',
+		process.platform === 'win32'
+			? ['/d', '/s', '/c', `npm exec -- vite dev --host 127.0.0.1 --port ${smokePort}`]
+			: ['exec', '--', 'vite', 'dev', '--host', '127.0.0.1', '--port', String(smokePort)],
+		{ stdio: ['ignore', 'pipe', 'pipe'], env: { ...childEnv, NODE_ENV: 'development' } }
+	);
+	child.stdout.on('data', (chunk) => process.stdout.write(chunk));
+	child.stderr.on('data', (chunk) => process.stderr.write(chunk));
+	return child;
 }
 
-if (checks.some((result) => !result.ok)) {
-	process.exitCode = 1;
+async function waitForServer(child) {
+	const started = Date.now();
+	let lastError = null;
+	while (Date.now() - started < 30_000) {
+		if (child && child.exitCode !== null) {
+			throw new Error(`smoke server exited before startup with code ${child.exitCode}`);
+		}
+		try {
+			const response = await fetch(baseUrl, { redirect: 'manual' });
+			if (response.status > 0) return;
+		} catch (error) {
+			lastError = error;
+		}
+		await new Promise((resolve) => setTimeout(resolve, 500));
+	}
+	throw new Error(`Timed out waiting for ${baseUrl}${lastError ? `: ${lastError.message}` : ''}`);
+}
+
+function stopServer(child) {
+	if (!child || child.exitCode !== null) return;
+	if (process.platform === 'win32') {
+		execFileSync('taskkill.exe', ['/pid', String(child.pid), '/t', '/f'], { stdio: 'ignore' });
+		return;
+	}
+	child.kill('SIGTERM');
+}
+
+async function runChecks() {
+	await check('store PRD result', async () => {
+		const result = await postJson('/api/prd-bridge/result', {
+			requestId,
+			result: {
+				success: true,
+				projectName,
+				executionPrompt: 'Synthetic smoke mission. Do not dispatch a real provider.',
+				tasks
+			}
+		});
+		if (result?.success !== true) throw new Error('PRD result was not stored');
+		return requestId;
+	});
+
+	await check('load mission canvas without auto-run', async () => {
+		const result = await postJson('/api/prd-bridge/load-to-canvas', {
+			requestId,
+			missionId,
+			autoRun: false,
+			buildMode: 'direct',
+			telegramRelay: { profile: 'smoke', port: smokePort },
+			chatId: 'smoke-chat',
+			userId: 'smoke-user',
+			goal: 'Run Mission Control surface smoke.'
+		});
+		if (result?.success !== true) throw new Error('Canvas load failed');
+		if (result?.canvasUrl !== `/canvas?pipeline=prd-${requestId}&mission=${missionId}`) {
+			throw new Error(`Unexpected canvasUrl: ${result?.canvasUrl}`);
+		}
+		return result.canvasUrl;
+	});
+
+	await check('relay mission lifecycle to completion', async () => {
+		await relay('dispatch_started', {
+			message: 'Surface smoke dispatch started.',
+			data: { providers: ['codex'] }
+		});
+		for (const task of tasks) {
+			await relay('task_started', { taskId: task.id, taskName: task.title });
+			await relay('task_completed', { taskId: task.id, taskName: task.title });
+		}
+		await relay('mission_completed', {
+			source: 'codex',
+			message: 'Mission surface smoke completed.',
+			data: { provider: 'codex', response: 'Mission surface smoke completed.' }
+		});
+		return 'completed';
+	});
+
+	await check('Kanban board shows completed task rollup', async () => {
+		const entry = await waitFor('completed board entry', async () => {
+			const body = await getJson('/api/mission-control/board');
+			if (body?.ok !== true) throw new Error('Board response was not ok');
+			return findMission(body.board, 'completed');
+		});
+		if (entry.taskStatusCounts?.completed !== tasks.length || entry.taskStatusCounts?.total !== tasks.length) {
+			throw new Error(`Unexpected task counts: ${JSON.stringify(entry.taskStatusCounts)}`);
+		}
+		return `${entry.taskStatusCounts.completed}/${entry.taskStatusCounts.total} complete`;
+	});
+
+	await check('Mission detail route stays inspectable', async () => {
+		await getHtml(`/missions/${missionId}`, `/missions/${missionId}`);
+		return `/missions/${missionId}`;
+	});
+
+	await check('Canvas route stays mission-scoped', async () => {
+		await getHtml(`/canvas?pipeline=prd-${requestId}&mission=${missionId}`, '/canvas');
+		return `/canvas?pipeline=prd-${requestId}&mission=${missionId}`;
+	});
+
+	await check('Trace stitches mission, canvas, kanban, and dispatch', async () => {
+		const trace = await waitFor('completed trace', async () => {
+			const body = await getJson(`/api/mission-control/trace?missionId=${missionId}&requestId=${requestId}`);
+			if (body?.ok !== true) throw new Error('Trace response was not ok');
+			return body.phase === 'completed' ? body : null;
+		});
+		if (trace.progress?.percent !== 100) throw new Error(`Trace progress was ${trace.progress?.percent}`);
+		if (trace.surfaces?.canvas?.pipelineId !== `prd-${requestId}`) {
+			throw new Error(`Trace canvas pipeline mismatch: ${trace.surfaces?.canvas?.pipelineId}`);
+		}
+		if (trace.surfaces?.kanban?.bucket !== 'completed') {
+			throw new Error(`Trace Kanban bucket mismatch: ${trace.surfaces?.kanban?.bucket}`);
+		}
+		if (trace.surfaces?.dispatch?.lastReason !== 'Mission completed from lifecycle event') {
+			throw new Error(`Trace dispatch reason mismatch: ${trace.surfaces?.dispatch?.lastReason}`);
+		}
+		if (trace.timeline?.[0]?.eventType !== 'mission_completed') {
+			throw new Error(`Trace timeline did not end with mission_completed: ${trace.timeline?.[0]?.eventType}`);
+		}
+		return `${trace.phase} ${trace.progress.percent}%`;
+	});
+
+	await check('Spark agent canvas-state API remains reachable', async () => {
+		const body = await getJson('/api/spark-agent/canvas-state');
+		if (body?.success !== true) throw new Error('Spark agent canvas-state was not successful');
+		return body.hasUpdate ? 'snapshot available' : 'no snapshot yet';
+	});
+
+	for (const result of checks) {
+		const line = result.ok ? `PASS ${result.name}` : `FAIL ${result.name}`;
+		const detail = result.detail ? ` - ${result.detail}` : '';
+		(result.ok ? console.log : console.error)(`${line}${detail}`);
+	}
+
+	if (checks.some((result) => !result.ok)) {
+		process.exitCode = 1;
+	}
+}
+
+const server = startServer();
+try {
+	await waitForServer(server);
+	await runChecks();
+} finally {
+	stopServer(server);
 }
