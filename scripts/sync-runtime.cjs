@@ -136,7 +136,7 @@ function syncOnce({ silent = false } = {}) {
 function checkDrift() {
 	if (!exists(RUNTIME_ROOT)) {
 		console.error(`[check] runtime not present at ${RUNTIME_ROOT}`);
-		process.exit(0);
+		process.exit(1);
 	}
 	const drift = [];
 	for (const rel of SYNCED_PATHS) {
