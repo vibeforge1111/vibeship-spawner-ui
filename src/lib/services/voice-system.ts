@@ -1,4 +1,5 @@
 import { readFile } from 'fs/promises';
+import { readFileSync } from 'fs';
 import { DatabaseSync } from 'node:sqlite';
 import { homedir } from 'os';
 import path from 'path';
@@ -61,6 +62,11 @@ export interface VoiceSystemDashboard {
 		when: string;
 		detail: string;
 	};
+}
+
+interface VoiceRuntimeProof {
+	state: Record<string, unknown>;
+	sourceLabel: string;
 }
 
 const SNAPSHOT_RELATIVE_PATH = path.join('.spark', 'state', 'voice-system', 'dashboard.json');
@@ -261,27 +267,34 @@ function readinessStatus(value: unknown): VoiceReadinessStatus {
 }
 
 function applyBuilderRuntimeVoiceState(dashboard: VoiceSystemDashboard): VoiceSystemDashboard {
-	const runtimeState = readBuilderVoiceRuntimeState();
+	const runtimeProof = readVoiceRuntimeProof();
+	const runtimeState = runtimeProof?.state || null;
 	const profileState = readBuilderVoiceProfileState();
 	let next = applyBuilderProfileProof(dashboard, profileState);
 	const delivery = isRecord(runtimeState?.telegram_delivery) ? runtimeState.telegram_delivery : {};
+	const claims = isRecord(runtimeState?.claim_levels) ? runtimeState.claim_levels : {};
 	const status = stringValue(delivery.last_send_voice_status);
-	if (!status || status === 'not recorded') {
+	const method = stringValue(delivery.send_method) || 'not recorded';
+	const deliveryReady = Boolean(
+		delivery.ready === true ||
+		claims.delivery_ready === true ||
+		(status === 'success' && method === 'sendVoice')
+	);
+	if ((!status || status === 'not recorded') && !deliveryReady) {
 		return next;
 	}
-	const method = stringValue(delivery.send_method) || 'not recorded';
 	const when = stringValue(delivery.last_send_voice_at) || 'not recorded';
 	const messageIdPresent = Boolean(delivery.telegram_message_id_present);
 	const failure = stringValue(delivery.last_failure_reason);
-	const deliveryReady = status === 'success' && method === 'sendVoice';
-	const synthesisReady = Boolean(isRecord(runtimeState?.claim_levels) && runtimeState.claim_levels.synthesis_ready);
+	const nativeVoiceReady = Boolean(delivery.native_voice_message_ready === true || (status === 'success' && method === 'sendVoice'));
+	const synthesisReady = Boolean(claims.synthesis_ready);
 	const sttReady = Boolean(isRecord(runtimeState?.stt) && runtimeState.stt.ready);
 	next = structuredClone(next);
 	next.lastDelivery = {
-		status,
+		status: status || (deliveryReady ? 'ready' : 'unknown'),
 		method,
 		when,
-		detail: messageIdPresent ? 'Telegram message id was present.' : failure || 'Telegram delivery proof was recorded without a message id.'
+		detail: deliveryDetail({ deliveryReady, nativeVoiceReady, messageIdPresent, failure })
 	};
 	next.metrics = next.metrics.map((metric) => {
 		if (metric.id === 'delivery-ready') {
@@ -304,14 +317,32 @@ function applyBuilderRuntimeVoiceState(dashboard: VoiceSystemDashboard): VoiceSy
 		return step;
 	});
 	next.warnings = next.warnings.filter((warning) => {
-		if (deliveryReady && /sendVoice delivery/i.test(warning)) return false;
+		if (deliveryReady && /delivery/i.test(warning)) return false;
 		if (synthesisReady && /Speech synthesis/i.test(warning)) return false;
 		return true;
 	});
 	if (!next.sourceLabel.includes('runtime delivery proof')) {
-		next.sourceLabel = `${next.sourceLabel} + Builder runtime delivery proof`;
+		next.sourceLabel = `${next.sourceLabel} + ${runtimeProof?.sourceLabel || 'runtime delivery proof'}`;
 	}
 	return next;
+}
+
+function deliveryDetail(input: {
+	deliveryReady: boolean;
+	nativeVoiceReady: boolean;
+	messageIdPresent: boolean;
+	failure: string;
+}): string {
+	if (input.deliveryReady && input.nativeVoiceReady && input.messageIdPresent) {
+		return 'Telegram sendVoice message id was present.';
+	}
+	if (input.deliveryReady && input.messageIdPresent) {
+		return 'Telegram accepted the audio fallback; native voice-note readiness was not claimed.';
+	}
+	if (input.deliveryReady) {
+		return 'Telegram delivery proof was recorded without a message id.';
+	}
+	return input.failure || 'Telegram delivery proof has not succeeded yet.';
 }
 
 function applyBuilderProfileProof(dashboard: VoiceSystemDashboard, profileState: Record<string, unknown> | null): VoiceSystemDashboard {
@@ -338,6 +369,26 @@ function applyBuilderProfileProof(dashboard: VoiceSystemDashboard, profileState:
 
 function readBuilderVoiceRuntimeState(): Record<string, unknown> | null {
 	return readBuilderRuntimeStateValue("SELECT value FROM runtime_state WHERE state_key = 'telegram:voice:last_runtime_state' LIMIT 1");
+}
+
+function readVoiceRuntimeProof(): VoiceRuntimeProof | null {
+	const osState = readSparkOsVoiceRuntimeState();
+	if (osState) return { state: osState, sourceLabel: 'Spark OS runtime delivery proof' };
+	const builderState = readBuilderVoiceRuntimeState();
+	if (builderState) return { state: builderState, sourceLabel: 'Builder runtime delivery proof' };
+	return null;
+}
+
+function readSparkOsVoiceRuntimeState(): Record<string, unknown> | null {
+	const configured = process.env.SPARK_VOICE_RUNTIME_STATE_PATH || '';
+	const sparkHome = process.env.SPARK_HOME || path.join(homedir(), '.spark');
+	const statePath = configured || path.join(sparkHome, 'state', 'spark-voice-comms', 'voice-runtime-state.json');
+	try {
+		const parsed = JSON.parse(readFileSync(statePath, 'utf-8'));
+		return isRecord(parsed) && parsed.schema_version === 'spark.voice_runtime_state.v1' ? parsed : null;
+	} catch {
+		return null;
+	}
 }
 
 function readBuilderVoiceProfileState(): Record<string, unknown> | null {

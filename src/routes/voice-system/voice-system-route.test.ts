@@ -24,8 +24,10 @@ describe('/voice-system route', () => {
 	it('loads a clearly marked sample dashboard when no snapshot exists', async () => {
 		const previous = process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT;
 		const previousBuilderDb = process.env.SPARK_BUILDER_STATE_DB;
+		const previousRuntimeState = process.env.SPARK_VOICE_RUNTIME_STATE_PATH;
 		process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT = path.join(os.tmpdir(), `missing-voice-dashboard-${Date.now()}.json`);
 		process.env.SPARK_BUILDER_STATE_DB = path.join(os.tmpdir(), `missing-builder-state-${Date.now()}.db`);
+		process.env.SPARK_VOICE_RUNTIME_STATE_PATH = path.join(os.tmpdir(), `missing-voice-runtime-${Date.now()}.json`);
 		try {
 			const dashboard = await loadVoiceSystemDashboard();
 
@@ -44,6 +46,11 @@ describe('/voice-system route', () => {
 				delete process.env.SPARK_BUILDER_STATE_DB;
 			} else {
 				process.env.SPARK_BUILDER_STATE_DB = previousBuilderDb;
+			}
+			if (previousRuntimeState === undefined) {
+				delete process.env.SPARK_VOICE_RUNTIME_STATE_PATH;
+			} else {
+				process.env.SPARK_VOICE_RUNTIME_STATE_PATH = previousRuntimeState;
 			}
 		}
 	});
@@ -80,8 +87,10 @@ describe('/voice-system route', () => {
 
 		const previous = process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT;
 		const previousBuilderDb = process.env.SPARK_BUILDER_STATE_DB;
+		const previousRuntimeState = process.env.SPARK_VOICE_RUNTIME_STATE_PATH;
 		process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT = snapshotPath;
 		process.env.SPARK_BUILDER_STATE_DB = path.join(tempDir, 'missing-builder-state.db');
+		process.env.SPARK_VOICE_RUNTIME_STATE_PATH = path.join(tempDir, 'missing-voice-runtime-state.json');
 		try {
 			const dashboard = await loadVoiceSystemDashboard();
 			const normalized = normalizeVoiceSystemDashboard({ secretValue: 'hidden' });
@@ -100,6 +109,11 @@ describe('/voice-system route', () => {
 				delete process.env.SPARK_BUILDER_STATE_DB;
 			} else {
 				process.env.SPARK_BUILDER_STATE_DB = previousBuilderDb;
+			}
+			if (previousRuntimeState === undefined) {
+				delete process.env.SPARK_VOICE_RUNTIME_STATE_PATH;
+			} else {
+				process.env.SPARK_VOICE_RUNTIME_STATE_PATH = previousRuntimeState;
 			}
 		}
 	});
@@ -173,9 +187,11 @@ describe('/voice-system route', () => {
 		const previousSnapshot = process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT;
 		const previousBuilderHome = process.env.SPARK_BUILDER_HOME;
 		const previousBuilderDb = process.env.SPARK_BUILDER_STATE_DB;
+		const previousRuntimeState = process.env.SPARK_VOICE_RUNTIME_STATE_PATH;
 		process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT = snapshotPath;
 		process.env.SPARK_BUILDER_HOME = builderHome;
 		delete process.env.SPARK_BUILDER_STATE_DB;
+		process.env.SPARK_VOICE_RUNTIME_STATE_PATH = path.join(tempDir, 'missing-voice-runtime-state.json');
 		try {
 			const dashboard = await loadVoiceSystemDashboard();
 
@@ -209,6 +225,108 @@ describe('/voice-system route', () => {
 				delete process.env.SPARK_BUILDER_STATE_DB;
 			} else {
 				process.env.SPARK_BUILDER_STATE_DB = previousBuilderDb;
+			}
+			if (previousRuntimeState === undefined) {
+				delete process.env.SPARK_VOICE_RUNTIME_STATE_PATH;
+			} else {
+				process.env.SPARK_VOICE_RUNTIME_STATE_PATH = previousRuntimeState;
+			}
+		}
+	});
+
+	it('overlays Spark OS audio fallback delivery proof without claiming native voice readiness', async () => {
+		const tempDir = await fsTempDir();
+		const snapshotPath = path.join(tempDir, 'dashboard.json');
+		const runtimeStatePath = path.join(tempDir, 'voice-runtime-state.json');
+		await writeFile(
+			snapshotPath,
+			JSON.stringify({
+				generatedAt: '2026-06-02T09:10:00.000Z',
+				isSampleData: false,
+				sourceLabel: 'Builder voice snapshot',
+				warnings: ['sendVoice delivery has not been proven yet.', 'Speech synthesis still needs proof.'],
+				metrics: [
+					{ id: 'conversation-ready', label: 'Conversation ready', value: 'Needs proof', help: 'full path', status: 'partial' },
+					{ id: 'delivery-ready', label: 'Delivery ready', value: 'Needs proof', help: 'Telegram send', status: 'partial' },
+					{ id: 'tts-ready', label: 'TTS ready', value: 'Configured', help: 'synthesis', status: 'configured' },
+					{ id: 'stt-ready', label: 'STT ready', value: 'Configured', help: 'transcription', status: 'configured' }
+				],
+				runtimePath: [
+					{ id: 'voice-chip', label: 'Speech I/O', owner: 'spark-voice-comms', status: 'configured', detail: 'Synthesis configured.' },
+					{ id: 'telegram-out', label: 'Voice delivery', owner: 'Telegram delivery', status: 'partial', detail: 'Needs proof.' }
+				],
+				providers: [],
+				boundaries: [],
+				checks: [],
+				telegramCommands: [],
+				lastDelivery: { status: 'not recorded', method: 'sendVoice', when: 'waiting', detail: 'No proof yet.' }
+			}),
+			'utf-8'
+		);
+		await writeFile(
+			runtimeStatePath,
+			JSON.stringify({
+				schema_version: 'spark.voice_runtime_state.v1',
+				surface: 'telegram_bot_bridge',
+				stt: { provider_id: 'local_faster_whisper', ready: true },
+				tts: {
+					provider_id: 'macos-say',
+					ready: true,
+					voice_id_masked: 'maco...oice',
+					mime_type: 'audio/wav',
+					voice_compatible: false,
+					audio_bytes: 120594
+				},
+				claim_levels: { configured: true, synthesis_ready: true, delivery_ready: true, conversation_ready: true },
+				telegram_delivery: {
+					ready: true,
+					last_send_voice_at: '2026-06-02T09:18:39Z',
+					last_send_voice_status: 'document_fallback',
+					last_failure_reason: '',
+					telegram_message_id_present: true,
+					send_method: 'sendAudio',
+					native_voice_message_ready: false
+				},
+				source_ledger: ['voice.status', 'voice_profile', 'telegram-bot-voice-bridge'],
+				redaction: 'metadata only; raw audio, transcript bodies, provider secrets, and unmasked voice ids omitted'
+			}),
+			'utf-8'
+		);
+
+		const previousSnapshot = process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT;
+		const previousBuilderDb = process.env.SPARK_BUILDER_STATE_DB;
+		const previousRuntimeState = process.env.SPARK_VOICE_RUNTIME_STATE_PATH;
+		process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT = snapshotPath;
+		process.env.SPARK_BUILDER_STATE_DB = path.join(tempDir, 'missing-builder-state.db');
+		process.env.SPARK_VOICE_RUNTIME_STATE_PATH = runtimeStatePath;
+		try {
+			const dashboard = await loadVoiceSystemDashboard();
+
+			expect(dashboard.lastDelivery.status).toBe('document_fallback');
+			expect(dashboard.lastDelivery.method).toBe('sendAudio');
+			expect(dashboard.lastDelivery.detail).toContain('audio fallback');
+			expect(dashboard.lastDelivery.detail).toContain('native voice-note readiness was not claimed');
+			expect(dashboard.sourceLabel).toContain('Spark OS runtime delivery proof');
+			expect(dashboard.metrics.find((metric) => metric.id === 'delivery-ready')?.status).toBe('ready');
+			expect(dashboard.metrics.find((metric) => metric.id === 'conversation-ready')?.status).toBe('ready');
+			expect(dashboard.runtimePath.find((step) => step.id === 'telegram-out')?.status).toBe('ready');
+			expect(dashboard.warnings).toEqual([]);
+			expect(JSON.stringify(dashboard)).not.toContain('voice_id');
+		} finally {
+			if (previousSnapshot === undefined) {
+				delete process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT;
+			} else {
+				process.env.SPARK_VOICE_SYSTEM_DASHBOARD_SNAPSHOT = previousSnapshot;
+			}
+			if (previousBuilderDb === undefined) {
+				delete process.env.SPARK_BUILDER_STATE_DB;
+			} else {
+				process.env.SPARK_BUILDER_STATE_DB = previousBuilderDb;
+			}
+			if (previousRuntimeState === undefined) {
+				delete process.env.SPARK_VOICE_RUNTIME_STATE_PATH;
+			} else {
+				process.env.SPARK_VOICE_RUNTIME_STATE_PATH = previousRuntimeState;
 			}
 		}
 	});
