@@ -192,8 +192,18 @@ export function requireControlAuth(event: RequestEvent, options: ControlAuthOpti
 	);
 }
 
+function pruneStaleRateLimitBuckets(now: number, windowMs: number): void {
+	const windowStart = now - windowMs;
+	for (const [key, timestamps] of rateLimitBuckets) {
+		if (timestamps.length === 0 || timestamps[timestamps.length - 1] < windowStart) {
+			rateLimitBuckets.delete(key);
+		}
+	}
+}
+
 export function enforceRateLimit(event: RequestEvent, options: RateLimitOptions): Response | null {
 	const now = Date.now();
+	pruneStaleRateLimitBuckets(now, options.windowMs);
 	const identity = getClientIdentity(event);
 	const bucketKey = `${options.scope}:${identity}`;
 	const windowStart = now - options.windowMs;
