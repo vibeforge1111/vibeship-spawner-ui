@@ -269,6 +269,9 @@ async function _tick(): Promise<void> {
       continue;
     }
     if (new Date(rec.nextFireAt) > now) continue;
+    // Compute next fire time BEFORE firing to prevent double-fire if _fire
+    // is slow or a second tick runs concurrently.
+    const nextFire = _computeNext(rec.cron, rec.timezone);
     try {
       const result = await _fire(rec);
       rec.lastFiredAt = new Date().toISOString();
@@ -279,7 +282,7 @@ async function _tick(): Promise<void> {
       rec.lastFiredAt = new Date().toISOString();
       rec.lastStatus = 'crash: ' + errorMessage(err);
     }
-    rec.nextFireAt = _computeNext(rec.cron, rec.timezone);
+    rec.nextFireAt = nextFire;
     dirty = true;
   }
   if (dirty) await _save();
