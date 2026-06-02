@@ -1,14 +1,19 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('$app/environment', () => ({
 	browser: true
 }));
 
-import { storageGetRaw, storageHas, storageRemove, storageSetRaw } from './storage';
+import { storageGet, storageGetRaw, storageHas, storageRemove, storageSetRaw } from './storage';
 
 describe('storage helpers', () => {
 	beforeEach(() => {
 		vi.unstubAllGlobals();
+		vi.spyOn(console, 'warn').mockImplementation(() => {});
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
 	});
 
 	it('returns safe defaults when raw storage reads are unavailable', () => {
@@ -20,6 +25,15 @@ describe('storage helpers', () => {
 
 		expect(storageGetRaw('spawner-key')).toBeNull();
 		expect(storageHas('spawner-key')).toBe(false);
+	});
+
+	it('returns the default value when JSON storage is corrupt', () => {
+		vi.stubGlobal('localStorage', {
+			getItem: vi.fn(() => '{bad json')
+		});
+
+		expect(storageGet('spawner-json', { ok: false })).toEqual({ ok: false });
+		expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('storage:spawner-json'));
 	});
 
 	it('does not throw when removing from unavailable storage', () => {

@@ -16,6 +16,7 @@ import { projectStoredPrdAnalysisResultForTier } from '$lib/server/prd-analysis-
 import { spawnerStateDir } from '$lib/server/spawner-state';
 import { extractTraceRef } from '$lib/server/trace-ref';
 import { logger } from '$lib/utils/logger';
+import { parseJsonOrFallback } from '$lib/utils/safe-json';
 
 import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
 import { join } from 'path';
@@ -169,7 +170,7 @@ async function relayMetadataForMission(missionId: string): Promise<Record<string
 		const loadFile = join(getSpawnerDir(), 'last-canvas-load.json');
 		if (!existsSync(loadFile)) return {};
 		const raw = await readFile(loadFile, 'utf-8');
-		const load = JSON.parse(raw) as { relay?: Record<string, unknown> };
+		const load = parseJsonOrFallback<{ relay?: Record<string, unknown> }>(raw, {}, 'events-relay');
 		const relay = load.relay && typeof load.relay === 'object' ? load.relay : null;
 		if (!relay || relay.missionId !== missionId) return {};
 		const traceRef = extractTraceRef(load, relay);

@@ -2,6 +2,7 @@ import { readFile } from 'fs/promises';
 import { DatabaseSync } from 'node:sqlite';
 import { homedir } from 'os';
 import path from 'path';
+import { tryParseJson } from '$lib/utils/safe-json';
 
 export type VoiceReadinessStatus = 'ready' | 'configured' | 'partial' | 'blocked' | 'unknown';
 
@@ -70,7 +71,8 @@ export async function loadVoiceSystemDashboard(): Promise<VoiceSystemDashboard> 
 	let dashboard: VoiceSystemDashboard;
 	try {
 		const raw = await readFile(snapshotPath, 'utf-8');
-		dashboard = normalizeVoiceSystemDashboard(JSON.parse(raw), snapshotPath);
+		const parsed = tryParseJson<unknown | null>(raw, null, 'voice-dashboard');
+		dashboard = parsed.ok ? normalizeVoiceSystemDashboard(parsed.value, snapshotPath) : sampleVoiceSystemDashboard(snapshotPath);
 	} catch {
 		dashboard = sampleVoiceSystemDashboard(snapshotPath);
 	}

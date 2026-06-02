@@ -9,6 +9,8 @@ import { promisify } from 'node:util';
 import { env as privateEnv } from '$env/dynamic/private';
 import { resolveSparkRunProjectPath } from './spark-run-workspace';
 import { spawnerStateDir } from './spawner-state';
+import { parseJsonResponse, responseTextSnippet } from '$lib/services/http-response';
+import { parseJsonOrFallback } from '$lib/utils/safe-json';
 
 const execFileAsync = promisify(execFile);
 
@@ -22,6 +24,18 @@ function _envVar(name: string): string | undefined {
 
 function errorMessage(error: unknown, fallback = 'unknown'): string {
   return error instanceof Error && error.message ? error.message : fallback;
+}
+
+function errorCode(error: unknown): string | null {
+  return error && typeof error === 'object' && 'code' in error
+    ? String((error as { code?: unknown }).code)
+    : null;
+}
+
+function redactSensitiveSnippet(text: string): string {
+  return text
+    .replace(/\b(Bearer\s+)[^\s]+/gi, '$1[redacted]')
+    .replace(/\b(?:sk|gh[pousr]|xox[baprs])-[-_a-z0-9]{8,}\b/gi, '[redacted]');
 }
 
 const TICK_MS = 30_000;
@@ -64,16 +78,34 @@ async function _load(): Promise<StoreShape> {
   if (_store) return _store;
   try {
     const raw = await fs.readFile(schedulesFile(), 'utf-8');
-    const parsed = JSON.parse(raw);
+    const parsed = parseJsonOrFallback<Partial<StoreShape> | null>(raw, null, 'scheduler-state');
     if (parsed && Array.isArray(parsed.schedules)) {
       _store = { schedules: parsed.schedules };
       return _store;
     }
-  } catch {
-    // file missing or invalid - start fresh
+    await backupCorruptSchedulesFile('unexpected shape');
+  } catch (err: unknown) {
+    if (errorCode(err) !== 'ENOENT') {
+      await backupCorruptSchedulesFile(errorMessage(err, String(err)));
+    }
   }
   _store = { schedules: [] };
   return _store;
+}
+
+async function backupCorruptSchedulesFile(reason: string): Promise<void> {
+  const file = schedulesFile();
+  try {
+    const stat = await fs.stat(file);
+    if (!stat.isFile()) return;
+    const backupPath = `${file}.corrupt-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+    await fs.copyFile(file, backupPath);
+    logger.warn('[scheduler] schedules.json could not be loaded; backed up to', backupPath, 'reason', reason);
+  } catch (backupError: unknown) {
+    if (errorCode(backupError) !== 'ENOENT') {
+      logger.warn('[scheduler] failed to back up schedules.json before reset', errorMessage(backupError));
+    }
+  }
 }
 
 async function _save(): Promise<void> {
@@ -82,7 +114,17 @@ async function _save(): Promise<void> {
   await fs.mkdir(path.dirname(file), { recursive: true });
   const tmp = file + '.tmp';
   await fs.writeFile(tmp, JSON.stringify(_store, null, 2), 'utf-8');
-  await fs.rename(tmp, file);
+  try {
+    await fs.rename(tmp, file);
+  } catch (renameError) {
+    try {
+      await fs.copyFile(tmp, file);
+      await fs.unlink(tmp);
+    } catch (copyError) {
+      logger.warn('[scheduler] failed to save schedules.json after rename fallback', errorMessage(copyError));
+      throw renameError;
+    }
+  }
 }
 
 /** Returns the trimmed IANA timezone if it is valid, otherwise null. */
@@ -181,7 +223,14 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
         projectPath: resolveSparkRunProjectPath(requestedProjectPath),
       }),
     });
-    const body = (await res.json()) as { success?: boolean; missionId?: string; error?: string };
+    if (!res.ok) {
+      const detail = redactSensitiveSnippet(await responseTextSnippet(res, 200));
+      return {
+        ok: false,
+        summary: `spark/run HTTP ${res.status}${detail ? `: ${detail}` : ''}`,
+      };
+    }
+    const body = await parseJsonResponse<{ success?: boolean; missionId?: string; error?: string }>(res, {});
     return {
       ok: Boolean(body.success),
       summary: body.success ? `mission ${body.missionId}` : `error: ${body.error || 'unknown'}`,
@@ -215,7 +264,12 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
         maxBuffer: 10 * 1024 * 1024,
         timeout: 900_000,
       });
-      const parsed = JSON.parse(stdout);
+      let parsed: { ok?: boolean; rounds_completed?: number; error?: string };
+      try {
+        parsed = JSON.parse(stdout) as { ok?: boolean; rounds_completed?: number; error?: string };
+      } catch (parseError) {
+        throw new Error(`subprocess returned non-JSON output (length=${stdout.length}): ${errorMessage(parseError)}`);
+      }
       return {
         ok: Boolean(parsed.ok),
         summary: parsed.ok
@@ -269,6 +323,7 @@ async function _tick(): Promise<void> {
       continue;
     }
     if (new Date(rec.nextFireAt) > now) continue;
+    const nextFireAt = _computeNext(rec.cron, rec.timezone);
     try {
       const result = await _fire(rec);
       rec.lastFiredAt = new Date().toISOString();
@@ -277,9 +332,10 @@ async function _tick(): Promise<void> {
       await _relayToTelegram(rec, result);
     } catch (err: unknown) {
       rec.lastFiredAt = new Date().toISOString();
+      rec.fireCount += 1;
       rec.lastStatus = 'crash: ' + errorMessage(err);
     }
-    rec.nextFireAt = _computeNext(rec.cron, rec.timezone);
+    rec.nextFireAt = nextFireAt;
     dirty = true;
   }
   if (dirty) await _save();
@@ -289,10 +345,14 @@ export function startScheduler(): void {
   if (_tickTimer || _starting) return;
   _starting = true;
   _tick()
-    .catch(() => {})
+    .catch((err) => {
+      logger.error('[scheduler] initial tick failed', errorMessage(err));
+    })
     .finally(() => {
       _tickTimer = setInterval(() => {
-        _tick().catch(() => {});
+        _tick().catch((err) => {
+          logger.error('[scheduler] tick failed', errorMessage(err));
+        });
       }, TICK_MS);
       _starting = false;
     });
@@ -304,3 +364,13 @@ export function stopScheduler(): void {
     _tickTimer = null;
   }
 }
+
+export const _schedulerInternalsForTests = {
+  fire: _fire,
+  load: _load,
+  tick: _tick,
+  reset(): void {
+    _store = null;
+    stopScheduler();
+  },
+};

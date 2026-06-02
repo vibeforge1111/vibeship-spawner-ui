@@ -16,6 +16,7 @@ import { existsSync } from 'fs';
 import path from 'path';
 import type { MultiLLMExecutionPack } from '$lib/services/multi-llm-orchestrator';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { parseJsonOrFallback } from '$lib/utils/safe-json';
 
 const ACTIVE_MISSION_FILE = 'active-mission.json';
 const TERMINAL_MISSION_EVENTS = new Set(['mission_completed', 'mission_failed', 'mission_paused']);
@@ -39,9 +40,9 @@ async function missionHasTerminalRelayEvent(missionId: string | undefined): Prom
 
 	try {
 		const raw = await readFile(missionControlPath, 'utf-8');
-		const parsed = JSON.parse(raw) as {
+		const parsed = parseJsonOrFallback<{
 			recent?: Array<{ eventType?: unknown; missionId?: unknown }>;
-		};
+		}>(raw, {}, 'mission-control-history');
 		return (parsed.recent || []).some(
 			(entry) =>
 				entry.missionId === missionId &&
@@ -90,10 +91,8 @@ export const GET: RequestHandler = async ({ url }) => {
 		}
 
 		const content = await readFile(missionPath, 'utf-8');
-		let state: ActiveMissionState;
-		try {
-			state = JSON.parse(content);
-		} catch {
+		const state = parseJsonOrFallback<ActiveMissionState | null>(content, null, 'active-mission-state');
+		if (!state) {
 			await unlink(missionPath).catch(() => undefined);
 			return json({
 				active: false,

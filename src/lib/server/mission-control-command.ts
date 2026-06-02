@@ -7,10 +7,11 @@ import {
 } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { mcpClient } from '$lib/services/mcp-client';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { spawnerStateDir } from './spawner-state';
+import { writeFileAtomic } from './atomic-write';
 
 export type MissionControlAction = 'pause' | 'resume' | 'kill' | 'status';
 
@@ -74,7 +75,7 @@ async function syncActiveMissionFile(
 		if (typeof note === 'string' && note.trim()) {
 			active.note = note.trim();
 		}
-		await writeFile(activeMissionFile, JSON.stringify(active, null, 2), 'utf-8');
+		await writeFileAtomic(activeMissionFile, JSON.stringify(active, null, 2));
 	} catch (error) {
 		console.warn('[MissionControl] Failed to sync active mission file:', error);
 	}

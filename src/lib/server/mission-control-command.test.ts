@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import {
 	executeMissionControlAction,
 	parseDiscordMissionControlCommand
@@ -149,7 +152,53 @@ describe('mission-control-command parser', () => {
 		});
 
 		expect(result.ok).toBe(true);
-		expect(result.message).toContain('cancelled');
-		expect(failMission).toHaveBeenCalledWith(missionId, 'Mission cancelled from mission control');
+	expect(result.message).toContain('cancelled');
+	expect(failMission).toHaveBeenCalledWith(missionId, 'Mission cancelled from mission control');
+	});
+
+	it('syncs active mission status through a temp-and-rename write', async () => {
+		const previousStateDir = process.env.SPAWNER_STATE_DIR;
+		const stateDir = await mkdtemp(path.join(tmpdir(), 'spawner-mission-control-command-'));
+		process.env.SPAWNER_STATE_DIR = stateDir;
+		const missionId = 'mission-command-active-sync';
+		const activeMissionFile = path.join(stateDir, 'active-mission.json');
+		try {
+			vi.spyOn(mcpClient, 'getMission').mockResolvedValue({
+				success: true,
+				data: {
+					mission: missionRecord(missionId),
+					execution_prompt: `Mission ID: ${missionId}`,
+					_instruction: ''
+				}
+			});
+			vi.spyOn(mcpClient, 'updateMission').mockResolvedValue({ success: true });
+			await writeFile(activeMissionFile, JSON.stringify({ missionId, status: 'running' }, null, 2), 'utf-8');
+			await relayMissionControlEvent({
+				type: 'mission_created',
+				missionId,
+				missionName: 'Active Sync',
+				source: 'spawner-ui'
+			});
+
+			const result = await executeMissionControlAction({
+				action: 'pause',
+				missionId,
+				source: 'spawner-ui'
+			});
+
+			expect(result.ok).toBe(true);
+			const active = JSON.parse(await readFile(activeMissionFile, 'utf-8')) as Record<string, unknown>;
+			expect(active.status).toBe('paused');
+			expect(active.note).toBe('Mission paused');
+			expect((await readdir(stateDir)).filter((file) => file.includes('.tmp'))).toEqual([]);
+		} finally {
+			if (previousStateDir === undefined) {
+				delete process.env.SPAWNER_STATE_DIR;
+			} else {
+				process.env.SPAWNER_STATE_DIR = previousStateDir;
+			}
+			providerRuntime.cleanup(missionId);
+			await rm(stateDir, { recursive: true, force: true });
+		}
 	});
 });
