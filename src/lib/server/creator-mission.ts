@@ -1708,7 +1708,10 @@ async function runCreatorValidationCommand(
 			exit_code: null,
 			stdout_tail: '',
 			stderr_tail: '',
-			error: `Repository path not found: ${cwd}`
+			error:
+				`Repository path not found: ${cwd}. ` +
+				`Set SPARK_CREATOR_WORKSPACE_ROOT to the absolute path of the directory that holds your creator-mission repo checkouts ` +
+				`(or place '${manifest.repo}' one directory up from the spawner-ui working directory).`
 		};
 	}
 	let parts: string[];

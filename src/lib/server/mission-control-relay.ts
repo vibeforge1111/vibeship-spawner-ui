@@ -206,8 +206,9 @@ function persistState() {
 		const persistPath = getMissionControlPersistPath();
 		const dir = path.dirname(persistPath);
 		if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+		const tmp = persistPath + '.tmp';
 		fs.writeFileSync(
-			persistPath,
+			tmp,
 			JSON.stringify({
 				totalRelayed: relayState.totalRelayed,
 				perMission: Object.fromEntries(relayState.perMission),
@@ -215,6 +216,7 @@ function persistState() {
 			}),
 			'utf-8'
 		);
+		fs.renameSync(tmp, persistPath);
 	} catch {
 		/* persist is best-effort */
 	}
