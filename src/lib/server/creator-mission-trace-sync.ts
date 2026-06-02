@@ -190,7 +190,7 @@ function synthesizeValidationRun(
 
 function stageForEvent(eventType: string, trace: CreatorMissionTrace): string {
 	if (eventType === 'mission_completed') {
-		return trace.validation_runs?.length || trace.benchmark_summary?.candidate_score !== null
+		return trace.validation_runs?.length || trace.benchmark_summary?.candidate_score != null
 			? 'validation_completed'
 			: 'execution_completed';
 	}
