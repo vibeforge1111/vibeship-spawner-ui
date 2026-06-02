@@ -73,10 +73,11 @@ class ClaudeClient {
 			};
 		}
 
+		let timeoutId: ReturnType<typeof setTimeout> | undefined;
 		try {
 			// Add timeout to prevent hanging
 			const controller = new AbortController();
-			const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+			timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
 			const response = await fetch(this.apiEndpoint, {
 				method: 'POST',
@@ -91,8 +92,6 @@ class ClaudeClient {
 				}),
 				signal: controller.signal
 			});
-
-			clearTimeout(timeoutId);
 
 			if (!response.ok) {
 				return {
@@ -128,6 +127,8 @@ class ClaudeClient {
 				source: 'local',
 				fallback: true
 			};
+		} finally {
+			if (timeoutId) clearTimeout(timeoutId);
 		}
 	}
 
