@@ -1,4 +1,5 @@
 import { logger } from '$lib/utils/logger';
+import { safeJsonParse } from '$lib/server/safe-json';
 /**
  * PRD Bridge - Write Endpoint
  *
@@ -184,7 +185,7 @@ async function updatePendingRequestStatus(
 		const { pendingRequestFile } = getPrdBridgePaths();
 		if (!existsSync(pendingRequestFile)) return;
 		const raw = await readFile(pendingRequestFile, 'utf-8');
-		const current = JSON.parse(raw) as Record<string, unknown>;
+		const current = safeJsonParse<Record<string, unknown>>(raw, {}, 'prd-bridge-write');
 		if (current.requestId !== requestId) return;
 
 		const next = {
