@@ -275,4 +275,20 @@ describe('/api/mission/active integration', () => {
 		expect(body.staleMission?.id).toBe('mission-stale-test');
 		expect(body.mission).toBeUndefined();
 	});
+
+	it('clears corrupted active mission state as not resumable', async () => {
+		await writeFile(missionFile, '{not-valid-json', 'utf-8');
+
+		const getResponse = await GET({
+			url: new URL('http://localhost/api/mission/active')
+		} as never);
+		expect(getResponse.status).toBe(200);
+		const body = await getResponse.json();
+
+		expect(body.active).toBe(false);
+		expect(body.corrupt).toBe(true);
+		expect(body.message).toBe('Active mission state is corrupted and cannot be resumed.');
+		expect(body.error).toBeUndefined();
+		expect(existsSync(missionFile)).toBe(false);
+	});
 });

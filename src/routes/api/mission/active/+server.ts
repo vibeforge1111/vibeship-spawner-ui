@@ -90,7 +90,17 @@ export const GET: RequestHandler = async ({ url }) => {
 		}
 
 		const content = await readFile(missionPath, 'utf-8');
-		const state: ActiveMissionState = JSON.parse(content);
+		let state: ActiveMissionState;
+		try {
+			state = JSON.parse(content);
+		} catch {
+			await unlink(missionPath).catch(() => undefined);
+			return json({
+				active: false,
+				corrupt: true,
+				message: 'Active mission state is corrupted and cannot be resumed.'
+			});
+		}
 
 		if (await missionHasTerminalRelayEvent(state.missionId)) {
 			await unlink(missionPath).catch(() => undefined);
