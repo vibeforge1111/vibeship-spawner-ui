@@ -38,6 +38,8 @@ export interface ScheduleRecord {
   action: ScheduleAction;
   payload: Record<string, unknown>;
   chatId?: string | null;
+  /** IANA timezone the cron fields are evaluated in (e.g. "Europe/Zurich"). Null = server/process timezone (legacy records). */
+  timezone?: string | null;
   createdAt: string;
   lastFiredAt: string | null;
   nextFireAt: string | null;
@@ -83,9 +85,29 @@ async function _save(): Promise<void> {
   await fs.rename(tmp, file);
 }
 
-function _computeNext(cronExpr: string): string | null {
+/** Returns the trimmed IANA timezone if it is valid, otherwise null. */
+export function _validTimezone(tz: unknown): string | null {
+  if (typeof tz !== 'string' || !tz.trim()) return null;
+  const trimmed = tz.trim();
   try {
-    const c = new Cron(cronExpr, { paused: true });
+    // Throws RangeError for unknown time zones.
+    new Intl.DateTimeFormat('en-US', { timeZone: trimmed });
+    return trimmed;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Next fire time for a cron expression. When `timezone` (an IANA zone) is given
+ * the cron fields are evaluated in that zone; otherwise croner uses the server
+ * process timezone. Exported for unit testing.
+ */
+export function _computeNext(cronExpr: string, timezone?: string | null): string | null {
+  try {
+    const options: { paused: true; timezone?: string } = { paused: true };
+    if (timezone) options.timezone = timezone;
+    const c = new Cron(cronExpr, options);
     const next = c.nextRun();
     c.stop();
     return next ? next.toISOString() : null;
@@ -104,9 +126,11 @@ export async function createSchedule(input: {
   action: ScheduleAction;
   payload: Record<string, unknown>;
   chatId?: string | null;
+  timezone?: string | null;
 }): Promise<ScheduleRecord> {
   const store = await _load();
-  const nextFireAt = _computeNext(input.cron);
+  const timezone = _validTimezone(input.timezone);
+  const nextFireAt = _computeNext(input.cron, timezone);
   if (!nextFireAt) {
     throw new Error(`Invalid cron expression: ${input.cron}`);
   }
@@ -116,6 +140,7 @@ export async function createSchedule(input: {
     action: input.action,
     payload: input.payload,
     chatId: input.chatId ?? null,
+    timezone,
     createdAt: new Date().toISOString(),
     lastFiredAt: null,
     nextFireAt,
@@ -239,7 +264,7 @@ async function _tick(): Promise<void> {
   for (const rec of store.schedules) {
     if (!rec.enabled) continue;
     if (!rec.nextFireAt) {
-      rec.nextFireAt = _computeNext(rec.cron);
+      rec.nextFireAt = _computeNext(rec.cron, rec.timezone);
       dirty = true;
       continue;
     }
@@ -254,7 +279,7 @@ async function _tick(): Promise<void> {
       rec.lastFiredAt = new Date().toISOString();
       rec.lastStatus = 'crash: ' + errorMessage(err);
     }
-    rec.nextFireAt = _computeNext(rec.cron);
+    rec.nextFireAt = _computeNext(rec.cron, rec.timezone);
     dirty = true;
   }
   if (dirty) await _save();
