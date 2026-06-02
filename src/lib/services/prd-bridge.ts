@@ -337,6 +337,10 @@ export async function checkPendingPRDResult(): Promise<PRDAnalysisResult | null>
 	try {
 		// Check if there's a pending request
 		const pendingResponse = await fetch('/api/prd-bridge/pending');
+		if (!pendingResponse.ok) {
+			console.warn(`[PRDBridge] /api/prd-bridge/pending returned HTTP ${pendingResponse.status}`);
+			return null;
+		}
 		const pendingData = await pendingResponse.json();
 
 		if (!pendingData.pending || !pendingData.requestId) {
@@ -345,6 +349,10 @@ export async function checkPendingPRDResult(): Promise<PRDAnalysisResult | null>
 
 		// Check if there's a stored result for this request
 		const resultResponse = await fetch(`/api/prd-bridge/result?requestId=${pendingData.requestId}`);
+		if (!resultResponse.ok) {
+			console.warn(`[PRDBridge] /api/prd-bridge/result returned HTTP ${resultResponse.status}`);
+			return null;
+		}
 		const resultData = await resultResponse.json();
 
 		if (!resultData.found || !resultData.result) {
