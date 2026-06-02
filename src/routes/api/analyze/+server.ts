@@ -100,7 +100,10 @@ function formatSkillsForPrompt(): string {
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
-		const body: AnalysisRequest = await request.json();
+		const body = await request.json().catch(() => null) as AnalysisRequest | null;
+		if (!body || typeof body !== 'object' || Array.isArray(body)) {
+			return json({ error: 'Malformed JSON body' }, { status: 400 });
+		}
 
 		if (!body.goal || typeof body.goal !== 'string') {
 			return json({ error: 'Goal is required' }, { status: 400 });

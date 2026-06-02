@@ -1746,6 +1746,9 @@ class MissionExecutor {
 				executionAuthority
 			})
 		});
+		if (!response.ok) {
+			return { success: false, error: `dispatch responded ${response.status}` };
+		}
 		return response.json();
 	}
 

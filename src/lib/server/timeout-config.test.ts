@@ -26,6 +26,36 @@ describe('timeout-config', () => {
 		expect(commandTimeoutMs({})).toBe(DEFAULT_COMMAND_TIMEOUT_MS);
 	});
 
+	it('falls back for unit-suffixed timeout values', () => {
+		for (const value of [
+			'5m',
+			'30s',
+			'1h',
+			'15min',
+			'60sec',
+			'2hr',
+			'5 minutes',
+			'1.5',
+			'0x1000',
+			'+100',
+			'  ',
+			'7ms'
+		]) {
+			expect(positiveIntegerEnv({ TEST_TIMEOUT: value }, 'TEST_TIMEOUT', 99)).toBe(99);
+		}
+
+		expect(agentWorkTimeoutMs({ SPAWNER_AGENT_WORK_TIMEOUT_MS: '5m' })).toBe(
+			DEFAULT_AGENT_WORK_TIMEOUT_MS
+		);
+		expect(commandTimeoutMs({ SPAWNER_COMMAND_TIMEOUT_MS: '30s' })).toBe(
+			DEFAULT_COMMAND_TIMEOUT_MS
+		);
+	});
+
+	it('accepts whitespace-padded digit values', () => {
+		expect(positiveIntegerEnv({ TEST_TIMEOUT: '  12345  ' }, 'TEST_TIMEOUT', 99)).toBe(12345);
+	});
+
 	it('lets specialized agent timeouts override the shared agent work timeout', () => {
 		const env = {
 			SPAWNER_AGENT_WORK_TIMEOUT_MS: '1000',

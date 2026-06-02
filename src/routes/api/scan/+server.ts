@@ -67,7 +67,10 @@ export const POST: RequestHandler = async (event) => {
 		});
 		if (rateLimited) return rateLimited;
 
-		const body = await event.request.json();
+		const body = await event.request.json().catch(() => null);
+		if (!body || typeof body !== 'object' || Array.isArray(body)) {
+			return json({ error: 'Malformed JSON body' }, { status: 400 });
+		}
 		const { projectPath, scanners } = body as {
 			projectPath: string;
 			scanners?: ScannerName[];

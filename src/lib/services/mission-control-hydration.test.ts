@@ -174,6 +174,25 @@ describe('mission-control hydration', () => {
 		]);
 	});
 
+	it('keeps synthesized fallback event timestamps monotonic when board lastUpdated is stale', () => {
+		const snapshot = hydrateWithoutRecentEvents({
+			...boardEntry,
+			status: 'completed',
+			startedAt: '2026-04-29T11:05:00.000Z',
+			lastUpdated: '2026-04-29T11:02:00.000Z',
+			lastSummary: 'Mission completed cleanly.',
+			tasks: [{ title: 'task-1: Scaffold', skills: ['frontend'], status: 'completed' }]
+		});
+
+		const timestamps = snapshot.logs.map((log) => Date.parse(log.created_at));
+		expect(timestamps).toEqual([...timestamps].sort((left, right) => left - right));
+		expect(snapshot.logs.map((log) => log.created_at)).toEqual([
+			'2026-04-29T11:05:00.000Z',
+			'2026-04-29T11:05:00.001Z',
+			'2026-04-29T11:05:00.002Z'
+		]);
+	});
+
 	it('marks completed missions as 100 percent with an end time', () => {
 		const snapshot = hydrate({
 			...boardEntry,

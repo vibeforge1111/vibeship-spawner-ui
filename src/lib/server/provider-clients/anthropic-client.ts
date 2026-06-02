@@ -7,6 +7,7 @@
 
 import type { ProviderResult, ProviderClientOptions } from './types';
 import { createBridgeEvent } from './types';
+import { parseRetryAfterMs } from './retry-after';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
@@ -74,9 +75,7 @@ export async function executeAnthropicRequest(
 
 			if (response.status === 429 || (response.status >= 500 && response.status < 600)) {
 				const retryAfter = response.headers.get('retry-after');
-				const delay = retryAfter
-					? parseInt(retryAfter, 10) * 1000
-					: RETRY_BASE_MS * Math.pow(2, attempt);
+				const delay = parseRetryAfterMs(retryAfter, RETRY_BASE_MS * Math.pow(2, attempt));
 				lastError = `HTTP ${response.status} from ${provider.label}`;
 				onEvent(
 					createBridgeEvent('task_progress', options, {
@@ -163,9 +162,11 @@ async function handleAnthropicStream(
 
 					if (event.type === 'message_delta' && event.usage) {
 						tokenUsage = {
-							prompt: event.usage.input_tokens || 0,
-							completion: event.usage.output_tokens || 0,
-							total: (event.usage.input_tokens || 0) + (event.usage.output_tokens || 0)
+							prompt: event.usage.input_tokens ?? tokenUsage?.prompt ?? 0,
+							completion: event.usage.output_tokens ?? tokenUsage?.completion ?? 0,
+							total:
+								(event.usage.input_tokens ?? tokenUsage?.prompt ?? 0) +
+								(event.usage.output_tokens ?? tokenUsage?.completion ?? 0)
 						};
 					}
 
@@ -259,14 +260,14 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 			reject(new Error('Cancelled'));
 			return;
 		}
-		const timer = setTimeout(resolve, ms);
-		signal?.addEventListener(
-			'abort',
-			() => {
-				clearTimeout(timer);
-				reject(new Error('Cancelled'));
-			},
-			{ once: true }
-		);
+		const onAbort = () => {
+			clearTimeout(timer);
+			reject(new Error('Cancelled'));
+		};
+		const timer = setTimeout(() => {
+			signal?.removeEventListener('abort', onAbort);
+			resolve();
+		}, ms);
+		signal?.addEventListener('abort', onAbort, { once: true });
 	});
 }

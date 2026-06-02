@@ -42,9 +42,15 @@ async function waitForServer(child) {
 	throw lastError || new Error('server did not start before timeout');
 }
 
-async function readJson(response) {
+async function readJson(response, label) {
 	const text = await response.text();
-	return text ? JSON.parse(text) : {};
+	if (!text) return {};
+	try {
+		return JSON.parse(text);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		throw new Error(`${label} returned malformed JSON: ${message}; body=${text.slice(0, 300)}`);
+	}
 }
 
 async function expectStatus(path, expectedStatus, init = {}) {
@@ -120,7 +126,7 @@ async function runSmoke() {
 
 	try {
 		const freeResponse = await expectStatus(`/api/h70-skills/${encodeURIComponent(freeSkillId)}`, 200);
-		const freeBody = await readJson(freeResponse);
+		const freeBody = await readJson(freeResponse, `/api/h70-skills/${encodeURIComponent(freeSkillId)}`);
 		if (freeBody.skill?.id !== freeSkillId) {
 			fail(`free skill response did not include skill id ${freeSkillId}`);
 		}
@@ -129,7 +135,7 @@ async function runSmoke() {
 		if (!missingResponse.headers.get('www-authenticate')?.includes('scope="drop.skills"')) {
 			fail('missing proof response did not advertise drop.skills scope');
 		}
-		const missingBody = await readJson(missingResponse);
+		const missingBody = await readJson(missingResponse, `/api/h70-skills/${encodeURIComponent(proSkillId)} missing proof`);
 		if (missingBody.error?.code !== 'spark_pro_proof_required') {
 			fail('missing proof response did not return spark_pro_proof_required');
 		}
@@ -144,7 +150,7 @@ async function runSmoke() {
 		const invalidResponse = await expectStatus(`/api/h70-skills/${encodeURIComponent(proSkillId)}`, 401, {
 			headers: { authorization: 'Bearer invalid-spark-pro-token' }
 		});
-		const invalidBody = await readJson(invalidResponse);
+		const invalidBody = await readJson(invalidResponse, `/api/h70-skills/${encodeURIComponent(proSkillId)} invalid proof`);
 		if (invalidBody.error?.code !== 'spark_pro_proof_invalid') {
 			fail('invalid proof response did not return spark_pro_proof_invalid');
 		}
@@ -153,7 +159,7 @@ async function runSmoke() {
 			const proResponse = await expectStatus(`/api/h70-skills/${encodeURIComponent(proSkillId)}`, 200, {
 				headers: { authorization: `Bearer ${token}` }
 			});
-			const proBody = await readJson(proResponse);
+			const proBody = await readJson(proResponse, `/api/h70-skills/${encodeURIComponent(proSkillId)} pro proof`);
 			if (proBody.skill?.id !== proSkillId) {
 				fail(`Pro skill response did not include skill id ${proSkillId}`);
 			}

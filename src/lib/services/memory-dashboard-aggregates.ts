@@ -41,7 +41,7 @@ const STALE_AFTER_DAYS = 60;
 const LOW_CONFIDENCE = 0.6;
 
 export function defaultMemoryDashboardFilters(): MemoryDashboardFilters {
-	return { category: 'all', status: 'all', timeRange: '30d' };
+	return { category: 'all', status: 'all', timeRange: 'all' };
 }
 
 export function filterMemoryDashboardRecords(

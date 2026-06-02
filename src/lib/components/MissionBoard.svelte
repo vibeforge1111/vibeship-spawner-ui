@@ -100,6 +100,10 @@
 		schedulesLoading = true;
 		try {
 			const r = await fetch('/api/scheduled');
+			if (!r.ok) {
+				schedulesError = `schedules unavailable (HTTP ${r.status})`;
+				return;
+			}
 			const data = await r.json();
 			schedules = Array.isArray(data.schedules) ? data.schedules : [];
 			schedulesError = null;
@@ -125,6 +129,7 @@
 					action: newAction,
 					payload,
 					chatId: newChatId || null,
+					timezone: LOCAL_TZ,
 					executionAuthority: buildClientGovernorDecisionAuthority({
 						source: 'mission-board.schedule.create',
 						reason: 'User submitted a scheduled Spark action from Spawner.',
@@ -134,6 +139,10 @@
 					})
 				})
 			});
+			if (!r.ok) {
+				schedulesError = `create failed (HTTP ${r.status})`;
+				return;
+			}
 			const data = await r.json();
 			if (!data.ok) {
 				schedulesError = data.error || 'create failed';
@@ -167,6 +176,11 @@
 					})
 				})
 			});
+			if (!r.ok) {
+				schedules = prev;
+				schedulesError = `delete failed (HTTP ${r.status})`;
+				return;
+			}
 			const data = await r.json();
 			if (!data.ok) {
 				schedules = prev;

@@ -205,8 +205,9 @@ function persistState() {
 		const persistPath = getMissionControlPersistPath();
 		const dir = path.dirname(persistPath);
 		if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+		const tmp = persistPath + '.tmp';
 		fs.writeFileSync(
-			persistPath,
+			tmp,
 			JSON.stringify({
 				totalRelayed: relayState.totalRelayed,
 				perMission: Object.fromEntries(relayState.perMission),
@@ -214,6 +215,7 @@ function persistState() {
 			}),
 			'utf-8'
 		);
+		fs.renameSync(tmp, persistPath);
 	} catch {
 		/* persist is best-effort */
 	}
@@ -987,6 +989,21 @@ function closeOpenTasksForTerminalMission(entry: MissionControlBoardEntry): void
 	}
 }
 
+function lastUpdatedSortTime(value: string): number {
+	const parsed = Date.parse(value);
+	return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY;
+}
+
+export function compareMissionControlEntriesByLastUpdatedDesc<T extends { lastUpdated: string }>(
+	a: T,
+	b: T
+): number {
+	const aTime = lastUpdatedSortTime(a.lastUpdated);
+	const bTime = lastUpdatedSortTime(b.lastUpdated);
+	if (aTime === bTime) return 0;
+	return bTime - aTime;
+}
+
 function recordLifecycleTimestamps(
 	entry: MissionControlBoardEntry,
 	event: MissionControlRelayStatusEntry
@@ -1097,7 +1114,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 	}
 
 	for (const entries of Object.values(board)) {
-		entries.sort((a, b) => Date.parse(b.lastUpdated) - Date.parse(a.lastUpdated));
+		entries.sort(compareMissionControlEntriesByLastUpdatedDesc);
 	}
 
 	return board;
@@ -1403,14 +1420,16 @@ export function selectWebhookUrlsForMissionEvent(event: MissionControlBridgeEven
 		return urls;
 	}
 	if (target.url) {
-		return urls.filter((url) => url === target.url);
+		const matched = urls.filter((url) => url === target.url);
+		return matched.length > 0 ? matched : urls;
 	}
-	return urls.filter((url) => {
+	const portMatched = urls.filter((url) => {
 		if (target.port !== null && webhookPort(url) === target.port) {
 			return true;
 		}
 		return false;
 	});
+	return portMatched.length > 0 ? portMatched : urls;
 }
 
 export async function relayMissionControlEvent(event: MissionControlBridgeEvent): Promise<void> {

@@ -101,6 +101,19 @@ describe('/api/events auth', () => {
 		expect(response.status).toBe(200);
 	});
 
+	it('rejects malformed encoded auth cookies without crashing', async () => {
+		const response = await GET(
+			createEvent('https://example.com/api/events', {
+				method: 'GET',
+				headers: {
+					cookie: 'spawner_events_api_key=%E0%A4%A'
+				}
+			})
+		);
+
+		expect(response.status).toBe(401);
+	});
+
 	it('accepts a loopback theatre SSE origin without an events key', async () => {
 		const response = await GET(
 			createEvent(

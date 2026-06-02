@@ -196,6 +196,7 @@ export function readRecentAgentEvents(
 					try {
 						return JSON.parse(line) as AgentEventLedgerEntry;
 					} catch {
+						warnMalformedJsonlLine('agent-events', line);
 						return null;
 					}
 				})
@@ -222,10 +223,15 @@ function readFinalAnswerGateAuditEvents(): AgentEventLedgerEntry[] {
 				const record = JSON.parse(line) as Record<string, unknown>;
 				return finalAnswerAuditToAgentEvent(record, index);
 			} catch {
+				warnMalformedJsonlLine('final-answer-gate-audit', line);
 				return null;
 			}
 		})
 		.filter((entry): entry is AgentEventLedgerEntry => Boolean(entry));
+}
+
+function warnMalformedJsonlLine(source: string, line: string): void {
+	console.warn(`[agent-event-ledger] skipped malformed ${source} JSONL line (${line.length} chars)`);
 }
 
 function finalAnswerAuditToAgentEvent(record: Record<string, unknown>, index: number): AgentEventLedgerEntry {

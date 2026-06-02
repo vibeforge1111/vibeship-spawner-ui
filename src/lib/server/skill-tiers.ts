@@ -42,22 +42,36 @@ function staticDir(): string {
 	return join(process.cwd(), 'static');
 }
 
+async function readJsonFile(path: string): Promise<unknown | null> {
+	try {
+		return JSON.parse(await readFile(path, 'utf-8')) as unknown;
+	} catch {
+		return null;
+	}
+}
+
 async function loadProSkills(): Promise<SkillRecord[]> {
 	const path = join(staticDir(), 'skills.json');
 	if (!existsSync(path)) return [];
-	const raw = await readFile(path, 'utf-8');
-	const parsed = JSON.parse(raw) as SkillRecord[];
-	return parsed.filter((s): s is SkillRecord => typeof s?.id === 'string');
+	const parsed = await readJsonFile(path);
+	if (!Array.isArray(parsed)) return [];
+	return parsed.filter((s): s is SkillRecord => {
+		if (!s || typeof s !== 'object') return false;
+		return typeof (s as { id?: unknown }).id === 'string';
+	});
 }
 
 async function loadBaseSkills(pro: SkillRecord[]): Promise<SkillRecord[]> {
 	const tiersPath = join(staticDir(), 'skill-tiers.json');
 	const proById = new Map(pro.map((s) => [s.id, s]));
 	if (existsSync(tiersPath)) {
-		const raw = await readFile(tiersPath, 'utf-8');
-		const tiers = JSON.parse(raw) as SkillTierManifest;
-		const ids = tiers.open_source?.canonical_starter_skill_ids ?? [];
-		return ids.map((id) => proById.get(id) ?? { id });
+		const tiers = await readJsonFile(tiersPath) as SkillTierManifest | null;
+		const ids = tiers?.open_source?.canonical_starter_skill_ids;
+		if (Array.isArray(ids)) {
+			return ids
+				.filter((id): id is string => typeof id === 'string')
+				.map((id) => proById.get(id) ?? { id });
+		}
 	}
 
 	const dir = join(staticDir(), 'bundles');
@@ -79,6 +93,10 @@ async function loadBaseSkills(pro: SkillRecord[]): Promise<SkillRecord[]> {
 		}
 	}
 	return [...out.values()];
+}
+
+export function resetSkillTierCacheForTests(): void {
+	cached = null;
 }
 
 async function loadAll(): Promise<{ base: SkillRecord[]; pro: SkillRecord[] }> {

@@ -1065,7 +1065,12 @@ class ProviderRuntimeManager {
 					error: terminalStatus === 'failed' ? input.error || result.error || 'Mission failed' : result.error,
 					durationMs:
 						result.durationMs ??
-						Math.max(0, completedAt.getTime() - Date.parse(result.startedAt || completedAt.toISOString())),
+						(() => {
+							const startedMs = Date.parse(result.startedAt || '');
+							return Number.isFinite(startedMs)
+								? Math.max(0, completedAt.getTime() - startedMs)
+								: 0;
+						})(),
 					completedAt: result.completedAt || completedAt.toISOString()
 				};
 			});

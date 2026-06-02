@@ -40,12 +40,13 @@ export const POST: RequestHandler = async ({ request }) => {
   const cron = String(body?.cron || '').trim();
   const payload = asRecord(body.payload);
   const chatId = body?.chatId ? String(body.chatId) : null;
+  const timezone = body?.timezone ? String(body.timezone) : null;
   if (!cron) return json({ ok: false, error: 'cron required' }, { status: 400 });
   if (action !== 'mission' && action !== 'loop') {
     return json({ ok: false, error: "action must be 'mission' or 'loop'" }, { status: 400 });
   }
   try {
-    const record = await createSchedule({ cron, action, payload, chatId, executionAuthority: body.executionAuthority });
+    const record = await createSchedule({ cron, action, payload, chatId, timezone, executionAuthority: body.executionAuthority });
     return json({ ok: true, schedule: record });
   } catch (err: unknown) {
     if (err instanceof HarnessAuthorityError) {

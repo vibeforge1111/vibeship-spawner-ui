@@ -380,6 +380,33 @@ describe('creator mission trace', () => {
 		expect(trace?.intent_packet.target_domain).toBe('investor-diligence');
 	});
 
+	it('returns null when the requested mission trace file is malformed JSON', async () => {
+		const stateDir = await tempStateDir();
+		const traceDir = path.join(stateDir, 'creator-missions');
+		await mkdir(traceDir, { recursive: true });
+		await writeFile(
+			path.join(traceDir, 'mission-creator-malformed.json'),
+			'{"schema_version":"spark-creator-trace.v1",',
+			'utf-8'
+		);
+
+		const trace = await readCreatorMissionTrace({ missionId: 'mission-creator-malformed' }, stateDir);
+		expect(trace).toBeNull();
+	});
+
+	it('skips malformed trace files when scanning the directory for a request id', async () => {
+		const stateDir = await tempStateDir();
+		await createCreatorMission(
+			{ brief: 'Mixed dir', missionId: 'mission-creator-good', requestId: 'req-good' },
+			{ stateDir, runManifestPlanner: async () => bundle({ target_domain: 'good' }) }
+		);
+		const traceDir = path.join(stateDir, 'creator-missions');
+		await writeFile(path.join(traceDir, 'mission-corrupt.json'), '{"request_id":"req-good"', 'utf-8');
+
+		const trace = await readCreatorMissionTrace({ requestId: 'req-good' }, stateDir);
+		expect(trace?.mission_id).toBe('mission-creator-good');
+	});
+
 	it('executes a persisted creator mission with an auto-run canvas load', async () => {
 		const stateDir = await tempStateDir();
 		await createCreatorMission(
