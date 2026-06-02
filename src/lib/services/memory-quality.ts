@@ -1,4 +1,5 @@
 import { existsSync } from 'fs';
+import { safeJsonParse } from '$lib/server/safe-json';
 import { mkdir, readFile } from 'fs/promises';
 import path from 'path';
 import { spawnerStateDir } from '$lib/server/spawner-state';
@@ -94,7 +95,7 @@ async function readJsonFile(
 	}
 
 	try {
-		return JSON.parse(await readFile(filePath, 'utf-8'));
+		return safeJsonParse(await readFile(filePath, 'utf-8'), {}, 'memory-quality');
 	} catch (error) {
 		warnings.push({
 			source,
