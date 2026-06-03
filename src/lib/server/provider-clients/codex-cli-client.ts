@@ -181,9 +181,21 @@ export async function executeCodexCliRequest(
 			signal.addEventListener('abort', abortHandler, { once: true });
 		}
 
+		const MAX_BUFFER_SIZE = 10 * 1024 * 1024; // 10MB
+		let stdoutTruncated = false;
+		let stderrTruncated = false;
+
 		child.stdout?.on('data', (data: Buffer) => {
+			if (stdoutTruncated) return;
 			const chunk = data.toString();
-			stdout += chunk;
+			if (stdout.length + chunk.length > MAX_BUFFER_SIZE) {
+				const remaining = MAX_BUFFER_SIZE - stdout.length;
+				stdout += chunk.slice(0, Math.max(0, remaining));
+				stdout += '\n[OUTPUT TRUNCATED: exceeded 10MB buffer limit]';
+				stdoutTruncated = true;
+			} else {
+				stdout += chunk;
+			}
 
 			// Emit progress periodically
 			const now = Date.now();
@@ -200,7 +212,16 @@ export async function executeCodexCliRequest(
 		});
 
 		child.stderr?.on('data', (data: Buffer) => {
-			stderr += data.toString();
+			if (stderrTruncated) return;
+			const text = data.toString();
+			if (stderr.length + text.length > MAX_BUFFER_SIZE) {
+				const remaining = MAX_BUFFER_SIZE - stderr.length;
+				stderr += text.slice(0, Math.max(0, remaining));
+				stderr += '\n[STDERR TRUNCATED: exceeded 10MB buffer limit]';
+				stderrTruncated = true;
+			} else {
+				stderr += text;
+			}
 		});
 
 		child.on('error', (err) => {
