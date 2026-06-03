@@ -136,6 +136,7 @@
 	let defaultsLoaded = $state(false);
 	const defaultMultiLLMOptions = createDefaultMultiLLMOptions();
 	const MULTI_LLM_KEYS_STORAGE = 'spawner-multi-llm-api-keys';
+	const MULTI_LLM_STRATEGY_VALUES = new Set<MultiLLMStrategy>(['single', 'round_robin', 'parallel_consensus', 'lead_reviewer']);
 	let multiLLMEnabled = $state(defaultMultiLLMOptions.enabled);
 	let multiLLMStrategy = $state<MultiLLMStrategy>(defaultMultiLLMOptions.strategy);
 	let multiLLMPrimaryProviderId = $state(defaultMultiLLMOptions.primaryProviderId || 'claude');
@@ -742,7 +743,8 @@
 							? parsed.multiLLMEnabled
 							: defaultMultiLLMOptions.enabled,
 					strategy:
-						typeof parsed?.multiLLMStrategy === 'string'
+						typeof parsed?.multiLLMStrategy === 'string' &&
+						MULTI_LLM_STRATEGY_VALUES.has(parsed.multiLLMStrategy as MultiLLMStrategy)
 							? (parsed.multiLLMStrategy as MultiLLMStrategy)
 							: defaultMultiLLMOptions.strategy,
 					primaryProviderId:
