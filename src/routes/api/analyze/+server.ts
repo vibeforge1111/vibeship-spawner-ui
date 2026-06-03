@@ -122,9 +122,11 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Build the prompt with full skill index
 		const skillsFormatted = formatSkillsForPrompt();
+		// Sanitize user input to prevent prompt injection
+		const sanitizedGoal = body.goal.replace(/\{\{.*?\}\}/g, '[FILTERED]');
 		const prompt = ANALYSIS_PROMPT
 			.replace('{{SKILLS}}', skillsFormatted)
-			.replace('{{GOAL}}', body.goal);
+			.replace('{{GOAL}}', `\n--- BEGIN USER PROJECT DESCRIPTION ---\n${sanitizedGoal}\n--- END USER PROJECT DESCRIPTION ---\n`);
 
 		// Call Claude API with extended token limit for complex analysis
 		const response = await fetch(CLAUDE_API_URL, {
