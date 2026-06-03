@@ -1272,7 +1272,13 @@ async function postJson(url: string, payload: unknown, token?: string, extraHead
 			'Content-Type': 'application/json'
 		};
 		if (extraHeaders) {
-			Object.assign(headers, extraHeaders);
+			// Sanitize extraHeaders to prevent prototype pollution
+			const sanitizedHeaders = Object.fromEntries(
+				Object.entries(extraHeaders).filter(
+					([key]) => key !== '__proto__' && key !== 'constructor' && key !== 'prototype'
+				)
+			);
+			Object.assign(headers, sanitizedHeaders);
 		}
 		if (token) {
 			headers.Authorization = `Bearer ${token}`;

@@ -227,21 +227,35 @@ export const POST: RequestHandler = async (event) => {
 			return json({ error: 'Event type is required' }, { status: 400 });
 		}
 
+		// Sanitize payload to prevent prototype pollution
+		const sanitizedPayload = Object.fromEntries(
+			Object.entries(payload).filter(
+				([key]) => key !== '__proto__' && key !== 'constructor' && key !== 'prototype'
+			)
+		);
+
 		// Add metadata
 		let fullEvent = {
-			...payload,
-			timestamp: payload.timestamp || new Date().toISOString(),
-			source: payload.source || 'claude-code',
-			id: payload.id || `evt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+			...sanitizedPayload,
+			timestamp: sanitizedPayload.timestamp || new Date().toISOString(),
+			source: sanitizedPayload.source || 'claude-code',
+			id: sanitizedPayload.id || `evt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 		};
 		if (typeof fullEvent.missionId === 'string') {
 			const relayMeta = await relayMetadataForMission(fullEvent.missionId);
 			if (Object.keys(relayMeta).length > 0) {
+				const sanitizedData = fullEvent.data && typeof fullEvent.data === 'object'
+					? Object.fromEntries(
+							Object.entries(fullEvent.data).filter(
+								([key]) => key !== '__proto__' && key !== 'constructor' && key !== 'prototype'
+							)
+						)
+					: {};
 				fullEvent = {
 					...fullEvent,
 					data: {
 						...relayMeta,
-						...(fullEvent.data && typeof fullEvent.data === 'object' ? fullEvent.data : {})
+						...sanitizedData
 					}
 				};
 			}
