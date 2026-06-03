@@ -56,7 +56,7 @@ export interface SyncConfig {
 const DEFAULT_CONFIG: SyncConfig = {
 	wsUrl: '',
 	httpUrl: '',
-	reconnectInterval: 3000,
+	reconnectInterval: Number(process.env.SPAWNER_SYNC_RECONNECT_TIMEOUT_MS) || 3000,
 	maxReconnectAttempts: 10,
 	heartbeatInterval: 30000
 };
