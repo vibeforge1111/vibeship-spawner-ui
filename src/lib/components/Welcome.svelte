@@ -23,6 +23,7 @@
 	import type { Skill } from '$lib/stores/skills.svelte';
 	import { toasts } from '$lib/stores/toast.svelte';
 	import { get } from 'svelte/store';
+	import { parseJsonResponse } from '$lib/services/http-response';
 
 	let {
 		onStart: _onStart,
@@ -439,7 +440,12 @@
 
 		// Read the pending PRD content
 		const prdResponse = await fetch('/api/prd-bridge/pending');
-		const prdData = await prdResponse.json();
+		if (!prdResponse.ok) {
+			toasts.error(`Could not read pending PRD (HTTP ${prdResponse.status})`);
+			showProcessingModal = false;
+			return;
+		}
+		const prdData = await parseJsonResponse<{ pending?: boolean; prdContent?: string }>(prdResponse, {});
 
 		if (!prdData.pending || !prdData.prdContent) {
 			toasts.error('No pending PRD found');

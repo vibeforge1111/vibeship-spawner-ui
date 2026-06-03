@@ -30,6 +30,7 @@ import { eventBridge } from '$lib/services/event-bridge';
 import { mcpClient } from '$lib/services/mcp-client';
 import { agentWorkTimeoutMs } from './timeout-config';
 import { extractTraceRef } from './trace-ref';
+import { parseJsonOrFallback } from '$lib/utils/safe-json';
 import { readFile } from 'node:fs/promises';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -190,7 +191,7 @@ function missionTraceMetadata(missionId: string): { requestId: string | null; tr
 	for (const fileName of ['last-canvas-load.json', 'pending-request.json']) {
 		try {
 			const raw = readFileSync(path.join(getSpawnerStateDir(), fileName), 'utf-8');
-			const parsed = JSON.parse(raw) as Record<string, unknown>;
+			const parsed = parseJsonOrFallback<Record<string, unknown>>(raw, {}, `mission-trace-metadata:${fileName}`);
 			const relay = parsed.relay && typeof parsed.relay === 'object'
 				? (parsed.relay as Record<string, unknown>)
 				: null;
@@ -252,7 +253,11 @@ class ProviderRuntimeManager {
 			if (!existsSync(persistPath)) return new Map();
 			const raw = readFileSync(persistPath, 'utf-8');
 			if (!raw.trim()) return new Map();
-			const parsed = JSON.parse(raw) as { missions?: Record<string, ProviderMissionResultSnapshot[]> };
+			const parsed = parseJsonOrFallback<{ missions?: Record<string, ProviderMissionResultSnapshot[]> }>(
+				raw,
+				{},
+				'provider-results'
+			);
 			return new Map(
 				Object.entries(parsed.missions ?? {}).map(([missionId, results]) => [
 					missionId,
@@ -330,10 +335,10 @@ class ProviderRuntimeManager {
 		if (existsSync(activeMissionPath)) {
 			try {
 				const raw = await readFile(activeMissionPath, 'utf-8');
-				const state = JSON.parse(raw) as {
+				const state = parseJsonOrFallback<{
 					missionId?: string;
 					multiLLMExecution?: MultiLLMExecutionPack | null;
-				};
+				}>(raw, {}, 'active-mission-recovery');
 				if (state.missionId === missionId && state.multiLLMExecution) {
 					const apiKeys: Record<string, string> = {};
 					for (const provider of state.multiLLMExecution.providers || []) {

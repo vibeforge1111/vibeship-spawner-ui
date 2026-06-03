@@ -2,6 +2,7 @@ import { existsSync } from 'fs';
 import { mkdir, readFile } from 'fs/promises';
 import path from 'path';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { tryParseJson } from '$lib/utils/safe-json';
 import {
 	MEMORY_FAILURE_MODES,
 	MEMORY_OUTCOMES,
@@ -94,7 +95,15 @@ async function readJsonFile(
 	}
 
 	try {
-		return JSON.parse(await readFile(filePath, 'utf-8'));
+		const parsed = tryParseJson<unknown | null>(await readFile(filePath, 'utf-8'), null, `memory-quality:${source}`);
+		if (!parsed.ok) {
+			warnings.push({
+				source,
+				path: filePath,
+				message: parsed.error instanceof Error ? parsed.error.message : 'Metric file contains invalid JSON.'
+			});
+		}
+		return parsed.value;
 	} catch (error) {
 		warnings.push({
 			source,

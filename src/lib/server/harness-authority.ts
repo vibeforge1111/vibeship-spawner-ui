@@ -176,6 +176,10 @@ function governorDecisionVerdict(authority: Record<string, unknown>, input: Harn
 	if (governorTurnId && envelopeTurnId && governorTurnId !== envelopeTurnId) {
 		reasonCodes.push('governor_turn_mismatch');
 	}
+	if (outcome && outcome !== 'execute') {
+		reasonCodes.push(`governor_outcome_${outcome}_not_executable`);
+		reasonCodes.push('governor_action_not_authorized');
+	}
 	if (!envelopeVerdict.allowed) {
 		reasonCodes.push(...envelopeVerdict.reasonCodes);
 	}
@@ -195,7 +199,7 @@ function governorDecisionVerdict(authority: Record<string, unknown>, input: Harn
 	return {
 		allowed: reasonCodes.length === 0,
 		source: 'governor_decision',
-		reasonCodes,
+		reasonCodes: [...new Set(reasonCodes)],
 		traceId: stringField(rawTurnRef.id) || stringField(trace.id) || stringField(authority.turn_id) || undefined,
 		governorOutcome: outcome || undefined
 	};

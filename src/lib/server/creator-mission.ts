@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 import { autoDispatchPrdCanvasLoad, type PrdAutoDispatchResult } from './prd-auto-dispatch';
 import { spawnerStateDir as resolveSpawnerStateDir } from './spawner-state';
 import { buildServerGovernorDecisionAuthority } from './harness-authority';
+import { writeFileAtomic } from './atomic-write';
 
 const execFileAsync = promisify(execFile);
 
@@ -1542,8 +1543,9 @@ export function creatorMissionCanvasLoad(trace: CreatorMissionTrace, now = new D
 
 async function writeCreatorMissionCanvasLoad(load: CreatorMissionCanvasLoad, stateDir = spawnerStateDir()): Promise<CreatorMissionCanvasLoad> {
 	await mkdir(stateDir, { recursive: true });
-	await writeFile(pendingLoadPath(stateDir), JSON.stringify(load, null, 2), 'utf-8');
-	await writeFile(lastCanvasLoadPath(stateDir), JSON.stringify(load, null, 2), 'utf-8');
+	const payload = JSON.stringify(load, null, 2);
+	await writeFileAtomic(pendingLoadPath(stateDir), payload);
+	await writeFileAtomic(lastCanvasLoadPath(stateDir), payload);
 	return load;
 }
 

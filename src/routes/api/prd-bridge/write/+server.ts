@@ -31,6 +31,7 @@ import {
 	normalizeCapabilityProposalPacket
 } from '$lib/server/capability-proposal-packet';
 import { extractTraceRef, normalizeTraceRef, traceRefFromMissionId } from '$lib/server/trace-ref';
+import { parseJsonOrFallback } from '$lib/utils/safe-json';
 
 function getPrdBridgePaths() {
 	const spawnerDir = spawnerStateDir();
@@ -92,7 +93,7 @@ async function traceRefForRequest(requestId: string, details: Record<string, unk
 		const { pendingRequestFile } = getPrdBridgePaths();
 		if (!existsSync(pendingRequestFile)) return null;
 		const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
-		const pending = JSON.parse(pendingRaw) as Record<string, unknown>;
+		const pending = parseJsonOrFallback<Record<string, unknown>>(pendingRaw, {}, 'prd-bridge-trace-request');
 		if (pending.requestId !== requestId) return null;
 		return extractTraceRef(pending);
 	} catch {
@@ -184,7 +185,7 @@ async function updatePendingRequestStatus(
 		const { pendingRequestFile } = getPrdBridgePaths();
 		if (!existsSync(pendingRequestFile)) return;
 		const raw = await readFile(pendingRequestFile, 'utf-8');
-		const current = JSON.parse(raw) as Record<string, unknown>;
+		const current = parseJsonOrFallback<Record<string, unknown>>(raw, {}, 'prd-bridge-write-state');
 		if (current.requestId !== requestId) return;
 
 		const next = {

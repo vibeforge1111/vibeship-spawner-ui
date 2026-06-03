@@ -25,6 +25,8 @@
 		type MissionImprovementDraft,
 		type MissionImprovementSource
 	} from '$lib/services/mission-improvement';
+	import { parseJsonResponse } from '$lib/services/http-response';
+	import { polishMissionTitleForDisplay } from '$lib/services/mission-title';
 
 	type Tab = 'board' | 'scheduled';
 	let activeTab = $state<Tab>('board');
@@ -768,7 +770,7 @@
 					...(improvementDraft?.payload ?? {})
 				})
 			});
-			const data = await r.json();
+			const data = await parseJsonResponse<{ success?: boolean; error?: string }>(r, {});
 			if (!r.ok || !data?.success) {
 				quickAddError = data?.error ?? `HTTP ${r.status}`;
 			} else {

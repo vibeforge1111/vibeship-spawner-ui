@@ -150,9 +150,12 @@ describe('scheduler Harness authority', () => {
 			'utf-8'
 		);
 
-		const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) => ({
-			json: async () => ({ success: true, missionId: 'mission-governor-fire' })
-		}));
+		const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) =>
+			new Response(JSON.stringify({ success: true, missionId: 'mission-governor-fire' }), {
+				status: 200,
+				headers: { 'content-type': 'application/json' }
+			})
+		);
 		vi.stubGlobal('fetch', fetchMock);
 
 		await runSchedulerTickForTests();

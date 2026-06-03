@@ -16,6 +16,7 @@ import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server
 import { getTierSkills } from '$lib/server/skill-tiers';
 import { verifyH70SkillAccessToken } from '$lib/server/h70-skill-access-token';
 import { verifySparkProSkillAccess, type SparkProEntitlementVerdict } from '$lib/server/spark-pro-entitlements';
+import { parseJsonOrFallback } from '$lib/utils/safe-json';
 
 function uniquePaths(paths: string[]): string[] {
 	return [...new Set(paths.map((candidate) => path.resolve(candidate)))];
@@ -143,7 +144,11 @@ function findStaticSkillMetadata(skillId: string): { skill: SparkSkillGraphMetad
 	const skillsPath = resolveStaticSkillsJsonPath();
 	if (!skillsPath) return null;
 	try {
-		const parsed = JSON.parse(fs.readFileSync(skillsPath, 'utf-8')) as SparkSkillGraphMetadata[];
+		const parsed = parseJsonOrFallback<SparkSkillGraphMetadata[]>(
+			fs.readFileSync(skillsPath, 'utf-8'),
+			[],
+			'h70-skills'
+		);
 		const skill = parsed.find((candidate) => candidate.id === skillId);
 		return skill ? { skill, path: skillsPath } : null;
 	} catch (e) {
