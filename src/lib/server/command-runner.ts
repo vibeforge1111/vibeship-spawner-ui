@@ -100,6 +100,8 @@ export function runCommand(
 	return new Promise((res) => {
 		const start = Date.now();
 		let stdout = '';
+		let stdoutSize = 0;
+		const MAX_BUFFER_SIZE = 10 * 1024 * 1024;
 		let stderr = '';
 		let resolved = false;
 		const spawnCommand = resolveSpawnCommand(command, args);
@@ -113,6 +115,8 @@ export function runCommand(
 		});
 
 		child.stdout?.on('data', (data: Buffer) => {
+			if (stdoutSize >= MAX_BUFFER_SIZE) return;
+			stdoutSize += data.length;
 			stdout += data.toString();
 		});
 
