@@ -206,8 +206,8 @@ function persistState() {
 		const persistPath = getMissionControlPersistPath();
 		const dir = path.dirname(persistPath);
 		if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-		fs.writeFileSync(
-			persistPath,
+		const tmp = persistPath + '.tmp-' + Math.random().toString(36).slice(2);
+			fs.writeFileSync(tmp,
 			JSON.stringify({
 				totalRelayed: relayState.totalRelayed,
 				perMission: Object.fromEntries(relayState.perMission),
@@ -215,6 +215,7 @@ function persistState() {
 			}),
 			'utf-8'
 		);
+			fs.renameSync(tmp, persistPath);
 	} catch {
 		/* persist is best-effort */
 	}
@@ -233,6 +234,14 @@ const relayState: {
 
 const missionLifecycleStates = new Map<string, string>();
 const taskLifecycleStates = new Map<string, string>();
+const MAX_LIFECYCLE_ENTRIES = 5_000;
+
+function pruneLifecycleMap(map: Map<string, string>): void {
+	if (map.size > MAX_LIFECYCLE_ENTRIES) {
+		const oldest = map.keys().next().value as string;
+		map.delete(oldest);
+	}
+}
 
 function normalizeMissionId(event: MissionControlBridgeEvent): string {
 	return typeof event.missionId === 'string' && event.missionId.trim().length > 0 ? event.missionId : 'unknown-mission';
@@ -689,6 +698,7 @@ function shouldRecordLifecycleTransition(event: MissionControlBridgeEvent): bool
 			return false;
 		}
 		taskLifecycleStates.set(key, taskStatus);
+	pruneLifecycleMap(taskLifecycleStates);
 		return true;
 	}
 
@@ -698,6 +708,7 @@ function shouldRecordLifecycleTransition(event: MissionControlBridgeEvent): bool
 		return false;
 	}
 	missionLifecycleStates.set(missionId, missionStatus);
+	pruneLifecycleMap(missionLifecycleStates);
 	return true;
 }
 
