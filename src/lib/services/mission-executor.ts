@@ -1310,8 +1310,10 @@ class MissionExecutor {
 					break;
 
 				default:
-					// Log unknown event types for debugging
-					log.debug('Unknown event type:', event.type);
+					// Unknown event types are dropped from this dispatcher; surface
+					// at warn so an operator running in production sees the miss
+					// (new upstream event types stall the mission UI silently otherwise).
+					log.warn('Unknown event type, dropping from dispatcher:', event.type);
 			}
 		});
 	}
