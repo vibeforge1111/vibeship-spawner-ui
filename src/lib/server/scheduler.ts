@@ -38,6 +38,16 @@ function errorCode(error: unknown): string | null {
     : null;
 }
 
+function execFailureSummary(error: unknown): string {
+  const message = errorMessage(error);
+  const stderr =
+    error && typeof error === 'object' && 'stderr' in error
+      ? String((error as { stderr?: unknown }).stderr ?? '').trim()
+      : '';
+  if (!stderr) return message;
+  return `${message} | stderr: ${stderr.slice(0, 500)}`;
+}
+
 function redactSensitiveSnippet(text: string): string {
   return text
     .replace(/\b(Bearer\s+)[^\s]+/gi, '$1[redacted]')
@@ -335,7 +345,7 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
           : `loop error: ${parsed.error || 'unknown'}`,
       };
     } catch (err: unknown) {
-      return { ok: false, summary: `loop exec failed: ${errorMessage(err)}` };
+      return { ok: false, summary: `loop exec failed: ${execFailureSummary(err)}` };
     }
   }
   return { ok: false, summary: `unknown action ${record.action}` };
