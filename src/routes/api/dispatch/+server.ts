@@ -228,6 +228,9 @@ export const POST: RequestHandler = async (event) => {
 		if (err instanceof CapabilityPolicyError) {
 			return json({ success: false, error: err.message, code: err.code }, { status: err.status });
 		}
+		if (err instanceof SyntaxError) {
+			return json({ success: false, error: 'Malformed JSON in request body' }, { status: 400 });
+		}
 		const error = err instanceof Error ? err.message : 'Unknown error';
 		console.error('[Dispatch API] POST error:', error);
 		return json({ success: false, error }, { status: 500 });
