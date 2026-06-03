@@ -26,7 +26,7 @@ describe('Spawner legacy authority inventory', () => {
 
 	it('keeps Spawner parser and planning helpers evidence-only', () => {
 		const evidenceOnlyPlanes = buildSpawnerLegacyAuthorityPlanes().filter(
-			(plane) => plane.disposition === 'rebound_to_harness_evidence'
+			(plane) => plane.disposition === 'evidence_adapter'
 		);
 
 		expect(evidenceOnlyPlanes.length).toBeGreaterThanOrEqual(5);
@@ -46,7 +46,7 @@ describe('Spawner legacy authority inventory', () => {
 		expect(highAgencyPlanes.length).toBe(inventory.summary.high_agency_risk_count);
 		expect(highAgencyPlanes.length).toBeGreaterThanOrEqual(14);
 		for (const plane of highAgencyPlanes) {
-			expect(plane.disposition).toBe('converted_to_harness_consumer');
+			expect(plane.disposition).toBe('canonical_consumer');
 			expect(plane.harness_binding.governor_required).toBe(true);
 			expect(plane.harness_binding.consumer_of_governor).toBe(true);
 			expect(plane.harness_binding.ledger_required).toBe(true);

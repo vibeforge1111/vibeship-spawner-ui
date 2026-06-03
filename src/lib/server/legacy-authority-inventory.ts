@@ -43,7 +43,7 @@ function evidenceOnlyPlane(input: {
 		source_path: input.source_path,
 		summary: input.summary,
 		authority_risk: {},
-		disposition: 'rebound_to_harness_evidence',
+		disposition: 'evidence_adapter',
 		evidence_only: true,
 		evidence: [evidence(`${input.id}:evidence`, input.kind || 'route_candidate', input.summary)]
 	});
@@ -65,7 +65,7 @@ function consumerPlane(input: {
 		source_path: input.source_path,
 		summary: input.summary,
 		authority_risk: input.authority_risk,
-		disposition: 'converted_to_harness_consumer',
+		disposition: 'canonical_consumer',
 		governor_required: true,
 		consumer_of_governor: true,
 		ledger_required: true,
@@ -73,7 +73,7 @@ function consumerPlane(input: {
 	});
 }
 
-function disabledPlane(input: {
+function quarantinedPlane(input: {
 	id: string;
 	plane_type: LegacyAuthorityPlaneType;
 	source_path: string;
@@ -87,8 +87,8 @@ function disabledPlane(input: {
 		source_path: input.source_path,
 		summary: input.summary,
 		authority_risk: {},
-		disposition: 'disabled',
-		evidence: [evidence(`${input.id}:disabled`, 'policy', input.summary, 0.9)]
+		disposition: 'quarantined',
+		evidence: [evidence(`${input.id}:quarantined`, 'policy', input.summary, 0.9)]
 	});
 }
 
@@ -124,7 +124,7 @@ export function buildSpawnerLegacyAuthorityPlanes(): LegacyAuthorityPlaneV1[] {
 			source_path: 'src/lib/server/spark-run-workspace.ts',
 			summary: 'Workspace path resolution validates/sanitizes targets but cannot authorize a run by itself.'
 		}),
-		disabledPlane({
+		quarantinedPlane({
 			id: 'spawner-machine-origin-policy',
 			plane_type: 'machine_origin_policy',
 			source_path: 'src/lib/server/harness-authority.ts',

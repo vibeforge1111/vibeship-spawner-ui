@@ -2,6 +2,8 @@ import {
 	actionTypeForHarnessMutation,
 	createHarnessCoreActionEnvelopeVNext,
 	createHarnessCoreAuthorizedGovernorDecision,
+	safeHarnessCoreId,
+	verifyHarnessCoreGovernorToolAuthority,
 	type GovernorDecisionV1,
 	type HarnessCoreActionMutationClass,
 	type TurnIntentEnvelopeVNext
@@ -57,12 +59,8 @@ function hasTool(tools: string[], toolName: string): boolean {
 	return tools.includes(toolName) || tools.includes('*') || tools.includes('spawner.*');
 }
 
-function normalizeCapabilityPart(value: string): string {
-	return value.replace(/[^a-zA-Z0-9_.:-]+/g, '-').toLowerCase();
-}
-
 function expectedCapabilityId(input: HarnessAuthorityInput): string {
-	return `capability:${normalizeCapabilityPart(input.ownerSystem)}:${normalizeCapabilityPart(input.toolName)}`;
+	return safeHarnessCoreId('capability', `${input.ownerSystem}:${input.toolName}`);
 }
 
 function turnIntentVerdict(authority: Record<string, unknown>, input: HarnessAuthorityInput): HarnessAuthorityVerdict {
@@ -165,47 +163,31 @@ function turnIntentVNextVerdict(authority: Record<string, unknown>, input: Harne
 
 function governorDecisionVerdict(authority: Record<string, unknown>, input: HarnessAuthorityInput): HarnessAuthorityVerdict {
 	const envelope = isRecord(authority.envelope) ? authority.envelope : {};
-	const boundary = isRecord(authority.execution_boundary) ? authority.execution_boundary : {};
-	const authorizations = Array.isArray(authority.authorizations)
-		? authority.authorizations.filter(isRecord)
-		: [];
-	const toolLedgers = Array.isArray(authority.tool_ledgers)
-		? authority.tool_ledgers.filter(isRecord)
-		: [];
 	const reasonCodes: string[] = [];
 	const outcome = stringField(authority.outcome);
+	const expectedActionType = actionTypeForHarnessMutation(input.mutationClass, input.publishes);
+	const governorTurnId = stringField(authority.turn_id);
+	const envelopeTurnId = stringField(envelope.turn_id);
 	const envelopeVerdict = turnIntentVNextVerdict(envelope, input);
-	const matchingAuthorization = authorizations.find((authorization) => {
-		const verdict = stringField(authorization.verdict);
-		const capabilityId = stringField(authorization.capability_id);
-		return verdict === 'allow' && capabilityId === expectedCapabilityId(input);
-	});
-	const matchingLedger = toolLedgers.find((ledger) => {
-		const toolName = stringField(ledger.tool_name);
-		const authorization = isRecord(ledger.authorization) ? ledger.authorization : {};
-		return toolName === input.toolName && stringField(authorization.verdict) === 'allow';
-	});
 
 	if (authority.schema_version !== 'governor-decision-v1') {
 		reasonCodes.push('unsupported_governor_decision_schema');
 	}
+	if (governorTurnId && envelopeTurnId && governorTurnId !== envelopeTurnId) {
+		reasonCodes.push('governor_turn_mismatch');
+	}
 	if (!envelopeVerdict.allowed) {
 		reasonCodes.push(...envelopeVerdict.reasonCodes);
 	}
-	if (boundary.legacy_authority_demoted !== true) {
-		reasonCodes.push('legacy_authority_not_demoted');
-	}
-	if (outcome !== 'execute') {
-		reasonCodes.push(outcome ? `governor_outcome_${outcome}_not_executable` : 'missing_governor_outcome');
-	}
-	if (boundary.action_authorized !== true) {
-		reasonCodes.push('governor_action_not_authorized');
-	}
-	if (!matchingAuthorization) {
-		reasonCodes.push('authorization_not_allowed');
-	}
-	if (!matchingLedger) {
-		reasonCodes.push('missing_tool_ledger');
+	if (authority.schema_version === 'governor-decision-v1') {
+		const verification = verifyHarnessCoreGovernorToolAuthority({
+			governor_decision: authority as unknown as GovernorDecisionV1,
+			tool_name: input.toolName,
+			owner_system: input.ownerSystem,
+			action_type: expectedActionType,
+			allow_read_only: input.mutationClass === 'none' || input.mutationClass === 'read_only'
+		});
+		reasonCodes.push(...verification.reason_codes);
 	}
 
 	const rawTurnRef = isRecord(envelope.raw_turn_ref) ? envelope.raw_turn_ref : {};

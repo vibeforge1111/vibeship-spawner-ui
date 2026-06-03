@@ -10,7 +10,6 @@ import { env as privateEnv } from '$env/dynamic/private';
 import { resolveSparkRunProjectPath } from './spark-run-workspace';
 import { spawnerStateDir } from './spawner-state';
 import {
-  assertHarnessAuthority,
   assertNativeGovernorHarnessAuthority,
   buildServerGovernorDecisionAuthority,
   resolveExecutionAuthority,
@@ -241,7 +240,7 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
       process.env.SPARK_BUILDER_HOME || path.join(homedir(), '.spark', 'state', 'spark-intelligence');
     const python = process.env.SPARK_BUILDER_PYTHON || 'python';
     try {
-      assertHarnessAuthority({
+      assertNativeGovernorHarnessAuthority({
         authority: buildServerGovernorDecisionAuthority({
           source: `schedule:${record.id}`,
           reason: 'Authorized scheduled loop fire from a persisted Spawner schedule.',
