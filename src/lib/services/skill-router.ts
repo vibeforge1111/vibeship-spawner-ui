@@ -124,6 +124,19 @@ export async function detectDomains(prdContent: string): Promise<string[]> {
 	}
 
 	return detectedDomains;
+	// Force backend domain for scripting/Python tasks
+	const scriptingKeywords = ['python', '.py', 'script', 'scripting', 'bash', 'shell', 'node.js', 'nodejs', 'ruby', 'golang', 'rust', 'java ', 'c++', 'hello world'];
+	const hasScriptingKeyword = scriptingKeywords.some(kw => lowerContent.includes(kw));
+	if (hasScriptingKeyword && !detectedDomains.includes('backend')) {
+		detectedDomains.push('backend');
+	}
+	// Remove frontend domain if this is a pure scripting task with no UI keywords
+	const uiKeywords = ['ui', 'interface', 'button', 'form', 'page', 'screen', 'component', 'react', 'vue', 'svelte', 'html', 'css'];
+	const hasUiKeyword = uiKeywords.some(kw => lowerContent.includes(kw));
+	if (hasScriptingKeyword && !hasUiKeyword) {
+		const frontendIdx = detectedDomains.indexOf('frontend');
+		if (frontendIdx > -1) detectedDomains.splice(frontendIdx, 1);
+	}
 }
 
 /**
