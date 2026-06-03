@@ -119,7 +119,19 @@ export function getMissionBoardCardActionLinks(
 function latestTimestamp(a: string | null, b: string | null): string | null {
 	if (!a) return b;
 	if (!b) return a;
-	return Date.parse(a) >= Date.parse(b) ? a : b;
+	// Both inputs are non-empty strings, but either could be an unparseable value
+	// (format drift, partial write, stale snapshot from a different schema).
+	// Date.parse returns NaN for those, and every NaN comparison evaluates false --
+	// so an unguarded `>=` here would silently always pick `b`, discarding the
+	// live update whenever `a` is malformed and ignoring the staleness check.
+	const aMs = Date.parse(a);
+	const bMs = Date.parse(b);
+	const aValid = Number.isFinite(aMs);
+	const bValid = Number.isFinite(bMs);
+	if (aValid && bValid) return aMs >= bMs ? a : b;
+	if (aValid) return a;
+	if (bValid) return b;
+	return a;
 }
 
 function mergeLiveWithStaticCard(live: MissionBoardCard, staticCard: MissionBoardCard): MissionBoardCard {
