@@ -1162,7 +1162,12 @@ export function saveCanvas(): boolean {
 			savedAt: new Date().toISOString()
 		};
 
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData));
+		try {
+			localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData));
+		} catch (storageError) {
+			console.error('[Canvas] localStorage.setItem failed (quota or private mode):', storageError);
+			return false;
+		}
 		return true;
 	} catch (e) {
 		console.error('Failed to save canvas:', e);
