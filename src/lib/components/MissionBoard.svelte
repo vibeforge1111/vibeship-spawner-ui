@@ -1093,7 +1093,7 @@
 												<span>{taskProgressPercent(c)}%</span>
 											</div>
 											<div class="h-1 overflow-hidden rounded-full bg-bg-primary">
-												<div class="h-full rounded-full bg-accent-primary transition-all" style="width: {taskProgressPercent(c)}%"></div>
+												<div class="h-full rounded-full {c.status === 'failed' || c.status === 'cancelled' ? 'bg-status-error' : c.status === 'completed' ? 'bg-status-success' : 'bg-accent-primary'} transition-all" style="width: {taskProgressPercent(c)}%"></div>
 											</div>
 											{#if hasPreparation}
 												<div class="mt-2 flex items-center justify-between gap-3 font-mono text-[10px] text-text-tertiary">
@@ -1428,3 +1428,34 @@
 		{/if}
 	{/if}
 </div>
+<!-- TODO(spark-compete-qa): Kanban has no columns and shows misleading progress - QA 2026-06-03
+  Bug 1: Kanban view shows no column separation
+  - All missions stacked in one flat list
+  - No To Do / In Progress / Done / Failed columns
+  - Proper Kanban board requires status-based column layout
+  - User cannot quickly see mission state distribution
+
+  Bug 2: Failed missions show green 100% progress bar
+  - Progress bar is fully green at 100% for failed missions
+  - Green color implies success but mission failed
+  - Misleading visual state causes operator confusion
+  - Failed missions should show red progress bar
+
+  Bug 3: No bulk action buttons
+  - No "Clear all failed" button
+  - No "Archive completed" button
+  - User must click each mission individually to manage
+  - 8 failed missions accumulate with no easy way to clear
+
+  Bug 4: Completed and failed missions mixed together
+  - No visual separation by status
+  - COMPLETE and NEEDS REVIEW cards mixed in same list
+  - Operator cannot quickly identify what needs attention
+
+  Fix needed in MissionBoard.svelte:
+  1. Add column layout: Pending / Running / Complete / Failed
+  2. Failed missions must show RED progress bar not green
+  3. Add bulk clear button for failed missions
+  4. Add bulk archive button for completed missions
+  5. Group missions by status in separate columns
+-->
