@@ -1,4 +1,6 @@
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync, renameSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { randomBytes } from 'node:crypto';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { spawnerStateDir } from './spawner-state';
@@ -84,7 +86,10 @@ function readJsonFile<T>(filePath: string): T | null {
 }
 
 function writeTrace(trace: CreatorMissionTrace, stateDir = spawnerStateDir()): void {
-	writeFileSync(creatorMissionPath(trace.mission_id, stateDir), JSON.stringify(trace, null, 2), 'utf-8');
+	const target = creatorMissionPath(trace.mission_id, stateDir);
+	const tmp = target + '.tmp-' + randomBytes(6).toString('hex');
+	writeFileSync(tmp, JSON.stringify(trace, null, 2), 'utf-8');
+	renameSync(tmp, target);
 }
 
 function addUnique(target: string[], values: string[]): string[] {
