@@ -129,7 +129,6 @@ function isOriginAllowed(event: RequestEvent, allowedOriginsEnvVar?: string): bo
 			return false;
 		}
 	}
-	if (allowedOrigins.length === 0) return true;
 	if (allowedOrigins.includes('*')) {
 		return (env.SPAWNER_ALLOW_WILDCARD_ORIGINS as string | undefined)?.trim() === '1';
 	}
