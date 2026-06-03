@@ -130,6 +130,13 @@ const DEFAULT_SPARK_TOKEN = env.SPARKD_TOKEN || '';
 
 function localEnvValue(key: string): string | null {
 	const envPath = path.resolve(process.cwd(), '.env');
+	// Validate .env is within expected directories to prevent symlink attacks
+	const resolvedEnv = path.resolve(envPath);
+	const projectRoot = path.resolve(process.cwd());
+	if (!resolvedEnv.startsWith(projectRoot + path.sep) && resolvedEnv !== projectRoot + path.sep + '.env') {
+		console.warn('[MissionControl] .env path outside project root, skipping');
+		return null;
+	}
 	if (!fs.existsSync(envPath)) return null;
 	const lines = fs.readFileSync(envPath, 'utf-8').split(/\r?\n/);
 	for (const line of [...lines].reverse()) {
