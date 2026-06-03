@@ -1512,7 +1512,7 @@
 										{canImproveProject ? `Iteration${projectLineage.iterationNumber ? ` ${projectLineage.iterationNumber}` : ''}` : 'Target project'}
 									</span>
 									{#if projectLineage.projectPath}
-										<span class="min-w-0 max-w-full truncate text-text-secondary">Project: {projectLineage.projectPath}</span>
+										<span class="min-w-0 max-w-full truncate text-text-secondary">Project: {projectLineage.projectPath?.replace(/^[A-Za-z]:\\Users\\[^\\]+/, '<user-home>').replace(/^\/home\/[^/]+/, '<user-home>').replace(/^\/Users\/[^/]+/, '<user-home>') ?? ''}</span>
 									{/if}
 									{#if projectLineage.parentMissionId}
 										<span class="truncate text-text-tertiary">Parent: {projectLineage.parentMissionId}</span>
