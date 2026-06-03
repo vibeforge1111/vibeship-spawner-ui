@@ -7,7 +7,7 @@ import {
 } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { mcpClient } from '$lib/services/mcp-client';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, rename, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { spawnerStateDir } from './spawner-state';
@@ -74,7 +74,9 @@ async function syncActiveMissionFile(
 		if (typeof note === 'string' && note.trim()) {
 			active.note = note.trim();
 		}
-		await writeFile(activeMissionFile, JSON.stringify(active, null, 2), 'utf-8');
+		const tmp = activeMissionFile + '.tmp-' + Math.random().toString(36).slice(2);
+		await writeFile(tmp, JSON.stringify(active, null, 2), 'utf-8');
+		await rename(tmp, activeMissionFile);
 	} catch (error) {
 		console.warn('[MissionControl] Failed to sync active mission file:', error);
 	}
