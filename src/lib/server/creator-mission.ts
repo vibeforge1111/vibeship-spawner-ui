@@ -1525,7 +1525,7 @@ export async function readCreatorMissionTrace(
 	if (missionId) {
 		const filePath = creatorMissionPath(missionId, stateDir);
 		if (!existsSync(filePath)) return null;
-		return JSON.parse(await readFile(filePath, 'utf-8')) as CreatorMissionTrace;
+		try { return JSON.parse(await readFile(filePath, 'utf-8')) as CreatorMissionTrace; } catch { return null; }
 	}
 	const requestId = input.requestId?.trim();
 	if (!requestId) return null;
@@ -1533,7 +1533,7 @@ export async function readCreatorMissionTrace(
 	if (!existsSync(dir)) return null;
 	for (const file of await readdir(dir)) {
 		if (!file.endsWith('.json')) continue;
-		const trace = JSON.parse(await readFile(path.join(dir, file), 'utf-8')) as CreatorMissionTrace;
+		let trace: CreatorMissionTrace; try { trace = JSON.parse(await readFile(path.join(dir, file), 'utf-8')) as CreatorMissionTrace; } catch { continue; }
 		if (trace.request_id === requestId) return trace;
 	}
 	return null;
