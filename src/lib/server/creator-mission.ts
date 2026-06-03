@@ -512,13 +512,23 @@ export async function runCreatorPlan(
 		);
 	}
 	const pythonCommand = options.pythonCommand || defaultPythonCommand(envRecord);
-	const { stdout } = await execFileAsync(pythonCommand, buildPlannerArgs(input), {
-		cwd: builderRepo,
-		env: withBuilderPythonPath(process.env, builderRepo),
-		timeout: options.timeoutMs ?? 30_000,
-		windowsHide: true,
-		maxBuffer: 1024 * 1024
-	});
+	let stdout: string;
+	try {
+		({ stdout } = await execFileAsync(pythonCommand, buildPlannerArgs(input), {
+			cwd: builderRepo,
+			env: withBuilderPythonPath(process.env, builderRepo),
+			timeout: options.timeoutMs ?? 30_000,
+			windowsHide: true,
+			maxBuffer: 1024 * 1024
+		}));
+	} catch (err) {
+		const stderr = String((err as { stderr?: unknown })?.stderr ?? '').trim();
+		const message = err instanceof Error ? err.message : String(err);
+		throw new Error(
+			`Creator planner subprocess failed: ${message}${stderr ? ` | stderr: ${stderr.slice(0, 500)}` : ''}`,
+			{ cause: err }
+		);
+	}
 	let plannerJson: unknown;
 	try {
 		plannerJson = JSON.parse(stdout);
@@ -542,13 +552,23 @@ export async function runCreatorArtifactBundle(
 		);
 	}
 	const pythonCommand = options.pythonCommand || defaultPythonCommand(envRecord);
-	const { stdout } = await execFileAsync(pythonCommand, buildManifestPlannerArgs(input), {
-		cwd: builderRepo,
-		env: withBuilderPythonPath(process.env, builderRepo),
-		timeout: options.timeoutMs ?? 30_000,
-		windowsHide: true,
-		maxBuffer: 1024 * 1024
-	});
+	let stdout: string;
+	try {
+		({ stdout } = await execFileAsync(pythonCommand, buildManifestPlannerArgs(input), {
+			cwd: builderRepo,
+			env: withBuilderPythonPath(process.env, builderRepo),
+			timeout: options.timeoutMs ?? 30_000,
+			windowsHide: true,
+			maxBuffer: 1024 * 1024
+		}));
+	} catch (err) {
+		const stderr = String((err as { stderr?: unknown })?.stderr ?? '').trim();
+		const message = err instanceof Error ? err.message : String(err);
+		throw new Error(
+			`Creator artifact planner subprocess failed: ${message}${stderr ? ` | stderr: ${stderr.slice(0, 500)}` : ''}`,
+			{ cause: err }
+		);
+	}
 	let plannerJson: unknown;
 	try {
 		plannerJson = JSON.parse(stdout);
