@@ -1093,7 +1093,7 @@
 												<span>{taskProgressPercent(c)}%</span>
 											</div>
 											<div class="h-1 overflow-hidden rounded-full bg-bg-primary">
-												<div class="h-full rounded-full bg-accent-primary transition-all" style="width: {taskProgressPercent(c)}%"></div>
+												<div class="h-full rounded-full {c.status === 'failed' || c.status === 'cancelled' ? 'bg-status-error' : c.status === 'completed' ? 'bg-status-success' : 'bg-accent-primary'} transition-all" style="width: {taskProgressPercent(c)}%"></div>
 											</div>
 											{#if hasPreparation}
 												<div class="mt-2 flex items-center justify-between gap-3 font-mono text-[10px] text-text-tertiary">
