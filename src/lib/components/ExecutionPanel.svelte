@@ -1598,3 +1598,31 @@
 		</div>
 	</div>
 {/if}
+<!-- TODO(spark-compete-qa): Spawner UI exposes private Windows path - QA 2026-06-03
+  Bug 1: PROJECT ITERATION section shows full Windows path with username:
+  C:\Users\DELLUS-1\AppData\Roaming\npm\claude.cmd\
+  Real username DELLUS-1 exposed in plain UI — systemic path exposure.
+
+  Bug 2: Contradictory status shown simultaneously:
+  - Evidence says "Proof complete" (green)
+  - claude task says "FAILED" (red)
+  - Execution says "0/1 task completed"
+  Three contradictory states at once confuse the operator.
+
+  Bug 3: Root cause of all 8 failed missions:
+  '"[local path]"' is not recognized as an internal or external command
+  Claude Code path has extra quotes causing Windows command failure.
+  All smoke test missions fail silently with no clear fix suggestion.
+
+  Fix needed in ExecutionPanel.svelte:
+  1. Redact Windows paths in PROJECT ITERATION section:
+     C:\Users\USERNAME\ -> <user-home>\
+     Apply same redaction as Telegram layer
+  2. Resolve contradictory status display:
+     If task is FAILED, Evidence must not show "Proof complete"
+     Status must be consistent across all three state indicators
+  3. When claude command fails with "not recognized":
+     Show actionable fix: "Claude Code not found. Run spark fix telegram
+     or check spark providers test --role chat"
+     Not just raw Windows error message
+-->
