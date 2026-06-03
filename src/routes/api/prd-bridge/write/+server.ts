@@ -54,11 +54,16 @@ const AUTO_ANALYSIS_BASE_URL = (process.env.SPAWNER_UI_SELF_URL || 'http://127.0
 );
 const AUTO_ANALYSIS_ENDPOINT = `${AUTO_ANALYSIS_BASE_URL}/api/events`;
 const DEFAULT_AUTO_ANALYSIS_TIMEOUT_MS = 180_000;
-const configuredAnalysisTimeoutMs = Number.parseInt(process.env.SPAWNER_AUTO_ANALYSIS_TIMEOUT_MS || '', 10);
-const AUTO_ANALYSIS_TIMEOUT_MS =
-	Number.isFinite(configuredAnalysisTimeoutMs) && configuredAnalysisTimeoutMs > 0
-		? configuredAnalysisTimeoutMs
-		: DEFAULT_AUTO_ANALYSIS_TIMEOUT_MS;
+function parsePositiveIntEnv(raw: string | undefined, fallback: number): number {
+	const trimmed = (raw ?? '').trim();
+	if (!/^\d+$/.test(trimmed)) return fallback;
+	const n = Number.parseInt(trimmed, 10);
+	return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+const AUTO_ANALYSIS_TIMEOUT_MS = parsePositiveIntEnv(
+	process.env.SPAWNER_AUTO_ANALYSIS_TIMEOUT_MS,
+	DEFAULT_AUTO_ANALYSIS_TIMEOUT_MS
+);
 const DEFAULT_PROVISIONAL_DIRECT_ANALYSIS_MS = 10_000;
 const DEFAULT_PROVISIONAL_ADVANCED_ANALYSIS_MS = 45_000;
 
