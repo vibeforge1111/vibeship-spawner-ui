@@ -101,6 +101,9 @@ export function runCommand(
 		const start = Date.now();
 		let stdout = '';
 		let stderr = '';
+		let stdoutSize = 0;
+		let stderrSize = 0;
+		const MAX_BUFFER_SIZE = 10 * 1024 * 1024;
 		let resolved = false;
 		const spawnCommand = resolveSpawnCommand(command, args);
 
@@ -113,10 +116,14 @@ export function runCommand(
 		});
 
 		child.stdout?.on('data', (data: Buffer) => {
+			if (stdoutSize >= MAX_BUFFER_SIZE) return;
+			stdoutSize += data.length;
 			stdout += data.toString();
 		});
 
 		child.stderr?.on('data', (data: Buffer) => {
+			if (stderrSize >= MAX_BUFFER_SIZE) return;
+			stderrSize += data.length;
 			stderr += data.toString();
 		});
 
