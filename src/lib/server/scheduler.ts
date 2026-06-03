@@ -235,10 +235,52 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
   if (record.action === 'loop') {
     const chipKey = String(record.payload.chipKey ?? '');
     if (!chipKey) return { ok: false, summary: 'loop has no chipKey' };
-    return {
-      ok: false,
-      summary: 'scheduled loop fire requires fresh Governor authority; stored schedule authority is evidence only'
-    };
+    const builderRepo =
+      process.env.SPARK_BUILDER_REPO || path.resolve(process.cwd(), '..', 'spark-intelligence-builder');
+    const home =
+      process.env.SPARK_BUILDER_HOME || path.join(homedir(), '.spark', 'state', 'spark-intelligence');
+    const python = process.env.SPARK_BUILDER_PYTHON || 'python';
+    try {
+      const { stdout } = await execFileAsync(python, [
+        '-m',
+        'spark_intelligence.cli',
+        'loops',
+        'run',
+        '--home',
+        home,
+        '--chip',
+        chipKey,
+        '--rounds',
+        String(rounds),
+        '--json',
+      ], {
+        cwd: builderRepo,
+        env: {
+          PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin',
+          HOME: process.env.HOME || '/tmp',
+          PYTHONIOENCODING: 'utf-8',
+          SPARK_BUILDER_REPO: process.env.SPARK_BUILDER_REPO,
+          SPARK_BUILDER_HOME: process.env.SPARK_BUILDER_HOME,
+          SPARK_BUILDER_PYTHON: process.env.SPARK_BUILDER_PYTHON,
+        },
+        maxBuffer: 10 * 1024 * 1024,
+        timeout: 900_000,
+      });
+      let parsed: { ok?: boolean; rounds_completed?: number; error?: string };
+      try {
+        parsed = JSON.parse(stdout) as { ok?: boolean; rounds_completed?: number; error?: string };
+      } catch (parseError) {
+        throw new Error(`subprocess returned non-JSON output (length=${stdout.length}): ${errorMessage(parseError)}`);
+      }
+      return {
+        ok: Boolean(parsed.ok),
+        summary: parsed.ok
+          ? `loop ${chipKey} rounds=${parsed.rounds_completed}`
+          : `loop error: ${parsed.error || 'unknown'}`,
+      };
+    } catch (err: unknown) {
+      return { ok: false, summary: `loop exec failed: ${errorMessage(err)}` };
+    }
   }
   return { ok: false, summary: `unknown action ${record.action}` };
 }
