@@ -227,6 +227,37 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
   if (record.action === 'mission') {
     const goal = String(record.payload.goal ?? '');
     if (!goal) return { ok: false, summary: 'mission has no goal' };
+    const requestId = `sched-${record.id}-${Date.now()}`;
+    const baseUrl = (_envVar('SPAWNER_UI_URL') || 'http://127.0.0.1:3333').replace(/\/$/, '');
+    const requestedProjectPath =
+      typeof record.payload.projectPath === 'string' ? record.payload.projectPath : undefined;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30_000);
+    let res: Response;
+    try {
+      res = await fetch(`${baseUrl}/api/spark/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          goal,
+          chatId: String(record.chatId || 'scheduler'),
+          userId: 'scheduler',
+          requestId,
+          projectPath: resolveSparkRunProjectPath(requestedProjectPath),
+        }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+    if (!res.ok) {
+      const detail = redactSensitiveSnippet(await responseTextSnippet(res, 200));
+      return {
+        ok: false,
+        summary: `spark/run HTTP ${res.status}${detail ? `: ${detail}` : ''}`,
+      };
+    }
+    const body = await parseJsonResponse<{ success?: boolean; missionId?: string; error?: string }>(res, {});
     return {
       ok: false,
       summary: 'scheduled mission fire requires fresh Governor authority; stored schedule authority is evidence only'
@@ -255,11 +286,19 @@ async function _relayToTelegram(record: ScheduleRecord, result: { ok: boolean; s
   }
   const text = `[sched ${record.id}] ${record.action} ${result.ok ? 'ok' : 'fail'}\n${result.summary}`;
   try {
-    const resp = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: record.chatId, text }),
-    });
+    const tgController = new AbortController();
+    const tgTimeoutId = setTimeout(() => tgController.abort(), 15_000);
+    let resp: Response;
+    try {
+      resp = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: record.chatId, text }),
+        signal: tgController.signal,
+      });
+    } finally {
+      clearTimeout(tgTimeoutId);
+    }
     const bodyText = await resp.text();
     if (resp.ok) {
       logger.info('[scheduler] relay', record.id, 'status', resp.status, 'body', bodyText.slice(0, 200));
