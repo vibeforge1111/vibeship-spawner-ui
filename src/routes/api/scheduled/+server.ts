@@ -8,6 +8,7 @@ import {
   startScheduler,
   type ScheduleAction,
 } from '$lib/server/scheduler';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -23,15 +24,37 @@ if (!building) {
   startScheduler();
 }
 
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async (event) => {
+  const unauthorized = requireControlAuth(event, {
+    surface: 'Scheduled',
+    apiKeyEnvVar: 'MCP_API_KEY',
+    fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
+    apiKeyQueryParam: 'apiKey',
+    apiKeyCookieName: 'spawner_events_api_key',
+    allowLoopbackWithoutKey: true,
+    allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+  });
+  if (unauthorized) return unauthorized;
+
   const schedules = await listSchedules();
   return json({ ok: true, schedules });
 };
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+  const unauthorized = requireControlAuth(event, {
+    surface: 'Scheduled',
+    apiKeyEnvVar: 'MCP_API_KEY',
+    fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
+    apiKeyQueryParam: 'apiKey',
+    apiKeyCookieName: 'spawner_events_api_key',
+    allowLoopbackWithoutKey: true,
+    allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+  });
+  if (unauthorized) return unauthorized;
+
   let body: Record<string, unknown>;
   try {
-    body = asRecord(await request.json());
+    body = asRecord(await event.request.json());
   } catch {
     return json({ ok: false, error: 'invalid json' }, { status: 400 });
   }
@@ -52,16 +75,31 @@ export const POST: RequestHandler = async ({ request }) => {
   }
 };
 
-export const DELETE: RequestHandler = async ({ request, url }) => {
-  const id = url.searchParams.get('id') || '';
-  if (!id) {
-    let body: Record<string, unknown> = {};
-    try { body = asRecord(await request.json()); } catch {}
-    const bodyId = body?.id ? String(body.id) : '';
-    if (!bodyId) return json({ ok: false, error: 'id required' }, { status: 400 });
-    const ok = await deleteSchedule(bodyId);
-    return json({ ok, error: ok ? undefined : 'not found' });
-  }
+export const DELETE: RequestHandler = async (event) => {
+  const unauthorized = requireControlAuth(event, {
+    surface: 'Scheduled',
+    apiKeyEnvVar: 'MCP_API_KEY',
+    fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
+    apiKeyQueryParam: 'apiKey',
+    apiKeyCookieName: 'spawner_events_api_key',
+    allowLoopbackWithoutKey: true,
+    allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+  });
+  if (unauthorized) return unauthorized;
+
+  // URL param is the canonical ID source; body is fallback only when URL param is absent.
+  const urlId = event.url.searchParams.get('id') || '';
+  const id = urlId || await (async () => {
+    try {
+      const body = asRecord(await event.request.json());
+      return body?.id ? String(body.id) : '';
+    } catch {
+      return '';
+    }
+  })();
+
+  if (!id) return json({ ok: false, error: 'id required' }, { status: 400 });
+
   const ok = await deleteSchedule(id);
   return json({ ok, error: ok ? undefined : 'not found' });
 };

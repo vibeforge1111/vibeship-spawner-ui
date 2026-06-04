@@ -195,13 +195,23 @@ export async function createSchedule(input: {
   return { ...record };
 }
 
+const _deletingIds = new Set<string>();
+
 export async function deleteSchedule(id: string): Promise<boolean> {
-  const store = await _load();
-  const before = store.schedules.length;
-  store.schedules = store.schedules.filter((s) => s.id !== id);
-  if (store.schedules.length === before) return false;
-  await _save();
-  return true;
+  // Atomic guard: reject concurrent deletes for the same ID so two simultaneous
+  // requests cannot both report success and produce inconsistent store state.
+  if (_deletingIds.has(id)) return false;
+  _deletingIds.add(id);
+  try {
+    const store = await _load();
+    const before = store.schedules.length;
+    store.schedules = store.schedules.filter((s) => s.id !== id);
+    if (store.schedules.length === before) return false;
+    await _save();
+    return true;
+  } finally {
+    _deletingIds.delete(id);
+  }
 }
 
 async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: string }> {
