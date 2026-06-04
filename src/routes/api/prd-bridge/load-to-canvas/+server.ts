@@ -187,7 +187,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const lastLoadFile = join(spawnerDir, 'last-canvas-load.json');
 		const pendingRequestFile = join(spawnerDir, 'pending-request.json');
 		if (!existsSync(path)) {
-			return json({ error: `No analysis result for ${requestId} yet` }, { status: 404 });
+			return json({ error: 'No analysis result found for that request.' }, { status: 404 });
 		}
 
 		const raw = await readFile(path, 'utf-8');
@@ -411,7 +411,6 @@ export const POST: RequestHandler = async ({ request }) => {
 			missionControlAccess
 		});
 	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		return json({ error: message }, { status: 500 });
+		return json({ error: 'Failed to load PRD result into canvas.' }, { status: 500 });
 	}
 };
