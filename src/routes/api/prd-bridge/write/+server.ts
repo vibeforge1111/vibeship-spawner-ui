@@ -32,6 +32,11 @@ import {
 } from '$lib/server/capability-proposal-packet';
 import { extractTraceRef, normalizeTraceRef, traceRefFromMissionId } from '$lib/server/trace-ref';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
+import {
+	HarnessAuthorityError,
+	assertNativeGovernorHarnessAuthority,
+	resolveExecutionAuthority
+} from '$lib/server/harness-authority';
 
 function getPrdBridgePaths() {
 	const spawnerDir = spawnerStateDir();
@@ -1451,7 +1456,7 @@ export const POST: RequestHandler = async (event) => {
 		if (!body || typeof body !== 'object' || Array.isArray(body)) {
 			return json({ error: 'Malformed JSON body' }, { status: 400 });
 		}
-		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, buildLane, build_lane, buildLaneReason, build_lane_reason, telegramRelay, tier, forceDispatch, runnerCapability, runner_capability, capabilityProposalPacket, capability_proposal_packet, traceRef, trace_ref } =
+		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, buildLane, build_lane, buildLaneReason, build_lane_reason, telegramRelay, tier, forceDispatch, runnerCapability, runner_capability, capabilityProposalPacket, capability_proposal_packet, traceRef, trace_ref, executionAuthority, execution_authority } =
 			body as Record<string, any>;
 		const normalizedBuildMode = normalizeBuildMode(buildMode);
 		const normalizedBuildLane = normalizeBuildLane(buildLane ?? build_lane, normalizedBuildMode, options);
@@ -1470,6 +1475,13 @@ export const POST: RequestHandler = async (event) => {
 		}
 		const missionId = missionIdFromRequestId(requestId);
 		const normalizedTraceRef = normalizeTraceRef(traceRef ?? trace_ref) || traceRefFromMissionId(missionId);
+		const authority = assertNativeGovernorHarnessAuthority({
+			authority: resolveExecutionAuthority(executionAuthority, execution_authority),
+			toolName: 'spawner.prd.write',
+			ownerSystem: 'spawner-ui',
+			mutationClass: 'writes_files',
+			requestId
+		});
 
 		// Ensure the configured Spawner state directory exists.
 		if (!existsSync(paths.spawnerDir)) {
@@ -1613,6 +1625,7 @@ export const POST: RequestHandler = async (event) => {
 			projectName: requestMeta.projectName,
 			buildMode: requestMeta.buildMode,
 			buildLane: requestMeta.buildLane,
+			authority,
 			...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
 			...(normalizedCapabilityProposalSummary
 				? { capabilityProposal: normalizedCapabilityProposalSummary }
@@ -1723,6 +1736,7 @@ export const POST: RequestHandler = async (event) => {
 				provider: auto.provider,
 				started: auto.started
 			},
+			authority,
 			enrichment: {
 				wasEnriched: enrichment.wasEnriched,
 				addedAssumptions: enrichment.addedAssumptions,
@@ -1730,6 +1744,12 @@ export const POST: RequestHandler = async (event) => {
 			}
 		});
 	} catch (error) {
+		if (error instanceof HarnessAuthorityError) {
+			return json(
+				{ error: error.message, code: error.code, authority: error.verdict },
+				{ status: error.status }
+			);
+		}
 		console.error('[PRDBridge] Error writing PRD:', error);
 		return json({ error: 'Failed to write PRD file' }, { status: 500 });
 	}

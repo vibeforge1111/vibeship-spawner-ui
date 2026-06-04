@@ -8,6 +8,7 @@ import { GET as getTrace } from './trace/+server';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { providerRuntime, type ProviderMissionResultSnapshot } from '$lib/server/provider-runtime';
 import type { ProviderSessionStatus } from '$lib/server/provider-clients/types';
+import { buildClientGovernorDecisionAuthority } from '$lib/services/harness-authority-client';
 
 function routeEvent(url: string) {
 	return {
@@ -105,11 +106,20 @@ async function seedTelegramRequest(input: {
 }
 
 async function loadRequestToCanvas(requestId: string) {
+	const missionId = `mission-${requestId.match(/(\d{10,})$/)?.[1] || requestId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
 	const response = await loadToCanvas(
 		postEvent('http://127.0.0.1/api/prd-bridge/load-to-canvas', {
 			requestId,
 			autoRun: true,
-			telegramRelay: { port: 8789, profile: 'spark-agi' }
+			telegramRelay: { port: 8789, profile: 'spark-agi' },
+			executionAuthority: buildClientGovernorDecisionAuthority({
+				source: 'mission-lifecycle-test',
+				reason: 'Focused Mission Control lifecycle dispatch authority regression.',
+				toolName: 'spawner.dispatch',
+				mutationClass: 'launches_mission',
+				requestId,
+				target: missionId
+			})
 		}) as never
 	);
 	expect(response.status).toBe(200);

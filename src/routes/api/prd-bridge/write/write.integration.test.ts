@@ -4,6 +4,10 @@ import { mkdtemp, readFile, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
 import { POST } from './+server';
+import {
+	buildClientGovernorDecisionAuthority,
+	buildClientTurnIntentVNextAuthority
+} from '$lib/services/harness-authority-client';
 
 const { PRIVATE_ENV } = vi.hoisted(() => ({
 	PRIVATE_ENV: {
@@ -19,6 +23,28 @@ const originalProvider = process.env.SPARK_MISSION_LLM_PROVIDER;
 const originalStateDir = process.env.SPAWNER_STATE_DIR;
 const BRIDGE_TEST_KEY = 'bridge-test-key';
 const originalBridgeKey = process.env.SPARK_BRIDGE_API_KEY;
+
+function writeAuthority(requestId: string) {
+	return buildClientGovernorDecisionAuthority({
+		source: 'prd-write-authority-test',
+		reason: 'Focused PRD bridge write authority regression.',
+		toolName: 'spawner.prd.write',
+		mutationClass: 'writes_files',
+		requestId,
+		target: requestId
+	});
+}
+
+function writeVNextAuthority(requestId: string) {
+	return buildClientTurnIntentVNextAuthority({
+		source: 'prd-write-authority-test',
+		reason: 'Focused PRD bridge write authority regression.',
+		toolName: 'spawner.prd.write',
+		mutationClass: 'writes_files',
+		requestId,
+		target: requestId
+	});
+}
 
 async function resetTestSpawnerDir() {
 	if (testSpawnerDir && existsSync(testSpawnerDir)) {
@@ -44,6 +70,60 @@ describe('/api/prd-bridge/write integration', () => {
 	afterEach(async () => {
 		vi.unstubAllGlobals();
 		await resetTestSpawnerDir();
+	});
+
+	it('blocks control-auth-only PRD writes before durable state or provider work', async () => {
+		process.env.SPARK_MISSION_LLM_PROVIDER = 'zai';
+		const requestId = 'tg-build-no-prd-authority';
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/write', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'x-api-key': BRIDGE_TEST_KEY },
+				body: JSON.stringify({
+					content: '# No Authority\n\nBuild a tiny static page.',
+					requestId,
+					projectName: 'No Authority',
+					buildMode: 'direct'
+				})
+			}),
+			getClientAddress: () => '127.0.0.1'
+		} as never);
+
+		const body = await response.json();
+		expect(response.status).toBe(409);
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
+		expect(existsSync(path.join(testSpawnerDir, 'pending-prd.md'))).toBe(false);
+		expect(existsSync(path.join(testSpawnerDir, 'pending-request.json'))).toBe(false);
+		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(false);
+		expect(globalThis.fetch).not.toHaveBeenCalled();
+	});
+
+	it('blocks bare VNext authority for PRD writes', async () => {
+		const requestId = 'tg-build-vnext-prd-authority';
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/write', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'x-api-key': BRIDGE_TEST_KEY },
+				body: JSON.stringify({
+					content: '# VNext Authority\n\nBuild a tiny static page.',
+					requestId,
+					projectName: 'VNext Authority',
+					buildMode: 'direct',
+					executionAuthority: writeVNextAuthority(requestId)
+				})
+			}),
+			getClientAddress: () => '127.0.0.1'
+		} as never);
+
+		const body = await response.json();
+		expect(response.status).toBe(409);
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.source).toBe('turn_intent_vnext');
+		expect(body.authority.reasonCodes).toContain('native_governor_required');
+		expect(existsSync(path.join(testSpawnerDir, 'pending-prd.md'))).toBe(false);
 	});
 
 	it('writes deterministic fallback analysis when hosted provider cannot start an auto worker', async () => {
@@ -78,7 +158,8 @@ describe('/api/prd-bridge/write integration', () => {
 					userId: 'telegram-user-1',
 					traceRef,
 					runnerCapability,
-					capabilityProposalPacket
+					capabilityProposalPacket,
+					executionAuthority: writeAuthority(requestId)
 				})
 			}),
 			getClientAddress: () => '127.0.0.1'
@@ -87,6 +168,7 @@ describe('/api/prd-bridge/write integration', () => {
 		const body = await response.json();
 		expect(response.status).toBe(200);
 		expect(body.autoAnalysis).toMatchObject({ provider: 'zai', started: false });
+		expect(body.authority).toMatchObject({ source: 'governor_decision', governorOutcome: 'execute' });
 		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(true);
 		const storedResult = JSON.parse(await readFile(path.join(testSpawnerDir, 'results', `${requestId}.json`), 'utf-8'));
 		expect(storedResult.traceRef).toBe(traceRef);
@@ -134,7 +216,8 @@ describe('/api/prd-bridge/write integration', () => {
 					tier: 'pro',
 					chatId: 'telegram-chat-1',
 					userId: 'telegram-user-1',
-					traceRef
+					traceRef,
+					executionAuthority: writeAuthority(requestId)
 				})
 			}),
 			getClientAddress: () => '127.0.0.1'

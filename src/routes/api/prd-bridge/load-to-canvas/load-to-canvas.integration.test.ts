@@ -4,6 +4,11 @@ import { existsSync } from 'fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { POST } from './+server';
+import { providerRuntime } from '$lib/server/provider-runtime';
+import {
+	buildClientGovernorDecisionAuthority,
+	buildClientTurnIntentVNextAuthority
+} from '$lib/services/harness-authority-client';
 
 vi.mock('$lib/server/provider-runtime', () => ({
 	providerRuntime: {
@@ -18,6 +23,28 @@ vi.mock('$lib/server/provider-runtime', () => ({
 }));
 
 let testSpawnerDir: string;
+
+function dispatchAuthority(requestId: string, missionId: string) {
+	return buildClientGovernorDecisionAuthority({
+		source: 'prd-load-authority-test',
+		reason: 'Focused PRD load auto-dispatch authority regression.',
+		toolName: 'spawner.dispatch',
+		mutationClass: 'launches_mission',
+		requestId,
+		target: missionId
+	});
+}
+
+function dispatchVNextAuthority(requestId: string, missionId: string) {
+	return buildClientTurnIntentVNextAuthority({
+		source: 'prd-load-authority-test',
+		reason: 'Focused PRD load auto-dispatch authority regression.',
+		toolName: 'spawner.dispatch',
+		mutationClass: 'launches_mission',
+		requestId,
+		target: missionId
+	});
+}
 
 async function resetTestSpawnerDir() {
 	delete process.env.SPAWNER_STATE_DIR;
@@ -175,6 +202,130 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		expect(await readFile(path.join(targetFolder, 'README.md'), 'utf-8')).toContain(sentence);
 	});
 
+	it('demotes auto-run to preview-only without inbound dispatch authority', async () => {
+		const dispatch = vi.mocked(providerRuntime.dispatch);
+		dispatch.mockClear();
+		const requestId = 'tg-load-no-dispatch-authority';
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify({
+				requestId,
+				success: true,
+				projectName: 'No Dispatch Authority',
+				tasks: [{ id: 'task-1', title: 'Prepare preview', summary: 'Preview only.', skills: [] }],
+				executionPrompt: 'Build only when dispatch authority is present.'
+			}),
+			'utf-8'
+		);
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ requestId, autoRun: true })
+			})
+		} as never);
+
+		const body = await response.json();
+		expect(response.status).toBe(200);
+		expect(body.autoDispatch).toMatchObject({
+			started: false,
+			skipped: true,
+			missionId: 'mission-tg-load-no-dispatch-authority'
+		});
+		expect(body.autoDispatch.reason).toContain('missing_harness_authority');
+		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
+		const pending = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-load.json'), 'utf-8'));
+		expect(pending.autoRun).toBe(false);
+		expect(pending.executionAuthority).toBeUndefined();
+		expect(dispatch).not.toHaveBeenCalled();
+	});
+
+	it('demotes bare VNext dispatch authority to preview-only', async () => {
+		const dispatch = vi.mocked(providerRuntime.dispatch);
+		dispatch.mockClear();
+		const requestId = 'tg-load-vnext-dispatch-authority';
+		const missionId = 'mission-tg-load-vnext-dispatch-authority';
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify({
+				requestId,
+				success: true,
+				projectName: 'VNext Dispatch Authority',
+				tasks: [{ id: 'task-1', title: 'Prepare preview', summary: 'Preview only.', skills: [] }],
+				executionPrompt: 'Build only when native Governor dispatch authority is present.'
+			}),
+			'utf-8'
+		);
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					requestId,
+					autoRun: true,
+					executionAuthority: dispatchVNextAuthority(requestId, missionId)
+				})
+			})
+		} as never);
+
+		const body = await response.json();
+		expect(response.status).toBe(200);
+		expect(body.autoDispatch.reason).toContain('native_governor_required');
+		expect(body.authority).toMatchObject({
+			source: 'turn_intent_vnext',
+			reasonCodes: expect.arrayContaining(['native_governor_required'])
+		});
+		const pending = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-load.json'), 'utf-8'));
+		expect(pending.autoRun).toBe(false);
+		expect(pending.executionAuthority).toBeUndefined();
+		expect(dispatch).not.toHaveBeenCalled();
+	});
+
+	it('keeps auto-run executable with inbound native Governor dispatch authority', async () => {
+		const dispatch = vi.mocked(providerRuntime.dispatch);
+		dispatch.mockClear();
+		const requestId = 'tg-load-governor-dispatch-authority';
+		const missionId = 'mission-tg-load-governor-dispatch-authority';
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify({
+				requestId,
+				success: true,
+				projectName: 'Governor Dispatch Authority',
+				tasks: [{ id: 'task-1', title: 'Start authorized build', summary: 'Authorized run.', skills: [] }],
+				executionPrompt: 'Build when dispatch authority is present.'
+			}),
+			'utf-8'
+		);
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					requestId,
+					autoRun: true,
+					executionAuthority: dispatchAuthority(requestId, missionId)
+				})
+			})
+		} as never);
+
+		const body = await response.json();
+		expect(response.status).toBe(200);
+		expect(body.autoDispatch.missionId).toBe(missionId);
+		expect(body.autoDispatch.reason || '').not.toContain('missing_harness_authority');
+		expect(body.autoDispatch.reason || '').not.toContain('native_governor_required');
+		expect(body.authority).toMatchObject({ source: 'governor_decision', governorOutcome: 'execute' });
+		const pending = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-load.json'), 'utf-8'));
+		expect(pending.autoRun).toBe(true);
+		expect(pending.executionAuthority).toMatchObject({
+			schema_version: 'governor-decision-v1',
+			outcome: 'execute'
+		});
+	});
+
 	it('preserves Telegram relay target metadata for canvas auto-run dispatch', async () => {
 		const requestId = 'tg-relay-target-test';
 		const traceRef = 'trace:spawner-prd:mission-tg-relay-target-test';
@@ -219,7 +370,11 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ requestId, autoRun: true })
+				body: JSON.stringify({
+					requestId,
+					autoRun: true,
+					executionAuthority: dispatchAuthority(requestId, 'mission-tg-relay-target-test')
+				})
 			})
 		} as never);
 
@@ -392,7 +547,8 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 					chatId: '8319079055',
 					userId: '8319079055',
 					goal: 'Build through body relay metadata.',
-					telegramRelay: { port: 8789, profile: 'spark-agi' }
+					telegramRelay: { port: 8789, profile: 'spark-agi' },
+					executionAuthority: dispatchAuthority(requestId, 'mission-1777211869020')
 				})
 			})
 		} as never);
@@ -471,7 +627,12 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ requestId, autoRun: true, telegramRelay: { port: 8788, profile: 'spark-agi' } })
+				body: JSON.stringify({
+					requestId,
+					autoRun: true,
+					telegramRelay: { port: 8788, profile: 'spark-agi' },
+					executionAuthority: dispatchAuthority(requestId, 'mission-1777300000000')
+				})
 			})
 		} as never);
 

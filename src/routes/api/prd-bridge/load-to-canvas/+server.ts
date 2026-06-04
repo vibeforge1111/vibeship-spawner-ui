@@ -15,7 +15,12 @@ import {
 	normalizeCapabilityProposalPacket
 } from '$lib/server/capability-proposal-packet';
 import { extractTraceRef, normalizeTraceRef, traceRefFromMissionId } from '$lib/server/trace-ref';
-import { buildServerGovernorDecisionAuthority } from '$lib/server/harness-authority';
+import {
+	HarnessAuthorityError,
+	assertNativeGovernorHarnessAuthority,
+	resolveExecutionAuthority,
+	type HarnessAuthorityVerdict
+} from '$lib/server/harness-authority';
 
 function getSpawnerDir(): string {
 	return spawnerStateDir();
@@ -172,7 +177,7 @@ function buildConnections(tasks: TaskRecord[]): Array<{ sourceIndex: number; tar
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
-		const { requestId, autoRun, telegramRelay, missionId, chatId, userId, goal, buildMode: bodyBuildMode, buildModeReason: bodyBuildModeReason, traceRef, trace_ref } = await request.json();
+		const { requestId, autoRun, telegramRelay, missionId, chatId, userId, goal, buildMode: bodyBuildMode, buildModeReason: bodyBuildModeReason, traceRef, trace_ref, executionAuthority, execution_authority } = await request.json();
 		const normalizedTelegramRelay = normalizeTelegramRelay(telegramRelay);
 		if (!requestId || typeof requestId !== 'string') {
 			return json({ error: 'requestId (string) required' }, { status: 400 });
@@ -212,7 +217,27 @@ export const POST: RequestHandler = async ({ request }) => {
 		const connections = buildConnections(parsed.tasks);
 		const deterministicStaticResult =
 			parsed.projectType === 'static-exact-file-proof' || parsed.projectType === 'static-single-file-html';
-		const effectiveAutoRun = autoRun !== false && !deterministicStaticResult;
+		let effectiveAutoRun = autoRun !== false && !deterministicStaticResult;
+		let dispatchAuthority: unknown;
+		let dispatchAuthorityVerdict: HarnessAuthorityVerdict | undefined;
+		let dispatchAuthorityBlock: HarnessAuthorityVerdict | undefined;
+		if (effectiveAutoRun) {
+			dispatchAuthority = resolveExecutionAuthority(executionAuthority, execution_authority);
+			try {
+				dispatchAuthorityVerdict = assertNativeGovernorHarnessAuthority({
+					authority: dispatchAuthority,
+					toolName: 'spawner.dispatch',
+					ownerSystem: 'spawner-ui',
+					mutationClass: 'launches_mission',
+					requestId
+				});
+			} catch (error) {
+				if (!(error instanceof HarnessAuthorityError)) throw error;
+				dispatchAuthority = undefined;
+				dispatchAuthorityBlock = error.verdict;
+				effectiveAutoRun = false;
+			}
+		}
 
 		if (!existsSync(spawnerDir)) {
 			await mkdir(spawnerDir, { recursive: true });
@@ -268,18 +293,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 		resolvedTraceRef = resolvedTraceRef || extractTraceRef(parsed) || traceRefFromMissionId(resolvedMissionId);
 		const capabilitySummary = capabilityProposalSummary(capabilityProposalPacket);
-		const executionAuthority = effectiveAutoRun
-			? buildServerGovernorDecisionAuthority({
-					source: 'authenticated_prd_bridge_load',
-					reason: 'Authenticated PRD bridge loaded a runnable canvas with autoRun enabled.',
-					toolName: 'spawner.dispatch',
-					mutationClass: 'launches_mission',
-					requestId,
-					actorKind: 'system',
-					actorIdRef: 'prd-bridge.load-to-canvas',
-					target: resolvedMissionId
-				})
-			: undefined;
 		if (!relay && (typeof chatId === 'string' || typeof userId === 'string' || typeof goal === 'string' || normalizedTelegramRelay)) {
 			relay = {
 				missionId: resolvedMissionId,
@@ -292,7 +305,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				autoRun: effectiveAutoRun,
 				buildMode,
 				buildModeReason,
-				...(executionAuthority ? { executionAuthority } : {})
+				...(dispatchAuthority ? { executionAuthority: dispatchAuthority } : {})
 			};
 		}
 		if (relay && !relay.missionId) {
@@ -301,8 +314,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		if (relay && resolvedTraceRef && !relay.traceRef) {
 			relay.traceRef = resolvedTraceRef;
 		}
-		if (relay && executionAuthority && !relay.executionAuthority) {
-			relay.executionAuthority = executionAuthority;
+		if (relay && dispatchAuthority && !relay.executionAuthority) {
+			relay.executionAuthority = dispatchAuthority;
+		}
+		if (relay) {
+			relay.autoRun = effectiveAutoRun;
 		}
 
 		const executionText = executionTextFromResult(parsed);
@@ -326,7 +342,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			executionPrompt: executionText,
 			...(capabilityProposalPacket ? { capabilityProposalPacket } : {}),
 			...(capabilitySummary ? { capabilityProposalSummary: capabilitySummary } : {}),
-			...(executionAuthority ? { executionAuthority } : {}),
+			...(dispatchAuthority ? { executionAuthority: dispatchAuthority } : {}),
 			metadata: {
 				...(parsed.metadata && typeof parsed.metadata === 'object' && !Array.isArray(parsed.metadata)
 					? parsed.metadata
@@ -334,7 +350,9 @@ export const POST: RequestHandler = async ({ request }) => {
 				...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
 				...(capabilityProposalPacket ? { capabilityProposalPacket } : {}),
 				...(capabilitySummary ? { capabilityProposalSummary: capabilitySummary } : {}),
-				...(executionAuthority ? { executionAuthority } : {})
+				...(dispatchAuthority ? { executionAuthority: dispatchAuthority } : {}),
+				...(dispatchAuthorityVerdict ? { dispatchAuthority: dispatchAuthorityVerdict } : {}),
+				...(dispatchAuthorityBlock ? { dispatchAuthorityBlock } : {})
 			},
 			relay,
 			timestamp: new Date().toISOString()
@@ -395,7 +413,9 @@ export const POST: RequestHandler = async ({ request }) => {
 					skipped: true,
 					reason: deterministicStaticResult
 						? 'deterministic static artifacts already written'
-						: 'autoRun disabled',
+						: dispatchAuthorityBlock
+							? `autoRun requires native GovernorDecisionV1 authority: ${dispatchAuthorityBlock.reasonCodes.join(', ')}`
+							: 'autoRun disabled',
 					missionId: resolvedMissionId
 				};
 		if (!autoDispatchResult.started && !autoDispatchResult.skipped) {
@@ -426,6 +446,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			taskCount: nodes.length,
 			connectionCount: connections.length,
 			autoDispatch: autoDispatchResult,
+			...(dispatchAuthorityVerdict ? { authority: dispatchAuthorityVerdict } : {}),
+			...(dispatchAuthorityBlock ? { authority: dispatchAuthorityBlock } : {}),
 			canvasUrl: `/canvas?pipeline=${encodeURIComponent(load.pipelineId)}&mission=${encodeURIComponent(resolvedMissionId)}`,
 			missionControlAccess
 		});

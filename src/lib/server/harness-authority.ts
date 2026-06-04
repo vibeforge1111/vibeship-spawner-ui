@@ -18,6 +18,7 @@ export interface HarnessAuthorityInput {
 	toolName: string;
 	ownerSystem: string;
 	mutationClass: SparkMutationClass;
+	requestId?: string | null;
 	publishes?: boolean;
 	externalNetwork?: boolean;
 }
@@ -57,6 +58,17 @@ function stringList(value: unknown): string[] {
 
 function hasTool(tools: string[], toolName: string): boolean {
 	return tools.includes(toolName) || tools.includes('*') || tools.includes('spawner.*');
+}
+
+function actionRequestId(action: Record<string, unknown>): string {
+	const argsRef = isRecord(action.args_ref) ? action.args_ref : {};
+	const pathOrUri = stringField(argsRef.path_or_uri);
+	const encoded = pathOrUri.split('/').pop() || '';
+	try {
+		return decodeURIComponent(encoded);
+	} catch {
+		return encoded;
+	}
 }
 
 function expectedCapabilityId(input: HarnessAuthorityInput): string {
@@ -132,6 +144,9 @@ function turnIntentVNextVerdict(authority: Record<string, unknown>, input: Harne
 		reasonCodes.push('tool_not_allowed_by_policy');
 	} else if (stringField(matchingAction.action_type) !== expectedActionType) {
 		reasonCodes.push('mutation_class_not_authorized');
+	}
+	if (matchingAction && input.requestId?.trim() && actionRequestId(matchingAction) !== input.requestId.trim()) {
+		reasonCodes.push('request_id_mismatch');
 	}
 	if (input.mutationClass === 'none' || input.mutationClass === 'read_only') {
 		if (authorityState !== 'read_only' && authorityState !== 'executable') {
