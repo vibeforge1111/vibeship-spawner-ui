@@ -17,6 +17,7 @@ import { existsSync } from 'fs';
 import { logger } from '$lib/utils/logger';
 import { spawnerStateDir } from '$lib/server/spawner-state';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 
 const log = logger.scope('PipelineLoader');
 
@@ -40,10 +41,23 @@ async function ensureDir(): Promise<void> {
 	}
 }
 
+const AUTH_OPTIONS = {
+	surface: 'PipelineLoader',
+	apiKeyEnvVar: 'MCP_API_KEY',
+	fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
+	apiKeyQueryParam: 'apiKey',
+	apiKeyCookieName: 'spawner_events_api_key',
+	allowLoopbackWithoutKey: true,
+	allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+} as const;
+
 /**
  * POST - Queue a pipeline to load
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, AUTH_OPTIONS);
+	if (unauthorized) return unauthorized;
+	const { request } = event;
 	try {
 		await ensureDir();
 		const payload = await request.json();
@@ -83,7 +97,10 @@ export const POST: RequestHandler = async ({ request }) => {
 /**
  * GET - Get the pending load (optionally peek without consuming)
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, AUTH_OPTIONS);
+	if (unauthorized) return unauthorized;
+	const { url } = event;
 	try {
 		const peek = url.searchParams.get('peek') === 'true';
 		const latest = url.searchParams.get('latest') === 'true';
@@ -129,7 +146,9 @@ export const GET: RequestHandler = async ({ url }) => {
 /**
  * DELETE - Clear the pending load
  */
-export const DELETE: RequestHandler = async () => {
+export const DELETE: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, AUTH_OPTIONS);
+	if (unauthorized) return unauthorized;
 	try {
 		const pendingLoadFile = getPendingLoadFile();
 		if (existsSync(pendingLoadFile)) {
