@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { DatabaseSync } from 'node:sqlite';
+import { randomUUID } from 'node:crypto';
 import os from 'os';
 import path from 'path';
 import { describe, expect, it } from 'vitest';
@@ -215,7 +216,8 @@ describe('/voice-system route', () => {
 });
 
 async function fsTempDir() {
-	const base = path.join(os.tmpdir(), `voice-system-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+	// Security: Use crypto.randomUUID() instead of Math.random() for unpredictable temp directory names
+	const base = path.join(os.tmpdir(), `voice-system-${Date.now()}-${randomUUID().slice(0, 8)}`);
 	await mkdir(base, { recursive: true });
 	return base;
 }

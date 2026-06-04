@@ -20,6 +20,7 @@ import { logger } from '$lib/utils/logger';
 import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { randomUUID } from 'node:crypto';
 
 const EVENTS_AUTH_COOKIE = 'spawner_events_api_key';
 const log = logger.scope('EventBridge');
@@ -235,11 +236,12 @@ export const POST: RequestHandler = async (event) => {
 		);
 
 		// Add metadata
+		// Security: Use crypto.randomUUID() instead of Math.random() for unpredictable IDs
 		let fullEvent = {
 			...sanitizedPayload,
 			timestamp: sanitizedPayload.timestamp || new Date().toISOString(),
 			source: sanitizedPayload.source || 'claude-code',
-			id: sanitizedPayload.id || `evt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+			id: sanitizedPayload.id || `evt-${Date.now()}-${randomUUID().slice(0, 8)}`
 		};
 		if (typeof fullEvent.missionId === 'string') {
 			const relayMeta = await relayMetadataForMission(fullEvent.missionId);
