@@ -17,6 +17,7 @@ import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server
 import { projectStoredPrdAnalysisResultForTier } from '$lib/server/prd-analysis-result-schema';
 import { spawnerStateDir } from '$lib/server/spawner-state';
 import { logger } from '$lib/utils/logger';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 
 const log = logger.scope('PRDBridge');
 
@@ -38,10 +39,23 @@ async function tierForRequest(requestId: string): Promise<string> {
 	}
 }
 
+const AUTH_OPTIONS = {
+	surface: 'PrdBridgeResult',
+	apiKeyEnvVar: 'MCP_API_KEY',
+	fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
+	apiKeyQueryParam: 'apiKey',
+	apiKeyCookieName: 'spawner_events_api_key',
+	allowLoopbackWithoutKey: true,
+	allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+} as const;
+
 /**
  * POST - Store an analysis result
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, AUTH_OPTIONS);
+	if (unauthorized) return unauthorized;
+	const { request } = event;
 	try {
 		const { requestId, result } = await request.json();
 
@@ -83,7 +97,10 @@ export const POST: RequestHandler = async ({ request }) => {
 /**
  * GET - Retrieve an analysis result by requestId
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, AUTH_OPTIONS);
+	if (unauthorized) return unauthorized;
+	const { url } = event;
 	try {
 		const requestId = url.searchParams.get('requestId');
 
