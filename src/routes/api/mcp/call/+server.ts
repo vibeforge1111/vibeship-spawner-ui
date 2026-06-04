@@ -10,6 +10,14 @@ import type { RequestHandler } from './$types';
 import { callTool, isConnected } from '$lib/services/mcp/client';
 import { requireMcpAuth } from '$lib/server/mcp-auth';
 
+const LOCAL_PATH_PATTERN =
+	/\b[A-Z]:\\[^\s`'"]+|(?<![\w.])\/(?:Users|home|tmp|var|private|Volumes|workspace|mnt|root)\/[^\s`'"]+/gi;
+
+function safeToolCallLogDetail(error: unknown): string {
+	const message = error instanceof Error ? error.message : String(error || 'Tool call failed');
+	return message.replace(LOCAL_PATH_PATTERN, '<local-path>').trim() || 'Tool call failed';
+}
+
 export const POST: RequestHandler = async (event) => {
 	const unauthorized = requireMcpAuth(event);
 	if (unauthorized) {
@@ -48,10 +56,10 @@ export const POST: RequestHandler = async (event) => {
 			result,
 		});
 	} catch (error) {
-		console.error('[API] Tool call error:', error);
+		console.error('[API] Tool call error:', safeToolCallLogDetail(error));
 		return json(
 			{
-				error: error instanceof Error ? error.message : 'Tool call failed',
+				error: 'MCP tool call failed',
 			},
 			{ status: 500 }
 		);
