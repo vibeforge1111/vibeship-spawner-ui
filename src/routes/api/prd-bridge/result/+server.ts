@@ -16,6 +16,7 @@ import { existsSync } from 'fs';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
 import { projectStoredPrdAnalysisResultForTier } from '$lib/server/prd-analysis-result-schema';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { requireControlAuth, enforceRateLimit } from '$lib/server/mcp-auth';
 import { logger } from '$lib/utils/logger';
 
 const log = logger.scope('PRDBridge');
@@ -41,7 +42,11 @@ async function tierForRequest(requestId: string): Promise<string> {
 /**
  * POST - Store an analysis result
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event);
+	if (unauthorized) return unauthorized;
+	enforceRateLimit(event);
+	const { request } = event;
 	try {
 		const { requestId, result } = await request.json();
 
@@ -83,7 +88,11 @@ export const POST: RequestHandler = async ({ request }) => {
 /**
  * GET - Retrieve an analysis result by requestId
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event);
+	if (unauthorized) return unauthorized;
+	enforceRateLimit(event);
+	const { url } = event;
 	try {
 		const requestId = url.searchParams.get('requestId');
 

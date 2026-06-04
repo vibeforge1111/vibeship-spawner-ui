@@ -10,6 +10,7 @@ import {
 	resolveMissionControlAccess
 } from '$lib/server/mission-control-access';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { requireControlAuth, enforceRateLimit } from '$lib/server/mcp-auth';
 import {
 	capabilityProposalSummary,
 	normalizeCapabilityProposalPacket
@@ -169,7 +170,11 @@ function buildConnections(tasks: TaskRecord[]): Array<{ sourceIndex: number; tar
 	return conns;
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event);
+	if (unauthorized) return unauthorized;
+	enforceRateLimit(event);
+	const { request } = event;
 	try {
 		const { requestId, autoRun, telegramRelay, missionId, chatId, userId, goal, buildMode: bodyBuildMode, buildModeReason: bodyBuildModeReason, traceRef, trace_ref } = await request.json();
 		const normalizedTelegramRelay = normalizeTelegramRelay(telegramRelay);
