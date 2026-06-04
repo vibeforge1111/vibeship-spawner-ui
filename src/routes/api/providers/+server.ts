@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { DEFAULT_MULTI_LLM_PROVIDERS } from '$lib/services/multi-llm-orchestrator';
 import { applyProviderEnvOverrides, resolveProviderRuntimeConfiguration } from '$lib/server/provider-config';
+import { requireControlAuth, enforceRateLimit } from '$lib/server/mcp-auth';
 
 function normalizeProviderId(value: string | undefined): string | null {
 	if (!value) return null;
@@ -13,7 +14,10 @@ function normalizeProviderId(value: string | undefined): string | null {
 		: null;
 }
 
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event);
+	if (unauthorized) return unauthorized;
+	enforceRateLimit(event);
 	const envRecord = env as Record<string, string | undefined>;
 	const sparkDefaultProvider =
 		normalizeProviderId(envRecord.DEFAULT_MISSION_PROVIDER) ||

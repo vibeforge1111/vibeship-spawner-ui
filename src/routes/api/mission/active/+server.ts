@@ -16,6 +16,7 @@ import { existsSync } from 'fs';
 import path from 'path';
 import type { MultiLLMExecutionPack } from '$lib/services/multi-llm-orchestrator';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { requireControlAuth, enforceRateLimit } from '$lib/server/mcp-auth';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
 
 const ACTIVE_MISSION_FILE = 'active-mission.json';
@@ -79,7 +80,11 @@ interface ActiveMissionState {
  * GET /api/mission/active
  * Returns the active mission state if one exists
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event);
+	if (unauthorized) return unauthorized;
+	enforceRateLimit(event);
+	const { url } = event;
 	try {
 		const missionPath = getActiveMissionPath();
 
@@ -172,7 +177,11 @@ export const GET: RequestHandler = async ({ url }) => {
  * POST /api/mission/active
  * Update the active mission state (called by UI when state changes)
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event);
+	if (unauthorized) return unauthorized;
+	enforceRateLimit(event);
+	const { request } = event;
 	try {
 		const body = await request.json();
 		const spawnerDir = getSpawnerDir();
@@ -244,7 +253,10 @@ export const POST: RequestHandler = async ({ request }) => {
  * DELETE /api/mission/active
  * Clear the active mission (when completed, cancelled, or user clears)
  */
-export const DELETE: RequestHandler = async () => {
+export const DELETE: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event);
+	if (unauthorized) return unauthorized;
+	enforceRateLimit(event);
 	try {
 		const missionPath = getActiveMissionPath();
 
