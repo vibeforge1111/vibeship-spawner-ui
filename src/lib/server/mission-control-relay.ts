@@ -233,8 +233,22 @@ const relayState: {
 	recent: []
 };
 
-const missionLifecycleStates = new Map<string, string>();
-const taskLifecycleStates = new Map<string, string>();
+const missionLifecycleStates = new Map<string, { status: string; updatedAt: number }>();
+const taskLifecycleStates = new Map<string, { status: string; updatedAt: number }>();
+const LIFECYCLE_STATE_TTL_MS = 24 * 60 * 60_000;
+
+function pruneStaleLifecycleStates(now: number): void {
+	for (const [key, entry] of missionLifecycleStates) {
+		if (now - entry.updatedAt > LIFECYCLE_STATE_TTL_MS) {
+			missionLifecycleStates.delete(key);
+		}
+	}
+	for (const [key, entry] of taskLifecycleStates) {
+		if (now - entry.updatedAt > LIFECYCLE_STATE_TTL_MS) {
+			taskLifecycleStates.delete(key);
+		}
+	}
+}
 
 function normalizeMissionId(event: MissionControlBridgeEvent): string {
 	return typeof event.missionId === 'string' && event.missionId.trim().length > 0 ? event.missionId : 'unknown-mission';
@@ -680,6 +694,8 @@ function hasOpenTaskStartForSameSource(event: MissionControlBridgeEvent): boolea
 }
 
 function shouldRecordLifecycleTransition(event: MissionControlBridgeEvent): boolean {
+	const now = Date.now();
+	pruneStaleLifecycleStates(now);
 	const type = typeof event.type === 'string' ? event.type : '';
 	const missionId = normalizeMissionId(event);
 	const taskStatus = lifecycleTaskStatusForEvent(type);
@@ -687,19 +703,19 @@ function shouldRecordLifecycleTransition(event: MissionControlBridgeEvent): bool
 		const taskIdentity = taskIdentityForEvent(event);
 		if (!taskIdentity) return true;
 		const key = `${missionId}:${taskIdentity}`;
-		if (taskLifecycleStates.get(key) === taskStatus) {
+		if (taskLifecycleStates.get(key)?.status === taskStatus) {
 			return false;
 		}
-		taskLifecycleStates.set(key, taskStatus);
+		taskLifecycleStates.set(key, { status: taskStatus, updatedAt: now });
 		return true;
 	}
 
 	const missionStatus = lifecycleMissionStatusForEvent(type);
 	if (!missionStatus) return true;
-	if (missionLifecycleStates.get(missionId) === missionStatus) {
+	if (missionLifecycleStates.get(missionId)?.status === missionStatus) {
 		return false;
 	}
-	missionLifecycleStates.set(missionId, missionStatus);
+	missionLifecycleStates.set(missionId, { status: missionStatus, updatedAt: now });
 	return true;
 }
 
