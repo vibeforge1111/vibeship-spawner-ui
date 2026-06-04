@@ -121,6 +121,7 @@ class ClaudeClient {
 			};
 
 		} catch (error) {
+			clearTimeout(timeoutId);
 			log.warn('Claude API call failed, falling back to local analysis:', error);
 			return {
 				success: false,
