@@ -124,6 +124,34 @@
 		}
 	}
 
+	async function executeMissionControlAction(action: 'pause' | 'resume' | 'kill'): Promise<void> {
+		if (!missionId) return;
+		if (action === 'kill' && !confirm('Kill this mission? This cannot be undone.')) return;
+		missionControlActionLoading = true;
+		missionControlActionMessage = null;
+		missionControlError = null;
+		try {
+			const response = await fetch('/api/mission-control/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ missionId, action, source: 'spawner-ui' })
+			});
+			const body = await response.json().catch(() => ({}));
+			if (!response.ok || !body?.ok) {
+				throw new Error(body?.error || `Action failed (${response.status})`);
+			}
+
+			missionControlActionMessage = body?.message || `Mission ${action} executed.`;
+			await loadMissionControlStatus();
+			await loadMissionLogs(missionId);
+			await loadMission(missionId);
+		} catch (error) {
+			missionControlError = error instanceof Error ? error.message : 'Mission control action failed';
+		} finally {
+			missionControlActionLoading = false;
+		}
+	}
+
 	function startMissionControlPolling(): void {
 		if (missionControlPoller) return;
 		missionControlPoller = setInterval(() => {
