@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { isPathWithinProject, runCommand, validateProjectPath } from './command-runner';
+import { isPathWithinProject, runCommand, truncateOutput, validateProjectPath } from './command-runner';
 
 const originalSparkWorkspaceRoot = process.env.SPARK_WORKSPACE_ROOT;
 const originalSpawnerWorkspaceRoot = process.env.SPAWNER_WORKSPACE_ROOT;
@@ -94,5 +94,20 @@ describe('runCommand', () => {
 
 		expect(result.exitCode).not.toBe(0);
 		expect(result.stdout).not.toContain('shell-ran');
+	});
+});
+
+describe('truncateOutput', () => {
+	it('redacts local user-home paths from command output', () => {
+		const macPath = ['', 'Users', 'alice', 'private', 'auth.json'].join('/');
+		const linuxPath = ['', 'home', 'alice', 'private', 'poll.json'].join('/');
+		const windowsPath = ['C:', 'Users', 'Alice', 'private', 'cache.json'].join('\\');
+
+		const output = truncateOutput([macPath, linuxPath, windowsPath].join('\n'));
+
+		expect(output.match(/\[local path\]/g)).toHaveLength(3);
+		for (const leaked of [macPath, linuxPath, windowsPath, 'auth.json', 'poll.json', 'cache.json']) {
+			expect(output).not.toContain(leaked);
+		}
 	});
 });
