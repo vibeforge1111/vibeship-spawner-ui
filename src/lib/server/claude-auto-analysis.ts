@@ -24,6 +24,7 @@ import type { SkillTier } from './skill-tiers';
 import { resolveCliBinary } from './cli-resolver';
 import { spawnHidden } from './hidden-process';
 import { claudeAutoAnalysisTimeoutMs } from './timeout-config';
+import { writeFileAtomic } from './atomic-write';
 
 const CLAUDE_TIMEOUT_MS = claudeAutoAnalysisTimeoutMs();
 
@@ -233,7 +234,9 @@ export async function startClaudeAutoAnalysis(opts: {
 
 			const safe = normalizeRequestId(requestId);
 			const resultPath = join(paths.resultsDir, `${safe}.json`);
-			await writeFile(resultPath, JSON.stringify(parsed, null, 2), 'utf-8');
+			// Write atomically so the watchdog poller never reads a half-written
+			// JSON file during the 2s polling window.
+			await writeFileAtomic(resultPath, JSON.stringify(parsed, null, 2));
 
 			await appendTrace('auto_worker_finished', {
 				provider: 'claude',
