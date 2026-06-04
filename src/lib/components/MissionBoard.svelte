@@ -101,7 +101,7 @@
 	let newGoal = $state('');
 	let newChip = $state('domain-chip-spark-ops-critic');
 	let newRounds = $state(1);
-	let newChatId = $state('8319079055');
+	let newChatId = $state('');
 	let creating = $state(false);
 
 	async function fetchSchedules() {
