@@ -19,6 +19,7 @@ vi.mock('$lib/server/provider-runtime', () => ({
 import { GET, POST } from './+server';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { getMissionControlPersistPath } from '$lib/server/mission-control-relay';
+import { buildClientGovernorDecisionAuthority } from '$lib/services/harness-authority-client';
 
 const originalSpawnerStateDir = process.env.SPAWNER_STATE_DIR;
 let testSpawnerStateDir: string | null = null;
@@ -49,6 +50,14 @@ function machineAuthority() {
 
 function vnextAuthority(options: { executable?: boolean; capabilityId?: string; actionType?: string } = {}) {
 	const executable = options.executable !== false;
+	const freshUserIntent = {
+		id: 'evidence:spawner-run-vnext-test:fresh',
+		kind: 'fresh_user_intent',
+		source: 'spawner-ui',
+		summary: 'Test user intent for Spawner run authority.',
+		confidence: 0.95,
+		trace_refs: []
+	};
 	return {
 		schema_version: 'turn-intent-envelope-vnext',
 		turn_id: 'turn:spawner-run-vnext-test',
@@ -60,10 +69,12 @@ function vnextAuthority(options: { executable?: boolean; capabilityId?: string; 
 		selected_move: executable ? 'execute_action' : 'chat_explain',
 		freshness: {
 			fresh_user_intent_present: true,
+			fresh_user_intent_ref: freshUserIntent,
 			stale_state_used_as_authority: false,
 			memory_used_as_instruction: false,
 			pending_state_used_as_authority: false
 		},
+		evidence: [freshUserIntent],
 		action_authority: {
 			state: executable ? 'executable' : 'chat_only',
 			risk_tier: executable ? 'medium' : 'none',
@@ -95,6 +106,14 @@ function vnextAuthority(options: { executable?: boolean; capabilityId?: string; 
 
 function governorAuthority(options: { executable?: boolean; withLedger?: boolean } = {}) {
 	const executable = options.executable !== false;
+	if (executable) {
+		return buildClientGovernorDecisionAuthority({
+			source: 'spark-run.integration.test',
+			reason: 'Focused Spark run authority regression.',
+			toolName: 'spawner.run',
+			mutationClass: 'launches_mission'
+		});
+	}
 	const envelope = vnextAuthority({ executable });
 	const action = envelope.proposed_actions[0];
 	const authorization = executable && action
@@ -200,6 +219,12 @@ function governorAuthority(options: { executable?: boolean; withLedger?: boolean
 	};
 }
 
+async function expectOkJson(response: Response) {
+	const body = await response.json();
+	expect(response.status, JSON.stringify(body)).toBe(200);
+	return body;
+}
+
 describe('/api/spark/run integration', () => {
 	beforeEach(async () => {
 		testSpawnerStateDir = await mkdtemp(path.join(tmpdir(), 'spawner-spark-run-test-'));
@@ -232,8 +257,7 @@ describe('/api/spark/run integration', () => {
 			executionAuthority: governorAuthority()
 		}) as never);
 
-		expect(response.status).toBe(200);
-		const body = await response.json();
+		const body = await expectOkJson(response);
 		expect(body).toMatchObject({
 			success: true,
 			requestId: 'tg-spark-run-local',
@@ -273,8 +297,7 @@ describe('/api/spark/run integration', () => {
 			executionAuthority: governorAuthority()
 		}) as never);
 
-		expect(response.status).toBe(200);
-		const body = await response.json();
+		const body = await expectOkJson(response);
 		expect(body.missionControlAccess).toMatchObject({
 			mode: 'hosted',
 			mobileReachable: true
@@ -294,8 +317,7 @@ describe('/api/spark/run integration', () => {
 			executionAuthority: governorAuthority()
 		}) as never);
 
-		expect(response.status).toBe(200);
-		const body = await response.json();
+		const body = await expectOkJson(response);
 		expect(body.missionName).toBe('Spark Bug Recognition Domain Chip');
 		expect(dispatch).toHaveBeenCalledTimes(1);
 	});
@@ -347,14 +369,13 @@ describe('/api/spark/run integration', () => {
 			executionAuthority: governorAuthority()
 		}) as never);
 
-		expect(response.status).toBe(200);
-		const body = await response.json();
+		const body = await expectOkJson(response);
 		expect(body.success).toBe(true);
 		expect(body.authority).toMatchObject({
 			allowed: true,
 			source: 'governor_decision',
 			governorOutcome: 'execute',
-			traceId: 'trace:spawner-run-vnext-test'
+			traceId: expect.stringMatching(/^trace:spawner:spark-run\.integration\.test:/)
 		});
 		expect(dispatch).toHaveBeenCalledTimes(1);
 	});
@@ -370,8 +391,7 @@ describe('/api/spark/run integration', () => {
 			executionAuthority: governorAuthority()
 		}) as never);
 
-		expect(response.status).toBe(200);
-		const body = await response.json();
+		const body = await expectOkJson(response);
 		expect(body.success).toBe(true);
 		expect(body.authority.source).toBe('governor_decision');
 		expect(dispatch).toHaveBeenCalledTimes(1);

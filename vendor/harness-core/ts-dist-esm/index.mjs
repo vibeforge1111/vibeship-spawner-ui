@@ -12,6 +12,11 @@ const HARNESS_CORE_EXECUTED_TOOL_STATUSES = new Set([
     'partial',
     'rolled_back'
 ]);
+const HARNESS_CORE_FRESH_USER_INTENT_REQUIRED_MOVES = new Set([
+    'read_current_state',
+    'confirm_action',
+    'execute_action'
+]);
 export function safeHarnessCoreId(prefix, raw) {
     const normalized = raw.toLowerCase().replace(/[^a-z0-9_.:-]+/g, '-').replace(/^-+|-+$/g, '');
     const suffix = normalized || Math.random().toString(16).slice(2, 14);
@@ -45,6 +50,32 @@ export function createHarnessCoreEvidenceRef(input) {
         confidence: input.confidence,
         trace_refs: input.trace_refs || []
     };
+}
+function freshUserIntentAuthorityReasonCodes(envelope) {
+    if (!HARNESS_CORE_FRESH_USER_INTENT_REQUIRED_MOVES.has(envelope.selected_move))
+        return [];
+    const reasons = [];
+    if (envelope.actor.kind !== 'human')
+        reasons.push('fresh_user_intent_actor_not_human');
+    if (!envelope.freshness.fresh_user_intent_present)
+        reasons.push('fresh_user_intent_missing');
+    if (envelope.freshness.stale_state_used_as_authority)
+        reasons.push('stale_state_used_as_authority');
+    if (envelope.freshness.memory_used_as_instruction)
+        reasons.push('memory_used_as_instruction');
+    if (envelope.freshness.pending_state_used_as_authority)
+        reasons.push('pending_state_used_as_authority');
+    const freshRef = envelope.freshness.fresh_user_intent_ref;
+    if (!freshRef) {
+        reasons.push('fresh_user_intent_ref_missing');
+        return [...new Set(reasons)];
+    }
+    if (freshRef.kind !== 'fresh_user_intent')
+        reasons.push('fresh_user_intent_ref_not_fresh_user_intent');
+    const bound = envelope.evidence.some((item) => item.id === freshRef.id && item.kind === 'fresh_user_intent' && item.source === freshRef.source);
+    if (!bound)
+        reasons.push('fresh_user_intent_evidence_unbound');
+    return [...new Set(reasons)];
 }
 export function actionTypeForHarnessMutation(mutationClass, publishes = false) {
     if (publishes || mutationClass === 'publishes')
@@ -128,18 +159,31 @@ export function createHarnessCoreActionEnvelopeVNext(input) {
         }),
         requires_confirmation: requiresConfirmation
     };
-    const selectedMove = requiresConfirmation ? 'confirm_action' : actionType === 'read' ? 'read_current_state' : 'execute_action';
-    const authorityState = selectedMove === 'confirm_action' ? 'confirmation_required' : selectedMove === 'read_current_state' ? 'read_only' : 'executable';
+    const selectedMove = actorKind !== 'human'
+        ? 'prepare_action'
+        : requiresConfirmation
+            ? 'confirm_action'
+            : actionType === 'read'
+                ? 'read_current_state'
+                : 'execute_action';
+    const authorityState = selectedMove === 'prepare_action'
+        ? 'prepare_allowed'
+        : selectedMove === 'confirm_action'
+            ? 'confirmation_required'
+            : selectedMove === 'read_current_state'
+                ? 'read_only'
+                : 'executable';
     const evidenceKind = actorKind === 'human' ? 'fresh_user_intent' : 'surface_signal';
+    const authorityEvidence = createHarnessCoreEvidenceRef({
+        id: `${turnId}:fresh-authority`,
+        kind: evidenceKind,
+        source: input.source,
+        summary: input.reason,
+        confidence,
+        trace_refs: [trace]
+    });
     const evidence = [
-        createHarnessCoreEvidenceRef({
-            id: `${turnId}:fresh-authority`,
-            kind: evidenceKind,
-            source: input.source,
-            summary: input.reason,
-            confidence,
-            trace_refs: [trace]
-        }),
+        authorityEvidence,
         createHarnessCoreEvidenceRef({
             id: `${turnId}:surface-action`,
             kind: 'surface_signal',
@@ -164,6 +208,7 @@ export function createHarnessCoreActionEnvelopeVNext(input) {
         intent_summary: input.reason,
         freshness: {
             fresh_user_intent_present: actorKind === 'human',
+            fresh_user_intent_ref: actorKind === 'human' ? authorityEvidence : null,
             stale_state_used_as_authority: false,
             memory_used_as_instruction: false,
             pending_state_used_as_authority: false
@@ -174,9 +219,11 @@ export function createHarnessCoreActionEnvelopeVNext(input) {
             risk_tier: riskTier,
             confidence,
             requires_human_confirmation: requiresConfirmation,
-            reason: requiresConfirmation
-                ? 'Harness Core requires confirmation before this high-risk action can execute.'
-                : 'Fresh surface evidence authorizes this action through Harness Core.'
+            reason: actorKind !== 'human'
+                ? 'Machine-origin evidence may prepare an action but cannot execute without source-bound fresh user intent.'
+                : requiresConfirmation
+                    ? 'Harness Core requires confirmation before this high-risk action can execute.'
+                    : 'Fresh surface evidence authorizes this action through Harness Core.'
         },
         proposed_actions: [action],
         blocked_routes: [],
@@ -193,6 +240,8 @@ function governorOutcomeFor(input) {
     const { envelope, authorizations } = input;
     const state = envelope.action_authority.state;
     const verdicts = new Set(authorizations.map((authorization) => authorization.verdict));
+    if (freshUserIntentAuthorityReasonCodes(envelope).length > 0)
+        return 'deny';
     if (state === 'executable' && verdicts.has('allow')) {
         return hasMatchingExecutionLedger({
             envelope,
@@ -260,6 +309,15 @@ function governorReasonsFor(input) {
         case 'execute':
             reasons.push('governor_authorized_execution');
             break;
+        case 'degrade':
+            if (input.envelope.action_authority.state === 'executable' &&
+                input.authorizations.some((authorization) => authorization.verdict === 'allow')) {
+                reasons.push('governor_missing_tool_ledger_for_authorized_execution');
+            }
+            else {
+                reasons.push('governor_degrades_to_safe_surface_behavior');
+            }
+            break;
         case 'interrupt':
             reasons.push('governor_requires_explicit_confirmation');
             break;
@@ -275,15 +333,6 @@ function governorReasonsFor(input) {
         case 'deny':
             reasons.push('governor_denies_action_boundary');
             break;
-        case 'degrade':
-            if (input.envelope.action_authority.state === 'executable' &&
-                input.authorizations.some((authorization) => authorization.verdict === 'allow')) {
-                reasons.push('governor_missing_tool_ledger_for_authorized_execution');
-            }
-            else {
-                reasons.push('governor_degrades_to_safe_surface_behavior');
-            }
-            break;
     }
     for (const authorization of input.authorizations) {
         for (const reason of authorization.reasons) {
@@ -293,6 +342,10 @@ function governorReasonsFor(input) {
     }
     if (input.envelope.action_authority.requires_human_confirmation) {
         reasons.push('human_confirmation_required_by_envelope');
+    }
+    for (const reason of freshUserIntentAuthorityReasonCodes(input.envelope)) {
+        if (!reasons.includes(reason))
+            reasons.push(reason);
     }
     return reasons;
 }
@@ -377,6 +430,7 @@ export function verifyHarnessCoreGovernorExecutionAuthority(input) {
     if (governorDecision.outcome === 'execute' && !governorDecision.execution_boundary.action_authorized) {
         reasonCodes.push('governor_action_not_authorized');
     }
+    reasonCodes.push(...freshUserIntentAuthorityReasonCodes(governorDecision.envelope));
     const matchingAuthorization = governorDecision.authorizations.find((authorization) => {
         if (authorization.verdict !== 'allow')
             return false;
@@ -475,7 +529,16 @@ export function createHarnessCoreAuthorizedGovernorDecision(input) {
         summary: `Governor authorization for ${input.tool_name}.`,
         redaction_class: 'metadata_only'
     });
-    const verdict = action.requires_confirmation ? 'interrupt' : 'allow';
+    const freshnessReasons = freshUserIntentAuthorityReasonCodes(input.envelope);
+    const authorityAllowsAction = input.envelope.action_authority.state === 'executable' ||
+        (input.envelope.action_authority.state === 'read_only' && action.action_type === 'read') ||
+        input.envelope.action_authority.state === 'confirmation_required';
+    const authorityReasons = authorityAllowsAction ? [] : ['envelope_not_executable'];
+    const verdict = freshnessReasons.length > 0 || authorityReasons.length > 0
+        ? 'deny'
+        : action.requires_confirmation
+            ? 'interrupt'
+            : 'allow';
     const authorization = {
         schema_version: 'authorization-decision-v1',
         decision_id: safeHarnessCoreId('decision', `${input.envelope.turn_id}:${action.action_id}`),
@@ -487,19 +550,29 @@ export function createHarnessCoreAuthorizedGovernorDecision(input) {
         risk_tier: action.risk_tier,
         reasons: input.reasons && input.reasons.length > 0
             ? input.reasons
-            : action.requires_confirmation
-                ? ['harness_core_authorized', 'explicit_human_confirmation_required']
-                : ['harness_core_authorized'],
+            : freshnessReasons.length > 0
+                ? freshnessReasons
+                : authorityReasons.length > 0
+                    ? authorityReasons
+                    : action.requires_confirmation
+                        ? ['harness_core_authorized', 'explicit_human_confirmation_required']
+                        : ['harness_core_authorized'],
         evidence: input.envelope.evidence,
         approval: {
-            required: action.requires_confirmation,
-            status: action.requires_confirmation ? 'requested' : 'not_required'
+            required: freshnessReasons.length === 0 && authorityReasons.length === 0 && action.requires_confirmation,
+            status: freshnessReasons.length > 0 || authorityReasons.length > 0
+                ? 'not_required'
+                : action.requires_confirmation
+                    ? 'requested'
+                    : 'not_required'
         },
         restrictions: {
-            network_allowed: action.action_type === 'external_api_call' || action.action_type === 'browser_action' || action.action_type === 'computer_action',
-            write_allowed: !['read'].includes(action.action_type),
-            publish_allowed: action.action_type === 'publish',
-            ...(input.restrictions || {})
+            network_allowed: freshnessReasons.length === 0 &&
+                authorityReasons.length === 0 &&
+                (action.action_type === 'external_api_call' || action.action_type === 'browser_action' || action.action_type === 'computer_action'),
+            write_allowed: freshnessReasons.length === 0 && authorityReasons.length === 0 && !['read'].includes(action.action_type),
+            publish_allowed: freshnessReasons.length === 0 && authorityReasons.length === 0 && action.action_type === 'publish',
+            ...(freshnessReasons.length === 0 && authorityReasons.length === 0 ? input.restrictions || {} : {})
         },
         trace
     };
@@ -514,7 +587,12 @@ export function createHarnessCoreAuthorizedGovernorDecision(input) {
         lifecycle: [
             { stage: 'propose', at: input.envelope.created_at, verdict: 'passed', summary: 'Harness Core proposed the action.' },
             { stage: 'validate', at: now, verdict: 'passed', summary: 'Harness Core validated the authority record.' },
-            { stage: 'authorize', at: now, verdict: action.requires_confirmation ? 'pending' : 'passed', summary: 'Governor authorization recorded before execution.' },
+            {
+                stage: 'authorize',
+                at: now,
+                verdict: verdict === 'allow' ? 'passed' : verdict === 'interrupt' ? 'pending' : 'failed',
+                summary: 'Governor authorization recorded before execution.'
+            },
             { stage: 'execute', at: now, verdict: 'pending', summary: 'Execution has not started yet.' }
         ],
         authorization,
@@ -921,12 +999,13 @@ export function createTelegramLiveQaEvidencePacket(input) {
         summary
     };
 }
-const PROTECTED_HARNESS_COMPONENT_TYPES = new Set([
+export const PROTECTED_HARNESS_COMPONENT_TYPES = new Set([
     'verifier',
     'benchmark',
     'model_config',
     'authority_policy'
 ]);
+const MUTATING_HARNESS_EVOLUTION_MODES = new Set(['sandbox', 'promote', 'rollback']);
 const HARNESS_CORE_READINESS_STATUS_RANK = Object.freeze({
     blocked: 0,
     private_ready: 1,
@@ -934,6 +1013,7 @@ const HARNESS_CORE_READINESS_STATUS_RANK = Object.freeze({
     public_ready: 3
 });
 export function createHarnessCoreChangeManifest(input) {
+    assertHarnessCoreComponentEditablePolicy(input.target_component);
     if (PROTECTED_HARNESS_COMPONENT_TYPES.has(input.target_component.component_type) && !input.human_approval_ref) {
         throw new Error('protected Harness Core components require explicit human approval evidence');
     }
@@ -959,6 +1039,8 @@ export function createHarnessCoreSelfEvolutionRun(input) {
     const verdict = input.verdict || 'not_ready';
     const manifests = input.change_manifests || [];
     const components = input.target_components || [];
+    components.forEach(assertHarnessCoreComponentEditablePolicy);
+    manifests.forEach((manifest) => assertHarnessCoreComponentEditablePolicy(manifest.target_component));
     const liveSurfaceRequired = input.live_surface_required ?? false;
     assertHarnessCoreSelfEvolutionPolicy({
         mode: input.mode,
@@ -993,6 +1075,107 @@ export function createHarnessCoreSelfEvolutionRun(input) {
         }
     };
 }
+export function createHarnessCoreChangeManifestRunner(input) {
+    const manifests = input.change_manifests || [];
+    const components = [...(input.target_components || [])];
+    components.forEach(assertHarnessCoreComponentEditablePolicy);
+    manifests.forEach((manifest) => assertHarnessCoreComponentEditablePolicy(manifest.target_component));
+    const knownComponentIds = new Set(components.map((component) => component.component_id));
+    for (const manifest of manifests) {
+        const component = manifest.target_component;
+        if (!knownComponentIds.has(component.component_id)) {
+            components.push(component);
+            knownComponentIds.add(component.component_id);
+        }
+    }
+    const decision = evaluateHarnessCoreChangeManifestRunner({
+        mode: input.mode,
+        readiness_score: input.readiness_score,
+        target_components: components,
+        change_manifests: manifests,
+        requested_verdict: input.requested_verdict,
+        live_surface_required: input.live_surface_required ?? false
+    });
+    return createHarnessCoreSelfEvolutionRun({
+        id: input.id,
+        mode: input.mode,
+        surface: input.surface,
+        experience_index: input.experience_index,
+        readiness_score: input.readiness_score,
+        commands: input.commands,
+        target_components: components,
+        change_manifests: manifests,
+        evaluation_packs: input.evaluation_packs,
+        verdict: decision.verdict,
+        summary: decision.summary,
+        roles: input.roles,
+        live_surface_required: input.live_surface_required
+    });
+}
+export function evaluateHarnessCoreChangeManifestRunner(input) {
+    const reasons = [];
+    input.target_components.forEach(assertHarnessCoreComponentEditablePolicy);
+    input.change_manifests.forEach((manifest) => assertHarnessCoreComponentEditablePolicy(manifest.target_component));
+    if (input.mode === 'observe') {
+        return runnerDecision('not_ready', ['observe_mode_records_evidence_only']);
+    }
+    if (input.requested_verdict === 'rollback' || input.mode === 'rollback') {
+        if (input.mode !== 'rollback')
+            reasons.push('rollback_requires_rollback_mode');
+        if (!input.change_manifests.some((manifest) => manifest.verdict === 'rolled_back')) {
+            reasons.push('rollback_requires_rolled_back_manifest');
+        }
+        return runnerDecision(reasons.length === 0 ? 'rollback' : 'not_ready', reasons.length ? reasons : ['rollback_manifest_present']);
+    }
+    if (input.mode !== 'promote')
+        reasons.push(`${input.mode}_mode_cannot_promote`);
+    if (input.change_manifests.length === 0)
+        reasons.push('no_change_manifests');
+    const nonAccepted = input.change_manifests
+        .filter((manifest) => manifest.verdict !== 'accepted')
+        .map((manifest) => manifest.change_id);
+    if (nonAccepted.length > 0)
+        reasons.push(`non_accepted_change_manifests:${nonAccepted.join(',')}`);
+    if (input.live_surface_required || input.change_manifests.some((manifest) => manifest.live_proof_required)) {
+        reasons.push('live_proof_still_required');
+    }
+    const missingApproval = protectedComponentsMissingApproval(input.target_components, input.change_manifests);
+    if (missingApproval.length > 0) {
+        reasons.push(`protected_component_requires_approval:${missingApproval.join(',')}`);
+    }
+    let requested = input.requested_verdict === 'promote_private' || input.requested_verdict === 'promote_release_candidate'
+        ? input.requested_verdict
+        : HARNESS_CORE_READINESS_STATUS_RANK[input.readiness_score.overall.status] >=
+            HARNESS_CORE_READINESS_STATUS_RANK.release_candidate
+            ? 'promote_release_candidate'
+            : 'promote_private';
+    const requiredStatus = requested === 'promote_private' ? 'private_ready' : 'release_candidate';
+    const readinessStatus = input.readiness_score.overall.status;
+    if (HARNESS_CORE_READINESS_STATUS_RANK[readinessStatus] < HARNESS_CORE_READINESS_STATUS_RANK[requiredStatus]) {
+        reasons.push(`readiness_below_${requiredStatus}:${readinessStatus}`);
+    }
+    if (reasons.length > 0)
+        return runnerDecision('not_ready', reasons);
+    return runnerDecision(requested, ['accepted_change_manifests_ready']);
+}
+function runnerDecision(verdict, reasons) {
+    const reasonText = reasons.length ? reasons.join(', ') : 'no_blockers';
+    if (verdict === 'not_ready') {
+        return { verdict, reasons, summary: `Change manifest runner is not ready to promote: ${reasonText}.` };
+    }
+    if (verdict === 'rollback') {
+        return { verdict, reasons, summary: `Change manifest runner selected rollback: ${reasonText}.` };
+    }
+    return { verdict, reasons, summary: `Change manifest runner selected ${verdict}: ${reasonText}.` };
+}
+export function isHarnessCoreProtectedComponentType(componentType) {
+    return PROTECTED_HARNESS_COMPONENT_TYPES.has(componentType);
+}
+export function assertHarnessCoreComponentEditablePolicy(component) {
+    if (PROTECTED_HARNESS_COMPONENT_TYPES.has(component.component_type) && component.editable_by_evolution) {
+        throw new Error('protected Harness Core components cannot be marked editable_by_evolution');
+    }
+}
 function assertHarnessCoreSelfEvolutionPolicy(input) {
     if (input.mode === 'observe' && input.verdict !== 'not_ready') {
         throw new Error('observe mode cannot promote or roll back changes');
@@ -1024,12 +1207,26 @@ function assertHarnessCoreSelfEvolutionPolicy(input) {
             throw new Error('rollback verdict requires at least one rolled_back change manifest');
         }
     }
-    const approvedComponentIds = new Set(input.change_manifests
-        .filter((manifest) => Boolean(manifest.human_approval_ref))
-        .map((manifest) => manifest.target_component.component_id));
-    for (const component of input.target_components) {
-        if (PROTECTED_HARNESS_COMPONENT_TYPES.has(component.component_type) && !approvedComponentIds.has(component.component_id)) {
-            throw new Error(`protected self-evolution component ${component.component_id} requires approval evidence`);
+    if (selfEvolutionRequiresProtectedApproval(input.mode, input.verdict)) {
+        const missingApproval = protectedComponentsMissingApproval(input.target_components, input.change_manifests);
+        if (missingApproval.length > 0) {
+            throw new Error(`protected self-evolution components require approval evidence: ${missingApproval.join(', ')}`);
         }
     }
+}
+function selfEvolutionRequiresProtectedApproval(mode, verdict) {
+    return (verdict !== 'not_ready' &&
+        (MUTATING_HARNESS_EVOLUTION_MODES.has(mode) ||
+            verdict === 'promote_private' ||
+            verdict === 'promote_release_candidate' ||
+            verdict === 'rollback'));
+}
+function protectedComponentsMissingApproval(targetComponents, changeManifests) {
+    const approvedComponentIds = new Set(changeManifests
+        .filter((manifest) => Boolean(manifest.human_approval_ref))
+        .map((manifest) => manifest.target_component.component_id));
+    return targetComponents
+        .filter((component) => PROTECTED_HARNESS_COMPONENT_TYPES.has(component.component_type))
+        .filter((component) => !approvedComponentIds.has(component.component_id))
+        .map((component) => component.component_id || component.component_type);
 }

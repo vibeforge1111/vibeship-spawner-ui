@@ -21,12 +21,24 @@ describe('harness authority client', () => {
 			state: 'executable',
 			requires_human_confirmation: false
 		});
-		expect(authority.freshness).toEqual({
+		expect(authority.freshness).toMatchObject({
 			fresh_user_intent_present: true,
+			fresh_user_intent_ref: expect.objectContaining({
+				kind: 'fresh_user_intent'
+			}),
 			stale_state_used_as_authority: false,
 			memory_used_as_instruction: false,
 			pending_state_used_as_authority: false
 		});
+		expect(authority.evidence).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					id: authority.freshness.fresh_user_intent_ref?.id,
+					kind: authority.freshness.fresh_user_intent_ref?.kind,
+					source: authority.freshness.fresh_user_intent_ref?.source
+				})
+			])
+		);
 		expect(authority.proposed_actions[0]).toMatchObject({
 			capability_id: 'capability:spawner-ui:spawner.schedule.create',
 			action_type: 'schedule',

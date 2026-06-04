@@ -166,6 +166,25 @@ function turnIntentVNextVerdict(authority: Record<string, unknown>, input: Harne
 	if (freshness.pending_state_used_as_authority === true) {
 		reasonCodes.push('pending_state_used_as_authority');
 	}
+	const freshUserIntentRef = isRecord(freshness.fresh_user_intent_ref) ? freshness.fresh_user_intent_ref : null;
+	const evidence = Array.isArray(authority.evidence) ? authority.evidence.filter(isRecord) : [];
+	if (freshness.fresh_user_intent_present !== true) {
+		reasonCodes.push('fresh_user_intent_missing');
+	}
+	if (!freshUserIntentRef) {
+		reasonCodes.push('fresh_user_intent_ref_missing');
+	} else if (stringField(freshUserIntentRef.kind) !== 'fresh_user_intent') {
+		reasonCodes.push('fresh_user_intent_ref_not_fresh_user_intent');
+	} else if (
+		!evidence.some(
+			(item) =>
+				stringField(item.id) === stringField(freshUserIntentRef.id) &&
+				stringField(item.kind) === 'fresh_user_intent' &&
+				stringField(item.source) === stringField(freshUserIntentRef.source)
+		)
+	) {
+		reasonCodes.push('fresh_user_intent_evidence_unbound');
+	}
 
 	const rawTurnRef = isRecord(authority.raw_turn_ref) ? authority.raw_turn_ref : {};
 	return {
