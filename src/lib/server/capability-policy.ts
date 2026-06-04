@@ -1,7 +1,7 @@
 import { env } from '$env/dynamic/private';
 import type { RequestEvent } from '@sveltejs/kit';
 import { randomUUID } from 'node:crypto';
-import { hostedUiSessionIsValid } from '$lib/server/hosted-ui-auth';
+import { hostedUiSessionIsValid, hostedUiAuthEnabled } from '$lib/server/hosted-ui-auth';
 
 export type CapabilityActorKind = 'telegram-user' | 'local-user' | 'hosted-user' | 'system-job';
 export type CapabilitySurface = 'telegram' | 'cli' | 'spawner' | 'scanner' | 'mcp' | 'memory' | 'pro';
@@ -111,6 +111,18 @@ function actorFromRequest(event: RequestEvent): Pick<CapabilityEnvelope, 'actorI
 			actorId: headerActor || 'hosted-ui-session',
 			actorKind: 'hosted-user',
 			accessLevel: 1
+		};
+	}
+
+	// On hosted deployments, deny local-user accessLevel without a valid session.
+	// Previously, unauthenticated API key holders received accessLevel 4 (full
+	// local capabilities) which allowed arbitrary shell, filesystem, and secret
+	// access on hosted Spawner instances.
+	if (hostedUiAuthEnabled(env)) {
+		return {
+			actorId: headerActor || 'unauthenticated',
+			actorKind: 'local-user',
+			accessLevel: 0
 		};
 	}
 
