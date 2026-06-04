@@ -701,7 +701,17 @@
 			const r = await fetch('/api/creator/mission/validate', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ missionId: card.id, async: true })
+				body: JSON.stringify({
+					missionId: card.id,
+					async: true,
+					executionAuthority: buildClientGovernorDecisionAuthority({
+						source: 'mission-board.creator-validation',
+						reason: 'User requested creator artifact validation from the Spawner Mission Board.',
+						toolName: 'spawner.creator.validate',
+						mutationClass: 'writes_files',
+						target: card.id
+					})
+				})
 			});
 			const data = await r.json().catch(() => ({}));
 			if (!r.ok || data?.ok === false) {

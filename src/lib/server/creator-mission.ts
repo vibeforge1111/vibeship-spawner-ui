@@ -6,7 +6,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { autoDispatchPrdCanvasLoad, type PrdAutoDispatchResult } from './prd-auto-dispatch';
 import { spawnerStateDir as resolveSpawnerStateDir } from './spawner-state';
-import { buildServerGovernorDecisionAuthority } from './harness-authority';
+import { assertNativeGovernorHarnessAuthority, buildServerGovernorDecisionAuthority, resolveExecutionAuthority } from './harness-authority';
 import { writeFileAtomic } from './atomic-write';
 
 const execFileAsync = promisify(execFile);
@@ -316,6 +316,7 @@ interface ValidateCreatorMissionOptions {
 	timeoutMs?: number;
 	maxCommands?: number;
 	commandRunner?: CreatorValidationCommandRunner;
+	executionAuthority?: unknown;
 	onCommandProgress?: (progress: CreatorValidationCommandProgress) => void | Promise<void>;
 }
 
@@ -2012,6 +2013,13 @@ export async function validateCreatorMission(
 		}
 		if (pendingCommands.length >= maxCommands) break;
 	}
+
+	assertNativeGovernorHarnessAuthority({
+		authority: resolveExecutionAuthority(options.executionAuthority),
+		toolName: 'spawner.creator.validate',
+		ownerSystem: 'spawner-ui',
+		mutationClass: 'writes_files'
+	});
 
 	for (const [index, item] of pendingCommands.entries()) {
 		const commandIndex = index + 1;

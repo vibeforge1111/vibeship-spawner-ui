@@ -9,12 +9,14 @@ import {
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { HarnessAuthorityError, assertNativeGovernorHarnessAuthority, resolveExecutionAuthority } from '$lib/server/harness-authority';
 
 interface ValidateCreatorMissionBody {
 	missionId?: string;
 	requestId?: string;
 	maxCommands?: number;
 	async?: boolean;
+	executionAuthority?: unknown;
 }
 
 function validationProgressPercent(progress: CreatorValidationCommandProgress): number {
@@ -90,13 +92,14 @@ function emitValidationFailed(trace: CreatorMissionTrace, error: unknown) {
 }
 
 async function runCreatorMissionValidationWithEvents(
-	input: { missionId?: string; requestId?: string; maxCommands?: number },
+	input: { missionId?: string; requestId?: string; maxCommands?: number; executionAuthority?: unknown },
 	pendingTrace: CreatorMissionTrace,
 	stateDir: string
 ) {
 	const pendingValidationTask = pendingTrace.tasks.find((task) => task.id === 'creator-validation') || pendingTrace.tasks[0];
 	const result = await validateCreatorMission(input, {
 		stateDir,
+		executionAuthority: input.executionAuthority,
 		onCommandProgress: (progress) => emitValidationProgress(pendingTrace, pendingValidationTask, progress)
 	});
 	const validationTask = result.trace.tasks.find((task) => task.id === 'creator-validation') || result.trace.tasks[0];
@@ -154,6 +157,12 @@ export const POST: RequestHandler = async (event) => {
 		if (!pendingTrace) {
 			return json({ ok: false, error: 'creator mission trace not found' }, { status: 404 });
 		}
+		const authority = assertNativeGovernorHarnessAuthority({
+			authority: resolveExecutionAuthority(body.executionAuthority),
+			toolName: 'spawner.creator.validate',
+			ownerSystem: 'spawner-ui',
+			mutationClass: 'writes_files'
+		});
 		const pendingValidationTask = pendingTrace.tasks.find((task) => task.id === 'creator-validation') || pendingTrace.tasks[0];
 		void relayMissionControlEvent({
 			type: 'task_started',
@@ -176,7 +185,8 @@ export const POST: RequestHandler = async (event) => {
 		const validationInput = {
 			missionId,
 			requestId,
-			maxCommands: typeof body.maxCommands === 'number' ? body.maxCommands : undefined
+			maxCommands: typeof body.maxCommands === 'number' ? body.maxCommands : undefined,
+			executionAuthority: body.executionAuthority
 		};
 		if (body.async === true) {
 			const validationPromise = runCreatorMissionValidationWithEvents(validationInput, pendingTrace, stateDir).catch((error) => {
@@ -193,7 +203,8 @@ export const POST: RequestHandler = async (event) => {
 				accepted: true,
 				status: 'running',
 				missionId: pendingTrace.mission_id,
-				requestId: pendingTrace.request_id
+				requestId: pendingTrace.request_id,
+				authority
 			}, { status: 202 });
 		}
 
@@ -204,9 +215,16 @@ export const POST: RequestHandler = async (event) => {
 			requestId: result.trace.request_id,
 			status: result.run.status,
 			run: result.run,
-			trace: result.trace
+			trace: result.trace,
+			authority
 		});
 	} catch (error) {
+		if (error instanceof HarnessAuthorityError) {
+			return json(
+				{ ok: false, error: error.message, code: error.code, authority: error.verdict },
+				{ status: error.status }
+			);
+		}
 		return json(
 			{ ok: false, error: error instanceof Error ? error.message : 'creator mission validation failed' },
 			{ status: 500 }

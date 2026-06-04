@@ -67,6 +67,7 @@ describe('Spawner legacy authority inventory', () => {
 			'artifact:spawner-mission-control-command:source',
 			'artifact:spawner-creator-mission-api:source',
 			'artifact:spawner-creator-execute-api:source',
+			'artifact:spawner-creator-validate-api:source',
 			'artifact:spawner-prd-load-to-canvas:source',
 			'artifact:spawner-mission-executor:source',
 			'artifact:spawner-capability-policy:source'

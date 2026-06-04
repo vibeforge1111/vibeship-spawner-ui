@@ -244,6 +244,16 @@ export function buildSpawnerLegacyAuthorityPlanes(): LegacyAuthorityPlaneV1[] {
 			}
 		}),
 		consumerPlane({
+			id: 'spawner-creator-validate-api',
+			plane_type: 'tool_launcher',
+			source_path: 'src/routes/api/creator/mission/validate/+server.ts',
+			summary: 'Creator mission validation requires native Governor authority before manifest validation commands or validation-run state writes.',
+			authority_risk: {
+				can_execute: true,
+				can_mutate_state: true
+			}
+		}),
+		consumerPlane({
 			id: 'spawner-analysis-api',
 			plane_type: 'tool_launcher',
 			source_path: 'src/routes/api/analyze/+server.ts',

@@ -15,6 +15,7 @@ import {
 	type CreatorArtifactType,
 	type CreatorIntentPacket
 } from './creator-mission';
+import { buildServerGovernorDecisionAuthority } from './harness-authority';
 
 let tempDirs: string[] = [];
 
@@ -97,6 +98,19 @@ function fullPathBundle(repo: string): CreatorArtifactBundle {
 		],
 		validation_issues: []
 	};
+}
+
+function validationGovernorAuthority(target: string) {
+	return buildServerGovernorDecisionAuthority({
+		source: 'creator-mission-validation-test',
+		reason: 'Creator mission validation test authorizes manifest validation commands.',
+		toolName: 'spawner.creator.validate',
+		mutationClass: 'writes_files',
+		requestId: `validate:${target}`,
+		actorKind: 'human',
+		actorIdRef: 'spawner-ui.test',
+		target
+	});
 }
 
 async function tempStateDir(): Promise<string> {
@@ -294,7 +308,11 @@ describe('creator mission trace', () => {
 
 		const result = await validateCreatorMission(
 			{ missionId: 'mission-creator-golden-path' },
-			{ stateDir, now: () => new Date('2026-04-30T13:00:00.000Z') }
+			{
+				stateDir,
+				now: () => new Date('2026-04-30T13:00:00.000Z'),
+				executionAuthority: validationGovernorAuthority('mission-creator-golden-path')
+			}
 		);
 
 		expect(result.run.status).toBe('passed');
@@ -548,7 +566,11 @@ describe('creator mission trace', () => {
 
 		const result = await validateCreatorMission(
 			{ missionId: 'mission-creator-validate' },
-			{ stateDir, now: () => new Date('2026-04-30T12:00:00.000Z') }
+			{
+				stateDir,
+				now: () => new Date('2026-04-30T12:00:00.000Z'),
+				executionAuthority: validationGovernorAuthority('mission-creator-validate')
+			}
 		);
 
 		expect(result.run.status).toBe('passed');
@@ -562,6 +584,50 @@ describe('creator mission trace', () => {
 		expect(result.trace.blockers.join('\n')).toContain('Fresh benchmark runner evidence is required');
 		const saved = JSON.parse(await readFile(creatorMissionPath('mission-creator-validate', stateDir), 'utf-8'));
 		expect(saved.validation_runs).toHaveLength(1);
+	});
+
+	it('requires native Governor authority before direct manifest validation commands run', async () => {
+		const stateDir = await tempStateDir();
+		let commandCalls = 0;
+		setCreatorValidationCommandRunnerForTests(async () => {
+			commandCalls += 1;
+			return { exitCode: 0, stdout: 'ok', stderr: '' };
+		});
+		await createCreatorMission(
+			{
+				brief: 'Create Startup YC path',
+				missionId: 'mission-creator-validate-no-authority',
+				requestId: 'req-validate-no-authority'
+			},
+			{
+				stateDir,
+				runManifestPlanner: async () => ({
+					intent_packet: packet({ target_domain: 'startup-yc' }),
+					artifact_manifests: [
+						{
+							schema_version: 'spark-artifact-manifest.v1',
+							artifact_id: 'startup-yc-validation-v1',
+							artifact_type: 'creator_report',
+							repo: stateDir,
+							inputs: ['creator-intent-startup-yc-test'],
+							outputs: ['reports/creator-run-summary.json'],
+							validation_commands: ['python --version'],
+							promotion_gates: ['schema_gate', 'rollback_gate'],
+							rollback_plan: 'Delete generated reports.'
+						}
+					],
+					validation_issues: []
+				})
+			}
+		);
+
+		await expect(validateCreatorMission(
+			{ missionId: 'mission-creator-validate-no-authority' },
+			{ stateDir }
+		)).rejects.toThrow('Execution requires Harness Core authority.');
+		expect(commandCalls).toBe(0);
+		const saved = JSON.parse(await readFile(creatorMissionPath('mission-creator-validate-no-authority', stateDir), 'utf-8'));
+		expect(saved.validation_runs).toHaveLength(0);
 	});
 
 	it('reports per-command validation progress', async () => {
@@ -599,6 +665,7 @@ describe('creator mission trace', () => {
 			{ missionId: 'mission-creator-validate-progress' },
 			{
 				stateDir,
+				executionAuthority: validationGovernorAuthority('mission-creator-validate-progress'),
 				commandRunner: async () => ({ exitCode: 0, stdout: 'ok', stderr: '' }),
 				onCommandProgress: (event) => {
 					progressEvents.push({
@@ -653,7 +720,11 @@ describe('creator mission trace', () => {
 
 		const result = await validateCreatorMission(
 			{ missionId: 'mission-creator-validate-npm' },
-			{ stateDir, timeoutMs: 30_000 }
+			{
+				stateDir,
+				timeoutMs: 30_000,
+				executionAuthority: validationGovernorAuthority('mission-creator-validate-npm')
+			}
 		);
 
 		expect(result.run.status).toBe('passed');
@@ -758,6 +829,7 @@ describe('creator mission trace', () => {
 			{ missionId },
 			{
 				stateDir,
+				executionAuthority: validationGovernorAuthority(missionId),
 				commandRunner: async (executable, args, options) => {
 					commands.push([executable, ...args].join(' '));
 					expect(options.cwd).toBe(process.cwd());

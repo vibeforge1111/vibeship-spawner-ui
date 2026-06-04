@@ -10,6 +10,7 @@ import {
 	type CreatorIntentPacket
 } from '$lib/server/creator-mission';
 import { getMissionControlRelaySnapshot } from '$lib/server/mission-control-relay';
+import { buildClientGovernorDecisionAuthority, buildClientTurnIntentVNextAuthority } from '$lib/services/harness-authority-client';
 
 function event(url: string, body?: unknown) {
 	return {
@@ -55,6 +56,26 @@ function packet(): CreatorIntentPacket {
 	};
 }
 
+function validationGovernorAuthority(target = 'mission-creator-validate-api') {
+	return buildClientGovernorDecisionAuthority({
+		source: 'creator-validation-route-test',
+		reason: 'User requested creator artifact validation from Spark.',
+		toolName: 'spawner.creator.validate',
+		mutationClass: 'writes_files',
+		target
+	});
+}
+
+function validationVNextAuthority(target = 'mission-creator-validate-api') {
+	return buildClientTurnIntentVNextAuthority({
+		source: 'creator-validation-route-test',
+		reason: 'User requested creator artifact validation from Spark.',
+		toolName: 'spawner.creator.validate',
+		mutationClass: 'writes_files',
+		target
+	});
+}
+
 async function waitForValidationRun(missionId: string) {
 	for (let attempt = 0; attempt < 200; attempt += 1) {
 		const trace = await readCreatorMissionTrace({ missionId }, tempDir);
@@ -65,15 +86,20 @@ async function waitForValidationRun(missionId: string) {
 }
 
 let tempDir = '';
+let validationCommandCalls = 0;
 
 beforeEach(async () => {
 	tempDir = await mkdtemp(path.join(os.tmpdir(), 'spawner-creator-validate-route-'));
 	process.env.SPAWNER_STATE_DIR = tempDir;
-	setCreatorValidationCommandRunnerForTests(async () => ({
-		exitCode: 0,
-		stdout: 'ok',
-		stderr: ''
-	}));
+	validationCommandCalls = 0;
+	setCreatorValidationCommandRunnerForTests(async () => {
+		validationCommandCalls += 1;
+		return {
+			exitCode: 0,
+			stdout: 'ok',
+			stderr: ''
+		};
+	});
 });
 
 afterEach(async () => {
@@ -109,12 +135,14 @@ describe('/api/creator/mission/validate', () => {
 		);
 
 		const response = await POST(event('http://127.0.0.1/api/creator/mission/validate', {
-			missionId: 'mission-creator-validate-api'
+			missionId: 'mission-creator-validate-api',
+			executionAuthority: validationGovernorAuthority('mission-creator-validate-api')
 		}) as never);
 
 		expect(response.status).toBe(200);
 		const body = await response.json();
 		expect(body.ok).toBe(true);
+		expect(body.authority.source).toBe('governor_decision');
 		expect(body.status).toBe('passed');
 		expect(body.trace.stage_status).toBe('blocked');
 		expect(body.trace.publish_readiness).toBe('private_draft');
@@ -155,7 +183,8 @@ describe('/api/creator/mission/validate', () => {
 
 		const response = await POST(event('http://127.0.0.1/api/creator/mission/validate', {
 			missionId: 'mission-creator-validate-async',
-			async: true
+			async: true,
+			executionAuthority: validationGovernorAuthority('mission-creator-validate-async')
 		}) as never);
 
 		expect(response.status).toBe(202);
@@ -167,6 +196,7 @@ describe('/api/creator/mission/validate', () => {
 			missionId: 'mission-creator-validate-async',
 			requestId: 'req-validate-async'
 		});
+		expect(body.authority.source).toBe('governor_decision');
 		const trace = await waitForValidationRun('mission-creator-validate-async');
 		expect(trace.stage_status).toBe('blocked');
 		expect(trace.publish_readiness).toBe('private_draft');
@@ -184,10 +214,89 @@ describe('/api/creator/mission/validate', () => {
 	it('rejects unknown creator missions before enqueueing validation', async () => {
 		const response = await POST(event('http://127.0.0.1/api/creator/mission/validate', {
 			missionId: 'mission-creator-missing',
-			async: true
+			async: true,
+			executionAuthority: validationGovernorAuthority('mission-creator-missing')
 		}) as never);
 		expect(response.status).toBe(404);
 		const body = await response.json();
 		expect(body.error).toBe('creator mission trace not found');
+	});
+
+	it('blocks validation commands without Harness authority', async () => {
+		await createCreatorMission(
+			{ brief: 'Create Startup YC path', missionId: 'mission-creator-validate-no-authority', requestId: 'req-validate-no-authority' },
+			{
+				stateDir: tempDir,
+				runManifestPlanner: async () => ({
+					intent_packet: packet(),
+					artifact_manifests: [
+						{
+							schema_version: 'spark-artifact-manifest.v1',
+							artifact_id: 'startup-yc-creator-report-v1',
+							artifact_type: 'creator_report',
+							repo: tempDir,
+							inputs: ['creator-intent-startup-yc-validate'],
+							outputs: ['reports/creator-run-summary.json'],
+							validation_commands: ['python --version'],
+							promotion_gates: ['schema_gate', 'rollback_gate'],
+							rollback_plan: 'Delete generated reports.'
+						}
+					],
+					validation_issues: []
+				})
+			}
+		);
+
+		const response = await POST(event('http://127.0.0.1/api/creator/mission/validate', {
+			missionId: 'mission-creator-validate-no-authority'
+		}) as never);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
+		expect(validationCommandCalls).toBe(0);
+		const trace = await readCreatorMissionTrace({ missionId: 'mission-creator-validate-no-authority' }, tempDir);
+		expect(trace?.validation_runs).toHaveLength(0);
+	});
+
+	it('blocks bare VNext authority for validation commands', async () => {
+		await createCreatorMission(
+			{ brief: 'Create Startup YC path', missionId: 'mission-creator-validate-vnext', requestId: 'req-validate-vnext' },
+			{
+				stateDir: tempDir,
+				runManifestPlanner: async () => ({
+					intent_packet: packet(),
+					artifact_manifests: [
+						{
+							schema_version: 'spark-artifact-manifest.v1',
+							artifact_id: 'startup-yc-creator-report-v1',
+							artifact_type: 'creator_report',
+							repo: tempDir,
+							inputs: ['creator-intent-startup-yc-validate'],
+							outputs: ['reports/creator-run-summary.json'],
+							validation_commands: ['python --version'],
+							promotion_gates: ['schema_gate', 'rollback_gate'],
+							rollback_plan: 'Delete generated reports.'
+						}
+					],
+					validation_issues: []
+				})
+			}
+		);
+
+		const response = await POST(event('http://127.0.0.1/api/creator/mission/validate', {
+			missionId: 'mission-creator-validate-vnext',
+			executionAuthority: validationVNextAuthority('mission-creator-validate-vnext')
+		}) as never);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.source).toBe('turn_intent_vnext');
+		expect(body.authority.reasonCodes).toContain('native_governor_required');
+		expect(validationCommandCalls).toBe(0);
+		const trace = await readCreatorMissionTrace({ missionId: 'mission-creator-validate-vnext' }, tempDir);
+		expect(trace?.validation_runs).toHaveLength(0);
 	});
 });
