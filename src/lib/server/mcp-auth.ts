@@ -191,6 +191,9 @@ export function requireControlAuth(event: RequestEvent, options: ControlAuthOpti
 	);
 }
 
+let lastRateLimitCleanup = Date.now();
+const RATE_LIMIT_CLEANUP_INTERVAL = 60_000; // Cleanup every 60 seconds
+
 export function enforceRateLimit(event: RequestEvent, options: RateLimitOptions): Response | null {
 	const now = Date.now();
 	const identity = getClientIdentity(event);
@@ -212,6 +215,21 @@ export function enforceRateLimit(event: RequestEvent, options: RateLimitOptions)
 
 	active.push(now);
 	rateLimitBuckets.set(bucketKey, active);
+
+	// Security: Periodic cleanup to prevent memory exhaustion DoS
+	// Remove empty buckets and old entries to bound memory usage
+	if (now - lastRateLimitCleanup > RATE_LIMIT_CLEANUP_INTERVAL) {
+		lastRateLimitCleanup = now;
+		for (const [key, timestamps] of rateLimitBuckets.entries()) {
+			const validTimestamps = timestamps.filter((ts) => ts >= windowStart);
+			if (validTimestamps.length === 0) {
+				rateLimitBuckets.delete(key);
+			} else {
+				rateLimitBuckets.set(key, validTimestamps);
+			}
+		}
+	}
+
 	return null;
 }
 
