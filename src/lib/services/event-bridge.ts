@@ -65,6 +65,10 @@ class ClientEventBridge {
 	private subscribers: Set<EventCallback> = new Set();
 	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	private connectionStatus = writable<'disconnected' | 'connecting' | 'connected'>('disconnected');
+	private reconnectAttempt = 0;
+	private static readonly INITIAL_BACKOFF_MS = 3000;
+	private static readonly MAX_BACKOFF_MS = 30000;
+	private static readonly BACKOFF_MULTIPLIER = 2;
 
 	constructor() {
 		if (browser) {
@@ -92,6 +96,7 @@ class ClientEventBridge {
 			this.eventSource.onopen = () => {
 				logger.info('[EventBridge] Connected to event stream');
 				this.connectionStatus.set('connected');
+				this.reconnectAttempt = 0;
 			};
 
 			this.eventSource.onmessage = (event) => {
@@ -125,10 +130,17 @@ class ClientEventBridge {
 	private scheduleReconnect(): void {
 		if (this.reconnectTimer) return;
 
+		this.reconnectAttempt++;
+		const base = ClientEventBridge.INITIAL_BACKOFF_MS * Math.pow(ClientEventBridge.BACKOFF_MULTIPLIER, this.reconnectAttempt - 1);
+		const capped = Math.min(base, ClientEventBridge.MAX_BACKOFF_MS);
+		const jitter = capped * 0.1 * Math.random();
+		const delay = capped + jitter;
+
+		logger.info(`[EventBridge] Scheduling reconnect in ${Math.round(delay)}ms (attempt ${this.reconnectAttempt})`);
 		this.reconnectTimer = setTimeout(() => {
 			this.reconnectTimer = null;
 			this.connect();
-		}, 3000);
+		}, delay);
 	}
 
 	disconnect(): void {
