@@ -400,6 +400,14 @@ export const GET: RequestHandler = async (event) => {
 				}
 			});
 
+			// Security: If max subscribers reached, close connection gracefully
+			if (!unsubscribe) {
+				isClosed = true;
+				controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ type: 'error', message: 'Server at capacity, please retry later' })}\n\n`));
+				controller.close();
+				return;
+			}
+
 			// Handle client disconnect
 			request.signal.addEventListener('abort', () => {
 				unsubscribe();
