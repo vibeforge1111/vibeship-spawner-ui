@@ -60,12 +60,12 @@ export function logout(): void {
 /**
  * Get current auth status
  */
-export function getAuthStatus(): { authenticated: boolean; adminKey: string | null } {
+export function getAuthStatus(): { authenticated: boolean; adminKey: null } {
 	if (!browser) return { authenticated: false, adminKey: null };
 
 	const key = localStorage.getItem(AUTH_KEY);
 	return {
 		authenticated: key !== null,
-		adminKey: key
+		adminKey: null
 	};
 }
