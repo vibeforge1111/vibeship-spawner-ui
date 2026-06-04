@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { requireControlAuth, enforceRateLimit } from '$lib/server/mcp-auth';
 import {
 	buildAccuracyBuckets,
 	countFailureModes,
@@ -9,7 +10,11 @@ import {
 } from '$lib/services/memory-quality-aggregates';
 import { appendManualEvaluation } from '$lib/services/memory-quality-evaluations';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event);
+	if (unauthorized) return unauthorized;
+	enforceRateLimit(event);
+	const { request } = event;
 	const payload = await request.json().catch(() => ({}));
 	const result = await appendManualEvaluation(payload);
 	const status = result.errors ? 400 : 200;
