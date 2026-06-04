@@ -9,6 +9,10 @@
 	import ToastContainer from '$lib/components/ToastContainer.svelte';
 
 	let { children } = $props();
+	let isOffline = $state(false);
+
+	function handleOffline(): void { isOffline = true; }
+	function handleOnline(): void { isOffline = false; }
 
 	// Initialize app state and optional local sync on app load
 	onMount(async () => {
@@ -27,6 +31,14 @@
 		if (syncWsUrl) {
 			tryConnectSync(syncWsUrl);
 		}
+
+		// Network reachability: surface offline state in a banner instead
+		// of letting the operator see a generic "fetch failed" toast from
+		// each route's poller. navigator.onLine is the standard browser
+		// signal; online/offline events fire on transition.
+		isOffline = !navigator.onLine;
+		window.addEventListener('online', handleOnline);
+		window.addEventListener('offline', handleOffline);
 	});
 
 	// Try to connect WebSocket for real-time sync
@@ -44,6 +56,8 @@
 	onDestroy(() => {
 		if (browser) {
 			syncClient.disconnect();
+			window.removeEventListener('online', handleOnline);
+			window.removeEventListener('offline', handleOffline);
 		}
 	});
 </script>
@@ -56,6 +70,12 @@
 	<title>Spawner - Visual Orchestration for AI Skill Chains</title>
 	<meta name="description" content="Build AI workflows visually. Connect skills, validate with sharp edges, deploy anywhere." />
 </svelte:head>
+
+{#if isOffline}
+	<div role="status" aria-live="polite" class="sticky top-0 z-[60] w-full border-b border-status-warning/40 bg-status-warning-bg px-4 py-2 text-center font-mono text-xs text-status-warning">
+		You're offline. The spawner UI keeps working from local state, but live sync, fetches, and polling will retry when your network returns.
+	</div>
+{/if}
 
 {@render children()}
 <ToastContainer />
