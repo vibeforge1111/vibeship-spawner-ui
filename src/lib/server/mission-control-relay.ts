@@ -423,7 +423,11 @@ function recordRelayEvent(event: MissionControlBridgeEvent): void {
 	}
 	persistState();
 	recordAgentLedgerEvent(entry);
-	syncCreatorMissionTraceFromLifecycleEvent(event);
+	try {
+		syncCreatorMissionTraceFromLifecycleEvent(event);
+	} catch (err) {
+		console.error("[MissionRelay] syncCreatorMissionTraceFromLifecycleEvent failed:", err);
+	}
 }
 
 function recordAgentLedgerEvent(entry: MissionControlRelayStatusEntry): void {
