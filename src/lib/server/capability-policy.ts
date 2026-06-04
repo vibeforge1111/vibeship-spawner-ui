@@ -131,9 +131,9 @@ export function createCapabilityEnvelope(event: RequestEvent, input: CapabilityE
 		target: requiredText(input.target),
 		reason: requiredText(input.reason),
 		requestId: requiredText(input.requestId) || requiredText(event.request.headers.get('x-request-id')) || randomUUID(),
-		accessLevel: typeof input.accessLevel === 'number' && Number.isFinite(input.accessLevel)
-			? input.accessLevel
-			: requestActor.accessLevel,
+		// Security: accessLevel is always derived from actor identity, never from user input
+		// to prevent privilege escalation attacks
+		accessLevel: requestActor.accessLevel,
 		approvalId: requiredText(input.approvalId) || undefined
 	};
 }
