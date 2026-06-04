@@ -39,6 +39,20 @@ function redactSensitiveSnippet(text: string): string {
 }
 
 const TICK_MS = 30_000;
+// Cap how long a single _fire / _relayToTelegram fetch can hang before the
+// scheduler tick gives up. Without an AbortSignal a stalled spark/run or a
+// network-blackholed Telegram API holds the awaited tick indefinitely; the
+// next 30 s tick still fires (setInterval is not gated on the previous tick
+// resolving), so unfired schedule entries accumulate and the open socket
+// keeps a slow peer pinned to this process.
+const FIRE_FETCH_TIMEOUT_MS = 60_000;
+const RELAY_FETCH_TIMEOUT_MS = 15_000;
+
+function fetchWithTimeout(input: string, init: RequestInit | undefined, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(input, { ...(init ?? {}), signal: controller.signal }).finally(() => clearTimeout(timer));
+}
 
 function schedulesFile(): string {
   return path.resolve(spawnerStateDir(privateEnv), 'schedules.json');
@@ -212,7 +226,7 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
     const baseUrl = (_envVar('SPAWNER_UI_URL') || 'http://127.0.0.1:3333').replace(/\/$/, '');
     const requestedProjectPath =
       typeof record.payload.projectPath === 'string' ? record.payload.projectPath : undefined;
-    const res = await fetch(`${baseUrl}/api/spark/run`, {
+    const res = await fetchWithTimeout(`${baseUrl}/api/spark/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -222,7 +236,7 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
         requestId,
         projectPath: resolveSparkRunProjectPath(requestedProjectPath),
       }),
-    });
+    }, FIRE_FETCH_TIMEOUT_MS);
     if (!res.ok) {
       const detail = redactSensitiveSnippet(await responseTextSnippet(res, 200));
       return {
@@ -295,11 +309,11 @@ async function _relayToTelegram(record: ScheduleRecord, result: { ok: boolean; s
   }
   const text = `[sched ${record.id}] ${record.action} ${result.ok ? 'ok' : 'fail'}\n${result.summary}`;
   try {
-    const resp = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    const resp = await fetchWithTimeout(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: record.chatId, text }),
-    });
+    }, RELAY_FETCH_TIMEOUT_MS);
     const bodyText = await resp.text();
     if (resp.ok) {
       logger.info('[scheduler] relay', record.id, 'status', resp.status, 'body', bodyText.slice(0, 200));
