@@ -43,6 +43,13 @@ describe('sync-runtime coverage', () => {
 		expect(syncedPaths()).toContain('src/routes/missions/[id]/+page.svelte');
 	});
 
+	it('syncs creator mission authority consumers and execution entrypoints', () => {
+		expect(syncedPaths()).toContain('src/lib/server/creator-mission.ts');
+		expect(syncedPaths()).toContain('src/routes/api/creator/mission/+server.ts');
+		expect(syncedPaths()).toContain('src/routes/api/creator/mission/execute/+server.ts');
+		expect(syncedPaths()).toContain('src/routes/api/creator/mission/validate/+server.ts');
+	});
+
 	it('keeps the Spark run route and its direct runtime dependencies together', () => {
 		const paths = syncedPaths();
 		expect(paths).toContain('src/routes/api/spark/run/+server.ts');
