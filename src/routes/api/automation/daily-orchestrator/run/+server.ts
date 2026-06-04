@@ -52,10 +52,11 @@ export const POST: RequestHandler = async (event) => {
 			}
 		});
 	} catch (error) {
+		console.error('[DailyOrchestrator] Run failed:', error);
 		return json(
 			{
 				ok: false,
-				error: error instanceof Error ? error.message : 'Daily orchestrator run failed'
+				error: 'Internal error'
 			},
 			{ status: 500 }
 		);

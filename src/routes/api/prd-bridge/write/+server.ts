@@ -2000,8 +2000,9 @@ async function startAutoAnalysis(
 				});
 				void appendPrdTrace(requestId, 'auto_worker_error', {
 					...traceRefDetails(traceRef),
-					error: message
+					error: 'Auto worker failed'
 				});
+				console.error('[PRDBridge] Auto worker error:', error);
 			});
 
 		return {
@@ -2013,8 +2014,9 @@ async function startAutoAnalysis(
 		await appendPrdTrace(requestId, 'auto_start_failed', {
 			...traceRefDetails(traceRef),
 			provider: 'codex',
-			error: error instanceof Error ? error.message : String(error)
+			error: 'Auto start failed'
 		});
+		console.error('[PRDBridge] Auto start failed:', error);
 		return { started: false, provider: 'codex' };
 	}
 }

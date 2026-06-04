@@ -19,7 +19,8 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message ? error.message : fallback;
+  console.error('[Scheduled] Error:', error);
+  return fallback;
 }
 
 if (!building && process.env.NODE_ENV !== 'test') {

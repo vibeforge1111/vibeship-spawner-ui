@@ -49,10 +49,11 @@ export const POST: RequestHandler = async (event) => {
 			}
 		});
 	} catch (error) {
+		console.error('[SparkAgent] Failed to start session:', error);
 		return json(
 			{
 				success: false,
-				error: error instanceof Error ? error.message : 'Failed to start session'
+				error: 'Internal error'
 			},
 			{ status: 400 }
 		);

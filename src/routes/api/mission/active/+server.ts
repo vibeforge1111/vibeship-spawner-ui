@@ -247,7 +247,7 @@ export const GET: RequestHandler = async (event) => {
 		console.error('Failed to read active mission:', error);
 		return json({
 			active: false,
-			error: error instanceof Error ? error.message : 'Unknown error'
+			error: 'Internal error'
 		}, { status: 500 });
 	}
 };
@@ -322,7 +322,7 @@ export const POST: RequestHandler = async (event) => {
 		console.error('Failed to save active mission:', error);
 		return json({
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown error'
+			error: 'Internal error'
 		}, { status: 500 });
 	}
 };
@@ -351,7 +351,7 @@ export const DELETE: RequestHandler = async (event) => {
 		console.error('Failed to clear active mission:', error);
 		return json({
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown error'
+			error: 'Internal error'
 		}, { status: 500 });
 	}
 };

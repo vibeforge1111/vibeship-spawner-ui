@@ -147,7 +147,7 @@ export const POST: RequestHandler = async (event) => {
 			);
 		}
 		return json(
-			{ ok: false, error: error instanceof Error ? error.message : 'creator mission failed' },
+			{ ok: false, error: 'Internal error' },
 			{ status: 500 }
 		);
 	}

@@ -287,7 +287,7 @@ export const POST: RequestHandler = async (event) => {
 		}
 		log.error('Analysis API error:', error);
 		return json({
-			error: error instanceof Error ? error.message : 'Internal server error',
+			error: 'Internal error',
 			fallback: true
 		}, { status: 500 });
 	}

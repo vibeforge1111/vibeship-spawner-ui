@@ -110,10 +110,11 @@ export const POST: RequestHandler = async (event) => {
 			message: `Accepted ${accepted} sentinel actions`
 		});
 	} catch (error) {
+		console.error('[Sentinel] Dispatch failed:', error);
 		return json(
 			{
 				ok: false,
-				error: error instanceof Error ? error.message : 'Sentinel dispatch failed'
+				error: 'Internal error'
 			},
 			{ status: 500 }
 		);
