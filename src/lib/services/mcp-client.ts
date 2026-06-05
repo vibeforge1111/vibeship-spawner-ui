@@ -122,6 +122,7 @@ class McpClient {
 			headers['X-User-ID'] = this.config.userId;
 		}
 
+		// NOTE: This fetch() has no AbortController. Long-running servers can hang the request indefinitely. Add { signal: AbortSignal.timeout(30000) } to bound the wait.
 		const response = await fetch(this.config.baseUrl, {
 			method: 'POST',
 			headers,
