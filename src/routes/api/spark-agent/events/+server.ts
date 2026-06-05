@@ -39,6 +39,8 @@ export const GET: RequestHandler = async (event) => {
 		start(controller) {
 			const encoder = new TextEncoder();
 			let closed = false;
+			let keepaliveTimer: ReturnType<typeof setInterval> | null = null;
+
 			const push = (payload: unknown) => {
 				if (closed) return;
 				try {
@@ -62,8 +64,20 @@ export const GET: RequestHandler = async (event) => {
 				push(event);
 			});
 
+			// Send an SSE comment line every 15s so idle connections survive proxies
+			// that drop streams after 30-60s of inactivity (nginx, Cloudflare default).
+			keepaliveTimer = setInterval(() => {
+				if (closed) return;
+				try {
+					controller.enqueue(encoder.encode(': keepalive\n\n'));
+				} catch {
+					closed = true;
+				}
+			}, 15_000);
+
 			request.signal.addEventListener('abort', () => {
 				unsubscribe();
+				if (keepaliveTimer) clearInterval(keepaliveTimer);
 				if (!closed) {
 					closed = true;
 					try {
@@ -80,6 +94,7 @@ export const GET: RequestHandler = async (event) => {
 		headers: {
 			'Content-Type': 'text/event-stream',
 			'Cache-Control': 'no-cache',
+			'X-Accel-Buffering': 'no',
 			Connection: 'keep-alive'
 		}
 	});
