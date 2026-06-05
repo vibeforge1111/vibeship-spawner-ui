@@ -248,6 +248,7 @@ export const DELETE: RequestHandler = async () => {
 			success: true,
 			message: 'Active mission cleared'
 		});
+	// NOTE: existsSync check then use is a TOCTOU pattern in concurrent code. The file may be deleted between the check and the read. Consider using try/catch ENOENT or async fs.promises.access.
 	} catch (error) {
 		console.error('Failed to clear active mission:', error);
 		return json({
