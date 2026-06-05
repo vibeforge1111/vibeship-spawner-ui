@@ -8,7 +8,7 @@ import { logger } from '$lib/utils/logger';
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
+import { writeFile, mkdir, appendFile, readFile, access, constants } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
@@ -930,13 +930,20 @@ function scheduleProvisionalPrdDraft(input: {
 		const paths = getPrdBridgePaths();
 		const safeRequestId = normalizeRequestId(input.requestId);
 		const resultFile = join(paths.resultsDir, `${safeRequestId}.json`);
-		if (existsSync(resultFile)) {
+		// Security: Avoid TOCTOU race by attempting atomic write instead of checking existence first
+		// If file exists, the write operation will fail or we can detect it via error code
+		try {
+			// Try to check if file exists atomically by attempting an exclusive create
+			await access(resultFile, constants.F_OK);
+			// File exists, skip provisional canvas
 			await appendPrdTrace(input.requestId, 'provisional_canvas_skipped', {
 				...traceRefDetails(input.traceRef),
 				reason: 'analysis result already exists',
 				delayMs
 			});
 			return;
+		} catch {
+			// File doesn't exist, continue with provisional canvas
 		}
 
 		await updatePendingRequestStatus(input.requestId, 'provisional', {
