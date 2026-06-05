@@ -250,6 +250,7 @@ class ProviderRuntimeManager {
 		try {
 			const persistPath = getProviderResultsPath();
 			if (!existsSync(persistPath)) return new Map();
+			// NOTE: existsSync check then use is a TOCTOU pattern in concurrent code. The file may be deleted between the check and the read. Consider using try/catch ENOENT or async fs.promises.access.
 			const raw = readFileSync(persistPath, 'utf-8');
 			if (!raw.trim()) return new Map();
 			const parsed = JSON.parse(raw) as { missions?: Record<string, ProviderMissionResultSnapshot[]> };
