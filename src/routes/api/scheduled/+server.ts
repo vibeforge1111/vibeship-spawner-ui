@@ -8,6 +8,7 @@ import {
   startScheduler,
   type ScheduleAction,
 } from '$lib/server/scheduler';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -23,12 +24,19 @@ if (!building) {
   startScheduler();
 }
 
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async (event) => {
+  // Security: Require authentication to list schedules
+  const unauthorized = requireControlAuth(event, { surface: 'Scheduler', apiKeyEnvVar: 'MCP_API_KEY' });
+  if (unauthorized) return unauthorized;
   const schedules = await listSchedules();
   return json({ ok: true, schedules });
 };
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+  // Security: Require authentication to create schedules
+  const unauthorized = requireControlAuth(event, { surface: 'Scheduler', apiKeyEnvVar: 'MCP_API_KEY' });
+  if (unauthorized) return unauthorized;
+  const { request } = event;
   let body: Record<string, unknown>;
   try {
     body = asRecord(await request.json());
@@ -51,7 +59,11 @@ export const POST: RequestHandler = async ({ request }) => {
   }
 };
 
-export const DELETE: RequestHandler = async ({ request, url }) => {
+export const DELETE: RequestHandler = async (event) => {
+  // Security: Require authentication to delete schedules
+  const unauthorized = requireControlAuth(event, { surface: 'Scheduler', apiKeyEnvVar: 'MCP_API_KEY' });
+  if (unauthorized) return unauthorized;
+  const { request, url } = event;
   const id = url.searchParams.get('id') || '';
   if (!id) {
     let body: Record<string, unknown> = {};
