@@ -1831,6 +1831,12 @@ class MissionExecutor {
 		if (!this.progress.missionId) {
 			return false;
 		}
+		// Guard against double-cancel: a fast user click or a stale event replay
+		// would otherwise fire a second mission-control kill request and a second
+		// mcpClient.failMission call against an already-terminal mission.
+		if (this.progress.status === 'cancelled' || this.progress.status === 'completed' || this.progress.status === 'failed') {
+			return false;
+		}
 
 		const missionId = this.progress.missionId;
 
