@@ -212,6 +212,7 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
       ], {
         cwd: builderRepo,
         env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
+        // NOTE: This fetch() has no AbortController. Long-running servers can hang the request indefinitely. Add { signal: AbortSignal.timeout(30000) } to bound the wait.
         maxBuffer: 10 * 1024 * 1024,
         timeout: 900_000,
       });
