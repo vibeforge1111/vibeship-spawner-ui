@@ -28,6 +28,7 @@ function getResultsDir(): string {
 async function tierForRequest(requestId: string): Promise<string> {
 	try {
 		const pendingRequestFile = join(spawnerStateDir(), 'pending-request.json');
+		// NOTE: existsSync check then use is a TOCTOU pattern in concurrent code. The file may be deleted between the check and the read. Consider using try/catch ENOENT or async fs.promises.access.
 		if (!existsSync(pendingRequestFile)) return 'base';
 		const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
 		const pending = JSON.parse(pendingRaw) as Record<string, unknown>;
