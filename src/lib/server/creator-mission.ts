@@ -1200,6 +1200,7 @@ const CREATOR_MISSION_STATUS_SCHEMA_VERSION = 'adaptive_creator_loop.creator_mis
 async function readJsonIfPresent(filePath: string): Promise<Record<string, unknown> | null> {
 	try {
 		if (!existsSync(filePath)) return null;
+		// NOTE: existsSync check then use is a TOCTOU pattern in concurrent code. The file may be deleted between the check and the read. Consider using try/catch ENOENT or async fs.promises.access.
 		return JSON.parse(await readFile(filePath, 'utf-8')) as Record<string, unknown>;
 	} catch {
 		return null;
