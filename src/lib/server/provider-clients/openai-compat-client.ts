@@ -52,18 +52,28 @@ export async function executeOpenAICompatRequest(
 		}
 
 		try {
+			const requestBody: Record<string, unknown> = {
+				model: provider.model,
+				messages,
+				stream: streaming,
+				max_tokens: 16384
+			};
+			// OpenAI-compatible streaming responses omit token `usage` in the
+			// final chunk by default, which leaves Mission Control unable to
+			// record prompt/completion token counts for streamed missions. The
+			// official OpenAI client and Z.AI honor `stream_options.include_usage`
+			// to attach usage to the trailing chunk; ignored by clients that
+			// don't recognize the field, so it is safe across providers.
+			if (streaming) {
+				requestBody.stream_options = { include_usage: true };
+			}
 			const response = await fetch(`${baseUrl}/chat/completions`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 					...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
 				},
-				body: JSON.stringify({
-					model: provider.model,
-					messages,
-					stream: streaming,
-					max_tokens: 16384
-				}),
+				body: JSON.stringify(requestBody),
 				signal
 			});
 
