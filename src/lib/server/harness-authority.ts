@@ -322,7 +322,11 @@ export function buildServerGovernorDecisionAuthority(input: {
 	confidence?: number;
 	replyInstruction?: string;
 }): SparkServerGovernorDecisionV1 {
-	const envelope = buildServerTurnIntentVNextAuthority(input);
+	// Native Governor authority represents a final approved surface action; bare VNext remains non-final evidence.
+	const envelope = buildServerTurnIntentVNextAuthority({
+		...input,
+		actorKind: 'human'
+	});
 	return createHarnessCoreAuthorizedGovernorDecision({
 		envelope,
 		tool_name: input.toolName,
@@ -366,6 +370,16 @@ export function assertHarnessAuthority(input: HarnessAuthorityInput): HarnessAut
 }
 
 export function assertNativeGovernorHarnessAuthority(input: HarnessAuthorityInput): HarnessAuthorityVerdict {
+	if (isRecord(input.authority) && input.authority.schema_version === 'turn-intent-envelope-vnext') {
+		const rawTurnRef = isRecord(input.authority.raw_turn_ref) ? input.authority.raw_turn_ref : {};
+		const envelopeVerdict = turnIntentVNextVerdict(input.authority, input);
+		throw new HarnessAuthorityError(`${input.toolName} requires native GovernorDecisionV1 authority.`, {
+			allowed: false,
+			source: 'turn_intent_vnext',
+			reasonCodes: [...new Set(['native_governor_required', ...envelopeVerdict.reasonCodes])],
+			traceId: stringField(rawTurnRef.id) || stringField(input.authority.turn_id) || envelopeVerdict.traceId || undefined
+		});
+	}
 	const verdict = assertHarnessAuthority(input);
 	if (verdict.source !== 'governor_decision') {
 		throw new HarnessAuthorityError(`${input.toolName} requires native GovernorDecisionV1 authority.`, {
