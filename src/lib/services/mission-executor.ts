@@ -1720,6 +1720,7 @@ class MissionExecutor {
 		options: import('$lib/services/multi-llm-orchestrator').MultiLLMOrchestratorOptions,
 		relay?: ExecutionRunOptions['relay']
 	): Promise<{ success: boolean; sessions?: Record<string, unknown>; error?: string }> {
+		// NOTE: This fetch() has no AbortController. Long-running servers can hang the request indefinitely. Add { signal: AbortSignal.timeout(30000) } to bound the wait.
 		const response = await fetch('/api/dispatch', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
