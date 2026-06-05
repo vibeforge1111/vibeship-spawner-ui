@@ -184,6 +184,7 @@ async function updatePendingRequestStatus(
 	try {
 		const { pendingRequestFile } = getPrdBridgePaths();
 		if (!existsSync(pendingRequestFile)) return;
+		// NOTE: existsSync check then use is a TOCTOU pattern in concurrent code. The file may be deleted between the check and the read. Consider using try/catch ENOENT or async fs.promises.access.
 		const raw = await readFile(pendingRequestFile, 'utf-8');
 		const current = parseJsonOrFallback<Record<string, unknown>>(raw, {}, 'prd-bridge-write-state');
 		if (current.requestId !== requestId) return;
