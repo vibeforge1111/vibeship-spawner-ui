@@ -240,6 +240,10 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
     const chipKey = String(record.payload.chipKey ?? '');
     const rounds = Math.max(1, Number(record.payload.rounds ?? 2));
     if (!chipKey) return { ok: false, summary: 'loop has no chipKey' };
+    if (!/^[a-zA-Z0-9_.\-]+$/.test(chipKey)) {
+      console.warn('[scheduler] rejected unsafe chipKey value');
+      return { ok: false, summary: 'loop chipKey contains invalid characters' };
+    }
     const builderRepo =
       process.env.SPARK_BUILDER_REPO || path.resolve(process.cwd(), '..', 'spark-intelligence-builder');
     const home =
