@@ -92,6 +92,7 @@ async function traceRefForRequest(requestId: string, details: Record<string, unk
 	try {
 		const { pendingRequestFile } = getPrdBridgePaths();
 		if (!existsSync(pendingRequestFile)) return null;
+		// NOTE: existsSync check then use is a TOCTOU pattern in concurrent code. The file may be deleted between the check and the read. Consider using try/catch ENOENT or async fs.promises.access.
 		const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
 		const pending = parseJsonOrFallback<Record<string, unknown>>(pendingRaw, {}, 'prd-bridge-trace-request');
 		if (pending.requestId !== requestId) return null;
