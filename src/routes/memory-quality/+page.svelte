@@ -249,13 +249,13 @@
 				<form class="mt-3 space-y-3" onsubmit={(event) => { event.preventDefault(); submitEvaluation(); }}>
 					<label class="block text-xs text-text-secondary">
 						Query
-						<input class="input mt-1 text-sm" bind:value={form.query} />
+						<input class="input mt-1 text-base" bind:value={form.query} />
 						{#if errors.query}<span class="mt-1 block text-status-error">{errors.query}</span>{/if}
 					</label>
 
 					<label class="block text-xs text-text-secondary">
 						Source
-						<select class="input mt-1 text-sm" bind:value={form.source}>
+						<select class="input mt-1 text-base" bind:value={form.source}>
 							{#each MEMORY_SOURCES as source}
 								<option value={source}>{source}</option>
 							{/each}
@@ -266,7 +266,7 @@
 					<div class="grid grid-cols-2 gap-2">
 						<label class="block text-xs text-text-secondary">
 							Outcome
-							<select class="input mt-1 text-sm" bind:value={form.outcome}>
+							<select class="input mt-1 text-base" bind:value={form.outcome}>
 								{#each MEMORY_OUTCOMES as outcome}
 									<option value={outcome}>{outcome}</option>
 								{/each}
@@ -275,14 +275,14 @@
 						</label>
 						<label class="block text-xs text-text-secondary">
 							Latency
-							<input class="input mt-1 text-sm" type="number" min="0" bind:value={form.latencyMs} />
+							<input class="input mt-1 text-base" type="number" min="0" bind:value={form.latencyMs} />
 							{#if errors.latencyMs}<span class="mt-1 block text-status-error">{errors.latencyMs}</span>{/if}
 						</label>
 					</div>
 
 					<label class="block text-xs text-text-secondary">
 						Failure mode
-						<select class="input mt-1 text-sm" bind:value={form.failureMode}>
+						<select class="input mt-1 text-base" bind:value={form.failureMode}>
 							<option value="">none</option>
 							{#each MEMORY_FAILURE_MODES as mode}
 								<option value={mode}>{mode}</option>
@@ -293,7 +293,7 @@
 
 					<label class="block text-xs text-text-secondary">
 						Notes
-						<textarea class="input mt-1 min-h-20 text-sm" bind:value={form.notes}></textarea>
+						<textarea class="input mt-1 min-h-20 text-base" bind:value={form.notes}></textarea>
 					</label>
 
 					<button class="btn-primary btn-sm w-full" type="submit" disabled={submitting}>
