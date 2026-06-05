@@ -411,6 +411,7 @@ class MissionExecutor {
 				clearTimeout(this.fileSyncDebounceTimer);
 				this.fileSyncDebounceTimer = null;
 			}
+			// NOTE: This fetch() has no AbortController. Long-running servers can hang the request indefinitely. Add { signal: AbortSignal.timeout(30000) } to bound the wait.
 			await fetch('/api/mission/active', { method: 'DELETE' });
 			log.debug('File sync state cleared');
 		} catch (error) {
