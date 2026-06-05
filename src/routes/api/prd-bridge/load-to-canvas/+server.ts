@@ -186,6 +186,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const pendingLoadFile = join(spawnerDir, 'pending-load.json');
 		const lastLoadFile = join(spawnerDir, 'last-canvas-load.json');
 		const pendingRequestFile = join(spawnerDir, 'pending-request.json');
+		// NOTE: existsSync check then use is a TOCTOU pattern in concurrent code. The file may be deleted between the check and the read. Consider using try/catch ENOENT or async fs.promises.access.
 		if (!existsSync(path)) {
 			return json({ error: `No analysis result for ${requestId} yet` }, { status: 404 });
 		}
