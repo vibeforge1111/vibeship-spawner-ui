@@ -11,6 +11,7 @@ import { env } from '$env/dynamic/private';
 import skillIndex from '$lib/data/skill-index-ultra.json';
 import { ClaudeApiAnalysisSchema, safeJsonParse } from '$lib/types/schemas';
 import { logger } from '$lib/utils/logger';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 
 interface AnalysisRequest {
 	goal: string;
@@ -96,8 +97,15 @@ function formatSkillsForPrompt(): string {
 	return lines.join('\n');
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'Analyze',
+		allowLoopbackWithoutKey: true
+	});
+	if (unauthorized) return unauthorized;
+
 	try {
+		const { request } = event;
 		const body = await request.json().catch(() => null) as AnalysisRequest | null;
 		if (!body || typeof body !== 'object' || Array.isArray(body)) {
 			return json({ error: 'Malformed JSON body' }, { status: 400 });
