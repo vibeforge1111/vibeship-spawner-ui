@@ -19,7 +19,7 @@ interface SentinelActionEntry {
 }
 
 const recentSentinelActions: SentinelActionEntry[] = [];
-const MAX_SENTINEL_ACTIONS = 200;
+const MAX_SENTINEL_ACTIONS = 100;
 
 export const POST: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
