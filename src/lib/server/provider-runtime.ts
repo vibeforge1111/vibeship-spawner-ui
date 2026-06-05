@@ -30,6 +30,12 @@ import { eventBridge } from '$lib/services/event-bridge';
 import { mcpClient } from '$lib/services/mcp-client';
 import { agentWorkTimeoutMs } from './timeout-config';
 import { extractTraceRef } from './trace-ref';
+import {
+	assertNativeGovernorHarnessAuthority,
+	buildServerGovernorDecisionAuthority,
+	resolveExecutionAuthority,
+	type HarnessAuthorityVerdict
+} from './harness-authority';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
 import { readFile } from 'node:fs/promises';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
@@ -40,6 +46,7 @@ export interface DispatchOptions {
 	executionPack: MultiLLMExecutionPack;
 	apiKeys: Record<string, string>;
 	workingDirectory?: string;
+	executionAuthority?: unknown;
 	onEvent: (event: BridgeEvent) => void;
 }
 
@@ -48,12 +55,14 @@ export interface DispatchResult {
 	missionId: string;
 	sessions: Record<string, { status: ProviderSessionStatus; error?: string }>;
 	startedAt: string;
+	authority: HarnessAuthorityVerdict;
 }
 
 interface MissionDispatchSnapshot {
 	executionPack: MultiLLMExecutionPack;
 	apiKeys: Record<string, string>;
 	workingDirectory?: string;
+	executionAuthority?: unknown;
 }
 
 export interface ProviderMissionResultSnapshot {
@@ -353,7 +362,10 @@ class ProviderRuntimeManager {
 					const snapshot: MissionDispatchSnapshot = {
 						executionPack: state.multiLLMExecution,
 						apiKeys,
-						workingDirectory: undefined
+						workingDirectory: undefined,
+						executionAuthority: resolveExecutionAuthority(
+							(state.multiLLMExecution as unknown as Record<string, unknown>).executionAuthority
+						)
 					};
 					this.dispatchSnapshots.set(missionId, snapshot);
 					this.rememberStatusReason(missionId, 'Recovered dispatch snapshot from active mission state');
@@ -402,11 +414,22 @@ class ProviderRuntimeManager {
 		const missionId = extractMissionId(executionPack);
 		const startedAt = new Date().toISOString();
 		const sessionStatuses: DispatchResult['sessions'] = {};
+		const executionAuthority = resolveExecutionAuthority(
+			options.executionAuthority,
+			(executionPack as unknown as Record<string, unknown>).executionAuthority
+		);
+		const authority = assertNativeGovernorHarnessAuthority({
+			authority: executionAuthority,
+			toolName: 'spawner.dispatch',
+			ownerSystem: 'spawner-ui',
+			mutationClass: 'launches_mission'
+		});
 
 		this.dispatchSnapshots.set(missionId, {
 			executionPack,
 			apiKeys: { ...apiKeys },
-			workingDirectory
+			workingDirectory,
+			executionAuthority
 		});
 		this.pausedMissions.delete(missionId);
 		this.pausedReasons.delete(missionId);
@@ -420,7 +443,12 @@ class ProviderRuntimeManager {
 			message: `Dispatching to ${executionPack.providers.length} provider(s)`,
 			data: {
 				strategy: executionPack.strategy,
-				providers: executionPack.providers.map((p) => p.id)
+				providers: executionPack.providers.map((p) => p.id),
+				authority: {
+					source: authority.source,
+					traceId: authority.traceId,
+					governorOutcome: authority.governorOutcome
+				}
 			}
 		});
 
@@ -625,7 +653,8 @@ class ProviderRuntimeManager {
 			success: true,
 			missionId,
 			sessions: sessionStatuses,
-			startedAt
+			startedAt,
+			authority
 		};
 	}
 
@@ -903,7 +932,26 @@ class ProviderRuntimeManager {
 		return true;
 	}
 
-	async cancelMission(missionId: string, reason = 'Mission cancelled'): Promise<void> {
+	private assertMissionControlAuthority(executionAuthority: unknown): HarnessAuthorityVerdict {
+		return assertNativeGovernorHarnessAuthority({
+			authority: resolveExecutionAuthority(executionAuthority),
+			toolName: 'spawner.mission_control.command',
+			ownerSystem: 'spawner-ui',
+			mutationClass: 'controls_mission'
+		});
+	}
+
+	private buildResumeDispatchAuthority(missionId: string): unknown {
+		return buildServerGovernorDecisionAuthority({
+			source: 'provider-runtime.resume',
+			reason: 'Fresh mission-control resume authority reconstructed provider dispatch after runtime recovery.',
+			toolName: 'spawner.dispatch',
+			mutationClass: 'launches_mission',
+			target: missionId
+		});
+	}
+
+	private async cancelMissionAuthorized(missionId: string, reason = 'Mission cancelled'): Promise<void> {
 		for (const [key, session] of this.sessions) {
 			if (session.missionId === missionId && session.status === 'running') {
 				session.abortController.abort();
@@ -920,7 +968,13 @@ class ProviderRuntimeManager {
 		this.rememberStatusReason(missionId, reason);
 	}
 
-	async pauseMission(missionId: string): Promise<{ paused: boolean; reason?: string }> {
+	async cancelMission(missionId: string, reason = 'Mission cancelled', executionAuthority?: unknown): Promise<void> {
+		this.assertMissionControlAuthority(executionAuthority);
+		await this.cancelMissionAuthorized(missionId, reason);
+	}
+
+	async pauseMission(missionId: string, executionAuthority?: unknown): Promise<{ paused: boolean; reason?: string }> {
+		this.assertMissionControlAuthority(executionAuthority);
 		const running = this.getSessionsForMission(missionId).filter((s) => s.status === 'running');
 		if (running.length === 0) {
 			const knownMission =
@@ -956,15 +1010,17 @@ class ProviderRuntimeManager {
 
 		this.pausedMissions.add(missionId);
 		this.pausedReasons.set(missionId, 'Mission paused');
-		await this.cancelMission(missionId, 'Mission paused');
+		await this.cancelMissionAuthorized(missionId, 'Mission paused');
 		this.rememberStatusReason(missionId, 'Mission paused');
 		return { paused: true, reason: 'Mission paused' };
 	}
 
 	async resumeMission(
 		missionId: string,
-		onEvent: (event: BridgeEvent) => void = (event) => eventBridge.emit(event)
+		onEvent: (event: BridgeEvent) => void = (event) => eventBridge.emit(event),
+		executionAuthority?: unknown
 	): Promise<{ resumed: boolean; reason?: string }> {
+		this.assertMissionControlAuthority(executionAuthority);
 		if (!this.pausedMissions.has(missionId)) {
 			const reason = 'Mission is not paused.';
 			this.rememberStatusReason(missionId, reason);
@@ -992,6 +1048,7 @@ class ProviderRuntimeManager {
 			executionPack: snapshot.executionPack,
 			apiKeys: { ...snapshot.apiKeys },
 			workingDirectory: snapshot.workingDirectory,
+			executionAuthority: snapshot.executionAuthority ?? this.buildResumeDispatchAuthority(missionId),
 			onEvent
 		});
 		this.pausedMissions.delete(missionId);

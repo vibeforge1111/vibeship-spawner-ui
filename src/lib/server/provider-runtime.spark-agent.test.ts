@@ -4,6 +4,7 @@ import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { eventBridge, type BridgeEvent } from '$lib/services/event-bridge';
 import type { MultiLLMExecutionPack, MultiLLMProviderConfig } from '$lib/services/multi-llm-orchestrator';
 import { mcpClient, type Mission } from '$lib/services/mcp-client';
+import { buildServerGovernorDecisionAuthority } from './harness-authority';
 
 function provider(id: 'claude' | 'codex', model: string): MultiLLMProviderConfig {
 	return {
@@ -39,6 +40,26 @@ function buildPack(missionId: string, providers: MultiLLMProviderConfig[]): Mult
 	};
 }
 
+function dispatchAuthority() {
+	return buildServerGovernorDecisionAuthority({
+		source: 'provider-runtime-test',
+		reason: 'Focused ProviderRuntime dispatch authority regression.',
+		toolName: 'spawner.dispatch',
+		mutationClass: 'launches_mission',
+		target: 'provider-runtime-test'
+	});
+}
+
+function controlAuthority() {
+	return buildServerGovernorDecisionAuthority({
+		source: 'provider-runtime-test',
+		reason: 'Focused ProviderRuntime mission-control authority regression.',
+		toolName: 'spawner.mission_control.command',
+		mutationClass: 'controls_mission',
+		target: 'provider-runtime-test'
+	});
+}
+
 async function waitFor(fn: () => boolean, timeoutMs = 1500): Promise<void> {
 	const start = Date.now();
 	while (!fn()) {
@@ -61,7 +82,9 @@ afterEach(() => {
 	providerRuntime.cleanup('mission-step2-lifecycle');
 	providerRuntime.cleanup('mission-step2-activity');
 	providerRuntime.cleanup('mission-step2-response-failure');
+	providerRuntime.cleanup('mission-step2-blocked-success');
 	providerRuntime.cleanup('mission-step2-sandbox');
+	providerRuntime.cleanup('mission-step2-no-authority');
 });
 
 describe('provider-runtime Spark agent bridge', () => {
@@ -187,6 +210,7 @@ describe('provider-runtime Spark agent bridge', () => {
 		await providerRuntime.dispatch({
 			executionPack: pack,
 			apiKeys: { claude: 'test-claude', codex: 'test-codex' },
+			executionAuthority: dispatchAuthority(),
 			onEvent: () => {},
 			workingDirectory: process.cwd()
 		});
@@ -209,6 +233,17 @@ describe('provider-runtime Spark agent bridge', () => {
 		}
 	});
 
+	it('blocks direct provider dispatch without native Governor authority', async () => {
+		const pack = buildPack('mission-step2-no-authority', [provider('codex', 'gpt-5.5')]);
+
+		await expect(providerRuntime.dispatch({
+			executionPack: pack,
+			apiKeys: { codex: 'test-codex' },
+			onEvent: () => {},
+			workingDirectory: process.cwd()
+		})).rejects.toThrow('Execution requires Harness Core authority.');
+	});
+
 	it('passes explicit workspace-write sandboxing to Codex workers', async () => {
 		let observedCommandTemplate = '';
 		sparkAgentBridge.setWorkerExecutorForTests(async (context) => {
@@ -219,6 +254,7 @@ describe('provider-runtime Spark agent bridge', () => {
 		await providerRuntime.dispatch({
 			executionPack: buildPack('mission-step2-sandbox', [provider('codex', 'gpt-5.5')]),
 			apiKeys: { codex: 'test-codex' },
+			executionAuthority: dispatchAuthority(),
 			onEvent: () => {},
 			workingDirectory: process.cwd()
 		});
@@ -252,6 +288,7 @@ describe('provider-runtime Spark agent bridge', () => {
 		await providerRuntime.dispatch({
 			executionPack: pack,
 			apiKeys: { codex: 'test-codex' },
+			executionAuthority: dispatchAuthority(),
 			onEvent: (event) => emitted.push(event),
 			workingDirectory: process.cwd()
 		});
@@ -315,6 +352,7 @@ describe('provider-runtime Spark agent bridge', () => {
 		await providerRuntime.dispatch({
 			executionPack: pack,
 			apiKeys: { claude: 'test-claude', codex: 'test-codex' },
+			executionAuthority: dispatchAuthority(),
 			onEvent: () => {},
 			workingDirectory: process.cwd()
 		});
@@ -340,6 +378,7 @@ describe('provider-runtime Spark agent bridge', () => {
 		await providerRuntime.dispatch({
 			executionPack: buildPack('mission-step2-response-failure', [provider('codex', 'gpt-5.5')]),
 			apiKeys: { codex: 'test-codex' },
+			executionAuthority: dispatchAuthority(),
 			onEvent: () => {},
 			workingDirectory: process.cwd()
 		});
@@ -371,6 +410,7 @@ describe('provider-runtime Spark agent bridge', () => {
 		await providerRuntime.dispatch({
 			executionPack: buildPack('mission-step2-blocked-success', [provider('codex', 'gpt-5.5')]),
 			apiKeys: { codex: 'test-codex' },
+			executionAuthority: dispatchAuthority(),
 			onEvent: () => {},
 			workingDirectory: process.cwd()
 		});
@@ -409,12 +449,13 @@ describe('provider-runtime Spark agent bridge', () => {
 		await providerRuntime.dispatch({
 			executionPack: pack,
 			apiKeys: { claude: 'test-claude' },
+			executionAuthority: dispatchAuthority(),
 			onEvent: () => {},
 			workingDirectory: process.cwd()
 		});
 
 		await new Promise((r) => setTimeout(r, 50));
-		await providerRuntime.cancelMission('mission-step2-cancel');
+		await providerRuntime.cancelMission('mission-step2-cancel', 'Mission cancelled', controlAuthority());
 		await waitFor(() => providerRuntime.getMissionStatus('mission-step2-cancel').providers.claude === 'cancelled');
 
 		unsubscribe();
@@ -442,12 +483,13 @@ describe('provider-runtime Spark agent bridge', () => {
 		await providerRuntime.dispatch({
 			executionPack: pack,
 			apiKeys: { codex: 'test-codex' },
+			executionAuthority: dispatchAuthority(),
 			onEvent: (event) => emitted.push(event),
 			workingDirectory: process.cwd()
 		});
 
 		await new Promise((r) => setTimeout(r, 50));
-		const paused = await providerRuntime.pauseMission('mission-step2-pause');
+		const paused = await providerRuntime.pauseMission('mission-step2-pause', controlAuthority());
 		expect(paused.paused).toBe(true);
 		await waitFor(() => providerRuntime.getMissionStatus('mission-step2-pause').providers.codex === 'cancelled');
 
@@ -458,7 +500,19 @@ describe('provider-runtime Spark agent bridge', () => {
 		expect(emitted.some((event) => event.type === 'mission_cancelled')).toBe(false);
 	});
 
-	it('rebuilds dispatch snapshot from mission record when resuming a paused orphan mission', async () => {
+	it('blocks direct mission control mutations without native Governor authority', async () => {
+		await expect(providerRuntime.pauseMission('mission-step2-pause-no-authority')).rejects.toThrow(
+			'Execution requires Harness Core authority.'
+		);
+		await expect(providerRuntime.resumeMission('mission-step2-pause-no-authority')).rejects.toThrow(
+			'Execution requires Harness Core authority.'
+		);
+		await expect(providerRuntime.cancelMission('mission-step2-pause-no-authority')).rejects.toThrow(
+			'Execution requires Harness Core authority.'
+		);
+	});
+
+	it('rebuilds dispatch snapshot from mission record after fresh mission-control resume authority', async () => {
 		sparkAgentBridge.setWorkerExecutorForTests(async (context) => {
 			context.emitProgress(40, `${context.providerId} resumed`);
 			return { success: true, response: `${context.providerId}-resumed` };
@@ -507,14 +561,14 @@ describe('provider-runtime Spark agent bridge', () => {
 			}
 		});
 
-		const pauseResult = await providerRuntime.pauseMission('mission-step2-rebuild');
+		const pauseResult = await providerRuntime.pauseMission('mission-step2-rebuild', controlAuthority());
 		expect(pauseResult.paused).toBe(true);
 		const before = providerRuntime.getMissionStatus('mission-step2-rebuild');
 		expect(before.paused).toBe(true);
 		expect(before.snapshotAvailable).toBe(false);
 
 		const resumedEvents: BridgeEvent[] = [];
-		const resumed = await providerRuntime.resumeMission('mission-step2-rebuild', (event) => resumedEvents.push(event));
+		const resumed = await providerRuntime.resumeMission('mission-step2-rebuild', (event) => resumedEvents.push(event), controlAuthority());
 		expect(resumed.resumed).toBe(true);
 		expect(missionSpy).toHaveBeenCalledWith('mission-step2-rebuild');
 		expect(resumedEvents.some((event) => event.type === 'dispatch_started')).toBe(true);
@@ -535,6 +589,7 @@ describe('provider-runtime Spark agent bridge', () => {
 		await providerRuntime.dispatch({
 			executionPack: pack,
 			apiKeys: { codex: 'test-codex' },
+			executionAuthority: dispatchAuthority(),
 			onEvent: () => {},
 			workingDirectory: process.cwd()
 		});
@@ -573,6 +628,7 @@ describe('provider-runtime Spark agent bridge', () => {
 		await providerRuntime.dispatch({
 			executionPack: pack,
 			apiKeys: { codex: 'test-codex' },
+			executionAuthority: dispatchAuthority(),
 			onEvent: () => {},
 			workingDirectory: process.cwd()
 		});

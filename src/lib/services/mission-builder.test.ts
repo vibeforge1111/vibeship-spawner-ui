@@ -3,8 +3,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { buildMissionFromCanvas, validateForMission } from './mission-builder';
+import { buildMissionFromCanvas, generateExecutionPrompt, validateForMission } from './mission-builder';
 import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
+import type { Mission } from './mcp-client';
 
 // Helper to create test nodes
 function createNode(id: string, skillName: string = 'Test Skill'): CanvasNode {
@@ -120,5 +121,66 @@ describe('buildMissionFromCanvas', () => {
 		expect(skills).not.toContain('tailwind-css');
 		expect(skills).not.toContain('vite');
 		expect(skills).not.toContain('typescript-strict');
+	});
+});
+
+describe('generateExecutionPrompt', () => {
+	it('keeps MCP tool instructions behind an authority-bound bridge', () => {
+		const mission: Mission = {
+			id: 'mission-mcp-authority',
+			user_id: 'test-user',
+			name: 'MCP Authority Mission',
+			description: 'Validate governed MCP prompt wording',
+			mode: 'multi-llm-orchestrator',
+			status: 'ready',
+			agents: [],
+			tasks: [
+				{
+					id: 'task-1',
+					title: 'Use governed MCP context',
+					description: 'Inspect the available tool boundary.',
+					assignedTo: 'agent-1',
+					status: 'pending',
+					handoffType: 'sequential'
+				}
+			],
+			context: {
+				projectPath: 'C:\\Users\\USER\\Desktop\\mcp-authority-mission',
+				projectType: 'typescript',
+				goals: ['preserve MCP authority boundary']
+			},
+			current_task_id: null,
+			outputs: {},
+			error: null,
+			created_at: '2026-06-05T00:00:00.000Z',
+			updated_at: '2026-06-05T00:00:00.000Z',
+			started_at: null,
+			completed_at: null
+		};
+
+		const prompt = generateExecutionPrompt(mission, {
+			includeSkills: false,
+			baseUrl: 'http://127.0.0.1:3333',
+			mcpSnapshot: {
+				connected: true,
+				connectedCount: 1,
+				capabilities: ['custom'],
+				tools: [
+					{
+						instanceId: 'mcp-instance-1',
+						definitionId: 'spawner-h70',
+						mcpName: 'Spawner H70',
+						toolName: 'spawner_h70_skills',
+						description: 'Read H70 skills.',
+						capabilities: ['custom']
+					}
+				]
+			}
+		});
+
+		expect(prompt).toContain('Use MCP tools only through an authority-bound Spark Agent tool bridge');
+		expect(prompt).toContain('runtime-supplied `executionAuthority`');
+		expect(prompt).toContain('do not call `http://127.0.0.1:3333/api/mcp/call` with a bare payload');
+		expect(prompt).not.toContain('curl -X POST http://127.0.0.1:3333/api/mcp/call');
 	});
 });

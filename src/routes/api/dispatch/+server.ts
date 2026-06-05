@@ -89,8 +89,9 @@ export const POST: RequestHandler = async (event) => {
 				{ status: 400 }
 			);
 		}
+		const executionAuthority = resolveExecutionAuthority(body.executionAuthority, relay?.executionAuthority, executionPack.executionAuthority);
 		const authority = assertNativeGovernorHarnessAuthority({
-			authority: resolveExecutionAuthority(body.executionAuthority, relay?.executionAuthority, executionPack.executionAuthority),
+			authority: executionAuthority,
 			toolName: 'spawner.dispatch',
 			ownerSystem: 'spawner-ui',
 			mutationClass: 'launches_mission'
@@ -228,6 +229,7 @@ export const POST: RequestHandler = async (event) => {
 			executionPack,
 			apiKeys: mergedApiKeys,
 			workingDirectory,
+			executionAuthority,
 			onEvent: (evt) => {
 				eventBridge.emit(evt);
 				relayBridgeEvent(evt as unknown as Record<string, unknown>);
@@ -289,8 +291,20 @@ export const DELETE: RequestHandler = async (event) => {
 	if (!missionId) {
 		return json({ error: 'missionId query parameter required' }, { status: 400 });
 	}
+	const body = await event.request.json().catch(() => ({}));
+	const executionAuthority = resolveExecutionAuthority(
+		body && typeof body === 'object' ? (body as Record<string, unknown>).executionAuthority : undefined,
+		body && typeof body === 'object' ? (body as Record<string, unknown>).execution_authority : undefined
+	);
+	let authority;
 	let capability: CapabilityEnvelope;
 	try {
+		authority = assertNativeGovernorHarnessAuthority({
+			authority: executionAuthority,
+			toolName: 'spawner.mission_control.command',
+			ownerSystem: 'spawner-ui',
+			mutationClass: 'controls_mission'
+		});
 		capability = assertCapability(createCapabilityEnvelope(event, {
 			surface: 'spawner',
 			capability: 'mission.command',
@@ -301,9 +315,12 @@ export const DELETE: RequestHandler = async (event) => {
 		if (err instanceof CapabilityPolicyError) {
 			return json({ error: err.message, code: err.code }, { status: err.status });
 		}
+		if (err instanceof HarnessAuthorityError) {
+			return json({ error: err.message, code: err.code, authority: err.verdict }, { status: err.status });
+		}
 		throw err;
 	}
 
-	await providerRuntime.cancelMission(missionId);
-	return json({ success: true, missionId, audit: capability });
+	await providerRuntime.cancelMission(missionId, 'Mission cancelled', executionAuthority);
+	return json({ success: true, missionId, audit: capability, authority });
 };

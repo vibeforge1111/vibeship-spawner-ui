@@ -7,6 +7,7 @@ vi.mock('$lib/server/provider-runtime', () => ({
 			snapshotAvailable: false,
 			allComplete: false
 		})),
+		cancelMission: vi.fn(async () => undefined),
 		dispatch: vi.fn(async ({ executionPack }) => ({
 			success: true,
 			missionId: executionPack.missionId,
@@ -16,7 +17,7 @@ vi.mock('$lib/server/provider-runtime', () => ({
 	}
 }));
 
-import { POST } from './+server';
+import { DELETE, POST } from './+server';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import {
 	buildClientGovernorDecisionAuthority,
@@ -48,14 +49,14 @@ const executionPack = {
 	missionId: 'mission-authority-probe'
 };
 
-function event(body: unknown) {
+function event(body: unknown, method = 'POST', url = 'http://127.0.0.1:3333/api/dispatch') {
 	return {
-		request: new Request('http://127.0.0.1:3333/api/dispatch', {
-			method: 'POST',
+		request: new Request(url, {
+			method,
 			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify(body)
+			body: body === undefined ? undefined : JSON.stringify(body)
 		}),
-		url: new URL('http://127.0.0.1:3333/api/dispatch'),
+		url: new URL(url),
 		getClientAddress: () => '127.0.0.1'
 	};
 }
@@ -162,5 +163,50 @@ describe('/api/dispatch authority contract', () => {
 			governorOutcome: 'execute'
 		});
 		expect(dispatch).toHaveBeenCalledTimes(1);
+	});
+
+	it('blocks provider cancellation without native mission-control authority', async () => {
+		const cancelMission = vi.mocked(providerRuntime.cancelMission);
+		cancelMission.mockClear();
+
+		const response = await DELETE(event(
+			undefined,
+			'DELETE',
+			'http://127.0.0.1:3333/api/dispatch?missionId=mission-authority-probe'
+		) as never);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
+		expect(cancelMission).not.toHaveBeenCalled();
+	});
+
+	it('allows provider cancellation with native mission-control authority', async () => {
+		const cancelMission = vi.mocked(providerRuntime.cancelMission);
+		cancelMission.mockClear();
+		const executionAuthority = buildClientGovernorDecisionAuthority({
+			source: 'dispatch-cancel-authority-test',
+			reason: 'User cancelled provider dispatch from Spawner.',
+			toolName: 'spawner.mission_control.command',
+			mutationClass: 'controls_mission',
+			target: executionPack.missionId
+		});
+
+		const response = await DELETE(event(
+			{ executionAuthority },
+			'DELETE',
+			'http://127.0.0.1:3333/api/dispatch?missionId=mission-authority-probe'
+		) as never);
+
+		expect(response.status).toBe(200);
+		const body = await response.json();
+		expect(body.success).toBe(true);
+		expect(body.authority).toMatchObject({
+			allowed: true,
+			source: 'governor_decision',
+			governorOutcome: 'execute'
+		});
+		expect(cancelMission).toHaveBeenCalledWith('mission-authority-probe', 'Mission cancelled', executionAuthority);
 	});
 });

@@ -223,8 +223,9 @@ export const POST: RequestHandler = async (event) => {
 		if (!goal) {
 			return json({ success: false, error: 'goal is required' }, { status: 400 });
 		}
+		const executionAuthority = resolveExecutionAuthority(body.executionAuthority);
 		const authority = assertNativeGovernorHarnessAuthority({
-			authority: resolveExecutionAuthority(body.executionAuthority),
+			authority: executionAuthority,
 			toolName: 'spawner.run',
 			ownerSystem: 'spawner-ui',
 			mutationClass: 'launches_mission'
@@ -350,6 +351,7 @@ export const POST: RequestHandler = async (event) => {
 			executionPack,
 			apiKeys,
 			workingDirectory: body.promptMode === 'simple' ? undefined : mission.context.projectPath,
+			executionAuthority,
 			onEvent: (bridgeEvent) => {
 				const providerId = typeof bridgeEvent.source === 'string' ? bridgeEvent.source : null;
 				const relayEvent = {

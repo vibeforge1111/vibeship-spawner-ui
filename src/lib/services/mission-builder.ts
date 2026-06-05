@@ -618,12 +618,10 @@ export function generateExecutionPrompt(
 		mcpSection = `
 ## Connected MCP Tools
 
-The following MCP servers are connected and their tools are available during this mission.
-
-**To call an MCP tool:**
-\`\`\`bash
-curl -X POST ${eventUrl}/api/mcp/call -H "Content-Type: application/json" -d '{"instanceId":"INSTANCE_ID","toolName":"TOOL_NAME","args":{...}}'
-\`\`\`
+The following MCP servers are connected as governed capabilities for this mission.
+Use MCP tools only through an authority-bound Spark Agent tool bridge or a runtime-supplied \`executionAuthority\`.
+Do not invent, copy, or omit \`executionAuthority\`, and do not call \`${eventUrl}/api/mcp/call\` with a bare payload.
+If no authority-bound MCP bridge is available, report that MCP execution is unavailable and use the safest non-tool fallback.
 
 ${mcpEntries}
 `;

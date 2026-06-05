@@ -389,12 +389,13 @@ export async function autoDispatchPrdCanvasLoad(
 		if (!allowed.ok) {
 			return { started: false, skipped: true, reason: allowed.reason, missionId: load.missionId };
 		}
+		const executionAuthority = resolveExecutionAuthority(
+			load.executionAuthority,
+			load.relay?.executionAuthority,
+			load.metadata?.executionAuthority
+		);
 		const authority = assertNativeGovernorHarnessAuthority({
-			authority: resolveExecutionAuthority(
-				load.executionAuthority,
-				load.relay?.executionAuthority,
-				load.metadata?.executionAuthority
-			),
+			authority: executionAuthority,
 			toolName: 'spawner.dispatch',
 			ownerSystem: 'spawner-ui',
 			mutationClass: 'launches_mission'
@@ -523,6 +524,7 @@ export async function autoDispatchPrdCanvasLoad(
 			executionPack,
 			apiKeys,
 			workingDirectory: projectPath,
+			executionAuthority,
 			onEvent
 		});
 

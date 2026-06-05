@@ -174,7 +174,7 @@ export async function executeMissionControlAction(input: {
 	}
 
 	if (action === 'kill') {
-		await providerRuntime.cancelMission(missionId, 'Mission cancelled by user');
+		await providerRuntime.cancelMission(missionId, 'Mission cancelled by user', input.executionAuthority);
 		await syncActiveMissionFile(missionId, 'cancelled', 'Mission cancelled from mission control');
 		await syncMissionRecord(missionId, action, 'Mission cancelled from mission control');
 		const bridgeEvent = buildBridgeEvent(missionId, 'mission_cancelled', source);
@@ -193,7 +193,7 @@ export async function executeMissionControlAction(input: {
 	}
 
 	if (action === 'pause') {
-		const runtime = await providerRuntime.pauseMission(missionId);
+		const runtime = await providerRuntime.pauseMission(missionId, input.executionAuthority);
 		if (!runtime.paused) {
 			return {
 				ok: false,
@@ -210,7 +210,7 @@ export async function executeMissionControlAction(input: {
 		const runtime = await providerRuntime.resumeMission(missionId, (event) => {
 			eventBridge.emit(event);
 			void relayMissionControlEvent(event as unknown as MissionControlBridgeEvent);
-		});
+		}, input.executionAuthority);
 		if (!runtime.resumed) {
 			return {
 				ok: false,
