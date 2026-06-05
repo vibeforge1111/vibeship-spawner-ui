@@ -115,6 +115,7 @@ async function traceRefForRequest(requestId: string, details: Record<string, unk
 	try {
 		const pendingRequestFile = join(getSpawnerDir(), 'pending-request.json');
 		if (!existsSync(pendingRequestFile)) return null;
+		// NOTE: existsSync check then use is a TOCTOU pattern in concurrent code. The file may be deleted between the check and the read. Consider using try/catch ENOENT or async fs.promises.access.
 		const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
 		const pending = JSON.parse(pendingRaw) as Record<string, unknown>;
 		if (pending.requestId !== requestId) return null;
