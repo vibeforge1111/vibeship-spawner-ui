@@ -17,6 +17,7 @@ import { spawnerStateDir } from '$lib/server/spawner-state';
 import { extractTraceRef } from '$lib/server/trace-ref';
 import { logger } from '$lib/utils/logger';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
+import { env } from '$env/dynamic/private';
 
 import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
 import { join } from 'path';
@@ -25,13 +26,27 @@ import { existsSync } from 'fs';
 const EVENTS_AUTH_COOKIE = 'spawner_events_api_key';
 const log = logger.scope('EventBridge');
 
+function isWildcardOriginAllowed(): boolean {
+	const allowed = (env.EVENTS_ALLOWED_ORIGINS || '').split(',').map((s: string) => s.trim());
+	return allowed.includes('*') && (env.SPAWNER_ALLOW_WILDCARD_ORIGINS || '').trim() === '1';
+}
+
 function corsHeaders(request: Request): Record<string, string> {
 	const origin = request.headers.get('origin');
 	if (!origin) return {};
+	if (isWildcardOriginAllowed()) {
+		return {
+			'Access-Control-Allow-Origin': '*',
+			'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+			'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key, x-mcp-api-key',
+			Vary: 'Origin'
+		};
+	}
 	return {
 		'Access-Control-Allow-Origin': origin,
 		'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 		'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key, x-mcp-api-key',
+		'Access-Control-Allow-Credentials': 'true',
 		Vary: 'Origin'
 	};
 }
