@@ -6,6 +6,11 @@ import { GET as canvasState } from './canvas-state/+server';
 import { POST as endSession } from './session/end/+server';
 import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { getConnections } from '$lib/services/mcp/client';
+import {
+	buildClientGovernorDecisionAuthority,
+	buildClientTurnIntentVNextAuthority,
+	type SparkClientMutationClass
+} from '$lib/services/harness-authority-client';
 
 async function readChunk(response: Response, timeoutMs = 1000): Promise<string> {
 	if (!response.body) {
@@ -21,6 +26,38 @@ async function readChunk(response: Response, timeoutMs = 1000): Promise<string> 
 		return '';
 	}
 	return new TextDecoder().decode(result.value);
+}
+
+function commandAuthority(input: {
+	toolName: string;
+	mutationClass: SparkClientMutationClass;
+	target?: string;
+	externalNetwork?: boolean;
+}) {
+	return buildClientGovernorDecisionAuthority({
+		source: 'spark-agent.integration.test',
+		reason: `Focused Spark Agent authority regression for ${input.toolName}.`,
+		toolName: input.toolName,
+		mutationClass: input.mutationClass,
+		target: input.target,
+		externalNetwork: input.externalNetwork
+	});
+}
+
+function commandVNextAuthority(input: {
+	toolName: string;
+	mutationClass: SparkClientMutationClass;
+	target?: string;
+	externalNetwork?: boolean;
+}) {
+	return buildClientTurnIntentVNextAuthority({
+		source: 'spark-agent.integration.test',
+		reason: `Focused Spark Agent bare-VNext regression for ${input.toolName}.`,
+		toolName: input.toolName,
+		mutationClass: input.mutationClass,
+		target: input.target,
+		externalNetwork: input.externalNetwork
+	});
 }
 
 afterEach(() => {
@@ -63,6 +100,11 @@ describe('/api/spark-agent integration', () => {
 				body: JSON.stringify({
 					sessionId,
 					command: 'canvas.create_pipeline',
+					executionAuthority: commandAuthority({
+						toolName: 'spawner.spark_agent.canvas.create_pipeline',
+						mutationClass: 'controls_mission',
+						target: sessionId
+					}),
 					params: { name: 'Integration Pipeline' }
 				})
 			})
@@ -76,6 +118,11 @@ describe('/api/spark-agent integration', () => {
 				body: JSON.stringify({
 					sessionId,
 					command: 'canvas.add_skill',
+					executionAuthority: commandAuthority({
+						toolName: 'spawner.spark_agent.canvas.add_skill',
+						mutationClass: 'controls_mission',
+						target: sessionId
+					}),
 					params: {
 						nodeId: 'node-a',
 						skillId: 'planner',
@@ -94,6 +141,11 @@ describe('/api/spark-agent integration', () => {
 				body: JSON.stringify({
 					sessionId,
 					command: 'canvas.add_skill',
+					executionAuthority: commandAuthority({
+						toolName: 'spawner.spark_agent.canvas.add_skill',
+						mutationClass: 'controls_mission',
+						target: sessionId
+					}),
 					params: {
 						nodeId: 'node-b',
 						skillId: 'implementer',
@@ -112,6 +164,11 @@ describe('/api/spark-agent integration', () => {
 				body: JSON.stringify({
 					sessionId,
 					command: 'canvas.add_connection',
+					executionAuthority: commandAuthority({
+						toolName: 'spawner.spark_agent.canvas.add_connection',
+						mutationClass: 'controls_mission',
+						target: sessionId
+					}),
 					params: {
 						sourceNodeId: 'node-a',
 						targetNodeId: 'node-b'
@@ -128,6 +185,11 @@ describe('/api/spark-agent integration', () => {
 				body: JSON.stringify({
 					sessionId,
 					command: 'mission.build',
+					executionAuthority: commandAuthority({
+						toolName: 'spawner.spark_agent.mission.build',
+						mutationClass: 'launches_mission',
+						target: sessionId
+					}),
 					params: { name: 'Integration Mission' }
 				})
 			})
@@ -142,7 +204,12 @@ describe('/api/spark-agent integration', () => {
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					sessionId,
-					command: 'mission.start'
+					command: 'mission.start',
+					executionAuthority: commandAuthority({
+						toolName: 'spawner.spark_agent.mission.start',
+						mutationClass: 'controls_mission',
+						target: sessionId
+					})
 				})
 			})
 		} as never);
@@ -235,6 +302,11 @@ describe('/api/spark-agent integration', () => {
 				body: JSON.stringify({
 					sessionId,
 					command: 'canvas.create_pipeline',
+					executionAuthority: commandAuthority({
+						toolName: 'spawner.spark_agent.canvas.create_pipeline',
+						mutationClass: 'controls_mission',
+						target: sessionId
+					}),
 					params: {
 						pipelineId: 'pipe-live-sync',
 						name: 'Live Sync Pipeline'
@@ -250,6 +322,11 @@ describe('/api/spark-agent integration', () => {
 				body: JSON.stringify({
 					sessionId,
 					command: 'canvas.add_skill',
+					executionAuthority: commandAuthority({
+						toolName: 'spawner.spark_agent.canvas.add_skill',
+						mutationClass: 'controls_mission',
+						target: sessionId
+					}),
 					params: {
 						nodeId: 'node-tagged',
 						skillId: 'frontend-polish',
@@ -313,6 +390,12 @@ describe('/api/spark-agent integration', () => {
 				body: JSON.stringify({
 					sessionId,
 					command: 'worker.run',
+					executionAuthority: commandAuthority({
+						toolName: 'spawner.spark_agent.worker.run',
+						mutationClass: 'launches_mission',
+						target: 'mission-worker-events',
+						externalNetwork: true
+					}),
 					params: {
 						providerId: 'codex',
 						missionId: 'mission-worker-events',
@@ -372,6 +455,12 @@ describe('/api/spark-agent integration', () => {
 				body: JSON.stringify({
 					sessionId,
 					command: 'worker.run',
+					executionAuthority: commandAuthority({
+						toolName: 'spawner.spark_agent.worker.run',
+						mutationClass: 'launches_mission',
+						target: 'mission-worker-template',
+						externalNetwork: true
+					}),
 					params: {
 						providerId: 'codex',
 						missionId: 'mission-worker-template',
@@ -385,6 +474,85 @@ describe('/api/spark-agent integration', () => {
 
 		expect(runResponse.status).toBe(200);
 		expect(observedCommandTemplate).toBe('codex exec --model gpt-5.5 --sandbox workspace-write');
+	});
+
+	it('blocks worker.run without native Governor authority', async () => {
+		const executor = vi.fn(async () => ({ success: true, response: 'should-not-run' }));
+		sparkAgentBridge.setWorkerExecutorForTests(executor);
+
+		const startResponse = await startSession({
+			request: new Request('http://localhost/api/spark-agent/session/start', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ actor: 'worker-authority-test' })
+			})
+		} as never);
+		const sessionId = (await startResponse.json()).session.id as string;
+
+		const response = await command({
+			request: new Request('http://localhost/api/spark-agent/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					sessionId,
+					command: 'worker.run',
+					params: {
+						providerId: 'codex',
+						missionId: 'mission-worker-no-authority',
+						prompt: 'Do the work'
+					}
+				})
+			})
+		} as never);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
+		expect(executor).not.toHaveBeenCalled();
+	});
+
+	it('blocks worker.run with bare TurnIntentEnvelopeVNext authority', async () => {
+		const executor = vi.fn(async () => ({ success: true, response: 'should-not-run' }));
+		sparkAgentBridge.setWorkerExecutorForTests(executor);
+
+		const startResponse = await startSession({
+			request: new Request('http://localhost/api/spark-agent/session/start', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ actor: 'worker-vnext-test' })
+			})
+		} as never);
+		const sessionId = (await startResponse.json()).session.id as string;
+
+		const response = await command({
+			request: new Request('http://localhost/api/spark-agent/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					sessionId,
+					command: 'worker.run',
+					executionAuthority: commandVNextAuthority({
+						toolName: 'spawner.spark_agent.worker.run',
+						mutationClass: 'launches_mission',
+						target: 'mission-worker-vnext',
+						externalNetwork: true
+					}),
+					params: {
+						providerId: 'codex',
+						missionId: 'mission-worker-vnext',
+						prompt: 'Do the work'
+					}
+				})
+			})
+		} as never);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.source).toBe('turn_intent_vnext');
+		expect(body.authority.reasonCodes).toContain('native_governor_required');
+		expect(executor).not.toHaveBeenCalled();
 	});
 
 	it('rejects unsafe internal provider command templates before process execution', async () => {
@@ -461,6 +629,55 @@ describe('/api/spark-agent integration', () => {
 		expect(listBody.data.connected).toHaveLength(1);
 		expect(listBody.data.connected[0].instanceId).toBe('instance-owned');
 
+		const unauthorizedCallResponse = await command({
+			request: new Request('http://localhost/api/spark-agent/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					sessionId: sessionA,
+					command: 'mcp.call_tool',
+					params: {
+						instanceId: 'instance-owned',
+						toolName: 'ping',
+						args: { value: 1 }
+					}
+				})
+			})
+		} as never);
+		expect(unauthorizedCallResponse.status).toBe(409);
+		const unauthorizedCallBody = await unauthorizedCallResponse.json();
+		expect(unauthorizedCallBody.code).toBe('harness_authority_blocked');
+		expect(unauthorizedCallBody.authority.reasonCodes).toContain('missing_harness_authority');
+		expect(ownCallTool).not.toHaveBeenCalled();
+
+		const vnextCallResponse = await command({
+			request: new Request('http://localhost/api/spark-agent/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					sessionId: sessionA,
+					command: 'mcp.call_tool',
+					executionAuthority: commandVNextAuthority({
+						toolName: 'spawner.spark_agent.mcp.call_tool',
+						mutationClass: 'external_network',
+						target: 'instance-owned:ping',
+						externalNetwork: true
+					}),
+					params: {
+						instanceId: 'instance-owned',
+						toolName: 'ping',
+						args: { value: 1 }
+					}
+				})
+			})
+		} as never);
+		expect(vnextCallResponse.status).toBe(409);
+		const vnextCallBody = await vnextCallResponse.json();
+		expect(vnextCallBody.code).toBe('harness_authority_blocked');
+		expect(vnextCallBody.authority.source).toBe('turn_intent_vnext');
+		expect(vnextCallBody.authority.reasonCodes).toContain('native_governor_required');
+		expect(ownCallTool).not.toHaveBeenCalled();
+
 		const ownCallResponse = await command({
 			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
@@ -468,6 +685,12 @@ describe('/api/spark-agent integration', () => {
 				body: JSON.stringify({
 					sessionId: sessionA,
 					command: 'mcp.call_tool',
+					executionAuthority: commandAuthority({
+						toolName: 'spawner.spark_agent.mcp.call_tool',
+						mutationClass: 'external_network',
+						target: 'instance-owned:ping',
+						externalNetwork: true
+					}),
 					params: {
 						instanceId: 'instance-owned',
 						toolName: 'ping',
@@ -486,6 +709,12 @@ describe('/api/spark-agent integration', () => {
 				body: JSON.stringify({
 					sessionId: sessionA,
 					command: 'mcp.call_tool',
+					executionAuthority: commandAuthority({
+						toolName: 'spawner.spark_agent.mcp.call_tool',
+						mutationClass: 'external_network',
+						target: 'instance-foreign:ping',
+						externalNetwork: true
+					}),
 					params: {
 						instanceId: 'instance-foreign',
 						toolName: 'ping',
@@ -506,6 +735,12 @@ describe('/api/spark-agent integration', () => {
 				body: JSON.stringify({
 					sessionId: sessionA,
 					command: 'mcp.disconnect',
+					executionAuthority: commandAuthority({
+						toolName: 'spawner.spark_agent.mcp.disconnect',
+						mutationClass: 'external_network',
+						target: 'instance-foreign',
+						externalNetwork: true
+					}),
 					params: { instanceId: 'instance-foreign' }
 				})
 			})

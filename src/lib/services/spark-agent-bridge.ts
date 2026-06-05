@@ -26,6 +26,12 @@ import {
 	mcpCustomConfigAllowed,
 	type MCPClientConfig
 } from '$lib/services/mcp/client';
+import {
+	HarnessAuthorityError,
+	assertNativeGovernorHarnessAuthority,
+	resolveExecutionAuthority,
+	type SparkMutationClass
+} from '$lib/server/harness-authority';
 
 export type SparkAgentCommandName =
 	| 'canvas.create_pipeline'
@@ -116,6 +122,7 @@ export interface SparkAgentCommandInput {
 	params?: Record<string, unknown>;
 	requestId?: string;
 	actor?: string;
+	executionAuthority?: unknown;
 }
 
 export interface SparkAgentCommandResult {
@@ -202,6 +209,78 @@ export interface SparkAgentCanvasConnection {
 }
 
 type SparkAgentSubscriber = (event: SparkAgentBridgeEvent) => void;
+type SparkAgentCommandAuthorityPolicy = {
+	toolName: string;
+	mutationClass: SparkMutationClass;
+	externalNetwork?: boolean;
+};
+
+const SPARK_AGENT_MUTATING_COMMAND_AUTHORITY: Partial<
+	Record<SparkAgentCommandName, SparkAgentCommandAuthorityPolicy>
+> = {
+	'canvas.create_pipeline': {
+		toolName: 'spawner.spark_agent.canvas.create_pipeline',
+		mutationClass: 'controls_mission'
+	},
+	'canvas.add_skill': {
+		toolName: 'spawner.spark_agent.canvas.add_skill',
+		mutationClass: 'controls_mission'
+	},
+	'canvas.add_connection': {
+		toolName: 'spawner.spark_agent.canvas.add_connection',
+		mutationClass: 'controls_mission'
+	},
+	'mission.build': {
+		toolName: 'spawner.spark_agent.mission.build',
+		mutationClass: 'launches_mission'
+	},
+	'mission.start': {
+		toolName: 'spawner.spark_agent.mission.start',
+		mutationClass: 'controls_mission'
+	},
+	'mission.pause': {
+		toolName: 'spawner.spark_agent.mission.pause',
+		mutationClass: 'controls_mission'
+	},
+	'mission.resume': {
+		toolName: 'spawner.spark_agent.mission.resume',
+		mutationClass: 'controls_mission'
+	},
+	'mission.stop': {
+		toolName: 'spawner.spark_agent.mission.stop',
+		mutationClass: 'controls_mission'
+	},
+	'mcp.connect': {
+		toolName: 'spawner.spark_agent.mcp.connect',
+		mutationClass: 'external_network',
+		externalNetwork: true
+	},
+	'mcp.call_tool': {
+		toolName: 'spawner.spark_agent.mcp.call_tool',
+		mutationClass: 'external_network',
+		externalNetwork: true
+	},
+	'mcp.disconnect': {
+		toolName: 'spawner.spark_agent.mcp.disconnect',
+		mutationClass: 'external_network',
+		externalNetwork: true
+	},
+	'worker.run': {
+		toolName: 'spawner.spark_agent.worker.run',
+		mutationClass: 'launches_mission',
+		externalNetwork: true
+	},
+	'worker.cancel': {
+		toolName: 'spawner.spark_agent.worker.cancel',
+		mutationClass: 'controls_mission'
+	}
+};
+
+export function sparkAgentCommandAuthorityPolicy(
+	command: SparkAgentCommandName
+): SparkAgentCommandAuthorityPolicy | null {
+	return SPARK_AGENT_MUTATING_COMMAND_AUTHORITY[command] || null;
+}
 
 const MAX_SESSION_EVENTS = 500;
 const CANCELLED_ERROR = 'Cancelled';
@@ -710,6 +789,32 @@ class SparkAgentBridgeService {
 		}
 
 		const actor = input.actor || 'unknown';
+		const authorityPolicy = sparkAgentCommandAuthorityPolicy(input.command);
+		if (authorityPolicy) {
+			const authority = assertNativeGovernorHarnessAuthority({
+				authority: resolveExecutionAuthority(
+					input.executionAuthority,
+					input.params?.executionAuthority,
+					input.params?.execution_authority
+				),
+				toolName: authorityPolicy.toolName,
+				ownerSystem: 'spawner-ui',
+				mutationClass: authorityPolicy.mutationClass,
+				requestId: input.requestId,
+				externalNetwork: authorityPolicy.externalNetwork
+			});
+			this.emitEvent(input.sessionId, 'spark_agent.command.authorized', {
+				command: input.command,
+				actor,
+				requestId: input.requestId || null,
+				authority: {
+					source: authority.source,
+					reasonCodes: authority.reasonCodes,
+					traceId: authority.traceId,
+					governorOutcome: authority.governorOutcome
+				}
+			});
+		}
 		session.commandCount += 1;
 		session.updatedAt = nowIso();
 		session.actor = actor;
@@ -736,6 +841,9 @@ class SparkAgentBridgeService {
 				data
 			};
 		} catch (error) {
+			if (error instanceof HarnessAuthorityError) {
+				throw error;
+			}
 			const message = error instanceof Error ? error.message : 'Command failed';
 			this.emitEvent(input.sessionId, 'spark_agent.command.failed', {
 				command: input.command,

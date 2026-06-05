@@ -6,6 +6,7 @@ import {
 	type SparkAgentCommandName
 } from '$lib/services/spark-agent-bridge';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
+import { HarnessAuthorityError, resolveExecutionAuthority } from '$lib/server/harness-authority';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -68,6 +69,12 @@ export const POST: RequestHandler = async (event) => {
 			sessionId,
 			command,
 			params: isRecord(body.params) ? body.params : {},
+			executionAuthority: resolveExecutionAuthority(
+				body.executionAuthority,
+				body.execution_authority,
+				isRecord(body.params) ? body.params.executionAuthority : undefined,
+				isRecord(body.params) ? body.params.execution_authority : undefined
+			),
 			requestId: typeof body.requestId === 'string' ? body.requestId : undefined,
 			actor:
 				(typeof body.actor === 'string' && body.actor) ||
@@ -96,6 +103,17 @@ export const POST: RequestHandler = async (event) => {
 			{ status: result.ok ? 200 : 400 }
 		);
 	} catch (error) {
+		if (error instanceof HarnessAuthorityError) {
+			return json(
+				{
+					success: false,
+					error: error.message,
+					code: error.code,
+					authority: error.verdict
+				},
+				{ status: error.status }
+			);
+		}
 		return json(
 			{
 				success: false,

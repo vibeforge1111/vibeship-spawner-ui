@@ -20,6 +20,10 @@ vi.mock('$lib/services/mcp/client', async (importOriginal) => {
 
 import { POST } from './+server';
 import { connectMCP } from '$lib/services/mcp/client';
+import {
+	buildClientGovernorDecisionAuthority,
+	buildClientTurnIntentVNextAuthority
+} from '$lib/services/harness-authority-client';
 
 function event(body: unknown) {
 	return {
@@ -31,6 +35,17 @@ function event(body: unknown) {
 		url: new URL('http://127.0.0.1/api/mcp'),
 		getClientAddress: () => '127.0.0.1'
 	};
+}
+
+function connectAuthority() {
+	return buildClientGovernorDecisionAuthority({
+		source: 'mcp.integration.test',
+		reason: 'Focused MCP connect authority regression.',
+		toolName: 'spawner.mcp.connect',
+		mutationClass: 'external_network',
+		target: 'filesystem',
+		externalNetwork: true
+	});
 }
 
 describe('/api/mcp', () => {
@@ -73,7 +88,8 @@ describe('/api/mcp', () => {
 	it('still allows preconfigured MCP ids without custom package input', async () => {
 		const response = await POST(event({
 			instanceId: 'filesystem',
-			mcpId: 'filesystem'
+			mcpId: 'filesystem',
+			executionAuthority: connectAuthority()
 		}) as never);
 
 		expect(response.status).toBe(200);
@@ -81,5 +97,40 @@ describe('/api/mcp', () => {
 			'filesystem',
 			expect.objectContaining({ command: 'npx' })
 		);
+	});
+
+	it('blocks preconfigured MCP connect without Harness Core authority', async () => {
+		const response = await POST(event({
+			instanceId: 'filesystem',
+			mcpId: 'filesystem'
+		}) as never);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
+		expect(connectMCP).not.toHaveBeenCalled();
+	});
+
+	it('blocks preconfigured MCP connect with bare TurnIntentEnvelopeVNext authority', async () => {
+		const response = await POST(event({
+			instanceId: 'filesystem',
+			mcpId: 'filesystem',
+			executionAuthority: buildClientTurnIntentVNextAuthority({
+				source: 'mcp.integration.test',
+				reason: 'Focused MCP connect bare-VNext regression.',
+				toolName: 'spawner.mcp.connect',
+				mutationClass: 'external_network',
+				target: 'filesystem',
+				externalNetwork: true
+			})
+		}) as never);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.source).toBe('turn_intent_vnext');
+		expect(body.authority.reasonCodes).toContain('native_governor_required');
+		expect(connectMCP).not.toHaveBeenCalled();
 	});
 });

@@ -26,6 +26,7 @@ import {
 	type MCPClientConfig,
 } from '$lib/services/mcp/client';
 import { requireMcpAuth } from '$lib/server/mcp-auth';
+import { HarnessAuthorityError, assertNativeGovernorHarnessAuthority, resolveExecutionAuthority } from '$lib/server/harness-authority';
 
 /**
  * POST - Connect to an MCP server
@@ -88,6 +89,15 @@ export const POST: RequestHandler = async (event) => {
 			return json({ error: 'Cannot determine how to connect. Provide mcpId with npmPackage, or explicit command/args.' }, { status: 400 });
 		}
 
+		const authority = assertNativeGovernorHarnessAuthority({
+			authority: resolveExecutionAuthority(body.executionAuthority, body.execution_authority),
+			toolName: 'spawner.mcp.connect',
+			ownerSystem: 'spawner-ui',
+			mutationClass: 'external_network',
+			requestId: typeof body.requestId === 'string' ? body.requestId : undefined,
+			externalNetwork: true
+		});
+
 		logger.info(`[API] Connecting MCP: ${instanceId} (${mcpConfig.command} ${mcpConfig.args?.join(' ') || ''})`);
 
 		const connection = await connectMCP(instanceId, mcpConfig);
@@ -95,6 +105,12 @@ export const POST: RequestHandler = async (event) => {
 		return json({
 			success: true,
 			instanceId,
+			authority: {
+				allowed: authority.allowed,
+				source: authority.source,
+				traceId: authority.traceId,
+				governorOutcome: authority.governorOutcome
+			},
 			serverInfo: connection.serverInfo,
 			tools: connection.tools.map((t) => ({
 				name: t.name,
@@ -103,6 +119,16 @@ export const POST: RequestHandler = async (event) => {
 			})),
 		});
 	} catch (error) {
+		if (error instanceof HarnessAuthorityError) {
+			return json(
+				{
+					error: error.message,
+					code: error.code,
+					authority: error.verdict
+				},
+				{ status: error.status }
+			);
+		}
 		console.error('[API] MCP connection error:', error);
 		return json(
 			{
@@ -131,10 +157,38 @@ export const DELETE: RequestHandler = async (event) => {
 			return json({ error: 'instanceId is required' }, { status: 400 });
 		}
 
+		const authority = assertNativeGovernorHarnessAuthority({
+			authority: resolveExecutionAuthority(body.executionAuthority, body.execution_authority),
+			toolName: 'spawner.mcp.disconnect',
+			ownerSystem: 'spawner-ui',
+			mutationClass: 'external_network',
+			requestId: typeof body.requestId === 'string' ? body.requestId : undefined,
+			externalNetwork: true
+		});
+
 		await disconnectMCP(instanceId);
 
-		return json({ success: true, instanceId });
+		return json({
+			success: true,
+			instanceId,
+			authority: {
+				allowed: authority.allowed,
+				source: authority.source,
+				traceId: authority.traceId,
+				governorOutcome: authority.governorOutcome
+			}
+		});
 	} catch (error) {
+		if (error instanceof HarnessAuthorityError) {
+			return json(
+				{
+					error: error.message,
+					code: error.code,
+					authority: error.verdict
+				},
+				{ status: error.status }
+			);
+		}
 		console.error('[API] MCP disconnect error:', error);
 		return json(
 			{
