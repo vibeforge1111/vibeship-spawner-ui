@@ -108,17 +108,9 @@ function summarizeStoredResult(requestId: string, result: Record<string, unknown
 /**
  * POST - Store an analysis result
  */
-export const POST: RequestHandler = async (event) => {
-	const unauthorized = requireControlAuth(event, {
-		surface: 'PRDBridgeResult',
-		apiKeyEnvVar: 'EVENTS_API_KEY',
-		fallbackApiKeyEnvVar: 'MCP_API_KEY',
-		apiKeyQueryParam: 'apiKey',
-		apiKeyCookieName: 'spawner_events_api_key',
-		allowLoopbackWithoutKey: false,
-		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
-	});
-	if (unauthorized) return unauthorized;
+export const POST: RequestHandler = async ({ request }) => {
+	const authError = await requireControlAuth(request);
+	if (authError) return authError;
 
 	try {
 		const { request } = event;
@@ -229,9 +221,9 @@ export const POST: RequestHandler = async (event) => {
 /**
  * GET - Retrieve an analysis result by requestId
  */
-export const GET: RequestHandler = async (event) => {
-	const { openRead, hasControlAuth } = resultReadAuthPayload(event);
-	if (openRead) return openRead;
+export const GET: RequestHandler = async ({ request, url }) => {
+	const authError = await requireControlAuth(request);
+	if (authError) return authError;
 
 	try {
 		const { url } = event;
