@@ -421,4 +421,56 @@ describe('mission-control-trace', () => {
 		expect(trace.summary).toContain('Mission cancelled');
 		expect(trace.surfaces.kanban.bucket).toBe('cancelled');
 	});
+
+	it('refuses a path-traversal requestId instead of reading an arbitrary .json file', async () => {
+		const stateDir = await makeStateDir();
+
+		// Sentinel JSON placed OUTSIDE the results directory (sibling of the state dir),
+		// imitating any arbitrary on-disk *.json a traversal payload could target.
+		const sentinelDir = await mkdtemp(path.join(tmpdir(), 'spawner-trace-sentinel-'));
+		const sentinelPath = path.join(sentinelDir, 'SENTINEL.json');
+		await writeJson(sentinelPath, { secret: 'SENTINEL_SHOULD_NOT_LEAK' });
+
+		// Relative traversal from <stateDir>/results back up to the sentinel file
+		// (drop the trailing `.json` the loader appends).
+		const relativeFromResults = path
+			.relative(path.join(stateDir, 'results'), sentinelPath)
+			.replace(/\.json$/, '');
+
+		for (const requestId of [relativeFromResults, '../SENTINEL', '../../../../etc/hosts']) {
+			const trace = await buildMissionControlTrace({
+				requestId,
+				getProviderResults: () => []
+			});
+
+			expect(trace.artifacts.analysisResult).toBeNull();
+			expect(JSON.stringify(trace)).not.toContain('SENTINEL_SHOULD_NOT_LEAK');
+		}
+	});
+
+	it('still resolves a normal requestId to its results json after the safety check', async () => {
+		const stateDir = await makeStateDir();
+		const requestId = 'tg-unit-safe-1777371000099';
+		const missionId = 'mission-1777371000099';
+
+		await writeJson(path.join(stateDir, 'pending-request.json'), {
+			requestId,
+			relay: { missionId, requestId }
+		});
+		await writeJson(path.join(stateDir, 'results', `${requestId}.json`), {
+			requestId,
+			success: true,
+			projectName: 'Safe Trace'
+		});
+
+		const trace = await buildMissionControlTrace({
+			requestId,
+			getProviderResults: () => []
+		});
+
+		expect(trace.artifacts.analysisResult).toMatchObject({
+			requestId,
+			projectName: 'Safe Trace'
+		});
+	});
 });
