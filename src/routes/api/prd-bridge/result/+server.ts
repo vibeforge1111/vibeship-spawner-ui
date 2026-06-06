@@ -10,12 +10,13 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { readFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
 import { projectStoredPrdAnalysisResultForTier } from '$lib/server/prd-analysis-result-schema';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { writeFileAtomic } from '$lib/server/atomic-write';
 import { logger } from '$lib/utils/logger';
 
 const log = logger.scope('PRDBridge');
@@ -58,9 +59,12 @@ export const POST: RequestHandler = async ({ request }) => {
 			await mkdir(resultsDir, { recursive: true });
 		}
 
-		// Write result to file
+		// Write result to file via temp+rename so a crash mid-write (process kill, OOM,
+		// container restart) cannot leave the result file as a truncated buffer that the
+		// GET handler below would then JSON.parse and throw on. Sister precedent #379
+		// applied the same hardening to claude-auto-analysis; #380 to h70-skill-access-token.
 		const resultFile = resolveWithinBaseDir(resultsDir, `${requestId}.json`);
-		await writeFile(resultFile, JSON.stringify(storedResult, null, 2), 'utf-8');
+		await writeFileAtomic(resultFile, JSON.stringify(storedResult, null, 2));
 
 		log.info(`Stored result for: ${requestId}`);
 		return json({ success: true, requestId });
