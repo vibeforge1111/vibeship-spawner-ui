@@ -214,67 +214,9 @@ function buildConnections(tasks: TaskRecord[]): Array<{ sourceIndex: number; tar
 	return conns;
 }
 
-function canvasMaterializationSummary(nodes: ReturnType<typeof taskToNode>[]) {
-	const pairedNodeCount = nodes.filter((node) => node.skill.skillChain.length > 0).length;
-	const skillCount = new Set(nodes.flatMap((node) => node.skill.skillChain)).size;
-	return {
-		materialized: true,
-		nodeCount: nodes.length,
-		pairedNodeCount,
-		skillCount,
-		pairingStatus: nodes.length === 0 || pairedNodeCount === 0
-			? 'missing'
-			: pairedNodeCount === nodes.length
-				? 'complete'
-				: 'partial'
-	};
-}
-
-function boardPathForMission(missionId: string): string {
-	return `/kanban?mission=${encodeURIComponent(missionId)}`;
-}
-
-function canvasPathForPipeline(pipelineId: string, missionId: string): string {
-	return `/canvas?pipeline=${encodeURIComponent(pipelineId)}&mission=${encodeURIComponent(missionId)}`;
-}
-
-function workflowHandoffFromDispatch(input: {
-	canvasReadyForHandoff: boolean;
-	canvasUrl: string;
-	autoDispatchResult: Awaited<ReturnType<typeof autoDispatchPrdCanvasLoad>>;
-}) {
-	if (!input.canvasReadyForHandoff) {
-		return {
-			status: 'withheld',
-			reason: 'canvas_handoff_requires_materialized_nodes_and_complete_skill_pairings',
-			canvasUrl: null
-		};
-	}
-	if (input.autoDispatchResult.started) {
-		return {
-			status: 'ready',
-			reason: 'canvas_nodes_skill_pairings_and_workflow_execution_created',
-			canvasUrl: input.canvasUrl
-		};
-	}
-	return {
-		status: 'withheld',
-		reason: input.autoDispatchResult.error || input.autoDispatchResult.reason || 'workflow_execution_was_not_created',
-		canvasUrl: null
-	};
-}
-
-export const POST: RequestHandler = async (event) => {
-	const unauthorized = requireControlAuth(event, {
-		surface: 'PRDBridgeLoadToCanvas',
-		apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
-		fallbackApiKeyEnvVars: ['EVENTS_API_KEY', 'MCP_API_KEY'],
-		apiKeyQueryParam: 'apiKey',
-		apiKeyCookieName: 'spawner_events_api_key',
-		allowLoopbackWithoutKey: false,
-		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
-	});
-	if (unauthorized) return unauthorized;
+export const POST: RequestHandler = async ({ request }) => {
+	const authError = await requireControlAuth(request);
+	if (authError) return authError;
 
 	try {
 		const { request } = event;
