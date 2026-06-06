@@ -425,12 +425,28 @@ async function waitForSparkTask(input: {
 		}
 	};
 
+	let consecutivePollFailures = 0;
+	const MAX_CONSECUTIVE_POLL_FAILURES = 3;
 	while (Date.now() - startedAt < DEFAULT_TIMEOUT_MS) {
 		if (signal?.aborted) {
 			return { success: false, error: 'Cancelled', durationMs: Date.now() - startedAt };
 		}
 
-		const status = await getSparkTaskStatus(baseUrl, taskId, signal);
+		let status: SparkTaskStatus;
+		try {
+			status = await getSparkTaskStatus(baseUrl, taskId, signal);
+			consecutivePollFailures = 0;
+		} catch (err) {
+			if (signal?.aborted) {
+				return { success: false, error: 'Cancelled', durationMs: Date.now() - startedAt };
+			}
+			consecutivePollFailures += 1;
+			if (consecutivePollFailures >= MAX_CONSECUTIVE_POLL_FAILURES) {
+				throw err;
+			}
+			await sleep(POLL_INTERVAL_MS, signal);
+			continue;
+		}
 		const state = (status.status || 'unknown').toLowerCase();
 		if (state !== 'completed') {
 			syncVisualTaskProgress(progress, state);
