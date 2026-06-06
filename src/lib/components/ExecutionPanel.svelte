@@ -131,7 +131,7 @@
 			'All launch gates green (health, security, docs, observability, support readiness)',
 			'Clear launch story + distribution plan',
 			'Rollback plan + incident readiness'
-		].join('\\n')
+		].join('\n')
 	);
 	let defaultsLoaded = $state(false);
 	const defaultMultiLLMOptions = createDefaultMultiLLMOptions();
@@ -799,7 +799,7 @@
 
 	function parseGoals(text: string): string[] {
 		return text
-			.split('\\n')
+			.split(/\r?\n/)
 			.map((l) => l.trim())
 			.filter(Boolean);
 	}
