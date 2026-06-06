@@ -195,8 +195,8 @@ export function readRecentAgentEvents(
 				.map((line) => {
 					try {
 						return JSON.parse(line) as AgentEventLedgerEntry;
-					} catch {
-						warnMalformedJsonlLine('agent-events', line);
+                        } catch (err) {
+                            console.warn('[agent-event-ledger] JSON parse failed:', err);
 						return null;
 					}
 				})
@@ -222,16 +222,12 @@ function readFinalAnswerGateAuditEvents(): AgentEventLedgerEntry[] {
 			try {
 				const record = JSON.parse(line) as Record<string, unknown>;
 				return finalAnswerAuditToAgentEvent(record, index);
-			} catch {
-				warnMalformedJsonlLine('final-answer-gate-audit', line);
+                    } catch (err) {
+                        console.warn('[agent-event-ledger] audit record parse failed:', err);
 				return null;
 			}
 		})
 		.filter((entry): entry is AgentEventLedgerEntry => Boolean(entry));
-}
-
-function warnMalformedJsonlLine(source: string, line: string): void {
-	console.warn(`[agent-event-ledger] skipped malformed ${source} JSONL line (${line.length} chars)`);
 }
 
 function finalAnswerAuditToAgentEvent(record: Record<string, unknown>, index: number): AgentEventLedgerEntry {
