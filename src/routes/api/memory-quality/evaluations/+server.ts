@@ -8,8 +8,22 @@ import {
 	summarizeLatency
 } from '$lib/services/memory-quality-aggregates';
 import { appendManualEvaluation } from '$lib/services/memory-quality-evaluations';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 
-export const POST: RequestHandler = async ({ request }) => {
+const AUTH_OPTIONS = {
+	surface: 'MemoryQualityEvaluations',
+	apiKeyEnvVar: 'MCP_API_KEY',
+	fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
+	apiKeyQueryParam: 'apiKey',
+	apiKeyCookieName: 'spawner_events_api_key',
+	allowLoopbackWithoutKey: true,
+	allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+} as const;
+
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, AUTH_OPTIONS);
+	if (unauthorized) return unauthorized;
+	const { request } = event;
 	const payload = await request.json().catch(() => ({}));
 	const result = await appendManualEvaluation(payload);
 	const status = result.errors ? 400 : 200;
