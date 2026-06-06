@@ -933,53 +933,63 @@ function scheduleProvisionalPrdDraft(input: {
 	if (delayMs === null) return;
 
 	const timer = setTimeout(async () => {
-		const paths = getPrdBridgePaths();
-		const safeRequestId = normalizeRequestId(input.requestId);
-		const resultFile = join(paths.resultsDir, `${safeRequestId}.json`);
-		if (existsSync(resultFile)) {
-			await appendPrdTrace(input.requestId, 'provisional_canvas_skipped', {
-				...traceRefDetails(input.traceRef),
-				reason: 'analysis result already exists',
-				delayMs
-			});
-			return;
-		}
-
-		await updatePendingRequestStatus(input.requestId, 'provisional', {
-			reason: 'Full PRD analysis is still running; provisional canvas draft queued so execution can start.',
-			provisionalCanvasAt: new Date().toISOString(),
-			provisionalDelayMs: delayMs
-		});
-		await appendPrdTrace(input.requestId, 'provisional_canvas_due', {
-			...traceRefDetails(input.traceRef),
-			delayMs,
-			buildMode: input.buildMode,
-			buildLane: input.buildLane
-		});
-		await writeFallbackAnalysisResult(
-			input.requestId,
-			input.projectName,
-			input.buildMode,
-			input.tier,
-			`provisional canvas draft after ${delayMs}ms while full PRD analysis continues`,
-			input.traceRef,
-			input.buildLane
-		);
-		void relayMissionControlEvent({
-			type: 'task_completed',
-			missionId: input.missionId,
-			missionName: input.projectName,
-			taskName: 'PRD analysis',
-			message: 'PRD draft ready; full analysis can continue in the background.',
-			source: 'prd-bridge',
-			data: {
-				requestId: input.requestId,
-				...traceRefDetails(input.traceRef),
-				buildMode: input.buildMode,
-				buildLane: input.buildLane,
-				provisional: true
+		try {
+			const paths = getPrdBridgePaths();
+			const safeRequestId = normalizeRequestId(input.requestId);
+			const resultFile = join(paths.resultsDir, `${safeRequestId}.json`);
+			if (existsSync(resultFile)) {
+				await appendPrdTrace(input.requestId, 'provisional_canvas_skipped', {
+					...traceRefDetails(input.traceRef),
+					reason: 'analysis result already exists',
+					delayMs
+				});
+				return;
 			}
-		});
+
+			await updatePendingRequestStatus(input.requestId, 'provisional', {
+				reason: 'Full PRD analysis is still running; provisional canvas draft queued so execution can start.',
+				provisionalCanvasAt: new Date().toISOString(),
+				provisionalDelayMs: delayMs
+			});
+			await appendPrdTrace(input.requestId, 'provisional_canvas_due', {
+				...traceRefDetails(input.traceRef),
+				delayMs,
+				buildMode: input.buildMode,
+				buildLane: input.buildLane
+			});
+			await writeFallbackAnalysisResult(
+				input.requestId,
+				input.projectName,
+				input.buildMode,
+				input.tier,
+				`provisional canvas draft after ${delayMs}ms while full PRD analysis continues`,
+				input.traceRef,
+				input.buildLane
+			);
+			void relayMissionControlEvent({
+				type: 'task_completed',
+				missionId: input.missionId,
+				missionName: input.projectName,
+				taskName: 'PRD analysis',
+				message: 'PRD draft ready; full analysis can continue in the background.',
+				source: 'prd-bridge',
+				data: {
+					requestId: input.requestId,
+					...traceRefDetails(input.traceRef),
+					buildMode: input.buildMode,
+					buildLane: input.buildLane,
+					provisional: true
+				}
+			});
+		} catch (error) {
+			// setTimeout callbacks run on the event loop with no caller; without this
+			// catch a rejected await would surface as an unhandled-rejection. Log it
+			// so the operator sees the provisional-draft failure instead of a silent miss.
+			console.warn(
+				'[PrdBridge] Failed to write provisional canvas draft:',
+				error instanceof Error ? error.message : error
+			);
+		}
 	}, delayMs);
 
 	if (typeof timer.unref === 'function') {
@@ -998,36 +1008,46 @@ function scheduleAutoAnalysisWatchdog(
 ): void {
 	if (AUTO_ANALYSIS_TIMEOUT_MS <= 0) return;
 	const timer = setTimeout(async () => {
-		const { resultsDir } = getPrdBridgePaths();
-		const safeRequestId = normalizeRequestId(requestId);
-		const resultFile = join(resultsDir, `${safeRequestId}.json`);
-		const hasResult = existsSync(resultFile);
-		if (hasResult) {
-			await appendPrdTrace(requestId, 'watchdog_result_found', {
-				...traceRefDetails(traceRef)
-			});
-			return;
-		}
+		try {
+			const { resultsDir } = getPrdBridgePaths();
+			const safeRequestId = normalizeRequestId(requestId);
+			const resultFile = join(resultsDir, `${safeRequestId}.json`);
+			const hasResult = existsSync(resultFile);
+			if (hasResult) {
+				await appendPrdTrace(requestId, 'watchdog_result_found', {
+					...traceRefDetails(traceRef)
+				});
+				return;
+			}
 
-		cancelAutoAnalysis?.();
-		await updatePendingRequestStatus(requestId, 'timeout', {
-			timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
-			reason: 'No runtime analysis result written before timeout; deterministic fallback queued'
-		});
-		await appendPrdTrace(requestId, 'watchdog_timeout', {
-			...traceRefDetails(traceRef),
-			timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
-			expectedResultFile: resultFile
-		});
-		await writeFallbackAnalysisResult(
-			requestId,
-			projectName,
-			buildMode,
-			tier,
-			`auto-analysis timeout after ${AUTO_ANALYSIS_TIMEOUT_MS}ms`,
-			traceRef,
-			buildLane
-		);
+			cancelAutoAnalysis?.();
+			await updatePendingRequestStatus(requestId, 'timeout', {
+				timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
+				reason: 'No runtime analysis result written before timeout; deterministic fallback queued'
+			});
+			await appendPrdTrace(requestId, 'watchdog_timeout', {
+				...traceRefDetails(traceRef),
+				timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
+				expectedResultFile: resultFile
+			});
+			await writeFallbackAnalysisResult(
+				requestId,
+				projectName,
+				buildMode,
+				tier,
+				`auto-analysis timeout after ${AUTO_ANALYSIS_TIMEOUT_MS}ms`,
+				traceRef,
+				buildLane
+			);
+		} catch (error) {
+			// Watchdog runs from setTimeout; an unhandled rejection here would
+			// escape to the process. Log so the operator sees the watchdog
+			// fallback failure instead of a silent stalled request.
+			console.warn(
+				'[PrdBridge] Auto-analysis watchdog failed to write fallback result:',
+				error instanceof Error ? error.message : error
+			);
+		}
 	}, AUTO_ANALYSIS_TIMEOUT_MS);
 
 	if (typeof timer.unref === 'function') {
