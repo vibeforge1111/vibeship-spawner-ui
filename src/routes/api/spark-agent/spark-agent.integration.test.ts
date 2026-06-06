@@ -560,6 +560,12 @@ describe('/api/spark-agent integration', () => {
 			providerId: 'codex',
 			missionId: 'mission-unsafe-template',
 			prompt: 'Do the work',
+			executionAuthority: commandAuthority({
+				toolName: 'spawner.spark_agent.worker.run',
+				mutationClass: 'launches_mission',
+				target: 'mission-unsafe-template',
+				externalNetwork: true
+			}),
 			commandTemplate: 'codex exec --yolo && calc'
 		});
 

@@ -26,6 +26,7 @@ import {
 import { buildFilesystemArtifactPrompt, materializeProviderArtifacts } from './provider-artifacts';
 import { executeSparkHarnessRequest } from './provider-clients/spark-harness-client';
 import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
+import type { SparkAgentProviderTaskAuthorityPolicy } from '$lib/services/spark-agent-bridge';
 import { eventBridge } from '$lib/services/event-bridge';
 import { mcpClient } from '$lib/services/mcp-client';
 import { agentWorkTimeoutMs } from './timeout-config';
@@ -84,6 +85,10 @@ const PROVIDER_TASK_ACTIVITY_MAX_ESTIMATE_MS = 8 * 60_000;
 const PROVIDER_TASK_ACTIVITY_BASE_MS = 55_000;
 const PROVIDER_TASK_ACTIVITY_PER_TASK_MS = 35_000;
 const PROVIDER_STALE_RUNNING_GRACE_MS = 5 * 60_000;
+const PROVIDER_DISPATCH_AUTHORITY_POLICY: SparkAgentProviderTaskAuthorityPolicy = {
+	toolName: 'spawner.dispatch',
+	mutationClass: 'launches_mission'
+};
 
 function getSpawnerStateDir(): string {
 	return spawnerStateDir();
@@ -573,6 +578,7 @@ class ProviderRuntimeManager {
 				missionId,
 				abortController,
 				workingDirectory,
+				executionAuthority,
 				onEvent
 			).then((result) => {
 				stopTaskActivity();
@@ -758,6 +764,7 @@ class ProviderRuntimeManager {
 		missionId: string,
 		abortController: AbortController,
 		workingDirectory: string | undefined,
+		executionAuthority: unknown,
 		onEvent: (event: BridgeEvent) => void
 	): Promise<ProviderResult> {
 		try {
@@ -857,6 +864,8 @@ class ProviderRuntimeManager {
 					providerId: provider.id,
 					missionId,
 					prompt,
+					executionAuthority,
+					authorityPolicy: PROVIDER_DISPATCH_AUTHORITY_POLICY,
 					model: provider.model,
 					workingDirectory,
 					commandTemplate: provider.commandTemplate,

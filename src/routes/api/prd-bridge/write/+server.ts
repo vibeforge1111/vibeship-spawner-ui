@@ -1322,7 +1322,8 @@ async function startAutoAnalysis(
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier,
-	traceRef: string | null
+	traceRef: string | null,
+	executionAuthority: unknown
 ): Promise<{ started: boolean; provider: string; cancel?: () => void }> {
 	const provider = (
 		process.env.SPAWNER_PRD_AUTO_PROVIDER ||
@@ -1396,7 +1397,14 @@ async function startAutoAnalysis(
 					providerId: 'codex',
 					missionId,
 					prompt,
+					executionAuthority,
+					authorityPolicy: {
+						toolName: 'spawner.prd.write',
+						mutationClass: 'writes_files'
+					},
 					model: 'gpt-5.5',
+					requestId,
+					traceRef: traceRef || undefined,
 					commandTemplate: 'codex exec --model gpt-5.5 --sandbox workspace-write',
 					workingDirectory: process.cwd(),
 					signal: controller.signal
@@ -1475,8 +1483,9 @@ export const POST: RequestHandler = async (event) => {
 		}
 		const missionId = missionIdFromRequestId(requestId);
 		const normalizedTraceRef = normalizeTraceRef(traceRef ?? trace_ref) || traceRefFromMissionId(missionId);
+		const resolvedExecutionAuthority = resolveExecutionAuthority(executionAuthority, execution_authority);
 		const authority = assertNativeGovernorHarnessAuthority({
-			authority: resolveExecutionAuthority(executionAuthority, execution_authority),
+			authority: resolvedExecutionAuthority,
 			toolName: 'spawner.prd.write',
 			ownerSystem: 'spawner-ui',
 			mutationClass: 'writes_files',
@@ -1664,7 +1673,8 @@ export const POST: RequestHandler = async (event) => {
 					requestMeta.projectName,
 					requestMeta.buildMode,
 					normalizedTier,
-					normalizedTraceRef
+					normalizedTraceRef,
+					resolvedExecutionAuthority
 				);
 		await appendPrdTrace(requestId, 'authority_verdict_evaluated', {
 			...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),

@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { eventBridge, type BridgeEvent } from './event-bridge';
+import { buildServerGovernorDecisionAuthority } from '$lib/server/harness-authority';
 import {
 	prepareProviderWorkingDirectory,
 	providerProcessFailureMessage,
@@ -14,6 +15,18 @@ import {
 const createdDirs: string[] = [];
 const originalSparkWorkspaceRoot = process.env.SPARK_WORKSPACE_ROOT;
 const originalAllowExternalProjectPaths = process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
+
+function workerRunAuthority(requestId = 'spark-agent-worker-test') {
+	return buildServerGovernorDecisionAuthority({
+		source: 'spark-agent-bridge-test',
+		reason: 'Focused Spark Agent worker authority regression.',
+		toolName: 'spawner.spark_agent.worker.run',
+		mutationClass: 'launches_mission',
+		requestId,
+		target: 'mission-worker-proof',
+		externalNetwork: true
+	});
+}
 
 function restoreEnv(name: string, value: string | undefined): void {
 	if (value === undefined) {
@@ -71,6 +84,7 @@ describe('prepareProviderWorkingDirectory', () => {
 			providerId: 'codex',
 			missionId: 'mission-worker-proof',
 			prompt: 'metadata proof only',
+			executionAuthority: workerRunAuthority('request-worker-proof'),
 			model: 'gpt-5.5',
 			requestId: 'request-worker-proof',
 			traceRef: 'trace:spawner-prd:mission-worker-proof',
@@ -86,6 +100,47 @@ describe('prepareProviderWorkingDirectory', () => {
 			requestId: 'request-worker-proof',
 			traceRef: 'trace:spawner-prd:mission-worker-proof'
 		});
+	});
+
+	it('blocks direct provider task execution without native Governor authority', async () => {
+		let executorCalled = false;
+		sparkAgentBridge.setWorkerExecutorForTests(async () => {
+			executorCalled = true;
+			return { success: true, response: 'should-not-run' };
+		});
+
+		await expect(
+			sparkAgentBridge.executeProviderTask({
+				providerId: 'codex',
+				missionId: 'mission-worker-no-authority',
+				prompt: 'metadata proof only'
+			} as never)
+		).rejects.toThrow('Execution requires Harness Core authority.');
+
+		expect(executorCalled).toBe(false);
+	});
+
+	it('blocks direct provider task execution when the Governor tool ledger is missing', async () => {
+		let executorCalled = false;
+		sparkAgentBridge.setWorkerExecutorForTests(async () => {
+			executorCalled = true;
+			return { success: true, response: 'should-not-run' };
+		});
+		const authority = workerRunAuthority('request-worker-missing-ledger');
+		const missingLedgerAuthority = JSON.parse(JSON.stringify(authority));
+		missingLedgerAuthority.tool_ledgers = [];
+
+		await expect(
+			sparkAgentBridge.executeProviderTask({
+				providerId: 'codex',
+				missionId: 'mission-worker-missing-ledger',
+				prompt: 'metadata proof only',
+				executionAuthority: missingLedgerAuthority,
+				requestId: 'request-worker-missing-ledger'
+			})
+		).rejects.toThrow('Execution authority blocked this request.');
+
+		expect(executorCalled).toBe(false);
 	});
 });
 

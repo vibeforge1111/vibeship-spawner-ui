@@ -135,11 +135,18 @@ export interface SparkAgentCommandResult {
 }
 
 export type SparkAgentProviderId = 'claude' | 'codex';
+export type SparkAgentProviderTaskAuthorityPolicy = {
+	toolName: string;
+	mutationClass: SparkMutationClass;
+	externalNetwork?: boolean;
+};
 
 export interface SparkAgentProviderTaskInput {
 	providerId: SparkAgentProviderId;
 	missionId: string;
 	prompt: string;
+	executionAuthority: unknown;
+	authorityPolicy?: SparkAgentProviderTaskAuthorityPolicy;
 	model?: string;
 	requestId?: string;
 	traceRef?: string;
@@ -275,6 +282,8 @@ const SPARK_AGENT_MUTATING_COMMAND_AUTHORITY: Partial<
 		mutationClass: 'controls_mission'
 	}
 };
+const DEFAULT_PROVIDER_TASK_AUTHORITY: SparkAgentProviderTaskAuthorityPolicy =
+	SPARK_AGENT_MUTATING_COMMAND_AUTHORITY['worker.run']!;
 
 export function sparkAgentCommandAuthorityPolicy(
 	command: SparkAgentCommandName
@@ -605,6 +614,15 @@ class SparkAgentBridgeService {
 	async executeProviderTask(input: SparkAgentProviderTaskInput): Promise<SparkAgentProviderTaskResult> {
 		const startedAtMs = Date.now();
 		const { providerId, missionId, prompt } = input;
+		const authorityPolicy = input.authorityPolicy || DEFAULT_PROVIDER_TASK_AUTHORITY;
+		const authority = assertNativeGovernorHarnessAuthority({
+			authority: resolveExecutionAuthority(input.executionAuthority),
+			toolName: authorityPolicy.toolName,
+			ownerSystem: 'spawner-ui',
+			mutationClass: authorityPolicy.mutationClass,
+			requestId: input.requestId,
+			externalNetwork: authorityPolicy.externalNetwork
+		});
 		const taskId = input.taskId;
 		const model = input.model || (providerId === 'claude' ? 'opus' : 'gpt-5.5');
 		const session = this.startSession({
@@ -617,6 +635,13 @@ class SparkAgentBridgeService {
 				taskId: taskId || null,
 				requestId: input.requestId || null,
 				traceRef: input.traceRef || null,
+				authority: {
+					source: authority.source,
+					reasonCodes: authority.reasonCodes,
+					traceId: authority.traceId,
+					governorOutcome: authority.governorOutcome,
+					toolName: authorityPolicy.toolName
+				},
 				model
 			}
 		});
@@ -790,13 +815,14 @@ class SparkAgentBridgeService {
 
 		const actor = input.actor || 'unknown';
 		const authorityPolicy = sparkAgentCommandAuthorityPolicy(input.command);
+		const executionAuthority = resolveExecutionAuthority(
+			input.executionAuthority,
+			input.params?.executionAuthority,
+			input.params?.execution_authority
+		);
 		if (authorityPolicy) {
 			const authority = assertNativeGovernorHarnessAuthority({
-				authority: resolveExecutionAuthority(
-					input.executionAuthority,
-					input.params?.executionAuthority,
-					input.params?.execution_authority
-				),
+				authority: executionAuthority,
 				toolName: authorityPolicy.toolName,
 				ownerSystem: 'spawner-ui',
 				mutationClass: authorityPolicy.mutationClass,
@@ -826,7 +852,7 @@ class SparkAgentBridgeService {
 		});
 
 		try {
-			const data = await this.dispatchCommand(session, input.command, input.params || {});
+			const data = await this.dispatchCommand(session, input.command, input.params || {}, executionAuthority);
 			this.emitEvent(input.sessionId, 'spark_agent.command.completed', {
 				command: input.command,
 				actor,
@@ -920,7 +946,8 @@ class SparkAgentBridgeService {
 	private async dispatchCommand(
 		session: SparkAgentSession,
 		command: SparkAgentCommandName,
-		params: Record<string, unknown>
+		params: Record<string, unknown>,
+		executionAuthority?: unknown
 	): Promise<Record<string, unknown>> {
 		switch (command) {
 			case 'canvas.create_pipeline':
@@ -957,7 +984,7 @@ class SparkAgentBridgeService {
 					sessionId: session.id
 				};
 			case 'worker.run':
-				return await this.handleWorkerRun(session, params);
+				return await this.handleWorkerRun(session, params, executionAuthority);
 			case 'worker.cancel':
 				return this.handleWorkerCancel(session, params);
 			case 'worker.status':
@@ -1312,7 +1339,8 @@ class SparkAgentBridgeService {
 
 	private async handleWorkerRun(
 		session: SparkAgentSession,
-		params: Record<string, unknown>
+		params: Record<string, unknown>,
+		executionAuthority?: unknown
 	): Promise<Record<string, unknown>> {
 		const providerIdRaw = toStringOrUndefined(params.providerId);
 		if (!providerIdRaw || !isProviderId(providerIdRaw)) {
@@ -1328,6 +1356,8 @@ class SparkAgentBridgeService {
 			providerId: providerIdRaw,
 			missionId,
 			prompt,
+			executionAuthority,
+			authorityPolicy: DEFAULT_PROVIDER_TASK_AUTHORITY,
 			model: toStringOrUndefined(params.model),
 			workingDirectory: toStringOrUndefined(params.workingDirectory),
 			taskId: toStringOrUndefined(params.taskId),
