@@ -62,8 +62,7 @@ export async function executeAnthropicRequest(
 				body.system = systemPrompt;
 			}
 
-// BUG: Server-side fetch without abort/timeout at line 65
-			const response = await fetch(ANTHROPIC_API_URL, {
+		const response = await fetch(ANTHROPIC_API_URL, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -71,7 +70,7 @@ export async function executeAnthropicRequest(
 					'anthropic-version': ANTHROPIC_VERSION
 				},
 				body: JSON.stringify(body),
-				signal
+				signal: signal || AbortSignal.timeout(30000)
 			});
 
 			if (response.status === 429 || (response.status >= 500 && response.status < 600)) {
@@ -146,7 +145,8 @@ async function handleAnthropicStream(
 			if (done) break;
 
 			buffer += decoder.decode(value, { stream: true });
-			const lines = buffer.split('\n');
+			const lines = buffer.split('
+');
 			buffer = lines.pop() || '';
 
 			for (const line of lines) {

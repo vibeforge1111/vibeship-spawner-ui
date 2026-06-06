@@ -52,7 +52,6 @@ export async function executeOpenAICompatRequest(
 		}
 
 		try {
-// BUG: Server-side fetch without abort/timeout at line 55
 			const response = await fetch(`${baseUrl}/chat/completions`, {
 				method: 'POST',
 				headers: {
@@ -65,7 +64,7 @@ export async function executeOpenAICompatRequest(
 					stream: streaming,
 					max_tokens: 16384
 				}),
-				signal
+				signal: signal || AbortSignal.timeout(30000)
 			});
 
 			if (response.status === 429 || (response.status >= 500 && response.status < 600)) {
