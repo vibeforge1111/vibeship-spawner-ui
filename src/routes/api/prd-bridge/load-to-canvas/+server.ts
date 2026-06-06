@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
@@ -169,7 +170,20 @@ function buildConnections(tasks: TaskRecord[]): Array<{ sourceIndex: number; tar
 	return conns;
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+const AUTH_OPTIONS = {
+	surface: 'PrdBridgeLoadToCanvas',
+	apiKeyEnvVar: 'MCP_API_KEY',
+	fallbackApiKeyEnvVar: 'EVENTS_API_KEY',
+	apiKeyQueryParam: 'apiKey',
+	apiKeyCookieName: 'spawner_events_api_key',
+	allowLoopbackWithoutKey: true,
+	allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+} as const;
+
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, AUTH_OPTIONS);
+	if (unauthorized) return unauthorized;
+	const { request } = event;
 	try {
 		const { requestId, autoRun, telegramRelay, missionId, chatId, userId, goal, buildMode: bodyBuildMode, buildModeReason: bodyBuildModeReason, traceRef, trace_ref } = await request.json();
 		const normalizedTelegramRelay = normalizeTelegramRelay(telegramRelay);
