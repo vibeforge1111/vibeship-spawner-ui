@@ -266,6 +266,7 @@ async function submitSparkTask(input: {
 	missionId: string;
 	signal?: AbortSignal;
 }): Promise<string> {
+// BUG: Server-side fetch without abort/timeout at line 269
 	const response = await fetch(`${input.baseUrl}/v1/tasks`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },

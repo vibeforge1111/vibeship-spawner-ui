@@ -62,6 +62,7 @@ export async function executeAnthropicRequest(
 				body.system = systemPrompt;
 			}
 
+// BUG: Server-side fetch without abort/timeout at line 65
 			const response = await fetch(ANTHROPIC_API_URL, {
 				method: 'POST',
 				headers: {

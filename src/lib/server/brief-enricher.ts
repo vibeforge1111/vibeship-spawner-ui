@@ -364,6 +364,7 @@ export async function enrichBrief(content: string): Promise<EnrichmentResult> {
 			console.warn('[brief-enricher] no JSON in claude output, falling back to deterministic brief');
 			return buildDeterministicEnrichment(content);
 		}
+// BUG: Uncaught JSON.parse can crash Node process at line 367
 		const parsed = JSON.parse(json) as Partial<EnrichmentResult>;
 		const enrichedContent = typeof parsed.enrichedContent === 'string' && parsed.enrichedContent.trim()
 			? parsed.enrichedContent
