@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { readFile, mkdir } from 'fs/promises';
+import { writeFileAtomic } from '$lib/server/atomic-write';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
@@ -360,10 +361,17 @@ export const POST: RequestHandler = async ({ request }) => {
 		const missionControlAccess = resolveMissionControlAccess(missionControlPathForMission(resolvedMissionId));
 
 		const persistedLoad = storedCanvasLoad(load);
-		await writeFile(pendingLoadFile, JSON.stringify(persistedLoad, null, 2), 'utf-8');
-		await writeFile(lastLoadFile, JSON.stringify(persistedLoad, null, 2), 'utf-8');
+		// Atomic across all three files. /api/pipeline-loader + the canvas
+		// mission-load surface JSON.parse pending-load.json and
+		// last-canvas-load.json (both written here AND by writeCreatorMissionCanvasLoad
+		// in src/lib/server/creator-mission.ts, which already uses temp+rename).
+		// This route was the other writer of the same files and still
+		// truncates in place; a concurrent poller hits a partial JSON and
+		// silently treats the canvas load as missing.
+		await writeFileAtomic(pendingLoadFile, JSON.stringify(persistedLoad, null, 2));
+		await writeFileAtomic(lastLoadFile, JSON.stringify(persistedLoad, null, 2));
 		if (pendingRequestMeta) {
-			await writeFile(
+			await writeFileAtomic(
 				pendingRequestFile,
 				JSON.stringify(
 					{
@@ -379,8 +387,7 @@ export const POST: RequestHandler = async ({ request }) => {
 					},
 					null,
 					2
-				),
-				'utf-8'
+				)
 			);
 		}
 		void relayMissionControlEvent({
