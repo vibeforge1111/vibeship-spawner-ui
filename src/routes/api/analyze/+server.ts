@@ -13,6 +13,7 @@ import { HarnessAuthorityError, assertNativeGovernorHarnessAuthority, resolveExe
 import { requireControlAuth } from '$lib/server/mcp-auth';
 import { ClaudeApiAnalysisSchema, safeJsonParse } from '$lib/types/schemas';
 import { logger } from '$lib/utils/logger';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 
 interface AnalysisRequest {
 	goal: string;
@@ -99,18 +100,9 @@ function formatSkillsForPrompt(): string {
 	return lines.join('\n');
 }
 
-export const POST: RequestHandler = async (event) => {
-	const unauthorized = requireControlAuth(event, {
-		surface: 'Analyze',
-		apiKeyEnvVar: 'EVENTS_API_KEY',
-		fallbackApiKeyEnvVar: 'MCP_API_KEY',
-		apiKeyCookieName: 'spawner_events_api_key',
-		allowLoopbackWithoutKey: false,
-		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
-	});
-	if (unauthorized) return unauthorized;
-
-	const { request } = event;
+export const POST: RequestHandler = async ({ request }) => {
+		const authError = requireControlAuth(event, { requireApiKey: true });
+		if (authError) return authError;
 	try {
 		const body = await request.json().catch(() => null) as AnalysisRequest | null;
 		if (!body || typeof body !== 'object' || Array.isArray(body)) {
