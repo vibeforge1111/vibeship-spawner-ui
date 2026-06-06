@@ -20,6 +20,7 @@ import {
 	type AgentBlackBoxReport
 } from './agent-event-ledger';
 import { spawnerStateDir } from './spawner-state';
+import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from './path-safety';
 import { extractTraceRef } from './trace-ref';
 import type { ProviderMissionResultSnapshot } from './provider-runtime';
 import type {
@@ -158,6 +159,30 @@ async function readJsonIfExists(filePath: string): Promise<Record<string, unknow
 		return JSON.parse(await readFile(filePath, 'utf-8')) as Record<string, unknown>;
 	} catch {
 		return null;
+	}
+}
+
+/**
+ * Reads the stored analysis result for a requestId, mirroring the path-safety
+ * guard the prd-bridge/result and mission-control/events siblings apply to the
+ * same `results/<id>.json` read. The requestId can be supplied by the caller or
+ * derived from artifact contents, so we validate the FINAL id actually used for
+ * the read. A traversal/invalid id is treated as "no analysis result" rather
+ * than surfacing an arbitrary on-disk file (or throwing a 500).
+ */
+async function readAnalysisResultIfSafe(
+	spawnerDir: string,
+	requestId: string | null
+): Promise<Record<string, unknown> | null> {
+	if (!requestId) return null;
+	try {
+		assertSafeId(requestId, 'requestId');
+		const resultsDir = path.join(spawnerDir, 'results');
+		const resultFile = resolveWithinBaseDir(resultsDir, `${requestId}.json`);
+		return await readJsonIfExists(resultFile);
+	} catch (error) {
+		if (error instanceof PathSafetyError) return null;
+		throw error;
 	}
 }
 
@@ -319,9 +344,7 @@ export async function buildMissionControlTrace(input: {
 		artifactMissionId(pendingRequest) ||
 		artifactMissionId(lastCanvasLoad) ||
 		(requestId ? missionIdFromRequestId(requestId) : null);
-	const analysisResult = requestId
-		? await readJsonIfExists(path.join(spawnerDir, 'results', `${requestId}.json`))
-		: null;
+	const analysisResult = await readAnalysisResultIfSafe(spawnerDir, requestId);
 
 	const board = enrichMissionControlBoardWithProviderResults(
 		getMissionControlBoard(),
