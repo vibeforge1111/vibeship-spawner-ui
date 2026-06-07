@@ -139,6 +139,10 @@ export async function executeCodexCliRequest(
 		mkdirSync(promptsDir, { recursive: true });
 	}
 	const promptFile = join(promptsDir, `${missionId}-${provider.id}.md`);
+	// Validate missionId doesn't contain path traversal
+	if (/[\\/]/.test(missionId)) {
+		throw new Error(`Invalid missionId: ${missionId}`);
+	}
 	writeFileSync(promptFile, prompt, 'utf-8');
 
 	return new Promise<ProviderResult>((resolve) => {
