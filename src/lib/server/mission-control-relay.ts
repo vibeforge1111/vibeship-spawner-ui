@@ -61,6 +61,7 @@ export interface MissionControlRelayStatusEntry {
 	eventType: string;
 	missionId: string;
 	missionName: string | null;
+	executionPolicy?: 'manual_run' | 'read_only' | string | null;
 	taskId: string | null;
 	taskName: string | null;
 	taskSkills: string[];
@@ -70,7 +71,6 @@ export interface MissionControlRelayStatusEntry {
 	traceRef: string | null;
 	providerId?: string | null;
 	model?: string | null;
-	executionPolicy?: string | null;
 	progress: number | null;
 	summary: string;
 	timestamp: string;
@@ -123,7 +123,6 @@ const RELAY_EVENT_TYPES = new Set([
 const MAX_RECENT_EVENTS = Number(env.MISSION_CONTROL_RECENT_EVENT_LIMIT) || 1000;
 const MAX_RECENT_EVENTS_PER_MISSION = Number(env.MISSION_CONTROL_RECENT_EVENT_LIMIT_PER_MISSION) || 120;
 const DEFAULT_STALE_NON_TERMINAL_MS = 24 * 60 * 60 * 1000;
-const SAME_SOURCE_TASK_START_BURST_MS = 500;
 
 const DEFAULT_SPARK_INGEST_URL = env.SPARK_MISSION_CONTROL_INGEST_URL || '';
 const DEFAULT_SPARK_TOKEN = env.SPARKD_TOKEN || '';
@@ -246,14 +245,8 @@ function requestIdFromEventData(data: Record<string, unknown> | null | undefined
 }
 
 function executionPolicyFromEventData(data: Record<string, unknown> | null | undefined): string | null {
-	const value = typeof data?.executionPolicy === 'string'
-		? data.executionPolicy
-		: typeof data?.execution_policy === 'string'
-			? data.execution_policy
-			: null;
-	if (!value) return null;
-	const normalized = value.trim().toLowerCase();
-	return normalized === 'read_only' || normalized === 'manual_run' ? normalized : null;
+	const value = data?.executionPolicy ?? data?.execution_policy;
+	return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
 function knownMissionMetadata(missionId: string): { requestId: string | null; traceRef: string | null } {
@@ -333,8 +326,8 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		? assignedTaskIdsRaw.filter((taskId): taskId is string => typeof taskId === 'string' && taskId.trim().length > 0)
 		: [];
 	const requestId = requestIdFromEventData(event.data);
-	const traceRef = extractTraceRef(event.data, event);
 	const executionPolicy = executionPolicyFromEventData(event.data);
+	const traceRef = extractTraceRef(event.data, event);
 	const providerId =
 		event.data && typeof (event.data as Record<string, unknown>).providerId === 'string'
 			? ((event.data as Record<string, unknown>).providerId as string)
@@ -377,6 +370,7 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		eventType: typeof event.type === 'string' ? event.type : 'unknown',
 		missionId,
 		missionName: typeof event.missionName === 'string' ? event.missionName : dataMissionName || missionObjectName,
+		executionPolicy,
 		taskId: typeof event.taskId === 'string' ? event.taskId : dataTaskId,
 		taskName: typeof event.taskName === 'string' ? event.taskName : dataTaskName,
 		taskSkills,
@@ -386,7 +380,6 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		traceRef,
 		providerId,
 		model,
-		executionPolicy,
 		progress,
 		summary: summarizeMissionControlEvent(event),
 		timestamp,
@@ -539,6 +532,14 @@ function isExecutionStartEvent(eventType: string): boolean {
 	return eventType === 'mission_started' || eventType === 'dispatch_started';
 }
 
+function entryStartsExecution(entry: MissionControlRelayStatusEntry): boolean {
+	return entry.executionPolicy !== 'read_only' && isExecutionStartEvent(entry.eventType);
+}
+
+function entryStartsLifecycle(entry: MissionControlRelayStatusEntry): boolean {
+	return entry.executionPolicy !== 'read_only' && isMissionStartEvent(entry.eventType);
+}
+
 function earlierTimestamp(current: string | null, candidate: string): string {
 	if (!current) return candidate;
 	const currentMs = Date.parse(current);
@@ -580,8 +581,12 @@ function taskStatusForEvent(eventType: string): MissionControlTaskStatus | null 
 	}
 }
 
-function isCurrentTaskPointerEvent(eventType: string): boolean {
-	return eventType === 'task_started' || eventType === 'task_progress' || eventType === 'progress';
+function boardStatusForEntry(entry: MissionControlRelayStatusEntry): MissionControlBoardStatus | null {
+	const status = mapEventTypeToBoardStatus(entry.eventType);
+	if (entry.executionPolicy === 'read_only' && status === 'running') {
+		return 'created';
+	}
+	return status;
 }
 
 function lifecycleTaskStatusForEvent(eventType: string): MissionControlTaskStatus | null {
@@ -727,13 +732,12 @@ function taskKeyFromLabel(title: string): string | null {
 function creatorTaskKeyFromLabel(title: string): string | null {
 	const lower = title.toLowerCase();
 	const explicit = lower.match(
-		/\b(creator-intent-plan|domain-chip-contract|benchmark-pack|benchmark-evidence-review|specialization-path|autoloop-policy|telegram-spawner-flow|creator-validation|swarm-publish-packet)\b/
+		/\b(creator-intent-plan|domain-chip-contract|benchmark-pack|specialization-path|autoloop-policy|telegram-spawner-flow|creator-validation|swarm-publish-packet)\b/
 	);
 	if (explicit) return explicit[1];
 	if (/\block\b.*\bcreator intent\b|\bcreator intent\b.*\btask graph\b/.test(lower)) return 'creator-intent-plan';
 	if (/\bdomain chip\b/.test(lower)) return 'domain-chip-contract';
 	if (/\bbenchmark pack\b/.test(lower)) return 'benchmark-pack';
-	if (/\bbenchmark evidence\b|\bevidence review\b/.test(lower)) return 'benchmark-evidence-review';
 	if (/\bspeciali[sz]ation path\b/.test(lower)) return 'specialization-path';
 	if (/\bautoloop\b/.test(lower)) return 'autoloop-policy';
 	if (/\btelegram\b.*\bspawner\b|\bspawner\b.*\btelegram\b/.test(lower)) return 'telegram-spawner-flow';
@@ -786,19 +790,6 @@ function recalculateTaskStatusCounts(entry: MissionControlBoardEntry): void {
 	entry.taskStatusCounts = counts;
 }
 
-function syncCurrentTaskNameWithRunningTasks(entry: MissionControlBoardEntry): void {
-	if (isMissionControlTerminalStatus(entry.status)) return;
-	const runningTasks = entry.tasks.filter((task) => task.status === 'running');
-	if (runningTasks.length === 0) return;
-	if (
-		entry.taskName &&
-		runningTasks.some((task) => canonicalTaskTitle(task.title) === canonicalTaskTitle(entry.taskName || ''))
-	) {
-		return;
-	}
-	entry.taskName = runningTasks[0].title;
-}
-
 function maybeRecordAssignedTaskPackProgress(
 	entry: MissionControlBoardEntry,
 	event: MissionControlRelayStatusEntry
@@ -831,6 +822,7 @@ function maybeRecordTask(entry: MissionControlBoardEntry, event: MissionControlR
 	const status = taskStatusForEvent(event.eventType);
 	if (!status) return;
 	if (!event.taskName && !event.taskId) return;
+	if (event.executionPolicy === 'read_only' && status === 'running') return;
 
 	const label = sanitizeMissionControlDisplayText(event.taskName || event.taskId || 'task');
 	const canonicalLabel = canonicalTaskTitle(label);
@@ -930,24 +922,14 @@ function latestTaskStartSource(
 	return match?.source || null;
 }
 
-function latestTaskStartTime(
+function latestTaskStartTimestampMs(
 	task: MissionControlBoardEntry['tasks'][number],
 	events: MissionControlRelayStatusEntry[]
-): number {
+): number | null {
 	const match = events.find((event) => event.eventType === 'task_started' && taskMatchesRelayEntry(task, event));
-	const parsed = Date.parse(match?.timestamp || '');
-	return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function isSameSourceTaskStartBurst(
-	tasks: MissionControlBoardEntry['tasks'][number][],
-	events: MissionControlRelayStatusEntry[]
-): boolean {
-	const times = tasks
-		.map((task) => latestTaskStartTime(task, events))
-		.filter((time) => time > 0);
-	if (times.length <= 1) return false;
-	return Math.max(...times) - Math.min(...times) <= SAME_SOURCE_TASK_START_BURST_MS;
+	if (!match) return null;
+	const timestampMs = Date.parse(match.timestamp);
+	return Number.isFinite(timestampMs) ? timestampMs : null;
 }
 
 function normalizeSingleSourceRunningTaskBurst(
@@ -955,7 +937,11 @@ function normalizeSingleSourceRunningTaskBurst(
 	events: MissionControlRelayStatusEntry[]
 ): void {
 	const runningTasks = entry.tasks.filter((task) => task.status === 'running');
-	if (runningTasks.length <= 1) return;
+	if (runningTasks.length === 1) {
+		entry.taskName = runningTasks[0].title;
+		return;
+	}
+	if (runningTasks.length === 0) return;
 
 	const runningSources = new Set(
 		runningTasks
@@ -964,15 +950,23 @@ function normalizeSingleSourceRunningTaskBurst(
 	);
 	if (runningSources.size > 1) return;
 
-	const preferEarliestOrdinal = isSameSourceTaskStartBurst(runningTasks, events);
+	const startTimes = runningTasks
+		.map((task) => latestTaskStartTimestampMs(task, events))
+		.filter((value): value is number => value !== null);
+	const rapidBurst =
+		startTimes.length > 1 &&
+		Math.max(...startTimes) - Math.min(...startTimes) <= 500;
 	const activeTask = runningTasks.reduce((best, task) => {
+		const bestStartedAt = latestTaskStartTimestampMs(best, events);
+		const taskStartedAt = latestTaskStartTimestampMs(task, events);
+		if (bestStartedAt !== null && taskStartedAt !== null && bestStartedAt !== taskStartedAt) {
+			if (rapidBurst) return taskStartedAt < bestStartedAt ? task : best;
+			return taskStartedAt > bestStartedAt ? task : best;
+		}
 		const bestOrdinal = taskOrdinalFromLabel(best.title) ?? Number.MAX_SAFE_INTEGER;
 		const taskOrdinal = taskOrdinalFromLabel(task.title) ?? Number.MAX_SAFE_INTEGER;
-		if (preferEarliestOrdinal) return taskOrdinal < bestOrdinal ? task : best;
-		const bestStarted = latestTaskStartTime(best, events);
-		const taskStarted = latestTaskStartTime(task, events);
-		if (taskStarted !== bestStarted) return taskStarted > bestStarted ? task : best;
-		return taskOrdinal < bestOrdinal ? task : best;
+		if (rapidBurst) return taskOrdinal < bestOrdinal ? task : best;
+		return taskOrdinal > bestOrdinal ? task : best;
 	}, runningTasks[0]);
 
 	for (const task of runningTasks) {
@@ -980,10 +974,12 @@ function normalizeSingleSourceRunningTaskBurst(
 		task.status = 'queued';
 		delete task.progress;
 	}
+	entry.taskName = activeTask.title;
 }
 
 function closeOpenTasksForTerminalMission(entry: MissionControlBoardEntry): void {
 	if (!isMissionControlTerminalStatus(entry.status)) return;
+	entry.taskName = null;
 	const terminalTaskStatus =
 		entry.status === 'completed' ? 'completed' : entry.status === 'cancelled' ? 'cancelled' : 'failed';
 	for (const task of entry.tasks) {
@@ -991,14 +987,6 @@ function closeOpenTasksForTerminalMission(entry: MissionControlBoardEntry): void
 			task.status = terminalTaskStatus;
 		}
 	}
-	entry.taskName = null;
-}
-
-function boardStatusForEntry(entry: MissionControlBoardEntry): MissionControlBoardStatus {
-	if (entry.executionPolicy === 'read_only' && !entry.executionStarted && entry.status === 'running') {
-		return 'created';
-	}
-	return entry.status;
 }
 
 function lastUpdatedSortTime(value: string): number {
@@ -1023,7 +1011,7 @@ function recordLifecycleTimestamps(
 	if (event.eventType === 'mission_created') {
 		entry.queuedAt = earlierTimestamp(entry.queuedAt, event.timestamp);
 	}
-	if (isMissionStartEvent(event.eventType)) {
+	if (entryStartsLifecycle(event)) {
 		entry.startedAt = earlierTimestamp(entry.startedAt, event.timestamp);
 	}
 }
@@ -1038,7 +1026,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 
 	for (const entry of relayState.recent) {
 		if (!isMissionControlMissionId(entry.missionId)) continue;
-		const status = mapEventTypeToBoardStatus(entry.eventType);
+		const status = boardStatusForEntry(entry);
 		if (!status) continue;
 		if (isStaleNonTerminalStatus(status, entry.timestamp) && !terminalMissionIds.has(entry.missionId)) continue;
 		if (
@@ -1059,10 +1047,10 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 				status,
 				lastEventType: entry.eventType,
 				lastUpdated: entry.timestamp,
-				executionStarted: isExecutionStartEvent(entry.eventType),
+				executionStarted: entryStartsExecution(entry),
 				executionPolicy: entry.executionPolicy ?? null,
 				queuedAt: entry.eventType === 'mission_created' ? entry.timestamp : null,
-				startedAt: isMissionStartEvent(entry.eventType) ? entry.timestamp : null,
+				startedAt: entryStartsLifecycle(entry) ? entry.timestamp : null,
 				lastSummary: sanitizeMissionControlDisplayText(readableMissionControlSummary(entry.summary) || entry.summary),
 				taskName: entry.taskName ? sanitizeMissionControlDisplayText(entry.taskName) : null,
 				taskCount: 0,
@@ -1077,22 +1065,14 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 			if (!existing.traceRef && entry.traceRef) {
 				existing.traceRef = entry.traceRef;
 			}
-			if (!existing.executionPolicy && entry.executionPolicy) {
-				existing.executionPolicy = entry.executionPolicy;
-			}
-			const entryTime = Date.parse(entry.timestamp);
-			const currentPointerTime = Date.parse(existing.lastUpdated);
-			const isNewerPointer =
-				!Number.isFinite(entryTime) ||
-				!Number.isFinite(currentPointerTime) ||
-				entryTime >= currentPointerTime;
-			if (entry.taskName && isCurrentTaskPointerEvent(entry.eventType) && (!existing.taskName || isNewerPointer)) {
-				existing.taskName = sanitizeMissionControlDisplayText(entry.taskName);
-			} else if (!existing.taskName && entry.taskName) {
+			if (!isMissionControlTerminalStatus(existing.status) && !existing.taskName && entry.taskName) {
 				existing.taskName = sanitizeMissionControlDisplayText(entry.taskName);
 			}
 			if (!existing.missionName && entry.missionName) {
 				existing.missionName = sanitizeMissionControlDisplayText(entry.missionName);
+			}
+			if (!existing.executionPolicy && entry.executionPolicy) {
+				existing.executionPolicy = entry.executionPolicy;
 			}
 			if (!existing.telegramRelay && entry.telegramRelay) {
 				existing.telegramRelay = entry.telegramRelay;
@@ -1100,11 +1080,8 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 			if (!existing.missionControlAccess && entry.missionControlAccess) {
 				existing.missionControlAccess = entry.missionControlAccess;
 			}
-			if (isExecutionStartEvent(entry.eventType)) {
+			if (entryStartsExecution(entry)) {
 				existing.executionStarted = true;
-			}
-			if (!existing.executionPolicy && entry.executionPolicy) {
-				existing.executionPolicy = entry.executionPolicy;
 			}
 			existing.projectLineage = mergeMissionControlProjectLineage(
 				existing.projectLineage,
@@ -1133,10 +1110,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 		normalizeSingleSourceRunningTaskBurst(entry, missionEvents);
 		closeOpenTasksForTerminalMission(entry);
 		recalculateTaskStatusCounts(entry);
-		syncCurrentTaskNameWithRunningTasks(entry);
-		const boardStatus = boardStatusForEntry(entry);
-		entry.status = boardStatus;
-		board[boardStatus].push(entry);
+		board[entry.status].push(entry);
 	}
 
 	for (const entries of Object.values(board)) {
@@ -1344,11 +1318,9 @@ const EXTERNAL_SAFE_DATA_KEYS = new Set([
 	'assignedTaskIds',
 	'buildMode',
 	'buildModeReason',
-	'executionPolicy',
 	'iterationNumber',
 	'missionControlAccess',
 	'missionName',
-	'noRun',
 	'parentMissionId',
 	'percent',
 	'plannedTasks',
@@ -1356,7 +1328,6 @@ const EXTERNAL_SAFE_DATA_KEYS = new Set([
 	'projectId',
 	'requestId',
 	'skills',
-	'skillTier',
 	'status',
 	'taskId',
 	'taskName',
