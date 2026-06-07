@@ -81,6 +81,26 @@ describe('PRD analysis result storage projection', () => {
 		expect(JSON.stringify(stored)).not.toContain('executionPrompt');
 	});
 
+	it('normalizes provider system complexity labels to moderate', () => {
+		const stored = projectStoredPrdAnalysisResult('request-system-complexity', {
+			requestId: 'request-system-complexity',
+			success: true,
+			projectName: 'System Complexity Proof',
+			complexity: 'system',
+			tasks: [
+				{
+					id: 'task-1',
+					title: 'Build governed app path',
+					acceptanceCriteria: ['Provider result is accepted.'],
+					verificationCommands: ['npm test']
+				}
+			],
+			skills: []
+		});
+
+		expect(stored.complexity).toBe('moderate');
+	});
+
 	it('strips pro-only skill ids from base-tier PRD analysis results', async () => {
 		const sanitized = await sanitizePrdAnalysisResultForTier('request-base', {
 			requestId: 'request-base',

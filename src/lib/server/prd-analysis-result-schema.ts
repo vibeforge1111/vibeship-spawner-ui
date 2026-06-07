@@ -9,7 +9,7 @@ function normalizeComplexity(value: unknown): unknown {
 	const normalized = value.trim().toLowerCase();
 	if (['simple', 'moderate', 'complex'].includes(normalized)) return normalized;
 	if (['low', 'small', 'easy', 'basic', 'tiny'].includes(normalized)) return 'simple';
-	if (['medium', 'normal', 'standard', 'intermediate'].includes(normalized)) return 'moderate';
+	if (['medium', 'normal', 'standard', 'intermediate', 'system'].includes(normalized)) return 'moderate';
 	if (['high', 'large', 'advanced', 'hard', 'difficult'].includes(normalized)) return 'complex';
 	return value;
 }
