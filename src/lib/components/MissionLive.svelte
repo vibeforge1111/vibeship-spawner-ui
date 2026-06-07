@@ -40,6 +40,7 @@
 
 	let phaseTimer: ReturnType<typeof setInterval> | null = null;
 	let elapsedTimer: ReturnType<typeof setInterval> | null = null;
+	let resetTimeout: ReturnType<typeof setTimeout> | null = null;
 	let startedAt = 0;
 
 	function fmtElapsed(ms: number): string {
@@ -74,7 +75,8 @@
 				clearInterval(phaseTimer);
 				phaseTimer = null;
 			}
-			setTimeout(() => {
+			resetTimeout = setTimeout(() => {
+				resetTimeout = null;
 				reset();
 				phaseTimer = setInterval(tick, TICK_MS);
 			}, 4500);
@@ -94,6 +96,7 @@
 	onDestroy(() => {
 		if (phaseTimer) clearInterval(phaseTimer);
 		if (elapsedTimer) clearInterval(elapsedTimer);
+		if (resetTimeout) clearTimeout(resetTimeout);
 	});
 
 	const completed = $derived(tasks.filter((t) => t.state === 'done').length);
