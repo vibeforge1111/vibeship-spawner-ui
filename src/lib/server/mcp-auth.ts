@@ -140,6 +140,7 @@ export interface ControlAuthOptions {
 	surface: string;
 	apiKeyEnvVar?: string;
 	fallbackApiKeyEnvVar?: string;
+	fallbackApiKeyEnvVars?: string[];
 	apiKeyQueryParam?: string;
 	apiKeyCookieName?: string;
 	allowLoopbackWithoutKey?: boolean;
@@ -154,9 +155,13 @@ export interface RateLimitOptions {
 
 export function requireControlAuth(event: RequestEvent, options: ControlAuthOptions): Response | null {
 	const allowLoopback = options.allowLoopbackWithoutKey !== false;
-	const configuredKey =
-		(env[options.apiKeyEnvVar as keyof typeof env] as string | undefined)?.trim() ||
-		(env[options.fallbackApiKeyEnvVar as keyof typeof env] as string | undefined)?.trim();
+	const configuredKey = [
+		options.apiKeyEnvVar,
+		options.fallbackApiKeyEnvVar,
+		...(options.fallbackApiKeyEnvVars || [])
+	]
+		.map((key) => key ? (env[key as keyof typeof env] as string | undefined)?.trim() : '')
+		.find(Boolean);
 
 	if (!isOriginAllowed(event, options.allowedOriginsEnvVar)) {
 		return json(

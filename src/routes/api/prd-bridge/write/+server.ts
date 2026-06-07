@@ -1445,8 +1445,8 @@ export const POST: RequestHandler = async (event) => {
 	try {
 		const unauthorized = requireControlAuth(event, {
 			surface: 'PRDBridgeWrite',
-			apiKeyEnvVar: 'SPAWNER_PRD_API_KEY',
-			fallbackApiKeyEnvVar: 'MCP_API_KEY',
+			apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
+			fallbackApiKeyEnvVars: ['SPAWNER_PRD_API_KEY', 'MCP_API_KEY'],
 			apiKeyQueryParam: 'apiKey',
 			apiKeyCookieName: 'spawner_events_api_key',
 			allowedOriginsEnvVar: 'SPAWNER_ALLOWED_ORIGINS'

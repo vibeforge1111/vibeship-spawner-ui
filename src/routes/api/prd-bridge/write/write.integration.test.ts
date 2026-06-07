@@ -100,6 +100,32 @@ describe('/api/prd-bridge/write integration', () => {
 		expect(globalThis.fetch).not.toHaveBeenCalled();
 	});
 
+	it('accepts Spark bridge key for hosted Telegram PRD writes before Harness authority evaluation', async () => {
+		process.env.SPARK_MISSION_LLM_PROVIDER = 'zai';
+		const requestId = 'tg-build-hosted-bridge-key-no-authority';
+
+		const response = await POST({
+			request: new Request('https://spawner.example.com/api/prd-bridge/write', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'x-api-key': BRIDGE_TEST_KEY },
+				body: JSON.stringify({
+					content: '# Hosted Bridge Key\n\nBuild a tiny static page.',
+					requestId,
+					projectName: 'Hosted Bridge Key',
+					buildMode: 'direct'
+				})
+			}),
+			getClientAddress: () => '203.0.113.10'
+		} as never);
+
+		const body = await response.json();
+		expect(response.status).toBe(409);
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
+		expect(existsSync(path.join(testSpawnerDir, 'pending-prd.md'))).toBe(false);
+		expect(globalThis.fetch).not.toHaveBeenCalled();
+	});
+
 	it('blocks bare VNext authority for PRD writes', async () => {
 		const requestId = 'tg-build-vnext-prd-authority';
 
