@@ -383,7 +383,14 @@ export const POST: RequestHandler = async ({ request }) => {
 				'utf-8'
 			);
 		}
-		void relayMissionControlEvent({
+		// Guard against duplicate mission_created relays when the upstream caller
+		// (Telegram bot, MCP) retries this POST after a transient network error.
+		// pendingRequestMeta.status === 'canvas_loaded' means a prior successful
+		// call already fired the relay; skipping it here keeps the operator-facing
+		// "Canvas ready" notification (and downstream board entry) one-shot.
+		const alreadyLoaded =
+			!!pendingRequestMeta && pendingRequestMeta.status === 'canvas_loaded';
+		if (!alreadyLoaded) void relayMissionControlEvent({
 			type: 'mission_created',
 			missionId: resolvedMissionId,
 			missionName: load.pipelineName,
