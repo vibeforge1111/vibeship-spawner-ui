@@ -1,6 +1,7 @@
 import { json, type RequestEvent } from '@sveltejs/kit';
 import { building } from '$app/environment';
 import type { RequestHandler } from './$types';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 import {
   createSchedule,
   deleteSchedule,
@@ -26,56 +27,16 @@ if (!building && process.env.NODE_ENV !== 'test') {
   startScheduler();
 }
 
-function scheduledAuth(event: RequestEvent, allowLoopbackWithoutKey = false) {
-  return requireControlAuth(event, {
-    surface: 'Scheduled',
-    apiKeyEnvVar: 'EVENTS_API_KEY',
-    fallbackApiKeyEnvVar: 'MCP_API_KEY',
-    apiKeyQueryParam: 'apiKey',
-    apiKeyCookieName: 'spawner_events_api_key',
-    allowLoopbackWithoutKey,
-    allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
-  });
-}
-
-function scheduledReadAuth(event: RequestEvent) {
-  const openRead = scheduledAuth(event, true);
-  if (openRead) return { openRead, hasControlAuth: false };
-  const strictRead = scheduledAuth(event, false);
-  return { openRead: null, hasControlAuth: strictRead === null };
-}
-
-function sanitizeScheduleForLoopback(schedule: ScheduleRecord): ScheduleRecord {
-  return {
-    ...schedule,
-    payload: {},
-    chatId: null,
-    authority: schedule.authority
-      ? {
-          source: schedule.authority.source,
-          reasonCodes: schedule.authority.reasonCodes
-        }
-      : undefined
-  };
-}
-
 export const GET: RequestHandler = async (event) => {
-  const { openRead, hasControlAuth } = scheduledReadAuth(event);
-  if (openRead) return openRead;
+  const unauthorized = requireControlAuth(event, { surface: 'ScheduledAPI', apiKeyEnvVar: 'MCP_API_KEY' });
+  if (unauthorized) return unauthorized;
   const schedules = await listSchedules();
   return json({ ok: true, schedules: hasControlAuth ? schedules : schedules.map(sanitizeScheduleForLoopback) });
 };
 
 export const POST: RequestHandler = async (event) => {
-  const unauthorized = scheduledAuth(event);
+  const unauthorized = requireControlAuth(event, { surface: 'ScheduledAPI', apiKeyEnvVar: 'MCP_API_KEY' });
   if (unauthorized) return unauthorized;
-  const rateLimited = enforceRateLimit(event, {
-    scope: 'scheduled_create',
-    limit: 60,
-    windowMs: 60_000
-  });
-  if (rateLimited) return rateLimited;
-
   const { request } = event;
   let body: Record<string, unknown>;
   try {
@@ -105,15 +66,8 @@ export const POST: RequestHandler = async (event) => {
 };
 
 export const DELETE: RequestHandler = async (event) => {
-  const unauthorized = scheduledAuth(event);
+  const unauthorized = requireControlAuth(event, { surface: 'ScheduledAPI', apiKeyEnvVar: 'MCP_API_KEY' });
   if (unauthorized) return unauthorized;
-  const rateLimited = enforceRateLimit(event, {
-    scope: 'scheduled_delete',
-    limit: 60,
-    windowMs: 60_000
-  });
-  if (rateLimited) return rateLimited;
-
   const { request, url } = event;
   let body: Record<string, unknown> = {};
   try { body = asRecord(await request.json()); } catch {}
