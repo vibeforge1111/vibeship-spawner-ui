@@ -174,5 +174,5 @@ export const GET: RequestHandler = async (event) => {
 	if (!trace) {
 		return json({ ok: false, error: 'creator mission trace not found' }, { status: 404 });
 	}
-	return json({ ok: true, tracePath: creatorMissionPath(trace.mission_id), trace });
+	return json({ ok: true, trace });
 };
