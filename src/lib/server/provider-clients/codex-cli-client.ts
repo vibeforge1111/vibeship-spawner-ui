@@ -23,6 +23,8 @@ export interface CodexCliOptions extends ProviderClientOptions {
 	workingDirectory?: string;
 }
 
+const CODEX_TERMINATION_GRACE_MS = 5000;
+
 export interface CodexCliCommand {
 	binary: 'codex' | string;
 	args: string[];
@@ -155,6 +157,7 @@ export async function executeCodexCliRequest(
 		let stderr = '';
 		let lastProgressEmit = Date.now();
 		let killed = false;
+		let killTimeout: ReturnType<typeof setTimeout> | null = null;
 
 		const child = spawnHidden(resolvedBinary, command.args, {
 			cwd,
@@ -177,6 +180,13 @@ export async function executeCodexCliRequest(
 				} catch {
 					// Process may have already exited
 				}
+				killTimeout = setTimeout(() => {
+					try {
+						child.kill('SIGKILL');
+					} catch {
+						// Process may have already exited after SIGTERM.
+					}
+				}, CODEX_TERMINATION_GRACE_MS);
 			};
 			signal.addEventListener('abort', abortHandler, { once: true });
 		}
@@ -218,6 +228,10 @@ export async function executeCodexCliRequest(
 		});
 
 		child.on('close', (code) => {
+			if (killTimeout) {
+				clearTimeout(killTimeout);
+				killTimeout = null;
+			}
 			if (killed) {
 				resolve({
 					success: false,
