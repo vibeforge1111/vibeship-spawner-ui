@@ -8,11 +8,23 @@ import {
 	_buildFallbackAnalysisResult,
 	_demoteProvisionalPrdDraftResult,
 	_extractPrdBridgeProjectLineage,
+	_isProvisionalPrdDraftResult,
 	_provisionalPrdDraftDelayMs,
 	_shouldUseDeterministicPrdFallback
 } from './+server';
 
 let testSpawnerDir = '';
+
+function testPrdBridgePaths(pendingPrdFile: string) {
+	return {
+		spawnerDir: testSpawnerDir,
+		resultsDir: path.join(testSpawnerDir, 'results'),
+		provisionalResultsDir: path.join(testSpawnerDir, 'provisional-results'),
+		pendingPrdFile,
+		pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
+		prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
+	};
+}
 
 describe('PRD bridge fallback analysis', () => {
 	beforeEach(async () => {
@@ -65,13 +77,7 @@ describe('PRD bridge fallback analysis', () => {
 			'Spark Telegram Unit Smoke',
 			'direct',
 			'pro',
-			{
-				spawnerDir: testSpawnerDir,
-				resultsDir: path.join(testSpawnerDir, 'results'),
-				pendingPrdFile,
-				pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
-				prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
-			}
+			testPrdBridgePaths(pendingPrdFile)
 		);
 
 		expect(result.success).toBe(true);
@@ -162,6 +168,8 @@ describe('PRD bridge fallback analysis', () => {
 				score: 44
 			}
 		});
+		expect(_isProvisionalPrdDraftResult(result)).toBe(true);
+		expect(_isProvisionalPrdDraftResult({ ...result, success: true })).toBe(false);
 	});
 
 	it('keeps tiny one-file fast-lane pages to a small task pack', async () => {
@@ -182,13 +190,7 @@ describe('PRD bridge fallback analysis', () => {
 			'Milestone Copy Smoke',
 			'direct',
 			'pro',
-			{
-				spawnerDir: testSpawnerDir,
-				resultsDir: path.join(testSpawnerDir, 'results'),
-				pendingPrdFile,
-				pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
-				prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
-			},
+			testPrdBridgePaths(pendingPrdFile),
 			'fast_direct'
 		);
 
@@ -237,13 +239,7 @@ describe('PRD bridge fallback analysis', () => {
 			'Recursive Sage: Signal Maze',
 			'direct',
 			'pro',
-			{
-				spawnerDir: testSpawnerDir,
-				resultsDir: path.join(testSpawnerDir, 'results'),
-				pendingPrdFile,
-				pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
-				prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
-			}
+			testPrdBridgePaths(pendingPrdFile)
 		);
 
 		expect(result.projectName).toBe('Recursive Sage: Signal Maze');
@@ -287,13 +283,7 @@ describe('PRD bridge fallback analysis', () => {
 			'Recursive Reasoning Grid',
 			'direct',
 			'pro',
-			{
-				spawnerDir: testSpawnerDir,
-				resultsDir: path.join(testSpawnerDir, 'results'),
-				pendingPrdFile,
-				pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
-				prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
-			}
+			testPrdBridgePaths(pendingPrdFile)
 		);
 
 		const tasks = result.tasks as Array<{ title: string; skills: string[]; acceptanceCriteria: string[] }>;
@@ -321,13 +311,7 @@ describe('PRD bridge fallback analysis', () => {
 			'utf-8'
 		);
 
-		const paths = {
-			spawnerDir: testSpawnerDir,
-			resultsDir: path.join(testSpawnerDir, 'results'),
-			pendingPrdFile,
-			pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
-			prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
-		};
+		const paths = testPrdBridgePaths(pendingPrdFile);
 		const proResult = await _buildFallbackAnalysisResult(
 			'tg-build-pro-3d-game',
 			'Pro 3D Game',
@@ -368,13 +352,7 @@ describe('PRD bridge fallback analysis', () => {
 			'Token Launch Dashboard',
 			'direct',
 			'pro',
-			{
-				spawnerDir: testSpawnerDir,
-				resultsDir: path.join(testSpawnerDir, 'results'),
-				pendingPrdFile,
-				pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
-				prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
-			}
+			testPrdBridgePaths(pendingPrdFile)
 		);
 
 		const tasks = result.tasks as Array<{ title: string; skills: string[]; acceptanceCriteria: string[] }>;
@@ -399,13 +377,7 @@ describe('PRD bridge fallback analysis', () => {
 			'did you understand what i said',
 			'direct',
 			'pro',
-			{
-				spawnerDir: testSpawnerDir,
-				resultsDir: path.join(testSpawnerDir, 'results'),
-				pendingPrdFile,
-				pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
-				prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
-			}
+			testPrdBridgePaths(pendingPrdFile)
 		);
 
 		expect(result.success).toBe(true);
@@ -480,13 +452,7 @@ describe('PRD bridge fallback analysis', () => {
 			'Spark Relay Static Smoke',
 			'direct',
 			'pro',
-			{
-				spawnerDir: testSpawnerDir,
-				resultsDir: path.join(testSpawnerDir, 'results'),
-				pendingPrdFile,
-				pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
-				prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
-			}
+			testPrdBridgePaths(pendingPrdFile)
 		);
 
 		expect(result.projectType).toBe('static-single-file-html');

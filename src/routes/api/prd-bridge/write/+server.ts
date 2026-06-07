@@ -46,6 +46,7 @@ function getPrdBridgePaths() {
 	return {
 		spawnerDir,
 		resultsDir: join(spawnerDir, 'results'),
+		provisionalResultsDir: join(spawnerDir, 'provisional-results'),
 		pendingPrdFile: join(spawnerDir, 'pending-prd.md'),
 		pendingRequestFile: join(spawnerDir, 'pending-request.json'),
 		prdAutoTraceFile: join(spawnerDir, 'prd-auto-trace.jsonl')
@@ -192,6 +193,28 @@ export function _demoteProvisionalPrdDraftResult(
 			replacedByProviderResult: false
 		}
 	};
+}
+
+export function _isProvisionalPrdDraftResult(value: unknown): boolean {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const record = value as Record<string, unknown>;
+	const metadata = record.metadata && typeof record.metadata === 'object' && !Array.isArray(record.metadata)
+		? record.metadata as Record<string, unknown>
+		: {};
+	return (
+		record.success === false &&
+		metadata.provisional === true &&
+		metadata.canonical === false &&
+		metadata.resultAuthority === 'provisional_canvas_draft'
+	);
+}
+
+function prdResultFile(paths: ReturnType<typeof getPrdBridgePaths>, requestId: string): string {
+	return join(paths.resultsDir, `${normalizeRequestId(requestId)}.json`);
+}
+
+function provisionalPrdResultFile(paths: ReturnType<typeof getPrdBridgePaths>, requestId: string): string {
+	return join(paths.provisionalResultsDir, `${normalizeRequestId(requestId)}.json`);
 }
 
 function normalizeRunnerCapability(input: unknown): RunnerCapability | null {
@@ -938,33 +961,38 @@ async function writeFallbackAnalysisResult(
 	options: { provisional?: boolean } = {}
 ): Promise<void> {
 	const paths = getPrdBridgePaths();
-	const safeRequestId = normalizeRequestId(requestId);
-	const resultFile = join(paths.resultsDir, `${safeRequestId}.json`);
-	if (existsSync(resultFile)) return;
+	const canonicalResultFile = prdResultFile(paths, requestId);
+	const outputFile = options.provisional ? provisionalPrdResultFile(paths, requestId) : canonicalResultFile;
+	if (existsSync(canonicalResultFile)) return;
+	if (options.provisional && existsSync(outputFile)) return;
 
-	if (!existsSync(paths.resultsDir)) {
-		await mkdir(paths.resultsDir, { recursive: true });
+	const outputDir = options.provisional ? paths.provisionalResultsDir : paths.resultsDir;
+	if (!existsSync(outputDir)) {
+		await mkdir(outputDir, { recursive: true });
 	}
 
 	const result = await _buildFallbackAnalysisResult(requestId, projectName, buildMode, tier, paths, buildLane);
+	if (options.provisional && existsSync(canonicalResultFile)) return;
 	const resolvedTraceRef = traceRef || await traceRefForRequest(requestId, {});
 	const resultWithTrace = resolvedTraceRef
 		? { ...result, traceRef: resolvedTraceRef, metadata: { ...((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined), traceRef: resolvedTraceRef } }
 		: result;
 	const stored = await projectStoredPrdAnalysisResultForTier(requestId, resultWithTrace, tier);
 	const output = options.provisional ? _demoteProvisionalPrdDraftResult(stored, reason) : stored;
-	await writeFile(resultFile, JSON.stringify(output, null, 2), 'utf-8');
-	const staticArtifactCount = await writeConstrainedStaticProofArtifacts(await readFile(paths.pendingPrdFile, 'utf-8').catch(() => ''));
-	if (staticArtifactCount > 0) {
+	await writeFile(outputFile, JSON.stringify(output, null, 2), 'utf-8');
+	const staticArtifactCount = options.provisional
+		? 0
+		: await writeConstrainedStaticProofArtifacts(await readFile(paths.pendingPrdFile, 'utf-8').catch(() => ''));
+	if (!options.provisional && staticArtifactCount > 0) {
 		await appendPrdTrace(requestId, 'deterministic_static_artifacts_written', {
 			...traceRefDetails(resolvedTraceRef),
 			fileCount: staticArtifactCount
 		});
 	}
-	await appendPrdTrace(requestId, 'fallback_analysis_written', {
+	await appendPrdTrace(requestId, options.provisional ? 'provisional_analysis_written' : 'fallback_analysis_written', {
 		...traceRefDetails(resolvedTraceRef),
 		reason,
-		resultFile,
+		resultFile: outputFile,
 		taskCount: Array.isArray(result.tasks) ? result.tasks.length : 0
 	});
 }
@@ -986,8 +1014,7 @@ function scheduleProvisionalPrdDraft(input: {
 
 	const timer = setTimeout(async () => {
 		const paths = getPrdBridgePaths();
-		const safeRequestId = normalizeRequestId(input.requestId);
-		const resultFile = join(paths.resultsDir, `${safeRequestId}.json`);
+		const resultFile = prdResultFile(paths, input.requestId);
 		if (existsSync(resultFile)) {
 			await appendPrdTrace(input.requestId, 'provisional_canvas_skipped', {
 				...traceRefDetails(input.traceRef),
@@ -1019,10 +1046,10 @@ function scheduleProvisionalPrdDraft(input: {
 			{ provisional: true }
 		);
 		void relayMissionControlEvent({
-			type: 'task_completed',
+			type: 'log',
 			missionId: input.missionId,
 			missionName: input.projectName,
-			taskName: 'PRD analysis',
+			taskName: 'PRD draft',
 			message: 'PRD draft ready; full analysis can continue in the background.',
 			source: 'prd-bridge',
 			data: {
@@ -1051,9 +1078,9 @@ function scheduleAutoAnalysisWatchdog(
 ): void {
 	if (AUTO_ANALYSIS_TIMEOUT_MS <= 0) return;
 	const timer = setTimeout(async () => {
-		const { resultsDir } = getPrdBridgePaths();
-		const safeRequestId = normalizeRequestId(requestId);
-		const resultFile = join(resultsDir, `${safeRequestId}.json`);
+		const paths = getPrdBridgePaths();
+		const resultFile = prdResultFile(paths, requestId);
+		const provisionalResultFile = provisionalPrdResultFile(paths, requestId);
 		const hasResult = existsSync(resultFile);
 		if (hasResult) {
 			await appendPrdTrace(requestId, 'watchdog_result_found', {
@@ -1065,22 +1092,21 @@ function scheduleAutoAnalysisWatchdog(
 		cancelAutoAnalysis?.();
 		await updatePendingRequestStatus(requestId, 'timeout', {
 			timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
-			reason: 'No runtime analysis result written before timeout; deterministic fallback queued'
+			canonicalTimedOut: true,
+			provisionalDraftAvailable: existsSync(provisionalResultFile),
+			reason: 'No canonical runtime analysis result written before timeout; provisional draft remains non-canonical.'
 		});
 		await appendPrdTrace(requestId, 'watchdog_timeout', {
 			...traceRefDetails(traceRef),
 			timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
-			expectedResultFile: resultFile
-		});
-		await writeFallbackAnalysisResult(
-			requestId,
-			projectName,
+			expectedResultFile: resultFile,
+			provisionalResultFile,
+			provisionalDraftAvailable: existsSync(provisionalResultFile),
 			buildMode,
-			tier,
-			`auto-analysis timeout after ${AUTO_ANALYSIS_TIMEOUT_MS}ms`,
-			traceRef,
-			buildLane
-		);
+			buildLane,
+			projectName,
+			tier
+		});
 	}, AUTO_ANALYSIS_TIMEOUT_MS);
 
 	if (typeof timer.unref === 'function') {
