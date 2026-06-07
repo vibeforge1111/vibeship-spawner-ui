@@ -84,7 +84,7 @@ function createAuthCookieHeader(request: Request): string | null {
 	}
 
 	const isSecure = request.url.startsWith('https://');
-	return `${EVENTS_AUTH_COOKIE}=${encodeURIComponent(apiKey)}; Path=/; HttpOnly; SameSite=Lax${isSecure ? '; Secure' : ''}`;
+	return `${EVENTS_AUTH_COOKIE}=${encodeURIComponent(apiKey)}; Path=/api/events; HttpOnly; SameSite=Lax${isSecure ? '; Secure' : ''}`;
 }
 
 /**
