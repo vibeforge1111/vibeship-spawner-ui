@@ -84,7 +84,7 @@
 	>
 		<!-- Modal container -->
 		<div
-			class="bg-bg-secondary border border-surface-border w-full max-w-md"
+			class="bg-bg-secondary border border-surface-border w-full max-w-md max-h-[90dvh] overflow-y-auto overscroll-contain"
 			in:scale={{ duration: 250, start: 0.96, easing: backOut }}
 			out:scale={{ duration: 150, start: 0.96 }}
 		>
