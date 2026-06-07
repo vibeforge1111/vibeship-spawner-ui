@@ -25,6 +25,22 @@ import { existsSync } from 'fs';
 const EVENTS_AUTH_COOKIE = 'spawner_events_api_key';
 const log = logger.scope('EventBridge');
 
+// Suppress duplicate fan-out when the upstream POSTer retries the same event id
+// on a transient network error — without this, the same mission_completed (or
+// any other event) is broadcast twice to SSE subscribers + downstream consumers.
+const RECENT_EVENT_ID_TTL_MS = 5 * 60 * 1000;
+const recentEventIds = new Map<string, number>();
+function rememberRecentEventId(id: string, now: number): boolean {
+	const previous = recentEventIds.get(id);
+	if (typeof previous === 'number' && now - previous < RECENT_EVENT_ID_TTL_MS) return false;
+	recentEventIds.set(id, now);
+	if (recentEventIds.size > 1000) {
+		const cutoff = now - RECENT_EVENT_ID_TTL_MS;
+		recentEventIds.forEach((ts, key) => { if (ts < cutoff) recentEventIds.delete(key); });
+	}
+	return true;
+}
+
 function corsHeaders(request: Request): Record<string, string> {
 	const origin = request.headers.get('origin');
 	if (!origin) return {};
@@ -226,6 +242,20 @@ export const POST: RequestHandler = async (event) => {
 		// Validate required fields
 		if (!payload.type) {
 			return json({ error: 'Event type is required' }, { status: 400 });
+		}
+
+		// Short-circuit on caller-supplied id that's already been processed within
+		// the dedup window — keeps mission_completed (and every other event) from
+		// being fanned out twice when the upstream POSTer retries on a transient
+		// network error. Auto-generated ids fall through to the normal path.
+		const callerSuppliedId =
+			typeof payload.id === 'string' && payload.id.trim() ? payload.id.trim() : null;
+		if (callerSuppliedId && !rememberRecentEventId(callerSuppliedId, Date.now())) {
+			const headers = new Headers();
+			for (const [key, value] of Object.entries(corsHeaders(event.request))) {
+				headers.set(key, value);
+			}
+			return json({ success: true, eventId: callerSuppliedId, deduplicated: true }, { headers });
 		}
 
 		// Add metadata
