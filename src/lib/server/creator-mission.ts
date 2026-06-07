@@ -366,6 +366,14 @@ function creatorMissionDir(stateDir = spawnerStateDir()): string {
 	return path.join(stateDir, 'creator-missions');
 }
 
+/**
+ * Validates that a missionId contains only safe characters and cannot be used for path traversal.
+ * Mission IDs should be alphanumeric with hyphens/underscores only.
+ */
+function validateMissionId(missionId: string): boolean {
+	return /^[a-zA-Z0-9_-]+$/.test(missionId);
+}
+
 function pendingLoadPath(stateDir = spawnerStateDir()): string {
 	return path.join(stateDir, 'pending-load.json');
 }
@@ -1653,6 +1661,10 @@ export async function readCreatorMissionTrace(
 ): Promise<CreatorMissionTrace | null> {
 	const missionId = input.missionId?.trim();
 	if (missionId) {
+		if (!validateMissionId(missionId)) {
+			console.error(`Invalid missionId format: ${missionId}`);
+			return null;
+		}
 		const filePath = creatorMissionPath(missionId, stateDir);
 		if (!existsSync(filePath)) return null;
 		return parseCreatorMissionTraceFile(await readFile(filePath, 'utf-8'));
