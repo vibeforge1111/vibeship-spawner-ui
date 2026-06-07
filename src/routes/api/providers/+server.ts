@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { DEFAULT_MULTI_LLM_PROVIDERS } from '$lib/services/multi-llm-orchestrator';
 import { applyProviderEnvOverrides, resolveProviderRuntimeConfiguration } from '$lib/server/provider-config';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 
 function normalizeProviderId(value: string | undefined): string | null {
 	if (!value) return null;
@@ -13,7 +14,14 @@ function normalizeProviderId(value: string | undefined): string | null {
 		: null;
 }
 
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async (event) => {
+	// Security: Require auth - response includes apiKeyEnv names, cliPath, and config state
+	const unauthorized = requireControlAuth(event, {
+		surface: 'Providers',
+		apiKeyEnvVar: 'MCP_API_KEY',
+		allowLoopbackWithoutKey: true
+	});
+	if (unauthorized) return unauthorized;
 	const envRecord = env as Record<string, string | undefined>;
 	const sparkDefaultProvider =
 		normalizeProviderId(envRecord.DEFAULT_MISSION_PROVIDER) ||
