@@ -9,8 +9,8 @@ import { logger } from '$lib/utils/logger';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
-import { basename, dirname, join, resolve } from 'path';
-import { existsSync, realpathSync } from 'fs';
+import { join, resolve, sep } from 'path';
+import { existsSync } from 'fs';
 import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { resolveCliBinary } from '$lib/server/cli-resolver';
@@ -544,6 +544,13 @@ async function writeConstrainedStaticProofArtifacts(content: string): Promise<nu
 
 	const { marker, sentence } = extractStaticProofVisibleRequirements(content);
 	if (!marker && !sentence) return 0;
+
+	// Prevent path traversal: ensure targetFolder is within the workspace
+	const resolvedTarget = resolve(targetFolder);
+	const workspaceRoot = resolve(spawnerStateDir());
+	if (!resolvedTarget.startsWith(workspaceRoot + sep) && resolvedTarget !== workspaceRoot) {
+		return 0;
+	}
 
 	await mkdir(targetFolder, { recursive: true });
 	const markerHtml = marker ? `<p class="marker">${escapeHtml(marker)}</p>` : '';
