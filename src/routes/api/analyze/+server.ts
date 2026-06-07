@@ -264,10 +264,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		} catch (parseError) {
 			log.error('Failed to parse Claude response:', textContent.text);
 			return json({
-				error: 'Failed to parse Claude response',
-				fallback: true,
-				rawResponse: textContent.text.slice(0, 500) // For debugging
-			}, { status: 502 });
+						error: 'Failed to parse Claude response',
+						fallback: true
+					}, { status: 502 });
 		}
 
 	} catch (error) {
