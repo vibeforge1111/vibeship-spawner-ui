@@ -25,6 +25,7 @@ function errorMessage(error: unknown, fallback = 'unknown'): string {
 }
 
 const TICK_MS = 30_000;
+const MAX_SCHEDULES = 100; // Security: Limit total schedules to prevent DoS via unbounded disk/CPU growth
 
 function schedulesFile(): string {
   return path.resolve(spawnerStateDir(privateEnv), 'schedules.json');
@@ -106,6 +107,10 @@ export async function createSchedule(input: {
   chatId?: string | null;
 }): Promise<ScheduleRecord> {
   const store = await _load();
+  // Security: Enforce schedule limit to prevent DoS via unbounded disk/CPU growth
+  if (store.schedules.length >= MAX_SCHEDULES) {
+    throw new Error(`Schedule limit reached (max ${MAX_SCHEDULES}). Delete existing schedules before creating new ones.`);
+  }
   const nextFireAt = _computeNext(input.cron);
   if (!nextFireAt) {
     throw new Error(`Invalid cron expression: ${input.cron}`);
