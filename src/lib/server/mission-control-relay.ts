@@ -206,7 +206,11 @@ function persistState() {
 		const dir = path.dirname(persistPath);
 		if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 		const tmp = persistPath + '.tmp';
-		fs.writeFileSync(
+		try {
+		    fs.writeFileSync(
+		} catch (e) {
+		    // silent catch
+		}
 			tmp,
 			JSON.stringify({
 				totalRelayed: relayState.totalRelayed,
