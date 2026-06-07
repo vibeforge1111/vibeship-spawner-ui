@@ -28,6 +28,7 @@ import {
 	resolveExecutionAuthority,
 	type HarnessAuthorityVerdict
 } from '$lib/server/harness-authority';
+import { spawnerStateDir } from '$lib/server/spawner-state';
 
 interface PrdAutoSkill {
 	id?: string;
@@ -327,6 +328,10 @@ function hostedWorkspaceRoot(envRecord: Record<string, string | undefined>): str
 	return envRecord.SPAWNER_WORKSPACE_ROOT?.trim() || envRecord.SPARK_WORKSPACE_ROOT?.trim() || null;
 }
 
+function generatedProjectRoot(envRecord: Record<string, string | undefined>): string {
+	return envRecord.SPAWNER_STATE_DIR?.trim() || spawnerStateDir();
+}
+
 export function inferProjectPathFromPrdLoad(
 	load: PrdCanvasLoadForAutoDispatch,
 	envRecord: Record<string, string | undefined> = env as Record<string, string | undefined>
@@ -344,7 +349,7 @@ export function inferProjectPathFromPrdLoad(
 		return join(workspaceRoot, `${slugPart(load.missionId)}-${slugPart(load.pipelineName)}`);
 	}
 
-	return '.';
+	return join(generatedProjectRoot(envRecord), 'generated-projects', `${slugPart(load.missionId)}-${slugPart(load.pipelineName)}`);
 }
 
 function plannedTasksFromMission(

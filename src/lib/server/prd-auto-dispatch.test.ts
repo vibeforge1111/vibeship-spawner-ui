@@ -157,17 +157,17 @@ describe('PRD auto-dispatch helpers', () => {
 		expect(projectPath).toMatch(/[\\/]data[\\/]workspaces[\\/]mission-1-spark-test$/);
 	});
 
-	it('keeps local auto-dispatch fallback unchanged without a hosted workspace', () => {
-		expect(
-			inferProjectPathFromPrdLoad(
-				{
-					...load,
-					executionPrompt: 'Build a tiny static landing page for a cafe.',
-					nodes: [{ skill: { name: 'task-1: Build page', description: 'Create the page.' } }]
-				},
-				{}
-			)
-		).toBe('.');
+	it('uses the Spawner state root for generated projects without a hosted workspace', () => {
+		const projectPath = inferProjectPathFromPrdLoad(
+			{
+				...load,
+				executionPrompt: 'Build a tiny static landing page for a cafe.',
+				nodes: [{ skill: { name: 'task-1: Build page', description: 'Create the page.' } }]
+			},
+			{ SPAWNER_STATE_DIR: 'C:\\tmp\\spawner-state' }
+		);
+
+		expect(projectPath).toBe('C:\\tmp\\spawner-state\\generated-projects\\mission-1-spark-test');
 	});
 
 	it('allows auto-dispatch only when the PRD load is runnable', () => {
