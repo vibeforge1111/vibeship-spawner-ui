@@ -39,12 +39,19 @@ export const GET: RequestHandler = async (event) => {
 		start(controller) {
 			const encoder = new TextEncoder();
 			let closed = false;
+			let unsubscribe: () => void = () => {};
 			const push = (payload: unknown) => {
 				if (closed) return;
 				try {
 					controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
 				} catch {
+					// Client went away mid-enqueue. Release the bridge
+					// subscription so the now-dead callback exits
+					// sparkAgentBridge.subscribers immediately; otherwise
+					// the closure sits in the per-session Set until the
+					// process restarts and runs on every future push.
 					closed = true;
+					unsubscribe();
 				}
 			};
 
@@ -58,9 +65,11 @@ export const GET: RequestHandler = async (event) => {
 				push(event);
 			}
 
-			const unsubscribe = sparkAgentBridge.subscribe(sessionId, (event) => {
-				push(event);
-			});
+			if (!closed) {
+				unsubscribe = sparkAgentBridge.subscribe(sessionId, (event) => {
+					push(event);
+				});
+			}
 
 			request.signal.addEventListener('abort', () => {
 				unsubscribe();
