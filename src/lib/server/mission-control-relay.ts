@@ -215,7 +215,11 @@ function persistState() {
 			}),
 			'utf-8'
 		);
-		fs.renameSync(tmp, persistPath);
+		try {
+		    fs.renameSync(tmp, persistPath);
+		} catch (e) {
+		    // silent catch
+		}
 	} catch {
 		/* persist is best-effort */
 	}
