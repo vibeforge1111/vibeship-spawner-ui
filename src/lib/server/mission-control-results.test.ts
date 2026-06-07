@@ -278,6 +278,99 @@ describe('mission-control-results', () => {
 		});
 	});
 
+	it('marks generated-app completion incomplete without artifact reference', () => {
+		const enriched = enrichMissionControlBoardWithProviderResults(
+			{
+				completed: [
+					entry('mission-generated-app-no-artifact', {
+						projectLineage: {
+							projectId: 'mission-generated-app-no-artifact',
+							projectPath: '/data/workspaces/mission-generated-app-no-artifact',
+							previewUrl: null,
+							parentMissionId: null,
+							iterationNumber: null,
+							improvementFeedback: null
+						},
+						tasks: [{ title: 'Build the app', skills: [], status: 'completed' }],
+						taskStatusCounts: {
+							queued: 0,
+							running: 0,
+							completed: 1,
+							failed: 0,
+							cancelled: 0,
+							total: 1
+						}
+					})
+				],
+				failed: [],
+				running: []
+			},
+			() => [result({ status: 'completed', response: 'done' })]
+		);
+
+		expect(enriched.completed[0]).toMatchObject({
+			missionId: 'mission-generated-app-no-artifact',
+			status: 'completed',
+			completionEvidence: {
+				state: 'incomplete',
+				missing: ['artifact_reference'],
+				providerTerminal: true,
+				hasProviderSummary: true,
+				hasArtifactReference: false,
+				tasksTerminal: true
+			}
+		});
+	});
+
+	it('keeps generated-app completion complete with structured artifact metadata', () => {
+		const enriched = enrichMissionControlBoardWithProviderResults(
+			{
+				completed: [
+					entry('mission-generated-app-with-artifact', {
+						projectLineage: {
+							projectId: 'mission-generated-app-with-artifact',
+							projectPath: '/data/workspaces/mission-generated-app-with-artifact',
+							previewUrl: null,
+							parentMissionId: null,
+							iterationNumber: null,
+							improvementFeedback: null
+						},
+						tasks: [{ title: 'Build the app', skills: [], status: 'completed' }],
+						taskStatusCounts: {
+							queued: 0,
+							running: 0,
+							completed: 1,
+							failed: 0,
+							cancelled: 0,
+							total: 1
+						}
+					})
+				],
+				failed: [],
+				running: []
+			},
+			() => [
+				result({
+					status: 'completed',
+					response: JSON.stringify({
+						summary: 'Generated files are ready.',
+						project_path: '/data/workspaces/mission-generated-app-with-artifact'
+					})
+				})
+			]
+		);
+
+		expect(enriched.completed[0]).toMatchObject({
+			missionId: 'mission-generated-app-with-artifact',
+			status: 'completed',
+			completionEvidence: {
+				state: 'complete',
+				missing: [],
+				hasArtifactReference: true
+			}
+		});
+	});
+
 	it('marks terminal cards with incomplete evidence when provider results are absent', () => {
 		const enriched = enrichMissionControlBoardWithProviderResults(
 			{ completed: [entry('mission-no-provider-result')], failed: [], running: [] },

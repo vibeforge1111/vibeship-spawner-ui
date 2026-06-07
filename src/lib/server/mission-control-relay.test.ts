@@ -506,6 +506,71 @@ describe('mission-control-relay', () => {
 		).toEqual(['http://127.0.0.1:8789/spawner-events']);
 	});
 
+	it('does not fan out when the originating relay port is not configured', () => {
+		const urls = [
+			'http://127.0.0.1:8788/spawner-events',
+			'http://127.0.0.1:8789/spawner-events'
+		];
+
+		expect(
+			selectWebhookUrlsForMissionEvent({
+				type: 'mission_started',
+				missionId: 'spark-unconfigured-relay',
+				data: { telegramRelay: { port: 8790, profile: 'retired' } }
+			}, urls)
+		).toEqual([]);
+	});
+
+	it('matches an explicit relay URL by port before giving up', () => {
+		const urls = [
+			'http://127.0.0.1:8788/spawner-events',
+			'http://127.0.0.1:8789/spawner-events'
+		];
+
+		expect(
+			selectWebhookUrlsForMissionEvent({
+				type: 'mission_started',
+				missionId: 'spark-url-port-target',
+				data: { telegramRelay: { url: 'http://localhost:8789/spawner-events' } }
+			}, urls)
+		).toEqual(['http://127.0.0.1:8789/spawner-events']);
+	});
+
+	it('carries the originating Telegram relay onto later same-mission events', async () => {
+		const missionId = `spark-relay-carry-${Date.now()}`;
+		const requestId = `req-relay-carry-${Date.now()}`;
+		const traceRef = `trace:relay-carry:${requestId}`;
+
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			source: 'prd-bridge',
+			data: {
+				requestId,
+				traceRef,
+				telegramRelay: { port: 8789, profile: 'spark-recursive' }
+			}
+		});
+		await relayMissionControlEvent({
+			type: 'log',
+			missionId,
+			source: 'prd-bridge',
+			message: 'Full PRD analysis is still running.',
+			data: {
+				requestId,
+				traceRef,
+				canonicalStillRunning: true
+			}
+		});
+
+		const snapshot = getMissionControlRelaySnapshot(missionId);
+		expect(snapshot.recent[0].telegramRelay).toEqual({
+			port: 8789,
+			profile: 'spark-recursive',
+			url: null
+		});
+	});
+
 	it('prefers an explicit Telegram relay URL over a matching port', () => {
 		const urls = [
 			'http://127.0.0.1:8788/spawner-events',

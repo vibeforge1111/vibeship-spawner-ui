@@ -291,6 +291,7 @@ function buildCompletionEvidence(
 	const hasProviderCompletionTime = results.some((result) => Boolean(result.completedAt));
 	const hasProviderSummary = Boolean(summary.providerSummary);
 	const hasArtifactReference = summary.providerResults.some((result) => Boolean(result.projectPath || result.previewUrl));
+	const expectsGeneratedAppArtifact = Boolean(entry.projectLineage?.projectPath || entry.projectLineage?.previewUrl);
 	const tasksTerminal = entry.taskStatusCounts.running === 0 && entry.taskStatusCounts.queued === 0;
 	const missing: string[] = [];
 
@@ -299,6 +300,7 @@ function buildCompletionEvidence(
 	if (results.length > 0 && !providerTerminal) missing.push('provider_terminal_status');
 	if (results.length > 0 && providerTerminal && !hasProviderCompletionTime) missing.push('provider_completion_time');
 	if (!hasProviderSummary) missing.push('provider_summary');
+	if (entry.status === 'completed' && expectsGeneratedAppArtifact && !hasArtifactReference) missing.push('artifact_reference');
 	if (!tasksTerminal) missing.push('terminal_task_state');
 
 	return {
