@@ -305,6 +305,17 @@ export const PRECONFIGURED_MCPS: Record<string, MCPClientConfig> = {
 };
 
 /**
+ * Validate that an npm package name is safe to pass to npx.
+ * Rejects shell metacharacters, path separators, and other dangerous tokens.
+ */
+function isValidNpmPackageName(name: string): boolean {
+	if (!name || name.length > 256) return false;
+	// Allow scoped (@scope/pkg) and unscoped (pkg) names.
+	// Only permit: alphanumeric, hyphens, underscores, dots, slashes, @, and tilde for tag refs.
+	return /^(@[a-zA-Z0-9._-]+\/)?[a-zA-Z0-9._~@-]+$/.test(name);
+}
+
+/**
  * Build MCPClientConfig from a registry item's npmPackage field.
  * Falls back to PRECONFIGURED_MCPS if no npmPackage is set.
  */
@@ -323,8 +334,14 @@ export function buildConfigFromRegistry(
 		return base;
 	}
 
-	// Build from npmPackage
+	// Build from npmPackage — reject names with shell metacharacters
 	if (npmPackage) {
+		if (!isValidNpmPackageName(npmPackage)) {
+			throw new Error(
+				`MCP npm package name "${npmPackage}" is not valid. ` +
+				'Package names must contain only letters, digits, hyphens, underscores, dots, and @ for scoped packages.'
+			);
+		}
 		return {
 			command: 'npx',
 			args: ['-y', npmPackage, ...(defaultArgs || [])],
