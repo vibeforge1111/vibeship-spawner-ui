@@ -269,7 +269,7 @@ class ProviderRuntimeManager {
 		try {
 			const persistPath = getProviderResultsPath();
 			mkdirSync(path.dirname(persistPath), { recursive: true });
-			const tempPath = `${persistPath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+			const tempPath = `${persistPath}.${crypto.randomUUID()}.tmp`;
 			writeFileSync(
 				tempPath,
 				JSON.stringify({ missions: Object.fromEntries(this.persistedResults) }, null, 2),
