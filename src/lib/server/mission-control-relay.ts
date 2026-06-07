@@ -232,8 +232,22 @@ const relayState: {
 	recent: []
 };
 
+// Lifecycle-state maps are server-process-lifetime; without a cap, every
+// mission/task ID processed since the last restart accumulates an entry
+// and the maps grow unbounded. Cap each map and evict the oldest
+// insertion when the cap is reached. Map iteration order preserves
+// insertion order, so the first key reached is the oldest.
+const MAX_LIFECYCLE_ENTRIES = 5000;
 const missionLifecycleStates = new Map<string, string>();
 const taskLifecycleStates = new Map<string, string>();
+
+function setBoundedLifecycle(map: Map<string, string>, key: string, value: string): void {
+	if (!map.has(key) && map.size >= MAX_LIFECYCLE_ENTRIES) {
+		const oldest = map.keys().next().value;
+		if (oldest !== undefined) map.delete(oldest);
+	}
+	map.set(key, value);
+}
 
 function normalizeMissionId(event: MissionControlBridgeEvent): string {
 	return typeof event.missionId === 'string' && event.missionId.trim().length > 0 ? event.missionId : 'unknown-mission';
@@ -695,7 +709,7 @@ function shouldRecordLifecycleTransition(event: MissionControlBridgeEvent): bool
 		if (taskLifecycleStates.get(key) === taskStatus) {
 			return false;
 		}
-		taskLifecycleStates.set(key, taskStatus);
+		setBoundedLifecycle(taskLifecycleStates, key, taskStatus);
 		return true;
 	}
 
@@ -704,7 +718,7 @@ function shouldRecordLifecycleTransition(event: MissionControlBridgeEvent): bool
 	if (missionLifecycleStates.get(missionId) === missionStatus) {
 		return false;
 	}
-	missionLifecycleStates.set(missionId, missionStatus);
+	setBoundedLifecycle(missionLifecycleStates, missionId, missionStatus);
 	return true;
 }
 
