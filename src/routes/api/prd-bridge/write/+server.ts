@@ -131,6 +131,13 @@ type RunnerCapability = {
 	checkedAt?: string;
 };
 
+type ProjectPathEvidence = {
+	requestedProjectPath: string | null;
+	usedProjectPath: string | null;
+	evidenceOnly: boolean;
+	rejectedReason: string | null;
+};
+
 type AuthorityVerdictV1 = {
 	schema_version: 'spark.authority_verdict.v1';
 	traceRef?: string;
@@ -203,6 +210,28 @@ function normalizeRunnerCapability(input: unknown): RunnerCapability | null {
 		}
 	}
 	return normalized;
+}
+
+function normalizeProjectPathEvidence(input: unknown): ProjectPathEvidence | null {
+	if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
+	const record = input as Record<string, unknown>;
+	const requestedProjectPath = typeof record.requestedProjectPath === 'string' && record.requestedProjectPath.trim()
+		? record.requestedProjectPath.trim()
+		: null;
+	const usedProjectPath = typeof record.usedProjectPath === 'string' && record.usedProjectPath.trim()
+		? record.usedProjectPath.trim()
+		: null;
+	const rejectedReason = typeof record.rejectedReason === 'string' && record.rejectedReason.trim()
+		? record.rejectedReason.trim()
+		: null;
+	const evidenceOnly = record.evidenceOnly === true;
+	if (!requestedProjectPath && !usedProjectPath && !rejectedReason && !evidenceOnly) return null;
+	return {
+		requestedProjectPath,
+		usedProjectPath,
+		evidenceOnly,
+		rejectedReason
+	};
 }
 
 async function updatePendingRequestStatus(
@@ -1488,13 +1517,14 @@ export const POST: RequestHandler = async (event) => {
 		if (!body || typeof body !== 'object' || Array.isArray(body)) {
 			return json({ error: 'Malformed JSON body' }, { status: 400 });
 		}
-		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, buildLane, build_lane, buildLaneReason, build_lane_reason, telegramRelay, tier, forceDispatch, runnerCapability, runner_capability, capabilityProposalPacket, capability_proposal_packet, traceRef, trace_ref, executionAuthority, execution_authority } =
+		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, buildLane, build_lane, buildLaneReason, build_lane_reason, telegramRelay, tier, forceDispatch, runnerCapability, runner_capability, projectPathEvidence, project_path_evidence, capabilityProposalPacket, capability_proposal_packet, traceRef, trace_ref, executionAuthority, execution_authority } =
 			body as Record<string, any>;
 		const normalizedBuildMode = normalizeBuildMode(buildMode);
 		const normalizedBuildLane = normalizeBuildLane(buildLane ?? build_lane, normalizedBuildMode, options);
 		const normalizedTier = normalizeTier(tier);
 		const normalizedTelegramRelay = normalizeTelegramRelay(telegramRelay);
 		const normalizedRunnerCapability = normalizeRunnerCapability(runnerCapability ?? runner_capability);
+		const normalizedProjectPathEvidence = normalizeProjectPathEvidence(projectPathEvidence ?? project_path_evidence);
 		const normalizedCapabilityProposalPacket = normalizeCapabilityProposalPacket(
 			capabilityProposalPacket ?? capability_proposal_packet
 		);
@@ -1634,6 +1664,7 @@ export const POST: RequestHandler = async (event) => {
 			},
 			projectLineage,
 			...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
+			...(normalizedProjectPathEvidence ? { projectPathEvidence: normalizedProjectPathEvidence } : {}),
 			...(normalizedCapabilityProposalPacket ? { capabilityProposalPacket: normalizedCapabilityProposalPacket } : {}),
 			...(normalizedCapabilityProposalSummary ? { capabilityProposalSummary: normalizedCapabilityProposalSummary } : {}),
 			relay:
@@ -1648,6 +1679,7 @@ export const POST: RequestHandler = async (event) => {
 							goal: content.slice(0, 500),
 							...(projectLineage ? { projectLineage } : {}),
 							...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
+							...(normalizedProjectPathEvidence ? { projectPathEvidence: normalizedProjectPathEvidence } : {}),
 							...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {})
 						}
 					: undefined
@@ -1660,6 +1692,16 @@ export const POST: RequestHandler = async (event) => {
 			buildLane: requestMeta.buildLane,
 			authority,
 			...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
+			...(normalizedProjectPathEvidence
+				? {
+						projectPathEvidence: {
+							hasRequestedProjectPath: Boolean(normalizedProjectPathEvidence.requestedProjectPath),
+							usedProjectPath: Boolean(normalizedProjectPathEvidence.usedProjectPath),
+							evidenceOnly: normalizedProjectPathEvidence.evidenceOnly,
+							rejectedReason: normalizedProjectPathEvidence.rejectedReason
+						}
+					}
+				: {}),
 			...(normalizedCapabilityProposalSummary
 				? { capabilityProposal: normalizedCapabilityProposalSummary }
 				: {})
@@ -1680,6 +1722,7 @@ export const POST: RequestHandler = async (event) => {
 				buildModeReason: requestMeta.buildModeReason,
 				...(projectLineage ? { projectLineage } : {}),
 				...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
+				...(normalizedProjectPathEvidence ? { projectPathEvidence: normalizedProjectPathEvidence } : {}),
 				...(normalizedCapabilityProposalSummary ? { capabilityProposal: normalizedCapabilityProposalSummary } : {}),
 				...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {})
 			}

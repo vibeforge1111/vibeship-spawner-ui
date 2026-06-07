@@ -216,6 +216,60 @@ describe('/api/prd-bridge/write integration', () => {
 		});
 	});
 
+	it('persists rejected target path intent as evidence without project lineage authority', async () => {
+		process.env.SPARK_MISSION_LLM_PROVIDER = 'zai';
+		const requestId = 'tg-build-rejected-path-evidence';
+		const requestedProjectPath = 'C:\\tmp\\spark-generated\\outside-root';
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/write', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'x-api-key': BRIDGE_TEST_KEY },
+				body: JSON.stringify({
+					content: '# Outside Root App\n\nBuild a compact dashboard. The executable path was rejected before dispatch and must not be used as project lineage.',
+					requestId,
+					projectName: 'Outside Root App',
+					buildMode: 'direct',
+					tier: 'pro',
+					chatId: 'telegram-chat-1',
+					userId: 'telegram-user-1',
+					forceDispatch: true,
+					projectPathEvidence: {
+						requestedProjectPath,
+						usedProjectPath: null,
+						evidenceOnly: true,
+						rejectedReason: 'outside_configured_workspace_root'
+					},
+					executionAuthority: writeAuthority(requestId)
+				})
+			}),
+			getClientAddress: () => '127.0.0.1'
+		} as never);
+
+		expect(response.status).toBe(200);
+		const pendingMeta = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
+		expect(pendingMeta.projectLineage).toBeNull();
+		expect(pendingMeta.projectPathEvidence).toEqual({
+			requestedProjectPath,
+			usedProjectPath: null,
+			evidenceOnly: true,
+			rejectedReason: 'outside_configured_workspace_root'
+		});
+		expect(pendingMeta.relay.projectPathEvidence).toEqual(pendingMeta.projectPathEvidence);
+		const traceRows = (await readFile(path.join(testSpawnerDir, 'prd-auto-trace.jsonl'), 'utf-8'))
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line));
+		expect(traceRows.find((row) => row.event === 'request_written')).toMatchObject({
+			projectPathEvidence: {
+				hasRequestedProjectPath: true,
+				usedProjectPath: false,
+				evidenceOnly: true,
+				rejectedReason: 'outside_configured_workspace_root'
+			}
+		});
+	});
+
 	it('keeps exact two-file static proofs deterministic and scoped to the requested folder', async () => {
 		const requestId = 'tg-build-static-proof-s';
 		const traceRef = 'trace:spawner-prd:mission-static-proof-s';
