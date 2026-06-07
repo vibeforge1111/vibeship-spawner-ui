@@ -971,6 +971,7 @@ function normalizeSingleSourceRunningTaskBurst(
 
 	for (const task of runningTasks) {
 		if (task === activeTask) continue;
+		if (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled') continue;
 		task.status = 'queued';
 		delete task.progress;
 	}
