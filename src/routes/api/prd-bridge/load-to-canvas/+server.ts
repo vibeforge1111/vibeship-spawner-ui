@@ -407,7 +407,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 
 		const autoDispatchResult = effectiveAutoRun
-			? await autoDispatchPrdCanvasLoad(load)
+			? await autoDispatchPrdCanvasLoad(load, { allowExistingNonTerminalMission: true })
 			: {
 					started: false,
 					skipped: true,
