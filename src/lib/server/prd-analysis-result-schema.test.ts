@@ -101,6 +101,37 @@ describe('PRD analysis result storage projection', () => {
 		expect(stored.complexity).toBe('moderate');
 	});
 
+	it('normalizes provider tech stack arrays into stored objects', () => {
+		const stored = projectStoredPrdAnalysisResult('request-tech-stack-array', {
+			requestId: 'request-tech-stack-array',
+			success: true,
+			projectName: 'Tech Stack Array Proof',
+			techStack: ['SvelteKit', 'TypeScript', 'CSS', 'Local development server'],
+			tasks: [
+				{
+					id: 'task-1',
+					title: 'Build governed app path',
+					acceptanceCriteria: ['Provider result is accepted.'],
+					verificationCommands: ['npm test']
+				}
+			],
+			skills: []
+		});
+
+		expect(stored.techStack).toMatchObject({
+			framework: 'SvelteKit',
+			language: 'TypeScript',
+			styling: 'CSS',
+			deployment: 'Local development server'
+		});
+		expect((stored.techStack as Record<string, unknown>).entries).toEqual([
+			'SvelteKit',
+			'TypeScript',
+			'CSS',
+			'Local development server'
+		]);
+	});
+
 	it('strips pro-only skill ids from base-tier PRD analysis results', async () => {
 		const sanitized = await sanitizePrdAnalysisResultForTier('request-base', {
 			requestId: 'request-base',

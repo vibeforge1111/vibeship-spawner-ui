@@ -36,6 +36,26 @@ const taskSchema = z.object({
 		.optional()
 });
 
+function normalizeTechStack(value: unknown): unknown {
+	if (!Array.isArray(value)) return value;
+	const entries = value
+		.map((item) => {
+			if (typeof item === 'string') return item.trim();
+			if (!item || typeof item !== 'object') return '';
+			const record = item as Record<string, unknown>;
+			return String(record.name ?? record.tool ?? record.technology ?? record.value ?? '').trim();
+		})
+		.filter(Boolean);
+	if (entries.length === 0) return value;
+	return {
+		framework: entries[0],
+		language: entries.find((entry) => /typescript|javascript|python|go|rust/i.test(entry)) || 'TypeScript or JavaScript',
+		styling: entries.find((entry) => /css|tailwind|sass|scss|style/i.test(entry)),
+		deployment: entries.find((entry) => /local|server|static|deploy|hosting/i.test(entry)),
+		entries
+	};
+}
+
 export const prdAnalysisResultSchema = z
 	.object({
 		requestId: z.string().min(1).optional(),
@@ -51,14 +71,20 @@ export const prdAnalysisResultSchema = z
 			needsAPI: z.boolean().default(false),
 			apiReason: z.string().optional()
 		}).default({ needsAuth: false, needsDatabase: false, needsAPI: false }),
-		techStack: z.object({
-			framework: z.string().min(1).default('Existing project'),
-			language: z.string().min(1).default('TypeScript or JavaScript'),
-			styling: z.string().optional(),
-			database: z.string().optional(),
-			auth: z.string().optional(),
-			deployment: z.string().optional()
-		}).default({ framework: 'Existing project', language: 'TypeScript or JavaScript' }),
+		techStack: z.preprocess(
+			normalizeTechStack,
+			z
+				.object({
+					framework: z.string().min(1).default('Existing project'),
+					language: z.string().min(1).default('TypeScript or JavaScript'),
+					styling: z.string().optional(),
+					database: z.string().optional(),
+					auth: z.string().optional(),
+					deployment: z.string().optional()
+				})
+				.passthrough()
+				.default({ framework: 'Existing project', language: 'TypeScript or JavaScript' })
+		),
 		tasks: z.array(taskSchema).min(1),
 		skills: stringList.default([]),
 		executionPrompt: z.string().min(1).optional()
@@ -66,7 +92,8 @@ export const prdAnalysisResultSchema = z
 	.passthrough();
 
 export type ValidPrdAnalysisResult = z.infer<typeof prdAnalysisResultSchema>;
-export type StoredPrdAnalysisResult = Omit<ValidPrdAnalysisResult, 'executionPrompt'> & {
+export type StoredPrdAnalysisResult = Omit<ValidPrdAnalysisResult, 'executionPrompt' | 'success'> & {
+	success: boolean;
 	instructionTextRedacted: true;
 	metadata?: Record<string, unknown>;
 };

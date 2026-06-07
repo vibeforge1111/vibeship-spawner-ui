@@ -24,7 +24,10 @@ import { formatTaskQualityGuidance } from '$lib/server/task-quality-rubric';
 import { formatVerificationPlanGuidance, generateVerificationPlan } from '$lib/server/verification-plan-generator';
 import { enrichBrief, isSparseUnderstandingClarification } from '$lib/server/brief-enricher';
 import { spawnerStateDir } from '$lib/server/spawner-state';
-import { projectStoredPrdAnalysisResultForTier } from '$lib/server/prd-analysis-result-schema';
+import {
+	projectStoredPrdAnalysisResultForTier,
+	type StoredPrdAnalysisResult
+} from '$lib/server/prd-analysis-result-schema';
 import { extractExplicitProjectPath } from '$lib/server/project-path-extraction';
 import {
 	capabilityProposalSummary,
@@ -160,6 +163,27 @@ export function _buildAuthorityVerdict(input: {
 		reasonCode: input.autoStarted
 			? `auto_provider_${provider}_started`
 			: `auto_provider_${provider}_not_started`
+	};
+}
+
+export function _demoteProvisionalPrdDraftResult(
+	result: StoredPrdAnalysisResult,
+	reason: string
+): StoredPrdAnalysisResult {
+	const metadata = result.metadata && typeof result.metadata === 'object' && !Array.isArray(result.metadata)
+		? result.metadata
+		: {};
+	return {
+		...result,
+		success: false,
+		metadata: {
+			...metadata,
+			provisional: true,
+			canonical: false,
+			reason,
+			resultAuthority: 'provisional_canvas_draft',
+			replacedByProviderResult: false
+		}
 	};
 }
 
@@ -881,7 +905,8 @@ async function writeFallbackAnalysisResult(
 	tier: SkillTier,
 	reason: string,
 	traceRef?: string | null,
-	buildLane?: BuildLane
+	buildLane?: BuildLane,
+	options: { provisional?: boolean } = {}
 ): Promise<void> {
 	const paths = getPrdBridgePaths();
 	const safeRequestId = normalizeRequestId(requestId);
@@ -897,11 +922,9 @@ async function writeFallbackAnalysisResult(
 	const resultWithTrace = resolvedTraceRef
 		? { ...result, traceRef: resolvedTraceRef, metadata: { ...((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined), traceRef: resolvedTraceRef } }
 		: result;
-	await writeFile(
-		resultFile,
-		JSON.stringify(await projectStoredPrdAnalysisResultForTier(requestId, resultWithTrace, tier), null, 2),
-		'utf-8'
-	);
+	const stored = await projectStoredPrdAnalysisResultForTier(requestId, resultWithTrace, tier);
+	const output = options.provisional ? _demoteProvisionalPrdDraftResult(stored, reason) : stored;
+	await writeFile(resultFile, JSON.stringify(output, null, 2), 'utf-8');
 	const staticArtifactCount = await writeConstrainedStaticProofArtifacts(await readFile(paths.pendingPrdFile, 'utf-8').catch(() => ''));
 	if (staticArtifactCount > 0) {
 		await appendPrdTrace(requestId, 'deterministic_static_artifacts_written', {
@@ -963,7 +986,8 @@ function scheduleProvisionalPrdDraft(input: {
 			input.tier,
 			`provisional canvas draft after ${delayMs}ms while full PRD analysis continues`,
 			input.traceRef,
-			input.buildLane
+			input.buildLane,
+			{ provisional: true }
 		);
 		void relayMissionControlEvent({
 			type: 'task_completed',

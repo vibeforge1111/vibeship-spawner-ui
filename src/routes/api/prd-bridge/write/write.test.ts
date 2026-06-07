@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	_buildAuthorityVerdict,
 	_buildFallbackAnalysisResult,
+	_demoteProvisionalPrdDraftResult,
 	_extractPrdBridgeProjectLineage,
 	_provisionalPrdDraftDelayMs,
 	_shouldUseDeterministicPrdFallback
@@ -115,6 +116,52 @@ describe('PRD bridge fallback analysis', () => {
 				constrainedStaticSingleFile: true
 			})
 		).toBe(true);
+	});
+
+	it('demotes provisional canvas drafts so they do not look like provider success', () => {
+		const result = _demoteProvisionalPrdDraftResult(
+			{
+				requestId: 'tg-build-provisional',
+				success: true,
+				projectName: 'Provisional Build',
+				projectType: 'web-app',
+				complexity: 'simple',
+				infrastructure: { needsAuth: false, needsDatabase: false, needsAPI: false },
+				techStack: { framework: 'Web app', language: 'TypeScript or JavaScript' },
+				tasks: [
+					{
+						id: 'create-app-shell',
+						title: 'Create app shell',
+						skills: [],
+						dependencies: [],
+						workspaceTargets: [],
+						acceptanceCriteria: [],
+						verificationCommands: []
+					}
+				],
+				skills: [],
+				instructionTextRedacted: true,
+				metadata: {
+					taskQuality: {
+						passed: false,
+						score: 44
+					}
+				}
+			},
+			'provisional canvas draft after 10000ms while full PRD analysis continues'
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.metadata).toMatchObject({
+			provisional: true,
+			canonical: false,
+			resultAuthority: 'provisional_canvas_draft',
+			replacedByProviderResult: false,
+			taskQuality: {
+				passed: false,
+				score: 44
+			}
+		});
 	});
 
 	it('keeps tiny one-file fast-lane pages to a small task pack', async () => {
