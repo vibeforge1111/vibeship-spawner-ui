@@ -1082,9 +1082,47 @@ function scheduleAutoAnalysisWatchdog(
 		const resultFile = prdResultFile(paths, requestId);
 		const provisionalResultFile = provisionalPrdResultFile(paths, requestId);
 		const hasResult = existsSync(resultFile);
+		const provisionalDraftAvailable = existsSync(provisionalResultFile);
 		if (hasResult) {
 			await appendPrdTrace(requestId, 'watchdog_result_found', {
 				...traceRefDetails(traceRef)
+			});
+			return;
+		}
+
+		if (_shouldKeepSlowCanonicalAnalysisRunning({ provisionalDraftAvailable })) {
+			await updatePendingRequestStatus(requestId, 'provisional', {
+				timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
+				canonicalStillRunning: true,
+				provisionalDraftAvailable,
+				reason: 'Canonical runtime analysis is still running; provisional draft remains non-canonical.'
+			});
+			await appendPrdTrace(requestId, 'watchdog_slow_continue', {
+				...traceRefDetails(traceRef),
+				timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
+				expectedResultFile: resultFile,
+				provisionalResultFile,
+				provisionalDraftAvailable,
+				buildMode,
+				buildLane,
+				projectName,
+				tier
+			});
+			void relayMissionControlEvent({
+				type: 'log',
+				missionId: missionIdFromRequestId(requestId),
+				missionName: projectName,
+				taskName: 'Canonical analysis',
+				message: 'Full PRD analysis is still running; keeping the provider alive.',
+				source: 'prd-bridge',
+				data: {
+					requestId,
+					...traceRefDetails(traceRef),
+					buildMode,
+					buildLane,
+					provisional: true,
+					canonicalStillRunning: true
+				}
 			});
 			return;
 		}
@@ -1093,7 +1131,7 @@ function scheduleAutoAnalysisWatchdog(
 		await updatePendingRequestStatus(requestId, 'timeout', {
 			timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
 			canonicalTimedOut: true,
-			provisionalDraftAvailable: existsSync(provisionalResultFile),
+			provisionalDraftAvailable,
 			reason: 'No canonical runtime analysis result written before timeout; provisional draft remains non-canonical.'
 		});
 		await appendPrdTrace(requestId, 'watchdog_timeout', {
@@ -1101,7 +1139,7 @@ function scheduleAutoAnalysisWatchdog(
 			timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
 			expectedResultFile: resultFile,
 			provisionalResultFile,
-			provisionalDraftAvailable: existsSync(provisionalResultFile),
+			provisionalDraftAvailable,
 			buildMode,
 			buildLane,
 			projectName,
@@ -1112,6 +1150,12 @@ function scheduleAutoAnalysisWatchdog(
 	if (typeof timer.unref === 'function') {
 		timer.unref();
 	}
+}
+
+export function _shouldKeepSlowCanonicalAnalysisRunning(input: {
+	provisionalDraftAvailable: boolean;
+}): boolean {
+	return input.provisionalDraftAvailable;
 }
 
 function resolveCodexBinary(): string | null {

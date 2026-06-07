@@ -10,6 +10,7 @@ import {
 	_extractPrdBridgeProjectLineage,
 	_isProvisionalPrdDraftResult,
 	_provisionalPrdDraftDelayMs,
+	_shouldKeepSlowCanonicalAnalysisRunning,
 	_shouldUseDeterministicPrdFallback
 } from './+server';
 
@@ -482,5 +483,10 @@ describe('PRD bridge fallback analysis', () => {
 				{ SPAWNER_PRD_PROVISIONAL_DRAFTS: '0' } as NodeJS.ProcessEnv
 			)
 		).toBeNull();
+	});
+
+	it('keeps canonical analysis alive when only a provisional draft exists', () => {
+		expect(_shouldKeepSlowCanonicalAnalysisRunning({ provisionalDraftAvailable: true })).toBe(true);
+		expect(_shouldKeepSlowCanonicalAnalysisRunning({ provisionalDraftAvailable: false })).toBe(false);
 	});
 });
