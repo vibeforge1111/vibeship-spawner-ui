@@ -1,10 +1,20 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
 	import type { MCP } from '$lib/stores/stack.svelte';
+	import { toasts } from '$lib/stores/toast.svelte';
 
 	let { mcp, selected = false, onToggle }: { mcp: MCP; selected: boolean; onToggle: () => void } = $props();
 
 	let showConfig = $state(false);
+
+	async function copyConfig() {
+		try {
+			await navigator.clipboard.writeText(mcp.configExample);
+			toasts.success(`${mcp.name} configuration copied`);
+		} catch {
+			toasts.error('Unable to copy to clipboard');
+		}
+	}
 </script>
 
 <div
@@ -13,7 +23,7 @@
 		: 'bg-bg-secondary border-surface-border hover:border-text-tertiary'}"
 >
 	<!-- Header -->
-	<button class="w-full text-left p-4" onclick={onToggle}>
+	<button class="w-full text-left p-4" onclick={onToggle} aria-pressed={selected} aria-label={`${mcp.name}${mcp.tier === 'premium' ? ' (Pro tier)' : ''}`}>
 		<div class="flex items-start gap-3">
 			<!-- Icon -->
 			<div class="text-2xl flex-shrink-0">{mcp.icon}</div>
@@ -53,6 +63,8 @@
 			<button
 				class="w-full px-4 py-2 flex items-center justify-between text-sm text-text-secondary hover:text-text-primary transition-colors"
 				onclick={() => (showConfig = !showConfig)}
+				aria-expanded={showConfig}
+				aria-label={showConfig ? `Hide ${mcp.name} install command` : `Show ${mcp.name} install command`}
 			>
 				<span class="font-mono text-xs">{mcp.installCommand}</span>
 				<Icon name={showConfig ? 'chevron-up' : 'chevron-down'} size={14} />
@@ -65,7 +77,8 @@
 							<span class="text-xs text-text-tertiary font-medium">Configuration</span>
 							<button
 								class="text-xs text-accent-primary hover:underline"
-								onclick={() => navigator.clipboard.writeText(mcp.configExample)}
+								onclick={copyConfig}
+								aria-label={`Copy ${mcp.name} configuration to clipboard`}
 							>
 								Copy
 							</button>
