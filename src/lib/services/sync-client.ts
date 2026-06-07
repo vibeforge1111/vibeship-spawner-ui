@@ -436,7 +436,15 @@ class SyncClient {
 		syncStatus.set('reconnecting');
 		this.reconnectAttempts++;
 
-		const delay = this.config.reconnectInterval * Math.pow(1.5, this.reconnectAttempts - 1);
+		// Cap base delay so attempt 10 doesn't sit idle for ~2 minutes, then
+		// apply +/-25% jitter so a fleet of browser tabs reconnecting after a
+		// server restart doesn't all hit the same offset at once.
+		const baseDelay = Math.min(
+			this.config.reconnectInterval * Math.pow(1.5, this.reconnectAttempts - 1),
+			30_000
+		);
+		const jitter = baseDelay * 0.25 * (Math.random() * 2 - 1);
+		const delay = Math.max(0, Math.round(baseDelay + jitter));
 		logger.info(`[SyncClient] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
 		this.reconnectTimer = setTimeout(() => {
