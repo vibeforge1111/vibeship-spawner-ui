@@ -35,6 +35,13 @@
 				return 'ℹ';
 		}
 	}
+
+	// Use the assertive alert role only for errors and warnings — it interrupts
+	// screen-reader users. For success/info, use the polite status role which
+	// queues the announcement without interrupting.
+	function getAriaRole(type: Toast['type']): 'alert' | 'status' {
+		return type === 'error' || type === 'warning' ? 'alert' : 'status';
+	}
 </script>
 
 {#if currentToasts.length > 0}
@@ -42,7 +49,7 @@
 		{#each currentToasts as toast (toast.id)}
 			<div
 				class="flex items-start gap-3 p-4 border rounded shadow-lg backdrop-blur-sm animate-slide-in {getTypeStyles(toast.type)}"
-				role="alert"
+				role={getAriaRole(toast.type)}
 			>
 				<span class="text-lg flex-shrink-0">{getIcon(toast.type)}</span>
 				<div class="flex-1 min-w-0">
