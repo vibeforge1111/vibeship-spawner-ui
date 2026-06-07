@@ -571,14 +571,31 @@ class SparkAgentBridgeService {
 
 	getLatestCanvasSnapshot(since?: string): SparkAgentCanvasSnapshot | null {
 		const sinceTs = since ? Date.parse(since) : Number.NaN;
-		const sessions = [...this.sessions.values()].filter((session) =>
-			session.events.some((event) => event.type === 'spark_agent.canvas.updated')
-		);
-		if (sessions.length === 0) return null;
+		// Pair each session with the timestamp of its most recent
+		// `spark_agent.canvas.updated` event. session.updatedAt is bumped by any
+		// command received, not just canvas updates, so picking the session by
+		// updatedAt can return a stale canvas when a later command (e.g. status
+		// poll, command.received) overwrote updatedAt after the last canvas edit.
+		const candidates: { session: SparkAgentSession; canvasTs: number }[] = [];
+		for (const session of this.sessions.values()) {
+			let latestCanvasTs = Number.NaN;
+			for (const event of session.events) {
+				if (event.type !== 'spark_agent.canvas.updated') continue;
+				const eventTs = Date.parse(event.timestamp);
+				if (Number.isNaN(eventTs)) continue;
+				if (Number.isNaN(latestCanvasTs) || eventTs > latestCanvasTs) {
+					latestCanvasTs = eventTs;
+				}
+			}
+			if (!Number.isNaN(latestCanvasTs)) {
+				candidates.push({ session, canvasTs: latestCanvasTs });
+			}
+		}
+		if (candidates.length === 0) return null;
 
-		sessions.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
-		const latest = sessions[0];
-		const latestTs = Date.parse(latest.updatedAt);
+		candidates.sort((a, b) => b.canvasTs - a.canvasTs);
+		const latest = candidates[0].session;
+		const latestTs = candidates[0].canvasTs;
 		if (!Number.isNaN(sinceTs) && !Number.isNaN(latestTs) && latestTs <= sinceTs) {
 			return null;
 		}
