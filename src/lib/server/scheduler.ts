@@ -81,6 +81,7 @@ interface StoreShape {
 let _store: StoreShape | null = null;
 let _tickTimer: NodeJS.Timeout | null = null;
 let _starting = false;
+let _tickInFlight = false;
 
 function _id(): string {
   return 'sched-' + randomBytes(4).toString('hex');
@@ -370,33 +371,42 @@ async function _relayToTelegram(record: ScheduleRecord, result: { ok: boolean; s
 }
 
 async function _tick(): Promise<void> {
-  const store = await _load();
-  const now = new Date();
-  let dirty = false;
-  for (const rec of store.schedules) {
-    if (!rec.enabled) continue;
-    if (!rec.nextFireAt) {
-      rec.nextFireAt = _computeNext(rec.cron, rec.timezone);
+  if (_tickInFlight) return;
+  _tickInFlight = true;
+  try {
+    const store = await _load();
+    const now = new Date();
+    let dirty = false;
+    for (const rec of store.schedules) {
+      if (!rec.enabled) continue;
+      if (!rec.nextFireAt) {
+        rec.nextFireAt = _computeNext(rec.cron, rec.timezone);
+        dirty = true;
+        continue;
+      }
+      if (new Date(rec.nextFireAt) > now) continue;
+      const nextFireAt = _computeNext(rec.cron, rec.timezone);
+      // Advance the cron pointer BEFORE the long-running fire so an
+      // overlapping tick does not see the same record as past-due and
+      // fire it a second time.
+      rec.nextFireAt = nextFireAt;
+      try {
+        const result = await _fire(rec);
+        rec.lastFiredAt = new Date().toISOString();
+        rec.fireCount += 1;
+        rec.lastStatus = (result.ok ? 'ok: ' : 'fail: ') + result.summary.slice(0, 200);
+        await _relayToTelegram(rec, result);
+      } catch (err: unknown) {
+        rec.lastFiredAt = new Date().toISOString();
+        rec.fireCount += 1;
+        rec.lastStatus = 'crash: ' + errorMessage(err);
+      }
       dirty = true;
-      continue;
     }
-    if (new Date(rec.nextFireAt) > now) continue;
-    const nextFireAt = _computeNext(rec.cron, rec.timezone);
-    try {
-      const result = await _fire(rec);
-      rec.lastFiredAt = new Date().toISOString();
-      rec.fireCount += 1;
-      rec.lastStatus = (result.ok ? 'ok: ' : 'fail: ') + result.summary.slice(0, 200);
-      await _relayToTelegram(rec, result);
-    } catch (err: unknown) {
-      rec.lastFiredAt = new Date().toISOString();
-      rec.fireCount += 1;
-      rec.lastStatus = 'crash: ' + errorMessage(err);
-    }
-    rec.nextFireAt = nextFireAt;
-    dirty = true;
+    if (dirty) await _save();
+  } finally {
+    _tickInFlight = false;
   }
-  if (dirty) await _save();
 }
 
 export function startScheduler(): void {
