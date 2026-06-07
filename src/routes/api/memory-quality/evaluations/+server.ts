@@ -8,9 +8,17 @@ import {
 	summarizeLatency
 } from '$lib/services/memory-quality-aggregates';
 import { appendManualEvaluation } from '$lib/services/memory-quality-evaluations';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 
-export const POST: RequestHandler = async ({ request }) => {
-	const payload = await request.json().catch(() => ({}));
+export const POST: RequestHandler = async (event) => {
+	// Security: Require authentication to write memory quality evaluations
+	const unauthorized = requireControlAuth(event, {
+		surface: 'MemoryQualityEvaluations',
+		apiKeyEnvVar: 'MCP_API_KEY',
+		allowLoopbackWithoutKey: true
+	});
+	if (unauthorized) return unauthorized;
+	const payload = await event.request.json().catch(() => ({}));
 	const result = await appendManualEvaluation(payload);
 	const status = result.errors ? 400 : 200;
 	return json({
