@@ -14,6 +14,7 @@ import { externalProjectPathsAllowed, resolveContainedPath, sparkWorkspaceRoot }
 
 export const MAX_OUTPUT_LENGTH = 5000;
 export const COMMAND_TIMEOUT_MS = commandTimeoutMs();
+const SIGTERM_GRACE_MS = 5000;
 
 export interface CommandResult {
 	exitCode: number;
@@ -112,6 +113,19 @@ export function runCommand(
 			windowsHide: true
 		});
 
+		// Node sends SIGTERM when the spawn `timeout` fires. If the child ignores
+		// SIGTERM (npm/test shells with their own signal handlers, hung worker
+		// pools), `close` never fires and the API caller waits indefinitely.
+		// Schedule a SIGKILL escalation that fires only if the child is still
+		// running after the SIGTERM grace window.
+		const sigkillTimer = setTimeout(() => {
+			try {
+				child.kill('SIGKILL');
+			} catch {
+				// Child may already have exited after SIGTERM.
+			}
+		}, timeoutMs + SIGTERM_GRACE_MS);
+
 		child.stdout?.on('data', (data: Buffer) => {
 			stdout += data.toString();
 		});
@@ -121,6 +135,7 @@ export function runCommand(
 		});
 
 		child.on('close', (code) => {
+			clearTimeout(sigkillTimer);
 			if (!resolved) {
 				resolved = true;
 				res({
@@ -133,6 +148,7 @@ export function runCommand(
 		});
 
 		child.on('error', (err) => {
+			clearTimeout(sigkillTimer);
 			if (!resolved) {
 				resolved = true;
 				res({
