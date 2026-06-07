@@ -96,19 +96,25 @@ describe('PRD bridge fallback analysis', () => {
 		expect(tasks.flatMap((task) => task.verificationCommands).join('\n')).toContain('node --check');
 	});
 
-	it('keeps fast direct lane on deterministic lightweight planning', () => {
+	it('does not use deterministic fallback for fast direct app builds', () => {
 		expect(
 			_shouldUseDeterministicPrdFallback({
 				buildLane: 'fast_direct',
 				constrainedStaticSingleFile: false
 			})
-		).toBe(true);
+		).toBe(false);
 		expect(
 			_shouldUseDeterministicPrdFallback({
 				buildLane: 'direct',
 				constrainedStaticSingleFile: false
 			})
 		).toBe(false);
+		expect(
+			_shouldUseDeterministicPrdFallback({
+				buildLane: 'fast_direct',
+				constrainedStaticSingleFile: true
+			})
+		).toBe(true);
 	});
 
 	it('keeps tiny one-file fast-lane pages to a small task pack', async () => {

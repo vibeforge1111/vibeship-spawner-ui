@@ -1056,7 +1056,7 @@ export function _shouldUseDeterministicPrdFallback(input: {
 	buildLane: BuildLane;
 	constrainedStaticSingleFile: boolean;
 }): boolean {
-	return input.constrainedStaticSingleFile || input.buildLane === 'fast_direct';
+	return input.constrainedStaticSingleFile;
 }
 
 function positiveEnvMs(env: NodeJS.ProcessEnv, key: string, fallbackMs: number): number {
