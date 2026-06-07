@@ -16,6 +16,7 @@ import { existsSync } from 'fs';
 import path from 'path';
 import type { MultiLLMExecutionPack } from '$lib/services/multi-llm-orchestrator';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 
 const ACTIVE_MISSION_FILE = 'active-mission.json';
 const TERMINAL_MISSION_EVENTS = new Set(['mission_completed', 'mission_failed', 'mission_paused']);
@@ -78,7 +79,11 @@ interface ActiveMissionState {
  * GET /api/mission/active
  * Returns the active mission state if one exists
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async (event) => {
+	// Security: Require auth - exposes mission ID, execution prompt, task lists
+	const unauthorized = requireControlAuth(event, { surface: 'ActiveMission', apiKeyEnvVar: 'MCP_API_KEY', allowLoopbackWithoutKey: true });
+	if (unauthorized) return unauthorized;
+	const { url } = event;
 	try {
 		const missionPath = getActiveMissionPath();
 
@@ -163,7 +168,11 @@ export const GET: RequestHandler = async ({ url }) => {
  * POST /api/mission/active
  * Update the active mission state (called by UI when state changes)
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	// Security: Require auth - allows overwriting active mission state on disk
+	const unauthorized = requireControlAuth(event, { surface: 'ActiveMission', apiKeyEnvVar: 'MCP_API_KEY', allowLoopbackWithoutKey: true });
+	if (unauthorized) return unauthorized;
+	const { request } = event;
 	try {
 		const body = await request.json();
 		const spawnerDir = getSpawnerDir();
