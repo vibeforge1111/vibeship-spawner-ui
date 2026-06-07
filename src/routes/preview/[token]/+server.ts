@@ -19,10 +19,9 @@ export const GET: RequestHandler = async ({ params, url }) => {
 			contentType.startsWith('text/html') ? rewriteProjectPreviewHtml(body, params.token) : body,
 			{
 			headers: {
-				'content-type': contentType,
-				'cache-control': 'no-store',
-				'x-spark-preview-root': asset.projectRoot
-			}
+					'content-type': contentType,
+					'cache-control': 'no-store'
+				}
 			}
 		);
 	} catch (e) {
