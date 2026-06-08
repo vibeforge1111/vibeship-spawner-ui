@@ -100,6 +100,35 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		expect(existsSync(path.join(testSpawnerDir, 'last-canvas-load.json'))).toBe(false);
 	});
 
+	it('rejects unauthenticated local canvas loads before staging pending runtime state', async () => {
+		const requestId = 'tg-load-local-unauth-test';
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify({
+				requestId,
+				success: true,
+				projectName: 'Local Unauthorized Load',
+				tasks: [{ id: 'TAS-1', title: 'Should not stage locally', skills: [], dependencies: [] }]
+			}),
+			'utf-8'
+		);
+
+		const response = await POST({
+			request: new Request('http://127.0.0.1:3333/api/prd-bridge/load-to-canvas', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ requestId, autoRun: true })
+			}),
+			url: new URL('http://127.0.0.1:3333/api/prd-bridge/load-to-canvas'),
+			getClientAddress: () => '127.0.0.1'
+		} as never);
+
+		expect(response.status).toBe(401);
+		expect(existsSync(path.join(testSpawnerDir, 'pending-load.json'))).toBe(false);
+		expect(existsSync(path.join(testSpawnerDir, 'last-canvas-load.json'))).toBe(false);
+		expect(vi.mocked(providerRuntime.dispatch)).not.toHaveBeenCalled();
+	});
+
 	it('preserves PRD task acceptance criteria and verification commands in canvas nodes', async () => {
 		const requestId = 'tg-contract-test';
 		await writeFile(
