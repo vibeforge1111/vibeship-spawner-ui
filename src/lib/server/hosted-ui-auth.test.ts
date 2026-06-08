@@ -20,6 +20,7 @@ import {
 	hostedUiCookieOptions,
 	consumeHostedUiPairingCode,
 	hostedUiShouldAutoPersistLocalOperatorSession,
+	hostedUiShouldBypassLocalOperatorAuth,
 	persistHostedUiAuth,
 	recordHostedUiAuthFailure,
 	resetHostedUiAuthRateLimits,
@@ -194,6 +195,42 @@ describe('hosted UI auth', () => {
 				new Request('http://127.0.0.1:3333/kanban', { headers: { accept: 'text/html' } }),
 				new URL('http://127.0.0.1:3333/kanban'),
 				{}
+			)
+		).toBe(false);
+	});
+
+	it('bypasses the hosted access wall for local operator loopback API calls only', () => {
+		const localEnv = { SPARK_UI_API_KEY: 'ui-key', SPARK_WORKSPACE_ID: 'private-workspace' };
+		expect(
+			hostedUiShouldBypassLocalOperatorAuth(
+				new Request('http://127.0.0.1:3333/api/providers', { headers: { accept: 'application/json' } }),
+				new URL('http://127.0.0.1:3333/api/providers'),
+				localEnv,
+				'127.0.0.1'
+			)
+		).toBe(true);
+		expect(
+			hostedUiShouldBypassLocalOperatorAuth(
+				new Request('http://127.0.0.1:3333/api/providers', { headers: { accept: 'application/json' } }),
+				new URL('http://127.0.0.1:3333/api/providers'),
+				{ ...localEnv, SPARK_ALLOWED_HOSTS: 'spawner.example.com' },
+				'127.0.0.1'
+			)
+		).toBe(false);
+		expect(
+			hostedUiShouldBypassLocalOperatorAuth(
+				new Request('http://127.0.0.1:3333/api/providers', { headers: { accept: 'application/json' } }),
+				new URL('http://127.0.0.1:3333/api/providers'),
+				localEnv,
+				'203.0.113.10'
+			)
+		).toBe(false);
+		expect(
+			hostedUiShouldBypassLocalOperatorAuth(
+				new Request('https://spawner.example.com/api/providers', { headers: { accept: 'application/json' } }),
+				new URL('https://spawner.example.com/api/providers'),
+				localEnv,
+				'127.0.0.1'
 			)
 		).toBe(false);
 	});

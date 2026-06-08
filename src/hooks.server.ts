@@ -21,7 +21,8 @@ import {
 	redirectWithoutAuthQuery,
 	hostedUiRequestPairingCode,
 	hostedUiPathWithoutAuthQuery,
-	hostedUiShouldAutoPersistLocalOperatorSession
+	hostedUiShouldAutoPersistLocalOperatorSession,
+	hostedUiShouldBypassLocalOperatorAuth
 } from '$lib/server/hosted-ui-auth';
 
 function secureResponse(response: Response): Response {
@@ -72,6 +73,16 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	if (!hostedUiAuthEnabled(env)) {
+		return secureResponse(await resolve(event));
+	}
+
+	let clientAddress: string | undefined;
+	try {
+		clientAddress = event.getClientAddress();
+	} catch {
+		clientAddress = undefined;
+	}
+	if (hostedUiShouldBypassLocalOperatorAuth(event.request, event.url, env, clientAddress)) {
 		return secureResponse(await resolve(event));
 	}
 

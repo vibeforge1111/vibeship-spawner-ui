@@ -70,6 +70,16 @@ function hashPairingCode(pairingCode: string): string {
 	return createHash('sha256').update(pairingCode).digest('hex');
 }
 
+function loopbackValue(value: string | null | undefined): boolean {
+	const normalized = value?.trim().toLowerCase();
+	if (!normalized) return false;
+	if (LOOPBACK_BROWSER_HOSTS.has(normalized)) return true;
+	if (normalized.startsWith('::ffff:')) {
+		return LOOPBACK_BROWSER_HOSTS.has(normalized.slice('::ffff:'.length));
+	}
+	return false;
+}
+
 function pruneExpiredHostedUiSessions(now = Date.now()): void {
 	for (const [key, session] of hostedUiSessions.entries()) {
 		if (session.expiresAt <= now || session.absoluteExpiresAt <= now) {
@@ -192,7 +202,18 @@ export function hostedUiShouldAutoPersistLocalOperatorSession(
 	if (!hostedUiAuthEnabled(env) || hostedUiLooksHosted(env)) return false;
 	if (request.method.toUpperCase() !== 'GET') return false;
 	if (!request.headers.get('accept')?.includes('text/html')) return false;
-	return LOOPBACK_BROWSER_HOSTS.has(url.hostname.toLowerCase());
+	return loopbackValue(url.hostname);
+}
+
+export function hostedUiShouldBypassLocalOperatorAuth(
+	request: Request,
+	url: URL,
+	env: HostedUiAuthEnv,
+	clientAddress?: string
+): boolean {
+	if (!hostedUiAuthEnabled(env) || hostedUiLooksHosted(env)) return false;
+	if (!loopbackValue(url.hostname)) return false;
+	return clientAddress === undefined || loopbackValue(clientAddress);
 }
 
 export function hostedUiAuthClientKey(request: Request): string {
