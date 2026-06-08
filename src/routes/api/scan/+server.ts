@@ -55,7 +55,7 @@ export const POST: RequestHandler = async (event) => {
 			fallbackApiKeyEnvVar: 'MCP_API_KEY',
 			apiKeyQueryParam: 'apiKey',
 			apiKeyCookieName: 'spawner_events_api_key',
-			allowLoopbackWithoutKey: true,
+			allowLoopbackWithoutKey: false,
 			allowedOriginsEnvVar: 'SPAWNER_ALLOWED_ORIGINS'
 		});
 		if (unauthorized) return unauthorized;

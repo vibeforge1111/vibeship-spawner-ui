@@ -1,7 +1,15 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GET } from './+server';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { providerRuntime, type ProviderMissionResultSnapshot } from '$lib/server/provider-runtime';
+
+const TEST_API_KEY = 'mission-control-board-test-secret';
+const originalMcpApiKey = process.env.MCP_API_KEY;
+
+function restoreEnv(name: string, value: string | undefined) {
+	if (value === undefined) delete process.env[name];
+	else process.env[name] = value;
+}
 
 function providerResult(overrides: Partial<ProviderMissionResultSnapshot> = {}): ProviderMissionResultSnapshot {
 	return {
@@ -19,16 +27,23 @@ function providerResult(overrides: Partial<ProviderMissionResultSnapshot> = {}):
 
 function boardEvent() {
 	return {
-		request: new Request('http://127.0.0.1/api/mission-control/board'),
+		request: new Request('http://127.0.0.1/api/mission-control/board', {
+			headers: { 'x-api-key': TEST_API_KEY }
+		}),
 		url: new URL('http://127.0.0.1/api/mission-control/board'),
 		getClientAddress: () => '127.0.0.1'
 	};
 }
 
+beforeEach(() => {
+	process.env.MCP_API_KEY = TEST_API_KEY;
+});
+
 afterEach(() => {
 	vi.unstubAllGlobals();
 	vi.restoreAllMocks();
 	vi.useRealTimers();
+	restoreEnv('MCP_API_KEY', originalMcpApiKey);
 });
 
 describe('/api/mission-control/board integration', () => {

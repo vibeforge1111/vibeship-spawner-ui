@@ -6,9 +6,17 @@ import { GET } from './+server';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { providerRuntime, type ProviderMissionResultSnapshot } from '$lib/server/provider-runtime';
 
+const TEST_API_KEY = 'mission-control-trace-test-secret';
+const originalMcpApiKey = process.env.MCP_API_KEY;
+
+function restoreEnv(name: string, value: string | undefined) {
+	if (value === undefined) delete process.env[name];
+	else process.env[name] = value;
+}
+
 function event(url: string) {
 	return {
-		request: new Request(url),
+		request: new Request(url, { headers: { 'x-api-key': TEST_API_KEY } }),
 		url: new URL(url),
 		getClientAddress: () => '127.0.0.1'
 	};
@@ -30,6 +38,7 @@ function providerResult(overrides: Partial<ProviderMissionResultSnapshot> = {}):
 
 describe('/api/mission-control/trace integration', () => {
 	beforeEach(() => {
+		process.env.MCP_API_KEY = TEST_API_KEY;
 		vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
 	});
 
@@ -37,6 +46,7 @@ describe('/api/mission-control/trace integration', () => {
 		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
 		delete process.env.SPAWNER_STATE_DIR;
+		restoreEnv('MCP_API_KEY', originalMcpApiKey);
 	});
 
 	it('stitches request, canvas, dispatch, kanban, provider, and timeline state for a Telegram mission', async () => {

@@ -163,7 +163,7 @@ export const GET: RequestHandler = async (event) => {
 		apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
 		apiKeyQueryParam: 'apiKey',
-		allowLoopbackWithoutKey: true
+		allowLoopbackWithoutKey: false
 	});
 	if (unauthorized) return unauthorized;
 

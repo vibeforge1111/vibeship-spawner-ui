@@ -1,12 +1,20 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { POST } from './+server';
 import { buildClientTurnIntentVNextAuthority } from '$lib/services/harness-authority-client';
+
+const TEST_API_KEY = 'mission-control-command-test-secret';
+const originalMcpApiKey = process.env.MCP_API_KEY;
+
+function restoreEnv(name: string, value: string | undefined) {
+	if (value === undefined) delete process.env[name];
+	else process.env[name] = value;
+}
 
 function event(body: unknown) {
 	return {
 		request: new Request('http://127.0.0.1:3333/api/mission-control/command', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json' },
+			headers: { 'content-type': 'application/json', 'x-api-key': TEST_API_KEY },
 			body: JSON.stringify(body)
 		}),
 		url: new URL('http://127.0.0.1:3333/api/mission-control/command'),
@@ -15,6 +23,14 @@ function event(body: unknown) {
 }
 
 describe('/api/mission-control/command authority contract', () => {
+	beforeEach(() => {
+		process.env.MCP_API_KEY = TEST_API_KEY;
+	});
+
+	afterEach(() => {
+		restoreEnv('MCP_API_KEY', originalMcpApiKey);
+	});
+
 	it('blocks mutating mission-control commands without Harness authority', async () => {
 		const response = await POST(
 			event({

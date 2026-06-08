@@ -107,6 +107,13 @@ function parseCsv(value: string | undefined): string[] {
 		.filter((item) => item.length > 0);
 }
 
+function controlEnvValue(name: string | undefined): string {
+	if (!name) return '';
+	const dynamicValue = (env[name as keyof typeof env] as string | undefined)?.trim();
+	if (dynamicValue) return dynamicValue;
+	return (process.env[name] || '').trim();
+}
+
 function isOriginAllowed(event: RequestEvent, allowedOriginsEnvVar?: string): boolean {
 	const origin = event.request.headers.get('origin');
 	if (!origin) return true;
@@ -121,7 +128,7 @@ function isOriginAllowed(event: RequestEvent, allowedOriginsEnvVar?: string): bo
 		return false;
 	}
 
-	const allowedOrigins = parseCsv(env[allowedOriginsEnvVar as keyof typeof env] as string | undefined);
+	const allowedOrigins = parseCsv(controlEnvValue(allowedOriginsEnvVar));
 	if (!allowedOriginsEnvVar || allowedOrigins.length === 0) {
 		try {
 			return new URL(origin).origin === new URL(event.request.url).origin;
@@ -131,7 +138,7 @@ function isOriginAllowed(event: RequestEvent, allowedOriginsEnvVar?: string): bo
 	}
 	if (allowedOrigins.length === 0) return true;
 	if (allowedOrigins.includes('*')) {
-		return (env.SPAWNER_ALLOW_WILDCARD_ORIGINS as string | undefined)?.trim() === '1';
+		return controlEnvValue('SPAWNER_ALLOW_WILDCARD_ORIGINS') === '1';
 	}
 	return allowedOrigins.includes(origin);
 }
@@ -160,7 +167,7 @@ export function requireControlAuth(event: RequestEvent, options: ControlAuthOpti
 		options.fallbackApiKeyEnvVar,
 		...(options.fallbackApiKeyEnvVars || [])
 	]
-		.map((key) => key ? (env[key as keyof typeof env] as string | undefined)?.trim() : '')
+		.map(controlEnvValue)
 		.find(Boolean);
 
 	if (!isOriginAllowed(event, options.allowedOriginsEnvVar)) {
