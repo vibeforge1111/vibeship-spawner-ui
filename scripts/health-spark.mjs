@@ -100,11 +100,12 @@ async function getJson(url, authKeyOrder = DEFAULT_HEALTH_AUTH_KEY_ORDER) {
 }
 
 export function sparkHealthAuthHeaders(env = process.env, keyOrder = DEFAULT_HEALTH_AUTH_KEY_ORDER) {
-  const key = keyOrder.map((name) => healthEnvValue(name, env)).find(Boolean);
-  if (!key) return {};
+  const controlKey = keyOrder.map((name) => healthEnvValue(name, env)).find(Boolean);
+  const uiKey = healthEnvValue("SPARK_UI_API_KEY", env) || controlKey;
+  if (!controlKey && !uiKey) return {};
   return {
-    "x-spawner-ui-key": key,
-    "x-api-key": key,
+    ...(uiKey ? { "x-spawner-ui-key": uiKey } : {}),
+    ...(controlKey ? { "x-api-key": controlKey } : {}),
   };
 }
 

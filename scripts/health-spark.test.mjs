@@ -116,6 +116,21 @@ describe("sparkHealthAuthHeaders", () => {
         ["EVENTS_API_KEY", "MCP_API_KEY", "SPARK_BRIDGE_API_KEY", "SPARK_UI_API_KEY"],
       ),
     ).toEqual({
+      "x-spawner-ui-key": "ui",
+      "x-api-key": "events",
+    });
+  });
+
+  it("uses the route control key as UI auth only when no UI key is configured", () => {
+    expect(
+      sparkHealthAuthHeaders(
+        {
+          EVENTS_API_KEY: "events",
+          MCP_API_KEY: "mcp",
+        },
+        ["EVENTS_API_KEY", "MCP_API_KEY"],
+      ),
+    ).toEqual({
       "x-spawner-ui-key": "events",
       "x-api-key": "events",
     });
