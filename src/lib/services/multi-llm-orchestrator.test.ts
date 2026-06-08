@@ -121,6 +121,27 @@ describe('multi-llm-orchestrator', () => {
 		expect(pack.providerPrompts.codex).toContain('Assigned tasks:');
 	});
 
+	it('requires authenticated event bridge reporting in provider prompts', () => {
+		const options = createDefaultMultiLLMOptions();
+		options.enabled = true;
+		options.strategy = 'single';
+		options.primaryProviderId = 'codex';
+		options.providers = options.providers.map((provider) => ({
+			...provider,
+			enabled: provider.id === 'codex'
+		}));
+
+		const pack = buildMultiLLMExecutionPack({
+			mission: createMission(1),
+			options,
+			baseUrl: 'http://127.0.0.1:3333'
+		});
+
+		expect(pack.providerPrompts.codex).toContain('EVENTS_AUTH_KEY="${EVENTS_API_KEY:-$MCP_API_KEY}"');
+		expect(pack.providerPrompts.codex).toContain('-H "x-api-key: $EVENTS_AUTH_KEY"');
+		expect(pack.providerPrompts.codex).toContain('Missing EVENTS_API_KEY or MCP_API_KEY for /api/events');
+	});
+
 	it('keeps generic tasks balanced when auto-route is enabled', () => {
 		const options = createDefaultMultiLLMOptions();
 		options.enabled = true;

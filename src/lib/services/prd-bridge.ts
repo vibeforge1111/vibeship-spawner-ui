@@ -310,8 +310,10 @@ function handleAnalysisError(event: BridgeEvent): void {
  * Format for Claude Code to send analysis result
  *
  * Claude Code should call:
+ * EVENTS_AUTH_KEY="${EVENTS_API_KEY:-$MCP_API_KEY}"
  * curl -X POST http://localhost:3333/api/events \
  *   -H "Content-Type: application/json" \
+ *   -H "x-api-key: $EVENTS_AUTH_KEY" \
  *   -d '{"type":"prd_analysis_complete","data":{"requestId":"...","result":{...}}}'
  */
 export function getAnalysisResponseFormat(requestId: string, result: PRDAnalysisResult): string {

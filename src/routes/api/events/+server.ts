@@ -242,7 +242,7 @@ async function relayMetadataForMission(missionId: string): Promise<Record<string
 
 /**
  * POST handler - receives events from Claude Code
- * Claude can call: curl -X POST http://localhost:3333/api/events -d '{"type":"progress",...}'
+ * Claude/provider clients must send x-api-key from EVENTS_API_KEY or MCP_API_KEY.
  */
 export const POST: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
@@ -251,7 +251,7 @@ export const POST: RequestHandler = async (event) => {
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
 		apiKeyQueryParam: 'apiKey',
 		apiKeyCookieName: EVENTS_AUTH_COOKIE,
-		allowLoopbackWithoutKey: true,
+		allowLoopbackWithoutKey: false,
 		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
 	});
 	if (unauthorized) return unauthorized;

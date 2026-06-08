@@ -60,6 +60,7 @@ const SYNCED_PATHS = [
 	'src/lib/server/timeout-config.ts',
 	'src/lib/services/event-bridge.ts',
 	'src/lib/services/spark-agent-bridge.ts',
+	'src/lib/services/mission-builder.ts',
 	'src/lib/services/multi-llm-orchestrator.ts',
 	'src/lib/services/harness-authority-client.ts',
 	'src/lib/services/mission-executor.ts',

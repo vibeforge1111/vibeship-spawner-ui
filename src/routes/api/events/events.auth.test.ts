@@ -174,6 +174,27 @@ describe('/api/events auth', () => {
 		expect(response.headers.get('set-cookie')).toContain('spawner_events_api_key=');
 	});
 
+	it('rejects unauthenticated local event posts before relaying mission state', async () => {
+		const response = await POST(
+			createEvent(
+				'http://127.0.0.1:3333/api/events',
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						type: 'mission_completed',
+						missionId: 'mission-local-unauth-events',
+						source: 'codex'
+					})
+				},
+				'127.0.0.1'
+			)
+		);
+
+		expect(response.status).toBe(401);
+		expect(relayMissionControlEvent).not.toHaveBeenCalled();
+	});
+
 	it('stores PRD analysis results under configured Spawner state directory', async () => {
 		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-events-state-'));
 		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
