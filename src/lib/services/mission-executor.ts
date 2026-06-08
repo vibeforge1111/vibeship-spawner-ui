@@ -142,7 +142,6 @@ export interface ExecutionRunOptions extends MissionBuildOptions {
 		autoRun?: boolean;
 		buildMode?: 'direct' | 'advanced_prd';
 		buildModeReason?: string;
-		executionAuthority?: Record<string, unknown>;
 	};
 }
 
@@ -1716,15 +1715,19 @@ class MissionExecutor {
 	 * Dispatch execution pack to server-side provider runtime.
 	 * Calls POST /api/dispatch which runs providers in parallel.
 	 */
+	private dispatchRelayMetadata(relay?: ExecutionRunOptions['relay']): ExecutionRunOptions['relay'] | undefined {
+		if (!relay) return undefined;
+		const metadata = { ...(relay as Record<string, unknown>) };
+		delete metadata.executionAuthority;
+		delete metadata.execution_authority;
+		return metadata as ExecutionRunOptions['relay'];
+	}
+
 	private async dispatchToProviders(
 		executionPack: import('$lib/services/multi-llm-orchestrator').MultiLLMExecutionPack,
 		options: import('$lib/services/multi-llm-orchestrator').MultiLLMOrchestratorOptions,
 		relay?: ExecutionRunOptions['relay']
 	): Promise<{ success: boolean; sessions?: Record<string, unknown>; error?: string }> {
-		const relayAuthority = relay?.executionAuthority as { schema_version?: string } | undefined;
-		const executionAuthority = relayAuthority?.schema_version === 'governor-decision-v1'
-			? relayAuthority
-			: undefined;
 		const response = await fetch('/api/dispatch', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -1732,8 +1735,7 @@ class MissionExecutor {
 				executionPack,
 				apiKeys: options.apiKeys || {},
 				workingDirectory: this.progress.mission?.context?.projectPath,
-				relay,
-				executionAuthority
+				relay: this.dispatchRelayMetadata(relay)
 			})
 		});
 		if (!response.ok) {

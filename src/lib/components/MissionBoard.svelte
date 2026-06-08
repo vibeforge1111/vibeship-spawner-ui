@@ -130,8 +130,7 @@
 					action: newAction,
 					payload,
 					chatId: newChatId || null,
-					timezone: LOCAL_TZ,
-					source: 'mission-board.schedule.create'
+					timezone: LOCAL_TZ
 				})
 			});
 			if (!r.ok) {
@@ -160,10 +159,7 @@
 		try {
 			const r = await fetch(`/api/scheduled?id=${encodeURIComponent(id)}`, {
 				method: 'DELETE',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					source: 'mission-board.schedule.delete'
-				})
+				headers: { 'Content-Type': 'application/json' }
 			});
 			if (!r.ok) {
 				schedules = prev;
@@ -621,8 +617,7 @@
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					missionId: card.id,
-					source: 'mission-board.creator.execute'
+					missionId: card.id
 				})
 			});
 			const data = await r.json().catch(() => ({}));
@@ -684,8 +679,7 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					missionId: card.id,
-					async: true,
-					source: 'mission-board.creator-validation'
+					async: true
 				})
 			});
 			const data = await r.json().catch(() => ({}));

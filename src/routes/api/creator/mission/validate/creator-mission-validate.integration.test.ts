@@ -238,7 +238,7 @@ describe('/api/creator/mission/validate', () => {
 		expect(body.error).toBe('creator mission trace not found');
 	});
 
-	it('blocks validation commands without Harness authority', async () => {
+	it('blocks source-only validation commands without Harness authority', async () => {
 		await createCreatorMission(
 			{ brief: 'Create Startup YC path', missionId: 'mission-creator-validate-no-authority', requestId: 'req-validate-no-authority' },
 			{
@@ -264,7 +264,8 @@ describe('/api/creator/mission/validate', () => {
 		);
 
 		const response = await POST(event('http://127.0.0.1/api/creator/mission/validate', {
-			missionId: 'mission-creator-validate-no-authority'
+			missionId: 'mission-creator-validate-no-authority',
+			source: 'mission-board.creator-validation'
 		}) as never);
 
 		expect(response.status).toBe(409);

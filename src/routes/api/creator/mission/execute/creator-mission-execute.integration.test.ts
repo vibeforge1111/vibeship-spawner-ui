@@ -189,14 +189,15 @@ describe('/api/creator/mission/execute', () => {
 		expect(body.error).toBe('missionId or requestId is required');
 	});
 
-	it('rejects creator mission execution when mission id is present but execution authority is missing', async () => {
+	it('rejects source-only creator mission execution without Harness authority', async () => {
 		await createCreatorMission(
 			{ brief: 'Create Startup YC path', missionId: 'mission-creator-no-authority', requestId: 'req-no-authority' },
 			{ stateDir: tempDir, runPlanner: async () => packet() }
 		);
 
 		const response = await POST(event('http://127.0.0.1/api/creator/mission/execute', {
-			missionId: 'mission-creator-no-authority'
+			missionId: 'mission-creator-no-authority',
+			source: 'mission-board.creator.execute'
 		}) as never);
 
 		expect(response.status).toBe(409);

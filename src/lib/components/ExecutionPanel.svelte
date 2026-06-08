@@ -77,7 +77,6 @@
 			autoRun?: boolean;
 			buildMode?: 'direct' | 'advanced_prd';
 			buildModeReason?: string;
-			executionAuthority?: Record<string, unknown>;
 		};
 	}
 

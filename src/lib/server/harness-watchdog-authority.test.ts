@@ -84,7 +84,7 @@ describe('collectHarnessWatchdogAuthority', () => {
 		await rm(stateDir, { recursive: true, force: true });
 	});
 
-	it('projects native Governor evidence as approved gate rows without leaking private state', async () => {
+	it('reports stored native Governor evidence as stale residue without leaking private state', async () => {
 		await writeBaseState({ executionAuthority: dispatchAuthority() });
 
 		const snapshot = await collectHarnessWatchdogAuthority({ stateDir, checkedAt });
@@ -93,15 +93,16 @@ describe('collectHarnessWatchdogAuthority', () => {
 		expect(snapshot.missionId).toBe(missionId);
 		expect(snapshot.traceRef).toBe(traceRef);
 		expect(snapshot.rows.find((row) => row.gate === 'governor')).toMatchObject({
-			status: 'approved',
-			severity: 'healthy'
+			status: 'stale',
+			severity: 'stale'
 		});
 		expect(snapshot.rows.find((row) => row.gate === 'capability')).toMatchObject({
-			status: 'approved'
+			status: 'missing'
 		});
 		expect(snapshot.rows.find((row) => row.gate === 'owner')).toMatchObject({
-			status: 'approved'
+			status: 'missing'
 		});
+		expect(snapshot.openBlockers.some((blocker) => blocker.summary.includes('Stored executionAuthority residue'))).toBe(true);
 		const payload = JSON.stringify(snapshot);
 		expect(payload).not.toContain('8319079055');
 		expect(payload).not.toContain('Do not leak this raw prompt body');
@@ -141,7 +142,7 @@ describe('collectHarnessWatchdogAuthority', () => {
 		expect(snapshot.openBlockers.some((blocker) => blocker.summary.includes('machine-origin'))).toBe(true);
 	});
 
-	it('surfaces stale freshness evidence instead of treating bare VNext as authority', async () => {
+	it('surfaces stored bare VNext evidence as stale residue', async () => {
 		const authority = vnextAuthority() as unknown as Record<string, unknown>;
 		const freshness = authority.freshness as Record<string, unknown>;
 		freshness.pending_state_used_as_authority = true;
@@ -150,17 +151,17 @@ describe('collectHarnessWatchdogAuthority', () => {
 		const snapshot = await collectHarnessWatchdogAuthority({ stateDir, checkedAt });
 
 		expect(snapshot.rows.find((row) => row.gate === 'governor')).toMatchObject({
-			status: 'degraded',
-			severity: 'blocked'
-		});
-		expect(snapshot.rows.find((row) => row.gate === 'freshness')).toMatchObject({
 			status: 'stale',
 			severity: 'stale'
+		});
+		expect(snapshot.rows.find((row) => row.gate === 'freshness')).toMatchObject({
+			status: 'missing',
+			severity: 'blocked'
 		});
 		expect(snapshot.openBlockers.map((blocker) => blocker.status)).toContain('stale');
 	});
 
-	it('reports denied Governor outcomes as blockers', async () => {
+	it('reports stored denied Governor outcomes as stale residue', async () => {
 		const authority = dispatchAuthority() as unknown as Record<string, unknown>;
 		authority.outcome = 'chat_only';
 		await writeBaseState({ executionAuthority: authority });
@@ -168,9 +169,9 @@ describe('collectHarnessWatchdogAuthority', () => {
 		const snapshot = await collectHarnessWatchdogAuthority({ stateDir, checkedAt });
 
 		expect(snapshot.rows.find((row) => row.gate === 'governor')).toMatchObject({
-			status: 'denied',
-			severity: 'blocked'
+			status: 'stale',
+			severity: 'stale'
 		});
-		expect(snapshot.openBlockers.some((blocker) => blocker.summary.includes('chat_only'))).toBe(true);
+		expect(snapshot.openBlockers.some((blocker) => blocker.summary.includes('Stored executionAuthority residue'))).toBe(true);
 	});
 });

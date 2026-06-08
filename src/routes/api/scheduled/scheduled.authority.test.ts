@@ -133,7 +133,7 @@ describe('/api/scheduled authority contract', () => {
     expect(deleted.ok).toBe(true);
   });
 
-  it('creates and deletes schedules from authenticated Spawner UI actions without client-minted Governor authority', async () => {
+  it('blocks source-only Spawner UI schedule actions without Harness authority', async () => {
     const createResponse = await POST(
       event('http://127.0.0.1:3333/api/scheduled', {
         cron: '0 3 * * *',
@@ -143,19 +143,30 @@ describe('/api/scheduled authority contract', () => {
       }) as never
     );
 
-    expect(createResponse.status).toBe(200);
+    expect(createResponse.status).toBe(409);
     const created = await createResponse.json();
-    expect(created.ok).toBe(true);
-    expect(created.schedule.authority.source).toBe('governor_decision');
+    expect(created.code).toBe('harness_authority_blocked');
+    expect(created.authority.reasonCodes).toContain('missing_harness_authority');
+
+    const allowedCreate = await POST(
+      event('http://127.0.0.1:3333/api/scheduled', {
+        cron: '0 3 * * *',
+        action: 'mission',
+        payload: { goal: 'Run a startup benchmark.' },
+        executionAuthority: authority('spawner.schedule.create', 'creates_schedule')
+      }) as never
+    );
+    const allowed = await allowedCreate.json();
 
     const deleteResponse = await DELETE(
-      event(`http://127.0.0.1:3333/api/scheduled?id=${encodeURIComponent(created.schedule.id)}`, {
+      event(`http://127.0.0.1:3333/api/scheduled?id=${encodeURIComponent(allowed.schedule.id)}`, {
         source: 'mission-board.schedule.delete'
       }, 'DELETE') as never
     );
 
-    expect(deleteResponse.status).toBe(200);
+    expect(deleteResponse.status).toBe(409);
     const deleted = await deleteResponse.json();
-    expect(deleted.ok).toBe(true);
+    expect(deleted.code).toBe('harness_authority_blocked');
+    expect(deleted.authority.reasonCodes).toContain('missing_harness_authority');
   });
 });

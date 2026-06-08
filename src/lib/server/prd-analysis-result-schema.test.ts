@@ -16,6 +16,10 @@ describe('PRD analysis result storage projection', () => {
 			executionPrompt: 'Raw execution instructions must not be stored.',
 			metadata: {
 				executionPrompt: 'Nested raw instructions must not be stored either.',
+				executionAuthority: { schema_version: 'governor-decision-v1' },
+				nested: {
+					governorDecision: { schema_version: 'governor-decision-v1' }
+				},
 				kept: true
 			}
 		});
@@ -40,6 +44,8 @@ describe('PRD analysis result storage projection', () => {
 			}
 		});
 		expect(JSON.stringify(stored)).not.toContain('executionPrompt');
+		expect(JSON.stringify(stored)).not.toContain('executionAuthority');
+		expect(JSON.stringify(stored)).not.toContain('governorDecision');
 		expect(JSON.stringify(stored)).not.toContain('Raw execution instructions');
 		expect(JSON.stringify(stored)).not.toContain('Nested raw instructions');
 	});
@@ -144,19 +150,25 @@ describe('PRD analysis result storage projection', () => {
 					skills: ['frontend-engineer', 'threejs-3d-graphics', 'frontend-engineer']
 				}
 			],
-			skills: ['frontend-engineer', 'qa-engineering', 'threejs-3d-graphics']
+			skills: ['frontend-engineer', 'qa-engineering', 'threejs-3d-graphics'],
+			metadata: {
+				kept: true,
+				executionAuthority: { schema_version: 'governor-decision-v1' }
+			}
 		}, 'base');
 
 		expect(sanitized.result.tasks[0].skills).toEqual(['frontend-engineer']);
 		expect(sanitized.result.skills).toEqual(['frontend-engineer']);
 		expect(sanitized.summary.strippedSkillCount).toBeGreaterThanOrEqual(2);
 		expect(sanitized.result.metadata).toMatchObject({
+			kept: true,
 			skillTier: 'base',
 			skillGate: {
 				applied: true,
 				tier: 'base'
 			}
 		});
+		expect(JSON.stringify(sanitized.result.metadata)).not.toContain('executionAuthority');
 	});
 
 	it('preserves pro skills for pro-tier PRD analysis results', async () => {

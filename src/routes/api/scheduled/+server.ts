@@ -9,7 +9,7 @@ import {
   type ScheduleAction,
 } from '$lib/server/scheduler';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
-import { HarnessAuthorityError, buildServerGovernorDecisionAuthority } from '$lib/server/harness-authority';
+import { HarnessAuthorityError } from '$lib/server/harness-authority';
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -66,24 +66,12 @@ export const POST: RequestHandler = async (event) => {
   const payload = asRecord(body.payload);
   const chatId = body?.chatId ? String(body.chatId) : null;
   const timezone = body?.timezone ? String(body.timezone) : null;
-  const source = body?.source ? String(body.source).trim() : '';
   if (!cron) return json({ ok: false, error: 'cron required' }, { status: 400 });
   if (action !== 'mission' && action !== 'loop') {
     return json({ ok: false, error: "action must be 'mission' or 'loop'" }, { status: 400 });
   }
   try {
-    const executionAuthority = body.executionAuthority ?? (
-      source === 'mission-board.schedule.create'
-        ? buildServerGovernorDecisionAuthority({
-            source,
-            reason: 'Authenticated Spawner UI schedule creation action.',
-            toolName: 'spawner.schedule.create',
-            mutationClass: 'creates_schedule',
-            target: action,
-            requestId: `spawner-ui-schedule-create-${action}`
-          })
-        : undefined
-    );
+    const executionAuthority = body.executionAuthority;
     const record = await createSchedule({ cron, action, payload, chatId, timezone, executionAuthority });
     return json({ ok: true, schedule: record });
   } catch (err: unknown) {
@@ -110,19 +98,7 @@ export const DELETE: RequestHandler = async (event) => {
   const id = url.searchParams.get('id') || (body?.id ? String(body.id) : '');
   if (!id) return json({ ok: false, error: 'id required' }, { status: 400 });
   try {
-    const source = body?.source ? String(body.source).trim() : '';
-    const executionAuthority = body.executionAuthority ?? (
-      source === 'mission-board.schedule.delete'
-        ? buildServerGovernorDecisionAuthority({
-            source,
-            reason: 'Authenticated Spawner UI schedule deletion action.',
-            toolName: 'spawner.schedule.delete',
-            mutationClass: 'deletes_schedule',
-            target: id,
-            requestId: `spawner-ui-schedule-delete-${id}`
-          })
-        : undefined
-    );
+    const executionAuthority = body.executionAuthority;
     const ok = await deleteSchedule({ id, executionAuthority });
     return json({ ok, error: ok ? undefined : 'not found' });
   } catch (err: unknown) {

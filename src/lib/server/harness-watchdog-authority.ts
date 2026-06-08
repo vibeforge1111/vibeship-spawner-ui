@@ -52,6 +52,7 @@ export interface HarnessWatchdogAuthoritySnapshot {
 
 interface AuthorityEvidence {
 	authority: Record<string, unknown> | null;
+	residueAuthority: Record<string, unknown> | null;
 	source: string;
 	evidenceRef: string;
 }
@@ -90,7 +91,8 @@ function selectedAuthority(input: {
 		const authority = resolveExecutionAuthority(...candidate.values);
 		if (isRecord(authority)) {
 			return {
-				authority,
+				authority: null,
+				residueAuthority: authority,
 				source: candidate.source,
 				evidenceRef: candidate.ref
 			};
@@ -99,6 +101,7 @@ function selectedAuthority(input: {
 
 	return {
 		authority: null,
+		residueAuthority: null,
 		source: 'harness-governor',
 		evidenceRef: 'authority.execution'
 	};
@@ -150,11 +153,22 @@ function evidenceDetails(verdict: HarnessAuthorityVerdict | null): string[] {
 	return details;
 }
 
-function governorStatus(authority: Record<string, unknown> | null, verdict: HarnessAuthorityVerdict | null): {
+function governorStatus(
+	authority: Record<string, unknown> | null,
+	verdict: HarnessAuthorityVerdict | null,
+	residueAuthority: Record<string, unknown> | null
+): {
 	status: WatchdogRowStatus;
 	summary: string;
 	details: string[];
 } {
+	if (residueAuthority) {
+		return {
+			status: 'stale',
+			summary: 'Stored executionAuthority residue is present but cannot authorize high-agency dispatch.',
+			details: ['stored_authority_residue', 'Fresh Harness/Governor authority is required at dispatch time.']
+		};
+	}
 	if (!authority) {
 		return {
 			status: 'missing',
@@ -407,12 +421,15 @@ function riskRow(input: {
 
 function machinePolicyRow(input: {
 	authority: Record<string, unknown> | null;
+	residueAuthority: Record<string, unknown> | null;
 	source: string;
 	checkedAt: string;
 	evidenceRef: string;
 	correlation: WatchdogCorrelation;
 }): WatchdogAuthorityGateRow {
-	const machineOrigin = input.authority?.schema === 'spark.machine_origin_policy.v1';
+	const machineOrigin =
+		input.authority?.schema === 'spark.machine_origin_policy.v1' ||
+		input.residueAuthority?.schema === 'spark.machine_origin_policy.v1';
 	return makeGateRow({
 		id: 'authority.machine_policy',
 		label: 'Machine policy gate',
@@ -507,19 +524,23 @@ export async function collectHarnessWatchdogAuthority(
 	const authorityRef = evidenceRef({
 		id: 'authority.execution',
 		source: authorityEvidence.source,
-		label: authorityEvidence.authority ? 'executionAuthority metadata' : 'missing executionAuthority evidence',
+		label: authorityEvidence.residueAuthority
+			? 'stored executionAuthority residue'
+			: authorityEvidence.authority
+				? 'executionAuthority metadata'
+				: 'missing executionAuthority evidence',
 		kind: 'authority_snapshot',
-		redaction: authorityEvidence.authority ? 'metadata_only' : 'not_available',
+		redaction: authorityEvidence.authority || authorityEvidence.residueAuthority ? 'metadata_only' : 'not_available',
 		checkedAt
 	});
 	const evidenceRefs = mergeEvidenceRefs(
 		[pendingRequest.evidenceRef, lastCanvasLoad.evidenceRef, pendingLoad.evidenceRef, authorityRef],
 		prdResult ? [prdResult.evidenceRef] : []
 	);
-	const source = authorityEvidence.authority ? authorityEvidence.source : 'harness-governor';
-	const selectedRef = authorityEvidence.authority ? authorityEvidence.evidenceRef : authorityRef.id;
+	const source = authorityEvidence.authority || authorityEvidence.residueAuthority ? authorityEvidence.source : 'harness-governor';
+	const selectedRef = authorityEvidence.authority || authorityEvidence.residueAuthority ? authorityEvidence.evidenceRef : authorityRef.id;
 	const verdict = classifyGovernor(authorityEvidence.authority, correlation);
-	const governor = governorStatus(authorityEvidence.authority, verdict);
+	const governor = governorStatus(authorityEvidence.authority, verdict, authorityEvidence.residueAuthority);
 
 	const rows: WatchdogAuthorityGateRow[] = [
 		makeGateRow({
@@ -527,7 +548,7 @@ export async function collectHarnessWatchdogAuthority(
 			label: 'Governor gate',
 			gate: 'governor',
 			status: governor.status,
-			severity: governor.status === 'approved' ? 'healthy' : 'blocked',
+			severity: governor.status === 'approved' ? 'healthy' : governor.status === 'stale' ? 'stale' : 'blocked',
 			source,
 			checkedAt,
 			summary: governor.summary,
@@ -539,7 +560,14 @@ export async function collectHarnessWatchdogAuthority(
 		ownerRow({ authority: authorityEvidence.authority, source, checkedAt, evidenceRef: selectedRef, correlation }),
 		freshnessRow({ authority: authorityEvidence.authority, source, checkedAt, evidenceRef: selectedRef, correlation }),
 		riskRow({ authority: authorityEvidence.authority, source, checkedAt, evidenceRef: selectedRef, correlation }),
-		machinePolicyRow({ authority: authorityEvidence.authority, source, checkedAt, evidenceRef: selectedRef, correlation })
+		machinePolicyRow({
+			authority: authorityEvidence.authority,
+			residueAuthority: authorityEvidence.residueAuthority,
+			source,
+			checkedAt,
+			evidenceRef: selectedRef,
+			correlation
+		})
 	];
 
 	const timestamp = artifactTimestamp(pendingLoad.value) || artifactTimestamp(lastCanvasLoad.value);

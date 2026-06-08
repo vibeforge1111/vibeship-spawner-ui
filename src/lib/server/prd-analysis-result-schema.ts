@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { getTierSkills, normalizeTier, type SkillTier } from './skill-tiers';
 import { assessTaskQuality } from './task-quality-rubric';
+import { stripAuthorityResidue } from './authority-residue';
 
 const stringList = z.array(z.string());
 
@@ -170,7 +171,7 @@ export async function sanitizePrdAnalysisResultForTier(
 	strippedSkillCount += topLevel.stripped;
 	const skills = uniqueSkillIds([...topLevel.skills, ...tasks.flatMap((task) => task.skills)]);
 	const metadataRecord = validated.metadata && typeof validated.metadata === 'object' && !Array.isArray(validated.metadata)
-		? (validated.metadata as Record<string, unknown>)
+		? stripAuthorityResidue(validated.metadata as Record<string, unknown>)
 		: {};
 
 	return {
@@ -212,7 +213,7 @@ export function projectStoredPrdAnalysisResult(requestId: string, result: unknow
 	};
 	const { executionPrompt: _executionPrompt, metadata, ...rest } = validated;
 	const metadataRecord = metadata && typeof metadata === 'object' && !Array.isArray(metadata)
-		? (metadata as Record<string, unknown>)
+		? stripAuthorityResidue(metadata as Record<string, unknown>)
 		: {};
 	const {
 		executionPrompt: _metadataExecutionPrompt,
