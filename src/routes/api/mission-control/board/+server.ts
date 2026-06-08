@@ -4,6 +4,7 @@ import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { getMissionControlBoard } from '$lib/server/mission-control-relay';
 import { enrichMissionControlBoardWithProviderResults } from '$lib/server/mission-control-results';
 import { providerRuntime } from '$lib/server/provider-runtime';
+import { recoverOverduePrdAutoAnalysisFromPending } from '$lib/server/prd-auto-analysis-timeout';
 
 export const GET: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
@@ -23,6 +24,8 @@ export const GET: RequestHandler = async (event) => {
 		windowMs: 60_000
 	});
 	if (rateLimited) return rateLimited;
+
+	await recoverOverduePrdAutoAnalysisFromPending({ recoverySource: 'mission_control_board' });
 
 	return json({
 		ok: true,

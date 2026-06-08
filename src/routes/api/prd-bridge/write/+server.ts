@@ -40,6 +40,7 @@ import {
 	assertNativeGovernorHarnessAuthority,
 	resolveExecutionAuthority
 } from '$lib/server/harness-authority';
+import { recoverOverduePrdAutoAnalysisFromPending } from '$lib/server/prd-auto-analysis-timeout';
 
 function getPrdBridgePaths() {
 	const spawnerDir = spawnerStateDir();
@@ -1831,6 +1832,8 @@ export const POST: RequestHandler = async (event) => {
 			windowMs: 60_000
 		});
 		if (rateLimited) return rateLimited;
+
+		await recoverOverduePrdAutoAnalysisFromPending({ recoverySource: 'prd_bridge_write' });
 
 		const body = await event.request.json().catch(() => null);
 		if (!body || typeof body !== 'object' || Array.isArray(body)) {

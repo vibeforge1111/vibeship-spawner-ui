@@ -11,6 +11,7 @@ import { collectHarnessWatchdogTelegram } from '$lib/server/harness-watchdog-tel
 import { collectHarnessWatchdogRegistry } from '$lib/server/harness-watchdog-registry';
 import { mergeEvidenceRefs } from '$lib/server/harness-watchdog-state';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
+import { recoverOverduePrdAutoAnalysisFromPending } from '$lib/server/prd-auto-analysis-timeout';
 
 const SAFE_REQUEST_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{2,180}$/;
 const SAFE_MISSION_ID = /^(?:mission|spark)-[A-Za-z0-9][A-Za-z0-9_-]{2,200}$/;
@@ -61,6 +62,8 @@ export const GET: RequestHandler = async (event) => {
 		windowMs: 60_000
 	});
 	if (rateLimited) return rateLimited;
+
+	await recoverOverduePrdAutoAnalysisFromPending({ recoverySource: 'harness_watchdog_probe' });
 
 	const requestId = safeParam(event.url.searchParams.get('requestId'));
 	const missionId = safeParam(event.url.searchParams.get('missionId') || event.url.searchParams.get('mission'));

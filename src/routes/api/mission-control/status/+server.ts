@@ -9,6 +9,7 @@ import {
 	missionControlPathForMission,
 	resolveMissionControlAccess
 } from '$lib/server/mission-control-access';
+import { recoverOverduePrdAutoAnalysisFromPending } from '$lib/server/prd-auto-analysis-timeout';
 
 function findProjectLineage(missionId: string | undefined): MissionControlProjectLineage | null {
 	if (!missionId) return null;
@@ -51,6 +52,8 @@ export const GET: RequestHandler = async (event) => {
 		windowMs: 60_000
 	});
 	if (rateLimited) return rateLimited;
+
+	await recoverOverduePrdAutoAnalysisFromPending({ recoverySource: 'mission_control_status' });
 
 	const missionId = event.url.searchParams.get('missionId') || undefined;
 	const snapshot = getMissionControlRelaySnapshot(missionId);
