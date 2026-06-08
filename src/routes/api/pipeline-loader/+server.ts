@@ -9,7 +9,7 @@
  * DELETE - Clear the pending load
  */
 
-import { json } from '@sveltejs/kit';
+import { json, type RequestEvent } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { writeFile, readFile, unlink, mkdir } from 'fs/promises';
 import { join } from 'path';
@@ -17,6 +17,7 @@ import { existsSync } from 'fs';
 import { logger } from '$lib/utils/logger';
 import { spawnerStateDir } from '$lib/server/spawner-state';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
+import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 
 const log = logger.scope('PipelineLoader');
 
@@ -40,11 +41,33 @@ async function ensureDir(): Promise<void> {
 	}
 }
 
+function requirePipelineLoaderAuth(event: RequestEvent): Response | null {
+	return requireControlAuth(event, {
+		surface: 'PipelineLoader',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: false,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+}
+
 /**
  * POST - Queue a pipeline to load
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requirePipelineLoaderAuth(event);
+	if (unauthorized) return unauthorized;
+	const rateLimited = enforceRateLimit(event, {
+		scope: 'pipeline_loader_post',
+		limit: 120,
+		windowMs: 60_000
+	});
+	if (rateLimited) return rateLimited;
+
 	try {
+		const { request } = event;
 		await ensureDir();
 		const payload = await request.json();
 
@@ -83,8 +106,18 @@ export const POST: RequestHandler = async ({ request }) => {
 /**
  * GET - Get the pending load (optionally peek without consuming)
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requirePipelineLoaderAuth(event);
+	if (unauthorized) return unauthorized;
+	const rateLimited = enforceRateLimit(event, {
+		scope: 'pipeline_loader_get',
+		limit: 240,
+		windowMs: 60_000
+	});
+	if (rateLimited) return rateLimited;
+
 	try {
+		const { url } = event;
 		const peek = url.searchParams.get('peek') === 'true';
 		const latest = url.searchParams.get('latest') === 'true';
 		const requestedPipelineId = url.searchParams.get('pipeline')?.trim() || null;
@@ -129,7 +162,16 @@ export const GET: RequestHandler = async ({ url }) => {
 /**
  * DELETE - Clear the pending load
  */
-export const DELETE: RequestHandler = async () => {
+export const DELETE: RequestHandler = async (event) => {
+	const unauthorized = requirePipelineLoaderAuth(event);
+	if (unauthorized) return unauthorized;
+	const rateLimited = enforceRateLimit(event, {
+		scope: 'pipeline_loader_delete',
+		limit: 120,
+		windowMs: 60_000
+	});
+	if (rateLimited) return rateLimited;
+
 	try {
 		const pendingLoadFile = getPendingLoadFile();
 		if (existsSync(pendingLoadFile)) {

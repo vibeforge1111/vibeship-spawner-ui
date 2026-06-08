@@ -68,4 +68,19 @@ describe('/api/mission-control/command authority contract', () => {
 		expect(body.authority.source).toBe('turn_intent_vnext');
 		expect(body.authority.reasonCodes).toContain('native_governor_required');
 	});
+
+	it('derives server Governor authority for authenticated Spawner UI mission-detail actions', async () => {
+		const response = await POST(
+			event({
+				missionId: 'mission-command-route-ui-action',
+				action: 'kill',
+				source: 'mission-detail.kill'
+			}) as never
+		);
+
+		expect(response.status).toBe(200);
+		const body = await response.json();
+		expect(body.ok).toBe(false);
+		expect(body.error).toContain('was not found');
+	});
 });

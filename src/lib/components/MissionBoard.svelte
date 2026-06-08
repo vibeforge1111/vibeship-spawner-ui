@@ -11,7 +11,6 @@
 	import { initPipelines, pipelines } from '$lib/stores/pipelines.svelte';
 	import type { Mission } from '$lib/services/mcp-client';
 	import type { PipelineMetadata } from '$lib/stores/pipelines.svelte';
-	import { buildClientGovernorDecisionAuthority } from '$lib/services/harness-authority-client';
 	import {
 		canRunCreatorMissionBoardCard,
 		canShowMissionBoardProjectActions,
@@ -132,13 +131,7 @@
 					payload,
 					chatId: newChatId || null,
 					timezone: LOCAL_TZ,
-					executionAuthority: buildClientGovernorDecisionAuthority({
-						source: 'mission-board.schedule.create',
-						reason: 'User submitted a scheduled Spark action from Spawner.',
-						toolName: 'spawner.schedule.create',
-						mutationClass: 'creates_schedule',
-						target: newAction
-					})
+					source: 'mission-board.schedule.create'
 				})
 			});
 			if (!r.ok) {
@@ -169,13 +162,7 @@
 				method: 'DELETE',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					executionAuthority: buildClientGovernorDecisionAuthority({
-						source: 'mission-board.schedule.delete',
-						reason: 'User deleted a scheduled Spark action from Spawner.',
-						toolName: 'spawner.schedule.delete',
-						mutationClass: 'deletes_schedule',
-						target: id
-					})
+					source: 'mission-board.schedule.delete'
 				})
 			});
 			if (!r.ok) {
@@ -635,13 +622,7 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					missionId: card.id,
-					executionAuthority: buildClientGovernorDecisionAuthority({
-						source: 'mission-board.creator.execute',
-						reason: 'User started a creator mission from the Spawner mission board.',
-						toolName: 'spawner.dispatch',
-						mutationClass: 'launches_mission',
-						target: card.id
-					})
+					source: 'mission-board.creator.execute'
 				})
 			});
 			const data = await r.json().catch(() => ({}));
@@ -704,13 +685,7 @@
 				body: JSON.stringify({
 					missionId: card.id,
 					async: true,
-					executionAuthority: buildClientGovernorDecisionAuthority({
-						source: 'mission-board.creator-validation',
-						reason: 'User requested creator artifact validation from the Spawner Mission Board.',
-						toolName: 'spawner.creator.validate',
-						mutationClass: 'writes_files',
-						target: card.id
-					})
+					source: 'mission-board.creator-validation'
 				})
 			});
 			const data = await r.json().catch(() => ({}));

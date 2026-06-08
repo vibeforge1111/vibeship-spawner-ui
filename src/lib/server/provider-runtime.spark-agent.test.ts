@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { providerRuntime, reconcileStaleProviderResults } from './provider-runtime';
 import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { eventBridge, type BridgeEvent } from '$lib/services/event-bridge';
@@ -85,6 +88,8 @@ afterEach(() => {
 	providerRuntime.cleanup('mission-step2-blocked-success');
 	providerRuntime.cleanup('mission-step2-sandbox');
 	providerRuntime.cleanup('mission-step2-no-authority');
+	providerRuntime.cleanup('mission-step2-active-recovery');
+	delete process.env.SPAWNER_STATE_DIR;
 });
 
 describe('provider-runtime Spark agent bridge', () => {
@@ -579,6 +584,76 @@ describe('provider-runtime Spark agent bridge', () => {
 		expect(after.paused).toBe(true);
 		expect(after.lastReason).toContain('recovered snapshots are evidence only');
 		expect(Object.keys(after.providers)).toHaveLength(0);
+	});
+
+	it('treats active-mission recovered dispatch authority as evidence only', async () => {
+		const testSpawnerDir = await mkdtemp(path.join(os.tmpdir(), 'spawner-active-recovery-'));
+		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
+		const missionId = 'mission-step2-active-recovery';
+		const activePack = buildPack(missionId, [provider('codex', 'gpt-5.5')]) as MultiLLMExecutionPack & {
+			executionAuthority?: unknown;
+		};
+		activePack.executionAuthority = dispatchAuthority();
+		await writeFile(
+			path.join(testSpawnerDir, 'active-mission.json'),
+			JSON.stringify({ missionId, multiLLMExecution: activePack }, null, 2),
+			'utf-8'
+		);
+
+		const mission: Mission = {
+			id: missionId,
+			user_id: 'test-user',
+			name: 'Active Recovery Mission',
+			description: 'Validate active-mission recovery authority demotion',
+			mode: 'multi-llm-orchestrator',
+			status: 'paused',
+			agents: [
+				{ id: 'agent-1', name: 'Agent', role: 'builder', skills: ['code_analysis'], model: 'sonnet' }
+			],
+			tasks: [
+				{
+					id: 'task-1',
+					title: 'Recover and resume',
+					description: 'Resume mission from active-mission state',
+					assignedTo: 'agent-1',
+					status: 'pending',
+					handoffType: 'sequential'
+				}
+			],
+			context: {
+				projectPath: process.cwd(),
+				projectType: 'typescript',
+				goals: ['prove active recovery authority demotion']
+			},
+			current_task_id: null,
+			outputs: {},
+			error: null,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+			started_at: null,
+			completed_at: null
+		};
+
+		vi.spyOn(mcpClient, 'getMission').mockResolvedValue({
+			success: true,
+			data: {
+				mission,
+				execution_prompt: `Mission ID: ${missionId}`,
+				_instruction: ''
+			}
+		});
+
+		const pauseResult = await providerRuntime.pauseMission(missionId, controlAuthority());
+		expect(pauseResult.paused).toBe(true);
+
+		const resumedEvents: BridgeEvent[] = [];
+		const resumed = await providerRuntime.resumeMission(missionId, (event) => resumedEvents.push(event), controlAuthority());
+		expect(resumed.resumed).toBe(false);
+		expect(resumed.reason).toContain('No original dispatch authority available');
+		expect(resumedEvents.some((event) => event.type === 'dispatch_started')).toBe(false);
+		expect(providerRuntime.getMissionStatus(missionId).lastReason).toContain('recovered snapshots are evidence only');
+
+		await rm(testSpawnerDir, { recursive: true, force: true });
 	});
 
 	it('keeps provider result details after in-memory sessions are cleared', async () => {

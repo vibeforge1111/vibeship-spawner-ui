@@ -366,13 +366,10 @@ class ProviderRuntimeManager {
 					const snapshot: MissionDispatchSnapshot = {
 						executionPack: state.multiLLMExecution,
 						apiKeys,
-						workingDirectory: undefined,
-						executionAuthority: resolveExecutionAuthority(
-							(state.multiLLMExecution as unknown as Record<string, unknown>).executionAuthority
-						)
+						workingDirectory: undefined
 					};
 					this.dispatchSnapshots.set(missionId, snapshot);
-					this.rememberStatusReason(missionId, 'Recovered dispatch snapshot from active mission state');
+					this.rememberStatusReason(missionId, 'Recovered dispatch snapshot from active mission state; recovered authority is evidence only');
 					return snapshot;
 				}
 			} catch (error) {

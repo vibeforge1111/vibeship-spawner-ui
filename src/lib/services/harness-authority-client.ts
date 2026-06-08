@@ -1,3 +1,4 @@
+import { browser } from '$app/environment';
 import {
 	createHarnessCoreActionEnvelopeVNext,
 	createHarnessCoreAuthorizedGovernorDecision,
@@ -49,6 +50,9 @@ export function buildClientGovernorDecisionAuthority(input: {
 	externalNetwork?: boolean;
 	publishes?: boolean;
 }): SparkClientGovernorDecisionV1 {
+	if (browser) {
+		throw new Error('Browser clients must not mint GovernorDecisionV1 authority. Send the fresh UI action to a server Harness consumer.');
+	}
 	const envelope = buildClientTurnIntentVNextAuthority(input);
 	return createHarnessCoreAuthorizedGovernorDecision({
 		envelope,

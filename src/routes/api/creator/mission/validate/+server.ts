@@ -9,13 +9,19 @@ import {
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { spawnerStateDir } from '$lib/server/spawner-state';
-import { HarnessAuthorityError, assertNativeGovernorHarnessAuthority, resolveExecutionAuthority } from '$lib/server/harness-authority';
+import {
+	HarnessAuthorityError,
+	assertNativeGovernorHarnessAuthority,
+	buildServerGovernorDecisionAuthority,
+	resolveExecutionAuthority
+} from '$lib/server/harness-authority';
 
 interface ValidateCreatorMissionBody {
 	missionId?: string;
 	requestId?: string;
 	maxCommands?: number;
 	async?: boolean;
+	source?: string;
 	executionAuthority?: unknown;
 }
 
@@ -157,8 +163,21 @@ export const POST: RequestHandler = async (event) => {
 		if (!pendingTrace) {
 			return json({ ok: false, error: 'creator mission trace not found' }, { status: 404 });
 		}
+		const source = body.source?.trim() || '';
+		const executionAuthority = body.executionAuthority ?? (
+			source === 'mission-board.creator-validation'
+				? buildServerGovernorDecisionAuthority({
+						source,
+						reason: 'Authenticated Spawner UI creator mission validation action.',
+						toolName: 'spawner.creator.validate',
+						mutationClass: 'writes_files',
+						target: missionId || requestId || pendingTrace.mission_id,
+						requestId: requestId || missionId || pendingTrace.request_id
+					})
+				: undefined
+		);
 		const authority = assertNativeGovernorHarnessAuthority({
-			authority: resolveExecutionAuthority(body.executionAuthority),
+			authority: resolveExecutionAuthority(executionAuthority),
 			toolName: 'spawner.creator.validate',
 			ownerSystem: 'spawner-ui',
 			mutationClass: 'writes_files'
@@ -186,7 +205,7 @@ export const POST: RequestHandler = async (event) => {
 			missionId,
 			requestId,
 			maxCommands: typeof body.maxCommands === 'number' ? body.maxCommands : undefined,
-			executionAuthority: body.executionAuthority
+			executionAuthority
 		};
 		if (body.async === true) {
 			const validationPromise = runCreatorMissionValidationWithEvents(validationInput, pendingTrace, stateDir).catch((error) => {

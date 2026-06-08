@@ -27,7 +27,6 @@
 		type MissionControlEntry
 	} from '$lib/services/mission-detail-view-model';
 	import { canShowMissionBoardProjectActions } from '$lib/services/mission-board-cards';
-	import { buildClientGovernorDecisionAuthority } from '$lib/services/harness-authority-client';
 
 	let missionId = $state('');
 	let currentState = $state<MissionsState>({
@@ -142,14 +141,7 @@
 				body: JSON.stringify({
 					missionId,
 					action,
-					source: 'spawner-ui',
-					executionAuthority: buildClientGovernorDecisionAuthority({
-						source: `mission-detail.${action}`,
-						reason: 'User clicked a mission-control action in Spawner.',
-						toolName: 'spawner.mission_control.command',
-						mutationClass: 'controls_mission',
-						target: missionId
-					})
+					source: `mission-detail.${action}`
 				})
 			});
 			const body = await response.json().catch(() => ({}));

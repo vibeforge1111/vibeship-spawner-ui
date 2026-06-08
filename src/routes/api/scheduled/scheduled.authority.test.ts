@@ -12,14 +12,16 @@ import {
 } from '$lib/server/harness-authority';
 
 let testSpawnerDir: string | null = null;
+const TEST_API_KEY = 'scheduled-route-authority-test-secret';
+const originalMcpApiKey = process.env.MCP_API_KEY;
 
 function event(url: string, body?: unknown, method = 'POST') {
-	return {
-		request: new Request(url, {
-			method,
-			headers: { 'content-type': 'application/json' },
-			body: body === undefined ? undefined : JSON.stringify(body)
-		}),
+  return {
+    request: new Request(url, {
+      method,
+      headers: { 'content-type': 'application/json', 'x-api-key': TEST_API_KEY },
+      body: body === undefined ? undefined : JSON.stringify(body)
+    }),
 		url: new URL(url),
 		getClientAddress: () => '127.0.0.1'
 	};
@@ -51,14 +53,17 @@ function bareVNextAuthority(toolName: string, mutationClass: SparkMutationClass)
 
 describe('/api/scheduled authority contract', () => {
 	beforeEach(async () => {
-		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-scheduled-route-authority-'));
-		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
-		resetSchedulerForTests();
-	});
+    testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-scheduled-route-authority-'));
+    process.env.SPAWNER_STATE_DIR = testSpawnerDir;
+    process.env.MCP_API_KEY = TEST_API_KEY;
+    resetSchedulerForTests();
+  });
 
 	afterEach(async () => {
-		resetSchedulerForTests();
-		delete process.env.SPAWNER_STATE_DIR;
+    resetSchedulerForTests();
+    delete process.env.SPAWNER_STATE_DIR;
+    if (originalMcpApiKey === undefined) delete process.env.MCP_API_KEY;
+    else process.env.MCP_API_KEY = originalMcpApiKey;
 		if (testSpawnerDir && existsSync(testSpawnerDir)) {
 			await rm(testSpawnerDir, { recursive: true, force: true });
 		}
@@ -97,7 +102,7 @@ describe('/api/scheduled authority contract', () => {
 		expect(body.authority.reasonCodes).toContain('native_governor_required');
 	});
 
-	it('allows schedule creation and deletion with matching Governor authority', async () => {
+  it('allows schedule creation and deletion with matching Governor authority', async () => {
 		const createResponse = await POST(
 			event('http://127.0.0.1:3333/api/scheduled', {
 				cron: '0 3 * * *',
@@ -125,6 +130,32 @@ describe('/api/scheduled authority contract', () => {
 
 		expect(deleteResponse.status).toBe(200);
 		const deleted = await deleteResponse.json();
-		expect(deleted.ok).toBe(true);
-	});
+    expect(deleted.ok).toBe(true);
+  });
+
+  it('creates and deletes schedules from authenticated Spawner UI actions without client-minted Governor authority', async () => {
+    const createResponse = await POST(
+      event('http://127.0.0.1:3333/api/scheduled', {
+        cron: '0 3 * * *',
+        action: 'mission',
+        payload: { goal: 'Run a startup benchmark.' },
+        source: 'mission-board.schedule.create'
+      }) as never
+    );
+
+    expect(createResponse.status).toBe(200);
+    const created = await createResponse.json();
+    expect(created.ok).toBe(true);
+    expect(created.schedule.authority.source).toBe('governor_decision');
+
+    const deleteResponse = await DELETE(
+      event(`http://127.0.0.1:3333/api/scheduled?id=${encodeURIComponent(created.schedule.id)}`, {
+        source: 'mission-board.schedule.delete'
+      }, 'DELETE') as never
+    );
+
+    expect(deleteResponse.status).toBe(200);
+    const deleted = await deleteResponse.json();
+    expect(deleted.ok).toBe(true);
+  });
 });

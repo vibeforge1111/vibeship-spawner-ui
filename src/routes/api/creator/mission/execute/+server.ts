@@ -2,11 +2,17 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { creatorMissionPath, executeCreatorMission } from '$lib/server/creator-mission';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
-import { HarnessAuthorityError, assertNativeGovernorHarnessAuthority, resolveExecutionAuthority } from '$lib/server/harness-authority';
+import {
+	HarnessAuthorityError,
+	assertNativeGovernorHarnessAuthority,
+	buildServerGovernorDecisionAuthority,
+	resolveExecutionAuthority
+} from '$lib/server/harness-authority';
 
 interface ExecuteCreatorMissionBody {
 	missionId?: string;
 	requestId?: string;
+	source?: string;
 	executionAuthority?: unknown;
 }
 
@@ -33,14 +39,27 @@ export const POST: RequestHandler = async (event) => {
 		if (!missionId && !requestId) {
 			return json({ ok: false, error: 'missionId or requestId is required' }, { status: 400 });
 		}
+		const source = body.source?.trim() || '';
+		const executionAuthority = body.executionAuthority ?? (
+			source === 'mission-board.creator.execute'
+				? buildServerGovernorDecisionAuthority({
+						source,
+						reason: 'Authenticated Spawner UI creator mission execution action.',
+						toolName: 'spawner.dispatch',
+						mutationClass: 'launches_mission',
+						target: missionId || requestId || undefined,
+						requestId: requestId || missionId || undefined
+					})
+				: undefined
+		);
 		const authority = assertNativeGovernorHarnessAuthority({
-			authority: resolveExecutionAuthority(body.executionAuthority),
+			authority: resolveExecutionAuthority(executionAuthority),
 			toolName: 'spawner.dispatch',
 			ownerSystem: 'spawner-ui',
 			mutationClass: 'launches_mission'
 		});
 
-		const result = await executeCreatorMission({ missionId, requestId }, { executionAuthority: body.executionAuthority });
+		const result = await executeCreatorMission({ missionId, requestId }, { executionAuthority });
 		return json({
 			ok: true,
 			authority,

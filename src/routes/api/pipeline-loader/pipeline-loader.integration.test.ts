@@ -8,6 +8,8 @@ import { GET, POST, DELETE } from './+server';
 let testSpawnerDir: string;
 let pendingLoadFile: string;
 let lastLoadFile: string;
+const TEST_API_KEY = 'pipeline-loader-route-test-secret';
+const originalMcpApiKey = process.env.MCP_API_KEY;
 
 async function resetTestSpawnerDir() {
 	delete process.env.SPAWNER_STATE_DIR;
@@ -21,13 +23,28 @@ describe('/api/pipeline-loader integration', () => {
 		await resetTestSpawnerDir();
 		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-pipeline-loader-'));
 		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
+		process.env.MCP_API_KEY = TEST_API_KEY;
 		pendingLoadFile = path.join(testSpawnerDir, 'pending-load.json');
 		lastLoadFile = path.join(testSpawnerDir, 'last-canvas-load.json');
 	});
 
 	afterEach(async () => {
 		await resetTestSpawnerDir();
+		if (originalMcpApiKey === undefined) delete process.env.MCP_API_KEY;
+		else process.env.MCP_API_KEY = originalMcpApiKey;
 	});
+
+	function routeEvent(url: string, body?: unknown, method = 'GET') {
+		return {
+			request: new Request(url, {
+				method,
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
+				body: body === undefined ? undefined : JSON.stringify(body)
+			}),
+			url: new URL(url),
+			getClientAddress: () => '127.0.0.1'
+		};
+	}
 
 	it('consumes pending load on GET and preserves queued pipeline ID', async () => {
 		const payload = {
@@ -40,18 +57,14 @@ describe('/api/pipeline-loader integration', () => {
 		};
 
 		const postResponse = await POST({
-			request: new Request('http://localhost/api/pipeline-loader', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			})
+			...routeEvent('http://localhost/api/pipeline-loader', payload, 'POST')
 		} as never);
 		expect(postResponse.status).toBe(200);
 		expect(existsSync(pendingLoadFile)).toBe(true);
 		expect(existsSync(lastLoadFile)).toBe(true);
 
 		const firstGet = await GET({
-			url: new URL('http://localhost/api/pipeline-loader')
+			...routeEvent('http://localhost/api/pipeline-loader')
 		} as never);
 		expect(firstGet.status).toBe(200);
 		const firstBody = await firstGet.json();
@@ -62,7 +75,7 @@ describe('/api/pipeline-loader integration', () => {
 		expect(existsSync(lastLoadFile)).toBe(true);
 
 		const latestGet = await GET({
-			url: new URL('http://localhost/api/pipeline-loader?latest=true')
+			...routeEvent('http://localhost/api/pipeline-loader?latest=true')
 		} as never);
 		expect(latestGet.status).toBe(200);
 		const latestBody = await latestGet.json();
@@ -71,7 +84,7 @@ describe('/api/pipeline-loader integration', () => {
 		expect(existsSync(lastLoadFile)).toBe(true);
 
 		const secondGet = await GET({
-			url: new URL('http://localhost/api/pipeline-loader')
+			...routeEvent('http://localhost/api/pipeline-loader')
 		} as never);
 		expect(secondGet.status).toBe(200);
 		const secondBody = await secondGet.json();
@@ -89,16 +102,12 @@ describe('/api/pipeline-loader integration', () => {
 		};
 
 		const postResponse = await POST({
-			request: new Request('http://localhost/api/pipeline-loader', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			})
+			...routeEvent('http://localhost/api/pipeline-loader', payload, 'POST')
 		} as never);
 		expect(postResponse.status).toBe(200);
 
 		const mismatchGet = await GET({
-			url: new URL('http://localhost/api/pipeline-loader?pipeline=pipe-other-project')
+			...routeEvent('http://localhost/api/pipeline-loader?pipeline=pipe-other-project')
 		} as never);
 		expect(mismatchGet.status).toBe(200);
 		const mismatchBody = await mismatchGet.json();
@@ -106,7 +115,7 @@ describe('/api/pipeline-loader integration', () => {
 		expect(existsSync(pendingLoadFile)).toBe(true);
 
 		const matchGet = await GET({
-			url: new URL('http://localhost/api/pipeline-loader?pipeline=pipe-target-project')
+			...routeEvent('http://localhost/api/pipeline-loader?pipeline=pipe-target-project')
 		} as never);
 		expect(matchGet.status).toBe(200);
 		const matchBody = await matchGet.json();
@@ -138,16 +147,12 @@ describe('/api/pipeline-loader integration', () => {
 		};
 
 		const postResponse = await POST({
-			request: new Request('http://localhost/api/pipeline-loader', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			})
+			...routeEvent('http://localhost/api/pipeline-loader', payload, 'POST')
 		} as never);
 		expect(postResponse.status).toBe(200);
 
 		const latestGet = await GET({
-			url: new URL('http://localhost/api/pipeline-loader?latest=true')
+			...routeEvent('http://localhost/api/pipeline-loader?latest=true')
 		} as never);
 		expect(latestGet.status).toBe(200);
 		const latestBody = await latestGet.json();
@@ -162,20 +167,34 @@ describe('/api/pipeline-loader integration', () => {
 
 	it('clears pending load with DELETE', async () => {
 		const postResponse = await POST({
-			request: new Request('http://localhost/api/pipeline-loader', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					pipelineId: 'pipe-delete-id',
-					pipelineName: 'Delete Pipeline'
-				})
-			})
+			...routeEvent('http://localhost/api/pipeline-loader', {
+				pipelineId: 'pipe-delete-id',
+				pipelineName: 'Delete Pipeline'
+			}, 'POST')
 		} as never);
 		expect(postResponse.status).toBe(200);
 		expect(existsSync(pendingLoadFile)).toBe(true);
 
-		const deleteResponse = await DELETE({} as never);
+		const deleteResponse = await DELETE(routeEvent('http://localhost/api/pipeline-loader', undefined, 'DELETE') as never);
 		expect(deleteResponse.status).toBe(200);
+		expect(existsSync(pendingLoadFile)).toBe(false);
+	});
+
+	it('blocks unauthenticated queue mutation', async () => {
+		const response = await POST({
+			request: new Request('http://localhost/api/pipeline-loader', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					pipelineId: 'pipe-no-auth',
+					pipelineName: 'No Auth Pipeline'
+				})
+			}),
+			url: new URL('http://localhost/api/pipeline-loader'),
+			getClientAddress: () => '127.0.0.1'
+		} as never);
+
+		expect(response.status).toBe(401);
 		expect(existsSync(pendingLoadFile)).toBe(false);
 	});
 });
