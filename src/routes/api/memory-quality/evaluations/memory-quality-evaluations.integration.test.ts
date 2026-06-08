@@ -64,6 +64,18 @@ describe('/api/memory-quality/evaluations integration', () => {
 		expect(existsSync(path.join(testDir, 'evaluations.json'))).toBe(false);
 	});
 
+	it('rejects unauthenticated local manual evaluations before writing memory-quality state', async () => {
+		const response = await POST(
+			routeEvent(
+				{ query: 'manual route query' },
+				null
+			) as never
+		);
+
+		expect(response.status).toBe(401);
+		expect(existsSync(path.join(testDir, 'evaluations.json'))).toBe(false);
+	});
+
 	it('appends a valid evaluation and returns a refreshed dataset', async () => {
 		const response = await POST(
 			routeEvent({
