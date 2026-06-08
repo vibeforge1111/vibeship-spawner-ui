@@ -333,7 +333,7 @@ export const OPTIONS: RequestHandler = async (event) => {
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
 		apiKeyQueryParam: 'apiKey',
 		apiKeyCookieName: EVENTS_AUTH_COOKIE,
-		allowLoopbackWithoutKey: true,
+		allowLoopbackWithoutKey: false,
 		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
 	});
 	if (unauthorized) return unauthorized;
@@ -351,7 +351,7 @@ export const GET: RequestHandler = async (event) => {
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
 		apiKeyQueryParam: 'apiKey',
 		apiKeyCookieName: EVENTS_AUTH_COOKIE,
-		allowLoopbackWithoutKey: true,
+		allowLoopbackWithoutKey: false,
 		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
 	});
 	if (unauthorized) return unauthorized;

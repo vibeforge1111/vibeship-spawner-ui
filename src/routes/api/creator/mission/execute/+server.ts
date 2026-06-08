@@ -15,7 +15,7 @@ export const POST: RequestHandler = async (event) => {
 		surface: 'CreatorMissionExecute',
 		apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
-		allowLoopbackWithoutKey: true
+		allowLoopbackWithoutKey: false
 	});
 	if (unauthorized) return unauthorized;
 

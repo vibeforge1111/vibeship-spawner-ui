@@ -114,14 +114,15 @@ describe('/api/events auth', () => {
 		expect(response.status).toBe(401);
 	});
 
-	it('accepts a loopback theatre SSE origin without an events key', async () => {
+	it('accepts a loopback theatre SSE origin with an events key', async () => {
 		const response = await GET(
 			createEvent(
 				'http://localhost:3333/api/events',
 				{
 					method: 'GET',
 					headers: {
-						origin: 'http://localhost:5600'
+						origin: 'http://localhost:5600',
+						'x-api-key': 'events-secret'
 					}
 				},
 				'127.0.0.1'
@@ -132,7 +133,7 @@ describe('/api/events auth', () => {
 		expect(response.headers.get('access-control-allow-origin')).toBe('http://localhost:5600');
 	});
 
-	it('answers loopback theatre preflight for event posts', async () => {
+	it('answers loopback theatre preflight for event posts with an events key', async () => {
 		const response = await OPTIONS(
 			createEvent(
 				'http://localhost:3333/api/events',
@@ -140,8 +141,9 @@ describe('/api/events auth', () => {
 					method: 'OPTIONS',
 					headers: {
 						origin: 'http://localhost:5600',
+						'x-api-key': 'events-secret',
 						'access-control-request-method': 'POST',
-						'access-control-request-headers': 'content-type'
+						'access-control-request-headers': 'content-type,x-api-key'
 					}
 				},
 				'127.0.0.1'

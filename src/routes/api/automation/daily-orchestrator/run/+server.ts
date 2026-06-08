@@ -10,7 +10,7 @@ export const POST: RequestHandler = async (event) => {
 		surface: 'DailyOrchestratorRun',
 		apiKeyEnvVar: 'EVENTS_API_KEY',
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
-		allowLoopbackWithoutKey: true,
+		allowLoopbackWithoutKey: false,
 		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
 	});
 	if (unauthorized) return unauthorized;
