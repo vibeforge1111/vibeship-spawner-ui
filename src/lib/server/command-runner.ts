@@ -56,6 +56,43 @@ interface SpawnCommand {
 	args: string[];
 }
 
+const OPAQUE_PAYLOAD_FLAGS = new Map<string, Set<string>>([
+	['bash', new Set(['-c'])],
+	['sh', new Set(['-c'])],
+	['zsh', new Set(['-c'])],
+	['cmd', new Set(['/c'])],
+	['cmd.exe', new Set(['/c'])],
+	['powershell', new Set(['-command', '-encodedcommand'])],
+	['powershell.exe', new Set(['-command', '-encodedcommand'])],
+	['pwsh', new Set(['-command', '-encodedcommand'])],
+	['pwsh.exe', new Set(['-command', '-encodedcommand'])],
+	['node', new Set(['-e', '--eval', '-p', '--print'])],
+	['node.exe', new Set(['-e', '--eval', '-p', '--print'])],
+	['python', new Set(['-c'])],
+	['python.exe', new Set(['-c'])],
+	['python3', new Set(['-c'])],
+	['python3.exe', new Set(['-c'])],
+	['py', new Set(['-c'])],
+	['py.exe', new Set(['-c'])]
+]);
+
+function commandExecutableName(command: string): string {
+	return basename(command).toLowerCase().replace(/^["']|["']$/g, '');
+}
+
+export function opaqueCommandPayloadReason(command: string, args: string[]): string | null {
+	const commandName = commandExecutableName(command);
+	const blockedFlags = OPAQUE_PAYLOAD_FLAGS.get(commandName);
+	if (!blockedFlags) return null;
+	const flag = args.find((arg) => {
+		const normalized = arg.trim().toLowerCase();
+		if (blockedFlags.has(normalized)) return true;
+		return ['bash', 'sh', 'zsh'].includes(commandName) && /^-[a-z]*c[a-z]*$/.test(normalized);
+	});
+	if (!flag) return null;
+	return `Opaque command payload flag "${flag}" is blocked for ${commandName}.`;
+}
+
 function packageManagerCliPath(executable: string): string | null {
 	const npmExecPath = process.env.npm_execpath;
 	if (npmExecPath && existsSync(npmExecPath)) {
@@ -102,6 +139,16 @@ export function runCommand(
 		let stdout = '';
 		let stderr = '';
 		let resolved = false;
+		const payloadReason = opaqueCommandPayloadReason(command, args);
+		if (payloadReason) {
+			res({
+				exitCode: 1,
+				stdout: '',
+				stderr: payloadReason,
+				duration: Date.now() - start
+			});
+			return;
+		}
 		const spawnCommand = resolveSpawnCommand(command, args);
 
 		const child = spawn(spawnCommand.command, spawnCommand.args, {

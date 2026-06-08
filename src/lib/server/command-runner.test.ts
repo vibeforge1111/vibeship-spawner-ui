@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { isPathWithinProject, runCommand, validateProjectPath } from './command-runner';
+import { isPathWithinProject, opaqueCommandPayloadReason, runCommand, validateProjectPath } from './command-runner';
 
 const originalSparkWorkspaceRoot = process.env.SPARK_WORKSPACE_ROOT;
 const originalSpawnerWorkspaceRoot = process.env.SPAWNER_WORKSPACE_ROOT;
@@ -94,5 +94,19 @@ describe('runCommand', () => {
 
 		expect(result.exitCode).not.toBe(0);
 		expect(result.stdout).not.toContain('shell-ran');
+	});
+
+	it('blocks opaque interpreter payload flags before spawning', async () => {
+		const result = await runCommand(process.execPath, ['-e', "console.log('payload-ran')"], process.cwd(), 5000);
+
+		expect(result.exitCode).toBe(1);
+		expect(result.stdout).not.toContain('payload-ran');
+		expect(result.stderr).toContain('Opaque command payload flag "-e" is blocked');
+	});
+
+	it('detects shell payload flags consistently', () => {
+		expect(opaqueCommandPayloadReason('cmd.exe', ['/c', 'echo unsafe'])).toContain('Opaque command payload flag "/c"');
+		expect(opaqueCommandPayloadReason('powershell.exe', ['-Command', 'Write-Output unsafe'])).toContain('Opaque command payload flag "-Command"');
+		expect(opaqueCommandPayloadReason('bash', ['-lc', 'echo unsafe'])).toContain('Opaque command payload flag "-lc"');
 	});
 });
