@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { existsSync } from 'fs';
-import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
 import { DELETE, GET } from './+server';
@@ -82,6 +82,44 @@ describe('/api/prd-bridge/pending integration', () => {
 			requestId: 'tg-build-pending-auth',
 			prdContent: '# Pending Auth Board',
 			options: { includeSkills: false }
+		});
+	});
+
+	it('reconciles canonical result state before returning stale pending work', async () => {
+		const requestId = 'tg-build-pending-canonical-result';
+		await writeFile(
+			path.join(testSpawnerDir, 'pending-request.json'),
+			JSON.stringify({
+				status: 'pending',
+				requestId,
+				autoAnalysis: {
+					status: 'running',
+					startedAt: '2026-06-08T18:00:00.000Z'
+				}
+			}),
+			'utf-8'
+		);
+		await mkdir(path.join(testSpawnerDir, 'results'), { recursive: true });
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify({ success: true, projectName: 'Canonical Result Board' }),
+			'utf-8'
+		);
+
+		const response = await GET(routeEvent('GET') as never);
+		const body = await response.json();
+
+		expect(response.status).toBe(200);
+		expect(body).toMatchObject({ pending: false });
+
+		const pending = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
+		expect(pending).toMatchObject({
+			status: 'processed',
+			autoAnalysis: {
+				status: 'complete',
+				canonicalResultAvailable: true,
+				reconciledBy: 'prd_bridge_pending_get'
+			}
 		});
 	});
 

@@ -121,6 +121,59 @@ describe('PRD auto-analysis timeout recovery', () => {
 		expect(pending.autoAnalysis.status).toBe('running');
 	});
 
+	it('reconciles a running request when the canonical result already exists', async () => {
+		const requestId = 'tg-build-timeout-recovery-result-exists';
+		await writeJson('pending-request.json', {
+			requestId,
+			status: 'pending',
+			autoAnalysis: {
+				status: 'running',
+				startedAt: '2026-06-08T18:00:00.000Z',
+				timeoutMs: 420_000,
+				deadlineAt: '2026-06-08T18:07:00.000Z'
+			}
+		});
+		await writeJson(`results/${requestId}.json`, {
+			success: true,
+			projectName: 'Recovered Canonical Result'
+		});
+
+		const recovery = await recoverOverduePrdAutoAnalysisFromPending({
+			stateDir,
+			nowMs: Date.parse('2026-06-08T18:08:00.000Z'),
+			recoverySource: 'test_canonical_reconciliation'
+		});
+
+		expect(recovery).toMatchObject({
+			recovered: false,
+			reason: 'canonical_result_exists',
+			requestId
+		});
+		const pending = JSON.parse(await readFile(path.join(stateDir, 'pending-request.json'), 'utf-8'));
+		expect(pending).toMatchObject({
+			status: 'processed',
+			reason: 'Canonical provider result is available.',
+			autoAnalysis: {
+				status: 'complete',
+				success: true,
+				canonicalResultAvailable: true,
+				resultFileName: `${requestId}.json`,
+				reconciledBy: 'test_canonical_reconciliation'
+			}
+		});
+
+		const traceRows = (await readFile(path.join(stateDir, 'prd-auto-trace.jsonl'), 'utf-8'))
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line));
+		expect(traceRows.at(-1)).toMatchObject({
+			requestId,
+			event: 'canonical_result_reconciled',
+			source: 'test_canonical_reconciliation',
+			canonicalResultAvailable: true
+		});
+	});
+
 	it('keeps a provisional draft advisory during the extra canonical grace window', async () => {
 		const requestId = 'tg-build-timeout-recovery-provisional-grace';
 		await writeJson('pending-request.json', {

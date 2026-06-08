@@ -254,7 +254,7 @@ describe('/api/events auth', () => {
 		const pending = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
 		expect(pending).toMatchObject({
 			requestId,
-			status: 'pending',
+			status: 'processed',
 			reason: 'Canonical provider result stored from events bridge.',
 			autoAnalysis: {
 				status: 'complete',

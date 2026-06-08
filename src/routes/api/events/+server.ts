@@ -192,7 +192,7 @@ async function markPendingPrdResultComplete(requestId: string): Promise<void> {
 			: {};
 	const next = {
 		...pending,
-		status: 'pending',
+		status: 'processed',
 		updatedAt: now,
 		reason: 'Canonical provider result stored from events bridge.',
 		autoAnalysis: {

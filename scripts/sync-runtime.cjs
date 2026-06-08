@@ -45,6 +45,7 @@ const SYNCED_PATHS = [
 	'src/lib/server/provider-config.ts',
 	'src/lib/server/prd-auto-dispatch.ts',
 	'src/lib/server/prd-auto-analysis-timeout.ts',
+	'src/lib/server/prd-canonical-result-reconciliation.ts',
 	'src/lib/server/access-execution-lanes.ts',
 	'src/lib/server/access-execution-actions.ts',
 	'src/lib/server/high-agency-workers.ts',

@@ -2,6 +2,7 @@ import { existsSync } from 'fs';
 import { appendFile, mkdir, readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { relayMissionControlEvent } from './mission-control-relay';
+import { reconcilePendingPrdCanonicalResult } from './prd-canonical-result-reconciliation';
 import { spawnerStateDir } from './spawner-state';
 import { extractTraceRef } from './trace-ref';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
@@ -124,6 +125,7 @@ export async function recoverOverduePrdAutoAnalysisFromPending(
 
 	const resultFile = join(stateDir, 'results', `${normalizeRequestId(requestId)}.json`);
 	if (existsSync(resultFile)) {
+		await reconcilePendingPrdCanonicalResult({ stateDir, requestId, source: recoverySource });
 		return { recovered: false, reason: 'canonical_result_exists', requestId, missionId, deadlineAt };
 	}
 

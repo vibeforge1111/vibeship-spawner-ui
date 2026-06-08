@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { existsSync } from 'fs';
-import { mkdtemp, readFile, rm } from 'fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
 import { POST, _runAutoAnalysisWatchdog } from './+server';
@@ -393,6 +393,69 @@ describe('/api/prd-bridge/write integration', () => {
 		);
 		expect(missionEvents.map((entry: { eventType: string }) => entry.eventType)).toContain('task_failed');
 		expect(missionEvents.map((entry: { eventType: string }) => entry.eventType)).toContain('mission_failed');
+	});
+
+	it('marks Codex auto-analysis complete when watchdog finds a canonical result', async () => {
+		process.env.SPAWNER_PRD_AUTO_PROVIDER = 'codex';
+		process.env.SPARK_WORKSPACE_ROOT = path.join(testSpawnerDir, 'workspaces');
+		delete process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
+		executeProviderTaskMock.mockReturnValue(new Promise(() => undefined));
+		const requestId = 'tg-build-codex-watchdog-result-1780930000000';
+		const traceRef = 'trace:spawner-prd:mission-1780930000000';
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/write', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'x-api-key': BRIDGE_TEST_KEY },
+				body: JSON.stringify({
+					content: '# Codex Watchdog Result Board\n\nBuild a local board with README and tests.',
+					requestId,
+					projectName: 'Codex Watchdog Result Board',
+					buildMode: 'direct',
+					buildLane: 'direct',
+					tier: 'pro',
+					traceRef,
+					executionAuthority: writeAuthority(requestId)
+				})
+			}),
+			getClientAddress: () => '127.0.0.1'
+		} as never);
+
+		expect(response.status).toBe(200);
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify({ requestId, success: true, tasks: [{ id: 'task-1', title: 'Done' }] }),
+			'utf-8'
+		);
+
+		await _runAutoAnalysisWatchdog({
+			requestId,
+			projectName: 'Codex Watchdog Result Board',
+			buildMode: 'direct',
+			buildLane: 'direct',
+			tier: 'pro',
+			traceRef,
+			timeoutMs: 420_000
+		});
+
+		const pendingComplete = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
+		expect(pendingComplete.status).toBe('processed');
+		expect(pendingComplete.autoAnalysis).toMatchObject({
+			status: 'complete',
+			success: true,
+			canonicalResultAvailable: true,
+			resultFileName: `${requestId}.json`
+		});
+
+		const traceRows = (await readFile(path.join(testSpawnerDir, 'prd-auto-trace.jsonl'), 'utf-8'))
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line));
+		expect(traceRows.find((row) => row.event === 'watchdog_result_found')).toMatchObject({
+			requestId,
+			traceRef
+		});
+		expect(traceRows.some((row) => row.event === 'watchdog_timeout')).toBe(false);
 	});
 
 	it('marks Codex auto-analysis as failed when no canonical result artifact is written', async () => {

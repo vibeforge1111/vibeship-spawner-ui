@@ -1123,6 +1123,19 @@ export async function _runAutoAnalysisWatchdog(input: {
 	const hasResult = existsSync(resultFile);
 	const provisionalDraftAvailable = existsSync(provisionalResultFile);
 	if (hasResult) {
+		await updatePendingRequestStatus(requestId, 'processed', {
+			reason: 'Canonical provider result is available.',
+			autoAnalysis: {
+				status: 'complete',
+				finishedAt: new Date().toISOString(),
+				success: true,
+				canonicalResultAvailable: true,
+				resultFileName: `${normalizeRequestId(requestId)}.json`,
+				expectedResultFile: resultFile,
+				provisionalResultFile,
+				provisionalDraftAvailable
+			}
+		});
 		await appendPrdTrace(requestId, 'watchdog_result_found', {
 			...traceRefDetails(traceRef)
 		});
@@ -1738,7 +1751,7 @@ async function startAutoAnalysis(
 							: 'Auto-analysis worker finished without a canonical result artifact.');
 				const watchdogCancelled = result.error === 'Cancelled' && !artifact.present;
 				if (!watchdogCancelled) {
-					await updatePendingRequestStatus(requestId, effectiveSuccess ? 'pending' : 'error', {
+					await updatePendingRequestStatus(requestId, effectiveSuccess ? 'processed' : 'error', {
 						reason: effectiveSuccess ? 'Canonical provider result is available.' : failureReason,
 						autoAnalysis: {
 							status: effectiveSuccess ? 'complete' : 'error',

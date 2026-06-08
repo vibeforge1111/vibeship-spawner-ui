@@ -13,6 +13,7 @@ import type { RequestHandler } from './$types';
 import { readFile, writeFile, unlink } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { reconcilePendingPrdCanonicalResult } from '$lib/server/prd-canonical-result-reconciliation';
 import { spawnerStateDir } from '$lib/server/spawner-state';
 import { requireControlAuth } from '$lib/server/mcp-auth';
 
@@ -47,6 +48,14 @@ export const GET: RequestHandler = async (event) => {
 		}
 
 		const requestMeta = JSON.parse(await readFile(pendingRequestFile, 'utf-8'));
+		const requestId = typeof requestMeta.requestId === 'string' ? requestMeta.requestId : undefined;
+		const canonicalResult = await reconcilePendingPrdCanonicalResult({
+			requestId,
+			source: 'prd_bridge_pending_get'
+		});
+		if (canonicalResult.reconciled || canonicalResult.reason === 'already_complete') {
+			return json({ pending: false });
+		}
 
 		// Only return if status is pending
 		if (requestMeta.status !== 'pending') {
