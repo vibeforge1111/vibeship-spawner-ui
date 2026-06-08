@@ -1790,32 +1790,7 @@ class MissionExecutor {
 			return false;
 		}
 
-		const missionId = this.progress.missionId;
-
-		if (browser && typeof fetch !== 'undefined') {
-			try {
-				const response = await fetch('/api/mission-control/command', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						missionId,
-						action: 'kill',
-						source: 'execution-panel'
-					})
-				});
-				const data = await response.json().catch(() => ({}));
-
-				if (response.ok && data?.ok !== false) {
-					this.markCancelled('Execution cancelled');
-					return true;
-				}
-
-				log.warn('Mission-control cancel failed:', data?.error || `HTTP ${response.status}`);
-			} catch (error) {
-				log.warn('Mission-control cancel request failed:', error);
-			}
-		}
-
+		this.addLocalLog('info', 'Cancel requires a governed mission-control command; local UI cancel is disabled.');
 		return false;
 	}
 

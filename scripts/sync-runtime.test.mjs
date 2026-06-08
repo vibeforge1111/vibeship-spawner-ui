@@ -40,6 +40,7 @@ describe('sync-runtime coverage', () => {
 		expect(syncedPaths()).toContain('src/lib/services/harness-authority-client.ts');
 		expect(syncedPaths()).toContain('src/lib/services/mission-executor.ts');
 		expect(syncedPaths()).toContain('src/lib/components/MissionBoard.svelte');
+		expect(syncedPaths()).toContain('src/routes/mission-control/+server.ts');
 		expect(syncedPaths()).toContain('src/routes/missions/[id]/+page.svelte');
 	});
 

@@ -27,6 +27,9 @@
 	import { parseJsonResponse } from '$lib/services/http-response';
 	import { polishMissionTitleForDisplay } from '$lib/services/mission-title';
 
+	const GOVERNED_UI_ACTIONS_ENABLED = false;
+	const GOVERNED_ACTION_MESSAGE = 'Requires fresh Harness Core Governor authority from a server Harness consumer.';
+
 	type Tab = 'board' | 'scheduled';
 	let activeTab = $state<Tab>('board');
 
@@ -116,6 +119,10 @@
 	}
 
 	async function createScheduleFromForm() {
+		if (!GOVERNED_UI_ACTIONS_ENABLED) {
+			schedulesError = GOVERNED_ACTION_MESSAGE;
+			return;
+		}
 		creating = true;
 		try {
 			const payload =
@@ -154,6 +161,10 @@
 	}
 
 	async function deleteScheduleById(id: string) {
+		if (!GOVERNED_UI_ACTIONS_ENABLED) {
+			schedulesError = GOVERNED_ACTION_MESSAGE;
+			return;
+		}
 		const prev = schedules;
 		schedules = schedules.filter((s) => s.id !== id);
 		try {
@@ -601,6 +612,10 @@
 
 	async function handleCreatorRun(card: BoardCard) {
 		if (!canRunCreatorMissionBoardCard(card) || creatorRunMissionId) return;
+		if (!GOVERNED_UI_ACTIONS_ENABLED) {
+			creatorRunMessage = { missionId: card.id, tone: 'error', text: GOVERNED_ACTION_MESSAGE };
+			return;
+		}
 		creatorRunMissionId = card.id;
 		creatorRunMessage = { missionId: card.id, tone: 'info', text: 'Starting creator execution...' };
 		try {
@@ -662,6 +677,10 @@
 
 	async function handleCreatorValidate(card: BoardCard) {
 		if (!canValidateCreatorMissionBoardCard(card) || creatorValidateMissionId) return;
+		if (!GOVERNED_UI_ACTIONS_ENABLED) {
+			creatorValidateMessage = { missionId: card.id, tone: 'error', text: GOVERNED_ACTION_MESSAGE };
+			return;
+		}
 		creatorValidateMissionId = card.id;
 		creatorValidateMessage = { missionId: card.id, tone: 'info', text: 'Running creator validation...' };
 		try {
@@ -727,6 +746,10 @@
 			: quickAddImprovementDraft;
 		const goal = (improvementDraft?.goal ?? quickAddGoal).trim();
 		if (!goal || quickAddDispatching) return;
+		if (!GOVERNED_UI_ACTIONS_ENABLED) {
+			quickAddError = GOVERNED_ACTION_MESSAGE;
+			return;
+		}
 		quickAddDispatching = true;
 		quickAddError = null;
 		try {
@@ -946,11 +969,12 @@
 						<div class="flex items-start justify-end gap-2">
 							<button
 								onclick={handleQuickAdd}
-								disabled={!quickAddFeedback.trim() || quickAddDispatching}
+								disabled={!GOVERNED_UI_ACTIONS_ENABLED || !quickAddFeedback.trim() || quickAddDispatching}
 								class="inline-flex min-w-[9.5rem] items-center justify-center gap-2 rounded-md bg-accent-primary px-3 py-2 font-mono text-xs font-semibold text-bg-primary transition-all hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+								title={GOVERNED_UI_ACTIONS_ENABLED ? 'Run another governed iteration' : GOVERNED_ACTION_MESSAGE}
 							>
 								<Icon name={quickAddDispatching ? 'loader' : 'play'} size={14} />
-								{quickAddDispatching ? 'Dispatching' : 'Run iteration'}
+								{GOVERNED_UI_ACTIONS_ENABLED ? (quickAddDispatching ? 'Dispatching' : 'Run iteration') : 'Authority required'}
 							</button>
 							<button
 								onclick={resetQuickAdd}
@@ -974,10 +998,11 @@
 						/>
 						<button
 							onclick={handleQuickAdd}
-							disabled={!quickAddGoal.trim() || quickAddDispatching}
+							disabled={!GOVERNED_UI_ACTIONS_ENABLED || !quickAddGoal.trim() || quickAddDispatching}
 							class="rounded-md bg-accent-primary px-3 py-2 font-mono text-xs text-bg-primary transition-all hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+							title={GOVERNED_UI_ACTIONS_ENABLED ? 'Run this governed mission' : GOVERNED_ACTION_MESSAGE}
 						>
-							{quickAddDispatching ? 'Dispatching...' : 'Run'}
+							{GOVERNED_UI_ACTIONS_ENABLED ? (quickAddDispatching ? 'Dispatching...' : 'Run') : 'Locked'}
 						</button>
 						<button
 							onclick={resetQuickAdd}
@@ -1127,23 +1152,23 @@
 										{#if canRunCreatorMissionBoardCard(c)}
 											<button
 												onclick={() => handleCreatorRun(c)}
-												disabled={creatorRunMissionId === c.id}
+												disabled={!GOVERNED_UI_ACTIONS_ENABLED || creatorRunMissionId === c.id}
 												class="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-												title="Execute this creator mission through the provider runtime"
+												title={GOVERNED_UI_ACTIONS_ENABLED ? 'Execute this creator mission through the provider runtime' : GOVERNED_ACTION_MESSAGE}
 											>
 												<Icon name={creatorRunMissionId === c.id ? 'loader' : 'play'} size={10} />
-												{creatorRunMissionId === c.id ? 'Starting' : 'Run'}
+												{GOVERNED_UI_ACTIONS_ENABLED ? (creatorRunMissionId === c.id ? 'Starting' : 'Run') : 'Locked'}
 											</button>
 										{/if}
 										{#if canValidateCreatorMissionBoardCard(c)}
 											<button
 												onclick={() => handleCreatorValidate(c)}
-												disabled={creatorValidateMissionId === c.id}
+												disabled={!GOVERNED_UI_ACTIONS_ENABLED || creatorValidateMissionId === c.id}
 												class="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[10px] font-mono text-status-success border border-status-success/30 rounded-sm hover:bg-status-success hover:text-bg-primary transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-												title="Run this creator mission's validation commands"
+												title={GOVERNED_UI_ACTIONS_ENABLED ? "Run this creator mission's validation commands" : GOVERNED_ACTION_MESSAGE}
 											>
 												<Icon name={creatorValidateMissionId === c.id ? 'loader' : 'check-circle'} size={10} />
-												{creatorValidateMissionId === c.id ? 'Validating' : 'Validate'}
+												{GOVERNED_UI_ACTIONS_ENABLED ? (creatorValidateMissionId === c.id ? 'Validating' : 'Validate') : 'Locked'}
 											</button>
 										{/if}
 										{#if hasRecoveryActions(c)}
@@ -1299,10 +1324,11 @@
 				</div>
 				<button
 					class="px-3 py-1.5 text-xs font-mono bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all disabled:opacity-50"
-					disabled={creating || !newCron || (newAction === 'mission' ? !newGoal : !newChip)}
+					disabled={!GOVERNED_UI_ACTIONS_ENABLED || creating || !newCron || (newAction === 'mission' ? !newGoal : !newChip)}
 					onclick={createScheduleFromForm}
+					title={GOVERNED_UI_ACTIONS_ENABLED ? 'Create schedule' : GOVERNED_ACTION_MESSAGE}
 				>
-					{creating ? 'Creating...' : 'Create schedule'}
+					{GOVERNED_UI_ACTIONS_ENABLED ? (creating ? 'Creating...' : 'Create schedule') : 'Authority required'}
 				</button>
 			</div>
 		{/if}
@@ -1360,9 +1386,10 @@
 								</td>
 								<td class="px-3 py-2 text-right">
 									<button
-										class="text-[11px] text-status-error hover:opacity-80"
+										class="text-[11px] text-status-error hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
 										onclick={() => deleteScheduleById(rec.id)}
-										title="Delete this schedule permanently"
+										disabled={!GOVERNED_UI_ACTIONS_ENABLED}
+										title={GOVERNED_UI_ACTIONS_ENABLED ? 'Delete this schedule permanently' : GOVERNED_ACTION_MESSAGE}
 									>
 										delete
 									</button>

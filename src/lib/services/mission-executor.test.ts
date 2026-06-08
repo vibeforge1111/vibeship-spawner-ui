@@ -189,4 +189,17 @@ describe('MissionExecutor local lifecycle authority boundaries', () => {
 		expect(executor.getProgress().status).toBe('paused');
 		expect(statusChanges).toEqual([]);
 	});
+
+	it('does not locally cancel a mission without governed mission-control authority', async () => {
+		const { executor, statusChanges } = createExecutor('running');
+		const fetchMock = vi.fn();
+		vi.stubGlobal('fetch', fetchMock);
+
+		const cancelled = await executor.cancel();
+
+		expect(cancelled).toBe(false);
+		expect(fetchMock).not.toHaveBeenCalled();
+		expect(executor.getProgress().status).toBe('running');
+		expect(statusChanges).toEqual([]);
+	});
 });

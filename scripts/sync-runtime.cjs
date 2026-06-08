@@ -98,6 +98,7 @@ const SYNCED_PATHS = [
 	'src/routes/api/sentinel/dispatch/+server.ts',
 	'src/routes/api/system/state-root/+server.ts',
 	'src/hooks.server.ts',
+	'src/routes/mission-control/+server.ts',
 	'src/routes/spark-live/login/+page.server.ts',
 	'src/routes/spark-live/login/+page.svelte',
 	'src/routes/missions/[id]/+page.svelte',

@@ -13,8 +13,8 @@ import {
 } from '$lib/server/hosted-ui-auth';
 
 function safeNext(value: FormDataEntryValue | string | null): string {
-	const raw = String(value || '/').trim();
-	if (!raw.startsWith('/') || raw.startsWith('//')) return '/';
+	const raw = String(value || '/kanban').trim();
+	if (!raw.startsWith('/') || raw.startsWith('//')) return '/kanban';
 	return raw;
 }
 

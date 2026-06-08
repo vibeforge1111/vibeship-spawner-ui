@@ -71,6 +71,22 @@ describe('spark-live login page', () => {
 		);
 	});
 
+	it('defaults direct local login visits to Mission Control', async () => {
+		const event = loadEvent('http://127.0.0.1:3333/spark-live/login');
+		let redirectError: unknown;
+
+		try {
+			load(event as never);
+		} catch (error) {
+			redirectError = error;
+		}
+
+		expect(redirectError).toMatchObject({
+			status: 303,
+			location: '/kanban'
+		});
+	});
+
 	it('keeps hosted workspace login gated', async () => {
 		PRIVATE_ENV.SPARK_WORKSPACE_ID = 'private-workspace';
 
