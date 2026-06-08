@@ -13,10 +13,6 @@
 import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import type { Mission, MissionLog, MissionTask } from '$lib/services/mcp-client';
 import { mcpClient } from '$lib/services/mcp-client';
-import {
-	buildClientGovernorDecisionAuthority,
-	buildClientTurnIntentVNextAuthority
-} from '$lib/services/harness-authority-client';
 import { logger } from '$lib/utils/logger';
 
 const log = logger.scope('MissionExecutor');
@@ -1728,13 +1724,7 @@ class MissionExecutor {
 		const relayAuthority = relay?.executionAuthority as { schema_version?: string } | undefined;
 		const executionAuthority = relayAuthority?.schema_version === 'governor-decision-v1'
 			? relayAuthority
-			: buildClientGovernorDecisionAuthority({
-					source: 'human_ui_run_action',
-					reason: 'User started execution from the Spawner execution panel.',
-					toolName: 'spawner.dispatch',
-					mutationClass: 'launches_mission',
-					target: executionPack.missionId
-				});
+			: undefined;
 		const response = await fetch('/api/dispatch', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -1842,14 +1832,7 @@ class MissionExecutor {
 					body: JSON.stringify({
 						missionId,
 						action: 'kill',
-						source: 'execution-panel',
-						executionAuthority: buildClientGovernorDecisionAuthority({
-							source: 'execution-panel.cancel',
-							reason: 'User cancelled the running mission from the execution panel.',
-							toolName: 'spawner.mission_control.command',
-							mutationClass: 'controls_mission',
-							target: missionId
-						})
+						source: 'execution-panel'
 					})
 				});
 				const data = await response.json().catch(() => ({}));
@@ -1863,20 +1846,6 @@ class MissionExecutor {
 			} catch (error) {
 				log.warn('Mission-control cancel request failed:', error);
 			}
-		}
-
-		try {
-			const result = await mcpClient.failMission(
-				missionId,
-				'Cancelled by user'
-			);
-
-			if (result.success) {
-				this.markCancelled('Execution cancelled');
-				return true;
-			}
-		} catch (error) {
-			log.error('Failed to cancel:', error);
 		}
 
 		return false;

@@ -512,7 +512,7 @@ describe('provider-runtime Spark agent bridge', () => {
 		);
 	});
 
-	it('rebuilds dispatch snapshot from mission record after fresh mission-control resume authority', async () => {
+	it('does not relaunch a rebuilt dispatch snapshot without original dispatch authority', async () => {
 		sparkAgentBridge.setWorkerExecutorForTests(async (context) => {
 			context.emitProgress(40, `${context.providerId} resumed`);
 			return { success: true, response: `${context.providerId}-resumed` };
@@ -569,15 +569,15 @@ describe('provider-runtime Spark agent bridge', () => {
 
 		const resumedEvents: BridgeEvent[] = [];
 		const resumed = await providerRuntime.resumeMission('mission-step2-rebuild', (event) => resumedEvents.push(event), controlAuthority());
-		expect(resumed.resumed).toBe(true);
+		expect(resumed.resumed).toBe(false);
+		expect(resumed.reason).toContain('No original dispatch authority available');
 		expect(missionSpy).toHaveBeenCalledWith('mission-step2-rebuild');
-		expect(resumedEvents.some((event) => event.type === 'dispatch_started')).toBe(true);
+		expect(resumedEvents.some((event) => event.type === 'dispatch_started')).toBe(false);
 
-		await waitFor(() => providerRuntime.getMissionStatus('mission-step2-rebuild').allComplete);
 		const after = providerRuntime.getMissionStatus('mission-step2-rebuild');
 		expect(after.snapshotAvailable).toBe(true);
-		expect(after.paused).toBe(false);
-		expect(Object.keys(after.providers).length).toBeGreaterThan(0);
+		expect(after.paused).toBe(true);
+		expect(after.lastReason).toContain('No original dispatch authority available');
 	});
 
 	it('keeps provider result details after in-memory sessions are cleared', async () => {

@@ -118,8 +118,11 @@ describe('/api/creator/mission/execute', () => {
 		);
 
 		let capturedAutoRun = false;
+		const executionAuthority = dispatchGovernorAuthority('mission-creator-execute-api');
+		let capturedExecutionAuthority: unknown = null;
 		setCreatorDispatchRunnerForTests(async (load) => {
 			capturedAutoRun = load.autoRun === true && load.relay.autoRun === true;
+			capturedExecutionAuthority = (load as unknown as Record<string, unknown>).executionAuthority;
 			return {
 				started: true,
 				missionId: load.missionId,
@@ -130,7 +133,7 @@ describe('/api/creator/mission/execute', () => {
 
 		const response = await POST(event('http://127.0.0.1/api/creator/mission/execute', {
 			missionId: 'mission-creator-execute-api',
-			executionAuthority: dispatchGovernorAuthority('mission-creator-execute-api')
+			executionAuthority
 		}) as never);
 
 		expect(response.status).toBe(200);
@@ -142,6 +145,7 @@ describe('/api/creator/mission/execute', () => {
 		expect(body.trace.current_stage).toBe('execution_started');
 		expect(body.trace.trace_id).toBe('creator-trace-mission-creator-execute-api');
 		expect(capturedAutoRun).toBe(true);
+		expect(capturedExecutionAuthority).toStrictEqual(executionAuthority);
 	});
 
 	it('rejects stage-only creator mission execution', async () => {

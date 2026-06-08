@@ -33,7 +33,6 @@ import { agentWorkTimeoutMs } from './timeout-config';
 import { extractTraceRef } from './trace-ref';
 import {
 	assertNativeGovernorHarnessAuthority,
-	buildServerGovernorDecisionAuthority,
 	resolveExecutionAuthority,
 	type HarnessAuthorityVerdict
 } from './harness-authority';
@@ -950,16 +949,6 @@ class ProviderRuntimeManager {
 		});
 	}
 
-	private buildResumeDispatchAuthority(missionId: string): unknown {
-		return buildServerGovernorDecisionAuthority({
-			source: 'provider-runtime.resume',
-			reason: 'Fresh mission-control resume authority reconstructed provider dispatch after runtime recovery.',
-			toolName: 'spawner.dispatch',
-			mutationClass: 'launches_mission',
-			target: missionId
-		});
-	}
-
 	private async cancelMissionAuthorized(missionId: string, reason = 'Mission cancelled'): Promise<void> {
 		for (const [key, session] of this.sessions) {
 			if (session.missionId === missionId && session.status === 'running') {
@@ -1052,12 +1041,18 @@ class ProviderRuntimeManager {
 			this.rememberStatusReason(missionId, reason);
 			return { resumed: true, reason };
 		}
+		if (!snapshot.executionAuthority) {
+			const reason = 'No original dispatch authority available to resume mission; recovered snapshots are evidence only.';
+			this.pausedReasons.set(missionId, reason);
+			this.rememberStatusReason(missionId, reason);
+			return { resumed: false, reason };
+		}
 
 		await this.dispatch({
 			executionPack: snapshot.executionPack,
 			apiKeys: { ...snapshot.apiKeys },
 			workingDirectory: snapshot.workingDirectory,
-			executionAuthority: snapshot.executionAuthority ?? this.buildResumeDispatchAuthority(missionId),
+			executionAuthority: snapshot.executionAuthority,
 			onEvent
 		});
 		this.pausedMissions.delete(missionId);

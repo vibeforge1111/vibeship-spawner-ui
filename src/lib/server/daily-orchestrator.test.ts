@@ -43,10 +43,15 @@ describe('daily-orchestrator', () => {
 
 	it('runs regression sequence and marks pass on known resume snapshot blocker', async () => {
 		const calls: MissionControlAction[] = [];
+		const authority = { schema_version: 'governor-decision-v1', test: true };
 		const result = await runMissionControlRegression({
 			missionId: 'mission-123',
-			execute: async ({ action }) => {
+			executionAuthority: authority,
+			execute: async ({ action, executionAuthority }) => {
 				calls.push(action);
+				if (action !== 'status') {
+					expect(executionAuthority).toBe(authority);
+				}
 				if (action === 'resume') {
 					return { ok: false, error: 'No dispatch snapshot available to resume mission.' };
 				}

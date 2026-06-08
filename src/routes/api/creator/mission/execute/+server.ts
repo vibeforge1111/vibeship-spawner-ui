@@ -40,7 +40,7 @@ export const POST: RequestHandler = async (event) => {
 			mutationClass: 'launches_mission'
 		});
 
-		const result = await executeCreatorMission({ missionId, requestId });
+		const result = await executeCreatorMission({ missionId, requestId }, { executionAuthority: body.executionAuthority });
 		return json({
 			ok: true,
 			authority,
