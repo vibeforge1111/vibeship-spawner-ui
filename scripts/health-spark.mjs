@@ -9,6 +9,24 @@ const baseUrl = (process.env.SPAWNER_UI_URL || `http://127.0.0.1:${spawnerPort}`
 const healthUrl = `${baseUrl}/api/providers`;
 const boardUrl = `${baseUrl}/api/mission-control/board`;
 const sparkRunHealthUrl = `${baseUrl}/api/spark/run?health=1`;
+const DEFAULT_HEALTH_AUTH_KEY_ORDER = [
+  "SPARK_UI_API_KEY",
+  "SPARK_BRIDGE_API_KEY",
+  "EVENTS_API_KEY",
+  "MCP_API_KEY",
+];
+const MISSION_CONTROL_AUTH_KEY_ORDER = [
+  "EVENTS_API_KEY",
+  "MCP_API_KEY",
+  "SPARK_BRIDGE_API_KEY",
+  "SPARK_UI_API_KEY",
+];
+const SPARK_RUN_AUTH_KEY_ORDER = [
+  "SPARK_BRIDGE_API_KEY",
+  "MCP_API_KEY",
+  "EVENTS_API_KEY",
+  "SPARK_UI_API_KEY",
+];
 
 function parseCsv(value) {
 	return String(value || "")
@@ -60,13 +78,13 @@ function resolveCli(binaryName) {
   }
 }
 
-async function getJson(url) {
+async function getJson(url, authKeyOrder = DEFAULT_HEALTH_AUTH_KEY_ORDER) {
   let response;
   try {
     response = await fetch(url, {
       headers: {
         accept: "application/json",
-        ...sparkHealthAuthHeaders(),
+        ...sparkHealthAuthHeaders(process.env, authKeyOrder),
       },
     });
   } catch (error) {
@@ -81,12 +99,8 @@ async function getJson(url) {
   return await response.json();
 }
 
-export function sparkHealthAuthHeaders(env = process.env) {
-  const key =
-    healthEnvValue("SPARK_UI_API_KEY", env) ||
-    healthEnvValue("SPARK_BRIDGE_API_KEY", env) ||
-    healthEnvValue("EVENTS_API_KEY", env) ||
-    healthEnvValue("MCP_API_KEY", env);
+export function sparkHealthAuthHeaders(env = process.env, keyOrder = DEFAULT_HEALTH_AUTH_KEY_ORDER) {
+  const key = keyOrder.map((name) => healthEnvValue(name, env)).find(Boolean);
   if (!key) return {};
   return {
     "x-spawner-ui-key": key,
@@ -175,12 +189,12 @@ async function main() {
     );
   }
 
-  const board = await getJson(boardUrl);
+  const board = await getJson(boardUrl, MISSION_CONTROL_AUTH_KEY_ORDER);
   if (!board || typeof board !== "object") {
     throw new Error("mission board payload is not JSON");
   }
 
-  const sparkRunHealth = await getJson(sparkRunHealthUrl);
+  const sparkRunHealth = await getJson(sparkRunHealthUrl, SPARK_RUN_AUTH_KEY_ORDER);
   if (!sparkRunHealth || sparkRunHealth.ok !== true || sparkRunHealth.dispatchesMission !== false) {
     throw new Error("spark run route health payload is not a non-dispatching OK probe");
   }
