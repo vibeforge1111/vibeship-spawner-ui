@@ -31,6 +31,7 @@ const BASE_COOKIE_OPTIONS = {
 	maxAge: 60 * 60 * 12
 };
 const SESSION_COOKIE_NAME = 'spawner_ui_session';
+const LOCAL_SESSION_WORKSPACE_ID = 'local-spawner-ui';
 const LEGACY_AUTH_COOKIE_NAMES = [
 	'spawner_ui_api_key',
 	'spawner_workspace_id',
@@ -332,9 +333,8 @@ export function hostedUiCookieOptions(env: HostedUiAuthEnv): typeof BASE_COOKIE_
 	};
 }
 
-export function persistHostedUiAuth(cookies: Cookies, env: HostedUiAuthEnv): void {
-	const workspaceId = hostedUiWorkspaceId(env);
-	if (!workspaceId) return;
+export function persistHostedUiAuth(cookies: Cookies, env: HostedUiAuthEnv, workspaceIdOverride?: string | null): void {
+	const workspaceId = hostedUiWorkspaceId(env) || workspaceIdOverride?.trim() || LOCAL_SESSION_WORKSPACE_ID;
 
 	const now = Date.now();
 	pruneExpiredHostedUiSessions(now);

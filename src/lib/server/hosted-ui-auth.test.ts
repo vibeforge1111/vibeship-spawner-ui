@@ -225,6 +225,14 @@ describe('hosted UI auth', () => {
 		expect(hostedUiCookieOptions({ SPARK_UI_API_KEY: 'ui-key', SPARK_ALLOWED_HOSTS: 'mission.example.com' })).toMatchObject({ secure: true });
 	});
 
+	it('persists token-only local sessions when no workspace id is configured', () => {
+		const cookies = fakeCookies();
+		persistHostedUiAuth(cookies, { SPARK_UI_API_KEY: 'ui-key' }, 'operator-workspace');
+
+		expect(cookies.set).toHaveBeenCalledWith('spawner_ui_session', expect.any(String), expect.objectContaining({ secure: false }));
+		expect(hostedUiSessionIsValid(cookies, { SPARK_UI_API_KEY: 'ui-key' })).toBe(true);
+	});
+
 	it('expires private preview sessions on idle and absolute timeouts', () => {
 		const cookies = fakeCookies();
 		vi.useFakeTimers();

@@ -105,7 +105,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	clearHostedUiAuthFailures(clientKey);
 	if (explicitCredentialsValid || pairingCredentialsValid) {
-		persistHostedUiAuth(event.cookies, env);
+		persistHostedUiAuth(event.cookies, env, workspaceId);
 	}
 	if (
 		event.url.searchParams.has('uiKey') ||

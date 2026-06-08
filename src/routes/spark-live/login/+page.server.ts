@@ -32,7 +32,7 @@ export const actions: Actions = {
 
 		if (hostedUiCredentialsAreValid(workspaceId, token, env)) {
 			clearHostedUiAuthFailures(clientKey);
-			persistHostedUiAuth(cookies, env);
+			persistHostedUiAuth(cookies, env, workspaceId);
 			throw redirect(303, next);
 		}
 
