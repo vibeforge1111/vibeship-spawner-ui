@@ -23,6 +23,8 @@ vi.mock('$lib/server/provider-runtime', () => ({
 }));
 
 let testSpawnerDir: string;
+const TEST_API_KEY = 'prd-load-to-canvas-test-secret';
+const originalMcpApiKey = process.env.MCP_API_KEY;
 
 function dispatchAuthority(requestId: string, missionId: string) {
 	return buildClientGovernorDecisionAuthority({
@@ -48,6 +50,8 @@ function dispatchVNextAuthority(requestId: string, missionId: string) {
 
 async function resetTestSpawnerDir() {
 	delete process.env.SPAWNER_STATE_DIR;
+	if (originalMcpApiKey === undefined) delete process.env.MCP_API_KEY;
+	else process.env.MCP_API_KEY = originalMcpApiKey;
 	if (testSpawnerDir && existsSync(testSpawnerDir)) {
 		await rm(testSpawnerDir, { recursive: true, force: true });
 	}
@@ -59,12 +63,41 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		await resetTestSpawnerDir();
 		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-load-to-canvas-'));
 		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
+		process.env.MCP_API_KEY = TEST_API_KEY;
 		await mkdir(path.join(testSpawnerDir, 'results'), { recursive: true });
 	});
 
 	afterEach(async () => {
 		vi.unstubAllGlobals();
 		await resetTestSpawnerDir();
+	});
+
+	it('rejects unauthenticated non-local canvas loads before mutating runtime state', async () => {
+		const requestId = 'tg-load-unauth-test';
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify({
+				requestId,
+				success: true,
+				projectName: 'Unauthorized Load',
+				tasks: [{ id: 'TAS-1', title: 'Should not load', skills: [], dependencies: [] }]
+			}),
+			'utf-8'
+		);
+
+		const response = await POST({
+			request: new Request('https://spawner.example.com/api/prd-bridge/load-to-canvas', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ requestId, autoRun: false })
+			}),
+			url: new URL('https://spawner.example.com/api/prd-bridge/load-to-canvas'),
+			getClientAddress: () => '203.0.113.10'
+		} as never);
+
+		expect(response.status).toBe(401);
+		expect(existsSync(path.join(testSpawnerDir, 'pending-load.json'))).toBe(false);
+		expect(existsSync(path.join(testSpawnerDir, 'last-canvas-load.json'))).toBe(false);
 	});
 
 	it('preserves PRD task acceptance criteria and verification commands in canvas nodes', async () => {
@@ -110,7 +143,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 				body: JSON.stringify({ requestId, autoRun: true })
 			})
 		} as never);
@@ -184,7 +217,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 				body: JSON.stringify({ requestId, autoRun: true })
 			})
 		} as never);
@@ -221,7 +254,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 				body: JSON.stringify({ requestId, autoRun: true })
 			})
 		} as never);
@@ -261,7 +294,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 				body: JSON.stringify({
 					requestId,
 					autoRun: true,
@@ -303,7 +336,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 				body: JSON.stringify({
 					requestId,
 					autoRun: true,
@@ -367,7 +400,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 				body: JSON.stringify({
 					requestId,
 					autoRun: true,
@@ -452,7 +485,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 				body: JSON.stringify({ requestId, autoRun: true })
 			})
 		} as never);
@@ -495,7 +528,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 			const response = await POST({
 				request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 					body: JSON.stringify({ requestId, autoRun: false })
 				})
 			} as never);
@@ -533,7 +566,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 				body: JSON.stringify({
 					requestId,
 					autoRun: true,
@@ -619,7 +652,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 				body: JSON.stringify({
 					requestId,
 					autoRun: true,
@@ -719,7 +752,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 			const response = await POST({
 				request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 					body: JSON.stringify({ requestId, autoRun: false })
 				})
 			} as never);
@@ -781,7 +814,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 				body: JSON.stringify({ requestId, autoRun: false })
 			})
 		} as never);

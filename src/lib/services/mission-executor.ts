@@ -33,6 +33,7 @@ import { generateCheckpoint, type ProjectCheckpoint } from './checkpoint';
 import { syncClient, broadcastMissionEvent, broadcastTaskEvent, isConnected, type SyncEvent } from './sync-client';
 import { clientEventBridge, type BridgeEvent } from './event-bridge';
 import { browser } from '$app/environment';
+import { getEventsAuthHeaders } from '$lib/services/events-auth-client';
 import { get } from 'svelte/store';
 import {
 	saveMissionState,
@@ -373,7 +374,7 @@ class MissionExecutor {
 
 				const response = await fetch('/api/mission/active', {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: { 'Content-Type': 'application/json', ...getEventsAuthHeaders() },
 					body: JSON.stringify({
 						missionId: this.progress.missionId,
 						missionName: mission.name,
@@ -412,7 +413,7 @@ class MissionExecutor {
 				clearTimeout(this.fileSyncDebounceTimer);
 				this.fileSyncDebounceTimer = null;
 			}
-			await fetch('/api/mission/active', { method: 'DELETE' });
+			await fetch('/api/mission/active', { method: 'DELETE', headers: getEventsAuthHeaders() });
 			log.debug('File sync state cleared');
 		} catch (error) {
 			log.warn('Failed to clear file sync state:', error);

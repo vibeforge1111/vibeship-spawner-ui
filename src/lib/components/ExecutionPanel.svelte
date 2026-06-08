@@ -23,6 +23,7 @@
 		type MultiLLMStrategy
 	} from '$lib/services/multi-llm-orchestrator';
 	import { resolveRelayMissionProvider } from '$lib/services/relay-mission-provider';
+	import { getEventsAuthHeaders } from '$lib/services/events-auth-client';
 	import CheckpointReview from './CheckpointReview.svelte';
 	import ExecutionFooter from './ExecutionFooter.svelte';
 	import ExecutionLogList from './ExecutionLogList.svelte';
@@ -519,7 +520,7 @@
 	async function loadServerProviderKeyPresence() {
 		if (!browser) return;
 		try {
-			const response = await fetch('/api/providers');
+			const response = await fetch('/api/providers', { headers: getEventsAuthHeaders() });
 			if (!response.ok) return;
 			const result = await response.json();
 			if (!Array.isArray(result?.providers)) return;

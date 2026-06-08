@@ -6,6 +6,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import type { AgenticTeam } from '$lib/types/teams';
 import { registeredTeams, defaultActiveTeamId } from '$lib/data/teams';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -86,12 +87,30 @@ async function getTeamRegistry(): Promise<{ teams: AgenticTeam[]; active_team_id
 	return { teams, active_team_id };
 }
 
-export const GET: RequestHandler = async () => {
+function requireTeamsAuth(event: Parameters<typeof requireControlAuth>[0]): Response | null {
+	return requireControlAuth(event, {
+		surface: 'Teams',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+}
+
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireTeamsAuth(event);
+	if (unauthorized) return unauthorized;
+
 	const registry = await getTeamRegistry();
 	return json(registry);
 };
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireTeamsAuth(event);
+	if (unauthorized) return unauthorized;
+
+	const { request } = event;
 	const body = await request.json();
 	const { action, team_id, agent_id } = body;
 

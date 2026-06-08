@@ -324,6 +324,12 @@ describe('/api/prd-bridge/write integration', () => {
 		expect(response.status).toBe(200);
 		expect(body.autoAnalysis).toMatchObject({ provider: 'codex', started: true });
 		expect(executeProviderTaskMock).toHaveBeenCalledOnce();
+		const providerCall = executeProviderTaskMock.mock.calls[0]?.[0] as { prompt?: string };
+		expect(providerCall.prompt).toContain('$SparkEventsApiKey = $env:EVENTS_API_KEY');
+		expect(providerCall.prompt).toContain('$env:MCP_API_KEY');
+		expect(providerCall.prompt).toContain('$SparkEventsHeaders["x-api-key"] = $SparkEventsApiKey');
+		expect(providerCall.prompt).toContain('Use -Headers $SparkEventsHeaders');
+		expect(providerCall.prompt).toContain('Do not print, log, write, or include $SparkEventsApiKey');
 
 		const pendingStarted = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
 		expect(pendingStarted.status).toBe('pending');

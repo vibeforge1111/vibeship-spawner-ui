@@ -3,10 +3,37 @@ import path from 'path';
 import { existsSync } from 'fs';
 import { mkdtemp, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
-import { GET, POST, DELETE } from './+server';
+import { DELETE, GET, POST } from './+server';
 
+const TEST_API_KEY = 'active-mission-test-secret';
+let originalMcpApiKey: string | undefined;
 let testSpawnerDir: string;
 let missionFile: string;
+
+function routeEvent(
+	options: {
+		method?: string;
+		body?: unknown;
+		url?: string;
+		apiKey?: string | null;
+		clientAddress?: string;
+	} = {}
+) {
+	const url = options.url || 'http://localhost/api/mission/active';
+	const headers = new Headers();
+	if (options.body !== undefined) headers.set('Content-Type', 'application/json');
+	if (options.apiKey !== null) headers.set('x-api-key', options.apiKey || TEST_API_KEY);
+	return {
+		request: new Request(url, {
+			method: options.method || (options.body !== undefined ? 'POST' : 'GET'),
+			headers,
+			body: options.body === undefined ? undefined : JSON.stringify(options.body)
+		}),
+		url: new URL(url),
+		getClientAddress: () => options.clientAddress || '127.0.0.1',
+		cookies: { get: () => undefined }
+	};
+}
 
 async function resetTestSpawnerDir() {
 	delete process.env.SPAWNER_STATE_DIR;
@@ -17,6 +44,8 @@ async function resetTestSpawnerDir() {
 
 describe('/api/mission/active integration', () => {
 	beforeEach(async () => {
+		originalMcpApiKey = process.env.MCP_API_KEY;
+		process.env.MCP_API_KEY = TEST_API_KEY;
 		await resetTestSpawnerDir();
 		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-active-mission-'));
 		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
@@ -24,7 +53,43 @@ describe('/api/mission/active integration', () => {
 	});
 
 	afterEach(async () => {
+		if (originalMcpApiKey === undefined) {
+			delete process.env.MCP_API_KEY;
+		} else {
+			process.env.MCP_API_KEY = originalMcpApiKey;
+		}
 		await resetTestSpawnerDir();
+	});
+
+	it('rejects unauthenticated non-local reads before exposing active mission state', async () => {
+		const response = await GET(
+			routeEvent({
+				apiKey: null,
+				url: 'https://spawner.example.com/api/mission/active',
+				clientAddress: '203.0.113.10'
+			}) as never
+		);
+		expect(response.status).toBe(401);
+	});
+
+	it('rejects unauthenticated non-local writes before persisting active mission state', async () => {
+		const response = await POST(
+			routeEvent({
+				apiKey: null,
+				url: 'https://spawner.example.com/api/mission/active',
+				clientAddress: '203.0.113.10',
+				body: {
+					missionId: 'mission-unauth-test',
+					missionName: 'Unauth test',
+					status: 'running',
+					tasks: [],
+					completedTasks: [],
+					failedTasks: []
+				}
+			}) as never
+		);
+		expect(response.status).toBe(401);
+		expect(existsSync(missionFile)).toBe(false);
 	});
 
 	it('round-trips multi-llm execution state and resume instructions', async () => {
@@ -91,18 +156,10 @@ describe('/api/mission/active integration', () => {
 			failedTasks: []
 		};
 
-		const postResponse = await POST({
-			request: new Request('http://localhost/api/mission/active', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			})
-		} as never);
+		const postResponse = await POST(routeEvent({ body: payload }) as never);
 		expect(postResponse.status).toBe(200);
 
-		const getResponse = await GET({
-			url: new URL('http://localhost/api/mission/active')
-		} as never);
+		const getResponse = await GET(routeEvent() as never);
 		expect(getResponse.status).toBe(200);
 		const body = await getResponse.json();
 
@@ -115,11 +172,9 @@ describe('/api/mission/active integration', () => {
 	});
 
 	it('clears mission state via DELETE', async () => {
-		const postResponse = await POST({
-			request: new Request('http://localhost/api/mission/active', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
+		const postResponse = await POST(
+			routeEvent({
+				body: {
 					missionId: 'mission-delete-test',
 					missionName: 'Delete test',
 					status: 'running',
@@ -128,35 +183,40 @@ describe('/api/mission/active integration', () => {
 					tasks: [],
 					completedTasks: [],
 					failedTasks: []
-				})
-			})
-		} as never);
+				}
+			}) as never
+		);
 		expect(postResponse.status).toBe(200);
 		expect(existsSync(missionFile)).toBe(true);
 
-		const deleteResponse = await DELETE({} as never);
+		const deleteResponse = await DELETE(routeEvent({ method: 'DELETE' }) as never);
 		expect(deleteResponse.status).toBe(200);
 		expect(existsSync(missionFile)).toBe(false);
 	});
 
 	it('clears active file instead of persisting terminal mission states', async () => {
-		await writeFile(missionFile, JSON.stringify({
-			missionId: 'mission-old-running',
-			missionName: 'Old running mission',
-			status: 'running',
-			progress: 40,
-			tasks: [],
-			completedTasks: [],
-			failedTasks: [],
-			lastUpdated: new Date().toISOString(),
-			resumeInstructions: 'old'
-		}, null, 2));
+		await writeFile(
+			missionFile,
+			JSON.stringify(
+				{
+					missionId: 'mission-old-running',
+					missionName: 'Old running mission',
+					status: 'running',
+					progress: 40,
+					tasks: [],
+					completedTasks: [],
+					failedTasks: [],
+					lastUpdated: new Date().toISOString(),
+					resumeInstructions: 'old'
+				},
+				null,
+				2
+			)
+		);
 
-		const postResponse = await POST({
-			request: new Request('http://localhost/api/mission/active', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
+		const postResponse = await POST(
+			routeEvent({
+				body: {
 					missionId: 'mission-old-running',
 					missionName: 'Old running mission',
 					status: 'completed',
@@ -164,9 +224,9 @@ describe('/api/mission/active integration', () => {
 					tasks: [],
 					completedTasks: [],
 					failedTasks: []
-				})
-			})
-		} as never);
+				}
+			}) as never
+		);
 		expect(postResponse.status).toBe(200);
 		const body = await postResponse.json();
 
@@ -175,35 +235,47 @@ describe('/api/mission/active integration', () => {
 	});
 
 	it('clears stale active state when Mission Control already has a terminal event', async () => {
-		await writeFile(path.join(testSpawnerDir, 'mission-control.json'), JSON.stringify({
-			totalRelayed: 1,
-			perMission: { 'mission-terminal-history': 1 },
-			recent: [
+		await writeFile(
+			path.join(testSpawnerDir, 'mission-control.json'),
+			JSON.stringify(
 				{
-					eventType: 'mission_completed',
+					totalRelayed: 1,
+					perMission: { 'mission-terminal-history': 1 },
+					recent: [
+						{
+							eventType: 'mission_completed',
+							missionId: 'mission-terminal-history',
+							timestamp: new Date().toISOString()
+						}
+					]
+				},
+				null,
+				2
+			)
+		);
+		await writeFile(
+			missionFile,
+			JSON.stringify(
+				{
 					missionId: 'mission-terminal-history',
-					timestamp: new Date().toISOString()
-				}
-			]
-		}, null, 2));
-		await writeFile(missionFile, JSON.stringify({
-			missionId: 'mission-terminal-history',
-			missionName: 'Already done',
-			status: 'running',
-			progress: 0,
-			currentTaskId: 'task-replayed',
-			currentTaskName: 'Replayed task',
-			executionPrompt: 'old prompt',
-			tasks: [],
-			completedTasks: [],
-			failedTasks: [],
-			lastUpdated: new Date().toISOString(),
-			resumeInstructions: 'old resume instructions'
-		}, null, 2));
+					missionName: 'Already done',
+					status: 'running',
+					progress: 0,
+					currentTaskId: 'task-replayed',
+					currentTaskName: 'Replayed task',
+					executionPrompt: 'old prompt',
+					tasks: [],
+					completedTasks: [],
+					failedTasks: [],
+					lastUpdated: new Date().toISOString(),
+					resumeInstructions: 'old resume instructions'
+				},
+				null,
+				2
+			)
+		);
 
-		const getResponse = await GET({
-			url: new URL('http://localhost/api/mission/active')
-		} as never);
+		const getResponse = await GET(routeEvent() as never);
 		expect(getResponse.status).toBe(200);
 		const body = await getResponse.json();
 
@@ -213,23 +285,28 @@ describe('/api/mission/active integration', () => {
 	});
 
 	it('ignores stale running updates after a terminal Mission Control event', async () => {
-		await writeFile(path.join(testSpawnerDir, 'mission-control.json'), JSON.stringify({
-			totalRelayed: 1,
-			perMission: { 'mission-terminal-post': 1 },
-			recent: [
+		await writeFile(
+			path.join(testSpawnerDir, 'mission-control.json'),
+			JSON.stringify(
 				{
-					eventType: 'mission_completed',
-					missionId: 'mission-terminal-post',
-					timestamp: new Date().toISOString()
-				}
-			]
-		}, null, 2));
+					totalRelayed: 1,
+					perMission: { 'mission-terminal-post': 1 },
+					recent: [
+						{
+							eventType: 'mission_completed',
+							missionId: 'mission-terminal-post',
+							timestamp: new Date().toISOString()
+						}
+					]
+				},
+				null,
+				2
+			)
+		);
 
-		const postResponse = await POST({
-			request: new Request('http://localhost/api/mission/active', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
+		const postResponse = await POST(
+			routeEvent({
+				body: {
 					missionId: 'mission-terminal-post',
 					missionName: 'Already done',
 					status: 'running',
@@ -237,9 +314,9 @@ describe('/api/mission/active integration', () => {
 					tasks: [],
 					completedTasks: [],
 					failedTasks: []
-				})
-			})
-		} as never);
+				}
+			}) as never
+		);
 		expect(postResponse.status).toBe(200);
 		const body = await postResponse.json();
 
@@ -249,24 +326,29 @@ describe('/api/mission/active integration', () => {
 	});
 
 	it('reports stale mission state as inactive by default', async () => {
-		await writeFile(missionFile, JSON.stringify({
-			missionId: 'mission-stale-test',
-			missionName: 'Stale test',
-			status: 'running',
-			progress: 40,
-			currentTaskId: 'task-old',
-			currentTaskName: 'Old task',
-			executionPrompt: 'old prompt',
-			tasks: [],
-			completedTasks: [],
-			failedTasks: [],
-			lastUpdated: new Date(Date.now() - 31 * 60 * 1000).toISOString(),
-			resumeInstructions: 'old resume instructions'
-		}, null, 2));
+		await writeFile(
+			missionFile,
+			JSON.stringify(
+				{
+					missionId: 'mission-stale-test',
+					missionName: 'Stale test',
+					status: 'running',
+					progress: 40,
+					currentTaskId: 'task-old',
+					currentTaskName: 'Old task',
+					executionPrompt: 'old prompt',
+					tasks: [],
+					completedTasks: [],
+					failedTasks: [],
+					lastUpdated: new Date(Date.now() - 31 * 60 * 1000).toISOString(),
+					resumeInstructions: 'old resume instructions'
+				},
+				null,
+				2
+			)
+		);
 
-		const getResponse = await GET({
-			url: new URL('http://localhost/api/mission/active')
-		} as never);
+		const getResponse = await GET(routeEvent() as never);
 		expect(getResponse.status).toBe(200);
 		const body = await getResponse.json();
 
@@ -279,9 +361,7 @@ describe('/api/mission/active integration', () => {
 	it('clears corrupted active mission state as not resumable', async () => {
 		await writeFile(missionFile, '{not-valid-json', 'utf-8');
 
-		const getResponse = await GET({
-			url: new URL('http://localhost/api/mission/active')
-		} as never);
+		const getResponse = await GET(routeEvent() as never);
 		expect(getResponse.status).toBe(200);
 		const body = await getResponse.json();
 

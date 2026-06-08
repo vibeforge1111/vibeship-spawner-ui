@@ -15,6 +15,7 @@ import { readFile, writeFile, mkdir, unlink } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import type { MultiLLMExecutionPack } from '$lib/services/multi-llm-orchestrator';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 import { spawnerStateDir } from '$lib/server/spawner-state';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
 
@@ -31,6 +32,17 @@ function getActiveMissionPath(): string {
 
 function getMissionControlPath(): string {
 	return path.join(getSpawnerDir(), 'mission-control.json');
+}
+
+function requireActiveMissionAuth(event: Parameters<typeof requireControlAuth>[0]): Response | null {
+	return requireControlAuth(event, {
+		surface: 'ActiveMission',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
 }
 
 async function missionHasTerminalRelayEvent(missionId: string | undefined): Promise<boolean> {
@@ -79,7 +91,11 @@ interface ActiveMissionState {
  * GET /api/mission/active
  * Returns the active mission state if one exists
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireActiveMissionAuth(event);
+	if (unauthorized) return unauthorized;
+
+	const { url } = event;
 	try {
 		const missionPath = getActiveMissionPath();
 
@@ -172,7 +188,11 @@ export const GET: RequestHandler = async ({ url }) => {
  * POST /api/mission/active
  * Update the active mission state (called by UI when state changes)
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireActiveMissionAuth(event);
+	if (unauthorized) return unauthorized;
+
+	const { request } = event;
 	try {
 		const body = await request.json();
 		const spawnerDir = getSpawnerDir();
@@ -244,7 +264,10 @@ export const POST: RequestHandler = async ({ request }) => {
  * DELETE /api/mission/active
  * Clear the active mission (when completed, cancelled, or user clears)
  */
-export const DELETE: RequestHandler = async () => {
+export const DELETE: RequestHandler = async (event) => {
+	const unauthorized = requireActiveMissionAuth(event);
+	if (unauthorized) return unauthorized;
+
 	try {
 		const missionPath = getActiveMissionPath();
 

@@ -175,6 +175,39 @@ async function storePRDResult(requestId: string, result: unknown): Promise<void>
 	log.info(`Stored PRD result for polling: ${requestId}`);
 }
 
+async function markPendingPrdResultComplete(requestId: string): Promise<void> {
+	assertSafeId(requestId, 'requestId');
+	const pendingRequestFile = join(getSpawnerDir(), 'pending-request.json');
+	if (!existsSync(pendingRequestFile)) return;
+
+	const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
+	const pending = parseJsonOrFallback<Record<string, unknown>>(pendingRaw, {}, 'events-pending-request');
+	if (pending.requestId !== requestId) return;
+
+	const resultFile = resolveWithinBaseDir(getResultsDir(), `${requestId}.json`);
+	const now = new Date().toISOString();
+	const autoAnalysis =
+		pending.autoAnalysis && typeof pending.autoAnalysis === 'object' && !Array.isArray(pending.autoAnalysis)
+			? (pending.autoAnalysis as Record<string, unknown>)
+			: {};
+	const next = {
+		...pending,
+		status: 'pending',
+		updatedAt: now,
+		reason: 'Canonical provider result stored from events bridge.',
+		autoAnalysis: {
+			...autoAnalysis,
+			status: 'complete',
+			finishedAt: now,
+			success: true,
+			canonicalResultAvailable: true,
+			resultFileName: `${requestId}.json`,
+			expectedResultFile: resultFile
+		}
+	};
+	await writeFile(pendingRequestFile, JSON.stringify(next, null, 2), 'utf-8');
+}
+
 async function relayMetadataForMission(missionId: string): Promise<Record<string, unknown>> {
 	try {
 		const loadFile = join(getSpawnerDir(), 'last-canvas-load.json');
@@ -218,6 +251,7 @@ export const POST: RequestHandler = async (event) => {
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
 		apiKeyQueryParam: 'apiKey',
 		apiKeyCookieName: EVENTS_AUTH_COOKIE,
+		allowLoopbackWithoutKey: true,
 		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
 	});
 	if (unauthorized) return unauthorized;
@@ -304,6 +338,10 @@ export const POST: RequestHandler = async (event) => {
 			});
 			try {
 				await storePRDResult(fullEvent.data.requestId, fullEvent.data.result);
+				await markPendingPrdResultComplete(fullEvent.data.requestId);
+				await appendPrdTrace(fullEvent.data.requestId, 'canonical_result_stored', {
+					source: fullEvent.source || 'unknown'
+				});
 			} catch (err) {
 				const message = err instanceof Error ? err.message : 'Invalid PRD analysis result';
 				await appendPrdTrace(fullEvent.data.requestId, 'events_rejected_complete', {
@@ -343,7 +381,7 @@ export const OPTIONS: RequestHandler = async (event) => {
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
 		apiKeyQueryParam: 'apiKey',
 		apiKeyCookieName: EVENTS_AUTH_COOKIE,
-		allowLoopbackWithoutKey: false,
+		allowLoopbackWithoutKey: true,
 		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
 	});
 	if (unauthorized) return unauthorized;
@@ -361,7 +399,7 @@ export const GET: RequestHandler = async (event) => {
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
 		apiKeyQueryParam: 'apiKey',
 		apiKeyCookieName: EVENTS_AUTH_COOKIE,
-		allowLoopbackWithoutKey: false,
+		allowLoopbackWithoutKey: true,
 		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
 	});
 	if (unauthorized) return unauthorized;

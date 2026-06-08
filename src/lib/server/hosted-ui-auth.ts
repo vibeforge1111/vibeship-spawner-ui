@@ -189,7 +189,7 @@ export function hostedUiShouldAutoPersistLocalOperatorSession(
 	url: URL,
 	env: HostedUiAuthEnv
 ): boolean {
-	if (!hostedUiAuthEnabled(env) || hostedUiLooksHosted(env) || hostedUiWorkspaceId(env)) return false;
+	if (!hostedUiAuthEnabled(env) || hostedUiLooksHosted(env)) return false;
 	if (request.method.toUpperCase() !== 'GET') return false;
 	if (!request.headers.get('accept')?.includes('text/html')) return false;
 	return LOOPBACK_BROWSER_HOSTS.has(url.hostname.toLowerCase());

@@ -10,16 +10,25 @@ import {
 } from '$lib/server/harness-authority';
 
 const originalFetch = globalThis.fetch;
+const TEST_API_KEY = 'analyze-test-secret';
 
-function event(body: unknown) {
+function event(
+	body: unknown,
+	apiKey: string | null = TEST_API_KEY,
+	url = 'http://127.0.0.1:3333/api/analyze',
+	clientAddress = '127.0.0.1'
+) {
+	const headers = new Headers({ 'content-type': 'application/json' });
+	if (apiKey) headers.set('x-api-key', apiKey);
 	return {
-		request: new Request('http://127.0.0.1:3333/api/analyze', {
+		request: new Request(url, {
 			method: 'POST',
-			headers: { 'content-type': 'application/json' },
+			headers,
 			body: JSON.stringify(body)
 		}),
-		url: new URL('http://127.0.0.1:3333/api/analyze'),
-		getClientAddress: () => '127.0.0.1'
+		url: new URL(url),
+		getClientAddress: () => clientAddress,
+		cookies: { get: () => undefined }
 	};
 }
 
@@ -77,13 +86,29 @@ function bareVNextAuthority() {
 describe('/api/analyze authority contract', () => {
 	beforeEach(() => {
 		PRIVATE_ENV.ANTHROPIC_API_KEY = 'test-anthropic-key';
+		PRIVATE_ENV.MCP_API_KEY = TEST_API_KEY;
 		globalThis.fetch = vi.fn(async () => claudeResponse()) as typeof fetch;
 	});
 
 	afterEach(() => {
 		delete PRIVATE_ENV.ANTHROPIC_API_KEY;
+		delete PRIVATE_ENV.MCP_API_KEY;
 		globalThis.fetch = originalFetch;
 		vi.restoreAllMocks();
+	});
+
+	it('rejects unauthenticated non-local analysis before local fallback or external calls', async () => {
+		const response = await POST(
+			event(
+				{ goal: 'Analyze this startup app.' },
+				null,
+				'https://spawner.example.com/api/analyze',
+				'203.0.113.10'
+			) as never
+		);
+
+		expect(response.status).toBe(401);
+		expect(globalThis.fetch).not.toHaveBeenCalled();
 	});
 
 	it('blocks external Claude analysis without Harness authority', async () => {

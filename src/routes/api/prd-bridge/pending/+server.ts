@@ -14,6 +14,7 @@ import { readFile, writeFile, unlink } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 
 function getPrdBridgePaths() {
 	const spawnerDir = spawnerStateDir();
@@ -26,7 +27,18 @@ function getPrdBridgePaths() {
 /**
  * GET - Check if there's a pending PRD analysis request
  */
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'PRDBridgePending',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+	if (unauthorized) return unauthorized;
+
 	try {
 		const { pendingPrdFile, pendingRequestFile } = getPrdBridgePaths();
 
@@ -68,7 +80,18 @@ export const GET: RequestHandler = async () => {
 /**
  * DELETE - Clear the pending request (mark as processed)
  */
-export const DELETE: RequestHandler = async () => {
+export const DELETE: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'PRDBridgePending',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+	if (unauthorized) return unauthorized;
+
 	try {
 		const { pendingRequestFile } = getPrdBridgePaths();
 

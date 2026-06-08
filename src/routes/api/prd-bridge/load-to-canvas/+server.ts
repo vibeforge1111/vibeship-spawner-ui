@@ -22,6 +22,7 @@ import {
 	type HarnessAuthorityVerdict
 } from '$lib/server/harness-authority';
 import { stripAuthorityResidue } from '$lib/server/authority-residue';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 
 function getSpawnerDir(): string {
 	return spawnerStateDir();
@@ -176,8 +177,20 @@ function buildConnections(tasks: TaskRecord[]): Array<{ sourceIndex: number; tar
 	return conns;
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'PRDBridgeLoadToCanvas',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+	if (unauthorized) return unauthorized;
+
 	try {
+		const { request } = event;
 		const { requestId, autoRun, telegramRelay, missionId, chatId, userId, goal, buildMode: bodyBuildMode, buildModeReason: bodyBuildModeReason, traceRef, trace_ref, executionAuthority, execution_authority } = await request.json();
 		const normalizedTelegramRelay = normalizeTelegramRelay(telegramRelay);
 		if (!requestId || typeof requestId !== 'string') {

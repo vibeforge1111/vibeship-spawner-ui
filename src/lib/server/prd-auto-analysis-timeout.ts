@@ -15,6 +15,7 @@ type RecoveryReason =
 	| 'not_overdue'
 	| 'canonical_result_exists'
 	| 'provisional_still_running'
+	| 'provisional_grace_active'
 	| 'recovered_timeout';
 
 export interface PrdAutoAnalysisTimeoutRecovery {
@@ -129,7 +130,13 @@ export async function recoverOverduePrdAutoAnalysisFromPending(
 	const provisionalResultFile = join(stateDir, 'provisional-results', `${normalizeRequestId(requestId)}.json`);
 	const provisionalDraftAvailable = existsSync(provisionalResultFile);
 	if (provisionalDraftAvailable) {
-		return { recovered: false, reason: 'provisional_still_running', requestId, missionId, deadlineAt };
+		const graceMs =
+			typeof autoAnalysis.timeoutMs === 'number' && Number.isFinite(autoAnalysis.timeoutMs)
+				? autoAnalysis.timeoutMs
+				: configuredTimeoutMs();
+		if (nowMs <= deadlineMs + graceMs) {
+			return { recovered: false, reason: 'provisional_grace_active', requestId, missionId, deadlineAt };
+		}
 	}
 
 	const traceRef = extractTraceRef(pending);
@@ -156,7 +163,7 @@ export async function recoverOverduePrdAutoAnalysisFromPending(
 			timeoutMs,
 			expectedResultFile: resultFile,
 			provisionalResultFile,
-			provisionalDraftAvailable: false,
+			provisionalDraftAvailable,
 			canonicalResultAvailable: false,
 			recoveredBy: recoverySource
 		}
@@ -168,7 +175,7 @@ export async function recoverOverduePrdAutoAnalysisFromPending(
 		timeoutMs,
 		expectedResultFile: resultFile,
 		provisionalResultFile,
-		provisionalDraftAvailable: false,
+		provisionalDraftAvailable,
 		buildMode,
 		buildLane,
 		projectName,
@@ -184,7 +191,7 @@ export async function recoverOverduePrdAutoAnalysisFromPending(
 		buildLane,
 		timeoutMs,
 		expectedResultFile: resultFile,
-		provisionalDraftAvailable: false,
+		provisionalDraftAvailable,
 		canonicalResultAvailable: false,
 		autoAnalysisStatus: 'timeout',
 		recoveredBy: recoverySource

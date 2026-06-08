@@ -49,7 +49,7 @@ export const POST: RequestHandler = async (event) => {
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
 		apiKeyQueryParam: 'apiKey',
 		apiKeyCookieName: 'spawner_events_api_key',
-		allowLoopbackWithoutKey: false,
+		allowLoopbackWithoutKey: true,
 		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
 	});
 	if (unauthorized) return unauthorized;
@@ -114,8 +114,20 @@ export const POST: RequestHandler = async (event) => {
 /**
  * GET - Retrieve an analysis result by requestId
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'PRDBridgeResult',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+	if (unauthorized) return unauthorized;
+
 	try {
+		const { url } = event;
 		const requestId = url.searchParams.get('requestId');
 
 		if (!requestId) {

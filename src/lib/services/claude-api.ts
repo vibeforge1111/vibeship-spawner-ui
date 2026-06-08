@@ -6,6 +6,7 @@
  */
 
 import { logger } from '$lib/utils/logger';
+import { getEventsAuthHeaders } from '$lib/services/events-auth-client';
 
 const log = logger.scope('ClaudeAPI');
 
@@ -81,7 +82,8 @@ class ClaudeClient {
 			const response = await fetch(this.apiEndpoint, {
 				method: 'POST',
 				headers: {
-					'Content-Type': 'application/json'
+					'Content-Type': 'application/json',
+					...getEventsAuthHeaders()
 				},
 				body: JSON.stringify({
 					goal,

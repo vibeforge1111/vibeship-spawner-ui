@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import path from 'path';
 import { existsSync } from 'fs';
-import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { GET, POST } from './+server';
 
@@ -14,18 +14,39 @@ function restoreEnv(name: string, value: string | undefined) {
 	else process.env[name] = value;
 }
 
-function postResultEvent(body: unknown, apiKey: string | null = TEST_API_KEY) {
+function postResultEvent(
+	body: unknown,
+	apiKey: string | null = TEST_API_KEY,
+	url = 'http://localhost/api/prd-bridge/result',
+	clientAddress = '127.0.0.1'
+) {
 	const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 	if (apiKey) headers['x-api-key'] = apiKey;
-	const url = new URL('http://localhost/api/prd-bridge/result');
+	const parsedUrl = new URL(url);
 	return {
-		request: new Request(url, {
+		request: new Request(parsedUrl, {
 			method: 'POST',
 			headers,
 			body: JSON.stringify(body)
 		}),
+		url: parsedUrl,
+		getClientAddress: () => clientAddress
+	};
+}
+
+function getResultEvent(
+	requestId: string,
+	apiKey: string | null = TEST_API_KEY,
+	baseUrl = 'http://localhost/api/prd-bridge/result',
+	clientAddress = '127.0.0.1'
+) {
+	const headers: Record<string, string> = {};
+	if (apiKey) headers['x-api-key'] = apiKey;
+	const url = new URL(`${baseUrl}?requestId=${requestId}`);
+	return {
+		request: new Request(url, { headers }),
 		url,
-		getClientAddress: () => '127.0.0.1'
+		getClientAddress: () => clientAddress
 	};
 }
 
@@ -70,9 +91,7 @@ describe('/api/prd-bridge/result integration', () => {
 		expect(postResponse.status).toBe(200);
 		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(true);
 
-		const getResponse = await GET({
-			url: new URL(`http://localhost/api/prd-bridge/result?requestId=${requestId}`)
-		} as never);
+		const getResponse = await GET(getResultEvent(requestId) as never);
 		const body = await getResponse.json();
 
 		expect(getResponse.status).toBe(200);
@@ -89,6 +108,27 @@ describe('/api/prd-bridge/result integration', () => {
 		expect(stored).not.toContain('Acknowledge understanding');
 	});
 
+	it('rejects unauthenticated PRD result reads from non-local callers', async () => {
+		const requestId = 'tg-build-unauth-result-read-test';
+		await mkdir(path.join(testSpawnerDir, 'results'), { recursive: true });
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify({ requestId, success: true }),
+			'utf-8'
+		);
+
+		const getResponse = await GET(
+			getResultEvent(
+				requestId,
+				null,
+				'https://spawner.example.com/api/prd-bridge/result',
+				'203.0.113.10'
+			) as never
+		);
+
+		expect(getResponse.status).toBe(401);
+	});
+
 	it('rejects malformed result JSON with a useful error', async () => {
 		const requestId = 'tg-build-malformed-result-test';
 		const postResponse = await POST({
@@ -101,7 +141,7 @@ describe('/api/prd-bridge/result integration', () => {
 		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(false);
 	});
 
-	it('rejects unauthenticated canonical result writes without storing artifacts', async () => {
+	it('rejects unauthenticated canonical result writes from non-local callers without storing artifacts', async () => {
 		const requestId = 'tg-build-unauth-result-test';
 		const postResponse = await POST({
 			...postResultEvent(
@@ -118,7 +158,9 @@ describe('/api/prd-bridge/result integration', () => {
 						skills: []
 					}
 				},
-				null
+				null,
+				'https://spawner.example.com/api/prd-bridge/result',
+				'203.0.113.10'
 			)
 		} as never);
 

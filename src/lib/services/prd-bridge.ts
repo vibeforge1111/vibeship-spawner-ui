@@ -1,4 +1,5 @@
 import { logger } from '$lib/utils/logger';
+import { getEventsAuthHeaders } from './events-auth-client';
 /**
  * PRD Bridge Service
  *
@@ -19,7 +20,6 @@ import { browser } from '$app/environment';
 import { writable, get } from 'svelte/store';
 import type { BridgeEvent } from './event-bridge';
 import type { Skill } from '$lib/stores/skills.svelte';
-import { getEventsAuthHeaders } from '$lib/services/events-auth-client';
 
 const PRD_BRIDGE_TIMEOUT_MS = 30 * 60 * 1000;
 
@@ -335,8 +335,9 @@ export function getAnalysisResponseFormat(requestId: string, result: PRDAnalysis
  */
 export async function checkPendingPRDResult(): Promise<PRDAnalysisResult | null> {
 	try {
+		const authHeaders = getEventsAuthHeaders();
 		// Check if there's a pending request
-		const pendingResponse = await fetch('/api/prd-bridge/pending');
+		const pendingResponse = await fetch('/api/prd-bridge/pending', { headers: authHeaders });
 		const pendingData = await pendingResponse.json();
 
 		if (!pendingData.pending || !pendingData.requestId) {
@@ -344,7 +345,9 @@ export async function checkPendingPRDResult(): Promise<PRDAnalysisResult | null>
 		}
 
 		// Check if there's a stored result for this request
-		const resultResponse = await fetch(`/api/prd-bridge/result?requestId=${pendingData.requestId}`);
+		const resultResponse = await fetch(`/api/prd-bridge/result?requestId=${pendingData.requestId}`, {
+			headers: authHeaders
+		});
 		const resultData = await resultResponse.json();
 
 		if (!resultData.found || !resultData.result) {
@@ -354,7 +357,7 @@ export async function checkPendingPRDResult(): Promise<PRDAnalysisResult | null>
 		logger.info('[PRDBridge] Found pending result:', resultData.result.projectName);
 
 		// Clear the pending request now that we've found the result
-		await fetch('/api/prd-bridge/pending', { method: 'DELETE' });
+		await fetch('/api/prd-bridge/pending', { method: 'DELETE', headers: authHeaders });
 
 		return resultData.result;
 	} catch (error) {

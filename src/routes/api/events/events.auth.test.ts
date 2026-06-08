@@ -179,7 +179,19 @@ describe('/api/events auth', () => {
 		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
 		const requestId = 'events-state-dir-test';
 		const traceRef = 'trace:spawner-prd:events-state-dir-test';
-		await writeFile(path.join(testSpawnerDir, 'pending-request.json'), JSON.stringify({ requestId, traceRef }), 'utf-8');
+		await writeFile(
+			path.join(testSpawnerDir, 'pending-request.json'),
+			JSON.stringify({
+				requestId,
+				traceRef,
+				status: 'pending',
+				autoAnalysis: {
+					status: 'running',
+					startedAt: '2026-06-08T18:00:00.000Z'
+				}
+			}),
+			'utf-8'
+		);
 
 		const response = await POST(
 			createEvent('https://example.com/api/events', {
@@ -217,6 +229,27 @@ describe('/api/events auth', () => {
 		expect(storedJson.metadata.traceRef).toBe(traceRef);
 		expect(stored).not.toContain('executionPrompt');
 		expect(stored).not.toContain('Store result consistently.');
+
+		const pending = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
+		expect(pending).toMatchObject({
+			requestId,
+			status: 'pending',
+			reason: 'Canonical provider result stored from events bridge.',
+			autoAnalysis: {
+				status: 'complete',
+				success: true,
+				canonicalResultAvailable: true,
+				resultFileName: `${requestId}.json`
+			}
+		});
+
+		const traceRows = (await readFile(path.join(testSpawnerDir, 'prd-auto-trace.jsonl'), 'utf-8'))
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line));
+		expect(traceRows.map((row) => row.event)).toEqual(
+			expect.arrayContaining(['events_received_complete', 'canonical_result_stored'])
+		);
 	});
 
 	it('applies base tier skill gating when PRD results arrive through events', async () => {

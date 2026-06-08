@@ -145,7 +145,7 @@ describe('hosted UI auth', () => {
 		expect(hostedUiRequestHasExplicitToken(new Request('https://x.test/', { headers: { cookie: 'spawner_ui_api_key=cookie-key' } }), new URL('https://x.test/'))).toBe(false);
 	});
 
-	it('auto-persists local operator sessions only for loopback HTML reads without a workspace', () => {
+	it('auto-persists local operator sessions for loopback HTML reads even when a workspace is configured', () => {
 		const localEnv = { SPARK_UI_API_KEY: 'ui-key' };
 		expect(
 			hostedUiShouldAutoPersistLocalOperatorSession(
@@ -175,6 +175,13 @@ describe('hosted UI auth', () => {
 				localEnv
 			)
 		).toBe(false);
+		expect(
+			hostedUiShouldAutoPersistLocalOperatorSession(
+				new Request('http://127.0.0.1:3333/kanban', { headers: { accept: 'text/html' } }),
+				new URL('http://127.0.0.1:3333/kanban'),
+				{ SPARK_UI_API_KEY: 'ui-key', SPARK_WORKSPACE_ID: 'private-workspace' }
+			)
+		).toBe(true);
 		expect(
 			hostedUiShouldAutoPersistLocalOperatorSession(
 				new Request('https://spawner.example.com/kanban', { headers: { accept: 'text/html' } }),

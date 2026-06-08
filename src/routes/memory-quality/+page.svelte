@@ -18,6 +18,7 @@
 		type SourceHealthRollup
 	} from '$lib/services/memory-quality-aggregates';
 	import { parseJsonResponse } from '$lib/services/http-response';
+	import { getEventsAuthHeaders } from '$lib/services/events-auth-client';
 
 	type MemoryQualityAggregates = {
 		accuracyBuckets: AccuracyBucket[];
@@ -72,7 +73,7 @@
 		try {
 			const response = await fetch('/api/memory-quality/evaluations', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', ...getEventsAuthHeaders() },
 				body: JSON.stringify(form)
 			});
 			const body = await parseJsonResponse<{

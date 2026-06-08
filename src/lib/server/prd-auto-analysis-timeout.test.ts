@@ -120,4 +120,105 @@ describe('PRD auto-analysis timeout recovery', () => {
 		expect(pending.status).toBe('pending');
 		expect(pending.autoAnalysis.status).toBe('running');
 	});
+
+	it('keeps a provisional draft advisory during the extra canonical grace window', async () => {
+		const requestId = 'tg-build-timeout-recovery-provisional-grace';
+		await writeJson('pending-request.json', {
+			requestId,
+			status: 'provisional',
+			autoAnalysis: {
+				status: 'running',
+				startedAt: '2026-06-08T18:00:00.000Z',
+				timeoutMs: 420_000,
+				deadlineAt: '2026-06-08T18:07:00.000Z'
+			}
+		});
+		await writeJson(`provisional-results/${requestId}.json`, {
+			metadata: {
+				provisional: true,
+				resultAuthority: 'provisional_canvas_draft'
+			}
+		});
+
+		const recovery = await recoverOverduePrdAutoAnalysisFromPending({
+			stateDir,
+			nowMs: Date.parse('2026-06-08T18:08:00.000Z')
+		});
+
+		expect(recovery).toMatchObject({
+			recovered: false,
+			reason: 'provisional_grace_active',
+			requestId
+		});
+		const pending = JSON.parse(await readFile(path.join(stateDir, 'pending-request.json'), 'utf-8'));
+		expect(pending.status).toBe('provisional');
+		expect(pending.autoAnalysis.status).toBe('running');
+	});
+
+	it('marks a long-stale provisional request as canonical timeout without promoting the draft', async () => {
+		const requestId = 'tg-build-timeout-recovery-provisional-stale';
+		const missionId = 'mission-provisional-stale';
+		await writeJson('pending-request.json', {
+			requestId,
+			missionId,
+			projectName: 'Long Stale Provisional Board',
+			buildMode: 'direct',
+			buildLane: 'fast_direct',
+			traceRef: 'trace:spawner-prd:mission-provisional-stale',
+			status: 'provisional',
+			autoAnalysis: {
+				status: 'running',
+				startedAt: '2026-06-08T18:00:00.000Z',
+				timeoutMs: 420_000,
+				deadlineAt: '2026-06-08T18:07:00.000Z'
+			}
+		});
+		await writeJson(`provisional-results/${requestId}.json`, {
+			metadata: {
+				provisional: true,
+				resultAuthority: 'provisional_canvas_draft'
+			}
+		});
+
+		const recovery = await recoverOverduePrdAutoAnalysisFromPending({
+			stateDir,
+			nowMs: Date.parse('2026-06-08T18:15:00.000Z'),
+			recoverySource: 'test_provisional_recovery'
+		});
+
+		expect(recovery).toMatchObject({
+			recovered: true,
+			reason: 'recovered_timeout',
+			requestId,
+			missionId
+		});
+
+		const pending = JSON.parse(await readFile(path.join(stateDir, 'pending-request.json'), 'utf-8'));
+		expect(pending).toMatchObject({
+			status: 'timeout',
+			autoAnalysis: {
+				status: 'timeout',
+				canonicalResultAvailable: false,
+				provisionalDraftAvailable: true,
+				recoveredBy: 'test_provisional_recovery'
+			}
+		});
+
+		const traceRows = (await readFile(path.join(stateDir, 'prd-auto-trace.jsonl'), 'utf-8'))
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line));
+		expect(traceRows.at(-1)).toMatchObject({
+			requestId,
+			event: 'watchdog_timeout',
+			recovered: true,
+			recoverySource: 'test_provisional_recovery',
+			provisionalDraftAvailable: true
+		});
+
+		const missionControl = JSON.parse(await readFile(path.join(stateDir, 'mission-control.json'), 'utf-8'));
+		const missionEvents = missionControl.recent.filter((entry: { missionId?: string }) => entry.missionId === missionId);
+		expect(missionEvents.map((entry: { eventType: string }) => entry.eventType)).toContain('task_failed');
+		expect(missionEvents.map((entry: { eventType: string }) => entry.eventType)).toContain('mission_failed');
+	});
 });

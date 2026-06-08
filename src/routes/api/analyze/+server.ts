@@ -10,6 +10,7 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import skillIndex from '$lib/data/skill-index-ultra.json';
 import { HarnessAuthorityError, assertNativeGovernorHarnessAuthority, resolveExecutionAuthority } from '$lib/server/harness-authority';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 import { ClaudeApiAnalysisSchema, safeJsonParse } from '$lib/types/schemas';
 import { logger } from '$lib/utils/logger';
 
@@ -98,7 +99,18 @@ function formatSkillsForPrompt(): string {
 	return lines.join('\n');
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'Analyze',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+	if (unauthorized) return unauthorized;
+
+	const { request } = event;
 	try {
 		const body = await request.json().catch(() => null) as AnalysisRequest | null;
 		if (!body || typeof body !== 'object' || Array.isArray(body)) {
