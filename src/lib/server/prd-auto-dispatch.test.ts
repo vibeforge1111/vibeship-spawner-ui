@@ -157,6 +157,51 @@ describe('PRD auto-dispatch helpers', () => {
 		expect(projectPath).toMatch(/[\\/]data[\\/]workspaces[\\/]mission-1-spark-test$/);
 	});
 
+	it('does not treat relative workspace target files as the executor workspace', () => {
+		const projectPath = inferProjectPathFromPrdLoad(
+			{
+				...load,
+				executionPrompt: 'Build a tiny local Spawner proof pad.',
+				nodes: [
+					{
+						skill: {
+							name: 'task-1: Data contract',
+							description:
+								'Workspace targets:\n- src/lib/server/relay-readback-proof-pad.ts\n- src/lib/server/relay-readback-proof-pad.test.ts'
+						}
+					}
+				]
+			},
+			{ SPARK_WORKSPACE_ROOT: '/data/workspaces' }
+		);
+
+		expect(projectPath).toMatch(/[\\/]data[\\/]workspaces[\\/]mission-1-spark-test$/);
+		expect(projectPath).not.toContain('src');
+		expect(projectPath).not.toContain('relay-readback-proof-pad');
+	});
+
+	it('does not treat absolute file targets as the executor workspace', () => {
+		const projectPath = inferProjectPathFromPrdLoad(
+			{
+				...load,
+				executionPrompt: 'Build a tiny local Spawner proof pad.',
+				nodes: [
+					{
+						skill: {
+							name: 'task-1: Data contract',
+							description:
+								'Workspace targets:\n- C:\\Users\\USER\\.spark\\modules\\spawner-ui\\source\\src\\lib\\server\\relay-readback-proof-pad.test.ts'
+						}
+					}
+				]
+			},
+			{ SPARK_WORKSPACE_ROOT: '/data/workspaces' }
+		);
+
+		expect(projectPath).toMatch(/[\\/]data[\\/]workspaces[\\/]mission-1-spark-test$/);
+		expect(projectPath).not.toContain('relay-readback-proof-pad.test.ts');
+	});
+
 	it('uses the Spawner state root for generated projects without a hosted workspace', () => {
 		const projectPath = inferProjectPathFromPrdLoad(
 			{
