@@ -31,6 +31,7 @@ export interface PendingPipelineLoad {
 	buildMode?: 'direct' | 'advanced_prd';
 	buildModeReason?: string;
 	executionPrompt?: string;
+	executionAuthority?: unknown;
 	autoRun?: boolean;
 	relay?: {
 		missionId?: string;

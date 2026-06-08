@@ -78,9 +78,10 @@
 			buildMode?: 'direct' | 'advanced_prd';
 			buildModeReason?: string;
 		};
+		executionAuthority?: unknown;
 	}
 
-	let { onClose, minimized = false, onToggleMinimize, autoRunToken, relay }: Props = $props();
+	let { onClose, minimized = false, onToggleMinimize, autoRunToken, relay, executionAuthority }: Props = $props();
 
 	let currentNodes = $state<CanvasNode[]>([]);
 	let currentConnections = $state<Connection[]>([]);
@@ -1199,6 +1200,7 @@
 			goals: goals.length ? goals : undefined,
 			missionId: relay?.missionId,
 			relay,
+			executionAuthority,
 			orchestratorOptions: getMultiLLMOptions()
 		});
 	}

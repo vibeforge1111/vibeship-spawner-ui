@@ -30,7 +30,7 @@ import { getPipelineOptions } from '$lib/stores/project-goal.svelte';
 import { calculateCompletionQuality, isLowQualityCompletion, buildReworkInstruction, MAX_TASK_RETRIES, type TaskCompletionQuality, type ReworkInstruction } from './completion-gates';
 import { parseFilesFromLogs } from './artifacts';
 import { generateCheckpoint, type ProjectCheckpoint } from './checkpoint';
-import { syncClient, broadcastMissionEvent, broadcastTaskEvent, broadcastExecutionControl, isConnected, type SyncEvent } from './sync-client';
+import { syncClient, broadcastMissionEvent, broadcastTaskEvent, isConnected, type SyncEvent } from './sync-client';
 import { clientEventBridge, type BridgeEvent } from './event-bridge';
 import { browser } from '$app/environment';
 import { get } from 'svelte/store';
@@ -129,6 +129,7 @@ export interface ExecutionProgress {
 
 export interface ExecutionRunOptions extends MissionBuildOptions {
 	orchestratorOptions?: MultiLLMOrchestratorOptions;
+	executionAuthority?: unknown;
 	relay?: {
 		chatId?: string;
 		userId?: string;
@@ -1646,6 +1647,15 @@ class MissionExecutor {
 				this.addLocalLog('info', 'Execution prompt generated - copy to Claude Code to start');
 			}
 
+			const shouldAutoDispatch =
+				this.progress.multiLLMOptions.enabled &&
+				this.progress.multiLLMOptions.autoDispatch &&
+				Boolean(this.progress.multiLLMExecution);
+
+			if (shouldAutoDispatch && !options.executionAuthority) {
+				throw new Error('Auto-dispatch requires Harness Core Governor execution authority');
+			}
+
 			// Broadcast mission created event for sync
 			broadcastMissionEvent('mission_created', buildResult.mission.id, {
 				mission: buildResult.mission,
@@ -1653,32 +1663,33 @@ class MissionExecutor {
 				multiLLMExecution: this.progress.multiLLMExecution
 			});
 
-			// Set status to running (waiting for Claude Code to pick up)
-			this.progress.status = 'running';
-			this.callbacks.onStatusChange?.('running');
+			if (!shouldAutoDispatch) {
+				// Set status to running (waiting for Claude Code to pick up)
+				this.progress.status = 'running';
+				this.callbacks.onStatusChange?.('running');
 
-			// Start health monitoring
-			this.startHealthMonitoring();
+				// Start health monitoring
+				this.startHealthMonitoring();
+			}
 
 			// Auto-dispatch to providers if enabled
-			if (this.progress.multiLLMOptions.enabled && this.progress.multiLLMOptions.autoDispatch && this.progress.multiLLMExecution) {
-				try {
-					const dispatchResult = await this.dispatchToProviders(
-						this.progress.multiLLMExecution,
-						this.progress.multiLLMOptions,
-						options.relay
-					);
-					if (dispatchResult.success) {
-						const providerCount = Object.keys(dispatchResult.sessions || {}).length;
-						this.addLocalLog('info', `Auto-dispatched to ${providerCount} provider(s) - execution in progress`);
-						this.startProviderHeartbeat();
-						this.startPolling();
-					} else {
-						this.addLocalLog('info', `Auto-dispatch failed: ${dispatchResult.error || 'unknown'} - copy prompts manually`);
-					}
-				} catch (dispatchError) {
-					this.addLocalLog('info', `Auto-dispatch unavailable: ${dispatchError instanceof Error ? dispatchError.message : 'unknown'} - copy prompts manually`);
+			if (shouldAutoDispatch && this.progress.multiLLMExecution) {
+				const dispatchResult = await this.dispatchToProviders(
+					this.progress.multiLLMExecution,
+					this.progress.multiLLMOptions,
+					options.relay,
+					options.executionAuthority
+				);
+				if (!dispatchResult.success) {
+					throw new Error(`Auto-dispatch failed: ${dispatchResult.error || 'unknown'}`);
 				}
+				this.progress.status = 'running';
+				this.callbacks.onStatusChange?.('running');
+				const providerCount = Object.keys(dispatchResult.sessions || {}).length;
+				this.addLocalLog('info', `Auto-dispatched to ${providerCount} provider(s) - execution in progress`);
+				this.startHealthMonitoring();
+				this.startProviderHeartbeat();
+				this.startPolling();
 			}
 
 			// Persist state after mission creation
@@ -1726,7 +1737,8 @@ class MissionExecutor {
 	private async dispatchToProviders(
 		executionPack: import('$lib/services/multi-llm-orchestrator').MultiLLMExecutionPack,
 		options: import('$lib/services/multi-llm-orchestrator').MultiLLMOrchestratorOptions,
-		relay?: ExecutionRunOptions['relay']
+		relay?: ExecutionRunOptions['relay'],
+		executionAuthority?: unknown
 	): Promise<{ success: boolean; sessions?: Record<string, unknown>; error?: string }> {
 		const response = await fetch('/api/dispatch', {
 			method: 'POST',
@@ -1735,6 +1747,7 @@ class MissionExecutor {
 				executionPack,
 				apiKeys: options.apiKeys || {},
 				workingDirectory: this.progress.mission?.context?.projectPath,
+				...(executionAuthority ? { executionAuthority } : {}),
 				relay: this.dispatchRelayMetadata(relay)
 			})
 		});
@@ -1752,31 +1765,7 @@ class MissionExecutor {
 			return false;
 		}
 
-		try {
-			// Update local state immediately for responsive UI
-			this.progress.status = 'paused';
-			this.stopProviderHeartbeat();
-			this.stopPolling();
-			this.callbacks.onStatusChange?.('paused');
-			this.addLocalLog('info', 'Execution paused');
-			this.persistState();  // Persist paused state
-
-			// Broadcast pause event for other clients
-			broadcastExecutionControl('mission_paused', this.progress.missionId, {
-				pausedAt: Date.now(),
-				currentTaskId: this.progress.currentTaskId,
-				currentTaskName: this.progress.currentTaskName,
-				progress: this.progress.progress
-			});
-
-			// Note: MCP doesn't support status updates directly
-			// Pause is handled locally and via sync events
-
-			return true;
-		} catch (error) {
-			log.error('Failed to pause:', error);
-		}
-
+		this.addLocalLog('info', 'Pause requires a governed mission-control command; local UI pause is disabled.');
 		return false;
 	}
 
@@ -1788,31 +1777,7 @@ class MissionExecutor {
 			return false;
 		}
 
-		try {
-			// Update local state immediately
-			this.progress.status = 'running';
-			this.startProviderHeartbeat();
-			this.startPolling();
-			this.callbacks.onStatusChange?.('running');
-			this.addLocalLog('info', 'Execution resumed');
-			this.persistState();  // Persist resumed state
-
-			// Broadcast resume event for other clients
-			broadcastExecutionControl('mission_resumed', this.progress.missionId, {
-				resumedAt: Date.now(),
-				currentTaskId: this.progress.currentTaskId,
-				currentTaskName: this.progress.currentTaskName,
-				progress: this.progress.progress
-			});
-
-			// Note: MCP doesn't support status updates directly
-			// Resume is handled locally and via sync events
-
-			return true;
-		} catch (error) {
-			log.error('Failed to resume:', error);
-		}
-
+		this.addLocalLog('info', 'Resume requires a governed mission-control command; local UI resume is disabled.');
 		return false;
 	}
 

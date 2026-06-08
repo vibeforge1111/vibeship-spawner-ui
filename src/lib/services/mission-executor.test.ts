@@ -92,7 +92,8 @@ describe('MissionExecutor dispatch authority boundaries', () => {
 			dispatchToProviders: (
 				executionPack: Record<string, unknown>,
 				options: Record<string, unknown>,
-				relay?: Record<string, unknown>
+				relay?: Record<string, unknown>,
+				executionAuthority?: unknown
 			) => Promise<{ success: boolean }>;
 		}).dispatchToProviders(
 			{ missionId: 'mission-relay-authority', tasks: [] },
@@ -115,5 +116,77 @@ describe('MissionExecutor dispatch authority boundaries', () => {
 		});
 		expect(body.relay.executionAuthority).toBeUndefined();
 		expect(body.relay.execution_authority).toBeUndefined();
+	});
+
+	it('sends explicit dispatch authority separately from relay metadata', async () => {
+		const executor = new MissionExecutor();
+		executors.push(executor);
+		const progress = executor.getProgress();
+		(executor as unknown as { progress: ExecutionProgress }).progress = {
+			...progress,
+			missionId: 'mission-explicit-authority',
+			mission: {
+				id: 'mission-explicit-authority',
+				context: { projectPath: 'C:\\tmp\\explicit-authority-test' }
+			} as ExecutionProgress['mission']
+		};
+		const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+			new Response(JSON.stringify({ success: true, sessions: {} }), {
+				status: 200,
+				headers: { 'content-type': 'application/json' }
+			})
+		);
+		vi.stubGlobal('fetch', fetchMock);
+		const executionAuthority = { schema_version: 'governor-decision-v1', tool_name: 'spawner.dispatch' };
+
+		const result = await (executor as unknown as {
+			dispatchToProviders: (
+				executionPack: Record<string, unknown>,
+				options: Record<string, unknown>,
+				relay?: Record<string, unknown>,
+				executionAuthority?: unknown
+			) => Promise<{ success: boolean }>;
+		}).dispatchToProviders(
+			{ missionId: 'mission-explicit-authority', tasks: [] },
+			{ apiKeys: {}, providers: ['codex'] },
+			{
+				missionId: 'mission-explicit-authority',
+				requestId: 'request-explicit-authority',
+				executionAuthority: { schema_version: 'relay-residue' }
+			},
+			executionAuthority
+		);
+
+		expect(result.success).toBe(true);
+		const [, init] = fetchMock.mock.calls[0] as [RequestInfo | URL, RequestInit];
+		const body = JSON.parse(init.body as string);
+		expect(body.executionAuthority).toEqual(executionAuthority);
+		expect(body.relay).toMatchObject({
+			missionId: 'mission-explicit-authority',
+			requestId: 'request-explicit-authority'
+		});
+		expect(body.relay.executionAuthority).toBeUndefined();
+	});
+});
+
+describe('MissionExecutor local lifecycle authority boundaries', () => {
+	it('does not locally pause a running mission without governed mission-control authority', async () => {
+		const { executor, statusChanges } = createExecutor('running');
+
+		const paused = await executor.pause();
+
+		expect(paused).toBe(false);
+		expect(executor.getProgress().status).toBe('running');
+		expect(statusChanges).toEqual([]);
+	});
+
+	it('does not locally resume a paused mission without governed mission-control authority', async () => {
+		const { executor, statusChanges } = createExecutor('paused');
+
+		const resumed = await executor.resume();
+
+		expect(resumed).toBe(false);
+		expect(executor.getProgress().status).toBe('paused');
+		expect(statusChanges).toEqual([]);
 	});
 });

@@ -47,6 +47,7 @@ import { get } from 'svelte/store';
 	let executionMinimized = $state(false);
 	let executionAutoRunToken = $state<number | null>(null);
 	let executionPanelKey = $state('manual');
+	let executionAuthority = $state<unknown | null>(null);
 	let executionRelay = $state<{
 		missionId?: string;
 		chatId?: string;
@@ -401,6 +402,7 @@ import { get } from 'svelte/store';
 			boardEntry.missionId &&
 			(executionRelay?.missionId !== boardEntry.missionId || (!executionRelay?.goal && boardEntry.missionName))
 		) {
+			executionAuthority = null;
 			executionRelay = {
 				...(executionRelay || {}),
 				missionId: boardEntry.missionId,
@@ -509,6 +511,7 @@ import { get } from 'svelte/store';
 			if (load.nodes.length > 0) {
 				addNodesWithConnections(load.nodes, load.connections);
 			}
+			executionAuthority = load.executionAuthority ?? null;
 			executionRelay = load.relay || null;
 			sparkPipelineActive = load.source === 'prd-bridge' || load.source === 'creator-mission';
 
@@ -535,11 +538,17 @@ import { get } from 'svelte/store';
 			void syncCanvasMissionStatusesFromBoard(load.relay?.missionId || null).catch((error) => {
 				console.warn('[Canvas] Mission status sync failed after pipeline load:', error);
 			});
-			if ((load.autoRun || load.relay?.autoRun) && new URL(window.location.href).searchParams.get('noexec') !== '1') {
+			if (
+				(load.autoRun || load.relay?.autoRun) &&
+				executionAuthority &&
+				new URL(window.location.href).searchParams.get('noexec') !== '1'
+			) {
 				executionPanelKey = `${load.pipelineId}:${load.timestamp || Date.now()}`;
 				showExecution = true;
 				executionMinimized = false;
 				executionAutoRunToken = Date.now();
+			} else if ((load.autoRun || load.relay?.autoRun) && !executionAuthority) {
+				logger.info('[Canvas] Stored auto-run load opened in inspect mode; no live execution authority was present.');
 			}
 			lastAppliedLatestLoadKey = loadKey;
 			markAppliedPipelineLoad(load);
@@ -568,6 +577,7 @@ import { get } from 'svelte/store';
 			lastSaved = new Date();
 			sparkPipelineActive = pipelineId.startsWith('prd-');
 			if (missionId) {
+				executionAuthority = null;
 				executionRelay = missionHistoryRelay(missionId, readablePipelineNameFromId(pipelineId));
 				if (url.searchParams.get('noexec') !== '1') {
 					executionPanelKey = `${pipelineId}:${missionId}:history`;
@@ -603,6 +613,7 @@ import { get } from 'svelte/store';
 			saveCurrentPipeline(missionCanvas);
 			lastSaved = new Date();
 			sparkPipelineActive = false;
+			executionAuthority = null;
 			executionRelay = missionHistoryRelay(missionId, `Mission ${missionId}`);
 			if (!suppressExec) {
 				executionPanelKey = `${pipelineId}:${missionId}:history`;
@@ -643,6 +654,7 @@ import { get } from 'svelte/store';
 			saveCurrentPipeline(missionCanvas);
 			lastSaved = new Date();
 			sparkPipelineActive = false;
+			executionAuthority = null;
 			executionRelay = missionHistoryRelay(missionId, boardEntry.missionName || missionId);
 			if (!suppressExec) {
 				executionPanelKey = `${pipelineId}:${missionId}:history`;
@@ -1734,6 +1746,7 @@ import { get } from 'svelte/store';
 			minimized={executionMinimized}
 			onToggleMinimize={() => (executionMinimized = !executionMinimized)}
 			autoRunToken={executionAutoRunToken || undefined}
+			executionAuthority={executionAuthority || undefined}
 			relay={executionRelay || undefined}
 		/>
 	{/key}
