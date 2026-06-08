@@ -82,7 +82,11 @@ async function getJson(url) {
 }
 
 export function sparkHealthAuthHeaders(env = process.env) {
-  const key = env.SPARK_UI_API_KEY?.trim() || env.SPARK_BRIDGE_API_KEY?.trim();
+  const key =
+    healthEnvValue("SPARK_UI_API_KEY", env) ||
+    healthEnvValue("SPARK_BRIDGE_API_KEY", env) ||
+    healthEnvValue("EVENTS_API_KEY", env) ||
+    healthEnvValue("MCP_API_KEY", env);
   if (!key) return {};
   return {
     "x-spawner-ui-key": key,

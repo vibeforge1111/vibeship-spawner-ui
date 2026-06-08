@@ -89,6 +89,20 @@ describe("sparkHealthAuthHeaders", () => {
       "x-api-key": "bridge",
     });
   });
+
+  it("falls back to the events key when UI and bridge keys are not configured", () => {
+    expect(sparkHealthAuthHeaders({ EVENTS_API_KEY: "events", MCP_API_KEY: "mcp" })).toEqual({
+      "x-spawner-ui-key": "events",
+      "x-api-key": "events",
+    });
+  });
+
+  it("falls back to the MCP key when only MCP control auth is configured", () => {
+    expect(sparkHealthAuthHeaders({ MCP_API_KEY: "mcp" })).toEqual({
+      "x-spawner-ui-key": "mcp",
+      "x-api-key": "mcp",
+    });
+  });
 });
 
 describe("healthEnvValue", () => {
