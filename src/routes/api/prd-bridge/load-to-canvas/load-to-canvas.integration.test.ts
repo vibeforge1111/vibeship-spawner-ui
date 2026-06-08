@@ -320,10 +320,8 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		expect(body.authority).toMatchObject({ source: 'governor_decision', governorOutcome: 'execute' });
 		const pending = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-load.json'), 'utf-8'));
 		expect(pending.autoRun).toBe(true);
-		expect(pending.executionAuthority).toMatchObject({
-			schema_version: 'governor-decision-v1',
-			outcome: 'execute'
-		});
+		expect(pending.executionAuthority).toBeUndefined();
+		expect(pending.metadata.executionAuthority).toBeUndefined();
 	});
 
 	it('preserves Telegram relay target metadata for canvas auto-run dispatch', async () => {
@@ -393,14 +391,9 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 			buildModeReason: 'Multi-agent Telegram relay test.',
 			telegramRelay: { port: 8789, profile: 'primary' }
 		});
-		expect(pending.executionAuthority).toMatchObject({
-			schema_version: 'governor-decision-v1',
-			outcome: 'execute'
-		});
-		expect(pending.relay.executionAuthority).toMatchObject({
-			schema_version: 'governor-decision-v1',
-			outcome: 'execute'
-		});
+		expect(pending.executionAuthority).toBeUndefined();
+		expect(pending.relay.executionAuthority).toBeUndefined();
+		expect(pending.metadata.executionAuthority).toBeUndefined();
 		const requestRaw = await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8');
 		const requestMeta = JSON.parse(requestRaw);
 		expect(requestMeta).toMatchObject({

@@ -51,7 +51,8 @@ export const POST: RequestHandler = async (event) => {
 					})
 				: undefined
 		);
-		const result = await executeMissionControlAction({ missionId, action, source, executionAuthority });
+		const dispatchAuthority = body.dispatchAuthority ?? body.resumeDispatchAuthority;
+		const result = await executeMissionControlAction({ missionId, action, source, executionAuthority, dispatchAuthority });
 		return json(result);
 	} catch (error) {
 		if (error instanceof HarnessAuthorityError) {

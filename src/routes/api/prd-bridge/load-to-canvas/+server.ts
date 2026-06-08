@@ -21,6 +21,7 @@ import {
 	resolveExecutionAuthority,
 	type HarnessAuthorityVerdict
 } from '$lib/server/harness-authority';
+import { stripAuthorityResidue } from '$lib/server/authority-residue';
 
 function getSpawnerDir(): string {
 	return spawnerStateDir();
@@ -96,7 +97,7 @@ function storedCanvasLoad(load: Record<string, unknown>): Record<string, unknown
 	const metadataRecord = metadata && typeof metadata === 'object' && !Array.isArray(metadata)
 		? (metadata as Record<string, unknown>)
 		: {};
-	return {
+	return stripAuthorityResidue({
 		...rest,
 		metadata: {
 			...metadataRecord,
@@ -104,7 +105,7 @@ function storedCanvasLoad(load: Record<string, unknown>): Record<string, unknown
 			instructionTextStorage: 'ephemeral_dispatch_only'
 		},
 		instructionTextRedacted: true
-	};
+	});
 }
 
 function taskSkillId(taskId: string): string {

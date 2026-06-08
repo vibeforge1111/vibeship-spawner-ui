@@ -18,6 +18,7 @@ import { logger } from '$lib/utils/logger';
 import { spawnerStateDir } from '$lib/server/spawner-state';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
+import { stripAuthorityResidue } from '$lib/server/authority-residue';
 
 const log = logger.scope('PipelineLoader');
 
@@ -77,7 +78,7 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		// Ensure nodes and connections are arrays
-		const load = {
+		const load = stripAuthorityResidue({
 			pipelineId: payload.pipelineId,
 			pipelineName: payload.pipelineName,
 			nodes: Array.isArray(payload.nodes) ? payload.nodes : [],
@@ -89,7 +90,7 @@ export const POST: RequestHandler = async (event) => {
 			autoRun: payload.autoRun === true,
 			relay: payload.relay,
 			timestamp: payload.timestamp || new Date().toISOString()
-		};
+		});
 
 		await writeFile(getPendingLoadFile(), JSON.stringify(load, null, 2), 'utf-8');
 		await writeFile(getLastLoadFile(), JSON.stringify(load, null, 2), 'utf-8');

@@ -116,6 +116,7 @@ export async function executeMissionControlAction(input: {
 	action: MissionControlAction;
 	source?: string;
 	executionAuthority?: unknown;
+	dispatchAuthority?: unknown;
 }): Promise<Record<string, unknown>> {
 	const missionId = input.missionId.trim();
 	const source = input.source?.trim() || 'mission-control';
@@ -210,7 +211,7 @@ export async function executeMissionControlAction(input: {
 		const runtime = await providerRuntime.resumeMission(missionId, (event) => {
 			eventBridge.emit(event);
 			void relayMissionControlEvent(event as unknown as MissionControlBridgeEvent);
-		}, input.executionAuthority);
+		}, input.executionAuthority, input.dispatchAuthority);
 		if (!runtime.resumed) {
 			return {
 				ok: false,

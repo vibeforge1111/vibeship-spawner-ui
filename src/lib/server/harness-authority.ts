@@ -92,6 +92,18 @@ function governorHmacKeyId(): string {
 	return (privateEnv.SPARK_GOVERNOR_HMAC_KEY_ID || process.env.SPARK_GOVERNOR_HMAC_KEY_ID || '').trim() || 'local';
 }
 
+function truthyEnv(value: string | undefined): boolean {
+	return ['1', 'true', 'yes', 'on'].includes((value || '').trim().toLowerCase());
+}
+
+function governorSignatureRequired(): boolean {
+	return (
+		truthyEnv(privateEnv.SPARK_GOVERNOR_REQUIRE_HMAC || process.env.SPARK_GOVERNOR_REQUIRE_HMAC) ||
+		truthyEnv(privateEnv.SPARK_GOVERNOR_HMAC_REQUIRED || process.env.SPARK_GOVERNOR_HMAC_REQUIRED) ||
+		process.env.NODE_ENV === 'production'
+	);
+}
+
 function signGovernorDecisionIfConfigured<T extends GovernorDecisionV1>(decision: T): T {
 	const key = governorHmacKey();
 	if (!key) return decision;
@@ -246,6 +258,10 @@ function governorDecisionVerdict(authority: Record<string, unknown>, input: Harn
 	}
 	if (authority.schema_version === 'governor-decision-v1') {
 		const hmacKey = governorHmacKey();
+		const requireSignature = Boolean(hmacKey) || governorSignatureRequired();
+		if (requireSignature && !hmacKey) {
+			reasonCodes.push('governor_hmac_key_missing');
+		}
 		const verification = verifyHarnessCoreGovernorToolAuthority({
 			governor_decision: authority as unknown as GovernorDecisionV1,
 			tool_name: input.toolName,
@@ -254,7 +270,7 @@ function governorDecisionVerdict(authority: Record<string, unknown>, input: Harn
 			allow_read_only: input.mutationClass === 'none' || input.mutationClass === 'read_only',
 			governor_hmac_key: hmacKey || null,
 			governor_hmac_key_id: hmacKey ? governorHmacKeyId() : null,
-			require_signature: Boolean(hmacKey)
+			require_signature: requireSignature && Boolean(hmacKey)
 		});
 		reasonCodes.push(...verification.reason_codes);
 		if (verification.allowed) {

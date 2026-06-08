@@ -91,6 +91,7 @@ afterEach(() => {
 	providerRuntime.cleanup('mission-step2-no-authority');
 	providerRuntime.cleanup('mission-step2-active-recovery');
 	providerRuntime.cleanup('mission-step2-live-stale');
+	providerRuntime.cleanup('mission-step2-resume-fresh-authority');
 	delete process.env.SPAWNER_STATE_DIR;
 	delete process.env.SPAWNER_PROVIDER_STALE_RUNNING_MS;
 });
@@ -243,6 +244,20 @@ describe('provider-runtime Spark agent bridge', () => {
 
 	it('blocks direct provider dispatch without native Governor authority', async () => {
 		const pack = buildPack('mission-step2-no-authority', [provider('codex', 'gpt-5.5')]);
+
+		await expect(providerRuntime.dispatch({
+			executionPack: pack,
+			apiKeys: { codex: 'test-codex' },
+			onEvent: () => {},
+			workingDirectory: process.cwd()
+		})).rejects.toThrow('Execution requires Harness Core authority.');
+	});
+
+	it('treats execution-pack embedded authority as residue, not live dispatch authority', async () => {
+		const pack = buildPack('mission-step2-no-authority', [provider('codex', 'gpt-5.5')]) as MultiLLMExecutionPack & {
+			executionAuthority?: unknown;
+		};
+		pack.executionAuthority = dispatchAuthority();
 
 		await expect(providerRuntime.dispatch({
 			executionPack: pack,
@@ -578,14 +593,14 @@ describe('provider-runtime Spark agent bridge', () => {
 		const resumedEvents: BridgeEvent[] = [];
 		const resumed = await providerRuntime.resumeMission('mission-step2-rebuild', (event) => resumedEvents.push(event), controlAuthority());
 		expect(resumed.resumed).toBe(false);
-		expect(resumed.reason).toContain('No original dispatch authority available');
+		expect(resumed.reason).toContain('Fresh dispatch authority is required');
 		expect(missionSpy).toHaveBeenCalledWith('mission-step2-rebuild');
 		expect(resumedEvents.some((event) => event.type === 'dispatch_started')).toBe(false);
 
 		const after = providerRuntime.getMissionStatus('mission-step2-rebuild');
 		expect(after.snapshotAvailable).toBe(true);
 		expect(after.paused).toBe(true);
-		expect(after.lastReason).toContain('recovered snapshots are evidence only');
+		expect(after.lastReason).toContain('stored dispatch authority is evidence only');
 		expect(Object.keys(after.providers)).toHaveLength(0);
 	});
 
@@ -652,11 +667,68 @@ describe('provider-runtime Spark agent bridge', () => {
 		const resumedEvents: BridgeEvent[] = [];
 		const resumed = await providerRuntime.resumeMission(missionId, (event) => resumedEvents.push(event), controlAuthority());
 		expect(resumed.resumed).toBe(false);
-		expect(resumed.reason).toContain('No original dispatch authority available');
+		expect(resumed.reason).toContain('Fresh dispatch authority is required');
 		expect(resumedEvents.some((event) => event.type === 'dispatch_started')).toBe(false);
-		expect(providerRuntime.getMissionStatus(missionId).lastReason).toContain('recovered snapshots are evidence only');
+		expect(providerRuntime.getMissionStatus(missionId).lastReason).toContain('stored dispatch authority is evidence only');
 
 		await rm(testSpawnerDir, { recursive: true, force: true });
+	});
+
+	it('does not resume with only control authority and uses fresh dispatch authority when provided', async () => {
+		let runCount = 0;
+		sparkAgentBridge.setWorkerExecutorForTests(
+			(context) =>
+				new Promise((resolve) => {
+					runCount += 1;
+					if (runCount === 1) {
+						const timer = setTimeout(() => resolve({ success: true, response: 'unexpected' }), 2000);
+						context.signal?.addEventListener(
+							'abort',
+							() => {
+								clearTimeout(timer);
+								resolve({ success: false, error: 'Cancelled' });
+							},
+							{ once: true }
+						);
+						return;
+					}
+					resolve({ success: true, response: 'resumed-ok' });
+				})
+		);
+
+		const events: BridgeEvent[] = [];
+		await providerRuntime.dispatch({
+			executionPack: buildPack('mission-step2-resume-fresh-authority', [provider('codex', 'gpt-5.5')]),
+			apiKeys: { codex: 'test-codex' },
+			executionAuthority: dispatchAuthority(),
+			onEvent: (event) => events.push(event),
+			workingDirectory: process.cwd()
+		});
+
+		await new Promise((r) => setTimeout(r, 50));
+		expect((await providerRuntime.pauseMission('mission-step2-resume-fresh-authority', controlAuthority())).paused).toBe(true);
+		const staleResume = await providerRuntime.resumeMission(
+			'mission-step2-resume-fresh-authority',
+			(event) => events.push(event),
+			controlAuthority()
+		);
+		expect(staleResume.resumed).toBe(false);
+		expect(staleResume.reason).toContain('Fresh dispatch authority is required');
+		expect(events.filter((event) => event.type === 'dispatch_started')).toHaveLength(1);
+
+		const freshResume = await providerRuntime.resumeMission(
+			'mission-step2-resume-fresh-authority',
+			(event) => events.push(event),
+			controlAuthority(),
+			dispatchAuthority()
+		);
+		expect(freshResume.resumed).toBe(true);
+		await waitFor(() => providerRuntime.getMissionStatus('mission-step2-resume-fresh-authority').allComplete);
+		expect(providerRuntime.getMissionResults('mission-step2-resume-fresh-authority')[0]).toMatchObject({
+			status: 'completed',
+			response: 'resumed-ok'
+		});
+		expect(events.filter((event) => event.type === 'dispatch_started')).toHaveLength(2);
 	});
 
 	it('keeps provider result details after in-memory sessions are cleared', async () => {

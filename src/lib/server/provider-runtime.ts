@@ -514,10 +514,7 @@ class ProviderRuntimeManager {
 		const missionId = extractMissionId(executionPack);
 		const startedAt = new Date().toISOString();
 		const sessionStatuses: DispatchResult['sessions'] = {};
-		const executionAuthority = resolveExecutionAuthority(
-			options.executionAuthority,
-			(executionPack as unknown as Record<string, unknown>).executionAuthority
-		);
+		const executionAuthority = resolveExecutionAuthority(options.executionAuthority);
 		const authority = assertNativeGovernorHarnessAuthority({
 			authority: executionAuthority,
 			toolName: 'spawner.dispatch',
@@ -1128,7 +1125,8 @@ class ProviderRuntimeManager {
 	async resumeMission(
 		missionId: string,
 		onEvent: (event: BridgeEvent) => void = (event) => eventBridge.emit(event),
-		executionAuthority?: unknown
+		executionAuthority?: unknown,
+		dispatchAuthority?: unknown
 	): Promise<{ resumed: boolean; reason?: string }> {
 		this.assertMissionControlAuthority(executionAuthority);
 		if (!this.pausedMissions.has(missionId)) {
@@ -1153,18 +1151,25 @@ class ProviderRuntimeManager {
 			this.rememberStatusReason(missionId, reason);
 			return { resumed: true, reason };
 		}
-		if (!snapshot.executionAuthority) {
-			const reason = 'No original dispatch authority available to resume mission; recovered snapshots are evidence only.';
+		const freshDispatchAuthority = resolveExecutionAuthority(dispatchAuthority);
+		if (!freshDispatchAuthority) {
+			const reason = 'Fresh dispatch authority is required to resume provider execution; stored dispatch authority is evidence only.';
 			this.pausedReasons.set(missionId, reason);
 			this.rememberStatusReason(missionId, reason);
 			return { resumed: false, reason };
 		}
+		assertNativeGovernorHarnessAuthority({
+			authority: freshDispatchAuthority,
+			toolName: 'spawner.dispatch',
+			ownerSystem: 'spawner-ui',
+			mutationClass: 'launches_mission'
+		});
 
 		await this.dispatch({
 			executionPack: snapshot.executionPack,
 			apiKeys: { ...snapshot.apiKeys },
 			workingDirectory: snapshot.workingDirectory,
-			executionAuthority: snapshot.executionAuthority,
+			executionAuthority: freshDispatchAuthority,
 			onEvent
 		});
 		this.pausedMissions.delete(missionId);

@@ -8,6 +8,7 @@ import { autoDispatchPrdCanvasLoad, type PrdAutoDispatchResult } from './prd-aut
 import { spawnerStateDir as resolveSpawnerStateDir } from './spawner-state';
 import { assertNativeGovernorHarnessAuthority, resolveExecutionAuthority } from './harness-authority';
 import { writeFileAtomic } from './atomic-write';
+import { stripAuthorityResidue } from './authority-residue';
 
 const execFileAsync = promisify(execFile);
 
@@ -1545,7 +1546,7 @@ export function creatorMissionCanvasLoad(trace: CreatorMissionTrace, now = new D
 
 async function writeCreatorMissionCanvasLoad(load: CreatorMissionCanvasLoad, stateDir = spawnerStateDir()): Promise<CreatorMissionCanvasLoad> {
 	await mkdir(stateDir, { recursive: true });
-	const payload = JSON.stringify(load, null, 2);
+	const payload = JSON.stringify(stripAuthorityResidue(load), null, 2);
 	await writeFileAtomic(pendingLoadPath(stateDir), payload);
 	await writeFileAtomic(lastCanvasLoadPath(stateDir), payload);
 	return load;
@@ -1699,6 +1700,13 @@ export async function executeCreatorMission(
 	if (blockedReason) {
 		throw new Error(blockedReason);
 	}
+	assertNativeGovernorHarnessAuthority({
+		authority: resolveExecutionAuthority(options.executionAuthority),
+		toolName: 'spawner.dispatch',
+		ownerSystem: 'spawner-ui',
+		mutationClass: 'launches_mission',
+		requestId: trace.request_id
+	});
 
 	const now = options.now?.() ?? new Date();
 	const load = await writeCreatorMissionCanvasLoad(executableCreatorMissionCanvasLoad(trace, options.executionAuthority), options.stateDir);

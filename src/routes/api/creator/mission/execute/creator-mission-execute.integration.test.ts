@@ -62,12 +62,13 @@ function dispatchVNextAuthority(target: string) {
 	});
 }
 
-function dispatchGovernorAuthority(target: string) {
+function dispatchGovernorAuthority(target: string, requestId = target) {
 	return buildClientGovernorDecisionAuthority({
 		source: 'creator-execute-route-test',
 		reason: 'User started creator mission execution from Spark.',
 		toolName: 'spawner.dispatch',
 		mutationClass: 'launches_mission',
+		requestId,
 		target
 	});
 }
@@ -146,7 +147,7 @@ describe('/api/creator/mission/execute', () => {
 
 		const response = await POST(event('http://127.0.0.1/api/creator/mission/execute', {
 			missionId: 'mission-creator-execute-api',
-			executionAuthority: dispatchGovernorAuthority('mission-creator-execute-api')
+			executionAuthority: dispatchGovernorAuthority('mission-creator-execute-api', 'req-execute-api')
 		}) as never);
 
 		expect(response.status).toBe(200);
@@ -172,7 +173,7 @@ describe('/api/creator/mission/execute', () => {
 
 		const response = await POST(event('http://127.0.0.1/api/creator/mission/execute', {
 			missionId: 'mission-creator-stage-only-api',
-			executionAuthority: dispatchGovernorAuthority('mission-creator-stage-only-api')
+			executionAuthority: dispatchGovernorAuthority('mission-creator-stage-only-api', 'req-stage-only-api')
 		}) as never);
 
 		expect(response.status).toBe(409);
@@ -261,7 +262,7 @@ describe('/api/creator/mission/execute', () => {
 
 		const response = await POST(event('http://127.0.0.1/api/creator/mission/execute', {
 			missionId: 'mission-creator-execute-governor',
-			executionAuthority: dispatchGovernorAuthority('mission-creator-execute-governor')
+			executionAuthority: dispatchGovernorAuthority('mission-creator-execute-governor', 'req-execute-governor')
 		}) as never);
 
 		expect(response.status).toBe(200);

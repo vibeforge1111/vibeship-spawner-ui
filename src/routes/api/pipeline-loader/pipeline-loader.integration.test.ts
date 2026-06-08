@@ -135,12 +135,20 @@ describe('/api/pipeline-loader integration', () => {
 			buildModeReason: 'User explicitly requested advanced PRD mode.',
 			executionPrompt: 'Build the relay project.',
 			autoRun: true,
+			executionAuthority: {
+				schema_version: 'governor-decision-v1',
+				outcome: 'execute'
+			},
 			relay: {
 				chatId: '8319079055',
 				userId: 'spark-user',
 				requestId: 'tg-build-test',
 				goal: 'Build the relay project.',
 				autoRun: true,
+				executionAuthority: {
+					schema_version: 'governor-decision-v1',
+					outcome: 'execute'
+				},
 				buildMode: 'advanced_prd',
 				buildModeReason: 'User explicitly requested advanced PRD mode.'
 			}
@@ -162,7 +170,17 @@ describe('/api/pipeline-loader integration', () => {
 		expect(latestBody.load.buildMode).toBe('advanced_prd');
 		expect(latestBody.load.buildModeReason).toBe('User explicitly requested advanced PRD mode.');
 		expect(latestBody.load.executionPrompt).toBe('Build the relay project.');
-		expect(latestBody.load.relay).toMatchObject(payload.relay);
+		expect(latestBody.load.relay).toMatchObject({
+			chatId: '8319079055',
+			userId: 'spark-user',
+			requestId: 'tg-build-test',
+			goal: 'Build the relay project.',
+			autoRun: true,
+			buildMode: 'advanced_prd',
+			buildModeReason: 'User explicitly requested advanced PRD mode.'
+		});
+		expect(latestBody.load.executionAuthority).toBeUndefined();
+		expect(latestBody.load.relay.executionAuthority).toBeUndefined();
 	});
 
 	it('clears pending load with DELETE', async () => {

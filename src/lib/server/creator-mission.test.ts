@@ -113,6 +113,19 @@ function validationGovernorAuthority(target: string) {
 	});
 }
 
+function dispatchGovernorAuthority(target: string, requestId = target) {
+	return buildServerGovernorDecisionAuthority({
+		source: 'creator-mission-dispatch-test',
+		reason: 'Creator mission execution test authorizes Spawner dispatch.',
+		toolName: 'spawner.dispatch',
+		mutationClass: 'launches_mission',
+		requestId,
+		actorKind: 'human',
+		actorIdRef: 'spawner-ui.test',
+		target
+	});
+}
+
 async function tempStateDir(): Promise<string> {
 	const dir = await mkdtemp(path.join(os.tmpdir(), 'spawner-creator-mission-'));
 	tempDirs.push(dir);
@@ -446,6 +459,7 @@ describe('creator mission trace', () => {
 			{
 				stateDir,
 				now: () => new Date('2026-04-30T11:00:00.000Z'),
+				executionAuthority: dispatchGovernorAuthority('mission-creator-execute', 'req-execute'),
 				dispatchRunner: async (load) => {
 					capturedLoad = load;
 					return {
@@ -473,6 +487,28 @@ describe('creator mission trace', () => {
 		const queuedCanvas = JSON.parse(await readFile(path.join(stateDir, 'last-canvas-load.json'), 'utf-8'));
 		expect(queuedCanvas.autoRun).toBe(true);
 		expect(queuedCanvas.relay.autoRun).toBe(true);
+		expect(queuedCanvas.executionAuthority).toBeUndefined();
+		expect(queuedCanvas.relay.executionAuthority).toBeUndefined();
+	});
+
+	it('requires native Governor dispatch authority before direct creator execution writes an executable load', async () => {
+		const stateDir = await tempStateDir();
+		await createCreatorMission(
+			{
+				brief: 'Create Startup YC path',
+				missionId: 'mission-creator-execute-no-authority',
+				requestId: 'req-execute-no-authority'
+			},
+			{
+				stateDir,
+				runManifestPlanner: async () => bundle({ target_domain: 'startup-yc' })
+			}
+		);
+
+		await expect(executeCreatorMission(
+			{ missionId: 'mission-creator-execute-no-authority' },
+			{ stateDir, dispatchRunner: async () => ({ started: true, missionId: 'mission-creator-execute-no-authority' }) }
+		)).rejects.toThrow('Execution requires Harness Core authority.');
 	});
 
 	it('blocks execution for stage-only creator missions', async () => {

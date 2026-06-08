@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const PRIVATE_ENV = vi.hoisted((): Record<string, string | undefined> => ({
 	SPARK_GOVERNOR_HMAC_KEY: '',
 	SPARK_GOVERNOR_HMAC_KEY_ID: '',
+	SPARK_GOVERNOR_REQUIRE_HMAC: '',
+	SPARK_GOVERNOR_HMAC_REQUIRED: '',
 	SPARK_SPAWNER_CANONICAL_LEDGER: '0',
 	SPARK_SPAWNER_CANONICAL_LEDGER_STRICT: '',
 	SPARK_BUILDER_REPO: ''
@@ -31,6 +33,8 @@ describe('server harness authority', () => {
 	afterEach(() => {
 		PRIVATE_ENV.SPARK_GOVERNOR_HMAC_KEY = '';
 		PRIVATE_ENV.SPARK_GOVERNOR_HMAC_KEY_ID = '';
+		PRIVATE_ENV.SPARK_GOVERNOR_REQUIRE_HMAC = '';
+		PRIVATE_ENV.SPARK_GOVERNOR_HMAC_REQUIRED = '';
 		PRIVATE_ENV.SPARK_SPAWNER_CANONICAL_LEDGER = '0';
 		PRIVATE_ENV.SPARK_SPAWNER_CANONICAL_LEDGER_STRICT = '';
 		PRIVATE_ENV.SPARK_BUILDER_REPO = '';
@@ -102,6 +106,32 @@ describe('server harness authority', () => {
 		} catch (error) {
 			expect(error).toBeInstanceOf(HarnessAuthorityError);
 			expect((error as HarnessAuthorityError).verdict.reasonCodes).toContain('governor_signature_missing');
+		}
+	});
+
+	it('blocks unsigned Governor decisions when strict HMAC mode is enabled without a key', () => {
+		const unsignedAuthority = validGovernorAuthority();
+		PRIVATE_ENV.SPARK_GOVERNOR_REQUIRE_HMAC = '1';
+
+		expect(() =>
+			assertNativeGovernorHarnessAuthority({
+				authority: unsignedAuthority,
+				toolName: 'spawner.dispatch',
+				ownerSystem: 'spawner-ui',
+				mutationClass: 'launches_mission'
+			})
+		).toThrow(HarnessAuthorityError);
+
+		try {
+			assertNativeGovernorHarnessAuthority({
+				authority: unsignedAuthority,
+				toolName: 'spawner.dispatch',
+				ownerSystem: 'spawner-ui',
+				mutationClass: 'launches_mission'
+			});
+		} catch (error) {
+			expect(error).toBeInstanceOf(HarnessAuthorityError);
+			expect((error as HarnessAuthorityError).verdict.reasonCodes).toContain('governor_hmac_key_missing');
 		}
 	});
 

@@ -22,13 +22,15 @@ import { getMissionControlPersistPath } from '$lib/server/mission-control-relay'
 import { buildClientGovernorDecisionAuthority } from '$lib/services/harness-authority-client';
 
 const originalSpawnerStateDir = process.env.SPAWNER_STATE_DIR;
+const originalMcpApiKey = process.env.MCP_API_KEY;
+const TEST_API_KEY = 'spark-run-route-test-secret';
 let testSpawnerStateDir: string | null = null;
 
 function routeEvent(body: unknown, method = 'POST') {
 	return {
 		request: new Request('http://127.0.0.1/api/spark/run', {
 			method,
-			headers: { 'Content-Type': 'application/json' },
+			headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 			...(method === 'POST' ? { body: JSON.stringify(body) } : {})
 		}),
 		url: new URL('http://127.0.0.1/api/spark/run'),
@@ -229,6 +231,7 @@ describe('/api/spark/run integration', () => {
 	beforeEach(async () => {
 		testSpawnerStateDir = await mkdtemp(path.join(tmpdir(), 'spawner-spark-run-test-'));
 		process.env.SPAWNER_STATE_DIR = testSpawnerStateDir;
+		process.env.MCP_API_KEY = TEST_API_KEY;
 		vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
 	});
 
@@ -238,6 +241,11 @@ describe('/api/spark/run integration', () => {
 			delete process.env.SPAWNER_STATE_DIR;
 		} else {
 			process.env.SPAWNER_STATE_DIR = originalSpawnerStateDir;
+		}
+		if (originalMcpApiKey === undefined) {
+			delete process.env.MCP_API_KEY;
+		} else {
+			process.env.MCP_API_KEY = originalMcpApiKey;
 		}
 		delete process.env.SPAWNER_MISSION_CONTROL_PUBLIC_URL;
 		if (testSpawnerStateDir) {
