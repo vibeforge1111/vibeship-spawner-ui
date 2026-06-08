@@ -2,7 +2,7 @@
 
 Last updated: 2026-06-09
 
-This note records the local Spawner regression that caused Mission Control to show a hosted access form and caused Telegram/PRD builds to fail with a workspace-boundary error.
+This note records the local Spawner regressions that caused Mission Control to show a hosted access form, caused Telegram/PRD builds to fail with a workspace-boundary error, and later left completed canonical PRD results behind stale `pending-request.json` state.
 
 ## Contract
 
@@ -35,6 +35,8 @@ The Spark workspace guard correctly rejected that path because provider mission 
 C:\Users\USER\.spark\workspaces
 ```
 
+4. `pending-request.json` could remain `status=pending` and `autoAnalysis.status=running` after the canonical provider result already existed in `results/<requestId>.json`. That made Mission Control and Telegram-facing status paths keep reporting an active or failed mission while the real canonical artifact was already written.
+
 ## Current Fix
 
 Local operator access is stateless request classification. Loopback browser access should not mint or require a UI session cookie.
@@ -46,6 +48,16 @@ C:\Users\USER\.spark\workspaces\prd-auto-analysis\<requestId>
 ```
 
 Do not fix workspace-boundary failures by setting `SPARK_ALLOW_EXTERNAL_PROJECT_PATHS=1` for release, installer, Telegram, or production-like local proof. That flag is for trusted development exceptions only.
+
+Canonical PRD result artifacts now reconcile pending state through `src/lib/server/prd-canonical-result-reconciliation.ts`. Recovery and pending-poll paths must treat `results/<requestId>.json` as the terminal canonical artifact for that request and mark matching pending state as:
+
+```text
+status=processed
+autoAnalysis.status=complete
+autoAnalysis.canonicalResultAvailable=true
+```
+
+This is not permission minting. It does not promote provisional drafts, route history, UI state, or stale missions into authority. It only repairs duplicate runtime truth once a canonical provider result is present.
 
 ## Verified Proof
 
@@ -94,6 +106,33 @@ auto_worker_dispatch.workingDirectory=C:\Users\USER\.spark\workspaces\prd-auto-a
 
 This proves the old installed-source working-directory failure is fixed for fresh PRD bridge requests.
 
+Direct governed route proof after canonical-result reconciliation:
+
+```text
+requestId=direct-full-build-smoke-1780953899741
+authority.source=governor_decision
+authority.governorOutcome=execute
+authority.ledgerIngest.persisted=true
+auto_worker_dispatch.workingDirectory=C:\Users\USER\.spark\workspaces\prd-auto-analysis\direct-full-build-smoke-1780953899741
+events_received_complete.source=codex-auto
+canonical_result_stored.source=codex-auto
+auto_worker_finished.success=true
+pending.status=processed
+pending.autoAnalysis.status=complete
+pending.autoAnalysis.canonicalResultAvailable=true
+result.projectName=Harness Ops Field Notebook App
+result.projectType=local React field-operations dashboard
+result.tasks=6
+```
+
+Local surface probes for the same run:
+
+```text
+http://127.0.0.1:3333/kanban -> 200 without login wall
+http://127.0.0.1:3333/canvas?pipeline=direct-full-build-smoke-1780953899741&mission=mission-1780953899741 -> 200 without login wall
+http://127.0.0.1:3333/api/prd-bridge/result?requestId=direct-full-build-smoke-1780953899741 -> found=true, success=true
+```
+
 ## Still To Prove
 
 Native Telegram Desktop proof still needs a clean fresh send through `@SparkRecursive_bot` after this runtime repair. The previous visible Telegram failure at `2026-06-09 00:43` was pre-fix evidence for `tg-build-2b28ef7acfa5-1780951400906`, not a fresh post-fix failure.
@@ -116,5 +155,7 @@ The fresh Telegram proof should capture:
 - Do not treat hosted UI auth as Harness authority.
 - Do not pass `process.cwd()` as a provider working directory for generated missions, PRD auto-analysis, Telegram builds, or auto-dispatch.
 - Do not demote the workspace boundary to make installed-source builds pass.
+- Do not let `pending-request.json` outrank a matching canonical provider result artifact.
+- Do not re-serve pending work once `results/<requestId>.json` exists for the same request.
 - Do not make deterministic fallback output the release proof for Spawner mission execution.
 - Do not use canned Telegram replies as proof. The proof is route selection, Governor decision, ledgers, provider dispatch, side effects, and visible UI state.
