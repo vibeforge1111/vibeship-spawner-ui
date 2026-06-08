@@ -111,6 +111,13 @@ describe('/api/analyze authority contract', () => {
 		expect(globalThis.fetch).not.toHaveBeenCalled();
 	});
 
+	it('rejects unauthenticated local analysis before local fallback or external calls', async () => {
+		const response = await POST(event({ goal: 'Analyze this startup app.' }, null) as never);
+
+		expect(response.status).toBe(401);
+		expect(globalThis.fetch).not.toHaveBeenCalled();
+	});
+
 	it('blocks external Claude analysis without Harness authority', async () => {
 		const response = await POST(event({ goal: 'Analyze this startup app.' }) as never);
 
