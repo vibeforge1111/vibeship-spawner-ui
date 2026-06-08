@@ -57,7 +57,7 @@ const AUTO_ANALYSIS_BASE_URL = (process.env.SPAWNER_UI_SELF_URL || 'http://127.0
 	''
 );
 const AUTO_ANALYSIS_ENDPOINT = `${AUTO_ANALYSIS_BASE_URL}/api/events`;
-const DEFAULT_AUTO_ANALYSIS_TIMEOUT_MS = 180_000;
+const DEFAULT_AUTO_ANALYSIS_TIMEOUT_MS = 420_000;
 const configuredAnalysisTimeoutMs = Number.parseInt(process.env.SPAWNER_AUTO_ANALYSIS_TIMEOUT_MS || '', 10);
 const AUTO_ANALYSIS_TIMEOUT_MS =
 	Number.isFinite(configuredAnalysisTimeoutMs) && configuredAnalysisTimeoutMs > 0
@@ -269,16 +269,38 @@ async function updatePendingRequestStatus(
 		const current = parseJsonOrFallback<Record<string, unknown>>(raw, {}, 'prd-bridge-write-state');
 		if (current.requestId !== requestId) return;
 
+		const currentAutoAnalysis =
+			current.autoAnalysis && typeof current.autoAnalysis === 'object' && !Array.isArray(current.autoAnalysis)
+				? (current.autoAnalysis as Record<string, unknown>)
+				: null;
+		const extraAutoAnalysis =
+			extra.autoAnalysis && typeof extra.autoAnalysis === 'object' && !Array.isArray(extra.autoAnalysis)
+				? (extra.autoAnalysis as Record<string, unknown>)
+				: null;
 		const next = {
 			...current,
 			status,
 			updatedAt: new Date().toISOString(),
-			...extra
+			...extra,
+			...(currentAutoAnalysis || extraAutoAnalysis
+				? {
+						autoAnalysis: {
+							...(currentAutoAnalysis ?? {}),
+							...(extraAutoAnalysis ?? {})
+						}
+					}
+				: {})
 		};
 		await writeFile(pendingRequestFile, JSON.stringify(next, null, 2), 'utf-8');
 	} catch {
 		// Keep analysis flow alive even if status updates fail.
 	}
+}
+
+function autoAnalysisDeadline(startedAt: string, timeoutMs: number): string | null {
+	const parsed = Date.parse(startedAt);
+	if (!Number.isFinite(parsed) || timeoutMs <= 0) return null;
+	return new Date(parsed + timeoutMs).toISOString();
 }
 
 function slugifyTaskId(value: string, fallback: string): string {
@@ -1047,7 +1069,7 @@ function scheduleProvisionalPrdDraft(input: {
 			input.buildLane,
 			{ provisional: true }
 		);
-		void relayMissionControlEvent({
+		await relayMissionControlEvent({
 			type: 'log',
 			missionId: input.missionId,
 			missionName: input.projectName,
@@ -1069,6 +1091,133 @@ function scheduleProvisionalPrdDraft(input: {
 	}
 }
 
+export async function _runAutoAnalysisWatchdog(input: {
+	requestId: string;
+	projectName: string;
+	buildMode: 'direct' | 'advanced_prd';
+	tier: SkillTier;
+	cancelAutoAnalysis?: () => void;
+	traceRef?: string | null;
+	buildLane?: BuildLane;
+	timeoutMs?: number;
+}): Promise<void> {
+	const {
+		requestId,
+		projectName,
+		buildMode,
+		tier,
+		cancelAutoAnalysis,
+		traceRef,
+		buildLane,
+		timeoutMs = AUTO_ANALYSIS_TIMEOUT_MS
+	} = input;
+	const paths = getPrdBridgePaths();
+	const resultFile = prdResultFile(paths, requestId);
+	const provisionalResultFile = provisionalPrdResultFile(paths, requestId);
+	const hasResult = existsSync(resultFile);
+	const provisionalDraftAvailable = existsSync(provisionalResultFile);
+	if (hasResult) {
+		await appendPrdTrace(requestId, 'watchdog_result_found', {
+			...traceRefDetails(traceRef)
+		});
+		return;
+	}
+
+	if (_shouldKeepSlowCanonicalAnalysisRunning({ provisionalDraftAvailable })) {
+		await updatePendingRequestStatus(requestId, 'provisional', {
+			timeoutMs,
+			canonicalStillRunning: true,
+			provisionalDraftAvailable,
+			reason: 'Canonical runtime analysis is still running; provisional draft remains non-canonical.'
+		});
+		await appendPrdTrace(requestId, 'watchdog_slow_continue', {
+			...traceRefDetails(traceRef),
+			timeoutMs,
+			expectedResultFile: resultFile,
+			provisionalResultFile,
+			provisionalDraftAvailable,
+			buildMode,
+			buildLane,
+			projectName,
+			tier
+		});
+		await relayMissionControlEvent({
+			type: 'log',
+			missionId: missionIdFromRequestId(requestId),
+			missionName: projectName,
+			taskName: 'Canonical analysis',
+			message: 'Full PRD analysis is still running; keeping the provider alive.',
+			source: 'prd-bridge',
+			data: {
+				requestId,
+				...traceRefDetails(traceRef),
+				buildMode,
+				buildLane,
+				provisional: true,
+				canonicalStillRunning: true
+			}
+		});
+		return;
+	}
+
+	cancelAutoAnalysis?.();
+	await updatePendingRequestStatus(requestId, 'timeout', {
+		timeoutMs,
+		canonicalTimedOut: true,
+		provisionalDraftAvailable,
+		reason: 'No canonical runtime analysis result written before timeout; provisional draft remains non-canonical.',
+		autoAnalysis: {
+			status: 'timeout',
+			timedOutAt: new Date().toISOString(),
+			timeoutMs,
+			expectedResultFile: resultFile,
+			provisionalResultFile,
+			provisionalDraftAvailable,
+			canonicalResultAvailable: false
+		}
+	});
+	await appendPrdTrace(requestId, 'watchdog_timeout', {
+		...traceRefDetails(traceRef),
+		timeoutMs,
+		expectedResultFile: resultFile,
+		provisionalResultFile,
+		provisionalDraftAvailable,
+		buildMode,
+		buildLane,
+		projectName,
+		tier
+	});
+	const missionId = missionIdFromRequestId(requestId);
+	const failureData = {
+		requestId,
+		...traceRefDetails(traceRef),
+		buildMode,
+		buildLane,
+		timeoutMs,
+		expectedResultFile: resultFile,
+		provisionalDraftAvailable,
+		canonicalResultAvailable: false,
+		autoAnalysisStatus: 'timeout'
+	};
+	await relayMissionControlEvent({
+		type: 'task_failed',
+		missionId,
+		missionName: projectName,
+		taskName: 'PRD analysis',
+		message: 'Canonical PRD analysis timed out before a provider result was written.',
+		source: 'prd-bridge',
+		data: failureData
+	});
+	await relayMissionControlEvent({
+		type: 'mission_failed',
+		missionId,
+		missionName: projectName,
+		message: 'Spawner could not produce a canonical PRD analysis result before timeout.',
+		source: 'prd-bridge',
+		data: failureData
+	});
+}
+
 function scheduleAutoAnalysisWatchdog(
 	requestId: string,
 	projectName: string,
@@ -1079,73 +1228,15 @@ function scheduleAutoAnalysisWatchdog(
 	buildLane?: BuildLane
 ): void {
 	if (AUTO_ANALYSIS_TIMEOUT_MS <= 0) return;
-	const timer = setTimeout(async () => {
-		const paths = getPrdBridgePaths();
-		const resultFile = prdResultFile(paths, requestId);
-		const provisionalResultFile = provisionalPrdResultFile(paths, requestId);
-		const hasResult = existsSync(resultFile);
-		const provisionalDraftAvailable = existsSync(provisionalResultFile);
-		if (hasResult) {
-			await appendPrdTrace(requestId, 'watchdog_result_found', {
-				...traceRefDetails(traceRef)
-			});
-			return;
-		}
-
-		if (_shouldKeepSlowCanonicalAnalysisRunning({ provisionalDraftAvailable })) {
-			await updatePendingRequestStatus(requestId, 'provisional', {
-				timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
-				canonicalStillRunning: true,
-				provisionalDraftAvailable,
-				reason: 'Canonical runtime analysis is still running; provisional draft remains non-canonical.'
-			});
-			await appendPrdTrace(requestId, 'watchdog_slow_continue', {
-				...traceRefDetails(traceRef),
-				timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
-				expectedResultFile: resultFile,
-				provisionalResultFile,
-				provisionalDraftAvailable,
-				buildMode,
-				buildLane,
-				projectName,
-				tier
-			});
-			void relayMissionControlEvent({
-				type: 'log',
-				missionId: missionIdFromRequestId(requestId),
-				missionName: projectName,
-				taskName: 'Canonical analysis',
-				message: 'Full PRD analysis is still running; keeping the provider alive.',
-				source: 'prd-bridge',
-				data: {
-					requestId,
-					...traceRefDetails(traceRef),
-					buildMode,
-					buildLane,
-					provisional: true,
-					canonicalStillRunning: true
-				}
-			});
-			return;
-		}
-
-		cancelAutoAnalysis?.();
-		await updatePendingRequestStatus(requestId, 'timeout', {
-			timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
-			canonicalTimedOut: true,
-			provisionalDraftAvailable,
-			reason: 'No canonical runtime analysis result written before timeout; provisional draft remains non-canonical.'
-		});
-		await appendPrdTrace(requestId, 'watchdog_timeout', {
-			...traceRefDetails(traceRef),
-			timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
-			expectedResultFile: resultFile,
-			provisionalResultFile,
-			provisionalDraftAvailable,
-			buildMode,
-			buildLane,
+	const timer = setTimeout(() => {
+		void _runAutoAnalysisWatchdog({
+			requestId,
 			projectName,
-			tier
+			buildMode,
+			tier,
+			cancelAutoAnalysis,
+			traceRef,
+			buildLane
 		});
 	}, AUTO_ANALYSIS_TIMEOUT_MS);
 
@@ -1571,6 +1662,36 @@ async function startAutoAnalysis(
 			workingDirectory: process.cwd(),
 			stateDirectory: paths.spawnerDir
 		});
+		const startedAt = new Date().toISOString();
+		await updatePendingRequestStatus(requestId, 'pending', {
+			autoAnalysis: {
+				provider: 'codex',
+				status: 'running',
+				startedAt,
+				timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
+				deadlineAt: autoAnalysisDeadline(startedAt, AUTO_ANALYSIS_TIMEOUT_MS),
+				missionId,
+				expectedResultFile: prdResultFile(paths, requestId),
+				expectedProvisionalResultFile: provisionalPrdResultFile(paths, requestId)
+			}
+		});
+		void relayMissionControlEvent({
+			type: 'task_started',
+			missionId: missionIdFromRequestId(requestId),
+			missionName: projectName,
+			taskName: 'PRD analysis',
+			message: 'Canonical PRD analysis started.',
+			source: 'prd-bridge',
+			data: {
+				requestId,
+				...traceRefDetails(traceRef),
+				buildMode,
+				buildLane,
+				provider: 'codex',
+				timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
+				autoAnalysisStatus: 'running'
+			}
+		});
 
 		const controller = new AbortController();
 		const codexModel = _resolvePrdCodexModel();
@@ -1593,19 +1714,48 @@ async function startAutoAnalysis(
 					signal: controller.signal
 				})
 			.then((result) => {
+				const artifact = _buildPrdResultArtifactVerification(requestId, paths);
+				const watchdogCancelled = result.error === 'Cancelled' && !artifact.present;
+				if (!watchdogCancelled) {
+					void updatePendingRequestStatus(requestId, result.success && artifact.present ? 'pending' : 'error', {
+						reason: result.success && artifact.present
+							? 'Canonical provider result is available.'
+							: result.error || 'Auto-analysis worker finished without a canonical result artifact.',
+						autoAnalysis: {
+							status: result.success && artifact.present ? 'complete' : 'error',
+							finishedAt: new Date().toISOString(),
+							success: result.success,
+							error: result.error || null,
+							durationMs: result.durationMs || null,
+							sessionId: result.sparkAgentSessionId,
+							canonicalResultAvailable: artifact.present,
+							resultFileName: artifact.fileName
+						}
+					});
+				}
 				void appendPrdTrace(requestId, 'auto_worker_finished', {
 					...traceRefDetails(traceRef),
 					success: result.success,
 					error: result.error || null,
 					durationMs: result.durationMs || null,
 					sessionId: result.sparkAgentSessionId,
-					resultArtifact: _buildPrdResultArtifactVerification(requestId, paths)
+					resultArtifact: artifact
 				});
 			})
 			.catch((error: unknown) => {
+				const message = error instanceof Error ? error.message : String(error);
+				void updatePendingRequestStatus(requestId, 'error', {
+					reason: message,
+					autoAnalysis: {
+						status: 'error',
+						finishedAt: new Date().toISOString(),
+						error: message,
+						canonicalResultAvailable: _buildPrdResultArtifactVerification(requestId, paths).present
+					}
+				});
 				void appendPrdTrace(requestId, 'auto_worker_error', {
 					...traceRefDetails(traceRef),
-					error: error instanceof Error ? error.message : String(error)
+					error: message
 				});
 			});
 

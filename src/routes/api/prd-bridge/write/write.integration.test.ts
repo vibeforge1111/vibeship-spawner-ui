@@ -3,23 +3,31 @@ import { existsSync } from 'fs';
 import { mkdtemp, readFile, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
-import { POST } from './+server';
+import { POST, _runAutoAnalysisWatchdog } from './+server';
 import {
 	buildClientGovernorDecisionAuthority,
 	buildClientTurnIntentVNextAuthority
 } from '$lib/services/harness-authority-client';
 
-const { PRIVATE_ENV } = vi.hoisted(() => ({
+const { PRIVATE_ENV, executeProviderTaskMock } = vi.hoisted(() => ({
 	PRIVATE_ENV: {
 		SPARK_BRIDGE_API_KEY: 'bridge-test-key',
 		MCP_API_KEY: ''
-	} as Record<string, string>
+	} as Record<string, string>,
+	executeProviderTaskMock: vi.fn()
 }));
 
 vi.mock('$env/dynamic/private', () => ({ env: PRIVATE_ENV }));
+vi.mock('$lib/server/cli-resolver', () => ({ resolveCliBinary: () => 'codex' }));
+vi.mock('$lib/services/spark-agent-bridge', () => ({
+	sparkAgentBridge: {
+		executeProviderTask: executeProviderTaskMock
+	}
+}));
 
 let testSpawnerDir: string;
 const originalProvider = process.env.SPARK_MISSION_LLM_PROVIDER;
+const originalAutoProvider = process.env.SPAWNER_PRD_AUTO_PROVIDER;
 const originalStateDir = process.env.SPAWNER_STATE_DIR;
 const BRIDGE_TEST_KEY = 'bridge-test-key';
 const originalBridgeKey = process.env.SPARK_BRIDGE_API_KEY;
@@ -54,6 +62,8 @@ async function resetTestSpawnerDir() {
 	else process.env.SPAWNER_STATE_DIR = originalStateDir;
 	if (originalProvider === undefined) delete process.env.SPARK_MISSION_LLM_PROVIDER;
 	else process.env.SPARK_MISSION_LLM_PROVIDER = originalProvider;
+	if (originalAutoProvider === undefined) delete process.env.SPAWNER_PRD_AUTO_PROVIDER;
+	else process.env.SPAWNER_PRD_AUTO_PROVIDER = originalAutoProvider;
 	if (originalBridgeKey === undefined) delete process.env.SPARK_BRIDGE_API_KEY;
 	else process.env.SPARK_BRIDGE_API_KEY = originalBridgeKey;
 }
@@ -64,10 +74,12 @@ describe('/api/prd-bridge/write integration', () => {
 		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-prd-write-'));
 		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
 		process.env.SPARK_BRIDGE_API_KEY = BRIDGE_TEST_KEY;
+		executeProviderTaskMock.mockReset();
 		vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
 	});
 
 	afterEach(async () => {
+		vi.useRealTimers();
 		vi.unstubAllGlobals();
 		await resetTestSpawnerDir();
 	});
@@ -268,6 +280,84 @@ describe('/api/prd-bridge/write integration', () => {
 				rejectedReason: 'outside_configured_workspace_root'
 			}
 		});
+	});
+
+	it('persists Codex auto-analysis watchdog state and relays timeout as mission failure', async () => {
+		process.env.SPAWNER_PRD_AUTO_PROVIDER = 'codex';
+		executeProviderTaskMock.mockReturnValue(new Promise(() => undefined));
+		const requestId = 'tg-build-codex-timeout-1780929999999';
+		const traceRef = 'trace:spawner-prd:mission-1780929999999';
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/write', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'x-api-key': BRIDGE_TEST_KEY },
+				body: JSON.stringify({
+					content: '# Codex Timeout Board\n\nBuild a local board with README and tests.',
+					requestId,
+					projectName: 'Codex Timeout Board',
+					buildMode: 'direct',
+					buildLane: 'direct',
+					tier: 'pro',
+					chatId: 'telegram-chat-1',
+					userId: 'telegram-user-1',
+					traceRef,
+					executionAuthority: writeAuthority(requestId)
+				})
+			}),
+			getClientAddress: () => '127.0.0.1'
+		} as never);
+
+		const body = await response.json();
+		expect(response.status).toBe(200);
+		expect(body.autoAnalysis).toMatchObject({ provider: 'codex', started: true });
+		expect(executeProviderTaskMock).toHaveBeenCalledOnce();
+
+		const pendingStarted = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
+		expect(pendingStarted.status).toBe('pending');
+		expect(pendingStarted.autoAnalysis).toMatchObject({
+			provider: 'codex',
+			status: 'running',
+			timeoutMs: 420_000
+		});
+		expect(typeof pendingStarted.autoAnalysis.deadlineAt).toBe('string');
+		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(false);
+
+		await _runAutoAnalysisWatchdog({
+			requestId,
+			projectName: 'Codex Timeout Board',
+			buildMode: 'direct',
+			buildLane: 'direct',
+			tier: 'pro',
+			traceRef,
+			timeoutMs: 420_000
+		});
+
+		const pendingTimedOut = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
+		expect(pendingTimedOut.status).toBe('timeout');
+		expect(pendingTimedOut.autoAnalysis).toMatchObject({
+			status: 'timeout',
+			timeoutMs: 420_000,
+			canonicalResultAvailable: false
+		});
+		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(false);
+
+		const traceRows = (await readFile(path.join(testSpawnerDir, 'prd-auto-trace.jsonl'), 'utf-8'))
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line));
+		expect(traceRows.find((row) => row.event === 'watchdog_timeout')).toMatchObject({
+			requestId,
+			traceRef,
+			timeoutMs: 420_000
+		});
+
+		const missionControl = JSON.parse(await readFile(path.join(testSpawnerDir, 'mission-control.json'), 'utf-8'));
+		const missionEvents = missionControl.recent.filter(
+			(entry: { missionId?: string }) => entry.missionId === 'mission-1780929999999'
+		);
+		expect(missionEvents.map((entry: { eventType: string }) => entry.eventType)).toContain('task_failed');
+		expect(missionEvents.map((entry: { eventType: string }) => entry.eventType)).toContain('mission_failed');
 	});
 
 	it('keeps exact two-file static proofs deterministic and scoped to the requested folder', async () => {
