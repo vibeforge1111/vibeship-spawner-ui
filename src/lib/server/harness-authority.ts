@@ -10,6 +10,7 @@ import {
 	type TurnIntentEnvelopeVNext
 } from '@spark/harness-core';
 import { env as privateEnv } from '$env/dynamic/private';
+import { emitSpawnerToolLedger } from './harness-ledger-ingest';
 
 export type SparkMutationClass = HarnessCoreActionMutationClass;
 export type SparkServerTurnIntentEnvelopeVNext = TurnIntentEnvelopeVNext;
@@ -32,6 +33,12 @@ export interface HarnessAuthorityVerdict {
 	traceId?: string;
 	origin?: string;
 	governorOutcome?: string;
+	ledgerIngest?: {
+		attempted: boolean;
+		persisted: boolean;
+		skippedReason?: string;
+		error?: string;
+	};
 }
 
 export class HarnessAuthorityError extends Error {
@@ -222,6 +229,7 @@ function governorDecisionVerdict(authority: Record<string, unknown>, input: Harn
 	const governorTurnId = stringField(authority.turn_id);
 	const envelopeTurnId = stringField(envelope.turn_id);
 	const envelopeVerdict = turnIntentVNextVerdict(envelope, input);
+	let ledgerIngest: HarnessAuthorityVerdict['ledgerIngest'];
 
 	if (authority.schema_version !== 'governor-decision-v1') {
 		reasonCodes.push('unsupported_governor_decision_schema');
@@ -249,6 +257,27 @@ function governorDecisionVerdict(authority: Record<string, unknown>, input: Harn
 			require_signature: Boolean(hmacKey)
 		});
 		reasonCodes.push(...verification.reason_codes);
+		if (verification.allowed) {
+			const rawTurnRef = isRecord(envelope.raw_turn_ref) ? envelope.raw_turn_ref : {};
+			const trace = isRecord(authority.trace) ? authority.trace : {};
+			const emission = emitSpawnerToolLedger({
+				governorDecision: authority as unknown as GovernorDecisionV1,
+				verification,
+				ownerSystem: input.ownerSystem,
+				mutationClass: input.mutationClass,
+				requestId: input.requestId || null,
+				traceRef: stringField(rawTurnRef.id) || stringField(trace.id) || stringField(authority.turn_id) || null
+			});
+			if (emission.strict && !emission.persisted) {
+				reasonCodes.push('governor_ledger_ingest_failed');
+			}
+			ledgerIngest = {
+				attempted: emission.attempted,
+				persisted: emission.persisted,
+				skippedReason: emission.skippedReason,
+				error: emission.error
+			};
+		}
 	}
 
 	const rawTurnRef = isRecord(envelope.raw_turn_ref) ? envelope.raw_turn_ref : {};
@@ -258,7 +287,8 @@ function governorDecisionVerdict(authority: Record<string, unknown>, input: Harn
 		source: 'governor_decision',
 		reasonCodes: [...new Set(reasonCodes)],
 		traceId: stringField(rawTurnRef.id) || stringField(trace.id) || stringField(authority.turn_id) || undefined,
-		governorOutcome: outcome || undefined
+		governorOutcome: outcome || undefined,
+		ledgerIngest
 	};
 }
 

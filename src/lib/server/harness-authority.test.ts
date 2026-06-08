@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const PRIVATE_ENV = vi.hoisted((): Record<string, string | undefined> => ({
 	SPARK_GOVERNOR_HMAC_KEY: '',
-	SPARK_GOVERNOR_HMAC_KEY_ID: ''
+	SPARK_GOVERNOR_HMAC_KEY_ID: '',
+	SPARK_SPAWNER_CANONICAL_LEDGER: '0',
+	SPARK_SPAWNER_CANONICAL_LEDGER_STRICT: '',
+	SPARK_BUILDER_REPO: ''
 }));
 
 vi.mock('$env/dynamic/private', () => ({ env: PRIVATE_ENV }));
@@ -28,6 +31,9 @@ describe('server harness authority', () => {
 	afterEach(() => {
 		PRIVATE_ENV.SPARK_GOVERNOR_HMAC_KEY = '';
 		PRIVATE_ENV.SPARK_GOVERNOR_HMAC_KEY_ID = '';
+		PRIVATE_ENV.SPARK_SPAWNER_CANONICAL_LEDGER = '0';
+		PRIVATE_ENV.SPARK_SPAWNER_CANONICAL_LEDGER_STRICT = '';
+		PRIVATE_ENV.SPARK_BUILDER_REPO = '';
 	});
 
 	it('allows native Governor authority only when the ledger matches the authorization', () => {
@@ -148,6 +154,39 @@ describe('server harness authority', () => {
 		} catch (error) {
 			expect(error).toBeInstanceOf(HarnessAuthorityError);
 			expect((error as HarnessAuthorityError).verdict.reasonCodes).toContain('governor_signature_invalid');
+		}
+	});
+
+	it('can make canonical ledger ingestion a strict Governor gate', () => {
+		PRIVATE_ENV.SPARK_SPAWNER_CANONICAL_LEDGER = '1';
+		PRIVATE_ENV.SPARK_SPAWNER_CANONICAL_LEDGER_STRICT = '1';
+		PRIVATE_ENV.SPARK_BUILDER_REPO = 'C:\\missing\\spark-intelligence-builder';
+		const authority = validGovernorAuthority();
+
+		expect(() =>
+			assertNativeGovernorHarnessAuthority({
+				authority,
+				toolName: 'spawner.dispatch',
+				ownerSystem: 'spawner-ui',
+				mutationClass: 'launches_mission'
+			})
+		).toThrow(HarnessAuthorityError);
+
+		try {
+			assertNativeGovernorHarnessAuthority({
+				authority,
+				toolName: 'spawner.dispatch',
+				ownerSystem: 'spawner-ui',
+				mutationClass: 'launches_mission'
+			});
+		} catch (error) {
+			expect(error).toBeInstanceOf(HarnessAuthorityError);
+			expect((error as HarnessAuthorityError).verdict.reasonCodes).toContain('governor_ledger_ingest_failed');
+			expect((error as HarnessAuthorityError).verdict.ledgerIngest).toMatchObject({
+				attempted: false,
+				persisted: false,
+				skippedReason: 'builder_repo_missing'
+			});
 		}
 	});
 });
