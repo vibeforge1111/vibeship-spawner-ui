@@ -101,6 +101,32 @@ describe('/api/spark-agent integration', () => {
 		expect(response.status).toBe(401);
 	});
 
+	it('allows local canvas state reads without opening Spark Agent commands', async () => {
+		const stateResponse = await canvasState({
+			request: new Request('http://127.0.0.1:3333/api/spark-agent/canvas-state', {
+				method: 'GET',
+				headers: { accept: 'application/json' }
+			}),
+			url: new URL('http://127.0.0.1:3333/api/spark-agent/canvas-state'),
+			getClientAddress: () => '127.0.0.1'
+		} as never);
+		expect(stateResponse.status).toBe(200);
+
+		const commandResponse = await command({
+			request: new Request('http://127.0.0.1:3333/api/spark-agent/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					sessionId: 'local-no-key',
+					command: 'canvas.get_state'
+				})
+			}),
+			url: new URL('http://127.0.0.1:3333/api/spark-agent/command'),
+			getClientAddress: () => '127.0.0.1'
+		} as never);
+		expect(commandResponse.status).toBe(401);
+	});
+
 	it('runs a full session flow: start -> canvas -> mission -> status -> end', async () => {
 		const startResponse = await startSession({
 			request: new Request('http://localhost/api/spark-agent/session/start', {

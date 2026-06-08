@@ -3,7 +3,7 @@ import { existsSync } from 'fs';
 import { mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
-import { DELETE, POST } from './+server';
+import { DELETE, GET, POST } from './+server';
 import { resetSchedulerForTests } from '$lib/server/scheduler';
 import {
 	buildServerGovernorDecisionAuthority,
@@ -24,6 +24,14 @@ function event(url: string, body?: unknown, method = 'POST') {
     }),
 		url: new URL(url),
 		getClientAddress: () => '127.0.0.1'
+	};
+}
+
+function unauthenticatedEvent(url: string, method = 'GET', clientAddress = '127.0.0.1') {
+	return {
+		request: new Request(url, { method, headers: { accept: 'application/json' } }),
+		url: new URL(url),
+		getClientAddress: () => clientAddress
 	};
 }
 
@@ -68,6 +76,21 @@ describe('/api/scheduled authority contract', () => {
 			await rm(testSpawnerDir, { recursive: true, force: true });
 		}
 		testSpawnerDir = null;
+	});
+
+	it('allows local schedule reads without opening schedule mutations', async () => {
+		const localRead = await GET(unauthenticatedEvent('http://127.0.0.1:3333/api/scheduled') as never);
+		expect(localRead.status).toBe(200);
+
+		const nonLocalRead = await GET(
+			unauthenticatedEvent('https://spawner.example.com/api/scheduled', 'GET', '203.0.113.10') as never
+		);
+		expect(nonLocalRead.status).toBe(401);
+
+		const localCreate = await POST(
+			unauthenticatedEvent('http://127.0.0.1:3333/api/scheduled', 'POST') as never
+		);
+		expect(localCreate.status).toBe(401);
 	});
 
 	it('blocks schedule creation without Harness authority', async () => {

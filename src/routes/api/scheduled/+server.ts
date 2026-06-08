@@ -25,20 +25,20 @@ if (!building && process.env.NODE_ENV !== 'test') {
   startScheduler();
 }
 
-function scheduledAuth(event: RequestEvent) {
+function scheduledAuth(event: RequestEvent, allowLoopbackWithoutKey = false) {
   return requireControlAuth(event, {
     surface: 'Scheduled',
     apiKeyEnvVar: 'EVENTS_API_KEY',
     fallbackApiKeyEnvVar: 'MCP_API_KEY',
     apiKeyQueryParam: 'apiKey',
     apiKeyCookieName: 'spawner_events_api_key',
-    allowLoopbackWithoutKey: false,
+    allowLoopbackWithoutKey,
     allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
   });
 }
 
 export const GET: RequestHandler = async (event) => {
-  const unauthorized = scheduledAuth(event);
+  const unauthorized = scheduledAuth(event, true);
   if (unauthorized) return unauthorized;
   const schedules = await listSchedules();
   return json({ ok: true, schedules });
