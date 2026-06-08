@@ -19,6 +19,7 @@ import {
 	hostedUiPathWithoutAuthQuery,
 	hostedUiCookieOptions,
 	consumeHostedUiPairingCode,
+	hostedUiShouldAutoPersistLocalOperatorSession,
 	persistHostedUiAuth,
 	recordHostedUiAuthFailure,
 	resetHostedUiAuthRateLimits,
@@ -142,6 +143,52 @@ describe('hosted UI auth', () => {
 		expect(hostedUiRequestHasExplicitToken(new Request('https://x.test/?uiKey=query-key'), new URL('https://x.test/?uiKey=query-key'))).toBe(false);
 		expect(hostedUiRequestHasExplicitToken(new Request('https://x.test/?apiKey=query-key'), new URL('https://x.test/?apiKey=query-key'))).toBe(false);
 		expect(hostedUiRequestHasExplicitToken(new Request('https://x.test/', { headers: { cookie: 'spawner_ui_api_key=cookie-key' } }), new URL('https://x.test/'))).toBe(false);
+	});
+
+	it('auto-persists local operator sessions only for loopback HTML reads without a workspace', () => {
+		const localEnv = { SPARK_UI_API_KEY: 'ui-key' };
+		expect(
+			hostedUiShouldAutoPersistLocalOperatorSession(
+				new Request('http://127.0.0.1:3333/kanban', { headers: { accept: 'text/html' } }),
+				new URL('http://127.0.0.1:3333/kanban'),
+				localEnv
+			)
+		).toBe(true);
+		expect(
+			hostedUiShouldAutoPersistLocalOperatorSession(
+				new Request('http://127.0.0.1:3333/api/mission-control/board', { headers: { accept: 'application/json' } }),
+				new URL('http://127.0.0.1:3333/api/mission-control/board'),
+				localEnv
+			)
+		).toBe(false);
+		expect(
+			hostedUiShouldAutoPersistLocalOperatorSession(
+				new Request('http://127.0.0.1:3333/kanban', { method: 'POST', headers: { accept: 'text/html' } }),
+				new URL('http://127.0.0.1:3333/kanban'),
+				localEnv
+			)
+		).toBe(false);
+		expect(
+			hostedUiShouldAutoPersistLocalOperatorSession(
+				new Request('http://192.168.1.20:3333/kanban', { headers: { accept: 'text/html' } }),
+				new URL('http://192.168.1.20:3333/kanban'),
+				localEnv
+			)
+		).toBe(false);
+		expect(
+			hostedUiShouldAutoPersistLocalOperatorSession(
+				new Request('https://spawner.example.com/kanban', { headers: { accept: 'text/html' } }),
+				new URL('https://spawner.example.com/kanban'),
+				{ SPARK_UI_API_KEY: 'ui-key', SPARK_WORKSPACE_ID: 'private-workspace' }
+			)
+		).toBe(false);
+		expect(
+			hostedUiShouldAutoPersistLocalOperatorSession(
+				new Request('http://127.0.0.1:3333/kanban', { headers: { accept: 'text/html' } }),
+				new URL('http://127.0.0.1:3333/kanban'),
+				{}
+			)
+		).toBe(false);
 	});
 
 	it('allows a configured hosted UI pairing code once', () => {

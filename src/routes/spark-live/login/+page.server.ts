@@ -7,7 +7,8 @@ import {
 	hostedUiAuthClientKey,
 	hostedUiAuthRateLimitStatus,
 	persistHostedUiAuth,
-	recordHostedUiAuthFailure
+	recordHostedUiAuthFailure,
+	hostedUiWorkspaceId
 } from '$lib/server/hosted-ui-auth';
 
 function safeNext(value: FormDataEntryValue | string | null): string {
@@ -18,7 +19,8 @@ function safeNext(value: FormDataEntryValue | string | null): string {
 
 export const load: PageServerLoad = ({ url }) => {
 	return {
-		next: safeNext(url.searchParams.get('next'))
+		next: safeNext(url.searchParams.get('next')),
+		workspaceRequired: Boolean(hostedUiWorkspaceId(env))
 	};
 };
 

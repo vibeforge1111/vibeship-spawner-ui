@@ -24,6 +24,7 @@ const EXEMPT_EXACT_PATHS = new Set(['/robots.txt', '/spark-live/login', '/api/he
 const EXEMPT_PATH_PREFIXES = ['/_app/', '/favicon'];
 const RELEASE_LOCK_PUBLIC_EXACT_PATHS = new Set(['/', '/api/health/live']);
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+const LOOPBACK_BROWSER_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
 const BASE_COOKIE_OPTIONS = {
 	httpOnly: true,
 	sameSite: 'strict' as const,
@@ -181,6 +182,17 @@ export function hostedUiCrossSiteMutationRejection(request: Request, url: URL): 
 export function hostedUiWorkspaceId(env: HostedUiAuthEnv): string | null {
 	const value = env.SPARK_WORKSPACE_ID?.trim();
 	return value || null;
+}
+
+export function hostedUiShouldAutoPersistLocalOperatorSession(
+	request: Request,
+	url: URL,
+	env: HostedUiAuthEnv
+): boolean {
+	if (!hostedUiAuthEnabled(env) || hostedUiLooksHosted(env) || hostedUiWorkspaceId(env)) return false;
+	if (request.method.toUpperCase() !== 'GET') return false;
+	if (!request.headers.get('accept')?.includes('text/html')) return false;
+	return LOOPBACK_BROWSER_HOSTS.has(url.hostname.toLowerCase());
 }
 
 export function hostedUiAuthClientKey(request: Request): string {
