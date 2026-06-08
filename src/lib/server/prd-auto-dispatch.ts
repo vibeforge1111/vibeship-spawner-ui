@@ -394,11 +394,7 @@ export async function autoDispatchPrdCanvasLoad(
 		if (!allowed.ok) {
 			return { started: false, skipped: true, reason: allowed.reason, missionId: load.missionId };
 		}
-		const executionAuthority = resolveExecutionAuthority(
-			load.executionAuthority,
-			load.relay?.executionAuthority,
-			load.metadata?.executionAuthority
-		);
+		const executionAuthority = resolveExecutionAuthority(load.executionAuthority);
 		const authority = assertNativeGovernorHarnessAuthority({
 			authority: executionAuthority,
 			toolName: 'spawner.dispatch',

@@ -98,6 +98,29 @@ describe('/api/dispatch authority contract', () => {
 		expect(dispatch).not.toHaveBeenCalled();
 	});
 
+	it('does not replay nested relay or execution-pack authority for provider dispatch', async () => {
+		const dispatch = vi.mocked(providerRuntime.dispatch);
+		dispatch.mockClear();
+		const nestedAuthority = buildClientGovernorDecisionAuthority({
+			source: 'dispatch-nested-authority-test',
+			reason: 'Nested relay authority should remain evidence only.',
+			toolName: 'spawner.dispatch',
+			mutationClass: 'launches_mission',
+			target: executionPack.missionId
+		});
+
+		const response = await POST(event({
+			executionPack: { ...executionPack, executionAuthority: nestedAuthority },
+			relay: { executionAuthority: nestedAuthority }
+		}) as never);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
+		expect(dispatch).not.toHaveBeenCalled();
+	});
+
 	it('blocks legacy machine-origin policy for provider dispatch', async () => {
 		const dispatch = vi.mocked(providerRuntime.dispatch);
 		dispatch.mockClear();

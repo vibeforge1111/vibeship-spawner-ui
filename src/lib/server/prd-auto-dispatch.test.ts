@@ -183,6 +183,23 @@ describe('PRD auto-dispatch helpers', () => {
 		expect(result.error).toContain('missing_harness_authority');
 	});
 
+	it('does not replay nested relay or metadata authority for PRD auto-dispatch', async () => {
+		const nestedAuthority = governorAuthority();
+		const result = await autoDispatchPrdCanvasLoad({
+			...load,
+			relay: {
+				autoRun: true,
+				executionAuthority: nestedAuthority
+			},
+			metadata: {
+				executionAuthority: nestedAuthority
+			}
+		});
+
+		expect(result.started).toBe(false);
+		expect(result.error).toContain('missing_harness_authority');
+	});
+
 	it('rejects legacy machine-origin policy for PRD auto-dispatch', async () => {
 		const result = await autoDispatchPrdCanvasLoad({
 			...load,
