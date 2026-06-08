@@ -6,7 +6,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { missionsState, loadMissions, startMission as startCurrent, setCurrentMission, deleteMission } from '$lib/stores/missions.svelte';
+	import { missionsState, loadMissions, deleteMission } from '$lib/stores/missions.svelte';
 	import { mcpState } from '$lib/stores/mcp.svelte';
 	import { initPipelines, pipelines } from '$lib/stores/pipelines.svelte';
 	import type { Mission } from '$lib/services/mcp-client';
@@ -586,15 +586,6 @@
 		if (title === 'To do')       return 'bg-text-tertiary';
 		if (title === 'In progress') return 'bg-accent-primary';
 		return 'bg-status-success';
-	}
-
-	async function handleStart(card: BoardCard) {
-		if (card.source !== 'mcp') return;
-		const m = missions.find((x) => x.id === card.id);
-		if (!m) return;
-		setCurrentMission(m);
-		await startCurrent();
-		await loadMissions({ limit: 200 });
 	}
 
 	let creatorRunMissionId = $state<string | null>(null);
@@ -1185,14 +1176,6 @@
 												Failure
 											</a>
 											{/if}
-										{/if}
-										{#if c.source === 'mcp' && (c.status === 'ready' || c.status === 'draft')}
-											<button
-												onclick={() => handleStart(c)}
-												class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all"
-											>
-												Start
-											</button>
 										{/if}
 										{#if c.source === 'mcp'}
 											<button

@@ -8,8 +8,6 @@
 		missionsState,
 		loadMission,
 		loadMissionLogs,
-		startMission,
-		completeMission,
 		startLogPolling,
 		stopLogPolling,
 		generateClaudeCodePrompt,
@@ -93,8 +91,6 @@
 	let missionControl = $state<MissionControlSnapshot | null>(null);
 	let missionTrace = $state<MissionTraceSnapshot | null>(null);
 	let missionControlPoller: ReturnType<typeof setInterval> | null = null;
-	let missionControlActionLoading = $state(false);
-	let missionControlActionMessage = $state<string | null>(null);
 
 	$effect(() => {
 		const unsub = page.subscribe((p) => {
@@ -126,37 +122,6 @@
 			missionControlError = error instanceof Error ? error.message : 'Unable to load mission control status';
 		} finally {
 			missionControlLoading = false;
-		}
-	}
-
-	async function executeMissionControlAction(action: 'pause' | 'resume' | 'kill'): Promise<void> {
-		if (!missionId) return;
-		missionControlActionLoading = true;
-		missionControlActionMessage = null;
-		missionControlError = null;
-		try {
-			const response = await fetch('/api/mission-control/command', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					missionId,
-					action,
-					source: `mission-detail.${action}`
-				})
-			});
-			const body = await response.json().catch(() => ({}));
-			if (!response.ok || !body?.ok) {
-				throw new Error(body?.error || `Action failed (${response.status})`);
-			}
-
-			missionControlActionMessage = body?.message || `Mission ${action} executed.`;
-			await loadMissionControlStatus();
-			await loadMissionLogs(missionId);
-			await loadMission(missionId);
-		} catch (error) {
-			missionControlError = error instanceof Error ? error.message : 'Mission control action failed';
-		} finally {
-			missionControlActionLoading = false;
 		}
 	}
 
@@ -260,17 +225,6 @@
 	function formatDate(dateStr: string): string {
 		const date = new Date(dateStr);
 		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-	}
-
-	async function handleStart() {
-		const success = await startMission();
-		if (success) {
-			startLogPolling(missionId);
-		}
-	}
-
-	async function handleComplete() {
-		await completeMission();
 	}
 
 	function copyPrompt() {
@@ -804,22 +758,6 @@
 					<div class="border border-surface-border bg-bg-secondary p-4">
 						<h3 class="font-medium text-text-primary mb-4">Actions</h3>
 						<div class="space-y-2">
-							{#if mission.status === 'draft' || mission.status === 'ready'}
-								<button
-									onclick={handleStart}
-									class="w-full px-4 py-2 font-mono text-sm bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all"
-								>
-									Start Mission
-								</button>
-							{/if}
-							{#if mission.status === 'running'}
-								<button
-									onclick={handleComplete}
-									class="w-full px-4 py-2 font-mono text-sm bg-green-500 text-bg-primary hover:bg-green-400 transition-all"
-								>
-									Mark Complete
-								</button>
-							{/if}
 							<button
 								onclick={() => showPrompt = !showPrompt}
 								class="w-full px-4 py-2 font-mono text-sm text-text-secondary border border-surface-border hover:border-text-tertiary transition-all"
@@ -840,34 +778,6 @@
 								Refresh
 							</button>
 						</div>
-
-						<div class="grid grid-cols-3 gap-2 mb-3">
-							<button
-								onclick={() => executeMissionControlAction('pause')}
-								disabled={missionControlActionLoading || mission.status !== 'running'}
-								class="px-2 py-1 text-xs font-mono border border-surface-border text-text-secondary hover:border-blue-400 disabled:opacity-40 disabled:cursor-not-allowed"
-							>
-								Pause
-							</button>
-							<button
-								onclick={() => executeMissionControlAction('resume')}
-								disabled={missionControlActionLoading || mission.status !== 'paused'}
-								class="px-2 py-1 text-xs font-mono border border-surface-border text-text-secondary hover:border-green-400 disabled:opacity-40 disabled:cursor-not-allowed"
-							>
-								Resume
-							</button>
-							<button
-								onclick={() => executeMissionControlAction('kill')}
-								disabled={missionControlActionLoading || !(mission.status === 'running' || mission.status === 'paused')}
-								class="px-2 py-1 text-xs font-mono border border-red-500/40 text-red-400 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
-							>
-								Kill
-							</button>
-						</div>
-
-						{#if missionControlActionMessage}
-							<p class="text-xs font-mono text-green-400 mb-2">{missionControlActionMessage}</p>
-						{/if}
 
 						{#if missionControlLoading && !missionControl}
 							<p class="text-xs font-mono text-text-tertiary">Loading mission control telemetry...</p>

@@ -173,10 +173,11 @@ export async function sanitizePrdAnalysisResultForTier(
 	const metadataRecord = validated.metadata && typeof validated.metadata === 'object' && !Array.isArray(validated.metadata)
 		? stripAuthorityResidue(validated.metadata as Record<string, unknown>)
 		: {};
+	const rootRecord = stripAuthorityResidue(validated);
 
 	return {
 		result: {
-			...validated,
+			...rootRecord,
 			tasks,
 			skills,
 			metadata: {
@@ -211,7 +212,8 @@ export function projectStoredPrdAnalysisResult(requestId: string, result: unknow
 	const validated = validatePrdAnalysisResult(requestId, result) as ValidPrdAnalysisResult & {
 		metadata?: unknown;
 	};
-	const { executionPrompt: _executionPrompt, metadata, ...rest } = validated;
+	const { executionPrompt: _executionPrompt, metadata, ...rawRest } = validated;
+	const rest = stripAuthorityResidue(rawRest);
 	const metadataRecord = metadata && typeof metadata === 'object' && !Array.isArray(metadata)
 		? stripAuthorityResidue(metadata as Record<string, unknown>)
 		: {};

@@ -14,6 +14,10 @@ describe('PRD analysis result storage projection', () => {
 			tasks: [{ id: 'task-1', title: 'Build proof page' }],
 			skills: [],
 			executionPrompt: 'Raw execution instructions must not be stored.',
+			executionAuthority: { schema_version: 'governor-decision-v1' },
+			execution_authority: { schema_version: 'governor-decision-v1' },
+			governorDecision: { schema_version: 'governor-decision-v1' },
+			governor_decision: { schema_version: 'governor-decision-v1' },
 			metadata: {
 				executionPrompt: 'Nested raw instructions must not be stored either.',
 				executionAuthority: { schema_version: 'governor-decision-v1' },
@@ -45,7 +49,9 @@ describe('PRD analysis result storage projection', () => {
 		});
 		expect(JSON.stringify(stored)).not.toContain('executionPrompt');
 		expect(JSON.stringify(stored)).not.toContain('executionAuthority');
+		expect(JSON.stringify(stored)).not.toContain('execution_authority');
 		expect(JSON.stringify(stored)).not.toContain('governorDecision');
+		expect(JSON.stringify(stored)).not.toContain('governor_decision');
 		expect(JSON.stringify(stored)).not.toContain('Raw execution instructions');
 		expect(JSON.stringify(stored)).not.toContain('Nested raw instructions');
 	});
@@ -151,6 +157,7 @@ describe('PRD analysis result storage projection', () => {
 				}
 			],
 			skills: ['frontend-engineer', 'qa-engineering', 'threejs-3d-graphics'],
+			executionAuthority: { schema_version: 'governor-decision-v1' },
 			metadata: {
 				kept: true,
 				executionAuthority: { schema_version: 'governor-decision-v1' }
@@ -168,7 +175,8 @@ describe('PRD analysis result storage projection', () => {
 				tier: 'base'
 			}
 		});
-		expect(JSON.stringify(sanitized.result.metadata)).not.toContain('executionAuthority');
+		expect(JSON.stringify(sanitized.result)).not.toContain('executionAuthority');
+		expect(JSON.stringify(projectStoredPrdAnalysisResult('request-base', sanitized.result))).not.toContain('executionAuthority');
 	});
 
 	it('preserves pro skills for pro-tier PRD analysis results', async () => {

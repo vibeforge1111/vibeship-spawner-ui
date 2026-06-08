@@ -9,7 +9,6 @@
 		createMission,
 		loadMission,
 		updateMission,
-		startMission,
 		deleteMission,
 		setCurrentMission,
 		startLogPolling,
@@ -111,10 +110,6 @@
 			missionDescription = '';
 			tasks = [];
 		}
-	}
-
-	async function handleStartMission() {
-		await startMission();
 	}
 
 	async function handleDeleteMission(missionId: string) {
@@ -281,17 +276,6 @@
 						</div>
 						<!-- Actions -->
 						<div class="flex gap-2 pt-4 border-t border-zinc-700">
-							{#if $currentMission.status === 'draft'}
-								<button
-									type="button"
-									class="flex-1 py-2 bg-green-600 hover:bg-green-500 rounded-lg text-sm font-medium transition-colors"
-									onclick={handleStartMission}
-									disabled={$isLoading}
-								>
-									Start Mission
-								</button>
-							{/if}
-
 							<button
 								type="button"
 								class="flex-1 py-2 bg-violet-600 hover:bg-violet-500 rounded-lg text-sm font-medium transition-colors"

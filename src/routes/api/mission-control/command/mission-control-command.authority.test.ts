@@ -69,7 +69,7 @@ describe('/api/mission-control/command authority contract', () => {
 		expect(body.authority.reasonCodes).toContain('native_governor_required');
 	});
 
-	it('derives server Governor authority for authenticated Spawner UI mission-detail actions', async () => {
+	it('does not derive Governor authority from authenticated Spawner UI mission-detail source strings', async () => {
 		const response = await POST(
 			event({
 				missionId: 'mission-command-route-ui-action',
@@ -78,9 +78,9 @@ describe('/api/mission-control/command authority contract', () => {
 			}) as never
 		);
 
-		expect(response.status).toBe(200);
+		expect(response.status).toBe(409);
 		const body = await response.json();
-		expect(body.ok).toBe(false);
-		expect(body.error).toContain('was not found');
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
 	});
 });

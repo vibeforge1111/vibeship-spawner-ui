@@ -126,7 +126,7 @@ export interface Mission {
   context: MissionContext;
 
   // Execution state (updated during run)
-  status: 'draft' | 'ready' | 'running' | 'paused' | 'completed' | 'failed';
+  status: 'draft' | 'ready' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
   currentTaskId?: string;
   log: MissionLogEntry[];
 

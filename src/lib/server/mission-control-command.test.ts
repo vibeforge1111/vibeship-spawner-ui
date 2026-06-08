@@ -217,16 +217,10 @@ describe('mission-control-command parser', () => {
 		expect(status.snapshotAvailable).toBe(false);
 	});
 
-	it('marks killed board-visible missions as cancelled rather than failed', async () => {
+	it('marks killed board-visible missions as cancelled without legacy MCP fail execution', async () => {
 		const missionId = 'mission-command-cancelled';
-		const failMission = vi.spyOn(mcpClient, 'failMission').mockResolvedValue({
-			success: true,
-			data: {
-				success: true,
-				mission: missionRecord(missionId),
-				_instruction: ''
-			}
-		});
+		const failMission = vi.spyOn(mcpClient, 'failMission');
+		const updateMission = vi.spyOn(mcpClient, 'updateMission').mockResolvedValue({ success: true });
 
 		await relayMissionControlEvent({
 			type: 'mission_created',
@@ -245,7 +239,39 @@ describe('mission-control-command parser', () => {
 		expect(result.ok).toBe(true);
 		expect(result.message).toContain('cancelled');
 		expect(result.authority).toMatchObject({ source: 'governor_decision' });
-		expect(failMission).toHaveBeenCalledWith(missionId, 'Mission cancelled from mission control');
+		expect(failMission).not.toHaveBeenCalled();
+		expect(updateMission).toHaveBeenCalledWith(missionId, expect.objectContaining({ status: 'cancelled' }));
+	});
+
+	it('syncs governed resume through status update rather than legacy MCP start execution', async () => {
+		const missionId = 'mission-command-resume-sync';
+		const startMission = vi.spyOn(mcpClient, 'startMission');
+		const updateMission = vi.spyOn(mcpClient, 'updateMission').mockResolvedValue({ success: true });
+		const resumeMission = vi.spyOn(providerRuntime, 'resumeMission').mockResolvedValue({
+			resumed: true,
+			reason: 'Mission resumed'
+		});
+
+		await relayMissionControlEvent({
+			type: 'mission_paused',
+			missionId,
+			missionName: 'Resume Me',
+			source: 'spawner-ui'
+		});
+
+		const result = await executeMissionControlAction({
+			action: 'resume',
+			missionId,
+			source: 'spawner-ui',
+			executionAuthority: missionControlAuthority()
+		});
+
+		expect(result.ok).toBe(true);
+		expect(result.message).toContain('resume command executed');
+		expect(result.authority).toMatchObject({ source: 'governor_decision' });
+		expect(resumeMission).toHaveBeenCalledWith(missionId, expect.any(Function), expect.any(Object), undefined);
+		expect(startMission).not.toHaveBeenCalled();
+		expect(updateMission).toHaveBeenCalledWith(missionId, expect.objectContaining({ status: 'running' }));
 	});
 
 	it('syncs active mission status through a temp-and-rename write', async () => {

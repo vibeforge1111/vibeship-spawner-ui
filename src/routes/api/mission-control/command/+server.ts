@@ -5,7 +5,7 @@ import {
 	isMissionControlAction
 } from '$lib/server/mission-control-command';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
-import { HarnessAuthorityError, buildServerGovernorDecisionAuthority } from '$lib/server/harness-authority';
+import { HarnessAuthorityError } from '$lib/server/harness-authority';
 
 export const POST: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
@@ -39,18 +39,7 @@ export const POST: RequestHandler = async (event) => {
 			return json({ ok: false, error: 'action must be pause|resume|kill|status' }, { status: 400 });
 		}
 
-		const executionAuthority = body.executionAuthority ?? (
-			source.startsWith('mission-detail.')
-				? buildServerGovernorDecisionAuthority({
-						source,
-						reason: 'Authenticated Spawner UI mission-control action.',
-						toolName: 'spawner.mission_control.command',
-						mutationClass: 'controls_mission',
-						target: missionId,
-						requestId: `spawner-ui-${action}-${missionId}`
-					})
-				: undefined
-		);
+		const executionAuthority = body.executionAuthority;
 		const dispatchAuthority = body.dispatchAuthority ?? body.resumeDispatchAuthority;
 		const result = await executeMissionControlAction({ missionId, action, source, executionAuthority, dispatchAuthority });
 		return json(result);

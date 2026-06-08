@@ -93,11 +93,17 @@ async function syncMissionRecord(
 ): Promise<void> {
 	try {
 		if (action === 'resume') {
-			await mcpClient.startMission(missionId);
+			await mcpClient.updateMission(missionId, {
+				status: 'running',
+				outputs: { mission_control: { resumedAt: new Date().toISOString(), note: message } }
+			});
 			return;
 		}
 		if (action === 'kill') {
-			await mcpClient.failMission(missionId, message || 'Mission killed via mission control');
+			await mcpClient.updateMission(missionId, {
+				status: 'cancelled',
+				outputs: { mission_control: { cancelledAt: new Date().toISOString(), note: message || 'Mission killed via mission control' } }
+			});
 			return;
 		}
 		if (action === 'pause') {
