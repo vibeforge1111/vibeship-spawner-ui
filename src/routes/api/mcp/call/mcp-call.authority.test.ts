@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const PRIVATE_ENV = vi.hoisted((): Record<string, string | undefined> => ({
+	MCP_API_KEY: 'mcp-test-secret',
+	MCP_ALLOWED_ORIGINS: ''
+}));
+
+vi.mock('$env/dynamic/private', () => ({ env: PRIVATE_ENV }));
+
 vi.mock('$lib/services/mcp/client', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('$lib/services/mcp/client')>();
 	return {
@@ -20,7 +27,7 @@ function event(body: unknown) {
 	return {
 		request: new Request('http://127.0.0.1/api/mcp/call', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json' },
+			headers: { 'content-type': 'application/json', 'x-api-key': 'mcp-test-secret' },
 			body: JSON.stringify(body)
 		}),
 		url: new URL('http://127.0.0.1/api/mcp/call'),
@@ -41,10 +48,26 @@ function callAuthority() {
 
 describe('/api/mcp/call authority contract', () => {
 	beforeEach(() => {
+		PRIVATE_ENV.MCP_API_KEY = 'mcp-test-secret';
 		vi.mocked(isConnected).mockReset();
 		vi.mocked(isConnected).mockReturnValue(true);
 		vi.mocked(callTool).mockReset();
 		vi.mocked(callTool).mockResolvedValue({ content: [{ type: 'text', text: 'ok' }] });
+	});
+
+	it('requires an MCP API key even for loopback tool calls', async () => {
+		const response = await POST({
+			request: new Request('http://127.0.0.1/api/mcp/call', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ instanceId: 'filesystem', toolName: 'ping', args: {} })
+			}),
+			url: new URL('http://127.0.0.1/api/mcp/call'),
+			getClientAddress: () => '127.0.0.1'
+		} as never);
+
+		expect(response.status).toBe(401);
+		expect(callTool).not.toHaveBeenCalled();
 	});
 
 	it('blocks MCP tool calls without Harness Core authority', async () => {

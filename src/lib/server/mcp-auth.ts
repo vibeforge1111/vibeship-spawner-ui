@@ -154,7 +154,7 @@ export interface RateLimitOptions {
 }
 
 export function requireControlAuth(event: RequestEvent, options: ControlAuthOptions): Response | null {
-	const allowLoopback = options.allowLoopbackWithoutKey !== false;
+	const allowLoopback = options.allowLoopbackWithoutKey === true;
 	const configuredKey = [
 		options.apiKeyEnvVar,
 		options.fallbackApiKeyEnvVar,
@@ -247,13 +247,13 @@ function isLoopbackRequest(event: RequestEvent): boolean {
 }
 
 /**
- * Guard MCP routes with either a configured API key or localhost-only access.
+ * Guard MCP routes with an API key or authenticated hosted UI session.
  */
 export function requireMcpAuth(event: RequestEvent): Response | null {
 	return requireControlAuth(event, {
 		surface: 'MCP',
 		apiKeyEnvVar: 'MCP_API_KEY',
-		allowLoopbackWithoutKey: true,
+		allowLoopbackWithoutKey: false,
 		allowedOriginsEnvVar: 'MCP_ALLOWED_ORIGINS'
 	});
 }

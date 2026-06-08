@@ -3,11 +3,13 @@ import {
 	createHarnessCoreActionEnvelopeVNext,
 	createHarnessCoreAuthorizedGovernorDecision,
 	safeHarnessCoreId,
+	signHarnessCoreGovernorDecision,
 	verifyHarnessCoreGovernorToolAuthority,
 	type GovernorDecisionV1,
 	type HarnessCoreActionMutationClass,
 	type TurnIntentEnvelopeVNext
 } from '@spark/harness-core';
+import { env as privateEnv } from '$env/dynamic/private';
 
 export type SparkMutationClass = HarnessCoreActionMutationClass;
 export type SparkServerTurnIntentEnvelopeVNext = TurnIntentEnvelopeVNext;
@@ -73,6 +75,23 @@ function actionRequestId(action: Record<string, unknown>): string {
 
 function expectedCapabilityId(input: HarnessAuthorityInput): string {
 	return safeHarnessCoreId('capability', `${input.ownerSystem}:${input.toolName}`);
+}
+
+function governorHmacKey(): string {
+	return (privateEnv.SPARK_GOVERNOR_HMAC_KEY || process.env.SPARK_GOVERNOR_HMAC_KEY || '').trim();
+}
+
+function governorHmacKeyId(): string {
+	return (privateEnv.SPARK_GOVERNOR_HMAC_KEY_ID || process.env.SPARK_GOVERNOR_HMAC_KEY_ID || '').trim() || 'local';
+}
+
+function signGovernorDecisionIfConfigured<T extends GovernorDecisionV1>(decision: T): T {
+	const key = governorHmacKey();
+	if (!key) return decision;
+	return signHarnessCoreGovernorDecision(decision, {
+		key,
+		key_id: governorHmacKeyId()
+	});
 }
 
 function turnIntentVerdict(authority: Record<string, unknown>, input: HarnessAuthorityInput): HarnessAuthorityVerdict {
@@ -218,12 +237,16 @@ function governorDecisionVerdict(authority: Record<string, unknown>, input: Harn
 		reasonCodes.push(...envelopeVerdict.reasonCodes);
 	}
 	if (authority.schema_version === 'governor-decision-v1') {
+		const hmacKey = governorHmacKey();
 		const verification = verifyHarnessCoreGovernorToolAuthority({
 			governor_decision: authority as unknown as GovernorDecisionV1,
 			tool_name: input.toolName,
 			owner_system: input.ownerSystem,
 			action_type: expectedActionType,
-			allow_read_only: input.mutationClass === 'none' || input.mutationClass === 'read_only'
+			allow_read_only: input.mutationClass === 'none' || input.mutationClass === 'read_only',
+			governor_hmac_key: hmacKey || null,
+			governor_hmac_key_id: hmacKey ? governorHmacKeyId() : null,
+			require_signature: Boolean(hmacKey)
 		});
 		reasonCodes.push(...verification.reason_codes);
 	}
@@ -327,7 +350,7 @@ export function buildServerGovernorDecisionAuthority(input: {
 		...input,
 		actorKind: 'human'
 	});
-	return createHarnessCoreAuthorizedGovernorDecision({
+	return signGovernorDecisionIfConfigured(createHarnessCoreAuthorizedGovernorDecision({
 		envelope,
 		tool_name: input.toolName,
 		restrictions: {
@@ -336,7 +359,7 @@ export function buildServerGovernorDecisionAuthority(input: {
 			publish_allowed: input.publishes === true
 		},
 		reply_instruction: input.replyInstruction
-	});
+	}));
 }
 
 export function assertHarnessAuthority(input: HarnessAuthorityInput): HarnessAuthorityVerdict {
