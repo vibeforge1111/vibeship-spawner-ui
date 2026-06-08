@@ -8,7 +8,8 @@ import {
 	hostedUiAuthRateLimitStatus,
 	persistHostedUiAuth,
 	recordHostedUiAuthFailure,
-	hostedUiWorkspaceId
+	hostedUiWorkspaceId,
+	hostedUiShouldAutoPersistLocalOperatorSession
 } from '$lib/server/hosted-ui-auth';
 
 function safeNext(value: FormDataEntryValue | string | null): string {
@@ -17,9 +18,15 @@ function safeNext(value: FormDataEntryValue | string | null): string {
 	return raw;
 }
 
-export const load: PageServerLoad = ({ url }) => {
+export const load: PageServerLoad = ({ cookies, request, url }) => {
+	const next = safeNext(url.searchParams.get('next'));
+	if (hostedUiShouldAutoPersistLocalOperatorSession(request, url, env)) {
+		persistHostedUiAuth(cookies, env);
+		throw redirect(303, next);
+	}
+
 	return {
-		next: safeNext(url.searchParams.get('next')),
+		next,
 		workspaceRequired: Boolean(hostedUiWorkspaceId(env))
 	};
 };
