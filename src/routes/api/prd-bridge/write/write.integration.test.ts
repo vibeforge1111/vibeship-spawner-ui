@@ -29,6 +29,8 @@ let testSpawnerDir: string;
 const originalProvider = process.env.SPARK_MISSION_LLM_PROVIDER;
 const originalAutoProvider = process.env.SPAWNER_PRD_AUTO_PROVIDER;
 const originalStateDir = process.env.SPAWNER_STATE_DIR;
+const originalWorkspaceRoot = process.env.SPARK_WORKSPACE_ROOT;
+const originalAllowExternalProjectPaths = process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
 const BRIDGE_TEST_KEY = 'bridge-test-key';
 const originalBridgeKey = process.env.SPARK_BRIDGE_API_KEY;
 
@@ -66,6 +68,10 @@ async function resetTestSpawnerDir() {
 	else process.env.SPAWNER_PRD_AUTO_PROVIDER = originalAutoProvider;
 	if (originalBridgeKey === undefined) delete process.env.SPARK_BRIDGE_API_KEY;
 	else process.env.SPARK_BRIDGE_API_KEY = originalBridgeKey;
+	if (originalWorkspaceRoot === undefined) delete process.env.SPARK_WORKSPACE_ROOT;
+	else process.env.SPARK_WORKSPACE_ROOT = originalWorkspaceRoot;
+	if (originalAllowExternalProjectPaths === undefined) delete process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
+	else process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS = originalAllowExternalProjectPaths;
 }
 
 async function waitForPendingAutoAnalysisStatus(status: string) {
@@ -296,6 +302,8 @@ describe('/api/prd-bridge/write integration', () => {
 
 	it('persists Codex auto-analysis watchdog state and relays timeout as mission failure', async () => {
 		process.env.SPAWNER_PRD_AUTO_PROVIDER = 'codex';
+		process.env.SPARK_WORKSPACE_ROOT = path.join(testSpawnerDir, 'workspaces');
+		delete process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
 		executeProviderTaskMock.mockReturnValue(new Promise(() => undefined));
 		const requestId = 'tg-build-codex-timeout-1780929999999';
 		const traceRef = 'trace:spawner-prd:mission-1780929999999';
@@ -324,12 +332,16 @@ describe('/api/prd-bridge/write integration', () => {
 		expect(response.status).toBe(200);
 		expect(body.autoAnalysis).toMatchObject({ provider: 'codex', started: true });
 		expect(executeProviderTaskMock).toHaveBeenCalledOnce();
-		const providerCall = executeProviderTaskMock.mock.calls[0]?.[0] as { prompt?: string };
+		const providerCall = executeProviderTaskMock.mock.calls[0]?.[0] as { prompt?: string; workingDirectory?: string };
 		expect(providerCall.prompt).toContain('$SparkEventsApiKey = $env:EVENTS_API_KEY');
 		expect(providerCall.prompt).toContain('$env:MCP_API_KEY');
 		expect(providerCall.prompt).toContain('$SparkEventsHeaders["x-api-key"] = $SparkEventsApiKey');
 		expect(providerCall.prompt).toContain('Use -Headers $SparkEventsHeaders');
 		expect(providerCall.prompt).toContain('Do not print, log, write, or include $SparkEventsApiKey');
+		expect(providerCall.workingDirectory).toBe(
+			path.join(testSpawnerDir, 'workspaces', 'prd-auto-analysis', requestId)
+		);
+		expect(providerCall.workingDirectory).not.toContain(`${path.sep}modules${path.sep}spawner-ui${path.sep}source`);
 
 		const pendingStarted = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
 		expect(pendingStarted.status).toBe('pending');
@@ -364,6 +376,11 @@ describe('/api/prd-bridge/write integration', () => {
 			.trim()
 			.split('\n')
 			.map((line) => JSON.parse(line));
+		expect(traceRows.find((row) => row.event === 'auto_worker_dispatch')).toMatchObject({
+			requestId,
+			traceRef,
+			workingDirectory: path.join(testSpawnerDir, 'workspaces', 'prd-auto-analysis', requestId)
+		});
 		expect(traceRows.find((row) => row.event === 'watchdog_timeout')).toMatchObject({
 			requestId,
 			traceRef,

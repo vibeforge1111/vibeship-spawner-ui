@@ -32,7 +32,7 @@ function postEvent(url: string, body: unknown) {
 	return {
 		request: new Request(url, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 			body: JSON.stringify(body)
 		}),
 		url: new URL(url),

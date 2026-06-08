@@ -21,7 +21,6 @@ import {
 	redirectWithoutAuthQuery,
 	hostedUiRequestPairingCode,
 	hostedUiPathWithoutAuthQuery,
-	hostedUiShouldAutoPersistLocalOperatorSession,
 	hostedUiShouldBypassLocalOperatorAuth,
 	hostedUiIsLocalOperatorLoopbackRequest
 } from '$lib/server/hosted-ui-auth';
@@ -96,10 +95,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const sessionValid = hostedUiSessionIsValid(event.cookies, env);
 	const explicitCredentialsValid = hostedUiCredentialsAreValid(workspaceId, token, env);
 	const pairingCredentialsValid = !sessionValid && consumeHostedUiPairingCode(workspaceId, pairingCode, env);
-	if (!sessionValid && hostedUiShouldAutoPersistLocalOperatorSession(event.request, event.url, env)) {
-		persistHostedUiAuth(event.cookies, env, workspaceId);
-		return secureResponse(await resolve(event));
-	}
 	if (!sessionValid && !explicitCredentialsValid && !pairingCredentialsValid) {
 		const rateLimit = hostedUiAuthRateLimitStatus(clientKey);
 		if (rateLimit.blocked) {

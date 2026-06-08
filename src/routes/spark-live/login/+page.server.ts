@@ -9,7 +9,7 @@ import {
 	persistHostedUiAuth,
 	recordHostedUiAuthFailure,
 	hostedUiWorkspaceId,
-	hostedUiShouldAutoPersistLocalOperatorSession
+	hostedUiIsLocalOperatorLoopbackRequest
 } from '$lib/server/hosted-ui-auth';
 
 function safeNext(value: FormDataEntryValue | string | null): string {
@@ -18,10 +18,9 @@ function safeNext(value: FormDataEntryValue | string | null): string {
 	return raw;
 }
 
-export const load: PageServerLoad = ({ cookies, request, url }) => {
+export const load: PageServerLoad = ({ request, url }) => {
 	const next = safeNext(url.searchParams.get('next'));
-	if (hostedUiShouldAutoPersistLocalOperatorSession(request, url, env)) {
-		persistHostedUiAuth(cookies, env);
+	if (hostedUiIsLocalOperatorLoopbackRequest(request, url)) {
 		throw redirect(303, next);
 	}
 

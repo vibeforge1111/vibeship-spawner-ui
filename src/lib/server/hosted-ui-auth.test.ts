@@ -20,7 +20,6 @@ import {
 	hostedUiCookieOptions,
 	consumeHostedUiPairingCode,
 	hostedUiIsLocalOperatorLoopbackRequest,
-	hostedUiShouldAutoPersistLocalOperatorSession,
 	hostedUiShouldBypassLocalOperatorAuth,
 	persistHostedUiAuth,
 	recordHostedUiAuthFailure,
@@ -147,62 +146,33 @@ describe('hosted UI auth', () => {
 		expect(hostedUiRequestHasExplicitToken(new Request('https://x.test/', { headers: { cookie: 'spawner_ui_api_key=cookie-key' } }), new URL('https://x.test/'))).toBe(false);
 	});
 
-	it('auto-persists local operator sessions for loopback HTML reads even when a workspace is configured', () => {
-		const localEnv = { SPARK_UI_API_KEY: 'ui-key' };
+	it('keeps local operator access as request classification, not browser session auth', () => {
 		expect(
-			hostedUiShouldAutoPersistLocalOperatorSession(
+			hostedUiIsLocalOperatorLoopbackRequest(
 				new Request('http://127.0.0.1:3333/kanban', { headers: { accept: 'text/html' } }),
 				new URL('http://127.0.0.1:3333/kanban'),
-				localEnv
+				'127.0.0.1'
 			)
 		).toBe(true);
 		expect(
-			hostedUiShouldAutoPersistLocalOperatorSession(
-				new Request('http://127.0.0.1:3333/api/mission-control/board', { headers: { accept: 'application/json' } }),
-				new URL('http://127.0.0.1:3333/api/mission-control/board'),
-				localEnv
+			hostedUiIsLocalOperatorLoopbackRequest(
+				new Request('http://0.0.0.0:3333/kanban', { headers: { accept: 'text/html' } }),
+				new URL('http://0.0.0.0:3333/kanban'),
+				'127.0.0.1'
 			)
-		).toBe(false);
+		).toBe(true);
 		expect(
-			hostedUiShouldAutoPersistLocalOperatorSession(
-				new Request('http://127.0.0.1:3333/kanban', { method: 'POST', headers: { accept: 'text/html' } }),
-				new URL('http://127.0.0.1:3333/kanban'),
-				localEnv
-			)
-		).toBe(false);
-		expect(
-			hostedUiShouldAutoPersistLocalOperatorSession(
+			hostedUiIsLocalOperatorLoopbackRequest(
 				new Request('http://192.168.1.20:3333/kanban', { headers: { accept: 'text/html' } }),
 				new URL('http://192.168.1.20:3333/kanban'),
-				localEnv
+				'192.168.1.20'
 			)
 		).toBe(false);
 		expect(
-			hostedUiShouldAutoPersistLocalOperatorSession(
-				new Request('http://127.0.0.1:3333/kanban', { headers: { accept: 'text/html' } }),
-				new URL('http://127.0.0.1:3333/kanban'),
-				{ SPARK_UI_API_KEY: 'ui-key', SPARK_WORKSPACE_ID: 'private-workspace' }
-			)
-		).toBe(true);
-		expect(
-			hostedUiShouldAutoPersistLocalOperatorSession(
+			hostedUiIsLocalOperatorLoopbackRequest(
 				new Request('https://spawner.example.com/kanban', { headers: { accept: 'text/html' } }),
 				new URL('https://spawner.example.com/kanban'),
-				{ SPARK_UI_API_KEY: 'ui-key', SPARK_WORKSPACE_ID: 'private-workspace' }
-			)
-		).toBe(false);
-		expect(
-			hostedUiShouldAutoPersistLocalOperatorSession(
-				new Request('http://127.0.0.1:3333/kanban', { headers: { accept: 'text/html' } }),
-				new URL('http://127.0.0.1:3333/kanban'),
-				{ SPARK_UI_API_KEY: 'ui-key', SPARK_WORKSPACE_ID: 'private-workspace', SPARK_SPAWNER_HOST: '0.0.0.0' }
-			)
-		).toBe(true);
-		expect(
-			hostedUiShouldAutoPersistLocalOperatorSession(
-				new Request('http://127.0.0.1:3333/kanban', { headers: { accept: 'text/html' } }),
-				new URL('http://127.0.0.1:3333/kanban'),
-				{}
+				'127.0.0.1'
 			)
 		).toBe(false);
 	});
@@ -212,6 +182,13 @@ describe('hosted UI auth', () => {
 			hostedUiIsLocalOperatorLoopbackRequest(
 				new Request('http://127.0.0.1:3333/kanban'),
 				new URL('http://127.0.0.1:3333/kanban'),
+				'127.0.0.1'
+			)
+		).toBe(true);
+		expect(
+			hostedUiIsLocalOperatorLoopbackRequest(
+				new Request('http://0.0.0.0:3333/kanban'),
+				new URL('http://0.0.0.0:3333/kanban'),
 				'127.0.0.1'
 			)
 		).toBe(true);

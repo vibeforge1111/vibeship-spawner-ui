@@ -41,6 +41,7 @@ import {
 	resolveExecutionAuthority
 } from '$lib/server/harness-authority';
 import { recoverOverduePrdAutoAnalysisFromPending } from '$lib/server/prd-auto-analysis-timeout';
+import { resolveSparkRunProjectPath } from '$lib/server/spark-run-workspace';
 
 function getPrdBridgePaths() {
 	const spawnerDir = spawnerStateDir();
@@ -75,6 +76,10 @@ function missionIdFromRequestId(requestId: string): string {
 	const normalized = normalizeRequestId(requestId);
 	const stamp = normalized.match(/(\d{10,})$/)?.[1];
 	return `mission-${stamp || normalized}`;
+}
+
+export function _prdAutoAnalysisWorkingDirectory(requestId: string): string {
+	return resolveSparkRunProjectPath(join('prd-auto-analysis', normalizeRequestId(requestId)));
 }
 
 async function appendPrdTrace(requestId: string, event: string, details: Record<string, unknown> = {}): Promise<void> {
@@ -1662,12 +1667,13 @@ async function startAutoAnalysis(
 			parts.missionSizeBlock
 		);
 		const missionId = `prd-auto-${normalizeRequestId(requestId)}`;
+		const workingDirectory = _prdAutoAnalysisWorkingDirectory(requestId);
 
 		await appendPrdTrace(requestId, 'auto_worker_dispatch', {
 			...traceRefDetails(traceRef),
 			provider: 'codex',
 			missionId,
-			workingDirectory: process.cwd(),
+			workingDirectory,
 			stateDirectory: paths.spawnerDir
 		});
 		const startedAt = new Date().toISOString();
@@ -1718,7 +1724,7 @@ async function startAutoAnalysis(
 					requestId,
 					traceRef: traceRef || undefined,
 					commandTemplate,
-					workingDirectory: process.cwd(),
+					workingDirectory,
 					signal: controller.signal
 				})
 			.then(async (result) => {

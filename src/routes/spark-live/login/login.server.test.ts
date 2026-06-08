@@ -50,7 +50,7 @@ describe('spark-live login page', () => {
 		PRIVATE_ENV.SPARK_LIVE_CONTAINER = undefined;
 	});
 
-	it('opens the requested local Mission Control surface instead of showing the hosted gate', async () => {
+	it('opens the requested local Mission Control surface without creating a browser auth session', async () => {
 		const event = loadEvent('http://127.0.0.1:3333/spark-live/login?next=%2Fkanban');
 		let redirectError: unknown;
 
@@ -64,11 +64,7 @@ describe('spark-live login page', () => {
 			status: 303,
 			location: '/kanban'
 		});
-		expect(event.cookies.set).toHaveBeenCalledWith(
-			'spawner_ui_session',
-			expect.any(String),
-			expect.objectContaining({ httpOnly: true, secure: false })
-		);
+		expect(event.cookies.set).not.toHaveBeenCalled();
 	});
 
 	it('defaults direct local login visits to Mission Control', async () => {
@@ -91,6 +87,24 @@ describe('spark-live login page', () => {
 		PRIVATE_ENV.SPARK_WORKSPACE_ID = 'private-workspace';
 		PRIVATE_ENV.SPARK_SPAWNER_HOST = '0.0.0.0';
 		const event = loadEvent('http://127.0.0.1:3333/spark-live/login?next=%2Fkanban');
+		let redirectError: unknown;
+
+		try {
+			load(event as never);
+		} catch (error) {
+			redirectError = error;
+		}
+
+		expect(redirectError).toMatchObject({
+			status: 303,
+			location: '/kanban'
+		});
+	});
+
+	it('treats a 0.0.0.0 browser URL as local operator access', async () => {
+		PRIVATE_ENV.SPARK_WORKSPACE_ID = 'private-workspace';
+		PRIVATE_ENV.SPARK_SPAWNER_HOST = '0.0.0.0';
+		const event = loadEvent('http://0.0.0.0:3333/spark-live/login?next=%2Fkanban');
 		let redirectError: unknown;
 
 		try {

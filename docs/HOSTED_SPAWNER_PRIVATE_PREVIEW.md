@@ -48,6 +48,15 @@ If a public hosted site still shows Canvas or Kanban, check the environment firs
 
 ## Login Contract
 
+Login applies only to hosted/private-preview browser access.
+
+Local operator access is not a login flow. When the request is true loopback
+(`localhost`, `127.0.0.1`, `0.0.0.0`, or IPv6 loopback with a loopback client
+address), Mission Control surfaces should open directly and `/spark-live/login`
+should redirect to the requested local surface. Local access must not create or
+depend on `spawner_ui_session`, and the browser access gate must not be treated
+as Harness or Governor authority.
+
 Private preview login requires both:
 
 - Workspace ID
@@ -123,6 +132,17 @@ GET /canvas without login -> 303 /spark-live/login
 GET /canvas after login   -> 200
 POST mutating APIs        -> requires configured API key/session
 ```
+
+For a local operator machine:
+
+```text
+GET http://127.0.0.1:3333/kanban                         -> 200
+GET http://localhost:3333/kanban                         -> 200
+GET http://0.0.0.0:3333/kanban                           -> 200
+GET http://127.0.0.1:3333/spark-live/login?next=%2Fkanban -> 303 /kanban
+```
+
+Those local checks must pass without setting a browser auth session cookie.
 
 ## Not Yet Public-Ready
 
