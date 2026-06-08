@@ -38,8 +38,8 @@ function fakeCookies(): FakeCookies {
 	} as unknown as FakeCookies;
 }
 
-function fakeEvent(url: string, clientAddress: string): RequestEvent {
-	const request = new Request(url, { headers: { accept: 'application/json' } });
+function fakeEvent(url: string, clientAddress: string, accept = 'application/json'): RequestEvent {
+	const request = new Request(url, { headers: { accept } });
 	return {
 		request,
 		url: new URL(url),
@@ -72,6 +72,20 @@ describe('hooks.server hosted UI auth boundary', () => {
 		expect(resolve).toHaveBeenCalledTimes(1);
 		expect(response.status).toBe(209);
 		expect(await response.text()).toBe('route reached');
+	});
+
+	it('does not show the hosted access wall on local Mission Control even when the server binds broadly', async () => {
+		PRIVATE_ENV.SPARK_SPAWNER_HOST = '0.0.0.0';
+		const resolve = vi.fn(async () => new Response('local board reached', { status: 210 }));
+
+		const response = await handle({
+			event: fakeEvent('http://127.0.0.1:3333/kanban', '127.0.0.1', 'text/html'),
+			resolve
+		});
+
+		expect(resolve).toHaveBeenCalledTimes(1);
+		expect(response.status).toBe(210);
+		expect(await response.text()).toBe('local board reached');
 	});
 
 	it('keeps hosted private-preview API requests gated without credentials', async () => {

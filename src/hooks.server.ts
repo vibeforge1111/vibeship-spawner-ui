@@ -22,7 +22,8 @@ import {
 	hostedUiRequestPairingCode,
 	hostedUiPathWithoutAuthQuery,
 	hostedUiShouldAutoPersistLocalOperatorSession,
-	hostedUiShouldBypassLocalOperatorAuth
+	hostedUiShouldBypassLocalOperatorAuth,
+	hostedUiIsLocalOperatorLoopbackRequest
 } from '$lib/server/hosted-ui-auth';
 
 function secureResponse(response: Response): Response {
@@ -51,7 +52,15 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 	}
 
-	if (hostedUiReleaseLocked(env)) {
+	let clientAddress: string | undefined;
+	try {
+		clientAddress = event.getClientAddress();
+	} catch {
+		clientAddress = undefined;
+	}
+	const localOperatorLoopback = hostedUiIsLocalOperatorLoopbackRequest(event.request, event.url, clientAddress);
+
+	if (hostedUiReleaseLocked(env) && !localOperatorLoopback) {
 		if (hostedUiReleaseLockPathIsExempt(event.url.pathname)) {
 			return secureResponse(await resolve(event));
 		}
@@ -76,12 +85,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 		return secureResponse(await resolve(event));
 	}
 
-	let clientAddress: string | undefined;
-	try {
-		clientAddress = event.getClientAddress();
-	} catch {
-		clientAddress = undefined;
-	}
 	if (hostedUiShouldBypassLocalOperatorAuth(event.request, event.url, env, clientAddress)) {
 		return secureResponse(await resolve(event));
 	}

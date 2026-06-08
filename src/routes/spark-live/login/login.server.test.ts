@@ -87,6 +87,24 @@ describe('spark-live login page', () => {
 		});
 	});
 
+	it('does not show the access-key form for local login when the server binds broadly', async () => {
+		PRIVATE_ENV.SPARK_WORKSPACE_ID = 'private-workspace';
+		PRIVATE_ENV.SPARK_SPAWNER_HOST = '0.0.0.0';
+		const event = loadEvent('http://127.0.0.1:3333/spark-live/login?next=%2Fkanban');
+		let redirectError: unknown;
+
+		try {
+			load(event as never);
+		} catch (error) {
+			redirectError = error;
+		}
+
+		expect(redirectError).toMatchObject({
+			status: 303,
+			location: '/kanban'
+		});
+	});
+
 	it('keeps hosted workspace login gated', async () => {
 		PRIVATE_ENV.SPARK_WORKSPACE_ID = 'private-workspace';
 

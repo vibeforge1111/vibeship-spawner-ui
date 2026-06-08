@@ -189,6 +189,14 @@ export function hostedUiCrossSiteMutationRejection(request: Request, url: URL): 
 	return null;
 }
 
+export function hostedUiIsLocalOperatorLoopbackRequest(
+	request: Request,
+	url: URL,
+	clientAddress?: string
+): boolean {
+	return loopbackValue(url.hostname) && (clientAddress === undefined || loopbackValue(clientAddress));
+}
+
 export function hostedUiWorkspaceId(env: HostedUiAuthEnv): string | null {
 	const value = env.SPARK_WORKSPACE_ID?.trim();
 	return value || null;
@@ -199,10 +207,10 @@ export function hostedUiShouldAutoPersistLocalOperatorSession(
 	url: URL,
 	env: HostedUiAuthEnv
 ): boolean {
-	if (!hostedUiAuthEnabled(env) || hostedUiLooksHosted(env)) return false;
+	if (!hostedUiAuthEnabled(env)) return false;
 	if (request.method.toUpperCase() !== 'GET') return false;
 	if (!request.headers.get('accept')?.includes('text/html')) return false;
-	return loopbackValue(url.hostname);
+	return hostedUiIsLocalOperatorLoopbackRequest(request, url);
 }
 
 export function hostedUiShouldBypassLocalOperatorAuth(
@@ -211,9 +219,8 @@ export function hostedUiShouldBypassLocalOperatorAuth(
 	env: HostedUiAuthEnv,
 	clientAddress?: string
 ): boolean {
-	if (!hostedUiAuthEnabled(env) || hostedUiLooksHosted(env)) return false;
-	if (!loopbackValue(url.hostname)) return false;
-	return clientAddress === undefined || loopbackValue(clientAddress);
+	if (!hostedUiAuthEnabled(env)) return false;
+	return hostedUiIsLocalOperatorLoopbackRequest(request, url, clientAddress);
 }
 
 export function hostedUiAuthClientKey(request: Request): string {
