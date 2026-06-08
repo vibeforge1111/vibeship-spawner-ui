@@ -1713,30 +1713,69 @@ async function startAutoAnalysis(
 					workingDirectory: process.cwd(),
 					signal: controller.signal
 				})
-			.then((result) => {
+			.then(async (result) => {
 				const artifact = _buildPrdResultArtifactVerification(requestId, paths);
+				const effectiveSuccess = result.success === true && artifact.present;
+				const failureReason = effectiveSuccess
+					? null
+					: result.error ||
+						(artifact.present
+							? 'Auto-analysis worker did not report success.'
+							: 'Auto-analysis worker finished without a canonical result artifact.');
 				const watchdogCancelled = result.error === 'Cancelled' && !artifact.present;
 				if (!watchdogCancelled) {
-					void updatePendingRequestStatus(requestId, result.success && artifact.present ? 'pending' : 'error', {
-						reason: result.success && artifact.present
-							? 'Canonical provider result is available.'
-							: result.error || 'Auto-analysis worker finished without a canonical result artifact.',
+					await updatePendingRequestStatus(requestId, effectiveSuccess ? 'pending' : 'error', {
+						reason: effectiveSuccess ? 'Canonical provider result is available.' : failureReason,
 						autoAnalysis: {
-							status: result.success && artifact.present ? 'complete' : 'error',
+							status: effectiveSuccess ? 'complete' : 'error',
 							finishedAt: new Date().toISOString(),
-							success: result.success,
-							error: result.error || null,
+							success: effectiveSuccess,
+							providerProcessSuccess: result.success,
+							error: failureReason,
 							durationMs: result.durationMs || null,
 							sessionId: result.sparkAgentSessionId,
 							canonicalResultAvailable: artifact.present,
 							resultFileName: artifact.fileName
 						}
 					});
+					if (!effectiveSuccess) {
+						const failureData = {
+							requestId,
+							...traceRefDetails(traceRef),
+							buildMode,
+							buildLane,
+							provider: 'codex',
+							providerProcessSuccess: result.success,
+							providerError: result.error || null,
+							canonicalResultAvailable: artifact.present,
+							resultFileName: artifact.fileName,
+							autoAnalysisStatus: 'error'
+						};
+						await relayMissionControlEvent({
+							type: 'task_failed',
+							missionId: missionIdFromRequestId(requestId),
+							missionName: projectName,
+							taskName: 'PRD analysis',
+							message: failureReason || 'Canonical PRD analysis failed.',
+							source: 'prd-bridge',
+							data: failureData
+						});
+						await relayMissionControlEvent({
+							type: 'mission_failed',
+							missionId: missionIdFromRequestId(requestId),
+							missionName: projectName,
+							message: 'Spawner could not produce a canonical PRD analysis result.',
+							source: 'prd-bridge',
+							data: failureData
+						});
+					}
 				}
-				void appendPrdTrace(requestId, 'auto_worker_finished', {
+				await appendPrdTrace(requestId, 'auto_worker_finished', {
 					...traceRefDetails(traceRef),
-					success: result.success,
-					error: result.error || null,
+					success: effectiveSuccess,
+					providerProcessSuccess: result.success,
+					error: failureReason,
+					providerError: result.error || null,
 					durationMs: result.durationMs || null,
 					sessionId: result.sparkAgentSessionId,
 					resultArtifact: artifact

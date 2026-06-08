@@ -68,6 +68,18 @@ async function resetTestSpawnerDir() {
 	else process.env.SPARK_BRIDGE_API_KEY = originalBridgeKey;
 }
 
+async function waitForPendingAutoAnalysisStatus(status: string) {
+	const pendingPath = path.join(testSpawnerDir, 'pending-request.json');
+	for (let attempt = 0; attempt < 30; attempt += 1) {
+		if (existsSync(pendingPath)) {
+			const pending = JSON.parse(await readFile(pendingPath, 'utf-8'));
+			if (pending.autoAnalysis?.status === status) return pending;
+		}
+		await new Promise((resolve) => setTimeout(resolve, 10));
+	}
+	return JSON.parse(await readFile(pendingPath, 'utf-8'));
+}
+
 describe('/api/prd-bridge/write integration', () => {
 	beforeEach(async () => {
 		await resetTestSpawnerDir();
@@ -355,6 +367,76 @@ describe('/api/prd-bridge/write integration', () => {
 		const missionControl = JSON.parse(await readFile(path.join(testSpawnerDir, 'mission-control.json'), 'utf-8'));
 		const missionEvents = missionControl.recent.filter(
 			(entry: { missionId?: string }) => entry.missionId === 'mission-1780929999999'
+		);
+		expect(missionEvents.map((entry: { eventType: string }) => entry.eventType)).toContain('task_failed');
+		expect(missionEvents.map((entry: { eventType: string }) => entry.eventType)).toContain('mission_failed');
+	});
+
+	it('marks Codex auto-analysis as failed when no canonical result artifact is written', async () => {
+		process.env.SPAWNER_PRD_AUTO_PROVIDER = 'codex';
+		executeProviderTaskMock.mockResolvedValue({
+			success: true,
+			error: null,
+			durationMs: 42,
+			sparkAgentSessionId: 'session-no-artifact'
+		});
+		const requestId = 'tg-build-codex-no-artifact-1780941111111';
+		const traceRef = 'trace:spawner-prd:mission-1780941111111';
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/write', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'x-api-key': BRIDGE_TEST_KEY },
+				body: JSON.stringify({
+					content: '# Codex No Artifact Board\n\nBuild a local board with README and tests.',
+					requestId,
+					projectName: 'Codex No Artifact Board',
+					buildMode: 'direct',
+					buildLane: 'direct',
+					tier: 'pro',
+					chatId: 'telegram-chat-1',
+					userId: 'telegram-user-1',
+					traceRef,
+					executionAuthority: writeAuthority(requestId)
+				})
+			}),
+			getClientAddress: () => '127.0.0.1'
+		} as never);
+
+		const body = await response.json();
+		expect(response.status).toBe(200);
+		expect(body.autoAnalysis).toMatchObject({ provider: 'codex', started: true });
+
+		const pending = await waitForPendingAutoAnalysisStatus('error');
+		expect(pending.status).toBe('error');
+		expect(pending.reason).toBe('Auto-analysis worker finished without a canonical result artifact.');
+		expect(pending.autoAnalysis).toMatchObject({
+			status: 'error',
+			success: false,
+			providerProcessSuccess: true,
+			canonicalResultAvailable: false,
+			resultFileName: `${requestId}.json`
+		});
+
+		const traceRows = (await readFile(path.join(testSpawnerDir, 'prd-auto-trace.jsonl'), 'utf-8'))
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line));
+		expect(traceRows.find((row) => row.event === 'auto_worker_finished')).toMatchObject({
+			requestId,
+			traceRef,
+			success: false,
+			providerProcessSuccess: true,
+			error: 'Auto-analysis worker finished without a canonical result artifact.',
+			resultArtifact: {
+				present: false,
+				fileName: `${requestId}.json`
+			}
+		});
+
+		const missionControl = JSON.parse(await readFile(path.join(testSpawnerDir, 'mission-control.json'), 'utf-8'));
+		const missionEvents = missionControl.recent.filter(
+			(entry: { missionId?: string }) => entry.missionId === 'mission-1780941111111'
 		);
 		expect(missionEvents.map((entry: { eventType: string }) => entry.eventType)).toContain('task_failed');
 		expect(missionEvents.map((entry: { eventType: string }) => entry.eventType)).toContain('mission_failed');
