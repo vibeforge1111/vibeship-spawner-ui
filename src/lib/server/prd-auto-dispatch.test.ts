@@ -20,6 +20,7 @@ import {
 } from './harness-authority';
 import { verifyH70SkillAccessToken } from './h70-skill-access-token';
 import { getTierSkills } from './skill-tiers';
+import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 
 const load: PrdCanvasLoadForAutoDispatch = {
 	requestId: 'tg-build-1',
@@ -58,6 +59,19 @@ const load: PrdCanvasLoadForAutoDispatch = {
 };
 
 let testSpawnerDir: string | null = null;
+const originalMissionCodexSandbox = process.env.SPARK_MISSION_CODEX_SANDBOX;
+const originalMissionCodexProfile = process.env.SPARK_MISSION_CODEX_PROFILE;
+const originalCodexSandbox = process.env.SPARK_CODEX_SANDBOX;
+const originalAllowHighAgencyWorkers = process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS;
+const originalAllowExternalProjectPaths = process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
+
+function restoreEnv(key: string, value: string | undefined): void {
+	if (value === undefined) {
+		delete process.env[key];
+		return;
+	}
+	process.env[key] = value;
+}
 
 function governorAuthority() {
 	return buildServerGovernorDecisionAuthority({
@@ -69,6 +83,19 @@ function governorAuthority() {
 		actorKind: 'system',
 		actorIdRef: 'spawner-ui.test',
 		target: load.missionId
+	});
+}
+
+function governorAuthorityFor(missionId: string) {
+	return buildServerGovernorDecisionAuthority({
+		source: 'prd-auto-dispatch-test',
+		reason: 'Focused PRD auto-dispatch authority regression.',
+		toolName: 'spawner.dispatch',
+		mutationClass: 'launches_mission',
+		requestId: 'prd-auto-dispatch-test',
+		actorKind: 'system',
+		actorIdRef: 'spawner-ui.test',
+		target: missionId
 	});
 }
 
@@ -93,7 +120,13 @@ describe('PRD auto-dispatch helpers', () => {
 
 	afterEach(async () => {
 		vi.unstubAllGlobals();
+		sparkAgentBridge.resetForTests();
 		delete process.env.SPAWNER_STATE_DIR;
+		restoreEnv('SPARK_MISSION_CODEX_SANDBOX', originalMissionCodexSandbox);
+		restoreEnv('SPARK_MISSION_CODEX_PROFILE', originalMissionCodexProfile);
+		restoreEnv('SPARK_CODEX_SANDBOX', originalCodexSandbox);
+		restoreEnv('SPARK_ALLOW_HIGH_AGENCY_WORKERS', originalAllowHighAgencyWorkers);
+		restoreEnv('SPARK_ALLOW_EXTERNAL_PROJECT_PATHS', originalAllowExternalProjectPaths);
 		if (testSpawnerDir && existsSync(testSpawnerDir)) {
 			await rm(testSpawnerDir, { recursive: true, force: true });
 		}
@@ -242,6 +275,28 @@ describe('PRD auto-dispatch helpers', () => {
 
 		expect(result.started).toBe(true);
 		expect(result.authority?.source).toBe('governor_decision');
+	});
+
+	it('keeps direct mission Codex auto-dispatch workspace scoped despite legacy global sandbox env', async () => {
+		process.env.SPARK_CODEX_SANDBOX = 'danger-full-access';
+		process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS = '1';
+		process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS = '1';
+		let observedCommandTemplate = '';
+		sparkAgentBridge.setWorkerExecutorForTests(async (context) => {
+			observedCommandTemplate = context.commandTemplate;
+			return { success: true, response: 'codex-ok' };
+		});
+
+		const result = await autoDispatchPrdCanvasLoad({
+			...load,
+			requestId: 'tg-build-safe-codex-sandbox',
+			missionId: 'mission-safe-codex-sandbox',
+			pipelineId: 'prd-tg-build-safe-codex-sandbox',
+			executionAuthority: governorAuthorityFor('mission-safe-codex-sandbox')
+		});
+
+		expect(result.started).toBe(true);
+		expect(observedCommandTemplate).toBe('codex exec --model gpt-5.5 --profile speed --sandbox workspace-write');
 	});
 
 	it('passes configured provider API keys into auto-dispatch runtime', () => {

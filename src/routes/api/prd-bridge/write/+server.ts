@@ -1003,12 +1003,14 @@ function scheduleProvisionalPrdDraft(input: {
 	projectName: string;
 	buildMode: 'direct' | 'advanced_prd';
 	buildLane: BuildLane;
+	constrainedStaticSingleFile?: boolean;
 	tier: SkillTier;
 	traceRef?: string | null;
 }): void {
 	const delayMs = _provisionalPrdDraftDelayMs({
 		buildMode: input.buildMode,
-		buildLane: input.buildLane
+		buildLane: input.buildLane,
+		constrainedStaticSingleFile: input.constrainedStaticSingleFile === true
 	});
 	if (delayMs === null) return;
 
@@ -1025,7 +1027,7 @@ function scheduleProvisionalPrdDraft(input: {
 		}
 
 		await updatePendingRequestStatus(input.requestId, 'provisional', {
-			reason: 'Full PRD analysis is still running; provisional canvas draft queued so execution can start.',
+			reason: 'Canonical PRD analysis is still running; provisional canvas draft is advisory and non-executable.',
 			provisionalCanvasAt: new Date().toISOString(),
 			provisionalDelayMs: delayMs
 		});
@@ -1040,7 +1042,7 @@ function scheduleProvisionalPrdDraft(input: {
 			input.projectName,
 			input.buildMode,
 			input.tier,
-			`provisional canvas draft after ${delayMs}ms while full PRD analysis continues`,
+			`advisory provisional canvas draft after ${delayMs}ms while canonical PRD analysis continues`,
 			input.traceRef,
 			input.buildLane,
 			{ provisional: true }
@@ -1050,7 +1052,7 @@ function scheduleProvisionalPrdDraft(input: {
 			missionId: input.missionId,
 			missionName: input.projectName,
 			taskName: 'PRD draft',
-			message: 'PRD draft ready; full analysis can continue in the background.',
+			message: 'Advisory PRD draft ready; waiting for canonical provider result before execution.',
 			source: 'prd-bridge',
 			data: {
 				requestId: input.requestId,
@@ -1188,11 +1190,12 @@ function positiveEnvMs(env: NodeJS.ProcessEnv, key: string, fallbackMs: number):
 }
 
 export function _provisionalPrdDraftDelayMs(
-	input: { buildMode: 'direct' | 'advanced_prd'; buildLane: BuildLane },
+	input: { buildMode: 'direct' | 'advanced_prd'; buildLane: BuildLane; constrainedStaticSingleFile?: boolean },
 	env: NodeJS.ProcessEnv = process.env
 ): number | null {
 	if (env.SPAWNER_PRD_PROVISIONAL_DRAFTS === '0') return null;
 	const isAdvanced = input.buildMode === 'advanced_prd' || input.buildLane === 'advanced_prd';
+	if (!isAdvanced && env.SPAWNER_PRD_DIRECT_PROVISIONAL_DRAFTS !== '1') return null;
 	const key = isAdvanced ? 'SPAWNER_PRD_PROVISIONAL_ADVANCED_MS' : 'SPAWNER_PRD_PROVISIONAL_DIRECT_MS';
 	const fallback = isAdvanced ? DEFAULT_PROVISIONAL_ADVANCED_ANALYSIS_MS : DEFAULT_PROVISIONAL_DIRECT_ANALYSIS_MS;
 	return positiveEnvMs(env, key, fallback);
@@ -1218,6 +1221,24 @@ export function _shouldRequestBriefClarification(input: {
 	if (isConstrainedSingleFileStaticHtml(input.content)) return false;
 	if (input.buildMode === 'direct' && isConcreteDirectStaticBuild(input.content)) return false;
 	return true;
+}
+
+export function _shouldBypassBriefEnrichment(input: {
+	content: string;
+	buildMode: 'direct' | 'advanced_prd';
+	buildLane: BuildLane;
+	forceDispatch?: boolean;
+}): { bypass: boolean; reason: string | null } {
+	if (isConstrainedSingleFileStaticHtml(input.content)) {
+		return { bypass: true, reason: 'constrained_static_single_file' };
+	}
+	if (input.forceDispatch) {
+		return { bypass: true, reason: 'forced_dispatch_preserves_owner_brief' };
+	}
+	if (input.buildMode === 'direct' && input.buildLane !== 'advanced_prd') {
+		return { bypass: true, reason: 'governed_direct_build_preserves_owner_brief' };
+	}
+	return { bypass: false, reason: null };
 }
 
 function normalizeTelegramRelay(value: unknown): Record<string, unknown> | undefined {
@@ -1247,7 +1268,8 @@ export function _extractPrdBridgeProjectLineage(content: string, projectName?: s
 async function buildPromptParts(
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier,
-	briefBody?: string
+	briefBody?: string,
+	buildLane: BuildLane = buildMode === 'advanced_prd' ? 'advanced_prd' : 'direct'
 ): Promise<{
 	planningContract: string;
 	tierBlock: string;
@@ -1268,8 +1290,13 @@ async function buildPromptParts(
 				].join('\n')
 			: [
 					'Direct build contract:',
+					`- Build lane: ${buildLane}.`,
 					'- Preserve the user request as-is and create only the tasks needed to execute it.',
 					'- Do not inflate small explicit builds into a broad product plan.',
+					'- Prefer 3-5 concrete tasks for small direct apps and dashboards; use more only when the brief names genuinely separate surfaces or verification boundaries.',
+					'- Every task title must name the artifact, route, or surface it changes. Avoid generic titles like "Create app shell" unless the brief itself is only an app shell.',
+					'- Include workspaceTargets whenever a file, route, package, README, test, or project folder can be inferred from the brief.',
+					'- Do not insert generic open questions into the execution plan. If a detail is unknown, choose the smallest reversible assumption and mark it in acceptance criteria.',
 					'- If the request is exactly "did you understand what i said", classify it as a clarification-understanding workflow, preserve that request text exactly, acknowledge understanding, and ask for missing audience, workflow, saved memory, and vibe details. Do not create MVP/auth/payment/database tasks.'
 				].join('\n');
 
@@ -1339,6 +1366,7 @@ async function buildCodexPrompt(
 	traceRef: string | null,
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
+	buildLane: BuildLane,
 	tier: SkillTier,
 	paths: ReturnType<typeof getPrdBridgePaths>,
 	bundleBlock?: string,
@@ -1357,8 +1385,13 @@ async function buildCodexPrompt(
 				].join('\n')
 			: [
 					'Direct build contract:',
+					`- Build lane: ${buildLane}.`,
 					'- Preserve the user request as-is and create only the tasks needed to execute it.',
 					'- Do not inflate small explicit builds into a broad product plan.',
+					'- Prefer 3-5 concrete tasks for small direct apps and dashboards; use more only when the brief names genuinely separate surfaces or verification boundaries.',
+					'- Every task title must name the artifact, route, or surface it changes. Avoid generic titles like "Create app shell" unless the brief itself is only an app shell.',
+					'- Include workspaceTargets whenever a file, route, package, README, test, or project folder can be inferred from the brief.',
+					'- Do not insert generic open questions into the execution plan. If a detail is unknown, choose the smallest reversible assumption and mark it in acceptance criteria.',
 					'- If the request is exactly "did you understand what i said", classify it as a clarification-understanding workflow, preserve that request text exactly, acknowledge understanding, and ask for missing audience, workflow, saved memory, and vibe details. Do not create MVP/auth/payment/database tasks.'
 				].join('\n');
 
@@ -1402,6 +1435,7 @@ async function buildCodexPrompt(
 		...(traceRef ? [`Trace Ref: ${traceRef}`] : []),
 		`Project Name Hint: ${projectName}`,
 		`Build Mode: ${buildMode}`,
+		`Build Lane: ${buildLane}`,
 		'',
 		planningContract,
 		'',
@@ -1434,16 +1468,39 @@ async function buildCodexPrompt(
 		'- Do not leave placeholders.',
 		'- Ensure posted JSON is complete and parseable.',
 		'- Skill IDs MUST come from the allowlist. This is non-negotiable.',
-		'- Choose task count from project complexity. Do not default to four tasks when distinct skill sets or verification boundaries justify more.',
+		buildMode === 'direct'
+			? '- For direct builds, keep task count small enough to execute reliably in one provider run unless the brief requires otherwise.'
+			: '- Choose task count from project complexity. Do not default to four tasks when distinct skill sets or verification boundaries justify more.',
 		'',
 		'When finished successfully, print exactly: PRD_ANALYSIS_SENT'
 	].join('\n');
+}
+
+export function _resolvePrdCodexModel(env: NodeJS.ProcessEnv = process.env): string {
+	return (
+		env.SPAWNER_PRD_CODEX_MODEL ||
+		env.SPARK_CODEX_EXECUTOR_MODEL ||
+		env.CODEX_MODEL ||
+		'gpt-5.5'
+	).trim() || 'gpt-5.5';
+}
+
+export function _resolvePrdCodexCommandTemplate(
+	model: string,
+	env: NodeJS.ProcessEnv = process.env
+): string {
+	const explicit = env.SPAWNER_PRD_CODEX_COMMAND_TEMPLATE?.trim();
+	if (explicit) return explicit.includes('{model}') ? explicit.replace('{model}', model) : explicit;
+	const profile = (env.SPAWNER_PRD_CODEX_PROFILE || 'speed').trim();
+	const profileArg = profile ? ` --profile ${profile}` : '';
+	return `codex exec --model ${model}${profileArg} --sandbox workspace-write`;
 }
 
 async function startAutoAnalysis(
 	requestId: string,
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
+	buildLane: BuildLane,
 	tier: SkillTier,
 	traceRef: string | null,
 	executionAuthority: unknown
@@ -1464,7 +1521,7 @@ async function startAutoAnalysis(
 		const briefBody = existsSync(paths.pendingPrdFile)
 			? await readFile(paths.pendingPrdFile, 'utf-8')
 			: undefined;
-		const parts = await buildPromptParts(buildMode, tier, briefBody);
+		const parts = await buildPromptParts(buildMode, tier, briefBody, buildLane);
 		const started = await startClaudeAutoAnalysis({
 			requestId,
 			projectName,
@@ -1493,12 +1550,13 @@ async function startAutoAnalysis(
 		const briefBody = existsSync(paths.pendingPrdFile)
 			? await readFile(paths.pendingPrdFile, 'utf-8')
 			: undefined;
-		const parts = await buildPromptParts(buildMode, tier, briefBody);
+		const parts = await buildPromptParts(buildMode, tier, briefBody, buildLane);
 		const prompt = await buildCodexPrompt(
 			requestId,
 			traceRef,
 			projectName,
 			buildMode,
+			buildLane,
 			tier,
 			paths,
 			parts.bundleBlock,
@@ -1515,6 +1573,8 @@ async function startAutoAnalysis(
 		});
 
 		const controller = new AbortController();
+		const codexModel = _resolvePrdCodexModel();
+		const commandTemplate = _resolvePrdCodexCommandTemplate(codexModel);
 			void sparkAgentBridge
 				.executeProviderTask({
 					providerId: 'codex',
@@ -1525,10 +1585,10 @@ async function startAutoAnalysis(
 						toolName: 'spawner.prd.write',
 						mutationClass: 'writes_files'
 					},
-					model: 'gpt-5.5',
+					model: codexModel,
 					requestId,
 					traceRef: traceRef || undefined,
-					commandTemplate: 'codex exec --model gpt-5.5 --sandbox workspace-write',
+					commandTemplate,
 					workingDirectory: process.cwd(),
 					signal: controller.signal
 				})
@@ -1629,7 +1689,13 @@ export const POST: RequestHandler = async (event) => {
 		// already specific enough (length / keyword density / has section
 		// headers). Always returns a safe enrichedContent — never blocks.
 		const constrainedStaticSingleFileInput = isConstrainedSingleFileStaticHtml(content);
-		const enrichment = constrainedStaticSingleFileInput
+		const enrichmentBypass = _shouldBypassBriefEnrichment({
+			content,
+			buildMode: normalizedBuildMode,
+			buildLane: normalizedBuildLane,
+			forceDispatch: skipClarification
+		});
+		const enrichment = enrichmentBypass.bypass
 			? {
 					wasEnriched: false,
 					enrichedContent: content,
@@ -1638,6 +1704,14 @@ export const POST: RequestHandler = async (event) => {
 				}
 			: await enrichBrief(content);
 		const finalContent = enrichment.enrichedContent;
+		if (enrichmentBypass.bypass) {
+			await appendPrdTrace(requestId, 'brief_enrichment_bypassed', {
+				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+				reason: enrichmentBypass.reason,
+				buildMode: normalizedBuildMode,
+				buildLane: normalizedBuildLane
+			});
+		}
 		if (enrichment.wasEnriched) {
 			await appendPrdTrace(requestId, 'brief_enriched', {
 				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
@@ -1809,6 +1883,7 @@ export const POST: RequestHandler = async (event) => {
 					requestId,
 					requestMeta.projectName,
 					requestMeta.buildMode,
+					normalizedBuildLane,
 					normalizedTier,
 					normalizedTraceRef,
 					resolvedExecutionAuthority
@@ -1844,6 +1919,7 @@ export const POST: RequestHandler = async (event) => {
 				projectName: requestMeta.projectName,
 				buildMode: requestMeta.buildMode,
 				buildLane: requestMeta.buildLane,
+				constrainedStaticSingleFile,
 				tier: normalizedTier,
 				traceRef: normalizedTraceRef
 			});

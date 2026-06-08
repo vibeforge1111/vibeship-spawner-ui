@@ -467,14 +467,17 @@ describe('PRD bridge fallback analysis', () => {
 		expect(tasks.flatMap((task) => task.acceptanceCriteria).join('\n')).toMatch(/No package\.json|Only index\.html/i);
 	});
 
-	it('schedules a provisional PRD draft for slow direct and advanced analysis without disabling PRDs', () => {
-		expect(_provisionalPrdDraftDelayMs({ buildMode: 'direct', buildLane: 'direct' }, {} as NodeJS.ProcessEnv)).toBe(10_000);
+	it('keeps direct provisional PRD drafts opt-in so direct builds wait for canonical analysis', () => {
+		expect(_provisionalPrdDraftDelayMs({ buildMode: 'direct', buildLane: 'direct' }, {} as NodeJS.ProcessEnv)).toBeNull();
 		expect(_provisionalPrdDraftDelayMs({ buildMode: 'advanced_prd', buildLane: 'advanced_prd' }, {} as NodeJS.ProcessEnv)).toBe(45_000);
-		expect(_provisionalPrdDraftDelayMs({ buildMode: 'direct', buildLane: 'fast_direct' }, {} as NodeJS.ProcessEnv)).toBe(10_000);
+		expect(_provisionalPrdDraftDelayMs({ buildMode: 'direct', buildLane: 'fast_direct' }, {} as NodeJS.ProcessEnv)).toBeNull();
 		expect(
 			_provisionalPrdDraftDelayMs(
 				{ buildMode: 'direct', buildLane: 'direct' },
-				{ SPAWNER_PRD_PROVISIONAL_DIRECT_MS: '2500' } as NodeJS.ProcessEnv
+				{
+					SPAWNER_PRD_DIRECT_PROVISIONAL_DRAFTS: '1',
+					SPAWNER_PRD_PROVISIONAL_DIRECT_MS: '2500'
+				} as NodeJS.ProcessEnv
 			)
 		).toBe(2500);
 		expect(

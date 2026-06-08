@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { eventBridge, type BridgeEvent } from './event-bridge';
 import { buildServerGovernorDecisionAuthority } from '$lib/server/harness-authority';
 import {
+	parseProviderCommand,
 	prepareProviderWorkingDirectory,
 	providerProcessFailureMessage,
 	providerProcessTimeoutMessage,
@@ -141,6 +142,35 @@ describe('prepareProviderWorkingDirectory', () => {
 		).rejects.toThrow('Execution authority blocked this request.');
 
 		expect(executorCalled).toBe(false);
+	});
+});
+
+describe('parseProviderCommand', () => {
+	it('allows codex profile selection while preserving sandbox enforcement', () => {
+		const command = parseProviderCommand(
+			'codex',
+			'codex exec --model gpt-5.5 --profile speed --sandbox workspace-write'
+		);
+
+		expect(command).toMatchObject({
+			binary: 'codex',
+			args: [
+				'exec',
+				'--skip-git-repo-check',
+				'--model',
+				'gpt-5.5',
+				'--profile',
+				'speed',
+				'--sandbox',
+				'workspace-write'
+			]
+		});
+	});
+
+	it('rejects unsupported codex command flags', () => {
+		expect(() =>
+			parseProviderCommand('codex', 'codex exec --model gpt-5.5 --profile speed --output json')
+		).toThrow('Codex provider command must be');
 	});
 });
 
