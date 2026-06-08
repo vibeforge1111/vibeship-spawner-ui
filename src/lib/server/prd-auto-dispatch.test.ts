@@ -202,6 +202,33 @@ describe('PRD auto-dispatch helpers', () => {
 		expect(projectPath).not.toContain('relay-readback-proof-pad.test.ts');
 	});
 
+	it('does not let provider task text choose the installed Spawner source as a new-project workspace', () => {
+		const projectPath = inferProjectPathFromPrdLoad(
+			{
+				...load,
+				executionPrompt: '',
+				relay: {
+					goal:
+						'Build a compact local Spawner Authority Handoff Board for tonight installer work with Spawner. Make a real project with a README, one smoke test, and a simple page.'
+				},
+				nodes: [
+					{
+						skill: {
+							name: 'task-1: README',
+							description:
+								'Workspace targets:\n- docs/spawner-authority-handoff-board/README.md\n\nAcceptance criteria:\n- README includes workspace path C:\\Users\\USER\\.spark\\modules\\spawner-ui\\source.'
+						}
+					}
+				]
+			},
+			{ SPARK_WORKSPACE_ROOT: '/data/workspaces' }
+		);
+
+		expect(projectPath).toMatch(/[\\/]data[\\/]workspaces[\\/]mission-1-spark-test$/);
+		expect(projectPath).not.toContain('spawner-ui');
+		expect(projectPath).not.toContain('source');
+	});
+
 	it('uses the Spawner state root for generated projects without a hosted workspace', () => {
 		const projectPath = inferProjectPathFromPrdLoad(
 			{
