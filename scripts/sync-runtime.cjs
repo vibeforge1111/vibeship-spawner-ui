@@ -69,6 +69,7 @@ const SYNCED_PATHS = [
 	'src/routes/api/prd-bridge/write/+server.ts',
 	'src/routes/api/events/+server.ts',
 	'src/routes/api/providers/+server.ts',
+	'src/routes/api/prd-bridge/pending/+server.ts',
 	'src/routes/api/prd-bridge/result/+server.ts',
 	'src/routes/api/mission-control/board/+server.ts',
 	'src/routes/api/mission-control/status/+server.ts',

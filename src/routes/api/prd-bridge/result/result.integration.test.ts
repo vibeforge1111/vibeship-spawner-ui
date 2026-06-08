@@ -168,6 +168,31 @@ describe('/api/prd-bridge/result integration', () => {
 		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(false);
 	});
 
+	it('rejects unauthenticated canonical result writes from local loopback callers without storing artifacts', async () => {
+		const requestId = 'tg-build-unauth-result-local-test';
+		const postResponse = await POST({
+			...postResultEvent(
+				{
+					requestId,
+					result: {
+						success: true,
+						projectName: 'Unauthorized Local Result',
+						projectType: 'direct-build',
+						complexity: 'simple',
+						infrastructure: { needsAuth: false, needsDatabase: false, needsAPI: false },
+						techStack: { framework: 'Existing Spawner UI', language: 'TypeScript' },
+						tasks: [{ id: 'TAS-1', title: 'Should not store locally', skills: [], dependencies: [] }],
+						skills: []
+					}
+				},
+				null
+			)
+		} as never);
+
+		expect(postResponse.status).toBe(401);
+		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(false);
+	});
+
 	it('uses pending request tier to strip pro skills from base result storage', async () => {
 		const requestId = 'tg-base-skill-gate-test';
 		await writeFile(

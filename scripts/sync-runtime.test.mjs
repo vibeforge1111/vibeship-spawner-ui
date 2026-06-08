@@ -44,6 +44,11 @@ describe('sync-runtime coverage', () => {
 		expect(syncedPaths()).toContain('src/routes/missions/[id]/+page.svelte');
 	});
 
+	it('syncs PRD bridge worker read/write authority surfaces', () => {
+		expect(syncedPaths()).toContain('src/routes/api/prd-bridge/pending/+server.ts');
+		expect(syncedPaths()).toContain('src/routes/api/prd-bridge/result/+server.ts');
+	});
+
 	it('syncs creator mission authority consumers and execution entrypoints', () => {
 		expect(syncedPaths()).toContain('src/lib/server/creator-mission.ts');
 		expect(syncedPaths()).toContain('src/routes/api/creator/mission/+server.ts');

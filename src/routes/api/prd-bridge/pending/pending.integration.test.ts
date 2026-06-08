@@ -101,6 +101,20 @@ describe('/api/prd-bridge/pending integration', () => {
 		expect(pending.status).toBe('pending');
 	});
 
+	it('requires auth before marking pending PRD processed from local loopback callers', async () => {
+		await writeFile(
+			path.join(testSpawnerDir, 'pending-request.json'),
+			JSON.stringify({ status: 'pending', requestId: 'tg-build-pending-delete-local' }),
+			'utf-8'
+		);
+
+		const response = await DELETE(routeEvent('DELETE', null) as never);
+		const pending = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
+
+		expect(response.status).toBe(401);
+		expect(pending.status).toBe('pending');
+	});
+
 	it('marks pending PRD processed for authenticated workers', async () => {
 		await writeFile(
 			path.join(testSpawnerDir, 'pending-request.json'),
