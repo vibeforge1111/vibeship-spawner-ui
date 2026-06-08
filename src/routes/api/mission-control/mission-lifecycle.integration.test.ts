@@ -10,9 +10,19 @@ import { providerRuntime, type ProviderMissionResultSnapshot } from '$lib/server
 import type { ProviderSessionStatus } from '$lib/server/provider-clients/types';
 import { buildClientGovernorDecisionAuthority } from '$lib/services/harness-authority-client';
 
+const TEST_API_KEY = 'mission-control-lifecycle-test-secret';
+const originalMcpApiKey = process.env.MCP_API_KEY;
+
+function restoreEnv(name: string, value: string | undefined) {
+	if (value === undefined) delete process.env[name];
+	else process.env[name] = value;
+}
+
 function routeEvent(url: string) {
 	return {
-		request: new Request(url),
+		request: new Request(url, {
+			headers: { 'x-api-key': TEST_API_KEY }
+		}),
 		url: new URL(url),
 		getClientAddress: () => '127.0.0.1'
 	};
@@ -143,12 +153,14 @@ async function getTracePayload(requestId: string) {
 
 describe('Mission Control lifecycle integration', () => {
 	beforeEach(() => {
+		process.env.MCP_API_KEY = TEST_API_KEY;
 		vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
 	});
 
 	afterEach(() => {
 		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
+		restoreEnv('MCP_API_KEY', originalMcpApiKey);
 		delete process.env.SPAWNER_STATE_DIR;
 	});
 

@@ -129,6 +129,10 @@ function formatDurationCompact(ms: number): string {
 	return `${minutes}m`;
 }
 
+function isTerminalProviderStatus(status: ProviderSessionStatus): boolean {
+	return status === 'completed' || status === 'failed' || status === 'cancelled';
+}
+
 export function reconcileStaleProviderResults(
 	results: ProviderMissionResultSnapshot[],
 	options: { now?: number; staleMs?: number; orphaned?: boolean } = {}
@@ -246,6 +250,8 @@ class ProviderRuntimeManager {
 	private sparkAgentSessionIds = new Map<string, string>();
 	private dispatchSnapshots = new Map<string, MissionDispatchSnapshot>();
 	private providerTaskHeartbeats = new Map<string, ReturnType<typeof setInterval>>();
+	private providerTaskTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+	private missionEventHandlers = new Map<string, (event: BridgeEvent) => void>();
 	private pausedMissions = new Set<string>();
 	private pausedReasons = new Map<string, string>();
 	private lastStatusReason = new Map<string, string>();
@@ -317,6 +323,99 @@ class ProviderRuntimeManager {
 		if (snapshots.length === 0) return;
 		this.persistedResults.set(missionId, snapshots);
 		this.persistResults();
+	}
+
+	private reconcileStaleLiveSessions(missionId: string): void {
+		const now = Date.now();
+		const staleMs = staleRunningProviderMs();
+		let changed = false;
+		const staleSessions: ProviderSession[] = [];
+
+		for (const [key, session] of this.sessions) {
+			if (session.missionId !== missionId || session.status !== 'running') continue;
+			const durationMs = Math.max(0, now - session.startedAt.getTime());
+			if (durationMs < staleMs) continue;
+
+			const reason = `Provider runtime went quiet after ${formatDurationCompact(durationMs)}; marked stale so the mission stops reporting as active.`;
+			const heartbeat = this.providerTaskHeartbeats.get(key);
+			if (heartbeat) {
+				clearInterval(heartbeat);
+				this.providerTaskHeartbeats.delete(key);
+			}
+			const timeout = this.providerTaskTimeouts.get(key);
+			if (timeout) {
+				clearTimeout(timeout);
+				this.providerTaskTimeouts.delete(key);
+			}
+
+			session.status = 'failed';
+			session.error = session.error || reason;
+			session.completedAt = new Date(now);
+			session.result = {
+				success: false,
+				error: session.error,
+				durationMs: session.result?.durationMs ?? durationMs,
+				tokenUsage: session.result?.tokenUsage
+			};
+			this.rememberStatusReason(missionId, reason);
+			changed = true;
+			staleSessions.push(session);
+		}
+
+		if (changed) {
+			this.persistMissionSessions(missionId);
+			this.emitStaleLiveSessionEvents(missionId, staleSessions, new Date(now).toISOString());
+		}
+	}
+
+	private emitStaleLiveSessionEvents(
+		missionId: string,
+		staleSessions: ProviderSession[],
+		timestamp: string
+	): void {
+		const onEvent = this.missionEventHandlers.get(missionId);
+		if (!onEvent) return;
+
+		for (const session of staleSessions) {
+			const reason = session.error || 'Provider runtime went quiet; stale running session was closed.';
+			onEvent({
+				type: 'task_failed',
+				missionId,
+				source: session.providerId,
+				timestamp,
+				message: reason,
+				data: {
+					success: false,
+					error: reason,
+					provider: session.providerId,
+					durationMs: session.result?.durationMs ?? null,
+					stale: true
+				}
+			});
+		}
+
+		const allSessions = this.getSessionsForMission(missionId);
+		if (allSessions.length === 0 || !allSessions.every((session) => isTerminalProviderStatus(session.status))) {
+			return;
+		}
+
+		onEvent({
+			type: 'mission_failed',
+			missionId,
+			source: 'spawner-ui',
+			timestamp,
+			message: `Mission completed with errors (${allSessions.filter((session) => session.status === 'failed').length} failed)`,
+			data: {
+				stale: true,
+				providers: Object.fromEntries(
+					allSessions.map((session) => [
+						session.providerId,
+						{ status: session.status, error: session.error, durationMs: session.result?.durationMs }
+					])
+				)
+			}
+		});
+		this.missionEventHandlers.delete(missionId);
 	}
 
 	private getReconciledPersistedResults(missionId: string): ProviderMissionResultSnapshot[] {
@@ -432,6 +531,7 @@ class ProviderRuntimeManager {
 			workingDirectory,
 			executionAuthority
 		});
+		this.missionEventHandlers.set(missionId, onEvent);
 		this.pausedMissions.delete(missionId);
 		this.pausedReasons.delete(missionId);
 		this.lastStatusReason.set(missionId, 'Dispatch started');
@@ -547,6 +647,8 @@ class ProviderRuntimeManager {
 			const providerTimeoutMs = agentWorkTimeoutMs();
 			let providerTimedOut = false;
 			const providerTimeout = setTimeout(() => {
+				this.providerTaskTimeouts.delete(key);
+				if (isTerminalProviderStatus(session.status)) return;
 				providerTimedOut = true;
 				abortController.abort();
 				this.rememberStatusReason(
@@ -566,6 +668,7 @@ class ProviderRuntimeManager {
 					})
 				);
 			}, providerTimeoutMs);
+			this.providerTaskTimeouts.set(key, providerTimeout);
 
 			const promise = this.executeProvider(
 				provider,
@@ -579,6 +682,15 @@ class ProviderRuntimeManager {
 			).then((result) => {
 				stopTaskActivity();
 				clearTimeout(providerTimeout);
+				this.providerTaskTimeouts.delete(key);
+				if (isTerminalProviderStatus(session.status)) {
+					sessionStatuses[provider.id] = {
+						status: session.status,
+						error: session.error || undefined
+					};
+					this.persistMissionSessions(missionId);
+					return;
+				}
 				if (providerTimedOut && (result.error === 'Cancelled' || result.error === 'AbortError')) {
 					result = {
 						success: false,
@@ -602,6 +714,8 @@ class ProviderRuntimeManager {
 				this.persistMissionSessions(missionId);
 			}).catch((error) => {
 				stopTaskActivity();
+				clearTimeout(providerTimeout);
+				this.providerTaskTimeouts.delete(key);
 				throw error;
 			});
 
@@ -612,9 +726,7 @@ class ProviderRuntimeManager {
 		// But we need to handle completion
 		Promise.allSettled(providerPromises).then(() => {
 			const allSessions = this.getSessionsForMission(missionId);
-			const allComplete = allSessions.every(
-				(s) => s.status === 'completed' || s.status === 'failed' || s.status === 'cancelled'
-			);
+			const allComplete = allSessions.every((s) => isTerminalProviderStatus(s.status));
 			const anyFailed = allSessions.some((s) => s.status === 'failed');
 
 			if (allComplete && !this.pausedMissions.has(missionId)) {
@@ -647,6 +759,9 @@ class ProviderRuntimeManager {
 						)
 					}
 				});
+			}
+			if (allComplete) {
+				this.missionEventHandlers.delete(missionId);
 			}
 		});
 		this.persistMissionSessions(missionId);
@@ -1069,6 +1184,7 @@ class ProviderRuntimeManager {
 	}
 
 	getMissionResults(missionId: string): ProviderMissionResultSnapshot[] {
+		this.reconcileStaleLiveSessions(missionId);
 		const live = this.getSessionsForMission(missionId);
 		if (live.length > 0) {
 			return live.map(sessionToResultSnapshot);
@@ -1163,6 +1279,7 @@ class ProviderRuntimeManager {
 		resumeBlocker: string | null;
 		providers: Record<string, ProviderSessionStatus>;
 	} {
+		this.reconcileStaleLiveSessions(missionId);
 		const sessions = this.getSessionsForMission(missionId);
 		const persisted = sessions.length === 0 ? this.getReconciledPersistedResults(missionId) : [];
 		const providers: Record<string, ProviderSessionStatus> = {};
@@ -1172,7 +1289,6 @@ class ProviderRuntimeManager {
 		for (const result of persisted) {
 			providers[result.providerId] = result.status;
 		}
-		const terminal: ProviderSessionStatus[] = ['completed', 'failed', 'cancelled'];
 		const paused = this.pausedMissions.has(missionId);
 		const snapshotAvailable = this.dispatchSnapshots.has(missionId);
 		const pausedReason = this.pausedReasons.get(missionId) || null;
@@ -1184,8 +1300,8 @@ class ProviderRuntimeManager {
 		return {
 			allComplete:
 				sessions.length > 0
-					? sessions.every((s) => terminal.includes(s.status))
-					: persisted.length > 0 && persisted.every((result) => terminal.includes(result.status)),
+					? sessions.every((s) => isTerminalProviderStatus(s.status))
+					: persisted.length > 0 && persisted.every((result) => isTerminalProviderStatus(result.status)),
 			anyFailed: sessions.some((s) => s.status === 'failed') || persisted.some((result) => result.status === 'failed'),
 			paused,
 			pausedReason,
@@ -1205,6 +1321,11 @@ class ProviderRuntimeManager {
 					clearInterval(heartbeat);
 					this.providerTaskHeartbeats.delete(key);
 				}
+				const timeout = this.providerTaskTimeouts.get(key);
+				if (timeout) {
+					clearTimeout(timeout);
+					this.providerTaskTimeouts.delete(key);
+				}
 				if (session.status === 'running') {
 					session.abortController.abort();
 					const sparkAgentSessionId = this.sparkAgentSessionIds.get(key);
@@ -1217,6 +1338,7 @@ class ProviderRuntimeManager {
 			}
 		}
 		this.dispatchSnapshots.delete(missionId);
+		this.missionEventHandlers.delete(missionId);
 		this.pausedMissions.delete(missionId);
 		this.pausedReasons.delete(missionId);
 		this.lastStatusReason.delete(missionId);
@@ -1232,11 +1354,17 @@ class ProviderRuntimeManager {
 					clearInterval(heartbeat);
 					this.providerTaskHeartbeats.delete(key);
 				}
+				const timeout = this.providerTaskTimeouts.get(key);
+				if (timeout) {
+					clearTimeout(timeout);
+					this.providerTaskTimeouts.delete(key);
+				}
 				this.sparkAgentSessionIds.delete(key);
 				this.sessions.delete(key);
 			}
 		}
 		this.dispatchSnapshots.delete(missionId);
+		this.missionEventHandlers.delete(missionId);
 		this.pausedMissions.delete(missionId);
 		this.pausedReasons.delete(missionId);
 		this.lastStatusReason.delete(missionId);

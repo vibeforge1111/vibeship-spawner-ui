@@ -75,6 +75,7 @@ async function waitFor(fn: () => boolean, timeoutMs = 1500): Promise<void> {
 
 afterEach(() => {
 	sparkAgentBridge.resetForTests();
+	vi.useRealTimers();
 	vi.restoreAllMocks();
 	providerRuntime.cleanup('mission-step2-success');
 	providerRuntime.cleanup('mission-step2-failure');
@@ -89,7 +90,9 @@ afterEach(() => {
 	providerRuntime.cleanup('mission-step2-sandbox');
 	providerRuntime.cleanup('mission-step2-no-authority');
 	providerRuntime.cleanup('mission-step2-active-recovery');
+	providerRuntime.cleanup('mission-step2-live-stale');
 	delete process.env.SPAWNER_STATE_DIR;
+	delete process.env.SPAWNER_PROVIDER_STALE_RUNNING_MS;
 });
 
 describe('provider-runtime Spark agent bridge', () => {
@@ -690,6 +693,48 @@ describe('provider-runtime Spark agent bridge', () => {
 			response: 'codex-durable'
 		});
 		expect(providerRuntime.getMissionResults('mission-step2-persist')[0].durationMs).toEqual(expect.any(Number));
+	});
+
+	it('reconciles stale live provider sessions before reporting mission status', async () => {
+		process.env.SPAWNER_PROVIDER_STALE_RUNNING_MS = '60000';
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-04-28T00:00:00.000Z'));
+		sparkAgentBridge.setWorkerExecutorForTests(
+			() =>
+				new Promise(() => {
+					// Simulate a provider worker that went quiet without a terminal event.
+				})
+		);
+
+		const pack = buildPack('mission-step2-live-stale', [provider('codex', 'gpt-5.5')]);
+		const events: BridgeEvent[] = [];
+		await providerRuntime.dispatch({
+			executionPack: pack,
+			apiKeys: { codex: 'test-codex' },
+			executionAuthority: dispatchAuthority(),
+			onEvent: (event) => events.push(event),
+			workingDirectory: process.cwd()
+		});
+
+		expect(providerRuntime.getMissionStatus('mission-step2-live-stale').providers.codex).toBe('running');
+
+		vi.setSystemTime(new Date('2026-04-28T00:02:05.000Z'));
+		const status = providerRuntime.getMissionStatus('mission-step2-live-stale');
+		expect(status).toMatchObject({
+			allComplete: true,
+			anyFailed: true,
+			providers: { codex: 'failed' }
+		});
+		expect(status.lastReason).toContain('Provider runtime went quiet');
+		expect(providerRuntime.getMissionResults('mission-step2-live-stale')[0]).toMatchObject({
+			providerId: 'codex',
+			status: 'failed',
+			error: expect.stringContaining('Provider runtime went quiet'),
+			durationMs: 125000,
+			completedAt: '2026-04-28T00:02:05.000Z'
+		});
+		expect(events.some((event) => event.type === 'task_failed' && event.data?.stale === true)).toBe(true);
+		expect(events.some((event) => event.type === 'mission_failed' && event.data?.stale === true)).toBe(true);
 	});
 
 	it('reconciles running provider sessions from external mission lifecycle completion', async () => {
