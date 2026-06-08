@@ -24,10 +24,9 @@ const EXEMPT_EXACT_PATHS = new Set(['/robots.txt', '/spark-live/login', '/api/he
 const EXEMPT_PATH_PREFIXES = ['/_app/', '/favicon'];
 const RELEASE_LOCK_PUBLIC_EXACT_PATHS = new Set(['/', '/api/health/live']);
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-const COOKIE_OPTIONS = {
+const BASE_COOKIE_OPTIONS = {
 	httpOnly: true,
 	sameSite: 'strict' as const,
-	secure: true,
 	path: '/',
 	maxAge: 60 * 60 * 12
 };
@@ -326,6 +325,13 @@ export function hostedUiSessionIsValid(cookies: Cookies, env: HostedUiAuthEnv, n
 	return session.expiresAt > now && session.absoluteExpiresAt > now;
 }
 
+export function hostedUiCookieOptions(env: HostedUiAuthEnv): typeof BASE_COOKIE_OPTIONS & { secure: boolean } {
+	return {
+		...BASE_COOKIE_OPTIONS,
+		secure: hostedUiLooksHosted(env)
+	};
+}
+
 export function persistHostedUiAuth(cookies: Cookies, env: HostedUiAuthEnv): void {
 	const workspaceId = hostedUiWorkspaceId(env);
 	if (!workspaceId) return;
@@ -340,7 +346,7 @@ export function persistHostedUiAuth(cookies: Cookies, env: HostedUiAuthEnv): voi
 		expiresAt: now + SESSION_IDLE_TIMEOUT_MS,
 		absoluteExpiresAt: now + SESSION_ABSOLUTE_TIMEOUT_MS
 	});
-	cookies.set(SESSION_COOKIE_NAME, sessionId, COOKIE_OPTIONS);
+	cookies.set(SESSION_COOKIE_NAME, sessionId, hostedUiCookieOptions(env));
 	for (const cookieName of LEGACY_AUTH_COOKIE_NAMES) {
 		cookies.delete(cookieName, { path: '/' });
 	}

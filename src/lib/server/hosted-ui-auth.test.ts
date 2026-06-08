@@ -17,6 +17,7 @@ import {
 	hostedUiSessionIsValid,
 	hostedUiTokenIsValid,
 	hostedUiPathWithoutAuthQuery,
+	hostedUiCookieOptions,
 	consumeHostedUiPairingCode,
 	persistHostedUiAuth,
 	recordHostedUiAuthFailure,
@@ -209,13 +210,19 @@ describe('hosted UI auth', () => {
 			EVENTS_API_KEY: 'events-key'
 		});
 
-		expect(cookies.set).toHaveBeenCalledWith('spawner_ui_session', expect.any(String), expect.objectContaining({ httpOnly: true, sameSite: 'strict' }));
+		expect(cookies.set).toHaveBeenCalledWith('spawner_ui_session', expect.any(String), expect.objectContaining({ httpOnly: true, sameSite: 'strict', secure: false }));
 		expect(cookies.delete).toHaveBeenCalledWith('spawner_workspace_id', { path: '/' });
 		expect(cookies.delete).toHaveBeenCalledWith('spawner_ui_api_key', { path: '/' });
 		expect(cookies.delete).toHaveBeenCalledWith('spawner_control_api_key', { path: '/' });
 		expect(cookies.delete).toHaveBeenCalledWith('spawner_events_api_key', { path: '/' });
 		expect(hostedUiSessionIsValid(cookies, { SPARK_WORKSPACE_ID: 'private-workspace' })).toBe(true);
 		expect(hostedUiSessionIsValid(cookies, { SPARK_WORKSPACE_ID: 'other-workspace' })).toBe(false);
+	});
+
+	it('keeps hosted browser sessions secure while allowing local loopback sessions', () => {
+		expect(hostedUiCookieOptions({ SPARK_UI_API_KEY: 'ui-key' })).toMatchObject({ secure: false });
+		expect(hostedUiCookieOptions({ SPARK_UI_API_KEY: 'ui-key', SPARK_LIVE_CONTAINER: '1' })).toMatchObject({ secure: true });
+		expect(hostedUiCookieOptions({ SPARK_UI_API_KEY: 'ui-key', SPARK_ALLOWED_HOSTS: 'mission.example.com' })).toMatchObject({ secure: true });
 	});
 
 	it('expires private preview sessions on idle and absolute timeouts', () => {
