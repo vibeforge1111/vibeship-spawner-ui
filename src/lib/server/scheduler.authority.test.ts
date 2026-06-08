@@ -119,7 +119,7 @@ describe('scheduler Harness authority', () => {
 		expect(await listSchedules()).toHaveLength(0);
 	});
 
-	it('fires persisted scheduled missions with native Governor authority', async () => {
+	it('does not fire persisted scheduled missions from stored authority', async () => {
 		if (!testSpawnerDir) throw new Error('test state dir missing');
 		process.env.SPARK_WORKSPACE_ROOT = testSpawnerDir;
 		await mkdir(testSpawnerDir, { recursive: true });
@@ -160,64 +160,11 @@ describe('scheduler Harness authority', () => {
 
 		await runSchedulerTickForTests();
 
-		expect(fetchMock).toHaveBeenCalledTimes(1);
-		const firstCall = fetchMock.mock.calls[0] as [string | URL, RequestInit | undefined];
-		const body = JSON.parse(String(firstCall[1]?.body));
-		expect(body.executionAuthority).toMatchObject({
-			schema_version: 'governor-decision-v1',
-			outcome: 'execute',
-			selected_move: 'execute_action',
-			execution_boundary: {
-				action_authorized: true,
-				legacy_authority_demoted: true
-			},
-			envelope: {
-				schema_version: 'turn-intent-envelope-vnext',
-				selected_move: 'execute_action',
-				action_authority: {
-					state: 'executable'
-				}
-			}
-		});
-		expect(body.executionAuthority.envelope.action_authority).toMatchObject({
-			state: 'executable'
-		});
-		expect(body.executionAuthority.authorizations).toEqual(
-			expect.arrayContaining([
-				expect.objectContaining({
-					schema_version: 'authorization-decision-v1',
-					capability_id: 'capability:spawner-ui:spawner.run',
-					verdict: 'allow'
-				})
-			])
-		);
-		expect(body.executionAuthority.tool_ledgers).toEqual(
-			expect.arrayContaining([
-				expect.objectContaining({
-					schema_version: 'tool-call-ledger-v1',
-					tool_name: 'spawner.run',
-					authorization: expect.objectContaining({
-						verdict: 'allow'
-					})
-				})
-			])
-		);
-		expect(body.executionAuthority.envelope.proposed_actions).toEqual(
-			expect.arrayContaining([
-				expect.objectContaining({
-					capability_id: 'capability:spawner-ui:spawner.run',
-					action_type: 'launch_mission'
-				})
-			])
-		);
-		expect(body.executionAuthority.envelope).toMatchObject({
-			action_authority: {
-				state: 'executable'
-			}
-		});
+		expect(fetchMock).not.toHaveBeenCalled();
 
 		const [record] = await listSchedules();
 		expect(record.fireCount).toBe(1);
-		expect(record.lastStatus).toContain('ok: mission mission-governor-fire');
+		expect(record.lastStatus).toContain('fail: scheduled mission fire requires fresh Governor authority');
+		expect(record.lastStatus).toContain('stored schedule authority is evidence only');
 	});
 });

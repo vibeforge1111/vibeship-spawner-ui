@@ -6,7 +6,6 @@
  */
 
 import { logger } from '$lib/utils/logger';
-import { buildClientGovernorDecisionAuthority } from './harness-authority-client';
 
 const log = logger.scope('ClaudeAPI');
 
@@ -88,16 +87,7 @@ class ClaudeClient {
 					goal,
 					context: {
 						availableSkills: this.availableSkills.slice(0, 100)
-					},
-					executionAuthority: buildClientGovernorDecisionAuthority({
-						source: 'spawner-ui.claude-client',
-						reason: 'User explicitly requested AI-assisted project analysis from Spawner.',
-						toolName: 'spawner.analyze',
-						mutationClass: 'external_network',
-						actorId: 'spawner-ui.user',
-						target: goal.slice(0, 160),
-						externalNetwork: true
-					})
+					}
 				}),
 				signal: controller.signal
 			});

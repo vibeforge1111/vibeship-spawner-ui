@@ -113,6 +113,29 @@ function getSparkDefaultProviderId(): string {
 	);
 }
 
+function safeCodexCliToken(value: string | undefined, fallback: string): string {
+	const trimmed = value?.trim();
+	return trimmed && /^[A-Za-z0-9._-]+$/.test(trimmed) ? trimmed : fallback;
+}
+
+function missionCodexSandbox(envRecord: Record<string, string | undefined>): string {
+	const requested = envRecord.SPARK_MISSION_CODEX_SANDBOX?.trim() || 'workspace-write';
+	return ['read-only', 'workspace-write', 'danger-full-access'].includes(requested)
+		? requested
+		: 'workspace-write';
+}
+
+function missionCodexCommandTemplate(
+	model: string,
+	envRecord: Record<string, string | undefined>
+): string {
+	const profile = safeCodexCliToken(
+		envRecord.SPARK_MISSION_CODEX_PROFILE || envRecord.SPARK_CODEX_PROFILE,
+		'speed'
+	);
+	return `codex exec --model ${model} --profile ${profile} --sandbox ${missionCodexSandbox(envRecord)}`;
+}
+
 function configuredProvider(provider: MultiLLMProviderConfig): MultiLLMProviderConfig {
 	const envRecord = env as Record<string, string | undefined>;
 	const isMissionDefault = provider.id === getSparkDefaultProviderId();
@@ -127,11 +150,14 @@ function configuredProvider(provider: MultiLLMProviderConfig): MultiLLMProviderC
 		envRecord[`SPARK_${upperId}_BASE_URL`] ||
 		envRecord[`${upperId}_BASE_URL`] ||
 		provider.baseUrl;
-	const commandTemplate =
+	const envCommandTemplate =
 		(isMissionDefault ? envRecord.SPARK_MISSION_LLM_COMMAND_TEMPLATE : undefined) ||
 		envRecord[`SPARK_${upperId}_COMMAND_TEMPLATE`] ||
-		envRecord[`${upperId}_COMMAND_TEMPLATE`] ||
-		provider.commandTemplate;
+		envRecord[`${upperId}_COMMAND_TEMPLATE`];
+	const commandTemplate = envCommandTemplate ||
+		(provider.id === 'codex'
+			? missionCodexCommandTemplate(model, envRecord)
+			: provider.commandTemplate);
 	return {
 		...provider,
 		model,
@@ -394,11 +420,7 @@ export async function autoDispatchPrdCanvasLoad(
 		if (!allowed.ok) {
 			return { started: false, skipped: true, reason: allowed.reason, missionId: load.missionId };
 		}
-		const executionAuthority = resolveExecutionAuthority(
-			load.executionAuthority,
-			load.relay?.executionAuthority,
-			load.metadata?.executionAuthority
-		);
+		const executionAuthority = resolveExecutionAuthority(load.executionAuthority);
 		const authority = assertNativeGovernorHarnessAuthority({
 			authority: executionAuthority,
 			toolName: 'spawner.dispatch',

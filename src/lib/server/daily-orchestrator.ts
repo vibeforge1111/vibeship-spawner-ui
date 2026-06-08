@@ -1,6 +1,5 @@
 import type { Mission } from '$lib/services/mcp-client';
 import type { MissionControlAction } from '$lib/server/mission-control-command';
-import { buildServerGovernorDecisionAuthority } from './harness-authority';
 export type { MissionControlAction };
 
 export interface DailyTopMission {
@@ -90,6 +89,7 @@ export async function runMissionControlRegression(options: {
 	}) => Promise<Record<string, unknown>>;
 	source?: string;
 	includeKill?: boolean;
+	executionAuthority?: unknown;
 }): Promise<MissionControlRegressionResult> {
 	const sequence: MissionControlAction[] = ['status', 'pause', 'status', 'resume', 'status'];
 	if (options.includeKill) {
@@ -106,16 +106,7 @@ export async function runMissionControlRegression(options: {
 			...(action === 'status'
 				? {}
 				: {
-						executionAuthority: buildServerGovernorDecisionAuthority({
-							source: options.source || 'daily-orchestrator',
-							reason: 'Daily orchestrator mission-control regression authorized this mutation.',
-							toolName: 'spawner.mission_control.command',
-							mutationClass: 'controls_mission',
-							requestId: `daily-orchestrator-${action}-${options.missionId}`,
-							actorKind: 'system',
-							actorIdRef: 'spawner-ui.daily-orchestrator',
-							target: options.missionId
-						})
+						executionAuthority: options.executionAuthority
 					})
 		});
 

@@ -6,7 +6,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { autoDispatchPrdCanvasLoad, type PrdAutoDispatchResult } from './prd-auto-dispatch';
 import { spawnerStateDir as resolveSpawnerStateDir } from './spawner-state';
-import { assertNativeGovernorHarnessAuthority, buildServerGovernorDecisionAuthority, resolveExecutionAuthority } from './harness-authority';
+import { assertNativeGovernorHarnessAuthority, resolveExecutionAuthority } from './harness-authority';
 import { writeFileAtomic } from './atomic-write';
 
 const execFileAsync = promisify(execFile);
@@ -308,6 +308,7 @@ interface ExecuteCreatorMissionOptions {
 	stateDir?: string;
 	now?: () => Date;
 	dispatchRunner?: CreatorDispatchRunner;
+	executionAuthority?: unknown;
 }
 
 interface ValidateCreatorMissionOptions {
@@ -1669,18 +1670,8 @@ export async function readCreatorMissionTrace(
 	return null;
 }
 
-function executableCreatorMissionCanvasLoad(trace: CreatorMissionTrace): CreatorMissionCanvasLoad {
+function executableCreatorMissionCanvasLoad(trace: CreatorMissionTrace, executionAuthority: unknown): CreatorMissionCanvasLoad {
 	const load = creatorMissionCanvasLoad(trace);
-	const executionAuthority = buildServerGovernorDecisionAuthority({
-		source: 'authenticated_creator_mission_execute',
-		reason: 'Authenticated creator mission execution converted a staged creator canvas into a runnable mission.',
-		toolName: 'spawner.dispatch',
-		mutationClass: 'launches_mission',
-		requestId: trace.request_id,
-		actorKind: 'system',
-		actorIdRef: 'creator-mission.execute',
-		target: trace.mission_id
-	});
 	return {
 		...load,
 		autoRun: true,
@@ -1710,7 +1701,7 @@ export async function executeCreatorMission(
 	}
 
 	const now = options.now?.() ?? new Date();
-	const load = await writeCreatorMissionCanvasLoad(executableCreatorMissionCanvasLoad(trace), options.stateDir);
+	const load = await writeCreatorMissionCanvasLoad(executableCreatorMissionCanvasLoad(trace, options.executionAuthority), options.stateDir);
 	const runner = options.dispatchRunner || activeCreatorDispatchRunner || ((candidate: CreatorMissionCanvasLoad) =>
 		autoDispatchPrdCanvasLoad(candidate, { allowExistingNonTerminalMission: true }));
 	const dispatch = await runner(load);

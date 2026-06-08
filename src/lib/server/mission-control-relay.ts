@@ -249,17 +249,26 @@ function executionPolicyFromEventData(data: Record<string, unknown> | null | und
 	return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
-function knownMissionMetadata(missionId: string): { requestId: string | null; traceRef: string | null } {
+function hasTelegramRelayTarget(target: MissionControlRelayTarget | null | undefined): target is MissionControlRelayTarget {
+	return Boolean(target && (target.port !== null || target.profile !== null || target.url !== null));
+}
+
+function knownMissionMetadata(missionId: string): {
+	requestId: string | null;
+	traceRef: string | null;
+	telegramRelay: MissionControlRelayTarget | null;
+} {
 	for (const entry of relayState.recent) {
 		if (entry.missionId !== missionId) continue;
-		if (entry.requestId || entry.traceRef) {
+		if (entry.requestId || entry.traceRef || hasTelegramRelayTarget(entry.telegramRelay)) {
 			return {
 				requestId: entry.requestId,
-				traceRef: entry.traceRef
+				traceRef: entry.traceRef,
+				telegramRelay: hasTelegramRelayTarget(entry.telegramRelay) ? entry.telegramRelay : null
 			};
 		}
 	}
-	return { requestId: null, traceRef: null };
+	return { requestId: null, traceRef: null, telegramRelay: null };
 }
 
 function enrichMissionEventWithKnownMetadata(event: MissionControlBridgeEvent): MissionControlBridgeEvent {
@@ -268,10 +277,12 @@ function enrichMissionEventWithKnownMetadata(event: MissionControlBridgeEvent): 
 	const known = knownMissionMetadata(missionId);
 	const currentRequestId = requestIdFromEventData(data);
 	const currentTraceRef = extractTraceRef(data, event);
+	const currentTelegramRelay = getTelegramRelayTarget(event);
 	const requestId = currentRequestId || known.requestId;
 	const traceRef = currentTraceRef || known.traceRef;
+	const telegramRelay = hasTelegramRelayTarget(currentTelegramRelay) ? null : known.telegramRelay;
 
-	if ((!requestId || currentRequestId) && (!traceRef || currentTraceRef)) {
+	if ((!requestId || currentRequestId) && (!traceRef || currentTraceRef) && !telegramRelay) {
 		return event;
 	}
 
@@ -280,7 +291,8 @@ function enrichMissionEventWithKnownMetadata(event: MissionControlBridgeEvent): 
 		data: {
 			...(data ?? {}),
 			...(requestId && !currentRequestId ? { requestId } : {}),
-			...(traceRef && !currentTraceRef ? { traceRef } : {})
+			...(traceRef && !currentTraceRef ? { traceRef } : {}),
+			...(telegramRelay ? { telegramRelay } : {})
 		}
 	};
 }
@@ -1421,7 +1433,13 @@ export function selectWebhookUrlsForMissionEvent(event: MissionControlBridgeEven
 	}
 	if (target.url) {
 		const matched = urls.filter((url) => url === target.url);
-		return matched.length > 0 ? matched : urls;
+		if (matched.length > 0) return matched;
+		const targetUrlPort = webhookPort(target.url);
+		if (targetUrlPort !== null) {
+			const portMatched = urls.filter((url) => webhookPort(url) === targetUrlPort);
+			return portMatched;
+		}
+		return [];
 	}
 	const portMatched = urls.filter((url) => {
 		if (target.port !== null && webhookPort(url) === target.port) {
@@ -1429,7 +1447,7 @@ export function selectWebhookUrlsForMissionEvent(event: MissionControlBridgeEven
 		}
 		return false;
 	});
-	return portMatched.length > 0 ? portMatched : urls;
+	return portMatched;
 }
 
 export async function relayMissionControlEvent(event: MissionControlBridgeEvent): Promise<void> {

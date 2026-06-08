@@ -1,24 +1,16 @@
 import { logger } from '$lib/utils/logger';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { homedir } from 'node:os';
 import { randomBytes } from 'node:crypto';
 import { Cron } from 'croner';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { env as privateEnv } from '$env/dynamic/private';
-import { resolveSparkRunProjectPath } from './spark-run-workspace';
 import { spawnerStateDir } from './spawner-state';
 import {
   assertNativeGovernorHarnessAuthority,
-  buildServerGovernorDecisionAuthority,
   resolveExecutionAuthority,
   type HarnessAuthorityVerdict
 } from './harness-authority';
-import { parseJsonResponse, responseTextSnippet } from '$lib/services/http-response';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
-
-const execFileAsync = promisify(execFile);
 
 function _envVar(name: string): string | undefined {
   const v = (privateEnv as Record<string, string | undefined>)[name];
@@ -36,12 +28,6 @@ function errorCode(error: unknown): string | null {
   return error && typeof error === 'object' && 'code' in error
     ? String((error as { code?: unknown }).code)
     : null;
-}
-
-function redactSensitiveSnippet(text: string): string {
-  return text
-    .replace(/\b(Bearer\s+)[^\s]+/gi, '$1[redacted]')
-    .replace(/\b(?:sk|gh[pousr]|xox[baprs])-[-_a-z0-9]{8,}\b/gi, '[redacted]');
 }
 
 const TICK_MS = 30_000;
@@ -240,103 +226,18 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
   if (record.action === 'mission') {
     const goal = String(record.payload.goal ?? '');
     if (!goal) return { ok: false, summary: 'mission has no goal' };
-    const requestId = `sched-${record.id}-${Date.now()}`;
-    const baseUrl = (_envVar('SPAWNER_UI_URL') || 'http://127.0.0.1:3333').replace(/\/$/, '');
-    const requestedProjectPath =
-      typeof record.payload.projectPath === 'string' ? record.payload.projectPath : undefined;
-    const executionAuthority = buildServerGovernorDecisionAuthority({
-      source: `schedule:${record.id}`,
-      reason: 'Authorized scheduled mission fire from a persisted Spawner schedule.',
-      toolName: 'spawner.run',
-      mutationClass: 'launches_mission',
-      requestId,
-      actorKind: 'system',
-      actorIdRef: 'spawner-ui.scheduler',
-      target: String(record.payload.goal ?? 'scheduled mission')
-    });
-    const res = await fetch(`${baseUrl}/api/spark/run`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        goal,
-        chatId: String(record.chatId || 'scheduler'),
-        userId: 'scheduler',
-        requestId,
-        projectPath: resolveSparkRunProjectPath(requestedProjectPath),
-        executionAuthority,
-      }),
-    });
-    if (!res.ok) {
-      const detail = redactSensitiveSnippet(await responseTextSnippet(res, 200));
-      return {
-        ok: false,
-        summary: `spark/run HTTP ${res.status}${detail ? `: ${detail}` : ''}`,
-      };
-    }
-    const body = await parseJsonResponse<{ success?: boolean; missionId?: string; error?: string }>(res, {});
     return {
-      ok: Boolean(body.success),
-      summary: body.success ? `mission ${body.missionId}` : `error: ${body.error || 'unknown'}`,
+      ok: false,
+      summary: 'scheduled mission fire requires fresh Governor authority; stored schedule authority is evidence only'
     };
   }
   if (record.action === 'loop') {
     const chipKey = String(record.payload.chipKey ?? '');
-    const rounds = Math.max(1, Number(record.payload.rounds ?? 2));
     if (!chipKey) return { ok: false, summary: 'loop has no chipKey' };
-    const builderRepo =
-      process.env.SPARK_BUILDER_REPO || path.resolve(process.cwd(), '..', 'spark-intelligence-builder');
-    const home =
-      process.env.SPARK_BUILDER_HOME || path.join(homedir(), '.spark', 'state', 'spark-intelligence');
-    const python = process.env.SPARK_BUILDER_PYTHON || 'python';
-    try {
-      assertNativeGovernorHarnessAuthority({
-        authority: buildServerGovernorDecisionAuthority({
-          source: `schedule:${record.id}`,
-          reason: 'Authorized scheduled loop fire from a persisted Spawner schedule.',
-          toolName: 'spawner.scheduler.loop',
-          mutationClass: 'launches_mission',
-          requestId: `sched-loop-${record.id}-${Date.now()}`,
-          actorKind: 'system',
-          actorIdRef: 'spawner-ui.scheduler',
-          target: chipKey
-        }),
-        toolName: 'spawner.scheduler.loop',
-        ownerSystem: 'spawner-ui',
-        mutationClass: 'launches_mission'
-      });
-      const { stdout } = await execFileAsync(python, [
-        '-m',
-        'spark_intelligence.cli',
-        'loops',
-        'run',
-        '--home',
-        home,
-        '--chip',
-        chipKey,
-        '--rounds',
-        String(rounds),
-        '--json',
-      ], {
-        cwd: builderRepo,
-        env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
-        maxBuffer: 10 * 1024 * 1024,
-        timeout: 900_000,
-      });
-      let parsed: { ok?: boolean; rounds_completed?: number; error?: string };
-      try {
-        parsed = JSON.parse(stdout) as { ok?: boolean; rounds_completed?: number; error?: string };
-      } catch (parseError) {
-        throw new Error(`subprocess returned non-JSON output (length=${stdout.length}): ${errorMessage(parseError)}`);
-      }
-      return {
-        ok: Boolean(parsed.ok),
-        summary: parsed.ok
-          ? `loop ${chipKey} rounds=${parsed.rounds_completed}`
-          : `loop error: ${parsed.error || 'unknown'}`,
-      };
-    } catch (err: unknown) {
-      return { ok: false, summary: `loop exec failed: ${errorMessage(err)}` };
-    }
+    return {
+      ok: false,
+      summary: 'scheduled loop fire requires fresh Governor authority; stored schedule authority is evidence only'
+    };
   }
   return { ok: false, summary: `unknown action ${record.action}` };
 }

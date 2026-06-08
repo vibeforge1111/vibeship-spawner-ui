@@ -152,7 +152,17 @@ async function storePRDResult(requestId: string, result: unknown): Promise<void>
 		: {};
 	const storedResult = await projectStoredPrdAnalysisResultForTier(
 		requestId,
-		traceRef ? { ...resultRecord, traceRef, metadata: { ...metadataRecord, traceRef } } : result,
+		{
+			...resultRecord,
+			...(traceRef ? { traceRef } : {}),
+			metadata: {
+				...metadataRecord,
+				...(traceRef ? { traceRef } : {}),
+				canonical: true,
+				provisional: false,
+				resultAuthority: 'provider_result'
+			}
+		},
 		await tierForRequest(requestId)
 	);
 	const resultsDir = getResultsDir();

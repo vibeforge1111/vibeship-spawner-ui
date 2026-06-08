@@ -24,6 +24,9 @@ import {
 	buildClientTurnIntentVNextAuthority
 } from '$lib/services/harness-authority-client';
 
+const TEST_API_KEY = 'dispatch-authority-route-test-secret';
+const originalMcpApiKey = process.env.MCP_API_KEY;
+
 const executionPack = {
 	enabled: true,
 	strategy: 'single',
@@ -53,7 +56,7 @@ function event(body: unknown, method = 'POST', url = 'http://127.0.0.1:3333/api/
 	return {
 		request: new Request(url, {
 			method,
-			headers: { 'content-type': 'application/json' },
+			headers: { 'content-type': 'application/json', 'x-api-key': TEST_API_KEY },
 			body: body === undefined ? undefined : JSON.stringify(body)
 		}),
 		url: new URL(url),
@@ -75,6 +78,7 @@ function machineAuthority() {
 
 describe('/api/dispatch authority contract', () => {
 	beforeEach(() => {
+		process.env.MCP_API_KEY = TEST_API_KEY;
 		vi.stubGlobal(
 			'fetch',
 			vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }))
@@ -83,6 +87,11 @@ describe('/api/dispatch authority contract', () => {
 
 	afterEach(() => {
 		vi.unstubAllGlobals();
+		if (originalMcpApiKey === undefined) {
+			delete process.env.MCP_API_KEY;
+		} else {
+			process.env.MCP_API_KEY = originalMcpApiKey;
+		}
 	});
 
 	it('blocks provider dispatch when no TurnIntent or machine-origin policy is present', async () => {

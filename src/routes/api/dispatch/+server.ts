@@ -89,7 +89,7 @@ export const POST: RequestHandler = async (event) => {
 				{ status: 400 }
 			);
 		}
-		const executionAuthority = resolveExecutionAuthority(body.executionAuthority, relay?.executionAuthority, executionPack.executionAuthority);
+		const executionAuthority = resolveExecutionAuthority(body.executionAuthority);
 		const authority = assertNativeGovernorHarnessAuthority({
 			authority: executionAuthority,
 			toolName: 'spawner.dispatch',

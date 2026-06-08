@@ -49,7 +49,25 @@ export const POST: RequestHandler = async ({ request }) => {
 			return json({ error: 'requestId and result are required' }, { status: 400 });
 		}
 		assertSafeId(requestId, 'requestId');
-		const storedResult = await projectStoredPrdAnalysisResultForTier(requestId, result, await tierForRequest(requestId));
+		const resultRecord = result && typeof result === 'object' && !Array.isArray(result)
+			? (result as Record<string, unknown>)
+			: {};
+		const metadataRecord = resultRecord.metadata && typeof resultRecord.metadata === 'object' && !Array.isArray(resultRecord.metadata)
+			? (resultRecord.metadata as Record<string, unknown>)
+			: {};
+		const storedResult = await projectStoredPrdAnalysisResultForTier(
+			requestId,
+			{
+				...resultRecord,
+				metadata: {
+					...metadataRecord,
+					canonical: true,
+					provisional: false,
+					resultAuthority: 'provider_result'
+				}
+			},
+			await tierForRequest(requestId)
+		);
 
 		// Ensure results directory exists
 		const resultsDir = getResultsDir();

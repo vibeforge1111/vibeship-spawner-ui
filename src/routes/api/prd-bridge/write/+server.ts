@@ -46,6 +46,7 @@ function getPrdBridgePaths() {
 	return {
 		spawnerDir,
 		resultsDir: join(spawnerDir, 'results'),
+		provisionalResultsDir: join(spawnerDir, 'provisional-results'),
 		pendingPrdFile: join(spawnerDir, 'pending-prd.md'),
 		pendingRequestFile: join(spawnerDir, 'pending-request.json'),
 		prdAutoTraceFile: join(spawnerDir, 'prd-auto-trace.jsonl')
@@ -192,6 +193,28 @@ export function _demoteProvisionalPrdDraftResult(
 			replacedByProviderResult: false
 		}
 	};
+}
+
+export function _isProvisionalPrdDraftResult(value: unknown): boolean {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const record = value as Record<string, unknown>;
+	const metadata = record.metadata && typeof record.metadata === 'object' && !Array.isArray(record.metadata)
+		? record.metadata as Record<string, unknown>
+		: {};
+	return (
+		record.success === false &&
+		metadata.provisional === true &&
+		metadata.canonical === false &&
+		metadata.resultAuthority === 'provisional_canvas_draft'
+	);
+}
+
+function prdResultFile(paths: ReturnType<typeof getPrdBridgePaths>, requestId: string): string {
+	return join(paths.resultsDir, `${normalizeRequestId(requestId)}.json`);
+}
+
+function provisionalPrdResultFile(paths: ReturnType<typeof getPrdBridgePaths>, requestId: string): string {
+	return join(paths.provisionalResultsDir, `${normalizeRequestId(requestId)}.json`);
 }
 
 function normalizeRunnerCapability(input: unknown): RunnerCapability | null {
@@ -938,33 +961,38 @@ async function writeFallbackAnalysisResult(
 	options: { provisional?: boolean } = {}
 ): Promise<void> {
 	const paths = getPrdBridgePaths();
-	const safeRequestId = normalizeRequestId(requestId);
-	const resultFile = join(paths.resultsDir, `${safeRequestId}.json`);
-	if (existsSync(resultFile)) return;
+	const canonicalResultFile = prdResultFile(paths, requestId);
+	const outputFile = options.provisional ? provisionalPrdResultFile(paths, requestId) : canonicalResultFile;
+	if (existsSync(canonicalResultFile)) return;
+	if (options.provisional && existsSync(outputFile)) return;
 
-	if (!existsSync(paths.resultsDir)) {
-		await mkdir(paths.resultsDir, { recursive: true });
+	const outputDir = options.provisional ? paths.provisionalResultsDir : paths.resultsDir;
+	if (!existsSync(outputDir)) {
+		await mkdir(outputDir, { recursive: true });
 	}
 
 	const result = await _buildFallbackAnalysisResult(requestId, projectName, buildMode, tier, paths, buildLane);
+	if (options.provisional && existsSync(canonicalResultFile)) return;
 	const resolvedTraceRef = traceRef || await traceRefForRequest(requestId, {});
 	const resultWithTrace = resolvedTraceRef
 		? { ...result, traceRef: resolvedTraceRef, metadata: { ...((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined), traceRef: resolvedTraceRef } }
 		: result;
 	const stored = await projectStoredPrdAnalysisResultForTier(requestId, resultWithTrace, tier);
 	const output = options.provisional ? _demoteProvisionalPrdDraftResult(stored, reason) : stored;
-	await writeFile(resultFile, JSON.stringify(output, null, 2), 'utf-8');
-	const staticArtifactCount = await writeConstrainedStaticProofArtifacts(await readFile(paths.pendingPrdFile, 'utf-8').catch(() => ''));
-	if (staticArtifactCount > 0) {
+	await writeFile(outputFile, JSON.stringify(output, null, 2), 'utf-8');
+	const staticArtifactCount = options.provisional
+		? 0
+		: await writeConstrainedStaticProofArtifacts(await readFile(paths.pendingPrdFile, 'utf-8').catch(() => ''));
+	if (!options.provisional && staticArtifactCount > 0) {
 		await appendPrdTrace(requestId, 'deterministic_static_artifacts_written', {
 			...traceRefDetails(resolvedTraceRef),
 			fileCount: staticArtifactCount
 		});
 	}
-	await appendPrdTrace(requestId, 'fallback_analysis_written', {
+	await appendPrdTrace(requestId, options.provisional ? 'provisional_analysis_written' : 'fallback_analysis_written', {
 		...traceRefDetails(resolvedTraceRef),
 		reason,
-		resultFile,
+		resultFile: outputFile,
 		taskCount: Array.isArray(result.tasks) ? result.tasks.length : 0
 	});
 }
@@ -975,19 +1003,20 @@ function scheduleProvisionalPrdDraft(input: {
 	projectName: string;
 	buildMode: 'direct' | 'advanced_prd';
 	buildLane: BuildLane;
+	constrainedStaticSingleFile?: boolean;
 	tier: SkillTier;
 	traceRef?: string | null;
 }): void {
 	const delayMs = _provisionalPrdDraftDelayMs({
 		buildMode: input.buildMode,
-		buildLane: input.buildLane
+		buildLane: input.buildLane,
+		constrainedStaticSingleFile: input.constrainedStaticSingleFile === true
 	});
 	if (delayMs === null) return;
 
 	const timer = setTimeout(async () => {
 		const paths = getPrdBridgePaths();
-		const safeRequestId = normalizeRequestId(input.requestId);
-		const resultFile = join(paths.resultsDir, `${safeRequestId}.json`);
+		const resultFile = prdResultFile(paths, input.requestId);
 		if (existsSync(resultFile)) {
 			await appendPrdTrace(input.requestId, 'provisional_canvas_skipped', {
 				...traceRefDetails(input.traceRef),
@@ -998,7 +1027,7 @@ function scheduleProvisionalPrdDraft(input: {
 		}
 
 		await updatePendingRequestStatus(input.requestId, 'provisional', {
-			reason: 'Full PRD analysis is still running; provisional canvas draft queued so execution can start.',
+			reason: 'Canonical PRD analysis is still running; provisional canvas draft is advisory and non-executable.',
 			provisionalCanvasAt: new Date().toISOString(),
 			provisionalDelayMs: delayMs
 		});
@@ -1013,17 +1042,17 @@ function scheduleProvisionalPrdDraft(input: {
 			input.projectName,
 			input.buildMode,
 			input.tier,
-			`provisional canvas draft after ${delayMs}ms while full PRD analysis continues`,
+			`advisory provisional canvas draft after ${delayMs}ms while canonical PRD analysis continues`,
 			input.traceRef,
 			input.buildLane,
 			{ provisional: true }
 		);
 		void relayMissionControlEvent({
-			type: 'task_completed',
+			type: 'log',
 			missionId: input.missionId,
 			missionName: input.projectName,
-			taskName: 'PRD analysis',
-			message: 'PRD draft ready; full analysis can continue in the background.',
+			taskName: 'PRD draft',
+			message: 'Advisory PRD draft ready; waiting for canonical provider result before execution.',
 			source: 'prd-bridge',
 			data: {
 				requestId: input.requestId,
@@ -1051,10 +1080,11 @@ function scheduleAutoAnalysisWatchdog(
 ): void {
 	if (AUTO_ANALYSIS_TIMEOUT_MS <= 0) return;
 	const timer = setTimeout(async () => {
-		const { resultsDir } = getPrdBridgePaths();
-		const safeRequestId = normalizeRequestId(requestId);
-		const resultFile = join(resultsDir, `${safeRequestId}.json`);
+		const paths = getPrdBridgePaths();
+		const resultFile = prdResultFile(paths, requestId);
+		const provisionalResultFile = provisionalPrdResultFile(paths, requestId);
 		const hasResult = existsSync(resultFile);
+		const provisionalDraftAvailable = existsSync(provisionalResultFile);
 		if (hasResult) {
 			await appendPrdTrace(requestId, 'watchdog_result_found', {
 				...traceRefDetails(traceRef)
@@ -1062,30 +1092,72 @@ function scheduleAutoAnalysisWatchdog(
 			return;
 		}
 
+		if (_shouldKeepSlowCanonicalAnalysisRunning({ provisionalDraftAvailable })) {
+			await updatePendingRequestStatus(requestId, 'provisional', {
+				timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
+				canonicalStillRunning: true,
+				provisionalDraftAvailable,
+				reason: 'Canonical runtime analysis is still running; provisional draft remains non-canonical.'
+			});
+			await appendPrdTrace(requestId, 'watchdog_slow_continue', {
+				...traceRefDetails(traceRef),
+				timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
+				expectedResultFile: resultFile,
+				provisionalResultFile,
+				provisionalDraftAvailable,
+				buildMode,
+				buildLane,
+				projectName,
+				tier
+			});
+			void relayMissionControlEvent({
+				type: 'log',
+				missionId: missionIdFromRequestId(requestId),
+				missionName: projectName,
+				taskName: 'Canonical analysis',
+				message: 'Full PRD analysis is still running; keeping the provider alive.',
+				source: 'prd-bridge',
+				data: {
+					requestId,
+					...traceRefDetails(traceRef),
+					buildMode,
+					buildLane,
+					provisional: true,
+					canonicalStillRunning: true
+				}
+			});
+			return;
+		}
+
 		cancelAutoAnalysis?.();
 		await updatePendingRequestStatus(requestId, 'timeout', {
 			timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
-			reason: 'No runtime analysis result written before timeout; deterministic fallback queued'
+			canonicalTimedOut: true,
+			provisionalDraftAvailable,
+			reason: 'No canonical runtime analysis result written before timeout; provisional draft remains non-canonical.'
 		});
 		await appendPrdTrace(requestId, 'watchdog_timeout', {
 			...traceRefDetails(traceRef),
 			timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
-			expectedResultFile: resultFile
-		});
-		await writeFallbackAnalysisResult(
-			requestId,
-			projectName,
+			expectedResultFile: resultFile,
+			provisionalResultFile,
+			provisionalDraftAvailable,
 			buildMode,
-			tier,
-			`auto-analysis timeout after ${AUTO_ANALYSIS_TIMEOUT_MS}ms`,
-			traceRef,
-			buildLane
-		);
+			buildLane,
+			projectName,
+			tier
+		});
 	}, AUTO_ANALYSIS_TIMEOUT_MS);
 
 	if (typeof timer.unref === 'function') {
 		timer.unref();
 	}
+}
+
+export function _shouldKeepSlowCanonicalAnalysisRunning(input: {
+	provisionalDraftAvailable: boolean;
+}): boolean {
+	return input.provisionalDraftAvailable;
 }
 
 function resolveCodexBinary(): string | null {
@@ -1118,11 +1190,12 @@ function positiveEnvMs(env: NodeJS.ProcessEnv, key: string, fallbackMs: number):
 }
 
 export function _provisionalPrdDraftDelayMs(
-	input: { buildMode: 'direct' | 'advanced_prd'; buildLane: BuildLane },
+	input: { buildMode: 'direct' | 'advanced_prd'; buildLane: BuildLane; constrainedStaticSingleFile?: boolean },
 	env: NodeJS.ProcessEnv = process.env
 ): number | null {
 	if (env.SPAWNER_PRD_PROVISIONAL_DRAFTS === '0') return null;
 	const isAdvanced = input.buildMode === 'advanced_prd' || input.buildLane === 'advanced_prd';
+	if (!isAdvanced && env.SPAWNER_PRD_DIRECT_PROVISIONAL_DRAFTS !== '1') return null;
 	const key = isAdvanced ? 'SPAWNER_PRD_PROVISIONAL_ADVANCED_MS' : 'SPAWNER_PRD_PROVISIONAL_DIRECT_MS';
 	const fallback = isAdvanced ? DEFAULT_PROVISIONAL_ADVANCED_ANALYSIS_MS : DEFAULT_PROVISIONAL_DIRECT_ANALYSIS_MS;
 	return positiveEnvMs(env, key, fallback);
@@ -1148,6 +1221,24 @@ export function _shouldRequestBriefClarification(input: {
 	if (isConstrainedSingleFileStaticHtml(input.content)) return false;
 	if (input.buildMode === 'direct' && isConcreteDirectStaticBuild(input.content)) return false;
 	return true;
+}
+
+export function _shouldBypassBriefEnrichment(input: {
+	content: string;
+	buildMode: 'direct' | 'advanced_prd';
+	buildLane: BuildLane;
+	forceDispatch?: boolean;
+}): { bypass: boolean; reason: string | null } {
+	if (isConstrainedSingleFileStaticHtml(input.content)) {
+		return { bypass: true, reason: 'constrained_static_single_file' };
+	}
+	if (input.forceDispatch) {
+		return { bypass: true, reason: 'forced_dispatch_preserves_owner_brief' };
+	}
+	if (input.buildMode === 'direct' && input.buildLane !== 'advanced_prd') {
+		return { bypass: true, reason: 'governed_direct_build_preserves_owner_brief' };
+	}
+	return { bypass: false, reason: null };
 }
 
 function normalizeTelegramRelay(value: unknown): Record<string, unknown> | undefined {
@@ -1177,7 +1268,8 @@ export function _extractPrdBridgeProjectLineage(content: string, projectName?: s
 async function buildPromptParts(
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier,
-	briefBody?: string
+	briefBody?: string,
+	buildLane: BuildLane = buildMode === 'advanced_prd' ? 'advanced_prd' : 'direct'
 ): Promise<{
 	planningContract: string;
 	tierBlock: string;
@@ -1198,8 +1290,13 @@ async function buildPromptParts(
 				].join('\n')
 			: [
 					'Direct build contract:',
+					`- Build lane: ${buildLane}.`,
 					'- Preserve the user request as-is and create only the tasks needed to execute it.',
 					'- Do not inflate small explicit builds into a broad product plan.',
+					'- Prefer 3-5 concrete tasks for small direct apps and dashboards; use more only when the brief names genuinely separate surfaces or verification boundaries.',
+					'- Every task title must name the artifact, route, or surface it changes. Avoid generic titles like "Create app shell" unless the brief itself is only an app shell.',
+					'- Include workspaceTargets whenever a file, route, package, README, test, or project folder can be inferred from the brief.',
+					'- Do not insert generic open questions into the execution plan. If a detail is unknown, choose the smallest reversible assumption and mark it in acceptance criteria.',
 					'- If the request is exactly "did you understand what i said", classify it as a clarification-understanding workflow, preserve that request text exactly, acknowledge understanding, and ask for missing audience, workflow, saved memory, and vibe details. Do not create MVP/auth/payment/database tasks.'
 				].join('\n');
 
@@ -1269,6 +1366,7 @@ async function buildCodexPrompt(
 	traceRef: string | null,
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
+	buildLane: BuildLane,
 	tier: SkillTier,
 	paths: ReturnType<typeof getPrdBridgePaths>,
 	bundleBlock?: string,
@@ -1287,8 +1385,13 @@ async function buildCodexPrompt(
 				].join('\n')
 			: [
 					'Direct build contract:',
+					`- Build lane: ${buildLane}.`,
 					'- Preserve the user request as-is and create only the tasks needed to execute it.',
 					'- Do not inflate small explicit builds into a broad product plan.',
+					'- Prefer 3-5 concrete tasks for small direct apps and dashboards; use more only when the brief names genuinely separate surfaces or verification boundaries.',
+					'- Every task title must name the artifact, route, or surface it changes. Avoid generic titles like "Create app shell" unless the brief itself is only an app shell.',
+					'- Include workspaceTargets whenever a file, route, package, README, test, or project folder can be inferred from the brief.',
+					'- Do not insert generic open questions into the execution plan. If a detail is unknown, choose the smallest reversible assumption and mark it in acceptance criteria.',
 					'- If the request is exactly "did you understand what i said", classify it as a clarification-understanding workflow, preserve that request text exactly, acknowledge understanding, and ask for missing audience, workflow, saved memory, and vibe details. Do not create MVP/auth/payment/database tasks.'
 				].join('\n');
 
@@ -1332,6 +1435,7 @@ async function buildCodexPrompt(
 		...(traceRef ? [`Trace Ref: ${traceRef}`] : []),
 		`Project Name Hint: ${projectName}`,
 		`Build Mode: ${buildMode}`,
+		`Build Lane: ${buildLane}`,
 		'',
 		planningContract,
 		'',
@@ -1364,16 +1468,39 @@ async function buildCodexPrompt(
 		'- Do not leave placeholders.',
 		'- Ensure posted JSON is complete and parseable.',
 		'- Skill IDs MUST come from the allowlist. This is non-negotiable.',
-		'- Choose task count from project complexity. Do not default to four tasks when distinct skill sets or verification boundaries justify more.',
+		buildMode === 'direct'
+			? '- For direct builds, keep task count small enough to execute reliably in one provider run unless the brief requires otherwise.'
+			: '- Choose task count from project complexity. Do not default to four tasks when distinct skill sets or verification boundaries justify more.',
 		'',
 		'When finished successfully, print exactly: PRD_ANALYSIS_SENT'
 	].join('\n');
+}
+
+export function _resolvePrdCodexModel(env: NodeJS.ProcessEnv = process.env): string {
+	return (
+		env.SPAWNER_PRD_CODEX_MODEL ||
+		env.SPARK_CODEX_EXECUTOR_MODEL ||
+		env.CODEX_MODEL ||
+		'gpt-5.5'
+	).trim() || 'gpt-5.5';
+}
+
+export function _resolvePrdCodexCommandTemplate(
+	model: string,
+	env: NodeJS.ProcessEnv = process.env
+): string {
+	const explicit = env.SPAWNER_PRD_CODEX_COMMAND_TEMPLATE?.trim();
+	if (explicit) return explicit.includes('{model}') ? explicit.replace('{model}', model) : explicit;
+	const profile = (env.SPAWNER_PRD_CODEX_PROFILE || 'speed').trim();
+	const profileArg = profile ? ` --profile ${profile}` : '';
+	return `codex exec --model ${model}${profileArg} --sandbox workspace-write`;
 }
 
 async function startAutoAnalysis(
 	requestId: string,
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
+	buildLane: BuildLane,
 	tier: SkillTier,
 	traceRef: string | null,
 	executionAuthority: unknown
@@ -1394,7 +1521,7 @@ async function startAutoAnalysis(
 		const briefBody = existsSync(paths.pendingPrdFile)
 			? await readFile(paths.pendingPrdFile, 'utf-8')
 			: undefined;
-		const parts = await buildPromptParts(buildMode, tier, briefBody);
+		const parts = await buildPromptParts(buildMode, tier, briefBody, buildLane);
 		const started = await startClaudeAutoAnalysis({
 			requestId,
 			projectName,
@@ -1423,12 +1550,13 @@ async function startAutoAnalysis(
 		const briefBody = existsSync(paths.pendingPrdFile)
 			? await readFile(paths.pendingPrdFile, 'utf-8')
 			: undefined;
-		const parts = await buildPromptParts(buildMode, tier, briefBody);
+		const parts = await buildPromptParts(buildMode, tier, briefBody, buildLane);
 		const prompt = await buildCodexPrompt(
 			requestId,
 			traceRef,
 			projectName,
 			buildMode,
+			buildLane,
 			tier,
 			paths,
 			parts.bundleBlock,
@@ -1445,6 +1573,8 @@ async function startAutoAnalysis(
 		});
 
 		const controller = new AbortController();
+		const codexModel = _resolvePrdCodexModel();
+		const commandTemplate = _resolvePrdCodexCommandTemplate(codexModel);
 			void sparkAgentBridge
 				.executeProviderTask({
 					providerId: 'codex',
@@ -1455,10 +1585,10 @@ async function startAutoAnalysis(
 						toolName: 'spawner.prd.write',
 						mutationClass: 'writes_files'
 					},
-					model: 'gpt-5.5',
+					model: codexModel,
 					requestId,
 					traceRef: traceRef || undefined,
-					commandTemplate: 'codex exec --model gpt-5.5 --sandbox workspace-write',
+					commandTemplate,
 					workingDirectory: process.cwd(),
 					signal: controller.signal
 				})
@@ -1559,7 +1689,13 @@ export const POST: RequestHandler = async (event) => {
 		// already specific enough (length / keyword density / has section
 		// headers). Always returns a safe enrichedContent — never blocks.
 		const constrainedStaticSingleFileInput = isConstrainedSingleFileStaticHtml(content);
-		const enrichment = constrainedStaticSingleFileInput
+		const enrichmentBypass = _shouldBypassBriefEnrichment({
+			content,
+			buildMode: normalizedBuildMode,
+			buildLane: normalizedBuildLane,
+			forceDispatch: skipClarification
+		});
+		const enrichment = enrichmentBypass.bypass
 			? {
 					wasEnriched: false,
 					enrichedContent: content,
@@ -1568,6 +1704,14 @@ export const POST: RequestHandler = async (event) => {
 				}
 			: await enrichBrief(content);
 		const finalContent = enrichment.enrichedContent;
+		if (enrichmentBypass.bypass) {
+			await appendPrdTrace(requestId, 'brief_enrichment_bypassed', {
+				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+				reason: enrichmentBypass.reason,
+				buildMode: normalizedBuildMode,
+				buildLane: normalizedBuildLane
+			});
+		}
 		if (enrichment.wasEnriched) {
 			await appendPrdTrace(requestId, 'brief_enriched', {
 				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
@@ -1739,6 +1883,7 @@ export const POST: RequestHandler = async (event) => {
 					requestId,
 					requestMeta.projectName,
 					requestMeta.buildMode,
+					normalizedBuildLane,
 					normalizedTier,
 					normalizedTraceRef,
 					resolvedExecutionAuthority
@@ -1774,6 +1919,7 @@ export const POST: RequestHandler = async (event) => {
 				projectName: requestMeta.projectName,
 				buildMode: requestMeta.buildMode,
 				buildLane: requestMeta.buildLane,
+				constrainedStaticSingleFile,
 				tier: normalizedTier,
 				traceRef: normalizedTraceRef
 			});
