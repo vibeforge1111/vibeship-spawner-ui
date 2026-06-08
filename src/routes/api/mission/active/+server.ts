@@ -34,13 +34,16 @@ function getMissionControlPath(): string {
 	return path.join(getSpawnerDir(), 'mission-control.json');
 }
 
-function requireActiveMissionAuth(event: Parameters<typeof requireControlAuth>[0]): Response | null {
+function requireActiveMissionAuth(
+	event: Parameters<typeof requireControlAuth>[0],
+	allowLoopbackWithoutKey: boolean
+): Response | null {
 	return requireControlAuth(event, {
 		surface: 'ActiveMission',
 		apiKeyEnvVar: 'EVENTS_API_KEY',
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
 		apiKeyCookieName: 'spawner_events_api_key',
-		allowLoopbackWithoutKey: true,
+		allowLoopbackWithoutKey,
 		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
 	});
 }
@@ -92,7 +95,7 @@ interface ActiveMissionState {
  * Returns the active mission state if one exists
  */
 export const GET: RequestHandler = async (event) => {
-	const unauthorized = requireActiveMissionAuth(event);
+	const unauthorized = requireActiveMissionAuth(event, true);
 	if (unauthorized) return unauthorized;
 
 	const { url } = event;
@@ -189,7 +192,7 @@ export const GET: RequestHandler = async (event) => {
  * Update the active mission state (called by UI when state changes)
  */
 export const POST: RequestHandler = async (event) => {
-	const unauthorized = requireActiveMissionAuth(event);
+	const unauthorized = requireActiveMissionAuth(event, false);
 	if (unauthorized) return unauthorized;
 
 	const { request } = event;
@@ -265,7 +268,7 @@ export const POST: RequestHandler = async (event) => {
  * Clear the active mission (when completed, cancelled, or user clears)
  */
 export const DELETE: RequestHandler = async (event) => {
-	const unauthorized = requireActiveMissionAuth(event);
+	const unauthorized = requireActiveMissionAuth(event, false);
 	if (unauthorized) return unauthorized;
 
 	try {

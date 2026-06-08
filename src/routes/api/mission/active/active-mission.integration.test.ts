@@ -92,6 +92,24 @@ describe('/api/mission/active integration', () => {
 		expect(existsSync(missionFile)).toBe(false);
 	});
 
+	it('rejects unauthenticated local writes before persisting active mission state', async () => {
+		const response = await POST(
+			routeEvent({
+				apiKey: null,
+				body: {
+					missionId: 'mission-local-unauth-test',
+					missionName: 'Local unauth test',
+					status: 'running',
+					tasks: [],
+					completedTasks: [],
+					failedTasks: []
+				}
+			}) as never
+		);
+		expect(response.status).toBe(401);
+		expect(existsSync(missionFile)).toBe(false);
+	});
+
 	it('round-trips multi-llm execution state and resume instructions', async () => {
 		const payload = {
 			missionId: 'mission-integration-test',
@@ -192,6 +210,32 @@ describe('/api/mission/active integration', () => {
 		const deleteResponse = await DELETE(routeEvent({ method: 'DELETE' }) as never);
 		expect(deleteResponse.status).toBe(200);
 		expect(existsSync(missionFile)).toBe(false);
+	});
+
+	it('rejects unauthenticated local clears before deleting active mission state', async () => {
+		await writeFile(
+			missionFile,
+			JSON.stringify(
+				{
+					missionId: 'mission-local-clear-test',
+					missionName: 'Local clear test',
+					status: 'running',
+					progress: 10,
+					tasks: [],
+					completedTasks: [],
+					failedTasks: [],
+					lastUpdated: new Date().toISOString(),
+					resumeInstructions: 'resume'
+				},
+				null,
+				2
+			)
+		);
+
+		const deleteResponse = await DELETE(routeEvent({ method: 'DELETE', apiKey: null }) as never);
+
+		expect(deleteResponse.status).toBe(401);
+		expect(existsSync(missionFile)).toBe(true);
 	});
 
 	it('clears active file instead of persisting terminal mission states', async () => {
