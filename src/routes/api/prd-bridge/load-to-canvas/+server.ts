@@ -201,6 +201,32 @@ function canvasPathForPipeline(pipelineId: string, missionId: string): string {
 	return `/canvas?pipeline=${encodeURIComponent(pipelineId)}&mission=${encodeURIComponent(missionId)}`;
 }
 
+function workflowHandoffFromDispatch(input: {
+	canvasReadyForHandoff: boolean;
+	canvasUrl: string;
+	autoDispatchResult: Awaited<ReturnType<typeof autoDispatchPrdCanvasLoad>>;
+}) {
+	if (!input.canvasReadyForHandoff) {
+		return {
+			status: 'withheld',
+			reason: 'canvas_handoff_requires_materialized_nodes_and_complete_skill_pairings',
+			canvasUrl: null
+		};
+	}
+	if (input.autoDispatchResult.started) {
+		return {
+			status: 'ready',
+			reason: 'canvas_nodes_skill_pairings_and_workflow_execution_created',
+			canvasUrl: input.canvasUrl
+		};
+	}
+	return {
+		status: 'withheld',
+		reason: input.autoDispatchResult.error || input.autoDispatchResult.reason || 'workflow_execution_was_not_created',
+		canvasUrl: null
+	};
+}
+
 export const POST: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
 		surface: 'PRDBridgeLoadToCanvas',
@@ -473,6 +499,11 @@ export const POST: RequestHandler = async (event) => {
 							: 'autoRun disabled',
 					missionId: resolvedMissionId
 				};
+		const workflowHandoff = workflowHandoffFromDispatch({
+			canvasReadyForHandoff,
+			canvasUrl,
+			autoDispatchResult
+		});
 		if (!autoDispatchResult.started && !autoDispatchResult.skipped) {
 			void relayMissionControlEvent({
 				type: 'log',
@@ -507,6 +538,7 @@ export const POST: RequestHandler = async (event) => {
 			canvasMaterialization,
 			boardUrl,
 			canvasHandoff,
+			workflowHandoff,
 			...(canvasReadyForHandoff ? { canvasUrl } : {}),
 			missionControlAccess
 		});

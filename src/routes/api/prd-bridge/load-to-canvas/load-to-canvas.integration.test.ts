@@ -18,6 +18,17 @@ vi.mock('$lib/server/provider-runtime', () => ({
 			sessions: { codex: { status: 'running' } },
 			startedAt: new Date().toISOString()
 		})),
+		getMissionStatus: vi.fn(() => ({
+			allComplete: false,
+			anyFailed: false,
+			paused: false,
+			pausedReason: null,
+			lastReason: null,
+			snapshotAvailable: false,
+			resumeable: false,
+			resumeBlocker: null,
+			providers: {}
+		})),
 		getMissionResults: vi.fn(() => [])
 	}
 }));
@@ -181,7 +192,11 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
-				body: JSON.stringify({ requestId, autoRun: true })
+				body: JSON.stringify({
+					requestId,
+					autoRun: true,
+					executionAuthority: dispatchAuthority(requestId, 'mission-tg-contract-test')
+				})
 			})
 		} as never);
 
@@ -193,6 +208,11 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 			status: 'ready',
 			reason: 'nodes_and_skill_pairings_materialized',
 			boardFirst: true,
+			canvasUrl: '/canvas?pipeline=prd-tg-contract-test&mission=mission-tg-contract-test'
+		});
+		expect(body.workflowHandoff).toMatchObject({
+			status: 'ready',
+			reason: 'canvas_nodes_skill_pairings_and_workflow_execution_created',
 			canvasUrl: '/canvas?pipeline=prd-tg-contract-test&mission=mission-tg-contract-test'
 		});
 		expect(body.canvasMaterialized).toBe(true);
@@ -274,6 +294,11 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 			boardFirst: true,
 			canvasUrl: null
 		});
+		expect(body.workflowHandoff).toMatchObject({
+			status: 'withheld',
+			reason: 'canvas_handoff_requires_materialized_nodes_and_complete_skill_pairings',
+			canvasUrl: null
+		});
 		expect(body.canvasMaterialization).toMatchObject({
 			materialized: true,
 			nodeCount: 1,
@@ -348,7 +373,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 				requestId,
 				success: true,
 				projectName: 'No Dispatch Authority',
-				tasks: [{ id: 'task-1', title: 'Prepare preview', summary: 'Preview only.', skills: [] }],
+				tasks: [{ id: 'task-1', title: 'Prepare preview', summary: 'Preview only.', skills: ['frontend-engineer'] }],
 				executionPrompt: 'Build only when dispatch authority is present.'
 			}),
 			'utf-8'
@@ -371,6 +396,11 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		});
 		expect(body.autoDispatch.reason).toContain('missing_harness_authority');
 		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
+		expect(body.workflowHandoff).toMatchObject({
+			status: 'withheld',
+			canvasUrl: null
+		});
+		expect(body.workflowHandoff.reason).toContain('missing_harness_authority');
 		const pending = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-load.json'), 'utf-8'));
 		expect(pending.autoRun).toBe(false);
 		expect(pending.executionAuthority).toBeUndefined();
