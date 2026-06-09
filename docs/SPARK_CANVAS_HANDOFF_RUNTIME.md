@@ -15,6 +15,25 @@ Local Canvas reads must not require a login screen or manual access key. The loc
 
 Mutating routes remain control surfaces. Queueing a pipeline load, deleting pending state, mission commands, execution, registry movement, and provider control still require the appropriate Harness/Governor authority path and route auth.
 
+## Legacy CanvasSync Boundary
+
+CanvasSync is an optional local bridge for observing Canvas state from developer tools. It must not become an authority plane.
+
+Allowed without Harness authority:
+
+- current canvas state requests,
+- validation requests,
+- skill-content reads,
+- prompt/export reads.
+
+Blocked unless a future Harness Core/Governor route explicitly authorizes them:
+
+- add/remove/clear/update/connect nodes,
+- load templates,
+- execute workflows.
+
+Normal local Canvas use should not warn when no sync bridge is running. If no sync URL is configured, CanvasSync stays disabled quietly.
+
 ## Durable Canvas Recovery
 
 `/api/pipeline-loader` writes each queued Canvas load to:
