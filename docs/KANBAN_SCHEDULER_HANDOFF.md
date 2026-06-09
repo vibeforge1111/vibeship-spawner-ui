@@ -1,4 +1,10 @@
-# Kanban Scheduler — Handoff for Tomorrow
+# Kanban Scheduler - Historical Handoff
+
+> Historical note: this April handoff predates Harness Core VNext/Governor
+> adoption. Route auth and loopback access in this document are access controls
+> only. Schedule create/update/delete/run/tick operations are high-agency when
+> they can launch work and must require current Harness Core/Governor authority
+> or an explicitly documented machine-origin policy.
 
 **Status:** planned, not implemented. Deferred from the phase-2 session on 2026-04-21.
 
@@ -53,7 +59,9 @@ type Schedule = {
 | `/api/schedules/[id]/run` | POST | fire immediately (ignores due check) |
 | `/api/schedules/tick` | POST | iterate all active schedules, fire every one where `lastRunAt + intervalMinutes*60_000 <= now` |
 
-All routes use the same `requireControlAuth` + `allowLoopbackWithoutKey` pattern as `/api/spark/run`.
+Read-only local scheduler views may use local loopback access. Mutating routes
+must use route access plus Harness/Governor authority; `allowLoopbackWithoutKey`
+must not be used as execution authority.
 
 ---
 
@@ -142,7 +150,9 @@ No extra work needed on this side. Scheduled runs go through `/api/spark/run` li
 - Spark ingest URL (if configured) → Spark Intelligence Builder sees them and can react.
 - Configured webhooks → Telegram bridge notifies the allowlisted user.
 
-If the Spark Intelligence Builder needs to *create* a schedule (bot user types "run X every hour"), route that command through the bot's gateway to `POST /api/schedules` with the same auth header it uses for everything else.
+If the Spark Intelligence Builder needs to *create* a schedule (bot user types
+"run X every hour"), route that command through the bot gateway with a current
+Governor decision for schedule creation. The auth header is access only.
 
 ---
 
