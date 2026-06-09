@@ -278,6 +278,46 @@ describe('mission-control-results', () => {
 		});
 	});
 
+	it('counts reconciled project lineage as completion artifact evidence', () => {
+		const enriched = enrichMissionControlBoardWithProviderResults(
+			{
+				completed: [
+					entry('mission-lineage-artifact', {
+						tasks: [{ title: 'Build the thing', skills: [], status: 'completed' }],
+						taskStatusCounts: {
+							queued: 0,
+							running: 0,
+							completed: 1,
+							failed: 0,
+							cancelled: 0,
+							total: 1
+						},
+						projectLineage: {
+							projectId: 'project-lineage-artifact',
+							projectPath: 'C:\\Users\\USER\\.spark\\workspaces\\mission-lineage-artifact',
+							previewUrl: 'http://127.0.0.1:3333/preview/demo/index.html',
+							parentMissionId: null,
+							iterationNumber: null,
+							improvementFeedback: null
+						}
+					})
+				],
+				failed: [],
+				running: []
+			},
+			() => [result({ status: 'completed', response: 'Built the project.' })]
+		);
+
+		expect(enriched.completed[0]).toMatchObject({
+			missionId: 'mission-lineage-artifact',
+			completionEvidence: {
+				state: 'complete',
+				missing: [],
+				hasArtifactReference: true
+			}
+		});
+	});
+
 	it('marks terminal cards with incomplete evidence when provider results are absent', () => {
 		const enriched = enrichMissionControlBoardWithProviderResults(
 			{ completed: [entry('mission-no-provider-result')], failed: [], running: [] },
