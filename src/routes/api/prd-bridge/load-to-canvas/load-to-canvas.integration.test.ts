@@ -5,6 +5,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { POST } from './+server';
 import { providerRuntime } from '$lib/server/provider-runtime';
+import { getMissionControlRelaySnapshot } from '$lib/server/mission-control-relay';
 import {
 	buildClientGovernorDecisionAuthority,
 	buildClientTurnIntentVNextAuthority
@@ -461,6 +462,43 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		expect(pending.autoRun).toBe(false);
 		expect(pending.executionAuthority).toBeUndefined();
 		expect(dispatch).not.toHaveBeenCalled();
+		const traceRows = (await readFile(path.join(testSpawnerDir, 'prd-auto-trace.jsonl'), 'utf-8'))
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line));
+		expect(traceRows.map((row) => row.event)).toEqual(
+			expect.arrayContaining([
+				'canvas_auto_run_authority_withheld',
+				'canvas_load_materialized',
+				'canvas_auto_dispatch_withheld'
+			])
+		);
+		expect(traceRows.find((row) => row.event === 'canvas_auto_run_authority_withheld')).toMatchObject({
+			requestId,
+			missionId: 'mission-tg-load-no-dispatch-authority',
+			reasonCodes: expect.arrayContaining(['missing_harness_authority'])
+		});
+		const relaySnapshot = getMissionControlRelaySnapshot('mission-tg-load-no-dispatch-authority');
+		expect(relaySnapshot.recent).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					eventType: 'task_completed',
+					taskName: 'PRD analysis',
+					requestId
+				}),
+				expect.objectContaining({
+					eventType: 'mission_created',
+					taskName: 'Canvas ready',
+					requestId
+				}),
+				expect.objectContaining({
+					eventType: 'log',
+					taskName: 'Workflow start withheld',
+					requestId,
+					summary: expect.stringContaining('Workflow start withheld')
+				})
+			])
+		);
 	});
 
 	it('demotes bare VNext dispatch authority to preview-only', async () => {

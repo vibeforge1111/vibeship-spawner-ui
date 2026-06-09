@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { appendFile, readFile, writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
@@ -32,6 +32,24 @@ function getSpawnerDir(): string {
 function resultFilePath(requestId: string): string {
 	const safe = requestId.replace(/[^a-zA-Z0-9_-]/g, '_');
 	return join(getSpawnerDir(), 'results', `${safe}.json`);
+}
+
+async function appendPrdTrace(requestId: string, event: string, details: Record<string, unknown> = {}): Promise<void> {
+	try {
+		const row = {
+			ts: new Date().toISOString(),
+			requestId,
+			event,
+			...details
+		};
+		await appendFile(join(getSpawnerDir(), 'prd-auto-trace.jsonl'), `${JSON.stringify(row)}\n`, 'utf-8');
+	} catch {
+		// Trace writes are evidence only; never fail the live build path.
+	}
+}
+
+function traceRefDetails(traceRef: string | null | undefined): Record<string, string> {
+	return traceRef ? { traceRef } : {};
 }
 
 function normalizeTelegramRelay(value: unknown): Record<string, unknown> | undefined {
@@ -258,6 +276,10 @@ export const POST: RequestHandler = async (event) => {
 		const lastLoadFile = join(spawnerDir, 'last-canvas-load.json');
 		const pendingRequestFile = join(spawnerDir, 'pending-request.json');
 		if (!existsSync(path)) {
+			await appendPrdTrace(requestId, 'canvas_load_waiting_for_result', {
+				missionId: resolvedMissionId,
+				...traceRefDetails(resolvedTraceRef)
+			});
 			return json({ error: `No analysis result for ${requestId} yet` }, { status: 404 });
 		}
 
@@ -275,6 +297,10 @@ export const POST: RequestHandler = async (event) => {
 		}>(raw, `prd-result:${requestId}`);
 
 		if (!parsed.success || !Array.isArray(parsed.tasks) || parsed.tasks.length === 0) {
+			await appendPrdTrace(requestId, 'canvas_load_rejected_empty_result', {
+				missionId: resolvedMissionId,
+				...traceRefDetails(resolvedTraceRef)
+			});
 			return json({ error: 'Result has no tasks to load' }, { status: 422 });
 		}
 
@@ -302,6 +328,13 @@ export const POST: RequestHandler = async (event) => {
 				dispatchAuthority = undefined;
 				dispatchAuthorityBlock = error.verdict;
 				effectiveAutoRun = false;
+				await appendPrdTrace(requestId, 'canvas_auto_run_authority_withheld', {
+					missionId: resolvedMissionId,
+					...traceRefDetails(resolvedTraceRef),
+					reasonCodes: dispatchAuthorityBlock.reasonCodes,
+					source: dispatchAuthorityBlock.source,
+					governorOutcome: dispatchAuthorityBlock.governorOutcome ?? null
+				});
 			}
 		}
 
@@ -442,6 +475,15 @@ export const POST: RequestHandler = async (event) => {
 		const persistedLoad = storedCanvasLoad(load);
 		await writeFile(pendingLoadFile, JSON.stringify(persistedLoad, null, 2), 'utf-8');
 		await writeFile(lastLoadFile, JSON.stringify(persistedLoad, null, 2), 'utf-8');
+		await appendPrdTrace(requestId, 'canvas_load_materialized', {
+			missionId: resolvedMissionId,
+			...traceRefDetails(resolvedTraceRef),
+			pipelineId: load.pipelineId,
+			autoRunRequested: autoRun !== false,
+			autoRunEffective: effectiveAutoRun,
+			canvasReadyForHandoff,
+			canvasMaterialization
+		});
 		if (pendingRequestMeta) {
 			await writeFile(
 				pendingRequestFile,
@@ -466,6 +508,21 @@ export const POST: RequestHandler = async (event) => {
 			);
 		}
 		void relayMissionControlEvent({
+			type: 'task_completed',
+			missionId: resolvedMissionId,
+			missionName: load.pipelineName,
+			taskName: 'PRD analysis',
+			message: `PRD analysis completed for ${load.pipelineName}.`,
+			source: 'prd-bridge',
+			data: {
+				requestId,
+				...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
+				executionPolicy: 'read_only',
+				buildMode,
+				buildModeReason
+			}
+		});
+		void relayMissionControlEvent({
 			type: 'mission_created',
 			missionId: resolvedMissionId,
 			missionName: load.pipelineName,
@@ -475,6 +532,7 @@ export const POST: RequestHandler = async (event) => {
 			data: {
 				requestId,
 				...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
+				executionPolicy: 'read_only',
 				buildMode,
 				buildModeReason,
 				...(capabilitySummary ? { capabilityProposal: capabilitySummary } : {}),
@@ -500,11 +558,41 @@ export const POST: RequestHandler = async (event) => {
 							: 'autoRun disabled',
 					missionId: resolvedMissionId
 				};
+		await appendPrdTrace(requestId, autoDispatchResult.started ? 'canvas_auto_dispatch_started' : 'canvas_auto_dispatch_withheld', {
+			missionId: resolvedMissionId,
+			...traceRefDetails(resolvedTraceRef),
+			pipelineId: load.pipelineId,
+			started: autoDispatchResult.started,
+			skipped: Boolean(autoDispatchResult.skipped),
+			reason: autoDispatchResult.reason || null,
+			error: autoDispatchResult.error || null
+		});
 		const workflowHandoff = workflowHandoffFromDispatch({
 			canvasReadyForHandoff,
 			canvasUrl,
 			autoDispatchResult
 		});
+		if (!autoDispatchResult.started && autoDispatchResult.skipped) {
+			void relayMissionControlEvent({
+				type: 'log',
+				missionId: resolvedMissionId,
+				missionName: load.pipelineName,
+				taskName: 'Workflow start withheld',
+				message: `Workflow start withheld: ${autoDispatchResult.reason || 'autoRun disabled'}.`,
+				source: 'prd-bridge',
+				data: {
+					requestId,
+					...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
+					executionPolicy: 'read_only',
+					buildMode,
+					buildModeReason,
+					reason: autoDispatchResult.reason,
+					...(dispatchAuthorityBlock ? { authority: dispatchAuthorityBlock } : {}),
+					...(relay?.projectLineage ? { projectLineage: relay.projectLineage } : {}),
+					...(relay ? { telegramRelay: relay.telegramRelay } : {})
+				}
+			});
+		}
 		if (!autoDispatchResult.started && !autoDispatchResult.skipped) {
 			void relayMissionControlEvent({
 				type: 'log',
