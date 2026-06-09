@@ -21,12 +21,14 @@ vi.mock('$lib/server/mission-control-relay', () => ({
 
 vi.mock('$lib/server/provider-runtime', () => ({
 	providerRuntime: {
+		getSessionsForMission: vi.fn(() => []),
 		markMissionTerminalFromLifecycleEvent: vi.fn()
 	}
 }));
 
 import { GET, OPTIONS, POST } from './+server';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
+import { providerRuntime } from '$lib/server/provider-runtime';
 
 let testSpawnerDir: string | null = null;
 
@@ -34,6 +36,9 @@ afterEach(async () => {
 	delete process.env.SPAWNER_STATE_DIR;
 	privateEnv.SPARK_LIVE_CONTAINER = undefined;
 	vi.mocked(relayMissionControlEvent).mockClear();
+	vi.mocked(providerRuntime.getSessionsForMission).mockReset();
+	vi.mocked(providerRuntime.getSessionsForMission).mockReturnValue([]);
+	vi.mocked(providerRuntime.markMissionTerminalFromLifecycleEvent).mockClear();
 	if (testSpawnerDir && existsSync(testSpawnerDir)) {
 		await rm(testSpawnerDir, { recursive: true, force: true });
 	}
@@ -193,6 +198,88 @@ describe('/api/events auth', () => {
 
 		expect(response.status).toBe(401);
 		expect(relayMissionControlEvent).not.toHaveBeenCalled();
+	});
+
+	it('downgrades replayed terminal lifecycle events without an active provider session', async () => {
+		const response = await POST(
+			createEvent('https://example.com/api/events', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-api-key': 'events-secret'
+				},
+				body: JSON.stringify({
+					type: 'mission_completed',
+					missionId: 'mission-replayed-terminal',
+					source: 'codex',
+					data: { providerId: 'codex', response: 'replayed completion' }
+				})
+			})
+		);
+
+		expect(response.status).toBe(200);
+		expect(providerRuntime.markMissionTerminalFromLifecycleEvent).not.toHaveBeenCalled();
+		expect(relayMissionControlEvent).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: 'mission_lifecycle_untrusted',
+				originalType: 'mission_completed',
+				missionId: 'mission-replayed-terminal',
+				data: expect.objectContaining({
+					lifecycleTrust: expect.objectContaining({
+						trusted: false,
+						reason: 'no_matching_active_provider_session',
+						providerId: 'codex'
+					})
+				})
+			})
+		);
+	});
+
+	it('allows terminal lifecycle events that match an active provider session', async () => {
+		vi.mocked(providerRuntime.getSessionsForMission).mockReturnValue([
+			{
+				providerId: 'codex',
+				missionId: 'mission-live-terminal',
+				status: 'running',
+				abortController: new AbortController(),
+				startedAt: new Date('2026-06-09T00:00:00.000Z'),
+				completedAt: null,
+				result: null,
+				error: null
+			}
+		]);
+
+		const response = await POST(
+			createEvent('https://example.com/api/events', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-api-key': 'events-secret'
+				},
+				body: JSON.stringify({
+					type: 'mission_completed',
+					missionId: 'mission-live-terminal',
+					source: 'codex',
+					data: { providerId: 'codex', response: 'live completion' }
+				})
+			})
+		);
+
+		expect(response.status).toBe(200);
+		expect(providerRuntime.markMissionTerminalFromLifecycleEvent).toHaveBeenCalledWith(
+			expect.objectContaining({
+				missionId: 'mission-live-terminal',
+				status: 'completed',
+				providerId: 'codex',
+				response: 'live completion'
+			})
+		);
+		expect(relayMissionControlEvent).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: 'mission_completed',
+				missionId: 'mission-live-terminal'
+			})
+		);
 	});
 
 	it('stores PRD analysis results under configured Spawner state directory', async () => {

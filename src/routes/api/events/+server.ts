@@ -24,6 +24,8 @@ import { existsSync } from 'fs';
 
 const EVENTS_AUTH_COOKIE = 'spawner_events_api_key';
 const log = logger.scope('EventBridge');
+const TERMINAL_LIFECYCLE_EVENTS = new Set(['mission_completed', 'mission_failed', 'mission_cancelled']);
+const TERMINAL_PROVIDER_STATUSES = new Set(['completed', 'failed', 'cancelled']);
 
 function corsHeaders(request: Request): Record<string, string> {
 	const origin = request.headers.get('origin');
@@ -175,6 +177,56 @@ async function storePRDResult(requestId: string, result: unknown): Promise<void>
 	log.info(`Stored PRD result for polling: ${requestId}`);
 }
 
+function stringValue(value: unknown): string | null {
+	return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function terminalLifecycleTrust(event: Record<string, unknown>): {
+	trusted: boolean;
+	reason: string;
+	providerId: string | null;
+	missionId: string | null;
+	matchingSessionCount: number;
+} | null {
+	const type = stringValue(event.type);
+	if (!type || !TERMINAL_LIFECYCLE_EVENTS.has(type)) return null;
+	const missionId = stringValue(event.missionId);
+	if (!missionId) {
+		return {
+			trusted: false,
+			reason: 'terminal_lifecycle_missing_mission',
+			providerId: null,
+			missionId: null,
+			matchingSessionCount: 0
+		};
+	}
+
+	const data = event.data && typeof event.data === 'object' && !Array.isArray(event.data)
+		? (event.data as Record<string, unknown>)
+		: {};
+	const providerId =
+		stringValue(data.provider) ||
+		stringValue(data.providerId) ||
+		(typeof event.source === 'string' && event.source !== 'spawner-ui' ? event.source.trim() : null);
+	const requestId = stringValue(data.requestId);
+	const traceRef = extractTraceRef(data);
+	const sessions = providerRuntime.getSessionsForMission(missionId).filter((session) => {
+		const sessionRefs = session as typeof session & { requestId?: string | null; traceRef?: string | null };
+		if (providerId && session.providerId !== providerId) return false;
+		if (requestId && sessionRefs.requestId !== requestId) return false;
+		if (traceRef && sessionRefs.traceRef !== traceRef) return false;
+		return !TERMINAL_PROVIDER_STATUSES.has(session.status);
+	});
+
+	return {
+		trusted: sessions.length > 0,
+		reason: sessions.length > 0 ? 'matched_active_provider_session' : 'no_matching_active_provider_session',
+		providerId,
+		missionId,
+		matchingSessionCount: sessions.length
+	};
+}
+
 async function markPendingPrdResultComplete(requestId: string): Promise<void> {
 	assertSafeId(requestId, 'requestId');
 	const pendingRequestFile = join(getSpawnerDir(), 'pending-request.json');
@@ -290,6 +342,19 @@ export const POST: RequestHandler = async (event) => {
 					}
 				};
 			}
+		}
+		const lifecycleTrust = terminalLifecycleTrust(fullEvent);
+		if (lifecycleTrust && !lifecycleTrust.trusted) {
+			const originalType = fullEvent.type;
+			fullEvent = {
+				...fullEvent,
+				type: 'mission_lifecycle_untrusted',
+				originalType,
+				data: {
+					...(fullEvent.data && typeof fullEvent.data === 'object' ? fullEvent.data : {}),
+					lifecycleTrust
+				}
+			};
 		}
 
 		// Broadcast to all connected clients

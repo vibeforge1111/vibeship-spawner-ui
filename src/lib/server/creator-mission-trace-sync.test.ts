@@ -107,7 +107,11 @@ describe('creator mission trace sync', () => {
 		);
 
 		expect(synced?.current_stage).toBe('execution_completed');
+		expect(synced?.stage_status).toBe('running');
+		expect(synced?.publish_readiness).toBe('private_draft');
 		const saved = JSON.parse(await readFile(path.join(missionDir, `${missionId}.json`), 'utf-8'));
 		expect(saved.current_stage).toBe('execution_completed');
+		expect(saved.stage_status).toBe('running');
+		expect(saved.publish_readiness).toBe('private_draft');
 	});
 });
