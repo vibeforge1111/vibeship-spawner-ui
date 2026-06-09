@@ -34,6 +34,14 @@ Blocked unless a future Harness Core/Governor route explicitly authorizes them:
 
 Normal local Canvas use should not warn when no sync bridge is running. If no sync URL is configured, CanvasSync stays disabled quietly.
 
+## Spark Agent Canvas-State Boundary
+
+Spark Agent canvas snapshots are recovered runtime state. They can help a bound Spark Agent session redraw its own Canvas, but they must not silently replace the current Canvas just because a newer Spark Agent session exists.
+
+The Canvas page only polls `/api/spark-agent/canvas-state` when the URL includes `sparkAgentSessionId` or `sparkAgentSession`. The API also returns a snapshot only for the requested session id. Unbound reads return `hasUpdate: false`.
+
+This preserves the consumer binding rule: recovered Spark Agent state is evidence until the current Canvas explicitly binds to that Spark Agent session.
+
 ## Durable Canvas Recovery
 
 `/api/pipeline-loader` writes each queued Canvas load to:

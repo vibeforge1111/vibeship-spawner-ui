@@ -21,7 +21,8 @@ export const GET: RequestHandler = async (event) => {
 	if (rateLimited) return rateLimited;
 
 	const since = event.url.searchParams.get('since') || undefined;
-	const snapshot = sparkAgentBridge.getLatestCanvasSnapshot(since);
+	const sessionId = event.url.searchParams.get('sessionId')?.trim() || undefined;
+	const snapshot = sessionId ? sparkAgentBridge.getLatestCanvasSnapshot(since, sessionId) : null;
 
 	return json({
 		success: true,

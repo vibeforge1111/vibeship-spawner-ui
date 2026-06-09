@@ -111,6 +111,9 @@ describe('/api/spark-agent integration', () => {
 			getClientAddress: () => '127.0.0.1'
 		} as never);
 		expect(stateResponse.status).toBe(200);
+		const stateBody = await stateResponse.json();
+		expect(stateBody.hasUpdate).toBe(false);
+		expect(stateBody.snapshot).toBeNull();
 
 		const commandResponse = await command({
 			request: new Request('http://127.0.0.1:3333/api/spark-agent/command', {
@@ -388,11 +391,11 @@ describe('/api/spark-agent integration', () => {
 		} as never);
 
 		const response = await canvasState({
-			request: new Request('http://localhost/api/spark-agent/canvas-state', {
+			request: new Request(`http://localhost/api/spark-agent/canvas-state?sessionId=${encodeURIComponent(sessionId)}`, {
 				method: 'GET',
 				headers: authHeaders()
 			}),
-			url: new URL('http://localhost/api/spark-agent/canvas-state')
+			url: new URL(`http://localhost/api/spark-agent/canvas-state?sessionId=${encodeURIComponent(sessionId)}`)
 		} as never);
 		expect(response.status).toBe(200);
 		const body = await response.json();
@@ -404,12 +407,36 @@ describe('/api/spark-agent integration', () => {
 			skillChain: ['frontend-engineer', 'ui-design', 'responsive-mobile-first']
 		});
 
-		const sinceResponse = await canvasState({
-			request: new Request(`http://localhost/api/spark-agent/canvas-state?since=${encodeURIComponent(body.snapshot.updatedAt)}`, {
+		const unboundResponse = await canvasState({
+			request: new Request('http://localhost/api/spark-agent/canvas-state', {
 				method: 'GET',
 				headers: authHeaders()
 			}),
-			url: new URL(`http://localhost/api/spark-agent/canvas-state?since=${encodeURIComponent(body.snapshot.updatedAt)}`)
+			url: new URL('http://localhost/api/spark-agent/canvas-state')
+		} as never);
+		expect(unboundResponse.status).toBe(200);
+		const unboundBody = await unboundResponse.json();
+		expect(unboundBody.hasUpdate).toBe(false);
+		expect(unboundBody.snapshot).toBeNull();
+
+		const wrongSessionResponse = await canvasState({
+			request: new Request('http://localhost/api/spark-agent/canvas-state?sessionId=other-session', {
+				method: 'GET',
+				headers: authHeaders()
+			}),
+			url: new URL('http://localhost/api/spark-agent/canvas-state?sessionId=other-session')
+		} as never);
+		expect(wrongSessionResponse.status).toBe(200);
+		const wrongSessionBody = await wrongSessionResponse.json();
+		expect(wrongSessionBody.hasUpdate).toBe(false);
+		expect(wrongSessionBody.snapshot).toBeNull();
+
+		const sinceResponse = await canvasState({
+			request: new Request(`http://localhost/api/spark-agent/canvas-state?sessionId=${encodeURIComponent(sessionId)}&since=${encodeURIComponent(body.snapshot.updatedAt)}`, {
+				method: 'GET',
+				headers: authHeaders()
+			}),
+			url: new URL(`http://localhost/api/spark-agent/canvas-state?sessionId=${encodeURIComponent(sessionId)}&since=${encodeURIComponent(body.snapshot.updatedAt)}`)
 		} as never);
 		expect(sinceResponse.status).toBe(200);
 		const sinceBody = await sinceResponse.json();

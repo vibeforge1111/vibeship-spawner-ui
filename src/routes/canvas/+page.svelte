@@ -373,11 +373,14 @@ import { get } from 'svelte/store';
 		}
 	}
 
-	async function syncSparkAgentCanvasState(): Promise<void> {
+	async function syncSparkAgentCanvasState(sessionId: string | null): Promise<void> {
+		if (!sessionId) return;
 		if (goalProcessing) return;
 		if (sparkPipelineActive) return;
 
-		const query = lastSparkAgentSyncAt ? `?since=${encodeURIComponent(lastSparkAgentSyncAt)}` : '';
+		const params = new URLSearchParams({ sessionId });
+		if (lastSparkAgentSyncAt) params.set('since', lastSparkAgentSyncAt);
+		const query = `?${params.toString()}`;
 		const response = await fetch(`/api/spark-agent/canvas-state${query}`);
 		if (!response.ok) return;
 
@@ -694,6 +697,10 @@ import { get } from 'svelte/store';
 		const suppressExec = url.searchParams.get('noexec') === '1';
 		const requestedPipelineId = url.searchParams.get('pipeline')?.trim() || null;
 		const requestedMissionId = url.searchParams.get('mission')?.trim() || null;
+		const requestedSparkAgentSessionId =
+			url.searchParams.get('sparkAgentSessionId')?.trim() ||
+			url.searchParams.get('sparkAgentSession')?.trim() ||
+			null;
 		const loadedExplicitPipeline = loadExplicitPipelineFromUrl(url);
 		const loadedMissionOnlyCanvas =
 			!loadedExplicitPipeline && requestedMissionId && (!requestedPipelineId || requestedPipelineId.startsWith('mission-history-'))
@@ -788,11 +795,11 @@ import { get } from 'svelte/store';
 		cleanupCanvasSync = initCanvasSync();
 
 		// Keep /canvas in sync with external Spark agent command API updates
-		await syncSparkAgentCanvasState().catch((error) => {
+		await syncSparkAgentCanvasState(requestedSparkAgentSessionId).catch((error) => {
 			console.warn('[Canvas] Initial Spark Agent sync failed:', error);
 		});
 		sparkAgentSyncInterval = setInterval(() => {
-			void syncSparkAgentCanvasState().catch((error) => {
+			void syncSparkAgentCanvasState(requestedSparkAgentSessionId).catch((error) => {
 				console.warn('[Canvas] Spark Agent sync poll failed:', error);
 			});
 		}, 1200);

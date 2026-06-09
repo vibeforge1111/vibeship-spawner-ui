@@ -583,11 +583,12 @@ class SparkAgentBridgeService {
 		return [...(this.sessions.get(sessionId)?.events || [])];
 	}
 
-	getLatestCanvasSnapshot(since?: string): SparkAgentCanvasSnapshot | null {
+	getLatestCanvasSnapshot(since?: string, sessionId?: string): SparkAgentCanvasSnapshot | null {
 		const sinceTs = since ? Date.parse(since) : Number.NaN;
-		const sessions = [...this.sessions.values()].filter((session) =>
-			session.events.some((event) => event.type === 'spark_agent.canvas.updated')
-		);
+		const sessions = [...this.sessions.values()].filter((session) => {
+			if (sessionId && session.id !== sessionId) return false;
+			return session.events.some((event) => event.type === 'spark_agent.canvas.updated');
+		});
 		if (sessions.length === 0) return null;
 
 		sessions.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
