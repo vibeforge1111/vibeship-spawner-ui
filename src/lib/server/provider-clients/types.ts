@@ -27,6 +27,10 @@ export interface ProviderSession {
 	providerId: string;
 	missionId: string;
 	model?: string | null;
+	/** Governed dispatch request the session is bound to (machine-origin callbacks must match it when recorded). */
+	requestId?: string | null;
+	traceRef?: string | null;
+	pipelineId?: string | null;
 	status: ProviderSessionStatus;
 	abortController: AbortController;
 	startedAt: Date;

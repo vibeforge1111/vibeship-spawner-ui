@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import path from 'path';
 import { existsSync } from 'fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
@@ -63,15 +63,22 @@ describe('/api/prd-bridge/result integration', () => {
 		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-prd-result-'));
 		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
 		process.env.MCP_API_KEY = TEST_API_KEY;
+		vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
 	});
 
 	afterEach(async () => {
+		vi.unstubAllGlobals();
 		await resetTestSpawnerDir();
 		restoreEnv('MCP_API_KEY', originalMcpApiKey);
 	});
 
 	it('stores and reads PRD results from the configured Spawner state directory', async () => {
 		const requestId = 'tg-build-state-dir-test';
+		await writeFile(
+			path.join(testSpawnerDir, 'pending-request.json'),
+			JSON.stringify({ requestId, status: 'pending' }),
+			'utf-8'
+		);
 		const result = {
 			success: true,
 			projectName: 'State Dir Test',
@@ -222,6 +229,11 @@ describe('/api/prd-bridge/result integration', () => {
 
 	it('rejects malformed result JSON with a useful error', async () => {
 		const requestId = 'tg-build-malformed-result-test';
+		await writeFile(
+			path.join(testSpawnerDir, 'pending-request.json'),
+			JSON.stringify({ requestId, status: 'pending' }),
+			'utf-8'
+		);
 		const postResponse = await POST({
 			...postResultEvent({ requestId, result: { success: true, projectName: 'Broken' } })
 		} as never);
@@ -230,6 +242,146 @@ describe('/api/prd-bridge/result integration', () => {
 		expect(postResponse.status).toBe(400);
 		expect(body.error).toContain('Invalid PRD analysis result');
 		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(false);
+	});
+
+	it('rejects results that do not bind to a governed pending request without storing artifacts', async () => {
+		const requestId = 'tg-build-unbound-result-test';
+
+		const postResponse = await POST({
+			...postResultEvent({
+				requestId,
+				result: {
+					success: true,
+					projectName: 'Unbound Result',
+					projectType: 'direct-build',
+					complexity: 'simple',
+					infrastructure: { needsAuth: false, needsDatabase: false, needsAPI: false },
+					techStack: { framework: 'Existing Spawner UI', language: 'TypeScript' },
+					tasks: [{ id: 'TAS-1', title: 'Should never store', skills: [], dependencies: [] }],
+					skills: []
+				}
+			})
+		} as never);
+		const body = await postResponse.json();
+
+		expect(postResponse.status).toBe(409);
+		expect(body.code).toBe('prd_result_unbound');
+		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(false);
+
+		const traceRows = (await readFile(path.join(testSpawnerDir, 'prd-auto-trace.jsonl'), 'utf-8'))
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line));
+		expect(traceRows.find((row) => row.requestId === requestId)).toMatchObject({
+			event: 'result_rejected_unbound'
+		});
+		const missionControlFile = path.join(testSpawnerDir, 'mission-control.json');
+		if (existsSync(missionControlFile)) {
+			const missionControl = JSON.parse(await readFile(missionControlFile, 'utf-8'));
+			expect(
+				missionControl.recent.filter(
+					(entry: { requestId?: string | null }) => entry.requestId === requestId
+				)
+			).toEqual([]);
+		}
+	});
+
+	it('rejects results whose requestId binds to a different pending request', async () => {
+		const requestId = 'tg-build-mismatched-result-test';
+		await writeFile(
+			path.join(testSpawnerDir, 'pending-request.json'),
+			JSON.stringify({ requestId: 'tg-build-some-other-request', status: 'pending' }),
+			'utf-8'
+		);
+
+		const postResponse = await POST({
+			...postResultEvent({
+				requestId,
+				result: {
+					success: true,
+					projectName: 'Mismatched Result',
+					projectType: 'direct-build',
+					complexity: 'simple',
+					infrastructure: { needsAuth: false, needsDatabase: false, needsAPI: false },
+					techStack: { framework: 'Existing Spawner UI', language: 'TypeScript' },
+					tasks: [{ id: 'TAS-1', title: 'Should never store', skills: [], dependencies: [] }],
+					skills: []
+				}
+			})
+		} as never);
+		const body = await postResponse.json();
+
+		expect(postResponse.status).toBe(409);
+		expect(body.code).toBe('prd_result_unbound');
+		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(false);
+	});
+
+	it('emits trace and Mission Control events when a bound result is stored', async () => {
+		const requestId = 'tg-build-bound-result-events-1788111111111';
+		const missionId = 'mission-1788111111111';
+		const traceRef = 'trace:spawner-prd:mission-1788111111111';
+		await writeFile(
+			path.join(testSpawnerDir, 'pending-request.json'),
+			JSON.stringify({
+				requestId,
+				missionId,
+				traceRef,
+				projectName: 'Bound Result Events',
+				pipelineId: `prd-${requestId}`,
+				status: 'pending'
+			}),
+			'utf-8'
+		);
+
+		const postResponse = await POST({
+			...postResultEvent({
+				requestId,
+				result: {
+					success: true,
+					projectName: 'Bound Result Events',
+					projectType: 'direct-build',
+					complexity: 'simple',
+					infrastructure: { needsAuth: false, needsDatabase: false, needsAPI: false },
+					techStack: { framework: 'Existing Spawner UI', language: 'TypeScript' },
+					tasks: [{ id: 'TAS-1', title: 'Store bound result', skills: [], dependencies: [] }],
+					skills: []
+				}
+			})
+		} as never);
+		const body = await postResponse.json();
+
+		expect(postResponse.status).toBe(200);
+		expect(body).toMatchObject({ success: true, requestId, traceRef });
+		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(true);
+		const stored = JSON.parse(await readFile(path.join(testSpawnerDir, 'results', `${requestId}.json`), 'utf-8'));
+		expect(stored.traceRef).toBe(traceRef);
+
+		const traceRows = (await readFile(path.join(testSpawnerDir, 'prd-auto-trace.jsonl'), 'utf-8'))
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line));
+		expect(traceRows.find((row) => row.requestId === requestId)).toMatchObject({
+			event: 'canonical_result_stored',
+			traceRef,
+			missionId,
+			pipelineId: `prd-${requestId}`
+		});
+
+		const missionControl = JSON.parse(
+			await readFile(path.join(testSpawnerDir, 'mission-control.json'), 'utf-8')
+		);
+		const missionEvents = missionControl.recent.filter(
+			(entry: { missionId?: string }) => entry.missionId === missionId
+		);
+		expect(missionEvents.length).toBeGreaterThan(0);
+		expect(missionEvents[0]).toMatchObject({
+			eventType: 'log',
+			missionId,
+			requestId,
+			traceRef,
+			pipelineId: `prd-${requestId}`,
+			taskName: 'PRD analysis result'
+		});
 	});
 
 	it('rejects unauthenticated canonical result writes from non-local callers without storing artifacts', async () => {

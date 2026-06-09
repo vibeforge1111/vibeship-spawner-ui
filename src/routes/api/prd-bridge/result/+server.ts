@@ -10,12 +10,15 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { readFile, writeFile, mkdir, appendFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
 import { projectStoredPrdAnalysisResultForTier } from '$lib/server/prd-analysis-result-schema';
+import { readPendingRequestRecord } from '$lib/server/prd-pending-requests';
+import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { extractTraceRef } from '$lib/server/trace-ref';
 import { requireControlAuth } from '$lib/server/mcp-auth';
 import { logger } from '$lib/utils/logger';
 import { parseJsonOrThrow } from '$lib/utils/safe-json';
@@ -27,16 +30,30 @@ function getResultsDir(): string {
 	return join(spawnerDir, 'results');
 }
 
-async function tierForRequest(requestId: string): Promise<string> {
+function tierForPendingRequest(pending: Record<string, unknown> | null): string {
+	return pending && typeof pending.tier === 'string' ? pending.tier : 'base';
+}
+
+function missionIdForPendingRequest(pending: Record<string, unknown>, requestId: string): string {
+	if (typeof pending.missionId === 'string' && pending.missionId.trim()) return pending.missionId;
+	const stamp = requestId.match(/(\d{10,})$/)?.[1];
+	return `mission-${stamp || requestId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+}
+
+async function appendPrdTrace(requestId: string, event: string, details: Record<string, unknown> = {}): Promise<void> {
 	try {
-		const pendingRequestFile = join(spawnerStateDir(), 'pending-request.json');
-		if (!existsSync(pendingRequestFile)) return 'base';
-		const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
-		const pending = JSON.parse(pendingRaw) as Record<string, unknown>;
-		if (pending.requestId !== requestId) return 'base';
-		return typeof pending.tier === 'string' ? pending.tier : 'base';
+		await appendFile(
+			join(spawnerStateDir(), 'prd-auto-trace.jsonl'),
+			`${JSON.stringify({
+				ts: new Date().toISOString(),
+				requestId,
+				event,
+				...details
+			})}\n`,
+			'utf-8'
+		);
 	} catch {
-		return 'base';
+		// Trace failures are non-fatal.
 	}
 }
 
@@ -111,6 +128,28 @@ export const POST: RequestHandler = async (event) => {
 			return json({ error: 'requestId and result are required' }, { status: 400 });
 		}
 		assertSafeId(requestId, 'requestId');
+
+		// Machine-origin results must bind to a governed pending request created
+		// by a governed dispatch; unmatched requestIds are rejected fail-closed
+		// with no result write or state change.
+		const pendingRequest = await readPendingRequestRecord(spawnerStateDir(), requestId);
+		if (!pendingRequest) {
+			await appendPrdTrace(requestId, 'result_rejected_unbound', {
+				source: 'prd-bridge-result',
+				reason: 'no governed pending request matches requestId'
+			});
+			log.warn(`Rejected unbound PRD result for: ${requestId}`);
+			return json(
+				{
+					error: 'Unknown requestId: PRD results must bind to a governed pending request.',
+					code: 'prd_result_unbound',
+					requestId
+				},
+				{ status: 409 }
+			);
+		}
+
+		const traceRef = extractTraceRef(pendingRequest);
 		const resultRecord = result && typeof result === 'object' && !Array.isArray(result)
 			? (result as Record<string, unknown>)
 			: {};
@@ -121,14 +160,16 @@ export const POST: RequestHandler = async (event) => {
 			requestId,
 			{
 				...resultRecord,
+				...(traceRef ? { traceRef } : {}),
 				metadata: {
 					...metadataRecord,
+					...(traceRef ? { traceRef } : {}),
 					canonical: true,
 					provisional: false,
 					resultAuthority: 'provider_result'
 				}
 			},
-			await tierForRequest(requestId)
+			tierForPendingRequest(pendingRequest)
 		);
 
 		// Ensure results directory exists
@@ -142,8 +183,33 @@ export const POST: RequestHandler = async (event) => {
 		const resultFile = resolveWithinBaseDir(resultsDir, `${requestId}.json`);
 		await writeFile(resultFile, JSON.stringify(storedResult, null, 2), 'utf-8');
 
+		const missionId = missionIdForPendingRequest(pendingRequest, requestId);
+		const pipelineId = typeof pendingRequest.pipelineId === 'string' ? pendingRequest.pipelineId : null;
+		await appendPrdTrace(requestId, 'canonical_result_stored', {
+			source: 'prd-bridge-result',
+			...(traceRef ? { traceRef, trace_ref: traceRef } : {}),
+			missionId,
+			...(pipelineId ? { pipelineId } : {})
+		});
+		void relayMissionControlEvent({
+			type: 'log',
+			missionId,
+			missionName:
+				typeof pendingRequest.projectName === 'string' ? pendingRequest.projectName : undefined,
+			taskName: 'PRD analysis result',
+			message: 'Canonical PRD analysis result stored from provider result callback.',
+			source: 'prd-bridge',
+			data: {
+				requestId,
+				...(traceRef ? { traceRef } : {}),
+				pipelineId,
+				resultFileName: `${requestId}.json`,
+				resultAuthority: 'provider_result'
+			}
+		});
+
 		log.info(`Stored result for: ${requestId}`);
-		return json({ success: true, requestId });
+		return json({ success: true, requestId, ...(traceRef ? { traceRef } : {}) });
 	} catch (error) {
 		if (error instanceof PathSafetyError) {
 			return json({ error: error.message }, { status: error.status });

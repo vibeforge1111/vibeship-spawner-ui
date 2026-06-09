@@ -69,6 +69,8 @@ export interface MissionControlRelayStatusEntry {
 	assignedTaskIds: string[];
 	requestId: string | null;
 	traceRef: string | null;
+	/** Canvas pipeline the mission was dispatched from; null/absent when no pipeline exists. */
+	pipelineId?: string | null;
 	providerId?: string | null;
 	model?: string | null;
 	progress: number | null;
@@ -244,6 +246,11 @@ function requestIdFromEventData(data: Record<string, unknown> | null | undefined
 	return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
+function pipelineIdFromEventData(data: Record<string, unknown> | null | undefined): string | null {
+	const value = data?.pipelineId;
+	return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
 function executionPolicyFromEventData(data: Record<string, unknown> | null | undefined): string | null {
 	const value = data?.executionPolicy ?? data?.execution_policy;
 	return typeof value === 'string' && value.trim() ? value.trim() : null;
@@ -256,19 +263,21 @@ function hasTelegramRelayTarget(target: MissionControlRelayTarget | null | undef
 function knownMissionMetadata(missionId: string): {
 	requestId: string | null;
 	traceRef: string | null;
+	pipelineId: string | null;
 	telegramRelay: MissionControlRelayTarget | null;
 } {
 	for (const entry of relayState.recent) {
 		if (entry.missionId !== missionId) continue;
-		if (entry.requestId || entry.traceRef || hasTelegramRelayTarget(entry.telegramRelay)) {
+		if (entry.requestId || entry.traceRef || entry.pipelineId || hasTelegramRelayTarget(entry.telegramRelay)) {
 			return {
 				requestId: entry.requestId,
 				traceRef: entry.traceRef,
+				pipelineId: entry.pipelineId ?? null,
 				telegramRelay: hasTelegramRelayTarget(entry.telegramRelay) ? entry.telegramRelay : null
 			};
 		}
 	}
-	return { requestId: null, traceRef: null, telegramRelay: null };
+	return { requestId: null, traceRef: null, pipelineId: null, telegramRelay: null };
 }
 
 function enrichMissionEventWithKnownMetadata(event: MissionControlBridgeEvent): MissionControlBridgeEvent {
@@ -277,12 +286,19 @@ function enrichMissionEventWithKnownMetadata(event: MissionControlBridgeEvent): 
 	const known = knownMissionMetadata(missionId);
 	const currentRequestId = requestIdFromEventData(data);
 	const currentTraceRef = extractTraceRef(data, event);
+	const currentPipelineId = pipelineIdFromEventData(data);
 	const currentTelegramRelay = getTelegramRelayTarget(event);
 	const requestId = currentRequestId || known.requestId;
 	const traceRef = currentTraceRef || known.traceRef;
+	const pipelineId = currentPipelineId || known.pipelineId;
 	const telegramRelay = hasTelegramRelayTarget(currentTelegramRelay) ? null : known.telegramRelay;
 
-	if ((!requestId || currentRequestId) && (!traceRef || currentTraceRef) && !telegramRelay) {
+	if (
+		(!requestId || currentRequestId) &&
+		(!traceRef || currentTraceRef) &&
+		(!pipelineId || currentPipelineId) &&
+		!telegramRelay
+	) {
 		return event;
 	}
 
@@ -292,6 +308,7 @@ function enrichMissionEventWithKnownMetadata(event: MissionControlBridgeEvent): 
 			...(data ?? {}),
 			...(requestId && !currentRequestId ? { requestId } : {}),
 			...(traceRef && !currentTraceRef ? { traceRef } : {}),
+			...(pipelineId && !currentPipelineId ? { pipelineId } : {}),
 			...(telegramRelay ? { telegramRelay } : {})
 		}
 	};
@@ -340,6 +357,7 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 	const requestId = requestIdFromEventData(event.data);
 	const executionPolicy = executionPolicyFromEventData(event.data);
 	const traceRef = extractTraceRef(event.data, event);
+	const pipelineId = pipelineIdFromEventData(event.data);
 	const providerId =
 		event.data && typeof (event.data as Record<string, unknown>).providerId === 'string'
 			? ((event.data as Record<string, unknown>).providerId as string)
@@ -390,6 +408,7 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		assignedTaskIds,
 		requestId,
 		traceRef,
+		pipelineId,
 		providerId,
 		model,
 		progress,
@@ -1051,6 +1070,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 			byMission.set(entry.missionId, {
 				missionId: entry.missionId,
 				traceRef: entry.traceRef,
+				pipelineId: entry.pipelineId ?? null,
 				missionName: entry.missionName ? sanitizeMissionControlDisplayText(entry.missionName) : null,
 				status,
 				lastEventType: entry.eventType,
@@ -1072,6 +1092,9 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 		} else {
 			if (!existing.traceRef && entry.traceRef) {
 				existing.traceRef = entry.traceRef;
+			}
+			if (!existing.pipelineId && entry.pipelineId) {
+				existing.pipelineId = entry.pipelineId;
 			}
 			if (!isMissionControlTerminalStatus(existing.status) && !existing.taskName && entry.taskName) {
 				existing.taskName = sanitizeMissionControlDisplayText(entry.taskName);
@@ -1331,6 +1354,7 @@ const EXTERNAL_SAFE_DATA_KEYS = new Set([
 	'missionName',
 	'parentMissionId',
 	'percent',
+	'pipelineId',
 	'plannedTasks',
 	'progress',
 	'projectId',

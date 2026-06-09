@@ -38,7 +38,8 @@ function sanitizeTraceForLoopback(trace: MissionControlTrace) {
 			providerResults: 'requires_control_auth',
 			telegramIdentity: 'requires_control_auth',
 			dispatchReason: 'requires_control_auth',
-			agentBlackBox: 'requires_control_auth'
+			agentBlackBox: 'requires_control_auth',
+			prdTrace: 'requires_control_auth'
 		},
 		surfaces: {
 			...trace.surfaces,
@@ -82,6 +83,11 @@ function sanitizeTraceForLoopback(trace: MissionControlTrace) {
 			pendingRequest: null,
 			analysisResult: null,
 			lastCanvasLoad: null
+		},
+		prdTrace: {
+			file: trace.prdTrace.file,
+			entryCount: trace.prdTrace.entryCount,
+			entries: []
 		},
 		timeline: trace.timeline.map((entry) => ({
 			eventType: entry.eventType,

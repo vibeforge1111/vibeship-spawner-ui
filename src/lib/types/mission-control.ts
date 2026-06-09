@@ -103,6 +103,8 @@ export interface MissionControlCompletionEvidence {
 export interface MissionControlBoardEntry {
 	missionId: string;
 	traceRef?: string | null;
+	/** Canvas pipeline the mission was dispatched from; null when no pipeline exists. */
+	pipelineId?: string | null;
 	missionName: string | null;
 	status: MissionControlBoardStatus;
 	lastEventType: string;

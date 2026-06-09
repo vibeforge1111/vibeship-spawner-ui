@@ -287,19 +287,23 @@ describe('Mission Control lifecycle integration', () => {
 			}
 		});
 
+		// load-to-canvas emits a completed "PRD analysis" handoff task on the
+		// Mission Control board, so the board shows the 3 planned tasks plus
+		// that canvas-handoff verification task.
 		const entry = await getBoardEntry('completed', missionId);
 		expect(entry).toMatchObject({
 			missionId,
 			status: 'completed',
-			taskCount: 3,
-			taskStatusCounts: { queued: 0, running: 0, completed: 3, failed: 0, total: 3 },
+			taskCount: 4,
+			taskStatusCounts: { queued: 0, running: 0, completed: 4, failed: 0, total: 4 },
 			telegramRelay: { port: 8789, profile: 'spark-agi', url: null },
 			providerSummary: 'Codex: Built Spark System Lifecycle and verified files.'
 		});
 		expect(entry.taskNames).toEqual([
 			'Create static shell',
 			'Implement playful mission UI',
-			'Write launch README'
+			'Write launch README',
+			'PRD analysis'
 		]);
 
 		const trace = await getTracePayload(requestId);
@@ -310,7 +314,7 @@ describe('Mission Control lifecycle integration', () => {
 			phase: 'completed',
 			progress: {
 				percent: 100,
-				taskCounts: { queued: 0, running: 0, completed: 3, failed: 0, total: 3 }
+				taskCounts: { queued: 0, running: 0, completed: 4, failed: 0, total: 4 }
 			},
 			surfaces: {
 				telegram: {
@@ -433,12 +437,14 @@ describe('Mission Control lifecycle integration', () => {
 			}
 		});
 
+		// The completed "PRD analysis" canvas-handoff task from load-to-canvas
+		// joins the 2 planned tasks, which both end failed.
 		const entry = await getBoardEntry('failed', missionId);
 		expect(entry).toMatchObject({
 			missionId,
 			status: 'failed',
-			taskCount: 2,
-			taskStatusCounts: { completed: 0, failed: 2, total: 2 },
+			taskCount: 3,
+			taskStatusCounts: { completed: 1, failed: 2, total: 3 },
 			providerSummary: 'Codex: Codex exited 1'
 		});
 
@@ -449,8 +455,8 @@ describe('Mission Control lifecycle integration', () => {
 			requestId,
 			phase: 'failed',
 			progress: {
-				percent: 0,
-				taskCounts: { completed: 0, failed: 2, total: 2 }
+				percent: 33,
+				taskCounts: { completed: 1, failed: 2, total: 3 }
 			},
 			surfaces: {
 				canvas: { pipelineId: `prd-${requestId}`, autoRun: true, nodeCount: 2 },

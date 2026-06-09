@@ -48,6 +48,8 @@ export interface DispatchOptions {
 	workingDirectory?: string;
 	executionAuthority?: unknown;
 	authorityRequestId?: string | null;
+	traceRef?: string | null;
+	pipelineId?: string | null;
 	onEvent: (event: BridgeEvent) => void;
 }
 
@@ -72,6 +74,7 @@ export interface ProviderMissionResultSnapshot {
 	status: ProviderSessionStatus;
 	requestId?: string | null;
 	traceRef?: string | null;
+	pipelineId?: string | null;
 	response: string | null;
 	error: string | null;
 	durationMs: number | null;
@@ -197,6 +200,9 @@ function sessionToResultSnapshot(session: ProviderSession): ProviderMissionResul
 	return withMissionTraceMetadata(session.missionId, {
 		providerId: session.providerId,
 		status: session.status,
+		requestId: session.requestId ?? null,
+		traceRef: session.traceRef ?? null,
+		pipelineId: session.pipelineId ?? null,
 		response: session.result?.response ?? null,
 		error: session.error ?? session.result?.error ?? null,
 		durationMs: session.result?.durationMs ?? null,
@@ -206,7 +212,11 @@ function sessionToResultSnapshot(session: ProviderSession): ProviderMissionResul
 	});
 }
 
-function missionTraceMetadata(missionId: string): { requestId: string | null; traceRef: string | null } {
+function missionTraceMetadata(missionId: string): {
+	requestId: string | null;
+	traceRef: string | null;
+	pipelineId: string | null;
+} {
 	for (const fileName of ['last-canvas-load.json', 'pending-request.json']) {
 		try {
 			const raw = readFileSync(path.join(getSpawnerStateDir(), fileName), 'utf-8');
@@ -224,13 +234,17 @@ function missionTraceMetadata(missionId: string): { requestId: string | null; tr
 					(typeof parsed.requestId === 'string' && parsed.requestId) ||
 					(typeof relay?.requestId === 'string' && relay.requestId) ||
 					null,
-				traceRef: extractTraceRef(parsed, relay) || null
+				traceRef: extractTraceRef(parsed, relay) || null,
+				pipelineId:
+					(typeof parsed.pipelineId === 'string' && parsed.pipelineId) ||
+					(typeof relay?.pipelineId === 'string' && relay.pipelineId) ||
+					null
 			};
 		} catch {
 			// Mission metadata is best-effort; provider execution should not depend on it.
 		}
 	}
-	return { requestId: null, traceRef: null };
+	return { requestId: null, traceRef: null, pipelineId: null };
 }
 
 function withMissionTraceMetadata(
@@ -240,10 +254,12 @@ function withMissionTraceMetadata(
 	const metadata = missionTraceMetadata(missionId);
 	const requestId = result.requestId || metadata.requestId;
 	const traceRef = result.traceRef || metadata.traceRef;
+	const pipelineId = result.pipelineId || metadata.pipelineId;
 	return {
 		...result,
 		...(requestId ? { requestId } : {}),
-		...(traceRef ? { traceRef } : {})
+		...(traceRef ? { traceRef } : {}),
+		...(pipelineId ? { pipelineId } : {})
 	};
 }
 
@@ -525,6 +541,11 @@ class ProviderRuntimeManager {
 			requestId: options.authorityRequestId
 		});
 
+		const traceMetadata = missionTraceMetadata(missionId);
+		const sessionRequestId = options.authorityRequestId ?? traceMetadata.requestId;
+		const sessionTraceRef = options.traceRef ?? traceMetadata.traceRef;
+		const sessionPipelineId = options.pipelineId ?? traceMetadata.pipelineId;
+
 		this.dispatchSnapshots.set(missionId, {
 			executionPack,
 			apiKeys: { ...apiKeys },
@@ -563,6 +584,9 @@ class ProviderRuntimeManager {
 			const session: ProviderSession = {
 				providerId: provider.id,
 				missionId,
+				requestId: sessionRequestId,
+				traceRef: sessionTraceRef,
+				pipelineId: sessionPipelineId,
 				status: 'idle',
 				abortController,
 				startedAt: new Date(),

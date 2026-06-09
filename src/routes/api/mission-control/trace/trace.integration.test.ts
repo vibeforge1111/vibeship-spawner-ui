@@ -94,6 +94,15 @@ describe('/api/mission-control/trace integration', () => {
 			}),
 			'utf-8'
 		);
+		await writeFile(
+			path.join(stateDir, 'prd-auto-trace.jsonl'),
+			[
+				JSON.stringify({ ts: '2026-04-28T09:59:00.000Z', requestId, event: 'request_written' }),
+				JSON.stringify({ ts: '2026-04-28T09:59:30.000Z', requestId, event: 'canonical_result_stored' }),
+				JSON.stringify({ ts: '2026-04-28T09:59:45.000Z', requestId: 'tg-build-other-request', event: 'request_written' })
+			].join('\n') + '\n',
+			'utf-8'
+		);
 
 		await relayMissionControlEvent({
 			type: 'mission_created',
@@ -178,6 +187,18 @@ describe('/api/mission-control/trace integration', () => {
 			eventType: 'task_started',
 			taskName: 'Create the traceable app'
 		});
+
+		// /trace ingests the PRD JSONL trail (prd-auto-trace.jsonl) scoped to
+		// this request; rows for other requests stay out of the payload.
+		expect(payload.prdTrace).toMatchObject({
+			file: 'prd-auto-trace.jsonl',
+			entryCount: 2
+		});
+		expect(payload.prdTrace.entries.map((entry: { event: string }) => entry.event)).toEqual([
+			'request_written',
+			'canonical_result_stored'
+		]);
+		expect(JSON.stringify(payload.prdTrace)).not.toContain('tg-build-other-request');
 	});
 
 	it('returns progress-only trace for local no-key reads', async () => {
@@ -292,6 +313,7 @@ describe('/api/mission-control/trace integration', () => {
 			analysisResult: null,
 			lastCanvasLoad: null
 		});
+		expect(payload.prdTrace.entries).toEqual([]);
 		expect(payload.providerResults).toEqual([]);
 		expect(payload.agentBlackBox.entries).toEqual([]);
 		expect(JSON.stringify(payload)).not.toContain('telegram-chat-private');

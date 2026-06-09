@@ -15,6 +15,8 @@ import {
 	normalizeCapabilityProposalPacket
 } from '$lib/server/capability-proposal-packet';
 import { extractTraceRef, normalizeTraceRef, traceRefFromMissionId } from '$lib/server/trace-ref';
+import { pendingRequestFileForRequest, readPendingRequestRecord } from '$lib/server/prd-pending-requests';
+import { writeFileAtomic } from '$lib/server/atomic-write';
 import {
 	HarnessAuthorityError,
 	assertNativeGovernorHarnessAuthority,
@@ -366,10 +368,9 @@ export const POST: RequestHandler = async (event) => {
 		let capabilityProposalPacket = normalizeCapabilityProposalPacket(
 			parsed.capabilityProposalPacket ?? parsed.capability_proposal_packet
 		);
-		if (existsSync(pendingRequestFile)) {
+		{
 			try {
-				const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
-				const pending = JSON.parse(pendingRaw) as {
+				const pending = ((await readPendingRequestRecord(spawnerDir, requestId)) ?? {}) as {
 					requestId?: string;
 					relay?: Record<string, unknown>;
 					buildMode?: 'direct' | 'advanced_prd';
@@ -508,27 +509,42 @@ export const POST: RequestHandler = async (event) => {
 			canvasMaterialization
 		});
 		if (pendingRequestMeta) {
-			await writeFile(
-				pendingRequestFile,
-				JSON.stringify(
-					{
-						...pendingRequestMeta,
-						status: 'canvas_loaded',
-						canvasLoadedAt: new Date().toISOString(),
-						...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
-						pipelineId: load.pipelineId,
-						boardUrl,
-						...(canvasReadyForHandoff ? { canvasUrl } : {}),
-						canvasHandoff,
-						missionControlAccess,
-						...(capabilityProposalPacket ? { capabilityProposalPacket } : {}),
-						...(capabilitySummary ? { capabilityProposalSummary: capabilitySummary } : {})
-					},
-					null,
-					2
-				),
-				'utf-8'
+			const updatedPendingRequest = JSON.stringify(
+				{
+					...pendingRequestMeta,
+					status: 'canvas_loaded',
+					canvasLoadedAt: new Date().toISOString(),
+					...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
+					pipelineId: load.pipelineId,
+					boardUrl,
+					...(canvasReadyForHandoff ? { canvasUrl } : {}),
+					canvasHandoff,
+					missionControlAccess,
+					...(capabilityProposalPacket ? { capabilityProposalPacket } : {}),
+					...(capabilitySummary ? { capabilityProposalSummary: capabilitySummary } : {})
+				},
+				null,
+				2
 			);
+			// RequestId-scoped record is the source of truth; the singleton stays
+			// a back-compat pointer and is only refreshed when it still points at
+			// this request.
+			const scopedPendingRequestFile = pendingRequestFileForRequest(spawnerDir, requestId);
+			if (existsSync(scopedPendingRequestFile)) {
+				await writeFile(scopedPendingRequestFile, updatedPendingRequest, 'utf-8');
+			}
+			if (existsSync(pendingRequestFile)) {
+				try {
+					const singleton = JSON.parse(await readFile(pendingRequestFile, 'utf-8')) as Record<string, unknown>;
+					if (singleton.requestId === requestId) {
+						await writeFileAtomic(pendingRequestFile, updatedPendingRequest);
+					}
+				} catch {
+					await writeFileAtomic(pendingRequestFile, updatedPendingRequest);
+				}
+			} else {
+				await writeFileAtomic(pendingRequestFile, updatedPendingRequest);
+			}
 		}
 		void relayMissionControlEvent({
 			type: 'task_completed',
@@ -540,6 +556,7 @@ export const POST: RequestHandler = async (event) => {
 			data: {
 				requestId,
 				...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
+				pipelineId: load.pipelineId,
 				executionPolicy: 'read_only',
 				buildMode,
 				buildModeReason
@@ -555,6 +572,7 @@ export const POST: RequestHandler = async (event) => {
 			data: {
 				requestId,
 				...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
+				pipelineId: load.pipelineId,
 				executionPolicy: 'read_only',
 				buildMode,
 				buildModeReason,

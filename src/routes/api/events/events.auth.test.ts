@@ -377,6 +377,150 @@ describe('/api/events auth', () => {
 		);
 	});
 
+	it('downgrades terminal lifecycle events that omit the requestId/traceRef recorded on the session', async () => {
+		vi.mocked(providerRuntime.getSessionsForMission).mockReturnValue([
+			{
+				providerId: 'codex',
+				missionId: 'mission-ref-bound-terminal',
+				requestId: 'tg-build-ref-bound-1788000000000',
+				traceRef: 'trace:spawner-prd:mission-ref-bound-terminal',
+				status: 'running',
+				abortController: new AbortController(),
+				startedAt: new Date('2026-06-09T00:00:00.000Z'),
+				completedAt: null,
+				result: null,
+				error: null
+			}
+		]);
+
+		const response = await POST(
+			createEvent('https://example.com/api/events', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-api-key': 'events-secret'
+				},
+				body: JSON.stringify({
+					type: 'mission_completed',
+					missionId: 'mission-ref-bound-terminal',
+					source: 'codex',
+					data: { providerId: 'codex', response: 'completion without refs' }
+				})
+			})
+		);
+
+		expect(response.status).toBe(200);
+		expect(providerRuntime.markMissionTerminalFromLifecycleEvent).not.toHaveBeenCalled();
+		expect(relayMissionControlEvent).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: 'mission_lifecycle_untrusted',
+				originalType: 'mission_completed',
+				missionId: 'mission-ref-bound-terminal',
+				data: expect.objectContaining({
+					lifecycleTrust: expect.objectContaining({
+						trusted: false,
+						reason: 'session_requires_request_or_trace_ref_match'
+					})
+				})
+			})
+		);
+	});
+
+	it('allows terminal lifecycle events that present the requestId recorded on the session', async () => {
+		vi.mocked(providerRuntime.getSessionsForMission).mockReturnValue([
+			{
+				providerId: 'codex',
+				missionId: 'mission-ref-match-terminal',
+				requestId: 'tg-build-ref-match-1788000000001',
+				traceRef: 'trace:spawner-prd:mission-ref-match-terminal',
+				status: 'running',
+				abortController: new AbortController(),
+				startedAt: new Date('2026-06-09T00:00:00.000Z'),
+				completedAt: null,
+				result: null,
+				error: null
+			}
+		]);
+
+		const response = await POST(
+			createEvent('https://example.com/api/events', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-api-key': 'events-secret'
+				},
+				body: JSON.stringify({
+					type: 'mission_completed',
+					missionId: 'mission-ref-match-terminal',
+					source: 'codex',
+					data: {
+						providerId: 'codex',
+						requestId: 'tg-build-ref-match-1788000000001',
+						response: 'completion bound by requestId'
+					}
+				})
+			})
+		);
+
+		expect(response.status).toBe(200);
+		expect(providerRuntime.markMissionTerminalFromLifecycleEvent).toHaveBeenCalledWith(
+			expect.objectContaining({
+				missionId: 'mission-ref-match-terminal',
+				status: 'completed',
+				providerId: 'codex',
+				response: 'completion bound by requestId'
+			})
+		);
+	});
+
+	it('rejects PRD analysis results that do not bind to a governed pending request', async () => {
+		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-events-unbound-'));
+		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
+		const requestId = 'events-unbound-result-test';
+
+		const response = await POST(
+			createEvent('https://example.com/api/events', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-api-key': 'events-secret'
+				},
+				body: JSON.stringify({
+					type: 'prd_analysis_complete',
+					source: 'codex-auto',
+					data: {
+						requestId,
+						result: {
+							success: true,
+							projectName: 'Unbound Events Result',
+							projectType: 'direct-build',
+							complexity: 'simple',
+							infrastructure: { needsAuth: false, needsDatabase: false, needsAPI: false },
+							techStack: { framework: 'Existing Spawner UI', language: 'TypeScript' },
+							tasks: [{ id: 'TAS-1', title: 'Should never store', skills: [], dependencies: [] }],
+							skills: []
+						}
+					}
+				})
+			})
+		);
+		const body = await response.json();
+
+		expect(response.status).toBe(409);
+		expect(body.code).toBe('prd_result_unbound');
+		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(false);
+		expect(existsSync(path.join(testSpawnerDir, 'pending-request.json'))).toBe(false);
+
+		const traceRows = (await readFile(path.join(testSpawnerDir, 'prd-auto-trace.jsonl'), 'utf-8'))
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line));
+		expect(traceRows.map((row) => row.event)).toEqual(
+			expect.arrayContaining(['events_received_complete', 'events_rejected_unbound'])
+		);
+		expect(traceRows.map((row) => row.event)).not.toContain('canonical_result_stored');
+	});
+
 	it('stores PRD analysis results under configured Spawner state directory', async () => {
 		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-events-state-'));
 		process.env.SPAWNER_STATE_DIR = testSpawnerDir;

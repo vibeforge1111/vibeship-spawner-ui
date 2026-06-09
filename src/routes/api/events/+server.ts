@@ -13,7 +13,9 @@ import { controlQueryApiKeysAllowed, enforceRateLimit, requireControlAuth } from
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { projectStoredPrdAnalysisResultForTier } from '$lib/server/prd-analysis-result-schema';
+import { pendingRequestFileForRequest, readPendingRequestRecord } from '$lib/server/prd-pending-requests';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { writeFileAtomic } from '$lib/server/atomic-write';
 import { extractTraceRef } from '$lib/server/trace-ref';
 import { logger } from '$lib/utils/logger';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
@@ -157,25 +159,13 @@ async function appendPrdTrace(requestId: string, event: string, details: Record<
 async function traceRefForRequest(requestId: string, details: Record<string, unknown>): Promise<string | null> {
 	const explicit = extractTraceRef(details);
 	if (explicit) return explicit;
-	try {
-		const pendingRequestFile = join(getSpawnerDir(), 'pending-request.json');
-		if (!existsSync(pendingRequestFile)) return null;
-		const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
-		const pending = JSON.parse(pendingRaw) as Record<string, unknown>;
-		if (pending.requestId !== requestId) return null;
-		return extractTraceRef(pending);
-	} catch {
-		return null;
-	}
+	const pending = await pendingRequestForRequest(requestId);
+	return pending ? extractTraceRef(pending) : null;
 }
 
 async function pendingRequestForRequest(requestId: string): Promise<Record<string, unknown> | null> {
 	try {
-		const pendingRequestFile = join(getSpawnerDir(), 'pending-request.json');
-		if (!existsSync(pendingRequestFile)) return null;
-		const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
-		const pending = JSON.parse(pendingRaw) as Record<string, unknown>;
-		return pending.requestId === requestId ? pending : null;
+		return await readPendingRequestRecord(getSpawnerDir(), requestId);
 	} catch {
 		return null;
 	}
@@ -253,17 +243,36 @@ function terminalLifecycleTrust(event: Record<string, unknown>): {
 		(typeof event.source === 'string' && event.source !== 'spawner-ui' ? event.source.trim() : null);
 	const requestId = stringValue(data.requestId);
 	const traceRef = extractTraceRef(data);
+	let refBoundSessionRejected = false;
 	const sessions = providerRuntime.getSessionsForMission(missionId).filter((session) => {
-		const sessionRefs = session as typeof session & { requestId?: string | null; traceRef?: string | null };
 		if (providerId && session.providerId !== providerId) return false;
-		if (requestId && sessionRefs.requestId !== requestId) return false;
-		if (traceRef && sessionRefs.traceRef !== traceRef) return false;
-		return !TERMINAL_PROVIDER_STATUSES.has(session.status);
+		if (TERMINAL_PROVIDER_STATUSES.has(session.status)) return false;
+		const recordedRequestId = stringValue(session.requestId);
+		const recordedTraceRef = stringValue(session.traceRef);
+		if (requestId && recordedRequestId !== requestId) return false;
+		if (traceRef && recordedTraceRef !== traceRef) return false;
+		// When the session recorded a requestId or traceRef at dispatch, the
+		// event must present a matching ref; mission+provider coincidence is
+		// not enough to advance terminal state.
+		if (recordedRequestId || recordedTraceRef) {
+			const requestIdMatches = Boolean(requestId && recordedRequestId === requestId);
+			const traceRefMatches = Boolean(traceRef && recordedTraceRef === traceRef);
+			if (!requestIdMatches && !traceRefMatches) {
+				refBoundSessionRejected = true;
+				return false;
+			}
+		}
+		return true;
 	});
 
 	return {
 		trusted: sessions.length > 0,
-		reason: sessions.length > 0 ? 'matched_active_provider_session' : 'no_matching_active_provider_session',
+		reason:
+			sessions.length > 0
+				? 'matched_active_provider_session'
+				: refBoundSessionRejected
+					? 'session_requires_request_or_trace_ref_match'
+					: 'no_matching_active_provider_session',
 		providerId,
 		missionId,
 		matchingSessionCount: sessions.length
@@ -272,12 +281,8 @@ function terminalLifecycleTrust(event: Record<string, unknown>): {
 
 async function markPendingPrdResultComplete(requestId: string): Promise<void> {
 	assertSafeId(requestId, 'requestId');
-	const pendingRequestFile = join(getSpawnerDir(), 'pending-request.json');
-	if (!existsSync(pendingRequestFile)) return;
-
-	const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
-	const pending = parseJsonOrFallback<Record<string, unknown>>(pendingRaw, {}, 'events-pending-request');
-	if (pending.requestId !== requestId) return;
+	const pending = await pendingRequestForRequest(requestId);
+	if (!pending) return;
 
 	const resultFile = resolveWithinBaseDir(getResultsDir(), `${requestId}.json`);
 	const now = new Date().toISOString();
@@ -300,7 +305,25 @@ async function markPendingPrdResultComplete(requestId: string): Promise<void> {
 			expectedResultFile: resultFile
 		}
 	};
-	await writeFile(pendingRequestFile, JSON.stringify(next, null, 2), 'utf-8');
+	const serialized = JSON.stringify(next, null, 2);
+
+	// RequestId-scoped record is the source of truth; the singleton file stays
+	// in sync only when it still points at this request (back-compat pointer).
+	const scopedFile = pendingRequestFileForRequest(getSpawnerDir(), requestId);
+	if (existsSync(scopedFile)) {
+		await writeFile(scopedFile, serialized, 'utf-8');
+	}
+	const pendingRequestFile = join(getSpawnerDir(), 'pending-request.json');
+	if (existsSync(pendingRequestFile)) {
+		const singleton = parseJsonOrFallback<Record<string, unknown>>(
+			await readFile(pendingRequestFile, 'utf-8'),
+			{},
+			'events-pending-request'
+		);
+		if (singleton.requestId === requestId) {
+			await writeFileAtomic(pendingRequestFile, serialized);
+		}
+	}
 }
 
 async function relayMetadataForMission(missionId: string): Promise<Record<string, unknown>> {
@@ -312,11 +335,18 @@ async function relayMetadataForMission(missionId: string): Promise<Record<string
 		const relay = load.relay && typeof load.relay === 'object' ? load.relay : null;
 		if (!relay || relay.missionId !== missionId) return {};
 		const traceRef = extractTraceRef(load, relay);
+		const pipelineId =
+			typeof (load as Record<string, unknown>).pipelineId === 'string'
+				? ((load as Record<string, unknown>).pipelineId as string)
+				: typeof relay.pipelineId === 'string'
+					? relay.pipelineId
+					: undefined;
 		return {
 			chatId: typeof relay.chatId === 'string' ? relay.chatId : undefined,
 			userId: typeof relay.userId === 'string' ? relay.userId : undefined,
 			requestId: typeof relay.requestId === 'string' ? relay.requestId : undefined,
 			traceRef: traceRef || undefined,
+			pipelineId: pipelineId || undefined,
 			goal: typeof relay.goal === 'string' ? relay.goal : undefined,
 			telegramRelay:
 				relay.telegramRelay && typeof relay.telegramRelay === 'object'
@@ -444,6 +474,23 @@ export const POST: RequestHandler = async (event) => {
 			await appendPrdTrace(fullEvent.data.requestId, 'events_received_complete', {
 				source: fullEvent.source || 'unknown'
 			});
+			// Machine-origin results must bind to a governed pending request;
+			// unmatched requestIds are rejected fail-closed with no state change.
+			const boundPendingRequest = await pendingRequestForRequest(fullEvent.data.requestId);
+			if (!boundPendingRequest) {
+				await appendPrdTrace(fullEvent.data.requestId, 'events_rejected_unbound', {
+					source: fullEvent.source || 'unknown',
+					reason: 'no governed pending request matches requestId'
+				});
+				return json(
+					{
+						error: 'Unknown requestId: PRD analysis results must bind to a governed pending request.',
+						code: 'prd_result_unbound',
+						requestId: fullEvent.data.requestId
+					},
+					{ status: 409 }
+				);
+			}
 			try {
 				await storePRDResult(fullEvent.data.requestId, fullEvent.data.result);
 				await markPendingPrdResultComplete(fullEvent.data.requestId);

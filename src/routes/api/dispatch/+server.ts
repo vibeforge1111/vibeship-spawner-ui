@@ -26,6 +26,7 @@ import {
 	assertNativeGovernorHarnessAuthority,
 	resolveExecutionAuthority
 } from '$lib/server/harness-authority';
+import { extractTraceRef } from '$lib/server/trace-ref';
 
 const ALLOWED_PROVIDER_IDS = new Set(DEFAULT_MULTI_LLM_PROVIDERS.map((provider) => provider.id));
 const ALLOWED_PROVIDER_LABEL = [...ALLOWED_PROVIDER_IDS].join(', ');
@@ -186,6 +187,9 @@ export const POST: RequestHandler = async (event) => {
 			);
 		}
 
+		const dispatchTraceRef = extractTraceRef(relay, body);
+		const dispatchPipelineId =
+			stringValue(relay?.pipelineId) ?? stringValue(body.pipelineId) ?? stringValue(executionPack.pipelineId);
 		const relayMeta =
 			relay && typeof relay === 'object'
 				? {
@@ -201,6 +205,8 @@ export const POST: RequestHandler = async (event) => {
 				: {};
 		const relayData = {
 			...relayMeta,
+			...(dispatchTraceRef ? { traceRef: dispatchTraceRef } : {}),
+			pipelineId: dispatchPipelineId ?? null,
 			missionName: typeof executionPack.masterPrompt === 'string'
 				? executionPack.masterPrompt.match(/Mission:\s*(.+)/)?.[1]
 				: undefined,
@@ -255,6 +261,8 @@ export const POST: RequestHandler = async (event) => {
 			workingDirectory,
 			executionAuthority,
 			authorityRequestId: dispatchBinding.requestId,
+			traceRef: dispatchTraceRef,
+			pipelineId: dispatchPipelineId,
 			onEvent: (evt) => {
 				eventBridge.emit(evt);
 				relayBridgeEvent(evt as unknown as Record<string, unknown>);

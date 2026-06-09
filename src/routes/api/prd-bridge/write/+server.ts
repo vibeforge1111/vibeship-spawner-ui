@@ -24,6 +24,7 @@ import { formatTaskQualityGuidance } from '$lib/server/task-quality-rubric';
 import { formatVerificationPlanGuidance, generateVerificationPlan } from '$lib/server/verification-plan-generator';
 import { enrichBrief, isSparseUnderstandingClarification } from '$lib/server/brief-enricher';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { writeFileAtomic } from '$lib/server/atomic-write';
 import {
 	projectStoredPrdAnalysisResultForTier,
 	type StoredPrdAnalysisResult
@@ -34,6 +35,13 @@ import {
 	normalizeCapabilityProposalPacket
 } from '$lib/server/capability-proposal-packet';
 import { extractTraceRef, normalizeTraceRef, traceRefFromMissionId } from '$lib/server/trace-ref';
+import {
+	pendingPrdFileForRequest,
+	pendingRequestFileForRequest,
+	pendingRequestsDir,
+	readPendingPrdContent,
+	readPendingRequestRecord
+} from '$lib/server/prd-pending-requests';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
 import {
 	HarnessAuthorityError,
@@ -52,6 +60,22 @@ function getPrdBridgePaths() {
 		pendingPrdFile: join(spawnerDir, 'pending-prd.md'),
 		pendingRequestFile: join(spawnerDir, 'pending-request.json'),
 		prdAutoTraceFile: join(spawnerDir, 'prd-auto-trace.jsonl')
+	};
+}
+
+/**
+ * Bridge paths with the pending PRD/request pointed at the requestId-scoped
+ * files when they exist, so concurrent requests never read each other's
+ * singleton pointer. Falls back to the singleton paths for legacy state.
+ */
+function scopedPrdBridgePathsForRequest(requestId: string): ReturnType<typeof getPrdBridgePaths> {
+	const paths = getPrdBridgePaths();
+	const scopedPrdFile = pendingPrdFileForRequest(paths.spawnerDir, requestId);
+	const scopedRequestFile = pendingRequestFileForRequest(paths.spawnerDir, requestId);
+	return {
+		...paths,
+		pendingPrdFile: existsSync(scopedPrdFile) ? scopedPrdFile : paths.pendingPrdFile,
+		pendingRequestFile: existsSync(scopedRequestFile) ? scopedRequestFile : paths.pendingRequestFile
 	};
 }
 const AUTO_ANALYSIS_BASE_URL = (process.env.SPAWNER_UI_SELF_URL || 'http://127.0.0.1:3333').replace(
@@ -105,15 +129,21 @@ async function traceRefForRequest(requestId: string, details: Record<string, unk
 	const explicit = extractTraceRef(details);
 	if (explicit) return explicit;
 	try {
-		const { pendingRequestFile } = getPrdBridgePaths();
-		if (!existsSync(pendingRequestFile)) return null;
-		const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
-		const pending = parseJsonOrFallback<Record<string, unknown>>(pendingRaw, {}, 'prd-bridge-trace-request');
-		if (pending.requestId !== requestId) return null;
-		return extractTraceRef(pending);
+		const { spawnerDir } = getPrdBridgePaths();
+		const pending = await readPendingRequestRecord(spawnerDir, requestId);
+		return pending ? extractTraceRef(pending) : null;
 	} catch {
 		return null;
 	}
+}
+
+async function pendingPrdContentForRequest(
+	requestId: string,
+	paths: Pick<ReturnType<typeof getPrdBridgePaths>, 'spawnerDir' | 'pendingPrdFile'>
+): Promise<string> {
+	const scoped = await readPendingPrdContent(paths.spawnerDir, requestId);
+	if (scoped !== null) return scoped;
+	return existsSync(paths.pendingPrdFile) ? await readFile(paths.pendingPrdFile, 'utf-8') : '';
 }
 
 export function _buildPrdResultArtifactVerification(
@@ -269,11 +299,9 @@ async function updatePendingRequestStatus(
 	extra: Record<string, unknown> = {}
 ): Promise<void> {
 	try {
-		const { pendingRequestFile } = getPrdBridgePaths();
-		if (!existsSync(pendingRequestFile)) return;
-		const raw = await readFile(pendingRequestFile, 'utf-8');
-		const current = parseJsonOrFallback<Record<string, unknown>>(raw, {}, 'prd-bridge-write-state');
-		if (current.requestId !== requestId) return;
+		const { spawnerDir, pendingRequestFile } = getPrdBridgePaths();
+		const current = await readPendingRequestRecord(spawnerDir, requestId);
+		if (!current) return;
 
 		const currentAutoAnalysis =
 			current.autoAnalysis && typeof current.autoAnalysis === 'object' && !Array.isArray(current.autoAnalysis)
@@ -297,7 +325,24 @@ async function updatePendingRequestStatus(
 					}
 				: {})
 		};
-		await writeFile(pendingRequestFile, JSON.stringify(next, null, 2), 'utf-8');
+		const serialized = JSON.stringify(next, null, 2);
+
+		// RequestId-scoped record is the source of truth; the singleton file is
+		// only refreshed while it still points at this request (back-compat).
+		const scopedFile = pendingRequestFileForRequest(spawnerDir, requestId);
+		if (existsSync(scopedFile)) {
+			await writeFile(scopedFile, serialized, 'utf-8');
+		}
+		if (existsSync(pendingRequestFile)) {
+			const singleton = parseJsonOrFallback<Record<string, unknown>>(
+				await readFile(pendingRequestFile, 'utf-8'),
+				{},
+				'prd-bridge-write-state'
+			);
+			if (singleton.requestId === requestId) {
+				await writeFileAtomic(pendingRequestFile, serialized);
+			}
+		}
 	} catch {
 		// Keep analysis flow alive even if status updates fail.
 	}
@@ -494,7 +539,7 @@ export async function _buildFallbackAnalysisResult(
 	paths: ReturnType<typeof getPrdBridgePaths>,
 	buildLane: BuildLane = buildMode === 'advanced_prd' ? 'advanced_prd' : 'direct'
 ): Promise<Record<string, unknown>> {
-	const content = existsSync(paths.pendingPrdFile) ? await readFile(paths.pendingPrdFile, 'utf-8') : '';
+	const content = await pendingPrdContentForRequest(requestId, paths);
 	if (isSparseUnderstandingClarification(content)) {
 		const validSkills = new Set((await getTierSkills(tier)).map((skill) => skill.id));
 		const selectSkills = (skills: string[]) => skills.filter((skill) => validSkills.has(skill)).slice(0, 5);
@@ -1010,7 +1055,7 @@ async function writeFallbackAnalysisResult(
 	await writeFile(outputFile, JSON.stringify(output, null, 2), 'utf-8');
 	const staticArtifactCount = options.provisional
 		? 0
-		: await writeConstrainedStaticProofArtifacts(await readFile(paths.pendingPrdFile, 'utf-8').catch(() => ''));
+		: await writeConstrainedStaticProofArtifacts(await pendingPrdContentForRequest(requestId, paths).catch(() => ''));
 	if (!options.provisional && staticArtifactCount > 0) {
 		await appendPrdTrace(requestId, 'deterministic_static_artifacts_written', {
 			...traceRefDetails(resolvedTraceRef),
@@ -1634,7 +1679,7 @@ async function startAutoAnalysis(
 	}
 
 	if (provider === 'claude') {
-		const paths = getPrdBridgePaths();
+		const paths = scopedPrdBridgePathsForRequest(requestId);
 		const briefBody = existsSync(paths.pendingPrdFile)
 			? await readFile(paths.pendingPrdFile, 'utf-8')
 			: undefined;
@@ -1663,7 +1708,7 @@ async function startAutoAnalysis(
 			return { started: false, provider: 'codex' };
 		}
 
-		const paths = getPrdBridgePaths();
+		const paths = scopedPrdBridgePathsForRequest(requestId);
 		const briefBody = existsSync(paths.pendingPrdFile)
 			? await readFile(paths.pendingPrdFile, 'utf-8')
 			: undefined;
@@ -1990,8 +2035,13 @@ export const POST: RequestHandler = async (event) => {
 			});
 		}
 
-		// Write the (possibly enriched) PRD content to file
-		await writeFile(paths.pendingPrdFile, finalContent, 'utf-8');
+		// Write the (possibly enriched) PRD content to requestId-scoped storage
+		// first (source of truth), then refresh the singleton back-compat
+		// pointer. Concurrent requests each keep their own scoped PRD; the
+		// contended singleton is written atomically so it never tears.
+		await mkdir(pendingRequestsDir(paths.spawnerDir), { recursive: true });
+		await writeFile(pendingPrdFileForRequest(paths.spawnerDir, requestId), finalContent, 'utf-8');
+		await writeFileAtomic(paths.pendingPrdFile, finalContent);
 		const projectLineage = _extractPrdBridgeProjectLineage(finalContent, projectName);
 		const rawBuildLaneReason = buildLaneReason ?? build_lane_reason;
 		const normalizedBuildLaneReason =
@@ -2046,7 +2096,9 @@ export const POST: RequestHandler = async (event) => {
 						}
 					: undefined
 		};
-		await writeFile(paths.pendingRequestFile, JSON.stringify(requestMeta, null, 2), 'utf-8');
+		const requestMetaSerialized = JSON.stringify(requestMeta, null, 2);
+		await writeFile(pendingRequestFileForRequest(paths.spawnerDir, requestId), requestMetaSerialized, 'utf-8');
+		await writeFileAtomic(paths.pendingRequestFile, requestMetaSerialized);
 		await appendPrdTrace(requestId, 'request_written', {
 			...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 			projectName: requestMeta.projectName,

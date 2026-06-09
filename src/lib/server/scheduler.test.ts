@@ -114,44 +114,55 @@ describe('scheduler reliability guards', () => {
     await expect(readFile(path.join(dir, backups[0]), 'utf-8')).resolves.toBe('{bad json');
   });
 
-  it('surfaces bounded HTTP status details for scheduled mission fires', async () => {
+  // Scheduled fires no longer execute from stored authority: a schedule record
+  // is evidence only, and _fire blocks fail-closed until a fresh Governor
+  // decision authorizes execution. These tests pin the authority gate.
+  it('blocks scheduled mission fires without fresh Governor authority and never calls spark/run', async () => {
     process.env.SPAWNER_UI_URL = 'http://scheduler.test';
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('upstream failed Bearer placeholder-token-value', { status: 502 })));
+    const fetchSpy = vi.fn(async () => new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchSpy);
 
     const result = await _schedulerInternalsForTests.fire(record());
 
     expect(result.ok).toBe(false);
-    expect(result.summary).toContain('spark/run HTTP 502');
-    expect(result.summary).toContain('[redacted]');
-    expect(result.summary).not.toContain('placeholder-token-value');
+    expect(result.summary).toBe(
+      'scheduled mission fire requires fresh Governor authority; stored schedule authority is evidence only'
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('continues with an error summary when scheduled mission success responses are not JSON', async () => {
+  it('blocks scheduled loop fires without fresh Governor authority and never calls the loop runner', async () => {
     process.env.SPAWNER_UI_URL = 'http://scheduler.test';
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('not-json', { status: 200 })));
+    const fetchSpy = vi.fn(async () => new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchSpy);
 
-    await expect(_schedulerInternalsForTests.fire(record())).resolves.toEqual({
+    await expect(
+      _schedulerInternalsForTests.fire(record({ action: 'loop', payload: { chipKey: 'chip-test' } }))
+    ).resolves.toEqual({
       ok: false,
-      summary: 'error: unknown',
+      summary: 'scheduled loop fire requires fresh Governor authority; stored schedule authority is evidence only',
     });
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('increments fireCount and persists crash status when a tick fire throws', async () => {
+  it('increments fireCount and persists the blocked-fire status when a tick fires a stored schedule', async () => {
     const dir = await tempStateDir();
     await writeFile(
       path.join(dir, 'schedules.json'),
       JSON.stringify({ schedules: [record()] }, null, 2),
       'utf-8'
     );
-    vi.stubGlobal('fetch', vi.fn(async () => {
-      throw new Error('network down');
-    }));
+    const fetchSpy = vi.fn(async () => new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchSpy);
 
     await _schedulerInternalsForTests.tick();
 
     const [saved] = await listSchedules();
     expect(saved.fireCount).toBe(1);
-    expect(saved.lastStatus).toBe('crash: network down');
+    expect(saved.lastStatus).toBe(
+      'fail: scheduled mission fire requires fresh Governor authority; stored schedule authority is evidence only'
+    );
     expect(saved.nextFireAt).toBeTruthy();
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

@@ -89,6 +89,11 @@ export interface MissionControlTrace {
 		analysisResult: Record<string, unknown> | null;
 		lastCanvasLoad: Record<string, unknown> | null;
 	};
+	prdTrace: {
+		file: string;
+		entryCount: number;
+		entries: Array<Record<string, unknown>>;
+	};
 	timeline: ReturnType<typeof getMissionControlRelaySnapshot>['recent'];
 	providerResults: MissionControlResultSummary['providerResults'];
 	providerSummary: string | null;
@@ -176,6 +181,52 @@ async function readJsonIfExists(filePath: string): Promise<Record<string, unknow
 		return JSON.parse(await readFile(filePath, 'utf-8')) as Record<string, unknown>;
 	} catch {
 		return null;
+	}
+}
+
+const PRD_TRACE_FILE = 'prd-auto-trace.jsonl';
+const PRD_TRACE_ENTRY_LIMIT = 100;
+
+/**
+ * Ingest the PRD auto-analysis JSONL trail (spawner-state/prd-auto-trace.jsonl)
+ * for one request so /trace shows the bridge-side PRD lifecycle alongside the
+ * Mission Control timeline.
+ */
+async function readPrdTraceEntries(input: {
+	spawnerDir: string;
+	requestId: string | null;
+	traceRef: string | null;
+}): Promise<{ file: string; entryCount: number; entries: Array<Record<string, unknown>> }> {
+	const empty = { file: PRD_TRACE_FILE, entryCount: 0, entries: [] as Array<Record<string, unknown>> };
+	if (!input.requestId && !input.traceRef) return empty;
+	const traceFile = path.join(input.spawnerDir, PRD_TRACE_FILE);
+	if (!existsSync(traceFile)) return empty;
+	try {
+		const raw = await readFile(traceFile, 'utf-8');
+		const entries: Array<Record<string, unknown>> = [];
+		for (const line of raw.split(/\r?\n/)) {
+			const trimmed = line.trim();
+			if (!trimmed) continue;
+			let row: unknown;
+			try {
+				row = JSON.parse(trimmed);
+			} catch {
+				continue;
+			}
+			if (!row || typeof row !== 'object' || Array.isArray(row)) continue;
+			const record = row as Record<string, unknown>;
+			const matchesRequest = Boolean(input.requestId && record.requestId === input.requestId);
+			const matchesTraceRef = Boolean(input.traceRef && extractTraceRef(record) === input.traceRef);
+			if (!matchesRequest && !matchesTraceRef) continue;
+			entries.push(record);
+		}
+		return {
+			file: PRD_TRACE_FILE,
+			entryCount: entries.length,
+			entries: entries.slice(-PRD_TRACE_ENTRY_LIMIT)
+		};
+	} catch {
+		return empty;
 	}
 }
 
@@ -381,6 +432,7 @@ export async function buildMissionControlTrace(input: {
 		lastCanvasLoad
 	});
 	const skillPairing = buildSkillPairing({ entry, analysisResult, lastCanvasLoad });
+	const prdTrace = await readPrdTraceEntries({ spawnerDir, requestId, traceRef });
 
 	return {
 		ok: true,
@@ -424,6 +476,7 @@ export async function buildMissionControlTrace(input: {
 			analysisResult,
 			lastCanvasLoad
 		},
+		prdTrace,
 		timeline: traceSnapshot.recent,
 		providerResults: entry?.providerResults ?? [],
 		providerSummary: entry?.providerSummary ?? null,

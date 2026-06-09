@@ -77,6 +77,11 @@
 				lastReason: string | null;
 			} | null;
 		};
+		prdTrace: {
+			file: string;
+			entryCount: number;
+			entries: Array<Record<string, unknown>>;
+		};
 		timeline: TimelineEntry[];
 		providerSummary: string | null;
 		completionEvidence: MissionControlCompletionEvidence | null;
@@ -514,6 +519,27 @@
 						</div>
 					{:else}
 						<div class="px-4 py-8 text-center text-text-tertiary">No timeline events</div>
+					{/each}
+				</div>
+			</div>
+
+			<div class="rounded-md border border-surface-border bg-bg-secondary">
+				<div class="border-b border-surface-border px-4 py-3 font-mono text-sm uppercase tracking-[0.16em] text-text-tertiary">
+					PRD Trace ({trace?.prdTrace?.entryCount ?? 0})
+				</div>
+				<div class="max-h-[520px] overflow-auto divide-y divide-surface-border">
+					{#each trace?.prdTrace?.entries || [] as row}
+						<div class="grid gap-3 px-4 py-3 sm:grid-cols-[92px_minmax(0,1fr)]">
+							<div class="font-mono text-xs text-text-tertiary">{shortDate(typeof row.ts === 'string' ? row.ts : null)}</div>
+							<div class="min-w-0">
+								<div class="font-mono text-xs uppercase text-accent-primary">{row.event}</div>
+								<div class="mt-1 truncate font-mono text-xs text-text-tertiary">
+									{typeof row.requestId === 'string' ? row.requestId : ''}{typeof row.traceRef === 'string' ? ` · ${row.traceRef}` : ''}
+								</div>
+							</div>
+						</div>
+					{:else}
+						<div class="px-4 py-8 text-center text-text-tertiary">No PRD trace entries</div>
 					{/each}
 				</div>
 			</div>

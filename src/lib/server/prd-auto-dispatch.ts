@@ -509,6 +509,7 @@ export async function autoDispatchPrdCanvasLoad(
 		const relayData = {
 			...load.relay,
 			...(load.traceRef ? { traceRef: load.traceRef } : {}),
+			pipelineId: load.pipelineId || null,
 			missionName: load.pipelineName,
 			projectPath,
 			tier: normalizeLoadTier(load),
@@ -552,6 +553,8 @@ export async function autoDispatchPrdCanvasLoad(
 			workingDirectory: projectPath,
 			executionAuthority,
 			authorityRequestId: load.requestId,
+			traceRef: load.traceRef || null,
+			pipelineId: load.pipelineId || null,
 			onEvent
 		});
 
