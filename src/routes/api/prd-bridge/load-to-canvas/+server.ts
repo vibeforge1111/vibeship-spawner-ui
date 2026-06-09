@@ -193,6 +193,14 @@ function canvasMaterializationSummary(nodes: ReturnType<typeof taskToNode>[]) {
 	};
 }
 
+function boardPathForMission(missionId: string): string {
+	return `/kanban?mission=${encodeURIComponent(missionId)}`;
+}
+
+function canvasPathForPipeline(pipelineId: string, missionId: string): string {
+	return `/canvas?pipeline=${encodeURIComponent(pipelineId)}&mission=${encodeURIComponent(missionId)}`;
+}
+
 export const POST: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
 		surface: 'PRDBridgeLoadToCanvas',
@@ -389,6 +397,20 @@ export const POST: RequestHandler = async (event) => {
 			timestamp: new Date().toISOString()
 		};
 		const missionControlAccess = resolveMissionControlAccess(missionControlPathForMission(resolvedMissionId));
+		const boardUrl = boardPathForMission(resolvedMissionId);
+		const canvasUrl = canvasPathForPipeline(load.pipelineId, resolvedMissionId);
+		const canvasReadyForHandoff =
+			canvasMaterialization.nodeCount > 0 &&
+			canvasMaterialization.pairedNodeCount === canvasMaterialization.nodeCount &&
+			canvasMaterialization.pairingStatus === 'complete';
+		const canvasHandoff = {
+			status: canvasReadyForHandoff ? 'ready' : 'withheld',
+			reason: canvasReadyForHandoff
+				? 'nodes_and_skill_pairings_materialized'
+				: 'canvas_handoff_requires_materialized_nodes_and_complete_skill_pairings',
+			boardFirst: true,
+			canvasUrl: canvasReadyForHandoff ? canvasUrl : null
+		};
 
 		const persistedLoad = storedCanvasLoad(load);
 		await writeFile(pendingLoadFile, JSON.stringify(persistedLoad, null, 2), 'utf-8');
@@ -403,7 +425,9 @@ export const POST: RequestHandler = async (event) => {
 						canvasLoadedAt: new Date().toISOString(),
 						...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
 						pipelineId: load.pipelineId,
-						canvasUrl: `/canvas?pipeline=${encodeURIComponent(load.pipelineId)}&mission=${encodeURIComponent(resolvedMissionId)}`,
+						boardUrl,
+						...(canvasReadyForHandoff ? { canvasUrl } : {}),
+						canvasHandoff,
 						missionControlAccess,
 						...(capabilityProposalPacket ? { capabilityProposalPacket } : {}),
 						...(capabilitySummary ? { capabilityProposalSummary: capabilitySummary } : {})
@@ -481,7 +505,9 @@ export const POST: RequestHandler = async (event) => {
 			...(dispatchAuthorityBlock ? { authority: dispatchAuthorityBlock } : {}),
 			canvasMaterialized: canvasMaterialization.materialized,
 			canvasMaterialization,
-			canvasUrl: `/canvas?pipeline=${encodeURIComponent(load.pipelineId)}&mission=${encodeURIComponent(resolvedMissionId)}`,
+			boardUrl,
+			canvasHandoff,
+			...(canvasReadyForHandoff ? { canvasUrl } : {}),
 			missionControlAccess
 		});
 	} catch (error) {

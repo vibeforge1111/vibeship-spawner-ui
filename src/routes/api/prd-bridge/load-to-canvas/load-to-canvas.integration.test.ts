@@ -188,6 +188,13 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		expect(response.status).toBe(200);
 		const body = await response.json();
 		expect(body.canvasUrl).toBe('/canvas?pipeline=prd-tg-contract-test&mission=mission-tg-contract-test');
+		expect(body.boardUrl).toBe('/kanban?mission=mission-tg-contract-test');
+		expect(body.canvasHandoff).toMatchObject({
+			status: 'ready',
+			reason: 'nodes_and_skill_pairings_materialized',
+			boardFirst: true,
+			canvasUrl: '/canvas?pipeline=prd-tg-contract-test&mission=mission-tg-contract-test'
+		});
 		expect(body.canvasMaterialized).toBe(true);
 		expect(body.canvasMaterialization).toMatchObject({
 			materialized: true,
@@ -225,6 +232,57 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		expect(description).toContain('No package.json or build step is introduced.');
 		expect(description).toContain('Verification commands:');
 		expect(description).toContain('Select-String');
+	});
+
+	it('withholds canvas handoff until task nodes have skill pairings while still returning the board', async () => {
+		const requestId = 'tg-board-first-no-skills-test';
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify({
+				requestId,
+				success: true,
+				projectName: 'Board First No Skills',
+				tasks: [
+					{
+						id: 'task-1',
+						title: 'Create project shell',
+						summary: 'This task is intentionally missing skill pairings.',
+						skills: [],
+						dependencies: []
+					}
+				],
+				executionPrompt: 'Build the board-first fixture.'
+			}),
+			'utf-8'
+		);
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
+				body: JSON.stringify({ requestId, autoRun: false })
+			})
+		} as never);
+
+		expect(response.status).toBe(200);
+		const body = await response.json();
+		expect(body.boardUrl).toBe('/kanban?mission=mission-tg-board-first-no-skills-test');
+		expect(body.canvasUrl).toBeUndefined();
+		expect(body.canvasHandoff).toMatchObject({
+			status: 'withheld',
+			reason: 'canvas_handoff_requires_materialized_nodes_and_complete_skill_pairings',
+			boardFirst: true,
+			canvasUrl: null
+		});
+		expect(body.canvasMaterialization).toMatchObject({
+			materialized: true,
+			nodeCount: 1,
+			pairedNodeCount: 0,
+			skillCount: 0,
+			pairingStatus: 'missing'
+		});
+		const requestFile = path.join(testSpawnerDir, 'pending-request.json');
+		expect(existsSync(requestFile)).toBe(false);
 	});
 
 	it('does not auto-dispatch deterministic static proof results over existing artifacts', async () => {
