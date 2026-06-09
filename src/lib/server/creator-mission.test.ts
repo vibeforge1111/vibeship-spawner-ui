@@ -511,13 +511,32 @@ describe('creator mission trace', () => {
 		)).rejects.toThrow('Execution requires Harness Core authority.');
 	});
 
-	it('blocks execution for stage-only creator missions', async () => {
+	it('does not infer read-only creator execution from no-run prose', async () => {
+		const stateDir = await tempStateDir();
+		await createCreatorMission(
+			{
+				brief: 'Create Startup YC specialization path, but stage only. Do not run.',
+				missionId: 'mission-creator-prose-only',
+				requestId: 'req-prose-only'
+			},
+			{
+				stateDir,
+				runManifestPlanner: async () => bundle({ target_domain: 'startup-yc' })
+			}
+		);
+
+		const trace = await readCreatorMissionTrace({ missionId: 'mission-creator-prose-only' }, stateDir);
+		expect(trace?.execution_policy).toBe('manual_run');
+	});
+
+	it('blocks execution for explicitly read-only creator missions', async () => {
 		const stateDir = await tempStateDir();
 		await createCreatorMission(
 			{
 				brief: 'Create Startup YC specialization path, but stage only. Do not run.',
 				missionId: 'mission-creator-stage-only',
-				requestId: 'req-stage-only'
+				requestId: 'req-stage-only',
+				executionPolicy: 'read_only'
 			},
 			{
 				stateDir,

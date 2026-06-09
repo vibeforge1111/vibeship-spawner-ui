@@ -166,7 +166,8 @@ describe('/api/creator/mission/execute', () => {
 			{
 				brief: 'Create Startup YC specialization path, but stage only. Do not run.',
 				missionId: 'mission-creator-stage-only-api',
-				requestId: 'req-stage-only-api'
+				requestId: 'req-stage-only-api',
+				executionPolicy: 'read_only'
 			},
 			{ stateDir: tempDir, runPlanner: async () => packet() }
 		);

@@ -1373,13 +1373,9 @@ function applyCreatorMissionStatusPacket(trace: CreatorMissionTrace, packet: Rec
 	}
 }
 
-function briefRequestsReadOnlyExecution(brief: string): boolean {
-	return /\b(?:stage\s+only|stage-only|do\s+not\s+run|don't\s+run|no\s+run|do\s+not\s+execute|don't\s+execute|no\s+execution|without\s+running)\b/i.test(brief);
-}
-
-function resolveCreatorExecutionPolicy(input: CreateCreatorMissionInput, brief: string): CreatorExecutionPolicy {
+function resolveCreatorExecutionPolicy(input: CreateCreatorMissionInput, _brief: string): CreatorExecutionPolicy {
 	if (input.executionPolicy === 'read_only' || input.executionPolicy === 'manual_run') return input.executionPolicy;
-	return briefRequestsReadOnlyExecution(brief) ? 'read_only' : 'manual_run';
+	return 'manual_run';
 }
 
 function creatorMissionExecutionBlockedReason(trace: CreatorMissionTrace): string | null {

@@ -7,6 +7,17 @@ import {
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { HarnessAuthorityError } from '$lib/server/harness-authority';
 
+function missionControlReply(parsed: { action: string; missionId: string }, result: Record<string, unknown>): string {
+	if (result.ok === false) {
+		const error = typeof result.error === 'string' && result.error.trim() ? result.error.trim() : 'command failed';
+		return `Could not ${parsed.action} ${parsed.missionId}: ${error}`;
+	}
+	if (parsed.action === 'status') {
+		return `Status for ${parsed.missionId} is available.`;
+	}
+	return `${parsed.action.toUpperCase()} ${parsed.missionId} accepted.`;
+}
+
 export const POST: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
 		surface: 'MissionControlDiscordCommand',
@@ -46,12 +57,13 @@ export const POST: RequestHandler = async (event) => {
 			source,
 			executionAuthority: body.executionAuthority
 		});
+		const ok = result.ok !== false;
 
 		return json({
-			ok: true,
+			ok,
 			parsed,
 			result,
-			reply: `✅ ${parsed.action.toUpperCase()} ${parsed.missionId} executed.`
+			reply: missionControlReply(parsed, result)
 		});
 	} catch (error) {
 		if (error instanceof HarnessAuthorityError) {

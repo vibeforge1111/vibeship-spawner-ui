@@ -81,6 +81,7 @@ const SYNCED_PATHS = [
 	'src/routes/api/mission-control/trace/+server.ts',
 	'src/routes/api/mission-control/results/+server.ts',
 	'src/routes/api/mission-control/command/+server.ts',
+	'src/routes/api/mission-control/discord-command/+server.ts',
 	'src/routes/api/mission/active/+server.ts',
 	'src/routes/api/harness-watchdog/probe/+server.ts',
 	'src/routes/api/memory-quality/evaluations/+server.ts',

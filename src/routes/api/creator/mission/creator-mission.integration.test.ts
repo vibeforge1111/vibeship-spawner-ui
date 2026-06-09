@@ -205,7 +205,7 @@ describe('/api/creator/mission', () => {
 		expect(getBody.tracePath).toContain('mission-creator-api.json');
 	});
 
-	it('marks no-run creator mission requests as read-only', async () => {
+	it('marks explicitly read-only creator mission requests as read-only', async () => {
 		const { setCreatorPlanRunnerForTests } = await import('$lib/server/creator-mission');
 		setCreatorPlanRunnerForTests(async () => ({
 			schema_version: 'spark-creator-intent.v1',
@@ -233,7 +233,8 @@ describe('/api/creator/mission', () => {
 		const response = await POST(event('http://127.0.0.1/api/creator/mission', {
 			brief: 'Create Startup YC specialization path, but stage only. Do not run.',
 			missionId: 'mission-creator-stage-only-route',
-			requestId: 'creator-stage-only-route'
+			requestId: 'creator-stage-only-route',
+			executionPolicy: 'read_only'
 		}) as never);
 
 		expect(response.status).toBe(200);
@@ -249,6 +250,19 @@ describe('/api/creator/mission', () => {
 		expect(missionCreatedCall.type).toBe('mission_created');
 		expect(missionCreatedCall.message).toMatch(/staged/i);
 		expect(missionCreatedCall.data?.executionPolicy).toBe('read_only');
+	});
+
+	it('does not turn no-run prose into read-only authority', async () => {
+		const response = await POST(event('http://127.0.0.1/api/creator/mission', {
+			brief: 'Create Startup YC specialization path, but stage only. Do not run.',
+			missionId: 'mission-creator-prose-no-authority',
+			requestId: 'creator-prose-no-authority'
+		}) as never);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
 	});
 
 	it('rejects missing briefs', async () => {
