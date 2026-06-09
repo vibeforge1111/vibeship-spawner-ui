@@ -90,6 +90,55 @@ interface ActiveMissionState {
 	resumeInstructions: string;
 }
 
+function activeMissionAuthorityBoundary(payload: 'metadata_only' | 'recovery_payload') {
+	return {
+		source: 'active-mission-state',
+		authority: 'evidence_only',
+		payload,
+		requirement: 'Fresh Harness Core Governor authority is required before execution, mission control, file writes, or provider dispatch.',
+		...(payload === 'metadata_only'
+			? {
+					executionPrompt: 'requires_control_auth',
+					resumeInstructions: 'requires_control_auth',
+					cleanup: 'requires_control_auth'
+				}
+			: {})
+	};
+}
+
+function activeMissionMetadata(state: ActiveMissionState, isStale: boolean, minutesSinceUpdate: number) {
+	return {
+		active: true,
+		authorityBoundary: activeMissionAuthorityBoundary('metadata_only'),
+		stale: isStale,
+		minutesSinceUpdate: Math.round(minutesSinceUpdate),
+		mission: {
+			id: state.missionId,
+			name: state.missionName,
+			status: state.status,
+			progress: state.progress,
+			currentTask: state.currentTaskId ? {
+				id: state.currentTaskId,
+				name: state.currentTaskName
+			} : null
+		},
+		taskCounts: {
+			total: Array.isArray(state.tasks) ? state.tasks.length : 0,
+			completed: Array.isArray(state.completedTasks) ? state.completedTasks.length : 0,
+			failed: Array.isArray(state.failedTasks) ? state.failedTasks.length : 0
+		},
+		multiLLMExecution: state.multiLLMExecution
+			? {
+					enabled: state.multiLLMExecution.enabled,
+					strategy: state.multiLLMExecution.strategy,
+					primaryProviderId: state.multiLLMExecution.primaryProviderId || null,
+					providerCount: Array.isArray(state.multiLLMExecution.providers) ? state.multiLLMExecution.providers.length : 0
+				}
+			: null,
+		lastUpdated: state.lastUpdated
+	};
+}
+
 /**
  * GET /api/mission/active
  * Returns the active mission state if one exists
@@ -97,6 +146,7 @@ interface ActiveMissionState {
 export const GET: RequestHandler = async (event) => {
 	const unauthorized = requireActiveMissionAuth(event, true);
 	if (unauthorized) return unauthorized;
+	const canReadRecoveryPayload = requireActiveMissionAuth(event, false) === null;
 
 	const { url } = event;
 	try {
@@ -112,20 +162,30 @@ export const GET: RequestHandler = async (event) => {
 		const content = await readFile(missionPath, 'utf-8');
 		const state = parseJsonOrFallback<ActiveMissionState | null>(content, null, 'active-mission-state');
 		if (!state) {
-			await unlink(missionPath).catch(() => undefined);
+			if (canReadRecoveryPayload) {
+				await unlink(missionPath).catch(() => undefined);
+			}
 			return json({
 				active: false,
 				corrupt: true,
-				message: 'Active mission state is corrupted and cannot be resumed.'
+				authorityBoundary: activeMissionAuthorityBoundary('metadata_only'),
+				message: canReadRecoveryPayload
+					? 'Active mission state is corrupted and cannot be resumed.'
+					: 'Active mission state is corrupted and cannot be inspected without control auth.'
 			});
 		}
 
 		if (await missionHasTerminalRelayEvent(state.missionId)) {
-			await unlink(missionPath).catch(() => undefined);
+			if (canReadRecoveryPayload) {
+				await unlink(missionPath).catch(() => undefined);
+			}
 			return json({
 				active: false,
 				terminal: true,
-				message: 'Active mission was already terminal in Mission Control history and was cleared.'
+				authorityBoundary: activeMissionAuthorityBoundary('metadata_only'),
+				message: canReadRecoveryPayload
+					? 'Active mission was already terminal in Mission Control history and was cleared.'
+					: 'Active mission was already terminal in Mission Control history. Cleanup requires control auth.'
 			});
 		}
 
@@ -156,13 +216,13 @@ export const GET: RequestHandler = async (event) => {
 			});
 		}
 
+		if (!canReadRecoveryPayload) {
+			return json(activeMissionMetadata(state, isStale, minutesSinceUpdate));
+		}
+
 		return json({
 			active: true,
-			authorityBoundary: {
-				source: 'active-mission-state',
-				authority: 'evidence_only',
-				requirement: 'Fresh Harness Core Governor authority is required before execution, mission control, file writes, or provider dispatch.'
-			},
+			authorityBoundary: activeMissionAuthorityBoundary('recovery_payload'),
 			stale: isStale,
 			minutesSinceUpdate: Math.round(minutesSinceUpdate),
 			mission: {

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import path from 'path';
 import { existsSync } from 'fs';
-import { mkdtemp, rm, writeFile } from 'fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { DELETE, GET, POST } from './+server';
 
@@ -195,6 +195,75 @@ describe('/api/mission/active integration', () => {
 		expect(body.resumeInstructions).toContain('Strategy: round_robin');
 	});
 
+	it('returns metadata only for local no-key active mission reads', async () => {
+		await writeFile(
+			missionFile,
+			JSON.stringify(
+				{
+					missionId: 'mission-local-read-metadata',
+					missionName: 'Local read metadata',
+					status: 'running',
+					progress: 60,
+					currentTaskId: 'task-private',
+					currentTaskName: 'Private task',
+					executionPrompt: 'private execution prompt',
+					multiLLMExecution: {
+						enabled: true,
+						strategy: 'round_robin',
+						primaryProviderId: 'codex',
+						providers: [{ id: 'codex' }, { id: 'claude' }]
+					},
+					tasks: [
+						{ id: 'task-private', title: 'Private task', status: 'in_progress', skills: ['private-skill'] }
+					],
+					completedTasks: ['task-done'],
+					failedTasks: [],
+					lastUpdated: new Date().toISOString(),
+					resumeInstructions: 'private resume instructions'
+				},
+				null,
+				2
+			)
+		);
+
+		const getResponse = await GET(routeEvent({ apiKey: null }) as never);
+		expect(getResponse.status).toBe(200);
+		const body = await getResponse.json();
+
+		expect(body).toMatchObject({
+			active: true,
+			authorityBoundary: {
+				payload: 'metadata_only',
+				executionPrompt: 'requires_control_auth',
+				resumeInstructions: 'requires_control_auth',
+				cleanup: 'requires_control_auth'
+			},
+			mission: {
+				id: 'mission-local-read-metadata',
+				name: 'Local read metadata',
+				progress: 60
+			},
+			taskCounts: {
+				total: 1,
+				completed: 1,
+				failed: 0
+			},
+			multiLLMExecution: {
+				enabled: true,
+				strategy: 'round_robin',
+				primaryProviderId: 'codex',
+				providerCount: 2
+			}
+		});
+		expect(body.tasks).toBeUndefined();
+		expect(body.completedTasks).toBeUndefined();
+		expect(body.failedTasks).toBeUndefined();
+		expect(body.executionPrompt).toBeUndefined();
+		expect(body.resumeInstructions).toBeUndefined();
+		expect(JSON.stringify(body)).not.toContain('private execution prompt');
+		expect(JSON.stringify(body)).not.toContain('private resume instructions');
+	});
+
 	it('clears mission state via DELETE', async () => {
 		const postResponse = await POST(
 			routeEvent({
@@ -334,6 +403,56 @@ describe('/api/mission/active integration', () => {
 		expect(existsSync(missionFile)).toBe(false);
 	});
 
+	it('does not clear terminal active state from a local no-key read', async () => {
+		await writeFile(
+			path.join(testSpawnerDir, 'mission-control.json'),
+			JSON.stringify(
+				{
+					totalRelayed: 1,
+					perMission: { 'mission-terminal-local-read': 1 },
+					recent: [
+						{
+							eventType: 'mission_completed',
+							missionId: 'mission-terminal-local-read',
+							timestamp: new Date().toISOString()
+						}
+					]
+				},
+				null,
+				2
+			)
+		);
+		await writeFile(
+			missionFile,
+			JSON.stringify(
+				{
+					missionId: 'mission-terminal-local-read',
+					missionName: 'Already done local read',
+					status: 'running',
+					progress: 0,
+					executionPrompt: 'old prompt',
+					tasks: [],
+					completedTasks: [],
+					failedTasks: [],
+					lastUpdated: new Date().toISOString(),
+					resumeInstructions: 'old resume instructions'
+				},
+				null,
+				2
+			)
+		);
+
+		const getResponse = await GET(routeEvent({ apiKey: null }) as never);
+		expect(getResponse.status).toBe(200);
+		const body = await getResponse.json();
+
+		expect(body.active).toBe(false);
+		expect(body.terminal).toBe(true);
+		expect(body.message).toContain('Cleanup requires control auth');
+		expect(existsSync(missionFile)).toBe(true);
+		expect(await readFile(missionFile, 'utf-8')).toContain('old prompt');
+	});
+
 	it('ignores stale running updates after a terminal Mission Control event', async () => {
 		await writeFile(
 			path.join(testSpawnerDir, 'mission-control.json'),
@@ -420,5 +539,19 @@ describe('/api/mission/active integration', () => {
 		expect(body.message).toBe('Active mission state is corrupted and cannot be resumed.');
 		expect(body.error).toBeUndefined();
 		expect(existsSync(missionFile)).toBe(false);
+	});
+
+	it('does not clear corrupted active mission state from a local no-key read', async () => {
+		await writeFile(missionFile, '{not-valid-json', 'utf-8');
+
+		const getResponse = await GET(routeEvent({ apiKey: null }) as never);
+		expect(getResponse.status).toBe(200);
+		const body = await getResponse.json();
+
+		expect(body.active).toBe(false);
+		expect(body.corrupt).toBe(true);
+		expect(body.message).toContain('cannot be inspected without control auth');
+		expect(existsSync(missionFile)).toBe(true);
+		expect(await readFile(missionFile, 'utf-8')).toBe('{not-valid-json');
 	});
 });
