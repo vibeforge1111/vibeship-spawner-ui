@@ -186,6 +186,40 @@ describe('/api/prd-bridge/result integration', () => {
 		expect(JSON.stringify(body)).not.toContain('private-skill');
 	});
 
+	it('reads canonical result artifacts with a UTF-8 BOM prefix', async () => {
+		const requestId = 'tg-build-bom-result-read-test';
+		await mkdir(path.join(testSpawnerDir, 'results'), { recursive: true });
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			`\ufeff${JSON.stringify(
+				{
+					requestId,
+					success: true,
+					projectName: 'BOM Result',
+					projectType: 'direct-build',
+					complexity: 'moderate',
+					tasks: [{ id: 'TAS-1', title: 'Read BOM artifact', skills: ['frontend-engineer'] }],
+					skills: ['frontend-engineer']
+				},
+				null,
+				2
+			)}`,
+			'utf-8'
+		);
+
+		const getResponse = await GET(getResultEvent(requestId) as never);
+		const body = await getResponse.json();
+
+		expect(getResponse.status).toBe(200);
+		expect(body.found).toBe(true);
+		expect(body.result).toMatchObject({
+			requestId,
+			success: true,
+			projectName: 'BOM Result'
+		});
+		expect(body.result.tasks).toHaveLength(1);
+	});
+
 	it('rejects malformed result JSON with a useful error', async () => {
 		const requestId = 'tg-build-malformed-result-test';
 		const postResponse = await POST({

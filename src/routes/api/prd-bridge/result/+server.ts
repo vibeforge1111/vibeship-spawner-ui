@@ -18,6 +18,7 @@ import { projectStoredPrdAnalysisResultForTier } from '$lib/server/prd-analysis-
 import { spawnerStateDir } from '$lib/server/spawner-state';
 import { requireControlAuth } from '$lib/server/mcp-auth';
 import { logger } from '$lib/utils/logger';
+import { parseJsonOrThrow } from '$lib/utils/safe-json';
 
 const log = logger.scope('PRDBridge');
 
@@ -182,7 +183,10 @@ export const GET: RequestHandler = async (event) => {
 			return json({ found: false, requestId });
 		}
 
-		const result = JSON.parse(await readFile(resultFile, 'utf-8'));
+		const result = parseJsonOrThrow<Record<string, unknown>>(
+			await readFile(resultFile, 'utf-8'),
+			`prd-result:${requestId}`
+		);
 		if (!hasControlAuth) {
 			const resultRecord = result && typeof result === 'object' && !Array.isArray(result)
 				? (result as Record<string, unknown>)

@@ -70,6 +70,7 @@ const SYNCED_PATHS = [
 	'src/lib/services/pipeline-loader.ts',
 	'src/lib/services/prd-bridge.ts',
 	'src/lib/services/mission-board-cards.ts',
+	'src/lib/utils/safe-json.ts',
 	'src/lib/components/MissionBoard.svelte',
 	'src/routes/api/prd-bridge/write/+server.ts',
 	'src/routes/api/events/+server.ts',

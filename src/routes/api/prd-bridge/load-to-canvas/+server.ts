@@ -23,6 +23,7 @@ import {
 } from '$lib/server/harness-authority';
 import { stripAuthorityResidue } from '$lib/server/authority-residue';
 import { requireControlAuth } from '$lib/server/mcp-auth';
+import { parseJsonOrThrow } from '$lib/utils/safe-json';
 
 function getSpawnerDir(): string {
 	return spawnerStateDir();
@@ -261,7 +262,7 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		const raw = await readFile(path, 'utf-8');
-		const parsed = JSON.parse(raw) as {
+		const parsed = parseJsonOrThrow<{
 			success?: boolean;
 			projectName?: string;
 			projectType?: string;
@@ -271,7 +272,7 @@ export const POST: RequestHandler = async (event) => {
 			metadata?: Record<string, unknown>;
 			capabilityProposalPacket?: unknown;
 			capability_proposal_packet?: unknown;
-		};
+		}>(raw, `prd-result:${requestId}`);
 
 		if (!parsed.success || !Array.isArray(parsed.tasks) || parsed.tasks.length === 0) {
 			return json({ error: 'Result has no tasks to load' }, { status: 422 });

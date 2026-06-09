@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { parseJsonOrFallback, tryParseJson } from './safe-json';
+import { parseJsonOrFallback, parseJsonOrThrow, tryParseJson } from './safe-json';
 
 beforeEach(() => {
 	vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -12,6 +12,11 @@ afterEach(() => {
 describe('safe JSON helpers', () => {
 	it('parses valid JSON', () => {
 		expect(parseJsonOrFallback('{"ok":true}', { ok: false }, 'test')).toEqual({ ok: true });
+	});
+
+	it('parses JSON with a UTF-8 BOM prefix', () => {
+		expect(parseJsonOrThrow(`\ufeff{"ok":true}`, 'bom-test')).toEqual({ ok: true });
+		expect(parseJsonOrFallback(`\ufeff{"ok":true}`, { ok: false }, 'bom-test')).toEqual({ ok: true });
 	});
 
 	it('returns fallback and logs only a label on invalid JSON', () => {

@@ -254,6 +254,62 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		expect(description).toContain('Select-String');
 	});
 
+	it('loads BOM-prefixed canonical result artifacts into canvas and workflow handoff', async () => {
+		const requestId = 'tg-load-bom-result-test';
+		const missionId = 'mission-tg-load-bom-result-test';
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			`\ufeff${JSON.stringify(
+				{
+					requestId,
+					success: true,
+					projectName: 'BOM Canvas Load',
+					projectType: 'direct-build',
+					tasks: [
+						{
+							id: 'task-1',
+							title: 'Build the BOM-safe board',
+							description: 'Render the board after reading a canonical result artifact.',
+							skills: ['frontend-engineer'],
+							dependencies: []
+						}
+					],
+					skills: ['frontend-engineer'],
+					executionPrompt: 'Build the BOM-safe board.'
+				},
+				null,
+				2
+			)}`,
+			'utf-8'
+		);
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
+				body: JSON.stringify({
+					requestId,
+					missionId,
+					autoRun: true,
+					executionAuthority: dispatchAuthority(requestId, missionId)
+				})
+			})
+		} as never);
+		const body = await response.json();
+
+		expect(response.status).toBe(200);
+		expect(body.canvasMaterialization).toMatchObject({
+			nodeCount: 1,
+			pairedNodeCount: 1,
+			skillCount: 1,
+			pairingStatus: 'complete'
+		});
+		expect(body.workflowHandoff).toMatchObject({
+			status: 'ready',
+			canvasUrl: `/canvas?pipeline=prd-${requestId}&mission=${missionId}`
+		});
+	});
+
 	it('withholds canvas handoff until task nodes have skill pairings while still returning the board', async () => {
 		const requestId = 'tg-board-first-no-skills-test';
 		await writeFile(
