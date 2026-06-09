@@ -85,6 +85,62 @@ describe('/api/prd-bridge/pending integration', () => {
 		});
 	});
 
+	it('keeps local no-key pending reads metadata-only and non-reconciling', async () => {
+		const requestId = 'tg-build-pending-local-read';
+		await writeFile(
+			path.join(testSpawnerDir, 'pending-request.json'),
+			JSON.stringify({
+				status: 'pending',
+				requestId,
+				missionId: 'mission-pending-local-read',
+				projectName: 'Pending Local Read Board',
+				timestamp: '2026-06-09T10:00:00.000Z',
+				options: { includeSkills: false },
+				relay: { chatId: '123', userId: '456' },
+				autoAnalysis: {
+					status: 'running',
+					startedAt: '2026-06-08T18:00:00.000Z'
+				}
+			}),
+			'utf-8'
+		);
+		await writeFile(path.join(testSpawnerDir, 'pending-prd.md'), '# Pending Local Read Board', 'utf-8');
+		await mkdir(path.join(testSpawnerDir, 'results'), { recursive: true });
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify({ success: true, projectName: 'Canonical Result Board' }),
+			'utf-8'
+		);
+
+		const response = await GET(routeEvent('GET', null) as never);
+		const body = await response.json();
+
+		expect(response.status).toBe(200);
+		expect(body).toMatchObject({
+			pending: true,
+			requestId,
+			missionId: 'mission-pending-local-read',
+			projectName: 'Pending Local Read Board',
+			authorityBoundary: {
+				payload: 'metadata_only',
+				prdContent: 'requires_control_auth',
+				reconciliation: 'requires_control_auth'
+			}
+		});
+		expect(body.prdContent).toBeUndefined();
+		expect(body.options).toBeUndefined();
+		expect(body.relay).toBeUndefined();
+
+		const pending = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
+		expect(pending).toMatchObject({
+			status: 'pending',
+			requestId,
+			autoAnalysis: {
+				status: 'running'
+			}
+		});
+	});
+
 	it('reconciles canonical result state before returning stale pending work', async () => {
 		const requestId = 'tg-build-pending-canonical-result';
 		await writeFile(
