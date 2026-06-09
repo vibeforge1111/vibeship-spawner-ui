@@ -5,7 +5,7 @@ standalone Spawner UI checkouts can resolve the canonical Harness Core contracts
 without relying on an adjacent local Spark module checkout.
 
 - Source repo: `vibeforge1111/spark-harness-core`
-- Source commit: `0f893a2c70ada9b7d9fb4f25b4c686eed7ff7539`
+- Source commit: `aa19fd7e49151c9df9e76e38f32da4aba7870bdf`
 - Package: `@spark/harness-core@0.1.0`
 - Rule: this is the canonical Harness Core contract/Governor package artifact,
   not a fallback authority plane. Spawner remains an execution capability
