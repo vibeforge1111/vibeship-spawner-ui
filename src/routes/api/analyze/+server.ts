@@ -12,6 +12,7 @@ import skillIndex from '$lib/data/skill-index-ultra.json';
 import { HarnessAuthorityError, assertNativeGovernorHarnessAuthority, resolveExecutionAuthority } from '$lib/server/harness-authority';
 import { ClaudeApiAnalysisSchema, safeJsonParse } from '$lib/types/schemas';
 import { logger } from '$lib/utils/logger';
+import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 
 interface AnalysisRequest {
 	goal: string;
@@ -98,9 +99,25 @@ function formatSkillsForPrompt(): string {
 	return lines.join('\n');
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
 	try {
-		const body = await request.json().catch(() => null) as AnalysisRequest | null;
+		const unauthorized = requireControlAuth(event, {
+			surface: 'Analyze',
+			apiKeyEnvVar: 'SPAWNER_ANALYZE_API_KEY',
+			fallbackApiKeyEnvVar: 'MCP_API_KEY',
+			allowLoopbackWithoutKey: true,
+			allowedOriginsEnvVar: 'SPAWNER_ALLOWED_ORIGINS'
+		});
+		if (unauthorized) return unauthorized;
+
+		const rateLimited = enforceRateLimit(event, {
+			scope: 'analyze',
+			limit: 10,
+			windowMs: 60_000
+		});
+		if (rateLimited) return rateLimited;
+
+		const body = await event.request.json().catch(() => null) as AnalysisRequest | null;
 		if (!body || typeof body !== 'object' || Array.isArray(body)) {
 			return json({ error: 'Malformed JSON body' }, { status: 400 });
 		}
