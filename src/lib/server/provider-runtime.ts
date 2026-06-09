@@ -824,7 +824,7 @@ class ProviderRuntimeManager {
 						taskName,
 						progress: nextProgress,
 						kind: 'provider_heartbeat',
-						suppressRelay: true,
+						suppressExternalRelay: true,
 						provider: provider.id,
 						providerLabel: provider.label,
 						assignedTaskIds: taskIds,

@@ -177,6 +177,22 @@ function buildConnections(tasks: TaskRecord[]): Array<{ sourceIndex: number; tar
 	return conns;
 }
 
+function canvasMaterializationSummary(nodes: ReturnType<typeof taskToNode>[]) {
+	const pairedNodeCount = nodes.filter((node) => node.skill.skillChain.length > 0).length;
+	const skillCount = new Set(nodes.flatMap((node) => node.skill.skillChain)).size;
+	return {
+		materialized: true,
+		nodeCount: nodes.length,
+		pairedNodeCount,
+		skillCount,
+		pairingStatus: nodes.length === 0 || pairedNodeCount === 0
+			? 'missing'
+			: pairedNodeCount === nodes.length
+				? 'complete'
+				: 'partial'
+	};
+}
+
 export const POST: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
 		surface: 'PRDBridgeLoadToCanvas',
@@ -229,6 +245,7 @@ export const POST: RequestHandler = async (event) => {
 
 		const nodes = parsed.tasks.map(taskToNode);
 		const connections = buildConnections(parsed.tasks);
+		const canvasMaterialization = canvasMaterializationSummary(nodes);
 		const deterministicStaticResult =
 			parsed.projectType === 'static-exact-file-proof' || parsed.projectType === 'static-single-file-html';
 		let effectiveAutoRun = autoRun !== false && !deterministicStaticResult;
@@ -462,6 +479,8 @@ export const POST: RequestHandler = async (event) => {
 			autoDispatch: autoDispatchResult,
 			...(dispatchAuthorityVerdict ? { authority: dispatchAuthorityVerdict } : {}),
 			...(dispatchAuthorityBlock ? { authority: dispatchAuthorityBlock } : {}),
+			canvasMaterialized: canvasMaterialization.materialized,
+			canvasMaterialization,
 			canvasUrl: `/canvas?pipeline=${encodeURIComponent(load.pipelineId)}&mission=${encodeURIComponent(resolvedMissionId)}`,
 			missionControlAccess
 		});

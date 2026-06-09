@@ -188,6 +188,14 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		expect(response.status).toBe(200);
 		const body = await response.json();
 		expect(body.canvasUrl).toBe('/canvas?pipeline=prd-tg-contract-test&mission=mission-tg-contract-test');
+		expect(body.canvasMaterialized).toBe(true);
+		expect(body.canvasMaterialization).toMatchObject({
+			materialized: true,
+			nodeCount: 1,
+			pairedNodeCount: 1,
+			skillCount: 2,
+			pairingStatus: 'complete'
+		});
 		expect(body.missionControlAccess).toMatchObject({
 			mode: 'local-only',
 			url: null,

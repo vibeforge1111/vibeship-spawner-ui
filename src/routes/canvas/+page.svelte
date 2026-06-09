@@ -113,6 +113,11 @@ import { get } from 'svelte/store';
 		tags?: string[];
 		skills?: string[];
 		skillChain?: string[];
+		skill?: {
+			tags?: string[];
+			skills?: string[];
+			skillChain?: string[];
+		};
 	};
 
 	type SparkAgentCanvasLink = {
@@ -280,12 +285,17 @@ import { get } from 'svelte/store';
 
 	function resolveSparkAgentSkill(node: SparkAgentCanvasSkillNode): Skill {
 		const availableSkills = get(skillsStore);
+		const nestedSkill = node.skill;
 		const incomingSkillChain = node.skillChain?.length
 			? node.skillChain
+			: nestedSkill?.skillChain?.length
+				? nestedSkill.skillChain
 			: node.skills?.length
 				? node.skills
+				: nestedSkill?.skills?.length
+					? nestedSkill.skills
 				: [];
-		const incomingTags = node.tags || [];
+		const incomingTags = node.tags?.length ? node.tags : nestedSkill?.tags || [];
 		const existing =
 			availableSkills.find((skill) => skill.id === node.skillId) ||
 			availableSkills.find((skill) => skill.name === node.skillName);

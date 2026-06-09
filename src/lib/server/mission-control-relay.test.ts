@@ -457,6 +457,28 @@ describe('mission-control-relay', () => {
 		).toBe(false);
 	});
 
+	it('keeps suppressRelay events on the local board while skipping external relay', async () => {
+		const missionId = `mission-local-progress-${Date.now()}`;
+		const event = {
+			type: 'task_progress',
+			missionId,
+			taskName: 'Provider execution',
+			source: 'codex',
+			progress: 42,
+			data: { suppressRelay: true }
+		};
+
+		expect(shouldRelayMissionControlEvent(event)).toBe(false);
+
+		await relayMissionControlEvent(event);
+		const snapshot = getMissionControlRelaySnapshot(missionId);
+		const entry = snapshot.recent.find((candidate) => candidate.missionId === missionId);
+
+		expect(entry?.eventType).toBe('task_progress');
+		expect(entry?.taskName).toBe('Provider execution');
+		expect(entry?.progress).toBe(42);
+	});
+
 	it('can keep local board events while skipping external relays', async () => {
 		const missionId = `mission-local-only-relay-${Date.now()}`;
 		const event = {

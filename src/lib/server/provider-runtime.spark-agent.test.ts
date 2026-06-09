@@ -332,7 +332,7 @@ describe('provider-runtime Spark agent bridge', () => {
 					progress: expect.any(Number),
 					data: expect.objectContaining({
 						kind: 'provider_heartbeat',
-						suppressRelay: true,
+						suppressExternalRelay: true,
 						assignedTaskIds: ['task-1', 'task-2'],
 						assignedTaskCount: 2,
 						elapsedMs: expect.any(Number)
