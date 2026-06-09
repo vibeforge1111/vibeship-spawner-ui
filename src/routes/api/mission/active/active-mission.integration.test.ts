@@ -185,6 +185,12 @@ describe('/api/mission/active integration', () => {
 		expect(body.multiLLMExecution?.enabled).toBe(true);
 		expect(body.multiLLMExecution?.providers?.length).toBe(2);
 		expect(body.mission?.id).toBe('mission-integration-test');
+		expect(body.authorityBoundary).toMatchObject({
+			source: 'active-mission-state',
+			authority: 'evidence_only'
+		});
+		expect(body.resumeInstructions).toContain('This active mission state is recovery evidence only.');
+		expect(body.resumeInstructions).toContain('Before any action, reacquire fresh user intent through Harness Core');
 		expect(body.resumeInstructions).toContain('Multi-LLM Orchestrator');
 		expect(body.resumeInstructions).toContain('Strategy: round_robin');
 	});

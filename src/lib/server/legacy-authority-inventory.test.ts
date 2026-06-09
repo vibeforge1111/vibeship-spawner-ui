@@ -64,6 +64,7 @@ describe('Spawner legacy authority inventory', () => {
 			'artifact:spawner-dispatch-api:source',
 			'artifact:spawner-scheduled-api:source',
 			'artifact:spawner-scheduler-runtime:source',
+			'artifact:spawner-active-mission-state:source',
 			'artifact:spawner-mission-control-command:source',
 			'artifact:spawner-creator-mission-api:source',
 			'artifact:spawner-creator-execute-api:source',
