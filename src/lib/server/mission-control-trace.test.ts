@@ -290,6 +290,54 @@ describe('mission-control-trace', () => {
 		});
 	});
 
+	it('recovers mission canvas from archived load when latest canvas belongs to another mission', async () => {
+		const stateDir = await makeStateDir();
+		const requestId = 'tg-unit-archived-canvas-1777371000011';
+		const missionId = 'mission-1777371000011';
+		const traceRef = 'trace:spawner-prd:mission-1777371000011';
+
+		await writeJson(path.join(stateDir, 'results', `${requestId}.json`), {
+			requestId,
+			success: true,
+			projectName: 'Archived Canvas'
+		});
+		await writeJson(path.join(stateDir, 'last-canvas-load.json'), {
+			requestId: 'tg-unit-other-1777379999999',
+			missionId: 'mission-1777379999999',
+			pipelineId: 'prd-tg-unit-other-1777379999999',
+			nodes: [{ id: 'wrong-node' }]
+		});
+		await writeJson(path.join(stateDir, 'canvas-loads', `prd-${requestId}.json`), {
+			requestId,
+			missionId,
+			traceRef,
+			pipelineId: `prd-${requestId}`,
+			pipelineName: 'Archived Canvas',
+			autoRun: false,
+			nodes: [{ id: 'task-1' }, { id: 'task-2' }],
+			relay: { missionId, requestId, traceRef }
+		});
+
+		const trace = await buildMissionControlTrace({
+			requestId,
+			getProviderResults: () => []
+		});
+
+		expect(trace).toMatchObject({
+			requestId,
+			missionId,
+			traceRef,
+			phase: 'canvas_ready',
+			surfaces: {
+				canvas: {
+					pipelineId: `prd-${requestId}`,
+					pipelineName: 'Archived Canvas',
+					nodeCount: 2
+				}
+			}
+		});
+	});
+
 	it('uses analysis tasks to report partial skill pairing before Kanban exists', async () => {
 		const stateDir = await makeStateDir();
 		const requestId = 'tg-unit-skill-pairing-1777371000010';

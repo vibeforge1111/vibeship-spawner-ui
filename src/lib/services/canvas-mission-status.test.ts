@@ -136,6 +136,9 @@ describe('canvas mission status mapping', () => {
 
 		expect(canvas.nodes).toHaveLength(1);
 		expect(canvas.nodes[0].skill.name).toBe('Create the playable game shell');
+		expect(canvas.nodes[0].skill.tags).toEqual(['frontend']);
+		expect(canvas.nodes[0].skill.skillChain).toEqual(['frontend']);
+		expect(canvas.nodes[0].skill.chainDescription).toBe('Paired skills: frontend');
 		expect(canvas.nodes[0].status).toBe('success');
 		expect(canvas.nodes[0].id).toContain('spark-1778997905515');
 	});

@@ -52,7 +52,7 @@ function sanitizeBoardForLoopback(board: BoardPayload): BoardPayload {
 			tasks: entry.tasks.map((task) => ({
 				title: task.title,
 				status: task.status,
-				skills: []
+				skills: task.skills
 			})),
 			providerSummary: entry.providerSummary ? 'Provider summary requires control auth.' : null,
 			providerResults: [],

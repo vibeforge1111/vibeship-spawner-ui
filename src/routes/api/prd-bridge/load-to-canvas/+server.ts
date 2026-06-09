@@ -29,6 +29,22 @@ function getSpawnerDir(): string {
 	return spawnerStateDir();
 }
 
+function getLoadArchiveDir(): string {
+	return join(getSpawnerDir(), 'canvas-loads');
+}
+
+function safeLoadFileKey(value: string): string {
+	return value.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 200) || 'unknown';
+}
+
+function archivedLoadFileForPipeline(pipelineId: string): string {
+	return join(getLoadArchiveDir(), `${safeLoadFileKey(pipelineId)}.json`);
+}
+
+function archivedLoadFileForMission(missionId: string): string {
+	return join(getLoadArchiveDir(), `mission-${safeLoadFileKey(missionId)}.json`);
+}
+
 function resultFilePath(requestId: string): string {
 	const safe = requestId.replace(/[^a-zA-Z0-9_-]/g, '_');
 	return join(getSpawnerDir(), 'results', `${safe}.json`);
@@ -341,6 +357,7 @@ export const POST: RequestHandler = async (event) => {
 		if (!existsSync(spawnerDir)) {
 			await mkdir(spawnerDir, { recursive: true });
 		}
+		await mkdir(getLoadArchiveDir(), { recursive: true });
 
 		let relay: Record<string, unknown> | undefined;
 		let buildMode: 'direct' | 'advanced_prd' = bodyBuildMode === 'advanced_prd' ? 'advanced_prd' : 'direct';
@@ -475,10 +492,16 @@ export const POST: RequestHandler = async (event) => {
 		const persistedLoad = storedCanvasLoad(load);
 		await writeFile(pendingLoadFile, JSON.stringify(persistedLoad, null, 2), 'utf-8');
 		await writeFile(lastLoadFile, JSON.stringify(persistedLoad, null, 2), 'utf-8');
+		await writeFile(archivedLoadFileForPipeline(load.pipelineId), JSON.stringify(persistedLoad, null, 2), 'utf-8');
+		await writeFile(archivedLoadFileForMission(resolvedMissionId), JSON.stringify(persistedLoad, null, 2), 'utf-8');
 		await appendPrdTrace(requestId, 'canvas_load_materialized', {
 			missionId: resolvedMissionId,
 			...traceRefDetails(resolvedTraceRef),
 			pipelineId: load.pipelineId,
+			archivedLoadRefs: [
+				`canvas-loads/${safeLoadFileKey(load.pipelineId)}.json`,
+				`canvas-loads/mission-${safeLoadFileKey(resolvedMissionId)}.json`
+			],
 			autoRunRequested: autoRun !== false,
 			autoRunEffective: effectiveAutoRun,
 			canvasReadyForHandoff,

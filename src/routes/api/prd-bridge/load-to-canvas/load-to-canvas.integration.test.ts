@@ -233,6 +233,14 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const pending = JSON.parse(pendingRaw);
 		expect(pending.requestId).toBe(requestId);
 		expect(pending.missionId).toBe('mission-tg-contract-test');
+		const pipelineArchive = JSON.parse(
+			await readFile(path.join(testSpawnerDir, 'canvas-loads', `prd-${requestId}.json`), 'utf-8')
+		);
+		const missionArchive = JSON.parse(
+			await readFile(path.join(testSpawnerDir, 'canvas-loads', 'mission-mission-tg-contract-test.json'), 'utf-8')
+		);
+		expect(pipelineArchive).toMatchObject({ requestId, missionId: 'mission-tg-contract-test' });
+		expect(missionArchive).toMatchObject({ requestId, pipelineId: `prd-${requestId}` });
 		expect(pending.executionPrompt).toBeUndefined();
 		expect(pending.instructionTextRedacted).toBe(true);
 		expect(pending.metadata.taskQuality).toMatchObject({

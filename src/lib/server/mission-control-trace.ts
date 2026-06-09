@@ -147,6 +147,24 @@ function artifactMatches(
 	);
 }
 
+function safeLoadFileKey(value: string): string {
+	return value.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 200) || 'unknown';
+}
+
+function archivedCanvasLoadCandidates(spawnerDir: string, input: {
+	missionId: string | null;
+	requestId: string | null;
+}): string[] {
+	const candidates: string[] = [];
+	if (input.requestId) {
+		candidates.push(path.join(spawnerDir, 'canvas-loads', `${safeLoadFileKey(`prd-${input.requestId}`)}.json`));
+	}
+	if (input.missionId) {
+		candidates.push(path.join(spawnerDir, 'canvas-loads', `mission-${safeLoadFileKey(input.missionId)}.json`));
+	}
+	return [...new Set(candidates)];
+}
+
 export function missionIdFromRequestId(requestId: string): string {
 	const stamp = requestId.match(/(\d{10,})$/)?.[1];
 	return `mission-${stamp || requestId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
@@ -159,6 +177,18 @@ async function readJsonIfExists(filePath: string): Promise<Record<string, unknow
 	} catch {
 		return null;
 	}
+}
+
+async function readArchivedCanvasLoad(input: {
+	spawnerDir: string;
+	missionId: string | null;
+	requestId: string | null;
+}): Promise<Record<string, unknown> | null> {
+	for (const filePath of archivedCanvasLoadCandidates(input.spawnerDir, input)) {
+		const artifact = await readJsonIfExists(filePath);
+		if (artifactMatches(artifact, input.missionId, input.requestId)) return artifact;
+	}
+	return null;
 }
 
 function findBoardEntry(board: BoardBuckets, missionId: string | null) {
@@ -306,9 +336,14 @@ export async function buildMissionControlTrace(input: {
 	const pendingRequest = artifactMatches(pendingRequestRaw, requestedMissionId, requestedRequestId)
 		? pendingRequestRaw
 		: null;
+	const archivedCanvasLoad = await readArchivedCanvasLoad({
+		spawnerDir,
+		missionId: requestedMissionId,
+		requestId: requestedRequestId
+	});
 	const lastCanvasLoad = artifactMatches(lastCanvasLoadRaw, requestedMissionId, requestedRequestId)
 		? lastCanvasLoadRaw
-		: null;
+		: archivedCanvasLoad;
 	const requestId =
 		requestedRequestId ||
 		artifactRequestId(pendingRequest) ||

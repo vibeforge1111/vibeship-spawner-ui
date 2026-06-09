@@ -80,6 +80,10 @@ function loopbackValue(value: string | null | undefined): boolean {
 	return false;
 }
 
+export function hostedUiHostIsLoopback(value: string | null | undefined): boolean {
+	return loopbackValue(value);
+}
+
 function pruneExpiredHostedUiSessions(now = Date.now()): void {
 	for (const [key, session] of hostedUiSessions.entries()) {
 		if (session.expiresAt <= now || session.absoluteExpiresAt <= now) {

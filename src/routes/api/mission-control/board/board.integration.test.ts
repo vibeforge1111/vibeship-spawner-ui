@@ -184,11 +184,10 @@ describe('/api/mission-control/board integration', () => {
 				improvementFeedback: null
 			}
 		});
-		expect(entry.tasks).toEqual([{ title: 'Private execution task', skills: [], status: 'completed' }]);
+		expect(entry.tasks).toEqual([{ title: 'Private execution task', skills: ['private-skill'], status: 'completed' }]);
 		expect(JSON.stringify(entry)).not.toContain('private provider output');
 		expect(JSON.stringify(entry)).not.toContain('C:/Users/USER/private');
 		expect(JSON.stringify(entry)).not.toContain('primary');
-		expect(JSON.stringify(entry)).not.toContain('private-skill');
 	});
 
 	it('moves started-only missions out of running when no task or provider evidence appears', async () => {

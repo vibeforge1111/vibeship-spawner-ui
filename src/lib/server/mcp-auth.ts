@@ -1,9 +1,13 @@
 import { env } from '$env/dynamic/private';
 import { json, type RequestEvent } from '@sveltejs/kit';
 import { timingSafeEqual } from 'node:crypto';
-import { hostedUiLooksHosted, hostedUiSessionIsValid } from '$lib/server/hosted-ui-auth';
+import {
+	hostedUiHostIsLoopback,
+	hostedUiIsLocalOperatorLoopbackRequest,
+	hostedUiLooksHosted,
+	hostedUiSessionIsValid
+} from '$lib/server/hosted-ui-auth';
 
-const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
 const rateLimitBuckets = new Map<string, number[]>();
 
 function constantTimeEquals(left: string, right: string): boolean {
@@ -121,7 +125,7 @@ function isOriginAllowed(event: RequestEvent, allowedOriginsEnvVar?: string): bo
 	try {
 		const requestHost = new URL(event.request.url).hostname;
 		const originHost = new URL(origin).hostname;
-		if (LOOPBACK_HOSTS.has(requestHost) && LOOPBACK_HOSTS.has(originHost)) {
+		if (hostedUiHostIsLoopback(requestHost) && hostedUiHostIsLoopback(originHost)) {
 			return true;
 		}
 	} catch {
@@ -239,17 +243,19 @@ export function enforceRateLimit(event: RequestEvent, options: RateLimitOptions)
 }
 
 function isLoopbackRequest(event: RequestEvent): boolean {
-	const requestHost = new URL(event.request.url).hostname;
-	if (!LOOPBACK_HOSTS.has(requestHost)) {
-		return false;
-	}
-
 	try {
 		const clientAddress = event.getClientAddress();
-		return LOOPBACK_HOSTS.has(clientAddress);
+		return hostedUiIsLocalOperatorLoopbackRequest(
+			event.request,
+			new URL(event.request.url),
+			clientAddress
+		);
 	} catch {
 		// Production loopback bypass must not rely on a spoofable Host header alone.
-		return import.meta.env.MODE === 'test' || process.env.NODE_ENV === 'test';
+		return (
+			hostedUiHostIsLoopback(new URL(event.request.url).hostname) &&
+			(import.meta.env.MODE === 'test' || process.env.NODE_ENV === 'test')
+		);
 	}
 }
 
