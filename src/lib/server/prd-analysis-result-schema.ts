@@ -37,15 +37,44 @@ const taskSchema = z.object({
 		.optional()
 });
 
+function techStackEntryLabel(item: unknown): string {
+	if (typeof item === 'string') return item.trim();
+	if (!item || typeof item !== 'object') return '';
+	const record = item as Record<string, unknown>;
+	return String(record.name ?? record.tool ?? record.technology ?? record.value ?? '').trim();
+}
+
+function normalizeTechStackField(value: unknown): unknown {
+	if (Array.isArray(value)) {
+		const entries = value.map(techStackEntryLabel).filter(Boolean);
+		return entries.length > 0 ? entries.join(', ') : undefined;
+	}
+	if (typeof value === 'string') {
+		const trimmed = value.trim();
+		return trimmed || undefined;
+	}
+	return value;
+}
+
+function normalizeTechStackRecord(value: Record<string, unknown>): Record<string, unknown> {
+	return {
+		...value,
+		framework: normalizeTechStackField(value.framework),
+		language: normalizeTechStackField(value.language),
+		styling: normalizeTechStackField(value.styling),
+		database: normalizeTechStackField(value.database),
+		auth: normalizeTechStackField(value.auth),
+		deployment: normalizeTechStackField(value.deployment)
+	};
+}
+
 function normalizeTechStack(value: unknown): unknown {
+	if (value && typeof value === 'object' && !Array.isArray(value)) {
+		return normalizeTechStackRecord(value as Record<string, unknown>);
+	}
 	if (!Array.isArray(value)) return value;
 	const entries = value
-		.map((item) => {
-			if (typeof item === 'string') return item.trim();
-			if (!item || typeof item !== 'object') return '';
-			const record = item as Record<string, unknown>;
-			return String(record.name ?? record.tool ?? record.technology ?? record.value ?? '').trim();
-		})
+		.map(techStackEntryLabel)
 		.filter(Boolean);
 	if (entries.length === 0) return value;
 	return {

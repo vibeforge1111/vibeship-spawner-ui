@@ -144,6 +144,36 @@ describe('PRD analysis result storage projection', () => {
 		]);
 	});
 
+	it('normalizes nested provider tech stack arrays into canonical string fields', () => {
+		const stored = projectStoredPrdAnalysisResult('request-tech-stack-nested-array', {
+			requestId: 'request-tech-stack-nested-array',
+			success: true,
+			projectName: 'Nested Tech Stack Array Proof',
+			techStack: {
+				framework: 'Existing project',
+				language: ['TypeScript', 'JavaScript'],
+				styling: ['scoped app CSS', 'responsive dashboard layout'],
+				deployment: [{ name: 'local canvas' }, { technology: 'static preview' }]
+			},
+			tasks: [
+				{
+					id: 'task-1',
+					title: 'Build governed app path',
+					acceptanceCriteria: ['Provider result is accepted.'],
+					verificationCommands: ['npm test']
+				}
+			],
+			skills: []
+		});
+
+		expect(stored.techStack).toMatchObject({
+			framework: 'Existing project',
+			language: 'TypeScript, JavaScript',
+			styling: 'scoped app CSS, responsive dashboard layout',
+			deployment: 'local canvas, static preview'
+		});
+	});
+
 	it('strips pro-only skill ids from base-tier PRD analysis results', async () => {
 		const sanitized = await sanitizePrdAnalysisResultForTier('request-base', {
 			requestId: 'request-base',
