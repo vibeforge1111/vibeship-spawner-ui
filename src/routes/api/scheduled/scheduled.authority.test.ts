@@ -156,6 +156,45 @@ describe('/api/scheduled authority contract', () => {
     expect(deleted.ok).toBe(true);
   });
 
+	it('redacts stored payloads and chat ids on local no-key schedule reads', async () => {
+		const createResponse = await POST(
+			event('http://127.0.0.1:3333/api/scheduled', {
+				cron: '0 3 * * *',
+				action: 'mission',
+				payload: {
+					goal: 'Run a private founder benchmark.',
+					projectPath: 'C:/Users/USER/private/scheduled-app'
+				},
+				chatId: 'telegram-private-chat',
+				executionAuthority: authority('spawner.schedule.create', 'creates_schedule')
+			}) as never
+		);
+		expect(createResponse.status).toBe(200);
+
+		const localRead = await GET(unauthenticatedEvent('http://127.0.0.1:3333/api/scheduled') as never);
+		expect(localRead.status).toBe(200);
+		const redacted = await localRead.json();
+		expect(redacted.schedules).toHaveLength(1);
+		expect(redacted.schedules[0]).toMatchObject({
+			action: 'mission',
+			payload: {},
+			chatId: null,
+			authority: {
+				source: 'governor_decision',
+				reasonCodes: expect.any(Array)
+			}
+		});
+		expect(JSON.stringify(redacted)).not.toContain('Run a private founder benchmark.');
+		expect(JSON.stringify(redacted)).not.toContain('telegram-private-chat');
+		expect(JSON.stringify(redacted)).not.toContain('C:/Users/USER/private');
+
+		const authenticatedRead = await GET(event('http://127.0.0.1:3333/api/scheduled', undefined, 'GET') as never);
+		expect(authenticatedRead.status).toBe(200);
+		const full = await authenticatedRead.json();
+		expect(full.schedules[0].payload.goal).toBe('Run a private founder benchmark.');
+		expect(full.schedules[0].chatId).toBe('telegram-private-chat');
+	});
+
   it('blocks source-only Spawner UI schedule actions without Harness authority', async () => {
     const createResponse = await POST(
       event('http://127.0.0.1:3333/api/scheduled', {

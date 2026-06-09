@@ -7,6 +7,7 @@ import {
   listSchedules,
   startScheduler,
   type ScheduleAction,
+  type ScheduleRecord,
 } from '$lib/server/scheduler';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { HarnessAuthorityError } from '$lib/server/harness-authority';
@@ -37,11 +38,32 @@ function scheduledAuth(event: RequestEvent, allowLoopbackWithoutKey = false) {
   });
 }
 
+function scheduledReadAuth(event: RequestEvent) {
+  const openRead = scheduledAuth(event, true);
+  if (openRead) return { openRead, hasControlAuth: false };
+  const strictRead = scheduledAuth(event, false);
+  return { openRead: null, hasControlAuth: strictRead === null };
+}
+
+function sanitizeScheduleForLoopback(schedule: ScheduleRecord): ScheduleRecord {
+  return {
+    ...schedule,
+    payload: {},
+    chatId: null,
+    authority: schedule.authority
+      ? {
+          source: schedule.authority.source,
+          reasonCodes: schedule.authority.reasonCodes
+        }
+      : undefined
+  };
+}
+
 export const GET: RequestHandler = async (event) => {
-  const unauthorized = scheduledAuth(event, true);
-  if (unauthorized) return unauthorized;
+  const { openRead, hasControlAuth } = scheduledReadAuth(event);
+  if (openRead) return openRead;
   const schedules = await listSchedules();
-  return json({ ok: true, schedules });
+  return json({ ok: true, schedules: hasControlAuth ? schedules : schedules.map(sanitizeScheduleForLoopback) });
 };
 
 export const POST: RequestHandler = async (event) => {

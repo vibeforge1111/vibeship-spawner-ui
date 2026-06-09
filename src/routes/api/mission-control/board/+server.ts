@@ -15,12 +15,62 @@ const MISSION_CONTROL_BOARD_AUTH = {
 	allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
 } as const;
 
-export const GET: RequestHandler = async (event) => {
-	const unauthorized = requireControlAuth(event, {
+type BoardPayload = ReturnType<typeof enrichMissionControlBoardWithProviderResults>;
+
+function missionControlBoardReadAuth(event: Parameters<typeof requireControlAuth>[0]) {
+	const openRead = requireControlAuth(event, {
 		...MISSION_CONTROL_BOARD_AUTH,
-		allowLoopbackWithoutKey: true,
+		allowLoopbackWithoutKey: true
 	});
-	if (unauthorized) return unauthorized;
+	if (openRead) return { openRead, hasControlAuth: false };
+
+	const strictRead = requireControlAuth(event, {
+		...MISSION_CONTROL_BOARD_AUTH,
+		allowLoopbackWithoutKey: false
+	});
+
+	return { openRead: null, hasControlAuth: strictRead === null };
+}
+
+function sanitizeBoardForLoopback(board: BoardPayload): BoardPayload {
+	const sanitized: BoardPayload = {};
+	for (const [bucket, entries] of Object.entries(board)) {
+		sanitized[bucket] = entries.map((entry) => ({
+			...entry,
+			telegramRelay: null,
+			traceRef: null,
+			projectLineage: entry.projectLineage
+				? {
+						projectId: entry.projectLineage.projectId,
+						projectPath: null,
+						previewUrl: entry.projectLineage.previewUrl,
+						parentMissionId: entry.projectLineage.parentMissionId,
+						iterationNumber: entry.projectLineage.iterationNumber,
+						improvementFeedback: null
+					}
+				: null,
+			tasks: entry.tasks.map((task) => ({
+				title: task.title,
+				status: task.status,
+				skills: []
+			})),
+			providerSummary: entry.providerSummary ? 'Provider summary requires control auth.' : null,
+			providerResults: [],
+			completionEvidence: entry.completionEvidence
+				? {
+						...entry.completionEvidence,
+						hasProviderSummary: false,
+						hasArtifactReference: false
+					}
+				: undefined
+		}));
+	}
+	return sanitized;
+}
+
+export const GET: RequestHandler = async (event) => {
+	const { openRead, hasControlAuth } = missionControlBoardReadAuth(event);
+	if (openRead) return openRead;
 
 	const rateLimited = enforceRateLimit(event, {
 		scope: 'mission_control_board',
@@ -37,12 +87,14 @@ export const GET: RequestHandler = async (event) => {
 		await recoverOverduePrdAutoAnalysisFromPending({ recoverySource: 'mission_control_board' });
 	}
 
+	const board = enrichMissionControlBoardWithProviderResults(
+		getMissionControlBoard(),
+		(missionId) => providerRuntime.getMissionResults(missionId)
+	);
+
 	return json({
 		ok: true,
-		board: enrichMissionControlBoardWithProviderResults(
-			getMissionControlBoard(),
-			(missionId) => providerRuntime.getMissionResults(missionId)
-		),
+		board: hasControlAuth ? board : sanitizeBoardForLoopback(board),
 		serverTime: new Date().toISOString()
 	});
 };

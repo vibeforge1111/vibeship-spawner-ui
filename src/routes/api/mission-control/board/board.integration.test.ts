@@ -25,10 +25,12 @@ function providerResult(overrides: Partial<ProviderMissionResultSnapshot> = {}):
 	};
 }
 
-function boardEvent() {
+function boardEvent(options: { auth?: boolean } = {}) {
+	const headers = new Headers();
+	if (options.auth !== false) headers.set('x-api-key', TEST_API_KEY);
 	return {
 		request: new Request('http://127.0.0.1/api/mission-control/board', {
-			headers: { 'x-api-key': TEST_API_KEY }
+			headers
 		}),
 		url: new URL('http://127.0.0.1/api/mission-control/board'),
 		getClientAddress: () => '127.0.0.1'
@@ -125,6 +127,68 @@ describe('/api/mission-control/board integration', () => {
 				summary: 'Built the Telegram canvas mission and updated Kanban.'
 			})
 		]);
+	});
+
+	it('returns metadata-only board entries for local no-key reads', async () => {
+		const missionId = `mission-board-redacted-${Date.now()}`;
+		vi.spyOn(providerRuntime, 'getMissionResults').mockImplementation((requestedMissionId) =>
+			requestedMissionId === missionId
+				? [
+						providerResult({
+							response: JSON.stringify({
+								summary: 'private provider output',
+								project_path: 'C:/Users/USER/private/spark-app',
+								preview_url: 'http://127.0.0.1:4999'
+							})
+						})
+					]
+				: []
+		);
+
+		await relayMissionControlEvent({
+			type: 'mission_completed',
+			missionId,
+			missionName: 'Private Board Mission',
+			source: 'spawner-ui',
+			timestamp: '2026-04-26T10:01:00.000Z',
+			data: {
+				telegramRelay: { port: 8789, profile: 'primary', url: 'http://127.0.0.1:8789' },
+				projectLineage: {
+					projectId: 'project-private',
+					projectPath: 'C:/Users/USER/private/spark-app',
+					previewUrl: 'http://127.0.0.1:4999',
+					parentMissionId: null,
+					iterationNumber: 1,
+					improvementFeedback: 'private feedback'
+				},
+				plannedTasks: [{ title: 'Private execution task', skills: ['private-skill'] }]
+			}
+		});
+
+		const response = await GET(boardEvent({ auth: false }) as never);
+		expect(response.status).toBe(200);
+		const payload = await response.json();
+		const entry = payload.board.completed.find((candidate: { missionId: string }) => candidate.missionId === missionId);
+
+		expect(entry).toMatchObject({
+			missionId,
+			missionName: 'Private Board Mission',
+			status: 'completed',
+			telegramRelay: null,
+			traceRef: null,
+			providerSummary: 'Provider summary requires control auth.',
+			providerResults: [],
+			projectLineage: {
+				projectPath: null,
+				previewUrl: 'http://127.0.0.1:4999',
+				improvementFeedback: null
+			}
+		});
+		expect(entry.tasks).toEqual([{ title: 'Private execution task', skills: [], status: 'completed' }]);
+		expect(JSON.stringify(entry)).not.toContain('private provider output');
+		expect(JSON.stringify(entry)).not.toContain('C:/Users/USER/private');
+		expect(JSON.stringify(entry)).not.toContain('primary');
+		expect(JSON.stringify(entry)).not.toContain('private-skill');
 	});
 
 	it('moves started-only missions out of running when no task or provider evidence appears', async () => {
