@@ -2,6 +2,11 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
+import {
+	HarnessAuthorityError,
+	assertNativeGovernorHarnessAuthority,
+	resolveExecutionAuthority
+} from '$lib/server/harness-authority';
 
 export const POST: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
@@ -28,6 +33,17 @@ export const POST: RequestHandler = async (event) => {
 			return json({ success: false, error: 'sessionId is required' }, { status: 400 });
 		}
 
+		const worker = sparkAgentBridge.getWorkerSession(sessionId);
+		if (worker?.status === 'running') {
+			assertNativeGovernorHarnessAuthority({
+				authority: resolveExecutionAuthority(body.executionAuthority, body.execution_authority),
+				toolName: 'spawner.spark_agent.worker.cancel',
+				ownerSystem: 'spawner-ui',
+				mutationClass: 'controls_mission',
+				requestId: typeof body.requestId === 'string' ? body.requestId : undefined
+			});
+		}
+
 		const session = sparkAgentBridge.endSession(sessionId, reason);
 		return json({
 			success: true,
@@ -39,6 +55,17 @@ export const POST: RequestHandler = async (event) => {
 			}
 		});
 	} catch (error) {
+		if (error instanceof HarnessAuthorityError) {
+			return json(
+				{
+					success: false,
+					error: error.message,
+					code: error.code,
+					authority: error.verdict
+				},
+				{ status: error.status }
+			);
+		}
 		return json(
 			{
 				success: false,

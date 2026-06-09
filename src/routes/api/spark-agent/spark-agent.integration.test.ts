@@ -633,6 +633,71 @@ describe('/api/spark-agent integration', () => {
 		expect(executor).not.toHaveBeenCalled();
 	});
 
+	it('requires Governor authority before ending a session with a running worker', async () => {
+		let finishWorker!: (result: { success: boolean; response?: string; error?: string }) => void;
+		sparkAgentBridge.setWorkerExecutorForTests(
+			vi.fn(
+				() =>
+					new Promise<{ success: boolean; response?: string; error?: string }>((resolve) => {
+						finishWorker = resolve;
+					})
+			)
+		);
+
+		const runPromise = sparkAgentBridge.executeProviderTask({
+			providerId: 'codex',
+			missionId: 'mission-end-running-worker',
+			prompt: 'keep worker running for session-end authority test',
+			executionAuthority: commandAuthority({
+				toolName: 'spawner.spark_agent.worker.run',
+				mutationClass: 'launches_mission',
+				target: 'mission-end-running-worker',
+				externalNetwork: true
+			}),
+			sparkAgentSessionId: 'session-end-running-worker'
+		});
+		expect(sparkAgentBridge.getWorkerSession('session-end-running-worker')?.status).toBe('running');
+
+		const blockedResponse = await endSession({
+			request: new Request('http://localhost/api/spark-agent/session/end', {
+				method: 'POST',
+				headers: jsonAuthHeaders(),
+				body: JSON.stringify({
+					sessionId: 'session-end-running-worker',
+					reason: 'operator requested'
+				})
+			})
+		} as never);
+
+		expect(blockedResponse.status).toBe(409);
+		const blockedBody = await blockedResponse.json();
+		expect(blockedBody.code).toBe('harness_authority_blocked');
+		expect(blockedBody.authority.reasonCodes).toContain('missing_harness_authority');
+		expect(sparkAgentBridge.getSession('session-end-running-worker')?.status).toBe('active');
+
+		const allowedResponse = await endSession({
+			request: new Request('http://localhost/api/spark-agent/session/end', {
+				method: 'POST',
+				headers: jsonAuthHeaders(),
+				body: JSON.stringify({
+					sessionId: 'session-end-running-worker',
+					reason: 'operator requested',
+					executionAuthority: commandAuthority({
+						toolName: 'spawner.spark_agent.worker.cancel',
+						mutationClass: 'controls_mission',
+						target: 'mission-end-running-worker'
+					})
+				})
+			})
+		} as never);
+
+		expect(allowedResponse.status).toBe(200);
+		const allowedBody = await allowedResponse.json();
+		expect(allowedBody.session.status).toBe('ended');
+		finishWorker({ success: false, error: 'ended by test' });
+		await runPromise;
+	});
+
 	it('rejects unsafe internal provider command templates before process execution', async () => {
 		const result = await sparkAgentBridge.executeProviderTask({
 			providerId: 'codex',
