@@ -24,6 +24,7 @@
 	import { toasts } from '$lib/stores/toast.svelte';
 	import { get } from 'svelte/store';
 	import { parseJsonResponse } from '$lib/services/http-response';
+	import { getEventsAuthHeaders } from '$lib/services/events-auth-client';
 
 	let {
 		onStart: _onStart,
@@ -221,13 +222,16 @@
 								}
 
 								try {
-									const response = await fetch(`/api/prd-bridge/result?requestId=${requestId}`);
+									const authHeaders = getEventsAuthHeaders();
+									const response = await fetch(`/api/prd-bridge/result?requestId=${requestId}`, {
+										headers: authHeaders
+									});
 									const data = await response.json();
 
 									if (data.found && data.result && !resultProcessed) {
 										logger.info('[PRD-AI] Got result via POLLING:', data.result.projectName);
 										processClaudeResult(data.result);
-										await fetch('/api/prd-bridge/pending', { method: 'DELETE' });
+										await fetch('/api/prd-bridge/pending', { method: 'DELETE', headers: authHeaders });
 										settle(true);
 									}
 								} catch (err) {

@@ -39,6 +39,54 @@ async function tierForRequest(requestId: string): Promise<string> {
 	}
 }
 
+function resultReadAuthPayload(event: Parameters<typeof requireControlAuth>[0]) {
+	const openRead = requireControlAuth(event, {
+		surface: 'PRDBridgeResult',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+	if (openRead) return { openRead, hasControlAuth: false };
+
+	const strictRead = requireControlAuth(event, {
+		surface: 'PRDBridgeResult',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: false,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+
+	return { openRead: null, hasControlAuth: strictRead === null };
+}
+
+function summarizeStoredResult(requestId: string, result: Record<string, unknown>) {
+	const tasks = Array.isArray(result.tasks) ? result.tasks : [];
+	const skills = Array.isArray(result.skills) ? result.skills : [];
+	const metadata = result.metadata && typeof result.metadata === 'object' && !Array.isArray(result.metadata)
+		? (result.metadata as Record<string, unknown>)
+		: {};
+
+	return {
+		requestId,
+		success: result.success === true,
+		projectName: typeof result.projectName === 'string' ? result.projectName : null,
+		projectType: typeof result.projectType === 'string' ? result.projectType : null,
+		complexity: typeof result.complexity === 'string' ? result.complexity : null,
+		taskCount: tasks.length,
+		skillCount: skills.length,
+		metadata: {
+			canonical: metadata.canonical === true,
+			provisional: metadata.provisional === true,
+			resultAuthority: typeof metadata.resultAuthority === 'string' ? metadata.resultAuthority : null
+		}
+	};
+}
+
 /**
  * POST - Store an analysis result
  */
@@ -115,16 +163,8 @@ export const POST: RequestHandler = async (event) => {
  * GET - Retrieve an analysis result by requestId
  */
 export const GET: RequestHandler = async (event) => {
-	const unauthorized = requireControlAuth(event, {
-		surface: 'PRDBridgeResult',
-		apiKeyEnvVar: 'EVENTS_API_KEY',
-		fallbackApiKeyEnvVar: 'MCP_API_KEY',
-		apiKeyQueryParam: 'apiKey',
-		apiKeyCookieName: 'spawner_events_api_key',
-		allowLoopbackWithoutKey: true,
-		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
-	});
-	if (unauthorized) return unauthorized;
+	const { openRead, hasControlAuth } = resultReadAuthPayload(event);
+	if (openRead) return openRead;
 
 	try {
 		const { url } = event;
@@ -143,6 +183,20 @@ export const GET: RequestHandler = async (event) => {
 		}
 
 		const result = JSON.parse(await readFile(resultFile, 'utf-8'));
+		if (!hasControlAuth) {
+			const resultRecord = result && typeof result === 'object' && !Array.isArray(result)
+				? (result as Record<string, unknown>)
+				: {};
+			return json({
+				found: true,
+				requestId,
+				summary: summarizeStoredResult(requestId, resultRecord),
+				authorityBoundary: {
+					payload: 'metadata_only',
+					result: 'requires_control_auth'
+				}
+			});
+		}
 		return json({ found: true, requestId, result });
 	} catch (error) {
 		if (error instanceof PathSafetyError) {

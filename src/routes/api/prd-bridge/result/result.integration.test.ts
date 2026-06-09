@@ -129,6 +129,63 @@ describe('/api/prd-bridge/result integration', () => {
 		expect(getResponse.status).toBe(401);
 	});
 
+	it('returns metadata only for local no-key PRD result reads', async () => {
+		const requestId = 'tg-build-local-result-metadata-only';
+		await mkdir(path.join(testSpawnerDir, 'results'), { recursive: true });
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify(
+				{
+					requestId,
+					success: true,
+					projectName: 'Private Build Plan',
+					projectType: 'direct-build',
+					complexity: 'moderate',
+					tasks: [{ id: 'TAS-1', title: 'Private task', skills: ['private-skill'] }],
+					skills: ['private-skill'],
+					metadata: {
+						canonical: true,
+						provisional: false,
+						resultAuthority: 'provider_result'
+					}
+				},
+				null,
+				2
+			),
+			'utf-8'
+		);
+
+		const getResponse = await GET(getResultEvent(requestId, null) as never);
+		const body = await getResponse.json();
+
+		expect(getResponse.status).toBe(200);
+		expect(body).toMatchObject({
+			found: true,
+			requestId,
+			summary: {
+				requestId,
+				success: true,
+				projectName: 'Private Build Plan',
+				projectType: 'direct-build',
+				complexity: 'moderate',
+				taskCount: 1,
+				skillCount: 1,
+				metadata: {
+					canonical: true,
+					provisional: false,
+					resultAuthority: 'provider_result'
+				}
+			},
+			authorityBoundary: {
+				payload: 'metadata_only',
+				result: 'requires_control_auth'
+			}
+		});
+		expect(body.result).toBeUndefined();
+		expect(JSON.stringify(body)).not.toContain('Private task');
+		expect(JSON.stringify(body)).not.toContain('private-skill');
+	});
+
 	it('rejects malformed result JSON with a useful error', async () => {
 		const requestId = 'tg-build-malformed-result-test';
 		const postResponse = await POST({
