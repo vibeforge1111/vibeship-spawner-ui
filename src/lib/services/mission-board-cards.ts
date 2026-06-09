@@ -78,7 +78,7 @@ export interface MissionCanvasPipelineCandidate {
 }
 
 function missionDetailHref(missionId: string): string {
-	return `/missions/${encodeURIComponent(missionId)}`;
+	return `/kanban?mission=${encodeURIComponent(missionId)}`;
 }
 
 function withoutHash(href: string): string {

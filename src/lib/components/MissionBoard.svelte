@@ -347,7 +347,7 @@
 			taskCount: m.tasks?.length ?? 0,
 			strategy: m.mode,
 			tasks,
-			detailHref: `/missions/${encodeURIComponent(m.id)}`
+			detailHref: `/kanban?mission=${encodeURIComponent(m.id)}`
 		};
 	}
 
@@ -386,7 +386,7 @@
 			completionEvidence: e.completionEvidence,
 			projectLineage: e.projectLineage ?? null,
 			canvasHref: canvasHrefForMission(e.missionId, name),
-			detailHref: `/missions/${encodeURIComponent(e.missionId)}`
+			detailHref: `/kanban?mission=${encodeURIComponent(e.missionId)}`
 		};
 	}
 
@@ -423,6 +423,8 @@
 	let searchFocused = $state(false);
 	let statusFilter = $state<MissionStatusFilter>('all');
 	let showAllCompleted = $state(false);
+	let focusedMissionId = $state<string | null>(null);
+	let focusedMissionDismissed = $state(false);
 	const completedPreviewLimit = 12;
 	const statusFilters: Array<{ id: MissionStatusFilter; label: string }> = [
 		{ id: 'all', label: 'All' },
@@ -433,7 +435,9 @@
 
 	const filteredCards = $derived(() => {
 		const q = searchQuery.trim().toLowerCase();
+		const focused = focusedMissionId && !focusedMissionDismissed ? focusedMissionId : null;
 		return cards().filter((c) => {
+			if (focused) return c.id === focused;
 			const matchesSearch = !q || c.name.toLowerCase().includes(q) || (c.summary ?? '').toLowerCase().includes(q);
 			if (!matchesSearch) return false;
 			if (statusFilter === 'needs_attention') return c.status === 'failed' || c.completionEvidence?.state === 'incomplete';
@@ -450,6 +454,10 @@
 			.filter((c) => c.status === 'completed' || c.status === 'failed' || c.status === 'cancelled')
 			.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
 	);
+	const focusedMissionCard = $derived(() => {
+		if (!focusedMissionId) return null;
+		return cards().find((card) => card.id === focusedMissionId) ?? null;
+	});
 
 	onMount(() => {
 		initPipelines();
@@ -462,6 +470,7 @@
 		});
 		loadMissions({ limit: 200 }).catch(() => {});
 		fetchRelay();
+		applyMissionUrlParams();
 		applyImproveUrlParams();
 		relayTimer = setInterval(fetchRelay, 4000);
 		return () => { unsub(); unsubMcp(); unsubPipelines(); };
@@ -784,6 +793,23 @@
 		await loadMissions({ limit: 200 });
 	}
 
+	function applyMissionUrlParams() {
+		const missionId = new URLSearchParams(window.location.search).get('mission')?.trim();
+		if (!missionId) return;
+		focusedMissionId = missionId;
+		focusedMissionDismissed = false;
+		statusFilter = 'all';
+		searchQuery = '';
+		activeTab = 'board';
+	}
+
+	function clearFocusedMission() {
+		focusedMissionDismissed = true;
+		const url = new URL(window.location.href);
+		url.searchParams.delete('mission');
+		window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+	}
+
 	function applyImproveUrlParams() {
 		const params = new URLSearchParams(window.location.search);
 		const projectPath = params.get('improveProjectPath');
@@ -899,6 +925,27 @@
 			</div>
 		</div>
 	</header>
+
+	{#if focusedMissionId && !focusedMissionDismissed}
+		<div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent-primary/35 bg-accent-primary/10 px-4 py-3">
+			<div class="min-w-0">
+				<p class="font-mono text-[10px] uppercase tracking-wider text-accent-primary">Focused mission</p>
+				{#if focusedMissionCard()}
+					<p class="mt-1 truncate text-sm font-semibold text-text-primary">{focusedMissionCard()?.name}</p>
+					<p class="mt-1 font-mono text-[11px] text-text-secondary">{focusedMissionId}</p>
+				{:else}
+					<p class="mt-1 font-mono text-sm text-text-secondary">Waiting for {focusedMissionId} to appear on the live board...</p>
+				{/if}
+			</div>
+			<button
+				type="button"
+				onclick={clearFocusedMission}
+				class="inline-flex items-center gap-1.5 rounded-md border border-accent-primary/30 px-3 py-1.5 font-mono text-[11px] text-accent-primary transition-all hover:bg-accent-primary hover:text-bg-primary"
+			>
+				Show all missions
+			</button>
+		</div>
+	{/if}
 
 	{#if activeTab === 'board'}
 
@@ -1058,7 +1105,7 @@
 								{@const evidence = completionEvidenceLabel(c)}
 								{@const hasProgress = hasTaskProgress(c)}
 								{@const hasActions = hasCardActions(c)}
-								<article class="group relative overflow-hidden rounded-md border border-surface-border bg-bg-secondary transition-all hover:border-iris/60 hover:bg-bg-tertiary/40">
+								<article class="group relative overflow-hidden rounded-md border transition-all hover:border-iris/60 hover:bg-bg-tertiary/40 {c.id === focusedMissionId && !focusedMissionDismissed ? 'border-accent-primary/70 bg-accent-primary/5 ring-1 ring-accent-primary/35' : 'border-surface-border bg-bg-secondary'}">
 									<a
 										href={actionLinks.detailHref}
 										class="block px-4 py-3.5 text-inherit focus:outline-none focus-visible:ring-1 focus-visible:ring-iris/70 rounded-md"

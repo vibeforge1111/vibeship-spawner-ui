@@ -111,6 +111,7 @@ const SYNCED_PATHS = [
 	'src/routes/mission-control/+server.ts',
 	'src/routes/spark-live/login/+page.server.ts',
 	'src/routes/spark-live/login/+page.svelte',
+	'src/routes/missions/[id]/+page.server.ts',
 	'src/routes/missions/[id]/+page.svelte',
 	'scripts/health-spark.mjs',
 	'static/skills.json',
