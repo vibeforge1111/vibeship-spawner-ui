@@ -50,6 +50,65 @@ describe('/api/sentinel/dispatch auth boundary', () => {
 		expect(localWrite.status).toBe(401);
 	});
 
+	it('redacts sentinel reasons and URLs from local no-key reads', async () => {
+		const write = await POST(
+			event('http://127.0.0.1:3333/api/sentinel/dispatch', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-api-key': 'events-key'
+				},
+				body: JSON.stringify({
+					source: 'spark-pr-sentinel',
+					generated_at: '2026-06-09T00:00:00Z',
+					summary: { open_prs: 1 },
+					actions: [
+						{
+							kind: 'pr_review',
+							id: 'pr#1',
+							priority: 'P0_SECURITY',
+							title: 'Review Harness authority bypass',
+							reasons: ['Private reason should need control auth'],
+							url: 'https://github.com/private/repo/pull/1'
+						}
+					]
+				})
+			}) as never
+		);
+		expect(write.status).toBe(200);
+
+		const localRead = await GET(event('http://127.0.0.1:3333/api/sentinel/dispatch') as never);
+		expect(localRead.status).toBe(200);
+		const localBody = await localRead.json();
+
+		expect(localBody.authorityBoundary).toMatchObject({
+			payload: 'queue_summary',
+			reasons: 'requires_control_auth',
+			url: 'requires_control_auth'
+		});
+		expect(localBody.actions[0]).toMatchObject({
+			kind: 'pr_review',
+			id: 'pr#1',
+			priority: 'P0_SECURITY',
+			title: 'Review Harness authority bypass'
+		});
+		expect(localBody.actions[0].reasons).toBeUndefined();
+		expect(localBody.actions[0].url).toBeUndefined();
+		expect(JSON.stringify(localBody)).not.toContain('Private reason');
+		expect(JSON.stringify(localBody)).not.toContain('github.com/private');
+
+		const keyedRead = await GET(
+			event('http://127.0.0.1:3333/api/sentinel/dispatch', {
+				headers: { 'x-api-key': 'events-key' }
+			}) as never
+		);
+		expect(keyedRead.status).toBe(200);
+		const keyedBody = await keyedRead.json();
+		expect(keyedBody.authorityBoundary).toBeUndefined();
+		expect(keyedBody.actions[0].reasons).toEqual(['Private reason should need control auth']);
+		expect(keyedBody.actions[0].url).toBe('https://github.com/private/repo/pull/1');
+	});
+
 	it('keeps non-local reads gated without credentials', async () => {
 		const response = await GET(
 			event('https://spawner.example.com/api/sentinel/dispatch', {}, '203.0.113.10') as never
