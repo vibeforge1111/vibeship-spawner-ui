@@ -219,6 +219,59 @@ describe('/api/pipeline-loader integration', () => {
 		const latestBody = await latestGet.json();
 		expect(latestBody.pending).toBe(true);
 		expect(latestBody.load.pipelineId).toBe('pipe-fixed-id');
+		expect(latestBody.load.autoRun).toBe(false);
+		expect(latestBody.load.authorityBoundary).toMatchObject({
+			payload: 'render_only',
+			consume: 'requires_control_auth'
+		});
+	});
+
+	it('does not let local no-key reads consume pending loads or receive execution payloads', async () => {
+		const payload = {
+			pipelineId: 'pipe-local-render-only',
+			pipelineName: 'Local Render Only Pipeline',
+			nodes: [{ skill: { id: 'local-render' }, position: { x: 100, y: 100 } }],
+			connections: [],
+			source: 'prd-bridge',
+			executionPrompt: 'Build from this private prompt.',
+			autoRun: true,
+			relay: {
+				chatId: '8319079055',
+				userId: 'spark-user',
+				requestId: 'tg-build-local-render-only'
+			}
+		};
+
+		const postResponse = await POST({
+			...routeEvent('http://localhost/api/pipeline-loader', payload, 'POST')
+		} as never);
+		expect(postResponse.status).toBe(200);
+		expect(existsSync(pendingLoadFile)).toBe(true);
+
+		const localGet = await GET({
+			...routeEvent('http://localhost/api/pipeline-loader', undefined, 'GET', {
+				auth: false
+			})
+		} as never);
+		expect(localGet.status).toBe(200);
+		const localBody = await localGet.json();
+		expect(localBody.pending).toBe(true);
+		expect(localBody.consumed).toBe(false);
+		expect(localBody.load).toMatchObject({
+			pipelineId: 'pipe-local-render-only',
+			pipelineName: 'Local Render Only Pipeline',
+			autoRun: false,
+			authorityBoundary: {
+				payload: 'render_only',
+				executionPrompt: 'requires_control_auth',
+				relay: 'requires_control_auth',
+				consume: 'requires_control_auth'
+			}
+		});
+		expect(localBody.load.nodes[0].skill.id).toBe('local-render');
+		expect(localBody.load.executionPrompt).toBeUndefined();
+		expect(localBody.load.relay).toBeUndefined();
+		expect(existsSync(pendingLoadFile)).toBe(true);
 	});
 
 	it('blocks non-local read-only canvas recovery without an API key', async () => {

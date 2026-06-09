@@ -82,6 +82,20 @@ function requirePipelineLoaderReadAuth(event: RequestEvent): Response | null {
 	});
 }
 
+function renderSafePipelineLoad(load: Record<string, unknown>): Record<string, unknown> {
+	const { executionPrompt, relay, autoRun, ...rest } = load;
+	return {
+		...rest,
+		autoRun: false,
+		authorityBoundary: {
+			payload: 'render_only',
+			executionPrompt: 'requires_control_auth',
+			relay: 'requires_control_auth',
+			consume: 'requires_control_auth'
+		}
+	};
+}
+
 /**
  * POST - Queue a pipeline to load
  */
@@ -148,6 +162,7 @@ export const GET: RequestHandler = async (event) => {
 
 	try {
 		const { url } = event;
+		const canConsumeLoad = requirePipelineLoaderMutationAuth(event) === null;
 		const peek = url.searchParams.get('peek') === 'true';
 		const latest = url.searchParams.get('latest') === 'true';
 		const requestedPipelineId = url.searchParams.get('pipeline')?.trim() || null;
@@ -169,7 +184,7 @@ export const GET: RequestHandler = async (event) => {
 		// If not peeking, delete the file (consume the load). Multiple canvas
 		// tabs can race here; the read load is still valid even when another
 		// client deletes the queue file first or Windows briefly denies unlink.
-		if (!peek && !latest) {
+		if (!peek && !latest && canConsumeLoad) {
 			try {
 				await unlink(loadFile);
 				log.info(`Consumed: ${load.pipelineName}`);
@@ -185,7 +200,11 @@ export const GET: RequestHandler = async (event) => {
 			}
 		}
 
-		return json({ pending: true, load });
+		return json({
+			pending: true,
+			load: canConsumeLoad ? load : renderSafePipelineLoad(load),
+			consumed: !peek && !latest && canConsumeLoad
+		});
 	} catch (error) {
 		console.error('[PipelineLoader] GET error:', error);
 		return json({ pending: false });
