@@ -89,6 +89,49 @@ function createAuthCookieHeader(request: Request): string | null {
 	return `${EVENTS_AUTH_COOKIE}=${encodeURIComponent(apiKey)}; Path=/; HttpOnly; SameSite=Lax${isSecure ? '; Secure' : ''}`;
 }
 
+function eventStreamAuthPayload(event: Parameters<typeof requireControlAuth>[0]) {
+	const openRead = requireControlAuth(event, {
+		surface: 'Events',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: EVENTS_AUTH_COOKIE,
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+	if (openRead) return { openRead, hasControlAuth: false };
+
+	const strictRead = requireControlAuth(event, {
+		surface: 'Events',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: EVENTS_AUTH_COOKIE,
+		allowLoopbackWithoutKey: false,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+
+	return { openRead: null, hasControlAuth: strictRead === null };
+}
+
+function sanitizeBridgeEventForLoopback(event: Record<string, unknown>): Record<string, unknown> {
+	return {
+		...(typeof event.id === 'string' ? { id: event.id } : {}),
+		type: typeof event.type === 'string' ? event.type : 'unknown',
+		...(typeof event.missionId === 'string' ? { missionId: event.missionId } : {}),
+		...(typeof event.taskId === 'string' ? { taskId: event.taskId } : {}),
+		...(typeof event.taskName === 'string' ? { taskName: event.taskName } : {}),
+		...(typeof event.progress === 'number' ? { progress: event.progress } : {}),
+		...(typeof event.message === 'string' ? { message: event.message } : {}),
+		timestamp: typeof event.timestamp === 'string' ? event.timestamp : new Date().toISOString(),
+		source: typeof event.source === 'string' ? event.source : 'event-bridge',
+		authorityBoundary: {
+			payload: 'event_metadata',
+			data: 'requires_control_auth'
+		}
+	};
+}
+
 /**
  * Store PRD analysis result to file for polling fallback
  */
@@ -458,16 +501,8 @@ export const OPTIONS: RequestHandler = async (event) => {
  * GET handler - Server-Sent Events stream for real-time updates
  */
 export const GET: RequestHandler = async (event) => {
-	const unauthorized = requireControlAuth(event, {
-		surface: 'Events',
-		apiKeyEnvVar: 'EVENTS_API_KEY',
-		fallbackApiKeyEnvVar: 'MCP_API_KEY',
-		apiKeyQueryParam: 'apiKey',
-		apiKeyCookieName: EVENTS_AUTH_COOKIE,
-		allowLoopbackWithoutKey: true,
-		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
-	});
-	if (unauthorized) return unauthorized;
+	const { openRead, hasControlAuth } = eventStreamAuthPayload(event);
+	if (openRead) return openRead;
 
 	const rateLimited = enforceRateLimit(event, {
 		scope: 'events_stream',
@@ -489,7 +524,8 @@ export const GET: RequestHandler = async (event) => {
 			const unsubscribe = eventBridge.subscribe((event) => {
 				if (isClosed) return;
 				try {
-					const data = `data: ${JSON.stringify(event)}\n\n`;
+					const safeEvent = hasControlAuth ? event : sanitizeBridgeEventForLoopback(event as unknown as Record<string, unknown>);
+					const data = `data: ${JSON.stringify(safeEvent)}\n\n`;
 					controller.enqueue(encoder.encode(data));
 				} catch (e) {
 					// Client disconnected

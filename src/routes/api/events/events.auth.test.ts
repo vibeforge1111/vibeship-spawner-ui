@@ -29,6 +29,7 @@ vi.mock('$lib/server/provider-runtime', () => ({
 import { GET, OPTIONS, POST } from './+server';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
+import { eventBridge, type BridgeEvent } from '$lib/services/event-bridge';
 
 let testSpawnerDir: string | null = null;
 
@@ -50,6 +51,35 @@ function createEvent(url: string, init?: RequestInit, clientAddress = '203.0.113
 		request: new Request(url, init),
 		getClientAddress: () => clientAddress
 	} as never;
+}
+
+async function readNextSsePayload(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<Record<string, unknown>> {
+	const decoder = new TextDecoder();
+	const chunk = await reader.read();
+	expect(chunk.done).toBe(false);
+	const text = decoder.decode(chunk.value);
+	const match = text.match(/^data:\s*(.+?)\n\n$/s);
+	expect(match?.[1]).toBeTruthy();
+	return JSON.parse(match![1]);
+}
+
+function emitPrivateBridgeEvent(): BridgeEvent {
+	const event = {
+		type: 'task_completed',
+		missionId: 'mission-sse-private',
+		taskId: 'T1',
+		taskName: 'Private task',
+		progress: 100,
+		message: 'Task done',
+		data: {
+			response: 'private provider output',
+			verification: { filesChanged: ['secret.ts'] }
+		},
+		timestamp: '2026-06-09T00:00:00.000Z',
+		source: 'codex'
+	};
+	eventBridge.emit(event);
+	return event;
 }
 
 describe('/api/events auth', () => {
@@ -136,6 +166,71 @@ describe('/api/events auth', () => {
 
 		expect(response.status).toBe(200);
 		expect(response.headers.get('access-control-allow-origin')).toBe('http://localhost:5600');
+	});
+
+	it('redacts event data for loopback no-key SSE subscribers', async () => {
+		const abort = new AbortController();
+		const response = await GET(
+			createEvent(
+				'http://127.0.0.1:3333/api/events',
+				{ method: 'GET', signal: abort.signal },
+				'127.0.0.1'
+			)
+		);
+		expect(response.status).toBe(200);
+		const reader = response.body!.getReader();
+
+		await readNextSsePayload(reader);
+		emitPrivateBridgeEvent();
+		const payload = await readNextSsePayload(reader);
+		abort.abort();
+		await reader.cancel().catch(() => undefined);
+
+		expect(payload).toMatchObject({
+			type: 'task_completed',
+			missionId: 'mission-sse-private',
+			taskId: 'T1',
+			taskName: 'Private task',
+			progress: 100,
+			message: 'Task done',
+			source: 'codex',
+			authorityBoundary: {
+				payload: 'event_metadata',
+				data: 'requires_control_auth'
+			}
+		});
+		expect(payload.data).toBeUndefined();
+		expect(JSON.stringify(payload)).not.toContain('private provider output');
+		expect(JSON.stringify(payload)).not.toContain('secret.ts');
+	});
+
+	it('keeps full event data for authenticated SSE subscribers', async () => {
+		const abort = new AbortController();
+		const response = await GET(
+			createEvent(
+				'http://127.0.0.1:3333/api/events',
+				{
+					method: 'GET',
+					headers: { 'x-api-key': 'events-secret' },
+					signal: abort.signal
+				},
+				'127.0.0.1'
+			)
+		);
+		expect(response.status).toBe(200);
+		const reader = response.body!.getReader();
+
+		await readNextSsePayload(reader);
+		emitPrivateBridgeEvent();
+		const payload = await readNextSsePayload(reader);
+		abort.abort();
+		await reader.cancel().catch(() => undefined);
+
+		expect(payload.authorityBoundary).toBeUndefined();
+		expect(payload.data).toMatchObject({
+			response: 'private provider output',
+			verification: { filesChanged: ['secret.ts'] }
+		});
 	});
 
 	it('answers loopback theatre preflight for event posts with an events key', async () => {
