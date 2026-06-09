@@ -22,7 +22,7 @@ import { get } from 'svelte/store';
 	import { initCanvasSync } from '$lib/services/canvas-sync';
 	import PipelineSelector from '$lib/components/PipelineSelector.svelte';
 	import SessionStateBar from '$lib/components/SessionStateBar.svelte';
-	import { initPipelines, saveCurrentPipeline, getActivePipelineData, ensurePipeline, switchPipeline, activePipelineId as activePipelineIdStore, activePipeline as activePipelineStore, type PipelineData } from '$lib/stores/pipelines.svelte';
+	import { initPipelines, saveCurrentPipeline, getActivePipelineData, ensurePipeline, switchPipeline, activePipelineId as activePipelineIdStore, activePipeline as activePipelineStore, pipelines as pipelinesStore, type PipelineData } from '$lib/stores/pipelines.svelte';
 	import { hasResumableMission } from '$lib/services/persistence';
 	import { DroppedSkillSchema, safeJsonParse } from '$lib/types/schemas';
 	import { getLatestPipelineLoad, getPendingLoad, type PendingPipelineLoad } from '$lib/services/pipeline-loader';
@@ -570,6 +570,11 @@ import { get } from 'svelte/store';
 			if (!pipelineId) return false;
 			const missionId = url.searchParams.get('mission')?.trim();
 
+			if (!get(pipelinesStore).some((pipeline) => pipeline.id === pipelineId)) {
+				logger.info('[Canvas] Requested pipeline is not in local storage yet; waiting for archived load:', pipelineId);
+				return false;
+			}
+
 			const data = switchPipeline(pipelineId);
 			if (!data) {
 				console.warn('[Canvas] Requested pipeline not found:', pipelineId);
@@ -641,7 +646,7 @@ import { get } from 'svelte/store';
 		}
 
 		async function syncLatestSparkLoad(requestedPipelineId: string | null = null): Promise<boolean> {
-			const latestLoad = await getLatestPipelineLoad();
+			const latestLoad = await getLatestPipelineLoad(requestedPipelineId);
 			if (disposed || !latestLoad || !shouldAutoApplyLatestLoad(latestLoad, requestedPipelineId)) return false;
 			logger.info('[Canvas] Syncing latest Spark pipeline load:', latestLoad.pipelineName);
 			return applyPipelineLoad(latestLoad, 'latest-sync');
@@ -737,7 +742,7 @@ import { get } from 'svelte/store';
 					lastSaved = new Date();
 					logger.info('[Canvas] Loaded active pipeline with', pipelineData.nodes?.length || 0, 'nodes');
 				} else {
-					const latestLoad = await getLatestPipelineLoad();
+					const latestLoad = await getLatestPipelineLoad(requestedPipelineId);
 					if (latestLoad?.nodes?.length && shouldAutoApplyLatestLoad(latestLoad, requestedPipelineId)) {
 						logger.info('[Canvas] Active pipeline is empty; recovering latest Spark pipeline load');
 						applyPipelineLoad(latestLoad, 'latest-recovery');

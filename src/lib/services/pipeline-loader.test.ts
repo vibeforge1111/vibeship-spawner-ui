@@ -157,6 +157,30 @@ describe('pipeline-loader service', () => {
 		expect(fetchMock).toHaveBeenCalledWith('/api/pipeline-loader?latest=true', { method: 'GET' });
 	});
 
+	it('fetches a mission-specific archived latest load when a pipeline is requested', async () => {
+		const mockLoad: PendingPipelineLoad = {
+			pipelineId: 'prd-tg-build-123',
+			pipelineName: 'Requested Pipeline',
+			nodes: [],
+			connections: [],
+			source: 'prd-bridge',
+			timestamp: '2026-04-29T10:00:00.000Z'
+		};
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: async () => ({ pending: true, load: mockLoad })
+		});
+		vi.stubGlobal('fetch', fetchMock);
+
+		const result = await getLatestPipelineLoad('prd-tg-build-123');
+
+		expect(result).toEqual(mockLoad);
+		expect(fetchMock).toHaveBeenCalledWith('/api/pipeline-loader?latest=true&pipeline=prd-tg-build-123', {
+			method: 'GET'
+		});
+	});
+
 	it('checks pending loads with peek mode', async () => {
 		const fetchMock = vi.fn().mockResolvedValue({
 			ok: true,

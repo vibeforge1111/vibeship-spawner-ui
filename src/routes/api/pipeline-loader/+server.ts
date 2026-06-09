@@ -34,15 +34,31 @@ function getLastLoadFile(): string {
 	return join(getSpawnerDir(), 'last-canvas-load.json');
 }
 
+function getLoadArchiveDir(): string {
+	return join(getSpawnerDir(), 'canvas-loads');
+}
+
+function safeLoadFileKey(value: string): string {
+	return value.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 200) || 'unknown';
+}
+
+function getArchivedLoadFile(pipelineId: string): string {
+	return join(getLoadArchiveDir(), `${safeLoadFileKey(pipelineId)}.json`);
+}
+
 // Ensure the configured Spawner state directory exists.
 async function ensureDir(): Promise<void> {
 	const spawnerDir = getSpawnerDir();
 	if (!existsSync(spawnerDir)) {
 		await mkdir(spawnerDir, { recursive: true });
 	}
+	const archiveDir = getLoadArchiveDir();
+	if (!existsSync(archiveDir)) {
+		await mkdir(archiveDir, { recursive: true });
+	}
 }
 
-function requirePipelineLoaderAuth(event: RequestEvent): Response | null {
+function requirePipelineLoaderMutationAuth(event: RequestEvent): Response | null {
 	return requireControlAuth(event, {
 		surface: 'PipelineLoader',
 		apiKeyEnvVar: 'EVENTS_API_KEY',
@@ -54,11 +70,23 @@ function requirePipelineLoaderAuth(event: RequestEvent): Response | null {
 	});
 }
 
+function requirePipelineLoaderReadAuth(event: RequestEvent): Response | null {
+	return requireControlAuth(event, {
+		surface: 'PipelineLoader',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+}
+
 /**
  * POST - Queue a pipeline to load
  */
 export const POST: RequestHandler = async (event) => {
-	const unauthorized = requirePipelineLoaderAuth(event);
+	const unauthorized = requirePipelineLoaderMutationAuth(event);
 	if (unauthorized) return unauthorized;
 	const rateLimited = enforceRateLimit(event, {
 		scope: 'pipeline_loader_post',
@@ -94,6 +122,7 @@ export const POST: RequestHandler = async (event) => {
 
 		await writeFile(getPendingLoadFile(), JSON.stringify(load, null, 2), 'utf-8');
 		await writeFile(getLastLoadFile(), JSON.stringify(load, null, 2), 'utf-8');
+		await writeFile(getArchivedLoadFile(String(load.pipelineId)), JSON.stringify(load, null, 2), 'utf-8');
 
 		log.info(`Queued: ${load.pipelineName} (${load.nodes.length} nodes, ${load.connections.length} connections)`);
 
@@ -108,7 +137,7 @@ export const POST: RequestHandler = async (event) => {
  * GET - Get the pending load (optionally peek without consuming)
  */
 export const GET: RequestHandler = async (event) => {
-	const unauthorized = requirePipelineLoaderAuth(event);
+	const unauthorized = requirePipelineLoaderReadAuth(event);
 	if (unauthorized) return unauthorized;
 	const rateLimited = enforceRateLimit(event, {
 		scope: 'pipeline_loader_get',
@@ -122,7 +151,10 @@ export const GET: RequestHandler = async (event) => {
 		const peek = url.searchParams.get('peek') === 'true';
 		const latest = url.searchParams.get('latest') === 'true';
 		const requestedPipelineId = url.searchParams.get('pipeline')?.trim() || null;
-		const loadFile = latest ? getLastLoadFile() : getPendingLoadFile();
+		let loadFile = latest && requestedPipelineId ? getArchivedLoadFile(requestedPipelineId) : latest ? getLastLoadFile() : getPendingLoadFile();
+		if (latest && requestedPipelineId && !existsSync(loadFile)) {
+			loadFile = getLastLoadFile();
+		}
 
 		if (!existsSync(loadFile)) {
 			return json({ pending: false });
@@ -130,7 +162,7 @@ export const GET: RequestHandler = async (event) => {
 
 		const content = await readFile(loadFile, 'utf-8');
 		const load = parseJsonOrFallback<Record<string, unknown>>(content, {}, 'pipeline-loader');
-		if (!latest && requestedPipelineId && load?.pipelineId !== requestedPipelineId) {
+		if (requestedPipelineId && load?.pipelineId !== requestedPipelineId) {
 			return json({ pending: false });
 		}
 
@@ -164,7 +196,7 @@ export const GET: RequestHandler = async (event) => {
  * DELETE - Clear the pending load
  */
 export const DELETE: RequestHandler = async (event) => {
-	const unauthorized = requirePipelineLoaderAuth(event);
+	const unauthorized = requirePipelineLoaderMutationAuth(event);
 	if (unauthorized) return unauthorized;
 	const rateLimited = enforceRateLimit(event, {
 		scope: 'pipeline_loader_delete',

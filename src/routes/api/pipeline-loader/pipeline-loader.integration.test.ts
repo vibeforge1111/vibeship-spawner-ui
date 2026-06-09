@@ -8,6 +8,7 @@ import { GET, POST, DELETE } from './+server';
 let testSpawnerDir: string;
 let pendingLoadFile: string;
 let lastLoadFile: string;
+let archivedLoadFile: string;
 const TEST_API_KEY = 'pipeline-loader-route-test-secret';
 const originalMcpApiKey = process.env.MCP_API_KEY;
 
@@ -26,6 +27,7 @@ describe('/api/pipeline-loader integration', () => {
 		process.env.MCP_API_KEY = TEST_API_KEY;
 		pendingLoadFile = path.join(testSpawnerDir, 'pending-load.json');
 		lastLoadFile = path.join(testSpawnerDir, 'last-canvas-load.json');
+		archivedLoadFile = path.join(testSpawnerDir, 'canvas-loads', 'pipe-fixed-id.json');
 	});
 
 	afterEach(async () => {
@@ -34,15 +36,24 @@ describe('/api/pipeline-loader integration', () => {
 		else process.env.MCP_API_KEY = originalMcpApiKey;
 	});
 
-	function routeEvent(url: string, body?: unknown, method = 'GET') {
+	function routeEvent(
+		url: string,
+		body?: unknown,
+		method = 'GET',
+		options: { auth?: boolean; clientAddress?: string } = {}
+	) {
+		const auth = options.auth !== false;
 		return {
 			request: new Request(url, {
 				method,
-				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
+				headers: {
+					'Content-Type': 'application/json',
+					...(auth ? { 'x-api-key': TEST_API_KEY } : {})
+				},
 				body: body === undefined ? undefined : JSON.stringify(body)
 			}),
 			url: new URL(url),
-			getClientAddress: () => '127.0.0.1'
+			getClientAddress: () => options.clientAddress || '127.0.0.1'
 		};
 	}
 
@@ -62,6 +73,7 @@ describe('/api/pipeline-loader integration', () => {
 		expect(postResponse.status).toBe(200);
 		expect(existsSync(pendingLoadFile)).toBe(true);
 		expect(existsSync(lastLoadFile)).toBe(true);
+		expect(existsSync(archivedLoadFile)).toBe(true);
 
 		const firstGet = await GET({
 			...routeEvent('http://localhost/api/pipeline-loader')
@@ -181,6 +193,82 @@ describe('/api/pipeline-loader integration', () => {
 		});
 		expect(latestBody.load.executionAuthority).toBeUndefined();
 		expect(latestBody.load.relay.executionAuthority).toBeUndefined();
+	});
+
+	it('allows local read-only canvas recovery without an API key', async () => {
+		const payload = {
+			pipelineId: 'pipe-fixed-id',
+			pipelineName: 'Local Canvas Recovery',
+			nodes: [{ skill: { id: 'local-canvas' }, position: { x: 100, y: 100 } }],
+			connections: [],
+			source: 'prd-bridge',
+			autoRun: true
+		};
+
+		const postResponse = await POST({
+			...routeEvent('http://localhost/api/pipeline-loader', payload, 'POST')
+		} as never);
+		expect(postResponse.status).toBe(200);
+
+		const latestGet = await GET({
+			...routeEvent('http://localhost/api/pipeline-loader?latest=true&pipeline=pipe-fixed-id', undefined, 'GET', {
+				auth: false
+			})
+		} as never);
+		expect(latestGet.status).toBe(200);
+		const latestBody = await latestGet.json();
+		expect(latestBody.pending).toBe(true);
+		expect(latestBody.load.pipelineId).toBe('pipe-fixed-id');
+	});
+
+	it('blocks non-local read-only canvas recovery without an API key', async () => {
+		const response = await GET({
+			...routeEvent('http://spawner.example/api/pipeline-loader?latest=true', undefined, 'GET', {
+				auth: false,
+				clientAddress: '203.0.113.10'
+			})
+		} as never);
+
+		expect(response.status).toBe(401);
+	});
+
+	it('recovers the requested pipeline from archive instead of unrelated latest load', async () => {
+		const firstPayload = {
+			pipelineId: 'pipe-fixed-id',
+			pipelineName: 'Archived Target Pipeline',
+			nodes: [{ skill: { id: 'target-node' }, position: { x: 100, y: 100 } }],
+			connections: [],
+			source: 'prd-bridge',
+			autoRun: true
+		};
+		const secondPayload = {
+			pipelineId: 'pipe-newer-project',
+			pipelineName: 'Newer Unrelated Pipeline',
+			nodes: [{ skill: { id: 'newer-node' }, position: { x: 100, y: 100 } }],
+			connections: [],
+			source: 'prd-bridge',
+			autoRun: true
+		};
+
+		expect(await POST(routeEvent('http://localhost/api/pipeline-loader', firstPayload, 'POST') as never)).toHaveProperty(
+			'status',
+			200
+		);
+		expect(await POST(routeEvent('http://localhost/api/pipeline-loader', secondPayload, 'POST') as never)).toHaveProperty(
+			'status',
+			200
+		);
+
+		const requestedGet = await GET({
+			...routeEvent('http://localhost/api/pipeline-loader?latest=true&pipeline=pipe-fixed-id', undefined, 'GET', {
+				auth: false
+			})
+		} as never);
+		expect(requestedGet.status).toBe(200);
+		const requestedBody = await requestedGet.json();
+		expect(requestedBody.pending).toBe(true);
+		expect(requestedBody.load.pipelineId).toBe('pipe-fixed-id');
+		expect(requestedBody.load.nodes[0].skill.id).toBe('target-node');
 	});
 
 	it('clears pending load with DELETE', async () => {
