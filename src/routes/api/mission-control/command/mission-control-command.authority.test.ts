@@ -1,6 +1,16 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { POST } from './+server';
 import { buildClientTurnIntentVNextAuthority } from '$lib/services/harness-authority-client';
+
+const privateEnv = vi.hoisted(() => ({
+	EVENTS_API_KEY: 'mission-control-command-test-secret',
+	MCP_API_KEY: 'mission-control-command-test-secret',
+	EVENTS_ALLOWED_ORIGINS: ''
+}));
+
+vi.mock('$env/dynamic/private', () => ({
+	env: privateEnv
+}));
 
 const TEST_API_KEY = 'mission-control-command-test-secret';
 const originalMcpApiKey = process.env.MCP_API_KEY;

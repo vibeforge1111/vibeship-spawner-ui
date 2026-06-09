@@ -1,5 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const privateEnv = vi.hoisted(() => ({
+	MCP_API_KEY: 'dispatch-authority-route-test-secret',
+	EVENTS_API_KEY: ''
+}));
+
+vi.mock('$env/dynamic/private', () => ({
+	env: privateEnv
+}));
+
 vi.mock('$lib/server/provider-runtime', () => ({
 	providerRuntime: {
 		getMissionStatus: vi.fn(() => ({
