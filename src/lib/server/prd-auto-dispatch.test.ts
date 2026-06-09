@@ -65,7 +65,7 @@ function governorAuthority() {
 		reason: 'Focused PRD auto-dispatch authority regression.',
 		toolName: 'spawner.dispatch',
 		mutationClass: 'launches_mission',
-		requestId: 'prd-auto-dispatch-test',
+		requestId: load.requestId,
 		actorKind: 'system',
 		actorIdRef: 'spawner-ui.test',
 		target: load.missionId
@@ -78,7 +78,7 @@ function bareVNextAuthority() {
 		reason: 'Focused PRD auto-dispatch authority regression.',
 		toolName: 'spawner.dispatch',
 		mutationClass: 'launches_mission',
-		requestId: 'prd-auto-dispatch-test',
+		requestId: load.requestId,
 		actorKind: 'system',
 		actorIdRef: 'spawner-ui.test',
 		target: load.missionId

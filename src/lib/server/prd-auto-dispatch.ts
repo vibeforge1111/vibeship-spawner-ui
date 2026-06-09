@@ -551,6 +551,7 @@ export async function autoDispatchPrdCanvasLoad(
 			apiKeys,
 			workingDirectory: projectPath,
 			executionAuthority,
+			authorityRequestId: load.requestId,
 			onEvent
 		});
 

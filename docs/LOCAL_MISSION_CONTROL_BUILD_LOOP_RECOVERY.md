@@ -36,6 +36,7 @@ C:\Users\USER\.spark\workspaces
 ```
 
 4. `pending-request.json` could remain `status=pending` and `autoAnalysis.status=running` after the canonical provider result already existed in `results/<requestId>.json`. That made Mission Control and Telegram-facing status paths keep reporting an active or failed mission while the real canonical artifact was already written.
+5. Browser/relay dispatch could submit native Governor authority without binding it to the current relay request id. That left room for a stale or transplanted dispatch authority to launch the right tool against the wrong request even though the authority shape was valid.
 
 ## Current Fix
 
@@ -58,6 +59,8 @@ autoAnalysis.canonicalResultAvailable=true
 ```
 
 This is not permission minting. It does not promote provisional drafts, route history, UI state, or stale missions into authority. It only repairs duplicate runtime truth once a canonical provider result is present.
+
+Relay dispatch is now request-bound. If `/api/dispatch` receives relay metadata, the relay must include `requestId`, and the native Governor decision must verify against that same request id before `providerRuntime.dispatch` can start a provider. PRD auto-dispatch passes the PRD load `requestId` through the same runtime binding. Stored dispatch snapshots may preserve the original binding for resume, but recovered state must not invent one.
 
 ## Verified Proof
 
@@ -157,5 +160,7 @@ The fresh Telegram proof should capture:
 - Do not demote the workspace boundary to make installed-source builds pass.
 - Do not let `pending-request.json` outrank a matching canonical provider result artifact.
 - Do not re-serve pending work once `results/<requestId>.json` exists for the same request.
+- Do not allow browser, relay, canvas, or Telegram dispatch to launch a provider with unbound or replayed Governor authority.
+- Do not let recovered mission state fabricate a request binding for provider resume.
 - Do not make deterministic fallback output the release proof for Spawner mission execution.
 - Do not use canned Telegram replies as proof. The proof is route selection, Governor decision, ledgers, provider dispatch, side effects, and visible UI state.
