@@ -24,6 +24,8 @@ vi.mock('$lib/server/provider-runtime', () => ({
 
 let testSpawnerDir: string;
 const TEST_API_KEY = 'prd-load-to-canvas-test-secret';
+const originalBridgeApiKey = process.env.SPARK_BRIDGE_API_KEY;
+const originalEventsApiKey = process.env.EVENTS_API_KEY;
 const originalMcpApiKey = process.env.MCP_API_KEY;
 
 function dispatchAuthority(requestId: string, missionId: string) {
@@ -50,6 +52,10 @@ function dispatchVNextAuthority(requestId: string, missionId: string) {
 
 async function resetTestSpawnerDir() {
 	delete process.env.SPAWNER_STATE_DIR;
+	if (originalBridgeApiKey === undefined) delete process.env.SPARK_BRIDGE_API_KEY;
+	else process.env.SPARK_BRIDGE_API_KEY = originalBridgeApiKey;
+	if (originalEventsApiKey === undefined) delete process.env.EVENTS_API_KEY;
+	else process.env.EVENTS_API_KEY = originalEventsApiKey;
 	if (originalMcpApiKey === undefined) delete process.env.MCP_API_KEY;
 	else process.env.MCP_API_KEY = originalMcpApiKey;
 	if (testSpawnerDir && existsSync(testSpawnerDir)) {
@@ -63,7 +69,9 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		await resetTestSpawnerDir();
 		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-load-to-canvas-'));
 		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
-		process.env.MCP_API_KEY = TEST_API_KEY;
+		process.env.SPARK_BRIDGE_API_KEY = TEST_API_KEY;
+		delete process.env.EVENTS_API_KEY;
+		delete process.env.MCP_API_KEY;
 		await mkdir(path.join(testSpawnerDir, 'results'), { recursive: true });
 	});
 
