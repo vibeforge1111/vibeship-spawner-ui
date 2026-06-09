@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { appendFile, readFile, writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
@@ -22,14 +22,50 @@ import {
 	type HarnessAuthorityVerdict
 } from '$lib/server/harness-authority';
 import { stripAuthorityResidue } from '$lib/server/authority-residue';
+import { requireControlAuth } from '$lib/server/mcp-auth';
+import { parseJsonOrThrow } from '$lib/utils/safe-json';
 
 function getSpawnerDir(): string {
 	return spawnerStateDir();
 }
 
+function getLoadArchiveDir(): string {
+	return join(getSpawnerDir(), 'canvas-loads');
+}
+
+function safeLoadFileKey(value: string): string {
+	return value.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 200) || 'unknown';
+}
+
+function archivedLoadFileForPipeline(pipelineId: string): string {
+	return join(getLoadArchiveDir(), `${safeLoadFileKey(pipelineId)}.json`);
+}
+
+function archivedLoadFileForMission(missionId: string): string {
+	return join(getLoadArchiveDir(), `mission-${safeLoadFileKey(missionId)}.json`);
+}
+
 function resultFilePath(requestId: string): string {
 	const safe = requestId.replace(/[^a-zA-Z0-9_-]/g, '_');
 	return join(getSpawnerDir(), 'results', `${safe}.json`);
+}
+
+async function appendPrdTrace(requestId: string, event: string, details: Record<string, unknown> = {}): Promise<void> {
+	try {
+		const row = {
+			ts: new Date().toISOString(),
+			requestId,
+			event,
+			...details
+		};
+		await appendFile(join(getSpawnerDir(), 'prd-auto-trace.jsonl'), `${JSON.stringify(row)}\n`, 'utf-8');
+	} catch {
+		// Trace writes are evidence only; never fail the live build path.
+	}
+}
+
+function traceRefDetails(traceRef: string | null | undefined): Record<string, string> {
+	return traceRef ? { traceRef } : {};
 }
 
 function normalizeTelegramRelay(value: unknown): Record<string, unknown> | undefined {
@@ -176,8 +212,70 @@ function buildConnections(tasks: TaskRecord[]): Array<{ sourceIndex: number; tar
 	return conns;
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+function canvasMaterializationSummary(nodes: ReturnType<typeof taskToNode>[]) {
+	const pairedNodeCount = nodes.filter((node) => node.skill.skillChain.length > 0).length;
+	const skillCount = new Set(nodes.flatMap((node) => node.skill.skillChain)).size;
+	return {
+		materialized: true,
+		nodeCount: nodes.length,
+		pairedNodeCount,
+		skillCount,
+		pairingStatus: nodes.length === 0 || pairedNodeCount === 0
+			? 'missing'
+			: pairedNodeCount === nodes.length
+				? 'complete'
+				: 'partial'
+	};
+}
+
+function boardPathForMission(missionId: string): string {
+	return `/kanban?mission=${encodeURIComponent(missionId)}`;
+}
+
+function canvasPathForPipeline(pipelineId: string, missionId: string): string {
+	return `/canvas?pipeline=${encodeURIComponent(pipelineId)}&mission=${encodeURIComponent(missionId)}`;
+}
+
+function workflowHandoffFromDispatch(input: {
+	canvasReadyForHandoff: boolean;
+	canvasUrl: string;
+	autoDispatchResult: Awaited<ReturnType<typeof autoDispatchPrdCanvasLoad>>;
+}) {
+	if (!input.canvasReadyForHandoff) {
+		return {
+			status: 'withheld',
+			reason: 'canvas_handoff_requires_materialized_nodes_and_complete_skill_pairings',
+			canvasUrl: null
+		};
+	}
+	if (input.autoDispatchResult.started) {
+		return {
+			status: 'ready',
+			reason: 'canvas_nodes_skill_pairings_and_workflow_execution_created',
+			canvasUrl: input.canvasUrl
+		};
+	}
+	return {
+		status: 'withheld',
+		reason: input.autoDispatchResult.error || input.autoDispatchResult.reason || 'workflow_execution_was_not_created',
+		canvasUrl: null
+	};
+}
+
+export const POST: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		surface: 'PRDBridgeLoadToCanvas',
+		apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
+		fallbackApiKeyEnvVars: ['EVENTS_API_KEY', 'MCP_API_KEY'],
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: false,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+	if (unauthorized) return unauthorized;
+
 	try {
+		const { request } = event;
 		const { requestId, autoRun, telegramRelay, missionId, chatId, userId, goal, buildMode: bodyBuildMode, buildModeReason: bodyBuildModeReason, traceRef, trace_ref, executionAuthority, execution_authority } = await request.json();
 		const normalizedTelegramRelay = normalizeTelegramRelay(telegramRelay);
 		if (!requestId || typeof requestId !== 'string') {
@@ -194,11 +292,15 @@ export const POST: RequestHandler = async ({ request }) => {
 		const lastLoadFile = join(spawnerDir, 'last-canvas-load.json');
 		const pendingRequestFile = join(spawnerDir, 'pending-request.json');
 		if (!existsSync(path)) {
+			await appendPrdTrace(requestId, 'canvas_load_waiting_for_result', {
+				missionId: resolvedMissionId,
+				...traceRefDetails(resolvedTraceRef)
+			});
 			return json({ error: `No analysis result for ${requestId} yet` }, { status: 404 });
 		}
 
 		const raw = await readFile(path, 'utf-8');
-		const parsed = JSON.parse(raw) as {
+		const parsed = parseJsonOrThrow<{
 			success?: boolean;
 			projectName?: string;
 			projectType?: string;
@@ -208,14 +310,19 @@ export const POST: RequestHandler = async ({ request }) => {
 			metadata?: Record<string, unknown>;
 			capabilityProposalPacket?: unknown;
 			capability_proposal_packet?: unknown;
-		};
+		}>(raw, `prd-result:${requestId}`);
 
 		if (!parsed.success || !Array.isArray(parsed.tasks) || parsed.tasks.length === 0) {
+			await appendPrdTrace(requestId, 'canvas_load_rejected_empty_result', {
+				missionId: resolvedMissionId,
+				...traceRefDetails(resolvedTraceRef)
+			});
 			return json({ error: 'Result has no tasks to load' }, { status: 422 });
 		}
 
 		const nodes = parsed.tasks.map(taskToNode);
 		const connections = buildConnections(parsed.tasks);
+		const canvasMaterialization = canvasMaterializationSummary(nodes);
 		const deterministicStaticResult =
 			parsed.projectType === 'static-exact-file-proof' || parsed.projectType === 'static-single-file-html';
 		let effectiveAutoRun = autoRun !== false && !deterministicStaticResult;
@@ -237,12 +344,20 @@ export const POST: RequestHandler = async ({ request }) => {
 				dispatchAuthority = undefined;
 				dispatchAuthorityBlock = error.verdict;
 				effectiveAutoRun = false;
+				await appendPrdTrace(requestId, 'canvas_auto_run_authority_withheld', {
+					missionId: resolvedMissionId,
+					...traceRefDetails(resolvedTraceRef),
+					reasonCodes: dispatchAuthorityBlock.reasonCodes,
+					source: dispatchAuthorityBlock.source,
+					governorOutcome: dispatchAuthorityBlock.governorOutcome ?? null
+				});
 			}
 		}
 
 		if (!existsSync(spawnerDir)) {
 			await mkdir(spawnerDir, { recursive: true });
 		}
+		await mkdir(getLoadArchiveDir(), { recursive: true });
 
 		let relay: Record<string, unknown> | undefined;
 		let buildMode: 'direct' | 'advanced_prd' = bodyBuildMode === 'advanced_prd' ? 'advanced_prd' : 'direct';
@@ -359,10 +474,39 @@ export const POST: RequestHandler = async ({ request }) => {
 			timestamp: new Date().toISOString()
 		};
 		const missionControlAccess = resolveMissionControlAccess(missionControlPathForMission(resolvedMissionId));
+		const boardUrl = boardPathForMission(resolvedMissionId);
+		const canvasUrl = canvasPathForPipeline(load.pipelineId, resolvedMissionId);
+		const canvasReadyForHandoff =
+			canvasMaterialization.nodeCount > 0 &&
+			canvasMaterialization.pairedNodeCount === canvasMaterialization.nodeCount &&
+			canvasMaterialization.pairingStatus === 'complete';
+		const canvasHandoff = {
+			status: canvasReadyForHandoff ? 'ready' : 'withheld',
+			reason: canvasReadyForHandoff
+				? 'nodes_and_skill_pairings_materialized'
+				: 'canvas_handoff_requires_materialized_nodes_and_complete_skill_pairings',
+			boardFirst: true,
+			canvasUrl: canvasReadyForHandoff ? canvasUrl : null
+		};
 
 		const persistedLoad = storedCanvasLoad(load);
 		await writeFile(pendingLoadFile, JSON.stringify(persistedLoad, null, 2), 'utf-8');
 		await writeFile(lastLoadFile, JSON.stringify(persistedLoad, null, 2), 'utf-8');
+		await writeFile(archivedLoadFileForPipeline(load.pipelineId), JSON.stringify(persistedLoad, null, 2), 'utf-8');
+		await writeFile(archivedLoadFileForMission(resolvedMissionId), JSON.stringify(persistedLoad, null, 2), 'utf-8');
+		await appendPrdTrace(requestId, 'canvas_load_materialized', {
+			missionId: resolvedMissionId,
+			...traceRefDetails(resolvedTraceRef),
+			pipelineId: load.pipelineId,
+			archivedLoadRefs: [
+				`canvas-loads/${safeLoadFileKey(load.pipelineId)}.json`,
+				`canvas-loads/mission-${safeLoadFileKey(resolvedMissionId)}.json`
+			],
+			autoRunRequested: autoRun !== false,
+			autoRunEffective: effectiveAutoRun,
+			canvasReadyForHandoff,
+			canvasMaterialization
+		});
 		if (pendingRequestMeta) {
 			await writeFile(
 				pendingRequestFile,
@@ -373,7 +517,9 @@ export const POST: RequestHandler = async ({ request }) => {
 						canvasLoadedAt: new Date().toISOString(),
 						...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
 						pipelineId: load.pipelineId,
-						canvasUrl: `/canvas?pipeline=${encodeURIComponent(load.pipelineId)}&mission=${encodeURIComponent(resolvedMissionId)}`,
+						boardUrl,
+						...(canvasReadyForHandoff ? { canvasUrl } : {}),
+						canvasHandoff,
 						missionControlAccess,
 						...(capabilityProposalPacket ? { capabilityProposalPacket } : {}),
 						...(capabilitySummary ? { capabilityProposalSummary: capabilitySummary } : {})
@@ -385,6 +531,21 @@ export const POST: RequestHandler = async ({ request }) => {
 			);
 		}
 		void relayMissionControlEvent({
+			type: 'task_completed',
+			missionId: resolvedMissionId,
+			missionName: load.pipelineName,
+			taskName: 'PRD analysis',
+			message: `PRD analysis completed for ${load.pipelineName}.`,
+			source: 'prd-bridge',
+			data: {
+				requestId,
+				...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
+				executionPolicy: 'read_only',
+				buildMode,
+				buildModeReason
+			}
+		});
+		void relayMissionControlEvent({
 			type: 'mission_created',
 			missionId: resolvedMissionId,
 			missionName: load.pipelineName,
@@ -394,6 +555,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			data: {
 				requestId,
 				...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
+				executionPolicy: 'read_only',
 				buildMode,
 				buildModeReason,
 				...(capabilitySummary ? { capabilityProposal: capabilitySummary } : {}),
@@ -419,6 +581,41 @@ export const POST: RequestHandler = async ({ request }) => {
 							: 'autoRun disabled',
 					missionId: resolvedMissionId
 				};
+		await appendPrdTrace(requestId, autoDispatchResult.started ? 'canvas_auto_dispatch_started' : 'canvas_auto_dispatch_withheld', {
+			missionId: resolvedMissionId,
+			...traceRefDetails(resolvedTraceRef),
+			pipelineId: load.pipelineId,
+			started: autoDispatchResult.started,
+			skipped: Boolean(autoDispatchResult.skipped),
+			reason: autoDispatchResult.reason || null,
+			error: autoDispatchResult.error || null
+		});
+		const workflowHandoff = workflowHandoffFromDispatch({
+			canvasReadyForHandoff,
+			canvasUrl,
+			autoDispatchResult
+		});
+		if (!autoDispatchResult.started && autoDispatchResult.skipped) {
+			void relayMissionControlEvent({
+				type: 'log',
+				missionId: resolvedMissionId,
+				missionName: load.pipelineName,
+				taskName: 'Workflow start withheld',
+				message: `Workflow start withheld: ${autoDispatchResult.reason || 'autoRun disabled'}.`,
+				source: 'prd-bridge',
+				data: {
+					requestId,
+					...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
+					executionPolicy: 'read_only',
+					buildMode,
+					buildModeReason,
+					reason: autoDispatchResult.reason,
+					...(dispatchAuthorityBlock ? { authority: dispatchAuthorityBlock } : {}),
+					...(relay?.projectLineage ? { projectLineage: relay.projectLineage } : {}),
+					...(relay ? { telegramRelay: relay.telegramRelay } : {})
+				}
+			});
+		}
 		if (!autoDispatchResult.started && !autoDispatchResult.skipped) {
 			void relayMissionControlEvent({
 				type: 'log',
@@ -449,7 +646,12 @@ export const POST: RequestHandler = async ({ request }) => {
 			autoDispatch: autoDispatchResult,
 			...(dispatchAuthorityVerdict ? { authority: dispatchAuthorityVerdict } : {}),
 			...(dispatchAuthorityBlock ? { authority: dispatchAuthorityBlock } : {}),
-			canvasUrl: `/canvas?pipeline=${encodeURIComponent(load.pipelineId)}&mission=${encodeURIComponent(resolvedMissionId)}`,
+			canvasMaterialized: canvasMaterialization.materialized,
+			canvasMaterialization,
+			boardUrl,
+			canvasHandoff,
+			workflowHandoff,
+			...(canvasReadyForHandoff ? { canvasUrl } : {}),
 			missionControlAccess
 		});
 	} catch (error) {

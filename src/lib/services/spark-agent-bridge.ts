@@ -32,6 +32,7 @@ import {
 	resolveExecutionAuthority,
 	type SparkMutationClass
 } from '$lib/server/harness-authority';
+import { stripAuthorityResidue } from '$lib/server/authority-residue';
 
 export type SparkAgentCommandName =
 	| 'canvas.create_pipeline'
@@ -544,6 +545,7 @@ class SparkAgentBridgeService {
 			mission: null,
 			events: []
 		};
+		session.metadata = stripAuthorityResidue(session.metadata);
 
 		this.sessions.set(sessionId, session);
 		this.emitEvent(sessionId, 'spark_agent.session.started', {
@@ -583,11 +585,12 @@ class SparkAgentBridgeService {
 		return [...(this.sessions.get(sessionId)?.events || [])];
 	}
 
-	getLatestCanvasSnapshot(since?: string): SparkAgentCanvasSnapshot | null {
+	getLatestCanvasSnapshot(since?: string, sessionId?: string): SparkAgentCanvasSnapshot | null {
 		const sinceTs = since ? Date.parse(since) : Number.NaN;
-		const sessions = [...this.sessions.values()].filter((session) =>
-			session.events.some((event) => event.type === 'spark_agent.canvas.updated')
-		);
+		const sessions = [...this.sessions.values()].filter((session) => {
+			if (sessionId && session.id !== sessionId) return false;
+			return session.events.some((event) => event.type === 'spark_agent.canvas.updated');
+		});
 		if (sessions.length === 0) return null;
 
 		sessions.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
@@ -862,7 +865,7 @@ class SparkAgentBridgeService {
 			command: input.command,
 			actor,
 			requestId: input.requestId || null,
-			params: input.params || {}
+			params: stripAuthorityResidue(input.params || {})
 		});
 
 		try {

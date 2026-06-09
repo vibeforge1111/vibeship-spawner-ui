@@ -408,10 +408,6 @@ function shouldRecordMissionControlEvent(event: MissionControlBridgeEvent): bool
 		return false;
 	}
 
-	if (event.data && (event.data as Record<string, unknown>).suppressRelay === true) {
-		return false;
-	}
-
 	return true;
 }
 

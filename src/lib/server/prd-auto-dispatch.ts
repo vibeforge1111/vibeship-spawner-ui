@@ -364,8 +364,7 @@ export function inferProjectPathFromPrdLoad(
 ): string {
 	const text = [
 		load.executionPrompt || '',
-		typeof load.relay?.goal === 'string' ? load.relay.goal : '',
-		...load.nodes.map((node) => node.skill?.description || '')
+		typeof load.relay?.goal === 'string' ? load.relay.goal : ''
 	].join('\n');
 	const explicitPath = extractExplicitProjectPath(text);
 	if (explicitPath) return explicitPath;
@@ -552,6 +551,7 @@ export async function autoDispatchPrdCanvasLoad(
 			apiKeys,
 			workingDirectory: projectPath,
 			executionAuthority,
+			authorityRequestId: load.requestId,
 			onEvent
 		});
 

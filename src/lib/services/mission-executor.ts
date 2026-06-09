@@ -33,6 +33,7 @@ import { generateCheckpoint, type ProjectCheckpoint } from './checkpoint';
 import { syncClient, broadcastMissionEvent, broadcastTaskEvent, isConnected, type SyncEvent } from './sync-client';
 import { clientEventBridge, type BridgeEvent } from './event-bridge';
 import { browser } from '$app/environment';
+import { getEventsAuthHeaders } from '$lib/services/events-auth-client';
 import { get } from 'svelte/store';
 import {
 	saveMissionState,
@@ -373,7 +374,7 @@ class MissionExecutor {
 
 				const response = await fetch('/api/mission/active', {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: { 'Content-Type': 'application/json', ...getEventsAuthHeaders() },
 					body: JSON.stringify({
 						missionId: this.progress.missionId,
 						missionName: mission.name,
@@ -412,7 +413,7 @@ class MissionExecutor {
 				clearTimeout(this.fileSyncDebounceTimer);
 				this.fileSyncDebounceTimer = null;
 			}
-			await fetch('/api/mission/active', { method: 'DELETE' });
+			await fetch('/api/mission/active', { method: 'DELETE', headers: getEventsAuthHeaders() });
 			log.debug('File sync state cleared');
 		} catch (error) {
 			log.warn('Failed to clear file sync state:', error);
@@ -1789,32 +1790,7 @@ class MissionExecutor {
 			return false;
 		}
 
-		const missionId = this.progress.missionId;
-
-		if (browser && typeof fetch !== 'undefined') {
-			try {
-				const response = await fetch('/api/mission-control/command', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						missionId,
-						action: 'kill',
-						source: 'execution-panel'
-					})
-				});
-				const data = await response.json().catch(() => ({}));
-
-				if (response.ok && data?.ok !== false) {
-					this.markCancelled('Execution cancelled');
-					return true;
-				}
-
-				log.warn('Mission-control cancel failed:', data?.error || `HTTP ${response.status}`);
-			} catch (error) {
-				log.warn('Mission-control cancel request failed:', error);
-			}
-		}
-
+		this.addLocalLog('info', 'Cancel requires a governed mission-control command; local UI cancel is disabled.');
 		return false;
 	}
 

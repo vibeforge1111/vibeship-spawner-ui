@@ -24,6 +24,8 @@ import { existsSync } from 'fs';
 
 const EVENTS_AUTH_COOKIE = 'spawner_events_api_key';
 const log = logger.scope('EventBridge');
+const TERMINAL_LIFECYCLE_EVENTS = new Set(['mission_completed', 'mission_failed', 'mission_cancelled']);
+const TERMINAL_PROVIDER_STATUSES = new Set(['completed', 'failed', 'cancelled']);
 
 function corsHeaders(request: Request): Record<string, string> {
 	const origin = request.headers.get('origin');
@@ -85,6 +87,49 @@ function createAuthCookieHeader(request: Request): string | null {
 
 	const isSecure = request.url.startsWith('https://');
 	return `${EVENTS_AUTH_COOKIE}=${encodeURIComponent(apiKey)}; Path=/; HttpOnly; SameSite=Lax${isSecure ? '; Secure' : ''}`;
+}
+
+function eventStreamAuthPayload(event: Parameters<typeof requireControlAuth>[0]) {
+	const openRead = requireControlAuth(event, {
+		surface: 'Events',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: EVENTS_AUTH_COOKIE,
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+	if (openRead) return { openRead, hasControlAuth: false };
+
+	const strictRead = requireControlAuth(event, {
+		surface: 'Events',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: EVENTS_AUTH_COOKIE,
+		allowLoopbackWithoutKey: false,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+
+	return { openRead: null, hasControlAuth: strictRead === null };
+}
+
+function sanitizeBridgeEventForLoopback(event: Record<string, unknown>): Record<string, unknown> {
+	return {
+		...(typeof event.id === 'string' ? { id: event.id } : {}),
+		type: typeof event.type === 'string' ? event.type : 'unknown',
+		...(typeof event.missionId === 'string' ? { missionId: event.missionId } : {}),
+		...(typeof event.taskId === 'string' ? { taskId: event.taskId } : {}),
+		...(typeof event.taskName === 'string' ? { taskName: event.taskName } : {}),
+		...(typeof event.progress === 'number' ? { progress: event.progress } : {}),
+		...(typeof event.message === 'string' ? { message: event.message } : {}),
+		timestamp: typeof event.timestamp === 'string' ? event.timestamp : new Date().toISOString(),
+		source: typeof event.source === 'string' ? event.source : 'event-bridge',
+		authorityBoundary: {
+			payload: 'event_metadata',
+			data: 'requires_control_auth'
+		}
+	};
 }
 
 /**
@@ -175,6 +220,89 @@ async function storePRDResult(requestId: string, result: unknown): Promise<void>
 	log.info(`Stored PRD result for polling: ${requestId}`);
 }
 
+function stringValue(value: unknown): string | null {
+	return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function terminalLifecycleTrust(event: Record<string, unknown>): {
+	trusted: boolean;
+	reason: string;
+	providerId: string | null;
+	missionId: string | null;
+	matchingSessionCount: number;
+} | null {
+	const type = stringValue(event.type);
+	if (!type || !TERMINAL_LIFECYCLE_EVENTS.has(type)) return null;
+	const missionId = stringValue(event.missionId);
+	if (!missionId) {
+		return {
+			trusted: false,
+			reason: 'terminal_lifecycle_missing_mission',
+			providerId: null,
+			missionId: null,
+			matchingSessionCount: 0
+		};
+	}
+
+	const data = event.data && typeof event.data === 'object' && !Array.isArray(event.data)
+		? (event.data as Record<string, unknown>)
+		: {};
+	const providerId =
+		stringValue(data.provider) ||
+		stringValue(data.providerId) ||
+		(typeof event.source === 'string' && event.source !== 'spawner-ui' ? event.source.trim() : null);
+	const requestId = stringValue(data.requestId);
+	const traceRef = extractTraceRef(data);
+	const sessions = providerRuntime.getSessionsForMission(missionId).filter((session) => {
+		const sessionRefs = session as typeof session & { requestId?: string | null; traceRef?: string | null };
+		if (providerId && session.providerId !== providerId) return false;
+		if (requestId && sessionRefs.requestId !== requestId) return false;
+		if (traceRef && sessionRefs.traceRef !== traceRef) return false;
+		return !TERMINAL_PROVIDER_STATUSES.has(session.status);
+	});
+
+	return {
+		trusted: sessions.length > 0,
+		reason: sessions.length > 0 ? 'matched_active_provider_session' : 'no_matching_active_provider_session',
+		providerId,
+		missionId,
+		matchingSessionCount: sessions.length
+	};
+}
+
+async function markPendingPrdResultComplete(requestId: string): Promise<void> {
+	assertSafeId(requestId, 'requestId');
+	const pendingRequestFile = join(getSpawnerDir(), 'pending-request.json');
+	if (!existsSync(pendingRequestFile)) return;
+
+	const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
+	const pending = parseJsonOrFallback<Record<string, unknown>>(pendingRaw, {}, 'events-pending-request');
+	if (pending.requestId !== requestId) return;
+
+	const resultFile = resolveWithinBaseDir(getResultsDir(), `${requestId}.json`);
+	const now = new Date().toISOString();
+	const autoAnalysis =
+		pending.autoAnalysis && typeof pending.autoAnalysis === 'object' && !Array.isArray(pending.autoAnalysis)
+			? (pending.autoAnalysis as Record<string, unknown>)
+			: {};
+	const next = {
+		...pending,
+		status: 'processed',
+		updatedAt: now,
+		reason: 'Canonical provider result stored from events bridge.',
+		autoAnalysis: {
+			...autoAnalysis,
+			status: 'complete',
+			finishedAt: now,
+			success: true,
+			canonicalResultAvailable: true,
+			resultFileName: `${requestId}.json`,
+			expectedResultFile: resultFile
+		}
+	};
+	await writeFile(pendingRequestFile, JSON.stringify(next, null, 2), 'utf-8');
+}
+
 async function relayMetadataForMission(missionId: string): Promise<Record<string, unknown>> {
 	try {
 		const loadFile = join(getSpawnerDir(), 'last-canvas-load.json');
@@ -209,7 +337,7 @@ async function relayMetadataForMission(missionId: string): Promise<Record<string
 
 /**
  * POST handler - receives events from Claude Code
- * Claude can call: curl -X POST http://localhost:3333/api/events -d '{"type":"progress",...}'
+ * Claude/provider clients must send x-api-key from EVENTS_API_KEY or MCP_API_KEY.
  */
 export const POST: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
@@ -218,6 +346,7 @@ export const POST: RequestHandler = async (event) => {
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
 		apiKeyQueryParam: 'apiKey',
 		apiKeyCookieName: EVENTS_AUTH_COOKIE,
+		allowLoopbackWithoutKey: false,
 		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
 	});
 	if (unauthorized) return unauthorized;
@@ -256,6 +385,19 @@ export const POST: RequestHandler = async (event) => {
 					}
 				};
 			}
+		}
+		const lifecycleTrust = terminalLifecycleTrust(fullEvent);
+		if (lifecycleTrust && !lifecycleTrust.trusted) {
+			const originalType = fullEvent.type;
+			fullEvent = {
+				...fullEvent,
+				type: 'mission_lifecycle_untrusted',
+				originalType,
+				data: {
+					...(fullEvent.data && typeof fullEvent.data === 'object' ? fullEvent.data : {}),
+					lifecycleTrust
+				}
+			};
 		}
 
 		// Broadcast to all connected clients
@@ -304,6 +446,10 @@ export const POST: RequestHandler = async (event) => {
 			});
 			try {
 				await storePRDResult(fullEvent.data.requestId, fullEvent.data.result);
+				await markPendingPrdResultComplete(fullEvent.data.requestId);
+				await appendPrdTrace(fullEvent.data.requestId, 'canonical_result_stored', {
+					source: fullEvent.source || 'unknown'
+				});
 			} catch (err) {
 				const message = err instanceof Error ? err.message : 'Invalid PRD analysis result';
 				await appendPrdTrace(fullEvent.data.requestId, 'events_rejected_complete', {
@@ -343,7 +489,7 @@ export const OPTIONS: RequestHandler = async (event) => {
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
 		apiKeyQueryParam: 'apiKey',
 		apiKeyCookieName: EVENTS_AUTH_COOKIE,
-		allowLoopbackWithoutKey: false,
+		allowLoopbackWithoutKey: true,
 		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
 	});
 	if (unauthorized) return unauthorized;
@@ -355,16 +501,8 @@ export const OPTIONS: RequestHandler = async (event) => {
  * GET handler - Server-Sent Events stream for real-time updates
  */
 export const GET: RequestHandler = async (event) => {
-	const unauthorized = requireControlAuth(event, {
-		surface: 'Events',
-		apiKeyEnvVar: 'EVENTS_API_KEY',
-		fallbackApiKeyEnvVar: 'MCP_API_KEY',
-		apiKeyQueryParam: 'apiKey',
-		apiKeyCookieName: EVENTS_AUTH_COOKIE,
-		allowLoopbackWithoutKey: false,
-		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
-	});
-	if (unauthorized) return unauthorized;
+	const { openRead, hasControlAuth } = eventStreamAuthPayload(event);
+	if (openRead) return openRead;
 
 	const rateLimited = enforceRateLimit(event, {
 		scope: 'events_stream',
@@ -386,7 +524,8 @@ export const GET: RequestHandler = async (event) => {
 			const unsubscribe = eventBridge.subscribe((event) => {
 				if (isClosed) return;
 				try {
-					const data = `data: ${JSON.stringify(event)}\n\n`;
+					const safeEvent = hasControlAuth ? event : sanitizeBridgeEventForLoopback(event as unknown as Record<string, unknown>);
+					const data = `data: ${JSON.stringify(safeEvent)}\n\n`;
 					controller.enqueue(encoder.encode(data));
 				} catch (e) {
 					// Client disconnected

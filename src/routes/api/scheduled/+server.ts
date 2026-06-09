@@ -7,6 +7,7 @@ import {
   listSchedules,
   startScheduler,
   type ScheduleAction,
+  type ScheduleRecord,
 } from '$lib/server/scheduler';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { HarnessAuthorityError } from '$lib/server/harness-authority';
@@ -25,23 +26,44 @@ if (!building && process.env.NODE_ENV !== 'test') {
   startScheduler();
 }
 
-function scheduledAuth(event: RequestEvent) {
+function scheduledAuth(event: RequestEvent, allowLoopbackWithoutKey = false) {
   return requireControlAuth(event, {
     surface: 'Scheduled',
     apiKeyEnvVar: 'EVENTS_API_KEY',
     fallbackApiKeyEnvVar: 'MCP_API_KEY',
     apiKeyQueryParam: 'apiKey',
     apiKeyCookieName: 'spawner_events_api_key',
-    allowLoopbackWithoutKey: false,
+    allowLoopbackWithoutKey,
     allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
   });
 }
 
+function scheduledReadAuth(event: RequestEvent) {
+  const openRead = scheduledAuth(event, true);
+  if (openRead) return { openRead, hasControlAuth: false };
+  const strictRead = scheduledAuth(event, false);
+  return { openRead: null, hasControlAuth: strictRead === null };
+}
+
+function sanitizeScheduleForLoopback(schedule: ScheduleRecord): ScheduleRecord {
+  return {
+    ...schedule,
+    payload: {},
+    chatId: null,
+    authority: schedule.authority
+      ? {
+          source: schedule.authority.source,
+          reasonCodes: schedule.authority.reasonCodes
+        }
+      : undefined
+  };
+}
+
 export const GET: RequestHandler = async (event) => {
-  const unauthorized = scheduledAuth(event);
-  if (unauthorized) return unauthorized;
+  const { openRead, hasControlAuth } = scheduledReadAuth(event);
+  if (openRead) return openRead;
   const schedules = await listSchedules();
-  return json({ ok: true, schedules });
+  return json({ ok: true, schedules: hasControlAuth ? schedules : schedules.map(sanitizeScheduleForLoopback) });
 };
 
 export const POST: RequestHandler = async (event) => {

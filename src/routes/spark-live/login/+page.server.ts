@@ -7,18 +7,26 @@ import {
 	hostedUiAuthClientKey,
 	hostedUiAuthRateLimitStatus,
 	persistHostedUiAuth,
-	recordHostedUiAuthFailure
+	recordHostedUiAuthFailure,
+	hostedUiWorkspaceId,
+	hostedUiIsLocalOperatorLoopbackRequest
 } from '$lib/server/hosted-ui-auth';
 
 function safeNext(value: FormDataEntryValue | string | null): string {
-	const raw = String(value || '/').trim();
-	if (!raw.startsWith('/') || raw.startsWith('//')) return '/';
+	const raw = String(value || '/kanban').trim();
+	if (!raw.startsWith('/') || raw.startsWith('//')) return '/kanban';
 	return raw;
 }
 
-export const load: PageServerLoad = ({ url }) => {
+export const load: PageServerLoad = ({ request, url }) => {
+	const next = safeNext(url.searchParams.get('next'));
+	if (hostedUiIsLocalOperatorLoopbackRequest(request, url)) {
+		throw redirect(303, next);
+	}
+
 	return {
-		next: safeNext(url.searchParams.get('next'))
+		next,
+		workspaceRequired: Boolean(hostedUiWorkspaceId(env))
 	};
 };
 
@@ -32,7 +40,7 @@ export const actions: Actions = {
 
 		if (hostedUiCredentialsAreValid(workspaceId, token, env)) {
 			clearHostedUiAuthFailures(clientKey);
-			persistHostedUiAuth(cookies, env);
+			persistHostedUiAuth(cookies, env, workspaceId);
 			throw redirect(303, next);
 		}
 

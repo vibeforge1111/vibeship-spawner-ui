@@ -24,14 +24,15 @@ const EXEMPT_EXACT_PATHS = new Set(['/robots.txt', '/spark-live/login', '/api/he
 const EXEMPT_PATH_PREFIXES = ['/_app/', '/favicon'];
 const RELEASE_LOCK_PUBLIC_EXACT_PATHS = new Set(['/', '/api/health/live']);
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-const COOKIE_OPTIONS = {
+const LOOPBACK_BROWSER_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0', '::1', '[::1]']);
+const BASE_COOKIE_OPTIONS = {
 	httpOnly: true,
 	sameSite: 'strict' as const,
-	secure: true,
 	path: '/',
 	maxAge: 60 * 60 * 12
 };
 const SESSION_COOKIE_NAME = 'spawner_ui_session';
+const LOCAL_SESSION_WORKSPACE_ID = 'local-spawner-ui';
 const LEGACY_AUTH_COOKIE_NAMES = [
 	'spawner_ui_api_key',
 	'spawner_workspace_id',
@@ -67,6 +68,20 @@ function hashSessionId(sessionId: string): string {
 
 function hashPairingCode(pairingCode: string): string {
 	return createHash('sha256').update(pairingCode).digest('hex');
+}
+
+function loopbackValue(value: string | null | undefined): boolean {
+	const normalized = value?.trim().toLowerCase();
+	if (!normalized) return false;
+	if (LOOPBACK_BROWSER_HOSTS.has(normalized)) return true;
+	if (normalized.startsWith('::ffff:')) {
+		return LOOPBACK_BROWSER_HOSTS.has(normalized.slice('::ffff:'.length));
+	}
+	return false;
+}
+
+export function hostedUiHostIsLoopback(value: string | null | undefined): boolean {
+	return loopbackValue(value);
 }
 
 function pruneExpiredHostedUiSessions(now = Date.now()): void {
@@ -178,9 +193,27 @@ export function hostedUiCrossSiteMutationRejection(request: Request, url: URL): 
 	return null;
 }
 
+export function hostedUiIsLocalOperatorLoopbackRequest(
+	request: Request,
+	url: URL,
+	clientAddress?: string
+): boolean {
+	return loopbackValue(url.hostname) && (clientAddress === undefined || loopbackValue(clientAddress));
+}
+
 export function hostedUiWorkspaceId(env: HostedUiAuthEnv): string | null {
 	const value = env.SPARK_WORKSPACE_ID?.trim();
 	return value || null;
+}
+
+export function hostedUiShouldBypassLocalOperatorAuth(
+	request: Request,
+	url: URL,
+	env: HostedUiAuthEnv,
+	clientAddress?: string
+): boolean {
+	if (!hostedUiAuthEnabled(env)) return false;
+	return hostedUiIsLocalOperatorLoopbackRequest(request, url, clientAddress);
 }
 
 export function hostedUiAuthClientKey(request: Request): string {
@@ -326,9 +359,15 @@ export function hostedUiSessionIsValid(cookies: Cookies, env: HostedUiAuthEnv, n
 	return session.expiresAt > now && session.absoluteExpiresAt > now;
 }
 
-export function persistHostedUiAuth(cookies: Cookies, env: HostedUiAuthEnv): void {
-	const workspaceId = hostedUiWorkspaceId(env);
-	if (!workspaceId) return;
+export function hostedUiCookieOptions(env: HostedUiAuthEnv): typeof BASE_COOKIE_OPTIONS & { secure: boolean } {
+	return {
+		...BASE_COOKIE_OPTIONS,
+		secure: hostedUiLooksHosted(env)
+	};
+}
+
+export function persistHostedUiAuth(cookies: Cookies, env: HostedUiAuthEnv, workspaceIdOverride?: string | null): void {
+	const workspaceId = hostedUiWorkspaceId(env) || workspaceIdOverride?.trim() || LOCAL_SESSION_WORKSPACE_ID;
 
 	const now = Date.now();
 	pruneExpiredHostedUiSessions(now);
@@ -340,7 +379,7 @@ export function persistHostedUiAuth(cookies: Cookies, env: HostedUiAuthEnv): voi
 		expiresAt: now + SESSION_IDLE_TIMEOUT_MS,
 		absoluteExpiresAt: now + SESSION_ABSOLUTE_TIMEOUT_MS
 	});
-	cookies.set(SESSION_COOKIE_NAME, sessionId, COOKIE_OPTIONS);
+	cookies.set(SESSION_COOKIE_NAME, sessionId, hostedUiCookieOptions(env));
 	for (const cookieName of LEGACY_AUTH_COOKIE_NAMES) {
 		cookies.delete(cookieName, { path: '/' });
 	}

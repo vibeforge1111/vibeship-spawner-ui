@@ -59,6 +59,22 @@ function isConfiguredApiKey(value: string | undefined): value is string {
 	return Boolean(value && value.trim() && !value.startsWith('your_'));
 }
 
+function stringValue(value: unknown): string | null {
+	return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function relayAuthorityRequestId(relay: unknown): { requestId: string | null; error?: string } {
+	if (!relay || typeof relay !== 'object' || Array.isArray(relay)) return { requestId: null };
+	const requestId = stringValue((relay as Record<string, unknown>).requestId);
+	if (!requestId) {
+		return {
+			requestId: null,
+			error: 'Dispatch relay requestId is required for Harness authority binding.'
+		};
+	}
+	return { requestId };
+}
+
 export const POST: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
 		surface: 'Dispatch',
@@ -89,12 +105,20 @@ export const POST: RequestHandler = async (event) => {
 				{ status: 400 }
 			);
 		}
+		const dispatchBinding = relayAuthorityRequestId(relay);
+		if (dispatchBinding.error) {
+			return json(
+				{ success: false, error: dispatchBinding.error, code: 'dispatch_authority_unbound' },
+				{ status: 409 }
+			);
+		}
 		const executionAuthority = resolveExecutionAuthority(body.executionAuthority);
 		const authority = assertNativeGovernorHarnessAuthority({
 			authority: executionAuthority,
 			toolName: 'spawner.dispatch',
 			ownerSystem: 'spawner-ui',
-			mutationClass: 'launches_mission'
+			mutationClass: 'launches_mission',
+			requestId: dispatchBinding.requestId
 		});
 		const capability = assertCapability(createCapabilityEnvelope(event, {
 			actorId: typeof relay?.userId === 'string' ? relay.userId : undefined,
@@ -230,6 +254,7 @@ export const POST: RequestHandler = async (event) => {
 			apiKeys: mergedApiKeys,
 			workingDirectory,
 			executionAuthority,
+			authorityRequestId: dispatchBinding.requestId,
 			onEvent: (evt) => {
 				eventBridge.emit(evt);
 				relayBridgeEvent(evt as unknown as Record<string, unknown>);

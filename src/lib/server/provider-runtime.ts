@@ -47,6 +47,7 @@ export interface DispatchOptions {
 	apiKeys: Record<string, string>;
 	workingDirectory?: string;
 	executionAuthority?: unknown;
+	authorityRequestId?: string | null;
 	onEvent: (event: BridgeEvent) => void;
 }
 
@@ -63,6 +64,7 @@ interface MissionDispatchSnapshot {
 	apiKeys: Record<string, string>;
 	workingDirectory?: string;
 	executionAuthority?: unknown;
+	authorityRequestId?: string | null;
 }
 
 export interface ProviderMissionResultSnapshot {
@@ -519,14 +521,16 @@ class ProviderRuntimeManager {
 			authority: executionAuthority,
 			toolName: 'spawner.dispatch',
 			ownerSystem: 'spawner-ui',
-			mutationClass: 'launches_mission'
+			mutationClass: 'launches_mission',
+			requestId: options.authorityRequestId
 		});
 
 		this.dispatchSnapshots.set(missionId, {
 			executionPack,
 			apiKeys: { ...apiKeys },
 			workingDirectory,
-			executionAuthority
+			executionAuthority,
+			authorityRequestId: options.authorityRequestId ?? null
 		});
 		this.missionEventHandlers.set(missionId, onEvent);
 		this.pausedMissions.delete(missionId);
@@ -820,7 +824,7 @@ class ProviderRuntimeManager {
 						taskName,
 						progress: nextProgress,
 						kind: 'provider_heartbeat',
-						suppressRelay: true,
+						suppressExternalRelay: true,
 						provider: provider.id,
 						providerLabel: provider.label,
 						assignedTaskIds: taskIds,
@@ -1170,6 +1174,7 @@ class ProviderRuntimeManager {
 			apiKeys: { ...snapshot.apiKeys },
 			workingDirectory: snapshot.workingDirectory,
 			executionAuthority: freshDispatchAuthority,
+			authorityRequestId: snapshot.authorityRequestId,
 			onEvent
 		});
 		this.pausedMissions.delete(missionId);

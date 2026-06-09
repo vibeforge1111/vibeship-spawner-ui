@@ -19,18 +19,22 @@
 		<form method="POST" class="space-y-4 rounded-lg border border-surface-border bg-surface-primary p-5 shadow-xl shadow-black/20">
 			<input type="hidden" name="next" value={form?.next || data.next || '/'} />
 
-			<label class="block">
-				<span class="text-sm font-medium text-text-bright">Workspace ID</span>
-				<input
-					class="mt-2 w-full rounded-md border border-surface-border bg-bg-secondary px-3 py-3 font-mono text-sm text-text-primary outline-none transition focus:border-accent-primary focus:ring-2 focus:ring-accent-primary/30"
-					name="workspaceId"
-					type="text"
-					autocomplete="username"
-					placeholder="your-private-workspace"
-					value={form?.workspaceId || ''}
-					required
-				/>
-			</label>
+			{#if data.workspaceRequired}
+				<label class="block">
+					<span class="text-sm font-medium text-text-bright">Workspace ID</span>
+					<input
+						class="mt-2 w-full rounded-md border border-surface-border bg-bg-secondary px-3 py-3 font-mono text-sm text-text-primary outline-none transition focus:border-accent-primary focus:ring-2 focus:ring-accent-primary/30"
+						name="workspaceId"
+						type="text"
+						autocomplete="username"
+						placeholder="your-private-workspace"
+						value={form?.workspaceId || ''}
+						required
+					/>
+				</label>
+			{:else}
+				<input type="hidden" name="workspaceId" value={form?.workspaceId || ''} />
+			{/if}
 
 			<label class="block">
 				<span class="text-sm font-medium text-text-bright">Access key</span>

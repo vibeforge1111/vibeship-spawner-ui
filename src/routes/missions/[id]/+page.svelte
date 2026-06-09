@@ -15,13 +15,20 @@
 	} from '$lib/stores/missions.svelte';
 	import { mcpState } from '$lib/stores/mcp.svelte';
 	import type { Mission, MissionLog, MissionTask, MissionAgent } from '$lib/services/mcp-client';
-	import type { MissionControlCompletionEvidence } from '$lib/types/mission-control';
+	import type {
+		MissionControlBoardEntry,
+		MissionControlCompletionEvidence,
+		MissionControlProjectLineage,
+		MissionControlProviderResultSummary
+	} from '$lib/types/mission-control';
 	import {
 		completionEvidenceTooltipForDisplay,
 		summarizeCompletionEvidenceForDisplay
 	} from '$lib/services/completion-evidence-display';
 	import {
 		buildSparkMissionDetail,
+		buildSparkMissionDetailFromBoardEntry,
+		type MissionDetailBoardEntry,
 		type MissionControlEntry
 	} from '$lib/services/mission-detail-view-model';
 	import { canShowMissionBoardProjectActions } from '$lib/services/mission-board-cards';
@@ -45,22 +52,9 @@
 		stats: { totalRelayed: number; perMission: Record<string, number> };
 		recent: MissionControlEntry[];
 		providerSummary?: string | null;
-		providerResults?: Array<{
-			providerId: string;
-			status: string;
-			summary: string;
-			durationMs: number | null;
-			completedAt: string | null;
-		}>;
+		providerResults?: MissionControlProviderResultSummary[];
 		completionEvidence?: MissionControlCompletionEvidence | null;
-		projectLineage?: {
-			projectId: string | null;
-			projectPath: string | null;
-			previewUrl: string | null;
-			parentMissionId: string | null;
-			iterationNumber: number | null;
-			improvementFeedback: string | null;
-		} | null;
+		projectLineage?: MissionControlProjectLineage | null;
 	};
 
 	type MissionTraceSnapshot = {
@@ -78,12 +72,17 @@
 		};
 		surfaces: {
 			kanban: {
-				entry: {
-					taskCount: number;
-					tasks: Array<{ title: string; status?: string; skills: string[] }>;
-				} | null;
+				entry:
+					| (MissionDetailBoardEntry &
+							Pick<
+								MissionControlBoardEntry,
+								'taskCount' | 'taskStatusCounts' | 'taskName' | 'lastEventType'
+							>)
+					| null;
 			};
 		};
+		completionEvidence?: MissionControlCompletionEvidence | null;
+		projectLineage?: MissionControlProjectLineage | null;
 	};
 
 	let missionControlLoading = $state(false);
@@ -240,10 +239,26 @@
 
 	const completedTasks = $derived(() => mission?.tasks.filter(t => t.status === 'completed').length ?? 0);
 	const progress = $derived(() => mission && mission.tasks.length > 0 ? (completedTasks() / mission.tasks.length) * 100 : 0);
+	const traceBoardEntry = $derived(missionTrace?.surfaces.kanban.entry ?? null);
 	const sparkMissionDetail = $derived(
-		missionControl ? buildSparkMissionDetail(missionId, missionControl.recent) : null
+		(missionControl ? buildSparkMissionDetail(missionId, missionControl.recent) : null) ??
+			buildSparkMissionDetailFromBoardEntry(missionId, traceBoardEntry)
 	);
-	const sparkProjectLineage = $derived(missionControl?.projectLineage ?? sparkMissionDetail?.projectLineage ?? null);
+	const sparkProjectLineage = $derived(
+		missionControl?.projectLineage ??
+			missionTrace?.projectLineage ??
+			sparkMissionDetail?.projectLineage ??
+			null
+	);
+	const sparkCompletionEvidence = $derived(
+		missionControl?.completionEvidence ?? missionTrace?.completionEvidence ?? null
+	);
+	const sparkProviderResults = $derived(missionControl?.providerResults ?? []);
+	const sparkActivityTraceLabel = $derived(
+		missionControl
+			? `sparkIngest: ${missionControl.enabled.sparkIngest ? 'on' : 'off'} / webhooks: ${missionControl.targets.webhookCount}`
+			: 'Mission Control board fallback'
+	);
 	const canShowSparkProjectActions = $derived(
 		canShowMissionBoardProjectActions({
 			status: sparkMissionDetail?.sparkStatus,
@@ -395,7 +410,7 @@
 			&larr; Back to Mission board
 		</a>
 
-		{#if missionControl && sparkMissionDetail && (!mcpConnected || (!currentState.loading && !mission))}
+		{#if sparkMissionDetail && (!mcpConnected || (!currentState.loading && !mission))}
 
 			<!-- Spark mission detail: MCP has no record but relay tracked the lifecycle -->
 			<section class="mb-6 rounded-md border border-surface-border bg-bg-secondary px-5 py-5">
@@ -525,15 +540,15 @@
 						{/if}
 					</div>
 				{/if}
-				{#if evidenceLabel(missionControl.completionEvidence)}
-					<div class="mb-3 rounded-lg border px-4 py-3 text-sm {evidenceClass(missionControl.completionEvidence)}" title={evidenceTitle(missionControl.completionEvidence)}>
+				{#if evidenceLabel(sparkCompletionEvidence)}
+					<div class="mb-3 rounded-lg border px-4 py-3 text-sm {evidenceClass(sparkCompletionEvidence)}" title={evidenceTitle(sparkCompletionEvidence)}>
 						<span class="font-mono uppercase tracking-[0.12em] text-[10px]">Evidence</span>
-						<span class="ml-2 font-sans">{evidenceLabel(missionControl.completionEvidence)}</span>
+						<span class="ml-2 font-sans">{evidenceLabel(sparkCompletionEvidence)}</span>
 					</div>
 				{/if}
-				{#if missionControl.providerResults && missionControl.providerResults.length > 0}
+				{#if sparkProviderResults.length > 0}
 					<div class="grid gap-3">
-						{#each missionControl.providerResults as result (result.providerId)}
+						{#each sparkProviderResults as result (result.providerId)}
 							<article class="px-4 py-3.5 rounded-lg border border-surface-border bg-bg-secondary">
 								<div class="flex items-center gap-2 mb-2">
 									<span class="w-1.5 h-1.5 rounded-full shrink-0 {result.status === 'failed' ? 'bg-status-error' : result.status === 'completed' ? 'bg-status-success' : 'bg-accent-primary animate-pulse'}"></span>
@@ -611,7 +626,7 @@
 					<summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-3 marker:hidden">
 						<span class="font-mono text-xs font-semibold tracking-wide text-text-bright">Activity trace</span>
 						<span class="font-mono text-[10px] text-text-tertiary">
-							sparkIngest: {missionControl.enabled.sparkIngest ? 'on' : 'off'} · webhooks: {missionControl.targets.webhookCount}
+							{sparkActivityTraceLabel}
 						</span>
 					</summary>
 					<ol class="divide-y divide-surface-border/50 border-t border-surface-border">
