@@ -6,15 +6,19 @@ import { enrichMissionControlBoardWithProviderResults } from '$lib/server/missio
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { recoverOverduePrdAutoAnalysisFromPending } from '$lib/server/prd-auto-analysis-timeout';
 
+const MISSION_CONTROL_BOARD_AUTH = {
+	surface: 'MissionControlBoard',
+	apiKeyEnvVar: 'EVENTS_API_KEY',
+	fallbackApiKeyEnvVar: 'MCP_API_KEY',
+	apiKeyQueryParam: 'apiKey',
+	apiKeyCookieName: 'spawner_events_api_key',
+	allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+} as const;
+
 export const GET: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
-		surface: 'MissionControlBoard',
-		apiKeyEnvVar: 'EVENTS_API_KEY',
-		fallbackApiKeyEnvVar: 'MCP_API_KEY',
-		apiKeyQueryParam: 'apiKey',
-		apiKeyCookieName: 'spawner_events_api_key',
+		...MISSION_CONTROL_BOARD_AUTH,
 		allowLoopbackWithoutKey: true,
-		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
 	});
 	if (unauthorized) return unauthorized;
 
@@ -25,7 +29,13 @@ export const GET: RequestHandler = async (event) => {
 	});
 	if (rateLimited) return rateLimited;
 
-	await recoverOverduePrdAutoAnalysisFromPending({ recoverySource: 'mission_control_board' });
+	const canRecover = requireControlAuth(event, {
+		...MISSION_CONTROL_BOARD_AUTH,
+		allowLoopbackWithoutKey: false
+	}) === null;
+	if (canRecover) {
+		await recoverOverduePrdAutoAnalysisFromPending({ recoverySource: 'mission_control_board' });
+	}
 
 	return json({
 		ok: true,
