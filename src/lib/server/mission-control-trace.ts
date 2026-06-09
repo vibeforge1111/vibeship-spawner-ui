@@ -188,6 +188,7 @@ function phaseFor(input: {
 	if (input.boardBucket === 'cancelled') return 'cancelled';
 	if (input.boardBucket === 'paused' || input.dispatchStatus?.paused) return 'paused';
 	if (input.boardBucket === 'completed' || input.dispatchStatus?.allComplete) return 'completed';
+	if (isDirectAutoBuildComplete(input.pendingRequest, input.analysisResult)) return 'completed';
 	if (input.boardBucket === 'running' || Object.values(input.dispatchStatus?.providers || {}).includes('running')) {
 		return 'executing';
 	}
@@ -217,6 +218,39 @@ function summaryFor(phase: MissionControlTracePhase, entry: MissionControlBoardE
 		default:
 			return 'No trace data found for this mission yet.';
 	}
+}
+
+function isDirectAutoBuildComplete(
+	pendingRequest: Record<string, unknown> | null,
+	analysisResult: Record<string, unknown> | null
+): boolean {
+	if (!pendingRequest || !analysisResult) return false;
+	const buildMode = typeof pendingRequest.buildMode === 'string' ? pendingRequest.buildMode : '';
+	const buildLane = typeof pendingRequest.buildLane === 'string' ? pendingRequest.buildLane : '';
+	const status = typeof pendingRequest.status === 'string' ? pendingRequest.status : '';
+	const auto =
+		pendingRequest.autoAnalysis && typeof pendingRequest.autoAnalysis === 'object'
+			? (pendingRequest.autoAnalysis as Record<string, unknown>)
+			: null;
+	const autoStatus = auto && typeof auto.status === 'string' ? auto.status : '';
+	const autoSuccess = auto ? auto.success === true : false;
+	const isDirect = buildMode === 'direct' || buildLane === 'fast_direct';
+	return isDirect && status === 'processed' && autoStatus === 'complete' && autoSuccess;
+}
+
+function buildDirectProviderSummary(
+	pendingRequest: Record<string, unknown> | null,
+	analysisResult: Record<string, unknown> | null
+): string {
+	const name =
+		(analysisResult && typeof analysisResult.projectName === 'string' && analysisResult.projectName.trim()) ||
+		(pendingRequest && typeof pendingRequest.projectName === 'string' && pendingRequest.projectName.trim()) ||
+		'your build';
+	const detail =
+		analysisResult && typeof analysisResult.summary === 'string' && analysisResult.summary.trim()
+			? ` ${analysisResult.summary.trim()}`
+			: '';
+	return `Spark finished ${name} (direct build).${detail}`.trim();
 }
 
 function stringList(value: unknown): string[] {
@@ -346,6 +380,9 @@ export async function buildMissionControlTrace(input: {
 		lastCanvasLoad
 	});
 	const skillPairing = buildSkillPairing({ entry, analysisResult, lastCanvasLoad });
+	const directProviderSummary = isDirectAutoBuildComplete(pendingRequest, analysisResult)
+		? buildDirectProviderSummary(pendingRequest, analysisResult)
+		: null;
 
 	return {
 		ok: true,
@@ -391,7 +428,7 @@ export async function buildMissionControlTrace(input: {
 		},
 		timeline: traceSnapshot.recent,
 		providerResults: entry?.providerResults ?? [],
-		providerSummary: entry?.providerSummary ?? null,
+		providerSummary: entry?.providerSummary ?? directProviderSummary,
 		completionEvidence: entry?.completionEvidence ?? null,
 		projectLineage: entry?.projectLineage ?? null,
 		skillPairing,

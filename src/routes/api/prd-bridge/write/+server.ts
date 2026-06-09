@@ -40,6 +40,8 @@ import {
 	assertNativeGovernorHarnessAuthority,
 	resolveExecutionAuthority
 } from '$lib/server/harness-authority';
+import { recoverOverduePrdAutoAnalysisFromPending } from '$lib/server/prd-auto-analysis-timeout';
+import { resolveSparkRunProjectPath } from '$lib/server/spark-run-workspace';
 
 function getPrdBridgePaths() {
 	const spawnerDir = spawnerStateDir();
@@ -74,6 +76,10 @@ function missionIdFromRequestId(requestId: string): string {
 	const normalized = normalizeRequestId(requestId);
 	const stamp = normalized.match(/(\d{10,})$/)?.[1];
 	return `mission-${stamp || normalized}`;
+}
+
+export function _prdAutoAnalysisWorkingDirectory(requestId: string): string {
+	return resolveSparkRunProjectPath(join('prd-auto-analysis', normalizeRequestId(requestId)));
 }
 
 async function appendPrdTrace(requestId: string, event: string, details: Record<string, unknown> = {}): Promise<void> {
@@ -1117,6 +1123,19 @@ export async function _runAutoAnalysisWatchdog(input: {
 	const hasResult = existsSync(resultFile);
 	const provisionalDraftAvailable = existsSync(provisionalResultFile);
 	if (hasResult) {
+		await updatePendingRequestStatus(requestId, 'processed', {
+			reason: 'Canonical provider result is available.',
+			autoAnalysis: {
+				status: 'complete',
+				finishedAt: new Date().toISOString(),
+				success: true,
+				canonicalResultAvailable: true,
+				resultFileName: `${normalizeRequestId(requestId)}.json`,
+				expectedResultFile: resultFile,
+				provisionalResultFile,
+				provisionalDraftAvailable
+			}
+		});
 		await appendPrdTrace(requestId, 'watchdog_result_found', {
 			...traceRefDetails(traceRef)
 		});
@@ -1549,7 +1568,14 @@ async function buildCodexPrompt(
 		'   requestId, traceRef, success, projectName, projectType, complexity, infrastructure, techStack, tasks, skills, executionPrompt.',
 		'4) Include actionable tasks with skills, dependencies, and verification criteria. For advanced_prd, make these TAS-style tasks with acceptance criteria.',
 		'5) Validate every skill ID before emitting — if it is not in the allowlist above, replace it with the closest valid ID or omit the task.',
-		'6) POST result event to Spawner API via PowerShell Invoke-RestMethod using this shape:',
+		'6) POST result event to Spawner API via PowerShell Invoke-RestMethod. Build headers from the local environment without printing secrets:',
+		'   $SparkEventsApiKey = $env:EVENTS_API_KEY',
+		'   if (-not $SparkEventsApiKey) { $SparkEventsApiKey = $env:MCP_API_KEY }',
+		'   $SparkEventsHeaders = @{ "Content-Type" = "application/json" }',
+		'   if ($SparkEventsApiKey) { $SparkEventsHeaders["x-api-key"] = $SparkEventsApiKey }',
+		'   Use -Headers $SparkEventsHeaders on the Invoke-RestMethod call.',
+		'   Do not print, log, write, or include $SparkEventsApiKey in the result JSON.',
+		'   POST body shape:',
 		`   {"type":"prd_analysis_complete","data":{"requestId":"${requestId}","result":<analysis>},"source":"codex-auto"}`,
 		`   URL: ${AUTO_ANALYSIS_ENDPOINT}`,
 		'7) If any failure happens, POST {"type":"prd_analysis_error", ...} with the same requestId.',
@@ -1654,12 +1680,13 @@ async function startAutoAnalysis(
 			parts.missionSizeBlock
 		);
 		const missionId = `prd-auto-${normalizeRequestId(requestId)}`;
+		const workingDirectory = _prdAutoAnalysisWorkingDirectory(requestId);
 
 		await appendPrdTrace(requestId, 'auto_worker_dispatch', {
 			...traceRefDetails(traceRef),
 			provider: 'codex',
 			missionId,
-			workingDirectory: process.cwd(),
+			workingDirectory,
 			stateDirectory: paths.spawnerDir
 		});
 		const startedAt = new Date().toISOString();
@@ -1710,33 +1737,91 @@ async function startAutoAnalysis(
 					requestId,
 					traceRef: traceRef || undefined,
 					commandTemplate,
-					workingDirectory: process.cwd(),
+					workingDirectory,
 					signal: controller.signal
 				})
-			.then((result) => {
+			.then(async (result) => {
 				const artifact = _buildPrdResultArtifactVerification(requestId, paths);
+				const effectiveSuccess = result.success === true && artifact.present;
+				const failureReason = effectiveSuccess
+					? null
+					: result.error ||
+						(artifact.present
+							? 'Auto-analysis worker did not report success.'
+							: 'Auto-analysis worker finished without a canonical result artifact.');
 				const watchdogCancelled = result.error === 'Cancelled' && !artifact.present;
 				if (!watchdogCancelled) {
-					void updatePendingRequestStatus(requestId, result.success && artifact.present ? 'pending' : 'error', {
-						reason: result.success && artifact.present
-							? 'Canonical provider result is available.'
-							: result.error || 'Auto-analysis worker finished without a canonical result artifact.',
+					await updatePendingRequestStatus(requestId, effectiveSuccess ? 'processed' : 'error', {
+						reason: effectiveSuccess ? 'Canonical provider result is available.' : failureReason,
 						autoAnalysis: {
-							status: result.success && artifact.present ? 'complete' : 'error',
+							status: effectiveSuccess ? 'complete' : 'error',
 							finishedAt: new Date().toISOString(),
-							success: result.success,
-							error: result.error || null,
+							success: effectiveSuccess,
+							providerProcessSuccess: result.success,
+							error: failureReason,
 							durationMs: result.durationMs || null,
 							sessionId: result.sparkAgentSessionId,
 							canonicalResultAvailable: artifact.present,
 							resultFileName: artifact.fileName
 						}
 					});
+					if (!effectiveSuccess) {
+						const failureData = {
+							requestId,
+							...traceRefDetails(traceRef),
+							buildMode,
+							buildLane,
+							provider: 'codex',
+							providerProcessSuccess: result.success,
+							providerError: result.error || null,
+							canonicalResultAvailable: artifact.present,
+							resultFileName: artifact.fileName,
+							autoAnalysisStatus: 'error'
+						};
+						await relayMissionControlEvent({
+							type: 'task_failed',
+							missionId: missionIdFromRequestId(requestId),
+							missionName: projectName,
+							taskName: 'PRD analysis',
+							message: failureReason || 'Canonical PRD analysis failed.',
+							source: 'prd-bridge',
+							data: failureData
+						});
+						await relayMissionControlEvent({
+							type: 'mission_failed',
+							missionId: missionIdFromRequestId(requestId),
+							missionName: projectName,
+							message: 'Spawner could not produce a canonical PRD analysis result.',
+							source: 'prd-bridge',
+							data: failureData
+						});
+					} else {
+						await relayMissionControlEvent({
+							type: 'mission_completed',
+							missionId: missionIdFromRequestId(requestId),
+							missionName: projectName,
+							message: `Spark finished ${projectName}.`,
+							source: 'prd-bridge',
+							data: {
+								requestId,
+								...traceRefDetails(traceRef),
+								buildMode,
+								buildLane,
+								provider: 'codex',
+								providerProcessSuccess: result.success,
+								canonicalResultAvailable: artifact.present,
+								resultFileName: artifact.fileName,
+								autoAnalysisStatus: 'complete'
+							}
+						});
+					}
 				}
-				void appendPrdTrace(requestId, 'auto_worker_finished', {
+				await appendPrdTrace(requestId, 'auto_worker_finished', {
 					...traceRefDetails(traceRef),
-					success: result.success,
-					error: result.error || null,
+					success: effectiveSuccess,
+					providerProcessSuccess: result.success,
+					error: failureReason,
+					providerError: result.error || null,
 					durationMs: result.durationMs || null,
 					sessionId: result.sparkAgentSessionId,
 					resultArtifact: artifact
@@ -1792,6 +1877,8 @@ export const POST: RequestHandler = async (event) => {
 			windowMs: 60_000
 		});
 		if (rateLimited) return rateLimited;
+
+		await recoverOverduePrdAutoAnalysisFromPending({ recoverySource: 'prd_bridge_write' });
 
 		const body = await event.request.json().catch(() => null);
 		if (!body || typeof body !== 'object' || Array.isArray(body)) {
