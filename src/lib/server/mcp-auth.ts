@@ -113,9 +113,12 @@ function parseCsv(value: string | undefined): string[] {
 
 function controlEnvValue(name: string | undefined): string {
 	if (!name) return '';
+	if (Object.prototype.hasOwnProperty.call(process.env, name)) {
+		return (process.env[name] || '').trim();
+	}
 	const dynamicValue = (env[name as keyof typeof env] as string | undefined)?.trim();
 	if (dynamicValue) return dynamicValue;
-	return (process.env[name] || '').trim();
+	return '';
 }
 
 function isOriginAllowed(event: RequestEvent, allowedOriginsEnvVar?: string): boolean {

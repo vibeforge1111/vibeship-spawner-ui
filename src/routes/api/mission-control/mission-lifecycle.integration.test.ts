@@ -12,6 +12,7 @@ import { buildClientGovernorDecisionAuthority } from '$lib/services/harness-auth
 
 const TEST_API_KEY = 'mission-control-lifecycle-test-secret';
 const originalMcpApiKey = process.env.MCP_API_KEY;
+const originalBridgeApiKey = process.env.SPARK_BRIDGE_API_KEY;
 
 function restoreEnv(name: string, value: string | undefined) {
 	if (value === undefined) delete process.env[name];
@@ -154,6 +155,7 @@ async function getTracePayload(requestId: string) {
 describe('Mission Control lifecycle integration', () => {
 	beforeEach(() => {
 		process.env.MCP_API_KEY = TEST_API_KEY;
+		process.env.SPARK_BRIDGE_API_KEY = TEST_API_KEY;
 		vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
 	});
 
@@ -161,6 +163,7 @@ describe('Mission Control lifecycle integration', () => {
 		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
 		restoreEnv('MCP_API_KEY', originalMcpApiKey);
+		restoreEnv('SPARK_BRIDGE_API_KEY', originalBridgeApiKey);
 		delete process.env.SPAWNER_STATE_DIR;
 	});
 

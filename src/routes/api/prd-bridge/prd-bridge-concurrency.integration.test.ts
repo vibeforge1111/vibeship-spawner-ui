@@ -21,6 +21,7 @@ import { buildClientGovernorDecisionAuthority } from '$lib/services/harness-auth
 
 const TEST_API_KEY = 'prd-bridge-concurrency-test-secret';
 const originalMcpApiKey = process.env.MCP_API_KEY;
+const originalBridgeApiKey = process.env.SPARK_BRIDGE_API_KEY;
 const originalAutoProvider = process.env.SPAWNER_PRD_AUTO_PROVIDER;
 const originalStateDir = process.env.SPAWNER_STATE_DIR;
 
@@ -83,6 +84,7 @@ describe('/api/prd-bridge two-request concurrency', () => {
 		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-prd-concurrency-'));
 		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
 		process.env.MCP_API_KEY = TEST_API_KEY;
+		process.env.SPARK_BRIDGE_API_KEY = TEST_API_KEY;
 		// Keep the flow deterministic: no auto-analysis worker, results arrive
 		// only through the provider-result callback below.
 		process.env.SPAWNER_PRD_AUTO_PROVIDER = 'none';
@@ -92,6 +94,7 @@ describe('/api/prd-bridge two-request concurrency', () => {
 	afterEach(async () => {
 		vi.unstubAllGlobals();
 		restoreEnv('MCP_API_KEY', originalMcpApiKey);
+		restoreEnv('SPARK_BRIDGE_API_KEY', originalBridgeApiKey);
 		restoreEnv('SPAWNER_PRD_AUTO_PROVIDER', originalAutoProvider);
 		restoreEnv('SPAWNER_STATE_DIR', originalStateDir);
 		if (testSpawnerDir && existsSync(testSpawnerDir)) {

@@ -23,6 +23,7 @@ import { buildClientGovernorDecisionAuthority } from '$lib/services/harness-auth
 
 const originalSpawnerStateDir = process.env.SPAWNER_STATE_DIR;
 const originalMcpApiKey = process.env.MCP_API_KEY;
+const originalBridgeApiKey = process.env.SPARK_BRIDGE_API_KEY;
 const TEST_API_KEY = 'spark-run-route-test-secret';
 let testSpawnerStateDir: string | null = null;
 
@@ -232,6 +233,7 @@ describe('/api/spark/run integration', () => {
 		testSpawnerStateDir = await mkdtemp(path.join(tmpdir(), 'spawner-spark-run-test-'));
 		process.env.SPAWNER_STATE_DIR = testSpawnerStateDir;
 		process.env.MCP_API_KEY = TEST_API_KEY;
+		process.env.SPARK_BRIDGE_API_KEY = TEST_API_KEY;
 		vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
 	});
 
@@ -246,6 +248,11 @@ describe('/api/spark/run integration', () => {
 			delete process.env.MCP_API_KEY;
 		} else {
 			process.env.MCP_API_KEY = originalMcpApiKey;
+		}
+		if (originalBridgeApiKey === undefined) {
+			delete process.env.SPARK_BRIDGE_API_KEY;
+		} else {
+			process.env.SPARK_BRIDGE_API_KEY = originalBridgeApiKey;
 		}
 		delete process.env.SPAWNER_MISSION_CONTROL_PUBLIC_URL;
 		if (testSpawnerStateDir) {

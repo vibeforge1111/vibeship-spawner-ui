@@ -102,6 +102,51 @@ function missionIdFromRequestId(requestId: string): string {
 	return `mission-${stamp || normalized}`;
 }
 
+async function relayCanonicalPrdAnalysisComplete(input: {
+	requestId: string;
+	projectName: string;
+	buildMode: 'direct' | 'advanced_prd';
+	buildLane?: string | null;
+	traceRef?: string | null;
+	provider: string;
+	providerProcessSuccess?: boolean | null;
+	resultFileName: string | null;
+	durationMs?: number | null;
+	sessionId?: string | null;
+}): Promise<void> {
+	const missionId = missionIdFromRequestId(input.requestId);
+	const completionData = {
+		requestId: input.requestId,
+		...traceRefDetails(input.traceRef),
+		buildMode: input.buildMode,
+		buildLane: input.buildLane,
+		provider: input.provider,
+		providerProcessSuccess: input.providerProcessSuccess ?? true,
+		canonicalResultAvailable: true,
+		resultFileName: input.resultFileName,
+		autoAnalysisStatus: 'complete',
+		durationMs: input.durationMs ?? null,
+		sessionId: input.sessionId ?? null
+	};
+	await relayMissionControlEvent({
+		type: 'task_completed',
+		missionId,
+		missionName: input.projectName,
+		taskName: 'PRD analysis',
+		message: 'Canonical PRD analysis result is available.',
+		source: 'prd-bridge',
+		data: completionData
+	});
+	await relayMissionControlEvent({
+		type: 'mission_completed',
+		missionId,
+		missionName: input.projectName,
+		message: 'Spawner produced a canonical PRD analysis result.',
+		source: 'prd-bridge',
+		data: completionData
+	});
+}
+
 export function _prdAutoAnalysisWorkingDirectory(requestId: string): string {
 	return resolveSparkRunProjectPath(join('prd-auto-analysis', normalizeRequestId(requestId)));
 }
@@ -1181,6 +1226,15 @@ export async function _runAutoAnalysisWatchdog(input: {
 				provisionalDraftAvailable
 			}
 		});
+		await relayCanonicalPrdAnalysisComplete({
+			requestId,
+			projectName,
+			buildMode,
+			buildLane,
+			traceRef,
+			provider: 'codex',
+			resultFileName: `${normalizeRequestId(requestId)}.json`
+		});
 		await appendPrdTrace(requestId, 'watchdog_result_found', {
 			...traceRefDetails(traceRef)
 		});
@@ -1839,6 +1893,20 @@ async function startAutoAnalysis(
 							message: 'Spawner could not produce a canonical PRD analysis result.',
 							source: 'prd-bridge',
 							data: failureData
+						});
+					}
+					if (effectiveSuccess) {
+						await relayCanonicalPrdAnalysisComplete({
+							requestId,
+							projectName,
+							buildMode,
+							buildLane,
+							traceRef,
+							provider: 'codex',
+							providerProcessSuccess: result.success,
+							resultFileName: artifact.fileName,
+							durationMs: result.durationMs || null,
+							sessionId: result.sparkAgentSessionId
 						});
 					}
 				}

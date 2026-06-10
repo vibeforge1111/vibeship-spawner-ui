@@ -6,6 +6,7 @@ import { POST as prdBridgeWritePost } from './prd-bridge/write/+server';
 
 const TEST_API_KEY = 'test-secret';
 let originalMcpApiKey: string | undefined;
+let originalBridgeApiKey: string | undefined;
 
 function loopbackEvent(path: string) {
 	return {
@@ -22,7 +23,9 @@ function loopbackEvent(path: string) {
 describe('API malformed JSON handling', () => {
 	beforeEach(() => {
 		originalMcpApiKey = process.env.MCP_API_KEY;
+		originalBridgeApiKey = process.env.SPARK_BRIDGE_API_KEY;
 		process.env.MCP_API_KEY = TEST_API_KEY;
+		process.env.SPARK_BRIDGE_API_KEY = TEST_API_KEY;
 	});
 
 	afterEach(() => {
@@ -30,6 +33,11 @@ describe('API malformed JSON handling', () => {
 			delete process.env.MCP_API_KEY;
 		} else {
 			process.env.MCP_API_KEY = originalMcpApiKey;
+		}
+		if (originalBridgeApiKey === undefined) {
+			delete process.env.SPARK_BRIDGE_API_KEY;
+		} else {
+			process.env.SPARK_BRIDGE_API_KEY = originalBridgeApiKey;
 		}
 	});
 

@@ -86,6 +86,24 @@ async function waitForPendingAutoAnalysisStatus(status: string) {
 	return JSON.parse(await readFile(pendingPath, 'utf-8'));
 }
 
+async function waitForMissionEventTypes(missionId: string, expected: string[]) {
+	const missionControlPath = path.join(testSpawnerDir, 'mission-control.json');
+	for (let attempt = 0; attempt < 30; attempt += 1) {
+		if (existsSync(missionControlPath)) {
+			const missionControl = JSON.parse(await readFile(missionControlPath, 'utf-8'));
+			const eventTypes = missionControl.recent
+				.filter((entry: { missionId?: string }) => entry.missionId === missionId)
+				.map((entry: { eventType: string }) => entry.eventType);
+			if (expected.every((eventType) => eventTypes.includes(eventType))) return eventTypes;
+		}
+		await new Promise((resolve) => setTimeout(resolve, 10));
+	}
+	const missionControl = JSON.parse(await readFile(missionControlPath, 'utf-8'));
+	return missionControl.recent
+		.filter((entry: { missionId?: string }) => entry.missionId === missionId)
+		.map((entry: { eventType: string }) => entry.eventType);
+}
+
 describe('/api/prd-bridge/write integration', () => {
 	beforeEach(async () => {
 		await resetTestSpawnerDir();
@@ -456,6 +474,71 @@ describe('/api/prd-bridge/write integration', () => {
 			traceRef
 		});
 		expect(traceRows.some((row) => row.event === 'watchdog_timeout')).toBe(false);
+
+		const missionEvents = await waitForMissionEventTypes('mission-1780930000000', [
+			'task_completed',
+			'mission_completed'
+		]);
+		expect(missionEvents).toContain('task_completed');
+		expect(missionEvents).toContain('mission_completed');
+	});
+
+	it('relays Codex auto-analysis completion when a canonical result artifact is written', async () => {
+		process.env.SPAWNER_PRD_AUTO_PROVIDER = 'codex';
+		const requestId = 'tg-build-codex-result-1780940000000';
+		const traceRef = 'trace:spawner-prd:mission-1780940000000';
+		executeProviderTaskMock.mockImplementation(async () => {
+			await writeFile(
+				path.join(testSpawnerDir, 'results', `${requestId}.json`),
+				JSON.stringify({ requestId, success: true, tasks: [{ id: 'task-1', title: 'Done' }] }),
+				'utf-8'
+			);
+			return {
+				success: true,
+				error: null,
+				durationMs: 42,
+				sparkAgentSessionId: 'session-success-artifact'
+			};
+		});
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/write', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'x-api-key': BRIDGE_TEST_KEY },
+				body: JSON.stringify({
+					content: '# Codex Result Board\n\nBuild a local board with README and tests.',
+					requestId,
+					projectName: 'Codex Result Board',
+					buildMode: 'direct',
+					buildLane: 'direct',
+					tier: 'pro',
+					traceRef,
+					executionAuthority: writeAuthority(requestId)
+				})
+			}),
+			getClientAddress: () => '127.0.0.1'
+		} as never);
+
+		const body = await response.json();
+		expect(response.status).toBe(200);
+		expect(body.autoAnalysis).toMatchObject({ provider: 'codex', started: true });
+
+		const pending = await waitForPendingAutoAnalysisStatus('complete');
+		expect(pending.status).toBe('processed');
+		expect(pending.autoAnalysis).toMatchObject({
+			status: 'complete',
+			success: true,
+			providerProcessSuccess: true,
+			canonicalResultAvailable: true,
+			resultFileName: `${requestId}.json`
+		});
+
+		const missionEvents = await waitForMissionEventTypes('mission-1780940000000', [
+			'task_completed',
+			'mission_completed'
+		]);
+		expect(missionEvents).toContain('task_completed');
+		expect(missionEvents).toContain('mission_completed');
 	});
 
 	it('marks Codex auto-analysis as failed when no canonical result artifact is written', async () => {
