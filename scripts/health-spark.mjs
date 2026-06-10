@@ -138,9 +138,7 @@ export function healthRequiresCodex(providers, env = process.env) {
   const codexProvider = providers.find((provider) => provider && provider.id === "codex");
   return Boolean(
     codexProvider &&
-      (codexProvider.configured === true ||
-        codexProvider.envKeyConfigured === true ||
-        codexProvider.cliConfigured === true),
+      codexProvider.cliConfigured === true,
   );
 }
 
