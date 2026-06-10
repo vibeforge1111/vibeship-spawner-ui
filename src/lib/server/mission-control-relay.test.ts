@@ -610,6 +610,54 @@ describe('mission-control-relay', () => {
 		expect(body.raw).toBeUndefined();
 	});
 
+	it('preserves canonical PRD completion metadata in external relay payloads', () => {
+		const payload = buildSparkMissionControlEvent({
+			id: 'evt-canonical-prd-complete',
+			type: 'mission_completed',
+			missionId: 'mission-canonical-prd-complete',
+			source: 'prd-bridge',
+			data: {
+				requestId: 'tg-build-canonical-prd-complete',
+				traceRef: 'trace:spawner-prd:mission-canonical-prd-complete',
+				buildMode: 'direct',
+				buildLane: 'fast_direct',
+				provider: 'deterministic-fast-lane',
+				providerProcessSuccess: true,
+				canonicalResultAvailable: true,
+				autoAnalysisStatus: 'complete',
+				durationMs: 12,
+				resultFileName: 'tg-build-canonical-prd-complete.json',
+				telegramRelay: { port: 8791, profile: 'spark-recursive' }
+			}
+		});
+		const body = payload.payload as Record<string, unknown>;
+		const data = body.data as Record<string, unknown>;
+		const event = body.event as Record<string, unknown>;
+		const eventData = event.data as Record<string, unknown>;
+
+		expect(data).toMatchObject({
+			requestId: 'tg-build-canonical-prd-complete',
+			traceRef: 'trace:spawner-prd:mission-canonical-prd-complete',
+			provider: 'deterministic-fast-lane',
+			providerProcessSuccess: true,
+			canonicalResultAvailable: true,
+			autoAnalysisStatus: 'complete',
+			durationMs: 12
+		});
+		expect(eventData).toMatchObject({
+			requestId: 'tg-build-canonical-prd-complete',
+			traceRef: 'trace:spawner-prd:mission-canonical-prd-complete',
+			provider: 'deterministic-fast-lane',
+			providerProcessSuccess: true,
+			canonicalResultAvailable: true,
+			autoAnalysisStatus: 'complete',
+			durationMs: 12,
+			telegramRelay: { port: 8791, profile: 'spark-recursive', url: null }
+		});
+		expect(data.resultFileName).toBeUndefined();
+		expect(eventData.resultFileName).toBeUndefined();
+	});
+
 	it('redacts private local data from external Spark ingest payloads', () => {
 		const payload = buildSparkMissionControlEvent({
 			id: 'evt-redacted',

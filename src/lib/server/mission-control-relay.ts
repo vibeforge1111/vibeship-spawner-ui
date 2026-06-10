@@ -1347,9 +1347,12 @@ const LOCAL_URL_PATTERN = /\bhttps?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[:
 const SECRET_VALUE_PATTERN = /\b(?:sk-[A-Za-z0-9_-]{12,}|\d{5,}:[A-Za-z0-9_-]{20,})\b/g;
 const EXTERNAL_SAFE_DATA_KEYS = new Set([
 	'assignedTaskIds',
+	'autoAnalysisStatus',
 	'buildMode',
 	'buildModeReason',
 	'iterationNumber',
+	'canonicalResultAvailable',
+	'durationMs',
 	'missionControlAccess',
 	'missionName',
 	'parentMissionId',
@@ -1358,6 +1361,8 @@ const EXTERNAL_SAFE_DATA_KEYS = new Set([
 	'plannedTasks',
 	'progress',
 	'projectId',
+	'provider',
+	'providerProcessSuccess',
 	'requestId',
 	'skills',
 	'status',
