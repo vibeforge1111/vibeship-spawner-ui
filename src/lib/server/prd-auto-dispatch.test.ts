@@ -124,6 +124,39 @@ describe('PRD auto-dispatch helpers', () => {
 		expect(inferProjectPathFromPrdLoad(load)).toBe('C:\\Users\\USER\\Desktop\\spark-test');
 	});
 
+	it('uses structured project lineage before command-like verification text', () => {
+		const projectPath = inferProjectPathFromPrdLoad({
+			...load,
+			executionPrompt:
+				"Verification commands:\n- Test-Path 'C:/Users/USER/.spark/workspaces/harness-rendered-cua-proof-20260610l/index.html'; Test-Path 'C:/Users/USER/.spark/workspaces/harness-rendered-cua-proof-20260610l/styles.css'",
+			relay: {
+				projectLineage: {
+					projectPath: 'C:/Users/USER/.spark/workspaces/harness-rendered-cua-proof-20260610l'
+				}
+			}
+		});
+
+		expect(projectPath).toBe('C:/Users/USER/.spark/workspaces/harness-rendered-cua-proof-20260610l');
+		expect(projectPath).not.toContain('index.html');
+		expect(projectPath).not.toContain('Test-Path');
+	});
+
+	it('rejects semicolon-joined file verification targets as project paths', () => {
+		const projectPath = inferProjectPathFromPrdLoad(
+			{
+				...load,
+				executionPrompt:
+					"Verification commands:\n- Test-Path 'C:/Users/USER/.spark/workspaces/harness-rendered-cua-proof-20260610l/index.html'; Test-Path 'C:/Users/USER/.spark/workspaces/harness-rendered-cua-proof-20260610l/styles.css'",
+				relay: {}
+			},
+			{ SPARK_WORKSPACE_ROOT: '/data/workspaces' }
+		);
+
+		expect(projectPath).toMatch(/[\\/]data[\\/]workspaces[\\/]mission-1-spark-test$/);
+		expect(projectPath).not.toContain('index.html');
+		expect(projectPath).not.toContain('Test-Path');
+	});
+
 	it('stops Windows target folders before prose after a colon', () => {
 		expect(
 			inferProjectPathFromPrdLoad({

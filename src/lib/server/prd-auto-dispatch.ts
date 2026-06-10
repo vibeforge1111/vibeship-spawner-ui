@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import { eventBridge, type BridgeEvent } from '$lib/services/event-bridge';
 import type { Skill } from '$lib/stores/skills.svelte';
-import { extractExplicitProjectPath } from '$lib/server/project-path-extraction';
+import { cleanProjectPathCandidate, extractExplicitProjectPath } from '$lib/server/project-path-extraction';
 import { buildMissionFromCanvas } from '$lib/services/mission-builder';
 import { matchTaskToSkills } from '$lib/services/h70-skill-matcher';
 import {
@@ -358,10 +358,20 @@ function generatedProjectRoot(envRecord: Record<string, string | undefined>): st
 	return envRecord.SPAWNER_STATE_DIR?.trim() || spawnerStateDir();
 }
 
+function relayProjectLineagePath(load: PrdCanvasLoadForAutoDispatch): string | null {
+	const lineage = load.relay?.projectLineage;
+	if (!lineage || typeof lineage !== 'object' || Array.isArray(lineage)) return null;
+	const projectPath = (lineage as Record<string, unknown>).projectPath;
+	return typeof projectPath === 'string' ? cleanProjectPathCandidate(projectPath) : null;
+}
+
 export function inferProjectPathFromPrdLoad(
 	load: PrdCanvasLoadForAutoDispatch,
 	envRecord: Record<string, string | undefined> = env as Record<string, string | undefined>
 ): string {
+	const lineagePath = relayProjectLineagePath(load);
+	if (lineagePath) return lineagePath;
+
 	const text = [
 		load.executionPrompt || '',
 		typeof load.relay?.goal === 'string' ? load.relay.goal : ''

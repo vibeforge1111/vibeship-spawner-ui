@@ -20,8 +20,11 @@ export function cleanProjectPathCandidate(value: string | null | undefined): str
 	const cleaned = trimCandidateAtSentenceBoundary(value)
 		.trim()
 		.replace(/^`|`$/g, '')
+		.replace(/[;|&].*$/g, '')
+		.replace(/^['"`]+|['"`]+$/g, '')
 		.replace(/\s+(?:as|inside|with|and)\b.*$/i, '')
-		.replace(/[).,;:\s]+$/, '');
+		.replace(/[).,;:\s]+$/, '')
+		.replace(/['"`]+$/g, '');
 	if (/^\//.test(cleaned) && !cleaned.slice(1).includes('/')) return null;
 	if (/^\//.test(cleaned) && /\s/.test(cleaned) && !/^\/(?:Users|data|tmp|var|opt|home|srv)\//i.test(cleaned)) return null;
 	const finalSegment = cleaned.split(/[\\/]/).pop() || '';
