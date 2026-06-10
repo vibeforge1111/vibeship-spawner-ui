@@ -675,5 +675,19 @@ describe('/api/prd-bridge/write integration', () => {
 				reasonCode: 'auto_provider_deterministic-static_not_started'
 			}
 		});
+		const missionControl = JSON.parse(await readFile(path.join(testSpawnerDir, 'mission-control.json'), 'utf-8'));
+		const missionEvents = missionControl.recent.filter(
+			(entry: { missionId?: string }) => entry.missionId === 'mission-tg-build-static-proof-s'
+		);
+		expect(missionEvents.map((entry: { eventType: string }) => entry.eventType)).toEqual(
+			expect.arrayContaining(['task_completed', 'mission_completed'])
+		);
+		expect(
+			missionEvents.find((entry: { eventType: string }) => entry.eventType === 'mission_completed')
+		).toMatchObject({
+			requestId,
+			traceRef,
+			providerId: 'deterministic-static'
+		});
 	});
 });

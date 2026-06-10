@@ -2250,6 +2250,16 @@ export const POST: RequestHandler = async (event) => {
 				normalizedTraceRef,
 				normalizedBuildLane
 			);
+			await relayCanonicalPrdAnalysisComplete({
+				requestId,
+				projectName: requestMeta.projectName,
+				buildMode: requestMeta.buildMode,
+				buildLane: normalizedBuildLane,
+				traceRef: normalizedTraceRef,
+				provider: auto.provider,
+				providerProcessSuccess: true,
+				resultFileName: `${normalizeRequestId(requestId)}.json`
+			});
 		} else if (auto.started) {
 			scheduleProvisionalPrdDraft({
 				requestId,
@@ -2282,6 +2292,16 @@ export const POST: RequestHandler = async (event) => {
 				`auto-analysis not started for provider ${auto.provider}`,
 				normalizedTraceRef
 			);
+			await relayCanonicalPrdAnalysisComplete({
+				requestId,
+				projectName: requestMeta.projectName,
+				buildMode: requestMeta.buildMode,
+				buildLane: normalizedBuildLane,
+				traceRef: normalizedTraceRef,
+				provider: auto.provider,
+				providerProcessSuccess: false,
+				resultFileName: `${normalizeRequestId(requestId)}.json`
+			});
 		}
 
 		logger.info(`[PRDBridge] PRD written to ${paths.pendingPrdFile}`);
