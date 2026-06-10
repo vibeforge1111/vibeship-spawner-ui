@@ -475,12 +475,9 @@ describe('/api/prd-bridge/write integration', () => {
 		});
 		expect(traceRows.some((row) => row.event === 'watchdog_timeout')).toBe(false);
 
-		const missionEvents = await waitForMissionEventTypes('mission-1780930000000', [
-			'task_completed',
-			'mission_completed'
-		]);
+		const missionEvents = await waitForMissionEventTypes('mission-1780930000000', ['task_completed']);
 		expect(missionEvents).toContain('task_completed');
-		expect(missionEvents).toContain('mission_completed');
+		expect(missionEvents).not.toContain('mission_completed');
 	});
 
 	it('relays Codex auto-analysis completion when a canonical result artifact is written', async () => {
@@ -533,12 +530,9 @@ describe('/api/prd-bridge/write integration', () => {
 			resultFileName: `${requestId}.json`
 		});
 
-		const missionEvents = await waitForMissionEventTypes('mission-1780940000000', [
-			'task_completed',
-			'mission_completed'
-		]);
+		const missionEvents = await waitForMissionEventTypes('mission-1780940000000', ['task_completed']);
 		expect(missionEvents).toContain('task_completed');
-		expect(missionEvents).toContain('mission_completed');
+		expect(missionEvents).not.toContain('mission_completed');
 	});
 
 	it('marks Codex auto-analysis as failed when no canonical result artifact is written', async () => {

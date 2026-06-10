@@ -113,6 +113,7 @@ async function relayCanonicalPrdAnalysisComplete(input: {
 	resultFileName: string | null;
 	durationMs?: number | null;
 	sessionId?: string | null;
+	terminal?: boolean;
 }): Promise<void> {
 	const missionId = missionIdFromRequestId(input.requestId);
 	const completionData = {
@@ -137,14 +138,16 @@ async function relayCanonicalPrdAnalysisComplete(input: {
 		source: 'prd-bridge',
 		data: completionData
 	});
-	await relayMissionControlEvent({
-		type: 'mission_completed',
-		missionId,
-		missionName: input.projectName,
-		message: 'Spawner produced a canonical PRD analysis result.',
-		source: 'prd-bridge',
-		data: completionData
-	});
+	if (input.terminal) {
+		await relayMissionControlEvent({
+			type: 'mission_completed',
+			missionId,
+			missionName: input.projectName,
+			message: 'Spawner produced a canonical PRD analysis result.',
+			source: 'prd-bridge',
+			data: completionData
+		});
+	}
 }
 
 export function _prdAutoAnalysisWorkingDirectory(requestId: string): string {
@@ -2258,7 +2261,8 @@ export const POST: RequestHandler = async (event) => {
 				traceRef: normalizedTraceRef,
 				provider: auto.provider,
 				providerProcessSuccess: true,
-				resultFileName: `${normalizeRequestId(requestId)}.json`
+				resultFileName: `${normalizeRequestId(requestId)}.json`,
+				terminal: true
 			});
 		} else if (auto.started) {
 			scheduleProvisionalPrdDraft({
