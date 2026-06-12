@@ -69,6 +69,28 @@ This repo does not own:
   use, publish/deploy, and public/network promotion paths are high-agency until
   proven otherwise.
 
+## Local Operator And Workspace Rules
+
+- Local operator Mission Control is not a login system. Loopback browser access
+  to Kanban, Canvas, Trace, Result, and `/spark-live/login` must be classified
+  by request origin and must not create or require `spawner_ui_session`.
+- Hosted/private-preview browser access is the only path that should use
+  workspace ID + UI access key + opaque session cookies.
+- Do not use hosted UI auth as an execution authority layer. It is a browser
+  access gate only; Harness Core/Governor authority remains the execution
+  authority.
+- Provider work that can write files must run in a Spark-owned workspace from
+  `resolveSparkRunProjectPath()` or an equivalent workspace-root helper.
+- Do not pass `process.cwd()` as a provider `workingDirectory` for generated
+  missions, PRD auto-analysis, Telegram builds, or auto-dispatch. In installed
+  runtimes `process.cwd()` can be the Spawner source folder, which must remain
+  code/runtime truth, not a generated project workspace.
+- Do not fix workspace failures by setting
+  `SPARK_ALLOW_EXTERNAL_PROJECT_PATHS=1` for release or installer paths. That
+  flag is only a trusted local-development escape hatch.
+- If a route needs to inspect Spawner source, keep that read-only and separate
+  from the provider working directory.
+
 ## Privacy Red Lines
 
 Do not export, commit, or render into user-facing surfaces:

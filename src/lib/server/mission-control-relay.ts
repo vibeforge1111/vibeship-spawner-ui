@@ -69,6 +69,8 @@ export interface MissionControlRelayStatusEntry {
 	assignedTaskIds: string[];
 	requestId: string | null;
 	traceRef: string | null;
+	/** Canvas pipeline the mission was dispatched from; null/absent when no pipeline exists. */
+	pipelineId?: string | null;
 	providerId?: string | null;
 	model?: string | null;
 	progress: number | null;
@@ -244,22 +246,38 @@ function requestIdFromEventData(data: Record<string, unknown> | null | undefined
 	return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
+function pipelineIdFromEventData(data: Record<string, unknown> | null | undefined): string | null {
+	const value = data?.pipelineId;
+	return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
 function executionPolicyFromEventData(data: Record<string, unknown> | null | undefined): string | null {
 	const value = data?.executionPolicy ?? data?.execution_policy;
 	return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
-function knownMissionMetadata(missionId: string): { requestId: string | null; traceRef: string | null } {
+function hasTelegramRelayTarget(target: MissionControlRelayTarget | null | undefined): target is MissionControlRelayTarget {
+	return Boolean(target && (target.port !== null || target.profile !== null || target.url !== null));
+}
+
+function knownMissionMetadata(missionId: string): {
+	requestId: string | null;
+	traceRef: string | null;
+	pipelineId: string | null;
+	telegramRelay: MissionControlRelayTarget | null;
+} {
 	for (const entry of relayState.recent) {
 		if (entry.missionId !== missionId) continue;
-		if (entry.requestId || entry.traceRef) {
+		if (entry.requestId || entry.traceRef || entry.pipelineId || hasTelegramRelayTarget(entry.telegramRelay)) {
 			return {
 				requestId: entry.requestId,
-				traceRef: entry.traceRef
+				traceRef: entry.traceRef,
+				pipelineId: entry.pipelineId ?? null,
+				telegramRelay: hasTelegramRelayTarget(entry.telegramRelay) ? entry.telegramRelay : null
 			};
 		}
 	}
-	return { requestId: null, traceRef: null };
+	return { requestId: null, traceRef: null, pipelineId: null, telegramRelay: null };
 }
 
 function enrichMissionEventWithKnownMetadata(event: MissionControlBridgeEvent): MissionControlBridgeEvent {
@@ -268,10 +286,19 @@ function enrichMissionEventWithKnownMetadata(event: MissionControlBridgeEvent): 
 	const known = knownMissionMetadata(missionId);
 	const currentRequestId = requestIdFromEventData(data);
 	const currentTraceRef = extractTraceRef(data, event);
+	const currentPipelineId = pipelineIdFromEventData(data);
+	const currentTelegramRelay = getTelegramRelayTarget(event);
 	const requestId = currentRequestId || known.requestId;
 	const traceRef = currentTraceRef || known.traceRef;
+	const pipelineId = currentPipelineId || known.pipelineId;
+	const telegramRelay = hasTelegramRelayTarget(currentTelegramRelay) ? null : known.telegramRelay;
 
-	if ((!requestId || currentRequestId) && (!traceRef || currentTraceRef)) {
+	if (
+		(!requestId || currentRequestId) &&
+		(!traceRef || currentTraceRef) &&
+		(!pipelineId || currentPipelineId) &&
+		!telegramRelay
+	) {
 		return event;
 	}
 
@@ -280,7 +307,9 @@ function enrichMissionEventWithKnownMetadata(event: MissionControlBridgeEvent): 
 		data: {
 			...(data ?? {}),
 			...(requestId && !currentRequestId ? { requestId } : {}),
-			...(traceRef && !currentTraceRef ? { traceRef } : {})
+			...(traceRef && !currentTraceRef ? { traceRef } : {}),
+			...(pipelineId && !currentPipelineId ? { pipelineId } : {}),
+			...(telegramRelay ? { telegramRelay } : {})
 		}
 	};
 }
@@ -328,6 +357,7 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 	const requestId = requestIdFromEventData(event.data);
 	const executionPolicy = executionPolicyFromEventData(event.data);
 	const traceRef = extractTraceRef(event.data, event);
+	const pipelineId = pipelineIdFromEventData(event.data);
 	const providerId =
 		event.data && typeof (event.data as Record<string, unknown>).providerId === 'string'
 			? ((event.data as Record<string, unknown>).providerId as string)
@@ -378,6 +408,7 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 		assignedTaskIds,
 		requestId,
 		traceRef,
+		pipelineId,
 		providerId,
 		model,
 		progress,
@@ -393,10 +424,6 @@ function toStatusEntry(event: MissionControlBridgeEvent): MissionControlRelaySta
 function shouldRecordMissionControlEvent(event: MissionControlBridgeEvent): boolean {
 	const type = typeof event.type === 'string' ? event.type : '';
 	if (!type || !RELAY_EVENT_TYPES.has(type)) {
-		return false;
-	}
-
-	if (event.data && (event.data as Record<string, unknown>).suppressRelay === true) {
 		return false;
 	}
 
@@ -1043,6 +1070,7 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 			byMission.set(entry.missionId, {
 				missionId: entry.missionId,
 				traceRef: entry.traceRef,
+				pipelineId: entry.pipelineId ?? null,
 				missionName: entry.missionName ? sanitizeMissionControlDisplayText(entry.missionName) : null,
 				status,
 				lastEventType: entry.eventType,
@@ -1064,6 +1092,9 @@ export function getMissionControlBoard(): Record<string, MissionControlBoardEntr
 		} else {
 			if (!existing.traceRef && entry.traceRef) {
 				existing.traceRef = entry.traceRef;
+			}
+			if (!existing.pipelineId && entry.pipelineId) {
+				existing.pipelineId = entry.pipelineId;
 			}
 			if (!isMissionControlTerminalStatus(existing.status) && !existing.taskName && entry.taskName) {
 				existing.taskName = sanitizeMissionControlDisplayText(entry.taskName);
@@ -1316,16 +1347,22 @@ const LOCAL_URL_PATTERN = /\bhttps?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[:
 const SECRET_VALUE_PATTERN = /\b(?:sk-[A-Za-z0-9_-]{12,}|\d{5,}:[A-Za-z0-9_-]{20,})\b/g;
 const EXTERNAL_SAFE_DATA_KEYS = new Set([
 	'assignedTaskIds',
+	'autoAnalysisStatus',
 	'buildMode',
 	'buildModeReason',
 	'iterationNumber',
+	'canonicalResultAvailable',
+	'durationMs',
 	'missionControlAccess',
 	'missionName',
 	'parentMissionId',
 	'percent',
+	'pipelineId',
 	'plannedTasks',
 	'progress',
 	'projectId',
+	'provider',
+	'providerProcessSuccess',
 	'requestId',
 	'skills',
 	'status',
@@ -1421,7 +1458,13 @@ export function selectWebhookUrlsForMissionEvent(event: MissionControlBridgeEven
 	}
 	if (target.url) {
 		const matched = urls.filter((url) => url === target.url);
-		return matched.length > 0 ? matched : urls;
+		if (matched.length > 0) return matched;
+		const targetUrlPort = webhookPort(target.url);
+		if (targetUrlPort !== null) {
+			const portMatched = urls.filter((url) => webhookPort(url) === targetUrlPort);
+			return portMatched;
+		}
+		return [];
 	}
 	const portMatched = urls.filter((url) => {
 		if (target.port !== null && webhookPort(url) === target.port) {
@@ -1429,7 +1472,7 @@ export function selectWebhookUrlsForMissionEvent(event: MissionControlBridgeEven
 		}
 		return false;
 	});
-	return portMatched.length > 0 ? portMatched : urls;
+	return portMatched;
 }
 
 export async function relayMissionControlEvent(event: MissionControlBridgeEvent): Promise<void> {

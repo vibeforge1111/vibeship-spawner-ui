@@ -89,6 +89,11 @@ export interface MissionControlTrace {
 		analysisResult: Record<string, unknown> | null;
 		lastCanvasLoad: Record<string, unknown> | null;
 	};
+	prdTrace: {
+		file: string;
+		entryCount: number;
+		entries: Array<Record<string, unknown>>;
+	};
 	timeline: ReturnType<typeof getMissionControlRelaySnapshot>['recent'];
 	providerResults: MissionControlResultSummary['providerResults'];
 	providerSummary: string | null;
@@ -147,6 +152,24 @@ function artifactMatches(
 	);
 }
 
+function safeLoadFileKey(value: string): string {
+	return value.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 200) || 'unknown';
+}
+
+function archivedCanvasLoadCandidates(spawnerDir: string, input: {
+	missionId: string | null;
+	requestId: string | null;
+}): string[] {
+	const candidates: string[] = [];
+	if (input.requestId) {
+		candidates.push(path.join(spawnerDir, 'canvas-loads', `${safeLoadFileKey(`prd-${input.requestId}`)}.json`));
+	}
+	if (input.missionId) {
+		candidates.push(path.join(spawnerDir, 'canvas-loads', `mission-${safeLoadFileKey(input.missionId)}.json`));
+	}
+	return [...new Set(candidates)];
+}
+
 export function missionIdFromRequestId(requestId: string): string {
 	const stamp = requestId.match(/(\d{10,})$/)?.[1];
 	return `mission-${stamp || requestId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
@@ -159,6 +182,64 @@ async function readJsonIfExists(filePath: string): Promise<Record<string, unknow
 	} catch {
 		return null;
 	}
+}
+
+const PRD_TRACE_FILE = 'prd-auto-trace.jsonl';
+const PRD_TRACE_ENTRY_LIMIT = 100;
+
+/**
+ * Ingest the PRD auto-analysis JSONL trail (spawner-state/prd-auto-trace.jsonl)
+ * for one request so /trace shows the bridge-side PRD lifecycle alongside the
+ * Mission Control timeline.
+ */
+async function readPrdTraceEntries(input: {
+	spawnerDir: string;
+	requestId: string | null;
+	traceRef: string | null;
+}): Promise<{ file: string; entryCount: number; entries: Array<Record<string, unknown>> }> {
+	const empty = { file: PRD_TRACE_FILE, entryCount: 0, entries: [] as Array<Record<string, unknown>> };
+	if (!input.requestId && !input.traceRef) return empty;
+	const traceFile = path.join(input.spawnerDir, PRD_TRACE_FILE);
+	if (!existsSync(traceFile)) return empty;
+	try {
+		const raw = await readFile(traceFile, 'utf-8');
+		const entries: Array<Record<string, unknown>> = [];
+		for (const line of raw.split(/\r?\n/)) {
+			const trimmed = line.trim();
+			if (!trimmed) continue;
+			let row: unknown;
+			try {
+				row = JSON.parse(trimmed);
+			} catch {
+				continue;
+			}
+			if (!row || typeof row !== 'object' || Array.isArray(row)) continue;
+			const record = row as Record<string, unknown>;
+			const matchesRequest = Boolean(input.requestId && record.requestId === input.requestId);
+			const matchesTraceRef = Boolean(input.traceRef && extractTraceRef(record) === input.traceRef);
+			if (!matchesRequest && !matchesTraceRef) continue;
+			entries.push(record);
+		}
+		return {
+			file: PRD_TRACE_FILE,
+			entryCount: entries.length,
+			entries: entries.slice(-PRD_TRACE_ENTRY_LIMIT)
+		};
+	} catch {
+		return empty;
+	}
+}
+
+async function readArchivedCanvasLoad(input: {
+	spawnerDir: string;
+	missionId: string | null;
+	requestId: string | null;
+}): Promise<Record<string, unknown> | null> {
+	for (const filePath of archivedCanvasLoadCandidates(input.spawnerDir, input)) {
+		const artifact = await readJsonIfExists(filePath);
+		if (artifactMatches(artifact, input.missionId, input.requestId)) return artifact;
+	}
+	return null;
 }
 
 function findBoardEntry(board: BoardBuckets, missionId: string | null) {
@@ -306,9 +387,14 @@ export async function buildMissionControlTrace(input: {
 	const pendingRequest = artifactMatches(pendingRequestRaw, requestedMissionId, requestedRequestId)
 		? pendingRequestRaw
 		: null;
+	const archivedCanvasLoad = await readArchivedCanvasLoad({
+		spawnerDir,
+		missionId: requestedMissionId,
+		requestId: requestedRequestId
+	});
 	const lastCanvasLoad = artifactMatches(lastCanvasLoadRaw, requestedMissionId, requestedRequestId)
 		? lastCanvasLoadRaw
-		: null;
+		: archivedCanvasLoad;
 	const requestId =
 		requestedRequestId ||
 		artifactRequestId(pendingRequest) ||
@@ -346,6 +432,7 @@ export async function buildMissionControlTrace(input: {
 		lastCanvasLoad
 	});
 	const skillPairing = buildSkillPairing({ entry, analysisResult, lastCanvasLoad });
+	const prdTrace = await readPrdTraceEntries({ spawnerDir, requestId, traceRef });
 
 	return {
 		ok: true,
@@ -389,6 +476,7 @@ export async function buildMissionControlTrace(input: {
 			analysisResult,
 			lastCanvasLoad
 		},
+		prdTrace,
 		timeline: traceSnapshot.recent,
 		providerResults: entry?.providerResults ?? [],
 		providerSummary: entry?.providerSummary ?? null,

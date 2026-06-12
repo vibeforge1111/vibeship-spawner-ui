@@ -13,7 +13,18 @@ import type { RequestHandler } from './$types';
 import { readFile, writeFile, unlink } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { reconcilePendingPrdCanonicalResult } from '$lib/server/prd-canonical-result-reconciliation';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { requireControlAuth } from '$lib/server/mcp-auth';
+
+const PRD_BRIDGE_PENDING_AUTH = {
+	surface: 'PRDBridgePending',
+	apiKeyEnvVar: 'EVENTS_API_KEY',
+	fallbackApiKeyEnvVar: 'MCP_API_KEY',
+	apiKeyQueryParam: 'apiKey',
+	apiKeyCookieName: 'spawner_events_api_key',
+	allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+} as const;
 
 function getPrdBridgePaths() {
 	const spawnerDir = spawnerStateDir();
@@ -26,19 +37,54 @@ function getPrdBridgePaths() {
 /**
  * GET - Check if there's a pending PRD analysis request
  */
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		...PRD_BRIDGE_PENDING_AUTH,
+		allowLoopbackWithoutKey: true,
+	});
+	if (unauthorized) return unauthorized;
+
 	try {
 		const { pendingPrdFile, pendingRequestFile } = getPrdBridgePaths();
+		const canReadWorkerPayload = requireControlAuth(event, {
+			...PRD_BRIDGE_PENDING_AUTH,
+			allowLoopbackWithoutKey: false
+		}) === null;
 
 		if (!existsSync(pendingRequestFile)) {
 			return json({ pending: false });
 		}
 
 		const requestMeta = JSON.parse(await readFile(pendingRequestFile, 'utf-8'));
+		const requestId = typeof requestMeta.requestId === 'string' ? requestMeta.requestId : undefined;
+		if (canReadWorkerPayload) {
+			const canonicalResult = await reconcilePendingPrdCanonicalResult({
+				requestId,
+				source: 'prd_bridge_pending_get'
+			});
+			if (canonicalResult.reconciled || canonicalResult.reason === 'already_complete') {
+				return json({ pending: false });
+			}
+		}
 
 		// Only return if status is pending
 		if (requestMeta.status !== 'pending') {
 			return json({ pending: false });
+		}
+
+		if (!canReadWorkerPayload) {
+			return json({
+				pending: true,
+				requestId: requestMeta.requestId,
+				missionId: requestMeta.missionId,
+				projectName: requestMeta.projectName,
+				timestamp: requestMeta.timestamp,
+				authorityBoundary: {
+					payload: 'metadata_only',
+					prdContent: 'requires_control_auth',
+					reconciliation: 'requires_control_auth'
+				}
+			});
 		}
 
 		// Read the PRD content
@@ -68,7 +114,13 @@ export const GET: RequestHandler = async () => {
 /**
  * DELETE - Clear the pending request (mark as processed)
  */
-export const DELETE: RequestHandler = async () => {
+export const DELETE: RequestHandler = async (event) => {
+	const unauthorized = requireControlAuth(event, {
+		...PRD_BRIDGE_PENDING_AUTH,
+		allowLoopbackWithoutKey: false,
+	});
+	if (unauthorized) return unauthorized;
+
 	try {
 		const { pendingRequestFile } = getPrdBridgePaths();
 

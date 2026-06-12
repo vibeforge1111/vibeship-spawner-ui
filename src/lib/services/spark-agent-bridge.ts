@@ -32,6 +32,7 @@ import {
 	resolveExecutionAuthority,
 	type SparkMutationClass
 } from '$lib/server/harness-authority';
+import { stripAuthorityResidue } from '$lib/server/authority-residue';
 
 export type SparkAgentCommandName =
 	| 'canvas.create_pipeline'
@@ -371,7 +372,7 @@ function resolveProviderCommandTemplate(providerId: SparkAgentProviderId, model?
 	return `${resolved} --sandbox ${resolveCodexSandbox()}`;
 }
 
-function parseProviderCommand(providerId: SparkAgentProviderId, commandTemplate: string): ProviderCommand {
+export function parseProviderCommand(providerId: SparkAgentProviderId, commandTemplate: string): ProviderCommand {
 	const tokens = commandTemplate.split(/\s+/).filter(Boolean);
 	if (tokens.length === 0) {
 		throw new Error('Provider command template is empty');
@@ -405,24 +406,38 @@ function parseProviderCommand(providerId: SparkAgentProviderId, commandTemplate:
 	}
 	if (tokens[2] === '--model' && tokens[3]) {
 		const args = ['exec', '--skip-git-repo-check', '--model', tokens[3]];
-		if (tokens.length === 4) {
+		let sandboxSpecified = false;
+		for (let i = 4; i < tokens.length; i += 2) {
+			const flag = tokens[i];
+			const value = tokens[i + 1];
+			if (!value) {
+				throw new Error(
+					'Codex provider command must be: codex exec --model <model> [--profile <profile>] [--sandbox read-only|workspace-write|danger-full-access]'
+				);
+			}
+			if (flag === '--profile' || flag === '-p') {
+				args.push(flag, value);
+				continue;
+			}
+			if (flag === '--sandbox') {
+				args.push('--sandbox', resolveCodexSandbox({ ...process.env, SPARK_CODEX_SANDBOX: value }));
+				sandboxSpecified = true;
+				continue;
+			}
+			throw new Error(
+				'Codex provider command must be: codex exec --model <model> [--profile <profile>] [--sandbox read-only|workspace-write|danger-full-access]'
+			);
+		}
+		if (!sandboxSpecified) {
 			args.push('--sandbox', resolveCodexSandbox());
-			return {
-				binary: 'codex',
-				resolvedBinary: resolveCliBinary('codex') || 'codex',
-				args
-			};
 		}
-		if (tokens.length === 6 && tokens[4] === '--sandbox') {
-			args.push('--sandbox', resolveCodexSandbox({ ...process.env, SPARK_CODEX_SANDBOX: tokens[5] }));
-			return {
-				binary: 'codex',
-				resolvedBinary: resolveCliBinary('codex') || 'codex',
-				args
-			};
-		}
+		return {
+			binary: 'codex',
+			resolvedBinary: resolveCliBinary('codex') || 'codex',
+			args
+		};
 	}
-	throw new Error('Codex provider command must be: codex exec --model <model> [--sandbox read-only|workspace-write|danger-full-access]');
+	throw new Error('Codex provider command must be: codex exec --model <model> [--profile <profile>] [--sandbox read-only|workspace-write|danger-full-access]');
 }
 
 function commandUsesHighAgencyMode(command: ProviderCommand): boolean {
@@ -530,6 +545,7 @@ class SparkAgentBridgeService {
 			mission: null,
 			events: []
 		};
+		session.metadata = stripAuthorityResidue(session.metadata);
 
 		this.sessions.set(sessionId, session);
 		this.emitEvent(sessionId, 'spark_agent.session.started', {
@@ -569,11 +585,12 @@ class SparkAgentBridgeService {
 		return [...(this.sessions.get(sessionId)?.events || [])];
 	}
 
-	getLatestCanvasSnapshot(since?: string): SparkAgentCanvasSnapshot | null {
+	getLatestCanvasSnapshot(since?: string, sessionId?: string): SparkAgentCanvasSnapshot | null {
 		const sinceTs = since ? Date.parse(since) : Number.NaN;
-		const sessions = [...this.sessions.values()].filter((session) =>
-			session.events.some((event) => event.type === 'spark_agent.canvas.updated')
-		);
+		const sessions = [...this.sessions.values()].filter((session) => {
+			if (sessionId && session.id !== sessionId) return false;
+			return session.events.some((event) => event.type === 'spark_agent.canvas.updated');
+		});
 		if (sessions.length === 0) return null;
 
 		sessions.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
@@ -848,7 +865,7 @@ class SparkAgentBridgeService {
 			command: input.command,
 			actor,
 			requestId: input.requestId || null,
-			params: input.params || {}
+			params: stripAuthorityResidue(input.params || {})
 		});
 
 		try {

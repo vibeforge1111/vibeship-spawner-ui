@@ -1,5 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const privateEnv = vi.hoisted(() => ({
+	MCP_API_KEY: 'dispatch-authority-route-test-secret',
+	EVENTS_API_KEY: ''
+}));
+
+vi.mock('$env/dynamic/private', () => ({
+	env: privateEnv
+}));
+
 vi.mock('$lib/server/provider-runtime', () => ({
 	providerRuntime: {
 		getMissionStatus: vi.fn(() => ({
@@ -23,6 +32,9 @@ import {
 	buildClientGovernorDecisionAuthority,
 	buildClientTurnIntentVNextAuthority
 } from '$lib/services/harness-authority-client';
+
+const TEST_API_KEY = 'dispatch-authority-route-test-secret';
+const originalMcpApiKey = process.env.MCP_API_KEY;
 
 const executionPack = {
 	enabled: true,
@@ -53,7 +65,7 @@ function event(body: unknown, method = 'POST', url = 'http://127.0.0.1:3333/api/
 	return {
 		request: new Request(url, {
 			method,
-			headers: { 'content-type': 'application/json' },
+			headers: { 'content-type': 'application/json', 'x-api-key': TEST_API_KEY },
 			body: body === undefined ? undefined : JSON.stringify(body)
 		}),
 		url: new URL(url),
@@ -75,6 +87,7 @@ function machineAuthority() {
 
 describe('/api/dispatch authority contract', () => {
 	beforeEach(() => {
+		process.env.MCP_API_KEY = TEST_API_KEY;
 		vi.stubGlobal(
 			'fetch',
 			vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }))
@@ -83,6 +96,11 @@ describe('/api/dispatch authority contract', () => {
 
 	afterEach(() => {
 		vi.unstubAllGlobals();
+		if (originalMcpApiKey === undefined) {
+			delete process.env.MCP_API_KEY;
+		} else {
+			process.env.MCP_API_KEY = originalMcpApiKey;
+		}
 	});
 
 	it('blocks provider dispatch when no TurnIntent or machine-origin policy is present', async () => {
@@ -142,14 +160,17 @@ describe('/api/dispatch authority contract', () => {
 	it('allows provider dispatch with native GovernorDecisionV1 authority', async () => {
 		const dispatch = vi.mocked(providerRuntime.dispatch);
 		dispatch.mockClear();
+		const requestId = 'request-authority-probe';
 
 		const response = await POST(event({
 			executionPack,
+			relay: { requestId },
 			executionAuthority: buildClientGovernorDecisionAuthority({
 				source: 'dispatch-authority-test',
 				reason: 'User started provider dispatch from Spawner.',
 				toolName: 'spawner.dispatch',
 				mutationClass: 'launches_mission',
+				requestId,
 				target: executionPack.missionId
 			})
 		}) as never);
@@ -163,6 +184,55 @@ describe('/api/dispatch authority contract', () => {
 			governorOutcome: 'execute'
 		});
 		expect(dispatch).toHaveBeenCalledTimes(1);
+		expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
+			authorityRequestId: requestId
+		}));
+	});
+
+	it('blocks browser relay dispatch when requestId is missing from the binding', async () => {
+		const dispatch = vi.mocked(providerRuntime.dispatch);
+		dispatch.mockClear();
+
+		const response = await POST(event({
+			executionPack,
+			relay: { autoRun: true },
+			executionAuthority: buildClientGovernorDecisionAuthority({
+				source: 'dispatch-authority-test',
+				reason: 'User started provider dispatch from Spawner.',
+				toolName: 'spawner.dispatch',
+				mutationClass: 'launches_mission',
+				target: executionPack.missionId
+			})
+		}) as never);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('dispatch_authority_unbound');
+		expect(dispatch).not.toHaveBeenCalled();
+	});
+
+	it('blocks replayed Governor authority when relay requestId does not match', async () => {
+		const dispatch = vi.mocked(providerRuntime.dispatch);
+		dispatch.mockClear();
+
+		const response = await POST(event({
+			executionPack,
+			relay: { requestId: 'request-b' },
+			executionAuthority: buildClientGovernorDecisionAuthority({
+				source: 'dispatch-authority-test',
+				reason: 'User started provider dispatch from Spawner.',
+				toolName: 'spawner.dispatch',
+				mutationClass: 'launches_mission',
+				requestId: 'request-a',
+				target: executionPack.missionId
+			})
+		}) as never);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.reasonCodes).toContain('request_id_mismatch');
+		expect(dispatch).not.toHaveBeenCalled();
 	});
 
 	it('blocks provider cancellation without native mission-control authority', async () => {

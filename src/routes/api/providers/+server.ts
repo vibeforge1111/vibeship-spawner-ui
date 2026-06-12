@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { DEFAULT_MULTI_LLM_PROVIDERS } from '$lib/services/multi-llm-orchestrator';
 import { applyProviderEnvOverrides, resolveProviderRuntimeConfiguration } from '$lib/server/provider-config';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 
 function normalizeProviderId(value: string | undefined): string | null {
 	if (!value) return null;
@@ -13,7 +14,33 @@ function normalizeProviderId(value: string | undefined): string | null {
 		: null;
 }
 
-export const GET: RequestHandler = async () => {
+function providerAuthPayload(event: Parameters<typeof requireControlAuth>[0]) {
+	const openRead = requireControlAuth(event, {
+		surface: 'Providers',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+	if (openRead) return { openRead, hasControlAuth: false };
+
+	const strictRead = requireControlAuth(event, {
+		surface: 'Providers',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: false,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+
+	return { openRead: null, hasControlAuth: strictRead === null };
+}
+
+export const GET: RequestHandler = async (event) => {
+	const { openRead, hasControlAuth } = providerAuthPayload(event);
+	if (openRead) return openRead;
+
 	const envRecord = env as Record<string, string | undefined>;
 	const sparkDefaultProvider =
 		normalizeProviderId(envRecord.DEFAULT_MISSION_PROVIDER) ||
@@ -25,29 +52,48 @@ export const GET: RequestHandler = async () => {
 
 	return json({
 		sparkDefaultProvider,
+		...(hasControlAuth
+			? {}
+			: {
+					authorityBoundary: {
+						payload: 'status_only',
+						commandTemplate: 'requires_control_auth',
+						sparkExecutionBridge: 'requires_control_auth',
+						apiKeyEnv: 'requires_control_auth',
+						cliPath: 'requires_control_auth',
+						baseUrl: 'requires_control_auth',
+						executesFilesystem: 'requires_control_auth'
+					}
+				}),
 		providers: DEFAULT_MULTI_LLM_PROVIDERS.map((defaultProvider) => {
 			const provider = applyProviderEnvOverrides(defaultProvider, envRecord, {
 				missionDefaultProviderId: sparkDefaultProvider
 			});
 			const runtimeConfig = resolveProviderRuntimeConfiguration(provider, envRecord);
 
-			return {
+			const basePayload = {
 				id: provider.id,
 				label: provider.label,
 				kind: provider.kind,
 				model: provider.model,
+				requiresApiKey: provider.requiresApiKey === true,
+				envKeyConfigured: runtimeConfig.envKeyConfigured,
+				cliConfigured: runtimeConfig.cliConfigured,
+				configured: runtimeConfig.configured,
+				configurationMode: runtimeConfig.configurationMode,
+				sparkSelected: sparkDefaultProvider === provider.id
+			};
+
+			if (!hasControlAuth) return basePayload;
+
+			return {
+				...basePayload,
 				baseUrl: provider.baseUrl || null,
 				commandTemplate: provider.commandTemplate || null,
 				sparkExecutionBridge: provider.sparkExecutionBridge || null,
 				executesFilesystem: provider.executesFilesystem === true,
 				apiKeyEnv: provider.apiKeyEnv || null,
-				requiresApiKey: provider.requiresApiKey === true,
-				envKeyConfigured: runtimeConfig.envKeyConfigured,
-				cliConfigured: runtimeConfig.cliConfigured,
-				cliPath: runtimeConfig.cliPath,
-				configured: runtimeConfig.configured,
-				configurationMode: runtimeConfig.configurationMode,
-				sparkSelected: sparkDefaultProvider === provider.id
+				cliPath: runtimeConfig.cliPath
 			};
 		})
 	});

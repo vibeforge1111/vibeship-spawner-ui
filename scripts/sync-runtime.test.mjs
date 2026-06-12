@@ -40,7 +40,13 @@ describe('sync-runtime coverage', () => {
 		expect(syncedPaths()).toContain('src/lib/services/harness-authority-client.ts');
 		expect(syncedPaths()).toContain('src/lib/services/mission-executor.ts');
 		expect(syncedPaths()).toContain('src/lib/components/MissionBoard.svelte');
+		expect(syncedPaths()).toContain('src/routes/mission-control/+server.ts');
 		expect(syncedPaths()).toContain('src/routes/missions/[id]/+page.svelte');
+	});
+
+	it('syncs PRD bridge worker read/write authority surfaces', () => {
+		expect(syncedPaths()).toContain('src/routes/api/prd-bridge/pending/+server.ts');
+		expect(syncedPaths()).toContain('src/routes/api/prd-bridge/result/+server.ts');
 	});
 
 	it('syncs creator mission authority consumers and execution entrypoints', () => {
@@ -48,6 +54,25 @@ describe('sync-runtime coverage', () => {
 		expect(syncedPaths()).toContain('src/routes/api/creator/mission/+server.ts');
 		expect(syncedPaths()).toContain('src/routes/api/creator/mission/execute/+server.ts');
 		expect(syncedPaths()).toContain('src/routes/api/creator/mission/validate/+server.ts');
+	});
+
+	it('syncs Mission Control command authority surfaces', () => {
+		expect(syncedPaths()).toContain('src/lib/server/mission-control-command.ts');
+		expect(syncedPaths()).toContain('src/routes/api/mission-control/command/+server.ts');
+	});
+
+	it('syncs Spark Agent route wrappers with the bridge implementation', () => {
+		expect(syncedPaths()).toContain('src/lib/services/spark-agent-bridge.ts');
+		expect(syncedPaths()).toContain('src/routes/api/spark-agent/session/start/+server.ts');
+		expect(syncedPaths()).toContain('src/routes/api/spark-agent/command/+server.ts');
+		expect(syncedPaths()).toContain('src/routes/api/spark-agent/canvas-state/+server.ts');
+		expect(syncedPaths()).toContain('src/routes/api/spark-agent/events/+server.ts');
+		expect(syncedPaths()).toContain('src/routes/api/spark-agent/session/end/+server.ts');
+	});
+
+	it('syncs scheduler route and runtime authority implementation together', () => {
+		expect(syncedPaths()).toContain('src/routes/api/scheduled/+server.ts');
+		expect(syncedPaths()).toContain('src/lib/server/scheduler.ts');
 	});
 
 	it('keeps the Spark run route and its direct runtime dependencies together', () => {

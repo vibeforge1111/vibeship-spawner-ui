@@ -125,6 +125,50 @@ describe('buildMissionFromCanvas', () => {
 });
 
 describe('generateExecutionPrompt', () => {
+	it('requires authenticated event bridge reporting in provider prompts', () => {
+		const mission: Mission = {
+			id: 'mission-event-auth',
+			user_id: 'test-user',
+			name: 'Event Auth Mission',
+			description: 'Validate event bridge auth wording',
+			mode: 'multi-llm-orchestrator',
+			status: 'ready',
+			agents: [],
+			tasks: [
+				{
+					id: 'task-1',
+					title: 'Report progress',
+					description: 'Emit lifecycle events only through keyed bridge.',
+					assignedTo: 'agent-1',
+					status: 'pending',
+					handoffType: 'sequential'
+				}
+			],
+			context: {
+				projectPath: 'C:\\Users\\USER\\Desktop\\event-auth-mission',
+				projectType: 'typescript',
+				goals: ['preserve event bridge authority boundary']
+			},
+			current_task_id: null,
+			outputs: {},
+			error: null,
+			created_at: '2026-06-05T00:00:00.000Z',
+			updated_at: '2026-06-05T00:00:00.000Z',
+			started_at: null,
+			completed_at: null
+		};
+
+		const prompt = generateExecutionPrompt(mission, {
+			includeSkills: true,
+			baseUrl: 'http://127.0.0.1:3333'
+		});
+
+		expect(prompt).toContain('EVENTS_AUTH_KEY="${EVENTS_API_KEY:-$MCP_API_KEY}"');
+		expect(prompt).toContain('-H "x-api-key: $EVENTS_AUTH_KEY"');
+		expect(prompt).toContain('Missing EVENTS_API_KEY or MCP_API_KEY for /api/events');
+		expect(prompt).not.toContain('curl POST http://127.0.0.1:3333/api/events');
+	});
+
 	it('keeps MCP tool instructions behind an authority-bound bridge', () => {
 		const mission: Mission = {
 			id: 'mission-mcp-authority',

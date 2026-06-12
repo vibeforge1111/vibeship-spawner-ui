@@ -14,7 +14,7 @@ export const POST: RequestHandler = async (event) => {
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
 		apiKeyQueryParam: 'apiKey',
 		apiKeyCookieName: 'spawner_events_api_key',
-		allowLoopbackWithoutKey: true,
+		allowLoopbackWithoutKey: false,
 		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
 	});
 	if (unauthorized) return unauthorized;
@@ -39,7 +39,9 @@ export const POST: RequestHandler = async (event) => {
 			return json({ ok: false, error: 'action must be pause|resume|kill|status' }, { status: 400 });
 		}
 
-		const result = await executeMissionControlAction({ missionId, action, source, executionAuthority: body.executionAuthority });
+		const executionAuthority = body.executionAuthority;
+		const dispatchAuthority = body.dispatchAuthority ?? body.resumeDispatchAuthority;
+		const result = await executeMissionControlAction({ missionId, action, source, executionAuthority, dispatchAuthority });
 		return json(result);
 	} catch (error) {
 		if (error instanceof HarnessAuthorityError) {

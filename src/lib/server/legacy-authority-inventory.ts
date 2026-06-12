@@ -124,6 +124,12 @@ export function buildSpawnerLegacyAuthorityPlanes(): LegacyAuthorityPlaneV1[] {
 			source_path: 'src/lib/server/spark-run-workspace.ts',
 			summary: 'Workspace path resolution validates/sanitizes targets but cannot authorize a run by itself.'
 		}),
+		evidenceOnlyPlane({
+			id: 'spawner-active-mission-state',
+			plane_type: 'mission_helper',
+			source_path: 'src/routes/api/mission/active/+server.ts',
+			summary: 'Recovered active mission state and resume instructions are recovery evidence only; they cannot resume providers or control missions without fresh Governor authority.'
+		}),
 		quarantinedPlane({
 			id: 'spawner-machine-origin-policy',
 			plane_type: 'machine_origin_policy',
@@ -149,7 +155,7 @@ export function buildSpawnerLegacyAuthorityPlanes(): LegacyAuthorityPlaneV1[] {
 			id: 'spawner-client-harness-authority',
 			plane_type: 'local_dispatcher',
 			source_path: 'src/lib/services/harness-authority-client.ts',
-			summary: 'Client-side authority helpers produce Harness Core envelopes/Governor records for UI-originated Spawner actions.',
+			summary: 'Harness authority helpers shape UI-originated envelopes and server-side Governor records; browser clients cannot mint Governor authority directly.',
 			authority_risk: {
 				can_execute: true,
 				can_mutate_state: true,
@@ -174,7 +180,7 @@ export function buildSpawnerLegacyAuthorityPlanes(): LegacyAuthorityPlaneV1[] {
 			id: 'spawner-dispatch-api',
 			plane_type: 'tool_launcher',
 			source_path: 'src/routes/api/dispatch/+server.ts',
-			summary: 'Provider dispatch API requires Governor authority from request, relay, or execution pack before provider execution.',
+			summary: 'Provider dispatch API requires native Governor authority from the current request before provider execution; relay or execution-pack authority is residue unless revalidated.',
 			authority_risk: {
 				can_execute: true,
 				can_mutate_state: true,
@@ -198,7 +204,7 @@ export function buildSpawnerLegacyAuthorityPlanes(): LegacyAuthorityPlaneV1[] {
 			id: 'spawner-scheduler-runtime',
 			plane_type: 'schedule_trigger',
 			source_path: 'src/lib/server/scheduler.ts',
-			summary: 'Persisted schedule fires mint native Governor authority for scheduled mission or loop execution.',
+			summary: 'Persisted schedule fires cannot execute from stored schedule authority; scheduled work requires fresh Governor authority before mission or loop execution.',
 			authority_risk: {
 				can_execute: true,
 				can_mutate_state: true,
@@ -301,7 +307,7 @@ export function buildSpawnerLegacyAuthorityPlanes(): LegacyAuthorityPlaneV1[] {
 			id: 'spawner-daily-orchestrator',
 			plane_type: 'schedule_trigger',
 			source_path: 'src/lib/server/daily-orchestrator.ts',
-			summary: 'Daily orchestrator scheduled work mints bounded Governor authority before downstream execution.',
+			summary: 'Daily orchestrator can run mission-control regressions only by consuming supplied Governor authority; orchestrator state does not mint execution authority.',
 			authority_risk: {
 				can_execute: true,
 				can_mutate_state: true,

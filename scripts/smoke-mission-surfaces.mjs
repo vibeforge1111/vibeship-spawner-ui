@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const baseUrl = (process.env.SPAWNER_SMOKE_BASE_URL || 'http://127.0.0.1:3333').replace(/\/$/, '');
+const apiKey = process.env.EVENTS_API_KEY || process.env.MCP_API_KEY || '';
 const stamp = Date.now();
 const requestId = `smoke-surfaces-${stamp}`;
 const missionId = `mission-${stamp}`;
@@ -41,9 +42,11 @@ function parseJson(text, path) {
 }
 
 async function postJson(path, body) {
+	const headers = { 'Content-Type': 'application/json' };
+	if (apiKey) headers['x-api-key'] = apiKey;
 	const response = await fetch(url(path), {
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
+		headers,
 		body: JSON.stringify(body)
 	});
 	const text = await response.text();

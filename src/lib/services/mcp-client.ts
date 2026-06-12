@@ -38,6 +38,9 @@ export interface McpToolResult<T = unknown> {
 	error?: string;
 }
 
+const GOVERNED_LIFECYCLE_ERROR =
+	'Legacy MCP mission lifecycle actions are disabled. Use Harness/Governor-authorized Spawner dispatch or mission-control runtime commands.';
+
 // Skill types from MCP
 export interface McpSkill {
 	id: string;
@@ -349,7 +352,7 @@ class McpClient {
 	 * List missions
 	 */
 	async listMissions(options?: {
-		status?: 'draft' | 'ready' | 'running' | 'paused' | 'completed' | 'failed';
+		status?: Mission['status'];
 		limit?: number;
 	}): Promise<McpToolResult<{ missions: Mission[]; count: number; _instruction: string }>> {
 		return this.callTool('spawner_mission', {
@@ -382,32 +385,26 @@ class McpClient {
 	 * Start a mission
 	 */
 	async startMission(missionId: string): Promise<McpToolResult<{ success: boolean; mission: Mission; _instruction: string }>> {
-		return this.callTool('spawner_mission', {
-			action: 'start',
-			mission_id: missionId
-		});
+		void missionId;
+		return { success: false, error: GOVERNED_LIFECYCLE_ERROR };
 	}
 
 	/**
 	 * Complete a mission
 	 */
 	async completeMission(missionId: string, outputs?: Record<string, unknown>): Promise<McpToolResult<{ success: boolean; mission: Mission; _instruction: string }>> {
-		return this.callTool('spawner_mission', {
-			action: 'complete',
-			mission_id: missionId,
-			outputs
-		});
+		void missionId;
+		void outputs;
+		return { success: false, error: GOVERNED_LIFECYCLE_ERROR };
 	}
 
 	/**
 	 * Fail a mission
 	 */
 	async failMission(missionId: string, error?: string): Promise<McpToolResult<{ success: boolean; mission: Mission; _instruction: string }>> {
-		return this.callTool('spawner_mission', {
-			action: 'fail',
-			mission_id: missionId,
-			error
-		});
+		void missionId;
+		void error;
+		return { success: false, error: GOVERNED_LIFECYCLE_ERROR };
 	}
 
 	/**
@@ -488,7 +485,7 @@ export interface Mission {
 	name: string;
 	description: string | null;
 	mode: 'claude-code' | 'api' | 'sdk' | 'multi-llm-orchestrator';
-	status: 'draft' | 'ready' | 'running' | 'paused' | 'completed' | 'failed';
+	status: 'draft' | 'ready' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
 	agents: MissionAgent[];
 	tasks: MissionTask[];
 	context: MissionContext;

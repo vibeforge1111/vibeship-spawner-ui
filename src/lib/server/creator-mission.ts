@@ -6,8 +6,9 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { autoDispatchPrdCanvasLoad, type PrdAutoDispatchResult } from './prd-auto-dispatch';
 import { spawnerStateDir as resolveSpawnerStateDir } from './spawner-state';
-import { assertNativeGovernorHarnessAuthority, buildServerGovernorDecisionAuthority, resolveExecutionAuthority } from './harness-authority';
+import { assertNativeGovernorHarnessAuthority, resolveExecutionAuthority } from './harness-authority';
 import { writeFileAtomic } from './atomic-write';
+import { stripAuthorityResidue } from './authority-residue';
 
 const execFileAsync = promisify(execFile);
 
@@ -308,6 +309,7 @@ interface ExecuteCreatorMissionOptions {
 	stateDir?: string;
 	now?: () => Date;
 	dispatchRunner?: CreatorDispatchRunner;
+	executionAuthority?: unknown;
 }
 
 interface ValidateCreatorMissionOptions {
@@ -1371,13 +1373,9 @@ function applyCreatorMissionStatusPacket(trace: CreatorMissionTrace, packet: Rec
 	}
 }
 
-function briefRequestsReadOnlyExecution(brief: string): boolean {
-	return /\b(?:stage\s+only|stage-only|do\s+not\s+run|don't\s+run|no\s+run|do\s+not\s+execute|don't\s+execute|no\s+execution|without\s+running)\b/i.test(brief);
-}
-
-function resolveCreatorExecutionPolicy(input: CreateCreatorMissionInput, brief: string): CreatorExecutionPolicy {
+function resolveCreatorExecutionPolicy(input: CreateCreatorMissionInput, _brief: string): CreatorExecutionPolicy {
 	if (input.executionPolicy === 'read_only' || input.executionPolicy === 'manual_run') return input.executionPolicy;
-	return briefRequestsReadOnlyExecution(brief) ? 'read_only' : 'manual_run';
+	return 'manual_run';
 }
 
 function creatorMissionExecutionBlockedReason(trace: CreatorMissionTrace): string | null {
@@ -1544,7 +1542,7 @@ export function creatorMissionCanvasLoad(trace: CreatorMissionTrace, now = new D
 
 async function writeCreatorMissionCanvasLoad(load: CreatorMissionCanvasLoad, stateDir = spawnerStateDir()): Promise<CreatorMissionCanvasLoad> {
 	await mkdir(stateDir, { recursive: true });
-	const payload = JSON.stringify(load, null, 2);
+	const payload = JSON.stringify(stripAuthorityResidue(load), null, 2);
 	await writeFileAtomic(pendingLoadPath(stateDir), payload);
 	await writeFileAtomic(lastCanvasLoadPath(stateDir), payload);
 	return load;
@@ -1669,18 +1667,8 @@ export async function readCreatorMissionTrace(
 	return null;
 }
 
-function executableCreatorMissionCanvasLoad(trace: CreatorMissionTrace): CreatorMissionCanvasLoad {
+function executableCreatorMissionCanvasLoad(trace: CreatorMissionTrace, executionAuthority: unknown): CreatorMissionCanvasLoad {
 	const load = creatorMissionCanvasLoad(trace);
-	const executionAuthority = buildServerGovernorDecisionAuthority({
-		source: 'authenticated_creator_mission_execute',
-		reason: 'Authenticated creator mission execution converted a staged creator canvas into a runnable mission.',
-		toolName: 'spawner.dispatch',
-		mutationClass: 'launches_mission',
-		requestId: trace.request_id,
-		actorKind: 'system',
-		actorIdRef: 'creator-mission.execute',
-		target: trace.mission_id
-	});
 	return {
 		...load,
 		autoRun: true,
@@ -1708,9 +1696,16 @@ export async function executeCreatorMission(
 	if (blockedReason) {
 		throw new Error(blockedReason);
 	}
+	assertNativeGovernorHarnessAuthority({
+		authority: resolveExecutionAuthority(options.executionAuthority),
+		toolName: 'spawner.dispatch',
+		ownerSystem: 'spawner-ui',
+		mutationClass: 'launches_mission',
+		requestId: trace.request_id
+	});
 
 	const now = options.now?.() ?? new Date();
-	const load = await writeCreatorMissionCanvasLoad(executableCreatorMissionCanvasLoad(trace), options.stateDir);
+	const load = await writeCreatorMissionCanvasLoad(executableCreatorMissionCanvasLoad(trace, options.executionAuthority), options.stateDir);
 	const runner = options.dispatchRunner || activeCreatorDispatchRunner || ((candidate: CreatorMissionCanvasLoad) =>
 		autoDispatchPrdCanvasLoad(candidate, { allowExistingNonTerminalMission: true }));
 	const dispatch = await runner(load);

@@ -9,7 +9,11 @@ import {
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { spawnerStateDir } from '$lib/server/spawner-state';
-import { HarnessAuthorityError, assertNativeGovernorHarnessAuthority, resolveExecutionAuthority } from '$lib/server/harness-authority';
+import {
+	HarnessAuthorityError,
+	assertNativeGovernorHarnessAuthority,
+	resolveExecutionAuthority
+} from '$lib/server/harness-authority';
 
 interface ValidateCreatorMissionBody {
 	missionId?: string;
@@ -132,7 +136,7 @@ export const POST: RequestHandler = async (event) => {
 		surface: 'CreatorMissionValidate',
 		apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
-		allowLoopbackWithoutKey: true
+		allowLoopbackWithoutKey: false
 	});
 	if (unauthorized) return unauthorized;
 
@@ -157,8 +161,9 @@ export const POST: RequestHandler = async (event) => {
 		if (!pendingTrace) {
 			return json({ ok: false, error: 'creator mission trace not found' }, { status: 404 });
 		}
+		const executionAuthority = body.executionAuthority;
 		const authority = assertNativeGovernorHarnessAuthority({
-			authority: resolveExecutionAuthority(body.executionAuthority),
+			authority: resolveExecutionAuthority(executionAuthority),
 			toolName: 'spawner.creator.validate',
 			ownerSystem: 'spawner-ui',
 			mutationClass: 'writes_files'
@@ -186,7 +191,7 @@ export const POST: RequestHandler = async (event) => {
 			missionId,
 			requestId,
 			maxCommands: typeof body.maxCommands === 'number' ? body.maxCommands : undefined,
-			executionAuthority: body.executionAuthority
+			executionAuthority
 		};
 		if (body.async === true) {
 			const validationPromise = runCreatorMissionValidationWithEvents(validationInput, pendingTrace, stateDir).catch((error) => {

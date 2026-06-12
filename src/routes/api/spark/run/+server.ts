@@ -56,7 +56,8 @@ export const GET: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
 		surface: 'SparkRunHealth',
 		apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
-		fallbackApiKeyEnvVar: 'MCP_API_KEY'
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		allowLoopbackWithoutKey: true
 	});
 	if (unauthorized) return unauthorized;
 

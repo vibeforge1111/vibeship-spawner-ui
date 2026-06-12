@@ -933,16 +933,23 @@ function buildProviderPrompt(input: BuildProviderPromptInput): string {
 		})
 		.join('\n\n');
 
+	const eventAuthSetup = `Before POSTing lifecycle/review events:
+EVENTS_AUTH_KEY="\${EVENTS_API_KEY:-$MCP_API_KEY}"
+test -n "$EVENTS_AUTH_KEY" || { echo "Missing EVENTS_API_KEY or MCP_API_KEY for /api/events"; exit 1; }`;
 	const reportingBlock = canReportTaskLifecycle
-		? `Report lifecycle events:
-curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -d '{"type":"task_started","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME","source":"${eventSource}"}'
-curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -d '{"type":"progress","missionId":"${mission.id}","taskId":"TASK_ID","progress":50,"message":"Working...","source":"${eventSource}"}'
-curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -d '{"type":"task_completed","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME","data":{"success":true,"verification":{"build":true,"typecheck":true,"filesChanged":["src/file.ts"]}},"source":"${eventSource}"}'
+		? `${eventAuthSetup}
+
+Report lifecycle events:
+curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -H "x-api-key: $EVENTS_AUTH_KEY" -d '{"type":"task_started","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME","source":"${eventSource}"}'
+curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -H "x-api-key: $EVENTS_AUTH_KEY" -d '{"type":"progress","missionId":"${mission.id}","taskId":"TASK_ID","progress":50,"message":"Working...","source":"${eventSource}"}'
+curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -H "x-api-key: $EVENTS_AUTH_KEY" -d '{"type":"task_completed","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME","data":{"success":true,"verification":{"build":true,"typecheck":true,"filesChanged":["src/file.ts"]}},"source":"${eventSource}"}'
 
 When all assigned tasks are complete:
-curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -d '{"type":"mission_completed","missionId":"${mission.id}","source":"${eventSource}"}'`
-		: `Send review feedback events only (do not emit task_started/task_completed):
-curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -d '{"type":"provider_feedback","missionId":"${mission.id}","taskId":"TASK_ID","source":"${eventSource}","data":{"provider":"${provider.id}","summary":"feedback here","approved":true}}'`;
+curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -H "x-api-key: $EVENTS_AUTH_KEY" -d '{"type":"mission_completed","missionId":"${mission.id}","source":"${eventSource}"}'`
+		: `${eventAuthSetup}
+
+Send review feedback events only (do not emit task_started/task_completed):
+curl -X POST ${baseUrl}/api/events -H "Content-Type: application/json" -H "x-api-key: $EVENTS_AUTH_KEY" -d '{"type":"provider_feedback","missionId":"${mission.id}","taskId":"TASK_ID","source":"${eventSource}","data":{"provider":"${provider.id}","summary":"feedback here","approved":true}}'`;
 
 	const roleLine = assignment.mode === 'review' ? 'Role: Reviewer' : 'Role: Executor';
 	const providerCaps = (provider.capabilities || []).join(', ') || 'reasoning';

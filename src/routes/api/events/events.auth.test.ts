@@ -21,12 +21,15 @@ vi.mock('$lib/server/mission-control-relay', () => ({
 
 vi.mock('$lib/server/provider-runtime', () => ({
 	providerRuntime: {
+		getSessionsForMission: vi.fn(() => []),
 		markMissionTerminalFromLifecycleEvent: vi.fn()
 	}
 }));
 
 import { GET, OPTIONS, POST } from './+server';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
+import { providerRuntime } from '$lib/server/provider-runtime';
+import { eventBridge, type BridgeEvent } from '$lib/services/event-bridge';
 
 let testSpawnerDir: string | null = null;
 
@@ -34,6 +37,9 @@ afterEach(async () => {
 	delete process.env.SPAWNER_STATE_DIR;
 	privateEnv.SPARK_LIVE_CONTAINER = undefined;
 	vi.mocked(relayMissionControlEvent).mockClear();
+	vi.mocked(providerRuntime.getSessionsForMission).mockReset();
+	vi.mocked(providerRuntime.getSessionsForMission).mockReturnValue([]);
+	vi.mocked(providerRuntime.markMissionTerminalFromLifecycleEvent).mockClear();
 	if (testSpawnerDir && existsSync(testSpawnerDir)) {
 		await rm(testSpawnerDir, { recursive: true, force: true });
 	}
@@ -45,6 +51,35 @@ function createEvent(url: string, init?: RequestInit, clientAddress = '203.0.113
 		request: new Request(url, init),
 		getClientAddress: () => clientAddress
 	} as never;
+}
+
+async function readNextSsePayload(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<Record<string, unknown>> {
+	const decoder = new TextDecoder();
+	const chunk = await reader.read();
+	expect(chunk.done).toBe(false);
+	const text = decoder.decode(chunk.value);
+	const match = text.match(/^data:\s*(.+?)\n\n$/s);
+	expect(match?.[1]).toBeTruthy();
+	return JSON.parse(match![1]);
+}
+
+function emitPrivateBridgeEvent(): BridgeEvent {
+	const event = {
+		type: 'task_completed',
+		missionId: 'mission-sse-private',
+		taskId: 'T1',
+		taskName: 'Private task',
+		progress: 100,
+		message: 'Task done',
+		data: {
+			response: 'private provider output',
+			verification: { filesChanged: ['secret.ts'] }
+		},
+		timestamp: '2026-06-09T00:00:00.000Z',
+		source: 'codex'
+	};
+	eventBridge.emit(event);
+	return event;
 }
 
 describe('/api/events auth', () => {
@@ -114,14 +149,15 @@ describe('/api/events auth', () => {
 		expect(response.status).toBe(401);
 	});
 
-	it('accepts a loopback theatre SSE origin without an events key', async () => {
+	it('accepts a loopback theatre SSE origin with an events key', async () => {
 		const response = await GET(
 			createEvent(
 				'http://localhost:3333/api/events',
 				{
 					method: 'GET',
 					headers: {
-						origin: 'http://localhost:5600'
+						origin: 'http://localhost:5600',
+						'x-api-key': 'events-secret'
 					}
 				},
 				'127.0.0.1'
@@ -132,7 +168,72 @@ describe('/api/events auth', () => {
 		expect(response.headers.get('access-control-allow-origin')).toBe('http://localhost:5600');
 	});
 
-	it('answers loopback theatre preflight for event posts', async () => {
+	it('redacts event data for loopback no-key SSE subscribers', async () => {
+		const abort = new AbortController();
+		const response = await GET(
+			createEvent(
+				'http://127.0.0.1:3333/api/events',
+				{ method: 'GET', signal: abort.signal },
+				'127.0.0.1'
+			)
+		);
+		expect(response.status).toBe(200);
+		const reader = response.body!.getReader();
+
+		await readNextSsePayload(reader);
+		emitPrivateBridgeEvent();
+		const payload = await readNextSsePayload(reader);
+		abort.abort();
+		await reader.cancel().catch(() => undefined);
+
+		expect(payload).toMatchObject({
+			type: 'task_completed',
+			missionId: 'mission-sse-private',
+			taskId: 'T1',
+			taskName: 'Private task',
+			progress: 100,
+			message: 'Task done',
+			source: 'codex',
+			authorityBoundary: {
+				payload: 'event_metadata',
+				data: 'requires_control_auth'
+			}
+		});
+		expect(payload.data).toBeUndefined();
+		expect(JSON.stringify(payload)).not.toContain('private provider output');
+		expect(JSON.stringify(payload)).not.toContain('secret.ts');
+	});
+
+	it('keeps full event data for authenticated SSE subscribers', async () => {
+		const abort = new AbortController();
+		const response = await GET(
+			createEvent(
+				'http://127.0.0.1:3333/api/events',
+				{
+					method: 'GET',
+					headers: { 'x-api-key': 'events-secret' },
+					signal: abort.signal
+				},
+				'127.0.0.1'
+			)
+		);
+		expect(response.status).toBe(200);
+		const reader = response.body!.getReader();
+
+		await readNextSsePayload(reader);
+		emitPrivateBridgeEvent();
+		const payload = await readNextSsePayload(reader);
+		abort.abort();
+		await reader.cancel().catch(() => undefined);
+
+		expect(payload.authorityBoundary).toBeUndefined();
+		expect(payload.data).toMatchObject({
+			response: 'private provider output',
+			verification: { filesChanged: ['secret.ts'] }
+		});
+	});
+
+	it('answers loopback theatre preflight for event posts with an events key', async () => {
 		const response = await OPTIONS(
 			createEvent(
 				'http://localhost:3333/api/events',
@@ -140,8 +241,9 @@ describe('/api/events auth', () => {
 					method: 'OPTIONS',
 					headers: {
 						origin: 'http://localhost:5600',
+						'x-api-key': 'events-secret',
 						'access-control-request-method': 'POST',
-						'access-control-request-headers': 'content-type'
+						'access-control-request-headers': 'content-type,x-api-key'
 					}
 				},
 				'127.0.0.1'
@@ -172,12 +274,271 @@ describe('/api/events auth', () => {
 		expect(response.headers.get('set-cookie')).toContain('spawner_events_api_key=');
 	});
 
+	it('rejects unauthenticated local event posts before relaying mission state', async () => {
+		const response = await POST(
+			createEvent(
+				'http://127.0.0.1:3333/api/events',
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						type: 'mission_completed',
+						missionId: 'mission-local-unauth-events',
+						source: 'codex'
+					})
+				},
+				'127.0.0.1'
+			)
+		);
+
+		expect(response.status).toBe(401);
+		expect(relayMissionControlEvent).not.toHaveBeenCalled();
+	});
+
+	it('downgrades replayed terminal lifecycle events without an active provider session', async () => {
+		const response = await POST(
+			createEvent('https://example.com/api/events', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-api-key': 'events-secret'
+				},
+				body: JSON.stringify({
+					type: 'mission_completed',
+					missionId: 'mission-replayed-terminal',
+					source: 'codex',
+					data: { providerId: 'codex', response: 'replayed completion' }
+				})
+			})
+		);
+
+		expect(response.status).toBe(200);
+		expect(providerRuntime.markMissionTerminalFromLifecycleEvent).not.toHaveBeenCalled();
+		expect(relayMissionControlEvent).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: 'mission_lifecycle_untrusted',
+				originalType: 'mission_completed',
+				missionId: 'mission-replayed-terminal',
+				data: expect.objectContaining({
+					lifecycleTrust: expect.objectContaining({
+						trusted: false,
+						reason: 'no_matching_active_provider_session',
+						providerId: 'codex'
+					})
+				})
+			})
+		);
+	});
+
+	it('allows terminal lifecycle events that match an active provider session', async () => {
+		vi.mocked(providerRuntime.getSessionsForMission).mockReturnValue([
+			{
+				providerId: 'codex',
+				missionId: 'mission-live-terminal',
+				status: 'running',
+				abortController: new AbortController(),
+				startedAt: new Date('2026-06-09T00:00:00.000Z'),
+				completedAt: null,
+				result: null,
+				error: null
+			}
+		]);
+
+		const response = await POST(
+			createEvent('https://example.com/api/events', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-api-key': 'events-secret'
+				},
+				body: JSON.stringify({
+					type: 'mission_completed',
+					missionId: 'mission-live-terminal',
+					source: 'codex',
+					data: { providerId: 'codex', response: 'live completion' }
+				})
+			})
+		);
+
+		expect(response.status).toBe(200);
+		expect(providerRuntime.markMissionTerminalFromLifecycleEvent).toHaveBeenCalledWith(
+			expect.objectContaining({
+				missionId: 'mission-live-terminal',
+				status: 'completed',
+				providerId: 'codex',
+				response: 'live completion'
+			})
+		);
+		expect(relayMissionControlEvent).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: 'mission_completed',
+				missionId: 'mission-live-terminal'
+			})
+		);
+	});
+
+	it('downgrades terminal lifecycle events that omit the requestId/traceRef recorded on the session', async () => {
+		vi.mocked(providerRuntime.getSessionsForMission).mockReturnValue([
+			{
+				providerId: 'codex',
+				missionId: 'mission-ref-bound-terminal',
+				requestId: 'tg-build-ref-bound-1788000000000',
+				traceRef: 'trace:spawner-prd:mission-ref-bound-terminal',
+				status: 'running',
+				abortController: new AbortController(),
+				startedAt: new Date('2026-06-09T00:00:00.000Z'),
+				completedAt: null,
+				result: null,
+				error: null
+			}
+		]);
+
+		const response = await POST(
+			createEvent('https://example.com/api/events', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-api-key': 'events-secret'
+				},
+				body: JSON.stringify({
+					type: 'mission_completed',
+					missionId: 'mission-ref-bound-terminal',
+					source: 'codex',
+					data: { providerId: 'codex', response: 'completion without refs' }
+				})
+			})
+		);
+
+		expect(response.status).toBe(200);
+		expect(providerRuntime.markMissionTerminalFromLifecycleEvent).not.toHaveBeenCalled();
+		expect(relayMissionControlEvent).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: 'mission_lifecycle_untrusted',
+				originalType: 'mission_completed',
+				missionId: 'mission-ref-bound-terminal',
+				data: expect.objectContaining({
+					lifecycleTrust: expect.objectContaining({
+						trusted: false,
+						reason: 'session_requires_request_or_trace_ref_match'
+					})
+				})
+			})
+		);
+	});
+
+	it('allows terminal lifecycle events that present the requestId recorded on the session', async () => {
+		vi.mocked(providerRuntime.getSessionsForMission).mockReturnValue([
+			{
+				providerId: 'codex',
+				missionId: 'mission-ref-match-terminal',
+				requestId: 'tg-build-ref-match-1788000000001',
+				traceRef: 'trace:spawner-prd:mission-ref-match-terminal',
+				status: 'running',
+				abortController: new AbortController(),
+				startedAt: new Date('2026-06-09T00:00:00.000Z'),
+				completedAt: null,
+				result: null,
+				error: null
+			}
+		]);
+
+		const response = await POST(
+			createEvent('https://example.com/api/events', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-api-key': 'events-secret'
+				},
+				body: JSON.stringify({
+					type: 'mission_completed',
+					missionId: 'mission-ref-match-terminal',
+					source: 'codex',
+					data: {
+						providerId: 'codex',
+						requestId: 'tg-build-ref-match-1788000000001',
+						response: 'completion bound by requestId'
+					}
+				})
+			})
+		);
+
+		expect(response.status).toBe(200);
+		expect(providerRuntime.markMissionTerminalFromLifecycleEvent).toHaveBeenCalledWith(
+			expect.objectContaining({
+				missionId: 'mission-ref-match-terminal',
+				status: 'completed',
+				providerId: 'codex',
+				response: 'completion bound by requestId'
+			})
+		);
+	});
+
+	it('rejects PRD analysis results that do not bind to a governed pending request', async () => {
+		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-events-unbound-'));
+		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
+		const requestId = 'events-unbound-result-test';
+
+		const response = await POST(
+			createEvent('https://example.com/api/events', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-api-key': 'events-secret'
+				},
+				body: JSON.stringify({
+					type: 'prd_analysis_complete',
+					source: 'codex-auto',
+					data: {
+						requestId,
+						result: {
+							success: true,
+							projectName: 'Unbound Events Result',
+							projectType: 'direct-build',
+							complexity: 'simple',
+							infrastructure: { needsAuth: false, needsDatabase: false, needsAPI: false },
+							techStack: { framework: 'Existing Spawner UI', language: 'TypeScript' },
+							tasks: [{ id: 'TAS-1', title: 'Should never store', skills: [], dependencies: [] }],
+							skills: []
+						}
+					}
+				})
+			})
+		);
+		const body = await response.json();
+
+		expect(response.status).toBe(409);
+		expect(body.code).toBe('prd_result_unbound');
+		expect(existsSync(path.join(testSpawnerDir, 'results', `${requestId}.json`))).toBe(false);
+		expect(existsSync(path.join(testSpawnerDir, 'pending-request.json'))).toBe(false);
+
+		const traceRows = (await readFile(path.join(testSpawnerDir, 'prd-auto-trace.jsonl'), 'utf-8'))
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line));
+		expect(traceRows.map((row) => row.event)).toEqual(
+			expect.arrayContaining(['events_received_complete', 'events_rejected_unbound'])
+		);
+		expect(traceRows.map((row) => row.event)).not.toContain('canonical_result_stored');
+	});
+
 	it('stores PRD analysis results under configured Spawner state directory', async () => {
 		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-events-state-'));
 		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
 		const requestId = 'events-state-dir-test';
 		const traceRef = 'trace:spawner-prd:events-state-dir-test';
-		await writeFile(path.join(testSpawnerDir, 'pending-request.json'), JSON.stringify({ requestId, traceRef }), 'utf-8');
+		await writeFile(
+			path.join(testSpawnerDir, 'pending-request.json'),
+			JSON.stringify({
+				requestId,
+				traceRef,
+				status: 'pending',
+				autoAnalysis: {
+					status: 'running',
+					startedAt: '2026-06-08T18:00:00.000Z'
+				}
+			}),
+			'utf-8'
+		);
 
 		const response = await POST(
 			createEvent('https://example.com/api/events', {
@@ -215,6 +576,27 @@ describe('/api/events auth', () => {
 		expect(storedJson.metadata.traceRef).toBe(traceRef);
 		expect(stored).not.toContain('executionPrompt');
 		expect(stored).not.toContain('Store result consistently.');
+
+		const pending = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
+		expect(pending).toMatchObject({
+			requestId,
+			status: 'processed',
+			reason: 'Canonical provider result stored from events bridge.',
+			autoAnalysis: {
+				status: 'complete',
+				success: true,
+				canonicalResultAvailable: true,
+				resultFileName: `${requestId}.json`
+			}
+		});
+
+		const traceRows = (await readFile(path.join(testSpawnerDir, 'prd-auto-trace.jsonl'), 'utf-8'))
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line));
+		expect(traceRows.map((row) => row.event)).toEqual(
+			expect.arrayContaining(['events_received_complete', 'canonical_result_stored'])
+		);
 	});
 
 	it('applies base tier skill gating when PRD results arrive through events', async () => {

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { POST as startSession } from './session/start/+server';
 import { POST as command } from './command/+server';
 import { GET as events } from './events/+server';
@@ -11,6 +11,22 @@ import {
 	buildClientTurnIntentVNextAuthority,
 	type SparkClientMutationClass
 } from '$lib/services/harness-authority-client';
+
+const TEST_API_KEY = 'spark-agent-route-test-secret';
+const originalMcpApiKey = process.env.MCP_API_KEY;
+
+function restoreEnv(name: string, value: string | undefined) {
+	if (value === undefined) delete process.env[name];
+	else process.env[name] = value;
+}
+
+function jsonAuthHeaders() {
+	return { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY };
+}
+
+function authHeaders() {
+	return { 'x-api-key': TEST_API_KEY };
+}
 
 async function readChunk(response: Response, timeoutMs = 1000): Promise<string> {
 	if (!response.body) {
@@ -60,9 +76,14 @@ function commandVNextAuthority(input: {
 	});
 }
 
+beforeEach(() => {
+	process.env.MCP_API_KEY = TEST_API_KEY;
+});
+
 afterEach(() => {
 	getConnections().clear();
 	sparkAgentBridge.resetForTests();
+	restoreEnv('MCP_API_KEY', originalMcpApiKey);
 });
 
 describe('/api/spark-agent integration', () => {
@@ -80,11 +101,40 @@ describe('/api/spark-agent integration', () => {
 		expect(response.status).toBe(401);
 	});
 
+	it('allows local canvas state reads without opening Spark Agent commands', async () => {
+		const stateResponse = await canvasState({
+			request: new Request('http://127.0.0.1:3333/api/spark-agent/canvas-state', {
+				method: 'GET',
+				headers: { accept: 'application/json' }
+			}),
+			url: new URL('http://127.0.0.1:3333/api/spark-agent/canvas-state'),
+			getClientAddress: () => '127.0.0.1'
+		} as never);
+		expect(stateResponse.status).toBe(200);
+		const stateBody = await stateResponse.json();
+		expect(stateBody.hasUpdate).toBe(false);
+		expect(stateBody.snapshot).toBeNull();
+
+		const commandResponse = await command({
+			request: new Request('http://127.0.0.1:3333/api/spark-agent/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					sessionId: 'local-no-key',
+					command: 'canvas.get_state'
+				})
+			}),
+			url: new URL('http://127.0.0.1:3333/api/spark-agent/command'),
+			getClientAddress: () => '127.0.0.1'
+		} as never);
+		expect(commandResponse.status).toBe(401);
+	});
+
 	it('runs a full session flow: start -> canvas -> mission -> status -> end', async () => {
 		const startResponse = await startSession({
 			request: new Request('http://localhost/api/spark-agent/session/start', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({ actor: 'integration-test' })
 			})
 		} as never);
@@ -96,7 +146,7 @@ describe('/api/spark-agent integration', () => {
 		const createPipelineResponse = await command({
 			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({
 					sessionId,
 					command: 'canvas.create_pipeline',
@@ -114,7 +164,7 @@ describe('/api/spark-agent integration', () => {
 		const addSkillAResponse = await command({
 			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({
 					sessionId,
 					command: 'canvas.add_skill',
@@ -137,7 +187,7 @@ describe('/api/spark-agent integration', () => {
 		const addSkillBResponse = await command({
 			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({
 					sessionId,
 					command: 'canvas.add_skill',
@@ -160,7 +210,7 @@ describe('/api/spark-agent integration', () => {
 		const addConnectionResponse = await command({
 			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({
 					sessionId,
 					command: 'canvas.add_connection',
@@ -181,7 +231,7 @@ describe('/api/spark-agent integration', () => {
 		const missionBuildResponse = await command({
 			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({
 					sessionId,
 					command: 'mission.build',
@@ -201,7 +251,7 @@ describe('/api/spark-agent integration', () => {
 		const missionStartResponse = await command({
 			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({
 					sessionId,
 					command: 'mission.start',
@@ -218,7 +268,7 @@ describe('/api/spark-agent integration', () => {
 		const missionStatusResponse = await command({
 			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({
 					sessionId,
 					command: 'mission.status'
@@ -232,7 +282,7 @@ describe('/api/spark-agent integration', () => {
 		const mcpListResponse = await command({
 			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({
 					sessionId,
 					command: 'mcp.list'
@@ -246,7 +296,7 @@ describe('/api/spark-agent integration', () => {
 		const endResponse = await endSession({
 			request: new Request('http://localhost/api/spark-agent/session/end', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({
 					sessionId,
 					reason: 'integration-complete'
@@ -262,7 +312,7 @@ describe('/api/spark-agent integration', () => {
 		const startResponse = await startSession({
 			request: new Request('http://localhost/api/spark-agent/session/start', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({})
 			})
 		} as never);
@@ -273,6 +323,7 @@ describe('/api/spark-agent integration', () => {
 		const eventsResponse = await events({
 			request: new Request(`http://localhost/api/spark-agent/events?sessionId=${sessionId}`, {
 				method: 'GET',
+				headers: authHeaders(),
 				signal: abortController.signal
 			}),
 			url: new URL(`http://localhost/api/spark-agent/events?sessionId=${sessionId}`)
@@ -289,7 +340,7 @@ describe('/api/spark-agent integration', () => {
 		const startResponse = await startSession({
 			request: new Request('http://localhost/api/spark-agent/session/start', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({ actor: 'canvas-sync-test' })
 			})
 		} as never);
@@ -298,7 +349,7 @@ describe('/api/spark-agent integration', () => {
 		await command({
 			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({
 					sessionId,
 					command: 'canvas.create_pipeline',
@@ -318,7 +369,7 @@ describe('/api/spark-agent integration', () => {
 		await command({
 			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({
 					sessionId,
 					command: 'canvas.add_skill',
@@ -340,10 +391,11 @@ describe('/api/spark-agent integration', () => {
 		} as never);
 
 		const response = await canvasState({
-			request: new Request('http://localhost/api/spark-agent/canvas-state', {
-				method: 'GET'
+			request: new Request(`http://localhost/api/spark-agent/canvas-state?sessionId=${encodeURIComponent(sessionId)}`, {
+				method: 'GET',
+				headers: authHeaders()
 			}),
-			url: new URL('http://localhost/api/spark-agent/canvas-state')
+			url: new URL(`http://localhost/api/spark-agent/canvas-state?sessionId=${encodeURIComponent(sessionId)}`)
 		} as never);
 		expect(response.status).toBe(200);
 		const body = await response.json();
@@ -355,11 +407,36 @@ describe('/api/spark-agent integration', () => {
 			skillChain: ['frontend-engineer', 'ui-design', 'responsive-mobile-first']
 		});
 
-		const sinceResponse = await canvasState({
-			request: new Request(`http://localhost/api/spark-agent/canvas-state?since=${encodeURIComponent(body.snapshot.updatedAt)}`, {
-				method: 'GET'
+		const unboundResponse = await canvasState({
+			request: new Request('http://localhost/api/spark-agent/canvas-state', {
+				method: 'GET',
+				headers: authHeaders()
 			}),
-			url: new URL(`http://localhost/api/spark-agent/canvas-state?since=${encodeURIComponent(body.snapshot.updatedAt)}`)
+			url: new URL('http://localhost/api/spark-agent/canvas-state')
+		} as never);
+		expect(unboundResponse.status).toBe(200);
+		const unboundBody = await unboundResponse.json();
+		expect(unboundBody.hasUpdate).toBe(false);
+		expect(unboundBody.snapshot).toBeNull();
+
+		const wrongSessionResponse = await canvasState({
+			request: new Request('http://localhost/api/spark-agent/canvas-state?sessionId=other-session', {
+				method: 'GET',
+				headers: authHeaders()
+			}),
+			url: new URL('http://localhost/api/spark-agent/canvas-state?sessionId=other-session')
+		} as never);
+		expect(wrongSessionResponse.status).toBe(200);
+		const wrongSessionBody = await wrongSessionResponse.json();
+		expect(wrongSessionBody.hasUpdate).toBe(false);
+		expect(wrongSessionBody.snapshot).toBeNull();
+
+		const sinceResponse = await canvasState({
+			request: new Request(`http://localhost/api/spark-agent/canvas-state?sessionId=${encodeURIComponent(sessionId)}&since=${encodeURIComponent(body.snapshot.updatedAt)}`, {
+				method: 'GET',
+				headers: authHeaders()
+			}),
+			url: new URL(`http://localhost/api/spark-agent/canvas-state?sessionId=${encodeURIComponent(sessionId)}&since=${encodeURIComponent(body.snapshot.updatedAt)}`)
 		} as never);
 		expect(sinceResponse.status).toBe(200);
 		const sinceBody = await sinceResponse.json();
@@ -377,7 +454,7 @@ describe('/api/spark-agent integration', () => {
 		const startResponse = await startSession({
 			request: new Request('http://localhost/api/spark-agent/session/start', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({ actor: 'worker-test' })
 			})
 		} as never);
@@ -386,7 +463,7 @@ describe('/api/spark-agent integration', () => {
 		const runResponse = await command({
 			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({
 					sessionId,
 					command: 'worker.run',
@@ -414,6 +491,7 @@ describe('/api/spark-agent integration', () => {
 		const eventsResponse = await events({
 			request: new Request(`http://localhost/api/spark-agent/events?sessionId=${sessionId}`, {
 				method: 'GET',
+				headers: authHeaders(),
 				signal: abortController.signal
 			}),
 			url: new URL(`http://localhost/api/spark-agent/events?sessionId=${sessionId}`)
@@ -442,7 +520,7 @@ describe('/api/spark-agent integration', () => {
 		const startResponse = await startSession({
 			request: new Request('http://localhost/api/spark-agent/session/start', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({ actor: 'worker-command-template-test' })
 			})
 		} as never);
@@ -451,7 +529,7 @@ describe('/api/spark-agent integration', () => {
 		const runResponse = await command({
 			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({
 					sessionId,
 					command: 'worker.run',
@@ -483,7 +561,7 @@ describe('/api/spark-agent integration', () => {
 		const startResponse = await startSession({
 			request: new Request('http://localhost/api/spark-agent/session/start', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({ actor: 'worker-authority-test' })
 			})
 		} as never);
@@ -492,7 +570,7 @@ describe('/api/spark-agent integration', () => {
 		const response = await command({
 			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({
 					sessionId,
 					command: 'worker.run',
@@ -519,7 +597,7 @@ describe('/api/spark-agent integration', () => {
 		const startResponse = await startSession({
 			request: new Request('http://localhost/api/spark-agent/session/start', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({ actor: 'worker-vnext-test' })
 			})
 		} as never);
@@ -528,7 +606,7 @@ describe('/api/spark-agent integration', () => {
 		const response = await command({
 			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({
 					sessionId,
 					command: 'worker.run',
@@ -555,6 +633,71 @@ describe('/api/spark-agent integration', () => {
 		expect(executor).not.toHaveBeenCalled();
 	});
 
+	it('requires Governor authority before ending a session with a running worker', async () => {
+		let finishWorker!: (result: { success: boolean; response?: string; error?: string }) => void;
+		sparkAgentBridge.setWorkerExecutorForTests(
+			vi.fn(
+				() =>
+					new Promise<{ success: boolean; response?: string; error?: string }>((resolve) => {
+						finishWorker = resolve;
+					})
+			)
+		);
+
+		const runPromise = sparkAgentBridge.executeProviderTask({
+			providerId: 'codex',
+			missionId: 'mission-end-running-worker',
+			prompt: 'keep worker running for session-end authority test',
+			executionAuthority: commandAuthority({
+				toolName: 'spawner.spark_agent.worker.run',
+				mutationClass: 'launches_mission',
+				target: 'mission-end-running-worker',
+				externalNetwork: true
+			}),
+			sparkAgentSessionId: 'session-end-running-worker'
+		});
+		expect(sparkAgentBridge.getWorkerSession('session-end-running-worker')?.status).toBe('running');
+
+		const blockedResponse = await endSession({
+			request: new Request('http://localhost/api/spark-agent/session/end', {
+				method: 'POST',
+				headers: jsonAuthHeaders(),
+				body: JSON.stringify({
+					sessionId: 'session-end-running-worker',
+					reason: 'operator requested'
+				})
+			})
+		} as never);
+
+		expect(blockedResponse.status).toBe(409);
+		const blockedBody = await blockedResponse.json();
+		expect(blockedBody.code).toBe('harness_authority_blocked');
+		expect(blockedBody.authority.reasonCodes).toContain('missing_harness_authority');
+		expect(sparkAgentBridge.getSession('session-end-running-worker')?.status).toBe('active');
+
+		const allowedResponse = await endSession({
+			request: new Request('http://localhost/api/spark-agent/session/end', {
+				method: 'POST',
+				headers: jsonAuthHeaders(),
+				body: JSON.stringify({
+					sessionId: 'session-end-running-worker',
+					reason: 'operator requested',
+					executionAuthority: commandAuthority({
+						toolName: 'spawner.spark_agent.worker.cancel',
+						mutationClass: 'controls_mission',
+						target: 'mission-end-running-worker'
+					})
+				})
+			})
+		} as never);
+
+		expect(allowedResponse.status).toBe(200);
+		const allowedBody = await allowedResponse.json();
+		expect(allowedBody.session.status).toBe('ended');
+		finishWorker({ success: false, error: 'ended by test' });
+		await runPromise;
+	});
+
 	it('rejects unsafe internal provider command templates before process execution', async () => {
 		const result = await sparkAgentBridge.executeProviderTask({
 			providerId: 'codex',
@@ -577,7 +720,7 @@ describe('/api/spark-agent integration', () => {
 		const startA = await startSession({
 			request: new Request('http://localhost/api/spark-agent/session/start', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({ actor: 'session-a' })
 			})
 		} as never);
@@ -586,7 +729,7 @@ describe('/api/spark-agent integration', () => {
 		const startB = await startSession({
 			request: new Request('http://localhost/api/spark-agent/session/start', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({ actor: 'session-b' })
 			})
 		} as never);
@@ -626,7 +769,7 @@ describe('/api/spark-agent integration', () => {
 		const listResponse = await command({
 			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({ sessionId: sessionA, command: 'mcp.list' })
 			})
 		} as never);
@@ -638,7 +781,7 @@ describe('/api/spark-agent integration', () => {
 		const unauthorizedCallResponse = await command({
 			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({
 					sessionId: sessionA,
 					command: 'mcp.call_tool',
@@ -659,7 +802,7 @@ describe('/api/spark-agent integration', () => {
 		const vnextCallResponse = await command({
 			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({
 					sessionId: sessionA,
 					command: 'mcp.call_tool',
@@ -687,7 +830,7 @@ describe('/api/spark-agent integration', () => {
 		const ownCallResponse = await command({
 			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({
 					sessionId: sessionA,
 					command: 'mcp.call_tool',
@@ -711,7 +854,7 @@ describe('/api/spark-agent integration', () => {
 		const foreignCallResponse = await command({
 			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({
 					sessionId: sessionA,
 					command: 'mcp.call_tool',
@@ -737,7 +880,7 @@ describe('/api/spark-agent integration', () => {
 		const foreignDisconnectResponse = await command({
 			request: new Request('http://localhost/api/spark-agent/command', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: jsonAuthHeaders(),
 				body: JSON.stringify({
 					sessionId: sessionA,
 					command: 'mcp.disconnect',

@@ -65,7 +65,7 @@ function governorAuthority() {
 		reason: 'Focused PRD auto-dispatch authority regression.',
 		toolName: 'spawner.dispatch',
 		mutationClass: 'launches_mission',
-		requestId: 'prd-auto-dispatch-test',
+		requestId: load.requestId,
 		actorKind: 'system',
 		actorIdRef: 'spawner-ui.test',
 		target: load.missionId
@@ -78,7 +78,7 @@ function bareVNextAuthority() {
 		reason: 'Focused PRD auto-dispatch authority regression.',
 		toolName: 'spawner.dispatch',
 		mutationClass: 'launches_mission',
-		requestId: 'prd-auto-dispatch-test',
+		requestId: load.requestId,
 		actorKind: 'system',
 		actorIdRef: 'spawner-ui.test',
 		target: load.missionId
@@ -124,6 +124,39 @@ describe('PRD auto-dispatch helpers', () => {
 		expect(inferProjectPathFromPrdLoad(load)).toBe('C:\\Users\\USER\\Desktop\\spark-test');
 	});
 
+	it('uses structured project lineage before command-like verification text', () => {
+		const projectPath = inferProjectPathFromPrdLoad({
+			...load,
+			executionPrompt:
+				"Verification commands:\n- Test-Path 'C:/Users/USER/.spark/workspaces/harness-rendered-cua-proof-20260610l/index.html'; Test-Path 'C:/Users/USER/.spark/workspaces/harness-rendered-cua-proof-20260610l/styles.css'",
+			relay: {
+				projectLineage: {
+					projectPath: 'C:/Users/USER/.spark/workspaces/harness-rendered-cua-proof-20260610l'
+				}
+			}
+		});
+
+		expect(projectPath).toBe('C:/Users/USER/.spark/workspaces/harness-rendered-cua-proof-20260610l');
+		expect(projectPath).not.toContain('index.html');
+		expect(projectPath).not.toContain('Test-Path');
+	});
+
+	it('rejects semicolon-joined file verification targets as project paths', () => {
+		const projectPath = inferProjectPathFromPrdLoad(
+			{
+				...load,
+				executionPrompt:
+					"Verification commands:\n- Test-Path 'C:/Users/USER/.spark/workspaces/harness-rendered-cua-proof-20260610l/index.html'; Test-Path 'C:/Users/USER/.spark/workspaces/harness-rendered-cua-proof-20260610l/styles.css'",
+				relay: {}
+			},
+			{ SPARK_WORKSPACE_ROOT: '/data/workspaces' }
+		);
+
+		expect(projectPath).toMatch(/[\\/]data[\\/]workspaces[\\/]mission-1-spark-test$/);
+		expect(projectPath).not.toContain('index.html');
+		expect(projectPath).not.toContain('Test-Path');
+	});
+
 	it('stops Windows target folders before prose after a colon', () => {
 		expect(
 			inferProjectPathFromPrdLoad({
@@ -157,17 +190,91 @@ describe('PRD auto-dispatch helpers', () => {
 		expect(projectPath).toMatch(/[\\/]data[\\/]workspaces[\\/]mission-1-spark-test$/);
 	});
 
-	it('keeps local auto-dispatch fallback unchanged without a hosted workspace', () => {
-		expect(
-			inferProjectPathFromPrdLoad(
-				{
-					...load,
-					executionPrompt: 'Build a tiny static landing page for a cafe.',
-					nodes: [{ skill: { name: 'task-1: Build page', description: 'Create the page.' } }]
+	it('does not treat relative workspace target files as the executor workspace', () => {
+		const projectPath = inferProjectPathFromPrdLoad(
+			{
+				...load,
+				executionPrompt: 'Build a tiny local Spawner proof pad.',
+				nodes: [
+					{
+						skill: {
+							name: 'task-1: Data contract',
+							description:
+								'Workspace targets:\n- src/lib/server/relay-readback-proof-pad.ts\n- src/lib/server/relay-readback-proof-pad.test.ts'
+						}
+					}
+				]
+			},
+			{ SPARK_WORKSPACE_ROOT: '/data/workspaces' }
+		);
+
+		expect(projectPath).toMatch(/[\\/]data[\\/]workspaces[\\/]mission-1-spark-test$/);
+		expect(projectPath).not.toContain('src');
+		expect(projectPath).not.toContain('relay-readback-proof-pad');
+	});
+
+	it('does not treat absolute file targets as the executor workspace', () => {
+		const projectPath = inferProjectPathFromPrdLoad(
+			{
+				...load,
+				executionPrompt: 'Build a tiny local Spawner proof pad.',
+				nodes: [
+					{
+						skill: {
+							name: 'task-1: Data contract',
+							description:
+								'Workspace targets:\n- C:\\Users\\USER\\.spark\\modules\\spawner-ui\\source\\src\\lib\\server\\relay-readback-proof-pad.test.ts'
+						}
+					}
+				]
+			},
+			{ SPARK_WORKSPACE_ROOT: '/data/workspaces' }
+		);
+
+		expect(projectPath).toMatch(/[\\/]data[\\/]workspaces[\\/]mission-1-spark-test$/);
+		expect(projectPath).not.toContain('relay-readback-proof-pad.test.ts');
+	});
+
+	it('does not let provider task text choose the installed Spawner source as a new-project workspace', () => {
+		const projectPath = inferProjectPathFromPrdLoad(
+			{
+				...load,
+				executionPrompt: '',
+				relay: {
+					goal:
+						'Build a compact local Spawner Authority Handoff Board for tonight installer work with Spawner. Make a real project with a README, one smoke test, and a simple page.'
 				},
-				{}
-			)
-		).toBe('.');
+				nodes: [
+					{
+						skill: {
+							name: 'task-1: README',
+							description:
+								'Workspace targets:\n- docs/spawner-authority-handoff-board/README.md\n\nAcceptance criteria:\n- README includes workspace path C:\\Users\\USER\\.spark\\modules\\spawner-ui\\source.'
+						}
+					}
+				]
+			},
+			{ SPARK_WORKSPACE_ROOT: '/data/workspaces' }
+		);
+
+		expect(projectPath).toMatch(/[\\/]data[\\/]workspaces[\\/]mission-1-spark-test$/);
+		expect(projectPath).not.toContain('spawner-ui');
+		expect(projectPath).not.toContain('source');
+	});
+
+	it('uses the Spawner state root for generated projects without a hosted workspace', () => {
+		const projectPath = inferProjectPathFromPrdLoad(
+			{
+				...load,
+				executionPrompt: 'Build a tiny static landing page for a cafe.',
+				nodes: [{ skill: { name: 'task-1: Build page', description: 'Create the page.' } }]
+			},
+			{ SPAWNER_STATE_DIR: 'C:\\tmp\\spawner-state' }
+		);
+
+		expect(projectPath).toMatch(
+			/^C:\\tmp\\spawner-state[\\/]generated-projects[\\/]mission-1-spark-test$/
+		);
 	});
 
 	it('allows auto-dispatch only when the PRD load is runnable', () => {

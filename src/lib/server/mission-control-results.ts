@@ -269,6 +269,9 @@ function buildCompletionEvidence(
 	results: ProviderMissionResultSnapshot[],
 	summary: MissionControlResultSummary
 ): MissionControlCompletionEvidence {
+	const hasArtifactReference =
+		summary.providerResults.some((result) => Boolean(result.projectPath || result.previewUrl)) ||
+		Boolean(entry.projectLineage?.projectPath || entry.projectLineage?.previewUrl);
 	if (entry.status !== 'completed' && entry.status !== 'failed' && entry.status !== 'cancelled') {
 		return {
 			state: 'not_terminal',
@@ -279,7 +282,7 @@ function buildCompletionEvidence(
 			hasTerminalEvent: false,
 			hasProviderCompletionTime: false,
 			hasProviderSummary: Boolean(summary.providerSummary),
-			hasArtifactReference: summary.providerResults.some((result) => Boolean(result.projectPath || result.previewUrl)),
+			hasArtifactReference,
 			tasksTerminal: entry.taskStatusCounts.running === 0 && entry.taskStatusCounts.queued === 0
 		};
 	}
@@ -290,7 +293,7 @@ function buildCompletionEvidence(
 		results.every((result) => TERMINAL_PROVIDER_STATUSES.includes(result.status));
 	const hasProviderCompletionTime = results.some((result) => Boolean(result.completedAt));
 	const hasProviderSummary = Boolean(summary.providerSummary);
-	const hasArtifactReference = summary.providerResults.some((result) => Boolean(result.projectPath || result.previewUrl));
+	const expectsGeneratedAppArtifact = Boolean(entry.projectLineage?.projectPath || entry.projectLineage?.previewUrl);
 	const tasksTerminal = entry.taskStatusCounts.running === 0 && entry.taskStatusCounts.queued === 0;
 	const missing: string[] = [];
 
@@ -299,6 +302,7 @@ function buildCompletionEvidence(
 	if (results.length > 0 && !providerTerminal) missing.push('provider_terminal_status');
 	if (results.length > 0 && providerTerminal && !hasProviderCompletionTime) missing.push('provider_completion_time');
 	if (!hasProviderSummary) missing.push('provider_summary');
+	if (entry.status === 'completed' && expectsGeneratedAppArtifact && !hasArtifactReference) missing.push('artifact_reference');
 	if (!tasksTerminal) missing.push('terminal_task_state');
 
 	return {

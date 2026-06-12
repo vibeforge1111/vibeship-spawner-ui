@@ -24,28 +24,58 @@ import { formatTaskQualityGuidance } from '$lib/server/task-quality-rubric';
 import { formatVerificationPlanGuidance, generateVerificationPlan } from '$lib/server/verification-plan-generator';
 import { enrichBrief, isSparseUnderstandingClarification } from '$lib/server/brief-enricher';
 import { spawnerStateDir } from '$lib/server/spawner-state';
-import { projectStoredPrdAnalysisResultForTier } from '$lib/server/prd-analysis-result-schema';
+import { writeFileAtomic } from '$lib/server/atomic-write';
+import {
+	projectStoredPrdAnalysisResultForTier,
+	type StoredPrdAnalysisResult
+} from '$lib/server/prd-analysis-result-schema';
 import { extractExplicitProjectPath } from '$lib/server/project-path-extraction';
 import {
 	capabilityProposalSummary,
 	normalizeCapabilityProposalPacket
 } from '$lib/server/capability-proposal-packet';
 import { extractTraceRef, normalizeTraceRef, traceRefFromMissionId } from '$lib/server/trace-ref';
+import {
+	pendingPrdFileForRequest,
+	pendingRequestFileForRequest,
+	pendingRequestsDir,
+	readPendingPrdContent,
+	readPendingRequestRecord
+} from '$lib/server/prd-pending-requests';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
 import {
 	HarnessAuthorityError,
 	assertNativeGovernorHarnessAuthority,
 	resolveExecutionAuthority
 } from '$lib/server/harness-authority';
+import { recoverOverduePrdAutoAnalysisFromPending } from '$lib/server/prd-auto-analysis-timeout';
+import { resolveSparkRunProjectPath } from '$lib/server/spark-run-workspace';
 
 function getPrdBridgePaths() {
 	const spawnerDir = spawnerStateDir();
 	return {
 		spawnerDir,
 		resultsDir: join(spawnerDir, 'results'),
+		provisionalResultsDir: join(spawnerDir, 'provisional-results'),
 		pendingPrdFile: join(spawnerDir, 'pending-prd.md'),
 		pendingRequestFile: join(spawnerDir, 'pending-request.json'),
 		prdAutoTraceFile: join(spawnerDir, 'prd-auto-trace.jsonl')
+	};
+}
+
+/**
+ * Bridge paths with the pending PRD/request pointed at the requestId-scoped
+ * files when they exist, so concurrent requests never read each other's
+ * singleton pointer. Falls back to the singleton paths for legacy state.
+ */
+function scopedPrdBridgePathsForRequest(requestId: string): ReturnType<typeof getPrdBridgePaths> {
+	const paths = getPrdBridgePaths();
+	const scopedPrdFile = pendingPrdFileForRequest(paths.spawnerDir, requestId);
+	const scopedRequestFile = pendingRequestFileForRequest(paths.spawnerDir, requestId);
+	return {
+		...paths,
+		pendingPrdFile: existsSync(scopedPrdFile) ? scopedPrdFile : paths.pendingPrdFile,
+		pendingRequestFile: existsSync(scopedRequestFile) ? scopedRequestFile : paths.pendingRequestFile
 	};
 }
 const AUTO_ANALYSIS_BASE_URL = (process.env.SPAWNER_UI_SELF_URL || 'http://127.0.0.1:3333').replace(
@@ -53,7 +83,7 @@ const AUTO_ANALYSIS_BASE_URL = (process.env.SPAWNER_UI_SELF_URL || 'http://127.0
 	''
 );
 const AUTO_ANALYSIS_ENDPOINT = `${AUTO_ANALYSIS_BASE_URL}/api/events`;
-const DEFAULT_AUTO_ANALYSIS_TIMEOUT_MS = 180_000;
+const DEFAULT_AUTO_ANALYSIS_TIMEOUT_MS = 420_000;
 const configuredAnalysisTimeoutMs = Number.parseInt(process.env.SPAWNER_AUTO_ANALYSIS_TIMEOUT_MS || '', 10);
 const AUTO_ANALYSIS_TIMEOUT_MS =
 	Number.isFinite(configuredAnalysisTimeoutMs) && configuredAnalysisTimeoutMs > 0
@@ -70,6 +100,58 @@ function missionIdFromRequestId(requestId: string): string {
 	const normalized = normalizeRequestId(requestId);
 	const stamp = normalized.match(/(\d{10,})$/)?.[1];
 	return `mission-${stamp || normalized}`;
+}
+
+async function relayCanonicalPrdAnalysisComplete(input: {
+	requestId: string;
+	projectName: string;
+	buildMode: 'direct' | 'advanced_prd';
+	buildLane?: string | null;
+	traceRef?: string | null;
+	provider: string;
+	providerProcessSuccess?: boolean | null;
+	resultFileName: string | null;
+	durationMs?: number | null;
+	sessionId?: string | null;
+	terminal?: boolean;
+}): Promise<void> {
+	const missionId = missionIdFromRequestId(input.requestId);
+	const completionData = {
+		requestId: input.requestId,
+		...traceRefDetails(input.traceRef),
+		buildMode: input.buildMode,
+		buildLane: input.buildLane,
+		provider: input.provider,
+		providerProcessSuccess: input.providerProcessSuccess ?? true,
+		canonicalResultAvailable: true,
+		resultFileName: input.resultFileName,
+		autoAnalysisStatus: 'complete',
+		durationMs: input.durationMs ?? null,
+		sessionId: input.sessionId ?? null
+	};
+	await relayMissionControlEvent({
+		type: 'task_completed',
+		missionId,
+		missionName: input.projectName,
+		taskName: 'PRD analysis',
+		message: 'Canonical PRD analysis result is available.',
+		source: 'prd-bridge',
+		data: completionData
+	});
+	if (input.terminal) {
+		await relayMissionControlEvent({
+			type: 'mission_completed',
+			missionId,
+			missionName: input.projectName,
+			message: 'Spawner produced a canonical PRD analysis result.',
+			source: 'prd-bridge',
+			data: completionData
+		});
+	}
+}
+
+export function _prdAutoAnalysisWorkingDirectory(requestId: string): string {
+	return resolveSparkRunProjectPath(join('prd-auto-analysis', normalizeRequestId(requestId)));
 }
 
 async function appendPrdTrace(requestId: string, event: string, details: Record<string, unknown> = {}): Promise<void> {
@@ -95,15 +177,21 @@ async function traceRefForRequest(requestId: string, details: Record<string, unk
 	const explicit = extractTraceRef(details);
 	if (explicit) return explicit;
 	try {
-		const { pendingRequestFile } = getPrdBridgePaths();
-		if (!existsSync(pendingRequestFile)) return null;
-		const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
-		const pending = parseJsonOrFallback<Record<string, unknown>>(pendingRaw, {}, 'prd-bridge-trace-request');
-		if (pending.requestId !== requestId) return null;
-		return extractTraceRef(pending);
+		const { spawnerDir } = getPrdBridgePaths();
+		const pending = await readPendingRequestRecord(spawnerDir, requestId);
+		return pending ? extractTraceRef(pending) : null;
 	} catch {
 		return null;
 	}
+}
+
+async function pendingPrdContentForRequest(
+	requestId: string,
+	paths: Pick<ReturnType<typeof getPrdBridgePaths>, 'spawnerDir' | 'pendingPrdFile'>
+): Promise<string> {
+	const scoped = await readPendingPrdContent(paths.spawnerDir, requestId);
+	if (scoped !== null) return scoped;
+	return existsSync(paths.pendingPrdFile) ? await readFile(paths.pendingPrdFile, 'utf-8') : '';
 }
 
 export function _buildPrdResultArtifactVerification(
@@ -126,6 +214,13 @@ type RunnerCapability = {
 	runnerLabel?: string;
 	failureReason?: string;
 	checkedAt?: string;
+};
+
+type ProjectPathEvidence = {
+	requestedProjectPath: string | null;
+	usedProjectPath: string | null;
+	evidenceOnly: boolean;
+	rejectedReason: string | null;
 };
 
 type AuthorityVerdictV1 = {
@@ -163,6 +258,49 @@ export function _buildAuthorityVerdict(input: {
 	};
 }
 
+export function _demoteProvisionalPrdDraftResult(
+	result: StoredPrdAnalysisResult,
+	reason: string
+): StoredPrdAnalysisResult {
+	const metadata = result.metadata && typeof result.metadata === 'object' && !Array.isArray(result.metadata)
+		? result.metadata
+		: {};
+	return {
+		...result,
+		success: false,
+		metadata: {
+			...metadata,
+			provisional: true,
+			canonical: false,
+			reason,
+			resultAuthority: 'provisional_canvas_draft',
+			replacedByProviderResult: false
+		}
+	};
+}
+
+export function _isProvisionalPrdDraftResult(value: unknown): boolean {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const record = value as Record<string, unknown>;
+	const metadata = record.metadata && typeof record.metadata === 'object' && !Array.isArray(record.metadata)
+		? record.metadata as Record<string, unknown>
+		: {};
+	return (
+		record.success === false &&
+		metadata.provisional === true &&
+		metadata.canonical === false &&
+		metadata.resultAuthority === 'provisional_canvas_draft'
+	);
+}
+
+function prdResultFile(paths: ReturnType<typeof getPrdBridgePaths>, requestId: string): string {
+	return join(paths.resultsDir, `${normalizeRequestId(requestId)}.json`);
+}
+
+function provisionalPrdResultFile(paths: ReturnType<typeof getPrdBridgePaths>, requestId: string): string {
+	return join(paths.provisionalResultsDir, `${normalizeRequestId(requestId)}.json`);
+}
+
 function normalizeRunnerCapability(input: unknown): RunnerCapability | null {
 	if (!input || typeof input !== 'object') return null;
 	const record = input as Record<string, unknown>;
@@ -181,28 +319,87 @@ function normalizeRunnerCapability(input: unknown): RunnerCapability | null {
 	return normalized;
 }
 
+function normalizeProjectPathEvidence(input: unknown): ProjectPathEvidence | null {
+	if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
+	const record = input as Record<string, unknown>;
+	const requestedProjectPath = typeof record.requestedProjectPath === 'string' && record.requestedProjectPath.trim()
+		? record.requestedProjectPath.trim()
+		: null;
+	const usedProjectPath = typeof record.usedProjectPath === 'string' && record.usedProjectPath.trim()
+		? record.usedProjectPath.trim()
+		: null;
+	const rejectedReason = typeof record.rejectedReason === 'string' && record.rejectedReason.trim()
+		? record.rejectedReason.trim()
+		: null;
+	const evidenceOnly = record.evidenceOnly === true;
+	if (!requestedProjectPath && !usedProjectPath && !rejectedReason && !evidenceOnly) return null;
+	return {
+		requestedProjectPath,
+		usedProjectPath,
+		evidenceOnly,
+		rejectedReason
+	};
+}
+
 async function updatePendingRequestStatus(
 	requestId: string,
 	status: 'pending' | 'processed' | 'timeout' | 'fallback' | 'provisional' | 'error',
 	extra: Record<string, unknown> = {}
 ): Promise<void> {
 	try {
-		const { pendingRequestFile } = getPrdBridgePaths();
-		if (!existsSync(pendingRequestFile)) return;
-		const raw = await readFile(pendingRequestFile, 'utf-8');
-		const current = parseJsonOrFallback<Record<string, unknown>>(raw, {}, 'prd-bridge-write-state');
-		if (current.requestId !== requestId) return;
+		const { spawnerDir, pendingRequestFile } = getPrdBridgePaths();
+		const current = await readPendingRequestRecord(spawnerDir, requestId);
+		if (!current) return;
 
+		const currentAutoAnalysis =
+			current.autoAnalysis && typeof current.autoAnalysis === 'object' && !Array.isArray(current.autoAnalysis)
+				? (current.autoAnalysis as Record<string, unknown>)
+				: null;
+		const extraAutoAnalysis =
+			extra.autoAnalysis && typeof extra.autoAnalysis === 'object' && !Array.isArray(extra.autoAnalysis)
+				? (extra.autoAnalysis as Record<string, unknown>)
+				: null;
 		const next = {
 			...current,
 			status,
 			updatedAt: new Date().toISOString(),
-			...extra
+			...extra,
+			...(currentAutoAnalysis || extraAutoAnalysis
+				? {
+						autoAnalysis: {
+							...(currentAutoAnalysis ?? {}),
+							...(extraAutoAnalysis ?? {})
+						}
+					}
+				: {})
 		};
-		await writeFile(pendingRequestFile, JSON.stringify(next, null, 2), 'utf-8');
+		const serialized = JSON.stringify(next, null, 2);
+
+		// RequestId-scoped record is the source of truth; the singleton file is
+		// only refreshed while it still points at this request (back-compat).
+		const scopedFile = pendingRequestFileForRequest(spawnerDir, requestId);
+		if (existsSync(scopedFile)) {
+			await writeFile(scopedFile, serialized, 'utf-8');
+		}
+		if (existsSync(pendingRequestFile)) {
+			const singleton = parseJsonOrFallback<Record<string, unknown>>(
+				await readFile(pendingRequestFile, 'utf-8'),
+				{},
+				'prd-bridge-write-state'
+			);
+			if (singleton.requestId === requestId) {
+				await writeFileAtomic(pendingRequestFile, serialized);
+			}
+		}
 	} catch {
 		// Keep analysis flow alive even if status updates fail.
 	}
+}
+
+function autoAnalysisDeadline(startedAt: string, timeoutMs: number): string | null {
+	const parsed = Date.parse(startedAt);
+	if (!Number.isFinite(parsed) || timeoutMs <= 0) return null;
+	return new Date(parsed + timeoutMs).toISOString();
 }
 
 function slugifyTaskId(value: string, fallback: string): string {
@@ -390,7 +587,7 @@ export async function _buildFallbackAnalysisResult(
 	paths: ReturnType<typeof getPrdBridgePaths>,
 	buildLane: BuildLane = buildMode === 'advanced_prd' ? 'advanced_prd' : 'direct'
 ): Promise<Record<string, unknown>> {
-	const content = existsSync(paths.pendingPrdFile) ? await readFile(paths.pendingPrdFile, 'utf-8') : '';
+	const content = await pendingPrdContentForRequest(requestId, paths);
 	if (isSparseUnderstandingClarification(content)) {
 		const validSkills = new Set((await getTierSkills(tier)).map((skill) => skill.id));
 		const selectSkills = (skills: string[]) => skills.filter((skill) => validSkills.has(skill)).slice(0, 5);
@@ -881,38 +1078,42 @@ async function writeFallbackAnalysisResult(
 	tier: SkillTier,
 	reason: string,
 	traceRef?: string | null,
-	buildLane?: BuildLane
+	buildLane?: BuildLane,
+	options: { provisional?: boolean } = {}
 ): Promise<void> {
 	const paths = getPrdBridgePaths();
-	const safeRequestId = normalizeRequestId(requestId);
-	const resultFile = join(paths.resultsDir, `${safeRequestId}.json`);
-	if (existsSync(resultFile)) return;
+	const canonicalResultFile = prdResultFile(paths, requestId);
+	const outputFile = options.provisional ? provisionalPrdResultFile(paths, requestId) : canonicalResultFile;
+	if (existsSync(canonicalResultFile)) return;
+	if (options.provisional && existsSync(outputFile)) return;
 
-	if (!existsSync(paths.resultsDir)) {
-		await mkdir(paths.resultsDir, { recursive: true });
+	const outputDir = options.provisional ? paths.provisionalResultsDir : paths.resultsDir;
+	if (!existsSync(outputDir)) {
+		await mkdir(outputDir, { recursive: true });
 	}
 
 	const result = await _buildFallbackAnalysisResult(requestId, projectName, buildMode, tier, paths, buildLane);
+	if (options.provisional && existsSync(canonicalResultFile)) return;
 	const resolvedTraceRef = traceRef || await traceRefForRequest(requestId, {});
 	const resultWithTrace = resolvedTraceRef
 		? { ...result, traceRef: resolvedTraceRef, metadata: { ...((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined), traceRef: resolvedTraceRef } }
 		: result;
-	await writeFile(
-		resultFile,
-		JSON.stringify(await projectStoredPrdAnalysisResultForTier(requestId, resultWithTrace, tier), null, 2),
-		'utf-8'
-	);
-	const staticArtifactCount = await writeConstrainedStaticProofArtifacts(await readFile(paths.pendingPrdFile, 'utf-8').catch(() => ''));
-	if (staticArtifactCount > 0) {
+	const stored = await projectStoredPrdAnalysisResultForTier(requestId, resultWithTrace, tier);
+	const output = options.provisional ? _demoteProvisionalPrdDraftResult(stored, reason) : stored;
+	await writeFile(outputFile, JSON.stringify(output, null, 2), 'utf-8');
+	const staticArtifactCount = options.provisional
+		? 0
+		: await writeConstrainedStaticProofArtifacts(await pendingPrdContentForRequest(requestId, paths).catch(() => ''));
+	if (!options.provisional && staticArtifactCount > 0) {
 		await appendPrdTrace(requestId, 'deterministic_static_artifacts_written', {
 			...traceRefDetails(resolvedTraceRef),
 			fileCount: staticArtifactCount
 		});
 	}
-	await appendPrdTrace(requestId, 'fallback_analysis_written', {
+	await appendPrdTrace(requestId, options.provisional ? 'provisional_analysis_written' : 'fallback_analysis_written', {
 		...traceRefDetails(resolvedTraceRef),
 		reason,
-		resultFile,
+		resultFile: outputFile,
 		taskCount: Array.isArray(result.tasks) ? result.tasks.length : 0
 	});
 }
@@ -923,19 +1124,20 @@ function scheduleProvisionalPrdDraft(input: {
 	projectName: string;
 	buildMode: 'direct' | 'advanced_prd';
 	buildLane: BuildLane;
+	constrainedStaticSingleFile?: boolean;
 	tier: SkillTier;
 	traceRef?: string | null;
 }): void {
 	const delayMs = _provisionalPrdDraftDelayMs({
 		buildMode: input.buildMode,
-		buildLane: input.buildLane
+		buildLane: input.buildLane,
+		constrainedStaticSingleFile: input.constrainedStaticSingleFile === true
 	});
 	if (delayMs === null) return;
 
 	const timer = setTimeout(async () => {
 		const paths = getPrdBridgePaths();
-		const safeRequestId = normalizeRequestId(input.requestId);
-		const resultFile = join(paths.resultsDir, `${safeRequestId}.json`);
+		const resultFile = prdResultFile(paths, input.requestId);
 		if (existsSync(resultFile)) {
 			await appendPrdTrace(input.requestId, 'provisional_canvas_skipped', {
 				...traceRefDetails(input.traceRef),
@@ -946,7 +1148,7 @@ function scheduleProvisionalPrdDraft(input: {
 		}
 
 		await updatePendingRequestStatus(input.requestId, 'provisional', {
-			reason: 'Full PRD analysis is still running; provisional canvas draft queued so execution can start.',
+			reason: 'Canonical PRD analysis is still running; provisional canvas draft is advisory and non-executable.',
 			provisionalCanvasAt: new Date().toISOString(),
 			provisionalDelayMs: delayMs
 		});
@@ -961,16 +1163,17 @@ function scheduleProvisionalPrdDraft(input: {
 			input.projectName,
 			input.buildMode,
 			input.tier,
-			`provisional canvas draft after ${delayMs}ms while full PRD analysis continues`,
+			`advisory provisional canvas draft after ${delayMs}ms while canonical PRD analysis continues`,
 			input.traceRef,
-			input.buildLane
+			input.buildLane,
+			{ provisional: true }
 		);
-		void relayMissionControlEvent({
-			type: 'task_completed',
+		await relayMissionControlEvent({
+			type: 'log',
 			missionId: input.missionId,
 			missionName: input.projectName,
-			taskName: 'PRD analysis',
-			message: 'PRD draft ready; full analysis can continue in the background.',
+			taskName: 'PRD draft',
+			message: 'Advisory PRD draft ready; waiting for canonical provider result before execution.',
 			source: 'prd-bridge',
 			data: {
 				requestId: input.requestId,
@@ -987,6 +1190,155 @@ function scheduleProvisionalPrdDraft(input: {
 	}
 }
 
+export async function _runAutoAnalysisWatchdog(input: {
+	requestId: string;
+	projectName: string;
+	buildMode: 'direct' | 'advanced_prd';
+	tier: SkillTier;
+	cancelAutoAnalysis?: () => void;
+	traceRef?: string | null;
+	buildLane?: BuildLane;
+	timeoutMs?: number;
+}): Promise<void> {
+	const {
+		requestId,
+		projectName,
+		buildMode,
+		tier,
+		cancelAutoAnalysis,
+		traceRef,
+		buildLane,
+		timeoutMs = AUTO_ANALYSIS_TIMEOUT_MS
+	} = input;
+	const paths = getPrdBridgePaths();
+	const resultFile = prdResultFile(paths, requestId);
+	const provisionalResultFile = provisionalPrdResultFile(paths, requestId);
+	const hasResult = existsSync(resultFile);
+	const provisionalDraftAvailable = existsSync(provisionalResultFile);
+	if (hasResult) {
+		await updatePendingRequestStatus(requestId, 'processed', {
+			reason: 'Canonical provider result is available.',
+			autoAnalysis: {
+				status: 'complete',
+				finishedAt: new Date().toISOString(),
+				success: true,
+				canonicalResultAvailable: true,
+				resultFileName: `${normalizeRequestId(requestId)}.json`,
+				expectedResultFile: resultFile,
+				provisionalResultFile,
+				provisionalDraftAvailable
+			}
+		});
+		await relayCanonicalPrdAnalysisComplete({
+			requestId,
+			projectName,
+			buildMode,
+			buildLane,
+			traceRef,
+			provider: 'codex',
+			resultFileName: `${normalizeRequestId(requestId)}.json`
+		});
+		await appendPrdTrace(requestId, 'watchdog_result_found', {
+			...traceRefDetails(traceRef)
+		});
+		return;
+	}
+
+	if (_shouldKeepSlowCanonicalAnalysisRunning({ provisionalDraftAvailable })) {
+		await updatePendingRequestStatus(requestId, 'provisional', {
+			timeoutMs,
+			canonicalStillRunning: true,
+			provisionalDraftAvailable,
+			reason: 'Canonical runtime analysis is still running; provisional draft remains non-canonical.'
+		});
+		await appendPrdTrace(requestId, 'watchdog_slow_continue', {
+			...traceRefDetails(traceRef),
+			timeoutMs,
+			expectedResultFile: resultFile,
+			provisionalResultFile,
+			provisionalDraftAvailable,
+			buildMode,
+			buildLane,
+			projectName,
+			tier
+		});
+		await relayMissionControlEvent({
+			type: 'log',
+			missionId: missionIdFromRequestId(requestId),
+			missionName: projectName,
+			taskName: 'Canonical analysis',
+			message: 'Full PRD analysis is still running; keeping the provider alive.',
+			source: 'prd-bridge',
+			data: {
+				requestId,
+				...traceRefDetails(traceRef),
+				buildMode,
+				buildLane,
+				provisional: true,
+				canonicalStillRunning: true
+			}
+		});
+		return;
+	}
+
+	cancelAutoAnalysis?.();
+	await updatePendingRequestStatus(requestId, 'timeout', {
+		timeoutMs,
+		canonicalTimedOut: true,
+		provisionalDraftAvailable,
+		reason: 'No canonical runtime analysis result written before timeout; provisional draft remains non-canonical.',
+		autoAnalysis: {
+			status: 'timeout',
+			timedOutAt: new Date().toISOString(),
+			timeoutMs,
+			expectedResultFile: resultFile,
+			provisionalResultFile,
+			provisionalDraftAvailable,
+			canonicalResultAvailable: false
+		}
+	});
+	await appendPrdTrace(requestId, 'watchdog_timeout', {
+		...traceRefDetails(traceRef),
+		timeoutMs,
+		expectedResultFile: resultFile,
+		provisionalResultFile,
+		provisionalDraftAvailable,
+		buildMode,
+		buildLane,
+		projectName,
+		tier
+	});
+	const missionId = missionIdFromRequestId(requestId);
+	const failureData = {
+		requestId,
+		...traceRefDetails(traceRef),
+		buildMode,
+		buildLane,
+		timeoutMs,
+		expectedResultFile: resultFile,
+		provisionalDraftAvailable,
+		canonicalResultAvailable: false,
+		autoAnalysisStatus: 'timeout'
+	};
+	await relayMissionControlEvent({
+		type: 'task_failed',
+		missionId,
+		missionName: projectName,
+		taskName: 'PRD analysis',
+		message: 'Canonical PRD analysis timed out before a provider result was written.',
+		source: 'prd-bridge',
+		data: failureData
+	});
+	await relayMissionControlEvent({
+		type: 'mission_failed',
+		missionId,
+		missionName: projectName,
+		message: 'Spawner could not produce a canonical PRD analysis result before timeout.',
+		source: 'prd-bridge',
+		data: failureData
+	});
+}
+
 function scheduleAutoAnalysisWatchdog(
 	requestId: string,
 	projectName: string,
@@ -997,42 +1349,27 @@ function scheduleAutoAnalysisWatchdog(
 	buildLane?: BuildLane
 ): void {
 	if (AUTO_ANALYSIS_TIMEOUT_MS <= 0) return;
-	const timer = setTimeout(async () => {
-		const { resultsDir } = getPrdBridgePaths();
-		const safeRequestId = normalizeRequestId(requestId);
-		const resultFile = join(resultsDir, `${safeRequestId}.json`);
-		const hasResult = existsSync(resultFile);
-		if (hasResult) {
-			await appendPrdTrace(requestId, 'watchdog_result_found', {
-				...traceRefDetails(traceRef)
-			});
-			return;
-		}
-
-		cancelAutoAnalysis?.();
-		await updatePendingRequestStatus(requestId, 'timeout', {
-			timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
-			reason: 'No runtime analysis result written before timeout; deterministic fallback queued'
-		});
-		await appendPrdTrace(requestId, 'watchdog_timeout', {
-			...traceRefDetails(traceRef),
-			timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
-			expectedResultFile: resultFile
-		});
-		await writeFallbackAnalysisResult(
+	const timer = setTimeout(() => {
+		void _runAutoAnalysisWatchdog({
 			requestId,
 			projectName,
 			buildMode,
 			tier,
-			`auto-analysis timeout after ${AUTO_ANALYSIS_TIMEOUT_MS}ms`,
+			cancelAutoAnalysis,
 			traceRef,
 			buildLane
-		);
+		});
 	}, AUTO_ANALYSIS_TIMEOUT_MS);
 
 	if (typeof timer.unref === 'function') {
 		timer.unref();
 	}
+}
+
+export function _shouldKeepSlowCanonicalAnalysisRunning(input: {
+	provisionalDraftAvailable: boolean;
+}): boolean {
+	return input.provisionalDraftAvailable;
 }
 
 function resolveCodexBinary(): string | null {
@@ -1056,7 +1393,7 @@ export function _shouldUseDeterministicPrdFallback(input: {
 	buildLane: BuildLane;
 	constrainedStaticSingleFile: boolean;
 }): boolean {
-	return input.constrainedStaticSingleFile || input.buildLane === 'fast_direct';
+	return input.constrainedStaticSingleFile;
 }
 
 function positiveEnvMs(env: NodeJS.ProcessEnv, key: string, fallbackMs: number): number {
@@ -1065,11 +1402,12 @@ function positiveEnvMs(env: NodeJS.ProcessEnv, key: string, fallbackMs: number):
 }
 
 export function _provisionalPrdDraftDelayMs(
-	input: { buildMode: 'direct' | 'advanced_prd'; buildLane: BuildLane },
+	input: { buildMode: 'direct' | 'advanced_prd'; buildLane: BuildLane; constrainedStaticSingleFile?: boolean },
 	env: NodeJS.ProcessEnv = process.env
 ): number | null {
 	if (env.SPAWNER_PRD_PROVISIONAL_DRAFTS === '0') return null;
 	const isAdvanced = input.buildMode === 'advanced_prd' || input.buildLane === 'advanced_prd';
+	if (!isAdvanced && env.SPAWNER_PRD_DIRECT_PROVISIONAL_DRAFTS !== '1') return null;
 	const key = isAdvanced ? 'SPAWNER_PRD_PROVISIONAL_ADVANCED_MS' : 'SPAWNER_PRD_PROVISIONAL_DIRECT_MS';
 	const fallback = isAdvanced ? DEFAULT_PROVISIONAL_ADVANCED_ANALYSIS_MS : DEFAULT_PROVISIONAL_DIRECT_ANALYSIS_MS;
 	return positiveEnvMs(env, key, fallback);
@@ -1095,6 +1433,24 @@ export function _shouldRequestBriefClarification(input: {
 	if (isConstrainedSingleFileStaticHtml(input.content)) return false;
 	if (input.buildMode === 'direct' && isConcreteDirectStaticBuild(input.content)) return false;
 	return true;
+}
+
+export function _shouldBypassBriefEnrichment(input: {
+	content: string;
+	buildMode: 'direct' | 'advanced_prd';
+	buildLane: BuildLane;
+	forceDispatch?: boolean;
+}): { bypass: boolean; reason: string | null } {
+	if (isConstrainedSingleFileStaticHtml(input.content)) {
+		return { bypass: true, reason: 'constrained_static_single_file' };
+	}
+	if (input.forceDispatch) {
+		return { bypass: true, reason: 'forced_dispatch_preserves_owner_brief' };
+	}
+	if (input.buildMode === 'direct' && input.buildLane !== 'advanced_prd') {
+		return { bypass: true, reason: 'governed_direct_build_preserves_owner_brief' };
+	}
+	return { bypass: false, reason: null };
 }
 
 function normalizeTelegramRelay(value: unknown): Record<string, unknown> | undefined {
@@ -1124,7 +1480,8 @@ export function _extractPrdBridgeProjectLineage(content: string, projectName?: s
 async function buildPromptParts(
 	buildMode: 'direct' | 'advanced_prd',
 	tier: SkillTier,
-	briefBody?: string
+	briefBody?: string,
+	buildLane: BuildLane = buildMode === 'advanced_prd' ? 'advanced_prd' : 'direct'
 ): Promise<{
 	planningContract: string;
 	tierBlock: string;
@@ -1145,8 +1502,13 @@ async function buildPromptParts(
 				].join('\n')
 			: [
 					'Direct build contract:',
+					`- Build lane: ${buildLane}.`,
 					'- Preserve the user request as-is and create only the tasks needed to execute it.',
 					'- Do not inflate small explicit builds into a broad product plan.',
+					'- Prefer 3-5 concrete tasks for small direct apps and dashboards; use more only when the brief names genuinely separate surfaces or verification boundaries.',
+					'- Every task title must name the artifact, route, or surface it changes. Avoid generic titles like "Create app shell" unless the brief itself is only an app shell.',
+					'- Include workspaceTargets whenever a file, route, package, README, test, or project folder can be inferred from the brief.',
+					'- Do not insert generic open questions into the execution plan. If a detail is unknown, choose the smallest reversible assumption and mark it in acceptance criteria.',
 					'- If the request is exactly "did you understand what i said", classify it as a clarification-understanding workflow, preserve that request text exactly, acknowledge understanding, and ask for missing audience, workflow, saved memory, and vibe details. Do not create MVP/auth/payment/database tasks.'
 				].join('\n');
 
@@ -1216,6 +1578,7 @@ async function buildCodexPrompt(
 	traceRef: string | null,
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
+	buildLane: BuildLane,
 	tier: SkillTier,
 	paths: ReturnType<typeof getPrdBridgePaths>,
 	bundleBlock?: string,
@@ -1234,8 +1597,13 @@ async function buildCodexPrompt(
 				].join('\n')
 			: [
 					'Direct build contract:',
+					`- Build lane: ${buildLane}.`,
 					'- Preserve the user request as-is and create only the tasks needed to execute it.',
 					'- Do not inflate small explicit builds into a broad product plan.',
+					'- Prefer 3-5 concrete tasks for small direct apps and dashboards; use more only when the brief names genuinely separate surfaces or verification boundaries.',
+					'- Every task title must name the artifact, route, or surface it changes. Avoid generic titles like "Create app shell" unless the brief itself is only an app shell.',
+					'- Include workspaceTargets whenever a file, route, package, README, test, or project folder can be inferred from the brief.',
+					'- Do not insert generic open questions into the execution plan. If a detail is unknown, choose the smallest reversible assumption and mark it in acceptance criteria.',
 					'- If the request is exactly "did you understand what i said", classify it as a clarification-understanding workflow, preserve that request text exactly, acknowledge understanding, and ask for missing audience, workflow, saved memory, and vibe details. Do not create MVP/auth/payment/database tasks.'
 				].join('\n');
 
@@ -1279,6 +1647,7 @@ async function buildCodexPrompt(
 		...(traceRef ? [`Trace Ref: ${traceRef}`] : []),
 		`Project Name Hint: ${projectName}`,
 		`Build Mode: ${buildMode}`,
+		`Build Lane: ${buildLane}`,
 		'',
 		planningContract,
 		'',
@@ -1301,7 +1670,14 @@ async function buildCodexPrompt(
 		'   requestId, traceRef, success, projectName, projectType, complexity, infrastructure, techStack, tasks, skills, executionPrompt.',
 		'4) Include actionable tasks with skills, dependencies, and verification criteria. For advanced_prd, make these TAS-style tasks with acceptance criteria.',
 		'5) Validate every skill ID before emitting — if it is not in the allowlist above, replace it with the closest valid ID or omit the task.',
-		'6) POST result event to Spawner API via PowerShell Invoke-RestMethod using this shape:',
+		'6) POST result event to Spawner API via PowerShell Invoke-RestMethod. Build headers from the local environment without printing secrets:',
+		'   $SparkEventsApiKey = $env:EVENTS_API_KEY',
+		'   if (-not $SparkEventsApiKey) { $SparkEventsApiKey = $env:MCP_API_KEY }',
+		'   $SparkEventsHeaders = @{ "Content-Type" = "application/json" }',
+		'   if ($SparkEventsApiKey) { $SparkEventsHeaders["x-api-key"] = $SparkEventsApiKey }',
+		'   Use -Headers $SparkEventsHeaders on the Invoke-RestMethod call.',
+		'   Do not print, log, write, or include $SparkEventsApiKey in the result JSON.',
+		'   POST body shape:',
 		`   {"type":"prd_analysis_complete","data":{"requestId":"${requestId}","result":<analysis>},"source":"codex-auto"}`,
 		`   URL: ${AUTO_ANALYSIS_ENDPOINT}`,
 		'7) If any failure happens, POST {"type":"prd_analysis_error", ...} with the same requestId.',
@@ -1311,16 +1687,39 @@ async function buildCodexPrompt(
 		'- Do not leave placeholders.',
 		'- Ensure posted JSON is complete and parseable.',
 		'- Skill IDs MUST come from the allowlist. This is non-negotiable.',
-		'- Choose task count from project complexity. Do not default to four tasks when distinct skill sets or verification boundaries justify more.',
+		buildMode === 'direct'
+			? '- For direct builds, keep task count small enough to execute reliably in one provider run unless the brief requires otherwise.'
+			: '- Choose task count from project complexity. Do not default to four tasks when distinct skill sets or verification boundaries justify more.',
 		'',
 		'When finished successfully, print exactly: PRD_ANALYSIS_SENT'
 	].join('\n');
+}
+
+export function _resolvePrdCodexModel(env: NodeJS.ProcessEnv = process.env): string {
+	return (
+		env.SPAWNER_PRD_CODEX_MODEL ||
+		env.SPARK_CODEX_EXECUTOR_MODEL ||
+		env.CODEX_MODEL ||
+		'gpt-5.5'
+	).trim() || 'gpt-5.5';
+}
+
+export function _resolvePrdCodexCommandTemplate(
+	model: string,
+	env: NodeJS.ProcessEnv = process.env
+): string {
+	const explicit = env.SPAWNER_PRD_CODEX_COMMAND_TEMPLATE?.trim();
+	if (explicit) return explicit.includes('{model}') ? explicit.replace('{model}', model) : explicit;
+	const profile = (env.SPAWNER_PRD_CODEX_PROFILE || 'speed').trim();
+	const profileArg = profile ? ` --profile ${profile}` : '';
+	return `codex exec --model ${model}${profileArg} --sandbox workspace-write`;
 }
 
 async function startAutoAnalysis(
 	requestId: string,
 	projectName: string,
 	buildMode: 'direct' | 'advanced_prd',
+	buildLane: BuildLane,
 	tier: SkillTier,
 	traceRef: string | null,
 	executionAuthority: unknown
@@ -1337,11 +1736,11 @@ async function startAutoAnalysis(
 	}
 
 	if (provider === 'claude') {
-		const paths = getPrdBridgePaths();
+		const paths = scopedPrdBridgePathsForRequest(requestId);
 		const briefBody = existsSync(paths.pendingPrdFile)
 			? await readFile(paths.pendingPrdFile, 'utf-8')
 			: undefined;
-		const parts = await buildPromptParts(buildMode, tier, briefBody);
+		const parts = await buildPromptParts(buildMode, tier, briefBody, buildLane);
 		const started = await startClaudeAutoAnalysis({
 			requestId,
 			projectName,
@@ -1366,32 +1765,66 @@ async function startAutoAnalysis(
 			return { started: false, provider: 'codex' };
 		}
 
-		const paths = getPrdBridgePaths();
+		const paths = scopedPrdBridgePathsForRequest(requestId);
 		const briefBody = existsSync(paths.pendingPrdFile)
 			? await readFile(paths.pendingPrdFile, 'utf-8')
 			: undefined;
-		const parts = await buildPromptParts(buildMode, tier, briefBody);
+		const parts = await buildPromptParts(buildMode, tier, briefBody, buildLane);
 		const prompt = await buildCodexPrompt(
 			requestId,
 			traceRef,
 			projectName,
 			buildMode,
+			buildLane,
 			tier,
 			paths,
 			parts.bundleBlock,
 			parts.missionSizeBlock
 		);
 		const missionId = `prd-auto-${normalizeRequestId(requestId)}`;
+		const workingDirectory = _prdAutoAnalysisWorkingDirectory(requestId);
 
 		await appendPrdTrace(requestId, 'auto_worker_dispatch', {
 			...traceRefDetails(traceRef),
 			provider: 'codex',
 			missionId,
-			workingDirectory: process.cwd(),
+			workingDirectory,
 			stateDirectory: paths.spawnerDir
+		});
+		const startedAt = new Date().toISOString();
+		await updatePendingRequestStatus(requestId, 'pending', {
+			autoAnalysis: {
+				provider: 'codex',
+				status: 'running',
+				startedAt,
+				timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
+				deadlineAt: autoAnalysisDeadline(startedAt, AUTO_ANALYSIS_TIMEOUT_MS),
+				missionId,
+				expectedResultFile: prdResultFile(paths, requestId),
+				expectedProvisionalResultFile: provisionalPrdResultFile(paths, requestId)
+			}
+		});
+		void relayMissionControlEvent({
+			type: 'task_started',
+			missionId: missionIdFromRequestId(requestId),
+			missionName: projectName,
+			taskName: 'PRD analysis',
+			message: 'Canonical PRD analysis started.',
+			source: 'prd-bridge',
+			data: {
+				requestId,
+				...traceRefDetails(traceRef),
+				buildMode,
+				buildLane,
+				provider: 'codex',
+				timeoutMs: AUTO_ANALYSIS_TIMEOUT_MS,
+				autoAnalysisStatus: 'running'
+			}
 		});
 
 		const controller = new AbortController();
+		const codexModel = _resolvePrdCodexModel();
+		const commandTemplate = _resolvePrdCodexCommandTemplate(codexModel);
 			void sparkAgentBridge
 				.executeProviderTask({
 					providerId: 'codex',
@@ -1402,27 +1835,109 @@ async function startAutoAnalysis(
 						toolName: 'spawner.prd.write',
 						mutationClass: 'writes_files'
 					},
-					model: 'gpt-5.5',
+					model: codexModel,
 					requestId,
 					traceRef: traceRef || undefined,
-					commandTemplate: 'codex exec --model gpt-5.5 --sandbox workspace-write',
-					workingDirectory: process.cwd(),
+					commandTemplate,
+					workingDirectory,
 					signal: controller.signal
 				})
-			.then((result) => {
-				void appendPrdTrace(requestId, 'auto_worker_finished', {
+			.then(async (result) => {
+				const artifact = _buildPrdResultArtifactVerification(requestId, paths);
+				const effectiveSuccess = result.success === true && artifact.present;
+				const failureReason = effectiveSuccess
+					? null
+					: result.error ||
+						(artifact.present
+							? 'Auto-analysis worker did not report success.'
+							: 'Auto-analysis worker finished without a canonical result artifact.');
+				const watchdogCancelled = result.error === 'Cancelled' && !artifact.present;
+				if (!watchdogCancelled) {
+					await updatePendingRequestStatus(requestId, effectiveSuccess ? 'processed' : 'error', {
+						reason: effectiveSuccess ? 'Canonical provider result is available.' : failureReason,
+						autoAnalysis: {
+							status: effectiveSuccess ? 'complete' : 'error',
+							finishedAt: new Date().toISOString(),
+							success: effectiveSuccess,
+							providerProcessSuccess: result.success,
+							error: failureReason,
+							durationMs: result.durationMs || null,
+							sessionId: result.sparkAgentSessionId,
+							canonicalResultAvailable: artifact.present,
+							resultFileName: artifact.fileName
+						}
+					});
+					if (!effectiveSuccess) {
+						const failureData = {
+							requestId,
+							...traceRefDetails(traceRef),
+							buildMode,
+							buildLane,
+							provider: 'codex',
+							providerProcessSuccess: result.success,
+							providerError: result.error || null,
+							canonicalResultAvailable: artifact.present,
+							resultFileName: artifact.fileName,
+							autoAnalysisStatus: 'error'
+						};
+						await relayMissionControlEvent({
+							type: 'task_failed',
+							missionId: missionIdFromRequestId(requestId),
+							missionName: projectName,
+							taskName: 'PRD analysis',
+							message: failureReason || 'Canonical PRD analysis failed.',
+							source: 'prd-bridge',
+							data: failureData
+						});
+						await relayMissionControlEvent({
+							type: 'mission_failed',
+							missionId: missionIdFromRequestId(requestId),
+							missionName: projectName,
+							message: 'Spawner could not produce a canonical PRD analysis result.',
+							source: 'prd-bridge',
+							data: failureData
+						});
+					}
+					if (effectiveSuccess) {
+						await relayCanonicalPrdAnalysisComplete({
+							requestId,
+							projectName,
+							buildMode,
+							buildLane,
+							traceRef,
+							provider: 'codex',
+							providerProcessSuccess: result.success,
+							resultFileName: artifact.fileName,
+							durationMs: result.durationMs || null,
+							sessionId: result.sparkAgentSessionId
+						});
+					}
+				}
+				await appendPrdTrace(requestId, 'auto_worker_finished', {
 					...traceRefDetails(traceRef),
-					success: result.success,
-					error: result.error || null,
+					success: effectiveSuccess,
+					providerProcessSuccess: result.success,
+					error: failureReason,
+					providerError: result.error || null,
 					durationMs: result.durationMs || null,
 					sessionId: result.sparkAgentSessionId,
-					resultArtifact: _buildPrdResultArtifactVerification(requestId, paths)
+					resultArtifact: artifact
 				});
 			})
 			.catch((error: unknown) => {
+				const message = error instanceof Error ? error.message : String(error);
+				void updatePendingRequestStatus(requestId, 'error', {
+					reason: message,
+					autoAnalysis: {
+						status: 'error',
+						finishedAt: new Date().toISOString(),
+						error: message,
+						canonicalResultAvailable: _buildPrdResultArtifactVerification(requestId, paths).present
+					}
+				});
 				void appendPrdTrace(requestId, 'auto_worker_error', {
 					...traceRefDetails(traceRef),
-					error: error instanceof Error ? error.message : String(error)
+					error: message
 				});
 			});
 
@@ -1445,8 +1960,8 @@ export const POST: RequestHandler = async (event) => {
 	try {
 		const unauthorized = requireControlAuth(event, {
 			surface: 'PRDBridgeWrite',
-			apiKeyEnvVar: 'SPAWNER_PRD_API_KEY',
-			fallbackApiKeyEnvVar: 'MCP_API_KEY',
+			apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
+			fallbackApiKeyEnvVars: ['SPAWNER_PRD_API_KEY', 'MCP_API_KEY'],
 			apiKeyQueryParam: 'apiKey',
 			apiKeyCookieName: 'spawner_events_api_key',
 			allowedOriginsEnvVar: 'SPAWNER_ALLOWED_ORIGINS'
@@ -1460,17 +1975,20 @@ export const POST: RequestHandler = async (event) => {
 		});
 		if (rateLimited) return rateLimited;
 
+		await recoverOverduePrdAutoAnalysisFromPending({ recoverySource: 'prd_bridge_write' });
+
 		const body = await event.request.json().catch(() => null);
 		if (!body || typeof body !== 'object' || Array.isArray(body)) {
 			return json({ error: 'Malformed JSON body' }, { status: 400 });
 		}
-		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, buildLane, build_lane, buildLaneReason, build_lane_reason, telegramRelay, tier, forceDispatch, runnerCapability, runner_capability, capabilityProposalPacket, capability_proposal_packet, traceRef, trace_ref, executionAuthority, execution_authority } =
+		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, buildLane, build_lane, buildLaneReason, build_lane_reason, telegramRelay, tier, forceDispatch, runnerCapability, runner_capability, projectPathEvidence, project_path_evidence, capabilityProposalPacket, capability_proposal_packet, traceRef, trace_ref, executionAuthority, execution_authority } =
 			body as Record<string, any>;
 		const normalizedBuildMode = normalizeBuildMode(buildMode);
 		const normalizedBuildLane = normalizeBuildLane(buildLane ?? build_lane, normalizedBuildMode, options);
 		const normalizedTier = normalizeTier(tier);
 		const normalizedTelegramRelay = normalizeTelegramRelay(telegramRelay);
 		const normalizedRunnerCapability = normalizeRunnerCapability(runnerCapability ?? runner_capability);
+		const normalizedProjectPathEvidence = normalizeProjectPathEvidence(projectPathEvidence ?? project_path_evidence);
 		const normalizedCapabilityProposalPacket = normalizeCapabilityProposalPacket(
 			capabilityProposalPacket ?? capability_proposal_packet
 		);
@@ -1505,7 +2023,13 @@ export const POST: RequestHandler = async (event) => {
 		// already specific enough (length / keyword density / has section
 		// headers). Always returns a safe enrichedContent — never blocks.
 		const constrainedStaticSingleFileInput = isConstrainedSingleFileStaticHtml(content);
-		const enrichment = constrainedStaticSingleFileInput
+		const enrichmentBypass = _shouldBypassBriefEnrichment({
+			content,
+			buildMode: normalizedBuildMode,
+			buildLane: normalizedBuildLane,
+			forceDispatch: skipClarification
+		});
+		const enrichment = enrichmentBypass.bypass
 			? {
 					wasEnriched: false,
 					enrichedContent: content,
@@ -1514,6 +2038,14 @@ export const POST: RequestHandler = async (event) => {
 				}
 			: await enrichBrief(content);
 		const finalContent = enrichment.enrichedContent;
+		if (enrichmentBypass.bypass) {
+			await appendPrdTrace(requestId, 'brief_enrichment_bypassed', {
+				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+				reason: enrichmentBypass.reason,
+				buildMode: normalizedBuildMode,
+				buildLane: normalizedBuildLane
+			});
+		}
 		if (enrichment.wasEnriched) {
 			await appendPrdTrace(requestId, 'brief_enriched', {
 				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
@@ -1574,8 +2106,13 @@ export const POST: RequestHandler = async (event) => {
 			});
 		}
 
-		// Write the (possibly enriched) PRD content to file
-		await writeFile(paths.pendingPrdFile, finalContent, 'utf-8');
+		// Write the (possibly enriched) PRD content to requestId-scoped storage
+		// first (source of truth), then refresh the singleton back-compat
+		// pointer. Concurrent requests each keep their own scoped PRD; the
+		// contended singleton is written atomically so it never tears.
+		await mkdir(pendingRequestsDir(paths.spawnerDir), { recursive: true });
+		await writeFile(pendingPrdFileForRequest(paths.spawnerDir, requestId), finalContent, 'utf-8');
+		await writeFileAtomic(paths.pendingPrdFile, finalContent);
 		const projectLineage = _extractPrdBridgeProjectLineage(finalContent, projectName);
 		const rawBuildLaneReason = buildLaneReason ?? build_lane_reason;
 		const normalizedBuildLaneReason =
@@ -1610,6 +2147,7 @@ export const POST: RequestHandler = async (event) => {
 			},
 			projectLineage,
 			...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
+			...(normalizedProjectPathEvidence ? { projectPathEvidence: normalizedProjectPathEvidence } : {}),
 			...(normalizedCapabilityProposalPacket ? { capabilityProposalPacket: normalizedCapabilityProposalPacket } : {}),
 			...(normalizedCapabilityProposalSummary ? { capabilityProposalSummary: normalizedCapabilityProposalSummary } : {}),
 			relay:
@@ -1624,11 +2162,14 @@ export const POST: RequestHandler = async (event) => {
 							goal: content.slice(0, 500),
 							...(projectLineage ? { projectLineage } : {}),
 							...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
+							...(normalizedProjectPathEvidence ? { projectPathEvidence: normalizedProjectPathEvidence } : {}),
 							...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {})
 						}
 					: undefined
 		};
-		await writeFile(paths.pendingRequestFile, JSON.stringify(requestMeta, null, 2), 'utf-8');
+		const requestMetaSerialized = JSON.stringify(requestMeta, null, 2);
+		await writeFile(pendingRequestFileForRequest(paths.spawnerDir, requestId), requestMetaSerialized, 'utf-8');
+		await writeFileAtomic(paths.pendingRequestFile, requestMetaSerialized);
 		await appendPrdTrace(requestId, 'request_written', {
 			...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 			projectName: requestMeta.projectName,
@@ -1636,6 +2177,16 @@ export const POST: RequestHandler = async (event) => {
 			buildLane: requestMeta.buildLane,
 			authority,
 			...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
+			...(normalizedProjectPathEvidence
+				? {
+						projectPathEvidence: {
+							hasRequestedProjectPath: Boolean(normalizedProjectPathEvidence.requestedProjectPath),
+							usedProjectPath: Boolean(normalizedProjectPathEvidence.usedProjectPath),
+							evidenceOnly: normalizedProjectPathEvidence.evidenceOnly,
+							rejectedReason: normalizedProjectPathEvidence.rejectedReason
+						}
+					}
+				: {}),
 			...(normalizedCapabilityProposalSummary
 				? { capabilityProposal: normalizedCapabilityProposalSummary }
 				: {})
@@ -1656,6 +2207,7 @@ export const POST: RequestHandler = async (event) => {
 				buildModeReason: requestMeta.buildModeReason,
 				...(projectLineage ? { projectLineage } : {}),
 				...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
+				...(normalizedProjectPathEvidence ? { projectPathEvidence: normalizedProjectPathEvidence } : {}),
 				...(normalizedCapabilityProposalSummary ? { capabilityProposal: normalizedCapabilityProposalSummary } : {}),
 				...(normalizedTelegramRelay ? { telegramRelay: normalizedTelegramRelay } : {})
 			}
@@ -1672,6 +2224,7 @@ export const POST: RequestHandler = async (event) => {
 					requestId,
 					requestMeta.projectName,
 					requestMeta.buildMode,
+					normalizedBuildLane,
 					normalizedTier,
 					normalizedTraceRef,
 					resolvedExecutionAuthority
@@ -1700,6 +2253,17 @@ export const POST: RequestHandler = async (event) => {
 				normalizedTraceRef,
 				normalizedBuildLane
 			);
+			await relayCanonicalPrdAnalysisComplete({
+				requestId,
+				projectName: requestMeta.projectName,
+				buildMode: requestMeta.buildMode,
+				buildLane: normalizedBuildLane,
+				traceRef: normalizedTraceRef,
+				provider: auto.provider,
+				providerProcessSuccess: true,
+				resultFileName: `${normalizeRequestId(requestId)}.json`,
+				terminal: true
+			});
 		} else if (auto.started) {
 			scheduleProvisionalPrdDraft({
 				requestId,
@@ -1707,6 +2271,7 @@ export const POST: RequestHandler = async (event) => {
 				projectName: requestMeta.projectName,
 				buildMode: requestMeta.buildMode,
 				buildLane: requestMeta.buildLane,
+				constrainedStaticSingleFile,
 				tier: normalizedTier,
 				traceRef: normalizedTraceRef
 			});
@@ -1731,6 +2296,16 @@ export const POST: RequestHandler = async (event) => {
 				`auto-analysis not started for provider ${auto.provider}`,
 				normalizedTraceRef
 			);
+			await relayCanonicalPrdAnalysisComplete({
+				requestId,
+				projectName: requestMeta.projectName,
+				buildMode: requestMeta.buildMode,
+				buildLane: normalizedBuildLane,
+				traceRef: normalizedTraceRef,
+				provider: auto.provider,
+				providerProcessSuccess: false,
+				resultFileName: `${normalizeRequestId(requestId)}.json`
+			});
 		}
 
 		logger.info(`[PRDBridge] PRD written to ${paths.pendingPrdFile}`);

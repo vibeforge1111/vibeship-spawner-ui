@@ -13,10 +13,6 @@
 import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import type { Mission, MissionLog, MissionTask } from '$lib/services/mcp-client';
 import { mcpClient } from '$lib/services/mcp-client';
-import {
-	buildClientGovernorDecisionAuthority,
-	buildClientTurnIntentVNextAuthority
-} from '$lib/services/harness-authority-client';
 import { logger } from '$lib/utils/logger';
 
 const log = logger.scope('MissionExecutor');
@@ -34,9 +30,10 @@ import { getPipelineOptions } from '$lib/stores/project-goal.svelte';
 import { calculateCompletionQuality, isLowQualityCompletion, buildReworkInstruction, MAX_TASK_RETRIES, type TaskCompletionQuality, type ReworkInstruction } from './completion-gates';
 import { parseFilesFromLogs } from './artifacts';
 import { generateCheckpoint, type ProjectCheckpoint } from './checkpoint';
-import { syncClient, broadcastMissionEvent, broadcastTaskEvent, broadcastExecutionControl, isConnected, type SyncEvent } from './sync-client';
+import { syncClient, broadcastMissionEvent, broadcastTaskEvent, isConnected, type SyncEvent } from './sync-client';
 import { clientEventBridge, type BridgeEvent } from './event-bridge';
 import { browser } from '$app/environment';
+import { getEventsAuthHeaders } from '$lib/services/events-auth-client';
 import { get } from 'svelte/store';
 import {
 	saveMissionState,
@@ -133,6 +130,7 @@ export interface ExecutionProgress {
 
 export interface ExecutionRunOptions extends MissionBuildOptions {
 	orchestratorOptions?: MultiLLMOrchestratorOptions;
+	executionAuthority?: unknown;
 	relay?: {
 		chatId?: string;
 		userId?: string;
@@ -146,7 +144,6 @@ export interface ExecutionRunOptions extends MissionBuildOptions {
 		autoRun?: boolean;
 		buildMode?: 'direct' | 'advanced_prd';
 		buildModeReason?: string;
-		executionAuthority?: Record<string, unknown>;
 	};
 }
 
@@ -377,7 +374,7 @@ class MissionExecutor {
 
 				const response = await fetch('/api/mission/active', {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: { 'Content-Type': 'application/json', ...getEventsAuthHeaders() },
 					body: JSON.stringify({
 						missionId: this.progress.missionId,
 						missionName: mission.name,
@@ -416,7 +413,7 @@ class MissionExecutor {
 				clearTimeout(this.fileSyncDebounceTimer);
 				this.fileSyncDebounceTimer = null;
 			}
-			await fetch('/api/mission/active', { method: 'DELETE' });
+			await fetch('/api/mission/active', { method: 'DELETE', headers: getEventsAuthHeaders() });
 			log.debug('File sync state cleared');
 		} catch (error) {
 			log.warn('Failed to clear file sync state:', error);
@@ -1651,6 +1648,15 @@ class MissionExecutor {
 				this.addLocalLog('info', 'Execution prompt generated - copy to Claude Code to start');
 			}
 
+			const shouldAutoDispatch =
+				this.progress.multiLLMOptions.enabled &&
+				this.progress.multiLLMOptions.autoDispatch &&
+				Boolean(this.progress.multiLLMExecution);
+
+			if (shouldAutoDispatch && !options.executionAuthority) {
+				throw new Error('Auto-dispatch requires Harness Core Governor execution authority');
+			}
+
 			// Broadcast mission created event for sync
 			broadcastMissionEvent('mission_created', buildResult.mission.id, {
 				mission: buildResult.mission,
@@ -1658,32 +1664,33 @@ class MissionExecutor {
 				multiLLMExecution: this.progress.multiLLMExecution
 			});
 
-			// Set status to running (waiting for Claude Code to pick up)
-			this.progress.status = 'running';
-			this.callbacks.onStatusChange?.('running');
+			if (!shouldAutoDispatch) {
+				// Set status to running (waiting for Claude Code to pick up)
+				this.progress.status = 'running';
+				this.callbacks.onStatusChange?.('running');
 
-			// Start health monitoring
-			this.startHealthMonitoring();
+				// Start health monitoring
+				this.startHealthMonitoring();
+			}
 
 			// Auto-dispatch to providers if enabled
-			if (this.progress.multiLLMOptions.enabled && this.progress.multiLLMOptions.autoDispatch && this.progress.multiLLMExecution) {
-				try {
-					const dispatchResult = await this.dispatchToProviders(
-						this.progress.multiLLMExecution,
-						this.progress.multiLLMOptions,
-						options.relay
-					);
-					if (dispatchResult.success) {
-						const providerCount = Object.keys(dispatchResult.sessions || {}).length;
-						this.addLocalLog('info', `Auto-dispatched to ${providerCount} provider(s) - execution in progress`);
-						this.startProviderHeartbeat();
-						this.startPolling();
-					} else {
-						this.addLocalLog('info', `Auto-dispatch failed: ${dispatchResult.error || 'unknown'} - copy prompts manually`);
-					}
-				} catch (dispatchError) {
-					this.addLocalLog('info', `Auto-dispatch unavailable: ${dispatchError instanceof Error ? dispatchError.message : 'unknown'} - copy prompts manually`);
+			if (shouldAutoDispatch && this.progress.multiLLMExecution) {
+				const dispatchResult = await this.dispatchToProviders(
+					this.progress.multiLLMExecution,
+					this.progress.multiLLMOptions,
+					options.relay,
+					options.executionAuthority
+				);
+				if (!dispatchResult.success) {
+					throw new Error(`Auto-dispatch failed: ${dispatchResult.error || 'unknown'}`);
 				}
+				this.progress.status = 'running';
+				this.callbacks.onStatusChange?.('running');
+				const providerCount = Object.keys(dispatchResult.sessions || {}).length;
+				this.addLocalLog('info', `Auto-dispatched to ${providerCount} provider(s) - execution in progress`);
+				this.startHealthMonitoring();
+				this.startProviderHeartbeat();
+				this.startPolling();
 			}
 
 			// Persist state after mission creation
@@ -1720,21 +1727,20 @@ class MissionExecutor {
 	 * Dispatch execution pack to server-side provider runtime.
 	 * Calls POST /api/dispatch which runs providers in parallel.
 	 */
+	private dispatchRelayMetadata(relay?: ExecutionRunOptions['relay']): ExecutionRunOptions['relay'] | undefined {
+		if (!relay) return undefined;
+		const metadata = { ...(relay as Record<string, unknown>) };
+		delete metadata.executionAuthority;
+		delete metadata.execution_authority;
+		return metadata as ExecutionRunOptions['relay'];
+	}
+
 	private async dispatchToProviders(
 		executionPack: import('$lib/services/multi-llm-orchestrator').MultiLLMExecutionPack,
 		options: import('$lib/services/multi-llm-orchestrator').MultiLLMOrchestratorOptions,
-		relay?: ExecutionRunOptions['relay']
+		relay?: ExecutionRunOptions['relay'],
+		executionAuthority?: unknown
 	): Promise<{ success: boolean; sessions?: Record<string, unknown>; error?: string }> {
-		const relayAuthority = relay?.executionAuthority as { schema_version?: string } | undefined;
-		const executionAuthority = relayAuthority?.schema_version === 'governor-decision-v1'
-			? relayAuthority
-			: buildClientGovernorDecisionAuthority({
-					source: 'human_ui_run_action',
-					reason: 'User started execution from the Spawner execution panel.',
-					toolName: 'spawner.dispatch',
-					mutationClass: 'launches_mission',
-					target: executionPack.missionId
-				});
 		const response = await fetch('/api/dispatch', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -1742,8 +1748,8 @@ class MissionExecutor {
 				executionPack,
 				apiKeys: options.apiKeys || {},
 				workingDirectory: this.progress.mission?.context?.projectPath,
-				relay,
-				executionAuthority
+				...(executionAuthority ? { executionAuthority } : {}),
+				relay: this.dispatchRelayMetadata(relay)
 			})
 		});
 		if (!response.ok) {
@@ -1760,31 +1766,7 @@ class MissionExecutor {
 			return false;
 		}
 
-		try {
-			// Update local state immediately for responsive UI
-			this.progress.status = 'paused';
-			this.stopProviderHeartbeat();
-			this.stopPolling();
-			this.callbacks.onStatusChange?.('paused');
-			this.addLocalLog('info', 'Execution paused');
-			this.persistState();  // Persist paused state
-
-			// Broadcast pause event for other clients
-			broadcastExecutionControl('mission_paused', this.progress.missionId, {
-				pausedAt: Date.now(),
-				currentTaskId: this.progress.currentTaskId,
-				currentTaskName: this.progress.currentTaskName,
-				progress: this.progress.progress
-			});
-
-			// Note: MCP doesn't support status updates directly
-			// Pause is handled locally and via sync events
-
-			return true;
-		} catch (error) {
-			log.error('Failed to pause:', error);
-		}
-
+		this.addLocalLog('info', 'Pause requires a governed mission-control command; local UI pause is disabled.');
 		return false;
 	}
 
@@ -1796,31 +1778,7 @@ class MissionExecutor {
 			return false;
 		}
 
-		try {
-			// Update local state immediately
-			this.progress.status = 'running';
-			this.startProviderHeartbeat();
-			this.startPolling();
-			this.callbacks.onStatusChange?.('running');
-			this.addLocalLog('info', 'Execution resumed');
-			this.persistState();  // Persist resumed state
-
-			// Broadcast resume event for other clients
-			broadcastExecutionControl('mission_resumed', this.progress.missionId, {
-				resumedAt: Date.now(),
-				currentTaskId: this.progress.currentTaskId,
-				currentTaskName: this.progress.currentTaskName,
-				progress: this.progress.progress
-			});
-
-			// Note: MCP doesn't support status updates directly
-			// Resume is handled locally and via sync events
-
-			return true;
-		} catch (error) {
-			log.error('Failed to resume:', error);
-		}
-
+		this.addLocalLog('info', 'Resume requires a governed mission-control command; local UI resume is disabled.');
 		return false;
 	}
 
@@ -1832,53 +1790,7 @@ class MissionExecutor {
 			return false;
 		}
 
-		const missionId = this.progress.missionId;
-
-		if (browser && typeof fetch !== 'undefined') {
-			try {
-				const response = await fetch('/api/mission-control/command', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						missionId,
-						action: 'kill',
-						source: 'execution-panel',
-						executionAuthority: buildClientGovernorDecisionAuthority({
-							source: 'execution-panel.cancel',
-							reason: 'User cancelled the running mission from the execution panel.',
-							toolName: 'spawner.mission_control.command',
-							mutationClass: 'controls_mission',
-							target: missionId
-						})
-					})
-				});
-				const data = await response.json().catch(() => ({}));
-
-				if (response.ok && data?.ok !== false) {
-					this.markCancelled('Execution cancelled');
-					return true;
-				}
-
-				log.warn('Mission-control cancel failed:', data?.error || `HTTP ${response.status}`);
-			} catch (error) {
-				log.warn('Mission-control cancel request failed:', error);
-			}
-		}
-
-		try {
-			const result = await mcpClient.failMission(
-				missionId,
-				'Cancelled by user'
-			);
-
-			if (result.success) {
-				this.markCancelled('Execution cancelled');
-				return true;
-			}
-		} catch (error) {
-			log.error('Failed to cancel:', error);
-		}
-
+		this.addLocalLog('info', 'Cancel requires a governed mission-control command; local UI cancel is disabled.');
 		return false;
 	}
 

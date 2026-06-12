@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	_buildAuthorityVerdict,
 	_buildFallbackAnalysisResult,
+	_demoteProvisionalPrdDraftResult,
 	_extractPrdBridgeProjectLineage,
 	_provisionalPrdDraftDelayMs,
 	_shouldUseDeterministicPrdFallback
@@ -67,6 +68,7 @@ describe('PRD bridge fallback analysis', () => {
 			{
 				spawnerDir: testSpawnerDir,
 				resultsDir: path.join(testSpawnerDir, 'results'),
+				provisionalResultsDir: path.join(testSpawnerDir, 'provisional-results'),
 				pendingPrdFile,
 				pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
 				prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
@@ -96,19 +98,71 @@ describe('PRD bridge fallback analysis', () => {
 		expect(tasks.flatMap((task) => task.verificationCommands).join('\n')).toContain('node --check');
 	});
 
-	it('keeps fast direct lane on deterministic lightweight planning', () => {
+	it('does not use deterministic fallback for fast direct app builds', () => {
 		expect(
 			_shouldUseDeterministicPrdFallback({
 				buildLane: 'fast_direct',
 				constrainedStaticSingleFile: false
 			})
-		).toBe(true);
+		).toBe(false);
 		expect(
 			_shouldUseDeterministicPrdFallback({
 				buildLane: 'direct',
 				constrainedStaticSingleFile: false
 			})
 		).toBe(false);
+		expect(
+			_shouldUseDeterministicPrdFallback({
+				buildLane: 'fast_direct',
+				constrainedStaticSingleFile: true
+			})
+		).toBe(true);
+	});
+
+	it('demotes provisional canvas drafts so they do not look like provider success', () => {
+		const result = _demoteProvisionalPrdDraftResult(
+			{
+				requestId: 'tg-build-provisional',
+				success: true,
+				projectName: 'Provisional Build',
+				projectType: 'web-app',
+				complexity: 'simple',
+				infrastructure: { needsAuth: false, needsDatabase: false, needsAPI: false },
+				techStack: { framework: 'Web app', language: 'TypeScript or JavaScript' },
+				tasks: [
+					{
+						id: 'create-app-shell',
+						title: 'Create app shell',
+						skills: [],
+						dependencies: [],
+						workspaceTargets: [],
+						acceptanceCriteria: [],
+						verificationCommands: []
+					}
+				],
+				skills: [],
+				instructionTextRedacted: true,
+				metadata: {
+					taskQuality: {
+						passed: false,
+						score: 44
+					}
+				}
+			},
+			'provisional canvas draft after 10000ms while full PRD analysis continues'
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.metadata).toMatchObject({
+			provisional: true,
+			canonical: false,
+			resultAuthority: 'provisional_canvas_draft',
+			replacedByProviderResult: false,
+			taskQuality: {
+				passed: false,
+				score: 44
+			}
+		});
 	});
 
 	it('keeps tiny one-file fast-lane pages to a small task pack', async () => {
@@ -132,6 +186,7 @@ describe('PRD bridge fallback analysis', () => {
 			{
 				spawnerDir: testSpawnerDir,
 				resultsDir: path.join(testSpawnerDir, 'results'),
+				provisionalResultsDir: path.join(testSpawnerDir, 'provisional-results'),
 				pendingPrdFile,
 				pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
 				prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
@@ -187,6 +242,7 @@ describe('PRD bridge fallback analysis', () => {
 			{
 				spawnerDir: testSpawnerDir,
 				resultsDir: path.join(testSpawnerDir, 'results'),
+				provisionalResultsDir: path.join(testSpawnerDir, 'provisional-results'),
 				pendingPrdFile,
 				pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
 				prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
@@ -237,6 +293,7 @@ describe('PRD bridge fallback analysis', () => {
 			{
 				spawnerDir: testSpawnerDir,
 				resultsDir: path.join(testSpawnerDir, 'results'),
+				provisionalResultsDir: path.join(testSpawnerDir, 'provisional-results'),
 				pendingPrdFile,
 				pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
 				prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
@@ -271,6 +328,7 @@ describe('PRD bridge fallback analysis', () => {
 		const paths = {
 			spawnerDir: testSpawnerDir,
 			resultsDir: path.join(testSpawnerDir, 'results'),
+			provisionalResultsDir: path.join(testSpawnerDir, 'provisional-results'),
 			pendingPrdFile,
 			pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
 			prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
@@ -318,6 +376,7 @@ describe('PRD bridge fallback analysis', () => {
 			{
 				spawnerDir: testSpawnerDir,
 				resultsDir: path.join(testSpawnerDir, 'results'),
+				provisionalResultsDir: path.join(testSpawnerDir, 'provisional-results'),
 				pendingPrdFile,
 				pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
 				prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
@@ -349,6 +408,7 @@ describe('PRD bridge fallback analysis', () => {
 			{
 				spawnerDir: testSpawnerDir,
 				resultsDir: path.join(testSpawnerDir, 'results'),
+				provisionalResultsDir: path.join(testSpawnerDir, 'provisional-results'),
 				pendingPrdFile,
 				pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
 				prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
@@ -430,6 +490,7 @@ describe('PRD bridge fallback analysis', () => {
 			{
 				spawnerDir: testSpawnerDir,
 				resultsDir: path.join(testSpawnerDir, 'results'),
+				provisionalResultsDir: path.join(testSpawnerDir, 'provisional-results'),
 				pendingPrdFile,
 				pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
 				prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
@@ -447,14 +508,17 @@ describe('PRD bridge fallback analysis', () => {
 		expect(tasks.flatMap((task) => task.acceptanceCriteria).join('\n')).toMatch(/No package\.json|Only index\.html/i);
 	});
 
-	it('schedules a provisional PRD draft for slow direct and advanced analysis without disabling PRDs', () => {
-		expect(_provisionalPrdDraftDelayMs({ buildMode: 'direct', buildLane: 'direct' }, {} as NodeJS.ProcessEnv)).toBe(10_000);
+	it('keeps direct provisional PRD drafts opt-in while preserving advanced draft timing', () => {
+		expect(_provisionalPrdDraftDelayMs({ buildMode: 'direct', buildLane: 'direct' }, {} as NodeJS.ProcessEnv)).toBeNull();
 		expect(_provisionalPrdDraftDelayMs({ buildMode: 'advanced_prd', buildLane: 'advanced_prd' }, {} as NodeJS.ProcessEnv)).toBe(45_000);
-		expect(_provisionalPrdDraftDelayMs({ buildMode: 'direct', buildLane: 'fast_direct' }, {} as NodeJS.ProcessEnv)).toBe(10_000);
+		expect(_provisionalPrdDraftDelayMs({ buildMode: 'direct', buildLane: 'fast_direct' }, {} as NodeJS.ProcessEnv)).toBeNull();
 		expect(
 			_provisionalPrdDraftDelayMs(
 				{ buildMode: 'direct', buildLane: 'direct' },
-				{ SPAWNER_PRD_PROVISIONAL_DIRECT_MS: '2500' } as NodeJS.ProcessEnv
+				{
+					SPAWNER_PRD_DIRECT_PROVISIONAL_DRAFTS: '1',
+					SPAWNER_PRD_PROVISIONAL_DIRECT_MS: '2500'
+				} as NodeJS.ProcessEnv
 			)
 		).toBe(2500);
 		expect(

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
 	buildMissionDetailTaskRollups,
 	buildSparkMissionDetail,
+	buildSparkMissionDetailFromBoardEntry,
+	missionControlEntriesFromBoardEntry,
 	sparkStatusFromMissionControlEvent,
 	taskStatusForMissionControlEvent,
 	type MissionControlEntry
@@ -156,5 +158,58 @@ describe('mission detail view model', () => {
 
 	it('returns null for empty relay history', () => {
 		expect(buildSparkMissionDetail('mission-empty', [])).toBeNull();
+	});
+
+	it('builds a Spark mission detail model from a Mission Control board entry', () => {
+		const detail = buildSparkMissionDetailFromBoardEntry('mission-board-only', {
+			missionId: 'mission-board-only',
+			missionName: 'Board Only Build',
+			status: 'completed',
+			queuedAt: '2026-04-29T09:59:00.000Z',
+			startedAt: '2026-04-29T10:00:00.000Z',
+			lastUpdated: '2026-04-29T10:05:00.000Z',
+			lastSummary: 'Board-only mission completed.',
+			tasks: [
+				{ title: 'Plan the board', status: 'completed', skills: ['planner'] },
+				{ title: 'Build the app', status: 'completed', skills: ['frontend'] }
+			],
+			projectLineage: {
+				projectId: 'project-1',
+				projectPath: 'C:/tmp/board-only',
+				previewUrl: 'http://127.0.0.1:3000',
+				parentMissionId: null,
+				iterationNumber: 1,
+				improvementFeedback: null
+			}
+		});
+
+		expect(detail).toMatchObject({
+			sparkName: 'Board Only Build',
+			sparkStatus: 'completed',
+			projectLineage: {
+				projectPath: 'C:/tmp/board-only'
+			}
+		});
+		expect(detail?.taskRollups.map((task) => [task.title, task.status])).toEqual([
+			['Plan the board', 'completed'],
+			['Build the app', 'completed']
+		]);
+	});
+
+	it('creates reverse-chronological fallback events from board state', () => {
+		const events = missionControlEntriesFromBoardEntry('mission-board-only', {
+			missionId: 'mission-board-only',
+			missionName: 'Board Only Build',
+			status: 'running',
+			lastUpdated: '2026-04-29T10:05:00.000Z',
+			lastSummary: 'Still running.',
+			tasks: [{ title: 'Build the app', status: 'running', skills: ['frontend'] }]
+		});
+
+		expect(events.map((entry) => entry.eventType)).toEqual(['task_started', 'mission_created']);
+		expect(events[0]).toMatchObject({
+			taskName: 'Build the app',
+			taskSkills: ['frontend']
+		});
 	});
 });

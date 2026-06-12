@@ -1,4 +1,5 @@
-const ABSOLUTE_PATH_PATTERN = /(?:[A-Z]:[\\/]|\/)[^\r\n`"<>|?*]+/i;
+const ABSOLUTE_PATH_PATTERN = /(?:^|[\s`"'(])((?:[A-Z]:[\\/]|\/)[^\r\n`"<>|?*]+)/im;
+const FILE_TARGET_EXTENSION_PATTERN = /\.[A-Za-z0-9]{1,12}$/;
 
 function trimCandidateAtSentenceBoundary(candidate: string): string {
 	const boundaries = [
@@ -19,10 +20,15 @@ export function cleanProjectPathCandidate(value: string | null | undefined): str
 	const cleaned = trimCandidateAtSentenceBoundary(value)
 		.trim()
 		.replace(/^`|`$/g, '')
+		.replace(/[;|&].*$/g, '')
+		.replace(/^['"`]+|['"`]+$/g, '')
 		.replace(/\s+(?:as|inside|with|and)\b.*$/i, '')
-		.replace(/[).,;:\s]+$/, '');
+		.replace(/[).,;:\s]+$/, '')
+		.replace(/['"`]+$/g, '');
 	if (/^\//.test(cleaned) && !cleaned.slice(1).includes('/')) return null;
 	if (/^\//.test(cleaned) && /\s/.test(cleaned) && !/^\/(?:Users|data|tmp|var|opt|home|srv)\//i.test(cleaned)) return null;
+	const finalSegment = cleaned.split(/[\\/]/).pop() || '';
+	if (FILE_TARGET_EXTENSION_PATTERN.test(finalSegment)) return null;
 	return cleaned || null;
 }
 

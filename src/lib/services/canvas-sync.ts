@@ -47,6 +47,10 @@ import type { Skill } from '$lib/stores/skills.svelte';
 import { get } from 'svelte/store';
 import { activePipeline, pipelines } from '$lib/stores/pipelines.svelte';
 import { getH70Skill } from './h70-skills';
+import {
+	canvasSyncEventRequiresAuthority,
+	canvasSyncMutationReason
+} from './canvas-sync-authority';
 
 // Canvas-specific event types
 export type CanvasEventType =
@@ -123,6 +127,14 @@ export function initCanvasSync(): () => void {
 	log.debug(' Initializing...');
 	isInitialized = true;
 
+	const syncConfig = syncClient.getConfig();
+	if (!syncConfig.wsUrl && !syncConfig.httpUrl) {
+		log.debug(' Disabled; no sync bridge URL configured');
+		return () => {
+			isInitialized = false;
+		};
+	}
+
 	// Connect to the sync server first!
 	syncClient.connect().then((connected) => {
 		if (connected) {
@@ -163,6 +175,10 @@ async function handleSyncEvent(event: SyncEvent): Promise<void> {
 	// Handle canvas-specific events
 	if (!eventType.startsWith('canvas_')) return;
 	if (!eventTargetsActivePipeline(event)) return;
+	if (canvasSyncEventRequiresAuthority(eventType)) {
+		broadcastCanvasSyncDenied(eventType);
+		return;
+	}
 
 	// Prevent duplicate processing (multiple HMR clients)
 	if (isProcessing) {
@@ -732,6 +748,19 @@ function broadcastError(message: string): void {
 	syncClient.broadcast({
 		type: 'canvas_error' as SyncEvent['type'],
 		data: { error: message }
+	});
+}
+
+function broadcastCanvasSyncDenied(eventType: string): void {
+	const reason = canvasSyncMutationReason(eventType);
+	log.warn(' Blocked legacy CanvasSync mutation:', eventType, reason);
+	syncClient.broadcast({
+		type: 'canvas_error' as SyncEvent['type'],
+		data: {
+			error: reason,
+			blockedEventType: eventType,
+			authority: 'required'
+		}
 	});
 }
 

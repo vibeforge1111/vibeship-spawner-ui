@@ -543,6 +543,11 @@ export function generateExecutionPrompt(
 
 	// Use provided baseUrl, or default to the local Spawner port.
 	const eventUrl = baseUrl || 'http://localhost:3333';
+	const eventAuthSetup = `Before POSTing lifecycle events, derive the event bridge key from your environment:
+\`\`\`bash
+EVENTS_AUTH_KEY="\${EVENTS_API_KEY:-$MCP_API_KEY}"
+test -n "$EVENTS_AUTH_KEY" || { echo "Missing EVENTS_API_KEY or MCP_API_KEY for /api/events"; exit 1; }
+\`\`\``;
 
 	// Build task list with skill IDs and MCP recommendations
 	const taskList = mission.tasks
@@ -667,7 +672,7 @@ Read: C:/Users/USER/Desktop/vibeship-h70/skill-lab/<skill-id>/skill.yaml
 
 	const skillCompletionLines = includeSkills
 		? `### Per-Task Requirements
-1. **Load Skills First** - Report: \`curl POST ${eventUrl}/api/events {"type":"skill_loaded","skillId":"..."}\`
+1. **Load Skills First** - Report with the authenticated event bridge header: \`curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -H "x-api-key: $EVENTS_AUTH_KEY" -d '{"type":"skill_loaded","skillId":"..."}'\`
 2. **Execute Task** - Follow skill patterns, avoid anti-patterns
 3. **Report Progress** - At 25%, 50%, 75% for long tasks
 4. **Verify Before Complete** - Check artifacts exist, no errors
@@ -716,18 +721,20 @@ ${taskList}
 
 ${skillLoadingSection}## Workflow Per Task
 
+${eventAuthSetup}
+
 For each task in order:
 
 1. **Report Start**
    \`\`\`bash
-   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"task_started","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME"}'
+   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -H "x-api-key: $EVENTS_AUTH_KEY" -d '{"type":"task_started","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME"}'
    \`\`\`
 
 ${skillWorkflowSteps}
 
 4. **Report Progress** (for long tasks)
    \`\`\`bash
-   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"progress","missionId":"${mission.id}","taskId":"TASK_ID","progress":50,"message":"Working on..."}'
+   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -H "x-api-key: $EVENTS_AUTH_KEY" -d '{"type":"progress","missionId":"${mission.id}","taskId":"TASK_ID","progress":50,"message":"Working on..."}'
    \`\`\`
 
 5. **Verify Before Reporting Complete**
@@ -737,7 +744,7 @@ ${skillWorkflowSteps}
 
 6. **Report Complete with Verification**
    \`\`\`bash
-   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"task_completed","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME","data":{"success":true,"verification":{"build":true,"typecheck":true,"filesChanged":["src/file1.ts","src/file2.ts"]}}}'
+   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -H "x-api-key: $EVENTS_AUTH_KEY" -d '{"type":"task_completed","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME","data":{"success":true,"verification":{"build":true,"typecheck":true,"filesChanged":["src/file1.ts","src/file2.ts"]}}}'
    \`\`\`
    If verification fails, set the relevant field to false and \`success\` to false.
 
@@ -756,7 +763,7 @@ Do NOT send \`mission_completed\` until:
 
 Only then send:
 \`\`\`bash
-curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"mission_completed","missionId":"${mission.id}"}'
+curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -H "x-api-key: $EVENTS_AUTH_KEY" -d '{"type":"mission_completed","missionId":"${mission.id}"}'
 \`\`\`
 
 The system will reconcile task statuses and generate a checkpoint for human review. If tasks are still pending, the mission will be marked as partial — not complete.
@@ -809,6 +816,11 @@ export function generateResumeExecutionPrompt(
 ): string {
 	const { taskSkillMap, baseUrl } = options || {};
 	const eventUrl = baseUrl || 'http://localhost:3333';
+	const eventAuthSetup = `Before POSTing lifecycle events, derive the event bridge key from your environment:
+\`\`\`bash
+EVENTS_AUTH_KEY="\${EVENTS_API_KEY:-$MCP_API_KEY}"
+test -n "$EVENTS_AUTH_KEY" || { echo "Missing EVENTS_API_KEY or MCP_API_KEY for /api/events"; exit 1; }
+\`\`\``;
 
 	const completedTasks = mission.tasks.filter(t => t.status === 'completed');
 	const failedTasks = mission.tasks.filter(t => t.status === 'failed');
@@ -851,11 +863,13 @@ ${taskList}
 
 ## Workflow Per Task
 
+${eventAuthSetup}
+
 For each remaining task:
 
 1. **Report Start**
    \`\`\`bash
-   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"task_started","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME"}'
+   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -H "x-api-key: $EVENTS_AUTH_KEY" -d '{"type":"task_started","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME"}'
    \`\`\`
 
 2. **Execute** - Complete the task fully
@@ -864,7 +878,7 @@ For each remaining task:
 
 4. **Report Complete**
    \`\`\`bash
-   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"task_completed","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME","data":{"success":true,"verification":{"build":true,"typecheck":true,"filesChanged":["..."]}}}'
+   curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -H "x-api-key: $EVENTS_AUTH_KEY" -d '{"type":"task_completed","missionId":"${mission.id}","taskId":"TASK_ID","taskName":"TASK_NAME","data":{"success":true,"verification":{"build":true,"typecheck":true,"filesChanged":["..."]}}}'
    \`\`\`
 
 ## Mission Completion Gate
@@ -872,7 +886,7 @@ For each remaining task:
 Do NOT send \`mission_completed\` until ALL ${pendingTasks.length} remaining tasks have been attempted.
 
 \`\`\`bash
-curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -d '{"type":"mission_completed","missionId":"${mission.id}"}'
+curl -X POST ${eventUrl}/api/events -H "Content-Type: application/json" -H "x-api-key: $EVENTS_AUTH_KEY" -d '{"type":"mission_completed","missionId":"${mission.id}"}'
 \`\`\`
 
 ### AUTONOMOUS EXECUTION RULES

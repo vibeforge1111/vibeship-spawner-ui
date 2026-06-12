@@ -89,6 +89,52 @@ describe("sparkHealthAuthHeaders", () => {
       "x-api-key": "bridge",
     });
   });
+
+  it("falls back to the events key when UI and bridge keys are not configured", () => {
+    expect(sparkHealthAuthHeaders({ EVENTS_API_KEY: "events", MCP_API_KEY: "mcp" })).toEqual({
+      "x-spawner-ui-key": "events",
+      "x-api-key": "events",
+    });
+  });
+
+  it("falls back to the MCP key when only MCP control auth is configured", () => {
+    expect(sparkHealthAuthHeaders({ MCP_API_KEY: "mcp" })).toEqual({
+      "x-spawner-ui-key": "mcp",
+      "x-api-key": "mcp",
+    });
+  });
+
+  it("uses the requested key order for route-specific health probes", () => {
+    expect(
+      sparkHealthAuthHeaders(
+        {
+          SPARK_UI_API_KEY: "ui",
+          SPARK_BRIDGE_API_KEY: "bridge",
+          EVENTS_API_KEY: "events",
+          MCP_API_KEY: "mcp",
+        },
+        ["EVENTS_API_KEY", "MCP_API_KEY", "SPARK_BRIDGE_API_KEY", "SPARK_UI_API_KEY"],
+      ),
+    ).toEqual({
+      "x-spawner-ui-key": "ui",
+      "x-api-key": "events",
+    });
+  });
+
+  it("uses the route control key as UI auth only when no UI key is configured", () => {
+    expect(
+      sparkHealthAuthHeaders(
+        {
+          EVENTS_API_KEY: "events",
+          MCP_API_KEY: "mcp",
+        },
+        ["EVENTS_API_KEY", "MCP_API_KEY"],
+      ),
+    ).toEqual({
+      "x-spawner-ui-key": "events",
+      "x-api-key": "events",
+    });
+  });
 });
 
 describe("healthEnvValue", () => {

@@ -4,6 +4,8 @@ This document is the reference map for Telegram-driven Spark builds inside Spawn
 
 The guiding rule: Mission Control events are the shared operational spine. Telegram should not infer progress from chat text, Canvas should not invent mission completion locally, and Kanban should not guess task state from provider summaries. They should all consult the same traceable mission data.
 
+Authority rule: `autoRun`, route access, loopback origin, hosted UI session, health status, pending state, recovered snapshots, and relay metadata are not execution authority. They are request/access/evidence fields. Provider dispatch requires a current `GovernorDecisionV1` with matching `AuthorizationDecisionV1`, matching `ToolCallLedgerV1`, and owner-route consumer verification.
+
 ## Primary Flow
 
 ```mermaid
@@ -28,9 +30,9 @@ sequenceDiagram
     P->>A: Start PRD/task analysis
     A->>E: PRD result event
     E->>P: Store result under results/requestId.json
-    T->>L: POST requestId, autoRun true
+    T->>L: POST requestId, autoRun request flag + Governor authority
     L->>C: pending-load.json + last-canvas-load.json
-    C->>D: POST executionPack, relay.autoRun true
+    C->>D: POST executionPack, relay.autoRun request flag + verified authority
     D->>M: mission_created with plannedTasks
     D->>R: dispatch provider session
     R->>E: task_started/task_completed/mission_completed
@@ -142,6 +144,7 @@ Response shape:
       "pipelineId": "prd-tg-build-8319079055-1638-1777362992971",
       "pipelineName": "Spark Telegram Live Mission",
       "autoRun": true,
+      "authority": "GovernorDecisionV1 required for dispatch; autoRun is request-only",
       "nodeCount": 6
     },
     "kanban": {
@@ -180,7 +183,7 @@ Canvas owns visual task graph execution. It should:
 
 - Load pipeline data from `/api/pipeline-loader`.
 - Preserve `relay`, `requestId`, `missionId`, `autoRun`, `buildMode`, and `buildModeReason`.
-- Auto-run only when `relay.autoRun === true` and dispatch has not already reached a terminal board state.
+- Auto-run only when `relay.autoRun === true`, dispatch has not already reached a terminal board state, and the execution pack carries current Governor authority verified for the exact owner/tool/action.
 - Send execution packs to `/api/dispatch`.
 - Optionally call `/api/mission-control/trace` for an operator panel.
 
@@ -223,7 +226,7 @@ Healthy direct build progression:
 
 1. `pending-request.json` exists and trace phase is `planning`.
 2. `results/<requestId>.json` exists and trace phase becomes `canvas_ready`.
-3. `last-canvas-load.json` has `autoRun: true`, `relay.missionId`, and `relay.requestId`.
+3. `last-canvas-load.json` has `autoRun: true`, `relay.missionId`, `relay.requestId`, and authority metadata that can be verified before dispatch.
 4. Canvas opens `/canvas?pipeline=<pipelineId>`.
 5. `/api/dispatch?missionId=...` shows provider `running`.
 6. Kanban shows planned tasks as queued, then running/completed.
@@ -236,3 +239,5 @@ Healthy direct build progression:
 - Tests can print webhook stderr when local `MISSION_CONTROL_WEBHOOK_URLS` points at live relay ports. Passing assertions matter; noisy webhook stderr should be cleaned separately.
 - If Canvas is open from an older mission, the execution panel must remount on pipeline change.
 - If events arrive newest-first from persisted relay history, task state must be monotonic: `completed`, `failed`, and `cancelled` cannot be downgraded by older `task_started` events.
+- If a build request receives only a health/status reply, treat that as a route bug unless the user explicitly asked for health/status.
+- If a Canvas link is returned before materialized nodes and skill pairings exist, share Kanban first and withhold Canvas until it can render a meaningful workflow.

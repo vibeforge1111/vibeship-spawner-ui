@@ -1,10 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
 	buildClientGovernorDecisionAuthority,
 	buildClientTurnIntentVNextAuthority
 } from './harness-authority-client';
 
 describe('harness authority client', () => {
+	afterEach(() => {
+		vi.doUnmock('$app/environment');
+		vi.unstubAllGlobals();
+	});
+
 	it('builds native TurnIntentEnvelopeVNext authority for Spawner UI actions', () => {
 		const authority = buildClientTurnIntentVNextAuthority({
 			source: 'mission-board.schedule.create',
@@ -84,5 +89,21 @@ describe('harness authority client', () => {
 				})
 			])
 		);
+	});
+
+	it('blocks browser-side GovernorDecisionV1 minting', async () => {
+		vi.resetModules();
+		vi.doMock('$app/environment', () => ({ browser: true }));
+		const { buildClientGovernorDecisionAuthority: buildBrowserGovernorDecisionAuthority } = await import('./harness-authority-client');
+
+		expect(() =>
+			buildBrowserGovernorDecisionAuthority({
+				source: 'mission-board.schedule.create',
+				reason: 'Browser-side authority minting regression.',
+				toolName: 'spawner.schedule.create',
+				mutationClass: 'creates_schedule',
+				target: 'mission'
+			})
+		).toThrow('Browser clients must not mint GovernorDecisionV1 authority');
 	});
 });

@@ -829,6 +829,29 @@ The loop is not good enough until all of these are true:
 
 These are the things future work should re-verify because they are easy to forget after a long session.
 
+### Local operator auth and mission workspace boundary
+
+Local Mission Control is not supposed to be a login experience. The access-key
+form is for hosted/private-preview browsers only. On the operator machine,
+loopback URLs such as `http://127.0.0.1:3333/kanban`,
+`http://localhost:3333/kanban`, and `http://0.0.0.0:3333/kanban` should open
+the board/canvas surfaces directly. `/spark-live/login?next=/kanban` should
+redirect to `/kanban` locally without creating `spawner_ui_session`.
+
+Generated missions also must not run from the installed Spawner source folder.
+`C:\Users\USER\.spark\modules\spawner-ui\source` is source/runtime truth, not a
+project workspace. PRD auto-analysis, Telegram builds, and provider dispatches
+that can write files should use a Spark-owned workspace under
+`C:\Users\USER\.spark\workspaces` through `resolveSparkRunProjectPath()` or the
+matching governed workspace helper. Do not “fix” path errors by setting
+`SPARK_ALLOW_EXTERNAL_PROJECT_PATHS=1` for release/installer use.
+
+Regression checks:
+
+```text
+npm run test:run -- src/lib/server/hosted-ui-auth.test.ts src/hooks.server.test.ts src/routes/spark-live/login/login.server.test.ts src/routes/api/prd-bridge/write/write.integration.test.ts src/lib/server/spark-run-workspace.test.ts src/lib/server/high-agency-workers.test.ts
+```
+
 ### Runtime restart and deployment state
 
 - The Telegram bot must be restarted after Telegram source changes. A passing `npm run build` does not mean the live bot is using the new code.

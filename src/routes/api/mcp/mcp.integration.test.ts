@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { PRIVATE_ENV } = vi.hoisted(() => ({
 	PRIVATE_ENV: {
-		MCP_API_KEY: '',
+		MCP_API_KEY: 'mcp-test-secret',
 		MCP_ALLOWED_ORIGINS: '',
 		MCP_ALLOW_CUSTOM_CONFIG: ''
 	}
@@ -29,7 +29,7 @@ function event(body: unknown) {
 	return {
 		request: new Request('http://127.0.0.1/api/mcp', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json' },
+			headers: { 'content-type': 'application/json', 'x-api-key': 'mcp-test-secret' },
 			body: JSON.stringify(body)
 		}),
 		url: new URL('http://127.0.0.1/api/mcp'),
@@ -50,6 +50,7 @@ function connectAuthority() {
 
 describe('/api/mcp', () => {
 	beforeEach(() => {
+		PRIVATE_ENV.MCP_API_KEY = 'mcp-test-secret';
 		PRIVATE_ENV.MCP_ALLOW_CUSTOM_CONFIG = '';
 		vi.mocked(connectMCP).mockReset();
 		vi.mocked(connectMCP).mockResolvedValue({
@@ -58,6 +59,21 @@ describe('/api/mcp', () => {
 			serverInfo: { name: 'filesystem', version: '1.0.0' },
 			tools: []
 		});
+	});
+
+	it('requires an MCP API key even for loopback requests', async () => {
+		const response = await POST({
+			request: new Request('http://127.0.0.1/api/mcp', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ instanceId: 'filesystem', mcpId: 'filesystem' })
+			}),
+			url: new URL('http://127.0.0.1/api/mcp'),
+			getClientAddress: () => '127.0.0.1'
+		} as never);
+
+		expect(response.status).toBe(401);
+		expect(connectMCP).not.toHaveBeenCalled();
 	});
 
 	it('blocks explicit MCP commands unless custom config is enabled', async () => {

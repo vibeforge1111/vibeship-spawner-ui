@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { POST } from './+server';
 import {
 	createCreatorMission,
@@ -13,13 +13,28 @@ import {
 	buildClientTurnIntentVNextAuthority
 } from '$lib/services/harness-authority-client';
 
+const { PRIVATE_ENV, TEST_API_KEY } = vi.hoisted(() => ({
+	TEST_API_KEY: 'creator-mission-execute-route-test-secret',
+	PRIVATE_ENV: {
+		SPARK_BRIDGE_API_KEY: '',
+		MCP_API_KEY: 'creator-mission-execute-route-test-secret'
+	} as Record<string, string>
+}));
+
+vi.mock('$env/dynamic/private', () => ({ env: PRIVATE_ENV }));
+
 function event(url: string, body?: unknown) {
 	return {
-		request: new Request(url, body === undefined ? undefined : {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify(body)
-		}),
+		request: new Request(
+			url,
+			body === undefined
+				? { headers: { 'x-api-key': TEST_API_KEY } }
+				: {
+						method: 'POST',
+						headers: { 'content-type': 'application/json', 'x-api-key': TEST_API_KEY },
+						body: JSON.stringify(body)
+					}
+		),
 		url: new URL(url),
 		getClientAddress: () => '127.0.0.1'
 	};
@@ -47,12 +62,13 @@ function dispatchVNextAuthority(target: string) {
 	});
 }
 
-function dispatchGovernorAuthority(target: string) {
+function dispatchGovernorAuthority(target: string, requestId = target) {
 	return buildClientGovernorDecisionAuthority({
 		source: 'creator-execute-route-test',
 		reason: 'User started creator mission execution from Spark.',
 		toolName: 'spawner.dispatch',
 		mutationClass: 'launches_mission',
+		requestId,
 		target
 	});
 }
@@ -102,6 +118,7 @@ let tempDir = '';
 beforeEach(async () => {
 	tempDir = await mkdtemp(path.join(os.tmpdir(), 'spawner-creator-execute-route-'));
 	process.env.SPAWNER_STATE_DIR = tempDir;
+	PRIVATE_ENV.MCP_API_KEY = TEST_API_KEY;
 });
 
 afterEach(async () => {
@@ -130,7 +147,7 @@ describe('/api/creator/mission/execute', () => {
 
 		const response = await POST(event('http://127.0.0.1/api/creator/mission/execute', {
 			missionId: 'mission-creator-execute-api',
-			executionAuthority: dispatchGovernorAuthority('mission-creator-execute-api')
+			executionAuthority: dispatchGovernorAuthority('mission-creator-execute-api', 'req-execute-api')
 		}) as never);
 
 		expect(response.status).toBe(200);
@@ -149,14 +166,15 @@ describe('/api/creator/mission/execute', () => {
 			{
 				brief: 'Create Startup YC specialization path, but stage only. Do not run.',
 				missionId: 'mission-creator-stage-only-api',
-				requestId: 'req-stage-only-api'
+				requestId: 'req-stage-only-api',
+				executionPolicy: 'read_only'
 			},
 			{ stateDir: tempDir, runPlanner: async () => packet() }
 		);
 
 		const response = await POST(event('http://127.0.0.1/api/creator/mission/execute', {
 			missionId: 'mission-creator-stage-only-api',
-			executionAuthority: dispatchGovernorAuthority('mission-creator-stage-only-api')
+			executionAuthority: dispatchGovernorAuthority('mission-creator-stage-only-api', 'req-stage-only-api')
 		}) as never);
 
 		expect(response.status).toBe(409);
@@ -172,14 +190,15 @@ describe('/api/creator/mission/execute', () => {
 		expect(body.error).toBe('missionId or requestId is required');
 	});
 
-	it('rejects creator mission execution when mission id is present but execution authority is missing', async () => {
+	it('rejects source-only creator mission execution without Harness authority', async () => {
 		await createCreatorMission(
 			{ brief: 'Create Startup YC path', missionId: 'mission-creator-no-authority', requestId: 'req-no-authority' },
 			{ stateDir: tempDir, runPlanner: async () => packet() }
 		);
 
 		const response = await POST(event('http://127.0.0.1/api/creator/mission/execute', {
-			missionId: 'mission-creator-no-authority'
+			missionId: 'mission-creator-no-authority',
+			source: 'mission-board.creator.execute'
 		}) as never);
 
 		expect(response.status).toBe(409);
@@ -245,7 +264,7 @@ describe('/api/creator/mission/execute', () => {
 
 		const response = await POST(event('http://127.0.0.1/api/creator/mission/execute', {
 			missionId: 'mission-creator-execute-governor',
-			executionAuthority: dispatchGovernorAuthority('mission-creator-execute-governor')
+			executionAuthority: dispatchGovernorAuthority('mission-creator-execute-governor', 'req-execute-governor')
 		}) as never);
 
 		expect(response.status).toBe(200);

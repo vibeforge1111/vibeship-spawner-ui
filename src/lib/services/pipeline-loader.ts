@@ -31,6 +31,7 @@ export interface PendingPipelineLoad {
 	buildMode?: 'direct' | 'advanced_prd';
 	buildModeReason?: string;
 	executionPrompt?: string;
+	executionAuthority?: unknown;
 	autoRun?: boolean;
 	relay?: {
 		missionId?: string;
@@ -131,11 +132,14 @@ export async function getPendingLoad(requestedPipelineId: string | null = null):
  * This lets /canvas recover when another tab consumed the one-shot queue
  * before the user's visible tab had valid pipeline state saved locally.
  */
-export async function getLatestPipelineLoad(): Promise<PendingPipelineLoad | null> {
+export async function getLatestPipelineLoad(requestedPipelineId: string | null = null): Promise<PendingPipelineLoad | null> {
 	if (!browser) return null;
 
 	try {
-		const response = await fetch(`${PENDING_LOAD_ENDPOINT}?latest=true`, {
+		const url = requestedPipelineId
+			? `${PENDING_LOAD_ENDPOINT}?latest=true&pipeline=${encodeURIComponent(requestedPipelineId)}`
+			: `${PENDING_LOAD_ENDPOINT}?latest=true`;
+		const response = await fetch(url, {
 			method: 'GET'
 		});
 

@@ -93,11 +93,17 @@ async function syncMissionRecord(
 ): Promise<void> {
 	try {
 		if (action === 'resume') {
-			await mcpClient.startMission(missionId);
+			await mcpClient.updateMission(missionId, {
+				status: 'running',
+				outputs: { mission_control: { resumedAt: new Date().toISOString(), note: message } }
+			});
 			return;
 		}
 		if (action === 'kill') {
-			await mcpClient.failMission(missionId, message || 'Mission killed via mission control');
+			await mcpClient.updateMission(missionId, {
+				status: 'cancelled',
+				outputs: { mission_control: { cancelledAt: new Date().toISOString(), note: message || 'Mission killed via mission control' } }
+			});
 			return;
 		}
 		if (action === 'pause') {
@@ -116,6 +122,7 @@ export async function executeMissionControlAction(input: {
 	action: MissionControlAction;
 	source?: string;
 	executionAuthority?: unknown;
+	dispatchAuthority?: unknown;
 }): Promise<Record<string, unknown>> {
 	const missionId = input.missionId.trim();
 	const source = input.source?.trim() || 'mission-control';
@@ -210,7 +217,7 @@ export async function executeMissionControlAction(input: {
 		const runtime = await providerRuntime.resumeMission(missionId, (event) => {
 			eventBridge.emit(event);
 			void relayMissionControlEvent(event as unknown as MissionControlBridgeEvent);
-		}, input.executionAuthority);
+		}, input.executionAuthority, input.dispatchAuthority);
 		if (!runtime.resumed) {
 			return {
 				ok: false,

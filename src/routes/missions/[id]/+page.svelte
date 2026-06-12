@@ -8,8 +8,6 @@
 		missionsState,
 		loadMission,
 		loadMissionLogs,
-		startMission,
-		completeMission,
 		startLogPolling,
 		stopLogPolling,
 		generateClaudeCodePrompt,
@@ -17,17 +15,23 @@
 	} from '$lib/stores/missions.svelte';
 	import { mcpState } from '$lib/stores/mcp.svelte';
 	import type { Mission, MissionLog, MissionTask, MissionAgent } from '$lib/services/mcp-client';
-	import type { MissionControlCompletionEvidence } from '$lib/types/mission-control';
+	import type {
+		MissionControlBoardEntry,
+		MissionControlCompletionEvidence,
+		MissionControlProjectLineage,
+		MissionControlProviderResultSummary
+	} from '$lib/types/mission-control';
 	import {
 		completionEvidenceTooltipForDisplay,
 		summarizeCompletionEvidenceForDisplay
 	} from '$lib/services/completion-evidence-display';
 	import {
 		buildSparkMissionDetail,
+		buildSparkMissionDetailFromBoardEntry,
+		type MissionDetailBoardEntry,
 		type MissionControlEntry
 	} from '$lib/services/mission-detail-view-model';
 	import { canShowMissionBoardProjectActions } from '$lib/services/mission-board-cards';
-	import { buildClientGovernorDecisionAuthority } from '$lib/services/harness-authority-client';
 
 	let missionId = $state('');
 	let currentState = $state<MissionsState>({
@@ -48,22 +52,9 @@
 		stats: { totalRelayed: number; perMission: Record<string, number> };
 		recent: MissionControlEntry[];
 		providerSummary?: string | null;
-		providerResults?: Array<{
-			providerId: string;
-			status: string;
-			summary: string;
-			durationMs: number | null;
-			completedAt: string | null;
-		}>;
+		providerResults?: MissionControlProviderResultSummary[];
 		completionEvidence?: MissionControlCompletionEvidence | null;
-		projectLineage?: {
-			projectId: string | null;
-			projectPath: string | null;
-			previewUrl: string | null;
-			parentMissionId: string | null;
-			iterationNumber: number | null;
-			improvementFeedback: string | null;
-		} | null;
+		projectLineage?: MissionControlProjectLineage | null;
 	};
 
 	type MissionTraceSnapshot = {
@@ -81,12 +72,17 @@
 		};
 		surfaces: {
 			kanban: {
-				entry: {
-					taskCount: number;
-					tasks: Array<{ title: string; status?: string; skills: string[] }>;
-				} | null;
+				entry:
+					| (MissionDetailBoardEntry &
+							Pick<
+								MissionControlBoardEntry,
+								'taskCount' | 'taskStatusCounts' | 'taskName' | 'lastEventType'
+							>)
+					| null;
 			};
 		};
+		completionEvidence?: MissionControlCompletionEvidence | null;
+		projectLineage?: MissionControlProjectLineage | null;
 	};
 
 	let missionControlLoading = $state(false);
@@ -94,8 +90,6 @@
 	let missionControl = $state<MissionControlSnapshot | null>(null);
 	let missionTrace = $state<MissionTraceSnapshot | null>(null);
 	let missionControlPoller: ReturnType<typeof setInterval> | null = null;
-	let missionControlActionLoading = $state(false);
-	let missionControlActionMessage = $state<string | null>(null);
 
 	$effect(() => {
 		const unsub = page.subscribe((p) => {
@@ -127,44 +121,6 @@
 			missionControlError = error instanceof Error ? error.message : 'Unable to load mission control status';
 		} finally {
 			missionControlLoading = false;
-		}
-	}
-
-	async function executeMissionControlAction(action: 'pause' | 'resume' | 'kill'): Promise<void> {
-		if (!missionId) return;
-		missionControlActionLoading = true;
-		missionControlActionMessage = null;
-		missionControlError = null;
-		try {
-			const response = await fetch('/api/mission-control/command', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					missionId,
-					action,
-					source: 'spawner-ui',
-					executionAuthority: buildClientGovernorDecisionAuthority({
-						source: `mission-detail.${action}`,
-						reason: 'User clicked a mission-control action in Spawner.',
-						toolName: 'spawner.mission_control.command',
-						mutationClass: 'controls_mission',
-						target: missionId
-					})
-				})
-			});
-			const body = await response.json().catch(() => ({}));
-			if (!response.ok || !body?.ok) {
-				throw new Error(body?.error || `Action failed (${response.status})`);
-			}
-
-			missionControlActionMessage = body?.message || `Mission ${action} executed.`;
-			await loadMissionControlStatus();
-			await loadMissionLogs(missionId);
-			await loadMission(missionId);
-		} catch (error) {
-			missionControlError = error instanceof Error ? error.message : 'Mission control action failed';
-		} finally {
-			missionControlActionLoading = false;
 		}
 	}
 
@@ -270,17 +226,6 @@
 		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 	}
 
-	async function handleStart() {
-		const success = await startMission();
-		if (success) {
-			startLogPolling(missionId);
-		}
-	}
-
-	async function handleComplete() {
-		await completeMission();
-	}
-
 	function copyPrompt() {
 		if (!currentState.currentMission) return;
 		const prompt = generateClaudeCodePrompt(currentState.currentMission);
@@ -294,10 +239,26 @@
 
 	const completedTasks = $derived(() => mission?.tasks.filter(t => t.status === 'completed').length ?? 0);
 	const progress = $derived(() => mission && mission.tasks.length > 0 ? (completedTasks() / mission.tasks.length) * 100 : 0);
+	const traceBoardEntry = $derived(missionTrace?.surfaces.kanban.entry ?? null);
 	const sparkMissionDetail = $derived(
-		missionControl ? buildSparkMissionDetail(missionId, missionControl.recent) : null
+		(missionControl ? buildSparkMissionDetail(missionId, missionControl.recent) : null) ??
+			buildSparkMissionDetailFromBoardEntry(missionId, traceBoardEntry)
 	);
-	const sparkProjectLineage = $derived(missionControl?.projectLineage ?? sparkMissionDetail?.projectLineage ?? null);
+	const sparkProjectLineage = $derived(
+		missionControl?.projectLineage ??
+			missionTrace?.projectLineage ??
+			sparkMissionDetail?.projectLineage ??
+			null
+	);
+	const sparkCompletionEvidence = $derived(
+		missionControl?.completionEvidence ?? missionTrace?.completionEvidence ?? null
+	);
+	const sparkProviderResults = $derived(missionControl?.providerResults ?? []);
+	const sparkActivityTraceLabel = $derived(
+		missionControl
+			? `sparkIngest: ${missionControl.enabled.sparkIngest ? 'on' : 'off'} / webhooks: ${missionControl.targets.webhookCount}`
+			: 'Mission Control board fallback'
+	);
 	const canShowSparkProjectActions = $derived(
 		canShowMissionBoardProjectActions({
 			status: sparkMissionDetail?.sparkStatus,
@@ -449,7 +410,7 @@
 			&larr; Back to Mission board
 		</a>
 
-		{#if missionControl && sparkMissionDetail && (!mcpConnected || (!currentState.loading && !mission))}
+		{#if sparkMissionDetail && (!mcpConnected || (!currentState.loading && !mission))}
 
 			<!-- Spark mission detail: MCP has no record but relay tracked the lifecycle -->
 			<section class="mb-6 rounded-md border border-surface-border bg-bg-secondary px-5 py-5">
@@ -579,15 +540,15 @@
 						{/if}
 					</div>
 				{/if}
-				{#if evidenceLabel(missionControl.completionEvidence)}
-					<div class="mb-3 rounded-lg border px-4 py-3 text-sm {evidenceClass(missionControl.completionEvidence)}" title={evidenceTitle(missionControl.completionEvidence)}>
+				{#if evidenceLabel(sparkCompletionEvidence)}
+					<div class="mb-3 rounded-lg border px-4 py-3 text-sm {evidenceClass(sparkCompletionEvidence)}" title={evidenceTitle(sparkCompletionEvidence)}>
 						<span class="font-mono uppercase tracking-[0.12em] text-[10px]">Evidence</span>
-						<span class="ml-2 font-sans">{evidenceLabel(missionControl.completionEvidence)}</span>
+						<span class="ml-2 font-sans">{evidenceLabel(sparkCompletionEvidence)}</span>
 					</div>
 				{/if}
-				{#if missionControl.providerResults && missionControl.providerResults.length > 0}
+				{#if sparkProviderResults.length > 0}
 					<div class="grid gap-3">
-						{#each missionControl.providerResults as result (result.providerId)}
+						{#each sparkProviderResults as result (result.providerId)}
 							<article class="px-4 py-3.5 rounded-lg border border-surface-border bg-bg-secondary">
 								<div class="flex items-center gap-2 mb-2">
 									<span class="w-1.5 h-1.5 rounded-full shrink-0 {result.status === 'failed' ? 'bg-status-error' : result.status === 'completed' ? 'bg-status-success' : 'bg-accent-primary animate-pulse'}"></span>
@@ -665,7 +626,7 @@
 					<summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-3 marker:hidden">
 						<span class="font-mono text-xs font-semibold tracking-wide text-text-bright">Activity trace</span>
 						<span class="font-mono text-[10px] text-text-tertiary">
-							sparkIngest: {missionControl.enabled.sparkIngest ? 'on' : 'off'} · webhooks: {missionControl.targets.webhookCount}
+							{sparkActivityTraceLabel}
 						</span>
 					</summary>
 					<ol class="divide-y divide-surface-border/50 border-t border-surface-border">
@@ -812,22 +773,6 @@
 					<div class="border border-surface-border bg-bg-secondary p-4">
 						<h3 class="font-medium text-text-primary mb-4">Actions</h3>
 						<div class="space-y-2">
-							{#if mission.status === 'draft' || mission.status === 'ready'}
-								<button
-									onclick={handleStart}
-									class="w-full px-4 py-2 font-mono text-sm bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all"
-								>
-									Start Mission
-								</button>
-							{/if}
-							{#if mission.status === 'running'}
-								<button
-									onclick={handleComplete}
-									class="w-full px-4 py-2 font-mono text-sm bg-green-500 text-bg-primary hover:bg-green-400 transition-all"
-								>
-									Mark Complete
-								</button>
-							{/if}
 							<button
 								onclick={() => showPrompt = !showPrompt}
 								class="w-full px-4 py-2 font-mono text-sm text-text-secondary border border-surface-border hover:border-text-tertiary transition-all"
@@ -848,34 +793,6 @@
 								Refresh
 							</button>
 						</div>
-
-						<div class="grid grid-cols-3 gap-2 mb-3">
-							<button
-								onclick={() => executeMissionControlAction('pause')}
-								disabled={missionControlActionLoading || mission.status !== 'running'}
-								class="px-2 py-1 text-xs font-mono border border-surface-border text-text-secondary hover:border-blue-400 disabled:opacity-40 disabled:cursor-not-allowed"
-							>
-								Pause
-							</button>
-							<button
-								onclick={() => executeMissionControlAction('resume')}
-								disabled={missionControlActionLoading || mission.status !== 'paused'}
-								class="px-2 py-1 text-xs font-mono border border-surface-border text-text-secondary hover:border-green-400 disabled:opacity-40 disabled:cursor-not-allowed"
-							>
-								Resume
-							</button>
-							<button
-								onclick={() => executeMissionControlAction('kill')}
-								disabled={missionControlActionLoading || !(mission.status === 'running' || mission.status === 'paused')}
-								class="px-2 py-1 text-xs font-mono border border-red-500/40 text-red-400 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
-							>
-								Kill
-							</button>
-						</div>
-
-						{#if missionControlActionMessage}
-							<p class="text-xs font-mono text-green-400 mb-2">{missionControlActionMessage}</p>
-						{/if}
 
 						{#if missionControlLoading && !missionControl}
 							<p class="text-xs font-mono text-text-tertiary">Loading mission control telemetry...</p>

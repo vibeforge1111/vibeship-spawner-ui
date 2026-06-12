@@ -1,12 +1,39 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import path from 'path';
 import { existsSync } from 'fs';
-import { mkdtemp, rm, writeFile } from 'fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
-import { GET, POST, DELETE } from './+server';
+import { DELETE, GET, POST } from './+server';
 
+const TEST_API_KEY = 'active-mission-test-secret';
+let originalMcpApiKey: string | undefined;
 let testSpawnerDir: string;
 let missionFile: string;
+
+function routeEvent(
+	options: {
+		method?: string;
+		body?: unknown;
+		url?: string;
+		apiKey?: string | null;
+		clientAddress?: string;
+	} = {}
+) {
+	const url = options.url || 'http://localhost/api/mission/active';
+	const headers = new Headers();
+	if (options.body !== undefined) headers.set('Content-Type', 'application/json');
+	if (options.apiKey !== null) headers.set('x-api-key', options.apiKey || TEST_API_KEY);
+	return {
+		request: new Request(url, {
+			method: options.method || (options.body !== undefined ? 'POST' : 'GET'),
+			headers,
+			body: options.body === undefined ? undefined : JSON.stringify(options.body)
+		}),
+		url: new URL(url),
+		getClientAddress: () => options.clientAddress || '127.0.0.1',
+		cookies: { get: () => undefined }
+	};
+}
 
 async function resetTestSpawnerDir() {
 	delete process.env.SPAWNER_STATE_DIR;
@@ -17,6 +44,8 @@ async function resetTestSpawnerDir() {
 
 describe('/api/mission/active integration', () => {
 	beforeEach(async () => {
+		originalMcpApiKey = process.env.MCP_API_KEY;
+		process.env.MCP_API_KEY = TEST_API_KEY;
 		await resetTestSpawnerDir();
 		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-active-mission-'));
 		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
@@ -24,7 +53,61 @@ describe('/api/mission/active integration', () => {
 	});
 
 	afterEach(async () => {
+		if (originalMcpApiKey === undefined) {
+			delete process.env.MCP_API_KEY;
+		} else {
+			process.env.MCP_API_KEY = originalMcpApiKey;
+		}
 		await resetTestSpawnerDir();
+	});
+
+	it('rejects unauthenticated non-local reads before exposing active mission state', async () => {
+		const response = await GET(
+			routeEvent({
+				apiKey: null,
+				url: 'https://spawner.example.com/api/mission/active',
+				clientAddress: '203.0.113.10'
+			}) as never
+		);
+		expect(response.status).toBe(401);
+	});
+
+	it('rejects unauthenticated non-local writes before persisting active mission state', async () => {
+		const response = await POST(
+			routeEvent({
+				apiKey: null,
+				url: 'https://spawner.example.com/api/mission/active',
+				clientAddress: '203.0.113.10',
+				body: {
+					missionId: 'mission-unauth-test',
+					missionName: 'Unauth test',
+					status: 'running',
+					tasks: [],
+					completedTasks: [],
+					failedTasks: []
+				}
+			}) as never
+		);
+		expect(response.status).toBe(401);
+		expect(existsSync(missionFile)).toBe(false);
+	});
+
+	it('rejects unauthenticated local writes before persisting active mission state', async () => {
+		const response = await POST(
+			routeEvent({
+				apiKey: null,
+				body: {
+					missionId: 'mission-local-unauth-test',
+					missionName: 'Local unauth test',
+					status: 'running',
+					tasks: [],
+					completedTasks: [],
+					failedTasks: []
+				}
+			}) as never
+		);
+		expect(response.status).toBe(401);
+		expect(existsSync(missionFile)).toBe(false);
 	});
 
 	it('round-trips multi-llm execution state and resume instructions', async () => {
@@ -91,18 +174,10 @@ describe('/api/mission/active integration', () => {
 			failedTasks: []
 		};
 
-		const postResponse = await POST({
-			request: new Request('http://localhost/api/mission/active', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			})
-		} as never);
+		const postResponse = await POST(routeEvent({ body: payload }) as never);
 		expect(postResponse.status).toBe(200);
 
-		const getResponse = await GET({
-			url: new URL('http://localhost/api/mission/active')
-		} as never);
+		const getResponse = await GET(routeEvent() as never);
 		expect(getResponse.status).toBe(200);
 		const body = await getResponse.json();
 
@@ -110,16 +185,89 @@ describe('/api/mission/active integration', () => {
 		expect(body.multiLLMExecution?.enabled).toBe(true);
 		expect(body.multiLLMExecution?.providers?.length).toBe(2);
 		expect(body.mission?.id).toBe('mission-integration-test');
+		expect(body.authorityBoundary).toMatchObject({
+			source: 'active-mission-state',
+			authority: 'evidence_only'
+		});
+		expect(body.resumeInstructions).toContain('This active mission state is recovery evidence only.');
+		expect(body.resumeInstructions).toContain('Before any action, reacquire fresh user intent through Harness Core');
 		expect(body.resumeInstructions).toContain('Multi-LLM Orchestrator');
 		expect(body.resumeInstructions).toContain('Strategy: round_robin');
 	});
 
+	it('returns metadata only for local no-key active mission reads', async () => {
+		await writeFile(
+			missionFile,
+			JSON.stringify(
+				{
+					missionId: 'mission-local-read-metadata',
+					missionName: 'Local read metadata',
+					status: 'running',
+					progress: 60,
+					currentTaskId: 'task-private',
+					currentTaskName: 'Private task',
+					executionPrompt: 'private execution prompt',
+					multiLLMExecution: {
+						enabled: true,
+						strategy: 'round_robin',
+						primaryProviderId: 'codex',
+						providers: [{ id: 'codex' }, { id: 'claude' }]
+					},
+					tasks: [
+						{ id: 'task-private', title: 'Private task', status: 'in_progress', skills: ['private-skill'] }
+					],
+					completedTasks: ['task-done'],
+					failedTasks: [],
+					lastUpdated: new Date().toISOString(),
+					resumeInstructions: 'private resume instructions'
+				},
+				null,
+				2
+			)
+		);
+
+		const getResponse = await GET(routeEvent({ apiKey: null }) as never);
+		expect(getResponse.status).toBe(200);
+		const body = await getResponse.json();
+
+		expect(body).toMatchObject({
+			active: true,
+			authorityBoundary: {
+				payload: 'metadata_only',
+				executionPrompt: 'requires_control_auth',
+				resumeInstructions: 'requires_control_auth',
+				cleanup: 'requires_control_auth'
+			},
+			mission: {
+				id: 'mission-local-read-metadata',
+				name: 'Local read metadata',
+				progress: 60
+			},
+			taskCounts: {
+				total: 1,
+				completed: 1,
+				failed: 0
+			},
+			multiLLMExecution: {
+				enabled: true,
+				strategy: 'round_robin',
+				primaryProviderId: 'codex',
+				providerCount: 2
+			}
+		});
+		expect(body.tasks).toBeUndefined();
+		expect(body.completedTasks).toBeUndefined();
+		expect(body.failedTasks).toBeUndefined();
+		expect(body.executionPrompt).toBeUndefined();
+		expect(body.resumeInstructions).toBeUndefined();
+		expect(JSON.stringify(body)).not.toContain('private execution prompt');
+		expect(JSON.stringify(body)).not.toContain('private resume instructions');
+	});
+
 	it('clears mission state via DELETE', async () => {
-		const postResponse = await POST({
-			request: new Request('http://localhost/api/mission/active', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
+		const postResponse = await POST(
+			routeEvent({
+				body: {
 					missionId: 'mission-delete-test',
 					missionName: 'Delete test',
 					status: 'running',
@@ -128,35 +276,66 @@ describe('/api/mission/active integration', () => {
 					tasks: [],
 					completedTasks: [],
 					failedTasks: []
-				})
-			})
-		} as never);
+				}
+			}) as never
+		);
 		expect(postResponse.status).toBe(200);
 		expect(existsSync(missionFile)).toBe(true);
 
-		const deleteResponse = await DELETE({} as never);
+		const deleteResponse = await DELETE(routeEvent({ method: 'DELETE' }) as never);
 		expect(deleteResponse.status).toBe(200);
 		expect(existsSync(missionFile)).toBe(false);
 	});
 
-	it('clears active file instead of persisting terminal mission states', async () => {
-		await writeFile(missionFile, JSON.stringify({
-			missionId: 'mission-old-running',
-			missionName: 'Old running mission',
-			status: 'running',
-			progress: 40,
-			tasks: [],
-			completedTasks: [],
-			failedTasks: [],
-			lastUpdated: new Date().toISOString(),
-			resumeInstructions: 'old'
-		}, null, 2));
+	it('rejects unauthenticated local clears before deleting active mission state', async () => {
+		await writeFile(
+			missionFile,
+			JSON.stringify(
+				{
+					missionId: 'mission-local-clear-test',
+					missionName: 'Local clear test',
+					status: 'running',
+					progress: 10,
+					tasks: [],
+					completedTasks: [],
+					failedTasks: [],
+					lastUpdated: new Date().toISOString(),
+					resumeInstructions: 'resume'
+				},
+				null,
+				2
+			)
+		);
 
-		const postResponse = await POST({
-			request: new Request('http://localhost/api/mission/active', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
+		const deleteResponse = await DELETE(routeEvent({ method: 'DELETE', apiKey: null }) as never);
+
+		expect(deleteResponse.status).toBe(401);
+		expect(existsSync(missionFile)).toBe(true);
+	});
+
+	it('clears active file instead of persisting terminal mission states', async () => {
+		await writeFile(
+			missionFile,
+			JSON.stringify(
+				{
+					missionId: 'mission-old-running',
+					missionName: 'Old running mission',
+					status: 'running',
+					progress: 40,
+					tasks: [],
+					completedTasks: [],
+					failedTasks: [],
+					lastUpdated: new Date().toISOString(),
+					resumeInstructions: 'old'
+				},
+				null,
+				2
+			)
+		);
+
+		const postResponse = await POST(
+			routeEvent({
+				body: {
 					missionId: 'mission-old-running',
 					missionName: 'Old running mission',
 					status: 'completed',
@@ -164,9 +343,9 @@ describe('/api/mission/active integration', () => {
 					tasks: [],
 					completedTasks: [],
 					failedTasks: []
-				})
-			})
-		} as never);
+				}
+			}) as never
+		);
 		expect(postResponse.status).toBe(200);
 		const body = await postResponse.json();
 
@@ -175,35 +354,47 @@ describe('/api/mission/active integration', () => {
 	});
 
 	it('clears stale active state when Mission Control already has a terminal event', async () => {
-		await writeFile(path.join(testSpawnerDir, 'mission-control.json'), JSON.stringify({
-			totalRelayed: 1,
-			perMission: { 'mission-terminal-history': 1 },
-			recent: [
+		await writeFile(
+			path.join(testSpawnerDir, 'mission-control.json'),
+			JSON.stringify(
 				{
-					eventType: 'mission_completed',
+					totalRelayed: 1,
+					perMission: { 'mission-terminal-history': 1 },
+					recent: [
+						{
+							eventType: 'mission_completed',
+							missionId: 'mission-terminal-history',
+							timestamp: new Date().toISOString()
+						}
+					]
+				},
+				null,
+				2
+			)
+		);
+		await writeFile(
+			missionFile,
+			JSON.stringify(
+				{
 					missionId: 'mission-terminal-history',
-					timestamp: new Date().toISOString()
-				}
-			]
-		}, null, 2));
-		await writeFile(missionFile, JSON.stringify({
-			missionId: 'mission-terminal-history',
-			missionName: 'Already done',
-			status: 'running',
-			progress: 0,
-			currentTaskId: 'task-replayed',
-			currentTaskName: 'Replayed task',
-			executionPrompt: 'old prompt',
-			tasks: [],
-			completedTasks: [],
-			failedTasks: [],
-			lastUpdated: new Date().toISOString(),
-			resumeInstructions: 'old resume instructions'
-		}, null, 2));
+					missionName: 'Already done',
+					status: 'running',
+					progress: 0,
+					currentTaskId: 'task-replayed',
+					currentTaskName: 'Replayed task',
+					executionPrompt: 'old prompt',
+					tasks: [],
+					completedTasks: [],
+					failedTasks: [],
+					lastUpdated: new Date().toISOString(),
+					resumeInstructions: 'old resume instructions'
+				},
+				null,
+				2
+			)
+		);
 
-		const getResponse = await GET({
-			url: new URL('http://localhost/api/mission/active')
-		} as never);
+		const getResponse = await GET(routeEvent() as never);
 		expect(getResponse.status).toBe(200);
 		const body = await getResponse.json();
 
@@ -212,24 +403,79 @@ describe('/api/mission/active integration', () => {
 		expect(existsSync(missionFile)).toBe(false);
 	});
 
-	it('ignores stale running updates after a terminal Mission Control event', async () => {
-		await writeFile(path.join(testSpawnerDir, 'mission-control.json'), JSON.stringify({
-			totalRelayed: 1,
-			perMission: { 'mission-terminal-post': 1 },
-			recent: [
+	it('does not clear terminal active state from a local no-key read', async () => {
+		await writeFile(
+			path.join(testSpawnerDir, 'mission-control.json'),
+			JSON.stringify(
 				{
-					eventType: 'mission_completed',
-					missionId: 'mission-terminal-post',
-					timestamp: new Date().toISOString()
-				}
-			]
-		}, null, 2));
+					totalRelayed: 1,
+					perMission: { 'mission-terminal-local-read': 1 },
+					recent: [
+						{
+							eventType: 'mission_completed',
+							missionId: 'mission-terminal-local-read',
+							timestamp: new Date().toISOString()
+						}
+					]
+				},
+				null,
+				2
+			)
+		);
+		await writeFile(
+			missionFile,
+			JSON.stringify(
+				{
+					missionId: 'mission-terminal-local-read',
+					missionName: 'Already done local read',
+					status: 'running',
+					progress: 0,
+					executionPrompt: 'old prompt',
+					tasks: [],
+					completedTasks: [],
+					failedTasks: [],
+					lastUpdated: new Date().toISOString(),
+					resumeInstructions: 'old resume instructions'
+				},
+				null,
+				2
+			)
+		);
 
-		const postResponse = await POST({
-			request: new Request('http://localhost/api/mission/active', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
+		const getResponse = await GET(routeEvent({ apiKey: null }) as never);
+		expect(getResponse.status).toBe(200);
+		const body = await getResponse.json();
+
+		expect(body.active).toBe(false);
+		expect(body.terminal).toBe(true);
+		expect(body.message).toContain('Cleanup requires control auth');
+		expect(existsSync(missionFile)).toBe(true);
+		expect(await readFile(missionFile, 'utf-8')).toContain('old prompt');
+	});
+
+	it('ignores stale running updates after a terminal Mission Control event', async () => {
+		await writeFile(
+			path.join(testSpawnerDir, 'mission-control.json'),
+			JSON.stringify(
+				{
+					totalRelayed: 1,
+					perMission: { 'mission-terminal-post': 1 },
+					recent: [
+						{
+							eventType: 'mission_completed',
+							missionId: 'mission-terminal-post',
+							timestamp: new Date().toISOString()
+						}
+					]
+				},
+				null,
+				2
+			)
+		);
+
+		const postResponse = await POST(
+			routeEvent({
+				body: {
 					missionId: 'mission-terminal-post',
 					missionName: 'Already done',
 					status: 'running',
@@ -237,9 +483,9 @@ describe('/api/mission/active integration', () => {
 					tasks: [],
 					completedTasks: [],
 					failedTasks: []
-				})
-			})
-		} as never);
+				}
+			}) as never
+		);
 		expect(postResponse.status).toBe(200);
 		const body = await postResponse.json();
 
@@ -249,24 +495,29 @@ describe('/api/mission/active integration', () => {
 	});
 
 	it('reports stale mission state as inactive by default', async () => {
-		await writeFile(missionFile, JSON.stringify({
-			missionId: 'mission-stale-test',
-			missionName: 'Stale test',
-			status: 'running',
-			progress: 40,
-			currentTaskId: 'task-old',
-			currentTaskName: 'Old task',
-			executionPrompt: 'old prompt',
-			tasks: [],
-			completedTasks: [],
-			failedTasks: [],
-			lastUpdated: new Date(Date.now() - 31 * 60 * 1000).toISOString(),
-			resumeInstructions: 'old resume instructions'
-		}, null, 2));
+		await writeFile(
+			missionFile,
+			JSON.stringify(
+				{
+					missionId: 'mission-stale-test',
+					missionName: 'Stale test',
+					status: 'running',
+					progress: 40,
+					currentTaskId: 'task-old',
+					currentTaskName: 'Old task',
+					executionPrompt: 'old prompt',
+					tasks: [],
+					completedTasks: [],
+					failedTasks: [],
+					lastUpdated: new Date(Date.now() - 31 * 60 * 1000).toISOString(),
+					resumeInstructions: 'old resume instructions'
+				},
+				null,
+				2
+			)
+		);
 
-		const getResponse = await GET({
-			url: new URL('http://localhost/api/mission/active')
-		} as never);
+		const getResponse = await GET(routeEvent() as never);
 		expect(getResponse.status).toBe(200);
 		const body = await getResponse.json();
 
@@ -279,9 +530,7 @@ describe('/api/mission/active integration', () => {
 	it('clears corrupted active mission state as not resumable', async () => {
 		await writeFile(missionFile, '{not-valid-json', 'utf-8');
 
-		const getResponse = await GET({
-			url: new URL('http://localhost/api/mission/active')
-		} as never);
+		const getResponse = await GET(routeEvent() as never);
 		expect(getResponse.status).toBe(200);
 		const body = await getResponse.json();
 
@@ -290,5 +539,19 @@ describe('/api/mission/active integration', () => {
 		expect(body.message).toBe('Active mission state is corrupted and cannot be resumed.');
 		expect(body.error).toBeUndefined();
 		expect(existsSync(missionFile)).toBe(false);
+	});
+
+	it('does not clear corrupted active mission state from a local no-key read', async () => {
+		await writeFile(missionFile, '{not-valid-json', 'utf-8');
+
+		const getResponse = await GET(routeEvent({ apiKey: null }) as never);
+		expect(getResponse.status).toBe(200);
+		const body = await getResponse.json();
+
+		expect(body.active).toBe(false);
+		expect(body.corrupt).toBe(true);
+		expect(body.message).toContain('cannot be inspected without control auth');
+		expect(existsSync(missionFile)).toBe(true);
+		expect(await readFile(missionFile, 'utf-8')).toBe('{not-valid-json');
 	});
 });

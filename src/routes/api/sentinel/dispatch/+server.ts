@@ -21,6 +21,31 @@ interface SentinelActionEntry {
 const recentSentinelActions: SentinelActionEntry[] = [];
 const MAX_SENTINEL_ACTIONS = 200;
 
+function sentinelReadAuthPayload(event: Parameters<typeof requireControlAuth>[0]) {
+	const openRead = requireControlAuth(event, {
+		surface: 'SentinelDispatch',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+	if (openRead) return { openRead, hasControlAuth: false };
+
+	const strictRead = requireControlAuth(event, {
+		surface: 'SentinelDispatch',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: false,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+
+	return { openRead: null, hasControlAuth: strictRead === null };
+}
+
 export const POST: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
 		surface: 'SentinelDispatch',
@@ -28,7 +53,7 @@ export const POST: RequestHandler = async (event) => {
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
 		apiKeyQueryParam: 'apiKey',
 		apiKeyCookieName: 'spawner_events_api_key',
-		allowLoopbackWithoutKey: true,
+		allowLoopbackWithoutKey: false,
 		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
 	});
 	if (unauthorized) return unauthorized;
@@ -96,16 +121,8 @@ export const POST: RequestHandler = async (event) => {
 };
 
 export const GET: RequestHandler = async (event) => {
-	const unauthorized = requireControlAuth(event, {
-		surface: 'SentinelDispatch',
-		apiKeyEnvVar: 'EVENTS_API_KEY',
-		fallbackApiKeyEnvVar: 'MCP_API_KEY',
-		apiKeyQueryParam: 'apiKey',
-		apiKeyCookieName: 'spawner_events_api_key',
-		allowLoopbackWithoutKey: true,
-		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
-	});
-	if (unauthorized) return unauthorized;
+	const { openRead, hasControlAuth } = sentinelReadAuthPayload(event);
+	if (openRead) return openRead;
 
 	const rateLimited = enforceRateLimit(event, {
 		scope: 'sentinel_dispatch_get',
@@ -123,6 +140,23 @@ export const GET: RequestHandler = async (event) => {
 		ok: true,
 		count: Math.min(limit, recentSentinelActions.length),
 		total: recentSentinelActions.length,
-		actions: recentSentinelActions.slice(0, limit)
+		actions: hasControlAuth
+			? recentSentinelActions.slice(0, limit)
+			: recentSentinelActions.slice(0, limit).map((action) => ({
+					receivedAt: action.receivedAt,
+					kind: action.kind,
+					id: action.id,
+					priority: action.priority,
+					title: action.title
+				})),
+		...(hasControlAuth
+			? {}
+			: {
+					authorityBoundary: {
+						payload: 'queue_summary',
+						reasons: 'requires_control_auth',
+						url: 'requires_control_auth'
+					}
+				})
 	});
 };

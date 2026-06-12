@@ -15,6 +15,7 @@ import { GET } from './+server';
 const originalBridgeKey = process.env.SPARK_BRIDGE_API_KEY;
 const originalStateDir = process.env.SPAWNER_STATE_DIR;
 const originalSparkHome = process.env.SPARK_HOME;
+const TEST_API_KEY = 'state-root-route-test-secret';
 
 function restoreEnv(name: string, value: string | undefined) {
 	if (value === undefined) delete process.env[name];
@@ -49,9 +50,12 @@ describe('/api/system/state-root', () => {
 	});
 
 	it('returns metadata-only state-root audit evidence on loopback', async () => {
+		PRIVATE_ENV.SPARK_BRIDGE_API_KEY = TEST_API_KEY;
 		process.env.SPAWNER_STATE_DIR = 'C:\\spark-state\\spawner-ui';
 
-		const response = await GET(routeEvent('http://127.0.0.1/api/system/state-root') as never);
+		const response = await GET(
+			routeEvent('http://127.0.0.1/api/system/state-root', { headers: { 'x-api-key': TEST_API_KEY } }) as never
+		);
 		const body = await response.json();
 
 		expect(response.status).toBe(200);

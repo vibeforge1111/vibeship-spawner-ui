@@ -6,12 +6,11 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { missionsState, loadMissions, startMission as startCurrent, setCurrentMission, deleteMission } from '$lib/stores/missions.svelte';
+	import { missionsState, loadMissions, deleteMission } from '$lib/stores/missions.svelte';
 	import { mcpState } from '$lib/stores/mcp.svelte';
 	import { initPipelines, pipelines } from '$lib/stores/pipelines.svelte';
 	import type { Mission } from '$lib/services/mcp-client';
 	import type { PipelineMetadata } from '$lib/stores/pipelines.svelte';
-	import { buildClientGovernorDecisionAuthority } from '$lib/services/harness-authority-client';
 	import {
 		canRunCreatorMissionBoardCard,
 		canShowMissionBoardProjectActions,
@@ -27,6 +26,9 @@
 	} from '$lib/services/mission-improvement';
 	import { parseJsonResponse } from '$lib/services/http-response';
 	import { polishMissionTitleForDisplay } from '$lib/services/mission-title';
+
+	const GOVERNED_UI_ACTIONS_ENABLED = false;
+	const GOVERNED_ACTION_MESSAGE = 'Requires fresh Harness Core Governor authority from a server Harness consumer.';
 
 	type Tab = 'board' | 'scheduled';
 	let activeTab = $state<Tab>('board');
@@ -117,6 +119,10 @@
 	}
 
 	async function createScheduleFromForm() {
+		if (!GOVERNED_UI_ACTIONS_ENABLED) {
+			schedulesError = GOVERNED_ACTION_MESSAGE;
+			return;
+		}
 		creating = true;
 		try {
 			const payload =
@@ -131,14 +137,7 @@
 					action: newAction,
 					payload,
 					chatId: newChatId || null,
-					timezone: LOCAL_TZ,
-					executionAuthority: buildClientGovernorDecisionAuthority({
-						source: 'mission-board.schedule.create',
-						reason: 'User submitted a scheduled Spark action from Spawner.',
-						toolName: 'spawner.schedule.create',
-						mutationClass: 'creates_schedule',
-						target: newAction
-					})
+					timezone: LOCAL_TZ
 				})
 			});
 			if (!r.ok) {
@@ -162,21 +161,16 @@
 	}
 
 	async function deleteScheduleById(id: string) {
+		if (!GOVERNED_UI_ACTIONS_ENABLED) {
+			schedulesError = GOVERNED_ACTION_MESSAGE;
+			return;
+		}
 		const prev = schedules;
 		schedules = schedules.filter((s) => s.id !== id);
 		try {
 			const r = await fetch(`/api/scheduled?id=${encodeURIComponent(id)}`, {
 				method: 'DELETE',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					executionAuthority: buildClientGovernorDecisionAuthority({
-						source: 'mission-board.schedule.delete',
-						reason: 'User deleted a scheduled Spark action from Spawner.',
-						toolName: 'spawner.schedule.delete',
-						mutationClass: 'deletes_schedule',
-						target: id
-					})
-				})
+				headers: { 'Content-Type': 'application/json' }
 			});
 			if (!r.ok) {
 				schedules = prev;
@@ -353,7 +347,7 @@
 			taskCount: m.tasks?.length ?? 0,
 			strategy: m.mode,
 			tasks,
-			detailHref: `/missions/${encodeURIComponent(m.id)}`
+			detailHref: `/kanban?mission=${encodeURIComponent(m.id)}`
 		};
 	}
 
@@ -392,7 +386,7 @@
 			completionEvidence: e.completionEvidence,
 			projectLineage: e.projectLineage ?? null,
 			canvasHref: canvasHrefForMission(e.missionId, name),
-			detailHref: `/missions/${encodeURIComponent(e.missionId)}`
+			detailHref: `/kanban?mission=${encodeURIComponent(e.missionId)}`
 		};
 	}
 
@@ -429,6 +423,8 @@
 	let searchFocused = $state(false);
 	let statusFilter = $state<MissionStatusFilter>('all');
 	let showAllCompleted = $state(false);
+	let focusedMissionId = $state<string | null>(null);
+	let focusedMissionDismissed = $state(false);
 	const completedPreviewLimit = 12;
 	const statusFilters: Array<{ id: MissionStatusFilter; label: string }> = [
 		{ id: 'all', label: 'All' },
@@ -439,7 +435,9 @@
 
 	const filteredCards = $derived(() => {
 		const q = searchQuery.trim().toLowerCase();
+		const focused = focusedMissionId && !focusedMissionDismissed ? focusedMissionId : null;
 		return cards().filter((c) => {
+			if (focused) return c.id === focused;
 			const matchesSearch = !q || c.name.toLowerCase().includes(q) || (c.summary ?? '').toLowerCase().includes(q);
 			if (!matchesSearch) return false;
 			if (statusFilter === 'needs_attention') return c.status === 'failed' || c.completionEvidence?.state === 'incomplete';
@@ -456,6 +454,10 @@
 			.filter((c) => c.status === 'completed' || c.status === 'failed' || c.status === 'cancelled')
 			.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
 	);
+	const focusedMissionCard = $derived(() => {
+		if (!focusedMissionId) return null;
+		return cards().find((card) => card.id === focusedMissionId) ?? null;
+	});
 
 	onMount(() => {
 		initPipelines();
@@ -468,6 +470,7 @@
 		});
 		loadMissions({ limit: 200 }).catch(() => {});
 		fetchRelay();
+		applyMissionUrlParams();
 		applyImproveUrlParams();
 		relayTimer = setInterval(fetchRelay, 4000);
 		return () => { unsub(); unsubMcp(); unsubPipelines(); };
@@ -605,15 +608,6 @@
 		return 'bg-status-success';
 	}
 
-	async function handleStart(card: BoardCard) {
-		if (card.source !== 'mcp') return;
-		const m = missions.find((x) => x.id === card.id);
-		if (!m) return;
-		setCurrentMission(m);
-		await startCurrent();
-		await loadMissions({ limit: 200 });
-	}
-
 	let creatorRunMissionId = $state<string | null>(null);
 	let creatorRunMessage = $state<{ missionId: string; tone: 'info' | 'success' | 'error'; text: string } | null>(null);
 	let creatorValidateMissionId = $state<string | null>(null);
@@ -627,6 +621,10 @@
 
 	async function handleCreatorRun(card: BoardCard) {
 		if (!canRunCreatorMissionBoardCard(card) || creatorRunMissionId) return;
+		if (!GOVERNED_UI_ACTIONS_ENABLED) {
+			creatorRunMessage = { missionId: card.id, tone: 'error', text: GOVERNED_ACTION_MESSAGE };
+			return;
+		}
 		creatorRunMissionId = card.id;
 		creatorRunMessage = { missionId: card.id, tone: 'info', text: 'Starting creator execution...' };
 		try {
@@ -634,14 +632,7 @@
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					missionId: card.id,
-					executionAuthority: buildClientGovernorDecisionAuthority({
-						source: 'mission-board.creator.execute',
-						reason: 'User started a creator mission from the Spawner mission board.',
-						toolName: 'spawner.dispatch',
-						mutationClass: 'launches_mission',
-						target: card.id
-					})
+					missionId: card.id
 				})
 			});
 			const data = await r.json().catch(() => ({}));
@@ -695,6 +686,10 @@
 
 	async function handleCreatorValidate(card: BoardCard) {
 		if (!canValidateCreatorMissionBoardCard(card) || creatorValidateMissionId) return;
+		if (!GOVERNED_UI_ACTIONS_ENABLED) {
+			creatorValidateMessage = { missionId: card.id, tone: 'error', text: GOVERNED_ACTION_MESSAGE };
+			return;
+		}
 		creatorValidateMissionId = card.id;
 		creatorValidateMessage = { missionId: card.id, tone: 'info', text: 'Running creator validation...' };
 		try {
@@ -703,14 +698,7 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					missionId: card.id,
-					async: true,
-					executionAuthority: buildClientGovernorDecisionAuthority({
-						source: 'mission-board.creator-validation',
-						reason: 'User requested creator artifact validation from the Spawner Mission Board.',
-						toolName: 'spawner.creator.validate',
-						mutationClass: 'writes_files',
-						target: card.id
-					})
+					async: true
 				})
 			});
 			const data = await r.json().catch(() => ({}));
@@ -767,6 +755,10 @@
 			: quickAddImprovementDraft;
 		const goal = (improvementDraft?.goal ?? quickAddGoal).trim();
 		if (!goal || quickAddDispatching) return;
+		if (!GOVERNED_UI_ACTIONS_ENABLED) {
+			quickAddError = GOVERNED_ACTION_MESSAGE;
+			return;
+		}
 		quickAddDispatching = true;
 		quickAddError = null;
 		try {
@@ -799,6 +791,23 @@
 		if (!confirm(`Delete mission "${card.name}"?`)) return;
 		await deleteMission(card.id);
 		await loadMissions({ limit: 200 });
+	}
+
+	function applyMissionUrlParams() {
+		const missionId = new URLSearchParams(window.location.search).get('mission')?.trim();
+		if (!missionId) return;
+		focusedMissionId = missionId;
+		focusedMissionDismissed = false;
+		statusFilter = 'all';
+		searchQuery = '';
+		activeTab = 'board';
+	}
+
+	function clearFocusedMission() {
+		focusedMissionDismissed = true;
+		const url = new URL(window.location.href);
+		url.searchParams.delete('mission');
+		window.history.replaceState({}, '', url.pathname + url.search + url.hash);
 	}
 
 	function applyImproveUrlParams() {
@@ -917,6 +926,27 @@
 		</div>
 	</header>
 
+	{#if focusedMissionId && !focusedMissionDismissed}
+		<div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent-primary/35 bg-accent-primary/10 px-4 py-3">
+			<div class="min-w-0">
+				<p class="font-mono text-[10px] uppercase tracking-wider text-accent-primary">Focused mission</p>
+				{#if focusedMissionCard()}
+					<p class="mt-1 truncate text-sm font-semibold text-text-primary">{focusedMissionCard()?.name}</p>
+					<p class="mt-1 font-mono text-[11px] text-text-secondary">{focusedMissionId}</p>
+				{:else}
+					<p class="mt-1 font-mono text-sm text-text-secondary">Waiting for {focusedMissionId} to appear on the live board...</p>
+				{/if}
+			</div>
+			<button
+				type="button"
+				onclick={clearFocusedMission}
+				class="inline-flex items-center gap-1.5 rounded-md border border-accent-primary/30 px-3 py-1.5 font-mono text-[11px] text-accent-primary transition-all hover:bg-accent-primary hover:text-bg-primary"
+			>
+				Show all missions
+			</button>
+		</div>
+	{/if}
+
 	{#if activeTab === 'board'}
 
 		{#if quickAddOpen}
@@ -986,11 +1016,12 @@
 						<div class="flex items-start justify-end gap-2">
 							<button
 								onclick={handleQuickAdd}
-								disabled={!quickAddFeedback.trim() || quickAddDispatching}
+								disabled={!GOVERNED_UI_ACTIONS_ENABLED || !quickAddFeedback.trim() || quickAddDispatching}
 								class="inline-flex min-w-[9.5rem] items-center justify-center gap-2 rounded-md bg-accent-primary px-3 py-2 font-mono text-xs font-semibold text-bg-primary transition-all hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+								title={GOVERNED_UI_ACTIONS_ENABLED ? 'Run another governed iteration' : GOVERNED_ACTION_MESSAGE}
 							>
 								<Icon name={quickAddDispatching ? 'loader' : 'play'} size={14} />
-								{quickAddDispatching ? 'Dispatching' : 'Run iteration'}
+								{GOVERNED_UI_ACTIONS_ENABLED ? (quickAddDispatching ? 'Dispatching' : 'Run iteration') : 'Authority required'}
 							</button>
 							<button
 								onclick={resetQuickAdd}
@@ -1014,10 +1045,11 @@
 						/>
 						<button
 							onclick={handleQuickAdd}
-							disabled={!quickAddGoal.trim() || quickAddDispatching}
+							disabled={!GOVERNED_UI_ACTIONS_ENABLED || !quickAddGoal.trim() || quickAddDispatching}
 							class="rounded-md bg-accent-primary px-3 py-2 font-mono text-xs text-bg-primary transition-all hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+							title={GOVERNED_UI_ACTIONS_ENABLED ? 'Run this governed mission' : GOVERNED_ACTION_MESSAGE}
 						>
-							{quickAddDispatching ? 'Dispatching...' : 'Run'}
+							{GOVERNED_UI_ACTIONS_ENABLED ? (quickAddDispatching ? 'Dispatching...' : 'Run') : 'Locked'}
 						</button>
 						<button
 							onclick={resetQuickAdd}
@@ -1073,7 +1105,7 @@
 								{@const evidence = completionEvidenceLabel(c)}
 								{@const hasProgress = hasTaskProgress(c)}
 								{@const hasActions = hasCardActions(c)}
-								<article class="group relative overflow-hidden rounded-md border border-surface-border bg-bg-secondary transition-all hover:border-iris/60 hover:bg-bg-tertiary/40">
+								<article class="group relative overflow-hidden rounded-md border transition-all hover:border-iris/60 hover:bg-bg-tertiary/40 {c.id === focusedMissionId && !focusedMissionDismissed ? 'border-accent-primary/70 bg-accent-primary/5 ring-1 ring-accent-primary/35' : 'border-surface-border bg-bg-secondary'}">
 									<a
 										href={actionLinks.detailHref}
 										class="block px-4 py-3.5 text-inherit focus:outline-none focus-visible:ring-1 focus-visible:ring-iris/70 rounded-md"
@@ -1167,23 +1199,23 @@
 										{#if canRunCreatorMissionBoardCard(c)}
 											<button
 												onclick={() => handleCreatorRun(c)}
-												disabled={creatorRunMissionId === c.id}
+												disabled={!GOVERNED_UI_ACTIONS_ENABLED || creatorRunMissionId === c.id}
 												class="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-												title="Execute this creator mission through the provider runtime"
+												title={GOVERNED_UI_ACTIONS_ENABLED ? 'Execute this creator mission through the provider runtime' : GOVERNED_ACTION_MESSAGE}
 											>
 												<Icon name={creatorRunMissionId === c.id ? 'loader' : 'play'} size={10} />
-												{creatorRunMissionId === c.id ? 'Starting' : 'Run'}
+												{GOVERNED_UI_ACTIONS_ENABLED ? (creatorRunMissionId === c.id ? 'Starting' : 'Run') : 'Locked'}
 											</button>
 										{/if}
 										{#if canValidateCreatorMissionBoardCard(c)}
 											<button
 												onclick={() => handleCreatorValidate(c)}
-												disabled={creatorValidateMissionId === c.id}
+												disabled={!GOVERNED_UI_ACTIONS_ENABLED || creatorValidateMissionId === c.id}
 												class="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[10px] font-mono text-status-success border border-status-success/30 rounded-sm hover:bg-status-success hover:text-bg-primary transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-												title="Run this creator mission's validation commands"
+												title={GOVERNED_UI_ACTIONS_ENABLED ? "Run this creator mission's validation commands" : GOVERNED_ACTION_MESSAGE}
 											>
 												<Icon name={creatorValidateMissionId === c.id ? 'loader' : 'check-circle'} size={10} />
-												{creatorValidateMissionId === c.id ? 'Validating' : 'Validate'}
+												{GOVERNED_UI_ACTIONS_ENABLED ? (creatorValidateMissionId === c.id ? 'Validating' : 'Validate') : 'Locked'}
 											</button>
 										{/if}
 										{#if hasRecoveryActions(c)}
@@ -1216,14 +1248,6 @@
 												Failure
 											</a>
 											{/if}
-										{/if}
-										{#if c.source === 'mcp' && (c.status === 'ready' || c.status === 'draft')}
-											<button
-												onclick={() => handleStart(c)}
-												class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-mono text-accent-primary border border-accent-primary/30 rounded-sm hover:bg-accent-primary hover:text-bg-primary transition-all"
-											>
-												Start
-											</button>
 										{/if}
 										{#if c.source === 'mcp'}
 											<button
@@ -1347,10 +1371,11 @@
 				</div>
 				<button
 					class="px-3 py-1.5 text-xs font-mono bg-accent-primary text-bg-primary hover:bg-accent-primary-hover transition-all disabled:opacity-50"
-					disabled={creating || !newCron || (newAction === 'mission' ? !newGoal : !newChip)}
+					disabled={!GOVERNED_UI_ACTIONS_ENABLED || creating || !newCron || (newAction === 'mission' ? !newGoal : !newChip)}
 					onclick={createScheduleFromForm}
+					title={GOVERNED_UI_ACTIONS_ENABLED ? 'Create schedule' : GOVERNED_ACTION_MESSAGE}
 				>
-					{creating ? 'Creating...' : 'Create schedule'}
+					{GOVERNED_UI_ACTIONS_ENABLED ? (creating ? 'Creating...' : 'Create schedule') : 'Authority required'}
 				</button>
 			</div>
 		{/if}
@@ -1408,9 +1433,10 @@
 								</td>
 								<td class="px-3 py-2 text-right">
 									<button
-										class="text-[11px] text-status-error hover:opacity-80"
+										class="text-[11px] text-status-error hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
 										onclick={() => deleteScheduleById(rec.id)}
-										title="Delete this schedule permanently"
+										disabled={!GOVERNED_UI_ACTIONS_ENABLED}
+										title={GOVERNED_UI_ACTIONS_ENABLED ? 'Delete this schedule permanently' : GOVERNED_ACTION_MESSAGE}
 									>
 										delete
 									</button>

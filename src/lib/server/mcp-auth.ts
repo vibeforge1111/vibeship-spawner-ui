@@ -1,9 +1,13 @@
 import { env } from '$env/dynamic/private';
 import { json, type RequestEvent } from '@sveltejs/kit';
 import { timingSafeEqual } from 'node:crypto';
-import { hostedUiLooksHosted, hostedUiSessionIsValid } from '$lib/server/hosted-ui-auth';
+import {
+	hostedUiHostIsLoopback,
+	hostedUiIsLocalOperatorLoopbackRequest,
+	hostedUiLooksHosted,
+	hostedUiSessionIsValid
+} from '$lib/server/hosted-ui-auth';
 
-const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
 const rateLimitBuckets = new Map<string, number[]>();
 
 function constantTimeEquals(left: string, right: string): boolean {
@@ -107,6 +111,16 @@ function parseCsv(value: string | undefined): string[] {
 		.filter((item) => item.length > 0);
 }
 
+function controlEnvValue(name: string | undefined): string {
+	if (!name) return '';
+	if (Object.prototype.hasOwnProperty.call(process.env, name)) {
+		return (process.env[name] || '').trim();
+	}
+	const dynamicValue = (env[name as keyof typeof env] as string | undefined)?.trim();
+	if (dynamicValue) return dynamicValue;
+	return '';
+}
+
 function isOriginAllowed(event: RequestEvent, allowedOriginsEnvVar?: string): boolean {
 	const origin = event.request.headers.get('origin');
 	if (!origin) return true;
@@ -114,14 +128,14 @@ function isOriginAllowed(event: RequestEvent, allowedOriginsEnvVar?: string): bo
 	try {
 		const requestHost = new URL(event.request.url).hostname;
 		const originHost = new URL(origin).hostname;
-		if (LOOPBACK_HOSTS.has(requestHost) && LOOPBACK_HOSTS.has(originHost)) {
+		if (hostedUiHostIsLoopback(requestHost) && hostedUiHostIsLoopback(originHost)) {
 			return true;
 		}
 	} catch {
 		return false;
 	}
 
-	const allowedOrigins = parseCsv(env[allowedOriginsEnvVar as keyof typeof env] as string | undefined);
+	const allowedOrigins = parseCsv(controlEnvValue(allowedOriginsEnvVar));
 	if (!allowedOriginsEnvVar || allowedOrigins.length === 0) {
 		try {
 			return new URL(origin).origin === new URL(event.request.url).origin;
@@ -131,7 +145,7 @@ function isOriginAllowed(event: RequestEvent, allowedOriginsEnvVar?: string): bo
 	}
 	if (allowedOrigins.length === 0) return true;
 	if (allowedOrigins.includes('*')) {
-		return (env.SPAWNER_ALLOW_WILDCARD_ORIGINS as string | undefined)?.trim() === '1';
+		return controlEnvValue('SPAWNER_ALLOW_WILDCARD_ORIGINS') === '1';
 	}
 	return allowedOrigins.includes(origin);
 }
@@ -140,6 +154,7 @@ export interface ControlAuthOptions {
 	surface: string;
 	apiKeyEnvVar?: string;
 	fallbackApiKeyEnvVar?: string;
+	fallbackApiKeyEnvVars?: string[];
 	apiKeyQueryParam?: string;
 	apiKeyCookieName?: string;
 	allowLoopbackWithoutKey?: boolean;
@@ -153,10 +168,14 @@ export interface RateLimitOptions {
 }
 
 export function requireControlAuth(event: RequestEvent, options: ControlAuthOptions): Response | null {
-	const allowLoopback = options.allowLoopbackWithoutKey !== false;
-	const configuredKey =
-		(env[options.apiKeyEnvVar as keyof typeof env] as string | undefined)?.trim() ||
-		(env[options.fallbackApiKeyEnvVar as keyof typeof env] as string | undefined)?.trim();
+	const allowLoopback = options.allowLoopbackWithoutKey === true;
+	const configuredKey = [
+		options.apiKeyEnvVar,
+		options.fallbackApiKeyEnvVar,
+		...(options.fallbackApiKeyEnvVars || [])
+	]
+		.map(controlEnvValue)
+		.find(Boolean);
 
 	if (!isOriginAllowed(event, options.allowedOriginsEnvVar)) {
 		return json(
@@ -227,28 +246,30 @@ export function enforceRateLimit(event: RequestEvent, options: RateLimitOptions)
 }
 
 function isLoopbackRequest(event: RequestEvent): boolean {
-	const requestHost = new URL(event.request.url).hostname;
-	if (!LOOPBACK_HOSTS.has(requestHost)) {
-		return false;
-	}
-
 	try {
 		const clientAddress = event.getClientAddress();
-		return LOOPBACK_HOSTS.has(clientAddress);
+		return hostedUiIsLocalOperatorLoopbackRequest(
+			event.request,
+			new URL(event.request.url),
+			clientAddress
+		);
 	} catch {
 		// Production loopback bypass must not rely on a spoofable Host header alone.
-		return import.meta.env.MODE === 'test' || process.env.NODE_ENV === 'test';
+		return (
+			hostedUiHostIsLoopback(new URL(event.request.url).hostname) &&
+			(import.meta.env.MODE === 'test' || process.env.NODE_ENV === 'test')
+		);
 	}
 }
 
 /**
- * Guard MCP routes with either a configured API key or localhost-only access.
+ * Guard MCP routes with an API key or authenticated hosted UI session.
  */
 export function requireMcpAuth(event: RequestEvent): Response | null {
 	return requireControlAuth(event, {
 		surface: 'MCP',
 		apiKeyEnvVar: 'MCP_API_KEY',
-		allowLoopbackWithoutKey: true,
+		allowLoopbackWithoutKey: false,
 		allowedOriginsEnvVar: 'MCP_ALLOWED_ORIGINS'
 	});
 }

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { getTierSkills, normalizeTier, type SkillTier } from './skill-tiers';
 import { assessTaskQuality } from './task-quality-rubric';
+import { stripAuthorityResidue } from './authority-residue';
 
 const stringList = z.array(z.string());
 
@@ -9,7 +10,7 @@ function normalizeComplexity(value: unknown): unknown {
 	const normalized = value.trim().toLowerCase();
 	if (['simple', 'moderate', 'complex'].includes(normalized)) return normalized;
 	if (['low', 'small', 'easy', 'basic', 'tiny'].includes(normalized)) return 'simple';
-	if (['medium', 'normal', 'standard', 'intermediate'].includes(normalized)) return 'moderate';
+	if (['medium', 'normal', 'standard', 'intermediate', 'system'].includes(normalized)) return 'moderate';
 	if (['high', 'large', 'advanced', 'hard', 'difficult'].includes(normalized)) return 'complex';
 	return value;
 }
@@ -36,6 +37,55 @@ const taskSchema = z.object({
 		.optional()
 });
 
+function techStackEntryLabel(item: unknown): string {
+	if (typeof item === 'string') return item.trim();
+	if (!item || typeof item !== 'object') return '';
+	const record = item as Record<string, unknown>;
+	return String(record.name ?? record.tool ?? record.technology ?? record.value ?? '').trim();
+}
+
+function normalizeTechStackField(value: unknown): unknown {
+	if (Array.isArray(value)) {
+		const entries = value.map(techStackEntryLabel).filter(Boolean);
+		return entries.length > 0 ? entries.join(', ') : undefined;
+	}
+	if (typeof value === 'string') {
+		const trimmed = value.trim();
+		return trimmed || undefined;
+	}
+	return value;
+}
+
+function normalizeTechStackRecord(value: Record<string, unknown>): Record<string, unknown> {
+	return {
+		...value,
+		framework: normalizeTechStackField(value.framework),
+		language: normalizeTechStackField(value.language),
+		styling: normalizeTechStackField(value.styling),
+		database: normalizeTechStackField(value.database),
+		auth: normalizeTechStackField(value.auth),
+		deployment: normalizeTechStackField(value.deployment)
+	};
+}
+
+function normalizeTechStack(value: unknown): unknown {
+	if (value && typeof value === 'object' && !Array.isArray(value)) {
+		return normalizeTechStackRecord(value as Record<string, unknown>);
+	}
+	if (!Array.isArray(value)) return value;
+	const entries = value
+		.map(techStackEntryLabel)
+		.filter(Boolean);
+	if (entries.length === 0) return value;
+	return {
+		framework: entries[0],
+		language: entries.find((entry) => /typescript|javascript|python|go|rust/i.test(entry)) || 'TypeScript or JavaScript',
+		styling: entries.find((entry) => /css|tailwind|sass|scss|style/i.test(entry)),
+		deployment: entries.find((entry) => /local|server|static|deploy|hosting/i.test(entry)),
+		entries
+	};
+}
+
 export const prdAnalysisResultSchema = z
 	.object({
 		requestId: z.string().min(1).optional(),
@@ -51,14 +101,20 @@ export const prdAnalysisResultSchema = z
 			needsAPI: z.boolean().default(false),
 			apiReason: z.string().optional()
 		}).default({ needsAuth: false, needsDatabase: false, needsAPI: false }),
-		techStack: z.object({
-			framework: z.string().min(1).default('Existing project'),
-			language: z.string().min(1).default('TypeScript or JavaScript'),
-			styling: z.string().optional(),
-			database: z.string().optional(),
-			auth: z.string().optional(),
-			deployment: z.string().optional()
-		}).default({ framework: 'Existing project', language: 'TypeScript or JavaScript' }),
+		techStack: z.preprocess(
+			normalizeTechStack,
+			z
+				.object({
+					framework: z.string().min(1).default('Existing project'),
+					language: z.string().min(1).default('TypeScript or JavaScript'),
+					styling: z.string().optional(),
+					database: z.string().optional(),
+					auth: z.string().optional(),
+					deployment: z.string().optional()
+				})
+				.passthrough()
+				.default({ framework: 'Existing project', language: 'TypeScript or JavaScript' })
+		),
 		tasks: z.array(taskSchema).min(1),
 		skills: stringList.default([]),
 		executionPrompt: z.string().min(1).optional()
@@ -66,7 +122,8 @@ export const prdAnalysisResultSchema = z
 	.passthrough();
 
 export type ValidPrdAnalysisResult = z.infer<typeof prdAnalysisResultSchema>;
-export type StoredPrdAnalysisResult = Omit<ValidPrdAnalysisResult, 'executionPrompt'> & {
+export type StoredPrdAnalysisResult = Omit<ValidPrdAnalysisResult, 'executionPrompt' | 'success'> & {
+	success: boolean;
 	instructionTextRedacted: true;
 	metadata?: Record<string, unknown>;
 };
@@ -143,12 +200,13 @@ export async function sanitizePrdAnalysisResultForTier(
 	strippedSkillCount += topLevel.stripped;
 	const skills = uniqueSkillIds([...topLevel.skills, ...tasks.flatMap((task) => task.skills)]);
 	const metadataRecord = validated.metadata && typeof validated.metadata === 'object' && !Array.isArray(validated.metadata)
-		? (validated.metadata as Record<string, unknown>)
+		? stripAuthorityResidue(validated.metadata as Record<string, unknown>)
 		: {};
+	const rootRecord = stripAuthorityResidue(validated);
 
 	return {
 		result: {
-			...validated,
+			...rootRecord,
 			tasks,
 			skills,
 			metadata: {
@@ -183,9 +241,10 @@ export function projectStoredPrdAnalysisResult(requestId: string, result: unknow
 	const validated = validatePrdAnalysisResult(requestId, result) as ValidPrdAnalysisResult & {
 		metadata?: unknown;
 	};
-	const { executionPrompt: _executionPrompt, metadata, ...rest } = validated;
+	const { executionPrompt: _executionPrompt, metadata, ...rawRest } = validated;
+	const rest = stripAuthorityResidue(rawRest);
 	const metadataRecord = metadata && typeof metadata === 'object' && !Array.isArray(metadata)
-		? (metadata as Record<string, unknown>)
+		? stripAuthorityResidue(metadata as Record<string, unknown>)
 		: {};
 	const {
 		executionPrompt: _metadataExecutionPrompt,

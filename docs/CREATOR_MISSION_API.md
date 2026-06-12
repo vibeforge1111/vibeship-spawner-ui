@@ -4,6 +4,13 @@ Spawner UI exposes a creator mission surface for domain-chip, benchmark, special
 
 The route creates a `spark-creator-trace.v1` record by calling Spark Intelligence Builder's `creator plan` command, expands that intent into a gated creator task graph, persists the trace, queues the graph into Canvas, and emits normal Mission Control events so Kanban can show the mission.
 
+Authority rule: creator mission create, execute, validate, publish, and Swarm
+promotion requests are high-agency when they can write files, launch providers,
+change benchmarks, create chips, publish packets, or affect durable memory.
+They require Harness Core/Governor authority or a documented machine-origin
+policy. A trace, Canvas load, route auth header, or `autoRun` flag is evidence
+or access only.
+
 ## Create
 
 ```http
@@ -168,7 +175,11 @@ $SPAWNER_STATE_DIR/last-canvas-load.json
 
 Creator loads use `source: "creator-mission"` and `autoRun: false` by default. They are inspectable first because creator artifacts can affect benchmark rules, memory policy, and Swarm publication.
 
-When execution is requested, the same Canvas load is rewritten with `autoRun: true` and dispatched through the existing provider runtime. The working directory defaults to the parent of the Spawner checkout, or `SPARK_CREATOR_WORKSPACE_ROOT` when configured.
+When execution is requested, the same Canvas load may be rewritten with
+`autoRun: true` as a request flag, but provider dispatch still requires current
+Governor authority bound to the mission/request/action. The working directory
+defaults to the parent of the Spawner checkout, or `SPARK_CREATOR_WORKSPACE_ROOT`
+when configured.
 
 ## Task Graph
 

@@ -13,7 +13,9 @@ import { controlQueryApiKeysAllowed, enforceRateLimit, requireControlAuth } from
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { projectStoredPrdAnalysisResultForTier } from '$lib/server/prd-analysis-result-schema';
+import { pendingRequestFileForRequest, readPendingRequestRecord } from '$lib/server/prd-pending-requests';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { writeFileAtomic } from '$lib/server/atomic-write';
 import { extractTraceRef } from '$lib/server/trace-ref';
 import { logger } from '$lib/utils/logger';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
@@ -24,6 +26,8 @@ import { existsSync } from 'fs';
 
 const EVENTS_AUTH_COOKIE = 'spawner_events_api_key';
 const log = logger.scope('EventBridge');
+const TERMINAL_LIFECYCLE_EVENTS = new Set(['mission_completed', 'mission_failed', 'mission_cancelled']);
+const TERMINAL_PROVIDER_STATUSES = new Set(['completed', 'failed', 'cancelled']);
 
 function corsHeaders(request: Request): Record<string, string> {
 	const origin = request.headers.get('origin');
@@ -87,6 +91,49 @@ function createAuthCookieHeader(request: Request): string | null {
 	return `${EVENTS_AUTH_COOKIE}=${encodeURIComponent(apiKey)}; Path=/; HttpOnly; SameSite=Lax${isSecure ? '; Secure' : ''}`;
 }
 
+function eventStreamAuthPayload(event: Parameters<typeof requireControlAuth>[0]) {
+	const openRead = requireControlAuth(event, {
+		surface: 'Events',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: EVENTS_AUTH_COOKIE,
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+	if (openRead) return { openRead, hasControlAuth: false };
+
+	const strictRead = requireControlAuth(event, {
+		surface: 'Events',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
+		apiKeyCookieName: EVENTS_AUTH_COOKIE,
+		allowLoopbackWithoutKey: false,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+
+	return { openRead: null, hasControlAuth: strictRead === null };
+}
+
+function sanitizeBridgeEventForLoopback(event: Record<string, unknown>): Record<string, unknown> {
+	return {
+		...(typeof event.id === 'string' ? { id: event.id } : {}),
+		type: typeof event.type === 'string' ? event.type : 'unknown',
+		...(typeof event.missionId === 'string' ? { missionId: event.missionId } : {}),
+		...(typeof event.taskId === 'string' ? { taskId: event.taskId } : {}),
+		...(typeof event.taskName === 'string' ? { taskName: event.taskName } : {}),
+		...(typeof event.progress === 'number' ? { progress: event.progress } : {}),
+		...(typeof event.message === 'string' ? { message: event.message } : {}),
+		timestamp: typeof event.timestamp === 'string' ? event.timestamp : new Date().toISOString(),
+		source: typeof event.source === 'string' ? event.source : 'event-bridge',
+		authorityBoundary: {
+			payload: 'event_metadata',
+			data: 'requires_control_auth'
+		}
+	};
+}
+
 /**
  * Store PRD analysis result to file for polling fallback
  */
@@ -112,25 +159,13 @@ async function appendPrdTrace(requestId: string, event: string, details: Record<
 async function traceRefForRequest(requestId: string, details: Record<string, unknown>): Promise<string | null> {
 	const explicit = extractTraceRef(details);
 	if (explicit) return explicit;
-	try {
-		const pendingRequestFile = join(getSpawnerDir(), 'pending-request.json');
-		if (!existsSync(pendingRequestFile)) return null;
-		const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
-		const pending = JSON.parse(pendingRaw) as Record<string, unknown>;
-		if (pending.requestId !== requestId) return null;
-		return extractTraceRef(pending);
-	} catch {
-		return null;
-	}
+	const pending = await pendingRequestForRequest(requestId);
+	return pending ? extractTraceRef(pending) : null;
 }
 
 async function pendingRequestForRequest(requestId: string): Promise<Record<string, unknown> | null> {
 	try {
-		const pendingRequestFile = join(getSpawnerDir(), 'pending-request.json');
-		if (!existsSync(pendingRequestFile)) return null;
-		const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
-		const pending = JSON.parse(pendingRaw) as Record<string, unknown>;
-		return pending.requestId === requestId ? pending : null;
+		return await readPendingRequestRecord(getSpawnerDir(), requestId);
 	} catch {
 		return null;
 	}
@@ -152,7 +187,17 @@ async function storePRDResult(requestId: string, result: unknown): Promise<void>
 		: {};
 	const storedResult = await projectStoredPrdAnalysisResultForTier(
 		requestId,
-		traceRef ? { ...resultRecord, traceRef, metadata: { ...metadataRecord, traceRef } } : result,
+		{
+			...resultRecord,
+			...(traceRef ? { traceRef } : {}),
+			metadata: {
+				...metadataRecord,
+				...(traceRef ? { traceRef } : {}),
+				canonical: true,
+				provisional: false,
+				resultAuthority: 'provider_result'
+			}
+		},
 		await tierForRequest(requestId)
 	);
 	const resultsDir = getResultsDir();
@@ -165,6 +210,122 @@ async function storePRDResult(requestId: string, result: unknown): Promise<void>
 	log.info(`Stored PRD result for polling: ${requestId}`);
 }
 
+function stringValue(value: unknown): string | null {
+	return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function terminalLifecycleTrust(event: Record<string, unknown>): {
+	trusted: boolean;
+	reason: string;
+	providerId: string | null;
+	missionId: string | null;
+	matchingSessionCount: number;
+} | null {
+	const type = stringValue(event.type);
+	if (!type || !TERMINAL_LIFECYCLE_EVENTS.has(type)) return null;
+	const missionId = stringValue(event.missionId);
+	if (!missionId) {
+		return {
+			trusted: false,
+			reason: 'terminal_lifecycle_missing_mission',
+			providerId: null,
+			missionId: null,
+			matchingSessionCount: 0
+		};
+	}
+
+	const data = event.data && typeof event.data === 'object' && !Array.isArray(event.data)
+		? (event.data as Record<string, unknown>)
+		: {};
+	const providerId =
+		stringValue(data.provider) ||
+		stringValue(data.providerId) ||
+		(typeof event.source === 'string' && event.source !== 'spawner-ui' ? event.source.trim() : null);
+	const requestId = stringValue(data.requestId);
+	const traceRef = extractTraceRef(data);
+	let refBoundSessionRejected = false;
+	const sessions = providerRuntime.getSessionsForMission(missionId).filter((session) => {
+		if (providerId && session.providerId !== providerId) return false;
+		if (TERMINAL_PROVIDER_STATUSES.has(session.status)) return false;
+		const recordedRequestId = stringValue(session.requestId);
+		const recordedTraceRef = stringValue(session.traceRef);
+		if (requestId && recordedRequestId !== requestId) return false;
+		if (traceRef && recordedTraceRef !== traceRef) return false;
+		// When the session recorded a requestId or traceRef at dispatch, the
+		// event must present a matching ref; mission+provider coincidence is
+		// not enough to advance terminal state.
+		if (recordedRequestId || recordedTraceRef) {
+			const requestIdMatches = Boolean(requestId && recordedRequestId === requestId);
+			const traceRefMatches = Boolean(traceRef && recordedTraceRef === traceRef);
+			if (!requestIdMatches && !traceRefMatches) {
+				refBoundSessionRejected = true;
+				return false;
+			}
+		}
+		return true;
+	});
+
+	return {
+		trusted: sessions.length > 0,
+		reason:
+			sessions.length > 0
+				? 'matched_active_provider_session'
+				: refBoundSessionRejected
+					? 'session_requires_request_or_trace_ref_match'
+					: 'no_matching_active_provider_session',
+		providerId,
+		missionId,
+		matchingSessionCount: sessions.length
+	};
+}
+
+async function markPendingPrdResultComplete(requestId: string): Promise<void> {
+	assertSafeId(requestId, 'requestId');
+	const pending = await pendingRequestForRequest(requestId);
+	if (!pending) return;
+
+	const resultFile = resolveWithinBaseDir(getResultsDir(), `${requestId}.json`);
+	const now = new Date().toISOString();
+	const autoAnalysis =
+		pending.autoAnalysis && typeof pending.autoAnalysis === 'object' && !Array.isArray(pending.autoAnalysis)
+			? (pending.autoAnalysis as Record<string, unknown>)
+			: {};
+	const next = {
+		...pending,
+		status: 'processed',
+		updatedAt: now,
+		reason: 'Canonical provider result stored from events bridge.',
+		autoAnalysis: {
+			...autoAnalysis,
+			status: 'complete',
+			finishedAt: now,
+			success: true,
+			canonicalResultAvailable: true,
+			resultFileName: `${requestId}.json`,
+			expectedResultFile: resultFile
+		}
+	};
+	const serialized = JSON.stringify(next, null, 2);
+
+	// RequestId-scoped record is the source of truth; the singleton file stays
+	// in sync only when it still points at this request (back-compat pointer).
+	const scopedFile = pendingRequestFileForRequest(getSpawnerDir(), requestId);
+	if (existsSync(scopedFile)) {
+		await writeFile(scopedFile, serialized, 'utf-8');
+	}
+	const pendingRequestFile = join(getSpawnerDir(), 'pending-request.json');
+	if (existsSync(pendingRequestFile)) {
+		const singleton = parseJsonOrFallback<Record<string, unknown>>(
+			await readFile(pendingRequestFile, 'utf-8'),
+			{},
+			'events-pending-request'
+		);
+		if (singleton.requestId === requestId) {
+			await writeFileAtomic(pendingRequestFile, serialized);
+		}
+	}
+}
+
 async function relayMetadataForMission(missionId: string): Promise<Record<string, unknown>> {
 	try {
 		const loadFile = join(getSpawnerDir(), 'last-canvas-load.json');
@@ -174,11 +335,18 @@ async function relayMetadataForMission(missionId: string): Promise<Record<string
 		const relay = load.relay && typeof load.relay === 'object' ? load.relay : null;
 		if (!relay || relay.missionId !== missionId) return {};
 		const traceRef = extractTraceRef(load, relay);
+		const pipelineId =
+			typeof (load as Record<string, unknown>).pipelineId === 'string'
+				? ((load as Record<string, unknown>).pipelineId as string)
+				: typeof relay.pipelineId === 'string'
+					? relay.pipelineId
+					: undefined;
 		return {
 			chatId: typeof relay.chatId === 'string' ? relay.chatId : undefined,
 			userId: typeof relay.userId === 'string' ? relay.userId : undefined,
 			requestId: typeof relay.requestId === 'string' ? relay.requestId : undefined,
 			traceRef: traceRef || undefined,
+			pipelineId: pipelineId || undefined,
 			goal: typeof relay.goal === 'string' ? relay.goal : undefined,
 			telegramRelay:
 				relay.telegramRelay && typeof relay.telegramRelay === 'object'
@@ -199,7 +367,7 @@ async function relayMetadataForMission(missionId: string): Promise<Record<string
 
 /**
  * POST handler - receives events from Claude Code
- * Claude can call: curl -X POST http://localhost:3333/api/events -d '{"type":"progress",...}'
+ * Claude/provider clients must send x-api-key from EVENTS_API_KEY or MCP_API_KEY.
  */
 export const POST: RequestHandler = async (event) => {
 	const unauthorized = requireControlAuth(event, {
@@ -208,6 +376,7 @@ export const POST: RequestHandler = async (event) => {
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
 		apiKeyQueryParam: 'apiKey',
 		apiKeyCookieName: EVENTS_AUTH_COOKIE,
+		allowLoopbackWithoutKey: false,
 		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
 	});
 	if (unauthorized) return unauthorized;
@@ -246,6 +415,19 @@ export const POST: RequestHandler = async (event) => {
 					}
 				};
 			}
+		}
+		const lifecycleTrust = terminalLifecycleTrust(fullEvent);
+		if (lifecycleTrust && !lifecycleTrust.trusted) {
+			const originalType = fullEvent.type;
+			fullEvent = {
+				...fullEvent,
+				type: 'mission_lifecycle_untrusted',
+				originalType,
+				data: {
+					...(fullEvent.data && typeof fullEvent.data === 'object' ? fullEvent.data : {}),
+					lifecycleTrust
+				}
+			};
 		}
 
 		// Broadcast to all connected clients
@@ -292,8 +474,29 @@ export const POST: RequestHandler = async (event) => {
 			await appendPrdTrace(fullEvent.data.requestId, 'events_received_complete', {
 				source: fullEvent.source || 'unknown'
 			});
+			// Machine-origin results must bind to a governed pending request;
+			// unmatched requestIds are rejected fail-closed with no state change.
+			const boundPendingRequest = await pendingRequestForRequest(fullEvent.data.requestId);
+			if (!boundPendingRequest) {
+				await appendPrdTrace(fullEvent.data.requestId, 'events_rejected_unbound', {
+					source: fullEvent.source || 'unknown',
+					reason: 'no governed pending request matches requestId'
+				});
+				return json(
+					{
+						error: 'Unknown requestId: PRD analysis results must bind to a governed pending request.',
+						code: 'prd_result_unbound',
+						requestId: fullEvent.data.requestId
+					},
+					{ status: 409 }
+				);
+			}
 			try {
 				await storePRDResult(fullEvent.data.requestId, fullEvent.data.result);
+				await markPendingPrdResultComplete(fullEvent.data.requestId);
+				await appendPrdTrace(fullEvent.data.requestId, 'canonical_result_stored', {
+					source: fullEvent.source || 'unknown'
+				});
 			} catch (err) {
 				const message = err instanceof Error ? err.message : 'Invalid PRD analysis result';
 				await appendPrdTrace(fullEvent.data.requestId, 'events_rejected_complete', {
@@ -345,16 +548,8 @@ export const OPTIONS: RequestHandler = async (event) => {
  * GET handler - Server-Sent Events stream for real-time updates
  */
 export const GET: RequestHandler = async (event) => {
-	const unauthorized = requireControlAuth(event, {
-		surface: 'Events',
-		apiKeyEnvVar: 'EVENTS_API_KEY',
-		fallbackApiKeyEnvVar: 'MCP_API_KEY',
-		apiKeyQueryParam: 'apiKey',
-		apiKeyCookieName: EVENTS_AUTH_COOKIE,
-		allowLoopbackWithoutKey: true,
-		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
-	});
-	if (unauthorized) return unauthorized;
+	const { openRead, hasControlAuth } = eventStreamAuthPayload(event);
+	if (openRead) return openRead;
 
 	const rateLimited = enforceRateLimit(event, {
 		scope: 'events_stream',
@@ -376,7 +571,8 @@ export const GET: RequestHandler = async (event) => {
 			const unsubscribe = eventBridge.subscribe((event) => {
 				if (isClosed) return;
 				try {
-					const data = `data: ${JSON.stringify(event)}\n\n`;
+					const safeEvent = hasControlAuth ? event : sanitizeBridgeEventForLoopback(event as unknown as Record<string, unknown>);
+					const data = `data: ${JSON.stringify(safeEvent)}\n\n`;
 					controller.enqueue(encoder.encode(data));
 				} catch (e) {
 					// Client disconnected

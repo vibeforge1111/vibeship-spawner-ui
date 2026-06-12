@@ -10,7 +10,7 @@ export const POST: RequestHandler = async (event) => {
 		surface: 'DailyOrchestratorRun',
 		apiKeyEnvVar: 'EVENTS_API_KEY',
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
-		allowLoopbackWithoutKey: true,
+		allowLoopbackWithoutKey: false,
 		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
 	});
 	if (unauthorized) return unauthorized;
@@ -26,6 +26,7 @@ export const POST: RequestHandler = async (event) => {
 		const body = (await event.request.json().catch(() => ({}))) as Record<string, unknown>;
 		const missionId = typeof body.missionId === 'string' && body.missionId.trim() ? body.missionId.trim() : 'mission-123';
 		const includeKill = Boolean(body.includeKill);
+		const executionAuthority = body.executionAuthority;
 
 		const list = await mcpClient.listMissions({ limit: 25 });
 		const missions = list.success && list.data?.missions ? list.data.missions : [];
@@ -35,7 +36,8 @@ export const POST: RequestHandler = async (event) => {
 			missionId,
 			execute: executeMissionControlAction,
 			source: 'daily-orchestrator',
-			includeKill
+			includeKill,
+			executionAuthority
 		});
 
 		return json({

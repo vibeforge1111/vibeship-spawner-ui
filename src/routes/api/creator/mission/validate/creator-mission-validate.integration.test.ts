@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { POST } from './+server';
 import {
 	createCreatorMission,
@@ -12,13 +12,28 @@ import {
 import { getMissionControlRelaySnapshot } from '$lib/server/mission-control-relay';
 import { buildClientGovernorDecisionAuthority, buildClientTurnIntentVNextAuthority } from '$lib/services/harness-authority-client';
 
+const { PRIVATE_ENV, TEST_API_KEY } = vi.hoisted(() => ({
+	TEST_API_KEY: 'creator-mission-validate-route-test-secret',
+	PRIVATE_ENV: {
+		SPARK_BRIDGE_API_KEY: '',
+		MCP_API_KEY: 'creator-mission-validate-route-test-secret'
+	} as Record<string, string>
+}));
+
+vi.mock('$env/dynamic/private', () => ({ env: PRIVATE_ENV }));
+
 function event(url: string, body?: unknown) {
 	return {
-		request: new Request(url, body === undefined ? undefined : {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify(body)
-		}),
+		request: new Request(
+			url,
+			body === undefined
+				? { headers: { 'x-api-key': TEST_API_KEY } }
+				: {
+						method: 'POST',
+						headers: { 'content-type': 'application/json', 'x-api-key': TEST_API_KEY },
+						body: JSON.stringify(body)
+					}
+		),
 		url: new URL(url),
 		getClientAddress: () => '127.0.0.1'
 	};
@@ -91,6 +106,7 @@ let validationCommandCalls = 0;
 beforeEach(async () => {
 	tempDir = await mkdtemp(path.join(os.tmpdir(), 'spawner-creator-validate-route-'));
 	process.env.SPAWNER_STATE_DIR = tempDir;
+	PRIVATE_ENV.MCP_API_KEY = TEST_API_KEY;
 	validationCommandCalls = 0;
 	setCreatorValidationCommandRunnerForTests(async () => {
 		validationCommandCalls += 1;
@@ -222,7 +238,7 @@ describe('/api/creator/mission/validate', () => {
 		expect(body.error).toBe('creator mission trace not found');
 	});
 
-	it('blocks validation commands without Harness authority', async () => {
+	it('blocks source-only validation commands without Harness authority', async () => {
 		await createCreatorMission(
 			{ brief: 'Create Startup YC path', missionId: 'mission-creator-validate-no-authority', requestId: 'req-validate-no-authority' },
 			{
@@ -248,7 +264,8 @@ describe('/api/creator/mission/validate', () => {
 		);
 
 		const response = await POST(event('http://127.0.0.1/api/creator/mission/validate', {
-			missionId: 'mission-creator-validate-no-authority'
+			missionId: 'mission-creator-validate-no-authority',
+			source: 'mission-board.creator-validation'
 		}) as never);
 
 		expect(response.status).toBe(409);

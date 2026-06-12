@@ -501,10 +501,10 @@ describe('getMissionBoardCardActionLinks', () => {
 		);
 
 		expect(actions).toEqual({
-			detailHref: '/missions/mission-1777402152963',
+			detailHref: '/kanban?mission=mission-1777402152963',
 			canvasHref: null,
 			traceHref: '/trace?missionId=mission-1777402152963',
-			resultHref: '/missions/mission-1777402152963#result'
+			resultHref: '/kanban?mission=mission-1777402152963#result'
 		});
 	});
 
@@ -534,7 +534,7 @@ describe('getMissionBoardCardActionLinks', () => {
 			})
 		);
 
-		expect(actions.detailHref).toBe('/missions/mission-running');
+		expect(actions.detailHref).toBe('/kanban?mission=mission-running');
 		expect(actions.traceHref).toBe('/trace?missionId=mission-running');
 		expect(actions.resultHref).toBeNull();
 	});

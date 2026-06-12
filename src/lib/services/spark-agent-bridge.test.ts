@@ -28,6 +28,17 @@ function workerRunAuthority(requestId = 'spark-agent-worker-test') {
 	});
 }
 
+function canvasAddSkillAuthority(requestId = 'spark-agent-command-test') {
+	return buildServerGovernorDecisionAuthority({
+		source: 'spark-agent-bridge-test',
+		reason: 'Focused Spark Agent command authority regression.',
+		toolName: 'spawner.spark_agent.canvas.add_skill',
+		mutationClass: 'controls_mission',
+		requestId,
+		target: 'spark-agent-command-session'
+	});
+}
+
 function restoreEnv(name: string, value: string | undefined): void {
 	if (value === undefined) {
 		delete process.env[name];
@@ -141,6 +152,93 @@ describe('prepareProviderWorkingDirectory', () => {
 		).rejects.toThrow('Execution authority blocked this request.');
 
 		expect(executorCalled).toBe(false);
+	});
+});
+
+describe('sparkAgentBridge command authority residue', () => {
+	afterEach(() => {
+		sparkAgentBridge.resetForTests();
+	});
+
+	it('uses nested command authority for dispatch without storing it in command telemetry', async () => {
+		const session = sparkAgentBridge.startSession({
+			sessionId: 'spark-agent-command-session',
+			actor: 'authority-residue-test'
+		});
+		const authority = canvasAddSkillAuthority('request-command-authority-residue');
+
+		const result = await sparkAgentBridge.executeCommand({
+			sessionId: session.id,
+			command: 'canvas.add_skill',
+			requestId: 'request-command-authority-residue',
+			params: {
+				nodeId: 'node-authority-proof',
+				skillId: 'planner',
+				skillName: 'Planner',
+				description: 'Plan implementation',
+				executionAuthority: authority,
+				nested: {
+					governorDecision: authority,
+					keep: 'visible'
+				}
+			}
+		});
+
+		expect(result.ok).toBe(true);
+		expect(result.data?.node).toMatchObject({
+			id: 'node-authority-proof',
+			skillId: 'planner'
+		});
+
+		const received = sparkAgentBridge
+			.getSessionEvents(session.id)
+			.find((event) => event.type === 'spark_agent.command.received');
+		expect(received?.data.params).toMatchObject({
+			nodeId: 'node-authority-proof',
+			skillId: 'planner',
+			nested: {
+				keep: 'visible'
+			}
+		});
+		expect(JSON.stringify(received?.data.params)).not.toContain('executionAuthority');
+		expect(JSON.stringify(received?.data.params)).not.toContain('governorDecision');
+	});
+
+	it('strips authority residue from session metadata and session-start events', () => {
+		const authority = canvasAddSkillAuthority('request-session-metadata-residue');
+		const session = sparkAgentBridge.startSession({
+			sessionId: 'spark-agent-metadata-session',
+			actor: 'authority-residue-test',
+			metadata: {
+				owner: 'test',
+				executionAuthority: authority,
+				nested: {
+					governorDecision: authority,
+					keep: 'visible'
+				}
+			}
+		});
+
+		expect(session.metadata).toMatchObject({
+			owner: 'test',
+			nested: {
+				keep: 'visible'
+			}
+		});
+		expect(JSON.stringify(session.metadata)).not.toContain('executionAuthority');
+		expect(JSON.stringify(session.metadata)).not.toContain('governorDecision');
+
+		const started = sparkAgentBridge
+			.getSessionEvents(session.id)
+			.find((event) => event.type === 'spark_agent.session.started');
+		expect(started?.data.metadata).toMatchObject({
+			owner: 'test',
+			nested: {
+				keep: 'visible'
+			}
+		});
+		expect(JSON.stringify(started?.data.metadata)).not.toContain('executionAuthority');
+		expect(JSON.stringify(started?.data.metadata)).not.toContain('governorDecision');
 	});
 });
 

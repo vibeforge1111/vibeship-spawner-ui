@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import type { CanvasNode, Connection } from '$lib/stores/canvas.svelte';
 import { eventBridge, type BridgeEvent } from '$lib/services/event-bridge';
 import type { Skill } from '$lib/stores/skills.svelte';
-import { extractExplicitProjectPath } from '$lib/server/project-path-extraction';
+import { cleanProjectPathCandidate, extractExplicitProjectPath } from '$lib/server/project-path-extraction';
 import { buildMissionFromCanvas } from '$lib/services/mission-builder';
 import { matchTaskToSkills } from '$lib/services/h70-skill-matcher';
 import {
@@ -28,6 +28,7 @@ import {
 	resolveExecutionAuthority,
 	type HarnessAuthorityVerdict
 } from '$lib/server/harness-authority';
+import { spawnerStateDir } from '$lib/server/spawner-state';
 
 interface PrdAutoSkill {
 	id?: string;
@@ -112,6 +113,29 @@ function getSparkDefaultProviderId(): string {
 	);
 }
 
+function safeCodexCliToken(value: string | undefined, fallback: string): string {
+	const trimmed = value?.trim();
+	return trimmed && /^[A-Za-z0-9._-]+$/.test(trimmed) ? trimmed : fallback;
+}
+
+function missionCodexSandbox(envRecord: Record<string, string | undefined>): string {
+	const requested = envRecord.SPARK_MISSION_CODEX_SANDBOX?.trim() || 'workspace-write';
+	return ['read-only', 'workspace-write', 'danger-full-access'].includes(requested)
+		? requested
+		: 'workspace-write';
+}
+
+function missionCodexCommandTemplate(
+	model: string,
+	envRecord: Record<string, string | undefined>
+): string {
+	const profile = safeCodexCliToken(
+		envRecord.SPARK_MISSION_CODEX_PROFILE || envRecord.SPARK_CODEX_PROFILE,
+		'speed'
+	);
+	return `codex exec --model ${model} --profile ${profile} --sandbox ${missionCodexSandbox(envRecord)}`;
+}
+
 function configuredProvider(provider: MultiLLMProviderConfig): MultiLLMProviderConfig {
 	const envRecord = env as Record<string, string | undefined>;
 	const isMissionDefault = provider.id === getSparkDefaultProviderId();
@@ -126,11 +150,14 @@ function configuredProvider(provider: MultiLLMProviderConfig): MultiLLMProviderC
 		envRecord[`SPARK_${upperId}_BASE_URL`] ||
 		envRecord[`${upperId}_BASE_URL`] ||
 		provider.baseUrl;
-	const commandTemplate =
+	const envCommandTemplate =
 		(isMissionDefault ? envRecord.SPARK_MISSION_LLM_COMMAND_TEMPLATE : undefined) ||
 		envRecord[`SPARK_${upperId}_COMMAND_TEMPLATE`] ||
-		envRecord[`${upperId}_COMMAND_TEMPLATE`] ||
-		provider.commandTemplate;
+		envRecord[`${upperId}_COMMAND_TEMPLATE`];
+	const commandTemplate = envCommandTemplate ||
+		(provider.id === 'codex'
+			? missionCodexCommandTemplate(model, envRecord)
+			: provider.commandTemplate);
 	return {
 		...provider,
 		model,
@@ -327,14 +354,27 @@ function hostedWorkspaceRoot(envRecord: Record<string, string | undefined>): str
 	return envRecord.SPAWNER_WORKSPACE_ROOT?.trim() || envRecord.SPARK_WORKSPACE_ROOT?.trim() || null;
 }
 
+function generatedProjectRoot(envRecord: Record<string, string | undefined>): string {
+	return envRecord.SPAWNER_STATE_DIR?.trim() || spawnerStateDir();
+}
+
+function relayProjectLineagePath(load: PrdCanvasLoadForAutoDispatch): string | null {
+	const lineage = load.relay?.projectLineage;
+	if (!lineage || typeof lineage !== 'object' || Array.isArray(lineage)) return null;
+	const projectPath = (lineage as Record<string, unknown>).projectPath;
+	return typeof projectPath === 'string' ? cleanProjectPathCandidate(projectPath) : null;
+}
+
 export function inferProjectPathFromPrdLoad(
 	load: PrdCanvasLoadForAutoDispatch,
 	envRecord: Record<string, string | undefined> = env as Record<string, string | undefined>
 ): string {
+	const lineagePath = relayProjectLineagePath(load);
+	if (lineagePath) return lineagePath;
+
 	const text = [
 		load.executionPrompt || '',
-		typeof load.relay?.goal === 'string' ? load.relay.goal : '',
-		...load.nodes.map((node) => node.skill?.description || '')
+		typeof load.relay?.goal === 'string' ? load.relay.goal : ''
 	].join('\n');
 	const explicitPath = extractExplicitProjectPath(text);
 	if (explicitPath) return explicitPath;
@@ -344,7 +384,7 @@ export function inferProjectPathFromPrdLoad(
 		return join(workspaceRoot, `${slugPart(load.missionId)}-${slugPart(load.pipelineName)}`);
 	}
 
-	return '.';
+	return join(generatedProjectRoot(envRecord), 'generated-projects', `${slugPart(load.missionId)}-${slugPart(load.pipelineName)}`);
 }
 
 function plannedTasksFromMission(
@@ -389,11 +429,7 @@ export async function autoDispatchPrdCanvasLoad(
 		if (!allowed.ok) {
 			return { started: false, skipped: true, reason: allowed.reason, missionId: load.missionId };
 		}
-		const executionAuthority = resolveExecutionAuthority(
-			load.executionAuthority,
-			load.relay?.executionAuthority,
-			load.metadata?.executionAuthority
-		);
+		const executionAuthority = resolveExecutionAuthority(load.executionAuthority);
 		const authority = assertNativeGovernorHarnessAuthority({
 			authority: executionAuthority,
 			toolName: 'spawner.dispatch',
@@ -483,6 +519,7 @@ export async function autoDispatchPrdCanvasLoad(
 		const relayData = {
 			...load.relay,
 			...(load.traceRef ? { traceRef: load.traceRef } : {}),
+			pipelineId: load.pipelineId || null,
 			missionName: load.pipelineName,
 			projectPath,
 			tier: normalizeLoadTier(load),
@@ -525,6 +562,9 @@ export async function autoDispatchPrdCanvasLoad(
 			apiKeys,
 			workingDirectory: projectPath,
 			executionAuthority,
+			authorityRequestId: load.requestId,
+			traceRef: load.traceRef || null,
+			pipelineId: load.pipelineId || null,
 			onEvent
 		});
 

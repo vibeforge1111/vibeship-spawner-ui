@@ -5,6 +5,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { POST } from './+server';
 import { providerRuntime } from '$lib/server/provider-runtime';
+import { getMissionControlRelaySnapshot } from '$lib/server/mission-control-relay';
 import {
 	buildClientGovernorDecisionAuthority,
 	buildClientTurnIntentVNextAuthority
@@ -18,11 +19,26 @@ vi.mock('$lib/server/provider-runtime', () => ({
 			sessions: { codex: { status: 'running' } },
 			startedAt: new Date().toISOString()
 		})),
+		getMissionStatus: vi.fn(() => ({
+			allComplete: false,
+			anyFailed: false,
+			paused: false,
+			pausedReason: null,
+			lastReason: null,
+			snapshotAvailable: false,
+			resumeable: false,
+			resumeBlocker: null,
+			providers: {}
+		})),
 		getMissionResults: vi.fn(() => [])
 	}
 }));
 
 let testSpawnerDir: string;
+const TEST_API_KEY = 'prd-load-to-canvas-test-secret';
+const originalBridgeApiKey = process.env.SPARK_BRIDGE_API_KEY;
+const originalEventsApiKey = process.env.EVENTS_API_KEY;
+const originalMcpApiKey = process.env.MCP_API_KEY;
 
 function dispatchAuthority(requestId: string, missionId: string) {
 	return buildClientGovernorDecisionAuthority({
@@ -48,6 +64,12 @@ function dispatchVNextAuthority(requestId: string, missionId: string) {
 
 async function resetTestSpawnerDir() {
 	delete process.env.SPAWNER_STATE_DIR;
+	if (originalBridgeApiKey === undefined) delete process.env.SPARK_BRIDGE_API_KEY;
+	else process.env.SPARK_BRIDGE_API_KEY = originalBridgeApiKey;
+	if (originalEventsApiKey === undefined) delete process.env.EVENTS_API_KEY;
+	else process.env.EVENTS_API_KEY = originalEventsApiKey;
+	if (originalMcpApiKey === undefined) delete process.env.MCP_API_KEY;
+	else process.env.MCP_API_KEY = originalMcpApiKey;
 	if (testSpawnerDir && existsSync(testSpawnerDir)) {
 		await rm(testSpawnerDir, { recursive: true, force: true });
 	}
@@ -59,12 +81,72 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		await resetTestSpawnerDir();
 		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-load-to-canvas-'));
 		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
+		process.env.SPARK_BRIDGE_API_KEY = TEST_API_KEY;
+		delete process.env.EVENTS_API_KEY;
+		delete process.env.MCP_API_KEY;
 		await mkdir(path.join(testSpawnerDir, 'results'), { recursive: true });
 	});
 
 	afterEach(async () => {
 		vi.unstubAllGlobals();
 		await resetTestSpawnerDir();
+	});
+
+	it('rejects unauthenticated non-local canvas loads before mutating runtime state', async () => {
+		const requestId = 'tg-load-unauth-test';
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify({
+				requestId,
+				success: true,
+				projectName: 'Unauthorized Load',
+				tasks: [{ id: 'TAS-1', title: 'Should not load', skills: [], dependencies: [] }]
+			}),
+			'utf-8'
+		);
+
+		const response = await POST({
+			request: new Request('https://spawner.example.com/api/prd-bridge/load-to-canvas', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ requestId, autoRun: false })
+			}),
+			url: new URL('https://spawner.example.com/api/prd-bridge/load-to-canvas'),
+			getClientAddress: () => '203.0.113.10'
+		} as never);
+
+		expect(response.status).toBe(401);
+		expect(existsSync(path.join(testSpawnerDir, 'pending-load.json'))).toBe(false);
+		expect(existsSync(path.join(testSpawnerDir, 'last-canvas-load.json'))).toBe(false);
+	});
+
+	it('rejects unauthenticated local canvas loads before staging pending runtime state', async () => {
+		const requestId = 'tg-load-local-unauth-test';
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify({
+				requestId,
+				success: true,
+				projectName: 'Local Unauthorized Load',
+				tasks: [{ id: 'TAS-1', title: 'Should not stage locally', skills: [], dependencies: [] }]
+			}),
+			'utf-8'
+		);
+
+		const response = await POST({
+			request: new Request('http://127.0.0.1:3333/api/prd-bridge/load-to-canvas', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ requestId, autoRun: true })
+			}),
+			url: new URL('http://127.0.0.1:3333/api/prd-bridge/load-to-canvas'),
+			getClientAddress: () => '127.0.0.1'
+		} as never);
+
+		expect(response.status).toBe(401);
+		expect(existsSync(path.join(testSpawnerDir, 'pending-load.json'))).toBe(false);
+		expect(existsSync(path.join(testSpawnerDir, 'last-canvas-load.json'))).toBe(false);
+		expect(vi.mocked(providerRuntime.dispatch)).not.toHaveBeenCalled();
 	});
 
 	it('preserves PRD task acceptance criteria and verification commands in canvas nodes', async () => {
@@ -110,14 +192,38 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ requestId, autoRun: true })
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
+				body: JSON.stringify({
+					requestId,
+					autoRun: true,
+					executionAuthority: dispatchAuthority(requestId, 'mission-tg-contract-test')
+				})
 			})
 		} as never);
 
 		expect(response.status).toBe(200);
 		const body = await response.json();
 		expect(body.canvasUrl).toBe('/canvas?pipeline=prd-tg-contract-test&mission=mission-tg-contract-test');
+		expect(body.boardUrl).toBe('/kanban?mission=mission-tg-contract-test');
+		expect(body.canvasHandoff).toMatchObject({
+			status: 'ready',
+			reason: 'nodes_and_skill_pairings_materialized',
+			boardFirst: true,
+			canvasUrl: '/canvas?pipeline=prd-tg-contract-test&mission=mission-tg-contract-test'
+		});
+		expect(body.workflowHandoff).toMatchObject({
+			status: 'ready',
+			reason: 'canvas_nodes_skill_pairings_and_workflow_execution_created',
+			canvasUrl: '/canvas?pipeline=prd-tg-contract-test&mission=mission-tg-contract-test'
+		});
+		expect(body.canvasMaterialized).toBe(true);
+		expect(body.canvasMaterialization).toMatchObject({
+			materialized: true,
+			nodeCount: 1,
+			pairedNodeCount: 1,
+			skillCount: 2,
+			pairingStatus: 'complete'
+		});
 		expect(body.missionControlAccess).toMatchObject({
 			mode: 'local-only',
 			url: null,
@@ -127,6 +233,14 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const pending = JSON.parse(pendingRaw);
 		expect(pending.requestId).toBe(requestId);
 		expect(pending.missionId).toBe('mission-tg-contract-test');
+		const pipelineArchive = JSON.parse(
+			await readFile(path.join(testSpawnerDir, 'canvas-loads', `prd-${requestId}.json`), 'utf-8')
+		);
+		const missionArchive = JSON.parse(
+			await readFile(path.join(testSpawnerDir, 'canvas-loads', 'mission-mission-tg-contract-test.json'), 'utf-8')
+		);
+		expect(pipelineArchive).toMatchObject({ requestId, missionId: 'mission-tg-contract-test' });
+		expect(missionArchive).toMatchObject({ requestId, pipelineId: `prd-${requestId}` });
 		expect(pending.executionPrompt).toBeUndefined();
 		expect(pending.instructionTextRedacted).toBe(true);
 		expect(pending.metadata.taskQuality).toMatchObject({
@@ -147,6 +261,118 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		expect(description).toContain('No package.json or build step is introduced.');
 		expect(description).toContain('Verification commands:');
 		expect(description).toContain('Select-String');
+	});
+
+	it('loads BOM-prefixed canonical result artifacts into canvas and workflow handoff', async () => {
+		const requestId = 'tg-load-bom-result-test';
+		const missionId = 'mission-tg-load-bom-result-test';
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			`\ufeff${JSON.stringify(
+				{
+					requestId,
+					success: true,
+					projectName: 'BOM Canvas Load',
+					projectType: 'direct-build',
+					tasks: [
+						{
+							id: 'task-1',
+							title: 'Build the BOM-safe board',
+							description: 'Render the board after reading a canonical result artifact.',
+							skills: ['frontend-engineer'],
+							dependencies: []
+						}
+					],
+					skills: ['frontend-engineer'],
+					executionPrompt: 'Build the BOM-safe board.'
+				},
+				null,
+				2
+			)}`,
+			'utf-8'
+		);
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
+				body: JSON.stringify({
+					requestId,
+					missionId,
+					autoRun: true,
+					executionAuthority: dispatchAuthority(requestId, missionId)
+				})
+			})
+		} as never);
+		const body = await response.json();
+
+		expect(response.status).toBe(200);
+		expect(body.canvasMaterialization).toMatchObject({
+			nodeCount: 1,
+			pairedNodeCount: 1,
+			skillCount: 1,
+			pairingStatus: 'complete'
+		});
+		expect(body.workflowHandoff).toMatchObject({
+			status: 'ready',
+			canvasUrl: `/canvas?pipeline=prd-${requestId}&mission=${missionId}`
+		});
+	});
+
+	it('withholds canvas handoff until task nodes have skill pairings while still returning the board', async () => {
+		const requestId = 'tg-board-first-no-skills-test';
+		await writeFile(
+			path.join(testSpawnerDir, 'results', `${requestId}.json`),
+			JSON.stringify({
+				requestId,
+				success: true,
+				projectName: 'Board First No Skills',
+				tasks: [
+					{
+						id: 'task-1',
+						title: 'Create project shell',
+						summary: 'This task is intentionally missing skill pairings.',
+						skills: [],
+						dependencies: []
+					}
+				],
+				executionPrompt: 'Build the board-first fixture.'
+			}),
+			'utf-8'
+		);
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
+				body: JSON.stringify({ requestId, autoRun: false })
+			})
+		} as never);
+
+		expect(response.status).toBe(200);
+		const body = await response.json();
+		expect(body.boardUrl).toBe('/kanban?mission=mission-tg-board-first-no-skills-test');
+		expect(body.canvasUrl).toBeUndefined();
+		expect(body.canvasHandoff).toMatchObject({
+			status: 'withheld',
+			reason: 'canvas_handoff_requires_materialized_nodes_and_complete_skill_pairings',
+			boardFirst: true,
+			canvasUrl: null
+		});
+		expect(body.workflowHandoff).toMatchObject({
+			status: 'withheld',
+			reason: 'canvas_handoff_requires_materialized_nodes_and_complete_skill_pairings',
+			canvasUrl: null
+		});
+		expect(body.canvasMaterialization).toMatchObject({
+			materialized: true,
+			nodeCount: 1,
+			pairedNodeCount: 0,
+			skillCount: 0,
+			pairingStatus: 'missing'
+		});
+		const requestFile = path.join(testSpawnerDir, 'pending-request.json');
+		expect(existsSync(requestFile)).toBe(false);
 	});
 
 	it('does not auto-dispatch deterministic static proof results over existing artifacts', async () => {
@@ -184,7 +410,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 				body: JSON.stringify({ requestId, autoRun: true })
 			})
 		} as never);
@@ -212,7 +438,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 				requestId,
 				success: true,
 				projectName: 'No Dispatch Authority',
-				tasks: [{ id: 'task-1', title: 'Prepare preview', summary: 'Preview only.', skills: [] }],
+				tasks: [{ id: 'task-1', title: 'Prepare preview', summary: 'Preview only.', skills: ['frontend-engineer'] }],
 				executionPrompt: 'Build only when dispatch authority is present.'
 			}),
 			'utf-8'
@@ -221,7 +447,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 				body: JSON.stringify({ requestId, autoRun: true })
 			})
 		} as never);
@@ -235,10 +461,52 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		});
 		expect(body.autoDispatch.reason).toContain('missing_harness_authority');
 		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
+		expect(body.workflowHandoff).toMatchObject({
+			status: 'withheld',
+			canvasUrl: null
+		});
+		expect(body.workflowHandoff.reason).toContain('missing_harness_authority');
 		const pending = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-load.json'), 'utf-8'));
 		expect(pending.autoRun).toBe(false);
 		expect(pending.executionAuthority).toBeUndefined();
 		expect(dispatch).not.toHaveBeenCalled();
+		const traceRows = (await readFile(path.join(testSpawnerDir, 'prd-auto-trace.jsonl'), 'utf-8'))
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line));
+		expect(traceRows.map((row) => row.event)).toEqual(
+			expect.arrayContaining([
+				'canvas_auto_run_authority_withheld',
+				'canvas_load_materialized',
+				'canvas_auto_dispatch_withheld'
+			])
+		);
+		expect(traceRows.find((row) => row.event === 'canvas_auto_run_authority_withheld')).toMatchObject({
+			requestId,
+			missionId: 'mission-tg-load-no-dispatch-authority',
+			reasonCodes: expect.arrayContaining(['missing_harness_authority'])
+		});
+		const relaySnapshot = getMissionControlRelaySnapshot('mission-tg-load-no-dispatch-authority');
+		expect(relaySnapshot.recent).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					eventType: 'task_completed',
+					taskName: 'PRD analysis',
+					requestId
+				}),
+				expect.objectContaining({
+					eventType: 'mission_created',
+					taskName: 'Canvas ready',
+					requestId
+				}),
+				expect.objectContaining({
+					eventType: 'log',
+					taskName: 'Workflow start withheld',
+					requestId,
+					summary: expect.stringContaining('Workflow start withheld')
+				})
+			])
+		);
 	});
 
 	it('demotes bare VNext dispatch authority to preview-only', async () => {
@@ -261,7 +529,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 				body: JSON.stringify({
 					requestId,
 					autoRun: true,
@@ -303,7 +571,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 				body: JSON.stringify({
 					requestId,
 					autoRun: true,
@@ -320,10 +588,8 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		expect(body.authority).toMatchObject({ source: 'governor_decision', governorOutcome: 'execute' });
 		const pending = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-load.json'), 'utf-8'));
 		expect(pending.autoRun).toBe(true);
-		expect(pending.executionAuthority).toMatchObject({
-			schema_version: 'governor-decision-v1',
-			outcome: 'execute'
-		});
+		expect(pending.executionAuthority).toBeUndefined();
+		expect(pending.metadata.executionAuthority).toBeUndefined();
 	});
 
 	it('preserves Telegram relay target metadata for canvas auto-run dispatch', async () => {
@@ -369,7 +635,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 				body: JSON.stringify({
 					requestId,
 					autoRun: true,
@@ -393,14 +659,9 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 			buildModeReason: 'Multi-agent Telegram relay test.',
 			telegramRelay: { port: 8789, profile: 'primary' }
 		});
-		expect(pending.executionAuthority).toMatchObject({
-			schema_version: 'governor-decision-v1',
-			outcome: 'execute'
-		});
-		expect(pending.relay.executionAuthority).toMatchObject({
-			schema_version: 'governor-decision-v1',
-			outcome: 'execute'
-		});
+		expect(pending.executionAuthority).toBeUndefined();
+		expect(pending.relay.executionAuthority).toBeUndefined();
+		expect(pending.metadata.executionAuthority).toBeUndefined();
 		const requestRaw = await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8');
 		const requestMeta = JSON.parse(requestRaw);
 		expect(requestMeta).toMatchObject({
@@ -459,7 +720,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 				body: JSON.stringify({ requestId, autoRun: true })
 			})
 		} as never);
@@ -502,7 +763,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 			const response = await POST({
 				request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 					body: JSON.stringify({ requestId, autoRun: false })
 				})
 			} as never);
@@ -540,7 +801,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 				body: JSON.stringify({
 					requestId,
 					autoRun: true,
@@ -626,7 +887,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 				body: JSON.stringify({
 					requestId,
 					autoRun: true,
@@ -726,7 +987,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 			const response = await POST({
 				request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 					body: JSON.stringify({ requestId, autoRun: false })
 				})
 			} as never);
@@ -788,7 +1049,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const response = await POST({
 			request: new Request('http://localhost/api/prd-bridge/load-to-canvas', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-api-key': TEST_API_KEY },
 				body: JSON.stringify({ requestId, autoRun: false })
 			})
 		} as never);

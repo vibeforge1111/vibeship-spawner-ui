@@ -9,17 +9,39 @@ import {
 } from '$lib/services/harness-authority-client';
 import type { CreatorIntentPacket } from '$lib/server/creator-mission';
 
+const { PRIVATE_ENV, TEST_API_KEY } = vi.hoisted(() => ({
+	TEST_API_KEY: 'creator-mission-route-test-secret',
+	PRIVATE_ENV: {
+		SPARK_BRIDGE_API_KEY: '',
+		MCP_API_KEY: 'creator-mission-route-test-secret'
+	} as Record<string, string>
+}));
+
+vi.mock('$env/dynamic/private', () => ({ env: PRIVATE_ENV }));
+
 vi.mock('$lib/server/mission-control-relay', () => ({
 	relayMissionControlEvent: vi.fn(async () => undefined)
 }));
 
+const originalMcpApiKey = process.env.MCP_API_KEY;
+
+function restoreEnv(name: string, value: string | undefined) {
+	if (value === undefined) delete process.env[name];
+	else process.env[name] = value;
+}
+
 function event(url: string, body?: unknown) {
 	return {
-		request: new Request(url, body === undefined ? undefined : {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify(body)
-		}),
+		request: new Request(
+			url,
+			body === undefined
+				? { headers: { 'x-api-key': TEST_API_KEY } }
+				: {
+						method: 'POST',
+						headers: { 'content-type': 'application/json', 'x-api-key': TEST_API_KEY },
+						body: JSON.stringify(body)
+					}
+		),
 		url: new URL(url),
 		getClientAddress: () => '127.0.0.1'
 	};
@@ -87,10 +109,13 @@ let tempDir = '';
 beforeEach(async () => {
 	tempDir = await mkdtemp(path.join(os.tmpdir(), 'spawner-creator-route-'));
 	process.env.SPAWNER_STATE_DIR = tempDir;
+	PRIVATE_ENV.MCP_API_KEY = TEST_API_KEY;
+	process.env.MCP_API_KEY = TEST_API_KEY;
 });
 
 afterEach(async () => {
 	delete process.env.SPAWNER_STATE_DIR;
+	restoreEnv('MCP_API_KEY', originalMcpApiKey);
 	const { setCreatorPlanRunnerForTests } = await import('$lib/server/creator-mission');
 	setCreatorPlanRunnerForTests(null);
 	await rm(tempDir, { recursive: true, force: true });
@@ -180,7 +205,7 @@ describe('/api/creator/mission', () => {
 		expect(getBody.tracePath).toContain('mission-creator-api.json');
 	});
 
-	it('marks no-run creator mission requests as read-only', async () => {
+	it('marks explicitly read-only creator mission requests as read-only', async () => {
 		const { setCreatorPlanRunnerForTests } = await import('$lib/server/creator-mission');
 		setCreatorPlanRunnerForTests(async () => ({
 			schema_version: 'spark-creator-intent.v1',
@@ -208,7 +233,8 @@ describe('/api/creator/mission', () => {
 		const response = await POST(event('http://127.0.0.1/api/creator/mission', {
 			brief: 'Create Startup YC specialization path, but stage only. Do not run.',
 			missionId: 'mission-creator-stage-only-route',
-			requestId: 'creator-stage-only-route'
+			requestId: 'creator-stage-only-route',
+			executionPolicy: 'read_only'
 		}) as never);
 
 		expect(response.status).toBe(200);
@@ -224,6 +250,19 @@ describe('/api/creator/mission', () => {
 		expect(missionCreatedCall.type).toBe('mission_created');
 		expect(missionCreatedCall.message).toMatch(/staged/i);
 		expect(missionCreatedCall.data?.executionPolicy).toBe('read_only');
+	});
+
+	it('does not turn no-run prose into read-only authority', async () => {
+		const response = await POST(event('http://127.0.0.1/api/creator/mission', {
+			brief: 'Create Startup YC specialization path, but stage only. Do not run.',
+			missionId: 'mission-creator-prose-no-authority',
+			requestId: 'creator-prose-no-authority'
+		}) as never);
+
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.code).toBe('harness_authority_blocked');
+		expect(body.authority.reasonCodes).toContain('missing_harness_authority');
 	});
 
 	it('rejects missing briefs', async () => {

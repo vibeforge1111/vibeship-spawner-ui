@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { json, type RequestEvent } from '@sveltejs/kit';
 import { building } from '$app/environment';
 import type { RequestHandler } from './$types';
 import {
@@ -7,7 +7,9 @@ import {
   listSchedules,
   startScheduler,
   type ScheduleAction,
+  type ScheduleRecord,
 } from '$lib/server/scheduler';
+import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { HarnessAuthorityError } from '$lib/server/harness-authority';
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -24,12 +26,57 @@ if (!building && process.env.NODE_ENV !== 'test') {
   startScheduler();
 }
 
-export const GET: RequestHandler = async () => {
+function scheduledAuth(event: RequestEvent, allowLoopbackWithoutKey = false) {
+  return requireControlAuth(event, {
+    surface: 'Scheduled',
+    apiKeyEnvVar: 'EVENTS_API_KEY',
+    fallbackApiKeyEnvVar: 'MCP_API_KEY',
+    apiKeyQueryParam: 'apiKey',
+    apiKeyCookieName: 'spawner_events_api_key',
+    allowLoopbackWithoutKey,
+    allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+  });
+}
+
+function scheduledReadAuth(event: RequestEvent) {
+  const openRead = scheduledAuth(event, true);
+  if (openRead) return { openRead, hasControlAuth: false };
+  const strictRead = scheduledAuth(event, false);
+  return { openRead: null, hasControlAuth: strictRead === null };
+}
+
+function sanitizeScheduleForLoopback(schedule: ScheduleRecord): ScheduleRecord {
+  return {
+    ...schedule,
+    payload: {},
+    chatId: null,
+    authority: schedule.authority
+      ? {
+          source: schedule.authority.source,
+          reasonCodes: schedule.authority.reasonCodes
+        }
+      : undefined
+  };
+}
+
+export const GET: RequestHandler = async (event) => {
+  const { openRead, hasControlAuth } = scheduledReadAuth(event);
+  if (openRead) return openRead;
   const schedules = await listSchedules();
-  return json({ ok: true, schedules });
+  return json({ ok: true, schedules: hasControlAuth ? schedules : schedules.map(sanitizeScheduleForLoopback) });
 };
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+  const unauthorized = scheduledAuth(event);
+  if (unauthorized) return unauthorized;
+  const rateLimited = enforceRateLimit(event, {
+    scope: 'scheduled_create',
+    limit: 60,
+    windowMs: 60_000
+  });
+  if (rateLimited) return rateLimited;
+
+  const { request } = event;
   let body: Record<string, unknown>;
   try {
     body = asRecord(await request.json());
@@ -46,7 +93,8 @@ export const POST: RequestHandler = async ({ request }) => {
     return json({ ok: false, error: "action must be 'mission' or 'loop'" }, { status: 400 });
   }
   try {
-    const record = await createSchedule({ cron, action, payload, chatId, timezone, executionAuthority: body.executionAuthority });
+    const executionAuthority = body.executionAuthority;
+    const record = await createSchedule({ cron, action, payload, chatId, timezone, executionAuthority });
     return json({ ok: true, schedule: record });
   } catch (err: unknown) {
     if (err instanceof HarnessAuthorityError) {
@@ -56,13 +104,24 @@ export const POST: RequestHandler = async ({ request }) => {
   }
 };
 
-export const DELETE: RequestHandler = async ({ request, url }) => {
+export const DELETE: RequestHandler = async (event) => {
+  const unauthorized = scheduledAuth(event);
+  if (unauthorized) return unauthorized;
+  const rateLimited = enforceRateLimit(event, {
+    scope: 'scheduled_delete',
+    limit: 60,
+    windowMs: 60_000
+  });
+  if (rateLimited) return rateLimited;
+
+  const { request, url } = event;
   let body: Record<string, unknown> = {};
   try { body = asRecord(await request.json()); } catch {}
   const id = url.searchParams.get('id') || (body?.id ? String(body.id) : '');
   if (!id) return json({ ok: false, error: 'id required' }, { status: 400 });
   try {
-    const ok = await deleteSchedule({ id, executionAuthority: body.executionAuthority });
+    const executionAuthority = body.executionAuthority;
+    const ok = await deleteSchedule({ id, executionAuthority });
     return json({ ok, error: ok ? undefined : 'not found' });
   } catch (err: unknown) {
     if (err instanceof HarnessAuthorityError) {

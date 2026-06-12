@@ -22,7 +22,7 @@ import { get } from 'svelte/store';
 	import { initCanvasSync } from '$lib/services/canvas-sync';
 	import PipelineSelector from '$lib/components/PipelineSelector.svelte';
 	import SessionStateBar from '$lib/components/SessionStateBar.svelte';
-	import { initPipelines, saveCurrentPipeline, getActivePipelineData, ensurePipeline, switchPipeline, activePipelineId as activePipelineIdStore, activePipeline as activePipelineStore, type PipelineData } from '$lib/stores/pipelines.svelte';
+	import { initPipelines, saveCurrentPipeline, getActivePipelineData, ensurePipeline, switchPipeline, activePipelineId as activePipelineIdStore, activePipeline as activePipelineStore, pipelines as pipelinesStore, type PipelineData } from '$lib/stores/pipelines.svelte';
 	import { hasResumableMission } from '$lib/services/persistence';
 	import { DroppedSkillSchema, safeJsonParse } from '$lib/types/schemas';
 	import { getLatestPipelineLoad, getPendingLoad, type PendingPipelineLoad } from '$lib/services/pipeline-loader';
@@ -47,6 +47,7 @@ import { get } from 'svelte/store';
 	let executionMinimized = $state(false);
 	let executionAutoRunToken = $state<number | null>(null);
 	let executionPanelKey = $state('manual');
+	let executionAuthority = $state<unknown | null>(null);
 	let executionRelay = $state<{
 		missionId?: string;
 		chatId?: string;
@@ -61,7 +62,6 @@ import { get } from 'svelte/store';
 		autoRun?: boolean;
 		buildMode?: 'direct' | 'advanced_prd';
 		buildModeReason?: string;
-		executionAuthority?: Record<string, unknown>;
 	} | null>(null);
 	let showNodeDetails = $state(false);
 	let showMissionExport = $state(false);
@@ -113,6 +113,11 @@ import { get } from 'svelte/store';
 		tags?: string[];
 		skills?: string[];
 		skillChain?: string[];
+		skill?: {
+			tags?: string[];
+			skills?: string[];
+			skillChain?: string[];
+		};
 	};
 
 	type SparkAgentCanvasLink = {
@@ -280,12 +285,17 @@ import { get } from 'svelte/store';
 
 	function resolveSparkAgentSkill(node: SparkAgentCanvasSkillNode): Skill {
 		const availableSkills = get(skillsStore);
+		const nestedSkill = node.skill;
 		const incomingSkillChain = node.skillChain?.length
 			? node.skillChain
+			: nestedSkill?.skillChain?.length
+				? nestedSkill.skillChain
 			: node.skills?.length
 				? node.skills
+				: nestedSkill?.skills?.length
+					? nestedSkill.skills
 				: [];
-		const incomingTags = node.tags || [];
+		const incomingTags = node.tags?.length ? node.tags : nestedSkill?.tags || [];
 		const existing =
 			availableSkills.find((skill) => skill.id === node.skillId) ||
 			availableSkills.find((skill) => skill.name === node.skillName);
@@ -363,11 +373,14 @@ import { get } from 'svelte/store';
 		}
 	}
 
-	async function syncSparkAgentCanvasState(): Promise<void> {
+	async function syncSparkAgentCanvasState(sessionId: string | null): Promise<void> {
+		if (!sessionId) return;
 		if (goalProcessing) return;
 		if (sparkPipelineActive) return;
 
-		const query = lastSparkAgentSyncAt ? `?since=${encodeURIComponent(lastSparkAgentSyncAt)}` : '';
+		const params = new URLSearchParams({ sessionId });
+		if (lastSparkAgentSyncAt) params.set('since', lastSparkAgentSyncAt);
+		const query = `?${params.toString()}`;
 		const response = await fetch(`/api/spark-agent/canvas-state${query}`);
 		if (!response.ok) return;
 
@@ -402,6 +415,7 @@ import { get } from 'svelte/store';
 			boardEntry.missionId &&
 			(executionRelay?.missionId !== boardEntry.missionId || (!executionRelay?.goal && boardEntry.missionName))
 		) {
+			executionAuthority = null;
 			executionRelay = {
 				...(executionRelay || {}),
 				missionId: boardEntry.missionId,
@@ -510,6 +524,7 @@ import { get } from 'svelte/store';
 			if (load.nodes.length > 0) {
 				addNodesWithConnections(load.nodes, load.connections);
 			}
+			executionAuthority = load.executionAuthority ?? null;
 			executionRelay = load.relay || null;
 			sparkPipelineActive = load.source === 'prd-bridge' || load.source === 'creator-mission';
 
@@ -536,11 +551,17 @@ import { get } from 'svelte/store';
 			void syncCanvasMissionStatusesFromBoard(load.relay?.missionId || null).catch((error) => {
 				console.warn('[Canvas] Mission status sync failed after pipeline load:', error);
 			});
-			if ((load.autoRun || load.relay?.autoRun) && new URL(window.location.href).searchParams.get('noexec') !== '1') {
+			if (
+				(load.autoRun || load.relay?.autoRun) &&
+				executionAuthority &&
+				new URL(window.location.href).searchParams.get('noexec') !== '1'
+			) {
 				executionPanelKey = `${load.pipelineId}:${load.timestamp || Date.now()}`;
 				showExecution = true;
 				executionMinimized = false;
 				executionAutoRunToken = Date.now();
+			} else if ((load.autoRun || load.relay?.autoRun) && !executionAuthority) {
+				logger.info('[Canvas] Stored auto-run load opened in inspect mode; no live execution authority was present.');
 			}
 			lastAppliedLatestLoadKey = loadKey;
 			markAppliedPipelineLoad(load);
@@ -551,6 +572,11 @@ import { get } from 'svelte/store';
 			const pipelineId = url.searchParams.get('pipeline')?.trim();
 			if (!pipelineId) return false;
 			const missionId = url.searchParams.get('mission')?.trim();
+
+			if (!get(pipelinesStore).some((pipeline) => pipeline.id === pipelineId)) {
+				logger.info('[Canvas] Requested pipeline is not in local storage yet; waiting for archived load:', pipelineId);
+				return false;
+			}
 
 			const data = switchPipeline(pipelineId);
 			if (!data) {
@@ -569,6 +595,7 @@ import { get } from 'svelte/store';
 			lastSaved = new Date();
 			sparkPipelineActive = pipelineId.startsWith('prd-');
 			if (missionId) {
+				executionAuthority = null;
 				executionRelay = missionHistoryRelay(missionId, readablePipelineNameFromId(pipelineId));
 				if (url.searchParams.get('noexec') !== '1') {
 					executionPanelKey = `${pipelineId}:${missionId}:history`;
@@ -604,6 +631,7 @@ import { get } from 'svelte/store';
 			saveCurrentPipeline(missionCanvas);
 			lastSaved = new Date();
 			sparkPipelineActive = false;
+			executionAuthority = null;
 			executionRelay = missionHistoryRelay(missionId, `Mission ${missionId}`);
 			if (!suppressExec) {
 				executionPanelKey = `${pipelineId}:${missionId}:history`;
@@ -621,7 +649,7 @@ import { get } from 'svelte/store';
 		}
 
 		async function syncLatestSparkLoad(requestedPipelineId: string | null = null): Promise<boolean> {
-			const latestLoad = await getLatestPipelineLoad();
+			const latestLoad = await getLatestPipelineLoad(requestedPipelineId);
 			if (disposed || !latestLoad || !shouldAutoApplyLatestLoad(latestLoad, requestedPipelineId)) return false;
 			logger.info('[Canvas] Syncing latest Spark pipeline load:', latestLoad.pipelineName);
 			return applyPipelineLoad(latestLoad, 'latest-sync');
@@ -644,6 +672,7 @@ import { get } from 'svelte/store';
 			saveCurrentPipeline(missionCanvas);
 			lastSaved = new Date();
 			sparkPipelineActive = false;
+			executionAuthority = null;
 			executionRelay = missionHistoryRelay(missionId, boardEntry.missionName || missionId);
 			if (!suppressExec) {
 				executionPanelKey = `${pipelineId}:${missionId}:history`;
@@ -668,6 +697,10 @@ import { get } from 'svelte/store';
 		const suppressExec = url.searchParams.get('noexec') === '1';
 		const requestedPipelineId = url.searchParams.get('pipeline')?.trim() || null;
 		const requestedMissionId = url.searchParams.get('mission')?.trim() || null;
+		const requestedSparkAgentSessionId =
+			url.searchParams.get('sparkAgentSessionId')?.trim() ||
+			url.searchParams.get('sparkAgentSession')?.trim() ||
+			null;
 		const loadedExplicitPipeline = loadExplicitPipelineFromUrl(url);
 		const loadedMissionOnlyCanvas =
 			!loadedExplicitPipeline && requestedMissionId && (!requestedPipelineId || requestedPipelineId.startsWith('mission-history-'))
@@ -716,7 +749,7 @@ import { get } from 'svelte/store';
 					lastSaved = new Date();
 					logger.info('[Canvas] Loaded active pipeline with', pipelineData.nodes?.length || 0, 'nodes');
 				} else {
-					const latestLoad = await getLatestPipelineLoad();
+					const latestLoad = await getLatestPipelineLoad(requestedPipelineId);
 					if (latestLoad?.nodes?.length && shouldAutoApplyLatestLoad(latestLoad, requestedPipelineId)) {
 						logger.info('[Canvas] Active pipeline is empty; recovering latest Spark pipeline load');
 						applyPipelineLoad(latestLoad, 'latest-recovery');
@@ -762,11 +795,11 @@ import { get } from 'svelte/store';
 		cleanupCanvasSync = initCanvasSync();
 
 		// Keep /canvas in sync with external Spark agent command API updates
-		await syncSparkAgentCanvasState().catch((error) => {
+		await syncSparkAgentCanvasState(requestedSparkAgentSessionId).catch((error) => {
 			console.warn('[Canvas] Initial Spark Agent sync failed:', error);
 		});
 		sparkAgentSyncInterval = setInterval(() => {
-			void syncSparkAgentCanvasState().catch((error) => {
+			void syncSparkAgentCanvasState(requestedSparkAgentSessionId).catch((error) => {
 				console.warn('[Canvas] Spark Agent sync poll failed:', error);
 			});
 		}, 1200);
@@ -1735,6 +1768,7 @@ import { get } from 'svelte/store';
 			minimized={executionMinimized}
 			onToggleMinimize={() => (executionMinimized = !executionMinimized)}
 			autoRunToken={executionAutoRunToken || undefined}
+			executionAuthority={executionAuthority || undefined}
 			relay={executionRelay || undefined}
 		/>
 	{/key}

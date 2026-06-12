@@ -457,6 +457,28 @@ describe('mission-control-relay', () => {
 		).toBe(false);
 	});
 
+	it('keeps suppressRelay events on the local board while skipping external relay', async () => {
+		const missionId = `mission-local-progress-${Date.now()}`;
+		const event = {
+			type: 'task_progress',
+			missionId,
+			taskName: 'Provider execution',
+			source: 'codex',
+			progress: 42,
+			data: { suppressRelay: true }
+		};
+
+		expect(shouldRelayMissionControlEvent(event)).toBe(false);
+
+		await relayMissionControlEvent(event);
+		const snapshot = getMissionControlRelaySnapshot(missionId);
+		const entry = snapshot.recent.find((candidate) => candidate.missionId === missionId);
+
+		expect(entry?.eventType).toBe('task_progress');
+		expect(entry?.taskName).toBe('Provider execution');
+		expect(entry?.progress).toBe(42);
+	});
+
 	it('can keep local board events while skipping external relays', async () => {
 		const missionId = `mission-local-only-relay-${Date.now()}`;
 		const event = {
@@ -586,6 +608,54 @@ describe('mission-control-relay', () => {
 			url: null
 		});
 		expect(body.raw).toBeUndefined();
+	});
+
+	it('preserves canonical PRD completion metadata in external relay payloads', () => {
+		const payload = buildSparkMissionControlEvent({
+			id: 'evt-canonical-prd-complete',
+			type: 'mission_completed',
+			missionId: 'mission-canonical-prd-complete',
+			source: 'prd-bridge',
+			data: {
+				requestId: 'tg-build-canonical-prd-complete',
+				traceRef: 'trace:spawner-prd:mission-canonical-prd-complete',
+				buildMode: 'direct',
+				buildLane: 'fast_direct',
+				provider: 'deterministic-fast-lane',
+				providerProcessSuccess: true,
+				canonicalResultAvailable: true,
+				autoAnalysisStatus: 'complete',
+				durationMs: 12,
+				resultFileName: 'tg-build-canonical-prd-complete.json',
+				telegramRelay: { port: 8791, profile: 'spark-recursive' }
+			}
+		});
+		const body = payload.payload as Record<string, unknown>;
+		const data = body.data as Record<string, unknown>;
+		const event = body.event as Record<string, unknown>;
+		const eventData = event.data as Record<string, unknown>;
+
+		expect(data).toMatchObject({
+			requestId: 'tg-build-canonical-prd-complete',
+			traceRef: 'trace:spawner-prd:mission-canonical-prd-complete',
+			provider: 'deterministic-fast-lane',
+			providerProcessSuccess: true,
+			canonicalResultAvailable: true,
+			autoAnalysisStatus: 'complete',
+			durationMs: 12
+		});
+		expect(eventData).toMatchObject({
+			requestId: 'tg-build-canonical-prd-complete',
+			traceRef: 'trace:spawner-prd:mission-canonical-prd-complete',
+			provider: 'deterministic-fast-lane',
+			providerProcessSuccess: true,
+			canonicalResultAvailable: true,
+			autoAnalysisStatus: 'complete',
+			durationMs: 12,
+			telegramRelay: { port: 8791, profile: 'spark-recursive', url: null }
+		});
+		expect(data.resultFileName).toBeUndefined();
+		expect(eventData.resultFileName).toBeUndefined();
 	});
 
 	it('redacts private local data from external Spark ingest payloads', () => {

@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { providerRuntime, reconcileStaleProviderResults } from './provider-runtime';
 import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { eventBridge, type BridgeEvent } from '$lib/services/event-bridge';
@@ -72,6 +75,7 @@ async function waitFor(fn: () => boolean, timeoutMs = 1500): Promise<void> {
 
 afterEach(() => {
 	sparkAgentBridge.resetForTests();
+	vi.useRealTimers();
 	vi.restoreAllMocks();
 	providerRuntime.cleanup('mission-step2-success');
 	providerRuntime.cleanup('mission-step2-failure');
@@ -85,6 +89,11 @@ afterEach(() => {
 	providerRuntime.cleanup('mission-step2-blocked-success');
 	providerRuntime.cleanup('mission-step2-sandbox');
 	providerRuntime.cleanup('mission-step2-no-authority');
+	providerRuntime.cleanup('mission-step2-active-recovery');
+	providerRuntime.cleanup('mission-step2-live-stale');
+	providerRuntime.cleanup('mission-step2-resume-fresh-authority');
+	delete process.env.SPAWNER_STATE_DIR;
+	delete process.env.SPAWNER_PROVIDER_STALE_RUNNING_MS;
 });
 
 describe('provider-runtime Spark agent bridge', () => {
@@ -244,6 +253,20 @@ describe('provider-runtime Spark agent bridge', () => {
 		})).rejects.toThrow('Execution requires Harness Core authority.');
 	});
 
+	it('treats execution-pack embedded authority as residue, not live dispatch authority', async () => {
+		const pack = buildPack('mission-step2-no-authority', [provider('codex', 'gpt-5.5')]) as MultiLLMExecutionPack & {
+			executionAuthority?: unknown;
+		};
+		pack.executionAuthority = dispatchAuthority();
+
+		await expect(providerRuntime.dispatch({
+			executionPack: pack,
+			apiKeys: { codex: 'test-codex' },
+			onEvent: () => {},
+			workingDirectory: process.cwd()
+		})).rejects.toThrow('Execution requires Harness Core authority.');
+	});
+
 	it('passes explicit workspace-write sandboxing to Codex workers', async () => {
 		let observedCommandTemplate = '';
 		sparkAgentBridge.setWorkerExecutorForTests(async (context) => {
@@ -309,7 +332,7 @@ describe('provider-runtime Spark agent bridge', () => {
 					progress: expect.any(Number),
 					data: expect.objectContaining({
 						kind: 'provider_heartbeat',
-						suppressRelay: true,
+						suppressExternalRelay: true,
 						assignedTaskIds: ['task-1', 'task-2'],
 						assignedTaskCount: 2,
 						elapsedMs: expect.any(Number)
@@ -512,7 +535,7 @@ describe('provider-runtime Spark agent bridge', () => {
 		);
 	});
 
-	it('rebuilds dispatch snapshot from mission record after fresh mission-control resume authority', async () => {
+	it('does not rebuild provider dispatch from recovered mission records without original dispatch authority', async () => {
 		sparkAgentBridge.setWorkerExecutorForTests(async (context) => {
 			context.emitProgress(40, `${context.providerId} resumed`);
 			return { success: true, response: `${context.providerId}-resumed` };
@@ -569,15 +592,143 @@ describe('provider-runtime Spark agent bridge', () => {
 
 		const resumedEvents: BridgeEvent[] = [];
 		const resumed = await providerRuntime.resumeMission('mission-step2-rebuild', (event) => resumedEvents.push(event), controlAuthority());
-		expect(resumed.resumed).toBe(true);
+		expect(resumed.resumed).toBe(false);
+		expect(resumed.reason).toContain('Fresh dispatch authority is required');
 		expect(missionSpy).toHaveBeenCalledWith('mission-step2-rebuild');
-		expect(resumedEvents.some((event) => event.type === 'dispatch_started')).toBe(true);
+		expect(resumedEvents.some((event) => event.type === 'dispatch_started')).toBe(false);
 
-		await waitFor(() => providerRuntime.getMissionStatus('mission-step2-rebuild').allComplete);
 		const after = providerRuntime.getMissionStatus('mission-step2-rebuild');
 		expect(after.snapshotAvailable).toBe(true);
-		expect(after.paused).toBe(false);
-		expect(Object.keys(after.providers).length).toBeGreaterThan(0);
+		expect(after.paused).toBe(true);
+		expect(after.lastReason).toContain('stored dispatch authority is evidence only');
+		expect(Object.keys(after.providers)).toHaveLength(0);
+	});
+
+	it('treats active-mission recovered dispatch authority as evidence only', async () => {
+		const testSpawnerDir = await mkdtemp(path.join(os.tmpdir(), 'spawner-active-recovery-'));
+		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
+		const missionId = 'mission-step2-active-recovery';
+		const activePack = buildPack(missionId, [provider('codex', 'gpt-5.5')]) as MultiLLMExecutionPack & {
+			executionAuthority?: unknown;
+		};
+		activePack.executionAuthority = dispatchAuthority();
+		await writeFile(
+			path.join(testSpawnerDir, 'active-mission.json'),
+			JSON.stringify({ missionId, multiLLMExecution: activePack }, null, 2),
+			'utf-8'
+		);
+
+		const mission: Mission = {
+			id: missionId,
+			user_id: 'test-user',
+			name: 'Active Recovery Mission',
+			description: 'Validate active-mission recovery authority demotion',
+			mode: 'multi-llm-orchestrator',
+			status: 'paused',
+			agents: [
+				{ id: 'agent-1', name: 'Agent', role: 'builder', skills: ['code_analysis'], model: 'sonnet' }
+			],
+			tasks: [
+				{
+					id: 'task-1',
+					title: 'Recover and resume',
+					description: 'Resume mission from active-mission state',
+					assignedTo: 'agent-1',
+					status: 'pending',
+					handoffType: 'sequential'
+				}
+			],
+			context: {
+				projectPath: process.cwd(),
+				projectType: 'typescript',
+				goals: ['prove active recovery authority demotion']
+			},
+			current_task_id: null,
+			outputs: {},
+			error: null,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+			started_at: null,
+			completed_at: null
+		};
+
+		vi.spyOn(mcpClient, 'getMission').mockResolvedValue({
+			success: true,
+			data: {
+				mission,
+				execution_prompt: `Mission ID: ${missionId}`,
+				_instruction: ''
+			}
+		});
+
+		const pauseResult = await providerRuntime.pauseMission(missionId, controlAuthority());
+		expect(pauseResult.paused).toBe(true);
+
+		const resumedEvents: BridgeEvent[] = [];
+		const resumed = await providerRuntime.resumeMission(missionId, (event) => resumedEvents.push(event), controlAuthority());
+		expect(resumed.resumed).toBe(false);
+		expect(resumed.reason).toContain('Fresh dispatch authority is required');
+		expect(resumedEvents.some((event) => event.type === 'dispatch_started')).toBe(false);
+		expect(providerRuntime.getMissionStatus(missionId).lastReason).toContain('stored dispatch authority is evidence only');
+
+		await rm(testSpawnerDir, { recursive: true, force: true });
+	});
+
+	it('does not resume with only control authority and uses fresh dispatch authority when provided', async () => {
+		let runCount = 0;
+		sparkAgentBridge.setWorkerExecutorForTests(
+			(context) =>
+				new Promise((resolve) => {
+					runCount += 1;
+					if (runCount === 1) {
+						const timer = setTimeout(() => resolve({ success: true, response: 'unexpected' }), 2000);
+						context.signal?.addEventListener(
+							'abort',
+							() => {
+								clearTimeout(timer);
+								resolve({ success: false, error: 'Cancelled' });
+							},
+							{ once: true }
+						);
+						return;
+					}
+					resolve({ success: true, response: 'resumed-ok' });
+				})
+		);
+
+		const events: BridgeEvent[] = [];
+		await providerRuntime.dispatch({
+			executionPack: buildPack('mission-step2-resume-fresh-authority', [provider('codex', 'gpt-5.5')]),
+			apiKeys: { codex: 'test-codex' },
+			executionAuthority: dispatchAuthority(),
+			onEvent: (event) => events.push(event),
+			workingDirectory: process.cwd()
+		});
+
+		await new Promise((r) => setTimeout(r, 50));
+		expect((await providerRuntime.pauseMission('mission-step2-resume-fresh-authority', controlAuthority())).paused).toBe(true);
+		const staleResume = await providerRuntime.resumeMission(
+			'mission-step2-resume-fresh-authority',
+			(event) => events.push(event),
+			controlAuthority()
+		);
+		expect(staleResume.resumed).toBe(false);
+		expect(staleResume.reason).toContain('Fresh dispatch authority is required');
+		expect(events.filter((event) => event.type === 'dispatch_started')).toHaveLength(1);
+
+		const freshResume = await providerRuntime.resumeMission(
+			'mission-step2-resume-fresh-authority',
+			(event) => events.push(event),
+			controlAuthority(),
+			dispatchAuthority()
+		);
+		expect(freshResume.resumed).toBe(true);
+		await waitFor(() => providerRuntime.getMissionStatus('mission-step2-resume-fresh-authority').allComplete);
+		expect(providerRuntime.getMissionResults('mission-step2-resume-fresh-authority')[0]).toMatchObject({
+			status: 'completed',
+			response: 'resumed-ok'
+		});
+		expect(events.filter((event) => event.type === 'dispatch_started')).toHaveLength(2);
 	});
 
 	it('keeps provider result details after in-memory sessions are cleared', async () => {
@@ -614,6 +765,48 @@ describe('provider-runtime Spark agent bridge', () => {
 			response: 'codex-durable'
 		});
 		expect(providerRuntime.getMissionResults('mission-step2-persist')[0].durationMs).toEqual(expect.any(Number));
+	});
+
+	it('reconciles stale live provider sessions before reporting mission status', async () => {
+		process.env.SPAWNER_PROVIDER_STALE_RUNNING_MS = '60000';
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-04-28T00:00:00.000Z'));
+		sparkAgentBridge.setWorkerExecutorForTests(
+			() =>
+				new Promise(() => {
+					// Simulate a provider worker that went quiet without a terminal event.
+				})
+		);
+
+		const pack = buildPack('mission-step2-live-stale', [provider('codex', 'gpt-5.5')]);
+		const events: BridgeEvent[] = [];
+		await providerRuntime.dispatch({
+			executionPack: pack,
+			apiKeys: { codex: 'test-codex' },
+			executionAuthority: dispatchAuthority(),
+			onEvent: (event) => events.push(event),
+			workingDirectory: process.cwd()
+		});
+
+		expect(providerRuntime.getMissionStatus('mission-step2-live-stale').providers.codex).toBe('running');
+
+		vi.setSystemTime(new Date('2026-04-28T00:02:05.000Z'));
+		const status = providerRuntime.getMissionStatus('mission-step2-live-stale');
+		expect(status).toMatchObject({
+			allComplete: true,
+			anyFailed: true,
+			providers: { codex: 'failed' }
+		});
+		expect(status.lastReason).toContain('Provider runtime went quiet');
+		expect(providerRuntime.getMissionResults('mission-step2-live-stale')[0]).toMatchObject({
+			providerId: 'codex',
+			status: 'failed',
+			error: expect.stringContaining('Provider runtime went quiet'),
+			durationMs: 125000,
+			completedAt: '2026-04-28T00:02:05.000Z'
+		});
+		expect(events.some((event) => event.type === 'task_failed' && event.data?.stale === true)).toBe(true);
+		expect(events.some((event) => event.type === 'mission_failed' && event.data?.stale === true)).toBe(true);
 	});
 
 	it('reconciles running provider sessions from external mission lifecycle completion', async () => {

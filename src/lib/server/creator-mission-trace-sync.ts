@@ -28,7 +28,6 @@ interface BenchmarkEvidence {
 }
 
 const TERMINAL_EVENT_STATUS: Record<string, CreatorStageStatus> = {
-	mission_completed: 'validated',
 	mission_failed: 'failed',
 	mission_cancelled: 'blocked',
 	task_failed: 'failed',
@@ -236,8 +235,17 @@ export function syncCreatorMissionTraceFromLifecycleEvent(
 		}
 	}
 
-	const terminalStatus = TERMINAL_EVENT_STATUS[eventType];
-	if (terminalStatus) {
+	if (eventType === 'mission_completed') {
+		const latestValidation = (trace.validation_runs || []).at(-1);
+		if (latestValidation?.status === 'passed') {
+			trace.stage_status = 'validated';
+		} else if (latestValidation?.status === 'failed') {
+			trace.stage_status = 'failed';
+		} else if (latestValidation?.status === 'blocked') {
+			trace.stage_status = 'blocked';
+		}
+	} else if (TERMINAL_EVENT_STATUS[eventType]) {
+		const terminalStatus = TERMINAL_EVENT_STATUS[eventType];
 		trace.stage_status = terminalStatus;
 	} else if (['dispatch_started', 'mission_started', 'task_started', 'task_progress', 'progress'].includes(eventType)) {
 		trace.stage_status = 'running';

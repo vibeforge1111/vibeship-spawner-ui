@@ -3,11 +3,14 @@ import {
 	createHarnessCoreActionEnvelopeVNext,
 	createHarnessCoreAuthorizedGovernorDecision,
 	safeHarnessCoreId,
+	signHarnessCoreGovernorDecision,
 	verifyHarnessCoreGovernorToolAuthority,
 	type GovernorDecisionV1,
 	type HarnessCoreActionMutationClass,
 	type TurnIntentEnvelopeVNext
 } from '@spark/harness-core';
+import { env as privateEnv } from '$env/dynamic/private';
+import { emitSpawnerToolLedger } from './harness-ledger-ingest';
 
 export type SparkMutationClass = HarnessCoreActionMutationClass;
 export type SparkServerTurnIntentEnvelopeVNext = TurnIntentEnvelopeVNext;
@@ -30,6 +33,12 @@ export interface HarnessAuthorityVerdict {
 	traceId?: string;
 	origin?: string;
 	governorOutcome?: string;
+	ledgerIngest?: {
+		attempted: boolean;
+		persisted: boolean;
+		skippedReason?: string;
+		error?: string;
+	};
 }
 
 export class HarnessAuthorityError extends Error {
@@ -73,6 +82,35 @@ function actionRequestId(action: Record<string, unknown>): string {
 
 function expectedCapabilityId(input: HarnessAuthorityInput): string {
 	return safeHarnessCoreId('capability', `${input.ownerSystem}:${input.toolName}`);
+}
+
+function governorHmacKey(): string {
+	return (privateEnv.SPARK_GOVERNOR_HMAC_KEY || process.env.SPARK_GOVERNOR_HMAC_KEY || '').trim();
+}
+
+function governorHmacKeyId(): string {
+	return (privateEnv.SPARK_GOVERNOR_HMAC_KEY_ID || process.env.SPARK_GOVERNOR_HMAC_KEY_ID || '').trim() || 'local';
+}
+
+function truthyEnv(value: string | undefined): boolean {
+	return ['1', 'true', 'yes', 'on'].includes((value || '').trim().toLowerCase());
+}
+
+function governorSignatureRequired(): boolean {
+	return (
+		truthyEnv(privateEnv.SPARK_GOVERNOR_REQUIRE_HMAC || process.env.SPARK_GOVERNOR_REQUIRE_HMAC) ||
+		truthyEnv(privateEnv.SPARK_GOVERNOR_HMAC_REQUIRED || process.env.SPARK_GOVERNOR_HMAC_REQUIRED) ||
+		process.env.NODE_ENV === 'production'
+	);
+}
+
+function signGovernorDecisionIfConfigured<T extends GovernorDecisionV1>(decision: T): T {
+	const key = governorHmacKey();
+	if (!key) return decision;
+	return signHarnessCoreGovernorDecision(decision, {
+		key,
+		key_id: governorHmacKeyId()
+	});
 }
 
 function turnIntentVerdict(authority: Record<string, unknown>, input: HarnessAuthorityInput): HarnessAuthorityVerdict {
@@ -203,6 +241,7 @@ function governorDecisionVerdict(authority: Record<string, unknown>, input: Harn
 	const governorTurnId = stringField(authority.turn_id);
 	const envelopeTurnId = stringField(envelope.turn_id);
 	const envelopeVerdict = turnIntentVNextVerdict(envelope, input);
+	let ledgerIngest: HarnessAuthorityVerdict['ledgerIngest'];
 
 	if (authority.schema_version !== 'governor-decision-v1') {
 		reasonCodes.push('unsupported_governor_decision_schema');
@@ -218,14 +257,43 @@ function governorDecisionVerdict(authority: Record<string, unknown>, input: Harn
 		reasonCodes.push(...envelopeVerdict.reasonCodes);
 	}
 	if (authority.schema_version === 'governor-decision-v1') {
+		const hmacKey = governorHmacKey();
+		const requireSignature = Boolean(hmacKey) || governorSignatureRequired();
+		if (requireSignature && !hmacKey) {
+			reasonCodes.push('governor_hmac_key_missing');
+		}
 		const verification = verifyHarnessCoreGovernorToolAuthority({
 			governor_decision: authority as unknown as GovernorDecisionV1,
 			tool_name: input.toolName,
 			owner_system: input.ownerSystem,
 			action_type: expectedActionType,
-			allow_read_only: input.mutationClass === 'none' || input.mutationClass === 'read_only'
+			allow_read_only: input.mutationClass === 'none' || input.mutationClass === 'read_only',
+			governor_hmac_key: hmacKey || null,
+			governor_hmac_key_id: hmacKey ? governorHmacKeyId() : null,
+			require_signature: requireSignature && Boolean(hmacKey)
 		});
 		reasonCodes.push(...verification.reason_codes);
+		if (verification.allowed) {
+			const rawTurnRef = isRecord(envelope.raw_turn_ref) ? envelope.raw_turn_ref : {};
+			const trace = isRecord(authority.trace) ? authority.trace : {};
+			const emission = emitSpawnerToolLedger({
+				governorDecision: authority as unknown as GovernorDecisionV1,
+				verification,
+				ownerSystem: input.ownerSystem,
+				mutationClass: input.mutationClass,
+				requestId: input.requestId || null,
+				traceRef: stringField(rawTurnRef.id) || stringField(trace.id) || stringField(authority.turn_id) || null
+			});
+			if (emission.strict && !emission.persisted) {
+				reasonCodes.push('governor_ledger_ingest_failed');
+			}
+			ledgerIngest = {
+				attempted: emission.attempted,
+				persisted: emission.persisted,
+				skippedReason: emission.skippedReason,
+				error: emission.error
+			};
+		}
 	}
 
 	const rawTurnRef = isRecord(envelope.raw_turn_ref) ? envelope.raw_turn_ref : {};
@@ -235,7 +303,8 @@ function governorDecisionVerdict(authority: Record<string, unknown>, input: Harn
 		source: 'governor_decision',
 		reasonCodes: [...new Set(reasonCodes)],
 		traceId: stringField(rawTurnRef.id) || stringField(trace.id) || stringField(authority.turn_id) || undefined,
-		governorOutcome: outcome || undefined
+		governorOutcome: outcome || undefined,
+		ledgerIngest
 	};
 }
 
@@ -327,7 +396,7 @@ export function buildServerGovernorDecisionAuthority(input: {
 		...input,
 		actorKind: 'human'
 	});
-	return createHarnessCoreAuthorizedGovernorDecision({
+	return signGovernorDecisionIfConfigured(createHarnessCoreAuthorizedGovernorDecision({
 		envelope,
 		tool_name: input.toolName,
 		restrictions: {
@@ -336,7 +405,7 @@ export function buildServerGovernorDecisionAuthority(input: {
 			publish_allowed: input.publishes === true
 		},
 		reply_instruction: input.replyInstruction
-	});
+	}));
 }
 
 export function assertHarnessAuthority(input: HarnessAuthorityInput): HarnessAuthorityVerdict {

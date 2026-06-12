@@ -140,7 +140,8 @@ function missionHistoryNode(
 	title: string,
 	index: number,
 	status?: MissionControlTaskStatus,
-	description = 'Mission Control task'
+	description = 'Mission Control task',
+	skills: string[] = []
 ): CanvasNode {
 	return {
 		id: `mission-history-${compactNodeId(missionId)}-${index + 1}`,
@@ -151,8 +152,10 @@ function missionHistoryNode(
 			description,
 			category: 'development',
 			tier: 'free',
-			tags: [],
-			triggers: []
+			tags: skills,
+			skillChain: skills,
+			chainDescription: skills.length > 0 ? `Paired skills: ${skills.join(', ')}` : undefined,
+			triggers: ['mission-control-history']
 		},
 		position: {
 			x: 120 + index * 280,
@@ -176,7 +179,8 @@ export function buildCanvasMissionHistoryCanvas(entry: MissionControlBoardEntry)
 			task.title || `Task ${index + 1}`,
 			index,
 			task.status,
-			entry.missionName ? `${entry.missionName} mission task` : 'Mission Control task'
+			entry.missionName ? `${entry.missionName} mission task` : 'Mission Control task',
+			task.skills
 		)
 	);
 

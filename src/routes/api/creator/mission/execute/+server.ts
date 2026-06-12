@@ -2,7 +2,11 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { creatorMissionPath, executeCreatorMission } from '$lib/server/creator-mission';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
-import { HarnessAuthorityError, assertNativeGovernorHarnessAuthority, resolveExecutionAuthority } from '$lib/server/harness-authority';
+import {
+	HarnessAuthorityError,
+	assertNativeGovernorHarnessAuthority,
+	resolveExecutionAuthority
+} from '$lib/server/harness-authority';
 
 interface ExecuteCreatorMissionBody {
 	missionId?: string;
@@ -15,7 +19,7 @@ export const POST: RequestHandler = async (event) => {
 		surface: 'CreatorMissionExecute',
 		apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
-		allowLoopbackWithoutKey: true
+		allowLoopbackWithoutKey: false
 	});
 	if (unauthorized) return unauthorized;
 
@@ -33,14 +37,15 @@ export const POST: RequestHandler = async (event) => {
 		if (!missionId && !requestId) {
 			return json({ ok: false, error: 'missionId or requestId is required' }, { status: 400 });
 		}
+		const executionAuthority = body.executionAuthority;
 		const authority = assertNativeGovernorHarnessAuthority({
-			authority: resolveExecutionAuthority(body.executionAuthority),
+			authority: resolveExecutionAuthority(executionAuthority),
 			toolName: 'spawner.dispatch',
 			ownerSystem: 'spawner-ui',
 			mutationClass: 'launches_mission'
 		});
 
-		const result = await executeCreatorMission({ missionId, requestId });
+		const result = await executeCreatorMission({ missionId, requestId }, { executionAuthority });
 		return json({
 			ok: true,
 			authority,

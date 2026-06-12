@@ -30,10 +30,6 @@ function isExecutionPolicy(value: unknown): value is CreatorExecutionPolicy {
 	return value === 'manual_run' || value === 'read_only';
 }
 
-function briefRequestsReadOnlyExecution(brief: string): boolean {
-	return /\b(?:stage\s+only|stage-only|do\s+not\s+run|don't\s+run|no\s+run|do\s+not\s+execute|don't\s+execute|no\s+execution|without\s+running)\b/i.test(brief);
-}
-
 function emitCreatorEvent(type: string, trace: Awaited<ReturnType<typeof createCreatorMission>>, message: string, data: Record<string, unknown> = {}) {
 	const intentTask = trace.tasks.find((task) => task.id === 'creator-intent-plan') || trace.tasks[0];
 	const domainLabel = creatorDomainDisplayLabel(trace.intent_packet.target_domain);
@@ -94,7 +90,7 @@ export const POST: RequestHandler = async (event) => {
 		if (body.executionPolicy !== undefined && !isExecutionPolicy(body.executionPolicy)) {
 			return json({ ok: false, error: 'executionPolicy must be manual_run or read_only' }, { status: 400 });
 		}
-		const requestedReadOnly = body.executionPolicy === 'read_only' || (body.executionPolicy !== 'manual_run' && briefRequestsReadOnlyExecution(brief));
+		const requestedReadOnly = body.executionPolicy === 'read_only';
 		const authority = requestedReadOnly
 			? null
 			: assertNativeGovernorHarnessAuthority({
@@ -163,7 +159,7 @@ export const GET: RequestHandler = async (event) => {
 		apiKeyEnvVar: 'SPARK_BRIDGE_API_KEY',
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
 		apiKeyQueryParam: 'apiKey',
-		allowLoopbackWithoutKey: true
+		allowLoopbackWithoutKey: false
 	});
 	if (unauthorized) return unauthorized;
 
