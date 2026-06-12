@@ -23,6 +23,7 @@
 		"smoke:spark-skill-tiers": "node scripts/smoke-spark-skill-tiers.mjs",
 		"smoke:routes": "node scripts/smoke-routes.mjs",
 		"smoke:mission-surfaces": "node scripts/smoke-mission-surfaces.mjs",
+		"smoke:fastdirect-completion": "node scripts/smoke-fastdirect-completion.mjs",
 		"sync:runtime": "node scripts/sync-runtime.cjs",
 		"sync:watch": "node scripts/sync-runtime.cjs --watch",
 		"sync:check": "node scripts/sync-runtime.cjs --check",

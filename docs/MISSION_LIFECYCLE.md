@@ -48,12 +48,34 @@ flowchart TD
 - Terminal board statuses close open task rows so users can see completed/failed/cancelled nodes after execution.
 - Trace should prefer explicit board/dispatch state over inferred artifact state.
 
+## Fast Direct Completion
+
+The constrained live fast_direct Telegram path uses `/api/prd-bridge/write` with `buildMode: direct` and
+`buildLane: fast_direct`. When the brief is explicitly a static single-file or fixed-file proof, that lane is
+deterministic: it writes the canonical PRD result locally, reports `autoAnalysis.provider = deterministic-fast-lane`,
+and does not dispatch a provider worker. Broader fast_direct briefs may still use the configured provider path.
+
+Completion is delivered through Mission Control relay events, not by inspecting result files later. After the canonical
+result write succeeds, `relayCanonicalPrdAnalysisComplete` emits one `task_completed` event for PRD analysis and one
+terminal `mission_completed` event with `requestId`, `traceRef`, `buildMode`, `buildLane`, `provider`, and
+`canonicalResultAvailable: true` in the event data. The Telegram bot consumes those completion-class relay events and
+turns them into the chat completion message.
+
+The permanent guards are:
+
+- `src/routes/api/prd-bridge/write/write.integration.test.ts` verifies the constrained fast_direct deterministic lane
+  emits exactly one `task_completed` and one `mission_completed` event for the mission.
+- `scripts/smoke-fastdirect-completion.mjs` verifies a running local Spawner writes the fast_direct result, exposes the
+  completion event in `/api/mission-control/status`, and reports `phase = completed` from
+  `/api/mission-control/trace`.
+
 ## Guard Tests
 
 - `src/routes/api/mission-control/mission-lifecycle.integration.test.ts`
 - `src/lib/server/mission-control-relay.test.ts`
 - `src/lib/server/mission-control-trace.test.ts`
 - `src/routes/api/dispatch/dispatch.autorun.test.ts`
+- `src/routes/api/prd-bridge/write/write.integration.test.ts`
 - `src/lib/types/mission-control.test.ts`
 
 ## Maintenance Rules

@@ -605,6 +605,65 @@ describe('/api/prd-bridge/write integration', () => {
 		expect(missionEvents.map((entry: { eventType: string }) => entry.eventType)).toContain('mission_failed');
 	});
 
+	it('relays terminal completion for fast_direct deterministic success', async () => {
+		const requestId = 'tg-build-fastdirect-completion-1780950000000';
+		const missionId = 'mission-1780950000000';
+		const traceRef = 'trace:spawner-prd:mission-1780950000000';
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/write', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'x-api-key': BRIDGE_TEST_KEY },
+				body: JSON.stringify({
+					content:
+						'Create one-file only index.html. Keep it as static HTML only. Build a countdown timer page. No package.json. Do not make a full app.',
+					requestId,
+					projectName: 'Fast Direct Completion Board',
+					buildMode: 'direct',
+					buildLane: 'fast_direct',
+					options: { fastLane: true },
+					tier: 'pro',
+					chatId: 'telegram-chat-fastdirect',
+					userId: 'telegram-user-fastdirect',
+					traceRef,
+					executionAuthority: writeAuthority(requestId)
+				})
+			}),
+			getClientAddress: () => '127.0.0.1'
+		} as never);
+
+		const body = await response.json();
+		expect(response.status).toBe(200);
+		expect(body.autoAnalysis).toMatchObject({
+			provider: 'deterministic-fast-lane',
+			started: false
+		});
+		expect(JSON.parse(await readFile(path.join(testSpawnerDir, 'results', `${requestId}.json`), 'utf-8'))).toMatchObject({
+			success: true,
+			projectName: 'Fast Direct Completion Board'
+		});
+
+		const missionControl = JSON.parse(await readFile(path.join(testSpawnerDir, 'mission-control.json'), 'utf-8'));
+		const missionEvents = missionControl.recent.filter(
+			(entry: { missionId?: string }) => entry.missionId === missionId
+		);
+		const completionEvents = missionEvents.filter((entry: { eventType: string }) =>
+			['task_completed', 'mission_completed'].includes(entry.eventType)
+		);
+		expect(completionEvents.map((entry: { eventType: string }) => entry.eventType)).toEqual(
+			expect.arrayContaining(['task_completed', 'mission_completed'])
+		);
+		expect(completionEvents.filter((entry: { eventType: string }) => entry.eventType === 'task_completed')).toHaveLength(1);
+		expect(completionEvents.filter((entry: { eventType: string }) => entry.eventType === 'mission_completed')).toHaveLength(1);
+		expect(
+			completionEvents.find((entry: { eventType: string }) => entry.eventType === 'mission_completed')
+		).toMatchObject({
+			requestId,
+			traceRef,
+			providerId: 'deterministic-fast-lane'
+		});
+	});
+
 	it('keeps exact two-file static proofs deterministic and scoped to the requested folder', async () => {
 		const requestId = 'tg-build-static-proof-s';
 		const traceRef = 'trace:spawner-prd:mission-static-proof-s';
