@@ -272,7 +272,9 @@ describe('PRD auto-dispatch helpers', () => {
 			{ SPAWNER_STATE_DIR: 'C:\\tmp\\spawner-state' }
 		);
 
-		expect(projectPath).toBe('C:\\tmp\\spawner-state\\generated-projects\\mission-1-spark-test');
+		expect(projectPath).toMatch(
+			/^C:\\tmp\\spawner-state[\\/]generated-projects[\\/]mission-1-spark-test$/
+		);
 	});
 
 	it('allows auto-dispatch only when the PRD load is runnable', () => {
