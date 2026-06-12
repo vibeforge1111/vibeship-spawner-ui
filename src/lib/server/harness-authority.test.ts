@@ -24,6 +24,7 @@ function validGovernorAuthority() {
 		reason: 'User explicitly requested a Spawner dispatch.',
 		toolName: 'spawner.dispatch',
 		mutationClass: 'launches_mission',
+		turnId: 'turn:spawner-server-edge',
 		requestId: 'governor-ledger-binding-test',
 		target: 'mission'
 	});
@@ -52,6 +53,10 @@ describe('server harness authority', () => {
 
 		expect(verdict.allowed).toBe(true);
 		expect(verdict.source).toBe('governor_decision');
+		expect(authority.turn_id).toBe('turn:spawner-server-edge');
+		expect(authority.envelope.turn_id).toBe('turn:spawner-server-edge');
+		expect(authority.authorizations[0].turn_id).toBe('turn:spawner-server-edge');
+		expect(authority.tool_ledgers[0].turn_id).toBe('turn:spawner-server-edge');
 	});
 
 	it('blocks execute authority when the ledger is copied from another action', () => {

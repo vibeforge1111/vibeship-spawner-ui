@@ -16,10 +16,12 @@ describe('harness authority client', () => {
 			reason: 'User submitted a scheduled Spark action from Spawner.',
 			toolName: 'spawner.schedule.create',
 			mutationClass: 'creates_schedule',
+			turnId: 'turn:spawner-client-edge',
 			target: 'mission'
 		});
 
 		expect(authority.schema_version).toBe('turn-intent-envelope-vnext');
+		expect(authority.turn_id).toBe('turn:spawner-client-edge');
 		expect(authority.surface).toBe('spawner');
 		expect(authority.selected_move).toBe('execute_action');
 		expect(authority.action_authority).toMatchObject({
@@ -57,6 +59,7 @@ describe('harness authority client', () => {
 			reason: 'User started provider dispatch from Spawner.',
 			toolName: 'spawner.dispatch',
 			mutationClass: 'launches_mission',
+			turnId: 'turn:spawner-client-governor',
 			target: 'mission-dispatch-governor'
 		});
 
@@ -69,9 +72,13 @@ describe('harness authority client', () => {
 		});
 		expect(authority.envelope).toMatchObject({
 			schema_version: 'turn-intent-envelope-vnext',
+			turn_id: 'turn:spawner-client-governor',
 			selected_move: 'execute_action',
 			surface: 'spawner'
 		});
+		expect(authority.turn_id).toBe('turn:spawner-client-governor');
+		expect(authority.authorizations[0].turn_id).toBe('turn:spawner-client-governor');
+		expect(authority.tool_ledgers[0].turn_id).toBe('turn:spawner-client-governor');
 		expect(authority.authorizations).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({

@@ -17,6 +17,7 @@ export function buildClientTurnIntentVNextAuthority(input: {
 	reason: string;
 	toolName: string;
 	mutationClass: SparkClientMutationClass;
+	turnId?: string | null;
 	requestId?: string | null;
 	actorId?: string | null;
 	target?: string | null;
@@ -30,6 +31,7 @@ export function buildClientTurnIntentVNextAuthority(input: {
 		reason: input.reason,
 		toolName: input.toolName,
 		mutationClass: input.mutationClass,
+		turnId: input.turnId,
 		requestId: input.requestId,
 		actorIdRef: input.actorId,
 		target: input.target,
@@ -44,6 +46,7 @@ export function buildClientGovernorDecisionAuthority(input: {
 	reason: string;
 	toolName: string;
 	mutationClass: SparkClientMutationClass;
+	turnId?: string | null;
 	requestId?: string | null;
 	actorId?: string | null;
 	target?: string | null;

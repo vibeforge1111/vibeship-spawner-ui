@@ -349,6 +349,7 @@ export function buildServerTurnIntentVNextAuthority(input: {
 	reason: string;
 	toolName: string;
 	mutationClass: SparkMutationClass;
+	turnId?: string | null;
 	requestId?: string | null;
 	actorKind?: 'human' | 'agent' | 'system';
 	actorIdRef?: string | null;
@@ -365,6 +366,7 @@ export function buildServerTurnIntentVNextAuthority(input: {
 		reason: input.reason,
 		toolName: input.toolName,
 		mutationClass: input.mutationClass,
+		turnId: input.turnId,
 		requestId: input.requestId,
 		actorKind: input.actorKind ?? 'system',
 		actorIdRef: input.actorIdRef ?? 'spawner-ui',
@@ -381,6 +383,7 @@ export function buildServerGovernorDecisionAuthority(input: {
 	reason: string;
 	toolName: string;
 	mutationClass: SparkMutationClass;
+	turnId?: string | null;
 	requestId?: string | null;
 	actorKind?: 'human' | 'agent' | 'system';
 	actorIdRef?: string | null;
