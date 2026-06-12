@@ -1,212 +1,116 @@
 #!/usr/bin/env node
 /**
- * sync-runtime.cjs — mirror Desktop spawner-ui edits into the live runtime copy.
+ * Runtime drift check for the installed Spawner UI mirror.
  *
- * The dev server on :3333 and codex-auto runs from C:/Users/USER/.spark/modules/
- * spawner-ui/source. Edits made in C:/Users/USER/Desktop/spawner-ui must be
- * mirrored there, otherwise codex picks up the old prompt and we ship stale
- * behavior.
+ * Runtime updates are git operations now:
+ *   git -C "$HOME/.spark/modules/spawner-ui/source" fetch origin
+ *   git -C "$HOME/.spark/modules/spawner-ui/source" merge --ff-only origin/main
+ *   spark restart spawner-ui --allow-dirty-runtime
  *
- * Usage:
- *   node scripts/sync-runtime.cjs            # one-shot sync
- *   node scripts/sync-runtime.cjs --watch    # chokidar-free poll-watcher
- *   node scripts/sync-runtime.cjs --check    # exit 1 if drift detected
+ * This script intentionally does not copy files. It verifies that the current
+ * checkout and the installed runtime mirror point at the same commit, and that
+ * the runtime has no unexpected local edits.
  */
 
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
-const os = require('os');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
-const SOURCE_ROOT = path.resolve(__dirname, '..');
-const RUNTIME_ROOT = path.join(os.homedir(), '.spark', 'modules', 'spawner-ui', 'source');
+const SOURCE_ROOT = path.resolve(process.env.SPAWNER_SYNC_SOURCE_ROOT || path.join(__dirname, '..'));
+const RUNTIME_ROOT = path.resolve(
+	process.env.SPAWNER_RUNTIME_ROOT || path.join(os.homedir(), '.spark', 'modules', 'spawner-ui', 'source')
+);
 
-// Files / dirs that shape canvas generation. Add to this list as the surface grows.
-const SYNCED_PATHS = [
-	'src/lib/server/skill-tiers.ts',
-	'src/lib/server/claude-auto-analysis.ts',
-	'src/lib/server/bundle-classifier.ts',
-	'src/lib/server/brief-enricher.ts',
-	'src/lib/server/command-runner.ts',
-	'src/lib/server/capability-policy.ts',
-	'src/lib/server/mcp-auth.ts',
-	'src/lib/server/mission-control-access.ts',
-	'src/lib/server/mission-control-command.ts',
-	'src/lib/server/mission-control-lineage.ts',
-	'src/lib/server/mission-control-relay.ts',
-	'src/lib/server/mission-control-results.ts',
-	'src/lib/server/creator-mission.ts',
-	'src/lib/server/creator-mission-trace-sync.ts',
-	'src/lib/server/scheduler.ts',
-	'src/lib/server/project-path-extraction.ts',
-	'src/lib/server/prd-analysis-result-schema.ts',
-	'src/lib/server/spawner-state.ts',
-	'src/lib/server/provider-runtime.ts',
-	'src/lib/server/provider-config.ts',
-	'src/lib/server/prd-auto-dispatch.ts',
-	'src/lib/server/prd-auto-analysis-timeout.ts',
-	'src/lib/server/prd-canonical-result-reconciliation.ts',
-	'src/lib/server/access-execution-lanes.ts',
-	'src/lib/server/access-execution-actions.ts',
-	'src/lib/server/high-agency-workers.ts',
-	'src/lib/server/intent-boundary.ts',
-	'src/lib/server/harness-authority.ts',
-	'src/lib/server/spark-run-workspace.ts',
-	'src/lib/server/trace-ref.ts',
-	'src/lib/server/provider-clients/codex-cli-client.ts',
-	'src/lib/server/provider-clients/spark-harness-client.ts',
-	'src/lib/server/spark-pro-entitlements.ts',
-	'src/lib/server/h70-skill-access-token.ts',
-	'src/lib/server/hosted-ui-auth.ts',
-	'src/lib/server/timeout-config.ts',
-	'src/lib/services/event-bridge.ts',
-	'src/lib/services/spark-agent-bridge.ts',
-	'src/lib/services/canvas-sync.ts',
-	'src/lib/services/canvas-sync-authority.ts',
-	'src/lib/services/mission-builder.ts',
-	'src/lib/services/multi-llm-orchestrator.ts',
-	'src/lib/services/harness-authority-client.ts',
-	'src/lib/services/mission-executor.ts',
-	'src/lib/services/pipeline-loader.ts',
-	'src/lib/services/prd-bridge.ts',
-	'src/lib/services/mission-board-cards.ts',
-	'src/lib/utils/safe-json.ts',
-	'src/lib/components/MissionBoard.svelte',
-	'src/routes/api/prd-bridge/write/+server.ts',
-	'src/routes/api/events/+server.ts',
-	'src/routes/api/providers/+server.ts',
-	'src/routes/api/prd-bridge/pending/+server.ts',
-	'src/routes/api/prd-bridge/result/+server.ts',
-	'src/routes/api/mission-control/board/+server.ts',
-	'src/routes/api/mission-control/status/+server.ts',
-	'src/routes/api/mission-control/trace/+server.ts',
-	'src/routes/api/mission-control/results/+server.ts',
-	'src/routes/api/mission-control/command/+server.ts',
-	'src/routes/api/mission-control/discord-command/+server.ts',
-	'src/routes/api/mission/active/+server.ts',
-	'src/routes/api/harness-watchdog/probe/+server.ts',
-	'src/routes/api/memory-quality/evaluations/+server.ts',
-	'src/routes/api/teams/+server.ts',
-	'src/routes/api/analyze/+server.ts',
-	'src/routes/settings/+page.svelte',
-	'src/routes/canvas/+page.svelte',
-	'src/routes/api/access/execution-lanes/+server.ts',
-	'src/routes/api/prd-bridge/load-to-canvas/+server.ts',
-	'src/routes/api/pipeline-loader/+server.ts',
-	'src/routes/api/creator/mission/+server.ts',
-	'src/routes/api/creator/mission/execute/+server.ts',
-	'src/routes/api/creator/mission/validate/+server.ts',
-	'src/routes/api/dispatch/+server.ts',
-	'src/routes/api/h70-skills/[skillId]/+server.ts',
-	'src/routes/api/spark/run/+server.ts',
-	'src/routes/api/scheduled/+server.ts',
-	'src/routes/api/spark-agent/session/start/+server.ts',
-	'src/routes/api/spark-agent/command/+server.ts',
-	'src/routes/api/spark-agent/canvas-state/+server.ts',
-	'src/routes/api/spark-agent/events/+server.ts',
-	'src/routes/api/spark-agent/session/end/+server.ts',
-	'src/routes/api/sentinel/dispatch/+server.ts',
-	'src/routes/api/system/state-root/+server.ts',
-	'src/hooks.server.ts',
-	'src/routes/mission-control/+server.ts',
-	'src/routes/spark-live/login/+page.server.ts',
-	'src/routes/spark-live/login/+page.svelte',
-	'src/routes/missions/[id]/+page.server.ts',
-	'src/routes/missions/[id]/+page.svelte',
-	'scripts/health-spark.mjs',
-	'static/skills.json',
-	'static/skill-tiers.json',
-	'static/bundles'
-];
+const ALLOWED_RUNTIME_OVERLAY_PATHS = new Set([
+	'docs/SPARK_HARNESS_CONTRACT_ADOPTION.md',
+	'package-lock.json',
+	'package.json',
+	'vendor/harness-core/SOURCE_MANIFEST.md'
+]);
 
-function exists(p) {
+function git(root, args, { allowFailure = false } = {}) {
 	try {
-		fs.accessSync(p);
-		return true;
-	} catch {
-		return false;
+		return execFileSync('git', ['-C', root, ...args], {
+			encoding: 'utf8',
+			stdio: ['ignore', 'pipe', 'pipe']
+		}).trim();
+	} catch (error) {
+		if (allowFailure) return null;
+		const stderr = error?.stderr ? String(error.stderr).trim() : '';
+		const detail = stderr ? `: ${stderr}` : '';
+		throw new Error(`git -C ${root} ${args.join(' ')} failed${detail}`);
 	}
 }
 
-function checksum(p) {
-	if (!exists(p)) return null;
-	const stat = fs.statSync(p);
-	if (stat.isDirectory()) {
-		return fs
-			.readdirSync(p)
-			.sort()
-			.map((f) => `${f}:${checksum(path.join(p, f))}`)
-			.join('|');
+function ensureGitRepo(label, root) {
+	if (!fs.existsSync(root)) {
+		return `${label} does not exist: ${root}`;
 	}
-	const bytes = fs.readFileSync(p);
-	return `${bytes.length}:${require('crypto').createHash('md5').update(bytes).digest('hex')}`;
+	const inside = git(root, ['rev-parse', '--is-inside-work-tree'], { allowFailure: true });
+	if (inside !== 'true') {
+		return `${label} is not a git checkout: ${root}`;
+	}
+	return null;
 }
 
-function copyOne(rel) {
-	const src = path.join(SOURCE_ROOT, rel);
-	const dst = path.join(RUNTIME_ROOT, rel);
-	if (!exists(src)) {
-		console.warn(`[sync] missing source: ${rel}`);
-		return false;
-	}
-	const stat = fs.statSync(src);
-	if (stat.isDirectory()) {
-		fs.mkdirSync(dst, { recursive: true });
-		for (const f of fs.readdirSync(src)) copyOne(path.join(rel, f));
-		return true;
-	}
-	fs.mkdirSync(path.dirname(dst), { recursive: true });
-	fs.copyFileSync(src, dst);
-	return true;
+function normalizePorcelainPath(value) {
+	const renamed = value.includes(' -> ') ? value.split(' -> ').pop() : value;
+	return renamed.replace(/^"|"$/g, '').replace(/\\/g, '/');
 }
 
-function syncOnce({ silent = false } = {}) {
-	if (!exists(RUNTIME_ROOT)) {
-		console.warn(`[sync] runtime not present at ${RUNTIME_ROOT} — skipping (this looks like a bare Desktop checkout).`);
-		return { synced: 0, skipped: SYNCED_PATHS.length };
-	}
-	let synced = 0;
-	for (const rel of SYNCED_PATHS) {
-		const src = path.join(SOURCE_ROOT, rel);
-		const dst = path.join(RUNTIME_ROOT, rel);
-		if (checksum(src) === checksum(dst)) continue;
-		if (copyOne(rel)) {
-			synced++;
-			if (!silent) console.log(`[sync] -> ${rel}`);
-		}
-	}
-	if (!silent) console.log(synced > 0 ? `[sync] ${synced} path(s) updated.` : '[sync] nothing to do.');
-	return { synced, skipped: 0 };
+function runtimeStatusPaths() {
+	const output = git(RUNTIME_ROOT, ['status', '--porcelain=v1', '--untracked-files=all']);
+	if (!output) return [];
+	return output
+		.split(/\r?\n/)
+		.filter(Boolean)
+		.map((line) => normalizePorcelainPath(line.slice(2).trimStart()));
 }
 
 function checkDrift() {
-	if (!exists(RUNTIME_ROOT)) {
-		console.error(`[check] runtime not present at ${RUNTIME_ROOT}`);
-		process.exit(0);
+	const errors = [
+		ensureGitRepo('source checkout', SOURCE_ROOT),
+		ensureGitRepo('runtime mirror', RUNTIME_ROOT)
+	].filter(Boolean);
+
+	if (errors.length === 0) {
+		const sourceHead = git(SOURCE_ROOT, ['rev-parse', 'HEAD']);
+		const runtimeHead = git(RUNTIME_ROOT, ['rev-parse', 'HEAD']);
+		if (sourceHead !== runtimeHead) {
+			errors.push(`commit drift: source HEAD ${sourceHead} != runtime HEAD ${runtimeHead}`);
+		}
+
+		const dirtyPaths = runtimeStatusPaths();
+		const unexpectedDirty = dirtyPaths.filter((relPath) => !ALLOWED_RUNTIME_OVERLAY_PATHS.has(relPath));
+		const allowedDirty = dirtyPaths.filter((relPath) => ALLOWED_RUNTIME_OVERLAY_PATHS.has(relPath));
+
+		if (unexpectedDirty.length > 0) {
+			errors.push(`runtime has unexpected local edits:\n${unexpectedDirty.map((p) => `  - ${p}`).join('\n')}`);
+		}
+
+		if (allowedDirty.length > 0) {
+			console.log(`[check] allowed runtime overlay: ${allowedDirty.join(', ')}`);
+		}
 	}
-	const drift = [];
-	for (const rel of SYNCED_PATHS) {
-		const a = checksum(path.join(SOURCE_ROOT, rel));
-		const b = checksum(path.join(RUNTIME_ROOT, rel));
-		if (a !== b) drift.push(rel);
+
+	if (errors.length > 0) {
+		console.error('[check] runtime drift detected.');
+		for (const error of errors) console.error(`- ${error}`);
+		console.error('[check] update runtime with: git fetch origin && git merge --ff-only origin/main');
+		process.exit(1);
 	}
-	if (drift.length === 0) {
-		console.log('[check] runtime in sync.');
-		process.exit(0);
-	}
-	console.error('[check] DRIFT detected:');
-	for (const d of drift) console.error(`  - ${d}`);
-	console.error('Run `npm run sync:runtime` to fix.');
+
+	console.log('[check] runtime git mirror matches source checkout.');
+}
+
+function printRetiredUsage() {
+	console.error('[sync] file-copy runtime sync is retired.');
+	console.error('[sync] update runtime with git fetch origin && git merge --ff-only origin/main, then restart spawner-ui.');
+	console.error('[sync] run node scripts/sync-runtime.cjs --check to verify drift.');
 	process.exit(1);
 }
 
-function watch() {
-	console.log('[sync] watching every 2s. Ctrl-C to stop.');
-	syncOnce();
-	setInterval(() => syncOnce({ silent: true }), 2000);
-}
-
 const arg = process.argv[2];
-if (arg === '--watch') watch();
-else if (arg === '--check') checkDrift();
-else syncOnce();
+if (arg === '--check') checkDrift();
+else printRetiredUsage();

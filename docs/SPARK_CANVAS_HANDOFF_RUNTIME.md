@@ -70,7 +70,9 @@ Use these checks after changing the handoff:
 ```bash
 npm run test:run -- src\routes\api\pipeline-loader\pipeline-loader.integration.test.ts src\lib\services\pipeline-loader.test.ts src\lib\services\canvas-pipeline-load-rules.test.ts src\routes\api\prd-bridge\load-to-canvas\load-to-canvas.integration.test.ts
 npm run check
-npm run sync:runtime
+git -C C:\Users\USER\.spark\modules\spawner-ui\source fetch origin
+git -C C:\Users\USER\.spark\modules\spawner-ui\source merge --ff-only origin/main
+spark restart spawner-ui --allow-dirty-runtime
 npm run sync:check
 ```
 

@@ -85,7 +85,16 @@ npm run sync:check
 npm run health:spark
 ```
 
-Runtime route probes after sync:
+Runtime update before route probes:
+
+```text
+git -C C:\Users\USER\.spark\modules\spawner-ui\source fetch origin
+git -C C:\Users\USER\.spark\modules\spawner-ui\source merge --ff-only origin/main
+spark restart spawner-ui --allow-dirty-runtime
+npm run sync:check
+```
+
+Runtime route probes after the git update:
 
 ```text
 http://127.0.0.1:3333/kanban -> 200 without login wall
