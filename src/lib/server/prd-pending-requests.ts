@@ -13,8 +13,9 @@
  */
 
 import { existsSync } from 'fs';
-import { readFile } from 'fs/promises';
+import { readdir, readFile, stat, unlink } from 'fs/promises';
 import { join } from 'path';
+import { recordMissionControlStateTransition } from './mission-control-relay';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
 
 export function normalizePendingRequestId(requestId: string): string {
@@ -97,4 +98,61 @@ export async function readPendingPrdContent(
 	} catch {
 		return null;
 	}
+}
+
+export async function pruneStalePendingRequests(
+	spawnerDir: string,
+	olderThan: Date | string,
+	limit = 100
+): Promise<number> {
+	const cutoffMs = olderThan instanceof Date ? olderThan.getTime() : Date.parse(olderThan);
+	if (!Number.isFinite(cutoffMs)) return 0;
+	const dir = pendingRequestsDir(spawnerDir);
+	if (!existsSync(dir)) return 0;
+	const files = await readdir(dir);
+	const requestIds = new Set(
+		files
+			.filter((file) => file.endsWith('.json'))
+			.map((file) => file.replace(/\.json$/, ''))
+			.slice(0, Math.max(1, Math.min(limit, 1000)))
+	);
+	let pruned = 0;
+	for (const normalizedRequestId of requestIds) {
+		const jsonPath = join(dir, `${normalizedRequestId}.json`);
+		let jsonStat;
+		try {
+			jsonStat = await stat(jsonPath);
+		} catch {
+			continue;
+		}
+		if (jsonStat.mtimeMs >= cutoffMs) continue;
+		let requestId = normalizedRequestId;
+		try {
+			const parsed = parseJsonOrFallback<Record<string, unknown>>(
+				await readFile(jsonPath, 'utf-8'),
+				{},
+				`pending-request-prune:${normalizedRequestId}`
+			);
+			if (typeof parsed.requestId === 'string' && parsed.requestId.trim()) {
+				requestId = parsed.requestId.trim();
+			}
+		} catch {
+			/* best effort id recovery */
+		}
+		await unlink(jsonPath).catch(() => undefined);
+		await unlink(join(dir, `${normalizedRequestId}.md`)).catch(() => undefined);
+		recordMissionControlStateTransition({
+			entity_type: 'spawner.pending_request',
+			entity_id: requestId,
+			from_state: 'active',
+			to_state: 'expired',
+			reason: 'pending_request_timeout',
+			turn_id: null,
+			ts: new Date().toISOString(),
+			request_id: requestId,
+			trace_ref: null
+		});
+		pruned += 1;
+	}
+	return pruned;
 }

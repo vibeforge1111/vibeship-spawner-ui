@@ -156,6 +156,44 @@ export function getMissionControlPersistPath(): string {
 	return joinMaybeWindowsPath(spawnerDir, 'mission-control.json');
 }
 
+export interface MissionControlStateTransitionEvent {
+	entity_type: string;
+	entity_id: string;
+	from_state: string;
+	to_state: string;
+	reason: string;
+	turn_id: string | null;
+	ts: string;
+	request_id?: string | null;
+	trace_ref?: string | null;
+}
+
+export function getMissionControlTransitionLogPath(): string {
+	const spawnerDir = spawnerStateDir(env);
+	return joinMaybeWindowsPath(spawnerDir, 'mission-control-transitions.jsonl');
+}
+
+export function recordMissionControlStateTransition(entry: MissionControlStateTransitionEvent): void {
+	try {
+		const logPath = getMissionControlTransitionLogPath();
+		const dir = path.dirname(logPath);
+		if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+		fs.appendFileSync(logPath, `${JSON.stringify(entry)}\n`, 'utf-8');
+	} catch {
+		/* transition audit is best-effort */
+	}
+}
+
+export function readMissionControlStateTransitionsForTests(): MissionControlStateTransitionEvent[] {
+	const logPath = getMissionControlTransitionLogPath();
+	if (!fs.existsSync(logPath)) return [];
+	return fs
+		.readFileSync(logPath, 'utf-8')
+		.split(/\r?\n/)
+		.filter((line) => line.trim())
+		.map((line) => JSON.parse(line) as MissionControlStateTransitionEvent);
+}
+
 function getMissionControlPersistenceInfo(): MissionControlRelaySnapshot['persistence'] {
 	const persistPath = getMissionControlPersistPath();
 	try {
@@ -430,6 +468,57 @@ function shouldRecordMissionControlEvent(event: MissionControlBridgeEvent): bool
 	return true;
 }
 
+function transitionForStatusEntry(entry: MissionControlRelayStatusEntry): Omit<MissionControlStateTransitionEvent, 'turn_id' | 'ts' | 'request_id' | 'trace_ref'> | null {
+	if (entry.eventType === 'mission_created') {
+		return {
+			entity_type: 'spawner.mission',
+			entity_id: entry.missionId,
+			from_state: 'unknown',
+			to_state: 'created',
+			reason: entry.eventType
+		};
+	}
+	const missionStatus = lifecycleMissionStatusForEvent(entry.eventType);
+	if (missionStatus) {
+		const fromState =
+			entry.eventType === 'mission_created'
+				? 'unknown'
+				: entry.eventType === 'mission_started' || entry.eventType === 'mission_resumed'
+					? 'created'
+					: entry.eventType === 'mission_paused'
+						? 'running'
+						: 'running';
+		return {
+			entity_type: 'spawner.mission',
+			entity_id: entry.missionId,
+			from_state: fromState,
+			to_state: missionStatus,
+			reason: entry.eventType
+		};
+	}
+	const taskStatus = lifecycleTaskStatusForEvent(entry.eventType);
+	if (!taskStatus) return null;
+	return {
+		entity_type: 'spawner.mission_task',
+		entity_id: `${entry.missionId}:${entry.taskId || entry.taskName || 'unknown-task'}`,
+		from_state: taskStatus === 'running' ? 'queued' : 'running',
+		to_state: taskStatus,
+		reason: entry.eventType
+	};
+}
+
+function recordTransitionForStatusEntry(entry: MissionControlRelayStatusEntry): void {
+	const transition = transitionForStatusEntry(entry);
+	if (!transition) return;
+	recordMissionControlStateTransition({
+		...transition,
+		turn_id: null,
+		ts: entry.timestamp,
+		request_id: requestIdFromStatusEntry(entry),
+		trace_ref: entry.traceRef
+	});
+}
+
 function recordRelayEvent(event: MissionControlBridgeEvent): void {
 	const entry = toStatusEntry(event);
 	if (!isMissionControlMissionId(entry.missionId)) {
@@ -439,9 +528,23 @@ function recordRelayEvent(event: MissionControlBridgeEvent): void {
 	relayState.perMission.set(entry.missionId, (relayState.perMission.get(entry.missionId) || 0) + 1);
 	relayState.recent.unshift(entry);
 	if (relayState.recent.length > MAX_RECENT_EVENTS) {
+		for (const evicted of relayState.recent.slice(MAX_RECENT_EVENTS)) {
+			recordMissionControlStateTransition({
+				entity_type: 'spawner.mission_event',
+				entity_id: `${evicted.missionId}:${evicted.eventType}:${evicted.timestamp}`,
+				from_state: 'active',
+				to_state: 'evicted',
+				reason: 'mission_event_window_eviction',
+				turn_id: null,
+				ts: new Date().toISOString(),
+				request_id: requestIdFromStatusEntry(evicted),
+				trace_ref: evicted.traceRef
+			});
+		}
 		relayState.recent.length = MAX_RECENT_EVENTS;
 	}
 	persistState();
+	recordTransitionForStatusEntry(entry);
 	recordAgentLedgerEvent(entry);
 	syncCreatorMissionTraceFromLifecycleEvent(event);
 }

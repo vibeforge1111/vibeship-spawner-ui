@@ -15,6 +15,7 @@ import {
 	getMissionControlPersistPath,
 	getMissionControlBoard,
 	getMissionControlRelaySnapshot,
+	readMissionControlStateTransitionsForTests,
 	relayMissionControlEvent,
 	selectWebhookUrlsForMissionEvent,
 	shouldRelayMissionControlEvent,
@@ -165,6 +166,46 @@ describe('mission-control-relay', () => {
 			failed: 0,
 			total: 1
 		});
+	});
+
+	it('records uniform mission lifecycle transitions', async () => {
+		const missionId = `mission-transition-${Date.now()}`;
+		await relayMissionControlEvent({
+			type: 'mission_created',
+			missionId,
+			source: 'spawner-ui',
+			timestamp: freshIso(),
+			data: { requestId: 'req-transition', traceRef: 'trace-transition' }
+		});
+		await relayMissionControlEvent({
+			type: 'mission_started',
+			missionId,
+			source: 'spawner-ui',
+			timestamp: freshIso(1_000),
+			data: { requestId: 'req-transition', traceRef: 'trace-transition' }
+		});
+
+		const transitions = readMissionControlStateTransitionsForTests().filter((entry) => entry.entity_id === missionId);
+		expect(transitions).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					entity_type: 'spawner.mission',
+					from_state: 'unknown',
+					to_state: 'created',
+					reason: 'mission_created',
+					request_id: 'req-transition',
+					trace_ref: 'trace-transition'
+				}),
+				expect.objectContaining({
+					entity_type: 'spawner.mission',
+					from_state: 'created',
+					to_state: 'running',
+					reason: 'mission_started',
+					request_id: 'req-transition',
+					trace_ref: 'trace-transition'
+				})
+			])
+		);
 	});
 
 	it('preserves the queued timestamp after a mission moves into progress', async () => {
