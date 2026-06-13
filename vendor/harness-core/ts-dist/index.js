@@ -92,6 +92,29 @@ function signHarnessCoreGovernorDecision(decision, input) {
         }
     };
 }
+function harnessCoreSimulationMarker(reason) {
+    return {
+        dry_run: true,
+        execution_skipped: true,
+        reason
+    };
+}
+function simulatedHarnessCoreGovernorDecision(decision, reason) {
+    if (decision.signature) {
+        throw new Error('dry-run mode cannot retrofit a signed governor decision');
+    }
+    const marker = harnessCoreSimulationMarker(reason);
+    const simulated = JSON.parse(JSON.stringify(decision));
+    simulated.simulation = marker;
+    for (const authorization of simulated.authorizations || []) {
+        authorization.simulation = marker;
+    }
+    for (const ledger of simulated.tool_ledgers || []) {
+        ledger.simulation = marker;
+        ledger.authorization.simulation = marker;
+    }
+    return simulated;
+}
 function harnessCoreGovernorDecisionSignatureReasonCodes(input) {
     const key = (input.key || '').trim();
     const signatureRequired = Boolean(input.require_signature || key);
@@ -794,6 +817,9 @@ function createHarnessCoreAuthorizedGovernorDecision(input) {
     const expiresAt = verdict === 'allow' && ttlSeconds !== null
         ? new Date(Date.parse(now) + ttlSeconds * 1000).toISOString()
         : undefined;
+    const simulation = input.dry_run
+        ? harnessCoreSimulationMarker(input.dry_run_reason || 'Dry-run governed turn skipped execution.')
+        : undefined;
     const authorization = {
         schema_version: 'authorization-decision-v1',
         decision_id: safeHarnessCoreId('decision', `${input.envelope.turn_id}:${action.action_id}`),
@@ -830,6 +856,7 @@ function createHarnessCoreAuthorizedGovernorDecision(input) {
             ...(freshnessReasons.length === 0 && authorityReasons.length === 0 ? input.restrictions || {} : {})
         },
         ...(expiresAt ? { expires_at: expiresAt } : {}),
+        ...(simulation ? { simulation } : {}),
         trace
     };
     const ledgerId = safeHarnessCoreId('ledger', input.idempotency_key || `${input.envelope.turn_id}:${action.action_id}`);
@@ -869,6 +896,7 @@ function createHarnessCoreAuthorizedGovernorDecision(input) {
                 redaction_class: 'metadata_only'
             })
         },
+        ...(simulation ? { simulation } : {}),
         trace: input.idempotency_key
             ? createHarnessCoreTraceRef({
                 id: `record:${input.idempotency_key}`,
@@ -877,13 +905,14 @@ function createHarnessCoreAuthorizedGovernorDecision(input) {
             })
             : trace
     };
-    return createHarnessCoreGovernorDecision({
+    const governorDecision = createHarnessCoreGovernorDecision({
         envelope: input.envelope,
         authorizations: [authorization],
         tool_ledgers: [ledger],
         reply_style: input.reply_style,
         reply_instruction: input.reply_instruction
     });
+    return simulation ? { ...governorDecision, simulation } : governorDecision;
 }
 function executeStageVerdictForHarnessStatus(status) {
     if (status === 'not_started')
@@ -966,7 +995,10 @@ function finalizeHarnessCoreToolCallLedger(input) {
     };
 }
 async function withGovernedTurn(input, execute) {
-    const governorDecision = input.governor_decision || null;
+    const dryRunSummary = input.dry_run_summary || 'Dry-run governed turn skipped execution.';
+    const governorDecision = input.governor_decision && input.dry_run
+        ? simulatedHarnessCoreGovernorDecision(input.governor_decision, dryRunSummary)
+        : input.governor_decision || null;
     if (!governorDecision) {
         throw new Error('withGovernedTurn requires a governor decision');
     }
@@ -1024,6 +1056,14 @@ async function withGovernedTurn(input, execute) {
             return finalizedLedger;
         }
     };
+    if (input.dry_run) {
+        turn.finalize({
+            status: 'not_started',
+            summary: dryRunSummary,
+            output_path_or_uri: input.dry_run_output_path_or_uri || `harness-core://governed-turns/${activeLedger.ledger_id}/dry-run`
+        });
+        return undefined;
+    }
     try {
         const result = await execute(turn);
         if (!finalizedLedger) {

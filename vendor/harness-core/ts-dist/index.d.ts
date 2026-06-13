@@ -32,6 +32,11 @@ export interface HarnessCoreEvidenceRef {
     confidence: number;
     trace_refs: HarnessCoreTraceRef[];
 }
+export interface HarnessCoreSimulationMarker {
+    dry_run: true;
+    execution_skipped: true;
+    reason: string;
+}
 export interface HarnessCoreProposedAction {
     action_id: string;
     capability_id: string;
@@ -109,6 +114,7 @@ export interface AuthorizationDecisionV1 {
         publish_allowed?: boolean;
     };
     expires_at?: string;
+    simulation?: HarnessCoreSimulationMarker;
     trace: HarnessCoreTraceRef;
 }
 export interface ToolCallLedgerV1 {
@@ -138,6 +144,7 @@ export interface ToolCallLedgerV1 {
         error_ref?: HarnessCoreArtifactRef;
         rollback_ref?: HarnessCoreArtifactRef;
     };
+    simulation?: HarnessCoreSimulationMarker;
     trace: HarnessCoreTraceRef;
 }
 export type HarnessCoreGovernorOutcome = 'chat_only' | 'read_only' | 'prepare' | 'execute' | 'interrupt' | 'deny' | 'degrade';
@@ -178,6 +185,7 @@ export interface GovernorDecisionV1 {
     };
     evidence: HarnessCoreEvidenceRef[];
     signature?: GovernorDecisionSignatureV1;
+    simulation?: HarnessCoreSimulationMarker;
     trace: HarnessCoreTraceRef;
 }
 export declare function canonicalHarnessCoreJson(value: unknown): string;
@@ -640,6 +648,8 @@ export declare function createHarnessCoreAuthorizedGovernorDecision(input: {
     now?: string;
     idempotency_key?: string;
     ttl_seconds?: number | null;
+    dry_run?: boolean;
+    dry_run_reason?: string;
 }): GovernorDecisionV1;
 export declare function finalizeHarnessCoreToolCallLedger(input: {
     ledger: ToolCallLedgerV1;
@@ -686,6 +696,9 @@ export declare function withGovernedTurn<T>(input: {
     success_output_path_or_uri?: string;
     failure_output_path_or_uri?: string;
     failure_error_ref?: HarnessCoreArtifactRef;
+    dry_run?: boolean;
+    dry_run_summary?: string;
+    dry_run_output_path_or_uri?: string;
     on_finalize?: (ledger: ToolCallLedgerV1) => void;
 }, execute: (turn: HarnessCoreGovernedTurn) => T | Promise<T>): Promise<T>;
 export declare function repairHarnessCoreStrandedToolCallLedger(input: {
