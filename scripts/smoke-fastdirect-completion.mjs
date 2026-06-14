@@ -2,7 +2,8 @@
 
 import {
 	createHarnessCoreActionEnvelopeVNext,
-	createHarnessCoreAuthorizedGovernorDecision
+	createHarnessCoreAuthorizedGovernorDecision,
+	signHarnessCoreGovernorDecision
 } from '@spark/harness-core';
 import { existsSync, readFileSync } from 'node:fs';
 
@@ -106,7 +107,7 @@ function buildWriteAuthority() {
 		publishes: false,
 		confidence: 0.95
 	});
-	return createHarnessCoreAuthorizedGovernorDecision({
+	const decision = createHarnessCoreAuthorizedGovernorDecision({
 		envelope,
 		tool_name: 'spawner.prd.write',
 		restrictions: {
@@ -114,6 +115,12 @@ function buildWriteAuthority() {
 			write_allowed: true,
 			publish_allowed: false
 		}
+	});
+	const key = (process.env.SPARK_GOVERNOR_HMAC_KEY || '').trim();
+	if (!key) return decision;
+	return signHarnessCoreGovernorDecision(decision, {
+		key,
+		key_id: (process.env.SPARK_GOVERNOR_HMAC_KEY_ID || '').trim() || 'local'
 	});
 }
 
