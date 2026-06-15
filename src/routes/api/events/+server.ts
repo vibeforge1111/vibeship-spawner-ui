@@ -19,6 +19,7 @@ import { writeFileAtomic } from '$lib/server/atomic-write';
 import { extractTraceRef } from '$lib/server/trace-ref';
 import { logger } from '$lib/utils/logger';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
+import { env } from '$env/dynamic/private';
 
 import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
 import { join } from 'path';
@@ -29,9 +30,50 @@ const log = logger.scope('EventBridge');
 const TERMINAL_LIFECYCLE_EVENTS = new Set(['mission_completed', 'mission_failed', 'mission_cancelled']);
 const TERMINAL_PROVIDER_STATUSES = new Set(['completed', 'failed', 'cancelled']);
 
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
+
+function parseAllowedOrigins(): string[] {
+	const raw = (env.EVENTS_ALLOWED_ORIGINS as string | undefined)?.trim();
+	if (!raw) return [];
+	return raw.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
+}
+
+function isOriginAllowed(requestUrl: string, origin: string): boolean {
+	try {
+		const requestHost = new URL(requestUrl).hostname;
+		const originHost = new URL(origin).hostname;
+
+		// Allow loopback-to-loopback without explicit config
+		if (LOOPBACK_HOSTS.has(requestHost) && LOOPBACK_HOSTS.has(originHost)) {
+			return true;
+		}
+	} catch {
+		return false;
+	}
+
+	const allowedOrigins = parseAllowedOrigins();
+
+	// No allowlist configured -> same-origin only
+	if (allowedOrigins.length === 0) {
+		try {
+			return new URL(origin).origin === new URL(requestUrl).origin;
+		} catch {
+			return false;
+		}
+	}
+
+	// Wildcard opt-in requires explicit SPAWNER_ALLOW_WILDCARD_ORIGINS=1
+	if (allowedOrigins.includes('*')) {
+		return (env.SPAWNER_ALLOW_WILDCARD_ORIGINS as string | undefined)?.trim() === '1';
+	}
+
+	return allowedOrigins.includes(origin);
+}
+
 function corsHeaders(request: Request): Record<string, string> {
 	const origin = request.headers.get('origin');
 	if (!origin) return {};
+	if (!isOriginAllowed(request.url, origin)) return {};
 	return {
 		'Access-Control-Allow-Origin': origin,
 		'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
