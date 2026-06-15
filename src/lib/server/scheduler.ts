@@ -292,7 +292,11 @@ async function _tick(): Promise<void> {
     } catch (err: unknown) {
       rec.lastFiredAt = new Date().toISOString();
       rec.fireCount += 1;
-      rec.lastStatus = 'crash: ' + errorMessage(err);
+      // Mirror the 200-char cap used in the success branch so a long error
+      // message (e.g. a HarnessAuthorityError carrying multi-line reason
+      // codes) does not bloat schedules.json on disk and stay attached to
+      // the record across every subsequent _save() pass.
+      rec.lastStatus = 'crash: ' + errorMessage(err).slice(0, 200);
     }
     rec.nextFireAt = nextFireAt;
     dirty = true;
