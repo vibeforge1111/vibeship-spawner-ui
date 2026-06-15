@@ -7,6 +7,7 @@ import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { providerRuntime, type ProviderMissionResultSnapshot } from '$lib/server/provider-runtime';
 
 const TEST_API_KEY = 'mission-control-trace-test-secret';
+const originalEventsApiKey = process.env.EVENTS_API_KEY;
 const originalMcpApiKey = process.env.MCP_API_KEY;
 
 function restoreEnv(name: string, value: string | undefined) {
@@ -40,6 +41,7 @@ function providerResult(overrides: Partial<ProviderMissionResultSnapshot> = {}):
 
 describe('/api/mission-control/trace integration', () => {
 	beforeEach(() => {
+		process.env.EVENTS_API_KEY = TEST_API_KEY;
 		process.env.MCP_API_KEY = TEST_API_KEY;
 		vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
 	});
@@ -48,6 +50,7 @@ describe('/api/mission-control/trace integration', () => {
 		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
 		delete process.env.SPAWNER_STATE_DIR;
+		restoreEnv('EVENTS_API_KEY', originalEventsApiKey);
 		restoreEnv('MCP_API_KEY', originalMcpApiKey);
 	});
 

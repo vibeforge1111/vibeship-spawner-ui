@@ -2,7 +2,7 @@
 
 This document is the reference map for Telegram-driven Spark builds inside Spawner UI. It explains how a natural-language request becomes a PRD/task graph, how Canvas starts execution, how providers report progress, and how Telegram, Canvas, and Kanban should all read the same mission state.
 
-The guiding rule: Mission Control events are the shared operational spine. Telegram should not infer progress from chat text, Canvas should not invent mission completion locally, and Kanban should not guess task state from provider summaries. They should all consult the same traceable mission data.
+The guiding rule: Mission Control events are the shared operational spine. Telegram should not infer progress from chat text, Canvas should not invent mission completion locally, and Kanban should not guess task state from provider summaries. They should all consult the same traceable mission data. Completion evidence means terminal proof completeness, not success by itself; failure proof must remain visibly failed.
 
 Authority rule: `autoRun`, route access, loopback origin, hosted UI session, health status, pending state, recovered snapshots, and relay metadata are not execution authority. They are request/access/evidence fields. Provider dispatch requires a current `GovernorDecisionV1` with matching `AuthorizationDecisionV1`, matching `ToolCallLedgerV1`, and owner-route consumer verification.
 

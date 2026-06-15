@@ -89,6 +89,7 @@ export interface MissionControlProviderResultSummary {
 
 export interface MissionControlCompletionEvidence {
 	state: 'complete' | 'incomplete' | 'not_terminal';
+	terminalStatus?: MissionControlTerminalStatus | null;
 	summary: string;
 	missing: string[];
 	providerResultCount: number;

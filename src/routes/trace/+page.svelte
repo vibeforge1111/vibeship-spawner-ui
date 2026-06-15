@@ -168,6 +168,8 @@
 	}
 
 	function evidenceClass(evidence: MissionControlCompletionEvidence | null | undefined): string {
+		if (evidence?.state === 'complete' && evidence.terminalStatus === 'failed') return 'border-red-500/30 bg-red-500/10 text-red-300';
+		if (evidence?.state === 'complete' && evidence.terminalStatus === 'cancelled') return 'border-surface-border bg-surface text-text-secondary';
 		if (evidence?.state === 'complete') return 'border-green-500/30 bg-green-500/10 text-green-300';
 		if (evidence?.state === 'incomplete') return 'border-yellow-500/30 bg-yellow-500/10 text-yellow-300';
 		return 'border-surface-border bg-surface text-text-secondary';

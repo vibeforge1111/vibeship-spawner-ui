@@ -4,6 +4,7 @@ import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { providerRuntime, type ProviderMissionResultSnapshot } from '$lib/server/provider-runtime';
 
 const TEST_API_KEY = 'mission-control-board-test-secret';
+const originalEventsApiKey = process.env.EVENTS_API_KEY;
 const originalMcpApiKey = process.env.MCP_API_KEY;
 
 function restoreEnv(name: string, value: string | undefined) {
@@ -38,6 +39,7 @@ function boardEvent(options: { auth?: boolean } = {}) {
 }
 
 beforeEach(() => {
+	process.env.EVENTS_API_KEY = TEST_API_KEY;
 	process.env.MCP_API_KEY = TEST_API_KEY;
 });
 
@@ -45,6 +47,7 @@ afterEach(() => {
 	vi.unstubAllGlobals();
 	vi.restoreAllMocks();
 	vi.useRealTimers();
+	restoreEnv('EVENTS_API_KEY', originalEventsApiKey);
 	restoreEnv('MCP_API_KEY', originalMcpApiKey);
 });
 

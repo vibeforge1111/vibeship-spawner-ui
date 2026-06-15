@@ -47,6 +47,7 @@ flowchart TD
 - `cancelled` is distinct from `failed`; they may both block auto-run, but they should render and trace differently.
 - Terminal board statuses close open task rows so users can see completed/failed/cancelled nodes after execution.
 - Trace should prefer explicit board/dispatch state over inferred artifact state.
+- Completion evidence is terminal proof metadata, not success truth by itself. Failed and cancelled missions may have complete failure/cancellation proof; user surfaces must label that outcome instead of rendering it as completion proof.
 
 ## Fast Direct Completion
 

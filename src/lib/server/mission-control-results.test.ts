@@ -224,6 +224,8 @@ describe('mission-control-results', () => {
 			providerSummary: expect.stringContaining('Blocked before task start'),
 			completionEvidence: {
 				state: 'complete',
+				terminalStatus: 'failed',
+				summary: 'Failure evidence present.',
 				missing: [],
 				providerTerminal: true,
 				hasProviderSummary: true,
@@ -267,6 +269,7 @@ describe('mission-control-results', () => {
 			providerSummary: 'Codex: done',
 			completionEvidence: {
 				state: 'complete',
+				terminalStatus: 'completed',
 				missing: [],
 				providerResultCount: 1,
 				providerTerminal: true,
@@ -312,6 +315,7 @@ describe('mission-control-results', () => {
 			missionId: 'mission-lineage-artifact',
 			completionEvidence: {
 				state: 'complete',
+				terminalStatus: 'completed',
 				missing: [],
 				hasArtifactReference: true
 			}

@@ -569,13 +569,24 @@
 	function completionEvidenceLabel(card: BoardCard): string | null {
 		const evidence = card.completionEvidence;
 		if (!evidence || evidence.state === 'not_terminal') return null;
-		if (evidence.state === 'complete') return 'Evidence complete';
+		if (evidence.state === 'complete') {
+			if (evidence.terminalStatus === 'failed') return 'Failure proof complete';
+			if (evidence.terminalStatus === 'cancelled') return 'Cancellation proof complete';
+			return 'Completion proof complete';
+		}
 		if (evidence.missing.length === 0) return 'Evidence incomplete';
 		return `Missing ${evidence.missing.slice(0, 3).join(', ')}`;
 	}
 
 	function completionEvidenceClass(card: BoardCard): string {
-		const state = card.completionEvidence?.state;
+		const evidence = card.completionEvidence;
+		const state = evidence?.state;
+		if (state === 'complete' && evidence?.terminalStatus === 'failed') {
+			return 'border-status-danger/35 bg-status-danger/10 text-status-danger';
+		}
+		if (state === 'complete' && evidence?.terminalStatus === 'cancelled') {
+			return 'border-text-tertiary/35 bg-bg-primary text-text-tertiary';
+		}
 		if (state === 'complete') return 'border-status-success/35 bg-status-success/10 text-status-success';
 		if (state === 'incomplete') return 'border-status-amber/35 bg-status-amber/10 text-status-amber';
 		return 'border-surface-border bg-bg-primary text-text-tertiary';

@@ -259,9 +259,16 @@ function isTerminalEvent(eventType: string): boolean {
 	);
 }
 
-function terminalEvidenceSummary(missing: string[]): string {
-	if (missing.length === 0) return 'Completion evidence present.';
-	return `Completion evidence incomplete: missing ${missing.join(', ')}.`;
+function terminalEvidenceNoun(status: MissionControlBoardEntry['status']): string {
+	if (status === 'failed') return 'Failure';
+	if (status === 'cancelled') return 'Cancellation';
+	return 'Completion';
+}
+
+function terminalEvidenceSummary(status: MissionControlBoardEntry['status'], missing: string[]): string {
+	const noun = terminalEvidenceNoun(status);
+	if (missing.length === 0) return `${noun} evidence present.`;
+	return `${noun} evidence incomplete: missing ${missing.join(', ')}.`;
 }
 
 function buildCompletionEvidence(
@@ -275,6 +282,7 @@ function buildCompletionEvidence(
 	if (entry.status !== 'completed' && entry.status !== 'failed' && entry.status !== 'cancelled') {
 		return {
 			state: 'not_terminal',
+			terminalStatus: null,
 			summary: 'Mission is not terminal yet.',
 			missing: [],
 			providerResultCount: results.length,
@@ -307,7 +315,8 @@ function buildCompletionEvidence(
 
 	return {
 		state: missing.length === 0 ? 'complete' : 'incomplete',
-		summary: terminalEvidenceSummary(missing),
+		terminalStatus: entry.status,
+		summary: terminalEvidenceSummary(entry.status, missing),
 		missing,
 		providerResultCount: results.length,
 		providerTerminal,

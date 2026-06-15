@@ -4,14 +4,28 @@ export function summarizeCompletionEvidenceForDisplay(
 	evidence: MissionControlCompletionEvidence | null | undefined
 ): string | null {
 	if (!evidence || evidence.state === 'not_terminal') return null;
-	if (evidence.state === 'complete') return 'Proof complete';
-	return 'Needs completion proof';
+	const noun = evidence.terminalStatus === 'failed'
+		? 'failure'
+		: evidence.terminalStatus === 'cancelled'
+			? 'cancellation'
+			: 'completion';
+	if (evidence.state === 'complete') return `${capitalize(noun)} proof complete`;
+	return `Needs ${noun} proof`;
 }
 
 export function completionEvidenceTooltipForDisplay(
 	evidence: MissionControlCompletionEvidence | null | undefined
 ): string | null {
 	if (!evidence || evidence.state === 'not_terminal') return null;
-	if (evidence.state === 'complete') return 'Completion proof is present.';
-	return 'Completion proof is incomplete.';
+	const noun = evidence.terminalStatus === 'failed'
+		? 'failure'
+		: evidence.terminalStatus === 'cancelled'
+			? 'cancellation'
+			: 'completion';
+	if (evidence.state === 'complete') return `${capitalize(noun)} proof is present.`;
+	return `${capitalize(noun)} proof is incomplete.`;
+}
+
+function capitalize(value: string): string {
+	return value.charAt(0).toUpperCase() + value.slice(1);
 }
