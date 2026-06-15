@@ -396,6 +396,19 @@ class MissionExecutor {
 				} else {
 					log.debug('State synced to file for Claude Code resume');
 				}
+
+				// Cancel propagation guard: while the POST was in-flight the operator
+				// may have clicked Cancel (or the mission failed/completed). The
+				// debounced status check at the top of this callback ran before the
+				// network round-trip, so a now-terminal mission would have just been
+				// re-persisted as "running" — Claude Code would pick that up and
+				// resume work the operator explicitly stopped. Re-check the live
+				// status and clear the stale active-mission record if so.
+				if (response.ok && TERMINAL_EXECUTION_STATUSES.has(this.progress.status)) {
+					await fetch('/api/mission/active', { method: 'DELETE' }).catch((err) => {
+						log.warn('Failed to clear stale active-mission after terminal status:', err);
+					});
+				}
 			} catch (error) {
 				log.warn('Failed to sync state to file:', error);
 			}
