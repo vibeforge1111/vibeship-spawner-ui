@@ -270,7 +270,7 @@ export function addNodesWithConnections(
 		const sourceId = nodeIds[connDef.sourceIndex];
 		const targetId = nodeIds[connDef.targetIndex];
 		if (sourceId && targetId) {
-			const id = 'conn-' + Math.random().toString(36).slice(2, 10);
+			const id = 'conn-' + crypto.randomUUID().replace(/-/g, '').slice(0, 10);
 			const connection: Connection = {
 				id,
 				sourceNodeId: sourceId,
@@ -437,7 +437,7 @@ export function duplicateSelected(): string[] {
 	);
 	const newConnections: Connection[] = connectionsToDuplicate.map((conn) => ({
 		...conn,
-		id: 'conn-' + Math.random().toString(36).slice(2, 10),
+		id: 'conn-' + crypto.randomUUID().replace(/-/g, '').slice(0, 10),
 		sourceNodeId: idMap[conn.sourceNodeId],
 		targetNodeId: idMap[conn.targetNodeId]
 	}));
@@ -493,7 +493,7 @@ export function pasteFromClipboard(): string[] {
 	// Recreate connections
 	const newConnections: Connection[] = clipboard.connections.map((conn) => ({
 		...conn,
-		id: 'conn-' + Math.random().toString(36).slice(2, 10),
+		id: 'conn-' + crypto.randomUUID().replace(/-/g, '').slice(0, 10),
 		sourceNodeId: idMap[conn.sourceNodeId],
 		targetNodeId: idMap[conn.targetNodeId]
 	}));
@@ -523,7 +523,7 @@ export function addConnection(
 ): string {
 	pushHistory();
 
-	const id = 'conn-' + Math.random().toString(36).slice(2, 10);
+	const id = 'conn-' + crypto.randomUUID().replace(/-/g, '').slice(0, 10);
 	const connection: Connection = {
 		id,
 		sourceNodeId,
