@@ -315,10 +315,9 @@ export const POST: RequestHandler = async (event) => {
 		await writeFile(missionPath, JSON.stringify(state, null, 2));
 
 		return json({
-			success: true,
-			message: 'Mission state saved',
-			path: missionPath
-		});
+				success: true,
+				message: 'Mission state saved'
+			});
 	} catch (error) {
 		console.error('Failed to save active mission:', error);
 		return json({
