@@ -67,6 +67,7 @@ interface StoreShape {
 let _store: StoreShape | null = null;
 let _tickTimer: NodeJS.Timeout | null = null;
 let _starting = false;
+let _stopRequested = false;
 
 function _id(): string {
   return 'sched-' + randomBytes(4).toString('hex');
@@ -303,21 +304,29 @@ async function _tick(): Promise<void> {
 export function startScheduler(): void {
   if (_tickTimer || _starting) return;
   _starting = true;
+  _stopRequested = false;
   _tick()
     .catch((err) => {
       logger.error('[scheduler] initial tick failed', errorMessage(err));
     })
     .finally(() => {
-      _tickTimer = setInterval(() => {
-        _tick().catch((err) => {
-          logger.error('[scheduler] tick failed', errorMessage(err));
-        });
-      }, TICK_MS);
+      // If stopScheduler() ran while the initial tick was in flight,
+      // skip the recurring-timer install so we honour the stop.  The
+      // _starting flag is always cleared so a subsequent startScheduler
+      // can re-arm without being blocked by the entry guard.
+      if (!_stopRequested) {
+        _tickTimer = setInterval(() => {
+          _tick().catch((err) => {
+            logger.error('[scheduler] tick failed', errorMessage(err));
+          });
+        }, TICK_MS);
+      }
       _starting = false;
     });
 }
 
 export function stopScheduler(): void {
+  _stopRequested = true;
   if (_tickTimer) {
     clearInterval(_tickTimer);
     _tickTimer = null;
