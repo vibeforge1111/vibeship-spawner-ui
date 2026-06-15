@@ -7,10 +7,10 @@ import { POST as endSession } from './session/end/+server';
 import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { getConnections } from '$lib/services/mcp/client';
 import {
-	buildClientGovernorDecisionAuthority,
 	buildClientTurnIntentVNextAuthority,
 	type SparkClientMutationClass
 } from '$lib/services/harness-authority-client';
+import { buildServerGovernorDecisionAuthority } from '$lib/server/harness-authority';
 
 const TEST_API_KEY = 'spark-agent-route-test-secret';
 const originalMcpApiKey = process.env.MCP_API_KEY;
@@ -50,7 +50,7 @@ function commandAuthority(input: {
 	target?: string;
 	externalNetwork?: boolean;
 }) {
-	return buildClientGovernorDecisionAuthority({
+	return buildServerGovernorDecisionAuthority({
 		source: 'spark-agent.integration.test',
 		reason: `Focused Spark Agent authority regression for ${input.toolName}.`,
 		toolName: input.toolName,
@@ -551,7 +551,7 @@ describe('/api/spark-agent integration', () => {
 		} as never);
 
 		expect(runResponse.status).toBe(200);
-		expect(observedCommandTemplate).toBe('codex exec --model gpt-5.5 --sandbox workspace-write');
+		expect(observedCommandTemplate).toBe('codex exec --ignore-user-config --model gpt-5.5 --sandbox workspace-write');
 	});
 
 	it('blocks worker.run without native Governor authority', async () => {

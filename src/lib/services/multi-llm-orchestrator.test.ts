@@ -215,7 +215,7 @@ describe('multi-llm-orchestrator', () => {
 		});
 
 		expect(pack.providers[0].id).toBe('codex');
-		expect(pack.launchCommands.codex).toContain('codex exec --model gpt-5.5');
+		expect(pack.launchCommands.codex).toContain('codex exec --ignore-user-config --model gpt-5.5');
 	});
 
 	it('tells terminal providers not to leave long-lived QA servers running', () => {

@@ -125,7 +125,7 @@ export const DEFAULT_MULTI_LLM_PROVIDERS: MultiLLMProviderConfig[] = [
 		executesFilesystem: true,
 		apiKeyEnv: 'OPENAI_API_KEY',
 		requiresApiKey: false,
-		commandTemplate: 'codex exec --model {model}'
+		commandTemplate: 'codex exec --ignore-user-config --model {model}'
 	},
 	{
 		id: 'openai',
