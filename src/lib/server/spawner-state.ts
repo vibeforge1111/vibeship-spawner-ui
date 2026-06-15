@@ -134,7 +134,8 @@ export function spawnerStateSourceReferenceAudit(sourceRoot = process.cwd()): Sp
 					if (owner === 'runtime') runtimeReferenceFileCount += 1;
 					else nonRuntimeReferenceFileCount += 1;
 				}
-			} catch {
+                } catch (err) {
+                    console.warn('[spawner-state] file scan entry failed:', err);
 				continue;
 			}
 		}
@@ -147,7 +148,8 @@ export function spawnerStateSourceReferenceAudit(sourceRoot = process.cwd()): Sp
 	let helperText = '';
 	try {
 		helperText = readFileSync(path.join(sourceRoot, 'src', 'lib', 'server', 'spawner-state.ts'), 'utf-8');
-	} catch {
+    } catch (err) {
+        console.warn('[spawner-state] helper text read failed:', err);
 		helperText = '';
 	}
 
