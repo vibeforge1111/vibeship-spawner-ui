@@ -217,7 +217,7 @@ export function hostedUiShouldBypassLocalOperatorAuth(
 }
 
 export function hostedUiAuthClientKey(request: Request): string {
-	const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+	const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')?.[0]?.trim() || null;
 	return forwardedFor || request.headers.get('x-real-ip')?.trim() || 'unknown';
 }
 
