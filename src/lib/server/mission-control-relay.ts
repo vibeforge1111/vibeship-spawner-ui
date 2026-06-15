@@ -237,6 +237,29 @@ const relayState: {
 const missionLifecycleStates = new Map<string, string>();
 const taskLifecycleStates = new Map<string, string>();
 
+// Seed lifecycle dedup maps from the persisted recent entries so that, after a
+// server restart, replays of an already-recorded terminal lifecycle event are
+// skipped instead of re-broadcast to Spark ingest and webhooks.
+function seedLifecycleStatesFromRecent(): void {
+	// recent is newest-first (unshift); walk oldest-first so the latest status wins.
+	for (let i = relayState.recent.length - 1; i >= 0; i -= 1) {
+		const entry = relayState.recent[i];
+		const taskStatus = lifecycleTaskStatusForEvent(entry.eventType);
+		if (taskStatus) {
+			const identity = taskIdentityForStatusEntry(entry);
+			if (identity) {
+				taskLifecycleStates.set(`${entry.missionId}:${identity}`, taskStatus);
+			}
+			continue;
+		}
+		const missionStatus = lifecycleMissionStatusForEvent(entry.eventType);
+		if (missionStatus) {
+			missionLifecycleStates.set(entry.missionId, missionStatus);
+		}
+	}
+}
+seedLifecycleStatesFromRecent();
+
 function normalizeMissionId(event: MissionControlBridgeEvent): string {
 	return typeof event.missionId === 'string' && event.missionId.trim().length > 0 ? event.missionId : 'unknown-mission';
 }
