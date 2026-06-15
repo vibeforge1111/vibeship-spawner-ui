@@ -174,7 +174,7 @@ function getMissionControlPersistenceInfo(): MissionControlRelaySnapshot['persis
 	}
 }
 
-function isMissionControlMissionId(value: unknown): value is string {
+export function isMissionControlMissionId(value: unknown): value is string {
 	return typeof value === 'string' && /^(spark|mission)-[A-Za-z0-9_-]+$/.test(value.trim());
 }
 
@@ -433,6 +433,16 @@ function shouldRecordMissionControlEvent(event: MissionControlBridgeEvent): bool
 function recordRelayEvent(event: MissionControlBridgeEvent): void {
 	const entry = toStatusEntry(event);
 	if (!isMissionControlMissionId(entry.missionId)) {
+		const rawMissionId = typeof event.missionId === 'string' ? event.missionId.trim() : '';
+		if (rawMissionId.length > 0) {
+			console.warn('[MissionControlRelay] Mission event omitted from Kanban persistence', {
+				reason: 'mission_id_not_board_eligible',
+				eventType: entry.eventType,
+				missionId: rawMissionId,
+				requiredPrefix: 'spark- or mission-',
+				idPattern: '^(spark|mission)-[A-Za-z0-9_-]+$'
+			});
+		}
 		return;
 	}
 	relayState.totalRelayed += 1;
