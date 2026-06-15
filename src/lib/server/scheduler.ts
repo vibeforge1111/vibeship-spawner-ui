@@ -281,7 +281,19 @@ async function _tick(): Promise<void> {
       dirty = true;
       continue;
     }
-    if (new Date(rec.nextFireAt) > now) continue;
+    const nextFireMs = Date.parse(rec.nextFireAt);
+    if (!Number.isFinite(nextFireMs)) {
+      // Stored nextFireAt is non-empty but unparseable (state-file drift /
+      // hand edit / older format). Recompute from the cron expression
+      // instead of falling through, which would make `new Date(<invalid>)
+      // > now` evaluate false (because Invalid Date comparisons always
+      // return false) and re-fire the schedule every TICK_MS (~30s)
+      // instead of on its cron cadence.
+      rec.nextFireAt = _computeNext(rec.cron, rec.timezone);
+      dirty = true;
+      continue;
+    }
+    if (nextFireMs > now.getTime()) continue;
     const nextFireAt = _computeNext(rec.cron, rec.timezone);
     try {
       const result = await _fire(rec);
