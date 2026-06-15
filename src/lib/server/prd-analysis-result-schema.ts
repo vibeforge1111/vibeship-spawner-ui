@@ -9,9 +9,26 @@ function normalizeComplexity(value: unknown): unknown {
 	if (typeof value !== 'string') return value;
 	const normalized = value.trim().toLowerCase();
 	if (['simple', 'moderate', 'complex'].includes(normalized)) return normalized;
-	if (['low', 'small', 'easy', 'basic', 'tiny'].includes(normalized)) return 'simple';
-	if (['medium', 'normal', 'standard', 'intermediate', 'system'].includes(normalized)) return 'moderate';
-	if (['high', 'large', 'advanced', 'hard', 'difficult'].includes(normalized)) return 'complex';
+	const tokens = new Set(normalized.split(/[^a-z0-9]+/).filter(Boolean));
+	if (['low', 'small', 'easy', 'basic', 'tiny'].some((token) => tokens.has(token))) return 'simple';
+	if (['high', 'large', 'advanced', 'hard', 'difficult', 'complex'].some((token) => tokens.has(token))) return 'complex';
+	if (
+		[
+			'medium',
+			'normal',
+			'standard',
+			'intermediate',
+			'system',
+			'focused',
+			'polish',
+			'iteration',
+			'iterative',
+			'verification',
+			'verify',
+			'refinement',
+			'scoped'
+		].some((token) => tokens.has(token))
+	) return 'moderate';
 	return value;
 }
 

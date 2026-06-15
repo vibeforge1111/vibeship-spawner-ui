@@ -179,7 +179,7 @@ describe('/api/mission-control/board integration', () => {
 			status: 'completed',
 			telegramRelay: null,
 			traceRef: null,
-			providerSummary: 'Provider summary requires control auth.',
+			providerSummary: null,
 			providerResults: [],
 			projectLineage: {
 				projectPath: null,

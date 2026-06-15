@@ -98,7 +98,7 @@ function sanitizeTraceForLoopback(trace: MissionControlTrace) {
 			source: entry.source
 		})),
 		providerResults: [],
-		providerSummary: trace.providerSummary ? 'Provider summary requires control auth.' : null,
+		providerSummary: null,
 		completionEvidence: trace.completionEvidence
 			? {
 					...trace.completionEvidence,

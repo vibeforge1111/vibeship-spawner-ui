@@ -54,7 +54,7 @@ function sanitizeBoardForLoopback(board: BoardPayload): BoardPayload {
 				status: task.status,
 				skills: task.skills
 			})),
-			providerSummary: entry.providerSummary ? 'Provider summary requires control auth.' : null,
+			providerSummary: null,
 			providerResults: [],
 			completionEvidence: entry.completionEvidence
 				? {

@@ -113,6 +113,26 @@ describe('PRD analysis result storage projection', () => {
 		expect(stored.complexity).toBe('moderate');
 	});
 
+	it('normalizes compound provider process labels to moderate complexity', () => {
+		const stored = projectStoredPrdAnalysisResult('request-focused-polish', {
+			requestId: 'request-focused-polish',
+			success: true,
+			projectName: 'Focused Polish Proof',
+			complexity: 'focused-polish-with-deep-verification',
+			tasks: [
+				{
+					id: 'task-1',
+					title: 'Polish the approved one-screen flow',
+					acceptanceCriteria: ['Provider result is accepted.'],
+					verificationCommands: ['npm test']
+				}
+			],
+			skills: []
+		});
+
+		expect(stored.complexity).toBe('moderate');
+	});
+
 	it('normalizes provider tech stack arrays into stored objects', () => {
 		const stored = projectStoredPrdAnalysisResult('request-tech-stack-array', {
 			requestId: 'request-tech-stack-array',

@@ -318,6 +318,7 @@ describe('/api/mission-control/trace integration', () => {
 		});
 		expect(payload.prdTrace.entries).toEqual([]);
 		expect(payload.providerResults).toEqual([]);
+		expect(payload.providerSummary).toBeNull();
 		expect(payload.agentBlackBox.entries).toEqual([]);
 		expect(JSON.stringify(payload)).not.toContain('telegram-chat-private');
 		expect(JSON.stringify(payload)).not.toContain('telegram-user-private');
