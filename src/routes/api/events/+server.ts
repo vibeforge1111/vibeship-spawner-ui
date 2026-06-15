@@ -29,9 +29,27 @@ const log = logger.scope('EventBridge');
 const TERMINAL_LIFECYCLE_EVENTS = new Set(['mission_completed', 'mission_failed', 'mission_cancelled']);
 const TERMINAL_PROVIDER_STATUSES = new Set(['completed', 'failed', 'cancelled']);
 
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
+const DEFAULT_ALLOWED_ORIGINS = new Set([
+	'http://localhost:3333',
+	'http://127.0.0.1:3333',
+	'http://localhost:5173',
+	'http://127.0.0.1:5173'
+]);
+
+function isOriginAllowed(request: Request, origin: string): boolean {
+	try {
+		const requestHost = new URL(request.url).hostname;
+		const originHost = new URL(origin).hostname;
+		if (LOOPBACK_HOSTS.has(requestHost) && LOOPBACK_HOSTS.has(originHost)) return true;
+	} catch { return false; }
+	if (DEFAULT_ALLOWED_ORIGINS.has(origin)) return true;
+	return false;
+}
+
 function corsHeaders(request: Request): Record<string, string> {
 	const origin = request.headers.get('origin');
-	if (!origin) return {};
+	if (!origin || !isOriginAllowed(request, origin)) return {};
 	return {
 		'Access-Control-Allow-Origin': origin,
 		'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
