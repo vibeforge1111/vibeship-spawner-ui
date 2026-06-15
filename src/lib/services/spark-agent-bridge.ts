@@ -135,6 +135,8 @@ export interface SparkAgentCommandResult {
 	error?: string;
 }
 
+const CODEX_BYPASS_FLAG = '--dangerously-bypass-approvals-and-sandbox';
+
 export type SparkAgentProviderId = 'claude' | 'codex';
 export type SparkAgentProviderTaskAuthorityPolicy = {
 	toolName: string;
@@ -362,14 +364,20 @@ export function prepareProviderWorkingDirectory(workingDirectory?: string): stri
 }
 
 function resolveProviderCommandTemplate(providerId: SparkAgentProviderId, model?: string, template?: string): string {
-	const fallbackTemplate = providerId === 'claude' ? 'claude -p --model {model}' : 'codex exec --model {model}';
+	const fallbackTemplate = providerId === 'claude' ? 'claude -p --model {model}' : 'codex exec --ignore-user-config --model {model}';
 	const commandTemplate = template && template.trim() ? template : fallbackTemplate;
 	const fallbackModel = providerId === 'claude' ? 'opus' : 'gpt-5.5';
 	const resolved = commandTemplate.replace('{model}', (model && model.trim()) || fallbackModel);
-	if (providerId !== 'codex' || /\s--(?:sandbox|dangerously-bypass-approvals-and-sandbox|yolo)\b/.test(resolved)) {
+	if (providerId !== 'codex') {
 		return resolved;
 	}
-	return `${resolved} --sandbox ${resolveCodexSandbox()}`;
+	const codexResolved = /\s--ignore-user-config\b/.test(resolved)
+		? resolved
+		: resolved.replace(/^codex\s+exec\b/, 'codex exec --ignore-user-config');
+	if (/\s--(?:sandbox|dangerously-bypass-approvals-and-sandbox|yolo)\b/.test(codexResolved)) {
+		return codexResolved;
+	}
+	return `${codexResolved} --sandbox ${resolveCodexSandbox()}`;
 }
 
 export function parseProviderCommand(providerId: SparkAgentProviderId, commandTemplate: string): ProviderCommand {
@@ -394,41 +402,58 @@ export function parseProviderCommand(providerId: SparkAgentProviderId, commandTe
 	if (tokens[0] !== 'codex' || tokens[1] !== 'exec') {
 		throw new Error('Codex provider command must start with: codex exec');
 	}
-	if (tokens.length === 3 && tokens[2] === '--yolo') {
+	const commandTokens = tokens.slice(2);
+	if (commandTokens[0] === '--ignore-user-config') {
+		commandTokens.shift();
+	}
+	const baseArgs = ['exec', '--ignore-user-config', '--skip-git-repo-check'];
+	if (commandTokens.length === 1 && commandTokens[0] === '--yolo') {
 		if (!highAgencyWorkersAllowed()) {
 			throw new Error(`Codex provider high-agency mode requires ${HIGH_AGENCY_WORKERS_ENV}=1`);
 		}
 		return {
 			binary: 'codex',
 			resolvedBinary: resolveCliBinary('codex') || 'codex',
-			args: ['exec', '--skip-git-repo-check', '--yolo']
+			args: [...baseArgs, '--yolo']
 		};
 	}
-	if (tokens[2] === '--model' && tokens[3]) {
-		const args = ['exec', '--skip-git-repo-check', '--model', tokens[3]];
+	if (commandTokens[0] === '--model' && commandTokens[1]) {
+		const args = [...baseArgs, '--model', commandTokens[1]];
 		let sandboxSpecified = false;
-		for (let i = 4; i < tokens.length; i += 2) {
-			const flag = tokens[i];
-			const value = tokens[i + 1];
+		let highAgencySpecified = false;
+		for (let i = 2; i < commandTokens.length;) {
+			const flag = commandTokens[i];
+			if (flag === CODEX_BYPASS_FLAG) {
+				if (!highAgencyWorkersAllowed()) {
+					throw new Error(`Codex provider high-agency mode requires ${HIGH_AGENCY_WORKERS_ENV}=1`);
+				}
+				args.push(CODEX_BYPASS_FLAG);
+				highAgencySpecified = true;
+				i += 1;
+				continue;
+			}
+			const value = commandTokens[i + 1];
 			if (!value) {
 				throw new Error(
-					'Codex provider command must be: codex exec --model <model> [--profile <profile>] [--sandbox read-only|workspace-write|danger-full-access]'
+					'Codex provider command must be: codex exec [--ignore-user-config] --model <model> [--profile <profile>] [--sandbox read-only|workspace-write|danger-full-access] [--dangerously-bypass-approvals-and-sandbox]'
 				);
 			}
 			if (flag === '--profile' || flag === '-p') {
 				args.push(flag, value);
+				i += 2;
 				continue;
 			}
 			if (flag === '--sandbox') {
 				args.push('--sandbox', resolveCodexSandbox({ ...process.env, SPARK_CODEX_SANDBOX: value }));
 				sandboxSpecified = true;
+				i += 2;
 				continue;
 			}
 			throw new Error(
-				'Codex provider command must be: codex exec --model <model> [--profile <profile>] [--sandbox read-only|workspace-write|danger-full-access]'
+				'Codex provider command must be: codex exec [--ignore-user-config] --model <model> [--profile <profile>] [--sandbox read-only|workspace-write|danger-full-access] [--dangerously-bypass-approvals-and-sandbox]'
 			);
 		}
-		if (!sandboxSpecified) {
+		if (!sandboxSpecified && !highAgencySpecified) {
 			args.push('--sandbox', resolveCodexSandbox());
 		}
 		return {
@@ -437,11 +462,15 @@ export function parseProviderCommand(providerId: SparkAgentProviderId, commandTe
 			args
 		};
 	}
-	throw new Error('Codex provider command must be: codex exec --model <model> [--profile <profile>] [--sandbox read-only|workspace-write|danger-full-access]');
+	throw new Error('Codex provider command must be: codex exec [--ignore-user-config] --model <model> [--profile <profile>] [--sandbox read-only|workspace-write|danger-full-access] [--dangerously-bypass-approvals-and-sandbox]');
 }
 
 function commandUsesHighAgencyMode(command: ProviderCommand): boolean {
-	return command.binary === 'codex' && (command.args.includes('--yolo') || command.args.includes('danger-full-access'));
+	return command.binary === 'codex' && (
+		command.args.includes('--yolo') ||
+		command.args.includes('danger-full-access') ||
+		command.args.includes(CODEX_BYPASS_FLAG)
+	);
 }
 
 function blockedProviderResponse(response: string | undefined): string | null {
@@ -452,7 +481,9 @@ function blockedProviderResponse(response: string | undefined): string | null {
 		'blocked by environment',
 		'blocked by session permissions',
 		'blocked before implementation',
+		'filesystem is read-only',
 		'filesystem writes are blocked',
+		'approval policy is never',
 		'workspace is mounted read-only',
 		'read-only sandbox',
 		'apply_patch write was rejected',

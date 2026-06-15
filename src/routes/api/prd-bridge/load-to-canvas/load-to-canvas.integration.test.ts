@@ -3,6 +3,7 @@ import path from 'path';
 import { existsSync } from 'fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
+import { env as privateEnv } from '$env/dynamic/private';
 import { POST } from './+server';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { getMissionControlRelaySnapshot } from '$lib/server/mission-control-relay';
@@ -39,6 +40,8 @@ const TEST_API_KEY = 'prd-load-to-canvas-test-secret';
 const originalBridgeApiKey = process.env.SPARK_BRIDGE_API_KEY;
 const originalEventsApiKey = process.env.EVENTS_API_KEY;
 const originalMcpApiKey = process.env.MCP_API_KEY;
+const originalGovernorHmacKey = process.env.SPARK_GOVERNOR_HMAC_KEY;
+const originalGovernorHmacKeyId = process.env.SPARK_GOVERNOR_HMAC_KEY_ID;
 
 function dispatchAuthority(requestId: string, missionId: string) {
 	return buildClientGovernorDecisionAuthority({
@@ -70,6 +73,10 @@ async function resetTestSpawnerDir() {
 	else process.env.EVENTS_API_KEY = originalEventsApiKey;
 	if (originalMcpApiKey === undefined) delete process.env.MCP_API_KEY;
 	else process.env.MCP_API_KEY = originalMcpApiKey;
+	if (originalGovernorHmacKey === undefined) delete process.env.SPARK_GOVERNOR_HMAC_KEY;
+	else process.env.SPARK_GOVERNOR_HMAC_KEY = originalGovernorHmacKey;
+	if (originalGovernorHmacKeyId === undefined) delete process.env.SPARK_GOVERNOR_HMAC_KEY_ID;
+	else process.env.SPARK_GOVERNOR_HMAC_KEY_ID = originalGovernorHmacKeyId;
 	if (testSpawnerDir && existsSync(testSpawnerDir)) {
 		await rm(testSpawnerDir, { recursive: true, force: true });
 	}
@@ -82,6 +89,8 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-load-to-canvas-'));
 		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
 		process.env.SPARK_BRIDGE_API_KEY = TEST_API_KEY;
+		process.env.SPARK_GOVERNOR_HMAC_KEY = privateEnv.SPARK_GOVERNOR_HMAC_KEY || 'load-to-canvas-test-hmac-key';
+		process.env.SPARK_GOVERNOR_HMAC_KEY_ID = privateEnv.SPARK_GOVERNOR_HMAC_KEY_ID || 'local';
 		delete process.env.EVENTS_API_KEY;
 		delete process.env.MCP_API_KEY;
 		await mkdir(path.join(testSpawnerDir, 'results'), { recursive: true });
@@ -590,6 +599,20 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		expect(pending.autoRun).toBe(true);
 		expect(pending.executionAuthority).toBeUndefined();
 		expect(pending.metadata.executionAuthority).toBeUndefined();
+		const relaySnapshot = getMissionControlRelaySnapshot(missionId);
+		expect(
+			relaySnapshot.recent.filter((entry) => entry.requestId === requestId).map((entry) => entry.executionPolicy)
+		).not.toContain('read_only');
+		expect(relaySnapshot.recent).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					eventType: 'mission_created',
+					taskName: 'Canvas ready',
+					requestId,
+					executionPolicy: 'manual_run'
+				})
+			])
+		);
 	});
 
 	it('preserves Telegram relay target metadata for canvas auto-run dispatch', async () => {

@@ -113,27 +113,8 @@ function getSparkDefaultProviderId(): string {
 	);
 }
 
-function safeCodexCliToken(value: string | undefined, fallback: string): string {
-	const trimmed = value?.trim();
-	return trimmed && /^[A-Za-z0-9._-]+$/.test(trimmed) ? trimmed : fallback;
-}
-
-function missionCodexSandbox(envRecord: Record<string, string | undefined>): string {
-	const requested = envRecord.SPARK_MISSION_CODEX_SANDBOX?.trim() || 'workspace-write';
-	return ['read-only', 'workspace-write', 'danger-full-access'].includes(requested)
-		? requested
-		: 'workspace-write';
-}
-
-function missionCodexCommandTemplate(
-	model: string,
-	envRecord: Record<string, string | undefined>
-): string {
-	const profile = safeCodexCliToken(
-		envRecord.SPARK_MISSION_CODEX_PROFILE || envRecord.SPARK_CODEX_PROFILE,
-		'speed'
-	);
-	return `codex exec --model ${model} --profile ${profile} --sandbox ${missionCodexSandbox(envRecord)}`;
+function missionCodexCommandTemplate(model: string): string {
+	return `codex exec --ignore-user-config --model ${model} --dangerously-bypass-approvals-and-sandbox`;
 }
 
 function configuredProvider(provider: MultiLLMProviderConfig): MultiLLMProviderConfig {
@@ -156,7 +137,7 @@ function configuredProvider(provider: MultiLLMProviderConfig): MultiLLMProviderC
 		envRecord[`${upperId}_COMMAND_TEMPLATE`];
 	const commandTemplate = envCommandTemplate ||
 		(provider.id === 'codex'
-			? missionCodexCommandTemplate(model, envRecord)
+			? missionCodexCommandTemplate(model)
 			: provider.commandTemplate);
 	return {
 		...provider,

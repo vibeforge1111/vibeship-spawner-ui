@@ -32,6 +32,8 @@ export interface ParseCodexCliCommandOptions {
 	allowHighAgency?: boolean;
 }
 
+const CODEX_BYPASS_FLAG = '--dangerously-bypass-approvals-and-sandbox';
+
 function isSafeCommandToken(value: string): boolean {
 	return /^[A-Za-z0-9._:/@+=-]+$/.test(value);
 }
@@ -47,17 +49,29 @@ export function parseCodexCliCommand(
 	if (tokens[0] !== 'codex' || tokens[1] !== 'exec') {
 		throw new Error('Codex command template must start with: codex exec');
 	}
-	if (tokens.length === 3 && tokens[2] === '--yolo') {
+	const commandTokens = tokens.slice(2);
+	if (commandTokens[0] === '--ignore-user-config') {
+		commandTokens.shift();
+	}
+	const baseArgs = ['exec', '--ignore-user-config', '--skip-git-repo-check'];
+	if (commandTokens.length === 1 && commandTokens[0] === '--yolo') {
 		const allowHighAgency = options.allowHighAgency ?? highAgencyWorkersAllowed();
 		if (!allowHighAgency) {
 			throw new Error(`codex exec high-agency mode requires ${HIGH_AGENCY_WORKERS_ENV}=1`);
 		}
-		return { binary: 'codex', args: ['exec', '--skip-git-repo-check', '--yolo'] };
+		return { binary: 'codex', args: [...baseArgs, '--yolo'] };
 	}
-	if (tokens.length === 4 && tokens[2] === '--model') {
-		return { binary: 'codex', args: ['exec', '--skip-git-repo-check', '--model', tokens[3]] };
+	if (commandTokens.length === 3 && commandTokens[0] === '--model' && commandTokens[2] === CODEX_BYPASS_FLAG) {
+		const allowHighAgency = options.allowHighAgency ?? highAgencyWorkersAllowed();
+		if (!allowHighAgency) {
+			throw new Error(`codex exec high-agency mode requires ${HIGH_AGENCY_WORKERS_ENV}=1`);
+		}
+		return { binary: 'codex', args: [...baseArgs, '--model', commandTokens[1], CODEX_BYPASS_FLAG] };
 	}
-	throw new Error('Codex command template must be: codex exec --model <model>');
+	if (commandTokens.length === 2 && commandTokens[0] === '--model') {
+		return { binary: 'codex', args: [...baseArgs, '--model', commandTokens[1]] };
+	}
+	throw new Error('Codex command template must be: codex exec [--ignore-user-config] --model <model>');
 }
 
 export async function isCliBinaryAvailable(binaryName: 'codex'): Promise<boolean> {
@@ -79,7 +93,7 @@ export async function executeCodexCliRequest(
 	);
 
 	// Detect the binary name from the command template
-	const commandTemplate = provider.commandTemplate || 'codex exec --model {model}';
+	const commandTemplate = provider.commandTemplate || 'codex exec --ignore-user-config --model {model}';
 	const model = provider.model || 'gpt-5.5';
 	let command: CodexCliCommand;
 	try {

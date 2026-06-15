@@ -1710,9 +1710,7 @@ export function _resolvePrdCodexCommandTemplate(
 ): string {
 	const explicit = env.SPAWNER_PRD_CODEX_COMMAND_TEMPLATE?.trim();
 	if (explicit) return explicit.includes('{model}') ? explicit.replace('{model}', model) : explicit;
-	const profile = (env.SPAWNER_PRD_CODEX_PROFILE || 'speed').trim();
-	const profileArg = profile ? ` --profile ${profile}` : '';
-	return `codex exec --model ${model}${profileArg} --sandbox workspace-write`;
+	return `codex exec --ignore-user-config --model ${model} --dangerously-bypass-approvals-and-sandbox`;
 }
 
 async function startAutoAnalysis(

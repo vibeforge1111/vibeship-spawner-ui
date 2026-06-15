@@ -283,7 +283,7 @@ describe('provider-runtime Spark agent bridge', () => {
 		});
 
 		await waitFor(() => providerRuntime.getMissionStatus('mission-step2-sandbox').allComplete);
-		expect(observedCommandTemplate).toBe('codex exec --model gpt-5.5 --sandbox workspace-write');
+		expect(observedCommandTemplate).toBe('codex exec --ignore-user-config --model gpt-5.5 --sandbox workspace-write');
 	});
 
 	it('emits assigned task activity immediately for server-side auto-dispatch', async () => {
@@ -424,7 +424,7 @@ describe('provider-runtime Spark agent bridge', () => {
 	it('reclassifies successful worker responses that report blocked execution', async () => {
 		sparkAgentBridge.setWorkerExecutorForTests(async () => ({
 			success: true,
-			response: 'Blocked by session permissions. No files were created because the workspace is mounted read-only.'
+			response: 'BLOCKED: filesystem is read-only and approval policy is never, so index.html cannot be created.'
 		}));
 
 		const emitted: BridgeEvent[] = [];
@@ -445,7 +445,7 @@ describe('provider-runtime Spark agent bridge', () => {
 		expect(status.anyFailed).toBe(true);
 		expect(status.providers.codex).toBe('failed');
 		const failures = emitted.filter((event) => event.type === 'task_failed');
-		expect(failures.some((event) => event.message?.includes('Blocked by session permissions'))).toBe(true);
+		expect(failures.some((event) => event.message?.includes('filesystem is read-only'))).toBe(true);
 	});
 
 	it('cancels an active worker session and emits task_cancelled', async () => {

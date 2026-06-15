@@ -350,7 +350,8 @@ describe('/api/prd-bridge/write integration', () => {
 		expect(response.status).toBe(200);
 		expect(body.autoAnalysis).toMatchObject({ provider: 'codex', started: true });
 		expect(executeProviderTaskMock).toHaveBeenCalledOnce();
-		const providerCall = executeProviderTaskMock.mock.calls[0]?.[0] as { prompt?: string; workingDirectory?: string };
+		const providerCall = executeProviderTaskMock.mock.calls[0]?.[0] as { commandTemplate?: string; prompt?: string; workingDirectory?: string };
+		expect(providerCall.commandTemplate).toBe('codex exec --ignore-user-config --model gpt-5.5 --dangerously-bypass-approvals-and-sandbox');
 		expect(providerCall.prompt).toContain('$SparkEventsApiKey = $env:EVENTS_API_KEY');
 		expect(providerCall.prompt).toContain('$env:MCP_API_KEY');
 		expect(providerCall.prompt).toContain('$SparkEventsHeaders["x-api-key"] = $SparkEventsApiKey');

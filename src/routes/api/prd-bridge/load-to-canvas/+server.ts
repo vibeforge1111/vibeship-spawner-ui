@@ -508,6 +508,7 @@ export const POST: RequestHandler = async (event) => {
 			canvasReadyForHandoff,
 			canvasMaterialization
 		});
+		const missionControlExecutionPolicy = effectiveAutoRun ? 'manual_run' : 'read_only';
 		if (pendingRequestMeta) {
 			const updatedPendingRequest = JSON.stringify(
 				{
@@ -557,7 +558,7 @@ export const POST: RequestHandler = async (event) => {
 				requestId,
 				...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
 				pipelineId: load.pipelineId,
-				executionPolicy: 'read_only',
+				executionPolicy: missionControlExecutionPolicy,
 				buildMode,
 				buildModeReason
 			}
@@ -573,7 +574,7 @@ export const POST: RequestHandler = async (event) => {
 				requestId,
 				...(resolvedTraceRef ? { traceRef: resolvedTraceRef } : {}),
 				pipelineId: load.pipelineId,
-				executionPolicy: 'read_only',
+				executionPolicy: missionControlExecutionPolicy,
 				buildMode,
 				buildModeReason,
 				...(capabilitySummary ? { capabilityProposal: capabilitySummary } : {}),
