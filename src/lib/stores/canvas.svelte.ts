@@ -1287,8 +1287,23 @@ export function enableAutoSave(debounceMs = 1000): () => void {
 		}, debounceMs);
 	});
 
+	// Mirror canvas writes from sibling tabs so a second tab's view stays
+	// current with the first. Skip while local edits are still pending so
+	// we never reach into an in-progress drag/typing tab. Refresh otherwise.
+	const onStorage = (event: StorageEvent) => {
+		if (event.key !== STORAGE_KEY || event.newValue === null) return;
+		if (autoSaveTimeout) return;
+		loadCanvas();
+	};
+	if (browser) {
+		window.addEventListener('storage', onStorage);
+	}
+
 	return () => {
 		unsubscribe();
+		if (browser) {
+			window.removeEventListener('storage', onStorage);
+		}
 		if (autoSaveTimeout) {
 			clearTimeout(autoSaveTimeout);
 		}
