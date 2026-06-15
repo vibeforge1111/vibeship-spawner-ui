@@ -1632,7 +1632,7 @@ export async function saveCreatorMissionTrace(trace: CreatorMissionTrace, stateD
 	const dir = creatorMissionDir(stateDir);
 	await mkdir(dir, { recursive: true });
 	const filePath = creatorMissionPath(trace.mission_id, stateDir);
-	const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+	const tempPath = `${filePath}.${crypto.randomUUID()}.tmp`;
 	await writeFile(tempPath, JSON.stringify(trace, null, 2), 'utf-8');
 	await rename(tempPath, filePath);
 }
