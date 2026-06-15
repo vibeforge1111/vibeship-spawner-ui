@@ -31,9 +31,15 @@ import { resolveCliBinary } from './cli-resolver';
 // Aggressive timeout: enrichment is a nice-to-have. If claude can't
 // respond fast, use deterministic assumptions/questions so the user's
 // request doesn't stall the bot. Override via BRIEF_ENRICH_TIMEOUT_MS.
-const ENRICH_TIMEOUT_MS = Number(process.env.BRIEF_ENRICH_TIMEOUT_MS || 12_000);
-const ENRICH_MIN_LENGTH = Number(process.env.BRIEF_ENRICH_MIN_LENGTH || 600);
-const ENRICH_MIN_KEYWORDS = Number(process.env.BRIEF_ENRICH_MIN_KEYWORDS || 8);
+function readPositiveIntEnv(raw: string | undefined, fallback: number): number {
+	const trimmed = (raw ?? '').trim();
+	if (!/^\d+$/.test(trimmed)) return fallback;
+	const n = Number.parseInt(trimmed, 10);
+	return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+const ENRICH_TIMEOUT_MS = readPositiveIntEnv(process.env.BRIEF_ENRICH_TIMEOUT_MS, 12_000);
+const ENRICH_MIN_LENGTH = readPositiveIntEnv(process.env.BRIEF_ENRICH_MIN_LENGTH, 600);
+const ENRICH_MIN_KEYWORDS = readPositiveIntEnv(process.env.BRIEF_ENRICH_MIN_KEYWORDS, 8);
 const ENRICH_PROVIDER = (process.env.SPAWNER_BRIEF_ENRICH_PROVIDER || 'deterministic').trim().toLowerCase();
 
 export interface EnrichmentResult {
