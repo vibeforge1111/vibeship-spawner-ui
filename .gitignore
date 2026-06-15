@@ -1,33 +1,10 @@
-node_modules
-
-# Output
-.output
-.vercel
-.netlify
-.wrangler
-/.svelte-kit
-/build
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Env
+node_modules/
 .env
-.env.*
-!.env.example
-!.env.test
-
-# Vite
-vite.config.js.timestamp-*
-vite.config.ts.timestamp-*
-
-# Windows reserved-device artifact occasionally produced by terminal tooling
-nul
-
-# Local orchestrator/runtime payloads
-.spawner/
-svelte-check-output.txt
-.gstack/
-# Office lockfiles (Word/Excel/PowerPoint create these when files are open)
-~$*
+.env.local
+.env.*.local
+.DS_Store
+*.log
+build/
+.svelte-kit/
+dist/
+.vite/
