@@ -98,6 +98,56 @@ describe('PRD bridge fallback analysis', () => {
 		expect(tasks.flatMap((task) => task.verificationCommands).join('\n')).toContain('node --check');
 	});
 
+	it('does not let stale exact-file context turn shipped project iterations into static proofs', async () => {
+		const pendingPrdFile = path.join(testSpawnerDir, 'pending-prd.md');
+		await writeFile(
+			pendingPrdFile,
+			[
+				'# Shipped JS Sprint Picker polish 2',
+				'Build mode: advanced_prd',
+				'Target workspace/project path: `C:/Users/USER/.spark/workspaces/mission-1781516167809-shipped-js-sprint-picker`',
+				'Improve the existing shipped project "Shipped JS Sprint Picker" at C:/Users/USER/.spark/workspaces/mission-1781516167809-shipped-js-sprint-picker.',
+				'This is an iteration on an already shipped app, not a new scaffold.',
+				'User feedback:',
+				"Please apply that button rename to the shipped JS Sprint Picker now. Update the existing project only; do not create a new app.",
+				'Rules:',
+				'- Read the existing project files before editing.',
+				'- Update only the files needed for this iteration.',
+				'- Verify the previous smoke path still works and add one focused check for the new improvement.',
+				'Project context:',
+				'- Parent mission: mission-1781516167809',
+				'Recent Telegram turns:',
+				'- Spark: The exact files to change are `src/main.js`, `tests/sprint-picker.spec.js`, `tests/sprint-picker.unit.test.js`, and `README.md`.',
+				'- Spark: You must create exactly 2 local proof files and no others: index.html and README.md.'
+			].join('\n'),
+			'utf-8'
+		);
+
+		const result = await _buildFallbackAnalysisResult(
+			'tg-build-shipped-polish',
+			'Shipped JS Sprint Picker polish 2',
+			'advanced_prd',
+			'pro',
+			{
+				spawnerDir: testSpawnerDir,
+				resultsDir: path.join(testSpawnerDir, 'results'),
+				provisionalResultsDir: path.join(testSpawnerDir, 'provisional-results'),
+				pendingPrdFile,
+				pendingRequestFile: path.join(testSpawnerDir, 'pending-request.json'),
+				prdAutoTraceFile: path.join(testSpawnerDir, 'prd-auto-trace.jsonl')
+			},
+			'advanced_prd'
+		);
+
+		expect(result.success).toBe(true);
+		expect(result.projectType).not.toBe('static-exact-file-proof');
+		expect(result.projectType).not.toBe('static-single-file-html');
+		const serialized = JSON.stringify(result);
+		expect(serialized).toContain('button rename');
+		expect(serialized).toContain('mission-1781516167809-shipped-js-sprint-picker');
+		expect(serialized).not.toContain('Create Exact Static Files');
+	});
+
 	it('does not use deterministic fallback for fast direct app builds', () => {
 		expect(
 			_shouldUseDeterministicPrdFallback({

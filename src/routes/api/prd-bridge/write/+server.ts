@@ -426,6 +426,7 @@ function extractRequestedFiles(content: string): string[] {
 
 function isConstrainedSingleFileStaticHtml(content: string): boolean {
 	const lower = content.toLowerCase();
+	if (isProjectIterationPrd(lower)) return false;
 	const namesIndex = /\bindex\.html\b/.test(lower);
 	const namesReadme = /\breadme\.md\b/.test(lower);
 	const oneFileOnly = /\b(?:one|single)[-\s]?file\s+only\b|\bonly\s+(?:one|a\s+single)\s+file\b/.test(lower);
@@ -523,8 +524,16 @@ function hasExactTwoFileProofIntent(lower: string): boolean {
 function hasExtraFileDenial(lower: string): boolean {
 	return (
 		/\bno\s+others\b|\bno\s+other\s+files?\b|\bno\s+extra\s+files?\b/.test(lower) ||
-		/\bdo\s+not\s+create\b[\s\S]{0,160}\b(?:app\.js|styles\.css|package\.json|assets|folders?|extra\s+files?)\b/.test(lower) ||
-		/\bdo\s+not\s+(?:publish|deploy|install\s+packages|make\s+network\s+calls)\b/.test(lower)
+		/\bdo\s+not\s+create\b[\s\S]{0,160}\b(?:app\.js|styles\.css|package\.json|assets|folders?|extra\s+files?)\b/.test(lower)
+	);
+}
+
+function isProjectIterationPrd(lower: string): boolean {
+	return (
+		/\bthis\s+is\s+an\s+iteration\s+on\s+an\s+already\s+shipped\s+app\b/.test(lower) ||
+		/\bimprove\s+the\s+existing\s+shipped\s+project\b/.test(lower) ||
+		/\btarget\s+workspace\/project\s+path\b/.test(lower) ||
+		/\bparent\s+mission:\s*mission-/i.test(lower)
 	);
 }
 
