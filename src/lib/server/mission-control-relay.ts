@@ -723,6 +723,14 @@ function shouldRecordLifecycleTransition(event: MissionControlBridgeEvent): bool
 			return false;
 		}
 		taskLifecycleStates.set(key, taskStatus);
+		// Prune completed task entries to prevent unbounded growth
+		if (taskLifecycleStates.size > 2000) {
+			for (const [k, status] of taskLifecycleStates.entries()) {
+				if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+					taskLifecycleStates.delete(k);
+				}
+			}
+		}
 		return true;
 	}
 
@@ -732,6 +740,14 @@ function shouldRecordLifecycleTransition(event: MissionControlBridgeEvent): bool
 		return false;
 	}
 	missionLifecycleStates.set(missionId, missionStatus);
+	// Prune terminal missions to prevent unbounded growth
+	if (missionLifecycleStates.size > 500) {
+		for (const [id, status] of missionLifecycleStates.entries()) {
+			if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+				missionLifecycleStates.delete(id);
+			}
+		}
+	}
 	return true;
 }
 
