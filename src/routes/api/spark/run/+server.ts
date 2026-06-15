@@ -22,6 +22,7 @@ import {
 import {
 	HarnessAuthorityError,
 	assertNativeGovernorHarnessAuthority,
+	buildServerGovernorDecisionAuthority,
 	resolveExecutionAuthority
 } from '$lib/server/harness-authority';
 import { normalizeTraceRef } from '$lib/server/trace-ref';
@@ -283,6 +284,17 @@ export const POST: RequestHandler = async (event) => {
 		const missionMetadata = mission.outputs.spark as Record<string, unknown>;
 		const traceRef = typeof missionMetadata.traceRef === 'string' ? missionMetadata.traceRef : null;
 		const authorityVerdict = buildSparkRunAuthorityVerdict(traceRef);
+		const dispatchAuthority = buildServerGovernorDecisionAuthority({
+			source: 'spawner.spark.run',
+			reason: 'Dispatch provider runtime after /api/spark/run route authority passed.',
+			toolName: 'spawner.dispatch',
+			mutationClass: 'launches_mission',
+			turnId: body.requestId?.trim() || mission.id,
+			requestId: body.requestId?.trim() || mission.id,
+			actorKind: 'agent',
+			actorIdRef: body.userId?.trim() || body.chatId?.trim() || 'spark-run',
+			target: mission.id
+		});
 		const emitMissionEvent = (type: string, message: string, data?: Record<string, unknown>) => {
 			const bridgeEvent = {
 				type,
@@ -352,7 +364,8 @@ export const POST: RequestHandler = async (event) => {
 			executionPack,
 			apiKeys,
 			workingDirectory: body.promptMode === 'simple' ? undefined : mission.context.projectPath,
-			executionAuthority,
+			executionAuthority: dispatchAuthority,
+			authorityRequestId: body.requestId?.trim() || mission.id,
 			onEvent: (bridgeEvent) => {
 				const providerId = typeof bridgeEvent.source === 'string' ? bridgeEvent.source : null;
 				const relayEvent = {

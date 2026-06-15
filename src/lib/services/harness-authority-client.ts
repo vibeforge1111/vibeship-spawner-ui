@@ -2,6 +2,7 @@ import { browser } from '$app/environment';
 import {
 	createHarnessCoreActionEnvelopeVNext,
 	createHarnessCoreAuthorizedGovernorDecision,
+	signHarnessCoreGovernorDecision,
 	type GovernorDecisionV1,
 	type HarnessCoreActionMutationClass,
 	type TurnIntentEnvelopeVNext
@@ -57,7 +58,7 @@ export function buildClientGovernorDecisionAuthority(input: {
 		throw new Error('Browser clients must not mint GovernorDecisionV1 authority. Send the fresh UI action to a server Harness consumer.');
 	}
 	const envelope = buildClientTurnIntentVNextAuthority(input);
-	return createHarnessCoreAuthorizedGovernorDecision({
+	const decision = createHarnessCoreAuthorizedGovernorDecision({
 		envelope,
 		tool_name: input.toolName,
 		restrictions: {
@@ -65,5 +66,11 @@ export function buildClientGovernorDecisionAuthority(input: {
 			write_allowed: ['writes_files', 'creates_schedule', 'deletes_schedule', 'creates_chip', 'launches_mission'].includes(input.mutationClass),
 			publish_allowed: input.publishes === true || input.mutationClass === 'publishes'
 		}
+	});
+	const key = process.env.SPARK_GOVERNOR_HMAC_KEY?.trim();
+	if (!key) return decision;
+	return signHarnessCoreGovernorDecision(decision, {
+		key,
+		key_id: process.env.SPARK_GOVERNOR_HMAC_KEY_ID?.trim() || 'local'
 	});
 }
