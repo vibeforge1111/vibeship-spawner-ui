@@ -237,6 +237,19 @@ const relayState: {
 const missionLifecycleStates = new Map<string, string>();
 const taskLifecycleStates = new Map<string, string>();
 
+const MAX_LIFECYCLE_STATE_ENTRIES = 500;
+
+function pruneMapIfNeeded<K, V>(map: Map<K, V>, maxSize: number): void {
+	if (map.size <= maxSize) return;
+	const pruneCount = map.size - maxSize;
+	let pruned = 0;
+	for (const key of map.keys()) {
+		if (pruned >= pruneCount) break;
+		map.delete(key);
+		pruned++;
+	}
+}
+
 function normalizeMissionId(event: MissionControlBridgeEvent): string {
 	return typeof event.missionId === 'string' && event.missionId.trim().length > 0 ? event.missionId : 'unknown-mission';
 }
@@ -723,6 +736,7 @@ function shouldRecordLifecycleTransition(event: MissionControlBridgeEvent): bool
 			return false;
 		}
 		taskLifecycleStates.set(key, taskStatus);
+		pruneMapIfNeeded(taskLifecycleStates, MAX_LIFECYCLE_STATE_ENTRIES);
 		return true;
 	}
 
@@ -732,6 +746,7 @@ function shouldRecordLifecycleTransition(event: MissionControlBridgeEvent): bool
 		return false;
 	}
 	missionLifecycleStates.set(missionId, missionStatus);
+	pruneMapIfNeeded(missionLifecycleStates, MAX_LIFECYCLE_STATE_ENTRIES);
 	return true;
 }
 
