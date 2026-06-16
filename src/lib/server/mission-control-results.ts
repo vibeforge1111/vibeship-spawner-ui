@@ -248,6 +248,35 @@ function taskStatusCounts(entry: MissionControlBoardEntry): MissionControlBoardE
 	return counts;
 }
 
+function closeOpenTasksForProviderStatus(
+	entry: MissionControlBoardEntry,
+	status: MissionControlBoardEntry['status']
+): MissionControlBoardEntry['tasks'] {
+	const terminalTaskStatus =
+		status === 'completed' ? 'completed' : status === 'cancelled' ? 'cancelled' : 'failed';
+	return entry.tasks.map((task) => ({
+		...task,
+		status:
+			!task.status || task.status === 'queued' || task.status === 'running'
+				? terminalTaskStatus
+				: task.status
+	}));
+}
+
+function terminalProviderStatusSummary(
+	status: MissionControlBoardEntry['status'],
+	results: ProviderMissionResultSnapshot[],
+	fallback: string
+): string {
+	if (status !== 'failed' && status !== 'cancelled') return fallback;
+	const preferred =
+		results.find((result) => result.status === status) ||
+		results.find((result) => TERMINAL_PROVIDER_STATUSES.includes(result.status));
+	const detail = compactMissionControlDisplayText(preferred?.error || preferred?.response || '');
+	if (!detail) return fallback;
+	return status === 'cancelled' ? `Provider cancelled: ${detail}` : `Provider failed: ${detail}`;
+}
+
 function isTerminalEvent(eventType: string): boolean {
 	return (
 		eventType === 'mission_completed' ||
@@ -376,14 +405,18 @@ function reconcileEntryWithProviderResults(
 	const providerStatus = statusFromProviderResults(results);
 	if (!providerStatus) return entry;
 	if (entry.status === 'paused' && providerStatus !== 'running') return entry;
-	if (entry.status === 'completed' && providerStatus === 'running') {
-		const tasks = entry.tasks.map((task) => ({
-			...task,
-			status:
-				task.status === 'failed' || task.status === 'cancelled'
-					? task.status
-					: ('running' as const)
-		}));
+	if (providerStatus === 'running') {
+		if (entry.status === 'running') return entry;
+		const tasks =
+			entry.status === 'completed'
+				? entry.tasks.map((task) => ({
+						...task,
+						status:
+							task.status === 'failed' || task.status === 'cancelled'
+								? task.status
+								: ('running' as const)
+					}))
+				: entry.tasks;
 		const reconciled = {
 			...entry,
 			status: providerStatus,
@@ -408,7 +441,11 @@ function reconcileEntryWithProviderResults(
 			...entry,
 			status: providerStatus,
 			lastEventType: 'provider_failed',
-			lastSummary: 'Provider completion was reclassified as failed.',
+			lastSummary: terminalProviderStatusSummary(
+				providerStatus,
+				results,
+				'Provider completion was reclassified as failed.'
+			),
 			tasks
 		};
 		return {
@@ -416,23 +453,32 @@ function reconcileEntryWithProviderResults(
 			taskStatusCounts: taskStatusCounts(reconciled)
 		};
 	}
-	if (entry.status === 'completed' || entry.status === 'failed' || entry.status === 'cancelled' || entry.status === providerStatus) return entry;
+	if (entry.status === 'completed' || entry.status === 'failed' || entry.status === 'cancelled' || entry.status === providerStatus) {
+		const hasOpenTasks = entry.taskStatusCounts.running > 0 || entry.taskStatusCounts.queued > 0;
+		if (entry.status === providerStatus && !hasOpenTasks && providerStatus === 'completed') return entry;
+		const tasks = closeOpenTasksForProviderStatus(entry, providerStatus);
+		const reconciled = {
+			...entry,
+			status: providerStatus,
+			lastEventType: entry.status === providerStatus ? entry.lastEventType : `provider_${providerStatus}`,
+			lastSummary: terminalProviderStatusSummary(providerStatus, results, entry.lastSummary),
+			taskName: null,
+			tasks
+		};
+		return {
+			...reconciled,
+			taskStatusCounts: taskStatusCounts(reconciled)
+		};
+	}
 
-	const tasks =
-		providerStatus === 'completed'
-			? entry.tasks.map((task) => ({
-					...task,
-					status:
-						task.status === 'failed' || task.status === 'cancelled'
-							? task.status
-							: ('completed' as const)
-				}))
-			: entry.tasks;
+	const tasks = closeOpenTasksForProviderStatus(entry, providerStatus);
 
 	const reconciled = {
 		...entry,
 		status: providerStatus,
 		lastEventType: `provider_${providerStatus}`,
+		lastSummary: terminalProviderStatusSummary(providerStatus, results, entry.lastSummary),
+		taskName: null,
 		tasks
 	};
 	return {

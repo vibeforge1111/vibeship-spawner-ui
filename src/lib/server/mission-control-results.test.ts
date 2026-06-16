@@ -234,6 +234,64 @@ describe('mission-control-results', () => {
 		});
 	});
 
+	it('closes open task states when terminal provider failure is the failure evidence', () => {
+		const enriched = enrichMissionControlBoardWithProviderResults(
+			{
+				failed: [
+					entry('mission-stale-provider-session', {
+						status: 'failed',
+						lastEventType: 'provider_failed',
+						lastSummary: 'OpenAI Codex is still working through 7 task pack.',
+						tasks: [
+							{ title: 'Reattach to the existing artifact', skills: [], status: 'completed' },
+							{ title: 'Collapse into one visible screen', skills: [], status: 'running' },
+							{ title: 'Replace phase cycling', skills: [], status: 'queued' }
+						],
+						taskStatusCounts: {
+							queued: 1,
+							running: 1,
+							completed: 1,
+							failed: 0,
+							cancelled: 0,
+							total: 3
+						}
+					})
+				],
+				completed: [],
+				running: []
+			},
+			() => [
+				result({
+					status: 'failed',
+					error:
+						'Provider runtime has no active session after Spawner restart; marked stale so the mission can be run again.'
+				})
+			]
+		);
+
+		expect(enriched.failed[0]).toMatchObject({
+			missionId: 'mission-stale-provider-session',
+			status: 'failed',
+			lastEventType: 'provider_failed',
+			lastSummary:
+				'Provider failed: Provider runtime has no active session after Spawner restart; marked stale so the mission can be run again.',
+			taskStatusCounts: {
+				queued: 0,
+				running: 0,
+				completed: 1,
+				failed: 2,
+				cancelled: 0,
+				total: 3
+			},
+			completionEvidence: {
+				state: 'complete',
+				terminalStatus: 'failed',
+				missing: [],
+				tasksTerminal: true
+			}
+		});
+	});
+
 	it('moves non-terminal board cards to completed when provider results are completed', () => {
 		const enriched = enrichMissionControlBoardWithProviderResults(
 			{
