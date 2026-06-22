@@ -621,8 +621,8 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 				buildMode: 'advanced_prd',
 				buildModeReason: 'Multi-agent Telegram relay test.',
 				relay: {
-					chatId: '8319079055',
-					userId: '8319079055',
+					chatId: '1000000001',
+					userId: '1000000001',
 					requestId,
 					traceRef,
 					goal: 'Build through the primary Telegram relay.',
@@ -650,8 +650,8 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		expect(pending.traceRef).toBe(traceRef);
 		expect(pending.relay).toMatchObject({
 			missionId: 'mission-tg-relay-target-test',
-			chatId: '8319079055',
-			userId: '8319079055',
+			chatId: '1000000001',
+			userId: '1000000001',
 			requestId,
 			traceRef,
 			autoRun: true,
@@ -805,8 +805,8 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 				body: JSON.stringify({
 					requestId,
 					autoRun: true,
-					chatId: '8319079055',
-					userId: '8319079055',
+					chatId: '1000000001',
+					userId: '1000000001',
 					goal: 'Build through body relay metadata.',
 					telegramRelay: { port: 8789, profile: 'spark-agi' },
 					executionAuthority: dispatchAuthority(requestId, 'mission-1777211869020')
@@ -819,8 +819,8 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		const pending = JSON.parse(pendingRaw);
 		expect(pending.relay).toMatchObject({
 			missionId: 'mission-1777211869020',
-			chatId: '8319079055',
-			userId: '8319079055',
+			chatId: '1000000001',
+			userId: '1000000001',
 			requestId,
 			autoRun: true,
 			telegramRelay: { port: 8789, profile: 'spark-agi' }
@@ -828,7 +828,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 	});
 
 	it('queues a full advanced PRD canvas contract with nodes, dependencies, autorun, and Telegram relay', async () => {
-		const requestId = 'tg-build-8319079055-777-1777300000000';
+		const requestId = 'tg-build-1000000001-777-1777300000000';
 		await writeFile(
 			path.join(testSpawnerDir, 'results', `${requestId}.json`),
 			JSON.stringify({
@@ -874,8 +874,8 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 				buildMode: 'advanced_prd',
 				buildModeReason: 'Request looks like a new project or systematic feature that benefits from PRD-to-task planning.',
 				relay: {
-					chatId: '8319079055',
-					userId: '8319079055',
+					chatId: '1000000001',
+					userId: '1000000001',
 					requestId,
 					goal: '# Spark Mission Arcade\n\nTarget operating-system folder: `/root/spark-mission-arcade`\n\nBuild the project.',
 					telegramRelay: { port: 8788, profile: 'spark-agi' }
@@ -935,8 +935,8 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 		]);
 		expect(pending.relay).toMatchObject({
 			missionId: 'mission-1777300000000',
-			chatId: '8319079055',
-			userId: '8319079055',
+			chatId: '1000000001',
+			userId: '1000000001',
 			requestId,
 			autoRun: true,
 			buildMode: 'advanced_prd',
@@ -946,7 +946,7 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 	});
 
 	it('loads sparse clarification tasks without artificial serial dependencies or duplication', async () => {
-		const requestId = 'tg-build-8319079055-2607-1777608553410-clarified-1777608630635';
+		const requestId = 'tg-build-1000000001-2607-1777608553410-clarified-1777608630635';
 		await writeFile(
 			path.join(testSpawnerDir, 'results', `${requestId}.json`),
 			JSON.stringify({
@@ -1038,8 +1038,8 @@ describe('/api/prd-bridge/load-to-canvas integration', () => {
 				requestId,
 				tier: 'pro',
 				relay: {
-					chatId: '8319079055',
-					userId: '8319079055',
+					chatId: '1000000001',
+					userId: '1000000001',
 					requestId
 				}
 			}),

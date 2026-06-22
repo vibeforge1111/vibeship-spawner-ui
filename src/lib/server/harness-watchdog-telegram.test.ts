@@ -60,8 +60,8 @@ async function writeBaseState(canvasOverrides: Record<string, unknown> = {}) {
 			requestId,
 			missionId,
 			traceRef,
-			chatId: '8319079055',
-			userId: '8319079055',
+			chatId: '1000000001',
+			userId: '1000000001',
 			goal: 'Do not expose this raw prompt.',
 			telegramRelay: { port: 8791, profile: 'spark-recursive', url: 'http://127.0.0.1:8791/spawner-events' }
 		}
@@ -113,7 +113,7 @@ describe('collectHarnessWatchdogTelegram', () => {
 		});
 		expect(snapshot.openBlockers).toEqual([]);
 		const payload = JSON.stringify(snapshot);
-		expect(payload).not.toContain('8319079055');
+		expect(payload).not.toContain('1000000001');
 		expect(payload).not.toContain('chatId');
 		expect(payload).not.toContain('userId');
 		expect(payload).not.toContain('Do not expose this raw prompt');

@@ -104,7 +104,7 @@ Bot:  Friday notes it is.
 Builder cold-memory check:
 
 ```text
-python -c "import runpy, sys; sys.path.insert(0, sys.argv[1]); sys.argv = ['spark_intelligence.cli', *sys.argv[2:]]; runpy.run_module('spark_intelligence.cli', run_name='__main__')" C:\Users\USER\.spark\modules\spark-intelligence-builder\source\src memory inspect-capsule --home C:\Users\USER\.spark\state\spark-intelligence --query "let's do two" --subject human:telegram:8319079055 --limit 6 --no-record-activity --json
+python -c "import runpy, sys; sys.path.insert(0, sys.argv[1]); sys.argv = ['spark_intelligence.cli', *sys.argv[2:]]; runpy.run_module('spark_intelligence.cli', run_name='__main__')" C:\Users\USER\.spark\modules\spark-intelligence-builder\source\src memory inspect-capsule --home C:\Users\USER\.spark\state\spark-intelligence --query "let's do two" --subject human:telegram:1000000001 --limit 6 --no-record-activity --json
 ```
 
 This succeeded after the earlier transient `build_llm_wiki_status` import failure.

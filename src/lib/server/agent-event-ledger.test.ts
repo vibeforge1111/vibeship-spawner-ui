@@ -32,7 +32,7 @@ describe('agent event ledger', () => {
 				ts: '2026-05-10T08:00:00.000Z',
 				event: 'final_answer_checked',
 				outcome: 'suppressed_builder_reply',
-				chat_id: '8319079055',
+				chat_id: '1000000001',
 				user_id: '42',
 				suppression_reason: 'diagnostic_wall',
 				builder_routing_decision: 'plain_chat',
@@ -45,12 +45,12 @@ describe('agent event ledger', () => {
 		);
 
 		expect(getFinalAnswerGateAuditPath()).toBe(auditPath);
-		const events = readRecentAgentEvents({ sessionId: 'telegram:8319079055', limit: 5 });
+		const events = readRecentAgentEvents({ sessionId: 'telegram:1000000001', limit: 5 });
 		expect(events).toHaveLength(1);
 		expect(events[0]).toMatchObject({
 			event_type: 'final_answer_checked',
 			selected_route: 'local_chat',
-			session_id: 'telegram:8319079055',
+			session_id: 'telegram:1000000001',
 			actor_id: 'telegram:42',
 			summary: 'Final answer gate suppressed_builder_reply: diagnostic_wall; fallback=local_chat.',
 			facts: {
@@ -61,7 +61,7 @@ describe('agent event ledger', () => {
 			sources: [{ source: 'telegram_final_answer_gate', role: 'final_answer_evidence' }]
 		});
 
-		const report = buildAgentBlackBoxReport({ sessionId: 'telegram:8319079055', limit: 5 });
+		const report = buildAgentBlackBoxReport({ sessionId: 'telegram:1000000001', limit: 5 });
 		expect(report.counts.entries).toBe(1);
 		expect(report.entries[0]).toMatchObject({
 			event_type: 'final_answer_checked',

@@ -152,7 +152,7 @@ describe('/api/pipeline-loader integration', () => {
 				outcome: 'execute'
 			},
 			relay: {
-				chatId: '8319079055',
+				chatId: '1000000001',
 				userId: 'spark-user',
 				requestId: 'tg-build-test',
 				goal: 'Build the relay project.',
@@ -183,7 +183,7 @@ describe('/api/pipeline-loader integration', () => {
 		expect(latestBody.load.buildModeReason).toBe('User explicitly requested advanced PRD mode.');
 		expect(latestBody.load.executionPrompt).toBe('Build the relay project.');
 		expect(latestBody.load.relay).toMatchObject({
-			chatId: '8319079055',
+			chatId: '1000000001',
 			userId: 'spark-user',
 			requestId: 'tg-build-test',
 			goal: 'Build the relay project.',
@@ -236,7 +236,7 @@ describe('/api/pipeline-loader integration', () => {
 			executionPrompt: 'Build from this private prompt.',
 			autoRun: true,
 			relay: {
-				chatId: '8319079055',
+				chatId: '1000000001',
 				userId: 'spark-user',
 				requestId: 'tg-build-local-render-only'
 			}

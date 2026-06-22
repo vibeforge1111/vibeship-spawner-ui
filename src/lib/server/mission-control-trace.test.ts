@@ -27,7 +27,7 @@ afterEach(() => {
 
 describe('mission-control-trace', () => {
 	it('derives stable mission ids from Telegram request ids', () => {
-		expect(missionIdFromRequestId('tg-build-8319079055-1638-1777362992971')).toBe(
+		expect(missionIdFromRequestId('tg-build-1000000001-1638-1777362992971')).toBe(
 			'mission-1777362992971'
 		);
 		expect(missionIdFromRequestId('natural language request')).toBe(

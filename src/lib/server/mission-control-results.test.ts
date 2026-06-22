@@ -122,13 +122,13 @@ describe('mission-control-results', () => {
 			result({
 				providerId: 'codex',
 				response:
-					'Wrote [agent.py](C:/Users/USER/.spark/modules/spark-intelligence-builder/source/src/agent.py) and `/Users/leventcem/.spark/logs/spawner-ui.log`.'
+					'Wrote [agent.py](C:/Users/USER/.spark/modules/spark-intelligence-builder/source/src/agent.py) and `/Users/example/.spark/logs/spawner-ui.log`.'
 			})
 		]);
 
 		expect(summary.providerSummary).toBe('Codex: Wrote agent.py and local file.');
 		expect(summary.providerSummary).not.toContain('C:/Users/USER');
-		expect(summary.providerSummary).not.toContain('/Users/leventcem');
+		expect(summary.providerSummary).not.toContain('/Users/example');
 	});
 
 	it('keeps hosted project metadata from structured provider responses', () => {

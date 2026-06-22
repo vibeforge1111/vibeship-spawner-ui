@@ -11,7 +11,7 @@ describe('mission-control-display', () => {
 		const text = [
 			'Created [index.html](C:/Users/USER/Desktop/demo/index.html)',
 			'Opened `C:\\Users\\USER\\Desktop\\demo\\app.js`',
-			'Checked /Users/leventcem/.spark/workspaces/default/result.md',
+			'Checked /Users/example/.spark/workspaces/default/result.md',
 			'Stored /home/spark/.spark/state/mission.json',
 			'Ran file:///C:/Users/USER/Desktop/demo/README.md'
 		].join('\n');
@@ -25,7 +25,7 @@ describe('mission-control-display', () => {
 		expect(sanitized).toContain('Ran [local path]');
 		expect(sanitized).not.toContain('C:/Users/USER');
 		expect(sanitized).not.toContain('C:\\Users\\USER');
-		expect(sanitized).not.toContain('/Users/leventcem');
+		expect(sanitized).not.toContain('/Users/example');
 		expect(sanitized).not.toContain('/home/spark');
 	});
 

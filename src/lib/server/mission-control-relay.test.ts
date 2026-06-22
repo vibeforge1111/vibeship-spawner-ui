@@ -1854,7 +1854,7 @@ describe('mission-control-relay', () => {
 			type: 'task_progress',
 			missionId,
 			missionName: 'Inspect C:/Users/USER/.spark/modules/spawner-ui/source',
-			taskName: '/Users/leventcem/.spark/logs/spawner-ui.log',
+			taskName: '/Users/example/.spark/logs/spawner-ui.log',
 			source: 'codex',
 			message: 'Read C:\\Users\\USER\\.spark\\logs\\spark-telegram-bot.log',
 			timestamp: new Date().toISOString(),
@@ -1868,7 +1868,7 @@ describe('mission-control-relay', () => {
 		expect(entry?.taskName).toBe('[local path]');
 		expect(entry?.lastSummary).toContain('[local path]');
 		expect(entry?.lastSummary).not.toContain('C:\\Users\\USER');
-		expect(entry?.lastSummary).not.toContain('/Users/leventcem');
+		expect(entry?.lastSummary).not.toContain('/Users/example');
 	});
 
 	it('compacts long progress messages before relaying them to board summaries', async () => {

@@ -401,7 +401,7 @@ describe('PRD bridge fallback analysis', () => {
 		await writeFile(pendingPrdFile, 'did you understand what i said', 'utf-8');
 
 		const result = await _buildFallbackAnalysisResult(
-			'tg-build-8319079055-2607-1777608553410-clarified-1777608630635',
+			'tg-build-1000000001-2607-1777608553410-clarified-1777608630635',
 			'did you understand what i said',
 			'direct',
 			'pro',
@@ -416,7 +416,7 @@ describe('PRD bridge fallback analysis', () => {
 		);
 
 		expect(result.success).toBe(true);
-		expect(result.requestId).toBe('tg-build-8319079055-2607-1777608553410-clarified-1777608630635');
+		expect(result.requestId).toBe('tg-build-1000000001-2607-1777608553410-clarified-1777608630635');
 		expect(result.projectName).toBe('did you understand what i said');
 		expect(result.projectType).toBe('clarification-understanding');
 		expect(result.executionPrompt).toContain('Original user request: did you understand what i said');

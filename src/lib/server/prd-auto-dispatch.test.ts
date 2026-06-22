@@ -393,7 +393,7 @@ describe('PRD auto-dispatch helpers', () => {
 	});
 
 	it('keeps the sparse clarification fixture as a small DAG with allowlisted skills', async () => {
-		const requestId = 'tg-build-8319079055-2607-1777608553410-clarified-1777608630635';
+		const requestId = 'tg-build-1000000001-2607-1777608553410-clarified-1777608630635';
 		const clarificationLoad: PrdCanvasLoadForAutoDispatch = {
 			requestId,
 			missionId: 'mission-clarification-fixture-test',

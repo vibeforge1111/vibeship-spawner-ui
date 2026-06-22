@@ -25,7 +25,7 @@ describe('recommendAccessExecutionLane', () => {
 			env: {},
 			platform: 'darwin',
 			dockerAvailable: false,
-			workspaceRoot: '/Users/alchemistab/.spark/workspaces'
+			workspaceRoot: '/Users/example/.spark/workspaces'
 		});
 
 		expect(result.osFamily).toBe('macos');
@@ -151,7 +151,7 @@ describe('recommendAccessExecutionLane', () => {
 			env: { MODAL_TOKEN_ID: 'token-id', MODAL_TOKEN_SECRET: 'token-secret' },
 			platform: 'darwin',
 			userGoal: 'use a gpu cloud sandbox for this large job',
-			workspaceRoot: '/Users/alchemistab/.spark/workspaces'
+			workspaceRoot: '/Users/example/.spark/workspaces'
 		});
 
 		expect(result.recommended).toMatchObject({
@@ -167,7 +167,7 @@ describe('recommendAccessExecutionLane', () => {
 			accessLevel: 5,
 			env: {},
 			platform: 'darwin',
-			workspaceRoot: '/Users/alchemistab/.spark/workspaces'
+			workspaceRoot: '/Users/example/.spark/workspaces'
 		});
 
 		expect(result.recommended.id).toBe('spark_workspace');

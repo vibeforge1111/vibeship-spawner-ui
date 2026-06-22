@@ -52,8 +52,8 @@ async function writeBaseState(extraPendingLoad: Record<string, unknown> = {}) {
 			requestId,
 			missionId,
 			traceRef,
-			chatId: '8319079055',
-			userId: '8319079055',
+			chatId: '1000000001',
+			userId: '1000000001',
 			goal: 'Do not leak this raw prompt body.'
 		}
 	});
@@ -104,7 +104,7 @@ describe('collectHarnessWatchdogAuthority', () => {
 		});
 		expect(snapshot.openBlockers.some((blocker) => blocker.summary.includes('Stored executionAuthority residue'))).toBe(true);
 		const payload = JSON.stringify(snapshot);
-		expect(payload).not.toContain('8319079055');
+		expect(payload).not.toContain('1000000001');
 		expect(payload).not.toContain('Do not leak this raw prompt body');
 	});
 

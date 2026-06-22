@@ -82,8 +82,8 @@ async function writeProbeState() {
 			requestId,
 			missionId,
 			traceRef,
-			chatId: '8319079055',
-			userId: '8319079055',
+			chatId: '1000000001',
+			userId: '1000000001',
 			goal: 'Do not expose this route test prompt.',
 			telegramRelay: { port: 8791, profile: 'spark-recursive' }
 		}
@@ -195,7 +195,7 @@ describe('/api/harness-watchdog/probe integration', () => {
 		expect(payload.registryDrift.length).toBeGreaterThan(0);
 		expect(payload.rollbackNotes.length).toBeGreaterThan(0);
 		const text = JSON.stringify(payload);
-		expect(text).not.toContain('8319079055');
+		expect(text).not.toContain('1000000001');
 		expect(text).not.toContain('Do not expose this route test prompt');
 		expect(text).not.toContain('raw provider output must not leak');
 		expect(text).not.toContain('executionPrompt');
@@ -248,6 +248,6 @@ describe('/api/harness-watchdog/probe integration', () => {
 		);
 		expect(response.status).toBe(401);
 		const payload = await response.json();
-		expect(JSON.stringify(payload)).not.toContain('8319079055');
+		expect(JSON.stringify(payload)).not.toContain('1000000001');
 	});
 });

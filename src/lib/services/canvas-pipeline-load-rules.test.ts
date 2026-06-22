@@ -44,7 +44,7 @@ describe('canvas pipeline load rules', () => {
 	});
 
 	it('turns PRD pipeline IDs into readable fallback names', () => {
-		expect(readablePipelineNameFromId('prd-tg-build-8319079055-1763-spark-route-probe-1777380423509')).toBe(
+		expect(readablePipelineNameFromId('prd-tg-build-1000000001-1763-spark-route-probe-1777380423509')).toBe(
 			'spark route probe'
 		);
 		expect(readablePipelineNameFromId('prd-memory_quality_dashboard')).toBe('memory quality dashboard');

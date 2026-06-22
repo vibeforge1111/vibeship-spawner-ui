@@ -110,7 +110,7 @@ flowchart LR
 Example:
 
 ```http
-GET /api/mission-control/trace?requestId=tg-build-8319079055-1638-1777362992971
+GET /api/mission-control/trace?requestId=tg-build-1000000001-1638-1777362992971
 ```
 
 Response shape:
@@ -119,7 +119,7 @@ Response shape:
 {
   "ok": true,
   "missionId": "mission-1777362992971",
-  "requestId": "tg-build-8319079055-1638-1777362992971",
+  "requestId": "tg-build-1000000001-1638-1777362992971",
   "phase": "executing",
   "summary": "Task started: Build the app shell",
   "progress": {
@@ -137,11 +137,11 @@ Response shape:
   "surfaces": {
     "telegram": {
       "relay": { "port": 8789, "profile": "spark-agi", "url": null },
-      "chatId": "8319079055",
-      "userId": "8319079055"
+      "chatId": "1000000001",
+      "userId": "1000000001"
     },
     "canvas": {
-      "pipelineId": "prd-tg-build-8319079055-1638-1777362992971",
+      "pipelineId": "prd-tg-build-1000000001-1638-1777362992971",
       "pipelineName": "Spark Telegram Live Mission",
       "autoRun": true,
       "authority": "GovernorDecisionV1 required for dispatch; autoRun is request-only",

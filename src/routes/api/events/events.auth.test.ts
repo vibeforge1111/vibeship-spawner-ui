@@ -658,8 +658,8 @@ describe('/api/events auth', () => {
 				JSON.stringify({
 					relay: {
 						missionId: 'mission-relay-test',
-						chatId: '8319079055',
-						userId: '8319079055',
+						chatId: '1000000001',
+						userId: '1000000001',
 						requestId: 'tg-build-test',
 						goal: 'Build a tiny app',
 						telegramRelay: { port: 8789, profile: 'spark-agi' }
@@ -691,8 +691,8 @@ describe('/api/events auth', () => {
 			expect.objectContaining({
 				missionId: 'mission-relay-test',
 				data: expect.objectContaining({
-					chatId: '8319079055',
-					userId: '8319079055',
+					chatId: '1000000001',
+					userId: '1000000001',
 					requestId: 'tg-build-test',
 					telegramRelay: { port: 8789, profile: 'spark-agi' }
 				})
