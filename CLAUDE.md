@@ -1,133 +1,176 @@
-# CLAUDE.md - Spawner UI
+# Spawner UI Agent Ruleset
 
-This file is for coding agents working inside `spawner-ui`.
+## Repo Role
 
-Spawner UI is Spark's local execution plane and visual mission dashboard. It is part of the Spark ecosystem alongside `spark-telegram-bot`, `spark-intelligence-builder`, and `domain-chip-memory`.
+`spawner-ui` owns Spark mission execution, provider dispatch, mission control,
+scheduled fires, creator mission execution, local previews, and the operator UI
+for the execution plane.
 
-## Non-Negotiable Mission Rules
+Canonical truth owned here:
 
-When executing a Spawner mission:
+- mission execution lifecycle after Governor authorization
+- provider dispatch and completion evidence metadata
+- Mission Control commands, board state, schedule execution, and creator mission
+  execution records
+- local preview/project serving and execution-plane health
 
-1. Do not pause mid-workflow for confirmation unless a safety boundary requires it.
-2. Complete the requested project or clearly report the exact blocker.
-3. Run verification before declaring completion.
-4. Send lifecycle events through `/api/events` so Canvas, Kanban, Trace, and Telegram stay synchronized.
-5. Send progress heartbeats during long work. Do not let a mission look frozen.
-6. Keep terminal states monotonic. Do not downgrade completed, failed, or cancelled tasks with stale running events.
+This repo does not own:
 
-Useful event types:
+- raw natural-language intent authority
+- Telegram ingress, access prompts, or final chat composition
+- Builder RouteConfidenceGateV1, AOC, identity, or durable memory truth
+- CLI registry pins, installer metadata, or Spark OS compiler truth
+- Harness Core schemas, Governor semantics, or readiness scoring
 
-- `mission_created`
-- `task_started`
-- `task_progress`
-- `task_completed`
-- `task_failed`
-- `task_cancelled`
-- `mission_completed`
-- `mission_failed`
-- `mission_cancelled`
+## Start-of-Work Protocol
 
-## Current Spark Flow
+1. Run `git status --short --branch`.
+2. Read this file plus `docs/SPARK_HARNESS_CONTRACT_ADOPTION.md` and the
+   relevant route/service doc before edits.
+3. Identify whether the requested change belongs in Spawner or in Telegram,
+   Builder, CLI, Harness Core, memory, voice, or a domain chip.
+4. Define the smallest execution-plane behavior and stop-ship gate.
+5. Add focused tests for the route, service, authority, schedule, mission
+   control, or creator path being changed.
+6. Keep execution APIs as capability consumers. Do not add local intent
+   detectors that can bypass the Governor.
+7. Run focused tests, then `npm run check` and `npm run build` for release-risk
+   changes.
+8. Commit one logical checkpoint with verification notes.
 
-```mermaid
-flowchart TD
-  Telegram["spark-telegram-bot"] --> Builder["spark-intelligence-builder"]
-  Builder --> Run["/api/spark/run or /api/prd-bridge/write"]
-  Run --> Canvas["/canvas mission graph"]
-  Canvas --> Dispatch["/api/dispatch"]
-  Dispatch --> Providers["Provider runtime"]
-  Providers --> Events["/api/events"]
-  Events --> MissionControl["Mission Control relay"]
-  MissionControl --> Kanban["/kanban"]
-  MissionControl --> Trace["/trace"]
-  MissionControl --> Telegram
+## One Truth Rules
+
+- Spawner executes authorized work; it does not decide raw user intent.
+- Fresh user intent is expressed through Harness Core/Governor authority passed
+  in from the caller or created by a source-owned internal policy.
+- Local mission state, schedule state, provider state, and board state are
+  execution-plane truth, not permission to start new user-requested work.
+- Old patches, wording vetoes, pending-state helpers, and route-specific
+  launch checks are migration debt until retired, demoted to evidence, bound
+  behind Governor authority, or carried as explicit release blockers.
+- Registry pins, provenance, and public release metadata belong to Spark CLI and
+  the publishing machine. Do not advance them from this repo casually.
+
+## Authority Rules
+
+- Every high-agency Spawner route must require native `GovernorDecisionV1`
+  authority or an explicitly documented machine-origin policy.
+- Bare `TurnIntentEnvelopeVNext`, route words, mission ids, stale board state,
+  pending state, or local regex must not authorize execution by themselves.
+- Chat-only, denied, interrupted, degraded, stale, or owner-mismatched Governor
+  decisions must block before provider dispatch or state mutation.
+- Tool ledgers and completion evidence are proof records, not permission grants.
+  A blocked or interrupted action cannot later be finalized as successful
+  execution.
+- Positive explicit actions should still work quickly once Governor authority,
+  capability, owner policy, freshness, and risk requirements are satisfied.
+- Schedule create/delete, creator mission create/execute, mission-control
+  pause/resume/cancel, provider dispatch, PRD auto-dispatch, browser/computer
+  use, publish/deploy, and public/network promotion paths are high-agency until
+  proven otherwise.
+
+## Local Operator And Workspace Rules
+
+- Local operator Mission Control is not a login system. Loopback browser access
+  to Kanban, Canvas, Trace, Result, and `/spark-live/login` must be classified
+  by request origin and must not create or require `spawner_ui_session`.
+- Hosted/private-preview browser access is the only path that should use
+  workspace ID + UI access key + opaque session cookies.
+- Do not use hosted UI auth as an execution authority layer. It is a browser
+  access gate only; Harness Core/Governor authority remains the execution
+  authority.
+- Provider work that can write files must run in a Spark-owned workspace from
+  `resolveSparkRunProjectPath()` or an equivalent workspace-root helper.
+- Do not pass `process.cwd()` as a provider `workingDirectory` for generated
+  missions, PRD auto-analysis, Telegram builds, or auto-dispatch. In installed
+  runtimes `process.cwd()` can be the Spawner source folder, which must remain
+  code/runtime truth, not a generated project workspace.
+- Do not fix workspace failures by setting
+  `SPARK_ALLOW_EXTERNAL_PROJECT_PATHS=1` for release or installer paths. That
+  flag is only a trusted local-development escape hatch.
+- If a route needs to inspect Spawner source, keep that read-only and separate
+  from the provider working directory.
+
+## Privacy Red Lines
+
+Do not export, commit, or render into user-facing surfaces:
+
+- secrets, tokens, env values, credentials, private keys
+- raw chat ids, user ids, or account identifiers
+- raw prompts when metadata is enough
+- provider output bodies unless an explicit trusted-local fallback is enabled
+- memory bodies or transcript bodies
+- raw audio payloads
+- private `spark-intelligence-systems` strategy
+
+Prefer redacted refs, trace ids, route labels, status, provider names, mission
+titles, preview URLs, and summarized completion evidence over raw payloads.
+
+## Verification Menu
+
+- Focused Vitest route/service tests for the changed behavior.
+- Authority tests for changed execution routes.
+- `PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin npm run check`
+- `PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin npm run build`
+- `npm run sync:check` when installed runtime sync is relevant.
+- `git diff --check`.
+- `git status --short --branch`.
+- `spark os compile --json` after authority or release-surface changes.
+
+Use `/usr/local/bin/node` first on this Mac when Rollup's native optional
+package fails under the Codex-bundled Node runtime.
+
+## Stop-Ship Gates
+
+Stop and report instead of shipping if:
+
+- any execution route can run without Governor authority or explicit
+  machine-origin policy
+- a local intent detector, wording veto, pending branch, or stale mission state
+  can fight the Governor
+- blocked/interrupted work can be finalized as `success`
+- provider output, secrets, or private ids would leak into logs, UI, or relay
+  payloads
+- schedule, creator, mission-control, publish/deploy, browser/computer-use, or
+  public/network actions lack focused regressions
+- Spark OS contract coverage reports high-agency legacy gates, cleanup queue
+  items, dirty repo state, or critical duplicate-truth release blockers
+
+<!-- SPARK FLEET STANDARD BLOCK v1 — canonical source: spark-compete/fleet/AGENT_GUIDE.md.
+     This same block is mirrored into every repo's AGENTS.md and CLAUDE.md. Keep in sync. -->
+## How agents work in this repo (Claude, Codex, Gemini — every LLM)
+
+Many agents and sessions work these repos at the same time. There is a tiny **automatic**
+workflow that keeps you from colliding. **There are no human-review steps — CI is the only
+gate, and it is automatic.** This is coordination, not bureaucracy: claim, work, PR.
+
+### Start of work — one command, then just work normally
 ```
-
-## Important Routes
-
-| Route | Use |
-| --- | --- |
-| `/` | Product entry and setup journey |
-| `/canvas` | Visual pipeline and execution panel |
-| `/kanban` | Mission board and scheduled mission management |
-| `/missions/[id]` | Mission detail inspection |
-| `/trace` | Cross-surface tracer |
-| `/api/spark/run` | Direct mission run API |
-| `/api/prd-bridge/write` | PRD/build request intake |
-| `/api/prd-bridge/load-to-canvas` | Queue a mission-scoped canvas |
-| `/api/dispatch` | Dispatch provider execution |
-| `/api/events` | Provider and mission lifecycle events |
-| `/api/mission-control/*` | Board, status, command, result, trace APIs |
-| `/api/spark-agent/*` | Spark agent session bridge |
-
-## Development Commands
-
-```bash
-npm install
-npm run dev
-npm run check
-npm run test:run
-npm run build
-npm run smoke:routes
-npm run smoke:mission-surfaces
+python3 ~/spark-compete/scripts/fleet.py claim <this-repo-path> <area> <task>
 ```
+You get your **own private worktree + branch + a lease** on `<area>`, so no other agent
+edits the same files. It prints the folder to `cd` into. Work there and commit as usual —
+a pre-commit hook **auto-checks and renews your lease**; you never manage it by hand.
 
-For mission/canvas changes, run all gates unless you can explain why a gate is not applicable.
+- `fleet board` — see who's working on what, right now
+- `fleet handoff <agent> --note "..."` — pass your work to another agent (with context)
+- `fleet release --here` — done (frees the area + removes the worktree)
 
-## Key Files
+### Landing work — fully automatic, no human approval
+1. Open a PR to the default branch.
+2. **CI is the gate.** When it's green, the PR merges. No human reviews anything.
+3. Never push directly to the protected branch; never commit from the shared checkout —
+   always from your worktree.
 
-| Area | Files |
-| --- | --- |
-| Mission lifecycle contract | `src/lib/types/mission-control.ts` |
-| Mission relay and board state | `src/lib/server/mission-control-relay.ts`, `src/lib/server/mission-control-trace.ts` |
-| Provider runtime | `src/lib/server/provider-runtime.ts`, `src/lib/server/provider-clients/*` |
-| Mission execution | `src/lib/services/mission-executor.ts` |
-| Mission progress helpers | `src/lib/services/mission-execution-progress.ts` |
-| Canvas load rules | `src/lib/services/canvas-pipeline-load-rules.ts` |
-| Canvas route | `src/routes/canvas/+page.svelte` |
-| Kanban UI | `src/lib/components/MissionBoard.svelte`, `src/routes/kanban/+page.svelte` |
-| Spark agent bridge | `src/lib/services/spark-agent-bridge.ts`, `src/routes/api/spark-agent/*` |
-| PRD bridge | `src/routes/api/prd-bridge/*`, `src/lib/services/prd-bridge.ts` |
-| H70 skills | `src/routes/api/h70-skills/[skillId]/+server.ts`, `src/lib/services/h70-skills.ts` |
+### The rules (enforced by CI, not by people)
+Full ruleset: **`spark-cli/docs/harness-discipline/`** — `01_RULESET.md` (7 Prime
+Directives · Red Lines RL-01..21 · Rules R-01..28) and `07_FLEET_DISCIPLINE.md` (this
+workflow). The day-to-day essentials:
+- A real fix targets the **root cause**, not a symptom (R-05).
+- No regex / keyword / canned answer **owns authority** — it is evidence only (RL-01).
+- A failure **surfaces** with a clear reason; it never becomes a fake success (RL-08).
+- One worktree per task; PRs only; nothing bypasses the CI gate (F-01 / F-09).
 
-## Skills
-
-Spawner loads H70 skills from the configured Spark skill graph directory.
-
-Useful implementation skills to consult when available:
-
-- `typescript-strict`
-- `code-quality`
-- `test-architect`
-- `sveltekit`
-- `security-owasp`
-- `api-design`
-- `state-management`
-
-Do not paste huge skill bodies into mission prompts. Prefer skill IDs and load detailed skill content just in time.
-
-## PRD And Canvas Rules
-
-- Keep `requestId`, `missionId`, `pipelineId`, and Telegram relay metadata together.
-- Canvas links for mission builds should include `pipeline=` and `mission=`.
-- `/api/prd-bridge/load-to-canvas` owns mission-scoped canvas loading.
-- `/api/pipeline-loader` is the file-backed queue for pending canvas loads.
-- Completed, failed, and cancelled missions should open for inspection, not restart automatically.
-
-## Security Rules
-
-- Do not add Telegram bot token handling to Spawner UI.
-- Keep `TELEGRAM_RELAY_SECRET`, provider keys, and local state out of commits and screenshots.
-- Do not expose local control APIs publicly without auth and origin allowlists.
-- Keep project writes inside the Spark workspace unless trusted local development explicitly enables external paths.
-
-## Documentation Map
-
-- `README.md` - operator overview and setup
-- `ARCHITECTURE.md` - current system architecture
-- `SECURITY.md` - control-surface security rules
-- `docs/MISSION_LIFECYCLE.md` - mission status contract
-- `docs/SPARK_MISSION_CONTROL_TRACE.md` - Telegram to PRD to Canvas to Kanban to Trace path
-- `docs/SPARK_AGENT_BRIDGE_API.md` - Spark agent bridge API
-- `docs/SPARK_AGENT_CANVAS_LOCALHOST_RUNBOOK.md` - local bridge smoke
-- `test.md` - ongoing maintainability log
+That's the whole contract. The system handles coordination and the gate for you —
+automatically, with no human in the loop.
+<!-- END SPARK FLEET STANDARD BLOCK v1 -->
