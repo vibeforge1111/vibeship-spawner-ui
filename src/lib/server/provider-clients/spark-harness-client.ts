@@ -33,6 +33,7 @@ interface AssignedCanvasTask {
 
 const DEFAULT_SPARK_HARNESS_URL = 'http://127.0.0.1:8011';
 const POLL_INTERVAL_MS = 1500;
+const STATUS_POLL_MAX_TRANSIENT_FAILURES = 3;
 const DEFAULT_TIMEOUT_MS = sparkHarnessTimeoutMs();
 
 export async function executeSparkHarnessRequest(options: SparkHarnessOptions): Promise<ProviderResult> {
@@ -425,12 +426,30 @@ async function waitForSparkTask(input: {
 		}
 	};
 
+	let consecutiveStatusFailures = 0;
+	let lastStatusError: Error | null = null;
 	while (Date.now() - startedAt < DEFAULT_TIMEOUT_MS) {
 		if (signal?.aborted) {
 			return { success: false, error: 'Cancelled', durationMs: Date.now() - startedAt };
 		}
 
-		const status = await getSparkTaskStatus(baseUrl, taskId, signal);
+		let status: SparkTaskStatus;
+		try {
+			status = await getSparkTaskStatus(baseUrl, taskId, signal);
+			consecutiveStatusFailures = 0;
+			lastStatusError = null;
+		} catch (err) {
+			if (signal?.aborted) {
+				return { success: false, error: 'Cancelled', durationMs: Date.now() - startedAt };
+			}
+			consecutiveStatusFailures += 1;
+			lastStatusError = err instanceof Error ? err : new Error(String(err));
+			if (consecutiveStatusFailures >= STATUS_POLL_MAX_TRANSIENT_FAILURES) {
+				throw lastStatusError;
+			}
+			await sleep(POLL_INTERVAL_MS, signal);
+			continue;
+		}
 		const state = (status.status || 'unknown').toLowerCase();
 		if (state !== 'completed') {
 			syncVisualTaskProgress(progress, state);
