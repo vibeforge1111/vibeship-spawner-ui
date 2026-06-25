@@ -368,6 +368,14 @@ function creatorMissionDir(stateDir = spawnerStateDir()): string {
 	return path.join(stateDir, 'creator-missions');
 }
 
+/**
+ * Validates that a missionId contains only safe characters and cannot be used for path traversal.
+ * Mission IDs should be alphanumeric with hyphens/underscores only.
+ */
+function validateMissionId(missionId: string): boolean {
+	return /^[a-zA-Z0-9_-]+$/.test(missionId);
+}
+
 function pendingLoadPath(stateDir = spawnerStateDir()): string {
 	return path.join(stateDir, 'pending-load.json');
 }
@@ -1651,6 +1659,10 @@ export async function readCreatorMissionTrace(
 ): Promise<CreatorMissionTrace | null> {
 	const missionId = input.missionId?.trim();
 	if (missionId) {
+		if (!validateMissionId(missionId)) {
+			console.error(`Invalid missionId format: ${missionId}`);
+			return null;
+		}
 		const filePath = creatorMissionPath(missionId, stateDir);
 		if (!existsSync(filePath)) return null;
 		return parseCreatorMissionTraceFile(await readFile(filePath, 'utf-8'));
@@ -1726,6 +1738,26 @@ export async function executeCreatorMission(
 }
 
 const VALIDATION_EXECUTABLE_ALLOWLIST = new Set(['node', 'python', 'python3', 'py', 'npm', 'npx', 'pnpm', 'spark-intelligence']);
+
+// Interpreters that accept flags to execute arbitrary code snippets.
+const INTERPRETER_EXECUTABLES = new Set(['node', 'python', 'python3', 'py']);
+// Flags that cause interpreters to evaluate arbitrary code from the argument string.
+// A command like `python -c "os.system('rm -rf /')"` would pass the allowlist
+// because only the executable name is checked. These flags must be rejected.
+// Covers node (-e/--eval, -p/--print), python (-c/--command, -m/--module) and the
+// bare `-` stdin-program form. This list must include every interpreter flag that
+// evaluates an argument or stdin rather than a script file on disk.
+const DANGEROUS_INTERPRETER_FLAGS = new Set([
+	'-c',
+	'--command',
+	'-e',
+	'--eval',
+	'-p',
+	'--print',
+	'-m',
+	'--module',
+	'-'
+]);
 
 function splitCommandLine(command: string): string[] {
 	const parts: string[] = [];
@@ -1965,6 +1997,24 @@ async function runCreatorValidationCommand(
 			stderr_tail: '',
 			error: `Validation executable is not allowlisted: ${executable}`
 		};
+	}
+	// Reject interpreters invoked with flags that execute arbitrary code snippets.
+	if (INTERPRETER_EXECUTABLES.has(executable)) {
+		const hasDangerousFlag = args.some((arg) => DANGEROUS_INTERPRETER_FLAGS.has(arg));
+		if (hasDangerousFlag) {
+			return {
+				artifact_id: manifest.artifact_id,
+				artifact_type: manifest.artifact_type,
+				repo: manifest.repo,
+				command,
+				cwd,
+				status: 'skipped',
+				exit_code: null,
+				stdout_tail: '',
+				stderr_tail: '',
+				error: `Interpreter executable '${executable}' is not permitted with code-execution flags. Use a script file instead.`
+			};
+		}
 	}
 	const runner = options.commandRunner || activeCreatorValidationCommandRunner || defaultCreatorValidationCommandRunner;
 	const resolved = options.commandRunner ? { executable, args } : resolveValidationCommand(executable, args);

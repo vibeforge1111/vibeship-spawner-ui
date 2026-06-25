@@ -9,7 +9,7 @@ import { logger } from '$lib/utils/logger';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { existsSync } from 'fs';
 import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
@@ -411,8 +411,21 @@ function slugifyTaskId(value: string, fallback: string): string {
 	return slug || fallback;
 }
 
+function isPathWithinWorkspace(candidatePath: string): boolean {
+	const workspaceRoot = resolve(process.cwd());
+	const resolvedCandidate = resolve(candidatePath);
+	return resolvedCandidate === workspaceRoot || resolvedCandidate.startsWith(workspaceRoot + '/');
+}
+
 function extractTargetFolder(content: string): string | null {
-	return extractExplicitProjectPath(content);
+	const candidate = extractExplicitProjectPath(content);
+	if (!candidate) return null;
+	const resolved = resolve(candidate);
+	if (!isPathWithinWorkspace(resolved)) {
+		logger.warn('[prd-bridge-write] Rejected target folder outside workspace', { candidate, resolved });
+		return null;
+	}
+	return resolved;
 }
 
 function extractRequestedFiles(content: string): string[] {
