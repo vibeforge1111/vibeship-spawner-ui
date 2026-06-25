@@ -7,9 +7,11 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { env } from '$env/dynamic/private';
 import { eventBridge } from '$lib/services/event-bridge';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
 import { controlQueryApiKeysAllowed, enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
+import { hostedUiHostIsLoopback } from '$lib/server/hosted-ui-auth';
 import { relayMissionControlEvent, isMissionControlMissionId } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { projectStoredPrdAnalysisResultForTier } from '$lib/server/prd-analysis-result-schema';
@@ -45,9 +47,36 @@ function rememberRecentEventId(id: string, now: number): boolean {
 	return true;
 }
 
+// Resolve the EVENTS_ALLOWED_ORIGINS allowlist using the same env convention as
+// mcp-auth's isOriginAllowed/allowedOriginsEnvVar('EVENTS_ALLOWED_ORIGINS'):
+// prefer process.env when present, else fall back to the SvelteKit dynamic env.
+function eventsAllowedOrigins(): string[] {
+	const raw = (
+		Object.prototype.hasOwnProperty.call(process.env, 'EVENTS_ALLOWED_ORIGINS')
+			? process.env.EVENTS_ALLOWED_ORIGINS
+			: env.EVENTS_ALLOWED_ORIGINS
+	) || '';
+	return raw
+		.split(',')
+		.map((item) => item.trim())
+		.filter((item) => item.length > 0);
+}
+
+// CORS for the event bridge must not reflect an arbitrary origin. Loopback dev
+// origins are always allowed (matches isOriginAllowed); any other origin must be
+// explicitly listed in EVENTS_ALLOWED_ORIGINS, otherwise no CORS headers are sent.
+function isCorsOriginAllowed(origin: string): boolean {
+	try {
+		if (hostedUiHostIsLoopback(new URL(origin).hostname)) return true;
+	} catch {
+		return false;
+	}
+	return eventsAllowedOrigins().includes(origin);
+}
+
 function corsHeaders(request: Request): Record<string, string> {
 	const origin = request.headers.get('origin');
-	if (!origin) return {};
+	if (!origin || !isCorsOriginAllowed(origin)) return {};
 	return {
 		'Access-Control-Allow-Origin': origin,
 		'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
