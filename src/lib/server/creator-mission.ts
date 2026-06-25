@@ -1,5 +1,6 @@
 import { env } from '$env/dynamic/private';
 import { execFile } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -1640,7 +1641,7 @@ export async function saveCreatorMissionTrace(trace: CreatorMissionTrace, stateD
 	const dir = creatorMissionDir(stateDir);
 	await mkdir(dir, { recursive: true });
 	const filePath = creatorMissionPath(trace.mission_id, stateDir);
-	const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+	const tempPath = `${filePath}.${randomUUID()}.tmp`;
 	await writeFile(tempPath, JSON.stringify(trace, null, 2), 'utf-8');
 	await rename(tempPath, filePath);
 }

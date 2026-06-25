@@ -39,6 +39,7 @@ import {
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
 import { readFile } from 'node:fs/promises';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { spawnerStateDir } from './spawner-state';
 
@@ -311,7 +312,7 @@ class ProviderRuntimeManager {
 		try {
 			const persistPath = getProviderResultsPath();
 			mkdirSync(path.dirname(persistPath), { recursive: true });
-			const tempPath = `${persistPath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+			const tempPath = `${persistPath}.${randomUUID()}.tmp`;
 			writeFileSync(
 				tempPath,
 				JSON.stringify({ missions: Object.fromEntries(this.persistedResults) }, null, 2),
