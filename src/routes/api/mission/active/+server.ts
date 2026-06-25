@@ -316,8 +316,7 @@ export const POST: RequestHandler = async (event) => {
 
 		return json({
 			success: true,
-			message: 'Mission state saved',
-			path: missionPath
+			message: 'Mission state saved'
 		});
 	} catch (error) {
 		console.error('Failed to save active mission:', error);

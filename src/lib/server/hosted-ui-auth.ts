@@ -217,8 +217,16 @@ export function hostedUiShouldBypassLocalOperatorAuth(
 }
 
 export function hostedUiAuthClientKey(request: Request): string {
-	const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-	return forwardedFor || request.headers.get('x-real-ip')?.trim() || 'unknown';
+	// Prefer x-real-ip (set by trusted reverse proxy) over x-forwarded-for.
+	// x-forwarded-for first entry is client-controllable; use last entry (set by trusted proxy).
+	const realIp = request.headers.get('x-real-ip')?.trim();
+	if (realIp) return realIp;
+	const forwardedFor = request.headers.get('x-forwarded-for');
+	if (forwardedFor) {
+		const parts = forwardedFor.split(',').map(p => p.trim()).filter(Boolean);
+		if (parts.length > 0) return parts[parts.length - 1];
+	}
+	return 'unknown';
 }
 
 export function hostedUiAuthRateLimitStatus(clientKey: string, now = Date.now()): {

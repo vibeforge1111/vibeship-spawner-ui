@@ -24,8 +24,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
 			{
 			headers: {
 				'content-type': contentType,
-				'cache-control': 'no-store',
-				'x-spark-preview-root': asset.projectRoot
+				'cache-control': 'no-store'
 			}
 			}
 		);
