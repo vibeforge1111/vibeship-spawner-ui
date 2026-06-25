@@ -152,7 +152,8 @@ export function resolveSparkCliBinary(): string {
 			return matches.find((line) => line.toLowerCase().endsWith('.cmd')) || matches[0] || 'spark';
 		}
 		return matches[0] || 'spark';
-	} catch {
+	} catch (err) {
+		console.warn('[access-execution-actions] spark binary lookup failed:', err);
 		return 'spark';
 	}
 }
