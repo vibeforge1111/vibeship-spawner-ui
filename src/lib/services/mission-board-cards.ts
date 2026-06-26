@@ -119,7 +119,11 @@ export function getMissionBoardCardActionLinks(
 function latestTimestamp(a: string | null, b: string | null): string | null {
 	if (!a) return b;
 	if (!b) return a;
-	return Date.parse(a) >= Date.parse(b) ? a : b;
+	const aMs = Date.parse(a);
+	const bMs = Date.parse(b);
+	if (!Number.isFinite(aMs)) return Number.isFinite(bMs) ? b : a;
+	if (!Number.isFinite(bMs)) return a;
+	return aMs >= bMs ? a : b;
 }
 
 function mergeLiveWithStaticCard(live: MissionBoardCard, staticCard: MissionBoardCard): MissionBoardCard {
