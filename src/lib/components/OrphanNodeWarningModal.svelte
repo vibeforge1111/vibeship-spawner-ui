@@ -10,8 +10,15 @@
 	}
 
 	let { orphanedNodes, onDismiss, onAutoConnect, onViewOnCanvas, onProceed }: Props = $props();
+
+	function handleKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			onDismiss();
+		}
+	}
 </script>
 
+<svelte:window onkeydown={handleKeydown} />
 <div class="fixed inset-0 flex items-center justify-center z-[60]" role="dialog" aria-modal="true" aria-label="Orphan node warning">
 	<button class="absolute inset-0 bg-black/60" onclick={onDismiss} aria-label="Close orphan warning"></button>
 	<div class="relative bg-bg-secondary border border-surface-border w-full max-w-md p-6">
