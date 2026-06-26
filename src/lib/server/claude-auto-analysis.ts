@@ -119,15 +119,22 @@ function runClaude(prompt: string): Promise<{ stdout: string; stderr: string; co
 
 		let stdout = '';
 		let stderr = '';
+		let stdoutSize = 0;
+		let stderrSize = 0;
+		const MAX_BUFFER_SIZE = 10 * 1024 * 1024;
 		const timer = setTimeout(() => {
 			child.kill('SIGKILL');
 			reject(new Error(`claude --print timed out after ${CLAUDE_TIMEOUT_MS}ms`));
 		}, CLAUDE_TIMEOUT_MS);
 
 		child.stdout?.on('data', (chunk) => {
+			if (stdoutSize >= MAX_BUFFER_SIZE) return;
+			stdoutSize += chunk.length;
 			stdout += chunk.toString('utf-8');
 		});
 		child.stderr?.on('data', (chunk) => {
+			if (stderrSize >= MAX_BUFFER_SIZE) return;
+			stderrSize += chunk.length;
 			stderr += chunk.toString('utf-8');
 		});
 		child.on('error', (err) => {
