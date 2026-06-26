@@ -197,9 +197,15 @@
 			...(body.board?.failed || []),
 			...(body.board?.paused || [])
 		];
+		const lastUpdatedMs = (value: string | null | undefined): number => {
+			const parsed = Date.parse(value || '');
+			return Number.isFinite(parsed) ? parsed : 0;
+		};
 		const latest = entries
 			.filter((entry) => entry?.missionId)
-			.sort((a, b) => Date.parse(b.lastUpdated || '') - Date.parse(a.lastUpdated || ''))[0];
+			.sort(
+				(a, b) => lastUpdatedMs(b.lastUpdated) - lastUpdatedMs(a.lastUpdated)
+			)[0];
 		if (latest && !missionId.trim() && !requestId.trim()) {
 			missionId = latest.missionId;
 		}
