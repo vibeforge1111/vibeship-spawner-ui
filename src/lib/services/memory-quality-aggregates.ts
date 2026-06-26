@@ -90,9 +90,17 @@ export function rollupSourceHealth(dataset: MemoryQualityDataset): SourceHealthR
 	});
 }
 
+function parseTimestampOrTail(value: string | null | undefined): number {
+	// Date.parse('') and Date.parse('not-iso') both return NaN. Returning a NaN
+	// arithmetic result from a sort comparator leaves V8 TimSort with an undefined
+	// ordering. Mirrors src/lib/server/mission-control-relay.ts lastUpdatedSortTime.
+	const parsed = Date.parse(value || '');
+	return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY;
+}
+
 export function recentRecallEvents(events: MemoryRecallEvent[], limit = 12): RecentRecallEvent[] {
 	return [...events]
-		.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+		.sort((a, b) => parseTimestampOrTail(b.timestamp) - parseTimestampOrTail(a.timestamp))
 		.slice(0, limit)
 		.map(({ timestamp, query, source, outcome, latencyMs, notes }) => ({
 			timestamp,
