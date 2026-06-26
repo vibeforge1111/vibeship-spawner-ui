@@ -131,8 +131,20 @@ const DEFAULT_SPARK_TOKEN = env.SPARKD_TOKEN || '';
 
 function localEnvValue(key: string): string | null {
 	const envPath = path.resolve(process.cwd(), '.env');
-	if (!fs.existsSync(envPath)) return null;
-	const lines = fs.readFileSync(envPath, 'utf-8').split(/\r?\n/);
+	// EAFP: a single read with try/catch is atomic; the previous
+	// existsSync()-then-readFileSync() opened a race window where the
+	// dev-server file-rotation (or a `.env` swap during HMR) could remove
+	// the file between the check and the read, throwing ENOENT out of
+	// module init and crashing the relay before DEFAULT_WEBHOOKS and
+	// DEFAULT_TELEGRAM_RELAY_SECRET are bound.
+	let raw: string;
+	try {
+		raw = fs.readFileSync(envPath, 'utf-8');
+	} catch (e) {
+		if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') return null;
+		throw e;
+	}
+	const lines = raw.split(/\r?\n/);
 	for (const line of [...lines].reverse()) {
 		const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)\s*$/);
 		if (!match || match[1] !== key) continue;
