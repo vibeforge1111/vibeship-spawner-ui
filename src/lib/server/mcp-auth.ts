@@ -100,7 +100,11 @@ function getClientIdentity(event: RequestEvent): string {
 	try {
 		return `ip:${event.getClientAddress()}`;
 	} catch {
-		return `host:${new URL(event.request.url).hostname}`;
+		// Do not fall back to the Host header because attackers can cycle
+		// Host values to create distinct rate-limit buckets and bypass limits.
+		// Use a stable anonymous identity so all unresolvable clients share
+		// a single rate-limit bucket.
+		return 'anonymous';
 	}
 }
 
