@@ -112,15 +112,15 @@ function extractApiKeyFromRequest(request: Request): string | null {
 		}
 	}
 
-	if (controlQueryApiKeysAllowed()) {
-		try {
-			const queryKey = new URL(request.url).searchParams.get('apiKey');
-			if (queryKey && queryKey.trim().length > 0) {
-				return queryKey.trim();
-			}
-		} catch {
-			// Ignore malformed URLs.
+	// CWE-598: API keys must not be accepted via URL query parameters.
+	// Query params are logged in access logs, browser history, and proxy logs.
+	try {
+		const queryKey = new URL(request.url).searchParams.get('apiKey');
+		if (queryKey && queryKey.trim().length > 0) {
+			console.warn('[EventBridge] Deprecated: API key passed via query parameter. Use header-based auth instead.');
 		}
+	} catch {
+		// Ignore malformed URLs.
 	}
 
 	return null;
