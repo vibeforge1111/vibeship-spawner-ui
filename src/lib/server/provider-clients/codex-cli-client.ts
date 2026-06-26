@@ -169,6 +169,7 @@ export async function executeCodexCliRequest(
 		}
 
 		// Handle abort signal
+		let detachAbortHandler: (() => void) | null = null;
 		if (signal) {
 			const abortHandler = () => {
 				killed = true;
@@ -179,6 +180,12 @@ export async function executeCodexCliRequest(
 				}
 			};
 			signal.addEventListener('abort', abortHandler, { once: true });
+			// Without an explicit removeEventListener on natural exit, the handler
+			// (and its closure over child) stays attached to the AbortSignal for
+			// the lifetime of the controller — typically the whole mission. A
+			// mission that spawns N codex tasks leaves N stale handlers pinning
+			// N exited child references.
+			detachAbortHandler = () => signal.removeEventListener('abort', abortHandler);
 		}
 
 		child.stdout?.on('data', (data: Buffer) => {
@@ -204,6 +211,7 @@ export async function executeCodexCliRequest(
 		});
 
 		child.on('error', (err) => {
+			detachAbortHandler?.();
 			onEvent(
 				createBridgeEvent('error', options, {
 					message: `${provider.label} process error: ${err.message}`,
@@ -218,6 +226,7 @@ export async function executeCodexCliRequest(
 		});
 
 		child.on('close', (code) => {
+			detachAbortHandler?.();
 			if (killed) {
 				resolve({
 					success: false,
