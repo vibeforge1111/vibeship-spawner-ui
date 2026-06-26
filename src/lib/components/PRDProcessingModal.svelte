@@ -78,13 +78,13 @@
 {#if isOpen}
 	<!-- Backdrop -->
 	<div
-		class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+		class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto overscroll-contain"
 		in:fade={{ duration: 200 }}
 		out:fade={{ duration: 150 }}
 	>
 		<!-- Modal container -->
 		<div
-			class="bg-bg-secondary border border-surface-border w-full max-w-md"
+			class="bg-bg-secondary border border-surface-border w-full max-w-md max-h-[100dvh] my-auto"
 			in:scale={{ duration: 250, start: 0.96, easing: backOut }}
 			out:scale={{ duration: 150, start: 0.96 }}
 		>
