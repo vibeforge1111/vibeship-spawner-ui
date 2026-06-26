@@ -957,7 +957,13 @@ class SparkAgentBridgeService {
 		}
 
 		const scoped = this.subscribers.get(sessionId);
-		scoped?.forEach((callback) => callback(event));
+		scoped?.forEach((callback) => {
+			try {
+				callback(event);
+			} catch (err) {
+				console.error('Subscriber callback error:', err);
+			}
+		});
 	}
 
 	private async dispatchCommand(
