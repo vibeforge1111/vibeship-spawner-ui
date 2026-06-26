@@ -557,15 +557,31 @@ const TASK_TYPE_TO_SKILLS: Record<string, string[]> = {
 };
 
 /**
+ * Multi-word phrase keys precomputed at module load.
+ *
+ * `KEYWORD_TO_SKILLS` is a module-level constant whose key set never changes
+ * at runtime, so the phrase subset is invariant. Recomputing
+ * `Object.keys(KEYWORD_TO_SKILLS).filter(k => k.includes(' '))` inside
+ * `extractKeywords` walked all ~180 keys plus an extra phrase-filter pass
+ * on every call. `matchTaskToSkills` (and therefore `extractKeywords`) is
+ * invoked once per task by `mission-builder.ts`, `prd-auto-dispatch.ts`, and
+ * the batch helpers below — a 30-50 task mission paid that scan 30-50 times
+ * for the exact same result. Caching it here keeps the cost on the module's
+ * load tick and preserves a stable hot-path cost per task.
+ */
+const KEYWORD_PHRASES: readonly string[] = Object.freeze(
+	Object.keys(KEYWORD_TO_SKILLS).filter((k) => k.includes(' '))
+);
+
+/**
  * Extract keywords from task name/description
  */
 function extractKeywords(text: string): string[] {
 	const normalized = text.toLowerCase();
 	const keywords: string[] = [];
 
-	// Check multi-word phrases first
-	const phrases = Object.keys(KEYWORD_TO_SKILLS).filter(k => k.includes(' '));
-	for (const phrase of phrases) {
+	// Check multi-word phrases first (phrase list precomputed once at module load)
+	for (const phrase of KEYWORD_PHRASES) {
 		if (normalized.includes(phrase)) {
 			keywords.push(phrase);
 		}

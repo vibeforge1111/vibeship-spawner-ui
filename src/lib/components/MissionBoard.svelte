@@ -195,6 +195,7 @@
 		if (!iso) return '-';
 		try {
 			const d = new Date(iso);
+			if (Number.isNaN(d.getTime())) return iso;
 			const ms = d.getTime() - Date.now();
 			const localTime = d.toLocaleString(undefined, {
 				weekday: 'short',
@@ -285,7 +286,9 @@
 	function scheduleCell(rec: ScheduleRecord): string {
 		const pattern = humanizeCron(rec.cron);
 		if (!rec.nextFireAt) return pattern;
-		const ms = new Date(rec.nextFireAt).getTime() - Date.now();
+		const nextMs = new Date(rec.nextFireAt).getTime();
+		if (Number.isNaN(nextMs)) return pattern;
+		const ms = nextMs - Date.now();
 		if (ms <= 0) return `${pattern} · due now`;
 		const s = Math.floor(ms / 1000);
 		let rel: string;

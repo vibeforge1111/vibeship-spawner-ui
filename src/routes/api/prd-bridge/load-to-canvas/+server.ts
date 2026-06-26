@@ -546,7 +546,14 @@ export const POST: RequestHandler = async (event) => {
 				await writeFileAtomic(pendingRequestFile, updatedPendingRequest);
 			}
 		}
-		void relayMissionControlEvent({
+		// Guard against duplicate lifecycle relays when the upstream caller
+		// (Telegram bot, MCP) retries this POST after a transient network error.
+		// pendingRequestMeta.status === 'canvas_loaded' means a prior successful
+		// call already fired these relays; skipping them here keeps the
+		// operator-facing notifications (and downstream board entries) one-shot.
+		const alreadyLoaded =
+			!!pendingRequestMeta && pendingRequestMeta.status === 'canvas_loaded';
+		if (!alreadyLoaded) void relayMissionControlEvent({
 			type: 'task_completed',
 			missionId: resolvedMissionId,
 			missionName: load.pipelineName,
@@ -562,7 +569,7 @@ export const POST: RequestHandler = async (event) => {
 				buildModeReason
 			}
 		});
-		void relayMissionControlEvent({
+		if (!alreadyLoaded) void relayMissionControlEvent({
 			type: 'mission_created',
 			missionId: resolvedMissionId,
 			missionName: load.pipelineName,

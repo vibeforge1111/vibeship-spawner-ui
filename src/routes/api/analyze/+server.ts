@@ -277,8 +277,7 @@ export const POST: RequestHandler = async (event) => {
 			log.error('Failed to parse Claude response:', textContent.text);
 			return json({
 				error: 'Failed to parse Claude response',
-				fallback: true,
-				rawResponse: textContent.text.slice(0, 500) // For debugging
+				fallback: true
 			}, { status: 502 });
 		}
 

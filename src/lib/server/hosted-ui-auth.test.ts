@@ -355,9 +355,12 @@ describe('hosted UI auth', () => {
 		expect(hostedUiCredentialsAreValid('my-private-spawner', 'wrong', env)).toBe(false);
 	});
 
-	it('uses forwarded IP as the hosted auth rate-limit key', () => {
+	it('uses the trusted-proxy (last) forwarded-for hop as the hosted auth rate-limit key', () => {
+		// The leftmost x-forwarded-for entry is client-controllable and can be spoofed to
+		// dodge the rate limiter. The hardened key derivation trusts only the last hop,
+		// which is appended by our reverse proxy.
 		const request = new Request('https://x.test/', { headers: { 'x-forwarded-for': '203.0.113.10, 10.0.0.1' } });
-		expect(hostedUiAuthClientKey(request)).toBe('203.0.113.10');
+		expect(hostedUiAuthClientKey(request)).toBe('10.0.0.1');
 	});
 
 	it('rate-limits repeated hosted auth failures within the window', () => {

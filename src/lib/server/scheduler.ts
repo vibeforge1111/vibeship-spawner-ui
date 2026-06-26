@@ -67,6 +67,7 @@ interface StoreShape {
 let _store: StoreShape | null = null;
 let _tickTimer: NodeJS.Timeout | null = null;
 let _starting = false;
+const _firingIds = new Set<string>();
 
 function _id(): string {
   return 'sched-' + randomBytes(4).toString('hex');
@@ -282,7 +283,13 @@ async function _tick(): Promise<void> {
       continue;
     }
     if (new Date(rec.nextFireAt) > now) continue;
+    if (_firingIds.has(rec.id)) {
+      // Previous fire for this schedule is still in flight (e.g. long subprocess).
+      // Skip so we do not relaunch the mission or emit a duplicate relay message.
+      continue;
+    }
     const nextFireAt = _computeNext(rec.cron, rec.timezone);
+    _firingIds.add(rec.id);
     try {
       const result = await _fire(rec);
       rec.lastFiredAt = new Date().toISOString();
@@ -293,6 +300,8 @@ async function _tick(): Promise<void> {
       rec.lastFiredAt = new Date().toISOString();
       rec.fireCount += 1;
       rec.lastStatus = 'crash: ' + errorMessage(err);
+    } finally {
+      _firingIds.delete(rec.id);
     }
     rec.nextFireAt = nextFireAt;
     dirty = true;

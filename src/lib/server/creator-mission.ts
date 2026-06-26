@@ -1,5 +1,6 @@
 import { env } from '$env/dynamic/private';
 import { execFile } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -366,6 +367,14 @@ function spawnerStateDir(): string {
 
 function creatorMissionDir(stateDir = spawnerStateDir()): string {
 	return path.join(stateDir, 'creator-missions');
+}
+
+/**
+ * Validates that a missionId contains only safe characters and cannot be used for path traversal.
+ * Mission IDs should be alphanumeric with hyphens/underscores only.
+ */
+function validateMissionId(missionId: string): boolean {
+	return /^[a-zA-Z0-9_-]+$/.test(missionId);
 }
 
 function pendingLoadPath(stateDir = spawnerStateDir()): string {
@@ -1632,7 +1641,7 @@ export async function saveCreatorMissionTrace(trace: CreatorMissionTrace, stateD
 	const dir = creatorMissionDir(stateDir);
 	await mkdir(dir, { recursive: true });
 	const filePath = creatorMissionPath(trace.mission_id, stateDir);
-	const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+	const tempPath = `${filePath}.${randomUUID()}.tmp`;
 	await writeFile(tempPath, JSON.stringify(trace, null, 2), 'utf-8');
 	await rename(tempPath, filePath);
 }
@@ -1651,6 +1660,10 @@ export async function readCreatorMissionTrace(
 ): Promise<CreatorMissionTrace | null> {
 	const missionId = input.missionId?.trim();
 	if (missionId) {
+		if (!validateMissionId(missionId)) {
+			console.error(`Invalid missionId format: ${missionId}`);
+			return null;
+		}
 		const filePath = creatorMissionPath(missionId, stateDir);
 		if (!existsSync(filePath)) return null;
 		return parseCreatorMissionTraceFile(await readFile(filePath, 'utf-8'));
@@ -1726,6 +1739,32 @@ export async function executeCreatorMission(
 }
 
 const VALIDATION_EXECUTABLE_ALLOWLIST = new Set(['node', 'python', 'python3', 'py', 'npm', 'npx', 'pnpm', 'spark-intelligence']);
+
+// Interpreters that accept flags to execute arbitrary code snippets.
+const INTERPRETER_EXECUTABLES = new Set(['node', 'python', 'python3', 'py']);
+// Flags that cause interpreters to evaluate an arbitrary code string from the argument
+// line (or read a program from stdin).
+// A command like `python -c "os.system('rm -rf /')"` would pass the allowlist
+// because only the executable name is checked. These inline-eval flags must be rejected.
+// Covers node (-e/--eval, -p/--print), python (-c/--command) and the bare `-`
+// stdin-program form. This list must include every interpreter flag that evaluates an
+// argument string or stdin program rather than naming a script/module on disk.
+//
+// NOTE: `-m`/`--module` is intentionally NOT listed. `python -m <module>` runs a named,
+// importable module (e.g. `python -m pytest tests`) — it executes installed code on disk,
+// exactly like running a script file, and never evaluates an arbitrary inline string. It
+// is a first-class validation pattern here (the default manifest validation command is
+// `python -m pytest tests`, and the planner shells out `python -m spark_intelligence.cli`),
+// so blocking it would break legitimate runs.
+const DANGEROUS_INTERPRETER_FLAGS = new Set([
+	'-c',
+	'--command',
+	'-e',
+	'--eval',
+	'-p',
+	'--print',
+	'-'
+]);
 
 function splitCommandLine(command: string): string[] {
 	const parts: string[] = [];
@@ -1965,6 +2004,24 @@ async function runCreatorValidationCommand(
 			stderr_tail: '',
 			error: `Validation executable is not allowlisted: ${executable}`
 		};
+	}
+	// Reject interpreters invoked with flags that execute arbitrary code snippets.
+	if (INTERPRETER_EXECUTABLES.has(executable)) {
+		const hasDangerousFlag = args.some((arg) => DANGEROUS_INTERPRETER_FLAGS.has(arg));
+		if (hasDangerousFlag) {
+			return {
+				artifact_id: manifest.artifact_id,
+				artifact_type: manifest.artifact_type,
+				repo: manifest.repo,
+				command,
+				cwd,
+				status: 'skipped',
+				exit_code: null,
+				stdout_tail: '',
+				stderr_tail: '',
+				error: `Interpreter executable '${executable}' is not permitted with code-execution flags. Use a script file instead.`
+			};
+		}
 	}
 	const runner = options.commandRunner || activeCreatorValidationCommandRunner || defaultCreatorValidationCommandRunner;
 	const resolved = options.commandRunner ? { executable, args } : resolveValidationCommand(executable, args);

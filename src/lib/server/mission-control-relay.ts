@@ -174,7 +174,7 @@ function getMissionControlPersistenceInfo(): MissionControlRelaySnapshot['persis
 	}
 }
 
-function isMissionControlMissionId(value: unknown): value is string {
+export function isMissionControlMissionId(value: unknown): value is string {
 	return typeof value === 'string' && /^(spark|mission)-[A-Za-z0-9_-]+$/.test(value.trim());
 }
 
@@ -234,8 +234,48 @@ const relayState: {
 	recent: []
 };
 
+// Lifecycle-state maps are server-process-lifetime; without a cap, every
+// mission/task ID processed since the last restart accumulates an entry
+// and the maps grow unbounded. Cap each map and evict the oldest
+// insertion when the cap is reached. Map iteration order preserves
+// insertion order, so the first key reached is the oldest.
+const MAX_LIFECYCLE_ENTRIES = 5000;
 const missionLifecycleStates = new Map<string, string>();
 const taskLifecycleStates = new Map<string, string>();
+
+function setBoundedLifecycle(map: Map<string, string>, key: string, value: string): void {
+	if (!map.has(key) && map.size >= MAX_LIFECYCLE_ENTRIES) {
+		const oldest = map.keys().next().value;
+		if (oldest !== undefined) map.delete(oldest);
+	}
+	map.set(key, value);
+}
+
+// Seed lifecycle dedup maps from the persisted recent entries so that, after a
+// server restart, replays of an already-recorded terminal lifecycle event are
+// skipped instead of re-broadcast to Spark ingest and webhooks.
+function seedLifecycleStatesFromRecent(): void {
+	// recent is newest-first (unshift); walk oldest-first so the latest status wins.
+	// recent is capped (MAX_RECENT_EVENTS), so this seeds far fewer than
+	// MAX_LIFECYCLE_ENTRIES entries; route through setBoundedLifecycle to keep a
+	// single insertion path and preserve the cap invariant.
+	for (let i = relayState.recent.length - 1; i >= 0; i -= 1) {
+		const entry = relayState.recent[i];
+		const taskStatus = lifecycleTaskStatusForEvent(entry.eventType);
+		if (taskStatus) {
+			const identity = taskIdentityForStatusEntry(entry);
+			if (identity) {
+				setBoundedLifecycle(taskLifecycleStates, `${entry.missionId}:${identity}`, taskStatus);
+			}
+			continue;
+		}
+		const missionStatus = lifecycleMissionStatusForEvent(entry.eventType);
+		if (missionStatus) {
+			setBoundedLifecycle(missionLifecycleStates, entry.missionId, missionStatus);
+		}
+	}
+}
+seedLifecycleStatesFromRecent();
 
 function normalizeMissionId(event: MissionControlBridgeEvent): string {
 	return typeof event.missionId === 'string' && event.missionId.trim().length > 0 ? event.missionId : 'unknown-mission';
@@ -433,6 +473,18 @@ function shouldRecordMissionControlEvent(event: MissionControlBridgeEvent): bool
 function recordRelayEvent(event: MissionControlBridgeEvent): void {
 	const entry = toStatusEntry(event);
 	if (!isMissionControlMissionId(entry.missionId)) {
+		// Surface the drop so non-conformant emitters notice their events never reach
+		// /kanban, /trace, or any board view. The event was accepted by /api/events
+		// (and is still broadcast via SSE) — only the board persistence is filtered.
+		// Suppress the warning for events with no missionId at all (those are never
+		// intended to be mission-scoped).
+		if (entry.missionId) {
+			console.warn(
+				`[mission-control-relay] mission event "${entry.eventType}" for missionId ` +
+				`"${entry.missionId}" was accepted but will not appear on the board: ` +
+				`missionId must match /^(spark|mission)-[A-Za-z0-9_-]+$/.`
+			);
+		}
 		return;
 	}
 	relayState.totalRelayed += 1;
@@ -722,7 +774,7 @@ function shouldRecordLifecycleTransition(event: MissionControlBridgeEvent): bool
 		if (taskLifecycleStates.get(key) === taskStatus) {
 			return false;
 		}
-		taskLifecycleStates.set(key, taskStatus);
+		setBoundedLifecycle(taskLifecycleStates, key, taskStatus);
 		return true;
 	}
 
@@ -731,7 +783,7 @@ function shouldRecordLifecycleTransition(event: MissionControlBridgeEvent): bool
 	if (missionLifecycleStates.get(missionId) === missionStatus) {
 		return false;
 	}
-	missionLifecycleStates.set(missionId, missionStatus);
+	setBoundedLifecycle(missionLifecycleStates, missionId, missionStatus);
 	return true;
 }
 

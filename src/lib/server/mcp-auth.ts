@@ -13,12 +13,13 @@ const rateLimitBuckets = new Map<string, number[]>();
 function constantTimeEquals(left: string, right: string): boolean {
 	const leftBuffer = Buffer.from(left);
 	const rightBuffer = Buffer.from(right);
-
-	if (leftBuffer.length !== rightBuffer.length) {
-		return false;
-	}
-
-	return timingSafeEqual(leftBuffer, rightBuffer);
+	// Use the longer length to prevent timing leak on length comparison
+	const maxLen = Math.max(leftBuffer.length, rightBuffer.length);
+	const leftPadded = Buffer.alloc(maxLen, 0);
+	const rightPadded = Buffer.alloc(maxLen, 0);
+	leftBuffer.copy(leftPadded);
+	rightBuffer.copy(rightPadded);
+	return timingSafeEqual(leftPadded, rightPadded) && leftBuffer.length === rightBuffer.length;
 }
 
 interface ApiKeyExtractionOptions {

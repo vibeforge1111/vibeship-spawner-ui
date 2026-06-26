@@ -7,10 +7,12 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { env } from '$env/dynamic/private';
 import { eventBridge } from '$lib/services/event-bridge';
 import { assertSafeId, PathSafetyError, resolveWithinBaseDir } from '$lib/server/path-safety';
 import { controlQueryApiKeysAllowed, enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
-import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
+import { hostedUiHostIsLoopback } from '$lib/server/hosted-ui-auth';
+import { relayMissionControlEvent, isMissionControlMissionId } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { projectStoredPrdAnalysisResultForTier } from '$lib/server/prd-analysis-result-schema';
 import { pendingRequestFileForRequest, readPendingRequestRecord } from '$lib/server/prd-pending-requests';
@@ -29,9 +31,52 @@ const log = logger.scope('EventBridge');
 const TERMINAL_LIFECYCLE_EVENTS = new Set(['mission_completed', 'mission_failed', 'mission_cancelled']);
 const TERMINAL_PROVIDER_STATUSES = new Set(['completed', 'failed', 'cancelled']);
 
+// Suppress duplicate fan-out when the upstream POSTer retries the same event id
+// on a transient network error — without this, the same mission_completed (or
+// any other event) is broadcast twice to SSE subscribers + downstream consumers.
+const RECENT_EVENT_ID_TTL_MS = 5 * 60 * 1000;
+const recentEventIds = new Map<string, number>();
+function rememberRecentEventId(id: string, now: number): boolean {
+	const previous = recentEventIds.get(id);
+	if (typeof previous === 'number' && now - previous < RECENT_EVENT_ID_TTL_MS) return false;
+	recentEventIds.set(id, now);
+	if (recentEventIds.size > 1000) {
+		const cutoff = now - RECENT_EVENT_ID_TTL_MS;
+		recentEventIds.forEach((ts, key) => { if (ts < cutoff) recentEventIds.delete(key); });
+	}
+	return true;
+}
+
+// Resolve the EVENTS_ALLOWED_ORIGINS allowlist using the same env convention as
+// mcp-auth's isOriginAllowed/allowedOriginsEnvVar('EVENTS_ALLOWED_ORIGINS'):
+// prefer process.env when present, else fall back to the SvelteKit dynamic env.
+function eventsAllowedOrigins(): string[] {
+	const raw = (
+		Object.prototype.hasOwnProperty.call(process.env, 'EVENTS_ALLOWED_ORIGINS')
+			? process.env.EVENTS_ALLOWED_ORIGINS
+			: env.EVENTS_ALLOWED_ORIGINS
+	) || '';
+	return raw
+		.split(',')
+		.map((item) => item.trim())
+		.filter((item) => item.length > 0);
+}
+
+// CORS for the event bridge must not reflect an arbitrary origin. Loopback dev
+// origins are always allowed (matches isOriginAllowed); any other origin must be
+// explicitly listed in EVENTS_ALLOWED_ORIGINS, otherwise no CORS headers are sent.
+function isCorsOriginAllowed(origin: string): boolean {
+	try {
+		if (hostedUiHostIsLoopback(new URL(origin).hostname)) return true;
+	} catch {
+		return false;
+	}
+	return eventsAllowedOrigins().includes(origin);
+}
+
 function corsHeaders(request: Request): Record<string, string> {
 	const origin = request.headers.get('origin');
-	if (!origin) return {};
+	if (!origin || !isCorsOriginAllowed(origin)) return {};
 	return {
 		'Access-Control-Allow-Origin': origin,
 		'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -397,6 +442,20 @@ export const POST: RequestHandler = async (event) => {
 			return json({ error: 'Event type is required' }, { status: 400 });
 		}
 
+		// Short-circuit on caller-supplied id that's already been processed within
+		// the dedup window — keeps mission_completed (and every other event) from
+		// being fanned out twice when the upstream POSTer retries on a transient
+		// network error. Auto-generated ids fall through to the normal path.
+		const callerSuppliedId =
+			typeof payload.id === 'string' && payload.id.trim() ? payload.id.trim() : null;
+		if (callerSuppliedId && !rememberRecentEventId(callerSuppliedId, Date.now())) {
+			const headers = new Headers();
+			for (const [key, value] of Object.entries(corsHeaders(event.request))) {
+				headers.set(key, value);
+			}
+			return json({ success: true, eventId: callerSuppliedId, deduplicated: true }, { headers });
+		}
+
 		// Add metadata
 		let fullEvent = {
 			...payload,
@@ -522,7 +581,16 @@ export const POST: RequestHandler = async (event) => {
 		for (const [key, value] of Object.entries(corsHeaders(event.request))) {
 			headers.set(key, value);
 		}
-		return json({ success: true, eventId: fullEvent.id }, { headers });
+		// boardEligible tells the caller whether their event will surface on the
+		// Mission Control board views (/kanban, /trace, etc.). When false, the event
+		// is still broadcast over SSE but is silently dropped by the board's
+		// persistence layer because the missionId doesn't match the required shape.
+		// This flag lets callers detect the mismatch at emit time instead of
+		// discovering an empty board hours later.
+		const boardEligible = typeof fullEvent.missionId === 'string'
+			? isMissionControlMissionId(fullEvent.missionId)
+			: false;
+		return json({ success: true, eventId: fullEvent.id, boardEligible }, { headers });
 	} catch (error) {
 		console.error('[EventBridge] Error processing event:', error);
 		return json({ error: 'Invalid event data' }, { status: 400, headers: corsHeaders(event.request) });

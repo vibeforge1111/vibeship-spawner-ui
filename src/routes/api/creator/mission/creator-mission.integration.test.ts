@@ -202,7 +202,9 @@ describe('/api/creator/mission', () => {
 		expect(getResponse.status).toBe(200);
 		const getBody = await getResponse.json();
 		expect(getBody.trace.mission_id).toBe('mission-creator-api');
-		expect(getBody.tracePath).toContain('mission-creator-api.json');
+		// The GET response intentionally no longer leaks the absolute server tracePath (#877
+		// path-redaction series); the trace is returned without exposing the filesystem path.
+		expect(getBody.tracePath).toBeUndefined();
 	});
 
 	it('marks explicitly read-only creator mission requests as read-only', async () => {

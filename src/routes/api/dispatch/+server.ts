@@ -10,6 +10,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { requireControlAuth, enforceRateLimit } from '$lib/server/mcp-auth';
+import { sparkWorkspaceRoot, isWithinDirectory, externalProjectPathsAllowed } from '$lib/server/spark-run-workspace';
 import { eventBridge } from '$lib/services/event-bridge';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { DEFAULT_MULTI_LLM_PROVIDERS } from '$lib/services/multi-llm-orchestrator';
@@ -95,6 +96,18 @@ export const POST: RequestHandler = async (event) => {
 	try {
 		const body = await event.request.json();
 		const { executionPack, apiKeys, workingDirectory, relay } = body;
+
+		// Validate workingDirectory stays within allowed workspace root
+		if (typeof workingDirectory === 'string' && workingDirectory.trim()) {
+			const trimmedWorkingDir = workingDirectory.trim();
+			const workspaceRoot = sparkWorkspaceRoot();
+			if (!externalProjectPathsAllowed() && !isWithinDirectory(workspaceRoot, trimmedWorkingDir)) {
+				return json(
+					{ success: false, error: `workingDirectory must be within workspace root (${workspaceRoot}). Received: ${trimmedWorkingDir}` },
+					{ status: 400 }
+				);
+			}
+		}
 
 		if (!executionPack || !executionPack.providers || !Array.isArray(executionPack.providers)) {
 			return json({ success: false, error: 'Invalid execution pack' }, { status: 400 });

@@ -59,7 +59,13 @@ const hostedUiSessions = new Map<
 function constantTimeEquals(left: string, right: string): boolean {
 	const leftBuffer = Buffer.from(left);
 	const rightBuffer = Buffer.from(right);
-	return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
+	// Use the longer length to prevent timing leak on length comparison
+	const maxLen = Math.max(leftBuffer.length, rightBuffer.length);
+	const leftPadded = Buffer.alloc(maxLen, 0);
+	const rightPadded = Buffer.alloc(maxLen, 0);
+	leftBuffer.copy(leftPadded);
+	rightBuffer.copy(rightPadded);
+	return timingSafeEqual(leftPadded, rightPadded) && leftBuffer.length === rightBuffer.length;
 }
 
 function hashSessionId(sessionId: string): string {
@@ -217,8 +223,16 @@ export function hostedUiShouldBypassLocalOperatorAuth(
 }
 
 export function hostedUiAuthClientKey(request: Request): string {
-	const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-	return forwardedFor || request.headers.get('x-real-ip')?.trim() || 'unknown';
+	// Prefer x-real-ip (set by trusted reverse proxy) over x-forwarded-for.
+	// x-forwarded-for first entry is client-controllable; use last entry (set by trusted proxy).
+	const realIp = request.headers.get('x-real-ip')?.trim();
+	if (realIp) return realIp;
+	const forwardedFor = request.headers.get('x-forwarded-for');
+	if (forwardedFor) {
+		const parts = forwardedFor.split(',').map(p => p.trim()).filter(Boolean);
+		if (parts.length > 0) return parts[parts.length - 1];
+	}
+	return 'unknown';
 }
 
 export function hostedUiAuthRateLimitStatus(clientKey: string, now = Date.now()): {
