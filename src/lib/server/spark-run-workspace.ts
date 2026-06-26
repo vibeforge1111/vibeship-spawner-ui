@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, realpathSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
@@ -83,5 +83,15 @@ export function resolveSparkRunProjectPath(projectPath?: string): string {
 		: resolveContainedPath(defaultRoot, absolutePath, 'Project path');
 
 	mkdirSync(containedPath, { recursive: true });
+	// TOCTOU guard: verify the created path is not a symlink after creation
+	try {
+		const stat = lstatSync(containedPath);
+		if (stat.isSymbolicLink()) {
+			throw new SparkRunWorkspaceError('Project path resolved to a symlink, refusing');
+		}
+	} catch (err) {
+		if (err instanceof SparkRunWorkspaceError) throw err;
+		// Directory doesn't exist yet — mkdirSync may not have created it
+	}
 	return containedPath;
 }
