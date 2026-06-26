@@ -474,6 +474,16 @@ class ProviderRuntimeManager {
 					const apiKeys: Record<string, string> = {};
 					for (const provider of state.multiLLMExecution.providers || []) {
 						if (provider.requiresApiKey && provider.apiKeyEnv) {
+							// Validate apiKeyEnv against allowlist to prevent env var exfiltration
+							const ALLOWED_API_KEY_ENVS = new Set([
+								'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GOOGLE_API_KEY',
+								'MISTRAL_API_KEY', 'COHERE_API_KEY', 'GROQ_API_KEY',
+								'TOGETHER_API_KEY', 'FIREWORKS_API_KEY', 'DEEPSEEK_API_KEY',
+							]);
+							if (!ALLOWED_API_KEY_ENVS.has(provider.apiKeyEnv)) {
+								console.warn(`[ProviderRuntime] Ignoring disallowed apiKeyEnv: ${provider.apiKeyEnv}`);
+								continue;
+							}
 							const value = process.env[provider.apiKeyEnv];
 							if (value && value.trim()) {
 								apiKeys[provider.id] = value.trim();
