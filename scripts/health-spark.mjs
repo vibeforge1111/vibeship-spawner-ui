@@ -157,12 +157,7 @@ export function healthRequiresCodex(providers, env = process.env) {
     "";
   if (selectedProvider === "codex") return true;
   const codexProvider = providers.find((provider) => provider && provider.id === "codex");
-  return Boolean(
-    codexProvider &&
-      (codexProvider.configured === true ||
-        codexProvider.envKeyConfigured === true ||
-        codexProvider.cliConfigured === true),
-  );
+  return Boolean(codexProvider && codexProvider.sparkSelected === true);
 }
 
 async function main() {
