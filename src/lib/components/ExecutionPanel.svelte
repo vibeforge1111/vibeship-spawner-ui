@@ -219,8 +219,12 @@
 	let activeMissionId = $derived(executionProgress?.missionId || relay?.missionId || '');
 	let runtimeAgents = $derived.by(() => {
 		if (!executionProgress?.agentRuntime) return [] as AgentRuntimeStatus[];
-		return Array.from(executionProgress.agentRuntime.values()).sort((a, b) =>
-			Date.parse(b.updatedAt) - Date.parse(a.updatedAt)
+		const updatedAtMs = (entry: AgentRuntimeStatus): number => {
+			const parsed = Date.parse(entry.updatedAt);
+			return Number.isFinite(parsed) ? parsed : 0;
+		};
+		return Array.from(executionProgress.agentRuntime.values()).sort(
+			(a, b) => updatedAtMs(b) - updatedAtMs(a)
 		);
 	});
 	let recentTaskTransitions = $derived.by(() => {
