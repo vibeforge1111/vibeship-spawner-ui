@@ -198,7 +198,6 @@ async function handleStreamingResponse(
 			data: {
 				success: true,
 				responseLength: fullContent.length,
-				response: fullContent,
 				provider: provider.id,
 				providerLabel: provider.label
 			}
