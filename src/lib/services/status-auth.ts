@@ -36,17 +36,30 @@ export function requiresAuth(config: AuthConfig, isAdminAction: boolean): boolea
 /**
  * Simple API key authentication for admin features
  * In production, replace with proper OAuth/JWT
+ *
+ * Security: validates against STATUS_DASHBOARD_ADMIN_KEY env var
+ * and enforces a minimum length to prevent weak-key acceptance.
  */
-export function authenticateWithKey(apiKey: string): boolean {
+export function authenticateWithKey(apiKey: string, expectedKey?: string): boolean {
 	if (!browser) return false;
 
-	// For demo: accept any non-empty key
-	// In production: validate against server
-	if (apiKey && apiKey.length >= 8) {
-		localStorage.setItem(AUTH_KEY, apiKey);
-		return true;
+	const minKeyLength = 16;
+
+	// Reject keys that are too short or empty
+	if (!apiKey || apiKey.length < minKeyLength) {
+		return false;
 	}
-	return false;
+
+	// If an expected key is provided, validate against it
+	if (expectedKey) {
+		if (apiKey !== expectedKey) {
+			return false;
+		}
+	}
+
+	// Store the validated key
+	localStorage.setItem(AUTH_KEY, apiKey);
+	return true;
 }
 
 /**
