@@ -16,7 +16,9 @@ vi.mock('$env/dynamic/private', () => ({
 }));
 
 vi.mock('$lib/server/mission-control-relay', () => ({
-	relayMissionControlEvent: vi.fn()
+	relayMissionControlEvent: vi.fn(),
+	isMissionControlMissionId: (value: unknown): value is string =>
+		typeof value === 'string' && /^(spark|mission)-[A-Za-z0-9_-]+$/.test(value.trim())
 }));
 
 vi.mock('$lib/server/provider-runtime', () => ({
