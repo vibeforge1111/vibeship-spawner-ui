@@ -2377,7 +2377,6 @@ export const POST: RequestHandler = async (event) => {
 
 		return json({
 			success: true,
-			path: paths.pendingPrdFile,
 			requestId,
 			...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
 			autoAnalysis: {
