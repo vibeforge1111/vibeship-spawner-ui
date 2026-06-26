@@ -4,6 +4,6 @@ import type { RequestHandler } from './$types';
 export const GET: RequestHandler = async () => {
 	return json({
 		ok: true,
-		service: 'spawner-ui'
+		// service name removed for security
 	});
 };
