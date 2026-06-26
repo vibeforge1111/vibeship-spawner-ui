@@ -2220,7 +2220,7 @@ class MissionExecutor {
 	 * Get skill ID for an agent
 	 */
 	private getSkillIdForAgent(agentId: string): string | undefined {
-		const agent = this.progress.mission?.agents.find(a => a.id === agentId);
+		const agent = this.progress.mission?.agents?.find(a => a.id === agentId);
 		return agent?.skills?.[0];
 	}
 
