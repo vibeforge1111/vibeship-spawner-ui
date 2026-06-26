@@ -9,8 +9,8 @@ import { logger } from '$lib/utils/logger';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
-import { join, resolve } from 'path';
-import { existsSync } from 'fs';
+import { basename, dirname, join, resolve } from 'path';
+import { existsSync, realpathSync } from 'fs';
 import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { resolveCliBinary } from '$lib/server/cli-resolver';
@@ -24,6 +24,11 @@ import { formatTaskQualityGuidance } from '$lib/server/task-quality-rubric';
 import { formatVerificationPlanGuidance, generateVerificationPlan } from '$lib/server/verification-plan-generator';
 import { enrichBrief, isSparseUnderstandingClarification } from '$lib/server/brief-enricher';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import {
+	externalProjectPathsAllowed,
+	isWithinDirectory,
+	sparkWorkspaceRoot
+} from '$lib/server/spark-run-workspace';
 import { writeFileAtomic } from '$lib/server/atomic-write';
 import {
 	projectStoredPrdAnalysisResultForTier,
@@ -411,15 +416,60 @@ function slugifyTaskId(value: string, fallback: string): string {
 	return slug || fallback;
 }
 
+// Resolve through symlinks so containment comparisons are stable across platforms (e.g.
+// macOS exposes os.tmpdir() as /var/folders/... which is a symlink to /private/var/...).
+// The target folder usually does not exist yet, so we canonicalize the nearest existing
+// ancestor and re-append the missing trailing segments — otherwise a not-yet-created
+// target would compare as /var/... against a /private/var/... realpath'd root.
+function canonicalize(candidatePath: string): string {
+	const absolute = resolve(candidatePath);
+	const missing: string[] = [];
+	let cursor = absolute;
+	while (!existsSync(cursor)) {
+		const parent = dirname(cursor);
+		if (parent === cursor) return absolute;
+		missing.unshift(basename(cursor));
+		cursor = parent;
+	}
+	try {
+		return resolve(realpathSync(cursor), ...missing);
+	} catch {
+		return absolute;
+	}
+}
+
+// A target folder is in-workspace when it sits under one of the Spark-controlled roots:
+// the configured Spark workspace root or the spawner state directory. We intentionally do
+// NOT use process.cwd() (the SvelteKit app root) — the spawner writes generated projects
+// and static proofs under its own state/workspace tree, not under the server source tree.
+// The SPARK_ALLOW_EXTERNAL_PROJECT_PATHS escape hatch keeps trusted local-dev flows working.
 function isPathWithinWorkspace(candidatePath: string): boolean {
-	const workspaceRoot = resolve(process.cwd());
-	const resolvedCandidate = resolve(candidatePath);
-	return resolvedCandidate === workspaceRoot || resolvedCandidate.startsWith(workspaceRoot + '/');
+	if (externalProjectPathsAllowed()) return true;
+	const resolvedCandidate = canonicalize(candidatePath);
+	const allowedRoots = [sparkWorkspaceRoot(), spawnerStateDir()]
+		.filter((root): root is string => Boolean(root && root.trim()))
+		.map((root) => canonicalize(root));
+	return allowedRoots.some(
+		(root) => resolvedCandidate === root || isWithinDirectory(root, resolvedCandidate)
+	);
+}
+
+// A Windows drive-letter path (C:\...) on a POSIX host — or a POSIX-absolute path on a
+// Windows host — denotes the user's own machine build location, not a path on this server.
+// It cannot reference a server file (resolve() would mangle it under cwd), so it is preserved
+// verbatim as the declared OS target rather than run through the server workspace guard, which
+// matches inferProjectPathFromPrdLoad's treatment of explicit project paths.
+function isForeignOsAbsolutePath(candidate: string): boolean {
+	const looksWindows = /^[A-Za-z]:[\\/]/.test(candidate);
+	const looksPosix = candidate.startsWith('/');
+	return process.platform === 'win32' ? looksPosix : looksWindows;
 }
 
 function extractTargetFolder(content: string): string | null {
 	const candidate = extractExplicitProjectPath(content);
 	if (!candidate) return null;
+	// Explicit foreign-OS target paths are the user's declared build location; keep them as-is.
+	if (isForeignOsAbsolutePath(candidate)) return candidate;
 	const resolved = resolve(candidate);
 	if (!isPathWithinWorkspace(resolved)) {
 		logger.warn('[prd-bridge-write] Rejected target folder outside workspace', { candidate, resolved });
