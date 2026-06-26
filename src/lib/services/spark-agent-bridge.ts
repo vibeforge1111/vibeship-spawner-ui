@@ -1551,15 +1551,36 @@ class SparkAgentBridgeService {
 				context.signal.addEventListener('abort', onAbort, { once: true });
 			}
 
+			const MAX_BUFFER_SIZE = 10 * 1024 * 1024; // 10MB
+			let stdoutTruncated = false;
+			let stderrTruncated = false;
+
 			child.stdout?.on('data', (chunk: Buffer) => {
+				if (stdoutTruncated) return;
 				const text = chunk.toString();
-				stdout += text;
+				if (stdout.length + text.length > MAX_BUFFER_SIZE) {
+					const remaining = MAX_BUFFER_SIZE - stdout.length;
+					stdout += text.slice(0, Math.max(0, remaining));
+					stdout += '\n[OUTPUT TRUNCATED: exceeded 10MB buffer limit]';
+					stdoutTruncated = true;
+				} else {
+					stdout += text;
+				}
 				progressMarks += 1;
 				context.emitProgress(Math.min(90, progressMarks * 10), `${context.providerId} processing...`);
 			});
 
 			child.stderr?.on('data', (chunk: Buffer) => {
-				stderr += chunk.toString();
+				if (stderrTruncated) return;
+				const text = chunk.toString();
+				if (stderr.length + text.length > MAX_BUFFER_SIZE) {
+					const remaining = MAX_BUFFER_SIZE - stderr.length;
+					stderr += text.slice(0, Math.max(0, remaining));
+					stderr += '\n[STDERR TRUNCATED: exceeded 10MB buffer limit]';
+					stderrTruncated = true;
+				} else {
+					stderr += text;
+				}
 			});
 
 			child.on('error', (err) => {
