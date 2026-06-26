@@ -29,15 +29,23 @@
 		return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 	}
 
-	function copyAllLogs(): void {
+	async function copyAllLogs(): Promise<void> {
 		const logText = displayLogs.map((log) => `${formatTime(log.created_at)}  ${formatExecutionLogForDisplay(log).message}`).join('\n');
-		navigator.clipboard.writeText(logText);
-		toasts.success('Logs copied to clipboard');
+		try {
+			await navigator.clipboard.writeText(logText);
+			toasts.success('Logs copied to clipboard');
+		} catch {
+			toasts.error('Unable to copy logs to clipboard');
+		}
 	}
 
-	function copyLogMessage(log: MissionLog): void {
-		navigator.clipboard.writeText(formatExecutionLogForDisplay(log).message);
-		toasts.success('Copied');
+	async function copyLogMessage(log: MissionLog): Promise<void> {
+		try {
+			await navigator.clipboard.writeText(formatExecutionLogForDisplay(log).message);
+			toasts.success('Copied');
+		} catch {
+			toasts.error('Unable to copy to clipboard');
+		}
 	}
 
 	function getLogDotClass(display: DisplayLog): string {
@@ -70,7 +78,11 @@
 	}
 
 	$effect(() => {
-		if (displayLogs.length > 0 && logsContainer) {
+		if (displayLogs.length === 0 || !logsContainer) return;
+		// Auto-scroll only if the reader is already pinned within ~32px of the bottom;
+		// otherwise preserve their scroll position so older logs stay legible.
+		const distanceFromBottom = logsContainer.scrollHeight - logsContainer.scrollTop - logsContainer.clientHeight;
+		if (distanceFromBottom <= 32) {
 			logsContainer.scrollTop = logsContainer.scrollHeight;
 		}
 	});
@@ -139,7 +151,7 @@
 						</div>
 						<button
 							onclick={() => copyLogMessage(log)}
-							class="rounded-md p-1.5 text-xs text-text-tertiary opacity-0 transition-all hover:bg-bg-primary hover:text-vibe-teal group-hover:opacity-100"
+							class="rounded-md p-1.5 text-xs text-text-tertiary opacity-0 transition-all hover:bg-bg-primary hover:text-vibe-teal group-hover:opacity-100 focus-visible:opacity-100"
 							title="Copy this log"
 							aria-label="Copy this log"
 						>
