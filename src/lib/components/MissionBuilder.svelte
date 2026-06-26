@@ -421,17 +421,20 @@
 									type="text"
 									bind:value={newTaskTitle}
 									placeholder="Task title"
+									aria-label="New task title"
 									class="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm focus:border-violet-500 focus:outline-none"
 								/>
 								<textarea
 									bind:value={newTaskDescription}
 									placeholder="Task description"
+									aria-label="New task description"
 									rows="2"
 									class="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm focus:border-violet-500 focus:outline-none resize-none"
 								></textarea>
 								<div class="flex gap-2">
 									<select
 										bind:value={newTaskAssignee}
+										aria-label="Assign task to agent"
 										class="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm focus:border-violet-500 focus:outline-none"
 									>
 										<option value="">Assign to agent...</option>
@@ -441,6 +444,7 @@
 									</select>
 									<select
 										bind:value={newTaskHandoffType}
+										aria-label="Task handoff type"
 										class="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm focus:border-violet-500 focus:outline-none"
 									>
 										<option value="sequential">Sequential</option>
