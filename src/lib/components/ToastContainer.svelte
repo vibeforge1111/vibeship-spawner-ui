@@ -38,7 +38,10 @@
 </script>
 
 {#if currentToasts.length > 0}
-	<div class="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 max-w-md">
+	<div
+		class="fixed right-4 z-[100] flex flex-col gap-2 max-w-[calc(100vw-2rem)] md:max-w-md"
+		style="bottom: calc(1rem + env(safe-area-inset-bottom, 0px));"
+	>
 		{#each currentToasts as toast (toast.id)}
 			<div
 				class="flex items-start gap-3 p-4 border rounded shadow-lg backdrop-blur-sm animate-slide-in {getTypeStyles(toast.type)}"
@@ -85,5 +88,11 @@
 
 	.animate-slide-in {
 		animation: slide-in 0.2s ease-out;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.animate-slide-in {
+			animation: none;
+		}
 	}
 </style>
