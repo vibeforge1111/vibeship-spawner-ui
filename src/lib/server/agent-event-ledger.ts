@@ -206,7 +206,13 @@ export function readRecentAgentEvents(
 	return [...ledgerEntries, ...finalAnswerEntries]
 		.filter((entry) => !requestId || entry.request_id === requestId)
 		.filter((entry) => !sessionId || entry.session_id === sessionId)
-		.sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
+		.sort((a, b) => {
+			const aTs = Date.parse(a.created_at);
+			const bTs = Date.parse(b.created_at);
+			const aSafe = Number.isNaN(aTs) ? 0 : aTs;
+			const bSafe = Number.isNaN(bTs) ? 0 : bTs;
+			return aSafe - bSafe || a.event_id.localeCompare(b.event_id);
+		})
 		.slice(-limit)
 		.reverse();
 }
