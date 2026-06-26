@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import { logger } from '$lib/utils/logger';
 	import { scale, fade } from 'svelte/transition';
 	import { backOut } from 'svelte/easing';
@@ -31,16 +32,25 @@
 	// Copyable prompt for Claude Code
 	const claudePrompt = $derived(`Analyze the pending PRD and send results to Spawner UI`);
 	let copied = $state(false);
+	let copyResetTimer: ReturnType<typeof setTimeout> | null = null;
 
 	async function copyPrompt() {
 		try {
 			await navigator.clipboard.writeText(claudePrompt);
 			copied = true;
-			setTimeout(() => copied = false, 2000);
+			if (copyResetTimer) clearTimeout(copyResetTimer);
+			copyResetTimer = setTimeout(() => {
+				copyResetTimer = null;
+				copied = false;
+			}, 2000);
 		} catch (e) {
 			console.error('Failed to copy:', e);
 		}
 	}
+
+	onDestroy(() => {
+		if (copyResetTimer) clearTimeout(copyResetTimer);
+	});
 
 	const stages = [
 		{ label: 'Reading PRD', icon: '◈' },
