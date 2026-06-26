@@ -889,6 +889,7 @@ class ProviderRuntimeManager {
 				clearInterval(active);
 				this.providerTaskHeartbeats.delete(key);
 			}
+			signal.removeEventListener('abort', stop);
 		};
 		signal.addEventListener('abort', stop, { once: true });
 		return stop;
