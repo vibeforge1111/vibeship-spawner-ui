@@ -59,7 +59,17 @@ export async function executeAnthropicRequest(
 				messages: [{ role: 'user', content: prompt }]
 			};
 			if (systemPrompt) {
-				body.system = systemPrompt;
+				// Send the system prompt as a structured-content block with a
+				// cache_control: ephemeral breakpoint so Anthropic prompt caching
+				// can deduplicate the (large, stable) prefix across the retry loop
+				// above and across sibling provider dispatches in the same mission.
+				// Without the breakpoint the full prompt is rebilled at the model
+				// input rate on every call; with it, subsequent calls within the
+				// ~5-minute cache window reuse the cached prefix at roughly one
+				// tenth of the per-token input cost.
+				body.system = [
+					{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }
+				];
 			}
 
 			const response = await fetch(ANTHROPIC_API_URL, {
