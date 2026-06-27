@@ -148,6 +148,36 @@ function repairHostedWorkspaceOwnership(paths, env = process.env) {
   }
 }
 
+function isPermissionDenied(error) {
+  return Boolean(error && typeof error === "object" && ["EACCES", "EPERM"].includes(error.code));
+}
+
+export function workspacePermissionFailureMessage(error, attemptedPath) {
+  const message = error instanceof Error ? error.message : String(error);
+  return [
+    `workspace write smoke could not write from this health process at ${attemptedPath}: ${message}`,
+    "If this health check is running inside a restricted terminal or sandbox, rerun it from a terminal that can write to SPARK_WORKSPACE_ROOT.",
+    "If this is a real Spark workspace permission issue, fix that workspace permission before starting missions.",
+  ].join(" ");
+}
+
+function writeWorkspaceSmoke(workspaceRoot) {
+  const smokeWorkspace = join(workspaceRoot, ".health-smoke");
+  const writeCheckPath = join(smokeWorkspace, "write-check.txt");
+  try {
+    mkdirSync(smokeWorkspace, { recursive: true });
+    repairHostedWorkspaceOwnership([workspaceRoot, smokeWorkspace]);
+    writeFileSync(writeCheckPath, `spark-health ${new Date().toISOString()}\n`, "utf-8");
+    repairHostedWorkspaceOwnership([workspaceRoot, smokeWorkspace, writeCheckPath]);
+  } catch (error) {
+    if (isPermissionDenied(error)) {
+      throw new Error(workspacePermissionFailureMessage(error, writeCheckPath));
+    }
+    throw error;
+  }
+  return smokeWorkspace;
+}
+
 export function healthRequiresCodex(providers, env = process.env) {
   const selectedProvider =
     env.DEFAULT_MISSION_PROVIDER?.trim() ||
@@ -203,12 +233,7 @@ async function main() {
   }
 
   const workspaceRoot = resolveSparkWorkspaceRoot();
-  const smokeWorkspace = join(workspaceRoot, ".health-smoke");
-  mkdirSync(smokeWorkspace, { recursive: true });
-  repairHostedWorkspaceOwnership([workspaceRoot, smokeWorkspace]);
-  const writeCheckPath = join(smokeWorkspace, "write-check.txt");
-  writeFileSync(writeCheckPath, `spark-health ${new Date().toISOString()}\n`, "utf-8");
-  repairHostedWorkspaceOwnership([workspaceRoot, smokeWorkspace, writeCheckPath]);
+  const smokeWorkspace = writeWorkspaceSmoke(workspaceRoot);
 
   if (process.env.SPARK_HEALTH_DEEP === "1") {
     const requestId = `health-${Date.now()}`;
