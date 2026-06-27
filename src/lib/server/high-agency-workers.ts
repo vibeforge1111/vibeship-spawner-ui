@@ -13,7 +13,8 @@ export interface HighAgencyWorkerApproval {
 function resolveExistingPath(path: string): string {
 	try {
 		return realpathSync(path);
-	} catch {
+	} catch (err: unknown) {
+			console.warn('[spark-compete] caught error:', err);
 		return resolve(path);
 	}
 }
@@ -50,7 +51,8 @@ export function assertHighAgencyWorkerAllowed(workingDirectory?: string): HighAg
 	if (!externalAllowed) {
 		try {
 			workingDirectoryResolved = resolveWorkspaceContainedPath(cwd, 'High-agency worker path');
-		} catch {
+		} catch (err: unknown) {
+			console.warn('[spark-compete] caught error:', err);
 			throw new Error(
 				`High-agency workers must run inside Spark workspace root (${workspaceRoot}). ` +
 					`Use a workspace path like "${basename(cwd) || 'project'}", ` +

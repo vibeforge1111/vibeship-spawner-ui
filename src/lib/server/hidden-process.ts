@@ -43,7 +43,8 @@ export function terminateProcessTree(
 		killer.on('error', () => {
 			try {
 				child.kill(signal);
-			} catch {
+			} catch (err: unknown) {
+			console.warn('[spark-compete] caught error:', err);
 				// noop
 			}
 		});
@@ -52,7 +53,8 @@ export function terminateProcessTree(
 
 	try {
 		child.kill(signal);
-	} catch {
+	} catch (err: unknown) {
+			console.warn('[spark-compete] caught error:', err);
 		// noop
 	}
 }

@@ -44,7 +44,8 @@ export function resolveCliBinary(binaryName: SparkCliBinary): string | null {
 			return matches.find((line) => line.toLowerCase().endsWith('.cmd')) || matches[0] || null;
 		}
 		return matches[0] || null;
-	} catch {
+	} catch (err: unknown) {
+			console.warn('[spark-compete] caught error:', err);
 		return null;
 	}
 }
