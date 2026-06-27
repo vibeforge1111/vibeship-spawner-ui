@@ -786,9 +786,8 @@ class ProviderRuntimeManager {
 					}
 				});
 			}
-			if (allComplete) {
-				this.missionEventHandlers.delete(missionId);
-			}
+		}).catch((error) => {
+			console.warn('[ProviderRuntime] Unhandled error in mission completion handler:', error);
 		});
 		this.persistMissionSessions(missionId);
 
@@ -799,7 +798,7 @@ class ProviderRuntimeManager {
 			startedAt,
 			authority
 		};
-	}
+		}
 
 	private startProviderTaskActivity(options: {
 		executionPack: MultiLLMExecutionPack;
