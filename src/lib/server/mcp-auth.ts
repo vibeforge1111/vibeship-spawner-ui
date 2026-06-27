@@ -99,7 +99,8 @@ function getClientIdentity(event: RequestEvent): string {
 	if (apiKey) return `key:${apiKey}`;
 	try {
 		return `ip:${event.getClientAddress()}`;
-	} catch {
+    } catch (err) {
+        console.warn('[mcp-auth] client address resolution failed:', err);
 		return `host:${new URL(event.request.url).hostname}`;
 	}
 }

@@ -67,7 +67,8 @@ export async function verifySparkProSkillAccess(
 		return features.some((feature) => typeof feature === 'string' && ACCEPTED_SKILL_FEATURES.has(feature))
 			? 'ok'
 			: 'forbidden';
-	} catch {
+    } catch (err) {
+        console.warn('[spark-pro-entitlements] entitlement check failed:', err);
 		return 'unavailable';
 	}
 }
