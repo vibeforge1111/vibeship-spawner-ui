@@ -9,8 +9,8 @@ import { logger } from '$lib/utils/logger';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
-import { join, resolve } from 'path';
-import { existsSync } from 'fs';
+import { basename, dirname, join, resolve } from 'path';
+import { existsSync, realpathSync } from 'fs';
 import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { resolveCliBinary } from '$lib/server/cli-resolver';
@@ -416,15 +416,44 @@ function slugifyTaskId(value: string, fallback: string): string {
 	return slug || fallback;
 }
 
+function canonicalize(candidatePath: string): string {
+	const absolute = resolve(candidatePath);
+	const missing: string[] = [];
+	let cursor = absolute;
+	while (!existsSync(cursor)) {
+		const parent = dirname(cursor);
+		if (parent === cursor) return absolute;
+		missing.unshift(basename(cursor));
+		cursor = parent;
+	}
+	try {
+		return resolve(realpathSync(cursor), ...missing);
+	} catch {
+		return absolute;
+	}
+}
+
 function isPathWithinWorkspace(candidatePath: string): boolean {
-	const workspaceRoot = resolve(process.cwd());
-	const resolvedCandidate = resolve(candidatePath);
-	return resolvedCandidate === workspaceRoot || resolvedCandidate.startsWith(workspaceRoot + '/');
+	if (externalProjectPathsAllowed()) return true;
+	const resolvedCandidate = canonicalize(candidatePath);
+	const allowedRoots = [sparkWorkspaceRoot(), spawnerStateDir()]
+		.filter((root): root is string => Boolean(root && root.trim()))
+		.map((root) => canonicalize(root));
+	return allowedRoots.some(
+		(root) => resolvedCandidate === root || isWithinDirectory(root, resolvedCandidate)
+	);
+}
+
+function isForeignOsAbsolutePath(candidate: string): boolean {
+	const looksWindows = /^[A-Za-z]:[\\/]/.test(candidate);
+	const looksPosix = candidate.startsWith('/');
+	return process.platform === 'win32' ? looksPosix : looksWindows;
 }
 
 function extractTargetFolder(content: string): string | null {
 	const candidate = extractExplicitProjectPath(content);
 	if (!candidate) return null;
+	if (isForeignOsAbsolutePath(candidate)) return candidate;
 	const resolved = resolve(candidate);
 	if (!isPathWithinWorkspace(resolved)) {
 		logger.warn('[prd-bridge-write] Rejected target folder outside workspace', { candidate, resolved });
