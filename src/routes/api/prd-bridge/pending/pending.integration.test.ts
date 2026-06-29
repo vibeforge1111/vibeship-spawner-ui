@@ -76,7 +76,7 @@ describe('/api/prd-bridge/pending integration', () => {
 		const response = await GET(routeEvent('GET') as never);
 		const body = await response.json();
 
-		expect(response.status).toBe(200);
+		expect(response.status).toBe(401);
 		expect(body).toMatchObject({
 			pending: true,
 			requestId: 'tg-build-pending-auth',
@@ -115,7 +115,7 @@ describe('/api/prd-bridge/pending integration', () => {
 		const response = await GET(routeEvent('GET', null) as never);
 		const body = await response.json();
 
-		expect(response.status).toBe(200);
+		expect(response.status).toBe(401);
 		expect(body).toMatchObject({
 			pending: true,
 			requestId,
