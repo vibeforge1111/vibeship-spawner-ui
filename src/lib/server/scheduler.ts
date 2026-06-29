@@ -12,30 +12,6 @@ import {
   type HarnessAuthorityVerdict
 } from './harness-authority';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
-import
-{
-execFile
-}
-from
-'node:child_process';
-import
-{
-homedir
-}
-from
-'node:os';
-import
-{
-promisify
-}
-from
-'node:util';
-import
-{
-resolveSparkRunProjectPath
-}
-from
-'./spark-run-workspace';
 
 function _envVar(name: string): string | undefined {
   const v = (privateEnv as Record<string, string | undefined>)[name];

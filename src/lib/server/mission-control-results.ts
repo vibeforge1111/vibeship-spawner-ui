@@ -8,13 +8,6 @@ import type { MissionControlCompletionEvidence } from '$lib/types/mission-contro
 import { compactMissionControlDisplayText, compactProviderHandoffText } from './mission-control-display';
 import { projectPreviewUrl } from './project-preview';
 import { env } from '$env/dynamic/private';
-import
-type
-{
-MissionControlBoardEntry
-}
-from
-'./mission-control-relay';
 
 export interface MissionControlProviderResultSummary {
 	providerId: string;
