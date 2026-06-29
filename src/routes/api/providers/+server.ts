@@ -4,7 +4,29 @@ import { env } from '$env/dynamic/private';
 import { requireControlAuth } from '$lib/server/mcp-auth';
 import { DEFAULT_MULTI_LLM_PROVIDERS } from '$lib/services/multi-llm-orchestrator';
 import { applyProviderEnvOverrides, resolveProviderRuntimeConfiguration } from '$lib/server/provider-config';
-import { requireControlAuth } from '$lib/server/mcp-auth';
+
+function providerAuthPayload(event: Parameters<typeof requireControlAuth>[0]) {
+	const openRead = requireControlAuth(event, {
+		surface: 'Providers',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: true,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+	if (openRead) return { openRead, hasControlAuth: false };
+
+	const strictRead = requireControlAuth(event, {
+		surface: 'Providers',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey: false,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+
+	return { openRead: null, hasControlAuth: strictRead === null };
+}
 
 function normalizeProviderId(value: string | undefined): string | null {
 	if (!value) return null;
@@ -16,8 +38,8 @@ function normalizeProviderId(value: string | undefined): string | null {
 }
 
 export const GET: RequestHandler = async (event) => {
-	const unauthorized = requireControlAuth(event, { surface: 'ProvidersAPI', apiKeyEnvVar: 'MCP_API_KEY' });
-	if (unauthorized) return unauthorized;
+	const { openRead, hasControlAuth } = providerAuthPayload(event);
+	if (openRead) return openRead;
 
 	const envRecord = env as Record<string, string | undefined>;
 	const sparkDefaultProvider =
