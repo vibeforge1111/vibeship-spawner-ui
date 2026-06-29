@@ -3,16 +3,6 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { spawnerStateDir } from './spawner-state';
 import type {
-import
-{
-existsSync,
-readdirSync,
-readFileSync,
-statSync,
-writeFileSync
-}
-from
-'node:fs';
 	CreatorMissionTrace,
 	CreatorStageStatus,
 	CreatorValidationCommandResult,
