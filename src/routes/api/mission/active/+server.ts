@@ -48,19 +48,6 @@ function getMissionControlPath(): string {
 	return path.join(getSpawnerDir(), 'mission-control.json');
 }
 
-function requireActiveMissionAuth(
-	event: Parameters<typeof requireControlAuth>[0],
-	allowLoopbackWithoutKey: boolean
-): Response | null {
-	return requireControlAuth(event, {
-		surface: 'ActiveMission',
-		apiKeyEnvVar: 'EVENTS_API_KEY',
-		fallbackApiKeyEnvVar: 'MCP_API_KEY',
-		apiKeyCookieName: 'spawner_events_api_key',
-		allowLoopbackWithoutKey,
-		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
-	});
-}
 
 async function missionHasTerminalRelayEvent(missionId: string | undefined): Promise<boolean> {
 	if (!missionId) return false;
