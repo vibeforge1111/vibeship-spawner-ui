@@ -27,6 +27,7 @@ import {
 } from '$lib/services/mcp/client';
 import { requireMcpAuth } from '$lib/server/mcp-auth';
 import { requireControlAuth } from '$lib/server/mcp-auth';
+import { HarnessAuthorityError, assertNativeGovernorHarnessAuthority, resolveExecutionAuthority } from '$lib/server/harness-authority';
 
 /**
  * POST - Connect to an MCP server
