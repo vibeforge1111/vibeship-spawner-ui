@@ -26,14 +26,6 @@ import {
 import { stripAuthorityResidue } from '$lib/server/authority-residue';
 import { requireControlAuth } from '$lib/server/mcp-auth';
 import { parseJsonOrThrow } from '$lib/utils/safe-json';
-import
-{
-readFile,
-writeFile,
-mkdir
-}
-from
-'fs/promises';
 
 function getSpawnerDir(): string {
 	return spawnerStateDir();

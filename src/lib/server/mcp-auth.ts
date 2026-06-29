@@ -2,13 +2,6 @@ import { env } from '$env/dynamic/private';
 import { json, type RequestEvent } from '@sveltejs/kit';
 import { timingSafeEqual } from 'node:crypto';
 import {
-import
-{
-hostedUiLooksHosted,
-hostedUiSessionIsValid
-}
-from
-'$lib/server/hosted-ui-auth';
 	hostedUiHostIsLoopback,
 	hostedUiIsLocalOperatorLoopbackRequest,
 	hostedUiLooksHosted,
