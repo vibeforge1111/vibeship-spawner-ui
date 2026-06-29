@@ -1,5 +1,12 @@
 import type { MissionControlBoardEntry, MissionControlProjectLineage } from '$lib/types/mission-control';
 import { polishMissionTitleForDisplay } from './mission-title';
+import
+type
+{
+MissionControlProjectLineage
+}
+from
+'$lib/types/mission-control';
 
 export type MissionControlEntry = {
 	eventType: string;
