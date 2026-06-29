@@ -45,6 +45,12 @@ export const POST: RequestHandler = async (event) => {
 		return json(result);
 	} catch (error) {
 		console.error('[MissionControl] Command failed:', error);
+		if (error instanceof HarnessAuthorityError) {
+			return json(
+				{ ok: false, code: error.code, error: error.message, verdict: error.verdict },
+				{ status: error.status }
+			);
+		}
 		return json(
 			{
 				ok: false,

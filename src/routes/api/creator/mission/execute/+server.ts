@@ -63,6 +63,12 @@ export const POST: RequestHandler = async (event) => {
 		});
 	} catch (error) {
 		console.error('[CreatorMission] Execution failed:', error);
+		if (error instanceof HarnessAuthorityError) {
+			return json(
+				{ ok: false, code: error.code, error: error.message, verdict: error.verdict },
+				{ status: error.status }
+			);
+		}
 		const status = 500;
 		return json(
 			{ ok: false, error: 'Internal error' },

@@ -56,6 +56,12 @@ export const POST: RequestHandler = async (event) => {
 		});
 	} catch (error) {
 		console.error('[SparkAgent] Failed to end session:', error);
+		if (error instanceof HarnessAuthorityError) {
+			return json(
+				{ success: false, code: error.code, error: error.message, verdict: error.verdict },
+				{ status: error.status }
+			);
+		}
 		return json(
 			{
 				success: false,
