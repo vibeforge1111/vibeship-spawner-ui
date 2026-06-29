@@ -24,18 +24,6 @@ import { parseJsonOrFallback } from '$lib/utils/safe-json';
 
 import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
 import { join } from 'path';
-import
-{
-existsSync
-}
-from
-'fs';
-import
-{
-relayMissionControlEvent
-}
-from
-'$lib/server/mission-control-relay';
 
 
 const EVENTS_AUTH_COOKIE = 'spawner_events_api_key';

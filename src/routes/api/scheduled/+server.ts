@@ -11,12 +11,6 @@ import {
 } from '$lib/server/scheduler';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { HarnessAuthorityError } from '$lib/server/harness-authority';
-import
-{
-json
-}
-from
-'@sveltejs/kit';
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
