@@ -22,6 +22,14 @@ import { extractTraceRef } from '$lib/server/trace-ref';
 import { requireControlAuth } from '$lib/server/mcp-auth';
 import { logger } from '$lib/utils/logger';
 import { parseJsonOrThrow } from '$lib/utils/safe-json';
+import
+{
+readFile,
+writeFile,
+mkdir
+}
+from
+'fs/promises';
 
 const log = logger.scope('PRDBridge');
 
