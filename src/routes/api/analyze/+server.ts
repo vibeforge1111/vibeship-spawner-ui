@@ -10,9 +10,9 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import skillIndex from '$lib/data/skill-index-ultra.json';
 import { HarnessAuthorityError, assertNativeGovernorHarnessAuthority, resolveExecutionAuthority } from '$lib/server/harness-authority';
-import { requireControlAuth } from '$lib/server/mcp-auth';
 import { ClaudeApiAnalysisSchema, safeJsonParse } from '$lib/types/schemas';
 import { logger } from '$lib/utils/logger';
+import { requireControlAuth } from '$lib/server/mcp-auth';
 
 interface AnalysisRequest {
 	goal: string;
@@ -100,19 +100,17 @@ function formatSkillsForPrompt(): string {
 }
 
 export const POST: RequestHandler = async (event) => {
-	const unauthorized = requireControlAuth(event, {
-		surface: 'Analyze',
+	const authError = requireControlAuth(event, {
+		surface: 'AnalyzeGoal',
 		apiKeyEnvVar: 'EVENTS_API_KEY',
 		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyQueryParam: 'apiKey',
 		apiKeyCookieName: 'spawner_events_api_key',
-		allowLoopbackWithoutKey: false,
 		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
 	});
-	if (unauthorized) return unauthorized;
-
-	const { request } = event;
+	if (authError) return authError;
 	try {
-		const body = await request.json().catch(() => null) as AnalysisRequest | null;
+		const body = await event.request.json().catch(() => null) as AnalysisRequest | null;
 		if (!body || typeof body !== 'object' || Array.isArray(body)) {
 			return json({ error: 'Malformed JSON body' }, { status: 400 });
 		}

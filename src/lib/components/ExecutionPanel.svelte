@@ -137,6 +137,11 @@
 	let defaultsLoaded = $state(false);
 	const defaultMultiLLMOptions = createDefaultMultiLLMOptions();
 	const MULTI_LLM_KEYS_STORAGE = 'spawner-multi-llm-api-keys';
+	/**
+	 * SECURITY NOTE: API keys are stored in plaintext localStorage.
+	 * This is a known limitation — keys are visible to any JavaScript running on the same origin.
+	 * TODO: Migrate to server-side key storage with encrypted at-rest persistence.
+	 */
 	let multiLLMEnabled = $state(defaultMultiLLMOptions.enabled);
 	let multiLLMStrategy = $state<MultiLLMStrategy>(defaultMultiLLMOptions.strategy);
 	let multiLLMPrimaryProviderId = $state(defaultMultiLLMOptions.primaryProviderId || 'claude');
