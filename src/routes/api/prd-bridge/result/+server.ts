@@ -104,17 +104,15 @@ function summarizeStoredResult(requestId: string, result: Record<string, unknown
 		}
 	};
 }
-
 /**
  * POST - Store an analysis result
  */
-export const POST: RequestHandler = async ({ request }) => {
-	const authError = await requireControlAuth(request);
-	if (authError) return authError;
+export const POST: RequestHandler = async (event) => {
+	const { openRead } = resultReadAuthPayload(event);
+	if (openRead) return openRead;
 
 	try {
-		const { request } = event;
-		const { requestId, result } = await request.json();
+		const { requestId, result } = await event.request.json();
 
 		if (!requestId || !result || typeof requestId !== 'string') {
 			return json({ error: 'requestId and result are required' }, { status: 400 });
@@ -221,13 +219,12 @@ export const POST: RequestHandler = async ({ request }) => {
 /**
  * GET - Retrieve an analysis result by requestId
  */
-export const GET: RequestHandler = async ({ request, url }) => {
-	const authError = await requireControlAuth(request);
-	if (authError) return authError;
+export const GET: RequestHandler = async (event) => {
+	const { openRead, hasControlAuth } = resultReadAuthPayload(event);
+	if (openRead) return openRead;
 
 	try {
-		const { url } = event;
-		const requestId = url.searchParams.get('requestId');
+		const requestId = event.url.searchParams.get('requestId');
 
 		if (!requestId) {
 			return json({ error: 'requestId is required' }, { status: 400 });
