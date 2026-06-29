@@ -37,8 +37,8 @@ function getPrdBridgePaths() {
 /**
  * GET - Check if there's a pending PRD analysis request
  */
-export const GET: RequestHandler = async ({ request }) => {
-	const authError = await requireControlAuth(request);
+export const GET: RequestHandler = async (event) => {
+	const authError = await requireControlAuth(event, PRD_BRIDGE_PENDING_AUTH);
 	if (authError) return authError;
 
 	try {
@@ -111,8 +111,8 @@ export const GET: RequestHandler = async ({ request }) => {
 /**
  * DELETE - Clear the pending request (mark as processed)
  */
-export const DELETE: RequestHandler = async ({ request }) => {
-	const authError = await requireControlAuth(request);
+export const DELETE: RequestHandler = async (event) => {
+	const authError = await requireControlAuth(event, PRD_BRIDGE_PENDING_AUTH);
 	if (authError) return authError;
 
 	try {
