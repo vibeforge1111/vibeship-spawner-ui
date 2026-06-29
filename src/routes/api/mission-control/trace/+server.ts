@@ -3,6 +3,12 @@ import type { RequestHandler } from './$types';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { buildMissionControlTrace, type MissionControlTrace } from '$lib/server/mission-control-trace';
+import
+{
+buildMissionControlTrace
+}
+from
+'$lib/server/mission-control-trace';
 
 function traceReadAuthPayload(event: Parameters<typeof requireControlAuth>[0]) {
 	const openRead = requireControlAuth(event, {

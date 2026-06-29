@@ -19,6 +19,12 @@ import { spawnerStateDir } from '$lib/server/spawner-state';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { stripAuthorityResidue } from '$lib/server/authority-residue';
+import
+{
+json
+}
+from
+'@sveltejs/kit';
 
 const log = logger.scope('PipelineLoader');
 
