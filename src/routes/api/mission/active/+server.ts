@@ -12,13 +12,26 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { readFile, writeFile, mkdir, unlink } from 'fs/promises';
-import { requireControlAuth } from '$lib/server/mcp-auth';
 import { existsSync } from 'fs';
 import path from 'path';
 import type { MultiLLMExecutionPack } from '$lib/services/multi-llm-orchestrator';
 import { requireControlAuth } from '$lib/server/mcp-auth';
 import { spawnerStateDir } from '$lib/server/spawner-state';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
+
+function requireActiveMissionAuth(
+	event: Parameters<typeof requireControlAuth>[0],
+	allowLoopbackWithoutKey: boolean
+): Response | null {
+	return requireControlAuth(event, {
+		surface: 'ActiveMission',
+		apiKeyEnvVar: 'EVENTS_API_KEY',
+		fallbackApiKeyEnvVar: 'MCP_API_KEY',
+		apiKeyCookieName: 'spawner_events_api_key',
+		allowLoopbackWithoutKey,
+		allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+	});
+}
 
 const ACTIVE_MISSION_FILE = 'active-mission.json';
 const TERMINAL_MISSION_EVENTS = new Set(['mission_completed', 'mission_failed', 'mission_paused']);
@@ -145,8 +158,9 @@ function activeMissionMetadata(state: ActiveMissionState, isStale: boolean, minu
  * Returns the active mission state if one exists
  */
 export const GET: RequestHandler = async (event) => {
-	const unauthorized = requireControlAuth(event, { surface: 'MissionActiveAPI', apiKeyEnvVar: 'MCP_API_KEY' });
+	const unauthorized = requireActiveMissionAuth(event, true);
 	if (unauthorized) return unauthorized;
+	const canReadRecoveryPayload = requireActiveMissionAuth(event, false) === null;
 	const { url } = event;
 
 	try {
