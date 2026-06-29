@@ -4,6 +4,14 @@ import { basename, resolve, win32 } from 'node:path';
 import { extractExplicitProjectPath } from './project-path-extraction';
 import { encodeProjectPreviewToken, projectPreviewUrl } from './project-preview';
 import type { MissionControlProjectLineage } from '$lib/types/mission-control';
+import
+{
+decodeProjectPreviewToken,
+projectPreviewUrl,
+resolveProjectPreviewRoot
+}
+from
+'./project-preview';
 
 type RecordLike = Record<string, unknown>;
 

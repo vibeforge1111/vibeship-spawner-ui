@@ -17,6 +17,13 @@ import {
 	type HarnessAuthorityVerdict
 } from './harness-authority';
 import { writeFileAtomic } from './atomic-write';
+import
+{
+readFile,
+writeFile
+}
+from
+'node:fs/promises';
 
 export type MissionControlAction = 'pause' | 'resume' | 'kill' | 'status';
 
