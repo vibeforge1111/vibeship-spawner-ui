@@ -74,11 +74,9 @@ function isCorsOriginAllowed(origin: string): boolean {
 	return eventsAllowedOrigins().includes(origin);
 }
 
-const ALLOWED_ORIGINS = ['http://localhost:5173', 'http://localhost:3000']; // add production origins
-
 function corsHeaders(request: Request): Record<string, string> {
 	const origin = request.headers.get('origin');
-	if (!origin || !ALLOWED_ORIGINS.includes(origin)) return {};
+	if (!origin || !isCorsOriginAllowed(origin)) return {};
 	return {
 		'Access-Control-Allow-Origin': origin,
 		'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
