@@ -43,18 +43,6 @@ import {
 	type PersistedMissionState
 } from './persistence';
 import {
-import
-{
-syncClient,
-broadcastMissionEvent,
-broadcastTaskEvent,
-broadcastExecutionControl,
-isConnected,
-type
-SyncEvent
-}
-from
-'./sync-client';
 	calculateGranularMissionProgress,
 	calculateTaskCompletionProgress,
 	distributeProviderProgressAcrossTasks,
