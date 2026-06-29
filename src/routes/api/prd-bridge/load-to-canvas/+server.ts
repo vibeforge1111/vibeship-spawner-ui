@@ -25,6 +25,15 @@ import {
 } from '$lib/server/harness-authority';
 import { stripAuthorityResidue } from '$lib/server/authority-residue';
 import { requireControlAuth } from '$lib/server/mcp-auth';
+
+const CANVAS_LOAD_AUTH = {
+	surface: 'PRDBridgeLoadToCanvas',
+	apiKeyEnvVar: 'EVENTS_API_KEY',
+	fallbackApiKeyEnvVar: 'MCP_API_KEY',
+	apiKeyQueryParam: 'apiKey',
+	apiKeyCookieName: 'spawner_events_api_key',
+	allowedOriginsEnvVar: 'EVENTS_ALLOWED_ORIGINS'
+} as const;
 import { parseJsonOrThrow } from '$lib/utils/safe-json';
 
 function getSpawnerDir(): string {
@@ -264,8 +273,8 @@ function workflowHandoffFromDispatch(input: {
 	};
 }
 
-export const POST: RequestHandler = async ({ request }) => {
-	const authError = await requireControlAuth(request);
+export const POST: RequestHandler = async (event) => {
+	const authError = requireControlAuth(event, CANVAS_LOAD_AUTH);
 	if (authError) return authError;
 
 	try {
