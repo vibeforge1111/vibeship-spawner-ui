@@ -11,7 +11,6 @@
 
 import { json, type RequestEvent } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireControlAuth } from '$lib/server/mcp-auth';
 import { writeFile, readFile, unlink, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
