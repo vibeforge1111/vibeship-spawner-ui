@@ -55,24 +55,6 @@ import {
 } from '$lib/server/harness-authority';
 import { recoverOverduePrdAutoAnalysisFromPending } from '$lib/server/prd-auto-analysis-timeout';
 import { resolveSparkRunProjectPath } from '$lib/server/spark-run-workspace';
-import
-{
-existsSync
-}
-from
-'fs';
-import
-{
-join
-}
-from
-'path';
-import
-{
-projectStoredPrdAnalysisResultForTier
-}
-from
-'$lib/server/prd-analysis-result-schema';
 
 function getPrdBridgePaths() {
 	const spawnerDir = spawnerStateDir();
