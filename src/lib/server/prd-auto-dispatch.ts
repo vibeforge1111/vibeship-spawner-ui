@@ -29,6 +29,12 @@ import {
 	type HarnessAuthorityVerdict
 } from '$lib/server/harness-authority';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import
+{
+extractExplicitProjectPath
+}
+from
+'$lib/server/project-path-extraction';
 
 interface PrdAutoSkill {
 	id?: string;
