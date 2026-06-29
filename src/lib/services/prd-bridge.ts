@@ -20,6 +20,12 @@ import { browser } from '$app/environment';
 import { writable, get } from 'svelte/store';
 import type { BridgeEvent } from './event-bridge';
 import type { Skill } from '$lib/stores/skills.svelte';
+import
+{
+getEventsAuthHeaders
+}
+from
+'$lib/services/events-auth-client';
 
 const PRD_BRIDGE_TIMEOUT_MS = 30 * 60 * 1000;
 
