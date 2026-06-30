@@ -5,12 +5,14 @@ import { randomBytes } from 'node:crypto';
 import { Cron } from 'croner';
 import { env as privateEnv } from '$env/dynamic/private';
 import { spawnerStateDir } from './spawner-state';
+import { resolveSparkRunProjectPath } from './spark-run-workspace';
 import {
   assertNativeGovernorHarnessAuthority,
   resolveExecutionAuthority,
   type HarnessAuthorityVerdict
 } from './harness-authority';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
+import { parseJsonResponse, responseTextSnippet } from '$lib/services/http-response';
 
 function _envVar(name: string): string | undefined {
   const v = (privateEnv as Record<string, string | undefined>)[name];
