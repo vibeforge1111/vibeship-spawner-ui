@@ -260,9 +260,13 @@ export const POST: RequestHandler = async (event) => {
 		eventBridge.emit(missionCreatedEvent);
 		void relayMissionControlEvent(missionCreatedEvent);
 
-		const dispatchBinding = {
-			requestId: relayAuthorityRequestId(relay).requestId ?? executionPack.missionId
-		};
+		const dispatchBinding = relayAuthorityRequestId(relay);
+		if (dispatchBinding.error) {
+			return json(
+				{ success: false, error: dispatchBinding.error, code: 'dispatch_authority_unbound' },
+				{ status: 409 }
+			);
+		}
 		const executionAuthority = resolveExecutionAuthority(
 			body?.executionAuthority,
 			body?.execution_authority
@@ -271,7 +275,8 @@ export const POST: RequestHandler = async (event) => {
 			authority: executionAuthority,
 			toolName: 'spawner.dispatch',
 			ownerSystem: 'spawner-ui',
-			mutationClass: 'launches_mission'
+			mutationClass: 'launches_mission',
+			requestId: dispatchBinding.requestId
 		});
 
 		const result = await providerRuntime.dispatch({
