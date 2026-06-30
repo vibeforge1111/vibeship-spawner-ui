@@ -8,8 +8,8 @@ import { logger } from '$lib/utils/logger';
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
-import { basename, dirname, join, resolve } from 'path';
+import { writeFile, mkdir, appendFile, readFile, rename } from 'fs/promises';
+import { join, resolve, dirname, basename } from 'path';
 import { existsSync, realpathSync } from 'fs';
 import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
@@ -378,24 +378,11 @@ async function updatePendingRequestStatus(
 					}
 				: {})
 		};
-		const serialized = JSON.stringify(next, null, 2);
-
-		// RequestId-scoped record is the source of truth; the singleton file is
-		// only refreshed while it still points at this request (back-compat).
-		const scopedFile = pendingRequestFileForRequest(spawnerDir, requestId);
-		if (existsSync(scopedFile)) {
-			await writeFile(scopedFile, serialized, 'utf-8');
-		}
-		if (existsSync(pendingRequestFile)) {
-			const singleton = parseJsonOrFallback<Record<string, unknown>>(
-				await readFile(pendingRequestFile, 'utf-8'),
-				{},
-				'prd-bridge-write-state'
-			);
-			if (singleton.requestId === requestId) {
-				await writeFileAtomic(pendingRequestFile, serialized);
-			}
-		}
+		// Atomic write: write to a temp file then rename to prevent TOCTOU
+		// races where concurrent PRD events overwrite each other's status.
+		const tempFile = `${pendingRequestFile}.tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+		await writeFile(tempFile, JSON.stringify(next, null, 2), 'utf-8');
+		await rename(tempFile, pendingRequestFile);
 	} catch {
 		// Keep analysis flow alive even if status updates fail.
 	}
