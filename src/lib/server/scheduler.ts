@@ -233,30 +233,8 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
   if (record.action === 'mission') {
     const goal = String(record.payload.goal ?? '');
     if (!goal) return { ok: false, summary: 'mission has no goal' };
-    const requestId = `sched-${record.id}-${Date.now()}`;
-    const baseUrl = (_envVar('SPAWNER_UI_URL') || 'http://127.0.0.1:3333').replace(/\/$/, '');
-    const requestedProjectPath =
-      typeof record.payload.projectPath === 'string' ? record.payload.projectPath : undefined;
-    const res = await fetch(`${baseUrl}/api/spark/run`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        goal,
-        chatId: String(record.chatId || 'scheduler'),
-        userId: 'scheduler',
-        requestId,
-        projectPath: resolveSparkRunProjectPath(requestedProjectPath),
-      }),
-      signal: AbortSignal.timeout(30000),
-    });
-    if (!res.ok) {
-      const detail = redactSensitiveSnippet(await responseTextSnippet(res, 200));
-      return {
-        ok: false,
-        summary: `spark/run HTTP ${res.status}${detail ? `: ${detail}` : ''}`,
-      };
-    }
-    const body = await parseJsonResponse<{ success?: boolean; missionId?: string; error?: string }>(res, {});
+    // Scheduled mission fires require fresh Governor authority at fire time.
+    // Stored schedule authority is evidence only — do not call spark/run.
     return {
       ok: false,
       summary: 'scheduled mission fire requires fresh Governor authority; stored schedule authority is evidence only'
