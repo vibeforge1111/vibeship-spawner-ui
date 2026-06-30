@@ -255,11 +255,19 @@ async function _relayToTelegram(record: ScheduleRecord, result: { ok: boolean; s
   }
   const text = `[sched ${record.id}] ${record.action} ${result.ok ? 'ok' : 'fail'}\n${result.summary}`;
   try {
-    const resp = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: record.chatId, text }),
-    });
+    const tgController = new AbortController();
+    const tgTimeoutId = setTimeout(() => tgController.abort(), 15_000);
+    let resp: Response;
+    try {
+      resp = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: record.chatId, text }),
+        signal: tgController.signal,
+      });
+    } finally {
+      clearTimeout(tgTimeoutId);
+    }
     const bodyText = await resp.text();
     if (resp.ok) {
       logger.info('[scheduler] relay', record.id, 'status', resp.status, 'body', bodyText.slice(0, 200));
