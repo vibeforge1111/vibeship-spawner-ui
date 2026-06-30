@@ -22,6 +22,7 @@ import { extractTraceRef } from '$lib/server/trace-ref';
 import { logger } from '$lib/utils/logger';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
 
+import { existsSync } from 'fs';
 import { writeFile, mkdir, appendFile, readFile } from 'fs/promises';
 import { join } from 'path';
 
