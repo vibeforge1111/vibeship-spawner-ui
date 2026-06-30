@@ -1,7 +1,10 @@
 import { logger } from '$lib/utils/logger';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { homedir } from 'node:os';
 import { randomBytes } from 'node:crypto';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { Cron } from 'croner';
 import { env as privateEnv } from '$env/dynamic/private';
 import { spawnerStateDir } from './spawner-state';
@@ -11,6 +14,8 @@ import {
   type HarnessAuthorityVerdict
 } from './harness-authority';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
+
+const execFileAsync = promisify(execFile);
 
 function _envVar(name: string): string | undefined {
   const v = (privateEnv as Record<string, string | undefined>)[name];
@@ -235,6 +240,7 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
   if (record.action === 'loop') {
     const chipKey = String(record.payload.chipKey ?? '');
     if (!chipKey) return { ok: false, summary: 'loop has no chipKey' };
+    const rounds = Number(record.payload.rounds ?? 1);
     const builderRepo =
       process.env.SPARK_BUILDER_REPO || path.resolve(process.cwd(), '..', 'spark-intelligence-builder');
     const home =
