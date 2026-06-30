@@ -15,7 +15,12 @@
 	} from '$lib/stores/missions.svelte';
 	import { mcpState } from '$lib/stores/mcp.svelte';
 	import type { Mission, MissionLog, MissionTask, MissionAgent } from '$lib/services/mcp-client';
-	import type { MissionControlCompletionEvidence } from '$lib/types/mission-control';
+	import type {
+		MissionControlCompletionEvidence,
+		MissionControlBoardEntry,
+		MissionControlProjectLineage,
+		MissionControlProviderResultSummary
+	} from '$lib/types/mission-control';
 	import { isMissionControlTerminalStatus } from '$lib/types/mission-control';
 	import {
 		completionEvidenceTooltipForDisplay,
