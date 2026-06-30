@@ -1,3 +1,4 @@
+import { sanitizedChildEnv } from "./sanitized-env";
 /**
  * claude-auto-analysis.ts — Run PRD analysis via the local Claude CLI.
  *
@@ -114,7 +115,7 @@ function runClaude(prompt: string): Promise<{ stdout: string; stderr: string; co
 		const claudeBinary = resolveCliBinary('claude') || 'claude';
 		const child = spawnHidden(claudeBinary, ['--print'], {
 			stdio: ['pipe', 'pipe', 'pipe'],
-			env: { ...process.env }
+			env: sanitizedChildEnv()
 		});
 
 		let stdout = '';
