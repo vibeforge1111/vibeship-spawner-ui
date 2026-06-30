@@ -5,12 +5,14 @@ import { randomBytes } from 'node:crypto';
 import { Cron } from 'croner';
 import { env as privateEnv } from '$env/dynamic/private';
 import { spawnerStateDir } from './spawner-state';
+import { resolveSparkRunProjectPath } from './spark-run-workspace';
 import {
   assertNativeGovernorHarnessAuthority,
   resolveExecutionAuthority,
   type HarnessAuthorityVerdict
 } from './harness-authority';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
+import { parseJsonResponse, responseTextSnippet } from '$lib/services/http-response';
 
 function _envVar(name: string): string | undefined {
   const v = (privateEnv as Record<string, string | undefined>)[name];
@@ -28,6 +30,10 @@ function errorCode(error: unknown): string | null {
   return error && typeof error === 'object' && 'code' in error
     ? String((error as { code?: unknown }).code)
     : null;
+}
+
+function redactSensitiveSnippet(s: string): string {
+  return s.replace(/password|token|secret|key/gi, '[REDACTED]').slice(0, 200);
 }
 
 const TICK_MS = 30_000;
@@ -227,6 +233,8 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
   if (record.action === 'mission') {
     const goal = String(record.payload.goal ?? '');
     if (!goal) return { ok: false, summary: 'mission has no goal' };
+    // Scheduled mission fires require fresh Governor authority at fire time.
+    // Stored schedule authority is evidence only — do not call spark/run.
     return {
       ok: false,
       summary: 'scheduled mission fire requires fresh Governor authority; stored schedule authority is evidence only'
@@ -259,6 +267,7 @@ async function _relayToTelegram(record: ScheduleRecord, result: { ok: boolean; s
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: record.chatId, text }),
+      signal: AbortSignal.timeout(15000),
     });
     const bodyText = await resp.text();
     if (resp.ok) {
