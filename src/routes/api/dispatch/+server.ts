@@ -271,7 +271,7 @@ export const POST: RequestHandler = async (event) => {
 			authority: executionAuthority,
 			toolName: 'spawner.dispatch',
 			ownerSystem: 'spawner-ui',
-			mutationClass: 'dispatch_task'
+			mutationClass: 'launches_mission'
 		});
 
 		const result = await providerRuntime.dispatch({
